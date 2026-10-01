@@ -1,11 +1,11 @@
 name: Build
 
-# Builds the Windows app on every push / PR to main (compile check only) and
-# publishes the installer on tags like `v0.1.0`.
+# Builds the Windows app on every push / PR to main and on development branches
+# (the installer is kept as a run artifact) and publishes it on tags like `v0.1.0`.
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'claude/**']
     tags:
       - 'v*'
   pull_request:
