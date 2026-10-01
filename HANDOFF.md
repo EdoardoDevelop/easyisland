@@ -34,12 +34,13 @@ Coucou è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou). In
 
 ## 3. Primi passi sul tuo PC Windows
 
-1. Installa [Rust](https://rustup.rs), Node 20+ e Visual Studio Build Tools ("Desktop development with C++").
-2. `npm install`, poi `npm run tauri dev`. Mochi deve comparire in alto al centro dello schermo.
-3. Apri **Impostazioni… → Claude**, inserisci la tua API key Anthropic e prova la chat.
-4. Apri **Impostazioni… → Claude Code → Install hooks…**: controlla il diff e conferma. Poi lancia una sessione di Claude Code e verifica che le richieste di permesso arrivino sull'isola.
-5. `npm run pack`: l'installer finisce in `release/`.
-6. Fai un push su `main` (o apri una PR) e controlla che la workflow `Build` sia verde. È il primo test reale della build Rust dopo lo spostamento delle cartelle.
+1. Segui la sezione **Installazione** del `README.md`: strumenti con `winget`, `git clone`, `npm install`, `npm run pack`, poi esegui l'installer in `release\`.
+2. Dall'icona nell'area di notifica → **Impostazioni…**:
+   - **Claude Code → Installa hook…**: controlla il diff e conferma, poi lancia una sessione di Claude Code e verifica che le richieste di permesso arrivino sull'isola;
+   - **Chat con Claude**: prova la modalità "Abbonamento Claude" (serve Claude Code con il login fatto);
+   - **Posizione e aspetto**: scegli angolo e icona.
+3. Per lavorare sul codice: `npm run tauri dev` (l'app vera) o `npm run ui` (solo l'interfaccia nel browser).
+4. Fai un push su `main` (o apri una PR) e controlla che la workflow `Build` sia verde: è la prova che l'installer si compila anche su una macchina pulita.
 
 ## 4. Decisioni da prendere per personalizzarlo
 

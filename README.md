@@ -21,11 +21,110 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Installazione
 
-L'installer scaricabile è **temporaneamente non disponibile**. Microsoft Defender
-segnala per errore l'installer non firmato come malware (`Trojan:Win32/Wacatac.H!ml`,
-un falso positivo del machine learning). Finché l'installer non è firmato,
-[compilalo da te](#compilarlo-da-te): ci vogliono pochi minuti e si installa solo
-per l'utente corrente, senza richiesta di amministratore.
+Non c'è un installer da scaricare: Coucou si compila sul proprio PC, e alla fine
+si ottiene un normale installer `.exe`. Ci vogliono circa 15–20 minuti la prima
+volta (quasi tutti di download e compilazione), pochi minuti le volte successive.
+L'installazione è solo per l'utente corrente: nessuna richiesta di amministratore.
+
+### 1. Strumenti (solo la prima volta)
+
+Apri **PowerShell** e installa i quattro strumenti con `winget`, già presente in
+Windows 10/11:
+
+```powershell
+winget install --id Git.Git -e
+winget install --id OpenJS.NodeJS.LTS -e
+winget install --id Rustlang.Rustup -e
+winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+```
+
+| Strumento | A cosa serve |
+|---|---|
+| Git | scaricare il progetto |
+| Node.js (LTS, 20 o più recente) | compilare l'interfaccia |
+| Rust (rustup) | compilare l'app e il relay `coucou-hook.exe` |
+| Visual Studio Build Tools, carico "Sviluppo di applicazioni desktop con C++" | il linker e le librerie di Windows che usa Rust |
+
+L'ultimo comando scarica alcuni GB e può richiedere parecchi minuti. WebView2,
+che disegna l'interfaccia, è già incluso in Windows 10/11.
+
+**Chiudi e riapri PowerShell** al termine, così i nuovi comandi (`git`, `npm`,
+`cargo`) vengono trovati. Per controllare:
+
+```powershell
+git --version; node --version; cargo --version
+```
+
+### 2. Scarica il progetto
+
+```powershell
+cd $HOME
+git clone https://github.com/EdoardoDevelop/coucou.git
+cd coucou
+```
+
+> Se le modifiche più recenti sono ancora su un branch di sviluppo e non in
+> `main`, passa a quel branch: `git checkout <nome-del-branch>`.
+
+### 3. Compila l'installer
+
+```powershell
+npm install
+npm run pack
+```
+
+`npm run pack` compila il relay, l'interfaccia e l'app, e alla fine lascia due
+file nella cartella `release\`:
+
+```
+Coucou-Windows-X.Y.Z-setup.exe    l'installer con la versione
+Coucou-Windows-setup.exe          lo stesso file con il nome fisso
+```
+
+### 4. Installa
+
+```powershell
+start .\release\Coucou-Windows-setup.exe
+```
+
+L'installer non è firmato, quindi Windows SmartScreen mostra un avviso: clicca
+**Ulteriori informazioni → Esegui comunque**. Coucou si avvia e Mochi ti saluta;
+da lì in poi lo trovi nel menu Start e nell'area di notifica.
+
+Poi, dall'icona di Mochi nell'area di notifica → **Impostazioni…**:
+
+1. **Claude Code → Installa hook…** per vedere le sessioni nell'isola (vedi sotto).
+2. **Chat con Claude**: lascia "Abbonamento Claude" se usi Claude Code con il tuo
+   piano, oppure inserisci una chiave API.
+3. **Posizione e aspetto**: l'angolo e l'icona che preferisci.
+
+### Aggiornare
+
+```powershell
+cd $HOME\coucou
+git pull
+npm install
+npm run pack
+start .\release\Coucou-Windows-setup.exe
+```
+
+L'installer sostituisce la versione precedente; impostazioni e chiavi restano.
+
+### Disinstallare
+
+Prima, in **Impostazioni… → Claude Code**, clicca **Disinstalla hook…**: il
+disinstallatore volutamente non tocca il `settings.json` di Claude Code. Poi
+**Impostazioni di Windows → App → App installate → Coucou → Disinstalla**.
+
+### Se qualcosa va storto
+
+| Errore | Soluzione |
+|---|---|
+| `npm`, `cargo` o `git` "non riconosciuto" | chiudi e riapri PowerShell dopo l'installazione degli strumenti |
+| `linker 'link.exe' not found` | mancano i Visual Studio Build Tools con il carico C++: rilancia l'ultimo comando `winget` del passo 1 |
+| `error: toolchain 'stable-x86_64-pc-windows-msvc' is not installed` | `rustup default stable-msvc` |
+| l'installer viene bloccato da Defender | è il falso positivo descritto sopra: usa "Esegui comunque", oppure lancia direttamente `target\release\coucou.exe` |
+| Mochi non compare | guarda nell'area di notifica (la freccia ^ accanto all'orologio) e il log in `%LOCALAPPDATA%\Coucou\coucou.log` |
 
 ## Come si usa
 
@@ -122,18 +221,20 @@ configuri tu.
 
 ## Compilarlo da te
 
-Servono [Rust](https://rustup.rs), [Node 20+](https://nodejs.org) e gli
-**MSVC build tools** (Visual Studio Build Tools con "Sviluppo di applicazioni
-desktop con C++"). WebView2 è già incluso in Windows 10/11.
+Per chi lavora sul codice. Gli strumenti sono gli stessi del passo 1 di
+[Installazione](#installazione).
 
 ```powershell
 npm install
-npm run tauri dev      # build di sviluppo con ricaricamento automatico
+npm run tauri dev      # l'app vera, con ricaricamento automatico dell'interfaccia
+npm run ui             # solo l'interfaccia nel browser (non serve Rust)
+npm run build          # controllo dei tipi + build dell'interfaccia
 npm run pack           # crea l'installer e lo mette in release/
 ```
 
-`npm run dev` da solo serve il front end in un normale browser, che basta per
-lavorare all'aspetto dell'isola. Serve anche `dev/upload-preview.html`, che
+`npm run ui` serve il front end in un normale browser senza compilare nulla in
+Rust, che basta per lavorare all'aspetto dell'isola (vedi "Posizione e aspetto").
+Serve anche `dev/upload-preview.html`, che
 ripete in loop tutta la coreografia del rilascio di un file: è l'unica parte
 dell'interfaccia che altrimenti richiede un vero trascinamento da Esplora file.
 Nessuna delle due pagine finisce nell'app.
