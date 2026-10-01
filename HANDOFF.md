@@ -13,7 +13,7 @@ Coucou è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou). In
 - **CI:** `.github/workflows/build.yml` gira su `windows-latest` a ogni push/PR su `main` (solo verifica di compilazione) e pubblica l'installer sui tag `v*`, ma solo se `PUBLISH: 'true'`. Oggi è `'false'`, per via del falso positivo di Defender sull'installer non firmato.
 - **Aggiornati:** `README.md`, `CLAUDE.md` (regole per gli agenti, ora per Windows), `.gitignore`, i percorsi in `LICENSE-ASSETS.md`.
 - **Tradotto in italiano:** tutti i testi dell'interfaccia (isola, impostazioni, menu dell'area di notifica, etichette dei passi degli hook), i messaggi d'errore del backend, l'installer NSIS (italiano come lingua principale), README, CLAUDE.md, `docs/SPEC.md`, `docs/INTEGRATIONS.md`, i template delle issue e le note di release. Il prompt di sistema della chat chiede a Mochi di rispondere in italiano. Restano in inglese di proposito i commenti e gli identificatori nel codice, `LICENSE` e `LICENSE-ASSETS.md` (testi legali dell'autore originale) e il sito in `docs/*.html`. Le immagini in `screenshots/` mostrano ancora i testi in inglese.
-- **Verificato qui (Linux):** `tsc --noEmit` e `vite build` passano, i 28 WAV finiscono in `dist/sounds`, il workspace Cargo si risolve. **Non verificato:** la build Rust/Tauri. Gira solo su Windows, quindi il primo vero test sarà la CI o il tuo PC.
+- **Verificato qui (Linux):** `tsc --noEmit` e `vite build` passano, i 28 WAV finiscono in `dist/sounds`, e l'intero codice Rust (app + relay) passa `cargo check --target x86_64-pc-windows-msvc` senza errori né avvisi. **Non verificato:** il link finale e l'installer, che si producono solo su Windows (CI o il tuo PC).
 
 ## 2. Mappa veloce
 
@@ -65,7 +65,83 @@ Coucou è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou). In
 - [ ] Firma del codice (certificato Authenticode o Azure Trusted Signing). Senza firma, Defender e SmartScreen segnalano l'installer.
 - [ ] Quando l'installer è firmato, metti `PUBLISH: 'true'` nella workflow e crea un tag `vX.Y.Z`. La versione deve coincidere in `package.json`, `Cargo.toml` e `tauri.conf.json` (la CI lo controlla).
 
-## 5. Regole da non rompere (sono anche in `CLAUDE.md`)
+## 5. Contesto d'uso
+
+- **Chi lo usa:** tecnico informatico / IT specialist che segue aziende clienti.
+- **Dove:** principalmente il **notebook di lavoro** (spesso solo lo schermo del portatile, a volte con monitor esterni, a batteria, su reti diverse: ufficio, clienti, casa). Ma deve servire anche **a casa, per uso personale**.
+- **Conseguenze per il progetto:**
+  - niente diritti di amministratore richiesti (l'installer è già per-utente);
+  - attenzione ai **dati dei clienti**: niente telemetria, chiavi solo in Gestione credenziali, e in prospettiva la possibilità di escludere la chat AI in certi contesti;
+  - leggerezza a batteria (CPU ~0 % a riposo resta una regola);
+  - la separazione **lavoro / personale** va prevista fin dall'inizio (vedi "Profili" più sotto).
+
+## 6. Roadmap decisa
+
+In ordine di implementazione consigliato: 6.1 → 6.2 → 6.3 → 6.4. Ogni punto dice cosa fare, dove e quando è finito.
+
+### 6.1 Fondamenta per la personalizzazione
+
+Serve prima degli altri punti, perché azioni e widget vivono nella configurazione.
+
+- **Configurazione in un file leggibile:** oggi le preferenze stanno in `%APPDATA%\Coucou\settings.json` (`src-tauri/src/settings.rs`). Aggiungere **Esporta / Importa** nelle Impostazioni (file `.json`, **senza segreti**: le chiavi restano in Gestione credenziali e vanno reinserite), per backup e per avere lo stesso Mochi su notebook e PC di casa.
+- **Versione dello schema** (`schemaVersion`) nel file, con migrazione dei campi vecchi: le prossime funzioni aggiungeranno liste (azioni, widget).
+- **Temi:** colore del corpo di Mochi (oggi fisso in `src/mochi/engine.ts`, `C.idle` e gradiente), colore e opacità dell'isola (`#island` in `src/style.css`, oggi `#000`), scelta del set di suoni o volume per categoria (avvisi / interazioni / emote).
+- **Profili** (es. *Lavoro*, *Casa*, *Concentrazione*): ogni profilo ha le sue integrazioni attive, azioni, widget, posizione, suoni e regole di notifica. Cambio da menu dell'area di notifica e, in automatico, per **rete Wi-Fi/dominio** (ufficio vs casa) e per **orario**. In *Concentrazione* passano solo i permessi di Claude Code.
+- **Fatto quando:** esporto da un PC, importo sull'altro e ritrovo tutto tranne le chiavi; cambio profilo e isola, integrazioni e suoni cambiano senza riavvio.
+
+### 6.2 Azioni rapide personalizzate
+
+Pulsanti definiti dall'utente, mostrati in una nuova scheda dell'isola (accanto a Panoramica / Chiedi / Rilascia) e richiamabili da tastiera.
+
+- **Tipi di azione:**
+  - `url`: apre un link (portale cliente, gestionale, documentazione);
+  - `app`: avvia un programma con argomenti (RDP, AnyDesk, PowerShell, Esplora file su una cartella);
+  - `script`: esegue uno script PowerShell/cmd **solo dopo un clic esplicito**, mostrando l'output nell'isola (con timeout e pulsante Interrompi);
+  - `prompt`: manda a Claude un **prompt salvato** applicato al testo negli appunti o al file rilasciato. Esempi da tecnico IT: "Spiega questo errore e dammi i passi per risolverlo", "Scrivi uno script PowerShell che…", "Analizza questo log", "Scrivi il rapportino d'intervento da questi appunti", "Rispondi a questa mail del cliente in modo professionale".
+- **Scorciatoia globale** configurabile (es. `Win+Shift+M`) per aprire Mochi su chat o azioni, e una seconda per "chiedi a Mochi sul testo copiato". Rust: `tauri-plugin-global-shortcut` (valutare se accettabile come dipendenza) oppure `RegisterHotKey` dalla crate `windows` già presente.
+- **Configurazione:** lista in Settings (`actions: [{ id, name, icon, color, kind, target, args, prompt, confirm }]`) con editor nelle Impostazioni, riordinabile, legata al profilo.
+- **Sicurezza:** niente esecuzione automatica; gli script mostrano il comando prima di partire se `confirm: true` (predefinito); nessun segreto nella configurazione (eventuali chiavi tramite riferimento alla Gestione credenziali).
+- **Fatto quando:** creo un'azione "Spiega errore", copio un messaggio d'errore, premo la scorciatoia e ricevo la spiegazione nell'isola.
+
+### 6.3 Mochi che usa i tuoi connettori (MCP)
+
+Oggi `src-tauri/src/claude_cli.rs` lancia `claude -p` con `--strict-mcp-config` e senza `--mcp-config`, quindi **nessun** server MCP, e strumenti limitati a WebSearch/WebFetch/Read.
+
+- **Impostazione "Connettori in chat":** elenco dei server MCP configurati in Claude Code (leggibile con `claude mcp list`) con un interruttore per ciascuno; Coucou genera un file `--mcp-config` con solo quelli scelti, e aggiunge i relativi strumenti ad `--allowedTools` (es. `mcp__<nome-server>__*`).
+- **Esempi d'uso:** "cosa ho in calendario oggi?", "aggiungi un promemoria per venerdì", "cerca nei documenti del cliente X". Qualunque operazione che **modifica** dati (crea, aggiorna, invia) va **proposta prima** e confermata con un clic nell'isola, mai eseguita da sola.
+- **Widget "Oggi"** opzionale: attività e promemoria del giorno da un connettore scelto, nella panoramica.
+- **Per profilo:** nel profilo *Lavoro* si possono escludere i connettori personali e viceversa.
+- **Fatto quando:** chiedo "cosa ho in programma oggi?" e Mochi risponde usando un connettore abilitato; chiedo di aggiungere un promemoria e mi chiede conferma prima di scriverlo.
+
+### 6.4 Widget configurabili (integrazioni senza codice)
+
+Un tipo di widget generico al posto delle integrazioni scritte a mano (le 7 attuali in `src-tauri/src/integrations.rs` diventano "modelli pronti").
+
+- **Definizione:** `{ id, name, color, url, method, headers (con riferimenti a chiavi in Gestione credenziali), every (secondi), fields: [{ label, path (JSONPath semplice) }], alert: { when: "path op valore", level } }`.
+- **Sonde integrate**, utili da tecnico IT, che non richiedono un'API:
+  - `ping` / `porta TCP` di un host (server del cliente, NAS, firewall);
+  - `HTTP` con codice atteso e tempo di risposta;
+  - **scadenza certificato TLS** di un dominio (avviso a 30/7 giorni);
+  - stato di un servizio Windows locale.
+- **Visualizzazione:** pillola con mini-Mochi colorato (come oggi), scheda di dettaglio con i campi, badge e suono quando scatta un avviso.
+- **Prestazioni:** tutte le richieste nel backend Rust, nessun polling con l'app in pausa, intervalli più lunghi a batteria.
+- **Fatto quando:** aggiungo dalle Impostazioni un widget che controlla `https://cliente.it` e il certificato, senza ricompilare, e Mochi mi avvisa se il sito non risponde.
+
+## 7. Idee da valutare (non ancora decise)
+
+Pensate per il lavoro da tecnico IT sul notebook, ma utili anche a casa.
+
+- **Notifiche da qualsiasi script:** comando `coucou notify --titolo … --stato ok|errore --apri <url>` (riusa la named pipe del relay). Qualunque script, attività pianificata o n8n può mandare un avviso a Mochi.
+- **Rubrica clienti:** per ogni cliente collegamenti RDP/AnyDesk/TeamViewer, portali, credenziali (solo riferimenti alla Gestione credenziali), note e azioni rapide dedicate. Si apre cercando il nome dall'isola.
+- **Timer d'intervento:** avvio/stop per cliente dall'isola, riepilogo a fine giornata, rapportino generato da Claude ed esportato (file o connettore scelto).
+- **Info rapide della macchina:** IP locale e pubblico, rete/VPN, batteria, spazio disco, nome PC. Con un clic si copia tutto per un ticket.
+- **Screenshot → chiedi a Mochi:** scorciatoia che cattura una zona dello schermo (es. una finestra d'errore) e la manda alla chat.
+- **Libreria di comandi:** comandi PowerShell/cmd usati spesso (es. `gpupdate /force`, reset dello spooler, `sfc /scannow`, diagnostica di rete) da copiare o eseguire con conferma.
+- **Modalità "davanti al cliente":** con un clic (o in automatico quando parte una condivisione schermo o una sessione di assistenza remota) Mochi sparisce e nessuna notifica personale compare.
+- **Ticketing:** widget per il conteggio dei ticket aperti/in scadenza dal sistema di helpdesk usato (via widget configurabile 6.4, se ha un'API).
+- **Casa:** promemoria personali, eventuale Home Assistant, meteo.
+
+## 8. Regole da non rompere (sono anche in `CLAUDE.md`)
 
 - L'hook non deve **mai** bloccare Claude Code: timeout breve, poi esce con 0.
 - `settings.json` di Claude Code non si sovrascrive mai: backup datato, merge, diff, scrittura solo dopo conferma.
@@ -73,6 +149,6 @@ Coucou è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou). In
 - Nessuna approvazione di permessi e nessuna email senza un click esplicito.
 - CPU a ~0 % quando l'isola è nascosta.
 
-## 6. Note per riprendere con Claude Code
+## 9. Note per riprendere con Claude Code
 
-Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi facciamo la sezione 4 → Identità con nome X"_. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole.
+Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi implementiamo la 6.1 (fondamenta)"_ oppure _"facciamo la sezione 4 → Identità con nome X"_. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole.
