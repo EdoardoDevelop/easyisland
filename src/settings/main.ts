@@ -4,7 +4,7 @@
 
 import "./settings.css";
 import { Bridge, onEvent, type HookStatus } from "../core/bridge";
-import { DEFAULT_SETTINGS, type QuickAction, type Settings } from "../core/state";
+import { DEFAULT_SETTINGS, type QuickAction, type Settings, type WidgetDef } from "../core/state";
 import { h, clear } from "../views/dom";
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
@@ -1027,6 +1027,209 @@ function connectorsSection(): HTMLElement {
   );
 }
 
+// ── Widgets ───────────────────────────────────────────────────────────────────
+
+const WIDGET_KINDS: [WidgetDef["kind"], string][] = [
+  ["http", "Sito web (HTTP)"],
+  ["tls", "Certificato HTTPS"],
+  ["ping", "Ping"],
+  ["tcp", "Porta TCP"],
+  ["service", "Servizio Windows"],
+  ["json", "API JSON"],
+];
+
+function blankWidget(kind: WidgetDef["kind"], over: Partial<WidgetDef> = {}): WidgetDef {
+  return {
+    id: `w${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    name: WIDGET_KINDS.find(([k]) => k === kind)?.[1] ?? "Widget",
+    color: "#38bdf8", kind, every: 0, url: "", method: "GET", headers: [], fields: [],
+    alert: null, host: "", port: kind === "tls" ? 443 : 0, expectStatus: 0, warnDays: 30, service: "",
+    ...over,
+  };
+}
+
+const WIDGET_TEMPLATES: [string, () => WidgetDef][] = [
+  ["Sito cliente", () => blankWidget("http", { name: "Sito cliente", url: "https://", color: "#22c55e" })],
+  ["Certificato", () => blankWidget("tls", { name: "Certificato", color: "#f5a524" })],
+  ["Server (ping)", () => blankWidget("ping", { name: "Server", color: "#38bdf8" })],
+  ["Desktop remoto (3389)", () => blankWidget("tcp", { name: "RDP", port: 3389, color: "#8b5cf6" })],
+  ["Spooler di stampa", () => blankWidget("service", { name: "Stampa", service: "Spooler", color: "#8e939c" })],
+  ["API JSON", () => blankWidget("json", { name: "API", url: "https://", color: "#6366f1" })],
+];
+
+function widgetsSection(): HTMLElement {
+  const list = h("div", { style: "display:flex;flex-direction:column;gap:10px" });
+  const commit = () => void save();
+
+  function draw() {
+    clear(list);
+    settings.widgets.forEach((w, idx) => {
+      const input = (value: string | number, placeholder: string, apply: (v: string) => void, style = "flex:1 1 auto;min-width:0", type = "text") => {
+        const el = h("input", { type, value: String(value), placeholder, style, spellcheck: "false" }) as HTMLInputElement;
+        el.addEventListener("change", () => { apply(el.value); commit(); });
+        return el;
+      };
+      const row = (label: string, ...children: Node[]) => h("div", { class: "row" }, h("label", { text: label }), ...children);
+
+      const color = h("input", { type: "color", value: /^#[0-9a-f]{6}$/i.test(w.color) ? w.color : "#38bdf8" }) as HTMLInputElement;
+      color.addEventListener("change", () => { w.color = color.value; commit(); });
+      const kind = select<WidgetDef["kind"]>(WIDGET_KINDS, w.kind, (v) => {
+        w.kind = v;
+        if (v === "tls" && !w.port) w.port = 443;
+        commit();
+        draw();
+      });
+      const result = h("div", {});
+      const test = h("button", { class: "icon", text: "▶", title: "Prova ora" });
+      test.addEventListener("click", async () => {
+        clear(result);
+        result.append(h("div", { class: "hint", text: "Controllo in corso…" }));
+        try {
+          const r = await Bridge.widgetTest(w);
+          clear(result);
+          const cls = r.level === "ok" ? "notice ok" : r.level === "warn" ? "notice warn" : "notice err";
+          const detail = r.fields.map((f) => `${f.label}: ${f.value}`).join(" · ");
+          result.append(h("div", { class: cls, text: detail ? `${r.summary} — ${detail}` : r.summary }));
+        } catch (err) {
+          clear(result);
+          result.append(h("div", { class: "notice err", text: String(err).replace(/^Error:\s*/, "") }));
+        }
+      });
+      const del = h("button", {
+        class: "danger icon", text: "✕", title: "Elimina",
+        onclick: () => {
+          // Its secrets go with it.
+          for (const hd of w.headers) if (hd.secret) void Bridge.secretClear(`widget:${w.id}:${hd.name}`).catch(() => undefined);
+          settings.widgets.splice(idx, 1);
+          commit();
+          draw();
+        },
+      });
+
+      const card = h("div", { class: "qa-edit" },
+        h("div", { class: "row head" },
+          input(w.name, "Nome", (v) => { w.name = v.trim(); }),
+          color, kind, test, del,
+        ),
+      );
+
+      switch (w.kind) {
+        case "http":
+          card.append(
+            row("Indirizzo", input(w.url, "https://www.cliente.it", (v) => { w.url = v.trim(); })),
+            row("Stato atteso", input(w.expectStatus || "", "vuoto = qualsiasi 2xx/3xx", (v) => { w.expectStatus = Number(v) || 0; }, "width:200px", "number")),
+          );
+          break;
+        case "tls":
+          card.append(
+            row("Dominio", input(w.host, "www.cliente.it", (v) => { w.host = v.trim(); }),
+              input(w.port || 443, "443", (v) => { w.port = Number(v) || 443; }, "width:80px", "number")),
+            row("Avvisa da", input(w.warnDays || 30, "30", (v) => { w.warnDays = Number(v) || 30; }, "width:80px", "number"),
+              h("span", { class: "hint", text: "giorni prima della scadenza (in rosso sotto i 7)" })),
+          );
+          break;
+        case "ping":
+          card.append(row("Host", input(w.host, "nome o indirizzo IP, es. 192.168.1.10", (v) => { w.host = v.trim(); })));
+          break;
+        case "tcp":
+          card.append(row("Host e porta",
+            input(w.host, "server01.cliente.local", (v) => { w.host = v.trim(); }),
+            input(w.port || "", "3389", (v) => { w.port = Number(v) || 0; }, "width:90px", "number")));
+          break;
+        case "service":
+          card.append(row("Nome servizio", input(w.service, "es. Spooler, wuauserv", (v) => { w.service = v.trim(); })));
+          break;
+        case "json": {
+          card.append(
+            row("Indirizzo",
+              select<WidgetDef["method"]>([["GET", "GET"], ["POST", "POST"]], w.method, (v) => { w.method = v; commit(); }),
+              input(w.url, "https://api.servizio.it/stato", (v) => { w.url = v.trim(); })),
+          );
+          // Headers: a secret one goes to the Credential Manager, never here.
+          w.headers.forEach((hd, hi) => {
+            const key = `widget:${w.id}:${hd.name}`;
+            const value = h("input", {
+              type: hd.secret ? "password" : "text", value: hd.secret ? "" : hd.value,
+              placeholder: hd.secret ? "valore segreto (salvato in Gestione credenziali)" : "valore",
+              style: "flex:1 1 auto;min-width:0", spellcheck: "false",
+            }) as HTMLInputElement;
+            value.addEventListener("change", async () => {
+              if (hd.secret) {
+                try {
+                  await Bridge.secretSet(key, value.value);
+                  value.value = "";
+                  value.placeholder = "••••••••  (salvato)";
+                } catch {
+                  value.placeholder = "Nome intestazione non valido per un segreto";
+                }
+              } else {
+                hd.value = value.value;
+                commit();
+              }
+            });
+            card.append(row(hi === 0 ? "Intestazioni" : "",
+              input(hd.name, "es. Authorization", (v) => { hd.name = v.trim(); }, "width:160px"),
+              value,
+              h("span", { class: "hint", text: "segreto" }),
+              toggle(hd.secret, (v) => { hd.secret = v; if (v) hd.value = ""; commit(); draw(); }),
+              h("button", { class: "icon", text: "✕", title: "Rimuovi", onclick: () => { w.headers.splice(hi, 1); commit(); draw(); } }),
+            ));
+          });
+          w.fields.forEach((f, fi) => {
+            card.append(row(fi === 0 ? "Campi da mostrare" : "",
+              input(f.label, "Etichetta", (v) => { f.label = v; }, "width:160px"),
+              input(f.path, "percorso, es. data.tickets.open", (v) => { f.path = v.trim(); }),
+              h("button", { class: "icon", text: "✕", title: "Rimuovi", onclick: () => { w.fields.splice(fi, 1); commit(); draw(); } }),
+            ));
+          });
+          const alert = w.alert ?? { path: "", op: ">", value: "" };
+          card.append(
+            h("div", { class: "row" },
+              h("button", { text: "+ Intestazione", onclick: () => { w.headers.push({ name: "", value: "", secret: false }); commit(); draw(); } }),
+              h("button", { text: "+ Campo", onclick: () => { w.fields.push({ label: "", path: "" }); commit(); draw(); } }),
+            ),
+            row("Avvisa se",
+              input(alert.path, "percorso", (v) => { alert.path = v.trim(); w.alert = alert.path ? alert : null; }, "width:180px"),
+              select<string>(
+                [["==", "="], ["!=", "≠"], [">", ">"], ["<", "<"], [">=", "≥"], ["<=", "≤"], ["contains", "contiene"], ["missing", "manca"]],
+                alert.op,
+                (v) => { alert.op = v; w.alert = alert.path ? alert : null; commit(); },
+              ),
+              input(alert.value, "valore", (v) => { alert.value = v; w.alert = alert.path ? alert : null; }, "width:120px"),
+            ),
+          );
+          break;
+        }
+      }
+      card.append(row("Ogni",
+        input(w.every || "", "predefinito", (v) => { w.every = Math.max(0, Number(v) || 0); }, "width:110px", "number"),
+        h("span", { class: "hint", text: w.kind === "tls"
+          ? "secondi (predefinito 6 ore, minimo 1 ora)"
+          : `secondi (predefinito ${w.kind === "json" ? 120 : 60}, minimo 15; ×3 a batteria)` })),
+        result);
+      list.append(card);
+    });
+  }
+
+  const templates = h("div", { class: "row" });
+  for (const [label, make] of WIDGET_TEMPLATES) {
+    templates.append(h("button", { text: `+ ${label}`, onclick: () => { settings.widgets.push(make()); commit(); draw(); } }));
+  }
+  draw();
+
+  return h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: "Widget" }), profileChip()),
+    h("div", {
+      class: "hint",
+      text: "Controlli che compaiono come pillole accanto a Mochi: siti, certificati, server, porte, servizi Windows o qualsiasi API JSON. Quando un controllo passa da OK a problema, Mochi ti avvisa. Si fermano quando Coucou è in pausa.",
+    }),
+    list,
+    templates,
+  );
+}
+
 // ── Notifications ─────────────────────────────────────────────────────────────
 
 function notifySection(): HTMLElement {
@@ -1207,6 +1410,7 @@ function render() {
     actionsSection(),
     connectorsSection(),
     integrationsSection(boot.present),
+    widgetsSection(),
     placementSection(),
     notifySection(),
     themeSection(),

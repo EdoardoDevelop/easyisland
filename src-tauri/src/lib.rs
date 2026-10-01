@@ -14,6 +14,7 @@ mod profiles;
 mod secrets;
 mod settings;
 mod tray;
+mod widgets;
 mod win_user;
 
 use std::os::windows::process::CommandExt;
@@ -188,6 +189,27 @@ fn action_kill(run_id: String) {
 #[tauri::command]
 async fn clipboard_text() -> Option<String> {
     tauri::async_runtime::spawn_blocking(actions::clipboard_text).await.ok().flatten()
+}
+
+/// Settings → "Prova": run one widget definition right now.
+#[tauri::command]
+async fn widget_test(app: AppHandle, widget: serde_json::Value) -> Result<widgets::WidgetResult, String> {
+    widgets::run_once(&app, widget).await
+}
+
+/// Island → "Aggiorna" on a widget card.
+#[tauri::command]
+async fn widget_refresh(app: AppHandle, shared: State<'_, Shared>, id: String) -> Result<(), String> {
+    let widget = shared
+        .settings
+        .lock()
+        .unwrap()
+        .widgets
+        .iter()
+        .find(|w| w.get("id").and_then(|v| v.as_str()) == Some(id.as_str()))
+        .cloned()
+        .ok_or_else(|| "Widget non trovato".to_string())?;
+    widgets::run_once(&app, widget).await.map(|_| ())
 }
 
 /// Shortcuts Windows refused because another app already uses them.
@@ -563,6 +585,8 @@ pub fn run() {
             action_kill,
             clipboard_text,
             hotkey_failures,
+            widget_test,
+            widget_refresh,
             ingest_file,
             secret_present,
             secret_set,
@@ -589,6 +613,7 @@ pub fn run() {
             island::spawn_fullscreen_watch(handle.clone(), gate.clone());
             profiles::spawn_auto_switch(handle.clone());
             hotkeys::spawn(handle.clone());
+            widgets::start(handle.clone());
 
             log::line(format!("--- Coucou {} started ---", env!("CARGO_PKG_VERSION")));
             hooks::ensure_hook_exe(&handle);

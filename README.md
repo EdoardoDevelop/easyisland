@@ -202,6 +202,25 @@ Desktop remoto.
 Se una scorciatoia è già usata da un'altra app, le Impostazioni lo segnalano.
 Le azioni appartengono al profilo attivo; le scorciatoie Apri/Chiedi al PC.
 
+## Widget
+
+**Impostazioni… → Widget** aggiunge controlli che compaiono come pillole accanto
+a Mochi, senza scrivere codice:
+
+| Tipo | Cosa controlla |
+|---|---|
+| **Sito web** | che un indirizzo risponda (stato 2xx/3xx o quello che indichi) e in quanto tempo |
+| **Certificato HTTPS** | i giorni alla scadenza del certificato di un dominio: arancione sotto la soglia (30 giorni), rosso sotto i 7 o se scaduto |
+| **Ping** | che un host risponda al ping (senza diritti di amministratore) |
+| **Porta TCP** | che una porta sia aperta, es. 3389 (Desktop remoto), 22, 443 |
+| **Servizio Windows** | che un servizio locale sia in esecuzione, es. `Spooler` |
+| **API JSON** | qualsiasi API: scegli i campi da mostrare (percorso tipo `data.items[0].stato`) e una regola di avviso (es. `aperti > 10`). Le intestazioni segrete (token, chiavi) vanno in Gestione credenziali |
+
+Quando un controllo passa da OK a problema, la pillola prende un badge, Mochi
+suona e l'isola si fa vedere (secondo le regole di notifica del profilo). Il
+pulsante ▶ prova un widget subito. I controlli si fermano con Coucou in pausa e
+diventano tre volte più radi a batteria. I widget appartengono al profilo.
+
 ## Profili, tema e backup
 
 **Impostazioni… → Profilo**: ogni profilo (di partenza *Lavoro*, *Casa* e

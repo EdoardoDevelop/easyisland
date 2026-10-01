@@ -121,6 +121,8 @@ Oggi `src-tauri/src/claude_cli.rs` lancia `claude -p` con `--strict-mcp-config` 
 
 ### 6.4 Widget configurabili (integrazioni senza codice)
 
+> **Stato: fatto.** Backend `src-tauri/src/widgets.rs` (ping con `IcmpSendEcho`, porta TCP, HTTP, certificato TLS con una breve chiamata PowerShell — host e porta passati come variabili d'ambiente —, servizio Windows via Service Control Manager, API JSON con percorsi e regola di avviso), scheduler unico con intervallo ×3 a batteria, segreti delle intestazioni come `widget:<id>:<nome>` in Gestione credenziali. Front end: pillole/scheda in `src/views/integrations.ts`, avvisi in `src/island/integrations.ts`, editor con modelli e "Prova" in `src/settings/main.ts`. Non verificati su Windows reale: il ping ICMP e lo script del certificato (qui non c'è PowerShell). Le 7 integrazioni originali restano scritte a mano (non convertite in modelli).
+
 Un tipo di widget generico al posto delle integrazioni scritte a mano (le 7 attuali in `src-tauri/src/integrations.rs` diventano "modelli pronti").
 
 - **Definizione:** `{ id, name, color, url, method, headers (con riferimenti a chiavi in Gestione credenziali), every (secondi), fields: [{ label, path (JSONPath semplice) }], alert: { when: "path op valore", level } }`.

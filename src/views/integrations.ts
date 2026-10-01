@@ -403,7 +403,42 @@ export function hasIntegrationData(id: string): boolean {
   }
 }
 
+const WIDGET_KIND: Record<string, string> = {
+  ping: "Ping", tcp: "Porta", http: "Sito web", tls: "Certificato", service: "Servizio", json: "API",
+};
+
+const LEVEL_COLOR = { ok: "#22C55E", warn: "#F5A524", error: "#F4505E" } as const;
+
+/** A configurable widget: status line, its fields, Aggiorna. */
+function widgetCard(task: AgentTask, openSettings: () => void): HTMLElement {
+  const id = task.id.slice("widget:".length);
+  const def = (State.settings.widgets ?? []).find((w) => w.id === id);
+  const st = State.widgetStatus[id];
+  const rows = h("div", { class: "int-rows tight" });
+  for (const f of (st?.fields ?? []).slice(0, 3)) {
+    rows.append(h("div", { class: "int-row" },
+      h("span", { class: "int-name", text: f.label }),
+      h("span", { class: "int-ago", text: f.value })));
+  }
+  const color = st ? LEVEL_COLOR[st.level] : "#8E939C";
+  return h(
+    "div",
+    { class: "int-card" },
+    header(task.color, task.name, WIDGET_KIND[def?.kind ?? ""] ?? "Widget",
+      st ? h("span", { class: "int-ago", text: timeAgo(st.at * 1000) }) : undefined),
+    h("div", { class: "int-status" }, dot(color, 5),
+      h("span", { text: st?.summary ?? "In attesa del primo controllo…" })),
+    rows,
+    h("div", { class: "int-actions" },
+      h("button", { class: "link-btn", style: `color:${task.color}d9`, text: "Aggiorna",
+        onclick: () => void Bridge.widgetRefresh(id) }),
+      h("button", { class: "link-btn", style: "color:#8e939c", text: "Impostazioni…", onclick: openSettings }),
+    ),
+  );
+}
+
 export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHooks): HTMLElement {
+  if (task.id.startsWith("widget:")) return widgetCard(task, hooks.openSettings);
   if (task.id === "integration_n8n") {
     const hasActivity = task.steps.length > 0 && (task.state === "finished" || task.state === "error");
     return hooks.detailOpen && hasActivity

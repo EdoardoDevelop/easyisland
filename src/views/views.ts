@@ -206,6 +206,7 @@ function buildOverview(actions: ViewActions): ViewHost {
           task.id, detailOpen, task.state, task.steps.join("|"),
           info?.loaded, info?.error, info?.configured,
           JSON.stringify(info?.data ?? {}),
+          JSON.stringify(State.widgetStatus[task.id.replace(/^widget:/, "")] ?? null),
         ].join("~");
         if (key !== cardKey) {
           cardKey = key;
@@ -217,7 +218,10 @@ function buildOverview(actions: ViewActions): ViewHost {
 
       jump.style.display = detailOpen ? "none" : "";
 
-      const others = State.otherTasks.slice(0, 4);
+      // Four pills fit: anything with a badge (an alert) goes first.
+      const others = [...State.otherTasks]
+        .sort((a, b) => Number(!!b.pillBadge) - Number(!!a.pillBadge))
+        .slice(0, 4);
       const pillKey = others.map((t) => `${t.id}:${t.pillBadge ?? ""}`).join("|");
       if (pillKey !== pillIds) {
         pillIds = pillKey;

@@ -122,7 +122,7 @@ export interface Settings {
   /** Quick actions (6.2). */
   actions: QuickAction[];
   /** Configurable widgets (6.4). */
-  widgets: unknown[];
+  widgets: WidgetDef[];
   /** MCP servers the chat may use (6.3); `confirm` = ask before every call. */
   mcpServers: { name: string; confirm: boolean }[];
   profiles: Profile[];
@@ -156,6 +156,37 @@ export interface QuickAction {
   confirm: boolean;
   /** Optional global shortcut, e.g. "Ctrl+Alt+E". */
   hotkey: string;
+}
+
+/** A probe the user set up in the settings (src-tauri/src/widgets.rs). */
+export interface WidgetDef {
+  id: string;
+  name: string;
+  color: string;
+  kind: "ping" | "tcp" | "http" | "tls" | "service" | "json";
+  /** Seconds between checks; 0 = the kind's default. */
+  every: number;
+  url: string;
+  method: "GET" | "POST";
+  /** `secret` headers keep their value in the Credential Manager. */
+  headers: { name: string; value: string; secret: boolean }[];
+  fields: { label: string; path: string }[];
+  alert: { path: string; op: string; value: string } | null;
+  host: string;
+  port: number;
+  expectStatus: number;
+  warnDays: number;
+  service: string;
+}
+
+/** Last result of a widget check. */
+export interface WidgetStatus {
+  id: string;
+  level: "ok" | "warn" | "error";
+  summary: string;
+  fields: { label: string; value: string }[];
+  /** Unix seconds. */
+  at: number;
 }
 
 /** A script launched from the Azioni tab. */
@@ -270,6 +301,8 @@ class AppState {
   chatText: { label: string; text: string } | null = null;
   /** The script being confirmed / run / shown in the Run view. */
   run: ScriptRun | null = null;
+  /** Latest result per widget id. */
+  widgetStatus: Record<string, WidgetStatus> = {};
   noteMessage: string | null = null;
   searchResult: SearchResult | null = null;
   chatHistory: ChatMessage[] = [];
@@ -345,9 +378,30 @@ class AppState {
       if (shouldLoad && idx < 0) this.tasks.push({ ...proto, steps: [] });
       if (!shouldLoad && idx >= 0) this.tasks.splice(idx, 1);
     }
+    // Widgets follow the integrations, in the order they were defined.
+    const widgets = this.settings.widgets ?? [];
+    this.tasks = this.tasks.filter(
+      (t) => !t.id.startsWith("widget:") || widgets.some((w) => `widget:${w.id}` === t.id),
+    );
+    for (const w of widgets) {
+      const id = `widget:${w.id}`;
+      const existing = this.tasks.find((t) => t.id === id);
+      if (existing) {
+        existing.name = w.name || "Widget";
+        existing.color = w.color || "#8E939C";
+      } else {
+        this.tasks.push(task(id, w.name || "Widget", w.color || "#8E939C", "n8n"));
+      }
+    }
     // Keep the declared order so pills never shuffle.
-    const order = INTEGRATION_AGENTS.map((t) => t.id);
+    const order = [
+      ...INTEGRATION_AGENTS.map((t) => t.id),
+      ...widgets.map((w) => `widget:${w.id}`),
+    ];
     this.tasks.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+    if (this.focusId && !this.tasks.some((t) => t.id === this.focusId)) {
+      this.focusId = "integration_claude";
+    }
     if (!this.focusId) this.focusId = "integration_claude";
     this.notify();
   }

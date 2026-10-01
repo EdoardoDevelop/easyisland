@@ -99,6 +99,12 @@ export const Bridge = {
   actionKill: (runId: string) => call<void>("action_kill", { runId }),
   clipboardText: () => call<string | null>("clipboard_text"),
   hotkeyFailures: () => call<string[]>("hotkey_failures"),
+  /** Widgets. */
+  widgetTest: (widget: unknown) =>
+    callOrThrow<{ id: string; level: string; summary: string; fields: { label: string; value: string }[]; at: number }>(
+      "widget_test", { widget },
+    ),
+  widgetRefresh: (id: string) => call<void>("widget_refresh", { id }),
   /** Profiles, backup. */
   switchProfile: (id: string) => call<void>("switch_profile", { id }),
   settingsExport: () => callOrThrow<string>("settings_export"),

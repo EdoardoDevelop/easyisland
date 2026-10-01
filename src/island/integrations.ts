@@ -4,7 +4,7 @@
 
 import { onEvent, Bridge, type IntegrationUpdate } from "../core/bridge";
 import { Sound } from "../core/sound";
-import { State } from "../core/state";
+import { State, type WidgetStatus } from "../core/state";
 import type { Island } from "./island";
 
 /** Which Credential Manager key backs each pill. */
@@ -22,6 +22,7 @@ const clearTimers = new Map<string, number>();
 
 export function registerIntegrationHandlers(island: Island) {
   void onEvent<IntegrationUpdate>("integration", (update) => handle(island, update));
+  void onEvent<WidgetStatus>("widget-update", (r) => handleWidget(island, r));
   void refreshConfigured();
 }
 
@@ -37,6 +38,37 @@ export async function refreshConfigured() {
     data: {}, error: null, loaded: false, configured: false,
   };
   State.integrations.integration_claude = { ...claude, configured: hooks };
+  State.notify();
+}
+
+/**
+ * A widget check came back. Going from fine to not fine badges the pill, plays
+ * a sound and shows the island (within the profile's notification rules);
+ * recovering clears the badge.
+ */
+function handleWidget(island: Island, r: WidgetStatus) {
+  if (State.paused) return;
+  const prev = State.widgetStatus[r.id];
+  State.widgetStatus[r.id] = r;
+  const task = State.tasks.find((t) => t.id === `widget:${r.id}`);
+  if (task) {
+    task.state = r.level === "ok" ? "idle" : r.level === "warn" ? "ratelimit" : "error";
+    task.steps = [r.summary];
+    task.stepIndex = 0;
+    const wasBad = prev ? prev.level !== "ok" : false;
+    const isBad = r.level !== "ok";
+    if (isBad && !wasBad) {
+      if (State.focusId !== task.id) task.pillBadge = "error";
+      // The very first result only sets the badge: no fanfare at startup.
+      if (prev) {
+        Sound.play("error");
+        island.reveal();
+      }
+    } else if (!isBad && wasBad) {
+      task.pillBadge = null;
+      Sound.play("finish");
+    }
+  }
   State.notify();
 }
 
