@@ -26,6 +26,8 @@ export interface ApprovalInfo {
   sessionId: string;
   tool: string;
   command: string;
+  /** "chat": a connector call from Mochi's own chat, not a Claude Code session. */
+  source?: "chat";
 }
 
 export interface ChatMessage {
@@ -121,8 +123,8 @@ export interface Settings {
   actions: QuickAction[];
   /** Configurable widgets (6.4). */
   widgets: unknown[];
-  /** MCP servers the chat may use (6.3). */
-  mcpServers: string[];
+  /** MCP servers the chat may use (6.3); `confirm` = ask before every call. */
+  mcpServers: { name: string; confirm: boolean }[];
   profiles: Profile[];
   activeProfile: string;
   autoProfile: boolean;

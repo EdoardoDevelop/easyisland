@@ -2,12 +2,17 @@
 // subscription covers it instead of a pay-as-you-go API key.
 //
 // The process runs hidden, in a neutral working folder, with:
-//   * every hook disabled (`disableAllHooks`) — otherwise the chat would show up
-//     in the island as if it were a Claude Code work session; COUCOU_INTERNAL is
-//     a second guard that coucou-hook.exe checks too;
-//   * only WebSearch, WebFetch and Read available, and `dontAsk` so nothing
-//     waits on a permission prompt nobody can see;
-//   * no MCP servers (`--strict-mcp-config` with no config), for a faster start.
+//   * hooks kept out of the island: without connectors every hook is disabled
+//     (`disableAllHooks`); COUCOU_INTERNAL makes coucou-hook.exe ignore the
+//     user's own Coucou hooks either way, so the chat never shows up as a
+//     Claude Code work session;
+//   * only WebSearch, WebFetch and Read among the built-in tools;
+//   * no connectors by default (`--strict-mcp-config`, `dontAsk`). When the user
+//     picked some MCP servers, Claude Code loads its own user-scope config (no
+//     copy of it, so no copy of any secret in it), the other servers are
+//     disallowed, and every call to a server marked "confirm" goes through a
+//     PermissionRequest hook — `coucou-hook.exe PermissionRequest --chat` — to
+//     the Consenti/Nega card in the island.
 // The prompt goes in on stdin, and every other argument is a plain word or a
 // path, so nothing needs quoting when the target is `claude.cmd`.
 
@@ -21,9 +26,12 @@ use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 
 use crate::claude::{Chat, ChatContext, ChatReply};
+use crate::settings::McpChoice;
 
 /// Opus with a few web searches can take a while; the island shows "thinking".
 const TIMEOUT: Duration = Duration::from_secs(180);
+/// With connectors a turn may also wait for the user's Consenti/Nega.
+const TIMEOUT_WITH_CONNECTORS: Duration = Duration::from_secs(420);
 const STATUS_TIMEOUT: Duration = Duration::from_secs(20);
 /// CREATE_NO_WINDOW: no console window flashing up on every message.
 #[cfg(windows)]
@@ -67,15 +75,101 @@ pub fn find_claude() -> Option<PathBuf> {
     candidates.into_iter().find(|p| p.is_file())
 }
 
+/// MCP server names as they appear in tool names: anything outside
+/// `A-Z a-z 0-9 _ -` becomes `_` (Claude Code's own rule).
+pub fn tool_prefix(server: &str) -> String {
+    let norm: String = server
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' })
+        .collect();
+    format!("mcp__{norm}")
+}
+
+/// Where Claude Code keeps user-scope MCP servers: `~/.claude.json`, or the
+/// same file under CLAUDE_CONFIG_DIR when that is set.
+fn claude_json_path() -> Option<PathBuf> {
+    if let Some(dir) = std::env::var_os("CLAUDE_CONFIG_DIR") {
+        return Some(PathBuf::from(dir).join(".claude.json"));
+    }
+    std::env::var_os("USERPROFILE").map(|h| PathBuf::from(h).join(".claude.json"))
+}
+
+/// Names of the MCP servers configured for the user in Claude Code. Only the
+/// names: the configuration (and any key in it) is never read into Coucou.
+pub fn configured_mcp_servers() -> Vec<String> {
+    let Some(path) = claude_json_path() else { return Vec::new() };
+    let Ok(bytes) = std::fs::read(path) else { return Vec::new() };
+    let Ok(json) = serde_json::from_slice::<Value>(&bytes) else { return Vec::new() };
+    let mut names: Vec<String> = json
+        .get("mcpServers")
+        .and_then(Value::as_object)
+        .map(|m| m.keys().cloned().collect())
+        .unwrap_or_default();
+    names.sort_by_key(|n| n.to_lowercase());
+    names
+}
+
+/// The connectors this turn may use, already filtered to configured ones.
+pub struct Connectors {
+    pub enabled: Vec<McpChoice>,
+    /// Configured but not picked: removed from the model's tools.
+    pub disabled: Vec<String>,
+}
+
+impl Connectors {
+    pub fn from_choices(choices: &[McpChoice]) -> Self {
+        let configured = configured_mcp_servers();
+        let enabled: Vec<McpChoice> = choices
+            .iter()
+            .filter(|c| configured.iter().any(|n| n == &c.name))
+            .cloned()
+            .collect();
+        let disabled = configured
+            .into_iter()
+            .filter(|n| !enabled.iter().any(|c| &c.name == n))
+            .collect();
+        Self { enabled, disabled }
+    }
+
+    fn any(&self) -> bool {
+        !self.enabled.is_empty()
+    }
+}
+
 /// %LOCALAPPDATA%\Coucou\chat — an empty folder, so Claude Code has no project
 /// to read; it also holds the two small files we pass by path.
-fn work_dir() -> Result<PathBuf, String> {
+fn work_dir(connectors: &Connectors) -> Result<PathBuf, String> {
     let dir = crate::settings::local_dir().join("chat");
     std::fs::create_dir_all(&dir).map_err(|e| format!("cartella della chat non creata: {e}"))?;
-    let prompt = dir.join("mochi-prompt.txt");
-    std::fs::write(&prompt, SYSTEM_PROMPT).map_err(|e| e.to_string())?;
-    let settings = dir.join("chat-settings.json");
-    std::fs::write(&settings, br#"{ "disableAllHooks": true }"#).map_err(|e| e.to_string())?;
+
+    let mut prompt = SYSTEM_PROMPT.to_string();
+    let settings = if connectors.any() {
+        let names: Vec<&str> = connectors.enabled.iter().map(|c| c.name.as_str()).collect();
+        prompt.push_str(&format!(
+            " You can use these connectors (MCP servers): {}. \
+Before any call that creates, changes, sends or deletes something, say in one short sentence what you are about to do: \
+the user confirms or refuses it with a click, and a refusal is final for that request.",
+            names.join(", ")
+        ));
+        let exe = crate::settings::hook_exe_path().to_string_lossy().replace('\\', "/");
+        serde_json::json!({
+            "hooks": {
+                "PermissionRequest": [{
+                    "matcher": "mcp__.*",
+                    "hooks": [{
+                        "type": "command",
+                        "command": format!("\"{exe}\" PermissionRequest --chat"),
+                        "timeout": 130
+                    }]
+                }]
+            }
+        })
+        .to_string()
+    } else {
+        r#"{ "disableAllHooks": true }"#.to_string()
+    };
+    std::fs::write(dir.join("mochi-prompt.txt"), prompt).map_err(|e| e.to_string())?;
+    std::fs::write(dir.join("chat-settings.json"), settings).map_err(|e| e.to_string())?;
     Ok(dir)
 }
 
@@ -98,7 +192,13 @@ fn command(exe: &Path) -> Command {
 }
 
 /// The arguments for one turn. Kept apart from the spawn so it can be tested.
-fn args(dir: &Path, model: &str, session: Option<&str>, extra_dir: Option<&Path>) -> Vec<String> {
+fn args(
+    dir: &Path,
+    model: &str,
+    session: Option<&str>,
+    extra_dir: Option<&Path>,
+    connectors: &Connectors,
+) -> Vec<String> {
     let mut a: Vec<String> = vec![
         "-p".into(),
         "--output-format".into(),
@@ -109,14 +209,32 @@ fn args(dir: &Path, model: &str, session: Option<&str>, extra_dir: Option<&Path>
             .into_owned(),
         "--append-system-prompt-file".into(),
         dir.join("mochi-prompt.txt").to_string_lossy().into_owned(),
-        "--permission-mode".into(),
-        "dontAsk".into(),
-        "--strict-mcp-config".into(),
         "--tools".into(),
         TOOLS.into(),
-        "--allowedTools".into(),
-        TOOLS.into(),
     ];
+    if connectors.any() {
+        // `default`: a call that is not pre-allowed goes to the PermissionRequest
+        // hook (the island); with no answer from there it is denied.
+        a.extend(["--permission-mode".into(), "default".into()]);
+        let mut allowed = TOOLS.to_string();
+        for c in connectors.enabled.iter().filter(|c| !c.confirm) {
+            allowed.push(',');
+            allowed.push_str(&tool_prefix(&c.name));
+        }
+        a.extend(["--allowedTools".into(), allowed]);
+        if !connectors.disabled.is_empty() {
+            let denied: Vec<String> = connectors.disabled.iter().map(|n| tool_prefix(n)).collect();
+            a.extend(["--disallowedTools".into(), denied.join(",")]);
+        }
+    } else {
+        a.extend([
+            "--permission-mode".into(),
+            "dontAsk".into(),
+            "--strict-mcp-config".into(),
+            "--allowedTools".into(),
+            TOOLS.into(),
+        ]);
+    }
     if !model.is_empty() {
         a.push("--model".into());
         a.push(model.into());
@@ -168,6 +286,7 @@ fn parse_output(stdout: &str) -> Option<Outcome> {
 pub async fn send(
     chat: &Chat,
     model: &str,
+    mcp: &[McpChoice],
     query: String,
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
@@ -175,7 +294,8 @@ pub async fn send(
         "Claude Code non trovato. Installalo e fai il login, oppure scegli «Chiave API» nelle impostazioni."
             .to_string()
     })?;
-    let dir = work_dir()?;
+    let connectors = Connectors::from_choices(mcp);
+    let dir = work_dir(&connectors)?;
     let session = chat.cli_session();
 
     // Context rides along with the first message only, as in the API path.
@@ -208,7 +328,7 @@ pub async fn send(
 
     let mut cmd = command(&exe);
     cmd.current_dir(&dir)
-        .args(args(&dir, model, session.as_deref(), extra_dir.as_deref()));
+        .args(args(&dir, model, session.as_deref(), extra_dir.as_deref(), &connectors));
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("Claude Code non si avvia: {e}"))?;
@@ -220,7 +340,8 @@ pub async fn send(
         // Dropping stdin closes it: that is what tells `claude -p` the prompt is complete.
     }
 
-    let output = match tokio::time::timeout(TIMEOUT, child.wait_with_output()).await {
+    let limit = if connectors.any() { TIMEOUT_WITH_CONNECTORS } else { TIMEOUT };
+    let output = match tokio::time::timeout(limit, child.wait_with_output()).await {
         Ok(Ok(o)) => o,
         Ok(Err(e)) => return Err(format!("Claude Code si è interrotto: {e}")),
         Err(_) => return Err("Claude Code non ha risposto in tempo.".into()),
@@ -296,18 +417,24 @@ pub async fn status() -> CliStatus {
 
 #[cfg(test)]
 mod tests {
-    use super::{args, parse_output};
+    use super::{args, parse_output, tool_prefix, Connectors};
+    use crate::settings::McpChoice;
     use std::path::Path;
+
+    fn none() -> Connectors {
+        Connectors { enabled: Vec::new(), disabled: Vec::new() }
+    }
 
     #[test]
     fn args_resume_and_model_only_when_set() {
         let dir = Path::new("C:/x");
-        let a = args(dir, "", None, None);
+        let a = args(dir, "", None, None, &none());
         assert!(!a.contains(&"--model".to_string()));
         assert!(!a.contains(&"--resume".to_string()));
         assert!(a.contains(&"dontAsk".to_string()));
+        assert!(a.contains(&"--strict-mcp-config".to_string()));
 
-        let a = args(dir, "sonnet", Some("abc"), Some(Path::new("C:/inbox")));
+        let a = args(dir, "sonnet", Some("abc"), Some(Path::new("C:/inbox")), &none());
         let at = |flag: &str| a[a.iter().position(|x| x == flag).unwrap() + 1].clone();
         assert_eq!(at("--model"), "sonnet");
         assert_eq!(at("--resume"), "abc");
@@ -325,5 +452,24 @@ mod tests {
         let err = parse_output("{\"is_error\":true,\"result\":\"Not logged in\"}").unwrap();
         assert!(err.is_error);
         assert!(parse_output("nessun json").is_none());
+    }
+
+    #[test]
+    fn connectors_change_permissions() {
+        let c = Connectors {
+            enabled: vec![
+                McpChoice { name: "agenda".into(), confirm: true },
+                McpChoice { name: "docs.read".into(), confirm: false },
+            ],
+            disabled: vec!["altro".into()],
+        };
+        let a = args(Path::new("C:/x"), "", None, None, &c);
+        let at = |flag: &str| a[a.iter().position(|x| x == flag).unwrap() + 1].clone();
+        assert!(!a.contains(&"--strict-mcp-config".to_string()));
+        assert_eq!(at("--permission-mode"), "default");
+        // Only the no-confirm server is pre-allowed; the other waits for the island.
+        assert_eq!(at("--allowedTools"), "WebSearch,WebFetch,Read,mcp__docs_read");
+        assert_eq!(at("--disallowedTools"), "mcp__altro");
+        assert_eq!(tool_prefix("claude.ai Gmail"), "mcp__claude_ai_Gmail");
     }
 }

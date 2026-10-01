@@ -152,6 +152,11 @@ export class Island {
         State.pendingApproval = null;
         State.isPinned = false;
         this.fsm.pinned = false;
+        if (req.source === "chat") {
+          // Back to the conversation, which is still waiting for its answer.
+          this.setView("prompt");
+          return;
+        }
         State.updateTask("integration_claude", "working");
         State.setPillBadge("integration_claude", null);
         this.setView(State.defaultView());

@@ -972,6 +972,61 @@ function actionsSection(): HTMLElement {
   );
 }
 
+// ── Connectors (MCP) ──────────────────────────────────────────────────────────
+
+function connectorsSection(): HTMLElement {
+  const list = h("div", { style: "display:flex;flex-direction:column;gap:8px" });
+  const refresh = h("button", { text: "Ricarica elenco" });
+
+  async function draw() {
+    clear(list);
+    const names = (await Bridge.mcpServersConfigured()) ?? [];
+    // Keep choices for servers that are gone out of the list, but show them.
+    const all = [...new Set([...names, ...settings.mcpServers.map((m) => m.name)])];
+    if (all.length === 0) {
+      list.append(h("div", {
+        class: "hint",
+        text: "Nessun server MCP configurato in Claude Code. Aggiungine uno da un terminale con «claude mcp add --scope user …», poi premi Ricarica elenco.",
+      }));
+      return;
+    }
+    for (const name of all) {
+      const missing = !names.includes(name);
+      const choice = () => settings.mcpServers.find((m) => m.name === name);
+      const use = toggle(!!choice(), (on) => {
+        if (on && !choice()) settings.mcpServers.push({ name, confirm: true });
+        if (!on) settings.mcpServers = settings.mcpServers.filter((m) => m.name !== name);
+        void save();
+        void draw();
+      });
+      const row = h("div", { class: "row" }, use, h("span", { style: "min-width:160px", text: name }));
+      if (missing) row.append(h("span", { class: "hint", text: "non più configurato in Claude Code" }));
+      const c = choice();
+      if (c) {
+        row.append(
+          h("span", { class: "hint", text: "chiedi conferma per ogni operazione" }),
+          toggle(c.confirm, (v) => { c.confirm = v; void save(); }),
+        );
+      }
+      list.append(row);
+    }
+  }
+  refresh.addEventListener("click", () => void draw());
+  void draw();
+
+  return h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: "Connettori in chat" }), profileChip()),
+    h("div", {
+      class: "hint",
+      text: "Mochi può usare i server MCP che hai configurato in Claude Code (calendario, documenti, ticketing…). Funziona con il motore «Abbonamento Claude». Con la conferma attiva ogni operazione su quel connettore compare nell'isola con Consenti / Nega: disattivala solo per connettori di sola lettura. I connettori di claude.ai non sono disponibili in questa modalità di Claude Code.",
+    }),
+    list,
+    h("div", { class: "row" }, refresh),
+  );
+}
+
 // ── Notifications ─────────────────────────────────────────────────────────────
 
 function notifySection(): HTMLElement {
@@ -1150,6 +1205,7 @@ function render() {
     claudeSection(boot.status),
     claudeChatSection(boot.hasKey),
     actionsSection(),
+    connectorsSection(),
     integrationsSection(boot.present),
     placementSection(),
     notifySection(),

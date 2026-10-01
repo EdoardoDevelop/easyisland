@@ -23,6 +23,51 @@ interface HookPayload {
   prompt?: string;
   tool_name?: string;
   tool_input?: Record<string, unknown>;
+  /** Set by coucou-hook.exe --chat: a connector call from Mochi's own chat. */
+  coucou_chat?: boolean;
+}
+
+/** "mcp__agenda__create_event" + input → "agenda › create_event · {…}". */
+function connectorTarget(tool: string, input: Record<string, unknown>): string {
+  const m = /^mcp__(.+?)__(.+)$/.exec(tool);
+  const name = m ? `${m[1]} › ${m[2]}` : tool;
+  const args = JSON.stringify(input);
+  return args && args !== "{}" ? `${name} · ${args.length > 220 ? `${args.slice(0, 220)}…` : args}` : name;
+}
+
+/**
+ * A connector call from the chat asks for a click. It is the user's own chat,
+ * already on screen, so the card simply takes over and hands back to the chat.
+ */
+function handleChatPermission(island: Island, payload: HookPayload) {
+  const requestId = payload.request_id ?? "";
+  if (State.pendingApproval && State.pendingApproval.requestId !== requestId) {
+    if (requestId) void Bridge.approvalDecline(requestId);
+    return;
+  }
+  const tool = payload.tool_name ?? "Connettore";
+  State.pendingApproval = {
+    requestId,
+    sessionId: payload.session_id ?? "",
+    tool,
+    command: connectorTarget(tool, payload.tool_input ?? {}),
+    source: "chat",
+  };
+  if (requestId) void Bridge.approvalAck(requestId);
+  State.isPinned = true;
+  Sound.play("approval");
+  island.alert("approval");
+  State.notify();
+  // The relay gives up after ~110 s and the call is refused; the card must not
+  // outlive it.
+  window.setTimeout(() => {
+    if (State.pendingApproval?.requestId !== requestId) return;
+    State.pendingApproval = null;
+    State.isPinned = false;
+    island.dropPin();
+    if (State.view === "approval") island.setView("prompt");
+    State.notify();
+  }, 110_000);
 }
 
 const PROJECT_ALIASES: Record<string, string> = {
@@ -140,6 +185,10 @@ function handleHook(island: Island, payload: HookPayload) {
   }
 
   const name = payload.hook_event_name ?? "";
+  if (payload.coucou_chat) {
+    if (name === "PermissionRequest") handleChatPermission(island, payload);
+    return;
+  }
   const cwd = payload.cwd ?? "";
   const raw = lastPathComponent(cwd);
   const projectName = aliasProjectName(raw || "Session");

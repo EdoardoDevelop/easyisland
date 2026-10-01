@@ -74,7 +74,10 @@ fn connect() -> Option<std::fs::File> {
 fn main() {
     // Coucou's own chat runs `claude -p` with hooks disabled; this is the second
     // guard, so that chat never shows up in the island as a work session.
-    if std::env::var_os("COUCOU_INTERNAL").is_some() {
+    // `--chat` marks the one hook Coucou installs for its own chat (connector
+    // confirmations); every other hook inside that chat is ignored.
+    let chat = std::env::args().any(|a| a == "--chat");
+    if std::env::var_os("COUCOU_INTERNAL").is_some() && !chat {
         std::process::exit(0);
     }
     let Some((payload, event)) = read_event() else { std::process::exit(0) };
@@ -142,6 +145,9 @@ fn read_event() -> Option<(String, String)> {
         .filter(|s| !s.is_empty())
         .unwrap_or(arg_event);
     map.insert("hook_event_name".into(), serde_json::Value::String(event.clone()));
+    if std::env::args().any(|a| a == "--chat") {
+        map.insert("coucou_chat".into(), serde_json::Value::Bool(true));
+    }
 
     for field in DROPPED_FIELDS {
         map.remove(*field);

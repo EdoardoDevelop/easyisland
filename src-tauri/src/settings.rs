@@ -126,6 +126,16 @@ fn parse_hm(s: &str) -> Option<u32> {
     (h < 24 && m < 60).then_some(h * 60 + m)
 }
 
+/// An MCP server the chat may use. With `confirm`, every call to it waits for
+/// Consenti/Nega in the island.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpChoice {
+    pub name: String,
+    #[serde(default = "default_true")]
+    pub confirm: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Profile {
@@ -204,9 +214,9 @@ pub struct Settings {
     /// Configurable widgets (6.4).
     #[serde(default)]
     pub widgets: Vec<Value>,
-    /// MCP servers the chat may use (6.3), by name.
+    /// MCP servers the chat may use (6.3).
     #[serde(default)]
-    pub mcp_servers: Vec<String>,
+    pub mcp_servers: Vec<McpChoice>,
     #[serde(default)]
     pub profiles: Vec<Profile>,
     #[serde(default)]

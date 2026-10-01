@@ -104,6 +104,8 @@ export const Bridge = {
   settingsExport: () => callOrThrow<string>("settings_export"),
   settingsImport: (text: string) => callOrThrow<Settings>("settings_import", { text }),
   currentNetwork: () => call<string | null>("current_network"),
+  /** Settings window: MCP servers configured in Claude Code (names only). */
+  mcpServersConfigured: () => call<string[]>("mcp_servers_configured"),
   /** Settings window: is Claude Code installed and signed in? */
   claudeCliStatus: () => call<ClaudeCliStatus>("claude_cli_status"),
   /** Copies a dropped file into the inbox. */

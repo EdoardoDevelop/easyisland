@@ -379,21 +379,29 @@ async fn chat_send(
     query: String,
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
-    let (engine, model, cli_model) = {
+    let (engine, model, cli_model, mcp) = {
         let s = shared.settings.lock().unwrap();
-        (s.chat_engine.clone(), s.model.clone(), s.cli_model.clone())
+        (s.chat_engine.clone(), s.model.clone(), s.cli_model.clone(), s.mcp_servers.clone())
     };
     chat.use_engine(&engine);
     if engine == "api" {
         claude::send(&chat, &model, query, context).await
     } else {
-        claude_cli::send(&chat, &cli_model, query, context).await
+        claude_cli::send(&chat, &cli_model, &mcp, query, context).await
     }
 }
 
 #[tauri::command]
 fn chat_reset(chat: State<Chat>) {
     chat.reset();
+}
+
+/// Settings window: MCP servers configured for the user in Claude Code (names only).
+#[tauri::command]
+async fn mcp_servers_configured() -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(claude_cli::configured_mcp_servers)
+        .await
+        .unwrap_or_default()
 }
 
 /// Settings window: is Claude Code installed and signed in?
@@ -545,6 +553,7 @@ pub fn run() {
             chat_send,
             chat_reset,
             claude_cli_status,
+            mcp_servers_configured,
             switch_profile,
             settings_export,
             settings_import,

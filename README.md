@@ -255,6 +255,15 @@ Funziona da qualsiasi terminale: Windows Terminal, PowerShell, VS Code, Git Bash
 - **Chiave API Anthropic**. Mochi chiama direttamente l'API con la tua chiave,
   pagata a consumo dalla Console di Anthropic.
 
+**Connettori in chat** (solo con "Abbonamento Claude"): Mochi può usare i
+server MCP che hai configurato in Claude Code per l'utente
+(`claude mcp add --scope user …`), scegliendo quali profilo per profilo. Con
+"chiedi conferma" (predefinito) ogni operazione su quel connettore compare
+nell'isola con **Consenti / Nega**; disattivala solo per i connettori di sola
+lettura. Coucou legge solo i nomi dei server, mai la loro configurazione. I
+connettori di claude.ai non sono disponibili quando Claude Code gira in questo
+modo.
+
 Le chiavi stanno in **Gestione credenziali di Windows**, mai su disco e mai
 nell'interfaccia: l'isola può solo chiedere se una chiave esiste. Lo stesso vale
 per le chiavi di ogni integrazione.
