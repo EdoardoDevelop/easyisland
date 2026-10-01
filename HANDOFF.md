@@ -25,7 +25,7 @@ Coucou è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou). In
 | Finestra Impostazioni | `settings.html`, `src/settings/` |
 | Integrazioni (Stripe, n8n, GitHub, Vercel, Resend, Notion, Cal.com) | backend `src-tauri/src/integrations.rs`, front end `src/island/integrations.ts`, `src/views/integrations.ts`, colori/nomi in `src/core/state.ts` |
 | Chiavi API (Credential Manager) | `src-tauri/src/secrets.rs` (`SERVICE`, `KNOWN_KEYS`) |
-| Chat con Claude (modello, prompt) | `src-tauri/src/claude.rs` |
+| Chat con Claude (motore, modello, prompt) | `src-tauri/src/claude_cli.rs` (abbonamento), `src-tauri/src/claude.rs` (chiave API) |
 | Relay hook di Claude Code | `hook/src/main.rs` + named pipe `src-tauri/src/pipe.rs` |
 | Install/uninstall degli hook in `settings.json` | `src-tauri/src/hooks.rs` |
 | Icona tray e menu | `src-tauri/src/tray.rs`, icone generate da `scripts/gen-icons.mjs` |
@@ -57,7 +57,7 @@ Coucou è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou). In
 **Funzionalità:**
 - [ ] Quali integrazioni tieni? Se non usi Stripe, Resend, Cal.com…, rimuoverle alleggerisce codice e Impostazioni.
 - [ ] Funzioni presenti solo su Mac e mai portate: invio di un file via email, trascinare Mochi su una finestra per allegarla come contesto, saltare al terminale esatto della sessione. Valuta se ti servono.
-- [ ] Modello Claude usato dalla chat: controlla `src-tauri/src/claude.rs`.
+- [x] Chat: scegli in Impostazioni tra abbonamento Claude (tramite Claude Code, predefinito) e chiave API. Codice in `src-tauri/src/claude_cli.rs` e `src-tauri/src/claude.rs`.
 
 **Distribuzione:**
 - [ ] Firma del codice (certificato Authenticode o Azure Trusted Signing). Senza firma, Defender e SmartScreen segnalano l'installer.

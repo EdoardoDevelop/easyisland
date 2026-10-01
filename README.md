@@ -69,12 +69,23 @@ terminale come al solito.
 
 Funziona da qualsiasi terminale: Windows Terminal, PowerShell, VS Code, Git Bash.
 
-## Chat e chiavi
+## Chat con Claude
 
-**Impostazioni… → Claude** prende la tua chiave API Anthropic. Le chiavi stanno in
-**Gestione credenziali di Windows**, mai su disco e mai nell'interfaccia: l'isola
-può solo chiedere se una chiave esiste. Lo stesso vale per le chiavi di ogni
-integrazione.
+**Impostazioni… → Chat con Claude** ti fa scegliere il motore della chat:
+
+- **Abbonamento Claude (tramite Claude Code)**, il predefinito. Mochi usa
+  Claude Code installato sul PC (`claude -p`, nascosto, senza finestre) e il tuo
+  abbonamento Pro o Max: nessuna chiave e nessun costo extra, ma le domande
+  contano nei limiti d'uso del piano. Serve Claude Code installato e con il
+  login fatto. Claude Code gira in una cartella vuota
+  (`%LOCALAPPDATA%\Coucou\chat`), con gli hook disattivati e solo con ricerca
+  web, lettura di pagine web e lettura dei file che rilasci.
+- **Chiave API Anthropic**. Mochi chiama direttamente l'API con la tua chiave,
+  pagata a consumo dalla Console di Anthropic.
+
+Le chiavi stanno in **Gestione credenziali di Windows**, mai su disco e mai
+nell'interfaccia: l'isola può solo chiedere se una chiave esiste. Lo stesso vale
+per le chiavi di ogni integrazione.
 
 Mochi risponde in italiano, a meno che tu non gli scriva in un'altra lingua.
 

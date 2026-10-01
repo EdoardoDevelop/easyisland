@@ -1,6 +1,7 @@
 // Coucou for Windows — app wiring and the commands the island calls.
 
 mod claude;
+mod claude_cli;
 mod files;
 mod hooks;
 mod integrations;
@@ -158,7 +159,7 @@ fn open_in_vscode(path: Option<String>) -> bool {
 /// Our own `where`: walks %PATH% against %PATHEXT%, no shell involved.
 /// Rust quotes arguments correctly for `.cmd`/`.bat` targets since 1.77, so
 /// spawning `code.cmd` directly is safe.
-fn find_on_path(stem: &str) -> Option<std::path::PathBuf> {
+pub(crate) fn find_on_path(stem: &str) -> Option<std::path::PathBuf> {
     let exts = std::env::var("PATHEXT").unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".into());
     let dirs = std::env::var_os("PATH")?;
     for dir in std::env::split_paths(&dirs) {
@@ -248,13 +249,27 @@ async fn chat_send(
     query: String,
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
-    let model = shared.settings.lock().unwrap().model.clone();
-    claude::send(&chat, &model, query, context).await
+    let (engine, model, cli_model) = {
+        let s = shared.settings.lock().unwrap();
+        (s.chat_engine.clone(), s.model.clone(), s.cli_model.clone())
+    };
+    chat.use_engine(&engine);
+    if engine == "api" {
+        claude::send(&chat, &model, query, context).await
+    } else {
+        claude_cli::send(&chat, &cli_model, query, context).await
+    }
 }
 
 #[tauri::command]
 fn chat_reset(chat: State<Chat>) {
     chat.reset();
+}
+
+/// Settings window: is Claude Code installed and signed in?
+#[tauri::command]
+async fn claude_cli_status() -> claude_cli::CliStatus {
+    claude_cli::status().await
 }
 
 /// Copies a dropped file into the inbox and reports its name back.
@@ -399,6 +414,7 @@ pub fn run() {
             log_line,
             chat_send,
             chat_reset,
+            claude_cli_status,
             ingest_file,
             secret_present,
             secret_set,

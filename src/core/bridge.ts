@@ -28,6 +28,12 @@ export interface BootInfo {
   hookPath: string;
 }
 
+export interface ClaudeCliStatus {
+  found: boolean;
+  path: string;
+  loggedIn: boolean;
+}
+
 export const Bridge = {
   boot: () => call<BootInfo>("boot"),
 
@@ -83,6 +89,8 @@ export const Bridge = {
   chatSend: (query: string, context: ChatContext | null) =>
     callOrThrow<{ text: string }>("chat_send", { query, context }),
   chatReset: () => call<void>("chat_reset"),
+  /** Settings window: is Claude Code installed and signed in? */
+  claudeCliStatus: () => call<ClaudeCliStatus>("claude_cli_status"),
   /** Copies a dropped file into the inbox. */
   ingestFile: (path: string) => callOrThrow<DroppedFile>("ingest_file", { path }),
   /** Only ever tells you whether a key exists — never its value. */

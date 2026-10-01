@@ -72,6 +72,11 @@ fn connect() -> Option<std::fs::File> {
 }
 
 fn main() {
+    // Coucou's own chat runs `claude -p` with hooks disabled; this is the second
+    // guard, so that chat never shows up in the island as a work session.
+    if std::env::var_os("COUCOU_INTERNAL").is_some() {
+        std::process::exit(0);
+    }
     let Some((payload, event)) = read_event() else { std::process::exit(0) };
 
     let waits_for_answer = event == "PermissionRequest";

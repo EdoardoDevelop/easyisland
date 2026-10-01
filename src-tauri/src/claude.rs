@@ -39,11 +39,35 @@ No markdown formatting (no **, no ##, no bullet dashes). Use plain text with lin
 pub struct Chat {
     /// Full multi-turn history, including tool_use / tool_result blocks.
     messages: Mutex<Vec<Value>>,
+    /// Claude Code session to resume when the chat goes through `claude -p`.
+    cli_session: Mutex<Option<String>>,
+    /// Engine the current conversation started on ("api" or "subscription").
+    engine: Mutex<String>,
 }
 
 impl Chat {
     pub fn reset(&self) {
         self.messages.lock().unwrap().clear();
+        *self.cli_session.lock().unwrap() = None;
+    }
+
+    /// The two engines keep separate histories; switching mid-conversation
+    /// starts a fresh one rather than mixing them.
+    pub fn use_engine(&self, engine: &str) {
+        let mut current = self.engine.lock().unwrap();
+        if *current != engine {
+            *current = engine.to_string();
+            drop(current);
+            self.reset();
+        }
+    }
+
+    pub(crate) fn cli_session(&self) -> Option<String> {
+        self.cli_session.lock().unwrap().clone()
+    }
+
+    pub(crate) fn set_cli_session(&self, id: Option<String>) {
+        *self.cli_session.lock().unwrap() = id;
     }
 
     fn is_empty(&self) -> bool {

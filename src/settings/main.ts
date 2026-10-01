@@ -171,7 +171,7 @@ function claudeSection(status: HookStatus): HTMLElement {
   return section;
 }
 
-// ── Claude API section ────────────────────────────────────────────────────────
+// ── Claude chat section ───────────────────────────────────────────────────────
 
 const MODELS: [string, string][] = [
   ["claude-opus-5-5", "Claude Opus 5.5"],
@@ -181,30 +181,105 @@ const MODELS: [string, string][] = [
   ["claude-sonnet-5", "Claude Sonnet 5"],
 ];
 
-function apiSection(hasKey: boolean): HTMLElement {
-  const dot = statusDot(hasKey);
-  const state = h("span", { class: "hint", text: hasKey ? "Chiave salvata in Gestione credenziali di Windows." : "Nessuna chiave: la chat ne ha bisogno." });
+/** Claude Code takes aliases; "" leaves the choice to Claude Code. */
+const CLI_MODELS: [string, string][] = [
+  ["", "Predefinito di Claude Code"],
+  ["opus", "Opus"],
+  ["sonnet", "Sonnet"],
+  ["haiku", "Haiku"],
+];
 
+function modelSelect(
+  options: [string, string][],
+  current: string,
+  onChange: (v: string) => void,
+): HTMLSelectElement {
+  const select = h("select", {}) as HTMLSelectElement;
+  for (const [id, label] of options) select.append(h("option", { value: id, text: label }));
+  if (!options.some(([id]) => id === current)) {
+    select.append(h("option", { value: current, text: current }));
+  }
+  select.value = current;
+  select.addEventListener("change", () => onChange(select.value));
+  return select;
+}
+
+function claudeChatSection(hasKey: boolean): HTMLElement {
+  const dot = statusDot(false);
+  let keyPresent = hasKey;
+  let cliReady = false;
+
+  // ── Engine picker ──
+  const engine = h("select", {}) as HTMLSelectElement;
+  engine.append(
+    h("option", { value: "subscription", text: "Abbonamento Claude (tramite Claude Code)" }),
+    h("option", { value: "api", text: "Chiave API Anthropic (a consumo)" }),
+  );
+  engine.value = settings.chatEngine;
+
+  // ── Subscription block ──
+  const cliState = h("span", { class: "hint", text: "Verifica di Claude Code…" });
+  const recheck = h("button", { text: "Ricontrolla" });
+  const cliBlock = h(
+    "div",
+    { style: "display:flex;flex-direction:column;gap:10px" },
+    h("div", {
+      class: "hint",
+      text: "La chat usa Claude Code installato su questo PC e il tuo abbonamento Claude (Pro o Max): nessuna chiave e nessun costo extra, ma conta nei limiti d'uso del tuo piano. Claude Code gira nascosto, senza hook, e può solo cercare sul web e leggere i file che rilasci.",
+    }),
+    h("div", { class: "row" }, cliState, recheck),
+    h("div", { class: "row" },
+      h("label", { text: "Modello" }),
+      modelSelect(CLI_MODELS, settings.cliModel, (v) => {
+        settings.cliModel = v;
+        void save();
+      }),
+    ),
+  );
+
+  async function refreshCli() {
+    cliState.textContent = "Verifica di Claude Code…";
+    recheck.disabled = true;
+    const status = await Bridge.claudeCliStatus();
+    recheck.disabled = false;
+    cliReady = !!status?.found && !!status.loggedIn;
+    if (!status?.found) {
+      cliState.textContent =
+        "Claude Code non trovato. Installalo (code.claude.com), fai il login e premi Ricontrolla.";
+    } else if (!status.loggedIn) {
+      cliState.textContent =
+        "Claude Code è installato ma non hai fatto il login: apri un terminale, scrivi «claude» e segui le istruzioni.";
+    } else {
+      cliState.textContent = `Pronto: ${status.path}`;
+    }
+    paintDot();
+  }
+  recheck.addEventListener("click", () => void refreshCli());
+
+  // ── API block ──
+  const state = h("span", { class: "hint" });
   const field = h("input", {
     type: "password",
-    placeholder: hasKey ? "••••••••••••  (salvata)" : "sk-ant-...",
     style: "flex:1 1 auto;min-width:0",
     autocomplete: "off",
     spellcheck: "false",
   }) as HTMLInputElement;
-
   const saveBtn = h("button", { class: "primary", text: "Salva chiave" });
   const clearBtn = h("button", { class: "danger", text: "Rimuovi" });
   const feedback = h("div", {});
 
-  async function refresh() {
-    const present = (await Bridge.secretPresent("anthropic-api-key")) ?? false;
-    dot.style.background = present ? "#22c55e" : "#f4505e";
-    state.textContent = present
+  function paintKey() {
+    state.textContent = keyPresent
       ? "Chiave salvata in Gestione credenziali di Windows."
-      : "Nessuna chiave: la chat ne ha bisogno.";
-    field.placeholder = present ? "••••••••••••  (salvata)" : "sk-ant-...";
-    clearBtn.style.display = present ? "" : "none";
+      : "Nessuna chiave: in questa modalità la chat ne ha bisogno.";
+    field.placeholder = keyPresent ? "••••••••••••  (salvata)" : "sk-ant-...";
+    clearBtn.style.display = keyPresent ? "" : "none";
+    paintDot();
+  }
+
+  async function refreshKey() {
+    keyPresent = (await Bridge.secretPresent("anthropic-api-key")) ?? false;
+    paintKey();
   }
 
   saveBtn.addEventListener("click", async () => {
@@ -215,7 +290,7 @@ function apiSection(hasKey: boolean): HTMLElement {
       await Bridge.secretSet("anthropic-api-key", value);
       field.value = "";
       feedback.append(h("div", { class: "notice ok", text: "Salvata. Non viene mai scritta su disco." }));
-      await refresh();
+      await refreshKey();
     } catch (err) {
       feedback.append(h("div", { class: "notice err", text: `Salvataggio non riuscito: ${String(err)}` }));
     }
@@ -226,33 +301,60 @@ function apiSection(hasKey: boolean): HTMLElement {
     try {
       await Bridge.secretClear("anthropic-api-key");
       feedback.append(h("div", { class: "notice ok", text: "Chiave rimossa." }));
-      await refresh();
+      await refreshKey();
     } catch (err) {
       feedback.append(h("div", { class: "notice err", text: `Rimozione non riuscita: ${String(err)}` }));
     }
   });
 
-  const model = h("select", {}) as HTMLSelectElement;
-  for (const [id, label] of MODELS) model.append(h("option", { value: id, text: label }));
-  if (!MODELS.some(([id]) => id === settings.model)) {
-    model.append(h("option", { value: settings.model, text: settings.model }));
+  const apiBlock = h(
+    "div",
+    { style: "display:flex;flex-direction:column;gap:10px" },
+    h("div", {
+      class: "hint",
+      text: "La chat chiama direttamente l'API di Anthropic con la tua chiave. Si paga a consumo dalla Console di Anthropic, separatamente da qualsiasi abbonamento.",
+    }),
+    state,
+    h("div", { class: "row" }, h("label", { text: "Chiave API" }), field, saveBtn, clearBtn),
+    h("div", { class: "row" },
+      h("label", { text: "Modello" }),
+      modelSelect(MODELS, settings.model, (v) => {
+        settings.model = v;
+        void save();
+      }),
+    ),
+    feedback,
+  );
+
+  function paintDot() {
+    const ready = settings.chatEngine === "api" ? keyPresent : cliReady;
+    dot.style.background = ready ? "#22c55e" : "#f4505e";
   }
-  model.value = settings.model;
-  model.addEventListener("change", () => {
-    settings.model = model.value;
+
+  function showEngine() {
+    const api = settings.chatEngine === "api";
+    apiBlock.style.display = api ? "flex" : "none";
+    cliBlock.style.display = api ? "none" : "flex";
+    paintDot();
+  }
+
+  engine.addEventListener("change", () => {
+    settings.chatEngine = engine.value as Settings["chatEngine"];
     void save();
+    showEngine();
   });
 
-  clearBtn.style.display = hasKey ? "" : "none";
+  paintKey();
+  showEngine();
+  void refreshCli();
 
   return h(
     "section",
     {},
-    h("h2", {}, dot, h("span", { text: "Claude" })),
-    state,
-    h("div", { class: "row" }, h("label", { text: "Chiave API" }), field, saveBtn, clearBtn),
-    h("div", { class: "row" }, h("label", { text: "Modello" }), model),
-    feedback,
+    h("h2", {}, dot, h("span", { text: "Chat con Claude" })),
+    h("div", { class: "row" }, h("label", { text: "Motore" }), engine),
+    cliBlock,
+    apiBlock,
   );
 }
 
@@ -281,7 +383,7 @@ const INTEGRATIONS: IntegrationDef[] = [
   { id: "integration_resend", name: "Resend", color: "#22C55E",
     fields: [{ key: "resend-api-key", label: "Chiave API", placeholder: "re_…", secret: true }] },
   { id: "integration_notion", name: "Notion", color: "#8C8C8C",
-    fields: [{ key: "notion-api-key", label: "Token integrazione", placeholder: "ntn_…", secret: true }] },
+    fields: [{ key: "notion-api-key", label: "Token", placeholder: "ntn_…", secret: true }] },
   { id: "integration_calcom", name: "Cal.com", color: "#C9956A",
     fields: [{ key: "calcom-api-key", label: "Chiave API", placeholder: "cal_…", secret: true }] },
 ];
@@ -444,7 +546,7 @@ async function main() {
   root.append(
     h("h1", {}, h("span", { text: "Coucou" }), h("span", { class: "version", text: version })),
     claudeSection(status),
-    apiSection(hasKey),
+    claudeChatSection(hasKey),
     integrationsSection(present),
     generalSection(),
     h("div", {

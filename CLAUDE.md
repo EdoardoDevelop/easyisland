@@ -7,6 +7,7 @@ Coucou è un'app desktop per Windows 10/11: Mochi, un piccolo personaggio animat
 ## Dove stanno le cose
 - `src/`: front end dell'isola e delle impostazioni (TypeScript, nessun framework, Canvas 2D). `src/mochi/` il personaggio, `src/island/` macchina a stati, hook e integrazioni, `src/views/` tutte le viste, `src/settings/` la finestra delle impostazioni.
 - `src-tauri/`: backend Rust (Tauri 2): finestra, named pipe, API Claude, poller, Gestione credenziali, area di notifica, hook NSIS.
+- Chat: due motori scelti in `settings.chatEngine`. `src-tauri/src/claude.rs` chiama l'API con la chiave; `src-tauri/src/claude_cli.rs` lancia `claude -p` (abbonamento dell'utente) con hook disattivati, solo WebSearch/WebFetch/Read e `dontAsk`. `coucou-hook.exe` ignora i processi con `COUCOU_INTERNAL`.
 - `hook/`: `coucou-hook.exe`, il relay degli hook di Claude Code.
 - `assets/sounds/`: i 28 suoni WAV (percorso dichiarato una sola volta in `vite.config.ts`, `SOUNDS_DIR`).
 - `scripts/`: `gen-icons.mjs` (icone disegnate nel codice), `pack.mjs` (copia l'installer in `release/`).

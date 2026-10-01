@@ -90,8 +90,12 @@ export interface Settings {
   screen: "primary" | "cursor";
   autostart: boolean;
   hooksInstalled: boolean;
-  /** Claude model used by the chat. */
+  /** Claude model used by the chat with an API key. */
   model: string;
+  /** "subscription" = Claude Code (`claude -p`, Claude plan), "api" = API key. */
+  chatEngine: "subscription" | "api";
+  /** Model alias for the Claude Code engine; "" = Claude Code's default. */
+  cliModel: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -106,6 +110,8 @@ export const DEFAULT_SETTINGS: Settings = {
   autostart: false,
   hooksInstalled: false,
   model: "claude-opus-5-5",
+  chatEngine: "subscription",
+  cliModel: "",
 };
 
 type Listener = () => void;

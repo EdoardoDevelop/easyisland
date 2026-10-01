@@ -464,7 +464,10 @@ function buildSettings(actions: ViewActions): ViewHost {
         h("span", { text: "Claude Code" }),
       );
       clear(apiBadge);
-      apiBadge.append(dot("#F4505E", 6), h("span", { text: "API" }));
+      apiBadge.append(
+        dot("#8E939C", 6),
+        h("span", { text: s.chatEngine === "api" ? "Chat · API" : "Chat · Abbonamento" }),
+      );
     },
   };
 }
