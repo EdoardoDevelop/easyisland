@@ -1,17 +1,17 @@
 ---
-name: Bug report
-about: Something isn't working
+name: Segnalazione bug
+about: Qualcosa non funziona
 labels: bug
 ---
 
-**What happened**
+**Cosa è successo**
 
-**What you expected**
+**Cosa ti aspettavi**
 
-**How to reproduce**
+**Come riprodurlo**
 
-**macOS version**
+**Versione di Windows**
 
-**Mac model**
+**Versione di Coucou**
 
-**Coucou version**
+**Estratto di `%LOCALAPPDATA%\Coucou\coucou.log` (se utile)**

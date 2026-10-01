@@ -24,7 +24,7 @@ pub const DEFAULT_MODEL: &str = "claude-opus-5";
 
 const SYSTEM_PROMPT: &str = "You are Mochi, a personal AI assistant living at the top of the user's screen. \
 You have web search access and can help with absolutely anything — research, coding, finding places, recommendations, tasks, questions. \
-Respond in the user's language. Be thorough and complete — use as much detail as the task requires. \
+Respond in Italian unless the user writes in another language. Be thorough and complete — use as much detail as the task requires. \
 No markdown formatting (no **, no ##, no bullet dashes). Use plain text with line breaks.";
 
 #[derive(Default)]
@@ -77,7 +77,7 @@ pub async fn send(
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
     let key = secrets::get("anthropic-api-key")
-        .ok_or_else(|| "API key missing. Open settings.".to_string())?;
+        .ok_or_else(|| "Manca la chiave API. Apri le impostazioni.".to_string())?;
 
     let mut content: Vec<Value> = Vec::new();
 
@@ -92,7 +92,7 @@ pub async fn send(
                 content.push(json!({ "type": "text", "text": format!("File: {name}") }));
             }
             Some(ChatContext::Window { app_name, title, url }) => {
-                let mut text = format!("Context — App: {app_name}, Window: {title}");
+                let mut text = format!("Contesto — App: {app_name}, Finestra: {title}");
                 if let Some(url) = url {
                     text.push_str(&format!(", URL: {url}"));
                 }
@@ -129,13 +129,13 @@ pub async fn send(
             .get("stop_details")
             .and_then(|d| d.get("explanation"))
             .and_then(Value::as_str)
-            .unwrap_or("Claude declined this one.");
+            .unwrap_or("Claude ha rifiutato questa richiesta.");
         return Err(why.to_string());
     }
 
     let Some(blocks) = response.get("content").and_then(Value::as_array).cloned() else {
         chat.pop();
-        return Err("Unexpected API response.".into());
+        return Err("Risposta inattesa dall'API.".into());
     };
 
     // Store the whole content — tool_use / tool_result blocks included — so the
@@ -152,7 +152,7 @@ pub async fn send(
         .to_string();
 
     if text.is_empty() {
-        return Err("No response text.".into());
+        return Err("Nessun testo nella risposta.".into());
     }
     Ok(ChatReply { text })
 }
@@ -172,7 +172,7 @@ async fn call(key: &str, body: &Value) -> Result<Value, String> {
         .json(body)
         .send()
         .await
-        .map_err(|e| format!("Network error: {e}"))?;
+        .map_err(|e| format!("Errore di rete: {e}"))?;
 
     let status = response.status();
     let text = response.text().await.map_err(|e| e.to_string())?;
@@ -187,9 +187,9 @@ async fn call(key: &str, body: &Value) -> Result<Value, String> {
                     .map(str::to_string)
             })
             .unwrap_or_else(|| text.chars().take(200).collect());
-        return Err(format!("Claude API {status}: {detail}"));
+        return Err(format!("API Claude {status}: {detail}"));
     }
-    serde_json::from_str(&text).map_err(|e| format!("Bad API response: {e}"))
+    serde_json::from_str(&text).map_err(|e| format!("Risposta API non valida: {e}"))
 }
 
 /// PDF → document block, image → image block, text/code → inline text.
@@ -223,7 +223,7 @@ fn file_block(path: &str) -> Option<Value> {
         return None;
     }
     let text = std::fs::read_to_string(path).ok()?;
-    Some(json!({ "type": "text", "text": format!("File contents:\n{text}") }))
+    Some(json!({ "type": "text", "text": format!("Contenuto del file:\n{text}") }))
 }
 
 /// Small standalone base64 encoder — not worth another dependency.

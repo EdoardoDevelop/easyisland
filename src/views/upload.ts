@@ -29,11 +29,11 @@ function dashedFrame(): SVGSVGElement {
 
 export function buildUpload(): ViewHost {
   const frame = dashedFrame();
-  const title = h("div", { class: "drop-title", text: "Drop your files here" });
+  const title = h("div", { class: "drop-title", text: "Rilascia qui i tuoi file" });
   const tags = h(
     "div",
     { class: "drop-tags" },
-    ...["PDF", "Images", "Code", "Docs"].map((t) => h("span", { text: t })),
+    ...["PDF", "Immagini", "Codice", "Documenti"].map((t) => h("span", { text: t })),
   );
   const card = h(
     "div",
@@ -71,7 +71,7 @@ export function buildUploading(): ViewHost {
       const pct = Math.round(State.uploadProgress * 100);
       label.textContent = done
         ? `✓  ${State.droppedFile?.name ?? "File"}`
-        : `Uploading ${State.droppedFile?.name ?? "file"}`;
+        : `Caricamento di ${State.droppedFile?.name ?? "file"}`;
       label.classList.toggle("done", done);
       percent.textContent = done ? "" : `${pct} %`;
       const w = State.uploadProgress * 526;
@@ -85,18 +85,18 @@ export function buildUploading(): ViewHost {
 
 export function buildChoose(actions: ViewActions): ViewHost {
   const title = h("div", { class: "title" });
-  const sub = h("div", { class: "sub", text: "What do you want to do with it?" });
+  const sub = h("div", { class: "sub", text: "Cosa vuoi farne?" });
   const row = h(
     "div",
     { class: "actions" },
     h("button", {
       class: "btn primary",
-      text: "Ask a question",
+      text: "Fai una domanda",
       onclick: () => actions.setView("prompt"),
     }),
     h("button", {
       class: "btn secondary",
-      text: "Cancel",
+      text: "Annulla",
       onclick: () => actions.setView(State.defaultView()),
     }),
   );
@@ -116,7 +116,7 @@ export function buildChoose(actions: ViewActions): ViewHost {
       clear(title);
       title.append(
         h("b", { text: State.droppedFile?.name ?? "file" }),
-        document.createTextNode(" is ready."),
+        document.createTextNode(" è pronto."),
       );
     },
   };

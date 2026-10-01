@@ -1,9 +1,9 @@
 ---
-name: Feature request
-about: A new idea for Mochi
+name: Proposta di funzionalità
+about: Una nuova idea per Mochi
 labels: enhancement
 ---
 
-**What would you like Mochi to do?**
+**Cosa vorresti che facesse Mochi?**
 
-**Why would it be useful?**
+**Perché sarebbe utile?**

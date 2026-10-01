@@ -92,15 +92,15 @@ jobs:
         run: |
           $v = "${{ steps.pack.outputs.version }}"
           $notes = @"
-          Coucou for Windows $v — Mochi at the top of your screen.
+          Coucou per Windows $v — Mochi in cima al tuo schermo.
 
-          Download ``Coucou-Windows-$v-setup.exe`` and run it. The installer is not
-          code-signed yet, so Windows SmartScreen shows a warning: click
-          **More info → Run anyway**.
+          Scarica ``Coucou-Windows-$v-setup.exe`` ed eseguilo. L'installer non è
+          ancora firmato, quindi Windows SmartScreen mostra un avviso: clicca
+          **Ulteriori informazioni → Esegui comunque**.
           "@
           gh release create "${{ github.ref_name }}" `
             "release/Coucou-Windows-$v-setup.exe" `
-            --title "Coucou for Windows $v" `
+            --title "Coucou per Windows $v" `
             --notes $notes
 
       - name: Update the rolling windows-latest release
@@ -117,12 +117,12 @@ jobs:
             # from it gets an old tree.
             git tag -f windows-latest "${{ github.sha }}"
             git push -f origin windows-latest
-            gh release edit windows-latest --title "Coucou for Windows (latest)" --notes "Always the newest Windows build — currently $v."
+            gh release edit windows-latest --title "Coucou per Windows (ultima)" --notes "Sempre la build Windows più recente: attualmente $v."
             gh release upload windows-latest "release/Coucou-Windows-setup.exe" --clobber
           } else {
             gh release create windows-latest `
               "release/Coucou-Windows-setup.exe" `
-              --title "Coucou for Windows (latest)" `
-              --notes "Always the newest Windows build — currently $v." `
+              --title "Coucou per Windows (ultima)" `
+              --notes "Sempre la build Windows più recente: attualmente $v." `
               --latest=false
           }

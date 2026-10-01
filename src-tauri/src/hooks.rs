@@ -81,7 +81,7 @@ fn read_settings() -> Result<Value, String> {
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(json!({})),
         // A lock, a permission problem, a bad drive: all of them mean we do not
         // know what is in there, and not knowing is not the same as empty.
-        Err(err) => Err(format!("Can't read {}: {err}", path.display())),
+        Err(err) => Err(format!("Impossibile leggere {}: {err}", path.display())),
     }
 }
 
@@ -97,9 +97,9 @@ fn parse_settings(bytes: &[u8], path: &str) -> Result<Value, String> {
     }
     match serde_json::from_slice::<Value>(text) {
         Ok(v) if v.is_object() => Ok(v),
-        Ok(_) => Err(format!("{path} isn't a JSON object — Coucou won't touch it.")),
+        Ok(_) => Err(format!("{path} non è un oggetto JSON: Coucou non lo tocca.")),
         Err(err) => Err(format!(
-            "{path} isn't valid JSON ({err}). Fix or move it, then try again — Coucou won't overwrite it."
+            "{path} non è JSON valido ({err}). Correggilo o spostalo e riprova: Coucou non lo sovrascrive."
         )),
     }
 }
@@ -278,14 +278,14 @@ pub fn write(install: bool, fingerprint: &str) -> Result<String, String> {
     let current = read_settings()?;
     if current_fingerprint() != fingerprint {
         return Err(format!(
-            "{} changed since the preview. Nothing was written — review the new diff.",
+            "{} è cambiato dopo l'anteprima. Non è stato scritto nulla: controlla il nuovo diff.",
             path.display()
         ));
     }
 
     let backup = backup_path();
     if path.exists() {
-        std::fs::copy(&path, &backup).map_err(|e| format!("backup failed: {e}"))?;
+        std::fs::copy(&path, &backup).map_err(|e| format!("backup non riuscito: {e}"))?;
     }
 
     let next = if install { merged(&current) } else { without_ours(&current) };
@@ -295,10 +295,10 @@ pub fn write(install: bool, fingerprint: &str) -> Result<String, String> {
     // Write beside the target and rename over it: a crash or a full disk leaves
     // the original settings.json intact rather than half a file.
     let temp = path.with_extension(format!("json.coucou-{}", std::process::id()));
-    std::fs::write(&temp, text.as_bytes()).map_err(|e| format!("write failed: {e}"))?;
+    std::fs::write(&temp, text.as_bytes()).map_err(|e| format!("scrittura non riuscita: {e}"))?;
     if let Err(err) = std::fs::rename(&temp, &path) {
         let _ = std::fs::remove_file(&temp);
-        return Err(format!("write failed: {err}"));
+        return Err(format!("scrittura non riuscita: {err}"));
     }
     Ok(backup.to_string_lossy().to_string())
 }
@@ -410,7 +410,7 @@ fn unified_diff(before: &str, after: &str) -> String {
         .map(|(i, _)| i)
         .collect();
     if changed.is_empty() {
-        return "No change.".into();
+        return "Nessuna modifica.".into();
     }
     let mut keep = vec![false; out.len()];
     for idx in changed {
@@ -550,7 +550,7 @@ mod tests {
         let stale = preview(false).unwrap();
         std::fs::write(&path, br#"{"model":"someone-else-edited-this"}"#).unwrap();
         let err = write(false, &stale.fingerprint).unwrap_err();
-        assert!(err.contains("changed since the preview"), "got: {err}");
+        assert!(err.contains("è cambiato dopo l'anteprima"), "got: {err}");
         let untouched: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         assert_eq!(untouched["model"], "someone-else-edited-this");
 

@@ -41,22 +41,22 @@ function lastPathComponent(p: string): string {
   return idx >= 0 ? cleaned.slice(idx + 1) : cleaned;
 }
 
-/** frenchStep() — same labels as the macOS app. */
+/** Step labels shown in the ticker (frenchStep() in the macOS app, now in Italian). */
 const TOOL_LABELS: Record<string, string> = {
-  Bash: "Exécute",
-  Read: "Lit",
-  Write: "Écrit",
-  Edit: "Modifie",
-  Glob: "Cherche",
-  Grep: "Recherche",
-  WebSearch: "Recherche web",
-  WebFetch: "Récupère",
-  TodoWrite: "Tâches",
+  Bash: "Esegue",
+  Read: "Legge",
+  Write: "Scrive",
+  Edit: "Modifica",
+  Glob: "Cerca",
+  Grep: "Ricerca",
+  WebSearch: "Ricerca web",
+  WebFetch: "Scarica",
+  TodoWrite: "Attività",
   Task: "Agent",
-  LS: "Liste",
-  MultiEdit: "Modifie",
+  LS: "Elenca",
+  MultiEdit: "Modifica",
   NotebookEdit: "Notebook",
-  PowerShell: "Exécute",
+  PowerShell: "Esegue",
 };
 
 function stepLabel(tool: string, input: Record<string, unknown>): string {
@@ -167,7 +167,7 @@ function handleHook(island: Island, payload: HookPayload) {
     case "PreToolUse": {
       upsert(projectName, cwd);
       State.updateTask(CLAUDE_ID, "working");
-      const tool = payload.tool_name ?? "Tool";
+      const tool = payload.tool_name ?? "Strumento";
       State.appendStep(CLAUDE_ID, stepLabel(tool, payload.tool_input ?? {}));
       surface("overview", false);
       break;
@@ -179,7 +179,7 @@ function handleHook(island: Island, payload: HookPayload) {
 
     case "PostToolUseFailure":
       State.updateTask(CLAUDE_ID, "working");
-      State.appendStep(CLAUDE_ID, "⚠ failed");
+      State.appendStep(CLAUDE_ID, "⚠ fallito");
       break;
 
     case "Notification": {
@@ -220,11 +220,11 @@ function handleHook(island: Island, payload: HookPayload) {
       break;
 
     case "SubagentStart":
-      State.appendStep(CLAUDE_ID, "+ subagent");
+      State.appendStep(CLAUDE_ID, "+ sub-agente");
       break;
 
     case "SubagentStop":
-      State.appendStep(CLAUDE_ID, "• subagent done");
+      State.appendStep(CLAUDE_ID, "• sub-agente finito");
       break;
 
     case "PermissionRequest": {
@@ -238,7 +238,7 @@ function handleHook(island: Island, payload: HookPayload) {
       }
       upsert(projectName, cwd);
       if (pendingTimeout != null) window.clearTimeout(pendingTimeout);
-      const tool = payload.tool_name ?? "Tool";
+      const tool = payload.tool_name ?? "Strumento";
       const input = payload.tool_input ?? {};
       State.pendingApproval = {
         requestId,

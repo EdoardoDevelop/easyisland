@@ -1,149 +1,158 @@
 <div align="center">
 
-<img src="src-tauri/icons/128x128.png" width="96" alt="Coucou icon">
+<img src="src-tauri/icons/128x128.png" width="96" alt="Icona di Coucou">
 
 # Coucou
 
-**Mochi doesn't get a notch on a PC — so it lives at the top of your screen instead.**
+**Su un PC Mochi non ha un notch, quindi vive in cima al tuo schermo.**
 
-Approve Claude Code permissions, watch your session work, drop a file, chat with Claude, keep an eye on your services — without leaving what you're doing.
+Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file, chatta con Claude, tieni d'occhio i tuoi servizi: tutto senza interrompere quello che stai facendo.
 
 ![Windows 10/11](https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows)
 ![Tauri 2](https://img.shields.io/badge/Tauri-2-FFC131?logo=tauri&logoColor=black)
 ![Rust](https://img.shields.io/badge/Rust-backend-000?logo=rust)
-![License: MIT](https://img.shields.io/badge/license-MIT-green)
+![Licenza: MIT](https://img.shields.io/badge/licenza-MIT-green)
 
 </div>
 
-<img src="screenshots/greeting.png" width="640" alt="Mochi waving hello at launch">
+<img src="screenshots/greeting.png" width="640" alt="Mochi che saluta all'avvio">
 
 ---
 
-## Install
+## Installazione
 
-The downloadable installer is **temporarily unavailable**. Microsoft Defender
-wrongly flags the unsigned installer as malware (`Trojan:Win32/Wacatac.H!ml`, a
-machine-learning false positive). A report is under review at Microsoft, and the
-installer will be published again once it is cleared and code-signed.
+L'installer scaricabile è **temporaneamente non disponibile**. Microsoft Defender
+segnala per errore l'installer non firmato come malware (`Trojan:Win32/Wacatac.H!ml`,
+un falso positivo del machine learning). Finché l'installer non è firmato,
+[compilalo da te](#compilarlo-da-te): ci vogliono pochi minuti e si installa solo
+per l'utente corrente, senza richiesta di amministratore.
 
-Until then, [build it yourself](#build-it-yourself): it takes a few minutes and
-installs for the current user only — no admin prompt.
+## Come si usa
 
-## Using it
+<img src="screenshots/compact.png" width="292" alt="L'isola compatta, con le pillole delle integrazioni come mini Mochi">
+<img src="screenshots/overview.png" width="640" alt="La panoramica: l'integrazione in focus a sinistra, le altre pillole a destra">
+<img src="screenshots/approval.png" width="640" alt="Una richiesta di permesso di Claude Code, con Nega e Consenti">
+<img src="screenshots/chat.png" width="640" alt="Chat con Claude dall'isola">
+<img src="screenshots/drop.png" width="640" alt="Mochi trasformato in una scatola, in attesa di un file">
 
-<img src="screenshots/compact.png" width="292" alt="The compact island, with the integration pills as mini Mochis">
-<img src="screenshots/overview.png" width="640" alt="The overview: the focused integration on the left, the other pills on the right">
-<img src="screenshots/approval.png" width="640" alt="A Claude Code permission request, with Deny and Allow">
-<img src="screenshots/chat.png" width="640" alt="Chatting with Claude from the island">
-<img src="screenshots/drop.png" width="640" alt="Mochi turned into a box, waiting for a file">
+_Le schermate mostrano ancora i testi in inglese della versione originale._
 
-| What you do | What happens |
+| Cosa fai | Cosa succede |
 |---|---|
-| Move the mouse to the very top-centre of the screen | Mochi peeks out |
-| Click the small island | It opens |
-| Click Mochi | It gets annoyed. Three times in a row and it goes dizzy |
-| Rest the pointer on Mochi for two seconds | Hearts |
-| Drag a file onto the island | Mochi turns into a box, swallows it, then offers to answer questions about it |
-| `Esc` | Closes the island |
-| Tray icon | Open, Settings…, Pause, Quit |
+| Porti il mouse sul bordo superiore, al centro dello schermo | Mochi fa capolino |
+| Clicchi sull'isola piccola | Si apre |
+| Clicchi su Mochi | Si infastidisce. Tre volte di fila e gli gira la testa |
+| Lasci il puntatore su Mochi per due secondi | Cuori |
+| Trascini un file sull'isola | Mochi diventa una scatola, lo inghiotte e poi si offre di rispondere a domande sul file |
+| `Esc` | Chiude l'isola |
+| Icona nell'area di notifica | Apri, Impostazioni…, Pausa, Esci |
 
-Everything else happens on its own: a Claude Code permission request opens the
-island with **Deny / Allow**, a finished session shows what it did, and
-your integrations sit in the coloured pills next to Mochi.
+Tutto il resto succede da solo: una richiesta di permesso di Claude Code apre
+l'isola con **Nega / Consenti**, una sessione finita mostra cosa ha fatto e le
+tue integrazioni stanno nelle pillole colorate accanto a Mochi.
 
 ## Claude Code
 
-<img src="screenshots/settings.png" width="562" alt="The settings window">
+<img src="screenshots/settings.png" width="562" alt="La finestra delle impostazioni">
 
-Open **Settings… → Claude Code → Install hooks…**. You get the exact diff of what
-will change in `%USERPROFILE%\.claude\settings.json`, the path of the dated backup
-that will be taken, and nothing is written until you click. Your own hooks are
-never touched, and uninstalling removes only Coucou's entries.
+Apri **Impostazioni… → Claude Code → Installa hook…**. Vedi il diff esatto di cosa
+cambierà in `%USERPROFILE%\.claude\settings.json` e il percorso della copia di
+backup datata che verrà creata. Non viene scritto nulla finché non clicchi. I tuoi
+hook non vengono mai toccati e la disinstallazione rimuove solo le voci di Coucou.
 
-The relay is a tiny executable, `coucou-hook.exe`, copied to
-`%LOCALAPPDATA%\Coucou\bin\` at launch. It is given 300 ms to reach Coucou and
-exits cleanly if the app is closed, slow or crashed — **a Claude Code session is
-never blocked or slowed down by Coucou.** If nobody answers a permission request
-in time, Coucou stays quiet and Claude Code asks in the terminal as usual.
+Il relay è un piccolo eseguibile, `coucou-hook.exe`, copiato in
+`%LOCALAPPDATA%\Coucou\bin\` all'avvio. Ha 300 ms per raggiungere Coucou ed esce
+in modo pulito se l'app è chiusa, lenta o crashata: **una sessione di Claude Code
+non viene mai bloccata né rallentata da Coucou.** Se nessuno risponde in tempo a
+una richiesta di permesso, Coucou resta in silenzio e Claude Code la chiede nel
+terminale come al solito.
 
-It works from any terminal — Windows Terminal, PowerShell, VS Code, Git Bash.
+Funziona da qualsiasi terminale: Windows Terminal, PowerShell, VS Code, Git Bash.
 
-## Chat and keys
+## Chat e chiavi
 
-**Settings… → Claude** takes your Anthropic API key. Keys live in the **Windows
-Credential Manager**, never on disk and never in the interface — the island can
-only ask whether a key exists. Same for every integration key.
+**Impostazioni… → Claude** prende la tua chiave API Anthropic. Le chiavi stanno in
+**Gestione credenziali di Windows**, mai su disco e mai nell'interfaccia: l'isola
+può solo chiedere se una chiave esiste. Lo stesso vale per le chiavi di ogni
+integrazione.
 
-No telemetry. The only network requests Coucou makes are to the services you
-configure yourself.
+Mochi risponde in italiano, a meno che tu non gli scriva in un'altra lingua.
 
-## Build it yourself
+Nessuna telemetria. Le uniche richieste di rete di Coucou vanno ai servizi che
+configuri tu.
 
-You need [Rust](https://rustup.rs), [Node 20+](https://nodejs.org), and the
-**MSVC build tools** (Visual Studio Build Tools with "Desktop development with
-C++"). WebView2 ships with Windows 10/11.
+## Compilarlo da te
+
+Servono [Rust](https://rustup.rs), [Node 20+](https://nodejs.org) e gli
+**MSVC build tools** (Visual Studio Build Tools con "Sviluppo di applicazioni
+desktop con C++"). WebView2 è già incluso in Windows 10/11.
 
 ```powershell
 npm install
-npm run tauri dev      # live-reloading development build
-npm run pack           # builds the installer and drops it in release/
+npm run tauri dev      # build di sviluppo con ricaricamento automatico
+npm run pack           # crea l'installer e lo mette in release/
 ```
 
-`npm run dev` alone serves the front end in an ordinary browser, which is enough
-to work on the island's looks. It also serves `dev/upload-preview.html`, which
-replays the whole file-drop choreography on a loop — the one part of the UI that
-otherwise needs a real drag from Explorer to see. Neither page ships in the app.
+`npm run dev` da solo serve il front end in un normale browser, che basta per
+lavorare all'aspetto dell'isola. Serve anche `dev/upload-preview.html`, che
+ripete in loop tutta la coreografia del rilascio di un file: è l'unica parte
+dell'interfaccia che altrimenti richiede un vero trascinamento da Esplora file.
+Nessuna delle due pagine finisce nell'app.
 
-`npm run pack` leaves two files in `release/`, the same names the release
-workflow publishes:
+`npm run pack` lascia due file in `release/`, con gli stessi nomi che pubblica la
+workflow di release:
 
 ```
-Coucou-Windows-X.Y.Z-setup.exe    the versioned installer
-Coucou-Windows-setup.exe          the same file under the rolling name
+Coucou-Windows-X.Y.Z-setup.exe    l'installer con la versione
+Coucou-Windows-setup.exe          lo stesso file con il nome fisso
 ```
 
-Installing is optional — `target/release/coucou.exe` runs on its own. There is no
-window in the taskbar and no console: the island at the top of the screen and the
-Mochi in the notification area are the whole app, and Quit lives in its menu.
+Installare è facoltativo: `target/release/coucou.exe` funziona da solo. Non c'è
+nessuna finestra nella barra delle applicazioni e nessuna console: l'isola in cima
+allo schermo e il Mochi nell'area di notifica sono tutta l'app, ed Esci sta nel
+suo menu.
 
-The 28 sounds live in `assets/sounds/`. The path is declared once, in
-`SOUNDS_DIR` at the top of `vite.config.ts`.
+I 28 suoni stanno in `assets/sounds/`. Il percorso è dichiarato una sola volta, in
+`SOUNDS_DIR` in cima a `vite.config.ts`.
 
-The app icon and the tray icon are drawn in code, like Mochi itself:
+L'icona dell'app e quella dell'area di notifica sono disegnate nel codice, come
+Mochi:
 
 ```powershell
-npm run icons          # regenerates src-tauri/icons from scripts/gen-icons.mjs
+npm run icons          # rigenera src-tauri/icons da scripts/gen-icons.mjs
 ```
 
-### Layout
+### Struttura
 
 ```
 ./
-  src/                 island front end (TypeScript, no framework)
-    mochi/             Mochi and the launch greeting, in Canvas 2D
-    island/            state machine, hooks, integrations
-    views/             every island view
-    settings/          the settings window
-  src-tauri/           Rust backend: window, named pipe, Claude API, pollers
-  hook/                coucou-hook.exe, the Claude Code relay
-  scripts/             icon generator, installer packer
-  assets/sounds/       the 28 WAV sounds
-  design/              original HTML prototype and target screenshots
-  docs/                SPEC.md, INTEGRATIONS.md (French) and the Pages site
+  src/                 front end dell'isola (TypeScript, nessun framework)
+    mochi/             Mochi e il saluto all'avvio, in Canvas 2D
+    island/            macchina a stati, hook, integrazioni
+    views/             tutte le viste dell'isola
+    settings/          la finestra delle impostazioni
+  src-tauri/           backend Rust: finestra, named pipe, API Claude, poller
+  hook/                coucou-hook.exe, il relay per Claude Code
+  scripts/             generatore di icone, impacchettamento dell'installer
+  assets/sounds/       i 28 suoni WAV
+  design/              prototipo HTML originale e catture di riferimento
+  docs/                SPEC.md, INTEGRATIONS.md e il sito GitHub Pages
 ```
 
 ### Log
 
-`%LOCALAPPDATA%\Coucou\coucou.log` — hook events, permission decisions, poller
-problems. It stays on your machine.
+`%LOCALAPPDATA%\Coucou\coucou.log`: eventi degli hook, decisioni sui permessi,
+problemi dei poller. Resta sul tuo computer.
 
-## Origin
+## Origine
 
-Windows-only fork of [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou),
-which started as a native macOS notch app. The macOS code has been removed; the
-original prototype in `design/` is still the visual reference. Features that only
-existed on the Mac (sending a file by email, dragging Mochi onto a window to
-attach it as context, jumping to a specific terminal window) are not here —
-"Open terminal" opens the working folder in VS Code when `code` is on your `PATH`.
+Fork solo per Windows di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou),
+nato come app nativa macOS per il notch. Il codice macOS è stato rimosso; il
+prototipo originale in `design/` resta il riferimento visivo. Alcune funzioni
+esistevano solo sul Mac e non sono presenti qui: invio di un file per email,
+trascinamento di Mochi su una finestra per allegarla come contesto, salto alla
+finestra esatta del terminale. "Apri terminale" apre la cartella di lavoro in
+VS Code quando `code` è nel `PATH`.
 
-Licence: MIT for the code; see `LICENSE-ASSETS.md` for the character and sounds.
+Licenza: MIT per il codice; per personaggio, nomi, icone e suoni vedi
+`LICENSE-ASSETS.md`.
