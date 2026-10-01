@@ -52,23 +52,62 @@ body {
   inset: 0;
 }
 
-/* Invisible strip that wakes the island when it is hidden. */
+/* Invisible strip that wakes the island when it is hidden (icon style "none").
+   Size and the anchored edge are set from JS (Island.placeRestElements). */
 #wake-strip {
   position: fixed;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 240px;
-  height: 6px;
   background: transparent;
+}
+
+/* What stays on screen while the island rests: a still Mochi or a status dot.
+   Pinned to the anchored corner from JS; it fades away while the island is up. */
+#rest-icon {
+  position: fixed;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease-in-out;
+}
+
+#rest-icon.on {
+  opacity: 0.9;
+  pointer-events: auto;
+}
+
+#rest-icon.on:hover {
+  opacity: 1;
+}
+
+#rest-icon.paused.on {
+  opacity: 0.4;
+}
+
+#rest-icon canvas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  /* Mochi is pale: a soft shadow keeps it readable on white windows too. */
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+
+#rest-icon i {
+  display: block;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
 }
 
 /* ── Island ─────────────────────────────────────────────────────────────── */
 
+/* Position, size and corners are set from JS (Island.applyGeometry), pinned to
+   the side the user picked. */
 #island {
   position: absolute;
   top: 0;
-  left: 50%;
+  left: 0;
   background: #000;
   border-radius: 0 0 14px 14px;
   overflow: visible;

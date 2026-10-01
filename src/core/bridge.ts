@@ -40,7 +40,8 @@ export const Bridge = {
   saveSettings: (settings: Settings) => call<void>("save_settings", { settings }),
 
   /** Shrink the window down to the invisible wake strip (hidden) or back to full. */
-  setCollapsed: (collapsed: boolean) => call<void>("set_collapsed", { collapsed }),
+  setCollapsed: (collapsed: boolean, width?: number, height?: number) =>
+    call<void>("set_collapsed", { collapsed, width, height }),
 
   /**
    * Pushes the island shape in window coordinates. Rust flips click-through from

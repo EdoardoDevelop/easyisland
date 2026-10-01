@@ -33,4 +33,4 @@ La parte Rust si compila solo su Windows (toolchain MSVC). CI: `.github/workflow
 - Prestazioni: nessun frame di animazione / CPU ~0 % quando l'isola è ritirata.
 - La versione sta in tre file che devono coincidere: `package.json`, `Cargo.toml`, `src-tauri/tauri.conf.json` (la CI lo controlla sui tag).
 - Cambiare `identifier` in `tauri.conf.json` sposta i dati dell'app e le voci in Gestione credenziali: farlo di proposito, una volta sola.
-- Le modifiche visive devono corrispondere al prototipo e alle catture in `design/captures/`.
+- Le modifiche visive devono corrispondere al prototipo e alle catture in `design/captures/`. Eccezione voluta: posizione (angoli/bordi), icona a riposo e stile al passaggio del mouse sono specifici di Windows e configurabili (`anchorV`/`anchorH`, `iconStyle`, `hoverStyle` in Settings; geometria in `src/core/layout.ts` → `anchoredOrigin`, `collapsedBox`, `compactSize`).

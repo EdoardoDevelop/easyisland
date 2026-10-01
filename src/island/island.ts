@@ -4,10 +4,10 @@
 import { Tracked, Spring, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop } from "../core/bridge";
 import {
-  EXPANDED_CORNER, EXPANDED_W, NOTCH_W, PANEL_H, PANEL_W,
-  ROUNDED_CORNER, VIEW_LAYOUTS, botGlowColor, botGlowOpacity, botPosition, chatPromptHeight,
-  islandSize,
-  type IslandMode, type IslandViewName,
+  EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, NOTCH_W, PANEL_H, PANEL_W,
+  ROUNDED_CORNER, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
+  chatPromptHeight, collapsedBox, compactSize, isGlued, islandSize,
+  type IslandMode, type IslandViewName, type Placement,
 } from "../core/layout";
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
@@ -46,6 +46,11 @@ export class Island {
   private miniGrid!: HTMLElement;
   private countdown!: HTMLElement;
   private wakeStrip!: HTMLElement;
+  /** What stays on screen while the island is hidden (Mochi or a dot). */
+  private restIcon!: HTMLElement;
+  private restCanvas!: HTMLCanvasElement;
+  private restDot!: HTMLElement;
+  private restKey = "";
 
   private header!: ViewHost;
   private views!: Map<IslandViewName, ViewHost>;
@@ -73,6 +78,8 @@ export class Island {
   /** Last shape handed to Rust for the click-through test. */
   private pushedRect = { x: -1, y: -1, w: -1, h: -1 };
   private homeCollapseAt: number | null = null;
+  /** Hovering the compact island for `openDelay` seconds opens it. */
+  private hoverOpenTimer: number | null = null;
 
   // Bot hover → love (IslandWindowController.botHoverIn)
   private botHovering = false;
@@ -170,6 +177,9 @@ export class Island {
     };
 
     this.wakeStrip = h("div", { id: "wake-strip" });
+    this.restCanvas = h("canvas", {}) as HTMLCanvasElement;
+    this.restDot = h("i", {});
+    this.restIcon = h("div", { id: "rest-icon" }, this.restCanvas, this.restDot);
     this.botGlow = h("div", { id: "bot-glow" });
     this.botCanvas = h("canvas", { id: "bot-canvas" });
     this.greetingCanvas = h("canvas", { id: "greeting-canvas" });
@@ -217,7 +227,7 @@ export class Island {
     this.greetingCanvas.style.width = `${EXPANDED_W}px`;
     this.greetingCanvas.style.height = "150px";
 
-    this.root.append(this.wakeStrip, this.islandEl);
+    this.root.append(this.wakeStrip, this.restIcon, this.islandEl);
     this.applyGeometry();
   }
 
@@ -331,7 +341,16 @@ export class Island {
   }
 
   reveal() {
+    // Over a full-screen app only real alerts may show up.
+    if (State.fullscreen && State.settings.quietFullscreen) return;
     this.fsm.reveal();
+  }
+
+  /** Rust reports a full-screen app coming or going. */
+  setFullscreen(on: boolean) {
+    State.fullscreen = on;
+    if (on && State.settings.quietFullscreen && State.mode === "compact") this.fsm.forceHidden();
+    State.notify();
   }
 
   /** An alert stopped waiting for an answer: let the island auto-close again. */
@@ -449,9 +468,26 @@ export class Island {
 
   // ── Geometry ────────────────────────────────────────────────────────────────
 
+  /** Placement settings, in the shape the layout helpers take. */
+  private get placement(): Placement {
+    const s = State.settings;
+    return {
+      h: s.anchorH,
+      v: s.anchorV,
+      iconStyle: s.iconStyle,
+      iconSize: s.iconSize,
+      hoverStyle: s.hoverStyle,
+      hoverSize: s.hoverSize,
+    };
+  }
+
   private targetSize(): { w: number; h: number; r: number } {
-    const { w, h } = islandSize(State.mode, State.view, State.chatHistory.length);
-    const r = State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
+    const compact = compactSize(this.placement);
+    const { w, h } = islandSize(State.mode, State.view, State.chatHistory.length, compact);
+    let r = State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
+    // The hover badge is a circle; a floating bar is a pill.
+    if (State.mode !== "expanded" && this.placement.hoverStyle === "icon") r = compact.w / 2;
+    else if (State.mode !== "expanded" && !isGlued(this.placement)) r = compact.h / 2;
     return { w, h, r };
   }
 
@@ -473,10 +509,16 @@ export class Island {
     const w = this.width.value;
     const hh = this.height.value;
     const r = this.radius.value;
+    const p = this.placement;
+    const o = anchoredOrigin(p, w, hh);
+    this.islandEl.style.left = `${o.x}px`;
+    this.islandEl.style.top = `${o.y}px`;
     this.islandEl.style.width = `${w}px`;
     this.islandEl.style.height = `${hh}px`;
-    this.islandEl.style.borderRadius = `0 0 ${r}px ${r}px`;
-    this.islandEl.style.transform = `translateX(-50%)`;
+    // Hanging from the top edge (the notch spot) keeps square top corners;
+    // a floating island is rounded all round.
+    const rr = Math.min(r, w / 2, hh / 2);
+    this.islandEl.style.borderRadius = isGlued(p) ? `0 0 ${rr}px ${rr}px` : `${rr}px`;
     // These follow the island as it resizes, so they belong here rather than in
     // the state-driven DOM sync.
     this.miniGrid.style.left = `${w - 40 - 14.5}px`;
@@ -484,9 +526,12 @@ export class Island {
     this.greetingCanvas.style.left = `${(w - EXPANDED_W) / 2}px`;
     this.uploadCanvas.el.style.left = `${(w - EXPANDED_W) / 2}px`;
 
-    const rect = { x: (PANEL_W - w) / 2, y: 0, w, h: hh };
-    const p = this.pushedRect;
-    if (Math.abs(p.x - rect.x) > 0.5 || Math.abs(p.w - rect.w) > 0.5 || Math.abs(p.h - rect.h) > 0.5) {
+    const rect = { x: o.x, y: o.y, w, h: hh };
+    const pr = this.pushedRect;
+    if (
+      Math.abs(pr.x - rect.x) > 0.5 || Math.abs(pr.y - rect.y) > 0.5 ||
+      Math.abs(pr.w - rect.w) > 0.5 || Math.abs(pr.h - rect.h) > 0.5
+    ) {
       this.pushedRect = rect;
       void Bridge.setIslandRect(rect.x, rect.y, rect.w, rect.h);
     }
@@ -496,7 +541,94 @@ export class Island {
   private islandRect(): { x: number; y: number; w: number; h: number } {
     const w = this.width.value;
     const hh = this.height.value;
-    return { x: (PANEL_W - w) / 2, y: 0, w, h: hh };
+    const o = anchoredOrigin(this.placement, w, hh);
+    return { x: o.x, y: o.y, w, h: hh };
+  }
+
+  // ── Rest icon / wake strip ──────────────────────────────────────────────────
+
+  /**
+   * Places the rest icon and the wake strip against the window edges on the
+   * anchored side. Using left/right/top/bottom (not absolute coordinates) keeps
+   * them on the same screen pixel whether the window is the small collapsed box
+   * or the full panel — both are pinned to the same corner.
+   */
+  private placeRestElements() {
+    const p = this.placement;
+    const pin = (el: HTMLElement, w: number, hh: number, margin: number) => {
+      el.style.width = `${w}px`;
+      el.style.height = `${hh}px`;
+      el.style.left = p.h === "left" ? `${margin}px` : p.h === "center" ? "50%" : "";
+      el.style.right = p.h === "right" ? `${margin}px` : "";
+      el.style.transform = p.h === "center" ? "translateX(-50%)" : "";
+      el.style.top = p.v === "top" ? `${margin}px` : "";
+      el.style.bottom = p.v === "bottom" ? `${margin}px` : "";
+    };
+    const box = collapsedBox(p);
+    pin(this.wakeStrip, box.w, box.h, 0);
+    pin(this.restIcon, p.iconSize, p.iconSize, EDGE_MARGIN);
+    this.wakeStrip.style.display = p.iconStyle === "none" ? "block" : "none";
+  }
+
+  /**
+   * Draws the rest icon once. It is a still frame on purpose: a resting island
+   * runs no animation loop at all.
+   */
+  private drawRestIcon() {
+    const p = this.placement;
+    const state = State.effectiveState;
+    const key = `${p.iconStyle}|${p.iconSize}|${state}|${State.paused}`;
+    if (key === this.restKey) return;
+    this.restKey = key;
+
+    const size = p.iconSize;
+    this.restCanvas.style.display = p.iconStyle === "mochi" ? "block" : "none";
+    this.restDot.style.display = p.iconStyle === "dot" ? "block" : "none";
+    this.restIcon.classList.toggle("paused", State.paused);
+
+    if (p.iconStyle === "dot") {
+      const color = state === "idle" || state === "sleeping" ? "#8E939C" : botGlowColor(state);
+      const d = Math.max(6, Math.round(size * 0.5));
+      this.restDot.style.width = `${d}px`;
+      this.restDot.style.height = `${d}px`;
+      this.restDot.style.background = color;
+    } else if (p.iconStyle === "mochi") {
+      // The body is ~68 % of the engine canvas wide; size the canvas so the body
+      // fills ~90 % of the icon box and let the canvas overflow it.
+      const w = Math.round(size * 1.3);
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      this.restCanvas.width = Math.round(w * dpr);
+      this.restCanvas.height = Math.round(w * dpr);
+      this.restCanvas.style.width = `${w}px`;
+      this.restCanvas.style.height = `${w}px`;
+      const ctx = this.restCanvas.getContext("2d");
+      if (!ctx) return;
+      const engine = new BotEngine();
+      engine.setState(state, true);
+      engine.update(0);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, w);
+      engine.draw(ctx, w, w);
+    }
+  }
+
+  /** Re-reads placement settings: icon, anchors and the window box. */
+  private applyPlacement() {
+    this.restKey = "";
+    this.placeRestElements();
+    this.drawRestIcon();
+    this.animateGeometry(false);
+    if (this.collapsed) {
+      const box = collapsedBox(this.placement);
+      void Bridge.setCollapsed(true, box.w, box.h);
+    } else {
+      void Bridge.reposition();
+    }
+  }
+
+  private cancelHoverOpen() {
+    if (this.hoverOpenTimer != null) window.clearTimeout(this.hoverOpenTimer);
+    this.hoverOpenTimer = null;
   }
 
   // ── Window collapse (hidden → tiny wake strip, zero polling) ────────────────
@@ -513,7 +645,8 @@ export class Island {
         this.collapseTimer = null;
         if (State.mode !== "hidden") return;
         this.collapsed = true;
-        void Bridge.setCollapsed(true);
+        const box = collapsedBox(this.placement);
+        void Bridge.setCollapsed(true, box.w, box.h);
       }, 420);
     } else if (this.collapsed) {
       // Grow the window back before the island animates open.
@@ -525,10 +658,17 @@ export class Island {
   // ── Input ───────────────────────────────────────────────────────────────────
 
   private wireInput() {
-    // The wake strip is the only thing the OS can hit while the island is hidden.
-    this.wakeStrip.addEventListener("mouseenter", () => {
+    // The rest icon (or the wake strip) is the only thing the OS can hit while
+    // the island is hidden.
+    const wake = () => {
       Sound.resume();
       if (State.mode === "hidden") this.fsm.mouseEntered();
+    };
+    this.wakeStrip.addEventListener("mouseenter", wake);
+    this.restIcon.addEventListener("mouseenter", wake);
+    this.restIcon.addEventListener("mousedown", () => {
+      wake();
+      this.fsm.click();
     });
 
     this.islandEl.addEventListener("mousedown", (e) => {
@@ -579,7 +719,16 @@ export class Island {
       this.fsm.mouseEntered();
       this.homeCollapseAt = null;
     }
+    // Resting the pointer on the compact island opens it after `openDelay`.
+    const delay = State.settings.openDelay;
+    if (inIsland && State.mode === "compact" && delay > 0 && this.hoverOpenTimer == null) {
+      this.hoverOpenTimer = window.setTimeout(() => {
+        this.hoverOpenTimer = null;
+        if (this.wasInIsland && State.mode === "compact") this.fsm.click();
+      }, delay * 1000);
+    }
     if (!inIsland && this.wasInIsland) {
+      this.cancelHoverOpen();
       this.fsm.mouseLeft();
       if (this.fsm.state === "home" && !State.isPinned) {
         this.homeCollapseAt = performance.now() + State.settings.autoCloseInterval * 1000;
@@ -733,7 +882,9 @@ export class Island {
   };
 
   private updateBotTargets() {
-    const p = botPosition(State.mode, State.view, this.height.value, State.uploadProgress);
+    const p = botPosition(
+      State.mode, State.view, this.height.value, State.uploadProgress, compactSize(this.placement),
+    );
     this.botCx.target = p.cx;
     this.botCy.target = p.cy;
     this.botSize.target = p.diameter / 0.6;
@@ -804,7 +955,8 @@ export class Island {
   }
 
   private lookY(): number {
-    return -Math.tanh((State.mouse.y - this.botCy.value) / 200);
+    const rect = this.islandRect();
+    return -Math.tanh((State.mouse.y - rect.y - this.botCy.value) / 200);
   }
 
   private updateCountdown(nowMs: number) {
@@ -850,7 +1002,7 @@ export class Island {
     }
 
     // Compact mini grid
-    const showGrid = State.mode === "compact";
+    const showGrid = State.mode === "compact" && this.placement.hoverStyle === "bar";
     this.miniGrid.style.opacity = showGrid ? "1" : "0";
     if (showGrid) {
       const others = State.otherTasks.slice(0, 4);
@@ -867,6 +1019,14 @@ export class Island {
 
     syncMiniBotStates(State.tasks);
     this.engine.setState(State.effectiveState);
+
+    // The rest icon shows only while the island is hidden — and not over a
+    // full-screen app.
+    const p = this.placement;
+    const showRest = State.mode === "hidden" && p.iconStyle !== "none" &&
+      !(State.fullscreen && State.settings.quietFullscreen);
+    this.restIcon.classList.toggle("on", showRest);
+    if (showRest) this.drawRestIcon();
   }
 
   /** Applies settings coming from Rust at boot. */
@@ -874,6 +1034,8 @@ export class Island {
     Sound.setEnabled(State.settings.soundEnabled);
     Sound.setVolume(State.settings.soundVolume);
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
+    this.fsm.petitToHiddenDelay = State.settings.revealDuration;
+    this.applyPlacement();
     State.notify();
   }
 

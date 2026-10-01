@@ -1,15 +1,17 @@
 // Island window: placement on the chosen display, the two window sizes
-// (full panel / invisible wake strip), click-through and the cursor poll.
+// (full panel / rest icon or wake strip), click-through, the cursor poll and
+// the full-screen watch.
 //
-// There is no notch on a PC, so the island is a black shape drawn at the top
-// centre of the main display inside a borderless, transparent, always-on-top
-// window that never takes focus.
+// There is no notch on a PC, so the island is a shape drawn in a borderless,
+// transparent, always-on-top window that never takes focus, pinned to the
+// corner or edge the user picked in the settings.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
 use serde::Serialize;
+use crate::settings::Settings;
 use tauri::{AppHandle, Emitter, Manager, Monitor, PhysicalPosition, PhysicalSize, WebviewWindow};
 
 use windows::Win32::Foundation::{HWND, POINT};
@@ -70,6 +72,11 @@ pub struct PollGate {
     pub rect: Mutex<IslandRect>,
     /// Mirrors the window flag so we only call into Win32 when it changes.
     ignoring: AtomicBool,
+    /// Logical size of the window while collapsed: the rest icon's box, or the
+    /// invisible wake strip. Set by the front end, which knows the icon size.
+    pub collapsed_size: Mutex<(f64, f64)>,
+    /// A full-screen app (video, game, presentation) is in front.
+    pub fullscreen: AtomicBool,
 }
 
 impl PollGate {
@@ -80,6 +87,8 @@ impl PollGate {
             collapsed: AtomicBool::new(true),
             rect: Mutex::new(IslandRect::default()),
             ignoring: AtomicBool::new(false),
+            collapsed_size: Mutex::new((STRIP_W, STRIP_H)),
+            fullscreen: AtomicBool::new(false),
         }
     }
 
@@ -202,26 +211,84 @@ pub fn screen_info(app: &AppHandle, pref: &str) -> ScreenInfo {
     }
 }
 
-/// Places and sizes the window. `collapsed` picks the wake strip instead of the panel.
-pub fn apply_geometry(app: &AppHandle, pref: &str, collapsed: bool) {
+/// Places and sizes the window. `collapsed` picks the rest icon / wake strip box
+/// instead of the panel. Both are pinned to the same corner (or edge centre) of
+/// the work area, so the island never jumps when the window grows or shrinks,
+/// and nothing ever sits on the taskbar.
+pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, collapsed: bool) {
     let Some(win) = window(app) else { return };
-    let Some(m) = target_monitor(app, pref) else { return };
+    let Some(m) = target_monitor(app, &settings.screen) else { return };
 
     let scale = m.scale_factor();
-    let mp = *m.position();
-    let ms = *m.size();
+    let wa = *m.work_area();
 
-    let (lw, lh) = if collapsed { (STRIP_W, STRIP_H) } else { (PANEL_W, PANEL_H) };
+    let (lw, lh) = if collapsed { *gate.collapsed_size.lock().unwrap() } else { (PANEL_W, PANEL_H) };
     let pw = (lw * scale).round().max(1.0) as u32;
     let ph = (lh * scale).round().max(1.0) as u32;
-    let x = mp.x + (ms.width as i32 - pw as i32) / 2;
-    let y = mp.y;
+    let (x, y) = anchored_origin(
+        (wa.position.x, wa.position.y, wa.size.width, wa.size.height),
+        (pw, ph),
+        &settings.anchor_h,
+        &settings.anchor_v,
+    );
 
     let _ = win.set_size(PhysicalSize::new(pw, ph));
     let _ = win.set_position(PhysicalPosition::new(x, y));
     // Moving across displays can rescale the window: re-assert the physical size.
     let _ = win.set_size(PhysicalSize::new(pw, ph));
     let _ = win.set_always_on_top(true);
+}
+
+/// Top-left corner, in physical px, of a `size` window pinned to the requested
+/// side of the `work` area (x, y, width, height).
+fn anchored_origin(
+    work: (i32, i32, u32, u32),
+    size: (u32, u32),
+    anchor_h: &str,
+    anchor_v: &str,
+) -> (i32, i32) {
+    let (wx, wy, ww, wh) = work;
+    let (pw, ph) = (size.0 as i32, size.1 as i32);
+    let x = match anchor_h {
+        "left" => wx,
+        "right" => wx + ww as i32 - pw,
+        _ => wx + (ww as i32 - pw) / 2,
+    };
+    let y = if anchor_v == "bottom" { wy + wh as i32 - ph } else { wy };
+    (x, y)
+}
+
+/// Every two seconds: is a full-screen app in front? Cheap (one shell call),
+/// and it only runs while the user has asked for quiet in full screen.
+pub fn spawn_fullscreen_watch(app: AppHandle, gate: Arc<PollGate>) {
+    use windows::Win32::UI::Shell::{
+        SHQueryUserNotificationState, QUNS_BUSY, QUNS_PRESENTATION_MODE,
+        QUNS_RUNNING_D3D_FULL_SCREEN,
+    };
+    std::thread::spawn(move || loop {
+        std::thread::sleep(Duration::from_secs(2));
+        let wanted = app
+            .try_state::<crate::Shared>()
+            .map(|s| s.settings.lock().unwrap().quiet_fullscreen)
+            .unwrap_or(false);
+        let busy = wanted
+            && matches!(
+                unsafe { SHQueryUserNotificationState() },
+                Ok(s) if s == QUNS_BUSY || s == QUNS_RUNNING_D3D_FULL_SCREEN || s == QUNS_PRESENTATION_MODE
+            );
+        if gate.fullscreen.swap(busy, Ordering::Relaxed) == busy {
+            continue;
+        }
+        crate::log::line(format!("full screen: {busy}"));
+        // Only the resting icon goes away; an open island (a permission request)
+        // stays where it is.
+        if gate.collapsed.load(Ordering::Relaxed) {
+            if let Some(win) = window(&app) {
+                let _ = if busy { win.hide() } else { win.show() };
+            }
+        }
+        let _ = app.emit_to(WINDOW_LABEL, "fullscreen", busy);
+    });
 }
 
 fn hwnd_of(win: &WebviewWindow) -> Option<HWND> {

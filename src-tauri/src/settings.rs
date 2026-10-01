@@ -28,6 +28,61 @@ pub struct Settings {
     /// for Claude Code's own default.
     #[serde(default)]
     pub cli_model: String,
+    /// Where the island sits: "top" | "bottom" …
+    #[serde(default = "default_anchor_v")]
+    pub anchor_v: String,
+    /// … and "left" | "center" | "right". Content opens aligned to that side.
+    #[serde(default = "default_anchor_h")]
+    pub anchor_h: String,
+    /// What stays visible at rest: "mochi" | "dot" | "none" (invisible strip).
+    #[serde(default = "default_icon_style")]
+    pub icon_style: String,
+    /// Rest icon size, logical px.
+    #[serde(default = "default_icon_size")]
+    pub icon_size: f64,
+    /// What the hover shows: "icon" (a bigger, live Mochi) | "bar" (the compact bar).
+    #[serde(default = "default_hover_style")]
+    pub hover_style: String,
+    /// Size of the hovered icon, logical px.
+    #[serde(default = "default_hover_size")]
+    pub hover_size: f64,
+    /// Seconds of hover before the island opens; 0 = only on click.
+    #[serde(default = "default_open_delay")]
+    pub open_delay: f64,
+    /// Seconds the hover icon / bar stays up after the mouse leaves or an event.
+    #[serde(default = "default_reveal_duration")]
+    pub reveal_duration: f64,
+    /// Stay out of the way while a full-screen app runs (permission requests excepted).
+    #[serde(default = "default_true")]
+    pub quiet_fullscreen: bool,
+}
+
+fn default_anchor_v() -> String {
+    "top".into()
+}
+fn default_anchor_h() -> String {
+    "center".into()
+}
+fn default_icon_style() -> String {
+    "mochi".into()
+}
+fn default_icon_size() -> f64 {
+    24.0
+}
+fn default_hover_style() -> String {
+    "icon".into()
+}
+fn default_hover_size() -> f64 {
+    40.0
+}
+fn default_open_delay() -> f64 {
+    0.6
+}
+fn default_reveal_duration() -> f64 {
+    8.0
+}
+fn default_true() -> bool {
+    true
 }
 
 fn default_model() -> String {
@@ -57,6 +112,15 @@ impl Default for Settings {
             model: default_model(),
             chat_engine: default_chat_engine(),
             cli_model: String::new(),
+            anchor_v: default_anchor_v(),
+            anchor_h: default_anchor_h(),
+            icon_style: default_icon_style(),
+            icon_size: default_icon_size(),
+            hover_style: default_hover_style(),
+            hover_size: default_hover_size(),
+            open_delay: default_open_delay(),
+            reveal_duration: default_reveal_duration(),
+            quiet_fullscreen: true,
         }
     }
 }

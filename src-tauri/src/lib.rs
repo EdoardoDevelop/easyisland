@@ -64,7 +64,9 @@ fn boot(app: AppHandle, shared: State<Shared>) -> BootInfo {
 fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
     let (screen_changed, autostart_changed) = {
         let mut current = shared.settings.lock().unwrap();
-        let screen_changed = current.screen != settings.screen;
+        let screen_changed = current.screen != settings.screen
+            || current.anchor_h != settings.anchor_h
+            || current.anchor_v != settings.anchor_v;
         let autostart_changed = current.autostart != settings.autostart;
         *current = settings.clone();
         (screen_changed, autostart_changed)
@@ -81,19 +83,34 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
     }
     if screen_changed {
         let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
-        island::apply_geometry(&app, &settings.screen, collapsed);
+        island::apply_geometry(&app, &shared.gate, &settings, collapsed);
     }
     // Keep the other window in step (island ⇄ settings window).
     let _ = app.emit("settings-changed", settings);
 }
 
-/// Hidden island → shrink the window to the invisible wake strip and park the
-/// cursor poll; anything else → full panel and 60 Hz polling.
+/// Hidden island → shrink the window to the rest icon (or the invisible wake
+/// strip) and park the cursor poll; anything else → full panel and 60 Hz polling.
+/// `width`/`height` are the collapsed box, which depends on the icon settings.
 #[tauri::command]
-fn set_collapsed(app: AppHandle, shared: State<Shared>, collapsed: bool) {
-    let pref = shared.settings.lock().unwrap().screen.clone();
+fn set_collapsed(
+    app: AppHandle,
+    shared: State<Shared>,
+    collapsed: bool,
+    width: Option<f64>,
+    height: Option<f64>,
+) {
+    if let (Some(w), Some(h)) = (width, height) {
+        *shared.gate.collapsed_size.lock().unwrap() = (w.max(1.0), h.max(1.0));
+    }
+    let settings = shared.settings.lock().unwrap().clone();
     shared.gate.collapsed.store(collapsed, Ordering::Relaxed);
-    island::apply_geometry(&app, &pref, collapsed);
+    island::apply_geometry(&app, &shared.gate, &settings, collapsed);
+    // Hidden behind a full-screen app while resting; always back for anything else.
+    if let Some(win) = island::window(&app) {
+        let quiet = collapsed && shared.gate.fullscreen.load(Ordering::Relaxed);
+        let _ = if quiet { win.hide() } else { win.show() };
+    }
     // The wake strip must always take the mouse, and a resize invalidates the flag.
     island::set_ignore_cursor(&app, false);
     shared.gate.forget_ignore_state();
@@ -117,9 +134,9 @@ fn focus_window(app: AppHandle, focused: bool) {
 
 #[tauri::command]
 fn reposition(app: AppHandle, shared: State<Shared>) {
-    let pref = shared.settings.lock().unwrap().screen.clone();
+    let settings = shared.settings.lock().unwrap().clone();
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
-    island::apply_geometry(&app, &pref, collapsed);
+    island::apply_geometry(&app, &shared.gate, &settings, collapsed);
 }
 
 #[tauri::command]
@@ -432,12 +449,13 @@ pub fn run() {
 
             if let Some(win) = island::window(&handle) {
                 island::make_non_activating(&win);
-                island::apply_geometry(&handle, &loaded.screen, false);
+                island::apply_geometry(&handle, &gate, &loaded, false);
                 let _ = win.show();
             }
             gate.collapsed.store(false, Ordering::Relaxed);
             gate.set_active(true);
             island::spawn_cursor_poll(handle.clone(), gate.clone());
+            island::spawn_fullscreen_watch(handle.clone(), gate.clone());
 
             log::line(format!("--- Coucou {} started ---", env!("CARGO_PKG_VERSION")));
             hooks::ensure_hook_exe(&handle);

@@ -138,6 +138,14 @@ function handleHook(island: Island, payload: HookPayload) {
 
   /** Alerts force the island open; work events only reveal the compact island. */
   const surface = (view: Parameters<Island["alert"]>[0], isAlert: boolean) => {
+    // Over a full-screen app only a permission request may take the screen;
+    // anything else waits as a badge for the next time the island is opened.
+    if (State.fullscreen && State.settings.quietFullscreen && view !== "approval") {
+      if (view === "finished" || view === "error" || view === "question") {
+        State.setPillBadge(CLAUDE_ID, view === "question" ? "approval" : view);
+      }
+      return;
+    }
     if (State.mode === "expanded") {
       if (isAlert) island.setView(view);
     } else if (isAlert) {
@@ -253,6 +261,10 @@ function handleHook(island: Island, payload: HookPayload) {
       State.isPinned = true;
       Sound.play("approval");
       if (focused) {
+        island.alert("approval");
+      } else if (State.fullscreen && State.settings.quietFullscreen) {
+        // A badge on a hidden island would go unseen behind the full-screen app.
+        State.setFocus(CLAUDE_ID);
         island.alert("approval");
       } else {
         // Another agent holds the view, so the card would yank it away. The badge

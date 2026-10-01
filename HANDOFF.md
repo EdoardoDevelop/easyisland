@@ -57,6 +57,7 @@ Coucou è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou). In
 **Funzionalità:**
 - [ ] Quali integrazioni tieni? Se non usi Stripe, Resend, Cal.com…, rimuoverle alleggerisce codice e Impostazioni.
 - [ ] Funzioni presenti solo su Mac e mai portate: invio di un file via email, trascinare Mochi su una finestra per allegarla come contesto, saltare al terminale esatto della sessione. Valuta se ti servono.
+- [x] Posizione e aspetto: angolo o bordo, icona a riposo e al passaggio del mouse, apertura dopo N secondi, silenzio a schermo intero (Impostazioni → Posizione e aspetto).
 - [x] Chat: scegli in Impostazioni tra abbonamento Claude (tramite Claude Code, predefinito) e chiave API. Codice in `src-tauri/src/claude_cli.rs` e `src-tauri/src/claude.rs`.
 
 **Distribuzione:**

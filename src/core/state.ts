@@ -1,6 +1,6 @@
 // App state — mirror of AppState.swift (the parts the island needs).
 
-import type { BotEmoteName, BotStateName, IslandMode, IslandViewName } from "./layout";
+import type { AnchorH, AnchorV, BotEmoteName, BotStateName, IslandMode, IslandViewName } from "./layout";
 import type { EyeShape } from "../mochi/engine";
 
 export type AgentSource = "claudeCode" | "n8n";
@@ -96,6 +96,23 @@ export interface Settings {
   chatEngine: "subscription" | "api";
   /** Model alias for the Claude Code engine; "" = Claude Code's default. */
   cliModel: string;
+  /** Where the island sits; content opens aligned to that side. */
+  anchorV: AnchorV;
+  anchorH: AnchorH;
+  /** What stays visible at rest. "none" = the old invisible wake strip. */
+  iconStyle: "mochi" | "dot" | "none";
+  /** Rest icon size, px. */
+  iconSize: number;
+  /** What the hover shows: a bigger live Mochi, or the compact bar. */
+  hoverStyle: "icon" | "bar";
+  /** Hovered icon size, px. */
+  hoverSize: number;
+  /** Seconds of hover before the island opens; 0 = only on click. */
+  openDelay: number;
+  /** Seconds the hover icon / bar stays up after the mouse leaves or an event. */
+  revealDuration: number;
+  /** Stay out of the way while a full-screen app runs. */
+  quietFullscreen: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -112,6 +129,15 @@ export const DEFAULT_SETTINGS: Settings = {
   model: "claude-opus-5-5",
   chatEngine: "subscription",
   cliModel: "",
+  anchorV: "top",
+  anchorH: "center",
+  iconStyle: "mochi",
+  iconSize: 24,
+  hoverStyle: "icon",
+  hoverSize: 40,
+  openDelay: 0.6,
+  revealDuration: 8,
+  quietFullscreen: true,
 };
 
 type Listener = () => void;
@@ -132,6 +158,8 @@ class AppState {
 
   isPinned = false;
   paused = false;
+  /** A full-screen app is in front (reported by Rust every couple of seconds). */
+  fullscreen = false;
 
   uploadProgress = 0;
   uploadDuration = 2.4;

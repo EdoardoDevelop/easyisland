@@ -19,6 +19,18 @@ async function main() {
   const boot = await Bridge.boot();
   if (boot) {
     State.settings = { ...State.settings, ...boot.settings };
+  } else {
+    // Plain browser (`npm run dev`): settings can be tried from the URL, e.g.
+    // /?anchorV=bottom&anchorH=left&iconSize=32
+    const params = new URLSearchParams(location.search);
+    const overrides: Record<string, unknown> = {};
+    for (const [key, value] of params) {
+      if (!(key in State.settings)) continue;
+      const current = (State.settings as unknown as Record<string, unknown>)[key];
+      overrides[key] = typeof current === "number" ? Number(value)
+        : typeof current === "boolean" ? value === "true" : value;
+    }
+    State.settings = { ...State.settings, ...overrides } as Settings;
   }
   island.applySettings();
   State.loadIntegrationTasks();
@@ -51,6 +63,8 @@ async function main() {
   });
 
   await onEvent<null>("screen-changed", () => void Bridge.reposition());
+
+  await onEvent<boolean>("fullscreen", (on) => island.setFullscreen(on));
 
   // The settings window writes preferences; apply them here without a restart.
   await onEvent<Settings>("settings-changed", (s) => {

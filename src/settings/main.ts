@@ -462,6 +462,145 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
   return h("section", {}, h("h2", {}, h("span", { text: "Integrazioni" })), note, list);
 }
 
+// ── Placement section ─────────────────────────────────────────────────────────
+
+function select<T extends string>(
+  options: [T, string][],
+  current: T,
+  onChange: (v: T) => void,
+): HTMLSelectElement {
+  const el = h("select", {}) as HTMLSelectElement;
+  for (const [value, label] of options) el.append(h("option", { value, text: label }));
+  el.value = current;
+  el.addEventListener("change", () => onChange(el.value as T));
+  return el;
+}
+
+/** A range slider with its value shown next to it; saves when released. */
+function slider(
+  min: number,
+  max: number,
+  step: number,
+  current: number,
+  unit: string,
+  onCommit: (v: number) => void,
+): HTMLElement {
+  const input = h("input", {
+    type: "range", min: String(min), max: String(max), step: String(step),
+    value: String(current),
+  }) as HTMLInputElement;
+  const label = h("span", { class: "hint", style: "min-width:44px", text: `${current} ${unit}` });
+  input.addEventListener("input", () => {
+    label.textContent = `${input.value} ${unit}`;
+  });
+  input.addEventListener("change", () => onCommit(Number(input.value)));
+  return h("div", { style: "display:flex;align-items:center;gap:10px" }, input, label);
+}
+
+function placementSection(): HTMLElement {
+  const commit = () => void save();
+
+  const screen = select<Settings["screen"]>(
+    [["primary", "Schermo principale"], ["cursor", "Schermo sotto il cursore"]],
+    settings.screen,
+    (v) => { settings.screen = v; commit(); },
+  );
+
+  const vertical = select<Settings["anchorV"]>(
+    [["top", "In alto"], ["bottom", "In basso"]],
+    settings.anchorV,
+    (v) => { settings.anchorV = v; commit(); },
+  );
+  const horizontal = select<Settings["anchorH"]>(
+    [["left", "A sinistra"], ["center", "Al centro"], ["right", "A destra"]],
+    settings.anchorH,
+    (v) => { settings.anchorH = v; commit(); },
+  );
+
+  const iconSize = h("div", { class: "row" },
+    h("label", { text: "Dimensione" }),
+    slider(16, 48, 2, settings.iconSize, "px", (v) => { settings.iconSize = v; commit(); }),
+  );
+  const iconStyle = select<Settings["iconStyle"]>(
+    [
+      ["mochi", "Mochi"],
+      ["dot", "Pallino con il colore dello stato"],
+      ["none", "Nessuna (striscia invisibile sul bordo)"],
+    ],
+    settings.iconStyle,
+    (v) => {
+      settings.iconStyle = v;
+      iconSize.style.display = v === "none" ? "none" : "";
+      commit();
+    },
+  );
+  iconSize.style.display = settings.iconStyle === "none" ? "none" : "";
+
+  const hoverSize = h("div", { class: "row" },
+    h("label", { text: "Dimensione" }),
+    slider(28, 64, 2, settings.hoverSize, "px", (v) => { settings.hoverSize = v; commit(); }),
+  );
+  const hoverStyle = select<Settings["hoverStyle"]>(
+    [["icon", "Mochi più grande"], ["bar", "Barra compatta con le integrazioni"]],
+    settings.hoverStyle,
+    (v) => {
+      settings.hoverStyle = v;
+      hoverSize.style.display = v === "icon" ? "" : "none";
+      commit();
+    },
+  );
+  hoverSize.style.display = settings.hoverStyle === "icon" ? "" : "none";
+
+  const delays: [string, string][] = [
+    ["0", "Solo con un clic"], ["0.3", "0,3 s"], ["0.6", "0,6 s"], ["1", "1 s"], ["2", "2 s"], ["3", "3 s"],
+  ];
+  const openDelay = select<string>(
+    delays.some(([v]) => Number(v) === settings.openDelay)
+      ? delays
+      : [...delays, [String(settings.openDelay), `${settings.openDelay} s`]],
+    String(delays.find(([v]) => Number(v) === settings.openDelay)?.[0] ?? settings.openDelay),
+    (v) => { settings.openDelay = Number(v); commit(); },
+  );
+
+  const reveal = h("input", {
+    type: "number", min: "2", max: "120", step: "1",
+    value: String(Math.round(settings.revealDuration)),
+    style: "width:72px",
+  }) as HTMLInputElement;
+  reveal.addEventListener("change", () => {
+    settings.revealDuration = Math.max(2, Math.min(120, Number(reveal.value) || 8));
+    reveal.value = String(settings.revealDuration);
+    commit();
+  });
+
+  return h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: "Posizione e aspetto" })),
+    h("div", {
+      class: "hint",
+      text: "Dove vive Mochi. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. In basso sta sopra la barra delle applicazioni.",
+    }),
+    h("div", { class: "row" }, h("label", { text: "Schermo" }), screen),
+    h("div", { class: "row" }, h("label", { text: "Posizione" }), vertical, horizontal),
+    h("div", { class: "row" }, h("label", { text: "Icona a riposo" }), iconStyle),
+    iconSize,
+    h("div", { class: "row" }, h("label", { text: "Al passaggio" }), hoverStyle),
+    hoverSize,
+    h("div", { class: "row" }, h("label", { text: "Apri dopo" }), openDelay),
+    h("div", { class: "row" },
+      h("label", { text: "Resta visibile" }),
+      reveal,
+      h("span", { class: "hint", text: "secondi dopo un evento o quando sposti il mouse" }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Schermo intero" }),
+      toggle(settings.quietFullscreen, (v) => { settings.quietFullscreen = v; commit(); }),
+      h("span", { class: "hint", text: "nascondi durante video, giochi e presentazioni (i permessi compaiono comunque)" }),
+    ),
+  );
+}
+
 // ── General section ───────────────────────────────────────────────────────────
 
 function generalSection(): HTMLElement {
@@ -485,17 +624,6 @@ function generalSection(): HTMLElement {
     void save();
   });
 
-  const screen = h("select", {}) as HTMLSelectElement;
-  screen.append(
-    h("option", { value: "primary", text: "Schermo principale" }),
-    h("option", { value: "cursor", text: "Schermo sotto il cursore" }),
-  );
-  screen.value = settings.screen;
-  screen.addEventListener("change", () => {
-    settings.screen = screen.value as Settings["screen"];
-    void save();
-  });
-
   return h(
     "section",
     {},
@@ -509,10 +637,6 @@ function generalSection(): HTMLElement {
       h("label", { text: "Chiusura automatica" }),
       autoClose,
       h("span", { class: "hint", text: "secondi dopo che lasci l'isola" }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: "L'isola sta su" }),
-      screen,
     ),
     h("div", { class: "row" },
       h("label", { text: "Avvia con Windows" }),
@@ -548,6 +672,7 @@ async function main() {
     claudeSection(status),
     claudeChatSection(hasKey),
     integrationsSection(present),
+    placementSection(),
     generalSection(),
     h("div", {
       class: "hint",

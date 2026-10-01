@@ -4,6 +4,19 @@
 
 export type IslandMode = "hidden" | "compact" | "expanded";
 
+export type AnchorH = "left" | "center" | "right";
+export type AnchorV = "top" | "bottom";
+
+/** Placement and look of the island outside of the expanded panel. */
+export interface Placement {
+  h: AnchorH;
+  v: AnchorV;
+  iconStyle: "mochi" | "dot" | "none";
+  iconSize: number;
+  hoverStyle: "icon" | "bar";
+  hoverSize: number;
+}
+
 export type IslandViewName =
   | "overview"
   | "empty"
@@ -66,6 +79,50 @@ export const EXPANDED_CORNER = 22;
 export const WAKE_STRIP_W = 240;
 export const WAKE_STRIP_H = 6;
 
+/** Gap between a floating island and the screen edges, px. */
+export const EDGE_MARGIN = 8;
+
+/**
+ * Top centre is the notch spot: the island hangs from the screen edge with
+ * square top corners. Everywhere else it floats a few pixels off the edges,
+ * fully rounded.
+ */
+export function isGlued(p: Placement): boolean {
+  return p.h === "center" && p.v === "top";
+}
+
+/**
+ * Top-left corner of a `w`×`hh` island inside a `winW`×`winH` window pinned to
+ * the same side of the screen. Growing the island keeps the anchored side
+ * still, so everything opens away from the chosen corner.
+ */
+export function anchoredOrigin(
+  p: Placement,
+  w: number,
+  hh: number,
+  winW = PANEL_W,
+  winH = PANEL_H,
+): { x: number; y: number } {
+  const m = isGlued(p) ? 0 : EDGE_MARGIN;
+  const x = p.h === "left" ? m : p.h === "right" ? winW - m - w : (winW - w) / 2;
+  const y = p.v === "bottom" ? winH - m - hh : isGlued(p) ? 0 : m;
+  return { x, y };
+}
+
+/** Size of the window while collapsed: the rest icon's box, or the wake strip. */
+export function collapsedBox(p: Placement): { w: number; h: number } {
+  if (p.iconStyle === "none") return { w: WAKE_STRIP_W, h: WAKE_STRIP_H };
+  const side = Math.round(p.iconSize + 2 * EDGE_MARGIN);
+  return { w: side, h: side };
+}
+
+/** The compact island: a round badge holding a live Mochi, or the old bar. */
+export function compactSize(p: Placement): { w: number; h: number } {
+  if (p.hoverStyle === "bar") return { w: COMPACT_W, h: NOTCH_H };
+  const side = Math.round(p.hoverSize);
+  return { w: side, h: side };
+}
+
 export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   overview: { height: 160, botX: 68, botY: null, botDiameter: 58, agentMode: "pills" },
   empty: { height: 160, botX: 70, botY: null, botDiameter: 62, agentMode: "none" },
@@ -101,14 +158,15 @@ export function islandSize(
   mode: IslandMode,
   view: IslandViewName,
   chatCount = 0,
+  compact: { w: number; h: number } = { w: COMPACT_W, h: NOTCH_H },
 ): { w: number; h: number } {
   switch (mode) {
     case "hidden":
       // No notch to hide inside on a PC: the island retracts to zero height and
-      // slides into the top edge of the screen instead of sitting there as a bar.
-      return { w: NOTCH_W, h: 0 };
+      // slides into the screen edge; only the rest icon (if any) stays.
+      return { w: compact.w === COMPACT_W ? NOTCH_W : compact.w, h: 0 };
     case "compact":
-      return { w: COMPACT_W, h: NOTCH_H };
+      return compact;
     case "expanded": {
       const h = view === "prompt" ? chatPromptHeight(chatCount) : VIEW_LAYOUTS[view].height;
       return { w: EXPANDED_W, h };
@@ -129,12 +187,18 @@ export function botPosition(
   view: IslandViewName,
   islandH: number,
   uploadProgress = 0,
+  compact: { w: number; h: number } = { w: COMPACT_W, h: NOTCH_H },
 ): BotPlacement {
+  const badge = compact.w !== COMPACT_W;
   switch (mode) {
     case "hidden":
-      return { cx: 46, cy: 16, diameter: 6, opacity: 0 };
+      return badge
+        ? { cx: compact.w / 2, cy: 0, diameter: 6, opacity: 0 }
+        : { cx: 46, cy: 16, diameter: 6, opacity: 0 };
     case "compact":
-      return { cx: 40, cy: 16, diameter: 20, opacity: 1 };
+      return badge
+        ? { cx: compact.w / 2, cy: compact.h / 2, diameter: compact.w * 0.56, opacity: 1 }
+        : { cx: 40, cy: 16, diameter: 20, opacity: 1 };
     case "expanded": {
       const layout = VIEW_LAYOUTS[view];
       if (view === "uploading") {

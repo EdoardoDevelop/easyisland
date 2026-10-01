@@ -39,8 +39,8 @@ _Le schermate mostrano ancora i testi in inglese della versione originale._
 
 | Cosa fai | Cosa succede |
 |---|---|
-| Porti il mouse sul bordo superiore, al centro dello schermo | Mochi fa capolino |
-| Clicchi sull'isola piccola | Si apre |
+| Porti il mouse sull'icona di Mochi (in alto al centro, o nell'angolo che hai scelto) | Mochi si ingrandisce |
+| Lasci il mouse sopra per un attimo, o clicchi | Si apre l'isola, allineata a quel lato |
 | Clicchi su Mochi | Si infastidisce. Tre volte di fila e gli gira la testa |
 | Lasci il puntatore su Mochi per due secondi | Cuori |
 | Trascini un file sull'isola | Mochi diventa una scatola, lo inghiotte e poi si offre di rispondere a domande sul file |
@@ -50,6 +50,23 @@ _Le schermate mostrano ancora i testi in inglese della versione originale._
 Tutto il resto succede da solo: una richiesta di permesso di Claude Code apre
 l'isola con **Nega / Consenti**, una sessione finita mostra cosa ha fatto e le
 tue integrazioni stanno nelle pillole colorate accanto a Mochi.
+
+## Posizione e aspetto
+
+**Impostazioni… → Posizione e aspetto** decide dove vive Mochi e quanto si fa notare:
+
+- **Posizione**: in alto o in basso, a sinistra, al centro o a destra. In basso
+  sta sopra la barra delle applicazioni. Quando si apre, l'isola cresce
+  dall'angolo scelto e il contenuto resta allineato a quel lato.
+- **Icona a riposo**: Mochi fermo, un pallino con il colore dello stato, oppure
+  nulla (solo una striscia invisibile sul bordo). La dimensione è regolabile.
+  L'icona a riposo è un'immagine ferma: non consuma CPU.
+- **Al passaggio del mouse**: un Mochi più grande e animato, oppure la barra
+  compatta con le integrazioni, con dimensione regolabile.
+- **Apri dopo**: quanto tenere il mouse sopra prima che si apra (o solo con un clic).
+- **Resta visibile**: per quanti secondi resta l'icona grande dopo un evento.
+- **Schermo intero**: durante video, giochi e presentazioni Mochi sparisce; le
+  richieste di permesso compaiono comunque.
 
 ## Claude Code
 
