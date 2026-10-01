@@ -78,11 +78,14 @@ jobs:
           "version=$version" >> $env:GITHUB_OUTPUT
           Get-ChildItem release | Format-Table Name, Length
 
+      # Always kept as a private artifact of the run (visible only to people
+      # with access to the repository), so a build can be installed without
+      # publishing a release. PUBLISH below still gates the public release.
       - uses: actions/upload-artifact@v4
-        if: env.PUBLISH == 'true'
         with:
           name: Coucou-Windows-setup
           path: release/Coucou-Windows-${{ steps.pack.outputs.version }}-setup.exe
+          retention-days: 30
 
       - name: Publish the release
         if: env.PUBLISH == 'true' && startsWith(github.ref, 'refs/tags/v')
