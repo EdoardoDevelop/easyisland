@@ -15,12 +15,20 @@ const ENDPOINT: &str = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION: &str = "2023-06-01";
 /// Server-side fallback: on a policy decline the API retries the same request on
 /// a fallback model inside the same call, so the island never shows a dead end.
+/// Only some models accept `fallbacks: "default"` — see `supports_default_fallback`.
 const FALLBACK_BETA: &str = "server-side-fallback-2026-07-01";
-const MAX_TOKENS: u32 = 4096;
+/// Non-streaming request: high enough that a thorough answer isn't cut off,
+/// low enough to stay well inside the HTTP timeout.
+const MAX_TOKENS: u32 = 16_000;
+/// A turn with several web searches can come back as `pause_turn`; we resume it
+/// this many times at most before giving up.
+const MAX_CONTINUATIONS: usize = 3;
+/// Opus with thinking and up to five searches can take a while.
+const HTTP_TIMEOUT_SECS: u64 = 180;
 /// Text and code files are inlined; anything larger is skipped, as on macOS.
 const MAX_INLINE_TEXT: u64 = 200_000;
 
-pub const DEFAULT_MODEL: &str = "claude-opus-5";
+pub const DEFAULT_MODEL: &str = "claude-opus-5-5";
 
 const SYSTEM_PROMPT: &str = "You are Mochi, a personal AI assistant living at the top of the user's screen. \
 You have web search access and can help with absolutely anything — research, coding, finding places, recommendations, tasks, questions. \
@@ -60,6 +68,48 @@ impl Chat {
 pub enum ChatContext {
     File { name: String, path: String },
     Window { app_name: String, title: String, url: Option<String> },
+}
+
+/// `web_search_20260209` (dynamic filtering) exists only on recent Opus and
+/// Sonnet models; everything else — Haiku 4.5 included — needs the basic tool.
+fn web_search_tool(model: &str) -> Value {
+    const DYNAMIC: &[&str] = &[
+        "claude-opus-5", // also claude-opus-5-5
+        "claude-opus-4-8",
+        "claude-opus-4-7",
+        "claude-opus-4-6",
+        "claude-sonnet-5", // also claude-sonnet-5-5
+        "claude-sonnet-4-6",
+    ];
+    let kind = if DYNAMIC.iter().any(|p| model.starts_with(p)) {
+        "web_search_20260209"
+    } else {
+        "web_search_20250305"
+    };
+    json!({ "type": kind, "name": "web_search", "max_uses": 5 })
+}
+
+/// `fallbacks: "default"` is accepted only by these models; sending it (or its
+/// beta header) to any other model is a 400.
+fn supports_default_fallback(model: &str) -> bool {
+    matches!(
+        model,
+        "claude-fable-5-1" | "claude-opus-5-5" | "claude-opus-5" | "claude-sonnet-5-5"
+    )
+}
+
+fn request_body(model: &str, messages: Vec<Value>) -> Value {
+    let mut body = json!({
+        "model": model,
+        "max_tokens": MAX_TOKENS,
+        "system": SYSTEM_PROMPT,
+        "tools": [web_search_tool(model)],
+        "messages": messages,
+    });
+    if supports_default_fallback(model) {
+        body["fallbacks"] = json!("default");
+    }
+    body
 }
 
 #[derive(Serialize)]
@@ -105,44 +155,63 @@ pub async fn send(
 
     chat.push(json!({ "role": "user", "content": content }));
 
-    let body = json!({
-        "model": model,
-        "max_tokens": MAX_TOKENS,
-        "system": SYSTEM_PROMPT,
-        "tools": [{ "type": "web_search_20260209", "name": "web_search", "max_uses": 5 }],
-        "fallbacks": "default",
-        "messages": chat.snapshot(),
-    });
+    // How many messages belong to this turn, so a failure can roll all of them
+    // back and leave the history exactly as the model last saw it.
+    let mut pushed = 1;
+    let mut blocks_all: Vec<Value> = Vec::new();
+    let mut truncated = false;
 
-    let response = match call(&key, &body).await {
-        Ok(v) => v,
-        Err(err) => {
-            chat.pop(); // keep the history consistent with what the model saw
-            return Err(err);
+    for attempt in 0..=MAX_CONTINUATIONS {
+        let body = request_body(model, chat.snapshot());
+        let response = match call(&key, &body, supports_default_fallback(model)).await {
+            Ok(v) => v,
+            Err(err) => {
+                for _ in 0..pushed {
+                    chat.pop();
+                }
+                return Err(err);
+            }
+        };
+
+        let stop = response.get("stop_reason").and_then(Value::as_str).unwrap_or("");
+
+        // A policy decline comes back as HTTP 200 with stop_reason "refusal".
+        if stop == "refusal" {
+            for _ in 0..pushed {
+                chat.pop();
+            }
+            let why = response
+                .get("stop_details")
+                .and_then(|d| d.get("explanation"))
+                .and_then(Value::as_str)
+                .unwrap_or("Claude ha rifiutato questa richiesta.");
+            return Err(why.to_string());
         }
-    };
 
-    // A policy decline comes back as HTTP 200 with stop_reason "refusal".
-    if response.get("stop_reason").and_then(Value::as_str) == Some("refusal") {
-        chat.pop();
-        let why = response
-            .get("stop_details")
-            .and_then(|d| d.get("explanation"))
-            .and_then(Value::as_str)
-            .unwrap_or("Claude ha rifiutato questa richiesta.");
-        return Err(why.to_string());
+        let Some(blocks) = response.get("content").and_then(Value::as_array).cloned() else {
+            for _ in 0..pushed {
+                chat.pop();
+            }
+            return Err("Risposta inattesa dall'API.".into());
+        };
+
+        // Store the whole content — thinking, server tool use and search results
+        // included — so the next turn has the right context.
+        chat.push(json!({ "role": "assistant", "content": blocks.clone() }));
+        pushed += 1;
+        blocks_all.extend(blocks);
+
+        match stop {
+            // The server paused a long search turn: send the history back as-is
+            // and the model picks up where it stopped.
+            "pause_turn" if attempt < MAX_CONTINUATIONS => continue,
+            "max_tokens" => truncated = true,
+            _ => {}
+        }
+        break;
     }
 
-    let Some(blocks) = response.get("content").and_then(Value::as_array).cloned() else {
-        chat.pop();
-        return Err("Risposta inattesa dall'API.".into());
-    };
-
-    // Store the whole content — tool_use / tool_result blocks included — so the
-    // next turn has the right context.
-    chat.push(json!({ "role": "assistant", "content": blocks.clone() }));
-
-    let text = blocks
+    let mut text = blocks_all
         .iter()
         .filter(|b| b.get("type").and_then(Value::as_str) == Some("text"))
         .filter_map(|b| b.get("text").and_then(Value::as_str))
@@ -151,24 +220,31 @@ pub async fn send(
         .trim()
         .to_string();
 
+    if truncated && !text.is_empty() {
+        text.push_str("\n\n[Risposta interrotta: troppo lunga.]");
+    }
+
     if text.is_empty() {
         return Err("Nessun testo nella risposta.".into());
     }
     Ok(ChatReply { text })
 }
 
-async fn call(key: &str, body: &Value) -> Result<Value, String> {
+async fn call(key: &str, body: &Value, fallback_beta: bool) -> Result<Value, String> {
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(90))
+        .timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECS))
         .build()
         .map_err(|e| e.to_string())?;
 
-    let response = client
+    let mut request = client
         .post(ENDPOINT)
         .header("x-api-key", key)
         .header("anthropic-version", ANTHROPIC_VERSION)
-        .header("anthropic-beta", FALLBACK_BETA)
-        .header("content-type", "application/json")
+        .header("content-type", "application/json");
+    if fallback_beta {
+        request = request.header("anthropic-beta", FALLBACK_BETA);
+    }
+    let response = request
         .json(body)
         .send()
         .await
@@ -248,6 +324,26 @@ fn base64(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::{request_body, supports_default_fallback, web_search_tool};
+
+    #[test]
+    fn web_search_variant_follows_the_model() {
+        for model in ["claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5", "claude-sonnet-5"] {
+            assert_eq!(web_search_tool(model)["type"], "web_search_20260209", "{model}");
+        }
+        assert_eq!(web_search_tool("claude-haiku-4-5")["type"], "web_search_20250305");
+    }
+
+    #[test]
+    fn fallbacks_only_where_supported() {
+        assert!(supports_default_fallback("claude-opus-5-5"));
+        assert!(supports_default_fallback("claude-sonnet-5-5"));
+        assert!(!supports_default_fallback("claude-sonnet-5"));
+        assert!(!supports_default_fallback("claude-haiku-4-5"));
+        assert_eq!(request_body("claude-opus-5-5", vec![])["fallbacks"], "default");
+        assert!(request_body("claude-haiku-4-5", vec![]).get("fallbacks").is_none());
+    }
+
     use super::base64;
 
     #[test]
