@@ -1,9 +1,11 @@
 // Coucou for Windows — app wiring and the commands the island calls.
 
+mod actions;
 mod claude;
 mod claude_cli;
 mod files;
 mod hooks;
+mod hotkeys;
 mod integrations;
 mod island;
 mod log;
@@ -92,6 +94,7 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
     // Keep the other window in step (island ⇄ settings window).
     let _ = app.emit("settings-changed", settings);
     tray::refresh(&app);
+    hotkeys::reload();
 }
 
 /// Makes `id` the active profile: its values replace the current ones, the
@@ -113,6 +116,7 @@ pub(crate) fn activate_profile(app: &AppHandle, id: &str, why: &str) {
     island::apply_geometry(app, &shared.gate, &settings, collapsed);
     let _ = app.emit("settings-changed", settings);
     tray::refresh(app);
+    hotkeys::reload();
 }
 
 #[tauri::command]
@@ -154,7 +158,42 @@ fn settings_import(app: AppHandle, shared: State<Shared>, text: String) -> Resul
     island::apply_geometry(&app, &shared.gate, &next, collapsed);
     let _ = app.emit("settings-changed", next.clone());
     tray::refresh(&app);
+    hotkeys::reload();
     Ok(next)
+}
+
+// ── Quick actions ─────────────────────────────────────────────────────────────
+
+#[tauri::command]
+fn action_open_app(target: String, args: String) -> Result<(), String> {
+    actions::open_app(&target, &args)
+}
+
+/// Runs a script the user just confirmed in the island.
+#[tauri::command]
+async fn action_run_script(
+    run_id: String,
+    shell: String,
+    script: String,
+) -> Result<actions::ScriptResult, String> {
+    log::line(format!("action script ({shell}) run {run_id}"));
+    actions::run_script(&run_id, &shell, &script).await
+}
+
+#[tauri::command]
+fn action_kill(run_id: String) {
+    actions::kill(&run_id);
+}
+
+#[tauri::command]
+async fn clipboard_text() -> Option<String> {
+    tauri::async_runtime::spawn_blocking(actions::clipboard_text).await.ok().flatten()
+}
+
+/// Shortcuts Windows refused because another app already uses them.
+#[tauri::command]
+fn hotkey_failures() -> Vec<String> {
+    hotkeys::failures()
 }
 
 /// Wi-Fi network this PC is on, to fill in a profile rule.
@@ -510,6 +549,11 @@ pub fn run() {
             settings_export,
             settings_import,
             current_network,
+            action_open_app,
+            action_run_script,
+            action_kill,
+            clipboard_text,
+            hotkey_failures,
             ingest_file,
             secret_present,
             secret_set,
@@ -535,6 +579,7 @@ pub fn run() {
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             island::spawn_fullscreen_watch(handle.clone(), gate.clone());
             profiles::spawn_auto_switch(handle.clone());
+            hotkeys::spawn(handle.clone());
 
             log::line(format!("--- Coucou {} started ---", env!("CARGO_PKG_VERSION")));
             hooks::ensure_hook_exe(&handle);

@@ -17,6 +17,8 @@ import { createMiniBot, pruneMiniBots, syncMiniBotStates, tickMiniBots } from ".
 import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
+import { sendToChat } from "../views/chat";
+import type { QuickAction } from "../core/state";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
 
@@ -174,6 +176,17 @@ export class Island {
       },
       openSettingsWindow: () => void Bridge.openSettingsWindow(),
       blip: () => Sound.play("blip"),
+      runAction: (a) => void this.runAction(a),
+      confirmRun: () => void this.startScript(),
+      killRun: () => {
+        if (State.run?.status === "running") void Bridge.actionKill(State.run.runId);
+      },
+      closeRun: () => {
+        State.run = null;
+        State.isPinned = false;
+        this.fsm.pinned = false;
+        this.setView("actions");
+      },
     };
 
     this.wakeStrip = h("div", { id: "wake-strip" });
@@ -340,6 +353,122 @@ export class Island {
     this.expand(view);
   }
 
+  // ── Quick actions ─────────────────────────────────────────────────────────
+
+  /** Shows a short message in the note view, then goes back to `back`. */
+  private note(message: string, back: IslandViewName = "actions") {
+    State.noteMessage = message;
+    this.setView("note");
+    Sound.play("error");
+    window.setTimeout(() => {
+      if (State.view === "note") this.setView(back);
+    }, 2600);
+  }
+
+  /** Starts a fresh chat about `context` and asks `question` right away. */
+  private startChat(question: string, context: { label: string; text: string } | null, keepFile: boolean) {
+    State.chatHistory = [];
+    void Bridge.chatReset();
+    State.chatText = context;
+    if (!keepFile) {
+      State.droppedFile = null;
+      State.promptContext = null;
+    }
+    this.setView("prompt");
+    if (question.trim()) window.setTimeout(() => sendToChat(question), 60);
+  }
+
+  async runAction(a: QuickAction) {
+    Sound.play("blip");
+    try {
+      switch (a.kind) {
+        case "url":
+          if (!/^https?:\/\//i.test(a.target.trim())) {
+            this.note("Il link deve iniziare con http:// o https://");
+            return;
+          }
+          await Bridge.openUrl(a.target.trim());
+          this.collapse();
+          break;
+        case "app":
+          await Bridge.actionOpenApp(a.target, a.args);
+          this.collapse();
+          break;
+        case "script":
+          State.run = {
+            action: a, runId: `r${Date.now().toString(36)}`, status: "confirm",
+            output: "", code: null, timedOut: false,
+          };
+          State.isPinned = true;
+          this.fsm.pinned = true;
+          this.setView("run");
+          if (!a.confirm) await this.startScript();
+          break;
+        case "prompt": {
+          if (a.input === "file") {
+            if (!State.droppedFile) {
+              this.note("Rilascia prima un file sull'isola, poi scegli l'azione.");
+              return;
+            }
+            this.startChat(a.prompt, null, true);
+            return;
+          }
+          let context: { label: string; text: string } | null = null;
+          if (a.input === "clipboard") {
+            const text = await Bridge.clipboardText();
+            if (!text) {
+              this.note("Gli appunti sono vuoti: copia prima il testo.");
+              return;
+            }
+            context = { label: "Testo copiato", text };
+          }
+          this.startChat(a.prompt, context, false);
+          break;
+        }
+      }
+    } catch (err) {
+      this.note(String(err).replace(/^Error:\s*/, ""));
+    }
+  }
+
+  private async startScript() {
+    const run = State.run;
+    if (!run || run.status === "running") return;
+    run.status = "running";
+    State.notify();
+    try {
+      const res = await Bridge.actionRunScript(run.runId, run.action.shell, run.action.script);
+      if (State.run?.runId !== run.runId) return;
+      run.status = "done";
+      run.output = res.output;
+      run.code = res.code;
+      run.timedOut = res.timedOut;
+      Sound.play(res.timedOut || (res.code ?? 0) !== 0 ? "error" : "finish");
+    } catch (err) {
+      if (State.run?.runId !== run.runId) return;
+      run.status = "error";
+      run.output = String(err).replace(/^Error:\s*/, "");
+      Sound.play("error");
+    }
+    State.isPinned = false;
+    this.fsm.pinned = false;
+    State.notify();
+  }
+
+  /** A global shortcut was pressed (from src-tauri/src/hotkeys.rs). */
+  async onHotkey(name: string) {
+    Sound.resume();
+    if (name === "open") {
+      this.setView((State.settings.actions ?? []).length > 0 ? "actions" : "prompt");
+    } else if (name === "ask") {
+      const text = await Bridge.clipboardText();
+      this.startChat("", text ? { label: "Testo copiato", text } : null, false);
+    } else if (name.startsWith("action:")) {
+      const a = (State.settings.actions ?? []).find((x) => x.id === name.slice(7));
+      if (a) await this.runAction(a);
+    }
+  }
+
   reveal() {
     // Over a full-screen app only real alerts may show up.
     if (State.fullscreen && State.settings.quietFullscreen) return;
@@ -409,6 +538,7 @@ export class Island {
     const name = path.split(/[\\/]/).pop() || "file";
     State.droppedFile = { name, path };
     State.promptContext = { kind: "file", name, path };
+    State.chatText = null;
     State.chatHistory = [];
     void Bridge.chatReset();
 

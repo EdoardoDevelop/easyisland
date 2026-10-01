@@ -118,7 +118,7 @@ export interface Settings {
   /** What may surface the island: everything, alerts only, or permissions only. */
   notify: "all" | "alerts" | "permissions";
   /** Quick actions (6.2). */
-  actions: unknown[];
+  actions: QuickAction[];
   /** Configurable widgets (6.4). */
   widgets: unknown[];
   /** MCP servers the chat may use (6.3). */
@@ -126,6 +126,44 @@ export interface Settings {
   profiles: Profile[];
   activeProfile: string;
   autoProfile: boolean;
+  /** Global shortcuts ("" = none); they belong to the PC, not to a profile. */
+  hotkeyOpen: string;
+  hotkeyAsk: string;
+}
+
+/** A user-defined button in the Azioni tab. */
+export interface QuickAction {
+  id: string;
+  name: string;
+  /** An emoji or a short text shown on the button. */
+  icon: string;
+  color: string;
+  kind: "url" | "app" | "script" | "prompt";
+  /** url: the link · app: program, folder or file. */
+  target: string;
+  /** app: arguments, quotes group words. */
+  args: string;
+  /** script: the commands. */
+  script: string;
+  shell: "powershell" | "cmd";
+  /** prompt: what Claude is asked. */
+  prompt: string;
+  /** prompt: what the prompt is applied to. */
+  input: "clipboard" | "file" | "none";
+  /** script: show the commands and wait for "Esegui". */
+  confirm: boolean;
+  /** Optional global shortcut, e.g. "Ctrl+Alt+E". */
+  hotkey: string;
+}
+
+/** A script launched from the Azioni tab. */
+export interface ScriptRun {
+  action: QuickAction;
+  runId: string;
+  status: "confirm" | "running" | "done" | "error";
+  output: string;
+  code: number | null;
+  timedOut: boolean;
 }
 
 export interface Theme {
@@ -195,6 +233,8 @@ export const DEFAULT_SETTINGS: Settings = {
   profiles: [],
   activeProfile: "",
   autoProfile: false,
+  hotkeyOpen: "Ctrl+Alt+M",
+  hotkeyAsk: "Ctrl+Alt+K",
 };
 
 type Listener = () => void;
@@ -224,6 +264,10 @@ class AppState {
 
   promptContext: PromptContext | null = null;
   droppedFile: { name: string; path: string } | null = null;
+  /** Text the chat is about (clipboard, a quick action) — sent with the first message. */
+  chatText: { label: string; text: string } | null = null;
+  /** The script being confirmed / run / shown in the Run view. */
+  run: ScriptRun | null = null;
   noteMessage: string | null = null;
   searchResult: SearchResult | null = null;
   chatHistory: ChatMessage[] = [];

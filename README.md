@@ -178,6 +178,30 @@ Si apre il browser su un finto desktop: il riquadro tratteggiato è la finestra
 di Coucou. Le impostazioni si cambiano nell'indirizzo, per esempio
 `http://localhost:1420/?anchorV=bottom&anchorH=left&iconStyle=dot&iconSize=32&hoverSize=48&openDelay=1&revealDuration=3&bg=dark`.
 
+## Azioni rapide e scorciatoie
+
+**Impostazioni… → Azioni rapide** crea i pulsanti della scheda ⚡ dell'isola:
+
+| Tipo | Cosa fa |
+|---|---|
+| **Chiedi a Claude** | manda un prompt salvato, applicato al testo copiato negli appunti o al file rilasciato sull'isola |
+| **Script** | esegue comandi PowerShell o del Prompt dei comandi, nascosti, e mostra l'output nell'isola (con *Interrompi*, timeout di 5 minuti). Parte **solo dopo un clic**; con "Chiedi conferma" mostra prima i comandi |
+| **Programma / cartella** | avvia un programma con i suoi argomenti (es. `mstsc /v:server01`) o apre una cartella |
+| **Link** | apre un indirizzo nel browser |
+
+*Aggiungi esempi da tecnico IT* inserisce un set di partenza: Spiega errore,
+Script PowerShell, Rapportino, Rispondi al cliente, Analizza log, Info rete,
+Desktop remoto.
+
+**Scorciatoie globali**, valide in ogni app (modificabili):
+
+- `Ctrl+Alt+M` apre Mochi sulle azioni (o sulla chat se non ce ne sono);
+- `Ctrl+Alt+K` apre la chat con il testo copiato già allegato: scrivi la domanda;
+- ogni azione può avere la sua scorciatoia, es. `Ctrl+Alt+E` per "Spiega errore".
+
+Se una scorciatoia è già usata da un'altra app, le Impostazioni lo segnalano.
+Le azioni appartengono al profilo attivo; le scorciatoie Apri/Chiedi al PC.
+
 ## Profili, tema e backup
 
 **Impostazioni… → Profilo**: ogni profilo (di partenza *Lavoro*, *Casa* e

@@ -90,6 +90,15 @@ export const Bridge = {
   chatSend: (query: string, context: ChatContext | null) =>
     callOrThrow<{ text: string }>("chat_send", { query, context }),
   chatReset: () => call<void>("chat_reset"),
+  /** Quick actions. */
+  actionOpenApp: (target: string, args: string) => callOrThrow<void>("action_open_app", { target, args }),
+  actionRunScript: (runId: string, shell: string, script: string) =>
+    callOrThrow<{ code: number | null; output: string; timedOut: boolean }>(
+      "action_run_script", { runId, shell, script },
+    ),
+  actionKill: (runId: string) => call<void>("action_kill", { runId }),
+  clipboardText: () => call<string | null>("clipboard_text"),
+  hotkeyFailures: () => call<string[]>("hotkey_failures"),
   /** Profiles, backup. */
   switchProfile: (id: string) => call<void>("switch_profile", { id }),
   settingsExport: () => callOrThrow<string>("settings_export"),
@@ -122,6 +131,7 @@ export interface IntegrationUpdate {
 
 export type ChatContext =
   | { kind: "file"; name: string; path: string }
+  | { kind: "text"; label: string; text: string }
   | { kind: "window"; appName: string; title: string; url?: string };
 
 export interface DroppedFile {

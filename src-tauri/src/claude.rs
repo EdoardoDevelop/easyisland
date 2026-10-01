@@ -91,6 +91,8 @@ impl Chat {
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum ChatContext {
     File { name: String, path: String },
+    /// Text handed over by a quick action or the "ask about clipboard" shortcut.
+    Text { label: String, text: String },
     Window { app_name: String, title: String, url: Option<String> },
 }
 
@@ -164,6 +166,9 @@ pub async fn send(
                     content.push(block);
                 }
                 content.push(json!({ "type": "text", "text": format!("File: {name}") }));
+            }
+            Some(ChatContext::Text { label, text }) => {
+                content.push(json!({ "type": "text", "text": format!("{label}:\n{text}") }));
             }
             Some(ChatContext::Window { app_name, title, url }) => {
                 let mut text = format!("Contesto — App: {app_name}, Finestra: {title}");

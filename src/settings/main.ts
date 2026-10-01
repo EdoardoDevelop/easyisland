@@ -4,7 +4,7 @@
 
 import "./settings.css";
 import { Bridge, onEvent, type HookStatus } from "../core/bridge";
-import { DEFAULT_SETTINGS, type Settings } from "../core/state";
+import { DEFAULT_SETTINGS, type QuickAction, type Settings } from "../core/state";
 import { h, clear } from "../views/dom";
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
@@ -784,6 +784,194 @@ function profilesSection(): HTMLElement {
   );
 }
 
+// ── Quick actions ─────────────────────────────────────────────────────────────
+
+function newActionId(): string {
+  return `a${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function blankAction(kind: QuickAction["kind"] = "prompt"): QuickAction {
+  return {
+    id: newActionId(), name: "Nuova azione", icon: "⚡", color: "#8b5cf6", kind,
+    target: "", args: "", script: "", shell: "powershell", prompt: "",
+    input: "clipboard", confirm: true, hotkey: "",
+  };
+}
+
+/** A starter set for an IT technician; every one can be edited or deleted. */
+function exampleActions(): QuickAction[] {
+  const a = (over: Partial<QuickAction>): QuickAction => ({ ...blankAction(), ...over, id: newActionId() });
+  return [
+    a({
+      name: "Spiega errore", icon: "🩺", color: "#f4505e", kind: "prompt", input: "clipboard",
+      prompt: "Spiega questo messaggio d'errore: cosa significa, le cause più probabili e i passi per risolverlo, dal più semplice al più invasivo.",
+    }),
+    a({
+      name: "Script PowerShell", icon: "🧰", color: "#3b9eff", kind: "prompt", input: "clipboard",
+      prompt: "Scrivi uno script PowerShell che faccia quanto descritto qui sotto. Commenta i passaggi, chiedi conferma prima di qualsiasi operazione distruttiva e indica se servono privilegi di amministratore.",
+    }),
+    a({
+      name: "Rapportino", icon: "📝", color: "#22c55e", kind: "prompt", input: "clipboard",
+      prompt: "Trasforma questi appunti in un rapportino d'intervento professionale: problema segnalato, attività svolte, esito, eventuali passi successivi e materiale usato.",
+    }),
+    a({
+      name: "Rispondi al cliente", icon: "✉️", color: "#f5a524", kind: "prompt", input: "clipboard",
+      prompt: "Scrivi una risposta professionale, chiara e cortese a questa mail di un cliente. Niente tecnicismi inutili.",
+    }),
+    a({
+      name: "Analizza log", icon: "🔎", color: "#6366f1", kind: "prompt", input: "file",
+      prompt: "Analizza questo log: errori principali, quando iniziano, causa probabile e cosa controllare per primo.",
+    }),
+    a({
+      name: "Info rete", icon: "🌐", color: "#22d3ee", kind: "script", shell: "powershell", confirm: false,
+      script: "Get-NetIPConfiguration | Format-List InterfaceAlias,IPv4Address,IPv4DefaultGateway,DNSServer",
+    }),
+    a({
+      name: "Desktop remoto", icon: "🖥️", color: "#8e939c", kind: "app", target: "mstsc", args: "",
+    }),
+  ];
+}
+
+function actionsSection(): HTMLElement {
+  const list = h("div", { style: "display:flex;flex-direction:column;gap:10px" });
+  const warn = h("div", {});
+  const commit = () => {
+    void save().then(() => window.setTimeout(checkHotkeys, 600));
+  };
+
+  async function checkHotkeys() {
+    const failed = (await Bridge.hotkeyFailures()) ?? [];
+    clear(warn);
+    if (failed.length) {
+      warn.append(h("div", {
+        class: "notice warn",
+        text: `Scorciatoie non disponibili (già usate da un'altra app o scritte male): ${failed.join(", ")}.`,
+      }));
+    }
+  }
+
+  function draw() {
+    clear(list);
+    const actions = settings.actions;
+    actions.forEach((a, idx) => {
+      const field = (value: string, placeholder: string, apply: (v: string) => void, style = "flex:1 1 auto;min-width:0") => {
+        const el = h("input", { type: "text", value, placeholder, style, spellcheck: "false" }) as HTMLInputElement;
+        el.addEventListener("change", () => { apply(el.value); commit(); });
+        return el;
+      };
+      const area = (value: string, placeholder: string, apply: (v: string) => void, mono = false) => {
+        const el = h("textarea", { placeholder, rows: "3", spellcheck: "false", class: mono ? "mono" : "" }) as HTMLTextAreaElement;
+        el.value = value;
+        el.addEventListener("change", () => { apply(el.value); commit(); });
+        return el;
+      };
+
+      const color = h("input", { type: "color", value: /^#[0-9a-f]{6}$/i.test(a.color) ? a.color : "#8b5cf6" }) as HTMLInputElement;
+      color.addEventListener("change", () => { a.color = color.value; commit(); });
+
+      const kind = select<QuickAction["kind"]>(
+        [["prompt", "Chiedi a Claude"], ["script", "Script"], ["app", "Programma / cartella"], ["url", "Link"]],
+        a.kind,
+        (v) => { a.kind = v; commit(); draw(); },
+      );
+
+      const move = (delta: number) => {
+        const j = idx + delta;
+        if (j < 0 || j >= actions.length) return;
+        [actions[idx], actions[j]] = [actions[j], actions[idx]];
+        commit();
+        draw();
+      };
+      const up = h("button", { class: "icon", text: "↑", title: "Sposta su", onclick: () => move(-1) });
+      const down = h("button", { class: "icon", text: "↓", title: "Sposta giù", onclick: () => move(1) });
+      const del = h("button", {
+        class: "danger icon", text: "✕", title: "Elimina",
+        onclick: () => { actions.splice(idx, 1); commit(); draw(); },
+      });
+
+      const card = h("div", { class: "qa-edit" },
+        h("div", { class: "row head" },
+          field(a.icon, "⚡", (v) => { a.icon = v.trim(); }, "width:48px;text-align:center"),
+          field(a.name, "Nome", (v) => { a.name = v.trim(); }),
+          color, kind, up, down, del,
+        ),
+      );
+
+      switch (a.kind) {
+        case "url":
+          card.append(h("div", { class: "row" }, h("label", { text: "Link" }),
+            field(a.target, "https://…", (v) => { a.target = v.trim(); })));
+          break;
+        case "app":
+          card.append(
+            h("div", { class: "row" }, h("label", { text: "Programma o cartella" }),
+              field(a.target, "es. mstsc, C:\\Strumenti\\app.exe, C:\\Clienti", (v) => { a.target = v.trim(); })),
+            h("div", { class: "row" }, h("label", { text: "Argomenti" }),
+              field(a.args, "es. /v:server01 — le virgolette raggruppano", (v) => { a.args = v; })),
+          );
+          break;
+        case "script":
+          card.append(
+            h("div", { class: "row" }, h("label", { text: "Shell" }),
+              select<QuickAction["shell"]>([["powershell", "PowerShell"], ["cmd", "Prompt dei comandi"]], a.shell,
+                (v) => { a.shell = v; commit(); }),
+              h("span", { class: "hint", text: "Chiedi conferma" }),
+              toggle(a.confirm, (v) => { a.confirm = v; commit(); }),
+            ),
+            area(a.script, "I comandi da eseguire. Partono solo dopo un clic nell'isola.", (v) => { a.script = v; }, true),
+          );
+          break;
+        case "prompt":
+          card.append(
+            h("div", { class: "row" }, h("label", { text: "Applicata a" }),
+              select<QuickAction["input"]>(
+                [["clipboard", "Testo copiato negli appunti"], ["file", "File rilasciato sull'isola"], ["none", "Niente (solo la domanda)"]],
+                a.input,
+                (v) => { a.input = v; commit(); },
+              )),
+            area(a.prompt, "Cosa chiedere a Claude", (v) => { a.prompt = v; }),
+          );
+          break;
+      }
+      card.append(h("div", { class: "row" }, h("label", { text: "Scorciatoia" }),
+        field(a.hotkey, "facoltativa, es. Ctrl+Alt+E", (v) => { a.hotkey = v.trim(); }, "width:200px")));
+      list.append(card);
+    });
+  }
+
+  const hotkeyField = (value: string, apply: (v: string) => void) => {
+    const el = h("input", { type: "text", value, placeholder: "nessuna", style: "width:200px", spellcheck: "false" }) as HTMLInputElement;
+    el.addEventListener("change", () => { apply(el.value.trim()); commit(); });
+    return el;
+  };
+
+  const add = h("button", { class: "primary", text: "Aggiungi azione" });
+  add.addEventListener("click", () => { settings.actions.push(blankAction()); commit(); draw(); });
+  const examples = h("button", { text: "Aggiungi esempi da tecnico IT" });
+  examples.addEventListener("click", () => { settings.actions.push(...exampleActions()); commit(); draw(); });
+
+  draw();
+  void checkHotkeys();
+
+  return h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: "Azioni rapide" }), profileChip()),
+    h("div", {
+      class: "hint",
+      text: "Pulsanti nella scheda ⚡ dell'isola: link, programmi, script (partono solo dopo un clic) e domande a Claude sul testo copiato o sul file rilasciato. Nessuna chiave o password qui dentro.",
+    }),
+    h("div", { class: "row" }, h("label", { text: "Apri Mochi" }),
+      hotkeyField(settings.hotkeyOpen, (v) => { settings.hotkeyOpen = v; })),
+    h("div", { class: "row" }, h("label", { text: "Chiedi sul testo copiato" }),
+      hotkeyField(settings.hotkeyAsk, (v) => { settings.hotkeyAsk = v; }),
+      h("span", { class: "hint", text: "scorciatoie di questo PC, valgono in ogni app" })),
+    warn,
+    list,
+    h("div", { class: "row" }, add, examples),
+  );
+}
+
 // ── Notifications ─────────────────────────────────────────────────────────────
 
 function notifySection(): HTMLElement {
@@ -961,6 +1149,7 @@ function render() {
     profilesSection(),
     claudeSection(boot.status),
     claudeChatSection(boot.hasKey),
+    actionsSection(),
     integrationsSection(boot.present),
     placementSection(),
     notifySection(),

@@ -11,8 +11,9 @@ import { createMiniBot, pruneMiniBots } from "../mochi/minibots";
 import { buildPrompt } from "./chat";
 import { buildChoose, buildUpload, buildUploading } from "./upload";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
+import { buildActions, buildRun, type ActionHandlers } from "./actions";
 
-export interface ViewActions {
+export interface ViewActions extends ActionHandlers {
   setView(v: IslandViewName): void;
   collapse(): void;
   setFocus(id: string): void;
@@ -81,6 +82,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const tabHome = h("button", { class: "tab", title: "Panoramica", onclick: () => go("overview") }, svg(ICONS.house, 13));
   const tabChat = h("button", { class: "tab", title: "Chiedi", onclick: () => go("prompt") }, svg(ICONS.bubble, 13));
   const tabDrop = h("button", { class: "tab", title: "Rilascia", onclick: () => go("upload") }, svg(ICONS.plus, 13));
+  const tabActions = h("button", { class: "tab", title: "Azioni", onclick: () => go("actions") }, svg(ICONS.bolt, 13));
 
   const gearBtn = h("button", { title: "Impostazioni", onclick: () => go("settings") }, svg(ICONS.gear, 14));
   const soundBtn = h("button", { title: "Silenzia", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 14));
@@ -93,7 +95,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const el = h(
     "div",
     { id: "header" },
-    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop),
+    h("div", { class: "tabs" }, tabHome, tabChat, tabActions, tabDrop),
     h("div", { class: "header-actions" }, gearBtn, soundBtn),
   );
 
@@ -104,6 +106,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
       tabHome.classList.toggle("on", v === "overview" || v === "empty");
       tabChat.classList.toggle("on", v === "prompt");
       tabDrop.classList.toggle("on", v === "upload");
+      tabActions.classList.toggle("on", v === "actions" || v === "run");
       gearBtn.classList.toggle("on", v === "settings");
       clear(gearBtn);
       gearBtn.append(svg(v === "settings" ? ICONS.gearFill : ICONS.gear, 14));
@@ -504,6 +507,8 @@ export function buildViews(
   map.set("upload", buildUpload());
   map.set("uploading", buildUploading());
   map.set("choose", buildChoose(actions));
+  map.set("actions", buildActions(actions));
+  map.set("run", buildRun(actions));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder("L'invio via email non è disponibile in questa versione.", ""));
   map.set("searching", buildPlaceholder("Claude sta cercando…", ""));

@@ -93,6 +93,8 @@ Serve prima degli altri punti, perché azioni e widget vivono nella configurazio
 
 ### 6.2 Azioni rapide personalizzate
 
+> **Stato: fatto.** Scheda ⚡ e vista di esecuzione (`src/views/actions.ts`), logica in `Island.runAction` (`src/island/island.ts`), backend `src-tauri/src/actions.rs` (programmi, script con output/timeout/interrompi, appunti) e `src-tauri/src/hotkeys.rs` (`RegisterHotKey`, nessuna dipendenza nuova). Editor ed esempi in `src/settings/main.ts`. Da migliorare: le azioni "su file" non compaiono ancora nella schermata "Cosa vuoi farne?" dopo il rilascio (è disegnata dal canvas in `src/upload/canvas.ts`).
+
 Pulsanti definiti dall'utente, mostrati in una nuova scheda dell'isola (accanto a Panoramica / Chiedi / Rilascia) e richiamabili da tastiera.
 
 - **Tipi di azione:**

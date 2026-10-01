@@ -187,6 +187,9 @@ pub async fn send(
                 prompt.push_str(&format!("File allegato: {name}\nPercorso: {path}\nLeggilo con Read prima di rispondere.\n\n"));
                 extra_dir = Path::new(path).parent().map(Path::to_path_buf);
             }
+            Some(ChatContext::Text { label, text }) => {
+                prompt.push_str(&format!("{label}:\n{text}\n\n"));
+            }
             Some(ChatContext::Window {
                 app_name,
                 title,

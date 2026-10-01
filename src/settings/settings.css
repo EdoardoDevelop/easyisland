@@ -310,3 +310,45 @@ input[type="color"] {
   height: 30px;
   padding: 2px;
 }
+
+.qa-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 64px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 8px 10px;
+  font: 400 12.5px/1.45 var(--font);
+}
+
+textarea.mono {
+  font: 400 12px/1.45 var(--mono);
+}
+
+.qa-edit .row.head {
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+.qa-edit .row.head select {
+  flex: 0 0 auto;
+}
+
+button.icon {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  flex: 0 0 auto;
+}

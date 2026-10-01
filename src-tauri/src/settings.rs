@@ -214,6 +214,19 @@ pub struct Settings {
     /// Switch profile on its own, from the profiles' rules.
     #[serde(default)]
     pub auto_profile: bool,
+    /// Global shortcut that opens the island ("" = none). Belongs to the PC.
+    #[serde(default = "default_hotkey_open")]
+    pub hotkey_open: String,
+    /// Global shortcut: ask Mochi about the text on the clipboard.
+    #[serde(default = "default_hotkey_ask")]
+    pub hotkey_ask: String,
+}
+
+fn default_hotkey_open() -> String {
+    "Ctrl+Alt+M".into()
+}
+fn default_hotkey_ask() -> String {
+    "Ctrl+Alt+K".into()
 }
 
 fn default_notify() -> String {
@@ -293,6 +306,8 @@ impl Default for Settings {
             profiles: Vec::new(),
             active_profile: String::new(),
             auto_profile: false,
+            hotkey_open: default_hotkey_open(),
+            hotkey_ask: default_hotkey_ask(),
         }
         .migrated()
     }

@@ -10,6 +10,14 @@ import type { ViewHost } from "./views";
 
 let nextId = 1;
 
+/** Set by the chat view: sends a message as if typed (used by quick actions). */
+let externalSend: ((query: string) => void) | null = null;
+
+/** Starts a question from outside the chat (a quick action, a shortcut). */
+export function sendToChat(query: string) {
+  externalSend?.(query);
+}
+
 function bubble(message: ChatMessage): HTMLElement {
   if (message.role === "user") {
     return h(
@@ -58,10 +66,10 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
   let sending = false;
   let renderedCount = -1;
 
-  async function submit() {
-    const query = input.value.trim();
+  async function submit(override?: string) {
+    const query = (override ?? input.value).trim();
     if (!query || sending) return;
-    input.value = "";
+    if (override == null) input.value = "";
     sending = true;
     Sound.play("send");
 
@@ -71,8 +79,15 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     onHeightChange();
 
     const file = State.droppedFile;
-    const context: ChatContext | null =
-      State.chatHistory.length === 1 && file ? { kind: "file", name: file.name, path: file.path } : null;
+    const text = State.chatText;
+    const first = State.chatHistory.length === 1;
+    const context: ChatContext | null = !first
+      ? null
+      : text
+        ? { kind: "text", label: text.label, text: text.text }
+        : file
+          ? { kind: "file", name: file.name, path: file.path }
+          : null;
 
     try {
       const reply = await Bridge.chatSend(query, context);
@@ -92,6 +107,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     }
   }
 
+  externalSend = (q) => void submit(q);
   send.addEventListener("click", () => void submit());
   input.addEventListener("keydown", (e) => {
     if ((e as KeyboardEvent).key === "Enter") {
@@ -105,7 +121,10 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     el,
     sync() {
       const file = State.droppedFile;
-      const wantChip = file?.name ?? "";
+      const text = State.chatText;
+      const wantChip = text
+        ? `${text.label} · ${text.text.length.toLocaleString("it-IT")} caratteri`
+        : file?.name ?? "";
       if (chipRow.dataset.label !== wantChip) {
         chipRow.dataset.label = wantChip;
         clear(chipRow);

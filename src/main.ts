@@ -77,6 +77,8 @@ async function main() {
 
   await onEvent<boolean>("fullscreen", (on) => island.setFullscreen(on));
 
+  await onEvent<string>("hotkey", (name) => void island.onHotkey(name));
+
   // The settings window writes preferences; apply them here without a restart.
   await onEvent<Settings>("settings-changed", (s) => {
     State.settings = { ...State.settings, ...s };

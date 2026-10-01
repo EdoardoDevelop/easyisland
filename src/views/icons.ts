@@ -6,6 +6,8 @@ export const ICONS = {
   house: "M12 3.2 2.8 10.6V21h6.6v-5.4h5.2V21h6.6V10.6L12 3.2z",
   // bubble.left.fill
   bubble: "M12 3.6c-5 0-9 3.3-9 7.4 0 2.3 1.3 4.4 3.3 5.7-.2 1.2-.8 2.4-1.7 3.4 1.9-.2 3.6-.9 4.9-1.9 .8.2 1.6.3 2.5.3 5 0 9-3.3 9-7.5s-4-7.4-9-7.4z",
+  // bolt.fill — quick actions
+  bolt: "M13.5 2 4.5 13.5h6l-1.5 8.5 9-11.5h-6L13.5 2z",
   // plus
   plus: "M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4z",
   // gearshape
