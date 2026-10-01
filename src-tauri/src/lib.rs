@@ -3,6 +3,7 @@
 mod actions;
 mod claude;
 mod claude_cli;
+mod drop;
 mod files;
 mod hooks;
 mod hotkeys;
@@ -73,7 +74,10 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
         let mut current = shared.settings.lock().unwrap();
         let screen_changed = current.screen != settings.screen
             || current.anchor_h != settings.anchor_h
-            || current.anchor_v != settings.anchor_v;
+            || current.anchor_v != settings.anchor_v
+            || current.offset_x != settings.offset_x
+            || current.offset_y != settings.offset_y
+            || current.over_taskbar != settings.over_taskbar;
         let autostart_changed = current.autostart != settings.autostart;
         *current = settings.clone();
         (screen_changed, autostart_changed)
@@ -267,6 +271,53 @@ fn focus_window(app: AppHandle, focused: bool) {
     }
 }
 
+/// Moves the island window by `dx`, `dy` logical px while Mochi is dragged.
+#[tauri::command]
+fn drag_island(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) {
+    shared.gate.dragging.store(true, Ordering::Relaxed);
+    let Some(win) = island::window(&app) else { return };
+    let Ok(pos) = win.outer_position() else { return };
+    let scale = win.scale_factor().unwrap_or(1.0);
+    let _ = win.set_position(tauri::PhysicalPosition::new(
+        pos.x + (dx * scale).round() as i32,
+        pos.y + (dy * scale).round() as i32,
+    ));
+}
+
+/// The drag is over: remember where Mochi was left, in the active profile.
+#[tauri::command]
+fn end_drag(app: AppHandle, shared: State<Shared>) {
+    shared.gate.dragging.store(false, Ordering::Relaxed);
+    let Some(win) = island::window(&app) else { return };
+    let (Ok(pos), Ok(size)) = (win.outer_position(), win.outer_size()) else { return };
+    let settings = {
+        let mut s = shared.settings.lock().unwrap();
+        let Some((work, scale)) = island::work_area(&app, &s) else { return };
+        let (bw, bh) = *shared.gate.collapsed_size.lock().unwrap();
+        let box_size = ((bw * scale).round() as u32, (bh * scale).round() as u32);
+        let origin = island::box_in_window(
+            (pos.x, pos.y),
+            (size.width, size.height),
+            box_size,
+            &s.anchor_h,
+            &s.anchor_v,
+        );
+        let (h, v, ox, oy) = island::placement_from_drop(work, origin, box_size, scale);
+        s.anchor_h = h;
+        s.anchor_v = v;
+        s.offset_x = ox;
+        s.offset_y = oy;
+        s.commit_active();
+        s.clone()
+    };
+    if let Err(err) = settings::save(&settings) {
+        eprintln!("[coucou] could not save settings: {err}");
+    }
+    let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
+    island::apply_geometry(&app, &shared.gate, &settings, collapsed);
+    let _ = app.emit("settings-changed", settings);
+}
+
 #[tauri::command]
 fn reposition(app: AppHandle, shared: State<Shared>) {
     let settings = shared.settings.lock().unwrap().clone();
@@ -374,6 +425,12 @@ fn hooks_apply(
 #[tauri::command]
 fn approval_decision(app: AppHandle, request_id: String, decision: String) {
     pipe::answer(&app, &request_id, &decision);
+}
+
+/// The island's answers to an AskUserQuestion (question → chosen label).
+#[tauri::command]
+fn approval_answers(app: AppHandle, request_id: String, answers: serde_json::Map<String, serde_json::Value>) {
+    pipe::answer_questions(&app, &request_id, &answers);
 }
 
 /// The island has the card on screen, so the long wait for a human may begin.
@@ -545,8 +602,13 @@ pub fn run() {
     let gate = Arc::new(PollGate::new());
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-            let _ = app.emit_to(island::WINDOW_LABEL, "tray", "open".to_string());
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            // `coucou.exe --settings` opens the settings window (a shortcut can use it).
+            if argv.iter().any(|a| a == "--settings") {
+                show_settings_window(app);
+            } else {
+                let _ = app.emit_to(island::WINDOW_LABEL, "tray", "open".to_string());
+            }
         }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .manage(Shared {
@@ -559,6 +621,8 @@ pub fn run() {
             boot,
             save_settings,
             set_collapsed,
+            drag_island,
+            end_drag,
             set_island_rect,
             focus_window,
             reposition,
@@ -569,6 +633,7 @@ pub fn run() {
             hooks_preview,
             hooks_apply,
             approval_decision,
+            approval_answers,
             approval_ack,
             approval_decline,
             log_line,
@@ -618,6 +683,7 @@ pub fn run() {
             log::line(format!("--- Coucou {} started ---", env!("CARGO_PKG_VERSION")));
             hooks::ensure_hook_exe(&handle);
             pipe::start(handle.clone());
+            drop::install(&handle);
             integrations::start(handle.clone());
             Ok(())
         })

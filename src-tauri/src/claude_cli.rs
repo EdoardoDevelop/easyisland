@@ -55,24 +55,63 @@ No markdown formatting (no **, no ##, no bullet dashes). Use plain text with lin
 
 /// Where `claude` lives: %PATH% first (npm installs `claude.cmd`), then the
 /// native installer's and npm's default folders, which a GUI app launched at
-/// login may not have on its PATH.
+/// login may not have on its PATH. Last, the copies bundled with the Claude
+/// desktop app and the VS Code extension, for users who have no standalone CLI.
 pub fn find_claude() -> Option<PathBuf> {
     if let Some(p) = crate::find_on_path("claude") {
         return Some(p);
     }
+    let home = std::env::var_os("USERPROFILE").map(PathBuf::from);
+    let appdata = std::env::var_os("APPDATA").map(PathBuf::from);
     let mut candidates = Vec::new();
-    if let Some(home) = std::env::var_os("USERPROFILE") {
-        candidates.push(
-            PathBuf::from(home)
-                .join(".local")
-                .join("bin")
-                .join("claude.exe"),
-        );
+    if let Some(home) = &home {
+        candidates.push(home.join(".local").join("bin").join("claude.exe"));
     }
-    if let Some(appdata) = std::env::var_os("APPDATA") {
-        candidates.push(PathBuf::from(appdata).join("npm").join("claude.cmd"));
+    if let Some(appdata) = &appdata {
+        candidates.push(appdata.join("npm").join("claude.cmd"));
     }
-    candidates.into_iter().find(|p| p.is_file())
+    if let Some(p) = candidates.into_iter().find(|p| p.is_file()) {
+        return Some(p);
+    }
+    // %APPDATA%\Claude\claude-code\<version>\claude.exe
+    if let Some(p) = appdata.as_ref().and_then(|a| {
+        newest_bundled(&a.join("Claude").join("claude-code"), "", &["claude.exe"])
+    }) {
+        return Some(p);
+    }
+    // %USERPROFILE%\.vscode\extensions\anthropic.claude-code-<version>-<platform>\resources\native-binary\claude.exe
+    home.as_ref().and_then(|h| {
+        newest_bundled(
+            &h.join(".vscode").join("extensions"),
+            "anthropic.claude-code-",
+            &["resources", "native-binary", "claude.exe"],
+        )
+    })
+}
+
+/// The `claude.exe` under the subfolder of `dir` (named `prefix` + version)
+/// with the highest version.
+fn newest_bundled(dir: &Path, prefix: &str, tail: &[&str]) -> Option<PathBuf> {
+    std::fs::read_dir(dir)
+        .ok()?
+        .flatten()
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().into_owned();
+            let version = version_key(name.strip_prefix(prefix)?)?;
+            let exe = tail.iter().fold(e.path(), |p, part| p.join(part));
+            exe.is_file().then_some((version, exe))
+        })
+        .max_by(|a, b| a.0.cmp(&b.0))
+        .map(|(_, exe)| exe)
+}
+
+/// "2.1.286-win32-x64" → [2, 1, 286]; None when it does not start with a number.
+fn version_key(s: &str) -> Option<Vec<u64>> {
+    let key: Vec<u64> = s
+        .split(|c: char| c == '.' || c == '-')
+        .map_while(|part| part.parse().ok())
+        .collect();
+    (!key.is_empty()).then_some(key)
 }
 
 /// MCP server names as they appear in tool names: anything outside
@@ -417,7 +456,7 @@ pub async fn status() -> CliStatus {
 
 #[cfg(test)]
 mod tests {
-    use super::{args, parse_output, tool_prefix, Connectors};
+    use super::{args, parse_output, tool_prefix, version_key, Connectors};
     use crate::settings::McpChoice;
     use std::path::Path;
 
@@ -439,6 +478,14 @@ mod tests {
         assert_eq!(at("--model"), "sonnet");
         assert_eq!(at("--resume"), "abc");
         assert_eq!(at("--add-dir"), "C:/inbox");
+    }
+
+    #[test]
+    fn bundled_versions_compare_numerically() {
+        assert_eq!(version_key("2.1.286-win32-x64"), Some(vec![2, 1, 286]));
+        assert_eq!(version_key("2.1.284"), Some(vec![2, 1, 284]));
+        assert!(version_key("2.1.99") < version_key("2.1.100"));
+        assert_eq!(version_key("latest"), None);
     }
 
     #[test]

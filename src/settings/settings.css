@@ -81,6 +81,13 @@ section > h2 {
   flex-wrap: wrap;
 }
 
+/* A trailing explanation wraps inside its own column instead of dropping the
+   whole text below the control. */
+.row > .note {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
 .row > label {
   min-width: 132px;
   color: var(--dim);

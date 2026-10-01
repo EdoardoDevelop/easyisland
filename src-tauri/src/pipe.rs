@@ -160,7 +160,7 @@ async fn wait_for_decision(id: &str, rx: &mut mpsc::Receiver<Reply>) -> Option<S
         Ok(Some(Reply::Ack)) => {}
         // A click that beats the ack is still a click.
         Ok(Some(Reply::Decision(d))) => {
-            log::line(format!("hook id={id} answered {d}"));
+            log::line(format!("hook id={id} answered {}", d.split(' ').next().unwrap_or("")));
             return Some(d);
         }
         Ok(Some(Reply::Decline)) => {
@@ -176,7 +176,7 @@ async fn wait_for_decision(id: &str, rx: &mut mpsc::Receiver<Reply>) -> Option<S
 
     match tokio::time::timeout(DECISION_TIMEOUT, rx.recv()).await {
         Ok(Some(Reply::Decision(d))) => {
-            log::line(format!("hook id={id} answered {d}"));
+            log::line(format!("hook id={id} answered {}", d.split(' ').next().unwrap_or("")));
             Some(d)
         }
         Ok(Some(Reply::Decline)) => {
@@ -224,4 +224,16 @@ pub fn answer(app: &AppHandle, request_id: &str, decision: &str) {
     };
     log::line(format!("decision id={request_id} {word}"));
     send(app, request_id, Reply::Decision(word.to_string()), false);
+}
+
+/// The island answered an AskUserQuestion: question → chosen label(s).
+/// coucou-hook folds them into the tool's input (`answer {json}`).
+pub fn answer_questions(app: &AppHandle, request_id: &str, answers: &serde_json::Map<String, serde_json::Value>) {
+    if answers.is_empty() || !answers.values().all(|v| v.is_string()) {
+        return decline(app, request_id);
+    }
+    // The answers themselves stay out of the log.
+    log::line(format!("decision id={request_id} answer ({} risposte)", answers.len()));
+    let line = format!("answer {}", serde_json::Value::Object(answers.clone()));
+    send(app, request_id, Reply::Decision(line), false);
 }

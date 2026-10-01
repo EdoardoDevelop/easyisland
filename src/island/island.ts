@@ -6,7 +6,7 @@ import { Bridge, IS_TAURI, onDragDrop } from "../core/bridge";
 import {
   EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, NOTCH_W, PANEL_H, PANEL_W,
   ROUNDED_CORNER, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
-  chatPromptHeight, collapsedBox, compactSize, isGlued, islandSize,
+  chatPromptHeight, collapsedBox, compactSize, cornerRadii, glueFor, isGlued, islandSize,
   type IslandMode, type IslandViewName, type Placement,
 } from "../core/layout";
 import { Sound } from "../core/sound";
@@ -18,13 +18,15 @@ import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { sendToChat } from "../views/chat";
-import type { QuickAction } from "../core/state";
+import type { ApprovalInfo, QuickAction } from "../core/state";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
 
 const BOT_OVERHANG = 40;
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
 const HIT_MARGIN = 14;
+/** Pointer travel (px) that turns a press on the compact island into a drag. */
+const DRAG_THRESHOLD = 4;
 
 /** The three views the drop sequence owns; leaving them stops the engine. */
 const UPLOAD_VIEWS: ReadonlySet<IslandViewName> = new Set(["upload", "uploading", "choose"]);
@@ -75,6 +77,8 @@ export class Island {
 
   // Rust starts the window at full size so the launch greeting has room.
   private collapsed = false;
+  /** Left button held on the compact island: a click or the start of a drag. */
+  private press: { x: number; y: number; moved: boolean } | null = null;
   private collapseTimer: number | null = null;
   private wasInIsland = false;
   /** Last shape handed to Rust for the click-through test. */
@@ -149,17 +153,24 @@ export class Island {
         if (!req) return;
         Sound.play(d === "deny" ? "blip" : "approve");
         void Bridge.approvalDecision(req.requestId, d);
-        State.pendingApproval = null;
-        State.isPinned = false;
-        this.fsm.pinned = false;
-        if (req.source === "chat") {
-          // Back to the conversation, which is still waiting for its answer.
-          this.setView("prompt");
-          return;
-        }
-        State.updateTask("integration_claude", "working");
-        State.setPillBadge("integration_claude", null);
-        this.setView(State.defaultView());
+        this.settleApproval(req);
+      },
+      answerQuestions: (answers) => {
+        const req = State.pendingApproval;
+        if (!req) return;
+        Sound.play("approve");
+        void Bridge.approvalAnswers(req.requestId, answers);
+        this.settleApproval(req);
+      },
+      handToTerminal: () => {
+        const req = State.pendingApproval;
+        if (!req) return;
+        void Bridge.approvalDecline(req.requestId);
+        this.settleApproval(req);
+      },
+      dismiss: () => {
+        if (State.pendingApproval) actions.handToTerminal();
+        this.collapse();
       },
       toggleSound: () => {
         State.settings.soundEnabled = !State.settings.soundEnabled;
@@ -342,6 +353,21 @@ export class Island {
     State.notify();
   }
 
+  /** A pending request was answered (or left to the terminal): unpin and move on. */
+  private settleApproval(req: ApprovalInfo) {
+    State.pendingApproval = null;
+    State.isPinned = false;
+    this.fsm.pinned = false;
+    if (req.source === "chat") {
+      // Back to the conversation, which is still waiting for its answer.
+      this.setView("prompt");
+      return;
+    }
+    State.updateTask("integration_claude", "working");
+    State.setPillBadge("integration_claude", null);
+    this.setView(State.defaultView());
+  }
+
   collapse() {
     State.isPinned = false;
     this.fsm.pinned = false;
@@ -486,6 +512,7 @@ export class Island {
   setFullscreen(on: boolean) {
     State.fullscreen = on;
     if (on && State.settings.quietFullscreen && State.mode === "compact") this.fsm.forceHidden();
+    if (!on) this.keepCompactUp();
     State.notify();
   }
 
@@ -615,6 +642,7 @@ export class Island {
       iconSize: s.iconSize,
       hoverStyle: s.hoverStyle,
       hoverSize: s.hoverSize,
+      ...glueFor(s.anchorH, s.anchorV, s.offsetX ?? 0, s.offsetY ?? 0, s.glueEdges ?? true),
     };
   }
 
@@ -652,10 +680,9 @@ export class Island {
     this.islandEl.style.top = `${o.y}px`;
     this.islandEl.style.width = `${w}px`;
     this.islandEl.style.height = `${hh}px`;
-    // Hanging from the top edge (the notch spot) keeps square top corners;
-    // a floating island is rounded all round.
+    // Square where it meets a screen edge; a floating island is rounded all round.
     const rr = Math.min(r, w / 2, hh / 2);
-    this.islandEl.style.borderRadius = isGlued(p) ? `0 0 ${rr}px ${rr}px` : `${rr}px`;
+    this.islandEl.style.borderRadius = cornerRadii(p, rr);
     // These follow the island as it resizes, so they belong here rather than in
     // the state-driven DOM sync.
     this.miniGrid.style.left = `${w - 40 - 14.5}px`;
@@ -783,10 +810,10 @@ export class Island {
   /** Resting the pointer on the compact island opens it after `openDelay`. */
   private scheduleHoverOpen() {
     const delay = State.settings.openDelay;
-    if (delay <= 0 || this.hoverOpenTimer != null) return;
+    if (delay <= 0 || this.hoverOpenTimer != null || this.press) return;
     this.hoverOpenTimer = window.setTimeout(() => {
       this.hoverOpenTimer = null;
-      if (State.mode !== "compact") return;
+      if (State.mode !== "compact" || this.press) return;
       // Judged on the last known cursor, not on enter/leave bookkeeping: the
       // island may have grown under a pointer that never moved.
       const r = this.islandRect();
@@ -844,13 +871,42 @@ export class Island {
       this.fsm.click();
     });
 
+    // Compact: a press opens the island on release, unless the pointer moved —
+    // then it is a drag, Mochi follows the mouse and stays where it is left.
+    this.islandEl.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0 || State.mode === "expanded") return;
+      Sound.resume();
+      State.lastActivity = performance.now();
+      this.cancelHoverOpen();
+      this.press = { x: e.screenX, y: e.screenY, moved: false };
+      this.islandEl.setPointerCapture(e.pointerId);
+    });
+    this.islandEl.addEventListener("pointermove", (e) => {
+      const p = this.press;
+      if (!p) return;
+      const dx = e.screenX - p.x;
+      const dy = e.screenY - p.y;
+      if (!p.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      p.moved = true;
+      p.x = e.screenX;
+      p.y = e.screenY;
+      void Bridge.dragIsland(dx, dy);
+    });
+    const release = (e: PointerEvent, cancelled: boolean) => {
+      const p = this.press;
+      if (!p) return;
+      this.press = null;
+      if (this.islandEl.hasPointerCapture(e.pointerId)) this.islandEl.releasePointerCapture(e.pointerId);
+      if (p.moved) void Bridge.endDrag();
+      else if (!cancelled) this.fsm.click();
+    };
+    this.islandEl.addEventListener("pointerup", (e) => release(e, false));
+    this.islandEl.addEventListener("pointercancel", (e) => release(e, true));
+
     this.islandEl.addEventListener("mousedown", (e) => {
       Sound.resume();
       State.lastActivity = performance.now();
-      if (State.mode !== "expanded") {
-        this.fsm.click();
-        return;
-      }
+      if (State.mode !== "expanded") return;
       if (this.isBotHit(e.clientX, e.clientY)) {
         this.cancelBotHover();
         this.engine.slap();
@@ -1200,6 +1256,14 @@ export class Island {
     if (showRest) this.drawRestIcon();
   }
 
+  /** "Sempre visibile": a resting island comes straight back as the compact view. */
+  private keepCompactUp() {
+    if (State.settings.revealDuration > 0 || this.fsm.state !== "hidden") return;
+    // Paused from the tray, or quiet over a full-screen app: stay out of the way.
+    if (State.paused || (State.fullscreen && State.settings.quietFullscreen)) return;
+    this.fsm.reveal();
+  }
+
   /** Applies settings coming from Rust at boot. */
   applySettings() {
     Sound.setEnabled(State.settings.soundEnabled);
@@ -1208,6 +1272,7 @@ export class Island {
     this.fsm.petitToHiddenDelay = State.settings.revealDuration;
     this.applyTheme();
     this.applyPlacement();
+    this.keepCompactUp();
     State.notify();
   }
 

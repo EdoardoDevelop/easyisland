@@ -5,7 +5,7 @@
 
 import { Bridge, onEvent } from "../core/bridge";
 import { Sound } from "../core/sound";
-import { State } from "../core/state";
+import { State, type AskQuestion } from "../core/state";
 import type { Island } from "./island";
 
 const CLAUDE_ID = "integration_claude";
@@ -144,6 +144,27 @@ const APPROVAL_FIELDS = [
   "pattern", // Glob, Grep
   "prompt", // Task
 ] as const;
+
+/** AskUserQuestion's questions, or null when the input is not what we expect. */
+function askQuestions(input: Record<string, unknown>): AskQuestion[] | null {
+  const raw = input.questions;
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const out: AskQuestion[] = [];
+  for (const q of raw) {
+    if (!q || typeof q !== "object") return null;
+    const r = q as Record<string, unknown>;
+    if (typeof r.question !== "string" || !Array.isArray(r.options)) return null;
+    out.push({
+      question: r.question,
+      header: typeof r.header === "string" ? r.header : "",
+      multiSelect: r.multiSelect === true,
+      options: r.options
+        .filter((o): o is Record<string, unknown> => !!o && typeof o === "object" && typeof (o as Record<string, unknown>).label === "string")
+        .map((o) => ({ label: o.label as string, description: typeof o.description === "string" ? o.description : "" })),
+    });
+  }
+  return out;
+}
 
 function approvalTarget(tool: string, input: Record<string, unknown>): string {
   for (const field of APPROVAL_FIELDS) {
@@ -306,12 +327,15 @@ function handleHook(island: Island, payload: HookPayload) {
       if (pendingTimeout != null) window.clearTimeout(pendingTimeout);
       const tool = payload.tool_name ?? "Strumento";
       const input = payload.tool_input ?? {};
+      const questions = tool === "AskUserQuestion" ? askQuestions(input) : null;
       State.pendingApproval = {
         requestId,
         sessionId: payload.session_id ?? "",
         tool,
         command: approvalTarget(tool, input),
+        ...(questions ? { questions } : {}),
       };
+      const card = questions ? "ask" : "approval";
       // The relay's short ack window closes in 800 ms; everything below this
       // line is synchronous, so the card really is up by the time it lands.
       if (requestId) void Bridge.approvalAck(requestId);
@@ -319,11 +343,11 @@ function handleHook(island: Island, payload: HookPayload) {
       State.isPinned = true;
       Sound.play("approval");
       if (focused) {
-        island.alert("approval");
+        island.alert(card);
       } else if (quietNow()) {
         // A badge on a hidden island would go unseen behind the full-screen app.
         State.setFocus(CLAUDE_ID);
-        island.alert("approval");
+        island.alert(card);
       } else {
         // Another agent holds the view, so the card would yank it away. The badge
         // is the signal instead — but it has to be on screen for that to mean
@@ -341,7 +365,7 @@ function handleHook(island: Island, payload: HookPayload) {
         island.dropPin();
         State.updateTask(CLAUDE_ID, "working");
         State.setPillBadge(CLAUDE_ID, null);
-        if (State.view === "approval") island.setView(State.defaultView());
+        if (State.view === "approval" || State.view === "ask") island.setView(State.defaultView());
         State.notify();
       }, 110_000);
       break;

@@ -4,7 +4,6 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWebview } from "@tauri-apps/api/webview";
 import type { Settings } from "./state";
 
 export const IS_TAURI =
@@ -55,6 +54,10 @@ export const Bridge = {
 
   reposition: () => call<void>("reposition"),
 
+  /** Moves the window while Mochi is dragged; `endDrag` saves where it was left. */
+  dragIsland: (dx: number, dy: number) => call<void>("drag_island", { dx, dy }),
+  endDrag: () => call<void>("end_drag"),
+
   openUrl: (url: string) => call<void>("open_url", { url }),
 
   /** "Open terminal" → opens the folder in VS Code when `code` is on PATH. */
@@ -82,6 +85,10 @@ export const Bridge = {
     call<void>("approval_decision", { requestId, decision }),
   /** "The card is up" — until this lands the relay only waits a moment. */
   approvalAck: (requestId: string) => call<void>("approval_ack", { requestId }),
+
+  /** Answers to an AskUserQuestion: question text → chosen label(s). */
+  approvalAnswers: (requestId: string, answers: Record<string, string>) =>
+    call<void>("approval_answers", { requestId, answers }),
   /** "Nobody can act on this" — Claude Code asks in the terminal right away. */
   approvalDecline: (requestId: string) => call<void>("approval_decline", { requestId }),
 
@@ -180,12 +187,58 @@ export interface DragDropPayload {
   paths?: string[];
 }
 
-/** Files dragged onto the island. Only reaches us when the window takes the mouse. */
+/**
+ * Files dragged onto the island. Only reaches us when the window takes the mouse.
+ *
+ * The page takes the drop itself (HTML5): Tauri's native drop target is never
+ * reached on current WebView2 runtimes. A `File` has no path in the page, so
+ * the files go back to Rust with postMessageWithAdditionalObjects, and Rust
+ * answers with `file-drop` and their real paths (src-tauri/src/drop.rs).
+ */
 export async function onDragDrop(handler: (e: DragDropPayload) => void) {
   if (!IS_TAURI) return () => {};
-  return getCurrentWebview().onDragDropEvent((event) => {
-    handler(event.payload as DragDropPayload);
+  const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
+  // dragenter/dragleave fire for every element crossed: count them.
+  let depth = 0;
+  window.addEventListener("dragenter", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    if (depth++ === 0) handler({ type: "enter" });
   });
+  window.addEventListener("dragover", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    handler({ type: "over" });
+  });
+  window.addEventListener("dragleave", (e) => {
+    if (!hasFiles(e)) return;
+    if (--depth <= 0) {
+      depth = 0;
+      handler({ type: "leave" });
+    }
+  });
+  window.addEventListener("drop", (e) => {
+    e.preventDefault();
+    depth = 0;
+    const files = Array.from(e.dataTransfer?.files ?? []);
+    const webview = (window as unknown as {
+      chrome?: { webview?: { postMessageWithAdditionalObjects?: (m: unknown, o: File[]) => void } };
+    }).chrome?.webview;
+    if (!files.length || !webview?.postMessageWithAdditionalObjects) {
+      handler({ type: "drop", paths: [] });
+      return;
+    }
+    // A string: Tauri's own handler sees every message first and, on anything
+    // else, fails in a way that stops WebView2 from calling ours.
+    try {
+      webview.postMessageWithAdditionalObjects("coucou-drop", files);
+    } catch (err) {
+      void Bridge.log(`drop: could not hand the files over: ${err}`);
+      handler({ type: "drop", paths: [] });
+    }
+  });
+  return listen<string[]>("file-drop", (ev) => handler({ type: "drop", paths: ev.payload }));
 }
 
 export async function onEvent<T>(name: string, handler: (payload: T) => void) {

@@ -5,7 +5,7 @@
 import { h, svg, clear, dot } from "./dom";
 import { ICONS } from "./icons";
 import { Ticker } from "./ticker";
-import { State, type AgentTask } from "../core/state";
+import { State, type AgentTask, type AskQuestion } from "../core/state";
 import { washRGBA, type IslandViewName, type Wash } from "../core/layout";
 import { createMiniBot, pruneMiniBots } from "../mochi/minibots";
 import { buildPrompt } from "./chat";
@@ -22,6 +22,12 @@ export interface ViewActions extends ActionHandlers {
   openTarget(): void;
   openUrl(url: string): void;
   decide(d: "allow" | "deny"): void;
+  /** AskUserQuestion answered from the island: question → chosen label(s). */
+  answerQuestions(answers: Record<string, string>): void;
+  /** Leave the pending request to the terminal (Claude Code asks there). */
+  handToTerminal(): void;
+  /** The ✕: closes now, handing any pending request back to the terminal. */
+  dismiss(): void;
   toggleSound(): void;
   setVolume(v: number): void;
   setAutoClose(seconds: number): void;
@@ -86,6 +92,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
 
   const gearBtn = h("button", { title: "Impostazioni", onclick: () => go("settings") }, svg(ICONS.gear, 14));
   const soundBtn = h("button", { title: "Silenzia", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 14));
+  const closeBtn = h("button", { title: "Chiudi", onclick: () => actions.dismiss() }, svg(ICONS.xmark, 12));
 
   function go(v: IslandViewName) {
     actions.blip();
@@ -96,7 +103,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
     "div",
     { id: "header" },
     h("div", { class: "tabs" }, tabHome, tabChat, tabActions, tabDrop),
-    h("div", { class: "header-actions" }, gearBtn, soundBtn),
+    h("div", { class: "header-actions" }, gearBtn, soundBtn, closeBtn),
   );
 
   return {
@@ -113,6 +120,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
       clear(soundBtn);
       soundBtn.append(svg(State.settings.soundEnabled ? ICONS.speakerOn : ICONS.speakerOff, 14));
       el.style.opacity = v === "confused" ? "0" : "1";
+      closeBtn.style.display = State.settings.closeButton ? "" : "none";
+      closeBtn.title = State.pendingApproval ? "Chiudi: rispondi nel terminale" : "Chiudi (Esc)";
     },
   };
 }
@@ -330,6 +339,83 @@ function buildApproval(actions: ViewActions): ViewHost {
   };
 }
 
+// ── AskUserQuestion ───────────────────────────────────────────────────────────
+
+/**
+ * Claude Code's multiple-choice questions, one at a time. Single choice answers
+ * on the click; multiple choice toggles and then "Avanti". The terminal stays
+ * available for anything the buttons cannot say (a free-text answer).
+ */
+function buildAsk(actions: ViewActions): ViewHost {
+  const who = h("div");
+  const title = h("div", { class: "title ask-q" });
+  const options = h("div", { class: "ask-options" });
+  const foot = h("div", { class: "ask-foot" });
+  const el = h("div", { class: "view" }, card("cyan", stack(116, 16, who, title, options, foot)));
+
+  let key = "";
+  let index = 0;
+  let answers: Record<string, string> = {};
+  let picked = new Set<string>();
+
+  function next(q: AskQuestion, value: string) {
+    answers[q.question] = value;
+    const all = State.pendingApproval?.questions ?? [];
+    picked = new Set();
+    if (index + 1 < all.length) {
+      index += 1;
+      key = ""; // redraw for the next question
+      State.notify();
+      return;
+    }
+    actions.answerQuestions(answers);
+  }
+
+  return {
+    el,
+    sync() {
+      const req = State.pendingApproval;
+      const all = req?.questions ?? [];
+      const id = req?.requestId ?? "";
+      // A new request starts again from the first question.
+      if (key.split("|")[0] !== id) {
+        index = 0;
+        answers = {};
+        picked = new Set();
+      }
+      const want = `${id}|${index}`;
+      if (key === want) return;
+      key = want;
+      const q = all[index];
+      clear(who);
+      clear(options);
+      clear(foot);
+      if (!q) return;
+      who.append(agentWho(State.focusTask,
+        all.length > 1 ? `ha ${all.length} domande · ${index + 1} di ${all.length}` : "ha una domanda"));
+      title.textContent = q.question;
+      for (const o of q.options) {
+        const b = h("button", { class: "ask-opt", title: o.description, text: o.label });
+        b.addEventListener("click", () => {
+          if (!q.multiSelect) return next(q, o.label);
+          if (picked.has(o.label)) picked.delete(o.label);
+          else picked.add(o.label);
+          b.classList.toggle("on", picked.has(o.label));
+          go.disabled = picked.size === 0;
+        });
+        options.append(b);
+      }
+      const go = h("button", { class: "btn primary ask-go", text: index + 1 < all.length ? "Avanti" : "Invia" }) as HTMLButtonElement;
+      go.disabled = true;
+      go.addEventListener("click", () => {
+        if (picked.size) next(q, q.options.map((o) => o.label).filter((l) => picked.has(l)).join(", "));
+      });
+      foot.append(h("button", { class: "link-btn", text: "Rispondi nel terminale", onclick: () => actions.handToTerminal() }));
+      if (q.multiSelect) foot.append(go);
+    },
+  };
+}
+
 // ── Question ──────────────────────────────────────────────────────────────────
 
 function buildQuestion(): ViewHost {
@@ -469,7 +555,7 @@ function buildSettings(actions: ViewActions): ViewHost {
       soundSwitch.classList.toggle("on", s.soundEnabled);
       volume.value = String(s.soundVolume);
       volume.style.opacity = s.soundEnabled ? "1" : "0.4";
-      autoLabel.textContent = `Chiusura automatica · ${Math.round(s.autoCloseInterval)}s`;
+      autoLabel.textContent = `Pannello aperto · ${Math.round(s.autoCloseInterval)}s`;
       segButtons.forEach((b, i) => b.classList.toggle("on", s.autoCloseInterval === [10, 15, 30][i]));
       clear(claudeBadge);
       claudeBadge.append(
@@ -507,6 +593,7 @@ export function buildViews(
   map.set("overview", buildOverview(actions));
   map.set("empty", buildEmpty(actions));
   map.set("approval", buildApproval(actions));
+  map.set("ask", buildAsk(actions));
   map.set("question", buildQuestion());
   map.set("error", buildError(actions));
   map.set("finished", buildFinished(actions));

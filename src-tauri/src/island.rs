@@ -15,13 +15,10 @@ use crate::settings::Settings;
 use tauri::{AppHandle, Emitter, Manager, Monitor, PhysicalPosition, PhysicalSize, WebviewWindow};
 
 use windows::Win32::Foundation::{HWND, POINT};
-use windows::core::BOOL;
-use windows::Win32::Foundation::LPARAM;
-use windows::Win32::System::Ole::RevokeDragDrop;
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
-use windows::Win32::UI::WindowsAndMessaging::{EnumChildWindows, GetClassNameW};
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetCursorPos, GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_NOACTIVATE,
+    GetCursorPos, GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, GWL_EXSTYLE, HWND_TOPMOST,
+    SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSIZE, WS_EX_NOACTIVATE,
     WS_EX_TOOLWINDOW,
 };
 
@@ -77,6 +74,9 @@ pub struct PollGate {
     pub collapsed_size: Mutex<(f64, f64)>,
     /// A full-screen app (video, game, presentation) is in front.
     pub fullscreen: AtomicBool,
+    /// Mochi is being dragged: the window keeps the mouse even when a quick
+    /// move leaves the cursor outside it for a moment.
+    pub dragging: AtomicBool,
 }
 
 impl PollGate {
@@ -89,6 +89,7 @@ impl PollGate {
             ignoring: AtomicBool::new(false),
             collapsed_size: Mutex::new((STRIP_W, STRIP_H)),
             fullscreen: AtomicBool::new(false),
+            dragging: AtomicBool::new(false),
         }
     }
 
@@ -127,39 +128,6 @@ fn cursor_physical() -> Option<(f64, f64)> {
     let mut p = POINT::default();
     unsafe { GetCursorPos(&mut p).ok()? };
     Some((p.x as f64, p.y as f64))
-}
-
-/// Lets dropped files reach the app again.
-///
-/// wry installs its drop target by walking the webview's child windows **once**,
-/// when the webview is created. WebView2 creates `Chrome_RenderWidgetHostHWND`
-/// later and registers its own target on it; being the innermost window, that one
-/// wins, and since the page has no HTML5 drop handler it refuses everything — the
-/// "no drop" cursor, with nothing reaching Tauri. Revoking it makes OLE fall
-/// through to the target wry registered on the parent widget, which is the one
-/// that feeds Tauri's drag events.
-///
-/// Cheap and idempotent, so it is simply re-run whenever a drag might be starting.
-pub fn unblock_webview_drops(app: &AppHandle) {
-    for label in [WINDOW_LABEL, "settings"] {
-        let Some(win) = app.get_webview_window(label) else { continue };
-        let Some(hwnd) = hwnd_of(&win) else { continue };
-        unsafe {
-            let _ = EnumChildWindows(Some(hwnd), Some(revoke_render_widget), LPARAM(0));
-        }
-    }
-}
-
-unsafe extern "system" fn revoke_render_widget(hwnd: HWND, _: LPARAM) -> BOOL {
-    let mut name = [0u16; 64];
-    let len = unsafe { GetClassNameW(hwnd, &mut name) };
-    if len > 0 {
-        let class = String::from_utf16_lossy(&name[..len as usize]);
-        if class == "Chrome_RenderWidgetHostHWND" {
-            let _ = unsafe { RevokeDragDrop(hwnd) };
-        }
-    }
-    true.into()
 }
 
 /// True while the left mouse button is held — the only signal we get that a
@@ -220,16 +188,18 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
     let Some(m) = target_monitor(app, &settings.screen) else { return };
 
     let scale = m.scale_factor();
-    let wa = *m.work_area();
+    let work = island_area(&m, settings);
 
     let (lw, lh) = if collapsed { *gate.collapsed_size.lock().unwrap() } else { (PANEL_W, PANEL_H) };
     let pw = (lw * scale).round().max(1.0) as u32;
     let ph = (lh * scale).round().max(1.0) as u32;
-    let (x, y) = anchored_origin(
-        (wa.position.x, wa.position.y, wa.size.width, wa.size.height),
+    let (x, y) = anchored_origin(work, (pw, ph), &settings.anchor_h, &settings.anchor_v);
+    // Where the user dragged Mochi to, kept on screen whatever the display.
+    let (x, y) = clamp_to_work(
+        work,
         (pw, ph),
-        &settings.anchor_h,
-        &settings.anchor_v,
+        x + (settings.offset_x * scale).round() as i32,
+        y + (settings.offset_y * scale).round() as i32,
     );
 
     let _ = win.set_size(PhysicalSize::new(pw, ph));
@@ -258,6 +228,87 @@ fn anchored_origin(
     (x, y)
 }
 
+fn clamp_to_work(work: (i32, i32, u32, u32), size: (u32, u32), x: i32, y: i32) -> (i32, i32) {
+    let (wx, wy, ww, wh) = work;
+    let max_x = (wx + ww as i32 - size.0 as i32).max(wx);
+    let max_y = (wy + wh as i32 - size.1 as i32).max(wy);
+    (x.clamp(wx, max_x), y.clamp(wy, max_y))
+}
+
+/// Snaps within this many logical px of an edge or of the centre line.
+const SNAP: f64 = 16.0;
+
+/// Where a drag left Mochi, turned into settings: the side the island opens
+/// from (the third / half of the screen the icon is in, so the panel grows
+/// towards the middle) and the offset from that side's home position, logical px.
+/// `box_origin` is the rest box's top-left corner, `box_size` its size, both physical.
+pub fn placement_from_drop(
+    work: (i32, i32, u32, u32),
+    box_origin: (i32, i32),
+    box_size: (u32, u32),
+    scale: f64,
+) -> (String, String, f64, f64) {
+    let (wx, wy, ww, wh) = work;
+    let cx = box_origin.0 + box_size.0 as i32 / 2 - wx;
+    let cy = box_origin.1 + box_size.1 as i32 / 2 - wy;
+    let anchor_h = if cx < ww as i32 / 3 {
+        "left"
+    } else if cx > ww as i32 * 2 / 3 {
+        "right"
+    } else {
+        "center"
+    };
+    let anchor_v = if cy > wh as i32 / 2 { "bottom" } else { "top" };
+    let (hx, hy) = anchored_origin(work, box_size, anchor_h, anchor_v);
+    let snap = |d: i32| {
+        let d = d as f64 / scale;
+        if d.abs() < SNAP { 0.0 } else { d.round() }
+    };
+    (
+        anchor_h.to_string(),
+        anchor_v.to_string(),
+        snap(box_origin.0 - hx),
+        snap(box_origin.1 - hy),
+    )
+}
+
+/// The rest box's top-left corner for a window at `win_origin` of `win_size`:
+/// both are pinned to the same side, so the box sits in the matching corner.
+pub fn box_in_window(
+    win_origin: (i32, i32),
+    win_size: (u32, u32),
+    box_size: (u32, u32),
+    anchor_h: &str,
+    anchor_v: &str,
+) -> (i32, i32) {
+    let (dw, dh) = (win_size.0 as i32 - box_size.0 as i32, win_size.1 as i32 - box_size.1 as i32);
+    let x = match anchor_h {
+        "left" => win_origin.0,
+        "right" => win_origin.0 + dw,
+        _ => win_origin.0 + dw / 2,
+    };
+    let y = if anchor_v == "bottom" { win_origin.1 + dh } else { win_origin.1 };
+    (x, y)
+}
+
+/// Where the island may sit on `m`, physical px: the work area, or the whole
+/// screen when the user wants it over the taskbar too.
+fn island_area(m: &Monitor, settings: &Settings) -> (i32, i32, u32, u32) {
+    if settings.over_taskbar {
+        let (p, s) = (m.position(), m.size());
+        (p.x, p.y, s.width, s.height)
+    } else {
+        let wa = m.work_area();
+        (wa.position.x, wa.position.y, wa.size.width, wa.size.height)
+    }
+}
+
+/// The island's area (physical) and scale on its screen.
+pub fn work_area(app: &AppHandle, settings: &Settings) -> Option<((i32, i32, u32, u32), f64)> {
+    let m = target_monitor(app, &settings.screen)?;
+    Some((island_area(&m, settings), m.scale_factor()))
+}
+
 /// Every two seconds: is a full-screen app in front? Cheap (one shell call),
 /// and it only runs while the user has asked for quiet in full screen.
 pub fn spawn_fullscreen_watch(app: AppHandle, gate: Arc<PollGate>) {
@@ -267,6 +318,14 @@ pub fn spawn_fullscreen_watch(app: AppHandle, gate: Arc<PollGate>) {
     };
     std::thread::spawn(move || loop {
         std::thread::sleep(Duration::from_secs(2));
+        // Resting over the taskbar the cursor poll is parked: keep the icon in front from here.
+        let over = app
+            .try_state::<crate::Shared>()
+            .map(|s| s.settings.lock().unwrap().over_taskbar)
+            .unwrap_or(false);
+        if over && gate.collapsed.load(Ordering::Relaxed) {
+            raise_over_taskbar(&app);
+        }
         let wanted = app
             .try_state::<crate::Shared>()
             .map(|s| s.settings.lock().unwrap().quiet_fullscreen)
@@ -289,6 +348,25 @@ pub fn spawn_fullscreen_watch(app: AppHandle, gate: Arc<PollGate>) {
         }
         let _ = app.emit_to(WINDOW_LABEL, "fullscreen", busy);
     });
+}
+
+/// Puts the island back at the top of the topmost band. The taskbar is topmost
+/// too and comes forward whenever it is touched; Tauri's set_always_on_top does
+/// nothing when the flag is already set, so this goes to Win32 directly.
+pub fn raise_over_taskbar(app: &AppHandle) {
+    let Some(win) = window(app) else { return };
+    let Some(hwnd) = hwnd_of(&win) else { return };
+    unsafe {
+        let _ = SetWindowPos(
+            hwnd,
+            Some(HWND_TOPMOST),
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_ASYNCWINDOWPOS,
+        );
+    }
 }
 
 fn hwnd_of(win: &WebviewWindow) -> Option<HWND> {
@@ -341,7 +419,6 @@ fn current_screen_key(app: &AppHandle) -> Option<(i32, i32, u32, u32, u64)> {
 /// visible. Parked on a condvar the rest of the time.
 pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
     std::thread::spawn(move || {
-        let mut was_down = false;
         // Remembered across wakes so a display change while hidden is noticed the
         // moment the island comes back.
         let mut last_screen: Option<(i32, i32, u32, u32, u64)> = None;
@@ -349,15 +426,30 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
             gate.wait_until_active();
             let mut last = (f64::MIN, f64::MIN);
             let mut ticks: u32 = 0;
+            let mut over_taskbar = false;
             while gate.is_active() {
                 std::thread::sleep(Duration::from_millis(16));
+                // The island may have collapsed during the sleep: a tick on stale
+                // data would turn click-through back on over the rest icon.
+                if !gate.is_active() {
+                    break;
+                }
 
+                ticks = ticks.wrapping_add(1);
+                // The taskbar comes forward on every touch: over it, take the
+                // front back within a few frames (one cheap async SetWindowPos).
+                if over_taskbar && ticks % 10 == 0 {
+                    raise_over_taskbar(&app);
+                }
                 // Monitors get plugged in, unplugged, rearranged and rescaled, and
                 // an island pinned to coordinates that no longer exist is an island
                 // nobody can reach. Checked about twice a second — the cursor poll
                 // is already running, so this costs one monitor query.
-                ticks = ticks.wrapping_add(1);
                 if ticks % 30 == 0 {
+                    over_taskbar = app
+                        .try_state::<crate::Shared>()
+                        .map(|s| s.settings.lock().unwrap().over_taskbar)
+                        .unwrap_or(false);
                     let now = current_screen_key(&app);
                     if now.is_some() && now != last_screen {
                         let first = last_screen.is_none();
@@ -401,14 +493,7 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                 // registered destinations whatever ignoresMouseEvents says. So while
                 // a button is held anywhere over the panel, the whole panel takes
                 // the mouse, which also makes the drop zone as forgiving as the Mac's.
-                // A press may be the start of a drag: make sure the drop target is
-                // ours before the file arrives.
                 let down = left_button_down();
-                if down && !was_down {
-                    let handle = app.clone();
-                    let _ = app.run_on_main_thread(move || unblock_webview_drops(&handle));
-                }
-                was_down = down;
 
                 let dragging = down
                     && x >= 0.0
@@ -416,13 +501,31 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                     && y >= 0.0
                     && y <= size.1;
 
-                let accept = on_island || dragging;
+                // Collapsed, the whole window is the rest icon or the wake strip,
+                // and it must always take the mouse. Checked here too because
+                // set_collapsed can land between the check above and this line.
+                let accept = on_island
+                    || dragging
+                    || gate.dragging.load(Ordering::Relaxed)
+                    || gate.collapsed.load(Ordering::Relaxed);
                 if gate.ignoring.load(Ordering::Relaxed) == accept {
                     gate.ignoring.store(!accept, Ordering::Relaxed);
                     let _ = win.set_ignore_cursor_events(!accept);
+                    // Reaching Mochi over the taskbar: be in front before the click.
+                    if accept && over_taskbar {
+                        raise_over_taskbar(&app);
+                    }
                 }
 
                 let _ = win.emit("cursor", CursorPayload { x, y });
+            }
+            // Parking: this thread is the last one to touch the flag, so it has
+            // the final say — a resting island takes the mouse.
+            if gate.collapsed.load(Ordering::Relaxed) {
+                if let Some(win) = window(&app) {
+                    let _ = win.set_ignore_cursor_events(false);
+                }
+                gate.forget_ignore_state();
             }
         }
     });
@@ -431,5 +534,41 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
 pub fn set_ignore_cursor(app: &AppHandle, ignore: bool) {
     if let Some(win) = window(app) {
         let _ = win.set_ignore_cursor_events(ignore);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{box_in_window, clamp_to_work, placement_from_drop};
+
+    const WORK: (i32, i32, u32, u32) = (0, 0, 1920, 1040);
+
+    #[test]
+    fn drop_picks_the_nearest_side_and_keeps_the_spot() {
+        // Top centre, a few px off: snaps back home.
+        let (h, v, ox, oy) = placement_from_drop(WORK, (944, 6), (40, 40), 1.0);
+        assert_eq!((h.as_str(), v.as_str(), ox, oy), ("center", "top", 0.0, 0.0));
+        // Left third, halfway down the top half.
+        let (h, v, ox, oy) = placement_from_drop(WORK, (300, 200), (40, 40), 1.0);
+        assert_eq!((h.as_str(), v.as_str(), ox, oy), ("left", "top", 300.0, 200.0));
+        // Bottom right, offsets are measured from that corner.
+        let (h, v, ox, oy) = placement_from_drop(WORK, (1700, 900), (40, 40), 1.0);
+        assert_eq!((h.as_str(), v.as_str(), ox, oy), ("right", "bottom", -180.0, -100.0));
+        // HiDPI: offsets are logical.
+        let (_, _, ox, _) = placement_from_drop(WORK, (400, 0), (80, 80), 2.0);
+        assert_eq!(ox, 200.0);
+    }
+
+    #[test]
+    fn rest_box_sits_in_the_anchored_corner() {
+        assert_eq!(box_in_window((100, 0), (720, 320), (40, 40), "center", "top"), (440, 0));
+        assert_eq!(box_in_window((100, 50), (720, 320), (40, 40), "right", "bottom"), (780, 330));
+        assert_eq!(box_in_window((100, 50), (720, 320), (40, 40), "left", "top"), (100, 50));
+    }
+
+    #[test]
+    fn window_stays_on_screen() {
+        assert_eq!(clamp_to_work(WORK, (720, 320), -50, 900), (0, 720));
+        assert_eq!(clamp_to_work(WORK, (720, 320), 1500, 10), (1200, 10));
     }
 }

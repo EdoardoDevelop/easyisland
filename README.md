@@ -125,6 +125,7 @@ disinstallatore volutamente non tocca il `settings.json` di Claude Code. Poi
 | `error: toolchain 'stable-x86_64-pc-windows-msvc' is not installed` | `rustup default stable-msvc` |
 | l'installer viene bloccato da Defender | è il falso positivo descritto sopra: usa "Esegui comunque", oppure lancia direttamente `target\release\coucou.exe` |
 | Mochi non compare | guarda nell'area di notifica (la freccia ^ accanto all'orologio) e il log in `%LOCALAPPDATA%\Coucou\coucou.log` |
+| vuoi aprire le impostazioni senza l'area di notifica | `"%LOCALAPPDATA%\Coucou\coucou.exe" --settings` (anche come collegamento) |
 
 ## Come si usa
 
@@ -138,12 +139,13 @@ _Le schermate mostrano ancora i testi in inglese della versione originale._
 
 | Cosa fai | Cosa succede |
 |---|---|
-| Porti il mouse sull'icona di Mochi (in alto al centro, o nell'angolo che hai scelto) | Mochi si ingrandisce |
-| Lasci il mouse sopra per un attimo, o clicchi | Si apre l'isola, allineata a quel lato |
+| Porti il mouse sull'icona di Mochi (in alto al centro, o nell'angolo che hai scelto) | Mochi si ingrandisce (o resta sempre così, con **Sempre visibile**) |
+| Clicchi su Mochi, o lasci il mouse sopra per un attimo se "Apri dopo" lo prevede | Si apre l'isola, allineata a quel lato |
+| Trascini Mochi tenendo premuto il tasto sinistro | Si sposta dove lo lasci, e la posizione resta salvata nel profilo |
 | Clicchi su Mochi | Si infastidisce. Tre volte di fila e gli gira la testa |
 | Lasci il puntatore su Mochi per due secondi | Cuori |
-| Trascini un file sull'isola | Mochi diventa una scatola, lo inghiotte e poi si offre di rispondere a domande sul file |
-| `Esc` | Chiude l'isola |
+| Trascini un file sull'isola | Si apre anche se è impostata "solo con un clic": Mochi diventa una scatola, lo inghiotte e poi si offre di rispondere a domande sul file |
+| `Esc`, o la ✕ in alto a destra | Chiude subito l'isola, senza aspettare i secondi della chiusura automatica |
 | Icona nell'area di notifica | Apri, Impostazioni…, Pausa, Esci |
 
 Tutto il resto succede da solo: una richiesta di permesso di Claude Code apre
@@ -154,16 +156,32 @@ tue integrazioni stanno nelle pillole colorate accanto a Mochi.
 
 **Impostazioni… → Posizione e aspetto** decide dove vive Mochi e quanto si fa notare:
 
-- **Posizione**: in alto o in basso, a sinistra, al centro o a destra. In basso
-  sta sopra la barra delle applicazioni. Quando si apre, l'isola cresce
-  dall'angolo scelto e il contenuto resta allineato a quel lato.
-- **Icona a riposo**: Mochi fermo, un pallino con il colore dello stato, oppure
-  nulla (solo una striscia invisibile sul bordo). La dimensione è regolabile.
-  L'icona a riposo è un'immagine ferma: non consuma CPU.
-- **Al passaggio del mouse**: un Mochi più grande e animato, oppure la barra
-  compatta con le integrazioni, con dimensione regolabile.
-- **Apri dopo**: quanto tenere il mouse sopra prima che si apra (o solo con un clic).
-- **Resta visibile**: per quanti secondi resta l'icona grande dopo un evento.
+- **Posizione**: in alto o in basso, a sinistra, al centro o a destra. Quando si
+  apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel
+  lato. Puoi anche **trascinare Mochi** con il mouse dove vuoi: al rilascio la
+  posizione resta salvata nel profilo, e il lato da cui si apre l'isola viene
+  scelto da solo (il terzo e la metà dello schermo in cui lo lasci), così il
+  pannello cresce verso l'interno. Vicino a un bordo o al centro si aggancia.
+  Scegliere di nuovo una posizione qui lo riporta al bordo.
+- **Sopra la barra**: Mochi può stare anche sopra la barra delle applicazioni
+  (spento: resta sopra di essa, nell'area di lavoro).
+- **Aggancia ai bordi**: lasciato a pochi pixel da un bordo dello schermo, lo
+  sfondo si attacca al bordo con gli angoli squadrati da quel lato; altrimenti è
+  una bolla solo intorno all'icona. Spento: si attacca solo in alto al centro.
+- **Vista compatta**: un Mochi più grande e animato, oppure la barra compatta
+  con le integrazioni, con dimensione regolabile.
+- **Sempre visibile**: la vista compatta resta sempre sullo schermo e non torna
+  mai all'icona a riposo. Costa un po' di CPU (Mochi è animato): sul portatile a
+  batteria valuta se spegnerla.
+- **Icona a riposo** e **Torna a riposo dopo** (solo se *Sempre visibile* è
+  spenta): Mochi fermo, un pallino con il colore dello stato, oppure nulla (solo
+  una striscia invisibile sul bordo), e dopo quanti secondi tornarci. L'icona a
+  riposo è un'immagine ferma: non consuma CPU.
+- **Apri dopo**: quanto tenere il mouse sopra prima che si apra, oppure **solo
+  con un clic**. Trascinare un file sopra Mochi lo apre sempre.
+- **Pannello aperto**: dopo quanti secondi dall'uscita del mouse il pannello si
+  riduce alla vista compatta.
+- **Pulsante chiudi**: la ✕ in alto a destra del pannello per chiuderlo subito.
 - **Schermo intero**: durante video, giochi e presentazioni Mochi sparisce; le
   richieste di permesso compaiono comunque.
 
@@ -189,9 +207,7 @@ di Coucou. Le impostazioni si cambiano nell'indirizzo, per esempio
 | **Programma / cartella** | avvia un programma con i suoi argomenti (es. `mstsc /v:server01`) o apre una cartella |
 | **Link** | apre un indirizzo nel browser |
 
-*Aggiungi esempi da tecnico IT* inserisce un set di partenza: Spiega errore,
-Script PowerShell, Rapportino, Rispondi al cliente, Analizza log, Info rete,
-Desktop remoto.
+Ogni azione si può riordinare con ↑ ↓ ed eliminare con ✕.
 
 **Scorciatoie globali**, valide in ogni app (modificabili):
 
@@ -288,6 +304,14 @@ nell'interfaccia: l'isola può solo chiedere se una chiave esiste. Lo stesso val
 per le chiavi di ogni integrazione.
 
 Mochi risponde in italiano, a meno che tu non gli scriva in un'altra lingua.
+**Nuova chat**, a sinistra del campo di testo, dimentica la conversazione (e il
+file o il testo a cui si riferiva) e ne comincia una da zero.
+
+Con "Abbonamento Claude", Coucou cerca Claude Code nel `PATH`, in
+`%USERPROFILE%\.localin` e nella cartella di npm; se non c'è un'installazione
+a sé, usa la copia inclusa nell'app desktop di Claude
+(`%APPDATA%\Claude\claude-code\<versione>`) o nell'estensione per VS Code,
+sempre la versione più recente.
 
 Nessuna telemetria. Le uniche richieste di rete di Coucou vanno ai servizi che
 configuri tu.

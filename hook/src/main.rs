@@ -80,7 +80,7 @@ fn main() {
     if std::env::var_os("COUCOU_INTERNAL").is_some() && !chat {
         std::process::exit(0);
     }
-    let Some((payload, event)) = read_event() else { std::process::exit(0) };
+    let Some((payload, event, tool_input)) = read_event() else { std::process::exit(0) };
 
     let waits_for_answer = event == "PermissionRequest";
     let budget = if waits_for_answer { DECISION_BUDGET } else { FIRE_AND_FORGET_BUDGET };
@@ -95,7 +95,7 @@ fn main() {
     });
 
     if let Ok(Some(decision)) = rx.recv_timeout(budget) {
-        if let Some(json) = decision_json(&decision) {
+        if let Some(json) = decision_json(&decision, tool_input.as_ref()) {
             let mut out = std::io::stdout();
             let _ = writeln!(out, "{json}");
             let _ = out.flush();
@@ -108,7 +108,24 @@ fn main() {
 /// The documented PermissionRequest output. Anything we do not recognise prints
 /// nothing at all rather than guessing — silence is the safe answer.
 /// See https://code.claude.com/docs/en/hooks
-fn decision_json(decision: &str) -> Option<String> {
+///
+/// `answer {"<question>":"<label>",…}` answers an AskUserQuestion: an allow
+/// whose `updatedInput` is the tool's own input plus those `answers`. The
+/// input comes from stdin, untruncated — the island only ever saw a shortened copy.
+fn decision_json(decision: &str, tool_input: Option<&serde_json::Value>) -> Option<String> {
+    if let Some(answers) = decision.trim().strip_prefix("answer ") {
+        let answers = serde_json::from_str::<serde_json::Value>(answers).ok()?;
+        let answers = answers.as_object().filter(|a| !a.is_empty() && a.values().all(|v| v.is_string()))?;
+        let mut input = tool_input?.as_object()?.clone();
+        input.insert("answers".into(), serde_json::Value::Object(answers.clone()));
+        let out = serde_json::json!({
+            "hookSpecificOutput": {
+                "hookEventName": "PermissionRequest",
+                "decision": { "behavior": "allow", "updatedInput": input },
+            }
+        });
+        return Some(out.to_string());
+    }
     let behavior = match decision.trim() {
         // "always" still answers a plain allow; remembering it is the island's
         // business, not Claude Code's.
@@ -121,8 +138,9 @@ fn decision_json(decision: &str) -> Option<String> {
     ))
 }
 
-/// Reads stdin and returns the payload to forward plus the event name.
-fn read_event() -> Option<(String, String)> {
+/// Reads stdin and returns the payload to forward, the event name and the
+/// tool's input exactly as received (before any truncation).
+fn read_event() -> Option<(String, String, Option<serde_json::Value>)> {
     let mut raw = Vec::new();
     if std::io::stdin().read_to_end(&mut raw).is_err() || raw.is_empty() {
         return None;
@@ -152,6 +170,7 @@ fn read_event() -> Option<(String, String)> {
     for field in DROPPED_FIELDS {
         map.remove(*field);
     }
+    let tool_input = map.get("tool_input").cloned();
 
     let cwd_missing = map
         .get("cwd")
@@ -186,7 +205,7 @@ fn read_event() -> Option<(String, String)> {
 
     let mut line = payload.to_string();
     line.push('\n');
-    Some((line, event))
+    Some((line, event, tool_input))
 }
 
 /// Caps every string in the payload. A single Write can carry a whole file.
@@ -247,23 +266,39 @@ mod tests {
     #[test]
     fn decision_json_matches_the_documented_shape() {
         assert_eq!(
-            decision_json("allow").unwrap(),
+            decision_json("allow", None).unwrap(),
             r#"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}"#
         );
         assert_eq!(
-            decision_json("deny").unwrap(),
+            decision_json("deny", None).unwrap(),
             r#"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny","message":"Negato da Coucou"}}}"#
         );
         // "always" is an island concept; Claude Code just gets an allow.
-        assert!(decision_json("always").unwrap().contains(r#""behavior":"allow""#));
+        assert!(decision_json("always", None).unwrap().contains(r#""behavior":"allow""#));
+    }
+
+    #[test]
+    fn answers_go_back_inside_the_original_input() {
+        let input = serde_json::json!({ "questions": [{ "question": "Quale?", "options": [] }] });
+        let out = decision_json(r#"answer {"Quale?":"Questa"}"#, Some(&input)).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let d = &v["hookSpecificOutput"]["decision"];
+        assert_eq!(d["behavior"], "allow");
+        assert_eq!(d["updatedInput"]["answers"]["Quale?"], "Questa");
+        assert_eq!(d["updatedInput"]["questions"], input["questions"]);
+        // No input, empty or malformed answers: say nothing.
+        assert!(decision_json(r#"answer {"Quale?":"Questa"}"#, None).is_none());
+        assert!(decision_json("answer {}", Some(&input)).is_none());
+        assert!(decision_json(r#"answer {"Quale?":1}"#, Some(&input)).is_none());
+        assert!(decision_json("answer nope", Some(&input)).is_none());
     }
 
     #[test]
     fn anything_unrecognised_prints_nothing() {
-        assert!(decision_json("").is_none());
-        assert!(decision_json("maybe").is_none());
+        assert!(decision_json("", None).is_none());
+        assert!(decision_json("maybe", None).is_none());
         // The shape the app used to send must not be mistaken for a decision.
-        assert!(decision_json(r#"{"permissionDecision":"allow"}"#).is_none());
+        assert!(decision_json(r#"{"permissionDecision":"allow"}"#, None).is_none());
     }
 
     #[test]

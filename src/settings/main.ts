@@ -509,12 +509,12 @@ function placementSection(): HTMLElement {
   const vertical = select<Settings["anchorV"]>(
     [["top", "In alto"], ["bottom", "In basso"]],
     settings.anchorV,
-    (v) => { settings.anchorV = v; commit(); },
+    (v) => { settings.anchorV = v; settings.offsetX = 0; settings.offsetY = 0; commit(); },
   );
   const horizontal = select<Settings["anchorH"]>(
     [["left", "A sinistra"], ["center", "Al centro"], ["right", "A destra"]],
     settings.anchorH,
-    (v) => { settings.anchorH = v; commit(); },
+    (v) => { settings.anchorH = v; settings.offsetX = 0; settings.offsetY = 0; commit(); },
   );
 
   const iconSize = h("div", { class: "row" },
@@ -562,14 +562,43 @@ function placementSection(): HTMLElement {
     (v) => { settings.openDelay = Number(v); commit(); },
   );
 
+  // revealDuration 0 = the compact view never goes back to the rest icon.
   const reveal = h("input", {
     type: "number", min: "2", max: "120", step: "1",
-    value: String(Math.round(settings.revealDuration)),
+    value: String(Math.round(settings.revealDuration > 0 ? settings.revealDuration : 8)),
     style: "width:72px",
   }) as HTMLInputElement;
   reveal.addEventListener("change", () => {
     settings.revealDuration = Math.max(2, Math.min(120, Number(reveal.value) || 8));
     reveal.value = String(settings.revealDuration);
+    commit();
+  });
+  const revealRow = h("div", { class: "row" },
+    h("label", { text: "Torna a riposo dopo" }),
+    reveal,
+    h("span", { class: "hint note", text: "secondi dopo un evento o dopo che sposti via il mouse" }),
+  );
+  const restRows = h("div", { style: "display:contents" },
+    h("div", { class: "row" }, h("label", { text: "Icona a riposo" }), iconStyle),
+    iconSize,
+    revealRow,
+  );
+  const alwaysOn = (on: boolean) => { restRows.style.display = on ? "none" : "contents"; };
+  alwaysOn(settings.revealDuration <= 0);
+  const always = toggle(settings.revealDuration <= 0, (v) => {
+    settings.revealDuration = v ? 0 : Math.max(2, Number(reveal.value) || 8);
+    alwaysOn(v);
+    commit();
+  });
+
+  const autoClose = h("input", {
+    type: "number", min: "5", max: "120", step: "1",
+    value: String(Math.round(settings.autoCloseInterval)),
+    style: "width:72px",
+  }) as HTMLInputElement;
+  autoClose.addEventListener("change", () => {
+    settings.autoCloseInterval = Math.max(5, Math.min(120, Number(autoClose.value) || 15));
+    autoClose.value = String(settings.autoCloseInterval);
     commit();
   });
 
@@ -579,24 +608,47 @@ function placementSection(): HTMLElement {
     h("h2", {}, h("span", { text: "Posizione e aspetto" }), profileChip()),
     h("div", {
       class: "hint",
-      text: "Dove vive Mochi. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. In basso sta sopra la barra delle applicazioni.",
+      text: "Dove vive Mochi. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. In basso sta sopra la barra delle applicazioni. Puoi anche trascinare Mochi con il mouse: la posizione resta salvata; sceglierne una qui la riporta al bordo.",
     }),
     h("div", { class: "row" }, h("label", { text: "Schermo" }), screen),
     h("div", { class: "row" }, h("label", { text: "Posizione" }), vertical, horizontal),
-    h("div", { class: "row" }, h("label", { text: "Icona a riposo" }), iconStyle),
-    iconSize,
-    h("div", { class: "row" }, h("label", { text: "Al passaggio" }), hoverStyle),
-    hoverSize,
-    h("div", { class: "row" }, h("label", { text: "Apri dopo" }), openDelay),
     h("div", { class: "row" },
-      h("label", { text: "Resta visibile" }),
-      reveal,
-      h("span", { class: "hint", text: "secondi dopo un evento o quando sposti il mouse" }),
+      h("label", { text: "Sopra la barra" }),
+      toggle(settings.overTaskbar, (v) => { settings.overTaskbar = v; commit(); }),
+      h("span", { class: "hint note", text: "Mochi può stare anche sopra la barra delle applicazioni" }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Aggancia ai bordi" }),
+      toggle(settings.glueEdges, (v) => { settings.glueEdges = v; commit(); }),
+      h("span", { class: "hint note", text: "lasciato a pochi pixel da un bordo, lo sfondo si attacca al bordo; altrimenti resta solo intorno all'icona" }),
+    ),
+    h("div", { class: "row" }, h("label", { text: "Vista compatta" }), hoverStyle),
+    hoverSize,
+    h("div", { class: "row" },
+      h("label", { text: "Sempre visibile" }),
+      always,
+      h("span", { class: "hint note", text: "la vista compatta resta sullo schermo e non torna mai all'icona a riposo" }),
+    ),
+    restRows,
+    h("div", { class: "row" },
+      h("label", { text: "Apri dopo" }),
+      openDelay,
+      h("span", { class: "hint note", text: "trascinare un file sopra Mochi lo apre sempre" }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Pannello aperto" }),
+      autoClose,
+      h("span", { class: "hint note", text: "secondi dopo che sposti via il mouse, poi si riduce alla vista compatta" }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Pulsante chiudi" }),
+      toggle(settings.closeButton, (v) => { settings.closeButton = v; commit(); }),
+      h("span", { class: "hint note", text: "✕ in alto a destra per chiudere subito il pannello (anche Esc)" }),
     ),
     h("div", { class: "row" },
       h("label", { text: "Schermo intero" }),
       toggle(settings.quietFullscreen, (v) => { settings.quietFullscreen = v; commit(); }),
-      h("span", { class: "hint", text: "nascondi durante video, giochi e presentazioni (i permessi compaiono comunque)" }),
+      h("span", { class: "hint note", text: "nascondi durante video, giochi e presentazioni (i permessi compaiono comunque)" }),
     ),
   );
 }
@@ -613,31 +665,15 @@ function generalSection(): HTMLElement {
     void save();
   });
 
-  const autoClose = h("input", {
-    type: "number", min: "5", max: "120", step: "1",
-    value: String(Math.round(settings.autoCloseInterval)),
-    style: "width:72px",
-  }) as HTMLInputElement;
-  autoClose.addEventListener("change", () => {
-    settings.autoCloseInterval = Math.max(5, Math.min(120, Number(autoClose.value) || 15));
-    autoClose.value = String(settings.autoCloseInterval);
-    void save();
-  });
-
   return h(
     "section",
     {},
     h("h2", {}, h("span", { text: "Generale" })),
-    h("div", { class: "hint", text: "Suono e chiusura automatica valgono per il profilo attivo; l'avvio con Windows per questo PC." }),
+    h("div", { class: "hint", text: "Il suono vale per il profilo attivo, l'avvio con Windows per questo PC. I tempi di chiusura sono in Posizione e aspetto." }),
     h("div", { class: "row" },
       h("label", { text: "Suono" }),
       toggle(settings.soundEnabled, (v) => { settings.soundEnabled = v; void save(); }),
       volume,
-    ),
-    h("div", { class: "row" },
-      h("label", { text: "Chiusura automatica" }),
-      autoClose,
-      h("span", { class: "hint", text: "secondi dopo che lasci l'isola" }),
     ),
     h("div", { class: "row" },
       h("label", { text: "Avvia con Windows" }),
@@ -656,7 +692,8 @@ function profileChip(): HTMLElement {
 
 /** Fields a profile carries — mirrors PROFILE_KEYS in src-tauri/src/settings.rs. */
 const PROFILE_KEYS = [
-  "activeIntegrations", "anchorV", "anchorH", "iconStyle", "iconSize", "hoverStyle",
+  "activeIntegrations", "anchorV", "anchorH", "offsetX", "offsetY", "glueEdges", "overTaskbar",
+  "closeButton", "iconStyle", "iconSize", "hoverStyle",
   "hoverSize", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
   "soundVolume", "autoCloseInterval", "theme", "notify", "actions", "widgets", "mcpServers",
 ] as const;
@@ -770,7 +807,7 @@ function profilesSection(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: "Cambio automatico" }),
       auto,
-      h("span", { class: "hint", text: "attiva il primo profilo le cui regole corrispondono" }),
+      h("span", { class: "hint note", text: "attiva il primo profilo le cui regole corrispondono" }),
     ),
     h("div", { class: "hint", text: "Regole di questo profilo (vuote = solo a mano):" }),
     h("div", { class: "row" }, h("label", { text: "Reti Wi-Fi" }), ssids, here),
@@ -796,40 +833,6 @@ function blankAction(kind: QuickAction["kind"] = "prompt"): QuickAction {
     target: "", args: "", script: "", shell: "powershell", prompt: "",
     input: "clipboard", confirm: true, hotkey: "",
   };
-}
-
-/** A starter set for an IT technician; every one can be edited or deleted. */
-function exampleActions(): QuickAction[] {
-  const a = (over: Partial<QuickAction>): QuickAction => ({ ...blankAction(), ...over, id: newActionId() });
-  return [
-    a({
-      name: "Spiega errore", icon: "🩺", color: "#f4505e", kind: "prompt", input: "clipboard",
-      prompt: "Spiega questo messaggio d'errore: cosa significa, le cause più probabili e i passi per risolverlo, dal più semplice al più invasivo.",
-    }),
-    a({
-      name: "Script PowerShell", icon: "🧰", color: "#3b9eff", kind: "prompt", input: "clipboard",
-      prompt: "Scrivi uno script PowerShell che faccia quanto descritto qui sotto. Commenta i passaggi, chiedi conferma prima di qualsiasi operazione distruttiva e indica se servono privilegi di amministratore.",
-    }),
-    a({
-      name: "Rapportino", icon: "📝", color: "#22c55e", kind: "prompt", input: "clipboard",
-      prompt: "Trasforma questi appunti in un rapportino d'intervento professionale: problema segnalato, attività svolte, esito, eventuali passi successivi e materiale usato.",
-    }),
-    a({
-      name: "Rispondi al cliente", icon: "✉️", color: "#f5a524", kind: "prompt", input: "clipboard",
-      prompt: "Scrivi una risposta professionale, chiara e cortese a questa mail di un cliente. Niente tecnicismi inutili.",
-    }),
-    a({
-      name: "Analizza log", icon: "🔎", color: "#6366f1", kind: "prompt", input: "file",
-      prompt: "Analizza questo log: errori principali, quando iniziano, causa probabile e cosa controllare per primo.",
-    }),
-    a({
-      name: "Info rete", icon: "🌐", color: "#22d3ee", kind: "script", shell: "powershell", confirm: false,
-      script: "Get-NetIPConfiguration | Format-List InterfaceAlias,IPv4Address,IPv4DefaultGateway,DNSServer",
-    }),
-    a({
-      name: "Desktop remoto", icon: "🖥️", color: "#8e939c", kind: "app", target: "mstsc", args: "",
-    }),
-  ];
 }
 
 function actionsSection(): HTMLElement {
@@ -947,8 +950,6 @@ function actionsSection(): HTMLElement {
 
   const add = h("button", { class: "primary", text: "Aggiungi azione" });
   add.addEventListener("click", () => { settings.actions.push(blankAction()); commit(); draw(); });
-  const examples = h("button", { text: "Aggiungi esempi da tecnico IT" });
-  examples.addEventListener("click", () => { settings.actions.push(...exampleActions()); commit(); draw(); });
 
   draw();
   void checkHotkeys();
@@ -965,10 +966,10 @@ function actionsSection(): HTMLElement {
       hotkeyField(settings.hotkeyOpen, (v) => { settings.hotkeyOpen = v; })),
     h("div", { class: "row" }, h("label", { text: "Chiedi sul testo copiato" }),
       hotkeyField(settings.hotkeyAsk, (v) => { settings.hotkeyAsk = v; }),
-      h("span", { class: "hint", text: "scorciatoie di questo PC, valgono in ogni app" })),
+      h("span", { class: "hint note", text: "scorciatoie di questo PC, valgono in ogni app" })),
     warn,
     list,
-    h("div", { class: "row" }, add, examples),
+    h("div", { class: "row" }, add),
   );
 }
 
@@ -1125,7 +1126,7 @@ function widgetsSection(): HTMLElement {
             row("Dominio", input(w.host, "www.cliente.it", (v) => { w.host = v.trim(); }),
               input(w.port || 443, "443", (v) => { w.port = Number(v) || 443; }, "width:80px", "number")),
             row("Avvisa da", input(w.warnDays || 30, "30", (v) => { w.warnDays = Number(v) || 30; }, "width:80px", "number"),
-              h("span", { class: "hint", text: "giorni prima della scadenza (in rosso sotto i 7)" })),
+              h("span", { class: "hint note", text: "giorni prima della scadenza (in rosso sotto i 7)" })),
           );
           break;
         case "ping":
@@ -1386,13 +1387,30 @@ async function main() {
   render();
 
   void onEvent<Settings>("settings-changed", (s) => {
-    // A profile switch (from here, the tray or the automatic rules) changes
-    // most values at once: redraw. Ordinary saves only refresh the copy.
-    const switched = s.activeProfile !== settings.activeProfile ||
-      s.profiles.length !== settings.profiles.length;
-    settings = { ...settings, ...s };
-    if (switched) render();
+    // Every save comes back here. Only values that really changed are taken:
+    // the controls on screen keep editing the very objects they were built
+    // from (replacing them made every edit after the first one go nowhere —
+    // an action could not be deleted twice).
+    const mine = settings as unknown as Record<string, unknown>;
+    let redraw = false;
+    for (const [k, v] of Object.entries(s)) {
+      if (JSON.stringify(mine[k]) === JSON.stringify(v)) continue;
+      if (k === "profiles" && sameProfiles(settings.profiles, s.profiles)) {
+        // Rust writes the active values into the profile: refresh those in place.
+        s.profiles.forEach((p, i) => { settings.profiles[i].values = p.values; });
+        continue;
+      }
+      mine[k] = v;
+      redraw = true; // changed elsewhere: a profile switch, a drag, the island
+    }
+    if (redraw) render();
   });
+}
+
+/** Same profiles, same order, same names and rules: only their values may differ. */
+function sameProfiles(a: Settings["profiles"], b: Settings["profiles"]): boolean {
+  return a.length === b.length && a.every((p, i) =>
+    p.id === b[i].id && p.name === b[i].name && JSON.stringify(p.rules) === JSON.stringify(b[i].rules));
 }
 
 let boot: { status: HookStatus; hasKey: boolean; present: Record<string, boolean> } | null = null;

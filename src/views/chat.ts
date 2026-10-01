@@ -54,7 +54,8 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     spellcheck: "false",
   }) as HTMLInputElement;
   const send = h("button", { class: "send-btn", title: "Invia" }, svg(ICONS.arrowUp, 11));
-  const bar = h("div", { class: "chat-bar" }, input, send);
+  const fresh = h("button", { class: "new-chat-btn", title: "Nuova chat" }, svg(ICONS.plus, 10), h("span", { text: "Nuova chat" }));
+  const bar = h("div", { class: "chat-bar" }, fresh, input, send);
 
   const el = h(
     "div",
@@ -107,7 +108,23 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     }
   }
 
+  /** Forgets the conversation and whatever it was about (file, copied text). */
+  function startOver() {
+    if (sending) return;
+    State.chatHistory = [];
+    State.droppedFile = null;
+    State.chatText = null;
+    State.promptContext = null;
+    void Bridge.chatReset();
+    Sound.play("blip");
+    State.notify();
+    onHeightChange();
+    input.value = "";
+    input.focus();
+  }
+
   externalSend = (q) => void submit(q);
+  fresh.addEventListener("click", startOver);
   send.addEventListener("click", () => void submit());
   input.addEventListener("keydown", (e) => {
     if ((e as KeyboardEvent).key === "Enter") {
@@ -143,6 +160,9 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
 
       input.placeholder = State.chatHistory.length === 0 ? "Chiedimi qualsiasi cosa…" : "Continua…";
       input.disabled = sending;
+      // Only when there is something to forget.
+      fresh.style.display = State.chatHistory.length > 0 || file || text ? "" : "none";
+      (fresh as HTMLButtonElement).disabled = sending;
     },
     focus() {
       input.focus();

@@ -15,12 +15,17 @@ export interface Placement {
   iconSize: number;
   hoverStyle: "icon" | "bar";
   hoverSize: number;
+  /** Touches the screen edge on its anchored side, horizontally / vertically:
+   *  no gap there, and square corners against it. */
+  glueX?: boolean;
+  glueY?: boolean;
 }
 
 export type IslandViewName =
   | "overview"
   | "empty"
   | "approval"
+  | "ask"
   | "question"
   | "error"
   | "finished"
@@ -85,12 +90,35 @@ export const WAKE_STRIP_H = 6;
 export const EDGE_MARGIN = 8;
 
 /**
- * Top centre is the notch spot: the island hangs from the screen edge with
- * square top corners. Everywhere else it floats a few pixels off the edges,
- * fully rounded.
+ * Which screen edges the island touches. Top centre is the notch spot and
+ * always hangs from the top edge; with `glueEdges` any anchored side left at
+ * the edge (no offset after a drag, or a few px from it) does too. Everywhere
+ * else the island floats a few pixels off the edges, fully rounded.
  */
+export function glueFor(
+  h: AnchorH,
+  v: AnchorV,
+  offsetX: number,
+  offsetY: number,
+  glueEdges: boolean,
+): { glueX: boolean; glueY: boolean } {
+  const atY = offsetY === 0;
+  if (!glueEdges) return { glueX: false, glueY: atY && h === "center" && v === "top" };
+  return { glueX: h !== "center" && offsetX === 0, glueY: atY };
+}
+
 export function isGlued(p: Placement): boolean {
-  return p.h === "center" && p.v === "top";
+  return !!(p.glueX || p.glueY);
+}
+
+/** CSS border-radius: square where the island meets a screen edge. */
+export function cornerRadii(p: Placement, r: number): string {
+  const top = p.glueY && p.v === "top";
+  const bottom = p.glueY && p.v === "bottom";
+  const left = p.glueX && p.h === "left";
+  const right = p.glueX && p.h === "right";
+  const c = (square: boolean | undefined) => (square ? "0" : `${r}px`);
+  return [c(top || left), c(top || right), c(bottom || right), c(bottom || left)].join(" ");
 }
 
 /**
@@ -105,9 +133,10 @@ export function anchoredOrigin(
   winW = PANEL_W,
   winH = PANEL_H,
 ): { x: number; y: number } {
-  const m = isGlued(p) ? 0 : EDGE_MARGIN;
-  const x = p.h === "left" ? m : p.h === "right" ? winW - m - w : (winW - w) / 2;
-  const y = p.v === "bottom" ? winH - m - hh : isGlued(p) ? 0 : m;
+  const mx = p.glueX ? 0 : EDGE_MARGIN;
+  const my = p.glueY ? 0 : EDGE_MARGIN;
+  const x = p.h === "left" ? mx : p.h === "right" ? winW - mx - w : (winW - w) / 2;
+  const y = p.v === "bottom" ? winH - my - hh : my;
   return { x, y };
 }
 
@@ -129,6 +158,7 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   overview: { height: 160, botX: 68, botY: null, botDiameter: 58, agentMode: "pills" },
   empty: { height: 160, botX: 70, botY: null, botDiameter: 62, agentMode: "none" },
   approval: { height: 160, botX: 62, botY: null, botDiameter: 56, agentMode: "column" },
+  ask: { height: 230, botX: 62, botY: 100, botDiameter: 56, agentMode: "column" },
   question: { height: 160, botX: 62, botY: null, botDiameter: 56, agentMode: "column" },
   error: { height: 160, botX: 62, botY: null, botDiameter: 58, agentMode: "column" },
   finished: { height: 160, botX: 62, botY: null, botDiameter: 58, agentMode: "column" },

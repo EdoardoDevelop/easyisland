@@ -28,6 +28,16 @@ export interface ApprovalInfo {
   command: string;
   /** "chat": a connector call from Mochi's own chat, not a Claude Code session. */
   source?: "chat";
+  /** AskUserQuestion: the questions to answer from the island. */
+  questions?: AskQuestion[];
+}
+
+/** One question of Claude Code's AskUserQuestion tool. */
+export interface AskQuestion {
+  question: string;
+  header: string;
+  options: { label: string; description: string }[];
+  multiSelect: boolean;
 }
 
 export interface ChatMessage {
@@ -101,6 +111,15 @@ export interface Settings {
   /** Where the island sits; content opens aligned to that side. */
   anchorV: AnchorV;
   anchorH: AnchorH;
+  /** Where Mochi was dragged: logical px from the anchored home position. */
+  offsetX: number;
+  offsetY: number;
+  /** Touch the screen edge (square corners) when left at it, not only top centre. */
+  glueEdges: boolean;
+  /** Use the whole screen, taskbar included, instead of the work area. */
+  overTaskbar: boolean;
+  /** ✕ in the open island's header. */
+  closeButton: boolean;
   /** What stays visible at rest. "none" = the old invisible wake strip. */
   iconStyle: "mochi" | "dot" | "none";
   /** Rest icon size, px. */
@@ -250,6 +269,11 @@ export const DEFAULT_SETTINGS: Settings = {
   cliModel: "",
   anchorV: "top",
   anchorH: "center",
+  offsetX: 0,
+  offsetY: 0,
+  glueEdges: true,
+  overTaskbar: false,
+  closeButton: true,
   iconStyle: "mochi",
   iconSize: 24,
   hoverStyle: "icon",

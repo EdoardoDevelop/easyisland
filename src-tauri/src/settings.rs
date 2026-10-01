@@ -18,6 +18,11 @@ pub const PROFILE_KEYS: &[&str] = &[
     "activeIntegrations",
     "anchorV",
     "anchorH",
+    "offsetX",
+    "offsetY",
+    "glueEdges",
+    "overTaskbar",
+    "closeButton",
     "iconStyle",
     "iconSize",
     "hoverStyle",
@@ -181,6 +186,20 @@ pub struct Settings {
     /// … and "left" | "center" | "right". Content opens aligned to that side.
     #[serde(default = "default_anchor_h")]
     pub anchor_h: String,
+    /// Where the user dragged Mochi: logical px from the anchored home position.
+    #[serde(default)]
+    pub offset_x: f64,
+    #[serde(default)]
+    pub offset_y: f64,
+    /// Touch the screen edge (square corners) when left at it, not only top centre.
+    #[serde(default = "default_true")]
+    pub glue_edges: bool,
+    /// Place the island over the whole screen, taskbar included.
+    #[serde(default)]
+    pub over_taskbar: bool,
+    /// ✕ in the open island's header.
+    #[serde(default = "default_true")]
+    pub close_button: bool,
     /// What stays visible at rest: "mochi" | "dot" | "none" (invisible strip).
     #[serde(default = "default_icon_style")]
     pub icon_style: String,
@@ -301,6 +320,11 @@ impl Default for Settings {
             cli_model: String::new(),
             anchor_v: default_anchor_v(),
             anchor_h: default_anchor_h(),
+            offset_x: 0.0,
+            offset_y: 0.0,
+            glue_edges: true,
+            over_taskbar: false,
+            close_button: true,
             icon_style: default_icon_style(),
             icon_size: default_icon_size(),
             hover_style: default_hover_style(),
