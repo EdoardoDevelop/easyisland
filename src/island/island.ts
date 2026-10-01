@@ -343,6 +343,8 @@ export class Island {
   reveal() {
     // Over a full-screen app only real alerts may show up.
     if (State.fullscreen && State.settings.quietFullscreen) return;
+    // Routine activity only surfaces when the profile wants everything.
+    if (State.settings.notify !== "all") return;
     this.fsm.reveal();
   }
 
@@ -577,7 +579,7 @@ export class Island {
   private drawRestIcon() {
     const p = this.placement;
     const state = State.effectiveState;
-    const key = `${p.iconStyle}|${p.iconSize}|${state}|${State.paused}`;
+    const key = `${p.iconStyle}|${p.iconSize}|${state}|${State.paused}|${State.settings.theme.mochiColor}`;
     if (key === this.restKey) return;
     this.restKey = key;
 
@@ -604,12 +606,29 @@ export class Island {
       const ctx = this.restCanvas.getContext("2d");
       if (!ctx) return;
       const engine = new BotEngine();
+      engine.bodyColor = this.themeBody();
       engine.setState(state, true);
       engine.update(0);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, w);
       engine.draw(ctx, w, w);
     }
+  }
+
+  /** Mochi's body colour from the theme; null keeps the original cream. */
+  private themeBody() {
+    const c = State.settings.theme?.mochiColor;
+    return c && /^#[0-9a-f]{6}$/i.test(c) ? hexToRGB(c) : null;
+  }
+
+  /** Island colour/opacity and per-family volumes from the theme. */
+  private applyTheme() {
+    const t = State.settings.theme;
+    const hex = /^#[0-9a-f]{6}$/i.test(t.islandColor) ? t.islandColor : "#000000";
+    const n = parseInt(hex.slice(1), 16);
+    const a = Math.max(0.5, Math.min(1, t.islandOpacity));
+    this.islandEl.style.background = `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+    Sound.setFamilyGains({ alerts: t.volumeAlerts, ui: t.volumeUi, emotes: t.volumeEmotes });
   }
 
   /** Re-reads placement settings: icon, anchors and the window box. */
@@ -945,7 +964,7 @@ export class Island {
     if (!ctx) return;
 
     const focus = State.focusTask;
-    this.engine.bodyColor = focus?.isIntegration ? hexToRGB(focus.color) : null;
+    this.engine.bodyColor = focus?.isIntegration ? hexToRGB(focus.color) : this.themeBody();
     this.engine.particleOverhang = BOT_OVERHANG;
     this.engine.lookX = this.lookX();
     this.engine.lookY = this.lookY();
@@ -1052,6 +1071,7 @@ export class Island {
     Sound.setVolume(State.settings.soundVolume);
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
     this.fsm.petitToHiddenDelay = State.settings.revealDuration;
+    this.applyTheme();
     this.applyPlacement();
     State.notify();
   }

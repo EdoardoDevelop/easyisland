@@ -8,6 +8,7 @@ mod integrations;
 mod island;
 mod log;
 mod pipe;
+mod profiles;
 mod secrets;
 mod settings;
 mod tray;
@@ -62,6 +63,9 @@ fn boot(app: AppHandle, shared: State<Shared>) -> BootInfo {
 
 #[tauri::command]
 fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
+    // Whatever was edited belongs to the active profile.
+    let mut settings = settings.migrated();
+    settings.commit_active();
     let (screen_changed, autostart_changed) = {
         let mut current = shared.settings.lock().unwrap();
         let screen_changed = current.screen != settings.screen
@@ -87,6 +91,76 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
     }
     // Keep the other window in step (island ⇄ settings window).
     let _ = app.emit("settings-changed", settings);
+    tray::refresh(&app);
+}
+
+/// Makes `id` the active profile: its values replace the current ones, the
+/// island and the settings window follow, the tray menu ticks it.
+pub(crate) fn activate_profile(app: &AppHandle, id: &str, why: &str) {
+    let Some(shared) = app.try_state::<Shared>() else { return };
+    let settings = {
+        let mut s = shared.settings.lock().unwrap();
+        if s.active_profile == id || !s.switch_profile(id) {
+            return;
+        }
+        s.clone()
+    };
+    if let Err(err) = settings::save(&settings) {
+        eprintln!("[coucou] could not save settings: {err}");
+    }
+    log::line(format!("profile → {id} ({why})"));
+    let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
+    island::apply_geometry(app, &shared.gate, &settings, collapsed);
+    let _ = app.emit("settings-changed", settings);
+    tray::refresh(app);
+}
+
+#[tauri::command]
+fn switch_profile(app: AppHandle, id: String) {
+    activate_profile(&app, &id, "impostazioni");
+}
+
+/// Writes the settings (no secrets) to Documents and shows the file in Explorer.
+#[tauri::command]
+fn settings_export(shared: State<Shared>) -> Result<String, String> {
+    let text = shared.settings.lock().unwrap().export_json();
+    let home = std::env::var_os("USERPROFILE").map(std::path::PathBuf::from);
+    let dir = home
+        .as_ref()
+        .map(|h| h.join("Documents"))
+        .filter(|d| d.is_dir())
+        .or(home)
+        .ok_or_else(|| "Cartella Documenti non trovata.".to_string())?;
+    let t = unsafe { windows::Win32::System::SystemInformation::GetLocalTime() };
+    let path = dir.join(format!(
+        "Coucou-impostazioni-{:04}{:02}{:02}-{:02}{:02}.json",
+        t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute
+    ));
+    std::fs::write(&path, text).map_err(|e| format!("Esportazione non riuscita: {e}"))?;
+    let _ = Command::new("explorer")
+        .arg(format!("/select,{}", path.display()))
+        .spawn();
+    Ok(path.display().to_string())
+}
+
+/// Replaces the settings with an exported file (keys must be entered again).
+#[tauri::command]
+fn settings_import(app: AppHandle, shared: State<Shared>, text: String) -> Result<Settings, String> {
+    let next = shared.settings.lock().unwrap().import_json(&text)?;
+    *shared.settings.lock().unwrap() = next.clone();
+    settings::save(&next).map_err(|e| format!("Salvataggio non riuscito: {e}"))?;
+    log::line("settings imported".to_string());
+    let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
+    island::apply_geometry(&app, &shared.gate, &next, collapsed);
+    let _ = app.emit("settings-changed", next.clone());
+    tray::refresh(&app);
+    Ok(next)
+}
+
+/// Wi-Fi network this PC is on, to fill in a profile rule.
+#[tauri::command]
+async fn current_network() -> Option<String> {
+    tauri::async_runtime::spawn_blocking(profiles::current_ssid).await.ok().flatten()
 }
 
 /// Hidden island → shrink the window to the rest icon (or the invisible wake
@@ -432,6 +506,10 @@ pub fn run() {
             chat_send,
             chat_reset,
             claude_cli_status,
+            switch_profile,
+            settings_export,
+            settings_import,
+            current_network,
             ingest_file,
             secret_present,
             secret_set,
@@ -456,6 +534,7 @@ pub fn run() {
             gate.set_active(true);
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             island::spawn_fullscreen_watch(handle.clone(), gate.clone());
+            profiles::spawn_auto_switch(handle.clone());
 
             log::line(format!("--- Coucou {} started ---", env!("CARGO_PKG_VERSION")));
             hooks::ensure_hook_exe(&handle);

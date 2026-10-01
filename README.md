@@ -178,6 +178,27 @@ Si apre il browser su un finto desktop: il riquadro tratteggiato è la finestra
 di Coucou. Le impostazioni si cambiano nell'indirizzo, per esempio
 `http://localhost:1420/?anchorV=bottom&anchorH=left&iconStyle=dot&iconSize=32&hoverSize=48&openDelay=1&revealDuration=3&bg=dark`.
 
+## Profili, tema e backup
+
+**Impostazioni… → Profilo**: ogni profilo (di partenza *Lavoro*, *Casa* e
+*Concentrazione*) ha le sue integrazioni, posizione, aspetto, suoni, tema e
+regole di notifica. Le sezioni con l'etichetta viola si salvano nel profilo
+attivo.
+
+- Si cambia profilo dalle Impostazioni o dal menu dell'icona nell'area di
+  notifica (**Profilo ▸**).
+- **Cambio automatico**: ogni profilo può avere regole su rete Wi-Fi, giorni e
+  orario (es. *Lavoro* sulla Wi-Fi dell'ufficio, lun–ven 8–18). Ogni minuto
+  Coucou attiva il primo profilo che corrisponde; una scelta fatta a mano resta
+  finché la situazione non cambia.
+- **Notifiche**: tutto, solo avvisi, oppure solo le richieste di permesso
+  (com'è *Concentrazione* all'inizio).
+- **Tema**: colore di Mochi, colore e opacità dell'isola, volume separato per
+  avvisi, interfaccia ed emozioni.
+- **Backup e trasferimento**: *Esporta…* salva tutte le impostazioni (profili
+  compresi) in un file JSON nella cartella Documenti; *Importa…* le carica su un
+  altro PC. Le chiavi API non sono mai nel file: vanno reinserite.
+
 ## Claude Code
 
 <img src="screenshots/settings.png" width="562" alt="La finestra delle impostazioni">

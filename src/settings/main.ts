@@ -1,6 +1,6 @@
 // Settings window — the place where anything that writes to disk is confirmed.
-// Stage 2 covers the Claude Code hooks and the general preferences; API keys and
-// integrations land here too in a later stage.
+// Sections marked with the profile chip are saved into the active profile;
+// the rest belongs to this PC.
 
 import "./settings.css";
 import { Bridge, onEvent, type HookStatus } from "../core/bridge";
@@ -459,7 +459,7 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
   }
 
   updateNote();
-  return h("section", {}, h("h2", {}, h("span", { text: "Integrazioni" })), note, list);
+  return h("section", {}, h("h2", {}, h("span", { text: "Integrazioni" }), profileChip()), note, list);
 }
 
 // ── Placement section ─────────────────────────────────────────────────────────
@@ -576,7 +576,7 @@ function placementSection(): HTMLElement {
   return h(
     "section",
     {},
-    h("h2", {}, h("span", { text: "Posizione e aspetto" })),
+    h("h2", {}, h("span", { text: "Posizione e aspetto" }), profileChip()),
     h("div", {
       class: "hint",
       text: "Dove vive Mochi. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. In basso sta sopra la barra delle applicazioni.",
@@ -628,6 +628,7 @@ function generalSection(): HTMLElement {
     "section",
     {},
     h("h2", {}, h("span", { text: "Generale" })),
+    h("div", { class: "hint", text: "Suono e chiusura automatica valgono per il profilo attivo; l'avvio con Windows per questo PC." }),
     h("div", { class: "row" },
       h("label", { text: "Suono" }),
       toggle(settings.soundEnabled, (v) => { settings.soundEnabled = v; void save(); }),
@@ -645,13 +646,282 @@ function generalSection(): HTMLElement {
   );
 }
 
+// ── Profiles ──────────────────────────────────────────────────────────────────
+
+/** Chip shown on sections whose values belong to the active profile. */
+function profileChip(): HTMLElement {
+  const name = settings.profiles.find((p) => p.id === settings.activeProfile)?.name ?? "";
+  return h("span", { class: "chip", title: "Questi valori valgono per il profilo attivo", text: name });
+}
+
+/** Fields a profile carries — mirrors PROFILE_KEYS in src-tauri/src/settings.rs. */
+const PROFILE_KEYS = [
+  "activeIntegrations", "anchorV", "anchorH", "iconStyle", "iconSize", "hoverStyle",
+  "hoverSize", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
+  "soundVolume", "autoCloseInterval", "theme", "notify", "actions", "widgets", "mcpServers",
+] as const;
+
+function snapshot(): Record<string, unknown> {
+  const all = settings as unknown as Record<string, unknown>;
+  return Object.fromEntries(PROFILE_KEYS.map((k) => [k, structuredClone(all[k])]));
+}
+
+const DAYS: [number, string][] = [[1, "L"], [2, "M"], [3, "M"], [4, "G"], [5, "V"], [6, "S"], [7, "D"]];
+
+function profilesSection(): HTMLElement {
+  const active = () => settings.profiles.find((p) => p.id === settings.activeProfile);
+  const feedback = h("div", {});
+
+  const picker = select<string>(
+    settings.profiles.map((p) => [p.id, p.name]),
+    settings.activeProfile,
+    (id) => void Bridge.switchProfile(id),
+  );
+
+  const name = h("input", { type: "text", value: active()?.name ?? "", style: "width:160px" }) as HTMLInputElement;
+  name.addEventListener("change", () => {
+    const p = active();
+    if (!p || !name.value.trim()) return;
+    p.name = name.value.trim();
+    void save().then(render);
+  });
+
+  const add = h("button", { text: "Nuovo profilo" });
+  add.addEventListener("click", async () => {
+    const id = `p${Date.now().toString(36)}`;
+    settings.profiles.push({
+      id, name: `Profilo ${settings.profiles.length + 1}`,
+      values: snapshot(), rules: { ssids: [], days: [], from: "", to: "" },
+    });
+    await save();
+    await Bridge.switchProfile(id);
+  });
+
+  const remove = h("button", { class: "danger", text: "Elimina" });
+  remove.disabled = settings.profiles.length < 2;
+  remove.addEventListener("click", async () => {
+    const id = settings.activeProfile;
+    const next = settings.profiles.find((p) => p.id !== id);
+    if (!next) return;
+    await Bridge.switchProfile(next.id);
+    settings.profiles = settings.profiles.filter((p) => p.id !== id);
+    await save();
+    render();
+  });
+
+  // ── Automatic switching rules for the active profile ──
+  const p = active();
+  const rules = p?.rules ?? { ssids: [], days: [], from: "", to: "" };
+  const commitRules = () => {
+    if (!p) return;
+    p.rules = rules;
+    void save();
+  };
+
+  const ssids = h("input", {
+    type: "text", value: rules.ssids.join(", "), placeholder: "es. Ufficio-WiFi, Cliente-Ospiti",
+    style: "flex:1 1 auto;min-width:0",
+  }) as HTMLInputElement;
+  ssids.addEventListener("change", () => {
+    rules.ssids = ssids.value.split(",").map((x) => x.trim()).filter(Boolean);
+    commitRules();
+  });
+  const here = h("button", { text: "Rete attuale" });
+  here.addEventListener("click", async () => {
+    const ssid = await Bridge.currentNetwork();
+    clear(feedback);
+    if (!ssid) {
+      feedback.append(h("div", { class: "notice warn", text: "Nessuna rete Wi-Fi collegata." }));
+      return;
+    }
+    if (!rules.ssids.includes(ssid)) rules.ssids.push(ssid);
+    ssids.value = rules.ssids.join(", ");
+    commitRules();
+  });
+
+  const dayRow = h("div", { class: "days" });
+  for (const [d, label] of DAYS) {
+    const b = h("button", { class: rules.days.includes(d) ? "day on" : "day", text: label });
+    b.addEventListener("click", () => {
+      rules.days = rules.days.includes(d) ? rules.days.filter((x) => x !== d) : [...rules.days, d].sort();
+      b.classList.toggle("on", rules.days.includes(d));
+      commitRules();
+    });
+    dayRow.append(b);
+  }
+
+  const from = h("input", { type: "time", value: rules.from }) as HTMLInputElement;
+  const to = h("input", { type: "time", value: rules.to }) as HTMLInputElement;
+  from.addEventListener("change", () => { rules.from = from.value; commitRules(); });
+  to.addEventListener("change", () => { rules.to = to.value; commitRules(); });
+
+  const auto = toggle(settings.autoProfile, (v) => { settings.autoProfile = v; void save(); });
+
+  return h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: "Profilo" })),
+    h("div", {
+      class: "hint",
+      text: "Ogni profilo ha le sue integrazioni, posizione, aspetto, suoni, tema, notifiche e azioni. Le sezioni con l'etichetta del profilo si salvano nel profilo attivo. Si cambia anche dal menu dell'icona nell'area di notifica.",
+    }),
+    h("div", { class: "row" }, h("label", { text: "Profilo attivo" }), picker, add),
+    h("div", { class: "row" }, h("label", { text: "Nome" }), name, remove),
+    h("div", { class: "row" },
+      h("label", { text: "Cambio automatico" }),
+      auto,
+      h("span", { class: "hint", text: "attiva il primo profilo le cui regole corrispondono" }),
+    ),
+    h("div", { class: "hint", text: "Regole di questo profilo (vuote = solo a mano):" }),
+    h("div", { class: "row" }, h("label", { text: "Reti Wi-Fi" }), ssids, here),
+    h("div", { class: "row" }, h("label", { text: "Giorni" }), dayRow),
+    h("div", { class: "row" },
+      h("label", { text: "Orario" }),
+      h("span", { class: "hint", text: "dalle" }), from,
+      h("span", { class: "hint", text: "alle" }), to,
+    ),
+    feedback,
+  );
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+function notifySection(): HTMLElement {
+  return h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: "Notifiche" }), profileChip()),
+    h("div", { class: "row" },
+      h("label", { text: "Mochi si fa vedere per" }),
+      select<Settings["notify"]>(
+        [
+          ["all", "Tutto (attività, fine sessione, integrazioni, avvisi)"],
+          ["alerts", "Solo avvisi (permessi, domande, errori, fine)"],
+          ["permissions", "Solo richieste di permesso"],
+        ],
+        settings.notify,
+        (v) => { settings.notify = v; void save(); },
+      ),
+    ),
+  );
+}
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
+
+function colorField(current: string, fallback: string, onCommit: (v: string) => void, resetLabel?: string) {
+  const input = h("input", { type: "color", value: current || fallback }) as HTMLInputElement;
+  input.addEventListener("change", () => onCommit(input.value));
+  const row = h("div", { style: "display:flex;align-items:center;gap:10px" }, input);
+  if (resetLabel) {
+    const reset = h("button", { text: resetLabel });
+    reset.addEventListener("click", () => { input.value = fallback; onCommit(""); });
+    row.append(reset);
+  }
+  return row;
+}
+
+function themeSection(): HTMLElement {
+  const t = settings.theme;
+  const commit = () => void save();
+  const pct = (v: number) => Math.round(v * 100);
+  return h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: "Tema" }), profileChip()),
+    h("div", { class: "row" },
+      h("label", { text: "Colore di Mochi" }),
+      colorField(t.mochiColor, "#fffaf5", (v) => { t.mochiColor = v; commit(); }, "Originale"),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Colore dell'isola" }),
+      colorField(t.islandColor, "#000000", (v) => { t.islandColor = v || "#000000"; commit(); }, "Nero"),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Opacità dell'isola" }),
+      slider(50, 100, 5, pct(t.islandOpacity), "%", (v) => { t.islandOpacity = v / 100; commit(); }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Volume avvisi" }),
+      slider(0, 100, 10, pct(t.volumeAlerts), "%", (v) => { t.volumeAlerts = v / 100; commit(); }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Volume interfaccia" }),
+      slider(0, 100, 10, pct(t.volumeUi), "%", (v) => { t.volumeUi = v / 100; commit(); }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Volume emozioni" }),
+      slider(0, 100, 10, pct(t.volumeEmotes), "%", (v) => { t.volumeEmotes = v / 100; commit(); }),
+    ),
+  );
+}
+
+// ── Backup ────────────────────────────────────────────────────────────────────
+
+function backupSection(): HTMLElement {
+  const feedback = h("div", {});
+  const exportBtn = h("button", { text: "Esporta…" });
+  exportBtn.addEventListener("click", async () => {
+    clear(feedback);
+    try {
+      const path = await Bridge.settingsExport();
+      feedback.append(h("div", { class: "notice ok", text: `Salvato in ${path}` }));
+    } catch (err) {
+      feedback.append(h("div", { class: "notice err", text: String(err).replace(/^Error:\s*/, "") }));
+    }
+  });
+
+  const file = h("input", { type: "file", accept: ".json,application/json", style: "display:none" }) as HTMLInputElement;
+  const importBtn = h("button", { text: "Importa…" });
+  importBtn.addEventListener("click", () => file.click());
+  file.addEventListener("change", async () => {
+    const f = file.files?.[0];
+    file.value = "";
+    if (!f) return;
+    clear(feedback);
+    try {
+      const next = await Bridge.settingsImport(await f.text());
+      settings = { ...settings, ...next };
+      render();
+      // render() replaced this section; report in the new one.
+      document.getElementById("backup-feedback")?.append(h("div", {
+        class: "notice ok",
+        text: "Impostazioni importate. Le chiavi API non sono nel file: reinseriscile qui sopra se servono.",
+      }));
+    } catch (err) {
+      feedback.append(h("div", { class: "notice err", text: String(err).replace(/^Error:\s*/, "") }));
+    }
+  });
+  feedback.id = "backup-feedback";
+
+  return h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: "Backup e trasferimento" })),
+    h("div", {
+      class: "hint",
+      text: "Esporta tutte le impostazioni, profili compresi, in un file JSON nella cartella Documenti; importalo su un altro PC per ritrovare lo stesso Mochi. Le chiavi API restano in Gestione credenziali e non vengono esportate.",
+    }),
+    h("div", { class: "row" }, exportBtn, importBtn, file),
+    feedback,
+  );
+}
+
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const boot = await Bridge.boot();
-  if (boot) {
-    settings = { ...settings, ...boot.settings };
-    version = boot.version;
+  const info = await Bridge.boot();
+  if (info) {
+    settings = { ...settings, ...info.settings };
+    version = info.version;
+  } else if (settings.profiles.length === 0) {
+    // Plain browser preview (npm run ui): the profiles Rust would have created.
+    const rules = () => ({ ssids: [], days: [], from: "", to: "" });
+    settings.profiles = [
+      { id: "lavoro", name: "Lavoro", values: snapshot(), rules: rules() },
+      { id: "casa", name: "Casa", values: snapshot(), rules: rules() },
+      { id: "concentrazione", name: "Concentrazione", values: snapshot(), rules: rules() },
+    ];
+    settings.activeProfile = "lavoro";
   }
   const status = (await Bridge.hooksStatus()) ?? {
     installed: false, settingsPath: "", hookPath: "", hookReady: false,
@@ -666,23 +936,43 @@ async function main() {
   const present: Record<string, boolean> = {};
   for (const k of keys) present[k] = (await Bridge.secretPresent(k)) ?? false;
 
+  boot = { status, hasKey, present };
+  render();
+
+  void onEvent<Settings>("settings-changed", (s) => {
+    // A profile switch (from here, the tray or the automatic rules) changes
+    // most values at once: redraw. Ordinary saves only refresh the copy.
+    const switched = s.activeProfile !== settings.activeProfile ||
+      s.profiles.length !== settings.profiles.length;
+    settings = { ...settings, ...s };
+    if (switched) render();
+  });
+}
+
+let boot: { status: HookStatus; hasKey: boolean; present: Record<string, boolean> } | null = null;
+
+/** Builds the whole window from `settings`; safe to call again after a switch. */
+function render() {
+  if (!boot) return;
+  const scrollY = window.scrollY;
   clear(root);
   root.append(
     h("h1", {}, h("span", { text: "Coucou" }), h("span", { class: "version", text: version })),
-    claudeSection(status),
-    claudeChatSection(hasKey),
-    integrationsSection(present),
+    profilesSection(),
+    claudeSection(boot.status),
+    claudeChatSection(boot.hasKey),
+    integrationsSection(boot.present),
     placementSection(),
+    notifySection(),
+    themeSection(),
     generalSection(),
+    backupSection(),
     h("div", {
       class: "hint",
       text: "Nessuna telemetria. Le richieste di rete vanno solo ai servizi che configuri tu.",
     }),
   );
-
-  void onEvent<Settings>("settings-changed", (s) => {
-    settings = { ...settings, ...s };
-  });
+  window.scrollTo(0, scrollY);
 }
 
 void main();

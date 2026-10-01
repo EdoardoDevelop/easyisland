@@ -113,7 +113,55 @@ export interface Settings {
   revealDuration: number;
   /** Stay out of the way while a full-screen app runs. */
   quietFullscreen: boolean;
+  schemaVersion: number;
+  theme: Theme;
+  /** What may surface the island: everything, alerts only, or permissions only. */
+  notify: "all" | "alerts" | "permissions";
+  /** Quick actions (6.2). */
+  actions: unknown[];
+  /** Configurable widgets (6.4). */
+  widgets: unknown[];
+  /** MCP servers the chat may use (6.3). */
+  mcpServers: string[];
+  profiles: Profile[];
+  activeProfile: string;
+  autoProfile: boolean;
 }
+
+export interface Theme {
+  /** "#rrggbb", or "" for the original cream. */
+  mochiColor: string;
+  islandColor: string;
+  islandOpacity: number;
+  /** Volume multipliers per sound family, 0–1. */
+  volumeAlerts: number;
+  volumeUi: number;
+  volumeEmotes: number;
+}
+
+export interface ProfileRules {
+  ssids: string[];
+  /** 1 = Monday … 7 = Sunday. */
+  days: number[];
+  from: string;
+  to: string;
+}
+
+export interface Profile {
+  id: string;
+  name: string;
+  values: Record<string, unknown>;
+  rules: ProfileRules;
+}
+
+export const DEFAULT_THEME: Theme = {
+  mochiColor: "",
+  islandColor: "#000000",
+  islandOpacity: 1,
+  volumeAlerts: 1,
+  volumeUi: 1,
+  volumeEmotes: 1,
+};
 
 export const DEFAULT_SETTINGS: Settings = {
   soundEnabled: true,
@@ -138,6 +186,15 @@ export const DEFAULT_SETTINGS: Settings = {
   openDelay: 0.6,
   revealDuration: 8,
   quietFullscreen: true,
+  schemaVersion: 2,
+  theme: { ...DEFAULT_THEME },
+  notify: "all",
+  actions: [],
+  widgets: [],
+  mcpServers: [],
+  profiles: [],
+  activeProfile: "",
+  autoProfile: false,
 };
 
 type Listener = () => void;

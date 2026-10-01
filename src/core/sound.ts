@@ -12,9 +12,22 @@ export const SOUND_NAMES = [
 
 export type SoundName = (typeof SOUND_NAMES)[number];
 
+export type SoundFamily = "alerts" | "ui" | "emotes";
+
+/** Which volume slider each sound answers to. */
+const FAMILY: Record<string, SoundFamily> = {
+  approval: "alerts", question: "alerts", error: "alerts", rate: "alerts",
+  finish: "alerts", work: "alerts", think: "alerts", search: "alerts",
+  love: "emotes", pop: "emotes", proud: "emotes", wink: "emotes", yawn: "emotes",
+  sleep: "emotes", dizzy: "emotes", annoyed: "emotes", slap: "emotes",
+  greet: "emotes", peek: "emotes",
+};
+
 class SoundEngine {
   enabled = true;
   volume = 0.12;
+  /** Per-family multipliers on top of the master volume. */
+  private familyGain: Record<SoundFamily, number> = { alerts: 1, ui: 1, emotes: 1 };
 
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -84,8 +97,16 @@ class SoundEngine {
     this.enabled = on;
   }
 
+  setFamilyGains(g: Record<SoundFamily, number>) {
+    for (const k of Object.keys(this.familyGain) as SoundFamily[]) {
+      this.familyGain[k] = Math.max(0, Math.min(1, Number(g[k] ?? 1)));
+    }
+  }
+
   play(name: SoundName | string) {
     if (!this.enabled) return;
+    const gain = this.familyGain[FAMILY[name] ?? "ui"];
+    if (gain <= 0) return;
     const ctx = this.ctx;
     const master = this.master;
     const buf = this.buffers.get(name);
@@ -97,7 +118,14 @@ class SoundEngine {
     if (ctx.state === "suspended") void ctx.resume();
     const src = ctx.createBufferSource();
     src.buffer = buf;
-    src.connect(master);
+    if (gain < 1) {
+      const g = ctx.createGain();
+      g.gain.value = gain;
+      src.connect(g);
+      g.connect(master);
+    } else {
+      src.connect(master);
+    }
     src.start();
   }
 }

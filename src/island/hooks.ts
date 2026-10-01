@@ -31,6 +31,15 @@ const PROJECT_ALIASES: Record<string, string> = {
   notch_buddy: "Notch Buddy",
 };
 
+/**
+ * Only permission requests may take the screen: over a full-screen app, or in a
+ * profile that asked for permissions only (e.g. "Concentrazione").
+ */
+function quietNow(): boolean {
+  return (State.fullscreen && State.settings.quietFullscreen) ||
+    State.settings.notify === "permissions";
+}
+
 function aliasProjectName(name: string): string {
   return PROJECT_ALIASES[name.toLowerCase()] ?? name;
 }
@@ -140,7 +149,7 @@ function handleHook(island: Island, payload: HookPayload) {
   const surface = (view: Parameters<Island["alert"]>[0], isAlert: boolean) => {
     // Over a full-screen app only a permission request may take the screen;
     // anything else waits as a badge for the next time the island is opened.
-    if (State.fullscreen && State.settings.quietFullscreen && view !== "approval") {
+    if (quietNow() && view !== "approval") {
       if (view === "finished" || view === "error" || view === "question") {
         State.setPillBadge(CLAUDE_ID, view === "question" ? "approval" : view);
       }
@@ -262,7 +271,7 @@ function handleHook(island: Island, payload: HookPayload) {
       Sound.play("approval");
       if (focused) {
         island.alert("approval");
-      } else if (State.fullscreen && State.settings.quietFullscreen) {
+      } else if (quietNow()) {
         // A badge on a hidden island would go unseen behind the full-screen app.
         State.setFocus(CLAUDE_ID);
         island.alert("approval");

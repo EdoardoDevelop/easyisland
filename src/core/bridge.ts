@@ -90,6 +90,11 @@ export const Bridge = {
   chatSend: (query: string, context: ChatContext | null) =>
     callOrThrow<{ text: string }>("chat_send", { query, context }),
   chatReset: () => call<void>("chat_reset"),
+  /** Profiles, backup. */
+  switchProfile: (id: string) => call<void>("switch_profile", { id }),
+  settingsExport: () => callOrThrow<string>("settings_export"),
+  settingsImport: (text: string) => callOrThrow<Settings>("settings_import", { text }),
+  currentNetwork: () => call<string | null>("current_network"),
   /** Settings window: is Claude Code installed and signed in? */
   claudeCliStatus: () => call<ClaudeCliStatus>("claude_cli_status"),
   /** Copies a dropped file into the inbox. */

@@ -81,6 +81,8 @@ In ordine di implementazione consigliato: 6.1 → 6.2 → 6.3 → 6.4. Ogni punt
 
 ### 6.1 Fondamenta per la personalizzazione
 
+> **Stato: fatto.** `schemaVersion` 2 con migrazione (`Settings::migrated` in `src-tauri/src/settings.rs`), profili con `PROFILE_KEYS`, cambio da Impostazioni/menu del vassoio (`src-tauri/src/tray.rs`) e automatico per Wi-Fi/giorni/orario (`src-tauri/src/profiles.rs`), filtro notifiche `notify`, tema (`theme`) e esporta/importa. Test Rust in `settings.rs`.
+
 Serve prima degli altri punti, perché azioni e widget vivono nella configurazione.
 
 - **Configurazione in un file leggibile:** oggi le preferenze stanno in `%APPDATA%\Coucou\settings.json` (`src-tauri/src/settings.rs`). Aggiungere **Esporta / Importa** nelle Impostazioni (file `.json`, **senza segreti**: le chiavi restano in Gestione credenziali e vanno reinserite), per backup e per avere lo stesso Mochi su notebook e PC di casa.
