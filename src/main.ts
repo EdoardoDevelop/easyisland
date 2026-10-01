@@ -31,6 +31,17 @@ async function main() {
         : typeof current === "boolean" ? value === "true" : value;
     }
     State.settings = { ...State.settings, ...overrides } as Settings;
+
+    // Frame the 720×320 "window" in the matching corner of the page.
+    document.documentElement.classList.add("browser-preview");
+    const s = State.settings;
+    root.style.left = s.anchorH === "left" ? "0" : s.anchorH === "right" ? "auto" : "50%";
+    root.style.right = s.anchorH === "right" ? "0" : "auto";
+    root.style.transform = s.anchorH === "center" ? "translateX(-50%)" : "";
+    root.style.top = s.anchorV === "top" ? "0" : "auto";
+    root.style.bottom = s.anchorV === "bottom" ? "0" : "auto";
+    const bg = params.get("bg");
+    if (bg) document.documentElement.style.setProperty("--preview-bg", bg === "dark" ? "#1e1f22" : bg);
   }
   island.applySettings();
   State.loadIntegrationTasks();

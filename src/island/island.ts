@@ -626,6 +626,23 @@ export class Island {
     }
   }
 
+  /** Resting the pointer on the compact island opens it after `openDelay`. */
+  private scheduleHoverOpen() {
+    const delay = State.settings.openDelay;
+    if (delay <= 0 || this.hoverOpenTimer != null) return;
+    this.hoverOpenTimer = window.setTimeout(() => {
+      this.hoverOpenTimer = null;
+      if (State.mode !== "compact") return;
+      // Judged on the last known cursor, not on enter/leave bookkeeping: the
+      // island may have grown under a pointer that never moved.
+      const r = this.islandRect();
+      const { x, y } = State.mouse;
+      const inside = x >= r.x - HIT_MARGIN && x <= r.x + r.w + HIT_MARGIN &&
+        y >= r.y - HIT_MARGIN && y <= r.y + r.h + HIT_MARGIN;
+      if (inside) this.fsm.click();
+    }, delay * 1000);
+  }
+
   private cancelHoverOpen() {
     if (this.hoverOpenTimer != null) window.clearTimeout(this.hoverOpenTimer);
     this.hoverOpenTimer = null;
@@ -662,7 +679,9 @@ export class Island {
     // the island is hidden.
     const wake = () => {
       Sound.resume();
-      if (State.mode === "hidden") this.fsm.mouseEntered();
+      if (State.mode !== "hidden") return;
+      this.fsm.mouseEntered();
+      this.scheduleHoverOpen();
     };
     this.wakeStrip.addEventListener("mouseenter", wake);
     this.restIcon.addEventListener("mouseenter", wake);
@@ -694,7 +713,12 @@ export class Island {
     // Outside Tauri (plain browser) drive the cursor from DOM events so the
     // island can be inspected with `npm run dev`.
     if (!IS_TAURI) {
-      window.addEventListener("mousemove", (e) => this.onCursor(e.clientX, e.clientY));
+      window.addEventListener("mousemove", (e) => {
+        // The preview frames the window somewhere on the page; island
+        // coordinates are relative to that frame.
+        const r = this.root.getBoundingClientRect();
+        this.onCursor(e.clientX - r.left, e.clientY - r.top);
+      });
     }
   }
 
@@ -719,14 +743,7 @@ export class Island {
       this.fsm.mouseEntered();
       this.homeCollapseAt = null;
     }
-    // Resting the pointer on the compact island opens it after `openDelay`.
-    const delay = State.settings.openDelay;
-    if (inIsland && State.mode === "compact" && delay > 0 && this.hoverOpenTimer == null) {
-      this.hoverOpenTimer = window.setTimeout(() => {
-        this.hoverOpenTimer = null;
-        if (this.wasInIsland && State.mode === "compact") this.fsm.click();
-      }, delay * 1000);
-    }
+    if (inIsland && State.mode === "compact") this.scheduleHoverOpen();
     if (!inIsland && this.wasInIsland) {
       this.cancelHoverOpen();
       this.fsm.mouseLeft();

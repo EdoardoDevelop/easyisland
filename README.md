@@ -68,6 +68,17 @@ tue integrazioni stanno nelle pillole colorate accanto a Mochi.
 - **Schermo intero**: durante video, giochi e presentazioni Mochi sparisce; le
   richieste di permesso compaiono comunque.
 
+Per provare le combinazioni senza compilare l'app (basta Node, niente Rust):
+
+```powershell
+npm install
+npm run ui
+```
+
+Si apre il browser su un finto desktop: il riquadro tratteggiato è la finestra
+di Coucou. Le impostazioni si cambiano nell'indirizzo, per esempio
+`http://localhost:1420/?anchorV=bottom&anchorH=left&iconStyle=dot&iconSize=32&hoverSize=48&openDelay=1&revealDuration=3&bg=dark`.
+
 ## Claude Code
 
 <img src="screenshots/settings.png" width="562" alt="La finestra delle impostazioni">
