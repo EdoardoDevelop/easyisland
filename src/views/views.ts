@@ -6,7 +6,7 @@ import { h, svg, clear, dot } from "./dom";
 import { ICONS } from "./icons";
 import { Ticker } from "./ticker";
 import { State, type AgentTask, type AskQuestion } from "../core/state";
-import { washRGBA, type IslandViewName, type Wash } from "../core/layout";
+import { ISLAND_CHROME_H, MAX_ISLAND_H, washRGBA, type IslandViewName, type Wash } from "../core/layout";
 import { createMiniBot, pruneMiniBots } from "../character/minibots";
 import { buildPrompt } from "./chat";
 import { buildChoose, buildUpload, buildUploading } from "./upload";
@@ -42,6 +42,12 @@ export interface ViewHost {
   focus?(): void;
   /** Called every frame while the view is on screen. */
   tick?(nowMs: number): void;
+  /**
+   * Natural height of the view's content in px (the area under the header).
+   * When it does not fit the view's default height the island grows, up to
+   * MAX_ISLAND_H; views without it keep their fixed height.
+   */
+  fitHeight?(): number;
 }
 
 // ── Shared pieces ─────────────────────────────────────────────────────────────
@@ -148,6 +154,7 @@ function buildOverview(actions: ViewActions): ViewHost {
   );
 
   let pillIds = "";
+  let pillCount = 0;
   let detailOpen = false;
   let lastFocus: string | null = null;
   let mode: "ticker" | "card" | null = null;
@@ -227,10 +234,10 @@ function buildOverview(actions: ViewActions): ViewHost {
 
       jump.style.display = detailOpen ? "none" : "";
 
-      // Four pills fit: anything with a badge (an alert) goes first.
+      // Every pill is shown (the island grows to fit them); alerts go first.
       const others = [...State.otherTasks]
-        .sort((a, b) => Number(!!b.pillBadge) - Number(!!a.pillBadge))
-        .slice(0, 4);
+        .sort((a, b) => Number(!!b.pillBadge) - Number(!!a.pillBadge));
+      pillCount = others.length;
       const pillKey = others.map((t) => `${t.id}:${t.pillBadge ?? ""}`).join("|");
       if (pillKey !== pillIds) {
         pillIds = pillKey;
@@ -240,6 +247,17 @@ function buildOverview(actions: ViewActions): ViewHost {
       }
       // Every integration switched off: no empty box, the main card takes the room.
       el.classList.toggle("solo", others.length === 0);
+    },
+    fitHeight() {
+      // The left card's content (it flows from the top), plus a bottom margin…
+      const content = leftBody.firstElementChild as HTMLElement | null;
+      const leftH = content ? content.offsetHeight + 12 : 0;
+      // …and the pills, two per row.
+      const rows = Math.ceil(pillCount / 2);
+      const pillsH = rows > 0 ? rows * 28 + (rows - 1) * 4 + 16 : 0;
+      // Only past the tallest island do the pills scroll.
+      pills.classList.toggle("scroll", pillsH > MAX_ISLAND_H - ISLAND_CHROME_H);
+      return Math.max(leftH, pillsH);
     },
   };
 }

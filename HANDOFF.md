@@ -189,6 +189,15 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 
 ## 10. Registro delle modifiche
 
+### 2 ottobre 2026 — integrazioni senza limite, isola che si adatta, icone delle azioni
+- **Nessun limite di 4:** tolti `MAX_ACTIVE` dalle Impostazioni, il controllo in `State.toggleIntegration` e lo `slice(0, 4)` delle pillole nella panoramica. Integrazioni e widget attivi compaiono tutti, due per riga; quelli con un avviso vanno per primi.
+- **Isola adattiva:** ogni vista può dichiarare l'altezza naturale del suo contenuto (`ViewHost.fitHeight`); l'isola cresce fino a `MAX_ISLAND_H` (544 px) e torna più bassa quando il contenuto si riduce (`islandSize(…, fit)` in `src/core/layout.ts`, `fit` in `Island.syncDom`). La usano la panoramica (scheda in primo piano + righe di pillole) e la scheda Azioni. Oltre l'altezza massima le pillole scorrono.
+- La finestra aperta passa da 720×320 a **720×560** (`PANEL_H` in `layout.ts` e `island.rs`), trasparente e senza clic fuori dall'isola come prima.
+- **Widget:** la scheda mostra tutti i campi (prima al massimo 3) e i valori lunghi vanno a capo invece di essere tagliati (`.w-field`, `.w-value`); il riepilogo pure. I pulsanti in fondo ("Aggiorna", "Copia info PC", "Impostazioni…") vanno a capo come blocchi interi.
+- **Icone delle azioni rapide:** al posto del campo di testo (emoji) c'è un pulsante che apre una griglia di 51 icone disegnate nel codice (`src/views/action-icons.ts`), colorate come l'azione. Si salvano come `i:<nome>`; le vecchie emoji restano visibili finché non si cambiano, il vecchio "⚡" diventa il fulmine.
+- Verificato nell'anteprima: 7 integrazioni + 3 widget (10 pillole), widget Rete con 5 campi lunghi visibili per intero, isola a ~340 px; selettore di icone nelle Impostazioni. `tsc` e `cargo test` verdi.
+- Resta: la vista compatta a barra mostra ancora al massimo 4 mini personaggi (spazio fisso di 2×2).
+
 ### 2 ottobre 2026 — suoni generati nel codice
 - I 28 WAV di Coucou (`assets/sounds/`) sono stati eliminati: ogni suono è sintetizzato in `src/core/synth.ts` (toni con glissando, vibrato e "tremolio" di gelatina, rumore filtrato) e generato all'avvio da `Sound.preload()` (circa 40 ms per tutti, nessun file).
 - Carattere: lo slime fa suoni morbidi e gelatinosi (splat dello schiaffo, boing del saluto, blop quando inghiotte un file); gli avvisi restano brevi e distinguibili (permesso a tre note, domanda che sale, errore che scende, arpeggio di fine lavoro).

@@ -69,10 +69,15 @@ export interface ViewLayout {
   agentMode: AgentLayoutMode;
 }
 
-// The window is a fixed 720×320 (largest view) like the macOS panel; the island is
-// drawn inside it, glued to the top edge and horizontally centred.
+// The window is a fixed 720×560 while open; the island is drawn inside it, pinned
+// to the chosen corner. 560 leaves room for views that grow with their content.
 export const PANEL_W = 720;
-export const PANEL_H = 320;
+export const PANEL_H = 560;
+
+/** Island chrome around the views: 8 px top inset + 34 px header + 10 px bottom. */
+export const ISLAND_CHROME_H = 52;
+/** The tallest an expanded island may grow to fit its content. */
+export const MAX_ISLAND_H = PANEL_H - 2 * 8;
 
 // No notch on a PC: these are the hidden/compact sizes from docs/SPEC.md.
 export const NOTCH_W = 184;
@@ -195,6 +200,8 @@ export function islandSize(
   view: IslandViewName,
   chatCount = 0,
   compact: { w: number; h: number } = { w: COMPACT_W, h: NOTCH_H },
+  /** Natural height of the view's content, px; the island grows to show it all. */
+  fit = 0,
 ): { w: number; h: number } {
   switch (mode) {
     case "hidden":
@@ -204,7 +211,8 @@ export function islandSize(
     case "compact":
       return compact;
     case "expanded": {
-      const h = view === "prompt" ? chatPromptHeight(chatCount) : VIEW_LAYOUTS[view].height;
+      const base = view === "prompt" ? chatPromptHeight(chatCount) : VIEW_LAYOUTS[view].height;
+      const h = fit > 0 ? Math.max(base, Math.min(MAX_ISLAND_H, Math.ceil(ISLAND_CHROME_H + fit))) : base;
       return { w: EXPANDED_W, h };
     }
   }

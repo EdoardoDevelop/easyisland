@@ -18,6 +18,53 @@
   --amber: #f5a524;
 }
 
+/* Quick action icon: a button, and the grid of icons it opens. */
+.icon-pick {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.icon-pick-btn {
+  width: 40px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+}
+
+.icon-pop {
+  display: none;
+  position: absolute;
+  top: 38px;
+  left: 0;
+  z-index: 30;
+  grid-template-columns: repeat(9, 34px);
+  gap: 4px;
+  padding: 8px;
+  background: #1a1c21;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+
+.icon-pop.open {
+  display: grid;
+}
+
+.icon-pop button {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+}
+
+.icon-pop button.on {
+  outline: 2px solid #8b5cf6;
+  outline-offset: -2px;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -421,8 +468,13 @@ textarea.mono {
 }
 
 .qa-edit .row.head {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+/* The name keeps a usable width; in a narrow window the rest wraps below. */
+.qa-edit .row.head > input[type="text"] {
+  min-width: 140px;
 }
 
 .qa-edit .row.head select {

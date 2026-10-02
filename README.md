@@ -151,7 +151,10 @@ _Le schermate mostrano ancora il vecchio personaggio e i testi in inglese della 
 
 Tutto il resto succede da solo: una richiesta di permesso di Claude Code apre
 l'isola con **Nega / Consenti**, una sessione finita mostra cosa ha fatto e le
-tue integrazioni stanno nelle pillole colorate accanto a Slime.
+tue integrazioni stanno nelle pillole colorate accanto a Slime. Non c'è un
+numero massimo di integrazioni e widget: l'isola si allunga per mostrare tutte
+le pillole e tutto il testo della scheda in primo piano (fino a circa 540 px,
+poi le pillole scorrono).
 
 ## Posizione e aspetto
 
@@ -212,7 +215,10 @@ di EasyIsland. Le impostazioni si cambiano nell'indirizzo, per esempio
 | **Programma / cartella** | avvia un programma con i suoi argomenti (es. `mstsc /v:server01`) o apre una cartella |
 | **Link** | apre un indirizzo nel browser |
 
-Ogni azione si può riordinare con ↑ ↓ ed eliminare con ✕.
+Ogni azione si può riordinare con ↑ ↓ ed eliminare con ✕. L'icona si sceglie
+con un clic sul riquadro a sinistra del nome, tra una cinquantina di icone
+disegnate nel codice (terminale, cartella, sito, server, rete, lucchetto,
+calendario, posta…); prende il colore dell'azione.
 
 **Scorciatoie globali**, valide in ogni app (modificabili):
 

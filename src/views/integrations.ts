@@ -433,10 +433,12 @@ function widgetCard(task: AgentTask, openSettings: () => void): HTMLElement {
   const def = (State.settings.widgets ?? []).find((w) => w.id === id);
   const st = State.widgetStatus[id];
   const rows = h("div", { class: "int-rows tight" });
-  for (const f of (st?.fields ?? []).slice(0, 3)) {
-    rows.append(h("div", { class: "int-row" },
+  // Every field, each value wrapping onto more lines when long: the island
+  // grows to show them all (see the overview's fitHeight).
+  for (const f of st?.fields ?? []) {
+    rows.append(h("div", { class: "int-row w-field" },
       h("span", { class: "int-name", text: f.label }),
-      h("span", { class: "int-ago", text: f.value })));
+      h("span", { class: "w-value", text: f.value })));
   }
   const color = st ? LEVEL_COLOR[st.level] : "#8E939C";
   return h(
@@ -444,7 +446,7 @@ function widgetCard(task: AgentTask, openSettings: () => void): HTMLElement {
     { class: "int-card" },
     header(task.color, task.name, WIDGET_KIND[def?.kind ?? ""] ?? "Widget",
       st ? h("span", { class: "int-ago", text: timeAgo(st.at * 1000) }) : undefined),
-    h("div", { class: "int-status" }, dot(color, 5),
+    h("div", { class: "int-status wrap" }, dot(color, 5),
       h("span", { text: st?.summary ?? "In attesa del primo controllo…" })),
     rows,
     h("div", { class: "int-actions" },

@@ -6,6 +6,7 @@ import "./settings.css";
 import { Bridge, onEvent, type HookStatus } from "../core/bridge";
 import { DEFAULT_SETTINGS, type QuickAction, type Settings, type Theme, type WidgetDef } from "../core/state";
 import { h, clear } from "../views/dom";
+import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
 let version = "";
@@ -395,15 +396,13 @@ const INTEGRATIONS: IntegrationDef[] = [
     fields: [{ key: "calcom-api-key", label: "Chiave API", placeholder: "cal_…", secret: true }] },
 ];
 
-const MAX_ACTIVE = 4;
-
 function integrationsSection(present: Record<string, boolean>): HTMLElement {
   const note = h("div", { class: "hint" });
   const list = h("div", { style: "display:flex;flex-direction:column;gap:14px" });
 
   function updateNote() {
     const used = settings.activeIntegrations.length;
-    note.textContent = `Scegli fino a ${MAX_ACTIVE} pillole da mostrare accanto al personaggio (${used}/${MAX_ACTIVE} in uso). Le chiavi restano in Gestione credenziali di Windows, mai su disco.`;
+    note.textContent = `Scegli quali pillole mostrare accanto al personaggio (${used} attive): l'isola si allarga per mostrarle tutte. Le chiavi restano in Gestione credenziali di Windows, mai su disco.`;
   }
 
   for (const def of INTEGRATIONS) {
@@ -414,7 +413,6 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
       if (on) {
         settings.activeIntegrations = settings.activeIntegrations.filter((x) => x !== def.id);
       } else {
-        if (settings.activeIntegrations.length >= MAX_ACTIVE) return;
         settings.activeIntegrations = [...settings.activeIntegrations, def.id];
       }
       sw.classList.toggle("on", !on);
@@ -841,11 +839,43 @@ function newActionId(): string {
 
 function blankAction(kind: QuickAction["kind"] = "prompt"): QuickAction {
   return {
-    id: newActionId(), name: "Nuova azione", icon: "⚡", color: "#8b5cf6", kind,
+    id: newActionId(), name: "Nuova azione", icon: "i:bolt", color: "#8b5cf6", kind,
     target: "", args: "", script: "", shell: "powershell", prompt: "",
     input: "clipboard", confirm: true, hotkey: "",
   };
 }
+
+/**
+ * The action's icon as a button; clicking it opens a grid of the icons drawn in
+ * code (no emoji to type on Windows). An old emoji icon is kept until replaced.
+ */
+function iconPicker(value: string, color: string, onPick: (v: string) => void): HTMLElement {
+  const current = actionIcon(value)?.name;
+  const pop = h("div", { class: "icon-pop", role: "listbox" });
+  for (const ic of ACTION_ICONS) {
+    const b = h("button", { class: ic.name === current ? "on" : "", title: ic.label }, actionIconSvg(ic, 18));
+    b.addEventListener("click", () => {
+      pop.classList.remove("open");
+      onPick(`i:${ic.name}`);
+    });
+    pop.append(b);
+  }
+  const button = h("button", { class: "icon-pick-btn", title: "Scegli l'icona" }, renderActionIcon(value, 18));
+  if (/^#[0-9a-f]{6}$/i.test(color)) button.style.color = color;
+  button.addEventListener("click", () => {
+    const open = !pop.classList.contains("open");
+    document.querySelectorAll(".icon-pop.open").forEach((p) => p.classList.remove("open"));
+    pop.classList.toggle("open", open);
+  });
+  return h("div", { class: "icon-pick" }, button, pop);
+}
+
+// A click anywhere else closes an open icon grid.
+document.addEventListener("click", (e) => {
+  document.querySelectorAll(".icon-pop.open").forEach((p) => {
+    if (!p.parentElement?.contains(e.target as Node)) p.classList.remove("open");
+  });
+});
 
 function actionsSection(): HTMLElement {
   const list = h("div", { style: "display:flex;flex-direction:column;gap:10px" });
@@ -882,7 +912,7 @@ function actionsSection(): HTMLElement {
       };
 
       const color = h("input", { type: "color", value: /^#[0-9a-f]{6}$/i.test(a.color) ? a.color : "#8b5cf6" }) as HTMLInputElement;
-      color.addEventListener("change", () => { a.color = color.value; commit(); });
+      color.addEventListener("change", () => { a.color = color.value; commit(); draw(); });
 
       const kind = select<QuickAction["kind"]>(
         [["prompt", "Chiedi a Claude"], ["script", "Script"], ["app", "Programma / cartella"], ["url", "Link"]],
@@ -906,7 +936,7 @@ function actionsSection(): HTMLElement {
 
       const card = h("div", { class: "qa-edit" },
         h("div", { class: "row head" },
-          field(a.icon, "⚡", (v) => { a.icon = v.trim(); }, "width:48px;text-align:center"),
+          iconPicker(a.icon, a.color, (v) => { a.icon = v; commit(); draw(); }),
           field(a.name, "Nome", (v) => { a.name = v.trim(); }),
           color, kind, up, down, del,
         ),

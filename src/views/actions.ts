@@ -2,6 +2,7 @@
 // (confirm a script, watch it, read its output).
 
 import { h, clear } from "./dom";
+import { renderActionIcon } from "./action-icons";
 import { State, type QuickAction } from "../core/state";
 import type { ViewHost } from "./views";
 
@@ -29,7 +30,7 @@ function actionButton(a: QuickAction, onClick: () => void): HTMLElement {
       title: `${KIND_HINT[a.kind]}${a.hotkey ? ` · ${a.hotkey}` : ""}`,
       onclick: onClick,
     },
-    h("span", { class: "qa-icon", text: a.icon || "⚡" }),
+    h("span", { class: "qa-icon" }, renderActionIcon(a.icon, 18)),
     h("span", { class: "qa-name", text: a.name || "Senza nome" }),
   );
   b.style.setProperty("--qa", color);
@@ -63,6 +64,8 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
       }
       for (const a of list) grid.append(actionButton(a, () => handlers.runAction(a)));
     },
+    // Many actions wrap onto more rows: the island grows to show them all.
+    fitHeight: () => grid.offsetHeight + 26,
   };
 }
 

@@ -422,7 +422,7 @@ class AppState {
     this.notify();
   }
 
-  /** loadIntegrationTasks() — VS Code always on, the rest opt-in (max 4). */
+  /** loadIntegrationTasks() — VS Code always on, the rest opt-in. */
   loadIntegrationTasks() {
     for (const proto of INTEGRATION_AGENTS) {
       const shouldLoad =
@@ -466,7 +466,6 @@ class AppState {
       this.settings.activeIntegrations = active.filter((x) => x !== id);
       if (this.focusId === id) this.focusId = "integration_claude";
     } else {
-      if (active.length >= 4) return;
       this.settings.activeIntegrations = [...active, id];
     }
     this.loadIntegrationTasks();

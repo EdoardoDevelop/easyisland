@@ -109,6 +109,8 @@ export class Island {
   private confusedRecovery: number | null = null;
   private prevViewBeforeConfused: IslandViewName = "overview";
   private lastSyncedView: IslandViewName | null = null;
+  /** Natural content height reported by the current view (0 = its fixed height). */
+  private fit: { view: IslandViewName | null; h: number } = { view: null, h: 0 };
 
   /** Drop sequence bookkeeping: last tick played, and whether the ✓ has fired. */
   private uploadTens = 0;
@@ -734,7 +736,8 @@ export class Island {
 
   private targetSize(): { w: number; h: number; r: number } {
     const compact = compactSize(this.placement);
-    const { w, h } = islandSize(State.mode, State.view, State.chatHistory.length, compact);
+    const fit = this.fit.view === State.view ? this.fit.h : 0;
+    const { w, h } = islandSize(State.mode, State.view, State.chatHistory.length, compact, fit);
     let r = State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
     // The hover badge is a circle; a floating bar is a pill.
     if (State.mode !== "expanded" && this.placement.hoverStyle === "icon") r = compact.w / 2;
@@ -1323,6 +1326,17 @@ export class Island {
       const on = name === State.view;
       view.el.classList.toggle("on", on);
       if (on) view.sync();
+    }
+
+    // Views that know how tall their content is make the island grow (or
+    // shrink back) to show all of it.
+    if (expanded) {
+      const fitH = this.views.get(State.view)?.fitHeight?.() ?? 0;
+      const prev = this.fit;
+      if (prev.view !== State.view || Math.abs(prev.h - fitH) > 1) {
+        this.fit = { view: State.view, h: fitH };
+        this.animateGeometry(prev.view === State.view && fitH < prev.h);
+      }
     }
 
     // The chat is the only view with a text field, so it is the only time the
