@@ -44,7 +44,14 @@ function sharedSounds(): Plugin {
 export default defineConfig({
   plugins: [sharedSounds()],
   clearScreen: false,
-  server: { port: 1420, strictPort: true, host: "127.0.0.1" },
+  server: {
+    port: 1420,
+    strictPort: true,
+    host: "127.0.0.1",
+    // Cargo's output (a running or half-written .exe is locked) crashed the
+    // watcher with EBUSY during every Rust build.
+    watch: { ignored: ["**/target/**", "**/release/**", "**/src-tauri/**", "**/hook/**"] },
+  },
   envPrefix: ["VITE_", "TAURI_ENV_"],
   build: {
     target: "chrome110",

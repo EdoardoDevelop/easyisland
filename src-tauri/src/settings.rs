@@ -43,6 +43,9 @@ pub const PROFILE_KEYS: &[&str] = &[
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Theme {
+    /// Who lives in the island: "mochi" or "cube".
+    #[serde(default = "default_character")]
+    pub character: String,
     /// Mochi's body colour, "#rrggbb"; empty = the original cream.
     #[serde(default)]
     pub mochi_color: String,
@@ -62,6 +65,7 @@ pub struct Theme {
 impl Default for Theme {
     fn default() -> Self {
         Self {
+            character: default_character(),
             mochi_color: String::new(),
             island_color: default_island_color(),
             island_opacity: 1.0,
@@ -72,6 +76,9 @@ impl Default for Theme {
     }
 }
 
+fn default_character() -> String {
+    "mochi".into()
+}
 fn default_island_color() -> String {
     "#000000".into()
 }

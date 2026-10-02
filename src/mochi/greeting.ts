@@ -3,6 +3,7 @@
 
 import { Sound } from "../core/sound";
 import { COMPACT_W, NOTCH_H, NOTCH_W } from "../core/layout";
+import { character, cubeHandStops, drawCube, onRightFace } from "./cube";
 
 // ── Timing (mirrors greeting-v2.html `T`) ─────────────────────────────────────
 
@@ -270,12 +271,18 @@ function whiteFill(
   x0: number, y0: number, x1: number, y1: number,
 ) {
   const g = x.createLinearGradient(x0, y0, x1, y1);
-  g.addColorStop(0, "rgb(251,251,252)");
-  g.addColorStop(1, "rgb(231,233,236)");
+  const [light, dark] = handStops();
+  g.addColorStop(0, light);
+  g.addColorStop(1, dark);
   x.save();
   x.fillStyle = g;
   x.fill(path);
   x.restore();
+}
+
+/** Mochi's white, or the cube's own colour. */
+function handStops(): [string, string] {
+  return character() === "cube" ? cubeHandStops() : ["rgb(251,251,252)", "rgb(231,233,236)"];
 }
 
 function drawHandL(x: CanvasRenderingContext2D, hw: number, hh: number, p: Pose) {
@@ -316,8 +323,9 @@ function drawHandR(x: CanvasRenderingContext2D, hw: number, hh: number, p: Pose)
   x.translate(rx, ry);
   x.rotate(ang);
   const g = x.createLinearGradient(L / 2, -T2 / 2, -L / 2, T2 / 2);
-  g.addColorStop(0, "rgb(251,251,252)");
-  g.addColorStop(1, "rgb(231,233,236)");
+  const [light, dark] = handStops();
+  g.addColorStop(0, light);
+  g.addColorStop(1, dark);
   rr(x, -L / 2, -T2 / 2, L, T2, T2 / 2);
   x.fillStyle = g;
   x.fill();
@@ -357,6 +365,61 @@ function drawMochi(x: CanvasRenderingContext2D, p: Pose) {
   drawHandL(x, hw, hh, p);
   drawHandR(x, hw, hh, p);
 
+  if (character() === "cube") {
+    const cs = hh * 1.05;
+    const look = { col: [0.498, 0.706, 0.918] as const, tint: p.tint, turn: p.lookX * 0.6, tip: -p.lookY * 0.6 };
+    drawCube(x, cs, look);
+    onRightFace(x, cs, (side) => {
+      x.fillStyle = "#16171A";
+      x.strokeStyle = "#16171A";
+      greetEyes(x, p, p.hb * 0.06, side * 0.18, p.lookX * side * 0.06,
+        p.lookY * side * 0.05 - side * 0.04 + p.eyeRoll * side * 0.45, true);
+    }, look);
+  } else {
+    drawMochiBody(x, p, hw, hh);
+  }
+
+  // Activity badge
+  drawGreetBadge(x, p, hw, hh);
+
+  x.restore();
+}
+
+/** The two greeting eyes, `sp` either side of the centre, offset by `lx`, `ly`. */
+function greetEyes(
+  x: CanvasRenderingContext2D, p: Pose, er: number, sp: number, lx: number, ly: number, square = false,
+) {
+  for (const sd of [-1, 1]) {
+    x.save();
+    x.translate(sd * sp + lx, ly);
+    if (p.eye === "happy") {
+      x.lineWidth = er * 0.95;
+      x.lineCap = "round";
+      x.beginPath();
+      x.arc(0, er * 0.6, er * 1.25, Math.PI * 1.15, Math.PI * 1.85);
+      x.stroke();
+    } else if (p.eye === "content") {
+      x.lineWidth = er * 0.95;
+      x.lineCap = "round";
+      x.beginPath();
+      x.arc(0, -er * 0.5, er * 1.25, Math.PI * 0.15, Math.PI * 0.85);
+      x.stroke();
+    } else {
+      x.scale(1, Math.max(0.12, p.open));
+      if (square) {
+        // The cube's square-cornered eyes.
+        x.fillRect(-er * 0.62, -er * 1.35, er * 1.24, er * 2.7);
+      } else {
+        x.beginPath();
+        x.arc(0, 0, er, 0, Math.PI * 2);
+        x.fill();
+      }
+    }
+    x.restore();
+  }
+}
+
+function drawMochiBody(x: CanvasRenderingContext2D, p: Pose, hw: number, hh: number) {
   const body = mochiPath(hw, hh);
   whiteFill(x, body, hw * 0.6, -hh, -hw * 0.6, hh);
 
@@ -380,32 +443,11 @@ function drawMochi(x: CanvasRenderingContext2D, p: Pose) {
   const sp = p.hb * 0.19;
   const lx = p.lookX * hw * 0.42;
   const ly = p.lookY * hh * 0.28 + hh * 0.12 + p.eyeRoll * hh * 1.25;
-  for (const sd of [-1, 1]) {
-    x.save();
-    x.translate(sd * sp + lx, ly);
-    if (p.eye === "happy") {
-      x.lineWidth = er * 0.95;
-      x.lineCap = "round";
-      x.beginPath();
-      x.arc(0, er * 0.6, er * 1.25, Math.PI * 1.15, Math.PI * 1.85);
-      x.stroke();
-    } else if (p.eye === "content") {
-      x.lineWidth = er * 0.95;
-      x.lineCap = "round";
-      x.beginPath();
-      x.arc(0, -er * 0.5, er * 1.25, Math.PI * 0.15, Math.PI * 0.85);
-      x.stroke();
-    } else {
-      x.scale(1, Math.max(0.12, p.open));
-      x.beginPath();
-      x.arc(0, 0, er, 0, Math.PI * 2);
-      x.fill();
-    }
-    x.restore();
-  }
+  greetEyes(x, p, er, sp, lx, ly);
   x.restore();
+}
 
-  // Activity badge
+function drawGreetBadge(x: CanvasRenderingContext2D, p: Pose, hw: number, hh: number) {
   if (p.badge > 0.01) {
     const br = hh * 0.3;
     x.save();
@@ -427,8 +469,6 @@ function drawMochi(x: CanvasRenderingContext2D, p: Pose) {
     }
     x.restore();
   }
-
-  x.restore();
 }
 
 function drawParticles(x: CanvasRenderingContext2D, t: number, p: Pose) {

@@ -219,7 +219,9 @@ export interface ScriptRun {
 }
 
 export interface Theme {
-  /** "#rrggbb", or "" for the original cream. */
+  /** Who lives in the island: Mochi, or the cube (src/mochi/cube.ts). */
+  character: "mochi" | "cube";
+  /** "#rrggbb", or "" for the original cream (the logo's orange for the cube). */
   mochiColor: string;
   islandColor: string;
   islandOpacity: number;
@@ -245,6 +247,7 @@ export interface Profile {
 }
 
 export const DEFAULT_THEME: Theme = {
+  character: "mochi",
   mochiColor: "",
   islandColor: "#000000",
   islandOpacity: 1,

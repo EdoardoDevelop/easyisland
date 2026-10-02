@@ -4,7 +4,7 @@
 
 import "./settings.css";
 import { Bridge, onEvent, type HookStatus } from "../core/bridge";
-import { DEFAULT_SETTINGS, type QuickAction, type Settings, type WidgetDef } from "../core/state";
+import { DEFAULT_SETTINGS, type QuickAction, type Settings, type Theme, type WidgetDef } from "../core/state";
 import { h, clear } from "../views/dom";
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
@@ -1276,7 +1276,16 @@ function themeSection(): HTMLElement {
     {},
     h("h2", {}, h("span", { text: "Tema" }), profileChip()),
     h("div", { class: "row" },
-      h("label", { text: "Colore di Mochi" }),
+      h("label", { text: "Personaggio" }),
+      select<Theme["character"]>(
+        [["mochi", "Mochi"], ["cube", "Cubo"]],
+        t.character ?? "mochi",
+        (v) => { t.character = v; commit(); },
+      ),
+      h("span", { class: "hint note", text: "il cubo a riposo ha i colori del logo; negli altri stati prende il colore dello stato, come Mochi" }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Colore del personaggio" }),
       colorField(t.mochiColor, "#fffaf5", (v) => { t.mochiColor = v; commit(); }, "Originale"),
     ),
     h("div", { class: "row" },

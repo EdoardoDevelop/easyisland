@@ -12,6 +12,7 @@ import {
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
 import { BotEngine, hexToRGB } from "../mochi/engine";
+import { character, setCharacter } from "../mochi/cube";
 import { Greeting } from "../mochi/greeting";
 import { createMiniBot, pruneMiniBots, syncMiniBotStates, tickMiniBots } from "../mochi/minibots";
 import { UploadCanvas } from "../upload/canvas";
@@ -741,7 +742,7 @@ export class Island {
   private drawRestIcon() {
     const p = this.placement;
     const state = State.effectiveState;
-    const key = `${p.iconStyle}|${p.iconSize}|${state}|${State.paused}|${State.settings.theme.mochiColor}`;
+    const key = `${p.iconStyle}|${p.iconSize}|${state}|${State.paused}|${State.settings.theme.mochiColor}|${character()}`;
     if (key === this.restKey) return;
     this.restKey = key;
 
@@ -786,6 +787,7 @@ export class Island {
   /** Island colour/opacity and per-family volumes from the theme. */
   private applyTheme() {
     const t = State.settings.theme;
+    setCharacter(t.character);
     const hex = /^#[0-9a-f]{6}$/i.test(t.islandColor) ? t.islandColor : "#000000";
     const n = parseInt(hex.slice(1), 16);
     const a = Math.max(0.5, Math.min(1, t.islandOpacity));
@@ -1155,7 +1157,9 @@ export class Island {
     if (!ctx) return;
 
     const focus = State.focusTask;
-    this.engine.bodyColor = focus?.isIntegration ? hexToRGB(focus.color) : this.themeBody();
+    // Mochi wears the focused integration's colour; the cube keeps the logo's.
+    this.engine.bodyColor = focus?.isIntegration && character() !== "cube"
+      ? hexToRGB(focus.color) : this.themeBody();
     this.engine.particleOverhang = BOT_OVERHANG;
     this.engine.lookX = this.lookX();
     this.engine.lookY = this.lookY();

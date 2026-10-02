@@ -6,6 +6,7 @@
 // exactly as on macOS, because this canvas draws its own.
 
 import { State } from "../core/state";
+import { character, drawCube, onRightFace } from "../mochi/cube";
 import {
   USC, eIn, eInOut, eOut, lerp, progressAt,
   type UploadEyeShape, type UploadFrame,
@@ -298,6 +299,37 @@ export class UploadCanvas {
     ctx.translate(f.x, f.y + f.hop);
     ctx.rotate(f.tilt);
     ctx.scale(f.sx, f.sy);
+
+    if (character() === "cube") {
+      // Already a box: the slot opens in the top face, the eyes look out of the side.
+      const s = R * 1.02;
+      const look = { slot: f.mouth * mc, turn: f.lookX * 0.7, tip: -f.lookY * 0.7 };
+      drawCube(ctx, s, look);
+      onRightFace(ctx, s, (side) => {
+        ctx.fillStyle = "#16171A";
+        ctx.strokeStyle = "#16171A";
+        const ew = R * 0.22;
+        const eh = R * (0.5 - 0.14 * mc);
+        const lim = side / 2 - ew;
+        for (const sd of [-1, 1]) {
+          ctx.save();
+          ctx.translate(
+            Math.max(-lim, Math.min(lim, sd * side * 0.2 + f.lookX * side * 0.05)),
+            Math.max(-lim, Math.min(lim, f.lookY * side * 0.04 - side * 0.04)),
+          );
+          if (f.eye === "pill") {
+            // The cube's square-cornered eyes.
+            ctx.fillStyle = "#16171A";
+            ctx.fillRect(-ew * 0.31, -eh / 2, ew * 0.62, eh);
+          } else {
+            drawEye(ctx, f.eye, ew, eh);
+          }
+          ctx.restore();
+        }
+      }, look);
+      ctx.restore();
+      return;
+    }
 
     const { rx, ry } = bodyPath(ctx, f.morph, R);
 

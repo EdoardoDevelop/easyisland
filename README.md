@@ -252,8 +252,13 @@ attivo.
   finché la situazione non cambia.
 - **Notifiche**: tutto, solo avvisi, oppure solo le richieste di permesso
   (com'è *Concentrazione* all'inizio).
-- **Tema**: colore di Mochi, colore e opacità dell'isola, volume separato per
-  avvisi, interfaccia ed emozioni.
+- **Tema**: il personaggio (**Mochi** o il **Cubo**), il suo colore, colore e
+  opacità dell'isola, volume separato per avvisi, interfaccia ed emozioni. Il
+  cubo a riposo ha i colori del logo da cui è disegnato; negli altri stati prende
+  il colore dello stato (blu mentre lavora, ambra per un permesso, rosso per un
+  errore…). Ha gli occhi di Mochi su un lato, con le stesse espressioni, e segue
+  il mouse come lui. Anteprima senza compilare: `npm run ui`, poi aggiungi
+  `?character=cube` all'indirizzo.
 - **Backup e trasferimento**: *Esporta…* salva tutte le impostazioni (profili
   compresi) in un file JSON nella cartella Documenti; *Importa…* le carica su un
   altro PC. Le chiavi API non sono mai nel file: vanno reinserite.

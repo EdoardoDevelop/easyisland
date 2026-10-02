@@ -7,6 +7,7 @@
 import { Ease, lerp, type EaseFn } from "../core/anim";
 import { Sound } from "../core/sound";
 import type { BotEmoteName, BotStateName } from "../core/layout";
+import { character, cubeHandStops, drawCube, onRightFace } from "./cube";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -641,6 +642,10 @@ export class BotEngine {
    * `w`×`h` CSS pixels (the caller has already applied the DPR transform).
    */
   draw(x: CanvasRenderingContext2D, W: number, H: number) {
+    if (character() === "cube") {
+      this.drawAsCube(x, W, H);
+      return;
+    }
     const R = W * 0.3;
     const rx = R * 1.14;
     const ry = R * 0.88;
@@ -673,6 +678,97 @@ export class BotEngine {
 
     this.drawEyes(x, body, R, rx, ry);
     if (this.morph > 0.05) this.drawMouth(x, body, R);
+
+    x.restore();
+
+    if (this.badge && this.badgeS > 0.01 && this.morph < 0.25) {
+      this.drawBadge(x, this.badge, R, cx, cy);
+    }
+    this.drawParticles(x, R, cx, cy);
+  }
+
+  /**
+   * The cube character (src/mochi/cube.ts): same pose, tweens, badge and
+   * particles as Mochi; the eyes and blush are painted on the right face.
+   */
+  private drawAsCube(x: CanvasRenderingContext2D, W: number, H: number) {
+    const R = W * 0.3;
+    const s = R * 1.02; // half-height of the cube
+    const r = s * 0.866; // half-width
+    const cx = W / 2 + this.ox * R;
+    const cy = H / 2 + this.particleOverhang / 2 + this.oy * R + R * 0.06;
+
+    this.drawHandsBehind(x, R, r, s * 0.8, cx, cy);
+
+    x.save();
+    x.translate(cx, cy);
+    if (this.tilt !== 0) x.rotate(this.tilt);
+    x.scale(this.sx, this.sy);
+
+    // Looking around turns the whole cube (yaw follows lookX up to ±0.62 rad,
+    // pitch lookY up to ±0.5): a cube has no round body to roll the eyes over.
+    const look = {
+      col: this.col,
+      tint: this.tint * (1 - this.morph),
+      base: this.bodyColor,
+      slot: this.morph > 0.05 ? this.slotH * this.morph : 0,
+      turn: this.yaw / 0.62,
+      tip: -this.pitch / 0.5,
+    };
+    drawCube(x, s, look);
+
+    onRightFace(x, s, (side) => {
+      const blushVal = Math.max(this.blush, this.tint * 0.5) * (1 - this.morph);
+      if (blushVal > 0.01) {
+        x.fillStyle = `rgba(255,120,150,${0.55 * blushVal})`;
+        for (const sd of [-1, 1]) {
+          x.beginPath();
+          x.ellipse(sd * side * 0.3, side * 0.2, side * 0.12, side * 0.07, 0, 0, Math.PI * 2);
+          x.fill();
+        }
+      }
+
+      let shape: EyeShape = this.eyeOverride ?? this.cfg.eye;
+      if (this.morph > 0.5) {
+        if (this.isChewing) shape = "happy";
+        else if (this.slotHTarget > 0.05 || this.slotH > 0.1) shape = "cup";
+      }
+      const ink = this.isMini ? MINI_INK : INK;
+      x.fillStyle = ink;
+      x.strokeStyle = ink;
+      const eyeMult = this.isMini ? 1.6 : 1.12;
+      const ew = R * EYE_W * this.es * eyeMult;
+      const eh = R * EYE_H * this.es * eyeMult;
+      // Looking around slides the eyes across the face instead of turning a body.
+      const pitch = EYE_P + this.roll;
+      // The eyes follow the cursor on their own too, on top of the turn. They sit
+      // a little in from the edges so there is room to move before the clamp.
+      const turn = Math.max(-1, Math.min(1, look.turn));
+      const tip = Math.max(-1, Math.min(1, look.tip));
+      const gx = turn * side * 0.17;
+      const gy = tip * side * 0.16;
+      const limX = side * 0.5 - ew * 0.4 - side * 0.05;
+      const limY = side * 0.5 - eh * 0.65 - side * 0.04;
+      for (const sd of [-1, 1]) {
+        const ex = Math.max(-limX, Math.min(limX, sd * side * 0.19 + gx));
+        const ey = Math.max(-limY, Math.min(limY, -Math.sin(pitch) * side * 0.5 - side * 0.04 + gy));
+        x.save();
+        x.translate(ex, ey);
+        if (shape === "pill" || shape === "wide" || (shape === "wink" && sd < 0)) {
+          // The cube's own eyes: square-cornered bars, narrower and taller than
+          // Mochi's pills, like the logo's stripes. Blinking squashes them.
+          const k = shape === "wide" ? 1.14 : 1;
+          const w = ew * 0.62 * k;
+          const hh = Math.max(eh * 1.2 * k * this.open, w * 0.35);
+          x.fillRect(-w / 2, -hh / 2, w, hh);
+        } else {
+          // Arcs are drawn wider than the pill they replace: on a flat face they would touch.
+          const arc = shape === "happy" || shape === "closed" || shape === "wink";
+          this.drawEyeShape(x, shape, arc ? ew * 0.72 : ew, eh, sd, ink);
+        }
+        x.restore();
+      }
+    }, look);
 
     x.restore();
 
@@ -983,7 +1079,12 @@ export class BotEngine {
       x.translate(worldX, worldY);
       if (handRot !== 0) x.rotate(handRot);
       const g = x.createLinearGradient(hew * 0.7, -heh * 0.85, -hew * 0.8, heh * 0.9);
-      if (this.bodyColor) {
+      if (character() === "cube") {
+        // The cube's hands wear its faces' colour, state tint included.
+        const [light, dark] = cubeHandStops({ col: this.col, tint: this.tint * (1 - this.morph), base: this.bodyColor });
+        g.addColorStop(0, light);
+        g.addColorStop(1, dark);
+      } else if (this.bodyColor) {
         g.addColorStop(0, rgba(mix3(this.bodyColor, [1, 1, 1], 0.35)));
         g.addColorStop(1, rgba(this.bodyColor));
       } else {
