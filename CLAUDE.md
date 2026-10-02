@@ -25,6 +25,7 @@ npm run build       # typecheck + solo front end (funziona anche su Linux/macOS)
 La parte Rust si compila solo su Windows (toolchain MSVC). CI: `.github/workflows/build.yml` (windows-latest); i tag `v*` pubblicano quando `PUBLISH` vale `'true'`.
 
 ## Regole
+- `HANDOFF.md` va tenuto sempre aggiornato: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al Registro delle modifiche (sezione 10), compresi i problemi rimasti aperti.
 - TypeScript + Rust (Tauri 2). Nessuna nuova dipendenza se non davvero inevitabile. Mochi è disegnato nel codice (Canvas 2D), niente Rive/Lottie/immagini.
 - I segreti stanno in Gestione credenziali di Windows, mai su disco, nell'interfaccia o in git. Il front end può solo chiedere se una chiave esiste.
 - Nessuna telemetria. Chiamate di rete solo verso i servizi configurati dall'utente.

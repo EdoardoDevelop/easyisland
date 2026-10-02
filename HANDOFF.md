@@ -1,6 +1,8 @@
 # Handoff personale — Coucou (solo Windows)
 
-_Punto di partenza: 1 ottobre 2026. Branch: `claude/lucid-lamport-v5nvs3`._
+_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 2 ottobre 2026. Branch: `claude/lucid-lamport-v5nvs3`._
+
+> Questo file va tenuto **sempre aggiornato**: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al **Registro delle modifiche** (sezione 10), con data, cosa è cambiato e cosa resta aperto.
 
 ## 1. Com'è il progetto adesso
 
@@ -13,13 +15,17 @@ Coucou è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou). In
 - **CI:** `.github/workflows/build.yml` gira su `windows-latest` a ogni push/PR su `main` (solo verifica di compilazione) e pubblica l'installer sui tag `v*`, ma solo se `PUBLISH: 'true'`. Oggi è `'false'`, per via del falso positivo di Defender sull'installer non firmato.
 - **Aggiornati:** `README.md`, `CLAUDE.md` (regole per gli agenti, ora per Windows), `.gitignore`, i percorsi in `LICENSE-ASSETS.md`.
 - **Tradotto in italiano:** tutti i testi dell'interfaccia (isola, impostazioni, menu dell'area di notifica, etichette dei passi degli hook), i messaggi d'errore del backend, l'installer NSIS (italiano come lingua principale), README, CLAUDE.md, `docs/SPEC.md`, `docs/INTEGRATIONS.md`, i template delle issue e le note di release. Il prompt di sistema della chat chiede a Mochi di rispondere in italiano. Restano in inglese di proposito i commenti e gli identificatori nel codice, `LICENSE` e `LICENSE-ASSETS.md` (testi legali dell'autore originale) e il sito in `docs/*.html`. Le immagini in `screenshots/` mostrano ancora i testi in inglese.
-- **Verificato qui (Linux):** `tsc --noEmit` e `vite build` passano, i 28 WAV finiscono in `dist/sounds`, e l'intero codice Rust (app + relay) passa `cargo check --target x86_64-pc-windows-msvc` senza errori né avvisi. **Non verificato:** il link finale e l'installer, che si producono solo su Windows (CI o il tuo PC).
+- **Verificato su Windows (PC di Edoardo, 1–2 ottobre 2026):** `npm run pack` produce l'installer (circa 4,2 MB) senza errori né avvisi, l'installazione per-utente funziona, gli hook di Claude Code arrivano all'isola, i test Rust passano (27 dell'app, 4 del relay). La CI compila anche sui branch `claude/**`.
 
 ## 2. Mappa veloce
 
 | Cosa vuoi toccare | Dove |
 |---|---|
 | Aspetto/animazioni di Mochi | `src/mochi/engine.ts`, `src/mochi/greeting.ts` |
+| Il cubo (personaggio alternativo, `theme.character`) | `src/mochi/cube.ts` (geometria 3D, colori del logo, orientamento verso il cursore: `FOLLOW_*`), disegnato da `engine.ts` (`drawAsCube`), `greeting.ts` e `src/upload/canvas.ts` |
+| Posizione, trascinamento, aggancio ai bordi, sopra la barra | front end `src/core/layout.ts` (`anchoredOrigin`, `glueFor`, `cornerRadii`) e `src/island/island.ts` (pointer events); backend `src-tauri/src/island.rs` (`apply_geometry`, `placement_from_drop`, `raise_over_taskbar`), comandi `drag_island` / `end_drag` in `lib.rs` |
+| File rilasciati sull'isola | `onDragDrop` in `src/core/bridge.ts` (drop HTML5) + `src-tauri/src/drop.rs` (percorso reale da WebView2) |
+| Domande di Claude Code (AskUserQuestion) | `askQuestions` in `src/island/hooks.ts`, vista `buildAsk` in `src/views/views.ts`, risposta `answer {…}` → `decision_json` in `hook/src/main.rs` |
 | Viste dell'isola (chat, approvazioni, upload…) | `src/views/` + `src/style.css` |
 | Logica apri/chiudi, eventi hook | `src/island/fsm.ts`, `src/island/island.ts`, `src/island/hooks.ts` |
 | Finestra Impostazioni | `settings.html`, `src/settings/` |
@@ -39,7 +45,7 @@ Coucou è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou). In
    - **Claude Code → Installa hook…**: controlla il diff e conferma, poi lancia una sessione di Claude Code e verifica che le richieste di permesso arrivino sull'isola;
    - **Chat con Claude**: prova la modalità "Abbonamento Claude" (serve Claude Code con il login fatto);
    - **Posizione e aspetto**: scegli angolo e icona.
-3. Per lavorare sul codice: `npm run tauri dev` (l'app vera) o `npm run ui` (solo l'interfaccia nel browser).
+3. Per lavorare sul codice: `npm run tauri dev` (l'app vera) o `npm run ui` (solo l'interfaccia nel browser; aggiungi `?character=cube` per il cubo). `coucou.exe --settings` apre direttamente le Impostazioni.
 4. Fai un push su `main` (o apri una PR) e controlla che la workflow `Build` sia verde: è la prova che l'installer si compila anche su una macchina pulita.
 
 ## 4. Decisioni da prendere per personalizzarlo
@@ -52,13 +58,16 @@ Coucou è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou). In
 **Licenza degli asset (importante):** `LICENSE-ASSETS.md` riserva all'autore originale il nome "Coucou", il nome "Mochi", il personaggio, le icone e i suoni.
 - Per **uso personale** va bene così com'è.
 - Se vuoi **pubblicare o distribuire** la tua versione, servono nome, icona, personaggio e suoni tuoi. Il codice (MIT) puoi tenerlo.
+- Il **cubo** (Tema → Personaggio) è un personaggio tuo, disegnato dal logo dell'azienda dove lavorerai: per distribuirlo ai colleghi, chiedi prima all'azienda.
 
 **Sito e documenti:** `docs/*.html` (GitHub Pages: privacy, termini, note legali) e `docs/media/` sono quelli dell'autore originale, scritti per il Mac e intestati a lui. Puoi eliminarli o riscriverli. `docs/SPEC.md` e `docs/INTEGRATIONS.md` sono una buona specifica (in francese), ma descrivono il comportamento su macOS.
 
 **Funzionalità:**
 - [ ] Quali integrazioni tieni? Se non usi Stripe, Resend, Cal.com…, rimuoverle alleggerisce codice e Impostazioni.
 - [ ] Funzioni presenti solo su Mac e mai portate: invio di un file via email, trascinare Mochi su una finestra per allegarla come contesto, saltare al terminale esatto della sessione. Valuta se ti servono.
-- [x] Posizione e aspetto: angolo o bordo, icona a riposo e al passaggio del mouse, apertura dopo N secondi, silenzio a schermo intero (Impostazioni → Posizione e aspetto).
+- [x] Posizione e aspetto: angolo o bordo, icona a riposo e al passaggio del mouse, apertura dopo N secondi o solo al clic, silenzio a schermo intero (Impostazioni → Posizione e aspetto).
+- [x] Mochi trascinabile con il mouse (posizione salvata nel profilo), aggancio ai bordi, sopra la barra delle applicazioni, vista compatta sempre visibile, pulsante ✕ per chiudere subito.
+- [x] Personaggio a scelta: Mochi o il cubo (Tema → Personaggio).
 - [x] Chat: scegli in Impostazioni tra abbonamento Claude (tramite Claude Code, predefinito) e chiave API. Codice in `src-tauri/src/claude_cli.rs` e `src-tauri/src/claude.rs`.
 
 **Distribuzione:**
@@ -93,7 +102,7 @@ Serve prima degli altri punti, perché azioni e widget vivono nella configurazio
 
 ### 6.2 Azioni rapide personalizzate
 
-> **Stato: fatto.** Scheda ⚡ e vista di esecuzione (`src/views/actions.ts`), logica in `Island.runAction` (`src/island/island.ts`), backend `src-tauri/src/actions.rs` (programmi, script con output/timeout/interrompi, appunti) e `src-tauri/src/hotkeys.rs` (`RegisterHotKey`, nessuna dipendenza nuova). Editor ed esempi in `src/settings/main.ts`. Da migliorare: le azioni "su file" non compaiono ancora nella schermata "Cosa vuoi farne?" dopo il rilascio (è disegnata dal canvas in `src/upload/canvas.ts`).
+> **Stato: fatto.** Scheda ⚡ e vista di esecuzione (`src/views/actions.ts`), logica in `Island.runAction` (`src/island/island.ts`), backend `src-tauri/src/actions.rs` (programmi, script con output/timeout/interrompi, appunti) e `src-tauri/src/hotkeys.rs` (`RegisterHotKey`, nessuna dipendenza nuova). Editor in `src/settings/main.ts` (il pulsante "Aggiungi esempi da tecnico IT" è stato tolto il 1° ottobre 2026). Da migliorare: le azioni "su file" non compaiono ancora nella schermata "Cosa vuoi farne?" dopo il rilascio (è disegnata dal canvas in `src/upload/canvas.ts`).
 
 Pulsanti definiti dall'utente, mostrati in una nuova scheda dell'isola (accanto a Panoramica / Chiedi / Rilascia) e richiamabili da tastiera.
 
@@ -118,6 +127,7 @@ Oggi `src-tauri/src/claude_cli.rs` lancia `claude -p` con `--strict-mcp-config` 
 - **Widget "Oggi"** opzionale: attività e promemoria del giorno da un connettore scelto, nella panoramica.
 - **Per profilo:** nel profilo *Lavoro* si possono escludere i connettori personali e viceversa.
 - **Fatto quando:** chiedo "cosa ho in programma oggi?" e Mochi risponde usando un connettore abilitato; chiedo di aggiungere un promemoria e mi chiede conferma prima di scriverlo.
+- **Chat con l'abbonamento:** Claude Code viene cercato anche nell'app desktop di Claude (`%APPDATA%\Claude\claude-code\<versione>`) e nell'estensione VS Code, sempre la versione più recente (`find_claude` in `claude_cli.rs`). La chat ha il pulsante **Nuova chat**.
 
 ### 6.4 Widget configurabili (integrazioni senza codice)
 
@@ -159,4 +169,27 @@ Pensate per il lavoro da tecnico IT sul notebook, ma utili anche a casa.
 
 ## 9. Note per riprendere con Claude Code
 
-Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi implementiamo la 6.1 (fondamenta)"_ oppure _"facciamo la sezione 4 → Identità con nome X"_. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole.
+Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi implementiamo la 6.1 (fondamenta)"_ oppure _"facciamo la sezione 4 → Identità con nome X"_. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
+
+## 10. Registro delle modifiche
+
+### 2 ottobre 2026 — il cubo (commit `f65d871`)
+- Nuovo personaggio **Cubo**, ispirato al logo dell'azienda, scelto da Tema → Personaggio (per profilo, `theme.character`; Mochi resta il predefinito).
+- A riposo ha i colori del logo; negli altri stati prende il colore dello stato. Occhi squadrati di Mochi su una faccia, strisce del logo su tutte le facce.
+- Segue il cursore: la faccia con gli occhi punta verso il mouse (direzione di riposo spostata verso il cursore e riconvertita in rotazioni, `orientation` in `cube.ts`); mostra la faccia di sotto o quella dietro; gli occhi scivolano un poco sulla faccia.
+- Disegnato anche nel saluto iniziale e nell'animazione del file, con le mani del colore del cubo.
+- `vite.config.ts`: il watcher ignora `target/` e le cartelle Rust (andava in crash con `EBUSY` durante ogni compilazione).
+
+### 1 ottobre 2026 — isola e impostazioni (commit `1654150`)
+- **Rilascio dei file riparato:** sui runtime WebView2 attuali il drop nativo di Tauri non veniva mai raggiunto. Ora drop HTML5 nella pagina + `postMessageWithAdditionalObjects` → `drop.rs` (percorso reale). `dragDropEnabled` spento, rimosso il vecchio `RevokeDragDrop`.
+- **Domande di Claude Code (AskUserQuestion):** si rispondono dall'isola; `coucou-hook` rimanda `allow` con `updatedInput` + `answers`. Verificato con Claude Code 2.1.x. Non è descritto nella documentazione degli hook: se un aggiornamento di Claude Code lo rompe, la domanda torna semplicemente al terminale.
+- **Posizione:** trascinamento, aggancio ai bordi, sopra la barra delle applicazioni (`SetWindowPos(HWND_TOPMOST)` diretto, perché `set_always_on_top` non fa nulla se il flag è già attivo), vista compatta sempre visibile, ✕ per chiudere, apertura solo al clic (il trascinamento di un file apre comunque).
+- **Correzioni:** una race rimetteva il click-through sopra l'icona a riposo; nelle Impostazioni le azioni non si potevano eliminare o modificare più di una volta (la finestra sostituiva gli oggetti che stava modificando); note impaginate accanto ai campi.
+- **Altro:** Claude Code trovato anche nell'app desktop e nell'estensione VS Code; "Nuova chat"; `coucou.exe --settings`; tolti gli esempi da tecnico IT.
+
+### Problemi noti e cose aperte
+- [ ] **CPU con "Sempre visibile":** circa 18 % di un core (personaggio animato + lettura del cursore a 60 Hz). Va contro la regola "CPU ~0 % a riposo": proposto di rallentare animazione e lettura del cursore quando non succede nulla.
+- [ ] **Scorciatoia `Ctrl+Alt+M`** non disponibile (già usata da un altro programma): sceglierne un'altra in Impostazioni → Azioni rapide.
+- [ ] **Icona dell'area di notifica:** è un'immagine fissa (`scripts/gen-icons.mjs`), quindi resta Mochi anche con il cubo.
+- [ ] **Sopra la barra:** cliccando la barra, Mochi va dietro per un istante (circa 0,15 s) prima di tornare davanti.
+- [ ] Da verificare su Windows reale: ping ICMP e controllo del certificato TLS dei widget (6.4).
