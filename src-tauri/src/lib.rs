@@ -20,6 +20,7 @@ mod profiles;
 mod secrets;
 mod settings;
 mod tray;
+mod updates;
 mod widgets;
 mod win_user;
 
@@ -419,6 +420,18 @@ fn quit_app(app: AppHandle) {
     app.exit(0);
 }
 
+/// Impostazioni → Aggiornamenti → "Controlla ora".
+#[tauri::command]
+async fn update_check(app: AppHandle) -> Result<Option<updates::UpdateInfo>, String> {
+    updates::check(&app).await
+}
+
+/// "Installa": only ever after a click in the island or the settings.
+#[tauri::command]
+async fn update_install(app: AppHandle) -> Result<(), String> {
+    updates::install(&app).await
+}
+
 /// Tray → Pause. Paused means paused: the pollers stop talking to the network,
 /// not just the island stopping showing things.
 #[tauri::command]
@@ -651,6 +664,7 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Shared {
             settings: Mutex::new(loaded.clone()),
             gate: gate.clone(),
@@ -672,6 +686,8 @@ pub fn run() {
             open_url,
             open_in_vscode,
             open_session,
+            update_check,
+            update_install,
             quit_app,
             hooks_status,
             hooks_preview,
@@ -736,6 +752,7 @@ pub fn run() {
             drop::install(&handle);
             presence::spawn(handle.clone());
             integrations::start(handle.clone());
+            updates::spawn(handle.clone());
             Ok(())
         })
         .run(tauri::generate_context!())

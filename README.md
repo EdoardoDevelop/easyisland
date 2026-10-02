@@ -21,10 +21,17 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Installazione
 
-Non c'è un installer da scaricare: EasyIsland si compila sul proprio PC, e alla fine
-si ottiene un normale installer `.exe`. Ci vogliono circa 15–20 minuti la prima
-volta (quasi tutti di download e compilazione), pochi minuti le volte successive.
-L'installazione è solo per l'utente corrente: nessuna richiesta di amministratore.
+**Il modo più semplice:** scarica `EasyIsland-Windows-X.Y.Z-setup.exe`
+dall'[ultima release](https://github.com/EdoardoDevelop/easyisland/releases/latest)
+ed eseguilo. L'installazione è solo per l'utente corrente: nessuna richiesta di
+amministratore. L'installer non è ancora firmato, quindi Windows SmartScreen
+mostra un avviso: clicca **Ulteriori informazioni → Esegui comunque**. Poi vai a
+[Dopo l'installazione](#dopo-linstallazione). Gli aggiornamenti successivi
+arrivano da soli (vedi [Aggiornare](#aggiornare)).
+
+**Oppure compilalo sul tuo PC**, con i passi 1–4 qui sotto: alla fine si ottiene
+lo stesso installer `.exe`. Ci vogliono circa 15–20 minuti la prima volta (quasi
+tutti di download e compilazione), pochi minuti le volte successive.
 
 ### 1. Strumenti (solo la prima volta)
 
@@ -88,10 +95,13 @@ start .\release\EasyIsland-Windows-setup.exe
 ```
 
 L'installer non è firmato, quindi Windows SmartScreen mostra un avviso: clicca
-**Ulteriori informazioni → Esegui comunque**. EasyIsland si avvia e Slime ti saluta;
-da lì in poi lo trovi nel menu Start e nell'area di notifica.
+**Ulteriori informazioni → Esegui comunque**.
 
-Poi, dall'icona di EasyIsland nell'area di notifica → **Impostazioni…**:
+### Dopo l'installazione
+
+EasyIsland si avvia e Slime ti saluta; da lì in poi lo trovi nel menu Start e
+nell'area di notifica. Dall'icona di EasyIsland nell'area di notifica →
+**Impostazioni…**:
 
 1. **Claude Code → Installa hook…** per vedere le sessioni nell'isola (vedi sotto).
 2. **Chat con Claude**: lascia "Abbonamento Claude" se usi Claude Code con il tuo
@@ -99,6 +109,15 @@ Poi, dall'icona di EasyIsland nell'area di notifica → **Impostazioni…**:
 3. **Posizione e aspetto**: l'angolo e l'icona che preferisci.
 
 ### Aggiornare
+
+**Da solo:** all'avvio e poi una volta al giorno EasyIsland guarda se su GitHub
+c'è una release più recente. Se c'è, l'isola mostra **Aggiornamento
+disponibile** con **Installa** / **Più tardi**: niente si installa senza il tuo
+clic. L'aggiornamento è firmato e l'app ne verifica la firma prima di eseguirlo;
+installando, si chiude e si riapre da sola. Si controlla anche a mano, o si
+spegne il controllo, in **Impostazioni → Generale → Aggiornamenti**.
+
+**Se l'hai compilato tu:**
 
 ```powershell
 cd $HOME\easyisland
@@ -365,8 +384,10 @@ a sé, usa la copia inclusa nell'app desktop di Claude
 (`%APPDATA%\Claude\claude-code\<versione>`) o nell'estensione per VS Code,
 sempre la versione più recente.
 
-Nessuna telemetria. Le uniche richieste di rete di EasyIsland vanno ai servizi che
-configuri tu.
+Nessuna telemetria. Le richieste di rete di EasyIsland vanno ai servizi che
+configuri tu, più una sola altra: il controllo degli aggiornamenti, che legge un
+file della release su GitHub (si spegne in Impostazioni → Generale →
+Aggiornamenti).
 
 ## Compilarlo da te
 
@@ -411,6 +432,29 @@ l'isola stessa, uguale qualunque personaggio tu scelga:
 npm run icons          # rigenera src-tauri/icons da scripts/gen-icons.mjs
 ```
 
+### Pubblicare una versione
+
+1. Alza la versione, uguale, in `package.json`, `Cargo.toml` e
+   `src-tauri/tauri.conf.json` (la CI controlla che coincidano), e fai il commit.
+2. Crea e invia il tag:
+
+   ```powershell
+   git tag v0.2.0
+   git push origin v0.2.0
+   ```
+
+3. La workflow **Build** compila l'installer, lo firma per l'aggiornamento e
+   pubblica la release con `EasyIsland-Windows-X.Y.Z-setup.exe`, la sua firma
+   (`.sig`) e `latest.json`, il file che le app installate leggono per
+   aggiornarsi.
+
+Serve una volta sola il secret **`TAURI_SIGNING_PRIVATE_KEY`** del repository
+(Settings → Secrets and variables → Actions), con il contenuto della chiave
+privata creata con `npx tauri signer generate`; la chiave pubblica è in
+`tauri.conf.json`. Se la chiave privata va persa, le app installate non
+accettano più aggiornamenti firmati con una nuova: andrebbero reinstallate a
+mano. Tienine una copia al sicuro.
+
 ### Struttura
 
 ```
@@ -424,7 +468,6 @@ npm run icons          # rigenera src-tauri/icons da scripts/gen-icons.mjs
   hook/                easyisland-hook.exe, il relay per Claude Code
   scripts/             generatore di icone, impacchettamento dell'installer
   design/              prototipo HTML originale e catture di riferimento
-  docs/                SPEC.md, INTEGRATIONS.md
 ```
 
 ### Log

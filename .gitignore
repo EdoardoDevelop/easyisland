@@ -12,6 +12,9 @@ src-tauri/gen/schemas/
 .env
 .env.*
 !.env.example
+# Updater signing keys (the private one lives in %USERPROFILE%\.tauri and in the CI secret).
+*.key
+*.key.pub
 
 # OS / editor noise
 Thumbs.db

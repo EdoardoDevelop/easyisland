@@ -3,7 +3,7 @@
 //! Reads the hook JSON on stdin, adds a little terminal context, and hands it to
 //! EasyIsland over the named pipe `\\.\pipe\easyisland-<sid>`.
 //!
-//! Hard rule (docs/CLAUDE.md): **never block Claude Code.**
+//! Hard rule (CLAUDE.md): **never block Claude Code.**
 //! * If the pipe does not exist — EasyIsland is closed — we exit 0 immediately with
 //!   nothing on stdout, and the session carries on untouched.
 //! * Every step runs under a deadline enforced by the main thread, so a pipe that

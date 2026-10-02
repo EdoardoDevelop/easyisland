@@ -1,28 +1,21 @@
-# Coucou — name, character and artwork
+# Original Coucou artwork
 
-Copyright (c) 2026 Louis Raillé. All rights reserved, except as stated below.
+EasyIsland is based on [Coucou](https://github.com/Louis-CFM/coucou) by Louis
+Raillé. The [MIT License](LICENSE) covers the source code of both.
 
-The [MIT License](LICENSE) covers the **source code** of Coucou. It does **not** cover the brand and the artwork listed here, which remain the property of Louis Raillé:
+EasyIsland's own name, characters (Slime and EasyTech), icons and sounds are
+new and drawn or synthesised in code. None of Coucou's brand assets ship with
+EasyIsland.
 
-- the names **“Coucou”** and **“Mochi”**;
-- the **Mochi character** — its design, look, expressions and animations as a character;
-- the **app icon** and **menu bar icon** (`src-tauri/icons/`, originally `NotchBuddy/Assets.xcassets/`);
-- the **sounds** (`assets/sounds/`, originally `NotchBuddy/Resources/sounds/`);
-- the **images, GIFs and videos** in `docs/media/` and `design/`.
+The original Coucou artwork that is still kept in this repository as a design
+reference remains © 2026 Louis Raillé, all rights reserved, and is **not**
+covered by the MIT License:
 
-## What you can do
+- the names **"Coucou"** and **"Mochi"** and the Mochi character;
+- the prototype, animations and captures in `design/`;
+- older assets that may appear in this repository's git history (the Coucou
+  icon, the Mochi sounds, the images in `docs/media/`).
 
-- Build and run Coucou from this repository, for yourself, as it is.
-- Fork it and contribute back with pull requests.
-- Show, review, write or talk about Coucou (articles, videos, posts), including screenshots and the demo media.
-
-## What you can't do without written permission
-
-- Publish or distribute an app, a fork or a derivative work under the name “Coucou” or “Mochi”, or with the Coucou icon, the Mochi character or the Coucou sounds — on the App Store, on GitHub releases, or anywhere else.
-- Use any of these assets commercially, or in a way that suggests your project is Coucou or is made or endorsed by its author.
-
-If you fork Coucou to ship your own app, that's welcome under the MIT License: just give it **your own name, icon, character and sounds**.
-
-## Questions or permission requests
-
-Open an issue on [GitHub](https://github.com/Louis-CFM/coucou/issues) or write to raillelouis@gmail.com.
+These files are here for reference only: do not reuse them in a published app
+without the author's written permission. Questions:
+[github.com/Louis-CFM/coucou/issues](https://github.com/Louis-CFM/coucou/issues).

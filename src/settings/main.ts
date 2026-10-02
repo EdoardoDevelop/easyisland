@@ -1505,6 +1505,66 @@ function themeSection(): HTMLElement {
 
 // ── Backup ────────────────────────────────────────────────────────────────────
 
+/** Impostazioni → Generale → Aggiornamenti: the version, the daily check, "Controlla ora". */
+function updatesSection(): HTMLElement {
+  const status = h("div", {});
+  const check = h("button", { text: "Controlla ora" }) as HTMLButtonElement;
+
+  const show = (cls: string, text: string, ...extra: Node[]) => {
+    clear(status);
+    status.append(h("div", { class: `notice ${cls}` }, h("span", { text }), ...extra));
+  };
+
+  check.addEventListener("click", async () => {
+    check.disabled = true;
+    clear(status);
+    status.append(h("div", { class: "hint", text: "Controllo su GitHub…" }));
+    try {
+      const u = await Bridge.updateCheck();
+      if (!u) {
+        show("ok", `Hai già l'ultima versione (${version}).`);
+      } else {
+        const install = h("button", { class: "primary", text: `Installa ${u.version}`, style: "margin-left:10px" }) as HTMLButtonElement;
+        install.addEventListener("click", async () => {
+          install.disabled = true;
+          install.textContent = "Scarico…";
+          try {
+            await Bridge.updateInstall();
+          } catch (err) {
+            show("err", String(err).replace(/^Error:\s*/, ""));
+          }
+        });
+        show("warn", `È disponibile EasyIsland ${u.version}. Installando, l'app si chiude e si riapre da sola.`, install);
+      }
+    } catch (err) {
+      show("err", `Controllo non riuscito: ${String(err).replace(/^Error:\s*/, "")}`);
+    } finally {
+      check.disabled = false;
+    }
+  });
+
+  return h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: "Aggiornamenti" })),
+    h("div", {
+      class: "hint",
+      text: "Le nuove versioni arrivano dalle release di GitHub (EdoardoDevelop/easyisland), firmate: l'app verifica la firma prima di installare e installa solo dopo un tuo clic. È l'unica richiesta di rete che non configuri tu, e si può spegnere.",
+    }),
+    h("div", { class: "row" },
+      h("label", { text: "Versione" }),
+      h("span", { text: version || "—" }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Controllo automatico" }),
+      toggle(settings.updateCheck ?? true, (v) => { settings.updateCheck = v; void save(); }),
+      h("span", { class: "hint note", text: "all'avvio e una volta al giorno; se c'è una versione nuova te lo dice l'isola" }),
+    ),
+    h("div", { class: "row" }, check),
+    status,
+  );
+}
+
 function backupSection(): HTMLElement {
   const feedback = h("div", {});
   const exportBtn = h("button", { text: "Esporta…" });
@@ -1631,7 +1691,7 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     {
       id: "generale", label: "Generale", icon: "⚙", title: "Generale",
       intro: "Suono, avvio con Windows e i profili (lavoro, casa…): ogni profilo ha le sue impostazioni.",
-      sections: () => [generalSection(), profilesSection()],
+      sections: () => [generalSection(), updatesSection(), profilesSection()],
     },
     {
       id: "aspetto", label: "Aspetto", icon: "◐", title: "Aspetto",

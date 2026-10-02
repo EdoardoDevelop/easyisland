@@ -27,6 +27,13 @@ export interface BootInfo {
   hookPath: string;
 }
 
+/** A newer EasyIsland on GitHub. */
+export interface UpdateInfo {
+  version: string;
+  current: string;
+  notes: string;
+}
+
 export interface ClaudeCliStatus {
   found: boolean;
   path: string;
@@ -69,6 +76,10 @@ export const Bridge = {
 
   /** "Open terminal" → opens the folder in VS Code when `code` is on PATH. */
   openInVSCode: (path: string | null) => call<boolean>("open_in_vscode", { path }),
+  /** The newer version on GitHub, or null (throws when the check fails). */
+  updateCheck: () => callOrThrow<UpdateInfo | null>("update_check"),
+  /** Downloads, verifies and runs the new installer; the app closes and restarts. */
+  updateInstall: () => callOrThrow<void>("update_install"),
   /** Brings back the app a Claude Code session runs in (Claude, VS Code, a terminal). */
   openSession: (host: string | null, path: string | null) => call<string>("open_session", { host, path }),
 

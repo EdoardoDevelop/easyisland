@@ -26,6 +26,16 @@ export interface AgentTask {
 /** The Claude desktop app, VS Code, Windows Terminal, or any other console. */
 export type SessionHost = "desktop" | "vscode" | "wt" | "terminal";
 
+/** A message card in the island: from a script (`easyisland-hook notify`) or an update. */
+export interface Notice {
+  title: string;
+  text: string;
+  level: "ok" | "warn" | "error" | "info";
+  url: string;
+  /** A new version to install with a click (the update notice). */
+  install?: string;
+}
+
 /** The label of the button that brings a session's app back. */
 export function sessionOpenLabel(host: SessionHost | null | undefined): string {
   switch (host) {
@@ -174,6 +184,8 @@ export interface Settings {
   /** Global shortcuts ("" = none); they belong to the PC, not to a profile. */
   hotkeyOpen: string;
   hotkeyAsk: string;
+  /** Look for a new version on GitHub at start and once a day. */
+  updateCheck: boolean;
 }
 
 /** A user-defined button in the Azioni tab. */
@@ -325,6 +337,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoProfile: false,
   hotkeyOpen: "Ctrl+Alt+Shift+M",
   hotkeyAsk: "Ctrl+Alt+K",
+  updateCheck: true,
 };
 
 type Listener = () => void;
@@ -350,7 +363,7 @@ class AppState {
   /** "Davanti al cliente" (src-tauri/src/presence.rs): why, or inactive. */
   presence = { active: false, reason: "" };
   /** The last message from `easyisland-hook notify`. */
-  notice: { title: string; text: string; level: "ok" | "warn" | "error" | "info"; url: string } | null = null;
+  notice: Notice | null = null;
 
   /** The character keeps out of sight: over a full-screen app, or in front of a client. */
   get quiet(): boolean {

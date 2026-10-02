@@ -277,6 +277,9 @@ pub struct Settings {
     /// Global shortcut: ask the character about the text on the clipboard.
     #[serde(default = "default_hotkey_ask")]
     pub hotkey_ask: String,
+    /// Look for a new version on GitHub at start and once a day. Belongs to the PC.
+    #[serde(default = "default_true")]
+    pub update_check: bool,
 }
 
 fn default_hotkey_open() -> String {
@@ -379,6 +382,7 @@ impl Default for Settings {
             auto_profile: false,
             hotkey_open: default_hotkey_open(),
             hotkey_ask: default_hotkey_ask(),
+            update_check: true,
         }
         .migrated()
     }

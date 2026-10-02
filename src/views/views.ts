@@ -33,6 +33,8 @@ export interface ViewActions extends ActionHandlers {
   setAutoClose(seconds: number): void;
   openSettingsWindow(): void;
   blip(): void;
+  /** "Installa" on the update notice. */
+  installUpdate(): void;
 }
 
 export interface ViewHost {
@@ -561,8 +563,16 @@ function buildNotify(actions: ViewActions): ViewHost {
       title.textContent = n.title || n.text;
       text.textContent = n.title ? n.text : "";
       clear(row);
-      if (n.url) row.append(btn("Apri", "primary", () => { actions.openUrl(n.url); actions.collapse(); }));
-      row.append(btn("OK", n.url ? "secondary" : "primary", () => actions.collapse()));
+      if (n.install) {
+        // A new version: installed only with this click.
+        row.append(
+          btn("Installa", "primary", () => actions.installUpdate()),
+          btn("Più tardi", "secondary", () => actions.collapse()),
+        );
+      } else {
+        if (n.url) row.append(btn("Apri", "primary", () => { actions.openUrl(n.url); actions.collapse(); }));
+        row.append(btn("OK", n.url ? "secondary" : "primary", () => actions.collapse()));
+      }
       host.append(card(NOTICE_WASH[n.level] ?? "indigo", stack(116, 16, who, title, text, row)));
     },
   };

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "EasyIsland",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "identifier": "it.edoardo.easyisland",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -39,6 +39,13 @@
       }
     ]
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDBFRTJBNEY3RDUxRDExQTEKUldTaEVSM1Y5NlRpRHFmdGNPOWk3Sy8vYisyUmFaa2dxQmQzdkJNY3BHeUIrbEpRNy9VSjhoK1UK",
+      "endpoints": ["https://github.com/EdoardoDevelop/easyisland/releases/latest/download/latest.json"],
+      "windows": { "installMode": "passive" }
+    }
+  },
   "bundle": {
     "active": true,
     "targets": ["nsis"],
@@ -49,7 +56,7 @@
       "icons/icon.ico"
     ],
     "resources": { "../target/release/easyisland-hook.exe": "easyisland-hook.exe" },
-    "copyright": "© Louis Raille",
+    "copyright": "© 2026 EdoardoDevelop — basato su Coucou di Louis Raillé (MIT)",
     "category": "DeveloperTool",
     "shortDescription": "Slime vive in cima al tuo schermo",
     "longDescription": "EasyIsland mette Slime in cima al tuo schermo: mostra le sessioni di Claude Code e alcune integrazioni, e ti permette di approvare, rispondere, chattare e rilasciare file senza interrompere quello che stai facendo.",

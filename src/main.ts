@@ -1,7 +1,7 @@
 // Entry point: boot the bridge, wire the island, start the greeting.
 
 import "./style.css";
-import { Bridge, IS_TAURI, onEvent } from "./core/bridge";
+import { Bridge, IS_TAURI, onEvent, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
 import { State, type Settings } from "./core/state";
 import { Island } from "./island/island";
@@ -84,6 +84,7 @@ async function main() {
   void Bridge.presenceState().then((why) => { if (why) island.setPresence(true, why); });
 
   await onEvent<string>("hotkey", (name) => void island.onHotkey(name));
+  await onEvent<UpdateInfo>("update-available", (u) => island.showUpdate(u.version, u.current));
 
   // The settings window writes preferences; apply them here without a restart.
   await onEvent<Settings>("settings-changed", (s) => {

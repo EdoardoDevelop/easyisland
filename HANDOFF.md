@@ -1,4 +1,4 @@
-# Handoff personale — EasyIsland (solo Windows)
+# Handoff — EasyIsland (solo Windows)
 
 _Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 2 ottobre 2026 (nuovo nome: EasyIsland, personaggio Slime). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
 
@@ -13,10 +13,10 @@ EasyIsland è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou)
 - **Rimossi:** l'app macOS (`NotchBuddy/`, ~11.000 righe Swift + progetto Xcode), le workflow macOS (`build.yml`, `release.yml`) e `scripts/release.sh` (firma/notarizzazione Apple).
 - **Spostato alla radice:** tutto il contenuto di `windows/` (Tauri 2 + Rust + TypeScript).
 - **Suoni:** i 28 WAV originali (spostati in `assets/sounds/` il 1° ottobre) sono stati sostituiti il 2 ottobre da suoni sintetizzati nel codice (`src/core/synth.ts`); la cartella non esiste più.
-- **CI:** `.github/workflows/build.yml` gira su `windows-latest` a ogni push/PR su `main` (solo verifica di compilazione) e pubblica l'installer sui tag `v*`, ma solo se `PUBLISH: 'true'`. Oggi è `'false'`, per via del falso positivo di Defender sull'installer non firmato.
+- **CI e release:** `.github/workflows/build.yml` gira su `windows-latest` a ogni push/PR su `main` e sui branch `claude/**` (verifica di compilazione, installer come artefatto). Sui tag `v*` pubblica la release: installer, firma per l'updater (`.sig`) e `latest.json` (`PUBLISH: 'true'`; serve il secret `TAURI_SIGNING_PRIVATE_KEY`). Le app installate si aggiornano da lì (`src-tauri/src/updates.rs`).
 - **Aggiornati:** `README.md`, `CLAUDE.md` (regole per gli agenti, ora per Windows), `.gitignore`, i percorsi in `LICENSE-ASSETS.md`.
 - **Tradotto in italiano:** tutti i testi dell'interfaccia (isola, impostazioni, menu dell'area di notifica, etichette dei passi degli hook), i messaggi d'errore del backend, l'installer NSIS (italiano come lingua principale), README, CLAUDE.md, `docs/SPEC.md`, `docs/INTEGRATIONS.md`, i template delle issue e le note di release. Il prompt di sistema della chat chiede a Slime di rispondere in italiano. Restano in inglese di proposito i commenti e gli identificatori nel codice, `LICENSE` e `LICENSE-ASSETS.md` (testi legali dell'autore originale). Il sito in `docs/*.html` è stato eliminato. Le immagini in `screenshots/` mostrano ancora i testi in inglese.
-- **Verificato su Windows (PC di Edoardo, 1–2 ottobre 2026):** `npm run pack` produce l'installer (circa 4,2 MB) senza errori né avvisi, l'installazione per-utente funziona, gli hook di Claude Code arrivano all'isola, i test Rust passavano (27 dell'app, 4 del relay) al 1° ottobre. Il 2 ottobre, dopo il cambio di nome, `cargo test --workspace` passa: 38 test dell'app (più 3 `live_` ignorati di default) e 4 del relay. La CI compila anche sui branch `claude/**`.
+- **Verificato su Windows (PC di sviluppo, 1–2 ottobre 2026):** `npm run pack` produce l'installer (circa 4,2 MB) senza errori né avvisi, l'installazione per-utente funziona, gli hook di Claude Code arrivano all'isola, i test Rust passavano (27 dell'app, 4 del relay) al 1° ottobre. Il 2 ottobre, dopo il cambio di nome, `cargo test --workspace` passa: 38 test dell'app (più 3 `live_` ignorati di default) e 4 del relay. La CI compila anche sui branch `claude/**`.
 
 ## 2. Mappa veloce
 
@@ -45,6 +45,7 @@ EasyIsland è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou)
 | Widget configurabili e sonde | `src-tauri/src/widgets.rs` (scheduler, ping/TCP/HTTP/TLS/servizio/API JSON), `src-tauri/src/probes.rs` (stato del PC, sicurezza, rete, meteo, domini), `src-tauri/src/calendar.rs` (ICS); editor in `src/settings/main.ts` |
 | "Copia info PC" | comando `copy_pc_info` in `src-tauri/src/lib.rs` |
 | "Davanti al cliente" | `src-tauri/src/presence.rs`, `State.quiet` in `src/core/state.ts` |
+| Aggiornamenti da GitHub (controllo, avviso, installazione) | `src-tauri/src/updates.rs` (plugin `tauri-plugin-updater`, chiave pubblica e `latest.json` in `tauri.conf.json`), `showUpdate` in `island.ts`, sezione Aggiornamenti in `src/settings/main.ts`; release in `.github/workflows/build.yml` e `scripts/pack.mjs` |
 | Notifiche da script (`easyisland-hook notify`) | `hook/src/main.rs`, vista `notify`, pulsante Prova (`notify_test` in `lib.rs`) |
 
 ## 3. Primi passi sul tuo PC Windows
@@ -62,14 +63,14 @@ EasyIsland è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou)
 **Identità (da fare per prima, e una volta sola):**
 - [x] Nome dell'app: **EasyIsland**, personaggio **Slime** (2 ottobre 2026).
 - [x] Bundle identifier: `it.edoardo.easyisland` in `tauri.conf.json` e `SERVICE` in `src-tauri/src/secrets.rs`. Non cambiarlo più: sposterebbe di nuovo dati e chiavi.
-- [ ] `copyright` in `tauri.conf.json`, `authors` in `src-tauri/Cargo.toml`, il copyright in `LICENSE` (aggiungi il tuo, lasciando quello originale per la parte MIT).
+- [x] Copyright: `EdoardoDevelop` in `LICENSE` (accanto a quello originale, richiesto dalla licenza MIT), `copyright` in `tauri.conf.json` e `authors` in `src-tauri/Cargo.toml`.
 
-**Licenza degli asset (importante):** `LICENSE-ASSETS.md` riserva all'autore originale i nomi "Coucou" e "Mochi", il disegno di Mochi, le icone originali e i suoni. Dal 2 ottobre 2026 nomi, personaggio (Slime, disegnato nel codice da un'immagine di riferimento scelta da Edoardo) icona (l'isola) e suoni (sintetizzati nel codice) sono nuovi: **dell'originale non resta nessun asset**, solo il codice MIT.
+**Licenza degli asset (importante):** `LICENSE-ASSETS.md` riserva all'autore originale i nomi "Coucou" e "Mochi", il disegno di Mochi, le icone originali e i suoni. Dal 2 ottobre 2026 nomi, personaggio (Slime, disegnato nel codice da un'immagine di riferimento) icona (l'isola) e suoni (sintetizzati nel codice) sono nuovi: **dell'originale non resta nessun asset**, solo il codice MIT.
 - Per **uso personale** va bene così com'è.
 - Se vuoi **pubblicare o distribuire** la tua versione, gli asset sono già tutti tuoi; il codice (MIT) richiede solo di tenere la nota di copyright originale in `LICENSE`. "EasyIsland" è un nome generico: prima di una distribuzione pubblica conviene una verifica sui marchi.
-- **EasyTech**, il cubo (Tema → Personaggio), è un personaggio tuo, disegnato dal logo dell'azienda dove lavorerai: per distribuirlo ai colleghi, chiedi prima all'azienda.
+- **EasyTech**, il cubo (Tema → Personaggio), è ispirato a un logo aziendale: prima di distribuire l'app, verifica di poterlo usare.
 
-**Sito e documenti:** il sito dell'autore originale (`docs/*.html`, `docs/media/`) è stato eliminato il 2 ottobre 2026. `docs/SPEC.md` e `docs/INTEGRATIONS.md` sono una buona specifica (tradotta in italiano), ma descrivono il comportamento su macOS.
+**Sito e documenti:** il sito dell'autore originale (`docs/*.html`, `docs/media/`) è stato eliminato il 2 ottobre 2026. Anche `docs/SPEC.md` e `docs/INTEGRATIONS.md` (specifica dell'app macOS originale) sono stati eliminati il 2 ottobre 2026: restano nella storia git. La documentazione è `README.md` più questo file.
 
 **Funzionalità:**
 - [ ] Quali integrazioni tieni? Se non usi Stripe, Resend, Cal.com…, rimuoverle alleggerisce codice e Impostazioni.
@@ -80,13 +81,15 @@ EasyIsland è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou)
 - [x] Chat: scegli in Impostazioni tra abbonamento Claude (tramite Claude Code, predefinito) e chiave API. Codice in `src-tauri/src/claude_cli.rs` e `src-tauri/src/claude.rs`.
 
 **Distribuzione:**
-- [ ] Firma del codice (certificato Authenticode o Azure Trusted Signing). Senza firma, Defender e SmartScreen segnalano l'installer.
-- [ ] Quando l'installer è firmato, metti `PUBLISH: 'true'` nella workflow e crea un tag `vX.Y.Z`. La versione deve coincidere in `package.json`, `Cargo.toml` e `tauri.conf.json` (la CI lo controlla).
+- [x] Release su GitHub dai tag `vX.Y.Z` con aggiornamento automatico firmato (2 ottobre 2026). La versione deve coincidere in `package.json`, `Cargo.toml` e `tauri.conf.json` (la CI lo controlla). Passi in README → Pubblicare una versione.
+- [ ] Rendere il repository pubblico (serve agli aggiornamenti: da un repo privato l'app non può scaricare la release senza token) e aggiungere il secret `TAURI_SIGNING_PRIVATE_KEY`.
+- [ ] Firma del codice (certificato Authenticode o Azure Trusted Signing, circa 10 $/mese). Senza, SmartScreen avvisa al primo download manuale e Defender ha già dato un falso positivo una volta. Gli aggiornamenti scaricati dall'app non passano da SmartScreen.
+- La chiave privata dell'updater è fuori dal repo (`%USERPROFILE%\.tauri\easyisland.key`, senza password): **va conservata**, se si perde le app installate non accettano più aggiornamenti.
 
 ## 5. Contesto d'uso
 
-- **Chi lo usa:** tecnico informatico / IT specialist che segue aziende clienti.
-- **Dove:** principalmente il **notebook di lavoro** (spesso solo lo schermo del portatile, a volte con monitor esterni, a batteria, su reti diverse: ufficio, clienti, casa). Ma deve servire anche **a casa, per uso personale**.
+- **Per chi:** chi lavora su un notebook tra ufficio, clienti e casa (per esempio nel supporto IT), e lo usa anche per scopi personali.
+- **Dove:** spesso solo lo schermo del portatile, a volte con monitor esterni, a batteria, su reti diverse.
 - **Conseguenze per il progetto:**
   - niente diritti di amministratore richiesti (l'installer è già per-utente);
   - attenzione ai **dati dei clienti**: niente telemetria, chiavi solo in Gestione credenziali, e in prospettiva la possibilità di escludere la chat AI in certi contesti;
@@ -156,7 +159,7 @@ Un tipo di widget generico al posto delle integrazioni scritte a mano (le 7 attu
 
 ## 7. Idee da valutare (non ancora decise)
 
-Pensate per il lavoro da tecnico IT sul notebook, ma utili anche a casa.
+Pensate per il supporto IT sul notebook, ma utili anche a casa.
 
 - **Notifiche da qualsiasi script:** comando `easyisland notify --titolo … --stato ok|errore --apri <url>` (riusa la named pipe del relay). Qualunque script, attività pianificata o n8n può mandare un avviso a Slime.
 - **Rubrica clienti:** per ogni cliente collegamenti RDP/AnyDesk/TeamViewer, portali, credenziali (solo riferimenti alla Gestione credenziali), note e azioni rapide dedicate. Si apre cercando il nome dall'isola.
@@ -188,6 +191,14 @@ Pensate per il lavoro da tecnico IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi implementiamo la 6.1 (fondamenta)"_ oppure _"facciamo la sezione 4 → Identità con nome X"_. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 2 ottobre 2026 — release pubbliche e aggiornamenti automatici (0.2.0)
+- **Aggiornamenti:** plugin ufficiale `tauri-plugin-updater` (unica dipendenza nuova: serve a verificare la firma). `src-tauri/src/updates.rs` controlla un minuto dopo l'avvio e poi ogni 24 ore `https://github.com/EdoardoDevelop/easyisland/releases/latest/download/latest.json`; se c'è una versione nuova l'isola mostra l'avviso con **Installa** / **Più tardi** (`showUpdate`), l'installer scaricato viene verificato con la chiave pubblica in `tauri.conf.json` e parte in modalità `passive` (l'app si chiude e si riapre). Impostazione `updateCheck` (del PC, attiva di default) e sezione **Aggiornamenti** in Impostazioni → Generale con "Controlla ora".
+- **Release:** sui tag `v*` la CI compila con `--config src-tauri/tauri.updater.json` (artefatti dell'updater) e pubblica installer, `.sig` e `latest.json`, generato da `scripts/pack.mjs`. Senza il secret la pubblicazione si ferma con un messaggio chiaro.
+- Versione **0.2.0** nei tre file. Firma provata in locale: installer, `.sig` e `latest.json` generati.
+- **Documenti:** `CONTRIBUTING.md` riscritto in italiano per EasyIsland; eliminati `docs/SPEC.md` e `docs/INTEGRATIONS.md` (app macOS originale, restano nella storia git). `LICENSE` con il copyright di `EdoardoDevelop` accanto a quello originale; `LICENSE-ASSETS.md` ridotto agli asset originali rimasti come riferimento (`design/`). `copyright` dell'installer e `authors` aggiornati.
+- **HANDOFF ripulito** dai dettagli personali in vista del repository pubblico (stato del PC, contesto di lavoro).
+- Da fare (Edoardo): secret `TAURI_SIGNING_PRIVATE_KEY`, repository pubblico, tag `v0.2.0`. L'app installata prima della 0.2.0 non ha l'updater: la 0.2.0 va installata a mano una volta.
 
 ### 2 ottobre 2026 — nuove schermate del README, slime verde con Claude Code
 - **Schermate rifatte** (`screenshots/`, a 2×, sfondo trasparente): saluto, vista compatta, panoramica con una sessione al lavoro, permesso, chat, rilascio file, Impostazioni → Aspetto. Si rigenerano con `node scripts/screenshots.mjs` (tutte o per nome) con `npm run dev` acceso: lo script pilota Edge headless con il DevTools protocol (nessuna dipendenza) e ritaglia l'isola.
@@ -311,6 +322,4 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 - [ ] Da verificare su Windows reale: controllo del certificato TLS dei widget (6.4). Il ping ora usa `icmp_ms`, già verificata.
 - [ ] "Davanti al cliente" da provare in una chiamata vera (Teams) e con una sessione di assistenza; il calendario con un link ICS reale.
 - [ ] Outlook classico (COM) e Teams via API locale non fatti: il calendario passa da ICS, le riunioni dal microfono/webcam in uso.
-- [ ] Su questo PC il controllo ha trovato il disco C: al 3 % libero e il Firewall di Windows spento su tutti i profili.
-- [ ] **Gestione credenziali su questo PC, probabilmente piena** (circa 287 voci, 2 ottobre): le credenziali con nomi lunghi vengono rifiutate con `ERROR_NOT_ENOUGH_MEMORY` (errore 8, anche da `cmdkey`), le corte passano. Le chiavi di EasyIsland (`<chiave>.it.edoardo.easyisland`) sono lunghe: salvarle può fallire finché non si eliminano voci vecchie da Gestione credenziali.
-- [ ] `copyright` in `tauri.conf.json` e `authors` in `Cargo.toml` sono ancora quelli dell'autore originale (sezione 4).
+- [ ] **Gestione credenziali molto piena:** su un PC con centinaia di voci, le credenziali con nomi lunghi sono state rifiutate con `ERROR_NOT_ENOUGH_MEMORY` (errore 8, anche da `cmdkey`), le corte no. Le chiavi di EasyIsland (`<chiave>.it.edoardo.easyisland`) sono lunghe: se il salvataggio di una chiave fallisce, eliminare voci vecchie da Gestione credenziali.

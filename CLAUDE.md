@@ -13,7 +13,6 @@ EasyIsland è un'app desktop per Windows 10/11: un piccolo personaggio animato (
 - Widget e sonde: `src-tauri/src/widgets.rs` (scheduler, ping/TCP/HTTP/TLS/servizio/API JSON), `probes.rs` (stato del PC, sicurezza, rete, meteo, domini), `calendar.rs` (ICS). Profili automatici in `profiles.rs`, "davanti al cliente" in `presence.rs`, azioni rapide in `actions.rs`, scorciatoie globali in `hotkeys.rs`.
 - Suoni: i 28 suoni sono sintetizzati nel codice in `src/core/synth.ts` (niente file audio), riprodotti da `src/core/sound.ts`; si ascoltano in `dev/sounds-preview.html`. Il volume di ciascuno è tarato sul WAV originale che ha sostituito.
 - `scripts/`: `gen-icons.mjs` (icone disegnate nel codice: l'isola, non il personaggio), `pack.mjs` (copia l'installer in `release/`), `screenshots.mjs` (rifà le schermate del README dalle scene di `dev/scenes.ts`, con `npm run dev` acceso).
-- `docs/SPEC.md`, `docs/INTEGRATIONS.md`: comportamento, viste, stati, integrazioni (scritti per l'originale macOS; le differenze di Windows sono nel `README.md`).
 - `design/prototype/notch-buddy.html`: prototipo originale, il riferimento visivo. `design/captures/`: catture di riferimento.
 
 ## Build
@@ -29,11 +28,11 @@ La parte Rust si compila solo su Windows (toolchain MSVC). CI: `.github/workflow
 - `HANDOFF.md` va tenuto sempre aggiornato: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al Registro delle modifiche (sezione 10), compresi i problemi rimasti aperti.
 - TypeScript + Rust (Tauri 2). Nessuna nuova dipendenza se non davvero inevitabile. Il personaggio è disegnato nel codice (Canvas 2D), niente Rive/Lottie/immagini.
 - I segreti stanno in Gestione credenziali di Windows, mai su disco, nell'interfaccia o in git. Il front end può solo chiedere se una chiave esiste.
-- Nessuna telemetria. Chiamate di rete solo verso i servizi configurati dall'utente.
+- Nessuna telemetria. Chiamate di rete solo verso i servizi configurati dall'utente, più il controllo degli aggiornamenti su GitHub (`src-tauri/src/updates.rs`), disattivabile. Gli aggiornamenti si installano solo dopo un clic, con la firma verificata; la chiave privata non entra mai nel repo.
 - Non bloccare mai Claude Code: se l'app non risponde entro il timeout dell'hook, l'hook esce subito con 0.
 - Non sovrascrivere mai `%USERPROFILE%\.claude\settings.json`: backup datato, unione, mostra il diff, scrivi solo dopo la conferma dell'utente.
 - Mai inviare un'email o approvare un permesso di Claude Code senza un clic esplicito.
 - Prestazioni: nessun frame di animazione / CPU ~0 % quando l'isola è ritirata.
-- La versione sta in tre file che devono coincidere: `package.json`, `Cargo.toml`, `src-tauri/tauri.conf.json` (la CI lo controlla sui tag).
+- La versione sta in tre file che devono coincidere: `package.json`, `Cargo.toml`, `src-tauri/tauri.conf.json` (la CI lo controlla sui tag). Un tag `vX.Y.Z` pubblica la release da cui le app installate si aggiornano.
 - Cambiare `identifier` in `tauri.conf.json` sposta i dati dell'app e le voci in Gestione credenziali: farlo di proposito, una volta sola.
 - Le modifiche visive devono corrispondere al prototipo e alle catture in `design/captures/`. Eccezioni volute: l'aspetto del personaggio (Slime ed EasyTech, non il Mochi del prototipo: il prototipo resta il riferimento per animazioni, tempi e viste), l'icona dell'app, posizione (angoli/bordi, trascinamento con `offsetX`/`offsetY`, `overTaskbar`), aggancio ai bordi (`glueEdges`), icona a riposo, vista compatta sempre visibile (`revealDuration` 0) e stile al passaggio del mouse sono specifici di Windows e configurabili (geometria in `src/core/layout.ts` → `anchoredOrigin`, `glueFor`, `cornerRadii`, `collapsedBox`, `compactSize`; lato Rust `island.rs` → `apply_geometry`, `placement_from_drop`).

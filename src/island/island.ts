@@ -19,7 +19,7 @@ import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { sendToChat } from "../views/chat";
-import type { ApprovalInfo, QuickAction } from "../core/state";
+import type { ApprovalInfo, Notice, QuickAction } from "../core/state";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
 
@@ -212,6 +212,7 @@ export class Island {
       },
       openSettingsWindow: () => void Bridge.openSettingsWindow(),
       blip: () => Sound.play("blip"),
+      installUpdate: () => void this.installUpdate(),
       runAction: (a) => void this.runAction(a),
       confirmRun: () => void this.startScript(),
       killRun: () => {
@@ -588,7 +589,7 @@ export class Island {
   }
 
   /** A message from `easyisland-hook notify` (any script, task or flow). */
-  showNotice(n: { title: string; text: string; level: "ok" | "warn" | "error" | "info"; url: string }) {
+  showNotice(n: Notice) {
     const important = n.level === "error" || n.level === "warn";
     // Same rules as everything else: in front of a client or over a full-screen
     // app only problems may show, and "solo permessi" means just that.
@@ -599,6 +600,27 @@ export class Island {
     Sound.play(n.level === "error" ? "error" : n.level === "warn" ? "question" : n.level === "ok" ? "finish" : "blip");
     if (State.quiet) return; // a problem in front of a client: the sound is off anyway, no card either
     this.alert("notify");
+  }
+
+  /** A newer version is on GitHub: offer it, never install on our own. */
+  showUpdate(version: string, current: string) {
+    this.showNotice({
+      title: `EasyIsland ${version} è disponibile`,
+      text: `Ora hai la ${current}. Installando, l'app si chiude e si riapre da sola.`,
+      level: "info",
+      url: "",
+      install: version,
+    });
+  }
+
+  private async installUpdate() {
+    State.noteMessage = "Scarico l'aggiornamento…";
+    this.setView("note");
+    try {
+      await Bridge.updateInstall();
+    } catch (err) {
+      this.note(String(err).replace(/^Error:\s*/, ""), State.defaultView());
+    }
   }
 
   /** Rust reports a full-screen app coming or going. */

@@ -2,7 +2,7 @@
 // release/, with the name it ships under. Used by `npm run pack` and by
 // the release workflow, so both produce exactly the same file names.
 
-import { readFileSync, mkdirSync, copyFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -34,6 +34,28 @@ const versioned = join(outDir, `EasyIsland-Windows-${version}-setup.exe`);
 const rolling = join(outDir, "EasyIsland-Windows-setup.exe");
 copyFileSync(built, versioned);
 copyFileSync(built, rolling);
+
+// A release build (CI, `--config src-tauri/tauri.updater.json` with the signing
+// key in TAURI_SIGNING_PRIVATE_KEY) also leaves the updater signature next to
+// the installer: ship it, and the latest.json the app reads to find updates.
+const sig = `${built}.sig`;
+if (existsSync(sig)) {
+  copyFileSync(sig, `${versioned}.sig`);
+  const repo = "https://github.com/EdoardoDevelop/easyisland";
+  const latest = {
+    version,
+    notes: process.env.RELEASE_NOTES ?? `EasyIsland ${version}`,
+    pub_date: new Date().toISOString(),
+    platforms: {
+      "windows-x86_64": {
+        signature: readFileSync(sig, "utf8").trim(),
+        url: `${repo}/releases/download/v${version}/EasyIsland-Windows-${version}-setup.exe`,
+      },
+    },
+  };
+  writeFileSync(join(outDir, "latest.json"), JSON.stringify(latest, null, 2));
+  console.log("\n  Signed for the updater: latest.json written.");
+}
 
 const mb = (statSync(versioned).size / 1024 / 1024).toFixed(2);
 console.log(`\n  Installer ready — ${mb} MB\n`);

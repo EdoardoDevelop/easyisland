@@ -1,32 +1,40 @@
-# Contributing to EasyIsland
+# Contribuire a EasyIsland
 
-Thanks for wanting to help Slime grow up! 🫶
+Grazie per l'interesse! EasyIsland è un progetto personale, ma segnalazioni e
+proposte sono benvenute.
 
-## Getting started
+## Per iniziare
 
-```bash
-brew install xcodegen
-cd NotchBuddy && xcodegen && open NotchBuddy.xcodeproj
+Serve Windows 10/11 con Node.js e Rust (toolchain MSVC): i passi sono nella
+sezione **Installazione** del [README](README.md).
+
+```powershell
+npm install
+npm run tauri dev   # l'app vera, con ricaricamento automatico
+npm run ui          # solo l'interfaccia nel browser (basta Node)
+npm run pack        # l'installer in release\
 ```
 
-Never edit `NotchBuddy.xcodeproj` by hand: change `project.yml` and run `xcodegen`.
+## Regole del progetto
 
-## Good first contributions
+- **Italiano** per testi dell'interfaccia, messaggi d'errore, documentazione e
+  messaggi di commit; identificatori e commenti nel codice in inglese.
+- TypeScript + Rust (Tauri 2). **Nessuna nuova dipendenza** se non davvero
+  inevitabile. Personaggi, icone e suoni sono disegnati o sintetizzati nel codice.
+- I segreti stanno in Gestione credenziali di Windows, mai su disco o in git.
+- Niente telemetria; chiamate di rete solo verso i servizi configurati
+  dall'utente (più il controllo degli aggiornamenti su GitHub, disattivabile).
+- Non bloccare mai Claude Code: se l'app non risponde, l'hook esce subito.
+- Mai scrivere `%USERPROFILE%\.claude\settings.json` senza backup, diff e
+  conferma dell'utente.
+- CPU a ~0 % quando l'isola è a riposo.
 
-- A new integration (a poller + a pill + a detail card). Look at `StripePoller.swift` for a compact example.
-- A new emote or sound for Slime.
-- Bug fixes — please describe how to reproduce.
+Le regole complete e la mappa del codice sono in [CLAUDE.md](CLAUDE.md); lo
+stato dei lavori in [HANDOFF.md](HANDOFF.md).
 
-## Rules of the house
+## Segnalazioni e pull request
 
-- Swift 6, SwiftUI + AppKit, **no third-party dependencies** unless there's really no other way.
-- Secrets go in the Keychain, never on disk or in git.
-- No telemetry, no network calls except to services the user configured.
-- Never block Claude Code: if the app doesn't answer, the hook must exit right away.
-- Never write `~/.claude/settings.json` without a backup and the user's confirmation.
-- Keep it light: 0 % CPU when the island is hidden.
-
-## Pull requests
-
-- One topic per PR, with a short GIF or screenshot for anything visual.
-- Build must pass with no new warnings.
+- Per un bug: cosa hai fatto, cosa ti aspettavi, cosa è successo, e un
+  estratto di `%LOCALAPPDATA%\EasyIsland\easyisland.log`.
+- Una pull request per argomento, con una schermata per le modifiche visive.
+- `npm run build` e `cargo test --workspace` devono passare.

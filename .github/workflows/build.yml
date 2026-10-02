@@ -15,12 +15,18 @@ on:
 permissions:
   contents: write
 
-# Publishing is paused: Defender flags the unsigned installer as
-# Trojan:Win32/Wacatac.H!ml (false positive, reported to Microsoft). Tags still
-# build, to check the app compiles, but nothing is uploaded. Set this back to
-# 'true' once the installer is signed or the detection is cleared.
+# Tags like `v0.2.0` publish a GitHub release: the installer, its updater
+# signature and latest.json, which the installed apps read to update themselves
+# (src-tauri/src/updates.rs). The installer is not Authenticode-signed yet, so
+# SmartScreen warns on the first manual download (and Defender once flagged it
+# as Trojan:Win32/Wacatac.H!ml, a false positive). Set PUBLISH to 'false' to
+# build tags without publishing.
+#
+# Needs the repository secret TAURI_SIGNING_PRIVATE_KEY (the content of the
+# private key made with `npx tauri signer generate`; its public half is in
+# tauri.conf.json). Without it a tag still builds, but publishing stops.
 env:
-  PUBLISH: 'false'
+  PUBLISH: 'true'
 
 jobs:
   build:
@@ -72,8 +78,19 @@ jobs:
       - name: Build and pack the installer
         id: pack
         shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          RELEASE_NOTES: EasyIsland ${{ github.ref_name }}
         run: |
-          npm run pack
+          # Release tags with the signing key also make the updater artifacts.
+          if ("${{ github.ref }}".StartsWith("refs/tags/v") -and $env:TAURI_SIGNING_PRIVATE_KEY) {
+            npx tauri build --config src-tauri/tauri.updater.json
+          } else {
+            npx tauri build
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/pack.mjs
           $version = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
           "version=$version" >> $env:GITHUB_OUTPUT
           Get-ChildItem release | Format-Table Name, Length
@@ -94,17 +111,26 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $v = "${{ steps.pack.outputs.version }}"
+          if (-not (Test-Path "release/latest.json")) {
+            throw "release/latest.json is missing: add the TAURI_SIGNING_PRIVATE_KEY secret, or the installed apps cannot update."
+          }
           $notes = @"
           EasyIsland per Windows $v — Slime in cima al tuo schermo.
 
-          Scarica ``EasyIsland-Windows-$v-setup.exe`` ed eseguilo. L'installer non è
-          ancora firmato, quindi Windows SmartScreen mostra un avviso: clicca
-          **Ulteriori informazioni → Esegui comunque**.
+          **Prima installazione:** scarica ``EasyIsland-Windows-$v-setup.exe`` ed eseguilo.
+          L'installer non è ancora firmato, quindi Windows SmartScreen mostra un avviso:
+          clicca **Ulteriori informazioni → Esegui comunque**.
+
+          **Già installato:** l'app trova da sola questa versione e la propone
+          nell'isola (Impostazioni → Generale → Aggiornamenti).
           "@
           gh release create "${{ github.ref_name }}" `
             "release/EasyIsland-Windows-$v-setup.exe" `
+            "release/EasyIsland-Windows-$v-setup.exe.sig" `
+            "release/latest.json" `
             --title "EasyIsland per Windows $v" `
-            --notes $notes
+            --notes $notes `
+            --latest
 
       - name: Update the rolling windows-latest release
         if: env.PUBLISH == 'true' && startsWith(github.ref, 'refs/tags/v')

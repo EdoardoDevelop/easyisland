@@ -79,7 +79,7 @@ export const ISLAND_CHROME_H = 52;
 /** The tallest an expanded island may grow to fit its content. */
 export const MAX_ISLAND_H = PANEL_H - 2 * 8;
 
-// No notch on a PC: these are the hidden/compact sizes from docs/SPEC.md.
+// No notch on a PC: these are the hidden/compact sizes of the original spec.
 export const NOTCH_W = 184;
 export const NOTCH_H = 32;
 export const COMPACT_W = 288; // NOTCH_W + 104
