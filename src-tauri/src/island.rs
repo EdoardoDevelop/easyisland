@@ -22,9 +22,12 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WS_EX_TOOLWINDOW,
 };
 
-/// Logical size of the full window — the largest island view, like the macOS panel.
+/// Logical size of the full window while open. Taller than any fixed view so the
+/// island can grow with its content. MUST match PANEL_W / PANEL_H in
+/// src/core/layout.ts: the front end places the island inside a window of this
+/// size, and a mismatch puts a bottom-anchored island outside the window.
 pub const PANEL_W: f64 = 720.0;
-pub const PANEL_H: f64 = 320.0;
+pub const PANEL_H: f64 = 560.0;
 /// Logical size of the invisible strip that wakes the island when it is hidden.
 pub const STRIP_W: f64 = 240.0;
 pub const STRIP_H: f64 = 6.0;
@@ -552,9 +555,18 @@ pub fn set_ignore_cursor(app: &AppHandle, ignore: bool) {
 
 #[cfg(test)]
 mod tests {
-    use super::{box_in_window, clamp_to_work, placement_from_drop};
+    use super::{box_in_window, clamp_to_work, placement_from_drop, PANEL_H, PANEL_W};
 
     const WORK: (i32, i32, u32, u32) = (0, 0, 1920, 1040);
+
+    /// The front end lays the island out inside a window of this size: if the two
+    /// disagree, a bottom-anchored island ends up outside the window, invisible.
+    #[test]
+    fn panel_size_matches_the_front_end() {
+        let layout = include_str!("../../src/core/layout.ts");
+        assert!(layout.contains(&format!("export const PANEL_W = {};", PANEL_W as i64)), "PANEL_W differs from layout.ts");
+        assert!(layout.contains(&format!("export const PANEL_H = {};", PANEL_H as i64)), "PANEL_H differs from layout.ts");
+    }
 
     #[test]
     fn drop_picks_the_nearest_side_and_keeps_the_spot() {

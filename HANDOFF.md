@@ -189,6 +189,11 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 
 ## 10. Registro delle modifiche
 
+### 2 ottobre 2026 — correzione: personaggio invisibile
+- Nel commit `f03d83b` l'altezza della finestra aperta era passata a 560 solo nel front end (`layout.ts`), non in `island.rs` (rimasta 320): con l'isola ancorata in basso il personaggio veniva disegnato sotto il bordo della finestra e non si vedeva. Ora `PANEL_H` è 560 anche in Rust.
+- Nuovo test `panel_size_matches_the_front_end` (`island.rs`): legge `layout.ts` e fallisce se le dimensioni della finestra non coincidono.
+- Verificato sul PC: finestra 720×560 in basso a sinistra, `cargo test` 39 + 3 ignorati.
+
 ### 2 ottobre 2026 — integrazioni senza limite, isola che si adatta, icone delle azioni
 - **Nessun limite di 4:** tolti `MAX_ACTIVE` dalle Impostazioni, il controllo in `State.toggleIntegration` e lo `slice(0, 4)` delle pillole nella panoramica. Integrazioni e widget attivi compaiono tutti, due per riga; quelli con un avviso vanno per primi.
 - **Isola adattiva:** ogni vista può dichiarare l'altezza naturale del suo contenuto (`ViewHost.fitHeight`); l'isola cresce fino a `MAX_ISLAND_H` (544 px) e torna più bassa quando il contenuto si riduce (`islandSize(…, fit)` in `src/core/layout.ts`, `fit` in `Island.syncDom`). La usano la panoramica (scheda in primo piano + righe di pillole) e la scheda Azioni. Oltre l'altezza massima le pillole scorrono.
