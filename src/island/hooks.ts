@@ -5,7 +5,7 @@
 
 import { Bridge, onEvent } from "../core/bridge";
 import { Sound } from "../core/sound";
-import { State, type AskQuestion } from "../core/state";
+import { State, type AskQuestion, type SessionHost } from "../core/state";
 import type { Island } from "./island";
 
 const CLAUDE_ID = "integration_claude";
@@ -25,6 +25,19 @@ interface HookPayload {
   tool_input?: Record<string, unknown>;
   /** Set by easyisland-hook.exe --chat: a connector call from the character's own chat. */
   easyisland_chat?: boolean;
+  /** Added by the relay from the session's environment. */
+  entrypoint?: string;
+  term_program?: string;
+  wt_session?: string;
+  vscode_pid?: string;
+}
+
+/** Where the session runs, from what the relay saw in its environment. */
+function sessionHost(p: HookPayload): SessionHost {
+  if (p.entrypoint === "claude-desktop") return "desktop";
+  if (p.entrypoint === "claude-vscode" || p.term_program === "vscode" || p.vscode_pid) return "vscode";
+  if (p.wt_session) return "wt";
+  return "terminal";
 }
 
 /** "mcp__agenda__create_event" + input → "agenda › create_event · {…}". */
@@ -176,11 +189,12 @@ function approvalTarget(tool: string, input: Record<string, unknown>): string {
   return tool;
 }
 
-function upsert(projectName: string, cwd: string) {
+function upsert(projectName: string, cwd: string, host?: SessionHost) {
   const t = State.tasks.find((x) => x.id === CLAUDE_ID);
   if (!t) return;
   t.name = projectName;
   if (cwd) t.sessionCwd = cwd;
+  if (host) t.sessionHost = host;
 }
 
 function clearSession() {
@@ -226,6 +240,7 @@ function handleHook(island: Island, payload: HookPayload) {
   const cwd = payload.cwd ?? "";
   const raw = lastPathComponent(cwd);
   const projectName = aliasProjectName(raw || "Session");
+  const host = sessionHost(payload);
   const focused = State.focusId === CLAUDE_ID;
 
   /** Alerts force the island open; work events only reveal the compact island. */
@@ -249,13 +264,13 @@ function handleHook(island: Island, payload: HookPayload) {
 
   switch (name) {
     case "SessionStart":
-      upsert(projectName, cwd);
+      upsert(projectName, cwd, host);
       surface("overview", false);
       Sound.play("work");
       break;
 
     case "UserPromptSubmit": {
-      upsert(projectName, cwd);
+      upsert(projectName, cwd, host);
       State.updateTask(CLAUDE_ID, "thinking");
       // The field is `prompt`; reading `message` meant this step was always blank.
       const asked = payload.prompt ?? payload.message;
@@ -265,7 +280,7 @@ function handleHook(island: Island, payload: HookPayload) {
     }
 
     case "PreToolUse": {
-      upsert(projectName, cwd);
+      upsert(projectName, cwd, host);
       State.updateTask(CLAUDE_ID, "working");
       const tool = payload.tool_name ?? "Strumento";
       State.appendStep(CLAUDE_ID, stepLabel(tool, payload.tool_input ?? {}));
@@ -336,7 +351,7 @@ function handleHook(island: Island, payload: HookPayload) {
         if (requestId) void Bridge.approvalDecline(requestId);
         break;
       }
-      upsert(projectName, cwd);
+      upsert(projectName, cwd, host);
       if (pendingTimeout != null) window.clearTimeout(pendingTimeout);
       const tool = payload.tool_name ?? "Strumento";
       const input = payload.tool_input ?? {};

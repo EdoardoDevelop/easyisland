@@ -5,7 +5,7 @@
 import { h, svg, clear, dot } from "./dom";
 import { ICONS } from "./icons";
 import { Ticker } from "./ticker";
-import { State, type AgentTask, type AskQuestion } from "../core/state";
+import { State, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
 import { ISLAND_CHROME_H, MAX_ISLAND_H, washRGBA, type IslandViewName, type Wash } from "../core/layout";
 import { createMiniBot, pruneMiniBots } from "../character/minibots";
 import { buildPrompt } from "./chat";
@@ -462,9 +462,14 @@ function buildError(actions: ViewActions): ViewHost {
   const who = h("div");
   const title = h("div", { class: "title", text: "Workflow interrotto." });
   const detail = h("div", { class: "detail" });
+  // n8n opens its editor; a Claude Code session goes back to the app it runs in.
+  const open = btn("Apri in n8n", "secondary", () => {
+    if (State.focusTask?.source === "n8n") actions.openUrl("");
+    else actions.openTerminal();
+  });
   const row = h("div", { class: "actions" },
     btn("Riprova", "primary", () => actions.setView(State.defaultView())),
-    btn("Apri in n8n", "secondary", () => actions.openUrl("")),
+    open,
   );
   const el = h("div", { class: "view" }, card("red", stack(116, 16, who, title, detail, row)));
   return {
@@ -475,6 +480,8 @@ function buildError(actions: ViewActions): ViewHost {
       who.append(agentWho(task, task?.source === "n8n" ? "n8n" : "Claude Code"));
       title.textContent = task?.source === "n8n" ? "Workflow interrotto." : "Sessione interrotta da un errore.";
       detail.textContent = task?.steps.at(-1) ?? "Nessun dettaglio disponibile.";
+      (open.firstChild as HTMLElement).textContent =
+        task?.source === "n8n" ? "Apri in n8n" : sessionOpenLabel(task?.sessionHost);
     },
   };
 }
@@ -484,8 +491,9 @@ function buildError(actions: ViewActions): ViewHost {
 function buildFinished(actions: ViewActions): ViewHost {
   const who = h("div");
   const title = h("div", { class: "title" });
+  const open = btn("Apri terminale", "primary", () => actions.openTerminal());
   const row = h("div", { class: "actions" },
-    btn("Apri terminale", "primary", () => actions.openTerminal()),
+    open,
     btn("OK", "secondary", () => actions.collapse()),
   );
   const el = h("div", { class: "view" }, card("green", stack(116, 16, who, title, row)));
@@ -495,6 +503,8 @@ function buildFinished(actions: ViewActions): ViewHost {
       clear(who);
       who.append(agentWho(State.focusTask, "Claude Code ha finito"));
       title.textContent = State.focusTask?.steps.at(-1) ?? "Sessione terminata";
+      // "Apri Claude", "Apri VS Code" or "Apri terminale": where the session runs.
+      (open.firstChild as HTMLElement).textContent = sessionOpenLabel(State.focusTask?.sessionHost);
     },
   };
 }

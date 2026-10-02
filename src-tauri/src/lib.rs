@@ -1,6 +1,7 @@
 // EasyIsland for Windows — app wiring and the commands the island calls.
 
 mod actions;
+mod apps;
 mod calendar;
 mod claude;
 mod claude_cli;
@@ -373,27 +374,27 @@ fn open_url(url: String) {
         .spawn();
 }
 
-/// "Open terminal" opens the working folder in VS Code when `code` is on PATH,
-/// and falls back to Explorer otherwise.
+/// "Apri Visual Studio Code" on the VS Code pill: the working folder in VS Code
+/// (found on PATH or where its installers put it), Explorer otherwise.
 #[tauri::command]
 fn open_in_vscode(path: Option<String>) -> bool {
     // No `cmd /C` anywhere near this. The path is a project folder chosen by
     // whoever is using Claude Code, and cmd would happily read `&`, `^` and `%`
     // in a folder name as syntax. Finding the launcher ourselves and handing the
     // path over as a separate argument keeps it a path.
-    if let Some(code) = find_on_path("code") {
-        let mut cmd = Command::new(code);
-        if let Some(p) = path.as_deref().filter(|p| !p.is_empty()) {
-            cmd.arg(p);
-        }
-        if cmd.creation_flags(CREATE_NO_WINDOW).spawn().is_ok() {
-            return true;
-        }
+    if apps::open_vscode(path.as_deref()) {
+        return true;
     }
     if let Some(p) = path.as_deref().filter(|p| !p.is_empty()) {
         let _ = Command::new("explorer").arg(p).spawn();
     }
     false
+}
+
+/// "Apri" on a finished or failed session: back to the app it runs in.
+#[tauri::command]
+fn open_session(host: Option<String>, path: Option<String>) -> String {
+    apps::open_session(host.as_deref().unwrap_or("terminal"), path.as_deref()).to_string()
 }
 
 /// Our own `where`: walks %PATH% against %PATHEXT%, no shell involved.
@@ -670,6 +671,7 @@ pub fn run() {
             reposition,
             open_url,
             open_in_vscode,
+            open_session,
             quit_app,
             hooks_status,
             hooks_preview,

@@ -6,7 +6,7 @@
 
 import { h, svg, clear, dot } from "./dom";
 import { ICONS } from "./icons";
-import { State, type AgentTask } from "../core/state";
+import { State, sessionOpenLabel, type AgentTask } from "../core/state";
 import { Bridge } from "../core/bridge";
 
 /** Same shape as the Swift `timeAgo` computed properties. */
@@ -65,12 +65,17 @@ function idleCard(task: AgentTask, openSettings: () => void): HTMLElement {
 
   const actions = h("div", { class: "int-actions" });
   if (task.id === "integration_claude") {
+    // A session the hooks have seen goes back to its own app (Claude, VS Code,
+    // a terminal); before any session, VS Code.
+    const host = task.sessionHost;
     actions.append(
       h("button", {
         class: "link-btn",
         style: `color:${task.color}b3`,
-        text: "Apri Visual Studio Code",
-        onclick: () => void Bridge.openInVSCode(task.sessionCwd ?? null),
+        text: host ? sessionOpenLabel(host) : "Apri Visual Studio Code",
+        onclick: () => void (host
+          ? Bridge.openSession(host, task.sessionCwd ?? null)
+          : Bridge.openInVSCode(task.sessionCwd ?? null)),
       }),
     );
   } else if (task.id === "integration_n8n") {

@@ -140,8 +140,9 @@ export class Island {
         Sound.play("blip");
       },
       openTerminal: () => {
-        const cwd = State.focusTask?.sessionCwd ?? null;
-        void Bridge.openInVSCode(cwd);
+        // Back to where the session runs: the Claude app, VS Code or the terminal.
+        const task = State.focusTask;
+        void Bridge.openSession(task?.sessionHost ?? null, task?.sessionCwd ?? null);
       },
       // The ↗ button — same targets as openAgentTarget() on macOS.
       openTarget: () => {
@@ -155,7 +156,11 @@ export class Island {
           integration_notion: "https://notion.so",
           integration_calcom: "https://app.cal.com/bookings",
         };
-        if (task.id === "integration_claude") void Bridge.openInVSCode(task.sessionCwd ?? null);
+        if (task.id === "integration_claude") {
+          // A session seen by the hooks goes back to its own app; otherwise VS Code.
+          if (task.sessionHost) void Bridge.openSession(task.sessionHost, task.sessionCwd ?? null);
+          else void Bridge.openInVSCode(task.sessionCwd ?? null);
+        }
         else if (task.id === "integration_n8n") void Bridge.openN8n();
         else if (urls[task.id]) void Bridge.openUrl(urls[task.id]);
       },

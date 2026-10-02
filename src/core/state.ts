@@ -19,6 +19,20 @@ export interface AgentTask {
   miniEye?: EyeShape | null;
   pillBadge?: PillBadge | null;
   sessionCwd?: string | null;
+  /** Where the Claude Code session runs, so "Apri" brings back the right app. */
+  sessionHost?: SessionHost | null;
+}
+
+/** The Claude desktop app, VS Code, Windows Terminal, or any other console. */
+export type SessionHost = "desktop" | "vscode" | "wt" | "terminal";
+
+/** The label of the button that brings a session's app back. */
+export function sessionOpenLabel(host: SessionHost | null | undefined): string {
+  switch (host) {
+    case "desktop": return "Apri Claude";
+    case "vscode": return "Apri VS Code";
+    default: return "Apri terminale";
+  }
 }
 
 export interface ApprovalInfo {

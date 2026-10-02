@@ -441,8 +441,11 @@ ha preso il posto di Mochi. Il codice macOS è stato rimosso; il
 prototipo originale in `design/` resta il riferimento visivo. Alcune funzioni
 esistevano solo sul Mac e non sono presenti qui: invio di un file per email,
 trascinamento di Slime su una finestra per allegarla come contesto, salto alla
-finestra esatta del terminale. "Apri terminale" apre la cartella di lavoro in
-VS Code quando `code` è nel `PATH`.
+finestra esatta del terminale. Al suo posto, quando una sessione finisce o va
+in errore, il pulsante **Apri Claude / Apri VS Code / Apri terminale** riporta in
+primo piano l'app in cui gira la sessione (l'app desktop di Claude, VS Code con
+la cartella del progetto, Windows Terminal o la console); se non la trova apre
+la cartella in VS Code, e altrimenti in Esplora file.
 
 Licenza: MIT per il codice. Nomi, personaggi, icone e suoni di EasyIsland sono
 nuovi; quelli dell'originale (non più usati) restano riservati al suo autore: vedi

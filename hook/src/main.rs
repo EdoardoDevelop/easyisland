@@ -282,6 +282,8 @@ fn read_event() -> Option<(String, String, Option<serde_json::Value>)> {
         ("term_session_id", "TERM_SESSION_ID"),
         ("vscode_pid", "VSCODE_PID"),
         ("session_pid", "CLAUDE_CODE_SSE_PORT"),
+        // "claude-desktop", "claude-vscode", "cli"…: where "Apri" should take you.
+        ("entrypoint", "CLAUDE_CODE_ENTRYPOINT"),
     ] {
         if !map.contains_key(key) {
             let value = std::env::var(var).unwrap_or_default();
