@@ -405,9 +405,27 @@ export function hasIntegrationData(id: string): boolean {
 
 const WIDGET_KIND: Record<string, string> = {
   ping: "Ping", tcp: "Porta", http: "Sito web", tls: "Certificato", service: "Servizio", json: "API",
+  system: "Stato del PC", security: "Sicurezza", network: "Rete", calendar: "Calendario",
+  weather: "Meteo", domain: "Domini",
 };
 
 const LEVEL_COLOR = { ok: "#22C55E", warn: "#F5A524", error: "#F4505E" } as const;
+
+function copyInfoButton(color: string): HTMLElement {
+  const b = h("button", { class: "link-btn", style: `color:${color}d9`, text: "Copia info PC" }) as HTMLButtonElement;
+  b.addEventListener("click", async () => {
+    b.disabled = true;
+    b.textContent = "Raccolgo…";
+    try {
+      await Bridge.copyPcInfo();
+      b.textContent = "Copiato ✓";
+    } catch {
+      b.textContent = "Non riuscito";
+    }
+    window.setTimeout(() => { b.textContent = "Copia info PC"; b.disabled = false; }, 2200);
+  });
+  return b;
+}
 
 /** A configurable widget: status line, its fields, Aggiorna. */
 function widgetCard(task: AgentTask, openSettings: () => void): HTMLElement {
@@ -432,6 +450,8 @@ function widgetCard(task: AgentTask, openSettings: () => void): HTMLElement {
     h("div", { class: "int-actions" },
       h("button", { class: "link-btn", style: `color:${task.color}d9`, text: "Aggiorna",
         onclick: () => void Bridge.widgetRefresh(id) }),
+      // Everything a ticket asks for (name, serial, IP, Windows…), one click.
+      def && (def.kind === "system" || def.kind === "network") ? copyInfoButton(task.color) : null,
       h("button", { class: "link-btn", style: "color:#8e939c", text: "Impostazioni…", onclick: openSettings }),
     ),
   );

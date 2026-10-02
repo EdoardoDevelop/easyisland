@@ -7,6 +7,8 @@
 //            run rarely: every 6 h by default)
 //   service  a local Windows service is running (Service Control Manager)
 //   json     any JSON API: fields picked by path, an alert rule on one of them
+//   system, security, network, weather, domain   see probes.rs
+//   calendar an ICS link, see calendar.rs
 //
 // One scheduler task wakes every few seconds, runs whatever is due, and sends
 // `widget-update` to the island. Nothing runs while Coucou is paused, and on
@@ -86,7 +88,7 @@ pub struct Alert {
     pub value: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct FieldValue {
     pub label: String,
     pub value: String,
@@ -105,7 +107,7 @@ pub struct WidgetResult {
 }
 
 impl WidgetResult {
-    fn new(id: &str, level: &str, summary: impl Into<String>) -> Self {
+    pub(crate) fn new(id: &str, level: &str, summary: impl Into<String>) -> Self {
         Self {
             id: id.to_string(),
             level: level.to_string(),
@@ -120,13 +122,21 @@ fn default_every(kind: &str) -> u64 {
     match kind {
         "tls" => 6 * 3600,
         "json" => 120,
+        "system" => 120,
+        "security" => 1800,
+        "calendar" => 300,
+        "weather" => 900,
+        "domain" => 12 * 3600,
         _ => 60,
     }
 }
 
 fn min_every(kind: &str) -> u64 {
     match kind {
-        "tls" => 3600,
+        "tls" | "domain" => 3600,
+        "security" => 600,
+        "weather" => 300,
+        "calendar" => 60,
         _ => 15,
     }
 }
@@ -166,6 +176,12 @@ pub async fn probe(w: &Widget) -> WidgetResult {
                 .unwrap_or_else(|_| WidgetResult::new(&w.id, "error", "Controllo interrotto"))
         }
         "json" => json_api(w).await,
+        "system" => crate::probes::system(w).await,
+        "security" => crate::probes::security(w).await,
+        "network" => crate::probes::network(w).await,
+        "weather" => crate::probes::weather(w).await,
+        "domain" => crate::probes::domain(w).await,
+        "calendar" => crate::calendar::probe(w).await,
         other => WidgetResult::new(&w.id, "error", format!("Tipo di widget sconosciuto: {other}")),
     }
 }
@@ -175,6 +191,34 @@ fn ipv4_of(host: &str) -> Option<std::net::Ipv4Addr> {
         std::net::IpAddr::V4(v4) => Some(v4),
         _ => None,
     })
+}
+
+/// Round trip of one ICMP echo, in ms; None when there is no answer.
+pub(crate) fn icmp_ms(ip: std::net::Ipv4Addr, timeout_ms: u32) -> Option<u32> {
+    use windows::Win32::NetworkManagement::IpHelper::{
+        IcmpCloseHandle, IcmpCreateFile, IcmpSendEcho, ICMP_ECHO_REPLY,
+    };
+    unsafe {
+        let handle = IcmpCreateFile().ok()?;
+        let data = *b"coucou";
+        let mut reply = vec![0u8; std::mem::size_of::<ICMP_ECHO_REPLY>() + data.len() + 8];
+        let n = IcmpSendEcho(
+            handle,
+            u32::from_ne_bytes(ip.octets()),
+            data.as_ptr().cast(),
+            data.len() as u16,
+            None,
+            reply.as_mut_ptr().cast(),
+            reply.len() as u32,
+            timeout_ms,
+        );
+        let _ = IcmpCloseHandle(handle);
+        if n == 0 {
+            return None;
+        }
+        let r = std::ptr::read_unaligned(reply.as_ptr().cast::<ICMP_ECHO_REPLY>());
+        (r.Status == 0).then_some(r.RoundTripTime)
+    }
 }
 
 fn ping(id: &str, host: &str) -> WidgetResult {
@@ -229,7 +273,7 @@ async fn tcp(w: &Widget) -> WidgetResult {
     }
 }
 
-fn client() -> Option<reqwest::Client> {
+pub(crate) fn client() -> Option<reqwest::Client> {
     reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
         .user_agent("Coucou")
@@ -318,7 +362,7 @@ async fn tls(w: &Widget) -> WidgetResult {
 }
 
 /// Whole days from now until an ISO "YYYY-MM-DDTHH:MM:SSZ" instant (UTC).
-fn days_until(iso: &str) -> Option<i64> {
+pub(crate) fn days_until(iso: &str) -> Option<i64> {
     let date = iso.get(..10)?;
     let mut parts = date.split('-');
     let (y, m, d): (i64, i64, i64) = (
@@ -332,7 +376,7 @@ fn days_until(iso: &str) -> Option<i64> {
 }
 
 /// Days since 1970-01-01 for a proleptic Gregorian date (Howard Hinnant).
-fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
+pub(crate) fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
     let y = if m <= 2 { y - 1 } else { y };
     let era = if y >= 0 { y } else { y - 399 } / 400;
     let yoe = y - era * 400;

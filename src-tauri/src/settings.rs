@@ -24,6 +24,10 @@ pub const PROFILE_KEYS: &[&str] = &[
     "overTaskbar",
     "closeButton",
     "followCursorCompact",
+    "presenceMeeting",
+    "presenceRemote",
+    "presenceApps",
+    "presenceMode",
     "iconStyle",
     "iconSize",
     "hoverStyle",
@@ -211,6 +215,18 @@ pub struct Settings {
     /// The compact view follows the cursor too (the open island always does).
     #[serde(default)]
     pub follow_cursor_compact: bool,
+    /// "Davanti al cliente" while the microphone or the webcam is in use (a call).
+    #[serde(default = "default_true")]
+    pub presence_meeting: bool,
+    /// … while someone is connected to this PC (Remote Desktop, Quick Assist, TeamViewer).
+    #[serde(default = "default_true")]
+    pub presence_remote: bool,
+    /// More programs (executable names) that mean remote help is on.
+    #[serde(default)]
+    pub presence_apps: Vec<String>,
+    /// "hide" = Mochi disappears (permission requests still show), "silent" = no sounds only.
+    #[serde(default = "default_presence_mode")]
+    pub presence_mode: String,
     /// What stays visible at rest: "mochi" | "dot" | "none" (invisible strip).
     #[serde(default = "default_icon_style")]
     pub icon_style: String,
@@ -267,6 +283,10 @@ fn default_hotkey_open() -> String {
 }
 fn default_hotkey_ask() -> String {
     "Ctrl+Alt+K".into()
+}
+
+fn default_presence_mode() -> String {
+    "hide".into()
 }
 
 fn default_notify() -> String {
@@ -337,6 +357,10 @@ impl Default for Settings {
             over_taskbar: false,
             close_button: true,
             follow_cursor_compact: false,
+            presence_meeting: true,
+            presence_remote: true,
+            presence_apps: Vec::new(),
+            presence_mode: default_presence_mode(),
             icon_style: default_icon_style(),
             icon_size: default_icon_size(),
             hover_style: default_hover_style(),

@@ -1,6 +1,7 @@
 // Coucou for Windows — app wiring and the commands the island calls.
 
 mod actions;
+mod calendar;
 mod claude;
 mod claude_cli;
 mod drop;
@@ -11,6 +12,8 @@ mod integrations;
 mod island;
 mod log;
 mod pipe;
+mod presence;
+mod probes;
 mod profiles;
 mod secrets;
 mod settings;
@@ -269,6 +272,39 @@ fn focus_window(app: AppHandle, focused: bool) {
     if focused {
         let _ = win.set_focus();
     }
+}
+
+/// "Copia info PC": everything a ticket asks for, put on the clipboard.
+#[tauri::command]
+async fn copy_pc_info() -> Result<String, String> {
+    let text = probes::pc_info_text().await.map_err(|e| format!("Informazioni non leggibili: {e}"))?;
+    let t = text.clone();
+    tauri::async_runtime::spawn_blocking(move || actions::set_clipboard_text(&t))
+        .await
+        .map_err(|e| e.to_string())??;
+    Ok(text)
+}
+
+/// "Prova" in Impostazioni → Notifiche: the same message `coucou-hook notify` sends.
+#[tauri::command]
+fn notify_test(app: AppHandle) {
+    let _ = app.emit_to(
+        island::WINDOW_LABEL,
+        "hook",
+        serde_json::json!({
+            "hook_event_name": "CoucouNotify",
+            "title": "Prova",
+            "text": "Così compare un messaggio mandato da uno script.",
+            "level": "ok",
+            "url": "",
+        }),
+    );
+}
+
+/// "Davanti al cliente" right now (the island asks once at startup).
+#[tauri::command]
+fn presence_state() -> Option<String> {
+    presence::current()
 }
 
 /// Moves the island window by `dx`, `dy` logical px while Mochi is dragged.
@@ -561,8 +597,8 @@ fn create_settings_window(app: &AppHandle) {
     match WebviewWindowBuilder::new(app, "settings", url)
         .additional_browser_args(BROWSER_ARGS)
         .title("Impostazioni — Coucou")
-        .inner_size(560.0, 680.0)
-        .min_inner_size(460.0, 480.0)
+        .inner_size(980.0, 720.0)
+        .min_inner_size(760.0, 520.0)
         .resizable(true)
         .visible(false)
         .center()
@@ -622,6 +658,9 @@ pub fn run() {
             save_settings,
             set_collapsed,
             drag_island,
+            copy_pc_info,
+            presence_state,
+            notify_test,
             end_drag,
             set_island_rect,
             focus_window,
@@ -684,6 +723,7 @@ pub fn run() {
             hooks::ensure_hook_exe(&handle);
             pipe::start(handle.clone());
             drop::install(&handle);
+            presence::spawn(handle.clone());
             integrations::start(handle.clone());
             Ok(())
         })

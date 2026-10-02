@@ -80,6 +80,8 @@ async function main() {
   await onEvent<null>("screen-changed", () => void Bridge.reposition());
 
   await onEvent<boolean>("fullscreen", (on) => island.setFullscreen(on));
+  await onEvent<{ active: boolean; reason: string }>("presence", (p) => island.setPresence(p.active, p.reason));
+  void Bridge.presenceState().then((why) => { if (why) island.setPresence(true, why); });
 
   await onEvent<string>("hotkey", (name) => void island.onHotkey(name));
 

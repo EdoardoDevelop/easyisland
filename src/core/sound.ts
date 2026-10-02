@@ -97,6 +97,9 @@ class SoundEngine {
     this.enabled = on;
   }
 
+  /** Silenced for a while whatever the user's setting ("davanti al cliente"). */
+  suppressed = false;
+
   setFamilyGains(g: Record<SoundFamily, number>) {
     for (const k of Object.keys(this.familyGain) as SoundFamily[]) {
       this.familyGain[k] = Math.max(0, Math.min(1, Number(g[k] ?? 1)));
@@ -104,7 +107,7 @@ class SoundEngine {
   }
 
   play(name: SoundName | string) {
-    if (!this.enabled) return;
+    if (!this.enabled || this.suppressed) return;
     const gain = this.familyGain[FAMILY[name] ?? "ui"];
     if (gain <= 0) return;
     const ctx = this.ctx;

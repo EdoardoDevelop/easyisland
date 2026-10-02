@@ -698,7 +698,7 @@ function profileChip(): HTMLElement {
 /** Fields a profile carries — mirrors PROFILE_KEYS in src-tauri/src/settings.rs. */
 const PROFILE_KEYS = [
   "activeIntegrations", "anchorV", "anchorH", "offsetX", "offsetY", "glueEdges", "overTaskbar",
-  "closeButton", "followCursorCompact", "iconStyle", "iconSize", "hoverStyle",
+  "closeButton", "followCursorCompact", "presenceMeeting", "presenceRemote", "presenceApps", "presenceMode", "iconStyle", "iconSize", "hoverStyle",
   "hoverSize", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
   "soundVolume", "autoCloseInterval", "theme", "notify", "actions", "widgets", "mcpServers",
 ] as const;
@@ -1036,6 +1036,12 @@ function connectorsSection(): HTMLElement {
 // ── Widgets ───────────────────────────────────────────────────────────────────
 
 const WIDGET_KINDS: [WidgetDef["kind"], string][] = [
+  ["system", "Stato del PC"],
+  ["security", "Sicurezza (antivirus, firewall)"],
+  ["network", "Rete"],
+  ["calendar", "Calendario (link ICS)"],
+  ["weather", "Meteo"],
+  ["domain", "Scadenza domini"],
   ["http", "Sito web (HTTP)"],
   ["tls", "Certificato HTTPS"],
   ["ping", "Ping"],
@@ -1044,17 +1050,35 @@ const WIDGET_KINDS: [WidgetDef["kind"], string][] = [
   ["json", "API JSON"],
 ];
 
+/** Mirrors default_every / min_every in src-tauri/src/widgets.rs. */
+const EVERY_HINT: Partial<Record<WidgetDef["kind"], string>> = {
+  tls: "predefinito 6 ore, minimo 1 ora",
+  json: "predefinito 120, minimo 15",
+  system: "predefinito 120, minimo 15",
+  security: "predefinito 30 minuti, minimo 10",
+  calendar: "predefinito 5 minuti, minimo 1",
+  weather: "predefinito 15 minuti, minimo 5",
+  domain: "predefinito 12 ore, minimo 1 ora",
+};
+
 function blankWidget(kind: WidgetDef["kind"], over: Partial<WidgetDef> = {}): WidgetDef {
   return {
     id: `w${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
     name: WIDGET_KINDS.find(([k]) => k === kind)?.[1] ?? "Widget",
     color: "#38bdf8", kind, every: 0, url: "", method: "GET", headers: [], fields: [],
-    alert: null, host: "", port: kind === "tls" ? 443 : 0, expectStatus: 0, warnDays: 30, service: "",
+    alert: null, host: "", port: kind === "tls" ? 443 : 0, expectStatus: 0,
+    warnDays: kind === "system" || kind === "calendar" ? 10 : 30, service: "",
     ...over,
   };
 }
 
 const WIDGET_TEMPLATES: [string, () => WidgetDef][] = [
+  ["Stato del PC", () => blankWidget("system", { name: "PC", color: "#38bdf8" })],
+  ["Sicurezza", () => blankWidget("security", { name: "Sicurezza", color: "#22c55e" })],
+  ["Rete", () => blankWidget("network", { name: "Rete", color: "#6366f1" })],
+  ["Calendario", () => blankWidget("calendar", { name: "Calendario", color: "#f97316" })],
+  ["Meteo", () => blankWidget("weather", { name: "Meteo", color: "#0ea5e9" })],
+  ["Scadenza domini", () => blankWidget("domain", { name: "Domini", color: "#a855f7" })],
   ["Sito cliente", () => blankWidget("http", { name: "Sito cliente", url: "https://", color: "#22c55e" })],
   ["Certificato", () => blankWidget("tls", { name: "Certificato", color: "#f5a524" })],
   ["Server (ping)", () => blankWidget("ping", { name: "Server", color: "#38bdf8" })],
@@ -1106,6 +1130,7 @@ function widgetsSection(): HTMLElement {
         onclick: () => {
           // Its secrets go with it.
           for (const hd of w.headers) if (hd.secret) void Bridge.secretClear(`widget:${w.id}:${hd.name}`).catch(() => undefined);
+          if (w.kind === "calendar") void Bridge.secretClear(`widget:${w.id}:ics`).catch(() => undefined);
           settings.widgets.splice(idx, 1);
           commit();
           draw();
@@ -1120,6 +1145,57 @@ function widgetsSection(): HTMLElement {
       );
 
       switch (w.kind) {
+        case "system":
+          card.append(
+            row("Avvisa sotto il", input(w.warnDays || 10, "10", (v) => { w.warnDays = Math.min(50, Math.max(1, Number(v) || 10)); }, "width:80px", "number"),
+              h("span", { class: "hint note", text: "% di spazio libero sul disco di sistema (in rosso sotto il 5%). Avvisa anche per batteria scarica, memoria quasi piena e riavvio richiesto da Windows." })),
+          );
+          break;
+        case "security":
+          card.append(h("div", { class: "hint", text: "Antivirus (Defender o un altro, letto dal Centro sicurezza di Windows), età delle firme, ultima scansione, firewall, minacce rilevate e riavvio in sospeso. Nessuna chiave, nessuna connessione." }));
+          break;
+        case "network":
+          card.append(h("div", { class: "hint", text: "Rete Wi-Fi o cavo, IP locale, VPN attive e latenza verso 1.1.1.1. L'IP pubblico viene chiesto ad api.ipify.org al massimo ogni 15 minuti. Avvisa se internet non risponde o è lento." }));
+          break;
+        case "calendar": {
+          const key = `widget:${w.id}:ics`;
+          const link = h("input", {
+            type: "password", value: "", placeholder: "https://… o webcal://… (salvato in Gestione credenziali)",
+            style: "flex:1 1 auto;min-width:0", spellcheck: "false",
+          }) as HTMLInputElement;
+          void Bridge.secretPresent(key).then((has) => { if (has) link.placeholder = "••••••••  (salvato) — incolla un altro link per cambiarlo"; });
+          link.addEventListener("change", async () => {
+            const v = link.value.trim();
+            if (!v) return;
+            try {
+              await Bridge.secretSet(key, v);
+              link.value = "";
+              link.placeholder = "••••••••  (salvato)";
+            } catch (err) {
+              link.placeholder = String(err).replace(/^Error:\s*/, "");
+            }
+          });
+          card.append(
+            row("Link ICS", link),
+            h("div", { class: "hint", text: "Google Calendar: Impostazioni → il calendario → «Indirizzo segreto in formato iCal». Outlook.com: Impostazioni → Calendario → Calendari condivisi → Pubblica un calendario → link ICS. iCloud: condividi il calendario come pubblico. Il link è come una password: resta in Gestione credenziali." }),
+            row("Avvisa", input(w.warnDays || 10, "10", (v) => { w.warnDays = Math.max(1, Number(v) || 10); }, "width:80px", "number"),
+              h("span", { class: "hint note", text: "minuti prima dell'inizio" })),
+          );
+          break;
+        }
+        case "weather":
+          card.append(
+            row("Città", input(w.host, "es. Milano, Bologna, Lugano", (v) => { w.host = v.trim(); })),
+            h("div", { class: "hint", text: "Da Open-Meteo, gratuito e senza chiave. Avvisa quando è probabile la pioggia nelle prossime ore." }),
+          );
+          break;
+        case "domain":
+          card.append(
+            row("Domini", input(w.host, "es. cliente.it, altrocliente.com", (v) => { w.host = v.trim(); })),
+            row("Avvisa da", input(w.warnDays || 30, "30", (v) => { w.warnDays = Number(v) || 30; }, "width:80px", "number"),
+              h("span", { class: "hint note", text: "giorni prima della scadenza (in rosso sotto i 7). Fino a 10 domini, separati da virgole; dati da RDAP o WHOIS del registro." })),
+          );
+          break;
         case "http":
           card.append(
             row("Indirizzo", input(w.url, "https://www.cliente.it", (v) => { w.url = v.trim(); })),
@@ -1209,9 +1285,7 @@ function widgetsSection(): HTMLElement {
       }
       card.append(row("Ogni",
         input(w.every || "", "predefinito", (v) => { w.every = Math.max(0, Number(v) || 0); }, "width:110px", "number"),
-        h("span", { class: "hint", text: w.kind === "tls"
-          ? "secondi (predefinito 6 ore, minimo 1 ora)"
-          : `secondi (predefinito ${w.kind === "json" ? 120 : 60}, minimo 15; ×3 a batteria)` })),
+        h("span", { class: "hint", text: `secondi (${EVERY_HINT[w.kind] ?? "predefinito 60, minimo 15"}; ×3 a batteria)` })),
         result);
       list.append(card);
     });
@@ -1229,7 +1303,7 @@ function widgetsSection(): HTMLElement {
     h("h2", {}, h("span", { text: "Widget" }), profileChip()),
     h("div", {
       class: "hint",
-      text: "Controlli che compaiono come pillole accanto a Mochi: siti, certificati, server, porte, servizi Windows o qualsiasi API JSON. Quando un controllo passa da OK a problema, Mochi ti avvisa. Si fermano quando Coucou è in pausa.",
+      text: "Controlli che compaiono come pillole accanto a Mochi: lo stato del PC, la sicurezza, la rete, il calendario, il meteo, la scadenza dei domini, siti, certificati, server, porte, servizi Windows o qualsiasi API JSON. Quando un controllo passa da OK a problema, Mochi ti avvisa. Si fermano quando Coucou è in pausa.",
     }),
     list,
     templates,
@@ -1255,6 +1329,81 @@ function notifySection(): HTMLElement {
         (v) => { settings.notify = v; void save(); },
       ),
     ),
+  );
+}
+
+// ── Davanti al cliente ────────────────────────────────────────────────────────
+
+function presenceSection(): HTMLElement {
+  const commit = () => void save();
+  const apps = h("input", {
+    type: "text", value: settings.presenceApps.join(", "), placeholder: "es. AnyDesk, RustDesk", spellcheck: "false",
+    style: "flex:1 1 auto;min-width:0",
+  }) as HTMLInputElement;
+  apps.addEventListener("change", () => {
+    settings.presenceApps = apps.value.split(",").map((s) => s.trim()).filter(Boolean);
+    commit();
+  });
+  return h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: "Davanti al cliente" }), profileChip()),
+    h("div", { class: "hint", text: "Mochi si fa da parte quando qualcuno potrebbe vedere il tuo schermo. Si attiva anche a mano: icona nell'area di notifica → Davanti al cliente." }),
+    h("div", { class: "row" },
+      h("label", { text: "Durante le chiamate" }),
+      toggle(settings.presenceMeeting, (v) => { settings.presenceMeeting = v; commit(); }),
+      h("span", { class: "hint note", text: "microfono o webcam in uso da qualsiasi app: Teams, Zoom, Meet nel browser, Webex…" }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Durante l'assistenza" }),
+      toggle(settings.presenceRemote, (v) => { settings.presenceRemote = v; commit(); }),
+      h("span", { class: "hint note", text: "qualcuno è collegato a questo PC: Desktop remoto, Assistenza rapida, TeamViewer" }),
+    ),
+    h("div", { class: "row" }, h("label", { text: "Altri programmi" }), apps),
+    h("div", { class: "row" },
+      h("label", { text: "Cosa fa" }),
+      select<Settings["presenceMode"]>(
+        [["hide", "Nasconde Mochi e silenzia (le richieste di permesso compaiono comunque)"], ["silent", "Solo silenzio, Mochi resta"]],
+        settings.presenceMode,
+        (v) => { settings.presenceMode = v; commit(); },
+      ),
+    ),
+  );
+}
+
+// ── Messages from scripts ─────────────────────────────────────────────────────
+
+function scriptsSection(hookPath: string): HTMLElement {
+  const command = `"${hookPath}" notify "Backup" "Completato in 4 minuti" --stato ok`;
+  const feedback = h("div", {});
+  const copy = h("button", { text: "Copia comando" });
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(command);
+      copy.textContent = "Copiato ✓";
+    } catch {
+      copy.textContent = "Copia non riuscita";
+    }
+    window.setTimeout(() => { copy.textContent = "Copia comando"; }, 2000);
+  });
+  const test = h("button", { text: "Prova" });
+  test.addEventListener("click", async () => {
+    clear(feedback);
+    try {
+      await Bridge.notifyTest();
+      feedback.append(h("div", { class: "notice ok", text: "Inviato: guarda l'isola." }));
+    } catch (err) {
+      feedback.append(h("div", { class: "notice err", text: String(err).replace(/^Error:\s*/, "") }));
+    }
+  });
+  return h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: "Messaggi dagli script" })),
+    h("div", { class: "hint", text: "Qualsiasi script, attività pianificata, n8n o programma può mostrare un messaggio sull'isola. Stato: ok, avviso, errore o info; --apri aggiunge un pulsante con un link. Valgono le regole di questa pagina: in «solo avvisi» passano solo avvisi ed errori." }),
+    h("code", { class: "path", style: "display:block;white-space:pre-wrap;word-break:break-all", text: command }),
+    h("div", { class: "row" }, copy, test),
+    feedback,
   );
 }
 
@@ -1429,31 +1578,107 @@ function sameProfiles(a: Settings["profiles"], b: Settings["profiles"]): boolean
 
 let boot: { status: HookStatus; hasKey: boolean; present: Record<string, boolean> } | null = null;
 
+interface Page {
+  id: string;
+  label: string;
+  icon: string;
+  title: string;
+  intro: string;
+  sections: () => HTMLElement[];
+}
+
+/** The settings, one page at a time: the window used to be one very long column. */
+function pages(b: NonNullable<typeof boot>): Page[] {
+  return [
+    {
+      id: "generale", label: "Generale", icon: "⚙", title: "Generale",
+      intro: "Suono, avvio con Windows e i profili (lavoro, casa…): ogni profilo ha le sue impostazioni.",
+      sections: () => [generalSection(), profilesSection()],
+    },
+    {
+      id: "aspetto", label: "Aspetto", icon: "◐", title: "Aspetto",
+      intro: "Dove sta Mochi, come si mostra, il personaggio e i colori.",
+      sections: () => [placementSection(), themeSection()],
+    },
+    {
+      id: "notifiche", label: "Notifiche", icon: "◔", title: "Notifiche",
+      intro: "Quando Mochi si fa vedere, quando si fa da parte e i messaggi dagli script.",
+      sections: () => [notifySection(), presenceSection(), scriptsSection(b.status.hookPath)],
+    },
+    {
+      id: "claude", label: "Claude", icon: "✦", title: "Claude",
+      intro: "Le sessioni di Claude Code nell'isola, la chat con Mochi e i connettori che può usare.",
+      sections: () => [claudeSection(b.status), claudeChatSection(b.hasKey), connectorsSection()],
+    },
+    {
+      id: "azioni", label: "Azioni rapide", icon: "⚡", title: "Azioni rapide",
+      intro: "Pulsanti della scheda ⚡ e scorciatoie da tastiera.",
+      sections: () => [actionsSection()],
+    },
+    {
+      id: "integrazioni", label: "Integrazioni", icon: "◎", title: "Integrazioni",
+      intro: "Servizi con una chiave: GitHub, Vercel, n8n, Stripe…",
+      sections: () => [integrationsSection(b.present)],
+    },
+    {
+      id: "widget", label: "Widget", icon: "▦", title: "Widget",
+      intro: "Controlli senza codice: stato del PC, sicurezza, rete, calendario, meteo, domini, siti e server.",
+      sections: () => [widgetsSection()],
+    },
+    {
+      id: "backup", label: "Backup", icon: "⇅", title: "Backup e trasferimento",
+      intro: "Porta le impostazioni su un altro PC. Le chiavi restano in Gestione credenziali e vanno reinserite.",
+      sections: () => [backupSection()],
+    },
+  ];
+}
+
+const PAGE_KEY = "coucou.settings.page";
+
+function currentPage(list: Page[]): Page {
+  let id = "";
+  try {
+    id = localStorage.getItem(PAGE_KEY) ?? "";
+  } catch {
+    // Storage can be unavailable: the first page then.
+  }
+  return list.find((p) => p.id === id) ?? list[0];
+}
+
 /** Builds the whole window from `settings`; safe to call again after a switch. */
 function render() {
   if (!boot) return;
-  const scrollY = window.scrollY;
+  const list = pages(boot);
+  const page = currentPage(list);
+  const scroller = root.querySelector(".page");
+  const scrollTop = scroller?.getAttribute("data-page") === page.id ? scroller.scrollTop : 0;
   clear(root);
-  root.append(
-    h("h1", {}, h("span", { text: "Coucou" }), h("span", { class: "version", text: version })),
-    profilesSection(),
-    claudeSection(boot.status),
-    claudeChatSection(boot.hasKey),
-    actionsSection(),
-    connectorsSection(),
-    integrationsSection(boot.present),
-    widgetsSection(),
-    placementSection(),
-    notifySection(),
-    themeSection(),
-    generalSection(),
-    backupSection(),
-    h("div", {
-      class: "hint",
-      text: "Nessuna telemetria. Le richieste di rete vanno solo ai servizi che configuri tu.",
-    }),
+
+  const nav = h("nav", { class: "nav" },
+    h("div", { class: "brand" }, h("span", { text: "Coucou" }), h("span", { class: "version", text: version })),
   );
-  window.scrollTo(0, scrollY);
+  for (const p of list) {
+    const item = h("button", { class: p.id === page.id ? "nav-item on" : "nav-item" },
+      h("span", { class: "nav-icon", text: p.icon }), h("span", { text: p.label }));
+    item.addEventListener("click", () => {
+      try {
+        localStorage.setItem(PAGE_KEY, p.id);
+      } catch {
+        // Not remembered, that is all.
+      }
+      render();
+    });
+    nav.append(item);
+  }
+  nav.append(h("div", { class: "nav-foot", text: "Nessuna telemetria. Le richieste di rete vanno solo ai servizi che configuri tu." }));
+
+  const body = h("div", { class: "page-inner" },
+    h("header", { class: "page-head" }, h("h1", { text: page.title }), h("div", { class: "hint", text: page.intro })),
+    ...page.sections(),
+  );
+  const main = h("main", { class: "page", "data-page": page.id }, body);
+  root.append(nav, main);
+  main.scrollTop = scrollTop;
 }
 
 void main();

@@ -25,6 +25,14 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let open = MenuItem::with_id(app, "open", "Apri Coucou", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Impostazioni…", true, None::<&str>)?;
     let pause = MenuItem::with_id(app, "pause", "Pausa", true, None::<&str>)?;
+    let presence = CheckMenuItem::with_id(
+        app,
+        "presence",
+        "Davanti al cliente",
+        true,
+        crate::presence::MANUAL.load(std::sync::atomic::Ordering::Relaxed),
+        None::<&str>,
+    )?;
     let quit = MenuItem::with_id(app, "quit", "Esci", true, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
@@ -45,7 +53,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let refs: Vec<&dyn IsMenuItem<Wry>> = items.iter().map(|i| i as &dyn IsMenuItem<Wry>).collect();
     let profile = Submenu::with_items(app, "Profilo", !refs.is_empty(), &refs)?;
 
-    Menu::with_items(app, &[&open, &profile, &sep1, &settings, &pause, &sep2, &quit])
+    Menu::with_items(app, &[&open, &profile, &sep1, &presence, &settings, &pause, &sep2, &quit])
 }
 
 pub fn build(app: &AppHandle) -> tauri::Result<()> {
@@ -56,6 +64,12 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
         .on_menu_event(|app: &AppHandle, event| match event.id.as_ref() {
             "quit" => app.exit(0),
             "settings" => crate::show_settings_window(app),
+            "presence" => {
+                let on = !crate::presence::MANUAL.load(std::sync::atomic::Ordering::Relaxed);
+                crate::presence::MANUAL.store(on, std::sync::atomic::Ordering::Relaxed);
+                crate::presence::recheck(app);
+                refresh(app);
+            }
             id if id.starts_with(PROFILE_PREFIX) => {
                 crate::activate_profile(app, &id[PROFILE_PREFIX.len()..], "menu");
             }
@@ -78,4 +92,9 @@ pub fn refresh(app: &AppHandle) {
     if let Ok(menu) = build_menu(app) {
         let _ = tray.set_menu(Some(menu));
     }
+    let tip = match crate::presence::current() {
+        Some(why) => format!("Coucou — davanti al cliente ({why})"),
+        None => "Coucou".to_string(),
+    };
+    let _ = tray.set_tooltip(Some(tip));
 }

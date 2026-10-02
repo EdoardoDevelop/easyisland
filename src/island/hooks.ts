@@ -81,7 +81,7 @@ const PROJECT_ALIASES: Record<string, string> = {
  * profile that asked for permissions only (e.g. "Concentrazione").
  */
 function quietNow(): boolean {
-  return (State.fullscreen && State.settings.quietFullscreen) ||
+  return State.quiet ||
     State.settings.notify === "permissions";
 }
 
@@ -206,6 +206,19 @@ function handleHook(island: Island, payload: HookPayload) {
   }
 
   const name = payload.hook_event_name ?? "";
+  // Not Claude Code: a message from `coucou-hook notify`.
+  if (name === "CoucouNotify") {
+    const p = payload as unknown as Record<string, unknown>;
+    const str = (k: string) => (typeof p[k] === "string" ? (p[k] as string) : "");
+    const level = str("level");
+    island.showNotice({
+      title: str("title"),
+      text: str("text"),
+      level: level === "ok" || level === "warn" || level === "error" ? level : "info",
+      url: str("url"),
+    });
+    return;
+  }
   if (payload.coucou_chat) {
     if (name === "PermissionRequest") handleChatPermission(island, payload);
     return;

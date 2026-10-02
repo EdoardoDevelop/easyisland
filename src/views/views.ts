@@ -506,6 +506,40 @@ function buildNote(): ViewHost {
   };
 }
 
+// ── Notice (coucou-hook notify) ───────────────────────────────────────────────
+
+const NOTICE_WASH: Record<string, Wash> = { ok: "green", warn: "amber", error: "red", info: "indigo" };
+const NOTICE_LABEL: Record<string, string> = { ok: "fatto", warn: "attenzione", error: "errore", info: "notifica" };
+
+/** A message from any script: `coucou-hook notify "Titolo" "Testo" --stato ok`. */
+function buildNotify(actions: ViewActions): ViewHost {
+  const who = h("div", { class: "who-row" });
+  const title = h("div", { class: "title" });
+  const text = h("div", { class: "sub" });
+  const row = h("div", { class: "actions" });
+  const host = h("div", { class: "view" });
+  let key = "";
+  return {
+    el: host,
+    sync() {
+      const n = State.notice;
+      const k = n ? JSON.stringify(n) : "";
+      if (k === key) return;
+      key = k;
+      clear(host);
+      if (!n) return;
+      clear(who);
+      who.append(h("span", { class: "n", text: "Notifica" }), h("span", { text: NOTICE_LABEL[n.level] ?? "" }));
+      title.textContent = n.title || n.text;
+      text.textContent = n.title ? n.text : "";
+      clear(row);
+      if (n.url) row.append(btn("Apri", "primary", () => { actions.openUrl(n.url); actions.collapse(); }));
+      row.append(btn("OK", n.url ? "secondary" : "primary", () => actions.collapse()));
+      host.append(card(NOTICE_WASH[n.level] ?? "indigo", stack(116, 16, who, title, text, row)));
+    },
+  };
+}
+
 // ── In-island settings ────────────────────────────────────────────────────────
 
 function buildSettings(actions: ViewActions): ViewHost {
@@ -601,6 +635,7 @@ export function buildViews(
   map.set("finished", buildFinished(actions));
   map.set("confused", buildConfused());
   map.set("note", buildNote());
+  map.set("notify", buildNotify(actions));
   map.set("settings", buildSettings(actions));
   map.set("prompt", buildPrompt(onChatHeightChange));
   map.set("upload", buildUpload());

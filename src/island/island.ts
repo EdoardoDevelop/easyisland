@@ -560,18 +560,45 @@ export class Island {
   }
 
   reveal() {
-    // Over a full-screen app only real alerts may show up.
-    if (State.fullscreen && State.settings.quietFullscreen) return;
+    // Over a full-screen app, or in front of a client, only real alerts may show up.
+    if (State.quiet) return;
     // Routine activity only surfaces when the profile wants everything.
     if (State.settings.notify !== "all") return;
     this.fsm.reveal();
   }
 
+  /**
+   * "Davanti al cliente" (src-tauri/src/presence.rs): a call, someone on this
+   * PC from afar, or the tray switch. Sounds stop in any case; with "hide" the
+   * compact Mochi goes away too. An open card waiting for an answer stays.
+   */
+  setPresence(active: boolean, reason: string) {
+    State.presence = { active, reason };
+    Sound.suppressed = active;
+    if (State.quiet && State.mode !== "hidden" && !State.isPinned) this.fsm.forceHidden();
+    if (!State.quiet) this.keepCompactUp();
+    State.notify();
+  }
+
+  /** A message from `coucou-hook notify` (any script, task or flow). */
+  showNotice(n: { title: string; text: string; level: "ok" | "warn" | "error" | "info"; url: string }) {
+    const important = n.level === "error" || n.level === "warn";
+    // Same rules as everything else: in front of a client or over a full-screen
+    // app only problems may show, and "solo permessi" means just that.
+    if (State.settings.notify === "permissions") return;
+    if (State.settings.notify === "alerts" && !important) return;
+    if (State.quiet && !important) return;
+    State.notice = n;
+    Sound.play(n.level === "error" ? "error" : n.level === "warn" ? "question" : n.level === "ok" ? "finish" : "blip");
+    if (State.quiet) return; // a problem in front of a client: the sound is off anyway, no card either
+    this.alert("notify");
+  }
+
   /** Rust reports a full-screen app coming or going. */
   setFullscreen(on: boolean) {
     State.fullscreen = on;
-    if (on && State.settings.quietFullscreen && State.mode === "compact") this.fsm.forceHidden();
-    if (!on) this.keepCompactUp();
+    if (State.quiet && State.mode === "compact") this.fsm.forceHidden();
+    if (!State.quiet) this.keepCompactUp();
     State.notify();
   }
 
@@ -1331,7 +1358,7 @@ export class Island {
     // full-screen app.
     const p = this.placement;
     const showRest = State.mode === "hidden" && p.iconStyle !== "none" &&
-      !(State.fullscreen && State.settings.quietFullscreen);
+      !State.quiet;
     this.restIcon.classList.toggle("on", showRest);
     if (showRest) this.drawRestIcon();
   }
@@ -1340,7 +1367,7 @@ export class Island {
   private keepCompactUp() {
     if (State.settings.revealDuration > 0 || this.fsm.state !== "hidden") return;
     // Paused from the tray, or quiet over a full-screen app: stay out of the way.
-    if (State.paused || (State.fullscreen && State.settings.quietFullscreen)) return;
+    if (State.paused || State.quiet) return;
     this.fsm.reveal();
   }
 

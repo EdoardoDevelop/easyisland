@@ -14,6 +14,9 @@
 //!   asks in the terminal exactly as if Coucou were not installed.
 //!
 //! Usage: `coucou-hook <EventName>` (the name is also read from the JSON).
+//!
+//! `coucou-hook notify …` is the other job: any script, scheduled task or n8n
+//! flow can put a message on the island (see `notify`). It never reads stdin.
 
 use std::io::{Read, Write};
 use std::sync::mpsc;
@@ -72,6 +75,10 @@ fn connect() -> Option<std::fs::File> {
 }
 
 fn main() {
+    // Before anything reads stdin: from a console that would wait forever.
+    if std::env::args().nth(1).as_deref() == Some("notify") {
+        std::process::exit(notify(std::env::args().skip(2).collect()));
+    }
     // Coucou's own chat runs `claude -p` with hooks disabled; this is the second
     // guard, so that chat never shows up in the island as a work session.
     // `--chat` marks the one hook Coucou installs for its own chat (connector
@@ -136,6 +143,87 @@ fn decision_json(decision: &str, tool_input: Option<&serde_json::Value>) -> Opti
     Some(format!(
         r#"{{"hookSpecificOutput":{{"hookEventName":"PermissionRequest","decision":{behavior}}}}}"#
     ))
+}
+
+const NOTIFY_USAGE: &str = "Uso: coucou-hook notify [titolo] [testo] [opzioni]
+
+Mostra un messaggio sull'isola di Coucou.
+
+  --titolo, -t <testo>   titolo (oppure il primo argomento)
+  --testo,  -m <testo>   messaggio (oppure il secondo argomento)
+  --stato,  -s <stato>   ok | avviso | errore | info   (predefinito: info)
+  --apri,   -u <url>     indirizzo da aprire con il pulsante Apri (https://…)
+
+Esempio:
+  coucou-hook notify \"Backup\" \"Completato in 4 minuti\" --stato ok
+
+Esce con 0 se il messaggio è arrivato, 2 se Coucou non è in esecuzione.";
+
+/// `coucou-hook notify`: one message for the island. Exit code 0 = delivered,
+/// 1 = bad arguments, 2 = Coucou is not running (or did not answer in time).
+fn notify(args: Vec<String>) -> i32 {
+    let (mut title, mut text, mut level, mut url) = (String::new(), String::new(), "info".to_string(), String::new());
+    let mut positional = Vec::new();
+    let mut it = args.into_iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "-h" | "--help" | "/?" => {
+                println!("{NOTIFY_USAGE}");
+                return 0;
+            }
+            "--titolo" | "--title" | "-t" => title = it.next().unwrap_or_default(),
+            "--testo" | "--text" | "--messaggio" | "-m" => text = it.next().unwrap_or_default(),
+            "--stato" | "--status" | "--level" | "-s" => level = it.next().unwrap_or_default(),
+            "--apri" | "--open" | "--url" | "-u" => url = it.next().unwrap_or_default(),
+            other if other.starts_with("--") => {
+                eprintln!("Opzione sconosciuta: {other}
+
+{NOTIFY_USAGE}");
+                return 1;
+            }
+            _ => positional.push(a),
+        }
+    }
+    let mut pos = positional.into_iter();
+    if title.is_empty() {
+        title = pos.next().unwrap_or_default();
+    }
+    if text.is_empty() {
+        text = pos.next().unwrap_or_default();
+    }
+    if title.trim().is_empty() && text.trim().is_empty() {
+        eprintln!("{NOTIFY_USAGE}");
+        return 1;
+    }
+    let level = match level.trim().to_lowercase().as_str() {
+        "ok" | "successo" | "success" | "fatto" => "ok",
+        "avviso" | "warn" | "warning" | "attenzione" => "warn",
+        "errore" | "error" | "err" | "ko" => "error",
+        _ => "info",
+    };
+    let url = url.trim();
+    let url = if url.starts_with("https://") || url.starts_with("http://") { url } else { "" };
+    let cut = |s: &str, n: usize| s.chars().take(n).collect::<String>();
+    let payload = serde_json::json!({
+        "hook_event_name": "CoucouNotify",
+        "title": cut(title.trim(), 120),
+        "text": cut(text.trim(), 600),
+        "level": level,
+        "url": url,
+    });
+    let line = format!("{payload}
+");
+    let (tx, rx) = mpsc::channel::<bool>();
+    std::thread::spawn(move || {
+        let ok = connect().is_some_and(|mut pipe| pipe.write_all(line.as_bytes()).is_ok() && pipe.flush().is_ok());
+        let _ = tx.send(ok);
+    });
+    if rx.recv_timeout(FIRE_AND_FORGET_BUDGET).unwrap_or(false) {
+        0
+    } else {
+        eprintln!("Coucou non è in esecuzione: il messaggio non è stato mostrato.");
+        2
+    }
 }
 
 /// Reads stdin and returns the payload to forward, the event name and the

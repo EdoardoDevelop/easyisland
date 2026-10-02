@@ -180,6 +180,19 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 
 ## 10. Registro delle modifiche
 
+### 2 ottobre 2026 — integrazioni locali, "davanti al cliente", notify, Impostazioni a pagine
+- **Nuovi tipi di widget** (`src-tauri/src/probes.rs`, `calendar.rs`), con modelli pronti nell'editor:
+  - *Stato del PC*: disco di sistema, memoria, batteria, uptime, riavvio richiesto (Win32 + registro). Pulsante **Copia info PC** (PowerShell + appunti, `copy_pc_info`).
+  - *Sicurezza*: antivirus e firewall dal Centro sicurezza (`root/SecurityCenter2`, vale anche per prodotti di terze parti), firme e scansioni di Defender, minacce; una chiamata PowerShell ogni 30 minuti.
+  - *Rete*: adattatori (`GetAdaptersAddresses`), VPN riconosciute per nome o tipo, Wi-Fi (`netsh`), latenza ICMP verso 1.1.1.1, IP pubblico da api.ipify.org con cache di 15 minuti.
+  - *Calendario ICS*: link segreto in Gestione credenziali (`widget:<id>:ics`); ricorrenze DAILY/WEEKLY/MONTHLY/YEARLY con INTERVAL, COUNT, UNTIL, BYDAY (anche 1MO/-1FR), BYMONTHDAY, BYMONTH, EXDATE e RECURRENCE-ID; UTC convertito con le regole di Windows, TZID trattato come fuso del PC. Avvisa N minuti prima (`warnDays` usato come minuti).
+  - *Meteo* (Open-Meteo, geocoding una volta per città) e *Scadenza domini* (RDAP, WHOIS per .it, .eu, .ch, .de, .fr, .uk, .es).
+- **"Davanti al cliente"** (`src-tauri/src/presence.rs`): chiamata = microfono/webcam in uso (registro `CapabilityAccessManager\ConsentStore`), assistenza = `SM_REMOTESESSION`, `QuickAssist.exe`, `TeamViewer_Desktop.exe` più i programmi elencati; voce manuale nel menu dell'area di notifica. Front end: `State.quiet` unisce schermo intero e presenza, `Sound.suppressed`.
+- **`coucou-hook notify`** (`hook/src/main.rs`): messaggio sull'isola da qualsiasi script, vista `notify`; esce con 2 se Coucou non c'è. Pulsante Prova (`notify_test`).
+- **Impostazioni**: finestra 980×720 (minimo 760×520) con menu laterale e 8 pagine; ricorda l'ultima (localStorage).
+- Verificato dal vivo su questo PC con `cargo test -p coucou --lib live_ -- --ignored --nocapture`: stato del PC, sicurezza, rete, meteo, domini e info PC funzionano. Calendario solo con i test (nessun link reale).
+
+
 ### 2 ottobre 2026 — panoramica senza integrazioni
 - Con tutte le integrazioni spente il riquadro delle pillole a destra non compare più: la scheda principale prende tutta l'isola (classe `solo` su `.overview`, `src/views/views.ts` + `src/style.css`).
 - Anteprima nel browser: i parametri lista si passano separati da virgole (`?activeIntegrations=` per nessuna).
@@ -216,3 +229,6 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 - [ ] **Icona dell'area di notifica:** è un'immagine fissa (`scripts/gen-icons.mjs`), quindi resta Mochi anche con il cubo.
 - [ ] **Sopra la barra:** cliccando la barra, Mochi va dietro per un istante (circa 0,15 s) prima di tornare davanti.
 - [ ] Da verificare su Windows reale: ping ICMP e controllo del certificato TLS dei widget (6.4).
+- [ ] "Davanti al cliente" da provare in una chiamata vera (Teams) e con una sessione di assistenza; il calendario con un link ICS reale.
+- [ ] Outlook classico (COM) e Teams via API locale non fatti: il calendario passa da ICS, le riunioni dal microfono/webcam in uso.
+- [ ] Su questo PC il controllo ha trovato il disco C: al 3 % libero e il Firewall di Windows spento su tutti i profili.

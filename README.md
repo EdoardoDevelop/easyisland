@@ -125,6 +125,7 @@ disinstallatore volutamente non tocca il `settings.json` di Claude Code. Poi
 | `error: toolchain 'stable-x86_64-pc-windows-msvc' is not installed` | `rustup default stable-msvc` |
 | l'installer viene bloccato da Defender | è il falso positivo descritto sopra: usa "Esegui comunque", oppure lancia direttamente `target\release\coucou.exe` |
 | Mochi non compare | guarda nell'area di notifica (la freccia ^ accanto all'orologio) e il log in `%LOCALAPPDATA%\Coucou\coucou.log` |
+| le Impostazioni | sono divise in pagine (Generale, Aspetto, Notifiche, Claude, Azioni rapide, Integrazioni, Widget, Backup) nel menu a sinistra; la finestra ricorda l'ultima aperta |
 | vuoi aprire le impostazioni senza l'area di notifica | `"%LOCALAPPDATA%\Coucou\coucou.exe" --settings` (anche come collegamento) |
 
 ## Come si usa
@@ -229,6 +230,12 @@ a Mochi, senza scrivere codice:
 
 | Tipo | Cosa controlla |
 |---|---|
+| **Stato del PC** | spazio sul disco di sistema (arancione sotto il 10 %, rosso sotto il 5 %), memoria, batteria, da quanto è acceso, riavvio richiesto da Windows. Pulsante **Copia info PC**: nome, utente, Windows, modello, numero di serie, IP e MAC negli appunti, pronti per un ticket |
+| **Sicurezza** | antivirus (Defender o un altro, dal Centro sicurezza di Windows), età delle firme, ultima scansione, firewall, minacce rilevate |
+| **Rete** | Wi-Fi o cavo, IP locale e pubblico (api.ipify.org, al massimo ogni 15 minuti), VPN attive, latenza verso 1.1.1.1; avvisa se internet non risponde o è lento |
+| **Calendario** | i prossimi appuntamenti da un link ICS (Google Calendar, Outlook.com, iCloud), senza login; avvisa qualche minuto prima. Il link è segreto e sta in Gestione credenziali |
+| **Meteo** | meteo attuale di una città (Open-Meteo, gratuito e senza chiave); avvisa se è probabile pioggia nelle prossime ore |
+| **Scadenza domini** | i giorni alla scadenza di uno o più domini (RDAP, o WHOIS per i registri che non lo hanno, come .it) |
 | **Sito web** | che un indirizzo risponda (stato 2xx/3xx o quello che indichi) e in quanto tempo |
 | **Certificato HTTPS** | i giorni alla scadenza del certificato di un dominio: arancione sotto la soglia (30 giorni), rosso sotto i 7 o se scaduto |
 | **Ping** | che un host risponda al ping (senza diritti di amministratore) |
@@ -240,6 +247,35 @@ Quando un controllo passa da OK a problema, la pillola prende un badge, Mochi
 suona e l'isola si fa vedere (secondo le regole di notifica del profilo). Il
 pulsante ▶ prova un widget subito. I controlli si fermano con Coucou in pausa e
 diventano tre volte più radi a batteria. I widget appartengono al profilo.
+
+## Davanti al cliente
+
+**Impostazioni… → Notifiche → Davanti al cliente**: Mochi si fa da parte quando
+qualcuno potrebbe vedere il tuo schermo.
+
+- **Durante le chiamate**: microfono o webcam in uso da qualsiasi app (Teams,
+  Zoom, Meet nel browser, Webex…). Coucou lo legge da dove Windows annota chi li
+  sta usando, senza bisogno dell'API di Teams.
+- **Durante l'assistenza**: qualcuno è collegato a questo PC (Desktop remoto,
+  Assistenza rapida, TeamViewer), più i programmi che aggiungi tu.
+- **A mano**: icona nell'area di notifica → **Davanti al cliente**.
+- **Cosa fa**: nasconde Mochi e silenzia i suoni (le richieste di permesso di
+  Claude Code compaiono comunque), oppure solo silenzio.
+
+## Messaggi dagli script
+
+Qualsiasi script, attività pianificata, flusso n8n o programma può mostrare un
+messaggio sull'isola:
+
+```powershell
+& "$env:LOCALAPPDATA\Coucou\bin\coucou-hook.exe" notify "Backup" "Completato in 4 minuti" --stato ok
+```
+
+`--stato` è `ok`, `avviso`, `errore` o `info`; `--apri https://…` aggiunge un
+pulsante con un link; `--help` mostra l'aiuto. Esce con 0 se il messaggio è
+arrivato e con 2 se Coucou non è in esecuzione, quindi uno script non resta mai
+bloccato. Valgono le regole di notifica del profilo. In **Impostazioni… →
+Notifiche** c'è il comando pronto da copiare e un pulsante **Prova**.
 
 ## Profili, tema e backup
 

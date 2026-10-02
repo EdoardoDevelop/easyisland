@@ -54,6 +54,13 @@ export const Bridge = {
 
   reposition: () => call<void>("reposition"),
 
+  /** "Copia info PC": the text it put on the clipboard. */
+  copyPcInfo: () => callOrThrow<string>("copy_pc_info"),
+  /** "Davanti al cliente" right now: why, or null. */
+  presenceState: () => call<string | null>("presence_state"),
+  /** "Prova" for messages from scripts. */
+  notifyTest: () => callOrThrow<void>("notify_test"),
+
   /** Moves the window while Mochi is dragged; `endDrag` saves where it was left. */
   dragIsland: (dx: number, dy: number) => call<void>("drag_island", { dx, dy }),
   endDrag: () => call<void>("end_drag"),

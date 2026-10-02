@@ -122,6 +122,14 @@ export interface Settings {
   closeButton: boolean;
   /** The compact view follows the cursor too (the open island always does). */
   followCursorCompact: boolean;
+  /** "Davanti al cliente" during a call (microphone or webcam in use). */
+  presenceMeeting: boolean;
+  /** … while someone is connected to this PC (Remote Desktop, Quick Assist, TeamViewer). */
+  presenceRemote: boolean;
+  /** More executables that mean remote help is on. */
+  presenceApps: string[];
+  /** "hide": Mochi disappears (permission requests still show); "silent": no sounds only. */
+  presenceMode: "hide" | "silent";
   /** What stays visible at rest. "none" = the old invisible wake strip. */
   iconStyle: "mochi" | "dot" | "none";
   /** Rest icon size, px. */
@@ -184,7 +192,8 @@ export interface WidgetDef {
   id: string;
   name: string;
   color: string;
-  kind: "ping" | "tcp" | "http" | "tls" | "service" | "json";
+  kind: "ping" | "tcp" | "http" | "tls" | "service" | "json"
+    | "system" | "security" | "network" | "calendar" | "weather" | "domain";
   /** Seconds between checks; 0 = the kind's default. */
   every: number;
   url: string;
@@ -280,6 +289,10 @@ export const DEFAULT_SETTINGS: Settings = {
   overTaskbar: false,
   closeButton: true,
   followCursorCompact: false,
+  presenceMeeting: true,
+  presenceRemote: true,
+  presenceApps: [],
+  presenceMode: "hide",
   iconStyle: "mochi",
   iconSize: 24,
   hoverStyle: "icon",
@@ -320,6 +333,16 @@ class AppState {
   paused = false;
   /** A full-screen app is in front (reported by Rust every couple of seconds). */
   fullscreen = false;
+  /** "Davanti al cliente" (src-tauri/src/presence.rs): why, or inactive. */
+  presence = { active: false, reason: "" };
+  /** The last message from `coucou-hook notify`. */
+  notice: { title: string; text: string; level: "ok" | "warn" | "error" | "info"; url: string } | null = null;
+
+  /** Mochi keeps out of sight: over a full-screen app, or in front of a client. */
+  get quiet(): boolean {
+    return (this.fullscreen && this.settings.quietFullscreen) ||
+      (this.presence.active && this.settings.presenceMode !== "silent");
+  }
 
   uploadProgress = 0;
   uploadDuration = 2.4;

@@ -206,6 +206,48 @@ pub fn clipboard_text() -> Option<String> {
     }
 }
 
+/// Puts `text` on the clipboard (Unicode).
+pub fn set_clipboard_text(text: &str) -> Result<(), String> {
+    use windows::Win32::Foundation::{GlobalFree, HANDLE};
+    use windows::Win32::System::DataExchange::{CloseClipboard, EmptyClipboard, OpenClipboard, SetClipboardData};
+    use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
+    use windows::Win32::System::Ole::CF_UNICODETEXT;
+
+    let wide: Vec<u16> = text.encode_utf16().chain(std::iter::once(0)).collect();
+    unsafe {
+        let mut opened = false;
+        for _ in 0..5 {
+            if OpenClipboard(None).is_ok() {
+                opened = true;
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        if !opened {
+            return Err("Gli appunti sono occupati da un'altra app".into());
+        }
+        let result = (|| {
+            EmptyClipboard().map_err(|e| e.to_string())?;
+            let mem = GlobalAlloc(GMEM_MOVEABLE, wide.len() * 2).map_err(|e| e.to_string())?;
+            let ptr = GlobalLock(mem) as *mut u16;
+            if ptr.is_null() {
+                let _ = GlobalFree(Some(mem));
+                return Err("memoria non disponibile".to_string());
+            }
+            std::ptr::copy_nonoverlapping(wide.as_ptr(), ptr, wide.len());
+            let _ = GlobalUnlock(mem);
+            // On success the clipboard owns the memory.
+            if SetClipboardData(CF_UNICODETEXT.0 as u32, Some(HANDLE(mem.0))).is_err() {
+                let _ = GlobalFree(Some(mem));
+                return Err("copia non riuscita".to_string());
+            }
+            Ok(())
+        })();
+        let _ = CloseClipboard();
+        result
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::split_args;
