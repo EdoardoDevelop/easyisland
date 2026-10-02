@@ -12,7 +12,7 @@ EasyIsland è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou)
 - **Nuovo nome (2 ottobre 2026):** l'app si chiama **EasyIsland**, il personaggio **Slime** (era Mochi). Identifier `it.edoardo.easyisland` (era `fr.louisraille.coucou`), eseguibili `easyisland.exe` ed `easyisland-hook.exe`, named pipe `\\.\pipe\easyisland-<sid>`, cartelle `%APPDATA%\EasyIsland` e `%LOCALAPPDATA%\EasyIsland`. Al primo avvio la migrazione (`src-tauri/src/legacy.rs`) copia impostazioni e chiavi da Coucou; vedi il Registro.
 - **Rimossi:** l'app macOS (`NotchBuddy/`, ~11.000 righe Swift + progetto Xcode), le workflow macOS (`build.yml`, `release.yml`) e `scripts/release.sh` (firma/notarizzazione Apple).
 - **Spostato alla radice:** tutto il contenuto di `windows/` (Tauri 2 + Rust + TypeScript).
-- **Spostati:** i 28 suoni da `NotchBuddy/Resources/sounds/` ad `assets/sounds/` (`SOUNDS_DIR` in `vite.config.ts` aggiornato).
+- **Suoni:** i 28 WAV originali (spostati in `assets/sounds/` il 1° ottobre) sono stati sostituiti il 2 ottobre da suoni sintetizzati nel codice (`src/core/synth.ts`); la cartella non esiste più.
 - **CI:** `.github/workflows/build.yml` gira su `windows-latest` a ogni push/PR su `main` (solo verifica di compilazione) e pubblica l'installer sui tag `v*`, ma solo se `PUBLISH: 'true'`. Oggi è `'false'`, per via del falso positivo di Defender sull'installer non firmato.
 - **Aggiornati:** `README.md`, `CLAUDE.md` (regole per gli agenti, ora per Windows), `.gitignore`, i percorsi in `LICENSE-ASSETS.md`.
 - **Tradotto in italiano:** tutti i testi dell'interfaccia (isola, impostazioni, menu dell'area di notifica, etichette dei passi degli hook), i messaggi d'errore del backend, l'installer NSIS (italiano come lingua principale), README, CLAUDE.md, `docs/SPEC.md`, `docs/INTEGRATIONS.md`, i template delle issue e le note di release. Il prompt di sistema della chat chiede a Slime di rispondere in italiano. Restano in inglese di proposito i commenti e gli identificatori nel codice, `LICENSE` e `LICENSE-ASSETS.md` (testi legali dell'autore originale). Il sito in `docs/*.html` è stato eliminato. Le immagini in `screenshots/` mostrano ancora i testi in inglese.
@@ -64,9 +64,9 @@ EasyIsland è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou)
 - [x] Bundle identifier: `it.edoardo.easyisland` in `tauri.conf.json` e `SERVICE` in `src-tauri/src/secrets.rs`. Non cambiarlo più: sposterebbe di nuovo dati e chiavi.
 - [ ] `copyright` in `tauri.conf.json`, `authors` in `src-tauri/Cargo.toml`, il copyright in `LICENSE` (aggiungi il tuo, lasciando quello originale per la parte MIT).
 
-**Licenza degli asset (importante):** `LICENSE-ASSETS.md` riserva all'autore originale i nomi "Coucou" e "Mochi", il disegno di Mochi, le icone originali e i suoni. Dal 2 ottobre 2026 nomi, personaggio (Slime, disegnato nel codice da un'immagine di riferimento scelta da Edoardo) e icona (l'isola) sono nuovi: dell'originale restano solo **i suoni**.
+**Licenza degli asset (importante):** `LICENSE-ASSETS.md` riserva all'autore originale i nomi "Coucou" e "Mochi", il disegno di Mochi, le icone originali e i suoni. Dal 2 ottobre 2026 nomi, personaggio (Slime, disegnato nel codice da un'immagine di riferimento scelta da Edoardo) icona (l'isola) e suoni (sintetizzati nel codice) sono nuovi: **dell'originale non resta nessun asset**, solo il codice MIT.
 - Per **uso personale** va bene così com'è.
-- Se vuoi **pubblicare o distribuire** la tua versione, servono suoni tuoi. Il codice (MIT) puoi tenerlo. "EasyIsland" è un nome generico: prima di una distribuzione pubblica conviene una verifica sui marchi.
+- Se vuoi **pubblicare o distribuire** la tua versione, gli asset sono già tutti tuoi; il codice (MIT) richiede solo di tenere la nota di copyright originale in `LICENSE`. "EasyIsland" è un nome generico: prima di una distribuzione pubblica conviene una verifica sui marchi.
 - **EasyTech**, il cubo (Tema → Personaggio), è un personaggio tuo, disegnato dal logo dell'azienda dove lavorerai: per distribuirlo ai colleghi, chiedi prima all'azienda.
 
 **Sito e documenti:** il sito dell'autore originale (`docs/*.html`, `docs/media/`) è stato eliminato il 2 ottobre 2026. `docs/SPEC.md` e `docs/INTEGRATIONS.md` sono una buona specifica (tradotta in italiano), ma descrivono il comportamento su macOS.
@@ -188,6 +188,14 @@ Pensate per il lavoro da tecnico IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi implementiamo la 6.1 (fondamenta)"_ oppure _"facciamo la sezione 4 → Identità con nome X"_. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 2 ottobre 2026 — suoni generati nel codice
+- I 28 WAV di Coucou (`assets/sounds/`) sono stati eliminati: ogni suono è sintetizzato in `src/core/synth.ts` (toni con glissando, vibrato e "tremolio" di gelatina, rumore filtrato) e generato all'avvio da `Sound.preload()` (circa 40 ms per tutti, nessun file).
+- Carattere: lo slime fa suoni morbidi e gelatinosi (splat dello schiaffo, boing del saluto, blop quando inghiotte un file); gli avvisi restano brevi e distinguibili (permesso a tre note, domanda che sale, errore che scende, arpeggio di fine lavoro).
+- Il volume di ciascun suono è tarato sull'RMS del WAV originale che ha sostituito: il cursore del volume (0–0,2, predefinito 0,12) e i volumi per famiglia valgono come prima.
+- Tolto da `vite.config.ts` il plugin che serviva e copiava i WAV (`SOUNDS_DIR`). Nuova pagina `dev/sounds-preview.html` per ascoltarli tutti.
+- Con questo non resta nessun asset dell'originale (nomi, personaggio, icona, suoni sono nuovi).
+- Verificato: typecheck, i 28 suoni generati dall'app nell'anteprima, nessuna richiesta di file `.wav`. Ascoltati e approvati da Edoardo nella pagina di prova.
 
 ### 2 ottobre 2026 — Slime ed EasyTech, effetto gelatina
 - **Nomi dei personaggi:** Ezzy diventa **Slime**, il cubo diventa **EasyTech** (solo il nome mostrato: il valore interno resta `cube`). Nelle frasi che valgono per entrambi l'interfaccia dice "il personaggio"; la chat non ha più un nome proprio ("La chat vuole usare un connettore"). Cartella `src/ezzy/` → `src/character/`, `drawEzzy` → `drawCharacter`.

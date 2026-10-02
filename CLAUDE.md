@@ -11,7 +11,7 @@ EasyIsland è un'app desktop per Windows 10/11: un piccolo personaggio animato (
 - File rilasciati: drag & drop HTML5 nella pagina, poi `chrome.webview.postMessageWithAdditionalObjects` → `src-tauri/src/drop.rs`, che legge il percorso reale (`ICoreWebView2File`) ed emette `file-drop`. Il drop nativo di Tauri (`dragDropEnabled`) resta spento: sui runtime WebView2 attuali non viene mai raggiunto. Il messaggio deve essere una stringa, altrimenti il gestore IPC di wry fallisce e WebView2 non chiama il nostro.
 - `hook/`: `easyisland-hook.exe`, il relay degli hook di Claude Code; `easyisland-hook notify …` manda un messaggio all'isola da qualsiasi script.
 - Widget e sonde: `src-tauri/src/widgets.rs` (scheduler, ping/TCP/HTTP/TLS/servizio/API JSON), `probes.rs` (stato del PC, sicurezza, rete, meteo, domini), `calendar.rs` (ICS). Profili automatici in `profiles.rs`, "davanti al cliente" in `presence.rs`, azioni rapide in `actions.rs`, scorciatoie globali in `hotkeys.rs`.
-- `assets/sounds/`: i 28 suoni WAV (percorso dichiarato una sola volta in `vite.config.ts`, `SOUNDS_DIR`).
+- Suoni: i 28 suoni sono sintetizzati nel codice in `src/core/synth.ts` (niente file audio), riprodotti da `src/core/sound.ts`; si ascoltano in `dev/sounds-preview.html`. Il volume di ciascuno è tarato sul WAV originale che ha sostituito.
 - `scripts/`: `gen-icons.mjs` (icone disegnate nel codice: l'isola, non il personaggio), `pack.mjs` (copia l'installer in `release/`).
 - `docs/SPEC.md`, `docs/INTEGRATIONS.md`: comportamento, viste, stati, integrazioni (scritti per l'originale macOS; le differenze di Windows sono nel `README.md`).
 - `design/prototype/notch-buddy.html`: prototipo originale, il riferimento visivo. `design/captures/`: catture di riferimento.

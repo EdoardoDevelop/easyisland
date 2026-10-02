@@ -165,7 +165,7 @@ Corrispondenza con gli eventi reali: vedi `INTEGRATIONS.md`. `sleeping` = nessun
 
 ## 9. Suoni
 
-File `assets/sounds/*.wav` (48 kHz stereo), resi dal motore del prototipo con un guadagno ×6. **Volume predefinito del lettore: 0,12** per ritrovare il livello del prototipo; il cursore del volume nelle impostazioni va da 0 a 0,2. Riprodurre con lettori precaricati (latenza nulla); più suoni possono sovrapporsi. Disattivabile dall'intestazione dell'isola e dalle impostazioni (persistente).
+Nel prototipo: file WAV (48 kHz stereo), resi con un guadagno ×6. In EasyIsland i suoni sono sintetizzati nel codice (`src/core/synth.ts`) con lo stesso volume. **Volume predefinito del lettore: 0,12** per ritrovare il livello del prototipo; il cursore del volume nelle impostazioni va da 0 a 0,2. Riprodurre con lettori precaricati (latenza nulla); più suoni possono sovrapporsi. Disattivabile dall'intestazione dell'isola e dalle impostazioni (persistente).
 
 | Evento | Suono |
 |---|---|

@@ -395,8 +395,8 @@ nessuna finestra nella barra delle applicazioni e nessuna console: l'isola in ci
 allo schermo e l'icona nell'area di notifica sono tutta l'app, ed Esci sta nel
 suo menu.
 
-I 28 suoni stanno in `assets/sounds/`. Il percorso è dichiarato una sola volta, in
-`SOUNDS_DIR` in cima a `vite.config.ts`.
+I 28 suoni sono generati nel codice, in `src/core/synth.ts`: nessun file audio.
+Per ascoltarli e ritoccarli: `npm run dev`, poi `/dev/sounds-preview.html`.
 
 L'icona dell'app e quella dell'area di notifica sono disegnate nel codice: sono
 l'isola stessa, uguale qualunque personaggio tu scelga:
@@ -417,7 +417,6 @@ npm run icons          # rigenera src-tauri/icons da scripts/gen-icons.mjs
   src-tauri/           backend Rust: finestra, named pipe, API Claude, poller
   hook/                easyisland-hook.exe, il relay per Claude Code
   scripts/             generatore di icone, impacchettamento dell'installer
-  assets/sounds/       i 28 suoni WAV
   design/              prototipo HTML originale e catture di riferimento
   docs/                SPEC.md, INTEGRATIONS.md
 ```
@@ -439,6 +438,6 @@ trascinamento di Slime su una finestra per allegarla come contesto, salto alla
 finestra esatta del terminale. "Apri terminale" apre la cartella di lavoro in
 VS Code quando `code` è nel `PATH`.
 
-Licenza: MIT per il codice. I suoni vengono dall'originale e restano riservati al
-suo autore: vedi
+Licenza: MIT per il codice. Nomi, personaggi, icone e suoni di EasyIsland sono
+nuovi; quelli dell'originale (non più usati) restano riservati al suo autore: vedi
 `LICENSE-ASSETS.md`.

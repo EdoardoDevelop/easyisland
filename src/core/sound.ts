@@ -1,7 +1,9 @@
 // SoundEngine — port of SoundEngine.swift.
-// The 28 WAVs come from the original macOS app, now kept in assets/sounds/ (see SOUNDS_DIR
-// in vite.config.ts); they are served at /sounds/<name>.wav. Default volume 0.12, slider range 0–0.2,
-// exactly like the Mac player, and several sounds may overlap.
+// The 28 sounds are synthesised in code (./synth.ts), no audio files. Default
+// volume 0.12, slider range 0–0.2, exactly like the Mac player, and several
+// sounds may overlap.
+
+import { synthBuffer } from "./synth";
 
 export const SOUND_NAMES = [
   "peek", "open", "close", "hover", "blip", "slap", "annoyed", "dizzy", "greet",
@@ -35,7 +37,7 @@ class SoundEngine {
   private loading: Promise<void> | null = null;
   private idleTimer: number | null = null;
 
-  /** Creates the context and decodes every WAV. Safe to call more than once. */
+  /** Creates the context and synthesises every sound. Safe to call more than once. */
   preload(): Promise<void> {
     if (this.loading) return this.loading;
     this.loading = (async () => {
@@ -47,18 +49,14 @@ class SoundEngine {
       master.gain.value = this.volume;
       master.connect(ctx.destination);
       this.master = master;
-      await Promise.all(
-        SOUND_NAMES.map(async (name) => {
-          try {
-            const res = await fetch(`/sounds/${name}.wav`);
-            if (!res.ok) return;
-            const buf = await ctx.decodeAudioData(await res.arrayBuffer());
-            this.buffers.set(name, buf);
-          } catch {
-            /* a missing sound must never break the island */
-          }
-        }),
-      );
+      for (const name of SOUND_NAMES) {
+        try {
+          const buf = synthBuffer(ctx, name);
+          if (buf) this.buffers.set(name, buf);
+        } catch {
+          /* a missing sound must never break the island */
+        }
+      }
     })();
     return this.loading;
   }
