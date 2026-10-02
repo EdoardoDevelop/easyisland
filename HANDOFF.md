@@ -1,6 +1,6 @@
 # Handoff personale — Coucou (solo Windows)
 
-_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 2 ottobre 2026. Branch: `claude/lucid-lamport-v5nvs3`._
+_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 2 ottobre 2026 (CPU). Branch: `claude/lucid-lamport-v5nvs3`._
 
 > Questo file va tenuto **sempre aggiornato**: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al **Registro delle modifiche** (sezione 10), con data, cosa è cambiato e cosa resta aperto.
 
@@ -159,6 +159,13 @@ Pensate per il lavoro da tecnico IT sul notebook, ma utili anche a casa.
 - **Ticketing:** widget per il conteggio dei ticket aperti/in scadenza dal sistema di helpdesk usato (via widget configurabile 6.4, se ha un'API).
 - **Casa:** promemoria personali, eventuale Home Assistant, meteo.
 
+**Proposte di integrazione del 2 ottobre 2026** (gratuite o tramite app già sul PC; dettagli e priorità nella conversazione di quel giorno):
+- *Sul PC, senza configurazione:* stato del PC (disco, RAM, batteria, uptime, riavvio in sospeso), Windows Update, Defender, rete (IP locale/pubblico, Wi-Fi, VPN, latenza), stampanti bloccate, microfono/webcam in uso, musica in riproduzione (controlli multimediali di Windows), Teams in riunione → Mochi silenzioso.
+- *App installate:* Outlook classico (prossimo appuntamento, mail non lette, via COM), Teams (API locale di terze parti), Docker, repository Git locali, WSL, sessioni remote attive (AnyDesk/TeamViewer/RDP → modalità "davanti al cliente").
+- *Servizi gratuiti:* meteo Open-Meteo (senza chiave), calendari ICS (Google/Outlook senza OAuth), posta IMAP, scadenza domini (RDAP), DNS e blacklist (DoH/DNSBL), pagine di stato (statuspage `/api/v2/status.json`), vulnerabilità CISA KEV, feed RSS, notifiche sul telefono (ntfy, bot Telegram).
+- *Self-hosted / casa:* Home Assistant, Uptime Kuma, Proxmox, Synology/TrueNAS, UniFi, Pi-hole, GLPI/Zammad (ticket).
+- Molte di quelle via rete si possono fornire come **modelli del widget configurabile** (6.4), senza codice nuovo.
+
 ## 8. Regole da non rompere (sono anche in `CLAUDE.md`)
 
 - L'hook non deve **mai** bloccare Claude Code: timeout breve, poi esce con 0.
@@ -172,6 +179,22 @@ Pensate per il lavoro da tecnico IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi implementiamo la 6.1 (fondamenta)"_ oppure _"facciamo la sezione 4 → Identità con nome X"_. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 2 ottobre 2026 — panoramica senza integrazioni
+- Con tutte le integrazioni spente il riquadro delle pillole a destra non compare più: la scheda principale prende tutta l'isola (classe `solo` su `.overview`, `src/views/views.ts` + `src/style.css`).
+- Anteprima nel browser: i parametri lista si passano separati da virgole (`?activeIntegrations=` per nessuna).
+
+### 2 ottobre 2026 — "Segue il mouse" nella vista compatta
+- Nuova opzione **Posizione e aspetto → Segue il mouse** (`followCursorCompact`, per profilo, **spenta** di default). A isola aperta il personaggio segue sempre il cursore.
+- Spenta: nella vista compatta non guarda il cursore ma resta vivo. A intervalli casuali (`WANDER_MIN_MS` + `WANDER_SPREAD_MS`, 1,8–6 s) sbatte le palpebre, si gira a guardare altrove (il cubo ruota), torna dritto o, solo a riposo, fa una smorfia (occhiolino, sorriso, sbadiglio, sorpresa). Codice: `scheduleWander` / `wander` in `island.ts`.
+- Tra un gesto e l'altro il ciclo di animazione è fermo e i movimenti del mouse non lo svegliano: nell'anteprima circa 5 fps medi, solo durante i gesti.
+
+### 2 ottobre 2026 — consumo di CPU
+- Misurato per processo (Coucou + WebView2). Con "Sempre visibile" e il mouse in movimento il consumo era circa il **24 %** di un core, quasi tutto disegno (pagina 8 %, GPU 11 %): ogni spostamento del cursore, anche lontano, faceva ridisegnare a 60 fps.
+- **Fotogrammi inutili saltati:** se il cursore si muove ma lo sguardo cambia meno di `LOOK_EPS` (lontano dall'isola il `tanh` è già al massimo), il ciclo non riparte (`onCursor` in `island.ts`).
+- **Solo sguardo a 30 fps:** quando l'unica cosa che si muove è lo sguardo, il ciclo gira ogni `LOOK_FRAME_MS` (33 ms); animazioni, geometria, saluto e drop restano a 60 (`busyBeyondLook` in `engine.ts`).
+- **Lettura del cursore adattiva:** 60 Hz vicino all'isola, 20 Hz oltre `FAR_FROM_ISLAND` (240 px); il ritorno davanti alla barra delle applicazioni è a tempo (`RAISE_EVERY`, 150 ms), non a giri del ciclo (`spawn_cursor_poll` in `island.rs`).
+- **Risultato:** mouse in movimento circa 9–10 %, mouse fermo circa 4 % (processo principale da 2,1 % a 0,8 %), nessuna attività 0 fps. Le misure risentono degli hook della sessione di Claude Code in corso.
 
 ### 2 ottobre 2026 — il cubo (commit `f65d871`)
 - Nuovo personaggio **Cubo**, ispirato al logo dell'azienda, scelto da Tema → Personaggio (per profilo, `theme.character`; Mochi resta il predefinito).
@@ -188,7 +211,7 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 - **Altro:** Claude Code trovato anche nell'app desktop e nell'estensione VS Code; "Nuova chat"; `coucou.exe --settings`; tolti gli esempi da tecnico IT.
 
 ### Problemi noti e cose aperte
-- [ ] **CPU con "Sempre visibile":** circa 18 % di un core (personaggio animato + lettura del cursore a 60 Hz). Va contro la regola "CPU ~0 % a riposo": proposto di rallentare animazione e lettura del cursore quando non succede nulla.
+- [ ] **CPU con "Sempre visibile":** ridotta il 2 ottobre (da circa 24 % a circa 9–10 % col mouse in movimento, circa 4 % fermo). Margini ancora possibili: sguardo a 20 fps, finestra più piccola della 720×320 attuale quando l'isola è compatta.
 - [ ] **Scorciatoia `Ctrl+Alt+M`** non disponibile (già usata da un altro programma): sceglierne un'altra in Impostazioni → Azioni rapide.
 - [ ] **Icona dell'area di notifica:** è un'immagine fissa (`scripts/gen-icons.mjs`), quindi resta Mochi anche con il cubo.
 - [ ] **Sopra la barra:** cliccando la barra, Mochi va dietro per un istante (circa 0,15 s) prima di tornare davanti.

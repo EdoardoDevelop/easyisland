@@ -170,6 +170,10 @@ tue integrazioni stanno nelle pillole colorate accanto a Mochi.
   una bolla solo intorno all'icona. Spento: si attacca solo in alto al centro.
 - **Vista compatta**: un Mochi più grande e animato, oppure la barra compatta
   con le integrazioni, con dimensione regolabile.
+- **Segue il mouse**: se attivo, anche nella vista compatta il personaggio
+  guarda il cursore. Spento (predefinito): si guarda intorno da solo, sbatte le
+  palpebre e ogni tanto fa una smorfia, e consuma meno. A isola aperta segue
+  sempre il mouse.
 - **Sempre visibile**: la vista compatta resta sempre sullo schermo e non torna
   mai all'icona a riposo. Costa un po' di CPU (Mochi è animato): sul portatile a
   batteria valuta se spegnerla.

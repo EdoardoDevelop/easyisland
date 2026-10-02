@@ -26,6 +26,13 @@ import { IslandStateMachine } from "./fsm";
 const BOT_OVERHANG = 40;
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
 const HIT_MARGIN = 14;
+/** Pause between two gestures of the compact Mochi when it does not follow the cursor, ms. */
+const WANDER_MIN_MS = 1800;
+const WANDER_SPREAD_MS = 4200;
+/** Smallest change of gaze (lookX / lookY, −1…1) worth a new frame. */
+const LOOK_EPS = 0.01;
+/** Frame interval while Mochi only follows the cursor (nothing else moving), ms. */
+const LOOK_FRAME_MS = 33;
 /** Pointer travel (px) that turns a press on the compact island into a drag. */
 const DRAG_THRESHOLD = 4;
 
@@ -78,6 +85,11 @@ export class Island {
 
   // Rust starts the window at full size so the launch greeting has room.
   private collapsed = false;
+  /** Where the compact Mochi looks while it does not follow the cursor. */
+  private wanderLook = { x: 0, y: 0 };
+  private wanderTimer: number | null = null;
+  /** The gaze last drawn: cursor moves that do not change it skip the frame loop. */
+  private drawnLook = { x: Infinity, y: Infinity };
   /** Left button held on the compact island: a click or the start of a drag. */
   private press: { x: number; y: number; moved: boolean } | null = null;
   private collapseTimer: number | null = null;
@@ -315,7 +327,53 @@ export class Island {
     }
     this.updateWindowCollapsed();
     this.animateGeometry(modeOrder(mode) < modeOrder(prev));
+    this.scheduleWander();
     State.notify();
+  }
+
+  /** The open island always watches the cursor; the compact view only if asked to. */
+  private followsCursor(): boolean {
+    return State.mode === "expanded" || State.settings.followCursorCompact;
+  }
+
+  /**
+   * Compact and not following the cursor: every few seconds, at random, Mochi
+   * blinks, looks somewhere else, looks back or pulls a face — enough to feel
+   * alive. Between two gestures the frame loop is stopped, so it costs nothing.
+   */
+  private scheduleWander() {
+    if (this.wanderTimer != null) window.clearTimeout(this.wanderTimer);
+    this.wanderTimer = null;
+    if (State.mode !== "compact" || State.settings.followCursorCompact) {
+      this.wanderLook = { x: 0, y: 0 };
+      return;
+    }
+    this.wanderTimer = window.setTimeout(() => {
+      this.wanderTimer = null;
+      this.wander();
+      this.scheduleWander();
+    }, WANDER_MIN_MS + Math.random() * WANDER_SPREAD_MS);
+  }
+
+  private wander() {
+    if (State.mode !== "compact" || State.settings.followCursorCompact || State.paused) return;
+    const r = Math.random();
+    if (r < 0.38) {
+      // Look somewhere: the cube turns that way.
+      this.wanderLook = { x: Math.random() * 1.8 - 0.9, y: Math.random() * 1.2 - 0.5 };
+    } else if (r < 0.58) {
+      this.wanderLook = { x: 0, y: 0 };
+    } else if (r < 0.86) {
+      this.engine.blink();
+      if (Math.random() < 0.3) window.setTimeout(() => { this.engine.blink(); this.ensureRunning(); }, 260);
+    } else if (State.effectiveState === "idle") {
+      // A face now and then — only at rest, never over a state's own eyes.
+      const faces = ["wink", "happy", "yawn", "surprised"] as const;
+      this.engine.triggerEmote(faces[Math.floor(Math.random() * faces.length)]);
+    } else {
+      this.engine.blink();
+    }
+    this.ensureRunning();
   }
 
   /** True while the drop sequence owns the island body. */
@@ -978,7 +1036,15 @@ export class Island {
       }
     }
 
-    this.ensureRunning();
+    // Far from the island the gaze is already as far as it goes (tanh): a cursor
+    // that moves without changing where Mochi looks must not wake the frame loop.
+    const lx = this.lookX();
+    const ly = this.lookY();
+    const gazeMoved = this.followsCursor() &&
+      (Math.abs(lx - this.drawnLook.x) > LOOK_EPS || Math.abs(ly - this.drawnLook.y) > LOOK_EPS);
+    if (inIsland || this.botHovering || gazeMoved) {
+      this.ensureRunning();
+    }
   }
 
   private isBotHit(x: number, y: number): boolean {
@@ -1102,7 +1168,15 @@ export class Island {
         !this.botCx.settled || !this.botCy.settled || !this.botSize.settled ||
         greetingActive || this.engine.busy || UploadSeq.isActive;
 
-    if (busy) {
+    // Only following the cursor: 30 fps is plenty for a gaze and halves the cost.
+    // Tweens, geometry, particles, the greeting and the drop keep the full rate.
+    const lookOnly = busy && !settling &&
+      this.botCx.settled && this.botCy.settled && this.botSize.settled &&
+      !greetingActive && !UploadSeq.isActive && !this.engine.busyBeyondLook;
+
+    if (lookOnly) {
+      window.setTimeout(() => requestAnimationFrame(this.frame), LOOK_FRAME_MS);
+    } else if (busy) {
       requestAnimationFrame(this.frame);
     } else {
       this.running = false;
@@ -1161,8 +1235,10 @@ export class Island {
     this.engine.bodyColor = focus?.isIntegration && character() !== "cube"
       ? hexToRGB(focus.color) : this.themeBody();
     this.engine.particleOverhang = BOT_OVERHANG;
-    this.engine.lookX = this.lookX();
-    this.engine.lookY = this.lookY();
+    const follow = this.followsCursor();
+    this.engine.lookX = follow ? this.lookX() : this.wanderLook.x;
+    this.engine.lookY = follow ? this.lookY() : this.wanderLook.y;
+    if (follow) this.drawnLook = { x: this.engine.lookX, y: this.engine.lookY };
     if (this.engine.morph > 0.3) {
       this.engine.slotHTarget = State.fileDragOver ? 0.2 : 0;
     } else {
@@ -1277,6 +1353,7 @@ export class Island {
     this.applyTheme();
     this.applyPlacement();
     this.keepCompactUp();
+    this.scheduleWander();
     State.notify();
   }
 

@@ -21,14 +21,16 @@ async function main() {
     State.settings = { ...State.settings, ...boot.settings };
   } else {
     // Plain browser (`npm run dev`): settings can be tried from the URL, e.g.
-    // /?anchorV=bottom&anchorH=left&iconSize=32
+    // /?anchorV=bottom&anchorH=left&iconSize=32 (lists comma-separated, e.g.
+    // ?activeIntegrations= for none)
     const params = new URLSearchParams(location.search);
     const overrides: Record<string, unknown> = {};
     for (const [key, value] of params) {
       if (!(key in State.settings)) continue;
       const current = (State.settings as unknown as Record<string, unknown>)[key];
       overrides[key] = typeof current === "number" ? Number(value)
-        : typeof current === "boolean" ? value === "true" : value;
+        : typeof current === "boolean" ? value === "true"
+        : Array.isArray(current) ? value.split(",").filter(Boolean) : value;
     }
     State.settings = { ...State.settings, ...overrides } as Settings;
     const who = params.get("character");

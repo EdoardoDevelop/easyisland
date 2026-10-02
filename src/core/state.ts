@@ -120,6 +120,8 @@ export interface Settings {
   overTaskbar: boolean;
   /** ✕ in the open island's header. */
   closeButton: boolean;
+  /** The compact view follows the cursor too (the open island always does). */
+  followCursorCompact: boolean;
   /** What stays visible at rest. "none" = the old invisible wake strip. */
   iconStyle: "mochi" | "dot" | "none";
   /** Rest icon size, px. */
@@ -277,6 +279,7 @@ export const DEFAULT_SETTINGS: Settings = {
   glueEdges: true,
   overTaskbar: false,
   closeButton: true,
+  followCursorCompact: false,
   iconStyle: "mochi",
   iconSize: 24,
   hoverStyle: "icon",

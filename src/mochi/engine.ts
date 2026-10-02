@@ -456,12 +456,19 @@ export class BotEngine {
   /** True while anything is still moving — lets the island stop its RAF loop. */
   get busy(): boolean {
     return (
+      this.busyBeyondLook ||
+      Math.abs(this.tgYaw - this.yaw) > 0.002 ||
+      Math.abs(this.tgPitch - this.pitch) > 0.002
+    );
+  }
+
+  /** Busy with anything but turning towards the cursor (which can run at a lower rate). */
+  get busyBeyondLook(): boolean {
+    return (
       this.tweens.size > 0 ||
       this.particles.length > 0 ||
       this.cfg.bounces || this.cfg.scans || this.cfg.breathes || this.cfg.zz || this.cfg.sweat ||
       this.isMini ||
-      Math.abs(this.tgYaw - this.yaw) > 0.002 ||
-      Math.abs(this.tgPitch - this.pitch) > 0.002 ||
       Math.abs(this.tgTilt - this.tilt) > 0.002 ||
       Math.abs(this.tgSy - this.sy) > 0.002 ||
       Math.abs(this.tgSx - this.sx) > 0.002 ||

@@ -23,6 +23,7 @@ pub const PROFILE_KEYS: &[&str] = &[
     "glueEdges",
     "overTaskbar",
     "closeButton",
+    "followCursorCompact",
     "iconStyle",
     "iconSize",
     "hoverStyle",
@@ -207,6 +208,9 @@ pub struct Settings {
     /// ✕ in the open island's header.
     #[serde(default = "default_true")]
     pub close_button: bool,
+    /// The compact view follows the cursor too (the open island always does).
+    #[serde(default)]
+    pub follow_cursor_compact: bool,
     /// What stays visible at rest: "mochi" | "dot" | "none" (invisible strip).
     #[serde(default = "default_icon_style")]
     pub icon_style: String,
@@ -332,6 +336,7 @@ impl Default for Settings {
             glue_edges: true,
             over_taskbar: false,
             close_button: true,
+            follow_cursor_compact: false,
             icon_style: default_icon_style(),
             icon_size: default_icon_size(),
             hover_style: default_hover_style(),

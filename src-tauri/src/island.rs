@@ -8,7 +8,7 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use crate::settings::Settings;
@@ -34,6 +34,10 @@ pub const WINDOW_LABEL: &str = "island";
 /// Margin around the island that still counts as "on the island", in logical px.
 /// Wider than the macOS 6 pt because a click must never be swallowed.
 const HIT_MARGIN: f64 = 14.0;
+/// How often the island takes the front back from the taskbar, when it sits over it.
+const RAISE_EVERY: Duration = Duration::from_millis(150);
+/// Beyond this distance from the island (logical px) the cursor is sampled at 20 Hz.
+const FAR_FROM_ISLAND: f64 = 240.0;
 
 #[derive(Serialize, Clone)]
 pub struct CursorPayload {
@@ -427,8 +431,12 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
             let mut last = (f64::MIN, f64::MIN);
             let mut ticks: u32 = 0;
             let mut over_taskbar = false;
+            // Far from the island nothing needs 60 Hz: the gaze barely changes
+            // there and nothing can be clicked. Sample at 20 Hz until it comes close.
+            let mut slow = false;
+            let mut last_raise = Instant::now();
             while gate.is_active() {
-                std::thread::sleep(Duration::from_millis(16));
+                std::thread::sleep(Duration::from_millis(if slow { 50 } else { 16 }));
                 // The island may have collapsed during the sleep: a tick on stale
                 // data would turn click-through back on over the rest icon.
                 if !gate.is_active() {
@@ -438,7 +446,8 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                 ticks = ticks.wrapping_add(1);
                 // The taskbar comes forward on every touch: over it, take the
                 // front back within a few frames (one cheap async SetWindowPos).
-                if over_taskbar && ticks % 10 == 0 {
+                if over_taskbar && last_raise.elapsed() >= RAISE_EVERY {
+                    last_raise = Instant::now();
                     raise_over_taskbar(&app);
                 }
                 // Monitors get plugged in, unplugged, rearranged and rescaled, and
@@ -517,6 +526,10 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                     }
                 }
 
+                let dx = (r.x - x).max(x - (r.x + r.w)).max(0.0);
+                let dy = (r.y - y).max(y - (r.y + r.h)).max(0.0);
+                slow = !down && !gate.dragging.load(Ordering::Relaxed)
+                    && (r.w <= 0.0 || dx.hypot(dy) > FAR_FROM_ISLAND);
                 let _ = win.emit("cursor", CursorPayload { x, y });
             }
             // Parking: this thread is the last one to touch the flag, so it has

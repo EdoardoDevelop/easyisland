@@ -238,6 +238,8 @@ function buildOverview(actions: ViewActions): ViewHost {
         for (const t of others) pills.append(buildPill(t, actions));
         pruneMiniBots();
       }
+      // Every integration switched off: no empty box, the main card takes the room.
+      el.classList.toggle("solo", others.length === 0);
     },
   };
 }

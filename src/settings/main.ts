@@ -625,6 +625,11 @@ function placementSection(): HTMLElement {
     h("div", { class: "row" }, h("label", { text: "Vista compatta" }), hoverStyle),
     hoverSize,
     h("div", { class: "row" },
+      h("label", { text: "Segue il mouse" }),
+      toggle(settings.followCursorCompact, (v) => { settings.followCursorCompact = v; commit(); }),
+      h("span", { class: "hint note", text: "anche nella vista compatta. Spento: si guarda intorno da solo, sbatte le palpebre e fa qualche smorfia (consuma meno). A isola aperta segue sempre il mouse." }),
+    ),
+    h("div", { class: "row" },
       h("label", { text: "Sempre visibile" }),
       always,
       h("span", { class: "hint note", text: "la vista compatta resta sullo schermo e non torna mai all'icona a riposo" }),
@@ -693,7 +698,7 @@ function profileChip(): HTMLElement {
 /** Fields a profile carries — mirrors PROFILE_KEYS in src-tauri/src/settings.rs. */
 const PROFILE_KEYS = [
   "activeIntegrations", "anchorV", "anchorH", "offsetX", "offsetY", "glueEdges", "overTaskbar",
-  "closeButton", "iconStyle", "iconSize", "hoverStyle",
+  "closeButton", "followCursorCompact", "iconStyle", "iconSize", "hoverStyle",
   "hoverSize", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
   "soundVolume", "autoCloseInterval", "theme", "notify", "actions", "widgets", "mcpServers",
 ] as const;

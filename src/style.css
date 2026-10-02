@@ -442,6 +442,16 @@ html.browser-preview #root {
   flex: 1 1 auto;
 }
 
+/* Nothing to list on the right (every integration off): one card, full width. */
+.overview.solo > .left {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+.overview.solo > .right {
+  display: none;
+}
+
 .card-body {
   position: relative;
   z-index: 1;
