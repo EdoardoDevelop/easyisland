@@ -1,6 +1,6 @@
 # Notch Buddy — integrazioni
 
-> **Nota:** questo documento è stato scritto per l'app macOS originale (socket Unix, Portachiavi, AppleScript, ScreenCaptureKit). Su Windows il relay è `coucou-hook.exe` collegato via named pipe (`\\.\pipe\coucou-<sid>`), le chiavi stanno in Gestione credenziali di Windows e le sezioni §4 (aggancio a una finestra), §6 (Mail) e §7 (permessi macOS) non si applicano. Vedi `README.md` e il codice in `src-tauri/` e `hook/`.
+> **Nota:** questo documento è stato scritto per l'app macOS originale (socket Unix, Portachiavi, AppleScript, ScreenCaptureKit). Su Windows il relay è `easyisland-hook.exe` collegato via named pipe (`\\.\pipe\easyisland-<sid>`), le chiavi stanno in Gestione credenziali di Windows e le sezioni §4 (aggancio a una finestra), §6 (Mail) e §7 (permessi macOS) non si applicano. Vedi `README.md` e il codice in `src-tauri/` e `hook/`.
 
 Regola d'oro: **verificare la documentazione ufficiale al momento di implementare**. I formati qui sotto sono il piano, non una garanzia. Fonti da rileggere:
 - Hook di Claude Code: https://code.claude.com/docs/en/hooks
@@ -88,7 +88,7 @@ La prima volta chiede il permesso di Automazione (è normale).
 
 ## 3. File rilasciati
 
-- Trascina e rilascia nativo sul pannello (tipi `fileURL`). Copiare i file in `~/Library/Application Support/NotchBuddy/inbox/` (è la fase `uploading`). Su Windows: `%LOCALAPPDATA%\Coucou\inbox\`.
+- Trascina e rilascia nativo sul pannello (tipi `fileURL`). Copiare i file in `~/Library/Application Support/NotchBuddy/inbox/` (è la fase `uploading`). Su Windows: `%LOCALAPPDATA%\EasyIsland\inbox\`.
 - Vista `choose`:
   - **Fai una domanda** → vista `prompt` con una pillola del file. Invio all'API Claude (§5): PDF come blocco `document`, immagini come blocco `image`, testo e codice (≤ 200 KB) come testo. Altri tipi: messaggio «Non so leggere questo formato, ma posso inviarlo per email.»
   - **Invia per email** → vista `mail` (§6).

@@ -1,21 +1,21 @@
-//! coucou-hook — the relay Claude Code runs on every hook event.
+//! easyisland-hook — the relay Claude Code runs on every hook event.
 //!
 //! Reads the hook JSON on stdin, adds a little terminal context, and hands it to
-//! Coucou over the named pipe `\\.\pipe\coucou-<sid>`.
+//! EasyIsland over the named pipe `\\.\pipe\easyisland-<sid>`.
 //!
 //! Hard rule (docs/CLAUDE.md): **never block Claude Code.**
-//! * If the pipe does not exist — Coucou is closed — we exit 0 immediately with
+//! * If the pipe does not exist — EasyIsland is closed — we exit 0 immediately with
 //!   nothing on stdout, and the session carries on untouched.
 //! * Every step runs under a deadline enforced by the main thread, so a pipe that
 //!   accepts the connection and then stops reading cannot wedge the session
 //!   either: we abandon the worker and exit.
 //! * Only `PermissionRequest` waits for an answer, because approving from the
 //!   island is the whole point. No answer means empty stdout, and Claude Code
-//!   asks in the terminal exactly as if Coucou were not installed.
+//!   asks in the terminal exactly as if EasyIsland were not installed.
 //!
-//! Usage: `coucou-hook <EventName>` (the name is also read from the JSON).
+//! Usage: `easyisland-hook <EventName>` (the name is also read from the JSON).
 //!
-//! `coucou-hook notify …` is the other job: any script, scheduled task or n8n
+//! `easyisland-hook notify …` is the other job: any script, scheduled task or n8n
 //! flow can put a message on the island (see `notify`). It never reads stdin.
 
 use std::io::{Read, Write};
@@ -42,13 +42,13 @@ const MAX_FIELD_LEN: usize = 2_000;
 
 mod win;
 
-/// `\\.\pipe\coucou-<sid>`. The SID keeps two accounts on the same machine from
+/// `\\.\pipe\easyisland-<sid>`. The SID keeps two accounts on the same machine from
 /// ever meeting on the same pipe; the name falls back to the user name only if
 /// the SID cannot be read at all, which should not happen.
 fn pipe_path() -> String {
     let key = win::current_user_sid()
         .unwrap_or_else(|| std::env::var("USERNAME").unwrap_or_else(|_| "user".into()));
-    format!(r"\\.\pipe\coucou-{key}")
+    format!(r"\\.\pipe\easyisland-{key}")
 }
 
 /// Opens the pipe. Retries only while the server is busy: any other error means
@@ -79,12 +79,12 @@ fn main() {
     if std::env::args().nth(1).as_deref() == Some("notify") {
         std::process::exit(notify(std::env::args().skip(2).collect()));
     }
-    // Coucou's own chat runs `claude -p` with hooks disabled; this is the second
+    // EasyIsland's own chat runs `claude -p` with hooks disabled; this is the second
     // guard, so that chat never shows up in the island as a work session.
-    // `--chat` marks the one hook Coucou installs for its own chat (connector
+    // `--chat` marks the one hook EasyIsland installs for its own chat (connector
     // confirmations); every other hook inside that chat is ignored.
     let chat = std::env::args().any(|a| a == "--chat");
-    if std::env::var_os("COUCOU_INTERNAL").is_some() && !chat {
+    if std::env::var_os("EASYISLAND_INTERNAL").is_some() && !chat {
         std::process::exit(0);
     }
     let Some((payload, event, tool_input)) = read_event() else { std::process::exit(0) };
@@ -137,7 +137,7 @@ fn decision_json(decision: &str, tool_input: Option<&serde_json::Value>) -> Opti
         // "always" still answers a plain allow; remembering it is the island's
         // business, not Claude Code's.
         "allow" | "always" => r#"{"behavior":"allow"}"#.to_string(),
-        "deny" => r#"{"behavior":"deny","message":"Negato da Coucou"}"#.to_string(),
+        "deny" => r#"{"behavior":"deny","message":"Negato da EasyIsland"}"#.to_string(),
         _ => return None,
     };
     Some(format!(
@@ -145,9 +145,9 @@ fn decision_json(decision: &str, tool_input: Option<&serde_json::Value>) -> Opti
     ))
 }
 
-const NOTIFY_USAGE: &str = "Uso: coucou-hook notify [titolo] [testo] [opzioni]
+const NOTIFY_USAGE: &str = "Uso: easyisland-hook notify [titolo] [testo] [opzioni]
 
-Mostra un messaggio sull'isola di Coucou.
+Mostra un messaggio sull'isola di EasyIsland.
 
   --titolo, -t <testo>   titolo (oppure il primo argomento)
   --testo,  -m <testo>   messaggio (oppure il secondo argomento)
@@ -155,12 +155,12 @@ Mostra un messaggio sull'isola di Coucou.
   --apri,   -u <url>     indirizzo da aprire con il pulsante Apri (https://…)
 
 Esempio:
-  coucou-hook notify \"Backup\" \"Completato in 4 minuti\" --stato ok
+  easyisland-hook notify \"Backup\" \"Completato in 4 minuti\" --stato ok
 
-Esce con 0 se il messaggio è arrivato, 2 se Coucou non è in esecuzione.";
+Esce con 0 se il messaggio è arrivato, 2 se EasyIsland non è in esecuzione.";
 
-/// `coucou-hook notify`: one message for the island. Exit code 0 = delivered,
-/// 1 = bad arguments, 2 = Coucou is not running (or did not answer in time).
+/// `easyisland-hook notify`: one message for the island. Exit code 0 = delivered,
+/// 1 = bad arguments, 2 = EasyIsland is not running (or did not answer in time).
 fn notify(args: Vec<String>) -> i32 {
     let (mut title, mut text, mut level, mut url) = (String::new(), String::new(), "info".to_string(), String::new());
     let mut positional = Vec::new();
@@ -205,7 +205,7 @@ fn notify(args: Vec<String>) -> i32 {
     let url = if url.starts_with("https://") || url.starts_with("http://") { url } else { "" };
     let cut = |s: &str, n: usize| s.chars().take(n).collect::<String>();
     let payload = serde_json::json!({
-        "hook_event_name": "CoucouNotify",
+        "hook_event_name": "EasyIslandNotify",
         "title": cut(title.trim(), 120),
         "text": cut(text.trim(), 600),
         "level": level,
@@ -221,7 +221,7 @@ fn notify(args: Vec<String>) -> i32 {
     if rx.recv_timeout(FIRE_AND_FORGET_BUDGET).unwrap_or(false) {
         0
     } else {
-        eprintln!("Coucou non è in esecuzione: il messaggio non è stato mostrato.");
+        eprintln!("EasyIsland non è in esecuzione: il messaggio non è stato mostrato.");
         2
     }
 }
@@ -252,7 +252,7 @@ fn read_event() -> Option<(String, String, Option<serde_json::Value>)> {
         .unwrap_or(arg_event);
     map.insert("hook_event_name".into(), serde_json::Value::String(event.clone()));
     if std::env::args().any(|a| a == "--chat") {
-        map.insert("coucou_chat".into(), serde_json::Value::Bool(true));
+        map.insert("easyisland_chat".into(), serde_json::Value::Bool(true));
     }
 
     for field in DROPPED_FIELDS {
@@ -274,7 +274,7 @@ fn read_event() -> Option<(String, String, Option<serde_json::Value>)> {
         }
     }
 
-    // Which terminal the session runs in. Unlike macOS, Coucou on Windows accepts
+    // Which terminal the session runs in. Unlike macOS, EasyIsland on Windows accepts
     // events from every terminal, so this is context only — never a filter.
     for (key, var) in [
         ("term_program", "TERM_PROGRAM"),
@@ -359,7 +359,7 @@ mod tests {
         );
         assert_eq!(
             decision_json("deny", None).unwrap(),
-            r#"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny","message":"Negato da Coucou"}}}"#
+            r#"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny","message":"Negato da EasyIsland"}}}"#
         );
         // "always" is an island concept; Claude Code just gets an allow.
         assert!(decision_json("always", None).unwrap().contains(r#""behavior":"allow""#));

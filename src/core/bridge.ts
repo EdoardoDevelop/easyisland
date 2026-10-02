@@ -14,7 +14,7 @@ async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T |
   try {
     return await invoke<T>(cmd, args);
   } catch (err) {
-    console.error(`[coucou] ${cmd} failed`, err);
+    console.error(`[easyisland] ${cmd} failed`, err);
     return null;
   }
 }
@@ -61,7 +61,7 @@ export const Bridge = {
   /** "Prova" for messages from scripts. */
   notifyTest: () => callOrThrow<void>("notify_test"),
 
-  /** Moves the window while Mochi is dragged; `endDrag` saves where it was left. */
+  /** Moves the window while Ezzy is dragged; `endDrag` saves where it was left. */
   dragIsland: (dx: number, dy: number) => call<void>("drag_island", { dx, dy }),
   endDrag: () => call<void>("end_drag"),
 
@@ -74,7 +74,7 @@ export const Bridge = {
 
   openSettingsWindow: () => call<void>("open_settings_window"),
 
-  /** Writes to %LOCALAPPDATA%\Coucou\coucou.log, next to the Rust lines. */
+  /** Writes to %LOCALAPPDATA%\EasyIsland\easyisland.log, next to the Rust lines. */
   log: (message: string) => call<void>("log_line", { message }),
 
   // ── Claude Code hooks ─────────────────────────────────────────────────────
@@ -164,6 +164,8 @@ export interface DroppedFile {
 
 export interface HookStatus {
   installed: boolean;
+  /** settings.json still runs the relay of the old version (Coucou). */
+  legacy: boolean;
   settingsPath: string;
   hookPath: string;
   hookReady: boolean;
@@ -179,7 +181,7 @@ export interface HookPreview {
 
 /** Same as `call`, but surfaces the error so the UI can show what went wrong. */
 async function callOrThrow<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-  if (!IS_TAURI) throw new Error("not running inside Coucou");
+  if (!IS_TAURI) throw new Error("not running inside EasyIsland");
   return invoke<T>(cmd, args);
 }
 
@@ -239,7 +241,7 @@ export async function onDragDrop(handler: (e: DragDropPayload) => void) {
     // A string: Tauri's own handler sees every message first and, on anything
     // else, fails in a way that stops WebView2 from calling ours.
     try {
-      webview.postMessageWithAdditionalObjects("coucou-drop", files);
+      webview.postMessageWithAdditionalObjects("easyisland-drop", files);
     } catch (err) {
       void Bridge.log(`drop: could not hand the files over: ${err}`);
       handler({ type: "drop", paths: [] });

@@ -1,6 +1,6 @@
-// "Davanti al cliente": Coucou gets out of the way while you are in a call or
+// "Davanti al cliente": EasyIsland gets out of the way while you are in a call or
 // someone is looking at (or driving) your screen, and while you switch it on by
-// hand from the tray. The island hears `presence` and hides Mochi, or only goes
+// hand from the tray. The island hears `presence` and hides Ezzy, or only goes
 // quiet, as the profile says; permission requests from Claude Code still show.
 //
 // Nothing here needs Teams' API or admin rights:
@@ -191,7 +191,7 @@ mod tests {
     }
 }
 
-/// What the detectors see right now: `cargo test -p coucou --lib live_presence -- --ignored --nocapture`.
+/// What the detectors see right now: `cargo test -p easyisland --lib live_presence -- --ignored --nocapture`.
 #[cfg(test)]
 mod live {
     #[test]

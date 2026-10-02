@@ -1,4 +1,4 @@
-/* Coucou for Windows — same palette, sizes and type scale as the macOS island.
+/* EasyIsland for Windows — same palette, sizes and type scale as the macOS island.
    Every colour below is copied from the Swift views. */
 
 :root {
@@ -73,7 +73,7 @@ html.browser-preview #root {
   background: transparent;
 }
 
-/* What stays on screen while the island rests: a still Mochi or a status dot.
+/* What stays on screen while the island rests: a still Ezzy or a status dot.
    Pinned to the anchored corner from JS; it fades away while the island is up. */
 #rest-icon {
   position: absolute;
@@ -103,7 +103,7 @@ html.browser-preview #root {
   top: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
-  /* Mochi is pale: a soft shadow keeps it readable on white windows too. */
+  /* Ezzy is pale: a soft shadow keeps it readable on white windows too. */
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
 }
 
@@ -218,7 +218,7 @@ html.browser-preview #root {
   transition: opacity 0.25s ease-in-out;
 }
 
-/* A mini Mochi: the slot is the body, the canvas is larger and overflows it so
+/* A mini Ezzy: the slot is the body, the canvas is larger and overflows it so
    hands, badges and particles are not cut off. */
 .mini {
   position: relative;

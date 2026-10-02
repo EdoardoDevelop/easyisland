@@ -1,4 +1,4 @@
-// The launch "coucou" — port of GreetingCanvasView.swift.
+// The launch greeting — port of GreetingCanvasView.swift.
 // Everything is laid out in the same 640×150 reference space as on macOS.
 
 import { Sound } from "../core/sound";
@@ -249,7 +249,7 @@ function rr(x: CanvasRenderingContext2D, X: number, Y: number, W: number, H: num
   x.closePath();
 }
 
-function mochiPath(hw: number, hh: number): Path2D {
+function ezzyPath(hw: number, hh: number): Path2D {
   const n = 3.2;
   const p = new Path2D();
   const steps = 96;
@@ -280,7 +280,7 @@ function whiteFill(
   x.restore();
 }
 
-/** Mochi's white, or the cube's own colour. */
+/** Ezzy's white, or the cube's own colour. */
 function handStops(): [string, string] {
   return character() === "cube" ? cubeHandStops() : ["rgb(251,251,252)", "rgb(231,233,236)"];
 }
@@ -335,7 +335,7 @@ function drawHandR(x: CanvasRenderingContext2D, hw: number, hh: number, p: Pose)
   x.restore();
 }
 
-function drawMochi(x: CanvasRenderingContext2D, p: Pose) {
+function drawEzzy(x: CanvasRenderingContext2D, p: Pose) {
   const hh = p.hb / 2;
   const hw = hh * ASP;
   if (hh <= 0.4) return;
@@ -376,7 +376,7 @@ function drawMochi(x: CanvasRenderingContext2D, p: Pose) {
         p.lookY * side * 0.05 - side * 0.04 + p.eyeRoll * side * 0.45, true);
     }, look);
   } else {
-    drawMochiBody(x, p, hw, hh);
+    drawEzzyBody(x, p, hw, hh);
   }
 
   // Activity badge
@@ -419,8 +419,8 @@ function greetEyes(
   }
 }
 
-function drawMochiBody(x: CanvasRenderingContext2D, p: Pose, hw: number, hh: number) {
-  const body = mochiPath(hw, hh);
+function drawEzzyBody(x: CanvasRenderingContext2D, p: Pose, hw: number, hh: number) {
+  const body = ezzyPath(hw, hh);
   whiteFill(x, body, hw * 0.6, -hh, -hw * 0.6, hh);
 
   if (p.tint > 0) {
@@ -513,7 +513,7 @@ function drawMinis(x: CanvasRenderingContext2D, alpha: number) {
     x.translate(cx + dx, cy + dy);
     x.scale(alpha, alpha);
     x.fillStyle = MINI_COLORS[i];
-    x.fill(mochiPath(5.3, 4));
+    x.fill(ezzyPath(5.3, 4));
     x.restore();
   });
 }
@@ -601,6 +601,6 @@ export class Greeting {
     }
 
     drawMinis(x, p.minis);
-    drawMochi(x, p);
+    drawEzzy(x, p);
   }
 }

@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="src-tauri/icons/128x128.png" width="96" alt="Icona di Coucou">
+<img src="src-tauri/icons/128x128.png" width="96" alt="Icona di EasyIsland">
 
-# Coucou
+# EasyIsland
 
-**Su un PC Mochi non ha un notch, quindi vive in cima al tuo schermo.**
+**Su un PC Ezzy non ha un notch, quindi vive in cima al tuo schermo.**
 
 Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file, chatta con Claude, tieni d'occhio i tuoi servizi: tutto senza interrompere quello che stai facendo.
 
@@ -15,13 +15,13 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 </div>
 
-<img src="screenshots/greeting.png" width="640" alt="Mochi che saluta all'avvio">
+<img src="screenshots/greeting.png" width="640" alt="Ezzy che saluta all'avvio">
 
 ---
 
 ## Installazione
 
-Non c'è un installer da scaricare: Coucou si compila sul proprio PC, e alla fine
+Non c'è un installer da scaricare: EasyIsland si compila sul proprio PC, e alla fine
 si ottiene un normale installer `.exe`. Ci vogliono circa 15–20 minuti la prima
 volta (quasi tutti di download e compilazione), pochi minuti le volte successive.
 L'installazione è solo per l'utente corrente: nessuna richiesta di amministratore.
@@ -42,7 +42,7 @@ winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--wait
 |---|---|
 | Git | scaricare il progetto |
 | Node.js (LTS, 20 o più recente) | compilare l'interfaccia |
-| Rust (rustup) | compilare l'app e il relay `coucou-hook.exe` |
+| Rust (rustup) | compilare l'app e il relay `easyisland-hook.exe` |
 | Visual Studio Build Tools, carico "Sviluppo di applicazioni desktop con C++" | il linker e le librerie di Windows che usa Rust |
 
 L'ultimo comando scarica alcuni GB e può richiedere parecchi minuti. WebView2,
@@ -59,8 +59,8 @@ git --version; node --version; cargo --version
 
 ```powershell
 cd $HOME
-git clone https://github.com/EdoardoDevelop/coucou.git
-cd coucou
+git clone https://github.com/EdoardoDevelop/easyisland.git
+cd easyisland
 ```
 
 > Se le modifiche più recenti sono ancora su un branch di sviluppo e non in
@@ -77,21 +77,21 @@ npm run pack
 file nella cartella `release\`:
 
 ```
-Coucou-Windows-X.Y.Z-setup.exe    l'installer con la versione
-Coucou-Windows-setup.exe          lo stesso file con il nome fisso
+EasyIsland-Windows-X.Y.Z-setup.exe    l'installer con la versione
+EasyIsland-Windows-setup.exe          lo stesso file con il nome fisso
 ```
 
 ### 4. Installa
 
 ```powershell
-start .\release\Coucou-Windows-setup.exe
+start .\release\EasyIsland-Windows-setup.exe
 ```
 
 L'installer non è firmato, quindi Windows SmartScreen mostra un avviso: clicca
-**Ulteriori informazioni → Esegui comunque**. Coucou si avvia e Mochi ti saluta;
+**Ulteriori informazioni → Esegui comunque**. EasyIsland si avvia ed Ezzy ti saluta;
 da lì in poi lo trovi nel menu Start e nell'area di notifica.
 
-Poi, dall'icona di Mochi nell'area di notifica → **Impostazioni…**:
+Poi, dall'icona di Ezzy nell'area di notifica → **Impostazioni…**:
 
 1. **Claude Code → Installa hook…** per vedere le sessioni nell'isola (vedi sotto).
 2. **Chat con Claude**: lascia "Abbonamento Claude" se usi Claude Code con il tuo
@@ -101,11 +101,11 @@ Poi, dall'icona di Mochi nell'area di notifica → **Impostazioni…**:
 ### Aggiornare
 
 ```powershell
-cd $HOME\coucou
+cd $HOME\easyisland
 git pull
 npm install
 npm run pack
-start .\release\Coucou-Windows-setup.exe
+start .\release\EasyIsland-Windows-setup.exe
 ```
 
 L'installer sostituisce la versione precedente; impostazioni e chiavi restano.
@@ -114,7 +114,7 @@ L'installer sostituisce la versione precedente; impostazioni e chiavi restano.
 
 Prima, in **Impostazioni… → Claude Code**, clicca **Disinstalla hook…**: il
 disinstallatore volutamente non tocca il `settings.json` di Claude Code. Poi
-**Impostazioni di Windows → App → App installate → Coucou → Disinstalla**.
+**Impostazioni di Windows → App → App installate → EasyIsland → Disinstalla**.
 
 ### Se qualcosa va storto
 
@@ -123,71 +123,71 @@ disinstallatore volutamente non tocca il `settings.json` di Claude Code. Poi
 | `npm`, `cargo` o `git` "non riconosciuto" | chiudi e riapri PowerShell dopo l'installazione degli strumenti |
 | `linker 'link.exe' not found` | mancano i Visual Studio Build Tools con il carico C++: rilancia l'ultimo comando `winget` del passo 1 |
 | `error: toolchain 'stable-x86_64-pc-windows-msvc' is not installed` | `rustup default stable-msvc` |
-| l'installer viene bloccato da Defender | è il falso positivo descritto sopra: usa "Esegui comunque", oppure lancia direttamente `target\release\coucou.exe` |
-| Mochi non compare | guarda nell'area di notifica (la freccia ^ accanto all'orologio) e il log in `%LOCALAPPDATA%\Coucou\coucou.log` |
+| l'installer viene bloccato da Defender | è il falso positivo descritto sopra: usa "Esegui comunque", oppure lancia direttamente `target\release\easyisland.exe` |
+| Ezzy non compare | guarda nell'area di notifica (la freccia ^ accanto all'orologio) e il log in `%LOCALAPPDATA%\EasyIsland\easyisland.log` |
 | le Impostazioni | sono divise in pagine (Generale, Aspetto, Notifiche, Claude, Azioni rapide, Integrazioni, Widget, Backup) nel menu a sinistra; la finestra ricorda l'ultima aperta |
-| vuoi aprire le impostazioni senza l'area di notifica | `"%LOCALAPPDATA%\Coucou\coucou.exe" --settings` (anche come collegamento) |
+| vuoi aprire le impostazioni senza l'area di notifica | `"%LOCALAPPDATA%\EasyIsland\easyisland.exe" --settings` (anche come collegamento) |
 
 ## Come si usa
 
-<img src="screenshots/compact.png" width="292" alt="L'isola compatta, con le pillole delle integrazioni come mini Mochi">
+<img src="screenshots/compact.png" width="292" alt="L'isola compatta, con le pillole delle integrazioni come mini Ezzy">
 <img src="screenshots/overview.png" width="640" alt="La panoramica: l'integrazione in focus a sinistra, le altre pillole a destra">
 <img src="screenshots/approval.png" width="640" alt="Una richiesta di permesso di Claude Code, con Nega e Consenti">
 <img src="screenshots/chat.png" width="640" alt="Chat con Claude dall'isola">
-<img src="screenshots/drop.png" width="640" alt="Mochi trasformato in una scatola, in attesa di un file">
+<img src="screenshots/drop.png" width="640" alt="Ezzy trasformato in una scatola, in attesa di un file">
 
 _Le schermate mostrano ancora i testi in inglese della versione originale._
 
 | Cosa fai | Cosa succede |
 |---|---|
-| Porti il mouse sull'icona di Mochi (in alto al centro, o nell'angolo che hai scelto) | Mochi si ingrandisce (o resta sempre così, con **Sempre visibile**) |
-| Clicchi su Mochi, o lasci il mouse sopra per un attimo se "Apri dopo" lo prevede | Si apre l'isola, allineata a quel lato |
-| Trascini Mochi tenendo premuto il tasto sinistro | Si sposta dove lo lasci, e la posizione resta salvata nel profilo |
-| Clicchi su Mochi | Si infastidisce. Tre volte di fila e gli gira la testa |
-| Lasci il puntatore su Mochi per due secondi | Cuori |
-| Trascini un file sull'isola | Si apre anche se è impostata "solo con un clic": Mochi diventa una scatola, lo inghiotte e poi si offre di rispondere a domande sul file |
+| Porti il mouse sull'icona di Ezzy (in alto al centro, o nell'angolo che hai scelto) | Ezzy si ingrandisce (o resta sempre così, con **Sempre visibile**) |
+| Clicchi su Ezzy, o lasci il mouse sopra per un attimo se "Apri dopo" lo prevede | Si apre l'isola, allineata a quel lato |
+| Trascini Ezzy tenendo premuto il tasto sinistro | Si sposta dove lo lasci, e la posizione resta salvata nel profilo |
+| Clicchi su Ezzy | Si infastidisce. Tre volte di fila e gli gira la testa |
+| Lasci il puntatore su Ezzy per due secondi | Cuori |
+| Trascini un file sull'isola | Si apre anche se è impostata "solo con un clic": Ezzy diventa una scatola, lo inghiotte e poi si offre di rispondere a domande sul file |
 | `Esc`, o la ✕ in alto a destra | Chiude subito l'isola, senza aspettare i secondi della chiusura automatica |
 | Icona nell'area di notifica | Apri, Impostazioni…, Pausa, Esci |
 
 Tutto il resto succede da solo: una richiesta di permesso di Claude Code apre
 l'isola con **Nega / Consenti**, una sessione finita mostra cosa ha fatto e le
-tue integrazioni stanno nelle pillole colorate accanto a Mochi.
+tue integrazioni stanno nelle pillole colorate accanto a Ezzy.
 
 ## Posizione e aspetto
 
-**Impostazioni… → Posizione e aspetto** decide dove vive Mochi e quanto si fa notare:
+**Impostazioni… → Posizione e aspetto** decide dove vive Ezzy e quanto si fa notare:
 
 - **Posizione**: in alto o in basso, a sinistra, al centro o a destra. Quando si
   apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel
-  lato. Puoi anche **trascinare Mochi** con il mouse dove vuoi: al rilascio la
+  lato. Puoi anche **trascinare Ezzy** con il mouse dove vuoi: al rilascio la
   posizione resta salvata nel profilo, e il lato da cui si apre l'isola viene
   scelto da solo (il terzo e la metà dello schermo in cui lo lasci), così il
   pannello cresce verso l'interno. Vicino a un bordo o al centro si aggancia.
   Scegliere di nuovo una posizione qui lo riporta al bordo.
-- **Sopra la barra**: Mochi può stare anche sopra la barra delle applicazioni
+- **Sopra la barra**: Ezzy può stare anche sopra la barra delle applicazioni
   (spento: resta sopra di essa, nell'area di lavoro).
 - **Aggancia ai bordi**: lasciato a pochi pixel da un bordo dello schermo, lo
   sfondo si attacca al bordo con gli angoli squadrati da quel lato; altrimenti è
   una bolla solo intorno all'icona. Spento: si attacca solo in alto al centro.
-- **Vista compatta**: un Mochi più grande e animato, oppure la barra compatta
+- **Vista compatta**: un Ezzy più grande e animato, oppure la barra compatta
   con le integrazioni, con dimensione regolabile.
 - **Segue il mouse**: se attivo, anche nella vista compatta il personaggio
   guarda il cursore. Spento (predefinito): si guarda intorno da solo, sbatte le
   palpebre e ogni tanto fa una smorfia, e consuma meno. A isola aperta segue
   sempre il mouse.
 - **Sempre visibile**: la vista compatta resta sempre sullo schermo e non torna
-  mai all'icona a riposo. Costa un po' di CPU (Mochi è animato): sul portatile a
+  mai all'icona a riposo. Costa un po' di CPU (Ezzy è animato): sul portatile a
   batteria valuta se spegnerla.
 - **Icona a riposo** e **Torna a riposo dopo** (solo se *Sempre visibile* è
-  spenta): Mochi fermo, un pallino con il colore dello stato, oppure nulla (solo
+  spenta): Ezzy fermo, un pallino con il colore dello stato, oppure nulla (solo
   una striscia invisibile sul bordo), e dopo quanti secondi tornarci. L'icona a
   riposo è un'immagine ferma: non consuma CPU.
 - **Apri dopo**: quanto tenere il mouse sopra prima che si apra, oppure **solo
-  con un clic**. Trascinare un file sopra Mochi lo apre sempre.
+  con un clic**. Trascinare un file sopra Ezzy lo apre sempre.
 - **Pannello aperto**: dopo quanti secondi dall'uscita del mouse il pannello si
   riduce alla vista compatta.
 - **Pulsante chiudi**: la ✕ in alto a destra del pannello per chiuderlo subito.
-- **Schermo intero**: durante video, giochi e presentazioni Mochi sparisce; le
+- **Schermo intero**: durante video, giochi e presentazioni Ezzy sparisce; le
   richieste di permesso compaiono comunque.
 
 Per provare le combinazioni senza compilare l'app (basta Node, niente Rust):
@@ -198,7 +198,7 @@ npm run ui
 ```
 
 Si apre il browser su un finto desktop: il riquadro tratteggiato è la finestra
-di Coucou. Le impostazioni si cambiano nell'indirizzo, per esempio
+di EasyIsland. Le impostazioni si cambiano nell'indirizzo, per esempio
 `http://localhost:1420/?anchorV=bottom&anchorH=left&iconStyle=dot&iconSize=32&hoverSize=48&openDelay=1&revealDuration=3&bg=dark`.
 
 ## Azioni rapide e scorciatoie
@@ -216,7 +216,7 @@ Ogni azione si può riordinare con ↑ ↓ ed eliminare con ✕.
 
 **Scorciatoie globali**, valide in ogni app (modificabili):
 
-- `Ctrl+Alt+Shift+M` apre Mochi sulle azioni (o sulla chat se non ce ne sono);
+- `Ctrl+Alt+Shift+M` apre Ezzy sulle azioni (o sulla chat se non ce ne sono);
 - `Ctrl+Alt+K` apre la chat con il testo copiato già allegato: scrivi la domanda;
 - ogni azione può avere la sua scorciatoia, es. `Ctrl+Alt+E` per "Spiega errore".
 
@@ -226,7 +226,7 @@ Le azioni appartengono al profilo attivo; le scorciatoie Apri/Chiedi al PC.
 ## Widget
 
 **Impostazioni… → Widget** aggiunge controlli che compaiono come pillole accanto
-a Mochi, senza scrivere codice:
+a Ezzy, senza scrivere codice:
 
 | Tipo | Cosa controlla |
 |---|---|
@@ -243,23 +243,23 @@ a Mochi, senza scrivere codice:
 | **Servizio Windows** | che un servizio locale sia in esecuzione, es. `Spooler` |
 | **API JSON** | qualsiasi API: scegli i campi da mostrare (percorso tipo `data.items[0].stato`) e una regola di avviso (es. `aperti > 10`). Le intestazioni segrete (token, chiavi) vanno in Gestione credenziali |
 
-Quando un controllo passa da OK a problema, la pillola prende un badge, Mochi
+Quando un controllo passa da OK a problema, la pillola prende un badge, Ezzy
 suona e l'isola si fa vedere (secondo le regole di notifica del profilo). Il
-pulsante ▶ prova un widget subito. I controlli si fermano con Coucou in pausa e
+pulsante ▶ prova un widget subito. I controlli si fermano con EasyIsland in pausa e
 diventano tre volte più radi a batteria. I widget appartengono al profilo.
 
 ## Davanti al cliente
 
-**Impostazioni… → Notifiche → Davanti al cliente**: Mochi si fa da parte quando
+**Impostazioni… → Notifiche → Davanti al cliente**: Ezzy si fa da parte quando
 qualcuno potrebbe vedere il tuo schermo.
 
 - **Durante le chiamate**: microfono o webcam in uso da qualsiasi app (Teams,
-  Zoom, Meet nel browser, Webex…). Coucou lo legge da dove Windows annota chi li
+  Zoom, Meet nel browser, Webex…). EasyIsland lo legge da dove Windows annota chi li
   sta usando, senza bisogno dell'API di Teams.
 - **Durante l'assistenza**: qualcuno è collegato a questo PC (Desktop remoto,
   Assistenza rapida, TeamViewer), più i programmi che aggiungi tu.
 - **A mano**: icona nell'area di notifica → **Davanti al cliente**.
-- **Cosa fa**: nasconde Mochi e silenzia i suoni (le richieste di permesso di
+- **Cosa fa**: nasconde Ezzy e silenzia i suoni (le richieste di permesso di
   Claude Code compaiono comunque), oppure solo silenzio.
 
 ## Messaggi dagli script
@@ -268,12 +268,12 @@ Qualsiasi script, attività pianificata, flusso n8n o programma può mostrare un
 messaggio sull'isola:
 
 ```powershell
-& "$env:LOCALAPPDATA\Coucou\bin\coucou-hook.exe" notify "Backup" "Completato in 4 minuti" --stato ok
+& "$env:LOCALAPPDATA\EasyIsland\bin\easyisland-hook.exe" notify "Backup" "Completato in 4 minuti" --stato ok
 ```
 
 `--stato` è `ok`, `avviso`, `errore` o `info`; `--apri https://…` aggiunge un
 pulsante con un link; `--help` mostra l'aiuto. Esce con 0 se il messaggio è
-arrivato e con 2 se Coucou non è in esecuzione, quindi uno script non resta mai
+arrivato e con 2 se EasyIsland non è in esecuzione, quindi uno script non resta mai
 bloccato. Valgono le regole di notifica del profilo. In **Impostazioni… →
 Notifiche** c'è il comando pronto da copiare e un pulsante **Prova**.
 
@@ -288,15 +288,15 @@ attivo.
   notifica (**Profilo ▸**).
 - **Cambio automatico**: ogni profilo può avere regole su rete Wi-Fi, giorni e
   orario (es. *Lavoro* sulla Wi-Fi dell'ufficio, lun–ven 8–18). Ogni minuto
-  Coucou attiva il primo profilo che corrisponde; una scelta fatta a mano resta
+  EasyIsland attiva il primo profilo che corrisponde; una scelta fatta a mano resta
   finché la situazione non cambia.
 - **Notifiche**: tutto, solo avvisi, oppure solo le richieste di permesso
   (com'è *Concentrazione* all'inizio).
-- **Tema**: il personaggio (**Mochi** o il **Cubo**), il suo colore, colore e
+- **Tema**: il personaggio (**Ezzy** o il **Cubo**), il suo colore, colore e
   opacità dell'isola, volume separato per avvisi, interfaccia ed emozioni. Il
   cubo a riposo ha i colori del logo da cui è disegnato; negli altri stati prende
   il colore dello stato (blu mentre lavora, ambra per un permesso, rosso per un
-  errore…). Ha gli occhi di Mochi su un lato, con le stesse espressioni, e segue
+  errore…). Ha gli occhi di Ezzy su un lato, con le stesse espressioni, e segue
   il mouse come lui. Anteprima senza compilare: `npm run ui`, poi aggiungi
   `?character=cube` all'indirizzo.
 - **Backup e trasferimento**: *Esporta…* salva tutte le impostazioni (profili
@@ -310,13 +310,13 @@ attivo.
 Apri **Impostazioni… → Claude Code → Installa hook…**. Vedi il diff esatto di cosa
 cambierà in `%USERPROFILE%\.claude\settings.json` e il percorso della copia di
 backup datata che verrà creata. Non viene scritto nulla finché non clicchi. I tuoi
-hook non vengono mai toccati e la disinstallazione rimuove solo le voci di Coucou.
+hook non vengono mai toccati e la disinstallazione rimuove solo le voci di EasyIsland.
 
-Il relay è un piccolo eseguibile, `coucou-hook.exe`, copiato in
-`%LOCALAPPDATA%\Coucou\bin\` all'avvio. Ha 300 ms per raggiungere Coucou ed esce
+Il relay è un piccolo eseguibile, `easyisland-hook.exe`, copiato in
+`%LOCALAPPDATA%\EasyIsland\bin\` all'avvio. Ha 300 ms per raggiungere EasyIsland ed esce
 in modo pulito se l'app è chiusa, lenta o crashata: **una sessione di Claude Code
-non viene mai bloccata né rallentata da Coucou.** Se nessuno risponde in tempo a
-una richiesta di permesso, Coucou resta in silenzio e Claude Code la chiede nel
+non viene mai bloccata né rallentata da EasyIsland.** Se nessuno risponde in tempo a
+una richiesta di permesso, EasyIsland resta in silenzio e Claude Code la chiede nel
 terminale come al solito.
 
 Funziona da qualsiasi terminale: Windows Terminal, PowerShell, VS Code, Git Bash.
@@ -325,22 +325,22 @@ Funziona da qualsiasi terminale: Windows Terminal, PowerShell, VS Code, Git Bash
 
 **Impostazioni… → Chat con Claude** ti fa scegliere il motore della chat:
 
-- **Abbonamento Claude (tramite Claude Code)**, il predefinito. Mochi usa
+- **Abbonamento Claude (tramite Claude Code)**, il predefinito. Ezzy usa
   Claude Code installato sul PC (`claude -p`, nascosto, senza finestre) e il tuo
   abbonamento Pro o Max: nessuna chiave e nessun costo extra, ma le domande
   contano nei limiti d'uso del piano. Serve Claude Code installato e con il
   login fatto. Claude Code gira in una cartella vuota
-  (`%LOCALAPPDATA%\Coucou\chat`), con gli hook disattivati e solo con ricerca
+  (`%LOCALAPPDATA%\EasyIsland\chat`), con gli hook disattivati e solo con ricerca
   web, lettura di pagine web e lettura dei file che rilasci.
-- **Chiave API Anthropic**. Mochi chiama direttamente l'API con la tua chiave,
+- **Chiave API Anthropic**. Ezzy chiama direttamente l'API con la tua chiave,
   pagata a consumo dalla Console di Anthropic.
 
-**Connettori in chat** (solo con "Abbonamento Claude"): Mochi può usare i
+**Connettori in chat** (solo con "Abbonamento Claude"): Ezzy può usare i
 server MCP che hai configurato in Claude Code per l'utente
 (`claude mcp add --scope user …`), scegliendo quali profilo per profilo. Con
 "chiedi conferma" (predefinito) ogni operazione su quel connettore compare
 nell'isola con **Consenti / Nega**; disattivala solo per i connettori di sola
-lettura. Coucou legge solo i nomi dei server, mai la loro configurazione. I
+lettura. EasyIsland legge solo i nomi dei server, mai la loro configurazione. I
 connettori di claude.ai non sono disponibili quando Claude Code gira in questo
 modo.
 
@@ -348,17 +348,17 @@ Le chiavi stanno in **Gestione credenziali di Windows**, mai su disco e mai
 nell'interfaccia: l'isola può solo chiedere se una chiave esiste. Lo stesso vale
 per le chiavi di ogni integrazione.
 
-Mochi risponde in italiano, a meno che tu non gli scriva in un'altra lingua.
+Ezzy risponde in italiano, a meno che tu non gli scriva in un'altra lingua.
 **Nuova chat**, a sinistra del campo di testo, dimentica la conversazione (e il
 file o il testo a cui si riferiva) e ne comincia una da zero.
 
-Con "Abbonamento Claude", Coucou cerca Claude Code nel `PATH`, in
+Con "Abbonamento Claude", EasyIsland cerca Claude Code nel `PATH`, in
 `%USERPROFILE%\.localin` e nella cartella di npm; se non c'è un'installazione
 a sé, usa la copia inclusa nell'app desktop di Claude
 (`%APPDATA%\Claude\claude-code\<versione>`) o nell'estensione per VS Code,
 sempre la versione più recente.
 
-Nessuna telemetria. Le uniche richieste di rete di Coucou vanno ai servizi che
+Nessuna telemetria. Le uniche richieste di rete di EasyIsland vanno ai servizi che
 configuri tu.
 
 ## Compilarlo da te
@@ -385,20 +385,20 @@ Nessuna delle due pagine finisce nell'app.
 workflow di release:
 
 ```
-Coucou-Windows-X.Y.Z-setup.exe    l'installer con la versione
-Coucou-Windows-setup.exe          lo stesso file con il nome fisso
+EasyIsland-Windows-X.Y.Z-setup.exe    l'installer con la versione
+EasyIsland-Windows-setup.exe          lo stesso file con il nome fisso
 ```
 
-Installare è facoltativo: `target/release/coucou.exe` funziona da solo. Non c'è
+Installare è facoltativo: `target/release/easyisland.exe` funziona da solo. Non c'è
 nessuna finestra nella barra delle applicazioni e nessuna console: l'isola in cima
-allo schermo e il Mochi nell'area di notifica sono tutta l'app, ed Esci sta nel
+allo schermo e l'icona di Ezzy nell'area di notifica sono tutta l'app, ed Esci sta nel
 suo menu.
 
 I 28 suoni stanno in `assets/sounds/`. Il percorso è dichiarato una sola volta, in
 `SOUNDS_DIR` in cima a `vite.config.ts`.
 
 L'icona dell'app e quella dell'area di notifica sono disegnate nel codice, come
-Mochi:
+Ezzy:
 
 ```powershell
 npm run icons          # rigenera src-tauri/icons da scripts/gen-icons.mjs
@@ -409,32 +409,35 @@ npm run icons          # rigenera src-tauri/icons da scripts/gen-icons.mjs
 ```
 ./
   src/                 front end dell'isola (TypeScript, nessun framework)
-    mochi/             Mochi e il saluto all'avvio, in Canvas 2D
+    ezzy/              Ezzy e il saluto all'avvio, in Canvas 2D
     island/            macchina a stati, hook, integrazioni
     views/             tutte le viste dell'isola
     settings/          la finestra delle impostazioni
   src-tauri/           backend Rust: finestra, named pipe, API Claude, poller
-  hook/                coucou-hook.exe, il relay per Claude Code
+  hook/                easyisland-hook.exe, il relay per Claude Code
   scripts/             generatore di icone, impacchettamento dell'installer
   assets/sounds/       i 28 suoni WAV
   design/              prototipo HTML originale e catture di riferimento
-  docs/                SPEC.md, INTEGRATIONS.md e il sito GitHub Pages
+  docs/                SPEC.md, INTEGRATIONS.md
 ```
 
 ### Log
 
-`%LOCALAPPDATA%\Coucou\coucou.log`: eventi degli hook, decisioni sui permessi,
+`%LOCALAPPDATA%\EasyIsland\easyisland.log`: eventi degli hook, decisioni sui permessi,
 problemi dei poller. Resta sul tuo computer.
 
 ## Origine
 
-Fork solo per Windows di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou),
-nato come app nativa macOS per il notch. Il codice macOS è stato rimosso; il
+EasyIsland nasce come fork solo per Windows di
+[Louis-CFM/coucou](https://github.com/Louis-CFM/coucou) (Coucou, con il
+personaggio Mochi), app nativa macOS per il notch. Ezzy è il nuovo nome di
+Mochi. Il codice macOS è stato rimosso; il
 prototipo originale in `design/` resta il riferimento visivo. Alcune funzioni
 esistevano solo sul Mac e non sono presenti qui: invio di un file per email,
-trascinamento di Mochi su una finestra per allegarla come contesto, salto alla
+trascinamento di Ezzy su una finestra per allegarla come contesto, salto alla
 finestra esatta del terminale. "Apri terminale" apre la cartella di lavoro in
 VS Code quando `code` è nel `PATH`.
 
-Licenza: MIT per il codice; per personaggio, nomi, icone e suoni vedi
+Licenza: MIT per il codice. Il disegno del personaggio, le icone e i suoni
+vengono dall'originale e restano riservati al suo autore: vedi
 `LICENSE-ASSETS.md`.

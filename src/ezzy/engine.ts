@@ -1,4 +1,4 @@
-// Mochi — direct port of NotchBuddy/Sources/App/BotEngine.swift to Canvas 2D.
+// Ezzy — direct port of NotchBuddy/Sources/App/BotEngine.swift to Canvas 2D.
 // Same constants, same tweens, same easings, same particles. The only intentional
 // difference is the `happy`/`wink` eye arc, which follows the prototype
 // (design/prototype/notch-buddy.html, the visual source of truth) — the Swift
@@ -167,7 +167,7 @@ const FONT = `system-ui, "Segoe UI Variable Text", "Segoe UI", sans-serif`;
 
 export class BotEngine {
   isMini = false;
-  /** Solid body colour for mini bots / integration pills (null = Mochi gradient). */
+  /** Solid body colour for mini bots / integration pills (null = Ezzy gradient). */
   bodyColor: RGB | null = null;
 
   // Animated state (BotEngine `s`)
@@ -320,7 +320,7 @@ export class BotEngine {
     this.anim("roll", [[Math.PI * 2 * turns, durationMs, Ease.inOut]], () => { this.roll = 0; });
   }
 
-  /** Peek wave — the "coucou". Timings from BotEngine.greet(). */
+  /** Peek wave — the greeting. Timings from BotEngine.greet(). */
   greet() {
     const t = now();
     const tok = ++this.greetToken;
@@ -695,8 +695,8 @@ export class BotEngine {
   }
 
   /**
-   * The cube character (src/mochi/cube.ts): same pose, tweens, badge and
-   * particles as Mochi; the eyes and blush are painted on the right face.
+   * The cube character (src/ezzy/cube.ts): same pose, tweens, badge and
+   * particles as Ezzy; the eyes and blush are painted on the right face.
    */
   private drawAsCube(x: CanvasRenderingContext2D, W: number, H: number) {
     const R = W * 0.3;
@@ -763,7 +763,7 @@ export class BotEngine {
         x.translate(ex, ey);
         if (shape === "pill" || shape === "wide" || (shape === "wink" && sd < 0)) {
           // The cube's own eyes: square-cornered bars, narrower and taller than
-          // Mochi's pills, like the logo's stripes. Blinking squashes them.
+          // Ezzy's pills, like the logo's stripes. Blinking squashes them.
           const k = shape === "wide" ? 1.14 : 1;
           const w = ew * 0.62 * k;
           const hh = Math.max(eh * 1.2 * k * this.open, w * 0.35);

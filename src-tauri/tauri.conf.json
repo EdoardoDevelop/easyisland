@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Coucou",
+  "productName": "EasyIsland",
   "version": "0.1.1",
-  "identifier": "fr.louisraille.coucou",
+  "identifier": "it.edoardo.easyisland",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -18,7 +18,7 @@
     "windows": [
       {
         "label": "island",
-        "title": "Coucou",
+        "title": "EasyIsland",
         "url": "index.html",
         "width": 240,
         "height": 6,
@@ -48,11 +48,11 @@
       "icons/128x128@2x.png",
       "icons/icon.ico"
     ],
-    "resources": { "../target/release/coucou-hook.exe": "coucou-hook.exe" },
+    "resources": { "../target/release/easyisland-hook.exe": "easyisland-hook.exe" },
     "copyright": "© Louis Raille",
     "category": "DeveloperTool",
-    "shortDescription": "Mochi vive in cima al tuo schermo",
-    "longDescription": "Coucou mette Mochi in cima al tuo schermo: mostra le sessioni di Claude Code e alcune integrazioni, e ti permette di approvare, rispondere, chattare e rilasciare file senza interrompere quello che stai facendo.",
+    "shortDescription": "Ezzy vive in cima al tuo schermo",
+    "longDescription": "EasyIsland mette Ezzy in cima al tuo schermo: mostra le sessioni di Claude Code e alcune integrazioni, e ti permette di approvare, rispondere, chattare e rilasciare file senza interrompere quello che stai facendo.",
     "windows": {
       "nsis": {
         "installMode": "currentUser",

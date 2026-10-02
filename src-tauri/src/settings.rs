@@ -1,4 +1,4 @@
-// Preferences, stored as plain JSON in %APPDATA%\Coucou\settings.json.
+// Preferences, stored as plain JSON in %APPDATA%\EasyIsland\settings.json.
 // No secret ever lands here — API keys live in the Windows Credential Manager.
 //
 // Profiles: the top-level fields are always the *active* values, which is what
@@ -11,7 +11,8 @@ use serde_json::{Map, Value};
 use std::path::PathBuf;
 
 /// Bumped whenever the file layout changes; `migrate` brings old files up.
-pub const SCHEMA_VERSION: u32 = 2;
+/// 3: the character was renamed (Mochi → Ezzy), so were its values.
+pub const SCHEMA_VERSION: u32 = 3;
 
 /// Fields that belong to a profile rather than to the machine.
 pub const PROFILE_KEYS: &[&str] = &[
@@ -48,12 +49,12 @@ pub const PROFILE_KEYS: &[&str] = &[
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Theme {
-    /// Who lives in the island: "mochi" or "cube".
+    /// Who lives in the island: "ezzy" or "cube".
     #[serde(default = "default_character")]
     pub character: String,
-    /// Mochi's body colour, "#rrggbb"; empty = the original cream.
-    #[serde(default)]
-    pub mochi_color: String,
+    /// Ezzy's body colour, "#rrggbb"; empty = the original cream.
+    #[serde(default, alias = "mochiColor")]
+    pub ezzy_color: String,
     #[serde(default = "default_island_color")]
     pub island_color: String,
     #[serde(default = "one")]
@@ -71,7 +72,7 @@ impl Default for Theme {
     fn default() -> Self {
         Self {
             character: default_character(),
-            mochi_color: String::new(),
+            ezzy_color: String::new(),
             island_color: default_island_color(),
             island_opacity: 1.0,
             volume_alerts: 1.0,
@@ -82,7 +83,7 @@ impl Default for Theme {
 }
 
 fn default_character() -> String {
-    "mochi".into()
+    "ezzy".into()
 }
 fn default_island_color() -> String {
     "#000000".into()
@@ -198,7 +199,7 @@ pub struct Settings {
     /// … and "left" | "center" | "right". Content opens aligned to that side.
     #[serde(default = "default_anchor_h")]
     pub anchor_h: String,
-    /// Where the user dragged Mochi: logical px from the anchored home position.
+    /// Where the user dragged Ezzy: logical px from the anchored home position.
     #[serde(default)]
     pub offset_x: f64,
     #[serde(default)]
@@ -224,16 +225,16 @@ pub struct Settings {
     /// More programs (executable names) that mean remote help is on.
     #[serde(default)]
     pub presence_apps: Vec<String>,
-    /// "hide" = Mochi disappears (permission requests still show), "silent" = no sounds only.
+    /// "hide" = Ezzy disappears (permission requests still show), "silent" = no sounds only.
     #[serde(default = "default_presence_mode")]
     pub presence_mode: String,
-    /// What stays visible at rest: "mochi" | "dot" | "none" (invisible strip).
+    /// What stays visible at rest: "ezzy" | "dot" | "none" (invisible strip).
     #[serde(default = "default_icon_style")]
     pub icon_style: String,
     /// Rest icon size, logical px.
     #[serde(default = "default_icon_size")]
     pub icon_size: f64,
-    /// What the hover shows: "icon" (a bigger, live Mochi) | "bar" (the compact bar).
+    /// What the hover shows: "icon" (a bigger, live Ezzy) | "bar" (the compact bar).
     #[serde(default = "default_hover_style")]
     pub hover_style: String,
     /// Size of the hovered icon, logical px.
@@ -273,7 +274,7 @@ pub struct Settings {
     /// Global shortcut that opens the island ("" = none). Belongs to the PC.
     #[serde(default = "default_hotkey_open")]
     pub hotkey_open: String,
-    /// Global shortcut: ask Mochi about the text on the clipboard.
+    /// Global shortcut: ask Ezzy about the text on the clipboard.
     #[serde(default = "default_hotkey_ask")]
     pub hotkey_ask: String,
 }
@@ -300,7 +301,7 @@ fn default_anchor_h() -> String {
     "center".into()
 }
 fn default_icon_style() -> String {
-    "mochi".into()
+    "ezzy".into()
 }
 fn default_icon_size() -> f64 {
     24.0
@@ -429,6 +430,16 @@ impl Settings {
 
     /// Brings a file of any earlier layout up to SCHEMA_VERSION.
     pub fn migrated(mut self) -> Self {
+        // Schema 3: values written while the character was called Mochi.
+        if self.icon_style == LEGACY_CHARACTER {
+            self.icon_style = default_icon_style();
+        }
+        if self.theme.character == LEGACY_CHARACTER {
+            self.theme.character = default_character();
+        }
+        for p in &mut self.profiles {
+            rename_legacy_values(&mut p.values);
+        }
         if self.profiles.is_empty() {
             let snap = self.snapshot();
             let mut focus = snap.clone();
@@ -462,7 +473,7 @@ impl Settings {
         let value: Value = serde_json::from_str(text.trim_start_matches('\u{feff}'))
             .map_err(|e| format!("Il file non è un JSON valido: {e}"))?;
         if !value.is_object() {
-            return Err("Il file non contiene impostazioni di Coucou.".into());
+            return Err("Il file non contiene impostazioni di EasyIsland.".into());
         }
         let mut next: Settings = serde_json::from_value(value)
             .map_err(|e| format!("Impostazioni non riconosciute: {e}"))?;
@@ -471,24 +482,42 @@ impl Settings {
     }
 }
 
-/// %APPDATA%\Coucou
+/// What "ezzy" was called in settings written before the rename.
+const LEGACY_CHARACTER: &str = "mochi";
+
+/// A profile's stored values, brought from the Mochi names to the Ezzy ones.
+fn rename_legacy_values(values: &mut Map<String, Value>) {
+    if values.get("iconStyle").and_then(Value::as_str) == Some(LEGACY_CHARACTER) {
+        values.insert("iconStyle".into(), Value::from(default_icon_style()));
+    }
+    if let Some(Value::Object(theme)) = values.get_mut("theme") {
+        if theme.get("character").and_then(Value::as_str) == Some(LEGACY_CHARACTER) {
+            theme.insert("character".into(), Value::from(default_character()));
+        }
+        if let Some(color) = theme.remove("mochiColor") {
+            theme.entry("ezzyColor").or_insert(color);
+        }
+    }
+}
+
+/// %APPDATA%\EasyIsland
 pub fn config_dir() -> PathBuf {
     let base = std::env::var_os("APPDATA")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."));
-    base.join("Coucou")
+    base.join("EasyIsland")
 }
 
-/// %LOCALAPPDATA%\Coucou — where coucou-hook.exe and the log live.
+/// %LOCALAPPDATA%\EasyIsland — where easyisland-hook.exe and the log live.
 pub fn local_dir() -> PathBuf {
     let base = std::env::var_os("LOCALAPPDATA")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."));
-    base.join("Coucou")
+    base.join("EasyIsland")
 }
 
 pub fn hook_exe_path() -> PathBuf {
-    local_dir().join("bin").join("coucou-hook.exe")
+    local_dir().join("bin").join("easyisland-hook.exe")
 }
 
 fn settings_path() -> PathBuf {
@@ -525,6 +554,24 @@ mod tests {
         assert_eq!(s.profiles.len(), 3);
         assert_eq!(s.active_profile, "lavoro");
         assert_eq!(s.profiles[2].values["notify"], "permissions");
+    }
+
+    #[test]
+    fn mochi_values_become_ezzy() {
+        let old = r##"{"soundEnabled":true,"soundVolume":0.1,"autoCloseInterval":15,"absenceInterval":180,
+            "activeIntegrations":[],"screen":"primary","autostart":false,"hooksInstalled":false,
+            "schemaVersion":2,"iconStyle":"mochi","theme":{"character":"mochi","mochiColor":"#ff0000"},
+            "activeProfile":"casa","profiles":[{"id":"casa","name":"Casa","values":
+            {"iconStyle":"mochi","theme":{"character":"cube","mochiColor":"#00ff00"}}}]}"##;
+        let s = serde_json::from_str::<Settings>(old).unwrap().migrated();
+        assert_eq!(s.icon_style, "ezzy");
+        assert_eq!(s.theme.character, "ezzy");
+        assert_eq!(s.theme.ezzy_color, "#ff0000");
+        let v = &s.profiles[0].values;
+        assert_eq!(v["iconStyle"], "ezzy");
+        assert_eq!(v["theme"]["character"], "cube");
+        assert_eq!(v["theme"]["ezzyColor"], "#00ff00");
+        assert!(v["theme"].get("mochiColor").is_none());
     }
 
     #[test]

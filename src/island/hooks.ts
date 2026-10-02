@@ -23,8 +23,8 @@ interface HookPayload {
   prompt?: string;
   tool_name?: string;
   tool_input?: Record<string, unknown>;
-  /** Set by coucou-hook.exe --chat: a connector call from Mochi's own chat. */
-  coucou_chat?: boolean;
+  /** Set by easyisland-hook.exe --chat: a connector call from Ezzy's own chat. */
+  easyisland_chat?: boolean;
 }
 
 /** "mcp__agenda__create_event" + input → "agenda › create_event · {…}". */
@@ -206,8 +206,8 @@ function handleHook(island: Island, payload: HookPayload) {
   }
 
   const name = payload.hook_event_name ?? "";
-  // Not Claude Code: a message from `coucou-hook notify`.
-  if (name === "CoucouNotify") {
+  // Not Claude Code: a message from `easyisland-hook notify`.
+  if (name === "EasyIslandNotify") {
     const p = payload as unknown as Record<string, unknown>;
     const str = (k: string) => (typeof p[k] === "string" ? (p[k] as string) : "");
     const level = str("level");
@@ -219,7 +219,7 @@ function handleHook(island: Island, payload: HookPayload) {
     });
     return;
   }
-  if (payload.coucou_chat) {
+  if (payload.easyisland_chat) {
     if (name === "PermissionRequest") handleChatPermission(island, payload);
     return;
   }
@@ -368,7 +368,7 @@ function handleHook(island: Island, payload: HookPayload) {
         State.setPillBadge(CLAUDE_ID, "approval");
         island.reveal();
       }
-      // Coucou answers within 108 s or not at all; after that the terminal has
+      // EasyIsland answers within 108 s or not at all; after that the terminal has
       // taken over and the card would be lying.
       pendingTimeout = window.setTimeout(() => {
         pendingTimeout = null;

@@ -1,7 +1,7 @@
 // App state — mirror of AppState.swift (the parts the island needs).
 
 import type { AnchorH, AnchorV, BotEmoteName, BotStateName, IslandMode, IslandViewName } from "./layout";
-import type { EyeShape } from "../mochi/engine";
+import type { EyeShape } from "../ezzy/engine";
 
 export type AgentSource = "claudeCode" | "n8n";
 export type PillBadge = "approval" | "finished" | "error";
@@ -26,7 +26,7 @@ export interface ApprovalInfo {
   sessionId: string;
   tool: string;
   command: string;
-  /** "chat": a connector call from Mochi's own chat, not a Claude Code session. */
+  /** "chat": a connector call from Ezzy's own chat, not a Claude Code session. */
   source?: "chat";
   /** AskUserQuestion: the questions to answer from the island. */
   questions?: AskQuestion[];
@@ -111,7 +111,7 @@ export interface Settings {
   /** Where the island sits; content opens aligned to that side. */
   anchorV: AnchorV;
   anchorH: AnchorH;
-  /** Where Mochi was dragged: logical px from the anchored home position. */
+  /** Where Ezzy was dragged: logical px from the anchored home position. */
   offsetX: number;
   offsetY: number;
   /** Touch the screen edge (square corners) when left at it, not only top centre. */
@@ -128,13 +128,13 @@ export interface Settings {
   presenceRemote: boolean;
   /** More executables that mean remote help is on. */
   presenceApps: string[];
-  /** "hide": Mochi disappears (permission requests still show); "silent": no sounds only. */
+  /** "hide": Ezzy disappears (permission requests still show); "silent": no sounds only. */
   presenceMode: "hide" | "silent";
   /** What stays visible at rest. "none" = the old invisible wake strip. */
-  iconStyle: "mochi" | "dot" | "none";
+  iconStyle: "ezzy" | "dot" | "none";
   /** Rest icon size, px. */
   iconSize: number;
-  /** What the hover shows: a bigger live Mochi, or the compact bar. */
+  /** What the hover shows: a bigger live Ezzy, or the compact bar. */
   hoverStyle: "icon" | "bar";
   /** Hovered icon size, px. */
   hoverSize: number;
@@ -230,10 +230,10 @@ export interface ScriptRun {
 }
 
 export interface Theme {
-  /** Who lives in the island: Mochi, or the cube (src/mochi/cube.ts). */
-  character: "mochi" | "cube";
+  /** Who lives in the island: Ezzy, or the cube (src/ezzy/cube.ts). */
+  character: "ezzy" | "cube";
   /** "#rrggbb", or "" for the original cream (the logo's orange for the cube). */
-  mochiColor: string;
+  ezzyColor: string;
   islandColor: string;
   islandOpacity: number;
   /** Volume multipliers per sound family, 0–1. */
@@ -258,8 +258,8 @@ export interface Profile {
 }
 
 export const DEFAULT_THEME: Theme = {
-  character: "mochi",
-  mochiColor: "",
+  character: "ezzy",
+  ezzyColor: "",
   islandColor: "#000000",
   islandOpacity: 1,
   volumeAlerts: 1,
@@ -293,7 +293,7 @@ export const DEFAULT_SETTINGS: Settings = {
   presenceRemote: true,
   presenceApps: [],
   presenceMode: "hide",
-  iconStyle: "mochi",
+  iconStyle: "ezzy",
   iconSize: 24,
   hoverStyle: "icon",
   hoverSize: 40,
@@ -335,10 +335,10 @@ class AppState {
   fullscreen = false;
   /** "Davanti al cliente" (src-tauri/src/presence.rs): why, or inactive. */
   presence = { active: false, reason: "" };
-  /** The last message from `coucou-hook notify`. */
+  /** The last message from `easyisland-hook notify`. */
   notice: { title: string; text: string; level: "ok" | "warn" | "error" | "info"; url: string } | null = null;
 
-  /** Mochi keeps out of sight: over a full-screen app, or in front of a client. */
+  /** Ezzy keeps out of sight: over a full-screen app, or in front of a client. */
   get quiet(): boolean {
     return (this.fullscreen && this.settings.quietFullscreen) ||
       (this.presence.active && this.settings.presenceMode !== "silent");

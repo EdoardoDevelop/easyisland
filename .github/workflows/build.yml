@@ -66,7 +66,7 @@ jobs:
           if ($tag -ne $cargo) { $bad += "Cargo.toml says $cargo" }
           if ($bad) { throw "tag says $tag but $($bad -join '; ')" }
 
-      # `npm run build` (run by tauri as beforeBuildCommand) builds coucou-hook
+      # `npm run build` (run by tauri as beforeBuildCommand) builds easyisland-hook
       # first, which tauri.conf.json then bundles as a resource. `pack` then
       # copies the installer out of target/ under its shipping name.
       - name: Build and pack the installer
@@ -83,8 +83,8 @@ jobs:
       # publishing a release. PUBLISH below still gates the public release.
       - uses: actions/upload-artifact@v4
         with:
-          name: Coucou-Windows-setup
-          path: release/Coucou-Windows-${{ steps.pack.outputs.version }}-setup.exe
+          name: EasyIsland-Windows-setup
+          path: release/EasyIsland-Windows-${{ steps.pack.outputs.version }}-setup.exe
           retention-days: 30
 
       - name: Publish the release
@@ -95,15 +95,15 @@ jobs:
         run: |
           $v = "${{ steps.pack.outputs.version }}"
           $notes = @"
-          Coucou per Windows $v — Mochi in cima al tuo schermo.
+          EasyIsland per Windows $v — Ezzy in cima al tuo schermo.
 
-          Scarica ``Coucou-Windows-$v-setup.exe`` ed eseguilo. L'installer non è
+          Scarica ``EasyIsland-Windows-$v-setup.exe`` ed eseguilo. L'installer non è
           ancora firmato, quindi Windows SmartScreen mostra un avviso: clicca
           **Ulteriori informazioni → Esegui comunque**.
           "@
           gh release create "${{ github.ref_name }}" `
-            "release/Coucou-Windows-$v-setup.exe" `
-            --title "Coucou per Windows $v" `
+            "release/EasyIsland-Windows-$v-setup.exe" `
+            --title "EasyIsland per Windows $v" `
             --notes $notes
 
       - name: Update the rolling windows-latest release
@@ -120,12 +120,12 @@ jobs:
             # from it gets an old tree.
             git tag -f windows-latest "${{ github.sha }}"
             git push -f origin windows-latest
-            gh release edit windows-latest --title "Coucou per Windows (ultima)" --notes "Sempre la build Windows più recente: attualmente $v."
-            gh release upload windows-latest "release/Coucou-Windows-setup.exe" --clobber
+            gh release edit windows-latest --title "EasyIsland per Windows (ultima)" --notes "Sempre la build Windows più recente: attualmente $v."
+            gh release upload windows-latest "release/EasyIsland-Windows-setup.exe" --clobber
           } else {
             gh release create windows-latest `
-              "release/Coucou-Windows-setup.exe" `
-              --title "Coucou per Windows (ultima)" `
+              "release/EasyIsland-Windows-setup.exe" `
+              --title "EasyIsland per Windows (ultima)" `
               --notes "Sempre la build Windows più recente: attualmente $v." `
               --latest=false
           }

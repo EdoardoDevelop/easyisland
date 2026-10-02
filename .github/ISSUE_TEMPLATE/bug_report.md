@@ -12,6 +12,6 @@ labels: bug
 
 **Versione di Windows**
 
-**Versione di Coucou**
+**Versione di EasyIsland**
 
-**Estratto di `%LOCALAPPDATA%\Coucou\coucou.log` (se utile)**
+**Estratto di `%LOCALAPPDATA%\EasyIsland\easyisland.log` (se utile)**

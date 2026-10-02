@@ -7,7 +7,7 @@ use tauri::{AppHandle, Emitter, Manager, Wry};
 
 use crate::island::WINDOW_LABEL;
 
-const TRAY_ID: &str = "coucou";
+const TRAY_ID: &str = "easyisland";
 const PROFILE_PREFIX: &str = "profile:";
 
 fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
@@ -22,7 +22,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         })
         .unwrap_or_default();
 
-    let open = MenuItem::with_id(app, "open", "Apri Coucou", true, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", "Apri EasyIsland", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Impostazioni…", true, None::<&str>)?;
     let pause = MenuItem::with_id(app, "pause", "Pausa", true, None::<&str>)?;
     let presence = CheckMenuItem::with_id(
@@ -59,7 +59,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
 pub fn build(app: &AppHandle) -> tauri::Result<()> {
     let menu = build_menu(app)?;
     let mut builder = TrayIconBuilder::with_id(TRAY_ID)
-        .tooltip("Coucou")
+        .tooltip("EasyIsland")
         .menu(&menu)
         .on_menu_event(|app: &AppHandle, event| match event.id.as_ref() {
             "quit" => app.exit(0),
@@ -93,8 +93,8 @@ pub fn refresh(app: &AppHandle) {
         let _ = tray.set_menu(Some(menu));
     }
     let tip = match crate::presence::current() {
-        Some(why) => format!("Coucou — davanti al cliente ({why})"),
-        None => "Coucou".to_string(),
+        Some(why) => format!("EasyIsland — davanti al cliente ({why})"),
+        None => "EasyIsland".to_string(),
     };
     let _ = tray.set_tooltip(Some(tip));
 }

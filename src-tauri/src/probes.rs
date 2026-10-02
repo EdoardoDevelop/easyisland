@@ -717,7 +717,7 @@ mod tests {
     }
 }
 
-/// Real checks on this PC and the network: `cargo test -p coucou --lib live_ -- --ignored --nocapture`.
+/// Real checks on this PC and the network: `cargo test -p easyisland --lib live_ -- --ignored --nocapture`.
 #[cfg(test)]
 mod live {
     use super::*;

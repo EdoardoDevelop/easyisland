@@ -7,7 +7,7 @@ import { ICONS } from "./icons";
 import { Ticker } from "./ticker";
 import { State, type AgentTask, type AskQuestion } from "../core/state";
 import { washRGBA, type IslandViewName, type Wash } from "../core/layout";
-import { createMiniBot, pruneMiniBots } from "../mochi/minibots";
+import { createMiniBot, pruneMiniBots } from "../ezzy/minibots";
 import { buildPrompt } from "./chat";
 import { buildChoose, buildUpload, buildUploading } from "./upload";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
@@ -318,7 +318,7 @@ function buildApproval(actions: ViewActions): ViewHost {
       clear(who);
       if (State.pendingApproval?.source === "chat") {
         who.append(h("div", { class: "who-row" },
-          h("span", { class: "n", text: "Mochi" }),
+          h("span", { class: "n", text: "Ezzy" }),
           h("span", { text: "vuole usare un connettore" })));
       } else {
         who.append(agentWho(State.focusTask, "chiede un permesso"));
@@ -433,7 +433,7 @@ function buildQuestion(): ViewHost {
       const task = State.focusTask;
       title.textContent = task?.steps.at(-1) ?? "Claude ha bisogno di una risposta.";
       clear(row);
-      row.append(h("div", { class: "sub", text: "Rispondi nel terminale: Coucou non può ancora rispondere al posto tuo." }));
+      row.append(h("div", { class: "sub", text: "Rispondi nel terminale: EasyIsland non può ancora rispondere al posto tuo." }));
     },
   };
 }
@@ -506,12 +506,12 @@ function buildNote(): ViewHost {
   };
 }
 
-// ── Notice (coucou-hook notify) ───────────────────────────────────────────────
+// ── Notice (easyisland-hook notify) ───────────────────────────────────────────────
 
 const NOTICE_WASH: Record<string, Wash> = { ok: "green", warn: "amber", error: "red", info: "indigo" };
 const NOTICE_LABEL: Record<string, string> = { ok: "fatto", warn: "attenzione", error: "errore", info: "notifica" };
 
-/** A message from any script: `coucou-hook notify "Titolo" "Testo" --stato ok`. */
+/** A message from any script: `easyisland-hook notify "Titolo" "Testo" --stato ok`. */
 function buildNotify(actions: ViewActions): ViewHost {
   const who = h("div", { class: "who-row" });
   const title = h("div", { class: "title" });

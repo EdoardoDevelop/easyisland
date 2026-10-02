@@ -1,4 +1,4 @@
-// The island: DOM shell, sizing animation, Mochi placement, mouse handling.
+// The island: DOM shell, sizing animation, Ezzy placement, mouse handling.
 // Mirrors IslandRootView.swift + IslandWindowController.swift.
 
 import { Tracked, Spring, clamp } from "../core/anim";
@@ -11,10 +11,10 @@ import {
 } from "../core/layout";
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
-import { BotEngine, hexToRGB } from "../mochi/engine";
-import { character, setCharacter } from "../mochi/cube";
-import { Greeting } from "../mochi/greeting";
-import { createMiniBot, pruneMiniBots, syncMiniBotStates, tickMiniBots } from "../mochi/minibots";
+import { BotEngine, hexToRGB } from "../ezzy/engine";
+import { character, setCharacter } from "../ezzy/cube";
+import { Greeting } from "../ezzy/greeting";
+import { createMiniBot, pruneMiniBots, syncMiniBotStates, tickMiniBots } from "../ezzy/minibots";
 import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
@@ -26,12 +26,12 @@ import { IslandStateMachine } from "./fsm";
 const BOT_OVERHANG = 40;
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
 const HIT_MARGIN = 14;
-/** Pause between two gestures of the compact Mochi when it does not follow the cursor, ms. */
+/** Pause between two gestures of the compact Ezzy when it does not follow the cursor, ms. */
 const WANDER_MIN_MS = 1800;
 const WANDER_SPREAD_MS = 4200;
 /** Smallest change of gaze (lookX / lookY, −1…1) worth a new frame. */
 const LOOK_EPS = 0.01;
-/** Frame interval while Mochi only follows the cursor (nothing else moving), ms. */
+/** Frame interval while Ezzy only follows the cursor (nothing else moving), ms. */
 const LOOK_FRAME_MS = 33;
 /** Pointer travel (px) that turns a press on the compact island into a drag. */
 const DRAG_THRESHOLD = 4;
@@ -58,7 +58,7 @@ export class Island {
   private miniGrid!: HTMLElement;
   private countdown!: HTMLElement;
   private wakeStrip!: HTMLElement;
-  /** What stays on screen while the island is hidden (Mochi or a dot). */
+  /** What stays on screen while the island is hidden (Ezzy or a dot). */
   private restIcon!: HTMLElement;
   private restCanvas!: HTMLCanvasElement;
   private restDot!: HTMLElement;
@@ -85,7 +85,7 @@ export class Island {
 
   // Rust starts the window at full size so the launch greeting has room.
   private collapsed = false;
-  /** Where the compact Mochi looks while it does not follow the cursor. */
+  /** Where the compact Ezzy looks while it does not follow the cursor. */
   private wanderLook = { x: 0, y: 0 };
   private wanderTimer: number | null = null;
   /** The gaze last drawn: cursor moves that do not change it skip the frame loop. */
@@ -234,7 +234,7 @@ export class Island {
     for (const v of this.views.values()) this.viewsEl.append(v.el);
     this.contentEl = h("div", { id: "content" }, this.header.el, this.viewsEl);
 
-    // The drop sequence draws the card, the bar and its own Mochi. It sits under
+    // The drop sequence draws the card, the bar and its own Ezzy. It sits under
     // the header, which stays visible on top of it exactly as on macOS.
     this.uploadCanvas = new UploadCanvas({
       ask: () => {
@@ -283,17 +283,17 @@ export class Island {
           this.setMode("hidden");
           break;
         case "petit":
-          if (from === "coucou") this.greeting.interrupt();
+          if (from === "greeting") this.greeting.interrupt();
           else if (from === "hidden") Sound.play("peek");
           this.setMode("compact");
-          if (from === "coucou") State.view = State.defaultView();
+          if (from === "greeting") State.view = State.defaultView();
           if (!this.wasInIsland) this.fsm.mouseLeft();
           break;
         case "home":
           this.expand(State.defaultView());
           if (!this.wasInIsland) this.fsm.mouseLeft();
           break;
-        case "coucou":
+        case "greeting":
           this.expand("greeting");
           this.greeting.start();
           break;
@@ -337,7 +337,7 @@ export class Island {
   }
 
   /**
-   * Compact and not following the cursor: every few seconds, at random, Mochi
+   * Compact and not following the cursor: every few seconds, at random, Ezzy
    * blinks, looks somewhere else, looks back or pulls a face — enough to feel
    * alive. Between two gestures the frame loop is stopped, so it costs nothing.
    */
@@ -570,7 +570,7 @@ export class Island {
   /**
    * "Davanti al cliente" (src-tauri/src/presence.rs): a call, someone on this
    * PC from afar, or the tray switch. Sounds stop in any case; with "hide" the
-   * compact Mochi goes away too. An open card waiting for an answer stays.
+   * compact Ezzy goes away too. An open card waiting for an answer stays.
    */
   setPresence(active: boolean, reason: string) {
     State.presence = { active, reason };
@@ -580,7 +580,7 @@ export class Island {
     State.notify();
   }
 
-  /** A message from `coucou-hook notify` (any script, task or flow). */
+  /** A message from `easyisland-hook notify` (any script, task or flow). */
   showNotice(n: { title: string; text: string; level: "ok" | "warn" | "error" | "info"; url: string }) {
     const important = n.level === "error" || n.level === "warn";
     // Same rules as everything else: in front of a client or over a full-screen
@@ -648,7 +648,7 @@ export class Island {
   }
 
   /**
-   * Mochi eats the file. Nothing here waits on the file system: the copy into
+   * Ezzy eats the file. Nothing here waits on the file system: the copy into
    * the inbox runs in the background and swaps the path in when it lands, so a
    * slow disk can never stall the animation — same as FileDropHandler on macOS.
    */
@@ -691,7 +691,7 @@ export class Island {
 
   /**
    * Sounds and view changes hung off the canvas timeline: a `tick` every 10 %,
-   * the ✓ chime when the bar completes, then `choose` once Mochi has grown back.
+   * the ✓ chime when the bar completes, then `choose` once Ezzy has grown back.
    */
   private stepSequence() {
     const since = UploadSeq.sinceDrop();
@@ -827,12 +827,12 @@ export class Island {
   private drawRestIcon() {
     const p = this.placement;
     const state = State.effectiveState;
-    const key = `${p.iconStyle}|${p.iconSize}|${state}|${State.paused}|${State.settings.theme.mochiColor}|${character()}`;
+    const key = `${p.iconStyle}|${p.iconSize}|${state}|${State.paused}|${State.settings.theme.ezzyColor}|${character()}`;
     if (key === this.restKey) return;
     this.restKey = key;
 
     const size = p.iconSize;
-    this.restCanvas.style.display = p.iconStyle === "mochi" ? "block" : "none";
+    this.restCanvas.style.display = p.iconStyle === "ezzy" ? "block" : "none";
     this.restDot.style.display = p.iconStyle === "dot" ? "block" : "none";
     this.restIcon.classList.toggle("paused", State.paused);
 
@@ -842,7 +842,7 @@ export class Island {
       this.restDot.style.width = `${d}px`;
       this.restDot.style.height = `${d}px`;
       this.restDot.style.background = color;
-    } else if (p.iconStyle === "mochi") {
+    } else if (p.iconStyle === "ezzy") {
       // The body is ~68 % of the engine canvas wide; size the canvas so the body
       // fills ~90 % of the icon box and let the canvas overflow it.
       const w = Math.round(size * 1.3);
@@ -863,9 +863,9 @@ export class Island {
     }
   }
 
-  /** Mochi's body colour from the theme; null keeps the original cream. */
+  /** Ezzy's body colour from the theme; null keeps the original cream. */
   private themeBody() {
-    const c = State.settings.theme?.mochiColor;
+    const c = State.settings.theme?.ezzyColor;
     return c && /^#[0-9a-f]{6}$/i.test(c) ? hexToRGB(c) : null;
   }
 
@@ -959,7 +959,7 @@ export class Island {
     });
 
     // Compact: a press opens the island on release, unless the pointer moved —
-    // then it is a drag, Mochi follows the mouse and stays where it is left.
+    // then it is a drag, Ezzy follows the mouse and stays where it is left.
     this.islandEl.addEventListener("pointerdown", (e) => {
       if (e.button !== 0 || State.mode === "expanded") return;
       Sound.resume();
@@ -1036,7 +1036,7 @@ export class Island {
       y >= rect.y - HIT_MARGIN && y <= rect.y + rect.h + HIT_MARGIN;
 
     if (inIsland && !this.wasInIsland) {
-      if (this.fsm.state === "coucou") this.greeting.hover();
+      if (this.fsm.state === "greeting") this.greeting.hover();
       this.fsm.mouseEntered();
       this.homeCollapseAt = null;
     }
@@ -1064,7 +1064,7 @@ export class Island {
     }
 
     // Far from the island the gaze is already as far as it goes (tanh): a cursor
-    // that moves without changing where Mochi looks must not wake the frame loop.
+    // that moves without changing where Ezzy looks must not wake the frame loop.
     const lx = this.lookX();
     const ly = this.lookY();
     const gazeMoved = this.followsCursor() &&
@@ -1166,7 +1166,7 @@ export class Island {
         this.greeting.draw(gctx);
       }
     } else {
-      // Kept running even while the drop canvas is up, so the island's own Mochi
+      // Kept running even while the drop canvas is up, so the island's own Ezzy
       // is already in the right place the moment the canvas fades out.
       this.drawBot(dt);
     }
@@ -1220,7 +1220,7 @@ export class Island {
     this.botSize.target = p.diameter / 0.6;
 
     const greetingActive = State.mode === "expanded" && State.view === "greeting";
-    // The drop canvas draws its own Mochi; two of them would overlap.
+    // The drop canvas draws its own Ezzy; two of them would overlap.
     const visible = p.opacity > 0 && !greetingActive && !this.uploadActive;
     this.botCanvas.style.opacity = visible ? "1" : "0";
 
@@ -1258,7 +1258,7 @@ export class Island {
     if (!ctx) return;
 
     const focus = State.focusTask;
-    // Mochi wears the focused integration's colour; the cube keeps the logo's.
+    // Ezzy wears the focused integration's colour; the cube keeps the logo's.
     this.engine.bodyColor = focus?.isIntegration && character() !== "cube"
       ? hexToRGB(focus.color) : this.themeBody();
     this.engine.particleOverhang = BOT_OVERHANG;

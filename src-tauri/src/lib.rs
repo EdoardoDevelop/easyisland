@@ -1,4 +1,4 @@
-// Coucou for Windows — app wiring and the commands the island calls.
+// EasyIsland for Windows — app wiring and the commands the island calls.
 
 mod actions;
 mod calendar;
@@ -10,6 +10,7 @@ mod hooks;
 mod hotkeys;
 mod integrations;
 mod island;
+mod legacy;
 mod log;
 mod pipe;
 mod presence;
@@ -86,13 +87,13 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
         (screen_changed, autostart_changed)
     };
     if let Err(err) = settings::save(&settings) {
-        eprintln!("[coucou] could not save settings: {err}");
+        eprintln!("[easyisland] could not save settings: {err}");
     }
     if autostart_changed {
         let manager = app.autolaunch();
         let result = if settings.autostart { manager.enable() } else { manager.disable() };
         if let Err(err) = result {
-            eprintln!("[coucou] autostart: {err}");
+            eprintln!("[easyisland] autostart: {err}");
         }
     }
     if screen_changed {
@@ -117,7 +118,7 @@ pub(crate) fn activate_profile(app: &AppHandle, id: &str, why: &str) {
         s.clone()
     };
     if let Err(err) = settings::save(&settings) {
-        eprintln!("[coucou] could not save settings: {err}");
+        eprintln!("[easyisland] could not save settings: {err}");
     }
     log::line(format!("profile → {id} ({why})"));
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
@@ -145,7 +146,7 @@ fn settings_export(shared: State<Shared>) -> Result<String, String> {
         .ok_or_else(|| "Cartella Documenti non trovata.".to_string())?;
     let t = unsafe { windows::Win32::System::SystemInformation::GetLocalTime() };
     let path = dir.join(format!(
-        "Coucou-impostazioni-{:04}{:02}{:02}-{:02}{:02}.json",
+        "EasyIsland-impostazioni-{:04}{:02}{:02}-{:02}{:02}.json",
         t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute
     ));
     std::fs::write(&path, text).map_err(|e| format!("Esportazione non riuscita: {e}"))?;
@@ -285,14 +286,14 @@ async fn copy_pc_info() -> Result<String, String> {
     Ok(text)
 }
 
-/// "Prova" in Impostazioni → Notifiche: the same message `coucou-hook notify` sends.
+/// "Prova" in Impostazioni → Notifiche: the same message `easyisland-hook notify` sends.
 #[tauri::command]
 fn notify_test(app: AppHandle) {
     let _ = app.emit_to(
         island::WINDOW_LABEL,
         "hook",
         serde_json::json!({
-            "hook_event_name": "CoucouNotify",
+            "hook_event_name": "EasyIslandNotify",
             "title": "Prova",
             "text": "Così compare un messaggio mandato da uno script.",
             "level": "ok",
@@ -307,7 +308,7 @@ fn presence_state() -> Option<String> {
     presence::current()
 }
 
-/// Moves the island window by `dx`, `dy` logical px while Mochi is dragged.
+/// Moves the island window by `dx`, `dy` logical px while Ezzy is dragged.
 #[tauri::command]
 fn drag_island(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) {
     shared.gate.dragging.store(true, Ordering::Relaxed);
@@ -320,7 +321,7 @@ fn drag_island(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) {
     ));
 }
 
-/// The drag is over: remember where Mochi was left, in the active profile.
+/// The drag is over: remember where Ezzy was left, in the active profile.
 #[tauri::command]
 fn end_drag(app: AppHandle, shared: State<Shared>) {
     shared.gate.dragging.store(false, Ordering::Relaxed);
@@ -347,7 +348,7 @@ fn end_drag(app: AppHandle, shared: State<Shared>) {
         s.clone()
     };
     if let Err(err) = settings::save(&settings) {
-        eprintln!("[coucou] could not save settings: {err}");
+        eprintln!("[easyisland] could not save settings: {err}");
     }
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
     island::apply_geometry(&app, &shared.gate, &settings, collapsed);
@@ -596,7 +597,7 @@ fn create_settings_window(app: &AppHandle) {
     let url = settings_page_url(app);
     match WebviewWindowBuilder::new(app, "settings", url)
         .additional_browser_args(BROWSER_ARGS)
-        .title("Impostazioni — Coucou")
+        .title("Impostazioni — EasyIsland")
         .inner_size(980.0, 720.0)
         .min_inner_size(760.0, 520.0)
         .resizable(true)
@@ -634,12 +635,14 @@ fn open_settings_window(app: AppHandle) {
 }
 
 pub fn run() {
+    // First launch after the rename: bring Coucou's settings and keys over.
+    let moved = legacy::migrate();
     let loaded = settings::load();
     let gate = Arc::new(PollGate::new());
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            // `coucou.exe --settings` opens the settings window (a shortcut can use it).
+            // `easyisland.exe --settings` opens the settings window (a shortcut can use it).
             if argv.iter().any(|a| a == "--settings") {
                 show_settings_window(app);
             } else {
@@ -719,8 +722,14 @@ pub fn run() {
             hotkeys::spawn(handle.clone());
             widgets::start(handle.clone());
 
-            log::line(format!("--- Coucou {} started ---", env!("CARGO_PKG_VERSION")));
+            log::line(format!("--- EasyIsland {} started ---", env!("CARGO_PKG_VERSION")));
             hooks::ensure_hook_exe(&handle);
+            // Coucou's autostart entry starts Coucou, not this app.
+            if moved && loaded.autostart {
+                if let Err(err) = handle.autolaunch().enable() {
+                    log::line(format!("autostart: {err}"));
+                }
+            }
             pipe::start(handle.clone());
             drop::install(&handle);
             presence::spawn(handle.clone());
@@ -728,5 +737,5 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("error while running Coucou");
+        .expect("error while running EasyIsland");
 }

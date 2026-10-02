@@ -3,15 +3,15 @@
 //
 // The process runs hidden, in a neutral working folder, with:
 //   * hooks kept out of the island: without connectors every hook is disabled
-//     (`disableAllHooks`); COUCOU_INTERNAL makes coucou-hook.exe ignore the
-//     user's own Coucou hooks either way, so the chat never shows up as a
+//     (`disableAllHooks`); EASYISLAND_INTERNAL makes easyisland-hook.exe ignore the
+//     user's own EasyIsland hooks either way, so the chat never shows up as a
 //     Claude Code work session;
 //   * only WebSearch, WebFetch and Read among the built-in tools;
 //   * no connectors by default (`--strict-mcp-config`, `dontAsk`). When the user
 //     picked some MCP servers, Claude Code loads its own user-scope config (no
 //     copy of it, so no copy of any secret in it), the other servers are
 //     disallowed, and every call to a server marked "confirm" goes through a
-//     PermissionRequest hook — `coucou-hook.exe PermissionRequest --chat` — to
+//     PermissionRequest hook — `easyisland-hook.exe PermissionRequest --chat` — to
 //     the Consenti/Nega card in the island.
 // The prompt goes in on stdin, and every other argument is a plain word or a
 // path, so nothing needs quoting when the target is `claude.cmd`.
@@ -47,7 +47,7 @@ const INHERITED_SESSION_VARS: &[&str] = &[
     "CLAUDE_CODE_REMOTE_SESSION_ID",
 ];
 
-const SYSTEM_PROMPT: &str = "You are Mochi, a personal assistant living in a small chat bubble at the top of the user's screen (the Coucou desktop app). \
+const SYSTEM_PROMPT: &str = "You are Ezzy, a personal assistant living in a small chat bubble at the top of the user's screen (the EasyIsland desktop app). \
 You are not working on a codebase here: never try to edit files or run commands. \
 Use WebSearch and WebFetch when the question needs current or external information, and Read to look at a file the user attached. \
 Respond in Italian unless the user writes in another language. Be thorough but keep it readable in a small window. \
@@ -134,7 +134,7 @@ fn claude_json_path() -> Option<PathBuf> {
 }
 
 /// Names of the MCP servers configured for the user in Claude Code. Only the
-/// names: the configuration (and any key in it) is never read into Coucou.
+/// names: the configuration (and any key in it) is never read into EasyIsland.
 pub fn configured_mcp_servers() -> Vec<String> {
     let Some(path) = claude_json_path() else { return Vec::new() };
     let Ok(bytes) = std::fs::read(path) else { return Vec::new() };
@@ -175,7 +175,7 @@ impl Connectors {
     }
 }
 
-/// %LOCALAPPDATA%\Coucou\chat — an empty folder, so Claude Code has no project
+/// %LOCALAPPDATA%\EasyIsland\chat — an empty folder, so Claude Code has no project
 /// to read; it also holds the two small files we pass by path.
 fn work_dir(connectors: &Connectors) -> Result<PathBuf, String> {
     let dir = crate::settings::local_dir().join("chat");
@@ -207,20 +207,20 @@ the user confirms or refuses it with a click, and a refusal is final for that re
     } else {
         r#"{ "disableAllHooks": true }"#.to_string()
     };
-    std::fs::write(dir.join("mochi-prompt.txt"), prompt).map_err(|e| e.to_string())?;
+    std::fs::write(dir.join("ezzy-prompt.txt"), prompt).map_err(|e| e.to_string())?;
     std::fs::write(dir.join("chat-settings.json"), settings).map_err(|e| e.to_string())?;
     Ok(dir)
 }
 
 fn command(exe: &Path) -> Command {
     let mut cmd = Command::new(exe);
-    // If Coucou itself was started from inside a Claude Code session (e.g.
+    // If EasyIsland itself was started from inside a Claude Code session (e.g.
     // `npm run tauri dev` run by Claude), these would make the chat attach to
     // that session instead of its own.
     for var in INHERITED_SESSION_VARS {
         cmd.env_remove(var);
     }
-    cmd.env("COUCOU_INTERNAL", "1")
+    cmd.env("EASYISLAND_INTERNAL", "1")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -247,7 +247,7 @@ fn args(
             .to_string_lossy()
             .into_owned(),
         "--append-system-prompt-file".into(),
-        dir.join("mochi-prompt.txt").to_string_lossy().into_owned(),
+        dir.join("ezzy-prompt.txt").to_string_lossy().into_owned(),
         "--tools".into(),
         TOOLS.into(),
     ];

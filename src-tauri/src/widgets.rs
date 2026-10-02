@@ -11,7 +11,7 @@
 //   calendar an ICS link, see calendar.rs
 //
 // One scheduler task wakes every few seconds, runs whatever is due, and sends
-// `widget-update` to the island. Nothing runs while Coucou is paused, and on
+// `widget-update` to the island. Nothing runs while EasyIsland is paused, and on
 // battery every interval is tripled.
 
 use std::collections::HashMap;
@@ -200,7 +200,7 @@ pub(crate) fn icmp_ms(ip: std::net::Ipv4Addr, timeout_ms: u32) -> Option<u32> {
     };
     unsafe {
         let handle = IcmpCreateFile().ok()?;
-        let data = *b"coucou";
+        let data = *b"easyisland";
         let mut reply = vec![0u8; std::mem::size_of::<ICMP_ECHO_REPLY>() + data.len() + 8];
         let n = IcmpSendEcho(
             handle,
@@ -251,7 +251,7 @@ async fn tcp(w: &Widget) -> WidgetResult {
 pub(crate) fn client() -> Option<reqwest::Client> {
     reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
-        .user_agent("Coucou")
+        .user_agent("EasyIsland")
         .build()
         .ok()
 }
@@ -291,10 +291,10 @@ async fn http(w: &Widget) -> WidgetResult {
 /// variables, never into the script text.
 async fn tls(w: &Widget) -> WidgetResult {
     const SCRIPT: &str = "$ErrorActionPreference='Stop';\
-        $c=New-Object Net.Sockets.TcpClient($env:COUCOU_HOST,[int]$env:COUCOU_PORT);\
+        $c=New-Object Net.Sockets.TcpClient($env:EASYISLAND_HOST,[int]$env:EASYISLAND_PORT);\
         $cb=[Net.Security.RemoteCertificateValidationCallback]{param($a,$b,$c2,$d) $true};\
         $s=New-Object Net.Security.SslStream($c.GetStream(),$false,$cb);\
-        $s.AuthenticateAsClient($env:COUCOU_HOST);\
+        $s.AuthenticateAsClient($env:EASYISLAND_HOST);\
         $x=New-Object Security.Cryptography.X509Certificates.X509Certificate2($s.RemoteCertificate);\
         $x.NotAfter.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')+'|'+$x.GetNameInfo('SimpleName',$true);\
         $s.Dispose();$c.Dispose()";
@@ -302,8 +302,8 @@ async fn tls(w: &Widget) -> WidgetResult {
     let port = if w.port == 0 { 443 } else { w.port };
     let out = tokio::process::Command::new("powershell")
         .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", SCRIPT])
-        .env("COUCOU_HOST", &host)
-        .env("COUCOU_PORT", port.to_string())
+        .env("EASYISLAND_HOST", &host)
+        .env("EASYISLAND_PORT", port.to_string())
         .creation_flags(CREATE_NO_WINDOW)
         .kill_on_drop(true)
         .output();

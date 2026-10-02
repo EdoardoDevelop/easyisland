@@ -67,7 +67,7 @@ function claudeSection(status: HookStatus): HTMLElement {
       h("div", {
         class: "hint",
         text: status.installed
-          ? "Coucou è collegato alle tue sessioni di Claude Code. Strumenti usati, domande e richieste di permesso compaiono nell'isola, e puoi rispondere da lì."
+          ? "EasyIsland è collegato alle tue sessioni di Claude Code. Strumenti usati, domande e richieste di permesso compaiono nell'isola, e puoi rispondere da lì."
           : "Installa gli hook per vedere le sessioni di Claude Code nell'isola e approvare i permessi senza interrompere quello che stai facendo.",
       }),
       h("div", { class: "row" },
@@ -81,17 +81,24 @@ function claudeSection(status: HookStatus): HTMLElement {
       ),
     );
 
+    if (status.legacy) {
+      body.append(h("div", {
+        class: "notice warn",
+        text: "settings.json usa ancora gli hook della vecchia versione (Coucou), che non arrivano a EasyIsland. Reinstalla gli hook: le voci vecchie vengono sostituite.",
+      }));
+    }
+
     if (!status.hookReady) {
       body.append(h("div", {
         class: "notice warn",
-        text: "coucou-hook.exe non è ancora al suo posto. Riavvia Coucou; se non basta, compilalo con `cargo build -p coucou-hook`.",
+        text: "easyisland-hook.exe non è ancora al suo posto. Riavvia EasyIsland; se non basta, compilalo con `cargo build -p easyisland-hook`.",
       }));
     }
 
     const actions = h("div", { class: "row" });
     const install = h("button", {
       class: "primary",
-      text: status.installed ? "Reinstalla hook…" : "Installa hook…",
+      text: status.installed || status.legacy ? "Reinstalla hook…" : "Installa hook…",
       onclick: () => showPreview(true),
     });
     // Writing hook commands that point at a relay which isn't there would give
@@ -101,7 +108,7 @@ function claudeSection(status: HookStatus): HTMLElement {
       install.title = "Il relay non è ancora installato.";
     }
     actions.append(install);
-    if (status.installed) {
+    if (status.installed || status.legacy) {
       actions.append(h("button", {
         class: "danger",
         text: "Disinstalla hook…",
@@ -135,7 +142,7 @@ function claudeSection(status: HookStatus): HTMLElement {
         class: "hint",
         text: install
           ? "Ecco esattamente cosa cambierà nel tuo settings.json. I tuoi hook non vengono toccati."
-          : "Vengono rimosse solo le voci di Coucou. I tuoi hook non vengono toccati.",
+          : "Vengono rimosse solo le voci di EasyIsland. I tuoi hook non vengono toccati.",
       }),
       renderDiff(preview.diff),
       h("div", { class: "row" },
@@ -396,7 +403,7 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
 
   function updateNote() {
     const used = settings.activeIntegrations.length;
-    note.textContent = `Scegli fino a ${MAX_ACTIVE} pillole da mostrare accanto a Mochi (${used}/${MAX_ACTIVE} in uso). Le chiavi restano in Gestione credenziali di Windows, mai su disco.`;
+    note.textContent = `Scegli fino a ${MAX_ACTIVE} pillole da mostrare accanto a Ezzy (${used}/${MAX_ACTIVE} in uso). Le chiavi restano in Gestione credenziali di Windows, mai su disco.`;
   }
 
   for (const def of INTEGRATIONS) {
@@ -523,7 +530,7 @@ function placementSection(): HTMLElement {
   );
   const iconStyle = select<Settings["iconStyle"]>(
     [
-      ["mochi", "Mochi"],
+      ["ezzy", "Ezzy"],
       ["dot", "Pallino con il colore dello stato"],
       ["none", "Nessuna (striscia invisibile sul bordo)"],
     ],
@@ -541,7 +548,7 @@ function placementSection(): HTMLElement {
     slider(28, 64, 2, settings.hoverSize, "px", (v) => { settings.hoverSize = v; commit(); }),
   );
   const hoverStyle = select<Settings["hoverStyle"]>(
-    [["icon", "Mochi più grande"], ["bar", "Barra compatta con le integrazioni"]],
+    [["icon", "Ezzy più grande"], ["bar", "Barra compatta con le integrazioni"]],
     settings.hoverStyle,
     (v) => {
       settings.hoverStyle = v;
@@ -608,14 +615,14 @@ function placementSection(): HTMLElement {
     h("h2", {}, h("span", { text: "Posizione e aspetto" }), profileChip()),
     h("div", {
       class: "hint",
-      text: "Dove vive Mochi. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. In basso sta sopra la barra delle applicazioni. Puoi anche trascinare Mochi con il mouse: la posizione resta salvata; sceglierne una qui la riporta al bordo.",
+      text: "Dove vive Ezzy. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. In basso sta sopra la barra delle applicazioni. Puoi anche trascinare Ezzy con il mouse: la posizione resta salvata; sceglierne una qui la riporta al bordo.",
     }),
     h("div", { class: "row" }, h("label", { text: "Schermo" }), screen),
     h("div", { class: "row" }, h("label", { text: "Posizione" }), vertical, horizontal),
     h("div", { class: "row" },
       h("label", { text: "Sopra la barra" }),
       toggle(settings.overTaskbar, (v) => { settings.overTaskbar = v; commit(); }),
-      h("span", { class: "hint note", text: "Mochi può stare anche sopra la barra delle applicazioni" }),
+      h("span", { class: "hint note", text: "Ezzy può stare anche sopra la barra delle applicazioni" }),
     ),
     h("div", { class: "row" },
       h("label", { text: "Aggancia ai bordi" }),
@@ -638,7 +645,7 @@ function placementSection(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: "Apri dopo" }),
       openDelay,
-      h("span", { class: "hint note", text: "trascinare un file sopra Mochi lo apre sempre" }),
+      h("span", { class: "hint note", text: "trascinare un file sopra Ezzy lo apre sempre" }),
     ),
     h("div", { class: "row" },
       h("label", { text: "Pannello aperto" }),
@@ -967,7 +974,7 @@ function actionsSection(): HTMLElement {
       class: "hint",
       text: "Pulsanti nella scheda ⚡ dell'isola: link, programmi, script (partono solo dopo un clic) e domande a Claude sul testo copiato o sul file rilasciato. Nessuna chiave o password qui dentro.",
     }),
-    h("div", { class: "row" }, h("label", { text: "Apri Mochi" }),
+    h("div", { class: "row" }, h("label", { text: "Apri Ezzy" }),
       hotkeyField(settings.hotkeyOpen, (v) => { settings.hotkeyOpen = v; })),
     h("div", { class: "row" }, h("label", { text: "Chiedi sul testo copiato" }),
       hotkeyField(settings.hotkeyAsk, (v) => { settings.hotkeyAsk = v; }),
@@ -1026,7 +1033,7 @@ function connectorsSection(): HTMLElement {
     h("h2", {}, h("span", { text: "Connettori in chat" }), profileChip()),
     h("div", {
       class: "hint",
-      text: "Mochi può usare i server MCP che hai configurato in Claude Code (calendario, documenti, ticketing…). Funziona con il motore «Abbonamento Claude». Con la conferma attiva ogni operazione su quel connettore compare nell'isola con Consenti / Nega: disattivala solo per connettori di sola lettura. I connettori di claude.ai non sono disponibili in questa modalità di Claude Code.",
+      text: "Ezzy può usare i server MCP che hai configurato in Claude Code (calendario, documenti, ticketing…). Funziona con il motore «Abbonamento Claude». Con la conferma attiva ogni operazione su quel connettore compare nell'isola con Consenti / Nega: disattivala solo per connettori di sola lettura. I connettori di claude.ai non sono disponibili in questa modalità di Claude Code.",
     }),
     list,
     h("div", { class: "row" }, refresh),
@@ -1303,7 +1310,7 @@ function widgetsSection(): HTMLElement {
     h("h2", {}, h("span", { text: "Widget" }), profileChip()),
     h("div", {
       class: "hint",
-      text: "Controlli che compaiono come pillole accanto a Mochi: lo stato del PC, la sicurezza, la rete, il calendario, il meteo, la scadenza dei domini, siti, certificati, server, porte, servizi Windows o qualsiasi API JSON. Quando un controllo passa da OK a problema, Mochi ti avvisa. Si fermano quando Coucou è in pausa.",
+      text: "Controlli che compaiono come pillole accanto a Ezzy: lo stato del PC, la sicurezza, la rete, il calendario, il meteo, la scadenza dei domini, siti, certificati, server, porte, servizi Windows o qualsiasi API JSON. Quando un controllo passa da OK a problema, Ezzy ti avvisa. Si fermano quando EasyIsland è in pausa.",
     }),
     list,
     templates,
@@ -1318,7 +1325,7 @@ function notifySection(): HTMLElement {
     {},
     h("h2", {}, h("span", { text: "Notifiche" }), profileChip()),
     h("div", { class: "row" },
-      h("label", { text: "Mochi si fa vedere per" }),
+      h("label", { text: "Ezzy si fa vedere per" }),
       select<Settings["notify"]>(
         [
           ["all", "Tutto (attività, fine sessione, integrazioni, avvisi)"],
@@ -1348,7 +1355,7 @@ function presenceSection(): HTMLElement {
     "section",
     {},
     h("h2", {}, h("span", { text: "Davanti al cliente" }), profileChip()),
-    h("div", { class: "hint", text: "Mochi si fa da parte quando qualcuno potrebbe vedere il tuo schermo. Si attiva anche a mano: icona nell'area di notifica → Davanti al cliente." }),
+    h("div", { class: "hint", text: "Ezzy si fa da parte quando qualcuno potrebbe vedere il tuo schermo. Si attiva anche a mano: icona nell'area di notifica → Davanti al cliente." }),
     h("div", { class: "row" },
       h("label", { text: "Durante le chiamate" }),
       toggle(settings.presenceMeeting, (v) => { settings.presenceMeeting = v; commit(); }),
@@ -1363,7 +1370,7 @@ function presenceSection(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: "Cosa fa" }),
       select<Settings["presenceMode"]>(
-        [["hide", "Nasconde Mochi e silenzia (le richieste di permesso compaiono comunque)"], ["silent", "Solo silenzio, Mochi resta"]],
+        [["hide", "Nasconde Ezzy e silenzia (le richieste di permesso compaiono comunque)"], ["silent", "Solo silenzio, Ezzy resta"]],
         settings.presenceMode,
         (v) => { settings.presenceMode = v; commit(); },
       ),
@@ -1432,15 +1439,15 @@ function themeSection(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: "Personaggio" }),
       select<Theme["character"]>(
-        [["mochi", "Mochi"], ["cube", "Cubo"]],
-        t.character ?? "mochi",
+        [["ezzy", "Ezzy"], ["cube", "Cubo"]],
+        t.character ?? "ezzy",
         (v) => { t.character = v; commit(); },
       ),
-      h("span", { class: "hint note", text: "il cubo a riposo ha i colori del logo; negli altri stati prende il colore dello stato, come Mochi" }),
+      h("span", { class: "hint note", text: "il cubo a riposo ha i colori del logo; negli altri stati prende il colore dello stato, come Ezzy" }),
     ),
     h("div", { class: "row" },
       h("label", { text: "Colore del personaggio" }),
-      colorField(t.mochiColor, "#fffaf5", (v) => { t.mochiColor = v; commit(); }, "Originale"),
+      colorField(t.ezzyColor, "#fffaf5", (v) => { t.ezzyColor = v; commit(); }, "Originale"),
     ),
     h("div", { class: "row" },
       h("label", { text: "Colore dell'isola" }),
@@ -1509,7 +1516,7 @@ function backupSection(): HTMLElement {
     h("h2", {}, h("span", { text: "Backup e trasferimento" })),
     h("div", {
       class: "hint",
-      text: "Esporta tutte le impostazioni, profili compresi, in un file JSON nella cartella Documenti; importalo su un altro PC per ritrovare lo stesso Mochi. Le chiavi API restano in Gestione credenziali e non vengono esportate.",
+      text: "Esporta tutte le impostazioni, profili compresi, in un file JSON nella cartella Documenti; importalo su un altro PC per ritrovare lo stesso Ezzy. Le chiavi API restano in Gestione credenziali e non vengono esportate.",
     }),
     h("div", { class: "row" }, exportBtn, importBtn, file),
     feedback,
@@ -1534,7 +1541,7 @@ async function main() {
     settings.activeProfile = "lavoro";
   }
   const status = (await Bridge.hooksStatus()) ?? {
-    installed: false, settingsPath: "", hookPath: "", hookReady: false,
+    installed: false, legacy: false, settingsPath: "", hookPath: "", hookReady: false,
   };
 
   const hasKey = (await Bridge.secretPresent("anthropic-api-key")) ?? false;
@@ -1597,17 +1604,17 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     },
     {
       id: "aspetto", label: "Aspetto", icon: "◐", title: "Aspetto",
-      intro: "Dove sta Mochi, come si mostra, il personaggio e i colori.",
+      intro: "Dove sta Ezzy, come si mostra, il personaggio e i colori.",
       sections: () => [placementSection(), themeSection()],
     },
     {
       id: "notifiche", label: "Notifiche", icon: "◔", title: "Notifiche",
-      intro: "Quando Mochi si fa vedere, quando si fa da parte e i messaggi dagli script.",
+      intro: "Quando Ezzy si fa vedere, quando si fa da parte e i messaggi dagli script.",
       sections: () => [notifySection(), presenceSection(), scriptsSection(b.status.hookPath)],
     },
     {
       id: "claude", label: "Claude", icon: "✦", title: "Claude",
-      intro: "Le sessioni di Claude Code nell'isola, la chat con Mochi e i connettori che può usare.",
+      intro: "Le sessioni di Claude Code nell'isola, la chat con Ezzy e i connettori che può usare.",
       sections: () => [claudeSection(b.status), claudeChatSection(b.hasKey), connectorsSection()],
     },
     {
@@ -1633,7 +1640,7 @@ function pages(b: NonNullable<typeof boot>): Page[] {
   ];
 }
 
-const PAGE_KEY = "coucou.settings.page";
+const PAGE_KEY = "easyisland.settings.page";
 
 function currentPage(list: Page[]): Page {
   let id = "";
@@ -1655,7 +1662,7 @@ function render() {
   clear(root);
 
   const nav = h("nav", { class: "nav" },
-    h("div", { class: "brand" }, h("span", { text: "Coucou" }), h("span", { class: "version", text: version })),
+    h("div", { class: "brand" }, h("span", { text: "EasyIsland" }), h("span", { class: "version", text: version })),
   );
   for (const p of list) {
     const item = h("button", { class: p.id === page.id ? "nav-item on" : "nav-item" },

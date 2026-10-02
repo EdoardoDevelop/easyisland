@@ -11,7 +11,7 @@ export type AnchorV = "top" | "bottom";
 export interface Placement {
   h: AnchorH;
   v: AnchorV;
-  iconStyle: "mochi" | "dot" | "none";
+  iconStyle: "ezzy" | "dot" | "none";
   iconSize: number;
   hoverStyle: "icon" | "bar";
   hoverSize: number;
@@ -148,7 +148,7 @@ export function collapsedBox(p: Placement): { w: number; h: number } {
   return { w: side, h: side };
 }
 
-/** The compact island: a round badge holding a live Mochi, or the old bar. */
+/** The compact island: a round badge holding a live Ezzy, or the old bar. */
 export function compactSize(p: Placement): { w: number; h: number } {
   if (p.hoverStyle === "bar") return { w: COMPACT_W, h: NOTCH_H };
   const side = Math.round(p.hoverSize);
@@ -182,7 +182,7 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
 };
 
 // The upload views above are only the fallback geometry. Once a file is actually
-// dropped the whole sequence — Mochi included — is drawn by src/upload, which
+// dropped the whole sequence — Ezzy included — is drawn by src/upload, which
 // owns its own constants (USC) straight from UploadSequenceEngine.swift.
 
 /** Chat view grows with the conversation — IslandContainer.chatPromptHeight. */

@@ -78,7 +78,7 @@ pub struct PollGate {
     pub collapsed_size: Mutex<(f64, f64)>,
     /// A full-screen app (video, game, presentation) is in front.
     pub fullscreen: AtomicBool,
-    /// Mochi is being dragged: the window keeps the mouse even when a quick
+    /// Ezzy is being dragged: the window keeps the mouse even when a quick
     /// move leaves the cursor outside it for a moment.
     pub dragging: AtomicBool,
 }
@@ -198,7 +198,7 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
     let pw = (lw * scale).round().max(1.0) as u32;
     let ph = (lh * scale).round().max(1.0) as u32;
     let (x, y) = anchored_origin(work, (pw, ph), &settings.anchor_h, &settings.anchor_v);
-    // Where the user dragged Mochi to, kept on screen whatever the display.
+    // Where the user dragged Ezzy to, kept on screen whatever the display.
     let (x, y) = clamp_to_work(
         work,
         (pw, ph),
@@ -242,7 +242,7 @@ fn clamp_to_work(work: (i32, i32, u32, u32), size: (u32, u32), x: i32, y: i32) -
 /// Snaps within this many logical px of an edge or of the centre line.
 const SNAP: f64 = 16.0;
 
-/// Where a drag left Mochi, turned into settings: the side the island opens
+/// Where a drag left Ezzy, turned into settings: the side the island opens
 /// from (the third / half of the screen the icon is in, so the panel grows
 /// towards the middle) and the offset from that side's home position, logical px.
 /// `box_origin` is the rest box's top-left corner, `box_size` its size, both physical.
@@ -520,7 +520,7 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                 if gate.ignoring.load(Ordering::Relaxed) == accept {
                     gate.ignoring.store(!accept, Ordering::Relaxed);
                     let _ = win.set_ignore_cursor_events(!accept);
-                    // Reaching Mochi over the taskbar: be in front before the click.
+                    // Reaching Ezzy over the taskbar: be in front before the click.
                     if accept && over_taskbar {
                         raise_over_taskbar(&app);
                     }

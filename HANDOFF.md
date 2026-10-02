@@ -1,28 +1,29 @@
-# Handoff personale — Coucou (solo Windows)
+# Handoff personale — EasyIsland (solo Windows)
 
-_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 2 ottobre 2026 (verifica dell'handoff e unificazione su `main`). Branch principale: `main`._
+_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 2 ottobre 2026 (nuovo nome: EasyIsland, personaggio Ezzy). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
 
 > Questo file va tenuto **sempre aggiornato**: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al **Registro delle modifiche** (sezione 10), con data, cosa è cambiato e cosa resta aperto.
 
 ## 1. Com'è il progetto adesso
 
-Coucou è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou). In origine era un'app macOS nativa (Swift) che viveva nel notch del MacBook, con un port Windows in `windows/`.
+EasyIsland è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou) (Coucou, con il personaggio Mochi). In origine era un'app macOS nativa (Swift) che viveva nel notch del MacBook, con un port Windows in `windows/`.
 **Adesso il repo è solo Windows:**
 
+- **Nuovo nome (2 ottobre 2026):** l'app si chiama **EasyIsland**, il personaggio **Ezzy** (era Mochi). Identifier `it.edoardo.easyisland` (era `fr.louisraille.coucou`), eseguibili `easyisland.exe` ed `easyisland-hook.exe`, named pipe `\\.\pipe\easyisland-<sid>`, cartelle `%APPDATA%\EasyIsland` e `%LOCALAPPDATA%\EasyIsland`. Al primo avvio la migrazione (`src-tauri/src/legacy.rs`) copia impostazioni e chiavi da Coucou; vedi il Registro.
 - **Rimossi:** l'app macOS (`NotchBuddy/`, ~11.000 righe Swift + progetto Xcode), le workflow macOS (`build.yml`, `release.yml`) e `scripts/release.sh` (firma/notarizzazione Apple).
 - **Spostato alla radice:** tutto il contenuto di `windows/` (Tauri 2 + Rust + TypeScript).
 - **Spostati:** i 28 suoni da `NotchBuddy/Resources/sounds/` ad `assets/sounds/` (`SOUNDS_DIR` in `vite.config.ts` aggiornato).
 - **CI:** `.github/workflows/build.yml` gira su `windows-latest` a ogni push/PR su `main` (solo verifica di compilazione) e pubblica l'installer sui tag `v*`, ma solo se `PUBLISH: 'true'`. Oggi è `'false'`, per via del falso positivo di Defender sull'installer non firmato.
 - **Aggiornati:** `README.md`, `CLAUDE.md` (regole per gli agenti, ora per Windows), `.gitignore`, i percorsi in `LICENSE-ASSETS.md`.
-- **Tradotto in italiano:** tutti i testi dell'interfaccia (isola, impostazioni, menu dell'area di notifica, etichette dei passi degli hook), i messaggi d'errore del backend, l'installer NSIS (italiano come lingua principale), README, CLAUDE.md, `docs/SPEC.md`, `docs/INTEGRATIONS.md`, i template delle issue e le note di release. Il prompt di sistema della chat chiede a Mochi di rispondere in italiano. Restano in inglese di proposito i commenti e gli identificatori nel codice, `LICENSE` e `LICENSE-ASSETS.md` (testi legali dell'autore originale) e il sito in `docs/*.html`. Le immagini in `screenshots/` mostrano ancora i testi in inglese.
-- **Verificato su Windows (PC di Edoardo, 1–2 ottobre 2026):** `npm run pack` produce l'installer (circa 4,2 MB) senza errori né avvisi, l'installazione per-utente funziona, gli hook di Claude Code arrivano all'isola, i test Rust passavano (27 dell'app, 4 del relay) al 1° ottobre. Da allora i test dell'app sono diventati 38 (`#[test]` in `src-tauri/src`), di cui 2 `live_` ignorati di default: da rieseguire tutti con `cargo test` su Windows. La CI compila anche sui branch `claude/**`.
+- **Tradotto in italiano:** tutti i testi dell'interfaccia (isola, impostazioni, menu dell'area di notifica, etichette dei passi degli hook), i messaggi d'errore del backend, l'installer NSIS (italiano come lingua principale), README, CLAUDE.md, `docs/SPEC.md`, `docs/INTEGRATIONS.md`, i template delle issue e le note di release. Il prompt di sistema della chat chiede a Ezzy di rispondere in italiano. Restano in inglese di proposito i commenti e gli identificatori nel codice, `LICENSE` e `LICENSE-ASSETS.md` (testi legali dell'autore originale). Il sito in `docs/*.html` è stato eliminato. Le immagini in `screenshots/` mostrano ancora i testi in inglese.
+- **Verificato su Windows (PC di Edoardo, 1–2 ottobre 2026):** `npm run pack` produce l'installer (circa 4,2 MB) senza errori né avvisi, l'installazione per-utente funziona, gli hook di Claude Code arrivano all'isola, i test Rust passavano (27 dell'app, 4 del relay) al 1° ottobre. Il 2 ottobre, dopo il cambio di nome, `cargo test --workspace` passa: 38 test dell'app (più 3 `live_` ignorati di default) e 4 del relay. La CI compila anche sui branch `claude/**`.
 
 ## 2. Mappa veloce
 
 | Cosa vuoi toccare | Dove |
 |---|---|
-| Aspetto/animazioni di Mochi | `src/mochi/engine.ts`, `src/mochi/greeting.ts` |
-| Il cubo (personaggio alternativo, `theme.character`) | `src/mochi/cube.ts` (geometria 3D, colori del logo, orientamento verso il cursore: `FOLLOW_*`), disegnato da `engine.ts` (`drawAsCube`), `greeting.ts` e `src/upload/canvas.ts` |
+| Aspetto/animazioni di Ezzy | `src/ezzy/engine.ts`, `src/ezzy/greeting.ts` |
+| Il cubo (personaggio alternativo, `theme.character`) | `src/ezzy/cube.ts` (geometria 3D, colori del logo, orientamento verso il cursore: `FOLLOW_*`), disegnato da `engine.ts` (`drawAsCube`), `greeting.ts` e `src/upload/canvas.ts` |
 | Posizione, trascinamento, aggancio ai bordi, sopra la barra | front end `src/core/layout.ts` (`anchoredOrigin`, `glueFor`, `cornerRadii`) e `src/island/island.ts` (pointer events); backend `src-tauri/src/island.rs` (`apply_geometry`, `placement_from_drop`, `raise_over_taskbar`), comandi `drag_island` / `end_drag` in `lib.rs` |
 | File rilasciati sull'isola | `onDragDrop` in `src/core/bridge.ts` (drop HTML5) + `src-tauri/src/drop.rs` (percorso reale da WebView2) |
 | Domande di Claude Code (AskUserQuestion) | `askQuestions` in `src/island/hooks.ts`, vista `buildAsk` in `src/views/views.ts`, risposta `answer {…}` → `decision_json` in `hook/src/main.rs` |
@@ -31,6 +32,7 @@ Coucou è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou). In
 | Finestra Impostazioni | `settings.html`, `src/settings/` |
 | Integrazioni (Stripe, n8n, GitHub, Vercel, Resend, Notion, Cal.com) | backend `src-tauri/src/integrations.rs`, front end `src/island/integrations.ts`, `src/views/integrations.ts`, colori/nomi in `src/core/state.ts` |
 | Chiavi API (Credential Manager) | `src-tauri/src/secrets.rs` (`SERVICE`, `KNOWN_KEYS`) |
+| Migrazione da Coucou (impostazioni, chiavi, hook vecchi) | `src-tauri/src/legacy.rs`, `LEGACY_MARKER` in `hooks.rs`, schema 3 in `settings.rs` |
 | Chat con Claude (motore, modello, prompt) | `src-tauri/src/claude_cli.rs` (abbonamento), `src-tauri/src/claude.rs` (chiave API) |
 | Relay hook di Claude Code | `hook/src/main.rs` + named pipe `src-tauri/src/pipe.rs` |
 | Install/uninstall degli hook in `settings.json` | `src-tauri/src/hooks.rs` |
@@ -42,7 +44,7 @@ Coucou è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou). In
 | Widget configurabili e sonde | `src-tauri/src/widgets.rs` (scheduler, ping/TCP/HTTP/TLS/servizio/API JSON), `src-tauri/src/probes.rs` (stato del PC, sicurezza, rete, meteo, domini), `src-tauri/src/calendar.rs` (ICS); editor in `src/settings/main.ts` |
 | "Copia info PC" | comando `copy_pc_info` in `src-tauri/src/lib.rs` |
 | "Davanti al cliente" | `src-tauri/src/presence.rs`, `State.quiet` in `src/core/state.ts` |
-| Notifiche da script (`coucou-hook notify`) | `hook/src/main.rs`, vista `notify`, pulsante Prova (`notify_test` in `lib.rs`) |
+| Notifiche da script (`easyisland-hook notify`) | `hook/src/main.rs`, vista `notify`, pulsante Prova (`notify_test` in `lib.rs`) |
 
 ## 3. Primi passi sul tuo PC Windows
 
@@ -51,29 +53,29 @@ Coucou è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou). In
    - **Claude Code → Installa hook…**: controlla il diff e conferma, poi lancia una sessione di Claude Code e verifica che le richieste di permesso arrivino sull'isola;
    - **Chat con Claude**: prova la modalità "Abbonamento Claude" (serve Claude Code con il login fatto);
    - **Posizione e aspetto**: scegli angolo e icona.
-3. Per lavorare sul codice: `npm run tauri dev` (l'app vera) o `npm run ui` (solo l'interfaccia nel browser; aggiungi `?character=cube` per il cubo). `coucou.exe --settings` apre direttamente le Impostazioni.
+3. Per lavorare sul codice: `npm run tauri dev` (l'app vera) o `npm run ui` (solo l'interfaccia nel browser; aggiungi `?character=cube` per il cubo). `easyisland.exe --settings` apre direttamente le Impostazioni.
 4. Fai un push su `main` (o apri una PR) e controlla che la workflow `Build` sia verde: è la prova che l'installer si compila anche su una macchina pulita.
 
 ## 4. Decisioni da prendere per personalizzarlo
 
 **Identità (da fare per prima, e una volta sola):**
-- [ ] Nome dell'app: `productName` in `src-tauri/tauri.conf.json` e i testi di `README.md`.
-- [ ] Bundle identifier: `identifier` in `tauri.conf.json` (oggi `fr.louisraille.coucou`) e `SERVICE` in `src-tauri/src/secrets.rs`. Cambiali insieme. Le chiavi già salvate nel Credential Manager restano sotto il vecchio nome e vanno reinserite.
+- [x] Nome dell'app: **EasyIsland**, personaggio **Ezzy** (2 ottobre 2026).
+- [x] Bundle identifier: `it.edoardo.easyisland` in `tauri.conf.json` e `SERVICE` in `src-tauri/src/secrets.rs`. Non cambiarlo più: sposterebbe di nuovo dati e chiavi.
 - [ ] `copyright` in `tauri.conf.json`, `authors` in `src-tauri/Cargo.toml`, il copyright in `LICENSE` (aggiungi il tuo, lasciando quello originale per la parte MIT).
 
-**Licenza degli asset (importante):** `LICENSE-ASSETS.md` riserva all'autore originale il nome "Coucou", il nome "Mochi", il personaggio, le icone e i suoni.
+**Licenza degli asset (importante):** `LICENSE-ASSETS.md` riserva all'autore originale i nomi "Coucou" e "Mochi" (ora non più usati), il disegno del personaggio, le icone e i suoni. Ezzy oggi è il disegno di Mochi con un altro nome.
 - Per **uso personale** va bene così com'è.
-- Se vuoi **pubblicare o distribuire** la tua versione, servono nome, icona, personaggio e suoni tuoi. Il codice (MIT) puoi tenerlo.
+- Se vuoi **pubblicare o distribuire** la tua versione, servono icona, disegno del personaggio e suoni tuoi (i nomi sono già tuoi). Il codice (MIT) puoi tenerlo. "EasyIsland" è un nome generico: prima di una distribuzione pubblica conviene una verifica sui marchi.
 - Il **cubo** (Tema → Personaggio) è un personaggio tuo, disegnato dal logo dell'azienda dove lavorerai: per distribuirlo ai colleghi, chiedi prima all'azienda.
 
-**Sito e documenti:** `docs/*.html` (GitHub Pages: privacy, termini, note legali) e `docs/media/` sono quelli dell'autore originale, scritti per il Mac e intestati a lui. Puoi eliminarli o riscriverli. `docs/SPEC.md` e `docs/INTEGRATIONS.md` sono una buona specifica (tradotta in italiano), ma descrivono il comportamento su macOS.
+**Sito e documenti:** il sito dell'autore originale (`docs/*.html`, `docs/media/`) è stato eliminato il 2 ottobre 2026. `docs/SPEC.md` e `docs/INTEGRATIONS.md` sono una buona specifica (tradotta in italiano), ma descrivono il comportamento su macOS.
 
 **Funzionalità:**
 - [ ] Quali integrazioni tieni? Se non usi Stripe, Resend, Cal.com…, rimuoverle alleggerisce codice e Impostazioni.
-- [ ] Funzioni presenti solo su Mac e mai portate: invio di un file via email, trascinare Mochi su una finestra per allegarla come contesto, saltare al terminale esatto della sessione. Valuta se ti servono.
+- [ ] Funzioni presenti solo su Mac e mai portate: invio di un file via email, trascinare Ezzy su una finestra per allegarla come contesto, saltare al terminale esatto della sessione. Valuta se ti servono.
 - [x] Posizione e aspetto: angolo o bordo, icona a riposo e al passaggio del mouse, apertura dopo N secondi o solo al clic, silenzio a schermo intero (Impostazioni → Posizione e aspetto).
-- [x] Mochi trascinabile con il mouse (posizione salvata nel profilo), aggancio ai bordi, sopra la barra delle applicazioni, vista compatta sempre visibile, pulsante ✕ per chiudere subito.
-- [x] Personaggio a scelta: Mochi o il cubo (Tema → Personaggio).
+- [x] Ezzy trascinabile con il mouse (posizione salvata nel profilo), aggancio ai bordi, sopra la barra delle applicazioni, vista compatta sempre visibile, pulsante ✕ per chiudere subito.
+- [x] Personaggio a scelta: Ezzy o il cubo (Tema → Personaggio).
 - [x] Chat: scegli in Impostazioni tra abbonamento Claude (tramite Claude Code, predefinito) e chiave API. Codice in `src-tauri/src/claude_cli.rs` e `src-tauri/src/claude.rs`.
 
 **Distribuzione:**
@@ -100,9 +102,9 @@ In ordine di implementazione consigliato: 6.1 → 6.2 → 6.3 → 6.4. Ogni punt
 
 Serve prima degli altri punti, perché azioni e widget vivono nella configurazione.
 
-- **Configurazione in un file leggibile:** oggi le preferenze stanno in `%APPDATA%\Coucou\settings.json` (`src-tauri/src/settings.rs`). Aggiungere **Esporta / Importa** nelle Impostazioni (file `.json`, **senza segreti**: le chiavi restano in Gestione credenziali e vanno reinserite), per backup e per avere lo stesso Mochi su notebook e PC di casa.
+- **Configurazione in un file leggibile:** oggi le preferenze stanno in `%APPDATA%\EasyIsland\settings.json` (`src-tauri/src/settings.rs`). Aggiungere **Esporta / Importa** nelle Impostazioni (file `.json`, **senza segreti**: le chiavi restano in Gestione credenziali e vanno reinserite), per backup e per avere lo stesso Ezzy su notebook e PC di casa.
 - **Versione dello schema** (`schemaVersion`) nel file, con migrazione dei campi vecchi: le prossime funzioni aggiungeranno liste (azioni, widget).
-- **Temi:** colore del corpo di Mochi (oggi fisso in `src/mochi/engine.ts`, `C.idle` e gradiente), colore e opacità dell'isola (`#island` in `src/style.css`, oggi `#000`), scelta del set di suoni o volume per categoria (avvisi / interazioni / emote).
+- **Temi:** colore del corpo di Ezzy (oggi fisso in `src/ezzy/engine.ts`, `C.idle` e gradiente), colore e opacità dell'isola (`#island` in `src/style.css`, oggi `#000`), scelta del set di suoni o volume per categoria (avvisi / interazioni / emote).
 - **Profili** (es. *Lavoro*, *Casa*, *Concentrazione*): ogni profilo ha le sue integrazioni attive, azioni, widget, posizione, suoni e regole di notifica. Cambio da menu dell'area di notifica e, in automatico, per **rete Wi-Fi/dominio** (ufficio vs casa) e per **orario**. In *Concentrazione* passano solo i permessi di Claude Code.
 - **Fatto quando:** esporto da un PC, importo sull'altro e ritrovo tutto tranne le chiavi; cambio profilo e isola, integrazioni e suoni cambiano senza riavvio.
 
@@ -117,22 +119,22 @@ Pulsanti definiti dall'utente, mostrati in una nuova scheda dell'isola (accanto 
   - `app`: avvia un programma con argomenti (RDP, AnyDesk, PowerShell, Esplora file su una cartella);
   - `script`: esegue uno script PowerShell/cmd **solo dopo un clic esplicito**, mostrando l'output nell'isola (con timeout e pulsante Interrompi);
   - `prompt`: manda a Claude un **prompt salvato** applicato al testo negli appunti o al file rilasciato. Esempi da tecnico IT: "Spiega questo errore e dammi i passi per risolverlo", "Scrivi uno script PowerShell che…", "Analizza questo log", "Scrivi il rapportino d'intervento da questi appunti", "Rispondi a questa mail del cliente in modo professionale".
-- **Scorciatoia globale** configurabile (es. `Win+Shift+M`) per aprire Mochi su chat o azioni, e una seconda per "chiedi a Mochi sul testo copiato". Rust: `tauri-plugin-global-shortcut` (valutare se accettabile come dipendenza) oppure `RegisterHotKey` dalla crate `windows` già presente.
+- **Scorciatoia globale** configurabile (es. `Win+Shift+M`) per aprire Ezzy su chat o azioni, e una seconda per "chiedi a Ezzy sul testo copiato". Rust: `tauri-plugin-global-shortcut` (valutare se accettabile come dipendenza) oppure `RegisterHotKey` dalla crate `windows` già presente.
 - **Configurazione:** lista in Settings (`actions: [{ id, name, icon, color, kind, target, args, prompt, confirm }]`) con editor nelle Impostazioni, riordinabile, legata al profilo.
 - **Sicurezza:** niente esecuzione automatica; gli script mostrano il comando prima di partire se `confirm: true` (predefinito); nessun segreto nella configurazione (eventuali chiavi tramite riferimento alla Gestione credenziali).
 - **Fatto quando:** creo un'azione "Spiega errore", copio un messaggio d'errore, premo la scorciatoia e ricevo la spiegazione nell'isola.
 
-### 6.3 Mochi che usa i tuoi connettori (MCP)
+### 6.3 Ezzy che usa i tuoi connettori (MCP)
 
-> **Stato: fatto, tranne il widget "Oggi".** Elenco dei server da `~/.claude.json` (solo i nomi), scelta per profilo con conferma per server (`mcpServers` in Settings). Con connettori attivi `claude -p` gira in `--permission-mode default`, i server non scelti sono in `--disallowedTools`, quelli senza conferma in `--allowedTools`; le altre chiamate passano da un hook `PermissionRequest` → `coucou-hook.exe PermissionRequest --chat` → card Consenti/Nega nell'isola (`handleChatPermission` in `src/island/hooks.ts`). Meccanismo verificato con il Claude Code reale (allow esegue, deny blocca). Da fare: widget "Oggi"; i connettori di claude.ai non si caricano in `claude -p`.
+> **Stato: fatto, tranne il widget "Oggi".** Elenco dei server da `~/.claude.json` (solo i nomi), scelta per profilo con conferma per server (`mcpServers` in Settings). Con connettori attivi `claude -p` gira in `--permission-mode default`, i server non scelti sono in `--disallowedTools`, quelli senza conferma in `--allowedTools`; le altre chiamate passano da un hook `PermissionRequest` → `easyisland-hook.exe PermissionRequest --chat` → card Consenti/Nega nell'isola (`handleChatPermission` in `src/island/hooks.ts`). Meccanismo verificato con il Claude Code reale (allow esegue, deny blocca). Da fare: widget "Oggi"; i connettori di claude.ai non si caricano in `claude -p`.
 
 Prima di questo punto `src-tauri/src/claude_cli.rs` lanciava `claude -p` con `--strict-mcp-config` e senza `--mcp-config`, quindi **nessun** server MCP, e strumenti limitati a WebSearch/WebFetch/Read. Oggi è ancora così solo quando nel profilo non c'è nessun connettore scelto.
 
-- **Impostazione "Connettori in chat":** elenco dei server MCP configurati in Claude Code (leggibile con `claude mcp list`) con un interruttore per ciascuno; Coucou genera un file `--mcp-config` con solo quelli scelti, e aggiunge i relativi strumenti ad `--allowedTools` (es. `mcp__<nome-server>__*`).
+- **Impostazione "Connettori in chat":** elenco dei server MCP configurati in Claude Code (leggibile con `claude mcp list`) con un interruttore per ciascuno; EasyIsland genera un file `--mcp-config` con solo quelli scelti, e aggiunge i relativi strumenti ad `--allowedTools` (es. `mcp__<nome-server>__*`).
 - **Esempi d'uso:** "cosa ho in calendario oggi?", "aggiungi un promemoria per venerdì", "cerca nei documenti del cliente X". Qualunque operazione che **modifica** dati (crea, aggiorna, invia) va **proposta prima** e confermata con un clic nell'isola, mai eseguita da sola.
 - **Widget "Oggi"** opzionale: attività e promemoria del giorno da un connettore scelto, nella panoramica.
 - **Per profilo:** nel profilo *Lavoro* si possono escludere i connettori personali e viceversa.
-- **Fatto quando:** chiedo "cosa ho in programma oggi?" e Mochi risponde usando un connettore abilitato; chiedo di aggiungere un promemoria e mi chiede conferma prima di scriverlo.
+- **Fatto quando:** chiedo "cosa ho in programma oggi?" e Ezzy risponde usando un connettore abilitato; chiedo di aggiungere un promemoria e mi chiede conferma prima di scriverlo.
 - **Chat con l'abbonamento:** Claude Code viene cercato anche nell'app desktop di Claude (`%APPDATA%\Claude\claude-code\<versione>`) e nell'estensione VS Code, sempre la versione più recente (`find_claude` in `claude_cli.rs`). La chat ha il pulsante **Nuova chat**.
 
 ### 6.4 Widget configurabili (integrazioni senza codice)
@@ -147,26 +149,26 @@ Un tipo di widget generico al posto delle integrazioni scritte a mano (le 7 attu
   - `HTTP` con codice atteso e tempo di risposta;
   - **scadenza certificato TLS** di un dominio (avviso a 30/7 giorni);
   - stato di un servizio Windows locale.
-- **Visualizzazione:** pillola con mini-Mochi colorato (come oggi), scheda di dettaglio con i campi, badge e suono quando scatta un avviso.
+- **Visualizzazione:** pillola con mini-Ezzy colorato (come oggi), scheda di dettaglio con i campi, badge e suono quando scatta un avviso.
 - **Prestazioni:** tutte le richieste nel backend Rust, nessun polling con l'app in pausa, intervalli più lunghi a batteria.
-- **Fatto quando:** aggiungo dalle Impostazioni un widget che controlla `https://cliente.it` e il certificato, senza ricompilare, e Mochi mi avvisa se il sito non risponde.
+- **Fatto quando:** aggiungo dalle Impostazioni un widget che controlla `https://cliente.it` e il certificato, senza ricompilare, e Ezzy mi avvisa se il sito non risponde.
 
 ## 7. Idee da valutare (non ancora decise)
 
 Pensate per il lavoro da tecnico IT sul notebook, ma utili anche a casa.
 
-- **Notifiche da qualsiasi script:** comando `coucou notify --titolo … --stato ok|errore --apri <url>` (riusa la named pipe del relay). Qualunque script, attività pianificata o n8n può mandare un avviso a Mochi.
+- **Notifiche da qualsiasi script:** comando `easyisland notify --titolo … --stato ok|errore --apri <url>` (riusa la named pipe del relay). Qualunque script, attività pianificata o n8n può mandare un avviso a Ezzy.
 - **Rubrica clienti:** per ogni cliente collegamenti RDP/AnyDesk/TeamViewer, portali, credenziali (solo riferimenti alla Gestione credenziali), note e azioni rapide dedicate. Si apre cercando il nome dall'isola.
 - **Timer d'intervento:** avvio/stop per cliente dall'isola, riepilogo a fine giornata, rapportino generato da Claude ed esportato (file o connettore scelto).
 - **Info rapide della macchina:** IP locale e pubblico, rete/VPN, batteria, spazio disco, nome PC. Con un clic si copia tutto per un ticket.
-- **Screenshot → chiedi a Mochi:** scorciatoia che cattura una zona dello schermo (es. una finestra d'errore) e la manda alla chat.
+- **Screenshot → chiedi a Ezzy:** scorciatoia che cattura una zona dello schermo (es. una finestra d'errore) e la manda alla chat.
 - **Libreria di comandi:** comandi PowerShell/cmd usati spesso (es. `gpupdate /force`, reset dello spooler, `sfc /scannow`, diagnostica di rete) da copiare o eseguire con conferma.
-- **Modalità "davanti al cliente":** con un clic (o in automatico quando parte una condivisione schermo o una sessione di assistenza remota) Mochi sparisce e nessuna notifica personale compare.
+- **Modalità "davanti al cliente":** con un clic (o in automatico quando parte una condivisione schermo o una sessione di assistenza remota) Ezzy sparisce e nessuna notifica personale compare.
 - **Ticketing:** widget per il conteggio dei ticket aperti/in scadenza dal sistema di helpdesk usato (via widget configurabile 6.4, se ha un'API).
 - **Casa:** promemoria personali, eventuale Home Assistant, meteo.
 
 **Proposte di integrazione del 2 ottobre 2026** (gratuite o tramite app già sul PC; dettagli e priorità nella conversazione di quel giorno):
-- *Sul PC, senza configurazione:* stato del PC (disco, RAM, batteria, uptime, riavvio in sospeso), Windows Update, Defender, rete (IP locale/pubblico, Wi-Fi, VPN, latenza), stampanti bloccate, microfono/webcam in uso, musica in riproduzione (controlli multimediali di Windows), Teams in riunione → Mochi silenzioso.
+- *Sul PC, senza configurazione:* stato del PC (disco, RAM, batteria, uptime, riavvio in sospeso), Windows Update, Defender, rete (IP locale/pubblico, Wi-Fi, VPN, latenza), stampanti bloccate, microfono/webcam in uso, musica in riproduzione (controlli multimediali di Windows), Teams in riunione → Ezzy silenzioso.
 - *App installate:* Outlook classico (prossimo appuntamento, mail non lette, via COM), Teams (API locale di terze parti), Docker, repository Git locali, WSL, sessioni remote attive (AnyDesk/TeamViewer/RDP → modalità "davanti al cliente").
 - *Servizi gratuiti:* meteo Open-Meteo (senza chiave), calendari ICS (Google/Outlook senza OAuth), posta IMAP, scadenza domini (RDAP), DNS e blacklist (DoH/DNSBL), pagine di stato (statuspage `/api/v2/status.json`), vulnerabilità CISA KEV, feed RSS, notifiche sul telefono (ntfy, bot Telegram).
 - *Self-hosted / casa:* Home Assistant, Uptime Kuma, Proxmox, Synology/TrueNAS, UniFi, Pi-hole, GLPI/Zammad (ticket).
@@ -185,6 +187,16 @@ Pensate per il lavoro da tecnico IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi implementiamo la 6.1 (fondamenta)"_ oppure _"facciamo la sezione 4 → Identità con nome X"_. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 2 ottobre 2026 — nuovo nome: EasyIsland, personaggio Ezzy
+- **Rinominato tutto:** Coucou → EasyIsland, Mochi → Ezzy, in interfaccia, installer, README, CLAUDE.md, SPEC/INTEGRATIONS, template delle issue, workflow e codice. `productName` EasyIsland, `identifier` e `SERVICE` della Gestione credenziali `it.edoardo.easyisland`, crate `easyisland` / `easyisland_lib` / `easyisland-hook`, named pipe `easyisland-<sid>`, variabile `EASYISLAND_INTERNAL`, evento `EasyIslandNotify`, cartella `src/ezzy/`, stato del saluto della macchina a stati `greeting` (era `coucou`). Installer: `EasyIsland-Windows-X.Y.Z-setup.exe`.
+- Restano di proposito i riferimenti all'originale: `LICENSE`, `LICENSE-ASSETS.md`, `design/`, la nota "fork di Louis-CFM/coucou" in README e CLAUDE.md, le voci passate di questo registro. Eliminato il sito dell'autore originale (`docs/*.html`, `docs/media/`).
+- **Migrazione al primo avvio** (`src-tauri/src/legacy.rs`), solo se `%APPDATA%\EasyIsland\settings.json` non esiste ancora: copia `%APPDATA%\Coucou\settings.json` e le chiavi da `fr.louisraille.coucou` (elencate con `CredEnumerateW`, nuova feature `Win32_Security_Credentials` della crate `windows`, nessuna dipendenza nuova). Se l'avvio automatico era attivo lo registra per EasyIsland. I file e le chiavi di Coucou vengono solo letti, mai cancellati.
+- **Impostazioni, schema 3:** i valori `"mochi"` (`iconStyle`, `theme.character`) diventano `"ezzy"` e `theme.mochiColor` diventa `ezzyColor`, anche dentro i profili e nei file esportati prima del cambio.
+- **Hook di Claude Code:** le voci con `coucou-hook` sono riconosciute come nostre; Impostazioni → Claude Code avvisa se ci sono ancora ("hook della vecchia versione") e **Reinstalla hook…** le sostituisce (diff e conferma come sempre).
+- **Repository:** il lavoro continua in un repo nuovo, privato e autonomo (non fork), `EdoardoDevelop/easyisland`, con tutta la storia git.
+- Verificato: `npm run build`, `cargo test --workspace` (38 + 4, più il nuovo `live_legacy_keys_are_found` eseguito a mano: l'elenco delle credenziali funziona).
+- Da fare: installare EasyIsland, controllare che la migrazione porti impostazioni e chiavi, reinstallare gli hook, poi disinstallare Coucou (le due app hanno identifier diversi e possono girare insieme: due isole).
 
 ### 2 ottobre 2026 — verifica dell'handoff e unificazione su `main`
 - Tutto il lavoro Windows (prima solo sul branch `claude/lucid-lamport-v5nvs3`) è ora su `main`; i vecchi branch `claude/*` sono stati eliminati.
@@ -246,3 +258,5 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 - [ ] "Davanti al cliente" da provare in una chiamata vera (Teams) e con una sessione di assistenza; il calendario con un link ICS reale.
 - [ ] Outlook classico (COM) e Teams via API locale non fatti: il calendario passa da ICS, le riunioni dal microfono/webcam in uso.
 - [ ] Su questo PC il controllo ha trovato il disco C: al 3 % libero e il Firewall di Windows spento su tutti i profili.
+- [ ] **Gestione credenziali su questo PC, probabilmente piena** (circa 287 voci, 2 ottobre): le credenziali con nomi lunghi vengono rifiutate con `ERROR_NOT_ENOUGH_MEMORY` (errore 8, anche da `cmdkey`), le corte passano. Le chiavi di EasyIsland (`<chiave>.it.edoardo.easyisland`) sono lunghe: salvarle può fallire finché non si eliminano voci vecchie da Gestione credenziali.
+- [ ] `copyright` in `tauri.conf.json` e `authors` in `Cargo.toml` sono ancora quelli dell'autore originale (sezione 4).
