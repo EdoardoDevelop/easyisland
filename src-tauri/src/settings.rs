@@ -279,7 +279,7 @@ pub struct Settings {
 }
 
 fn default_hotkey_open() -> String {
-    "Ctrl+Alt+M".into()
+    "Ctrl+Alt+Shift+M".into()
 }
 fn default_hotkey_ask() -> String {
     "Ctrl+Alt+K".into()

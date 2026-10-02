@@ -216,7 +216,7 @@ Ogni azione si può riordinare con ↑ ↓ ed eliminare con ✕.
 
 **Scorciatoie globali**, valide in ogni app (modificabili):
 
-- `Ctrl+Alt+M` apre Mochi sulle azioni (o sulla chat se non ce ne sono);
+- `Ctrl+Alt+Shift+M` apre Mochi sulle azioni (o sulla chat se non ce ne sono);
 - `Ctrl+Alt+K` apre la chat con il testo copiato già allegato: scrivi la domanda;
 - ogni azione può avere la sua scorciatoia, es. `Ctrl+Alt+E` per "Spiega errore".
 

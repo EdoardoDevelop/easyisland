@@ -222,41 +222,16 @@ pub(crate) fn icmp_ms(ip: std::net::Ipv4Addr, timeout_ms: u32) -> Option<u32> {
 }
 
 fn ping(id: &str, host: &str) -> WidgetResult {
-    use windows::Win32::NetworkManagement::IpHelper::{
-        IcmpCloseHandle, IcmpCreateFile, IcmpSendEcho, ICMP_ECHO_REPLY,
-    };
     let Some(ip) = ipv4_of(host) else {
         return WidgetResult::new(id, "error", format!("{host}: nome non risolto"));
     };
-    unsafe {
-        let Ok(handle) = IcmpCreateFile() else {
-            return WidgetResult::new(id, "error", "Ping non disponibile");
-        };
-        let data = *b"coucou";
-        let mut reply = vec![0u8; std::mem::size_of::<ICMP_ECHO_REPLY>() + data.len() + 8];
-        let n = IcmpSendEcho(
-            handle,
-            u32::from_ne_bytes(ip.octets()),
-            data.as_ptr().cast(),
-            data.len() as u16,
-            None,
-            reply.as_mut_ptr().cast(),
-            reply.len() as u32,
-            2000,
-        );
-        let _ = IcmpCloseHandle(handle);
-        if n == 0 {
-            return WidgetResult::new(id, "error", format!("{host} non risponde"));
-        }
-        let r = std::ptr::read_unaligned(reply.as_ptr().cast::<ICMP_ECHO_REPLY>());
-        if r.Status != 0 {
-            return WidgetResult::new(id, "error", format!("{host} non raggiungibile"));
-        }
-        let mut res = WidgetResult::new(id, "ok", format!("{host} risponde in {} ms", r.RoundTripTime));
-        res.fields.push(FieldValue { label: "Indirizzo".into(), value: ip.to_string() });
-        res.fields.push(FieldValue { label: "Tempo".into(), value: format!("{} ms", r.RoundTripTime) });
-        res
-    }
+    let Some(ms) = icmp_ms(ip, 2000) else {
+        return WidgetResult::new(id, "error", format!("{host} non risponde"));
+    };
+    let mut res = WidgetResult::new(id, "ok", format!("{host} risponde in {ms} ms"));
+    res.fields.push(FieldValue { label: "Indirizzo".into(), value: ip.to_string() });
+    res.fields.push(FieldValue { label: "Tempo".into(), value: format!("{ms} ms") });
+    res
 }
 
 async fn tcp(w: &Widget) -> WidgetResult {

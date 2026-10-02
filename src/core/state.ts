@@ -309,7 +309,7 @@ export const DEFAULT_SETTINGS: Settings = {
   profiles: [],
   activeProfile: "",
   autoProfile: false,
-  hotkeyOpen: "Ctrl+Alt+M",
+  hotkeyOpen: "Ctrl+Alt+Shift+M",
   hotkeyAsk: "Ctrl+Alt+K",
 };
 

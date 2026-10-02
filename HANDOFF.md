@@ -1,6 +1,6 @@
 # Handoff personale — Coucou (solo Windows)
 
-_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 2 ottobre 2026 (CPU). Branch: `claude/lucid-lamport-v5nvs3`._
+_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 2 ottobre 2026 (verifica dell'handoff e unificazione su `main`). Branch principale: `main`._
 
 > Questo file va tenuto **sempre aggiornato**: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al **Registro delle modifiche** (sezione 10), con data, cosa è cambiato e cosa resta aperto.
 
@@ -15,7 +15,7 @@ Coucou è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou). In
 - **CI:** `.github/workflows/build.yml` gira su `windows-latest` a ogni push/PR su `main` (solo verifica di compilazione) e pubblica l'installer sui tag `v*`, ma solo se `PUBLISH: 'true'`. Oggi è `'false'`, per via del falso positivo di Defender sull'installer non firmato.
 - **Aggiornati:** `README.md`, `CLAUDE.md` (regole per gli agenti, ora per Windows), `.gitignore`, i percorsi in `LICENSE-ASSETS.md`.
 - **Tradotto in italiano:** tutti i testi dell'interfaccia (isola, impostazioni, menu dell'area di notifica, etichette dei passi degli hook), i messaggi d'errore del backend, l'installer NSIS (italiano come lingua principale), README, CLAUDE.md, `docs/SPEC.md`, `docs/INTEGRATIONS.md`, i template delle issue e le note di release. Il prompt di sistema della chat chiede a Mochi di rispondere in italiano. Restano in inglese di proposito i commenti e gli identificatori nel codice, `LICENSE` e `LICENSE-ASSETS.md` (testi legali dell'autore originale) e il sito in `docs/*.html`. Le immagini in `screenshots/` mostrano ancora i testi in inglese.
-- **Verificato su Windows (PC di Edoardo, 1–2 ottobre 2026):** `npm run pack` produce l'installer (circa 4,2 MB) senza errori né avvisi, l'installazione per-utente funziona, gli hook di Claude Code arrivano all'isola, i test Rust passano (27 dell'app, 4 del relay). La CI compila anche sui branch `claude/**`.
+- **Verificato su Windows (PC di Edoardo, 1–2 ottobre 2026):** `npm run pack` produce l'installer (circa 4,2 MB) senza errori né avvisi, l'installazione per-utente funziona, gli hook di Claude Code arrivano all'isola, i test Rust passavano (27 dell'app, 4 del relay) al 1° ottobre. Da allora i test dell'app sono diventati 38 (`#[test]` in `src-tauri/src`), di cui 2 `live_` ignorati di default: da rieseguire tutti con `cargo test` su Windows. La CI compila anche sui branch `claude/**`.
 
 ## 2. Mappa veloce
 
@@ -37,6 +37,12 @@ Coucou è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou). In
 | Icona tray e menu | `src-tauri/src/tray.rs`, icone generate da `scripts/gen-icons.mjs` |
 | Suoni | `assets/sounds/`, motore `src/core/sound.ts` |
 | Installer NSIS | `src-tauri/tauri.conf.json` (`bundle`), `src-tauri/nsis/hooks.nsh` |
+| Profili, migrazione, esporta/importa | `src-tauri/src/settings.rs` (`schema_version`, `migrated`, `PROFILE_KEYS`), cambio automatico in `src-tauri/src/profiles.rs` |
+| Azioni rapide e scorciatoie globali | `src/views/actions.ts`, `Island.runAction` in `src/island/island.ts`, backend `src-tauri/src/actions.rs` e `src-tauri/src/hotkeys.rs` |
+| Widget configurabili e sonde | `src-tauri/src/widgets.rs` (scheduler, ping/TCP/HTTP/TLS/servizio/API JSON), `src-tauri/src/probes.rs` (stato del PC, sicurezza, rete, meteo, domini), `src-tauri/src/calendar.rs` (ICS); editor in `src/settings/main.ts` |
+| "Copia info PC" | comando `copy_pc_info` in `src-tauri/src/lib.rs` |
+| "Davanti al cliente" | `src-tauri/src/presence.rs`, `State.quiet` in `src/core/state.ts` |
+| Notifiche da script (`coucou-hook notify`) | `hook/src/main.rs`, vista `notify`, pulsante Prova (`notify_test` in `lib.rs`) |
 
 ## 3. Primi passi sul tuo PC Windows
 
@@ -60,7 +66,7 @@ Coucou è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou). In
 - Se vuoi **pubblicare o distribuire** la tua versione, servono nome, icona, personaggio e suoni tuoi. Il codice (MIT) puoi tenerlo.
 - Il **cubo** (Tema → Personaggio) è un personaggio tuo, disegnato dal logo dell'azienda dove lavorerai: per distribuirlo ai colleghi, chiedi prima all'azienda.
 
-**Sito e documenti:** `docs/*.html` (GitHub Pages: privacy, termini, note legali) e `docs/media/` sono quelli dell'autore originale, scritti per il Mac e intestati a lui. Puoi eliminarli o riscriverli. `docs/SPEC.md` e `docs/INTEGRATIONS.md` sono una buona specifica (in francese), ma descrivono il comportamento su macOS.
+**Sito e documenti:** `docs/*.html` (GitHub Pages: privacy, termini, note legali) e `docs/media/` sono quelli dell'autore originale, scritti per il Mac e intestati a lui. Puoi eliminarli o riscriverli. `docs/SPEC.md` e `docs/INTEGRATIONS.md` sono una buona specifica (tradotta in italiano), ma descrivono il comportamento su macOS.
 
 **Funzionalità:**
 - [ ] Quali integrazioni tieni? Se non usi Stripe, Resend, Cal.com…, rimuoverle alleggerisce codice e Impostazioni.
@@ -120,7 +126,7 @@ Pulsanti definiti dall'utente, mostrati in una nuova scheda dell'isola (accanto 
 
 > **Stato: fatto, tranne il widget "Oggi".** Elenco dei server da `~/.claude.json` (solo i nomi), scelta per profilo con conferma per server (`mcpServers` in Settings). Con connettori attivi `claude -p` gira in `--permission-mode default`, i server non scelti sono in `--disallowedTools`, quelli senza conferma in `--allowedTools`; le altre chiamate passano da un hook `PermissionRequest` → `coucou-hook.exe PermissionRequest --chat` → card Consenti/Nega nell'isola (`handleChatPermission` in `src/island/hooks.ts`). Meccanismo verificato con il Claude Code reale (allow esegue, deny blocca). Da fare: widget "Oggi"; i connettori di claude.ai non si caricano in `claude -p`.
 
-Oggi `src-tauri/src/claude_cli.rs` lancia `claude -p` con `--strict-mcp-config` e senza `--mcp-config`, quindi **nessun** server MCP, e strumenti limitati a WebSearch/WebFetch/Read.
+Prima di questo punto `src-tauri/src/claude_cli.rs` lanciava `claude -p` con `--strict-mcp-config` e senza `--mcp-config`, quindi **nessun** server MCP, e strumenti limitati a WebSearch/WebFetch/Read. Oggi è ancora così solo quando nel profilo non c'è nessun connettore scelto.
 
 - **Impostazione "Connettori in chat":** elenco dei server MCP configurati in Claude Code (leggibile con `claude mcp list`) con un interruttore per ciascuno; Coucou genera un file `--mcp-config` con solo quelli scelti, e aggiunge i relativi strumenti ad `--allowedTools` (es. `mcp__<nome-server>__*`).
 - **Esempi d'uso:** "cosa ho in calendario oggi?", "aggiungi un promemoria per venerdì", "cerca nei documenti del cliente X". Qualunque operazione che **modifica** dati (crea, aggiorna, invia) va **proposta prima** e confermata con un clic nell'isola, mai eseguita da sola.
@@ -131,7 +137,7 @@ Oggi `src-tauri/src/claude_cli.rs` lancia `claude -p` con `--strict-mcp-config` 
 
 ### 6.4 Widget configurabili (integrazioni senza codice)
 
-> **Stato: fatto.** Backend `src-tauri/src/widgets.rs` (ping con `IcmpSendEcho`, porta TCP, HTTP, certificato TLS con una breve chiamata PowerShell — host e porta passati come variabili d'ambiente —, servizio Windows via Service Control Manager, API JSON con percorsi e regola di avviso), scheduler unico con intervallo ×3 a batteria, segreti delle intestazioni come `widget:<id>:<nome>` in Gestione credenziali. Front end: pillole/scheda in `src/views/integrations.ts`, avvisi in `src/island/integrations.ts`, editor con modelli e "Prova" in `src/settings/main.ts`. Non verificati su Windows reale: il ping ICMP e lo script del certificato (qui non c'è PowerShell). Le 7 integrazioni originali restano scritte a mano (non convertite in modelli).
+> **Stato: fatto.** Backend `src-tauri/src/widgets.rs` (ping con `IcmpSendEcho`, porta TCP, HTTP, certificato TLS con una breve chiamata PowerShell — host e porta passati come variabili d'ambiente —, servizio Windows via Service Control Manager, API JSON con percorsi e regola di avviso), scheduler unico con intervallo ×3 a batteria, segreti delle intestazioni come `widget:<id>:<nome>` in Gestione credenziali. Front end: pillole/scheda in `src/views/integrations.ts`, avvisi in `src/island/integrations.ts`, editor con modelli e "Prova" in `src/settings/main.ts`. Il ping ICMP usa la stessa funzione (`icmp_ms`) della latenza della sonda *Rete*, verificata dal vivo il 2 ottobre. Non verificato su Windows reale: lo script del certificato TLS. Le 7 integrazioni originali restano scritte a mano (non convertite in modelli).
 
 Un tipo di widget generico al posto delle integrazioni scritte a mano (le 7 attuali in `src-tauri/src/integrations.rs` diventano "modelli pronti").
 
@@ -180,9 +186,17 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 
 ## 10. Registro delle modifiche
 
+### 2 ottobre 2026 — verifica dell'handoff e unificazione su `main`
+- Tutto il lavoro Windows (prima solo sul branch `claude/lucid-lamport-v5nvs3`) è ora su `main`; i vecchi branch `claude/*` sono stati eliminati.
+- Handoff verificato contro il codice e corretto: data, lingua di `SPEC.md`/`INTEGRATIONS.md` (italiano), paragrafo superato in 6.3, mappa con i moduli nuovi (profili, azioni, widget, sonde, presenza, notify), numero dei test, posizione di `copy_pc_info` (`lib.rs`).
+- `CLAUDE.md`: descritta la chat con i connettori MCP (`--permission-mode default`, hook `PermissionRequest --chat`) e i moduli nuovi.
+- Il widget `ping` usa `icmp_ms` invece di una sua copia della chiamata `IcmpSendEcho` (`src-tauri/src/widgets.rs`); il messaggio d'errore è ora sempre "non risponde".
+- Scorciatoia predefinita per aprire Mochi: `Ctrl+Alt+Shift+M` (era `Ctrl+Alt+M`, in conflitto con un altro programma). Aggiornati `settings.rs`, `state.ts` e `README.md`.
+- Da fare: compilare e far girare `cargo test` su Windows (la modifica a `widgets.rs` è verificata solo dalla CI).
+
 ### 2 ottobre 2026 — integrazioni locali, "davanti al cliente", notify, Impostazioni a pagine
 - **Nuovi tipi di widget** (`src-tauri/src/probes.rs`, `calendar.rs`), con modelli pronti nell'editor:
-  - *Stato del PC*: disco di sistema, memoria, batteria, uptime, riavvio richiesto (Win32 + registro). Pulsante **Copia info PC** (PowerShell + appunti, `copy_pc_info`).
+  - *Stato del PC*: disco di sistema, memoria, batteria, uptime, riavvio richiesto (Win32 + registro). Pulsante **Copia info PC** (PowerShell + appunti, comando `copy_pc_info` in `lib.rs`).
   - *Sicurezza*: antivirus e firewall dal Centro sicurezza (`root/SecurityCenter2`, vale anche per prodotti di terze parti), firme e scansioni di Defender, minacce; una chiamata PowerShell ogni 30 minuti.
   - *Rete*: adattatori (`GetAdaptersAddresses`), VPN riconosciute per nome o tipo, Wi-Fi (`netsh`), latenza ICMP verso 1.1.1.1, IP pubblico da api.ipify.org con cache di 15 minuti.
   - *Calendario ICS*: link segreto in Gestione credenziali (`widget:<id>:ics`); ricorrenze DAILY/WEEKLY/MONTHLY/YEARLY con INTERVAL, COUNT, UNTIL, BYDAY (anche 1MO/-1FR), BYMONTHDAY, BYMONTH, EXDATE e RECURRENCE-ID; UTC convertito con le regole di Windows, TZID trattato come fuso del PC. Avvisa N minuti prima (`warnDays` usato come minuti).
@@ -225,10 +239,10 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 
 ### Problemi noti e cose aperte
 - [ ] **CPU con "Sempre visibile":** ridotta il 2 ottobre (da circa 24 % a circa 9–10 % col mouse in movimento, circa 4 % fermo). Margini ancora possibili: sguardo a 20 fps, finestra più piccola della 720×320 attuale quando l'isola è compatta.
-- [ ] **Scorciatoia `Ctrl+Alt+M`** non disponibile (già usata da un altro programma): sceglierne un'altra in Impostazioni → Azioni rapide.
+- [x] **Scorciatoia `Ctrl+Alt+M`** già usata da un altro programma: la predefinita per aprire Mochi è ora `Ctrl+Alt+Shift+M`. Chi ha già salvato `Ctrl+Alt+M` la tiene: va cambiata a mano in Impostazioni → Azioni rapide.
 - [ ] **Icona dell'area di notifica:** è un'immagine fissa (`scripts/gen-icons.mjs`), quindi resta Mochi anche con il cubo.
 - [ ] **Sopra la barra:** cliccando la barra, Mochi va dietro per un istante (circa 0,15 s) prima di tornare davanti.
-- [ ] Da verificare su Windows reale: ping ICMP e controllo del certificato TLS dei widget (6.4).
+- [ ] Da verificare su Windows reale: controllo del certificato TLS dei widget (6.4). Il ping ora usa `icmp_ms`, già verificata.
 - [ ] "Davanti al cliente" da provare in una chiamata vera (Teams) e con una sessione di assistenza; il calendario con un link ICS reale.
 - [ ] Outlook classico (COM) e Teams via API locale non fatti: il calendario passa da ICS, le riunioni dal microfono/webcam in uso.
 - [ ] Su questo PC il controllo ha trovato il disco C: al 3 % libero e il Firewall di Windows spento su tutti i profili.
