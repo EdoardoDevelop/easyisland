@@ -9,7 +9,7 @@ import { State } from "../core/state";
 import { character, drawCube, onRightFace } from "../character/cube";
 import { hexToRGB } from "../character/engine";
 import {
-  SLIME_GREEN, drawSlimeBody, drawSlimeEye, drawSlimePuddle, slimePalette, slimePoint,
+  SLIME_GREEN, drawSlimeBody, drawSlimeEye, slimePalette, slimePoint,
 } from "../character/slime";
 import {
   USC, eIn, eInOut, eOut, lerp, progressAt,
@@ -344,8 +344,7 @@ export class UploadCanvas {
     }
 
     const { path: body, rx, ry } = bodyPath(f.morph, R);
-    const look = { palette: slimePalette(themeBase()), puddle: 1 - mc, gloss: 1 - mc * 0.6 };
-    drawSlimePuddle(ctx, rx, ry, look);
+    const look = { palette: slimePalette(themeBase()), gloss: 1 - mc * 0.6 };
     drawSlimeBody(ctx, body, rx, ry, look);
 
     // The body path is reused as a clip for everything drawn inside it.

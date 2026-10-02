@@ -6,7 +6,7 @@ import { COMPACT_W, NOTCH_H, NOTCH_W } from "../core/layout";
 import { character, cubeHandStops, drawCube, onRightFace } from "./cube";
 import { hexToRGB } from "./engine";
 import {
-  SLIME_ASPECT, SLIME_GREEN, drawSlimeBody, drawSlimeEye, drawSlimePuddle, slimeHandStops, slimeMix,
+  SLIME_ASPECT, SLIME_GREEN, drawSlimeBody, drawSlimeEye, slimeHandStops, slimeMix,
   slimePalette, slimePath, slimeRGBA, type SlimePalette,
 } from "./slime";
 
@@ -421,8 +421,7 @@ function greetEyes(
 
 function drawCharacterBody(x: CanvasRenderingContext2D, p: Pose, hw: number, hh: number) {
   const body = slimePath(hw, hh);
-  const look = { palette: greetPalette(p.tint), puddle: Math.min(1, hh / 12) };
-  drawSlimePuddle(x, hw, hh, look);
+  const look = { palette: greetPalette(p.tint) };
   drawSlimeBody(x, body, hw, hh, look);
 
   // Eyes

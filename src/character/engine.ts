@@ -8,7 +8,7 @@ import { Sound } from "../core/sound";
 import type { BotEmoteName, BotStateName } from "../core/layout";
 import { character, cubeHandStops, drawCube, onRightFace } from "./cube";
 import {
-  Jelly, SLIME_GREEN, applyJelly, drawSlimeBody, drawSlimeEye, drawSlimePuddle, slimeHandStops, slimePalette, slimePoint, slimeRGBA,
+  Jelly, SLIME_GREEN, applyJelly, drawSlimeBody, drawSlimeEye, slimeHandStops, slimePalette, slimePoint, slimeRGBA,
   type SlimePalette,
 } from "./slime";
 
@@ -720,10 +720,9 @@ export class BotEngine {
     x.scale(this.sx, this.sy);
 
     const body = this.bodyPath(rx, ry, R);
-    const look = { palette: pal, simple: this.isMini, puddle: 1 - this.morph, gloss: 1 - this.morph * 0.6 };
+    const look = { palette: pal, simple: this.isMini, gloss: 1 - this.morph * 0.6 };
     this.lastR = R;
-    drawSlimePuddle(x, rx, ry, look);
-    // Body, blush, eyes and mouth wobble together; the puddle stays flat.
+    // Body, blush, eyes and mouth wobble together.
     applyJelly(x, ry, this.jelly);
     drawSlimeBody(x, body, rx, ry, look);
 

@@ -1,4 +1,4 @@
-// The slime the slime: a glossy jelly dome sitting on its own puddle. One place
+// Slime, the character: a glossy jelly dome with a flat base. One place
 // draws the body so the island, the greeting and the drop animation all show
 // the same character. Everything is in body-local coordinates: (0, 0) is the
 // centre, `hw` the half-width at the base, `hh` the half-height, y down, and the
@@ -23,7 +23,7 @@ export interface SlimePalette {
   /** Lime at the top of the dome. */
   light: RGB;
   body: RGB;
-  /** Outline and puddle. */
+  /** The outline. */
   edge: RGB;
 }
 
@@ -64,10 +64,8 @@ export function slimePath(hw: number, hh: number): Path2D {
 
 export interface SlimeLook {
   palette: SlimePalette;
-  /** Small sizes: flat fill, outline and one highlight — no puddle or drips. */
+  /** Small sizes: flat fill, outline and one highlight — no drips. */
   simple?: boolean;
-  /** 0…1, the puddle under the base (fades while the slime turns into a box). */
-  puddle?: number;
   /** 0…1, the glossy highlights. */
   gloss?: number;
 }
@@ -135,18 +133,6 @@ export class Jelly implements JellyPose {
   reset() {
     this.shear = this.stretch = this.vShear = this.vStretch = 0;
   }
-}
-
-/** The puddle goes under the body: call before `drawSlimeBody`. */
-export function drawSlimePuddle(x: CanvasRenderingContext2D, hw: number, hh: number, look: SlimeLook) {
-  const a = look.puddle ?? 1;
-  if (a <= 0.01 || look.simple) return;
-  x.save();
-  x.fillStyle = rgba(look.palette.edge, 0.95 * a);
-  x.beginPath();
-  x.ellipse(0, hh * 0.97, hw * 1.14, Math.max(1, hh * 0.13), 0, 0, Math.PI * 2);
-  x.fill();
-  x.restore();
 }
 
 /** Fills, shades and outlines `body` (usually `slimePath`, or a morph of it). */
