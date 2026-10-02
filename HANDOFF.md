@@ -193,7 +193,7 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 - Prima "Apri terminale" apriva la cartella in VS Code solo se `code` era nel `PATH`, altrimenti in Esplora file: su questo PC `code` non è nel PATH, quindi si apriva sempre la cartella.
 - Il relay ora inoltra anche `CLAUDE_CODE_ENTRYPOINT` (`entrypoint`); il front end ricava dove gira la sessione (`sessionHost`: `desktop` = app Claude, `vscode` = estensione o terminale di VS Code, `wt` = Windows Terminal, `terminal` = altro) e il pulsante si chiama **Apri Claude**, **Apri VS Code** o **Apri terminale**. Vale per la schermata "ha finito", per quella d'errore (prima diceva sempre "Apri in n8n") e per la pillola VS Code.
 - Backend `src-tauri/src/apps.rs` (comando `open_session`): porta in primo piano la finestra principale dell'app (`EnumWindows` sui processi `claude.exe`, `code.exe`, `windowsterminal.exe`…, con il tocco di Alt per poter usare `SetForegroundWindow`); per VS Code apre la cartella con `code`, cercato anche in `%LOCALAPPDATA%\Programs\Microsoft VS Code\bin` e in Program Files. Ultima risorsa: Esplora file.
-- Verificato dal vivo (`live_apps_are_found`): trova la finestra dell'app Claude e `code.cmd` fuori dal PATH. Da provare con un clic vero: il passaggio in primo piano.
+- Verificato dal vivo (`live_apps_are_found`): trova la finestra dell'app Claude e `code.cmd` fuori dal PATH. Provato da Edoardo con un clic vero: l'app torna in primo piano.
 - Una console classica (cmd/PowerShell senza Windows Terminal) non sempre viene trovata: in quel caso si apre VS Code o la cartella.
 
 ### 2 ottobre 2026 — correzione: personaggio invisibile
