@@ -1,18 +1,18 @@
 # EasyIsland (Windows) — guida per gli agenti AI
 
-EasyIsland è un'app desktop per Windows 10/11: Ezzy, un piccolo personaggio animato che vive in un'isola in alto al centro dello schermo, mostra le sessioni di Claude Code e alcune integrazioni, e permette all'utente di approvare, rispondere, chattare e rilasciare file dall'isola. Fork solo per Windows di Louis-CFM/coucou (Coucou con il personaggio Mochi; l'app macOS è stata rimossa), rinominato EasyIsland/Ezzy il 2 ottobre 2026. Handoff personale e roadmap: `HANDOFF.md`.
+EasyIsland è un'app desktop per Windows 10/11: un piccolo personaggio animato (Slime, o in alternativa EasyTech) che vive in un'isola in alto al centro dello schermo, mostra le sessioni di Claude Code e alcune integrazioni, e permette all'utente di approvare, rispondere, chattare e rilasciare file dall'isola. Fork solo per Windows di Louis-CFM/coucou (Coucou con il personaggio Mochi; l'app macOS è stata rimossa), rinominato EasyIsland il 2 ottobre 2026. Handoff personale e roadmap: `HANDOFF.md`.
 
 **Lingua del progetto: italiano.** Testi dell'interfaccia, messaggi d'errore mostrati all'utente, documentazione e messaggi di commit sono in italiano. Identificatori e commenti nel codice restano in inglese.
 
 ## Dove stanno le cose
-- `src/`: front end dell'isola e delle impostazioni (TypeScript, nessun framework, Canvas 2D). `src/ezzy/` il personaggio (Ezzy, e il cubo alternativo in `src/ezzy/cube.ts`, scelto con `theme.character`: lo disegnano `engine.ts`, `greeting.ts` e `src/upload/canvas.ts`), `src/island/` macchina a stati, hook e integrazioni, `src/views/` tutte le viste, `src/settings/` la finestra delle impostazioni.
+- `src/`: front end dell'isola e delle impostazioni (TypeScript, nessun framework, Canvas 2D). `src/character/` il personaggio (Slime, disegnato in `src/character/slime.ts`, ed EasyTech, il cubo alternativo in `src/character/cube.ts`, scelto con `theme.character`: lo disegnano `engine.ts`, `greeting.ts` e `src/upload/canvas.ts`), `src/island/` macchina a stati, hook e integrazioni, `src/views/` tutte le viste, `src/settings/` la finestra delle impostazioni.
 - `src-tauri/`: backend Rust (Tauri 2): finestra, named pipe, API Claude, poller, Gestione credenziali, area di notifica, hook NSIS.
 - Chat: due motori scelti in `settings.chatEngine`. `src-tauri/src/claude.rs` chiama l'API con la chiave; `src-tauri/src/claude_cli.rs` lancia `claude -p` (abbonamento dell'utente). Senza connettori: solo WebSearch/WebFetch/Read, `dontAsk` e `--strict-mcp-config`. Con connettori MCP scelti nel profilo (`mcpServers`): `--permission-mode default`, i server non scelti in `--disallowedTools`, quelli senza conferma in `--allowedTools`, e le altre chiamate passano dall'hook `PermissionRequest` → `easyisland-hook.exe PermissionRequest --chat` → card Consenti/Nega nell'isola. `easyisland-hook.exe` ignora i processi con `EASYISLAND_INTERNAL`, tranne le chiamate con `--chat`.
 - File rilasciati: drag & drop HTML5 nella pagina, poi `chrome.webview.postMessageWithAdditionalObjects` → `src-tauri/src/drop.rs`, che legge il percorso reale (`ICoreWebView2File`) ed emette `file-drop`. Il drop nativo di Tauri (`dragDropEnabled`) resta spento: sui runtime WebView2 attuali non viene mai raggiunto. Il messaggio deve essere una stringa, altrimenti il gestore IPC di wry fallisce e WebView2 non chiama il nostro.
 - `hook/`: `easyisland-hook.exe`, il relay degli hook di Claude Code; `easyisland-hook notify …` manda un messaggio all'isola da qualsiasi script.
 - Widget e sonde: `src-tauri/src/widgets.rs` (scheduler, ping/TCP/HTTP/TLS/servizio/API JSON), `probes.rs` (stato del PC, sicurezza, rete, meteo, domini), `calendar.rs` (ICS). Profili automatici in `profiles.rs`, "davanti al cliente" in `presence.rs`, azioni rapide in `actions.rs`, scorciatoie globali in `hotkeys.rs`.
 - `assets/sounds/`: i 28 suoni WAV (percorso dichiarato una sola volta in `vite.config.ts`, `SOUNDS_DIR`).
-- `scripts/`: `gen-icons.mjs` (icone disegnate nel codice), `pack.mjs` (copia l'installer in `release/`).
+- `scripts/`: `gen-icons.mjs` (icone disegnate nel codice: l'isola, non il personaggio), `pack.mjs` (copia l'installer in `release/`).
 - `docs/SPEC.md`, `docs/INTEGRATIONS.md`: comportamento, viste, stati, integrazioni (scritti per l'originale macOS; le differenze di Windows sono nel `README.md`).
 - `design/prototype/notch-buddy.html`: prototipo originale, il riferimento visivo. `design/captures/`: catture di riferimento.
 
@@ -27,7 +27,7 @@ La parte Rust si compila solo su Windows (toolchain MSVC). CI: `.github/workflow
 
 ## Regole
 - `HANDOFF.md` va tenuto sempre aggiornato: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al Registro delle modifiche (sezione 10), compresi i problemi rimasti aperti.
-- TypeScript + Rust (Tauri 2). Nessuna nuova dipendenza se non davvero inevitabile. Ezzy è disegnato nel codice (Canvas 2D), niente Rive/Lottie/immagini.
+- TypeScript + Rust (Tauri 2). Nessuna nuova dipendenza se non davvero inevitabile. Il personaggio è disegnato nel codice (Canvas 2D), niente Rive/Lottie/immagini.
 - I segreti stanno in Gestione credenziali di Windows, mai su disco, nell'interfaccia o in git. Il front end può solo chiedere se una chiave esiste.
 - Nessuna telemetria. Chiamate di rete solo verso i servizi configurati dall'utente.
 - Non bloccare mai Claude Code: se l'app non risponde entro il timeout dell'hook, l'hook esce subito con 0.
@@ -36,4 +36,4 @@ La parte Rust si compila solo su Windows (toolchain MSVC). CI: `.github/workflow
 - Prestazioni: nessun frame di animazione / CPU ~0 % quando l'isola è ritirata.
 - La versione sta in tre file che devono coincidere: `package.json`, `Cargo.toml`, `src-tauri/tauri.conf.json` (la CI lo controlla sui tag).
 - Cambiare `identifier` in `tauri.conf.json` sposta i dati dell'app e le voci in Gestione credenziali: farlo di proposito, una volta sola.
-- Le modifiche visive devono corrispondere al prototipo e alle catture in `design/captures/`. Eccezione voluta: posizione (angoli/bordi, trascinamento con `offsetX`/`offsetY`, `overTaskbar`), aggancio ai bordi (`glueEdges`), icona a riposo, vista compatta sempre visibile (`revealDuration` 0) e stile al passaggio del mouse sono specifici di Windows e configurabili (geometria in `src/core/layout.ts` → `anchoredOrigin`, `glueFor`, `cornerRadii`, `collapsedBox`, `compactSize`; lato Rust `island.rs` → `apply_geometry`, `placement_from_drop`).
+- Le modifiche visive devono corrispondere al prototipo e alle catture in `design/captures/`. Eccezioni volute: l'aspetto del personaggio (Slime ed EasyTech, non il Mochi del prototipo: il prototipo resta il riferimento per animazioni, tempi e viste), l'icona dell'app, posizione (angoli/bordi, trascinamento con `offsetX`/`offsetY`, `overTaskbar`), aggancio ai bordi (`glueEdges`), icona a riposo, vista compatta sempre visibile (`revealDuration` 0) e stile al passaggio del mouse sono specifici di Windows e configurabili (geometria in `src/core/layout.ts` → `anchoredOrigin`, `glueFor`, `cornerRadii`, `collapsedBox`, `compactSize`; lato Rust `island.rs` → `apply_geometry`, `placement_from_drop`).

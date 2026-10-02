@@ -34,7 +34,7 @@ async function main() {
     }
     State.settings = { ...State.settings, ...overrides } as Settings;
     const who = params.get("character");
-    if (who) State.settings.theme = { ...State.settings.theme, character: who === "cube" ? "cube" : "ezzy" };
+    if (who) State.settings.theme = { ...State.settings.theme, character: who === "cube" ? "cube" : "slime" };
 
     // Frame the 720×320 "window" in the matching corner of the page.
     document.documentElement.classList.add("browser-preview");

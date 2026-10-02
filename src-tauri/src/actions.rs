@@ -1,5 +1,5 @@
 // Quick actions: start a program, run a script (only ever after a click in the
-// island), read the clipboard for "ask Ezzy about what I copied".
+// island), read the clipboard for "ask the character about what I copied".
 //
 // Nothing here goes through a shell unless the action *is* a script, and then
 // only the shell the user picked. Programs get their arguments as an argv list.

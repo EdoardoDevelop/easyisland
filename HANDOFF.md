@@ -1,6 +1,6 @@
 # Handoff personale — EasyIsland (solo Windows)
 
-_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 2 ottobre 2026 (nuovo nome: EasyIsland, personaggio Ezzy). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
+_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 2 ottobre 2026 (nuovo nome: EasyIsland, personaggio Slime). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
 
 > Questo file va tenuto **sempre aggiornato**: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al **Registro delle modifiche** (sezione 10), con data, cosa è cambiato e cosa resta aperto.
 
@@ -9,21 +9,22 @@ _Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 2 ottobre 2026 (nuovo 
 EasyIsland è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou) (Coucou, con il personaggio Mochi). In origine era un'app macOS nativa (Swift) che viveva nel notch del MacBook, con un port Windows in `windows/`.
 **Adesso il repo è solo Windows:**
 
-- **Nuovo nome (2 ottobre 2026):** l'app si chiama **EasyIsland**, il personaggio **Ezzy** (era Mochi). Identifier `it.edoardo.easyisland` (era `fr.louisraille.coucou`), eseguibili `easyisland.exe` ed `easyisland-hook.exe`, named pipe `\\.\pipe\easyisland-<sid>`, cartelle `%APPDATA%\EasyIsland` e `%LOCALAPPDATA%\EasyIsland`. Al primo avvio la migrazione (`src-tauri/src/legacy.rs`) copia impostazioni e chiavi da Coucou; vedi il Registro.
+- **Nuovo nome (2 ottobre 2026):** l'app si chiama **EasyIsland**, il personaggio **Slime** (era Mochi). Identifier `it.edoardo.easyisland` (era `fr.louisraille.coucou`), eseguibili `easyisland.exe` ed `easyisland-hook.exe`, named pipe `\\.\pipe\easyisland-<sid>`, cartelle `%APPDATA%\EasyIsland` e `%LOCALAPPDATA%\EasyIsland`. Al primo avvio la migrazione (`src-tauri/src/legacy.rs`) copia impostazioni e chiavi da Coucou; vedi il Registro.
 - **Rimossi:** l'app macOS (`NotchBuddy/`, ~11.000 righe Swift + progetto Xcode), le workflow macOS (`build.yml`, `release.yml`) e `scripts/release.sh` (firma/notarizzazione Apple).
 - **Spostato alla radice:** tutto il contenuto di `windows/` (Tauri 2 + Rust + TypeScript).
 - **Spostati:** i 28 suoni da `NotchBuddy/Resources/sounds/` ad `assets/sounds/` (`SOUNDS_DIR` in `vite.config.ts` aggiornato).
 - **CI:** `.github/workflows/build.yml` gira su `windows-latest` a ogni push/PR su `main` (solo verifica di compilazione) e pubblica l'installer sui tag `v*`, ma solo se `PUBLISH: 'true'`. Oggi è `'false'`, per via del falso positivo di Defender sull'installer non firmato.
 - **Aggiornati:** `README.md`, `CLAUDE.md` (regole per gli agenti, ora per Windows), `.gitignore`, i percorsi in `LICENSE-ASSETS.md`.
-- **Tradotto in italiano:** tutti i testi dell'interfaccia (isola, impostazioni, menu dell'area di notifica, etichette dei passi degli hook), i messaggi d'errore del backend, l'installer NSIS (italiano come lingua principale), README, CLAUDE.md, `docs/SPEC.md`, `docs/INTEGRATIONS.md`, i template delle issue e le note di release. Il prompt di sistema della chat chiede a Ezzy di rispondere in italiano. Restano in inglese di proposito i commenti e gli identificatori nel codice, `LICENSE` e `LICENSE-ASSETS.md` (testi legali dell'autore originale). Il sito in `docs/*.html` è stato eliminato. Le immagini in `screenshots/` mostrano ancora i testi in inglese.
+- **Tradotto in italiano:** tutti i testi dell'interfaccia (isola, impostazioni, menu dell'area di notifica, etichette dei passi degli hook), i messaggi d'errore del backend, l'installer NSIS (italiano come lingua principale), README, CLAUDE.md, `docs/SPEC.md`, `docs/INTEGRATIONS.md`, i template delle issue e le note di release. Il prompt di sistema della chat chiede a Slime di rispondere in italiano. Restano in inglese di proposito i commenti e gli identificatori nel codice, `LICENSE` e `LICENSE-ASSETS.md` (testi legali dell'autore originale). Il sito in `docs/*.html` è stato eliminato. Le immagini in `screenshots/` mostrano ancora i testi in inglese.
 - **Verificato su Windows (PC di Edoardo, 1–2 ottobre 2026):** `npm run pack` produce l'installer (circa 4,2 MB) senza errori né avvisi, l'installazione per-utente funziona, gli hook di Claude Code arrivano all'isola, i test Rust passavano (27 dell'app, 4 del relay) al 1° ottobre. Il 2 ottobre, dopo il cambio di nome, `cargo test --workspace` passa: 38 test dell'app (più 3 `live_` ignorati di default) e 4 del relay. La CI compila anche sui branch `claude/**`.
 
 ## 2. Mappa veloce
 
 | Cosa vuoi toccare | Dove |
 |---|---|
-| Aspetto/animazioni di Ezzy | `src/ezzy/engine.ts`, `src/ezzy/greeting.ts` |
-| Il cubo (personaggio alternativo, `theme.character`) | `src/ezzy/cube.ts` (geometria 3D, colori del logo, orientamento verso il cursore: `FOLLOW_*`), disegnato da `engine.ts` (`drawAsCube`), `greeting.ts` e `src/upload/canvas.ts` |
+| Aspetto di Slime (lo slime: forma, colori, riflessi, occhi) | `src/character/slime.ts`, usato da `engine.ts`, `greeting.ts` e `src/upload/canvas.ts`; anteprima di stati ed emozioni in `dev/character-preview.html` (`npm run dev`) |
+| Animazioni, stati ed emozioni di Slime | `src/character/engine.ts`, `src/character/greeting.ts` |
+| EasyTech, il cubo (personaggio alternativo, `theme.character` = `cube`) | `src/character/cube.ts` (geometria 3D, colori del logo, orientamento verso il cursore: `FOLLOW_*`), disegnato da `engine.ts` (`drawAsCube`), `greeting.ts` e `src/upload/canvas.ts` |
 | Posizione, trascinamento, aggancio ai bordi, sopra la barra | front end `src/core/layout.ts` (`anchoredOrigin`, `glueFor`, `cornerRadii`) e `src/island/island.ts` (pointer events); backend `src-tauri/src/island.rs` (`apply_geometry`, `placement_from_drop`, `raise_over_taskbar`), comandi `drag_island` / `end_drag` in `lib.rs` |
 | File rilasciati sull'isola | `onDragDrop` in `src/core/bridge.ts` (drop HTML5) + `src-tauri/src/drop.rs` (percorso reale da WebView2) |
 | Domande di Claude Code (AskUserQuestion) | `askQuestions` in `src/island/hooks.ts`, vista `buildAsk` in `src/views/views.ts`, risposta `answer {…}` → `decision_json` in `hook/src/main.rs` |
@@ -53,29 +54,29 @@ EasyIsland è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou)
    - **Claude Code → Installa hook…**: controlla il diff e conferma, poi lancia una sessione di Claude Code e verifica che le richieste di permesso arrivino sull'isola;
    - **Chat con Claude**: prova la modalità "Abbonamento Claude" (serve Claude Code con il login fatto);
    - **Posizione e aspetto**: scegli angolo e icona.
-3. Per lavorare sul codice: `npm run tauri dev` (l'app vera) o `npm run ui` (solo l'interfaccia nel browser; aggiungi `?character=cube` per il cubo). `easyisland.exe --settings` apre direttamente le Impostazioni.
+3. Per lavorare sul codice: `npm run tauri dev` (l'app vera) o `npm run ui` (solo l'interfaccia nel browser; aggiungi `?character=cube` per EasyTech). `easyisland.exe --settings` apre direttamente le Impostazioni.
 4. Fai un push su `main` (o apri una PR) e controlla che la workflow `Build` sia verde: è la prova che l'installer si compila anche su una macchina pulita.
 
 ## 4. Decisioni da prendere per personalizzarlo
 
 **Identità (da fare per prima, e una volta sola):**
-- [x] Nome dell'app: **EasyIsland**, personaggio **Ezzy** (2 ottobre 2026).
+- [x] Nome dell'app: **EasyIsland**, personaggio **Slime** (2 ottobre 2026).
 - [x] Bundle identifier: `it.edoardo.easyisland` in `tauri.conf.json` e `SERVICE` in `src-tauri/src/secrets.rs`. Non cambiarlo più: sposterebbe di nuovo dati e chiavi.
 - [ ] `copyright` in `tauri.conf.json`, `authors` in `src-tauri/Cargo.toml`, il copyright in `LICENSE` (aggiungi il tuo, lasciando quello originale per la parte MIT).
 
-**Licenza degli asset (importante):** `LICENSE-ASSETS.md` riserva all'autore originale i nomi "Coucou" e "Mochi" (ora non più usati), il disegno del personaggio, le icone e i suoni. Ezzy oggi è il disegno di Mochi con un altro nome.
+**Licenza degli asset (importante):** `LICENSE-ASSETS.md` riserva all'autore originale i nomi "Coucou" e "Mochi", il disegno di Mochi, le icone originali e i suoni. Dal 2 ottobre 2026 nomi, personaggio (Slime, disegnato nel codice da un'immagine di riferimento scelta da Edoardo) e icona (l'isola) sono nuovi: dell'originale restano solo **i suoni**.
 - Per **uso personale** va bene così com'è.
-- Se vuoi **pubblicare o distribuire** la tua versione, servono icona, disegno del personaggio e suoni tuoi (i nomi sono già tuoi). Il codice (MIT) puoi tenerlo. "EasyIsland" è un nome generico: prima di una distribuzione pubblica conviene una verifica sui marchi.
-- Il **cubo** (Tema → Personaggio) è un personaggio tuo, disegnato dal logo dell'azienda dove lavorerai: per distribuirlo ai colleghi, chiedi prima all'azienda.
+- Se vuoi **pubblicare o distribuire** la tua versione, servono suoni tuoi. Il codice (MIT) puoi tenerlo. "EasyIsland" è un nome generico: prima di una distribuzione pubblica conviene una verifica sui marchi.
+- **EasyTech**, il cubo (Tema → Personaggio), è un personaggio tuo, disegnato dal logo dell'azienda dove lavorerai: per distribuirlo ai colleghi, chiedi prima all'azienda.
 
 **Sito e documenti:** il sito dell'autore originale (`docs/*.html`, `docs/media/`) è stato eliminato il 2 ottobre 2026. `docs/SPEC.md` e `docs/INTEGRATIONS.md` sono una buona specifica (tradotta in italiano), ma descrivono il comportamento su macOS.
 
 **Funzionalità:**
 - [ ] Quali integrazioni tieni? Se non usi Stripe, Resend, Cal.com…, rimuoverle alleggerisce codice e Impostazioni.
-- [ ] Funzioni presenti solo su Mac e mai portate: invio di un file via email, trascinare Ezzy su una finestra per allegarla come contesto, saltare al terminale esatto della sessione. Valuta se ti servono.
+- [ ] Funzioni presenti solo su Mac e mai portate: invio di un file via email, trascinare Slime su una finestra per allegarla come contesto, saltare al terminale esatto della sessione. Valuta se ti servono.
 - [x] Posizione e aspetto: angolo o bordo, icona a riposo e al passaggio del mouse, apertura dopo N secondi o solo al clic, silenzio a schermo intero (Impostazioni → Posizione e aspetto).
-- [x] Ezzy trascinabile con il mouse (posizione salvata nel profilo), aggancio ai bordi, sopra la barra delle applicazioni, vista compatta sempre visibile, pulsante ✕ per chiudere subito.
-- [x] Personaggio a scelta: Ezzy o il cubo (Tema → Personaggio).
+- [x] Slime trascinabile con il mouse (posizione salvata nel profilo), aggancio ai bordi, sopra la barra delle applicazioni, vista compatta sempre visibile, pulsante ✕ per chiudere subito.
+- [x] Personaggio a scelta: Slime o EasyTech, il cubo (Tema → Personaggio).
 - [x] Chat: scegli in Impostazioni tra abbonamento Claude (tramite Claude Code, predefinito) e chiave API. Codice in `src-tauri/src/claude_cli.rs` e `src-tauri/src/claude.rs`.
 
 **Distribuzione:**
@@ -102,9 +103,9 @@ In ordine di implementazione consigliato: 6.1 → 6.2 → 6.3 → 6.4. Ogni punt
 
 Serve prima degli altri punti, perché azioni e widget vivono nella configurazione.
 
-- **Configurazione in un file leggibile:** oggi le preferenze stanno in `%APPDATA%\EasyIsland\settings.json` (`src-tauri/src/settings.rs`). Aggiungere **Esporta / Importa** nelle Impostazioni (file `.json`, **senza segreti**: le chiavi restano in Gestione credenziali e vanno reinserite), per backup e per avere lo stesso Ezzy su notebook e PC di casa.
+- **Configurazione in un file leggibile:** oggi le preferenze stanno in `%APPDATA%\EasyIsland\settings.json` (`src-tauri/src/settings.rs`). Aggiungere **Esporta / Importa** nelle Impostazioni (file `.json`, **senza segreti**: le chiavi restano in Gestione credenziali e vanno reinserite), per backup e per avere lo stesso Slime su notebook e PC di casa.
 - **Versione dello schema** (`schemaVersion`) nel file, con migrazione dei campi vecchi: le prossime funzioni aggiungeranno liste (azioni, widget).
-- **Temi:** colore del corpo di Ezzy (oggi fisso in `src/ezzy/engine.ts`, `C.idle` e gradiente), colore e opacità dell'isola (`#island` in `src/style.css`, oggi `#000`), scelta del set di suoni o volume per categoria (avvisi / interazioni / emote).
+- **Temi:** colore del corpo di Slime (`SLIME_GREEN` in `src/character/slime.ts`), colore e opacità dell'isola (`#island` in `src/style.css`, oggi `#000`), scelta del set di suoni o volume per categoria (avvisi / interazioni / emote).
 - **Profili** (es. *Lavoro*, *Casa*, *Concentrazione*): ogni profilo ha le sue integrazioni attive, azioni, widget, posizione, suoni e regole di notifica. Cambio da menu dell'area di notifica e, in automatico, per **rete Wi-Fi/dominio** (ufficio vs casa) e per **orario**. In *Concentrazione* passano solo i permessi di Claude Code.
 - **Fatto quando:** esporto da un PC, importo sull'altro e ritrovo tutto tranne le chiavi; cambio profilo e isola, integrazioni e suoni cambiano senza riavvio.
 
@@ -119,12 +120,12 @@ Pulsanti definiti dall'utente, mostrati in una nuova scheda dell'isola (accanto 
   - `app`: avvia un programma con argomenti (RDP, AnyDesk, PowerShell, Esplora file su una cartella);
   - `script`: esegue uno script PowerShell/cmd **solo dopo un clic esplicito**, mostrando l'output nell'isola (con timeout e pulsante Interrompi);
   - `prompt`: manda a Claude un **prompt salvato** applicato al testo negli appunti o al file rilasciato. Esempi da tecnico IT: "Spiega questo errore e dammi i passi per risolverlo", "Scrivi uno script PowerShell che…", "Analizza questo log", "Scrivi il rapportino d'intervento da questi appunti", "Rispondi a questa mail del cliente in modo professionale".
-- **Scorciatoia globale** configurabile (es. `Win+Shift+M`) per aprire Ezzy su chat o azioni, e una seconda per "chiedi a Ezzy sul testo copiato". Rust: `tauri-plugin-global-shortcut` (valutare se accettabile come dipendenza) oppure `RegisterHotKey` dalla crate `windows` già presente.
+- **Scorciatoia globale** configurabile (es. `Win+Shift+M`) per aprire Slime su chat o azioni, e una seconda per "chiedi a Slime sul testo copiato". Rust: `tauri-plugin-global-shortcut` (valutare se accettabile come dipendenza) oppure `RegisterHotKey` dalla crate `windows` già presente.
 - **Configurazione:** lista in Settings (`actions: [{ id, name, icon, color, kind, target, args, prompt, confirm }]`) con editor nelle Impostazioni, riordinabile, legata al profilo.
 - **Sicurezza:** niente esecuzione automatica; gli script mostrano il comando prima di partire se `confirm: true` (predefinito); nessun segreto nella configurazione (eventuali chiavi tramite riferimento alla Gestione credenziali).
 - **Fatto quando:** creo un'azione "Spiega errore", copio un messaggio d'errore, premo la scorciatoia e ricevo la spiegazione nell'isola.
 
-### 6.3 Ezzy che usa i tuoi connettori (MCP)
+### 6.3 Slime che usa i tuoi connettori (MCP)
 
 > **Stato: fatto, tranne il widget "Oggi".** Elenco dei server da `~/.claude.json` (solo i nomi), scelta per profilo con conferma per server (`mcpServers` in Settings). Con connettori attivi `claude -p` gira in `--permission-mode default`, i server non scelti sono in `--disallowedTools`, quelli senza conferma in `--allowedTools`; le altre chiamate passano da un hook `PermissionRequest` → `easyisland-hook.exe PermissionRequest --chat` → card Consenti/Nega nell'isola (`handleChatPermission` in `src/island/hooks.ts`). Meccanismo verificato con il Claude Code reale (allow esegue, deny blocca). Da fare: widget "Oggi"; i connettori di claude.ai non si caricano in `claude -p`.
 
@@ -134,7 +135,7 @@ Prima di questo punto `src-tauri/src/claude_cli.rs` lanciava `claude -p` con `--
 - **Esempi d'uso:** "cosa ho in calendario oggi?", "aggiungi un promemoria per venerdì", "cerca nei documenti del cliente X". Qualunque operazione che **modifica** dati (crea, aggiorna, invia) va **proposta prima** e confermata con un clic nell'isola, mai eseguita da sola.
 - **Widget "Oggi"** opzionale: attività e promemoria del giorno da un connettore scelto, nella panoramica.
 - **Per profilo:** nel profilo *Lavoro* si possono escludere i connettori personali e viceversa.
-- **Fatto quando:** chiedo "cosa ho in programma oggi?" e Ezzy risponde usando un connettore abilitato; chiedo di aggiungere un promemoria e mi chiede conferma prima di scriverlo.
+- **Fatto quando:** chiedo "cosa ho in programma oggi?" e Slime risponde usando un connettore abilitato; chiedo di aggiungere un promemoria e mi chiede conferma prima di scriverlo.
 - **Chat con l'abbonamento:** Claude Code viene cercato anche nell'app desktop di Claude (`%APPDATA%\Claude\claude-code\<versione>`) e nell'estensione VS Code, sempre la versione più recente (`find_claude` in `claude_cli.rs`). La chat ha il pulsante **Nuova chat**.
 
 ### 6.4 Widget configurabili (integrazioni senza codice)
@@ -149,26 +150,26 @@ Un tipo di widget generico al posto delle integrazioni scritte a mano (le 7 attu
   - `HTTP` con codice atteso e tempo di risposta;
   - **scadenza certificato TLS** di un dominio (avviso a 30/7 giorni);
   - stato di un servizio Windows locale.
-- **Visualizzazione:** pillola con mini-Ezzy colorato (come oggi), scheda di dettaglio con i campi, badge e suono quando scatta un avviso.
+- **Visualizzazione:** pillola con mini-Slime colorato (come oggi), scheda di dettaglio con i campi, badge e suono quando scatta un avviso.
 - **Prestazioni:** tutte le richieste nel backend Rust, nessun polling con l'app in pausa, intervalli più lunghi a batteria.
-- **Fatto quando:** aggiungo dalle Impostazioni un widget che controlla `https://cliente.it` e il certificato, senza ricompilare, e Ezzy mi avvisa se il sito non risponde.
+- **Fatto quando:** aggiungo dalle Impostazioni un widget che controlla `https://cliente.it` e il certificato, senza ricompilare, e Slime mi avvisa se il sito non risponde.
 
 ## 7. Idee da valutare (non ancora decise)
 
 Pensate per il lavoro da tecnico IT sul notebook, ma utili anche a casa.
 
-- **Notifiche da qualsiasi script:** comando `easyisland notify --titolo … --stato ok|errore --apri <url>` (riusa la named pipe del relay). Qualunque script, attività pianificata o n8n può mandare un avviso a Ezzy.
+- **Notifiche da qualsiasi script:** comando `easyisland notify --titolo … --stato ok|errore --apri <url>` (riusa la named pipe del relay). Qualunque script, attività pianificata o n8n può mandare un avviso a Slime.
 - **Rubrica clienti:** per ogni cliente collegamenti RDP/AnyDesk/TeamViewer, portali, credenziali (solo riferimenti alla Gestione credenziali), note e azioni rapide dedicate. Si apre cercando il nome dall'isola.
 - **Timer d'intervento:** avvio/stop per cliente dall'isola, riepilogo a fine giornata, rapportino generato da Claude ed esportato (file o connettore scelto).
 - **Info rapide della macchina:** IP locale e pubblico, rete/VPN, batteria, spazio disco, nome PC. Con un clic si copia tutto per un ticket.
-- **Screenshot → chiedi a Ezzy:** scorciatoia che cattura una zona dello schermo (es. una finestra d'errore) e la manda alla chat.
+- **Screenshot → chiedi a Slime:** scorciatoia che cattura una zona dello schermo (es. una finestra d'errore) e la manda alla chat.
 - **Libreria di comandi:** comandi PowerShell/cmd usati spesso (es. `gpupdate /force`, reset dello spooler, `sfc /scannow`, diagnostica di rete) da copiare o eseguire con conferma.
-- **Modalità "davanti al cliente":** con un clic (o in automatico quando parte una condivisione schermo o una sessione di assistenza remota) Ezzy sparisce e nessuna notifica personale compare.
+- **Modalità "davanti al cliente":** con un clic (o in automatico quando parte una condivisione schermo o una sessione di assistenza remota) Slime sparisce e nessuna notifica personale compare.
 - **Ticketing:** widget per il conteggio dei ticket aperti/in scadenza dal sistema di helpdesk usato (via widget configurabile 6.4, se ha un'API).
 - **Casa:** promemoria personali, eventuale Home Assistant, meteo.
 
 **Proposte di integrazione del 2 ottobre 2026** (gratuite o tramite app già sul PC; dettagli e priorità nella conversazione di quel giorno):
-- *Sul PC, senza configurazione:* stato del PC (disco, RAM, batteria, uptime, riavvio in sospeso), Windows Update, Defender, rete (IP locale/pubblico, Wi-Fi, VPN, latenza), stampanti bloccate, microfono/webcam in uso, musica in riproduzione (controlli multimediali di Windows), Teams in riunione → Ezzy silenzioso.
+- *Sul PC, senza configurazione:* stato del PC (disco, RAM, batteria, uptime, riavvio in sospeso), Windows Update, Defender, rete (IP locale/pubblico, Wi-Fi, VPN, latenza), stampanti bloccate, microfono/webcam in uso, musica in riproduzione (controlli multimediali di Windows), Teams in riunione → Slime silenzioso.
 - *App installate:* Outlook classico (prossimo appuntamento, mail non lette, via COM), Teams (API locale di terze parti), Docker, repository Git locali, WSL, sessioni remote attive (AnyDesk/TeamViewer/RDP → modalità "davanti al cliente").
 - *Servizi gratuiti:* meteo Open-Meteo (senza chiave), calendari ICS (Google/Outlook senza OAuth), posta IMAP, scadenza domini (RDAP), DNS e blacklist (DoH/DNSBL), pagine di stato (statuspage `/api/v2/status.json`), vulnerabilità CISA KEV, feed RSS, notifiche sul telefono (ntfy, bot Telegram).
 - *Self-hosted / casa:* Home Assistant, Uptime Kuma, Proxmox, Synology/TrueNAS, UniFi, Pi-hole, GLPI/Zammad (ticket).
@@ -187,6 +188,24 @@ Pensate per il lavoro da tecnico IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi implementiamo la 6.1 (fondamenta)"_ oppure _"facciamo la sezione 4 → Identità con nome X"_. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 2 ottobre 2026 — Slime ed EasyTech, effetto gelatina
+- **Nomi dei personaggi:** Ezzy diventa **Slime**, il cubo diventa **EasyTech** (solo il nome mostrato: il valore interno resta `cube`). Nelle frasi che valgono per entrambi l'interfaccia dice "il personaggio"; la chat non ha più un nome proprio ("La chat vuole usare un connettore"). Cartella `src/ezzy/` → `src/character/`, `drawEzzy` → `drawCharacter`.
+- **Impostazioni, schema 4:** `theme.character` `"ezzy"`/`"mochi"` → `"slime"`, `iconStyle` `"ezzy"`/`"mochi"` → `"character"`, `ezzyColor`/`mochiColor` → `slimeColor`, anche nei profili e nei file esportati (test `mochi_and_ezzy_values_become_slime`).
+- **Tolta l'ombra** nella parte bassa dello slime (la fascia di gelatina più scura e il gradiente verso il basso): il corpo resta chiaro fino alla base. La pozza sotto resta.
+- **Effetto gelatina** (`Jelly` e `applyJelly` in `src/character/slime.ts`): due molle smorzate (inclinazione della cima ~3,2 Hz, allungamento ~4,2 Hz, poco smorzate) che ricevono un colpo da ogni variazione di velocità del corpo — salti, scosse d'errore, inclinazioni, schiacciamenti, schiaffi — e dal trascinamento dell'isola (`BotEngine.jiggle` da `island.ts`). La base resta ferma, la cima ondeggia e si assesta in circa un secondo; occhi e riflessi si muovono con il corpo. Lo sguardo che segue il mouse è escluso di proposito, così a riposo il ciclo di animazione si ferma come prima. EasyTech resta rigido.
+- In `dev/character-preview.html`: clic = schiaffo, trascinare = scuotere.
+- Verificato: `tsc`, `cargo test --workspace` (38 + 4), simulazione a 60 fps della gelatina (schiaffo, permesso, errore, occhiolino: oscilla e si ferma entro ~1 s), anteprima nel browser.
+
+### 2 ottobre 2026 — Ezzy diventa uno slime, nuova icona
+- **Personaggio:** tolto tutto l'aspetto di Mochi (corpo crema a superellisse, occhi a pillola). Ezzy è uno slime ispirato all'immagine di riferimento di Edoardo: cupola di gelatina con base piatta e piccola "gonna", pozza scura sotto, contorno scuro, gelatina più scura nel terzo inferiore, riflesso grande in alto a sinistra, gocce e bollicine, occhi neri tondi con riflesso bianco. Tutto in `src/ezzy/slime.ts` (`slimePoint`, `drawSlimeBody`, `drawSlimeEye`), disegnato nel codice.
+- Verde di base `#5EC738` (`SLIME_GREEN`); negli stati prende il colore dello stato (blu al lavoro, giallo per i permessi, rosso per gli errori…), il colore del tema (Impostazioni → Tema → Colore di Ezzy, predefinito "Verde") e quello dell'integrazione in primo piano. I mini nelle pillole sono slime semplificati (niente pozza né gocce).
+- Restano uguali stati, emozioni, tempi, particelle, saluto con le "mani" (ora due gocce di gelatina), trasformazione in scatola per i file rilasciati. Le forme d'occhio speciali (cuori, stelle, spirali, archi) sono quelle di prima.
+- **Icona dell'app e dell'area di notifica** (`scripts/gen-icons.mjs`): non più il personaggio ma l'isola — pillola scura con bordo a gradiente indaco → ciano, luce di stato verde e due righe di testo (una sotto i 24 px). Si legge su barre chiare e scure.
+- Nuova pagina di sviluppo `dev/character-preview.html`: tutti gli stati, le emozioni, i mini e il saluto, anche con `?character=cube`.
+- `CLAUDE.md`: l'aspetto del personaggio e l'icona sono eccezioni volute al prototipo.
+- Verificato nell'anteprima del browser (stati, emozioni, mini, saluto, sequenza del file, cubo invariato); `npm run build` e installer da rifare dopo il commit.
+- Da fare: nuove schermate per README (`screenshots/`) con lo slime.
 
 ### 2 ottobre 2026 — nuovo nome: EasyIsland, personaggio Ezzy
 - **Rinominato tutto:** Coucou → EasyIsland, Mochi → Ezzy, in interfaccia, installer, README, CLAUDE.md, SPEC/INTEGRATIONS, template delle issue, workflow e codice. `productName` EasyIsland, `identifier` e `SERVICE` della Gestione credenziali `it.edoardo.easyisland`, crate `easyisland` / `easyisland_lib` / `easyisland-hook`, named pipe `easyisland-<sid>`, variabile `EASYISLAND_INTERNAL`, evento `EasyIslandNotify`, cartella `src/ezzy/`, stato del saluto della macchina a stati `greeting` (era `coucou`). Installer: `EasyIsland-Windows-X.Y.Z-setup.exe`.
@@ -252,7 +271,8 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 ### Problemi noti e cose aperte
 - [ ] **CPU con "Sempre visibile":** ridotta il 2 ottobre (da circa 24 % a circa 9–10 % col mouse in movimento, circa 4 % fermo). Margini ancora possibili: sguardo a 20 fps, finestra più piccola della 720×320 attuale quando l'isola è compatta.
 - [x] **Scorciatoia `Ctrl+Alt+M`** già usata da un altro programma: la predefinita per aprire Mochi è ora `Ctrl+Alt+Shift+M`. Chi ha già salvato `Ctrl+Alt+M` la tiene: va cambiata a mano in Impostazioni → Azioni rapide.
-- [ ] **Icona dell'area di notifica:** è un'immagine fissa (`scripts/gen-icons.mjs`), quindi resta Mochi anche con il cubo.
+- [x] **Icona dell'area di notifica:** era Mochi anche con il cubo; dal 2 ottobre è l'isola, uguale per ogni personaggio.
+- [ ] Le immagini in `screenshots/` e `design/captures/` mostrano ancora Mochi.
 - [ ] **Sopra la barra:** cliccando la barra, Mochi va dietro per un istante (circa 0,15 s) prima di tornare davanti.
 - [ ] Da verificare su Windows reale: controllo del certificato TLS dei widget (6.4). Il ping ora usa `icmp_ms`, già verificata.
 - [ ] "Davanti al cliente" da provare in una chiamata vera (Teams) e con una sessione di assistenza; il calendario con un link ICS reale.

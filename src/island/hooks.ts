@@ -23,7 +23,7 @@ interface HookPayload {
   prompt?: string;
   tool_name?: string;
   tool_input?: Record<string, unknown>;
-  /** Set by easyisland-hook.exe --chat: a connector call from Ezzy's own chat. */
+  /** Set by easyisland-hook.exe --chat: a connector call from the character's own chat. */
   easyisland_chat?: boolean;
 }
 

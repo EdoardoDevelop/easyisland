@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <title>EasyIsland — anteprima del personaggio</title>
+    <style>
+      body { margin: 0; padding: 16px; background: #1b1b1f; font: 12px system-ui; color: #ddd; }
+      .row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+      figure { margin: 0; text-align: center; background: #000; border-radius: 14px; padding: 4px; }
+      figure.light { background: #f3f3f5; color: #222; }
+      canvas { display: block; }
+      #greet { background: #000; border-radius: 20px; }
+    </style>
+  </head>
+  <body>
+    <div id="big" class="row"></div>
+    <div id="states" class="row"></div>
+    <div id="emotes" class="row"></div>
+    <div id="minis" class="row"></div>
+    <canvas id="greet" width="640" height="150"></canvas>
+    <script type="module" src="./character-preview.ts"></script>
+  </body>
+</html>

@@ -1,9 +1,9 @@
 ---
 name: Proposta di funzionalità
-about: Una nuova idea per Ezzy
+about: Una nuova idea per Slime
 labels: enhancement
 ---
 
-**Cosa vorresti che facesse Ezzy?**
+**Cosa vorresti che facesse Slime?**
 
 **Perché sarebbe utile?**

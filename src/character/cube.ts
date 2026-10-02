@@ -1,23 +1,23 @@
-// The cube character — an alternative to Ezzy, chosen in Settings → Tema.
+// The cube character — an alternative to the slime, chosen in Settings → Tema.
 //
 // A cube in the colours of the logo it is drawn from, with the logo's black
-// stripes on the top and left faces and Ezzy's eyes on the right face. At rest
+// stripes on the top and left faces and the slime's eyes on the right face. At rest
 // it is exactly the logo's orange; any other state takes the faces over with
-// the state's colour, as Ezzy does. It is a real cube in orthographic
+// the state's colour, as the slime does. It is a real cube in orthographic
 // projection: looking at the cursor turns and tips it, and since every face is
 // an exact affine image of a square, the stripes and the eyes stay painted on.
 // Every drawer (the engine, the launch greeting, the file drop) asks
 // `character()` and draws its own eyes through `onRightFace`.
 
-export type Character = "ezzy" | "cube";
+export type Character = "slime" | "cube";
 type RGB = readonly [number, number, number];
 type P = readonly [number, number];
 type V3 = readonly [number, number, number];
 
-let current: Character = "ezzy";
+let current: Character = "slime";
 
 export function setCharacter(c: Character | string | undefined) {
-  current = c === "cube" ? "cube" : "ezzy";
+  current = c === "cube" ? "cube" : "slime";
 }
 
 export function character(): Character {
@@ -72,7 +72,7 @@ export interface CubeLook {
   base?: RGB | null;
   /** 0…1: the slot that opens in the top face while a file is swallowed. */
   slot?: number;
-  /** Where the cube looks, about −1…1 each (the cursor, as Ezzy's lookX/lookY). */
+  /** Where the cube looks, about −1…1 each (the cursor, as the slime's lookX/lookY). */
   turn?: number;
   tip?: number;
 }
@@ -161,7 +161,7 @@ function faceColours(look: CubeLook) {
   return { top: shade("top"), left: shade("left"), right: shade("right") };
 }
 
-/** Light and dark stop for the hands, so they match the cube instead of Ezzy's white. */
+/** Light and dark stop for the hands, so they match the cube instead of the slime's jelly. */
 export function cubeHandStops(look: CubeLook = {}): [string, string] {
   const f = faceColours(look);
   return [f.top, f.right];

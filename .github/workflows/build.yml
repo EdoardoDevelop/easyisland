@@ -95,7 +95,7 @@ jobs:
         run: |
           $v = "${{ steps.pack.outputs.version }}"
           $notes = @"
-          EasyIsland per Windows $v — Ezzy in cima al tuo schermo.
+          EasyIsland per Windows $v — Slime in cima al tuo schermo.
 
           Scarica ``EasyIsland-Windows-$v-setup.exe`` ed eseguilo. L'installer non è
           ancora firmato, quindi Windows SmartScreen mostra un avviso: clicca

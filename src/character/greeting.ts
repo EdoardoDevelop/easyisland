@@ -4,6 +4,11 @@
 import { Sound } from "../core/sound";
 import { COMPACT_W, NOTCH_H, NOTCH_W } from "../core/layout";
 import { character, cubeHandStops, drawCube, onRightFace } from "./cube";
+import { hexToRGB } from "./engine";
+import {
+  SLIME_ASPECT, SLIME_GREEN, drawSlimeBody, drawSlimeEye, drawSlimePuddle, slimeHandStops, slimeMix,
+  slimePalette, slimePath, slimeRGBA, type SlimePalette,
+} from "./slime";
 
 // ── Timing (mirrors greeting-v2.html `T`) ─────────────────────────────────────
 
@@ -249,29 +254,17 @@ function rr(x: CanvasRenderingContext2D, X: number, Y: number, W: number, H: num
   x.closePath();
 }
 
-function ezzyPath(hw: number, hh: number): Path2D {
-  const n = 3.2;
-  const p = new Path2D();
-  const steps = 96;
-  for (let i = 0; i <= steps; i++) {
-    const a = (i / steps) * 2 * Math.PI;
-    const ca = Math.cos(a);
-    const sa = Math.sin(a);
-    const px = hw * (ca < 0 ? -1 : 1) * Math.pow(Math.abs(ca), 2 / n);
-    const py = hh * (sa < 0 ? -1 : 1) * Math.pow(Math.abs(sa), 2 / n);
-    if (i === 0) p.moveTo(px, py);
-    else p.lineTo(px, py);
-  }
-  p.closePath();
-  return p;
+/** The slime's colours during the greeting: green, turning blue as the badge lights up. */
+function greetPalette(tint: number): SlimePalette {
+  return slimePalette(tint > 0 ? slimeMix(SLIME_GREEN, [0.5, 0.71, 0.92], tint) : SLIME_GREEN);
 }
 
 function whiteFill(
-  x: CanvasRenderingContext2D, path: Path2D,
+  x: CanvasRenderingContext2D, path: Path2D, p: Pose,
   x0: number, y0: number, x1: number, y1: number,
 ) {
   const g = x.createLinearGradient(x0, y0, x1, y1);
-  const [light, dark] = handStops();
+  const [light, dark] = handStops(p);
   g.addColorStop(0, light);
   g.addColorStop(1, dark);
   x.save();
@@ -280,11 +273,14 @@ function whiteFill(
   x.restore();
 }
 
-/** Ezzy's white, or the cube's own colour. */
-function handStops(): [string, string] {
-  return character() === "cube" ? cubeHandStops() : ["rgb(251,251,252)", "rgb(231,233,236)"];
+/** The slime's jelly, or the cube's own colour. */
+function handStops(p: Pose): [string, string] {
+  return character() === "cube" ? cubeHandStops() : slimeHandStops(greetPalette(p.tint));
 }
 
+function handEdge(p: Pose): string {
+  return character() === "cube" ? "rgba(0,0,0,0.08)" : slimeRGBA(greetPalette(p.tint).edge);
+}
 function drawHandL(x: CanvasRenderingContext2D, hw: number, hh: number, p: Pose) {
   const k = p.handL;
   if (k <= 0.01) return;
@@ -297,9 +293,9 @@ function drawHandL(x: CanvasRenderingContext2D, hw: number, hh: number, p: Pose)
   x.translate(rx, ry);
   const circ = new Path2D();
   circ.ellipse(0, 0, r, r, 0, 0, Math.PI * 2);
-  whiteFill(x, circ, r, -r, -r, r);
-  x.strokeStyle = "rgba(0,0,0,0.08)";
-  x.lineWidth = 0.8;
+  whiteFill(x, circ, p, r, -r, -r, r);
+  x.strokeStyle = handEdge(p);
+  x.lineWidth = 1.2;
   x.stroke(circ);
   x.restore();
 }
@@ -323,21 +319,21 @@ function drawHandR(x: CanvasRenderingContext2D, hw: number, hh: number, p: Pose)
   x.translate(rx, ry);
   x.rotate(ang);
   const g = x.createLinearGradient(L / 2, -T2 / 2, -L / 2, T2 / 2);
-  const [light, dark] = handStops();
+  const [light, dark] = handStops(p);
   g.addColorStop(0, light);
   g.addColorStop(1, dark);
   rr(x, -L / 2, -T2 / 2, L, T2, T2 / 2);
   x.fillStyle = g;
   x.fill();
-  x.strokeStyle = "rgba(0,0,0,0.08)";
-  x.lineWidth = 0.8;
+  x.strokeStyle = handEdge(p);
+  x.lineWidth = 1.2;
   x.stroke();
   x.restore();
 }
 
-function drawEzzy(x: CanvasRenderingContext2D, p: Pose) {
+function drawCharacter(x: CanvasRenderingContext2D, p: Pose) {
   const hh = p.hb / 2;
-  const hw = hh * ASP;
+  const hw = hh * (character() === "cube" ? ASP : SLIME_ASPECT);
   if (hh <= 0.4) return;
 
   // Halo: golden → blue, two passes for a soft aura
@@ -376,7 +372,7 @@ function drawEzzy(x: CanvasRenderingContext2D, p: Pose) {
         p.lookY * side * 0.05 - side * 0.04 + p.eyeRoll * side * 0.45, true);
     }, look);
   } else {
-    drawEzzyBody(x, p, hw, hh);
+    drawCharacterBody(x, p, hw, hh);
   }
 
   // Activity badge
@@ -388,6 +384,7 @@ function drawEzzy(x: CanvasRenderingContext2D, p: Pose) {
 /** The two greeting eyes, `sp` either side of the centre, offset by `lx`, `ly`. */
 function greetEyes(
   x: CanvasRenderingContext2D, p: Pose, er: number, sp: number, lx: number, ly: number, square = false,
+  glint = false,
 ) {
   for (const sd of [-1, 1]) {
     x.save();
@@ -404,6 +401,9 @@ function greetEyes(
       x.beginPath();
       x.arc(0, -er * 0.5, er * 1.25, Math.PI * 0.15, Math.PI * 0.85);
       x.stroke();
+    } else if (glint) {
+      // The slime's round eyes, with their white glint.
+      drawSlimeEye(x, er, p.open, x.fillStyle as string);
     } else {
       x.scale(1, Math.max(0.12, p.open));
       if (square) {
@@ -419,31 +419,22 @@ function greetEyes(
   }
 }
 
-function drawEzzyBody(x: CanvasRenderingContext2D, p: Pose, hw: number, hh: number) {
-  const body = ezzyPath(hw, hh);
-  whiteFill(x, body, hw * 0.6, -hh, -hw * 0.6, hh);
-
-  if (p.tint > 0) {
-    const g = x.createLinearGradient(0, hh, 0, -hh * 0.1);
-    g.addColorStop(0, `rgba(127,180,234,${p.tint})`);
-    g.addColorStop(1, "rgba(127,180,234,0)");
-    x.save();
-    x.clip(body);
-    x.fillStyle = g;
-    x.fill(body);
-    x.restore();
-  }
+function drawCharacterBody(x: CanvasRenderingContext2D, p: Pose, hw: number, hh: number) {
+  const body = slimePath(hw, hh);
+  const look = { palette: greetPalette(p.tint), puddle: Math.min(1, hh / 12) };
+  drawSlimePuddle(x, hw, hh, look);
+  drawSlimeBody(x, body, hw, hh, look);
 
   // Eyes
   x.save();
   x.clip(body);
-  x.fillStyle = "#16171A";
-  x.strokeStyle = "#16171A";
-  const er = p.hb * 0.06;
-  const sp = p.hb * 0.19;
-  const lx = p.lookX * hw * 0.42;
-  const ly = p.lookY * hh * 0.28 + hh * 0.12 + p.eyeRoll * hh * 1.25;
-  greetEyes(x, p, er, sp, lx, ly);
+  x.fillStyle = "#0C0E0C";
+  x.strokeStyle = "#0C0E0C";
+  const er = p.hb * 0.1;
+  const sp = hw * 0.28;
+  const lx = p.lookX * hw * 0.3;
+  const ly = p.lookY * hh * 0.25 + hh * 0.02 + p.eyeRoll * hh * 1.25;
+  greetEyes(x, p, er, sp, lx, ly, false, true);
   x.restore();
 }
 
@@ -512,8 +503,8 @@ function drawMinis(x: CanvasRenderingContext2D, alpha: number) {
     x.save();
     x.translate(cx + dx, cy + dy);
     x.scale(alpha, alpha);
-    x.fillStyle = MINI_COLORS[i];
-    x.fill(ezzyPath(5.3, 4));
+    const pal = slimePalette(hexToRGB(MINI_COLORS[i]));
+    drawSlimeBody(x, slimePath(5.6, 3.8), 5.6, 3.8, { palette: pal, simple: true });
     x.restore();
   });
 }
@@ -601,6 +592,6 @@ export class Greeting {
     }
 
     drawMinis(x, p.minis);
-    drawEzzy(x, p);
+    drawCharacter(x, p);
   }
 }

@@ -308,7 +308,7 @@ fn presence_state() -> Option<String> {
     presence::current()
 }
 
-/// Moves the island window by `dx`, `dy` logical px while Ezzy is dragged.
+/// Moves the island window by `dx`, `dy` logical px while the character is dragged.
 #[tauri::command]
 fn drag_island(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) {
     shared.gate.dragging.store(true, Ordering::Relaxed);
@@ -321,7 +321,7 @@ fn drag_island(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) {
     ));
 }
 
-/// The drag is over: remember where Ezzy was left, in the active profile.
+/// The drag is over: remember where the character was left, in the active profile.
 #[tauri::command]
 fn end_drag(app: AppHandle, shared: State<Shared>) {
     shared.gate.dragging.store(false, Ordering::Relaxed);

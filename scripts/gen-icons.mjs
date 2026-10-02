@@ -1,6 +1,9 @@
-// Draws Ezzy into the PNG/ICO set Tauri needs. No dependencies: the icons are
-// rasterised here and encoded with node:zlib, so the app icon stays "drawn in
-// code" like the character itself.
+// Draws the app icon into the PNG/ICO set Tauri needs. No dependencies: the
+// icons are rasterised here and encoded with node:zlib, so the icon stays
+// "drawn in code" like the character.
+//
+// The icon is the island itself — a pill with a status light and a line of
+// content — not the character, which the user can change (Slime or EasyTech).
 //
 //   node scripts/gen-icons.mjs
 
@@ -11,103 +14,87 @@ import { fileURLToPath } from "node:url";
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "src-tauri", "icons");
 
-// ── Ezzy ─────────────────────────────────────────────────────────────────────
+// ── The island ────────────────────────────────────────────────────────────────
 
-const BASE_TOP = [255, 250, 245]; // #FFFAF5
-const BASE_BOTTOM = [221, 204, 191]; // #DDCCBF
-const INK = [26, 20, 18]; // #1A1412
-const RIM = [0, 0, 0];
+const LEFT = [99, 102, 241]; // #6366F1 — the rim, left
+const RIGHT = [34, 211, 238]; // #22D3EE — the rim, right
+const TOP = [40, 43, 54]; // the island's body, top
+const BOTTOM = [17, 18, 24]; // … and bottom
+const STATUS = [110, 227, 106]; // #6EE36A — the status light
+const TEXT = [236, 238, 244];
 
 const SS = 4; // supersampling factor
 
-/** Superellipse (exponent 2.7) test in body-local coordinates. */
-function insideBody(x, y, rx, ry) {
-  const n = 2.7;
-  return Math.pow(Math.abs(x / rx), n) + Math.pow(Math.abs(y / ry), n) <= 1;
+/** Signed distance to a horizontal capsule centred on the origin. */
+function capsule(x, y, a, r) {
+  const cx = Math.max(-(a - r), Math.min(a - r, x));
+  return Math.hypot(x - cx, y) - r;
 }
 
-function insidePill(x, y, w, h) {
-  const hw = w / 2;
-  const hh = h / 2;
-  const r = Math.min(hw, hh);
-  const cx = Math.max(-hw + r, Math.min(hw - r, x));
-  const cy = Math.max(-hh + r, Math.min(hh - r, y));
-  return (x - cx) ** 2 + (y - cy) ** 2 <= r * r;
-}
+const over = (dst, src, a) => dst.map((c, i) => c * (1 - a) + src[i] * a);
 
-function renderEzzy(size) {
+function renderIcon(size) {
   const px = new Uint8Array(size * size * 4);
-  const R = size * 0.34;
-  const rx = R * 1.14;
-  const ry = R * 0.88;
+  const small = size <= 24;
+  const a = size * (small ? 0.48 : 0.45); // half-width of the pill
+  const r = size * (small ? 0.3 : 0.24); // half-height = corner radius
+  const rim = Math.max(1.1, size * 0.045);
   const cx = size / 2;
-  const cy = size / 2 + R * 0.06;
-  const rim = R * 0.055; // dark outline so the tray icon reads on light themes
-
-  // Eyes — same geometry as BotEngine (yaw ±0.37, pitch −0.12)
-  const eyeYaw = 0.37;
-  const eyePitch = -0.12;
-  const cp = Math.cos(eyePitch);
-  const ex = Math.sin(eyeYaw) * cp * rx;
-  const ey = -Math.sin(eyePitch) * ry;
-  const fx = Math.max(0.18, Math.cos(eyeYaw));
-  const fy = Math.max(0.18, cp);
-  const ew = R * 0.25 * fx;
-  const eh = R * 0.27 * fy;
+  const cy = size / 2;
+  const dotX = -a + r * 1.05; // the status light, in the left cap
+  const dotR = r * (small ? 0.42 : 0.34);
+  const glowR = dotR * 2.1;
+  const textX0 = dotX + r * (small ? 0.75 : 0.72);
+  const lines = small
+    ? [{ y: 0, x1: a - r * 0.55, h: r * 0.24, alpha: 0.95 }]
+    : [
+        { y: -r * 0.26, x1: a - r * 0.6, h: r * 0.16, alpha: 0.95 },
+        { y: r * 0.3, x1: a - r * 1.35, h: r * 0.13, alpha: 0.5 },
+      ];
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      let bodyHits = 0;
-      let rimHits = 0;
-      let eyeHits = 0;
+      let pill = 0;
+      let inner = 0;
+      let dot = 0;
+      const text = lines.map(() => 0);
+      let glow = 0;
       for (let sy = 0; sy < SS; sy++) {
         for (let sx = 0; sx < SS; sx++) {
-          const px0 = x + (sx + 0.5) / SS - cx;
-          const py0 = y + (sy + 0.5) / SS - cy;
-          if (!insideBody(px0, py0, rx + rim, ry + rim)) continue;
-          rimHits++;
-          if (!insideBody(px0, py0, rx, ry)) continue;
-          bodyHits++;
-          if (
-            insidePill(px0 + ex, py0 - ey, ew, eh) ||
-            insidePill(px0 - ex, py0 - ey, ew, eh)
-          ) {
-            eyeHits++;
-          }
+          const u = x + (sx + 0.5) / SS - cx;
+          const v = y + (sy + 0.5) / SS - cy;
+          if (capsule(u, v, a, r) > 0) continue;
+          pill++;
+          if (capsule(u, v, a - rim, r - rim) > 0) continue;
+          inner++;
+          const d = Math.hypot(u - dotX, v);
+          if (d <= dotR) { dot++; continue; }
+          if (!small && d <= glowR) glow += 1 - (d - dotR) / (glowR - dotR);
+          lines.forEach((l, i) => {
+            if (capsule(u - (textX0 + l.x1) / 2, v - l.y, (l.x1 - textX0) / 2, l.h) <= 0) text[i]++;
+          });
         }
       }
-      if (rimHits === 0) continue;
-
+      if (pill === 0) continue;
       const total = SS * SS;
-      const rimA = rimHits / total;
-      const bodyA = bodyHits / total;
-      const eyeA = eyeHits / total;
-
-      // Body gradient: top-right → bottom-left, like the Canvas gradient.
-      const t = Math.min(1, Math.max(0, ((x - cx) * -0.6 + (y - cy) * 0.8) / (2 * ry) + 0.5));
-      const body = [0, 1, 2].map((i) => BASE_TOP[i] + (BASE_BOTTOM[i] - BASE_TOP[i]) * t);
-
-      // rim under body, body over rim, eyes over body
-      let col = RIM.slice();
-      let alpha = rimA;
-      if (bodyA > 0) {
-        col = col.map((c, i) => c * (1 - bodyA / rimA) + body[i] * (bodyA / rimA));
-        alpha = rimA;
-      }
-      if (eyeA > 0) {
-        col = col.map((c, i) => c * (1 - eyeA) + INK[i] * eyeA);
-      }
+      const t = Math.min(1, Math.max(0, (x - (cx - a)) / (2 * a)));
+      const k = Math.min(1, Math.max(0, (y - (cy - r)) / (2 * r)));
+      // The rim's gradient first, the dark body over it.
+      let col = LEFT.map((c, i) => c + (RIGHT[i] - c) * t);
+      col = over(col, TOP.map((c, i) => c + (BOTTOM[i] - c) * k), inner / pill);
+      col = over(col, STATUS, 0.35 * (glow / pill));
+      lines.forEach((l, i) => { col = over(col, TEXT, l.alpha * (text[i] / pill)); });
+      col = over(col, STATUS, dot / pill);
 
       const o = (y * size + x) * 4;
       px[o] = Math.round(col[0]);
       px[o + 1] = Math.round(col[1]);
       px[o + 2] = Math.round(col[2]);
-      px[o + 3] = Math.round(Math.min(1, alpha) * 255);
+      px[o + 3] = Math.round((pill / total) * 255);
     }
   }
   return px;
 }
-
 // ── PNG ───────────────────────────────────────────────────────────────────────
 
 const CRC_TABLE = (() => {
@@ -182,7 +169,7 @@ function encodeICO(entries) {
 
 mkdirSync(OUT, { recursive: true });
 
-const png = (size) => encodePNG(size, renderEzzy(size));
+const png = (size) => encodePNG(size, renderIcon(size));
 
 const files = {
   "32x32.png": png(32),

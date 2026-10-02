@@ -109,13 +109,13 @@ Centro verticale del personaggio: 36 + (altezza − 46) / 2, tranne `result` (y 
 
 Nome di una sessione di Claude Code = nome della cartella di lavoro (`cwd`), con una tabella di alias regolabile (es. `sbe-hub` → «SBE Hub»). Nome di un workflow n8n = nome del workflow.
 
-## 7. Il personaggio: Ezzy
+## 7. Il personaggio del prototipo: Mochi (oggi Slime, vedi `src/character/slime.ts`)
 
-Portare la classe `Bot` del prototipo **così com'è** in Swift (`Canvas` dentro `TimelineView(.animation(paused:))`). Costanti di Ezzy (`PISTES.mochi` nel prototipo):
+Portare la classe `Bot` del prototipo **così com'è** in Swift (`Canvas` dentro `TimelineView(.animation(paused:))`). Costanti di Mochi (`PISTES.mochi` nel prototipo):
 
 - R = 0,3 × lato del canvas. Corpo: superellisse con esponente 2,7, raggi rx = 1,14 R, ry = 0,88 R, spostato di +0,06 R verso il basso.
 - Gradiente del corpo: `#FFFAF5` (in alto a destra) → `#DDCCBF` (in basso a sinistra). Tinta dello stato: gradiente lineare dal basso verso l'alto, colore dello stato al 92 % × tint fino al trasparente a −0,25 ry. Ombreggiatura radiale (bordo nero al 20 %) e riflesso radiale bianco al 55 % in alto a destra.
-- Guance: due ellissi rosa `rgba(255,120,150,.5 × blush)`, blush minimo 0,35 per Ezzy, seguono lo sguardo.
+- Guance: due ellissi rosa `rgba(255,120,150,.5 × blush)`, blush minimo 0,35 per Mochi, seguono lo sguardo.
 - Occhi: inchiostro `#1A1412`, larghezza 0,25 R, altezza 0,27 R, distanza angolare ±0,37 rad, inclinazione verticale −0,12 rad. Proiezione su una sfera (yaw, pitch, roll) con scorcio prospettico e ritaglio sulla silhouette: è questo che produce le capriole (gli occhi escono dall'alto e rientrano dal basso).
 - Sguardo: segue il mouse con ritardo (`tanh(dx/260)`, `tanh(dy/200)`, smorzamento esponenziale). Battito di ciglia casuale ogni 2,2–5,4 s, doppio battito nel 22 % dei casi.
 - Mini-personaggi: stesso motore, corpo tinto del colore dell'agente, badge ridotti.
@@ -185,7 +185,7 @@ Nessun suono per gli aggiornamenti silenziosi (scorrimento delle attività, mini
 
 ## 10. Barra dei menu e impostazioni
 
-Piccola voce nella barra dei menu (icona: silhouette di Ezzy, monocromatica). Menu: Apri il notch, Avvia la demo (⌃⌥⌘D), Impostazioni…, Debug ▸ (forzare ogni vista, ogni stato, ogni emote, aggiungere attività finte), Esci.
+Piccola voce nella barra dei menu (icona: silhouette di Mochi, monocromatica). Menu: Apri il notch, Avvia la demo (⌃⌥⌘D), Impostazioni…, Debug ▸ (forzare ogni vista, ogni stato, ogni emote, aggiungere attività finte), Esci.
 
 Finestra Impostazioni (SwiftUI, semplice):
 - Chiave API Anthropic (Portachiavi), modello (per il predefinito vedi INTEGRATIONS §5).
@@ -201,7 +201,7 @@ Ogni tappa si chiude con build + cattura + confronto con i riferimenti + commit 
 
 - **M0 Base**: verificare Xcode (`xcodebuild -version`), XcodeGen, `git init`, `project.yml`, app agente che si avvia e mostra contenuti finti. Menu Debug.
 - **M1 Isola**: pannello, rilevamento del notch, 4 modalità, regole §3, clic passanti, animazioni §4, dati finti.
-- **M2 Personaggio**: port di `Bot` (Ezzy), tutti gli stati e le emote, mini-personaggi, alone, badge, particelle, mani. In pausa quando nascosto.
+- **M2 Personaggio**: port di `Bot` (Mochi), tutti gli stati e le emote, mini-personaggi, alone, badge, particelle, mani. In pausa quando nascosto.
 - **M3 Viste**: tutte le viste §5, scorrimento, pillole, colonna, elemento condiviso, veli. Confrontare con le 16 catture.
 - **M4 Suoni**: collegamento §9, impostazioni audio.
 - **M5 Claude Code**: hook, approvazioni, domande, salto al terminale (INTEGRATIONS §1).

@@ -61,7 +61,7 @@ export const Bridge = {
   /** "Prova" for messages from scripts. */
   notifyTest: () => callOrThrow<void>("notify_test"),
 
-  /** Moves the window while Ezzy is dragged; `endDrag` saves where it was left. */
+  /** Moves the window while the character is dragged; `endDrag` saves where it was left. */
   dragIsland: (dx: number, dy: number) => call<void>("drag_island", { dx, dy }),
   endDrag: () => call<void>("end_drag"),
 

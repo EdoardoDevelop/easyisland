@@ -403,7 +403,7 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
 
   function updateNote() {
     const used = settings.activeIntegrations.length;
-    note.textContent = `Scegli fino a ${MAX_ACTIVE} pillole da mostrare accanto a Ezzy (${used}/${MAX_ACTIVE} in uso). Le chiavi restano in Gestione credenziali di Windows, mai su disco.`;
+    note.textContent = `Scegli fino a ${MAX_ACTIVE} pillole da mostrare accanto al personaggio (${used}/${MAX_ACTIVE} in uso). Le chiavi restano in Gestione credenziali di Windows, mai su disco.`;
   }
 
   for (const def of INTEGRATIONS) {
@@ -530,7 +530,7 @@ function placementSection(): HTMLElement {
   );
   const iconStyle = select<Settings["iconStyle"]>(
     [
-      ["ezzy", "Ezzy"],
+      ["character", "Il personaggio"],
       ["dot", "Pallino con il colore dello stato"],
       ["none", "Nessuna (striscia invisibile sul bordo)"],
     ],
@@ -548,7 +548,7 @@ function placementSection(): HTMLElement {
     slider(28, 64, 2, settings.hoverSize, "px", (v) => { settings.hoverSize = v; commit(); }),
   );
   const hoverStyle = select<Settings["hoverStyle"]>(
-    [["icon", "Ezzy più grande"], ["bar", "Barra compatta con le integrazioni"]],
+    [["icon", "Il personaggio più grande"], ["bar", "Barra compatta con le integrazioni"]],
     settings.hoverStyle,
     (v) => {
       settings.hoverStyle = v;
@@ -615,14 +615,14 @@ function placementSection(): HTMLElement {
     h("h2", {}, h("span", { text: "Posizione e aspetto" }), profileChip()),
     h("div", {
       class: "hint",
-      text: "Dove vive Ezzy. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. In basso sta sopra la barra delle applicazioni. Puoi anche trascinare Ezzy con il mouse: la posizione resta salvata; sceglierne una qui la riporta al bordo.",
+      text: "Dove vive il personaggio. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. In basso sta sopra la barra delle applicazioni. Puoi anche trascinare il personaggio con il mouse: la posizione resta salvata; sceglierne una qui la riporta al bordo.",
     }),
     h("div", { class: "row" }, h("label", { text: "Schermo" }), screen),
     h("div", { class: "row" }, h("label", { text: "Posizione" }), vertical, horizontal),
     h("div", { class: "row" },
       h("label", { text: "Sopra la barra" }),
       toggle(settings.overTaskbar, (v) => { settings.overTaskbar = v; commit(); }),
-      h("span", { class: "hint note", text: "Ezzy può stare anche sopra la barra delle applicazioni" }),
+      h("span", { class: "hint note", text: "il personaggio può stare anche sopra la barra delle applicazioni" }),
     ),
     h("div", { class: "row" },
       h("label", { text: "Aggancia ai bordi" }),
@@ -645,7 +645,7 @@ function placementSection(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: "Apri dopo" }),
       openDelay,
-      h("span", { class: "hint note", text: "trascinare un file sopra Ezzy lo apre sempre" }),
+      h("span", { class: "hint note", text: "trascinare un file sopra il personaggio lo apre sempre" }),
     ),
     h("div", { class: "row" },
       h("label", { text: "Pannello aperto" }),
@@ -974,7 +974,7 @@ function actionsSection(): HTMLElement {
       class: "hint",
       text: "Pulsanti nella scheda ⚡ dell'isola: link, programmi, script (partono solo dopo un clic) e domande a Claude sul testo copiato o sul file rilasciato. Nessuna chiave o password qui dentro.",
     }),
-    h("div", { class: "row" }, h("label", { text: "Apri Ezzy" }),
+    h("div", { class: "row" }, h("label", { text: "Apri l'isola" }),
       hotkeyField(settings.hotkeyOpen, (v) => { settings.hotkeyOpen = v; })),
     h("div", { class: "row" }, h("label", { text: "Chiedi sul testo copiato" }),
       hotkeyField(settings.hotkeyAsk, (v) => { settings.hotkeyAsk = v; }),
@@ -1033,7 +1033,7 @@ function connectorsSection(): HTMLElement {
     h("h2", {}, h("span", { text: "Connettori in chat" }), profileChip()),
     h("div", {
       class: "hint",
-      text: "Ezzy può usare i server MCP che hai configurato in Claude Code (calendario, documenti, ticketing…). Funziona con il motore «Abbonamento Claude». Con la conferma attiva ogni operazione su quel connettore compare nell'isola con Consenti / Nega: disattivala solo per connettori di sola lettura. I connettori di claude.ai non sono disponibili in questa modalità di Claude Code.",
+      text: "La chat può usare i server MCP che hai configurato in Claude Code (calendario, documenti, ticketing…). Funziona con il motore «Abbonamento Claude». Con la conferma attiva ogni operazione su quel connettore compare nell'isola con Consenti / Nega: disattivala solo per connettori di sola lettura. I connettori di claude.ai non sono disponibili in questa modalità di Claude Code.",
     }),
     list,
     h("div", { class: "row" }, refresh),
@@ -1310,7 +1310,7 @@ function widgetsSection(): HTMLElement {
     h("h2", {}, h("span", { text: "Widget" }), profileChip()),
     h("div", {
       class: "hint",
-      text: "Controlli che compaiono come pillole accanto a Ezzy: lo stato del PC, la sicurezza, la rete, il calendario, il meteo, la scadenza dei domini, siti, certificati, server, porte, servizi Windows o qualsiasi API JSON. Quando un controllo passa da OK a problema, Ezzy ti avvisa. Si fermano quando EasyIsland è in pausa.",
+      text: "Controlli che compaiono come pillole accanto al personaggio: lo stato del PC, la sicurezza, la rete, il calendario, il meteo, la scadenza dei domini, siti, certificati, server, porte, servizi Windows o qualsiasi API JSON. Quando un controllo passa da OK a problema, il personaggio ti avvisa. Si fermano quando EasyIsland è in pausa.",
     }),
     list,
     templates,
@@ -1325,7 +1325,7 @@ function notifySection(): HTMLElement {
     {},
     h("h2", {}, h("span", { text: "Notifiche" }), profileChip()),
     h("div", { class: "row" },
-      h("label", { text: "Ezzy si fa vedere per" }),
+      h("label", { text: "Il personaggio si fa vedere per" }),
       select<Settings["notify"]>(
         [
           ["all", "Tutto (attività, fine sessione, integrazioni, avvisi)"],
@@ -1355,7 +1355,7 @@ function presenceSection(): HTMLElement {
     "section",
     {},
     h("h2", {}, h("span", { text: "Davanti al cliente" }), profileChip()),
-    h("div", { class: "hint", text: "Ezzy si fa da parte quando qualcuno potrebbe vedere il tuo schermo. Si attiva anche a mano: icona nell'area di notifica → Davanti al cliente." }),
+    h("div", { class: "hint", text: "Il personaggio si fa da parte quando qualcuno potrebbe vedere il tuo schermo. Si attiva anche a mano: icona nell'area di notifica → Davanti al cliente." }),
     h("div", { class: "row" },
       h("label", { text: "Durante le chiamate" }),
       toggle(settings.presenceMeeting, (v) => { settings.presenceMeeting = v; commit(); }),
@@ -1370,7 +1370,7 @@ function presenceSection(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: "Cosa fa" }),
       select<Settings["presenceMode"]>(
-        [["hide", "Nasconde Ezzy e silenzia (le richieste di permesso compaiono comunque)"], ["silent", "Solo silenzio, Ezzy resta"]],
+        [["hide", "Nasconde il personaggio e silenzia (le richieste di permesso compaiono comunque)"], ["silent", "Solo silenzio, il personaggio resta"]],
         settings.presenceMode,
         (v) => { settings.presenceMode = v; commit(); },
       ),
@@ -1439,15 +1439,16 @@ function themeSection(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: "Personaggio" }),
       select<Theme["character"]>(
-        [["ezzy", "Ezzy"], ["cube", "Cubo"]],
-        t.character ?? "ezzy",
+        [["slime", "Slime"], ["cube", "EasyTech"]],
+        t.character ?? "slime",
         (v) => { t.character = v; commit(); },
       ),
-      h("span", { class: "hint note", text: "il cubo a riposo ha i colori del logo; negli altri stati prende il colore dello stato, come Ezzy" }),
+      h("span", { class: "hint note", text: "EasyTech a riposo ha i colori del logo; negli altri stati prende il colore dello stato, come Slime" }),
     ),
     h("div", { class: "row" },
-      h("label", { text: "Colore del personaggio" }),
-      colorField(t.ezzyColor, "#fffaf5", (v) => { t.ezzyColor = v; commit(); }, "Originale"),
+      h("label", { text: "Colore di Slime" }),
+      colorField(t.slimeColor, "#5ec738", (v) => { t.slimeColor = v; commit(); }, "Verde"),
+      h("span", { class: "hint note", text: "negli altri stati Slime prende il colore dello stato" }),
     ),
     h("div", { class: "row" },
       h("label", { text: "Colore dell'isola" }),
@@ -1516,7 +1517,7 @@ function backupSection(): HTMLElement {
     h("h2", {}, h("span", { text: "Backup e trasferimento" })),
     h("div", {
       class: "hint",
-      text: "Esporta tutte le impostazioni, profili compresi, in un file JSON nella cartella Documenti; importalo su un altro PC per ritrovare lo stesso Ezzy. Le chiavi API restano in Gestione credenziali e non vengono esportate.",
+      text: "Esporta tutte le impostazioni, profili compresi, in un file JSON nella cartella Documenti; importalo su un altro PC per ritrovare la stessa isola. Le chiavi API restano in Gestione credenziali e non vengono esportate.",
     }),
     h("div", { class: "row" }, exportBtn, importBtn, file),
     feedback,
@@ -1604,17 +1605,17 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     },
     {
       id: "aspetto", label: "Aspetto", icon: "◐", title: "Aspetto",
-      intro: "Dove sta Ezzy, come si mostra, il personaggio e i colori.",
+      intro: "Dove sta l'isola, come si mostra, il personaggio e i colori.",
       sections: () => [placementSection(), themeSection()],
     },
     {
       id: "notifiche", label: "Notifiche", icon: "◔", title: "Notifiche",
-      intro: "Quando Ezzy si fa vedere, quando si fa da parte e i messaggi dagli script.",
+      intro: "Quando il personaggio si fa vedere, quando si fa da parte e i messaggi dagli script.",
       sections: () => [notifySection(), presenceSection(), scriptsSection(b.status.hookPath)],
     },
     {
       id: "claude", label: "Claude", icon: "✦", title: "Claude",
-      intro: "Le sessioni di Claude Code nell'isola, la chat con Ezzy e i connettori che può usare.",
+      intro: "Le sessioni di Claude Code nell'isola, la chat e i connettori che può usare.",
       sections: () => [claudeSection(b.status), claudeChatSection(b.hasKey), connectorsSection()],
     },
     {

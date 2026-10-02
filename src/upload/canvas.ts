@@ -1,12 +1,16 @@
 // The upload canvas — port of UploadCanvasView.swift.
 //
 // While the sequence engine is active this canvas draws the whole island body:
-// card, dashed drop frame, drop text, progress bar, the choose card, Ezzy and
-// the file being sucked in. The island's own Ezzy is hidden for the duration,
+// card, dashed drop frame, drop text, progress bar, the choose card, the character and
+// the file being sucked in. The island's own the character is hidden for the duration,
 // exactly as on macOS, because this canvas draws its own.
 
 import { State } from "../core/state";
-import { character, drawCube, onRightFace } from "../ezzy/cube";
+import { character, drawCube, onRightFace } from "../character/cube";
+import { hexToRGB } from "../character/engine";
+import {
+  SLIME_GREEN, drawSlimeBody, drawSlimeEye, drawSlimePuddle, slimePalette, slimePoint,
+} from "../character/slime";
 import {
   USC, eIn, eInOut, eOut, lerp, progressAt,
   type UploadEyeShape, type UploadFrame,
@@ -21,24 +25,32 @@ function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: n
   ctx.roundRect(x, y, w, h, rad);
 }
 
-/** Superellipse body — port of usBodyPath(m, R). */
-function bodyPath(ctx: CanvasRenderingContext2D, m: number, R: number): { rx: number; ry: number } {
+/** The slime, turning into a box (superellipse, as in usBodyPath) as `m` → 1. */
+function bodyPath(m: number, R: number): { path: Path2D; rx: number; ry: number } {
   const mc = Math.max(0, Math.min(m, 1));
-  const n = 2.15 + (5.5 - 2.15) * mc;
-  const rx = R * (1.04 - 0.04 * mc);
-  const ry = R * (0.97 - 0.03 * mc);
-  ctx.beginPath();
+  const rx = R * lerp(1.18, 1.0, mc);
+  const ry = R * lerp(0.82, 0.94, mc);
+  const ctx = new Path2D();
   for (let i = 0; i <= 96; i++) {
     const a = (i / 96) * Math.PI * 2;
     const ca = Math.cos(a);
     const sa = Math.sin(a);
-    const px = rx * Math.sign(ca) * Math.pow(Math.abs(ca), 2 / n);
-    const py = ry * Math.sign(sa) * Math.pow(Math.abs(sa), 2 / n);
+    const s = slimePoint(ca, sa, rx, ry);
+    const bx = rx * Math.sign(ca) * Math.pow(Math.abs(ca), 2 / 5.5);
+    const by = ry * Math.sign(sa) * Math.pow(Math.abs(sa), 2 / 5.5);
+    const px = lerp(s.x, bx, mc);
+    const py = lerp(s.y, by, mc);
     if (i === 0) ctx.moveTo(px, py);
     else ctx.lineTo(px, py);
   }
   ctx.closePath();
-  return { rx, ry };
+  return { path: ctx, rx, ry };
+}
+
+/** The theme's body colour, or the character's green. */
+function themeBase() {
+  const c = State.settings.theme?.slimeColor;
+  return c && /^#[0-9a-f]{6}$/i.test(c) ? hexToRGB(c) : SLIME_GREEN;
 }
 
 function text(
@@ -166,7 +178,7 @@ export class UploadCanvas {
     if (f.barAlpha > 0 || f.barReveal > 0) this.drawProgressBar(ctx, f);
     if (f.chooseAlpha > 0) this.drawChoose(ctx, f);
 
-    this.drawEzzy(ctx, f);
+    this.drawCharacter(ctx, f);
     if (f.fileVisible) this.drawFile(ctx, f);
   }
 
@@ -289,9 +301,9 @@ export class UploadCanvas {
     ctx.restore();
   }
 
-  // ── Ezzy ─────────────────────────────────────────────────────────────────
+  // ── the character ─────────────────────────────────────────────────────────────────
 
-  private drawEzzy(ctx: CanvasRenderingContext2D, f: UploadFrame) {
+  private drawCharacter(ctx: CanvasRenderingContext2D, f: UploadFrame) {
     const R = f.d / 2 / 1.04;
     const mc = Math.max(0, Math.min(f.morph, 1));
 
@@ -331,29 +343,16 @@ export class UploadCanvas {
       return;
     }
 
-    const { rx, ry } = bodyPath(ctx, f.morph, R);
-
-    // Body.
-    const bg = ctx.createLinearGradient(rx * 0.7, -ry * 0.9, -rx * 0.8, ry * 0.9);
-    bg.addColorStop(0, "#EDEDEF");
-    bg.addColorStop(1, "#C4C5CA");
-    ctx.fillStyle = bg;
-    ctx.fill();
-
-    // Edge shadow.
-    const sg = ctx.createRadialGradient(0, 0, R * 0.2, 0, 0, R * 1.3);
-    sg.addColorStop(0, "rgba(0,0,0,0)");
-    sg.addColorStop(0.62, "rgba(0,0,0,0)");
-    sg.addColorStop(1, "rgba(0,0,0,0.12)");
-    ctx.fillStyle = sg;
-    ctx.fill();
+    const { path: body, rx, ry } = bodyPath(f.morph, R);
+    const look = { palette: slimePalette(themeBase()), puddle: 1 - mc, gloss: 1 - mc * 0.6 };
+    drawSlimePuddle(ctx, rx, ry, look);
+    drawSlimeBody(ctx, body, rx, ry, look);
 
     // The body path is reused as a clip for everything drawn inside it.
     ctx.save();
-    bodyPath(ctx, f.morph, R);
-    ctx.clip();
+    ctx.clip(body);
 
-    // Top rim, once Ezzy is box-shaped enough to have one.
+    // Top rim, once the character is box-shaped enough to have one.
     if (mc > 0.3) {
       const a = Math.max(0, Math.min(1, (mc - 0.3) / 0.7));
       ctx.beginPath();
@@ -390,16 +389,16 @@ export class UploadCanvas {
     }
 
     // Eyes.
-    const ew = R * 0.25;
-    const eh = R * (0.62 - 0.16 * mc);
-    const ey = R * (0.02 + 0.28 * mc);
-    const sp = R * 0.3;
-    const lx = f.lookX * R * (0.34 - 0.08 * mc);
+    const er = R * (0.17 - 0.02 * mc);
+    const ey = R * (0.06 + 0.24 * mc);
+    const sp = R * 0.34;
+    const lx = f.lookX * R * (0.3 - 0.08 * mc);
     const ly = f.lookY * R * (0.16 - 0.09 * mc);
     for (const sd of [-1, 1]) {
       ctx.save();
       ctx.translate(sd * sp + lx, ey + ly);
-      drawEye(ctx, f.eye, ew, eh);
+      if (f.eye === "pill") drawSlimeEye(ctx, er, 1, INK);
+      else drawEye(ctx, f.eye, er * 1.5, er * 2.6);
       ctx.restore();
     }
 

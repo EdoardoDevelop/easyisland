@@ -4,7 +4,7 @@
 
 # EasyIsland
 
-**Su un PC Ezzy non ha un notch, quindi vive in cima al tuo schermo.**
+**Su un PC Slime non ha un notch, quindi vive in cima al tuo schermo.**
 
 Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file, chatta con Claude, tieni d'occhio i tuoi servizi: tutto senza interrompere quello che stai facendo.
 
@@ -15,7 +15,7 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 </div>
 
-<img src="screenshots/greeting.png" width="640" alt="Ezzy che saluta all'avvio">
+<img src="screenshots/greeting.png" width="640" alt="Slime che saluta all'avvio">
 
 ---
 
@@ -88,10 +88,10 @@ start .\release\EasyIsland-Windows-setup.exe
 ```
 
 L'installer non è firmato, quindi Windows SmartScreen mostra un avviso: clicca
-**Ulteriori informazioni → Esegui comunque**. EasyIsland si avvia ed Ezzy ti saluta;
+**Ulteriori informazioni → Esegui comunque**. EasyIsland si avvia e Slime ti saluta;
 da lì in poi lo trovi nel menu Start e nell'area di notifica.
 
-Poi, dall'icona di Ezzy nell'area di notifica → **Impostazioni…**:
+Poi, dall'icona di EasyIsland nell'area di notifica → **Impostazioni…**:
 
 1. **Claude Code → Installa hook…** per vedere le sessioni nell'isola (vedi sotto).
 2. **Chat con Claude**: lascia "Abbonamento Claude" se usi Claude Code con il tuo
@@ -124,70 +124,70 @@ disinstallatore volutamente non tocca il `settings.json` di Claude Code. Poi
 | `linker 'link.exe' not found` | mancano i Visual Studio Build Tools con il carico C++: rilancia l'ultimo comando `winget` del passo 1 |
 | `error: toolchain 'stable-x86_64-pc-windows-msvc' is not installed` | `rustup default stable-msvc` |
 | l'installer viene bloccato da Defender | è il falso positivo descritto sopra: usa "Esegui comunque", oppure lancia direttamente `target\release\easyisland.exe` |
-| Ezzy non compare | guarda nell'area di notifica (la freccia ^ accanto all'orologio) e il log in `%LOCALAPPDATA%\EasyIsland\easyisland.log` |
+| Slime non compare | guarda nell'area di notifica (la freccia ^ accanto all'orologio) e il log in `%LOCALAPPDATA%\EasyIsland\easyisland.log` |
 | le Impostazioni | sono divise in pagine (Generale, Aspetto, Notifiche, Claude, Azioni rapide, Integrazioni, Widget, Backup) nel menu a sinistra; la finestra ricorda l'ultima aperta |
 | vuoi aprire le impostazioni senza l'area di notifica | `"%LOCALAPPDATA%\EasyIsland\easyisland.exe" --settings` (anche come collegamento) |
 
 ## Come si usa
 
-<img src="screenshots/compact.png" width="292" alt="L'isola compatta, con le pillole delle integrazioni come mini Ezzy">
+<img src="screenshots/compact.png" width="292" alt="L'isola compatta, con le pillole delle integrazioni come mini Slime">
 <img src="screenshots/overview.png" width="640" alt="La panoramica: l'integrazione in focus a sinistra, le altre pillole a destra">
 <img src="screenshots/approval.png" width="640" alt="Una richiesta di permesso di Claude Code, con Nega e Consenti">
 <img src="screenshots/chat.png" width="640" alt="Chat con Claude dall'isola">
-<img src="screenshots/drop.png" width="640" alt="Ezzy trasformato in una scatola, in attesa di un file">
+<img src="screenshots/drop.png" width="640" alt="Slime trasformato in una scatola, in attesa di un file">
 
-_Le schermate mostrano ancora i testi in inglese della versione originale._
+_Le schermate mostrano ancora il vecchio personaggio e i testi in inglese della versione originale._
 
 | Cosa fai | Cosa succede |
 |---|---|
-| Porti il mouse sull'icona di Ezzy (in alto al centro, o nell'angolo che hai scelto) | Ezzy si ingrandisce (o resta sempre così, con **Sempre visibile**) |
-| Clicchi su Ezzy, o lasci il mouse sopra per un attimo se "Apri dopo" lo prevede | Si apre l'isola, allineata a quel lato |
-| Trascini Ezzy tenendo premuto il tasto sinistro | Si sposta dove lo lasci, e la posizione resta salvata nel profilo |
-| Clicchi su Ezzy | Si infastidisce. Tre volte di fila e gli gira la testa |
-| Lasci il puntatore su Ezzy per due secondi | Cuori |
-| Trascini un file sull'isola | Si apre anche se è impostata "solo con un clic": Ezzy diventa una scatola, lo inghiotte e poi si offre di rispondere a domande sul file |
+| Porti il mouse sull'icona di Slime (in alto al centro, o nell'angolo che hai scelto) | Slime si ingrandisce (o resta sempre così, con **Sempre visibile**) |
+| Clicchi su Slime, o lasci il mouse sopra per un attimo se "Apri dopo" lo prevede | Si apre l'isola, allineata a quel lato |
+| Trascini Slime tenendo premuto il tasto sinistro | Si sposta dove lo lasci, e la posizione resta salvata nel profilo |
+| Clicchi su Slime | Si infastidisce. Tre volte di fila e gli gira la testa |
+| Lasci il puntatore su Slime per due secondi | Cuori |
+| Trascini un file sull'isola | Si apre anche se è impostata "solo con un clic": Slime diventa una scatola, lo inghiotte e poi si offre di rispondere a domande sul file |
 | `Esc`, o la ✕ in alto a destra | Chiude subito l'isola, senza aspettare i secondi della chiusura automatica |
 | Icona nell'area di notifica | Apri, Impostazioni…, Pausa, Esci |
 
 Tutto il resto succede da solo: una richiesta di permesso di Claude Code apre
 l'isola con **Nega / Consenti**, una sessione finita mostra cosa ha fatto e le
-tue integrazioni stanno nelle pillole colorate accanto a Ezzy.
+tue integrazioni stanno nelle pillole colorate accanto a Slime.
 
 ## Posizione e aspetto
 
-**Impostazioni… → Posizione e aspetto** decide dove vive Ezzy e quanto si fa notare:
+**Impostazioni… → Posizione e aspetto** decide dove vive Slime e quanto si fa notare:
 
 - **Posizione**: in alto o in basso, a sinistra, al centro o a destra. Quando si
   apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel
-  lato. Puoi anche **trascinare Ezzy** con il mouse dove vuoi: al rilascio la
+  lato. Puoi anche **trascinare Slime** con il mouse dove vuoi: al rilascio la
   posizione resta salvata nel profilo, e il lato da cui si apre l'isola viene
   scelto da solo (il terzo e la metà dello schermo in cui lo lasci), così il
   pannello cresce verso l'interno. Vicino a un bordo o al centro si aggancia.
   Scegliere di nuovo una posizione qui lo riporta al bordo.
-- **Sopra la barra**: Ezzy può stare anche sopra la barra delle applicazioni
+- **Sopra la barra**: Slime può stare anche sopra la barra delle applicazioni
   (spento: resta sopra di essa, nell'area di lavoro).
 - **Aggancia ai bordi**: lasciato a pochi pixel da un bordo dello schermo, lo
   sfondo si attacca al bordo con gli angoli squadrati da quel lato; altrimenti è
   una bolla solo intorno all'icona. Spento: si attacca solo in alto al centro.
-- **Vista compatta**: un Ezzy più grande e animato, oppure la barra compatta
+- **Vista compatta**: uno Slime più grande e animato, oppure la barra compatta
   con le integrazioni, con dimensione regolabile.
 - **Segue il mouse**: se attivo, anche nella vista compatta il personaggio
   guarda il cursore. Spento (predefinito): si guarda intorno da solo, sbatte le
   palpebre e ogni tanto fa una smorfia, e consuma meno. A isola aperta segue
   sempre il mouse.
 - **Sempre visibile**: la vista compatta resta sempre sullo schermo e non torna
-  mai all'icona a riposo. Costa un po' di CPU (Ezzy è animato): sul portatile a
+  mai all'icona a riposo. Costa un po' di CPU (Slime è animato): sul portatile a
   batteria valuta se spegnerla.
 - **Icona a riposo** e **Torna a riposo dopo** (solo se *Sempre visibile* è
-  spenta): Ezzy fermo, un pallino con il colore dello stato, oppure nulla (solo
+  spenta): Slime fermo, un pallino con il colore dello stato, oppure nulla (solo
   una striscia invisibile sul bordo), e dopo quanti secondi tornarci. L'icona a
   riposo è un'immagine ferma: non consuma CPU.
 - **Apri dopo**: quanto tenere il mouse sopra prima che si apra, oppure **solo
-  con un clic**. Trascinare un file sopra Ezzy lo apre sempre.
+  con un clic**. Trascinare un file sopra Slime lo apre sempre.
 - **Pannello aperto**: dopo quanti secondi dall'uscita del mouse il pannello si
   riduce alla vista compatta.
 - **Pulsante chiudi**: la ✕ in alto a destra del pannello per chiuderlo subito.
-- **Schermo intero**: durante video, giochi e presentazioni Ezzy sparisce; le
+- **Schermo intero**: durante video, giochi e presentazioni Slime sparisce; le
   richieste di permesso compaiono comunque.
 
 Per provare le combinazioni senza compilare l'app (basta Node, niente Rust):
@@ -216,7 +216,7 @@ Ogni azione si può riordinare con ↑ ↓ ed eliminare con ✕.
 
 **Scorciatoie globali**, valide in ogni app (modificabili):
 
-- `Ctrl+Alt+Shift+M` apre Ezzy sulle azioni (o sulla chat se non ce ne sono);
+- `Ctrl+Alt+Shift+M` apre Slime sulle azioni (o sulla chat se non ce ne sono);
 - `Ctrl+Alt+K` apre la chat con il testo copiato già allegato: scrivi la domanda;
 - ogni azione può avere la sua scorciatoia, es. `Ctrl+Alt+E` per "Spiega errore".
 
@@ -226,7 +226,7 @@ Le azioni appartengono al profilo attivo; le scorciatoie Apri/Chiedi al PC.
 ## Widget
 
 **Impostazioni… → Widget** aggiunge controlli che compaiono come pillole accanto
-a Ezzy, senza scrivere codice:
+a Slime, senza scrivere codice:
 
 | Tipo | Cosa controlla |
 |---|---|
@@ -243,14 +243,14 @@ a Ezzy, senza scrivere codice:
 | **Servizio Windows** | che un servizio locale sia in esecuzione, es. `Spooler` |
 | **API JSON** | qualsiasi API: scegli i campi da mostrare (percorso tipo `data.items[0].stato`) e una regola di avviso (es. `aperti > 10`). Le intestazioni segrete (token, chiavi) vanno in Gestione credenziali |
 
-Quando un controllo passa da OK a problema, la pillola prende un badge, Ezzy
+Quando un controllo passa da OK a problema, la pillola prende un badge, Slime
 suona e l'isola si fa vedere (secondo le regole di notifica del profilo). Il
 pulsante ▶ prova un widget subito. I controlli si fermano con EasyIsland in pausa e
 diventano tre volte più radi a batteria. I widget appartengono al profilo.
 
 ## Davanti al cliente
 
-**Impostazioni… → Notifiche → Davanti al cliente**: Ezzy si fa da parte quando
+**Impostazioni… → Notifiche → Davanti al cliente**: Slime si fa da parte quando
 qualcuno potrebbe vedere il tuo schermo.
 
 - **Durante le chiamate**: microfono o webcam in uso da qualsiasi app (Teams,
@@ -259,7 +259,7 @@ qualcuno potrebbe vedere il tuo schermo.
 - **Durante l'assistenza**: qualcuno è collegato a questo PC (Desktop remoto,
   Assistenza rapida, TeamViewer), più i programmi che aggiungi tu.
 - **A mano**: icona nell'area di notifica → **Davanti al cliente**.
-- **Cosa fa**: nasconde Ezzy e silenzia i suoni (le richieste di permesso di
+- **Cosa fa**: nasconde Slime e silenzia i suoni (le richieste di permesso di
   Claude Code compaiono comunque), oppure solo silenzio.
 
 ## Messaggi dagli script
@@ -292,12 +292,13 @@ attivo.
   finché la situazione non cambia.
 - **Notifiche**: tutto, solo avvisi, oppure solo le richieste di permesso
   (com'è *Concentrazione* all'inizio).
-- **Tema**: il personaggio (**Ezzy** o il **Cubo**), il suo colore, colore e
-  opacità dell'isola, volume separato per avvisi, interfaccia ed emozioni. Il
-  cubo a riposo ha i colori del logo da cui è disegnato; negli altri stati prende
-  il colore dello stato (blu mentre lavora, ambra per un permesso, rosso per un
-  errore…). Ha gli occhi di Ezzy su un lato, con le stesse espressioni, e segue
-  il mouse come lui. Anteprima senza compilare: `npm run ui`, poi aggiungi
+- **Tema**: il personaggio (**Slime** o **EasyTech**), il suo colore, colore e
+  opacità dell'isola, volume separato per avvisi, interfaccia ed emozioni.
+  Slime è uno slime di gelatina verde che ondeggia quando si muove; EasyTech è
+  un cubo, a riposo con i colori del logo da cui è disegnato. Negli altri stati
+  entrambi prendono il colore dello stato (blu mentre lavora, ambra per un
+  permesso, rosso per un errore…). EasyTech ha gli occhi su un lato, con le
+  stesse espressioni, e segue il mouse come Slime. Anteprima senza compilare: `npm run ui`, poi aggiungi
   `?character=cube` all'indirizzo.
 - **Backup e trasferimento**: *Esporta…* salva tutte le impostazioni (profili
   compresi) in un file JSON nella cartella Documenti; *Importa…* le carica su un
@@ -325,17 +326,17 @@ Funziona da qualsiasi terminale: Windows Terminal, PowerShell, VS Code, Git Bash
 
 **Impostazioni… → Chat con Claude** ti fa scegliere il motore della chat:
 
-- **Abbonamento Claude (tramite Claude Code)**, il predefinito. Ezzy usa
+- **Abbonamento Claude (tramite Claude Code)**, il predefinito. Slime usa
   Claude Code installato sul PC (`claude -p`, nascosto, senza finestre) e il tuo
   abbonamento Pro o Max: nessuna chiave e nessun costo extra, ma le domande
   contano nei limiti d'uso del piano. Serve Claude Code installato e con il
   login fatto. Claude Code gira in una cartella vuota
   (`%LOCALAPPDATA%\EasyIsland\chat`), con gli hook disattivati e solo con ricerca
   web, lettura di pagine web e lettura dei file che rilasci.
-- **Chiave API Anthropic**. Ezzy chiama direttamente l'API con la tua chiave,
+- **Chiave API Anthropic**. Slime chiama direttamente l'API con la tua chiave,
   pagata a consumo dalla Console di Anthropic.
 
-**Connettori in chat** (solo con "Abbonamento Claude"): Ezzy può usare i
+**Connettori in chat** (solo con "Abbonamento Claude"): Slime può usare i
 server MCP che hai configurato in Claude Code per l'utente
 (`claude mcp add --scope user …`), scegliendo quali profilo per profilo. Con
 "chiedi conferma" (predefinito) ogni operazione su quel connettore compare
@@ -348,7 +349,7 @@ Le chiavi stanno in **Gestione credenziali di Windows**, mai su disco e mai
 nell'interfaccia: l'isola può solo chiedere se una chiave esiste. Lo stesso vale
 per le chiavi di ogni integrazione.
 
-Ezzy risponde in italiano, a meno che tu non gli scriva in un'altra lingua.
+Slime risponde in italiano, a meno che tu non gli scriva in un'altra lingua.
 **Nuova chat**, a sinistra del campo di testo, dimentica la conversazione (e il
 file o il testo a cui si riferiva) e ne comincia una da zero.
 
@@ -391,14 +392,14 @@ EasyIsland-Windows-setup.exe          lo stesso file con il nome fisso
 
 Installare è facoltativo: `target/release/easyisland.exe` funziona da solo. Non c'è
 nessuna finestra nella barra delle applicazioni e nessuna console: l'isola in cima
-allo schermo e l'icona di Ezzy nell'area di notifica sono tutta l'app, ed Esci sta nel
+allo schermo e l'icona nell'area di notifica sono tutta l'app, ed Esci sta nel
 suo menu.
 
 I 28 suoni stanno in `assets/sounds/`. Il percorso è dichiarato una sola volta, in
 `SOUNDS_DIR` in cima a `vite.config.ts`.
 
-L'icona dell'app e quella dell'area di notifica sono disegnate nel codice, come
-Ezzy:
+L'icona dell'app e quella dell'area di notifica sono disegnate nel codice: sono
+l'isola stessa, uguale qualunque personaggio tu scelga:
 
 ```powershell
 npm run icons          # rigenera src-tauri/icons da scripts/gen-icons.mjs
@@ -409,7 +410,7 @@ npm run icons          # rigenera src-tauri/icons da scripts/gen-icons.mjs
 ```
 ./
   src/                 front end dell'isola (TypeScript, nessun framework)
-    ezzy/              Ezzy e il saluto all'avvio, in Canvas 2D
+    character/         Slime, EasyTech e il saluto all'avvio, in Canvas 2D
     island/            macchina a stati, hook, integrazioni
     views/             tutte le viste dell'isola
     settings/          la finestra delle impostazioni
@@ -430,14 +431,14 @@ problemi dei poller. Resta sul tuo computer.
 
 EasyIsland nasce come fork solo per Windows di
 [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou) (Coucou, con il
-personaggio Mochi), app nativa macOS per il notch. Ezzy è il nuovo nome di
-Mochi. Il codice macOS è stato rimosso; il
+personaggio Mochi), app nativa macOS per il notch. Slime, uno slime,
+ha preso il posto di Mochi. Il codice macOS è stato rimosso; il
 prototipo originale in `design/` resta il riferimento visivo. Alcune funzioni
 esistevano solo sul Mac e non sono presenti qui: invio di un file per email,
-trascinamento di Ezzy su una finestra per allegarla come contesto, salto alla
+trascinamento di Slime su una finestra per allegarla come contesto, salto alla
 finestra esatta del terminale. "Apri terminale" apre la cartella di lavoro in
 VS Code quando `code` è nel `PATH`.
 
-Licenza: MIT per il codice. Il disegno del personaggio, le icone e i suoni
-vengono dall'originale e restano riservati al suo autore: vedi
+Licenza: MIT per il codice. I suoni vengono dall'originale e restano riservati al
+suo autore: vedi
 `LICENSE-ASSETS.md`.

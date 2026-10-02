@@ -11,8 +11,8 @@ use serde_json::{Map, Value};
 use std::path::PathBuf;
 
 /// Bumped whenever the file layout changes; `migrate` brings old files up.
-/// 3: the character was renamed (Mochi → Ezzy), so were its values.
-pub const SCHEMA_VERSION: u32 = 3;
+/// 3–4: the character was renamed (Mochi → Ezzy → Slime), so were its values.
+pub const SCHEMA_VERSION: u32 = 4;
 
 /// Fields that belong to a profile rather than to the machine.
 pub const PROFILE_KEYS: &[&str] = &[
@@ -49,12 +49,12 @@ pub const PROFILE_KEYS: &[&str] = &[
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Theme {
-    /// Who lives in the island: "ezzy" or "cube".
+    /// Who lives in the island: "slime" or "cube" (EasyTech).
     #[serde(default = "default_character")]
     pub character: String,
-    /// Ezzy's body colour, "#rrggbb"; empty = the original cream.
-    #[serde(default, alias = "mochiColor")]
-    pub ezzy_color: String,
+    /// The slime's body colour, "#rrggbb"; empty = its green.
+    #[serde(default, alias = "mochiColor", alias = "ezzyColor")]
+    pub slime_color: String,
     #[serde(default = "default_island_color")]
     pub island_color: String,
     #[serde(default = "one")]
@@ -72,7 +72,7 @@ impl Default for Theme {
     fn default() -> Self {
         Self {
             character: default_character(),
-            ezzy_color: String::new(),
+            slime_color: String::new(),
             island_color: default_island_color(),
             island_opacity: 1.0,
             volume_alerts: 1.0,
@@ -83,7 +83,7 @@ impl Default for Theme {
 }
 
 fn default_character() -> String {
-    "ezzy".into()
+    "slime".into()
 }
 fn default_island_color() -> String {
     "#000000".into()
@@ -199,7 +199,7 @@ pub struct Settings {
     /// … and "left" | "center" | "right". Content opens aligned to that side.
     #[serde(default = "default_anchor_h")]
     pub anchor_h: String,
-    /// Where the user dragged Ezzy: logical px from the anchored home position.
+    /// Where the user dragged the character: logical px from the anchored home position.
     #[serde(default)]
     pub offset_x: f64,
     #[serde(default)]
@@ -225,16 +225,16 @@ pub struct Settings {
     /// More programs (executable names) that mean remote help is on.
     #[serde(default)]
     pub presence_apps: Vec<String>,
-    /// "hide" = Ezzy disappears (permission requests still show), "silent" = no sounds only.
+    /// "hide" = the character disappears (permission requests still show), "silent" = no sounds only.
     #[serde(default = "default_presence_mode")]
     pub presence_mode: String,
-    /// What stays visible at rest: "ezzy" | "dot" | "none" (invisible strip).
+    /// What stays visible at rest: "character" | "dot" | "none" (invisible strip).
     #[serde(default = "default_icon_style")]
     pub icon_style: String,
     /// Rest icon size, logical px.
     #[serde(default = "default_icon_size")]
     pub icon_size: f64,
-    /// What the hover shows: "icon" (a bigger, live Ezzy) | "bar" (the compact bar).
+    /// What the hover shows: "icon" (a bigger, live the character) | "bar" (the compact bar).
     #[serde(default = "default_hover_style")]
     pub hover_style: String,
     /// Size of the hovered icon, logical px.
@@ -274,7 +274,7 @@ pub struct Settings {
     /// Global shortcut that opens the island ("" = none). Belongs to the PC.
     #[serde(default = "default_hotkey_open")]
     pub hotkey_open: String,
-    /// Global shortcut: ask Ezzy about the text on the clipboard.
+    /// Global shortcut: ask the character about the text on the clipboard.
     #[serde(default = "default_hotkey_ask")]
     pub hotkey_ask: String,
 }
@@ -301,7 +301,7 @@ fn default_anchor_h() -> String {
     "center".into()
 }
 fn default_icon_style() -> String {
-    "ezzy".into()
+    "character".into()
 }
 fn default_icon_size() -> f64 {
     24.0
@@ -430,11 +430,11 @@ impl Settings {
 
     /// Brings a file of any earlier layout up to SCHEMA_VERSION.
     pub fn migrated(mut self) -> Self {
-        // Schema 3: values written while the character was called Mochi.
-        if self.icon_style == LEGACY_CHARACTER {
+        // Schemas 3–4: values written while the character was Mochi or Ezzy.
+        if LEGACY_CHARACTERS.contains(&self.icon_style.as_str()) {
             self.icon_style = default_icon_style();
         }
-        if self.theme.character == LEGACY_CHARACTER {
+        if LEGACY_CHARACTERS.contains(&self.theme.character.as_str()) {
             self.theme.character = default_character();
         }
         for p in &mut self.profiles {
@@ -482,20 +482,23 @@ impl Settings {
     }
 }
 
-/// What "ezzy" was called in settings written before the rename.
-const LEGACY_CHARACTER: &str = "mochi";
+/// Earlier names of the slime ("character" for iconStyle) in settings files.
+const LEGACY_CHARACTERS: &[&str] = &["mochi", "ezzy"];
 
-/// A profile's stored values, brought from the Mochi names to the Ezzy ones.
+/// A profile's stored values, brought from the Mochi/Ezzy names to the current ones.
 fn rename_legacy_values(values: &mut Map<String, Value>) {
-    if values.get("iconStyle").and_then(Value::as_str) == Some(LEGACY_CHARACTER) {
+    let legacy = |v: Option<&Value>| v.and_then(Value::as_str).is_some_and(|s| LEGACY_CHARACTERS.contains(&s));
+    if legacy(values.get("iconStyle")) {
         values.insert("iconStyle".into(), Value::from(default_icon_style()));
     }
     if let Some(Value::Object(theme)) = values.get_mut("theme") {
-        if theme.get("character").and_then(Value::as_str) == Some(LEGACY_CHARACTER) {
+        if legacy(theme.get("character")) {
             theme.insert("character".into(), Value::from(default_character()));
         }
-        if let Some(color) = theme.remove("mochiColor") {
-            theme.entry("ezzyColor").or_insert(color);
+        for old in ["mochiColor", "ezzyColor"] {
+            if let Some(color) = theme.remove(old) {
+                theme.entry("slimeColor").or_insert(color);
+            }
         }
     }
 }
@@ -557,21 +560,30 @@ mod tests {
     }
 
     #[test]
-    fn mochi_values_become_ezzy() {
+    fn mochi_and_ezzy_values_become_slime() {
         let old = r##"{"soundEnabled":true,"soundVolume":0.1,"autoCloseInterval":15,"absenceInterval":180,
             "activeIntegrations":[],"screen":"primary","autostart":false,"hooksInstalled":false,
             "schemaVersion":2,"iconStyle":"mochi","theme":{"character":"mochi","mochiColor":"#ff0000"},
-            "activeProfile":"casa","profiles":[{"id":"casa","name":"Casa","values":
-            {"iconStyle":"mochi","theme":{"character":"cube","mochiColor":"#00ff00"}}}]}"##;
+            "activeProfile":"casa","profiles":[
+            {"id":"casa","name":"Casa","values":{"iconStyle":"mochi","theme":{"character":"cube","mochiColor":"#00ff00"}}},
+            {"id":"lavoro","name":"Lavoro","values":{"iconStyle":"ezzy","theme":{"character":"ezzy","ezzyColor":"#0000ff"}}}]}"##;
         let s = serde_json::from_str::<Settings>(old).unwrap().migrated();
-        assert_eq!(s.icon_style, "ezzy");
-        assert_eq!(s.theme.character, "ezzy");
-        assert_eq!(s.theme.ezzy_color, "#ff0000");
+        assert_eq!(s.icon_style, "character");
+        assert_eq!(s.theme.character, "slime");
+        assert_eq!(s.theme.slime_color, "#ff0000");
         let v = &s.profiles[0].values;
-        assert_eq!(v["iconStyle"], "ezzy");
+        assert_eq!(v["iconStyle"], "character");
         assert_eq!(v["theme"]["character"], "cube");
-        assert_eq!(v["theme"]["ezzyColor"], "#00ff00");
+        assert_eq!(v["theme"]["slimeColor"], "#00ff00");
         assert!(v["theme"].get("mochiColor").is_none());
+        let w = &s.profiles[1].values;
+        assert_eq!(w["iconStyle"], "character");
+        assert_eq!(w["theme"]["character"], "slime");
+        assert_eq!(w["theme"]["slimeColor"], "#0000ff");
+        assert!(w["theme"].get("ezzyColor").is_none());
+        // A file saved by schema 3 (ezzyColor at the top level) still loads its colour.
+        let t: Theme = serde_json::from_str(r##"{"character":"ezzy","ezzyColor":"#123456"}"##).unwrap();
+        assert_eq!(t.slime_color, "#123456");
     }
 
     #[test]

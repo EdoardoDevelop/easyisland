@@ -51,8 +51,8 @@
     "resources": { "../target/release/easyisland-hook.exe": "easyisland-hook.exe" },
     "copyright": "© Louis Raille",
     "category": "DeveloperTool",
-    "shortDescription": "Ezzy vive in cima al tuo schermo",
-    "longDescription": "EasyIsland mette Ezzy in cima al tuo schermo: mostra le sessioni di Claude Code e alcune integrazioni, e ti permette di approvare, rispondere, chattare e rilasciare file senza interrompere quello che stai facendo.",
+    "shortDescription": "Slime vive in cima al tuo schermo",
+    "longDescription": "EasyIsland mette Slime in cima al tuo schermo: mostra le sessioni di Claude Code e alcune integrazioni, e ti permette di approvare, rispondere, chattare e rilasciare file senza interrompere quello che stai facendo.",
     "windows": {
       "nsis": {
         "installMode": "currentUser",

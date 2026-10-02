@@ -1,6 +1,6 @@
 // "Davanti al cliente": EasyIsland gets out of the way while you are in a call or
 // someone is looking at (or driving) your screen, and while you switch it on by
-// hand from the tray. The island hears `presence` and hides Ezzy, or only goes
+// hand from the tray. The island hears `presence` and hides the character, or only goes
 // quiet, as the profile says; permission requests from Claude Code still show.
 //
 // Nothing here needs Teams' API or admin rights:

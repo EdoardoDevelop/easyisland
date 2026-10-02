@@ -47,7 +47,7 @@ const INHERITED_SESSION_VARS: &[&str] = &[
     "CLAUDE_CODE_REMOTE_SESSION_ID",
 ];
 
-const SYSTEM_PROMPT: &str = "You are Ezzy, a personal assistant living in a small chat bubble at the top of the user's screen (the EasyIsland desktop app). \
+const SYSTEM_PROMPT: &str = "You are the personal assistant living in a small chat bubble at the top of the user's screen (the EasyIsland desktop app). \
 You are not working on a codebase here: never try to edit files or run commands. \
 Use WebSearch and WebFetch when the question needs current or external information, and Read to look at a file the user attached. \
 Respond in Italian unless the user writes in another language. Be thorough but keep it readable in a small window. \
@@ -207,7 +207,7 @@ the user confirms or refuses it with a click, and a refusal is final for that re
     } else {
         r#"{ "disableAllHooks": true }"#.to_string()
     };
-    std::fs::write(dir.join("ezzy-prompt.txt"), prompt).map_err(|e| e.to_string())?;
+    std::fs::write(dir.join("chat-prompt.txt"), prompt).map_err(|e| e.to_string())?;
     std::fs::write(dir.join("chat-settings.json"), settings).map_err(|e| e.to_string())?;
     Ok(dir)
 }
@@ -247,7 +247,7 @@ fn args(
             .to_string_lossy()
             .into_owned(),
         "--append-system-prompt-file".into(),
-        dir.join("ezzy-prompt.txt").to_string_lossy().into_owned(),
+        dir.join("chat-prompt.txt").to_string_lossy().into_owned(),
         "--tools".into(),
         TOOLS.into(),
     ];

@@ -7,7 +7,7 @@ import { ICONS } from "./icons";
 import { Ticker } from "./ticker";
 import { State, type AgentTask, type AskQuestion } from "../core/state";
 import { washRGBA, type IslandViewName, type Wash } from "../core/layout";
-import { createMiniBot, pruneMiniBots } from "../ezzy/minibots";
+import { createMiniBot, pruneMiniBots } from "../character/minibots";
 import { buildPrompt } from "./chat";
 import { buildChoose, buildUpload, buildUploading } from "./upload";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
@@ -318,7 +318,7 @@ function buildApproval(actions: ViewActions): ViewHost {
       clear(who);
       if (State.pendingApproval?.source === "chat") {
         who.append(h("div", { class: "who-row" },
-          h("span", { class: "n", text: "Ezzy" }),
+          h("span", { class: "n", text: "La chat" }),
           h("span", { text: "vuole usare un connettore" })));
       } else {
         who.append(agentWho(State.focusTask, "chiede un permesso"));

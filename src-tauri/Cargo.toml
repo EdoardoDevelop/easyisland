@@ -1,6 +1,6 @@
 [package]
 name = "easyisland"
-description = "EasyIsland for Windows — Ezzy lives at the top of your screen"
+description = "EasyIsland for Windows — Slime lives at the top of your screen"
 authors = ["Louis Raille"]
 version.workspace = true
 edition.workspace = true
