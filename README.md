@@ -130,13 +130,13 @@ disinstallatore volutamente non tocca il `settings.json` di Claude Code. Poi
 
 ## Come si usa
 
-<img src="screenshots/compact.png" width="292" alt="L'isola compatta, con le pillole delle integrazioni come mini Slime">
-<img src="screenshots/overview.png" width="640" alt="La panoramica: l'integrazione in focus a sinistra, le altre pillole a destra">
+<img src="screenshots/compact.png" width="288" alt="L'isola compatta, con le pillole delle integrazioni come mini Slime">
+<img src="screenshots/overview.png" width="640" alt="La panoramica: una sessione di Claude Code al lavoro a sinistra, le altre pillole a destra">
 <img src="screenshots/approval.png" width="640" alt="Una richiesta di permesso di Claude Code, con Nega e Consenti">
 <img src="screenshots/chat.png" width="640" alt="Chat con Claude dall'isola">
 <img src="screenshots/drop.png" width="640" alt="Slime trasformato in una scatola, in attesa di un file">
 
-_Le schermate mostrano ancora il vecchio personaggio e i testi in inglese della versione originale._
+_Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `npm run dev` acceso)._
 
 | Cosa fai | Cosa succede |
 |---|---|
@@ -312,7 +312,7 @@ attivo.
 
 ## Claude Code
 
-<img src="screenshots/settings.png" width="562" alt="La finestra delle impostazioni">
+<img src="screenshots/settings.png" width="700" alt="La finestra delle impostazioni, pagina Aspetto">
 
 Apri **Impostazioni… → Claude Code → Installa hook…**. Vedi il diff esatto di cosa
 cambierà in `%USERPROFILE%\.claude\settings.json` e il percorso della copia di

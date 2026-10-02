@@ -1269,9 +1269,11 @@ export class Island {
     if (!ctx) return;
 
     const focus = State.focusTask;
-    // The character wears the focused integration's colour; the cube keeps the logo's.
-    this.engine.bodyColor = focus?.isIntegration && character() !== "cube"
-      ? hexToRGB(focus.color) : this.themeBody();
+    // The character wears the focused integration's colour; the cube keeps the
+    // logo's. Claude Code (the default focus, white for its pill) keeps the
+    // character's own colour, or the slime would be white most of the time.
+    const wears = focus?.isIntegration && focus.id !== "integration_claude" && character() !== "cube";
+    this.engine.bodyColor = wears ? hexToRGB(focus.color) : this.themeBody();
     this.engine.particleOverhang = BOT_OVERHANG;
     const follow = this.followsCursor();
     this.engine.lookX = follow ? this.lookX() : this.wanderLook.x;

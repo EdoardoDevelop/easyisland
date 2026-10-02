@@ -102,6 +102,11 @@ async function main() {
   // page wake the island so the visuals can be checked with `npm run dev`.
   if (!IS_TAURI) {
     document.addEventListener("click", () => Sound.resume(), { once: true });
+    // Staged states for the README screenshots (dev server only).
+    const scene = new URLSearchParams(location.search).get("scene");
+    if (import.meta.env.DEV && scene) {
+      void import("../dev/scenes").then((m) => m.runScene(island, scene));
+    }
   }
 }
 

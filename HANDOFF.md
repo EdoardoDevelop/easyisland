@@ -189,6 +189,11 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 
 ## 10. Registro delle modifiche
 
+### 2 ottobre 2026 — nuove schermate del README, slime verde con Claude Code
+- **Schermate rifatte** (`screenshots/`, a 2×, sfondo trasparente): saluto, vista compatta, panoramica con una sessione al lavoro, permesso, chat, rilascio file, Impostazioni → Aspetto. Si rigenerano con `node scripts/screenshots.mjs` (tutte o per nome) con `npm run dev` acceso: lo script pilota Edge headless con il DevTools protocol (nessuna dipendenza) e ritaglia l'isola.
+- Scene di sviluppo in `dev/scenes.ts`, attivate da `?scene=…` nell'anteprima del browser (solo `import.meta.env.DEV`, non entrano nell'app); `settings.html?page=aspetto` apre una pagina delle Impostazioni.
+- **Correzione:** con la pillola di Claude Code in primo piano (il caso normale) lo slime prendeva il colore della pillola, bianco, ed era quasi sempre bianco. Ora per Claude Code resta verde (o il colore del tema); le altre integrazioni lo colorano come prima.
+
 ### 2 ottobre 2026 — "Apri" riporta all'app della sessione
 - Prima "Apri terminale" apriva la cartella in VS Code solo se `code` era nel `PATH`, altrimenti in Esplora file: su questo PC `code` non è nel PATH, quindi si apriva sempre la cartella.
 - Il relay ora inoltra anche `CLAUDE_CODE_ENTRYPOINT` (`entrypoint`); il front end ricava dove gira la sessione (`sessionHost`: `desktop` = app Claude, `vscode` = estensione o terminale di VS Code, `wt` = Windows Terminal, `terminal` = altro) e il pulsante si chiama **Apri Claude**, **Apri VS Code** o **Apri terminale**. Vale per la schermata "ha finito", per quella d'errore (prima diceva sempre "Apri in n8n") e per la pillola VS Code.
@@ -301,7 +306,7 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 - [ ] **CPU con "Sempre visibile":** ridotta il 2 ottobre (da circa 24 % a circa 9–10 % col mouse in movimento, circa 4 % fermo). Margini ancora possibili: sguardo a 20 fps, finestra più piccola della 720×320 attuale quando l'isola è compatta.
 - [x] **Scorciatoia `Ctrl+Alt+M`** già usata da un altro programma: la predefinita per aprire Mochi è ora `Ctrl+Alt+Shift+M`. Chi ha già salvato `Ctrl+Alt+M` la tiene: va cambiata a mano in Impostazioni → Azioni rapide.
 - [x] **Icona dell'area di notifica:** era Mochi anche con il cubo; dal 2 ottobre è l'isola, uguale per ogni personaggio.
-- [ ] Le immagini in `screenshots/` e `design/captures/` mostrano ancora Mochi.
+- [x] Le immagini in `screenshots/` (README) sono rifatte con lo slime (2 ottobre); `design/captures/` resta il riferimento originale con Mochi.
 - [ ] **Sopra la barra:** cliccando la barra, Mochi va dietro per un istante (circa 0,15 s) prima di tornare davanti.
 - [ ] Da verificare su Windows reale: controllo del certificato TLS dei widget (6.4). Il ping ora usa `icmp_ms`, già verificata.
 - [ ] "Davanti al cliente" da provare in una chiamata vera (Teams) e con una sessione di assistenza; il calendario con un link ICS reale.

@@ -1674,9 +1674,10 @@ function pages(b: NonNullable<typeof boot>): Page[] {
 const PAGE_KEY = "easyisland.settings.page";
 
 function currentPage(list: Page[]): Page {
-  let id = "";
+  // ?page=aspetto opens a given page (handy for screenshots in the browser preview).
+  let id = new URLSearchParams(location.search).get("page") ?? "";
   try {
-    id = localStorage.getItem(PAGE_KEY) ?? "";
+    id ||= localStorage.getItem(PAGE_KEY) ?? "";
   } catch {
     // Storage can be unavailable: the first page then.
   }

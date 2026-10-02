@@ -12,7 +12,7 @@ EasyIsland è un'app desktop per Windows 10/11: un piccolo personaggio animato (
 - `hook/`: `easyisland-hook.exe`, il relay degli hook di Claude Code; `easyisland-hook notify …` manda un messaggio all'isola da qualsiasi script.
 - Widget e sonde: `src-tauri/src/widgets.rs` (scheduler, ping/TCP/HTTP/TLS/servizio/API JSON), `probes.rs` (stato del PC, sicurezza, rete, meteo, domini), `calendar.rs` (ICS). Profili automatici in `profiles.rs`, "davanti al cliente" in `presence.rs`, azioni rapide in `actions.rs`, scorciatoie globali in `hotkeys.rs`.
 - Suoni: i 28 suoni sono sintetizzati nel codice in `src/core/synth.ts` (niente file audio), riprodotti da `src/core/sound.ts`; si ascoltano in `dev/sounds-preview.html`. Il volume di ciascuno è tarato sul WAV originale che ha sostituito.
-- `scripts/`: `gen-icons.mjs` (icone disegnate nel codice: l'isola, non il personaggio), `pack.mjs` (copia l'installer in `release/`).
+- `scripts/`: `gen-icons.mjs` (icone disegnate nel codice: l'isola, non il personaggio), `pack.mjs` (copia l'installer in `release/`), `screenshots.mjs` (rifà le schermate del README dalle scene di `dev/scenes.ts`, con `npm run dev` acceso).
 - `docs/SPEC.md`, `docs/INTEGRATIONS.md`: comportamento, viste, stati, integrazioni (scritti per l'originale macOS; le differenze di Windows sono nel `README.md`).
 - `design/prototype/notch-buddy.html`: prototipo originale, il riferimento visivo. `design/captures/`: catture di riferimento.
 

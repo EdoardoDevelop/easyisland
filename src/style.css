@@ -59,6 +59,15 @@ html.browser-preview body {
   background: var(--preview-bg, #dfe3e8);
 }
 
+/* dev/scenes.ts: only the island, on a transparent page, for screenshots. */
+html.browser-preview.shot body {
+  background: transparent;
+}
+
+html.browser-preview.shot #root {
+  outline: none;
+}
+
 html.browser-preview #root {
   inset: auto;
   width: 720px;
