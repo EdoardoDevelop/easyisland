@@ -1,9 +1,11 @@
 // "Cosa fai adesso": which app is in front, and the text selected in it, for
 // the suggested actions in the ⚡ tab.
 //
-// Nothing runs in the background: the island asks when it opens. The island
-// never takes the focus on a click, so the app in front is still the user's.
+// A WinEvent hook remembers the last window in front that is not EasyIsland
+// (it only wakes when the foreground changes): the island takes the focus for
+// its chat, and then it would be "the app in front" itself.
 
+use std::sync::atomic::{AtomicIsize, Ordering};
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
@@ -16,7 +18,55 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     GetAsyncKeyState, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VIRTUAL_KEY,
     VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
 };
-use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowTextW, GetWindowThreadProcessId};
+use windows::Win32::UI::Accessibility::{SetWinEventHook, HWINEVENTHOOK};
+use windows::Win32::UI::WindowsAndMessaging::{
+    DispatchMessageW, GetForegroundWindow, GetMessageW, GetWindowTextW, GetWindowThreadProcessId, IsWindow,
+    SetForegroundWindow, EVENT_SYSTEM_FOREGROUND, MSG, WINEVENT_OUTOFCONTEXT,
+};
+
+/// The last window in front that is not EasyIsland.
+static LAST: AtomicIsize = AtomicIsize::new(0);
+
+fn is_ours(hwnd: HWND) -> bool {
+    exe_of(hwnd).is_none_or(|e| e == "easyisland.exe")
+}
+
+unsafe extern "system" fn on_foreground(
+    _hook: HWINEVENTHOOK, _event: u32, hwnd: HWND, _obj: i32, _child: i32, _thread: u32, _time: u32,
+) {
+    if !hwnd.0.is_null() && !is_ours(hwnd) {
+        LAST.store(hwnd.0 as isize, Ordering::Relaxed);
+    }
+}
+
+/// Starts following the foreground window.
+pub fn spawn() {
+    std::thread::spawn(|| unsafe {
+        let now = GetForegroundWindow();
+        if !now.0.is_null() && !is_ours(now) {
+            LAST.store(now.0 as isize, Ordering::Relaxed);
+        }
+        let _hook = SetWinEventHook(
+            EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, None, Some(on_foreground), 0, 0, WINEVENT_OUTOFCONTEXT,
+        );
+        let mut msg = MSG::default();
+        while GetMessageW(&mut msg, None, 0, 0).as_bool() {
+            DispatchMessageW(&msg);
+        }
+    });
+}
+
+/// The user's window: the one in front, or the last one before the island took over.
+fn target() -> Option<HWND> {
+    unsafe {
+        let now = GetForegroundWindow();
+        if !now.0.is_null() && !is_ours(now) {
+            return Some(now);
+        }
+        let last = HWND(LAST.load(Ordering::Relaxed) as *mut _);
+        (!last.0.is_null() && IsWindow(Some(last)).as_bool()).then_some(last)
+    }
+}
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -44,17 +94,11 @@ fn exe_of(hwnd: HWND) -> Option<String> {
     }
 }
 
-/// The app in front, unless it is EasyIsland itself.
+/// The user's app: the one in front, or the last one before the island.
 pub fn foreground() -> Option<Foreground> {
     unsafe {
-        let hwnd = GetForegroundWindow();
-        if hwnd.0.is_null() {
-            return None;
-        }
+        let hwnd = target()?;
         let exe = exe_of(hwnd)?;
-        if exe == "easyisland.exe" {
-            return None;
-        }
         let mut buf = [0u16; 512];
         let n = GetWindowTextW(hwnd, &mut buf);
         let title = String::from_utf16_lossy(&buf[..n.max(0) as usize]);
@@ -74,8 +118,21 @@ fn key(vk: VIRTUAL_KEY, up: bool) -> INPUT {
 /// The text selected in the app in front: Ctrl+C, read, then the clipboard is
 /// put back as it was. None when nothing was selected.
 pub fn selection() -> Option<String> {
-    // Ctrl+C must reach the user's app, never the island (focused for its chat).
-    foreground()?;
+    // Ctrl+C must reach the user's app, never the island (focused for its chat):
+    // give the focus back to the user's window first.
+    let hwnd = target()?;
+    unsafe {
+        if GetForegroundWindow() != hwnd {
+            let _ = SetForegroundWindow(hwnd);
+            let start = Instant::now();
+            while GetForegroundWindow() != hwnd && start.elapsed() < Duration::from_millis(400) {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            if GetForegroundWindow() != hwnd {
+                return None;
+            }
+        }
+    }
     // A shortcut may still be held (Ctrl+Alt+…): Ctrl+C would become something else.
     let held = || unsafe {
         [VK_MENU, VK_SHIFT, VK_LWIN, VK_RWIN, VK_CONTROL]

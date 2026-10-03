@@ -805,6 +805,7 @@ pub fn run() {
             profiles::spawn_auto_switch(handle.clone());
             hotkeys::spawn(handle.clone());
             clipboard::spawn(handle.clone());
+            context::spawn();
             media::spawn(handle.clone());
             widgets::start(handle.clone());
 

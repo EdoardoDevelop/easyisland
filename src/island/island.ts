@@ -414,6 +414,7 @@ export class Island {
   }
 
   setView(view: IslandViewName) {
+    if (view === "actions") void this.refreshForeground();
     this.stopSequenceIfLeaving(view);
     if (State.mode !== "expanded") {
       this.fsm.forceHome();
