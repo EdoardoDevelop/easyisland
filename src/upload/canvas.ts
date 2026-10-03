@@ -7,11 +7,9 @@
 
 import { State, type QuickAction } from "../core/state";
 import { fileActions } from "../views/actions";
-import { character, drawCube, onRightFace } from "../character/cube";
+import { character, type SoftCharacter } from "../character/character";
+import { drawCube, onRightFace } from "../character/cube";
 import { hexToRGB } from "../character/engine";
-import {
-  SLIME_GREEN, drawSlimeBody, drawSlimeEye, slimePalette, slimePoint,
-} from "../character/slime";
 import {
   USC, eIn, eInOut, eOut, lerp, progressAt,
   type UploadEyeShape, type UploadFrame,
@@ -26,17 +24,18 @@ function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: n
   ctx.roundRect(x, y, w, h, rad);
 }
 
-/** The slime, turning into a box (superellipse, as in usBodyPath) as `m` → 1. */
-function bodyPath(m: number, R: number): { path: Path2D; rx: number; ry: number } {
+/** The character, turning into a box (superellipse, as in usBodyPath) as `m` → 1. */
+function bodyPath(c: SoftCharacter, m: number, R: number): { path: Path2D; rx: number; ry: number } {
   const mc = Math.max(0, Math.min(m, 1));
-  const rx = R * lerp(1.18, 1.0, mc);
-  const ry = R * lerp(0.82, 0.94, mc);
+  // At rest a touch narrower and taller than in the island (Slime: 1.18 × 0.82 R).
+  const rx = R * lerp(c.size.hw * 0.967, 1.0, mc);
+  const ry = R * lerp(c.size.hh * 1.025, 0.94, mc);
   const ctx = new Path2D();
   for (let i = 0; i <= 96; i++) {
     const a = (i / 96) * Math.PI * 2;
     const ca = Math.cos(a);
     const sa = Math.sin(a);
-    const s = slimePoint(ca, sa, rx, ry);
+    const s = c.point(ca, sa, rx, ry);
     const bx = rx * Math.sign(ca) * Math.pow(Math.abs(ca), 2 / 5.5);
     const by = ry * Math.sign(sa) * Math.pow(Math.abs(sa), 2 / 5.5);
     const px = lerp(s.x, bx, mc);
@@ -48,10 +47,10 @@ function bodyPath(m: number, R: number): { path: Path2D; rx: number; ry: number 
   return { path: ctx, rx, ry };
 }
 
-/** The theme's body colour, or the character's green. */
-function themeBase() {
-  const c = State.settings.theme?.slimeColor;
-  return c && /^#[0-9a-f]{6}$/i.test(c) ? hexToRGB(c) : SLIME_GREEN;
+/** The theme's body colour, or the character's own. */
+function themeBase(c: SoftCharacter) {
+  const hex = State.settings.theme?.slimeColor;
+  return hex && /^#[0-9a-f]{6}$/i.test(hex) ? hexToRGB(hex) : c.color;
 }
 
 function text(
@@ -445,7 +444,8 @@ export class UploadCanvas {
     ctx.rotate(f.tilt);
     ctx.scale(f.sx, f.sy);
 
-    if (character() === "cube") {
+    const c = character();
+    if (c.kind === "cube") {
       // Already a box: the slot opens in the top face, the eyes look out of the side.
       const s = R * 1.02;
       const look = { slot: f.mouth * mc, turn: f.lookX * 0.7, tip: -f.lookY * 0.7 };
@@ -476,9 +476,9 @@ export class UploadCanvas {
       return;
     }
 
-    const { path: body, rx, ry } = bodyPath(f.morph, R);
-    const look = { palette: slimePalette(themeBase()), gloss: 1 - mc * 0.6 };
-    drawSlimeBody(ctx, body, rx, ry, look);
+    const { path: body, rx, ry } = bodyPath(c, f.morph, R);
+    const look = { palette: c.palette(themeBase(c)), gloss: 1 - mc * 0.6 };
+    c.drawBody(ctx, body, rx, ry, look);
 
     // The body path is reused as a clip for everything drawn inside it.
     ctx.save();
@@ -521,15 +521,17 @@ export class UploadCanvas {
     }
 
     // Eyes.
-    const er = R * (0.17 - 0.02 * mc);
-    const ey = R * (0.06 + 0.24 * mc);
-    const sp = R * 0.34;
+    // From the character's face (as the engine places it, a little smaller) to
+    // the box's eyes, low and wide apart.
+    const er = R * (c.face.eyeRadius * 0.85 - 0.02 * mc);
+    const ey = lerp(Math.sin(c.face.eyeDrop) * 0.95 * ry, R * 0.3, mc);
+    const sp = lerp(Math.sin(c.face.eyeSpread) * 0.95 * rx, R * 0.34, mc);
     const lx = f.lookX * R * (0.3 - 0.08 * mc);
     const ly = f.lookY * R * (0.16 - 0.09 * mc);
     for (const sd of [-1, 1]) {
       ctx.save();
       ctx.translate(sd * sp + lx, ey + ly);
-      if (f.eye === "pill") drawSlimeEye(ctx, er, 1, INK);
+      if (f.eye === "pill") c.drawEye(ctx, er, 1, INK);
       else drawEye(ctx, f.eye, er * 1.5, er * 2.6);
       ctx.restore();
     }

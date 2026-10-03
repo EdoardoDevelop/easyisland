@@ -332,14 +332,16 @@ attivo.
   finché la situazione non cambia.
 - **Notifiche**: tutto, solo avvisi, oppure solo le richieste di permesso
   (com'è *Concentrazione* all'inizio).
-- **Tema**: il personaggio (**Slime** o **EasyTech**), il suo colore, colore e
-  opacità dell'isola, volume separato per avvisi, interfaccia ed emozioni.
-  Slime è uno slime di gelatina verde che ondeggia quando si muove; EasyTech è
-  un cubo, a riposo con i colori del logo da cui è disegnato. Negli altri stati
-  entrambi prendono il colore dello stato (blu mentre lavora, ambra per un
-  permesso, rosso per un errore…). EasyTech ha gli occhi su un lato, con le
-  stesse espressioni, e segue il mouse come Slime. Anteprima senza compilare: `npm run ui`, poi aggiungi
-  `?character=cube` all'indirizzo.
+- **Tema**: il personaggio (**Slime**, **Goccia** o **EasyTech**), il suo
+  colore, colore e opacità dell'isola, volume separato per avvisi, interfaccia
+  ed emozioni. Slime è uno slime di gelatina verde che ondeggia quando si
+  muove; Goccia è un piccolo spirito d'acqua azzurro, lucido, a forma di goccia;
+  EasyTech è un cubo, a riposo con i colori del logo da cui è disegnato. Negli
+  altri stati tutti prendono il colore dello stato (blu mentre lavora, ambra per
+  un permesso, rosso per un errore…). EasyTech ha gli occhi su un lato, con le
+  stesse espressioni, e segue il mouse come gli altri. Anteprima senza
+  compilare: `npm run ui`, poi aggiungi `?character=drop` o `?character=cube`
+  all'indirizzo.
 - **Backup e trasferimento**: *Esporta…* salva tutte le impostazioni (profili
   compresi) in un file JSON nella cartella Documenti; *Importa…* le carica su un
   altro PC. Le chiavi API non sono mai nel file: vanno reinserite.
@@ -475,7 +477,7 @@ mano. Tienine una copia al sicuro.
 ```
 ./
   src/                 front end dell'isola (TypeScript, nessun framework)
-    character/         Slime, EasyTech e il saluto all'avvio, in Canvas 2D
+    character/         i personaggi (Slime, Goccia, EasyTech) e il saluto all'avvio, in Canvas 2D
     island/            macchina a stati, hook, integrazioni
     views/             tutte le viste dell'isola
     settings/          la finestra delle impostazioni

@@ -3,8 +3,10 @@
 // the rest belongs to this PC.
 
 import "./settings.css";
+import "../character/roster";
+import { characters, type RGB } from "../character/character";
 import { Bridge, onEvent, type HookStatus } from "../core/bridge";
-import { DEFAULT_SETTINGS, type QuickAction, type IntegrationConfig, type Settings, type Theme, type WidgetDef } from "../core/state";
+import { DEFAULT_SETTINGS, type QuickAction, type IntegrationConfig, type Settings, type WidgetDef } from "../core/state";
 import { h, clear } from "../views/dom";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 
@@ -1495,28 +1497,46 @@ function colorField(current: string, fallback: string, onCommit: (v: string) => 
   return row;
 }
 
+/** "#rrggbb" for a 0…1 colour. */
+function rgbHex(c: RGB): string {
+  return `#${c.map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("")}`;
+}
+
 function themeSection(): HTMLElement {
   const t = settings.theme;
   const commit = () => void save();
   const pct = (v: number) => Math.round(v * 100);
+  // The colour row follows the character: its own colour is the default, and
+  // the cube has none to change (it keeps the logo's).
+  const colorRow = h("div", { class: "row" });
+  const drawColorRow = () => {
+    clear(colorRow);
+    const c = characters().find((x) => x.id === t.character) ?? characters()[0];
+    if (c.kind === "cube") {
+      colorRow.append(h("label", { text: "Colore" }),
+        h("span", { class: "hint note", text: "EasyTech a riposo ha i colori del logo; negli altri stati prende il colore dello stato" }));
+      return;
+    }
+    colorRow.append(
+      h("label", { text: `Colore di ${c.name}` }),
+      colorField(t.slimeColor, rgbHex(c.color), (v) => { t.slimeColor = v; commit(); }, "Il suo"),
+      h("span", { class: "hint note", text: `negli altri stati ${c.name} prende il colore dello stato` }),
+    );
+  };
+  drawColorRow();
   return h(
     "section",
     {},
     h("h2", {}, h("span", { text: "Tema" }), profileChip()),
     h("div", { class: "row" },
       h("label", { text: "Personaggio" }),
-      select<Theme["character"]>(
-        [["slime", "Slime"], ["cube", "EasyTech"]],
-        t.character ?? "slime",
-        (v) => { t.character = v; commit(); },
+      select<string>(
+        characters().map((c) => [c.id, c.name] as [string, string]),
+        t.character ?? characters()[0].id,
+        (v) => { t.character = v; commit(); drawColorRow(); },
       ),
-      h("span", { class: "hint note", text: "EasyTech a riposo ha i colori del logo; negli altri stati prende il colore dello stato, come Slime" }),
     ),
-    h("div", { class: "row" },
-      h("label", { text: "Colore di Slime" }),
-      colorField(t.slimeColor, "#5ec738", (v) => { t.slimeColor = v; commit(); }, "Verde"),
-      h("span", { class: "hint note", text: "negli altri stati Slime prende il colore dello stato" }),
-    ),
+    colorRow,
     h("div", { class: "row" },
       h("label", { text: "Colore dell'isola" }),
       colorField(t.islandColor, "#000000", (v) => { t.islandColor = v || "#000000"; commit(); }, "Nero"),

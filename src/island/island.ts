@@ -12,7 +12,7 @@ import {
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
-import { character, setCharacter } from "../character/cube";
+import { character, setCharacter } from "../character/character";
 import { Greeting } from "../character/greeting";
 import { createMiniBot, pruneMiniBots, syncMiniBotStates, tickMiniBots } from "../character/minibots";
 import { UploadCanvas } from "../upload/canvas";
@@ -876,7 +876,7 @@ export class Island {
   private drawRestIcon() {
     const p = this.placement;
     const state = State.effectiveState;
-    const key = `${p.iconStyle}|${p.iconSize}|${state}|${State.paused}|${State.settings.theme.slimeColor}|${character()}`;
+    const key = `${p.iconStyle}|${p.iconSize}|${state}|${State.paused}|${State.settings.theme.slimeColor}|${character().id}`;
     if (key === this.restKey) return;
     this.restKey = key;
 
@@ -1310,10 +1310,10 @@ export class Island {
     if (!ctx) return;
 
     const focus = State.focusTask;
-    // The character wears the focused integration's colour; the cube keeps the
-    // logo's. Claude Code (the default focus, white for its pill) keeps the
+    // The character wears the focused integration's colour, unless it has a fixed
+    // look (the cube keeps the logo's). Claude Code (the default focus, white for its pill) keeps the
     // character's own colour, or the slime would be white most of the time.
-    const wears = focus?.isIntegration && focus.id !== "integration_claude" && character() !== "cube";
+    const wears = focus?.isIntegration && focus.id !== "integration_claude" && character().wearsIntegrationColor;
     this.engine.bodyColor = wears ? hexToRGB(focus.color) : this.themeBody();
     this.engine.particleOverhang = BOT_OVERHANG;
     const follow = this.followsCursor();

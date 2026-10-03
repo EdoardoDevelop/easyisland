@@ -1,10 +1,13 @@
 // Dev harness: plays the whole drop sequence in a plain browser so the
 // choreography can be watched without an OLE drag. Not part of the app bundle.
 
+import "../src/character/roster";
+import { setCharacter } from "../src/character/character";
 import { UploadCanvas } from "../src/upload/canvas";
 import { UploadSeq } from "../src/upload/sequence";
 import { State, type QuickAction } from "../src/core/state";
 
+setCharacter(new URLSearchParams(location.search).get("character") ?? undefined);
 State.droppedFile = { name: "rapport-q3.pdf", path: "C:/tmp/rapport-q3.pdf" };
 
 // File actions on the choose card; `?azioni=0` shows the card without them.

@@ -6,23 +6,13 @@
 // the state's colour, as the slime does. It is a real cube in orthographic
 // projection: looking at the cursor turns and tips it, and since every face is
 // an exact affine image of a square, the stripes and the eyes stay painted on.
-// Every drawer (the engine, the launch greeting, the file drop) asks
-// `character()` and draws its own eyes through `onRightFace`.
+// The drawers (the engine, the launch greeting, the file drop) recognise it by
+// its kind, "cube" (see character.ts), and draw its eyes through `onRightFace`.
 
-export type Character = "slime" | "cube";
-type RGB = readonly [number, number, number];
+import type { CubeCharacter, RGB } from "./character";
+
 type P = readonly [number, number];
 type V3 = readonly [number, number, number];
-
-let current: Character = "slime";
-
-export function setCharacter(c: Character | string | undefined) {
-  current = c === "cube" ? "cube" : "slime";
-}
-
-export function character(): Character {
-  return current;
-}
 
 /** The logo's faces: top, left, right (0…1). */
 const LOGO = {
@@ -245,3 +235,13 @@ export function onRightFace(
   draw(s);
   x.restore();
 }
+
+export const CUBE: CubeCharacter = {
+  kind: "cube",
+  id: "cube",
+  name: "EasyTech (cubo)",
+  color: LOGO.left,
+  aspect: 1.34,
+  // The logo's colours are its identity: it does not wear the integrations'.
+  wearsIntegrationColor: false,
+};
