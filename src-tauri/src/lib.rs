@@ -6,6 +6,7 @@ mod calendar;
 mod claude;
 mod claude_cli;
 mod clipboard;
+mod context;
 mod drop;
 mod files;
 mod hooks;
@@ -612,6 +613,18 @@ fn clipboard_clear(app: AppHandle) {
     clipboard::clear(&app);
 }
 
+/// The app in front, for the suggested actions in the ⚡ tab.
+#[tauri::command]
+fn foreground_app() -> Option<context::Foreground> {
+    context::foreground()
+}
+
+/// The text selected in the app in front (copied, then the clipboard restored).
+#[tauri::command]
+async fn capture_selection() -> Option<String> {
+    tauri::async_runtime::spawn_blocking(context::selection).await.ok().flatten()
+}
+
 /// Musica: "toggle", "prev" or "next".
 #[tauri::command]
 fn media_command(command: String) {
@@ -766,6 +779,8 @@ pub fn run() {
             clipboard_remove,
             clipboard_clear,
             media_command,
+            foreground_app,
+            capture_selection,
             open_n8n,
             open_zammad,
             open_settings_window,

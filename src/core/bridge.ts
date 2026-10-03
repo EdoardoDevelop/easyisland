@@ -131,6 +131,9 @@ export const Bridge = {
   clipboardPin: (id: number, pinned: boolean) => call<void>("clipboard_pin", { id, pinned }),
   clipboardRemove: (id: number) => call<void>("clipboard_remove", { id }),
   clipboardClear: () => call<void>("clipboard_clear"),
+  /** The app in front, and the text selected in it (⚡ suggestions). */
+  foregroundApp: () => call<{ exe: string; title: string } | null>("foreground_app"),
+  captureSelection: () => call<string | null>("capture_selection"),
   /** Musica: "toggle", "prev", "next". */
   mediaCommand: (command: string) => call<void>("media_command", { command }),
   hotkeyFailures: () => call<string[]>("hotkey_failures"),

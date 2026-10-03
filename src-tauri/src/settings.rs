@@ -340,6 +340,9 @@ pub struct Settings {
     /// Global shortcut: open the clipboard history (Appunti).
     #[serde(default = "default_hotkey_clipboard")]
     pub hotkey_clipboard: String,
+    /// ⚡ tab: actions suggested for the app in front (Outlook, Excel, the browser…).
+    #[serde(default = "default_true")]
+    pub context_actions: bool,
     /// Look for a new version on GitHub at start and once a day. Belongs to the PC.
     #[serde(default = "default_true")]
     pub update_check: bool,
@@ -457,6 +460,7 @@ impl Default for Settings {
             hotkey_open: default_hotkey_open(),
             hotkey_ask: default_hotkey_ask(),
             hotkey_clipboard: default_hotkey_clipboard(),
+            context_actions: true,
             update_check: true,
             integration_config: IntegrationConfig::default(),
             pending_secrets: Vec::new(),

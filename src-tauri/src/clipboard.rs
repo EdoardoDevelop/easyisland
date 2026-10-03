@@ -55,6 +55,12 @@ struct Clip {
 static HISTORY: Mutex<Vec<Clip>> = Mutex::new(Vec::new());
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 static APP: OnceLock<AppHandle> = OnceLock::new();
+/// Copies made by EasyIsland itself to read a selection (context.rs) stay out of the history.
+static IGNORE_UNTIL: Mutex<Option<std::time::Instant>> = Mutex::new(None);
+
+pub fn ignore_next(for_how_long: Duration) {
+    *IGNORE_UNTIL.lock().unwrap() = Some(std::time::Instant::now() + for_how_long);
+}
 
 fn now_ms() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
@@ -165,6 +171,9 @@ unsafe fn is_private() -> bool {
 fn on_change() {
     let Some(app) = APP.get() else { return };
     if integrations::PAUSED.load(Ordering::Relaxed) || !integrations::enabled(app, ID) {
+        return;
+    }
+    if IGNORE_UNTIL.lock().unwrap().is_some_and(|t| std::time::Instant::now() < t) {
         return;
     }
     if unsafe { is_private() } {

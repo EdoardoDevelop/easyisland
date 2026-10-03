@@ -9,6 +9,7 @@ import {
   chatPromptHeight, collapsedBox, compactSize, cornerRadii, glueFor, isGlued, islandSize,
   type IslandMode, type IslandViewName, type Placement,
 } from "../core/layout";
+import type { Suggestion } from "./context";
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
@@ -216,6 +217,7 @@ export class Island {
       blip: () => Sound.play("blip"),
       installUpdate: () => void this.installUpdate(),
       runAction: (a) => void this.runAction(a),
+      runSuggestion: (sg, app) => void this.runSuggestion(sg, app),
       confirmRun: () => void this.startScript(),
       killRun: () => {
         if (State.run?.status === "running") void Bridge.actionKill(State.run.runId);
@@ -323,7 +325,10 @@ export class Island {
     const prev = State.mode;
     if (mode === prev) return;
     State.mode = mode;
-    if (mode === "expanded") Sound.play("open");
+    if (mode === "expanded") {
+      Sound.play("open");
+      void this.refreshForeground();
+    }
     if (prev === "expanded") {
       Sound.play("close");
       State.isPinned = false;
@@ -478,6 +483,28 @@ export class Island {
     }
     this.setView("prompt");
     if (question.trim()) window.setTimeout(() => sendToChat(question), 60);
+  }
+
+  /** Which app is in front, for the ⚡ suggestions (src/island/context.ts). */
+  private async refreshForeground() {
+    if (State.settings.contextActions === false) return;
+    const fg = await Bridge.foregroundApp();
+    // Opening the chat may focus the island itself: keep the last real app then.
+    if (fg) {
+      State.foreground = fg;
+      State.notify();
+    }
+  }
+
+  /** A suggestion: copy the selection in the app in front, then ask Claude. */
+  async runSuggestion(s: Suggestion, app: string) {
+    Sound.play("blip");
+    const text = await Bridge.captureSelection();
+    if (!text) {
+      this.note(`Seleziona prima il testo${app ? ` in ${app}` : ""}, poi scegli l'azione.`);
+      return;
+    }
+    this.startChat(s.prompt, { label: app ? `Testo da ${app}` : "Testo selezionato", text }, false);
   }
 
   async runAction(a: QuickAction) {

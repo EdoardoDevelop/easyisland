@@ -214,6 +214,8 @@ export interface Settings {
   hotkeyAsk: string;
   /** Opens the clipboard history (Appunti). */
   hotkeyClipboard: string;
+  /** ⚡ tab: actions suggested for the app in front. */
+  contextActions: boolean;
   /** Look for a new version on GitHub at start and once a day. */
   updateCheck: boolean;
   /** Options of the integrations that run as checks (PROBE_INTEGRATIONS). Belongs to the PC. */
@@ -385,6 +387,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hotkeyOpen: "Ctrl+Alt+Shift+M",
   hotkeyAsk: "Ctrl+Alt+K",
   hotkeyClipboard: "Ctrl+Alt+H",
+  contextActions: true,
   updateCheck: true,
   integrationConfig: { systemWarn: 10, outlookWarn: 10, weatherCity: "" },
 };
@@ -394,6 +397,9 @@ type Listener = () => void;
 class AppState {
   mode: IslandMode = "hidden";
   view: IslandViewName = "overview";
+
+  /** The app in front when the island last opened (src/island/context.ts). */
+  foreground: { exe: string; title: string } | null = null;
 
   tasks: AgentTask[] = [];
   focusId: string | null = null;

@@ -194,6 +194,12 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 
 ## 10. Registro delle modifiche
 
+### 3 ottobre 2026 — "Cosa fai adesso": azioni suggerite per l'app in primo piano
+- In cima alla scheda ⚡ compare "Per Outlook / Excel / Word / PowerPoint / Browser / Codice / Terminale / Teams / PDF" con 2-3 pulsanti (es. Outlook: Riassumi la mail, Scrivi una risposta, Cosa devo fare?); per ogni altra app tre azioni generiche (Riassumi, Traduci, Correggi) col nome del programma. Regole e prompt in `src/island/context.ts` (`RULES`, `suggestionsFor`); desktop e barra delle applicazioni esclusi.
+- **Come funziona** (`src-tauri/src/context.rs`): quando l'isola si apre (`setMode("expanded")` → `refreshForeground`) chiede l'app in primo piano (`foreground_app`: exe e titolo della finestra, EasyIsland escluso). Niente in background. Al clic su un suggerimento `capture_selection` aspetta che i tasti modificatori siano rilasciati, manda Ctrl+C all'app (l'isola non prende il focus), attende il cambio degli appunti (max 600 ms), legge il testo e **rimette negli appunti il testo di prima**; la copia non entra nella cronologia Appunti (`clipboard::ignore_next`). Se l'app in primo piano è l'isola stessa non manda nulla. Senza testo selezionato: "Seleziona prima il testo in …". Poi apre la chat con il prompt e il testo come contesto ("Testo da Outlook").
+- Interruttore "Suggerimenti per l'app in uso" in Impostazioni → Azioni rapide (`contextActions`, del PC, acceso di serie).
+- Verificato nell'anteprima del browser con un'app finta (Outlook). **Da provare nell'app installata:** Ctrl+C reale in Outlook/Excel/browser e ripristino degli appunti; con Excel si copiano i valori delle celle, non le formule (per "Spiega la formula" va selezionato il testo nella barra della formula).
+
 ### 3 ottobre 2026 — icone più grandi e colorate
 - Ogni pulsante con icona ha il suo colore in `--c` (impostato nel codice): il simbolo è disegnato in quel colore su una tinta leggera dello stesso colore (`color-mix`), più forte al passaggio del mouse e quando è attivo. Regole in fondo a `src/style.css` ("Colourful icons") e `src/settings/settings.css`.
 - **Barra dell'isola:** schede più grandi (34×26, icone 16 px) e colorate: ⌂ azzurro, 💬 viola, ⚡ ambra, + verde; impostazioni grigio-blu, audio ciano (rosso se muto), chiudi rosso. Pallino più grande nelle schede delle integrazioni.
