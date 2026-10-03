@@ -333,8 +333,9 @@ attivo.
 - **Notifiche**: tutto, solo avvisi, oppure solo le richieste di permesso
   (com'è *Concentrazione* all'inizio).
 - **Tema**: il personaggio (**Slime**, **Goccia** o **EasyTech**), il suo
-  colore, colore e opacità dell'isola, volume separato per avvisi, interfaccia
-  ed emozioni. Slime è uno slime di gelatina verde che ondeggia quando si
+  colore, colore e opacità dell'isola, **sfondo a isola chiusa** (spento, a
+  isola chiusa resta solo il personaggio, senza il cerchio o la barra), volume
+  separato per avvisi, interfaccia ed emozioni. Slime è uno slime di gelatina verde che ondeggia quando si
   muove; Goccia è un piccolo spirito d'acqua azzurro, lucido, a forma di goccia;
   EasyTech è un cubo, a riposo con i colori del logo da cui è disegnato. Negli
   altri stati tutti prendono il colore dello stato (blu mentre lavora, ambra per

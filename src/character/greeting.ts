@@ -6,7 +6,7 @@ import { COMPACT_W, NOTCH_H, NOTCH_W } from "../core/layout";
 import {
   character, handStops as softHandStops, mix, outlinePath, rgba, type Palette, type SoftCharacter,
 } from "./character";
-import { cubeHandStops, drawCube, onRightFace } from "./cube";
+import { CUBE_EYE_X, CUBE_EYE_Y, CUBE_TIP, CUBE_TURN, cubeHandStops, drawCube, onRightFace } from "./cube";
 import { hexToRGB } from "./engine";
 import { SLIME } from "./slime";
 
@@ -366,13 +366,13 @@ function drawCharacter(x: CanvasRenderingContext2D, p: Pose) {
 
   if (c.kind === "cube") {
     const cs = hh * 1.05;
-    const look = { col: [0.498, 0.706, 0.918] as const, tint: p.tint, turn: p.lookX * 0.6, tip: -p.lookY * 0.6 };
+    const look = { col: [0.498, 0.706, 0.918] as const, tint: p.tint, turn: p.lookX * CUBE_TURN, tip: -p.lookY * CUBE_TIP };
     drawCube(x, cs, look);
     onRightFace(x, cs, (side) => {
       x.fillStyle = "#16171A";
       x.strokeStyle = "#16171A";
-      greetEyes(x, p, p.hb * 0.06, side * 0.18, p.lookX * side * 0.06,
-        p.lookY * side * 0.05 - side * 0.04 + p.eyeRoll * side * 0.45, true);
+      greetEyes(x, p, p.hb * 0.06, side * 0.18, p.lookX * side * CUBE_EYE_X * 0.8,
+        p.lookY * side * CUBE_EYE_Y * 0.8 - side * 0.04 + p.eyeRoll * side * 0.45, true);
     }, look);
   } else {
     drawCharacterBody(x, p, c, hw, hh);

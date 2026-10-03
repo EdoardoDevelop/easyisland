@@ -14,6 +14,25 @@ import type { CubeCharacter, RGB } from "./character";
 type P = readonly [number, number];
 type V3 = readonly [number, number, number];
 
+/**
+ * Following the cursor: how much of the gaze (−1…1) turns the whole cube, and
+ * how far the eyes slide across their face for a full gaze, in face widths.
+ * The eyes do most of the looking; the cube only leans into it.
+ */
+export const CUBE_TURN = 0.38;
+/** Up and down the cube leans even less: at rest it already looks down, so looking up swings it far. */
+export const CUBE_TIP = 0.18;
+export const CUBE_EYE_X = 0.3;
+export const CUBE_EYE_Y = 0.26;
+
+/**
+ * How far the pair of eyes, `spread` either side of the centre, can shift on a
+ * face of `side` before the outer one reaches the edge (`half` = an eye's half-width).
+ */
+export function cubeEyeRoom(side: number, spread: number, half: number): number {
+  return Math.max(0, side * 0.5 - side * 0.03 - half - spread);
+}
+
 /** The logo's faces: top, left, right (0…1). */
 const LOGO = {
   top: [0.969, 0.682, 0.169] as RGB, // #F7AE2B

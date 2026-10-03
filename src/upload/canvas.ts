@@ -8,7 +8,7 @@
 import { State, type QuickAction } from "../core/state";
 import { fileActions } from "../views/actions";
 import { character, type SoftCharacter } from "../character/character";
-import { drawCube, onRightFace } from "../character/cube";
+import { CUBE_EYE_X, CUBE_EYE_Y, CUBE_TIP, CUBE_TURN, drawCube, onRightFace } from "../character/cube";
 import { hexToRGB } from "../character/engine";
 import {
   USC, eIn, eInOut, eOut, lerp, progressAt,
@@ -448,7 +448,7 @@ export class UploadCanvas {
     if (c.kind === "cube") {
       // Already a box: the slot opens in the top face, the eyes look out of the side.
       const s = R * 1.02;
-      const look = { slot: f.mouth * mc, turn: f.lookX * 0.7, tip: -f.lookY * 0.7 };
+      const look = { slot: f.mouth * mc, turn: f.lookX * CUBE_TURN, tip: -f.lookY * CUBE_TIP };
       drawCube(ctx, s, look);
       onRightFace(ctx, s, (side) => {
         ctx.fillStyle = "#16171A";
@@ -459,8 +459,8 @@ export class UploadCanvas {
         for (const sd of [-1, 1]) {
           ctx.save();
           ctx.translate(
-            Math.max(-lim, Math.min(lim, sd * side * 0.2 + f.lookX * side * 0.05)),
-            Math.max(-lim, Math.min(lim, f.lookY * side * 0.04 - side * 0.04)),
+            Math.max(-lim, Math.min(lim, sd * side * 0.2 + f.lookX * side * CUBE_EYE_X * 0.6)),
+            Math.max(-lim, Math.min(lim, f.lookY * side * CUBE_EYE_Y * 0.6 - side * 0.04)),
           );
           if (f.eye === "pill") {
             // The cube's square-cornered eyes.

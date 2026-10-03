@@ -336,6 +336,7 @@ export class Island {
       // nothing while hidden.
       UploadSeq.deactivate();
     }
+    this.applyBare();
     this.updateWindowCollapsed();
     this.animateGeometry(modeOrder(mode) < modeOrder(prev));
     this.scheduleWander();
@@ -918,6 +919,15 @@ export class Island {
     return c && /^#[0-9a-f]{6}$/i.test(c) ? hexToRGB(c) : null;
   }
 
+  /**
+   * "Sfondo a isola chiusa" off: while the island is not open, its background
+   * goes away and only the character is left.
+   */
+  private applyBare() {
+    const bare = State.mode !== "expanded" && State.settings.theme?.compactBackground === false;
+    this.islandEl.classList.toggle("bare", bare);
+  }
+
   /** Island colour/opacity and per-family volumes from the theme. */
   private applyTheme() {
     const t = State.settings.theme;
@@ -926,6 +936,7 @@ export class Island {
     const n = parseInt(hex.slice(1), 16);
     const a = Math.max(0.5, Math.min(1, t.islandOpacity));
     this.islandEl.style.background = `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+    this.applyBare();
     Sound.setFamilyGains({ alerts: t.volumeAlerts, ui: t.volumeUi, emotes: t.volumeEmotes });
   }
 

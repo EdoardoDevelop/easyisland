@@ -194,6 +194,12 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 
 ## 10. Registro delle modifiche
 
+### 3 ottobre 2026 — sfondo a isola chiusa
+- Nuova opzione del tema `theme.compactBackground` (predefinita accesa; Impostazioni → Aspetto → Tema, "Sfondo a isola chiusa"). Spenta, mentre l'isola non è aperta (vista compatta: al passaggio del mouse o "Sempre visibile") lo sfondo dell'isola diventa trasparente (`#island.bare`, `applyBare` in `island.ts`) e resta solo il personaggio, con l'ombra leggera dell'icona a riposo; aprendo l'isola il colore torna con una dissolvenza. L'icona a riposo (isola nascosta) non aveva già sfondo. Verificato nell'anteprima del browser.
+
+### 3 ottobre 2026 — EasyTech: lo sguardo lo fanno gli occhi
+- Seguendo il cursore il cubo ruotava quasi per intero (tutto lo sguardo −1…1 andava nella rotazione) e gli occhi scorrevano solo del 17% della faccia, fermati da un limite per occhio. Ora (costanti in `cube.ts`) il cubo si inclina appena (`CUBE_TURN` 0.38 in orizzontale, `CUBE_TIP` 0.18 in verticale, perché a riposo guarda già in basso) e la coppia di occhi scorre fino a quasi il bordo della faccia (`CUBE_EYE_X` 0.3, `CUBE_EYE_Y` 0.26, `cubeEyeRoom`) senza stringersi. Stesse proporzioni nel motore, nel saluto e nel caricamento. Verificato nell'anteprima nelle 9 direzioni.
+
 ### 3 ottobre 2026 — personaggi intercambiabili, nuovo personaggio Goccia
 - **Contratto comune** (`src/character/character.ts`): registro (`registerCharacters`, `characters()`, `character()`, `setCharacter`) ed elenco in `roster.ts`. Due famiglie: **soft** (`SoftCharacter`: `point` per il contorno, `palette`, `drawBody`, `drawEye`, più `size`, `face`, `aspect`, `color`, `wobbles`) ed EasyTech, il cubo 3D (`kind: "cube"`, disegnato da `cube.ts`). Motore, saluto, caricamento file e isola non nominano più nessun personaggio: chiedono `character()` e usano `kind` solo per distinguere il cubo. Prima c'erano 11 `character() === "cube"` in 4 file con funzioni di Slime cablate.
 - **Goccia** (`src/character/drop.ts`, id `drop`), dalla tavola di Edoardo: punta in alto e base arrotondata, palette #9FE8FF / #4DB8FF / #1F6FB7 (con un colore del tema la ricava dal colore scelto), riflessi lucidi senza gocciolature, occhi ovali con riflesso bianco. Tutti gli stati, le espressioni, le mani, la gelatina, i mini, il saluto e la trasformazione in scatola del caricamento vengono dal codice comune. Verificato nelle anteprime `dev/character-preview.html?character=drop` e `dev/upload-preview.html?character=drop`; Slime invariato.

@@ -9,7 +9,7 @@ import type { BotEmoteName, BotStateName } from "../core/layout";
 import {
   Jelly, applyJelly, character, handStops, rgba as paletteRGBA, type Palette, type SoftCharacter,
 } from "./character";
-import { cubeHandStops, drawCube, onRightFace } from "./cube";
+import { CUBE_EYE_X, CUBE_EYE_Y, CUBE_TIP, CUBE_TURN, cubeEyeRoom, cubeHandStops, drawCube, onRightFace } from "./cube";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -764,15 +764,17 @@ export class BotEngine {
     if (this.tilt !== 0) x.rotate(this.tilt);
     x.scale(this.sx, this.sy);
 
-    // Looking around turns the whole cube (yaw follows lookX up to ±0.62 rad,
-    // pitch lookY up to ±0.5): a cube has no round body to roll the eyes over.
+    // The gaze (yaw follows lookX up to ±0.62 rad, pitch lookY up to ±0.5):
+    // the eyes slide across the face, and the cube only leans a little into it.
+    const gazeX = Math.max(-1, Math.min(1, this.yaw / 0.62));
+    const gazeY = Math.max(-1, Math.min(1, -this.pitch / 0.5));
     const look = {
       col: this.col,
       tint: this.tint * (1 - this.morph),
       base: this.bodyColor,
       slot: this.morph > 0.05 ? this.slotH * this.morph : 0,
-      turn: this.yaw / 0.62,
-      tip: -this.pitch / 0.5,
+      turn: gazeX * CUBE_TURN,
+      tip: gazeY * CUBE_TIP,
     };
     drawCube(x, s, look);
 
@@ -800,17 +802,17 @@ export class BotEngine {
       const eh = R * EYE_H * this.es * eyeMult;
       // Looking around slides the eyes across the face instead of turning a body.
       const pitch = EYE_P + this.roll;
-      // The eyes follow the cursor on their own too, on top of the turn. They sit
-      // a little in from the edges so there is room to move before the clamp.
-      const turn = Math.max(-1, Math.min(1, look.turn));
-      const tip = Math.max(-1, Math.min(1, look.tip));
-      const gx = turn * side * 0.17;
-      const gy = tip * side * 0.16;
-      const limX = side * 0.5 - ew * 0.4 - side * 0.05;
-      const limY = side * 0.5 - eh * 0.65 - side * 0.04;
+      // The eyes do the looking: the pair slides across the face towards the
+      // cursor, as far as the edges allow, without squeezing together.
+      const spread = side * 0.19;
+      const roomX = cubeEyeRoom(side, spread, ew * 0.36);
+      const y0 = -Math.sin(pitch) * side * 0.5 - side * 0.04;
+      const roomY = cubeEyeRoom(side, 0, eh * 0.65);
+      const gx = Math.max(-roomX, Math.min(roomX, gazeX * side * CUBE_EYE_X));
+      const gy = Math.max(-roomY - y0, Math.min(roomY - y0, gazeY * side * CUBE_EYE_Y));
       for (const sd of [-1, 1]) {
-        const ex = Math.max(-limX, Math.min(limX, sd * side * 0.19 + gx));
-        const ey = Math.max(-limY, Math.min(limY, -Math.sin(pitch) * side * 0.5 - side * 0.04 + gy));
+        const ex = sd * spread + gx;
+        const ey = y0 + gy;
         x.save();
         x.translate(ex, ey);
         if (shape === "pill" || shape === "wide" || (shape === "wink" && sd < 0)) {

@@ -299,6 +299,8 @@ export interface Theme {
   volumeAlerts: number;
   volumeUi: number;
   volumeEmotes: number;
+  /** The island's colour behind the character while it is closed; off = the character alone. */
+  compactBackground: boolean;
 }
 
 export interface ProfileRules {
@@ -324,6 +326,7 @@ export const DEFAULT_THEME: Theme = {
   volumeAlerts: 1,
   volumeUi: 1,
   volumeEmotes: 1,
+  compactBackground: true,
 };
 
 export const DEFAULT_SETTINGS: Settings = {

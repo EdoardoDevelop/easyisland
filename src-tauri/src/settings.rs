@@ -114,6 +114,9 @@ pub struct Theme {
     pub volume_ui: f64,
     #[serde(default = "one")]
     pub volume_emotes: f64,
+    /// The island's colour behind the character while it is closed (compact view).
+    #[serde(default = "default_true")]
+    pub compact_background: bool,
 }
 
 impl Default for Theme {
@@ -126,6 +129,7 @@ impl Default for Theme {
             volume_alerts: 1.0,
             volume_ui: 1.0,
             volume_emotes: 1.0,
+            compact_background: true,
         }
     }
 }
