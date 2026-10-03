@@ -82,9 +82,83 @@ fn sweep(dir: &Path) {
     }
 }
 
+// ── History of dropped files (the "File caricati" view) ─────────────────────
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct InboxFile {
+    pub name: String,
+    pub path: String,
+    pub size: u64,
+    /// When it was dropped (the copy is stamped then), ms since 1970.
+    pub at: u64,
+}
+
+/// Every copy in the inbox, newest first.
+pub fn list_inbox() -> Vec<InboxFile> {
+    let Ok(entries) = std::fs::read_dir(inbox_dir()) else { return Vec::new() };
+    let mut out: Vec<InboxFile> = entries
+        .flatten()
+        .filter_map(|e| {
+            let meta = e.metadata().ok()?;
+            if !meta.is_file() {
+                return None;
+            }
+            let at = meta
+                .modified()
+                .ok()?
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            Some(InboxFile {
+                name: e.file_name().to_string_lossy().to_string(),
+                path: e.path().to_string_lossy().to_string(),
+                size: meta.len(),
+                at,
+            })
+        })
+        .collect();
+    out.sort_by(|a, b| b.at.cmp(&a.at));
+    out
+}
+
+/// A file of the inbox by name. Only a bare name is accepted, so nothing
+/// outside the inbox can ever be reached.
+pub fn inbox_path(name: &str) -> Result<PathBuf, String> {
+    let bare = Path::new(name).file_name().map(|n| n.to_string_lossy().to_string());
+    if bare.as_deref() != Some(name) || name.is_empty() || name == "." || name == ".." {
+        return Err("Nome di file non valido".into());
+    }
+    let path = inbox_dir().join(name);
+    if !path.is_file() {
+        return Err("Il file non c'è più".into());
+    }
+    Ok(path)
+}
+
+/// Deletes one copy (the original the user dropped is never touched).
+pub fn delete_from_inbox(name: &str) -> Result<(), String> {
+    std::fs::remove_file(inbox_path(name)?).map_err(|e| format!("Eliminazione non riuscita: {e}"))
+}
+
+/// Deletes every copy; returns how many went.
+pub fn clear_inbox() -> usize {
+    list_inbox()
+        .into_iter()
+        .filter(|f| std::fs::remove_file(&f.path).is_ok())
+        .count()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn inbox_names_cannot_leave_the_inbox() {
+        for bad in ["", ".", "..", r"..\settings.json", "../x", r"C:\Windows\win.ini", "sub/a.txt"] {
+            assert!(inbox_path(bad).is_err(), "{bad} was accepted");
+        }
+    }
 
     #[test]
     fn ingest_copies_and_never_overwrites() {

@@ -134,6 +134,11 @@ export const Bridge = {
   /** The app in front, and the text selected in it (⚡ suggestions). */
   foregroundApp: () => call<{ exe: string; title: string } | null>("foreground_app"),
   captureSelection: () => call<string | null>("capture_selection"),
+  /** "File caricati": the copies of dropped files kept in the inbox. */
+  inboxList: () => call<{ name: string; path: string; size: number; at: number }[]>("inbox_list"),
+  inboxDelete: (name: string) => callOrThrow<void>("inbox_delete", { name }),
+  inboxClear: () => call<number>("inbox_clear"),
+  inboxOpen: (name: string, reveal: boolean) => callOrThrow<void>("inbox_open", { name, reveal }),
   /** "Estrai…" on a dropped ZIP. `place`: "beside" | "downloads" | "desktop". */
   zipList: (path: string) => callOrThrow<{ count: number; size: number; names: string[] }>("zip_list", { path }),
   zipExtract: (path: string, name: string, place: string, source: string | null) =>

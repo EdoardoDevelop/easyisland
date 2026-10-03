@@ -7,6 +7,8 @@
 import { h, clear } from "./dom";
 import { State } from "../core/state";
 import { fileActions } from "./actions";
+import { renderActionIcon } from "./action-icons";
+import { Bridge } from "../core/bridge";
 import type { ViewActions, ViewHost } from "./views";
 
 /** Dashed rounded rect drawn as SVG so the dashes can march like on macOS. */
@@ -28,7 +30,7 @@ function dashedFrame(): SVGSVGElement {
   return el;
 }
 
-export function buildUpload(): ViewHost {
+export function buildUpload(actions: ViewActions): ViewHost {
   const frame = dashedFrame();
   const title = h("div", { class: "drop-title", text: "Rilascia qui i tuoi file" });
   const tags = h(
@@ -36,11 +38,16 @@ export function buildUpload(): ViewHost {
     { class: "drop-tags" },
     ...["PDF", "Immagini", "Codice", "Documenti"].map((t) => h("span", { text: t })),
   );
+  // The history of what was dropped, kept in the inbox for a week.
+  const history = h("button", {
+    class: "drop-history", title: "Cronologia dei file rilasciati sull'isola",
+    onclick: () => actions.openFiles(),
+  }, h("span", { text: "File caricati" }), h("span", { class: "arrow", text: "›" }));
   const card = h(
     "div",
     { class: "card drop-card" },
     frame,
-    h("div", { class: "drop-body" }, title, tags),
+    h("div", { class: "drop-body" }, title, tags, history),
   );
   const el = h("div", { class: "view" }, card);
 
@@ -48,6 +55,7 @@ export function buildUpload(): ViewHost {
     el,
     sync() {
       card.classList.toggle("over", State.fileDragOver);
+      history.style.display = State.fileDragOver ? "none" : "";
     },
   };
 }
@@ -219,5 +227,100 @@ export function buildUnzip(actions: ViewActions): ViewHost {
       }
     },
     fitHeight: () => body.offsetHeight + 24,
+  };
+}
+
+function ago(ms: number): string {
+  const s = (Date.now() - ms) / 1000;
+  if (s < 60) return "adesso";
+  if (s < 3600) return `${Math.floor(s / 60)} min fa`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h fa`;
+  const d = Math.floor(s / 86400);
+  return d === 1 ? "ieri" : `${d} giorni fa`;
+}
+
+/**
+ * "File caricati": the copies of the files dropped on the island (the inbox,
+ * swept after a week). Open, show in the folder, ask about it again, delete
+ * one or all. The originals are never touched.
+ */
+export function buildFiles(actions: ViewActions): ViewHost {
+  const count = h("span", { class: "files-count" });
+  const clearAll = h("button", { class: "files-clear" }) as HTMLButtonElement;
+  const head = h("div", { class: "files-head" },
+    h("button", { class: "files-back", title: "Indietro", text: "‹", onclick: () => actions.setView("upload") }),
+    h("b", { text: "File caricati" }), count, clearAll);
+  const list = h("div", { class: "files-list" });
+  const note = h("div", { class: "files-note",
+    text: "Sono copie: gli originali restano dove sono. Si cancellano da sole dopo una settimana." });
+  const body = h("div", { class: "files-body" }, head, list, note);
+  const el = h("div", { class: "view" }, h("div", { class: "card files-card" }, body));
+
+  let key = "";
+  let confirming = false;
+  let confirmTimer = 0;
+
+  const resetClear = () => {
+    confirming = false;
+    clearAll.textContent = "Elimina tutti";
+    clearAll.classList.remove("confirm");
+  };
+  clearAll.addEventListener("click", async () => {
+    if (!confirming) {
+      // Two clicks: everything goes at once, and there is no undo.
+      confirming = true;
+      clearAll.textContent = "Sicuro? Clic per eliminare";
+      clearAll.classList.add("confirm");
+      window.clearTimeout(confirmTimer);
+      confirmTimer = window.setTimeout(resetClear, 3500);
+      return;
+    }
+    window.clearTimeout(confirmTimer);
+    resetClear();
+    await Bridge.inboxClear();
+    actions.refreshFiles();
+  });
+  resetClear();
+
+  const iconBtn = (icon: string, title: string, color: string, fn: () => void) => {
+    const b = h("button", { class: "clip-btn", title, style: `--c:${color}`,
+      onclick: (e: Event) => { e.stopPropagation(); fn(); } }, renderActionIcon(`i:${icon}`, 13));
+    return b;
+  };
+
+  return {
+    el,
+    sync() {
+      const files = State.inbox ?? [];
+      const k = files.map((f) => `${f.name}:${f.at}`).join("|");
+      if (k === key) return;
+      key = k;
+      const total = files.reduce((s, f) => s + f.size, 0);
+      count.textContent = files.length ? `${files.length} · ${size(total)}` : "";
+      clearAll.style.display = files.length ? "" : "none";
+      clear(list);
+      if (files.length === 0) {
+        list.append(h("div", { class: "files-empty", text: "Nessun file. Quelli che rilasci sull'isola compaiono qui." }));
+        return;
+      }
+      for (const f of files) {
+        const err = h("span", { class: "files-err" });
+        const fail = (e: unknown) => { err.textContent = String(e).replace(/^Error:\s*/, ""); };
+        list.append(h("div", { class: "files-row", title: "Doppio clic: apri",
+          ondblclick: () => void Bridge.inboxOpen(f.name, false).catch(fail) },
+        h("div", { class: "files-info" },
+          h("span", { class: "files-name", text: f.name }),
+          h("span", { class: "files-meta", text: `${size(f.size)} · ${ago(f.at)}` }),
+          err),
+        h("span", { class: "files-tools" },
+          iconBtn("chat", "Chiedi a Claude su questo file", "#A78BFA", () => actions.askAboutFile(f)),
+          iconBtn("file", "Apri", "#38BDF8", () => void Bridge.inboxOpen(f.name, false).catch(fail)),
+          iconBtn("folder", "Mostra nella cartella", "#F5A524", () => void Bridge.inboxOpen(f.name, true).catch(fail)),
+          iconBtn("trash", "Elimina", "#F4505E", () => {
+            void Bridge.inboxDelete(f.name).then(() => actions.refreshFiles()).catch(fail);
+          }))));
+      }
+    },
+    fitHeight: () => body.offsetHeight + 16,
   };
 }

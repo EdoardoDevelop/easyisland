@@ -436,6 +436,8 @@ class AppState {
   promptContext: PromptContext | null = null;
   /** `source`: where the file was dropped from (the copy is in `path`). */
   droppedFile: { name: string; path: string; source?: string } | null = null;
+  /** "File caricati": the inbox, as last listed. */
+  inbox: { name: string; path: string; size: number; at: number }[] | null = null;
   /** "Estrai…" on a dropped ZIP: what is inside, and how the extraction went. */
   unzip: {
     info: { count: number; size: number; names: string[] } | null;

@@ -626,6 +626,35 @@ async fn capture_selection() -> Option<String> {
     tauri::async_runtime::spawn_blocking(context::selection).await.ok().flatten()
 }
 
+/// "File caricati": the copies in the inbox, newest first.
+#[tauri::command]
+fn inbox_list() -> Vec<files::InboxFile> {
+    files::list_inbox()
+}
+
+#[tauri::command]
+fn inbox_delete(name: String) -> Result<(), String> {
+    files::delete_from_inbox(&name)
+}
+
+#[tauri::command]
+fn inbox_clear() -> usize {
+    files::clear_inbox()
+}
+
+/// "Apri" opens the copy with its app; "Mostra" selects it in Explorer.
+#[tauri::command]
+fn inbox_open(name: String, reveal: bool) -> Result<(), String> {
+    let path = files::inbox_path(&name)?;
+    let mut cmd = Command::new("explorer");
+    if reveal {
+        cmd.arg(format!("/select,{}", path.display()));
+    } else {
+        cmd.arg(&path);
+    }
+    cmd.spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
 /// "Estrai…" on a dropped ZIP: what is inside.
 #[tauri::command]
 async fn zip_list(path: String) -> Result<zip::ZipInfo, String> {
@@ -793,6 +822,10 @@ pub fn run() {
             clipboard_clear,
             media_command,
             zip_list,
+            inbox_list,
+            inbox_delete,
+            inbox_clear,
+            inbox_open,
             zip_extract,
             foreground_app,
             capture_selection,

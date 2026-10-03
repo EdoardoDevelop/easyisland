@@ -220,6 +220,9 @@ export class Island {
       runAction: (a) => void this.runAction(a),
       runSuggestion: (sg, app) => void this.runSuggestion(sg, app),
       extractZip: (place) => void this.extractZip(place),
+      openFiles: () => void this.openFiles(),
+      refreshFiles: () => void this.refreshFiles(),
+      askAboutFile: (f) => this.askAboutFile(f),
       confirmRun: () => void this.startScript(),
       killRun: () => {
         if (State.run?.status === "running") void Bridge.actionKill(State.run.runId);
@@ -527,6 +530,27 @@ export class Island {
       Sound.play("error");
     }
     State.notify();
+  }
+
+  /** "File caricati": list the inbox and show it. */
+  async openFiles() {
+    State.inbox = await Bridge.inboxList() ?? [];
+    this.setView("files");
+  }
+
+  async refreshFiles() {
+    State.inbox = await Bridge.inboxList() ?? [];
+    State.notify();
+  }
+
+  /** "Chiedi" on a file of the history: the same as dropping it again, without the copy. */
+  askAboutFile(f: { name: string; path: string }) {
+    State.droppedFile = { name: f.name, path: f.path };
+    State.promptContext = { kind: "file", name: f.name, path: f.path };
+    State.chatText = null;
+    State.chatHistory = [];
+    void Bridge.chatReset();
+    this.setView("choose");
   }
 
   async extractZip(place: string) {

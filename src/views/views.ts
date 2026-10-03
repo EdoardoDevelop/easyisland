@@ -9,12 +9,16 @@ import { State, sessionOpenLabel, type AgentTask, type AskQuestion } from "../co
 import { ISLAND_CHROME_H, MAX_ISLAND_H, washRGBA, type IslandViewName, type Wash } from "../core/layout";
 import { createMiniBot, pruneMiniBots } from "../character/minibots";
 import { buildPrompt } from "./chat";
-import { buildChoose, buildUnzip, buildUpload, buildUploading } from "./upload";
+import { buildChoose, buildFiles, buildUnzip, buildUpload, buildUploading } from "./upload";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, type ActionHandlers } from "./actions";
 
 export interface ViewActions extends ActionHandlers {
   setView(v: IslandViewName): void;
+  /** "File caricati": the history of dropped files. */
+  openFiles(): void;
+  refreshFiles(): void;
+  askAboutFile(f: { name: string; path: string }): void;
   /** "Estrai…" on a dropped ZIP: "beside" | "downloads" | "desktop". */
   extractZip(place: string): void;
   /** 📌: keep the island open (no auto-close). */
@@ -727,12 +731,13 @@ export function buildViews(
   map.set("notify", buildNotify(actions));
   map.set("settings", buildSettings(actions));
   map.set("prompt", buildPrompt(onChatHeightChange));
-  map.set("upload", buildUpload());
+  map.set("upload", buildUpload(actions));
   map.set("uploading", buildUploading());
   map.set("choose", buildChoose(actions));
   map.set("actions", buildActions(actions));
   map.set("run", buildRun(actions));
   map.set("unzip", buildUnzip(actions));
+  map.set("files", buildFiles(actions));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder("L'invio via email non è disponibile in questa versione.", ""));
   map.set("searching", buildPlaceholder("Claude sta cercando…", ""));
