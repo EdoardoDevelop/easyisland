@@ -12,7 +12,55 @@ use std::path::PathBuf;
 
 /// Bumped whenever the file layout changes; `migrate` brings old files up.
 /// 3–4: the character was renamed (Mochi → Ezzy → Slime), so were its values.
-pub const SCHEMA_VERSION: u32 = 4;
+/// 5: system / security / network / weather / outlook / zammad widgets became
+///    integrations (`integration_<kind>`, options in `integrationConfig`).
+pub const SCHEMA_VERSION: u32 = 5;
+
+/// Widget kinds that are integrations since schema 5: one per PC, switched on
+/// in Impostazioni → Integrazioni. Their checks still run through widgets.rs.
+pub const PROBE_INTEGRATIONS: &[(&str, &str)] = &[
+    ("integration_system", "system"),
+    ("integration_security", "security"),
+    ("integration_network", "network"),
+    ("integration_weather", "weather"),
+    ("integration_outlook", "outlook"),
+    ("integration_zammad", "zammad"),
+];
+
+/// Options of the integrations above. Machine-wide, like their credentials.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IntegrationConfig {
+    /// Stato del PC: warn below this % of free space on the system disk.
+    #[serde(default = "ten")]
+    pub system_warn: i64,
+    /// Outlook: warn this many minutes before a meeting.
+    #[serde(default = "ten")]
+    pub outlook_warn: i64,
+    #[serde(default)]
+    pub weather_city: String,
+}
+
+impl Default for IntegrationConfig {
+    fn default() -> Self {
+        Self { system_warn: 10, outlook_warn: 10, weather_city: String::new() }
+    }
+}
+
+fn ten() -> i64 {
+    10
+}
+
+/// A credential the schema-5 migration has to move (Zammad's address and token
+/// lived under the widget's id). Done by `apply_pending_secrets` after loading,
+/// since migrating is pure.
+#[derive(Debug, Clone, PartialEq)]
+pub enum PendingSecret {
+    /// Copy the value of another key.
+    From { to: &'static str, from: String },
+    /// Store this value.
+    Value { to: &'static str, value: String },
+}
 
 /// Fields that belong to a profile rather than to the machine.
 pub const PROFILE_KEYS: &[&str] = &[
@@ -66,6 +114,9 @@ pub struct Theme {
     pub volume_ui: f64,
     #[serde(default = "one")]
     pub volume_emotes: f64,
+    /// The island's colour behind the character while it is closed (compact view).
+    #[serde(default = "default_true")]
+    pub compact_background: bool,
 }
 
 impl Default for Theme {
@@ -78,6 +129,7 @@ impl Default for Theme {
             volume_alerts: 1.0,
             volume_ui: 1.0,
             volume_emotes: 1.0,
+            compact_background: true,
         }
     }
 }
@@ -280,6 +332,12 @@ pub struct Settings {
     /// Look for a new version on GitHub at start and once a day. Belongs to the PC.
     #[serde(default = "default_true")]
     pub update_check: bool,
+    /// Options of the integrations that run as checks (PROBE_INTEGRATIONS).
+    #[serde(default)]
+    pub integration_config: IntegrationConfig,
+    /// Credentials the last migration has to move; never written to the file.
+    #[serde(skip)]
+    pub pending_secrets: Vec<PendingSecret>,
 }
 
 fn default_hotkey_open() -> String {
@@ -383,6 +441,8 @@ impl Default for Settings {
             hotkey_open: default_hotkey_open(),
             hotkey_ask: default_hotkey_ask(),
             update_check: true,
+            integration_config: IntegrationConfig::default(),
+            pending_secrets: Vec::new(),
         }
         .migrated()
     }
@@ -444,6 +504,25 @@ impl Settings {
         for p in &mut self.profiles {
             rename_legacy_values(&mut p.values);
         }
+        // Schema 5: widgets that are integrations now, in every profile too.
+        let mut moved = Vec::new();
+        let widgets = std::mem::take(&mut self.widgets);
+        self.widgets = take_probe_widgets(widgets, &mut self.active_integrations, &mut moved);
+        for p in &mut self.profiles {
+            let Some(Value::Array(list)) = p.values.remove("widgets") else { continue };
+            let mut active: Vec<String> = p
+                .values
+                .get("activeIntegrations")
+                .and_then(|v| serde_json::from_value(v.clone()).ok())
+                .unwrap_or_default();
+            let before = moved.len();
+            let kept = take_probe_widgets(list, &mut active, &mut moved);
+            p.values.insert("widgets".into(), Value::Array(kept));
+            if moved.len() > before {
+                p.values.insert("activeIntegrations".into(), Value::from(active));
+            }
+        }
+        self.adopt_widget_options(&moved);
         if self.profiles.is_empty() {
             let snap = self.snapshot();
             let mut focus = snap.clone();
@@ -483,6 +562,77 @@ impl Settings {
             .map_err(|e| format!("Impostazioni non riconosciute: {e}"))?;
         next.hooks_installed = self.hooks_installed;
         Ok(next.migrated())
+    }
+}
+
+impl Settings {
+    /// The first converted widget of each kind gives the integration its options.
+    fn adopt_widget_options(&mut self, moved: &[Value]) {
+        let str_of = |w: &Value, k: &str| w.get(k).and_then(Value::as_str).unwrap_or("").trim().to_string();
+        let num_of = |w: &Value, k: &str| w.get(k).and_then(Value::as_i64).filter(|n| *n > 0);
+        let first = |kind: &str| moved.iter().find(|w| w.get("kind").and_then(Value::as_str) == Some(kind));
+        if let Some(n) = first("system").and_then(|w| num_of(w, "warnDays")) {
+            self.integration_config.system_warn = n;
+        }
+        if let Some(n) = first("outlook").and_then(|w| num_of(w, "warnDays")) {
+            self.integration_config.outlook_warn = n;
+        }
+        if self.integration_config.weather_city.is_empty() {
+            if let Some(city) = first("weather").map(|w| str_of(w, "host")).filter(|c| !c.is_empty()) {
+                self.integration_config.weather_city = city;
+            }
+        }
+        if let Some(w) = first("zammad") {
+            let url = str_of(w, "url");
+            if url.starts_with("http") {
+                self.pending_secrets.push(PendingSecret::Value { to: "zammad-url", value: url });
+            }
+            let id = str_of(w, "id");
+            if !id.is_empty() {
+                self.pending_secrets.push(PendingSecret::From { to: "zammad-token", from: format!("widget:{id}:token") });
+            }
+        }
+    }
+}
+
+/// Splits `list` into the widgets that stay and the ones that are integrations
+/// now: those are switched on in `active` and handed back through `moved`.
+fn take_probe_widgets(list: Vec<Value>, active: &mut Vec<String>, moved: &mut Vec<Value>) -> Vec<Value> {
+    let mut kept = Vec::new();
+    for w in list {
+        let kind = w.get("kind").and_then(Value::as_str).unwrap_or("");
+        match PROBE_INTEGRATIONS.iter().find(|(_, k)| *k == kind) {
+            Some((id, _)) => {
+                if !active.iter().any(|a| a == id) {
+                    active.push((*id).to_string());
+                }
+                moved.push(w);
+            }
+            None => kept.push(w),
+        }
+    }
+    kept
+}
+
+/// Moves the credentials a migration asked for. An existing destination is kept;
+/// a moved source is deleted.
+pub fn apply_pending_secrets(settings: &mut Settings) {
+    for p in std::mem::take(&mut settings.pending_secrets) {
+        match p {
+            PendingSecret::Value { to, value } => {
+                if crate::secrets::get(to).is_none() {
+                    let _ = crate::secrets::set(to, &value);
+                }
+            }
+            PendingSecret::From { to, from } => {
+                if let Some(value) = crate::secrets::get(&from) {
+                    if crate::secrets::get(to).is_none() {
+                        let _ = crate::secrets::set(to, &value);
+                    }
+                    let _ = crate::secrets::clear(&from);
+                }
+            }
+        }
     }
 }
 
@@ -533,9 +683,19 @@ fn settings_path() -> PathBuf {
 
 pub fn load() -> Settings {
     match std::fs::read(settings_path()) {
-        Ok(bytes) => serde_json::from_slice::<Settings>(&bytes)
-            .map(Settings::migrated)
-            .unwrap_or_default(),
+        Ok(bytes) => match serde_json::from_slice::<Settings>(&bytes) {
+            Ok(old) => {
+                let from = old.schema_version;
+                let s = old.migrated();
+                // A converted file is written back at once, so what is on disk
+                // matches what the app shows.
+                if from < SCHEMA_VERSION {
+                    let _ = save(&s);
+                }
+                s
+            }
+            Err(_) => Settings::default(),
+        },
         Err(_) => Settings::default(),
     }
 }
@@ -588,6 +748,48 @@ mod tests {
         // A file saved by schema 3 (ezzyColor at the top level) still loads its colour.
         let t: Theme = serde_json::from_str(r##"{"character":"ezzy","ezzyColor":"#123456"}"##).unwrap();
         assert_eq!(t.slime_color, "#123456");
+    }
+
+    #[test]
+    fn single_instance_widgets_become_integrations() {
+        let old = r##"{"soundEnabled":true,"soundVolume":0.1,"autoCloseInterval":15,"absenceInterval":180,
+            "activeIntegrations":["integration_github"],"screen":"primary","autostart":false,"hooksInstalled":false,
+            "schemaVersion":4,"activeProfile":"lavoro",
+            "widgets":[
+              {"id":"w1","kind":"system","warnDays":15},
+              {"id":"w2","kind":"ping","host":"10.0.0.1"},
+              {"id":"w3","kind":"zammad","url":"https://help.cliente.it"}],
+            "profiles":[
+              {"id":"lavoro","name":"Lavoro","values":{"activeIntegrations":["integration_github"],
+                "widgets":[{"id":"w1","kind":"system","warnDays":15},{"id":"w2","kind":"ping"},{"id":"w3","kind":"zammad"}]}},
+              {"id":"casa","name":"Casa","values":{"activeIntegrations":[],
+                "widgets":[{"id":"w9","kind":"weather","host":"Bologna"}]}},
+              {"id":"concentrazione","name":"Concentrazione","values":{"widgets":[{"id":"w2","kind":"ping"}]}}]}"##;
+        let s = serde_json::from_str::<Settings>(old).unwrap().migrated();
+        let kinds = |l: &[Value]| l.iter().map(|w| w["kind"].as_str().unwrap().to_string()).collect::<Vec<_>>();
+        // Top level: only the ping stays a widget.
+        assert_eq!(kinds(&s.widgets), vec!["ping"]);
+        assert_eq!(s.active_integrations, vec!["integration_github", "integration_system", "integration_zammad"]);
+        assert_eq!(s.integration_config.system_warn, 15);
+        assert_eq!(s.integration_config.weather_city, "Bologna");
+        assert_eq!(
+            s.pending_secrets,
+            vec![
+                PendingSecret::Value { to: "zammad-url", value: "https://help.cliente.it".into() },
+                PendingSecret::From { to: "zammad-token", from: "widget:w3:token".into() },
+            ]
+        );
+        // Every profile is converted on its own.
+        let casa = &s.profiles[1].values;
+        assert_eq!(casa["widgets"], serde_json::json!([]));
+        assert_eq!(casa["activeIntegrations"], serde_json::json!(["integration_weather"]));
+        // Nothing moved: activeIntegrations is left as it was (absent here).
+        let focus = &s.profiles[2].values;
+        assert!(focus.get("activeIntegrations").is_none());
+        // Running it again changes nothing.
+        let again = s.clone().migrated();
+        assert_eq!(again.active_integrations, s.active_integrations);
+        assert!(again.pending_secrets.len() == s.pending_secrets.len());
     }
 
     #[test]

@@ -17,7 +17,8 @@ use tauri::{AppHandle, Emitter, Manager, Monitor, PhysicalPosition, PhysicalSize
 use windows::Win32::Foundation::{HWND, POINT};
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetCursorPos, GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, GWL_EXSTYLE, HWND_TOPMOST,
+    FindWindowW, GetCursorPos, GetWindowLongPtrW, IsWindowVisible, SetWindowLongPtrW, SetWindowPos,
+    GWL_EXSTYLE, HWND_TOPMOST,
     SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSIZE, WS_EX_NOACTIVATE,
     WS_EX_TOOLWINDOW,
 };
@@ -357,16 +358,52 @@ pub fn spawn_fullscreen_watch(app: AppHandle, gate: Arc<PollGate>) {
     });
 }
 
+/// A file dragged from Explorer onto the resting island over the taskbar: the
+/// taskbar comes forward as soon as the drag crosses it, takes the drop itself,
+/// and the island never sees the file. Resting, the cursor poll is parked and
+/// the watch above only raises every two seconds, so while a button is held
+/// the island takes the front back every 100 ms. One GetAsyncKeyState per tick,
+/// and only while the user wants the island over the taskbar.
+pub fn spawn_drag_raise(app: AppHandle, gate: Arc<PollGate>) {
+    std::thread::spawn(move || {
+        let mut over = false;
+        let mut ticks: u32 = 0;
+        loop {
+            std::thread::sleep(Duration::from_millis(if over { 100 } else { 1000 }));
+            ticks = ticks.wrapping_add(1);
+            if !over || ticks % 10 == 0 {
+                over = app
+                    .try_state::<crate::Shared>()
+                    .map(|s| s.settings.lock().unwrap().over_taskbar)
+                    .unwrap_or(false);
+            }
+            // Open, the cursor poll already raises on its own.
+            if over && gate.collapsed.load(Ordering::Relaxed) && left_button_down() {
+                raise_over_taskbar(&app);
+            }
+        }
+    });
+}
+
 /// Puts the island back at the top of the topmost band. The taskbar is topmost
 /// too and comes forward whenever it is touched; Tauri's set_always_on_top does
 /// nothing when the flag is already set, so this goes to Win32 directly.
+///
+/// While a file is being dragged, the picture under the cursor is a topmost
+/// window of its own (`SysDragImage`, from the shell). Going to the very top
+/// would cover it, and the file would vanish behind the island: then the
+/// island goes just below it instead, still above the taskbar.
 pub fn raise_over_taskbar(app: &AppHandle) {
     let Some(win) = window(app) else { return };
     let Some(hwnd) = hwnd_of(&win) else { return };
     unsafe {
+        let after = match FindWindowW(windows::core::w!("SysDragImage"), None) {
+            Ok(drag) if !drag.is_invalid() && IsWindowVisible(drag).as_bool() => drag,
+            _ => HWND_TOPMOST,
+        };
         let _ = SetWindowPos(
             hwnd,
-            Some(HWND_TOPMOST),
+            Some(after),
             0,
             0,
             0,

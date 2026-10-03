@@ -92,6 +92,20 @@ const task = (
   id, name, color, state: "idle", stepIndex: 0, steps: [], source, isIntegration: true,
 });
 
+/**
+ * Integrations that run as checks through the widget engine (src-tauri/src/widgets.rs,
+ * settings::PROBE_INTEGRATIONS): their results arrive as `widget-update` with the
+ * integration's id, and their cards are drawn like a widget's. id → probe kind.
+ */
+export const PROBE_INTEGRATIONS: Record<string, string> = {
+  integration_system: "system",
+  integration_security: "security",
+  integration_network: "network",
+  integration_weather: "weather",
+  integration_outlook: "outlook",
+  integration_zammad: "zammad",
+};
+
 /** AgentTask.integrationAgents — same ids, names and colours as macOS. */
 export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_claude", "VS Code", "#F5F6F8", "claudeCode"),
@@ -102,11 +116,18 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_notion", "Notion", "#8C8C8C", "n8n"),
   task("integration_calcom", "Cal.com", "#C9956A", "n8n"),
   task("integration_stripe", "Stripe", "#0570DE", "n8n"),
+  task("integration_system", "PC", "#38BDF8", "n8n"),
+  task("integration_security", "Sicurezza", "#22C55E", "n8n"),
+  task("integration_network", "Rete", "#6366F1", "n8n"),
+  task("integration_weather", "Meteo", "#0EA5E9", "n8n"),
+  task("integration_outlook", "Outlook", "#0A84D6", "n8n"),
+  task("integration_zammad", "Ticket", "#F59E0B", "n8n"),
 ];
 
 export const TOGGLEABLE_INTEGRATION_IDS = [
   "integration_resend", "integration_n8n", "integration_vercel", "integration_github",
   "integration_notion", "integration_calcom", "integration_stripe",
+  ...Object.keys(PROBE_INTEGRATIONS),
 ];
 
 /** What an integration poller last reported. */
@@ -186,6 +207,16 @@ export interface Settings {
   hotkeyAsk: string;
   /** Look for a new version on GitHub at start and once a day. */
   updateCheck: boolean;
+  /** Options of the integrations that run as checks (PROBE_INTEGRATIONS). Belongs to the PC. */
+  integrationConfig: IntegrationConfig;
+}
+
+export interface IntegrationConfig {
+  /** Stato del PC: warn below this % of free space on the system disk. */
+  systemWarn: number;
+  /** Outlook: warn this many minutes before a meeting. */
+  outlookWarn: number;
+  weatherCity: string;
 }
 
 /** A user-defined button in the Azioni tab. */
@@ -218,8 +249,7 @@ export interface WidgetDef {
   id: string;
   name: string;
   color: string;
-  kind: "ping" | "tcp" | "http" | "tls" | "service" | "json"
-    | "system" | "security" | "network" | "calendar" | "weather" | "domain";
+  kind: "ping" | "tcp" | "http" | "tls" | "service" | "json" | "calendar" | "domain";
   /** Seconds between checks; 0 = the kind's default. */
   every: number;
   url: string;
@@ -243,6 +273,8 @@ export interface WidgetStatus {
   fields: { label: string; value: string }[];
   /** Unix seconds. */
   at: number;
+  /** Something that just happened (a new ticket), announced even when the level stays the same. */
+  event?: string;
 }
 
 /** A script launched from the Azioni tab. */
@@ -257,7 +289,8 @@ export interface ScriptRun {
 
 export interface Theme {
   /** Who lives in the island: the character, or the cube (src/character/cube.ts). */
-  character: "slime" | "cube";
+  /** A character id from src/character/roster.ts ("slime", "cube", "drop"…). */
+  character: string;
   /** "#rrggbb", or "" for the original cream (the logo's orange for the cube). */
   slimeColor: string;
   islandColor: string;
@@ -266,6 +299,8 @@ export interface Theme {
   volumeAlerts: number;
   volumeUi: number;
   volumeEmotes: number;
+  /** The island's colour behind the character while it is closed; off = the character alone. */
+  compactBackground: boolean;
 }
 
 export interface ProfileRules {
@@ -291,6 +326,7 @@ export const DEFAULT_THEME: Theme = {
   volumeAlerts: 1,
   volumeUi: 1,
   volumeEmotes: 1,
+  compactBackground: true,
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -338,6 +374,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hotkeyOpen: "Ctrl+Alt+Shift+M",
   hotkeyAsk: "Ctrl+Alt+K",
   updateCheck: true,
+  integrationConfig: { systemWarn: 10, outlookWarn: 10, weatherCity: "" },
 };
 
 type Listener = () => void;

@@ -447,7 +447,7 @@ fn systemtime_secs(t: &windows::Win32::Foundation::SYSTEMTIME) -> i64 {
         + t.wHour as i64 * 3600 + t.wMinute as i64 * 60 + t.wSecond as i64
 }
 
-fn now_local() -> i64 {
+pub(crate) fn now_local() -> i64 {
     systemtime_secs(&unsafe { windows::Win32::System::SystemInformation::GetLocalTime() })
 }
 

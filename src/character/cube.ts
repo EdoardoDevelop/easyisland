@@ -6,22 +6,31 @@
 // the state's colour, as the slime does. It is a real cube in orthographic
 // projection: looking at the cursor turns and tips it, and since every face is
 // an exact affine image of a square, the stripes and the eyes stay painted on.
-// Every drawer (the engine, the launch greeting, the file drop) asks
-// `character()` and draws its own eyes through `onRightFace`.
+// The drawers (the engine, the launch greeting, the file drop) recognise it by
+// its kind, "cube" (see character.ts), and draw its eyes through `onRightFace`.
 
-export type Character = "slime" | "cube";
-type RGB = readonly [number, number, number];
+import type { CubeCharacter, RGB } from "./character";
+
 type P = readonly [number, number];
 type V3 = readonly [number, number, number];
 
-let current: Character = "slime";
+/**
+ * Following the cursor: how much of the gaze (−1…1) turns the whole cube, and
+ * how far the eyes slide across their face for a full gaze, in face widths.
+ * The eyes do most of the looking; the cube only leans into it.
+ */
+export const CUBE_TURN = 0.38;
+/** Up and down the cube leans even less: at rest it already looks down, so looking up swings it far. */
+export const CUBE_TIP = 0.18;
+export const CUBE_EYE_X = 0.3;
+export const CUBE_EYE_Y = 0.26;
 
-export function setCharacter(c: Character | string | undefined) {
-  current = c === "cube" ? "cube" : "slime";
-}
-
-export function character(): Character {
-  return current;
+/**
+ * How far the pair of eyes, `spread` either side of the centre, can shift on a
+ * face of `side` before the outer one reaches the edge (`half` = an eye's half-width).
+ */
+export function cubeEyeRoom(side: number, spread: number, half: number): number {
+  return Math.max(0, side * 0.5 - side * 0.03 - half - spread);
 }
 
 /** The logo's faces: top, left, right (0…1). */
@@ -245,3 +254,13 @@ export function onRightFace(
   draw(s);
   x.restore();
 }
+
+export const CUBE: CubeCharacter = {
+  kind: "cube",
+  id: "cube",
+  name: "EasyTech (cubo)",
+  color: LOGO.left,
+  aspect: 1.34,
+  // The logo's colours are its identity: it does not wear the integrations'.
+  wearsIntegrationColor: false,
+};

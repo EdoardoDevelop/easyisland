@@ -16,6 +16,7 @@ const KEY_FOR: Record<string, string> = {
   integration_resend: "resend-api-key",
   integration_notion: "notion-api-key",
   integration_calcom: "calcom-api-key",
+  integration_zammad: "zammad-token",
 };
 
 const clearTimers = new Map<string, number>();
@@ -50,7 +51,8 @@ function handleWidget(island: Island, r: WidgetStatus) {
   if (State.paused) return;
   const prev = State.widgetStatus[r.id];
   State.widgetStatus[r.id] = r;
-  const task = State.tasks.find((t) => t.id === `widget:${r.id}`);
+  // A widget's pill is `widget:<id>`; an integration run as a check uses its own id.
+  const task = State.tasks.find((t) => t.id === `widget:${r.id}` || t.id === r.id);
   if (task) {
     task.state = r.level === "ok" ? "idle" : r.level === "warn" ? "ratelimit" : "error";
     task.steps = [r.summary];
@@ -67,7 +69,13 @@ function handleWidget(island: Island, r: WidgetStatus) {
     } else if (!isBad && wasBad) {
       task.pillBadge = null;
       Sound.play("finish");
+    } else if (r.event && prev) {
+      // A new ticket and the like: announced even though the level stayed put.
+      if (State.focusId !== task.id && task.pillBadge !== "error") task.pillBadge = "finished";
+      Sound.play("finish");
+      island.reveal();
     }
+    if (r.event) task.steps = [r.event, r.summary];
   }
   State.notify();
 }

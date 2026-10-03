@@ -502,7 +502,7 @@ fn weather_text(code: i64) -> &'static str {
 pub async fn weather(w: &Widget) -> WidgetResult {
     let city = w.host.trim();
     if city.is_empty() {
-        return WidgetResult::new(&w.id, "error", "Scrivi la città nelle impostazioni del widget");
+        return WidgetResult::new(&w.id, "error", "Scrivi la città in Impostazioni → Integrazioni → Meteo");
     }
     let (lat, lon, place) = match geocode(city).await {
         Ok(p) => p,

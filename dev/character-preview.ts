@@ -1,13 +1,14 @@
 // Every state and emote of the character side by side, plus the greeting.
-// npm run dev, then /dev/character-preview.html (?character=cube for the cube).
+// npm run dev, then /dev/character-preview.html (?character=cube, ?character=drop…).
 
 import { BotEngine, hexToRGB } from "../src/character/engine";
-import { setCharacter } from "../src/character/cube";
+import "../src/character/roster";
+import { setCharacter } from "../src/character/character";
 import { Greeting } from "../src/character/greeting";
 import type { BotEmoteName, BotStateName } from "../src/core/layout";
 
 const params = new URLSearchParams(location.search);
-setCharacter(params.get("character") === "cube" ? "cube" : "slime");
+setCharacter(params.get("character") ?? undefined);
 
 const STATES: BotStateName[] = [
   "idle", "working", "thinking", "searching", "approval", "question",

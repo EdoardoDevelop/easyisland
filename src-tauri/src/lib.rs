@@ -13,6 +13,7 @@ mod integrations;
 mod island;
 mod legacy;
 mod log;
+mod outlook;
 mod pipe;
 mod presence;
 mod probes;
@@ -23,6 +24,7 @@ mod tray;
 mod updates;
 mod widgets;
 mod win_user;
+mod zammad;
 
 use std::os::windows::process::CommandExt;
 use std::process::Command;
@@ -210,16 +212,21 @@ async fn widget_test(app: AppHandle, widget: serde_json::Value) -> Result<widget
 /// Island → "Aggiorna" on a widget card.
 #[tauri::command]
 async fn widget_refresh(app: AppHandle, shared: State<'_, Shared>, id: String) -> Result<(), String> {
-    let widget = shared
-        .settings
-        .lock()
-        .unwrap()
-        .widgets
-        .iter()
-        .find(|w| w.get("id").and_then(|v| v.as_str()) == Some(id.as_str()))
-        .cloned()
+    // A widget, or one of the integrations that run as checks (integration_system…).
+    let widget = widgets::all_widgets(&shared.settings.lock().unwrap())
+        .into_iter()
+        .find(|w| w.id == id)
         .ok_or_else(|| "Widget non trovato".to_string())?;
-    widgets::run_once(&app, widget).await.map(|_| ())
+    widgets::run_now(&app, &widget).await;
+    Ok(())
+}
+
+/// "Apri Zammad" on the Zammad card.
+#[tauri::command]
+fn open_zammad() {
+    if let Some(url) = secrets::get("zammad-url") {
+        open_url(url);
+    }
 }
 
 /// Shortcuts Windows refused because another app already uses them.
@@ -651,7 +658,9 @@ fn open_settings_window(app: AppHandle) {
 pub fn run() {
     // First launch after the rename: bring Coucou's settings and keys over.
     let moved = legacy::migrate();
-    let loaded = settings::load();
+    let mut loaded = settings::load();
+    // Zammad's address and token, when a widget became the integration (schema 5).
+    settings::apply_pending_secrets(&mut loaded);
     let gate = Arc::new(PollGate::new());
 
     tauri::Builder::default()
@@ -718,6 +727,7 @@ pub fn run() {
             secret_clear,
             refresh_integration,
             open_n8n,
+            open_zammad,
             open_settings_window,
             set_paused,
         ])
@@ -736,6 +746,7 @@ pub fn run() {
             gate.set_active(true);
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             island::spawn_fullscreen_watch(handle.clone(), gate.clone());
+            island::spawn_drag_raise(handle.clone(), gate.clone());
             profiles::spawn_auto_switch(handle.clone());
             hotkeys::spawn(handle.clone());
             widgets::start(handle.clone());

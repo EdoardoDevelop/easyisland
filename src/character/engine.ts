@@ -1,16 +1,15 @@
-// The slime's engine — states, tweens, emotes and particles, ported from the
+// The character's engine — states, tweens, emotes and particles, ported from the
 // original BotEngine.swift to Canvas 2D (same constants, tweens and easings).
-// The body is the slime the slime (./slime.ts); the eye arcs follow the prototype
+// The body is whichever character is chosen (./character.ts); the eye arcs follow the prototype
 // (design/prototype/notch-buddy.html).
 
 import { Ease, lerp, type EaseFn } from "../core/anim";
 import { Sound } from "../core/sound";
 import type { BotEmoteName, BotStateName } from "../core/layout";
-import { character, cubeHandStops, drawCube, onRightFace } from "./cube";
 import {
-  Jelly, SLIME_GREEN, applyJelly, drawSlimeBody, drawSlimeEye, slimeHandStops, slimePalette, slimePoint, slimeRGBA,
-  type SlimePalette,
-} from "./slime";
+  Jelly, applyJelly, character, handStops, rgba as paletteRGBA, type Palette, type SoftCharacter,
+} from "./character";
+import { CUBE_EYE_X, CUBE_EYE_Y, CUBE_TIP, CUBE_TURN, cubeEyeRoom, cubeHandStops, drawCube, onRightFace } from "./cube";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -68,12 +67,6 @@ interface Particle {
 const EYE_W = 0.25;
 const EYE_H = 0.27;
 const EYE_P = -0.12;
-// The slime: half-width/half-height of the body and where its eyes sit.
-const SLIME_HW = 1.22;
-const SLIME_HH = 0.8;
-const SLIME_EYE_SP = 0.3; // eye "yaw" either side, like the original sphere projection
-const SLIME_EYE_P = 0.08; // a little below the middle of the dome
-const SLIME_EYE_R = 0.2; // eye radius, fraction of R
 const INK = "rgb(12,14,12)";
 const MINI_INK = "rgb(16,19,26)"; // #10131A
 
@@ -174,7 +167,7 @@ const FONT = `system-ui, "Segoe UI Variable Text", "Segoe UI", sans-serif`;
 
 export class BotEngine {
   isMini = false;
-  /** Solid body colour for mini bots / integration pills (null = the slime gradient). */
+  /** Solid body colour for mini bots / integration pills (null = the character's own colour). */
   bodyColor: RGB | null = null;
 
   // Animated state (BotEngine `s`)
@@ -225,7 +218,7 @@ export class BotEngine {
   private miniLookTarget = { x: 0, y: 0 };
   private miniLookNextTime = 0;
 
-  /** The slime's wobble, and the velocities it reacts to. */
+  /** The body's jelly wobble (soft characters), and the velocities it reacts to. */
   readonly jelly = new Jelly();
   private prevMotion: { ox: number; oy: number; tilt: number; sy: number } | null = null;
   private prevVel = { ox: 0, oy: 0, tilt: 0, sy: 0 };
@@ -625,14 +618,15 @@ export class BotEngine {
   /**
    * Feeds the jelly springs with every change of velocity of the body — hops,
    * shakes, tilts, squashes, turning to look — so the top lags, overshoots and
-   * settles. Only the slime wobbles; the cube is rigid.
+   * settles. Only soft characters that wobble do; the cube is rigid.
    */
   private updateJelly(dt: number) {
     if (dt <= 0) return;
     const cur = { ox: this.ox, oy: this.oy, tilt: this.tilt, sy: this.sy };
     const prev = this.prevMotion;
     this.prevMotion = cur;
-    if (!prev || character() === "cube") {
+    const c = character();
+    if (!prev || c.kind !== "soft" || !c.wobbles) {
       this.jelly.reset();
       return;
     }
@@ -652,7 +646,7 @@ export class BotEngine {
     this.jelly.update(dt);
   }
 
-  /** The island moved under the slime (dragged by the mouse): `dx`, `dy` in px. */
+  /** The island moved under the character (dragged by the mouse): `dx`, `dy` in px. */
   jiggle(dx: number, dy: number) {
     const R = Math.max(8, this.lastR);
     this.jelly.kick((dx / R) * 3, (dy / R) * 2.2);
@@ -701,16 +695,17 @@ export class BotEngine {
    * `w`×`h` CSS pixels (the caller has already applied the DPR transform).
    */
   draw(x: CanvasRenderingContext2D, W: number, H: number) {
-    if (character() === "cube") {
+    const c = character();
+    if (c.kind === "cube") {
       this.drawAsCube(x, W, H);
       return;
     }
     const R = W * 0.3;
-    const rx = R * SLIME_HW;
-    const ry = R * SLIME_HH;
+    const rx = R * c.size.hw;
+    const ry = R * c.size.hh;
     const cx = W / 2 + this.ox * R;
     const cy = H / 2 + this.particleOverhang / 2 + this.oy * R + R * 0.06;
-    const pal = this.palette();
+    const pal = this.palette(c);
 
     this.drawHandsBehind(x, R, rx, ry, cx, cy, pal);
 
@@ -719,12 +714,12 @@ export class BotEngine {
     if (this.tilt !== 0) x.rotate(this.tilt);
     x.scale(this.sx, this.sy);
 
-    const body = this.bodyPath(rx, ry, R);
+    const body = this.bodyPath(c, rx, ry, R);
     const look = { palette: pal, simple: this.isMini, gloss: 1 - this.morph * 0.6 };
     this.lastR = R;
     // Body, blush, eyes and mouth wobble together.
     applyJelly(x, ry, this.jelly);
-    drawSlimeBody(x, body, rx, ry, look);
+    c.drawBody(x, body, rx, ry, look);
 
     const blushVal = Math.max(this.blush, this.tint * 0.5) * (1 - this.morph);
     if (blushVal > 0.01) {
@@ -734,13 +729,13 @@ export class BotEngine {
       x.fillStyle = `rgba(255,120,150,${0.5 * blushVal})`;
       for (const sd of [-1, 1]) {
         x.beginPath();
-        x.ellipse(sd * rx * 0.55 + yOffset, ry * 0.2, R * 0.17, R * 0.1, 0, 0, Math.PI * 2);
+        x.ellipse(sd * rx * c.face.blushX + yOffset, ry * c.face.blushY, R * 0.17, R * 0.1, 0, 0, Math.PI * 2);
         x.fill();
       }
       x.restore();
     }
 
-    this.drawEyes(x, body, R, rx, ry);
+    this.drawEyes(x, c, body, R, rx, ry);
     if (this.morph > 0.05) this.drawMouth(x, body, R);
 
     x.restore();
@@ -753,7 +748,7 @@ export class BotEngine {
 
   /**
    * The cube character (src/character/cube.ts): same pose, tweens, badge and
-   * particles as the slime; the eyes and blush are painted on the right face.
+   * particles as a soft character; the eyes and blush are painted on the right face.
    */
   private drawAsCube(x: CanvasRenderingContext2D, W: number, H: number) {
     const R = W * 0.3;
@@ -769,15 +764,17 @@ export class BotEngine {
     if (this.tilt !== 0) x.rotate(this.tilt);
     x.scale(this.sx, this.sy);
 
-    // Looking around turns the whole cube (yaw follows lookX up to ±0.62 rad,
-    // pitch lookY up to ±0.5): a cube has no round body to roll the eyes over.
+    // The gaze (yaw follows lookX up to ±0.62 rad, pitch lookY up to ±0.5):
+    // the eyes slide across the face, and the cube only leans a little into it.
+    const gazeX = Math.max(-1, Math.min(1, this.yaw / 0.62));
+    const gazeY = Math.max(-1, Math.min(1, -this.pitch / 0.5));
     const look = {
       col: this.col,
       tint: this.tint * (1 - this.morph),
       base: this.bodyColor,
       slot: this.morph > 0.05 ? this.slotH * this.morph : 0,
-      turn: this.yaw / 0.62,
-      tip: -this.pitch / 0.5,
+      turn: gazeX * CUBE_TURN,
+      tip: gazeY * CUBE_TIP,
     };
     drawCube(x, s, look);
 
@@ -805,22 +802,22 @@ export class BotEngine {
       const eh = R * EYE_H * this.es * eyeMult;
       // Looking around slides the eyes across the face instead of turning a body.
       const pitch = EYE_P + this.roll;
-      // The eyes follow the cursor on their own too, on top of the turn. They sit
-      // a little in from the edges so there is room to move before the clamp.
-      const turn = Math.max(-1, Math.min(1, look.turn));
-      const tip = Math.max(-1, Math.min(1, look.tip));
-      const gx = turn * side * 0.17;
-      const gy = tip * side * 0.16;
-      const limX = side * 0.5 - ew * 0.4 - side * 0.05;
-      const limY = side * 0.5 - eh * 0.65 - side * 0.04;
+      // The eyes do the looking: the pair slides across the face towards the
+      // cursor, as far as the edges allow, without squeezing together.
+      const spread = side * 0.19;
+      const roomX = cubeEyeRoom(side, spread, ew * 0.36);
+      const y0 = -Math.sin(pitch) * side * 0.5 - side * 0.04;
+      const roomY = cubeEyeRoom(side, 0, eh * 0.65);
+      const gx = Math.max(-roomX, Math.min(roomX, gazeX * side * CUBE_EYE_X));
+      const gy = Math.max(-roomY - y0, Math.min(roomY - y0, gazeY * side * CUBE_EYE_Y));
       for (const sd of [-1, 1]) {
-        const ex = Math.max(-limX, Math.min(limX, sd * side * 0.19 + gx));
-        const ey = Math.max(-limY, Math.min(limY, -Math.sin(pitch) * side * 0.5 - side * 0.04 + gy));
+        const ex = sd * spread + gx;
+        const ey = y0 + gy;
         x.save();
         x.translate(ex, ey);
         if (shape === "pill" || shape === "wide" || (shape === "wink" && sd < 0)) {
           // The cube's own eyes: square-cornered bars, narrower and taller than
-          // The slime's pills, like the logo's stripes. Blinking squashes them.
+          // the soft characters' pills, like the logo's stripes. Blinking squashes them.
           const k = shape === "wide" ? 1.14 : 1;
           const w = ew * 0.62 * k;
           const hh = Math.max(eh * 1.2 * k * this.open, w * 0.35);
@@ -842,14 +839,15 @@ export class BotEngine {
     this.drawParticles(x, R, cx, cy);
   }
 
-  /** The slime's colours: the theme's (or the slime's green) shifted towards the state's. */
-  private palette(): SlimePalette {
-    const base = this.bodyColor ?? SLIME_GREEN;
+  /** The character's colours: the theme's (or its own) shifted towards the state's. */
+  private palette(c: SoftCharacter): Palette {
+    const base = this.bodyColor ?? c.color;
     const k = Math.min(1, this.tint * 1.15) * (1 - this.morph);
-    return slimePalette(k > 0.01 ? mix3(base, this.col, k) : base);
+    return c.palette(k > 0.01 ? mix3(base, this.col, k) : base);
   }
 
-  private bodyPath(rx: number, ry: number, R: number): Path2D {
+  /** The outline, morphing into the rounded box that swallows a file as `morph` → 1. */
+  private bodyPath(c: SoftCharacter, rx: number, ry: number, R: number): Path2D {
     const n = 96;
     const tw = R * 1.0;
     const th = R * 0.94;
@@ -860,7 +858,7 @@ export class BotEngine {
       const a = (i / n) * Math.PI * 2;
       const ca = Math.cos(a);
       const sa = Math.sin(a);
-      const { x: px0, y: py0 } = slimePoint(ca, sa, rx, ry);
+      const { x: px0, y: py0 } = c.point(ca, sa, rx, ry);
       let px = px0;
       let py = py0;
       if (m >= 0.005) {
@@ -875,7 +873,7 @@ export class BotEngine {
     return p;
   }
 
-  private drawEyes(x: CanvasRenderingContext2D, body: Path2D, R: number, rx: number, ry: number) {
+  private drawEyes(x: CanvasRenderingContext2D, c: SoftCharacter, body: Path2D, R: number, rx: number, ry: number) {
     let shape: EyeShape = this.eyeOverride ?? this.cfg.eye;
     if (this.morph > 0.5) {
       if (this.isChewing) shape = "happy";
@@ -891,8 +889,8 @@ export class BotEngine {
     for (const sd of [-1, 1]) {
       // The eyes ride over the dome as if it were a sphere: looking around
       // slides them, and a roll (finished, dizzy) carries them over the top.
-      const eyeYaw = sd * SLIME_EYE_SP + this.yaw * 0.8;
-      let eyePitch = -SLIME_EYE_P + this.pitch * 0.8 + this.roll;
+      const eyeYaw = sd * c.face.eyeSpread + this.yaw * 0.8;
+      let eyePitch = -c.face.eyeDrop + this.pitch * 0.8 + this.roll;
       eyePitch = (((eyePitch + Math.PI) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
       const cp = Math.cos(eyePitch);
       if (Math.cos(eyeYaw) * cp <= 0.04) continue;
@@ -902,13 +900,13 @@ export class BotEngine {
       const fx = lerp(Math.max(0.25, Math.cos(eyeYaw)), 1, this.morph * 0.7);
       const fy = lerp(Math.max(0.25, cp), 1, this.morph * 0.7);
       const eyeMult = this.isMini ? 1.45 : 1.0;
-      const er = R * SLIME_EYE_R * this.es * eyeMult;
+      const er = R * c.face.eyeRadius * this.es * eyeMult;
 
       x.save();
       x.translate(ex, ey);
       x.scale(fx, fy);
       if (shape === "pill" || shape === "wide" || (shape === "wink" && sd < 0)) {
-        drawSlimeEye(x, shape === "wide" ? er * 1.15 : er, this.open, ink);
+        c.drawEye(x, shape === "wide" ? er * 1.15 : er, this.open, ink);
         x.fillStyle = ink;
       } else {
         this.drawEyeShape(x, shape, er * 1.5, er * 1.6, sd, ink);
@@ -1069,7 +1067,7 @@ export class BotEngine {
   /** Hands sit behind the body — drawn before it, in world coordinates. */
   private drawHandsBehind(
     x: CanvasRenderingContext2D,
-    R: number, rx: number, ry: number, cx: number, cy: number, pal?: SlimePalette,
+    R: number, rx: number, ry: number, cx: number, cy: number, pal?: Palette,
   ) {
     if (this.hands <= 0.01 || this.isMini) return;
     if (R <= 14) return; // meaningless at compact/peek sizes
@@ -1118,14 +1116,15 @@ export class BotEngine {
       x.translate(worldX, worldY);
       if (handRot !== 0) x.rotate(handRot);
       const g = x.createLinearGradient(hew * 0.7, -heh * 0.85, -hew * 0.8, heh * 0.9);
-      if (character() === "cube") {
+      const c = character();
+      if (c.kind === "cube") {
         // The cube's hands wear its faces' colour, state tint included.
         const [light, dark] = cubeHandStops({ col: this.col, tint: this.tint * (1 - this.morph), base: this.bodyColor });
         g.addColorStop(0, light);
         g.addColorStop(1, dark);
       } else {
         // Two little blobs of jelly, the body's own colour.
-        const [light, dark] = slimeHandStops(pal ?? this.palette());
+        const [light, dark] = handStops(pal ?? this.palette(c));
         g.addColorStop(0, light);
         g.addColorStop(1, dark);
       }
@@ -1133,8 +1132,8 @@ export class BotEngine {
       x.ellipse(0, 0, hew, heh, 0, 0, Math.PI * 2);
       x.fillStyle = g;
       x.fill();
-      x.strokeStyle = character() === "cube" ? "rgba(0,0,0,0.08)" : slimeRGBA((pal ?? this.palette()).edge);
-      x.lineWidth = character() === "cube" ? 1 : Math.max(1, ry * 0.06);
+      x.strokeStyle = c.kind === "cube" ? "rgba(0,0,0,0.08)" : paletteRGBA((pal ?? this.palette(c)).edge);
+      x.lineWidth = c.kind === "cube" ? 1 : Math.max(1, ry * 0.06);
       x.stroke();
       x.restore();
     }

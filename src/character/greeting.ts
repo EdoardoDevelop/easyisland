@@ -3,12 +3,12 @@
 
 import { Sound } from "../core/sound";
 import { COMPACT_W, NOTCH_H, NOTCH_W } from "../core/layout";
-import { character, cubeHandStops, drawCube, onRightFace } from "./cube";
-import { hexToRGB } from "./engine";
 import {
-  SLIME_ASPECT, SLIME_GREEN, drawSlimeBody, drawSlimeEye, slimeHandStops, slimeMix,
-  slimePalette, slimePath, slimeRGBA, type SlimePalette,
-} from "./slime";
+  character, handStops as softHandStops, mix, outlinePath, rgba, type Palette, type SoftCharacter,
+} from "./character";
+import { CUBE_EYE_X, CUBE_EYE_Y, CUBE_TIP, CUBE_TURN, cubeHandStops, drawCube, onRightFace } from "./cube";
+import { hexToRGB } from "./engine";
+import { SLIME } from "./slime";
 
 // ── Timing (mirrors greeting-v2.html `T`) ─────────────────────────────────────
 
@@ -254,9 +254,9 @@ function rr(x: CanvasRenderingContext2D, X: number, Y: number, W: number, H: num
   x.closePath();
 }
 
-/** The slime's colours during the greeting: green, turning blue as the badge lights up. */
-function greetPalette(tint: number): SlimePalette {
-  return slimePalette(tint > 0 ? slimeMix(SLIME_GREEN, [0.5, 0.71, 0.92], tint) : SLIME_GREEN);
+/** A soft character's own colours, turning towards the greeting's blue as the badge lights up. */
+function greetPalette(c: SoftCharacter, tint: number): Palette {
+  return c.palette(tint > 0 ? mix(c.color, [0.5, 0.71, 0.92], tint) : c.color);
 }
 
 function whiteFill(
@@ -273,13 +273,15 @@ function whiteFill(
   x.restore();
 }
 
-/** The slime's jelly, or the cube's own colour. */
+/** The soft body's own colours, or the cube's. */
 function handStops(p: Pose): [string, string] {
-  return character() === "cube" ? cubeHandStops() : slimeHandStops(greetPalette(p.tint));
+  const c = character();
+  return c.kind === "cube" ? cubeHandStops() : softHandStops(greetPalette(c, p.tint));
 }
 
 function handEdge(p: Pose): string {
-  return character() === "cube" ? "rgba(0,0,0,0.08)" : slimeRGBA(greetPalette(p.tint).edge);
+  const c = character();
+  return c.kind === "cube" ? "rgba(0,0,0,0.08)" : rgba(greetPalette(c, p.tint).edge);
 }
 function drawHandL(x: CanvasRenderingContext2D, hw: number, hh: number, p: Pose) {
   const k = p.handL;
@@ -332,8 +334,9 @@ function drawHandR(x: CanvasRenderingContext2D, hw: number, hh: number, p: Pose)
 }
 
 function drawCharacter(x: CanvasRenderingContext2D, p: Pose) {
+  const c = character();
   const hh = p.hb / 2;
-  const hw = hh * (character() === "cube" ? ASP : SLIME_ASPECT);
+  const hw = hh * c.aspect;
   if (hh <= 0.4) return;
 
   // Halo: golden → blue, two passes for a soft aura
@@ -361,18 +364,18 @@ function drawCharacter(x: CanvasRenderingContext2D, p: Pose) {
   drawHandL(x, hw, hh, p);
   drawHandR(x, hw, hh, p);
 
-  if (character() === "cube") {
+  if (c.kind === "cube") {
     const cs = hh * 1.05;
-    const look = { col: [0.498, 0.706, 0.918] as const, tint: p.tint, turn: p.lookX * 0.6, tip: -p.lookY * 0.6 };
+    const look = { col: [0.498, 0.706, 0.918] as const, tint: p.tint, turn: p.lookX * CUBE_TURN, tip: -p.lookY * CUBE_TIP };
     drawCube(x, cs, look);
     onRightFace(x, cs, (side) => {
       x.fillStyle = "#16171A";
       x.strokeStyle = "#16171A";
-      greetEyes(x, p, p.hb * 0.06, side * 0.18, p.lookX * side * 0.06,
-        p.lookY * side * 0.05 - side * 0.04 + p.eyeRoll * side * 0.45, true);
+      greetEyes(x, p, p.hb * 0.06, side * 0.18, p.lookX * side * CUBE_EYE_X * 0.8,
+        p.lookY * side * CUBE_EYE_Y * 0.8 - side * 0.04 + p.eyeRoll * side * 0.45, true);
     }, look);
   } else {
-    drawCharacterBody(x, p, hw, hh);
+    drawCharacterBody(x, p, c, hw, hh);
   }
 
   // Activity badge
@@ -381,10 +384,14 @@ function drawCharacter(x: CanvasRenderingContext2D, p: Pose) {
   x.restore();
 }
 
-/** The two greeting eyes, `sp` either side of the centre, offset by `lx`, `ly`. */
+/**
+ * The two greeting eyes, `sp` either side of the centre, offset by `lx`, `ly`.
+ * `eye` draws an open eye (a soft character's own); without it they are dots,
+ * or the cube's bars with `square`.
+ */
 function greetEyes(
   x: CanvasRenderingContext2D, p: Pose, er: number, sp: number, lx: number, ly: number, square = false,
-  glint = false,
+  eye?: SoftCharacter["drawEye"],
 ) {
   for (const sd of [-1, 1]) {
     x.save();
@@ -401,9 +408,9 @@ function greetEyes(
       x.beginPath();
       x.arc(0, -er * 0.5, er * 1.25, Math.PI * 0.15, Math.PI * 0.85);
       x.stroke();
-    } else if (glint) {
-      // The slime's round eyes, with their white glint.
-      drawSlimeEye(x, er, p.open, x.fillStyle as string);
+    } else if (eye) {
+      // The character's own eyes, with their white glint.
+      eye(x, er, p.open, x.fillStyle as string);
     } else {
       x.scale(1, Math.max(0.12, p.open));
       if (square) {
@@ -419,21 +426,23 @@ function greetEyes(
   }
 }
 
-function drawCharacterBody(x: CanvasRenderingContext2D, p: Pose, hw: number, hh: number) {
-  const body = slimePath(hw, hh);
-  const look = { palette: greetPalette(p.tint) };
-  drawSlimeBody(x, body, hw, hh, look);
+function drawCharacterBody(x: CanvasRenderingContext2D, p: Pose, c: SoftCharacter, hw: number, hh: number) {
+  const body = outlinePath(c, hw, hh);
+  const look = { palette: greetPalette(c, p.tint) };
+  c.drawBody(x, body, hw, hh, look);
 
   // Eyes
   x.save();
   x.clip(body);
   x.fillStyle = "#0C0E0C";
   x.strokeStyle = "#0C0E0C";
-  const er = p.hb * 0.1;
-  const sp = hw * 0.28;
+  // Where the engine puts the face (character.ts → Face), a touch higher and
+  // smaller: the greeting's eyes have always sat that way on Slime.
+  const er = hh * 0.8 * c.face.eyeRadius / c.size.hh;
+  const sp = hw * Math.sin(c.face.eyeSpread) * 0.95;
   const lx = p.lookX * hw * 0.3;
-  const ly = p.lookY * hh * 0.25 + hh * 0.02 + p.eyeRoll * hh * 1.25;
-  greetEyes(x, p, er, sp, lx, ly, false, true);
+  const ly = p.lookY * hh * 0.25 + hh * (Math.sin(c.face.eyeDrop) * 0.95 - 0.056) + p.eyeRoll * hh * 1.25;
+  greetEyes(x, p, er, sp, lx, ly, false, c.drawEye);
   x.restore();
 }
 
@@ -498,12 +507,17 @@ function drawMinis(x: CanvasRenderingContext2D, alpha: number) {
   const cy = 16;
   const sp = 6;
   const offsets: [number, number][] = [[-sp, -sp], [sp, -sp], [-sp, sp], [sp, sp]];
+  // Little copies of the character; the cube has no small form, so it gets slimes.
+  const c = character();
+  const mini = c.kind === "soft" ? c : SLIME;
+  const hh = 3.8;
+  const hw = hh * mini.aspect * 0.95;
+  const body = outlinePath(mini, hw, hh);
   offsets.forEach(([dx, dy], i) => {
     x.save();
     x.translate(cx + dx, cy + dy);
     x.scale(alpha, alpha);
-    const pal = slimePalette(hexToRGB(MINI_COLORS[i]));
-    drawSlimeBody(x, slimePath(5.6, 3.8), 5.6, 3.8, { palette: pal, simple: true });
+    mini.drawBody(x, body, hw, hh, { palette: mini.palette(hexToRGB(MINI_COLORS[i])), simple: true });
     x.restore();
   });
 }

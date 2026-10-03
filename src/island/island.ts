@@ -12,13 +12,14 @@ import {
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
-import { character, setCharacter } from "../character/cube";
+import { character, setCharacter } from "../character/character";
 import { Greeting } from "../character/greeting";
 import { createMiniBot, pruneMiniBots, syncMiniBotStates, tickMiniBots } from "../character/minibots";
 import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { sendToChat } from "../views/chat";
+import { tabActions } from "../views/actions";
 import type { ApprovalInfo, Notice, QuickAction } from "../core/state";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
@@ -162,6 +163,7 @@ export class Island {
           else void Bridge.openInVSCode(task.sessionCwd ?? null);
         }
         else if (task.id === "integration_n8n") void Bridge.openN8n();
+        else if (task.id === "integration_zammad") void Bridge.openZammad();
         else if (urls[task.id]) void Bridge.openUrl(urls[task.id]);
       },
       openUrl: (url) => {
@@ -252,6 +254,7 @@ export class Island {
         this.setView("prompt");
       },
       cancel: () => this.setView(State.defaultView()),
+      runAction: (a) => void this.runAction(a),
     });
 
     this.clipEl = h(
@@ -333,6 +336,7 @@ export class Island {
       // nothing while hidden.
       UploadSeq.deactivate();
     }
+    this.applyBare();
     this.updateWindowCollapsed();
     this.animateGeometry(modeOrder(mode) < modeOrder(prev));
     this.scheduleWander();
@@ -557,7 +561,7 @@ export class Island {
   async onHotkey(name: string) {
     Sound.resume();
     if (name === "open") {
-      this.setView((State.settings.actions ?? []).length > 0 ? "actions" : "prompt");
+      this.setView(tabActions().length > 0 ? "actions" : "prompt");
     } else if (name === "ask") {
       const text = await Bridge.clipboardText();
       this.startChat("", text ? { label: "Testo copiato", text } : null, false);
@@ -638,8 +642,16 @@ export class Island {
 
   // ── File drop ───────────────────────────────────────────────────────────────
 
+  /** One line for the log: where the island and the drop sequence stand. */
+  private dropState(): string {
+    return `mode ${State.mode}, view ${State.view}, fsm ${this.fsm.state}, ` +
+      `seq ${UploadSeq.isActive ? (UploadSeq.dropped ? "dropped" : "active") : "off"}, ` +
+      `frames ${this.running ? "running" : "stopped"}, paused ${State.paused}, quiet ${State.quiet}, ` +
+      `page ${document.visibilityState}`;
+  }
+
   private onDragDrop(e: { type: string; paths?: string[] }) {
-    if (e.type !== "over") void Bridge.log(`drag ${e.type} ${e.paths?.length ?? 0} file(s)`);
+    if (e.type !== "over") void Bridge.log(`drag ${e.type} ${e.paths?.length ?? 0} file(s), ${this.dropState()}`);
     if (State.paused) return;
     switch (e.type) {
       case "enter":
@@ -647,10 +659,14 @@ export class Island {
         if (State.fileDragOver) return;
         State.fileDragOver = true;
         this.engine.animateMorph(1);
-        // enterZone must run before the island expands, so the sequence is
-        // already active by the time the view becomes `upload`.
-        UploadSeq.enterZone(State.mouseInIsland.x, State.mouseInIsland.y);
+        // Open first, then start the sequence. A compact island opens through
+        // the state machine, which passes by the default view on the way, and
+        // leaving the drop views stops the sequence: started first, it was
+        // switched off at once, the character never followed the file and the bar
+        // stayed at 0 %. Both run in this same task, so the next frame already
+        // sees the sequence active on `upload`.
         this.alert("upload");
+        UploadSeq.enterZone(State.mouseInIsland.x, State.mouseInIsland.y);
         break;
       }
       case "leave": {
@@ -701,6 +717,10 @@ export class Island {
     State.uploadProgress = 0;
     this.setView("uploading");
     this.ensureRunning();
+    // A stalled frame loop leaves the bar at 0 % with nothing in the log: say so.
+    window.setTimeout(() => {
+      void Bridge.log(`drop: after 1.5 s progress ${Math.round(State.uploadProgress * 100)} %, ${this.dropState()}`);
+    }, 1500);
 
     void Bridge.ingestFile(path)
       .then((file) => {
@@ -857,7 +877,7 @@ export class Island {
   private drawRestIcon() {
     const p = this.placement;
     const state = State.effectiveState;
-    const key = `${p.iconStyle}|${p.iconSize}|${state}|${State.paused}|${State.settings.theme.slimeColor}|${character()}`;
+    const key = `${p.iconStyle}|${p.iconSize}|${state}|${State.paused}|${State.settings.theme.slimeColor}|${character().id}`;
     if (key === this.restKey) return;
     this.restKey = key;
 
@@ -899,6 +919,15 @@ export class Island {
     return c && /^#[0-9a-f]{6}$/i.test(c) ? hexToRGB(c) : null;
   }
 
+  /**
+   * "Sfondo a isola chiusa" off: while the island is not open, its background
+   * goes away and only the character is left.
+   */
+  private applyBare() {
+    const bare = State.mode !== "expanded" && State.settings.theme?.compactBackground === false;
+    this.islandEl.classList.toggle("bare", bare);
+  }
+
   /** Island colour/opacity and per-family volumes from the theme. */
   private applyTheme() {
     const t = State.settings.theme;
@@ -907,6 +936,7 @@ export class Island {
     const n = parseInt(hex.slice(1), 16);
     const a = Math.max(0.5, Math.min(1, t.islandOpacity));
     this.islandEl.style.background = `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+    this.applyBare();
     Sound.setFamilyGains({ alerts: t.volumeAlerts, ui: t.volumeUi, emotes: t.volumeEmotes });
   }
 
@@ -1291,10 +1321,10 @@ export class Island {
     if (!ctx) return;
 
     const focus = State.focusTask;
-    // The character wears the focused integration's colour; the cube keeps the
-    // logo's. Claude Code (the default focus, white for its pill) keeps the
+    // The character wears the focused integration's colour, unless it has a fixed
+    // look (the cube keeps the logo's). Claude Code (the default focus, white for its pill) keeps the
     // character's own colour, or the slime would be white most of the time.
-    const wears = focus?.isIntegration && focus.id !== "integration_claude" && character() !== "cube";
+    const wears = focus?.isIntegration && focus.id !== "integration_claude" && character().wearsIntegrationColor;
     this.engine.bodyColor = wears ? hexToRGB(focus.color) : this.themeBody();
     this.engine.particleOverhang = BOT_OVERHANG;
     const follow = this.followsCursor();

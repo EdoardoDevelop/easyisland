@@ -248,18 +248,32 @@ calendario, posta…); prende il colore dell'azione.
 Se una scorciatoia è già usata da un'altra app, le Impostazioni lo segnalano.
 Le azioni appartengono al profilo attivo; le scorciatoie Apri/Chiedi al PC.
 
+## Integrazioni
+
+**Impostazioni… → Integrazioni** accende le integrazioni, una per tipo, che
+compaiono come pillole accanto a Slime. Chiavi, token e indirizzi stanno in
+Gestione credenziali di Windows.
+
+| Integrazione | Cosa mostra |
+|---|---|
+| **GitHub, Vercel, Stripe, Resend, Notion, Cal.com, n8n** | l'attività del servizio (deploy, pagamenti, email, prenotazioni, esecuzioni), con la chiave del servizio |
+| **Zammad** | ticket assegnati a te, non assegnati e in escalation; avvisa quando arriva un nuovo ticket da assegnare. Indirizzo e token di accesso (Profilo → Token di accesso, permesso `ticket.agent`) |
+| **Outlook** | mail non lette e appuntamenti di oggi e domani da Outlook classico già aperto (non lo avvia mai); avvisa qualche minuto prima di una riunione. Il nuovo Outlook non è supportato |
+| **Stato del PC** | spazio sul disco di sistema (arancione sotto la soglia, 10 %, rosso sotto il 5 %), memoria, batteria, da quanto è acceso, riavvio richiesto da Windows. Pulsante **Copia info PC**: nome, utente, Windows, modello, numero di serie, IP e MAC negli appunti, pronti per un ticket |
+| **Sicurezza** | antivirus (Defender o un altro, dal Centro sicurezza di Windows), età delle firme, ultima scansione, firewall, minacce rilevate |
+| **Rete** | Wi-Fi o cavo, IP locale e pubblico (api.ipify.org, al massimo ogni 15 minuti), VPN attive, latenza verso 1.1.1.1; avvisa se internet non risponde o è lento |
+| **Meteo** | meteo attuale di una città (Open-Meteo, gratuito e senza chiave); avvisa se è probabile pioggia nelle prossime ore |
+
+Quali integrazioni sono accese dipende dal profilo.
+
 ## Widget
 
-**Impostazioni… → Widget** aggiunge controlli che compaiono come pillole accanto
-a Slime, senza scrivere codice:
+**Impostazioni… → Widget** aggiunge controlli ripetibili, quanti ne servono
+(un sito per cliente, un server per sede…), senza scrivere codice:
 
 | Tipo | Cosa controlla |
 |---|---|
-| **Stato del PC** | spazio sul disco di sistema (arancione sotto il 10 %, rosso sotto il 5 %), memoria, batteria, da quanto è acceso, riavvio richiesto da Windows. Pulsante **Copia info PC**: nome, utente, Windows, modello, numero di serie, IP e MAC negli appunti, pronti per un ticket |
-| **Sicurezza** | antivirus (Defender o un altro, dal Centro sicurezza di Windows), età delle firme, ultima scansione, firewall, minacce rilevate |
-| **Rete** | Wi-Fi o cavo, IP locale e pubblico (api.ipify.org, al massimo ogni 15 minuti), VPN attive, latenza verso 1.1.1.1; avvisa se internet non risponde o è lento |
 | **Calendario** | i prossimi appuntamenti da un link ICS (Google Calendar, Outlook.com, iCloud), senza login; avvisa qualche minuto prima. Il link è segreto e sta in Gestione credenziali |
-| **Meteo** | meteo attuale di una città (Open-Meteo, gratuito e senza chiave); avvisa se è probabile pioggia nelle prossime ore |
 | **Scadenza domini** | i giorni alla scadenza di uno o più domini (RDAP, o WHOIS per i registri che non lo hanno, come .it) |
 | **Sito web** | che un indirizzo risponda (stato 2xx/3xx o quello che indichi) e in quanto tempo |
 | **Certificato HTTPS** | i giorni alla scadenza del certificato di un dominio: arancione sotto la soglia (30 giorni), rosso sotto i 7 o se scaduto |
@@ -268,10 +282,11 @@ a Slime, senza scrivere codice:
 | **Servizio Windows** | che un servizio locale sia in esecuzione, es. `Spooler` |
 | **API JSON** | qualsiasi API: scegli i campi da mostrare (percorso tipo `data.items[0].stato`) e una regola di avviso (es. `aperti > 10`). Le intestazioni segrete (token, chiavi) vanno in Gestione credenziali |
 
-Quando un controllo passa da OK a problema, la pillola prende un badge, Slime
-suona e l'isola si fa vedere (secondo le regole di notifica del profilo). Il
-pulsante ▶ prova un widget subito. I controlli si fermano con EasyIsland in pausa e
-diventano tre volte più radi a batteria. I widget appartengono al profilo.
+Quando un controllo (widget o integrazione come Stato del PC, Rete, Outlook…)
+passa da OK a problema, la pillola prende un badge, Slime suona e l'isola si fa
+vedere (secondo le regole di notifica del profilo). Il pulsante ▶ prova un widget
+subito. I controlli si fermano con EasyIsland in pausa e diventano tre volte più
+radi a batteria. I widget appartengono al profilo.
 
 ## Davanti al cliente
 
@@ -317,14 +332,17 @@ attivo.
   finché la situazione non cambia.
 - **Notifiche**: tutto, solo avvisi, oppure solo le richieste di permesso
   (com'è *Concentrazione* all'inizio).
-- **Tema**: il personaggio (**Slime** o **EasyTech**), il suo colore, colore e
-  opacità dell'isola, volume separato per avvisi, interfaccia ed emozioni.
-  Slime è uno slime di gelatina verde che ondeggia quando si muove; EasyTech è
-  un cubo, a riposo con i colori del logo da cui è disegnato. Negli altri stati
-  entrambi prendono il colore dello stato (blu mentre lavora, ambra per un
-  permesso, rosso per un errore…). EasyTech ha gli occhi su un lato, con le
-  stesse espressioni, e segue il mouse come Slime. Anteprima senza compilare: `npm run ui`, poi aggiungi
-  `?character=cube` all'indirizzo.
+- **Tema**: il personaggio (**Slime**, **Goccia** o **EasyTech**), il suo
+  colore, colore e opacità dell'isola, **sfondo a isola chiusa** (spento, a
+  isola chiusa resta solo il personaggio, senza il cerchio o la barra), volume
+  separato per avvisi, interfaccia ed emozioni. Slime è uno slime di gelatina verde che ondeggia quando si
+  muove; Goccia è un piccolo spirito d'acqua azzurro, lucido, a forma di goccia;
+  EasyTech è un cubo, a riposo con i colori del logo da cui è disegnato. Negli
+  altri stati tutti prendono il colore dello stato (blu mentre lavora, ambra per
+  un permesso, rosso per un errore…). EasyTech ha gli occhi su un lato, con le
+  stesse espressioni, e segue il mouse come gli altri. Anteprima senza
+  compilare: `npm run ui`, poi aggiungi `?character=drop` o `?character=cube`
+  all'indirizzo.
 - **Backup e trasferimento**: *Esporta…* salva tutte le impostazioni (profili
   compresi) in un file JSON nella cartella Documenti; *Importa…* le carica su un
   altro PC. Le chiavi API non sono mai nel file: vanno reinserite.
@@ -460,7 +478,7 @@ mano. Tienine una copia al sicuro.
 ```
 ./
   src/                 front end dell'isola (TypeScript, nessun framework)
-    character/         Slime, EasyTech e il saluto all'avvio, in Canvas 2D
+    character/         i personaggi (Slime, Goccia, EasyTech) e il saluto all'avvio, in Canvas 2D
     island/            macchina a stati, hook, integrazioni
     views/             tutte le viste dell'isola
     settings/          la finestra delle impostazioni

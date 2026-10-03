@@ -5,12 +5,11 @@
 // the file being sucked in. The island's own the character is hidden for the duration,
 // exactly as on macOS, because this canvas draws its own.
 
-import { State } from "../core/state";
-import { character, drawCube, onRightFace } from "../character/cube";
+import { State, type QuickAction } from "../core/state";
+import { fileActions } from "../views/actions";
+import { character, type SoftCharacter } from "../character/character";
+import { CUBE_EYE_X, CUBE_EYE_Y, CUBE_TIP, CUBE_TURN, drawCube, onRightFace } from "../character/cube";
 import { hexToRGB } from "../character/engine";
-import {
-  SLIME_GREEN, drawSlimeBody, drawSlimeEye, slimePalette, slimePoint,
-} from "../character/slime";
 import {
   USC, eIn, eInOut, eOut, lerp, progressAt,
   type UploadEyeShape, type UploadFrame,
@@ -25,17 +24,18 @@ function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: n
   ctx.roundRect(x, y, w, h, rad);
 }
 
-/** The slime, turning into a box (superellipse, as in usBodyPath) as `m` → 1. */
-function bodyPath(m: number, R: number): { path: Path2D; rx: number; ry: number } {
+/** The character, turning into a box (superellipse, as in usBodyPath) as `m` → 1. */
+function bodyPath(c: SoftCharacter, m: number, R: number): { path: Path2D; rx: number; ry: number } {
   const mc = Math.max(0, Math.min(m, 1));
-  const rx = R * lerp(1.18, 1.0, mc);
-  const ry = R * lerp(0.82, 0.94, mc);
+  // At rest a touch narrower and taller than in the island (Slime: 1.18 × 0.82 R).
+  const rx = R * lerp(c.size.hw * 0.967, 1.0, mc);
+  const ry = R * lerp(c.size.hh * 1.025, 0.94, mc);
   const ctx = new Path2D();
   for (let i = 0; i <= 96; i++) {
     const a = (i / 96) * Math.PI * 2;
     const ca = Math.cos(a);
     const sa = Math.sin(a);
-    const s = slimePoint(ca, sa, rx, ry);
+    const s = c.point(ca, sa, rx, ry);
     const bx = rx * Math.sign(ca) * Math.pow(Math.abs(ca), 2 / 5.5);
     const by = ry * Math.sign(sa) * Math.pow(Math.abs(sa), 2 / 5.5);
     const px = lerp(s.x, bx, mc);
@@ -47,10 +47,10 @@ function bodyPath(m: number, R: number): { path: Path2D; rx: number; ry: number 
   return { path: ctx, rx, ry };
 }
 
-/** The theme's body colour, or the character's green. */
-function themeBase() {
-  const c = State.settings.theme?.slimeColor;
-  return c && /^#[0-9a-f]{6}$/i.test(c) ? hexToRGB(c) : SLIME_GREEN;
+/** The theme's body colour, or the character's own. */
+function themeBase(c: SoftCharacter) {
+  const hex = State.settings.theme?.slimeColor;
+  return hex && /^#[0-9a-f]{6}$/i.test(hex) ? hexToRGB(hex) : c.color;
 }
 
 function text(
@@ -75,36 +75,49 @@ export interface UploadCanvasActions {
   ask(): void;
   /** Secondary button. */
   cancel(): void;
+  /** One of the user's file actions (a saved prompt applied to the file). */
+  runAction(a: QuickAction): void;
 }
 
+/** A button on the choose card, painted on the canvas and caught by a hit area. */
+interface ChooseButton {
+  label: string;
+  hint: string;
+  x: number;
+  w: number;
+  style: "primary" | "secondary";
+  /** File actions carry their colour as a dot before the label. */
+  dot: string | null;
+  run(): void;
+}
+
+const BTN_FONT = `500 12.5px ${FONT}`;
+const BTN_Y = 113;
+const BTN_H = 26;
+
 export class UploadCanvas {
-  /** Wrapper holding the canvas and the two invisible choose buttons. */
+  /** Wrapper holding the canvas and the invisible choose buttons. */
   readonly el: HTMLElement;
 
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D | null;
   private overlay: HTMLElement;
   private sizedFor = 0;
+  private actions: UploadCanvasActions;
+  private buttons: ChooseButton[] = [];
+  private buttonsKey: string | null = null;
+  /** Which page of file actions "Altre…" has stepped to. */
+  private page = 0;
 
   constructor(actions: UploadCanvasActions) {
+    this.actions = actions;
     this.canvas = document.createElement("canvas");
     this.canvas.id = "upload-canvas";
 
-    // Invisible hit areas at the reference button positions. The labels are
-    // painted on the canvas; these only catch the click.
-    const mk = (x: number, w: number, onclick: () => void) => {
-      const b = document.createElement("button");
-      b.className = "upload-hit";
-      b.style.left = `${x}px`;
-      b.style.top = "113px";
-      b.style.width = `${w}px`;
-      b.style.height = "26px";
-      b.addEventListener("click", onclick);
-      return b;
-    };
+    // Invisible hit areas over the buttons, rebuilt with the layout. The labels
+    // are painted on the canvas; these only catch the click.
     this.overlay = document.createElement("div");
     this.overlay.id = "upload-overlay";
-    this.overlay.append(mk(114, 168, actions.ask), mk(290, 120, actions.cancel));
 
     this.el = document.createElement("div");
     this.el.id = "upload-layer";
@@ -130,6 +143,11 @@ export class UploadCanvas {
 
     this.drawScene(ctx, f, wallTime);
 
+    // Every new file starts again from the first page of actions.
+    if (f.chooseAlpha <= 0 && this.page !== 0) {
+      this.page = 0;
+      this.buttonsKey = null;
+    }
     // The buttons only exist once the choose card has faded in.
     this.overlay.style.display = f.chooseAlpha > 0.5 ? "block" : "none";
   }
@@ -289,16 +307,130 @@ export class UploadCanvas {
     text(ctx, `${name} è pronto.`, 114, 80, `600 14px ${FONT}`, "#F5F6F8");
     text(ctx, "Cosa vuoi farne?", 114, 100, `400 12.5px ${FONT}`, "#9398A1");
 
-    ctx.fillStyle = "#F5F6F8";
-    rr(ctx, 114, 113, 168, 26, 13);
-    ctx.fill();
-    text(ctx, "Fai una domanda", 198, 126, `500 12.5px ${FONT}`, "#0B0C0E", "center");
-
-    ctx.fillStyle = "rgba(255,255,255,0.09)";
-    rr(ctx, 290, 113, 120, 26, 13);
-    ctx.fill();
-    text(ctx, "Annulla", 350, 126, `500 12.5px ${FONT}`, "#F1F2F4", "center");
+    const cy = BTN_Y + BTN_H / 2;
+    for (const b of this.layoutChoose(ctx)) {
+      ctx.fillStyle = b.style === "primary" ? "#F5F6F8" : "rgba(255,255,255,0.09)";
+      rr(ctx, b.x, BTN_Y, b.w, BTN_H, BTN_H / 2);
+      ctx.fill();
+      const ink = b.style === "primary" ? "#0B0C0E" : "#F1F2F4";
+      if (b.dot) {
+        ctx.beginPath();
+        ctx.arc(b.x + 15, cy, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = b.dot;
+        ctx.fill();
+        text(ctx, b.label, b.x + 6 + b.w / 2, cy, BTN_FONT, ink, "center");
+      } else {
+        text(ctx, b.label, b.x + b.w / 2, cy, BTN_FONT, ink, "center");
+      }
+    }
     ctx.restore();
+  }
+
+  /**
+   * "Fai una domanda", the user's file actions, "Annulla". Without file actions
+   * the two buttons keep the reference sizes; with them every button is sized
+   * to its label; actions that do not fit on one row are split into pages
+   * that "Altre…" steps through.
+   */
+  private layoutChoose(ctx: CanvasRenderingContext2D): ChooseButton[] {
+    const list = fileActions();
+    const key = JSON.stringify(list.map((a) => [a.id, a.name, a.color, a.prompt]));
+    if (key === this.buttonsKey) return this.buttons;
+    this.buttonsKey = key;
+
+    const ask = { label: "Fai una domanda", hint: "Fai una domanda su questo file", run: this.actions.ask };
+    const cancel = { label: "Annulla", hint: "Annulla", run: this.actions.cancel };
+    const out: ChooseButton[] = [];
+
+    if (list.length === 0) {
+      out.push(
+        { ...ask, x: 114, w: 168, style: "primary", dot: null },
+        { ...cancel, x: 290, w: 120, style: "secondary", dot: null },
+      );
+    } else {
+      ctx.font = BTN_FONT;
+      const pad = 14;
+      const gap = 8;
+      const right = USC.CARD_X + USC.CARD_W - 14;
+      const width = (s: string, extra = 0) => Math.ceil(ctx.measureText(s).width) + pad * 2 + extra;
+      const fit = (s: string, max: number) => {
+        if (ctx.measureText(s).width <= max) return s;
+        while (s.length > 1 && ctx.measureText(`${s}…`).width > max) s = s.slice(0, -1);
+        return `${s.trimEnd()}…`;
+      };
+
+      const items = list.map((a) => {
+        const label = fit(a.name || "Senza nome", 130);
+        return { a, label, w: width(label, 12) };
+      });
+      const askW = width(ask.label);
+      const cancelW = width(cancel.label);
+      const more = {
+        label: "Altre…",
+        hint: "Altre azioni sul file",
+        run: () => {
+          this.page++;
+          this.buttonsKey = null;
+        },
+      };
+      const moreW = width(more.label);
+
+      // Split the actions into pages that fit the row; with more than one page,
+      // "Altre…" steps through them.
+      const room = (withMore: boolean) =>
+        right - 114 - askW - gap - cancelW - (withMore ? moreW + gap : 0);
+      const pages: (typeof items)[] = [];
+      const all = items.reduce((s, it) => s + it.w + gap, 0);
+      if (all <= room(false)) {
+        pages.push(items);
+      } else {
+        let cur: typeof items = [];
+        let used = 0;
+        for (const it of items) {
+          if (cur.length > 0 && used + it.w + gap > room(true)) {
+            pages.push(cur);
+            cur = [];
+            used = 0;
+          }
+          cur.push(it);
+          used += it.w + gap;
+        }
+        pages.push(cur);
+      }
+      const page = pages[this.page % pages.length];
+
+      let x = 114;
+      out.push({ ...ask, x, w: askW, style: "primary", dot: null });
+      x += askW + gap;
+      for (const { a, label, w } of page) {
+        const dot = /^#[0-9a-f]{6}$/i.test(a.color) ? a.color : "#8e939c";
+        out.push({
+          label, hint: a.prompt || a.name, x, w, style: "secondary", dot,
+          run: () => this.actions.runAction(a),
+        });
+        x += w + gap;
+      }
+      if (pages.length > 1) {
+        out.push({ ...more, x, w: moreW, style: "secondary", dot: null });
+        x += moreW + gap;
+      }
+      out.push({ ...cancel, x, w: cancelW, style: "secondary", dot: null });
+    }
+
+    this.buttons = out;
+    this.overlay.replaceChildren(...out.map((b) => {
+      const el = document.createElement("button");
+      el.className = "upload-hit";
+      el.title = b.hint;
+      el.setAttribute("aria-label", b.label);
+      el.style.left = `${b.x}px`;
+      el.style.top = `${BTN_Y}px`;
+      el.style.width = `${b.w}px`;
+      el.style.height = `${BTN_H}px`;
+      el.addEventListener("click", b.run);
+      return el;
+    }));
+    return out;
   }
 
   // ── the character ─────────────────────────────────────────────────────────────────
@@ -312,10 +444,11 @@ export class UploadCanvas {
     ctx.rotate(f.tilt);
     ctx.scale(f.sx, f.sy);
 
-    if (character() === "cube") {
+    const c = character();
+    if (c.kind === "cube") {
       // Already a box: the slot opens in the top face, the eyes look out of the side.
       const s = R * 1.02;
-      const look = { slot: f.mouth * mc, turn: f.lookX * 0.7, tip: -f.lookY * 0.7 };
+      const look = { slot: f.mouth * mc, turn: f.lookX * CUBE_TURN, tip: -f.lookY * CUBE_TIP };
       drawCube(ctx, s, look);
       onRightFace(ctx, s, (side) => {
         ctx.fillStyle = "#16171A";
@@ -326,8 +459,8 @@ export class UploadCanvas {
         for (const sd of [-1, 1]) {
           ctx.save();
           ctx.translate(
-            Math.max(-lim, Math.min(lim, sd * side * 0.2 + f.lookX * side * 0.05)),
-            Math.max(-lim, Math.min(lim, f.lookY * side * 0.04 - side * 0.04)),
+            Math.max(-lim, Math.min(lim, sd * side * 0.2 + f.lookX * side * CUBE_EYE_X * 0.6)),
+            Math.max(-lim, Math.min(lim, f.lookY * side * CUBE_EYE_Y * 0.6 - side * 0.04)),
           );
           if (f.eye === "pill") {
             // The cube's square-cornered eyes.
@@ -343,9 +476,9 @@ export class UploadCanvas {
       return;
     }
 
-    const { path: body, rx, ry } = bodyPath(f.morph, R);
-    const look = { palette: slimePalette(themeBase()), gloss: 1 - mc * 0.6 };
-    drawSlimeBody(ctx, body, rx, ry, look);
+    const { path: body, rx, ry } = bodyPath(c, f.morph, R);
+    const look = { palette: c.palette(themeBase(c)), gloss: 1 - mc * 0.6 };
+    c.drawBody(ctx, body, rx, ry, look);
 
     // The body path is reused as a clip for everything drawn inside it.
     ctx.save();
@@ -388,15 +521,17 @@ export class UploadCanvas {
     }
 
     // Eyes.
-    const er = R * (0.17 - 0.02 * mc);
-    const ey = R * (0.06 + 0.24 * mc);
-    const sp = R * 0.34;
+    // From the character's face (as the engine places it, a little smaller) to
+    // the box's eyes, low and wide apart.
+    const er = R * (c.face.eyeRadius * 0.85 - 0.02 * mc);
+    const ey = lerp(Math.sin(c.face.eyeDrop) * 0.95 * ry, R * 0.3, mc);
+    const sp = lerp(Math.sin(c.face.eyeSpread) * 0.95 * rx, R * 0.34, mc);
     const lx = f.lookX * R * (0.3 - 0.08 * mc);
     const ly = f.lookY * R * (0.16 - 0.09 * mc);
     for (const sd of [-1, 1]) {
       ctx.save();
       ctx.translate(sd * sp + lx, ey + ly);
-      if (f.eye === "pill") drawSlimeEye(ctx, er, 1, INK);
+      if (f.eye === "pill") c.drawEye(ctx, er, 1, INK);
       else drawEye(ctx, f.eye, er * 1.5, er * 2.6);
       ctx.restore();
     }
