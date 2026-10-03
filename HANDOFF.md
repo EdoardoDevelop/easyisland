@@ -163,6 +163,11 @@ Un tipo di widget generico al posto delle integrazioni scritte a mano (le 7 attu
 
 Pensate per il supporto IT sul notebook, ma utili anche a casa.
 
+**Da fare, chieste da Edoardo (3 ottobre 2026):**
+- **Calcolatrice al volo:** scrivi "120*1,22" o "15% di 840" nell'isola e il risultato va negli appunti. Virgola decimale italiana, percentuali in linguaggio naturale, calcolo locale (niente `eval`, niente dipendenze). Si sposa con un convertitore di valute (cambi BCE) e unità.
+- **Estrai ZIP al volo:** trascini uno ZIP sull'isola, vedi l'anteprima dei file contenuti e scegli dove estrarlo. Va in "Cosa vuoi farne?" del rilascio file (`drop.rs`, `src/views/upload.ts`, `src/upload/canvas.ts`).
+- **Pulsante "tieni aperta":** un pulsante (puntina) nell'intestazione che impedisce la chiusura automatica dell'isola finché non lo si toglie; Esc e ✕ continuano a chiuderla. Si appoggia su `State.isPinned` / `fsm.pinned`.
+
 - **Notifiche da qualsiasi script:** comando `easyisland notify --titolo … --stato ok|errore --apri <url>` (riusa la named pipe del relay). Qualunque script, attività pianificata o n8n può mandare un avviso a Slime.
 - **Rubrica clienti:** per ogni cliente collegamenti RDP/AnyDesk/TeamViewer, portali, credenziali (solo riferimenti alla Gestione credenziali), note e azioni rapide dedicate. Si apre cercando il nome dall'isola.
 - **Timer d'intervento:** avvio/stop per cliente dall'isola, riepilogo a fine giornata, rapportino generato da Claude ed esportato (file o connettore scelto).
