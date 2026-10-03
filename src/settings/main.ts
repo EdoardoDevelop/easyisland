@@ -514,6 +514,17 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
         opt.unit ? h("span", { class: "hint note", text: opt.unit }) : null,
       ));
     }
+    const place = h("select", {},
+      h("option", { value: "pill", text: "Pillola nella panoramica" }),
+      h("option", { value: "tab", text: "Scheda in alto nell'isola" })) as HTMLSelectElement;
+    place.value = (settings.integrationTabs ?? []).includes(def.id) ? "tab" : "pill";
+    place.addEventListener("change", () => {
+      const rest = (settings.integrationTabs ?? []).filter((x) => x !== def.id);
+      settings.integrationTabs = place.value === "tab" ? [...rest, def.id] : rest;
+      void save();
+    });
+    rows.append(h("div", { class: "row" },
+      h("label", { style: "min-width:104px", text: "Mostra come" }), place));
     if (def.hint) rows.append(h("div", { class: "hint", text: def.hint }));
 
     list.append(

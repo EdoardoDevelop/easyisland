@@ -65,6 +65,7 @@ pub enum PendingSecret {
 /// Fields that belong to a profile rather than to the machine.
 pub const PROFILE_KEYS: &[&str] = &[
     "activeIntegrations",
+    "integrationTabs",
     "anchorV",
     "anchorH",
     "offsetX",
@@ -229,6 +230,9 @@ pub struct Settings {
     pub auto_close_interval: f64,
     pub absence_interval: f64,
     pub active_integrations: Vec<String>,
+    /// Integrations shown as a tab in the island's header instead of a pill.
+    #[serde(default)]
+    pub integration_tabs: Vec<String>,
     /// "primary" = the main display, "cursor" = whichever display the mouse is on.
     pub screen: String,
     pub autostart: bool,
@@ -411,6 +415,7 @@ impl Default for Settings {
                 "integration_vercel".into(),
                 "integration_github".into(),
             ],
+            integration_tabs: Vec::new(),
             screen: "primary".into(),
             autostart: false,
             hooks_installed: false,

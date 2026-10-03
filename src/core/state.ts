@@ -147,6 +147,8 @@ export interface Settings {
   autoCloseInterval: number;
   absenceInterval: number;
   activeIntegrations: string[];
+  /** Integrations shown as a tab in the island's header instead of a pill. */
+  integrationTabs: string[];
   screen: "primary" | "cursor";
   autostart: boolean;
   hooksInstalled: boolean;
@@ -342,6 +344,7 @@ export const DEFAULT_SETTINGS: Settings = {
   activeIntegrations: [
     "integration_resend", "integration_n8n", "integration_vercel", "integration_github",
   ],
+  integrationTabs: [],
   screen: "primary",
   autostart: false,
   hooksInstalled: false,
@@ -457,8 +460,18 @@ class AppState {
     return this.stateOverride ?? this.focusTask?.state ?? "idle";
   }
 
+  /** Pills in the overview: everything but the focused task and the header tabs. */
   get otherTasks(): AgentTask[] {
-    return this.tasks.filter((t) => t.id !== this.focusId);
+    return this.tasks.filter((t) => t.id !== this.focusId && !this.isTab(t.id));
+  }
+
+  /** Active integrations the user put in the header as tabs, in pill order. */
+  get tabTasks(): AgentTask[] {
+    return this.tasks.filter((t) => this.isTab(t.id));
+  }
+
+  isTab(id: string): boolean {
+    return (this.settings.integrationTabs ?? []).includes(id);
   }
 
   setFocus(id: string) {

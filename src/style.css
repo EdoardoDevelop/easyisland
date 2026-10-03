@@ -1847,3 +1847,27 @@ input[type="range"]::-webkit-slider-thumb {
 .media-btn:disabled {
   opacity: 0.35;
 }
+
+/* Integrations shown as header tabs (settings.integrationTabs). */
+.int-tabs {
+  display: flex;
+  gap: 5px;
+}
+
+.tab.int-tab {
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  font: 500 11px var(--font);
+  white-space: nowrap;
+}
+
+.tab.int-tab.badge::after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--green);
+}

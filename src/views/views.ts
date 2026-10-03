@@ -93,7 +93,14 @@ function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElem
 // ── Header ────────────────────────────────────────────────────────────────────
 
 export function buildHeader(actions: ViewActions): ViewHost {
-  const tabHome = h("button", { class: "tab", title: "Panoramica", onclick: () => go("overview") }, svg(ICONS.house, 13));
+  const tabHome = h("button", { class: "tab", title: "Panoramica", onclick: () => {
+    // Back from an integration tab: the overview's own card again.
+    if (State.focusId && State.isTab(State.focusId)) {
+      const first = State.tasks.find((t) => !State.isTab(t.id));
+      if (first) State.setFocus(first.id);
+    }
+    go("overview");
+  } }, svg(ICONS.house, 13));
   const tabChat = h("button", { class: "tab", title: "Chiedi", onclick: () => go("prompt") }, svg(ICONS.bubble, 13));
   const tabDrop = h("button", { class: "tab", title: "Rilascia", onclick: () => go("upload") }, svg(ICONS.plus, 13));
   const tabActions = h("button", { class: "tab", title: "Azioni", onclick: () => go("actions") }, svg(ICONS.bolt, 13));
@@ -107,10 +114,14 @@ export function buildHeader(actions: ViewActions): ViewHost {
     actions.setView(v);
   }
 
+  // Integrations the user wants as tabs (Impostazioni → Integrazioni).
+  const intTabs = h("div", { class: "int-tabs" });
+  let intTabsKey = "";
+
   const el = h(
     "div",
     { id: "header" },
-    h("div", { class: "tabs" }, tabHome, tabChat, tabActions, tabDrop),
+    h("div", { class: "tabs" }, tabHome, tabChat, tabActions, tabDrop, intTabs),
     h("div", { class: "header-actions" }, gearBtn, soundBtn, closeBtn),
   );
 
@@ -118,7 +129,30 @@ export function buildHeader(actions: ViewActions): ViewHost {
     el,
     sync() {
       const v = State.view;
-      tabHome.classList.toggle("on", v === "overview" || v === "empty");
+      const overview = v === "overview" || v === "empty";
+      const onTab = State.focusId != null && State.isTab(State.focusId);
+      tabHome.classList.toggle("on", overview && !onTab);
+      const tabs = State.tabTasks;
+      const key = tabs.map((t) => `${t.id}:${t.name}:${t.color}`).join("|");
+      if (key !== intTabsKey) {
+        intTabsKey = key;
+        clear(intTabs);
+        for (const t of tabs) {
+          intTabs.append(h("button", {
+            class: "tab int-tab", "data-id": t.id, title: t.name,
+            onclick: () => {
+              actions.blip();
+              State.setFocus(t.id);
+              actions.setView("overview");
+            },
+          }, dot(t.color, 6), h("span", { text: t.name })));
+        }
+      }
+      for (const b of Array.from(intTabs.children) as HTMLElement[]) {
+        const t = tabs.find((x) => x.id === b.dataset.id);
+        b.classList.toggle("on", overview && State.focusId === b.dataset.id);
+        b.classList.toggle("badge", !!t?.pillBadge);
+      }
       tabChat.classList.toggle("on", v === "prompt");
       tabDrop.classList.toggle("on", v === "upload");
       tabActions.classList.toggle("on", v === "actions" || v === "run");
