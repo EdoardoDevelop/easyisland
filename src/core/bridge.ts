@@ -134,6 +134,10 @@ export const Bridge = {
   /** The app in front, and the text selected in it (⚡ suggestions). */
   foregroundApp: () => call<{ exe: string; title: string } | null>("foreground_app"),
   captureSelection: () => call<string | null>("capture_selection"),
+  /** "Estrai…" on a dropped ZIP. `place`: "beside" | "downloads" | "desktop". */
+  zipList: (path: string) => callOrThrow<{ count: number; size: number; names: string[] }>("zip_list", { path }),
+  zipExtract: (path: string, name: string, place: string, source: string | null) =>
+    callOrThrow<string>("zip_extract", { path, name, place, source }),
   /** Musica: "toggle", "prev", "next". */
   mediaCommand: (command: string) => call<void>("media_command", { command }),
   hotkeyFailures: () => call<string[]>("hotkey_failures"),

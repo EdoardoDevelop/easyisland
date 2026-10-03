@@ -135,3 +135,89 @@ export function buildChoose(actions: ViewActions): ViewHost {
     },
   };
 }
+
+function size(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB"];
+  let v = bytes / 1024;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v.toLocaleString("it-IT", { maximumFractionDigits: v < 10 ? 1 : 0 })} ${units[i]}`;
+}
+
+/** "Estrai…" on a dropped ZIP: what is inside and where to put it. */
+export function buildUnzip(actions: ViewActions): ViewHost {
+  const title = h("div", { class: "title" });
+  const sub = h("div", { class: "sub" });
+  const list = h("div", { class: "zip-list" });
+  const row = h("div", { class: "actions" });
+  const body = h("div", { class: "zip-body" }, title, sub, list, row);
+  const el = h("div", { class: "view" }, h("div", { class: "card zip-card" }, body));
+  let key = "";
+
+  return {
+    el,
+    sync() {
+      const u = State.unzip;
+      const file = State.droppedFile;
+      if (!u || !file) return;
+      const k = `${file.name}|${u.status}|${u.message}|${u.info?.count ?? ""}`;
+      if (k === key) return;
+      key = k;
+      clear(title);
+      title.append(h("b", { text: file.name }));
+      clear(list);
+      clear(row);
+      sub.classList.toggle("bad", u.status === "error");
+      const btn = (label: string, kind: "primary" | "secondary", fn: () => void) =>
+        h("button", { class: `btn ${kind}`, text: label, onclick: fn });
+      const back = () => actions.setView(State.defaultView());
+
+      switch (u.status) {
+        case "loading":
+          sub.textContent = "Leggo il contenuto…";
+          row.append(btn("Annulla", "secondary", back));
+          break;
+        case "ready":
+        case "working": {
+          const info = u.info!;
+          sub.textContent = `${info.count} file · ${size(info.size)} una volta estratti`;
+          for (const n of info.names) list.append(h("div", { class: "zip-item", text: n }));
+          if (info.count > info.names.length) {
+            list.append(h("div", { class: "zip-item more", text: `…e altri ${info.count - info.names.length}` }));
+          }
+          if (u.status === "working") {
+            row.append(h("div", { class: "sub", text: "Estraggo…" }));
+          } else if (file.source) {
+            row.append(
+              btn("Estrai accanto all'originale", "primary", () => actions.extractZip("beside")),
+              btn("In Download", "secondary", () => actions.extractZip("downloads")),
+              btn("Sul Desktop", "secondary", () => actions.extractZip("desktop")),
+              btn("Annulla", "secondary", back),
+            );
+          } else {
+            row.append(
+              btn("Estrai in Download", "primary", () => actions.extractZip("downloads")),
+              btn("Sul Desktop", "secondary", () => actions.extractZip("desktop")),
+              btn("Annulla", "secondary", back),
+            );
+          }
+          break;
+        }
+        case "done":
+          sub.textContent = "Estratto in una nuova cartella, già aperta in Esplora file:";
+          list.append(h("div", { class: "zip-item dest", text: u.message }));
+          row.append(btn("Fatto", "primary", back));
+          break;
+        case "error":
+          sub.textContent = u.message;
+          row.append(btn("Chiudi", "secondary", back));
+          break;
+      }
+    },
+    fitHeight: () => body.offsetHeight + 24,
+  };
+}

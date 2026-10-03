@@ -6,6 +6,7 @@ import { ICONS } from "./icons";
 import { Bridge, type ChatContext } from "../core/bridge";
 import { Sound } from "../core/sound";
 import { State, type ChatMessage } from "../core/state";
+import { calculate, formatResult, plainResult } from "../core/calc";
 import type { ViewHost } from "./views";
 
 let nextId = 1;
@@ -56,11 +57,38 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
   const send = h("button", { class: "send-btn", title: "Invia" }, svg(ICONS.arrowUp, 14));
   const fresh = h("button", { class: "new-chat-btn", title: "Nuova chat" }, svg(ICONS.plus, 12), h("span", { text: "Nuova chat" }));
   const bar = h("div", { class: "chat-bar" }, fresh, input, send);
+  // The calculator: a calculation typed in the field shows its result here.
+  const calcValue = h("b", { class: "calc-value" });
+  const calcHint = h("span", { class: "calc-hint", text: "Invio copia · Ctrl+Invio chiede a Claude" });
+  const calcRow = h("div", { class: "calc-row" }, h("span", { class: "calc-eq", text: "=" }), calcValue, calcHint);
+  calcRow.style.display = "none";
+  let calcResult: number | null = null;
+  function updateCalc() {
+    calcResult = calculate(input.value);
+    calcRow.style.display = calcResult == null ? "none" : "";
+    if (calcResult != null) {
+      calcValue.textContent = formatResult(calcResult);
+      calcHint.textContent = "Invio copia · Ctrl+Invio chiede a Claude";
+      calcRow.classList.remove("copied");
+    }
+  }
+  async function copyCalc() {
+    if (calcResult == null) return;
+    const text = plainResult(calcResult);
+    try {
+      await navigator.clipboard.writeText(text);
+      calcHint.textContent = "Copiato negli appunti ✓";
+      calcRow.classList.add("copied");
+      Sound.play("finish");
+    } catch {
+      calcHint.textContent = "Copia non riuscita";
+    }
+  }
 
   const el = h(
     "div",
     { class: "view" },
-    h("div", { class: "card wash chat-card" }, h("div", { class: "chat-body" }, chipRow, log, bar)),
+    h("div", { class: "card wash chat-card" }, h("div", { class: "chat-body" }, chipRow, log, calcRow, bar)),
   );
   (el.querySelector(".card") as HTMLElement).style.setProperty("--wash", "rgba(99,102,241,0.5)");
 
@@ -70,7 +98,10 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
   async function submit(override?: string) {
     const query = (override ?? input.value).trim();
     if (!query || sending) return;
-    if (override == null) input.value = "";
+    if (override == null) {
+      input.value = "";
+      updateCalc();
+    }
     sending = true;
     Sound.play("send");
 
@@ -126,10 +157,17 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
   externalSend = (q) => void submit(q);
   fresh.addEventListener("click", startOver);
   send.addEventListener("click", () => void submit());
+  input.addEventListener("input", () => {
+    updateCalc();
+    onHeightChange();
+  });
   input.addEventListener("keydown", (e) => {
-    if ((e as KeyboardEvent).key === "Enter") {
+    const k = e as KeyboardEvent;
+    if (k.key === "Enter") {
       e.preventDefault();
-      void submit();
+      // A calculation: Enter copies the result, Ctrl+Enter still asks Claude.
+      if (calcResult != null && !k.ctrlKey) void copyCalc();
+      else void submit();
     }
     e.stopPropagation(); // Escape closes the island, not the chat
   });
@@ -158,7 +196,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
         log.scrollTop = log.scrollHeight;
       }
 
-      input.placeholder = State.chatHistory.length === 0 ? "Chiedimi qualsiasi cosa…" : "Continua…";
+      input.placeholder = State.chatHistory.length === 0 ? "Chiedimi qualsiasi cosa… o fai un calcolo" : "Continua…";
       input.disabled = sending;
       // Only when there is something to forget.
       fresh.style.display = State.chatHistory.length > 0 || file || text ? "" : "none";

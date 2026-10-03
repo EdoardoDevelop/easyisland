@@ -163,11 +163,6 @@ Un tipo di widget generico al posto delle integrazioni scritte a mano (le 7 attu
 
 Pensate per il supporto IT sul notebook, ma utili anche a casa.
 
-**Da fare, chieste da Edoardo (3 ottobre 2026):**
-- **Calcolatrice al volo:** scrivi "120*1,22" o "15% di 840" nell'isola e il risultato va negli appunti. Virgola decimale italiana, percentuali in linguaggio naturale, calcolo locale (niente `eval`, niente dipendenze). Si sposa con un convertitore di valute (cambi BCE) e unità.
-- **Estrai ZIP al volo:** trascini uno ZIP sull'isola, vedi l'anteprima dei file contenuti e scegli dove estrarlo. Va in "Cosa vuoi farne?" del rilascio file (`drop.rs`, `src/views/upload.ts`, `src/upload/canvas.ts`).
-- **Pulsante "tieni aperta":** un pulsante (puntina) nell'intestazione che impedisce la chiusura automatica dell'isola finché non lo si toglie; Esc e ✕ continuano a chiuderla. Si appoggia su `State.isPinned` / `fsm.pinned`.
-
 - **Notifiche da qualsiasi script:** comando `easyisland notify --titolo … --stato ok|errore --apri <url>` (riusa la named pipe del relay). Qualunque script, attività pianificata o n8n può mandare un avviso a Slime.
 - **Rubrica clienti:** per ogni cliente collegamenti RDP/AnyDesk/TeamViewer, portali, credenziali (solo riferimenti alla Gestione credenziali), note e azioni rapide dedicate. Si apre cercando il nome dall'isola.
 - **Timer d'intervento:** avvio/stop per cliente dall'isola, riepilogo a fine giornata, rapportino generato da Claude ed esportato (file o connettore scelto).
@@ -198,6 +193,12 @@ Pensate per il supporto IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi implementiamo la 6.1 (fondamenta)"_ oppure _"facciamo la sezione 4 → Identità con nome X"_. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 3 ottobre 2026 — calcolatrice, "Estrai…" per gli ZIP, pulsante "Tieni aperta"
+- **Calcolatrice** (`src/core/calc.ts`, nel campo della chat): scrivendo un calcolo compare sopra il campo "= risultato" in tempo reale; Invio copia il risultato negli appunti (senza separatore delle migliaia, così si incolla come numero), Ctrl+Invio lo manda comunque a Claude. Parser a discesa ricorsiva, niente `eval`: + − × ÷ (anche `x`, `:`, `*`, `/`), `^`, parentesi, meno unario; numeri all'italiana ("1.234,5"; senza virgola il punto è decimale, salvo gruppi di tre cifre); percentuali come una calcolatrice tascabile ("840 + 22%" = 1.024,8, "840 − 10%" = 756, "15% di 840" = 126, "22%" = 0,22). Un numero da solo o un testo non sono calcoli. Divisione per zero → nessun risultato. Casi provati nell'anteprima.
+- **"Estrai…" per gli ZIP** (`src-tauri/src/zip.rs`): rilasciando un .zip, "Cosa vuoi farne?" offre "Estrai…" (azione predefinita `builtin:unzip` in `fileActions()`, prima delle azioni dell'utente). La vista `unzip` (`buildUnzip` in `src/views/upload.ts`) mostra numero di file, dimensione estratta e i primi 12 nomi; poi "Estrai accanto all'originale", "In Download", "Sul Desktop" (cartella vera anche se spostata su OneDrive). Estrae sempre in una cartella nuova col nome dello ZIP ("nome (2)" se esiste), che si apre in Esplora file. Nessuna dipendenza: `System.IO.Compression` di .NET via PowerShell, percorsi passati in variabili d'ambiente; `ExtractToDirectory` rifiuta i percorsi che escono dalla cartella. `DroppedFile` ricorda ora anche `source` (il percorso originale; `path` è la copia in inbox). Script provati su uno ZIP di prova (elenco, estrazione, cartella "(2)").
+- **Pulsante "Tieni aperta"** (📌 nell'intestazione, viola; pieno quando attivo): niente chiusura automatica e niente conto alla rovescia finché è acceso (`State.keepOpen`, `fsm.keepOpen` / `setKeepOpen`); Esc e ✕ chiudono comunque, e chiudere lo spegne. Spegnendolo col mouse fuori dall'isola riparte il ritardo normale.
+- Verificato nell'anteprima del browser. Da provare nell'app installata: copia del risultato, estrazione di uno ZIP vero dalla barra delle applicazioni o da Esplora file.
 
 ### 3 ottobre 2026 — "Cosa fai adesso": azioni suggerite per l'app in primo piano
 - In cima alla scheda ⚡ compare "Per Outlook / Excel / Word / PowerPoint / Browser / Codice / Terminale / Teams / PDF" con 2-3 pulsanti (es. Outlook: Riassumi la mail, Scrivi una risposta, Cosa devo fare?); per ogni altra app tre azioni generiche (Riassumi, Traduci, Correggi) col nome del programma. Regole e prompt in `src/island/context.ts` (`RULES`, `suggestionsFor`); desktop e barra delle applicazioni esclusi.

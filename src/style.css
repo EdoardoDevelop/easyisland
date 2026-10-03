@@ -2065,3 +2065,108 @@ input[type="range"]::-webkit-slider-thumb {
   border-bottom: 0;
   margin-bottom: 0;
 }
+
+/* 📌 on: the pin is filled with its colour. */
+.header-actions button.pinned {
+  color: #0b0c0e;
+  background: var(--c);
+}
+
+/* Calculator result above the chat field (src/core/calc.ts). */
+.calc-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 4px 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(56, 189, 248, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.28);
+}
+
+.calc-eq {
+  font: 600 14px var(--font);
+  color: #38bdf8;
+}
+
+.calc-value {
+  font: 700 18px var(--mono);
+  color: var(--ink);
+  user-select: text;
+  overflow-wrap: anywhere;
+}
+
+.calc-hint {
+  margin-left: auto;
+  font: 400 10.5px var(--font);
+  color: var(--dim-2);
+  white-space: nowrap;
+}
+
+.calc-row.copied {
+  background: rgba(34, 197, 94, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.35);
+}
+
+.calc-row.copied .calc-hint {
+  color: #22c55e;
+}
+
+/* "Estrai…" on a dropped ZIP (buildUnzip). */
+.zip-card {
+  overflow-y: auto;
+}
+
+.zip-body {
+  padding: 14px 18px 12px 104px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.zip-body .title b {
+  font: 600 14px var(--font);
+  color: var(--ink);
+}
+
+.zip-body .sub.bad {
+  color: #f4505e;
+}
+
+.zip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.zip-item {
+  font: 400 11px var(--mono);
+  color: #c5c8cd;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.zip-item.more {
+  color: var(--dim-2);
+  background: transparent;
+}
+
+.zip-item.dest {
+  color: #f5a524;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.zip-body .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 6px;
+}

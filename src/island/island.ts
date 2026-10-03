@@ -215,9 +215,11 @@ export class Island {
       },
       openSettingsWindow: () => void Bridge.openSettingsWindow(),
       blip: () => Sound.play("blip"),
+      toggleKeepOpen: () => this.toggleKeepOpen(),
       installUpdate: () => void this.installUpdate(),
       runAction: (a) => void this.runAction(a),
       runSuggestion: (sg, app) => void this.runSuggestion(sg, app),
+      extractZip: (place) => void this.extractZip(place),
       confirmRun: () => void this.startScript(),
       killRun: () => {
         if (State.run?.status === "running") void Bridge.actionKill(State.run.runId);
@@ -332,6 +334,9 @@ export class Island {
     if (prev === "expanded") {
       Sound.play("close");
       State.isPinned = false;
+      // 📌 lasts for one opening: closing by hand (Esc, ✕) ends it.
+      State.keepOpen = false;
+      this.fsm.keepOpen = false;
       void Bridge.focusWindow(false);
     }
     if (mode !== "expanded") {
@@ -508,7 +513,51 @@ export class Island {
     this.startChat(s.prompt, { label: app ? `Testo da ${app}` : "Testo selezionato", text }, false);
   }
 
+  /** "Estrai…" on a dropped ZIP: list what is inside, then wait for a destination. */
+  private async openUnzip() {
+    const file = State.droppedFile;
+    if (!file) return;
+    State.unzip = { info: null, status: "loading", message: "" };
+    this.setView("unzip");
+    try {
+      const info = await Bridge.zipList(file.path);
+      if (State.unzip) State.unzip = { info, status: "ready", message: "" };
+    } catch (err) {
+      if (State.unzip) State.unzip = { info: null, status: "error", message: String(err).replace(/^Error:\s*/, "") };
+      Sound.play("error");
+    }
+    State.notify();
+  }
+
+  async extractZip(place: string) {
+    const file = State.droppedFile;
+    const u = State.unzip;
+    if (!file || !u || u.status === "working") return;
+    u.status = "working";
+    State.isPinned = true;
+    this.fsm.pinned = true;
+    State.notify();
+    try {
+      const dest = await Bridge.zipExtract(file.path, file.name, place, file.source ?? null);
+      u.status = "done";
+      u.message = dest;
+      Sound.play("finish");
+    } catch (err) {
+      u.status = "error";
+      u.message = String(err).replace(/^Error:\s*/, "");
+      Sound.play("error");
+    }
+    State.isPinned = false;
+    this.fsm.pinned = false;
+    State.notify();
+  }
+
   async runAction(a: QuickAction) {
+    if (a.id === "builtin:unzip") {
+      Sound.play("blip");
+      await this.openUnzip();
+      return;
+    }
     Sound.play("blip");
     try {
       switch (a.kind) {
@@ -667,6 +716,15 @@ export class Island {
     State.notify();
   }
 
+  /** 📌 in the header. */
+  toggleKeepOpen() {
+    State.keepOpen = !State.keepOpen;
+    this.fsm.setKeepOpen(State.keepOpen, this.wasInIsland);
+    if (State.keepOpen) this.homeCollapseAt = null;
+    else if (!this.wasInIsland) this.homeCollapseAt = performance.now() + State.settings.autoCloseInterval * 1000;
+    State.notify();
+  }
+
   /** An alert stopped waiting for an answer: let the island auto-close again. */
   dropPin() {
     this.fsm.pinned = false;
@@ -731,7 +789,7 @@ export class Island {
    */
   private swallow(path: string) {
     const name = path.split(/[\\/]/).pop() || "file";
-    State.droppedFile = { name, path };
+    State.droppedFile = { name, path, source: path };
     State.promptContext = { kind: "file", name, path };
     State.chatText = null;
     State.chatHistory = [];
@@ -756,7 +814,7 @@ export class Island {
 
     void Bridge.ingestFile(path)
       .then((file) => {
-        State.droppedFile = { name: file.name, path: file.path };
+        State.droppedFile = { name: file.name, path: file.path, source: path };
         State.promptContext = { kind: "file", name: file.name, path: file.path };
         State.notify();
       })
@@ -1139,7 +1197,7 @@ export class Island {
     if (!inIsland && this.wasInIsland) {
       this.cancelHoverOpen();
       this.fsm.mouseLeft();
-      if (this.fsm.state === "home" && !State.isPinned) {
+      if (this.fsm.state === "home" && !State.isPinned && !State.keepOpen) {
         this.homeCollapseAt = performance.now() + State.settings.autoCloseInterval * 1000;
       }
     }
@@ -1391,7 +1449,7 @@ export class Island {
   }
 
   private updateCountdown(nowMs: number) {
-    if (State.mode !== "expanded" || State.isPinned || this.homeCollapseAt == null) {
+    if (State.mode !== "expanded" || State.isPinned || State.keepOpen || this.homeCollapseAt == null) {
       this.countdown.style.width = "0px";
       return;
     }

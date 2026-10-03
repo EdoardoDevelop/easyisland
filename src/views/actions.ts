@@ -26,9 +26,17 @@ const KIND_HINT: Record<QuickAction["kind"], string> = {
 
 const isFileAction = (a: QuickAction) => a.kind === "prompt" && a.input === "file";
 
-/** The actions offered on "Cosa vuoi farne?" after a drop: prompts applied to the file. */
+/** Built-in file actions (id "builtin:…"), offered for some kinds of file. */
+const builtin = (id: string, name: string, color: string): QuickAction => ({
+  id: `builtin:${id}`, name, icon: "", color, kind: "app", target: "", args: "", script: "",
+  shell: "powershell", prompt: "", input: "file", confirm: false, hotkey: "",
+});
+
+/** The actions offered on "Cosa vuoi farne?" after a drop: built-ins, then prompts applied to the file. */
 export function fileActions(): QuickAction[] {
-  return (State.settings.actions ?? []).filter(isFileAction);
+  const name = State.droppedFile?.name.toLowerCase() ?? "";
+  const extras = name.endsWith(".zip") ? [builtin("unzip", "Estrai…", "#F5A524")] : [];
+  return [...extras, ...(State.settings.actions ?? []).filter(isFileAction)];
 }
 
 /** The ⚡ tab: everything but the file actions, which only make sense with a file. */

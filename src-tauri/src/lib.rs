@@ -26,6 +26,7 @@ mod settings;
 mod tray;
 mod updates;
 mod widgets;
+mod zip;
 mod win_user;
 mod zammad;
 
@@ -625,6 +626,18 @@ async fn capture_selection() -> Option<String> {
     tauri::async_runtime::spawn_blocking(context::selection).await.ok().flatten()
 }
 
+/// "Estrai…" on a dropped ZIP: what is inside.
+#[tauri::command]
+async fn zip_list(path: String) -> Result<zip::ZipInfo, String> {
+    zip::list(&path).await
+}
+
+/// "Estrai…": into a new folder, then opened in Explorer. Returns the folder.
+#[tauri::command]
+async fn zip_extract(path: String, name: String, place: String, source: Option<String>) -> Result<String, String> {
+    zip::extract(&path, &name, &place, source.as_deref()).await
+}
+
 /// Musica: "toggle", "prev" or "next".
 #[tauri::command]
 fn media_command(command: String) {
@@ -779,6 +792,8 @@ pub fn run() {
             clipboard_remove,
             clipboard_clear,
             media_command,
+            zip_list,
+            zip_extract,
             foreground_app,
             capture_selection,
             open_n8n,

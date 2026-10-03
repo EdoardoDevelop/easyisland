@@ -9,12 +9,16 @@ import { State, sessionOpenLabel, type AgentTask, type AskQuestion } from "../co
 import { ISLAND_CHROME_H, MAX_ISLAND_H, washRGBA, type IslandViewName, type Wash } from "../core/layout";
 import { createMiniBot, pruneMiniBots } from "../character/minibots";
 import { buildPrompt } from "./chat";
-import { buildChoose, buildUpload, buildUploading } from "./upload";
+import { buildChoose, buildUnzip, buildUpload, buildUploading } from "./upload";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, type ActionHandlers } from "./actions";
 
 export interface ViewActions extends ActionHandlers {
   setView(v: IslandViewName): void;
+  /** "Estrai…" on a dropped ZIP: "beside" | "downloads" | "desktop". */
+  extractZip(place: string): void;
+  /** 📌: keep the island open (no auto-close). */
+  toggleKeepOpen(): void;
   collapse(): void;
   setFocus(id: string): void;
   openTerminal(): void;
@@ -105,6 +109,10 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const tabDrop = h("button", { class: "tab", title: "Rilascia", style: "--c:#22C55E", onclick: () => go("upload") }, svg(ICONS.plus, 16));
   const tabActions = h("button", { class: "tab", title: "Azioni", style: "--c:#F5A524", onclick: () => go("actions") }, svg(ICONS.bolt, 16));
 
+  const pinBtn = h("button", { title: "Tieni aperta", style: "--c:#A78BFA", onclick: () => {
+    actions.blip();
+    actions.toggleKeepOpen();
+  } }, svg(ICONS.pin, 15));
   const gearBtn = h("button", { title: "Impostazioni", style: "--c:#94A3B8", onclick: () => go("settings") }, svg(ICONS.gear, 16));
   const soundBtn = h("button", { title: "Silenzia", style: "--c:#22D3EE", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 16));
   const closeBtn = h("button", { title: "Chiudi", style: "--c:#F4505E", onclick: () => actions.dismiss() }, svg(ICONS.xmark, 14));
@@ -122,7 +130,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
     "div",
     { id: "header" },
     h("div", { class: "tabs" }, tabHome, tabChat, tabActions, tabDrop, intTabs),
-    h("div", { class: "header-actions" }, gearBtn, soundBtn, closeBtn),
+    h("div", { class: "header-actions" }, pinBtn, gearBtn, soundBtn, closeBtn),
   );
 
   return {
@@ -160,6 +168,9 @@ export function buildHeader(actions: ViewActions): ViewHost {
       tabDrop.classList.toggle("on", v === "upload");
       tabActions.classList.toggle("on", v === "actions" || v === "run");
       gearBtn.classList.toggle("on", v === "settings");
+      pinBtn.classList.toggle("on", State.keepOpen);
+      pinBtn.classList.toggle("pinned", State.keepOpen);
+      pinBtn.title = State.keepOpen ? "Resta aperta: clic per lasciarla chiudere da sola" : "Tieni aperta";
       clear(gearBtn);
       gearBtn.append(svg(v === "settings" ? ICONS.gearFill : ICONS.gear, 16));
       clear(soundBtn);
@@ -721,6 +732,7 @@ export function buildViews(
   map.set("choose", buildChoose(actions));
   map.set("actions", buildActions(actions));
   map.set("run", buildRun(actions));
+  map.set("unzip", buildUnzip(actions));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder("L'invio via email non è disponibile in questa versione.", ""));
   map.set("searching", buildPlaceholder("Claude sta cercando…", ""));

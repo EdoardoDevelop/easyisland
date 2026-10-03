@@ -398,6 +398,9 @@ class AppState {
   mode: IslandMode = "hidden";
   view: IslandViewName = "overview";
 
+  /** 📌 in the header: the island stays open until unpinned, Esc or ✕. */
+  keepOpen = false;
+
   /** The app in front when the island last opened (src/island/context.ts). */
   foreground: { exe: string; title: string } | null = null;
 
@@ -431,7 +434,14 @@ class AppState {
   fileDragOver = false;
 
   promptContext: PromptContext | null = null;
-  droppedFile: { name: string; path: string } | null = null;
+  /** `source`: where the file was dropped from (the copy is in `path`). */
+  droppedFile: { name: string; path: string; source?: string } | null = null;
+  /** "Estrai…" on a dropped ZIP: what is inside, and how the extraction went. */
+  unzip: {
+    info: { count: number; size: number; names: string[] } | null;
+    status: "loading" | "ready" | "working" | "done" | "error";
+    message: string;
+  } | null = null;
   /** Text the chat is about (clipboard, a quick action) — sent with the first message. */
   chatText: { label: string; text: string } | null = null;
   /** The script being confirmed / run / shown in the Run view. */
