@@ -149,6 +149,8 @@ export interface Settings {
   activeIntegrations: string[];
   /** Integrations shown as a tab in the island's header instead of a pill. */
   integrationTabs: string[];
+  /** Tabs that show an icon (emoji or short text) instead of the name: id → icon. */
+  integrationTabIcons: Record<string, string>;
   screen: "primary" | "cursor";
   autostart: boolean;
   hooksInstalled: boolean;
@@ -345,6 +347,7 @@ export const DEFAULT_SETTINGS: Settings = {
     "integration_resend", "integration_n8n", "integration_vercel", "integration_github",
   ],
   integrationTabs: [],
+  integrationTabIcons: {},
   screen: "primary",
   autostart: false,
   hooksInstalled: false,

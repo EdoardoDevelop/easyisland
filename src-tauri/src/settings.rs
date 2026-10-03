@@ -66,6 +66,7 @@ pub enum PendingSecret {
 pub const PROFILE_KEYS: &[&str] = &[
     "activeIntegrations",
     "integrationTabs",
+    "integrationTabIcons",
     "anchorV",
     "anchorH",
     "offsetX",
@@ -233,6 +234,9 @@ pub struct Settings {
     /// Integrations shown as a tab in the island's header instead of a pill.
     #[serde(default)]
     pub integration_tabs: Vec<String>,
+    /// Integrations whose tab shows an icon (emoji or short text) instead of the name: id → icon.
+    #[serde(default)]
+    pub integration_tab_icons: serde_json::Map<String, Value>,
     /// "primary" = the main display, "cursor" = whichever display the mouse is on.
     pub screen: String,
     pub autostart: bool,
@@ -416,6 +420,7 @@ impl Default for Settings {
                 "integration_github".into(),
             ],
             integration_tabs: Vec::new(),
+            integration_tab_icons: serde_json::Map::new(),
             screen: "primary".into(),
             autostart: false,
             hooks_installed: false,

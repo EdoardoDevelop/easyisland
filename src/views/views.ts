@@ -133,19 +133,22 @@ export function buildHeader(actions: ViewActions): ViewHost {
       const onTab = State.focusId != null && State.isTab(State.focusId);
       tabHome.classList.toggle("on", overview && !onTab);
       const tabs = State.tabTasks;
-      const key = tabs.map((t) => `${t.id}:${t.name}:${t.color}`).join("|");
+      const icons = State.settings.integrationTabIcons ?? {};
+      const key = tabs.map((t) => `${t.id}:${t.name}:${t.color}:${icons[t.id] ?? ""}`).join("|");
       if (key !== intTabsKey) {
         intTabsKey = key;
         clear(intTabs);
         for (const t of tabs) {
+          const icon = icons[t.id]?.trim();
           intTabs.append(h("button", {
-            class: "tab int-tab", "data-id": t.id, title: t.name,
+            class: icon ? "tab int-tab icon" : "tab int-tab", "data-id": t.id, title: t.name,
             onclick: () => {
               actions.blip();
               State.setFocus(t.id);
               actions.setView("overview");
             },
-          }, dot(t.color, 6), h("span", { text: t.name })));
+          }, icon ? h("span", { class: "int-tab-icon", text: icon }) : dot(t.color, 6),
+            icon ? null : h("span", { text: t.name })));
         }
       }
       for (const b of Array.from(intTabs.children) as HTMLElement[]) {

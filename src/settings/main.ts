@@ -444,6 +444,14 @@ const INTEGRATIONS: IntegrationDef[] = [
     hint: "Cosa sta suonando (Spotify, una scheda del browser, Lettore multimediale… tutto ciò che compare nei controlli multimediali di Windows), con copertina, play/pausa, brano precedente e successivo. Tutto in locale, nessun account." },
 ];
 
+/** Suggested icon for each integration when its tab shows an icon. */
+const TAB_ICONS: Record<string, string> = {
+  integration_stripe: "💳", integration_github: "🐙", integration_vercel: "▲", integration_n8n: "🔁",
+  integration_resend: "✉️", integration_notion: "📝", integration_calcom: "📅", integration_outlook: "📧",
+  integration_zammad: "🎫", integration_system: "💻", integration_security: "🛡️", integration_network: "🌐",
+  integration_weather: "⛅", integration_clipboard: "📋", integration_media: "🎵",
+};
+
 function integrationsSection(present: Record<string, boolean>): HTMLElement {
   const note = h("div", { class: "hint" });
   const list = h("div", { style: "display:flex;flex-direction:column;gap:14px" });
@@ -516,15 +524,38 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
     }
     const place = h("select", {},
       h("option", { value: "pill", text: "Pillola nella panoramica" }),
-      h("option", { value: "tab", text: "Scheda in alto nell'isola" })) as HTMLSelectElement;
-    place.value = (settings.integrationTabs ?? []).includes(def.id) ? "tab" : "pill";
+      h("option", { value: "tab", text: "Scheda in alto, con il nome" }),
+      h("option", { value: "icon", text: "Scheda in alto, con un'icona" })) as HTMLSelectElement;
+    const iconInput = h("input", {
+      type: "text", maxlength: "4", spellcheck: "false", style: "width:56px;text-align:center",
+      title: "Un'emoji o una o due lettere", placeholder: TAB_ICONS[def.id] ?? "★",
+    }) as HTMLInputElement;
+    const icons = () => (settings.integrationTabIcons ??= {});
+    iconInput.value = icons()[def.id] ?? "";
+    const isTab = (settings.integrationTabs ?? []).includes(def.id);
+    place.value = !isTab ? "pill" : icons()[def.id] ? "icon" : "tab";
+    const syncIcon = () => { iconInput.style.display = place.value === "icon" ? "" : "none"; };
+    syncIcon();
     place.addEventListener("change", () => {
       const rest = (settings.integrationTabs ?? []).filter((x) => x !== def.id);
-      settings.integrationTabs = place.value === "tab" ? [...rest, def.id] : rest;
+      settings.integrationTabs = place.value === "pill" ? rest : [...rest, def.id];
+      if (place.value === "icon") {
+        if (!iconInput.value.trim()) iconInput.value = TAB_ICONS[def.id] ?? "★";
+        icons()[def.id] = iconInput.value.trim();
+      } else {
+        delete icons()[def.id];
+      }
+      syncIcon();
+      void save();
+    });
+    iconInput.addEventListener("change", () => {
+      const v = iconInput.value.trim() || (TAB_ICONS[def.id] ?? "★");
+      iconInput.value = v;
+      icons()[def.id] = v;
       void save();
     });
     rows.append(h("div", { class: "row" },
-      h("label", { style: "min-width:104px", text: "Mostra come" }), place));
+      h("label", { style: "min-width:104px", text: "Mostra come" }), place, iconInput));
     if (def.hint) rows.append(h("div", { class: "hint", text: def.hint }));
 
     list.append(

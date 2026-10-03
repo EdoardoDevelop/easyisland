@@ -1871,3 +1871,14 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 50%;
   background: var(--green);
 }
+
+.tab.int-tab.icon {
+  padding: 0 7px;
+  min-width: 30px;
+  justify-content: center;
+}
+
+.int-tab-icon {
+  font-size: 12px;
+  line-height: 1;
+}
