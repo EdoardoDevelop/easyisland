@@ -122,12 +122,15 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_weather", "Meteo", "#0EA5E9", "n8n"),
   task("integration_outlook", "Outlook", "#0A84D6", "n8n"),
   task("integration_zammad", "Ticket", "#F59E0B", "n8n"),
+  task("integration_clipboard", "Appunti", "#A78BFA", "n8n"),
+  task("integration_media", "Musica", "#1ED760", "n8n"),
 ];
 
 export const TOGGLEABLE_INTEGRATION_IDS = [
   "integration_resend", "integration_n8n", "integration_vercel", "integration_github",
   "integration_notion", "integration_calcom", "integration_stripe",
   ...Object.keys(PROBE_INTEGRATIONS),
+  "integration_clipboard", "integration_media",
 ];
 
 /** What an integration poller last reported. */
@@ -205,6 +208,8 @@ export interface Settings {
   /** Global shortcuts ("" = none); they belong to the PC, not to a profile. */
   hotkeyOpen: string;
   hotkeyAsk: string;
+  /** Opens the clipboard history (Appunti). */
+  hotkeyClipboard: string;
   /** Look for a new version on GitHub at start and once a day. */
   updateCheck: boolean;
   /** Options of the integrations that run as checks (PROBE_INTEGRATIONS). Belongs to the PC. */
@@ -373,6 +378,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoProfile: false,
   hotkeyOpen: "Ctrl+Alt+Shift+M",
   hotkeyAsk: "Ctrl+Alt+K",
+  hotkeyClipboard: "Ctrl+Alt+H",
   updateCheck: true,
   integrationConfig: { systemWarn: 10, outlookWarn: 10, weatherCity: "" },
 };

@@ -61,6 +61,29 @@ export async function runScene(island: Island, scene: string) {
       await wait(1800);
       break;
     }
+    case "clipboard":
+    case "media": {
+      // ?activeIntegrations=integration_clipboard,integration_media
+      await wait(300);
+      const now = Date.now();
+      State.integrations.integration_clipboard = {
+        loaded: true, configured: true, error: null,
+        data: { items: [
+          { id: 3, preview: "https://github.com/EdoardoDevelop/easyisland/releases", chars: 52, lines: 1, at: now - 20_000, pinned: false },
+          { id: 2, preview: "Via Roma 12, 40121 Bologna", chars: 26, lines: 1, at: now - 300_000, pinned: true },
+          { id: 1, preview: "{\"name\":\"easyisland\",\"version\":\"0.2.0\"}", chars: 40, lines: 1, at: now - 900_000, pinned: false },
+        ] },
+      };
+      State.integrations.integration_media = {
+        loaded: true, configured: true, error: null,
+        data: { active: true, title: "Bohemian Rhapsody", artist: "Queen", app: "Spotify", playing: true,
+          canPrev: true, canNext: true, duration: 354, position: 121, cover: null },
+      };
+      State.setFocus(scene === "clipboard" ? "integration_clipboard" : "integration_media");
+      island.alert("overview");
+      await wait(2500);
+      break;
+    }
     case "drop":
       await wait(300);
       island.alert("upload");

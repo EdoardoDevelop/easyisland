@@ -565,6 +565,10 @@ export class Island {
     } else if (name === "ask") {
       const text = await Bridge.clipboardText();
       this.startChat("", text ? { label: "Testo copiato", text } : null, false);
+    } else if (name === "clipboard") {
+      if (!State.settings.activeIntegrations.includes("integration_clipboard")) return;
+      State.setFocus("integration_clipboard");
+      this.setView("overview");
     } else if (name.startsWith("action:")) {
       const a = (State.settings.actions ?? []).find((x) => x.id === name.slice(7));
       if (a) await this.runAction(a);

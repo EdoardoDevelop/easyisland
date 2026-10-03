@@ -5,6 +5,7 @@ mod apps;
 mod calendar;
 mod claude;
 mod claude_cli;
+mod clipboard;
 mod drop;
 mod files;
 mod hooks;
@@ -13,6 +14,7 @@ mod integrations;
 mod island;
 mod legacy;
 mod log;
+mod media;
 mod outlook;
 mod pipe;
 mod presence;
@@ -580,7 +582,40 @@ fn open_n8n() {
 /// Refresh buttons in the integration cards.
 #[tauri::command]
 async fn refresh_integration(app: AppHandle, id: String) {
-    integrations::poll_once(app, &id).await;
+    match id.as_str() {
+        clipboard::ID => clipboard::publish(&app),
+        media::ID => media::refresh(),
+        _ => integrations::poll_once(app, &id).await,
+    }
+}
+
+/// Appunti: put an entry back on the clipboard (transformed), and paste it.
+#[tauri::command]
+async fn clipboard_use(app: AppHandle, id: u64, transform: String, paste: bool) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || clipboard::use_entry(&app, id, &transform, paste))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn clipboard_pin(app: AppHandle, id: u64, pinned: bool) {
+    clipboard::pin(&app, id, pinned);
+}
+
+#[tauri::command]
+fn clipboard_remove(app: AppHandle, id: u64) {
+    clipboard::remove(&app, id);
+}
+
+#[tauri::command]
+fn clipboard_clear(app: AppHandle) {
+    clipboard::clear(&app);
+}
+
+/// Musica: "toggle", "prev" or "next".
+#[tauri::command]
+fn media_command(command: String) {
+    media::command(&command);
 }
 
 /// Lets the island write to the same log as the Rust side.
@@ -726,6 +761,11 @@ pub fn run() {
             secret_set,
             secret_clear,
             refresh_integration,
+            clipboard_use,
+            clipboard_pin,
+            clipboard_remove,
+            clipboard_clear,
+            media_command,
             open_n8n,
             open_zammad,
             open_settings_window,
@@ -749,6 +789,8 @@ pub fn run() {
             island::spawn_drag_raise(handle.clone(), gate.clone());
             profiles::spawn_auto_switch(handle.clone());
             hotkeys::spawn(handle.clone());
+            clipboard::spawn(handle.clone());
+            media::spawn(handle.clone());
             widgets::start(handle.clone());
 
             log::line(format!("--- EasyIsland {} started ---", env!("CARGO_PKG_VERSION")));

@@ -377,6 +377,138 @@ function n8nDetail(task: AgentTask, onBack: () => void): HTMLElement {
   );
 }
 
+// ── Appunti ───────────────────────────────────────────────────────────────────
+
+/** Asks Rust once for a local integration's state (the card opens before any event). */
+const requested = new Set<string>();
+function ensureLoaded(id: string) {
+  if (State.integrations[id]?.loaded || requested.has(id)) return;
+  requested.add(id);
+  void Bridge.refreshIntegration(id);
+}
+
+const TRANSFORMS: [string, string][] = [
+  ["upper", "MAIUSCOLO"], ["lower", "minuscolo"], ["oneline", "Una riga"],
+  ["trim", "Senza spazi"], ["json", "JSON"], ["urldecode", "URL"],
+];
+
+function iconButton(icon: string, title: string, onclick: (e: MouseEvent) => void, active = false): HTMLElement {
+  return h("button", {
+    class: active ? "clip-btn on" : "clip-btn",
+    title,
+    onclick: (e: Event) => { e.stopPropagation(); onclick(e as MouseEvent); },
+  }, svg(icon, 10));
+}
+
+function clipboardCard(task: AgentTask): HTMLElement {
+  ensureLoaded(task.id);
+  const items = arr(task.id, "items");
+  const extra = items.some((i) => !i.pinned)
+    ? h("button", { class: "link-btn clip-clear", style: "color:#8e939c", text: "Svuota",
+      onclick: () => void Bridge.clipboardClear() })
+    : undefined;
+  const rows = h("div", { class: "int-rows tight clip-list" });
+  if (items.length === 0) {
+    rows.append(h("div", { class: "int-empty", text: "Copia un testo: lo ritrovi qui." }));
+  }
+  for (const it of items) {
+    const id = Number(it.id);
+    const label = h("span", { class: "int-name", text: String(it.preview ?? "").replace(/\s+/g, " ") });
+    const lines = Number(it.lines ?? 1);
+    const meta = h("span", { class: "int-ago", text: lines > 1 ? `${lines} righe` : timeAgo(it.at) });
+    const flash = (text: string) => {
+      label.textContent = text;
+      window.setTimeout(() => { label.textContent = String(it.preview ?? "").replace(/\s+/g, " "); }, 1400);
+    };
+    const use = async (transform: string, paste: boolean) => {
+      try {
+        await Bridge.clipboardUse(id, transform, paste);
+        flash(paste ? "Incollato ✓" : "Copiato ✓");
+      } catch (e) {
+        flash(String(e));
+      }
+    };
+    const chips = h("div", { class: "clip-chips" });
+    chips.style.display = "none";
+    for (const [key, name] of TRANSFORMS) {
+      chips.append(h("button", { class: "clip-chip", text: name,
+        onclick: (e: Event) => { e.stopPropagation(); void use(key, true); } }));
+    }
+    const row = h("div", { class: it.pinned ? "int-row clip-row pinned" : "int-row clip-row",
+      title: "Clic: incolla nell'app in primo piano", onclick: () => void use("", true) },
+      dot(it.pinned ? task.color : "#5b5f67", 5), label, meta,
+      h("span", { class: "clip-tools" },
+        iconButton(ICONS.copy, "Copia senza incollare", () => void use("", false)),
+        iconButton(ICONS.ellipsis, "Trasforma e incolla", () => {
+          chips.style.display = chips.style.display === "none" ? "" : "none";
+        }),
+        iconButton(ICONS.pin, it.pinned ? "Togli dai fissati" : "Fissa in cima",
+          () => void Bridge.clipboardPin(id, !it.pinned), !!it.pinned),
+        iconButton(ICONS.xmark, "Elimina", () => void Bridge.clipboardRemove(id))));
+    rows.append(h("div", { class: "clip-item" }, row, chips));
+  }
+  return h("div", { class: "int-card" }, header(task.color, "Appunti", "Cronologia", extra), rows);
+}
+
+// ── Musica ────────────────────────────────────────────────────────────────────
+
+function mmss(s: number): string {
+  const t = Math.max(0, Math.floor(s));
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+}
+
+function mediaCard(task: AgentTask): HTMLElement {
+  ensureLoaded(task.id);
+  const d = get(task.id);
+  if (!d.active) {
+    return h("div", { class: "int-card" }, header(task.color, "Musica", "In riproduzione"),
+      h("div", { class: "int-status" }, dot("#5b5f67", 5),
+        h("span", { text: State.integrations[task.id]?.loaded ? "Niente in riproduzione" : "Cerco un lettore…" })));
+  }
+  const playing = !!d.playing;
+  const duration = Number(d.duration ?? 0);
+  const cover = typeof d.cover === "string"
+    ? h("img", { class: "media-cover", src: d.cover, alt: "" })
+    : h("div", { class: "media-cover empty" }, svg(ICONS.play, 14));
+  const sub = [d.artist, d.app].filter((x) => typeof x === "string" && x).join(" · ");
+
+  // The position ticks on here between the (rare) updates from Rust.
+  const fill = h("i", { class: "media-fill", style: `background:${task.color}` });
+  const time = h("span", { class: "int-ago", text: "" });
+  const start = Number(d.position ?? 0);
+  const t0 = performance.now();
+  const tick = () => {
+    const pos = Math.min(duration, start + (playing ? (performance.now() - t0) / 1000 : 0));
+    fill.style.width = duration > 0 ? `${(pos / duration) * 100}%` : "0";
+    time.textContent = duration > 0 ? `${mmss(pos)} / ${mmss(duration)}` : "";
+  };
+  tick();
+  if (playing && duration > 0) {
+    const timer = window.setInterval(() => {
+      if (!fill.isConnected) { window.clearInterval(timer); return; }
+      tick();
+    }, 1000);
+  }
+
+  const ctl = (icon: string, title: string, cmd: string, enabled = true, main = false) =>
+    h("button", { class: main ? "media-btn main" : "media-btn", title, disabled: !enabled,
+      onclick: () => void Bridge.mediaCommand(cmd) }, svg(icon, main ? 12 : 10));
+
+  return h("div", { class: "int-card" },
+    header(task.color, "Musica", playing ? "In riproduzione" : "In pausa"),
+    h("div", { class: "media-row" },
+      cover,
+      h("div", { class: "media-info" },
+        h("b", { class: "media-title", text: String(d.title ?? "") }),
+        h("span", { class: "media-sub", text: sub }),
+        h("div", { class: "media-bar" }, fill))),
+    h("div", { class: "media-ctl" },
+      ctl(ICONS.prev, "Precedente", "prev", !!d.canPrev),
+      ctl(playing ? ICONS.pause : ICONS.play, playing ? "Pausa" : "Riproduci", "toggle", true, true),
+      ctl(ICONS.next, "Successivo", "next", !!d.canNext),
+      time));
+}
+
 // ── Dispatch ──────────────────────────────────────────────────────────────────
 
 export interface IntegrationCardHooks {
@@ -474,6 +606,8 @@ function widgetCard(task: AgentTask, openSettings: () => void): HTMLElement {
 }
 
 export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHooks): HTMLElement {
+  if (task.id === "integration_clipboard") return clipboardCard(task);
+  if (task.id === "integration_media") return mediaCard(task);
   if (task.id.startsWith("widget:") || PROBE_INTEGRATIONS[task.id]) return widgetCard(task, hooks.openSettings);
   if (task.id === "integration_n8n") {
     const hasActivity = task.steps.length > 0 && (task.state === "finished" || task.state === "error");

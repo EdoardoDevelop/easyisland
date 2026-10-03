@@ -438,6 +438,10 @@ const INTEGRATIONS: IntegrationDef[] = [
       get: (c) => c.weatherCity, set: (c, v) => { c.weatherCity = v.trim(); },
     }],
     hint: "Da Open-Meteo, gratuito e senza chiave. Avvisa quando è probabile la pioggia nelle prossime ore." },
+  { id: "integration_clipboard", name: "Appunti", color: "#A78BFA", fields: [],
+    hint: "Gli ultimi 30 testi copiati, più quelli fissati: clic per incollarli nell'app in primo piano, o trasformarli (maiuscole, una riga, JSON, URL). Si apre anche con la scorciatoia in Azioni rapide. Restano solo in memoria (mai su disco) e si svuotano alla chiusura; ciò che i gestori di password segnano come privato non viene registrato." },
+  { id: "integration_media", name: "Musica", color: "#1ED760", fields: [],
+    hint: "Cosa sta suonando (Spotify, una scheda del browser, Lettore multimediale… tutto ciò che compare nei controlli multimediali di Windows), con copertina, play/pausa, brano precedente e successivo. Tutto in locale, nessun account." },
 ];
 
 function integrationsSection(present: Record<string, boolean>): HTMLElement {
@@ -1068,7 +1072,9 @@ function actionsSection(): HTMLElement {
     h("div", { class: "row" }, h("label", { text: "Apri l'isola" }),
       hotkeyField(settings.hotkeyOpen, (v) => { settings.hotkeyOpen = v; })),
     h("div", { class: "row" }, h("label", { text: "Chiedi sul testo copiato" }),
-      hotkeyField(settings.hotkeyAsk, (v) => { settings.hotkeyAsk = v; }),
+      hotkeyField(settings.hotkeyAsk, (v) => { settings.hotkeyAsk = v; })),
+    h("div", { class: "row" }, h("label", { text: "Cronologia appunti" }),
+      hotkeyField(settings.hotkeyClipboard, (v) => { settings.hotkeyClipboard = v; }),
       h("span", { class: "hint note", text: "scorciatoie di questo PC, valgono in ogni app" })),
     warn,
     list,

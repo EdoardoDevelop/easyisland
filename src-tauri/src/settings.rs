@@ -329,6 +329,9 @@ pub struct Settings {
     /// Global shortcut: ask the character about the text on the clipboard.
     #[serde(default = "default_hotkey_ask")]
     pub hotkey_ask: String,
+    /// Global shortcut: open the clipboard history (Appunti).
+    #[serde(default = "default_hotkey_clipboard")]
+    pub hotkey_clipboard: String,
     /// Look for a new version on GitHub at start and once a day. Belongs to the PC.
     #[serde(default = "default_true")]
     pub update_check: bool,
@@ -345,6 +348,9 @@ fn default_hotkey_open() -> String {
 }
 fn default_hotkey_ask() -> String {
     "Ctrl+Alt+K".into()
+}
+fn default_hotkey_clipboard() -> String {
+    "Ctrl+Alt+H".into()
 }
 
 fn default_presence_mode() -> String {
@@ -440,6 +446,7 @@ impl Default for Settings {
             auto_profile: false,
             hotkey_open: default_hotkey_open(),
             hotkey_ask: default_hotkey_ask(),
+            hotkey_clipboard: default_hotkey_clipboard(),
             update_check: true,
             integration_config: IntegrationConfig::default(),
             pending_secrets: Vec::new(),

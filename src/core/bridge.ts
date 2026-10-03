@@ -125,6 +125,14 @@ export const Bridge = {
     ),
   actionKill: (runId: string) => call<void>("action_kill", { runId }),
   clipboardText: () => call<string | null>("clipboard_text"),
+  /** Appunti: copy an entry back (transformed: "", upper, lower, oneline, trim, json, urldecode) and paste it. */
+  clipboardUse: (id: number, transform: string, paste: boolean) =>
+    callOrThrow<void>("clipboard_use", { id, transform, paste }),
+  clipboardPin: (id: number, pinned: boolean) => call<void>("clipboard_pin", { id, pinned }),
+  clipboardRemove: (id: number) => call<void>("clipboard_remove", { id }),
+  clipboardClear: () => call<void>("clipboard_clear"),
+  /** Musica: "toggle", "prev", "next". */
+  mediaCommand: (command: string) => call<void>("media_command", { command }),
   hotkeyFailures: () => call<string[]>("hotkey_failures"),
   /** Widgets. */
   widgetTest: (widget: unknown) =>
