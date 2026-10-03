@@ -2170,3 +2170,27 @@ input[type="range"]::-webkit-slider-thumb {
   gap: 8px;
   padding-top: 6px;
 }
+
+/* The list scrolls; rows never shrink into each other. */
+.zip-item {
+  flex: 0 0 auto;
+  line-height: 16px;
+  min-height: 20px;
+}
+
+.zip-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.zip-list::-webkit-scrollbar-button {
+  display: none;
+}
+
+.zip-list::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.zip-list::-webkit-scrollbar-track {
+  background: transparent;
+}
