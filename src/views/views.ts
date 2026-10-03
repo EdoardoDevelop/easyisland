@@ -275,7 +275,9 @@ function buildOverview(actions: ViewActions): ViewHost {
       jump.style.display = detailOpen ? "none" : "";
 
       // Every pill is shown (the island grows to fit them); alerts go first.
-      const others = [...State.otherTasks]
+      // An integration opened from its header tab stands alone: pills only on ⌂.
+      const onTab = task != null && State.isTab(task.id);
+      const others = onTab ? [] : [...State.otherTasks]
         .sort((a, b) => Number(!!b.pillBadge) - Number(!!a.pillBadge));
       pillCount = others.length;
       const pillKey = others.map((t) => `${t.id}:${t.pillBadge ?? ""}`).join("|");
