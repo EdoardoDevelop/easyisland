@@ -736,6 +736,7 @@ pub fn run() {
             gate.set_active(true);
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             island::spawn_fullscreen_watch(handle.clone(), gate.clone());
+            island::spawn_drag_raise(handle.clone(), gate.clone());
             profiles::spawn_auto_switch(handle.clone());
             hotkeys::spawn(handle.clone());
             widgets::start(handle.clone());

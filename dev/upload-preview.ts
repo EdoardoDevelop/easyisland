@@ -3,9 +3,22 @@
 
 import { UploadCanvas } from "../src/upload/canvas";
 import { UploadSeq } from "../src/upload/sequence";
-import { State } from "../src/core/state";
+import { State, type QuickAction } from "../src/core/state";
 
 State.droppedFile = { name: "rapport-q3.pdf", path: "C:/tmp/rapport-q3.pdf" };
+
+// File actions on the choose card; `?azioni=0` shows the card without them.
+const sample = (id: string, name: string, color: string): QuickAction => ({
+  id, name, icon: "", color, kind: "prompt", target: "", args: "", script: "",
+  shell: "powershell", prompt: `${name} (prova)`, input: "file", confirm: true, hotkey: "",
+});
+const count = Number(new URLSearchParams(location.search).get("azioni") ?? "2");
+State.settings.actions = [
+  sample("a1", "Analizza log", "#f59e0b"),
+  sample("a2", "Riassumi", "#60a5fa"),
+  sample("a3", "Traduci in inglese", "#a78bfa"),
+  sample("a4", "Spiega questo errore molto lungo", "#f472b6"),
+].slice(0, count);
 
 const stage = document.getElementById("stage")!;
 const clock = document.getElementById("clock")!;
@@ -13,7 +26,7 @@ const clock = document.getElementById("clock")!;
 const canvas = new UploadCanvas({
   ask: () => (clock.textContent = "ASK clicked"),
   cancel: () => (clock.textContent = "CANCEL clicked"),
-});
+  runAction: (a) => (clock.textContent = `ACTION ${a.name} clicked`),});
 canvas.el.classList.add("on");
 canvas.el.style.position = "absolute";
 canvas.el.style.left = "0";

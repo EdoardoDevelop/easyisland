@@ -19,6 +19,7 @@ import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { sendToChat } from "../views/chat";
+import { tabActions } from "../views/actions";
 import type { ApprovalInfo, Notice, QuickAction } from "../core/state";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
@@ -252,6 +253,7 @@ export class Island {
         this.setView("prompt");
       },
       cancel: () => this.setView(State.defaultView()),
+      runAction: (a) => void this.runAction(a),
     });
 
     this.clipEl = h(
@@ -557,7 +559,7 @@ export class Island {
   async onHotkey(name: string) {
     Sound.resume();
     if (name === "open") {
-      this.setView((State.settings.actions ?? []).length > 0 ? "actions" : "prompt");
+      this.setView(tabActions().length > 0 ? "actions" : "prompt");
     } else if (name === "ask") {
       const text = await Bridge.clipboardText();
       this.startChat("", text ? { label: "Testo copiato", text } : null, false);
@@ -638,8 +640,16 @@ export class Island {
 
   // ── File drop ───────────────────────────────────────────────────────────────
 
+  /** One line for the log: where the island and the drop sequence stand. */
+  private dropState(): string {
+    return `mode ${State.mode}, view ${State.view}, fsm ${this.fsm.state}, ` +
+      `seq ${UploadSeq.isActive ? (UploadSeq.dropped ? "dropped" : "active") : "off"}, ` +
+      `frames ${this.running ? "running" : "stopped"}, paused ${State.paused}, quiet ${State.quiet}, ` +
+      `page ${document.visibilityState}`;
+  }
+
   private onDragDrop(e: { type: string; paths?: string[] }) {
-    if (e.type !== "over") void Bridge.log(`drag ${e.type} ${e.paths?.length ?? 0} file(s)`);
+    if (e.type !== "over") void Bridge.log(`drag ${e.type} ${e.paths?.length ?? 0} file(s), ${this.dropState()}`);
     if (State.paused) return;
     switch (e.type) {
       case "enter":
@@ -647,10 +657,14 @@ export class Island {
         if (State.fileDragOver) return;
         State.fileDragOver = true;
         this.engine.animateMorph(1);
-        // enterZone must run before the island expands, so the sequence is
-        // already active by the time the view becomes `upload`.
-        UploadSeq.enterZone(State.mouseInIsland.x, State.mouseInIsland.y);
+        // Open first, then start the sequence. A compact island opens through
+        // the state machine, which passes by the default view on the way, and
+        // leaving the drop views stops the sequence: started first, it was
+        // switched off at once, the character never followed the file and the bar
+        // stayed at 0 %. Both run in this same task, so the next frame already
+        // sees the sequence active on `upload`.
         this.alert("upload");
+        UploadSeq.enterZone(State.mouseInIsland.x, State.mouseInIsland.y);
         break;
       }
       case "leave": {
@@ -701,6 +715,10 @@ export class Island {
     State.uploadProgress = 0;
     this.setView("uploading");
     this.ensureRunning();
+    // A stalled frame loop leaves the bar at 0 % with nothing in the log: say so.
+    window.setTimeout(() => {
+      void Bridge.log(`drop: after 1.5 s progress ${Math.round(State.uploadProgress * 100)} %, ${this.dropState()}`);
+    }, 1500);
 
     void Bridge.ingestFile(path)
       .then((file) => {

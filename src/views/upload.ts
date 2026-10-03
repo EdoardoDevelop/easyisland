@@ -1,11 +1,12 @@
 // Drop zone, upload progress and the "what do you want to do with it" card —
 // ports of UploadView / UploadingView / ChooseView from IslandViewContent.swift.
 //
-// Sending a file by email is not in the Windows v1, so `choose` offers the one
-// action the spec asks for: ask a question about it.
+// Sending a file by email is not in the Windows v1, so `choose` offers asking a
+// question about it, plus the user's quick actions that work on a file.
 
 import { h, clear } from "./dom";
 import { State } from "../core/state";
+import { fileActions } from "./actions";
 import type { ViewActions, ViewHost } from "./views";
 
 /** Dashed rounded rect drawn as SVG so the dashes can march like on macOS. */
@@ -86,20 +87,8 @@ export function buildUploading(): ViewHost {
 export function buildChoose(actions: ViewActions): ViewHost {
   const title = h("div", { class: "title" });
   const sub = h("div", { class: "sub", text: "Cosa vuoi farne?" });
-  const row = h(
-    "div",
-    { class: "actions" },
-    h("button", {
-      class: "btn primary",
-      text: "Fai una domanda",
-      onclick: () => actions.setView("prompt"),
-    }),
-    h("button", {
-      class: "btn secondary",
-      text: "Annulla",
-      onclick: () => actions.setView(State.defaultView()),
-    }),
-  );
+  const row = h("div", { class: "actions" });
+  let rowKey: string | null = null;
   const el = h(
     "div",
     { class: "view" },
@@ -117,6 +106,31 @@ export function buildChoose(actions: ViewActions): ViewHost {
       title.append(
         h("b", { text: State.droppedFile?.name ?? "file" }),
         document.createTextNode(" è pronto."),
+      );
+
+      // The user's file actions sit between the question and the way out.
+      const list = fileActions();
+      const k = JSON.stringify(list.map((a) => [a.id, a.name]));
+      if (k === rowKey) return;
+      rowKey = k;
+      clear(row);
+      row.append(
+        h("button", {
+          class: "btn primary",
+          text: "Fai una domanda",
+          onclick: () => actions.setView("prompt"),
+        }),
+        ...list.map((a) => h("button", {
+          class: "btn secondary",
+          text: a.name || "Senza nome",
+          title: a.prompt,
+          onclick: () => actions.runAction(a),
+        })),
+        h("button", {
+          class: "btn secondary",
+          text: "Annulla",
+          onclick: () => actions.setView(State.defaultView()),
+        }),
       );
     },
   };

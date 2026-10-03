@@ -21,6 +21,18 @@ const KIND_HINT: Record<QuickAction["kind"], string> = {
   prompt: "Chiede a Claude",
 };
 
+const isFileAction = (a: QuickAction) => a.kind === "prompt" && a.input === "file";
+
+/** The actions offered on "Cosa vuoi farne?" after a drop: prompts applied to the file. */
+export function fileActions(): QuickAction[] {
+  return (State.settings.actions ?? []).filter(isFileAction);
+}
+
+/** The ⚡ tab: everything but the file actions, which only make sense with a file. */
+export function tabActions(): QuickAction[] {
+  return (State.settings.actions ?? []).filter((a) => !isFileAction(a));
+}
+
 function actionButton(a: QuickAction, onClick: () => void): HTMLElement {
   const color = /^#[0-9a-f]{6}$/i.test(a.color) ? a.color : "#8e939c";
   const b = h(
@@ -44,7 +56,7 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
   return {
     el,
     sync() {
-      const list = State.settings.actions ?? [];
+      const list = tabActions();
       const k = JSON.stringify(list.map((a) => [a.id, a.name, a.icon, a.color, a.kind, a.hotkey]));
       if (k === key) return;
       key = k;
