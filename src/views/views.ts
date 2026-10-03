@@ -93,21 +93,21 @@ function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElem
 // ── Header ────────────────────────────────────────────────────────────────────
 
 export function buildHeader(actions: ViewActions): ViewHost {
-  const tabHome = h("button", { class: "tab", title: "Panoramica", onclick: () => {
+  const tabHome = h("button", { class: "tab", title: "Panoramica", style: "--c:#38BDF8", onclick: () => {
     // Back from an integration tab: the overview's own card again.
     if (State.focusId && State.isTab(State.focusId)) {
       const first = State.tasks.find((t) => !State.isTab(t.id));
       if (first) State.setFocus(first.id);
     }
     go("overview");
-  } }, svg(ICONS.house, 13));
-  const tabChat = h("button", { class: "tab", title: "Chiedi", onclick: () => go("prompt") }, svg(ICONS.bubble, 13));
-  const tabDrop = h("button", { class: "tab", title: "Rilascia", onclick: () => go("upload") }, svg(ICONS.plus, 13));
-  const tabActions = h("button", { class: "tab", title: "Azioni", onclick: () => go("actions") }, svg(ICONS.bolt, 13));
+  } }, svg(ICONS.house, 16));
+  const tabChat = h("button", { class: "tab", title: "Chiedi", style: "--c:#A78BFA", onclick: () => go("prompt") }, svg(ICONS.bubble, 16));
+  const tabDrop = h("button", { class: "tab", title: "Rilascia", style: "--c:#22C55E", onclick: () => go("upload") }, svg(ICONS.plus, 16));
+  const tabActions = h("button", { class: "tab", title: "Azioni", style: "--c:#F5A524", onclick: () => go("actions") }, svg(ICONS.bolt, 16));
 
-  const gearBtn = h("button", { title: "Impostazioni", onclick: () => go("settings") }, svg(ICONS.gear, 14));
-  const soundBtn = h("button", { title: "Silenzia", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 14));
-  const closeBtn = h("button", { title: "Chiudi", onclick: () => actions.dismiss() }, svg(ICONS.xmark, 12));
+  const gearBtn = h("button", { title: "Impostazioni", style: "--c:#94A3B8", onclick: () => go("settings") }, svg(ICONS.gear, 16));
+  const soundBtn = h("button", { title: "Silenzia", style: "--c:#22D3EE", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 16));
+  const closeBtn = h("button", { title: "Chiudi", style: "--c:#F4505E", onclick: () => actions.dismiss() }, svg(ICONS.xmark, 14));
 
   function go(v: IslandViewName) {
     actions.blip();
@@ -147,7 +147,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
               State.setFocus(t.id);
               actions.setView("overview");
             },
-          }, icon ? h("span", { class: "int-tab-icon", text: icon }) : dot(t.color, 6),
+          }, icon ? h("span", { class: "int-tab-icon", text: icon }) : dot(t.color, 8),
             icon ? null : h("span", { text: t.name })));
         }
       }
@@ -161,9 +161,10 @@ export function buildHeader(actions: ViewActions): ViewHost {
       tabActions.classList.toggle("on", v === "actions" || v === "run");
       gearBtn.classList.toggle("on", v === "settings");
       clear(gearBtn);
-      gearBtn.append(svg(v === "settings" ? ICONS.gearFill : ICONS.gear, 14));
+      gearBtn.append(svg(v === "settings" ? ICONS.gearFill : ICONS.gear, 16));
       clear(soundBtn);
-      soundBtn.append(svg(State.settings.soundEnabled ? ICONS.speakerOn : ICONS.speakerOff, 14));
+      soundBtn.append(svg(State.settings.soundEnabled ? ICONS.speakerOn : ICONS.speakerOff, 16));
+      soundBtn.style.setProperty("--c", State.settings.soundEnabled ? "#22D3EE" : "#F4505E");
       el.style.opacity = v === "confused" ? "0" : "1";
       closeBtn.style.display = State.settings.closeButton ? "" : "none";
       closeBtn.title = State.pendingApproval ? "Chiudi: rispondi nel terminale" : "Chiudi (Esc)";
@@ -181,7 +182,7 @@ function buildOverview(actions: ViewActions): ViewHost {
   const jump = h(
     "button",
     { class: "icon-btn jump", title: "Apri", onclick: () => actions.openTarget() },
-    svg(ICONS.arrowUpRight, 8),
+    svg(ICONS.arrowUpRight, 12),
   );
   const left = card(null, leftBody, jump);
   const pills = h("div", { class: "pills" });
@@ -637,7 +638,7 @@ function buildSettings(actions: ViewActions): ViewHost {
     h(
       "div",
       { class: "settings-row" },
-      svg(ICONS.timer, 12),
+      svg(ICONS.timer, 14),
       autoLabel,
       h("div", { class: "seg" }, ...segButtons),
     ),

@@ -53,8 +53,8 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     placeholder: "Chiedimi qualsiasi cosa…",
     spellcheck: "false",
   }) as HTMLInputElement;
-  const send = h("button", { class: "send-btn", title: "Invia" }, svg(ICONS.arrowUp, 11));
-  const fresh = h("button", { class: "new-chat-btn", title: "Nuova chat" }, svg(ICONS.plus, 10), h("span", { text: "Nuova chat" }));
+  const send = h("button", { class: "send-btn", title: "Invia" }, svg(ICONS.arrowUp, 14));
+  const fresh = h("button", { class: "new-chat-btn", title: "Nuova chat" }, svg(ICONS.plus, 12), h("span", { text: "Nuova chat" }));
   const bar = h("div", { class: "chat-bar" }, fresh, input, send);
 
   const el = h(

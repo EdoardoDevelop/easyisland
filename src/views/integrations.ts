@@ -134,7 +134,7 @@ function vercelCard(onDetail: () => void): HTMLElement {
       const more = h(
         "button",
         { class: "int-more", title: "Dettagli", onclick: onDetail },
-        svg(ICONS.ellipsis, 8),
+        svg(ICONS.ellipsis, 12),
       );
       rows.append(listRow(accent, true, name, ago, more));
     } else {
@@ -170,7 +170,7 @@ function vercelDetail(onBack: () => void): HTMLElement {
     h(
       "div",
       { class: "int-detail-head" },
-      h("button", { class: "int-back", onclick: onBack }, svg(ICONS.chevronLeft, 10, { stroke: 2.4 })),
+      h("button", { class: "int-back", onclick: onBack }, svg(ICONS.chevronLeft, 13, { stroke: 2.4 })),
       dot(accent, 6),
       h("b", { text: String(d.projectName ?? "Deploy") }),
       h("span", { class: "int-badge", style: `color:${accent};background:${accent}24`, text: status }),
@@ -284,7 +284,7 @@ function notionCard(): HTMLElement {
         },
         p.emoji
           ? h("span", { class: "int-emoji", text: String(p.emoji) })
-          : h("i", { class: "int-emoji" }, svg(ICONS.doc, 9)),
+          : h("i", { class: "int-emoji" }, svg(ICONS.doc, 11)),
         h("span", { class: "int-name", text: String(p.title ?? "Senza titolo") }),
         h("span", { class: "int-ago", text: timeAgo(p.lastEditedAt) }),
       ),
@@ -343,7 +343,7 @@ function n8nCard(task: AgentTask, onDetail: () => void, openSettings: () => void
         },
         dot(accent, 5),
         h("span", { class: "int-name", text: task.steps[0] ?? "Workflow" }),
-        svg(ICONS.ellipsis, 8),
+        svg(ICONS.ellipsis, 12),
       ),
     ),
   );
@@ -359,7 +359,7 @@ function n8nDetail(task: AgentTask, onBack: () => void): HTMLElement {
     h(
       "div",
       { class: "int-detail-head" },
-      h("button", { class: "int-back", onclick: onBack }, svg(ICONS.chevronLeft, 10, { stroke: 2.4 })),
+      h("button", { class: "int-back", onclick: onBack }, svg(ICONS.chevronLeft, 13, { stroke: 2.4 })),
       dot(accent, 6),
       h("b", { text: task.steps[0] ?? "Workflow" }),
       h("span", {
@@ -392,12 +392,12 @@ const TRANSFORMS: [string, string][] = [
   ["trim", "Senza spazi"], ["json", "JSON"], ["urldecode", "URL"],
 ];
 
-function iconButton(icon: string, title: string, onclick: (e: MouseEvent) => void, active = false): HTMLElement {
+function iconButton(icon: string, title: string, color: string, onclick: (e: MouseEvent) => void, active = false): HTMLElement {
   return h("button", {
     class: active ? "clip-btn on" : "clip-btn",
-    title,
+    title, style: `--c:${color}`,
     onclick: (e: Event) => { e.stopPropagation(); onclick(e as MouseEvent); },
-  }, svg(icon, 10));
+  }, svg(icon, 12));
 }
 
 function clipboardCard(task: AgentTask): HTMLElement {
@@ -438,13 +438,13 @@ function clipboardCard(task: AgentTask): HTMLElement {
       title: "Clic: incolla nell'app in primo piano", onclick: () => void use("", true) },
       dot(it.pinned ? task.color : "#5b5f67", 5), label, meta,
       h("span", { class: "clip-tools" },
-        iconButton(ICONS.copy, "Copia senza incollare", () => void use("", false)),
-        iconButton(ICONS.ellipsis, "Trasforma e incolla", () => {
+        iconButton(ICONS.copy, "Copia senza incollare", "#38BDF8", () => void use("", false)),
+        iconButton(ICONS.ellipsis, "Trasforma e incolla", "#F5A524", () => {
           chips.style.display = chips.style.display === "none" ? "" : "none";
         }),
-        iconButton(ICONS.pin, it.pinned ? "Togli dai fissati" : "Fissa in cima",
+        iconButton(ICONS.pin, it.pinned ? "Togli dai fissati" : "Fissa in cima", "#A78BFA",
           () => void Bridge.clipboardPin(id, !it.pinned), !!it.pinned),
-        iconButton(ICONS.xmark, "Elimina", () => void Bridge.clipboardRemove(id))));
+        iconButton(ICONS.xmark, "Elimina", "#F4505E", () => void Bridge.clipboardRemove(id))));
     rows.append(h("div", { class: "clip-item" }, row, chips));
   }
   return h("div", { class: "int-card" }, header(task.color, "Appunti", "Cronologia", extra), rows);
@@ -469,7 +469,7 @@ function mediaCard(task: AgentTask): HTMLElement {
   const duration = Number(d.duration ?? 0);
   const cover = typeof d.cover === "string"
     ? h("img", { class: "media-cover", src: d.cover, alt: "" })
-    : h("div", { class: "media-cover empty" }, svg(ICONS.play, 14));
+    : h("div", { class: "media-cover empty" }, svg(ICONS.play, 18));
   const sub = [d.artist, d.app].filter((x) => typeof x === "string" && x).join(" · ");
 
   // The position ticks on here between the (rare) updates from Rust.
@@ -492,7 +492,7 @@ function mediaCard(task: AgentTask): HTMLElement {
 
   const ctl = (icon: string, title: string, cmd: string, enabled = true, main = false) =>
     h("button", { class: main ? "media-btn main" : "media-btn", title, disabled: !enabled,
-      onclick: () => void Bridge.mediaCommand(cmd) }, svg(icon, main ? 12 : 10));
+      onclick: () => void Bridge.mediaCommand(cmd), style: `--c:${task.color}` }, svg(icon, main ? 16 : 13));
 
   return h("div", { class: "int-card" },
     header(task.color, "Musica", playing ? "In riproduzione" : "In pausa"),

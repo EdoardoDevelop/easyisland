@@ -30,8 +30,8 @@ interface Row {
 }
 
 function makeRow(): Row {
-  const chevron = svg(ICONS.chevronRight, 9, { stroke: 2.4 });
-  const check = svg(ICONS.check, 8, { stroke: 2.2 });
+  const chevron = svg(ICONS.chevronRight, 11, { stroke: 2.4 });
+  const check = svg(ICONS.check, 10, { stroke: 2.2 });
   check.style.color = "#454850"; // the completed tick is dimmer than the chevron
   check.style.position = "absolute";
   chevron.style.position = "absolute";

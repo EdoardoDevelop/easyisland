@@ -1786,7 +1786,9 @@ let boot: { status: HookStatus; hasKey: boolean; present: Record<string, boolean
 interface Page {
   id: string;
   label: string;
+  /** An icon of action-icons.ts, drawn in `color`. */
   icon: string;
+  color: string;
   title: string;
   intro: string;
   sections: () => HTMLElement[];
@@ -1796,42 +1798,42 @@ interface Page {
 function pages(b: NonNullable<typeof boot>): Page[] {
   return [
     {
-      id: "generale", label: "Generale", icon: "⚙", title: "Generale",
+      id: "generale", label: "Generale", icon: "wrench", color: "#94A3B8", title: "Generale",
       intro: "Suono, avvio con Windows e i profili (lavoro, casa…): ogni profilo ha le sue impostazioni.",
       sections: () => [generalSection(), updatesSection(), profilesSection()],
     },
     {
-      id: "aspetto", label: "Aspetto", icon: "◐", title: "Aspetto",
+      id: "aspetto", label: "Aspetto", icon: "image", color: "#F472B6", title: "Aspetto",
       intro: "Dove sta l'isola, come si mostra, il personaggio e i colori.",
       sections: () => [placementSection(), themeSection()],
     },
     {
-      id: "notifiche", label: "Notifiche", icon: "◔", title: "Notifiche",
+      id: "notifiche", label: "Notifiche", icon: "alert", color: "#F5A524", title: "Notifiche",
       intro: "Quando il personaggio si fa vedere, quando si fa da parte e i messaggi dagli script.",
       sections: () => [notifySection(), presenceSection(), scriptsSection(b.status.hookPath)],
     },
     {
-      id: "claude", label: "Claude", icon: "✦", title: "Claude",
+      id: "claude", label: "Claude", icon: "sparkles", color: "#E07A5F", title: "Claude",
       intro: "Le sessioni di Claude Code nell'isola, la chat e i connettori che può usare.",
       sections: () => [claudeSection(b.status), claudeChatSection(b.hasKey), connectorsSection()],
     },
     {
-      id: "azioni", label: "Azioni rapide", icon: "⚡", title: "Azioni rapide",
+      id: "azioni", label: "Azioni rapide", icon: "bolt", color: "#FACC15", title: "Azioni rapide",
       intro: "Pulsanti della scheda ⚡ e scorciatoie da tastiera.",
       sections: () => [actionsSection()],
     },
     {
-      id: "integrazioni", label: "Integrazioni", icon: "◎", title: "Integrazioni",
+      id: "integrazioni", label: "Integrazioni", icon: "network", color: "#38BDF8", title: "Integrazioni",
       intro: "Servizi e programmi, uno per tipo: GitHub, Vercel, n8n, Stripe, Zammad, Outlook, stato del PC, sicurezza, rete, meteo…",
       sections: () => [integrationsSection(b.present)],
     },
     {
-      id: "widget", label: "Widget", icon: "▦", title: "Widget",
+      id: "widget", label: "Widget", icon: "chart", color: "#22C55E", title: "Widget",
       intro: "Controlli ripetibili senza codice: calendari, domini, siti, certificati, server, porte, servizi Windows e API.",
       sections: () => [widgetsSection()],
     },
     {
-      id: "backup", label: "Backup", icon: "⇅", title: "Backup e trasferimento",
+      id: "backup", label: "Backup", icon: "cloud", color: "#A78BFA", title: "Backup e trasferimento",
       intro: "Porta le impostazioni su un altro PC. Le chiavi restano in Gestione credenziali e vanno reinserite.",
       sections: () => [backupSection()],
     },
@@ -1865,7 +1867,7 @@ function render() {
   );
   for (const p of list) {
     const item = h("button", { class: p.id === page.id ? "nav-item on" : "nav-item" },
-      h("span", { class: "nav-icon", text: p.icon }), h("span", { text: p.label }));
+      h("span", { class: "nav-icon", style: `--c:${p.color}` }, actionIconSvg(actionIcon(`i:${p.icon}`)!, 16)), h("span", { text: p.label }));
     item.addEventListener("click", () => {
       try {
         localStorage.setItem(PAGE_KEY, p.id);

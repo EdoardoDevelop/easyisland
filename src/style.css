@@ -1882,3 +1882,125 @@ input[type="range"]::-webkit-slider-thumb {
   font-size: 12px;
   line-height: 1;
 }
+
+/* ── Colourful icons ───────────────────────────────────────────────────────
+   Every icon button carries its colour in --c: the glyph is drawn in it and
+   sits on a soft tint of the same colour, stronger when hovered or on. */
+
+.tab {
+  width: 34px;
+  height: 26px;
+  border-radius: 9px;
+  color: var(--c, #b0b5be);
+  background: color-mix(in srgb, var(--c, #fff) 10%, transparent);
+  opacity: 0.8;
+  transition: background 0.15s, opacity 0.15s, box-shadow 0.15s;
+}
+
+.tab:hover {
+  opacity: 1;
+  color: var(--c, #fff);
+  background: color-mix(in srgb, var(--c, #fff) 20%, transparent);
+}
+
+.tab.on {
+  opacity: 1;
+  color: var(--c, var(--ink));
+  background: color-mix(in srgb, var(--c, #fff) 26%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c, #fff) 45%, transparent);
+}
+
+.tab.int-tab {
+  color: var(--ink);
+}
+
+.tabs {
+  gap: 6px;
+}
+
+.header-actions {
+  gap: 8px;
+}
+
+.header-actions button {
+  width: 28px;
+  height: 26px;
+  border-radius: 9px;
+  color: var(--c, var(--dim-2));
+  background: color-mix(in srgb, var(--c, #fff) 10%, transparent);
+  opacity: 0.8;
+}
+
+.header-actions button:hover,
+.header-actions button.on {
+  opacity: 1;
+  background: color-mix(in srgb, var(--c, #fff) 24%, transparent);
+}
+
+.icon-btn {
+  width: 22px;
+  height: 22px;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.14);
+}
+
+.icon-btn:hover {
+  background: rgba(56, 189, 248, 0.28);
+}
+
+.int-more {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: #f5a524;
+  background: rgba(245, 165, 36, 0.12);
+}
+
+.int-back {
+  color: #38bdf8;
+}
+
+.clip-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--c, #8e939c);
+  background: color-mix(in srgb, var(--c, #fff) 12%, transparent);
+}
+
+.clip-btn:hover {
+  color: var(--c, #fff);
+  background: color-mix(in srgb, var(--c, #fff) 28%, transparent);
+}
+
+.clip-btn.on {
+  color: #fff;
+  background: color-mix(in srgb, var(--c, #fff) 55%, transparent);
+}
+
+.media-btn {
+  width: 30px;
+  height: 30px;
+  color: var(--c, #c5c8cd);
+  background: color-mix(in srgb, var(--c, #fff) 14%, transparent);
+}
+
+.media-btn.main {
+  width: 36px;
+  height: 36px;
+  color: #0b0c0e;
+  background: var(--c, var(--ink));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--c, #fff) 45%, transparent);
+}
+
+.send-btn {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  background: #a78bfa;
+  box-shadow: 0 0 12px rgba(167, 139, 250, 0.4);
+}
+
+.new-chat-btn svg {
+  color: #22c55e;
+}
