@@ -7,8 +7,13 @@
 //            run rarely: every 6 h by default)
 //   service  a local Windows service is running (Service Control Manager)
 //   json     any JSON API: fields picked by path, an alert rule on one of them
-//   system, security, network, weather, domain   see probes.rs
+//   domain   see probes.rs
 //   calendar an ICS link, see calendar.rs
+//
+// The same engine runs the integrations that are checks rather than API
+// pollers (settings::PROBE_INTEGRATIONS): system, security, network, weather
+// (probes.rs), outlook (outlook.rs) and zammad (zammad.rs). They are switched
+// on in Impostazioni → Integrazioni, one each, and all_widgets() adds them.
 //
 // One scheduler task wakes every few seconds, runs whatever is due, and sends
 // `widget-update` to the island. Nothing runs while EasyIsland is paused, and on
@@ -104,6 +109,10 @@ pub struct WidgetResult {
     pub fields: Vec<FieldValue>,
     /// Unix seconds.
     pub at: u64,
+    /// Something that just happened (a new ticket): the island announces it even
+    /// when the level does not change.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub event: Option<String>,
 }
 
 impl WidgetResult {
@@ -114,6 +123,7 @@ impl WidgetResult {
             summary: summary.into(),
             fields: Vec::new(),
             at: SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0),
+            event: None,
         }
     }
 }
@@ -127,6 +137,7 @@ fn default_every(kind: &str) -> u64 {
         "calendar" => 300,
         "weather" => 900,
         "domain" => 12 * 3600,
+        "zammad" => 120,
         _ => 60,
     }
 }
@@ -137,6 +148,7 @@ fn min_every(kind: &str) -> u64 {
         "security" => 600,
         "weather" => 300,
         "calendar" => 60,
+        "outlook" | "zammad" => 30,
         _ => 15,
     }
 }
@@ -182,6 +194,8 @@ pub async fn probe(w: &Widget) -> WidgetResult {
         "weather" => crate::probes::weather(w).await,
         "domain" => crate::probes::domain(w).await,
         "calendar" => crate::calendar::probe(w).await,
+        "outlook" => crate::outlook::probe(w).await,
+        "zammad" => crate::zammad::probe(w).await,
         other => WidgetResult::new(&w.id, "error", format!("Tipo di widget sconosciuto: {other}")),
     }
 }
@@ -508,10 +522,45 @@ async fn json_api(w: &Widget) -> WidgetResult {
 
 // ── Scheduler ─────────────────────────────────────────────────────────────────
 
+/// The user's widgets, plus the integrations switched on that run as checks
+/// (Stato del PC, Outlook, Zammad…): those carry the integration's id
+/// (`integration_system`) and take their options from `integrationConfig`.
+pub fn all_widgets(s: &crate::settings::Settings) -> Vec<Widget> {
+    let mut list: Vec<Widget> =
+        s.widgets.iter().filter_map(|v| serde_json::from_value::<Widget>(v.clone()).ok()).collect();
+    let cfg = &s.integration_config;
+    for (id, kind) in crate::settings::PROBE_INTEGRATIONS {
+        if !s.active_integrations.iter().any(|a| a == id) {
+            continue;
+        }
+        list.push(Widget {
+            id: (*id).to_string(),
+            name: String::new(),
+            kind: (*kind).to_string(),
+            every: 0,
+            url: String::new(),
+            method: String::new(),
+            headers: Vec::new(),
+            fields: Vec::new(),
+            alert: None,
+            host: if *kind == "weather" { cfg.weather_city.clone() } else { String::new() },
+            port: 0,
+            expect_status: 0,
+            warn_days: match *kind {
+                "system" => cfg.system_warn,
+                "outlook" => cfg.outlook_warn,
+                _ => 0,
+            },
+            service: String::new(),
+        });
+    }
+    list
+}
+
 fn current_widgets(app: &AppHandle) -> Vec<Widget> {
     let Some(shared) = app.try_state::<crate::Shared>() else { return Vec::new() };
-    let list = shared.settings.lock().unwrap().widgets.clone();
-    list.into_iter().filter_map(|v| serde_json::from_value::<Widget>(v).ok()).collect()
+    let settings = shared.settings.lock().unwrap();
+    all_widgets(&settings)
 }
 
 pub fn start(app: AppHandle) {
@@ -545,9 +594,14 @@ pub fn start(app: AppHandle) {
 /// "Aggiorna" in the island, or "Prova" in the settings: one check, now.
 pub async fn run_once(app: &AppHandle, widget: Value) -> Result<WidgetResult, String> {
     let w: Widget = serde_json::from_value(widget).map_err(|e| format!("Widget non valido: {e}"))?;
-    let result = probe(&w).await;
+    Ok(run_now(app, &w).await)
+}
+
+/// One check now, its result sent to the island as usual.
+pub async fn run_now(app: &AppHandle, w: &Widget) -> WidgetResult {
+    let result = probe(w).await;
     let _ = app.emit_to(WINDOW_LABEL, "widget-update", result.clone());
-    Ok(result)
+    result
 }
 
 #[cfg(test)]

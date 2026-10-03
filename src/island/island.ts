@@ -163,6 +163,7 @@ export class Island {
           else void Bridge.openInVSCode(task.sessionCwd ?? null);
         }
         else if (task.id === "integration_n8n") void Bridge.openN8n();
+        else if (task.id === "integration_zammad") void Bridge.openZammad();
         else if (urls[task.id]) void Bridge.openUrl(urls[task.id]);
       },
       openUrl: (url) => {

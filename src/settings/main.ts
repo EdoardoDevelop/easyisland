@@ -4,7 +4,7 @@
 
 import "./settings.css";
 import { Bridge, onEvent, type HookStatus } from "../core/bridge";
-import { DEFAULT_SETTINGS, type QuickAction, type Settings, type Theme, type WidgetDef } from "../core/state";
+import { DEFAULT_SETTINGS, type QuickAction, type IntegrationConfig, type Settings, type Theme, type WidgetDef } from "../core/state";
 import { h, clear } from "../views/dom";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 
@@ -374,6 +374,20 @@ interface IntegrationDef {
   color: string;
   /** Credential Manager keys, in the order they are shown. */
   fields: { key: string; label: string; placeholder: string; secret: boolean }[];
+  /** Options kept in settings.integrationConfig (the integrations run as checks). */
+  options?: IntegrationOption[];
+  /** What it shows and where the data comes from. */
+  hint?: string;
+}
+
+interface IntegrationOption {
+  label: string;
+  type: "number" | "text";
+  placeholder: string;
+  /** Shown after the field. */
+  unit?: string;
+  get(c: IntegrationConfig): string | number;
+  set(c: IntegrationConfig, v: string): void;
 }
 
 const INTEGRATIONS: IntegrationDef[] = [
@@ -394,6 +408,34 @@ const INTEGRATIONS: IntegrationDef[] = [
     fields: [{ key: "notion-api-key", label: "Token", placeholder: "ntn_…", secret: true }] },
   { id: "integration_calcom", name: "Cal.com", color: "#C9956A",
     fields: [{ key: "calcom-api-key", label: "Chiave API", placeholder: "cal_…", secret: true }] },
+  { id: "integration_outlook", name: "Outlook", color: "#0A84D6", fields: [],
+    options: [{
+      label: "Avvisa", type: "number", placeholder: "10", unit: "minuti prima di una riunione",
+      get: (c) => c.outlookWarn, set: (c, v) => { c.outlookWarn = Math.max(1, Number(v) || 10); },
+    }],
+    hint: "Mail non lette nella Posta in arrivo e appuntamenti di oggi e domani, letti da Outlook classico già aperto (non lo avvia mai). Il nuovo Outlook non è supportato: non permette ad altri programmi di leggerlo. Niente account né chiavi." },
+  { id: "integration_zammad", name: "Zammad", color: "#F59E0B",
+    fields: [
+      { key: "zammad-url", label: "Indirizzo", placeholder: "https://helpdesk.azienda.it", secret: false },
+      { key: "zammad-token", label: "Token", placeholder: "token di accesso", secret: true },
+    ],
+    hint: "In Zammad: avatar → Profilo → Token di accesso → Crea, con il permesso ticket.agent. Ticket assegnati a te, non assegnati e in escalation (avviso giallo); il personaggio ti avvisa quando arriva un nuovo ticket da assegnare." },
+  { id: "integration_system", name: "Stato del PC", color: "#38BDF8", fields: [],
+    options: [{
+      label: "Avvisa sotto il", type: "number", placeholder: "10", unit: "% di spazio libero sul disco di sistema",
+      get: (c) => c.systemWarn, set: (c, v) => { c.systemWarn = Math.min(50, Math.max(1, Number(v) || 10)); },
+    }],
+    hint: "Disco (in rosso sotto il 5%), batteria scarica, memoria quasi piena, riavvio richiesto da Windows." },
+  { id: "integration_security", name: "Sicurezza", color: "#22C55E", fields: [],
+    hint: "Antivirus (Defender o un altro, dal Centro sicurezza di Windows), età delle firme, ultima scansione, firewall, minacce rilevate e riavvio in sospeso. Nessuna chiave, nessuna connessione." },
+  { id: "integration_network", name: "Rete", color: "#6366F1", fields: [],
+    hint: "Wi-Fi o cavo, IP locale, VPN attive e latenza verso 1.1.1.1. L'IP pubblico viene chiesto ad api.ipify.org al massimo ogni 15 minuti. Avvisa se internet non risponde o è lento." },
+  { id: "integration_weather", name: "Meteo", color: "#0EA5E9", fields: [],
+    options: [{
+      label: "Città", type: "text", placeholder: "es. Milano, Bologna, Lugano",
+      get: (c) => c.weatherCity, set: (c, v) => { c.weatherCity = v.trim(); },
+    }],
+    hint: "Da Open-Meteo, gratuito e senza chiave. Avvisa quando è probabile la pioggia nelle prossime ore." },
 ];
 
 function integrationsSection(present: Record<string, boolean>): HTMLElement {
@@ -450,6 +492,23 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
         ),
       );
     }
+    for (const opt of def.options ?? []) {
+      const el = h("input", {
+        type: opt.type, value: String(opt.get(settings.integrationConfig)), placeholder: opt.placeholder,
+        spellcheck: "false", style: opt.type === "number" ? "width:80px" : "flex:1 1 auto;min-width:0",
+      }) as HTMLInputElement;
+      el.addEventListener("change", () => {
+        opt.set(settings.integrationConfig, el.value);
+        el.value = String(opt.get(settings.integrationConfig));
+        void save();
+      });
+      rows.append(h("div", { class: "row" },
+        h("label", { style: "min-width:104px", text: opt.label }),
+        el,
+        opt.unit ? h("span", { class: "hint note", text: opt.unit }) : null,
+      ));
+    }
+    if (def.hint) rows.append(h("div", { class: "hint", text: def.hint }));
 
     list.append(
       h("div", { style: "display:flex;gap:12px;align-items:flex-start" },
@@ -1073,11 +1132,7 @@ function connectorsSection(): HTMLElement {
 // ── Widgets ───────────────────────────────────────────────────────────────────
 
 const WIDGET_KINDS: [WidgetDef["kind"], string][] = [
-  ["system", "Stato del PC"],
-  ["security", "Sicurezza (antivirus, firewall)"],
-  ["network", "Rete"],
   ["calendar", "Calendario (link ICS)"],
-  ["weather", "Meteo"],
   ["domain", "Scadenza domini"],
   ["http", "Sito web (HTTP)"],
   ["tls", "Certificato HTTPS"],
@@ -1091,12 +1146,33 @@ const WIDGET_KINDS: [WidgetDef["kind"], string][] = [
 const EVERY_HINT: Partial<Record<WidgetDef["kind"], string>> = {
   tls: "predefinito 6 ore, minimo 1 ora",
   json: "predefinito 120, minimo 15",
-  system: "predefinito 120, minimo 15",
-  security: "predefinito 30 minuti, minimo 10",
   calendar: "predefinito 5 minuti, minimo 1",
-  weather: "predefinito 15 minuti, minimo 5",
   domain: "predefinito 12 ore, minimo 1 ora",
 };
+
+/**
+ * A secret kept in the Credential Manager: the field never shows it back, it
+ * only says whether one is saved. `what` names it in the "saved" hint.
+ */
+function secretInput(key: string, placeholder: string, what: string): HTMLInputElement {
+  const el = h("input", {
+    type: "password", value: "", placeholder,
+    style: "flex:1 1 auto;min-width:0", spellcheck: "false",
+  }) as HTMLInputElement;
+  void Bridge.secretPresent(key).then((has) => { if (has) el.placeholder = `••••••••  (salvato) — incolla un altro ${what} per cambiarlo`; });
+  el.addEventListener("change", async () => {
+    const v = el.value.trim();
+    if (!v) return;
+    try {
+      await Bridge.secretSet(key, v);
+      el.value = "";
+      el.placeholder = "••••••••  (salvato)";
+    } catch (err) {
+      el.placeholder = String(err).replace(/^Error:\s*/, "");
+    }
+  });
+  return el;
+}
 
 function blankWidget(kind: WidgetDef["kind"], over: Partial<WidgetDef> = {}): WidgetDef {
   return {
@@ -1104,17 +1180,13 @@ function blankWidget(kind: WidgetDef["kind"], over: Partial<WidgetDef> = {}): Wi
     name: WIDGET_KINDS.find(([k]) => k === kind)?.[1] ?? "Widget",
     color: "#38bdf8", kind, every: 0, url: "", method: "GET", headers: [], fields: [],
     alert: null, host: "", port: kind === "tls" ? 443 : 0, expectStatus: 0,
-    warnDays: kind === "system" || kind === "calendar" ? 10 : 30, service: "",
+    warnDays: kind === "calendar" ? 10 : 30, service: "",
     ...over,
   };
 }
 
 const WIDGET_TEMPLATES: [string, () => WidgetDef][] = [
-  ["Stato del PC", () => blankWidget("system", { name: "PC", color: "#38bdf8" })],
-  ["Sicurezza", () => blankWidget("security", { name: "Sicurezza", color: "#22c55e" })],
-  ["Rete", () => blankWidget("network", { name: "Rete", color: "#6366f1" })],
   ["Calendario", () => blankWidget("calendar", { name: "Calendario", color: "#f97316" })],
-  ["Meteo", () => blankWidget("weather", { name: "Meteo", color: "#0ea5e9" })],
   ["Scadenza domini", () => blankWidget("domain", { name: "Domini", color: "#a855f7" })],
   ["Sito cliente", () => blankWidget("http", { name: "Sito cliente", url: "https://", color: "#22c55e" })],
   ["Certificato", () => blankWidget("tls", { name: "Certificato", color: "#f5a524" })],
@@ -1182,50 +1254,15 @@ function widgetsSection(): HTMLElement {
       );
 
       switch (w.kind) {
-        case "system":
-          card.append(
-            row("Avvisa sotto il", input(w.warnDays || 10, "10", (v) => { w.warnDays = Math.min(50, Math.max(1, Number(v) || 10)); }, "width:80px", "number"),
-              h("span", { class: "hint note", text: "% di spazio libero sul disco di sistema (in rosso sotto il 5%). Avvisa anche per batteria scarica, memoria quasi piena e riavvio richiesto da Windows." })),
-          );
-          break;
-        case "security":
-          card.append(h("div", { class: "hint", text: "Antivirus (Defender o un altro, letto dal Centro sicurezza di Windows), età delle firme, ultima scansione, firewall, minacce rilevate e riavvio in sospeso. Nessuna chiave, nessuna connessione." }));
-          break;
-        case "network":
-          card.append(h("div", { class: "hint", text: "Rete Wi-Fi o cavo, IP locale, VPN attive e latenza verso 1.1.1.1. L'IP pubblico viene chiesto ad api.ipify.org al massimo ogni 15 minuti. Avvisa se internet non risponde o è lento." }));
-          break;
         case "calendar": {
-          const key = `widget:${w.id}:ics`;
-          const link = h("input", {
-            type: "password", value: "", placeholder: "https://… o webcal://… (salvato in Gestione credenziali)",
-            style: "flex:1 1 auto;min-width:0", spellcheck: "false",
-          }) as HTMLInputElement;
-          void Bridge.secretPresent(key).then((has) => { if (has) link.placeholder = "••••••••  (salvato) — incolla un altro link per cambiarlo"; });
-          link.addEventListener("change", async () => {
-            const v = link.value.trim();
-            if (!v) return;
-            try {
-              await Bridge.secretSet(key, v);
-              link.value = "";
-              link.placeholder = "••••••••  (salvato)";
-            } catch (err) {
-              link.placeholder = String(err).replace(/^Error:\s*/, "");
-            }
-          });
           card.append(
-            row("Link ICS", link),
+            row("Link ICS", secretInput(`widget:${w.id}:ics`, "https://… o webcal://… (salvato in Gestione credenziali)", "link")),
             h("div", { class: "hint", text: "Google Calendar: Impostazioni → il calendario → «Indirizzo segreto in formato iCal». Outlook.com: Impostazioni → Calendario → Calendari condivisi → Pubblica un calendario → link ICS. iCloud: condividi il calendario come pubblico. Il link è come una password: resta in Gestione credenziali." }),
             row("Avvisa", input(w.warnDays || 10, "10", (v) => { w.warnDays = Math.max(1, Number(v) || 10); }, "width:80px", "number"),
               h("span", { class: "hint note", text: "minuti prima dell'inizio" })),
           );
           break;
         }
-        case "weather":
-          card.append(
-            row("Città", input(w.host, "es. Milano, Bologna, Lugano", (v) => { w.host = v.trim(); })),
-            h("div", { class: "hint", text: "Da Open-Meteo, gratuito e senza chiave. Avvisa quando è probabile la pioggia nelle prossime ore." }),
-          );
-          break;
         case "domain":
           card.append(
             row("Domini", input(w.host, "es. cliente.it, altrocliente.com", (v) => { w.host = v.trim(); })),
@@ -1340,7 +1377,7 @@ function widgetsSection(): HTMLElement {
     h("h2", {}, h("span", { text: "Widget" }), profileChip()),
     h("div", {
       class: "hint",
-      text: "Controlli che compaiono come pillole accanto al personaggio: lo stato del PC, la sicurezza, la rete, il calendario, il meteo, la scadenza dei domini, siti, certificati, server, porte, servizi Windows o qualsiasi API JSON. Quando un controllo passa da OK a problema, il personaggio ti avvisa. Si fermano quando EasyIsland è in pausa.",
+      text: "Controlli che compaiono come pillole accanto al personaggio: il calendario (link ICS), la scadenza dei domini, siti, certificati, server, porte, servizi Windows o qualsiasi API JSON; se ne possono creare quanti servono. Stato del PC, sicurezza, rete, meteo, Outlook e Zammad sono in Integrazioni. Quando un controllo passa da OK a problema, il personaggio ti avvisa. Si fermano quando EasyIsland è in pausa.",
     }),
     list,
     templates,
@@ -1637,10 +1674,7 @@ async function main() {
 
   const hasKey = (await Bridge.secretPresent("anthropic-api-key")) ?? false;
 
-  const keys = [
-    "stripe-api-key", "github-token", "vercel-token",
-    "n8n-url", "n8n-api-key", "resend-api-key", "notion-api-key", "calcom-api-key",
-  ];
+  const keys = INTEGRATIONS.flatMap((d) => d.fields.map((f) => f.key));
   const present: Record<string, boolean> = {};
   for (const k of keys) present[k] = (await Bridge.secretPresent(k)) ?? false;
 
@@ -1715,12 +1749,12 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     },
     {
       id: "integrazioni", label: "Integrazioni", icon: "◎", title: "Integrazioni",
-      intro: "Servizi con una chiave: GitHub, Vercel, n8n, Stripe…",
+      intro: "Servizi e programmi, uno per tipo: GitHub, Vercel, n8n, Stripe, Zammad, Outlook, stato del PC, sicurezza, rete, meteo…",
       sections: () => [integrationsSection(b.present)],
     },
     {
       id: "widget", label: "Widget", icon: "▦", title: "Widget",
-      intro: "Controlli senza codice: stato del PC, sicurezza, rete, calendario, meteo, domini, siti e server.",
+      intro: "Controlli ripetibili senza codice: calendari, domini, siti, certificati, server, porte, servizi Windows e API.",
       sections: () => [widgetsSection()],
     },
     {

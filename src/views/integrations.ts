@@ -6,7 +6,7 @@
 
 import { h, svg, clear, dot } from "./dom";
 import { ICONS } from "./icons";
-import { State, sessionOpenLabel, type AgentTask } from "../core/state";
+import { State, PROBE_INTEGRATIONS, sessionOpenLabel, type AgentTask } from "../core/state";
 import { Bridge } from "../core/bridge";
 
 /** Same shape as the Swift `timeAgo` computed properties. */
@@ -410,8 +410,7 @@ export function hasIntegrationData(id: string): boolean {
 
 const WIDGET_KIND: Record<string, string> = {
   ping: "Ping", tcp: "Porta", http: "Sito web", tls: "Certificato", service: "Servizio", json: "API",
-  system: "Stato del PC", security: "Sicurezza", network: "Rete", calendar: "Calendario",
-  weather: "Meteo", domain: "Domini",
+  calendar: "Calendario", domain: "Domini",
 };
 
 const LEVEL_COLOR = { ok: "#22C55E", warn: "#F5A524", error: "#F4505E" } as const;
@@ -432,10 +431,16 @@ function copyInfoButton(color: string): HTMLElement {
   return b;
 }
 
-/** A configurable widget: status line, its fields, Aggiorna. */
+/**
+ * A configurable widget, or an integration run as a check (Stato del PC,
+ * Outlook, Zammad…): status line, its fields, Aggiorna.
+ */
 function widgetCard(task: AgentTask, openSettings: () => void): HTMLElement {
-  const id = task.id.slice("widget:".length);
-  const def = (State.settings.widgets ?? []).find((w) => w.id === id);
+  const isWidget = task.id.startsWith("widget:");
+  const id = isWidget ? task.id.slice("widget:".length) : task.id;
+  const kind = isWidget
+    ? (State.settings.widgets ?? []).find((w) => w.id === id)?.kind ?? ""
+    : PROBE_INTEGRATIONS[task.id] ?? "";
   const st = State.widgetStatus[id];
   const rows = h("div", { class: "int-rows tight" });
   // Every field, each value wrapping onto more lines when long: the island
@@ -449,7 +454,7 @@ function widgetCard(task: AgentTask, openSettings: () => void): HTMLElement {
   return h(
     "div",
     { class: "int-card" },
-    header(task.color, task.name, WIDGET_KIND[def?.kind ?? ""] ?? "Widget",
+    header(task.color, task.name, isWidget ? WIDGET_KIND[kind] ?? "Widget" : "Integrazione",
       st ? h("span", { class: "int-ago", text: timeAgo(st.at * 1000) }) : undefined),
     h("div", { class: "int-status wrap" }, dot(color, 5),
       h("span", { text: st?.summary ?? "In attesa del primo controllo…" })),
@@ -458,14 +463,18 @@ function widgetCard(task: AgentTask, openSettings: () => void): HTMLElement {
       h("button", { class: "link-btn", style: `color:${task.color}d9`, text: "Aggiorna",
         onclick: () => void Bridge.widgetRefresh(id) }),
       // Everything a ticket asks for (name, serial, IP, Windows…), one click.
-      def && (def.kind === "system" || def.kind === "network") ? copyInfoButton(task.color) : null,
+      kind === "system" || kind === "network" ? copyInfoButton(task.color) : null,
+      kind === "zammad"
+        ? h("button", { class: "link-btn", style: `color:${task.color}d9`, text: "Apri Zammad",
+          onclick: () => void Bridge.openZammad() })
+        : null,
       h("button", { class: "link-btn", style: "color:#8e939c", text: "Impostazioni…", onclick: openSettings }),
     ),
   );
 }
 
 export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHooks): HTMLElement {
-  if (task.id.startsWith("widget:")) return widgetCard(task, hooks.openSettings);
+  if (task.id.startsWith("widget:") || PROBE_INTEGRATIONS[task.id]) return widgetCard(task, hooks.openSettings);
   if (task.id === "integration_n8n") {
     const hasActivity = task.steps.length > 0 && (task.state === "finished" || task.state === "error");
     return hooks.detailOpen && hasActivity
