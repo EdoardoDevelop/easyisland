@@ -6,7 +6,7 @@ _Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versio
 
 ## 1. Com'è il progetto adesso
 
-**Versione pubblicata: 0.5.1** (tag `v0.5.1`, 4 ottobre 2026; repository pubblico `EdoardoDevelop/easyisland`, le app installate dalla 0.2.0 in poi si aggiornano da sole dopo un clic).
+**Versione pubblicata: 0.5.2** (tag `v0.5.2`, 4 ottobre 2026; repository pubblico `EdoardoDevelop/easyisland`, le app installate dalla 0.2.0 in poi si aggiornano da sole dopo un clic).
 
 **Cosa fa oggi, in breve:**
 - **Isola con personaggio** (Slime, Goccia o EasyTech, il cubo) in alto al centro o dove la trascini, con vista compatta, aggancio ai bordi, sopra la barra delle applicazioni, suoni sintetizzati nel codice.
@@ -233,6 +233,9 @@ Pensate per il supporto IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi facciamo il widget «Oggi» (6.3)"_, _"proviamo dal vivo le automazioni"_ oppure _"valutiamo un'idea della sezione 7"_. Per una nuova versione: stesso numero nei tre file, unione di `claude/sviluppo` in `main`, tag `vX.Y.Z`. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 4 ottobre 2026 — versione 0.5.2
+- Versione **0.5.2** nei tre file (più `package-lock.json` e `Cargo.lock`), `claude/sviluppo` unito in `main`, tag `v0.5.2`. Rispetto alla 0.5.1: pillole e schede (anche ⌂ 💬 ⚡ +) riordinabili trascinandole nell'isola, con "Blocca lo spostamento" e "Ripristina l'ordine".
 
 ### 4 ottobre 2026 — pillole e schede riordinabili nell'isola
 - **Trascinamento:** nella panoramica le pillole, e nell'intestazione tutte le schede (le fisse ⌂ 💬 ⚡ + e quelle delle integrazioni, mescolabili tra loro), si spostano trascinandole (`src/views/sortable.ts`: oltre 5 px la pressione diventa trascinamento, l'elemento attraversa i vicini, al rilascio il clic viene ignorato; un clic fermo funziona come prima).
