@@ -651,6 +651,17 @@ html.browser-preview #root {
   pointer-events: none;
 }
 
+/* Dragging pills and header tabs into a new order (src/views/sortable.ts). */
+.sorting {
+  cursor: grabbing;
+}
+
+.sorting > .dragging {
+  opacity: 0.55;
+  transform: scale(0.96);
+  transition: none;
+}
+
 /* Musica: the song title, left-aligned past the mini character so it never runs under it. */
 .pill.song .lbl {
   text-align: left;
@@ -1883,11 +1894,6 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 /* Integrations shown as header tabs (settings.integrationTabs). */
-.int-tabs {
-  display: flex;
-  gap: 5px;
-}
-
 .tab.int-tab {
   width: auto;
   display: inline-flex;

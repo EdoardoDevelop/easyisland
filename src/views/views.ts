@@ -2,6 +2,7 @@
 // colours and wording are copied from the Swift views so both platforms read
 // identically.
 
+import { isSorting, sortable } from "./sortable";
 import { h, svg, clear, dot } from "./dom";
 import { ICONS } from "./icons";
 import { Ticker } from "./ticker";
@@ -49,6 +50,10 @@ export interface ViewActions extends ActionHandlers {
   answerSuggestion(fp: string, choice: "create" | "snooze" | "dismiss"): void;
   /** "Installa" on the update notice. */
   installUpdate(): void;
+  /** Pills dragged into a new order (ids of the ones dragged among). */
+  reorder(ids: string[]): void;
+  /** The header's tabs (fixed and integrations) dragged into a new order. */
+  reorderTabs(ids: string[]): void;
 }
 
 export interface ViewHost {
@@ -107,7 +112,7 @@ function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElem
 // ── Header ────────────────────────────────────────────────────────────────────
 
 export function buildHeader(actions: ViewActions): ViewHost {
-  const tabHome = h("button", { class: "tab", title: "Panoramica", style: "--c:#38BDF8", onclick: () => {
+  const tabHome = h("button", { class: "tab", "data-id": "tab:home", title: "Panoramica", style: "--c:#38BDF8", onclick: () => {
     // Back from an integration tab: the overview's own card again.
     if (State.focusId && State.isTab(State.focusId)) {
       const first = State.tasks.find((t) => !State.isTab(t.id));
@@ -115,9 +120,10 @@ export function buildHeader(actions: ViewActions): ViewHost {
     }
     go("overview");
   } }, svg(ICONS.house, 16));
-  const tabChat = h("button", { class: "tab", title: "Chiedi", style: "--c:#A78BFA", onclick: () => go("prompt") }, svg(ICONS.bubble, 16));
-  const tabDrop = h("button", { class: "tab", title: "Rilascia", style: "--c:#22C55E", onclick: () => go("upload") }, svg(ICONS.plus, 16));
-  const tabActions = h("button", { class: "tab", title: "Azioni", style: "--c:#F5A524", onclick: () => go("actions") }, svg(ICONS.bolt, 16));
+  const tabChat = h("button", { class: "tab", "data-id": "tab:chat", title: "Chiedi", style: "--c:#A78BFA", onclick: () => go("prompt") }, svg(ICONS.bubble, 16));
+  const tabDrop = h("button", { class: "tab", "data-id": "tab:drop", title: "Rilascia", style: "--c:#22C55E", onclick: () => go("upload") }, svg(ICONS.plus, 16));
+  const tabActions = h("button", { class: "tab", "data-id": "tab:actions", title: "Azioni", style: "--c:#F5A524", onclick: () => go("actions") }, svg(ICONS.bolt, 16));
+  const fixedTabs = [tabHome, tabChat, tabActions, tabDrop];
 
   const pinBtn = h("button", { title: "Tieni aperta", style: "--c:#A78BFA", onclick: () => {
     actions.blip();
@@ -132,14 +138,17 @@ export function buildHeader(actions: ViewActions): ViewHost {
     actions.setView(v);
   }
 
-  // Integrations the user wants as tabs (Impostazioni → Integrazioni).
-  const intTabs = h("div", { class: "int-tabs" });
-  let intTabsKey = "";
+  // One row: the fixed tabs and the integrations the user wants as tabs
+  // (Impostazioni → Integrazioni), in the order dragged in the island.
+  const tabsRow = h("div", { class: "tabs" }, ...fixedTabs);
+  let tabsKey = "";
+  let intTabs: HTMLElement[] = [];
+  sortable(tabsRow, { enabled: () => !State.settings.lockOrder, onReorder: (ids) => actions.reorderTabs(ids) });
 
   const el = h(
     "div",
     { id: "header" },
-    h("div", { class: "tabs" }, tabHome, tabChat, tabActions, tabDrop, intTabs),
+    tabsRow,
     h("div", { class: "header-actions" }, pinBtn, gearBtn, soundBtn, closeBtn),
   );
 
@@ -152,13 +161,14 @@ export function buildHeader(actions: ViewActions): ViewHost {
       tabHome.classList.toggle("on", overview && !onTab);
       const tabs = State.tabTasks;
       const icons = State.settings.integrationTabIcons ?? {};
-      const key = tabs.map((t) => `${t.id}:${t.name}:${t.color}:${icons[t.id] ?? ""}`).join("|");
-      if (key !== intTabsKey) {
-        intTabsKey = key;
-        clear(intTabs);
+      const tabOrder = State.settings.tabOrder ?? [];
+      const key = tabs.map((t) => `${t.id}:${t.name}:${t.color}:${icons[t.id] ?? ""}`).join("|") + `#${tabOrder.join("|")}`;
+      if (key !== tabsKey && !isSorting(tabsRow)) {
+        tabsKey = key;
+        intTabs = [];
         for (const t of tabs) {
           const icon = icons[t.id]?.trim();
-          intTabs.append(h("button", {
+          intTabs.push(h("button", {
             class: icon ? "tab int-tab icon" : "tab int-tab", "data-id": t.id, title: t.name,
             onclick: () => {
               actions.blip();
@@ -168,8 +178,15 @@ export function buildHeader(actions: ViewActions): ViewHost {
           }, icon ? h("span", { class: "int-tab-icon", text: icon }) : dot(t.color, 8),
             icon ? null : h("span", { text: t.name })));
         }
+        // Dragged order first; the rest as usual: fixed tabs, then integrations.
+        const all = [...fixedTabs, ...intTabs];
+        const rank = (b: HTMLElement) => {
+          const i = tabOrder.indexOf(b.dataset.id ?? "");
+          return i >= 0 ? i : tabOrder.length + all.indexOf(b);
+        };
+        tabsRow.replaceChildren(...all.sort((a, b) => rank(a) - rank(b)));
       }
-      for (const b of Array.from(intTabs.children) as HTMLElement[]) {
+      for (const b of intTabs) {
         const t = tabs.find((x) => x.id === b.dataset.id);
         b.classList.toggle("on", overview && State.focusId === b.dataset.id);
         b.classList.toggle("badge", !!t?.pillBadge);
@@ -207,6 +224,7 @@ function buildOverview(actions: ViewActions): ViewHost {
   );
   const left = card(null, leftBody, jump);
   const pills = h("div", { class: "pills" });
+  sortable(pills, { enabled: () => !State.settings.lockOrder, onReorder: (ids) => actions.reorder(ids) });
   const right = card(null, pills);
 
   const el = h("div", { class: "view overview" },
@@ -299,11 +317,11 @@ function buildOverview(actions: ViewActions): ViewHost {
       // Every pill is shown (the island grows to fit them); alerts go first.
       // An integration opened from its header tab stands alone: pills only on ⌂.
       const onTab = task != null && State.isTab(task.id);
-      const others = onTab ? [] : [...State.otherTasks]
-        .sort((a, b) => Number(!!b.pillBadge) - Number(!!a.pillBadge));
+      // In the user's order (dragged in the island): a pill with an alert keeps its place.
+      const others = onTab ? [] : State.otherTasks;
       pillCount = others.length;
       const pillKey = others.map((t) => `${t.id}:${t.pillBadge ?? ""}:${pillLabel(t).title ?? pillLabel(t).text}`).join("|");
-      if (pillKey !== pillIds) {
+      if (pillKey !== pillIds && !isSorting(pills)) {
         pillIds = pillKey;
         clear(pills);
         for (const t of others) pills.append(buildPill(t, actions));
@@ -344,7 +362,8 @@ function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
   const canvas = createMiniBot(task, 24);
   const pill = h(
     "div",
-    { class: label.song ? "pill song" : "pill", title: label.title ?? "", onclick: () => actions.setFocus(task.id) },
+    { class: label.song ? "pill song" : "pill", "data-id": task.id, title: label.title ?? "",
+      onclick: () => actions.setFocus(task.id) },
     canvas,
     h("span", { class: "lbl", text: label.text }),
   );

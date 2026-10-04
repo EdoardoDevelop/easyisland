@@ -225,6 +225,16 @@ export class Island {
       refreshFiles: () => void this.refreshFiles(),
       askAboutFile: (f) => this.askAboutFile(f),
       captureScreen: () => void this.captureScreen(),
+      reorder: (ids) => {
+        State.reorder(ids);
+        void Bridge.saveSettings(State.settings);
+        State.notify();
+      },
+      reorderTabs: (ids) => {
+        State.settings.tabOrder = ids;
+        void Bridge.saveSettings(State.settings);
+        State.notify();
+      },
       askAboutPicture: (f) => this.askAboutPicture(f),
       confirmRun: () => void this.startScript(),
       killRun: () => {

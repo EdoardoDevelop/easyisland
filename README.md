@@ -275,6 +275,11 @@ Le azioni appartengono al profilo attivo; le scorciatoie Apri/Chiedi al PC.
 compaiono come pillole accanto a Slime. Chiavi, token e indirizzi stanno in
 Gestione credenziali di Windows.
 
+Pillole e schede, comprese ⌂ 💬 ⚡ +, si **riordinano trascinandole** direttamente
+nell'isola (un clic senza trascinare le apre come sempre). L'ordine vale per il profilo
+attivo; in Integrazioni c'è **Blocca lo spostamento**, per non spostarle per
+sbaglio, e **Ripristina l'ordine**.
+
 | Integrazione | Cosa mostra |
 |---|---|
 | **GitHub, Vercel, Stripe, Resend, Notion, Cal.com, n8n** | l'attività del servizio (deploy, pagamenti, email, prenotazioni, esecuzioni), con la chiave del servizio |
