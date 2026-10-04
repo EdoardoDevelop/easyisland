@@ -263,6 +263,9 @@ calendario, posta…); prende il colore dell'azione.
   Si può fare anche dalla scheda **+** dell'isola, con **Cattura una zona**;
 - ogni azione può avere la sua scorciatoia, es. `Ctrl+Alt+E` per "Spiega errore".
 
+Per cambiarne una basta un clic sul campo e premere la combinazione: il campo la
+registra da solo (Esc annulla, Canc la toglie, ✕ la svuota). Mentre il campo è in
+ascolto le altre scorciatoie sono sospese, così i tasti arrivano lì.
 Se una scorciatoia è già usata da un'altra app, le Impostazioni lo segnalano.
 Le azioni appartengono al profilo attivo; le scorciatoie Apri/Chiedi al PC.
 

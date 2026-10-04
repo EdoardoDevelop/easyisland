@@ -252,6 +252,12 @@ fn hotkey_failures() -> Vec<String> {
     hotkeys::failures()
 }
 
+/// A shortcut field in the settings is listening for keys: no shortcut fires meanwhile.
+#[tauri::command]
+fn hotkeys_suspend(on: bool) {
+    hotkeys::suspend(on);
+}
+
 /// Wi-Fi network this PC is on, to fill in a profile rule.
 #[tauri::command]
 async fn current_network() -> Option<String> {
@@ -887,6 +893,7 @@ pub fn run() {
             action_kill,
             clipboard_text,
             hotkey_failures,
+            hotkeys_suspend,
             widget_test,
             widget_refresh,
             ingest_file,

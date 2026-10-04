@@ -160,6 +160,8 @@ export const Bridge = {
   /** Musica: "toggle", "prev", "next". */
   mediaCommand: (command: string) => call<void>("media_command", { command }),
   hotkeyFailures: () => call<string[]>("hotkey_failures"),
+  /** Settings: a shortcut field is listening, so no shortcut may fire meanwhile. */
+  hotkeysSuspend: (on: boolean) => call<void>("hotkeys_suspend", { on }),
   /** Widgets. */
   widgetTest: (widget: unknown) =>
     callOrThrow<{ id: string; level: string; summary: string; fields: { label: string; value: string }[]; at: number }>(

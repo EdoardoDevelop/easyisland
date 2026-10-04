@@ -990,6 +990,96 @@ document.addEventListener("click", (e) => {
   });
 });
 
+// ── Shortcut fields ───────────────────────────────────────────────────────────
+
+/** KeyboardEvent.code → the key name hotkeys.rs understands (`parse`). */
+function hotkeyKeyName(code: string): string | null {
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if (/^Digit[0-9]$/.test(code)) return code.slice(5);
+  if (/^Numpad[0-9]$/.test(code)) return code.slice(6);
+  if (/^F([1-9]|1[0-9]|2[0-4])$/.test(code)) return code;
+  return ({ Space: "Space", Enter: "Enter", NumpadEnter: "Enter", Tab: "Tab", Escape: "Esc" } as Record<string, string>)[code] ?? null;
+}
+
+function hotkeyModifiers(e: KeyboardEvent): string[] {
+  const mods: string[] = [];
+  if (e.ctrlKey) mods.push("Ctrl");
+  if (e.altKey) mods.push("Alt");
+  if (e.shiftKey) mods.push("Shift");
+  if (e.metaKey) mods.push("Win");
+  return mods;
+}
+
+/**
+ * A shortcut field that listens: click it and press the keys. Global shortcuts
+ * are suspended while it listens, so the keys land here instead of firing.
+ * Esc gives up, Canc / Backspace empties it; a key needs Ctrl, Alt, Shift or Win.
+ */
+function hotkeyInput(value: string, apply: (v: string) => void): HTMLElement {
+  let current = value.trim();
+  const el = h("input", {
+    type: "text", readonly: "true", class: "hotkey-input", spellcheck: "false",
+    placeholder: "nessuna", title: "Clic, poi premi la combinazione di tasti",
+  }) as HTMLInputElement;
+  const hint = h("span", { class: "hint note hotkey-hint" });
+  const clearBtn = h("button", { class: "hotkey-clear", title: "Nessuna scorciatoia", text: "✕" });
+  const show = () => {
+    el.value = current;
+    clearBtn.style.visibility = current ? "" : "hidden";
+  };
+  const set = (v: string) => {
+    if (v !== current) {
+      current = v;
+      apply(v);
+    }
+    show();
+  };
+
+  el.addEventListener("focus", () => {
+    el.classList.add("listening");
+    el.value = "";
+    el.placeholder = "Premi i tasti…";
+    hint.textContent = "Esc annulla · Canc toglie la scorciatoia";
+    void Bridge.hotkeysSuspend(true);
+  });
+  el.addEventListener("blur", () => {
+    el.classList.remove("listening");
+    el.placeholder = "nessuna";
+    hint.textContent = "";
+    show();
+    void Bridge.hotkeysSuspend(false);
+  });
+  el.addEventListener("keydown", (e) => {
+    // Plain Tab still moves to the next field.
+    if (e.code === "Tab" && !e.ctrlKey && !e.altKey && !e.metaKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const mods = hotkeyModifiers(e);
+    const bare = mods.length === 0 || (mods.length === 1 && mods[0] === "Shift");
+    if (e.code === "Escape" && mods.length === 0) { el.blur(); return; }
+    if ((e.code === "Backspace" || e.code === "Delete") && mods.length === 0) { set(""); el.blur(); return; }
+    const key = hotkeyKeyName(e.code);
+    if (!key) {
+      // Only modifiers so far: show them while the user is still pressing.
+      el.value = mods.length ? `${mods.join("+")}+…` : "";
+      return;
+    }
+    if (bare) {
+      hint.textContent = "Aggiungi Ctrl, Alt o Win: un tasto da solo varrebbe in ogni app";
+      el.value = [...mods, key].join("+");
+      return;
+    }
+    set([...mods, key].join("+"));
+    el.blur();
+  });
+  el.addEventListener("keyup", () => {
+    if (el.classList.contains("listening") && el.value.endsWith("+…")) el.value = "";
+  });
+  clearBtn.addEventListener("click", () => set(""));
+  show();
+  return h("span", { class: "hotkey-field" }, el, clearBtn, hint);
+}
+
 function actionsSection(): HTMLElement {
   const list = h("div", { style: "display:flex;flex-direction:column;gap:10px" });
   const warn = h("div", {});
@@ -1092,16 +1182,13 @@ function actionsSection(): HTMLElement {
           break;
       }
       card.append(h("div", { class: "row" }, h("label", { text: "Scorciatoia" }),
-        field(a.hotkey, "facoltativa, es. Ctrl+Alt+E", (v) => { a.hotkey = v.trim(); }, "width:200px")));
+        hotkeyInput(a.hotkey, (v) => { a.hotkey = v; commit(); })));
       list.append(card);
     });
   }
 
-  const hotkeyField = (value: string, apply: (v: string) => void) => {
-    const el = h("input", { type: "text", value, placeholder: "nessuna", style: "width:200px", spellcheck: "false" }) as HTMLInputElement;
-    el.addEventListener("change", () => { apply(el.value.trim()); commit(); });
-    return el;
-  };
+  const hotkeyField = (value: string, apply: (v: string) => void) =>
+    hotkeyInput(value, (v) => { apply(v); commit(); });
 
   const add = h("button", { class: "primary", text: "Aggiungi azione" });
   add.addEventListener("click", () => { settings.actions.push(blankAction()); commit(); draw(); });
