@@ -1,6 +1,6 @@
 # Handoff — EasyIsland (solo Windows)
 
-_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versione 0.5.0, handoff riallineato al codice). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
+_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versione 0.5.4, handoff riallineato al codice, named pipe solo per il proprio utente). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
 
 > Questo file va tenuto **sempre aggiornato**: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al **Registro delle modifiche** (sezione 10), con data, cosa è cambiato e cosa resta aperto.
 
@@ -28,8 +28,8 @@ _Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versio
 - **Suoni:** i 28 WAV originali (spostati in `assets/sounds/` il 1° ottobre) sono stati sostituiti il 2 ottobre da suoni sintetizzati nel codice (`src/core/synth.ts`); la cartella non esiste più.
 - **CI e release:** `.github/workflows/build.yml` gira su `windows-latest` a ogni push/PR su `main` e sui branch `claude/**` (verifica di compilazione, installer come artefatto). Sui tag `v*` pubblica la release: installer, firma per l'updater (`.sig`) e `latest.json` (`PUBLISH: 'true'`; serve il secret `TAURI_SIGNING_PRIVATE_KEY`). Le app installate si aggiornano da lì (`src-tauri/src/updates.rs`).
 - **Aggiornati:** `README.md`, `CLAUDE.md` (regole per gli agenti, ora per Windows), `.gitignore`, i percorsi in `LICENSE-ASSETS.md`.
-- **Tradotto in italiano:** tutti i testi dell'interfaccia (isola, impostazioni, menu dell'area di notifica, etichette dei passi degli hook), i messaggi d'errore del backend, l'installer NSIS (italiano come lingua principale), README, CLAUDE.md, `docs/SPEC.md`, `docs/INTEGRATIONS.md`, i template delle issue e le note di release. Il prompt di sistema della chat chiede a Slime di rispondere in italiano. Restano in inglese di proposito i commenti e gli identificatori nel codice, `LICENSE` e `LICENSE-ASSETS.md` (testi legali dell'autore originale). Il sito in `docs/*.html` è stato eliminato. Le immagini in `screenshots/` mostrano ancora i testi in inglese.
-- **Verificato su Windows (PC di sviluppo, 1–2 ottobre 2026):** `npm run pack` produce l'installer (circa 4,2 MB) senza errori né avvisi, l'installazione per-utente funziona, gli hook di Claude Code arrivano all'isola, i test Rust passavano (27 dell'app, 4 del relay) al 1° ottobre. Il 2 ottobre, dopo il cambio di nome, `cargo test --workspace` passava: 38 test dell'app (più 3 `live_` ignorati di default) e 4 del relay. Al 4 ottobre (0.5.0) nel codice ci sono 70 `#[test]` tra app e relay (compresi i `live_` ignorati di default). La CI compila anche sui branch `claude/**`.
+- **Tradotto in italiano:** tutti i testi dell'interfaccia (isola, impostazioni, menu dell'area di notifica, etichette dei passi degli hook), i messaggi d'errore del backend, l'installer NSIS (italiano come lingua principale), README, CLAUDE.md, `docs/SPEC.md`, `docs/INTEGRATIONS.md`, i template delle issue e le note di release. Il prompt di sistema della chat chiede a Slime di rispondere in italiano. Restano in inglese di proposito i commenti e gli identificatori nel codice, `LICENSE` e `LICENSE-ASSETS.md` (testi legali dell'autore originale). Il sito in `docs/*.html` è stato eliminato. Le immagini in `screenshots/` sono state rifatte in italiano (2 e 4 ottobre).
+- **Verificato su Windows (PC di sviluppo, 1–2 ottobre 2026):** `npm run pack` produce l'installer (circa 4,2 MB) senza errori né avvisi, l'installazione per-utente funziona, gli hook di Claude Code arrivano all'isola, i test Rust passavano (27 dell'app, 4 del relay) al 1° ottobre. Il 2 ottobre, dopo il cambio di nome, `cargo test --workspace` passava: 38 test dell'app (più 3 `live_` ignorati di default) e 4 del relay. Al 4 ottobre (0.5.4) nel codice ci sono 89 `#[test]` tra app e relay (compresi i `live_` ignorati di default). La CI compila anche sui branch `claude/**`.
 
 ## 2. Mappa veloce
 
@@ -106,10 +106,10 @@ _Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versio
 
 **Distribuzione:**
 - [x] Release su GitHub dai tag `vX.Y.Z` con aggiornamento automatico firmato (2 ottobre 2026). La versione deve coincidere in `package.json`, `Cargo.toml` e `tauri.conf.json` (la CI lo controlla). Passi in README → Pubblicare una versione.
-- [x] Repository pubblico (`EdoardoDevelop/easyisland`) e secret `TAURI_SIGNING_PRIVATE_KEY`: le release 0.3.0 e 0.5.0 sono state pubblicate dalla CI (verificato il 4 ottobre 2026).
-- [ ] Sul repo c'è anche un tag `windows-latest` con la release "EasyIsland per Windows (ultima)" del 2 ottobre (0.2.0), probabilmente creato per sbaglio. Non dà fastidio all'updater, che legge `releases/latest` (oggi la 0.5.0), ma può confondere chi scarica a mano: valutare se eliminarlo.
+- [x] Repository pubblico (`EdoardoDevelop/easyisland`) e secret `TAURI_SIGNING_PRIVATE_KEY`: le release dalla 0.3.0 alla 0.5.4 sono state pubblicate dalla CI (verificato il 4 ottobre 2026).
+- [ ] Sul repo c'è anche un tag `windows-latest` con la release "EasyIsland per Windows (ultima)" del 2 ottobre (0.2.0), probabilmente creato per sbaglio. Non dà fastidio all'updater, che legge `releases/latest` (oggi la 0.5.4), ma può confondere chi scarica a mano: valutare se eliminarlo.
 - [ ] Firma del codice (certificato Authenticode o Azure Trusted Signing, circa 10 $/mese). Senza, SmartScreen avvisa al primo download manuale e Defender ha già dato un falso positivo una volta. Gli aggiornamenti scaricati dall'app non passano da SmartScreen.
-- La chiave privata dell'updater è fuori dal repo (`%USERPROFILE%\.tauri\easyisland.key`, senza password): **va conservata**, se si perde le app installate non accettano più aggiornamenti.
+- La chiave privata dell'updater è fuori dal repo (`%USERPROFILE%\.tauri\easyisland.key`, senza password): **va conservata**, se si perde le app installate non accettano più aggiornamenti. Conviene una copia di backup fuori dal PC (chiavetta o gestore di password), oltre al secret su GitHub che non si può rileggere.
 
 ## 5. Contesto d'uso
 
@@ -201,7 +201,7 @@ Un tipo di widget generico al posto delle integrazioni scritte a mano (le 7 attu
 > **Stato: da fare.** In ordine di utilità.
 
 Prima di tutto, **due verifiche**:
-- [ ] **Canale degli hook solo per il proprio utente**: la named pipe ha già il SID nel nome (`easyisland-<sid>`), ma va controllato che il suo descrittore di sicurezza neghi l'accesso agli altri utenti dello stesso PC. Nello stesso spirito: il log non deve tenere comandi né URL completi.
+- [x] **Canale degli hook solo per il proprio utente** (fatto il 4 ottobre 2026): prima la pipe usava il descrittore predefinito di Windows, che dà lettura anche a Everyone e Anonymous; ora ogni istanza ha un DACL protetto con solo SYSTEM e l'utente (`create_instance` / `owner_only_sddl` in `src-tauri/src/pipe.rs`). Log controllato: niente comandi né URL di azioni, link o programmi (l'agente scrive solo il nome dello strumento, gli script solo shell e id). Unica eccezione minore: gli errori di rete di 3CX (reqwest) riportano l'indirizzo del centralino con il percorso, senza credenziali.
 - [ ] **La richiesta di permesso resta finché non rispondi**: il mouse non deve richiuderla, riaprendo l'isola deve ricomparire, e deve comparire anche se l'isola è già aperta su un'altra vista, tornando poi alla pillola di prima.
 
 Poi, in ordine:
@@ -222,10 +222,9 @@ Ancora mancanti anche: invio di un file per email, personaggio trascinato su una
 
 Pensate per il supporto IT sul notebook, ma utili anche a casa.
 
-**Già realizzate** (restano qui come promemoria di da dove vengono): screenshot → chiedi a Claude ("Cattura una zona", 4 ottobre), notifiche da qualsiasi script (`easyisland-hook notify`, 2 ottobre), info rapide della macchina (integrazione Stato del PC/Rete e "Copia info PC"), modalità "davanti al cliente" (`presence.rs`), ticketing (integrazione Zammad), meteo (integrazione Meteo), Outlook classico (integrazione Outlook), musica in riproduzione (integrazione Musica).
+**Già realizzate** (restano qui come promemoria di da dove vengono): screenshot → chiedi a Claude ("Cattura una zona", 4 ottobre), notifiche da qualsiasi script (`easyisland-hook notify`, 2 ottobre), info rapide della macchina (integrazione Stato del PC/Rete e "Copia info PC"), modalità "davanti al cliente" (`presence.rs`), ticketing (integrazione Zammad), meteo (integrazione Meteo), Outlook classico (integrazione Outlook), musica in riproduzione (integrazione Musica), **3CX** (prima versione nella 0.5.3: strade 2 e 3 qui sotto; l'analisi resta come riferimento del protocollo).
 
-**Ancora da valutare:**
-- **Integrazione 3CX** _(proposta del 4 ottobre 2026, da ragionarci)_. Centralini ormai tutti V20 (la V18 non si aggiorna né si rinnova più). È un'**integrazione** (istanza singola), come Zammad. Tre strade, non esclusive:
+- **Integrazione 3CX** _(proposta del 4 ottobre 2026, fatta nella 0.5.3 con l'accesso "Interno e password" (strada 3) e "Client API" (strada 2); la strada 1, `tel:`, non è stata fatta)_. Centralini ormai tutti V20 (la V18 non si aggiorna né si rinnova più). È un'**integrazione** (istanza singola), come Zammad. Tre strade, non esclusive:
   1. **Senza API, con qualsiasi licenza:** "Chiama con 3CX" aprendo `tel:+39…` (l'app 3CX per Windows gestisce i link `tel:`): suggerimento **Chiama** nella scheda ⚡ quando il testo selezionato è un numero, azione rapida su un numero copiato. Poco codice, nessuna credenziale. Le chiamate in corso le riconosce già "davanti al cliente" (microfono in uso).
   2. **API ufficiali (XAPI + Call Control API):** documentate e stabili, ma serve una licenza **8SC o superiore** e un amministratore che crei un client API (Admin Console → Integrazioni → API: Client ID e chiave, da tenere in Gestione credenziali). Permettono: stato dell'interno modificabile dall'isola, chiamate perse con "Richiama", chiamata in arrivo nell'isola con il nome del chiamante (eventualmente con i ticket Zammad aperti), trigger per le automazioni.
   3. **API del client (come fa l'app 3CX):** web client e app per Windows entrano con le credenziali dell'interno e ricevono un token di sessione utente, poi leggono stato e cronologia e tengono un websocket per gli eventi in tempo reale. Niente licenza 8SC+ né Admin Console, ma **non è documentata** (un aggiornamento del centralino può romperla), usa le credenziali dell'utente (accesso a tutto ciò che vede lui; da gestire un eventuale 2FA) e gli indirizzi esatti non si conoscono: vanno osservati sul web client V20 (login fatto da Edoardo nel browser integrato, analisi delle richieste di rete senza salvare il token).
@@ -233,6 +232,8 @@ Pensate per il supporto IT sul notebook, ma utili anche a casa.
   - **Messaggi utili presenti:** `RequestMyInfo` (stato, profilo attuale), `RequestGetFwdProfiles` + `RequestChangeStatus` (stati Disponibile / Non disturbare…), `RequestCallHistory` / `RequestCallHistoryCount`, `MissedCallsCount` / `RequestResetMyMissedCalls`, `RequestMakeCall` (chiamata dal dispositivo registrato, es. l'app 3CX), più le notifiche dal websocket (chiamate in arrivo, cambi di stato).
   - **Valutazione:** la strada 3 è fattibile senza licenza 8SC+ né Admin Console, ma richiede di estrarre lo schema protobuf dal web client (la busta del messaggio con `typeId` e i messaggi che servono) e di riscriverlo in Rust senza dipendenze nuove (un piccolo codificatore/decodificatore protobuf, i campi sono pochi). Rischio: protocollo non documentato, può cambiare con un aggiornamento di 3CX (lo schema va rigenerato). Credenziali dell'interno in Gestione credenziali.
   - Da chiarire prima: licenza del centralino, chi può creare un client API, app per Windows o web client sul PC. Regole come sempre: numeri e nomi solo in memoria, nessuna azione (richiamare, cambiare stato) senza un clic. Fonti: [Configuration API](https://www.3cx.com/docs/configuration-rest-api/), [Call Control API V20](https://www.3cx.com/community/threads/updated-call-control-api-for-v20.125697/).
+
+**Ancora da valutare:**
 - **Rubrica clienti** _(esclusa per ora, 4 ottobre 2026)_: per ogni cliente collegamenti RDP/AnyDesk/TeamViewer, portali, credenziali (solo riferimenti alla Gestione credenziali), note e azioni rapide dedicate. Si apre cercando il nome dall'isola.
 - **Timer d'intervento** _(escluso per ora, 4 ottobre 2026)_: avvio/stop per cliente dall'isola, riepilogo a fine giornata, rapportino generato da Claude ed esportato (file o connettore scelto).
 - **Libreria di comandi:** comandi PowerShell/cmd usati spesso (es. `gpupdate /force`, reset dello spooler, `sfc /scannow`, diagnostica di rete) da copiare o eseguire con conferma.
@@ -252,12 +253,21 @@ Pensate per il supporto IT sul notebook, ma utili anche a casa.
 - Niente telemetria. Le chiavi stanno solo nel Credential Manager.
 - Nessuna approvazione di permessi e nessuna email senza un click esplicito.
 - CPU a ~0 % quando l'isola è nascosta.
+- L'agente non ha mai strumenti che eseguono comandi arbitrari, inviano email o eliminano: per eseguire c'è solo `run_quick_action`.
+- Gli aggiornamenti si installano solo dopo un clic, con la firma verificata; la chiave privata non entra mai nel repo.
+- Non cambiare `identifier` in `tauri.conf.json`: sposterebbe dati e chiavi.
+- Il canale degli hook (named pipe) è accessibile solo all'utente che ha avviato l'app.
 
 ## 9. Note per riprendere con Claude Code
 
-Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi facciamo il widget «Oggi» (6.3)"_, _"proviamo dal vivo le automazioni"_ oppure _"valutiamo un'idea della sezione 7"_. Per una nuova versione: stesso numero nei tre file, unione di `claude/sviluppo` in `main`, tag `vX.Y.Z`. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
+Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi facciamo il diff in tempo reale (6.6, punto 1)"_, _"proviamo dal vivo le automazioni"_ oppure _"valutiamo un'idea della sezione 7"_. Per una nuova versione: stesso numero nei tre file, unione di `claude/sviluppo` in `main`, tag `vX.Y.Z`. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 4 ottobre 2026 — handoff allineato alla 0.5.4, named pipe solo per il proprio utente
+- **Handoff:** versione, release e numero dei test aggiornati alla 0.5.4; tolta la nota sulle schermate in inglese; 3CX spostato tra le idee realizzate (la strada `tel:` non è stata fatta); sezione 8 completata con le regole di `CLAUDE.md` mancanti (strumenti dell'agente, aggiornamenti, `identifier`, pipe); esempio della sezione 9 preso dalla 6.6; consiglio di una copia di backup della chiave dell'updater.
+- **Named pipe (prima verifica della 6.6):** `\\.\pipe\easyisland-<sid>` veniva creata con il descrittore predefinito (lettura a Everyone e Anonymous). Ora `create_instance` in `src-tauri/src/pipe.rs` applica a ogni istanza il DACL `D:P(A;;GA;;;SY)(A;;GA;;;<sid>)` (`ConvertStringSecurityDescriptorToSecurityDescriptorW`, nessuna dipendenza nuova); senza SID resta il predefinito, con una riga nel log. Le connessioni da altri PC erano già rifiutate da tokio.
+- Verificato: `cargo test --workspace` (79 + 6, 4 ignorati), con un test che crea una pipe vera, la apre come proprietario e rilegge il DACL dall'handle. **Da provare dal vivo:** hook di Claude Code che arrivano ancora all'isola, anche da un Claude Code avviato come amministratore (stesso utente, quindi deve funzionare).
 
 ### 4 ottobre 2026 — prossime funzioni decise
 - Nuova sezione **6.6** della roadmap, in ordine: due verifiche (canale degli hook solo per il proprio utente, permesso che resta fino alla risposta), diff in tempo reale e messaggio finale, uso del piano Claude, pulsante "Sempre", markdown nella chat, altri agenti, altri motori per la chat (con **OpenRouter**, richiesto da Edoardo), guardaroba e personaggio sul desktop, scorciatoie. Escluso il GitHub rinnovato.
@@ -581,4 +591,5 @@ Funzioni verificate solo con i test o nell'anteprima del browser, da provare nel
 - [ ] **Widget:** script del certificato TLS; calendario con un link ICS reale.
 - [ ] **"Davanti al cliente":** in una chiamata Teams vera e con una sessione di assistenza remota.
 - [ ] **3CX con il centralino vero:** collegamento con interno e password, rubrica, chiamata in uscita da ogni dispositivo, chiamata in arrivo (apertura, Rispondi, Rifiuta), Riaggancia, stato, perse e Recenti; poi la modalità client API, compresa la rubrica XAPI.
+- [ ] **Named pipe con DACL:** gli hook arrivano ancora all'isola, anche da un Claude Code avviato come amministratore.
 - [ ] **Spostamento dell'isola** da icona a riposo, compatta e aperta, e posizione mantenuta alla riapertura.

@@ -63,12 +63,58 @@ pub fn pipe_name() -> String {
     format!(r"\\.\pipe\easyisland-{key}")
 }
 
+/// DACL for the pipe: this account and SYSTEM, nobody else. The default one
+/// Windows applies would also give Everyone and Anonymous read access.
+fn owner_only_sddl(sid: &str) -> String {
+    format!("D:P(A;;GA;;;SY)(A;;GA;;;{sid})")
+}
+
+/// One pipe instance that only `sid` (and SYSTEM) can open. Without a SID we
+/// fall back to Windows' default descriptor rather than not listening at all.
+fn create_instance(name: &str, first: bool, sid: Option<&str>) -> std::io::Result<NamedPipeServer> {
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::{HLOCAL, LocalFree};
+    use windows::Win32::Security::Authorization::{
+        ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
+    };
+    use windows::Win32::Security::{PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES};
+
+    let mut options = ServerOptions::new();
+    options.first_pipe_instance(first);
+    let Some(sid) = sid else { return options.create(name) };
+
+    let sddl: Vec<u16> = owner_only_sddl(sid).encode_utf16().chain(Some(0)).collect();
+    let mut descriptor = PSECURITY_DESCRIPTOR::default();
+    unsafe {
+        ConvertStringSecurityDescriptorToSecurityDescriptorW(
+            PCWSTR(sddl.as_ptr()),
+            SDDL_REVISION_1,
+            &mut descriptor,
+            None,
+        )
+        .map_err(std::io::Error::other)?;
+        let mut attributes = SECURITY_ATTRIBUTES {
+            nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+            lpSecurityDescriptor: descriptor.0,
+            bInheritHandle: false.into(),
+        };
+        let created = options
+            .create_with_security_attributes_raw(name, (&mut attributes as *mut SECURITY_ATTRIBUTES).cast());
+        let _ = LocalFree(Some(HLOCAL(descriptor.0)));
+        created
+    }
+}
+
 pub fn start(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         let name = pipe_name();
+        let sid = crate::win_user::current_user_sid();
+        if sid.is_none() {
+            log::line("relay pipe: user SID unavailable, using the default descriptor");
+        }
         // first_pipe_instance also means we refuse to join a pipe somebody else
         // already owns under our name, rather than serving on top of it.
-        let mut server = match ServerOptions::new().first_pipe_instance(true).create(&name) {
+        let mut server = match create_instance(&name, true, sid.as_deref()) {
             Ok(s) => s,
             Err(err) => {
                 log::line(format!("cannot open the relay pipe: {err}"));
@@ -81,7 +127,7 @@ pub fn start(app: AppHandle) {
                 continue;
             }
             // Hand the connected instance to a task and listen on a fresh one.
-            let next = match ServerOptions::new().create(&name) {
+            let next = match create_instance(&name, false, sid.as_deref()) {
                 Ok(s) => s,
                 Err(err) => {
                     log::line(format!("cannot reopen the relay pipe: {err}"));
@@ -248,4 +294,67 @@ pub fn answer_questions(app: &AppHandle, request_id: &str, answers: &serde_json:
     log::line(format!("decision id={request_id} answer ({} risposte)", answers.len()));
     let line = format!("answer {}", serde_json::Value::Object(answers.clone()));
     send(app, request_id, Reply::Decision(line), false);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sddl_names_only_the_user_and_system() {
+        let sddl = owner_only_sddl("S-1-5-21-1-2-3-1001");
+        assert_eq!(sddl, "D:P(A;;GA;;;SY)(A;;GA;;;S-1-5-21-1-2-3-1001)");
+        // Protected, and no Everyone / Anonymous / Authenticated Users entries.
+        assert!(!sddl.contains(";WD)") && !sddl.contains(";AN)") && !sddl.contains(";AU)"));
+    }
+
+    #[test]
+    fn owner_can_still_open_the_pipe() {
+        let rt = tokio::runtime::Builder::new_current_thread().enable_io().build().unwrap();
+        rt.block_on(async {
+            let sid = crate::win_user::current_user_sid().expect("sid");
+            let name = format!(r"\\.\pipe\easyisland-test-{}", std::process::id());
+            let server = create_instance(&name, true, Some(&sid)).expect("create");
+            std::fs::OpenOptions::new().read(true).write(true).open(&name).expect("open as owner");
+
+            // Read the DACL back from the live pipe: exactly SYSTEM and us.
+            use std::os::windows::io::AsRawHandle;
+            use windows::core::PWSTR;
+            use windows::Win32::Foundation::{HANDLE, HLOCAL, LocalFree};
+            use windows::Win32::Security::Authorization::{
+                ConvertSecurityDescriptorToStringSecurityDescriptorW, GetSecurityInfo, SDDL_REVISION_1,
+                SE_KERNEL_OBJECT,
+            };
+            use windows::Win32::Security::{DACL_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR};
+            unsafe {
+                let mut descriptor = PSECURITY_DESCRIPTOR::default();
+                let status = GetSecurityInfo(
+                    HANDLE(server.as_raw_handle()),
+                    SE_KERNEL_OBJECT,
+                    DACL_SECURITY_INFORMATION,
+                    None,
+                    None,
+                    None,
+                    None,
+                    Some(&mut descriptor),
+                );
+                assert!(status.is_ok(), "GetSecurityInfo: {status:?}");
+                let mut text = PWSTR::null();
+                ConvertSecurityDescriptorToStringSecurityDescriptorW(
+                    descriptor,
+                    SDDL_REVISION_1,
+                    DACL_SECURITY_INFORMATION,
+                    &mut text,
+                    None,
+                )
+                .expect("to sddl");
+                let sddl = text.to_string().unwrap();
+                let _ = LocalFree(Some(HLOCAL(text.0.cast())));
+                let _ = LocalFree(Some(HLOCAL(descriptor.0)));
+                assert!(sddl.starts_with("D:P"), "{sddl}");
+                assert!(sddl.contains(&sid), "{sddl}");
+                assert!(!sddl.contains(";WD)") && !sddl.contains(";AN)"), "{sddl}");
+            }
+        });
+    }
 }
