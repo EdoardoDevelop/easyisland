@@ -1,7 +1,7 @@
 // The character's engine — states, tweens, emotes and particles, ported from the
 // original BotEngine.swift to Canvas 2D (same constants, tweens and easings).
-// The body is whichever character is chosen (./character.ts); the eye arcs follow the prototype
-// (design/prototype/notch-buddy.html).
+// The body is whichever character is chosen (./character.ts); the eye arcs follow the
+// original Coucou prototype (in this repository's git history).
 
 import { Ease, lerp, type EaseFn } from "../core/anim";
 import { Sound } from "../core/sound";

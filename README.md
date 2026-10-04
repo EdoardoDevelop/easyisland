@@ -17,6 +17,32 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 <img src="screenshots/greeting.png" width="640" alt="Slime che saluta all'avvio">
 
+## Cosa fa
+
+- **Claude Code nell'isola**: vedi le sessioni lavorare, rispondi ai permessi
+  con **Nega / Consenti** e alle domande, torna all'app della sessione con un clic
+  ([Claude Code](#claude-code)).
+- **Chat con Claude** dall'isola, con l'abbonamento o una chiave API; allega
+  testo, file, immagini copiate o una **zona dello schermo**; calcolatrice nel
+  campo ([Chat con Claude](#chat-con-claude)).
+- **Azioni rapide** (link, programmi, script, domande a Claude) con scorciatoie
+  globali, e suggerimenti per l'app che stai usando
+  ([Azioni rapide](#azioni-rapide-e-scorciatoie)).
+- **Integrazioni** come pillole o schede: 3CX (chiamate, rubrica, chiamate in
+  arrivo), Zammad, Outlook, stato del PC, sicurezza, rete, meteo, appunti con
+  testi e immagini, musica, GitHub, Vercel, Stripe, n8n e altre
+  ([Integrazioni](#integrazioni)); **widget** per siti, certificati, server,
+  domini, calendari, API ([Widget](#widget)).
+- **Automazioni** "quando… allora…", create dalle Impostazioni o a parole in
+  chat, e proposte dalle tue abitudini; Claude può anche usare il PC per te, con
+  il tuo consenso ([Automazioni](#automazioni)).
+- **File rilasciati**: domande su un file, estrazione degli ZIP, cronologia dei
+  file caricati.
+- **Profili** (lavoro, casa, concentrazione) che cambiano da soli, modalità
+  **davanti al cliente**, messaggi da qualsiasi script, backup delle impostazioni.
+- **Tre personaggi** (Slime, Goccia, EasyTech), posizione libera, tema, suoni
+  generati nel codice; leggera a batteria, nessuna telemetria.
+
 ---
 
 ## Installazione
@@ -144,7 +170,8 @@ disinstallatore volutamente non tocca il `settings.json` di Claude Code. Poi
 | `error: toolchain 'stable-x86_64-pc-windows-msvc' is not installed` | `rustup default stable-msvc` |
 | l'installer viene bloccato da Defender | è il falso positivo descritto sopra: usa "Esegui comunque", oppure lancia direttamente `target\release\easyisland.exe` |
 | Slime non compare | guarda nell'area di notifica (la freccia ^ accanto all'orologio) e il log in `%LOCALAPPDATA%\EasyIsland\easyisland.log` |
-| le Impostazioni | sono divise in pagine (Generale, Aspetto, Notifiche, Claude, Azioni rapide, Integrazioni, Widget, Backup) nel menu a sinistra; la finestra ricorda l'ultima aperta |
+| le Impostazioni | sono divise in pagine (Generale, Aspetto, Notifiche, Claude, Azioni rapide, Automazioni, Integrazioni, Widget, Backup) nel menu a sinistra; la finestra ricorda l'ultima aperta |
+| una chiave o una password "non si salva" | Gestione credenziali di Windows è piena (spesso di centinaia di token in cache di Xbox o di altre app) e rifiuta le voci nuove: le Impostazioni lo dicono sotto il campo. Elimina le voci che non servono da Pannello di controllo → Gestione credenziali → Credenziali generiche e riprova |
 | vuoi aprire le impostazioni senza l'area di notifica | `"%LOCALAPPDATA%\EasyIsland\easyisland.exe" --settings` (anche come collegamento) |
 
 ## Come si usa
@@ -153,15 +180,17 @@ disinstallatore volutamente non tocca il `settings.json` di Claude Code. Poi
 <img src="screenshots/overview.png" width="640" alt="La panoramica: una sessione di Claude Code al lavoro a sinistra, le altre pillole a destra">
 <img src="screenshots/approval.png" width="640" alt="Una richiesta di permesso di Claude Code, con Nega e Consenti">
 <img src="screenshots/chat.png" width="640" alt="Chat con Claude dall'isola">
-<img src="screenshots/drop.png" width="640" alt="Slime trasformato in una scatola, in attesa di un file">
+<img src="screenshots/drop.png" width="640" alt="Slime trasformato in una scatola, in attesa di un file, con Cattura una zona e File caricati">
 
-_Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `npm run dev` acceso)._
+_Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `npm run dev` acceso), con dati di prova delle scene in `dev/scenes.ts`._
 
 | Cosa fai | Cosa succede |
 |---|---|
 | Porti il mouse sull'icona di Slime (in alto al centro, o nell'angolo che hai scelto) | Slime si ingrandisce (o resta sempre così, con **Sempre visibile**) |
 | Clicchi su Slime, o lasci il mouse sopra per un attimo se "Apri dopo" lo prevede | Si apre l'isola, allineata a quel lato |
-| Trascini Slime tenendo premuto il tasto sinistro | Si sposta dove lo lasci, e la posizione resta salvata nel profilo |
+| Trascini Slime tenendo premuto il tasto sinistro (anche l'icona a riposo) | Si sposta dove lo lasci, e la posizione resta salvata nel profilo |
+| Trascini l'isola aperta dallo spazio vuoto dell'intestazione | Resta lì finché è aperta; chiudendola torna al posto di Slime |
+| Trascini una pillola o una scheda in alto | Cambia posto (si blocca in Impostazioni → Integrazioni) |
 | Clicchi su Slime | Si infastidisce. Tre volte di fila e gli gira la testa |
 | Lasci il puntatore su Slime per due secondi | Cuori |
 | Trascini un file sull'isola | Si apre anche se è impostata "solo con un clic": Slime diventa una scatola, lo inghiotte e poi si offre di rispondere a domande sul file |
@@ -169,6 +198,7 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 | 📌 in alto a destra | **Tieni aperta**: l'isola non si chiude più da sola finché non la togli (Esc e ✕ la chiudono comunque) |
 | Scrivi un calcolo nella chat, es. `840 + 22%` o `15% di 840` | Compare subito il risultato; **Invio** lo copia negli appunti, **Ctrl+Invio** chiede comunque a Claude. Il calcolo è fatto in locale, senza Claude |
 | Rilasci uno ZIP | Oltre a "Fai una domanda" c'è **Estrai…**: vedi cosa contiene e lo estrai in una cartella nuova accanto all'originale, in Download o sul Desktop |
+| Scheda **+** → **Cattura una zona** (o `Ctrl+Alt+Shift+S`) | Lo Strumento di cattura di Windows: scegli una zona, una finestra o lo schermo e la chat si apre con l'immagine allegata |
 | Scheda **+** → **File caricati** | La cronologia dei file rilasciati sull'isola (le copie tenute per una settimana): chiedi a Claude, apri, mostra nella cartella, elimina uno o tutti. Gli originali non vengono toccati |
 | Icona nell'area di notifica | Apri, Impostazioni…, Pausa, Esci |
 
@@ -182,6 +212,8 @@ poi le pillole scorrono).
 ## Posizione e aspetto
 
 **Impostazioni… → Posizione e aspetto** decide dove vive Slime e quanto si fa notare:
+
+<img src="screenshots/settings.png" width="700" alt="La finestra delle impostazioni, pagina Aspetto">
 
 - **Posizione**: in alto o in basso, a sinistra, al centro o a destra. Quando si
   apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel
@@ -233,6 +265,8 @@ di EasyIsland. Le impostazioni si cambiano nell'indirizzo, per esempio
 ## Azioni rapide e scorciatoie
 
 **Impostazioni… → Azioni rapide** crea i pulsanti della scheda ⚡ dell'isola:
+
+<img src="screenshots/actions.png" width="640" alt="La scheda Azioni: i suggerimenti per Outlook in alto e le azioni rapide sotto">
 
 | Tipo | Cosa fa |
 |---|---|
@@ -302,6 +336,48 @@ come"). Aprendo la scheda si vede solo quell'integrazione; le pillole restano
 sulla scheda ⌂.
 
 Quali integrazioni sono accese, e come sono mostrate, dipende dal profilo.
+
+<img src="screenshots/threecx.png" width="640" alt="3CX: una chiamata in arrivo con Rispondi e Rifiuta, una chiamata in linea e la ricerca in rubrica">
+<img src="screenshots/clipboard.png" width="640" alt="Appunti: un'immagine copiata, un link, un indirizzo fissato e un JSON">
+<img src="screenshots/media.png" width="640" alt="Musica: il brano in riproduzione con i controlli">
+<img src="screenshots/network.png" width="640" alt="Rete: IP locale e pubblico, Wi-Fi, VPN e latenza">
+<img src="screenshots/settings-integrations.png" width="700" alt="Impostazioni, pagina Integrazioni">
+
+### 3CX
+
+Chiamate, rubrica e chiamate in arrivo del tuo interno, dall'isola, su un
+centralino **3CX V20**. In **Impostazioni → Integrazioni → 3CX** scegli
+l'accesso:
+
+- **Interno e password** (consigliato): EasyIsland entra come fa l'app 3CX, con
+  l'indirizzo del centralino (es. `https://azienda.my3cx.it:5001`), il tuo interno
+  o la tua e-mail e la password del web client. Nessuna licenza in più e niente
+  da fare nell'Admin Console. È il modo in cui funziona il web client di 3CX, non
+  un'interfaccia documentata: un aggiornamento del centralino potrebbe
+  richiedere un aggiornamento di EasyIsland. La verifica in due passaggi non è
+  ancora supportata.
+- **Client API**: nell'Admin Console di 3CX, **Integrazioni → API → Aggiungi**,
+  spunta *3CX Call Control API Access* (e *Configuration API Access* per la
+  rubrica) e aggiungi il tuo interno tra quelli monitorati; in EasyIsland metti
+  indirizzo, Client ID, chiave API e interno. Serve una licenza **8SC o
+  superiore**. Stato e cronologia non sono disponibili in questo modo.
+
+Nella scheda **3CX**:
+
+- **Chiamare**: scrivi un numero o cerca un nome, un'azienda o un collega e
+  clicca il numero; **Invio** chiama il primo risultato.
+- **Dispositivo**: in fondo, **Da …** sceglie da dove parte la chiamata (app 3CX
+  per Windows, telefono da scrivania, smartphone) oppure *automatico*.
+- **Chiamate in arrivo**: l'isola si apre sulla scheda 3CX con un suono e resta
+  aperta finché squilla, con **Rispondi** (se il dispositivo si può comandare a
+  distanza, come l'app 3CX) e **Rifiuta**. Con "davanti al cliente" attivo compare
+  solo il segnale sulla pillola, senza il nome di chi chiama.
+- **In linea**: durata della chiamata e **Riaggancia**.
+- **Stato** (Disponibile, Assente, Non disturbare…) dal menu accanto a "3CX",
+  **chiamate perse** e **Recenti** (solo con interno e password).
+
+EasyIsland resta collegato solo con l'integrazione accesa e non in pausa, e si
+ricollega da solo se il collegamento cade. Numeri e nomi restano in memoria.
 
 ## Widget
 
@@ -386,8 +462,6 @@ attivo.
 
 ## Claude Code
 
-<img src="screenshots/settings.png" width="700" alt="La finestra delle impostazioni, pagina Aspetto">
-
 Apri **Impostazioni… → Claude Code → Installa hook…**. Vedi il diff esatto di cosa
 cambierà in `%USERPROFILE%\.claude\settings.json` e il percorso della copia di
 backup datata che verrà creata. Non viene scritto nulla finché non clicchi. I tuoi
@@ -429,12 +503,16 @@ Le chiavi stanno in **Gestione credenziali di Windows**, mai su disco e mai
 nell'interfaccia: l'isola può solo chiedere se una chiave esiste. Lo stesso vale
 per le chiavi di ogni integrazione.
 
+Alla chat si può allegare il testo copiato o un'immagine (`Ctrl+Alt+K`), un file
+rilasciato sull'isola, una **zona dello schermo** (`Ctrl+Alt+Shift+S` o scheda
+**+**) o un'immagine della cronologia Appunti (**Chiedi a Claude**).
+
 Slime risponde in italiano, a meno che tu non gli scriva in un'altra lingua.
 **Nuova chat**, a sinistra del campo di testo, dimentica la conversazione (e il
 file o il testo a cui si riferiva) e ne comincia una da zero.
 
 Con "Abbonamento Claude", EasyIsland cerca Claude Code nel `PATH`, in
-`%USERPROFILE%\.localin` e nella cartella di npm; se non c'è un'installazione
+`%USERPROFILE%\.local\bin` e nella cartella di npm; se non c'è un'installazione
 a sé, usa la copia inclusa nell'app desktop di Claude
 (`%APPDATA%\Claude\claude-code\<versione>`) o nell'estensione per VS Code,
 sempre la versione più recente.
@@ -448,6 +526,8 @@ Aggiornamenti).
 
 **Impostazioni… → Automazioni**: quando succede qualcosa, EasyIsland fa
 qualcosa per te.
+
+<img src="screenshots/settings-automations.png" width="700" alt="Impostazioni, pagina Automazioni">
 
 | Quando | Esempio |
 |---|---|
@@ -486,6 +566,8 @@ rifiutate* se cambi idea). Propone anche le sequenze (*"Quando apri il gestional
 e, se un'automazione nata da una proposta non ti serve più (apre un programma
 che poi non usi), ti chiede se spegnerla. In **Programmi da non osservare**
 indichi quelli da ignorare. Al massimo una proposta al giorno.
+
+<img src="screenshots/suggestion.png" width="640" alt="Una proposta dalle abitudini: Apro Outlook alle 08:50?">
 
 ### Claude può usare il PC
 
@@ -551,8 +633,8 @@ npm run icons          # rigenera src-tauri/icons da scripts/gen-icons.mjs
 2. Crea e invia il tag:
 
    ```powershell
-   git tag v0.5.0
-   git push origin v0.5.0
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
    ```
 
 3. La workflow **Build** compila l'installer, lo firma per l'aggiornamento e
@@ -576,10 +658,11 @@ mano. Tienine una copia al sicuro.
     island/            macchina a stati, hook, integrazioni
     views/             tutte le viste dell'isola
     settings/          la finestra delle impostazioni
-  src-tauri/           backend Rust: finestra, named pipe, API Claude, poller
-  hook/                easyisland-hook.exe, il relay per Claude Code
-  scripts/             generatore di icone, impacchettamento dell'installer
-  design/              prototipo HTML originale e catture di riferimento
+  src-tauri/           backend Rust: finestra, named pipe, API Claude, integrazioni, 3CX, automazioni
+  hook/                easyisland-hook.exe: il relay per Claude Code e il connettore MCP "easyisland"
+  scripts/             icone, impacchettamento dell'installer, schermate del README
+  dev/                 anteprime nel browser (personaggi, suoni, rilascio) e scene delle schermate
+  screenshots/         le immagini di questo README
 ```
 
 ### Log
@@ -592,8 +675,8 @@ problemi dei poller. Resta sul tuo computer.
 EasyIsland nasce come fork solo per Windows di
 [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou) (Coucou, con il
 personaggio Mochi), app nativa macOS per il notch. Slime, uno slime,
-ha preso il posto di Mochi. Il codice macOS è stato rimosso; il
-prototipo originale in `design/` resta il riferimento visivo. Alcune funzioni
+ha preso il posto di Mochi. Il codice macOS e il prototipo originale sono stati
+rimossi (restano nella storia git). Alcune funzioni
 esistevano solo sul Mac e non sono presenti qui: invio di un file per email,
 trascinamento di Slime su una finestra per allegarla come contesto, salto alla
 finestra esatta del terminale. Al suo posto, quando una sessione finisce o va

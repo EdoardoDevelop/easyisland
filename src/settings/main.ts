@@ -553,7 +553,7 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
         } catch (e) {
           dotEl.style.background = "#f5a524";
           // Windows refuses new entries when its Credential Manager is nearly full.
-          const full = /memoria|memory|8|1312/i.test(String(e));
+          const full = /memoria|memory|\b8\b|1312/i.test(String(e));
           saveError.textContent = full
             ? "Non salvata: Gestione credenziali di Windows è piena. Elimina le voci che non servono (es. le centinaia di token di Xbox) e riprova."
             : `Non salvata: ${String(e).replace(/^Error:\s*/, "")}`;
