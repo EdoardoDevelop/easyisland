@@ -432,6 +432,7 @@ fn spawn_unlock_watch() {
     unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
         if msg == WM_WTSSESSION_CHANGE && wparam.0 == WTS_SESSION_UNLOCK {
             UNLOCKED.store(true, Ordering::Relaxed);
+            crate::habits::note("unlock", "");
         }
         DefWindowProcW(hwnd, msg, wparam, lparam)
     }

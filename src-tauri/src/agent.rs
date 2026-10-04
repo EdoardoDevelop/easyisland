@@ -35,7 +35,7 @@ fn settings(app: &AppHandle) -> Result<crate::settings::Settings, String> {
 
 /// Changes the settings like a save from the settings window: on disk, and
 /// sent to both windows.
-fn update_settings(app: &AppHandle, change: impl FnOnce(&mut crate::settings::Settings)) -> Result<(), String> {
+pub(crate) fn update_settings(app: &AppHandle, change: impl FnOnce(&mut crate::settings::Settings)) -> Result<(), String> {
     let shared = app.try_state::<crate::Shared>().ok_or("EasyIsland non è pronto.")?;
     let updated = {
         let mut s = shared.settings.lock().unwrap();
@@ -43,6 +43,7 @@ fn update_settings(app: &AppHandle, change: impl FnOnce(&mut crate::settings::Se
         s.clone()
     };
     crate::settings::save(&updated).map_err(|e| format!("Impostazioni non salvate: {e}"))?;
+    crate::habits::set_enabled(updated.habits_enabled);
     let _ = app.emit("settings-changed", updated);
     Ok(())
 }

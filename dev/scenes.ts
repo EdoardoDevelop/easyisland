@@ -84,6 +84,16 @@ export async function runScene(island: Island, scene: string) {
       await wait(2500);
       break;
     }
+    case "suggestion":
+      // A proposal from the habits (habits.rs), as the island shows it.
+      await wait(300);
+      island.showNotice({
+        title: "Apro Outlook alle 08:50?",
+        text: "Negli ultimi 21 giorni hai aperto Outlook verso le 08:55 in 13 giorni su 15 lavorativi.",
+        level: "info", url: "", suggestion: "time|outlook.exe|wd|08:30",
+      });
+      await wait(2500);
+      break;
     case "drop":
       await wait(300);
       island.alert("upload");

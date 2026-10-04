@@ -34,8 +34,14 @@ fn is_ours(hwnd: HWND) -> bool {
 unsafe extern "system" fn on_foreground(
     _hook: HWINEVENTHOOK, _event: u32, hwnd: HWND, _obj: i32, _child: i32, _thread: u32, _time: u32,
 ) {
-    if !hwnd.0.is_null() && !is_ours(hwnd) {
+    if hwnd.0.is_null() {
+        return;
+    }
+    let Some(path) = exe_path(hwnd) else { return };
+    let exe = path.rsplit('\\').next().unwrap_or(&path).to_lowercase();
+    if exe != "easyisland.exe" {
         LAST.store(hwnd.0 as isize, Ordering::Relaxed);
+        crate::habits::note_app(&exe, &path);
     }
 }
 
@@ -77,6 +83,12 @@ pub struct Foreground {
 }
 
 fn exe_of(hwnd: HWND) -> Option<String> {
+    let path = exe_path(hwnd)?;
+    Some(path.rsplit('\\').next().unwrap_or(&path).to_lowercase())
+}
+
+/// Full path of the program that owns the window.
+fn exe_path(hwnd: HWND) -> Option<String> {
     unsafe {
         let mut pid = 0u32;
         GetWindowThreadProcessId(hwnd, Some(&mut pid));
@@ -89,8 +101,7 @@ fn exe_of(hwnd: HWND) -> Option<String> {
         let ok = QueryFullProcessImageNameW(process, PROCESS_NAME_WIN32, windows::core::PWSTR(buf.as_mut_ptr()), &mut len);
         let _ = CloseHandle(process);
         ok.ok()?;
-        let path = String::from_utf16_lossy(&buf[..len as usize]);
-        Some(path.rsplit('\\').next().unwrap_or(&path).to_lowercase())
+        Some(String::from_utf16_lossy(&buf[..len as usize]))
     }
 }
 

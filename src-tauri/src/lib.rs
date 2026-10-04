@@ -11,6 +11,7 @@ mod clipboard;
 mod context;
 mod drop;
 mod files;
+mod habits;
 mod hooks;
 mod hotkeys;
 mod integrations;
@@ -102,6 +103,7 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
     if let Err(err) = settings::save(&settings) {
         eprintln!("[easyisland] could not save settings: {err}");
     }
+    habits::set_enabled(settings.habits_enabled);
     if autostart_changed {
         let manager = app.autolaunch();
         let result = if settings.autostart { manager.enable() } else { manager.disable() };
@@ -134,6 +136,10 @@ pub(crate) fn activate_profile(app: &AppHandle, id: &str, why: &str) {
         eprintln!("[easyisland] could not save settings: {err}");
     }
     log::line(format!("profile → {id} ({why})"));
+    // Chosen by hand: something the habits may learn from.
+    if matches!(why, "impostazioni" | "menu") {
+        habits::note("profile", id);
+    }
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
     island::apply_geometry(app, &shared.gate, &settings, collapsed);
     let _ = app.emit("settings-changed", settings);
@@ -642,6 +648,35 @@ fn automations_log() -> Vec<automations::LogEntry> {
     automations::log()
 }
 
+/// Proposte dalle abitudini: how much was recorded.
+#[tauri::command]
+fn habits_stats() -> habits::Stats {
+    habits::stats()
+}
+
+/// Runs the analysis now and returns what may be proposed.
+#[tauri::command]
+async fn habits_suggestions(app: AppHandle) -> Vec<habits::Suggestion> {
+    tauri::async_runtime::spawn_blocking(move || habits::refresh(&app)).await.unwrap_or_default()
+}
+
+/// "create" | "snooze" | "dismiss" | "restore".
+#[tauri::command]
+fn habit_answer(app: AppHandle, fp: String, choice: String) -> Result<String, String> {
+    habits::answer(&app, &fp, &choice)
+}
+
+#[tauri::command]
+fn habits_clear() {
+    habits::clear();
+}
+
+/// The island used a quick action (habits: "after plugging in a drive…").
+#[tauri::command]
+fn habit_note_quick(id: String) {
+    habits::note("quick", &id);
+}
+
 /// Impostazioni → Automazioni → "Prova ora".
 #[tauri::command]
 fn automation_run_now(app: AppHandle, id: String) -> Result<(), String> {
@@ -845,6 +880,11 @@ pub fn run() {
             media_command,
             zip_list,
             automations_log,
+            habits_stats,
+            habits_suggestions,
+            habit_answer,
+            habits_clear,
+            habit_note_quick,
             automation_run_now,
             inbox_list,
             inbox_delete,
@@ -880,6 +920,7 @@ pub fn run() {
             context::spawn();
             media::spawn(handle.clone());
             automations::spawn(handle.clone());
+            habits::spawn(handle.clone());
             widgets::start(handle.clone());
 
             log::line(format!("--- EasyIsland {} started ---", env!("CARGO_PKG_VERSION")));

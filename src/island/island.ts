@@ -217,6 +217,7 @@ export class Island {
       blip: () => Sound.play("blip"),
       toggleKeepOpen: () => this.toggleKeepOpen(),
       installUpdate: () => void this.installUpdate(),
+      answerSuggestion: (fp, choice) => void this.answerSuggestion(fp, choice),
       runAction: (a) => void this.runAction(a),
       runSuggestion: (sg, app) => void this.runSuggestion(sg, app),
       extractZip: (place) => void this.extractZip(place),
@@ -576,7 +577,23 @@ export class Island {
     State.notify();
   }
 
+  /** Crea / Non ora / No, mai on a proposal from the habits. */
+  async answerSuggestion(fp: string, choice: "create" | "snooze" | "dismiss") {
+    try {
+      const msg = await Bridge.habitAnswer(fp, choice);
+      State.notice = { title: msg, text: "", level: choice === "create" ? "ok" : "info", url: "" };
+      Sound.play(choice === "create" ? "finish" : "blip");
+    } catch (e) {
+      State.notice = { title: String(e).replace(/^Error:\s*/, ""), text: "", level: "error", url: "" };
+    }
+    State.notify();
+    window.setTimeout(() => {
+      if (State.view === "notify" && !State.notice?.suggestion) this.collapse();
+    }, 3000);
+  }
+
   async runAction(a: QuickAction) {
+    if (!a.id.startsWith("builtin:")) void Bridge.habitNoteQuick(a.id);
     if (a.id === "builtin:unzip") {
       Sound.play("blip");
       await this.openUnzip();
