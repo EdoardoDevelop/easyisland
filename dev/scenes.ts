@@ -200,6 +200,14 @@ export async function runScene(island: Island, scene: string) {
       await wait(2500);
       break;
     }
+    case "finished":
+      // A finished session whose last message is long and has markdown in it.
+      await wait(300);
+      session("working", ["Edit · src/views/views.ts"]);
+      handleHook(island, { hook_event_name: "Stop", cwd: "C:\\Users\\Edoardo\\WORK\\easyisland",
+        easyisland_last_message: "Il commit `37fd214` è fatto e la versione con il diff è **installata**. L'app è ripartita alle 21:39 e il relay installato è identico a quello appena compilato. Non ho fatto il push.\n\nPer provarlo su questa sessione ho creato `prova-diff.txt` e poi l'ho modificato." });
+      await wait(1500);
+      break;
     case "permission":
       // Not a screenshot: a real PermissionRequest through the hook handler while
       // the island shows another tab, to check the card shows, stays and returns.

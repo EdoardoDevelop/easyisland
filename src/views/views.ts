@@ -622,6 +622,21 @@ function buildError(actions: ViewActions): ViewHost {
 
 // ── Finished ──────────────────────────────────────────────────────────────────
 
+/**
+ * Claude's markdown read as plain text: no code fences, backticks, bold or
+ * heading marks. (Rendering it properly is 6.6, point 4.)
+ */
+function plainText(md: string): string {
+  return md
+    .replace(/^```.*$/gm, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*(.+?)\*\*|__(.+?)__/g, "$1$2")
+    .replace(/`([^`]+)`/g, "$1")
+    // Blank lines between paragraphs would take one of the four lines shown.
+    .replace(/\n\s*\n+/g, "\n")
+    .trim();
+}
+
 function buildFinished(actions: ViewActions): ViewHost {
   const who = h("div");
   const title = h("div", { class: "title" });
@@ -639,11 +654,13 @@ function buildFinished(actions: ViewActions): ViewHost {
       // Claude's last message when the relay found it, else the last step.
       const said = State.focusTask?.lastMessage;
       title.classList.toggle("last-msg", !!said);
-      title.textContent = said ?? State.focusTask?.steps.at(-1) ?? "Sessione terminata";
-      title.title = said ?? "";
+      title.textContent = said ? plainText(said) : State.focusTask?.steps.at(-1) ?? "Sessione terminata";
       // "Apri Claude", "Apri VS Code" or "Apri terminale": where the session runs.
       (open.firstChild as HTMLElement).textContent = sessionOpenLabel(State.focusTask?.sessionHost);
     },
+    // A long last message grows the card instead of sliding under the buttons:
+    // the three rows, the stack's gaps and padding, the card's margins.
+    fitHeight: () => who.offsetHeight + title.offsetHeight + row.offsetHeight + 2 * 5 + 8 + 20,
   };
 }
 

@@ -707,11 +707,12 @@ html.browser-preview #root {
   font: 600 15px var(--font);
 }
 
-/* Claude's last message on the "finished" card: three lines, the rest in the tooltip. */
+/* Claude's last message on the "finished" card: four lines at most, the card grows. */
 .title.last-msg {
+  flex: 0 0 auto;
   font: 500 13px/1.35 var(--font);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
   white-space: pre-line;

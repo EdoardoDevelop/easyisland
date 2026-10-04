@@ -265,6 +265,9 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 
 ## 10. Registro delle modifiche
 
+### 4 ottobre 2026 — scheda "finito": il messaggio non finisce sotto i pulsanti
+- Provata dal vivo da Edoardo: l'ultimo messaggio arriva, ma la terza riga finiva sotto "Apri Claude" / OK (altezza fissa di 160 px) e il suggerimento con il messaggio intero copriva mezzo schermo. Ora la scheda cresce (`fitHeight` di `buildFinished`), il testo si ferma a 4 righe senza suggerimento, le righe vuote tra i paragrafi non occupano posto e i segni del markdown (`` ` ``, `**`, `#`, i recinti di codice) vengono tolti (`plainText`; il markdown vero è il punto 4 della 6.6). Scena `?scene=finished`.
+
 ### 4 ottobre 2026 — diff in tempo reale e messaggio finale (6.6, punto 1)
 - **Dove si calcola:** nel relay (`hook/src/diff.rs`), perché solo lì il payload arriva intero: all'isola ogni stringa arriva tagliata a 2.000 caratteri e `tool_response` non arriva. Su `PostToolUse` di `Edit` / `MultiEdit` / `Write` il relay aggiunge `easyisland_diff` (`file`, `added`, `removed`, `too_big`, `hunks` con `old` / `new` e righe `+`/`-`/` `) e toglie da `tool_input` i testi che il diff già contiene. Fonte, nell'ordine: `tool_response.structuredPatch` di Claude Code (numeri di riga veri, 3 righe di contesto, quello che è stato davvero applicato; formato verificato su una trascrizione reale), altrimenti `old_string` / `new_string` (LCS sulle righe, senza numeri di riga) o `content` (file nuovo, tutto aggiunto). Mai letto il file dal disco. Oltre 200 KB o 4.000 righe solo i conteggi.
 - **Ultimo messaggio:** su `Stop` il relay aggiunge `easyisland_last_message`: `last_assistant_message` se Claude Code lo manda, altrimenti l'ultimo testo dell'assistente negli ultimi 512 KB della trascrizione (`transcript_path`, file di Claude Code). La scheda "finito" lo mostra (3 righe, il resto nel suggerimento) e diventa l'ultimo passo.
