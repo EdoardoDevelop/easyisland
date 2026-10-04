@@ -255,10 +255,17 @@ calendario, posta…); prende il colore dell'azione.
 **Scorciatoie globali**, valide in ogni app (modificabili):
 
 - `Ctrl+Alt+Shift+M` apre Slime sulle azioni (o sulla chat se non ce ne sono);
-- `Ctrl+Alt+K` apre la chat con il testo copiato già allegato: scrivi la domanda;
+- `Ctrl+Alt+K` apre la chat con il testo (o l'immagine) copiato già allegato: scrivi la domanda;
 - `Ctrl+Alt+H` apre la cronologia degli **Appunti** (se l'integrazione è accesa);
+- `Ctrl+Alt+Shift+S` **cattura una zona dello schermo** (con lo Strumento di
+  cattura di Windows: zona, finestra o schermo intero) e apre la chat con
+  l'immagine allegata, per esempio per farsi spiegare una finestra d'errore.
+  Si può fare anche dalla scheda **+** dell'isola, con **Cattura una zona**;
 - ogni azione può avere la sua scorciatoia, es. `Ctrl+Alt+E` per "Spiega errore".
 
+Per cambiarne una basta un clic sul campo e premere la combinazione: il campo la
+registra da solo (Esc annulla, Canc la toglie, ✕ la svuota). Mentre il campo è in
+ascolto le altre scorciatoie sono sospese, così i tasti arrivano lì.
 Se una scorciatoia è già usata da un'altra app, le Impostazioni lo segnalano.
 Le azioni appartengono al profilo attivo; le scorciatoie Apri/Chiedi al PC.
 
@@ -277,8 +284,8 @@ Gestione credenziali di Windows.
 | **Sicurezza** | antivirus (Defender o un altro, dal Centro sicurezza di Windows), età delle firme, ultima scansione, firewall, minacce rilevate |
 | **Rete** | Wi-Fi o cavo, IP locale e pubblico (api.ipify.org, al massimo ogni 15 minuti), VPN attive, latenza verso 1.1.1.1; avvisa se internet non risponde o è lento |
 | **Meteo** | meteo attuale di una città (Open-Meteo, gratuito e senza chiave); avvisa se è probabile pioggia nelle prossime ore |
-| **Appunti** | gli ultimi 30 testi copiati, più quelli fissati: clic per incollarli nell'app in primo piano, oppure copia, trasforma (MAIUSCOLO, minuscolo, una riga, senza spazi, JSON, URL), fissa, elimina. Solo in memoria, mai su disco; ciò che i gestori di password segnano come privato non viene registrato |
-| **Musica** | cosa sta suonando in qualsiasi app che compare nei controlli multimediali di Windows (Spotify, il browser, Lettore multimediale…), con copertina, avanzamento e ⏮ ⏯ ⏭. Tutto in locale |
+| **Appunti** | gli ultimi 30 testi e immagini copiati (fino a 10 immagini), più quelli fissati: clic per incollarli nell'app in primo piano, oppure copia, trasforma (MAIUSCOLO, minuscolo, una riga, senza spazi, JSON, URL), fissa, elimina; sulle immagini **Chiedi a Claude**. Solo in memoria, mai su disco; ciò che i gestori di password segnano come privato non viene registrato |
+| **Musica** | cosa sta suonando in qualsiasi app che compare nei controlli multimediali di Windows (Spotify, il browser, Lettore multimediale…), con copertina, avanzamento e ⏮ ⏯ ⏭; la pillola mostra il titolo del brano. Tutto in locale |
 
 Ogni integrazione può stare tra le pillole della panoramica oppure in alto
 nell'isola come **scheda**, con il suo nome o con un'icona a scelta ("Mostra

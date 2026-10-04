@@ -8,6 +8,7 @@ mod calendar;
 mod claude;
 mod claude_cli;
 mod clipboard;
+mod clipimage;
 mod context;
 mod drop;
 mod files;
@@ -24,6 +25,7 @@ mod pipe;
 mod presence;
 mod probes;
 mod profiles;
+mod screenshot;
 mod secrets;
 mod settings;
 mod tray;
@@ -248,6 +250,12 @@ fn open_zammad() {
 #[tauri::command]
 fn hotkey_failures() -> Vec<String> {
     hotkeys::failures()
+}
+
+/// A shortcut field in the settings is listening for keys: no shortcut fires meanwhile.
+#[tauri::command]
+fn hotkeys_suspend(on: bool) {
+    hotkeys::suspend(on);
 }
 
 /// Wi-Fi network this PC is on, to fill in a profile rule.
@@ -573,6 +581,13 @@ fn ingest_file(path: String) -> Result<DroppedFile, String> {
     files::ingest(&path)
 }
 
+/// "Cattura una zona": the snipping overlay, then the picture saved in the inbox.
+/// None when the user gave up.
+#[tauri::command]
+async fn capture_screen() -> Result<Option<DroppedFile>, String> {
+    screenshot::capture().await
+}
+
 /// The island may only ask whether a key exists — never read it.
 #[tauri::command]
 fn secret_present(key: String) -> bool {
@@ -613,6 +628,18 @@ async fn clipboard_use(app: AppHandle, id: u64, transform: String, paste: bool) 
     tauri::async_runtime::spawn_blocking(move || clipboard::use_entry(&app, id, &transform, paste))
         .await
         .map_err(|e| e.to_string())?
+}
+
+/// Appunti → "Chiedi a Claude" on a picture.
+#[tauri::command]
+fn clipboard_ask(id: u64) -> Result<DroppedFile, String> {
+    clipboard::picture_to_inbox(id)
+}
+
+/// Ctrl+Alt+K with a picture on the clipboard instead of a text.
+#[tauri::command]
+async fn clipboard_picture() -> Result<Option<DroppedFile>, String> {
+    tauri::async_runtime::spawn_blocking(screenshot::clipboard_picture).await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -866,15 +893,19 @@ pub fn run() {
             action_kill,
             clipboard_text,
             hotkey_failures,
+            hotkeys_suspend,
             widget_test,
             widget_refresh,
             ingest_file,
+            capture_screen,
             secret_present,
             secret_set,
             secret_clear,
             refresh_integration,
             clipboard_use,
             clipboard_pin,
+            clipboard_ask,
+            clipboard_picture,
             clipboard_remove,
             clipboard_clear,
             media_command,

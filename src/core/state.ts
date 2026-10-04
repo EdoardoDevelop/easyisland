@@ -228,6 +228,8 @@ export interface Settings {
   hotkeyAsk: string;
   /** Opens the clipboard history (Appunti). */
   hotkeyClipboard: string;
+  /** Captures a zone of the screen and asks Claude about it. */
+  hotkeyScreenshot: string;
   /** ⚡ tab: actions suggested for the app in front. */
   contextActions: boolean;
   /** The chat (Claude Code engine) may use EasyIsland's tools: open programs, quick actions… */
@@ -457,6 +459,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hotkeyOpen: "Ctrl+Alt+Shift+M",
   hotkeyAsk: "Ctrl+Alt+K",
   hotkeyClipboard: "Ctrl+Alt+H",
+  hotkeyScreenshot: "Ctrl+Alt+Shift+S",
   contextActions: true,
   agentTools: true,
   automations: [],

@@ -242,6 +242,19 @@ html.browser-preview #root {
   transition: opacity 0.25s ease-in-out;
 }
 
+/* "+N" in the fourth slot when more than four integrations are on. */
+.mini-more {
+  width: 13px;
+  height: 13px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  font: 700 7px/1 var(--font);
+  letter-spacing: -0.3px;
+  color: #c5c8cd;
+}
+
 /* A mini character: the slot is the body, the canvas is larger and overflows it so
    hands, badges and particles are not cut off. */
 .mini {
@@ -636,6 +649,13 @@ html.browser-preview #root {
   text-overflow: ellipsis;
   padding: 0 6px;
   pointer-events: none;
+}
+
+/* Musica: the song title, left-aligned past the mini character so it never runs under it. */
+.pill.song .lbl {
+  text-align: left;
+  padding-left: 36px;
+  padding-right: 10px;
 }
 
 .pill:hover {
@@ -1745,6 +1765,20 @@ input[type="range"]::-webkit-slider-thumb {
   margin-left: auto;
 }
 
+.clip-thumb {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 22px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.clip-pic:hover .clip-thumb {
+  box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.6);
+}
+
 /* ── Musica ──────────────────────────────────────────────────────────────── */
 
 .media-row {
@@ -2212,6 +2246,21 @@ input[type="range"]::-webkit-slider-thumb {
 
 .drop-history:hover {
   background: rgba(245, 165, 36, 0.24);
+}
+
+.drop-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.drop-capture {
+  color: #22d3ee;
+  background: rgba(34, 211, 238, 0.12);
+}
+
+.drop-capture:hover {
+  background: rgba(34, 211, 238, 0.24);
 }
 
 .drop-history .arrow {

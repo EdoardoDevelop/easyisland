@@ -43,11 +43,17 @@ export function buildUpload(actions: ViewActions): ViewHost {
     class: "drop-history", title: "Cronologia dei file rilasciati sull'isola",
     onclick: () => actions.openFiles(),
   }, h("span", { text: "File caricati" }), h("span", { class: "arrow", text: "›" }));
+  // A picture of the screen instead of a file: Windows' own snipping overlay.
+  const capture = h("button", {
+    class: "drop-history drop-capture", title: "Cattura una zona dello schermo e chiedi a Claude",
+    onclick: () => actions.captureScreen(),
+  }, renderActionIcon("i:camera", 13), h("span", { text: "Cattura una zona" }));
+  const links = h("div", { class: "drop-links" }, capture, history);
   const card = h(
     "div",
     { class: "card drop-card" },
     frame,
-    h("div", { class: "drop-body" }, title, tags, history),
+    h("div", { class: "drop-body" }, title, tags, links),
   );
   const el = h("div", { class: "view" }, card);
 
@@ -55,7 +61,7 @@ export function buildUpload(actions: ViewActions): ViewHost {
     el,
     sync() {
       card.classList.toggle("over", State.fileDragOver);
-      history.style.display = State.fileDragOver ? "none" : "";
+      links.style.display = State.fileDragOver ? "none" : "";
     },
   };
 }

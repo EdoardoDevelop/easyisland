@@ -1,10 +1,10 @@
 // System-wide keyboard shortcuts (RegisterHotKey), on a thread that sleeps in
 // GetMessageW until one is pressed — no polling, no cost while idle.
 //
-// Shortcuts: open the island, ask about the clipboard, the clipboard history, and one per quick action
-// that has one. They are re-registered whenever the settings change.
+// Shortcuts: open the island, ask about the clipboard, the clipboard history, capture a
+// zone of the screen, and one per quick action that has one. They are re-registered whenever the settings change.
 
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Mutex;
 
 use tauri::{AppHandle, Emitter, Manager};
@@ -21,6 +21,9 @@ use windows::Win32::UI::WindowsAndMessaging::{
 const WM_RELOAD: u32 = WM_APP + 1;
 
 static THREAD: AtomicU32 = AtomicU32::new(0);
+/// While a shortcut field in the settings is listening, every shortcut is let
+/// go, so the keys pressed reach the field instead of firing.
+static SUSPENDED: AtomicBool = AtomicBool::new(false);
 /// Shortcuts Windows refused (already taken by another app).
 static FAILED: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
@@ -70,6 +73,7 @@ fn wanted(app: &AppHandle) -> Vec<(String, String)> {
         ("open".to_string(), s.hotkey_open.clone()),
         ("ask".to_string(), s.hotkey_ask.clone()),
         ("clipboard".to_string(), s.hotkey_clipboard.clone()),
+        ("screenshot".to_string(), s.hotkey_screenshot.clone()),
     ];
     for a in &s.actions {
         let id = a.get("id").and_then(|v| v.as_str()).unwrap_or_default();
@@ -95,6 +99,9 @@ pub fn spawn(app: AppHandle) {
                 let _ = UnregisterHotKey(None, i as i32 + 1);
             }
             registered.clear();
+            if SUSPENDED.load(Ordering::Relaxed) {
+                return;
+            }
             let mut failed = Vec::new();
             for (name, spec) in wanted(&app) {
                 let id = registered.len() as i32 + 1;
@@ -136,6 +143,27 @@ pub fn reload() {
         unsafe {
             let _ = PostThreadMessageW(tid, WM_RELOAD, WPARAM(0), LPARAM(0));
         }
+    }
+}
+
+/// Each suspension gets a number, so a stale safety timer leaves a newer one alone.
+static SUSPEND_ID: AtomicU32 = AtomicU32::new(0);
+/// If the settings window goes away while a field listens, the shortcuts come back anyway.
+const SUSPEND_AT_MOST: std::time::Duration = std::time::Duration::from_secs(120);
+
+/// Lets every shortcut go (true) or takes them back (false).
+pub fn suspend(on: bool) {
+    let id = SUSPEND_ID.fetch_add(1, Ordering::Relaxed) + 1;
+    if SUSPENDED.swap(on, Ordering::Relaxed) != on {
+        reload();
+    }
+    if on {
+        std::thread::spawn(move || {
+            std::thread::sleep(SUSPEND_AT_MOST);
+            if SUSPEND_ID.load(Ordering::Relaxed) == id {
+                suspend(false);
+            }
+        });
     }
 }
 

@@ -224,6 +224,8 @@ export class Island {
       openFiles: () => void this.openFiles(),
       refreshFiles: () => void this.refreshFiles(),
       askAboutFile: (f) => this.askAboutFile(f),
+      captureScreen: () => void this.captureScreen(),
+      askAboutPicture: (f) => this.askAboutPicture(f),
       confirmRun: () => void this.startScript(),
       killRun: () => {
         if (State.run?.status === "running") void Bridge.actionKill(State.run.runId);
@@ -554,6 +556,35 @@ export class Island {
     this.setView("choose");
   }
 
+  /**
+   * "Cattura una zona" (scheda + or its shortcut): the island steps aside, Windows'
+   * snipping overlay picks the zone, and the picture opens the chat as an attached file.
+   */
+  async captureScreen() {
+    Sound.play("blip");
+    this.collapse();
+    let file: { name: string; path: string } | null;
+    try {
+      file = await Bridge.captureScreen();
+    } catch (err) {
+      this.note(String(err).replace(/^Error:\s*/, ""), State.defaultView());
+      return;
+    }
+    if (!file) return;
+    Sound.play("approve");
+    this.askAboutPicture(file);
+  }
+
+  /** A picture already in the inbox goes straight to the chat, ready for the question. */
+  askAboutPicture(f: { name: string; path: string }) {
+    State.droppedFile = { name: f.name, path: f.path };
+    State.promptContext = { kind: "file", name: f.name, path: f.path };
+    State.chatText = null;
+    State.chatHistory = [];
+    void Bridge.chatReset();
+    this.setView("prompt");
+  }
+
   async extractZip(place: string) {
     const file = State.droppedFile;
     const u = State.unzip;
@@ -682,7 +713,12 @@ export class Island {
       this.setView(tabActions().length > 0 ? "actions" : "prompt");
     } else if (name === "ask") {
       const text = await Bridge.clipboardText();
-      this.startChat("", text ? { label: "Testo copiato", text } : null, false);
+      // A picture copied (and no text): attach it instead.
+      const picture = text ? null : await Bridge.clipboardPicture();
+      if (picture) this.askAboutPicture(picture);
+      else this.startChat("", text ? { label: "Testo copiato", text } : null, false);
+    } else if (name === "screenshot") {
+      await this.captureScreen();
     } else if (name === "clipboard") {
       if (!State.settings.activeIntegrations.includes("integration_clipboard")) return;
       State.setFocus("integration_clipboard");
@@ -1546,13 +1582,19 @@ export class Island {
     const showGrid = State.mode === "compact" && this.placement.hoverStyle === "bar";
     this.miniGrid.style.opacity = showGrid ? "1" : "0";
     if (showGrid) {
-      const others = State.otherTasks.slice(0, 4);
-      const key = others.map((t) => t.id).join("|");
+      // Four slots: past four, alerts first, three of them and "+N" for the rest.
+      const all = [...State.otherTasks].sort((a, b) => Number(!!b.pillBadge) - Number(!!a.pillBadge));
+      const others = all.length > 4 ? all.slice(0, 3) : all;
+      const more = all.length - others.length;
+      const key = `${others.map((t) => t.id).join("|")}+${more}`;
       if (this.miniGrid.dataset.key !== key) {
         this.miniGrid.dataset.key = key;
         this.miniGrid.replaceChildren();
         for (const t of others) {
           this.miniGrid.append(createMiniBot(t, 13));
+        }
+        if (more > 0) {
+          this.miniGrid.append(h("span", { class: "mini-more", text: `+${more}` }));
         }
         pruneMiniBots();
       }

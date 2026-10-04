@@ -338,6 +338,61 @@ input::placeholder {
   color: var(--dim-2);
 }
 
+/* Shortcut fields: click, then press the keys (hotkeyInput in main.ts). */
+.hotkey-field {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Under the field, over whatever follows: the row never reflows while listening. */
+.hotkey-field .hotkey-hint {
+  position: absolute;
+  left: 2px;
+  top: calc(100% + 3px);
+  z-index: 2;
+  white-space: nowrap;
+  margin: 0;
+  font-size: 11px;
+  color: #a78bfa;
+  pointer-events: none;
+}
+
+input.hotkey-input {
+  width: 200px;
+  cursor: pointer;
+  caret-color: transparent;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+input.hotkey-input.listening {
+  border-color: rgba(167, 139, 250, 0.75);
+  box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.18);
+  cursor: default;
+}
+
+input.hotkey-input.listening::placeholder {
+  color: #a78bfa;
+}
+
+.hotkey-clear {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dim);
+  font-size: 11px;
+}
+
+.hotkey-clear:hover {
+  background: rgba(244, 80, 94, 0.16);
+  color: var(--red);
+}
+
 input:focus,
 select:focus {
   outline: none;

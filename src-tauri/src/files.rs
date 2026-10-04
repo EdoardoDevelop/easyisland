@@ -38,19 +38,7 @@ pub fn ingest(source: &str) -> Result<DroppedFile, String> {
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "file".into());
 
-    let mut dest = dir.join(&name);
-    if dest.exists() {
-        let stem = src.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
-        let ext = src.extension().map(|s| format!(".{}", s.to_string_lossy())).unwrap_or_default();
-        for i in 2..1000 {
-            let candidate = dir.join(format!("{stem} ({i}){ext}"));
-            if !candidate.exists() {
-                dest = candidate;
-                break;
-            }
-        }
-    }
-
+    let dest = unique_dest(&dir, &name);
     std::fs::copy(src, &dest).map_err(|e| format!("copia non riuscita: {e}"))?;
     // CopyFileEx carries the source's timestamps across, so a file last edited
     // three years ago would arrive already older than the sweep window and be
@@ -64,6 +52,36 @@ pub fn ingest(source: &str) -> Result<DroppedFile, String> {
         name,
         path: dest.to_string_lossy().to_string(),
         size: meta.len(),
+    })
+}
+
+/// `name` in `dir`, or "name (2).ext", "name (3).ext"… when it is taken.
+fn unique_dest(dir: &Path, name: &str) -> PathBuf {
+    let dest = dir.join(name);
+    if !dest.exists() {
+        return dest;
+    }
+    let p = Path::new(name);
+    let stem = p.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+    let ext = p.extension().map(|s| format!(".{}", s.to_string_lossy())).unwrap_or_default();
+    (2..1000)
+        .map(|i| dir.join(format!("{stem} ({i}){ext}")))
+        .find(|c| !c.exists())
+        .unwrap_or(dest)
+}
+
+/// A file made by EasyIsland itself (a screenshot, a picture from the clipboard)
+/// lands in the inbox like a dropped one, so the chat and "File caricati" see it.
+pub fn save_new(name: &str, bytes: &[u8]) -> Result<DroppedFile, String> {
+    let dir = inbox_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let dest = unique_dest(&dir, name);
+    std::fs::write(&dest, bytes).map_err(|e| format!("salvataggio non riuscito: {e}"))?;
+    sweep(&dir);
+    Ok(DroppedFile {
+        name: dest.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| name.to_string()),
+        path: dest.to_string_lossy().to_string(),
+        size: bytes.len() as u64,
     })
 }
 

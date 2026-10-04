@@ -129,6 +129,10 @@ export const Bridge = {
   clipboardUse: (id: number, transform: string, paste: boolean) =>
     callOrThrow<void>("clipboard_use", { id, transform, paste }),
   clipboardPin: (id: number, pinned: boolean) => call<void>("clipboard_pin", { id, pinned }),
+  /** A picture of the history saved in the inbox, to ask Claude about it. */
+  clipboardAsk: (id: number) => callOrThrow<DroppedFile>("clipboard_ask", { id }),
+  /** The picture on the clipboard (when there is no text) saved in the inbox. */
+  clipboardPicture: () => call<DroppedFile | null>("clipboard_picture"),
   clipboardRemove: (id: number) => call<void>("clipboard_remove", { id }),
   clipboardClear: () => call<void>("clipboard_clear"),
   /** The app in front, and the text selected in it (⚡ suggestions). */
@@ -156,6 +160,8 @@ export const Bridge = {
   /** Musica: "toggle", "prev", "next". */
   mediaCommand: (command: string) => call<void>("media_command", { command }),
   hotkeyFailures: () => call<string[]>("hotkey_failures"),
+  /** Settings: a shortcut field is listening, so no shortcut may fire meanwhile. */
+  hotkeysSuspend: (on: boolean) => call<void>("hotkeys_suspend", { on }),
   /** Widgets. */
   widgetTest: (widget: unknown) =>
     callOrThrow<{ id: string; level: string; summary: string; fields: { label: string; value: string }[]; at: number }>(
@@ -173,6 +179,8 @@ export const Bridge = {
   claudeCliStatus: () => call<ClaudeCliStatus>("claude_cli_status"),
   /** Copies a dropped file into the inbox. */
   ingestFile: (path: string) => callOrThrow<DroppedFile>("ingest_file", { path }),
+  /** Windows' snipping overlay; the picture saved in the inbox, or null if the user gave up. */
+  captureScreen: () => callOrThrow<DroppedFile | null>("capture_screen"),
   /** Only ever tells you whether a key exists — never its value. */
   secretPresent: (key: string) => call<boolean>("secret_present", { key }),
   secretSet: (key: string, value: string) => callOrThrow<void>("secret_set", { key, value }),

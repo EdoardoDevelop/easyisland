@@ -1,12 +1,25 @@
 # Handoff — EasyIsland (solo Windows)
 
-_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 2 ottobre 2026 (nuovo nome: EasyIsland, personaggio Slime). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
+_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versione 0.5.0, handoff riallineato al codice). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
 
 > Questo file va tenuto **sempre aggiornato**: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al **Registro delle modifiche** (sezione 10), con data, cosa è cambiato e cosa resta aperto.
 
 ## 1. Com'è il progetto adesso
 
-EasyIsland è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou) (Coucou, con il personaggio Mochi). In origine era un'app macOS nativa (Swift) che viveva nel notch del MacBook, con un port Windows in `windows/`.
+**Versione pubblicata: 0.5.1** (tag `v0.5.1`, 4 ottobre 2026; repository pubblico `EdoardoDevelop/easyisland`, le app installate dalla 0.2.0 in poi si aggiornano da sole dopo un clic).
+
+**Cosa fa oggi, in breve:**
+- **Isola con personaggio** (Slime, Goccia o EasyTech, il cubo) in alto al centro o dove la trascini, con vista compatta, aggancio ai bordi, sopra la barra delle applicazioni, suoni sintetizzati nel codice.
+- **Claude Code:** sessioni, permessi e domande (AskUserQuestion) gestiti dall'isola tramite gli hook; "Apri" riporta all'app della sessione.
+- **Chat con Claude** con l'abbonamento (Claude Code) o con la chiave API; connettori MCP dell'utente scelti per profilo; calcolatrice nel campo della chat.
+- **Agente:** con l'abbonamento Claude può usare il PC tramite il connettore `easyisland` (app in primo piano, stato delle integrazioni, azioni rapide, programmi, link, appunti, musica, profili, automazioni), con Consenti/Nega per tutto ciò che cambia qualcosa.
+- **Automazioni** "quando… se… allora…" con registro, create dalle Impostazioni o a parole dalla chat, e **proposte dalle abitudini** (spente di serie).
+- **Azioni rapide** (link, programmi, script, prompt) con scorciatoie globali; suggerimenti per l'app in primo piano nella scheda ⚡.
+- **File rilasciati:** "Cosa vuoi farne?" con azioni su file, "Estrai…" per gli ZIP, cronologia dei file caricati.
+- **Integrazioni:** Stripe, n8n, GitHub, Vercel, Resend, Notion, Cal.com, Appunti, Musica e le integrazioni-controllo (Stato del PC, Sicurezza, Rete, Meteo, Outlook classico, Zammad), in pillola o in scheda. **Widget** ripetibili: ping, porta, sito, certificato, servizio, API JSON, calendario ICS, domini.
+- **Profili** con cambio automatico, "davanti al cliente", notifiche da script (`easyisland-hook notify`), esporta/importa, aggiornamenti firmati.
+
+**Storia del fork:** EasyIsland è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou) (Coucou, con il personaggio Mochi). In origine era un'app macOS nativa (Swift) che viveva nel notch del MacBook, con un port Windows in `windows/`.
 **Adesso il repo è solo Windows:**
 
 - **Nuovo nome (2 ottobre 2026):** l'app si chiama **EasyIsland**, il personaggio **Slime** (era Mochi). Identifier `it.edoardo.easyisland` (era `fr.louisraille.coucou`), eseguibili `easyisland.exe` ed `easyisland-hook.exe`, named pipe `\\.\pipe\easyisland-<sid>`, cartelle `%APPDATA%\EasyIsland` e `%LOCALAPPDATA%\EasyIsland`. Al primo avvio la migrazione (`src-tauri/src/legacy.rs`) copia impostazioni e chiavi da Coucou; vedi il Registro.
@@ -16,13 +29,14 @@ EasyIsland è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou)
 - **CI e release:** `.github/workflows/build.yml` gira su `windows-latest` a ogni push/PR su `main` e sui branch `claude/**` (verifica di compilazione, installer come artefatto). Sui tag `v*` pubblica la release: installer, firma per l'updater (`.sig`) e `latest.json` (`PUBLISH: 'true'`; serve il secret `TAURI_SIGNING_PRIVATE_KEY`). Le app installate si aggiornano da lì (`src-tauri/src/updates.rs`).
 - **Aggiornati:** `README.md`, `CLAUDE.md` (regole per gli agenti, ora per Windows), `.gitignore`, i percorsi in `LICENSE-ASSETS.md`.
 - **Tradotto in italiano:** tutti i testi dell'interfaccia (isola, impostazioni, menu dell'area di notifica, etichette dei passi degli hook), i messaggi d'errore del backend, l'installer NSIS (italiano come lingua principale), README, CLAUDE.md, `docs/SPEC.md`, `docs/INTEGRATIONS.md`, i template delle issue e le note di release. Il prompt di sistema della chat chiede a Slime di rispondere in italiano. Restano in inglese di proposito i commenti e gli identificatori nel codice, `LICENSE` e `LICENSE-ASSETS.md` (testi legali dell'autore originale). Il sito in `docs/*.html` è stato eliminato. Le immagini in `screenshots/` mostrano ancora i testi in inglese.
-- **Verificato su Windows (PC di sviluppo, 1–2 ottobre 2026):** `npm run pack` produce l'installer (circa 4,2 MB) senza errori né avvisi, l'installazione per-utente funziona, gli hook di Claude Code arrivano all'isola, i test Rust passavano (27 dell'app, 4 del relay) al 1° ottobre. Il 2 ottobre, dopo il cambio di nome, `cargo test --workspace` passa: 38 test dell'app (più 3 `live_` ignorati di default) e 4 del relay. La CI compila anche sui branch `claude/**`.
+- **Verificato su Windows (PC di sviluppo, 1–2 ottobre 2026):** `npm run pack` produce l'installer (circa 4,2 MB) senza errori né avvisi, l'installazione per-utente funziona, gli hook di Claude Code arrivano all'isola, i test Rust passavano (27 dell'app, 4 del relay) al 1° ottobre. Il 2 ottobre, dopo il cambio di nome, `cargo test --workspace` passava: 38 test dell'app (più 3 `live_` ignorati di default) e 4 del relay. Al 4 ottobre (0.5.0) nel codice ci sono 70 `#[test]` tra app e relay (compresi i `live_` ignorati di default). La CI compila anche sui branch `claude/**`.
 
 ## 2. Mappa veloce
 
 | Cosa vuoi toccare | Dove |
 |---|---|
-| Aspetto di Slime (lo slime: forma, colori, riflessi, occhi) | `src/character/slime.ts`, usato da `engine.ts`, `greeting.ts` e `src/upload/canvas.ts`; anteprima di stati ed emozioni in `dev/character-preview.html` (`npm run dev`) |
+| Personaggi: contratto, registro, elenco | `src/character/character.ts` (`SoftCharacter`, `character()`, `setCharacter`), `src/character/roster.ts`; scelto con `theme.character` |
+| Aspetto di Slime / Goccia (forma, colori, riflessi, occhi) | `src/character/slime.ts`, `src/character/drop.ts`, disegnati da `engine.ts`, `greeting.ts` e `src/upload/canvas.ts`; anteprima in `dev/character-preview.html?character=<id>` e `dev/upload-preview.html?character=<id>` (`npm run dev`) |
 | Animazioni, stati ed emozioni di Slime | `src/character/engine.ts`, `src/character/greeting.ts` |
 | EasyTech, il cubo (personaggio alternativo, `theme.character` = `cube`) | `src/character/cube.ts` (geometria 3D, colori del logo, orientamento verso il cursore: `FOLLOW_*`), disegnato da `engine.ts` (`drawAsCube`), `greeting.ts` e `src/upload/canvas.ts` |
 | Posizione, trascinamento, aggancio ai bordi, sopra la barra | front end `src/core/layout.ts` (`anchoredOrigin`, `glueFor`, `cornerRadii`) e `src/island/island.ts` (pointer events); backend `src-tauri/src/island.rs` (`apply_geometry`, `placement_from_drop`, `raise_over_taskbar`), comandi `drag_island` / `end_drag` in `lib.rs` |
@@ -31,18 +45,27 @@ EasyIsland è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou)
 | Viste dell'isola (chat, approvazioni, upload…) | `src/views/` + `src/style.css` |
 | Logica apri/chiudi, eventi hook | `src/island/fsm.ts`, `src/island/island.ts`, `src/island/hooks.ts` |
 | Finestra Impostazioni | `settings.html`, `src/settings/` |
-| Integrazioni (Stripe, n8n, GitHub, Vercel, Resend, Notion, Cal.com) | backend `src-tauri/src/integrations.rs`, front end `src/island/integrations.ts`, `src/views/integrations.ts`, colori/nomi in `src/core/state.ts` |
+| Integrazioni con API (Stripe, n8n, GitHub, Vercel, Resend, Notion, Cal.com) | backend `src-tauri/src/integrations.rs`, front end `src/island/integrations.ts`, `src/views/integrations.ts`, colori/nomi in `src/core/state.ts`; pillola o scheda (`integrationTabs`, `integrationTabIcons`) |
+| Integrazioni-controllo (Stato del PC, Sicurezza, Rete, Meteo, Outlook, Zammad) | `settings::PROBE_INTEGRATIONS`, girano nello scheduler di `src-tauri/src/widgets.rs`; codice in `probes.rs`, `outlook.rs`, `zammad.rs`; opzioni in `integrationConfig` |
+| Integrazioni Appunti e Musica | `src-tauri/src/clipboard.rs` (testi e immagini, solo in memoria), `src-tauri/src/media.rs` (controlli multimediali di Windows); titolo del brano nella pillola: `pillLabel` in `src/views/views.ts` |
+| Immagini negli appunti (lettura, scrittura, PNG, miniature) | `src-tauri/src/clipimage.rs` (formato "PNG" o `CF_DIB`; crate `png` già presente tramite Tauri) |
+| Cattura una zona → chiedi a Claude | `src-tauri/src/screenshot.rs` (Strumento di cattura `ms-screenclip:`, PNG nell'inbox), `Island.captureScreen` / `askAboutPicture` in `src/island/island.ts`, pulsante nella scheda + (`buildUpload`), scorciatoia `hotkeyScreenshot` |
+| Agente: Claude che usa il PC (connettore MCP `easyisland`) | server stdio `hook/src/mcp.rs`, evento `EasyIslandTool` in `pipe.rs`, esecuzione in `src-tauri/src/agent.rs`; `AGENT_READ_ONLY` e `AGENT_PROMPT` in `claude_cli.rs`; card Consenti/Nega in `src/island/hooks.ts` (`easyislandTarget`, `describeAutomation`) |
+| Automazioni "quando… se… allora…" | motore `src-tauri/src/automations.rs` (`validate`, `describe`, `on_widget`), regole in `settings.automations`, pagina `automationsSection` in `src/settings/main.ts` |
+| Proposte dalle abitudini | `src-tauri/src/habits.rs` (`analyse`, `habits.jsonl` locale), `habitsEnabled`, `habitsExcluded`, `suggestionsDismissed`, `suggestionsSnoozed`; card `habit-suggestion` nell'isola |
+| Suggerimenti per l'app in primo piano (scheda ⚡) | `src-tauri/src/context.rs` (`foreground_app`, `capture_selection`), regole in `src/island/context.ts` (`RULES`, `suggestionsFor`) |
+| ZIP, file caricati, calcolatrice | `src-tauri/src/zip.rs` (`builtin:unzip`), `src-tauri/src/files.rs` (inbox) con vista `buildFiles` / `buildUnzip` in `src/views/upload.ts`; `src/core/calc.ts` |
 | Chiavi API (Credential Manager) | `src-tauri/src/secrets.rs` (`SERVICE`, `KNOWN_KEYS`) |
 | Migrazione da Coucou (impostazioni, chiavi, hook vecchi) | `src-tauri/src/legacy.rs`, `LEGACY_MARKER` in `hooks.rs`, schema 3 in `settings.rs` |
 | Chat con Claude (motore, modello, prompt) | `src-tauri/src/claude_cli.rs` (abbonamento), `src-tauri/src/claude.rs` (chiave API) |
 | Relay hook di Claude Code | `hook/src/main.rs` + named pipe `src-tauri/src/pipe.rs` |
 | Install/uninstall degli hook in `settings.json` | `src-tauri/src/hooks.rs` |
 | Icona tray e menu | `src-tauri/src/tray.rs`, icone generate da `scripts/gen-icons.mjs` |
-| Suoni | `assets/sounds/`, motore `src/core/sound.ts` |
+| Suoni (sintetizzati nel codice, nessun file) | `src/core/synth.ts`, riproduzione `src/core/sound.ts`; ascolto in `dev/sounds-preview.html` |
 | Installer NSIS | `src-tauri/tauri.conf.json` (`bundle`), `src-tauri/nsis/hooks.nsh` |
 | Profili, migrazione, esporta/importa | `src-tauri/src/settings.rs` (`schema_version`, `migrated`, `PROFILE_KEYS`), cambio automatico in `src-tauri/src/profiles.rs` |
 | Azioni rapide e scorciatoie globali | `src/views/actions.ts`, `Island.runAction` in `src/island/island.ts`, backend `src-tauri/src/actions.rs` e `src-tauri/src/hotkeys.rs` |
-| Widget configurabili e sonde | `src-tauri/src/widgets.rs` (scheduler, ping/TCP/HTTP/TLS/servizio/API JSON), `src-tauri/src/probes.rs` (stato del PC, sicurezza, rete, meteo, domini), `src-tauri/src/calendar.rs` (ICS); editor in `src/settings/main.ts` |
+| Widget configurabili (controlli ripetibili) | `src-tauri/src/widgets.rs` (scheduler, ping/TCP/HTTP/TLS/servizio/API JSON), `src-tauri/src/probes.rs` (domini), `src-tauri/src/calendar.rs` (ICS); editor in `src/settings/main.ts` |
 | "Copia info PC" | comando `copy_pc_info` in `src-tauri/src/lib.rs` |
 | "Davanti al cliente" | `src-tauri/src/presence.rs`, `State.quiet` in `src/core/state.ts` |
 | Aggiornamenti da GitHub (controllo, avviso, installazione) | `src-tauri/src/updates.rs` (plugin `tauri-plugin-updater`, chiave pubblica e `latest.json` in `tauri.conf.json`), `showUpdate` in `island.ts`, sezione Aggiornamenti in `src/settings/main.ts`; release in `.github/workflows/build.yml` e `scripts/pack.mjs` |
@@ -74,15 +97,17 @@ EasyIsland è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou)
 
 **Funzionalità:**
 - [ ] Quali integrazioni tieni? Se non usi Stripe, Resend, Cal.com…, rimuoverle alleggerisce codice e Impostazioni.
+- [x] **Esclusi per ora (4 ottobre 2026, Edoardo):** widget "Oggi" (6.3), rubrica clienti, timer d'intervento.
 - [ ] Funzioni presenti solo su Mac e mai portate: invio di un file via email, trascinare Slime su una finestra per allegarla come contesto, saltare al terminale esatto della sessione. Valuta se ti servono.
 - [x] Posizione e aspetto: angolo o bordo, icona a riposo e al passaggio del mouse, apertura dopo N secondi o solo al clic, silenzio a schermo intero (Impostazioni → Posizione e aspetto).
 - [x] Slime trascinabile con il mouse (posizione salvata nel profilo), aggancio ai bordi, sopra la barra delle applicazioni, vista compatta sempre visibile, pulsante ✕ per chiudere subito.
-- [x] Personaggio a scelta: Slime o EasyTech, il cubo (Tema → Personaggio).
+- [x] Personaggio a scelta: Slime, Goccia o EasyTech, il cubo (Tema → Personaggio).
 - [x] Chat: scegli in Impostazioni tra abbonamento Claude (tramite Claude Code, predefinito) e chiave API. Codice in `src-tauri/src/claude_cli.rs` e `src-tauri/src/claude.rs`.
 
 **Distribuzione:**
 - [x] Release su GitHub dai tag `vX.Y.Z` con aggiornamento automatico firmato (2 ottobre 2026). La versione deve coincidere in `package.json`, `Cargo.toml` e `tauri.conf.json` (la CI lo controlla). Passi in README → Pubblicare una versione.
-- [ ] Rendere il repository pubblico (serve agli aggiornamenti: da un repo privato l'app non può scaricare la release senza token) e aggiungere il secret `TAURI_SIGNING_PRIVATE_KEY`.
+- [x] Repository pubblico (`EdoardoDevelop/easyisland`) e secret `TAURI_SIGNING_PRIVATE_KEY`: le release 0.3.0 e 0.5.0 sono state pubblicate dalla CI (verificato il 4 ottobre 2026).
+- [ ] Sul repo c'è anche un tag `windows-latest` con la release "EasyIsland per Windows (ultima)" del 2 ottobre (0.2.0), probabilmente creato per sbaglio. Non dà fastidio all'updater, che legge `releases/latest` (oggi la 0.5.0), ma può confondere chi scarica a mano: valutare se eliminarlo.
 - [ ] Firma del codice (certificato Authenticode o Azure Trusted Signing, circa 10 $/mese). Senza, SmartScreen avvisa al primo download manuale e Defender ha già dato un falso positivo una volta. Gli aggiornamenti scaricati dall'app non passano da SmartScreen.
 - La chiave privata dell'updater è fuori dal repo (`%USERPROFILE%\.tauri\easyisland.key`, senza password): **va conservata**, se si perde le app installate non accettano più aggiornamenti.
 
@@ -98,7 +123,7 @@ EasyIsland è un fork di [Louis-CFM/coucou](https://github.com/Louis-CFM/coucou)
 
 ## 6. Roadmap decisa
 
-In ordine di implementazione consigliato: 6.1 → 6.2 → 6.3 → 6.4. Ogni punto dice cosa fare, dove e quando è finito.
+In ordine di implementazione consigliato: 6.1 → 6.2 → 6.3 → 6.4 → 6.5. Ogni punto dice cosa fare, dove e quando è finito. **Stato al 4 ottobre 2026:** tutto fatto tranne il widget "Oggi" (6.3), escluso per ora; molte parti vanno ancora provate dal vivo (vedi "Da provare dal vivo" in fondo al registro).
 
 ### 6.1 Fondamenta per la personalizzazione
 
@@ -130,7 +155,7 @@ Pulsanti definiti dall'utente, mostrati in una nuova scheda dell'isola (accanto 
 
 ### 6.3 Slime che usa i tuoi connettori (MCP)
 
-> **Stato: fatto, tranne il widget "Oggi".** Elenco dei server da `~/.claude.json` (solo i nomi), scelta per profilo con conferma per server (`mcpServers` in Settings). Con connettori attivi `claude -p` gira in `--permission-mode default`, i server non scelti sono in `--disallowedTools`, quelli senza conferma in `--allowedTools`; le altre chiamate passano da un hook `PermissionRequest` → `easyisland-hook.exe PermissionRequest --chat` → card Consenti/Nega nell'isola (`handleChatPermission` in `src/island/hooks.ts`). Meccanismo verificato con il Claude Code reale (allow esegue, deny blocca). Da fare: widget "Oggi"; i connettori di claude.ai non si caricano in `claude -p`.
+> **Stato: fatto, tranne il widget "Oggi".** Elenco dei server da `~/.claude.json` (solo i nomi), scelta per profilo con conferma per server (`mcpServers` in Settings). Con connettori attivi `claude -p` gira in `--permission-mode default`, i server non scelti sono in `--disallowedTools`, quelli senza conferma in `--allowedTools`; le altre chiamate passano da un hook `PermissionRequest` → `easyisland-hook.exe PermissionRequest --chat` → card Consenti/Nega nell'isola (`handleChatPermission` in `src/island/hooks.ts`). Meccanismo verificato con il Claude Code reale (allow esegue, deny blocca). Widget "Oggi" escluso per ora (decisione del 4 ottobre 2026). I connettori di claude.ai non si caricano in `claude -p`.
 
 Prima di questo punto `src-tauri/src/claude_cli.rs` lanciava `claude -p` con `--strict-mcp-config` e senza `--mcp-config`, quindi **nessun** server MCP, e strumenti limitati a WebSearch/WebFetch/Read. Oggi è ancora così solo quando nel profilo non c'è nessun connettore scelto.
 
@@ -159,21 +184,31 @@ Un tipo di widget generico al posto delle integrazioni scritte a mano (le 7 attu
 - **Prestazioni:** tutte le richieste nel backend Rust, nessun polling con l'app in pausa, intervalli più lunghi a batteria.
 - **Fatto quando:** aggiungo dalle Impostazioni un widget che controlla `https://cliente.it` e il certificato, senza ricompilare, e Slime mi avvisa se il sito non risponde.
 
+### 6.5 Agente: Claude che usa il PC, automazioni, proposte dalle abitudini
+
+> **Stato: fatto (4 ottobre 2026), da provare dal vivo.** Tre livelli, nell'ordine in cui sono stati fatti; i dettagli sono nel registro (sezione 10).
+
+1. **Connettore MCP `easyisland`** (`hook/src/mcp.rs` → named pipe → `src-tauri/src/agent.rs`): nella chat con l'abbonamento Claude legge lo stato del PC e delle integrazioni e può aprire programmi e link, usare appunti e musica, cambiare profilo, eseguire **solo** le azioni rapide dell'utente. Pre-consentite solo le operazioni in `AGENT_READ_ONLY`; il resto passa da Consenti/Nega. Impostazione `agentTools`.
+2. **Automazioni locali** (`src-tauri/src/automations.rs`): quando (orario, avvio, sblocco, Wi-Fi, programma, chiavetta, cartella, avviso o novità di un'integrazione/widget) + solo nel profilo + allora (azione rapida, avviso, profilo, programma, link), con registro e "Prova ora".
+3. **Automazioni dalla chat** (`create_automation`, `set_automation_enabled`, `list_automations`), con anteprima nella card di conferma e controllo `automations::validate`; nessuno strumento per eliminare.
+4. **Proposte dalle abitudini** (`src-tauri/src/habits.rs`, spento di serie): orari, avvio, rete, chiavetta, sequenze, automazioni da spegnere, programmi esclusi; al massimo una proposta al giorno, sempre con un clic.
+
+- **Regole:** mai strumenti che eseguono comandi arbitrari, inviano email o eliminano; le abitudini registrano solo nomi di programmi e orari, in locale.
+- **Fatto quando:** in una chat vera chiedo "ogni giorno feriale alle 9 apri Outlook", confermo la card e il giorno dopo Outlook si apre da solo.
+
 ## 7. Idee da valutare (non ancora decise)
 
 Pensate per il supporto IT sul notebook, ma utili anche a casa.
 
-- **Notifiche da qualsiasi script:** comando `easyisland notify --titolo … --stato ok|errore --apri <url>` (riusa la named pipe del relay). Qualunque script, attività pianificata o n8n può mandare un avviso a Slime.
-- **Rubrica clienti:** per ogni cliente collegamenti RDP/AnyDesk/TeamViewer, portali, credenziali (solo riferimenti alla Gestione credenziali), note e azioni rapide dedicate. Si apre cercando il nome dall'isola.
-- **Timer d'intervento:** avvio/stop per cliente dall'isola, riepilogo a fine giornata, rapportino generato da Claude ed esportato (file o connettore scelto).
-- **Info rapide della macchina:** IP locale e pubblico, rete/VPN, batteria, spazio disco, nome PC. Con un clic si copia tutto per un ticket.
-- **Screenshot → chiedi a Slime:** scorciatoia che cattura una zona dello schermo (es. una finestra d'errore) e la manda alla chat.
-- **Libreria di comandi:** comandi PowerShell/cmd usati spesso (es. `gpupdate /force`, reset dello spooler, `sfc /scannow`, diagnostica di rete) da copiare o eseguire con conferma.
-- **Modalità "davanti al cliente":** con un clic (o in automatico quando parte una condivisione schermo o una sessione di assistenza remota) Slime sparisce e nessuna notifica personale compare.
-- **Ticketing:** widget per il conteggio dei ticket aperti/in scadenza dal sistema di helpdesk usato (via widget configurabile 6.4, se ha un'API).
-- **Casa:** promemoria personali, eventuale Home Assistant, meteo.
+**Già realizzate** (restano qui come promemoria di da dove vengono): screenshot → chiedi a Claude ("Cattura una zona", 4 ottobre), notifiche da qualsiasi script (`easyisland-hook notify`, 2 ottobre), info rapide della macchina (integrazione Stato del PC/Rete e "Copia info PC"), modalità "davanti al cliente" (`presence.rs`), ticketing (integrazione Zammad), meteo (integrazione Meteo), Outlook classico (integrazione Outlook), musica in riproduzione (integrazione Musica).
 
-**Proposte di integrazione del 2 ottobre 2026** (gratuite o tramite app già sul PC; dettagli e priorità nella conversazione di quel giorno):
+**Ancora da valutare:**
+- **Rubrica clienti** _(esclusa per ora, 4 ottobre 2026)_: per ogni cliente collegamenti RDP/AnyDesk/TeamViewer, portali, credenziali (solo riferimenti alla Gestione credenziali), note e azioni rapide dedicate. Si apre cercando il nome dall'isola.
+- **Timer d'intervento** _(escluso per ora, 4 ottobre 2026)_: avvio/stop per cliente dall'isola, riepilogo a fine giornata, rapportino generato da Claude ed esportato (file o connettore scelto).
+- **Libreria di comandi:** comandi PowerShell/cmd usati spesso (es. `gpupdate /force`, reset dello spooler, `sfc /scannow`, diagnostica di rete) da copiare o eseguire con conferma.
+- **Casa:** promemoria personali, eventuale Home Assistant.
+
+**Proposte di integrazione del 2 ottobre 2026** (gratuite o tramite app già sul PC; dettagli e priorità nella conversazione di quel giorno). Fatte finora: stato del PC (con riavvio in sospeso), antivirus/firewall/Defender (Sicurezza), rete, microfono/webcam in uso ("davanti al cliente"), musica, Outlook classico, meteo, calendari ICS, scadenza domini, Zammad. Le altre restano da valutare:
 - *Sul PC, senza configurazione:* stato del PC (disco, RAM, batteria, uptime, riavvio in sospeso), Windows Update, Defender, rete (IP locale/pubblico, Wi-Fi, VPN, latenza), stampanti bloccate, microfono/webcam in uso, musica in riproduzione (controlli multimediali di Windows), Teams in riunione → Slime silenzioso.
 - *App installate:* Outlook classico (prossimo appuntamento, mail non lette, via COM), Teams (API locale di terze parti), Docker, repository Git locali, WSL, sessioni remote attive (AnyDesk/TeamViewer/RDP → modalità "davanti al cliente").
 - *Servizi gratuiti:* meteo Open-Meteo (senza chiave), calendari ICS (Google/Outlook senza OAuth), posta IMAP, scadenza domini (RDAP), DNS e blacklist (DoH/DNSBL), pagine di stato (statuspage `/api/v2/status.json`), vulnerabilità CISA KEV, feed RSS, notifiche sul telefono (ntfy, bot Telegram).
@@ -190,9 +225,36 @@ Pensate per il supporto IT sul notebook, ma utili anche a casa.
 
 ## 9. Note per riprendere con Claude Code
 
-Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi implementiamo la 6.1 (fondamenta)"_ oppure _"facciamo la sezione 4 → Identità con nome X"_. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
+Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi facciamo il widget «Oggi» (6.3)"_, _"proviamo dal vivo le automazioni"_ oppure _"valutiamo un'idea della sezione 7"_. Per una nuova versione: stesso numero nei tre file, unione di `claude/sviluppo` in `main`, tag `vX.Y.Z`. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 4 ottobre 2026 — versione 0.5.1
+- Versione **0.5.1** nei tre file (più `package-lock.json` e `Cargo.lock`), `claude/sviluppo` unito in `main`, tag `v0.5.1`. Rispetto alla 0.5.0: "Cattura una zona → chiedi a Claude", immagini negli Appunti (e con Ctrl+Alt+K), titolo del brano nella pillola Musica, "+N" nella barra compatta, scorciatoie registrate premendo i tasti.
+
+### 4 ottobre 2026 — scorciatoie registrate premendo i tasti
+- Tutti i campi delle scorciatoie (Impostazioni → Azioni rapide: le quattro globali e quella di ogni azione) catturano la combinazione premuta: clic sul campo, "Premi i tasti…", poi la combinazione viene scritta e salvata (`hotkeyInput` in `src/settings/main.ts`). Mentre si tengono premuti solo i modificatori il campo li mostra ("Ctrl+Alt+…"); un tasto senza Ctrl, Alt o Win viene rifiutato con un suggerimento sotto il campo; Esc annulla, Canc/Backspace toglie la scorciatoia, ✕ la svuota; Tab da solo passa al campo dopo. Tasti ammessi gli stessi di `hotkeys::parse` (lettere, cifre anche del tastierino, F1–F24, Spazio, Invio, Tab, Esc).
+- **Scorciatoie sospese mentre un campo ascolta** (`hotkeys::suspend`, comando `hotkeys_suspend`): altrimenti premendo una combinazione già registrata partirebbe l'azione invece di arrivare al campo. Riprendono all'uscita dal campo e, per sicurezza, comunque dopo 2 minuti.
+- Verificato nell'anteprima del browser con eventi simulati (il pannello non disegnava i clic veri). **Da provare nell'app installata**: una combinazione già in uso (es. Ctrl+Alt+K) che deve finire nel campo senza aprire l'isola; AltGr sulle tastiere italiane arriva come Ctrl+Alt.
+
+### 4 ottobre 2026 — installazione finita nella cartella dell'app Claude (risolto)
+- **Cosa è successo:** l'app desktop di Claude è un'app a pacchetto (MSIX). Tutto ciò che un suo processo scrive in `%APPDATA%` / `%LOCALAPPDATA%` viene reindirizzato in `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\…`. Le installazioni lanciate dalla shell di Claude Code (0.3.0, 0.5.0) e l'app avviata da lì leggevano e scrivevano in quella copia: le impostazioni di due giorni (Goccia, integrazioni, azione "Resoconto") esistevano solo lì, e la cartella vera aveva le impostazioni del 3 ottobre e nessun `easyisland.exe`. È emerso riavviando l'app da Gestione attività.
+- **Risolto:** impostazioni recenti copiate nella cartella vera (backup della precedente: `%APPDATA%\EasyIsland\settings.backup-2026-10-04-pre-ripristino.json`), storico delle abitudini copiato, installer eseguito da Edoardo con doppio clic, copia nella cartella di Claude eliminata. Verificato dal log vero: app avviata dalla cartella giusta, impostazioni corrette, hook che arrivano.
+- **Regola:** non eseguire mai installer o app direttamente dalla shell di Claude Code. Si compila con `npm run pack`, poi si installa da Esplora file: a mano con un doppio clic, oppure dalla shell facendolo partire tramite Esplora file (`explorer.exe release\installa.cmd`: lo script, escluso da git, installa in silenzio e riavvia l'app, fuori dal reindirizzamento). Per leggere le cartelle vere dalla shell: `\\localhost\C$\Users\<utente>\AppData\…` (non reindirizzato).
+
+### 4 ottobre 2026 — Cattura una zona, immagini negli Appunti, titolo del brano, "+N" nella barra
+- **Cattura una zona → chiedi a Claude** (`src-tauri/src/screenshot.rs`): scorciatoia **Ctrl+Alt+Shift+S** (`hotkeyScreenshot`, del PC, in Impostazioni → Azioni rapide) o pulsante **Cattura una zona** nella scheda + dell'isola. L'isola si ritira, si apre lo Strumento di cattura di Windows (`ms-screenclip:`, lo stesso di Win+Shift+S: zona, finestra o schermo intero); l'immagine che copia viene salvata come PNG nell'inbox ("Schermata AAAA-MM-GG hh.mm.ss.png", quindi anche in "File caricati") e la chat si apre con l'immagine allegata, pronta per la domanda (`Island.captureScreen` → `askAboutPicture`). Gli appunti vengono osservati solo durante la cattura (ogni 150 ms, massimo 60 s); Esc nello Strumento di cattura non viene segnalato, quindi la cattura annullata resta in ascolto fino al timeout, e una nuova cattura o un testo copiato la chiudono. Funziona con entrambi i motori: con la chiave API l'immagine va come blocco `image`, con l'abbonamento Claude la legge con Read.
+- **Immagini negli Appunti** (`clipboard.rs` + nuovo `clipimage.rs`): la cronologia registra anche le immagini copiate (se c'è anche un testo, come per le celle di Excel, vince il testo). Tenute **solo in memoria** come PNG, al massimo 10 non fissate, con una miniatura per l'isola; la stessa immagine copiata di nuovo sale in cima invece di duplicarsi. Nella scheda: miniatura e dimensioni; clic = incolla, poi copia, **Chiedi a Claude** (salva una copia PNG nell'inbox e apre la chat, `clipboard_ask`), fissa, elimina; niente trasformazioni. Le copie private (password manager) restano escluse come per il testo. **Ctrl+Alt+K** con un'immagine negli appunti (e nessun testo) apre la chat con l'immagine allegata (`clipboard_picture`).
+- **Lettura e scrittura delle immagini** (`clipimage.rs`): formato "PNG" se un'app lo mette, altrimenti `CF_DIB` (24 e 32 bit, righe dal basso o dall'alto, maschere dei colori; il quarto byte a 0 vale "opaco"); in scrittura `CF_DIB` a 32 bit più "PNG" (trasparenza in Office e nei browser). Limite 33 milioni di pixel. Il PNG passa dalla crate `png` 0.18, **già nel progetto tramite Tauri** (tray-icon, muda): aggiunta come dipendenza diretta, nessun codice nuovo da scaricare (stesso caso di `webview2-com`).
+- **Pillola Musica:** mostra il titolo del brano (allineato a sinistra dopo il mini personaggio) e nel suggerimento "In riproduzione / In pausa: titolo — artista"; senza musica resta "Musica".
+- **Vista compatta a barra:** con più di 4 integrazioni mostra 3 mini personaggi (prima quelli con un avviso) e "+N" al quarto posto, senza cambiare la geometria della finestra.
+- `files.rs`: `save_new` (file creati da EasyIsland nell'inbox) e `unique_dest` in comune con `ingest`. Scena di anteprima `?scene=clipboard` con un'immagine finta.
+- Verificato: test Rust (DIB a 24/32 bit, senza alpha, rotti; PNG andata e ritorno; miniature; cronologia con immagini e limite), `cargo test --workspace` (66 + 6), `npm run build`, anteprima del browser (riga immagine con i suoi pulsanti, pulsante nella scheda +, pillola col titolo, "+3" nella barra). **Da provare dal vivo:** vedi l'elenco in fondo.
+
+### 4 ottobre 2026 — handoff riallineato al codice
+- Sezioni 1, 2, 4, 6, 7, 9 e "Problemi noti" aggiornate: riassunto di cosa fa l'app alla 0.5.0, mappa con agente, automazioni, abitudini, integrazioni-controllo, Appunti/Musica, contesto ⚡, ZIP/file caricati/calcolatrice, registro dei personaggi e suoni sintetizzati (tolto il vecchio riferimento ad `assets/sounds/`); nuova sezione **6.5** (agente); idee della sezione 7 già realizzate separate dalle altre; repository pubblico e secret segnati come fatti; numero dei test aggiornato.
+- Nuovo elenco **"Da provare dal vivo"** in fondo, che raccoglie le verifiche sparse nelle voci del registro.
+- Aperto: il tag `windows-latest` sul repo (vedi sezione 4 → Distribuzione).
 
 ### 4 ottobre 2026 — versione 0.5.0
 - Versione **0.5.0** nei tre file (la 0.4.0 è stata saltata di proposito), `claude/sviluppo` unito in `main`, tag `v0.5.0`. Rispetto alla 0.3.0: proposte di automazioni dalle abitudini (prima e seconda tappa: orari, avvio, rete, chiavetta, sequenze, automazioni da spegnere, programmi esclusi).
@@ -272,7 +334,7 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 - **Musica** (`integration_media`, `src-tauri/src/media.rs`): cosa sta suonando, da tutto ciò che compare nei controlli multimediali di Windows (`GlobalSystemMediaTransportControlsSessionManager`), in locale. Un controllo ogni 2 s solo con l'integrazione accesa; all'isola arriva un messaggio solo se cambia qualcosa (brano, play/pausa, salto della posizione > 3 s); la copertina (data URL, max 600 KB) si legge una volta per brano. La scheda mostra copertina, titolo, artista · app, barra di avanzamento che scorre da sola tra un aggiornamento e l'altro, e ⏮ ⏯ ⏭ (`media_command`). Nuove feature del crate `windows` (nessuna nuova dipendenza): `Foundation`, `Media_Control`, `Storage_Streams`, `Win32_System_Com`, `Win32_System_LibraryLoader`, `Win32_Graphics_Gdi`.
 - Entrambe in Impostazioni → Integrazioni, spente di serie; la pillola è quella normale, nessun suono né badge. `refresh_integration` le gestisce (`clipboard::publish`, `media::refresh`); la scheda chiede lo stato da sola la prima volta (`ensureLoaded`). Scene di anteprima `?scene=clipboard` / `?scene=media` con `&activeIntegrations=integration_clipboard,integration_media`. Test Rust per trasformazioni, base64 e nomi delle app.
 - Verificato: build Rust e front end, test, schede nell'anteprima del browser con dati finti. **Non ancora provato nell'app installata**: incolla con Ctrl+V nell'app in primo piano, lettura reale di Spotify o del browser, copertine.
-- Aperti: immagini copiate non registrate (solo testo); il personaggio non "balla" con la musica; la pillola Musica non mostra il titolo del brano.
+- Aperti: immagini copiate non registrate (solo testo); il personaggio non "balla" con la musica; la pillola Musica non mostra il titolo del brano. _(Immagini e titolo fatti il 4 ottobre 2026.)_
 
 ### 3 ottobre 2026 — sfondo a isola chiusa
 - Nuova opzione del tema `theme.compactBackground` (predefinita accesa; Impostazioni → Aspetto → Tema, "Sfondo a isola chiusa"). Spenta, mentre l'isola non è aperta (vista compatta: al passaggio del mouse o "Sempre visibile") lo sfondo dell'isola diventa trasparente (`#island.bare`, `applyBare` in `island.ts`) e resta solo il personaggio, con l'ombra leggera dell'icona a riposo; aprendo l'isola il colore torna con una dissolvenza. L'icona a riposo (isola nascosta) non aveva già sfondo. Verificato nell'anteprima del browser.
@@ -334,7 +396,7 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 - **Widget:** la scheda mostra tutti i campi (prima al massimo 3) e i valori lunghi vanno a capo invece di essere tagliati (`.w-field`, `.w-value`); il riepilogo pure. I pulsanti in fondo ("Aggiorna", "Copia info PC", "Impostazioni…") vanno a capo come blocchi interi.
 - **Icone delle azioni rapide:** al posto del campo di testo (emoji) c'è un pulsante che apre una griglia di 51 icone disegnate nel codice (`src/views/action-icons.ts`), colorate come l'azione. Si salvano come `i:<nome>`; le vecchie emoji restano visibili finché non si cambiano, il vecchio "⚡" diventa il fulmine.
 - Verificato nell'anteprima: 7 integrazioni + 3 widget (10 pillole), widget Rete con 5 campi lunghi visibili per intero, isola a ~340 px; selettore di icone nelle Impostazioni. `tsc` e `cargo test` verdi.
-- Resta: la vista compatta a barra mostra ancora al massimo 4 mini personaggi (spazio fisso di 2×2).
+- Resta: la vista compatta a barra mostra ancora al massimo 4 mini personaggi (spazio fisso di 2×2). _(Dal 4 ottobre 2026: 3 più "+N".)_
 
 ### 2 ottobre 2026 — suoni generati nel codice
 - I 28 WAV di Coucou (`assets/sounds/`) sono stati eliminati: ogni suono è sintetizzato in `src/core/synth.ts` (toni con glissando, vibrato e "tremolio" di gelatina, rumore filtrato) e generato all'avvio da `Sound.preload()` (circa 40 ms per tutti, nessun file).
@@ -424,12 +486,31 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 - **Altro:** Claude Code trovato anche nell'app desktop e nell'estensione VS Code; "Nuova chat"; `coucou.exe --settings`; tolti gli esempi da tecnico IT.
 
 ### Problemi noti e cose aperte
-- [ ] **CPU con "Sempre visibile":** ridotta il 2 ottobre (da circa 24 % a circa 9–10 % col mouse in movimento, circa 4 % fermo). Margini ancora possibili: sguardo a 20 fps, finestra più piccola della 720×320 attuale quando l'isola è compatta.
-- [x] **Scorciatoia `Ctrl+Alt+M`** già usata da un altro programma: la predefinita per aprire Mochi è ora `Ctrl+Alt+Shift+M`. Chi ha già salvato `Ctrl+Alt+M` la tiene: va cambiata a mano in Impostazioni → Azioni rapide.
+- [ ] **CPU con "Sempre visibile":** ridotta il 2 ottobre (da circa 24 % a circa 9–10 % col mouse in movimento, circa 4 % fermo). Margini ancora possibili: sguardo a 20 fps, finestra più piccola della 720×560 attuale quando l'isola è compatta.
+- [x] **Scorciatoia `Ctrl+Alt+M`** già usata da un altro programma: la predefinita per aprire l'isola è ora `Ctrl+Alt+Shift+M`. Chi ha già salvato `Ctrl+Alt+M` la tiene: va cambiata a mano in Impostazioni → Azioni rapide.
 - [x] **Icona dell'area di notifica:** era Mochi anche con il cubo; dal 2 ottobre è l'isola, uguale per ogni personaggio.
 - [x] Le immagini in `screenshots/` (README) sono rifatte con lo slime (2 ottobre); `design/captures/` resta il riferimento originale con Mochi.
-- [ ] **Sopra la barra:** cliccando la barra, Mochi va dietro per un istante (circa 0,15 s) prima di tornare davanti.
-- [ ] Da verificare su Windows reale: controllo del certificato TLS dei widget (6.4). Il ping ora usa `icmp_ms`, già verificata.
-- [ ] "Davanti al cliente" da provare in una chiamata vera (Teams) e con una sessione di assistenza; il calendario con un link ICS reale.
-- [ ] Outlook classico (COM) e Teams via API locale non fatti: il calendario passa da ICS, le riunioni dal microfono/webcam in uso.
+- [ ] **Sopra la barra:** cliccando la barra, il personaggio va dietro per un istante (circa 0,15 s) prima di tornare davanti.
+- [x] Outlook classico (COM): fatto il 3 ottobre (integrazione Outlook, solo con Outlook già aperto; il nuovo Outlook `olk.exe` non è supportato).
+- [ ] Teams via API locale non fatto: le riunioni si riconoscono dal microfono/webcam in uso.
+- [ ] I connettori di claude.ai non si caricano in `claude -p`. (Widget "Oggi" escluso per ora.)
+- [x] Vista compatta a barra: oltre 4 integrazioni, 3 mini personaggi e "+N" (4 ottobre 2026).
+- [x] Appunti con le immagini e titolo del brano nella pillola Musica (4 ottobre 2026). Resta: il personaggio non "balla" con la musica.
+- [ ] Cattura una zona: Esc nello Strumento di cattura non si vede; la cattura annullata resta in ascolto fino a 60 s.
+- [ ] Goccia: le pose della tavola (saluto con la mano, salto, caduta, onda) non sono fatte, usa quelle comuni.
+- [ ] Decisioni ancora aperte (sezione 4): quali integrazioni tenere; funzioni del Mac mai portate; firma del codice.
+- [ ] **Installare solo da Esplora file**, mai direttamente dalla shell di Claude Code: l'app Claude è MSIX e reindirizza AppData. Dalla shell: `explorer.exe release\installa.cmd` (vedi il registro del 4 ottobre).
 - [ ] **Gestione credenziali molto piena:** su un PC con centinaia di voci, le credenziali con nomi lunghi sono state rifiutate con `ERROR_NOT_ENOUGH_MEMORY` (errore 8, anche da `cmdkey`), le corte no. Le chiavi di EasyIsland (`<chiave>.it.edoardo.easyisland`) sono lunghe: se il salvataggio di una chiave fallisce, eliminare voci vecchie da Gestione credenziali.
+
+### Da provare dal vivo
+Funzioni verificate solo con i test o nell'anteprima del browser, da provare nell'app installata (raccolte dalle voci del registro):
+- [ ] **Agente:** card Consenti/Nega per gli strumenti `easyisland` in una chat vera; "ogni giorno feriale alle 9 apri Outlook" creato dalla chat.
+- [ ] **Automazioni:** ogni tipo di "Quando" (orario, sblocco, chiavetta, cartella, programma, Wi-Fi, integrazione) e "Prova ora".
+- [ ] **Proposte dalle abitudini:** servono settimane di uso con `habitsEnabled` acceso.
+- [ ] **Appunti:** incolla con Ctrl+V nell'app in primo piano; immagini copiate da browser, Paint, Office e Strumento di cattura (miniatura, incolla, Chiedi a Claude). **Musica:** Spotify o browser reali, copertine, titolo nella pillola.
+- [ ] **Cattura una zona:** Ctrl+Alt+Shift+S e pulsante nella scheda +; domanda a Claude con entrambi i motori; Ctrl+Alt+K con un'immagine copiata.
+- [ ] **Suggerimenti ⚡:** Ctrl+C reale in Outlook/Excel/browser e ripristino degli appunti.
+- [ ] **Calcolatrice:** copia del risultato. **ZIP:** estrazione di uno ZIP vero. **File caricati:** apri / mostra / elimina sui file veri.
+- [ ] **Outlook** con Outlook aperto (provato solo chiuso). **Zammad** con un server reale (forma della risposta di `ticket_overviews`).
+- [ ] **Widget:** script del certificato TLS; calendario con un link ICS reale.
+- [ ] **"Davanti al cliente":** in una chiamata Teams vera e con una sessione di assistenza remota.
