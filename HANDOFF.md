@@ -6,7 +6,7 @@ _Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versio
 
 ## 1. Com'è il progetto adesso
 
-**Versione pubblicata: 0.5.0** (tag `v0.5.0`, 4 ottobre 2026; repository pubblico `EdoardoDevelop/easyisland`, le app installate dalla 0.2.0 in poi si aggiornano da sole dopo un clic).
+**Versione pubblicata: 0.5.1** (tag `v0.5.1`, 4 ottobre 2026; repository pubblico `EdoardoDevelop/easyisland`, le app installate dalla 0.2.0 in poi si aggiornano da sole dopo un clic).
 
 **Cosa fa oggi, in breve:**
 - **Isola con personaggio** (Slime, Goccia o EasyTech, il cubo) in alto al centro o dove la trascini, con vista compatta, aggancio ai bordi, sopra la barra delle applicazioni, suoni sintetizzati nel codice.
@@ -228,6 +228,9 @@ Pensate per il supporto IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi facciamo il widget «Oggi» (6.3)"_, _"proviamo dal vivo le automazioni"_ oppure _"valutiamo un'idea della sezione 7"_. Per una nuova versione: stesso numero nei tre file, unione di `claude/sviluppo` in `main`, tag `vX.Y.Z`. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 4 ottobre 2026 — versione 0.5.1
+- Versione **0.5.1** nei tre file (più `package-lock.json` e `Cargo.lock`), `claude/sviluppo` unito in `main`, tag `v0.5.1`. Rispetto alla 0.5.0: "Cattura una zona → chiedi a Claude", immagini negli Appunti (e con Ctrl+Alt+K), titolo del brano nella pillola Musica, "+N" nella barra compatta, scorciatoie registrate premendo i tasti.
 
 ### 4 ottobre 2026 — scorciatoie registrate premendo i tasti
 - Tutti i campi delle scorciatoie (Impostazioni → Azioni rapide: le quattro globali e quella di ogni azione) catturano la combinazione premuta: clic sul campo, "Premi i tasti…", poi la combinazione viene scritta e salvata (`hotkeyInput` in `src/settings/main.ts`). Mentre si tengono premuti solo i modificatori il campo li mostra ("Ctrl+Alt+…"); un tasto senza Ctrl, Alt o Win viene rifiutato con un suggerimento sotto il campo; Esc annulla, Canc/Backspace toglie la scorciatoia, ✕ la svuota; Tab da solo passa al campo dopo. Tasti ammessi gli stessi di `hotkeys::parse` (lettere, cifre anche del tastierino, F1–F24, Spazio, Invio, Tab, Esc).
