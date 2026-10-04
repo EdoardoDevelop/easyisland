@@ -340,6 +340,9 @@ pub struct Settings {
     /// Global shortcut: open the clipboard history (Appunti).
     #[serde(default = "default_hotkey_clipboard")]
     pub hotkey_clipboard: String,
+    /// Global shortcut: capture a zone of the screen and ask Claude about it.
+    #[serde(default = "default_hotkey_screenshot")]
+    pub hotkey_screenshot: String,
     /// ⚡ tab: actions suggested for the app in front (Outlook, Excel, the browser…).
     #[serde(default = "default_true")]
     pub context_actions: bool,
@@ -382,6 +385,9 @@ fn default_hotkey_ask() -> String {
 }
 fn default_hotkey_clipboard() -> String {
     "Ctrl+Alt+H".into()
+}
+fn default_hotkey_screenshot() -> String {
+    "Ctrl+Alt+Shift+S".into()
 }
 
 fn default_presence_mode() -> String {
@@ -480,6 +486,7 @@ impl Default for Settings {
             hotkey_open: default_hotkey_open(),
             hotkey_ask: default_hotkey_ask(),
             hotkey_clipboard: default_hotkey_clipboard(),
+            hotkey_screenshot: default_hotkey_screenshot(),
             context_actions: true,
             agent_tools: true,
             automations: Vec::new(),

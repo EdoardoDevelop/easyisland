@@ -1,10 +1,11 @@
-// The "Appunti" integration: a history of the text copied on this PC.
+// The "Appunti" integration: a history of the text and pictures copied on this PC.
 //
 // A message-only window registered with AddClipboardFormatListener wakes up on
 // WM_CLIPBOARDUPDATE only — no polling, nothing to do while nobody copies. The
 // history lives in memory only: it is never written to disk and is gone when
 // the app quits (pinned entries included), since a clipboard often holds
-// things that should not end up in a file.
+// things that should not end up in a file. Pictures are kept as PNG (much smaller
+// than the bitmap Windows hands over) with a small thumbnail for the island.
 //
 // Copies that password managers and similar apps mark as private
 // (ExcludeClipboardContentFromMonitorProcessing, CanIncludeInClipboardHistory = 0,
@@ -33,6 +34,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WINDOW_EX_STYLE, WINDOW_STYLE, WNDCLASSW,
 };
 
+use crate::clipimage::{self, Rgba};
+use crate::files::DroppedFile;
 use crate::integrations::{self, IntegrationUpdate};
 
 pub const ID: &str = "integration_clipboard";
@@ -43,11 +46,28 @@ const KEEP: usize = 30;
 const MAX_CHARS: usize = 20_000;
 /// What the island receives of each entry.
 const PREVIEW_CHARS: usize = 300;
+/// Unpinned pictures kept (they count among the KEEP entries too).
+const KEEP_PICTURES: usize = 10;
+/// Thumbnail size in the island, in pixels (shown at half size: sharp on HiDPI).
+const THUMB: u32 = 96;
+
+#[derive(Clone)]
+struct Picture {
+    png: Vec<u8>,
+    /// data: URL of the thumbnail.
+    thumb: String,
+    width: u32,
+    height: u32,
+    /// Tells a fresh copy of the same picture from a new one.
+    hash: u64,
+}
 
 #[derive(Clone)]
 struct Clip {
     id: u64,
+    /// Empty for a picture.
     text: String,
+    picture: Option<Picture>,
     at: u64,
     pinned: bool,
 }
@@ -70,11 +90,18 @@ fn now_ms() -> u64 {
 #[serde(rename_all = "camelCase")]
 struct Entry {
     id: u64,
+    kind: &'static str,
     preview: String,
     chars: usize,
     lines: usize,
     at: u64,
     pinned: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thumb: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    width: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    height: Option<u32>,
 }
 
 /// Sends the history to the island.
@@ -88,13 +115,18 @@ pub fn publish(app: &AppHandle) {
             if preview.len() < c.text.len() {
                 preview.push('…');
             }
+            let pic = c.picture.as_ref();
             Entry {
                 id: c.id,
+                kind: if pic.is_some() { "image" } else { "text" },
                 preview,
                 chars: c.text.chars().count(),
                 lines: c.text.lines().count().max(1),
                 at: c.at,
                 pinned: c.pinned,
+                thumb: pic.map(|p| p.thumb.clone()),
+                width: pic.map(|p| p.width),
+                height: pic.map(|p| p.height),
             }
         })
         .collect();
@@ -108,22 +140,77 @@ fn record(text: String) -> bool {
     }
     let text: String = if text.chars().count() > MAX_CHARS { text.chars().take(MAX_CHARS).collect() } else { text };
     let mut list = HISTORY.lock().unwrap();
-    if list.first().is_some_and(|c| c.text == text) {
+    let same = |c: &Clip| c.picture.is_none() && c.text == text;
+    if list.first().is_some_and(same) {
         return false;
     }
-    let pinned = match list.iter().position(|c| c.text == text) {
+    let pinned = match list.iter().position(same) {
         Some(i) => list.remove(i).pinned,
         None => false,
     };
-    list.insert(0, Clip { id: NEXT_ID.fetch_add(1, Ordering::Relaxed), text, at: now_ms(), pinned });
-    let mut unpinned = 0;
+    list.insert(0, Clip { id: NEXT_ID.fetch_add(1, Ordering::Relaxed), text, picture: None, at: now_ms(), pinned });
+    trim(&mut list);
+    true
+}
+
+/// Keeps at most KEEP unpinned entries, KEEP_PICTURES of them pictures.
+fn trim(list: &mut Vec<Clip>) {
+    let (mut unpinned, mut pictures) = (0, 0);
     list.retain(|c| {
         if c.pinned {
             return true;
         }
+        if c.picture.is_some() {
+            pictures += 1;
+            if pictures > KEEP_PICTURES {
+                return false;
+            }
+        }
         unpinned += 1;
         unpinned <= KEEP
     });
+}
+
+/// FNV-1a over size and pixels.
+fn hash(img: &Rgba) -> u64 {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in img.width.to_le_bytes().iter().chain(&img.height.to_le_bytes()).chain(&img.pixels) {
+        h ^= *b as u64;
+        h = h.wrapping_mul(0x0100_0000_01b3);
+    }
+    h
+}
+
+/// A copied picture goes on top, like a text; the same picture again just moves up.
+fn record_picture(img: &Rgba) -> bool {
+    let fingerprint = hash(img);
+    let same = |c: &Clip| c.picture.as_ref().is_some_and(|p| p.hash == fingerprint);
+    {
+        let mut list = HISTORY.lock().unwrap();
+        if list.first().is_some_and(same) {
+            return false;
+        }
+        if let Some(i) = list.iter().position(same) {
+            let mut clip = list.remove(i);
+            clip.at = now_ms();
+            list.insert(0, clip);
+            return true;
+        }
+    }
+    // Encoding takes a moment on a big screenshot: not under the lock.
+    let Ok(png) = clipimage::encode_png(img) else { return false };
+    let Ok(thumb_png) = clipimage::encode_png(&clipimage::thumbnail(img, THUMB)) else { return false };
+    let picture = Picture {
+        png,
+        thumb: clipimage::data_url(&thumb_png),
+        width: img.width,
+        height: img.height,
+        hash: fingerprint,
+    };
+    let mut list = HISTORY.lock().unwrap();
+    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+    list.insert(0, Clip { id, text: String::new(), picture: Some(picture), at: now_ms(), pinned: false });
+    trim(&mut list);
     true
 }
 
@@ -179,9 +266,16 @@ fn on_change() {
     if unsafe { is_private() } {
         return;
     }
+    // Apps that copy both (Excel cells, a Word paragraph…) are recorded as text.
     if let Some(text) = crate::actions::clipboard_text() {
         if record(text) {
             publish(app);
+        }
+    } else if clipimage::has_image() {
+        if let Some(img) = clipimage::read() {
+            if record_picture(&img) {
+                publish(app);
+            }
         }
     }
 }
@@ -299,23 +393,49 @@ fn send_paste() {
 /// Puts an entry (optionally transformed) back on the clipboard, then pastes it
 /// when asked. The entry moves to the top, like a fresh copy.
 pub fn use_entry(app: &AppHandle, id: u64, how: &str, paste: bool) -> Result<(), String> {
-    let text = HISTORY
+    let clip = HISTORY
         .lock()
         .unwrap()
         .iter()
         .find(|c| c.id == id)
-        .map(|c| c.text.clone())
+        .cloned()
         .ok_or_else(|| "Elemento non più negli appunti".to_string())?;
-    let out = transform(&text, how)?;
-    crate::actions::set_clipboard_text(&out)?;
-    // The listener records it too; doing it here keeps the order right at once.
-    record(out);
+    if let Some(picture) = &clip.picture {
+        if !how.is_empty() {
+            return Err("Le immagini non si possono trasformare".into());
+        }
+        clipimage::write(&clipimage::decode_png(&picture.png)?)?;
+        // The listener sees the same picture and leaves it be: move it up here.
+        let mut list = HISTORY.lock().unwrap();
+        if let Some(i) = list.iter().position(|c| c.id == id) {
+            let mut c = list.remove(i);
+            c.at = now_ms();
+            list.insert(0, c);
+        }
+    } else {
+        let out = transform(&clip.text, how)?;
+        crate::actions::set_clipboard_text(&out)?;
+        // The listener records it too; doing it here keeps the order right at once.
+        record(out);
+    }
     publish(app);
     if paste {
         std::thread::sleep(Duration::from_millis(60));
         send_paste();
     }
     Ok(())
+}
+
+/// "Chiedi a Claude" on a picture: a PNG copy in the inbox, for the chat.
+pub fn picture_to_inbox(id: u64) -> Result<DroppedFile, String> {
+    let png = HISTORY
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|c| c.id == id)
+        .and_then(|c| c.picture.as_ref().map(|p| p.png.clone()))
+        .ok_or_else(|| "Immagine non più negli appunti".to_string())?;
+    crate::files::save_new(&crate::screenshot::file_name("Immagine copiata"), &png)
 }
 
 pub fn pin(app: &AppHandle, id: u64, pinned: bool) {
@@ -338,7 +458,25 @@ pub fn clear(app: &AppHandle) {
 
 #[cfg(test)]
 mod tests {
-    use super::{transform, url_decode};
+    use super::*;
+
+    #[test]
+    fn pictures_are_kept_once_and_capped() {
+        HISTORY.lock().unwrap().clear();
+        let pic = |v: u8| Rgba { width: 2, height: 1, pixels: vec![v; 8] };
+        assert!(record_picture(&pic(1)));
+        assert!(!record_picture(&pic(1)), "the same picture twice in a row");
+        assert!(record("testo".into()));
+        assert!(record_picture(&pic(1)), "an older copy moves up");
+        assert_eq!(HISTORY.lock().unwrap().len(), 2);
+        for v in 2..20 {
+            record_picture(&pic(v));
+        }
+        let list = HISTORY.lock().unwrap();
+        assert_eq!(list.iter().filter(|c| c.picture.is_some()).count(), KEEP_PICTURES);
+        assert!(list.iter().any(|c| c.text == "testo"), "texts survive the picture cap");
+        assert!(list[0].picture.as_ref().unwrap().thumb.starts_with("data:image/png;base64,"));
+    }
 
     #[test]
     fn transforms() {

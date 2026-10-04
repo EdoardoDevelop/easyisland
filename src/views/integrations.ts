@@ -400,7 +400,44 @@ function iconButton(icon: string, title: string, color: string, onclick: (e: Mou
   }, svg(icon, 12));
 }
 
-function clipboardCard(task: AgentTask): HTMLElement {
+/** An image of the history: thumbnail and size; copy, ask Claude, pin, delete. */
+function clipboardPictureRow(task: AgentTask, it: Record<string, unknown>, hooks: IntegrationCardHooks): HTMLElement {
+  const id = Number(it.id);
+  const size = `${it.width} × ${it.height}`;
+  const label = h("span", { class: "int-name", text: size });
+  const flash = (text: string) => {
+    label.textContent = text;
+    window.setTimeout(() => { label.textContent = size; }, 1400);
+  };
+  const use = async (paste: boolean) => {
+    try {
+      await Bridge.clipboardUse(id, "", paste);
+      flash(paste ? "Incollata ✓" : "Copiata ✓");
+    } catch (e) {
+      flash(String(e).replace(/^Error:\s*/, ""));
+    }
+  };
+  const ask = async () => {
+    try {
+      hooks.askAboutPicture(await Bridge.clipboardAsk(id));
+    } catch (e) {
+      flash(String(e).replace(/^Error:\s*/, ""));
+    }
+  };
+  const thumb = h("img", { class: "clip-thumb", src: String(it.thumb ?? ""), alt: "" });
+  return h("div", { class: it.pinned ? "int-row clip-row clip-pic pinned" : "int-row clip-row clip-pic",
+    title: `Immagine ${size} · clic: incolla nell'app in primo piano`, onclick: () => void use(true) },
+    dot(it.pinned ? task.color : "#5b5f67", 5), thumb, label,
+    h("span", { class: "int-ago", text: timeAgo(it.at) }),
+    h("span", { class: "clip-tools" },
+      iconButton(ICONS.copy, "Copia senza incollare", "#38BDF8", () => void use(false)),
+      iconButton(ICONS.bubble, "Chiedi a Claude su questa immagine", "#A78BFA", () => void ask()),
+      iconButton(ICONS.pin, it.pinned ? "Togli dai fissati" : "Fissa in cima", "#A78BFA",
+        () => void Bridge.clipboardPin(id, !it.pinned), !!it.pinned),
+      iconButton(ICONS.xmark, "Elimina", "#F4505E", () => void Bridge.clipboardRemove(id))));
+}
+
+function clipboardCard(task: AgentTask, hooks: IntegrationCardHooks): HTMLElement {
   ensureLoaded(task.id);
   const items = arr(task.id, "items");
   const extra = items.some((i) => !i.pinned)
@@ -409,9 +446,13 @@ function clipboardCard(task: AgentTask): HTMLElement {
     : undefined;
   const rows = h("div", { class: "int-rows tight clip-list" });
   if (items.length === 0) {
-    rows.append(h("div", { class: "int-empty", text: "Copia un testo: lo ritrovi qui." }));
+    rows.append(h("div", { class: "int-empty", text: "Copia un testo o un'immagine: lo ritrovi qui." }));
   }
   for (const it of items) {
+    if (it.kind === "image") {
+      rows.append(h("div", { class: "clip-item" }, clipboardPictureRow(task, it, hooks)));
+      continue;
+    }
     const id = Number(it.id);
     const label = h("span", { class: "int-name", text: String(it.preview ?? "").replace(/\s+/g, " ") });
     const lines = Number(it.lines ?? 1);
@@ -516,6 +557,8 @@ export interface IntegrationCardHooks {
   openDetail(): void;
   closeDetail(): void;
   openSettings(): void;
+  /** Appunti: open the chat with a picture of the history attached. */
+  askAboutPicture(f: { name: string; path: string }): void;
 }
 
 /** True when this integration has data worth showing instead of the idle card. */
@@ -606,7 +649,7 @@ function widgetCard(task: AgentTask, openSettings: () => void): HTMLElement {
 }
 
 export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHooks): HTMLElement {
-  if (task.id === "integration_clipboard") return clipboardCard(task);
+  if (task.id === "integration_clipboard") return clipboardCard(task, hooks);
   if (task.id === "integration_media") return mediaCard(task);
   if (task.id.startsWith("widget:") || PROBE_INTEGRATIONS[task.id]) return widgetCard(task, hooks.openSettings);
   if (task.id === "integration_n8n") {

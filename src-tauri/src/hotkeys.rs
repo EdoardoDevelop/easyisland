@@ -1,8 +1,8 @@
 // System-wide keyboard shortcuts (RegisterHotKey), on a thread that sleeps in
 // GetMessageW until one is pressed — no polling, no cost while idle.
 //
-// Shortcuts: open the island, ask about the clipboard, the clipboard history, and one per quick action
-// that has one. They are re-registered whenever the settings change.
+// Shortcuts: open the island, ask about the clipboard, the clipboard history, capture a
+// zone of the screen, and one per quick action that has one. They are re-registered whenever the settings change.
 
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Mutex;
@@ -70,6 +70,7 @@ fn wanted(app: &AppHandle) -> Vec<(String, String)> {
         ("open".to_string(), s.hotkey_open.clone()),
         ("ask".to_string(), s.hotkey_ask.clone()),
         ("clipboard".to_string(), s.hotkey_clipboard.clone()),
+        ("screenshot".to_string(), s.hotkey_screenshot.clone()),
     ];
     for a in &s.actions {
         let id = a.get("id").and_then(|v| v.as_str()).unwrap_or_default();

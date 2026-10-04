@@ -66,9 +66,20 @@ export async function runScene(island: Island, scene: string) {
       // ?activeIntegrations=integration_clipboard,integration_media
       await wait(300);
       const now = Date.now();
+      // A copied picture: a fake screenshot thumbnail (an error dialog on a blue desktop).
+      const shot = document.createElement("canvas");
+      shot.width = 96;
+      shot.height = 54;
+      const g = shot.getContext("2d")!;
+      g.fillStyle = "#1e3a8a"; g.fillRect(0, 0, 96, 54);
+      g.fillStyle = "#f3f4f6"; g.fillRect(22, 12, 52, 30);
+      g.fillStyle = "#ef4444"; g.beginPath(); g.arc(32, 26, 5, 0, Math.PI * 2); g.fill();
+      g.fillStyle = "#9ca3af"; g.fillRect(42, 22, 26, 3); g.fillRect(42, 28, 18, 3);
       State.integrations.integration_clipboard = {
         loaded: true, configured: true, error: null,
         data: { items: [
+          { id: 4, kind: "image", preview: "", chars: 0, lines: 1, at: now - 5_000, pinned: false,
+            thumb: shot.toDataURL(), width: 1280, height: 720 },
           { id: 3, preview: "https://github.com/EdoardoDevelop/easyisland/releases", chars: 52, lines: 1, at: now - 20_000, pinned: false },
           { id: 2, preview: "Via Roma 12, 40121 Bologna", chars: 26, lines: 1, at: now - 300_000, pinned: true },
           { id: 1, preview: "{\"name\":\"easyisland\",\"version\":\"0.2.0\"}", chars: 40, lines: 1, at: now - 900_000, pinned: false },

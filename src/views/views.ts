@@ -19,6 +19,10 @@ export interface ViewActions extends ActionHandlers {
   openFiles(): void;
   refreshFiles(): void;
   askAboutFile(f: { name: string; path: string }): void;
+  /** "Cattura una zona": snip a part of the screen and ask Claude about it. */
+  captureScreen(): void;
+  /** A picture saved in the inbox (screenshot, clipboard): open the chat with it attached. */
+  askAboutPicture(f: { name: string; path: string }): void;
   /** "Estrai…" on a dropped ZIP: "beside" | "downloads" | "desktop". */
   extractZip(place: string): void;
   /** 📌: keep the island open (no auto-close). */
@@ -232,6 +236,7 @@ function buildOverview(actions: ViewActions): ViewHost {
       State.notify();
     },
     openSettings: () => actions.openSettingsWindow(),
+    askAboutPicture: (f) => actions.askAboutPicture(f),
   };
 
   return {
@@ -297,7 +302,7 @@ function buildOverview(actions: ViewActions): ViewHost {
       const others = onTab ? [] : [...State.otherTasks]
         .sort((a, b) => Number(!!b.pillBadge) - Number(!!a.pillBadge));
       pillCount = others.length;
-      const pillKey = others.map((t) => `${t.id}:${t.pillBadge ?? ""}`).join("|");
+      const pillKey = others.map((t) => `${t.id}:${t.pillBadge ?? ""}:${pillLabel(t).title ?? pillLabel(t).text}`).join("|");
       if (pillKey !== pillIds) {
         pillIds = pillKey;
         clear(pills);
@@ -321,14 +326,27 @@ function buildOverview(actions: ViewActions): ViewHost {
   };
 }
 
+/** The pill's text: the song for Musica (name and artist in the tooltip), the name otherwise. */
+function pillLabel(task: AgentTask): { text: string; title?: string; song?: boolean } {
+  if (task.id === "integration_claude") return { text: "VS Code" };
+  if (task.id === "integration_media") {
+    const d = (State.integrations[task.id]?.data ?? {}) as Record<string, unknown>;
+    if (d.active && typeof d.title === "string" && d.title) {
+      const artist = typeof d.artist === "string" && d.artist ? ` — ${d.artist}` : "";
+      return { text: d.title, title: `${d.playing ? "In riproduzione" : "In pausa"}: ${d.title}${artist}`, song: true };
+    }
+  }
+  return { text: task.name };
+}
+
 function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
-  const label = task.id === "integration_claude" ? "VS Code" : task.name;
+  const label = pillLabel(task);
   const canvas = createMiniBot(task, 24);
   const pill = h(
     "div",
-    { class: "pill", onclick: () => actions.setFocus(task.id) },
+    { class: label.song ? "pill song" : "pill", title: label.title ?? "", onclick: () => actions.setFocus(task.id) },
     canvas,
-    h("span", { class: "lbl", text: label }),
+    h("span", { class: "lbl", text: label.text }),
   );
   pill.style.borderColor = `${task.color}24`;
   pill.addEventListener("mouseenter", () => {

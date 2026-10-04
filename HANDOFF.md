@@ -47,7 +47,9 @@ _Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versio
 | Finestra Impostazioni | `settings.html`, `src/settings/` |
 | Integrazioni con API (Stripe, n8n, GitHub, Vercel, Resend, Notion, Cal.com) | backend `src-tauri/src/integrations.rs`, front end `src/island/integrations.ts`, `src/views/integrations.ts`, colori/nomi in `src/core/state.ts`; pillola o scheda (`integrationTabs`, `integrationTabIcons`) |
 | Integrazioni-controllo (Stato del PC, Sicurezza, Rete, Meteo, Outlook, Zammad) | `settings::PROBE_INTEGRATIONS`, girano nello scheduler di `src-tauri/src/widgets.rs`; codice in `probes.rs`, `outlook.rs`, `zammad.rs`; opzioni in `integrationConfig` |
-| Integrazioni Appunti e Musica | `src-tauri/src/clipboard.rs` (solo in memoria), `src-tauri/src/media.rs` (controlli multimediali di Windows) |
+| Integrazioni Appunti e Musica | `src-tauri/src/clipboard.rs` (testi e immagini, solo in memoria), `src-tauri/src/media.rs` (controlli multimediali di Windows); titolo del brano nella pillola: `pillLabel` in `src/views/views.ts` |
+| Immagini negli appunti (lettura, scrittura, PNG, miniature) | `src-tauri/src/clipimage.rs` (formato "PNG" o `CF_DIB`; crate `png` già presente tramite Tauri) |
+| Cattura una zona → chiedi a Claude | `src-tauri/src/screenshot.rs` (Strumento di cattura `ms-screenclip:`, PNG nell'inbox), `Island.captureScreen` / `askAboutPicture` in `src/island/island.ts`, pulsante nella scheda + (`buildUpload`), scorciatoia `hotkeyScreenshot` |
 | Agente: Claude che usa il PC (connettore MCP `easyisland`) | server stdio `hook/src/mcp.rs`, evento `EasyIslandTool` in `pipe.rs`, esecuzione in `src-tauri/src/agent.rs`; `AGENT_READ_ONLY` e `AGENT_PROMPT` in `claude_cli.rs`; card Consenti/Nega in `src/island/hooks.ts` (`easyislandTarget`, `describeAutomation`) |
 | Automazioni "quando… se… allora…" | motore `src-tauri/src/automations.rs` (`validate`, `describe`, `on_widget`), regole in `settings.automations`, pagina `automationsSection` in `src/settings/main.ts` |
 | Proposte dalle abitudini | `src-tauri/src/habits.rs` (`analyse`, `habits.jsonl` locale), `habitsEnabled`, `habitsExcluded`, `suggestionsDismissed`, `suggestionsSnoozed`; card `habit-suggestion` nell'isola |
@@ -95,6 +97,7 @@ _Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versio
 
 **Funzionalità:**
 - [ ] Quali integrazioni tieni? Se non usi Stripe, Resend, Cal.com…, rimuoverle alleggerisce codice e Impostazioni.
+- [x] **Esclusi per ora (4 ottobre 2026, Edoardo):** widget "Oggi" (6.3), rubrica clienti, timer d'intervento.
 - [ ] Funzioni presenti solo su Mac e mai portate: invio di un file via email, trascinare Slime su una finestra per allegarla come contesto, saltare al terminale esatto della sessione. Valuta se ti servono.
 - [x] Posizione e aspetto: angolo o bordo, icona a riposo e al passaggio del mouse, apertura dopo N secondi o solo al clic, silenzio a schermo intero (Impostazioni → Posizione e aspetto).
 - [x] Slime trascinabile con il mouse (posizione salvata nel profilo), aggancio ai bordi, sopra la barra delle applicazioni, vista compatta sempre visibile, pulsante ✕ per chiudere subito.
@@ -120,7 +123,7 @@ _Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versio
 
 ## 6. Roadmap decisa
 
-In ordine di implementazione consigliato: 6.1 → 6.2 → 6.3 → 6.4 → 6.5. Ogni punto dice cosa fare, dove e quando è finito. **Stato al 4 ottobre 2026:** tutto fatto tranne il widget "Oggi" (6.3); molte parti vanno ancora provate dal vivo (vedi "Da provare dal vivo" in fondo al registro).
+In ordine di implementazione consigliato: 6.1 → 6.2 → 6.3 → 6.4 → 6.5. Ogni punto dice cosa fare, dove e quando è finito. **Stato al 4 ottobre 2026:** tutto fatto tranne il widget "Oggi" (6.3), escluso per ora; molte parti vanno ancora provate dal vivo (vedi "Da provare dal vivo" in fondo al registro).
 
 ### 6.1 Fondamenta per la personalizzazione
 
@@ -152,7 +155,7 @@ Pulsanti definiti dall'utente, mostrati in una nuova scheda dell'isola (accanto 
 
 ### 6.3 Slime che usa i tuoi connettori (MCP)
 
-> **Stato: fatto, tranne il widget "Oggi".** Elenco dei server da `~/.claude.json` (solo i nomi), scelta per profilo con conferma per server (`mcpServers` in Settings). Con connettori attivi `claude -p` gira in `--permission-mode default`, i server non scelti sono in `--disallowedTools`, quelli senza conferma in `--allowedTools`; le altre chiamate passano da un hook `PermissionRequest` → `easyisland-hook.exe PermissionRequest --chat` → card Consenti/Nega nell'isola (`handleChatPermission` in `src/island/hooks.ts`). Meccanismo verificato con il Claude Code reale (allow esegue, deny blocca). Da fare: widget "Oggi"; i connettori di claude.ai non si caricano in `claude -p`.
+> **Stato: fatto, tranne il widget "Oggi".** Elenco dei server da `~/.claude.json` (solo i nomi), scelta per profilo con conferma per server (`mcpServers` in Settings). Con connettori attivi `claude -p` gira in `--permission-mode default`, i server non scelti sono in `--disallowedTools`, quelli senza conferma in `--allowedTools`; le altre chiamate passano da un hook `PermissionRequest` → `easyisland-hook.exe PermissionRequest --chat` → card Consenti/Nega nell'isola (`handleChatPermission` in `src/island/hooks.ts`). Meccanismo verificato con il Claude Code reale (allow esegue, deny blocca). Widget "Oggi" escluso per ora (decisione del 4 ottobre 2026). I connettori di claude.ai non si caricano in `claude -p`.
 
 Prima di questo punto `src-tauri/src/claude_cli.rs` lanciava `claude -p` con `--strict-mcp-config` e senza `--mcp-config`, quindi **nessun** server MCP, e strumenti limitati a WebSearch/WebFetch/Read. Oggi è ancora così solo quando nel profilo non c'è nessun connettore scelto.
 
@@ -197,12 +200,11 @@ Un tipo di widget generico al posto delle integrazioni scritte a mano (le 7 attu
 
 Pensate per il supporto IT sul notebook, ma utili anche a casa.
 
-**Già realizzate** (restano qui come promemoria di da dove vengono): notifiche da qualsiasi script (`easyisland-hook notify`, 2 ottobre), info rapide della macchina (integrazione Stato del PC/Rete e "Copia info PC"), modalità "davanti al cliente" (`presence.rs`), ticketing (integrazione Zammad), meteo (integrazione Meteo), Outlook classico (integrazione Outlook), musica in riproduzione (integrazione Musica).
+**Già realizzate** (restano qui come promemoria di da dove vengono): screenshot → chiedi a Claude ("Cattura una zona", 4 ottobre), notifiche da qualsiasi script (`easyisland-hook notify`, 2 ottobre), info rapide della macchina (integrazione Stato del PC/Rete e "Copia info PC"), modalità "davanti al cliente" (`presence.rs`), ticketing (integrazione Zammad), meteo (integrazione Meteo), Outlook classico (integrazione Outlook), musica in riproduzione (integrazione Musica).
 
 **Ancora da valutare:**
-- **Rubrica clienti:** per ogni cliente collegamenti RDP/AnyDesk/TeamViewer, portali, credenziali (solo riferimenti alla Gestione credenziali), note e azioni rapide dedicate. Si apre cercando il nome dall'isola.
-- **Timer d'intervento:** avvio/stop per cliente dall'isola, riepilogo a fine giornata, rapportino generato da Claude ed esportato (file o connettore scelto).
-- **Screenshot → chiedi a Slime:** scorciatoia che cattura una zona dello schermo (es. una finestra d'errore) e la manda alla chat.
+- **Rubrica clienti** _(esclusa per ora, 4 ottobre 2026)_: per ogni cliente collegamenti RDP/AnyDesk/TeamViewer, portali, credenziali (solo riferimenti alla Gestione credenziali), note e azioni rapide dedicate. Si apre cercando il nome dall'isola.
+- **Timer d'intervento** _(escluso per ora, 4 ottobre 2026)_: avvio/stop per cliente dall'isola, riepilogo a fine giornata, rapportino generato da Claude ed esportato (file o connettore scelto).
 - **Libreria di comandi:** comandi PowerShell/cmd usati spesso (es. `gpupdate /force`, reset dello spooler, `sfc /scannow`, diagnostica di rete) da copiare o eseguire con conferma.
 - **Casa:** promemoria personali, eventuale Home Assistant.
 
@@ -226,6 +228,15 @@ Pensate per il supporto IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi facciamo il widget «Oggi» (6.3)"_, _"proviamo dal vivo le automazioni"_ oppure _"valutiamo un'idea della sezione 7"_. Per una nuova versione: stesso numero nei tre file, unione di `claude/sviluppo` in `main`, tag `vX.Y.Z`. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 4 ottobre 2026 — Cattura una zona, immagini negli Appunti, titolo del brano, "+N" nella barra
+- **Cattura una zona → chiedi a Claude** (`src-tauri/src/screenshot.rs`): scorciatoia **Ctrl+Alt+Shift+S** (`hotkeyScreenshot`, del PC, in Impostazioni → Azioni rapide) o pulsante **Cattura una zona** nella scheda + dell'isola. L'isola si ritira, si apre lo Strumento di cattura di Windows (`ms-screenclip:`, lo stesso di Win+Shift+S: zona, finestra o schermo intero); l'immagine che copia viene salvata come PNG nell'inbox ("Schermata AAAA-MM-GG hh.mm.ss.png", quindi anche in "File caricati") e la chat si apre con l'immagine allegata, pronta per la domanda (`Island.captureScreen` → `askAboutPicture`). Gli appunti vengono osservati solo durante la cattura (ogni 150 ms, massimo 60 s); Esc nello Strumento di cattura non viene segnalato, quindi la cattura annullata resta in ascolto fino al timeout, e una nuova cattura o un testo copiato la chiudono. Funziona con entrambi i motori: con la chiave API l'immagine va come blocco `image`, con l'abbonamento Claude la legge con Read.
+- **Immagini negli Appunti** (`clipboard.rs` + nuovo `clipimage.rs`): la cronologia registra anche le immagini copiate (se c'è anche un testo, come per le celle di Excel, vince il testo). Tenute **solo in memoria** come PNG, al massimo 10 non fissate, con una miniatura per l'isola; la stessa immagine copiata di nuovo sale in cima invece di duplicarsi. Nella scheda: miniatura e dimensioni; clic = incolla, poi copia, **Chiedi a Claude** (salva una copia PNG nell'inbox e apre la chat, `clipboard_ask`), fissa, elimina; niente trasformazioni. Le copie private (password manager) restano escluse come per il testo. **Ctrl+Alt+K** con un'immagine negli appunti (e nessun testo) apre la chat con l'immagine allegata (`clipboard_picture`).
+- **Lettura e scrittura delle immagini** (`clipimage.rs`): formato "PNG" se un'app lo mette, altrimenti `CF_DIB` (24 e 32 bit, righe dal basso o dall'alto, maschere dei colori; il quarto byte a 0 vale "opaco"); in scrittura `CF_DIB` a 32 bit più "PNG" (trasparenza in Office e nei browser). Limite 33 milioni di pixel. Il PNG passa dalla crate `png` 0.18, **già nel progetto tramite Tauri** (tray-icon, muda): aggiunta come dipendenza diretta, nessun codice nuovo da scaricare (stesso caso di `webview2-com`).
+- **Pillola Musica:** mostra il titolo del brano (allineato a sinistra dopo il mini personaggio) e nel suggerimento "In riproduzione / In pausa: titolo — artista"; senza musica resta "Musica".
+- **Vista compatta a barra:** con più di 4 integrazioni mostra 3 mini personaggi (prima quelli con un avviso) e "+N" al quarto posto, senza cambiare la geometria della finestra.
+- `files.rs`: `save_new` (file creati da EasyIsland nell'inbox) e `unique_dest` in comune con `ingest`. Scena di anteprima `?scene=clipboard` con un'immagine finta.
+- Verificato: test Rust (DIB a 24/32 bit, senza alpha, rotti; PNG andata e ritorno; miniature; cronologia con immagini e limite), `cargo test --workspace` (66 + 6), `npm run build`, anteprima del browser (riga immagine con i suoi pulsanti, pulsante nella scheda +, pillola col titolo, "+3" nella barra). **Da provare dal vivo:** vedi l'elenco in fondo.
 
 ### 4 ottobre 2026 — handoff riallineato al codice
 - Sezioni 1, 2, 4, 6, 7, 9 e "Problemi noti" aggiornate: riassunto di cosa fa l'app alla 0.5.0, mappa con agente, automazioni, abitudini, integrazioni-controllo, Appunti/Musica, contesto ⚡, ZIP/file caricati/calcolatrice, registro dei personaggi e suoni sintetizzati (tolto il vecchio riferimento ad `assets/sounds/`); nuova sezione **6.5** (agente); idee della sezione 7 già realizzate separate dalle altre; repository pubblico e secret segnati come fatti; numero dei test aggiornato.
@@ -310,7 +321,7 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 - **Musica** (`integration_media`, `src-tauri/src/media.rs`): cosa sta suonando, da tutto ciò che compare nei controlli multimediali di Windows (`GlobalSystemMediaTransportControlsSessionManager`), in locale. Un controllo ogni 2 s solo con l'integrazione accesa; all'isola arriva un messaggio solo se cambia qualcosa (brano, play/pausa, salto della posizione > 3 s); la copertina (data URL, max 600 KB) si legge una volta per brano. La scheda mostra copertina, titolo, artista · app, barra di avanzamento che scorre da sola tra un aggiornamento e l'altro, e ⏮ ⏯ ⏭ (`media_command`). Nuove feature del crate `windows` (nessuna nuova dipendenza): `Foundation`, `Media_Control`, `Storage_Streams`, `Win32_System_Com`, `Win32_System_LibraryLoader`, `Win32_Graphics_Gdi`.
 - Entrambe in Impostazioni → Integrazioni, spente di serie; la pillola è quella normale, nessun suono né badge. `refresh_integration` le gestisce (`clipboard::publish`, `media::refresh`); la scheda chiede lo stato da sola la prima volta (`ensureLoaded`). Scene di anteprima `?scene=clipboard` / `?scene=media` con `&activeIntegrations=integration_clipboard,integration_media`. Test Rust per trasformazioni, base64 e nomi delle app.
 - Verificato: build Rust e front end, test, schede nell'anteprima del browser con dati finti. **Non ancora provato nell'app installata**: incolla con Ctrl+V nell'app in primo piano, lettura reale di Spotify o del browser, copertine.
-- Aperti: immagini copiate non registrate (solo testo); il personaggio non "balla" con la musica; la pillola Musica non mostra il titolo del brano.
+- Aperti: immagini copiate non registrate (solo testo); il personaggio non "balla" con la musica; la pillola Musica non mostra il titolo del brano. _(Immagini e titolo fatti il 4 ottobre 2026.)_
 
 ### 3 ottobre 2026 — sfondo a isola chiusa
 - Nuova opzione del tema `theme.compactBackground` (predefinita accesa; Impostazioni → Aspetto → Tema, "Sfondo a isola chiusa"). Spenta, mentre l'isola non è aperta (vista compatta: al passaggio del mouse o "Sempre visibile") lo sfondo dell'isola diventa trasparente (`#island.bare`, `applyBare` in `island.ts`) e resta solo il personaggio, con l'ombra leggera dell'icona a riposo; aprendo l'isola il colore torna con una dissolvenza. L'icona a riposo (isola nascosta) non aveva già sfondo. Verificato nell'anteprima del browser.
@@ -372,7 +383,7 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 - **Widget:** la scheda mostra tutti i campi (prima al massimo 3) e i valori lunghi vanno a capo invece di essere tagliati (`.w-field`, `.w-value`); il riepilogo pure. I pulsanti in fondo ("Aggiorna", "Copia info PC", "Impostazioni…") vanno a capo come blocchi interi.
 - **Icone delle azioni rapide:** al posto del campo di testo (emoji) c'è un pulsante che apre una griglia di 51 icone disegnate nel codice (`src/views/action-icons.ts`), colorate come l'azione. Si salvano come `i:<nome>`; le vecchie emoji restano visibili finché non si cambiano, il vecchio "⚡" diventa il fulmine.
 - Verificato nell'anteprima: 7 integrazioni + 3 widget (10 pillole), widget Rete con 5 campi lunghi visibili per intero, isola a ~340 px; selettore di icone nelle Impostazioni. `tsc` e `cargo test` verdi.
-- Resta: la vista compatta a barra mostra ancora al massimo 4 mini personaggi (spazio fisso di 2×2).
+- Resta: la vista compatta a barra mostra ancora al massimo 4 mini personaggi (spazio fisso di 2×2). _(Dal 4 ottobre 2026: 3 più "+N".)_
 
 ### 2 ottobre 2026 — suoni generati nel codice
 - I 28 WAV di Coucou (`assets/sounds/`) sono stati eliminati: ogni suono è sintetizzato in `src/core/synth.ts` (toni con glissando, vibrato e "tremolio" di gelatina, rumore filtrato) e generato all'avvio da `Sound.preload()` (circa 40 ms per tutti, nessun file).
@@ -469,9 +480,10 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 - [ ] **Sopra la barra:** cliccando la barra, il personaggio va dietro per un istante (circa 0,15 s) prima di tornare davanti.
 - [x] Outlook classico (COM): fatto il 3 ottobre (integrazione Outlook, solo con Outlook già aperto; il nuovo Outlook `olk.exe` non è supportato).
 - [ ] Teams via API locale non fatto: le riunioni si riconoscono dal microfono/webcam in uso.
-- [ ] Widget "Oggi" (6.3) non fatto; i connettori di claude.ai non si caricano in `claude -p`.
-- [ ] Vista compatta a barra: al massimo 4 mini personaggi (spazio fisso 2×2).
-- [ ] Appunti: solo testo, le immagini copiate non sono registrate. Musica: il personaggio non "balla", la pillola non mostra il titolo del brano.
+- [ ] I connettori di claude.ai non si caricano in `claude -p`. (Widget "Oggi" escluso per ora.)
+- [x] Vista compatta a barra: oltre 4 integrazioni, 3 mini personaggi e "+N" (4 ottobre 2026).
+- [x] Appunti con le immagini e titolo del brano nella pillola Musica (4 ottobre 2026). Resta: il personaggio non "balla" con la musica.
+- [ ] Cattura una zona: Esc nello Strumento di cattura non si vede; la cattura annullata resta in ascolto fino a 60 s.
 - [ ] Goccia: le pose della tavola (saluto con la mano, salto, caduta, onda) non sono fatte, usa quelle comuni.
 - [ ] Decisioni ancora aperte (sezione 4): quali integrazioni tenere; funzioni del Mac mai portate; firma del codice.
 - [ ] **Gestione credenziali molto piena:** su un PC con centinaia di voci, le credenziali con nomi lunghi sono state rifiutate con `ERROR_NOT_ENOUGH_MEMORY` (errore 8, anche da `cmdkey`), le corte no. Le chiavi di EasyIsland (`<chiave>.it.edoardo.easyisland`) sono lunghe: se il salvataggio di una chiave fallisce, eliminare voci vecchie da Gestione credenziali.
@@ -481,7 +493,8 @@ Funzioni verificate solo con i test o nell'anteprima del browser, da provare nel
 - [ ] **Agente:** card Consenti/Nega per gli strumenti `easyisland` in una chat vera; "ogni giorno feriale alle 9 apri Outlook" creato dalla chat.
 - [ ] **Automazioni:** ogni tipo di "Quando" (orario, sblocco, chiavetta, cartella, programma, Wi-Fi, integrazione) e "Prova ora".
 - [ ] **Proposte dalle abitudini:** servono settimane di uso con `habitsEnabled` acceso.
-- [ ] **Appunti:** incolla con Ctrl+V nell'app in primo piano. **Musica:** Spotify o browser reali, copertine.
+- [ ] **Appunti:** incolla con Ctrl+V nell'app in primo piano; immagini copiate da browser, Paint, Office e Strumento di cattura (miniatura, incolla, Chiedi a Claude). **Musica:** Spotify o browser reali, copertine, titolo nella pillola.
+- [ ] **Cattura una zona:** Ctrl+Alt+Shift+S e pulsante nella scheda +; domanda a Claude con entrambi i motori; Ctrl+Alt+K con un'immagine copiata.
 - [ ] **Suggerimenti ⚡:** Ctrl+C reale in Outlook/Excel/browser e ripristino degli appunti.
 - [ ] **Calcolatrice:** copia del risultato. **ZIP:** estrazione di uno ZIP vero. **File caricati:** apri / mostra / elimina sui file veri.
 - [ ] **Outlook** con Outlook aperto (provato solo chiuso). **Zammad** con un server reale (forma della risposta di `ticket_overviews`).
