@@ -63,7 +63,11 @@ function actionButton(a: QuickAction, onClick: () => void): HTMLElement {
 export function buildActions(handlers: ActionHandlers): ViewHost {
   const grid = h("div", { class: "qa-grid" });
   const suggest = h("div", { class: "qa-suggest" });
-  const el = h("div", { class: "view" }, h("div", { class: "card qa-card" }, suggest, grid));
+  const card = h("div", { class: "card qa-card" }, suggest, grid);
+  const el = h("div", { class: "view" }, card);
+  // The buttons wrap differently while the island is still widening: measure
+  // again whenever their block changes size, not only when the actions change.
+  new ResizeObserver(() => State.notify()).observe(grid);
   let key = "";
   return {
     el,
@@ -109,7 +113,8 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
       for (const a of list) grid.append(actionButton(a, () => handlers.runAction(a)));
     },
     // Many actions wrap onto more rows: the island grows to show them all.
-    fitHeight: () => suggest.offsetHeight + grid.offsetHeight + 26,
+    // scrollHeight: the card's padding and the gap under the suggestions included.
+    fitHeight: () => card.scrollHeight + 2,
   };
 }
 

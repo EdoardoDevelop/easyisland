@@ -6,7 +6,7 @@ _Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versio
 
 ## 1. Com'è il progetto adesso
 
-**Versione pubblicata: 0.5.3** (tag `v0.5.3`, 4 ottobre 2026; repository pubblico `EdoardoDevelop/easyisland`, le app installate dalla 0.2.0 in poi si aggiornano da sole dopo un clic).
+**Versione pubblicata: 0.5.4** (tag `v0.5.4`, 4 ottobre 2026; repository pubblico `EdoardoDevelop/easyisland`, le app installate dalla 0.2.0 in poi si aggiornano da sole dopo un clic).
 
 **Cosa fa oggi, in breve:**
 - **Isola con personaggio** (Slime, Goccia o EasyTech, il cubo) in alto al centro o dove la trascini, con vista compatta, aggancio ai bordi, sopra la barra delle applicazioni, suoni sintetizzati nel codice.
@@ -236,6 +236,16 @@ Pensate per il supporto IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi facciamo il widget «Oggi» (6.3)"_, _"proviamo dal vivo le automazioni"_ oppure _"valutiamo un'idea della sezione 7"_. Per una nuova versione: stesso numero nei tre file, unione di `claude/sviluppo` in `main`, tag `vX.Y.Z`. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 4 ottobre 2026 — versione 0.5.4
+- Versione **0.5.4** nei tre file (più `package-lock.json` e `Cargo.lock`), `claude/sviluppo` unito in `main`, tag `v0.5.4`. Rispetto alla 0.5.3: README completo con le nuove schermate, cartella `design/` tolta, scheda ⚡ che cresce con le azioni su due righe, messaggio di Gestione credenziali piena che riconosce anche l'errore 8.
+
+### 4 ottobre 2026 — README completo, nuove schermate, via la cartella design
+- **README:** nuova sezione "Cosa fa" in cima con i collegamenti; sezione **3CX** (i due accessi e come configurarli, cosa fa la scheda); spostamento dell'isola aperta, riordino di pillole e schede, Cattura una zona e allegati della chat nella tabella "Come si usa"; soluzione per "la chiave non si salva" (Gestione credenziali piena); pagina Automazioni nell'elenco delle Impostazioni; struttura del repository aggiornata (`dev/`, `screenshots/`, niente `design/`); esempio del tag di versione generico. Corretto un carattere di controllo (backspace) che rovinava il percorso `%USERPROFILE%\.local\bin`.
+- **Schermate** (`scripts/screenshots.mjs`, scene in `dev/scenes.ts`): rifatte tutte, con le pillole di più integrazioni in panoramica e barra compatta, più le nuove `actions` (scheda ⚡ con i suggerimenti per Outlook), `threecx`, `clipboard`, `media`, `network` (scena nuova), `suggestion` e le pagine `settings-integrations` e `settings-automations`. Nota: lanciate tutte insieme, dopo la sesta l'isola risultava chiusa (altezza 0); una alla volta (`node scripts/screenshots.mjs <nome>`) riescono tutte.
+- **Correzione nella scheda ⚡** (trovata con la schermata): con le azioni su due righe l'isola non cresceva abbastanza e l'ultima riga restava tagliata. L'altezza ora è quella vera della scheda (`scrollHeight`, compreso il margine sotto i suggerimenti) e un `ResizeObserver` la ricalcola quando i pulsanti vanno a capo mentre l'isola si allarga.
+- **Correzione:** nel controllo "Gestione credenziali piena" delle Impostazioni la regola `\b8\b` era stata scritta con due caratteri di controllo; ora riconosce anche l'errore 8.
+- **Via `design/`** (prototipo HTML, animazioni e catture di Coucou): non c'era più nulla del repository originale da usare. Aggiornati CLAUDE.md (il riferimento visivo sono le schermate in `screenshots/` e le scene, il prototipo resta nella storia git), `LICENSE-ASSETS.md` (nessun asset di Coucou nei file, solo nella storia git), README e due commenti nel codice.
 
 ### 4 ottobre 2026 — versione 0.5.3
 - Versione **0.5.3** nei tre file (più `package-lock.json` e `Cargo.lock`), `claude/sviluppo` unito in `main`, tag `v0.5.3`. Rispetto alla 0.5.2: integrazione 3CX (prima versione, con il centralino vero verificati solo login e stato dell'interno), isola spostabile anche a riposo e da aperta (spostamento temporaneo, rientro con la curva di chiusura), scelta del dispositivo disegnata nella scheda, spiegazione quando Gestione credenziali è piena.
@@ -520,7 +530,7 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 - [ ] **CPU con "Sempre visibile":** ridotta il 2 ottobre (da circa 24 % a circa 9–10 % col mouse in movimento, circa 4 % fermo). Margini ancora possibili: sguardo a 20 fps, finestra più piccola della 720×560 attuale quando l'isola è compatta.
 - [x] **Scorciatoia `Ctrl+Alt+M`** già usata da un altro programma: la predefinita per aprire l'isola è ora `Ctrl+Alt+Shift+M`. Chi ha già salvato `Ctrl+Alt+M` la tiene: va cambiata a mano in Impostazioni → Azioni rapide.
 - [x] **Icona dell'area di notifica:** era Mochi anche con il cubo; dal 2 ottobre è l'isola, uguale per ogni personaggio.
-- [x] Le immagini in `screenshots/` (README) sono rifatte con lo slime (2 ottobre); `design/captures/` resta il riferimento originale con Mochi.
+- [x] Le immagini in `screenshots/` (README) sono rifatte con lo slime (2 ottobre) e, dal 4 ottobre, anche con le integrazioni; la cartella `design/` (prototipo e catture di Coucou) è stata tolta il 4 ottobre e resta nella storia git.
 - [ ] **Sopra la barra:** cliccando la barra, il personaggio va dietro per un istante (circa 0,15 s) prima di tornare davanti.
 - [x] Outlook classico (COM): fatto il 3 ottobre (integrazione Outlook, solo con Outlook già aperto; il nuovo Outlook `olk.exe` non è supportato).
 - [ ] Teams via API locale non fatto: le riunioni si riconoscono dal microfono/webcam in uso.

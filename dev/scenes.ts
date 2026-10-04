@@ -1,5 +1,6 @@
 // Staged island states for the README screenshots, in the browser preview only:
-//   /?scene=overview   (greeting, compact, overview, approval, chat, drop)
+//   /?scene=overview   (greeting, compact, overview, approval, chat, drop, actions,
+//                       threecx, clipboard, media, network, suggestion)
 // When the scene has settled the page turns transparent and its title says
 // "scene ready"; scripts/screenshots.mjs then captures just the island.
 
@@ -114,6 +115,41 @@ export async function runScene(island: Island, scene: string) {
       State.setFocus("integration_3cx");
       island.alert("overview");
       await wait(2500);
+      break;
+    }
+    case "network": {
+      // ?activeIntegrations=integration_network,… — an integration run as a check.
+      await wait(300);
+      State.widgetStatus.integration_network = {
+        id: "integration_network", level: "ok", at: Math.floor(Date.now() / 1000) - 40,
+        summary: "Wi-Fi Ufficio · 18 ms",
+        fields: [
+          { label: "IP locale", value: "192.168.1.24" },
+          { label: "IP pubblico", value: "203.0.113.57" },
+          { label: "Wi-Fi", value: "Ufficio (5 GHz, 86%)" },
+          { label: "VPN", value: "nessuna" },
+          { label: "Latenza", value: "18 ms" },
+        ],
+      };
+      State.setFocus("integration_network");
+      island.alert("overview");
+      await wait(2500);
+      break;
+    }
+    case "actions": {
+      // The ⚡ tab: the user's quick actions and the suggestions for the app in front.
+      await wait(300);
+      const base = { args: "", script: "", shell: "powershell" as const, prompt: "", input: "clipboard" as const, confirm: true, hotkey: "", target: "" };
+      State.settings.actions = [
+        { ...base, id: "a1", name: "Portale clienti", icon: "i:globe", color: "#38BDF8", kind: "url", target: "https://example.com" },
+        { ...base, id: "a2", name: "Desktop remoto", icon: "i:remote", color: "#A78BFA", kind: "app", target: "mstsc" },
+        { ...base, id: "a3", name: "Spooler", icon: "i:printer", color: "#F5A524", kind: "script", script: "Restart-Service Spooler" },
+        { ...base, id: "a4", name: "Spiega errore", icon: "i:bolt", color: "#22C55E", kind: "prompt", prompt: "Spiega questo errore", hotkey: "Ctrl+Alt+E" },
+      ];
+      State.foreground = { exe: "outlook.exe", title: "Posta in arrivo - Outlook" };
+      island.alert("actions");
+      // The tab grows to fit four actions: give it time to settle.
+      await wait(4000);
       break;
     }
     case "suggestion":

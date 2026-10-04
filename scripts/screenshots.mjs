@@ -19,15 +19,26 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const BASE = process.env.PREVIEW_URL ?? "http://127.0.0.1:1420";
 const PORT = 9333;
 
+// The integrations a typical setup shows as pills next to the card.
+const PILLS = "integration_network,integration_weather,integration_zammad,integration_media,integration_clipboard,integration_3cx";
+
 const SHOTS = {
   greeting: { url: "/?scene=greeting" },
-  compact: { url: "/?scene=compact&hoverStyle=bar&revealDuration=0" },
-  overview: { url: "/?scene=overview" },
+  compact: { url: `/?scene=compact&hoverStyle=bar&revealDuration=0&activeIntegrations=${PILLS}` },
+  overview: { url: `/?scene=overview&activeIntegrations=${PILLS}` },
   approval: { url: "/?scene=approval" },
   chat: { url: "/?scene=chat" },
   drop: { url: "/?scene=drop" },
-  // A whole window, not an island.
+  actions: { url: "/?scene=actions&activeIntegrations=" },
+  threecx: { url: `/?scene=threecx&activeIntegrations=${PILLS}` },
+  clipboard: { url: `/?scene=clipboard&activeIntegrations=${PILLS}` },
+  media: { url: `/?scene=media&activeIntegrations=${PILLS}` },
+  network: { url: `/?scene=network&activeIntegrations=${PILLS}` },
+  suggestion: { url: "/?scene=suggestion" },
+  // Whole windows, not an island.
   settings: { url: "/settings.html?page=aspetto", page: { w: 980, h: 720 } },
+  "settings-integrations": { url: "/settings.html?page=integrazioni", page: { w: 980, h: 720 } },
+  "settings-automations": { url: "/settings.html?page=automazioni", page: { w: 980, h: 720 } },
 };
 
 const EDGE = [
