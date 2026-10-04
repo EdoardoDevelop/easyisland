@@ -67,6 +67,8 @@ pub const PROFILE_KEYS: &[&str] = &[
     "activeIntegrations",
     "integrationTabs",
     "integrationTabIcons",
+    "pillOrder",
+    "tabOrder",
     "anchorV",
     "anchorH",
     "offsetX",
@@ -237,6 +239,17 @@ pub struct Settings {
     /// Integrations whose tab shows an icon (emoji or short text) instead of the name: id → icon.
     #[serde(default)]
     pub integration_tab_icons: serde_json::Map<String, Value>,
+    /// Order of the pills, as dragged in the island (ids; anything not listed
+    /// follows in the usual order).
+    #[serde(default)]
+    pub pill_order: Vec<String>,
+    /// Order of the header's tabs, fixed ("tab:home", "tab:chat", "tab:actions",
+    /// "tab:drop") and integrations, as dragged in the island.
+    #[serde(default)]
+    pub tab_order: Vec<String>,
+    /// No dragging pills and tabs around in the island. Belongs to the PC.
+    #[serde(default)]
+    pub lock_order: bool,
     /// "primary" = the main display, "cursor" = whichever display the mouse is on.
     pub screen: String,
     pub autostart: bool,
@@ -450,6 +463,9 @@ impl Default for Settings {
             ],
             integration_tabs: Vec::new(),
             integration_tab_icons: serde_json::Map::new(),
+            pill_order: Vec::new(),
+            tab_order: Vec::new(),
+            lock_order: false,
             screen: "primary".into(),
             autostart: false,
             hooks_installed: false,

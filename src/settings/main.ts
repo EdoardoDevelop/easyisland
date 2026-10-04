@@ -577,7 +577,15 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
   }
 
   updateNote();
-  return h("section", {}, h("h2", {}, h("span", { text: "Integrazioni" }), profileChip()), note, list);
+  // Pills and tabs are dragged into order right in the island.
+  const resetOrder = h("button", { text: "Ripristina l'ordine", title: "Torna all'ordine predefinito" });
+  resetOrder.addEventListener("click", () => { settings.pillOrder = []; settings.tabOrder = []; void save(); });
+  const orderRow = h("div", { class: "row" },
+    h("label", { text: "Blocca lo spostamento" }),
+    toggle(!!settings.lockOrder, (v) => { settings.lockOrder = v; void save(); }),
+    resetOrder,
+    h("span", { class: "hint note", text: "nell'isola pillole e schede (anche ⌂ 💬 ⚡ +) si riordinano trascinandole; acceso, restano dove sono" }));
+  return h("section", {}, h("h2", {}, h("span", { text: "Integrazioni" }), profileChip()), note, orderRow, list);
 }
 
 // ── Placement section ─────────────────────────────────────────────────────────

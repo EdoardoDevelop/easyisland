@@ -165,6 +165,12 @@ export interface Settings {
   integrationTabs: string[];
   /** Tabs that show an icon (emoji or short text) instead of the name: id → icon. */
   integrationTabIcons: Record<string, string>;
+  /** Order of the pills, as dragged in the island (per profile). */
+  pillOrder: string[];
+  /** Order of the header's tabs, fixed ("tab:home"…) and integrations, as dragged (per profile). */
+  tabOrder: string[];
+  /** No dragging pills and tabs around in the island (this PC). */
+  lockOrder: boolean;
   screen: "primary" | "cursor";
   autostart: boolean;
   hooksInstalled: boolean;
@@ -422,6 +428,9 @@ export const DEFAULT_SETTINGS: Settings = {
   ],
   integrationTabs: [],
   integrationTabIcons: {},
+  pillOrder: [],
+  tabOrder: [],
+  lockOrder: false,
   screen: "primary",
   autostart: false,
   hooksInstalled: false,
@@ -629,17 +638,36 @@ class AppState {
         this.tasks.push(task(id, w.name || "Widget", w.color || "#8E939C", "n8n"));
       }
     }
-    // Keep the declared order so pills never shuffle.
+    // The order the user dragged them into, then the declared order, so pills never shuffle.
     const order = [
       ...INTEGRATION_AGENTS.map((t) => t.id),
       ...widgets.map((w) => `widget:${w.id}`),
     ];
-    this.tasks.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+    const user = this.settings.pillOrder ?? [];
+    const rank = (id: string) => {
+      const i = user.indexOf(id);
+      return i >= 0 ? i : user.length + order.indexOf(id);
+    };
+    this.tasks.sort((a, b) => rank(a.id) - rank(b.id));
     if (this.focusId && !this.tasks.some((t) => t.id === this.focusId)) {
       this.focusId = "integration_claude";
     }
     if (!this.focusId) this.focusId = "integration_claude";
     this.notify();
+  }
+
+  /**
+   * Pills or tabs were dragged into `ids` order. Only those move: they take the
+   * places they held among all the tasks, so the others stay where they were.
+   */
+  reorder(ids: string[]) {
+    const all = this.tasks.map((t) => t.id);
+    const slots = ids.map((id) => all.indexOf(id)).filter((i) => i >= 0).sort((a, b) => a - b);
+    if (slots.length !== ids.length) return;
+    const next = [...all];
+    slots.forEach((slot, k) => { next[slot] = ids[k]; });
+    this.settings.pillOrder = next;
+    this.loadIntegrationTasks();
   }
 
   toggleIntegration(id: string) {
