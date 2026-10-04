@@ -122,12 +122,15 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_weather", "Meteo", "#0EA5E9", "n8n"),
   task("integration_outlook", "Outlook", "#0A84D6", "n8n"),
   task("integration_zammad", "Ticket", "#F59E0B", "n8n"),
+  task("integration_clipboard", "Appunti", "#A78BFA", "n8n"),
+  task("integration_media", "Musica", "#1ED760", "n8n"),
 ];
 
 export const TOGGLEABLE_INTEGRATION_IDS = [
   "integration_resend", "integration_n8n", "integration_vercel", "integration_github",
   "integration_notion", "integration_calcom", "integration_stripe",
   ...Object.keys(PROBE_INTEGRATIONS),
+  "integration_clipboard", "integration_media",
 ];
 
 /** What an integration poller last reported. */
@@ -144,6 +147,10 @@ export interface Settings {
   autoCloseInterval: number;
   absenceInterval: number;
   activeIntegrations: string[];
+  /** Integrations shown as a tab in the island's header instead of a pill. */
+  integrationTabs: string[];
+  /** Tabs that show an icon (emoji or short text) instead of the name: id → icon. */
+  integrationTabIcons: Record<string, string>;
   screen: "primary" | "cursor";
   autostart: boolean;
   hooksInstalled: boolean;
@@ -205,6 +212,14 @@ export interface Settings {
   /** Global shortcuts ("" = none); they belong to the PC, not to a profile. */
   hotkeyOpen: string;
   hotkeyAsk: string;
+  /** Opens the clipboard history (Appunti). */
+  hotkeyClipboard: string;
+  /** ⚡ tab: actions suggested for the app in front. */
+  contextActions: boolean;
+  /** The chat (Claude Code engine) may use EasyIsland's tools: open programs, quick actions… */
+  agentTools: boolean;
+  /** "Quando… allora…" rules, run by src-tauri/src/automations.rs. */
+  automations: Automation[];
   /** Look for a new version on GitHub at start and once a day. */
   updateCheck: boolean;
   /** Options of the integrations that run as checks (PROBE_INTEGRATIONS). Belongs to the PC. */
@@ -245,6 +260,50 @@ export interface QuickAction {
 }
 
 /** A probe the user set up in the settings (src-tauri/src/widgets.rs). */
+/** When an automation starts (src-tauri/src/automations.rs). */
+export interface AutomationTrigger {
+  kind: "time" | "startup" | "unlock" | "wifi" | "app" | "drive" | "folder" | "integration";
+  /** time: "HH:MM". */
+  time: string;
+  /** time: 1 = Monday … 7 = Sunday; empty = every day. */
+  days: number[];
+  /** startup: seconds after EasyIsland starts. */
+  delay: number;
+  ssid: string;
+  /** app: executable, e.g. "teams.exe". */
+  exe: string;
+  folder: string;
+  /** integration: id of the integration or widget. */
+  source: string;
+  when: "problem" | "event" | "any";
+}
+
+/** One thing an automation does. */
+export interface AutomationStep {
+  kind: "quick" | "notice" | "profile" | "app" | "url";
+  /** quick: action id · profile: profile id. */
+  id: string;
+  title: string;
+  text: string;
+  level: string;
+  target: string;
+  args: string;
+  url: string;
+}
+
+/** "Quando… (se…) allora…" — Impostazioni → Automazioni. Belongs to the PC. */
+export interface Automation {
+  id: string;
+  name: string;
+  enabled: boolean;
+  trigger: AutomationTrigger;
+  /** Only while this profile is active; "" = any. */
+  profile: string;
+  steps: AutomationStep[];
+  /** A notice every time it runs (errors always show). */
+  notify: boolean;
+}
+
 export interface WidgetDef {
   id: string;
   name: string;
@@ -337,6 +396,8 @@ export const DEFAULT_SETTINGS: Settings = {
   activeIntegrations: [
     "integration_resend", "integration_n8n", "integration_vercel", "integration_github",
   ],
+  integrationTabs: [],
+  integrationTabIcons: {},
   screen: "primary",
   autostart: false,
   hooksInstalled: false,
@@ -373,6 +434,10 @@ export const DEFAULT_SETTINGS: Settings = {
   autoProfile: false,
   hotkeyOpen: "Ctrl+Alt+Shift+M",
   hotkeyAsk: "Ctrl+Alt+K",
+  hotkeyClipboard: "Ctrl+Alt+H",
+  contextActions: true,
+  agentTools: true,
+  automations: [],
   updateCheck: true,
   integrationConfig: { systemWarn: 10, outlookWarn: 10, weatherCity: "" },
 };
@@ -382,6 +447,12 @@ type Listener = () => void;
 class AppState {
   mode: IslandMode = "hidden";
   view: IslandViewName = "overview";
+
+  /** 📌 in the header: the island stays open until unpinned, Esc or ✕. */
+  keepOpen = false;
+
+  /** The app in front when the island last opened (src/island/context.ts). */
+  foreground: { exe: string; title: string } | null = null;
 
   tasks: AgentTask[] = [];
   focusId: string | null = null;
@@ -413,7 +484,16 @@ class AppState {
   fileDragOver = false;
 
   promptContext: PromptContext | null = null;
-  droppedFile: { name: string; path: string } | null = null;
+  /** `source`: where the file was dropped from (the copy is in `path`). */
+  droppedFile: { name: string; path: string; source?: string } | null = null;
+  /** "File caricati": the inbox, as last listed. */
+  inbox: { name: string; path: string; size: number; at: number }[] | null = null;
+  /** "Estrai…" on a dropped ZIP: what is inside, and how the extraction went. */
+  unzip: {
+    info: { count: number; size: number; names: string[] } | null;
+    status: "loading" | "ready" | "working" | "done" | "error";
+    message: string;
+  } | null = null;
   /** Text the chat is about (clipboard, a quick action) — sent with the first message. */
   chatText: { label: string; text: string } | null = null;
   /** The script being confirmed / run / shown in the Run view. */
@@ -451,8 +531,18 @@ class AppState {
     return this.stateOverride ?? this.focusTask?.state ?? "idle";
   }
 
+  /** Pills in the overview: everything but the focused task and the header tabs. */
   get otherTasks(): AgentTask[] {
-    return this.tasks.filter((t) => t.id !== this.focusId);
+    return this.tasks.filter((t) => t.id !== this.focusId && !this.isTab(t.id));
+  }
+
+  /** Active integrations the user put in the header as tabs, in pill order. */
+  get tabTasks(): AgentTask[] {
+    return this.tasks.filter((t) => this.isTab(t.id));
+  }
+
+  isTab(id: string): boolean {
+    return (this.settings.integrationTabs ?? []).includes(id);
   }
 
   setFocus(id: string) {

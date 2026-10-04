@@ -583,6 +583,7 @@ pub fn start(app: AppHandle) {
                 let app = app.clone();
                 tauri::async_runtime::spawn(async move {
                     let result = probe(&w).await;
+                    remember(&result);
                     let _ = app.emit_to(WINDOW_LABEL, "widget-update", result);
                 });
             }
@@ -598,8 +599,33 @@ pub async fn run_once(app: &AppHandle, widget: Value) -> Result<WidgetResult, St
 }
 
 /// One check now, its result sent to the island as usual.
+/// The last result of every widget and probe integration, for the chat's
+/// `list_status` tool (agent.rs).
+static LAST_RESULTS: std::sync::Mutex<Option<HashMap<String, WidgetResult>>> = std::sync::Mutex::new(None);
+
+fn remember(result: &WidgetResult) {
+    let prev = LAST_RESULTS
+        .lock()
+        .unwrap()
+        .get_or_insert_with(HashMap::new)
+        .insert(result.id.clone(), result.clone());
+    // Automations that start on a problem or an event of this check.
+    crate::automations::on_widget(
+        &result.id,
+        prev.as_ref().map(|p| p.level.as_str()),
+        &result.level,
+        &result.summary,
+        result.event.as_deref(),
+    );
+}
+
+pub fn last_result(id: &str) -> Option<WidgetResult> {
+    LAST_RESULTS.lock().unwrap().as_ref()?.get(id).cloned()
+}
+
 pub async fn run_now(app: &AppHandle, w: &Widget) -> WidgetResult {
     let result = probe(w).await;
+    remember(&result);
     let _ = app.emit_to(WINDOW_LABEL, "widget-update", result.clone());
     result
 }

@@ -9,12 +9,20 @@ import { State, sessionOpenLabel, type AgentTask, type AskQuestion } from "../co
 import { ISLAND_CHROME_H, MAX_ISLAND_H, washRGBA, type IslandViewName, type Wash } from "../core/layout";
 import { createMiniBot, pruneMiniBots } from "../character/minibots";
 import { buildPrompt } from "./chat";
-import { buildChoose, buildUpload, buildUploading } from "./upload";
+import { buildChoose, buildFiles, buildUnzip, buildUpload, buildUploading } from "./upload";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, type ActionHandlers } from "./actions";
 
 export interface ViewActions extends ActionHandlers {
   setView(v: IslandViewName): void;
+  /** "File caricati": the history of dropped files. */
+  openFiles(): void;
+  refreshFiles(): void;
+  askAboutFile(f: { name: string; path: string }): void;
+  /** "Estrai…" on a dropped ZIP: "beside" | "downloads" | "desktop". */
+  extractZip(place: string): void;
+  /** 📌: keep the island open (no auto-close). */
+  toggleKeepOpen(): void;
   collapse(): void;
   setFocus(id: string): void;
   openTerminal(): void;
@@ -93,40 +101,85 @@ function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElem
 // ── Header ────────────────────────────────────────────────────────────────────
 
 export function buildHeader(actions: ViewActions): ViewHost {
-  const tabHome = h("button", { class: "tab", title: "Panoramica", onclick: () => go("overview") }, svg(ICONS.house, 13));
-  const tabChat = h("button", { class: "tab", title: "Chiedi", onclick: () => go("prompt") }, svg(ICONS.bubble, 13));
-  const tabDrop = h("button", { class: "tab", title: "Rilascia", onclick: () => go("upload") }, svg(ICONS.plus, 13));
-  const tabActions = h("button", { class: "tab", title: "Azioni", onclick: () => go("actions") }, svg(ICONS.bolt, 13));
+  const tabHome = h("button", { class: "tab", title: "Panoramica", style: "--c:#38BDF8", onclick: () => {
+    // Back from an integration tab: the overview's own card again.
+    if (State.focusId && State.isTab(State.focusId)) {
+      const first = State.tasks.find((t) => !State.isTab(t.id));
+      if (first) State.setFocus(first.id);
+    }
+    go("overview");
+  } }, svg(ICONS.house, 16));
+  const tabChat = h("button", { class: "tab", title: "Chiedi", style: "--c:#A78BFA", onclick: () => go("prompt") }, svg(ICONS.bubble, 16));
+  const tabDrop = h("button", { class: "tab", title: "Rilascia", style: "--c:#22C55E", onclick: () => go("upload") }, svg(ICONS.plus, 16));
+  const tabActions = h("button", { class: "tab", title: "Azioni", style: "--c:#F5A524", onclick: () => go("actions") }, svg(ICONS.bolt, 16));
 
-  const gearBtn = h("button", { title: "Impostazioni", onclick: () => go("settings") }, svg(ICONS.gear, 14));
-  const soundBtn = h("button", { title: "Silenzia", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 14));
-  const closeBtn = h("button", { title: "Chiudi", onclick: () => actions.dismiss() }, svg(ICONS.xmark, 12));
+  const pinBtn = h("button", { title: "Tieni aperta", style: "--c:#A78BFA", onclick: () => {
+    actions.blip();
+    actions.toggleKeepOpen();
+  } }, svg(ICONS.pin, 15));
+  const gearBtn = h("button", { title: "Impostazioni", style: "--c:#94A3B8", onclick: () => go("settings") }, svg(ICONS.gear, 16));
+  const soundBtn = h("button", { title: "Silenzia", style: "--c:#22D3EE", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 16));
+  const closeBtn = h("button", { title: "Chiudi", style: "--c:#F4505E", onclick: () => actions.dismiss() }, svg(ICONS.xmark, 14));
 
   function go(v: IslandViewName) {
     actions.blip();
     actions.setView(v);
   }
 
+  // Integrations the user wants as tabs (Impostazioni → Integrazioni).
+  const intTabs = h("div", { class: "int-tabs" });
+  let intTabsKey = "";
+
   const el = h(
     "div",
     { id: "header" },
-    h("div", { class: "tabs" }, tabHome, tabChat, tabActions, tabDrop),
-    h("div", { class: "header-actions" }, gearBtn, soundBtn, closeBtn),
+    h("div", { class: "tabs" }, tabHome, tabChat, tabActions, tabDrop, intTabs),
+    h("div", { class: "header-actions" }, pinBtn, gearBtn, soundBtn, closeBtn),
   );
 
   return {
     el,
     sync() {
       const v = State.view;
-      tabHome.classList.toggle("on", v === "overview" || v === "empty");
+      const overview = v === "overview" || v === "empty";
+      const onTab = State.focusId != null && State.isTab(State.focusId);
+      tabHome.classList.toggle("on", overview && !onTab);
+      const tabs = State.tabTasks;
+      const icons = State.settings.integrationTabIcons ?? {};
+      const key = tabs.map((t) => `${t.id}:${t.name}:${t.color}:${icons[t.id] ?? ""}`).join("|");
+      if (key !== intTabsKey) {
+        intTabsKey = key;
+        clear(intTabs);
+        for (const t of tabs) {
+          const icon = icons[t.id]?.trim();
+          intTabs.append(h("button", {
+            class: icon ? "tab int-tab icon" : "tab int-tab", "data-id": t.id, title: t.name,
+            onclick: () => {
+              actions.blip();
+              State.setFocus(t.id);
+              actions.setView("overview");
+            },
+          }, icon ? h("span", { class: "int-tab-icon", text: icon }) : dot(t.color, 8),
+            icon ? null : h("span", { text: t.name })));
+        }
+      }
+      for (const b of Array.from(intTabs.children) as HTMLElement[]) {
+        const t = tabs.find((x) => x.id === b.dataset.id);
+        b.classList.toggle("on", overview && State.focusId === b.dataset.id);
+        b.classList.toggle("badge", !!t?.pillBadge);
+      }
       tabChat.classList.toggle("on", v === "prompt");
       tabDrop.classList.toggle("on", v === "upload");
       tabActions.classList.toggle("on", v === "actions" || v === "run");
       gearBtn.classList.toggle("on", v === "settings");
+      pinBtn.classList.toggle("on", State.keepOpen);
+      pinBtn.classList.toggle("pinned", State.keepOpen);
+      pinBtn.title = State.keepOpen ? "Resta aperta: clic per lasciarla chiudere da sola" : "Tieni aperta";
       clear(gearBtn);
-      gearBtn.append(svg(v === "settings" ? ICONS.gearFill : ICONS.gear, 14));
+      gearBtn.append(svg(v === "settings" ? ICONS.gearFill : ICONS.gear, 16));
       clear(soundBtn);
-      soundBtn.append(svg(State.settings.soundEnabled ? ICONS.speakerOn : ICONS.speakerOff, 14));
+      soundBtn.append(svg(State.settings.soundEnabled ? ICONS.speakerOn : ICONS.speakerOff, 16));
+      soundBtn.style.setProperty("--c", State.settings.soundEnabled ? "#22D3EE" : "#F4505E");
       el.style.opacity = v === "confused" ? "0" : "1";
       closeBtn.style.display = State.settings.closeButton ? "" : "none";
       closeBtn.title = State.pendingApproval ? "Chiudi: rispondi nel terminale" : "Chiudi (Esc)";
@@ -144,7 +197,7 @@ function buildOverview(actions: ViewActions): ViewHost {
   const jump = h(
     "button",
     { class: "icon-btn jump", title: "Apri", onclick: () => actions.openTarget() },
-    svg(ICONS.arrowUpRight, 8),
+    svg(ICONS.arrowUpRight, 12),
   );
   const left = card(null, leftBody, jump);
   const pills = h("div", { class: "pills" });
@@ -237,7 +290,9 @@ function buildOverview(actions: ViewActions): ViewHost {
       jump.style.display = detailOpen ? "none" : "";
 
       // Every pill is shown (the island grows to fit them); alerts go first.
-      const others = [...State.otherTasks]
+      // An integration opened from its header tab stands alone: pills only on ⌂.
+      const onTab = task != null && State.isTab(task.id);
+      const others = onTab ? [] : [...State.otherTasks]
         .sort((a, b) => Number(!!b.pillBadge) - Number(!!a.pillBadge));
       pillCount = others.length;
       const pillKey = others.map((t) => `${t.id}:${t.pillBadge ?? ""}`).join("|");
@@ -600,7 +655,7 @@ function buildSettings(actions: ViewActions): ViewHost {
     h(
       "div",
       { class: "settings-row" },
-      svg(ICONS.timer, 12),
+      svg(ICONS.timer, 14),
       autoLabel,
       h("div", { class: "seg" }, ...segButtons),
     ),
@@ -676,11 +731,13 @@ export function buildViews(
   map.set("notify", buildNotify(actions));
   map.set("settings", buildSettings(actions));
   map.set("prompt", buildPrompt(onChatHeightChange));
-  map.set("upload", buildUpload());
+  map.set("upload", buildUpload(actions));
   map.set("uploading", buildUploading());
   map.set("choose", buildChoose(actions));
   map.set("actions", buildActions(actions));
   map.set("run", buildRun(actions));
+  map.set("unzip", buildUnzip(actions));
+  map.set("files", buildFiles(actions));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder("L'invio via email non è disponibile in questa versione.", ""));
   map.set("searching", buildPlaceholder("Claude sta cercando…", ""));

@@ -1,10 +1,14 @@
 // EasyIsland for Windows — app wiring and the commands the island calls.
 
 mod actions;
+mod agent;
+mod automations;
 mod apps;
 mod calendar;
 mod claude;
 mod claude_cli;
+mod clipboard;
+mod context;
 mod drop;
 mod files;
 mod hooks;
@@ -13,6 +17,7 @@ mod integrations;
 mod island;
 mod legacy;
 mod log;
+mod media;
 mod outlook;
 mod pipe;
 mod presence;
@@ -23,6 +28,7 @@ mod settings;
 mod tray;
 mod updates;
 mod widgets;
+mod zip;
 mod win_user;
 mod zammad;
 
@@ -41,6 +47,9 @@ use hooks::{HookPreview, HookStatus};
 use island::{PollGate, ScreenInfo};
 use pipe::Pending;
 use settings::Settings;
+
+/// Label of the settings window (automations log updates go there).
+pub const SETTINGS_LABEL: &str = "settings";
 
 /// Keeps spawned helpers from flashing a console window.
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -373,11 +382,16 @@ fn reposition(app: AppHandle, shared: State<Shared>) {
 
 #[tauri::command]
 fn open_url(url: String) {
+    open_url_now(&url);
+}
+
+/// Opens an http(s) link in the default browser; anything else is ignored.
+pub(crate) fn open_url_now(url: &str) {
     if !(url.starts_with("http://") || url.starts_with("https://")) {
         return;
     }
     let _ = Command::new("rundll32.exe")
-        .args(["url.dll,FileProtocolHandler", &url])
+        .args(["url.dll,FileProtocolHandler", url])
         .creation_flags(CREATE_NO_WINDOW)
         .spawn();
 }
@@ -516,15 +530,15 @@ async fn chat_send(
     query: String,
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
-    let (engine, model, cli_model, mcp) = {
+    let (engine, model, cli_model, mcp, agent) = {
         let s = shared.settings.lock().unwrap();
-        (s.chat_engine.clone(), s.model.clone(), s.cli_model.clone(), s.mcp_servers.clone())
+        (s.chat_engine.clone(), s.model.clone(), s.cli_model.clone(), s.mcp_servers.clone(), s.agent_tools)
     };
     chat.use_engine(&engine);
     if engine == "api" {
         claude::send(&chat, &model, query, context).await
     } else {
-        claude_cli::send(&chat, &cli_model, &mcp, query, context).await
+        claude_cli::send(&chat, &cli_model, &mcp, agent, query, context).await
     }
 }
 
@@ -580,7 +594,105 @@ fn open_n8n() {
 /// Refresh buttons in the integration cards.
 #[tauri::command]
 async fn refresh_integration(app: AppHandle, id: String) {
-    integrations::poll_once(app, &id).await;
+    match id.as_str() {
+        clipboard::ID => clipboard::publish(&app),
+        media::ID => media::refresh(),
+        _ => integrations::poll_once(app, &id).await,
+    }
+}
+
+/// Appunti: put an entry back on the clipboard (transformed), and paste it.
+#[tauri::command]
+async fn clipboard_use(app: AppHandle, id: u64, transform: String, paste: bool) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || clipboard::use_entry(&app, id, &transform, paste))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn clipboard_pin(app: AppHandle, id: u64, pinned: bool) {
+    clipboard::pin(&app, id, pinned);
+}
+
+#[tauri::command]
+fn clipboard_remove(app: AppHandle, id: u64) {
+    clipboard::remove(&app, id);
+}
+
+#[tauri::command]
+fn clipboard_clear(app: AppHandle) {
+    clipboard::clear(&app);
+}
+
+/// The app in front, for the suggested actions in the ⚡ tab.
+#[tauri::command]
+fn foreground_app() -> Option<context::Foreground> {
+    context::foreground()
+}
+
+/// The text selected in the app in front (copied, then the clipboard restored).
+#[tauri::command]
+async fn capture_selection() -> Option<String> {
+    tauri::async_runtime::spawn_blocking(context::selection).await.ok().flatten()
+}
+
+/// Impostazioni → Automazioni: the last runs, newest first.
+#[tauri::command]
+fn automations_log() -> Vec<automations::LogEntry> {
+    automations::log()
+}
+
+/// Impostazioni → Automazioni → "Prova ora".
+#[tauri::command]
+fn automation_run_now(app: AppHandle, id: String) -> Result<(), String> {
+    automations::run_now(&app, &id)
+}
+
+/// "File caricati": the copies in the inbox, newest first.
+#[tauri::command]
+fn inbox_list() -> Vec<files::InboxFile> {
+    files::list_inbox()
+}
+
+#[tauri::command]
+fn inbox_delete(name: String) -> Result<(), String> {
+    files::delete_from_inbox(&name)
+}
+
+#[tauri::command]
+fn inbox_clear() -> usize {
+    files::clear_inbox()
+}
+
+/// "Apri" opens the copy with its app; "Mostra" selects it in Explorer.
+#[tauri::command]
+fn inbox_open(name: String, reveal: bool) -> Result<(), String> {
+    let path = files::inbox_path(&name)?;
+    let mut cmd = Command::new("explorer");
+    if reveal {
+        cmd.arg(format!("/select,{}", path.display()));
+    } else {
+        cmd.arg(&path);
+    }
+    cmd.spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
+/// "Estrai…" on a dropped ZIP: what is inside.
+#[tauri::command]
+async fn zip_list(path: String) -> Result<zip::ZipInfo, String> {
+    zip::list(&path).await
+}
+
+/// "Estrai…": into a new folder, then opened in Explorer. Returns the folder.
+#[tauri::command]
+async fn zip_extract(path: String, name: String, place: String, source: Option<String>) -> Result<String, String> {
+    zip::extract(&path, &name, &place, source.as_deref()).await
+}
+
+/// Musica: "toggle", "prev" or "next".
+#[tauri::command]
+fn media_command(command: String) {
+    media::command(&command);
 }
 
 /// Lets the island write to the same log as the Rust side.
@@ -726,6 +838,21 @@ pub fn run() {
             secret_set,
             secret_clear,
             refresh_integration,
+            clipboard_use,
+            clipboard_pin,
+            clipboard_remove,
+            clipboard_clear,
+            media_command,
+            zip_list,
+            automations_log,
+            automation_run_now,
+            inbox_list,
+            inbox_delete,
+            inbox_clear,
+            inbox_open,
+            zip_extract,
+            foreground_app,
+            capture_selection,
             open_n8n,
             open_zammad,
             open_settings_window,
@@ -749,6 +876,10 @@ pub fn run() {
             island::spawn_drag_raise(handle.clone(), gate.clone());
             profiles::spawn_auto_switch(handle.clone());
             hotkeys::spawn(handle.clone());
+            clipboard::spawn(handle.clone());
+            context::spawn();
+            media::spawn(handle.clone());
+            automations::spawn(handle.clone());
             widgets::start(handle.clone());
 
             log::line(format!("--- EasyIsland {} started ---", env!("CARGO_PKG_VERSION")));

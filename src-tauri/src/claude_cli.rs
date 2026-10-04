@@ -38,6 +38,31 @@ const STATUS_TIMEOUT: Duration = Duration::from_secs(20);
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 const TOOLS: &str = "WebSearch,WebFetch,Read";
+
+/// The `easyisland` MCP server (`easyisland-hook mcp`, see agent.rs): its
+/// tools that change nothing, pre-allowed. Same list as hook/src/mcp.rs.
+/// Every other tool of it waits for Consenti / Nega in the island.
+const AGENT_READ_ONLY: &[&str] = &[
+    "get_foreground_app",
+    "list_status",
+    "list_quick_actions",
+    "show_notice",
+    "media_status",
+    "media_control",
+    "list_uploaded_files",
+    "list_profiles",
+    "list_automations",
+];
+
+const AGENT_PROMPT: &str = " You also have the easyisland tools, which act on the user's own PC: \
+open programs, folders and links, run the user's quick actions (list_quick_actions, then run_quick_action), \
+read the status of the PC, network, weather, mail and tickets (list_status), read or fill the clipboard, control the music, show a notice in the island, \
+and set up automations that then run by themselves (list_automations, create_automation, set_automation_enabled): when the user asks for something recurring \
+(\"every morning…\", \"when I plug in a USB stick…\", \"if the client's site goes down…\") propose an automation; check the ids with list_quick_actions, list_profiles and list_status first. \
+Use them when the user asks you to do something on the PC, or when they make the answer better (for example check list_status before answering about the PC or the day). \
+You cannot run arbitrary commands: only the user's quick actions. \
+Before a tool that opens, runs or changes something, say in one short sentence what you are about to do: \
+the user confirms or refuses it with a click, and a refusal is final for that request.";
 const INHERITED_SESSION_VARS: &[&str] = &[
     "CLAUDECODE",
     "CLAUDE_CODE_SESSION_ID",
@@ -153,10 +178,12 @@ pub struct Connectors {
     pub enabled: Vec<McpChoice>,
     /// Configured but not picked: removed from the model's tools.
     pub disabled: Vec<String>,
+    /// EasyIsland's own tools (the `easyisland` MCP server, agent.rs).
+    pub agent: bool,
 }
 
 impl Connectors {
-    pub fn from_choices(choices: &[McpChoice]) -> Self {
+    pub fn from_choices(choices: &[McpChoice], agent: bool) -> Self {
         let configured = configured_mcp_servers();
         let enabled: Vec<McpChoice> = choices
             .iter()
@@ -167,11 +194,16 @@ impl Connectors {
             .into_iter()
             .filter(|n| !enabled.iter().any(|c| &c.name == n))
             .collect();
-        Self { enabled, disabled }
+        Self { enabled, disabled, agent }
     }
 
     fn any(&self) -> bool {
         !self.enabled.is_empty()
+    }
+
+    /// Some MCP server is on this turn: calls then go through the island.
+    fn uses_mcp(&self) -> bool {
+        self.any() || self.agent
     }
 }
 
@@ -182,14 +214,25 @@ fn work_dir(connectors: &Connectors) -> Result<PathBuf, String> {
     std::fs::create_dir_all(&dir).map_err(|e| format!("cartella della chat non creata: {e}"))?;
 
     let mut prompt = SYSTEM_PROMPT.to_string();
-    let settings = if connectors.any() {
-        let names: Vec<&str> = connectors.enabled.iter().map(|c| c.name.as_str()).collect();
-        prompt.push_str(&format!(
-            " You can use these connectors (MCP servers): {}. \
+    if connectors.agent {
+        prompt.push_str(AGENT_PROMPT);
+        // `easyisland-hook mcp`: the tools of agent.rs, through the pipe.
+        let hook = crate::settings::hook_exe_path().to_string_lossy().into_owned();
+        let mcp = serde_json::json!({
+            "mcpServers": { "easyisland": { "type": "stdio", "command": hook, "args": ["mcp"] } }
+        });
+        std::fs::write(dir.join("chat-mcp.json"), mcp.to_string()).map_err(|e| e.to_string())?;
+    }
+    let settings = if connectors.uses_mcp() {
+        if connectors.any() {
+            let names: Vec<&str> = connectors.enabled.iter().map(|c| c.name.as_str()).collect();
+            prompt.push_str(&format!(
+                " You can use these connectors (MCP servers): {}. \
 Before any call that creates, changes, sends or deletes something, say in one short sentence what you are about to do: \
 the user confirms or refuses it with a click, and a refusal is final for that request.",
-            names.join(", ")
-        ));
+                names.join(", ")
+            ));
+        }
         let exe = crate::settings::hook_exe_path().to_string_lossy().replace('\\', "/");
         serde_json::json!({
             "hooks": {
@@ -251,7 +294,7 @@ fn args(
         "--tools".into(),
         TOOLS.into(),
     ];
-    if connectors.any() {
+    if connectors.uses_mcp() {
         // `default`: a call that is not pre-allowed goes to the PermissionRequest
         // hook (the island); with no answer from there it is denied.
         a.extend(["--permission-mode".into(), "default".into()]);
@@ -260,9 +303,22 @@ fn args(
             allowed.push(',');
             allowed.push_str(&tool_prefix(&c.name));
         }
+        if connectors.agent {
+            for t in AGENT_READ_ONLY {
+                allowed.push_str(&format!(",mcp__easyisland__{t}"));
+            }
+            a.extend(["--mcp-config".into(), dir.join("chat-mcp.json").to_string_lossy().into_owned()]);
+            // Without connectors of the user's own, only ours is loaded.
+            if !connectors.any() {
+                a.push("--strict-mcp-config".into());
+            }
+        }
         a.extend(["--allowedTools".into(), allowed]);
-        if !connectors.disabled.is_empty() {
-            let denied: Vec<String> = connectors.disabled.iter().map(|n| tool_prefix(n)).collect();
+        let mut denied: Vec<String> = Vec::new();
+        if connectors.any() {
+            denied.extend(connectors.disabled.iter().filter(|n| n.as_str() != "easyisland").map(|n| tool_prefix(n)));
+        }
+        if !denied.is_empty() {
             a.extend(["--disallowedTools".into(), denied.join(",")]);
         }
     } else {
@@ -326,6 +382,7 @@ pub async fn send(
     chat: &Chat,
     model: &str,
     mcp: &[McpChoice],
+    agent: bool,
     query: String,
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
@@ -333,7 +390,7 @@ pub async fn send(
         "Claude Code non trovato. Installalo e fai il login, oppure scegli «Chiave API» nelle impostazioni."
             .to_string()
     })?;
-    let connectors = Connectors::from_choices(mcp);
+    let connectors = Connectors::from_choices(mcp, agent);
     let dir = work_dir(&connectors)?;
     let session = chat.cli_session();
 
@@ -379,7 +436,7 @@ pub async fn send(
         // Dropping stdin closes it: that is what tells `claude -p` the prompt is complete.
     }
 
-    let limit = if connectors.any() { TIMEOUT_WITH_CONNECTORS } else { TIMEOUT };
+    let limit = if connectors.uses_mcp() { TIMEOUT_WITH_CONNECTORS } else { TIMEOUT };
     let output = match tokio::time::timeout(limit, child.wait_with_output()).await {
         Ok(Ok(o)) => o,
         Ok(Err(e)) => return Err(format!("Claude Code si è interrotto: {e}")),
@@ -461,7 +518,7 @@ mod tests {
     use std::path::Path;
 
     fn none() -> Connectors {
-        Connectors { enabled: Vec::new(), disabled: Vec::new() }
+        Connectors { enabled: Vec::new(), disabled: Vec::new(), agent: false }
     }
 
     #[test]
@@ -509,6 +566,7 @@ mod tests {
                 McpChoice { name: "docs.read".into(), confirm: false },
             ],
             disabled: vec!["altro".into()],
+            agent: false,
         };
         let a = args(Path::new("C:/x"), "", None, None, &c);
         let at = |flag: &str| a[a.iter().position(|x| x == flag).unwrap() + 1].clone();
@@ -518,5 +576,21 @@ mod tests {
         assert_eq!(at("--allowedTools"), "WebSearch,WebFetch,Read,mcp__docs_read");
         assert_eq!(at("--disallowedTools"), "mcp__altro");
         assert_eq!(tool_prefix("claude.ai Gmail"), "mcp__claude_ai_Gmail");
+    }
+
+    #[test]
+    fn easyisland_tools_ride_along() {
+        let c = Connectors { enabled: Vec::new(), disabled: vec!["altro".into()], agent: true };
+        let a = args(Path::new("C:/x"), "", None, None, &c);
+        let at = |flag: &str| a[a.iter().position(|x| x == flag).unwrap() + 1].clone();
+        assert_eq!(at("--permission-mode"), "default");
+        assert!(at("--mcp-config").ends_with("chat-mcp.json"));
+        // Only our server: the user's own stay out.
+        assert!(a.contains(&"--strict-mcp-config".to_string()));
+        let allowed = at("--allowedTools");
+        assert!(allowed.contains("mcp__easyisland__list_status"));
+        // Anything that acts waits for the island.
+        assert!(!allowed.contains("mcp__easyisland__open_app"));
+        assert!(!allowed.contains("mcp__easyisland__run_quick_action"));
     }
 }

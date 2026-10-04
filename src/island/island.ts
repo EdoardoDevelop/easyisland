@@ -9,6 +9,7 @@ import {
   chatPromptHeight, collapsedBox, compactSize, cornerRadii, glueFor, isGlued, islandSize,
   type IslandMode, type IslandViewName, type Placement,
 } from "../core/layout";
+import type { Suggestion } from "./context";
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
@@ -214,8 +215,14 @@ export class Island {
       },
       openSettingsWindow: () => void Bridge.openSettingsWindow(),
       blip: () => Sound.play("blip"),
+      toggleKeepOpen: () => this.toggleKeepOpen(),
       installUpdate: () => void this.installUpdate(),
       runAction: (a) => void this.runAction(a),
+      runSuggestion: (sg, app) => void this.runSuggestion(sg, app),
+      extractZip: (place) => void this.extractZip(place),
+      openFiles: () => void this.openFiles(),
+      refreshFiles: () => void this.refreshFiles(),
+      askAboutFile: (f) => this.askAboutFile(f),
       confirmRun: () => void this.startScript(),
       killRun: () => {
         if (State.run?.status === "running") void Bridge.actionKill(State.run.runId);
@@ -323,10 +330,16 @@ export class Island {
     const prev = State.mode;
     if (mode === prev) return;
     State.mode = mode;
-    if (mode === "expanded") Sound.play("open");
+    if (mode === "expanded") {
+      Sound.play("open");
+      void this.refreshForeground();
+    }
     if (prev === "expanded") {
       Sound.play("close");
       State.isPinned = false;
+      // 📌 lasts for one opening: closing by hand (Esc, ✕) ends it.
+      State.keepOpen = false;
+      this.fsm.keepOpen = false;
       void Bridge.focusWindow(false);
     }
     if (mode !== "expanded") {
@@ -409,6 +422,7 @@ export class Island {
   }
 
   setView(view: IslandViewName) {
+    if (view === "actions") void this.refreshForeground();
     this.stopSequenceIfLeaving(view);
     if (State.mode !== "expanded") {
       this.fsm.forceHome();
@@ -480,7 +494,94 @@ export class Island {
     if (question.trim()) window.setTimeout(() => sendToChat(question), 60);
   }
 
+  /** Which app is in front, for the ⚡ suggestions (src/island/context.ts). */
+  private async refreshForeground() {
+    if (State.settings.contextActions === false) return;
+    const fg = await Bridge.foregroundApp();
+    // Opening the chat may focus the island itself: keep the last real app then.
+    if (fg) {
+      State.foreground = fg;
+      State.notify();
+    }
+  }
+
+  /** A suggestion: copy the selection in the app in front, then ask Claude. */
+  async runSuggestion(s: Suggestion, app: string) {
+    Sound.play("blip");
+    const text = await Bridge.captureSelection();
+    if (!text) {
+      this.note(`Seleziona prima il testo${app ? ` in ${app}` : ""}, poi scegli l'azione.`);
+      return;
+    }
+    this.startChat(s.prompt, { label: app ? `Testo da ${app}` : "Testo selezionato", text }, false);
+  }
+
+  /** "Estrai…" on a dropped ZIP: list what is inside, then wait for a destination. */
+  private async openUnzip() {
+    const file = State.droppedFile;
+    if (!file) return;
+    State.unzip = { info: null, status: "loading", message: "" };
+    this.setView("unzip");
+    try {
+      const info = await Bridge.zipList(file.path);
+      if (State.unzip) State.unzip = { info, status: "ready", message: "" };
+    } catch (err) {
+      if (State.unzip) State.unzip = { info: null, status: "error", message: String(err).replace(/^Error:\s*/, "") };
+      Sound.play("error");
+    }
+    State.notify();
+  }
+
+  /** "File caricati": list the inbox and show it. */
+  async openFiles() {
+    State.inbox = await Bridge.inboxList() ?? [];
+    this.setView("files");
+  }
+
+  async refreshFiles() {
+    State.inbox = await Bridge.inboxList() ?? [];
+    State.notify();
+  }
+
+  /** "Chiedi" on a file of the history: the same as dropping it again, without the copy. */
+  askAboutFile(f: { name: string; path: string }) {
+    State.droppedFile = { name: f.name, path: f.path };
+    State.promptContext = { kind: "file", name: f.name, path: f.path };
+    State.chatText = null;
+    State.chatHistory = [];
+    void Bridge.chatReset();
+    this.setView("choose");
+  }
+
+  async extractZip(place: string) {
+    const file = State.droppedFile;
+    const u = State.unzip;
+    if (!file || !u || u.status === "working") return;
+    u.status = "working";
+    State.isPinned = true;
+    this.fsm.pinned = true;
+    State.notify();
+    try {
+      const dest = await Bridge.zipExtract(file.path, file.name, place, file.source ?? null);
+      u.status = "done";
+      u.message = dest;
+      Sound.play("finish");
+    } catch (err) {
+      u.status = "error";
+      u.message = String(err).replace(/^Error:\s*/, "");
+      Sound.play("error");
+    }
+    State.isPinned = false;
+    this.fsm.pinned = false;
+    State.notify();
+  }
+
   async runAction(a: QuickAction) {
+    if (a.id === "builtin:unzip") {
+      Sound.play("blip");
+      await this.openUnzip();
+      return;
+    }
     Sound.play("blip");
     try {
       switch (a.kind) {
@@ -565,6 +666,10 @@ export class Island {
     } else if (name === "ask") {
       const text = await Bridge.clipboardText();
       this.startChat("", text ? { label: "Testo copiato", text } : null, false);
+    } else if (name === "clipboard") {
+      if (!State.settings.activeIntegrations.includes("integration_clipboard")) return;
+      State.setFocus("integration_clipboard");
+      this.setView("overview");
     } else if (name.startsWith("action:")) {
       const a = (State.settings.actions ?? []).find((x) => x.id === name.slice(7));
       if (a) await this.runAction(a);
@@ -635,6 +740,15 @@ export class Island {
     State.notify();
   }
 
+  /** 📌 in the header. */
+  toggleKeepOpen() {
+    State.keepOpen = !State.keepOpen;
+    this.fsm.setKeepOpen(State.keepOpen, this.wasInIsland);
+    if (State.keepOpen) this.homeCollapseAt = null;
+    else if (!this.wasInIsland) this.homeCollapseAt = performance.now() + State.settings.autoCloseInterval * 1000;
+    State.notify();
+  }
+
   /** An alert stopped waiting for an answer: let the island auto-close again. */
   dropPin() {
     this.fsm.pinned = false;
@@ -699,7 +813,7 @@ export class Island {
    */
   private swallow(path: string) {
     const name = path.split(/[\\/]/).pop() || "file";
-    State.droppedFile = { name, path };
+    State.droppedFile = { name, path, source: path };
     State.promptContext = { kind: "file", name, path };
     State.chatText = null;
     State.chatHistory = [];
@@ -724,7 +838,7 @@ export class Island {
 
     void Bridge.ingestFile(path)
       .then((file) => {
-        State.droppedFile = { name: file.name, path: file.path };
+        State.droppedFile = { name: file.name, path: file.path, source: path };
         State.promptContext = { kind: "file", name: file.name, path: file.path };
         State.notify();
       })
@@ -1107,7 +1221,7 @@ export class Island {
     if (!inIsland && this.wasInIsland) {
       this.cancelHoverOpen();
       this.fsm.mouseLeft();
-      if (this.fsm.state === "home" && !State.isPinned) {
+      if (this.fsm.state === "home" && !State.isPinned && !State.keepOpen) {
         this.homeCollapseAt = performance.now() + State.settings.autoCloseInterval * 1000;
       }
     }
@@ -1359,7 +1473,7 @@ export class Island {
   }
 
   private updateCountdown(nowMs: number) {
-    if (State.mode !== "expanded" || State.isPinned || this.homeCollapseAt == null) {
+    if (State.mode !== "expanded" || State.isPinned || State.keepOpen || this.homeCollapseAt == null) {
       this.countdown.style.width = "0px";
       return;
     }

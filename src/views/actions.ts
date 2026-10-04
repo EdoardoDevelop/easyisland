@@ -3,11 +3,14 @@
 
 import { h, clear } from "./dom";
 import { renderActionIcon } from "./action-icons";
+import { suggestionsFor, type Suggestion } from "../island/context";
 import { State, type QuickAction } from "../core/state";
 import type { ViewHost } from "./views";
 
 export interface ActionHandlers {
   runAction(a: QuickAction): void;
+  /** A suggestion for the app in front: ask Claude about the selected text. */
+  runSuggestion(s: Suggestion, app: string): void;
   confirmRun(): void;
   killRun(): void;
   closeRun(): void;
@@ -23,9 +26,17 @@ const KIND_HINT: Record<QuickAction["kind"], string> = {
 
 const isFileAction = (a: QuickAction) => a.kind === "prompt" && a.input === "file";
 
-/** The actions offered on "Cosa vuoi farne?" after a drop: prompts applied to the file. */
+/** Built-in file actions (id "builtin:…"), offered for some kinds of file. */
+const builtin = (id: string, name: string, color: string): QuickAction => ({
+  id: `builtin:${id}`, name, icon: "", color, kind: "app", target: "", args: "", script: "",
+  shell: "powershell", prompt: "", input: "file", confirm: false, hotkey: "",
+});
+
+/** The actions offered on "Cosa vuoi farne?" after a drop: built-ins, then prompts applied to the file. */
 export function fileActions(): QuickAction[] {
-  return (State.settings.actions ?? []).filter(isFileAction);
+  const name = State.droppedFile?.name.toLowerCase() ?? "";
+  const extras = name.endsWith(".zip") ? [builtin("unzip", "Estrai…", "#F5A524")] : [];
+  return [...extras, ...(State.settings.actions ?? []).filter(isFileAction)];
 }
 
 /** The ⚡ tab: everything but the file actions, which only make sense with a file. */
@@ -51,16 +62,37 @@ function actionButton(a: QuickAction, onClick: () => void): HTMLElement {
 
 export function buildActions(handlers: ActionHandlers): ViewHost {
   const grid = h("div", { class: "qa-grid" });
-  const el = h("div", { class: "view" }, h("div", { class: "card qa-card" }, grid));
+  const suggest = h("div", { class: "qa-suggest" });
+  const el = h("div", { class: "view" }, h("div", { class: "card qa-card" }, suggest, grid));
   let key = "";
   return {
     el,
     sync() {
       const list = tabActions();
-      const k = JSON.stringify(list.map((a) => [a.id, a.name, a.icon, a.color, a.kind, a.hotkey]));
+      const sugg = State.settings.contextActions === false ? null : suggestionsFor(State.foreground);
+      const k = JSON.stringify([list.map((a) => [a.id, a.name, a.icon, a.color, a.kind, a.hotkey]),
+        sugg?.app ?? "", sugg?.items.length ?? 0]);
       if (k === key) return;
       key = k;
+      clear(suggest);
       clear(grid);
+      if (sugg) {
+        const row = h("div", { class: "qa-suggest-row" });
+        for (const s of sugg.items) {
+          const b = h("button", { class: "qa-chip", title: "Usa il testo selezionato nell'app",
+            onclick: () => handlers.runSuggestion(s, sugg.app) },
+          renderActionIcon(`i:${s.icon}`, 14), h("span", { text: s.label }));
+          b.style.setProperty("--qa", sugg.color);
+          row.append(b);
+        }
+        suggest.append(
+          h("div", { class: "qa-suggest-head" },
+            h("i", { class: "dot", style: `width:7px;height:7px;background:${sugg.color}` }),
+            h("b", { text: sugg.app ? `Per ${sugg.app}` : "Per l'app in primo piano" }),
+            h("span", { text: "sul testo selezionato" })),
+          row);
+      }
+      if (list.length === 0 && sugg) return;
       if (list.length === 0) {
         grid.append(
           h("div", { class: "qa-empty" },
@@ -77,7 +109,7 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
       for (const a of list) grid.append(actionButton(a, () => handlers.runAction(a)));
     },
     // Many actions wrap onto more rows: the island grows to show them all.
-    fitHeight: () => grid.offsetHeight + 26,
+    fitHeight: () => suggest.offsetHeight + grid.offsetHeight + 26,
   };
 }
 

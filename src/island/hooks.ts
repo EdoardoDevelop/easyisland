@@ -40,8 +40,84 @@ function sessionHost(p: HookPayload): SessionHost {
   return "terminal";
 }
 
+/** The preview of an automation Claude wants to create: "Quando… / Allora…". */
+function describeAutomation(input: Record<string, unknown>): string {
+  const t = (input.trigger ?? {}) as Record<string, unknown>;
+  const str = (o: Record<string, unknown>, k: string) => String(o[k] ?? "").trim();
+  const names = ["", "lun", "mar", "mer", "gio", "ven", "sab", "dom"];
+  const days = Array.isArray(t.days) && t.days.length && t.days.length < 7
+    ? (t.days as number[]).map((d) => names[d] ?? d).join(", ")
+    : "ogni giorno";
+  const src = (State.settings.widgets ?? []).find((w) => w.id === str(t, "source"))?.name
+    ?? State.tasks.find((x) => x.id === str(t, "source"))?.name ?? str(t, "source");
+  const when: Record<string, string> = {
+    time: `alle ${str(t, "time")}, ${days}`,
+    startup: `${Number(t.delay ?? 30) || 30} secondi dopo l'avvio del PC`,
+    unlock: "quando sblocchi il PC",
+    wifi: `quando ti colleghi alla rete ${str(t, "ssid")}`,
+    app: `quando parte ${str(t, "exe")}`,
+    drive: "quando colleghi una chiavetta o un disco",
+    folder: `quando arriva un file in ${str(t, "folder")}`,
+    integration: `quando ${src} segnala ${str(t, "when") === "event" ? "una novità" : str(t, "when") === "any" ? "un problema o una novità" : "un problema"}`,
+  };
+  const actions = State.settings.actions ?? [];
+  const profiles = State.settings.profiles ?? [];
+  const steps = (Array.isArray(input.steps) ? input.steps : []) as Record<string, unknown>[];
+  const what = steps.map((st) => {
+    switch (str(st, "kind")) {
+      case "quick": return `esegue «${actions.find((a) => a.id === str(st, "id"))?.name ?? str(st, "id")}»`;
+      case "notice": return `mostra l'avviso «${str(st, "title") || str(st, "text")}»`;
+      case "profile": return `passa al profilo «${profiles.find((p) => p.id === str(st, "id"))?.name ?? str(st, "id")}»`;
+      case "app": return `apre ${str(st, "target")}${str(st, "args") ? ` ${str(st, "args")}` : ""}`;
+      case "url": return `apre ${str(st, "url")}`;
+      default: return str(st, "kind");
+    }
+  });
+  const profile = profiles.find((p) => p.id === str(input, "profile"))?.name;
+  return `Creare l'automazione «${str(input, "name")}»\nQuando: ${when[str(t, "kind")] ?? str(t, "kind")}${profile ? ` (solo nel profilo ${profile})` : ""}\nAllora: ${what.join(", poi ") || "niente"}`;
+}
+
+/** EasyIsland's own tools (agent.rs) in words, for the Consenti / Nega card. */
+function easyislandTarget(name: string, input: Record<string, unknown>): string | null {
+  const s = (k: string) => String(input[k] ?? "").trim();
+  const short = (t: string, n = 160) => (t.length > n ? `${t.slice(0, n)}…` : t);
+  switch (name) {
+    case "open_app":
+      return `Aprire ${s("target")}${s("args") ? ` ${s("args")}` : ""}`;
+    case "open_url":
+      return `Aprire ${s("url")}`;
+    case "run_quick_action": {
+      const a = (State.settings.actions ?? []).find((x) => x.id === s("id"));
+      if (!a) return `Eseguire l'azione rapida ${s("id")}`;
+      const what = a.kind === "script" ? `lo script «${a.name}»:\n${short(a.script, 400)}` : `l'azione «${a.name}»`;
+      return `Eseguire ${what}`;
+    }
+    case "read_clipboard":
+      return "Leggere il testo negli appunti";
+    case "write_clipboard":
+      return `Mettere negli appunti: ${short(s("text"))}`;
+    case "switch_profile": {
+      const p = (State.settings.profiles ?? []).find((x) => x.id === s("id"));
+      return `Passare al profilo «${p?.name ?? s("id")}»`;
+    }
+    case "create_automation":
+      return describeAutomation(input);
+    case "set_automation_enabled": {
+      const a = (State.settings.automations ?? []).find((x) => x.id === s("id"));
+      return `${input.enabled ? "Accendere" : "Spegnere"} l'automazione «${a?.name ?? s("id")}»`;
+    }
+    default:
+      return null;
+  }
+}
+
 /** "mcp__agenda__create_event" + input → "agenda › create_event · {…}". */
 function connectorTarget(tool: string, input: Record<string, unknown>): string {
+  const own = /^mcp__easyisland__(.+)$/.exec(tool);
+  if (own) {
+    const said = easyislandTarget(own[1], input);
+    if (said) return said;
+  }
   const m = /^mcp__(.+?)__(.+)$/.exec(tool);
   const name = m ? `${m[1]} › ${m[2]}` : tool;
   const args = JSON.stringify(input);
@@ -58,12 +134,13 @@ function handleChatPermission(island: Island, payload: HookPayload) {
     if (requestId) void Bridge.approvalDecline(requestId);
     return;
   }
-  const tool = payload.tool_name ?? "Connettore";
+  const raw = payload.tool_name ?? "Connettore";
+  const tool = raw.startsWith("mcp__easyisland__") ? "EasyIsland" : raw;
   State.pendingApproval = {
     requestId,
     sessionId: payload.session_id ?? "",
     tool,
-    command: connectorTarget(tool, payload.tool_input ?? {}),
+    command: connectorTarget(raw, payload.tool_input ?? {}),
     source: "chat",
   };
   if (requestId) void Bridge.approvalAck(requestId);

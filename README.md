@@ -166,6 +166,10 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 | Lasci il puntatore su Slime per due secondi | Cuori |
 | Trascini un file sull'isola | Si apre anche se è impostata "solo con un clic": Slime diventa una scatola, lo inghiotte e poi si offre di rispondere a domande sul file |
 | `Esc`, o la ✕ in alto a destra | Chiude subito l'isola, senza aspettare i secondi della chiusura automatica |
+| 📌 in alto a destra | **Tieni aperta**: l'isola non si chiude più da sola finché non la togli (Esc e ✕ la chiudono comunque) |
+| Scrivi un calcolo nella chat, es. `840 + 22%` o `15% di 840` | Compare subito il risultato; **Invio** lo copia negli appunti, **Ctrl+Invio** chiede comunque a Claude. Il calcolo è fatto in locale, senza Claude |
+| Rilasci uno ZIP | Oltre a "Fai una domanda" c'è **Estrai…**: vedi cosa contiene e lo estrai in una cartella nuova accanto all'originale, in Download o sul Desktop |
+| Scheda **+** → **File caricati** | La cronologia dei file rilasciati sull'isola (le copie tenute per una settimana): chiedi a Claude, apri, mostra nella cartella, elimina uno o tutti. Gli originali non vengono toccati |
 | Icona nell'area di notifica | Apri, Impostazioni…, Pausa, Esci |
 
 Tutto il resto succede da solo: una richiesta di permesso di Claude Code apre
@@ -234,6 +238,15 @@ di EasyIsland. Le impostazioni si cambiano nell'indirizzo, per esempio
 | **Programma / cartella** | avvia un programma con i suoi argomenti (es. `mstsc /v:server01`) o apre una cartella |
 | **Link** | apre un indirizzo nel browser |
 
+**Suggerimenti per l'app in uso**: in cima alla scheda ⚡ compaiono azioni pronte
+per l'app che stai usando, applicate al testo che hai selezionato: per Outlook
+*Riassumi la mail*, *Scrivi una risposta*; per Excel *Spiega questi dati*; per
+Word *Correggi*, *Rendi più formale*; per il browser *Riassumi*, *Traduci*; per
+l'editor di codice *Spiega*, *Trova bug*; per il terminale *Spiega l'errore*; per
+Teams e i PDF; per qualsiasi altra app *Riassumi*, *Traduci*, *Correggi*. Al clic
+EasyIsland copia la selezione (e poi rimette negli appunti quello che c'era),
+quindi apre la chat con il testo allegato. Si spegne in Azioni rapide.
+
 Ogni azione si può riordinare con ↑ ↓ ed eliminare con ✕. L'icona si sceglie
 con un clic sul riquadro a sinistra del nome, tra una cinquantina di icone
 disegnate nel codice (terminale, cartella, sito, server, rete, lucchetto,
@@ -243,6 +256,7 @@ calendario, posta…); prende il colore dell'azione.
 
 - `Ctrl+Alt+Shift+M` apre Slime sulle azioni (o sulla chat se non ce ne sono);
 - `Ctrl+Alt+K` apre la chat con il testo copiato già allegato: scrivi la domanda;
+- `Ctrl+Alt+H` apre la cronologia degli **Appunti** (se l'integrazione è accesa);
 - ogni azione può avere la sua scorciatoia, es. `Ctrl+Alt+E` per "Spiega errore".
 
 Se una scorciatoia è già usata da un'altra app, le Impostazioni lo segnalano.
@@ -263,8 +277,15 @@ Gestione credenziali di Windows.
 | **Sicurezza** | antivirus (Defender o un altro, dal Centro sicurezza di Windows), età delle firme, ultima scansione, firewall, minacce rilevate |
 | **Rete** | Wi-Fi o cavo, IP locale e pubblico (api.ipify.org, al massimo ogni 15 minuti), VPN attive, latenza verso 1.1.1.1; avvisa se internet non risponde o è lento |
 | **Meteo** | meteo attuale di una città (Open-Meteo, gratuito e senza chiave); avvisa se è probabile pioggia nelle prossime ore |
+| **Appunti** | gli ultimi 30 testi copiati, più quelli fissati: clic per incollarli nell'app in primo piano, oppure copia, trasforma (MAIUSCOLO, minuscolo, una riga, senza spazi, JSON, URL), fissa, elimina. Solo in memoria, mai su disco; ciò che i gestori di password segnano come privato non viene registrato |
+| **Musica** | cosa sta suonando in qualsiasi app che compare nei controlli multimediali di Windows (Spotify, il browser, Lettore multimediale…), con copertina, avanzamento e ⏮ ⏯ ⏭. Tutto in locale |
 
-Quali integrazioni sono accese dipende dal profilo.
+Ogni integrazione può stare tra le pillole della panoramica oppure in alto
+nell'isola come **scheda**, con il suo nome o con un'icona a scelta ("Mostra
+come"). Aprendo la scheda si vede solo quell'integrazione; le pillole restano
+sulla scheda ⌂.
+
+Quali integrazioni sono accese, e come sono mostrate, dipende dal profilo.
 
 ## Widget
 
@@ -407,6 +428,48 @@ configuri tu, più una sola altra: il controllo degli aggiornamenti, che legge u
 file della release su GitHub (si spegne in Impostazioni → Generale →
 Aggiornamenti).
 
+## Automazioni
+
+**Impostazioni… → Automazioni**: quando succede qualcosa, EasyIsland fa
+qualcosa per te.
+
+| Quando | Esempio |
+|---|---|
+| a un orario, nei giorni scelti | alle 9 dei giorni feriali apri Outlook e il gestionale |
+| all'avvio (con il PC) | dopo 30 secondi passa al profilo Lavoro |
+| quando sblocchi il PC | mostra un avviso con il promemoria del giorno |
+| quando ti colleghi a una rete Wi-Fi | in ufficio apri la cartella condivisa |
+| quando parte un programma | quando apri Teams, esegui l'azione "Silenzia" |
+| quando colleghi una chiavetta o un disco | esegui lo script di backup |
+| quando arriva un file in una cartella | avvisami delle nuove scansioni |
+| quando un'integrazione o un widget segnala un problema o una novità | se il sito del cliente va giù, esegui lo script di controllo; nuovo ticket → avviso |
+
+Si possono anche **chiedere a Claude a parole** nella chat (con l'abbonamento):
+"ogni giorno feriale alle 9 apri Outlook e il gestionale", "quando colleghi una
+chiavetta lancia il backup". Claude prepara l'automazione e l'isola te la mostra
+(Quando… / Allora…) con **Consenti / Nega**: confermando, viene creata e accesa.
+
+**Allora** è una sequenza di passi: un'azione rapida, un avviso nell'isola, il
+cambio di profilo, aprire un programma o una cartella, aprire un link. Ogni
+automazione si può limitare a un profilo e provare subito con **Prova ora**;
+il **Registro** mostra le ultime esecuzioni. Partono senza chiedere, perché
+le hai create tu, tranne gli script con "Chiedi conferma" e le domande a
+Claude, che si aprono nell'isola. Con EasyIsland in pausa non parte niente.
+
+### Claude può usare il PC
+
+Con l'abbonamento (motore Claude Code), nella chat Claude può anche agire su
+questo PC tramite EasyIsland: aprire programmi, cartelle e link, eseguire le
+tue **azioni rapide** (anche gli script, di cui legge l'output), leggere lo
+stato di PC, rete, meteo, posta e ticket, leggere o riempire gli appunti,
+controllare la musica, mostrare un avviso, cambiare profilo. Esempi: "apri
+Outlook e il portale fornitori", "com'è messo il PC?", "lancia il backup".
+
+Tutto ciò che apre, esegue o cambia qualcosa chiede prima **Consenti / Nega**
+nell'isola, con una descrizione chiara di cosa sta per fare. Claude non può
+eseguire comandi qualsiasi: solo le azioni rapide che hai creato tu. Si spegne
+in **Impostazioni → Claude → Claude può usare il PC**.
+
 ## Compilarlo da te
 
 Per chi lavora sul codice. Gli strumenti sono gli stessi del passo 1 di
@@ -457,8 +520,8 @@ npm run icons          # rigenera src-tauri/icons da scripts/gen-icons.mjs
 2. Crea e invia il tag:
 
    ```powershell
-   git tag v0.2.0
-   git push origin v0.2.0
+   git tag v0.3.0
+   git push origin v0.3.0
    ```
 
 3. La workflow **Build** compila l'installer, lo firma per l'aggiornamento e

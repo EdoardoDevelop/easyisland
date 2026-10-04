@@ -39,5 +39,12 @@ export const ICONS = {
   // square.stack.fill
   stack: "M5 8h14v11.5H5V8zm1.8-3h10.4v1.6H6.8V5zm1.6-2.6h7.2V4H8.4V2.4z",
   // doc.text
+  // Musica / Appunti
+  play: "M8 5.2v13.6L19 12 8 5.2z",
+  pause: "M6.5 5h4v14h-4V5zm7 0h4v14h-4V5z",
+  prev: "M6 5h2v14H6V5zm3.5 7L19 5.2v13.6L9.5 12z",
+  next: "M16 5h2v14h-2V5zM5 5.2 14.5 12 5 18.8V5.2z",
+  pin: "M14.6 2.8 21.2 9.4l-1.4 1.4-1-.6-3.7 3.7.3 4.1-1.4 1.4-3.6-3.6-4.6 4.6-1.3-1.3 4.6-4.6-3.6-3.6L6.9 9.5l4.1.3 3.7-3.7-.6-1 1.4-1.4z",
+  copy: "M8 3h11v13h-2V5H8V3zM4.5 7h11v14h-11V7zm2 2v10h7V9h-7z",
   doc: "M6.5 2.6h7l4 4v14.8h-11V2.6zm6.6 1.6v3.3h3.3l-3.3-3.3zM8.6 11h6.8v1.5H8.6V11zm0 3.4h6.8v1.5H8.6v-1.5z",
 } as const;

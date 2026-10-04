@@ -487,3 +487,49 @@ button.icon {
   padding: 0;
   flex: 0 0 auto;
 }
+
+/* Coloured page icons in the side menu: glyph in --c on a tinted tile. */
+.nav-icon {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--c, var(--ink));
+  background: color-mix(in srgb, var(--c, #fff) 16%, transparent);
+  opacity: 1;
+}
+
+.nav-item.on .nav-icon {
+  color: #0f1013;
+  background: var(--c, var(--ink));
+}
+
+/* Automations log. */
+.auto-log {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.auto-log-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.auto-log-when {
+  color: var(--dim-2);
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+
+.auto-log-detail {
+  color: var(--dim);
+  overflow-wrap: anywhere;
+}

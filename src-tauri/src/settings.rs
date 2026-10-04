@@ -65,6 +65,8 @@ pub enum PendingSecret {
 /// Fields that belong to a profile rather than to the machine.
 pub const PROFILE_KEYS: &[&str] = &[
     "activeIntegrations",
+    "integrationTabs",
+    "integrationTabIcons",
     "anchorV",
     "anchorH",
     "offsetX",
@@ -229,6 +231,12 @@ pub struct Settings {
     pub auto_close_interval: f64,
     pub absence_interval: f64,
     pub active_integrations: Vec<String>,
+    /// Integrations shown as a tab in the island's header instead of a pill.
+    #[serde(default)]
+    pub integration_tabs: Vec<String>,
+    /// Integrations whose tab shows an icon (emoji or short text) instead of the name: id → icon.
+    #[serde(default)]
+    pub integration_tab_icons: serde_json::Map<String, Value>,
     /// "primary" = the main display, "cursor" = whichever display the mouse is on.
     pub screen: String,
     pub autostart: bool,
@@ -329,6 +337,19 @@ pub struct Settings {
     /// Global shortcut: ask the character about the text on the clipboard.
     #[serde(default = "default_hotkey_ask")]
     pub hotkey_ask: String,
+    /// Global shortcut: open the clipboard history (Appunti).
+    #[serde(default = "default_hotkey_clipboard")]
+    pub hotkey_clipboard: String,
+    /// ⚡ tab: actions suggested for the app in front (Outlook, Excel, the browser…).
+    #[serde(default = "default_true")]
+    pub context_actions: bool,
+    /// The chat (Claude Code engine) may use EasyIsland's own tools (agent.rs).
+    #[serde(default = "default_true")]
+    pub agent_tools: bool,
+    /// "Quando… allora…" rules (automations.rs). Belong to the PC; each can be
+    /// limited to one profile.
+    #[serde(default)]
+    pub automations: Vec<Value>,
     /// Look for a new version on GitHub at start and once a day. Belongs to the PC.
     #[serde(default = "default_true")]
     pub update_check: bool,
@@ -345,6 +366,9 @@ fn default_hotkey_open() -> String {
 }
 fn default_hotkey_ask() -> String {
     "Ctrl+Alt+K".into()
+}
+fn default_hotkey_clipboard() -> String {
+    "Ctrl+Alt+H".into()
 }
 
 fn default_presence_mode() -> String {
@@ -405,6 +429,8 @@ impl Default for Settings {
                 "integration_vercel".into(),
                 "integration_github".into(),
             ],
+            integration_tabs: Vec::new(),
+            integration_tab_icons: serde_json::Map::new(),
             screen: "primary".into(),
             autostart: false,
             hooks_installed: false,
@@ -440,6 +466,10 @@ impl Default for Settings {
             auto_profile: false,
             hotkey_open: default_hotkey_open(),
             hotkey_ask: default_hotkey_ask(),
+            hotkey_clipboard: default_hotkey_clipboard(),
+            context_actions: true,
+            agent_tools: true,
+            automations: Vec::new(),
             update_check: true,
             integration_config: IntegrationConfig::default(),
             pending_secrets: Vec::new(),

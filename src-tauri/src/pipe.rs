@@ -125,6 +125,18 @@ async fn handle(app: AppHandle, mut pipe: NamedPipeServer) {
         .unwrap_or_default()
         .to_string();
 
+    // A tool call from the chat's `easyisland` MCP server (easyisland-hook mcp):
+    // run it and answer on the same connection.
+    if event == "EasyIslandTool" {
+        let tool = payload.get("tool").and_then(Value::as_str).unwrap_or_default().to_string();
+        let args = payload.get("arguments").cloned().unwrap_or_else(|| json!({}));
+        let reply = crate::agent::call(&app, &tool, &args).await;
+        let _ = pipe.write_all(format!("{reply}\n").as_bytes()).await;
+        let _ = pipe.flush().await;
+        let _ = pipe.disconnect();
+        return;
+    }
+
     if event != "PermissionRequest" {
         log::line(format!("hook {event}"));
         let _ = app.emit_to(WINDOW_LABEL, "hook", payload);
