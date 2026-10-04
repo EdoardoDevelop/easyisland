@@ -62,7 +62,9 @@ function taskFor(p: HookPayload): string {
 }
 
 function sessionHost(p: HookPayload): SessionHost {
-  if (p.entrypoint === "claude-desktop") return "desktop";
+  // CLAUDE_CODE_ENTRYPOINT describes Claude Code; another agent may only have
+  // inherited it from a terminal the Claude app opened.
+  if (p.entrypoint === "claude-desktop" && !p.easyisland_agent) return "desktop";
   if (p.cursor) return "cursor";
   if (p.entrypoint === "claude-vscode" || p.term_program === "vscode" || p.vscode_pid) return "vscode";
   if (p.wt_session) return "wt";
@@ -472,10 +474,12 @@ export function handleHook(island: Island, payload: HookPayload) {
         State.updateTask(tid, "question");
         State.appendStep(tid, message.slice(0, 80));
         Sound.play("question");
-        if (focused) surface("question", true);
+        // Like a permission card: it blocks the agent, so it shows (a badge only
+        // over a full-screen app or in front of a client).
+        if (quietNow()) State.setPillBadge(tid, "approval");
         else {
-          State.setPillBadge(tid, "approval");
-          island.reveal();
+          State.setFocus(tid);
+          island.alert("question");
         }
         break;
       }

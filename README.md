@@ -20,9 +20,11 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 ## Cosa fa
 
 - **Claude Code nell'isola**: vedi le sessioni lavorare, rispondi ai permessi
-  con **Nega / Consenti** e alle domande, torna all'app della sessione con un clic
-  ([Claude Code](#claude-code)).
-- **Chat con Claude** dall'isola, con l'abbonamento o una chiave API; allega
+  con **Nega / Consenti / Sempre** e alle domande, guarda le **modifiche ai file**
+  in tempo reale, torna all'app della sessione con un clic; anche **Codex**,
+  **Gemini CLI** e Claude Code nel terminale di **Cursor** ([Claude Code](#claude-code)).
+- **Chat** dall'isola con Claude (abbonamento o chiave API), **OpenRouter**,
+  **OpenAI**, **Gemini** o modelli locali **Ollama** e **LM Studio**; allega
   testo, file, immagini copiate o una **zona dello schermo**; risposte formattate
   (elenchi, tabelle, codice con **Copia**); calcolatrice nel campo
   ([Chat con Claude](#chat-con-claude)).
@@ -158,7 +160,7 @@ L'installer sostituisce la versione precedente; impostazioni e chiavi restano.
 
 ### Disinstallare
 
-Prima, in **Impostazioni… → Claude Code**, clicca **Disinstalla hook…**: il
+Prima, in **Impostazioni… → Agenti e chat → Claude Code**, clicca **Disinstalla hook…**: il
 disinstallatore volutamente non tocca il `settings.json` di Claude Code. Poi
 **Impostazioni di Windows → App → App installate → EasyIsland → Disinstalla**.
 
@@ -310,7 +312,18 @@ calendario, posta…); prende il colore dell'azione.
   cattura di Windows: zona, finestra o schermo intero) e apre la chat con
   l'immagine allegata, per esempio per farsi spiegare una finestra d'errore.
   Si può fare anche dalla scheda **+** dell'isola, con **Cattura una zona**;
+- `Ctrl+Alt+Shift+P` va alla **richiesta in attesa** (permesso o domanda) e dà la
+  tastiera all'isola: `N` nega, `Y` consente, `S` sempre, `1`–`9` sceglie una risposta;
+- `Ctrl+Alt+Shift+T` porta avanti l'**app della sessione** (terminale, VS Code,
+  Cursor o l'app di Claude);
+- **pillola successiva** e **suoni sì / no**: vuote di serie, si assegnano in
+  Impostazioni → Azioni rapide;
 - ogni azione può avere la sua scorciatoia, es. `Ctrl+Alt+E` per "Spiega errore".
+
+**Nell'isola aperta da tastiera** (o nella chat): `←` `→` cambiano pillola,
+`↑` `↓` scorrono la lista, `Ctrl+N` apre una nuova chat, `Ctrl+P` la tiene aperta,
+`Esc` la chiude. Con il mouse l'isola non prende la tastiera, per non rubarla
+all'app che stai usando.
 
 Per cambiarne una basta un clic sul campo e premere la combinazione: il campo la
 registra da solo (Esc annulla, Canc la toglie, ✕ la svuota). Mentre il campo è in
@@ -474,7 +487,7 @@ attivo.
 
 ## Claude Code
 
-Apri **Impostazioni… → Claude Code → Installa hook…**. Vedi il diff esatto di cosa
+Apri **Impostazioni… → Agenti e chat → Claude Code → Installa hook…**. Vedi il diff esatto di cosa
 cambierà in `%USERPROFILE%\.claude\settings.json` e il percorso della copia di
 backup datata che verrà creata. Non viene scritto nulla finché non clicchi. I tuoi
 hook non vengono mai toccati e la disinstallazione rimuove solo le voci di EasyIsland.
@@ -486,11 +499,29 @@ non viene mai bloccata né rallentata da EasyIsland.** Se nessuno risponde in te
 una richiesta di permesso, EasyIsland resta in silenzio e Claude Code la chiede nel
 terminale come al solito.
 
-Funziona da qualsiasi terminale: Windows Terminal, PowerShell, VS Code, Git Bash.
+Funziona da qualsiasi terminale: Windows Terminal, PowerShell, VS Code, Git Bash,
+e nel terminale di **Cursor** ("Apri" riporta a Cursor).
+
+**Codex e Gemini CLI.** Nella stessa pagina (Impostazioni → Agenti e chat) ci sono
+i loro hook, installati con le stesse regole: diff, backup datato, conferma.
+Ogni agente ha la sua pillola con passi, modifiche ai file e ultimo messaggio.
+
+- **Codex** (`%USERPROFILE%\.codex\hooks.json`): anche le richieste di permesso,
+  con **Consenti / Nega** nell'isola. Dopo l'installazione apri `/hooks` in Codex e
+  approva gli hook di EasyIsland (Codex chiede di fidarsi degli hook nuovi).
+- **Gemini CLI** (`%USERPROFILE%\.gemini\settings.json`): Gemini non lascia
+  rispondere ai permessi da fuori, quindi l'isola si apre e ti dice che sta
+  aspettando, con il pulsante per tornare al terminale.
+
+**Altri strumenti.** Qualsiasi programma può avere la sua pillola mandando gli eventi
+a `easyisland-hook <Evento>` con un campo `easyisland_agent`:
+`{"id": "mio-bot", "name": "Il mio bot", "color": "#22C55E"}` (gli eventi e i campi
+sono quelli degli hook di Claude Code).
 
 ## Chat con Claude
 
-**Impostazioni… → Chat con Claude** ti fa scegliere il motore della chat:
+**Impostazioni… → Agenti e chat → Chat** ti fa scegliere il motore della chat (e
+si cambia anche dal nome del modello in alto a destra nella chat):
 
 - **Abbonamento Claude (tramite Claude Code)**, il predefinito. Slime usa
   Claude Code installato sul PC (`claude -p`, nascosto, senza finestre) e il tuo
@@ -501,6 +532,16 @@ Funziona da qualsiasi terminale: Windows Terminal, PowerShell, VS Code, Git Bash
   web, lettura di pagine web e lettura dei file che rilasci.
 - **Chiave API Anthropic**. Slime chiama direttamente l'API con la tua chiave,
   pagata a consumo dalla Console di Anthropic.
+- **OpenRouter** (una chiave per centinaia di modelli), **OpenAI** e **Gemini**
+  (Google AI Studio): la chiave va in Gestione credenziali, il modello si sceglie
+  dall'elenco (**Carica modelli**). Si paga a consumo da loro.
+- **Ollama** e **LM Studio**: modelli sul tuo PC (o su un altro della rete), nessuna
+  chiave, solo l'indirizzo (vuoto = quello predefinito). Nulla esce dalla rete.
+
+Con questi ultimi cinque la risposta compare mentre arriva e il "ragionamento" dei
+modelli che lo mostrano resta nascosto; non hanno strumenti (niente ricerche sul
+web né azioni sul PC). Le immagini vanno ai modelli che le leggono, i file di testo
+nel messaggio; i PDF solo con Claude.
 
 **Connettori in chat** (solo con "Abbonamento Claude"): Slime può usare i
 server MCP che hai configurato in Claude Code per l'utente
@@ -593,7 +634,7 @@ Outlook e il portale fornitori", "com'è messo il PC?", "lancia il backup".
 Tutto ciò che apre, esegue o cambia qualcosa chiede prima **Consenti / Nega**
 nell'isola, con una descrizione chiara di cosa sta per fare. Claude non può
 eseguire comandi qualsiasi: solo le azioni rapide che hai creato tu. Si spegne
-in **Impostazioni → Claude → Claude può usare il PC**.
+in **Impostazioni → Agenti e chat → Claude può usare il PC**.
 
 ## Compilarlo da te
 

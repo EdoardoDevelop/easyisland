@@ -479,7 +479,8 @@ function buildApproval(actions: ViewActions): ViewHost {
           h("span", { class: "n", text: "La chat" }),
           h("span", { text: "vuole usare un connettore" })));
       } else {
-        who.append(agentWho(State.focusTask, "chiede un permesso"));
+        const t = State.focusTask;
+        who.append(agentWho(t, t?.agentName ? `· ${t.agentName} chiede un permesso` : "chiede un permesso"));
       }
       // The whole point of approving here rather than in the terminal: this line
       // is the command, the file path or the URL being authorised, not just the
@@ -589,20 +590,23 @@ function buildAsk(actions: ViewActions): ViewHost {
 
 // ── Question ──────────────────────────────────────────────────────────────────
 
-function buildQuestion(): ViewHost {
+function buildQuestion(actions: ViewActions): ViewHost {
   const who = h("div");
   const title = h("div", { class: "title" });
-  const row = h("div", { class: "actions" });
+  const open = btn("Apri terminale", "primary", () => actions.openTerminal());
+  const note = h("div", { class: "sub" });
+  const row = h("div", { class: "actions" }, open, note);
   const el = h("div", { class: "view" }, card("cyan", stack(116, 16, who, title, row)));
   return {
     el,
     sync() {
       clear(who);
-      who.append(agentWho(State.focusTask, "Claude Code ha una domanda"));
       const task = State.focusTask;
+      // Gemini CLI asks its permissions in its own terminal: say who, and take you there.
+      who.append(agentWho(task, task?.agentName ? `${task.agentName} aspetta una risposta` : "Claude Code ha una domanda"));
       title.textContent = task?.steps.at(-1) ?? "Claude ha bisogno di una risposta.";
-      clear(row);
-      row.append(h("div", { class: "sub", text: "Rispondi nel terminale: EasyIsland non può ancora rispondere al posto tuo." }));
+      (open.firstChild as HTMLElement).textContent = sessionOpenLabel(task?.sessionHost);
+      note.textContent = "Si risponde nel suo terminale.";
     },
   };
 }
@@ -628,7 +632,7 @@ function buildError(actions: ViewActions): ViewHost {
     sync() {
       const task = State.focusTask;
       clear(who);
-      who.append(agentWho(task, task?.source === "n8n" ? "n8n" : "Claude Code"));
+      who.append(agentWho(task, task?.source === "n8n" ? "n8n" : task?.agentName ?? "Claude Code"));
       title.textContent = task?.source === "n8n" ? "Workflow interrotto." : "Sessione interrotta da un errore.";
       detail.textContent = task?.steps.at(-1) ?? "Nessun dettaglio disponibile.";
       (open.firstChild as HTMLElement).textContent =
@@ -667,7 +671,7 @@ function buildFinished(actions: ViewActions): ViewHost {
     el,
     sync() {
       clear(who);
-      who.append(agentWho(State.focusTask, "Claude Code ha finito"));
+      who.append(agentWho(State.focusTask, `${State.focusTask?.agentName ?? "Claude Code"} ha finito`));
       // Claude's last message when the relay found it, else the last step.
       const said = State.focusTask?.lastMessage;
       title.classList.toggle("last-msg", !!said);
@@ -846,7 +850,7 @@ export function buildViews(
   map.set("empty", buildEmpty(actions));
   map.set("approval", buildApproval(actions));
   map.set("ask", buildAsk(actions));
-  map.set("question", buildQuestion());
+  map.set("question", buildQuestion(actions));
   map.set("error", buildError(actions));
   map.set("finished", buildFinished(actions));
   map.set("confused", buildConfused());
