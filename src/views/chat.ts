@@ -3,10 +3,11 @@
 
 import { h, svg, clear } from "./dom";
 import { ICONS } from "./icons";
-import { Bridge, type ChatContext } from "../core/bridge";
+import { Bridge, onEvent, type ChatContext } from "../core/bridge";
 import { Sound } from "../core/sound";
-import { State, type ChatMessage } from "../core/state";
+import { CHAT_ENGINES, State, engineLabel, type ChatEngine, type ChatMessage } from "../core/state";
 import { calculate, formatResult, plainResult } from "../core/calc";
+import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
 
 let nextId = 1;
@@ -27,8 +28,12 @@ function bubble(message: ChatMessage): HTMLElement {
       h("div", { class: "bubble", text: message.content }),
     );
   }
-  return h("div", { class: "chat-row" }, h("div", { class: "reply", text: message.content }));
+  // Claude answers in markdown: rendered as DOM, never as HTML (core/markdown.ts).
+  return h("div", { class: "chat-row" },
+    h("div", { class: "reply md" }, ...renderMarkdown(message.content, MD_HOOKS)));
 }
+
+const MD_HOOKS = { openUrl: (url: string) => void Bridge.openUrl(url) };
 
 function typingDots(): HTMLElement {
   return h(
@@ -47,7 +52,15 @@ function contextChip(label: string): HTMLElement {
 
 export function buildPrompt(onHeightChange: () => void): ViewHost {
   const chipRow = h("div", { class: "chip-row" });
+  // The engine and model, above the chat: a click picks another one.
+  const engineBtn = h("button", { class: "engine-pick", title: "Cambia motore della chat" }) as HTMLButtonElement;
+  const engineMenu = h("div", { class: "engine-menu" });
+  engineMenu.style.display = "none";
+  const head = h("div", { class: "chat-head" }, chipRow, engineBtn, engineMenu);
   const log = h("div", { class: "chat-log" });
+  // A reply arriving (OpenAI-compatible engines stream it, openai.rs).
+  let streamEl: HTMLElement | null = null;
+  let streamed = "";
   const input = h("input", {
     type: "text",
     class: "chat-input",
@@ -55,7 +68,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     spellcheck: "false",
   }) as HTMLInputElement;
   const send = h("button", { class: "send-btn", title: "Invia" }, svg(ICONS.arrowUp, 14));
-  const fresh = h("button", { class: "new-chat-btn", title: "Nuova chat" }, svg(ICONS.plus, 12), h("span", { text: "Nuova chat" }));
+  const fresh = h("button", { class: "new-chat-btn", title: "Nuova chat (Ctrl+N)" }, svg(ICONS.plus, 12), h("span", { text: "Nuova chat" }));
   const bar = h("div", { class: "chat-bar" }, fresh, input, send);
   // The calculator: a calculation typed in the field shows its result here.
   const calcValue = h("b", { class: "calc-value" });
@@ -88,7 +101,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
   const el = h(
     "div",
     { class: "view" },
-    h("div", { class: "card wash chat-card" }, h("div", { class: "chat-body" }, chipRow, log, calcRow, bar)),
+    h("div", { class: "card wash chat-card" }, h("div", { class: "chat-body" }, head, log, calcRow, bar)),
   );
   (el.querySelector(".card") as HTMLElement).style.setProperty("--wash", "rgba(99,102,241,0.5)");
 
@@ -121,6 +134,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
           ? { kind: "file", name: file.name, path: file.path }
           : null;
 
+    streamed = "";
     try {
       const reply = await Bridge.chatSend(query, context);
       State.chatHistory.push({ id: nextId++, role: "assistant", content: reply.text });
@@ -133,6 +147,9 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       Sound.play("error");
     } finally {
       sending = false;
+      streamed = "";
+      streamEl = null;
+      renderedCount = -1;
       State.notify();
       onHeightChange();
       input.focus();
@@ -153,6 +170,58 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     input.value = "";
     input.focus();
   }
+
+  /** Engines worth offering: Claude Code always, the others once they have a key or a model. */
+  async function readyEngines(): Promise<typeof CHAT_ENGINES> {
+    const s = State.settings;
+    const out: typeof CHAT_ENGINES = [];
+    for (const e of CHAT_ENGINES) {
+      if (e.id === s.chatEngine || e.id === "subscription") { out.push(e); continue; }
+      const hasModel = e.id === "api" || !!s.engineModels?.[e.id];
+      const hasKey = !e.key || ((await Bridge.secretPresent(e.key)) ?? false);
+      if (hasModel && hasKey) out.push(e);
+    }
+    return out;
+  }
+
+  async function toggleEngineMenu() {
+    if (engineMenu.style.display !== "none") {
+      engineMenu.style.display = "none";
+      return;
+    }
+    const list = await readyEngines();
+    clear(engineMenu);
+    for (const e of list) {
+      const label = engineLabel({ ...State.settings, chatEngine: e.id });
+      engineMenu.append(h("button", {
+        class: `engine-item${e.id === State.settings.chatEngine ? " on" : ""}`, title: e.hint, text: label,
+        onclick: () => pickEngine(e.id),
+      }));
+    }
+    engineMenu.append(h("div", { class: "engine-note", text: "Chiavi, modelli e indirizzi: Impostazioni → Chat" }));
+    engineMenu.style.display = "";
+  }
+
+  function pickEngine(id: ChatEngine) {
+    engineMenu.style.display = "none";
+    if (id === State.settings.chatEngine || sending) return;
+    State.settings.chatEngine = id;
+    void Bridge.saveSettings(State.settings);
+    // Another engine is another conversation (the backend starts over too).
+    if (State.chatHistory.length) startOver();
+    else State.notify();
+  }
+
+  engineBtn.addEventListener("click", () => void toggleEngineMenu());
+  // Drawn in the island (a native <select> menu would open behind it); a click elsewhere closes it.
+  document.addEventListener("pointerdown", (e) => {
+    if (engineMenu.style.display !== "none" && !head.contains(e.target as Node)) engineMenu.style.display = "none";
+  });
+  void onEvent<{ text: string }>("chat-stream", (p) => {
+    if (!sending) return;
+    streamed = p.text;
+    State.notify();
+  });
 
   externalSend = (q) => void submit(q);
   fresh.addEventListener("click", startOver);
@@ -186,13 +255,24 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
         if (wantChip) chipRow.append(contextChip(wantChip));
       }
 
+      engineBtn.textContent = `${engineLabel(State.settings)} ▾`;
       const thinking = State.stateOverride === "thinking";
-      const count = State.chatHistory.length + (thinking ? 0.5 : 0);
+      const count = State.chatHistory.length + (thinking ? 0.5 : 0) + (streamed ? 0.25 : 0);
       if (count !== renderedCount) {
         renderedCount = count;
         clear(log);
+        streamEl = null;
         for (const m of State.chatHistory) log.append(bubble(m));
-        if (thinking) log.append(typingDots());
+        if (thinking && streamed) {
+          streamEl = h("div", { class: "chat-row" });
+          log.append(streamEl);
+        } else if (thinking) log.append(typingDots());
+        log.scrollTop = log.scrollHeight;
+      }
+      // The growing reply: only its bubble is redrawn.
+      if (streamEl && streamEl.dataset.len !== String(streamed.length)) {
+        streamEl.dataset.len = String(streamed.length);
+        streamEl.replaceChildren(bubble({ id: 0, role: "assistant", content: streamed }).firstChild!);
         log.scrollTop = log.scrollHeight;
       }
 

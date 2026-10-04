@@ -11,7 +11,7 @@ import {
 } from "../core/layout";
 import type { Suggestion } from "./context";
 import { Sound } from "../core/sound";
-import { State } from "../core/state";
+import { State, isSessionTask } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
 import { character, setCharacter } from "../character/character";
 import { Greeting } from "../character/greeting";
@@ -40,6 +40,13 @@ const DRAG_THRESHOLD = 4;
 
 /** The three views the drop sequence owns; leaving them stops the engine. */
 const UPLOAD_VIEWS: ReadonlySet<IslandViewName> = new Set(["upload", "uploading", "choose"]);
+
+/**
+ * Views worth going back to after a permission card. The drop sequence stops
+ * when the card takes over, and the short-lived views have nothing left to say.
+ */
+const RETURNABLE = (v: IslandViewName) =>
+  !UPLOAD_VIEWS.has(v) && v !== "greeting" && v !== "confused" && v !== "note";
 
 /** Seconds between the drop and the moment the progress bar starts filling. */
 const PRE_PROGRESS = USC.T_PROG_START - USC.T_DROP;
@@ -111,6 +118,10 @@ export class Island {
 
   private confusedRecovery: number | null = null;
   private prevViewBeforeConfused: IslandViewName = "overview";
+  /** Opened from a shortcut: the island keeps the keyboard until it closes. */
+  private keyboard = false;
+  /** Where the island was before a permission card took it (rememberBeforeCard). */
+  private beforeCard: { view: IslandViewName | null; focusId: string | null } | null = null;
   private lastSyncedView: IslandViewName | null = null;
   /** Natural content height reported by the current view (0 = its fixed height). */
   private fit: { view: IslandViewName | null; h: number } = { view: null, h: 0 };
@@ -159,7 +170,7 @@ export class Island {
           integration_notion: "https://notion.so",
           integration_calcom: "https://app.cal.com/bookings",
         };
-        if (task.id === "integration_claude") {
+        if (isSessionTask(task)) {
           // A session seen by the hooks goes back to its own app; otherwise VS Code.
           if (task.sessionHost) void Bridge.openSession(task.sessionHost, task.sessionCwd ?? null);
           else void Bridge.openInVSCode(task.sessionCwd ?? null);
@@ -309,6 +320,7 @@ export class Island {
 
   private wireFsm() {
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
+    this.fsm.waiting = () => State.pendingApproval != null;
     this.fsm.onTransition = (from, to) => {
       switch (to) {
         case "hidden":
@@ -357,6 +369,7 @@ export class Island {
       // 📌 lasts for one opening: closing by hand (Esc, ✕) ends it.
       State.keepOpen = false;
       this.fsm.keepOpen = false;
+      this.keyboard = false;
       void Bridge.focusWindow(false);
     }
     if (mode !== "expanded") {
@@ -455,22 +468,56 @@ export class Island {
     State.notify();
   }
 
-  /** A pending request was answered (or left to the terminal): unpin and move on. */
-  private settleApproval(req: ApprovalInfo) {
+  /**
+   * A Claude Code permission card is about to take the island: remember the view
+   * and the pill it had, so answering goes back there.
+   */
+  rememberBeforeCard() {
+    if (this.beforeCard) return; // already showing a card: keep the first place
+    const onCard = State.view === "approval" || State.view === "ask";
+    this.beforeCard = {
+      view: State.mode === "expanded" && !onCard && RETURNABLE(State.view) ? State.view : null,
+      focusId: State.focusId,
+    };
+  }
+
+  /**
+   * A pending request was answered, left to the terminal or given up by the
+   * relay: unpin and go back to where the island was before the card.
+   */
+  settleApproval(req: ApprovalInfo) {
+    const onCard = State.view === "approval" || State.view === "ask";
+    const back = this.beforeCard;
+    this.beforeCard = null;
     State.pendingApproval = null;
     State.isPinned = false;
     this.fsm.pinned = false;
     if (req.source === "chat") {
       // Back to the conversation, which is still waiting for its answer.
-      this.setView("prompt");
+      if (onCard) this.setView("prompt");
       return;
     }
-    State.updateTask("integration_claude", "working");
-    State.setPillBadge("integration_claude", null);
-    this.setView(State.defaultView());
+    const tid = req.taskId ?? "integration_claude";
+    State.updateTask(tid, "working");
+    State.setPillBadge(tid, null);
+    if (back?.focusId && back.focusId !== State.focusId) State.setFocus(back.focusId);
+    // Somebody navigated away from the card meanwhile: leave them where they are.
+    if (onCard) this.setView(back?.view ?? State.defaultView());
   }
 
-  collapse() {
+  /**
+   * Closes the island. A permission request waiting for an answer is never
+   * closed this way (only ✕ hands it to the terminal): the island goes back to
+   * its card instead. `force` is for stepping aside on purpose (Cattura una zona).
+   */
+  collapse(force = false) {
+    const card = State.pendingCard();
+    if (card && !force) {
+      if (State.view !== card) this.setView(card);
+      State.isPinned = true;
+      this.fsm.pinned = true;
+      return;
+    }
     State.isPinned = false;
     this.fsm.pinned = false;
     // Drive the state machine rather than the mode: setting the mode behind its
@@ -583,7 +630,7 @@ export class Island {
    */
   async captureScreen() {
     Sound.play("blip");
-    this.collapse();
+    this.collapse(true);
     let file: { name: string; path: string } | null;
     try {
       file = await Bridge.captureScreen();
@@ -744,9 +791,101 @@ export class Island {
       if (!State.settings.activeIntegrations.includes("integration_clipboard")) return;
       State.setFocus("integration_clipboard");
       this.setView("overview");
+    } else if (name === "pending") {
+      const card = State.pendingCard();
+      if (!card) {
+        State.noteMessage = "Nessuna richiesta in attesa.";
+        this.setView("note");
+        window.setTimeout(() => { if (State.view === "note") this.setView(State.defaultView()); }, 1800);
+        return;
+      }
+      this.alert(card);
+    } else if (name === "session") {
+      this.openSessionApp();
+      return;
+    } else if (name === "nextPill") {
+      if (State.mode !== "expanded") this.setView("overview");
+      this.cycleFocus(1);
+    } else if (name === "mute") {
+      State.settings.soundEnabled = !State.settings.soundEnabled;
+      Sound.setEnabled(State.settings.soundEnabled);
+      if (State.settings.soundEnabled) Sound.play("blip");
+      void Bridge.saveSettings(State.settings);
+      State.notify();
+      return;
     } else if (name.startsWith("action:")) {
       const a = (State.settings.actions ?? []).find((x) => x.id === name.slice(7));
       if (a) await this.runAction(a);
+      return;
+    }
+    // Opened from the keyboard: the island takes the keys until it closes
+    // (N / Y / S on a card, arrows, Ctrl+N, Ctrl+P — see onIslandKey).
+    if (State.mode === "expanded" && (name === "open" || name === "pending" || name === "nextPill")) {
+      this.keyboard = true;
+      void Bridge.focusWindow(true);
+    }
+  }
+
+  /** The app the Claude Code session runs in (terminal, VS Code, Cursor, Claude). */
+  openSessionApp() {
+    const t = isSessionTask(State.focusTask) ? State.focusTask : State.tasks.find((x) => x.id === "integration_claude");
+    if (t?.sessionHost) void Bridge.openSession(t.sessionHost, t.sessionCwd ?? null);
+    else void Bridge.openInVSCode(t?.sessionCwd ?? null);
+  }
+
+  /** ← / → in the overview, or the "next pill" shortcut: focus the next pill. */
+  cycleFocus(dir: 1 | -1) {
+    const list = State.tasks.filter((t) => !State.isTab(t.id));
+    if (list.length < 2) return;
+    const i = list.findIndex((t) => t.id === State.focusId);
+    const next = list[(i + dir + list.length) % list.length];
+    State.setFocus(next.id);
+    Sound.play("blip");
+    if (State.view !== "overview") this.setView("overview");
+    State.notify();
+  }
+
+  /**
+   * Keys inside the open island (only when it has the keyboard: the chat, or
+   * opened by a shortcut). Buttons with `data-key` in the view on screen answer
+   * to that key (N / Y / S on a permission, 1–9 on a question); ← → move between
+   * pills, ↑ ↓ scroll the view's list; Ctrl+N new chat, Ctrl+P keep open.
+   */
+  private onIslandKey(e: KeyboardEvent) {
+    if (State.mode !== "expanded") return;
+    const typing = (e.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable='true']");
+    const ctrl = e.ctrlKey || e.metaKey;
+    const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (ctrl && !e.altKey && key === "n") {
+      e.preventDefault(); // WebView2 would open a new window
+      this.startChat("", null, false);
+      return;
+    }
+    if (ctrl && !e.altKey && key === "p") {
+      e.preventDefault(); // …or the print dialog
+      this.toggleKeepOpen();
+      return;
+    }
+    if (typing || ctrl || e.altKey || e.repeat) return;
+    const button = this.viewsEl.querySelector<HTMLElement>(`.view.on [data-key="${CSS.escape(key)}"]`);
+    if (button) {
+      e.preventDefault();
+      button.click();
+      return;
+    }
+    if (State.view === "overview" && (key === "ArrowLeft" || key === "ArrowRight")) {
+      e.preventDefault();
+      this.cycleFocus(key === "ArrowRight" ? 1 : -1);
+      return;
+    }
+    if (key === "ArrowUp" || key === "ArrowDown") {
+      const view = this.viewsEl.querySelector<HTMLElement>(".view.on");
+      const list = [...(view?.querySelectorAll<HTMLElement>("*") ?? [])].find(
+        (n) => n.scrollHeight > n.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(n).overflowY));
+      if (list) {
+        e.preventDefault();
+        list.scrollBy({ top: key === "ArrowDown" ? 48 : -48, behavior: "smooth" });
+      }
     }
   }
 
@@ -766,7 +905,7 @@ export class Island {
   setPresence(active: boolean, reason: string) {
     State.presence = { active, reason };
     Sound.suppressed = active;
-    if (State.quiet && State.mode !== "hidden" && !State.isPinned) this.fsm.forceHidden();
+    if (State.quiet && State.mode !== "hidden" && !State.isPinned && !State.pendingApproval) this.fsm.forceHidden();
     if (!State.quiet) this.keepCompactUp();
     State.notify();
   }
@@ -821,11 +960,6 @@ export class Island {
     if (State.keepOpen) this.homeCollapseAt = null;
     else if (!this.wasInIsland) this.homeCollapseAt = performance.now() + State.settings.autoCloseInterval * 1000;
     State.notify();
-  }
-
-  /** An alert stopped waiting for an answer: let the island auto-close again. */
-  dropPin() {
-    this.fsm.pinned = false;
   }
 
   // ── File drop ───────────────────────────────────────────────────────────────
@@ -1285,7 +1419,8 @@ export class Island {
     });
 
     window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned) this.collapse();
+      if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned && !State.pendingApproval) this.collapse();
+      else this.onIslandKey(e);
       State.lastActivity = performance.now();
     });
 
@@ -1328,7 +1463,7 @@ export class Island {
     if (!inIsland && this.wasInIsland) {
       this.cancelHoverOpen();
       this.fsm.mouseLeft();
-      if (this.fsm.state === "home" && !State.isPinned && !State.keepOpen) {
+      if (this.fsm.state === "home" && !State.isPinned && !State.keepOpen && !State.pendingApproval) {
         this.homeCollapseAt = performance.now() + State.settings.autoCloseInterval * 1000;
       }
     }
@@ -1580,7 +1715,7 @@ export class Island {
   }
 
   private updateCountdown(nowMs: number) {
-    if (State.mode !== "expanded" || State.isPinned || State.keepOpen || this.homeCollapseAt == null) {
+    if (State.mode !== "expanded" || State.isPinned || State.keepOpen || State.pendingApproval || this.homeCollapseAt == null) {
       this.countdown.style.width = "0px";
       return;
     }
@@ -1627,7 +1762,7 @@ export class Island {
       if (State.view === "prompt") {
         void Bridge.focusWindow(true);
         window.setTimeout(() => this.views.get("prompt")?.focus?.(), 120);
-      } else if (wasChat) {
+      } else if (wasChat && !this.keyboard) {
         void Bridge.focusWindow(false);
       }
     }

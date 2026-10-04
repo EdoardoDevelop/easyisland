@@ -20,6 +20,8 @@ export class IslandStateMachine {
   pinned = false;
   /** The 📌 button in the header: the user wants the island to stay open. */
   keepOpen = false;
+  /** A permission request is waiting: the island stays open whatever else unpinned it. */
+  waiting: () => boolean = () => false;
 
   private petitHide: number | null = null;
   private homeCollapse: number | null = null;
@@ -117,7 +119,7 @@ export class IslandStateMachine {
 
   private scheduleHomeCollapse() {
     this.clear("homeCollapse");
-    if (this.pinned || this.keepOpen) return;
+    if (this.pinned || this.keepOpen || this.waiting()) return;
     this.homeCollapse = window.setTimeout(() => {
       this.homeCollapse = null;
       if (this.state === "home") this.transition("petit");

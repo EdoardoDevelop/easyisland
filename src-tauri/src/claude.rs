@@ -33,7 +33,7 @@ pub const DEFAULT_MODEL: &str = "claude-opus-5-5";
 const SYSTEM_PROMPT: &str = "You are a personal AI assistant living at the top of the user's screen. \
 You have web search access and can help with absolutely anything — research, coding, finding places, recommendations, tasks, questions. \
 Respond in Italian unless the user writes in another language. Be thorough and complete — use as much detail as the task requires. \
-No markdown formatting (no **, no ##, no bullet dashes). Use plain text with line breaks.";
+Markdown is rendered: use short paragraphs, lists, tables and code blocks when they help.";
 
 #[derive(Default)]
 pub struct Chat {
@@ -70,19 +70,19 @@ impl Chat {
         *self.cli_session.lock().unwrap() = id;
     }
 
-    fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         self.messages.lock().unwrap().is_empty()
     }
 
-    fn push(&self, message: Value) {
+    pub(crate) fn push(&self, message: Value) {
         self.messages.lock().unwrap().push(message);
     }
 
-    fn pop(&self) {
+    pub(crate) fn pop(&self) {
         self.messages.lock().unwrap().pop();
     }
 
-    fn snapshot(&self) -> Vec<Value> {
+    pub(crate) fn snapshot(&self) -> Vec<Value> {
         self.messages.lock().unwrap().clone()
     }
 }

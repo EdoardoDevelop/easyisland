@@ -6,11 +6,12 @@ import { isSorting, sortable } from "./sortable";
 import { h, svg, clear, dot } from "./dom";
 import { ICONS } from "./icons";
 import { Ticker } from "./ticker";
-import { State, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
+import { State, engineLabel, isSessionTask, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
 import { ISLAND_CHROME_H, MAX_ISLAND_H, washRGBA, type IslandViewName, type Wash } from "../core/layout";
 import { createMiniBot, pruneMiniBots } from "../character/minibots";
 import { buildPrompt } from "./chat";
 import { buildChoose, buildFiles, buildUnzip, buildUpload, buildUploading } from "./upload";
+import { buildDiff } from "./diff";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, type ActionHandlers } from "./actions";
 
@@ -34,7 +35,8 @@ export interface ViewActions extends ActionHandlers {
   /** The ↗ button: opens whatever the focused pill points at. */
   openTarget(): void;
   openUrl(url: string): void;
-  decide(d: "allow" | "deny"): void;
+  /** "always": allow and save the rule Claude Code proposed (ApprovalInfo.always). */
+  decide(d: "allow" | "deny" | "always"): void;
   /** AskUserQuestion answered from the island: question → chosen label(s). */
   answerQuestions(answers: Record<string, string>): void;
   /** Leave the pending request to the terminal (Claude Code asks there). */
@@ -85,9 +87,10 @@ function btn(
   onClick: () => void,
   kbd?: string,
 ): HTMLElement {
+  // The key shown on the button also presses it (onIslandKey in island.ts).
   return h(
     "button",
-    { class: `btn ${kind}`, onclick: onClick },
+    { class: `btn ${kind}`, onclick: onClick, ...(kbd ? { "data-key": kbd.toLowerCase() } : {}) },
     h("span", { text: label }),
     kbd ? h("span", { class: "kbd", text: kbd }) : null,
   );
@@ -197,7 +200,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
       gearBtn.classList.toggle("on", v === "settings");
       pinBtn.classList.toggle("on", State.keepOpen);
       pinBtn.classList.toggle("pinned", State.keepOpen);
-      pinBtn.title = State.keepOpen ? "Resta aperta: clic per lasciarla chiudere da sola" : "Tieni aperta";
+      pinBtn.title = State.keepOpen ? "Resta aperta: clic per lasciarla chiudere da sola (Ctrl+P)" : "Tieni aperta (Ctrl+P)";
       clear(gearBtn);
       gearBtn.append(svg(v === "settings" ? ICONS.gearFill : ICONS.gear, 16));
       clear(soundBtn);
@@ -212,10 +215,30 @@ export function buildHeader(actions: ViewActions): ViewHost {
 
 // ── Overview ──────────────────────────────────────────────────────────────────
 
+/** Opens the diff view on `file` (a full path from State.diffs). */
+function openDiff(actions: ViewActions, file: string) {
+  State.diffFile = file;
+  State.diffTask = State.focusTask?.id ?? null;
+  actions.setView("diff");
+}
+
+/** "a.ts": the last part of a Windows or POSIX path. */
+function baseName(path: string): string {
+  return path.split(/[\\/]/).pop() || path;
+}
+
 function buildOverview(actions: ViewActions): ViewHost {
-  const ticker = new Ticker();
+  // A step with a diff ("Modifica · a.ts +12 −3"): its file's newest edit.
+  const ticker = new Ticker((text) => {
+    const name = text.replace(/\s+\+\d+ −\d+$/, "").split(" · ").pop() ?? "";
+    const d = [...State.diffs].reverse().find((x) => x.task === State.focusId && baseName(x.file) === name);
+    if (d) openDiff(actions, d.file);
+  });
   const who = h("div", { class: "who" });
-  const tickerBody = h("div", { class: "card-body" }, who, ticker.el);
+  // The session's edited files, newest first: a click opens the diff.
+  const files = h("div", { class: "diff-files" });
+  let filesKey = "";
+  const tickerBody = h("div", { class: "card-body" }, who, ticker.el, files);
   const leftBody = h("div", { class: "left-body" });
   const jump = h(
     "button",
@@ -274,7 +297,7 @@ function buildOverview(actions: ViewActions): ViewHost {
       // VS Code with a live Claude Code session keeps the ticker; every other
       // pill shows its own card, exactly like IntegrationCardView.
       const sessionActive =
-        task?.id === "integration_claude" && (task.state !== "idle" || task.steps.length > 0);
+        isSessionTask(task) && (task!.state !== "idle" || task!.steps.length > 0);
 
       if (task && sessionActive) {
         if (mode !== "ticker") {
@@ -287,7 +310,7 @@ function buildOverview(actions: ViewActions): ViewHost {
         who.append(
           dot(task.color, 7),
           h("span", { class: "name", text: task.name }),
-          h("span", { class: "tool", text: task.source === "claudeCode" ? "Claude Code" : "n8n" }),
+          h("span", { class: "tool", text: task.agentName ?? (task.source === "claudeCode" ? "Claude Code" : "n8n") }),
         );
         if (task.steps.length > 1) {
           who.append(h("span", {
@@ -296,6 +319,24 @@ function buildOverview(actions: ViewActions): ViewHost {
           }));
         }
         ticker.sync(task);
+        State.pruneDiffs();
+        const list = State.diffFiles(task!.id);
+        const key = list.map((f) => `${f.file}:${f.added}:${f.removed}`).join("|");
+        if (key !== filesKey) {
+          filesKey = key;
+          // One summary: the card is narrow, the diff view has a tab per file.
+          const added = list.reduce((s, f) => s + f.added, 0);
+          const removed = list.reduce((s, f) => s + f.removed, 0);
+          const label = list.length === 1 ? baseName(list[0].file) : `${list.length} file`;
+          files.replaceChildren(...(list.length ? [h("button", {
+            class: "diff-file", title: `Modifiche: ${list.map((f) => baseName(f.file)).join(", ")}`,
+            onclick: () => openDiff(actions, list[0].file),
+          },
+          h("span", { class: "diff-name", text: label }),
+          h("span", { class: "diff-add", text: `+${added}` }),
+          h("span", { class: "diff-del", text: `−${removed}` }))] : []));
+          files.style.display = list.length ? "" : "none";
+        }
       } else if (task) {
         const info = State.integrations[task.id];
         const key = [
@@ -347,6 +388,7 @@ function buildOverview(actions: ViewActions): ViewHost {
 /** The pill's text: the song for Musica (name and artist in the tooltip), the name otherwise. */
 function pillLabel(task: AgentTask): { text: string; title?: string; song?: boolean } {
   if (task.id === "integration_claude") return { text: "VS Code" };
+  if (task.agentName) return { text: task.agentName, title: task.name };
   if (task.id === "integration_media") {
     const d = (State.integrations[task.id]?.data ?? {}) as Record<string, unknown>;
     if (d.active && typeof d.title === "string" && d.title) {
@@ -423,8 +465,10 @@ function buildEmpty(actions: ViewActions): ViewHost {
 function buildApproval(actions: ViewActions): ViewHost {
   const who = h("div");
   const code = h("div", { class: "code" });
+  // What "Sempre" saves, said before the click (Claude Code's own proposal).
+  const always = h("div", { class: "always-hint" });
   const row = h("div", { class: "actions" });
-  const el = h("div", { class: "view" }, card("amber", stack(116, 16, who, code, row)));
+  const el = h("div", { class: "view" }, card("amber", stack(116, 16, who, code, always, row)));
   let rowKey = "";
   return {
     el,
@@ -435,23 +479,32 @@ function buildApproval(actions: ViewActions): ViewHost {
           h("span", { class: "n", text: "La chat" }),
           h("span", { text: "vuole usare un connettore" })));
       } else {
-        who.append(agentWho(State.focusTask, "chiede un permesso"));
+        const t = State.focusTask;
+        who.append(agentWho(t, t?.agentName ? `· ${t.agentName} chiede un permesso` : "chiede un permesso"));
       }
       // The whole point of approving here rather than in the terminal: this line
       // is the command, the file path or the URL being authorised, not just the
       // name of the tool asking.
       code.textContent = State.pendingApproval?.command || State.pendingApproval?.tool || "…";
-      // Two buttons, built once. Rebuilding them between a mouse-down and a
-      // mouse-up would swallow the click, and there is nothing left to vary:
-      // "Always" is gone until the remembered-rules list exists to back it.
-      if (rowKey === "built") return;
-      rowKey = "built";
+      const rule = State.pendingApproval?.source === "chat" ? undefined : State.pendingApproval?.always;
+      always.textContent = rule ? `Sempre: ${rule}` : "";
+      always.style.display = rule ? "" : "none";
+      // Rebuilt only when a request with or without "Sempre" comes in: rebuilding
+      // between a mouse-down and a mouse-up would swallow the click.
+      const key = rule ? "always" : "plain";
+      if (rowKey === key) return;
+      rowKey = key;
       clear(row);
-      row.append(
-        btn("Nega", "secondary", () => actions.decide("deny"), "N"),
-        btn("Consenti", "primary", () => actions.decide("allow"), "Y"),
-      );
+      row.append(btn("Nega", "secondary", () => actions.decide("deny"), "N"));
+      if (rule) {
+        const b = btn("Sempre", "secondary", () => actions.decide("always"), "S");
+        b.title = "Consenti e non chiedere più (la regola che propone Claude Code)";
+        row.append(b);
+      }
+      row.append(btn("Consenti", "primary", () => actions.decide("allow"), "Y"));
     },
+    // The "Sempre" line can wrap: grow rather than slide under the buttons.
+    fitHeight: () => who.offsetHeight + code.offsetHeight + always.offsetHeight + row.offsetHeight + 3 * 5 + 8 + 20,
   };
 }
 
@@ -510,8 +563,10 @@ function buildAsk(actions: ViewActions): ViewHost {
       who.append(agentWho(State.focusTask,
         all.length > 1 ? `ha ${all.length} domande · ${index + 1} di ${all.length}` : "ha una domanda"));
       title.textContent = q.question;
-      for (const o of q.options) {
-        const b = h("button", { class: "ask-opt", title: o.description, text: o.label });
+      q.options.forEach((o, i) => {
+        // 1–9 pick the option from the keyboard (onIslandKey in island.ts).
+        const b = h("button", { class: "ask-opt", title: o.description, text: o.label,
+          ...(i < 9 ? { "data-key": String(i + 1) } : {}) });
         b.addEventListener("click", () => {
           if (!q.multiSelect) return next(q, o.label);
           if (picked.has(o.label)) picked.delete(o.label);
@@ -520,8 +575,9 @@ function buildAsk(actions: ViewActions): ViewHost {
           go.disabled = picked.size === 0;
         });
         options.append(b);
-      }
-      const go = h("button", { class: "btn primary ask-go", text: index + 1 < all.length ? "Avanti" : "Invia" }) as HTMLButtonElement;
+      });
+      const go = h("button", { class: "btn primary ask-go", "data-key": "Enter",
+        text: index + 1 < all.length ? "Avanti" : "Invia" }) as HTMLButtonElement;
       go.disabled = true;
       go.addEventListener("click", () => {
         if (picked.size) next(q, q.options.map((o) => o.label).filter((l) => picked.has(l)).join(", "));
@@ -534,20 +590,23 @@ function buildAsk(actions: ViewActions): ViewHost {
 
 // ── Question ──────────────────────────────────────────────────────────────────
 
-function buildQuestion(): ViewHost {
+function buildQuestion(actions: ViewActions): ViewHost {
   const who = h("div");
   const title = h("div", { class: "title" });
-  const row = h("div", { class: "actions" });
+  const open = btn("Apri terminale", "primary", () => actions.openTerminal());
+  const note = h("div", { class: "sub" });
+  const row = h("div", { class: "actions" }, open, note);
   const el = h("div", { class: "view" }, card("cyan", stack(116, 16, who, title, row)));
   return {
     el,
     sync() {
       clear(who);
-      who.append(agentWho(State.focusTask, "Claude Code ha una domanda"));
       const task = State.focusTask;
+      // Gemini CLI asks its permissions in its own terminal: say who, and take you there.
+      who.append(agentWho(task, task?.agentName ? `${task.agentName} aspetta una risposta` : "Claude Code ha una domanda"));
       title.textContent = task?.steps.at(-1) ?? "Claude ha bisogno di una risposta.";
-      clear(row);
-      row.append(h("div", { class: "sub", text: "Rispondi nel terminale: EasyIsland non può ancora rispondere al posto tuo." }));
+      (open.firstChild as HTMLElement).textContent = sessionOpenLabel(task?.sessionHost);
+      note.textContent = "Si risponde nel suo terminale.";
     },
   };
 }
@@ -573,7 +632,7 @@ function buildError(actions: ViewActions): ViewHost {
     sync() {
       const task = State.focusTask;
       clear(who);
-      who.append(agentWho(task, task?.source === "n8n" ? "n8n" : "Claude Code"));
+      who.append(agentWho(task, task?.source === "n8n" ? "n8n" : task?.agentName ?? "Claude Code"));
       title.textContent = task?.source === "n8n" ? "Workflow interrotto." : "Sessione interrotta da un errore.";
       detail.textContent = task?.steps.at(-1) ?? "Nessun dettaglio disponibile.";
       (open.firstChild as HTMLElement).textContent =
@@ -583,6 +642,21 @@ function buildError(actions: ViewActions): ViewHost {
 }
 
 // ── Finished ──────────────────────────────────────────────────────────────────
+
+/**
+ * Claude's markdown read as plain text: no code fences, backticks, bold or
+ * heading marks. (Rendering it properly is 6.6, point 4.)
+ */
+function plainText(md: string): string {
+  return md
+    .replace(/^```.*$/gm, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*(.+?)\*\*|__(.+?)__/g, "$1$2")
+    .replace(/`([^`]+)`/g, "$1")
+    // Blank lines between paragraphs would take one of the four lines shown.
+    .replace(/\n\s*\n+/g, "\n")
+    .trim();
+}
 
 function buildFinished(actions: ViewActions): ViewHost {
   const who = h("div");
@@ -597,11 +671,17 @@ function buildFinished(actions: ViewActions): ViewHost {
     el,
     sync() {
       clear(who);
-      who.append(agentWho(State.focusTask, "Claude Code ha finito"));
-      title.textContent = State.focusTask?.steps.at(-1) ?? "Sessione terminata";
+      who.append(agentWho(State.focusTask, `${State.focusTask?.agentName ?? "Claude Code"} ha finito`));
+      // Claude's last message when the relay found it, else the last step.
+      const said = State.focusTask?.lastMessage;
+      title.classList.toggle("last-msg", !!said);
+      title.textContent = said ? plainText(said) : State.focusTask?.steps.at(-1) ?? "Sessione terminata";
       // "Apri Claude", "Apri VS Code" or "Apri terminale": where the session runs.
       (open.firstChild as HTMLElement).textContent = sessionOpenLabel(State.focusTask?.sessionHost);
     },
+    // A long last message grows the card instead of sliding under the buttons:
+    // the three rows, the stack's gaps and padding, the card's margins.
+    fitHeight: () => who.offsetHeight + title.offsetHeight + row.offsetHeight + 2 * 5 + 8 + 20,
   };
 }
 
@@ -741,7 +821,7 @@ function buildSettings(actions: ViewActions): ViewHost {
       clear(apiBadge);
       apiBadge.append(
         dot("#8E939C", 6),
-        h("span", { text: s.chatEngine === "api" ? "Chat · API" : "Chat · Abbonamento" }),
+        h("span", { text: `Chat · ${engineLabel(s)}` }),
       );
     },
   };
@@ -770,7 +850,7 @@ export function buildViews(
   map.set("empty", buildEmpty(actions));
   map.set("approval", buildApproval(actions));
   map.set("ask", buildAsk(actions));
-  map.set("question", buildQuestion());
+  map.set("question", buildQuestion(actions));
   map.set("error", buildError(actions));
   map.set("finished", buildFinished(actions));
   map.set("confused", buildConfused());
@@ -785,6 +865,7 @@ export function buildViews(
   map.set("run", buildRun(actions));
   map.set("unzip", buildUnzip(actions));
   map.set("files", buildFiles(actions));
+  map.set("diff", buildDiff(actions));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder("L'invio via email non è disponibile in questa versione.", ""));
   map.set("searching", buildPlaceholder("Claude sta cercando…", ""));

@@ -78,6 +78,8 @@ export const Bridge = {
 
   /** "Open terminal" → opens the folder in VS Code when `code` is on PATH. */
   openInVSCode: (path: string | null) => call<boolean>("open_in_vscode", { path }),
+  /** `code -g file:line`, for the diff view's ↗. */
+  openFileInVSCode: (file: string, line: number) => call<boolean>("open_file_in_vscode", { file, line }),
   /** The newer version on GitHub, or null (throws when the check fails). */
   updateCheck: () => callOrThrow<UpdateInfo | null>("update_check"),
   /** Downloads, verifies and runs the new installer; the app closes and restarts. */
@@ -93,17 +95,19 @@ export const Bridge = {
   log: (message: string) => call<void>("log_line", { message }),
 
   // ── Claude Code hooks ─────────────────────────────────────────────────────
-  hooksStatus: () => call<HookStatus>("hooks_status"),
+  /** `agent`: "codex" or "gemini" for their hooks; absent = Claude Code. */
+  hooksStatus: (agent?: string) => call<HookStatus>("hooks_status", { agent: agent ?? null }),
   /** Diff to show before anything is written. `install: false` previews removal. */
-  hooksPreview: (install: boolean) => callOrThrow<HookPreview>("hooks_preview", { install }),
+  hooksPreview: (install: boolean, agent?: string) =>
+    callOrThrow<HookPreview>("hooks_preview", { install, agent: agent ?? null }),
   /**
    * Writes ~/.claude/settings.json — only ever after an explicit click, and only
    * when the file still matches the preview the user looked at.
    */
-  hooksApply: (install: boolean, fingerprint: string) =>
-    callOrThrow<string>("hooks_apply", { install, fingerprint }),
+  hooksApply: (install: boolean, fingerprint: string, agent?: string) =>
+    callOrThrow<string>("hooks_apply", { install, fingerprint, agent: agent ?? null }),
 
-  approvalDecision: (requestId: string, decision: "allow" | "deny") =>
+  approvalDecision: (requestId: string, decision: "allow" | "deny" | "always") =>
     call<void>("approval_decision", { requestId, decision }),
   /** "The card is up" — until this lands the relay only waits a moment. */
   approvalAck: (requestId: string) => call<void>("approval_ack", { requestId }),
@@ -118,6 +122,8 @@ export const Bridge = {
   /** One chat turn. The API key and any file bytes never leave Rust. */
   chatSend: (query: string, context: ChatContext | null) =>
     callOrThrow<{ text: string }>("chat_send", { query, context }),
+  /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
+  chatModels: (engine: string, url: string | null) => callOrThrow<string[]>("chat_models", { engine, url }),
   chatReset: () => call<void>("chat_reset"),
   /** Quick actions. */
   actionOpenApp: (target: string, args: string) => callOrThrow<void>("action_open_app", { target, args }),

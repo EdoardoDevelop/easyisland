@@ -6,6 +6,7 @@
 
 import type { Island } from "../src/island/island";
 import { State } from "../src/core/state";
+import { handleHook } from "../src/island/hooks";
 
 const CLAUDE = "integration_claude";
 const wait = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
@@ -167,6 +168,86 @@ export async function runScene(island: Island, scene: string) {
       island.alert("upload");
       await wait(2500);
       break;
+    case "diff": {
+      // Edits as the relay sends them (hook/src/diff.rs), through the real handler.
+      await wait(300);
+      (window as unknown as { island: Island }).island = island;
+      const cwd = "C:\\Users\\Edoardo\\WORK\\easyisland";
+      const edit = (file: string, diff: object) => {
+        const tool_input = { file_path: `${cwd}\\${file}` };
+        handleHook(island, { hook_event_name: "PreToolUse", cwd, tool_name: "Edit", tool_input });
+        handleHook(island, { hook_event_name: "PostToolUse", cwd, tool_name: "Edit", tool_input,
+          easyisland_diff: { file: tool_input.file_path, ...diff } });
+      };
+      session("working", ["Read · src/views/ticker.ts"]);
+      island.alert("overview");
+      edit("src\\views\\ticker.ts", { added: 3, removed: 1, too_big: false, hunks: [{ old: 52, new: 52, lines: [
+        " function setText(row: Row, text: string) {",
+        "   if (row.text === text) return;",
+        "-  row.shimmer.textContent = text;",
+        "+  row.text = text;",
+        "+  fill(row.shimmer, text);",
+        "+  fill(row.dim, text);",
+        " }",
+      ] }] });
+      edit("src\\core\\state.ts", { added: 2, removed: 0, too_big: false, hunks: [{ old: 0, new: 0, lines: [
+        "   stepIndex: number;", "+  stepSeq?: number;", "+  lastMessage?: string | null;",
+      ] }] });
+      edit("src\\core\\state.ts", { added: 1, removed: 1, too_big: false, hunks: [{ old: 640, new: 642, lines: [
+        "   appendStep(id: string, step: string) {", "-    t.stepIndex = 0;", "+    t.stepSeq = 0;", "   }",
+      ] }] });
+      edit("dist\\bundle.js", { added: 5200, removed: 4100, too_big: true, hunks: [] });
+      await wait(2500);
+      break;
+    }
+    case "agents": {
+      // Codex and Gemini CLI as the relay forwards them (hook/src/agents.rs).
+      await wait(300);
+      (window as unknown as { island: Island }).island = island;
+      const codex = { id: "codex", name: "Codex", color: "#10A37F" };
+      const gemini = { id: "gemini", name: "Gemini CLI", color: "#4285F4" };
+      const cwd = "C:\\Users\\Edoardo\\WORK\\gestionale";
+      handleHook(island, { hook_event_name: "SessionStart", cwd, easyisland_agent: codex });
+      handleHook(island, { hook_event_name: "UserPromptSubmit", cwd, prompt: "Correggi il calcolo dell'IVA", easyisland_agent: codex });
+      handleHook(island, { hook_event_name: "PreToolUse", cwd, tool_name: "Bash", tool_input: { command: "cargo test" }, easyisland_agent: codex });
+      handleHook(island, { hook_event_name: "PostToolUse", cwd, tool_name: "Patch", easyisland_agent: codex,
+        easyisland_diffs: [
+          { file: "src/iva.rs", added: 2, removed: 1, too_big: false, hunks: [{ old: 0, new: 0, lines: [" fn iva(x: f64) -> f64 {", "-    x * 0.20", "+    // aliquota ordinaria", "+    x * 0.22", " }"] }] },
+          { file: "CHANGELOG.md", added: 1, removed: 0, too_big: false, hunks: [{ old: 0, new: 0, lines: ["+- IVA al 22%"] }] },
+        ] });
+      handleHook(island, { hook_event_name: "SessionStart", cwd: "C:\\Users\\Edoardo\\WORK\\sito", easyisland_agent: gemini });
+      handleHook(island, { hook_event_name: "Notification", cwd: "C:\\Users\\Edoardo\\WORK\\sito", easyisland_agent: gemini,
+        easyisland_waiting: true, message: "Chiede un permesso nel terminale: rm -rf build" });
+      island.alert("overview");
+      await wait(1500);
+      break;
+    }
+    case "finished":
+      // A finished session whose last message is long and has markdown in it.
+      await wait(300);
+      session("working", ["Edit · src/views/views.ts"]);
+      handleHook(island, { hook_event_name: "Stop", cwd: "C:\\Users\\Edoardo\\WORK\\easyisland",
+        easyisland_last_message: "Il commit `37fd214` è fatto e la versione con il diff è **installata**. L'app è ripartita alle 21:39 e il relay installato è identico a quello appena compilato. Non ho fatto il push.\n\nPer provarlo su questa sessione ho creato `prova-diff.txt` e poi l'ho modificato." });
+      await wait(1500);
+      break;
+    case "permission":
+      // Not a screenshot: a real PermissionRequest through the hook handler while
+      // the island shows another tab, to check the card shows, stays and returns.
+      // The island is left on window.island to drive the rest by hand.
+      await wait(300);
+      (window as unknown as { island: Island }).island = island;
+      session("working", ["Read · src/island/hooks.ts"]);
+      island.alert("actions");
+      await wait(600);
+      handleHook(island, {
+        hook_event_name: "PermissionRequest", request_id: "scene", session_id: "s",
+        cwd: "C:\\Users\\Edoardo\\WORK\\easyisland", tool_name: "Bash",
+        tool_input: { command: "npm run pack" },
+        permission_suggestions: [
+          { type: "addRules", rules: [{ toolName: "Bash", ruleContent: "npm run pack:*" }], behavior: "allow", destination: "localSettings" },
+        ],
+      });
+      return;
     default:
       return;
   }

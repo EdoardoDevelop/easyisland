@@ -1,4 +1,6 @@
-// Claude Code hook events → island state.
+// Claude Code hook events → island state; also Codex, Gemini CLI and any tool
+// that sends `easyisland_agent` (the relay adds it: hook/src/agents.rs), each
+// with a pill of its own (`agent:<id>`).
 // Port of HookServer.processEvent / processPermissionRequest from the macOS app.
 // Difference from macOS: no terminal filter. On Windows the hook fires from any
 // terminal (Windows Terminal, VS Code, PowerShell…) and all of them are handled.
@@ -25,6 +27,23 @@ interface HookPayload {
   tool_input?: Record<string, unknown>;
   /** Set by easyisland-hook.exe --chat: a connector call from the character's own chat. */
   easyisland_chat?: boolean;
+  /** PermissionRequest: the rules Claude Code offers to remember ("Sempre"). */
+  permission_suggestions?: unknown;
+  /** Added by the relay (hook/src/diff.rs) to Edit / MultiEdit / Write. */
+  easyisland_diff?: {
+    file?: string; added?: number; removed?: number; too_big?: boolean;
+    hunks?: { old: number; new: number; lines: string[] }[];
+  };
+  /** Codex's apply_patch: one diff per file. */
+  easyisland_diffs?: HookPayload["easyisland_diff"][];
+  /** Added by the relay to Stop: Claude's last message. */
+  easyisland_last_message?: string;
+  /** Another agent (Codex, Gemini CLI, any tool): its pill. */
+  easyisland_agent?: { id?: string; name?: string; color?: string };
+  /** Gemini asks for a permission in its terminal (the island cannot answer it). */
+  easyisland_waiting?: boolean;
+  /** Claude Code started in Cursor's terminal. */
+  cursor?: boolean;
   /** Added by the relay from the session's environment. */
   entrypoint?: string;
   term_program?: string;
@@ -33,8 +52,20 @@ interface HookPayload {
 }
 
 /** Where the session runs, from what the relay saw in its environment. */
+/** The pill an event belongs to: Claude Code's, or the agent's (made on its first event). */
+function taskFor(p: HookPayload): string {
+  const a = p.easyisland_agent;
+  if (!a?.id) return CLAUDE_ID;
+  const id = `agent:${a.id}`;
+  State.ensureAgentTask(id, a.name || a.id, a.color || "#8E939C");
+  return id;
+}
+
 function sessionHost(p: HookPayload): SessionHost {
-  if (p.entrypoint === "claude-desktop") return "desktop";
+  // CLAUDE_CODE_ENTRYPOINT describes Claude Code; another agent may only have
+  // inherited it from a terminal the Claude app opened.
+  if (p.entrypoint === "claude-desktop" && !p.easyisland_agent) return "desktop";
+  if (p.cursor) return "cursor";
   if (p.entrypoint === "claude-vscode" || p.term_program === "vscode" || p.vscode_pid) return "vscode";
   if (p.wt_session) return "wt";
   return "terminal";
@@ -151,11 +182,9 @@ function handleChatPermission(island: Island, payload: HookPayload) {
   // The relay gives up after ~110 s and the call is refused; the card must not
   // outlive it.
   window.setTimeout(() => {
-    if (State.pendingApproval?.requestId !== requestId) return;
-    State.pendingApproval = null;
-    State.isPinned = false;
-    island.dropPin();
-    if (State.view === "approval") island.setView("prompt");
+    const req = State.pendingApproval;
+    if (req?.requestId !== requestId) return;
+    island.settleApproval(req);
     State.notify();
   }, 110_000);
 }
@@ -202,6 +231,43 @@ const TOOL_LABELS: Record<string, string> = {
   NotebookEdit: "Notebook",
   PowerShell: "Esegue",
 };
+
+/**
+ * "Sempre", in words: what Claude Code proposed in permission_suggestions,
+ * picked exactly as the relay picks it (always_rules in hook/src/main.rs).
+ * Null when nothing usable was proposed — then there is no "Sempre" button.
+ */
+function alwaysLabel(suggestions: unknown): string | null {
+  if (!Array.isArray(suggestions)) return null;
+  const where = (d: unknown) =>
+    d === "session" ? "in questa sessione" : d === "projectSettings" ? "in questo progetto" : "in questo progetto, solo per te";
+  const parts: string[] = [];
+  for (const s of suggestions as Record<string, unknown>[]) {
+    if (!s || typeof s !== "object") continue;
+    const type = typeof s.type === "string" ? s.type : "addRules";
+    if (type === "addRules" && s.behavior === "allow" && Array.isArray(s.rules) && s.rules.length) {
+      const rules = (s.rules as Record<string, unknown>[]).map((r) =>
+        typeof r.ruleContent === "string" && r.ruleContent ? `${r.toolName}(${r.ruleContent})` : String(r.toolName ?? ""));
+      parts.push(`${rules.join(", ")} ${where(s.destination)}`);
+    } else if (type === "addDirectories" && Array.isArray(s.directories) && s.directories.length) {
+      parts.push(`accesso a ${(s.directories as string[]).join(", ")} ${where(s.destination)}`);
+    } else if (type === "setMode" && s.mode === "acceptEdits") {
+      parts.push("tutte le modifiche ai file in questa sessione");
+    }
+  }
+  return parts.length ? parts.join("; ") : null;
+}
+
+/** " +12 −3": the edit's balance, as the ticker colours it (views/ticker.ts). */
+export function diffCounts(added: number, removed: number): string {
+  return `  +${added} −${removed}`;
+}
+
+/** The first non-empty line, cut to `n` characters. */
+function firstLine(text: string, n: number): string {
+  const line = text.split(/\r?\n/).map((l) => l.trim()).find((l) => l) ?? "";
+  return line.length > n ? `${line.slice(0, n - 1)}…` : line;
+}
 
 function stepLabel(tool: string, input: Record<string, unknown>): string {
   const label = TOOL_LABELS[tool] ?? tool;
@@ -266,20 +332,22 @@ function approvalTarget(tool: string, input: Record<string, unknown>): string {
   return tool;
 }
 
-function upsert(projectName: string, cwd: string, host?: SessionHost) {
-  const t = State.tasks.find((x) => x.id === CLAUDE_ID);
+function upsert(tid: string, projectName: string, cwd: string, host?: SessionHost) {
+  const t = State.tasks.find((x) => x.id === tid);
   if (!t) return;
   t.name = projectName;
   if (cwd) t.sessionCwd = cwd;
   if (host) t.sessionHost = host;
 }
 
-function clearSession() {
-  const t = State.tasks.find((x) => x.id === CLAUDE_ID);
+function clearSession(tid: string) {
+  const t = State.tasks.find((x) => x.id === tid);
   if (!t) return;
   t.steps = [];
   t.stepIndex = 0;
-  t.name = "VS Code";
+  t.stepSeq = 0;
+  t.lastMessage = null;
+  t.name = t.agentName ?? "VS Code";
   t.pillBadge = null;
 }
 
@@ -287,7 +355,7 @@ export function registerHookHandlers(island: Island) {
   void onEvent<HookPayload>("hook", (payload) => handleHook(island, payload));
 }
 
-function handleHook(island: Island, payload: HookPayload) {
+export function handleHook(island: Island, payload: HookPayload) {
   if (State.paused) {
     // Silence here used to cost Claude Code nearly two minutes: the relay waited
     // for a decision from an island that had already decided not to look. Say so,
@@ -314,11 +382,12 @@ function handleHook(island: Island, payload: HookPayload) {
     if (name === "PermissionRequest") handleChatPermission(island, payload);
     return;
   }
+  const tid = taskFor(payload);
   const cwd = payload.cwd ?? "";
   const raw = lastPathComponent(cwd);
   const projectName = aliasProjectName(raw || "Session");
   const host = sessionHost(payload);
-  const focused = State.focusId === CLAUDE_ID;
+  const focused = State.focusId === tid;
 
   /** Alerts force the island open; work events only reveal the compact island. */
   const surface = (view: Parameters<Island["alert"]>[0], isAlert: boolean) => {
@@ -326,7 +395,7 @@ function handleHook(island: Island, payload: HookPayload) {
     // anything else waits as a badge for the next time the island is opened.
     if (quietNow() && view !== "approval") {
       if (view === "finished" || view === "error" || view === "question") {
-        State.setPillBadge(CLAUDE_ID, view === "question" ? "approval" : view);
+        State.setPillBadge(tid, view === "question" ? "approval" : view);
       }
       return;
     }
@@ -341,82 +410,130 @@ function handleHook(island: Island, payload: HookPayload) {
 
   switch (name) {
     case "SessionStart":
-      upsert(projectName, cwd, host);
+      upsert(tid, projectName, cwd, host);
       surface("overview", false);
       Sound.play("work");
       break;
 
     case "UserPromptSubmit": {
-      upsert(projectName, cwd, host);
-      State.updateTask(CLAUDE_ID, "thinking");
+      upsert(tid, projectName, cwd, host);
+      State.updateTask(tid, "thinking");
+      const t = State.tasks.find((x) => x.id === tid);
+      if (t) t.lastMessage = null;
       // The field is `prompt`; reading `message` meant this step was always blank.
       const asked = payload.prompt ?? payload.message;
-      if (asked) State.appendStep(CLAUDE_ID, asked.slice(0, 60));
+      if (asked) State.appendStep(tid, asked.slice(0, 60));
       surface("overview", false);
       break;
     }
 
     case "PreToolUse": {
-      upsert(projectName, cwd, host);
-      State.updateTask(CLAUDE_ID, "working");
+      upsert(tid, projectName, cwd, host);
+      State.updateTask(tid, "working");
       const tool = payload.tool_name ?? "Strumento";
-      State.appendStep(CLAUDE_ID, stepLabel(tool, payload.tool_input ?? {}));
+      State.appendStep(tid, stepLabel(tool, payload.tool_input ?? {}));
       surface("overview", false);
       break;
     }
 
-    case "PostToolUse":
-      State.updateTask(CLAUDE_ID, "working");
+    case "PostToolUse": {
+      State.updateTask(tid, "working");
+      const d = payload.easyisland_diff;
+      for (const x of [d, ...(payload.easyisland_diffs ?? [])]) {
+        if (!x?.file) continue;
+        State.addDiff({
+          task: tid, file: x.file, added: x.added ?? 0, removed: x.removed ?? 0,
+          tooBig: x.too_big === true, hunks: Array.isArray(x.hunks) ? x.hunks : [],
+        });
+      }
+      if (d?.file) {
+        // "Modifica · island.ts" becomes "Modifica · island.ts +12 −3".
+        const step = stepLabel(payload.tool_name ?? "", payload.tool_input ?? {});
+        State.replaceStep(tid, step, `${step}${diffCounts(d.added ?? 0, d.removed ?? 0)}`);
+      } else if (payload.easyisland_diffs?.length) {
+        // Codex's patch: one step with every file it touched.
+        const all = payload.easyisland_diffs.filter((x) => x?.file);
+        const add = all.reduce((n, x) => n + (x?.added ?? 0), 0);
+        const del = all.reduce((n, x) => n + (x?.removed ?? 0), 0);
+        const names = all.map((x) => lastPathComponent(x!.file!)).join(", ");
+        State.appendStep(tid, `Modifica · ${names}${diffCounts(add, del)}`);
+      }
       break;
+    }
 
     case "PostToolUseFailure":
-      State.updateTask(CLAUDE_ID, "working");
-      State.appendStep(CLAUDE_ID, "⚠ fallito");
+      State.updateTask(tid, "working");
+      State.appendStep(tid, "⚠ fallito");
       break;
 
     case "Notification": {
       const message = payload.message ?? "";
+      if (payload.easyisland_waiting) {
+        // Gemini asks in its terminal: say so, loudly enough to be seen.
+        upsert(tid, projectName, cwd, host);
+        State.updateTask(tid, "question");
+        State.appendStep(tid, message.slice(0, 80));
+        Sound.play("question");
+        // Like a permission card: it blocks the agent, so it shows (a badge only
+        // over a full-screen app or in front of a client).
+        if (quietNow()) State.setPillBadge(tid, "approval");
+        else {
+          State.setFocus(tid);
+          island.alert("question");
+        }
+        break;
+      }
       const lower = message.toLowerCase();
       if (lower.includes("rate limit") || lower.includes("limite d")) {
-        State.updateTask(CLAUDE_ID, "ratelimit");
+        State.updateTask(tid, "ratelimit");
         Sound.play("rate");
       } else if (message.endsWith("?")) {
-        State.updateTask(CLAUDE_ID, "question");
-        State.appendStep(CLAUDE_ID, message);
+        State.updateTask(tid, "question");
+        State.appendStep(tid, message);
       }
       break;
     }
 
     case "Stop":
-      State.updateTask(CLAUDE_ID, "finished");
-      if (payload.message) State.appendStep(CLAUDE_ID, payload.message.slice(0, 60));
+      State.updateTask(tid, "finished");
+      {
+        // Claude's last words replace the last step as what the session ended on.
+        const said = payload.easyisland_last_message?.trim() || payload.message?.trim() || "";
+        const t = State.tasks.find((x) => x.id === tid);
+        if (t) t.lastMessage = said || null;
+        if (said) State.appendStep(tid, firstLine(said, 80));
+      }
       Sound.play("finish");
       if (focused) surface("finished", true);
-      else State.setPillBadge(CLAUDE_ID, "finished");
+      else State.setPillBadge(tid, "finished");
       window.setTimeout(() => {
-        State.updateTask(CLAUDE_ID, "idle");
-        State.setPillBadge(CLAUDE_ID, null);
+        State.updateTask(tid, "idle");
+        State.setPillBadge(tid, null);
       }, 5200);
       break;
 
     case "StopFailure":
-      State.updateTask(CLAUDE_ID, "error");
+      State.updateTask(tid, "error");
       Sound.play("error");
       if (focused) surface("error", true);
-      else State.setPillBadge(CLAUDE_ID, "error");
+      else State.setPillBadge(tid, "error");
       break;
 
     case "SessionEnd":
-      State.updateTask(CLAUDE_ID, "idle");
-      clearSession();
+      State.updateTask(tid, "idle");
+      clearSession(tid);
+      // The diffs live as long as the session (or an hour, see State.addDiff).
+      State.diffs = State.diffs.filter((d) => d.task !== tid);
+      // Another agent's pill lasts as long as its session.
+      if (tid !== CLAUDE_ID) State.removeTask(tid);
       break;
 
     case "SubagentStart":
-      State.appendStep(CLAUDE_ID, "+ sub-agente");
+      State.appendStep(tid, "+ sub-agente");
       break;
 
     case "SubagentStop":
-      State.appendStep(CLAUDE_ID, "• sub-agente finito");
+      State.appendStep(tid, "• sub-agente finito");
       break;
 
     case "PermissionRequest": {
@@ -428,49 +545,40 @@ function handleHook(island: Island, payload: HookPayload) {
         if (requestId) void Bridge.approvalDecline(requestId);
         break;
       }
-      upsert(projectName, cwd, host);
+      upsert(tid, projectName, cwd, host);
       if (pendingTimeout != null) window.clearTimeout(pendingTimeout);
       const tool = payload.tool_name ?? "Strumento";
       const input = payload.tool_input ?? {};
       const questions = tool === "AskUserQuestion" ? askQuestions(input) : null;
+      const always = questions ? null : alwaysLabel(payload.permission_suggestions);
       State.pendingApproval = {
         requestId,
+        taskId: tid,
         sessionId: payload.session_id ?? "",
         tool,
         command: approvalTarget(tool, input),
         ...(questions ? { questions } : {}),
+        ...(always ? { always } : {}),
       };
       const card = questions ? "ask" : "approval";
       // The relay's short ack window closes in 800 ms; everything below this
       // line is synchronous, so the card really is up by the time it lands.
       if (requestId) void Bridge.approvalAck(requestId);
-      State.updateTask(CLAUDE_ID, "approval");
+      State.updateTask(tid, "approval");
       State.isPinned = true;
       Sound.play("approval");
-      if (focused) {
-        island.alert(card);
-      } else if (quietNow()) {
-        // A badge on a hidden island would go unseen behind the full-screen app.
-        State.setFocus(CLAUDE_ID);
-        island.alert(card);
-      } else {
-        // Another agent holds the view, so the card would yank it away. The badge
-        // is the signal instead — but it has to be on screen for that to mean
-        // anything, hence the reveal. We just told the relay a human can act.
-        State.setPillBadge(CLAUDE_ID, "approval");
-        island.reveal();
-      }
+      // Claude Code is stopped until someone answers, so the card always shows,
+      // even over another pill or view; answering goes back there.
+      island.rememberBeforeCard();
+      State.setFocus(tid);
+      island.alert(card);
       // EasyIsland answers within 108 s or not at all; after that the terminal has
       // taken over and the card would be lying.
       pendingTimeout = window.setTimeout(() => {
         pendingTimeout = null;
-        if (!State.pendingApproval) return;
-        State.pendingApproval = null;
-        State.isPinned = false;
-        island.dropPin();
-        State.updateTask(CLAUDE_ID, "working");
-        State.setPillBadge(CLAUDE_ID, null);
-        if (State.view === "approval" || State.view === "ask") island.setView(State.defaultView());
+        const req = State.pendingApproval;
+        if (!req || req.requestId !== requestId) return;
+        island.settleApproval(req);
         State.notify();
       }, 110_000);
       break;

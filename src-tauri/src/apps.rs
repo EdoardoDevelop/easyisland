@@ -125,6 +125,22 @@ pub fn open_vscode(path: Option<&str>) -> bool {
     cmd.creation_flags(CREATE_NO_WINDOW).spawn().is_ok()
 }
 
+/// `code -g <file>:<line>`: the diff view's ↗. Only an existing file given by
+/// its full path; the argument goes over as one, no shell involved.
+pub fn open_vscode_at(file: &str, line: u32) -> bool {
+    let path = std::path::Path::new(file);
+    if !path.is_absolute() || !path.is_file() {
+        return false;
+    }
+    let Some(code) = find_vscode() else { return false };
+    Command::new(code)
+        .arg("-g")
+        .arg(format!("{file}:{}", line.max(1)))
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+        .is_ok()
+}
+
 fn open_folder(path: Option<&str>) -> bool {
     match path.filter(|p| !p.is_empty()) {
         Some(p) => Command::new("explorer").arg(p).spawn().is_ok(),
@@ -150,6 +166,26 @@ pub fn open_session(host: &str, path: Option<&str>) -> &'static str {
         "wt" => {
             if focus_app(&["windowsterminal.exe"]) {
                 return "terminal";
+            }
+        }
+        // Claude Code in Cursor's terminal: Cursor's window, or Cursor on the folder.
+        "cursor" => {
+            if focus_app(&["cursor.exe"]) {
+                return "cursor";
+            }
+            let launcher = crate::find_on_path("cursor").or_else(|| {
+                std::env::var_os("LOCALAPPDATA")
+                    .map(|l| PathBuf::from(l).join(r"Programs\cursor\resources\app\bin\cursor.cmd"))
+                    .filter(|p| p.is_file())
+            });
+            if let Some(cursor) = launcher {
+                let mut cmd = Command::new(cursor);
+                if let Some(p) = path.filter(|p| !p.is_empty()) {
+                    cmd.arg(p);
+                }
+                if cmd.creation_flags(CREATE_NO_WINDOW).spawn().is_ok() {
+                    return "cursor";
+                }
             }
         }
         _ => {

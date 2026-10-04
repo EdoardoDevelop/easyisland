@@ -76,7 +76,7 @@ const SYSTEM_PROMPT: &str = "You are the personal assistant living in a small ch
 You are not working on a codebase here: never try to edit files or run commands. \
 Use WebSearch and WebFetch when the question needs current or external information, and Read to look at a file the user attached. \
 Respond in Italian unless the user writes in another language. Be thorough but keep it readable in a small window. \
-No markdown formatting (no **, no ##, no bullet dashes). Use plain text with line breaks.";
+Markdown is rendered: use short paragraphs, lists, tables and code blocks when they help.";
 
 /// Where `claude` lives: %PATH% first (npm installs `claude.cmd`), then the
 /// native installer's and npm's default folders, which a GUI app launched at
