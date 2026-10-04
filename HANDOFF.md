@@ -6,7 +6,7 @@ _Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versio
 
 ## 1. Com'è il progetto adesso
 
-**Versione pubblicata: 0.5.2** (tag `v0.5.2`, 4 ottobre 2026; repository pubblico `EdoardoDevelop/easyisland`, le app installate dalla 0.2.0 in poi si aggiornano da sole dopo un clic).
+**Versione pubblicata: 0.5.3** (tag `v0.5.3`, 4 ottobre 2026; repository pubblico `EdoardoDevelop/easyisland`, le app installate dalla 0.2.0 in poi si aggiornano da sole dopo un clic).
 
 **Cosa fa oggi, in breve:**
 - **Isola con personaggio** (Slime, Goccia o EasyTech, il cubo) in alto al centro o dove la trascini, con vista compatta, aggancio ai bordi, sopra la barra delle applicazioni, suoni sintetizzati nel codice.
@@ -236,6 +236,9 @@ Pensate per il supporto IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi facciamo il widget «Oggi» (6.3)"_, _"proviamo dal vivo le automazioni"_ oppure _"valutiamo un'idea della sezione 7"_. Per una nuova versione: stesso numero nei tre file, unione di `claude/sviluppo` in `main`, tag `vX.Y.Z`. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 4 ottobre 2026 — versione 0.5.3
+- Versione **0.5.3** nei tre file (più `package-lock.json` e `Cargo.lock`), `claude/sviluppo` unito in `main`, tag `v0.5.3`. Rispetto alla 0.5.2: integrazione 3CX (prima versione, con il centralino vero verificati solo login e stato dell'interno), isola spostabile anche a riposo e da aperta (spostamento temporaneo, rientro con la curva di chiusura), scelta del dispositivo disegnata nella scheda, spiegazione quando Gestione credenziali è piena.
 
 ### 4 ottobre 2026 — integrazione 3CX (prima versione), isola spostabile ovunque
 - **3CX** (`integration_3cx`, `src-tauri/src/threecx/`, scheda `src/views/threecx.ts`): chiamare (numero o ricerca in rubrica, Invio chiama), chiamate in arrivo (l'isola si apre sulla scheda 3CX con suono e resta aperta finché squilla, `threecx-call` → `incomingCall` in `src/island/integrations.ts`; "davanti al cliente" = solo badge), Rispondi / Rifiuta / Riaggancia, durata della chiamata, stato modificabile, chiamate perse, Recenti, scelta del dispositivo ("Da …", `integrationConfig.threecxDevice`, elenco disegnato nella scheda perché il menu nativo di un `<select>` finisce dietro l'isola).
