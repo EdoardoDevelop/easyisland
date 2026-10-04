@@ -1,12 +1,12 @@
 # Handoff — EasyIsland (solo Windows)
 
-_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versione 0.5.4, handoff riallineato al codice, named pipe solo per il proprio utente). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
+_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versione 0.5.5: roadmap 6.6 tranne il personaggio). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
 
 > Questo file va tenuto **sempre aggiornato**: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al **Registro delle modifiche** (sezione 10), con data, cosa è cambiato e cosa resta aperto.
 
 ## 1. Com'è il progetto adesso
 
-**Versione pubblicata: 0.5.4** (tag `v0.5.4`, 4 ottobre 2026; repository pubblico `EdoardoDevelop/easyisland`, le app installate dalla 0.2.0 in poi si aggiornano da sole dopo un clic).
+**Versione pubblicata: 0.5.5** (tag `v0.5.5`, 4 ottobre 2026; repository pubblico `EdoardoDevelop/easyisland`, le app installate dalla 0.2.0 in poi si aggiornano da sole dopo un clic).
 
 **Cosa fa oggi, in breve:**
 - **Isola con personaggio** (Slime, Goccia o EasyTech, il cubo) in alto al centro o dove la trascini, con vista compatta, aggancio ai bordi, sopra la barra delle applicazioni, suoni sintetizzati nel codice.
@@ -110,8 +110,8 @@ _Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versio
 
 **Distribuzione:**
 - [x] Release su GitHub dai tag `vX.Y.Z` con aggiornamento automatico firmato (2 ottobre 2026). La versione deve coincidere in `package.json`, `Cargo.toml` e `tauri.conf.json` (la CI lo controlla). Passi in README → Pubblicare una versione.
-- [x] Repository pubblico (`EdoardoDevelop/easyisland`) e secret `TAURI_SIGNING_PRIVATE_KEY`: le release dalla 0.3.0 alla 0.5.4 sono state pubblicate dalla CI (verificato il 4 ottobre 2026).
-- [ ] Sul repo c'è anche un tag `windows-latest` con la release "EasyIsland per Windows (ultima)" del 2 ottobre (0.2.0), probabilmente creato per sbaglio. Non dà fastidio all'updater, che legge `releases/latest` (oggi la 0.5.4), ma può confondere chi scarica a mano: valutare se eliminarlo.
+- [x] Repository pubblico (`EdoardoDevelop/easyisland`) e secret `TAURI_SIGNING_PRIVATE_KEY`: le release dalla 0.3.0 alla 0.5.5 sono state pubblicate dalla CI (verificato il 4 ottobre 2026).
+- [ ] Sul repo c'è anche un tag `windows-latest` con la release "EasyIsland per Windows (ultima)" del 2 ottobre (0.2.0), probabilmente creato per sbaglio. Non dà fastidio all'updater, che legge `releases/latest` (oggi la 0.5.5), ma può confondere chi scarica a mano: valutare se eliminarlo.
 - [ ] Firma del codice (certificato Authenticode o Azure Trusted Signing, circa 10 $/mese). Senza, SmartScreen avvisa al primo download manuale e Defender ha già dato un falso positivo una volta. Gli aggiornamenti scaricati dall'app non passano da SmartScreen.
 - La chiave privata dell'updater è fuori dal repo (`%USERPROFILE%\.tauri\easyisland.key`, senza password): **va conservata**, se si perde le app installate non accettano più aggiornamenti. Conviene una copia di backup fuori dal PC (chiavetta o gestore di password), oltre al secret su GitHub che non si può rileggere.
 
@@ -267,6 +267,9 @@ Pensate per il supporto IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi facciamo il diff in tempo reale (6.6, punto 1)"_, _"proviamo dal vivo le automazioni"_ oppure _"valutiamo un'idea della sezione 7"_. Per una nuova versione: stesso numero nei tre file, unione di `claude/sviluppo` in `main`, tag `vX.Y.Z`. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 4 ottobre 2026 — versione 0.5.5
+- Versione **0.5.5** nei tre file (più `package-lock.json` e `Cargo.lock`), `claude/sviluppo` unito in `main`, tag `v0.5.5`. Rispetto alla 0.5.4: named pipe solo per il proprio utente, richiesta di permesso che resta finché non rispondi, diff in tempo reale e ultimo messaggio, "Sempre" sui permessi, markdown nella chat, scorciatoie (globali e nell'isola), altri motori per la chat (OpenRouter, OpenAI, Gemini, Ollama, LM Studio), altri agenti (Codex, Gemini CLI, Cursor, `easyisland_agent`). Installata e provata sul PC di Edoardo prima del tag.
 
 ### 4 ottobre 2026 — scorciatoie, altri motori per la chat, altri agenti (6.6, punti 8, 6, 5)
 - **Scorciatoie (8).** Globali nuove: `hotkeyPending` (`Ctrl+Alt+Shift+P`: la card in attesa, oppure "Nessuna richiesta in attesa"), `hotkeySession` (`Ctrl+Alt+Shift+T`: l'app della sessione in primo piano), `hotkeyNextPill` e `hotkeyMute` (vuote di serie). L'isola è `WS_EX_NOACTIVATE`: prende la tastiera solo nella chat o quando la si apre da una scorciatoia (apri, richiesta in attesa, pillola successiva), finché non si richiude (`keyboard` in `island.ts`). Allora i pulsanti con `data-key` rispondono al loro tasto (N / Y / S sulla card, 1–9 sulle opzioni di una domanda, Invio su "Invia"), ← → cambiano pillola, ↑ ↓ scorrono la lista della vista, Ctrl+N nuova chat, Ctrl+P tieni aperta (con `preventDefault`: WebView2 aprirebbe una finestra o la stampa). Righe e suggerimenti in Impostazioni → Azioni rapide.
