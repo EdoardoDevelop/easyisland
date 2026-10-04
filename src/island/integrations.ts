@@ -2,7 +2,8 @@
 // pollers: a genuinely new item flips the pill to finished/error, badges it when
 // the pill isn't focused, plays a sound, and clears itself after 60 s.
 
-import { onEvent, Bridge, type IntegrationUpdate } from "../core/bridge";
+import { onEvent, Bridge, type IntegrationUpdate, type ThreecxCall } from "../core/bridge";
+import { THREECX, ringing } from "../views/threecx";
 import { Sound } from "../core/sound";
 import { State, type WidgetStatus } from "../core/state";
 import type { Island } from "./island";
@@ -24,6 +25,7 @@ const clearTimers = new Map<string, number>();
 export function registerIntegrationHandlers(island: Island) {
   void onEvent<IntegrationUpdate>("integration", (update) => handle(island, update));
   void onEvent<WidgetStatus>("widget-update", (r) => handleWidget(island, r));
+  void onEvent<ThreecxCall>("threecx-call", (c) => incomingCall(island, c));
   void refreshConfigured();
 }
 
@@ -80,6 +82,30 @@ function handleWidget(island: Island, r: WidgetStatus) {
   State.notify();
 }
 
+/** Kept open by a ringing call (so the island lets go once it stops). */
+let heldByCall = false;
+
+/**
+ * 3CX: someone is calling. The island opens on the 3CX card with Rispondi /
+ * Rifiuta and stays open while it rings. In front of a client only the pill
+ * is badged: no caller name on a shared screen.
+ */
+function incomingCall(island: Island, _c: ThreecxCall) {
+  if (State.paused) return;
+  const task = State.tasks.find((t) => t.id === THREECX);
+  if (!task) return;
+  if (State.focusId !== THREECX) task.pillBadge = "approval";
+  Sound.play("question");
+  if (State.quiet) {
+    State.notify();
+    return;
+  }
+  State.setFocus(THREECX);
+  heldByCall = true;
+  island.setPinned(true);
+  island.alert("overview");
+}
+
 function handle(island: Island, update: IntegrationUpdate) {
   if (State.paused) return;
 
@@ -90,6 +116,16 @@ function handle(island: Island, update: IntegrationUpdate) {
     loaded: update.error ? (previous?.loaded ?? false) : true,
     configured: previous?.configured ?? true,
   };
+
+  // The call stopped ringing (answered, declined, hung up): stop holding the island.
+  if (update.id === THREECX && !ringing()) {
+    const task = State.tasks.find((t) => t.id === THREECX);
+    if (task?.pillBadge === "approval") task.pillBadge = null;
+    if (heldByCall) {
+      heldByCall = false;
+      island.setPinned(false);
+    }
+  }
 
   const event = update.event;
   if (event) {

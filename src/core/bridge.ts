@@ -46,6 +46,8 @@ export const Bridge = {
   saveSettings: (settings: Settings) => call<void>("save_settings", { settings }),
 
   /** Shrink the window down to the invisible wake strip (hidden) or back to full. */
+  /** Open or closed: closing takes a dragged open island back to the character's place. */
+  setExpanded: (expanded: boolean) => call<void>("set_expanded", { expanded }),
   setCollapsed: (collapsed: boolean, width?: number, height?: number) =>
     call<void>("set_collapsed", { collapsed, width, height }),
 
@@ -192,6 +194,15 @@ export const Bridge = {
   openN8n: () => call<void>("open_n8n"),
   openZammad: () => call<void>("open_zammad"),
 
+  // ── 3CX ───────────────────────────────────────────────────────────────────
+  threecxCall: (number: string, device: string | null) => callOrThrow<void>("threecx_call", { number, device }),
+  /** "answer" | "hangup" | "decline" */
+  threecxAction: (id: string, action: string) => callOrThrow<void>("threecx_action", { id, action }),
+  threecxContacts: (query: string) => callOrThrow<ThreecxContact[]>("threecx_contacts", { query }),
+  threecxHistory: (missed: boolean) => callOrThrow<ThreecxHistoryItem[]>("threecx_history", { missed }),
+  threecxStatus: (profile: string) => callOrThrow<void>("threecx_status", { profile }),
+  threecxResetMissed: () => call<void>("threecx_reset_missed"),
+
   /** Tray → Pause. Stops the integration pollers, not just the island. */
   setPaused: (paused: boolean) => call<void>("set_paused", { paused }),
 };
@@ -207,6 +218,32 @@ export type ChatContext =
   | { kind: "file"; name: string; path: string }
   | { kind: "text"; label: string; text: string }
   | { kind: "window"; appName: string; title: string; url?: string };
+
+export interface ThreecxContact {
+  name: string;
+  company: string;
+  numbers: string[];
+  colleague: boolean;
+}
+
+export interface ThreecxHistoryItem {
+  name: string;
+  number: string;
+  kind: "missed" | "received" | "outgoing" | "other";
+  at: number;
+  answered: boolean;
+}
+
+/** A call of the extension, as the 3CX integration reports it. */
+export interface ThreecxCall {
+  id: string;
+  state: "ringing" | "dialing" | "connected" | "other";
+  incoming: boolean;
+  name: string;
+  number: string;
+  since: number;
+  canAnswer: boolean;
+}
 
 export interface DroppedFile {
   name: string;

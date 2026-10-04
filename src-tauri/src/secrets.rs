@@ -18,6 +18,11 @@ pub const KNOWN_KEYS: &[&str] = &[
     "calcom-api-key",
     "zammad-url",
     "zammad-token",
+    "3cx-url",
+    "3cx-user",
+    "3cx-password",
+    "3cx-client-id",
+    "3cx-client-secret",
 ];
 
 /// Widget header secrets: `widget:<widget id>:<header name>`, plain characters

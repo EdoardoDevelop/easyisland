@@ -380,8 +380,8 @@ interface IntegrationDef {
   id: string;
   name: string;
   color: string;
-  /** Credential Manager keys, in the order they are shown. */
-  fields: { key: string; label: string; placeholder: string; secret: boolean }[];
+  /** Credential Manager keys, in the order they are shown; `when` hides a field that does not apply. */
+  fields: { key: string; label: string; placeholder: string; secret: boolean; when?: (c: IntegrationConfig) => boolean }[];
   /** Options kept in settings.integrationConfig (the integrations run as checks). */
   options?: IntegrationOption[];
   /** What it shows and where the data comes from. */
@@ -390,8 +390,12 @@ interface IntegrationDef {
 
 interface IntegrationOption {
   label: string;
-  type: "number" | "text";
+  type: "number" | "text" | "select";
   placeholder: string;
+  /** For "select": value → label. */
+  choices?: [string, string][];
+  /** Shown only when this holds (it is checked again when an option changes). */
+  when?: (c: IntegrationConfig) => boolean;
   /** Shown after the field. */
   unit?: string;
   get(c: IntegrationConfig): string | number;
@@ -428,6 +432,22 @@ const INTEGRATIONS: IntegrationDef[] = [
       { key: "zammad-token", label: "Token", placeholder: "token di accesso", secret: true },
     ],
     hint: "In Zammad: avatar → Profilo → Token di accesso → Crea, con il permesso ticket.agent. Ticket assegnati a te, non assegnati e in escalation (avviso giallo); il personaggio ti avvisa quando arriva un nuovo ticket da assegnare." },
+  { id: "integration_3cx", name: "3CX", color: "#0596D4",
+    options: [
+      { label: "Accesso", type: "select", placeholder: "",
+        choices: [["user", "Interno e password (come l'app 3CX)"], ["api", "Client API (Admin Console, licenza 8SC+)"]],
+        get: (c) => c.threecxMode ?? "user", set: (c, v) => { c.threecxMode = v === "api" ? "api" : "user"; } },
+      { label: "Interno", type: "text", placeholder: "es. 101", when: (c) => c.threecxMode === "api",
+        get: (c) => c.threecxExtension ?? "", set: (c, v) => { c.threecxExtension = v.trim(); } },
+    ],
+    fields: [
+      { key: "3cx-url", label: "Indirizzo", placeholder: "https://azienda.my3cx.it:5001", secret: false },
+      { key: "3cx-user", label: "Interno o e-mail", placeholder: "es. 101", secret: false, when: (c) => c.threecxMode !== "api" },
+      { key: "3cx-password", label: "Password", placeholder: "la password del web client", secret: true, when: (c) => c.threecxMode !== "api" },
+      { key: "3cx-client-id", label: "Client ID", placeholder: "il Client ID del client API", secret: false, when: (c) => c.threecxMode === "api" },
+      { key: "3cx-client-secret", label: "Chiave API", placeholder: "mostrata una volta sola", secret: true, when: (c) => c.threecxMode === "api" },
+    ],
+    hint: "Chiamate, chiamate in arrivo con Rispondi / Rifiuta, rubrica, stato e chiamate perse, nella scheda 3CX dell'isola. Con interno e password funziona come l'app 3CX (accesso non documentato da 3CX: un aggiornamento del centralino potrebbe cambiarlo; la verifica in due passaggi non è ancora supportata). Con un client API: Admin Console → Integrazioni → API → Aggiungi, spunta \"3CX Call Control API Access\" (e \"Configuration API\" per la rubrica), aggiungi il tuo interno tra quelli monitorati; stato e cronologia non ci sono. Numeri e nomi restano in memoria." },
   { id: "integration_system", name: "Stato del PC", color: "#38BDF8", fields: [],
     options: [{
       label: "Avvisa sotto il", type: "number", placeholder: "10", unit: "% di spazio libero sul disco di sistema",
@@ -454,7 +474,7 @@ const INTEGRATIONS: IntegrationDef[] = [
 const TAB_ICONS: Record<string, string> = {
   integration_stripe: "💳", integration_github: "🐙", integration_vercel: "▲", integration_n8n: "🔁",
   integration_resend: "✉️", integration_notion: "📝", integration_calcom: "📅", integration_outlook: "📧",
-  integration_zammad: "🎫", integration_system: "💻", integration_security: "🛡️", integration_network: "🌐",
+  integration_zammad: "🎫", integration_3cx: "📞", integration_system: "💻", integration_security: "🛡️", integration_network: "🌐",
   integration_weather: "⛅", integration_clipboard: "📋", integration_media: "🎵",
 };
 
@@ -483,6 +503,35 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
     });
 
     const rows = h("div", { style: "display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-width:0" });
+    // Rows that apply only to some option values (3CX: login or API client).
+    const conditional: [HTMLElement, (c: IntegrationConfig) => boolean][] = [];
+    const syncVisible = () => {
+      for (const [row, when] of conditional) row.style.display = when(settings.integrationConfig) ? "" : "none";
+    };
+    for (const opt of def.options ?? []) {
+      let el: HTMLInputElement | HTMLSelectElement;
+      if (opt.type === "select") {
+        el = select(opt.choices ?? [], String(opt.get(settings.integrationConfig)), () => {});
+      } else {
+        el = h("input", {
+          type: opt.type, value: String(opt.get(settings.integrationConfig)), placeholder: opt.placeholder,
+          spellcheck: "false", style: opt.type === "number" ? "width:80px" : "flex:1 1 auto;min-width:0",
+        }) as HTMLInputElement;
+      }
+      el.addEventListener("change", () => {
+        opt.set(settings.integrationConfig, el.value);
+        el.value = String(opt.get(settings.integrationConfig));
+        syncVisible();
+        void save();
+      });
+      const row = h("div", { class: "row" },
+        h("label", { style: "min-width:104px", text: opt.label }),
+        el,
+        opt.unit ? h("span", { class: "hint note", text: opt.unit }) : null,
+      );
+      if (opt.when) conditional.push([row, opt.when]);
+      rows.append(row);
+    }
     for (const field of def.fields) {
       const input = h("input", {
         type: field.secret ? "password" : "text",
@@ -501,33 +550,29 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
           input.value = "";
           input.placeholder = value ? "••••••••  (salvata)" : field.placeholder;
           dotEl.style.background = value ? "#22c55e" : "#f4505e";
-        } catch {
+        } catch (e) {
           dotEl.style.background = "#f5a524";
+          // Windows refuses new entries when its Credential Manager is nearly full.
+          const full = /memoria|memory|8|1312/i.test(String(e));
+          saveError.textContent = full
+            ? "Non salvata: Gestione credenziali di Windows è piena. Elimina le voci che non servono (es. le centinaia di token di Xbox) e riprova."
+            : `Non salvata: ${String(e).replace(/^Error:\s*/, "")}`;
+          saveError.style.display = "";
         }
       });
-      rows.append(
+      const saveError = h("div", { class: "notice warn", style: "display:none" });
+      input.addEventListener("input", () => { saveError.style.display = "none"; });
+      const row = h("div", { style: "display:flex;flex-direction:column;gap:4px" },
         h("div", { class: "row" },
           h("label", { style: "min-width:104px", text: field.label }),
           input, saveBtn, dotEl,
         ),
+        saveError,
       );
+      if (field.when) conditional.push([row, field.when]);
+      rows.append(row);
     }
-    for (const opt of def.options ?? []) {
-      const el = h("input", {
-        type: opt.type, value: String(opt.get(settings.integrationConfig)), placeholder: opt.placeholder,
-        spellcheck: "false", style: opt.type === "number" ? "width:80px" : "flex:1 1 auto;min-width:0",
-      }) as HTMLInputElement;
-      el.addEventListener("change", () => {
-        opt.set(settings.integrationConfig, el.value);
-        el.value = String(opt.get(settings.integrationConfig));
-        void save();
-      });
-      rows.append(h("div", { class: "row" },
-        h("label", { style: "min-width:104px", text: opt.label }),
-        el,
-        opt.unit ? h("span", { class: "hint note", text: opt.unit }) : null,
-      ));
-    }
+    syncVisible();
     const place = h("select", {},
       h("option", { value: "pill", text: "Pillola nella panoramica" }),
       h("option", { value: "tab", text: "Scheda in alto, con il nome" }),
