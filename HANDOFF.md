@@ -194,6 +194,9 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 
 ## 10. Registro delle modifiche
 
+### 4 ottobre 2026 — versione 0.5.0
+- Versione **0.5.0** nei tre file (la 0.4.0 è stata saltata di proposito), `claude/sviluppo` unito in `main`, tag `v0.5.0`. Rispetto alla 0.3.0: proposte di automazioni dalle abitudini (prima e seconda tappa: orari, avvio, rete, chiavetta, sequenze, automazioni da spegnere, programmi esclusi).
+
 ### 4 ottobre 2026 — Proposte dalle abitudini, seconda tappa
 - **Sequenze:** "dopo aver aperto X apri quasi sempre Y entro 5 minuti" (almeno 5 volte e nel 60% delle aperture di X) → proposta "Quando apri X, apro anche Y?", cioè un'automazione "quando parte X → apri Y" (`seq|x|y`). Non proposta se un'automazione fa già la stessa cosa (`existing` ora considera anche l'eseguibile del trigger "programma").
 - **Automazioni non più utili:** quelle create da una proposta ricordano da dove vengono (`origin` = impronta, in `Automation`); ogni loro esecuzione è annotata (`auto`, non "Prova ora"). Se nelle ultime esecuzioni (almeno 5, guardate fino a 7) nell'80% dei casi il programma aperto non è stato usato entro 30 minuti, o subito dopo è stato scelto a mano un altro profilo, l'isola propone **"Spengo l'automazione «…»?"** con il pulsante **Spegni** (`off|id`, `Suggestion.accept`, `Notice.suggestionAccept`). Spegnere non la elimina; "No, mai" vale anche qui, con "Spegni comunque" tra le rifiutate.

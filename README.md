@@ -535,8 +535,8 @@ npm run icons          # rigenera src-tauri/icons da scripts/gen-icons.mjs
 2. Crea e invia il tag:
 
    ```powershell
-   git tag v0.3.0
-   git push origin v0.3.0
+   git tag v0.5.0
+   git push origin v0.5.0
    ```
 
 3. La workflow **Build** compila l'installer, lo firma per l'aggiornamento e
