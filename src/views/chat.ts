@@ -7,6 +7,7 @@ import { Bridge, type ChatContext } from "../core/bridge";
 import { Sound } from "../core/sound";
 import { State, type ChatMessage } from "../core/state";
 import { calculate, formatResult, plainResult } from "../core/calc";
+import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
 
 let nextId = 1;
@@ -27,8 +28,12 @@ function bubble(message: ChatMessage): HTMLElement {
       h("div", { class: "bubble", text: message.content }),
     );
   }
-  return h("div", { class: "chat-row" }, h("div", { class: "reply", text: message.content }));
+  // Claude answers in markdown: rendered as DOM, never as HTML (core/markdown.ts).
+  return h("div", { class: "chat-row" },
+    h("div", { class: "reply md" }, ...renderMarkdown(message.content, MD_HOOKS)));
 }
+
+const MD_HOOKS = { openUrl: (url: string) => void Bridge.openUrl(url) };
 
 function typingDots(): HTMLElement {
   return h(

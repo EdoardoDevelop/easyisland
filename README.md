@@ -23,8 +23,9 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
   con **Nega / Consenti** e alle domande, torna all'app della sessione con un clic
   ([Claude Code](#claude-code)).
 - **Chat con Claude** dall'isola, con l'abbonamento o una chiave API; allega
-  testo, file, immagini copiate o una **zona dello schermo**; calcolatrice nel
-  campo ([Chat con Claude](#chat-con-claude)).
+  testo, file, immagini copiate o una **zona dello schermo**; risposte formattate
+  (elenchi, tabelle, codice con **Copia**); calcolatrice nel campo
+  ([Chat con Claude](#chat-con-claude)).
 - **Azioni rapide** (link, programmi, script, domande a Claude) con scorciatoie
   globali, e suggerimenti per l'app che stai usando
   ([Azioni rapide](#azioni-rapide-e-scorciatoie)).

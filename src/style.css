@@ -971,6 +971,160 @@ input[type="range"]::-webkit-slider-thumb {
   user-select: text;
 }
 
+/* Markdown in Claude's replies (src/core/markdown.ts). */
+.reply.md {
+  white-space: normal;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  line-height: 1.45;
+}
+
+.md-p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.md strong {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.md-h {
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 2px;
+}
+
+.md-h1 {
+  font-size: 14.5px;
+}
+
+.md-h2 {
+  font-size: 13.5px;
+}
+
+.md-h3 {
+  font-size: 12.5px;
+}
+
+.md-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.md-list li::marker {
+  color: var(--dim-2);
+}
+
+.md-quote {
+  margin: 0;
+  padding: 2px 0 2px 10px;
+  border-left: 2px solid rgba(167, 139, 250, 0.5);
+  color: var(--dim);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.md-hr {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--hairline);
+  margin: 2px 0;
+}
+
+.md-code {
+  font: 400 11.5px var(--mono);
+  color: #e8e9ec;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  padding: 1px 5px;
+  overflow-wrap: anywhere;
+}
+
+.md-link {
+  color: #7dd3fc;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.md-link:hover {
+  text-decoration: underline;
+}
+
+.md-pre {
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.md-pre-head {
+  display: flex;
+  align-items: center;
+  padding: 3px 4px 3px 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.md-lang {
+  font: 500 10.5px var(--font);
+  color: var(--dim-2);
+}
+
+.md-copy {
+  margin-left: auto;
+  height: 20px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  font: 500 10.5px var(--font);
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.12);
+}
+
+.md-copy:hover {
+  background: rgba(167, 139, 250, 0.22);
+}
+
+.md-pre pre {
+  margin: 0;
+  padding: 7px 10px;
+  overflow-x: auto;
+  font: 400 11.5px/1.45 var(--mono);
+  color: #e8e9ec;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.md-table-wrap {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.md-table {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.md-table th,
+.md-table td {
+  padding: 3px 8px;
+  border: 1px solid var(--hairline);
+  text-align: left;
+  vertical-align: top;
+}
+
+.md-table th {
+  color: var(--ink-2);
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .typing {
   display: flex;
   gap: 4px;
