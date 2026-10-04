@@ -276,8 +276,10 @@ pub fn decline(app: &AppHandle, request_id: &str) {
 /// Called by the island's Allow / Deny buttons. Only ever a bare word: turning
 /// it into Claude Code's JSON is easyisland-hook's job.
 pub fn answer(app: &AppHandle, request_id: &str, decision: &str) {
+    // "always": allow, and the relay saves Claude Code's own proposed rule.
     let word = match decision {
-        "allow" | "always" => "allow",
+        "allow" => "allow",
+        "always" => "always",
         _ => "deny",
     };
     log::line(format!("decision id={request_id} {word}"));

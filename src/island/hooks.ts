@@ -25,6 +25,8 @@ interface HookPayload {
   tool_input?: Record<string, unknown>;
   /** Set by easyisland-hook.exe --chat: a connector call from the character's own chat. */
   easyisland_chat?: boolean;
+  /** PermissionRequest: the rules Claude Code offers to remember ("Sempre"). */
+  permission_suggestions?: unknown;
   /** Added by the relay (hook/src/diff.rs) to Edit / MultiEdit / Write. */
   easyisland_diff?: {
     file?: string; added?: number; removed?: number; too_big?: boolean;
@@ -207,6 +209,32 @@ const TOOL_LABELS: Record<string, string> = {
   NotebookEdit: "Notebook",
   PowerShell: "Esegue",
 };
+
+/**
+ * "Sempre", in words: what Claude Code proposed in permission_suggestions,
+ * picked exactly as the relay picks it (always_rules in hook/src/main.rs).
+ * Null when nothing usable was proposed — then there is no "Sempre" button.
+ */
+function alwaysLabel(suggestions: unknown): string | null {
+  if (!Array.isArray(suggestions)) return null;
+  const where = (d: unknown) =>
+    d === "session" ? "in questa sessione" : d === "projectSettings" ? "in questo progetto" : "in questo progetto, solo per te";
+  const parts: string[] = [];
+  for (const s of suggestions as Record<string, unknown>[]) {
+    if (!s || typeof s !== "object") continue;
+    const type = typeof s.type === "string" ? s.type : "addRules";
+    if (type === "addRules" && s.behavior === "allow" && Array.isArray(s.rules) && s.rules.length) {
+      const rules = (s.rules as Record<string, unknown>[]).map((r) =>
+        typeof r.ruleContent === "string" && r.ruleContent ? `${r.toolName}(${r.ruleContent})` : String(r.toolName ?? ""));
+      parts.push(`${rules.join(", ")} ${where(s.destination)}`);
+    } else if (type === "addDirectories" && Array.isArray(s.directories) && s.directories.length) {
+      parts.push(`accesso a ${(s.directories as string[]).join(", ")} ${where(s.destination)}`);
+    } else if (type === "setMode" && s.mode === "acceptEdits") {
+      parts.push("tutte le modifiche ai file in questa sessione");
+    }
+  }
+  return parts.length ? parts.join("; ") : null;
+}
 
 /** " +12 −3": the edit's balance, as the ticker colours it (views/ticker.ts). */
 export function diffCounts(added: number, removed: number): string {
@@ -472,12 +500,14 @@ export function handleHook(island: Island, payload: HookPayload) {
       const tool = payload.tool_name ?? "Strumento";
       const input = payload.tool_input ?? {};
       const questions = tool === "AskUserQuestion" ? askQuestions(input) : null;
+      const always = questions ? null : alwaysLabel(payload.permission_suggestions);
       State.pendingApproval = {
         requestId,
         sessionId: payload.session_id ?? "",
         tool,
         command: approvalTarget(tool, input),
         ...(questions ? { questions } : {}),
+        ...(always ? { always } : {}),
       };
       const card = questions ? "ask" : "approval";
       // The relay's short ack window closes in 800 ms; everything below this

@@ -97,7 +97,7 @@ fn main() {
     if std::env::var_os("EASYISLAND_INTERNAL").is_some() && !chat {
         std::process::exit(0);
     }
-    let Some((payload, event, tool_input)) = read_event() else { std::process::exit(0) };
+    let Some((payload, event, tool_input, suggestions)) = read_event() else { std::process::exit(0) };
 
     let waits_for_answer = event == "PermissionRequest";
     let budget = if waits_for_answer { DECISION_BUDGET } else { FIRE_AND_FORGET_BUDGET };
@@ -112,7 +112,7 @@ fn main() {
     });
 
     if let Ok(Some(decision)) = rx.recv_timeout(budget) {
-        if let Some(json) = decision_json(&decision, tool_input.as_ref()) {
+        if let Some(json) = decision_json(&decision, tool_input.as_ref(), suggestions.as_ref()) {
             let mut out = std::io::stdout();
             let _ = writeln!(out, "{json}");
             let _ = out.flush();
@@ -129,7 +129,28 @@ fn main() {
 /// `answer {"<question>":"<label>",…}` answers an AskUserQuestion: an allow
 /// whose `updatedInput` is the tool's own input plus those `answers`. The
 /// input comes from stdin, untruncated — the island only ever saw a shortened copy.
-fn decision_json(decision: &str, tool_input: Option<&serde_json::Value>) -> Option<String> {
+///
+/// `always` ("Sempre") is an allow that also hands Claude Code back the rules
+/// it proposed itself (`permission_suggestions`, see `always_rules`): the same
+/// thing as "Yes, and don't ask again" in the terminal. With nothing usable
+/// proposed it is a plain allow.
+fn decision_json(
+    decision: &str,
+    tool_input: Option<&serde_json::Value>,
+    suggestions: Option<&serde_json::Value>,
+) -> Option<String> {
+    if decision.trim() == "always" {
+        let rules = always_rules(suggestions);
+        if !rules.is_empty() {
+            let out = serde_json::json!({
+                "hookSpecificOutput": {
+                    "hookEventName": "PermissionRequest",
+                    "decision": { "behavior": "allow", "updatedPermissions": rules },
+                }
+            });
+            return Some(out.to_string());
+        }
+    }
     if let Some(answers) = decision.trim().strip_prefix("answer ") {
         let answers = serde_json::from_str::<serde_json::Value>(answers).ok()?;
         let answers = answers.as_object().filter(|a| !a.is_empty() && a.values().all(|v| v.is_string()))?;
@@ -144,8 +165,7 @@ fn decision_json(decision: &str, tool_input: Option<&serde_json::Value>) -> Opti
         return Some(out.to_string());
     }
     let behavior = match decision.trim() {
-        // "always" still answers a plain allow; remembering it is the island's
-        // business, not Claude Code's.
+        // "always" with no rule to save is just an allow.
         "allow" | "always" => r#"{"behavior":"allow"}"#.to_string(),
         "deny" => r#"{"behavior":"deny","message":"Negato da EasyIsland"}"#.to_string(),
         _ => return None,
@@ -153,6 +173,43 @@ fn decision_json(decision: &str, tool_input: Option<&serde_json::Value>) -> Opti
     Some(format!(
         r#"{{"hookSpecificOutput":{{"hookEventName":"PermissionRequest","decision":{behavior}}}}}"#
     ))
+}
+
+/// The `updatedPermissions` for "Sempre", taken only from Claude Code's own
+/// `permission_suggestions` — EasyIsland never invents a rule:
+/// * allow rules (`addRules`, or no `type`) and extra directories (`addDirectories`);
+/// * `setMode` only to `acceptEdits` and only for the session (the terminal's
+///   "allow all edits during this session");
+/// * anything bound for `userSettings` (`~/.claude/settings.json`, which
+///   EasyIsland never writes without a diff and a confirmation) is kept in the
+///   project's `.claude/settings.local.json` instead.
+/// The island shows the same selection (`alwaysLabel` in src/island/hooks.ts).
+fn always_rules(suggestions: Option<&serde_json::Value>) -> Vec<serde_json::Value> {
+    use serde_json::{json, Value};
+    let dest = |s: &Value| match s.get("destination").and_then(Value::as_str) {
+        Some("session") => "session",
+        Some("projectSettings") => "projectSettings",
+        _ => "localSettings",
+    };
+    let Some(list) = suggestions.and_then(Value::as_array) else { return Vec::new() };
+    list.iter()
+        .filter_map(|s| match s.get("type").and_then(Value::as_str).unwrap_or("addRules") {
+            "addRules" => {
+                let rules = s.get("rules").and_then(Value::as_array).filter(|r| !r.is_empty())?;
+                (s.get("behavior").and_then(Value::as_str) == Some("allow")).then(|| {
+                    json!({ "type": "addRules", "rules": rules, "behavior": "allow", "destination": dest(s) })
+                })
+            }
+            "addDirectories" => {
+                let dirs = s.get("directories").and_then(Value::as_array).filter(|d| !d.is_empty())?;
+                Some(json!({ "type": "addDirectories", "directories": dirs, "destination": dest(s) }))
+            }
+            "setMode" if s.get("mode").and_then(Value::as_str) == Some("acceptEdits") => {
+                Some(json!({ "type": "setMode", "mode": "acceptEdits", "destination": "session" }))
+            }
+            _ => None,
+        })
+        .collect()
 }
 
 const NOTIFY_USAGE: &str = "Uso: easyisland-hook notify [titolo] [testo] [opzioni]
@@ -238,7 +295,7 @@ fn notify(args: Vec<String>) -> i32 {
 
 /// Reads stdin and returns the payload to forward, the event name and the
 /// tool's input exactly as received (before any truncation).
-fn read_event() -> Option<(String, String, Option<serde_json::Value>)> {
+fn read_event() -> Option<(String, String, Option<serde_json::Value>, Option<serde_json::Value>)> {
     let mut raw = Vec::new();
     if std::io::stdin().read_to_end(&mut raw).is_err() || raw.is_empty() {
         return None;
@@ -290,6 +347,8 @@ fn read_event() -> Option<(String, String, Option<serde_json::Value>)> {
         map.remove(*field);
     }
     let tool_input = map.get("tool_input").cloned();
+    // What "Sempre" sends back: Claude Code's own proposal, untruncated.
+    let suggestions = map.get("permission_suggestions").cloned();
 
     let cwd_missing = map
         .get("cwd")
@@ -326,7 +385,7 @@ fn read_event() -> Option<(String, String, Option<serde_json::Value>)> {
 
     let mut line = payload.to_string();
     line.push('\n');
-    Some((line, event, tool_input))
+    Some((line, event, tool_input, suggestions))
 }
 
 /// Caps every string in the payload. A single Write can carry a whole file.
@@ -387,39 +446,67 @@ mod tests {
     #[test]
     fn decision_json_matches_the_documented_shape() {
         assert_eq!(
-            decision_json("allow", None).unwrap(),
+            decision_json("allow", None, None).unwrap(),
             r#"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}"#
         );
         assert_eq!(
-            decision_json("deny", None).unwrap(),
+            decision_json("deny", None, None).unwrap(),
             r#"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny","message":"Negato da EasyIsland"}}}"#
         );
         // "always" is an island concept; Claude Code just gets an allow.
-        assert!(decision_json("always", None).unwrap().contains(r#""behavior":"allow""#));
+        assert!(decision_json("always", None, None).unwrap().contains(r#""behavior":"allow""#));
     }
 
     #[test]
     fn answers_go_back_inside_the_original_input() {
         let input = serde_json::json!({ "questions": [{ "question": "Quale?", "options": [] }] });
-        let out = decision_json(r#"answer {"Quale?":"Questa"}"#, Some(&input)).unwrap();
+        let out = decision_json(r#"answer {"Quale?":"Questa"}"#, Some(&input), None).unwrap();
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let d = &v["hookSpecificOutput"]["decision"];
         assert_eq!(d["behavior"], "allow");
         assert_eq!(d["updatedInput"]["answers"]["Quale?"], "Questa");
         assert_eq!(d["updatedInput"]["questions"], input["questions"]);
         // No input, empty or malformed answers: say nothing.
-        assert!(decision_json(r#"answer {"Quale?":"Questa"}"#, None).is_none());
-        assert!(decision_json("answer {}", Some(&input)).is_none());
-        assert!(decision_json(r#"answer {"Quale?":1}"#, Some(&input)).is_none());
-        assert!(decision_json("answer nope", Some(&input)).is_none());
+        assert!(decision_json(r#"answer {"Quale?":"Questa"}"#, None, None).is_none());
+        assert!(decision_json("answer {}", Some(&input), None).is_none());
+        assert!(decision_json(r#"answer {"Quale?":1}"#, Some(&input), None).is_none());
+        assert!(decision_json("answer nope", Some(&input), None).is_none());
+    }
+
+    #[test]
+    fn always_sends_back_claude_codes_own_rules() {
+        let suggestions = serde_json::json!([
+            { "type": "addRules", "rules": [{ "toolName": "Bash", "ruleContent": "npm *" }], "behavior": "allow", "destination": "localSettings" },
+            { "rules": [{ "toolName": "WebFetch", "ruleContent": "domain:x.it" }], "behavior": "allow", "destination": "userSettings" },
+            { "type": "addRules", "rules": [{ "toolName": "Bash" }], "behavior": "deny", "destination": "session" },
+            { "type": "setMode", "mode": "bypassPermissions", "destination": "session" },
+            { "type": "setMode", "mode": "acceptEdits", "destination": "session" },
+            { "type": "addDirectories", "directories": ["C:\\dati"], "destination": "session" },
+        ]);
+        let out = decision_json("always", None, Some(&suggestions)).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+        let d = &v["hookSpecificOutput"]["decision"];
+        assert_eq!(d["behavior"], "allow");
+        let p = d["updatedPermissions"].as_array().unwrap();
+        assert_eq!(p.len(), 4, "{p:?}"); // no deny rule, no bypassPermissions
+        assert_eq!(p[0]["rules"][0]["ruleContent"], "npm *");
+        // ~/.claude/settings.json is never the destination.
+        assert_eq!(p[1]["destination"], "localSettings");
+        assert_eq!(p[2]["mode"], "acceptEdits");
+        assert_eq!(p[3]["type"], "addDirectories");
+        // Nothing usable proposed: a plain allow.
+        assert_eq!(
+            decision_json("always", None, Some(&serde_json::json!([]))).unwrap(),
+            decision_json("allow", None, None).unwrap()
+        );
     }
 
     #[test]
     fn anything_unrecognised_prints_nothing() {
-        assert!(decision_json("", None).is_none());
-        assert!(decision_json("maybe", None).is_none());
+        assert!(decision_json("", None, None).is_none());
+        assert!(decision_json("maybe", None, None).is_none());
         // The shape the app used to send must not be mistaken for a decision.
-        assert!(decision_json(r#"{"permissionDecision":"allow"}"#, None).is_none());
+        assert!(decision_json(r#"{"permissionDecision":"allow"}"#, None, None).is_none());
     }
 
     #[test]

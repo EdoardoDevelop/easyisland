@@ -91,6 +91,11 @@ export interface ApprovalInfo {
   source?: "chat";
   /** AskUserQuestion: the questions to answer from the island. */
   questions?: AskQuestion[];
+  /**
+   * What "Sempre" would allow from now on, in words (Claude Code's own
+   * permission_suggestions); absent when it proposed nothing usable.
+   */
+  always?: string;
 }
 
 /** One question of Claude Code's AskUserQuestion tool. */

@@ -221,6 +221,9 @@ export async function runScene(island: Island, scene: string) {
         hook_event_name: "PermissionRequest", request_id: "scene", session_id: "s",
         cwd: "C:\\Users\\Edoardo\\WORK\\easyisland", tool_name: "Bash",
         tool_input: { command: "npm run pack" },
+        permission_suggestions: [
+          { type: "addRules", rules: [{ toolName: "Bash", ruleContent: "npm run pack:*" }], behavior: "allow", destination: "localSettings" },
+        ],
       });
       return;
     default:

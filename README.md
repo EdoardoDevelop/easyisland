@@ -203,7 +203,8 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 | Icona nell'area di notifica | Apri, Impostazioni…, Pausa, Esci |
 
 Tutto il resto succede da solo: una richiesta di permesso di Claude Code apre
-l'isola con **Nega / Consenti** (anche sopra un'altra scheda; resta finché non
+l'isola con **Nega / Consenti** (e **Sempre** quando Claude Code propone una regola
+da ricordare: la card dice quale; anche sopra un'altra scheda; resta finché non
 rispondi, poi l'isola torna dov'era), una sessione finita mostra l'ultimo messaggio
 di Claude e le tue integrazioni stanno nelle pillole colorate accanto a Slime. Non c'è un
 numero massimo di integrazioni e widget: l'isola si allunga per mostrare tutte

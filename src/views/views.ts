@@ -35,7 +35,8 @@ export interface ViewActions extends ActionHandlers {
   /** The ↗ button: opens whatever the focused pill points at. */
   openTarget(): void;
   openUrl(url: string): void;
-  decide(d: "allow" | "deny"): void;
+  /** "always": allow and save the rule Claude Code proposed (ApprovalInfo.always). */
+  decide(d: "allow" | "deny" | "always"): void;
   /** AskUserQuestion answered from the island: question → chosen label(s). */
   answerQuestions(answers: Record<string, string>): void;
   /** Leave the pending request to the terminal (Claude Code asks there). */
@@ -461,8 +462,10 @@ function buildEmpty(actions: ViewActions): ViewHost {
 function buildApproval(actions: ViewActions): ViewHost {
   const who = h("div");
   const code = h("div", { class: "code" });
+  // What "Sempre" saves, said before the click (Claude Code's own proposal).
+  const always = h("div", { class: "always-hint" });
   const row = h("div", { class: "actions" });
-  const el = h("div", { class: "view" }, card("amber", stack(116, 16, who, code, row)));
+  const el = h("div", { class: "view" }, card("amber", stack(116, 16, who, code, always, row)));
   let rowKey = "";
   return {
     el,
@@ -479,17 +482,25 @@ function buildApproval(actions: ViewActions): ViewHost {
       // is the command, the file path or the URL being authorised, not just the
       // name of the tool asking.
       code.textContent = State.pendingApproval?.command || State.pendingApproval?.tool || "…";
-      // Two buttons, built once. Rebuilding them between a mouse-down and a
-      // mouse-up would swallow the click, and there is nothing left to vary:
-      // "Always" is gone until the remembered-rules list exists to back it.
-      if (rowKey === "built") return;
-      rowKey = "built";
+      const rule = State.pendingApproval?.source === "chat" ? undefined : State.pendingApproval?.always;
+      always.textContent = rule ? `Sempre: ${rule}` : "";
+      always.style.display = rule ? "" : "none";
+      // Rebuilt only when a request with or without "Sempre" comes in: rebuilding
+      // between a mouse-down and a mouse-up would swallow the click.
+      const key = rule ? "always" : "plain";
+      if (rowKey === key) return;
+      rowKey = key;
       clear(row);
-      row.append(
-        btn("Nega", "secondary", () => actions.decide("deny"), "N"),
-        btn("Consenti", "primary", () => actions.decide("allow"), "Y"),
-      );
+      row.append(btn("Nega", "secondary", () => actions.decide("deny"), "N"));
+      if (rule) {
+        const b = btn("Sempre", "secondary", () => actions.decide("always"));
+        b.title = "Consenti e non chiedere più (la regola che propone Claude Code)";
+        row.append(b);
+      }
+      row.append(btn("Consenti", "primary", () => actions.decide("allow"), "Y"));
     },
+    // The "Sempre" line can wrap: grow rather than slide under the buttons.
+    fitHeight: () => who.offsetHeight + code.offsetHeight + always.offsetHeight + row.offsetHeight + 3 * 5 + 8 + 20,
   };
 }
 
