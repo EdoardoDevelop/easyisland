@@ -624,7 +624,7 @@ function buildNotify(actions: ViewActions): ViewHost {
         const fp = n.suggestion;
         who.firstChild!.textContent = "Proposta";
         row.append(
-          btn("Crea", "primary", () => actions.answerSuggestion(fp, "create")),
+          btn(n.suggestionAccept || "Crea", "primary", () => actions.answerSuggestion(fp, "create")),
           btn("Non ora", "secondary", () => actions.answerSuggestion(fp, "snooze")),
           btn("No, mai", "secondary", () => actions.answerSuggestion(fp, "dismiss")),
         );

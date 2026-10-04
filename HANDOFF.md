@@ -194,6 +194,12 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 
 ## 10. Registro delle modifiche
 
+### 4 ottobre 2026 — Proposte dalle abitudini, seconda tappa
+- **Sequenze:** "dopo aver aperto X apri quasi sempre Y entro 5 minuti" (almeno 5 volte e nel 60% delle aperture di X) → proposta "Quando apri X, apro anche Y?", cioè un'automazione "quando parte X → apri Y" (`seq|x|y`). Non proposta se un'automazione fa già la stessa cosa (`existing` ora considera anche l'eseguibile del trigger "programma").
+- **Automazioni non più utili:** quelle create da una proposta ricordano da dove vengono (`origin` = impronta, in `Automation`); ogni loro esecuzione è annotata (`auto`, non "Prova ora"). Se nelle ultime esecuzioni (almeno 5, guardate fino a 7) nell'80% dei casi il programma aperto non è stato usato entro 30 minuti, o subito dopo è stato scelto a mano un altro profilo, l'isola propone **"Spengo l'automazione «…»?"** con il pulsante **Spegni** (`off|id`, `Suggestion.accept`, `Notice.suggestionAccept`). Spegnere non la elimina; "No, mai" vale anche qui, con "Spegni comunque" tra le rifiutate.
+- **Programmi da non osservare:** campo in Impostazioni → Automazioni (`habitsExcluded`, es. "steam.exe, spotify"): non vengono più annotati e sono ignorati dall'analisi anche per lo storico già raccolto. `habits::apply` tiene in pari acceso/spento ed esclusioni a ogni salvataggio.
+- Test: sequenza trovata, programma escluso ignorato, sequenza già coperta non riproposta, automazione inutilizzata segnalata con "Spegni". Build, installazione e avvio verificati; le proposte vere servono settimane di uso.
+
 ### 4 ottobre 2026 — Proposte di automazioni dalle abitudini (prima tappa)
 - **Da attivare a mano:** Impostazioni → Automazioni → "Proposte dalle tue abitudini" → "Proponimi automazioni" (`habitsEnabled`, del PC, spento di serie). Spento non si registra niente (verificato: nessun file creato).
 - **Cosa registra** (`src-tauri/src/habits.rs`, file locale `%LOCALAPPDATA%\EasyIsland\habits.jsonl`, 45 giorni, "Cancella lo storico"): un programma che viene in primo piano per la prima volta in 2 ore (nome e percorso dell'eseguibile, mai titoli o contenuti; esclusi i programmi di Windows), avvio di EasyIsland, sblocco del PC, cambio di rete Wi-Fi (ogni 10 min), unità collegata (ogni 10 s), azione rapida usata (`habit_note_quick` da `runAction`), profilo scelto a mano (Impostazioni o menu). Niente in pausa. Il primo piano arriva dall'hook di `context.rs`, senza polling.

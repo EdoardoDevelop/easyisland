@@ -1395,7 +1395,7 @@ function automationsSection(): HTMLElement {
         habitsBox.append(h("div", { class: "qa-edit" },
           h("b", { text: g.title }), h("div", { class: "hint", text: g.text }),
           h("div", { class: "row" },
-            h("button", { class: "primary", text: "Crea", onclick: answer("create") }),
+            h("button", { class: "primary", text: g.accept || "Crea", onclick: answer("create") }),
             h("button", { text: "Non ora", onclick: answer("snooze") }),
             h("button", { text: "No, mai", onclick: answer("dismiss") }))));
       }
@@ -1406,7 +1406,7 @@ function automationsSection(): HTMLElement {
       for (const r of refused) {
         habitsBox.append(h("div", { class: "row" },
           h("span", { style: "flex:1 1 auto", text: r.title }),
-          h("button", { text: "Crea comunque", onclick: async () => {
+          h("button", { text: (r as { accept?: string }).accept === "Spegni" ? "Spegni comunque" : "Crea comunque", onclick: async () => {
             try { await Bridge.habitAnswer(r.fp, "create"); } catch { /* the settings echo redraws */ }
           } }),
           h("button", { text: "Togli dai rifiutati", title: "Potrà essere riproposta", onclick: async () => {
@@ -1427,6 +1427,16 @@ function automationsSection(): HTMLElement {
     h("div", { class: "row" }, h("label", { text: "Proponimi automazioni" }),
       toggle(settings.habitsEnabled === true, (v) => { settings.habitsEnabled = v; void save().then(() => drawHabits()); }),
       h("span", { class: "hint note", text: "da attivare a mano; tutto resta su questo PC" })),
+    h("div", { class: "row" }, h("label", { text: "Programmi da non osservare" }),
+      (() => {
+        const el = h("input", { type: "text", value: (settings.habitsExcluded ?? []).join(", "),
+          placeholder: "es. steam.exe, spotify", spellcheck: "false", style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
+        el.addEventListener("change", () => {
+          settings.habitsExcluded = el.value.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
+          void save();
+        });
+        return el;
+      })()),
     habitsBox,
     h("h3", { text: "Registro" }),
     h("div", { class: "row" }, h("button", { text: "Aggiorna", onclick: () => void drawLog() }),

@@ -466,7 +466,10 @@ azioni rapide e i profili scelti a mano. Tutto resta su questo PC, al massimo
 automazioni, per esempio *"Apro Outlook alle 8:50?"* perché lo apri sempre a
 quell'ora nei giorni feriali: **Crea**, **Non ora** (te la ripropone tra un
 mese) o **No, mai** (non te la ripropone più, ma la ritrovi tra le *Proposte
-rifiutate* se cambi idea). Al massimo una proposta al giorno.
+rifiutate* se cambi idea). Propone anche le sequenze (*"Quando apri il gestionale, apro anche Excel?"*)
+e, se un'automazione nata da una proposta non ti serve più (apre un programma
+che poi non usi), ti chiede se spegnerla. In **Programmi da non osservare**
+indichi quelli da ignorare. Al massimo una proposta al giorno.
 
 ### Claude può usare il PC
 

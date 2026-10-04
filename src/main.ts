@@ -88,8 +88,8 @@ async function main() {
   // An automation reached a quick action that needs the island (a script
   // asking for confirmation, a question to Claude).
   // A habit worth an automation: offered once, with Crea / Non ora / No, mai.
-  await onEvent<{ fp: string; title: string; text: string }>("habit-suggestion", (g) => {
-    island.showNotice({ title: g.title, text: g.text, level: "info", url: "", suggestion: g.fp });
+  await onEvent<{ fp: string; title: string; text: string; accept: string }>("habit-suggestion", (g) => {
+    island.showNotice({ title: g.title, text: g.text, level: "info", url: "", suggestion: g.fp, suggestionAccept: g.accept });
   });
   await onEvent<string>("automation-action", (id) => {
     const a = (State.settings.actions ?? []).find((x) => x.id === id);

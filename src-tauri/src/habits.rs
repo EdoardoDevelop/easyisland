@@ -67,8 +67,11 @@ pub struct Suggestion {
     pub fp: String,
     pub title: String,
     pub text: String,
-    /// The automation to create (automations.rs shape).
+    /// The automation to create (automations.rs shape), or {"disable": id}
+    /// for "this automation is not useful any more".
     pub automation: Value,
+    /// Label of the button that accepts: "Crea" or "Spegni".
+    pub accept: String,
 }
 
 static APP: OnceLock<AppHandle> = OnceLock::new();
@@ -94,10 +97,11 @@ fn local_now() -> (String, u8, u32) {
     (format!("{:04}-{:02}-{:02}", t.wYear, t.wMonth, t.wDay), day, t.wHour as u32 * 60 + t.wMinute as u32)
 }
 
-/// Follows the setting; called at start and after every save.
-pub fn set_enabled(on: bool) {
-    ENABLED.store(on, Ordering::Relaxed);
-    if !on {
+/// Follows the settings; called at start and after every save.
+pub fn apply(s: &crate::settings::Settings) {
+    ENABLED.store(s.habits_enabled, Ordering::Relaxed);
+    *EXCLUDED.lock().unwrap() = excluded(s);
+    if !s.habits_enabled {
         PENDING.lock().unwrap().clear();
     }
 }
@@ -117,7 +121,7 @@ fn record(kind: &str, value: &str, exe_path: &str) {
 /// context.rs: a window came to the front. Only the first time in two hours
 /// counts, so switching back and forth is not "opening" it again.
 pub fn note_app(exe: &str, exe_path: &str) {
-    if !ENABLED.load(Ordering::Relaxed) || IGNORED.contains(&exe) {
+    if !ENABLED.load(Ordering::Relaxed) || IGNORED.contains(&exe) || EXCLUDED.lock().unwrap().iter().any(|x| x == exe) {
         return;
     }
     {
@@ -203,12 +207,20 @@ pub struct Context<'a> {
     pub existing: Vec<(String, String, String)>,
     pub profile_name: &'a dyn Fn(&str) -> Option<String>,
     pub action_name: &'a dyn Fn(&str) -> Option<String>,
+    /// Automations created from a proposal and still on: (id, name, what they
+    /// open — an exe path for "app" steps, a profile id for "profile" steps).
+    pub adopted: Vec<(String, String, Vec<(String, String)>)>,
+    /// Programs the user asked not to watch (lower-case exe names).
+    pub excluded: Vec<String>,
 }
 
 /// The habits found in `events` (newest last), up to `now_ms`.
 pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
     let since = now.saturating_sub(WINDOW_DAYS * 86_400_000);
-    let ev: Vec<&Event> = events.iter().filter(|e| e.t >= since).collect();
+    let ev: Vec<&Event> = events
+        .iter()
+        .filter(|e| e.t >= since && !(e.k == "app" && ctx.excluded.iter().any(|x| x == &e.v)))
+        .collect();
     let mut out = Vec::new();
     let exists = |kind: &str, trig: &str, step: &str| {
         ctx.existing.iter().any(|(k, t, s)| k == kind && (t.is_empty() || t.eq_ignore_ascii_case(trig)) && s.eq_ignore_ascii_case(step))
@@ -260,6 +272,7 @@ pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
                 "trigger": { "kind": "time", "time": hhmm(at), "days": days },
                 "steps": [{ "kind": "app", "target": exe_path }],
             }),
+            accept: "Crea".into(),
         });
     }
 
@@ -299,6 +312,7 @@ pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
                     "trigger": { "kind": "startup", "delay": 30 },
                     "steps": [{ "kind": "app", "target": target }],
                 }),
+                accept: "Crea".into(),
             });
         }
     }
@@ -327,6 +341,7 @@ pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
                 "trigger": { "kind": "wifi", "ssid": net },
                 "steps": [{ "kind": "profile", "id": profile }],
             }),
+            accept: "Crea".into(),
         });
     }
 
@@ -351,10 +366,87 @@ pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
                             "trigger": { "kind": "drive" },
                             "steps": [{ "kind": "quick", "id": id }],
                         }),
+                        accept: "Crea".into(),
                     });
                 }
             }
         }
+    }
+
+    // 5. Sequences: after opening X, Y is opened within 5 minutes most times.
+    let apps: Vec<&&Event> = ev.iter().filter(|e| e.k == "app").collect();
+    let mut opens: HashMap<&str, usize> = HashMap::new();
+    let mut follows: HashMap<(&str, &str), (usize, String)> = HashMap::new();
+    for (i, x) in apps.iter().enumerate() {
+        *opens.entry(&x.v).or_default() += 1;
+        let mut seen = HashSet::new();
+        for y in apps[i + 1..].iter().take_while(|y| y.t <= x.t + 300_000) {
+            if y.v != x.v && seen.insert(y.v.as_str()) {
+                let e = follows.entry((&x.v, &y.v)).or_insert((0, String::new()));
+                e.0 += 1;
+                if e.1.is_empty() {
+                    e.1 = y.p.clone();
+                }
+            }
+        }
+    }
+    let mut seqs: Vec<_> = follows.into_iter().collect();
+    seqs.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then(a.0.cmp(&b.0)));
+    for ((x, y), (n, p)) in seqs {
+        let total = opens.get(x).copied().unwrap_or(0);
+        if n < 5 || (n as f64) < 0.6 * total as f64 {
+            continue;
+        }
+        let target = if p.is_empty() { y.to_string() } else { p };
+        if exists("app", x, &target) || exists("app", x, y) {
+            continue;
+        }
+        let (xn, yn) = (pretty_exe(x), pretty_exe(y));
+        out.push(Suggestion {
+            fp: format!("seq|{x}|{y}"),
+            title: format!("Quando apri {xn}, apro anche {yn}?"),
+            text: format!("Dopo aver aperto {xn} apri quasi sempre {yn} entro pochi minuti ({n} volte su {total})."),
+            automation: json!({
+                "name": format!("{xn} → {yn}"),
+                "trigger": { "kind": "app", "exe": x },
+                "steps": [{ "kind": "app", "target": target }],
+            }),
+            accept: "Crea".into(),
+        });
+    }
+
+    // 6. Automations created from a proposal that are no longer used: after
+    // most of their last runs the program they open was not used within 30
+    // minutes, or another profile was chosen by hand within 10 minutes.
+    for (id, name, opens_what) in &ctx.adopted {
+        let runs: Vec<&&Event> = ev.iter().filter(|e| e.k == "auto" && &e.v == id).collect();
+        if runs.len() < 5 {
+            continue;
+        }
+        let recent = &runs[runs.len().saturating_sub(7)..];
+        let unused = recent
+            .iter()
+            .filter(|r| {
+                opens_what.iter().all(|(kind, what)| match kind.as_str() {
+                    "app" => {
+                        let exe = what.rsplit('\\').next().unwrap_or(what).to_lowercase();
+                        !ev.iter().any(|e| e.k == "app" && e.v == exe && e.t >= r.t && e.t <= r.t + 1_800_000)
+                    }
+                    "profile" => ev.iter().any(|e| e.k == "profile" && &e.v != what && e.t >= r.t && e.t <= r.t + 600_000),
+                    _ => false,
+                })
+            })
+            .count();
+        if (unused as f64) < 0.8 * recent.len() as f64 {
+            continue;
+        }
+        out.push(Suggestion {
+            fp: format!("off|{id}"),
+            title: format!("Spengo l'automazione «{name}»?"),
+            text: format!("Le ultime {} volte che è partita sembra che non ti sia servita ({unused} su {}).", recent.len(), recent.len()),
+            automation: json!({ "disable": id }),
+            accept: "Spegni".into(),
+        });
     }
 
     out.sort_by(|a, b| a.fp.cmp(&b.fp));
@@ -370,6 +462,7 @@ fn existing(s: &crate::settings::Settings) -> Vec<(String, String, String)> {
         .flat_map(|a| {
             let trig = match a.trigger.kind.as_str() {
                 "wifi" => a.trigger.ssid.clone(),
+                "app" => a.trigger.exe.trim().to_lowercase(),
                 _ => String::new(),
             };
             a.steps
@@ -385,6 +478,24 @@ fn existing(s: &crate::settings::Settings) -> Vec<(String, String, String)> {
         })
         .collect()
 }
+
+/// "Programmi da non osservare", as lower-case exe names.
+fn excluded(s: &crate::settings::Settings) -> Vec<String> {
+    s.habits_excluded
+        .iter()
+        .map(|x| {
+            let mut x = x.trim().to_lowercase();
+            if !x.is_empty() && !x.ends_with(".exe") {
+                x.push_str(".exe");
+            }
+            x
+        })
+        .filter(|x| !x.is_empty())
+        .collect()
+}
+
+/// Kept in step with the settings by set_enabled.
+static EXCLUDED: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 /// Runs the analysis and keeps what may still be proposed.
 pub fn refresh(app: &AppHandle) -> Vec<Suggestion> {
@@ -409,7 +520,32 @@ pub fn refresh(app: &AppHandle) -> Vec<Suggestion> {
             .find(|a| a.get("id").and_then(Value::as_str) == Some(id))
             .and_then(|a| a.get("name").and_then(Value::as_str).map(str::to_string))
     };
-    let ctx = Context { existing: existing(&s), profile_name: &profile_name, action_name: &action_name };
+    let adopted = s
+        .automations
+        .iter()
+        .filter_map(|v| serde_json::from_value::<crate::automations::Automation>(v.clone()).ok())
+        .filter(|a| a.enabled && !a.origin.is_empty())
+        .map(|a| {
+            let opens = a
+                .steps
+                .iter()
+                .filter_map(|st| match st.kind.as_str() {
+                    "app" => Some(("app".to_string(), st.target.clone())),
+                    "profile" => Some(("profile".to_string(), st.id.clone())),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            (a.id, a.name, opens)
+        })
+        .filter(|(_, _, opens)| !opens.is_empty())
+        .collect();
+    let ctx = Context {
+        existing: existing(&s),
+        profile_name: &profile_name,
+        action_name: &action_name,
+        adopted,
+        excluded: excluded(&s),
+    };
     let now = now_ms();
     let dismissed: HashSet<&str> = s
         .suggestions_dismissed
@@ -434,6 +570,17 @@ pub fn answer(app: &AppHandle, fp: &str, choice: &str) -> Result<String, String>
         s.suggestions_dismissed.iter().find(|d| d.get("fp").and_then(Value::as_str) == Some(fp)).cloned()
     };
     let result = match choice {
+        "create" if sugg.as_ref().and_then(|g| g.automation.get("disable")).is_some() => {
+            let id = sugg.as_ref().and_then(|g| g.automation["disable"].as_str()).unwrap_or_default().to_string();
+            crate::agent::update_settings(app, |s| {
+                for a in s.automations.iter_mut() {
+                    if a.get("id").and_then(Value::as_str) == Some(id.as_str()) {
+                        a["enabled"] = json!(false);
+                    }
+                }
+            })?;
+            Ok("Automazione spenta: la riaccendi quando vuoi in Impostazioni → Automazioni.".into())
+        }
         "create" => {
             // A refused proposal can be created later from the settings.
             let automation = sugg
@@ -441,8 +588,24 @@ pub fn answer(app: &AppHandle, fp: &str, choice: &str) -> Result<String, String>
                 .map(|g| g.automation.clone())
                 .or_else(|| dismissed.as_ref().and_then(|d| d.get("automation").cloned()))
                 .ok_or("Proposta non più disponibile.")?;
+            if let Some(id) = automation.get("disable").and_then(Value::as_str) {
+                let id = id.to_string();
+                crate::agent::update_settings(app, |s| {
+                    for a in s.automations.iter_mut() {
+                        if a.get("id").and_then(Value::as_str) == Some(id.as_str()) {
+                            a["enabled"] = json!(false);
+                        }
+                    }
+                    s.suggestions_dismissed.retain(|d| d.get("fp").and_then(Value::as_str) != Some(fp));
+                })?;
+                PENDING.lock().unwrap().retain(|g| g.fp != fp);
+                let _ = app.emit_to(crate::SETTINGS_LABEL, "habits-changed", ());
+                return Ok("Automazione spenta.".into());
+            }
             let s = shared.settings.lock().unwrap().clone();
-            let auto = crate::automations::validate(&automation, &s)?;
+            let mut auto = crate::automations::validate(&automation, &s)?;
+            // Remembered, so it can be checked later for still being useful.
+            auto.origin = fp.to_string();
             let value = serde_json::to_value(&auto).map_err(|e| e.to_string())?;
             crate::agent::update_settings(app, |s| {
                 s.automations.push(value);
@@ -463,7 +626,7 @@ pub fn answer(app: &AppHandle, fp: &str, choice: &str) -> Result<String, String>
             crate::agent::update_settings(app, |s| {
                 s.suggestions_dismissed.retain(|d| d.get("fp").and_then(Value::as_str) != Some(fp));
                 s.suggestions_dismissed.push(json!({
-                    "fp": g.fp, "title": g.title, "text": g.text, "automation": g.automation, "at": now_ms(),
+                    "fp": g.fp, "title": g.title, "text": g.text, "automation": g.automation, "accept": g.accept, "at": now_ms(),
                 }));
             })?;
             Ok("Non te la propongo più. La ritrovi tra le proposte rifiutate.".into())
@@ -502,7 +665,7 @@ fn offer(app: &AppHandle) {
 pub fn spawn(app: AppHandle) {
     let _ = APP.set(app.clone());
     if let Some(s) = app.try_state::<crate::Shared>() {
-        set_enabled(s.settings.lock().unwrap().habits_enabled);
+        apply(&s.settings.lock().unwrap());
     }
     note("start", "");
     std::thread::spawn(move || {
@@ -580,7 +743,7 @@ mod tests {
             }
         }
         let (p, a) = ctx_none();
-        let ctx = Context { existing: Vec::new(), profile_name: &*p, action_name: &*a };
+        let ctx = Context { existing: Vec::new(), profile_name: &*p, action_name: &*a, adopted: Vec::new(), excluded: Vec::new() };
         let out = analyse(&events, 21 * DAY, &ctx);
         let outlook = out.iter().find(|g| g.fp.starts_with("time|outlook.exe")).expect("outlook proposed");
         assert_eq!(outlook.automation["trigger"]["days"], json!([1, 2, 3, 4, 5]));
@@ -595,6 +758,8 @@ mod tests {
             existing: vec![("time".into(), String::new(), "C:\\Apps\\outlook.exe".into())],
             profile_name: &*p,
             action_name: &*a,
+            adopted: Vec::new(),
+            excluded: Vec::new(),
         };
         assert!(!analyse(&events, 21 * DAY, &ctx2).iter().any(|g| g.fp.contains("outlook")));
     }
@@ -613,7 +778,7 @@ mod tests {
             }
         }
         let (p, a) = ctx_none();
-        let ctx = Context { existing: Vec::new(), profile_name: &*p, action_name: &*a };
+        let ctx = Context { existing: Vec::new(), profile_name: &*p, action_name: &*a, adopted: Vec::new(), excluded: Vec::new() };
         let fps: Vec<String> = analyse(&events, 6 * DAY, &ctx).into_iter().map(|g| g.fp).collect();
         assert!(fps.contains(&"startup|teams.exe".to_string()));
         assert!(fps.contains(&"wifi|ufficio|lavoro".to_string()));
@@ -621,10 +786,43 @@ mod tests {
     }
 
     #[test]
+    fn sequences_exclusions_and_unused_automations() {
+        let mut events = Vec::new();
+        for day in 0..8u64 {
+            events.push(ev(day, 1, 600, "app", "gestionale.exe"));
+            events.push(ev(day, 1, 602, "app", "excel.exe"));
+            // An automation opened Teams at 9:00, but Teams was never used after.
+            events.push(ev(day, 1, 540, "auto", "a1"));
+        }
+        let (p, a) = ctx_none();
+        let mut ctx = Context {
+            existing: Vec::new(),
+            profile_name: &*p,
+            action_name: &*a,
+            adopted: vec![("a1".into(), "Teams alle 9".into(), vec![("app".into(), "C:\\Apps\\teams.exe".into())])],
+            excluded: Vec::new(),
+        };
+        let out = analyse(&events, 8 * DAY, &ctx);
+        let seq = out.iter().find(|g| g.fp == "seq|gestionale.exe|excel.exe").expect("sequence proposed");
+        assert_eq!(seq.automation["trigger"]["exe"], "gestionale.exe");
+        let off = out.iter().find(|g| g.fp == "off|a1").expect("unused automation flagged");
+        assert_eq!(off.accept, "Spegni");
+        assert_eq!(off.automation["disable"], "a1");
+
+        // Excluded programs are not looked at.
+        ctx.excluded = vec!["excel.exe".into()];
+        assert!(!analyse(&events, 8 * DAY, &ctx).iter().any(|g| g.fp.contains("excel")));
+        // Already an automation for the sequence: not proposed again.
+        ctx.excluded.clear();
+        ctx.existing = vec![("app".into(), "gestionale.exe".into(), "C:\\Apps\\excel.exe".into())];
+        assert!(!analyse(&events, 8 * DAY, &ctx).iter().any(|g| g.fp.starts_with("seq|")));
+    }
+
+    #[test]
     fn too_little_data_proposes_nothing() {
         let events: Vec<Event> = (0..3u64).map(|d| ev(d, 1, 540, "app", "outlook.exe")).collect();
         let (p, a) = ctx_none();
-        let ctx = Context { existing: Vec::new(), profile_name: &*p, action_name: &*a };
+        let ctx = Context { existing: Vec::new(), profile_name: &*p, action_name: &*a, adopted: Vec::new(), excluded: Vec::new() };
         assert!(analyse(&events, 3 * DAY, &ctx).is_empty());
     }
 }

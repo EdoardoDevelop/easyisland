@@ -103,7 +103,7 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
     if let Err(err) = settings::save(&settings) {
         eprintln!("[easyisland] could not save settings: {err}");
     }
-    habits::set_enabled(settings.habits_enabled);
+    habits::apply(&settings);
     if autostart_changed {
         let manager = app.autolaunch();
         let result = if settings.autostart { manager.enable() } else { manager.disable() };
