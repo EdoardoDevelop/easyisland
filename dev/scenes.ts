@@ -6,6 +6,7 @@
 
 import type { Island } from "../src/island/island";
 import { State } from "../src/core/state";
+import { handleHook } from "../src/island/hooks";
 
 const CLAUDE = "integration_claude";
 const wait = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
@@ -167,6 +168,21 @@ export async function runScene(island: Island, scene: string) {
       island.alert("upload");
       await wait(2500);
       break;
+    case "permission":
+      // Not a screenshot: a real PermissionRequest through the hook handler while
+      // the island shows another tab, to check the card shows, stays and returns.
+      // The island is left on window.island to drive the rest by hand.
+      await wait(300);
+      (window as unknown as { island: Island }).island = island;
+      session("working", ["Read · src/island/hooks.ts"]);
+      island.alert("actions");
+      await wait(600);
+      handleHook(island, {
+        hook_event_name: "PermissionRequest", request_id: "scene", session_id: "s",
+        cwd: "C:\\Users\\Edoardo\\WORK\\easyisland", tool_name: "Bash",
+        tool_input: { command: "npm run pack" },
+      });
+      return;
     default:
       return;
   }

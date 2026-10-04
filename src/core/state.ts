@@ -692,8 +692,15 @@ class AppState {
     this.loadIntegrationTasks();
   }
 
+  /** The card a pending permission request waits on, if there is one. */
+  pendingCard(): IslandViewName | null {
+    const p = this.pendingApproval;
+    return p ? (p.questions ? "ask" : "approval") : null;
+  }
+
+  /** Where the island opens: a request waiting for an answer comes first. */
   defaultView(): IslandViewName {
-    return this.tasks.length === 0 ? "empty" : "overview";
+    return this.pendingCard() ?? (this.tasks.length === 0 ? "empty" : "overview");
   }
 }
 

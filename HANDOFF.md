@@ -202,7 +202,7 @@ Un tipo di widget generico al posto delle integrazioni scritte a mano (le 7 attu
 
 Prima di tutto, **due verifiche**:
 - [x] **Canale degli hook solo per il proprio utente** (fatto il 4 ottobre 2026): prima la pipe usava il descrittore predefinito di Windows, che dà lettura anche a Everyone e Anonymous; ora ogni istanza ha un DACL protetto con solo SYSTEM e l'utente (`create_instance` / `owner_only_sddl` in `src-tauri/src/pipe.rs`). Log controllato: niente comandi né URL di azioni, link o programmi (l'agente scrive solo il nome dello strumento, gli script solo shell e id). Unica eccezione minore: gli errori di rete di 3CX (reqwest) riportano l'indirizzo del centralino con il percorso, senza credenziali.
-- [ ] **La richiesta di permesso resta finché non rispondi**: il mouse non deve richiuderla, riaprendo l'isola deve ricomparire, e deve comparire anche se l'isola è già aperta su un'altra vista, tornando poi alla pillola di prima.
+- [x] **La richiesta di permesso resta finché non rispondi** (fatto il 4 ottobre 2026): il mouse e le chiusure automatiche non la tolgono, riaprendo l'isola ricompare, compare anche sopra un'altra vista o pillola e dopo la risposta l'isola torna lì. Dettagli nel registro.
 
 Poi, in ordine:
 1. [ ] **Diff in tempo reale e messaggio finale**. Su `PostToolUse` di `Edit`, `MultiEdit` e `Write` calcolare in locale il diff da `old_string`/`new_string`/`content` (mai leggere il file dal disco): nei passi della sessione il nome del file con `+N` verde e `−M` rosso; un clic apre la scheda del diff (monospazio, 3 righe di contesto, ↗ apre in VS Code con `code -g file:riga`). Limiti: oltre 200 KB o 4.000 righe solo il bilancio ("Diff troppo grande"); al massimo 50 diff per sessione, cancellati a fine sessione o dopo un'ora. A sessione finita la scheda mostra l'ultimo messaggio di Claude invece dell'ultimo passo.
@@ -263,6 +263,13 @@ Pensate per il supporto IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi facciamo il diff in tempo reale (6.6, punto 1)"_, _"proviamo dal vivo le automazioni"_ oppure _"valutiamo un'idea della sezione 7"_. Per una nuova versione: stesso numero nei tre file, unione di `claude/sviluppo` in `main`, tag `vX.Y.Z`. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 4 ottobre 2026 — la richiesta di permesso resta finché non rispondi (seconda verifica della 6.6)
+- **Cosa non andava:** riaprendo l'isola si tornava alla panoramica e la card spariva (la richiesta restava in attesa fino ai 110 s); un avviso che si chiude dopo 3 s, un'azione rapida o un altro `collapse()` chiudevano l'isola anche con la card aperta; con un'altra pillola in primo piano arrivavano solo un badge e il `reveal`, e dopo la risposta si tornava sempre alla panoramica.
+- **Adesso:** `State.pendingCard()` e `State.defaultView()` restituiscono la card (`approval` o `ask`) finché c'è una richiesta, quindi riapertura, "Indietro" e gli altri ritorni alla vista predefinita finiscono sulla card. L'FSM non si richiude da sola con una richiesta in attesa (`fsm.waiting`), Esc non la chiude, "davanti al cliente" non la nasconde. `Island.collapse()` con una richiesta in attesa torna alla card invece di chiudere; `collapse(true)` solo per Cattura una zona. Solo ✕ passa la richiesta al terminale, come prima.
+- **Sopra un'altra vista o pillola:** la card prende sempre l'isola (`rememberBeforeCard` ricorda vista e pillola, `setFocus` su Claude Code); dopo Consenti / Nega / risposta, o alla scadenza dei 110 s, `settleApproval` rimette la pillola e la vista di prima (non le viste del rilascio, che si interrompono, né saluto, nota o "confuso"). Se nel frattempo l'utente è andato altrove, resta dov'è.
+- Tolto `Island.dropPin`, non più usato. `handleHook` esportato per la nuova scena di sviluppo `?scene=permission` (richiesta vera sopra la scheda ⚡, `window.island` per provare il resto). README aggiornato.
+- Verificato nell'anteprima del browser: card sopra la scheda ⚡; mouse fuori con chiusura a 0,5 s, `collapse()` dalla chat ed Esc non la tolgono; chiusa con `collapse(true)` e riaperta torna la card; clic vero su Consenti riporta alla scheda ⚡; con Resend in primo piano la card prende l'isola e alla fine torna su Resend. `npm run build` senza errori.
 
 ### 4 ottobre 2026 — handoff allineato alla 0.5.4, named pipe solo per il proprio utente
 - **Handoff:** versione, release e numero dei test aggiornati alla 0.5.4; tolta la nota sulle schermate in inglese; 3CX spostato tra le idee realizzate (la strada `tel:` non è stata fatta); sezione 8 completata con le regole di `CLAUDE.md` mancanti (strumenti dell'agente, aggiornamenti, `identifier`, pipe); esempio della sezione 9 preso dalla 6.6; consiglio di una copia di backup della chiave dell'updater.
@@ -591,5 +598,6 @@ Funzioni verificate solo con i test o nell'anteprima del browser, da provare nel
 - [ ] **Widget:** script del certificato TLS; calendario con un link ICS reale.
 - [ ] **"Davanti al cliente":** in una chiamata Teams vera e con una sessione di assistenza remota.
 - [ ] **3CX con il centralino vero:** collegamento con interno e password, rubrica, chiamata in uscita da ogni dispositivo, chiamata in arrivo (apertura, Rispondi, Rifiuta), Riaggancia, stato, perse e Recenti; poi la modalità client API, compresa la rubrica XAPI.
+- [ ] **Permesso che resta:** con una sessione vera, richiesta mentre l'isola è su un'altra scheda o pillola, isola chiusa e riaperta, AskUserQuestion (card `ask`).
 - [ ] **Named pipe con DACL:** gli hook arrivano ancora all'isola, anche da un Claude Code avviato come amministratore.
 - [ ] **Spostamento dell'isola** da icona a riposo, compatta e aperta, e posizione mantenuta alla riapertura.

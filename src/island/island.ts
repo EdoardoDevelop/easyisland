@@ -41,6 +41,13 @@ const DRAG_THRESHOLD = 4;
 /** The three views the drop sequence owns; leaving them stops the engine. */
 const UPLOAD_VIEWS: ReadonlySet<IslandViewName> = new Set(["upload", "uploading", "choose"]);
 
+/**
+ * Views worth going back to after a permission card. The drop sequence stops
+ * when the card takes over, and the short-lived views have nothing left to say.
+ */
+const RETURNABLE = (v: IslandViewName) =>
+  !UPLOAD_VIEWS.has(v) && v !== "greeting" && v !== "confused" && v !== "note";
+
 /** Seconds between the drop and the moment the progress bar starts filling. */
 const PRE_PROGRESS = USC.T_PROG_START - USC.T_DROP;
 
@@ -111,6 +118,8 @@ export class Island {
 
   private confusedRecovery: number | null = null;
   private prevViewBeforeConfused: IslandViewName = "overview";
+  /** Where the island was before a permission card took it (rememberBeforeCard). */
+  private beforeCard: { view: IslandViewName | null; focusId: string | null } | null = null;
   private lastSyncedView: IslandViewName | null = null;
   /** Natural content height reported by the current view (0 = its fixed height). */
   private fit: { view: IslandViewName | null; h: number } = { view: null, h: 0 };
@@ -309,6 +318,7 @@ export class Island {
 
   private wireFsm() {
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
+    this.fsm.waiting = () => State.pendingApproval != null;
     this.fsm.onTransition = (from, to) => {
       switch (to) {
         case "hidden":
@@ -455,22 +465,55 @@ export class Island {
     State.notify();
   }
 
-  /** A pending request was answered (or left to the terminal): unpin and move on. */
-  private settleApproval(req: ApprovalInfo) {
+  /**
+   * A Claude Code permission card is about to take the island: remember the view
+   * and the pill it had, so answering goes back there.
+   */
+  rememberBeforeCard() {
+    if (this.beforeCard) return; // already showing a card: keep the first place
+    const onCard = State.view === "approval" || State.view === "ask";
+    this.beforeCard = {
+      view: State.mode === "expanded" && !onCard && RETURNABLE(State.view) ? State.view : null,
+      focusId: State.focusId,
+    };
+  }
+
+  /**
+   * A pending request was answered, left to the terminal or given up by the
+   * relay: unpin and go back to where the island was before the card.
+   */
+  settleApproval(req: ApprovalInfo) {
+    const onCard = State.view === "approval" || State.view === "ask";
+    const back = this.beforeCard;
+    this.beforeCard = null;
     State.pendingApproval = null;
     State.isPinned = false;
     this.fsm.pinned = false;
     if (req.source === "chat") {
       // Back to the conversation, which is still waiting for its answer.
-      this.setView("prompt");
+      if (onCard) this.setView("prompt");
       return;
     }
     State.updateTask("integration_claude", "working");
     State.setPillBadge("integration_claude", null);
-    this.setView(State.defaultView());
+    if (back?.focusId && back.focusId !== State.focusId) State.setFocus(back.focusId);
+    // Somebody navigated away from the card meanwhile: leave them where they are.
+    if (onCard) this.setView(back?.view ?? State.defaultView());
   }
 
-  collapse() {
+  /**
+   * Closes the island. A permission request waiting for an answer is never
+   * closed this way (only ✕ hands it to the terminal): the island goes back to
+   * its card instead. `force` is for stepping aside on purpose (Cattura una zona).
+   */
+  collapse(force = false) {
+    const card = State.pendingCard();
+    if (card && !force) {
+      if (State.view !== card) this.setView(card);
+      State.isPinned = true;
+      this.fsm.pinned = true;
+      return;
+    }
     State.isPinned = false;
     this.fsm.pinned = false;
     // Drive the state machine rather than the mode: setting the mode behind its
@@ -583,7 +626,7 @@ export class Island {
    */
   async captureScreen() {
     Sound.play("blip");
-    this.collapse();
+    this.collapse(true);
     let file: { name: string; path: string } | null;
     try {
       file = await Bridge.captureScreen();
@@ -766,7 +809,7 @@ export class Island {
   setPresence(active: boolean, reason: string) {
     State.presence = { active, reason };
     Sound.suppressed = active;
-    if (State.quiet && State.mode !== "hidden" && !State.isPinned) this.fsm.forceHidden();
+    if (State.quiet && State.mode !== "hidden" && !State.isPinned && !State.pendingApproval) this.fsm.forceHidden();
     if (!State.quiet) this.keepCompactUp();
     State.notify();
   }
@@ -821,11 +864,6 @@ export class Island {
     if (State.keepOpen) this.homeCollapseAt = null;
     else if (!this.wasInIsland) this.homeCollapseAt = performance.now() + State.settings.autoCloseInterval * 1000;
     State.notify();
-  }
-
-  /** An alert stopped waiting for an answer: let the island auto-close again. */
-  dropPin() {
-    this.fsm.pinned = false;
   }
 
   // ── File drop ───────────────────────────────────────────────────────────────
@@ -1285,7 +1323,7 @@ export class Island {
     });
 
     window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned) this.collapse();
+      if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned && !State.pendingApproval) this.collapse();
       State.lastActivity = performance.now();
     });
 
@@ -1328,7 +1366,7 @@ export class Island {
     if (!inIsland && this.wasInIsland) {
       this.cancelHoverOpen();
       this.fsm.mouseLeft();
-      if (this.fsm.state === "home" && !State.isPinned && !State.keepOpen) {
+      if (this.fsm.state === "home" && !State.isPinned && !State.keepOpen && !State.pendingApproval) {
         this.homeCollapseAt = performance.now() + State.settings.autoCloseInterval * 1000;
       }
     }
@@ -1580,7 +1618,7 @@ export class Island {
   }
 
   private updateCountdown(nowMs: number) {
-    if (State.mode !== "expanded" || State.isPinned || State.keepOpen || this.homeCollapseAt == null) {
+    if (State.mode !== "expanded" || State.isPinned || State.keepOpen || State.pendingApproval || this.homeCollapseAt == null) {
       this.countdown.style.width = "0px";
       return;
     }

@@ -151,11 +151,9 @@ function handleChatPermission(island: Island, payload: HookPayload) {
   // The relay gives up after ~110 s and the call is refused; the card must not
   // outlive it.
   window.setTimeout(() => {
-    if (State.pendingApproval?.requestId !== requestId) return;
-    State.pendingApproval = null;
-    State.isPinned = false;
-    island.dropPin();
-    if (State.view === "approval") island.setView("prompt");
+    const req = State.pendingApproval;
+    if (req?.requestId !== requestId) return;
+    island.settleApproval(req);
     State.notify();
   }, 110_000);
 }
@@ -287,7 +285,7 @@ export function registerHookHandlers(island: Island) {
   void onEvent<HookPayload>("hook", (payload) => handleHook(island, payload));
 }
 
-function handleHook(island: Island, payload: HookPayload) {
+export function handleHook(island: Island, payload: HookPayload) {
   if (State.paused) {
     // Silence here used to cost Claude Code nearly two minutes: the relay waited
     // for a decision from an island that had already decided not to look. Say so,
@@ -447,30 +445,18 @@ function handleHook(island: Island, payload: HookPayload) {
       State.updateTask(CLAUDE_ID, "approval");
       State.isPinned = true;
       Sound.play("approval");
-      if (focused) {
-        island.alert(card);
-      } else if (quietNow()) {
-        // A badge on a hidden island would go unseen behind the full-screen app.
-        State.setFocus(CLAUDE_ID);
-        island.alert(card);
-      } else {
-        // Another agent holds the view, so the card would yank it away. The badge
-        // is the signal instead — but it has to be on screen for that to mean
-        // anything, hence the reveal. We just told the relay a human can act.
-        State.setPillBadge(CLAUDE_ID, "approval");
-        island.reveal();
-      }
+      // Claude Code is stopped until someone answers, so the card always shows,
+      // even over another pill or view; answering goes back there.
+      island.rememberBeforeCard();
+      State.setFocus(CLAUDE_ID);
+      island.alert(card);
       // EasyIsland answers within 108 s or not at all; after that the terminal has
       // taken over and the card would be lying.
       pendingTimeout = window.setTimeout(() => {
         pendingTimeout = null;
-        if (!State.pendingApproval) return;
-        State.pendingApproval = null;
-        State.isPinned = false;
-        island.dropPin();
-        State.updateTask(CLAUDE_ID, "working");
-        State.setPillBadge(CLAUDE_ID, null);
-        if (State.view === "approval" || State.view === "ask") island.setView(State.defaultView());
+        const req = State.pendingApproval;
+        if (!req || req.requestId !== requestId) return;
+        island.settleApproval(req);
         State.notify();
       }, 110_000);
       break;
