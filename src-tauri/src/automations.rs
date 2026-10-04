@@ -78,6 +78,9 @@ pub struct Automation {
     pub steps: Vec<Step>,
     /// A notice in the island every time it runs (errors always show).
     pub notify: bool,
+    /// Fingerprint of the habit proposal it came from (habits.rs), "" otherwise.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub origin: String,
 }
 
 #[derive(Serialize, Clone)]
@@ -221,6 +224,9 @@ async fn run_step(app: &AppHandle, step: &Step, actions: &[Value]) -> Result<Str
 /// asked to (or when something failed).
 pub async fn run(app: AppHandle, auto: Automation, cause: String, actions: Vec<Value>) {
     crate::log::line(format!("automation {} ({cause})", auto.name));
+    if cause != "Prova" {
+        crate::habits::note("auto", &auto.id);
+    }
     let mut done = Vec::new();
     let mut ok = true;
     for step in &auto.steps {
@@ -348,6 +354,7 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
     }
     a.id = format!("a{}", now_ms());
     a.enabled = true;
+    a.origin.clear();
     Ok(a)
 }
 
@@ -432,6 +439,7 @@ fn spawn_unlock_watch() {
     unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
         if msg == WM_WTSSESSION_CHANGE && wparam.0 == WTS_SESSION_UNLOCK {
             UNLOCKED.store(true, Ordering::Relaxed);
+            crate::habits::note("unlock", "");
         }
         DefWindowProcW(hwnd, msg, wparam, lparam)
     }

@@ -350,6 +350,19 @@ pub struct Settings {
     /// limited to one profile.
     #[serde(default)]
     pub automations: Vec<Value>,
+    /// Record what happens on the PC to propose automations (habits.rs). Off
+    /// until switched on by hand.
+    #[serde(default)]
+    pub habits_enabled: bool,
+    /// Proposals refused with "No, mai": {fp, title, text, automation, at}.
+    #[serde(default)]
+    pub suggestions_dismissed: Vec<Value>,
+    /// "Non ora": fingerprint → ms until which it is not proposed.
+    #[serde(default)]
+    pub suggestions_snoozed: Map<String, Value>,
+    /// "Programmi da non osservare" (exe names).
+    #[serde(default)]
+    pub habits_excluded: Vec<String>,
     /// Look for a new version on GitHub at start and once a day. Belongs to the PC.
     #[serde(default = "default_true")]
     pub update_check: bool,
@@ -470,6 +483,10 @@ impl Default for Settings {
             context_actions: true,
             agent_tools: true,
             automations: Vec::new(),
+            habits_enabled: false,
+            suggestions_dismissed: Vec::new(),
+            suggestions_snoozed: Map::new(),
+            habits_excluded: Vec::new(),
             update_check: true,
             integration_config: IntegrationConfig::default(),
             pending_secrets: Vec::new(),

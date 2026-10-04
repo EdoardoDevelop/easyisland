@@ -134,6 +134,13 @@ export const Bridge = {
   /** The app in front, and the text selected in it (⚡ suggestions). */
   foregroundApp: () => call<{ exe: string; title: string } | null>("foreground_app"),
   captureSelection: () => call<string | null>("capture_selection"),
+  /** Proposals from the habits (habits.rs). */
+  habitsStats: () => call<{ events: number; days: number; since: number | null }>("habits_stats"),
+  habitsSuggestions: () => call<import("./state").HabitSuggestion[]>("habits_suggestions"),
+  habitAnswer: (fp: string, choice: "create" | "snooze" | "dismiss" | "restore") =>
+    callOrThrow<string>("habit_answer", { fp, choice }),
+  habitsClear: () => call<void>("habits_clear"),
+  habitNoteQuick: (id: string) => call<void>("habit_note_quick", { id }),
   /** Impostazioni → Automazioni: the last runs and "Prova ora". */
   automationsLog: () => call<{ at: number; name: string; cause: string; ok: boolean; detail: string }[]>("automations_log"),
   automationRunNow: (id: string) => callOrThrow<void>("automation_run_now", { id }),

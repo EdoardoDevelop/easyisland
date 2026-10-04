@@ -41,6 +41,8 @@ export interface ViewActions extends ActionHandlers {
   setAutoClose(seconds: number): void;
   openSettingsWindow(): void;
   blip(): void;
+  /** A proposal from the habits: Crea / Non ora / No, mai. */
+  answerSuggestion(fp: string, choice: "create" | "snooze" | "dismiss"): void;
   /** "Installa" on the update notice. */
   installUpdate(): void;
 }
@@ -618,7 +620,15 @@ function buildNotify(actions: ViewActions): ViewHost {
       title.textContent = n.title || n.text;
       text.textContent = n.title ? n.text : "";
       clear(row);
-      if (n.install) {
+      if (n.suggestion) {
+        const fp = n.suggestion;
+        who.firstChild!.textContent = "Proposta";
+        row.append(
+          btn(n.suggestionAccept || "Crea", "primary", () => actions.answerSuggestion(fp, "create")),
+          btn("Non ora", "secondary", () => actions.answerSuggestion(fp, "snooze")),
+          btn("No, mai", "secondary", () => actions.answerSuggestion(fp, "dismiss")),
+        );
+      } else if (n.install) {
         // A new version: installed only with this click.
         row.append(
           btn("Installa", "primary", () => actions.installUpdate()),

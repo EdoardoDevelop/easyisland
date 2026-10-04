@@ -34,6 +34,20 @@ export interface Notice {
   url: string;
   /** A new version to install with a click (the update notice). */
   install?: string;
+  /** A proposal from the habits (fingerprint): Crea / Non ora / No, mai. */
+  suggestion?: string;
+  /** Its accept button: "Crea" or "Spegni". */
+  suggestionAccept?: string;
+}
+
+/** An automation proposed from the user's habits (src-tauri/src/habits.rs). */
+export interface HabitSuggestion {
+  fp: string;
+  title: string;
+  text: string;
+  automation: Partial<Automation> | { disable: string };
+  /** Label of the accept button: "Crea" or "Spegni". */
+  accept: string;
 }
 
 /** The label of the button that brings a session's app back. */
@@ -220,6 +234,14 @@ export interface Settings {
   agentTools: boolean;
   /** "Quando… allora…" rules, run by src-tauri/src/automations.rs. */
   automations: Automation[];
+  /** Record what happens on the PC to propose automations; off until switched on. */
+  habitsEnabled: boolean;
+  /** Proposals refused with "No, mai" (kept, and can be undone). */
+  suggestionsDismissed: { fp: string; title: string; text: string; at: number }[];
+  /** "Non ora": fingerprint → ms. */
+  suggestionsSnoozed: Record<string, number>;
+  /** "Programmi da non osservare" (exe names). */
+  habitsExcluded: string[];
   /** Look for a new version on GitHub at start and once a day. */
   updateCheck: boolean;
   /** Options of the integrations that run as checks (PROBE_INTEGRATIONS). Belongs to the PC. */
@@ -438,6 +460,10 @@ export const DEFAULT_SETTINGS: Settings = {
   contextActions: true,
   agentTools: true,
   automations: [],
+  habitsEnabled: false,
+  suggestionsDismissed: [],
+  suggestionsSnoozed: {},
+  habitsExcluded: [],
   updateCheck: true,
   integrationConfig: { systemWarn: 10, outlookWarn: 10, weatherCity: "" },
 };

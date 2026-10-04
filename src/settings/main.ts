@@ -1367,11 +1367,77 @@ function automationsSection(): HTMLElement {
   draw();
   void drawLog();
 
+  // ── Proposals from the habits ──
+  const habitsBox = h("div", { style: "display:flex;flex-direction:column;gap:8px" });
+  async function drawHabits() {
+    clear(habitsBox);
+    if (!settings.habitsEnabled) {
+      habitsBox.append(h("div", { class: "hint", text: "Spento. Acceso, EasyIsland annota quando apri i programmi (solo il nome, mai titoli o contenuti), quando accendi o sblocchi il PC, la rete Wi-Fi, le chiavette collegate, le azioni rapide e i profili scelti a mano. Tutto resta su questo PC (45 giorni al massimo) e da lì propone automazioni: una al giorno al massimo, da accettare o rifiutare." }));
+    } else {
+      const st = await Bridge.habitsStats();
+      const since = st?.since ? new Date(st.since).toLocaleDateString("it-IT") : "";
+      habitsBox.append(h("div", { class: "row" },
+        h("span", { class: "hint", text: st && st.events
+          ? `${st.events} eventi in ${st.days} giorni${since ? `, dal ${since}` : ""}. Servono almeno 1–3 settimane per le prime proposte.`
+          : "Nessun evento ancora: le prime proposte arrivano dopo qualche settimana di uso." }),
+        h("button", { class: "danger", text: "Cancella lo storico", onclick: async () => {
+          await Bridge.habitsClear();
+          void drawHabits();
+        } })));
+      const list = (await Bridge.habitsSuggestions()) ?? [];
+      habitsBox.append(h("h3", { text: "Proposte" }));
+      if (list.length === 0) habitsBox.append(h("div", { class: "hint", text: "Nessuna proposta per ora." }));
+      for (const g of list) {
+        const answer = (choice: "create" | "snooze" | "dismiss") => async () => {
+          try { await Bridge.habitAnswer(g.fp, choice); } catch { /* shown by the list refresh */ }
+          void drawHabits();
+        };
+        habitsBox.append(h("div", { class: "qa-edit" },
+          h("b", { text: g.title }), h("div", { class: "hint", text: g.text }),
+          h("div", { class: "row" },
+            h("button", { class: "primary", text: g.accept || "Crea", onclick: answer("create") }),
+            h("button", { text: "Non ora", onclick: answer("snooze") }),
+            h("button", { text: "No, mai", onclick: answer("dismiss") }))));
+      }
+    }
+    const refused = settings.suggestionsDismissed ?? [];
+    if (refused.length) {
+      habitsBox.append(h("h3", { text: "Proposte rifiutate" }));
+      for (const r of refused) {
+        habitsBox.append(h("div", { class: "row" },
+          h("span", { style: "flex:1 1 auto", text: r.title }),
+          h("button", { text: (r as { accept?: string }).accept === "Spegni" ? "Spegni comunque" : "Crea comunque", onclick: async () => {
+            try { await Bridge.habitAnswer(r.fp, "create"); } catch { /* the settings echo redraws */ }
+          } }),
+          h("button", { text: "Togli dai rifiutati", title: "Potrà essere riproposta", onclick: async () => {
+            await Bridge.habitAnswer(r.fp, "restore");
+          } })));
+      }
+    }
+  }
+  void onEvent<null>("habits-changed", () => void drawHabits());
+  void drawHabits();
+
   return h("section", {},
     h("h2", {}, h("span", { text: "Automazioni" })),
     h("div", { class: "hint", text: "Quando succede qualcosa, EasyIsland esegue i passi che scegli, senza chiedere: le hai approvate creandole. Fanno eccezione gli script con \"Chiedi conferma\" e le domande a Claude, che si aprono nell'isola. In pausa non parte niente. Valgono per questo PC; ognuna si può limitare a un profilo." }),
     list,
     h("div", { class: "row" }, add),
+    h("h3", { text: "Proposte dalle tue abitudini" }),
+    h("div", { class: "row" }, h("label", { text: "Proponimi automazioni" }),
+      toggle(settings.habitsEnabled === true, (v) => { settings.habitsEnabled = v; void save().then(() => drawHabits()); }),
+      h("span", { class: "hint note", text: "da attivare a mano; tutto resta su questo PC" })),
+    h("div", { class: "row" }, h("label", { text: "Programmi da non osservare" }),
+      (() => {
+        const el = h("input", { type: "text", value: (settings.habitsExcluded ?? []).join(", "),
+          placeholder: "es. steam.exe, spotify", spellcheck: "false", style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
+        el.addEventListener("change", () => {
+          settings.habitsExcluded = el.value.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
+          void save();
+        });
+        return el;
+      })()),
+    habitsBox,
     h("h3", { text: "Registro" }),
     h("div", { class: "row" }, h("button", { text: "Aggiorna", onclick: () => void drawLog() }),
       h("span", { class: "hint note", text: "le ultime esecuzioni, solo in memoria" })),

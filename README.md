@@ -456,6 +456,21 @@ il **Registro** mostra le ultime esecuzioni. Partono senza chiedere, perché
 le hai create tu, tranne gli script con "Chiedi conferma" e le domande a
 Claude, che si aprono nell'isola. Con EasyIsland in pausa non parte niente.
 
+### Proposte dalle tue abitudini
+
+Se lo attivi (**Automazioni → Proponimi automazioni**, spento di serie),
+EasyIsland annota quando apri i programmi (solo il nome, mai titoli o
+contenuti), quando accendi o sblocchi il PC, la rete Wi-Fi, le chiavette, le
+azioni rapide e i profili scelti a mano. Tutto resta su questo PC, al massimo
+45 giorni, e si cancella con un clic. Dopo qualche settimana propone
+automazioni, per esempio *"Apro Outlook alle 8:50?"* perché lo apri sempre a
+quell'ora nei giorni feriali: **Crea**, **Non ora** (te la ripropone tra un
+mese) o **No, mai** (non te la ripropone più, ma la ritrovi tra le *Proposte
+rifiutate* se cambi idea). Propone anche le sequenze (*"Quando apri il gestionale, apro anche Excel?"*)
+e, se un'automazione nata da una proposta non ti serve più (apre un programma
+che poi non usi), ti chiede se spegnerla. In **Programmi da non osservare**
+indichi quelli da ignorare. Al massimo una proposta al giorno.
+
 ### Claude può usare il PC
 
 Con l'abbonamento (motore Claude Code), nella chat Claude può anche agire su
@@ -520,8 +535,8 @@ npm run icons          # rigenera src-tauri/icons da scripts/gen-icons.mjs
 2. Crea e invia il tag:
 
    ```powershell
-   git tag v0.3.0
-   git push origin v0.3.0
+   git tag v0.5.0
+   git push origin v0.5.0
    ```
 
 3. La workflow **Build** compila l'installer, lo firma per l'aggiornamento e
