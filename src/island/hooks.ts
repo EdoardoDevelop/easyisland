@@ -40,8 +40,41 @@ function sessionHost(p: HookPayload): SessionHost {
   return "terminal";
 }
 
+/** EasyIsland's own tools (agent.rs) in words, for the Consenti / Nega card. */
+function easyislandTarget(name: string, input: Record<string, unknown>): string | null {
+  const s = (k: string) => String(input[k] ?? "").trim();
+  const short = (t: string, n = 160) => (t.length > n ? `${t.slice(0, n)}…` : t);
+  switch (name) {
+    case "open_app":
+      return `Aprire ${s("target")}${s("args") ? ` ${s("args")}` : ""}`;
+    case "open_url":
+      return `Aprire ${s("url")}`;
+    case "run_quick_action": {
+      const a = (State.settings.actions ?? []).find((x) => x.id === s("id"));
+      if (!a) return `Eseguire l'azione rapida ${s("id")}`;
+      const what = a.kind === "script" ? `lo script «${a.name}»:\n${short(a.script, 400)}` : `l'azione «${a.name}»`;
+      return `Eseguire ${what}`;
+    }
+    case "read_clipboard":
+      return "Leggere il testo negli appunti";
+    case "write_clipboard":
+      return `Mettere negli appunti: ${short(s("text"))}`;
+    case "switch_profile": {
+      const p = (State.settings.profiles ?? []).find((x) => x.id === s("id"));
+      return `Passare al profilo «${p?.name ?? s("id")}»`;
+    }
+    default:
+      return null;
+  }
+}
+
 /** "mcp__agenda__create_event" + input → "agenda › create_event · {…}". */
 function connectorTarget(tool: string, input: Record<string, unknown>): string {
+  const own = /^mcp__easyisland__(.+)$/.exec(tool);
+  if (own) {
+    const said = easyislandTarget(own[1], input);
+    if (said) return said;
+  }
   const m = /^mcp__(.+?)__(.+)$/.exec(tool);
   const name = m ? `${m[1]} › ${m[2]}` : tool;
   const args = JSON.stringify(input);
@@ -58,12 +91,13 @@ function handleChatPermission(island: Island, payload: HookPayload) {
     if (requestId) void Bridge.approvalDecline(requestId);
     return;
   }
-  const tool = payload.tool_name ?? "Connettore";
+  const raw = payload.tool_name ?? "Connettore";
+  const tool = raw.startsWith("mcp__easyisland__") ? "EasyIsland" : raw;
   State.pendingApproval = {
     requestId,
     sessionId: payload.session_id ?? "",
     tool,
-    command: connectorTarget(tool, payload.tool_input ?? {}),
+    command: connectorTarget(raw, payload.tool_input ?? {}),
     source: "chat",
   };
   if (requestId) void Bridge.approvalAck(requestId);

@@ -216,6 +216,8 @@ export interface Settings {
   hotkeyClipboard: string;
   /** ⚡ tab: actions suggested for the app in front. */
   contextActions: boolean;
+  /** The chat (Claude Code engine) may use EasyIsland's tools: open programs, quick actions… */
+  agentTools: boolean;
   /** Look for a new version on GitHub at start and once a day. */
   updateCheck: boolean;
   /** Options of the integrations that run as checks (PROBE_INTEGRATIONS). Belongs to the PC. */
@@ -388,6 +390,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hotkeyAsk: "Ctrl+Alt+K",
   hotkeyClipboard: "Ctrl+Alt+H",
   contextActions: true,
+  agentTools: true,
   updateCheck: true,
   integrationConfig: { systemWarn: 10, outlookWarn: 10, weatherCity: "" },
 };

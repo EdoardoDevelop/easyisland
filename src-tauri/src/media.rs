@@ -27,6 +27,13 @@ const EVERY: Duration = Duration::from_millis(2000);
 /// Covers bigger than this are left out rather than sent through IPC.
 const MAX_COVER: u32 = 600_000;
 
+/// What was last sent to the island, for the chat's `media_status` tool.
+static LAST: std::sync::Mutex<Option<Value>> = std::sync::Mutex::new(None);
+
+pub fn last() -> Option<Value> {
+    LAST.lock().unwrap().clone()
+}
+
 /// Commands from the card's buttons, run on the media thread.
 static COMMAND: std::sync::Mutex<Option<std::sync::mpsc::Sender<String>>> = std::sync::Mutex::new(None);
 
@@ -235,6 +242,7 @@ pub fn spawn(app: AppHandle) {
                 data["position"] = json!(s.position);
                 expected = Some((s.position, Instant::now(), s.playing));
             }
+            *LAST.lock().unwrap() = Some(data.clone());
             integrations::emit(&app, IntegrationUpdate { id: ID, data, error: None, event: None });
         }
     });

@@ -235,9 +235,13 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
     { style: "display:flex;flex-direction:column;gap:10px" },
     h("div", {
       class: "hint",
-      text: "La chat usa Claude Code installato su questo PC e il tuo abbonamento Claude (Pro o Max): nessuna chiave e nessun costo extra, ma conta nei limiti d'uso del tuo piano. Claude Code gira nascosto, senza hook, e può solo cercare sul web e leggere i file che rilasci.",
+      text: "La chat usa Claude Code installato su questo PC e il tuo abbonamento Claude (Pro o Max): nessuna chiave e nessun costo extra, ma conta nei limiti d'uso del tuo piano. Claude Code gira nascosto, senza hook, e può cercare sul web, leggere i file che rilasci e, se lo permetti qui sotto, usare EasyIsland.",
     }),
     h("div", { class: "row" }, cliState, recheck),
+    h("div", { class: "row" },
+      h("label", { text: "Claude può usare il PC" }),
+      toggle(settings.agentTools !== false, (v) => { settings.agentTools = v; void save(); }),
+      h("span", { class: "hint note", text: "aprire programmi, cartelle e link, eseguire le tue azioni rapide, leggere lo stato di PC, rete, meteo, posta e ticket, appunti e musica. Ogni azione che cambia qualcosa chiede Consenti / Nega nell'isola; nessun comando che non sia una tua azione rapida" })),
     h("div", { class: "row" },
       h("label", { text: "Modello" }),
       modelSelect(CLI_MODELS, settings.cliModel, (v) => {

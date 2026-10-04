@@ -17,6 +17,9 @@
 //!
 //! `easyisland-hook notify …` is the other job: any script, scheduled task or n8n
 //! flow can put a message on the island (see `notify`). It never reads stdin.
+//!
+//! `easyisland-hook mcp` is the third: EasyIsland's tools as an MCP server for
+//! the app's own chat (see `mcp.rs`).
 
 use std::io::{Read, Write};
 use std::sync::mpsc;
@@ -40,6 +43,7 @@ const DROPPED_FIELDS: &[&str] = &["tool_response", "transcript_path"];
 /// less than this anyway.
 const MAX_FIELD_LEN: usize = 2_000;
 
+mod mcp;
 mod win;
 
 /// `\\.\pipe\easyisland-<sid>`. The SID keeps two accounts on the same machine from
@@ -78,6 +82,11 @@ fn main() {
     // Before anything reads stdin: from a console that would wait forever.
     if std::env::args().nth(1).as_deref() == Some("notify") {
         std::process::exit(notify(std::env::args().skip(2).collect()));
+    }
+    // EasyIsland as an MCP server for its own chat (see mcp.rs). Started by
+    // Claude Code inside the chat, so before the EASYISLAND_INTERNAL guard.
+    if std::env::args().nth(1).as_deref() == Some("mcp") {
+        std::process::exit(mcp::serve());
     }
     // EasyIsland's own chat runs `claude -p` with hooks disabled; this is the second
     // guard, so that chat never shows up in the island as a work session.

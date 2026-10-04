@@ -1,6 +1,7 @@
 // EasyIsland for Windows — app wiring and the commands the island calls.
 
 mod actions;
+mod agent;
 mod apps;
 mod calendar;
 mod claude;
@@ -377,11 +378,16 @@ fn reposition(app: AppHandle, shared: State<Shared>) {
 
 #[tauri::command]
 fn open_url(url: String) {
+    open_url_now(&url);
+}
+
+/// Opens an http(s) link in the default browser; anything else is ignored.
+pub(crate) fn open_url_now(url: &str) {
     if !(url.starts_with("http://") || url.starts_with("https://")) {
         return;
     }
     let _ = Command::new("rundll32.exe")
-        .args(["url.dll,FileProtocolHandler", &url])
+        .args(["url.dll,FileProtocolHandler", url])
         .creation_flags(CREATE_NO_WINDOW)
         .spawn();
 }
@@ -520,15 +526,15 @@ async fn chat_send(
     query: String,
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
-    let (engine, model, cli_model, mcp) = {
+    let (engine, model, cli_model, mcp, agent) = {
         let s = shared.settings.lock().unwrap();
-        (s.chat_engine.clone(), s.model.clone(), s.cli_model.clone(), s.mcp_servers.clone())
+        (s.chat_engine.clone(), s.model.clone(), s.cli_model.clone(), s.mcp_servers.clone(), s.agent_tools)
     };
     chat.use_engine(&engine);
     if engine == "api" {
         claude::send(&chat, &model, query, context).await
     } else {
-        claude_cli::send(&chat, &cli_model, &mcp, query, context).await
+        claude_cli::send(&chat, &cli_model, &mcp, agent, query, context).await
     }
 }
 

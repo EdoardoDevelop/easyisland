@@ -343,6 +343,9 @@ pub struct Settings {
     /// ⚡ tab: actions suggested for the app in front (Outlook, Excel, the browser…).
     #[serde(default = "default_true")]
     pub context_actions: bool,
+    /// The chat (Claude Code engine) may use EasyIsland's own tools (agent.rs).
+    #[serde(default = "default_true")]
+    pub agent_tools: bool,
     /// Look for a new version on GitHub at start and once a day. Belongs to the PC.
     #[serde(default = "default_true")]
     pub update_check: bool,
@@ -461,6 +464,7 @@ impl Default for Settings {
             hotkey_ask: default_hotkey_ask(),
             hotkey_clipboard: default_hotkey_clipboard(),
             context_actions: true,
+            agent_tools: true,
             update_check: true,
             integration_config: IntegrationConfig::default(),
             pending_secrets: Vec::new(),

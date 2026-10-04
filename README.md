@@ -428,6 +428,20 @@ configuri tu, più una sola altra: il controllo degli aggiornamenti, che legge u
 file della release su GitHub (si spegne in Impostazioni → Generale →
 Aggiornamenti).
 
+### Claude può usare il PC
+
+Con l'abbonamento (motore Claude Code), nella chat Claude può anche agire su
+questo PC tramite EasyIsland: aprire programmi, cartelle e link, eseguire le
+tue **azioni rapide** (anche gli script, di cui legge l'output), leggere lo
+stato di PC, rete, meteo, posta e ticket, leggere o riempire gli appunti,
+controllare la musica, mostrare un avviso, cambiare profilo. Esempi: "apri
+Outlook e il portale fornitori", "com'è messo il PC?", "lancia il backup".
+
+Tutto ciò che apre, esegue o cambia qualcosa chiede prima **Consenti / Nega**
+nell'isola, con una descrizione chiara di cosa sta per fare. Claude non può
+eseguire comandi qualsiasi: solo le azioni rapide che hai creato tu. Si spegne
+in **Impostazioni → Claude → Claude può usare il PC**.
+
 ## Compilarlo da te
 
 Per chi lavora sul codice. Gli strumenti sono gli stessi del passo 1 di
