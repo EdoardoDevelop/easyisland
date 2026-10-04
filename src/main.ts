@@ -85,6 +85,12 @@ async function main() {
   void Bridge.presenceState().then((why) => { if (why) island.setPresence(true, why); });
 
   await onEvent<string>("hotkey", (name) => void island.onHotkey(name));
+  // An automation reached a quick action that needs the island (a script
+  // asking for confirmation, a question to Claude).
+  await onEvent<string>("automation-action", (id) => {
+    const a = (State.settings.actions ?? []).find((x) => x.id === id);
+    if (a) void island.runAction(a);
+  });
   await onEvent<UpdateInfo>("update-available", (u) => island.showUpdate(u.version, u.current));
 
   // The settings window writes preferences; apply them here without a restart.

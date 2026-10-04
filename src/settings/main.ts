@@ -6,7 +6,9 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { Bridge, onEvent, type HookStatus } from "../core/bridge";
-import { DEFAULT_SETTINGS, type QuickAction, type IntegrationConfig, type Settings, type WidgetDef } from "../core/state";
+import { DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type Settings, type WidgetDef } from "../core/state";
+
+const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
 import { h, clear } from "../views/dom";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 
@@ -1131,6 +1133,252 @@ function actionsSection(): HTMLElement {
   );
 }
 
+// ── Automations ───────────────────────────────────────────────────────────────
+
+const TRIGGER_KINDS: [AutomationTrigger["kind"], string][] = [
+  ["time", "A un orario"],
+  ["startup", "All'avvio (con il PC)"],
+  ["unlock", "Quando sblocchi il PC"],
+  ["wifi", "Quando ti colleghi a una rete Wi-Fi"],
+  ["app", "Quando parte un programma"],
+  ["drive", "Quando colleghi una chiavetta o un disco"],
+  ["folder", "Quando arriva un file in una cartella"],
+  ["integration", "Quando un'integrazione o un widget segnala…"],
+];
+
+const STEP_KINDS: [AutomationStep["kind"], string][] = [
+  ["quick", "Esegui un'azione rapida"],
+  ["notice", "Mostra un avviso nell'isola"],
+  ["profile", "Passa a un profilo"],
+  ["app", "Apri un programma o una cartella"],
+  ["url", "Apri un link"],
+];
+
+function blankStep(kind: AutomationStep["kind"] = "notice"): AutomationStep {
+  return { kind, id: "", title: "", text: "", level: "info", target: "", args: "", url: "" };
+}
+
+function blankAutomation(): Automation {
+  return {
+    id: `a${Date.now().toString(36)}`,
+    name: "Nuova automazione",
+    enabled: true,
+    trigger: { kind: "time", time: "09:00", days: [1, 2, 3, 4, 5], delay: 30, ssid: "", exe: "", folder: "", source: "", when: "problem" },
+    profile: "",
+    steps: [{ ...blankStep("notice"), title: "Buongiorno!", text: "Si comincia." }],
+    notify: false,
+  };
+}
+
+function automationsSection(): HTMLElement {
+  const list = h("div", { style: "display:flex;flex-direction:column;gap:10px" });
+  const commit = () => void save();
+
+  /** Quick actions of every profile, by id (an automation can use any of them). */
+  function quickActions(): [string, string][] {
+    const seen = new Map<string, string>();
+    for (const a of settings.actions ?? []) seen.set(a.id, a.name || "Senza nome");
+    for (const p of settings.profiles) {
+      const acts = (p.values as Record<string, unknown>).actions;
+      if (Array.isArray(acts)) {
+        for (const a of acts as QuickAction[]) if (!seen.has(a.id)) seen.set(a.id, `${a.name || "Senza nome"} (${p.name})`);
+      }
+    }
+    return [...seen.entries()];
+  }
+
+  /** Integrations run as checks and widgets: what "segnala" can listen to. */
+  function sources(): [string, string][] {
+    const out: [string, string][] = [];
+    for (const def of INTEGRATIONS) {
+      if (PROBE_INTEGRATION_IDS.includes(def.id) && settings.activeIntegrations.includes(def.id)) out.push([def.id, def.name]);
+    }
+    for (const w of settings.widgets ?? []) out.push([w.id, w.name || "Widget"]);
+    return out;
+  }
+
+  function draw() {
+    clear(list);
+    if (settings.automations.length === 0) {
+      list.append(h("div", { class: "hint", text: "Nessuna automazione. Esempi: alle 9 dei giorni feriali apri Outlook e il gestionale; quando colleghi una chiavetta mostra un avviso; quando il sito di un cliente va giù esegui lo script di controllo." }));
+    }
+    settings.automations.forEach((a, idx) => {
+      const t = a.trigger;
+      const field = (value: string, placeholder: string, apply: (v: string) => void, style = "flex:1 1 auto;min-width:0") => {
+        const el = h("input", { type: "text", value, placeholder, style, spellcheck: "false" }) as HTMLInputElement;
+        el.addEventListener("change", () => { apply(el.value); commit(); });
+        return el;
+      };
+      const tested = h("span", { class: "hint note" });
+      const test = h("button", { text: "Prova ora", title: "Esegue subito i passi (salva prima)" });
+      test.addEventListener("click", async () => {
+        await save();
+        try {
+          await Bridge.automationRunNow(a.id);
+          tested.textContent = "eseguita: vedi il registro qui sotto";
+        } catch (e) {
+          tested.textContent = String(e).replace(/^Error:\s*/, "");
+        }
+      });
+      const del = h("button", { class: "danger icon", text: "✕", title: "Elimina",
+        onclick: () => { settings.automations.splice(idx, 1); commit(); draw(); } });
+
+      const card = h("div", { class: "qa-edit" },
+        h("div", { class: "row head" },
+          toggle(a.enabled, (v) => { a.enabled = v; commit(); }),
+          field(a.name, "Nome", (v) => { a.name = v.trim(); }),
+          test, del),
+      );
+
+      // ── Quando ──
+      const when = h("div", { class: "row" }, h("label", { text: "Quando" }),
+        select<AutomationTrigger["kind"]>(TRIGGER_KINDS, t.kind, (v) => { t.kind = v; commit(); draw(); }));
+      card.append(when);
+      switch (t.kind) {
+        case "time": {
+          const time = h("input", { type: "time", value: t.time || "09:00" }) as HTMLInputElement;
+          time.addEventListener("change", () => { t.time = time.value; commit(); });
+          const days = h("div", { class: "days" });
+          for (const [d, label] of DAYS) {
+            const b = h("button", { class: t.days.includes(d) ? "day on" : "day", text: label, title: "Vuoto = tutti i giorni" });
+            b.addEventListener("click", () => {
+              t.days = t.days.includes(d) ? t.days.filter((x) => x !== d) : [...t.days, d].sort();
+              b.classList.toggle("on");
+              commit();
+            });
+            days.append(b);
+          }
+          card.append(h("div", { class: "row" }, h("label", { text: "Alle" }), time, days,
+            h("span", { class: "hint note", text: "nessun giorno = tutti i giorni" })));
+          break;
+        }
+        case "startup": {
+          const delay = h("input", { type: "number", min: "5", value: String(t.delay || 30), style: "width:80px" }) as HTMLInputElement;
+          delay.addEventListener("change", () => { t.delay = Math.max(5, Number(delay.value) || 30); commit(); });
+          card.append(h("div", { class: "row" }, h("label", { text: "Dopo" }), delay,
+            h("span", { class: "hint note", text: "secondi dall'avvio di EasyIsland (che parte con Windows, se attivo in Generale)" })));
+          break;
+        }
+        case "wifi":
+          card.append(h("div", { class: "row" }, h("label", { text: "Rete" }),
+            field(t.ssid, "nome della rete Wi-Fi, es. Ufficio-5G", (v) => { t.ssid = v.trim(); })));
+          break;
+        case "app":
+          card.append(h("div", { class: "row" }, h("label", { text: "Programma" }),
+            field(t.exe, "nome dell'eseguibile, es. teams.exe, excel.exe", (v) => { t.exe = v.trim(); })));
+          break;
+        case "folder":
+          card.append(h("div", { class: "row" }, h("label", { text: "Cartella" }),
+            field(t.folder, "es. C:\\Users\\nome\\Downloads o \\\\server\\scansioni", (v) => { t.folder = v.trim(); })));
+          break;
+        case "integration": {
+          const opts = sources();
+          if (!t.source && opts[0]) t.source = opts[0][0];
+          card.append(h("div", { class: "row" }, h("label", { text: "Da" }),
+            opts.length
+              ? select<string>(opts, t.source, (v) => { t.source = v; commit(); })
+              : h("span", { class: "hint", text: "Accendi un'integrazione come Stato del PC, Rete, Outlook o Zammad, o crea un widget." }),
+            select<AutomationTrigger["when"]>(
+              [["problem", "un problema (diventa giallo o rosso)"], ["event", "una novità (es. nuovo ticket)"], ["any", "un problema o una novità"]],
+              (t.when || "problem") as AutomationTrigger["when"], (v) => { t.when = v; commit(); })));
+          break;
+        }
+      }
+
+      // ── Se ──
+      card.append(h("div", { class: "row" }, h("label", { text: "Solo nel profilo" }),
+        select<string>([["", "Qualsiasi profilo"], ...settings.profiles.map((p): [string, string] => [p.id, p.name])],
+          a.profile, (v) => { a.profile = v; commit(); })));
+
+      // ── Allora ──
+      a.steps.forEach((s, si) => {
+        const remove = h("button", { class: "danger icon", text: "✕", title: "Togli questo passo",
+          onclick: () => { a.steps.splice(si, 1); commit(); draw(); } });
+        const row = h("div", { class: "row" }, h("label", { text: si === 0 ? "Allora" : "poi" }),
+          select<AutomationStep["kind"]>(STEP_KINDS, s.kind, (v) => { a.steps[si] = { ...blankStep(v) }; commit(); draw(); }));
+        switch (s.kind) {
+          case "quick": {
+            const opts = quickActions();
+            if (!s.id && opts[0]) s.id = opts[0][0];
+            row.append(opts.length
+              ? select<string>(opts, s.id, (v) => { s.id = v; commit(); })
+              : h("span", { class: "hint", text: "Crea prima un'azione rapida." }));
+            break;
+          }
+          case "notice":
+            row.append(
+              field(s.title, "Titolo", (v) => { s.title = v; }, "width:160px"),
+              field(s.text, "Testo", (v) => { s.text = v; }),
+              select<string>([["info", "Info"], ["ok", "Ok"], ["warn", "Avviso"], ["error", "Errore"]], s.level || "info",
+                (v) => { s.level = v; commit(); }));
+            break;
+          case "profile": {
+            if (!s.id && settings.profiles[0]) s.id = settings.profiles[0].id;
+            row.append(select<string>(settings.profiles.map((p): [string, string] => [p.id, p.name]), s.id,
+              (v) => { s.id = v; commit(); }));
+            break;
+          }
+          case "app":
+            row.append(
+              field(s.target, "es. outlook, C:\\Clienti, mstsc", (v) => { s.target = v.trim(); }),
+              field(s.args, "argomenti (facoltativi)", (v) => { s.args = v; }, "width:160px"));
+            break;
+          case "url":
+            row.append(field(s.url, "https://…", (v) => { s.url = v.trim(); }));
+            break;
+        }
+        row.append(remove);
+        card.append(row);
+      });
+      const addStep = h("button", { text: "+ Aggiungi un passo",
+        onclick: () => { a.steps.push(blankStep("quick")); commit(); draw(); } });
+      card.append(h("div", { class: "row" }, h("label", { text: "" }), addStep,
+        h("span", { class: "hint", text: "Avvisami ogni volta" }),
+        toggle(a.notify, (v) => { a.notify = v; commit(); }),
+        tested));
+      list.append(card);
+    });
+  }
+
+  const add = h("button", { class: "primary", text: "Aggiungi automazione" });
+  add.addEventListener("click", () => { settings.automations.push(blankAutomation()); commit(); draw(); });
+
+  // ── Registro ──
+  const logBox = h("div", { class: "auto-log" });
+  async function drawLog() {
+    const entries = (await Bridge.automationsLog()) ?? [];
+    clear(logBox);
+    if (entries.length === 0) {
+      logBox.append(h("div", { class: "hint", text: "Ancora nessuna esecuzione da quando EasyIsland è partito." }));
+      return;
+    }
+    for (const e of entries.slice(0, 30)) {
+      const when = new Date(e.at).toLocaleString("it-IT", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      logBox.append(h("div", { class: "auto-log-row" },
+        statusDot(e.ok),
+        h("span", { class: "auto-log-when", text: when }),
+        h("b", { text: e.name }),
+        h("span", { class: "hint", text: e.cause }),
+        h("span", { class: "auto-log-detail", text: e.detail })));
+    }
+  }
+  void onEvent<null>("automations-log", () => void drawLog());
+
+  draw();
+  void drawLog();
+
+  return h("section", {},
+    h("h2", {}, h("span", { text: "Automazioni" })),
+    h("div", { class: "hint", text: "Quando succede qualcosa, EasyIsland esegue i passi che scegli, senza chiedere: le hai approvate creandole. Fanno eccezione gli script con \"Chiedi conferma\" e le domande a Claude, che si aprono nell'isola. In pausa non parte niente. Valgono per questo PC; ognuna si può limitare a un profilo." }),
+    list,
+    h("div", { class: "row" }, add),
+    h("h3", { text: "Registro" }),
+    h("div", { class: "row" }, h("button", { text: "Aggiorna", onclick: () => void drawLog() }),
+      h("span", { class: "hint note", text: "le ultime esecuzioni, solo in memoria" })),
+    logBox,
+  );
+}
+
 // ── Connectors (MCP) ──────────────────────────────────────────────────────────
 
 function connectorsSection(): HTMLElement {
@@ -1828,6 +2076,11 @@ function pages(b: NonNullable<typeof boot>): Page[] {
       id: "azioni", label: "Azioni rapide", icon: "bolt", color: "#FACC15", title: "Azioni rapide",
       intro: "Pulsanti della scheda ⚡ e scorciatoie da tastiera.",
       sections: () => [actionsSection()],
+    },
+    {
+      id: "automazioni", label: "Automazioni", icon: "rocket", color: "#22D3EE", title: "Automazioni",
+      intro: "Quando succede qualcosa (un orario, l'avvio, una rete, un programma, una chiavetta, un file, un avviso), EasyIsland fa qualcosa per te.",
+      sections: () => [automationsSection()],
     },
     {
       id: "integrazioni", label: "Integrazioni", icon: "network", color: "#38BDF8", title: "Integrazioni",

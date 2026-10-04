@@ -2,6 +2,7 @@
 
 mod actions;
 mod agent;
+mod automations;
 mod apps;
 mod calendar;
 mod claude;
@@ -46,6 +47,9 @@ use hooks::{HookPreview, HookStatus};
 use island::{PollGate, ScreenInfo};
 use pipe::Pending;
 use settings::Settings;
+
+/// Label of the settings window (automations log updates go there).
+pub const SETTINGS_LABEL: &str = "settings";
 
 /// Keeps spawned helpers from flashing a console window.
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -632,6 +636,18 @@ async fn capture_selection() -> Option<String> {
     tauri::async_runtime::spawn_blocking(context::selection).await.ok().flatten()
 }
 
+/// Impostazioni → Automazioni: the last runs, newest first.
+#[tauri::command]
+fn automations_log() -> Vec<automations::LogEntry> {
+    automations::log()
+}
+
+/// Impostazioni → Automazioni → "Prova ora".
+#[tauri::command]
+fn automation_run_now(app: AppHandle, id: String) -> Result<(), String> {
+    automations::run_now(&app, &id)
+}
+
 /// "File caricati": the copies in the inbox, newest first.
 #[tauri::command]
 fn inbox_list() -> Vec<files::InboxFile> {
@@ -828,6 +844,8 @@ pub fn run() {
             clipboard_clear,
             media_command,
             zip_list,
+            automations_log,
+            automation_run_now,
             inbox_list,
             inbox_delete,
             inbox_clear,
@@ -861,6 +879,7 @@ pub fn run() {
             clipboard::spawn(handle.clone());
             context::spawn();
             media::spawn(handle.clone());
+            automations::spawn(handle.clone());
             widgets::start(handle.clone());
 
             log::line(format!("--- EasyIsland {} started ---", env!("CARGO_PKG_VERSION")));

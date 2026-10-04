@@ -428,6 +428,29 @@ configuri tu, più una sola altra: il controllo degli aggiornamenti, che legge u
 file della release su GitHub (si spegne in Impostazioni → Generale →
 Aggiornamenti).
 
+## Automazioni
+
+**Impostazioni… → Automazioni**: quando succede qualcosa, EasyIsland fa
+qualcosa per te.
+
+| Quando | Esempio |
+|---|---|
+| a un orario, nei giorni scelti | alle 9 dei giorni feriali apri Outlook e il gestionale |
+| all'avvio (con il PC) | dopo 30 secondi passa al profilo Lavoro |
+| quando sblocchi il PC | mostra un avviso con il promemoria del giorno |
+| quando ti colleghi a una rete Wi-Fi | in ufficio apri la cartella condivisa |
+| quando parte un programma | quando apri Teams, esegui l'azione "Silenzia" |
+| quando colleghi una chiavetta o un disco | esegui lo script di backup |
+| quando arriva un file in una cartella | avvisami delle nuove scansioni |
+| quando un'integrazione o un widget segnala un problema o una novità | se il sito del cliente va giù, esegui lo script di controllo; nuovo ticket → avviso |
+
+**Allora** è una sequenza di passi: un'azione rapida, un avviso nell'isola, il
+cambio di profilo, aprire un programma o una cartella, aprire un link. Ogni
+automazione si può limitare a un profilo e provare subito con **Prova ora**;
+il **Registro** mostra le ultime esecuzioni. Partono senza chiedere, perché
+le hai create tu, tranne gli script con "Chiedi conferma" e le domande a
+Claude, che si aprono nell'isola. Con EasyIsland in pausa non parte niente.
+
 ### Claude può usare il PC
 
 Con l'abbonamento (motore Claude Code), nella chat Claude può anche agire su

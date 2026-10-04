@@ -218,6 +218,8 @@ export interface Settings {
   contextActions: boolean;
   /** The chat (Claude Code engine) may use EasyIsland's tools: open programs, quick actions… */
   agentTools: boolean;
+  /** "Quando… allora…" rules, run by src-tauri/src/automations.rs. */
+  automations: Automation[];
   /** Look for a new version on GitHub at start and once a day. */
   updateCheck: boolean;
   /** Options of the integrations that run as checks (PROBE_INTEGRATIONS). Belongs to the PC. */
@@ -258,6 +260,50 @@ export interface QuickAction {
 }
 
 /** A probe the user set up in the settings (src-tauri/src/widgets.rs). */
+/** When an automation starts (src-tauri/src/automations.rs). */
+export interface AutomationTrigger {
+  kind: "time" | "startup" | "unlock" | "wifi" | "app" | "drive" | "folder" | "integration";
+  /** time: "HH:MM". */
+  time: string;
+  /** time: 1 = Monday … 7 = Sunday; empty = every day. */
+  days: number[];
+  /** startup: seconds after EasyIsland starts. */
+  delay: number;
+  ssid: string;
+  /** app: executable, e.g. "teams.exe". */
+  exe: string;
+  folder: string;
+  /** integration: id of the integration or widget. */
+  source: string;
+  when: "problem" | "event" | "any";
+}
+
+/** One thing an automation does. */
+export interface AutomationStep {
+  kind: "quick" | "notice" | "profile" | "app" | "url";
+  /** quick: action id · profile: profile id. */
+  id: string;
+  title: string;
+  text: string;
+  level: string;
+  target: string;
+  args: string;
+  url: string;
+}
+
+/** "Quando… (se…) allora…" — Impostazioni → Automazioni. Belongs to the PC. */
+export interface Automation {
+  id: string;
+  name: string;
+  enabled: boolean;
+  trigger: AutomationTrigger;
+  /** Only while this profile is active; "" = any. */
+  profile: string;
+  steps: AutomationStep[];
+  /** A notice every time it runs (errors always show). */
+  notify: boolean;
+}
+
 export interface WidgetDef {
   id: string;
   name: string;
@@ -391,6 +437,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hotkeyClipboard: "Ctrl+Alt+H",
   contextActions: true,
   agentTools: true,
+  automations: [],
   updateCheck: true,
   integrationConfig: { systemWarn: 10, outlookWarn: 10, weatherCity: "" },
 };

@@ -134,6 +134,9 @@ export const Bridge = {
   /** The app in front, and the text selected in it (⚡ suggestions). */
   foregroundApp: () => call<{ exe: string; title: string } | null>("foreground_app"),
   captureSelection: () => call<string | null>("capture_selection"),
+  /** Impostazioni → Automazioni: the last runs and "Prova ora". */
+  automationsLog: () => call<{ at: number; name: string; cause: string; ok: boolean; detail: string }[]>("automations_log"),
+  automationRunNow: (id: string) => callOrThrow<void>("automation_run_now", { id }),
   /** "File caricati": the copies of dropped files kept in the inbox. */
   inboxList: () => call<{ name: string; path: string; size: number; at: number }[]>("inbox_list"),
   inboxDelete: (name: string) => callOrThrow<void>("inbox_delete", { name }),

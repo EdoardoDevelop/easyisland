@@ -346,6 +346,10 @@ pub struct Settings {
     /// The chat (Claude Code engine) may use EasyIsland's own tools (agent.rs).
     #[serde(default = "default_true")]
     pub agent_tools: bool,
+    /// "Quando… allora…" rules (automations.rs). Belong to the PC; each can be
+    /// limited to one profile.
+    #[serde(default)]
+    pub automations: Vec<Value>,
     /// Look for a new version on GitHub at start and once a day. Belongs to the PC.
     #[serde(default = "default_true")]
     pub update_check: bool,
@@ -465,6 +469,7 @@ impl Default for Settings {
             hotkey_clipboard: default_hotkey_clipboard(),
             context_actions: true,
             agent_tools: true,
+            automations: Vec::new(),
             update_check: true,
             integration_config: IntegrationConfig::default(),
             pending_secrets: Vec::new(),

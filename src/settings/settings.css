@@ -505,3 +505,31 @@ button.icon {
   color: #0f1013;
   background: var(--c, var(--ink));
 }
+
+/* Automations log. */
+.auto-log {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.auto-log-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.auto-log-when {
+  color: var(--dim-2);
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+
+.auto-log-detail {
+  color: var(--dim);
+  overflow-wrap: anywhere;
+}

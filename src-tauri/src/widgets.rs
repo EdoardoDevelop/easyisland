@@ -604,7 +604,19 @@ pub async fn run_once(app: &AppHandle, widget: Value) -> Result<WidgetResult, St
 static LAST_RESULTS: std::sync::Mutex<Option<HashMap<String, WidgetResult>>> = std::sync::Mutex::new(None);
 
 fn remember(result: &WidgetResult) {
-    LAST_RESULTS.lock().unwrap().get_or_insert_with(HashMap::new).insert(result.id.clone(), result.clone());
+    let prev = LAST_RESULTS
+        .lock()
+        .unwrap()
+        .get_or_insert_with(HashMap::new)
+        .insert(result.id.clone(), result.clone());
+    // Automations that start on a problem or an event of this check.
+    crate::automations::on_widget(
+        &result.id,
+        prev.as_ref().map(|p| p.level.as_str()),
+        &result.level,
+        &result.summary,
+        result.event.as_deref(),
+    );
 }
 
 pub fn last_result(id: &str) -> Option<WidgetResult> {

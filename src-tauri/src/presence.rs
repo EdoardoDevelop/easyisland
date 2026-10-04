@@ -72,7 +72,7 @@ fn device_in_use(device: &str) -> Option<String> {
 }
 
 /// Lower-case executable names of the running processes.
-fn processes() -> Vec<String> {
+pub(crate) fn processes() -> Vec<String> {
     use windows::Win32::Foundation::CloseHandle;
     use windows::Win32::System::Diagnostics::ToolHelp::{
         CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
