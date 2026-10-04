@@ -28,11 +28,13 @@ mod profiles;
 mod screenshot;
 mod secrets;
 mod settings;
+mod threecx;
 mod tray;
 mod updates;
 mod widgets;
 mod zip;
 mod win_user;
+mod wss;
 mod zammad;
 
 use std::os::windows::process::CommandExt;
@@ -118,6 +120,7 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
         island::apply_geometry(&app, &shared.gate, &settings, collapsed);
     }
     // Keep the other window in step (island ⇄ settings window).
+    crate::threecx::settings_saved(&settings);
     let _ = app.emit("settings-changed", settings);
     tray::refresh(&app);
     hotkeys::reload();
@@ -144,6 +147,7 @@ pub(crate) fn activate_profile(app: &AppHandle, id: &str, why: &str) {
     }
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
     island::apply_geometry(app, &shared.gate, &settings, collapsed);
+    crate::threecx::settings_saved(&settings);
     let _ = app.emit("settings-changed", settings);
     tray::refresh(app);
     hotkeys::reload();
@@ -186,6 +190,7 @@ fn settings_import(app: AppHandle, shared: State<Shared>, text: String) -> Resul
     log::line("settings imported".to_string());
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
     island::apply_geometry(&app, &shared.gate, &next, collapsed);
+    crate::threecx::settings_saved(&next);
     let _ = app.emit("settings-changed", next.clone());
     tray::refresh(&app);
     hotkeys::reload();
@@ -359,6 +364,16 @@ fn end_drag(app: AppHandle, shared: State<Shared>) {
     shared.gate.dragging.store(false, Ordering::Relaxed);
     let Some(win) = island::window(&app) else { return };
     let (Ok(pos), Ok(size)) = (win.outer_position(), win.outer_size()) else { return };
+    let open = shared.gate.expanded.load(Ordering::Relaxed) && !shared.gate.collapsed.load(Ordering::Relaxed);
+    if open {
+        // The open island moved: it stays there while it is open, nothing is
+        // saved, and closing it takes the character back to its place.
+        let s = shared.settings.lock().unwrap().clone();
+        if let Some(offset) = island::panel_offset_from_drop(&app, &s, (pos.x, pos.y), (size.width, size.height)) {
+            *shared.gate.panel_offset.lock().unwrap() = offset;
+        }
+        return;
+    }
     let settings = {
         let mut s = shared.settings.lock().unwrap();
         let Some((work, scale)) = island::work_area(&app, &s) else { return };
@@ -372,6 +387,7 @@ fn end_drag(app: AppHandle, shared: State<Shared>) {
             &s.anchor_v,
         );
         let (h, v, ox, oy) = island::placement_from_drop(work, origin, box_size, scale);
+        log::line(format!("island moved: {h} {v} {ox} {oy}"));
         s.anchor_h = h;
         s.anchor_v = v;
         s.offset_x = ox;
@@ -384,7 +400,32 @@ fn end_drag(app: AppHandle, shared: State<Shared>) {
     }
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
     island::apply_geometry(&app, &shared.gate, &settings, collapsed);
+    crate::threecx::settings_saved(&settings);
     let _ = app.emit("settings-changed", settings);
+}
+
+/// The island opened or closed. Closing takes the window back to the character's
+/// place (an open island dragged elsewhere comes home), and every opening starts there.
+#[tauri::command]
+fn set_expanded(app: AppHandle, shared: State<Shared>, expanded: bool) {
+    if shared.gate.expanded.swap(expanded, Ordering::Relaxed) == expanded {
+        return;
+    }
+    // A drag of the open island lasts for that opening only.
+    let dragged = std::mem::take(&mut *shared.gate.panel_offset.lock().unwrap()) != (0.0, 0.0);
+    if shared.gate.collapsed.load(Ordering::Relaxed) {
+        return;
+    }
+    let settings = shared.settings.lock().unwrap().clone();
+    if expanded {
+        island::stop_glide();
+        island::apply_geometry(&app, &shared.gate, &settings, false);
+    } else if dragged {
+        // Back home while the island shrinks, not in one jump.
+        island::glide_home(&app, shared.gate.clone(), &settings);
+    } else {
+        island::apply_geometry(&app, &shared.gate, &settings, false);
+    }
 }
 
 #[tauri::command]
@@ -472,6 +513,7 @@ async fn update_install(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 fn set_paused(paused: bool) {
     integrations::set_paused(paused);
+    threecx::refresh();
 }
 
 // ── Claude Code hooks ─────────────────────────────────────────────────────────
@@ -504,6 +546,7 @@ fn hooks_apply(
         let _ = settings::save(&current);
         current.clone()
     };
+    crate::threecx::settings_saved(&updated);
     let _ = app.emit("settings-changed", updated);
     Ok(backup)
 }
@@ -596,7 +639,11 @@ fn secret_present(key: String) -> bool {
 
 #[tauri::command]
 fn secret_set(key: String, value: String) -> Result<(), String> {
-    secrets::set(&key, &value)
+    secrets::set(&key, &value)?;
+    if key.starts_with("3cx-") {
+        threecx::refresh();
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -617,6 +664,7 @@ fn open_n8n() {
 async fn refresh_integration(app: AppHandle, id: String) {
     match id.as_str() {
         clipboard::ID => clipboard::publish(&app),
+        threecx::ID => threecx::publish_now(&app),
         media::ID => media::refresh(),
         _ => integrations::poll_once(app, &id).await,
     }
@@ -751,6 +799,38 @@ async fn zip_extract(path: String, name: String, place: String, source: Option<S
     zip::extract(&path, &name, &place, source.as_deref()).await
 }
 
+/// 3CX: call a number, from the chosen device (or the automatic one).
+#[tauri::command]
+async fn threecx_call(number: String, device: Option<String>) -> Result<(), String> {
+    threecx::call(&number, device.as_deref()).await
+}
+
+/// 3CX: "answer" | "hangup" | "decline" on a call of the island.
+#[tauri::command]
+async fn threecx_action(id: String, action: String) -> Result<(), String> {
+    threecx::call_action(&id, &action).await
+}
+
+#[tauri::command]
+async fn threecx_contacts(query: String) -> Result<Vec<threecx::Contact>, String> {
+    threecx::contacts(&query).await
+}
+
+#[tauri::command]
+async fn threecx_history(missed: bool) -> Result<Vec<threecx::HistoryItem>, String> {
+    threecx::history(missed).await
+}
+
+#[tauri::command]
+async fn threecx_status(profile: String) -> Result<(), String> {
+    threecx::set_status(&profile).await
+}
+
+#[tauri::command]
+async fn threecx_reset_missed() -> Result<(), String> {
+    threecx::reset_missed().await
+}
+
 /// Musica: "toggle", "prev" or "next".
 #[tauri::command]
 fn media_command(command: String) {
@@ -863,6 +943,7 @@ pub fn run() {
             presence_state,
             notify_test,
             end_drag,
+            set_expanded,
             set_island_rect,
             focus_window,
             reposition,
@@ -909,6 +990,12 @@ pub fn run() {
             clipboard_remove,
             clipboard_clear,
             media_command,
+            threecx_call,
+            threecx_action,
+            threecx_contacts,
+            threecx_history,
+            threecx_status,
+            threecx_reset_missed,
             zip_list,
             automations_log,
             habits_stats,
@@ -950,6 +1037,7 @@ pub fn run() {
             clipboard::spawn(handle.clone());
             context::spawn();
             media::spawn(handle.clone());
+            threecx::spawn(handle.clone());
             automations::spawn(handle.clone());
             habits::spawn(handle.clone());
             widgets::start(handle.clone());

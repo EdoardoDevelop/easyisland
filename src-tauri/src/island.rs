@@ -6,7 +6,7 @@
 // transparent, always-on-top window that never takes focus, pinned to the
 // corner or edge the user picked in the settings.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 
@@ -85,6 +85,12 @@ pub struct PollGate {
     /// The character is being dragged: the window keeps the mouse even when a quick
     /// move leaves the cursor outside it for a moment.
     pub dragging: AtomicBool,
+    /// The island is open.
+    pub expanded: AtomicBool,
+    /// Where the open island was dragged to, from its usual place (logical px).
+    /// Only for this opening: closing the island forgets it, so the character
+    /// goes back to its place and the next opening starts from there.
+    pub panel_offset: Mutex<(f64, f64)>,
 }
 
 impl PollGate {
@@ -98,6 +104,8 @@ impl PollGate {
             collapsed_size: Mutex::new((STRIP_W, STRIP_H)),
             fullscreen: AtomicBool::new(false),
             dragging: AtomicBool::new(false),
+            expanded: AtomicBool::new(false),
+            panel_offset: Mutex::new((0.0, 0.0)),
         }
     }
 
@@ -201,20 +209,99 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
     let (lw, lh) = if collapsed { *gate.collapsed_size.lock().unwrap() } else { (PANEL_W, PANEL_H) };
     let pw = (lw * scale).round().max(1.0) as u32;
     let ph = (lh * scale).round().max(1.0) as u32;
-    let (x, y) = anchored_origin(work, (pw, ph), &settings.anchor_h, &settings.anchor_v);
-    // Where the user dragged the character to, kept on screen whatever the display.
-    let (x, y) = clamp_to_work(
-        work,
-        (pw, ph),
-        x + (settings.offset_x * scale).round() as i32,
-        y + (settings.offset_y * scale).round() as i32,
-    );
+    let (x, y) = home_origin(work, (pw, ph), settings, scale);
+    // The open island stays where it was dragged to; closed, it is back home.
+    let (x, y) = if !collapsed && gate.expanded.load(Ordering::Relaxed) {
+        let (dx, dy) = *gate.panel_offset.lock().unwrap();
+        clamp_to_work(work, (pw, ph), x + (dx * scale).round() as i32, y + (dy * scale).round() as i32)
+    } else {
+        (x, y)
+    };
 
     let _ = win.set_size(PhysicalSize::new(pw, ph));
     let _ = win.set_position(PhysicalPosition::new(x, y));
     // Moving across displays can rescale the window: re-assert the physical size.
     let _ = win.set_size(PhysicalSize::new(pw, ph));
     let _ = win.set_always_on_top(true);
+}
+
+/// The window's place when the island is not open: the side it is pinned to,
+/// plus where the user dragged the character, kept on screen whatever the display.
+fn home_origin(work: (i32, i32, u32, u32), size: (u32, u32), settings: &Settings, scale: f64) -> (i32, i32) {
+    let (x, y) = anchored_origin(work, size, &settings.anchor_h, &settings.anchor_v);
+    clamp_to_work(
+        work,
+        size,
+        x + (settings.offset_x * scale).round() as i32,
+        y + (settings.offset_y * scale).round() as i32,
+    )
+}
+
+/// cubic-bezier(.45, 0, .2, 1): the island's own closing curve (src/core/anim.ts).
+fn close_curve(t: f64) -> f64 {
+    let (x1, y1, x2, y2) = (0.45, 0.0, 0.2, 1.0);
+    let at = |s: f64, a: f64, b: f64| 3.0 * (1.0 - s) * (1.0 - s) * s * a + 3.0 * (1.0 - s) * s * s * b + s * s * s;
+    // x(s) grows with s: find the s whose x is t, then read y there.
+    let (mut lo, mut hi) = (0.0, 1.0);
+    for _ in 0..24 {
+        let mid = (lo + hi) / 2.0;
+        if at(mid, x1, x2) < t { lo = mid } else { hi = mid }
+    }
+    at((lo + hi) / 2.0, y1, y2)
+}
+
+/// Same length as the island's closing animation.
+const GLIDE_MS: f64 = 340.0;
+static GLIDE: AtomicU64 = AtomicU64::new(0);
+
+/// Ends a glide in progress (the island opened again).
+pub fn stop_glide() {
+    GLIDE.fetch_add(1, Ordering::SeqCst);
+}
+
+/// The open island was dragged away and is closing: the window slides back to
+/// the character's place along the closing curve while the island shrinks,
+/// instead of jumping there first.
+pub fn glide_home(app: &AppHandle, gate: Arc<PollGate>, settings: &Settings) {
+    let Some(win) = window(app) else { return };
+    let Some(m) = target_monitor(app, &settings.screen) else { return };
+    let scale = m.scale_factor();
+    let work = island_area(&m, settings);
+    let size = ((PANEL_W * scale).round() as u32, (PANEL_H * scale).round() as u32);
+    let to = home_origin(work, size, settings, scale);
+    let Ok(from) = win.outer_position() else { return };
+    if (from.x, from.y) == to {
+        return;
+    }
+    let id = GLIDE.fetch_add(1, Ordering::SeqCst) + 1;
+    std::thread::spawn(move || {
+        let start = Instant::now();
+        loop {
+            // Opened again, or already folded into the rest icon: stop here.
+            if GLIDE.load(Ordering::SeqCst) != id || gate.expanded.load(Ordering::Relaxed) || gate.collapsed.load(Ordering::Relaxed) {
+                return;
+            }
+            let t = (start.elapsed().as_secs_f64() * 1000.0 / GLIDE_MS).min(1.0);
+            let e = close_curve(t);
+            let x = from.x + ((to.0 - from.x) as f64 * e).round() as i32;
+            let y = from.y + ((to.1 - from.y) as f64 * e).round() as i32;
+            let _ = win.set_position(PhysicalPosition::new(x, y));
+            if t >= 1.0 {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(8));
+        }
+    });
+}
+
+/// The open island was dropped with its window at `win_origin`: how far that is
+/// from home, in logical px.
+pub fn panel_offset_from_drop(app: &AppHandle, settings: &Settings, win_origin: (i32, i32), win_size: (u32, u32)) -> Option<(f64, f64)> {
+    let m = target_monitor(app, &settings.screen)?;
+    let scale = m.scale_factor();
+    let work = island_area(&m, settings);
+    let (hx, hy) = home_origin(work, win_size, settings, scale);
+    Some(((win_origin.0 - hx) as f64 / scale, (win_origin.1 - hy) as f64 / scale))
 }
 
 /// Top-left corner, in physical px, of a `size` window pinned to the requested
@@ -632,5 +719,24 @@ mod tests {
     fn window_stays_on_screen() {
         assert_eq!(clamp_to_work(WORK, (720, 320), -50, 900), (0, 720));
         assert_eq!(clamp_to_work(WORK, (720, 320), 1500, 10), (1200, 10));
+    }
+}
+
+#[cfg(test)]
+mod glide_tests {
+    use super::close_curve;
+
+    #[test]
+    fn closing_curve_starts_slow_and_lands() {
+        assert!(close_curve(0.0).abs() < 1e-6);
+        assert!((close_curve(1.0) - 1.0).abs() < 1e-6);
+        assert!(close_curve(0.2) < 0.2, "eases in");
+        assert!(close_curve(0.8) > 0.9, "lands softly");
+        let mut prev = 0.0;
+        for i in 1..=20 {
+            let v = close_curve(i as f64 / 20.0);
+            assert!(v >= prev);
+            prev = v;
+        }
     }
 }

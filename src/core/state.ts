@@ -138,13 +138,14 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_zammad", "Ticket", "#F59E0B", "n8n"),
   task("integration_clipboard", "Appunti", "#A78BFA", "n8n"),
   task("integration_media", "Musica", "#1ED760", "n8n"),
+  task("integration_3cx", "3CX", "#0596D4", "n8n"),
 ];
 
 export const TOGGLEABLE_INTEGRATION_IDS = [
   "integration_resend", "integration_n8n", "integration_vercel", "integration_github",
   "integration_notion", "integration_calcom", "integration_stripe",
   ...Object.keys(PROBE_INTEGRATIONS),
-  "integration_clipboard", "integration_media",
+  "integration_clipboard", "integration_media", "integration_3cx",
 ];
 
 /** What an integration poller last reported. */
@@ -262,6 +263,12 @@ export interface IntegrationConfig {
   /** Outlook: warn this many minutes before a meeting. */
   outlookWarn: number;
   weatherCity: string;
+  /** 3CX: "user" (the extension's own login) or "api" (an API client). */
+  threecxMode: "user" | "api";
+  /** 3CX, API mode: the extension the API client monitors. */
+  threecxExtension: string;
+  /** 3CX: the device that places calls; "" = automatic. */
+  threecxDevice: string;
 }
 
 /** A user-defined button in the Azioni tab. */
@@ -477,7 +484,10 @@ export const DEFAULT_SETTINGS: Settings = {
   suggestionsSnoozed: {},
   habitsExcluded: [],
   updateCheck: true,
-  integrationConfig: { systemWarn: 10, outlookWarn: 10, weatherCity: "" },
+  integrationConfig: {
+    systemWarn: 10, outlookWarn: 10, weatherCity: "",
+    threecxMode: "user", threecxExtension: "", threecxDevice: "",
+  },
 };
 
 type Listener = () => void;

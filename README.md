@@ -189,7 +189,10 @@ poi le pillole scorrono).
   posizione resta salvata nel profilo, e il lato da cui si apre l'isola viene
   scelto da solo (il terzo e la metà dello schermo in cui lo lasci), così il
   pannello cresce verso l'interno. Vicino a un bordo o al centro si aggancia.
-  Scegliere di nuovo una posizione qui lo riporta al bordo.
+  Scegliere di nuovo una posizione qui lo riporta al bordo. Si trascina anche
+  l'icona a riposo (un clic la apre). L'isola **aperta** si sposta tenendo premuto
+  sullo spazio vuoto dell'intestazione: resta lì finché è aperta, poi alla chiusura
+  torna scivolando al posto del personaggio e si riapre sempre da lì.
 - **Sopra la barra**: Slime può stare anche sopra la barra delle applicazioni
   (spento: resta sopra di essa, nell'area di lavoro).
 - **Aggancia ai bordi**: lasciato a pochi pixel da un bordo dello schermo, lo
@@ -291,6 +294,7 @@ sbaglio, e **Ripristina l'ordine**.
 | **Meteo** | meteo attuale di una città (Open-Meteo, gratuito e senza chiave); avvisa se è probabile pioggia nelle prossime ore |
 | **Appunti** | gli ultimi 30 testi e immagini copiati (fino a 10 immagini), più quelli fissati: clic per incollarli nell'app in primo piano, oppure copia, trasforma (MAIUSCOLO, minuscolo, una riga, senza spazi, JSON, URL), fissa, elimina; sulle immagini **Chiedi a Claude**. Solo in memoria, mai su disco; ciò che i gestori di password segnano come privato non viene registrato |
 | **Musica** | cosa sta suonando in qualsiasi app che compare nei controlli multimediali di Windows (Spotify, il browser, Lettore multimediale…), con copertina, avanzamento e ⏮ ⏯ ⏭; la pillola mostra il titolo del brano. Tutto in locale |
+| **3CX** | il centralino 3CX V20: chiamare (numero o ricerca in rubrica, da un dispositivo a scelta), chiamate in arrivo nell'isola con **Rispondi** / **Rifiuta**, **Riaggancia**, durata, stato, chiamate perse e recenti. Due accessi: **interno e password** (come l'app 3CX, senza licenze in più; accesso non documentato da 3CX) o un **client API** dell'Admin Console (licenza 8SC+; senza stato e cronologia). Numeri e nomi solo in memoria |
 
 Ogni integrazione può stare tra le pillole della panoramica oppure in alto
 nell'isola come **scheda**, con il suo nome o con un'icona a scelta ("Mostra

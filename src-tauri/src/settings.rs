@@ -39,12 +39,32 @@ pub struct IntegrationConfig {
     pub outlook_warn: i64,
     #[serde(default)]
     pub weather_city: String,
+    /// 3CX: "user" (the extension's own login) or "api" (an API client).
+    #[serde(default = "user_mode")]
+    pub threecx_mode: String,
+    /// 3CX, API mode: the extension the API client monitors.
+    #[serde(default)]
+    pub threecx_extension: String,
+    /// 3CX: the device that places calls (id from the PBX); empty = automatic.
+    #[serde(default)]
+    pub threecx_device: String,
 }
 
 impl Default for IntegrationConfig {
     fn default() -> Self {
-        Self { system_warn: 10, outlook_warn: 10, weather_city: String::new() }
+        Self {
+            system_warn: 10,
+            outlook_warn: 10,
+            weather_city: String::new(),
+            threecx_mode: user_mode(),
+            threecx_extension: String::new(),
+            threecx_device: String::new(),
+        }
     }
+}
+
+fn user_mode() -> String {
+    "user".into()
 }
 
 fn ten() -> i64 {

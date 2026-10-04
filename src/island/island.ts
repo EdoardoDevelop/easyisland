@@ -93,7 +93,8 @@ export class Island {
   /** The gaze last drawn: cursor moves that do not change it skip the frame loop. */
   private drawnLook = { x: Infinity, y: Infinity };
   /** Left button held on the compact island: a click or the start of a drag. */
-  private press: { x: number; y: number; moved: boolean } | null = null;
+  /** A press that may become a drag of the whole island (`expanded`: started on the open island's header). */
+  private press: { x: number; y: number; moved: boolean; expanded: boolean } | null = null;
   private collapseTimer: number | null = null;
   private wasInIsland = false;
   /** Last shape handed to Rust for the click-through test. */
@@ -343,6 +344,9 @@ export class Island {
     const prev = State.mode;
     if (mode === prev) return;
     State.mode = mode;
+    // Before the animation: an open island that was dragged away goes back to
+    // the character's place, so it shrinks there and the next opening starts there.
+    if ((mode === "expanded") !== (prev === "expanded")) void Bridge.setExpanded(mode === "expanded");
     if (mode === "expanded") {
       Sound.play("open");
       void this.refreshForeground();
@@ -473,6 +477,13 @@ export class Island {
     // back left it thinking the island was still open, and a click on the compact
     // island then did nothing — the island could never be reopened.
     this.fsm.forcePetit();
+  }
+
+  /** Keeps the island open (or lets it close again on its own). */
+  setPinned(on: boolean) {
+    State.isPinned = on;
+    this.fsm.pinned = on;
+    State.notify();
   }
 
   /** Alert from the hook server: open on this view. Pinned alerts never auto-close. */
@@ -1179,6 +1190,12 @@ export class Island {
 
   // ── Input ───────────────────────────────────────────────────────────────────
 
+  /** True for the open island's header background, where a drag moves the island. */
+  private isHeaderGrab(target: EventTarget | null): boolean {
+    const t = target as HTMLElement | null;
+    return !!t?.closest?.("#header") && !t.closest("button, input, select, [data-id]");
+  }
+
   private wireInput() {
     // The rest icon (or the wake strip) is the only thing the OS can hit while
     // the island is hidden.
@@ -1190,27 +1207,24 @@ export class Island {
     };
     this.wakeStrip.addEventListener("mouseenter", wake);
     this.restIcon.addEventListener("mouseenter", wake);
-    this.restIcon.addEventListener("mousedown", () => {
-      wake();
-      this.fsm.click();
-    });
-
-    // Compact: a press opens the island on release, unless the pointer moved —
-    // then it is a drag, the character follows the mouse and stays where it is left.
-    this.islandEl.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0 || State.mode === "expanded") return;
+    // The island can be moved in every state: the rest icon, the compact island and,
+    // by its header, the open one. A still press keeps doing what it did (open);
+    // moving past the threshold drags, and the place is remembered (end_drag).
+    const startPress = (e: PointerEvent, el: HTMLElement, expanded: boolean) => {
       Sound.resume();
       State.lastActivity = performance.now();
       this.cancelHoverOpen();
-      this.press = { x: e.screenX, y: e.screenY, moved: false };
-      this.islandEl.setPointerCapture(e.pointerId);
-    });
-    this.islandEl.addEventListener("pointermove", (e) => {
+      this.press = { x: e.screenX, y: e.screenY, moved: false, expanded };
+      el.setPointerCapture(e.pointerId);
+    };
+    const movePress = (e: PointerEvent) => {
       const p = this.press;
       if (!p) return;
       const dx = e.screenX - p.x;
       const dy = e.screenY - p.y;
       if (!p.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      // An open island must not close under the pointer while it is carried.
+      if (!p.moved && p.expanded) this.fsm.pinned = true;
       p.moved = true;
       p.x = e.screenX;
       p.y = e.screenY;
@@ -1218,17 +1232,47 @@ export class Island {
       // The slime wobbles as it is carried around.
       this.engine.jiggle(dx, dy);
       this.ensureRunning();
-    });
-    const release = (e: PointerEvent, cancelled: boolean) => {
+    };
+    const endPress = (e: PointerEvent, el: HTMLElement, cancelled: boolean, click: () => void) => {
       const p = this.press;
       if (!p) return;
       this.press = null;
-      if (this.islandEl.hasPointerCapture(e.pointerId)) this.islandEl.releasePointerCapture(e.pointerId);
-      if (p.moved) void Bridge.endDrag();
-      else if (!cancelled) this.fsm.click();
+      if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
+      if (p.moved) {
+        void Bridge.endDrag();
+        if (p.expanded) this.fsm.pinned = State.isPinned;
+      } else if (!cancelled) {
+        click();
+      }
     };
-    this.islandEl.addEventListener("pointerup", (e) => release(e, false));
-    this.islandEl.addEventListener("pointercancel", (e) => release(e, true));
+
+    // Rest icon: a click opens, a drag moves it.
+    this.restIcon.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      startPress(e, this.restIcon, false);
+    });
+    this.restIcon.addEventListener("pointermove", movePress);
+    const openFromRest = () => {
+      wake();
+      this.fsm.click();
+    };
+    this.restIcon.addEventListener("pointerup", (e) => endPress(e, this.restIcon, false, openFromRest));
+    this.restIcon.addEventListener("pointercancel", (e) => endPress(e, this.restIcon, true, openFromRest));
+
+    // Compact island: a press opens on release, a drag moves it. Open island: the
+    // header's empty space drags it (tabs, buttons and fields keep their clicks).
+    this.islandEl.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      const expanded = State.mode === "expanded";
+      if (expanded && !this.isHeaderGrab(e.target)) return;
+      startPress(e, this.islandEl, expanded);
+    });
+    this.islandEl.addEventListener("pointermove", movePress);
+    const openFromCompact = () => {
+      if (State.mode !== "expanded") this.fsm.click();
+    };
+    this.islandEl.addEventListener("pointerup", (e) => endPress(e, this.islandEl, false, openFromCompact));
+    this.islandEl.addEventListener("pointercancel", (e) => endPress(e, this.islandEl, true, openFromCompact));
 
     this.islandEl.addEventListener("mousedown", (e) => {
       Sound.resume();

@@ -44,6 +44,7 @@ pub(crate) fn update_settings(app: &AppHandle, change: impl FnOnce(&mut crate::s
     };
     crate::settings::save(&updated).map_err(|e| format!("Impostazioni non salvate: {e}"))?;
     crate::habits::apply(&updated);
+    crate::threecx::settings_saved(&updated);
     let _ = app.emit("settings-changed", updated);
     Ok(())
 }

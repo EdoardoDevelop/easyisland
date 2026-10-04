@@ -283,6 +283,7 @@ html.browser-preview #root {
 }
 
 #header {
+  cursor: grab;
   height: 34px;
   flex: 0 0 34px;
   display: flex;
@@ -2408,4 +2409,251 @@ input[type="range"]::-webkit-slider-thumb {
 
 .files-empty {
   padding: 10px 0;
+}
+
+/* ── 3CX (src/views/threecx.ts) ──────────────────────────────────────────── */
+
+.tcx-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 0;
+  background: transparent;
+  padding: 1px 4px;
+  border-radius: 5px;
+  font: 400 11px var(--font);
+  color: var(--dim-2);
+  white-space: nowrap;
+}
+
+.tcx-status:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #c5c8cd;
+}
+
+.tcx-caret {
+  font-size: 9px;
+}
+
+.tcx-missed {
+  margin-left: auto;
+  border: 0;
+  border-radius: 9px;
+  padding: 1px 8px;
+  font: 600 10px var(--font);
+  color: #f4505e;
+  background: rgba(244, 80, 94, 0.14);
+}
+
+.tcx-missed:hover {
+  background: rgba(244, 80, 94, 0.26);
+}
+
+.tcx-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-top: 5px;
+}
+
+.clip-chip.on {
+  border-color: rgba(5, 150, 212, 0.7);
+  color: var(--ink);
+}
+
+.tcx-calls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 6px;
+}
+
+.tcx-call {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--c) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 30%, transparent);
+}
+
+.tcx-call.ringing {
+  animation: tcx-ring 1.2s ease-in-out infinite;
+}
+
+@keyframes tcx-ring {
+  0%, 100% { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 30%, transparent); }
+  50% { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 85%, transparent), 0 0 10px color-mix(in srgb, var(--c) 35%, transparent); }
+}
+
+.tcx-who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.tcx-who b {
+  font: 600 11.5px var(--font);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tcx-sub {
+  font: 400 10px var(--font);
+  color: #c5c8cd;
+}
+
+.tcx-acts {
+  display: inline-flex;
+  gap: 5px;
+  flex: 0 0 auto;
+}
+
+.tcx-act,
+.tcx-go {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--c);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--c) 45%, transparent);
+}
+
+.tcx-act:hover,
+.tcx-go:hover {
+  filter: brightness(1.15);
+}
+
+.tcx-dialer {
+  display: flex;
+  flex-direction: column;
+  padding-top: 6px;
+}
+
+.tcx-dial {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tcx-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  font: 400 11.5px var(--font);
+  outline: none;
+}
+
+.tcx-input:focus {
+  border-color: rgba(5, 150, 212, 0.7);
+}
+
+.tcx-note {
+  font: 400 10.5px var(--font);
+  color: var(--dim-2);
+  padding: 2px 4px 0;
+  min-height: 0;
+}
+
+.tcx-note:empty {
+  display: none;
+}
+
+.tcx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 4px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.tcx-row {
+  cursor: default;
+}
+
+.tcx-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tcx-row .int-name {
+  flex: 1 1 auto;
+}
+
+.tcx-row:hover .int-name {
+  color: #c5c8cd;
+}
+
+.tcx-nums {
+  display: inline-flex;
+  gap: 3px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tcx-num {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 0;
+  border-radius: 8px;
+  padding: 1px 6px;
+  font: 500 10px var(--font);
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.12);
+  white-space: nowrap;
+}
+
+.tcx-num:hover {
+  background: rgba(34, 197, 94, 0.26);
+}
+
+.tcx-foot {
+  padding-bottom: 8px;
+}
+
+.tcx-from {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font: 400 10.5px var(--font);
+  color: var(--dim-3);
+}
+
+.tcx-pick {
+  border: 0;
+  border-radius: 6px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tcx-pick:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #c5c8cd;
+}
+
+.tcx-pick > span:first-child {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tcx-foot + .tcx-chips {
+  padding: 0 0 8px;
 }

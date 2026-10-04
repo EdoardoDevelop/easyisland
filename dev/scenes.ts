@@ -95,6 +95,27 @@ export async function runScene(island: Island, scene: string) {
       await wait(2500);
       break;
     }
+    case "threecx": {
+      // ?activeIntegrations=integration_3cx — a call ringing and one in progress.
+      await wait(300);
+      const now = Date.now();
+      State.integrations.integration_3cx = {
+        loaded: true, configured: true, error: null,
+        data: {
+          mode: "user", connected: true, number: "101", name: "Mario Rossi", profile: "1", missed: 3,
+          profiles: [{ id: "1", name: "Disponibile" }, { id: "2", name: "Assente" }, { id: "3", name: "Non disturbare" }],
+          devices: [{ id: "a", name: "App 3CX per Windows" }, { id: "b", name: "Yealink T46U" }],
+          calls: [
+            { id: "7", state: "ringing", incoming: true, name: "Cliente Srl", number: "+39 051 123456", since: now, canAnswer: true },
+            { id: "5", state: "connected", incoming: false, name: "", number: "0512345678", since: now - 95_000, canAnswer: false },
+          ],
+        },
+      };
+      State.setFocus("integration_3cx");
+      island.alert("overview");
+      await wait(2500);
+      break;
+    }
     case "suggestion":
       // A proposal from the habits (habits.rs), as the island shows it.
       await wait(300);
