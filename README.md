@@ -4,7 +4,7 @@
 
 # EasyIsland
 
-**Su un PC Slime non ha un notch, quindi vive in cima al tuo schermo.**
+**Un'isola sempre a portata di mano sullo schermo di Windows, con un piccolo personaggio animato che ti tiene d'occhio Claude Code, i tuoi servizi e il tuo PC.**
 
 Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file, chatta con Claude, tieni d'occhio i tuoi servizi: tutto senza interrompere quello che stai facendo.
 

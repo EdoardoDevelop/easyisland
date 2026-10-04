@@ -123,7 +123,7 @@ _Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versio
 
 ## 6. Roadmap decisa
 
-In ordine di implementazione consigliato: 6.1 → 6.2 → 6.3 → 6.4 → 6.5. Ogni punto dice cosa fare, dove e quando è finito. **Stato al 4 ottobre 2026:** tutto fatto tranne il widget "Oggi" (6.3), escluso per ora; molte parti vanno ancora provate dal vivo (vedi "Da provare dal vivo" in fondo al registro).
+In ordine di implementazione consigliato: 6.1 → 6.2 → 6.3 → 6.4 → 6.5 → 6.6. Ogni punto dice cosa fare, dove e quando è finito. **Stato al 4 ottobre 2026:** 6.1–6.5 fatti tranne il widget "Oggi" (6.3), escluso per ora; molte parti vanno ancora provate dal vivo (vedi "Da provare dal vivo" in fondo al registro). **6.6 da fare.**
 
 ### 6.1 Fondamenta per la personalizzazione
 
@@ -196,6 +196,28 @@ Un tipo di widget generico al posto delle integrazioni scritte a mano (le 7 attu
 - **Regole:** mai strumenti che eseguono comandi arbitrari, inviano email o eliminano; le abitudini registrano solo nomi di programmi e orari, in locale.
 - **Fatto quando:** in una chat vera chiedo "ogni giorno feriale alle 9 apri Outlook", confermo la card e il giorno dopo Outlook si apre da solo.
 
+### 6.6 Prossime funzioni (decise il 4 ottobre 2026)
+
+> **Stato: da fare.** In ordine di utilità.
+
+Prima di tutto, **due verifiche**:
+- [ ] **Canale degli hook solo per il proprio utente**: la named pipe ha già il SID nel nome (`easyisland-<sid>`), ma va controllato che il suo descrittore di sicurezza neghi l'accesso agli altri utenti dello stesso PC. Nello stesso spirito: il log non deve tenere comandi né URL completi.
+- [ ] **La richiesta di permesso resta finché non rispondi**: il mouse non deve richiuderla, riaprendo l'isola deve ricomparire, e deve comparire anche se l'isola è già aperta su un'altra vista, tornando poi alla pillola di prima.
+
+Poi, in ordine:
+1. [ ] **Diff in tempo reale e messaggio finale**. Su `PostToolUse` di `Edit`, `MultiEdit` e `Write` calcolare in locale il diff da `old_string`/`new_string`/`content` (mai leggere il file dal disco): nei passi della sessione il nome del file con `+N` verde e `−M` rosso; un clic apre la scheda del diff (monospazio, 3 righe di contesto, ↗ apre in VS Code con `code -g file:riga`). Limiti: oltre 200 KB o 4.000 righe solo il bilancio ("Diff troppo grande"); al massimo 50 diff per sessione, cancellati a fine sessione o dopo un'ora. A sessione finita la scheda mostra l'ultimo messaggio di Claude invece dell'ultimo passo.
+2. [ ] **Uso del piano Claude**. Una pillola nell'intestazione con i limiti delle 5 ore e settimanali (verde < 50 %, arancione 50–80 %, rosso ≥ 80 %); un clic apre i dettagli con l'ora del reset. I dati arrivano da Claude Code alla `statusLine` (`rate_limits.five_hour` / `seven_day`, `used_percentage`, `resets_at`): `easyisland-hook` in modalità statusline li inoltra e richiama la `statusLine` che l'utente aveva prima, restituendone l'output identico. Installazione con le regole di sempre per `settings.json` (backup, diff, conferma; in disinstallazione si rimette quella di prima). Solo piani Pro e Max.
+3. [ ] **Pulsante "Sempre"** sui permessi di Claude Code, accanto a Nega / Consenti. Il relay accetta già `always` (`decision_json` in `hook/src/main.rs`) ma oggi lo traduce in un semplice "consenti": va deciso se mandare a Claude Code la regola permanente (`updatedPermissions`) o ricordarla nell'isola.
+4. [ ] **Markdown nelle risposte della chat**: grassetto, elenchi, titoli, citazioni, blocchi di codice con pulsante Copia; link aperti solo se sono web. Senza librerie, come il resto del front end.
+5. [ ] **Altri agenti**: Codex (sessioni e Consenti/Nega, hook in `~/.codex/hooks.json`), Gemini CLI, Cursor (Claude Code avviato nel terminale di Cursor), più un campo generico `easyisland_agent` nel payload degli hook con cui qualsiasi strumento ottiene la sua pillola. Installazione degli hook con backup, anteprima e conferma come per Claude Code.
+6. [ ] **Altri motori per la chat**, scelti dal nome del modello sopra la chat: **OpenRouter** (una chiave per molti modelli, API compatibile con OpenAI), OpenAI, Google AI (Gemini) e modelli locali **Ollama** e **LM Studio** (nessuna chiave, solo l'indirizzo del server; risposte in streaming, blocchi di "ragionamento" nascosti). Chiavi in Gestione credenziali come quella di Anthropic.
+7. [ ] **Il personaggio**: guardaroba (cappelli, occhiali, sciarpa… disegnati nel codice, anche in automatico per le stagioni, clic destro sul personaggio); personaggio sul desktop (lo tiri fuori dall'isola, resta dove lo lasci, torna all'isola quando serve un permesso, dorme quando non succede niente); balla con la musica (già tra le cose aperte di Musica).
+8. [ ] **Scorciatoie**: globali per andare al permesso o alla domanda in attesa, portare avanti il terminale della sessione, cambiare pillola, silenziare; dentro l'isola aperta frecce per le pillole e le liste, Invio per inviare, una per la nuova chat, una per tenere aperta.
+
+Escluso (deciso il 4 ottobre 2026): il **GitHub rinnovato** (pull request con lo stato della CI, revisioni richieste, avvisi quando la CI cambia, griglia dei contributi). L'integrazione GitHub resta com'è.
+
+Ancora mancanti anche: invio di un file per email, personaggio trascinato su una finestra per allegarla alla chat, salto al terminale esatto della sessione (vedi sezione 4 → Funzionalità).
+
 ## 7. Idee da valutare (non ancora decise)
 
 Pensate per il supporto IT sul notebook, ma utili anche a casa.
@@ -236,6 +258,9 @@ Pensate per il supporto IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi facciamo il widget «Oggi» (6.3)"_, _"proviamo dal vivo le automazioni"_ oppure _"valutiamo un'idea della sezione 7"_. Per una nuova versione: stesso numero nei tre file, unione di `claude/sviluppo` in `main`, tag `vX.Y.Z`. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 4 ottobre 2026 — prossime funzioni decise
+- Nuova sezione **6.6** della roadmap, in ordine: due verifiche (canale degli hook solo per il proprio utente, permesso che resta fino alla risposta), diff in tempo reale e messaggio finale, uso del piano Claude, pulsante "Sempre", markdown nella chat, altri agenti, altri motori per la chat (con **OpenRouter**, richiesto da Edoardo), guardaroba e personaggio sul desktop, scorciatoie. Escluso il GitHub rinnovato.
 
 ### 4 ottobre 2026 — versione 0.5.4
 - Versione **0.5.4** nei tre file (più `package-lock.json` e `Cargo.lock`), `claude/sviluppo` unito in `main`, tag `v0.5.4`. Rispetto alla 0.5.3: README completo con le nuove schermate, cartella `design/` tolta, scheda ⚡ che cresce con le azioni su due righe, messaggio di Gestione credenziali piena che riconosce anche l'errore 8.
