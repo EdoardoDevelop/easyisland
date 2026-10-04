@@ -279,13 +279,20 @@ pub struct Settings {
     #[serde(default = "default_model")]
     pub model: String,
     /// Where the chat goes: "subscription" = the user's Claude Code install
-    /// (`claude -p`, covered by a Claude plan), "api" = an Anthropic API key.
+    /// (`claude -p`, covered by a Claude plan), "api" = an Anthropic API key,
+    /// or one of openai::ENGINES (OpenRouter, OpenAI, Gemini, Ollama, LM Studio).
     #[serde(default = "default_chat_engine")]
     pub chat_engine: String,
     /// Model for the Claude Code engine: an alias (opus, sonnet, haiku) or ""
     /// for Claude Code's own default.
     #[serde(default)]
     pub cli_model: String,
+    /// Model chosen for each OpenAI-compatible engine (openai.rs): engine → model id.
+    #[serde(default)]
+    pub engine_models: std::collections::BTreeMap<String, String>,
+    /// Address of the local servers (ollama, lmstudio); empty = their default.
+    #[serde(default)]
+    pub engine_urls: std::collections::BTreeMap<String, String>,
     /// Where the island sits: "top" | "bottom" …
     #[serde(default = "default_anchor_v")]
     pub anchor_v: String,
@@ -376,6 +383,18 @@ pub struct Settings {
     /// Global shortcut: capture a zone of the screen and ask Claude about it.
     #[serde(default = "default_hotkey_screenshot")]
     pub hotkey_screenshot: String,
+    /// Global shortcut: the permission or question waiting for an answer.
+    #[serde(default = "default_hotkey_pending")]
+    pub hotkey_pending: String,
+    /// Global shortcut: bring the session's app (terminal, VS Code, Claude) to the front.
+    #[serde(default = "default_hotkey_session")]
+    pub hotkey_session: String,
+    /// Global shortcut: the next pill in the island (none by default).
+    #[serde(default)]
+    pub hotkey_next_pill: String,
+    /// Global shortcut: sounds on / off (none by default).
+    #[serde(default)]
+    pub hotkey_mute: String,
     /// ⚡ tab: actions suggested for the app in front (Outlook, Excel, the browser…).
     #[serde(default = "default_true")]
     pub context_actions: bool,
@@ -421,6 +440,12 @@ fn default_hotkey_clipboard() -> String {
 }
 fn default_hotkey_screenshot() -> String {
     "Ctrl+Alt+Shift+S".into()
+}
+fn default_hotkey_pending() -> String {
+    "Ctrl+Alt+Shift+P".into()
+}
+fn default_hotkey_session() -> String {
+    "Ctrl+Alt+Shift+T".into()
 }
 
 fn default_presence_mode() -> String {
@@ -492,6 +517,8 @@ impl Default for Settings {
             model: default_model(),
             chat_engine: default_chat_engine(),
             cli_model: String::new(),
+            engine_models: Default::default(),
+            engine_urls: Default::default(),
             anchor_v: default_anchor_v(),
             anchor_h: default_anchor_h(),
             offset_x: 0.0,
@@ -523,6 +550,10 @@ impl Default for Settings {
             hotkey_ask: default_hotkey_ask(),
             hotkey_clipboard: default_hotkey_clipboard(),
             hotkey_screenshot: default_hotkey_screenshot(),
+            hotkey_pending: default_hotkey_pending(),
+            hotkey_session: default_hotkey_session(),
+            hotkey_next_pill: String::new(),
+            hotkey_mute: String::new(),
             context_actions: true,
             agent_tools: true,
             automations: Vec::new(),

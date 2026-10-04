@@ -6,7 +6,7 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { Bridge, onEvent, type HookStatus } from "../core/bridge";
-import { DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type Settings, type WidgetDef } from "../core/state";
+import { CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type Settings, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
 import { h, clear } from "../views/dom";
@@ -48,35 +48,64 @@ function renderDiff(text: string): HTMLElement {
 
 // ── Claude Code section ───────────────────────────────────────────────────────
 
-function claudeSection(status: HookStatus): HTMLElement {
+/** The tools whose hooks EasyIsland can install (hooks.rs → Target). */
+const HOOK_TOOLS = {
+  claude: {
+    name: "Claude Code", file: "settings.json",
+    on: "EasyIsland è collegato alle tue sessioni di Claude Code. Strumenti usati, domande e richieste di permesso compaiono nell'isola, e puoi rispondere da lì.",
+    off: "Installa gli hook per vedere le sessioni di Claude Code nell'isola e approvare i permessi senza interrompere quello che stai facendo.",
+    done: "Apri una nuova sessione di Claude Code per attivare gli hook.",
+  },
+  codex: {
+    name: "Codex", file: "hooks.json",
+    on: "Le sessioni di Codex compaiono nell'isola con una pillola tutta loro: passi, modifiche ai file e richieste di permesso con Consenti / Nega.",
+    off: "Se usi Codex (OpenAI), installa i suoi hook: sessioni, modifiche e richieste di permesso arrivano nell'isola come per Claude Code.",
+    done: "In Codex apri /hooks e approva gli hook di EasyIsland (Codex chiede di fidarsi degli hook nuovi), poi apri una nuova sessione.",
+  },
+  gemini: {
+    name: "Gemini CLI", file: "settings.json",
+    on: "Le sessioni di Gemini CLI compaiono nell'isola: passi, modifiche ai file, ultimo messaggio, e un avviso quando chiede un permesso (a cui rispondi nel suo terminale: Gemini non lascia rispondere da fuori).",
+    off: "Se usi Gemini CLI, installa i suoi hook per vedere le sue sessioni nell'isola. I permessi restano nel suo terminale, l'isola ti avvisa quando ne chiede uno.",
+    done: "Apri una nuova sessione di Gemini CLI per attivare gli hook.",
+  },
+} as const;
+type HookTool = keyof typeof HOOK_TOOLS;
+
+/** Codex and Gemini CLI: the same section, filled in once their status is read. */
+function agentHooksSection(tool: HookTool): HTMLElement {
+  const status: HookStatus = { installed: false, legacy: false, settingsPath: "…", hookPath: "", hookReady: false };
+  return claudeSection(status, tool, true);
+}
+
+function claudeSection(status: HookStatus, tool: HookTool = "claude", refreshFirst = false): HTMLElement {
+  const T = HOOK_TOOLS[tool];
+  const agent = tool === "claude" ? undefined : tool;
   const body = h("div", { style: "display:flex;flex-direction:column;gap:12px" });
   const section = h(
     "section",
     {},
-    h("h2", {}, statusDot(status.installed), h("span", { text: "Claude Code" })),
+    h("h2", {}, statusDot(status.installed), h("span", { text: T.name })),
     body,
   );
 
   const rebuild = async () => {
-    const fresh = await Bridge.hooksStatus();
+    const fresh = await Bridge.hooksStatus(agent);
     if (fresh) Object.assign(status, fresh);
     clear(body);
     draw();
     const head = section.querySelector("h2")!;
     clear(head);
-    head.append(statusDot(status.installed), h("span", { text: "Claude Code" }));
+    head.append(statusDot(status.installed), h("span", { text: T.name }));
   };
 
   function draw() {
     body.append(
       h("div", {
         class: "hint",
-        text: status.installed
-          ? "EasyIsland è collegato alle tue sessioni di Claude Code. Strumenti usati, domande e richieste di permesso compaiono nell'isola, e puoi rispondere da lì."
-          : "Installa gli hook per vedere le sessioni di Claude Code nell'isola e approvare i permessi senza interrompere quello che stai facendo.",
+        text: status.installed ? T.on : T.off,
       }),
       h("div", { class: "row" },
-        h("label", { text: "settings.json" }),
+        h("label", { text: T.file }),
         h("span", { class: "path", text: status.settingsPath }),
       ),
       h("div", { class: "row" },
@@ -126,7 +155,7 @@ function claudeSection(status: HookStatus): HTMLElement {
   async function showPreview(install: boolean) {
     let preview;
     try {
-      preview = await Bridge.hooksPreview(install);
+      preview = await Bridge.hooksPreview(install, agent);
     } catch (err) {
       // An unreadable or invalid settings.json stops here rather than being
       // treated as empty and written over.
@@ -146,7 +175,7 @@ function claudeSection(status: HookStatus): HTMLElement {
       h("div", {
         class: "hint",
         text: install
-          ? "Ecco esattamente cosa cambierà nel tuo settings.json. I tuoi hook non vengono toccati."
+          ? `Ecco esattamente cosa cambierà nel tuo ${T.file}. I tuoi hook non vengono toccati.`
           : "Vengono rimosse solo le voci di EasyIsland. I tuoi hook non vengono toccati.",
       }),
       renderDiff(preview.diff),
@@ -161,11 +190,11 @@ function claudeSection(status: HookStatus): HTMLElement {
     confirm.addEventListener("click", async () => {
       confirm.disabled = true;
       try {
-        const backup = await Bridge.hooksApply(install, preview.fingerprint);
+        const backup = await Bridge.hooksApply(install, preview.fingerprint, agent);
         clear(body);
         body.append(h("div", {
           class: "notice ok",
-          text: `Fatto. Impostazioni precedenti salvate in ${backup}. Apri una nuova sessione di Claude Code per attivare gli hook.`,
+          text: `Fatto. Impostazioni precedenti salvate in ${backup}. ${install ? T.done : ""}`,
         }));
         window.setTimeout(() => void rebuild(), 2600);
       } catch (err) {
@@ -179,7 +208,8 @@ function claudeSection(status: HookStatus): HTMLElement {
     })));
   }
 
-  draw();
+  if (refreshFirst) void rebuild();
+  else draw();
   return section;
 }
 
@@ -223,11 +253,10 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
 
   // ── Engine picker ──
   const engine = h("select", {}) as HTMLSelectElement;
-  engine.append(
-    h("option", { value: "subscription", text: "Abbonamento Claude (tramite Claude Code)" }),
-    h("option", { value: "api", text: "Chiave API Anthropic (a consumo)" }),
-  );
+  for (const e of CHAT_ENGINES) engine.append(h("option", { value: e.id, text: `${e.name} — ${e.hint}` }));
   engine.value = settings.chatEngine;
+  // The model can also be changed from the chat itself (the name above it).
+  const other = otherEngineBlock(() => paintDot());
 
   // ── Subscription block ──
   const cliState = h("span", { class: "hint", text: "Verifica di Claude Code…" });
@@ -343,14 +372,17 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
   );
 
   function paintDot() {
-    const ready = settings.chatEngine === "api" ? keyPresent : cliReady;
+    const ready = settings.chatEngine === "api" ? keyPresent
+      : settings.chatEngine === "subscription" ? cliReady : other.ready();
     dot.style.background = ready ? "#22c55e" : "#f4505e";
   }
 
   function showEngine() {
     const api = settings.chatEngine === "api";
+    const cli = settings.chatEngine === "subscription";
     apiBlock.style.display = api ? "flex" : "none";
-    cliBlock.style.display = api ? "none" : "flex";
+    cliBlock.style.display = cli ? "flex" : "none";
+    other.show(settings.chatEngine);
     paintDot();
   }
 
@@ -367,11 +399,127 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
   return h(
     "section",
     {},
-    h("h2", {}, dot, h("span", { text: "Chat con Claude" })),
+    h("h2", {}, dot, h("span", { text: "Chat" })),
     h("div", { class: "row" }, h("label", { text: "Motore" }), engine),
     cliBlock,
     apiBlock,
+    other.el,
   );
+}
+
+/**
+ * OpenRouter, OpenAI, Gemini, Ollama, LM Studio (src-tauri/src/openai.rs): the
+ * key (Gestione credenziali) or the local address, and the model, with the list
+ * the engine offers ("Carica modelli"). Rebuilt for the engine shown.
+ */
+function otherEngineBlock(changed: () => void) {
+  const el = h("div", { style: "display:flex;flex-direction:column;gap:10px" });
+  let current = "";
+  let keyPresent = false;
+
+  async function draw(id: string) {
+    current = id;
+    clear(el);
+    const e = CHAT_ENGINES.find((x) => x.id === id);
+    if (!e || id === "subscription" || id === "api") return;
+    settings.engineModels ??= {};
+    settings.engineUrls ??= {};
+    el.append(h("div", { class: "hint", text: e.key
+      ? `La chat chiama ${e.name} con la tua chiave (${e.hint}): si paga a consumo da loro. Nessuno strumento: niente ricerche sul web né azioni sul PC.`
+      : `La chat usa ${e.name} su questo PC o in rete (${e.hint}): nulla esce dalla tua rete. Avvialo e scarica almeno un modello.` }));
+    const feedback = h("div", {});
+    if (e.key) {
+      const state = h("span", { class: "hint" });
+      const field = h("input", { type: "password", style: "flex:1 1 auto;min-width:0", autocomplete: "off", spellcheck: "false" }) as HTMLInputElement;
+      const saveBtn = h("button", { class: "primary", text: "Salva chiave" });
+      const clearBtn = h("button", { class: "danger", text: "Rimuovi" });
+      const paint = () => {
+        state.textContent = keyPresent ? "Chiave salvata in Gestione credenziali di Windows." : "Nessuna chiave: serve per usare questo motore.";
+        field.placeholder = keyPresent ? "••••••••••••  (salvata)" : "incolla la chiave";
+        clearBtn.style.display = keyPresent ? "" : "none";
+        changed();
+      };
+      keyPresent = (await Bridge.secretPresent(e.key)) ?? false;
+      if (current !== id) return;
+      saveBtn.addEventListener("click", async () => {
+        const value = field.value.trim();
+        if (!value) return;
+        clear(feedback);
+        try {
+          await Bridge.secretSet(e.key!, value);
+          field.value = "";
+          keyPresent = true;
+          feedback.append(h("div", { class: "notice ok", text: "Salvata. Non viene mai scritta su disco." }));
+        } catch (err) {
+          feedback.append(h("div", { class: "notice err", text: `Salvataggio non riuscito: ${String(err)}` }));
+        }
+        paint();
+      });
+      clearBtn.addEventListener("click", async () => {
+        clear(feedback);
+        try {
+          await Bridge.secretClear(e.key!);
+          keyPresent = false;
+        } catch (err) {
+          feedback.append(h("div", { class: "notice err", text: `Rimozione non riuscita: ${String(err)}` }));
+        }
+        paint();
+      });
+      el.append(state, h("div", { class: "row" }, h("label", { text: "Chiave API" }), field, saveBtn, clearBtn));
+      paint();
+    } else {
+      const url = h("input", { type: "text", value: settings.engineUrls[id] ?? "", placeholder: e.url ?? "", style: "flex:1 1 auto;min-width:0", spellcheck: "false" }) as HTMLInputElement;
+      url.addEventListener("change", () => {
+        settings.engineUrls![id] = url.value.trim();
+        void save();
+      });
+      el.append(h("div", { class: "row" }, h("label", { text: "Indirizzo" }), url,
+        h("span", { class: "hint note", text: "vuoto = quello predefinito; anche un altro PC della rete" })));
+    }
+    const listId = `models-${id}`;
+    const model = h("input", { type: "text", value: settings.engineModels[id] ?? "", list: listId, placeholder: "nome del modello", style: "flex:1 1 auto;min-width:0", spellcheck: "false" }) as HTMLInputElement;
+    const options = h("datalist", { id: listId });
+    const load = h("button", { text: "Carica modelli" }) as HTMLButtonElement;
+    const loaded = h("span", { class: "hint note" });
+    model.addEventListener("change", () => {
+      settings.engineModels![id] = model.value.trim();
+      void save();
+      changed();
+    });
+    load.addEventListener("click", async () => {
+      load.disabled = true;
+      loaded.textContent = "Chiedo l'elenco…";
+      try {
+        const ids = await Bridge.chatModels(id, settings.engineUrls?.[id] || null);
+        clear(options);
+        for (const m of ids) options.append(h("option", { value: m }));
+        loaded.textContent = ids.length ? `${ids.length} modelli: scrivi per cercare` : "Nessun modello disponibile.";
+        if (!model.value && ids.length) {
+          model.value = ids[0];
+          model.dispatchEvent(new Event("change"));
+        }
+      } catch (err) {
+        loaded.textContent = String(err).replace(/^Error:\s*/, "");
+      }
+      load.disabled = false;
+    });
+    el.append(h("div", { class: "row" }, h("label", { text: "Modello" }), model, options, load), loaded, feedback);
+    changed();
+  }
+
+  return {
+    el,
+    show(id: string) {
+      const mine = id !== "subscription" && id !== "api";
+      el.style.display = mine ? "flex" : "none";
+      if (mine && id !== current) void draw(id);
+      if (!mine) current = "";
+    },
+    ready(): boolean {
+      const e = CHAT_ENGINES.find((x) => x.id === current);
+      return !!e && !!settings.engineModels?.[current] && (!e.key || keyPresent);
+    },
+  };
 }
 
 // ── Integrations section ──────────────────────────────────────────────────────
@@ -1266,6 +1414,17 @@ function actionsSection(): HTMLElement {
     h("div", { class: "row" }, h("label", { text: "Cattura una zona e chiedi" }),
       hotkeyField(settings.hotkeyScreenshot, (v) => { settings.hotkeyScreenshot = v; }),
       h("span", { class: "hint note", text: "scorciatoie di questo PC, valgono in ogni app" })),
+    h("div", { class: "row" }, h("label", { text: "Vai alla richiesta in attesa" }),
+      hotkeyField(settings.hotkeyPending, (v) => { settings.hotkeyPending = v; }),
+      h("span", { class: "hint note", text: "poi N nega, Y consente, S sempre; 1–9 sceglie una risposta" })),
+    h("div", { class: "row" }, h("label", { text: "Porta avanti la sessione" }),
+      hotkeyField(settings.hotkeySession, (v) => { settings.hotkeySession = v; }),
+      h("span", { class: "hint note", text: "l'app dove gira la sessione: terminale, VS Code, Cursor o Claude" })),
+    h("div", { class: "row" }, h("label", { text: "Pillola successiva" }),
+      hotkeyField(settings.hotkeyNextPill ?? "", (v) => { settings.hotkeyNextPill = v; })),
+    h("div", { class: "row" }, h("label", { text: "Suoni sì / no" }),
+      hotkeyField(settings.hotkeyMute ?? "", (v) => { settings.hotkeyMute = v; }),
+      h("span", { class: "hint note", text: "Isola aperta: ← → pillole, ↑ ↓ scorre, Ctrl+N nuova chat, Ctrl+P tieni aperta, Esc chiude" })),
     h("div", { class: "row" }, h("label", { text: "Suggerimenti per l'app in uso" }),
       toggle(settings.contextActions !== false, (v) => { settings.contextActions = v; void save(); }),
       h("span", { class: "hint note", text: "in cima alla scheda ⚡: per Outlook, Excel, Word, il browser, il codice… usano il testo che hai selezionato" })),
@@ -2276,9 +2435,9 @@ function pages(b: NonNullable<typeof boot>): Page[] {
       sections: () => [notifySection(), presenceSection(), scriptsSection(b.status.hookPath)],
     },
     {
-      id: "claude", label: "Claude", icon: "sparkles", color: "#E07A5F", title: "Claude",
-      intro: "Le sessioni di Claude Code nell'isola, la chat e i connettori che può usare.",
-      sections: () => [claudeSection(b.status), claudeChatSection(b.hasKey), connectorsSection()],
+      id: "claude", label: "Agenti e chat", icon: "sparkles", color: "#E07A5F", title: "Agenti e chat",
+      intro: "Le sessioni di Claude Code, Codex e Gemini CLI nell'isola, la chat con il motore che preferisci e i connettori che può usare.",
+      sections: () => [claudeSection(b.status), agentHooksSection("codex"), agentHooksSection("gemini"), claudeChatSection(b.hasKey), connectorsSection()],
     },
     {
       id: "azioni", label: "Azioni rapide", icon: "bolt", color: "#FACC15", title: "Azioni rapide",

@@ -43,6 +43,7 @@ const DROPPED_FIELDS: &[&str] = &["tool_response", "transcript_path"];
 /// less than this anyway.
 const MAX_FIELD_LEN: usize = 2_000;
 
+mod agents;
 mod diff;
 mod mcp;
 mod win;
@@ -311,7 +312,7 @@ fn read_event() -> Option<(String, String, Option<serde_json::Value>, Option<ser
     // The event name is passed as argv[1] by the hook command; the JSON usually
     // carries it too. Trust argv when the JSON is missing it.
     let arg_event = std::env::args().nth(1).unwrap_or_default();
-    let event = map
+    let mut event = map
         .get("hook_event_name")
         .and_then(|v| v.as_str())
         .map(str::to_string)
@@ -321,13 +322,28 @@ fn read_event() -> Option<(String, String, Option<serde_json::Value>, Option<ser
     if std::env::args().any(|a| a == "--chat") {
         map.insert("easyisland_chat".into(), serde_json::Value::Bool(true));
     }
+    // Codex, Gemini CLI or a tool of its own: Claude Code's shape and its own pill.
+    let args: Vec<String> = std::env::args().collect();
+    agents::normalize(agents::from_args(&args).as_deref(), map);
+    if let Some(e) = map.get("hook_event_name").and_then(|v| v.as_str()) {
+        event = e.to_string();
+    }
 
     // Built from the whole payload, before it is cut down: a file edit's diff
     // and a finished session's last message (diff.rs).
     if event == "PostToolUse" {
         let tool = map.get("tool_name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
         let input = map.get("tool_input").cloned().unwrap_or_default();
-        if let Some(d) = diff::file_diff(&tool, &input, map.get("tool_response")) {
+        // Codex's apply_patch: one diff per file it touches.
+        if tool == "Patch" {
+            if let Some(patch) = agents::patch_text(&input) {
+                let diffs = agents::patch_diffs(&patch);
+                if !diffs.is_empty() {
+                    map.insert("easyisland_diffs".into(), serde_json::Value::Array(diffs));
+                    map.remove("tool_input");
+                }
+            }
+        } else if let Some(d) = diff::file_diff(&tool, &input, map.get("tool_response")) {
             map.insert("easyisland_diff".into(), d);
             // The diff says it all; the snippets would only travel twice.
             if let Some(input) = map.get_mut("tool_input").and_then(|v| v.as_object_mut()) {
@@ -379,6 +395,11 @@ fn read_event() -> Option<(String, String, Option<serde_json::Value>, Option<ser
             let value = std::env::var(var).unwrap_or_default();
             map.insert(key.into(), serde_json::Value::String(value));
         }
+    }
+
+    // Claude Code in Cursor's terminal: "Apri" brings Cursor back.
+    if agents::in_cursor() {
+        map.insert("cursor".into(), serde_json::Value::Bool(true));
     }
 
     truncate_strings(&mut payload);

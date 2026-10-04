@@ -170,13 +170,19 @@ fn tail(path: &std::path::Path, max: u64) -> Option<String> {
 fn last_text_in(jsonl: &str) -> Option<String> {
     for line in jsonl.lines().rev() {
         let Ok(entry) = serde_json::from_str::<Value>(line) else { continue };
-        if entry.get("type").and_then(Value::as_str) != Some("assistant") {
-            continue;
-        }
-        let Some(content) = entry.pointer("/message/content").and_then(Value::as_array) else { continue };
+        // Claude Code: {"type":"assistant","message":{"content":[{"type":"text"…}]}};
+        // Codex: {"type":"response_item","payload":{"role":"assistant","content":[{"type":"output_text"…}]}}.
+        let content = match entry.get("type").and_then(Value::as_str) {
+            Some("assistant") => entry.pointer("/message/content"),
+            Some("response_item") if entry.pointer("/payload/role").and_then(Value::as_str) == Some("assistant") => {
+                entry.pointer("/payload/content")
+            }
+            _ => None,
+        };
+        let Some(content) = content.and_then(Value::as_array) else { continue };
         let text: Vec<&str> = content
             .iter()
-            .filter(|c| c.get("type").and_then(Value::as_str) == Some("text"))
+            .filter(|c| matches!(c.get("type").and_then(Value::as_str), Some("text" | "output_text")))
             .filter_map(|c| c.get("text").and_then(Value::as_str))
             .collect();
         let text = text.join("\n").trim().to_string();
@@ -272,5 +278,9 @@ mod tests {
         .join("\n");
         assert_eq!(last_text_in(&jsonl).as_deref(), Some("Ho finito\ntutto."));
         assert_eq!(last_text_in("not json\n"), None);
+        // Codex's rollout files.
+        let codex = json!({ "type": "response_item", "payload": { "type": "message", "role": "assistant",
+            "content": [{ "type": "output_text", "text": "Patch applicata." }] } });
+        assert_eq!(last_text_in(&codex.to_string()).as_deref(), Some("Patch applicata."));
     }
 }

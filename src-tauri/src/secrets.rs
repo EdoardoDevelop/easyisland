@@ -8,6 +8,10 @@ const SERVICE: &str = "it.edoardo.easyisland";
 /// Every key EasyIsland may store. Anything outside this list is refused.
 pub const KNOWN_KEYS: &[&str] = &[
     "anthropic-api-key",
+    // The other chat engines (openai.rs).
+    "openrouter-api-key",
+    "openai-api-key",
+    "gemini-api-key",
     "n8n-url",
     "n8n-api-key",
     "vercel-token",

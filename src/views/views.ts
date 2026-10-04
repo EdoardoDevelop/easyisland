@@ -6,7 +6,7 @@ import { isSorting, sortable } from "./sortable";
 import { h, svg, clear, dot } from "./dom";
 import { ICONS } from "./icons";
 import { Ticker } from "./ticker";
-import { State, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
+import { State, engineLabel, isSessionTask, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
 import { ISLAND_CHROME_H, MAX_ISLAND_H, washRGBA, type IslandViewName, type Wash } from "../core/layout";
 import { createMiniBot, pruneMiniBots } from "../character/minibots";
 import { buildPrompt } from "./chat";
@@ -87,9 +87,10 @@ function btn(
   onClick: () => void,
   kbd?: string,
 ): HTMLElement {
+  // The key shown on the button also presses it (onIslandKey in island.ts).
   return h(
     "button",
-    { class: `btn ${kind}`, onclick: onClick },
+    { class: `btn ${kind}`, onclick: onClick, ...(kbd ? { "data-key": kbd.toLowerCase() } : {}) },
     h("span", { text: label }),
     kbd ? h("span", { class: "kbd", text: kbd }) : null,
   );
@@ -199,7 +200,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
       gearBtn.classList.toggle("on", v === "settings");
       pinBtn.classList.toggle("on", State.keepOpen);
       pinBtn.classList.toggle("pinned", State.keepOpen);
-      pinBtn.title = State.keepOpen ? "Resta aperta: clic per lasciarla chiudere da sola" : "Tieni aperta";
+      pinBtn.title = State.keepOpen ? "Resta aperta: clic per lasciarla chiudere da sola (Ctrl+P)" : "Tieni aperta (Ctrl+P)";
       clear(gearBtn);
       gearBtn.append(svg(v === "settings" ? ICONS.gearFill : ICONS.gear, 16));
       clear(soundBtn);
@@ -217,6 +218,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
 /** Opens the diff view on `file` (a full path from State.diffs). */
 function openDiff(actions: ViewActions, file: string) {
   State.diffFile = file;
+  State.diffTask = State.focusTask?.id ?? null;
   actions.setView("diff");
 }
 
@@ -229,7 +231,7 @@ function buildOverview(actions: ViewActions): ViewHost {
   // A step with a diff ("Modifica · a.ts +12 −3"): its file's newest edit.
   const ticker = new Ticker((text) => {
     const name = text.replace(/\s+\+\d+ −\d+$/, "").split(" · ").pop() ?? "";
-    const d = [...State.diffs].reverse().find((x) => baseName(x.file) === name);
+    const d = [...State.diffs].reverse().find((x) => x.task === State.focusId && baseName(x.file) === name);
     if (d) openDiff(actions, d.file);
   });
   const who = h("div", { class: "who" });
@@ -295,7 +297,7 @@ function buildOverview(actions: ViewActions): ViewHost {
       // VS Code with a live Claude Code session keeps the ticker; every other
       // pill shows its own card, exactly like IntegrationCardView.
       const sessionActive =
-        task?.id === "integration_claude" && (task.state !== "idle" || task.steps.length > 0);
+        isSessionTask(task) && (task!.state !== "idle" || task!.steps.length > 0);
 
       if (task && sessionActive) {
         if (mode !== "ticker") {
@@ -308,7 +310,7 @@ function buildOverview(actions: ViewActions): ViewHost {
         who.append(
           dot(task.color, 7),
           h("span", { class: "name", text: task.name }),
-          h("span", { class: "tool", text: task.source === "claudeCode" ? "Claude Code" : "n8n" }),
+          h("span", { class: "tool", text: task.agentName ?? (task.source === "claudeCode" ? "Claude Code" : "n8n") }),
         );
         if (task.steps.length > 1) {
           who.append(h("span", {
@@ -318,7 +320,7 @@ function buildOverview(actions: ViewActions): ViewHost {
         }
         ticker.sync(task);
         State.pruneDiffs();
-        const list = State.diffFiles();
+        const list = State.diffFiles(task!.id);
         const key = list.map((f) => `${f.file}:${f.added}:${f.removed}`).join("|");
         if (key !== filesKey) {
           filesKey = key;
@@ -386,6 +388,7 @@ function buildOverview(actions: ViewActions): ViewHost {
 /** The pill's text: the song for Musica (name and artist in the tooltip), the name otherwise. */
 function pillLabel(task: AgentTask): { text: string; title?: string; song?: boolean } {
   if (task.id === "integration_claude") return { text: "VS Code" };
+  if (task.agentName) return { text: task.agentName, title: task.name };
   if (task.id === "integration_media") {
     const d = (State.integrations[task.id]?.data ?? {}) as Record<string, unknown>;
     if (d.active && typeof d.title === "string" && d.title) {
@@ -493,7 +496,7 @@ function buildApproval(actions: ViewActions): ViewHost {
       clear(row);
       row.append(btn("Nega", "secondary", () => actions.decide("deny"), "N"));
       if (rule) {
-        const b = btn("Sempre", "secondary", () => actions.decide("always"));
+        const b = btn("Sempre", "secondary", () => actions.decide("always"), "S");
         b.title = "Consenti e non chiedere più (la regola che propone Claude Code)";
         row.append(b);
       }
@@ -559,8 +562,10 @@ function buildAsk(actions: ViewActions): ViewHost {
       who.append(agentWho(State.focusTask,
         all.length > 1 ? `ha ${all.length} domande · ${index + 1} di ${all.length}` : "ha una domanda"));
       title.textContent = q.question;
-      for (const o of q.options) {
-        const b = h("button", { class: "ask-opt", title: o.description, text: o.label });
+      q.options.forEach((o, i) => {
+        // 1–9 pick the option from the keyboard (onIslandKey in island.ts).
+        const b = h("button", { class: "ask-opt", title: o.description, text: o.label,
+          ...(i < 9 ? { "data-key": String(i + 1) } : {}) });
         b.addEventListener("click", () => {
           if (!q.multiSelect) return next(q, o.label);
           if (picked.has(o.label)) picked.delete(o.label);
@@ -569,8 +574,9 @@ function buildAsk(actions: ViewActions): ViewHost {
           go.disabled = picked.size === 0;
         });
         options.append(b);
-      }
-      const go = h("button", { class: "btn primary ask-go", text: index + 1 < all.length ? "Avanti" : "Invia" }) as HTMLButtonElement;
+      });
+      const go = h("button", { class: "btn primary ask-go", "data-key": "Enter",
+        text: index + 1 < all.length ? "Avanti" : "Invia" }) as HTMLButtonElement;
       go.disabled = true;
       go.addEventListener("click", () => {
         if (picked.size) next(q, q.options.map((o) => o.label).filter((l) => picked.has(l)).join(", "));
@@ -811,7 +817,7 @@ function buildSettings(actions: ViewActions): ViewHost {
       clear(apiBadge);
       apiBadge.append(
         dot("#8E939C", 6),
-        h("span", { text: s.chatEngine === "api" ? "Chat · API" : "Chat · Abbonamento" }),
+        h("span", { text: `Chat · ${engineLabel(s)}` }),
       );
     },
   };

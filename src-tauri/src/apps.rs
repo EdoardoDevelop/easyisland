@@ -168,6 +168,26 @@ pub fn open_session(host: &str, path: Option<&str>) -> &'static str {
                 return "terminal";
             }
         }
+        // Claude Code in Cursor's terminal: Cursor's window, or Cursor on the folder.
+        "cursor" => {
+            if focus_app(&["cursor.exe"]) {
+                return "cursor";
+            }
+            let launcher = crate::find_on_path("cursor").or_else(|| {
+                std::env::var_os("LOCALAPPDATA")
+                    .map(|l| PathBuf::from(l).join(r"Programs\cursor\resources\app\bin\cursor.cmd"))
+                    .filter(|p| p.is_file())
+            });
+            if let Some(cursor) = launcher {
+                let mut cmd = Command::new(cursor);
+                if let Some(p) = path.filter(|p| !p.is_empty()) {
+                    cmd.arg(p);
+                }
+                if cmd.creation_flags(CREATE_NO_WINDOW).spawn().is_ok() {
+                    return "cursor";
+                }
+            }
+        }
         _ => {
             // A plain console: its window belongs to the terminal host.
             if focus_app(&["windowsterminal.exe", "openconsole.exe", "conhost.exe"]) {

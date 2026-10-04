@@ -20,6 +20,7 @@ mod island;
 mod legacy;
 mod log;
 mod media;
+mod openai;
 mod outlook;
 mod pipe;
 mod presence;
@@ -524,15 +525,16 @@ fn set_paused(paused: bool) {
 
 // ── Claude Code hooks ─────────────────────────────────────────────────────────
 
+/// `agent`: "codex" or "gemini" for their hooks; none (or anything else) = Claude Code.
 #[tauri::command]
-fn hooks_status() -> HookStatus {
-    hooks::status()
+fn hooks_status(agent: Option<String>) -> HookStatus {
+    hooks::status_for(hooks::Target::parse(agent.as_deref()))
 }
 
 /// Returns the diff the user has to look at before anything is written.
 #[tauri::command]
-fn hooks_preview(install: bool) -> Result<HookPreview, String> {
-    hooks::preview(install)
+fn hooks_preview(install: bool, agent: Option<String>) -> Result<HookPreview, String> {
+    hooks::preview_for(install, hooks::Target::parse(agent.as_deref()))
 }
 
 /// Only ever called from an explicit click in the settings window.
@@ -542,10 +544,15 @@ fn hooks_apply(
     shared: State<Shared>,
     install: bool,
     fingerprint: String,
+    agent: Option<String>,
 ) -> Result<String, String> {
     // The fingerprint comes from the preview the user actually looked at, so a
     // settings.json that changed in between is refused rather than overwritten.
-    let backup = hooks::write(install, &fingerprint)?;
+    let target = hooks::Target::parse(agent.as_deref());
+    let backup = hooks::write_for(install, &fingerprint, target)?;
+    if target != hooks::Target::Claude {
+        return Ok(backup);
+    }
     let updated = {
         let mut current = shared.settings.lock().unwrap();
         current.hooks_installed = install;
@@ -588,18 +595,25 @@ fn approval_decline(app: AppHandle, request_id: String) {
 /// One chat turn. The API key and any file bytes stay on the Rust side.
 #[tauri::command]
 async fn chat_send(
+    app: AppHandle,
     shared: State<'_, Shared>,
     chat: State<'_, Chat>,
     query: String,
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
-    let (engine, model, cli_model, mcp, agent) = {
+    let (engine, model, cli_model, mcp, agent, other_model, url) = {
         let s = shared.settings.lock().unwrap();
-        (s.chat_engine.clone(), s.model.clone(), s.cli_model.clone(), s.mcp_servers.clone(), s.agent_tools)
+        let e = s.chat_engine.clone();
+        let other = s.engine_models.get(&e).cloned().unwrap_or_default();
+        let url = s.engine_urls.get(&e).cloned();
+        (e, s.model.clone(), s.cli_model.clone(), s.mcp_servers.clone(), s.agent_tools, other, url)
     };
-    chat.use_engine(&engine);
+    // A different model is a different conversation too: start over.
+    chat.use_engine(&format!("{engine}:{other_model}"));
     if engine == "api" {
         claude::send(&chat, &model, query, context).await
+    } else if openai::ENGINES.contains(&engine.as_str()) {
+        openai::send(&app, &chat, &engine, &other_model, url.as_deref(), query, context).await
     } else {
         claude_cli::send(&chat, &cli_model, &mcp, agent, query, context).await
     }
@@ -608,6 +622,12 @@ async fn chat_send(
 #[tauri::command]
 fn chat_reset(chat: State<Chat>) {
     chat.reset();
+}
+
+/// Impostazioni → Chat → "Carica modelli" for an OpenAI-compatible engine.
+#[tauri::command]
+async fn chat_models(engine: String, url: Option<String>) -> Result<Vec<String>, String> {
+    openai::models(&engine, url.as_deref()).await
 }
 
 /// Settings window: MCP servers configured for the user in Claude Code (names only).
@@ -956,6 +976,7 @@ pub fn run() {
             open_url,
             open_in_vscode,
             open_file_in_vscode,
+            chat_models,
             open_session,
             update_check,
             update_install,

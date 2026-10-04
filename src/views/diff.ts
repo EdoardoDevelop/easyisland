@@ -83,12 +83,12 @@ export function buildDiff(actions: ViewActions): ViewHost {
     el,
     sync() {
       State.pruneDiffs();
-      const files = State.diffFiles();
+      const files = State.diffFiles(State.diffTask);
       if (!State.diffFile || !files.some((f) => f.file === State.diffFile)) {
         State.diffFile = files[0]?.file ?? null;
       }
       const file = State.diffFile;
-      const edits = State.diffs.filter((d) => d.file === file);
+      const edits = State.diffs.filter((d) => d.file === file && (!State.diffTask || d.task === State.diffTask));
       const k = `${file}|${files.map((f) => f.file).join(",")}|${edits.map((d) => d.id).join(",")}`;
       if (k === key) return;
       key = k;

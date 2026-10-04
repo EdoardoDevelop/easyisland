@@ -1,4 +1,6 @@
-// Claude Code hook installation.
+// Hook installation for Claude Code, and the same for Codex and Gemini CLI
+// (HANDOFF 6.6, point 5): one `Target` per tool, each with its own file, events
+// and timeout unit; the relay learns which tool calls it from `--agent`.
 //
 // The rule from CLAUDE.md is strict and is followed to the letter:
 // read %USERPROFILE%\.claude\settings.json, take a dated backup, merge without
@@ -64,24 +66,103 @@ pub struct HookPreview {
     pub fingerprint: String,
 }
 
+/// Which tool's hooks: Claude Code (`~/.claude/settings.json`), Codex
+/// (`~/.codex/hooks.json`) or Gemini CLI (`~/.gemini/settings.json`).
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum Target {
+    Claude,
+    Codex,
+    Gemini,
+}
+
+impl Target {
+    pub fn parse(s: Option<&str>) -> Target {
+        match s {
+            Some("codex") => Target::Codex,
+            Some("gemini") => Target::Gemini,
+            _ => Target::Claude,
+        }
+    }
+
+    pub fn file(self) -> PathBuf {
+        match self {
+            Target::Claude => home().join(".claude").join("settings.json"),
+            Target::Codex => home().join(".codex").join("hooks.json"),
+            Target::Gemini => home().join(".gemini").join("settings.json"),
+        }
+    }
+
+    /// Events and their timeout, in the tool's own unit: seconds for Claude Code
+    /// and Codex (whose SessionEnd may take 3 s at most), milliseconds for Gemini.
+    fn events(self) -> &'static [(&'static str, u64)] {
+        match self {
+            Target::Claude => HOOK_EVENTS,
+            Target::Codex => &[
+                ("SessionStart", 10),
+                ("SessionEnd", 3),
+                ("UserPromptSubmit", 10),
+                ("PreToolUse", 10),
+                ("PostToolUse", 10),
+                ("PermissionRequest", 120),
+                ("Stop", 10),
+                ("SubagentStart", 10),
+                ("SubagentStop", 10),
+            ],
+            Target::Gemini => &[
+                ("SessionStart", 10_000),
+                ("SessionEnd", 10_000),
+                ("BeforeAgent", 10_000),
+                ("AfterAgent", 10_000),
+                ("BeforeTool", 10_000),
+                ("AfterTool", 10_000),
+                ("Notification", 10_000),
+            ],
+        }
+    }
+
+    /// The relay's command line. Claude Code runs hooks through Git Bash (quoted
+    /// path in forward slashes); Codex and Gemini may use cmd or PowerShell, where
+    /// a quoted path is only a string, so it is quoted only when it has a space.
+    fn command(self, event: &str) -> String {
+        let exe = settings::hook_exe_path().to_string_lossy().replace('\\', "/");
+        let exe = if self == Target::Claude || exe.contains(' ') { format!("\"{exe}\"") } else { exe };
+        match self {
+            Target::Claude => format!("{exe} {event}"),
+            Target::Codex => format!("{exe} {event} --agent codex"),
+            Target::Gemini => format!("{exe} {event} --agent gemini"),
+        }
+    }
+
+    fn entry(self, event: &str, timeout: u64) -> Value {
+        let handler = json!({ "type": "command", "command": self.command(event), "timeout": timeout });
+        // Gemini matches tool events by a regex: "*" is every tool.
+        if self == Target::Gemini && (event == "BeforeTool" || event == "AfterTool") {
+            json!({ "matcher": "*", "hooks": [handler] })
+        } else {
+            json!({ "hooks": [handler] })
+        }
+    }
+}
+
 fn home() -> PathBuf {
     std::env::var_os("USERPROFILE")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
+#[cfg(test)]
 pub fn settings_path() -> PathBuf {
-    home().join(".claude").join("settings.json")
+    Target::Claude.file()
 }
 
-/// Reads `~/.claude/settings.json`.
+/// Reads the target's file (`~/.claude/settings.json` for Claude Code).
 ///
 /// The only error that means "start from nothing" is the file not being there.
 /// Everything else — a lock held by another process, a permission problem, JSON
 /// we cannot parse — is reported, because the alternative is treating somebody's
 /// unreadable settings as an empty object and then writing that back over them.
-fn read_settings() -> Result<Value, String> {
-    let path = settings_path();
+fn read_settings_at(target: Target) -> Result<Value, String> {
+    let path = target.file();
     match std::fs::read(&path) {
         Ok(bytes) => parse_settings(&bytes, &path.display().to_string()),
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(json!({})),
@@ -91,8 +172,8 @@ fn read_settings() -> Result<Value, String> {
     }
 }
 
-/// The parsing half of `read_settings`, split out so it can be tested without a
-/// home directory.
+/// The parsing half of `read_settings_at`, split out so it can be tested without
+/// a home directory.
 fn parse_settings(bytes: &[u8], path: &str) -> Result<Value, String> {
     // PowerShell writes a UTF-8 BOM with `Set-Content -Encoding utf8`, and
     // serde_json refuses it. Stripping it is safe and well defined; guessing at
@@ -108,18 +189,6 @@ fn parse_settings(bytes: &[u8], path: &str) -> Result<Value, String> {
             "{path} non è JSON valido ({err}). Correggilo o spostalo e riprova: EasyIsland non lo sovrascrive."
         )),
     }
-}
-
-/// The settings as they are, or an empty object when we cannot tell. Only for
-/// read-only paths like `status()`, which must never fail loudly; anything that
-/// writes uses `read_settings()` and surfaces the error instead.
-fn read_settings_lossy() -> Value {
-    read_settings().unwrap_or_else(|_| json!({}))
-}
-
-fn hook_command(event: &str) -> String {
-    let exe = settings::hook_exe_path().to_string_lossy().replace('\\', "/");
-    format!("\"{exe}\" {event}")
 }
 
 fn entry_has(entry: &Value, marker: &str) -> bool {
@@ -141,7 +210,7 @@ fn entry_is_ours(entry: &Value) -> bool {
     entry_has(entry, MARKER) || entry_has(entry, LEGACY_MARKER)
 }
 
-/// Every hook entry in settings.json, whatever the event.
+/// Every hook entry in the file, whatever the event.
 fn all_entries(settings: &Value) -> Vec<&Value> {
     settings
         .get("hooks")
@@ -150,8 +219,15 @@ fn all_entries(settings: &Value) -> Vec<&Value> {
         .unwrap_or_default()
 }
 
-/// Settings with EasyIsland's hooks added; everything else is left untouched.
+/// Claude Code's settings with EasyIsland's hooks added (see `merged_for`).
+#[cfg(test)]
 fn merged(existing: &Value) -> Value {
+    merged_for(existing, Target::Claude)
+}
+
+/// The file with EasyIsland's hooks for `target` added; everything else is
+/// left untouched.
+fn merged_for(existing: &Value, target: Target) -> Value {
     let mut root = existing.as_object().cloned().unwrap_or_default();
     let mut hooks = root
         .get("hooks")
@@ -159,20 +235,14 @@ fn merged(existing: &Value) -> Value {
         .cloned()
         .unwrap_or_else(Map::new);
 
-    for (event, timeout) in HOOK_EVENTS {
+    for (event, timeout) in target.events() {
         let mut list = hooks
             .get(*event)
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
         list.retain(|entry| !entry_is_ours(entry));
-        list.push(json!({
-            "hooks": [{
-                "type": "command",
-                "command": hook_command(event),
-                "timeout": timeout,
-            }]
-        }));
+        list.push(target.entry(event, *timeout));
         hooks.insert((*event).to_string(), Value::Array(list));
     }
 
@@ -180,7 +250,7 @@ fn merged(existing: &Value) -> Value {
     Value::Object(root)
 }
 
-/// Settings with every EasyIsland entry removed, and nothing else changed.
+/// The file with every EasyIsland entry removed, and nothing else changed.
 fn without_ours(existing: &Value) -> Value {
     let mut root = existing.as_object().cloned().unwrap_or_default();
     let Some(hooks) = root.get("hooks").and_then(Value::as_object).cloned() else {
@@ -223,9 +293,11 @@ fn stamp() -> String {
     )
 }
 
-fn backup_path() -> PathBuf {
-    let p = settings_path();
-    p.with_file_name(format!("settings.json.bak-{}", stamp()))
+/// `settings.json.bak-20261004-213000` beside the file (or `hooks.json.bak-…`).
+fn backup_path(target: Target) -> PathBuf {
+    let p = target.file();
+    let name = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+    p.with_file_name(format!("{name}.bak-{}", stamp()))
 }
 
 /// Identifies the exact bytes a preview was computed from. FNV-1a is plenty:
@@ -239,8 +311,8 @@ fn fingerprint(bytes: &[u8]) -> String {
     format!("{hash:016x}")
 }
 
-fn current_fingerprint() -> String {
-    match std::fs::read(settings_path()) {
+fn current_fingerprint(target: Target) -> String {
+    match std::fs::read(target.file()) {
         Ok(bytes) => fingerprint(&bytes),
         Err(_) => fingerprint(b""),
     }
@@ -248,62 +320,78 @@ fn current_fingerprint() -> String {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
+/// Claude Code's hooks.
 pub fn status() -> HookStatus {
-    let current = read_settings_lossy();
+    status_for(Target::Claude)
+}
+
+pub fn status_for(target: Target) -> HookStatus {
+    // Read-only and never loud: an unreadable file just reads as "not installed".
+    let current = read_settings_at(target).unwrap_or_else(|_| json!({}));
     let entries = all_entries(&current);
     let hook_path = settings::hook_exe_path();
     HookStatus {
         installed: entries.iter().any(|e| entry_has(e, MARKER)),
         legacy: entries.iter().any(|e| entry_has(e, LEGACY_MARKER)),
-        settings_path: settings_path().to_string_lossy().to_string(),
+        settings_path: target.file().to_string_lossy().to_string(),
         hook_ready: hook_path.exists(),
         hook_path: hook_path.to_string_lossy().to_string(),
     }
 }
 
+#[cfg(test)]
 pub fn preview(install: bool) -> Result<HookPreview, String> {
-    let current = read_settings()?;
-    let next = if install { merged(&current) } else { without_ours(&current) };
+    preview_for(install, Target::Claude)
+}
+
+pub fn preview_for(install: bool, target: Target) -> Result<HookPreview, String> {
+    let current = read_settings_at(target)?;
+    let next = if install { merged_for(&current, target) } else { without_ours(&current) };
     Ok(HookPreview {
         diff: unified_diff(&pretty(&current), &pretty(&next)),
-        backup: backup_path().to_string_lossy().to_string(),
-        settings_path: settings_path().to_string_lossy().to_string(),
-        fingerprint: current_fingerprint(),
+        backup: backup_path(target).to_string_lossy().to_string(),
+        settings_path: target.file().to_string_lossy().to_string(),
+        fingerprint: current_fingerprint(target),
     })
 }
 
-/// Writes the merged (or cleaned) settings after taking a dated backup.
+#[cfg(test)]
+pub fn write(install: bool, fingerprint: &str) -> Result<String, String> {
+    write_for(install, fingerprint, Target::Claude)
+}
+
+/// Writes the merged (or cleaned) file after taking a dated backup.
 ///
 /// `fingerprint` is the one the preview was computed from. If the file changed
 /// in between — another tool, another window, the user's own editor — we stop
 /// and make them look at a fresh diff, because the only thing worse than not
 /// installing the hooks is silently reverting somebody else's edit.
-pub fn write(install: bool, fingerprint: &str) -> Result<String, String> {
-    let path = settings_path();
+pub fn write_for(install: bool, fingerprint: &str, target: Target) -> Result<String, String> {
+    let path = target.file();
     let dir = path.parent().unwrap_or(Path::new("."));
     std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
 
     // Read before the backup: an unreadable file must abort before we touch
     // anything at all.
-    let current = read_settings()?;
-    if current_fingerprint() != fingerprint {
+    let current = read_settings_at(target)?;
+    if current_fingerprint(target) != fingerprint {
         return Err(format!(
             "{} è cambiato dopo l'anteprima. Non è stato scritto nulla: controlla il nuovo diff.",
             path.display()
         ));
     }
 
-    let backup = backup_path();
+    let backup = backup_path(target);
     if path.exists() {
         std::fs::copy(&path, &backup).map_err(|e| format!("backup non riuscito: {e}"))?;
     }
 
-    let next = if install { merged(&current) } else { without_ours(&current) };
+    let next = if install { merged_for(&current, target) } else { without_ours(&current) };
     let mut text = pretty(&next);
     text.push('\n');
 
     // Write beside the target and rename over it: a crash or a full disk leaves
-    // the original settings.json intact rather than half a file.
+    // the original file intact rather than half a file.
     let temp = path.with_extension(format!("json.easyisland-{}", std::process::id()));
     std::fs::write(&temp, text.as_bytes()).map_err(|e| format!("scrittura non riuscita: {e}"))?;
     if let Err(err) = std::fs::rename(&temp, &path) {
@@ -531,6 +619,34 @@ mod tests {
         assert!(text.contains("keep-me.exe"));
         assert_eq!(after["hooks"]["PreToolUse"].as_array().unwrap().len(), 2);
         assert!(!serde_json::to_string(&without_ours(&existing)).unwrap().contains("coucou-hook"));
+    }
+
+    #[test]
+    fn codex_and_gemini_get_their_own_events_and_flag() {
+        let existing = json!({ "theme": "x", "hooks": { "BeforeTool": [
+            { "matcher": "write_file", "hooks": [{ "type": "command", "command": "mine.sh" }] }
+        ] } });
+
+        let codex = merged_for(&json!({}), Target::Codex);
+        let events: Vec<&String> = codex["hooks"].as_object().unwrap().keys().collect();
+        assert!(events.iter().any(|e| *e == "PermissionRequest"));
+        assert!(!events.iter().any(|e| *e == "Notification"), "Codex has no Notification event");
+        let cmd = codex["hooks"]["PreToolUse"][0]["hooks"][0]["command"].as_str().unwrap();
+        assert!(cmd.contains("easyisland-hook") && cmd.ends_with("PreToolUse --agent codex"), "{cmd}");
+        assert_eq!(codex["hooks"]["SessionEnd"][0]["hooks"][0]["timeout"], 3, "Codex caps SessionEnd at 3 s");
+
+        let gemini = merged_for(&existing, Target::Gemini);
+        assert_eq!(gemini["theme"], "x");
+        let before = gemini["hooks"]["BeforeTool"].as_array().unwrap();
+        assert_eq!(before.len(), 2, "the user's own Gemini hook stays");
+        assert_eq!(before[1]["matcher"], "*");
+        assert_eq!(before[1]["hooks"][0]["timeout"], 10_000, "Gemini counts in milliseconds");
+        assert!(gemini["hooks"]["AfterAgent"][0].get("matcher").is_none());
+        assert_eq!(without_ours(&gemini), existing);
+
+        assert_eq!(Target::parse(Some("gemini")), Target::Gemini);
+        assert_eq!(Target::parse(Some("qualcosa")), Target::Claude);
+        assert!(Target::Codex.file().ends_with(Path::new(".codex").join("hooks.json")));
     }
 
     #[test]

@@ -3,7 +3,8 @@
 import type { AnchorH, AnchorV, BotEmoteName, BotStateName, IslandMode, IslandViewName } from "./layout";
 import type { EyeShape } from "../character/engine";
 
-export type AgentSource = "claudeCode" | "n8n";
+/** "agent": Codex, Gemini CLI or any tool that sends `easyisland_agent` (hooks.ts). */
+export type AgentSource = "claudeCode" | "n8n" | "agent";
 export type PillBadge = "approval" | "finished" | "error";
 
 export interface AgentTask {
@@ -26,11 +27,40 @@ export interface AgentTask {
   sessionCwd?: string | null;
   /** Where the Claude Code session runs, so "Apri" brings back the right app. */
   sessionHost?: SessionHost | null;
+  /** An agent's own name ("Codex", "Gemini CLI"); `name` is then its project. */
+  agentName?: string;
+}
+
+/** A coding session: Claude Code's task, or another agent's (`agent:<id>`). */
+export function isSessionTask(t: AgentTask | null | undefined): boolean {
+  return !!t && (t.id === "integration_claude" || t.id.startsWith("agent:"));
+}
+
+export type ChatEngine = "subscription" | "api" | "openrouter" | "openai" | "gemini" | "ollama" | "lmstudio";
+
+/** The chat engines: name, Credential Manager key (if any), default address (local ones). */
+export const CHAT_ENGINES: { id: ChatEngine; name: string; key?: string; url?: string; hint: string }[] = [
+  { id: "subscription", name: "Claude (abbonamento)", hint: "Claude Code su questo PC e il tuo piano Claude" },
+  { id: "api", name: "Claude (chiave API)", key: "anthropic-api-key", hint: "API di Anthropic, a consumo" },
+  { id: "openrouter", name: "OpenRouter", key: "openrouter-api-key", hint: "una chiave per centinaia di modelli (openrouter.ai)" },
+  { id: "openai", name: "OpenAI", key: "openai-api-key", hint: "API di OpenAI (platform.openai.com)" },
+  { id: "gemini", name: "Gemini", key: "gemini-api-key", hint: "Google AI Studio (aistudio.google.com)" },
+  { id: "ollama", name: "Ollama", url: "http://localhost:11434", hint: "modelli locali, nessuna chiave" },
+  { id: "lmstudio", name: "LM Studio", url: "http://localhost:1234", hint: "modelli locali, nessuna chiave" },
+];
+
+/** "Gemini · gemini-2.5-flash": the engine and its model, for the chat. */
+export function engineLabel(s: { chatEngine: ChatEngine; engineModels?: Record<string, string>; cliModel?: string; model?: string }): string {
+  const e = CHAT_ENGINES.find((x) => x.id === s.chatEngine) ?? CHAT_ENGINES[0];
+  const model = s.chatEngine === "subscription" ? s.cliModel || "" : s.chatEngine === "api" ? s.model ?? "" : s.engineModels?.[s.chatEngine] ?? "";
+  return model ? `${e.name} · ${model}` : e.name;
 }
 
 /** One file edit of the Claude Code session, as the relay computed it (hook/src/diff.rs). */
 export interface FileDiff {
   id: number;
+  /** The session's task: integration_claude or agent:<id>. */
+  task: string;
   /** Full path, as Claude Code wrote it. */
   file: string;
   added: number;
@@ -46,8 +76,8 @@ export interface FileDiff {
 export const MAX_DIFFS = 50;
 export const DIFF_TTL_MS = 60 * 60 * 1000;
 
-/** The Claude desktop app, VS Code, Windows Terminal, or any other console. */
-export type SessionHost = "desktop" | "vscode" | "wt" | "terminal";
+/** The Claude desktop app, VS Code, Cursor, Windows Terminal, or any other console. */
+export type SessionHost = "desktop" | "vscode" | "cursor" | "wt" | "terminal";
 
 /** A message card in the island: from a script (`easyisland-hook notify`) or an update. */
 export interface Notice {
@@ -78,12 +108,15 @@ export function sessionOpenLabel(host: SessionHost | null | undefined): string {
   switch (host) {
     case "desktop": return "Apri Claude";
     case "vscode": return "Apri VS Code";
+    case "cursor": return "Apri Cursor";
     default: return "Apri terminale";
   }
 }
 
 export interface ApprovalInfo {
   requestId: string;
+  /** The session's task (Claude Code or another agent); absent = Claude Code. */
+  taskId?: string;
   sessionId: string;
   tool: string;
   command: string;
@@ -205,8 +238,15 @@ export interface Settings {
   hooksInstalled: boolean;
   /** Claude model used by the chat with an API key. */
   model: string;
-  /** "subscription" = Claude Code (`claude -p`, Claude plan), "api" = API key. */
-  chatEngine: "subscription" | "api";
+  /**
+   * "subscription" = Claude Code (`claude -p`, Claude plan), "api" = Anthropic
+   * API key, or an OpenAI-compatible engine (openai.rs).
+   */
+  chatEngine: ChatEngine;
+  /** Model chosen for each OpenAI-compatible engine. */
+  engineModels?: Record<string, string>;
+  /** Address of the local servers (ollama, lmstudio); empty = their default. */
+  engineUrls?: Record<string, string>;
   /** Model alias for the Claude Code engine; "" = Claude Code's default. */
   cliModel: string;
   /** Where the island sits; content opens aligned to that side. */
@@ -265,6 +305,14 @@ export interface Settings {
   hotkeyClipboard: string;
   /** Captures a zone of the screen and asks Claude about it. */
   hotkeyScreenshot: string;
+  /** Goes to the permission or question waiting for an answer. */
+  hotkeyPending: string;
+  /** Brings the session's app to the front. */
+  hotkeySession: string;
+  /** The next pill. */
+  hotkeyNextPill: string;
+  /** Sounds on / off. */
+  hotkeyMute: string;
   /** ⚡ tab: actions suggested for the app in front. */
   contextActions: boolean;
   /** The chat (Claude Code engine) may use EasyIsland's tools: open programs, quick actions… */
@@ -504,6 +552,10 @@ export const DEFAULT_SETTINGS: Settings = {
   hotkeyAsk: "Ctrl+Alt+K",
   hotkeyClipboard: "Ctrl+Alt+H",
   hotkeyScreenshot: "Ctrl+Alt+Shift+S",
+  hotkeyPending: "Ctrl+Alt+Shift+P",
+  hotkeySession: "Ctrl+Alt+Shift+T",
+  hotkeyNextPill: "",
+  hotkeyMute: "",
   contextActions: true,
   agentTools: true,
   automations: [],
@@ -584,8 +636,23 @@ class AppState {
   /** File edits of the Claude Code session (addDiff); cleared when it starts or ends. */
   diffs: FileDiff[] = [];
   private diffSeq = 0;
-  /** The file the diff view shows. */
+  /** The file the diff view shows, and whose session it belongs to. */
   diffFile: string | null = null;
+  diffTask: string | null = null;
+
+  /** Another agent's pill, made when its first event arrives (hooks.ts). */
+  ensureAgentTask(id: string, name: string, color: string) {
+    if (this.tasks.some((t) => t.id === id)) return;
+    this.tasks.push({ ...task(id, name, color, "agent"), agentName: name, isIntegration: false });
+    this.notify();
+  }
+
+  /** An agent's session ended: its pill goes. */
+  removeTask(id: string) {
+    this.tasks = this.tasks.filter((t) => t.id !== id);
+    if (this.focusId === id) this.focusId = "integration_claude";
+    this.notify();
+  }
 
   integrations: Record<string, IntegrationInfo> = {};
 
@@ -675,10 +742,11 @@ class AppState {
     if (this.diffs.some((d) => d.at < cutoff)) this.diffs = this.diffs.filter((d) => d.at >= cutoff);
   }
 
-  /** The session's files, newest edit first, with the edits added up. */
-  diffFiles(): { file: string; added: number; removed: number; edits: number }[] {
+  /** A session's files (`task`, or all), newest edit first, with the edits added up. */
+  diffFiles(task?: string | null): { file: string; added: number; removed: number; edits: number }[] {
     const out = new Map<string, { file: string; added: number; removed: number; edits: number }>();
     for (const d of [...this.diffs].reverse()) {
+      if (task && d.task !== task) continue;
       const f = out.get(d.file) ?? { file: d.file, added: 0, removed: 0, edits: 0 };
       f.added += d.added;
       f.removed += d.removed;

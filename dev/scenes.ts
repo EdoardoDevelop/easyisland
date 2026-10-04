@@ -200,6 +200,28 @@ export async function runScene(island: Island, scene: string) {
       await wait(2500);
       break;
     }
+    case "agents": {
+      // Codex and Gemini CLI as the relay forwards them (hook/src/agents.rs).
+      await wait(300);
+      (window as unknown as { island: Island }).island = island;
+      const codex = { id: "codex", name: "Codex", color: "#10A37F" };
+      const gemini = { id: "gemini", name: "Gemini CLI", color: "#4285F4" };
+      const cwd = "C:\\Users\\Edoardo\\WORK\\gestionale";
+      handleHook(island, { hook_event_name: "SessionStart", cwd, easyisland_agent: codex });
+      handleHook(island, { hook_event_name: "UserPromptSubmit", cwd, prompt: "Correggi il calcolo dell'IVA", easyisland_agent: codex });
+      handleHook(island, { hook_event_name: "PreToolUse", cwd, tool_name: "Bash", tool_input: { command: "cargo test" }, easyisland_agent: codex });
+      handleHook(island, { hook_event_name: "PostToolUse", cwd, tool_name: "Patch", easyisland_agent: codex,
+        easyisland_diffs: [
+          { file: "src/iva.rs", added: 2, removed: 1, too_big: false, hunks: [{ old: 0, new: 0, lines: [" fn iva(x: f64) -> f64 {", "-    x * 0.20", "+    // aliquota ordinaria", "+    x * 0.22", " }"] }] },
+          { file: "CHANGELOG.md", added: 1, removed: 0, too_big: false, hunks: [{ old: 0, new: 0, lines: ["+- IVA al 22%"] }] },
+        ] });
+      handleHook(island, { hook_event_name: "SessionStart", cwd: "C:\\Users\\Edoardo\\WORK\\sito", easyisland_agent: gemini });
+      handleHook(island, { hook_event_name: "Notification", cwd: "C:\\Users\\Edoardo\\WORK\\sito", easyisland_agent: gemini,
+        easyisland_waiting: true, message: "Chiede un permesso nel terminale: rm -rf build" });
+      island.alert("overview");
+      await wait(1500);
+      break;
+    }
     case "finished":
       // A finished session whose last message is long and has markdown in it.
       await wait(300);
