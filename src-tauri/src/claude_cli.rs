@@ -51,11 +51,14 @@ const AGENT_READ_ONLY: &[&str] = &[
     "media_control",
     "list_uploaded_files",
     "list_profiles",
+    "list_automations",
 ];
 
 const AGENT_PROMPT: &str = " You also have the easyisland tools, which act on the user's own PC: \
 open programs, folders and links, run the user's quick actions (list_quick_actions, then run_quick_action), \
-read the status of the PC, network, weather, mail and tickets (list_status), read or fill the clipboard, control the music, show a notice in the island. \
+read the status of the PC, network, weather, mail and tickets (list_status), read or fill the clipboard, control the music, show a notice in the island, \
+and set up automations that then run by themselves (list_automations, create_automation, set_automation_enabled): when the user asks for something recurring \
+(\"every morning…\", \"when I plug in a USB stick…\", \"if the client's site goes down…\") propose an automation; check the ids with list_quick_actions, list_profiles and list_status first. \
 Use them when the user asks you to do something on the PC, or when they make the answer better (for example check list_status before answering about the PC or the day). \
 You cannot run arbitrary commands: only the user's quick actions. \
 Before a tool that opens, runs or changes something, say in one short sentence what you are about to do: \

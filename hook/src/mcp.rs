@@ -110,6 +110,52 @@ fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             true,
         ),
         (
+            "list_automations",
+            "Le automazioni dell'utente (Impostazioni → Automazioni): id, nome, accesa o spenta, quando partono e cosa fanno.",
+            none.clone(),
+            true,
+        ),
+        (
+            "create_automation",
+            "Crea un'automazione \"quando… allora…\" che poi gira da sola. L'utente vede l'anteprima e conferma. Prima usa list_quick_actions, list_profiles e list_status per gli id. trigger.kind: time (time \"HH:MM\", days 1=lun…7=dom, vuoto = ogni giorno) | startup (delay secondi dopo l'avvio di EasyIsland, con il PC) | unlock (sblocco del PC) | wifi (ssid) | app (exe, es. teams.exe) | drive (chiavetta o disco collegato) | folder (folder: nuovo file nella cartella) | integration (source: id di un'integrazione-controllo o widget da list_status; when: problem | event | any). profile: id di un profilo o vuoto. steps in ordine, kind: quick (id azione rapida) | notice (title, text, level info/ok/warn/error) | profile (id) | app (target, args) | url (url). notify: avvisa ogni volta che gira.",
+            json!({ "type": "object", "properties": {
+                "name": { "type": "string" },
+                "trigger": { "type": "object", "properties": {
+                    "kind": { "type": "string", "enum": ["time", "startup", "unlock", "wifi", "app", "drive", "folder", "integration"] },
+                    "time": { "type": "string" },
+                    "days": { "type": "array", "items": { "type": "integer", "minimum": 1, "maximum": 7 } },
+                    "delay": { "type": "integer" },
+                    "ssid": { "type": "string" },
+                    "exe": { "type": "string" },
+                    "folder": { "type": "string" },
+                    "source": { "type": "string" },
+                    "when": { "type": "string", "enum": ["problem", "event", "any"] }
+                }, "required": ["kind"] },
+                "profile": { "type": "string" },
+                "steps": { "type": "array", "items": { "type": "object", "properties": {
+                    "kind": { "type": "string", "enum": ["quick", "notice", "profile", "app", "url"] },
+                    "id": { "type": "string" },
+                    "title": { "type": "string" },
+                    "text": { "type": "string" },
+                    "level": { "type": "string" },
+                    "target": { "type": "string" },
+                    "args": { "type": "string" },
+                    "url": { "type": "string" }
+                }, "required": ["kind"] } },
+                "notify": { "type": "boolean" }
+            }, "required": ["name", "trigger", "steps"] }),
+            false,
+        ),
+        (
+            "set_automation_enabled",
+            "Accende o spegne un'automazione per id (vedi list_automations).",
+            json!({ "type": "object", "properties": {
+                "id": { "type": "string" },
+                "enabled": { "type": "boolean" }
+            }, "required": ["id", "enabled"] }),
+            false,
+        ),
+        (
             "switch_profile",
             "Attiva un profilo di EasyIsland per id (vedi list_profiles).",
             json!({ "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"] }),

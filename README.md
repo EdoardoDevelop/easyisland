@@ -444,6 +444,11 @@ qualcosa per te.
 | quando arriva un file in una cartella | avvisami delle nuove scansioni |
 | quando un'integrazione o un widget segnala un problema o una novità | se il sito del cliente va giù, esegui lo script di controllo; nuovo ticket → avviso |
 
+Si possono anche **chiedere a Claude a parole** nella chat (con l'abbonamento):
+"ogni giorno feriale alle 9 apri Outlook e il gestionale", "quando colleghi una
+chiavetta lancia il backup". Claude prepara l'automazione e l'isola te la mostra
+(Quando… / Allora…) con **Consenti / Nega**: confermando, viene creata e accesa.
+
 **Allora** è una sequenza di passi: un'azione rapida, un avviso nell'isola, il
 cambio di profilo, aprire un programma o una cartella, aprire un link. Ogni
 automazione si può limitare a un profilo e provare subito con **Prova ora**;
@@ -515,8 +520,8 @@ npm run icons          # rigenera src-tauri/icons da scripts/gen-icons.mjs
 2. Crea e invia il tag:
 
    ```powershell
-   git tag v0.2.0
-   git push origin v0.2.0
+   git tag v0.3.0
+   git push origin v0.3.0
    ```
 
 3. La workflow **Build** compila l'installer, lo firma per l'aggiornamento e

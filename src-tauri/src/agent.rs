@@ -33,6 +33,20 @@ fn settings(app: &AppHandle) -> Result<crate::settings::Settings, String> {
         .ok_or_else(|| "EasyIsland non è pronto.".to_string())
 }
 
+/// Changes the settings like a save from the settings window: on disk, and
+/// sent to both windows.
+fn update_settings(app: &AppHandle, change: impl FnOnce(&mut crate::settings::Settings)) -> Result<(), String> {
+    let shared = app.try_state::<crate::Shared>().ok_or("EasyIsland non è pronto.")?;
+    let updated = {
+        let mut s = shared.settings.lock().unwrap();
+        change(&mut s);
+        s.clone()
+    };
+    crate::settings::save(&updated).map_err(|e| format!("Impostazioni non salvate: {e}"))?;
+    let _ = app.emit("settings-changed", updated);
+    Ok(())
+}
+
 fn pretty(v: &Value) -> String {
     serde_json::to_string_pretty(v).unwrap_or_default()
 }
@@ -253,6 +267,47 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             let name = p.name.clone();
             crate::activate_profile(app, id, "chat");
             Ok(format!("Profilo «{name}» attivo."))
+        }
+
+        "list_automations" => {
+            let s = settings(app)?;
+            let list: Vec<String> = s
+                .automations
+                .iter()
+                .filter_map(|v| serde_json::from_value::<crate::automations::Automation>(v.clone()).ok())
+                .map(|a| crate::automations::describe(&a, &s))
+                .collect();
+            if list.is_empty() {
+                return Ok("Nessuna automazione.".into());
+            }
+            Ok(list.join("\n"))
+        }
+
+        "create_automation" => {
+            let s = settings(app)?;
+            let auto = crate::automations::validate(args, &s)?;
+            let text = crate::automations::describe(&auto, &s);
+            let value = serde_json::to_value(&auto).map_err(|e| e.to_string())?;
+            update_settings(app, |s| s.automations.push(value))?;
+            Ok(format!("Creata e accesa: {text}. Si modifica in Impostazioni → Automazioni."))
+        }
+
+        "set_automation_enabled" => {
+            let id = arg(args, "id").to_string();
+            let on = args.get("enabled").and_then(Value::as_bool).ok_or("Manca enabled (true/false).")?;
+            let mut found = false;
+            update_settings(app, |s| {
+                for a in s.automations.iter_mut() {
+                    if a.get("id").and_then(Value::as_str) == Some(id.as_str()) {
+                        a["enabled"] = json!(on);
+                        found = true;
+                    }
+                }
+            })?;
+            if !found {
+                return Err(format!("Nessuna automazione con id «{id}» (vedi list_automations)."));
+            }
+            Ok(if on { "Automazione accesa.".into() } else { "Automazione spenta.".into() })
         }
 
         _ => Err(format!("Strumento sconosciuto: {tool}")),

@@ -30,7 +30,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::island::WINDOW_LABEL;
 
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Trigger {
     /// time | startup | unlock | wifi | app | drive | folder | integration
@@ -51,7 +51,7 @@ pub struct Trigger {
     pub when: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Step {
     /// quick | notice | profile | app | url
@@ -66,7 +66,7 @@ pub struct Step {
     pub url: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Automation {
     pub id: String,
@@ -251,6 +251,144 @@ pub fn run_now(app: &AppHandle, id: &str) -> Result<(), String> {
     let app = app.clone();
     tauri::async_runtime::spawn(run(app, auto, "Prova".into(), actions));
     Ok(())
+}
+
+// ── Made from the chat (agent.rs: create_automation) ─────────────────────────
+
+const TRIGGER_KINDS: &[&str] = &["time", "startup", "unlock", "wifi", "app", "drive", "folder", "integration"];
+const STEP_KINDS: &[&str] = &["quick", "notice", "profile", "app", "url"];
+
+/// Checks an automation proposed by Claude against the user's settings and
+/// fills the defaults the settings page expects. Err = a message for Claude.
+pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, String> {
+    let mut a: Automation = serde_json::from_value(v.clone()).map_err(|e| format!("Automazione non valida: {e}"))?;
+    a.name = a.name.trim().chars().take(80).collect();
+    if a.name.is_empty() {
+        return Err("Serve un nome.".into());
+    }
+    let t = &mut a.trigger;
+    if !TRIGGER_KINDS.contains(&t.kind.as_str()) {
+        return Err(format!("trigger.kind deve essere uno di: {}", TRIGGER_KINDS.join(", ")));
+    }
+    match t.kind.as_str() {
+        "time" => {
+            let ok = t.time.len() == 5
+                && t.time.as_bytes()[2] == b':'
+                && t.time[..2].parse::<u8>().is_ok_and(|h| h < 24)
+                && t.time[3..].parse::<u8>().is_ok_and(|m| m < 60);
+            if !ok {
+                return Err("trigger.time deve essere HH:MM (es. 09:00).".into());
+            }
+            t.days.retain(|d| (1..=7).contains(d));
+            t.days.sort();
+            t.days.dedup();
+        }
+        "startup" => t.delay = t.delay.clamp(5, 3600),
+        "wifi" if t.ssid.trim().is_empty() => return Err("trigger.ssid: il nome della rete Wi-Fi.".into()),
+        "app" if t.exe.trim().is_empty() => return Err("trigger.exe: l'eseguibile, es. teams.exe.".into()),
+        "folder" if t.folder.trim().is_empty() => return Err("trigger.folder: il percorso della cartella.".into()),
+        "integration" => {
+            let known = crate::widgets::all_widgets(s).iter().any(|w| w.id == t.source);
+            if !known {
+                return Err("trigger.source: l'id di un'integrazione-controllo accesa o di un widget (vedi list_status).".into());
+            }
+            if !["problem", "event", "any"].contains(&t.when.as_str()) {
+                t.when = "problem".into();
+            }
+        }
+        _ => {}
+    }
+    if t.when.is_empty() {
+        t.when = "problem".into();
+    }
+    if t.time.is_empty() {
+        t.time = "09:00".into();
+    }
+    if t.delay == 0 {
+        t.delay = 30;
+    }
+    if !a.profile.is_empty() && !s.profiles.iter().any(|p| p.id == a.profile) {
+        return Err("profile: l'id di un profilo (vedi list_profiles), oppure vuoto.".into());
+    }
+    if a.steps.is_empty() {
+        return Err("Serve almeno un passo in steps.".into());
+    }
+    if a.steps.len() > 10 {
+        return Err("Al massimo 10 passi.".into());
+    }
+    let mut actions = s.actions.clone();
+    for p in &s.profiles {
+        if let Some(Value::Array(x)) = p.values.get("actions") {
+            actions.extend(x.iter().cloned());
+        }
+    }
+    for st in &mut a.steps {
+        if !STEP_KINDS.contains(&st.kind.as_str()) {
+            return Err(format!("steps[].kind deve essere uno di: {}", STEP_KINDS.join(", ")));
+        }
+        match st.kind.as_str() {
+            "quick" if !actions.iter().any(|x| x.get("id").and_then(Value::as_str) == Some(st.id.as_str())) => {
+                return Err(format!("Nessuna azione rapida con id «{}» (vedi list_quick_actions).", st.id));
+            }
+            "profile" if !s.profiles.iter().any(|p| p.id == st.id) => {
+                return Err(format!("Nessun profilo con id «{}» (vedi list_profiles).", st.id));
+            }
+            "notice" if st.title.trim().is_empty() && st.text.trim().is_empty() => {
+                return Err("Un avviso ha bisogno almeno di un titolo.".into());
+            }
+            "app" if st.target.trim().is_empty() => return Err("steps[].target: il programma o la cartella da aprire.".into()),
+            "url" if !(st.url.starts_with("https://") || st.url.starts_with("http://")) => {
+                return Err("steps[].url deve iniziare con http:// o https://.".into());
+            }
+            _ => {}
+        }
+        if st.level.is_empty() {
+            st.level = "info".into();
+        }
+    }
+    a.id = format!("a{}", now_ms());
+    a.enabled = true;
+    Ok(a)
+}
+
+/// One line per automation for the chat: "Mattina (accesa): alle 09:00 L-V → …".
+pub fn describe(a: &Automation, s: &crate::settings::Settings) -> String {
+    let t = &a.trigger;
+    let days = |d: &[u8]| {
+        if d.is_empty() || d.len() == 7 {
+            "ogni giorno".to_string()
+        } else {
+            d.iter().map(|x| ["", "lun", "mar", "mer", "gio", "ven", "sab", "dom"][*x as usize]).collect::<Vec<_>>().join(", ")
+        }
+    };
+    let when = match t.kind.as_str() {
+        "time" => format!("alle {} ({})", t.time, days(&t.days)),
+        "startup" => format!("{} s dopo l'avvio", t.delay),
+        "unlock" => "allo sblocco del PC".into(),
+        "wifi" => format!("in rete Wi-Fi {}", t.ssid),
+        "app" => format!("quando parte {}", t.exe),
+        "drive" => "quando si collega una chiavetta o un disco".into(),
+        "folder" => format!("nuovo file in {}", t.folder),
+        "integration" => format!("{} da {}", if t.when == "event" { "novità" } else { "problema" }, t.source),
+        k => k.to_string(),
+    };
+    let steps: Vec<String> = a.steps.iter().map(|st| match st.kind.as_str() {
+        "quick" => format!("azione rapida {}", st.id),
+        "notice" => format!("avviso «{}»", st.title),
+        "profile" => format!("profilo {}", s.profiles.iter().find(|p| p.id == st.id).map(|p| p.name.as_str()).unwrap_or(&st.id)),
+        "app" => format!("apri {}", st.target),
+        "url" => format!("apri {}", st.url),
+        k => k.to_string(),
+    }).collect();
+    format!(
+        "{} [id {}] ({}){}: {} → {}",
+        a.name,
+        a.id,
+        if a.enabled { "accesa" } else { "spenta" },
+        if a.profile.is_empty() { String::new() } else { format!(", solo nel profilo {}", a.profile) },
+        when,
+        steps.join(", ")
+    )
 }
 
 // ── Sensors ──────────────────────────────────────────────────────────────────
@@ -507,6 +645,30 @@ mod tests {
         assert!(a.profile.is_empty());
         assert!(!a.notify);
         assert_eq!(a.steps[0].kind, "url");
+    }
+
+    #[test]
+    fn proposals_from_the_chat_are_checked() {
+        let s = crate::settings::Settings::default();
+        let ok = validate(&json!({
+            "name": " Mattina ",
+            "trigger": { "kind": "time", "time": "08:30", "days": [5, 1, 1, 9] },
+            "steps": [{ "kind": "url", "url": "https://example.com" }, { "kind": "notice", "title": "Ciao" }]
+        }), &s).unwrap();
+        assert_eq!(ok.name, "Mattina");
+        assert_eq!(ok.trigger.days, vec![1, 5]);
+        assert!(ok.enabled && ok.id.starts_with('a'));
+        assert_eq!(ok.steps[1].level, "info");
+        assert!(describe(&ok, &s).contains("alle 08:30"));
+
+        let bad = |v: Value| validate(&v, &s).is_err();
+        assert!(bad(json!({ "name": "x", "trigger": { "kind": "time", "time": "25:00" }, "steps": [{ "kind": "notice", "title": "a" }] })));
+        assert!(bad(json!({ "name": "x", "trigger": { "kind": "boom" }, "steps": [{ "kind": "notice", "title": "a" }] })));
+        assert!(bad(json!({ "name": "x", "trigger": { "kind": "unlock" }, "steps": [] })));
+        assert!(bad(json!({ "name": "x", "trigger": { "kind": "unlock" }, "steps": [{ "kind": "url", "url": "file:///c:/" }] })));
+        assert!(bad(json!({ "name": "x", "trigger": { "kind": "unlock" }, "steps": [{ "kind": "quick", "id": "nope" }] })));
+        assert!(bad(json!({ "name": "x", "trigger": { "kind": "unlock" }, "steps": [{ "kind": "script", "id": "rm" }] })));
+        assert!(bad(json!({ "name": "", "trigger": { "kind": "unlock" }, "steps": [{ "kind": "notice", "title": "a" }] })));
     }
 
     #[test]
