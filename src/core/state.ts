@@ -12,7 +12,12 @@ export interface AgentTask {
   color: string;
   state: BotStateName;
   stepIndex: number;
+  /** The last 20 steps only; `stepSeq` counts every step ever added. */
   steps: string[];
+  /** Steps added since the session started: steps[i] is step number stepSeq - steps.length + i. */
+  stepSeq?: number;
+  /** Claude's last message when the session finished (relay: easyisland_last_message). */
+  lastMessage?: string | null;
   source: AgentSource;
   isIntegration: boolean;
   emote?: BotEmoteName | null;
@@ -22,6 +27,24 @@ export interface AgentTask {
   /** Where the Claude Code session runs, so "Apri" brings back the right app. */
   sessionHost?: SessionHost | null;
 }
+
+/** One file edit of the Claude Code session, as the relay computed it (hook/src/diff.rs). */
+export interface FileDiff {
+  id: number;
+  /** Full path, as Claude Code wrote it. */
+  file: string;
+  added: number;
+  removed: number;
+  /** Past 200 KB or 4,000 lines: counts only. */
+  tooBig: boolean;
+  /** `old` / `new`: first line numbers, 0 when unknown. Lines start with "+", "-" or " ". */
+  hunks: { old: number; new: number; lines: string[] }[];
+  at: number;
+}
+
+/** Diffs kept per session, and for how long (memory only). */
+export const MAX_DIFFS = 50;
+export const DIFF_TTL_MS = 60 * 60 * 1000;
 
 /** The Claude desktop app, VS Code, Windows Terminal, or any other console. */
 export type SessionHost = "desktop" | "vscode" | "wt" | "terminal";
@@ -553,6 +576,12 @@ class AppState {
   chatHistory: ChatMessage[] = [];
   pendingApproval: ApprovalInfo | null = null;
 
+  /** File edits of the Claude Code session (addDiff); cleared when it starts or ends. */
+  diffs: FileDiff[] = [];
+  private diffSeq = 0;
+  /** The file the diff view shows. */
+  diffFile: string | null = null;
+
   integrations: Record<string, IntegrationInfo> = {};
 
   lastActivity = performance.now();
@@ -614,7 +643,44 @@ class AppState {
     t.steps.push(step);
     if (t.steps.length > 20) t.steps.shift();
     t.stepIndex = t.steps.length - 1;
+    // stepIndex stops at 19 once the list is full; the ticker follows this instead.
+    t.stepSeq = (t.stepSeq ?? t.steps.length - 1) + 1;
     this.notify();
+  }
+
+  /** Rewrites the newest step equal to `from` (still among the last 20). */
+  replaceStep(id: string, from: string, to: string) {
+    const t = this.tasks.find((x) => x.id === id);
+    const i = t ? t.steps.lastIndexOf(from) : -1;
+    if (!t || i < 0) return;
+    t.steps[i] = to;
+    this.notify();
+  }
+
+  /** A file edit of the Claude Code session: newest last, 50 at most, an hour at most. */
+  addDiff(d: Omit<FileDiff, "id" | "at">) {
+    this.pruneDiffs();
+    this.diffs.push({ ...d, id: ++this.diffSeq, at: Date.now() });
+    if (this.diffs.length > MAX_DIFFS) this.diffs.splice(0, this.diffs.length - MAX_DIFFS);
+    this.notify();
+  }
+
+  pruneDiffs() {
+    const cutoff = Date.now() - DIFF_TTL_MS;
+    if (this.diffs.some((d) => d.at < cutoff)) this.diffs = this.diffs.filter((d) => d.at >= cutoff);
+  }
+
+  /** The session's files, newest edit first, with the edits added up. */
+  diffFiles(): { file: string; added: number; removed: number; edits: number }[] {
+    const out = new Map<string, { file: string; added: number; removed: number; edits: number }>();
+    for (const d of [...this.diffs].reverse()) {
+      const f = out.get(d.file) ?? { file: d.file, added: 0, removed: 0, edits: 0 };
+      f.added += d.added;
+      f.removed += d.removed;
+      f.edits += 1;
+      out.set(d.file, f);
+    }
+    return [...out.values()];
   }
 
   setPillBadge(id: string, badge: PillBadge | null) {

@@ -468,6 +468,12 @@ fn open_in_vscode(path: Option<String>) -> bool {
     false
 }
 
+/// The diff view's ↗: the edited file in VS Code, at the changed line.
+#[tauri::command]
+fn open_file_in_vscode(file: String, line: u32) -> bool {
+    apps::open_vscode_at(&file, line)
+}
+
 /// "Apri" on a finished or failed session: back to the app it runs in.
 #[tauri::command]
 fn open_session(host: Option<String>, path: Option<String>) -> String {
@@ -949,6 +955,7 @@ pub fn run() {
             reposition,
             open_url,
             open_in_vscode,
+            open_file_in_vscode,
             open_session,
             update_check,
             update_install,

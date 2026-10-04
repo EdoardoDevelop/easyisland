@@ -125,6 +125,22 @@ pub fn open_vscode(path: Option<&str>) -> bool {
     cmd.creation_flags(CREATE_NO_WINDOW).spawn().is_ok()
 }
 
+/// `code -g <file>:<line>`: the diff view's ↗. Only an existing file given by
+/// its full path; the argument goes over as one, no shell involved.
+pub fn open_vscode_at(file: &str, line: u32) -> bool {
+    let path = std::path::Path::new(file);
+    if !path.is_absolute() || !path.is_file() {
+        return false;
+    }
+    let Some(code) = find_vscode() else { return false };
+    Command::new(code)
+        .arg("-g")
+        .arg(format!("{file}:{}", line.max(1)))
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+        .is_ok()
+}
+
 fn open_folder(path: Option<&str>) -> bool {
     match path.filter(|p| !p.is_empty()) {
         Some(p) => Command::new("explorer").arg(p).spawn().is_ok(),

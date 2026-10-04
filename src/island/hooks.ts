@@ -25,6 +25,13 @@ interface HookPayload {
   tool_input?: Record<string, unknown>;
   /** Set by easyisland-hook.exe --chat: a connector call from the character's own chat. */
   easyisland_chat?: boolean;
+  /** Added by the relay (hook/src/diff.rs) to Edit / MultiEdit / Write. */
+  easyisland_diff?: {
+    file?: string; added?: number; removed?: number; too_big?: boolean;
+    hunks?: { old: number; new: number; lines: string[] }[];
+  };
+  /** Added by the relay to Stop: Claude's last message. */
+  easyisland_last_message?: string;
   /** Added by the relay from the session's environment. */
   entrypoint?: string;
   term_program?: string;
@@ -201,6 +208,17 @@ const TOOL_LABELS: Record<string, string> = {
   PowerShell: "Esegue",
 };
 
+/** " +12 −3": the edit's balance, as the ticker colours it (views/ticker.ts). */
+export function diffCounts(added: number, removed: number): string {
+  return `  +${added} −${removed}`;
+}
+
+/** The first non-empty line, cut to `n` characters. */
+function firstLine(text: string, n: number): string {
+  const line = text.split(/\r?\n/).map((l) => l.trim()).find((l) => l) ?? "";
+  return line.length > n ? `${line.slice(0, n - 1)}…` : line;
+}
+
 function stepLabel(tool: string, input: Record<string, unknown>): string {
   const label = TOOL_LABELS[tool] ?? tool;
   const str = (k: string) => (typeof input[k] === "string" ? (input[k] as string) : null);
@@ -277,6 +295,8 @@ function clearSession() {
   if (!t) return;
   t.steps = [];
   t.stepIndex = 0;
+  t.stepSeq = 0;
+  t.lastMessage = null;
   t.name = "VS Code";
   t.pillBadge = null;
 }
@@ -347,6 +367,8 @@ export function handleHook(island: Island, payload: HookPayload) {
     case "UserPromptSubmit": {
       upsert(projectName, cwd, host);
       State.updateTask(CLAUDE_ID, "thinking");
+      const t = State.tasks.find((x) => x.id === CLAUDE_ID);
+      if (t) t.lastMessage = null;
       // The field is `prompt`; reading `message` meant this step was always blank.
       const asked = payload.prompt ?? payload.message;
       if (asked) State.appendStep(CLAUDE_ID, asked.slice(0, 60));
@@ -363,9 +385,20 @@ export function handleHook(island: Island, payload: HookPayload) {
       break;
     }
 
-    case "PostToolUse":
+    case "PostToolUse": {
       State.updateTask(CLAUDE_ID, "working");
+      const d = payload.easyisland_diff;
+      if (d?.file) {
+        State.addDiff({
+          file: d.file, added: d.added ?? 0, removed: d.removed ?? 0,
+          tooBig: d.too_big === true, hunks: Array.isArray(d.hunks) ? d.hunks : [],
+        });
+        // "Modifica · island.ts" becomes "Modifica · island.ts +12 −3".
+        const step = stepLabel(payload.tool_name ?? "", payload.tool_input ?? {});
+        State.replaceStep(CLAUDE_ID, step, `${step}${diffCounts(d.added ?? 0, d.removed ?? 0)}`);
+      }
       break;
+    }
 
     case "PostToolUseFailure":
       State.updateTask(CLAUDE_ID, "working");
@@ -387,7 +420,13 @@ export function handleHook(island: Island, payload: HookPayload) {
 
     case "Stop":
       State.updateTask(CLAUDE_ID, "finished");
-      if (payload.message) State.appendStep(CLAUDE_ID, payload.message.slice(0, 60));
+      {
+        // Claude's last words replace the last step as what the session ended on.
+        const said = payload.easyisland_last_message?.trim() || payload.message?.trim() || "";
+        const t = State.tasks.find((x) => x.id === CLAUDE_ID);
+        if (t) t.lastMessage = said || null;
+        if (said) State.appendStep(CLAUDE_ID, firstLine(said, 80));
+      }
       Sound.play("finish");
       if (focused) surface("finished", true);
       else State.setPillBadge(CLAUDE_ID, "finished");
@@ -407,6 +446,8 @@ export function handleHook(island: Island, payload: HookPayload) {
     case "SessionEnd":
       State.updateTask(CLAUDE_ID, "idle");
       clearSession();
+      // The diffs live as long as the session (or an hour, see State.addDiff).
+      State.diffs = [];
       break;
 
     case "SubagentStart":

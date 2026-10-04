@@ -204,11 +204,20 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 
 Tutto il resto succede da solo: una richiesta di permesso di Claude Code apre
 l'isola con **Nega / Consenti** (anche sopra un'altra scheda; resta finché non
-rispondi, poi l'isola torna dov'era), una sessione finita mostra cosa ha fatto e le
-tue integrazioni stanno nelle pillole colorate accanto a Slime. Non c'è un
+rispondi, poi l'isola torna dov'era), una sessione finita mostra l'ultimo messaggio
+di Claude e le tue integrazioni stanno nelle pillole colorate accanto a Slime. Non c'è un
 numero massimo di integrazioni e widget: l'isola si allunga per mostrare tutte
 le pillole e tutto il testo della scheda in primo piano (fino a circa 540 px,
 poi le pillole scorrono).
+
+**Modifiche in tempo reale:** mentre Claude Code lavora, ogni file che modifica
+compare nei passi con le righe aggiunte in verde e tolte in rosso (`+12 −3`), e
+sotto c'è il riepilogo della sessione. Un clic apre la scheda **Modifiche**: una
+linguetta per file, ogni modifica con 3 righe di contesto e i numeri di riga, ↗
+per aprire il file in VS Code alla riga cambiata. Il diff viene dai dati che
+Claude Code passa all'hook, senza leggere il file; resta solo in memoria (50
+modifiche al massimo, un'ora al massimo, cancellate a fine sessione). Oltre
+200 KB o 4.000 righe si vede solo il bilancio.
 
 ## Posizione e aspetto
 

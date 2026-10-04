@@ -43,6 +43,7 @@ const DROPPED_FIELDS: &[&str] = &["tool_response", "transcript_path"];
 /// less than this anyway.
 const MAX_FIELD_LEN: usize = 2_000;
 
+mod diff;
 mod mcp;
 mod win;
 
@@ -262,6 +263,27 @@ fn read_event() -> Option<(String, String, Option<serde_json::Value>)> {
     map.insert("hook_event_name".into(), serde_json::Value::String(event.clone()));
     if std::env::args().any(|a| a == "--chat") {
         map.insert("easyisland_chat".into(), serde_json::Value::Bool(true));
+    }
+
+    // Built from the whole payload, before it is cut down: a file edit's diff
+    // and a finished session's last message (diff.rs).
+    if event == "PostToolUse" {
+        let tool = map.get("tool_name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+        let input = map.get("tool_input").cloned().unwrap_or_default();
+        if let Some(d) = diff::file_diff(&tool, &input, map.get("tool_response")) {
+            map.insert("easyisland_diff".into(), d);
+            // The diff says it all; the snippets would only travel twice.
+            if let Some(input) = map.get_mut("tool_input").and_then(|v| v.as_object_mut()) {
+                for k in ["old_string", "new_string", "content", "edits"] {
+                    input.remove(k);
+                }
+            }
+        }
+    }
+    if event == "Stop" {
+        if let Some(m) = diff::last_message(map) {
+            map.insert("easyisland_last_message".into(), serde_json::Value::String(m));
+        }
     }
 
     for field in DROPPED_FIELDS {

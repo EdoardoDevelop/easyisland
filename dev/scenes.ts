@@ -168,6 +168,38 @@ export async function runScene(island: Island, scene: string) {
       island.alert("upload");
       await wait(2500);
       break;
+    case "diff": {
+      // Edits as the relay sends them (hook/src/diff.rs), through the real handler.
+      await wait(300);
+      (window as unknown as { island: Island }).island = island;
+      const cwd = "C:\\Users\\Edoardo\\WORK\\easyisland";
+      const edit = (file: string, diff: object) => {
+        const tool_input = { file_path: `${cwd}\\${file}` };
+        handleHook(island, { hook_event_name: "PreToolUse", cwd, tool_name: "Edit", tool_input });
+        handleHook(island, { hook_event_name: "PostToolUse", cwd, tool_name: "Edit", tool_input,
+          easyisland_diff: { file: tool_input.file_path, ...diff } });
+      };
+      session("working", ["Read · src/views/ticker.ts"]);
+      island.alert("overview");
+      edit("src\\views\\ticker.ts", { added: 3, removed: 1, too_big: false, hunks: [{ old: 52, new: 52, lines: [
+        " function setText(row: Row, text: string) {",
+        "   if (row.text === text) return;",
+        "-  row.shimmer.textContent = text;",
+        "+  row.text = text;",
+        "+  fill(row.shimmer, text);",
+        "+  fill(row.dim, text);",
+        " }",
+      ] }] });
+      edit("src\\core\\state.ts", { added: 2, removed: 0, too_big: false, hunks: [{ old: 0, new: 0, lines: [
+        "   stepIndex: number;", "+  stepSeq?: number;", "+  lastMessage?: string | null;",
+      ] }] });
+      edit("src\\core\\state.ts", { added: 1, removed: 1, too_big: false, hunks: [{ old: 640, new: 642, lines: [
+        "   appendStep(id: string, step: string) {", "-    t.stepIndex = 0;", "+    t.stepSeq = 0;", "   }",
+      ] }] });
+      edit("dist\\bundle.js", { added: 5200, removed: 4100, too_big: true, hunks: [] });
+      await wait(2500);
+      break;
+    }
     case "permission":
       // Not a screenshot: a real PermissionRequest through the hook handler while
       // the island shows another tab, to check the card shows, stays and returns.

@@ -11,6 +11,7 @@ import { ISLAND_CHROME_H, MAX_ISLAND_H, washRGBA, type IslandViewName, type Wash
 import { createMiniBot, pruneMiniBots } from "../character/minibots";
 import { buildPrompt } from "./chat";
 import { buildChoose, buildFiles, buildUnzip, buildUpload, buildUploading } from "./upload";
+import { buildDiff } from "./diff";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, type ActionHandlers } from "./actions";
 
@@ -212,10 +213,29 @@ export function buildHeader(actions: ViewActions): ViewHost {
 
 // ── Overview ──────────────────────────────────────────────────────────────────
 
+/** Opens the diff view on `file` (a full path from State.diffs). */
+function openDiff(actions: ViewActions, file: string) {
+  State.diffFile = file;
+  actions.setView("diff");
+}
+
+/** "a.ts": the last part of a Windows or POSIX path. */
+function baseName(path: string): string {
+  return path.split(/[\\/]/).pop() || path;
+}
+
 function buildOverview(actions: ViewActions): ViewHost {
-  const ticker = new Ticker();
+  // A step with a diff ("Modifica · a.ts +12 −3"): its file's newest edit.
+  const ticker = new Ticker((text) => {
+    const name = text.replace(/\s+\+\d+ −\d+$/, "").split(" · ").pop() ?? "";
+    const d = [...State.diffs].reverse().find((x) => baseName(x.file) === name);
+    if (d) openDiff(actions, d.file);
+  });
   const who = h("div", { class: "who" });
-  const tickerBody = h("div", { class: "card-body" }, who, ticker.el);
+  // The session's edited files, newest first: a click opens the diff.
+  const files = h("div", { class: "diff-files" });
+  let filesKey = "";
+  const tickerBody = h("div", { class: "card-body" }, who, ticker.el, files);
   const leftBody = h("div", { class: "left-body" });
   const jump = h(
     "button",
@@ -296,6 +316,24 @@ function buildOverview(actions: ViewActions): ViewHost {
           }));
         }
         ticker.sync(task);
+        State.pruneDiffs();
+        const list = State.diffFiles();
+        const key = list.map((f) => `${f.file}:${f.added}:${f.removed}`).join("|");
+        if (key !== filesKey) {
+          filesKey = key;
+          // One summary: the card is narrow, the diff view has a tab per file.
+          const added = list.reduce((s, f) => s + f.added, 0);
+          const removed = list.reduce((s, f) => s + f.removed, 0);
+          const label = list.length === 1 ? baseName(list[0].file) : `${list.length} file`;
+          files.replaceChildren(...(list.length ? [h("button", {
+            class: "diff-file", title: `Modifiche: ${list.map((f) => baseName(f.file)).join(", ")}`,
+            onclick: () => openDiff(actions, list[0].file),
+          },
+          h("span", { class: "diff-name", text: label }),
+          h("span", { class: "diff-add", text: `+${added}` }),
+          h("span", { class: "diff-del", text: `−${removed}` }))] : []));
+          files.style.display = list.length ? "" : "none";
+        }
       } else if (task) {
         const info = State.integrations[task.id];
         const key = [
@@ -598,7 +636,11 @@ function buildFinished(actions: ViewActions): ViewHost {
     sync() {
       clear(who);
       who.append(agentWho(State.focusTask, "Claude Code ha finito"));
-      title.textContent = State.focusTask?.steps.at(-1) ?? "Sessione terminata";
+      // Claude's last message when the relay found it, else the last step.
+      const said = State.focusTask?.lastMessage;
+      title.classList.toggle("last-msg", !!said);
+      title.textContent = said ?? State.focusTask?.steps.at(-1) ?? "Sessione terminata";
+      title.title = said ?? "";
       // "Apri Claude", "Apri VS Code" or "Apri terminale": where the session runs.
       (open.firstChild as HTMLElement).textContent = sessionOpenLabel(State.focusTask?.sessionHost);
     },
@@ -785,6 +827,7 @@ export function buildViews(
   map.set("run", buildRun(actions));
   map.set("unzip", buildUnzip(actions));
   map.set("files", buildFiles(actions));
+  map.set("diff", buildDiff(actions));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder("L'invio via email non è disponibile in questa versione.", ""));
   map.set("searching", buildPlaceholder("Claude sta cercando…", ""));
