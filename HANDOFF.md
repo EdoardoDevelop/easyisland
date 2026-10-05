@@ -268,6 +268,13 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 
 ## 10. Registro delle modifiche
 
+### 5 ottobre 2026 — chat con l'abbonamento: requisito della CLI spiegato
+- **Cosa è emerso** (pallino rosso in Impostazioni → Chat sul PC di Edoardo): l'app desktop di Claude è a pacchetto (MSIX), quindi il suo Claude Code (`%APPDATA%\Claude\claude-code\<versione>`) esiste solo nella vista reindirizzata (`AppData\Local\Packages\Claude_…\LocalCache\Roaming\Claude\claude-code`) e usa il login dell'app: EasyIsland non lo vede e non potrebbe usarlo. L'unico trovato era quello dell'estensione di VS Code, con `claude auth status` → `"loggedIn": false`. Il controllo di `find_claude` su `%APPDATA%\Claude\claude-code` vale quindi solo per installazioni non a pacchetto. **La chat con l'abbonamento richiede la CLI installata con il login**; le sessioni di Claude Code nell'isola no (passano dagli hook).
+- **Impostazioni → Chat:** testo che lo dice chiaramente; lo stato distingue "non installato", "solo quello dell'estensione di VS Code, senza login", "installato senza login" e "pronto" (`CliStatus.source`: `cli` / `vscode` / `desktop`); finché non è pronto compare il riquadro "Come preparare Claude Code" con i tre passi e il comando `irm https://claude.ai/install.ps1 | iex` da copiare, e l'alternativa degli altri motori. Descrizione del motore nel menu aggiornata.
+- **Chat:** "non trovato" spiega cosa serve e dove; un errore di login di Claude Code (`needs_login`: "/login", "not logged in", "invalid api key"…) diventa "Claude Code non ha il login: apri un terminale, scrivi «claude»…".
+- **README:** passo 2 dopo l'installazione e sezione "Chat con Claude" con il requisito e i passi.
+- Verificato: test (`login_errors_are_recognised`, `where_claude_code_came_from`), `npm run build`, anteprima delle Impostazioni.
+
 ### 4 ottobre 2026 — versione 0.5.5
 - Versione **0.5.5** nei tre file (più `package-lock.json` e `Cargo.lock`), `claude/sviluppo` unito in `main`, tag `v0.5.5`. Rispetto alla 0.5.4: named pipe solo per il proprio utente, richiesta di permesso che resta finché non rispondi, diff in tempo reale e ultimo messaggio, "Sempre" sui permessi, markdown nella chat, scorciatoie (globali e nell'isola), altri motori per la chat (OpenRouter, OpenAI, Gemini, Ollama, LM Studio), altri agenti (Codex, Gemini CLI, Cursor, `easyisland_agent`). Installata e provata sul PC di Edoardo prima del tag.
 
