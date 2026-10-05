@@ -2679,6 +2679,9 @@ input[type="range"]::-webkit-slider-thumb {
   padding: 5px 8px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.03);
+  /* A row can be dragged out into another app (Vassoio). */
+  cursor: grab;
+  user-select: none;
 }
 
 .files-row:hover {

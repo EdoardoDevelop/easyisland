@@ -186,7 +186,7 @@ disinstallatore volutamente non tocca il `settings.json` di Claude Code. Poi
 <img src="screenshots/overview.png" width="640" alt="La panoramica: una sessione di Claude Code al lavoro a sinistra, le altre pillole a destra">
 <img src="screenshots/approval.png" width="640" alt="Una richiesta di permesso di Claude Code, con Nega e Consenti">
 <img src="screenshots/chat.png" width="640" alt="Chat con Claude dall'isola">
-<img src="screenshots/drop.png" width="640" alt="Slime trasformato in una scatola, in attesa di un file, con Cattura una zona e File caricati">
+<img src="screenshots/drop.png" width="640" alt="Slime trasformato in una scatola, in attesa di un file, con Cattura una zona e Vassoio">
 
 _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `npm run dev` acceso), con dati di prova delle scene in `dev/scenes.ts`._
 
@@ -205,7 +205,7 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 | Scrivi un calcolo nella chat, es. `840 + 22%` o `15% di 840` | Compare subito il risultato; **Invio** lo copia negli appunti, **Ctrl+Invio** chiede comunque a Claude. Il calcolo è fatto in locale, senza Claude |
 | Rilasci uno ZIP | Oltre a "Fai una domanda" c'è **Estrai…**: vedi cosa contiene e lo estrai in una cartella nuova accanto all'originale, in Download o sul Desktop |
 | Scheda **+** → **Cattura una zona** (o `Ctrl+Alt+Shift+S`) | Lo Strumento di cattura di Windows: scegli una zona, una finestra o lo schermo e la chat si apre con l'immagine allegata |
-| Scheda **+** → **File caricati** | La cronologia dei file rilasciati sull'isola (le copie tenute per una settimana): chiedi a Claude, apri, mostra nella cartella, elimina uno o tutti. Gli originali non vengono toccati |
+| Scheda **+** → **Vassoio** | I file rilasciati sull'isola, tenuti finché EasyIsland non si riavvia: trascinali in un'altra app (mail, chat, cartella), chiedi a Claude, apri, mostra nella cartella, togli uno o tutti. Sono copie: gli originali non vengono toccati |
 | Icona nell'area di notifica | Apri, Impostazioni…, Pausa, Esci |
 
 Tutto il resto succede da solo: una richiesta di permesso di Claude Code apre

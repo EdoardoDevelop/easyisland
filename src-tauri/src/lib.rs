@@ -796,7 +796,23 @@ fn automation_run_now(app: AppHandle, id: String) -> Result<(), String> {
     automations::run_now(&app, &id)
 }
 
-/// "File caricati": the copies in the inbox, newest first.
+/// Drags a file of the tray out of the island into another app.
+#[tauri::command]
+fn inbox_drag(app: AppHandle, name: String) -> Result<(), String> {
+    let path = files::inbox_path(&name)?;
+    let win = island::window(&app).ok_or("Isola non trovata")?;
+    let hwnd = win.hwnd().map_err(|e| e.to_string())?.0 as isize;
+    // Windows' drag loop belongs on the window's thread.
+    app.run_on_main_thread(move || {
+        let hwnd = windows::Win32::Foundation::HWND(hwnd as *mut _);
+        if let Err(e) = files::drag_out(hwnd, &path) {
+            crate::log::line(e);
+        }
+    })
+    .map_err(|e| e.to_string())
+}
+
+/// The tray ("Vassoio"): the copies in the inbox, newest first.
 #[tauri::command]
 fn inbox_list() -> Vec<files::InboxFile> {
     files::list_inbox()
@@ -1048,6 +1064,7 @@ pub fn run() {
             inbox_delete,
             inbox_clear,
             inbox_open,
+            inbox_drag,
             zip_extract,
             foreground_app,
             capture_selection,
@@ -1073,6 +1090,8 @@ pub fn run() {
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             island::spawn_fullscreen_watch(handle.clone(), gate.clone());
             island::spawn_drag_raise(handle.clone(), gate.clone());
+            // The tray is temporary: every start begins with it empty.
+            std::thread::spawn(files::clear_inbox);
             profiles::spawn_auto_switch(handle.clone());
             hotkeys::spawn(handle.clone());
             clipboard::spawn(handle.clone());

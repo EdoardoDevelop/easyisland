@@ -632,7 +632,7 @@ export class Island {
     State.notify();
   }
 
-  /** "File caricati": list the inbox and show it. */
+  /** The tray ("Vassoio"): list the inbox and show it. */
   async openFiles() {
     State.inbox = await Bridge.inboxList() ?? [];
     this.setView("files");

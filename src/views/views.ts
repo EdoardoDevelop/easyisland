@@ -21,7 +21,7 @@ import { Bridge } from "../core/bridge";
 
 export interface ViewActions extends ActionHandlers {
   setView(v: IslandViewName): void;
-  /** "File caricati": the history of dropped files. */
+  /** The tray ("Vassoio"): the files dropped since EasyIsland started. */
   openFiles(): void;
   refreshFiles(): void;
   askAboutFile(f: { name: string; path: string }): void;
