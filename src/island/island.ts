@@ -9,7 +9,7 @@ import {
   chatPromptHeight, collapsedBox, compactSize, cornerRadii, glueFor, isGlued, islandSize,
   type IslandMode, type IslandViewName, type Placement,
 } from "../core/layout";
-import type { Suggestion } from "./context";
+import { suggestionsFor, type Suggestion } from "./context";
 import { Sound } from "../core/sound";
 import { State, isSessionTask } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
@@ -530,7 +530,23 @@ export class Island {
   setPinned(on: boolean) {
     State.isPinned = on;
     this.fsm.pinned = on;
+    // Unpinned with the mouse away: nothing else would start the auto-close.
+    if (!on && !this.wasInIsland && this.fsm.state === "home") {
+      this.fsm.mouseLeft();
+      if (!State.keepOpen && !State.pendingApproval) {
+        this.homeCollapseAt = performance.now() + State.settings.autoCloseInterval * 1000;
+      }
+    }
     State.notify();
+  }
+
+  /**
+   * An alert that ended on its own (a call answered on the phone or by a
+   * colleague): close at once, unless the mouse is on the island or 📌 is on.
+   */
+  endAlert() {
+    this.setPinned(false);
+    if (!this.wasInIsland && !State.keepOpen && this.fsm.state === "home") this.collapse();
   }
 
   /** Alert from the hook server: open on this view. Pinned alerts never auto-close. */
@@ -547,9 +563,11 @@ export class Island {
     State.noteMessage = message;
     this.setView("note");
     Sound.play("error");
+    // Long enough to read: longer messages stay longer.
+    const ms = Math.min(7000, 2600 + Math.max(0, message.length - 60) * 40);
     window.setTimeout(() => {
-      if (State.view === "note") this.setView(back);
-    }, 2600);
+      if (State.view === "note" && State.noteMessage === message) this.setView(back);
+    }, ms);
   }
 
   /** Starts a fresh chat about `context` and asks `question` right away. */
@@ -579,12 +597,23 @@ export class Island {
   /** A suggestion: copy the selection in the app in front, then ask Claude. */
   async runSuggestion(s: Suggestion, app: string) {
     Sound.play("blip");
-    const text = await Bridge.captureSelection();
-    if (!text) {
-      this.note(`Seleziona prima il testo${app ? ` in ${app}` : ""}, poi scegli l'azione.`);
-      return;
-    }
+    const text = await this.selectedText(app);
+    if (text == null) return;
     this.startChat(s.prompt, { label: app ? `Testo da ${app}` : "Testo selezionato", text }, false);
+  }
+
+  /** The text selected in the app in front; null (with a note saying why) when there is none. */
+  private async selectedText(app: string, back: IslandViewName = "actions"): Promise<string | null> {
+    const r = await Bridge.captureSelection();
+    if ("text" in r) return r.text;
+    const where = app ? ` in ${app}` : "";
+    const why: Record<string, string> = {
+      "no-window": "Non trovo l'app da cui leggere: fai clic nell'app con il testo, poi riprova.",
+      "no-focus": `Windows non mi ha lasciato tornare${app ? ` a ${app}` : " all'app"}: fai clic lì e riprova.`,
+      "not-text": `Hai selezionato un'immagine o dei file${where}, non del testo.`,
+    };
+    this.note(why[r.error] ?? `Nessun testo selezionato${where}: selezionalo, poi scegli l'azione. Se è già selezionato, l'app non lascia copiarlo: usa Ctrl+C e l'azione sul testo copiato.`, back);
+    return null;
   }
 
   /** "Estrai…" on a dropped ZIP: list what is inside, then wait for a destination. */
@@ -740,6 +769,11 @@ export class Island {
               return;
             }
             context = { label: "Testo copiato", text };
+          } else if (a.input === "selection") {
+            const app = suggestionsFor(State.foreground)?.app ?? "";
+            const text = await this.selectedText(app);
+            if (text == null) return;
+            context = { label: app ? `Testo da ${app}` : "Testo selezionato", text };
           }
           this.startChat(a.prompt, context, false);
           break;

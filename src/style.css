@@ -3102,3 +3102,27 @@ input[type="range"]::-webkit-slider-thumb {
 .tcx-foot + .tcx-chips {
   padding: 0 0 8px;
 }
+
+/* Tooltips drawn in the page (src/core/tooltip.ts): WebView2's own went behind the island. */
+.tip {
+  position: fixed;
+  z-index: 1000;
+  max-width: 260px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  background: #1c1d22;
+  border: 1px solid var(--hairline);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  color: var(--ink);
+  font: 500 11px/1.35 var(--font);
+  white-space: pre-line;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s ease;
+}
+
+.tip.on {
+  opacity: 1;
+  visibility: visible;
+}

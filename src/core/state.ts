@@ -364,8 +364,8 @@ export interface QuickAction {
   shell: "powershell" | "cmd";
   /** prompt: what Claude is asked. */
   prompt: string;
-  /** prompt: what the prompt is applied to. */
-  input: "clipboard" | "file" | "none";
+  /** prompt: what the prompt is applied to ("selection": the text selected in the app in front). */
+  input: "clipboard" | "selection" | "file" | "none";
   /** script: show the commands and wait for "Esegui". */
   confirm: boolean;
   /** Optional global shortcut, e.g. "Ctrl+Alt+E". */

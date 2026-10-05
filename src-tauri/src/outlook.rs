@@ -5,7 +5,8 @@
 // It only attaches to an Outlook that is already open (GetActiveObject); it
 // never starts one. The new Outlook (olk.exe) has no COM model, so it is not
 // supported. The read runs in a short PowerShell call, the same way the TLS
-// widget reads certificates, once a minute by default.
+// widget reads certificates, once a minute by default, and only while
+// OUTLOOK.EXE runs: closed (evenings, weekends) it costs one process list.
 //
 // The appointments go through calendar::describe, so the text and the
 // "about to start" warning are the same as the ICS calendar widget's.
@@ -118,6 +119,11 @@ fn result_for(id: &str, snap: &Snapshot, now: i64, warn_min: i64) -> WidgetResul
 }
 
 pub async fn probe(w: &Widget) -> WidgetResult {
+    // No PowerShell at all while Outlook is closed.
+    let running = tokio::task::spawn_blocking(|| !crate::apps::pids_of(&["outlook.exe"]).is_empty()).await.unwrap_or(true);
+    if !running {
+        return WidgetResult::new(&w.id, "ok", "Outlook non è aperto");
+    }
     let out = tokio::process::Command::new("powershell")
         .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", SCRIPT])
         .creation_flags(CREATE_NO_WINDOW)

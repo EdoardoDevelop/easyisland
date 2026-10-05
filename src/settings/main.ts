@@ -1396,7 +1396,7 @@ function actionsSection(): HTMLElement {
           card.append(
             h("div", { class: "row" }, h("label", { text: "Applicata a" }),
               select<QuickAction["input"]>(
-                [["clipboard", "Testo copiato negli appunti"], ["file", "File rilasciato sull'isola"], ["none", "Niente (solo la domanda)"]],
+                [["clipboard", "Testo copiato negli appunti"], ["selection", "Testo selezionato"], ["file", "File rilasciato sull'isola"], ["none", "Niente (solo la domanda)"]],
                 a.input,
                 (v) => { a.input = v; commit(); },
               )),
@@ -1425,7 +1425,7 @@ function actionsSection(): HTMLElement {
     h("h2", {}, h("span", { text: "Azioni rapide" }), profileChip()),
     h("div", {
       class: "hint",
-      text: "Pulsanti nella scheda ⚡ dell'isola: link, programmi, script (partono solo dopo un clic) e domande a Claude sul testo copiato o sul file rilasciato. Nessuna chiave o password qui dentro.",
+      text: "Pulsanti nella scheda ⚡ dell'isola: link, programmi, script (partono solo dopo un clic) e domande a Claude sul testo copiato, sul testo selezionato o sul file rilasciato. Nessuna chiave o password qui dentro.",
     }),
     h("div", { class: "row" }, h("label", { text: "Apri l'isola" }),
       hotkeyField(settings.hotkeyOpen, (v) => { settings.hotkeyOpen = v; })),

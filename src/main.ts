@@ -6,6 +6,7 @@ import { Bridge, IS_TAURI, onEvent, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
 import { State, type Settings } from "./core/state";
 import { Island } from "./island/island";
+import { installTooltips } from "./core/tooltip";
 import { registerHookHandlers } from "./island/hooks";
 import { registerIntegrationHandlers, refreshConfigured } from "./island/integrations";
 
@@ -16,6 +17,7 @@ async function main() {
   void Sound.preload();
 
   const island = new Island(root);
+  installTooltips();
 
   const boot = await Bridge.boot();
   if (boot) {

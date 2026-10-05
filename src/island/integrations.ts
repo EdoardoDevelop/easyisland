@@ -123,7 +123,9 @@ function handle(island: Island, update: IntegrationUpdate) {
     if (task?.pillBadge === "approval") task.pillBadge = null;
     if (heldByCall) {
       heldByCall = false;
-      island.setPinned(false);
+      // Still on the call card: close it. Somewhere else: just let go.
+      if (State.focusId === THREECX && State.view === "overview") island.endAlert();
+      else island.setPinned(false);
     }
   }
 

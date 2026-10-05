@@ -23,7 +23,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 /// Process ids whose executable is one of `names` (lower case, e.g. "claude.exe").
-fn pids_of(names: &[&str]) -> Vec<u32> {
+pub fn pids_of(names: &[&str]) -> Vec<u32> {
     let mut out = Vec::new();
     unsafe {
         let Ok(snap) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else { return out };

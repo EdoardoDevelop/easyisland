@@ -1,6 +1,6 @@
 # Handoff — EasyIsland (solo Windows)
 
-_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 5 ottobre 2026 (versione 0.5.6: requisito della CLI per la chat con l'abbonamento). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
+_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 5 ottobre 2026 (versione 0.5.7 preparata, non ancora pubblicata: tooltip, 3CX, Outlook, testo selezionato). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
 
 > Questo file va tenuto **sempre aggiornato**: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al **Registro delle modifiche** (sezione 10), con data, cosa è cambiato e cosa resta aperto.
 
@@ -151,7 +151,7 @@ Pulsanti definiti dall'utente, mostrati in una nuova scheda dell'isola (accanto 
   - `url`: apre un link (portale cliente, gestionale, documentazione);
   - `app`: avvia un programma con argomenti (RDP, AnyDesk, PowerShell, Esplora file su una cartella);
   - `script`: esegue uno script PowerShell/cmd **solo dopo un clic esplicito**, mostrando l'output nell'isola (con timeout e pulsante Interrompi);
-  - `prompt`: manda a Claude un **prompt salvato** applicato al testo negli appunti o al file rilasciato. Esempi da tecnico IT: "Spiega questo errore e dammi i passi per risolverlo", "Scrivi uno script PowerShell che…", "Analizza questo log", "Scrivi il rapportino d'intervento da questi appunti", "Rispondi a questa mail del cliente in modo professionale".
+  - `prompt`: manda a Claude un **prompt salvato** applicato al testo negli appunti, al testo selezionato nell'app in primo piano (input `selection`, dal 5 ottobre 2026) o al file rilasciato. Esempi da tecnico IT: "Spiega questo errore e dammi i passi per risolverlo", "Scrivi uno script PowerShell che…", "Analizza questo log", "Scrivi il rapportino d'intervento da questi appunti", "Rispondi a questa mail del cliente in modo professionale".
 - **Scorciatoia globale** configurabile (es. `Win+Shift+M`) per aprire Slime su chat o azioni, e una seconda per "chiedi a Slime sul testo copiato". Rust: `tauri-plugin-global-shortcut` (valutare se accettabile come dipendenza) oppure `RegisterHotKey` dalla crate `windows` già presente.
 - **Configurazione:** lista in Settings (`actions: [{ id, name, icon, color, kind, target, args, prompt, confirm }]`) con editor nelle Impostazioni, riordinabile, legata al profilo.
 - **Sicurezza:** niente esecuzione automatica; gli script mostrano il comando prima di partire se `confirm: true` (predefinito); nessun segreto nella configurazione (eventuali chiavi tramite riferimento alla Gestione credenziali).
@@ -267,6 +267,25 @@ Pensate per il supporto IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi facciamo il diff in tempo reale (6.6, punto 1)"_, _"proviamo dal vivo le automazioni"_ oppure _"valutiamo un'idea della sezione 7"_. Per una nuova versione: stesso numero nei tre file, unione di `claude/sviluppo` in `main`, tag `vX.Y.Z`. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 5 ottobre 2026 — versione 0.5.7 (preparata)
+- Versione **0.5.7** nei tre file (più `package-lock.json` e `Cargo.lock`) su `claude/sviluppo`. **Non ancora** unita in `main` né taggata: il tag `v0.5.7` pubblica l'aggiornamento per tutte le app installate. Rispetto alla 0.5.6: azioni rapide sul testo selezionato, tooltip disegnati nell'isola (non più dietro), isola che si chiude a fine squillo 3CX, Outlook senza PowerShell quando è chiuso, messaggi chiari quando la selezione non si copia, log dei cambi di stato delle chiamate 3CX.
+
+### 5 ottobre 2026 — Outlook più leggero, selezione con messaggi chiari, log delle chiamate 3CX
+- **Outlook:** prima di lanciare PowerShell controlla se `OUTLOOK.EXE` è in esecuzione (`apps::pids_of`, ora pubblica). Con Outlook chiuso (sera, weekend) non parte più nessun PowerShell: solo un elenco dei processi ogni 60 s.
+- **Copia della selezione** (suggerimenti ⚡ e azioni rapide sul testo selezionato): `context::selection` ora dice perché non ha testo (`no-window`, `no-focus`, `empty`, `not-text`) e l'isola lo spiega (`Island.selectedText`): app non trovata, Windows che non lascia tornare all'app, nessun testo o app che non lascia copiare (con il consiglio di usare Ctrl+C e l'azione sul testo copiato), immagine o file selezionati. L'attesa della copia passa da 600 a 1200 ms (Excel e Outlook con selezioni grandi). Le note dell'isola restano visibili più a lungo se il testo è lungo (fino a 7 s).
+- **3CX:** il log (`crate::log`) registra i cambi di stato delle chiamate, solo identificativo interno e stato, mai numeri o nomi ("3cx: call 50 ringing → connected", "3cx: call 50 ended (was ringing)"). Serve a verificare dal vivo cosa manda il centralino quando risponde un collega o si risponde dal telefono. "Richiama" c'era già: in Recenti e Perse ogni riga e ogni numero chiamano con un clic.
+- Verificato: `npm run build`, `cargo test --workspace` (nuovo test `call_changes_are_logged_without_numbers`), anteprima del browser (nota "Nessun testo selezionato" leggibile). **Da provare sul PC:** Outlook aperto/chiuso; selezione in Excel, Outlook, browser; log di una chiamata 3CX presa da un collega.
+- Aperto: se prima della copia negli appunti c'era un'immagine o dei file, dopo la copia della selezione non vengono rimessi (si ripristina solo il testo).
+
+### 5 ottobre 2026 — tooltip davanti all'isola, isola che si chiude a fine squillo 3CX
+- **Tooltip:** quelli nativi di WebView2 sono finestre separate e l'isola, che si rimette continuamente in cima alla fascia "sempre in primo piano" (`raise_over_taskbar`), li copriva. Ora sono disegnati nella pagina (`src/core/tooltip.ts`, `installTooltips` in `src/main.ts`, stile `.tip`): al passaggio del mouse ogni `title` diventa `data-tip`, così quello nativo non compare più; il riquadro sta sotto l'elemento (sopra se non c'è spazio) e sempre dentro la finestra dell'isola; sparisce con clic, rotella o tasto. Le Impostazioni (finestra normale) tengono i tooltip nativi.
+- **3CX:** se la chiamata smetteva di squillare perché aveva risposto un collega o perché si era risposto dal telefono o dallo smartphone, l'isola restava aperta per sempre. `setPinned(false)` toglieva solo il blocco, e il timer di chiusura parte solo quando il mouse esce dall'isola. Ora `setPinned(false)` con il mouse lontano fa ripartire la chiusura automatica, e alla fine dello squillo `Island.endAlert` chiude subito l'isola se è ancora sulla card 3CX, il mouse non ci è sopra e 📌 è spento. Se si è risposto dall'isola (mouse sopra) vale la chiusura normale.
+- Verificato: `npm run build`; nell'anteprima (`?scene=threecx`, che ora espone `window.island`) l'isola si chiude quando la chiamata passa da "squilla" a "in linea", e il tooltip compare dentro la finestra. Da provare sul PC con una chiamata vera: che il centralino tolga la connessione o ne cambi lo stato quando risponde un collega (gruppo di chiamata o coda).
+
+### 5 ottobre 2026 — azioni rapide sul testo selezionato
+- **Azioni rapide → "Applicata a":** nuova voce **Testo selezionato** (`QuickAction.input = "selection"`). `Island.runAction` copia la selezione dell'app in primo piano con `Bridge.captureSelection` (lo stesso meccanismo dei suggerimenti ⚡: copia e poi ripristina gli appunti) e apre la chat con il contesto "Testo da <app>"; senza selezione: "Seleziona prima il testo…". Comodo soprattutto con la scorciatoia dell'azione, che lascia il fuoco nell'app.
+- Verificato: `npm run build`. Da provare sul PC: azione lanciata dal pulsante nella scheda ⚡ (l'isola è `WS_EX_NOACTIVATE`, quindi la selezione dovrebbe restare nell'app, come per i suggerimenti).
 
 ### 5 ottobre 2026 — versione 0.5.6
 - Versione **0.5.6** nei tre file (più `package-lock.json` e `Cargo.lock`), `claude/sviluppo` unito in `main`, tag `v0.5.6`. Rispetto alla 0.5.5: Impostazioni → Chat e messaggi della chat spiegano che la chat con l'abbonamento richiede Claude Code da riga di comando con il login (passi e comando da copiare), README aggiornato.
