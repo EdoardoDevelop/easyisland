@@ -738,6 +738,13 @@ fn foreground_app() -> Option<context::Foreground> {
     context::foreground()
 }
 
+/// Is process `pid` still running `exe` ("claude.exe")? A session's agent, so the
+/// island can let go of a session whose terminal was closed without SessionEnd.
+#[tauri::command]
+fn process_alive(pid: u32, exe: String) -> bool {
+    apps::pids_of(&[exe.to_lowercase().as_str()]).contains(&pid)
+}
+
 /// The text selected in the app in front (copied, then the clipboard restored);
 /// the error is a reason code (see `context::selection`).
 #[tauri::command]
@@ -1044,6 +1051,7 @@ pub fn run() {
             zip_extract,
             foreground_app,
             capture_selection,
+            process_alive,
             open_n8n,
             open_zammad,
             open_settings_window,

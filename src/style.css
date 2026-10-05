@@ -507,6 +507,8 @@ html.browser-preview #root {
 .who .name {
   font: 600 12px var(--font);
   color: var(--ink);
+  /* The project's name keeps some room when badges crowd the row. */
+  min-width: 48px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -762,6 +764,53 @@ html.browser-preview #root {
 }
 
 /* Under the approval card's command: what "Sempre" would allow from now on. */
+/* Session card: Claude Code's permission mode. */
+.who .mode-badge {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 10px var(--font);
+  color: var(--indigo);
+  background: rgba(99, 102, 241, 0.14);
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+
+.who .mode-badge.warn {
+  color: var(--red-text);
+  background: rgba(244, 80, 94, 0.14);
+}
+
+/* Approval card: ExitPlanMode's plan, scrolling inside the card. */
+.plan-box {
+  flex: 0 0 auto;
+  max-height: 190px;
+  overflow-y: auto;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 12px;
+}
+
+/* AskUserQuestion: a typed answer. */
+.ask-other {
+  flex: 1 1 100%;
+  min-width: 0;
+  font: 400 12px var(--font);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 6px 10px;
+  outline: none;
+}
+
+.ask-other:focus {
+  border-color: rgba(34, 211, 238, 0.5);
+}
+
 /* Approval card: what deserves a second look (src/island/risk.ts). */
 .risk-hint {
   flex: 0 0 auto;

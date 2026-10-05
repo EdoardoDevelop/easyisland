@@ -147,6 +147,8 @@ export const Bridge = {
   clipboardClear: () => call<void>("clipboard_clear"),
   /** The app in front, and the text selected in it (⚡ suggestions). */
   foregroundApp: () => call<{ exe: string; title: string } | null>("foreground_app"),
+  /** Is process `pid` still running `exe`? (A session's agent, hooks.ts → watchSessions.) True when unknown. */
+  processAlive: async (pid: number, exe: string) => (await call<boolean>("process_alive", { pid, exe })) ?? true,
   /** The selected text, or why there is none ("no-window" | "no-focus" | "empty" | "not-text"). */
   captureSelection: async (): Promise<{ text: string } | { error: string }> => {
     if (!IS_TAURI) return { error: "empty" };
@@ -271,6 +273,8 @@ export interface HookStatus {
   installed: boolean;
   /** settings.json still runs the relay of the old version (Coucou). */
   legacy: boolean;
+  /** Installed, but an event added by a newer version is missing: install again. */
+  outdated?: boolean;
   settingsPath: string;
   hookPath: string;
   hookReady: boolean;

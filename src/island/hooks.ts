@@ -48,6 +48,12 @@ interface HookPayload {
   easyisland_waiting?: boolean;
   /** Cursor, Copilot CLI: a tool reported only after it ran, with no PreToolUse before it. */
   easyisland_after_only?: boolean;
+  /** Claude Code's permission mode, on every event. */
+  permission_mode?: string;
+  /** PreCompact: "manual" (/compact) or "auto" (context full). */
+  trigger?: string;
+  /** Added by the relay: the agent's own process (hook/src/win.rs → agent_process). */
+  easyisland_pid?: { pid?: number; exe?: string };
   /** Claude Code started in Cursor's terminal. */
   cursor?: boolean;
   /** Added by the relay from the session's environment. */
@@ -379,6 +385,8 @@ function clearSession(tid: string) {
   const t = State.tasks.find((x) => x.id === tid);
   if (!t) return;
   t.plan = undefined;
+  t.permissionMode = null;
+  t.sessionPid = null;
   t.steps = [];
   t.stepIndex = 0;
   t.stepSeq = 0;
@@ -389,6 +397,99 @@ function clearSession(tid: string) {
 
 export function registerHookHandlers(island: Island) {
   void onEvent<HookPayload>("hook", (payload) => handleHook(island, payload));
+}
+
+/** A session that is over: steps, plan and diffs go; another agent's pill goes too. */
+function endSession(tid: string) {
+  State.updateTask(tid, "idle");
+  clearSession(tid);
+  // The diffs live as long as the session (or an hour, see State.addDiff).
+  State.diffs = State.diffs.filter((d) => d.task !== tid);
+  // Another agent's pill lasts as long as its session.
+  if (tid !== CLAUDE_ID) State.removeTask(tid);
+}
+
+/**
+ * The permission card is up, and an event shows the request was answered
+ * somewhere else (in the terminal): the same tool ran or failed, a new prompt
+ * came, the turn or the session ended. The card goes, and the relay is let go.
+ * Another tool's PostToolUse does not count: tools can run in parallel.
+ */
+function answeredElsewhere(island: Island, tid: string, name: string, payload: HookPayload) {
+  const req = State.pendingApproval;
+  if (!req || req.source === "chat" || (req.taskId ?? CLAUDE_ID) !== tid) return;
+  if (req.sessionId && payload.session_id && req.sessionId !== payload.session_id) return;
+  const over = name === "UserPromptSubmit" || name === "Stop" || name === "StopFailure" || name === "SessionEnd";
+  const sameTool = (name === "PostToolUse" || name === "PostToolUseFailure")
+    && payload.tool_name === req.tool && approvalTarget(req.tool, payload.tool_input ?? {}) === (req.target ?? req.command);
+  if (!over && !sameTool) return;
+  if (req.requestId) void Bridge.approvalDecline(req.requestId);
+  island.settleApproval(req);
+  // Unpinned with the mouse away: let the island close on its own again.
+  island.setPinned(false);
+}
+
+/** The apps each session host runs in (SessionHost → executables). */
+const HOST_APPS: Record<SessionHost, string[]> = {
+  desktop: ["claude.exe"],
+  vscode: ["code.exe", "code - insiders.exe"],
+  cursor: ["cursor.exe"],
+  wt: ["windowsterminal.exe"],
+  terminal: ["windowsterminal.exe", "conhost.exe", "openconsole.exe", "powershell.exe", "pwsh.exe", "cmd.exe",
+    "wezterm-gui.exe", "alacritty.exe", "mintty.exe"],
+};
+
+/** True when the session's own app is in front: the user is already looking at it. */
+async function watchingSession(tid: string): Promise<boolean> {
+  const host = State.tasks.find((x) => x.id === tid)?.sessionHost;
+  if (!host) return false;
+  const fg = await Bridge.foregroundApp();
+  return !!fg && HOST_APPS[host].includes(fg.exe.toLowerCase());
+}
+
+// ── Sessions whose process is gone ─────────────────────────────────────────────
+
+let watchdog: number | null = null;
+
+/**
+ * A terminal closed without SessionEnd leaves its pill "at work" for ever. While
+ * any session has a known process, check every 30 s that it is still there.
+ * Nothing runs when no session is open.
+ */
+function watchSessions(island: Island) {
+  if (watchdog != null) return;
+  watchdog = window.setInterval(async () => {
+    const watched = State.tasks.filter((t) => t.sessionPid);
+    if (!watched.length) {
+      window.clearInterval(watchdog!);
+      watchdog = null;
+      return;
+    }
+    for (const t of watched) {
+      const p = t.sessionPid!;
+      if (await Bridge.processAlive(p.pid, p.exe)) continue;
+      if (t.sessionPid !== p) continue; // a new session took the pill meanwhile
+      const req = State.pendingApproval;
+      if (req && (req.taskId ?? CLAUDE_ID) === t.id && req.source !== "chat") {
+        if (req.requestId) void Bridge.approvalDecline(req.requestId);
+        island.settleApproval(req);
+        island.setPinned(false);
+      }
+      endSession(t.id);
+      State.notify();
+    }
+  }, 30_000);
+}
+
+/** Claude Code's permission mode for the session card: a word, and what it means; null for the default. */
+export function permissionModeLabel(mode: string | null | undefined): { text: string; tip: string; warn: boolean } | null {
+  switch (mode) {
+    case "plan": return { text: "piano", tip: "Modalità piano: Claude prepara un piano, non modifica nulla", warn: false };
+    case "acceptEdits": return { text: "auto", tip: "Le modifiche ai file vengono accettate senza chiedere", warn: false };
+    case "bypassPermissions": return { text: "libero", tip: "Nessuna conferma: Claude esegue tutto senza chiedere", warn: true };
+    case "dontAsk": return { text: "non chiede", tip: "Non chiede: ciò che non è già consentito viene rifiutato", warn: true };
+    default: return null;
+  }
 }
 
 export function handleHook(island: Island, payload: HookPayload) {
@@ -424,6 +525,17 @@ export function handleHook(island: Island, payload: HookPayload) {
   const projectName = aliasProjectName(raw || "Session");
   const host = sessionHost(payload);
   const focused = State.focusId === tid;
+
+  answeredElsewhere(island, tid, name, payload);
+  {
+    const t = State.tasks.find((x) => x.id === tid);
+    if (t && payload.permission_mode !== undefined) t.permissionMode = payload.permission_mode || null;
+    const pid = payload.easyisland_pid;
+    if (t && name !== "SessionEnd" && typeof pid?.pid === "number" && pid.pid > 0 && pid.exe) {
+      if (t.sessionPid?.pid !== pid.pid) t.sessionPid = { pid: pid.pid, exe: pid.exe };
+      watchSessions(island);
+    }
+  }
 
   /** Alerts force the island open; work events only reveal the compact island. */
   const surface = (view: Parameters<Island["alert"]>[0], isAlert: boolean) => {
@@ -569,9 +681,14 @@ export function handleHook(island: Island, payload: HookPayload) {
         if (t) t.lastMessage = said || null;
         if (said) State.appendStep(tid, firstLine(said, 80));
       }
-      Sound.play("finish");
-      if (focused) surface("finished", true);
-      else State.setPillBadge(tid, "finished");
+      // Already looking at the session's terminal or editor: no sound, no card.
+      void watchingSession(tid).then((watching) => {
+        if (watching) return;
+        Sound.play("finish");
+        if (State.focusId === tid) surface("finished", true);
+        else State.setPillBadge(tid, "finished");
+        State.notify();
+      });
       window.setTimeout(() => {
         State.updateTask(tid, "idle");
         State.setPillBadge(tid, null);
@@ -586,12 +703,14 @@ export function handleHook(island: Island, payload: HookPayload) {
       break;
 
     case "SessionEnd":
-      State.updateTask(tid, "idle");
-      clearSession(tid);
-      // The diffs live as long as the session (or an hour, see State.addDiff).
-      State.diffs = State.diffs.filter((d) => d.task !== tid);
-      // Another agent's pill lasts as long as its session.
-      if (tid !== CLAUDE_ID) State.removeTask(tid);
+      endSession(tid);
+      break;
+
+    case "PreCompact":
+      // Claude summarises the conversation: it takes a while and looks stuck.
+      State.updateTask(tid, "thinking");
+      State.appendStep(tid, payload.trigger === "auto" ? "Riassume la conversazione (contesto pieno)" : "Riassume la conversazione");
+      surface("overview", false);
       break;
 
     case "SubagentStart":
@@ -618,15 +737,19 @@ export function handleHook(island: Island, payload: HookPayload) {
       const questions = tool === "AskUserQuestion" ? askQuestions(input) : null;
       const always = questions ? null : alwaysLabel(payload.permission_suggestions);
       const risks = questions ? [] : risksOf(tool, input);
+      // ExitPlanMode: the plan itself is what is being approved.
+      const plan = tool === "ExitPlanMode" && typeof input.plan === "string" && input.plan.trim() ? input.plan : null;
       State.pendingApproval = {
         requestId,
         taskId: tid,
         sessionId: payload.session_id ?? "",
         tool,
         command: approvalTarget(tool, input),
+        target: approvalTarget(tool, input),
         ...(questions ? { questions } : {}),
         ...(always ? { always } : {}),
         ...(risks.length ? { risks } : {}),
+        ...(plan ? { plan, command: "Piano pronto: Consenti per iniziare a lavorarci" } : {}),
       };
       const card = questions ? "ask" : "approval";
       // The relay's short ack window closes in 800 ms; everything below this

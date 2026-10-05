@@ -35,6 +35,7 @@ pub const HOOK_EVENTS: &[(&str, u64)] = &[
     ("StopFailure", 10),
     ("SubagentStart", 10),
     ("SubagentStop", 10),
+    ("PreCompact", 10),
 ];
 
 /// Marker that identifies an EasyIsland entry inside settings.json.
@@ -50,6 +51,9 @@ pub struct HookStatus {
     pub installed: bool,
     /// settings.json still runs the old Coucou relay: installing again fixes it.
     pub legacy: bool,
+    /// Installed, but an event EasyIsland now listens to is missing (a newer
+    /// version added it): installing again adds it.
+    pub outdated: bool,
     pub settings_path: String,
     pub hook_path: String,
     pub hook_ready: bool,
@@ -139,6 +143,7 @@ impl Target {
                 ("afterFileEdit", 10),
                 ("afterMCPExecution", 10),
                 ("subagentStop", 10),
+                ("preCompact", 10),
                 ("stop", 10),
             ],
             // Seconds (`timeoutSec`). No preToolUse: an error there denies the tool.
@@ -150,6 +155,7 @@ impl Target {
                 ("postToolUseFailure", 10),
                 ("agentStop", 10),
                 ("subagentStop", 10),
+                ("preCompact", 10),
                 ("errorOccurred", 10),
             ],
         }
@@ -394,8 +400,17 @@ pub fn status_for(target: Target) -> HookStatus {
     let current = read_settings_at(target).unwrap_or_else(|_| json!({}));
     let entries = all_entries(&current);
     let hook_path = settings::hook_exe_path();
+    let installed = entries.iter().any(|e| entry_has(e, MARKER));
+    let missing = target.events().iter().any(|(event, _)| {
+        !current
+            .get("hooks")
+            .and_then(|h| h.get(*event))
+            .and_then(Value::as_array)
+            .is_some_and(|list| list.iter().any(|e| entry_has(e, MARKER)))
+    });
     HookStatus {
-        installed: entries.iter().any(|e| entry_has(e, MARKER)),
+        installed,
+        outdated: installed && missing,
         legacy: entries.iter().any(|e| entry_has(e, LEGACY_MARKER)),
         settings_path: target.file().to_string_lossy().to_string(),
         hook_ready: hook_path.exists(),

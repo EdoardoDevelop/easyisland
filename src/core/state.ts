@@ -32,6 +32,10 @@ export interface AgentTask {
   agentName?: string;
   /** The agent's plan, rebuilt from its plan tools (src/island/plan.ts). */
   plan?: PlanItem[];
+  /** Claude Code's permission mode ("plan", "acceptEdits", "bypassPermissions"…), from every event. */
+  permissionMode?: string | null;
+  /** The agent's own process, found by the relay: the session is over when it is gone. */
+  sessionPid?: { pid: number; exe: string } | null;
 }
 
 /** A coding session: Claude Code's task, or another agent's (`agent:<id>`). */
@@ -134,6 +138,10 @@ export interface ApprovalInfo {
   always?: string;
   /** What deserves a second look before allowing it (src/island/risk.ts). */
   risks?: string[];
+  /** ExitPlanMode: the plan to approve, in markdown. */
+  plan?: string;
+  /** Tool and what it acts on, as first received: how hooks.ts recognises the same call ran. */
+  target?: string;
 }
 
 /** One question of Claude Code's AskUserQuestion tool. */

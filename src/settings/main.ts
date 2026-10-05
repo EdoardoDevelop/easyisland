@@ -134,6 +134,13 @@ function claudeSection(status: HookStatus, tool: HookTool = "claude", refreshFir
       }));
     }
 
+    if (status.outdated && !status.legacy) {
+      body.append(h("div", {
+        class: "notice warn",
+        text: "Questa versione di EasyIsland ascolta eventi nuovi (per esempio quando la conversazione viene riassunta). Reinstalla gli hook per averli: le voci di EasyIsland vengono aggiornate, le tue restano.",
+      }));
+    }
+
     if (!status.hookReady) {
       body.append(h("div", {
         class: "notice warn",

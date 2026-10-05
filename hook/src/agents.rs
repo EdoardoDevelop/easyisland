@@ -225,6 +225,7 @@ fn cursor(map: &mut Map<String, Value>) {
             after(map, &format!("mcp__{server}__{tool}"), input);
         }
         "subagentStop" => set_event(map, "SubagentStop"),
+        "preCompact" => set_event(map, "PreCompact"),
         "stop" => {
             let failed = map.get("status").and_then(Value::as_str) == Some("error");
             set_event(map, if failed { "StopFailure" } else { "Stop" });
@@ -282,6 +283,7 @@ fn copilot(map: &mut Map<String, Value>) {
         }
         "agentStop" => set_event(map, "Stop"),
         "subagentStop" => set_event(map, "SubagentStop"),
+        "preCompact" => set_event(map, "PreCompact"),
         "errorOccurred" => {
             // Only an error the session does not recover from ends it.
             let fatal = map.get("recoverable").and_then(Value::as_bool) == Some(false);
