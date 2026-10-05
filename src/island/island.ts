@@ -9,7 +9,7 @@ import {
   chatPromptHeight, collapsedBox, compactSize, cornerRadii, glueFor, isGlued, islandSize,
   type IslandMode, type IslandViewName, type Placement,
 } from "../core/layout";
-import type { Suggestion } from "./context";
+import { suggestionsFor, type Suggestion } from "./context";
 import { Sound } from "../core/sound";
 import { State, isSessionTask } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
@@ -530,7 +530,23 @@ export class Island {
   setPinned(on: boolean) {
     State.isPinned = on;
     this.fsm.pinned = on;
+    // Unpinned with the mouse away: nothing else would start the auto-close.
+    if (!on && !this.wasInIsland && this.fsm.state === "home") {
+      this.fsm.mouseLeft();
+      if (!State.keepOpen && !State.pendingApproval) {
+        this.homeCollapseAt = performance.now() + State.settings.autoCloseInterval * 1000;
+      }
+    }
     State.notify();
+  }
+
+  /**
+   * An alert that ended on its own (a call answered on the phone or by a
+   * colleague): close at once, unless the mouse is on the island or 📌 is on.
+   */
+  endAlert() {
+    this.setPinned(false);
+    if (!this.wasInIsland && !State.keepOpen && this.fsm.state === "home") this.collapse();
   }
 
   /** Alert from the hook server: open on this view. Pinned alerts never auto-close. */
@@ -740,6 +756,14 @@ export class Island {
               return;
             }
             context = { label: "Testo copiato", text };
+          } else if (a.input === "selection") {
+            const app = suggestionsFor(State.foreground)?.app ?? "";
+            const text = await Bridge.captureSelection();
+            if (!text) {
+              this.note(`Seleziona prima il testo${app ? ` in ${app}` : ""}, poi scegli l'azione.`);
+              return;
+            }
+            context = { label: app ? `Testo da ${app}` : "Testo selezionato", text };
           }
           this.startChat(a.prompt, context, false);
           break;

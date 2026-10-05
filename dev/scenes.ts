@@ -114,6 +114,7 @@ export async function runScene(island: Island, scene: string) {
         },
       };
       State.setFocus("integration_3cx");
+      (window as unknown as { island: Island }).island = island;
       island.alert("overview");
       await wait(2500);
       break;
