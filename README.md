@@ -132,9 +132,12 @@ EasyIsland si avvia e Slime ti saluta; da lì in poi lo trovi nel menu Start e
 nell'area di notifica. Dall'icona di EasyIsland nell'area di notifica →
 **Impostazioni…**:
 
-1. **Claude Code → Installa hook…** per vedere le sessioni nell'isola (vedi sotto).
-2. **Chat con Claude**: lascia "Abbonamento Claude" se usi Claude Code con il tuo
-   piano, oppure inserisci una chiave API.
+1. **Agenti e chat → Claude Code → Installa hook…** per vedere le sessioni
+   nell'isola (vedi sotto). Funziona anche con l'app desktop di Claude.
+2. **Agenti e chat → Chat**: scegli il motore. "Claude (abbonamento)" usa il tuo
+   piano Pro o Max ma **richiede Claude Code da riga di comando** installato e con
+   il login (vedi [Chat con Claude](#chat-con-claude)); altrimenti scegli una
+   chiave API o un altro motore.
 3. **Posizione e aspetto**: l'angolo e l'icona che preferisci.
 
 ### Aggiornare
@@ -526,8 +529,24 @@ si cambia anche dal nome del modello in alto a destra nella chat):
 - **Abbonamento Claude (tramite Claude Code)**, il predefinito. Slime usa
   Claude Code installato sul PC (`claude -p`, nascosto, senza finestre) e il tuo
   abbonamento Pro o Max: nessuna chiave e nessun costo extra, ma le domande
-  contano nei limiti d'uso del piano. Serve Claude Code installato e con il
-  login fatto. Claude Code gira in una cartella vuota
+  contano nei limiti d'uso del piano.
+
+  > **Serve Claude Code da riga di comando (la CLI), con il login fatto.**
+  > L'app desktop di Claude da sola non basta: il suo Claude Code è chiuso
+  > dentro l'app e usa il login dell'app, che gli altri programmi non possono
+  > usare. Lo stesso vale per quello dell'estensione di VS Code, che di solito
+  > non ha un login suo. Per installare la CLI, una volta sola:
+  >
+  > 1. in PowerShell: `irm https://claude.ai/install.ps1 | iex`
+  > 2. chiudi e riapri PowerShell, scrivi `claude` e accedi con il tuo account
+  >    Claude (Pro o Max);
+  > 3. in Impostazioni → Agenti e chat → Chat premi **Ricontrolla**: il pallino
+  >    diventa verde.
+  >
+  > Le sessioni di Claude Code nell'isola (permessi, modifiche…) invece
+  > funzionano anche solo con l'app desktop: passano dagli hook.
+
+  Claude Code gira in una cartella vuota
   (`%LOCALAPPDATA%\EasyIsland\chat`), con gli hook disattivati e solo con ricerca
   web, lettura di pagine web e lettura dei file che rilasci.
 - **Chiave API Anthropic**. Slime chiama direttamente l'API con la tua chiave,

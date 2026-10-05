@@ -38,6 +38,8 @@ export interface ClaudeCliStatus {
   found: boolean;
   path: string;
   loggedIn: boolean;
+  /** "cli" (installed on its own), "vscode" (the VS Code extension's copy), "desktop" (the Claude app's). */
+  source?: string;
 }
 
 export const Bridge = {

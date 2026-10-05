@@ -40,7 +40,7 @@ export type ChatEngine = "subscription" | "api" | "openrouter" | "openai" | "gem
 
 /** The chat engines: name, Credential Manager key (if any), default address (local ones). */
 export const CHAT_ENGINES: { id: ChatEngine; name: string; key?: string; url?: string; hint: string }[] = [
-  { id: "subscription", name: "Claude (abbonamento)", hint: "Claude Code su questo PC e il tuo piano Claude" },
+  { id: "subscription", name: "Claude (abbonamento)", hint: "il tuo piano Pro o Max, serve Claude Code da riga di comando con il login" },
   { id: "api", name: "Claude (chiave API)", key: "anthropic-api-key", hint: "API di Anthropic, a consumo" },
   { id: "openrouter", name: "OpenRouter", key: "openrouter-api-key", hint: "una chiave per centinaia di modelli (openrouter.ai)" },
   { id: "openai", name: "OpenAI", key: "openai-api-key", hint: "API di OpenAI (platform.openai.com)" },

@@ -387,7 +387,7 @@ pub async fn send(
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
     let exe = find_claude().ok_or_else(|| {
-        "Claude Code non trovato. Installalo e fai il login, oppure scegli «Chiave API» nelle impostazioni."
+        "Per la chat con l'abbonamento serve Claude Code da riga di comando (la CLI), installato su questo PC e con il login fatto: quello dentro l'app desktop di Claude non si può usare da altri programmi. Impostazioni → Agenti e chat → Chat spiega come installarlo; oppure lì scegli un altro motore."
             .to_string()
     })?;
     let connectors = Connectors::from_choices(mcp, agent);
@@ -449,6 +449,9 @@ pub async fn send(
         let detail: String = stderr.trim().chars().take(300).collect();
         // A broken session id would fail every later turn the same way.
         chat.set_cli_session(None);
+        if needs_login(&detail) {
+            return Err(LOGIN_HELP.into());
+        }
         return Err(if detail.is_empty() {
             format!(
                 "Claude Code ha restituito un errore (codice {}).",
@@ -461,6 +464,9 @@ pub async fn send(
 
     if outcome.is_error || !output.status.success() {
         chat.set_cli_session(None);
+        if needs_login(&outcome.text) {
+            return Err(LOGIN_HELP.into());
+        }
         return Err(if outcome.text.is_empty() {
             "Claude Code ha restituito un errore.".into()
         } else {
@@ -477,12 +483,37 @@ pub async fn send(
     Ok(ChatReply { text: outcome.text })
 }
 
+/// What the chat says when Claude Code has no login of its own.
+const LOGIN_HELP: &str = "Claude Code non ha il login. Apri un terminale, scrivi «claude» e accedi con il tuo account Claude (Pro o Max), poi riprova. Se «claude» non viene trovato, installalo come spiega Impostazioni → Agenti e chat → Chat.";
+
+/// Claude Code's own ways of saying "nobody is signed in".
+fn needs_login(text: &str) -> bool {
+    let t = text.to_lowercase();
+    ["/login", "not logged in", "please log in", "log in to", "invalid api key", "oauth token"]
+        .iter()
+        .any(|k| t.contains(k))
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CliStatus {
     pub found: bool,
     pub path: String,
     pub logged_in: bool,
+    /// Where it was found: "cli" (installed on its own), "vscode" (the VS Code
+    /// extension's copy), "desktop" (the Claude app's copy) — for the settings.
+    pub source: String,
+}
+
+fn source_of(path: &Path) -> &'static str {
+    let p = path.to_string_lossy().to_lowercase();
+    if p.contains(".vscode") {
+        "vscode"
+    } else if p.contains("claude-code") && p.contains("claude") && !p.contains(".local") && !p.contains("npm") {
+        "desktop"
+    } else {
+        "cli"
+    }
 }
 
 /// For the settings window: is Claude Code installed, and signed in?
@@ -493,6 +524,7 @@ pub async fn status() -> CliStatus {
             found: false,
             path: String::new(),
             logged_in: false,
+            source: String::new(),
         };
     };
     let mut cmd = command(&exe);
@@ -508,11 +540,28 @@ pub async fn status() -> CliStatus {
         found: true,
         path: exe.to_string_lossy().into_owned(),
         logged_in,
+        source: source_of(&exe).to_string(),
     }
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn login_errors_are_recognised() {
+        assert!(super::needs_login("Invalid API key · Please run /login"));
+        assert!(super::needs_login("Not logged in"));
+        assert!(!super::needs_login("Rate limit reached"));
+    }
+
+    #[test]
+    fn where_claude_code_came_from() {
+        use std::path::Path;
+        assert_eq!(super::source_of(Path::new("C:/Users/x/.local/bin/claude.exe")), "cli");
+        assert_eq!(super::source_of(Path::new("C:/Users/x/AppData/Roaming/npm/claude.cmd")), "cli");
+        assert_eq!(super::source_of(Path::new("C:/Users/x/.vscode/extensions/anthropic.claude-code-2.1.288-win32-x64/resources/native-binary/claude.exe")), "vscode");
+        assert_eq!(super::source_of(Path::new("C:/Users/x/AppData/Roaming/Claude/claude-code/2.1.286/claude.exe")), "desktop");
+    }
+
     use super::{args, parse_output, tool_prefix, version_key, Connectors};
     use crate::settings::McpChoice;
     use std::path::Path;

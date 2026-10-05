@@ -261,14 +261,34 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
   // ── Subscription block ──
   const cliState = h("span", { class: "hint", text: "Verifica di Claude Code…" });
   const recheck = h("button", { text: "Ricontrolla" });
+  // Shown until Claude Code is ready: what to install and how, step by step.
+  const INSTALL_CMD = "irm https://claude.ai/install.ps1 | iex";
+  const copyCmd = h("button", { text: "Copia" }) as HTMLButtonElement;
+  copyCmd.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(INSTALL_CMD);
+      copyCmd.textContent = "Copiato ✓";
+    } catch {
+      copyCmd.textContent = "Non riuscito";
+    }
+    window.setTimeout(() => (copyCmd.textContent = "Copia"), 1800);
+  });
+  const howTo = h("div", { class: "notice warn", style: "display:none;flex-direction:column;gap:8px" },
+    h("b", { text: "Come preparare Claude Code (una volta sola)" }),
+    h("div", { text: "1. Apri PowerShell (tasto Windows, scrivi «PowerShell») e incolla questo comando, poi Invio:" }),
+    h("div", { class: "row" }, h("code", { class: "path", text: INSTALL_CMD }), copyCmd),
+    h("div", { text: "2. Chiudi e riapri PowerShell, scrivi «claude» e premi Invio: accedi con il tuo account Claude (Pro o Max) come ti chiede." }),
+    h("div", { text: "3. Torna qui e premi Ricontrolla: il pallino diventa verde." }),
+    h("div", { class: "hint", text: "Non vuoi installarlo? Scegli un altro motore qui sopra: chiave API Anthropic, OpenRouter, OpenAI, Gemini, oppure Ollama o LM Studio sul tuo PC." }));
   const cliBlock = h(
     "div",
     { style: "display:flex;flex-direction:column;gap:10px" },
     h("div", {
       class: "hint",
-      text: "La chat usa Claude Code installato su questo PC e il tuo abbonamento Claude (Pro o Max): nessuna chiave e nessun costo extra, ma conta nei limiti d'uso del tuo piano. Claude Code gira nascosto, senza hook, e può cercare sul web, leggere i file che rilasci e, se lo permetti qui sotto, usare EasyIsland.",
+      text: "Usa il tuo abbonamento Claude (Pro o Max), senza chiavi né costi extra (conta nei limiti d'uso del piano). Serve Claude Code da riga di comando (la CLI) installato su questo PC e con il login fatto: l'app desktop di Claude da sola non basta, perché il suo Claude Code è chiuso dentro l'app e non si può usare da altri programmi. Claude Code gira nascosto, senza hook, e può cercare sul web, leggere i file che rilasci e, se lo permetti qui sotto, usare EasyIsland.",
     }),
     h("div", { class: "row" }, cliState, recheck),
+    howTo,
     h("div", { class: "row" },
       h("label", { text: "Claude può usare il PC" }),
       toggle(settings.agentTools !== false, (v) => { settings.agentTools = v; void save(); }),
@@ -289,14 +309,16 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
     recheck.disabled = false;
     cliReady = !!status?.found && !!status.loggedIn;
     if (!status?.found) {
-      cliState.textContent =
-        "Claude Code non trovato. Installalo (code.claude.com), fai il login e premi Ricontrolla.";
+      cliState.textContent = "Claude Code da riga di comando non è installato su questo PC: la chat con l'abbonamento non può funzionare.";
+    } else if (!status.loggedIn && status.source === "vscode") {
+      cliState.textContent = "Trovato solo il Claude Code dell'estensione di VS Code, che non ha il login per l'uso da solo: installa la CLI come spiegato qui sotto.";
     } else if (!status.loggedIn) {
-      cliState.textContent =
-        "Claude Code è installato ma non hai fatto il login: apri un terminale, scrivi «claude» e segui le istruzioni.";
+      cliState.textContent = "Claude Code è installato ma senza login: fai solo i passi 2 e 3 qui sotto.";
     } else {
-      cliState.textContent = `Pronto: ${status.path}`;
+      const from = status.source === "vscode" ? " (quello dell'estensione di VS Code)" : "";
+      cliState.textContent = `Pronto: ${status.path}${from}`;
     }
+    howTo.style.display = cliReady ? "none" : "flex";
     paintDot();
   }
   recheck.addEventListener("click", () => void refreshCli());
