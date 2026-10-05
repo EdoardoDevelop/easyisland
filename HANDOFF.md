@@ -1,6 +1,6 @@
 # Handoff — EasyIsland (solo Windows)
 
-_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 5 ottobre 2026 (versione 0.5.6: requisito della CLI per la chat con l'abbonamento). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
+_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 5 ottobre 2026 (versione 0.5.7 preparata, non ancora pubblicata: tooltip, 3CX, Outlook, testo selezionato). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
 
 > Questo file va tenuto **sempre aggiornato**: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al **Registro delle modifiche** (sezione 10), con data, cosa è cambiato e cosa resta aperto.
 
@@ -267,6 +267,9 @@ Pensate per il supporto IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi facciamo il diff in tempo reale (6.6, punto 1)"_, _"proviamo dal vivo le automazioni"_ oppure _"valutiamo un'idea della sezione 7"_. Per una nuova versione: stesso numero nei tre file, unione di `claude/sviluppo` in `main`, tag `vX.Y.Z`. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 5 ottobre 2026 — versione 0.5.7 (preparata)
+- Versione **0.5.7** nei tre file (più `package-lock.json` e `Cargo.lock`) su `claude/sviluppo`. **Non ancora** unita in `main` né taggata: il tag `v0.5.7` pubblica l'aggiornamento per tutte le app installate. Rispetto alla 0.5.6: azioni rapide sul testo selezionato, tooltip disegnati nell'isola (non più dietro), isola che si chiude a fine squillo 3CX, Outlook senza PowerShell quando è chiuso, messaggi chiari quando la selezione non si copia, log dei cambi di stato delle chiamate 3CX.
 
 ### 5 ottobre 2026 — Outlook più leggero, selezione con messaggi chiari, log delle chiamate 3CX
 - **Outlook:** prima di lanciare PowerShell controlla se `OUTLOOK.EXE` è in esecuzione (`apps::pids_of`, ora pubblica). Con Outlook chiuso (sera, weekend) non parte più nessun PowerShell: solo un elenco dei processi ogni 60 s.
