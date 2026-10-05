@@ -634,6 +634,8 @@ const INTEGRATIONS: IntegrationDef[] = [
       get: (c) => c.weatherCity, set: (c, v) => { c.weatherCity = v.trim(); },
     }],
     hint: "Da Open-Meteo, gratuito e senza chiave. Avvisa quando è probabile la pioggia nelle prossime ore." },
+  { id: "integration_claude_usage", name: "Consumo Claude", color: "#D97757", fields: [],
+    hint: "Quanti token hanno usato le sessioni di Claude Code (terminale, VS Code e app desktop di Claude) nelle ultime 5 ore, oggi e negli ultimi 7 giorni, per progetto e per modello. Letti dalle trascrizioni che Claude Code salva già in %USERPROFILE%\\.claude\\projects: solo i conteggi, mai il testo, e niente esce dal PC. Anthropic non pubblica i limiti di Pro e Max in token, quindi non ci sono percentuali: il confronto è con la tua media." },
   { id: "integration_clipboard", name: "Appunti", color: "#A78BFA", fields: [],
     hint: "Gli ultimi 30 testi copiati, più quelli fissati: clic per incollarli nell'app in primo piano, o trasformarli (maiuscole, una riga, JSON, URL). Si apre anche con la scorciatoia in Azioni rapide. Restano solo in memoria (mai su disco) e si svuotano alla chiusura; ciò che i gestori di password segnano come privato non viene registrato." },
   { id: "integration_media", name: "Musica", color: "#1ED760", fields: [],
@@ -645,7 +647,7 @@ const TAB_ICONS: Record<string, string> = {
   integration_stripe: "💳", integration_github: "🐙", integration_vercel: "▲", integration_n8n: "🔁",
   integration_resend: "✉️", integration_notion: "📝", integration_calcom: "📅", integration_outlook: "📧",
   integration_zammad: "🎫", integration_3cx: "📞", integration_system: "💻", integration_security: "🛡️", integration_network: "🌐",
-  integration_weather: "⛅", integration_clipboard: "📋", integration_media: "🎵",
+  integration_weather: "⛅", integration_clipboard: "📋", integration_media: "🎵", integration_claude_usage: "📊",
 };
 
 function integrationsSection(present: Record<string, boolean>): HTMLElement {

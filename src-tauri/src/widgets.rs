@@ -138,6 +138,7 @@ fn default_every(kind: &str) -> u64 {
         "weather" => 900,
         "domain" => 12 * 3600,
         "zammad" => 120,
+        "claude_usage" => 120,
         _ => 60,
     }
 }
@@ -149,6 +150,7 @@ fn min_every(kind: &str) -> u64 {
         "weather" => 300,
         "calendar" => 60,
         "outlook" | "zammad" => 30,
+        "claude_usage" => 60,
         _ => 15,
     }
 }
@@ -196,6 +198,7 @@ pub async fn probe(w: &Widget) -> WidgetResult {
         "calendar" => crate::calendar::probe(w).await,
         "outlook" => crate::outlook::probe(w).await,
         "zammad" => crate::zammad::probe(w).await,
+        "claude_usage" => crate::usage::probe(w).await,
         other => WidgetResult::new(&w.id, "error", format!("Tipo di widget sconosciuto: {other}")),
     }
 }

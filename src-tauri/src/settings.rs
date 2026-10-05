@@ -25,6 +25,7 @@ pub const PROBE_INTEGRATIONS: &[(&str, &str)] = &[
     ("integration_weather", "weather"),
     ("integration_outlook", "outlook"),
     ("integration_zammad", "zammad"),
+    ("integration_claude_usage", "claude_usage"),
 ];
 
 /// Options of the integrations above. Machine-wide, like their credentials.

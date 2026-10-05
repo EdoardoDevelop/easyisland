@@ -32,6 +32,7 @@ mod settings;
 mod threecx;
 mod tray;
 mod updates;
+mod usage;
 mod widgets;
 mod zip;
 mod win_user;

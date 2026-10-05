@@ -184,6 +184,7 @@ export const PROBE_INTEGRATIONS: Record<string, string> = {
   integration_weather: "weather",
   integration_outlook: "outlook",
   integration_zammad: "zammad",
+  integration_claude_usage: "claude_usage",
 };
 
 /** AgentTask.integrationAgents — same ids, names and colours as macOS. */
@@ -202,6 +203,7 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_weather", "Meteo", "#0EA5E9", "n8n"),
   task("integration_outlook", "Outlook", "#0A84D6", "n8n"),
   task("integration_zammad", "Ticket", "#F59E0B", "n8n"),
+  task("integration_claude_usage", "Consumo", "#D97757", "n8n"),
   task("integration_clipboard", "Appunti", "#A78BFA", "n8n"),
   task("integration_media", "Musica", "#1ED760", "n8n"),
   task("integration_3cx", "3CX", "#0596D4", "n8n"),
