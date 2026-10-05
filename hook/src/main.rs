@@ -46,6 +46,7 @@ const MAX_FIELD_LEN: usize = 2_000;
 mod agents;
 mod diff;
 mod mcp;
+mod testrun;
 mod win;
 
 /// `\\.\pipe\easyisland-<sid>`. The SID keeps two accounts on the same machine from
@@ -351,6 +352,12 @@ fn read_event() -> Option<(String, String, Option<serde_json::Value>, Option<ser
                     input.remove(k);
                 }
             }
+        }
+    }
+    // A test run: what its output really said (testrun.rs).
+    if event == "PostToolUse" || event == "PostToolUseFailure" {
+        if let Some(t) = testrun::verdict(&event, map) {
+            map.insert("easyisland_tests".into(), t);
         }
     }
     if event == "Stop" {

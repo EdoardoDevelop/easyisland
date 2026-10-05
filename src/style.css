@@ -525,6 +525,12 @@ html.browser-preview #root {
   flex: 0 0 auto;
 }
 
+/* The agent's plan: done / total. */
+.who .count.plan {
+  color: var(--dim);
+  font-weight: 600;
+}
+
 .jump {
   position: absolute;
   top: 8px;
@@ -756,6 +762,14 @@ html.browser-preview #root {
 }
 
 /* Under the approval card's command: what "Sempre" would allow from now on. */
+/* Approval card: what deserves a second look (src/island/risk.ts). */
+.risk-hint {
+  flex: 0 0 auto;
+  font: 600 11px/1.35 var(--font);
+  color: var(--red-text);
+  white-space: pre-line;
+}
+
 .always-hint {
   flex: 0 0 auto;
   font: 400 11px/1.35 var(--font);

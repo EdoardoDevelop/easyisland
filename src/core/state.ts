@@ -2,6 +2,7 @@
 
 import type { AnchorH, AnchorV, BotEmoteName, BotStateName, IslandMode, IslandViewName } from "./layout";
 import type { EyeShape } from "../character/engine";
+import type { PlanItem } from "../island/plan";
 
 /** "agent": Codex, Gemini CLI or any tool that sends `easyisland_agent` (hooks.ts). */
 export type AgentSource = "claudeCode" | "n8n" | "agent";
@@ -29,6 +30,8 @@ export interface AgentTask {
   sessionHost?: SessionHost | null;
   /** An agent's own name ("Codex", "Gemini CLI"); `name` is then its project. */
   agentName?: string;
+  /** The agent's plan, rebuilt from its plan tools (src/island/plan.ts). */
+  plan?: PlanItem[];
 }
 
 /** A coding session: Claude Code's task, or another agent's (`agent:<id>`). */
@@ -129,6 +132,8 @@ export interface ApprovalInfo {
    * permission_suggestions); absent when it proposed nothing usable.
    */
   always?: string;
+  /** What deserves a second look before allowing it (src/island/risk.ts). */
+  risks?: string[];
 }
 
 /** One question of Claude Code's AskUserQuestion tool. */

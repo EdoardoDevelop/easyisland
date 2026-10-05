@@ -9,6 +9,8 @@ import { Bridge, onEvent } from "../core/bridge";
 import { Sound } from "../core/sound";
 import { State, type AskQuestion, type SessionHost } from "../core/state";
 import type { Island } from "./island";
+import { applyPlanTool, planStep } from "./plan";
+import { risksOf } from "./risk";
 
 const CLAUDE_ID = "integration_claude";
 
@@ -38,6 +40,8 @@ interface HookPayload {
   easyisland_diffs?: HookPayload["easyisland_diff"][];
   /** Added by the relay to Stop: Claude's last message. */
   easyisland_last_message?: string;
+  /** Added by the relay (hook/src/testrun.rs) to a test run: what its output said. */
+  easyisland_tests?: TestVerdict;
   /** Another agent (Codex, Gemini CLI, any tool): its pill. */
   easyisland_agent?: { id?: string; name?: string; color?: string };
   /** Gemini asks for a permission in its terminal (the island cannot answer it). */
@@ -49,6 +53,35 @@ interface HookPayload {
   term_program?: string;
   wt_session?: string;
   vscode_pid?: string;
+}
+
+interface TestVerdict {
+  status?: "passed" | "failed";
+  passed?: number;
+  failed?: number;
+  skipped?: number;
+  /** False: no summary in the output, only the failed exit status. */
+  known?: boolean;
+  unit?: string;
+  reason?: string;
+}
+
+/**
+ * "✓ Test · 12 superati", "✗ Test · 1 fallito su 13 · math › adds — Expected: 3…".
+ * The ✓ / ✗ in front is what the ticker colours (views/ticker.ts).
+ */
+export function testStep(t: TestVerdict): string {
+  const n = (x: number | undefined) => x ?? 0;
+  const unit = t.unit === "pacchetti" ? " pacchetti" : "";
+  const skipped = n(t.skipped) ? `, ${n(t.skipped)} saltati` : "";
+  if (t.status === "passed") {
+    return `✓ Test · ${n(t.passed)}${unit} ${n(t.passed) === 1 ? "superato" : "superati"}${skipped}`;
+  }
+  const total = n(t.passed) + n(t.failed);
+  const head = t.known === false
+    ? "✗ Test falliti"
+    : `✗ Test · ${n(t.failed)}${unit} ${n(t.failed) === 1 ? "fallito" : "falliti"} su ${total}`;
+  return t.reason ? `${head} · ${t.reason}` : head;
 }
 
 /** Where the session runs, from what the relay saw in its environment. */
@@ -343,6 +376,7 @@ function upsert(tid: string, projectName: string, cwd: string, host?: SessionHos
 function clearSession(tid: string) {
   const t = State.tasks.find((x) => x.id === tid);
   if (!t) return;
+  t.plan = undefined;
   t.steps = [];
   t.stepIndex = 0;
   t.stepSeq = 0;
@@ -431,7 +465,15 @@ export function handleHook(island: Island, payload: HookPayload) {
       upsert(tid, projectName, cwd, host);
       State.updateTask(tid, "working");
       const tool = payload.tool_name ?? "Strumento";
-      State.appendStep(tid, stepLabel(tool, payload.tool_input ?? {}));
+      const t = State.tasks.find((x) => x.id === tid);
+      // A plan tool: the plan, and "Piano · <what is being done>" as the step.
+      const plan = applyPlanTool(t?.plan, tool, payload.tool_input ?? {});
+      if (t && plan) {
+        t.plan = plan;
+        State.appendStep(tid, planStep(plan));
+      } else {
+        State.appendStep(tid, stepLabel(tool, payload.tool_input ?? {}));
+      }
       surface("overview", false);
       break;
     }
@@ -458,12 +500,25 @@ export function handleHook(island: Island, payload: HookPayload) {
         const names = all.map((x) => lastPathComponent(x!.file!)).join(", ");
         State.appendStep(tid, `Modifica · ${names}${diffCounts(add, del)}`);
       }
+      if (payload.easyisland_tests) {
+        // "Esegue · npm test" becomes what the run really said.
+        const step = stepLabel(payload.tool_name ?? "", payload.tool_input ?? {});
+        State.replaceStep(tid, step, testStep(payload.easyisland_tests));
+      }
       break;
     }
 
     case "PostToolUseFailure":
       State.updateTask(tid, "working");
-      State.appendStep(tid, "⚠ fallito");
+      if (payload.easyisland_tests) {
+        const step = stepLabel(payload.tool_name ?? "", payload.tool_input ?? {});
+        const text = testStep(payload.easyisland_tests);
+        const t = State.tasks.find((x) => x.id === tid);
+        if (t?.steps.includes(step)) State.replaceStep(tid, step, text);
+        else State.appendStep(tid, text);
+      } else {
+        State.appendStep(tid, "⚠ fallito");
+      }
       break;
 
     case "Notification": {
@@ -551,6 +606,7 @@ export function handleHook(island: Island, payload: HookPayload) {
       const input = payload.tool_input ?? {};
       const questions = tool === "AskUserQuestion" ? askQuestions(input) : null;
       const always = questions ? null : alwaysLabel(payload.permission_suggestions);
+      const risks = questions ? [] : risksOf(tool, input);
       State.pendingApproval = {
         requestId,
         taskId: tid,
@@ -559,6 +615,7 @@ export function handleHook(island: Island, payload: HookPayload) {
         command: approvalTarget(tool, input),
         ...(questions ? { questions } : {}),
         ...(always ? { always } : {}),
+        ...(risks.length ? { risks } : {}),
       };
       const card = questions ? "ask" : "approval";
       // The relay's short ack window closes in 800 ms; everything below this

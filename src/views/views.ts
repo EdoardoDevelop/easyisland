@@ -14,6 +14,7 @@ import { buildChoose, buildFiles, buildUnzip, buildUpload, buildUploading } from
 import { buildDiff } from "./diff";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, type ActionHandlers } from "./actions";
+import { planSummary, planText } from "../island/plan";
 
 export interface ViewActions extends ActionHandlers {
   setView(v: IslandViewName): void;
@@ -312,7 +313,12 @@ function buildOverview(actions: ViewActions): ViewHost {
           h("span", { class: "name", text: task.name }),
           h("span", { class: "tool", text: task.agentName ?? (task.source === "claudeCode" ? "Claude Code" : "n8n") }),
         );
-        if (task.steps.length > 1) {
+        // The agent's plan when it has one ("2/4", the list in the tooltip),
+        // otherwise where the ticker is among the last steps.
+        const plan = planSummary(task.plan);
+        if (plan) {
+          who.append(h("span", { class: "count plan", text: `${plan.done}/${plan.total}`, title: planText(task.plan) }));
+        } else if (task.steps.length > 1) {
           who.append(h("span", {
             class: "count",
             text: `${Math.min(task.stepIndex + 1, task.steps.length)}/${task.steps.length}`,
@@ -467,8 +473,10 @@ function buildApproval(actions: ViewActions): ViewHost {
   const code = h("div", { class: "code" });
   // What "Sempre" saves, said before the click (Claude Code's own proposal).
   const always = h("div", { class: "always-hint" });
+  // A command that deletes, force-pushes, publishes… said in words (island/risk.ts).
+  const risk = h("div", { class: "risk-hint" });
   const row = h("div", { class: "actions" });
-  const el = h("div", { class: "view" }, card("amber", stack(116, 16, who, code, always, row)));
+  const el = h("div", { class: "view" }, card("amber", stack(116, 16, who, risk, code, always, row)));
   let rowKey = "";
   return {
     el,
@@ -486,6 +494,9 @@ function buildApproval(actions: ViewActions): ViewHost {
       // is the command, the file path or the URL being authorised, not just the
       // name of the tool asking.
       code.textContent = State.pendingApproval?.command || State.pendingApproval?.tool || "…";
+      const risks = State.pendingApproval?.risks ?? [];
+      risk.textContent = risks.map((r) => `⚠ ${r}`).join("\n");
+      risk.style.display = risks.length ? "" : "none";
       const rule = State.pendingApproval?.source === "chat" ? undefined : State.pendingApproval?.always;
       always.textContent = rule ? `Sempre: ${rule}` : "";
       always.style.display = rule ? "" : "none";
@@ -504,7 +515,8 @@ function buildApproval(actions: ViewActions): ViewHost {
       row.append(btn("Consenti", "primary", () => actions.decide("allow"), "Y"));
     },
     // The "Sempre" line can wrap: grow rather than slide under the buttons.
-    fitHeight: () => who.offsetHeight + code.offsetHeight + always.offsetHeight + row.offsetHeight + 3 * 5 + 8 + 20,
+    fitHeight: () => who.offsetHeight + risk.offsetHeight + code.offsetHeight + always.offsetHeight + row.offsetHeight
+      + (risk.offsetHeight ? 4 : 3) * 5 + 8 + 20,
   };
 }
 
