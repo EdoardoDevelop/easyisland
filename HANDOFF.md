@@ -1,12 +1,12 @@
 # Handoff — EasyIsland (solo Windows)
 
-_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versione 0.5.5: roadmap 6.6 tranne il personaggio). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
+_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 5 ottobre 2026 (versione 0.5.6: requisito della CLI per la chat con l'abbonamento). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
 
 > Questo file va tenuto **sempre aggiornato**: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al **Registro delle modifiche** (sezione 10), con data, cosa è cambiato e cosa resta aperto.
 
 ## 1. Com'è il progetto adesso
 
-**Versione pubblicata: 0.5.5** (tag `v0.5.5`, 4 ottobre 2026; repository pubblico `EdoardoDevelop/easyisland`, le app installate dalla 0.2.0 in poi si aggiornano da sole dopo un clic).
+**Versione pubblicata: 0.5.6** (tag `v0.5.6`, 5 ottobre 2026; repository pubblico `EdoardoDevelop/easyisland`, le app installate dalla 0.2.0 in poi si aggiornano da sole dopo un clic).
 
 **Cosa fa oggi, in breve:**
 - **Isola con personaggio** (Slime, Goccia o EasyTech, il cubo) in alto al centro o dove la trascini, con vista compatta, aggancio ai bordi, sopra la barra delle applicazioni, suoni sintetizzati nel codice.
@@ -110,8 +110,8 @@ _Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 4 ottobre 2026 (versio
 
 **Distribuzione:**
 - [x] Release su GitHub dai tag `vX.Y.Z` con aggiornamento automatico firmato (2 ottobre 2026). La versione deve coincidere in `package.json`, `Cargo.toml` e `tauri.conf.json` (la CI lo controlla). Passi in README → Pubblicare una versione.
-- [x] Repository pubblico (`EdoardoDevelop/easyisland`) e secret `TAURI_SIGNING_PRIVATE_KEY`: le release dalla 0.3.0 alla 0.5.5 sono state pubblicate dalla CI (verificato il 4 ottobre 2026).
-- [ ] Sul repo c'è anche un tag `windows-latest` con la release "EasyIsland per Windows (ultima)" del 2 ottobre (0.2.0), probabilmente creato per sbaglio. Non dà fastidio all'updater, che legge `releases/latest` (oggi la 0.5.5), ma può confondere chi scarica a mano: valutare se eliminarlo.
+- [x] Repository pubblico (`EdoardoDevelop/easyisland`) e secret `TAURI_SIGNING_PRIVATE_KEY`: le release dalla 0.3.0 alla 0.5.6 sono state pubblicate dalla CI (verificato il 4 ottobre 2026).
+- [ ] Sul repo c'è anche un tag `windows-latest` con la release "EasyIsland per Windows (ultima)" del 2 ottobre (0.2.0), probabilmente creato per sbaglio. Non dà fastidio all'updater, che legge `releases/latest` (oggi la 0.5.6), ma può confondere chi scarica a mano: valutare se eliminarlo.
 - [ ] Firma del codice (certificato Authenticode o Azure Trusted Signing, circa 10 $/mese). Senza, SmartScreen avvisa al primo download manuale e Defender ha già dato un falso positivo una volta. Gli aggiornamenti scaricati dall'app non passano da SmartScreen.
 - La chiave privata dell'updater è fuori dal repo (`%USERPROFILE%\.tauri\easyisland.key`, senza password): **va conservata**, se si perde le app installate non accettano più aggiornamenti. Conviene una copia di backup fuori dal PC (chiavetta o gestore di password), oltre al secret su GitHub che non si può rileggere.
 
@@ -267,6 +267,9 @@ Pensate per il supporto IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi facciamo il diff in tempo reale (6.6, punto 1)"_, _"proviamo dal vivo le automazioni"_ oppure _"valutiamo un'idea della sezione 7"_. Per una nuova versione: stesso numero nei tre file, unione di `claude/sviluppo` in `main`, tag `vX.Y.Z`. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 5 ottobre 2026 — versione 0.5.6
+- Versione **0.5.6** nei tre file (più `package-lock.json` e `Cargo.lock`), `claude/sviluppo` unito in `main`, tag `v0.5.6`. Rispetto alla 0.5.5: Impostazioni → Chat e messaggi della chat spiegano che la chat con l'abbonamento richiede Claude Code da riga di comando con il login (passi e comando da copiare), README aggiornato.
 
 ### 5 ottobre 2026 — chat con l'abbonamento: requisito della CLI spiegato
 - **Cosa è emerso** (pallino rosso in Impostazioni → Chat sul PC di Edoardo): l'app desktop di Claude è a pacchetto (MSIX), quindi il suo Claude Code (`%APPDATA%\Claude\claude-code\<versione>`) esiste solo nella vista reindirizzata (`AppData\Local\Packages\Claude_…\LocalCache\Roaming\Claude\claude-code`) e usa il login dell'app: EasyIsland non lo vede e non potrebbe usarlo. L'unico trovato era quello dell'estensione di VS Code, con `claude auth status` → `"loggedIn": false`. Il controllo di `find_claude` su `%APPDATA%\Claude\claude-code` vale quindi solo per installazioni non a pacchetto. **La chat con l'abbonamento richiede la CLI installata con il login**; le sessioni di Claude Code nell'isola no (passano dagli hook).
