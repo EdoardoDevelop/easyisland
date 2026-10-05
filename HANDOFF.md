@@ -1,12 +1,12 @@
 # Handoff — EasyIsland (solo Windows)
 
-_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 5 ottobre 2026 (versione 0.5.7 preparata, non ancora pubblicata: tooltip, 3CX, Outlook, testo selezionato). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
+_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 5 ottobre 2026 (versione 0.5.7: tooltip, 3CX, Outlook, testo selezionato). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
 
 > Questo file va tenuto **sempre aggiornato**: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al **Registro delle modifiche** (sezione 10), con data, cosa è cambiato e cosa resta aperto.
 
 ## 1. Com'è il progetto adesso
 
-**Versione pubblicata: 0.5.6** (tag `v0.5.6`, 5 ottobre 2026; repository pubblico `EdoardoDevelop/easyisland`, le app installate dalla 0.2.0 in poi si aggiornano da sole dopo un clic).
+**Versione pubblicata: 0.5.7** (tag `v0.5.7`, 5 ottobre 2026; repository pubblico `EdoardoDevelop/easyisland`, le app installate dalla 0.2.0 in poi si aggiornano da sole dopo un clic).
 
 **Cosa fa oggi, in breve:**
 - **Isola con personaggio** (Slime, Goccia o EasyTech, il cubo) in alto al centro o dove la trascini, con vista compatta, aggancio ai bordi, sopra la barra delle applicazioni, suoni sintetizzati nel codice.
@@ -110,8 +110,8 @@ _Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 5 ottobre 2026 (versio
 
 **Distribuzione:**
 - [x] Release su GitHub dai tag `vX.Y.Z` con aggiornamento automatico firmato (2 ottobre 2026). La versione deve coincidere in `package.json`, `Cargo.toml` e `tauri.conf.json` (la CI lo controlla). Passi in README → Pubblicare una versione.
-- [x] Repository pubblico (`EdoardoDevelop/easyisland`) e secret `TAURI_SIGNING_PRIVATE_KEY`: le release dalla 0.3.0 alla 0.5.6 sono state pubblicate dalla CI (verificato il 4 ottobre 2026).
-- [ ] Sul repo c'è anche un tag `windows-latest` con la release "EasyIsland per Windows (ultima)" del 2 ottobre (0.2.0), probabilmente creato per sbaglio. Non dà fastidio all'updater, che legge `releases/latest` (oggi la 0.5.6), ma può confondere chi scarica a mano: valutare se eliminarlo.
+- [x] Repository pubblico (`EdoardoDevelop/easyisland`) e secret `TAURI_SIGNING_PRIVATE_KEY`: le release dalla 0.3.0 alla 0.5.7 sono state pubblicate dalla CI (verificato il 4 ottobre 2026).
+- [ ] Sul repo c'è anche un tag `windows-latest` con la release "EasyIsland per Windows (ultima)" del 2 ottobre (0.2.0), probabilmente creato per sbaglio. Non dà fastidio all'updater, che legge `releases/latest` (oggi la 0.5.7), ma può confondere chi scarica a mano: valutare se eliminarlo.
 - [ ] Firma del codice (certificato Authenticode o Azure Trusted Signing, circa 10 $/mese). Senza, SmartScreen avvisa al primo download manuale e Defender ha già dato un falso positivo una volta. Gli aggiornamenti scaricati dall'app non passano da SmartScreen.
 - La chiave privata dell'updater è fuori dal repo (`%USERPROFILE%\.tauri\easyisland.key`, senza password): **va conservata**, se si perde le app installate non accettano più aggiornamenti. Conviene una copia di backup fuori dal PC (chiavetta o gestore di password), oltre al secret su GitHub che non si può rileggere.
 
@@ -268,8 +268,8 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 
 ## 10. Registro delle modifiche
 
-### 5 ottobre 2026 — versione 0.5.7 (preparata)
-- Versione **0.5.7** nei tre file (più `package-lock.json` e `Cargo.lock`) su `claude/sviluppo`. **Non ancora** unita in `main` né taggata: il tag `v0.5.7` pubblica l'aggiornamento per tutte le app installate. Rispetto alla 0.5.6: azioni rapide sul testo selezionato, tooltip disegnati nell'isola (non più dietro), isola che si chiude a fine squillo 3CX, Outlook senza PowerShell quando è chiuso, messaggi chiari quando la selezione non si copia, log dei cambi di stato delle chiamate 3CX.
+### 5 ottobre 2026 — versione 0.5.7
+- Versione **0.5.7** nei tre file (più `package-lock.json` e `Cargo.lock`), `claude/sviluppo` unito in `main`, tag `v0.5.7`. Rispetto alla 0.5.6: azioni rapide sul testo selezionato, tooltip disegnati nell'isola (non più dietro), isola che si chiude a fine squillo 3CX, Outlook senza PowerShell quando è chiuso, messaggi chiari quando la selezione non si copia, log dei cambi di stato delle chiamate 3CX.
 
 ### 5 ottobre 2026 — Outlook più leggero, selezione con messaggi chiari, log delle chiamate 3CX
 - **Outlook:** prima di lanciare PowerShell controlla se `OUTLOOK.EXE` è in esecuzione (`apps::pids_of`, ora pubblica). Con Outlook chiuso (sera, weekend) non parte più nessun PowerShell: solo un elenco dei processi ogni 60 s.
