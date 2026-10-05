@@ -127,11 +127,14 @@ fn key(vk: VIRTUAL_KEY, up: bool) -> INPUT {
 }
 
 /// The text selected in the app in front: Ctrl+C, read, then the clipboard is
-/// put back as it was. None when nothing was selected.
-pub fn selection() -> Option<String> {
+/// put back as it was. On failure, why — the island turns it into a message:
+/// "no-window" (no app to read from), "no-focus" (Windows kept the island in
+/// front), "empty" (the app copied nothing: no selection, or it does not let
+/// you copy), "not-text" (a picture or files were selected).
+pub fn selection() -> Result<String, &'static str> {
     // Ctrl+C must reach the user's app, never the island (focused for its chat):
     // give the focus back to the user's window first.
-    let hwnd = target()?;
+    let hwnd = target().ok_or("no-window")?;
     unsafe {
         if GetForegroundWindow() != hwnd {
             let _ = SetForegroundWindow(hwnd);
@@ -140,7 +143,7 @@ pub fn selection() -> Option<String> {
                 std::thread::sleep(Duration::from_millis(20));
             }
             if GetForegroundWindow() != hwnd {
-                return None;
+                return Err("no-focus");
             }
         }
     }
@@ -156,18 +159,19 @@ pub fn selection() -> Option<String> {
     }
 
     let before = crate::actions::clipboard_text();
-    crate::clipboard::ignore_next(Duration::from_millis(1500));
+    crate::clipboard::ignore_next(Duration::from_millis(2000));
     let seq = unsafe { GetClipboardSequenceNumber() };
     let c = VIRTUAL_KEY(b'C' as u16);
     unsafe {
         SendInput(&[key(VK_CONTROL, false), key(c, false), key(c, true), key(VK_CONTROL, true)], std::mem::size_of::<INPUT>() as i32);
     }
+    // Excel and Outlook can take a while with a large selection.
     let start = Instant::now();
-    while unsafe { GetClipboardSequenceNumber() } == seq && start.elapsed() < Duration::from_millis(600) {
+    while unsafe { GetClipboardSequenceNumber() } == seq && start.elapsed() < Duration::from_millis(1200) {
         std::thread::sleep(Duration::from_millis(25));
     }
     if unsafe { GetClipboardSequenceNumber() } == seq {
-        return None; // nothing selected: the app left the clipboard alone
+        return Err("empty"); // nothing selected: the app left the clipboard alone
     }
     // Let the app finish writing every format.
     std::thread::sleep(Duration::from_millis(60));
@@ -175,5 +179,9 @@ pub fn selection() -> Option<String> {
     if let Some(prev) = before {
         let _ = crate::actions::set_clipboard_text(&prev);
     }
-    text.filter(|t| !t.trim().is_empty())
+    match text {
+        Some(t) if !t.trim().is_empty() => Ok(t),
+        Some(_) => Err("empty"),
+        None => Err("not-text"),
+    }
 }

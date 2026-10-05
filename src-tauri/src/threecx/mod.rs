@@ -102,6 +102,8 @@ struct Live {
     error: Option<String>,
     /// Incoming calls already announced to the island.
     announced: HashSet<String>,
+    /// Last state of every call, for the log (states only, never numbers or names).
+    states: HashMap<String, String>,
 }
 
 static LIVE: Mutex<Option<Live>> = Mutex::new(None);
@@ -200,15 +202,19 @@ fn wanted(app: &AppHandle) -> bool {
 
 /// Sends the current state to the island; announces calls that just started ringing.
 fn publish(app: &AppHandle) {
-    let (snapshot, error, ring) = live(|l| {
+    let (snapshot, error, ring, changes) = live(|l| {
+        let changes = call_changes(&mut l.states, &l.snapshot.calls);
         let ringing: Vec<Call> = l.snapshot.calls.iter().filter(|c| c.incoming && c.state == "ringing").cloned().collect();
         let fresh: Vec<Call> = ringing.iter().filter(|c| !l.announced.contains(&c.id)).cloned().collect();
         l.announced.retain(|id| ringing.iter().any(|c| &c.id == id));
         for c in &fresh {
             l.announced.insert(c.id.clone());
         }
-        (l.snapshot.clone(), l.error.clone(), fresh)
+        (l.snapshot.clone(), l.error.clone(), fresh, changes)
     });
+    for line in changes {
+        crate::log::line(line);
+    }
     integrations::emit(
         app,
         IntegrationUpdate { id: ID, data: serde_json::to_value(&snapshot).unwrap_or(Value::Null), error, event: None },
@@ -216,6 +222,28 @@ fn publish(app: &AppHandle) {
     for c in ring {
         let _ = app.emit_to(WINDOW_LABEL, "threecx-call", &c);
     }
+}
+
+/// "3cx: call 50 ringing → connected", "3cx: call 50 ended (was ringing)": what
+/// the PBX reported, to check on a real PBX how a call answered elsewhere ends.
+fn call_changes(states: &mut HashMap<String, String>, calls: &[Call]) -> Vec<String> {
+    let mut out = Vec::new();
+    for c in calls {
+        let dir = if c.incoming { "in" } else { "out" };
+        match states.insert(c.id.clone(), c.state.clone()) {
+            None => out.push(format!("3cx: call {} {dir} {}", c.id, c.state)),
+            Some(old) if old != c.state => out.push(format!("3cx: call {} {old} → {}", c.id, c.state)),
+            _ => {}
+        }
+    }
+    states.retain(|id, old| {
+        let keep = calls.iter().any(|c| &c.id == id);
+        if !keep {
+            out.push(format!("3cx: call {id} ended (was {old})"));
+        }
+        keep
+    });
+    out
 }
 
 /// Re-sends the last state (the card asks when it first opens).
@@ -609,6 +637,21 @@ pub async fn reset_missed() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn call_changes_are_logged_without_numbers() {
+        let call = |state: &str| Call {
+            id: "50".into(), state: state.into(), incoming: true, name: "Cliente".into(),
+            number: "+39051".into(), since: 0, can_answer: false,
+        };
+        let mut states = HashMap::new();
+        assert_eq!(call_changes(&mut states, &[call("ringing")]), vec!["3cx: call 50 in ringing"]);
+        assert!(call_changes(&mut states, &[call("ringing")]).is_empty());
+        assert_eq!(call_changes(&mut states, &[call("connected")]), vec!["3cx: call 50 ringing → connected"]);
+        let gone = call_changes(&mut states, &[]);
+        assert_eq!(gone, vec!["3cx: call 50 ended (was connected)"]);
+        assert!(gone.iter().all(|l| !l.contains("39051") && !l.contains("Cliente")));
+    }
 
     #[test]
     fn urls_and_numbers() {

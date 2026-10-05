@@ -147,7 +147,15 @@ export const Bridge = {
   clipboardClear: () => call<void>("clipboard_clear"),
   /** The app in front, and the text selected in it (⚡ suggestions). */
   foregroundApp: () => call<{ exe: string; title: string } | null>("foreground_app"),
-  captureSelection: () => call<string | null>("capture_selection"),
+  /** The selected text, or why there is none ("no-window" | "no-focus" | "empty" | "not-text"). */
+  captureSelection: async (): Promise<{ text: string } | { error: string }> => {
+    if (!IS_TAURI) return { error: "empty" };
+    try {
+      return { text: await invoke<string>("capture_selection") };
+    } catch (err) {
+      return { error: String(err) };
+    }
+  },
   /** Proposals from the habits (habits.rs). */
   habitsStats: () => call<{ events: number; days: number; since: number | null }>("habits_stats"),
   habitsSuggestions: () => call<import("./state").HabitSuggestion[]>("habits_suggestions"),

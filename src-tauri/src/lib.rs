@@ -737,10 +737,14 @@ fn foreground_app() -> Option<context::Foreground> {
     context::foreground()
 }
 
-/// The text selected in the app in front (copied, then the clipboard restored).
+/// The text selected in the app in front (copied, then the clipboard restored);
+/// the error is a reason code (see `context::selection`).
 #[tauri::command]
-async fn capture_selection() -> Option<String> {
-    tauri::async_runtime::spawn_blocking(context::selection).await.ok().flatten()
+async fn capture_selection() -> Result<String, String> {
+    match tauri::async_runtime::spawn_blocking(context::selection).await {
+        Ok(r) => r.map_err(String::from),
+        Err(_) => Err("empty".into()),
+    }
 }
 
 /// Impostazioni → Automazioni: the last runs, newest first.
