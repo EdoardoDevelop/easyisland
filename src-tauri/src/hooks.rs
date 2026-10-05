@@ -67,12 +67,20 @@ pub struct HookPreview {
 }
 
 /// Which tool's hooks: Claude Code (`~/.claude/settings.json`), Codex
-/// (`~/.codex/hooks.json`) or Gemini CLI (`~/.gemini/settings.json`).
+/// (`~/.codex/hooks.json`), Gemini CLI (`~/.gemini/settings.json`), Cursor
+/// (`~/.cursor/hooks.json`) or Copilot CLI (a file of its own,
+/// `~/.copilot/hooks/easyisland.json`).
+///
+/// Cursor and Copilot get observation hooks only: on their permission hooks a
+/// reply they cannot parse (Cursor) or an error (Copilot) blocks the tool, and
+/// the island must never be able to block an agent.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Target {
     Claude,
     Codex,
     Gemini,
+    Cursor,
+    Copilot,
 }
 
 impl Target {
@@ -80,6 +88,8 @@ impl Target {
         match s {
             Some("codex") => Target::Codex,
             Some("gemini") => Target::Gemini,
+            Some("cursor") => Target::Cursor,
+            Some("copilot") => Target::Copilot,
             _ => Target::Claude,
         }
     }
@@ -89,6 +99,8 @@ impl Target {
             Target::Claude => home().join(".claude").join("settings.json"),
             Target::Codex => home().join(".codex").join("hooks.json"),
             Target::Gemini => home().join(".gemini").join("settings.json"),
+            Target::Cursor => home().join(".cursor").join("hooks.json"),
+            Target::Copilot => home().join(".copilot").join("hooks").join("easyisland.json"),
         }
     }
 
@@ -117,7 +129,35 @@ impl Target {
                 ("AfterTool", 10_000),
                 ("Notification", 10_000),
             ],
+            // Seconds. No preToolUse / beforeShellExecution / beforeReadFile /
+            // subagentStart: those are permission hooks (see the enum).
+            Target::Cursor => &[
+                ("sessionStart", 10),
+                ("sessionEnd", 10),
+                ("beforeSubmitPrompt", 10),
+                ("afterShellExecution", 10),
+                ("afterFileEdit", 10),
+                ("afterMCPExecution", 10),
+                ("subagentStop", 10),
+                ("stop", 10),
+            ],
+            // Seconds (`timeoutSec`). No preToolUse: an error there denies the tool.
+            Target::Copilot => &[
+                ("sessionStart", 10),
+                ("sessionEnd", 10),
+                ("userPromptSubmitted", 10),
+                ("postToolUse", 10),
+                ("postToolUseFailure", 10),
+                ("agentStop", 10),
+                ("subagentStop", 10),
+                ("errorOccurred", 10),
+            ],
         }
+    }
+
+    /// Cursor and Copilot want `"version": 1` at the top of the file.
+    fn versioned(self) -> bool {
+        matches!(self, Target::Cursor | Target::Copilot)
     }
 
     /// The relay's command line. Claude Code runs hooks through Git Bash (quoted
@@ -130,10 +170,27 @@ impl Target {
             Target::Claude => format!("{exe} {event}"),
             Target::Codex => format!("{exe} {event} --agent codex"),
             Target::Gemini => format!("{exe} {event} --agent gemini"),
+            Target::Cursor => format!("{exe} {event} --agent cursor"),
+            Target::Copilot => format!("{exe} {event} --agent copilot"),
         }
     }
 
     fn entry(self, event: &str, timeout: u64) -> Value {
+        match self {
+            Target::Cursor => return json!({ "command": self.command(event), "timeout": timeout }),
+            // Copilot runs `powershell` on Windows and `bash` elsewhere: in
+            // PowerShell a quoted path is only a string, `&` runs it.
+            Target::Copilot => {
+                let exe = settings::hook_exe_path().to_string_lossy().replace('\\', "/");
+                return json!({
+                    "type": "command",
+                    "bash": format!("\"{exe}\" {event} --agent copilot"),
+                    "powershell": format!("& \"{exe}\" {event} --agent copilot"),
+                    "timeoutSec": timeout,
+                });
+            }
+            _ => {}
+        }
         let handler = json!({ "type": "command", "command": self.command(event), "timeout": timeout });
         // Gemini matches tool events by a regex: "*" is every tool.
         if self == Target::Gemini && (event == "BeforeTool" || event == "AfterTool") {
@@ -192,7 +249,11 @@ fn parse_settings(bytes: &[u8], path: &str) -> Result<Value, String> {
 }
 
 fn entry_has(entry: &Value, marker: &str) -> bool {
-    entry
+    // Cursor's and Copilot's entries are flat: the command is on the entry itself.
+    let flat = ["command", "bash", "powershell"]
+        .iter()
+        .any(|k| entry.get(*k).and_then(Value::as_str).is_some_and(|c| c.contains(marker)));
+    flat || entry
         .get("hooks")
         .and_then(Value::as_array)
         .map(|hooks| {
@@ -247,6 +308,9 @@ fn merged_for(existing: &Value, target: Target) -> Value {
     }
 
     root.insert("hooks".into(), Value::Object(hooks));
+    if target.versioned() && !root.contains_key("version") {
+        root.insert("version".into(), json!(1));
+    }
     Value::Object(root)
 }
 
@@ -647,6 +711,34 @@ mod tests {
         assert_eq!(Target::parse(Some("gemini")), Target::Gemini);
         assert_eq!(Target::parse(Some("qualcosa")), Target::Claude);
         assert!(Target::Codex.file().ends_with(Path::new(".codex").join("hooks.json")));
+    }
+
+    #[test]
+    fn cursor_and_copilot_get_flat_observation_hooks_only() {
+        let existing = json!({ "version": 1, "hooks": { "afterFileEdit": [{ "command": "./format.sh" }] } });
+        let cursor = merged_for(&existing, Target::Cursor);
+        let edits = cursor["hooks"]["afterFileEdit"].as_array().unwrap();
+        assert_eq!(edits.len(), 2, "the user's own Cursor hook stays");
+        let cmd = edits[1]["command"].as_str().unwrap();
+        assert!(cmd.contains("easyisland-hook") && cmd.ends_with("afterFileEdit --agent cursor"), "{cmd}");
+        assert!(edits[1].get("hooks").is_none(), "Cursor's entries are flat");
+        // Never a permission hook: a reply Cursor cannot parse there blocks the tool.
+        for blocked in ["preToolUse", "beforeShellExecution", "beforeReadFile", "beforeMCPExecution", "subagentStart"] {
+            assert!(cursor["hooks"].get(blocked).is_none(), "{blocked}");
+        }
+        assert_eq!(without_ours(&cursor), existing);
+
+        let copilot = merged_for(&json!({}), Target::Copilot);
+        assert_eq!(copilot["version"], 1);
+        assert!(copilot["hooks"].get("preToolUse").is_none(), "an error there denies the tool");
+        let e = &copilot["hooks"]["postToolUse"][0];
+        assert!(e["powershell"].as_str().unwrap().starts_with("& \""));
+        assert!(e["bash"].as_str().unwrap().ends_with("postToolUse --agent copilot"));
+        assert_eq!(e["timeoutSec"], 10);
+        assert!(all_entries(&copilot).iter().all(|x| entry_is_ours(x)));
+        assert!(without_ours(&copilot).get("hooks").is_none());
+        assert!(Target::Copilot.file().ends_with(Path::new(".copilot").join("hooks").join("easyisland.json")));
+        assert_eq!(Target::parse(Some("cursor")), Target::Cursor);
     }
 
     #[test]

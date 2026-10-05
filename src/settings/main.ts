@@ -68,6 +68,18 @@ const HOOK_TOOLS = {
     off: "Se usi Gemini CLI, installa i suoi hook per vedere le sue sessioni nell'isola. I permessi restano nel suo terminale, l'isola ti avvisa quando ne chiede uno.",
     done: "Apri una nuova sessione di Gemini CLI per attivare gli hook.",
   },
+  cursor: {
+    name: "Cursor", file: "hooks.json",
+    on: "Le sessioni dell'agente di Cursor compaiono nell'isola: comandi (con l'esito dei test), modifiche ai file con il diff, connettori MCP e fine del lavoro. Solo da guardare: i permessi restano in Cursor.",
+    off: "Se usi l'agente di Cursor, installa i suoi hook per vedere il suo lavoro nell'isola. EasyIsland installa solo hook che osservano: non può mai bloccare Cursor né rispondere ai suoi permessi.",
+    done: "Riapri Cursor (o una nuova chat dell'agente) per attivare gli hook.",
+  },
+  copilot: {
+    name: "GitHub Copilot CLI", file: "easyisland.json",
+    on: "Le sessioni di Copilot CLI compaiono nell'isola: strumenti usati, esito dei test, modifiche ai file e fine del lavoro. Solo da guardare: i permessi restano nel suo terminale.",
+    off: "Se usi GitHub Copilot CLI, installa i suoi hook per vedere le sue sessioni nell'isola. EasyIsland scrive un file tutto suo in .copilot\\hooks e solo hook che osservano: non può mai bloccare Copilot.",
+    done: "Apri una nuova sessione di Copilot CLI per attivare gli hook.",
+  },
 } as const;
 type HookTool = keyof typeof HOOK_TOOLS;
 
@@ -2460,8 +2472,8 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     },
     {
       id: "claude", label: "Agenti e chat", icon: "sparkles", color: "#E07A5F", title: "Agenti e chat",
-      intro: "Le sessioni di Claude Code, Codex e Gemini CLI nell'isola, la chat con il motore che preferisci e i connettori che può usare.",
-      sections: () => [claudeSection(b.status), agentHooksSection("codex"), agentHooksSection("gemini"), claudeChatSection(b.hasKey), connectorsSection()],
+      intro: "Le sessioni di Claude Code, Codex, Gemini CLI, Cursor e Copilot CLI nell'isola, la chat con il motore che preferisci e i connettori che può usare.",
+      sections: () => [claudeSection(b.status), agentHooksSection("codex"), agentHooksSection("gemini"), agentHooksSection("cursor"), agentHooksSection("copilot"), claudeChatSection(b.hasKey), connectorsSection()],
     },
     {
       id: "azioni", label: "Azioni rapide", icon: "bolt", color: "#FACC15", title: "Azioni rapide",

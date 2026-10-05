@@ -46,6 +46,8 @@ interface HookPayload {
   easyisland_agent?: { id?: string; name?: string; color?: string };
   /** Gemini asks for a permission in its terminal (the island cannot answer it). */
   easyisland_waiting?: boolean;
+  /** Cursor, Copilot CLI: a tool reported only after it ran, with no PreToolUse before it. */
+  easyisland_after_only?: boolean;
   /** Claude Code started in Cursor's terminal. */
   cursor?: boolean;
   /** Added by the relay from the session's environment. */
@@ -479,6 +481,11 @@ export function handleHook(island: Island, payload: HookPayload) {
     }
 
     case "PostToolUse": {
+      if (payload.easyisland_after_only) {
+        upsert(tid, projectName, cwd, host);
+        State.appendStep(tid, stepLabel(payload.tool_name ?? "Strumento", payload.tool_input ?? {}));
+        surface("overview", false);
+      }
       State.updateTask(tid, "working");
       const d = payload.easyisland_diff;
       for (const x of [d, ...(payload.easyisland_diffs ?? [])]) {
@@ -509,6 +516,10 @@ export function handleHook(island: Island, payload: HookPayload) {
     }
 
     case "PostToolUseFailure":
+      if (payload.easyisland_after_only) {
+        upsert(tid, projectName, cwd, host);
+        State.appendStep(tid, stepLabel(payload.tool_name ?? "Strumento", payload.tool_input ?? {}));
+      }
       State.updateTask(tid, "working");
       if (payload.easyisland_tests) {
         const step = stepLabel(payload.tool_name ?? "", payload.tool_input ?? {});
