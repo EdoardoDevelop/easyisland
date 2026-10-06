@@ -236,6 +236,11 @@ export function canOpen(t: AgentTask | null): boolean {
   return !!t && (isSessionTask(t) || !!OPEN_URLS[t.id] || OPENED_BY_APP.has(t.id));
 }
 
+/** States from least to most urgent: on the summary the character shows the top one. */
+const URGENCY: BotStateName[] = [
+  "idle", "sleeping", "finished", "searching", "thinking", "working", "ratelimit", "error", "question", "approval",
+];
+
 export const TOGGLEABLE_INTEGRATION_IDS = [
   "integration_resend", "integration_n8n", "integration_vercel", "integration_github",
   "integration_notion", "integration_calcom", "integration_stripe",
@@ -718,8 +723,25 @@ class AppState {
     return this.tasks.find((t) => t.id === this.focusId) ?? this.tasks[0] ?? null;
   }
 
+  /** ⌂ shows every integration (not while a permission or a question waits). */
+  get showsSummary(): boolean {
+    return this.summary && !this.pendingApproval;
+  }
+
+  /**
+   * The task the character speaks for: the focused one, or none on the summary
+   * (then it keeps its own colour and shows the most urgent state of all).
+   */
+  get characterTask(): AgentTask | null {
+    return this.showsSummary ? null : this.focusTask;
+  }
+
   get effectiveState(): BotStateName {
-    return this.stateOverride ?? this.focusTask?.state ?? "idle";
+    if (this.stateOverride) return this.stateOverride;
+    if (!this.showsSummary) return this.focusTask?.state ?? "idle";
+    let best: BotStateName = "idle";
+    for (const t of this.tasks) if (URGENCY.indexOf(t.state) > URGENCY.indexOf(best)) best = t.state;
+    return best;
   }
 
   /** Pills in the overview: everything but the focused task and the header tabs. */

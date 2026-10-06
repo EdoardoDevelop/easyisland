@@ -423,7 +423,7 @@ function buildOverview(actions: ViewActions): ViewHost {
 
 /** The ⌂ tab shows the summary, unless a permission or a question is waiting. */
 function showsSummary(): boolean {
-  return State.summary && !State.pendingApproval;
+  return State.showsSummary;
 }
 
 /** Panoramica: one row per integration (and agent) with its latest line; a click opens its card. */

@@ -81,6 +81,7 @@ Il registro completo fino al 6 ottobre 2026 è in `HANDOFF-archivio.md`. Le nuov
 - **Vassoio:** pulsante griglia/elenco (ricordato in `localStorage`).
 - **Dimensione dell'isola:** `islandZoom` (80–160 %, del PC) in Impostazioni → Posizione, con "Predefinita", e Ctrl+rotellina sull'isola aperta. È lo zoom della WebView; in Rust ogni conversione pagina↔schermo passa da `island::scale_of`/`zoom()`. Da provare dal vivo (Rust non compilato qui).
 - **Loghi dei marchi** (3CX, Claude, GitHub, n8n, Notion, Outlook, Resend, Stripe, Vercel, Zammad): copiati da `brand/` in `src/views/brands.ts` come SVG nel codice (`scripts/gen-brands.mjs`, viewBox ritagliati, nero → `currentColor`); l'app non legge mai `brand/`. Usati da `brandOrDot` nelle intestazioni delle card, nelle schede, nella Panoramica e come icona della scheda Claude Code; le pillole restano col personaggio.
+- **Colori del personaggio sulla Panoramica:** prima restava col colore e lo stato dell'ultima integrazione aperta (es. 3CX blu e "inattivo" mentre Claude lavorava). Ora sulla ⌂ (`State.characterTask` = null) tiene il colore del tema e mostra lo stato più urgente di tutte (`URGENCY` in `state.ts`: permesso > domanda > errore > limite > lavoro > … > riposo).
 - Aperti: prova dal vivo di schermi secondari, Start, zoom.
 
 ### 6 ottobre 2026 — handoff ridotto
