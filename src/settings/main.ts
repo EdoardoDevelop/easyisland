@@ -10,6 +10,7 @@ import { CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Automation, ty
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
 import { h, clear } from "../views/dom";
+import { BRAND_SVG } from "../views/brands";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
@@ -243,7 +244,7 @@ function claudeTabRow(): HTMLElement {
   const icons = () => (settings.integrationTabIcons ??= {});
   const cur = icons()[id];
   const place = h("select", {},
-    h("option", { value: "icon", text: "Icona" }),
+    h("option", { value: "icon", text: "Logo di Claude" }),
     h("option", { value: "name", text: "Nome" }),
     h("option", { value: "emoji", text: "Emoji o lettere" })) as HTMLSelectElement;
   place.value = !cur ? "icon" : cur === "@name" ? "name" : "emoji";
@@ -802,21 +803,25 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
       h("option", { value: "pill", text: "Pillola nella panoramica" }),
       h("option", { value: "tab", text: "Scheda in alto, con il nome" }),
       h("option", { value: "icon", text: "Scheda in alto, con un'icona" })) as HTMLSelectElement;
+    // Integrations with a brand logo can show just that in their tab.
+    if (BRAND_SVG[def.id]) place.insertBefore(h("option", { value: "logo", text: "Scheda in alto, con il logo" }), place.lastChild);
     const iconInput = h("input", {
       type: "text", maxlength: "4", spellcheck: "false", style: "width:56px;text-align:center",
       title: "Un'emoji o una o due lettere", placeholder: TAB_ICONS[def.id] ?? "★",
     }) as HTMLInputElement;
     const icons = () => (settings.integrationTabIcons ??= {});
-    iconInput.value = icons()[def.id] ?? "";
+    iconInput.value = icons()[def.id] === "@logo" ? "" : icons()[def.id] ?? "";
     const isTab = (settings.integrationTabs ?? []).includes(def.id);
-    place.value = !isTab ? "pill" : icons()[def.id] ? "icon" : "tab";
+    place.value = !isTab ? "pill" : icons()[def.id] === "@logo" ? "logo" : icons()[def.id] ? "icon" : "tab";
     const syncIcon = () => { iconInput.style.display = place.value === "icon" ? "" : "none"; };
     syncIcon();
     place.addEventListener("change", () => {
       const rest = (settings.integrationTabs ?? []).filter((x) => x !== def.id);
       settings.integrationTabs = place.value === "pill" ? rest : [...rest, def.id];
-      if (place.value === "icon") {
-        if (!iconInput.value.trim()) iconInput.value = TAB_ICONS[def.id] ?? "★";
+      if (place.value === "logo") {
+        icons()[def.id] = "@logo";
+      } else if (place.value === "icon") {
+        if (!iconInput.value.trim() || iconInput.value === "@logo") iconInput.value = TAB_ICONS[def.id] ?? "★";
         icons()[def.id] = iconInput.value.trim();
       } else {
         delete icons()[def.id];

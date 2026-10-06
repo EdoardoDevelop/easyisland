@@ -5,6 +5,7 @@
 import { isSorting, sortable } from "./sortable";
 import { h, svg, clear, dot, brandIcon, brandOrDot } from "./dom";
 import { ICONS } from "./icons";
+import { BRAND_SVG } from "./brands";
 import { Ticker } from "./ticker";
 import { State, canOpen, engineLabel, isSessionTask, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
 import { ISLAND_CHROME_H, MAX_ISLAND_H, washRGBA, type IslandViewName, type Wash } from "../core/layout";
@@ -189,16 +190,18 @@ export function buildHeader(actions: ViewActions): ViewHost {
         tabsKey = key;
         intTabs = [];
         for (const t of tabs) {
-          const icon = icons[t.id]?.trim();
+          // "@logo": the brand logo alone (Impostazioni → Integrazioni → Mostra come).
+          const logo = icons[t.id]?.trim() === "@logo" ? brandIcon(t.id, 15) : null;
+          const icon = logo ? "" : icons[t.id]?.trim();
           intTabs.push(h("button", {
-            class: icon ? "tab int-tab icon" : "tab int-tab", "data-id": t.id, title: t.name,
+            class: logo ? "tab" : icon ? "tab int-tab icon" : "tab int-tab", "data-id": t.id, title: t.name,
             onclick: () => {
               actions.blip();
               State.setFocus(t.id);
               actions.setView("overview");
             },
-          }, icon ? h("span", { class: "int-tab-icon", text: icon }) : brandOrDot(t.id, t.color, 8),
-            icon ? null : h("span", { text: t.name })));
+          }, logo ?? (icon ? h("span", { class: "int-tab-icon", text: icon }) : brandOrDot(t.id, t.color, 8)),
+            logo || icon ? null : h("span", { text: t.name })));
         }
         // Dragged order first; the rest as usual: fixed tabs, then integrations.
         const all = [...fixedTabs, ...intTabs];
@@ -456,14 +459,17 @@ function pillLabel(task: AgentTask): { text: string; title?: string; song?: bool
   return { text: task.name };
 }
 
+const BRAND_IDS = new Set(Object.keys(BRAND_SVG));
+
 function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
   const label = pillLabel(task);
   const canvas = createMiniBot(task, 24);
   const pill = h(
     "div",
-    { class: label.song ? "pill song" : "pill", "data-id": task.id, title: label.title ?? "",
+    { class: (label.song ? "pill song" : "pill") + (BRAND_IDS.has(task.id) ? " has-brand" : ""), "data-id": task.id, title: label.title ?? "",
       onclick: () => actions.setFocus(task.id) },
     canvas,
+    brandIcon(task.id, 13),
     h("span", { class: "lbl", text: label.text }),
   );
   pill.style.borderColor = `${task.color}24`;
