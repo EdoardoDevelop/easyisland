@@ -28,6 +28,8 @@ import { IslandStateMachine } from "./fsm";
 const BOT_OVERHANG = 40;
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
 const HIT_MARGIN = 14;
+/** Around the island, a dragged file is still taken; same as DROP_MARGIN in island.rs. */
+const DROP_MARGIN = 24;
 /** Pause between two gestures of the compact the character when it does not follow the cursor, ms. */
 const WANDER_MIN_MS = 1800;
 const WANDER_SPREAD_MS = 4200;
@@ -285,7 +287,8 @@ export class Island {
           : null;
         this.setView("prompt");
       },
-      cancel: () => this.setView(State.defaultView()),
+      // The file is already in the tray: "Annulla" shows it there.
+      cancel: () => void this.openFiles(),
       runAction: (a) => void this.runAction(a),
     });
 
@@ -632,7 +635,7 @@ export class Island {
     State.notify();
   }
 
-  /** "File caricati": list the inbox and show it. */
+  /** The tray ("Vassoio"): list the inbox and show it. */
   async openFiles() {
     State.inbox = await Bridge.inboxList() ?? [];
     this.setView("files");
@@ -1006,6 +1009,41 @@ export class Island {
       `page ${document.visibilityState}`;
   }
 
+  /** What the island was before a dragged file opened it, to go back to when nothing is dropped. */
+  private beforeDrop: { mode: IslandMode; view: IslandViewName } | null = null;
+  private dragEndPoll: number | null = null;
+
+  /**
+   * The file left the island: once the drag is over (the button is released
+   * somewhere else) and it did not come back, the drop view goes and the island
+   * is as it was. Asked a few times a second, only for this short while.
+   */
+  private watchDragEnd() {
+    if (this.dragEndPoll != null) return;
+    this.dragEndPoll = window.setInterval(async () => {
+      if (State.fileDragOver) {
+        // Back over the island: its own leave will start watching again.
+        window.clearInterval(this.dragEndPoll!);
+        this.dragEndPoll = null;
+        return;
+      }
+      if (await Bridge.mouseButtonDown()) return;
+      window.clearInterval(this.dragEndPoll!);
+      this.dragEndPoll = null;
+      this.restoreAfterDrag();
+    }, 200);
+  }
+
+  /** Nothing was dropped: back to how the island was before the file arrived. */
+  private restoreAfterDrag() {
+    const before = this.beforeDrop;
+    this.beforeDrop = null;
+    if (!before || State.fileDragOver || State.view !== "upload") return;
+    this.engine.animateMorph(0);
+    if (before.mode !== "expanded") this.collapse();
+    else this.setView(UPLOAD_VIEWS.has(before.view) ? State.defaultView() : before.view);
+  }
+
   private onDragDrop(e: { type: string; paths?: string[] }) {
     if (e.type !== "over") void Bridge.log(`drag ${e.type} ${e.paths?.length ?? 0} file(s), ${this.dropState()}`);
     if (State.paused) return;
@@ -1013,6 +1051,7 @@ export class Island {
       case "enter":
       case "over": {
         if (State.fileDragOver) return;
+        if (!this.beforeDrop) this.beforeDrop = { mode: State.mode, view: State.view };
         State.fileDragOver = true;
         this.engine.animateMorph(1);
         // Open first, then start the sequence. A compact island opens through
@@ -1029,8 +1068,10 @@ export class Island {
         if (!State.fileDragOver) return;
         State.fileDragOver = false;
         this.engine.animateMorph(0);
-        // The island deliberately stays open: the drag session is still alive.
+        // The island stays open while the drag goes on (the file may come
+        // back); when it ends somewhere else, watchDragEnd puts it back.
         UploadSeq.exitZone();
+        this.watchDragEnd();
         State.notify();
         break;
       }
@@ -1038,10 +1079,13 @@ export class Island {
         State.fileDragOver = false;
         const path = e.paths?.[0];
         if (!path) {
+          // Refused or empty: back to how the island was.
           this.engine.animateMorph(0);
-          this.setView(State.defaultView());
+          if (this.beforeDrop) this.restoreAfterDrag();
+          else this.setView(State.defaultView());
           return;
         }
+        this.beforeDrop = null;
         this.swallow(path);
         break;
       }
@@ -1082,6 +1126,8 @@ export class Island {
       .then((file) => {
         State.droppedFile = { name: file.name, path: file.path, source: path };
         State.promptContext = { kind: "file", name: file.name, path: file.path };
+        // "Annulla" pressed before the copy landed: the tray shows it now.
+        if (State.view === "files") void this.refreshFiles();
         State.notify();
       })
       .catch((err) => {
@@ -1194,6 +1240,13 @@ export class Island {
   }
 
   /** Island rect in window coordinates (origin top-left of the 720×320 window). */
+  /** Within DROP_MARGIN of the island shape: where a dragged file is taken. */
+  private nearIsland(x: number, y: number): boolean {
+    const r = this.islandRect();
+    return r.w > 0 && x >= r.x - DROP_MARGIN && x <= r.x + r.w + DROP_MARGIN
+      && y >= r.y - DROP_MARGIN && y <= r.y + r.h + DROP_MARGIN;
+  }
+
   private islandRect(): { x: number; y: number; w: number; h: number } {
     const w = this.width.value;
     const hh = this.height.value;
@@ -1458,7 +1511,8 @@ export class Island {
       State.lastActivity = performance.now();
     });
 
-    void onDragDrop((e) => this.onDragDrop(e));
+    // A file of the tray being dragged out is never taken back.
+    void onDragDrop((e) => this.onDragDrop(e), (x, y) => !State.draggingOut && this.nearIsland(x, y));
 
     // Outside Tauri (plain browser) drive the cursor from DOM events so the
     // island can be inspected with `npm run dev`.

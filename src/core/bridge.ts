@@ -147,6 +147,8 @@ export const Bridge = {
   clipboardClear: () => call<void>("clipboard_clear"),
   /** The app in front, and the text selected in it (⚡ suggestions). */
   foregroundApp: () => call<{ exe: string; title: string } | null>("foreground_app"),
+  /** Is process `pid` still running `exe`? (A session's agent, hooks.ts → watchSessions.) True when unknown. */
+  processAlive: async (pid: number, exe: string) => (await call<boolean>("process_alive", { pid, exe })) ?? true,
   /** The selected text, or why there is none ("no-window" | "no-focus" | "empty" | "not-text"). */
   captureSelection: async (): Promise<{ text: string } | { error: string }> => {
     if (!IS_TAURI) return { error: "empty" };
@@ -166,11 +168,15 @@ export const Bridge = {
   /** Impostazioni → Automazioni: the last runs and "Prova ora". */
   automationsLog: () => call<{ at: number; name: string; cause: string; ok: boolean; detail: string }[]>("automations_log"),
   automationRunNow: (id: string) => callOrThrow<void>("automation_run_now", { id }),
-  /** "File caricati": the copies of dropped files kept in the inbox. */
+  /** The tray ("Vassoio"): the copies of dropped files, kept until EasyIsland restarts. */
   inboxList: () => call<{ name: string; path: string; size: number; at: number }[]>("inbox_list"),
   inboxDelete: (name: string) => callOrThrow<void>("inbox_delete", { name }),
   inboxClear: () => call<number>("inbox_clear"),
   inboxOpen: (name: string, reveal: boolean) => callOrThrow<void>("inbox_open", { name, reveal }),
+  /** Drags a file of the tray out of the island into another app (Windows' own drag); resolves when it is over. */
+  inboxDrag: (name: string) => callOrThrow<void>("inbox_drag", { name }),
+  /** Is the left mouse button held (anywhere on the screen)? */
+  mouseButtonDown: () => call<boolean>("mouse_button_down"),
   /** "Estrai…" on a dropped ZIP. `place`: "beside" | "downloads" | "desktop". */
   zipList: (path: string) => callOrThrow<{ count: number; size: number; names: string[] }>("zip_list", { path }),
   zipExtract: (path: string, name: string, place: string, source: string | null) =>
@@ -271,6 +277,8 @@ export interface HookStatus {
   installed: boolean;
   /** settings.json still runs the relay of the old version (Coucou). */
   legacy: boolean;
+  /** Installed, but an event added by a newer version is missing: install again. */
+  outdated?: boolean;
   settingsPath: string;
   hookPath: string;
   hookReady: boolean;
@@ -302,39 +310,69 @@ export interface DragDropPayload {
 }
 
 /**
- * Files dragged onto the island. Only reaches us when the window takes the mouse.
+ * Files dragged onto the island. Only reaches us when the window takes the mouse,
+ * and only a drop near the island itself counts (`accepts`; the window takes a
+ * held mouse near the island only, see DROP_MARGIN in src-tauri/src/island.rs).
  *
  * The page takes the drop itself (HTML5): Tauri's native drop target is never
  * reached on current WebView2 runtimes. A `File` has no path in the page, so
  * the files go back to Rust with postMessageWithAdditionalObjects, and Rust
  * answers with `file-drop` and their real paths (src-tauri/src/drop.rs).
  */
-export async function onDragDrop(handler: (e: DragDropPayload) => void) {
+export async function onDragDrop(handler: (e: DragDropPayload) => void, accepts: (x: number, y: number) => boolean) {
   if (!IS_TAURI) return () => {};
   const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
   // dragenter/dragleave fire for every element crossed: count them.
   let depth = 0;
+  // Over the island (its shape plus a margin, `accepts`) or not. The window is
+  // much larger than the island: a file anywhere else is refused, never taken.
+  let inZone = false;
+  const track = (e: DragEvent) => {
+    // Always cancelled, or WebView2 would open the file in place of the island;
+    // "none" outside the island refuses the drop (the file stays where it was).
+    e.preventDefault();
+    const ok = accepts(e.clientX, e.clientY);
+    if (e.dataTransfer) e.dataTransfer.dropEffect = ok ? "copy" : "none";
+    if (ok && !inZone) {
+      inZone = true;
+      handler({ type: "enter" });
+    } else if (!ok && inZone) {
+      inZone = false;
+      handler({ type: "leave" });
+    }
+    if (ok) handler({ type: "over" });
+  };
   window.addEventListener("dragenter", (e) => {
     if (!hasFiles(e)) return;
-    e.preventDefault();
-    if (depth++ === 0) handler({ type: "enter" });
+    depth++;
+    track(e);
   });
   window.addEventListener("dragover", (e) => {
     if (!hasFiles(e)) return;
-    e.preventDefault();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
-    handler({ type: "over" });
+    track(e);
   });
   window.addEventListener("dragleave", (e) => {
     if (!hasFiles(e)) return;
     if (--depth <= 0) {
       depth = 0;
-      handler({ type: "leave" });
+      if (inZone) {
+        inZone = false;
+        handler({ type: "leave" });
+      }
     }
   });
   window.addEventListener("drop", (e) => {
     e.preventDefault();
     depth = 0;
+    const wasInZone = inZone;
+    inZone = false;
+    // Dropped away from the island: refused, whatever reached the page. (The
+    // last dragover, just before the drop, decided; the drop's own coordinates
+    // are not trusted.)
+    if (!wasInZone) {
+      handler({ type: "drop", paths: [] });
+      return;
+    }
     const files = Array.from(e.dataTransfer?.files ?? []);
     const webview = (window as unknown as {
       chrome?: { webview?: { postMessageWithAdditionalObjects?: (m: unknown, o: File[]) => void } };

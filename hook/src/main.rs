@@ -46,6 +46,7 @@ const MAX_FIELD_LEN: usize = 2_000;
 mod agents;
 mod diff;
 mod mcp;
+mod testrun;
 mod win;
 
 /// `\\.\pipe\easyisland-<sid>`. The SID keeps two accounts on the same machine from
@@ -351,6 +352,20 @@ fn read_event() -> Option<(String, String, Option<serde_json::Value>, Option<ser
                     input.remove(k);
                 }
             }
+        }
+    }
+    // The agent's own process, so the island notices a session that died
+    // without SessionEnd (a closed terminal). Not for the island's own chat.
+    if !map.contains_key("easyisland_chat") {
+        #[cfg(windows)]
+        if let Some((pid, exe)) = win::agent_process() {
+            map.insert("easyisland_pid".into(), serde_json::json!({ "pid": pid, "exe": exe }));
+        }
+    }
+    // A test run: what its output really said (testrun.rs).
+    if event == "PostToolUse" || event == "PostToolUseFailure" {
+        if let Some(t) = testrun::verdict(&event, map) {
+            map.insert("easyisland_tests".into(), t);
         }
     }
     if event == "Stop" {

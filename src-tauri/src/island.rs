@@ -38,6 +38,10 @@ pub const WINDOW_LABEL: &str = "island";
 /// Margin around the island that still counts as "on the island", in logical px.
 /// Wider than the macOS 6 pt because a click must never be swallowed.
 const HIT_MARGIN: f64 = 14.0;
+/// How far around the island shape a dragged file is still taken (same value
+/// in src/core/bridge.ts → onDragDrop). Beyond it the window lets the drag
+/// through, to whatever is underneath.
+const DROP_MARGIN: f64 = 24.0;
 /// How often the island takes the front back from the taskbar, when it sits over it.
 const RAISE_EVERY: Duration = Duration::from_millis(150);
 /// Beyond this distance from the island (logical px) the cursor is sampled at 20 Hz.
@@ -148,7 +152,7 @@ fn cursor_physical() -> Option<(f64, f64)> {
 
 /// True while the left mouse button is held — the only signal we get that a
 /// drag might be in flight before it reaches the window.
-fn left_button_down() -> bool {
+pub fn left_button_down() -> bool {
     unsafe { (GetAsyncKeyState(VK_LBUTTON.0 as i32) as u16 & 0x8000) != 0 }
 }
 
@@ -624,18 +628,20 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
 
                 // A file being dragged has to be able to find us. WS_EX_TRANSPARENT
                 // — what click-through is on Windows — hides the window from
-                // WindowFromPoint, so OLE finds no drop target and shows the "no
-                // drop" cursor. macOS has no such problem: AppKit delivers drags to
-                // registered destinations whatever ignoresMouseEvents says. So while
-                // a button is held anywhere over the panel, the whole panel takes
-                // the mouse, which also makes the drop zone as forgiving as the Mac's.
+                // WindowFromPoint, so OLE finds no drop target. So while a button is
+                // held *near the island* (its shape plus DROP_MARGIN), the window
+                // takes the mouse. Only there: the whole panel used to, and the panel
+                // is much larger than the island (and grows when a drag opens it), so
+                // a file dragged near the top of the screen and dropped somewhere else
+                // was swallowed. Elsewhere the drag goes through to the app below.
                 let down = left_button_down();
 
-                let dragging = down
-                    && x >= 0.0
-                    && x <= size.0
-                    && y >= 0.0
-                    && y <= size.1;
+                let near_island = r.w > 0.0
+                    && x >= r.x - DROP_MARGIN
+                    && x <= r.x + r.w + DROP_MARGIN
+                    && y >= r.y - DROP_MARGIN
+                    && y <= r.y + r.h + DROP_MARGIN;
+                let dragging = down && near_island && x >= 0.0 && x <= size.0 && y >= 0.0 && y <= size.1;
 
                 // Collapsed, the whole window is the rest icon or the wake strip,
                 // and it must always take the mouse. Checked here too because

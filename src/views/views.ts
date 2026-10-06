@@ -14,10 +14,14 @@ import { buildChoose, buildFiles, buildUnzip, buildUpload, buildUploading } from
 import { buildDiff } from "./diff";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, type ActionHandlers } from "./actions";
+import { planSummary, planText } from "../island/plan";
+import { permissionModeLabel } from "../island/hooks";
+import { renderMarkdown } from "../core/markdown";
+import { Bridge } from "../core/bridge";
 
 export interface ViewActions extends ActionHandlers {
   setView(v: IslandViewName): void;
-  /** "File caricati": the history of dropped files. */
+  /** The tray ("Vassoio"): the files dropped since EasyIsland started. */
   openFiles(): void;
   refreshFiles(): void;
   askAboutFile(f: { name: string; path: string }): void;
@@ -312,7 +316,15 @@ function buildOverview(actions: ViewActions): ViewHost {
           h("span", { class: "name", text: task.name }),
           h("span", { class: "tool", text: task.agentName ?? (task.source === "claudeCode" ? "Claude Code" : "n8n") }),
         );
-        if (task.steps.length > 1) {
+        // Plan mode, edits accepted on their own, no confirmations at all.
+        const permMode = permissionModeLabel(task.permissionMode);
+        if (permMode) who.append(h("span", { class: permMode.warn ? "mode-badge warn" : "mode-badge", text: permMode.text, title: permMode.tip }));
+        // The agent's plan when it has one ("2/4", the list in the tooltip),
+        // otherwise where the ticker is among the last steps.
+        const plan = planSummary(task.plan);
+        if (plan) {
+          who.append(h("span", { class: "count plan", text: `${plan.done}/${plan.total}`, title: planText(task.plan) }));
+        } else if (task.steps.length > 1) {
           who.append(h("span", {
             class: "count",
             text: `${Math.min(task.stepIndex + 1, task.steps.length)}/${task.steps.length}`,
@@ -467,8 +479,13 @@ function buildApproval(actions: ViewActions): ViewHost {
   const code = h("div", { class: "code" });
   // What "Sempre" saves, said before the click (Claude Code's own proposal).
   const always = h("div", { class: "always-hint" });
+  // A command that deletes, force-pushes, publishes… said in words (island/risk.ts).
+  const risk = h("div", { class: "risk-hint" });
+  // ExitPlanMode: the plan, rendered, scrolling inside the card.
+  const plan = h("div", { class: "plan-box md" });
+  let planShown = "";
   const row = h("div", { class: "actions" });
-  const el = h("div", { class: "view" }, card("amber", stack(116, 16, who, code, always, row)));
+  const el = h("div", { class: "view" }, card("amber", stack(116, 16, who, risk, code, plan, always, row)));
   let rowKey = "";
   return {
     el,
@@ -480,12 +497,23 @@ function buildApproval(actions: ViewActions): ViewHost {
           h("span", { text: "vuole usare un connettore" })));
       } else {
         const t = State.focusTask;
-        who.append(agentWho(t, t?.agentName ? `· ${t.agentName} chiede un permesso` : "chiede un permesso"));
+        const asks = State.pendingApproval?.plan ? "ha un piano pronto" : "chiede un permesso";
+        who.append(agentWho(t, t?.agentName ? `· ${t.agentName} ${asks}` : asks));
       }
       // The whole point of approving here rather than in the terminal: this line
       // is the command, the file path or the URL being authorised, not just the
       // name of the tool asking.
       code.textContent = State.pendingApproval?.command || State.pendingApproval?.tool || "…";
+      const planText = State.pendingApproval?.plan ?? "";
+      if (planText !== planShown) {
+        planShown = planText;
+        plan.replaceChildren(...(planText ? renderMarkdown(planText, { openUrl: (u) => void Bridge.openUrl(u) }) : []));
+        plan.scrollTop = 0;
+      }
+      plan.style.display = planText ? "" : "none";
+      const risks = State.pendingApproval?.risks ?? [];
+      risk.textContent = risks.map((r) => `⚠ ${r}`).join("\n");
+      risk.style.display = risks.length ? "" : "none";
       const rule = State.pendingApproval?.source === "chat" ? undefined : State.pendingApproval?.always;
       always.textContent = rule ? `Sempre: ${rule}` : "";
       always.style.display = rule ? "" : "none";
@@ -504,7 +532,8 @@ function buildApproval(actions: ViewActions): ViewHost {
       row.append(btn("Consenti", "primary", () => actions.decide("allow"), "Y"));
     },
     // The "Sempre" line can wrap: grow rather than slide under the buttons.
-    fitHeight: () => who.offsetHeight + code.offsetHeight + always.offsetHeight + row.offsetHeight + 3 * 5 + 8 + 20,
+    fitHeight: () => who.offsetHeight + risk.offsetHeight + code.offsetHeight + plan.offsetHeight + always.offsetHeight
+      + row.offsetHeight + (3 + (risk.offsetHeight ? 1 : 0) + (plan.offsetHeight ? 1 : 0)) * 5 + 8 + 20,
   };
 }
 
@@ -582,6 +611,19 @@ function buildAsk(actions: ViewActions): ViewHost {
       go.addEventListener("click", () => {
         if (picked.size) next(q, q.options.map((o) => o.label).filter((l) => picked.has(l)).join(", "));
       });
+      // Anything the buttons cannot say: typed here, sent as the answer.
+      const other = h("input", { class: "ask-other", type: "text", placeholder: "Altro… scrivi la risposta e premi Invio" }) as HTMLInputElement;
+      other.addEventListener("pointerdown", () => void Bridge.focusWindow(true));
+      other.addEventListener("focus", () => void Bridge.focusWindow(true));
+      other.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        const text = other.value.trim();
+        if (!text) return;
+        void Bridge.focusWindow(false);
+        next(q, text);
+      });
+      options.append(other);
       foot.append(h("button", { class: "link-btn", text: "Rispondi nel terminale", onclick: () => actions.handToTerminal() }));
       if (q.multiSelect) foot.append(go);
     },

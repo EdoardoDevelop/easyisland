@@ -38,11 +38,11 @@ export function buildUpload(actions: ViewActions): ViewHost {
     { class: "drop-tags" },
     ...["PDF", "Immagini", "Codice", "Documenti"].map((t) => h("span", { text: t })),
   );
-  // The history of what was dropped, kept in the inbox for a week.
+  // The tray: what was dropped since EasyIsland started.
   const history = h("button", {
-    class: "drop-history", title: "Cronologia dei file rilasciati sull'isola",
+    class: "drop-history", title: "I file rilasciati sull'isola: da trascinare in un'altra app, aprire o chiedere a Claude",
     onclick: () => actions.openFiles(),
-  }, h("span", { text: "File caricati" }), h("span", { class: "arrow", text: "›" }));
+  }, h("span", { text: "Vassoio" }), h("span", { class: "arrow", text: "›" }));
   // A picture of the screen instead of a file: Windows' own snipping overlay.
   const capture = h("button", {
     class: "drop-history drop-capture", title: "Cattura una zona dello schermo e chiedi a Claude",
@@ -143,7 +143,8 @@ export function buildChoose(actions: ViewActions): ViewHost {
         h("button", {
           class: "btn secondary",
           text: "Annulla",
-          onclick: () => actions.setView(State.defaultView()),
+          // The file is already in the tray: show it there.
+          onclick: () => actions.openFiles(),
         }),
       );
     },
@@ -246,36 +247,38 @@ function ago(ms: number): string {
 }
 
 /**
- * "File caricati": the copies of the files dropped on the island (the inbox,
- * swept after a week). Open, show in the folder, ask about it again, delete
- * one or all. The originals are never touched.
+ * The tray ("Vassoio"): the copies of the files dropped on the island (the
+ * inbox), emptied every time EasyIsland starts. Drag one out into another app,
+ * open it, show it in the folder, ask about it again, take one or all of them
+ * out. The originals are never touched.
  */
 export function buildFiles(actions: ViewActions): ViewHost {
   const count = h("span", { class: "files-count" });
   const clearAll = h("button", { class: "files-clear" }) as HTMLButtonElement;
   const head = h("div", { class: "files-head" },
     h("button", { class: "files-back", title: "Indietro", text: "‹", onclick: () => actions.setView("upload") }),
-    h("b", { text: "File caricati" }), count, clearAll);
+    h("b", { text: "Vassoio" }), count, clearAll);
   const list = h("div", { class: "files-list" });
   const note = h("div", { class: "files-note",
-    text: "Sono copie: gli originali restano dove sono. Si cancellano da sole dopo una settimana." });
+    text: "Trascina un file in un'altra app per usarlo. Sono copie: gli originali restano dove sono. Il vassoio si svuota quando EasyIsland si riavvia." });
   const body = h("div", { class: "files-body" }, head, list, note);
   const el = h("div", { class: "view" }, h("div", { class: "card files-card" }, body));
 
-  let key = "";
+  // Null until the first draw: an empty tray must still draw its message.
+  let key: string | null = null;
   let confirming = false;
   let confirmTimer = 0;
 
   const resetClear = () => {
     confirming = false;
-    clearAll.textContent = "Elimina tutti";
+    clearAll.textContent = "Svuota";
     clearAll.classList.remove("confirm");
   };
   clearAll.addEventListener("click", async () => {
     if (!confirming) {
       // Two clicks: everything goes at once, and there is no undo.
       confirming = true;
-      clearAll.textContent = "Sicuro? Clic per eliminare";
+      clearAll.textContent = "Sicuro? Clic per svuotare";
       clearAll.classList.add("confirm");
       window.clearTimeout(confirmTimer);
       confirmTimer = window.setTimeout(resetClear, 3500);
@@ -306,13 +309,13 @@ export function buildFiles(actions: ViewActions): ViewHost {
       clearAll.style.display = files.length ? "" : "none";
       clear(list);
       if (files.length === 0) {
-        list.append(h("div", { class: "files-empty", text: "Nessun file. Quelli che rilasci sull'isola compaiono qui." }));
+        list.append(h("div", { class: "files-empty", text: "Il vassoio è vuoto. I file che rilasci sull'isola restano qui finché EasyIsland è aperto." }));
         return;
       }
       for (const f of files) {
         const err = h("span", { class: "files-err" });
         const fail = (e: unknown) => { err.textContent = String(e).replace(/^Error:\s*/, ""); };
-        list.append(h("div", { class: "files-row", title: "Doppio clic: apri",
+        const row = h("div", { class: "files-row", title: "Trascina in un'altra app · doppio clic: apri",
           ondblclick: () => void Bridge.inboxOpen(f.name, false).catch(fail) },
         h("div", { class: "files-info" },
           h("span", { class: "files-name", text: f.name }),
@@ -322,9 +325,24 @@ export function buildFiles(actions: ViewActions): ViewHost {
           iconBtn("chat", "Chiedi a Claude su questo file", "#A78BFA", () => actions.askAboutFile(f)),
           iconBtn("file", "Apri", "#38BDF8", () => void Bridge.inboxOpen(f.name, false).catch(fail)),
           iconBtn("folder", "Mostra nella cartella", "#F5A524", () => void Bridge.inboxOpen(f.name, true).catch(fail)),
-          iconBtn("trash", "Elimina", "#F4505E", () => {
+          iconBtn("trash", "Togli dal vassoio", "#F4505E", () => {
             void Bridge.inboxDelete(f.name).then(() => actions.refreshFiles()).catch(fail);
-          }))));
+          })));
+        // Pressed and moved past a few pixels: Windows' drag takes over, so the
+        // file can be dropped in a mail, a chat or a folder.
+        let press: { x: number; y: number } | null = null;
+        row.addEventListener("pointerdown", (e) => {
+          press = e.button === 0 && !(e.target as Element).closest("button") ? { x: e.clientX, y: e.clientY } : null;
+        });
+        row.addEventListener("pointermove", (e) => {
+          if (!press || !(e.buttons & 1) || Math.hypot(e.clientX - press.x, e.clientY - press.y) < 6) return;
+          press = null;
+          // Our own file crossing the island must not open the drop view.
+          State.draggingOut = true;
+          void Bridge.inboxDrag(f.name).catch(fail).finally(() => { State.draggingOut = false; });
+        });
+        row.addEventListener("pointerup", () => { press = null; });
+        list.append(row);
       }
     },
     fitHeight: () => body.offsetHeight + 16,

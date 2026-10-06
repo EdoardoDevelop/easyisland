@@ -61,8 +61,16 @@ function makeRow(onPick: (text: string) => void): Row {
   return row;
 }
 
+/** A test run (hooks.ts → testStep): "✓ Test · …" or "✗ Test · …". */
+const TEST_MARK = /^([✓✗]) (.*)$/;
+
 /** "Modifica · a.ts +12 −3": the name, then the counts in green and red. */
 function fill(el: HTMLElement, text: string) {
+  const t = TEST_MARK.exec(text);
+  if (t) {
+    el.replaceChildren(h("span", { class: t[1] === "✓" ? "diff-add" : "diff-del", text: `${t[1]} ` }), document.createTextNode(t[2]));
+    return;
+  }
   const m = COUNTS.exec(text);
   if (!m) {
     el.textContent = text;
@@ -83,7 +91,8 @@ function setText(row: Row, text: string) {
   fill(row.dim, text);
   const diff = COUNTS.test(text);
   row.el.classList.toggle("has-diff", diff);
-  row.el.title = diff ? "Mostra le modifiche" : "";
+  // A failed test's reason rarely fits the row: all of it on hover.
+  row.el.title = diff ? "Mostra le modifiche" : TEST_MARK.test(text) ? text : "";
 }
 
 /**

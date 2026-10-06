@@ -2,6 +2,7 @@
 
 import type { AnchorH, AnchorV, BotEmoteName, BotStateName, IslandMode, IslandViewName } from "./layout";
 import type { EyeShape } from "../character/engine";
+import type { PlanItem } from "../island/plan";
 
 /** "agent": Codex, Gemini CLI or any tool that sends `easyisland_agent` (hooks.ts). */
 export type AgentSource = "claudeCode" | "n8n" | "agent";
@@ -29,6 +30,12 @@ export interface AgentTask {
   sessionHost?: SessionHost | null;
   /** An agent's own name ("Codex", "Gemini CLI"); `name` is then its project. */
   agentName?: string;
+  /** The agent's plan, rebuilt from its plan tools (src/island/plan.ts). */
+  plan?: PlanItem[];
+  /** Claude Code's permission mode ("plan", "acceptEdits", "bypassPermissions"…), from every event. */
+  permissionMode?: string | null;
+  /** The agent's own process, found by the relay: the session is over when it is gone. */
+  sessionPid?: { pid: number; exe: string } | null;
 }
 
 /** A coding session: Claude Code's task, or another agent's (`agent:<id>`). */
@@ -129,6 +136,12 @@ export interface ApprovalInfo {
    * permission_suggestions); absent when it proposed nothing usable.
    */
   always?: string;
+  /** What deserves a second look before allowing it (src/island/risk.ts). */
+  risks?: string[];
+  /** ExitPlanMode: the plan to approve, in markdown. */
+  plan?: string;
+  /** Tool and what it acts on, as first received: how hooks.ts recognises the same call ran. */
+  target?: string;
 }
 
 /** One question of Claude Code's AskUserQuestion tool. */
@@ -179,6 +192,7 @@ export const PROBE_INTEGRATIONS: Record<string, string> = {
   integration_weather: "weather",
   integration_outlook: "outlook",
   integration_zammad: "zammad",
+  integration_claude_usage: "claude_usage",
 };
 
 /** AgentTask.integrationAgents — same ids, names and colours as macOS. */
@@ -197,6 +211,7 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_weather", "Meteo", "#0EA5E9", "n8n"),
   task("integration_outlook", "Outlook", "#0A84D6", "n8n"),
   task("integration_zammad", "Ticket", "#F59E0B", "n8n"),
+  task("integration_claude_usage", "Consumo", "#D97757", "n8n"),
   task("integration_clipboard", "Appunti", "#A78BFA", "n8n"),
   task("integration_media", "Musica", "#1ED760", "n8n"),
   task("integration_3cx", "3CX", "#0596D4", "n8n"),
@@ -610,11 +625,13 @@ class AppState {
   uploadProgress = 0;
   uploadDuration = 2.4;
   fileDragOver = false;
+  /** A file of the tray is being dragged out: the island ignores it (no drop view, no drop). */
+  draggingOut = false;
 
   promptContext: PromptContext | null = null;
   /** `source`: where the file was dropped from (the copy is in `path`). */
   droppedFile: { name: string; path: string; source?: string } | null = null;
-  /** "File caricati": the inbox, as last listed. */
+  /** The tray ("Vassoio"): the inbox, as last listed. */
   inbox: { name: string; path: string; size: number; at: number }[] | null = null;
   /** "Estrai…" on a dropped ZIP: what is inside, and how the extraction went. */
   unzip: {

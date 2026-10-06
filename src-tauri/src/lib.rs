@@ -32,6 +32,7 @@ mod settings;
 mod threecx;
 mod tray;
 mod updates;
+mod usage;
 mod widgets;
 mod zip;
 mod win_user;
@@ -176,10 +177,16 @@ fn settings_export(shared: State<Shared>) -> Result<String, String> {
         t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute
     ));
     std::fs::write(&path, text).map_err(|e| format!("Esportazione non riuscita: {e}"))?;
-    let _ = Command::new("explorer")
-        .arg(format!("/select,{}", path.display()))
-        .spawn();
+    let _ = reveal_in_explorer(&path);
     Ok(path.display().to_string())
+}
+
+/// Opens Explorer on the folder of `path` with the file selected.
+/// Explorer wants `/select,"C: b\c.txt"`: given as one ordinary argument,
+/// a path with spaces gets quoted whole (`"/select,C: b\c.txt"`), which
+/// Explorer does not understand, and it opens Documents instead.
+fn reveal_in_explorer(path: &std::path::Path) -> std::io::Result<std::process::Child> {
+    Command::new("explorer").raw_arg(format!("/select,\"{}\"", path.display())).spawn()
 }
 
 /// Replaces the settings with an exported file (keys must be entered again).
@@ -737,6 +744,13 @@ fn foreground_app() -> Option<context::Foreground> {
     context::foreground()
 }
 
+/// Is process `pid` still running `exe` ("claude.exe")? A session's agent, so the
+/// island can let go of a session whose terminal was closed without SessionEnd.
+#[tauri::command]
+fn process_alive(pid: u32, exe: String) -> bool {
+    apps::pids_of(&[exe.to_lowercase().as_str()]).contains(&pid)
+}
+
 /// The text selected in the app in front (copied, then the clipboard restored);
 /// the error is a reason code (see `context::selection`).
 #[tauri::command]
@@ -788,7 +802,33 @@ fn automation_run_now(app: AppHandle, id: String) -> Result<(), String> {
     automations::run_now(&app, &id)
 }
 
-/// "File caricati": the copies in the inbox, newest first.
+/// Drags a file of the tray out of the island into another app. Returns when
+/// the drag is over, so the island can ignore its own file meanwhile.
+#[tauri::command]
+async fn inbox_drag(app: AppHandle, name: String) -> Result<(), String> {
+    let path = files::inbox_path(&name)?;
+    let win = island::window(&app).ok_or("Isola non trovata")?;
+    let hwnd = win.hwnd().map_err(|e| e.to_string())?.0 as isize;
+    let (tx, rx) = std::sync::mpsc::channel();
+    // Windows' drag loop belongs on the window's thread.
+    app.run_on_main_thread(move || {
+        let hwnd = windows::Win32::Foundation::HWND(hwnd as *mut _);
+        let _ = tx.send(files::drag_out(hwnd, &path));
+    })
+    .map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || rx.recv().unwrap_or(Ok(())))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Is the left mouse button held? After a file left the island, the island
+/// asks until the drag is over (button released) to close its drop view.
+#[tauri::command]
+fn mouse_button_down() -> bool {
+    island::left_button_down()
+}
+
+/// The tray ("Vassoio"): the copies in the inbox, newest first.
 #[tauri::command]
 fn inbox_list() -> Vec<files::InboxFile> {
     files::list_inbox()
@@ -808,13 +848,8 @@ fn inbox_clear() -> usize {
 #[tauri::command]
 fn inbox_open(name: String, reveal: bool) -> Result<(), String> {
     let path = files::inbox_path(&name)?;
-    let mut cmd = Command::new("explorer");
-    if reveal {
-        cmd.arg(format!("/select,{}", path.display()));
-    } else {
-        cmd.arg(&path);
-    }
-    cmd.spawn().map(|_| ()).map_err(|e| e.to_string())
+    let spawned = if reveal { reveal_in_explorer(&path) } else { Command::new("explorer").arg(&path).spawn() };
+    spawned.map(|_| ()).map_err(|e| e.to_string())
 }
 
 /// "Estrai…" on a dropped ZIP: what is inside.
@@ -1040,9 +1075,12 @@ pub fn run() {
             inbox_delete,
             inbox_clear,
             inbox_open,
+            inbox_drag,
+            mouse_button_down,
             zip_extract,
             foreground_app,
             capture_selection,
+            process_alive,
             open_n8n,
             open_zammad,
             open_settings_window,
@@ -1064,6 +1102,8 @@ pub fn run() {
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             island::spawn_fullscreen_watch(handle.clone(), gate.clone());
             island::spawn_drag_raise(handle.clone(), gate.clone());
+            // The tray is temporary: every start begins with it empty.
+            std::thread::spawn(files::clear_inbox);
             profiles::spawn_auto_switch(handle.clone());
             hotkeys::spawn(handle.clone());
             clipboard::spawn(handle.clone());

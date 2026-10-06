@@ -15,6 +15,74 @@ use windows::Win32::System::Threading::{
     GetCurrentProcess, OpenProcess, OpenProcessToken, PROCESS_QUERY_LIMITED_INFORMATION,
 };
 
+/// Shells and launchers between an agent and its hook: skipped on the way up.
+const SHELLS: &[&str] = &[
+    "bash.exe", "sh.exe", "dash.exe", "zsh.exe", "cmd.exe", "powershell.exe", "pwsh.exe", "conhost.exe",
+    "easyisland-hook.exe", "env.exe", "winpty-agent.exe",
+];
+
+/// The agent that runs this hook (Claude Code, Codex…): the first ancestor that
+/// is not a shell, as (pid, "claude.exe"). The island checks now and then that
+/// it is still running, so a session closed without SessionEnd does not stay
+/// "at work" for ever.
+pub fn agent_process() -> Option<(u32, String)> {
+    use std::collections::HashMap;
+    use windows::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
+    };
+    let mut parents: HashMap<u32, (u32, String)> = HashMap::new();
+    unsafe {
+        let snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0).ok()?;
+        let mut e = PROCESSENTRY32W { dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32, ..Default::default() };
+        let mut ok = Process32FirstW(snap, &mut e).is_ok();
+        while ok {
+            let len = e.szExeFile.iter().position(|c| *c == 0).unwrap_or(e.szExeFile.len());
+            let exe = String::from_utf16_lossy(&e.szExeFile[..len]).to_lowercase();
+            parents.insert(e.th32ProcessID, (e.th32ParentProcessID, exe));
+            ok = Process32NextW(snap, &mut e).is_ok();
+        }
+        let _ = CloseHandle(snap);
+    }
+    ancestor(std::process::id(), &parents)
+}
+
+/// The walk of `agent_process`, apart so it can be tested.
+fn ancestor(me: u32, parents: &std::collections::HashMap<u32, (u32, String)>) -> Option<(u32, String)> {
+    let mut pid = parents.get(&me)?.0;
+    for _ in 0..8 {
+        let (parent, exe) = parents.get(&pid)?;
+        if !SHELLS.contains(&exe.as_str()) {
+            return Some((pid, exe.clone()));
+        }
+        if *parent == pid || *parent == 0 {
+            return None;
+        }
+        pid = *parent;
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_agent_is_the_first_ancestor_that_is_not_a_shell() {
+        let p: std::collections::HashMap<u32, (u32, String)> = [
+            (10, (9, "easyisland-hook.exe".to_string())),
+            (9, (8, "bash.exe".to_string())),
+            (8, (7, "claude.exe".to_string())),
+            (7, (1, "windowsterminal.exe".to_string())),
+        ]
+        .into_iter()
+        .collect();
+        assert_eq!(ancestor(10, &p), Some((8, "claude.exe".to_string())));
+        let orphan: std::collections::HashMap<u32, (u32, String)> =
+            [(10, (9, "easyisland-hook.exe".to_string())), (9, (5, "bash.exe".to_string()))].into_iter().collect();
+        assert_eq!(ancestor(10, &orphan), None);
+    }
+}
+
 /// The SID of the account this process runs as, as `S-1-5-21-…`.
 pub fn current_user_sid() -> Option<String> {
     unsafe { token_sid(GetCurrentProcess()) }

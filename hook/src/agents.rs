@@ -12,6 +12,13 @@
 //!   Code's names, and its "ToolPermission" notification becomes a waiting
 //!   request the island can show (it cannot answer it: Gemini has no hook for that).
 //!
+//! * **Cursor** and **Copilot CLI** — observation hooks only (hooks.rs says
+//!   why): their events become Claude Code's, commands and file edits arrive
+//!   *after* they ran, so they carry `easyisland_after_only` and the island
+//!   adds the step itself. Cursor's `afterFileEdit` becomes a MultiEdit (diff.rs
+//!   makes the diff), `afterShellExecution` a Bash with its output (testrun.rs
+//!   reads the tests).
+//!
 //! Any other tool can send a payload with `easyisland_agent: {"id", "name", "color"}`
 //! and gets its pill too; `sanitize` keeps that field harmless.
 
@@ -22,6 +29,8 @@ fn known(id: &str) -> Option<(&'static str, &'static str)> {
     match id {
         "codex" => Some(("Codex", "#10A37F")),
         "gemini" => Some(("Gemini CLI", "#4285F4")),
+        "cursor" => Some(("Cursor", "#9CA3AF")),
+        "copilot" => Some(("Copilot", "#8957E5")),
         _ => None,
     }
 }
@@ -43,6 +52,12 @@ pub fn normalize(agent: Option<&str>, map: &mut Map<String, Value>) {
         }
         if id == "codex" {
             codex_tools(map);
+        }
+        if id == "cursor" {
+            cursor(map);
+        }
+        if id == "copilot" {
+            copilot(map);
         }
     }
     sanitize(map);
@@ -150,6 +165,141 @@ fn codex_tools(map: &mut Map<String, Value>) {
     }
 }
 
+fn rename(map: &mut Map<String, Value>, from: &str, to: &str) {
+    if let Some(v) = map.remove(from) {
+        map.entry(to.to_string()).or_insert(v);
+    }
+}
+
+fn set_event(map: &mut Map<String, Value>, event: &str) {
+    map.insert("hook_event_name".into(), Value::String(event.to_string()));
+}
+
+/// "/c:/Users/x" (a URI-style Windows path) → "c:/Users/x".
+fn windows_path(p: &str) -> String {
+    let b = p.as_bytes();
+    if b.len() > 3 && b[0] == b'/' && b[1].is_ascii_alphabetic() && b[2] == b':' {
+        p[1..].to_string()
+    } else {
+        p.to_string()
+    }
+}
+
+/// A command or edit reported after it ran: the island adds its step itself.
+fn after(map: &mut Map<String, Value>, tool: &str, input: Value) {
+    set_event(map, "PostToolUse");
+    map.insert("tool_name".into(), Value::String(tool.to_string()));
+    map.insert("tool_input".into(), input);
+    map.insert("easyisland_after_only".into(), Value::Bool(true));
+}
+
+/// Cursor → Claude Code's events. Only the hooks hooks.rs installs.
+fn cursor(map: &mut Map<String, Value>) {
+    let event = map.get("hook_event_name").and_then(Value::as_str).unwrap_or_default().to_string();
+    rename(map, "conversation_id", "session_id");
+    if !map.contains_key("cwd") {
+        if let Some(root) = map.get("workspace_roots").and_then(|r| r.get(0)).and_then(Value::as_str) {
+            let root = windows_path(root);
+            map.insert("cwd".into(), Value::String(root));
+        }
+    }
+    match event.as_str() {
+        "sessionStart" => set_event(map, "SessionStart"),
+        "sessionEnd" => set_event(map, "SessionEnd"),
+        "beforeSubmitPrompt" => set_event(map, "UserPromptSubmit"),
+        "afterShellExecution" => {
+            let command = map.get("command").cloned().unwrap_or(Value::Null);
+            let output = map.remove("output").unwrap_or(Value::Null);
+            map.insert("tool_response".into(), json!({ "stdout": output }));
+            after(map, "Bash", json!({ "command": command }));
+        }
+        "afterFileEdit" => {
+            let file = map.get("file_path").and_then(Value::as_str).map(windows_path).unwrap_or_default();
+            let edits = map.remove("edits").unwrap_or(Value::Array(Vec::new()));
+            after(map, "MultiEdit", json!({ "file_path": file, "edits": edits }));
+        }
+        "afterMCPExecution" => {
+            let server = map.get("mcp_server_name").and_then(Value::as_str).unwrap_or("mcp").to_string();
+            let tool = map.get("tool_name").and_then(Value::as_str).unwrap_or("tool").to_string();
+            let input = map.get("tool_input").cloned().unwrap_or(Value::Null);
+            after(map, &format!("mcp__{server}__{tool}"), input);
+        }
+        "subagentStop" => set_event(map, "SubagentStop"),
+        "preCompact" => set_event(map, "PreCompact"),
+        "stop" => {
+            let failed = map.get("status").and_then(Value::as_str) == Some("error");
+            set_event(map, if failed { "StopFailure" } else { "Stop" });
+        }
+        _ => {}
+    }
+}
+
+/// Copilot CLI (camelCase) → Claude Code's events, fields and tool names.
+fn copilot(map: &mut Map<String, Value>) {
+    let event = map.get("hook_event_name").and_then(Value::as_str).unwrap_or_default().to_string();
+    rename(map, "sessionId", "session_id");
+    rename(map, "toolName", "tool_name");
+    rename(map, "toolArgs", "tool_input");
+    // Some versions send the arguments as a JSON string.
+    if let Some(Value::String(s)) = map.get("tool_input").cloned() {
+        if let Ok(v) = serde_json::from_str::<Value>(&s) {
+            map.insert("tool_input".into(), v);
+        }
+    }
+    let tool = map.get("tool_name").and_then(Value::as_str).unwrap_or_default().to_string();
+    let claude = match tool.as_str() {
+        "bash" | "powershell" | "shell" => "Bash",
+        "view" | "read" => "Read",
+        "edit" | "str_replace" | "str_replace_editor" => "Edit",
+        "create" | "write" => "Write",
+        "grep" => "Grep",
+        "glob" => "Glob",
+        "web_fetch" => "WebFetch",
+        other => other,
+    };
+    if !tool.is_empty() {
+        map.insert("tool_name".into(), Value::String(claude.to_string()));
+    }
+    // Its tools' arguments under Claude Code's names (path → file_path…), for the
+    // step labels and the diff.
+    if let Some(input) = map.get_mut("tool_input").and_then(Value::as_object_mut) {
+        for (from, to) in [("path", "file_path"), ("old_str", "old_string"), ("new_str", "new_string"), ("file_text", "content")] {
+            if let Some(v) = input.get(from).cloned() {
+                input.entry(to.to_string()).or_insert(v);
+            }
+        }
+    }
+    match event.as_str() {
+        "sessionStart" => set_event(map, "SessionStart"),
+        "sessionEnd" => set_event(map, "SessionEnd"),
+        "userPromptSubmitted" => set_event(map, "UserPromptSubmit"),
+        "postToolUse" | "postToolUseFailure" => {
+            let result = map.remove("toolResult").unwrap_or(Value::Null);
+            let failed = event == "postToolUseFailure" || result.get("resultType").and_then(Value::as_str) == Some("failure");
+            let text = result.get("textResultForLlm").cloned().unwrap_or(Value::Null);
+            map.insert("tool_response".into(), json!({ "stdout": text }));
+            map.insert("easyisland_after_only".into(), Value::Bool(true));
+            set_event(map, if failed { "PostToolUseFailure" } else { "PostToolUse" });
+        }
+        "agentStop" => set_event(map, "Stop"),
+        "subagentStop" => set_event(map, "SubagentStop"),
+        "preCompact" => set_event(map, "PreCompact"),
+        "errorOccurred" => {
+            // Only an error the session does not recover from ends it.
+            let fatal = map.get("recoverable").and_then(Value::as_bool) == Some(false);
+            let message = map.get("error").and_then(|e| e.get("message")).and_then(Value::as_str).unwrap_or_default().to_string();
+            map.insert("error".into(), Value::String(message.clone()));
+            if fatal {
+                set_event(map, "StopFailure");
+            } else {
+                set_event(map, "Notification");
+                map.insert("message".into(), Value::String(message));
+            }
+        }
+        _ => {}
+    }
+}
+
 /// The patch text of a Codex `apply_patch`, wherever its input keeps it.
 pub fn patch_text(input: &Value) -> Option<String> {
     fn find(v: &Value) -> Option<String> {
@@ -239,6 +389,57 @@ mod tests {
 
     fn map(v: Value) -> Map<String, Value> {
         v.as_object().unwrap().clone()
+    }
+
+    #[test]
+    fn cursor_events() {
+        let mut shell = map(json!({ "hook_event_name": "afterShellExecution", "conversation_id": "c1",
+            "workspace_roots": ["/c:/Users/x/app"], "command": "npm test", "output": "Tests: 1 failed, 2 passed" }));
+        normalize(Some("cursor"), &mut shell);
+        assert_eq!((shell["hook_event_name"].as_str(), shell["tool_name"].as_str()), (Some("PostToolUse"), Some("Bash")));
+        assert_eq!(shell["tool_input"]["command"], "npm test");
+        assert_eq!(shell["tool_response"]["stdout"], "Tests: 1 failed, 2 passed");
+        assert_eq!((shell["session_id"].as_str(), shell["cwd"].as_str()), (Some("c1"), Some("c:/Users/x/app")));
+        assert_eq!(shell["easyisland_after_only"], true);
+        assert_eq!(shell["easyisland_agent"]["name"], "Cursor");
+
+        let mut edit = map(json!({ "hook_event_name": "afterFileEdit", "file_path": "C:\\x\\a.ts",
+            "edits": [{ "old_string": "a", "new_string": "b" }] }));
+        normalize(Some("cursor"), &mut edit);
+        assert_eq!(edit["tool_name"], "MultiEdit");
+        assert_eq!(edit["tool_input"]["edits"][0]["new_string"], "b");
+
+        let mut stop = map(json!({ "hook_event_name": "stop", "status": "error" }));
+        normalize(Some("cursor"), &mut stop);
+        assert_eq!(stop["hook_event_name"], "StopFailure");
+        let mut prompt = map(json!({ "hook_event_name": "beforeSubmitPrompt", "prompt": "ciao" }));
+        normalize(Some("cursor"), &mut prompt);
+        assert_eq!(prompt["hook_event_name"], "UserPromptSubmit");
+    }
+
+    #[test]
+    fn copilot_events() {
+        let mut post = map(json!({ "hook_event_name": "postToolUse", "sessionId": "s1", "cwd": "C:\\app",
+            "toolName": "bash", "toolArgs": "{\"command\":\"cargo test\"}",
+            "toolResult": { "resultType": "failure", "textResultForLlm": "test result: FAILED. 1 passed; 1 failed" } }));
+        normalize(Some("copilot"), &mut post);
+        assert_eq!((post["hook_event_name"].as_str(), post["tool_name"].as_str()), (Some("PostToolUseFailure"), Some("Bash")));
+        assert_eq!(post["tool_input"]["command"], "cargo test");
+        assert_eq!(post["session_id"], "s1");
+        assert_eq!(post["easyisland_agent"]["name"], "Copilot");
+
+        let mut edit = map(json!({ "hook_event_name": "postToolUse", "toolName": "edit",
+            "toolArgs": { "path": "C:\\a.ts", "old_str": "x", "new_str": "y" }, "toolResult": { "resultType": "success" } }));
+        normalize(Some("copilot"), &mut edit);
+        assert_eq!(edit["tool_name"], "Edit");
+        assert_eq!((edit["tool_input"]["file_path"].as_str(), edit["tool_input"]["new_string"].as_str()), (Some("C:\\a.ts"), Some("y")));
+
+        let mut err = map(json!({ "hook_event_name": "errorOccurred", "error": { "message": "boom" }, "recoverable": true }));
+        normalize(Some("copilot"), &mut err);
+        assert_eq!((err["hook_event_name"].as_str(), err["message"].as_str()), (Some("Notification"), Some("boom")));
+        let mut stop = map(json!({ "hook_event_name": "agentStop", "stopReason": "end_turn" }));
+        normalize(Some("copilot"), &mut stop);
+        assert_eq!(stop["hook_event_name"], "Stop");
     }
 
     #[test]
