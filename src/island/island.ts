@@ -1326,16 +1326,57 @@ export class Island {
       this.restCanvas.height = Math.round(w * dpr);
       this.restCanvas.style.width = `${w}px`;
       this.restCanvas.style.height = `${w}px`;
-      const ctx = this.restCanvas.getContext("2d");
-      if (!ctx) return;
       const engine = new BotEngine();
       engine.bodyColor = this.themeBody();
       engine.setState(state, true);
       engine.update(0);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, w, w);
-      engine.draw(ctx, w, w);
+      this.restEngine = engine;
+      this.paintRest();
     }
+  }
+
+  /** The rest icon's character, kept for the hover hello. */
+  private restEngine: BotEngine | null = null;
+  private restHelloUntil = 0;
+
+  private paintRest() {
+    const ctx = this.restCanvas.getContext("2d");
+    if (!ctx || !this.restEngine) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = this.restCanvas.width / dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, w);
+    this.restEngine.draw(ctx, w, w);
+  }
+
+  /**
+   * The cursor reached the resting character: it hops, looks at you and lifts
+   * a hand. Frames run only for that second and a half, then it is a still
+   * frame again (a resting island runs no animation loop).
+   */
+  private restHello() {
+    const engine = this.restEngine;
+    if (!engine || State.mode !== "hidden" || State.paused || this.placement.iconStyle !== "character") return;
+    const running = performance.now() < this.restHelloUntil;
+    this.restHelloUntil = performance.now() + 1500;
+    engine.lookX = 0;
+    engine.lookY = 0.25;
+    engine.hello();
+    if (running) return;
+    let last = performance.now();
+    const frame = (t: number) => {
+      engine.update(Math.min(0.05, (t - last) / 1000));
+      last = t;
+      this.paintRest();
+      if (t < this.restHelloUntil && State.mode === "hidden") requestAnimationFrame(frame);
+      else {
+        engine.lookX = 0;
+        engine.lookY = 0;
+        engine.update(1);
+        this.paintRest();
+      }
+    };
+    requestAnimationFrame(frame);
   }
 
   /** The character's body colour from the theme; null keeps the slime green. */
@@ -1443,7 +1484,7 @@ export class Island {
       this.scheduleHoverOpen();
     };
     this.wakeStrip.addEventListener("mouseenter", wake);
-    this.restIcon.addEventListener("mouseenter", wake);
+    this.restIcon.addEventListener("mouseenter", () => { wake(); this.restHello(); });
     // The island can be moved in every state: the rest icon, the compact island and,
     // by its header, the open one. A still press keeps doing what it did (open);
     // moving past the threshold drags, and the place is remembered (end_drag).
