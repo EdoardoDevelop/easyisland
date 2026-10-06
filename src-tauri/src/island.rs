@@ -152,7 +152,7 @@ fn cursor_physical() -> Option<(f64, f64)> {
 
 /// True while the left mouse button is held — the only signal we get that a
 /// drag might be in flight before it reaches the window.
-fn left_button_down() -> bool {
+pub fn left_button_down() -> bool {
     unsafe { (GetAsyncKeyState(VK_LBUTTON.0 as i32) as u16 & 0x8000) != 0 }
 }
 

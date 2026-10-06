@@ -173,8 +173,10 @@ export const Bridge = {
   inboxDelete: (name: string) => callOrThrow<void>("inbox_delete", { name }),
   inboxClear: () => call<number>("inbox_clear"),
   inboxOpen: (name: string, reveal: boolean) => callOrThrow<void>("inbox_open", { name, reveal }),
-  /** Drags a file of the tray out of the island into another app (Windows' own drag). */
+  /** Drags a file of the tray out of the island into another app (Windows' own drag); resolves when it is over. */
   inboxDrag: (name: string) => callOrThrow<void>("inbox_drag", { name }),
+  /** Is the left mouse button held (anywhere on the screen)? */
+  mouseButtonDown: () => call<boolean>("mouse_button_down"),
   /** "Estrai…" on a dropped ZIP. `place`: "beside" | "downloads" | "desktop". */
   zipList: (path: string) => callOrThrow<{ count: number; size: number; names: string[] }>("zip_list", { path }),
   zipExtract: (path: string, name: string, place: string, source: string | null) =>

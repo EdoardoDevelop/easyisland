@@ -625,6 +625,8 @@ class AppState {
   uploadProgress = 0;
   uploadDuration = 2.4;
   fileDragOver = false;
+  /** A file of the tray is being dragged out: the island ignores it (no drop view, no drop). */
+  draggingOut = false;
 
   promptContext: PromptContext | null = null;
   /** `source`: where the file was dropped from (the copy is in `path`). */

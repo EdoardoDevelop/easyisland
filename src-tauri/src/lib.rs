@@ -796,20 +796,30 @@ fn automation_run_now(app: AppHandle, id: String) -> Result<(), String> {
     automations::run_now(&app, &id)
 }
 
-/// Drags a file of the tray out of the island into another app.
+/// Drags a file of the tray out of the island into another app. Returns when
+/// the drag is over, so the island can ignore its own file meanwhile.
 #[tauri::command]
-fn inbox_drag(app: AppHandle, name: String) -> Result<(), String> {
+async fn inbox_drag(app: AppHandle, name: String) -> Result<(), String> {
     let path = files::inbox_path(&name)?;
     let win = island::window(&app).ok_or("Isola non trovata")?;
     let hwnd = win.hwnd().map_err(|e| e.to_string())?.0 as isize;
+    let (tx, rx) = std::sync::mpsc::channel();
     // Windows' drag loop belongs on the window's thread.
     app.run_on_main_thread(move || {
         let hwnd = windows::Win32::Foundation::HWND(hwnd as *mut _);
-        if let Err(e) = files::drag_out(hwnd, &path) {
-            crate::log::line(e);
-        }
+        let _ = tx.send(files::drag_out(hwnd, &path));
     })
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || rx.recv().unwrap_or(Ok(())))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Is the left mouse button held? After a file left the island, the island
+/// asks until the drag is over (button released) to close its drop view.
+#[tauri::command]
+fn mouse_button_down() -> bool {
+    island::left_button_down()
 }
 
 /// The tray ("Vassoio"): the copies in the inbox, newest first.
@@ -1065,6 +1075,7 @@ pub fn run() {
             inbox_clear,
             inbox_open,
             inbox_drag,
+            mouse_button_down,
             zip_extract,
             foreground_app,
             capture_selection,

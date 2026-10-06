@@ -336,7 +336,9 @@ export function buildFiles(actions: ViewActions): ViewHost {
         row.addEventListener("pointermove", (e) => {
           if (!press || !(e.buttons & 1) || Math.hypot(e.clientX - press.x, e.clientY - press.y) < 6) return;
           press = null;
-          void Bridge.inboxDrag(f.name).catch(fail);
+          // Our own file crossing the island must not open the drop view.
+          State.draggingOut = true;
+          void Bridge.inboxDrag(f.name).catch(fail).finally(() => { State.draggingOut = false; });
         });
         row.addEventListener("pointerup", () => { press = null; });
         list.append(row);
