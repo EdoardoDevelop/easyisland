@@ -1,6 +1,6 @@
 # Handoff — EasyIsland (solo Windows)
 
-_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 5 ottobre 2026 (versione 0.5.7: tooltip, 3CX, Outlook, testo selezionato). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
+_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 6 ottobre 2026 (versione 0.5.8 preparata, non ancora pubblicata). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
 
 > Questo file va tenuto **sempre aggiornato**: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al **Registro delle modifiche** (sezione 10), con data, cosa è cambiato e cosa resta aperto.
 
@@ -267,6 +267,9 @@ Pensate per il supporto IT sul notebook, ma utili anche a casa.
 Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLAUDE.md, poi facciamo il diff in tempo reale (6.6, punto 1)"_, _"proviamo dal vivo le automazioni"_ oppure _"valutiamo un'idea della sezione 7"_. Per una nuova versione: stesso numero nei tre file, unione di `claude/sviluppo` in `main`, tag `vX.Y.Z`. `CLAUDE.md` viene caricato in automatico e contiene già struttura e regole. A fine lavoro aggiorna questo file (stato e registro).
 
 ## 10. Registro delle modifiche
+
+### 6 ottobre 2026 — versione 0.5.8 (preparata)
+- Versione **0.5.8** nei tre file (più `package-lock.json` e `Cargo.lock`) su `claude/sviluppo`, **non ancora** unita in `main` né taggata. Rispetto alla 0.5.7: piano dell'agente ("2/4"), esito vero dei test, avvisi di rischio sui permessi; integrazione Consumo Claude; Cursor e Copilot CLI (solo osservazione); card del permesso chiusa se rispondi nel terminale, piano da approvare, risposta libera alle domande, silenzio se guardi già la sessione, compattazione e modalità di permesso (reinstallare gli hook di Claude Code per PreCompact), sessioni morte ripulite; Vassoio temporaneo con trascinamento verso altre app; correzioni del trascinamento (file presi solo sopra l'isola, isola che si richiude, vassoio che non apre il caricamento), "Annulla" che porta al vassoio, "Mostra nella cartella" con spazi nel nome. Provato da Edoardo su questo PC (build installata il 6 ottobre).
 
 ### 6 ottobre 2026 — "Annulla" porta al vassoio, "Mostra nella cartella" corretto
 - **Annulla dopo il rilascio** (segnalato da Edoardo): in "Cosa vuoi farne?" (canvas di `src/upload/canvas.ts` e vista `buildChoose`) "Annulla" portava alla home; ora apre il Vassoio, dove il file già si trova. Se la copia non è ancora finita quando si preme Annulla, il vassoio si aggiorna appena arriva (`swallow` → `refreshFiles`).
