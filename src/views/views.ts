@@ -126,10 +126,21 @@ export function buildHeader(actions: ViewActions): ViewHost {
     State.summary = true;
     go("overview");
   } }, svg(ICONS.house, 16));
-  const tabClaude = h("button", { class: "tab int-tab", "data-id": "tab:claude", title: "Claude Code", style: "--c:#D97757", onclick: () => {
+  const tabClaude = h("button", { class: "tab", "data-id": "tab:claude", title: "Claude Code", style: "--c:#D97757", onclick: () => {
     State.setFocus("integration_claude");
     go("overview");
-  } }, h("span", { text: "Claude Code" }));
+  } });
+  // Icon (default), name or emoji: Impostazioni → Claude → Scheda nell'isola.
+  let claudeLook: string | null = null;
+  const drawClaudeTab = () => {
+    const look = State.settings.integrationTabIcons?.integration_claude?.trim() ?? "";
+    if (look === claudeLook) return;
+    claudeLook = look;
+    tabClaude.className = look === "@name" ? "tab int-tab" : look ? "tab int-tab icon" : "tab";
+    tabClaude.replaceChildren(look === "@name" ? h("span", { text: "Claude Code" })
+      : look ? h("span", { class: "int-tab-icon", text: look }) : svg(ICONS.spark, 15));
+  };
+  drawClaudeTab();
   const tabChat = h("button", { class: "tab", "data-id": "tab:chat", title: "Chiedi", style: "--c:#A78BFA", onclick: () => go("prompt") }, svg(ICONS.bubble, 16));
   const tabDrop = h("button", { class: "tab", "data-id": "tab:drop", title: "Rilascia", style: "--c:#22C55E", onclick: () => go("upload") }, svg(ICONS.plus, 16));
   const tabActions = h("button", { class: "tab", "data-id": "tab:actions", title: "Azioni", style: "--c:#F5A524", onclick: () => go("actions") }, svg(ICONS.bolt, 16));
@@ -168,6 +179,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
       const v = State.view;
       const overview = v === "overview" || v === "empty";
       tabHome.classList.toggle("on", overview && showsSummary());
+      drawClaudeTab();
       tabClaude.classList.toggle("on", overview && !showsSummary() && State.focusId === "integration_claude");
       const tabs = State.tabTasks;
       const icons = State.settings.integrationTabIcons ?? {};

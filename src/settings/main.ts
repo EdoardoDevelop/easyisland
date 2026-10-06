@@ -229,7 +229,41 @@ function claudeSection(status: HookStatus, tool: HookTool = "claude", refreshFir
 
   if (refreshFirst) void rebuild();
   else draw();
+  if (tool === "claude") section.append(claudeTabRow());
   return section;
+}
+
+/**
+ * How the Claude Code tab looks in the island's header: its icon (the
+ * default), its name, or an emoji. Kept in integrationTabIcons like the other
+ * tabs: missing = the icon, "@name" = the name, anything else = that emoji.
+ */
+function claudeTabRow(): HTMLElement {
+  const id = "integration_claude";
+  const icons = () => (settings.integrationTabIcons ??= {});
+  const cur = icons()[id];
+  const place = h("select", {},
+    h("option", { value: "icon", text: "Icona" }),
+    h("option", { value: "name", text: "Nome" }),
+    h("option", { value: "emoji", text: "Emoji o lettere" })) as HTMLSelectElement;
+  place.value = !cur ? "icon" : cur === "@name" ? "name" : "emoji";
+  const emoji = h("input", {
+    type: "text", maxlength: "4", spellcheck: "false", style: "width:56px;text-align:center",
+    title: "Un'emoji o una o due lettere", placeholder: "✳",
+    value: cur && cur !== "@name" ? cur : "",
+  }) as HTMLInputElement;
+  const apply = () => {
+    emoji.style.display = place.value === "emoji" ? "" : "none";
+    if (place.value === "icon") delete icons()[id];
+    else if (place.value === "name") icons()[id] = "@name";
+    else icons()[id] = emoji.value.trim() || (emoji.value = "✳");
+  };
+  emoji.style.display = place.value === "emoji" ? "" : "none";
+  place.addEventListener("change", () => { apply(); void save(); });
+  emoji.addEventListener("change", () => { apply(); void save(); });
+  return h("div", { class: "row" },
+    h("label", { text: "Scheda nell'isola" }), place, emoji,
+    h("span", { class: "hint note", text: "come appare la scheda Claude Code in alto" }));
 }
 
 // ── Claude chat section ───────────────────────────────────────────────────────

@@ -73,7 +73,7 @@ Il registro completo fino al 6 ottobre 2026 è in `HANDOFF-archivio.md`. Le nuov
 
 ### 6 ottobre 2026 — correzioni dalla prova di Edoardo
 - **EasyTech** prende il colore del tema e quello dell'integrazione in primo piano (`wearsIntegrationColor: true`); senza, resta il logo.
-- **Panoramica (⌂)** = riepilogo di tutte le integrazioni (`State.summary`, `renderSummary` in `views.ts`; clic su una riga → la sua card). **Claude Code** ha una scheda fissa sua (`tab:claude`) e non è più una pillola; "VS Code" rinominato "Claude Code" ovunque.
+- **Panoramica (⌂)** = riepilogo di tutte le integrazioni (`State.summary`, `renderSummary` in `views.ts`; clic su una riga → la sua card). **Claude Code** ha una scheda fissa sua (`tab:claude`) e non è più una pillola (aspetto: icona ✳ di serie, nome o emoji in Impostazioni → Claude → "Scheda nell'isola", salvato in `integrationTabIcons.integration_claude`, `@name` = nome); "VS Code" rinominato "Claude Code" ovunque.
 - **Schermi secondari:** trascinando il personaggio su un altro schermo `screen` diventa `monitor:<nome>` (`island::screen_for_drop`, `end_drag`); torna al principale se lo schermo manca.
 - **3CX:** Recenti/Perse hanno un titolo con ✕, e lo stesso link richiude l'elenco.
 - **«Apri»:** destinazioni per PC (Gestione attività), Sicurezza, Rete, Appunti, Meteo, Outlook, 3CX (`open_integration` in `lib.rs`, solo bersagli fissi); dove non c'è nulla da aprire il pulsante non compare (`canOpen`).
