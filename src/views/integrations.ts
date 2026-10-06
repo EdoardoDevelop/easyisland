@@ -4,7 +4,7 @@
 // Cal.com is the one simplification: macOS shows a three-level calendar
 // (month → day → booking); here it is the list of upcoming bookings.
 
-import { h, svg, clear, dot } from "./dom";
+import { h, svg, clear, dot, brandOrDot } from "./dom";
 import { ICONS } from "./icons";
 import { State, PROBE_INTEGRATIONS, sessionOpenLabel, type AgentTask } from "../core/state";
 import { Bridge } from "../core/bridge";
@@ -21,8 +21,15 @@ export function timeAgo(value: unknown): string {
   return `${Math.floor(diff / 86400)}g`;
 }
 
+/** Card titles that are not the task's own name, mapped to the brand logo's id. */
+const BRAND_BY_NAME: Record<string, string> = {
+  Vercel: "integration_vercel", Resend: "integration_resend", GitHub: "integration_github", Stripe: "integration_stripe",
+  Notion: "integration_notion", n8n: "integration_n8n",
+};
+
 function header(color: string, name: string, kind: string, extra?: Node): HTMLElement {
-  const row = h("div", { class: "int-head" }, dot(color, 7), h("b", { text: name }), h("span", { text: kind }));
+  const id = BRAND_BY_NAME[name] ?? State.tasks.find((t) => t.name === name)?.id ?? "";
+  const row = h("div", { class: "int-head" }, brandOrDot(id, color, 7), h("b", { text: name }), h("span", { text: kind }));
   if (extra) row.append(extra);
   return row;
 }

@@ -5,7 +5,7 @@
 // The card is rebuilt whenever the PBX sends news; the dialer is one element
 // kept across rebuilds, so typing is never interrupted by an incoming update.
 
-import { h, svg, clear, dot } from "./dom";
+import { h, svg, clear, dot, brandOrDot } from "./dom";
 import { ICONS } from "./icons";
 import { State, type AgentTask } from "../core/state";
 import { Bridge, type ThreecxCall, type ThreecxContact, type ThreecxHistoryItem } from "../core/bridge";
@@ -281,7 +281,7 @@ export function threecxCard(task: AgentTask, openSettings: () => void): HTMLElem
   const missed = (d.missed ?? 0) > 0
     ? h("button", { class: "tcx-missed", title: "Chiamate perse", onclick: () => dialer?.show("missed") }, `${d.missed} perse`)
     : null;
-  const head = h("div", { class: "int-head" }, dot(task.color, 7), h("b", { text: "3CX" }), statusBtn);
+  const head = h("div", { class: "int-head" }, brandOrDot(task.id, task.color, 7), h("b", { text: "3CX" }), statusBtn);
   if (missed) head.append(missed);
 
   const chips = h("div", { class: "tcx-chips" });

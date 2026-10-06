@@ -3296,3 +3296,6 @@ input[type="range"]::-webkit-slider-thumb {
   transition: opacity 0.12s;
 }
 .files-list.grid .files-row:hover .files-tools { opacity: 1; }
+
+/* Brand logos (src/views/brands.ts) in place of the coloured dots. */
+svg.brand { flex: 0 0 auto; color: #f5f6f8; }

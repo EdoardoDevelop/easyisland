@@ -43,7 +43,7 @@ Isola in alto (o dove la trascini) con un personaggio (Slime, Goccia o EasyTech)
 
 ## 5. Problemi noti
 
-- **Loghi delle integrazioni:** ancora pallini colorati. Edoardo ha offerto gli SVG dei marchi (GitHub, Stripe, Vercel, Notion, n8n, Resend, Cal.com, Zammad, 3CX, Outlook, Claude): da disegnare nelle pillole, nelle schede e nella Panoramica.
+- **Loghi mancanti:** Cal.com, Meteo, Rete, PC, Sicurezza, Appunti, Musica, Consumo usano ancora il pallino colorato; per aggiungerne uno: SVG in `brand/`, una riga nella mappa di `scripts/gen-brands.mjs`, `node scripts/gen-brands.mjs`.
 - **CPU con "Sempre visibile":** circa 9–10 % col mouse in movimento, 4 % fermo. Margini: sguardo a 20 fps, finestra più piccola dell'attuale 720×560 quando l'isola è compatta.
 - **Sopra la barra:** cliccando la barra o aprendo Start il personaggio va dietro; ora torna davanti a ogni cambio di finestra in primo piano (0, 120, 470, 1270 ms). Da verificare dal vivo che basti con Start aperto (la barra di Windows 11 sta in una banda più alta).
 - **Cattura una zona:** Esc nello Strumento di cattura non si vede; la cattura annullata resta in ascolto fino a 60 s.
@@ -80,7 +80,8 @@ Il registro completo fino al 6 ottobre 2026 è in `HANDOFF-archivio.md`. Le nuov
 - **«Annulla» su un file rilasciato** ora annulla davvero: toglie la copia dal vassoio e torna indietro (`cancelDrop`, `dropSeq` per la copia che arriva dopo).
 - **Vassoio:** pulsante griglia/elenco (ricordato in `localStorage`).
 - **Dimensione dell'isola:** `islandZoom` (80–160 %, del PC) in Impostazioni → Posizione, con "Predefinita", e Ctrl+rotellina sull'isola aperta. È lo zoom della WebView; in Rust ogni conversione pagina↔schermo passa da `island::scale_of`/`zoom()`. Da provare dal vivo (Rust non compilato qui).
-- Aperti: loghi SVG dei marchi; prova dal vivo di schermi secondari, Start, zoom.
+- **Loghi dei marchi** (3CX, Claude, GitHub, n8n, Notion, Outlook, Resend, Stripe, Vercel, Zammad): copiati da `brand/` in `src/views/brands.ts` come SVG nel codice (`scripts/gen-brands.mjs`, viewBox ritagliati, nero → `currentColor`); l'app non legge mai `brand/`. Usati da `brandOrDot` nelle intestazioni delle card, nelle schede, nella Panoramica e come icona della scheda Claude Code; le pillole restano col personaggio.
+- Aperti: prova dal vivo di schermi secondari, Start, zoom.
 
 ### 6 ottobre 2026 — handoff ridotto
 - `HANDOFF.md` ridotto al minimo per riprendere il lavoro; la versione completa (roadmap 6.1–6.6, analisi 3CX, idee del 2 ottobre, registro dal 1° al 6 ottobre) è in `HANDOFF-archivio.md`, non più aggiornata.

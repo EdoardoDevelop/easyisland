@@ -3,7 +3,7 @@
 // identically.
 
 import { isSorting, sortable } from "./sortable";
-import { h, svg, clear, dot } from "./dom";
+import { h, svg, clear, dot, brandIcon, brandOrDot } from "./dom";
 import { ICONS } from "./icons";
 import { Ticker } from "./ticker";
 import { State, canOpen, engineLabel, isSessionTask, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
@@ -138,7 +138,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
     claudeLook = look;
     tabClaude.className = look === "@name" ? "tab int-tab" : look ? "tab int-tab icon" : "tab";
     tabClaude.replaceChildren(look === "@name" ? h("span", { text: "Claude Code" })
-      : look ? h("span", { class: "int-tab-icon", text: look }) : svg(ICONS.spark, 15));
+      : look ? h("span", { class: "int-tab-icon", text: look }) : brandIcon("integration_claude", 15) ?? svg(ICONS.spark, 15));
   };
   drawClaudeTab();
   const tabChat = h("button", { class: "tab", "data-id": "tab:chat", title: "Chiedi", style: "--c:#A78BFA", onclick: () => go("prompt") }, svg(ICONS.bubble, 16));
@@ -197,7 +197,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
               State.setFocus(t.id);
               actions.setView("overview");
             },
-          }, icon ? h("span", { class: "int-tab-icon", text: icon }) : dot(t.color, 8),
+          }, icon ? h("span", { class: "int-tab-icon", text: icon }) : brandOrDot(t.id, t.color, 8),
             icon ? null : h("span", { text: t.name })));
         }
         // Dragged order first; the rest as usual: fixed tabs, then integrations.
@@ -433,7 +433,7 @@ function renderSummary(actions: ViewActions): HTMLElement {
     const label = pillLabel(t);
     const status = t.steps.length ? t.steps[t.steps.length - 1] : t.state === "idle" ? "" : t.state;
     const row = h("button", { class: "summary-row", title: label.title ?? t.name, onclick: () => actions.setFocus(t.id) },
-      dot(t.color, 8),
+      brandOrDot(t.id, t.color, 8),
       h("span", { class: "summary-name", text: label.text }),
       h("span", { class: "summary-status", text: status }));
     if (t.pillBadge) row.classList.add(`badge-${t.pillBadge}`);
