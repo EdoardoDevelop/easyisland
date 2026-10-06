@@ -142,6 +142,12 @@ export function buildChoose(actions: ViewActions): ViewHost {
         })),
         h("button", {
           class: "btn secondary",
+          text: "Vassoio",
+          title: "Tieni il file nel vassoio",
+          onclick: () => actions.openFiles(),
+        }),
+        h("button", {
+          class: "btn secondary",
           text: "Annulla",
           onclick: () => actions.cancelDrop(),
         }),
