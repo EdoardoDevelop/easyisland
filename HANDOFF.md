@@ -1,12 +1,12 @@
 # Handoff — EasyIsland (solo Windows)
 
-_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 6 ottobre 2026 (versione 0.5.8 preparata, non ancora pubblicata). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
+_Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 6 ottobre 2026 (versione 0.5.8: vassoio, permessi, Consumo Claude, Cursor e Copilot). Branch di lavoro: `claude/sviluppo`; branch principale: `main`._
 
 > Questo file va tenuto **sempre aggiornato**: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al **Registro delle modifiche** (sezione 10), con data, cosa è cambiato e cosa resta aperto.
 
 ## 1. Com'è il progetto adesso
 
-**Versione pubblicata: 0.5.7** (tag `v0.5.7`, 5 ottobre 2026; repository pubblico `EdoardoDevelop/easyisland`, le app installate dalla 0.2.0 in poi si aggiornano da sole dopo un clic).
+**Versione pubblicata: 0.5.8** (tag `v0.5.8`, 6 ottobre 2026; repository pubblico `EdoardoDevelop/easyisland`, le app installate dalla 0.2.0 in poi si aggiornano da sole dopo un clic).
 
 **Cosa fa oggi, in breve:**
 - **Isola con personaggio** (Slime, Goccia o EasyTech, il cubo) in alto al centro o dove la trascini, con vista compatta, aggancio ai bordi, sopra la barra delle applicazioni, suoni sintetizzati nel codice.
@@ -110,8 +110,8 @@ _Punto di partenza: 1 ottobre 2026. Ultimo aggiornamento: 6 ottobre 2026 (versio
 
 **Distribuzione:**
 - [x] Release su GitHub dai tag `vX.Y.Z` con aggiornamento automatico firmato (2 ottobre 2026). La versione deve coincidere in `package.json`, `Cargo.toml` e `tauri.conf.json` (la CI lo controlla). Passi in README → Pubblicare una versione.
-- [x] Repository pubblico (`EdoardoDevelop/easyisland`) e secret `TAURI_SIGNING_PRIVATE_KEY`: le release dalla 0.3.0 alla 0.5.7 sono state pubblicate dalla CI (verificato il 4 ottobre 2026).
-- [ ] Sul repo c'è anche un tag `windows-latest` con la release "EasyIsland per Windows (ultima)" del 2 ottobre (0.2.0), probabilmente creato per sbaglio. Non dà fastidio all'updater, che legge `releases/latest` (oggi la 0.5.7), ma può confondere chi scarica a mano: valutare se eliminarlo.
+- [x] Repository pubblico (`EdoardoDevelop/easyisland`) e secret `TAURI_SIGNING_PRIVATE_KEY`: le release dalla 0.3.0 alla 0.5.8 sono state pubblicate dalla CI (verificato il 4 ottobre 2026).
+- [ ] Sul repo c'è anche un tag `windows-latest` con la release "EasyIsland per Windows (ultima)" del 2 ottobre (0.2.0), probabilmente creato per sbaglio. Non dà fastidio all'updater, che legge `releases/latest` (oggi la 0.5.8), ma può confondere chi scarica a mano: valutare se eliminarlo.
 - [ ] Firma del codice (certificato Authenticode o Azure Trusted Signing, circa 10 $/mese). Senza, SmartScreen avvisa al primo download manuale e Defender ha già dato un falso positivo una volta. Gli aggiornamenti scaricati dall'app non passano da SmartScreen.
 - La chiave privata dell'updater è fuori dal repo (`%USERPROFILE%\.tauri\easyisland.key`, senza password): **va conservata**, se si perde le app installate non accettano più aggiornamenti. Conviene una copia di backup fuori dal PC (chiavetta o gestore di password), oltre al secret su GitHub che non si può rileggere.
 
@@ -268,8 +268,8 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 
 ## 10. Registro delle modifiche
 
-### 6 ottobre 2026 — versione 0.5.8 (preparata)
-- Versione **0.5.8** nei tre file (più `package-lock.json` e `Cargo.lock`) su `claude/sviluppo`, **non ancora** unita in `main` né taggata. Rispetto alla 0.5.7: piano dell'agente ("2/4"), esito vero dei test, avvisi di rischio sui permessi; integrazione Consumo Claude; Cursor e Copilot CLI (solo osservazione); card del permesso chiusa se rispondi nel terminale, piano da approvare, risposta libera alle domande, silenzio se guardi già la sessione, compattazione e modalità di permesso (reinstallare gli hook di Claude Code per PreCompact), sessioni morte ripulite; Vassoio temporaneo con trascinamento verso altre app; correzioni del trascinamento (file presi solo sopra l'isola, isola che si richiude, vassoio che non apre il caricamento), "Annulla" che porta al vassoio, "Mostra nella cartella" con spazi nel nome. Provato da Edoardo su questo PC (build installata il 6 ottobre).
+### 6 ottobre 2026 — versione 0.5.8
+- Versione **0.5.8** nei tre file (più `package-lock.json` e `Cargo.lock`), `claude/sviluppo` unito in `main`, tag `v0.5.8`. Rispetto alla 0.5.7: piano dell'agente ("2/4"), esito vero dei test, avvisi di rischio sui permessi; integrazione Consumo Claude; Cursor e Copilot CLI (solo osservazione); card del permesso chiusa se rispondi nel terminale, piano da approvare, risposta libera alle domande, silenzio se guardi già la sessione, compattazione e modalità di permesso (reinstallare gli hook di Claude Code per PreCompact), sessioni morte ripulite; Vassoio temporaneo con trascinamento verso altre app; correzioni del trascinamento (file presi solo sopra l'isola, isola che si richiude, vassoio che non apre il caricamento), "Annulla" che porta al vassoio, "Mostra nella cartella" con spazi nel nome. Provato da Edoardo su questo PC (build installata il 6 ottobre).
 
 ### 6 ottobre 2026 — "Annulla" porta al vassoio, "Mostra nella cartella" corretto
 - **Annulla dopo il rilascio** (segnalato da Edoardo): in "Cosa vuoi farne?" (canvas di `src/upload/canvas.ts` e vista `buildChoose`) "Annulla" portava alla home; ora apre il Vassoio, dove il file già si trova. Se la copia non è ancora finita quando si preme Annulla, il vassoio si aggiorna appena arriva (`swallow` → `refreshFiles`).
