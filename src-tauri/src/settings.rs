@@ -311,9 +311,12 @@ pub struct Settings {
     /// Place the island over the whole screen, taskbar included.
     #[serde(default)]
     pub over_taskbar: bool,
-    /// Size of the whole island (1 = as designed): the webview's zoom.
-    #[serde(default = "default_zoom")]
-    pub island_zoom: f64,
+    /// Width of the open island, logical px (the front end clamps it to the window).
+    #[serde(default = "default_island_width")]
+    pub island_width: f64,
+    /// Minimum height of the open island, logical px; 0 = each view's own.
+    #[serde(default)]
+    pub island_height: f64,
     /// ✕ in the open island's header.
     #[serde(default = "default_true")]
     pub close_button: bool,
@@ -442,8 +445,8 @@ fn default_hotkey_ask() -> String {
 fn default_hotkey_clipboard() -> String {
     "Ctrl+Alt+H".into()
 }
-fn default_zoom() -> f64 {
-    1.0
+fn default_island_width() -> f64 {
+    640.0
 }
 
 fn default_hotkey_screenshot() -> String {
@@ -533,7 +536,8 @@ impl Default for Settings {
             offset_y: 0.0,
             glue_edges: true,
             over_taskbar: false,
-            island_zoom: 1.0,
+            island_width: default_island_width(),
+            island_height: 0.0,
             close_button: true,
             follow_cursor_compact: false,
             presence_meeting: true,

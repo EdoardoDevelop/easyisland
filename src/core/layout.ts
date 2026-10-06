@@ -87,6 +87,9 @@ export const NOTCH_W = 184;
 export const NOTCH_H = 32;
 export const COMPACT_W = 288; // NOTCH_W + 104
 export const EXPANDED_W = 640;
+/** Bounds for the user's width of the open island (it must fit the window). */
+export const ISLAND_MIN_W = 560;
+export const ISLAND_MAX_W = PANEL_W - 2 * 8;
 
 export const ROUNDED_CORNER = 14; // hidden / compact
 export const EXPANDED_CORNER = 22;

@@ -11,6 +11,7 @@ import { CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Automation, ty
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
 import { h, clear } from "../views/dom";
 import { BRAND_SVG } from "../views/brands";
+import { ISLAND_MAX_W, ISLAND_MIN_W, MAX_ISLAND_H } from "../core/layout";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
@@ -1017,10 +1018,14 @@ function placementSection(): HTMLElement {
     h("div", { class: "row" }, h("label", { text: "Schermo" }), screen),
     h("div", { class: "row" }, h("label", { text: "Posizione" }), vertical, horizontal),
     h("div", { class: "row" },
-      h("label", { text: "Dimensione" }),
-      slider(80, 160, 5, Math.round((settings.islandZoom ?? 1) * 100), "%", (v) => { settings.islandZoom = v / 100; commit(); }),
-      h("button", { text: "Predefinita", onclick: () => { settings.islandZoom = 1; commit(); render(); } }),
-      h("span", { class: "hint note", text: "tutta l'isola, personaggio compreso; anche con Ctrl + rotellina sull'isola aperta" }),
+      h("label", { text: "Larghezza" }),
+      slider(ISLAND_MIN_W, ISLAND_MAX_W, 8, Math.round(settings.islandWidth ?? 640), "px", (v) => { settings.islandWidth = v; commit(); }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Altezza minima" }),
+      slider(0, MAX_ISLAND_H, 8, Math.round(settings.islandHeight ?? 0), "px", (v) => { settings.islandHeight = v; commit(); }),
+      h("button", { text: "Predefinite", onclick: () => { settings.islandWidth = 640; settings.islandHeight = 0; commit(); render(); } }),
+      h("span", { class: "hint note", text: "dell'isola aperta; 0 = ogni vista con la sua altezza. Si regolano anche trascinando l'angolo in basso dell'isola aperta (doppio clic: predefinite)" }),
     ),
     h("div", { class: "row" },
       h("label", { text: "Sopra la barra" }),

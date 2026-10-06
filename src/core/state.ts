@@ -299,8 +299,10 @@ export interface Settings {
   glueEdges: boolean;
   /** Use the whole screen, taskbar included, instead of the work area. */
   overTaskbar: boolean;
-  /** Size of the whole island (1 = as designed): the webview's zoom, 0.8…1.6. */
-  islandZoom: number;
+  /** Width of the open island, px (dragged with its corner, or Impostazioni → Posizione). */
+  islandWidth: number;
+  /** Minimum height of the open island, px; 0 = each view's own height. */
+  islandHeight: number;
   /** ✕ in the open island's header. */
   closeButton: boolean;
   /** The compact view follows the cursor too (the open island always does). */
@@ -568,7 +570,8 @@ export const DEFAULT_SETTINGS: Settings = {
   offsetY: 0,
   glueEdges: true,
   overTaskbar: false,
-  islandZoom: 1,
+  islandWidth: 640,
+  islandHeight: 0,
   closeButton: true,
   followCursorCompact: false,
   presenceMeeting: true,

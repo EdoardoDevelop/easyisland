@@ -101,8 +101,7 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
             || current.anchor_v != settings.anchor_v
             || current.offset_x != settings.offset_x
             || current.offset_y != settings.offset_y
-            || current.over_taskbar != settings.over_taskbar
-            || current.island_zoom != settings.island_zoom;
+            || current.over_taskbar != settings.over_taskbar;
         let autostart_changed = current.autostart != settings.autostart;
         *current = settings.clone();
         (screen_changed, autostart_changed)
@@ -360,7 +359,7 @@ fn drag_island(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) {
     shared.gate.dragging.store(true, Ordering::Relaxed);
     let Some(win) = island::window(&app) else { return };
     let Ok(pos) = win.outer_position() else { return };
-    let scale = win.scale_factor().unwrap_or(1.0) * island::zoom();
+    let scale = win.scale_factor().unwrap_or(1.0);
     let _ = win.set_position(tauri::PhysicalPosition::new(
         pos.x + (dx * scale).round() as i32,
         pos.y + (dy * scale).round() as i32,

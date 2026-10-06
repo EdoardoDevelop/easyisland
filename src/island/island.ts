@@ -4,7 +4,7 @@
 import { Tracked, Spring, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop } from "../core/bridge";
 import {
-  EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, NOTCH_W, PANEL_H, PANEL_W,
+  EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_MAX_W, ISLAND_MIN_W, MAX_ISLAND_H, NOTCH_W, PANEL_H, PANEL_W,
   ROUNDED_CORNER, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
   chatPromptHeight, collapsedBox, compactSize, cornerRadii, glueFor, isGlued, islandSize,
   type IslandMode, type IslandViewName, type Placement,
@@ -41,6 +41,8 @@ const LOOK_FRAME_MS = 33;
 const DRAG_THRESHOLD = 4;
 
 /** The three views the drop sequence owns; leaving them stops the engine. */
+/** Views drawn at a fixed size: the user's width and height do not apply. */
+const FIXED_SIZE_VIEWS: ReadonlySet<IslandViewName> = new Set(["greeting", "upload", "uploading", "choose"]);
 const UPLOAD_VIEWS: ReadonlySet<IslandViewName> = new Set(["upload", "uploading", "choose"]);
 
 /**
@@ -71,6 +73,8 @@ export class Island {
   private wakeStrip!: HTMLElement;
   /** What stays on screen while the island is hidden (the character or a dot). */
   private restIcon!: HTMLElement;
+  /** Corner of the open island that sets its width and height. */
+  private resizeGrip = h("div", { id: "island-resize", title: "Trascina per cambiare larghezza e altezza · doppio clic: predefinite" });
   private restCanvas!: HTMLCanvasElement;
   private restDot!: HTMLElement;
   private restKey = "";
@@ -301,6 +305,7 @@ export class Island {
       this.botCanvas,
       this.miniGrid,
       this.countdown,
+      this.resizeGrip,
     );
 
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -1202,7 +1207,14 @@ export class Island {
   private targetSize(): { w: number; h: number; r: number } {
     const compact = compactSize(this.placement);
     const fit = this.fit.view === State.view ? this.fit.h : 0;
-    const { w, h } = islandSize(State.mode, State.view, State.chatHistory.length, compact, fit);
+    let { w, h } = islandSize(State.mode, State.view, State.chatHistory.length, compact, fit);
+    // The user's size of the open island (its corner, or Impostazioni → Posizione).
+    // Greeting and drop sequence are drawn at a fixed size and keep theirs.
+    if (State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view)) {
+      const s = State.settings;
+      w = Math.round(Math.min(ISLAND_MAX_W, Math.max(ISLAND_MIN_W, s.islandWidth || EXPANDED_W)));
+      if (s.islandHeight > 0) h = Math.max(h, Math.min(MAX_ISLAND_H, Math.round(s.islandHeight)));
+    }
     let r = State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
     // The hover badge is a circle; a floating bar is a pill.
     if (State.mode !== "expanded" && this.placement.hoverStyle === "icon") r = compact.w / 2;
@@ -1241,6 +1253,20 @@ export class Island {
     // the state-driven DOM sync.
     this.miniGrid.style.left = `${w - 40 - 14.5}px`;
     this.miniGrid.style.top = `${hh / 2 - 14.5}px`;
+    // The resize corner: opposite the anchored side, on the free edge.
+    const grip = this.resizeGrip.style;
+    const showGrip = State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view) && !this.uploadActive;
+    grip.display = showGrip ? "block" : "none";
+    if (showGrip) {
+      const left = p.h === "right";
+      const up = p.v === "bottom";
+      grip.left = left ? "0px" : "";
+      grip.right = left ? "" : "0px";
+      grip.top = up ? "0px" : "";
+      grip.bottom = up ? "" : "0px";
+      grip.cursor = left !== up ? "nesw-resize" : "nwse-resize";
+      this.resizeGrip.dataset.corner = `${up ? "t" : "b"}${left ? "l" : "r"}`;
+    }
     this.greetingCanvas.style.left = `${(w - EXPANDED_W) / 2}px`;
     this.uploadCanvas.el.style.left = `${(w - EXPANDED_W) / 2}px`;
 
@@ -1336,6 +1362,51 @@ export class Island {
       ctx.clearRect(0, 0, w, w);
       engine.draw(ctx, w, w);
     }
+  }
+
+  /**
+   * The corner opposite the anchored side resizes the open island: width and
+   * a minimum height, saved in the settings on release. A centred island grows
+   * on both sides, so the width moves twice as fast as the pointer.
+   */
+  private wireResize() {
+    const g = this.resizeGrip;
+    let start: { x: number; y: number; w: number; h: number } | null = null;
+    const dirs = () => {
+      const s = State.settings;
+      return { fx: s.anchorH === "right" ? -1 : s.anchorH === "center" ? 2 : 1, fy: s.anchorV === "bottom" ? -1 : 1 };
+    };
+    g.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      e.preventDefault();
+      this.cancelHoverOpen();
+      start = { x: e.screenX, y: e.screenY, w: this.width.value, h: this.height.value };
+      g.setPointerCapture(e.pointerId);
+    });
+    g.addEventListener("pointermove", (e) => {
+      if (!start) return;
+      const { fx, fy } = dirs();
+      const s = State.settings;
+      s.islandWidth = Math.round(Math.min(ISLAND_MAX_W, Math.max(ISLAND_MIN_W, start.w + (e.screenX - start.x) * fx)));
+      s.islandHeight = Math.round(Math.min(MAX_ISLAND_H, Math.max(0, start.h + (e.screenY - start.y) * fy)));
+      State.lastActivity = performance.now();
+      this.animateGeometry(false);
+    });
+    const end = () => {
+      if (!start) return;
+      start = null;
+      void Bridge.saveSettings(State.settings);
+    };
+    g.addEventListener("pointerup", end);
+    g.addEventListener("pointercancel", end);
+    g.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      State.settings.islandWidth = EXPANDED_W;
+      State.settings.islandHeight = 0;
+      this.animateGeometry(false);
+      void Bridge.saveSettings(State.settings);
+    });
   }
 
   /** Until when the hover hello runs (the character looks at the cursor meanwhile). */
@@ -1525,16 +1596,7 @@ export class Island {
       startPress(e, this.islandEl, expanded);
     });
     this.islandEl.addEventListener("pointermove", movePress);
-    // Ctrl + wheel on the open island: bigger or smaller (Impostazioni → Dimensione).
-    this.islandEl.addEventListener("wheel", (e) => {
-      if (!e.ctrlKey || State.mode !== "expanded") return;
-      e.preventDefault();
-      const now = State.settings.islandZoom ?? 1;
-      const next = Math.round(Math.min(1.6, Math.max(0.8, now + (e.deltaY < 0 ? 0.05 : -0.05))) * 100) / 100;
-      if (next === now) return;
-      State.settings.islandZoom = next;
-      void Bridge.saveSettings(State.settings);
-    }, { passive: false });
+    this.wireResize();
     const openFromCompact = () => {
       if (State.mode !== "expanded") this.fsm.click();
     };
@@ -1952,6 +2014,8 @@ export class Island {
     this.applyPlacement();
     this.keepCompactUp();
     this.scheduleWander();
+    // Width or minimum height changed in the settings window.
+    this.animateGeometry(false);
     State.notify();
   }
 
