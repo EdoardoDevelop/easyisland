@@ -177,10 +177,16 @@ fn settings_export(shared: State<Shared>) -> Result<String, String> {
         t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute
     ));
     std::fs::write(&path, text).map_err(|e| format!("Esportazione non riuscita: {e}"))?;
-    let _ = Command::new("explorer")
-        .arg(format!("/select,{}", path.display()))
-        .spawn();
+    let _ = reveal_in_explorer(&path);
     Ok(path.display().to_string())
+}
+
+/// Opens Explorer on the folder of `path` with the file selected.
+/// Explorer wants `/select,"C: b\c.txt"`: given as one ordinary argument,
+/// a path with spaces gets quoted whole (`"/select,C: b\c.txt"`), which
+/// Explorer does not understand, and it opens Documents instead.
+fn reveal_in_explorer(path: &std::path::Path) -> std::io::Result<std::process::Child> {
+    Command::new("explorer").raw_arg(format!("/select,\"{}\"", path.display())).spawn()
 }
 
 /// Replaces the settings with an exported file (keys must be entered again).
@@ -842,13 +848,8 @@ fn inbox_clear() -> usize {
 #[tauri::command]
 fn inbox_open(name: String, reveal: bool) -> Result<(), String> {
     let path = files::inbox_path(&name)?;
-    let mut cmd = Command::new("explorer");
-    if reveal {
-        cmd.arg(format!("/select,{}", path.display()));
-    } else {
-        cmd.arg(&path);
-    }
-    cmd.spawn().map(|_| ()).map_err(|e| e.to_string())
+    let spawned = if reveal { reveal_in_explorer(&path) } else { Command::new("explorer").arg(&path).spawn() };
+    spawned.map(|_| ()).map_err(|e| e.to_string())
 }
 
 /// "Estrai…" on a dropped ZIP: what is inside.

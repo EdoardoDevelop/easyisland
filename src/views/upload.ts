@@ -143,7 +143,8 @@ export function buildChoose(actions: ViewActions): ViewHost {
         h("button", {
           class: "btn secondary",
           text: "Annulla",
-          onclick: () => actions.setView(State.defaultView()),
+          // The file is already in the tray: show it there.
+          onclick: () => actions.openFiles(),
         }),
       );
     },

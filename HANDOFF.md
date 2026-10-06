@@ -268,6 +268,11 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 
 ## 10. Registro delle modifiche
 
+### 6 ottobre 2026 — "Annulla" porta al vassoio, "Mostra nella cartella" corretto
+- **Annulla dopo il rilascio** (segnalato da Edoardo): in "Cosa vuoi farne?" (canvas di `src/upload/canvas.ts` e vista `buildChoose`) "Annulla" portava alla home; ora apre il Vassoio, dove il file già si trova. Se la copia non è ancora finita quando si preme Annulla, il vassoio si aggiorna appena arriva (`swallow` → `refreshFiles`).
+- **"Mostra nella cartella" apriva Documenti** (segnalato da Edoardo): `Command::arg("/select,<percorso>")` racchiude tutto l'argomento tra virgolette quando il percorso ha spazi, ed Esplora file non lo capisce. Nuovo `reveal_in_explorer` in `lib.rs` con `raw_arg("/select,\"<percorso>\"")`, usato dal vassoio e dall'esportazione delle impostazioni (che aveva lo stesso difetto).
+- Verificato: build, test, installato su questo PC (avvio 06:29).
+
 ### 6 ottobre 2026 — vista di caricamento che si chiude, vassoio che non apre il caricamento
 - **Vista di caricamento rimasta aperta** (segnalato da Edoardo): un file che apriva l'isola e poi veniva lasciato altrove lasciava l'isola sulla vista di caricamento. Ora l'isola ricorda com'era prima che il file arrivasse (`beforeDrop`: modo e vista); quando il file esce, `watchDragEnd` chiede ogni 200 ms se il tasto del mouse è ancora premuto (`mouse_button_down` → `island::left_button_down`, solo in quei momenti) e, a trascinamento finito senza ritorno sull'isola, `restoreAfterDrag` la rimette com'era (chiusa se era chiusa, altrimenti la vista di prima). Lo stesso per un rilascio rifiutato.
 - **File preso dal vassoio** (segnalato da Edoardo): trascinarlo fuori apriva la vista di caricamento dell'isola stessa. `inbox_drag` ora risponde solo a trascinamento finito; nel frattempo `State.draggingOut` fa rifiutare a `onDragDrop` quel file (niente vista di caricamento, e l'isola non se lo riprende).

@@ -287,7 +287,8 @@ export class Island {
           : null;
         this.setView("prompt");
       },
-      cancel: () => this.setView(State.defaultView()),
+      // The file is already in the tray: "Annulla" shows it there.
+      cancel: () => void this.openFiles(),
       runAction: (a) => void this.runAction(a),
     });
 
@@ -1125,6 +1126,8 @@ export class Island {
       .then((file) => {
         State.droppedFile = { name: file.name, path: file.path, source: path };
         State.promptContext = { kind: "file", name: file.name, path: file.path };
+        // "Annulla" pressed before the copy landed: the tray shows it now.
+        if (State.view === "files") void this.refreshFiles();
         State.notify();
       })
       .catch((err) => {
