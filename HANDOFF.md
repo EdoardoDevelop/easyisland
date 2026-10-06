@@ -244,6 +244,7 @@ Pensate per il supporto IT sul notebook, ma utili anche a casa.
   3. **Suggerimento ⚡ "Cerca in RDM"** quando il testo selezionato è un nome di server o un IP.
   4. Solo se servirà: elenco delle voci dentro l'isola con apertura diretta (API di Devolutions Server/Hub con una chiave applicativa, oppure il modulo PowerShell per una fonte locale), dipende dalla fonte dati.
   - Già possibile oggi senza codice: azione rapida "Programma / cartella" con `RemoteDesktopManager.exe` e `/DataSource:… /Session:…` (il tipo "Link" accetta solo http/https). Da non fare: legare RDM alla modalità "davanti al cliente", che riguarda chi è collegato al *nostro* PC, non le sessioni che apriamo noi.
+- **3CX + Zammad: i ticket del cliente sulla chiamata in arrivo** _(da fare, 6 ottobre 2026; non dipende da RDM, 3CX e Zammad sono già integrazioni)_. Quando squilla, la card 3CX mostra sotto il chiamante i suoi ticket Zammad aperti (titolo, stato, da quanto), con un clic che apre il ticket in Zammad. Come: dal numero del chiamante cercare il cliente in Zammad (ricerca utenti per telefono/cellulare, con il numero normalizzato: `+39`, spazi, zeri iniziali), poi i suoi ticket non chiusi (o quelli della sua organizzazione). Da verificare sul server di Edoardo: gli endpoint di ricerca di Zammad (`/api/v1/users/search`, `/api/v1/tickets/search`) e se funzionano senza Elasticsearch, come già i conteggi di `zammad.rs` (che usa `ticket_overviews` apposta). Regole: solo con entrambe le integrazioni accese; numeri, nomi e ticket solo in memoria; davanti al cliente (`presence.rs`) niente nomi né titoli, come per la chiamata stessa; nessuna azione su Zammad senza un clic. Possibile seguito: "Nuovo ticket" dalla chiamata, con il cliente già scelto.
 - **Rubrica clienti** _(esclusa per ora, 4 ottobre 2026)_: per ogni cliente collegamenti RDP/AnyDesk/TeamViewer, portali, credenziali (solo riferimenti alla Gestione credenziali), note e azioni rapide dedicate. Si apre cercando il nome dall'isola.
 - **Timer d'intervento** _(escluso per ora, 4 ottobre 2026)_: avvio/stop per cliente dall'isola, riepilogo a fine giornata, rapportino generato da Claude ed esportato (file o connettore scelto).
 - **Libreria di comandi:** comandi PowerShell/cmd usati spesso (es. `gpupdate /force`, reset dello spooler, `sfc /scannow`, diagnostica di rete) da copiare o eseguire con conferma.
@@ -274,7 +275,8 @@ Apri una sessione su questo repo e scrivi, per esempio: _"Leggi HANDOFF.md e CLA
 
 ## 10. Registro delle modifiche
 
-### 6 ottobre 2026 — Remote Desktop Manager tra le cose da fare
+### 6 ottobre 2026 — Remote Desktop Manager e ticket Zammad sulla chiamata tra le cose da fare
+- Aggiunta in sezione 7 anche la voce **3CX + Zammad**: i ticket aperti del cliente sulla card della chiamata in arrivo.
 - Aggiunta l'integrazione **Remote Desktop Manager** in sezione 7 → "Ancora da valutare", con le possibilità di RDM (link `rdm://`, riga di comando, modulo PowerShell) e la proposta in quattro passi. Aperto: dove sta la fonte dati delle voci in azienda.
 
 ### 6 ottobre 2026 — versione 0.5.8
