@@ -143,8 +143,7 @@ export function buildChoose(actions: ViewActions): ViewHost {
         h("button", {
           class: "btn secondary",
           text: "Annulla",
-          // The file is already in the tray: show it there.
-          onclick: () => actions.openFiles(),
+          onclick: () => actions.cancelDrop(),
         }),
       );
     },
@@ -255,10 +254,27 @@ function ago(ms: number): string {
 export function buildFiles(actions: ViewActions): ViewHost {
   const count = h("span", { class: "files-count" });
   const clearAll = h("button", { class: "files-clear" }) as HTMLButtonElement;
+  // Grid or list, remembered on this PC (a convenience: it may come back empty).
+  let grid = false;
+  try { grid = localStorage.getItem("trayLayout") === "grid"; } catch { /* no storage */ }
+  const layoutBtn = h("button", { class: "files-layout" }) as HTMLButtonElement;
+  const showLayout = () => {
+    layoutBtn.textContent = grid ? "☰" : "▦";
+    layoutBtn.title = grid ? "Mostra come elenco" : "Mostra come griglia";
+    list.classList.toggle("grid", grid);
+  };
+  layoutBtn.addEventListener("click", () => {
+    grid = !grid;
+    try { localStorage.setItem("trayLayout", grid ? "grid" : "list"); } catch { /* no storage */ }
+    showLayout();
+    key = null;
+    State.notify();
+  });
   const head = h("div", { class: "files-head" },
     h("button", { class: "files-back", title: "Indietro", text: "‹", onclick: () => actions.setView("upload") }),
-    h("b", { text: "Vassoio" }), count, clearAll);
+    h("b", { text: "Vassoio" }), count, layoutBtn, clearAll);
   const list = h("div", { class: "files-list" });
+  showLayout();
   const note = h("div", { class: "files-note",
     text: "Trascina un file in un'altra app per usarlo. Sono copie: gli originali restano dove sono. Il vassoio si svuota quando EasyIsland si riavvia." });
   const body = h("div", { class: "files-body" }, head, list, note);
@@ -317,8 +333,9 @@ export function buildFiles(actions: ViewActions): ViewHost {
         const fail = (e: unknown) => { err.textContent = String(e).replace(/^Error:\s*/, ""); };
         const row = h("div", { class: "files-row", title: "Trascina in un'altra app · doppio clic: apri",
           ondblclick: () => void Bridge.inboxOpen(f.name, false).catch(fail) },
+        grid ? h("span", { class: "files-ext", text: (f.name.match(/\.([^.]{1,5})$/)?.[1] ?? "file").toUpperCase() }) : null,
         h("div", { class: "files-info" },
-          h("span", { class: "files-name", text: f.name }),
+          h("span", { class: "files-name", text: f.name, title: f.name }),
           h("span", { class: "files-meta", text: `${size(f.size)} · ${ago(f.at)}` }),
           err),
         h("span", { class: "files-tools" },

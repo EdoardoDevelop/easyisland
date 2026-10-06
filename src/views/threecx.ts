@@ -128,6 +128,8 @@ class Dialer {
   }
 
   show(panel: Panel) {
+    // The same link again closes the list.
+    if (panel !== "search" && panel === this.panel) panel = "search";
     this.panel = panel;
     if (panel === "search") {
       this.search();
@@ -135,7 +137,7 @@ class Dialer {
     }
     this.input.value = "";
     clear(this.list);
-    this.list.append(h("div", { class: "int-empty", text: "Carico…" }));
+    this.list.append(this.historyHead(), h("div", { class: "int-empty", text: "Carico…" }));
     const seq = ++this.seq;
     Bridge.threecxHistory(panel === "missed")
       .then((items) => {
@@ -144,7 +146,7 @@ class Dialer {
         refit();
         if (panel === "missed" && (data().missed ?? 0) > 0) void Bridge.threecxResetMissed();
       })
-      .catch((e) => { if (seq === this.seq) { clear(this.list); this.say(message(e)); } });
+      .catch((e) => { if (seq === this.seq) { clear(this.list); this.list.append(this.historyHead()); this.say(message(e)); } });
   }
 
   private search() {
@@ -188,8 +190,16 @@ class Dialer {
       nums);
   }
 
+  /** Title of the recent / missed list, with ✕ back to the search. */
+  private historyHead(): HTMLElement {
+    return h("div", { class: "tcx-list-head" },
+      h("span", { text: this.panel === "missed" ? "Chiamate perse" : "Chiamate recenti" }),
+      h("button", { class: "tcx-list-close", title: "Chiudi l'elenco", onclick: () => this.show("search") }, svg(ICONS.xmark, 9)));
+  }
+
   private renderHistory(items: ThreecxHistoryItem[]) {
     clear(this.list);
+    this.list.append(this.historyHead());
     if (items.length === 0) {
       this.list.append(h("div", { class: "int-empty", text: this.panel === "missed" ? "Nessuna chiamata persa" : "Nessuna chiamata" }));
       return;

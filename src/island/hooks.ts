@@ -391,7 +391,7 @@ function clearSession(tid: string) {
   t.stepIndex = 0;
   t.stepSeq = 0;
   t.lastMessage = null;
-  t.name = t.agentName ?? "VS Code";
+  t.name = t.agentName ?? "Claude Code";
   t.pillBadge = null;
 }
 

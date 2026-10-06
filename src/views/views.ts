@@ -6,7 +6,7 @@ import { isSorting, sortable } from "./sortable";
 import { h, svg, clear, dot } from "./dom";
 import { ICONS } from "./icons";
 import { Ticker } from "./ticker";
-import { State, engineLabel, isSessionTask, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
+import { State, canOpen, engineLabel, isSessionTask, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
 import { ISLAND_CHROME_H, MAX_ISLAND_H, washRGBA, type IslandViewName, type Wash } from "../core/layout";
 import { createMiniBot, pruneMiniBots } from "../character/minibots";
 import { buildPrompt } from "./chat";
@@ -23,6 +23,8 @@ export interface ViewActions extends ActionHandlers {
   setView(v: IslandViewName): void;
   /** The tray ("Vassoio"): the files dropped since EasyIsland started. */
   openFiles(): void;
+  /** "Annulla" on a dropped file: forget it and go back. */
+  cancelDrop(): void;
   refreshFiles(): void;
   askAboutFile(f: { name: string; path: string }): void;
   /** "Cattura una zona": snip a part of the screen and ask Claude about it. */
@@ -120,17 +122,18 @@ function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElem
 
 export function buildHeader(actions: ViewActions): ViewHost {
   const tabHome = h("button", { class: "tab", "data-id": "tab:home", title: "Panoramica", style: "--c:#38BDF8", onclick: () => {
-    // Back from an integration tab: the overview's own card again.
-    if (State.focusId && State.isTab(State.focusId)) {
-      const first = State.tasks.find((t) => !State.isTab(t.id));
-      if (first) State.setFocus(first.id);
-    }
+    // Every integration at a glance; a click on one opens its card.
+    State.summary = true;
     go("overview");
   } }, svg(ICONS.house, 16));
+  const tabClaude = h("button", { class: "tab int-tab", "data-id": "tab:claude", title: "Claude Code", style: "--c:#D97757", onclick: () => {
+    State.setFocus("integration_claude");
+    go("overview");
+  } }, h("span", { text: "Claude Code" }));
   const tabChat = h("button", { class: "tab", "data-id": "tab:chat", title: "Chiedi", style: "--c:#A78BFA", onclick: () => go("prompt") }, svg(ICONS.bubble, 16));
   const tabDrop = h("button", { class: "tab", "data-id": "tab:drop", title: "Rilascia", style: "--c:#22C55E", onclick: () => go("upload") }, svg(ICONS.plus, 16));
   const tabActions = h("button", { class: "tab", "data-id": "tab:actions", title: "Azioni", style: "--c:#F5A524", onclick: () => go("actions") }, svg(ICONS.bolt, 16));
-  const fixedTabs = [tabHome, tabChat, tabActions, tabDrop];
+  const fixedTabs = [tabHome, tabClaude, tabChat, tabActions, tabDrop];
 
   const pinBtn = h("button", { title: "Tieni aperta", style: "--c:#A78BFA", onclick: () => {
     actions.blip();
@@ -164,8 +167,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
     sync() {
       const v = State.view;
       const overview = v === "overview" || v === "empty";
-      const onTab = State.focusId != null && State.isTab(State.focusId);
-      tabHome.classList.toggle("on", overview && !onTab);
+      tabHome.classList.toggle("on", overview && showsSummary());
+      tabClaude.classList.toggle("on", overview && !showsSummary() && State.focusId === "integration_claude");
       const tabs = State.tabTasks;
       const icons = State.settings.integrationTabIcons ?? {};
       const tabOrder = State.settings.tabOrder ?? [];
@@ -300,7 +303,7 @@ function buildOverview(actions: ViewActions): ViewHost {
 
       // VS Code with a live Claude Code session keeps the ticker; every other
       // pill shows its own card, exactly like IntegrationCardView.
-      const sessionActive =
+      const sessionActive = !showsSummary() &&
         isSessionTask(task) && (task!.state !== "idle" || task!.steps.length > 0);
 
       if (task && sessionActive) {
@@ -349,6 +352,14 @@ function buildOverview(actions: ViewActions): ViewHost {
           h("span", { class: "diff-del", text: `−${removed}` }))] : []));
           files.style.display = list.length ? "" : "none";
         }
+      } else if (showsSummary()) {
+        const key = "summary~" + State.tasks.map((t) => `${t.id}:${t.state}:${t.pillBadge ?? ""}:${pillLabel(t).text}:${t.steps.join("|")}`).join("~");
+        if (key !== cardKey) {
+          cardKey = key;
+          mode = "card";
+          clear(leftBody);
+          leftBody.append(renderSummary(actions));
+        }
       } else if (task) {
         const info = State.integrations[task.id];
         const key = [
@@ -365,13 +376,14 @@ function buildOverview(actions: ViewActions): ViewHost {
         }
       }
 
-      jump.style.display = detailOpen ? "none" : "";
+      jump.style.display = detailOpen || showsSummary() || !canOpen(task) ? "none" : "";
 
       // Every pill is shown (the island grows to fit them); alerts go first.
       // An integration opened from its header tab stands alone: pills only on ⌂.
-      const onTab = task != null && State.isTab(task.id);
+      // Claude Code has its own tab too; the summary already lists everything.
+      const onTab = showsSummary() || (task != null && (State.isTab(task.id) || task.id === "integration_claude"));
       // In the user's order (dragged in the island): a pill with an alert keeps its place.
-      const others = onTab ? [] : State.otherTasks;
+      const others = onTab ? [] : State.otherTasks.filter((t) => t.id !== "integration_claude");
       pillCount = others.length;
       const pillKey = others.map((t) => `${t.id}:${t.pillBadge ?? ""}:${pillLabel(t).title ?? pillLabel(t).text}`).join("|");
       if (pillKey !== pillIds && !isSorting(pills)) {
@@ -397,10 +409,31 @@ function buildOverview(actions: ViewActions): ViewHost {
   };
 }
 
+/** The ⌂ tab shows the summary, unless a permission or a question is waiting. */
+function showsSummary(): boolean {
+  return State.summary && !State.pendingApproval;
+}
+
+/** Panoramica: one row per integration (and agent) with its latest line; a click opens its card. */
+function renderSummary(actions: ViewActions): HTMLElement {
+  const grid = h("div", { class: "summary" });
+  for (const t of State.tasks) {
+    const label = pillLabel(t);
+    const status = t.steps.length ? t.steps[t.steps.length - 1] : t.state === "idle" ? "" : t.state;
+    const row = h("button", { class: "summary-row", title: label.title ?? t.name, onclick: () => actions.setFocus(t.id) },
+      dot(t.color, 8),
+      h("span", { class: "summary-name", text: label.text }),
+      h("span", { class: "summary-status", text: status }));
+    if (t.pillBadge) row.classList.add(`badge-${t.pillBadge}`);
+    grid.append(row);
+  }
+  if (!State.tasks.length) grid.append(h("span", { class: "hint", text: "Nessuna integrazione attiva" }));
+  return grid;
+}
+
 /** The pill's text: the song for Musica (name and artist in the tooltip), the name otherwise. */
 function pillLabel(task: AgentTask): { text: string; title?: string; song?: boolean } {
-  if (task.id === "integration_claude") return { text: "VS Code" };
-  if (task.agentName) return { text: task.agentName, title: task.name };
+    if (task.agentName) return { text: task.agentName, title: task.name };
   if (task.id === "integration_media") {
     const d = (State.integrations[task.id]?.data ?? {}) as Record<string, unknown>;
     if (d.active && typeof d.title === "string" && d.title) {

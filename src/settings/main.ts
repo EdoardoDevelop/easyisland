@@ -862,8 +862,11 @@ function slider(
 function placementSection(): HTMLElement {
   const commit = () => void save();
 
+  const screens: [string, string][] = [["primary", "Schermo principale"], ["cursor", "Schermo sotto il cursore"]];
+  // Dragging the character to another display picks that one.
+  if (settings.screen.startsWith("monitor:")) screens.push([settings.screen, `Dove l'hai trascinato (${settings.screen.slice(8).replace(/^\\\\\.\\/, "")})`]);
   const screen = select<Settings["screen"]>(
-    [["primary", "Schermo principale"], ["cursor", "Schermo sotto il cursore"]],
+    screens,
     settings.screen,
     (v) => { settings.screen = v; commit(); },
   );
@@ -974,6 +977,12 @@ function placementSection(): HTMLElement {
     }),
     h("div", { class: "row" }, h("label", { text: "Schermo" }), screen),
     h("div", { class: "row" }, h("label", { text: "Posizione" }), vertical, horizontal),
+    h("div", { class: "row" },
+      h("label", { text: "Dimensione" }),
+      slider(80, 160, 5, Math.round((settings.islandZoom ?? 1) * 100), "%", (v) => { settings.islandZoom = v / 100; commit(); }),
+      h("button", { text: "Predefinita", onclick: () => { settings.islandZoom = 1; commit(); render(); } }),
+      h("span", { class: "hint note", text: "tutta l'isola, personaggio compreso; anche con Ctrl + rotellina sull'isola aperta" }),
+    ),
     h("div", { class: "row" },
       h("label", { text: "Sopra la barra" }),
       toggle(settings.overTaskbar, (v) => { settings.overTaskbar = v; commit(); }),
@@ -2219,17 +2228,12 @@ function themeSection(): HTMLElement {
   const t = settings.theme;
   const commit = () => void save();
   const pct = (v: number) => Math.round(v * 100);
-  // The colour row follows the character: its own colour is the default, and
-  // the cube has none to change (it keeps the logo's).
+  // The colour row follows the character: its own colour is the default (for
+  // the cube, the logo's colours).
   const colorRow = h("div", { class: "row" });
   const drawColorRow = () => {
     clear(colorRow);
     const c = characters().find((x) => x.id === t.character) ?? characters()[0];
-    if (c.kind === "cube") {
-      colorRow.append(h("label", { text: "Colore" }),
-        h("span", { class: "hint note", text: "EasyTech a riposo ha i colori del logo; negli altri stati prende il colore dello stato" }));
-      return;
-    }
     colorRow.append(
       h("label", { text: `Colore di ${c.name}` }),
       colorField(t.slimeColor, rgbHex(c.color), (v) => { t.slimeColor = v; commit(); }, "Il suo"),

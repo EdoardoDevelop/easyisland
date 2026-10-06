@@ -11,7 +11,7 @@ import {
 } from "../core/layout";
 import { suggestionsFor, type Suggestion } from "./context";
 import { Sound } from "../core/sound";
-import { State, isSessionTask } from "../core/state";
+import { OPENED_BY_APP, OPEN_URLS, State, isSessionTask } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
 import { character, setCharacter } from "../character/character";
 import { Greeting } from "../character/greeting";
@@ -164,14 +164,6 @@ export class Island {
       openTarget: () => {
         const task = State.focusTask;
         if (!task) return;
-        const urls: Record<string, string> = {
-          integration_resend: "https://resend.com/emails",
-          integration_vercel: "https://vercel.com/dashboard",
-          integration_github: "https://github.com",
-          integration_stripe: "https://dashboard.stripe.com/payments",
-          integration_notion: "https://notion.so",
-          integration_calcom: "https://app.cal.com/bookings",
-        };
         if (isSessionTask(task)) {
           // A session seen by the hooks goes back to its own app; otherwise VS Code.
           if (task.sessionHost) void Bridge.openSession(task.sessionHost, task.sessionCwd ?? null);
@@ -179,7 +171,8 @@ export class Island {
         }
         else if (task.id === "integration_n8n") void Bridge.openN8n();
         else if (task.id === "integration_zammad") void Bridge.openZammad();
-        else if (urls[task.id]) void Bridge.openUrl(urls[task.id]);
+        else if (OPEN_URLS[task.id]) void Bridge.openUrl(OPEN_URLS[task.id]);
+        else if (OPENED_BY_APP.has(task.id)) void Bridge.openIntegration(task.id);
       },
       openUrl: (url) => {
         if (url) void Bridge.openUrl(url);
@@ -236,6 +229,7 @@ export class Island {
       runSuggestion: (sg, app) => void this.runSuggestion(sg, app),
       extractZip: (place) => void this.extractZip(place),
       openFiles: () => void this.openFiles(),
+      cancelDrop: () => this.cancelDrop(),
       refreshFiles: () => void this.refreshFiles(),
       askAboutFile: (f) => this.askAboutFile(f),
       captureScreen: () => void this.captureScreen(),
@@ -287,8 +281,7 @@ export class Island {
           : null;
         this.setView("prompt");
       },
-      // The file is already in the tray: "Annulla" shows it there.
-      cancel: () => void this.openFiles(),
+      cancel: () => this.cancelDrop(),
       runAction: (a) => void this.runAction(a),
     });
 
@@ -1098,6 +1091,7 @@ export class Island {
    * slow disk can never stall the animation — same as FileDropHandler on macOS.
    */
   private swallow(path: string) {
+    const seq = ++this.dropSeq;
     const name = path.split(/[\\/]/).pop() || "file";
     State.droppedFile = { name, path, source: path };
     State.promptContext = { kind: "file", name, path };
@@ -1124,13 +1118,17 @@ export class Island {
 
     void Bridge.ingestFile(path)
       .then((file) => {
+        // "Annulla" pressed before the copy landed: the copy goes too.
+        if (seq !== this.dropSeq) {
+          void Bridge.inboxDelete(file.name).catch(() => {});
+          return;
+        }
         State.droppedFile = { name: file.name, path: file.path, source: path };
         State.promptContext = { kind: "file", name: file.name, path: file.path };
-        // "Annulla" pressed before the copy landed: the tray shows it now.
-        if (State.view === "files") void this.refreshFiles();
         State.notify();
       })
       .catch((err) => {
+        if (seq !== this.dropSeq) return;
         UploadSeq.deactivate();
         State.noteMessage = String(err).replace(/^Error:\s*/, "");
         this.engine.animateMorph(0);
@@ -1138,6 +1136,21 @@ export class Island {
         Sound.play("error");
         window.setTimeout(() => this.setView(State.defaultView()), 2400);
       });
+  }
+
+  /** Bumped by every drop and by "Annulla": a copy that lands later is dropped. */
+  private dropSeq = 0;
+
+  /** "Annulla" on a dropped file: forget it (its copy leaves the tray) and go back. */
+  private cancelDrop() {
+    const f = State.droppedFile;
+    this.dropSeq++;
+    UploadSeq.deactivate();
+    this.engine.animateMorph(0);
+    if (f && f.path !== f.source) void Bridge.inboxDelete(f.name).catch(() => {});
+    State.droppedFile = null;
+    State.promptContext = null;
+    this.setView(State.defaultView());
   }
 
   /**
@@ -1489,6 +1502,16 @@ export class Island {
       startPress(e, this.islandEl, expanded);
     });
     this.islandEl.addEventListener("pointermove", movePress);
+    // Ctrl + wheel on the open island: bigger or smaller (Impostazioni → Dimensione).
+    this.islandEl.addEventListener("wheel", (e) => {
+      if (!e.ctrlKey || State.mode !== "expanded") return;
+      e.preventDefault();
+      const now = State.settings.islandZoom ?? 1;
+      const next = Math.round(Math.min(1.6, Math.max(0.8, now + (e.deltaY < 0 ? 0.05 : -0.05))) * 100) / 100;
+      if (next === now) return;
+      State.settings.islandZoom = next;
+      void Bridge.saveSettings(State.settings);
+    }, { passive: false });
     const openFromCompact = () => {
       if (State.mode !== "expanded") this.fsm.click();
     };

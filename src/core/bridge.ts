@@ -215,6 +215,8 @@ export const Bridge = {
   /** Opens the configured n8n instance in the browser. */
   openN8n: () => call<void>("open_n8n"),
   openZammad: () => call<void>("open_zammad"),
+  /** "Apri" for the integrations that are a Windows tool or a server (lib.rs, open_integration). */
+  openIntegration: (id: string) => call<boolean>("open_integration", { id }),
 
   // ── 3CX ───────────────────────────────────────────────────────────────────
   threecxCall: (number: string, device: string | null) => callOrThrow<void>("threecx_call", { number, device }),

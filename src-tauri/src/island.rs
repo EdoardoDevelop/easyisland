@@ -156,6 +156,28 @@ pub fn left_button_down() -> bool {
     unsafe { (GetAsyncKeyState(VK_LBUTTON.0 as i32) as u16 & 0x8000) != 0 }
 }
 
+/// The island's zoom (settings.island_zoom, as f64 bits). Every conversion
+/// between the page's px and the screen's goes through `scale_of`, so the
+/// window, the hit area and the drag all grow with the page.
+static ZOOM: AtomicU64 = AtomicU64::new(0x3FF0_0000_0000_0000); // 1.0
+
+pub fn zoom() -> f64 {
+    f64::from_bits(ZOOM.load(Ordering::Relaxed))
+}
+
+/// The settings' zoom, clamped, applied to the webview when it changed.
+fn apply_zoom(win: &WebviewWindow, settings: &Settings) {
+    let z = if settings.island_zoom.is_finite() { settings.island_zoom.clamp(0.8, 1.6) } else { 1.0 };
+    if ZOOM.swap(z.to_bits(), Ordering::Relaxed) != z.to_bits() {
+        let _ = win.set_zoom(z);
+    }
+}
+
+/// Physical px per page px on `m`: its scale times the island's zoom.
+fn scale_of(m: &Monitor) -> f64 {
+    m.scale_factor() * zoom()
+}
+
 fn monitor_contains(m: &Monitor, x: f64, y: f64) -> bool {
     let p = m.position();
     let s = m.size();
@@ -165,9 +187,16 @@ fn monitor_contains(m: &Monitor, x: f64, y: f64) -> bool {
         && y < (p.y + s.height as i32) as f64
 }
 
-/// The display the island lives on: the primary one, or the one under the cursor.
+/// The display the island lives on: the primary one, the one under the cursor,
+/// or the one the character was dragged to ("monitor:<name>"; back to the
+/// primary one while that display is unplugged).
 fn target_monitor(app: &AppHandle, pref: &str) -> Option<Monitor> {
     let monitors = app.available_monitors().ok()?;
+    if let Some(name) = pref.strip_prefix("monitor:") {
+        if let Some(m) = monitors.iter().find(|m| m.name().map(|n| n.as_str()) == Some(name)) {
+            return Some(m.clone());
+        }
+    }
     if pref == "cursor" {
         if let Some((cx, cy)) = cursor_physical() {
             if let Some(m) = monitors.iter().find(|m| monitor_contains(m, cx, cy)) {
@@ -184,7 +213,7 @@ fn target_monitor(app: &AppHandle, pref: &str) -> Option<Monitor> {
 pub fn screen_info(app: &AppHandle, pref: &str) -> ScreenInfo {
     match target_monitor(app, pref) {
         Some(m) => {
-            let scale = m.scale_factor();
+            let scale = scale_of(&m);
             let p = m.position();
             let s = m.size();
             ScreenInfo {
@@ -206,8 +235,9 @@ pub fn screen_info(app: &AppHandle, pref: &str) -> ScreenInfo {
 pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, collapsed: bool) {
     let Some(win) = window(app) else { return };
     let Some(m) = target_monitor(app, &settings.screen) else { return };
+    apply_zoom(&win, settings);
 
-    let scale = m.scale_factor();
+    let scale = scale_of(&m);
     let work = island_area(&m, settings);
 
     let (lw, lh) = if collapsed { *gate.collapsed_size.lock().unwrap() } else { (PANEL_W, PANEL_H) };
@@ -269,7 +299,7 @@ pub fn stop_glide() {
 pub fn glide_home(app: &AppHandle, gate: Arc<PollGate>, settings: &Settings) {
     let Some(win) = window(app) else { return };
     let Some(m) = target_monitor(app, &settings.screen) else { return };
-    let scale = m.scale_factor();
+    let scale = scale_of(&m);
     let work = island_area(&m, settings);
     let size = ((PANEL_W * scale).round() as u32, (PANEL_H * scale).round() as u32);
     let to = home_origin(work, size, settings, scale);
@@ -302,7 +332,7 @@ pub fn glide_home(app: &AppHandle, gate: Arc<PollGate>, settings: &Settings) {
 /// from home, in logical px.
 pub fn panel_offset_from_drop(app: &AppHandle, settings: &Settings, win_origin: (i32, i32), win_size: (u32, u32)) -> Option<(f64, f64)> {
     let m = target_monitor(app, &settings.screen)?;
-    let scale = m.scale_factor();
+    let scale = scale_of(&m);
     let work = island_area(&m, settings);
     let (hx, hy) = home_origin(work, win_size, settings, scale);
     Some(((win_origin.0 - hx) as f64 / scale, (win_origin.1 - hy) as f64 / scale))
@@ -402,10 +432,29 @@ fn island_area(m: &Monitor, settings: &Settings) -> (i32, i32, u32, u32) {
     }
 }
 
+/// The `screen` setting for a character dropped with its centre at (x, y),
+/// physical px: unchanged on the same display (or with "cursor"), otherwise
+/// the display it was dropped on.
+pub fn screen_for_drop(app: &AppHandle, settings: &Settings, x: f64, y: f64) -> String {
+    if settings.screen == "cursor" {
+        return settings.screen.clone();
+    }
+    let Ok(monitors) = app.available_monitors() else { return settings.screen.clone() };
+    let Some(m) = monitors.iter().find(|m| monitor_contains(m, x, y)) else { return settings.screen.clone() };
+    let primary = app.primary_monitor().ok().flatten();
+    if primary.as_ref().map(|p| p.position()) == Some(m.position()) {
+        return "primary".to_string();
+    }
+    match m.name() {
+        Some(name) => format!("monitor:{name}"),
+        None => settings.screen.clone(),
+    }
+}
+
 /// The island's area (physical) and scale on its screen.
 pub fn work_area(app: &AppHandle, settings: &Settings) -> Option<((i32, i32, u32, u32), f64)> {
     let m = target_monitor(app, &settings.screen)?;
-    Some((island_area(&m, settings), m.scale_factor()))
+    Some((island_area(&m, settings), scale_of(&m)))
 }
 
 /// Every two seconds: is a full-screen app in front? Cheap (one shell call),
@@ -456,6 +505,7 @@ pub fn spawn_fullscreen_watch(app: AppHandle, gate: Arc<PollGate>) {
 /// the island takes the front back every 100 ms. One GetAsyncKeyState per tick,
 /// and only while the user wants the island over the taskbar.
 pub fn spawn_drag_raise(app: AppHandle, gate: Arc<PollGate>) {
+    let _ = RAISE_ON_FOREGROUND.set((app.clone(), gate.clone()));
     std::thread::spawn(move || {
         let mut over = false;
         let mut ticks: u32 = 0;
@@ -472,6 +522,30 @@ pub fn spawn_drag_raise(app: AppHandle, gate: Arc<PollGate>) {
             if over && gate.collapsed.load(Ordering::Relaxed) && left_button_down() {
                 raise_over_taskbar(&app);
             }
+        }
+    });
+}
+
+static RAISE_ON_FOREGROUND: std::sync::OnceLock<(AppHandle, Arc<PollGate>)> = std::sync::OnceLock::new();
+
+/// Another window came to the front (context.rs follows the foreground): the
+/// Start menu, the search or a click on the taskbar bring the taskbar forward
+/// and the resting island would stay behind it until the next two-second
+/// raise. Raise now and again while the Start menu finishes opening or closing.
+pub fn on_foreground_change() {
+    let Some((app, gate)) = RAISE_ON_FOREGROUND.get() else { return };
+    let over = app
+        .try_state::<crate::Shared>()
+        .map(|s| s.settings.lock().unwrap().over_taskbar)
+        .unwrap_or(false);
+    if !over || !gate.collapsed.load(Ordering::Relaxed) {
+        return;
+    }
+    let app = app.clone();
+    std::thread::spawn(move || {
+        for ms in [0, 120, 350, 800] {
+            std::thread::sleep(Duration::from_millis(ms));
+            raise_over_taskbar(&app);
         }
     });
 }
@@ -603,7 +677,7 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
 
                 let Some(win) = window(&app) else { continue };
                 let Ok(origin) = win.outer_position() else { continue };
-                let scale = win.scale_factor().unwrap_or(1.0);
+                let scale = win.scale_factor().unwrap_or(1.0) * zoom();
                 let Some((cx, cy)) = cursor_physical() else { continue };
                 let x = (cx - origin.x as f64) / scale;
                 let y = (cy - origin.y as f64) / scale;

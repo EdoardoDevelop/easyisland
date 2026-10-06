@@ -197,7 +197,7 @@ export const PROBE_INTEGRATIONS: Record<string, string> = {
 
 /** AgentTask.integrationAgents — same ids, names and colours as macOS. */
 export const INTEGRATION_AGENTS: AgentTask[] = [
-  task("integration_claude", "VS Code", "#F5F6F8", "claudeCode"),
+  task("integration_claude", "Claude Code", "#F5F6F8", "claudeCode"),
   task("integration_resend", "Resend", "#22C55E", "n8n"),
   task("integration_n8n", "n8n", "#F29B38", "n8n"),
   task("integration_vercel", "Vercel", "#7C5CFF", "n8n"),
@@ -216,6 +216,25 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_media", "Musica", "#1ED760", "n8n"),
   task("integration_3cx", "3CX", "#0596D4", "n8n"),
 ];
+
+/** "Apri" on an integration card: its web dashboard… */
+export const OPEN_URLS: Record<string, string> = {
+  integration_resend: "https://resend.com/emails",
+  integration_vercel: "https://vercel.com/dashboard",
+  integration_github: "https://github.com",
+  integration_stripe: "https://dashboard.stripe.com/payments",
+  integration_notion: "https://notion.so",
+  integration_calcom: "https://app.cal.com/bookings",
+};
+/** …the Windows tool or server it watches (open_integration in lib.rs)… */
+export const OPENED_BY_APP = new Set([
+  "integration_n8n", "integration_zammad", "integration_system", "integration_security",
+  "integration_network", "integration_clipboard", "integration_weather", "integration_outlook", "integration_3cx",
+]);
+/** …and nothing for the others: no "Apri" button there. */
+export function canOpen(t: AgentTask | null): boolean {
+  return !!t && (isSessionTask(t) || !!OPEN_URLS[t.id] || OPENED_BY_APP.has(t.id));
+}
 
 export const TOGGLEABLE_INTEGRATION_IDS = [
   "integration_resend", "integration_n8n", "integration_vercel", "integration_github",
@@ -248,7 +267,8 @@ export interface Settings {
   tabOrder: string[];
   /** No dragging pills and tabs around in the island (this PC). */
   lockOrder: boolean;
-  screen: "primary" | "cursor";
+  /** "primary", "cursor", or "monitor:<name>" (the display the character was dragged to). */
+  screen: string;
   autostart: boolean;
   hooksInstalled: boolean;
   /** Claude model used by the chat with an API key. */
@@ -274,6 +294,8 @@ export interface Settings {
   glueEdges: boolean;
   /** Use the whole screen, taskbar included, instead of the work area. */
   overTaskbar: boolean;
+  /** Size of the whole island (1 = as designed): the webview's zoom, 0.8…1.6. */
+  islandZoom: number;
   /** ✕ in the open island's header. */
   closeButton: boolean;
   /** The compact view follows the cursor too (the open island always does). */
@@ -541,6 +563,7 @@ export const DEFAULT_SETTINGS: Settings = {
   offsetY: 0,
   glueEdges: true,
   overTaskbar: false,
+  islandZoom: 1,
   closeButton: true,
   followCursorCompact: false,
   presenceMeeting: true,
@@ -599,6 +622,8 @@ class AppState {
 
   tasks: AgentTask[] = [];
   focusId: string | null = null;
+  /** The ⌂ tab shows the summary of every integration instead of one card; any focus change leaves it. */
+  summary = true;
 
   stateOverride: BotStateName | null = null;
 
@@ -715,6 +740,7 @@ class AppState {
     const t = this.tasks.find((x) => x.id === id);
     if (!t) return;
     this.focusId = id;
+    this.summary = false;
     t.pillBadge = null;
     this.notify();
   }
@@ -780,7 +806,7 @@ class AppState {
     this.notify();
   }
 
-  /** loadIntegrationTasks() — VS Code always on, the rest opt-in. */
+  /** loadIntegrationTasks() — Claude Code always on, the rest opt-in. */
   loadIntegrationTasks() {
     for (const proto of INTEGRATION_AGENTS) {
       const shouldLoad =

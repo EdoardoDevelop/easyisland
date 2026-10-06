@@ -43,8 +43,9 @@ Isola in alto (o dove la trascini) con un personaggio (Slime, Goccia o EasyTech)
 
 ## 5. Problemi noti
 
+- **Loghi delle integrazioni:** ancora pallini colorati. Edoardo ha offerto gli SVG dei marchi (GitHub, Stripe, Vercel, Notion, n8n, Resend, Cal.com, Zammad, 3CX, Outlook, Claude): da disegnare nelle pillole, nelle schede e nella Panoramica.
 - **CPU con "Sempre visibile":** circa 9–10 % col mouse in movimento, 4 % fermo. Margini: sguardo a 20 fps, finestra più piccola dell'attuale 720×560 quando l'isola è compatta.
-- **Sopra la barra:** cliccando la barra, il personaggio va dietro per circa 0,15 s.
+- **Sopra la barra:** cliccando la barra o aprendo Start il personaggio va dietro; ora torna davanti a ogni cambio di finestra in primo piano (0, 120, 470, 1270 ms). Da verificare dal vivo che basti con Start aperto (la barra di Windows 11 sta in una banda più alta).
 - **Cattura una zona:** Esc nello Strumento di cattura non si vede; la cattura annullata resta in ascolto fino a 60 s.
 - **Copia della selezione:** se negli appunti c'era un'immagine o dei file, dopo la copia non vengono rimessi (si ripristina solo il testo).
 - **Gestione credenziali molto piena:** con centinaia di voci, le credenziali con nomi lunghi vengono rifiutate (`ERROR_NOT_ENOUGH_MEMORY`, errore 8): se il salvataggio di una chiave fallisce, eliminare voci vecchie.
@@ -69,6 +70,17 @@ Verificato solo con i test o nell'anteprima del browser:
 ## 7. Registro
 
 Il registro completo fino al 6 ottobre 2026 è in `HANDOFF-archivio.md`. Le nuove voci vanno qui sotto, la più recente in alto.
+
+### 6 ottobre 2026 — correzioni dalla prova di Edoardo
+- **EasyTech** prende il colore del tema e quello dell'integrazione in primo piano (`wearsIntegrationColor: true`); senza, resta il logo.
+- **Panoramica (⌂)** = riepilogo di tutte le integrazioni (`State.summary`, `renderSummary` in `views.ts`; clic su una riga → la sua card). **Claude Code** ha una scheda fissa sua (`tab:claude`) e non è più una pillola; "VS Code" rinominato "Claude Code" ovunque.
+- **Schermi secondari:** trascinando il personaggio su un altro schermo `screen` diventa `monitor:<nome>` (`island::screen_for_drop`, `end_drag`); torna al principale se lo schermo manca.
+- **3CX:** Recenti/Perse hanno un titolo con ✕, e lo stesso link richiude l'elenco.
+- **«Apri»:** destinazioni per PC (Gestione attività), Sicurezza, Rete, Appunti, Meteo, Outlook, 3CX (`open_integration` in `lib.rs`, solo bersagli fissi); dove non c'è nulla da aprire il pulsante non compare (`canOpen`).
+- **«Annulla» su un file rilasciato** ora annulla davvero: toglie la copia dal vassoio e torna indietro (`cancelDrop`, `dropSeq` per la copia che arriva dopo).
+- **Vassoio:** pulsante griglia/elenco (ricordato in `localStorage`).
+- **Dimensione dell'isola:** `islandZoom` (80–160 %, del PC) in Impostazioni → Posizione, con "Predefinita", e Ctrl+rotellina sull'isola aperta. È lo zoom della WebView; in Rust ogni conversione pagina↔schermo passa da `island::scale_of`/`zoom()`. Da provare dal vivo (Rust non compilato qui).
+- Aperti: loghi SVG dei marchi; prova dal vivo di schermi secondari, Start, zoom.
 
 ### 6 ottobre 2026 — handoff ridotto
 - `HANDOFF.md` ridotto al minimo per riprendere il lavoro; la versione completa (roadmap 6.1–6.6, analisi 3CX, idee del 2 ottobre, registro dal 1° al 6 ottobre) è in `HANDOFF-archivio.md`, non più aggiornata.
