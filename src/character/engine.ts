@@ -349,6 +349,7 @@ export class BotEngine {
       this.waveUntil = 0;
       this.anim("hands", [[0, 200, Ease.inOut]]);
     }, 1150);
+    setTimeout(() => { if (this.greetToken === tok) this.waveCalm = false; }, 1400);
   }
 
   /** Peek wave — the greeting. Timings from BotEngine.greet(). */
@@ -1098,7 +1099,9 @@ export class BotEngine {
     R: number, rx: number, ry: number, cx: number, cy: number, pal?: Palette,
   ) {
     if (this.hands <= 0.01 || this.isMini) return;
-    if (R <= 14) return; // meaningless at compact/peek sizes
+    // Too small to read at compact/peek sizes, except for the hover hello's
+    // raised hand, which is the whole point of it there.
+    if (R <= 14 && !(this.waveCalm && R > 4)) return;
 
     const n = now();
     const bodyH = 2 * ry;
