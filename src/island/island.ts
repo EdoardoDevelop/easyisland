@@ -28,6 +28,8 @@ import { IslandStateMachine } from "./fsm";
 const BOT_OVERHANG = 40;
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
 const HIT_MARGIN = 14;
+/** Around the island, a dragged file is still taken; same as DROP_MARGIN in island.rs. */
+const DROP_MARGIN = 24;
 /** Pause between two gestures of the compact the character when it does not follow the cursor, ms. */
 const WANDER_MIN_MS = 1800;
 const WANDER_SPREAD_MS = 4200;
@@ -1194,6 +1196,13 @@ export class Island {
   }
 
   /** Island rect in window coordinates (origin top-left of the 720×320 window). */
+  /** Within DROP_MARGIN of the island shape: where a dragged file is taken. */
+  private nearIsland(x: number, y: number): boolean {
+    const r = this.islandRect();
+    return r.w > 0 && x >= r.x - DROP_MARGIN && x <= r.x + r.w + DROP_MARGIN
+      && y >= r.y - DROP_MARGIN && y <= r.y + r.h + DROP_MARGIN;
+  }
+
   private islandRect(): { x: number; y: number; w: number; h: number } {
     const w = this.width.value;
     const hh = this.height.value;
@@ -1458,7 +1467,7 @@ export class Island {
       State.lastActivity = performance.now();
     });
 
-    void onDragDrop((e) => this.onDragDrop(e));
+    void onDragDrop((e) => this.onDragDrop(e), (x, y) => this.nearIsland(x, y));
 
     // Outside Tauri (plain browser) drive the cursor from DOM events so the
     // island can be inspected with `npm run dev`.
