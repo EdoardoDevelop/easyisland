@@ -1330,53 +1330,30 @@ export class Island {
       engine.bodyColor = this.themeBody();
       engine.setState(state, true);
       engine.update(0);
-      this.restEngine = engine;
-      this.paintRest();
+      const ctx = this.restCanvas.getContext("2d");
+      if (!ctx) return;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, w);
+      engine.draw(ctx, w, w);
     }
   }
 
-  /** The rest icon's character, kept for the hover hello. */
-  private restEngine: BotEngine | null = null;
-  private restHelloUntil = 0;
-
-  private paintRest() {
-    const ctx = this.restCanvas.getContext("2d");
-    if (!ctx || !this.restEngine) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const w = this.restCanvas.width / dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, w, w);
-    this.restEngine.draw(ctx, w, w);
-  }
+  /** Until when the hover hello runs (the character looks at the cursor meanwhile). */
+  private helloUntil = 0;
 
   /**
-   * The cursor reached the resting character: it hops, looks at you and lifts
-   * a hand. Frames run only for that second and a half, then it is a still
-   * frame again (a resting island runs no animation loop).
+   * The cursor reached the closed island (rest icon, wake strip or compact
+   * view): the character hops, looks at you and lifts a hand. The rest icon
+   * gives way to the compact view on that same hover, so the hello is the
+   * compact character's. Not more than once per hello.
    */
-  private restHello() {
-    const engine = this.restEngine;
-    if (!engine || State.mode !== "hidden" || State.paused || this.placement.iconStyle !== "character") return;
-    const running = performance.now() < this.restHelloUntil;
-    this.restHelloUntil = performance.now() + 1500;
-    engine.lookX = 0;
-    engine.lookY = 0.25;
-    engine.hello();
-    if (running) return;
-    let last = performance.now();
-    const frame = (t: number) => {
-      engine.update(Math.min(0.05, (t - last) / 1000));
-      last = t;
-      this.paintRest();
-      if (t < this.restHelloUntil && State.mode === "hidden") requestAnimationFrame(frame);
-      else {
-        engine.lookX = 0;
-        engine.lookY = 0;
-        engine.update(1);
-        this.paintRest();
-      }
-    };
-    requestAnimationFrame(frame);
+  private hoverHello() {
+    if (State.mode === "expanded" || State.paused || State.quiet) return;
+    const t = performance.now();
+    if (t < this.helloUntil) return;
+    this.helloUntil = t + 1500;
+    this.engine.hello();
+    this.ensureRunning();
   }
 
   /** The character's body colour from the theme; null keeps the slime green. */
@@ -1484,7 +1461,9 @@ export class Island {
       this.scheduleHoverOpen();
     };
     this.wakeStrip.addEventListener("mouseenter", wake);
-    this.restIcon.addEventListener("mouseenter", () => { wake(); this.restHello(); });
+    this.restIcon.addEventListener("mouseenter", () => { wake(); this.hoverHello(); });
+    this.wakeStrip.addEventListener("mouseenter", () => this.hoverHello());
+    this.islandEl.addEventListener("mouseenter", () => { if (State.mode === "compact") this.hoverHello(); });
     // The island can be moved in every state: the rest icon, the compact island and,
     // by its header, the open one. A still press keeps doing what it did (open);
     // moving past the threshold drags, and the place is remembered (end_drag).
@@ -1837,7 +1816,7 @@ export class Island {
     const wears = focus?.isIntegration && focus.id !== "integration_claude" && character().wearsIntegrationColor;
     this.engine.bodyColor = wears ? hexToRGB(focus.color) : this.themeBody();
     this.engine.particleOverhang = BOT_OVERHANG;
-    const follow = this.followsCursor();
+    const follow = this.followsCursor() || performance.now() < this.helloUntil;
     this.engine.lookX = follow ? this.lookX() : this.wanderLook.x;
     this.engine.lookY = follow ? this.lookY() : this.wanderLook.y;
     if (follow) this.drawnLook = { x: this.engine.lookX, y: this.engine.lookY };

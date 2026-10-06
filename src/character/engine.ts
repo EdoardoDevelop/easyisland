@@ -498,6 +498,7 @@ export class BotEngine {
   get busyBeyondLook(): boolean {
     return (
       this.tweens.size > 0 ||
+      now() < this.waveUntil ||
       this.particles.length > 0 ||
       this.jelly.busy ||
       this.cfg.bounces || this.cfg.scans || this.cfg.breathes || this.cfg.zz || this.cfg.sweat ||
