@@ -10,6 +10,8 @@ export const ICONS = {
   bolt: "M13.5 2 4.5 13.5h6l-1.5 8.5 9-11.5h-6L13.5 2z",
   // Claude's asterisk-like spark — the Claude Code tab
   spark: "M11 2h2l.6 6.2 4.4-4.4 1.4 1.4-4.4 4.4L22 11v2l-6.2.6 4.4 4.4-1.4 1.4-4.4-4.4L13 22h-2l-.6-6.2-4.4 4.4-1.4-1.4 4.4-4.4L2 13v-2l6.2-.6-4.4-4.4 1.4-1.4 4.4 4.4L11 2z",
+  // terminal prompt ">_" — the Agenti tab (coding agents: Claude Code, Codex, opencode…)
+  terminal: "M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 18.5v-13zm4.2 3.3-1.4 1.4 2.8 2.8-2.8 2.8 1.4 1.4 4.2-4.2-4.2-4.2zM12 15.5v2h6v-2h-6z",
   // plus
   plus: "M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4z",
   // gearshape

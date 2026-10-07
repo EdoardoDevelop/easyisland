@@ -245,19 +245,21 @@ function claudeTabRow(): HTMLElement {
   const icons = () => (settings.integrationTabIcons ??= {});
   const cur = icons()[id];
   const place = h("select", {},
-    h("option", { value: "icon", text: "Logo di Claude" }),
-    h("option", { value: "name", text: "Nome" }),
+    h("option", { value: "icon", text: "Icona del terminale" }),
+    h("option", { value: "logo", text: "Logo di Claude" }),
+    h("option", { value: "name", text: "Nome (Agenti)" }),
     h("option", { value: "emoji", text: "Emoji o lettere" })) as HTMLSelectElement;
-  place.value = !cur ? "icon" : cur === "@name" ? "name" : "emoji";
+  place.value = !cur ? "icon" : cur === "@name" ? "name" : cur === "@logo" ? "logo" : "emoji";
   const emoji = h("input", {
     type: "text", maxlength: "4", spellcheck: "false", style: "width:56px;text-align:center",
     title: "Un'emoji o una o due lettere", placeholder: "✳",
-    value: cur && cur !== "@name" ? cur : "",
+    value: cur && !cur.startsWith("@") ? cur : "",
   }) as HTMLInputElement;
   const apply = () => {
     emoji.style.display = place.value === "emoji" ? "" : "none";
     if (place.value === "icon") delete icons()[id];
     else if (place.value === "name") icons()[id] = "@name";
+    else if (place.value === "logo") icons()[id] = "@logo";
     else icons()[id] = emoji.value.trim() || (emoji.value = "✳");
   };
   emoji.style.display = place.value === "emoji" ? "" : "none";
@@ -265,7 +267,7 @@ function claudeTabRow(): HTMLElement {
   emoji.addEventListener("change", () => { apply(); void save(); });
   return h("div", { class: "row" },
     h("label", { text: "Scheda nell'isola" }), place, emoji,
-    h("span", { class: "hint note", text: "come appare la scheda Claude Code in alto" }));
+    h("span", { class: "hint note", text: "come appare in alto la scheda Agenti (le sessioni di Claude Code e degli altri agenti)" }));
 }
 
 // ── Claude chat section ───────────────────────────────────────────────────────

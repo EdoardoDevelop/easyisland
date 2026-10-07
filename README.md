@@ -197,7 +197,7 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 | Trascini Slime tenendo premuto il tasto sinistro (anche l'icona a riposo) | Si sposta dove lo lasci, anche su un altro schermo, e la posizione resta salvata nel profilo |
 | Trascini l'angolo in basso dell'isola aperta | Cambia larghezza e altezza dell'isola; il contenuto si adatta. Doppio clic sull'angolo: misure predefinite |
 | Scheda ⌂ **Panoramica** | Tutte le integrazioni con il loro stato e il loro logo; un clic ne apre una, trascinandole le riordini. Il personaggio mostra lo stato più urgente |
-| Scheda di **Claude Code** (il logo di Claude) | La sessione di Claude Code: avanzamento, modifiche, permessi. L'aspetto della scheda (logo, nome o emoji) si sceglie in Impostazioni → Claude |
+| Scheda **Agenti** (l'icona del terminale) | La sessione dell'agente di programmazione (Claude Code, Codex…): avanzamento, modifiche, permessi. L'aspetto della scheda (icona, logo di Claude, nome o emoji) si sceglie in Impostazioni → Claude |
 | Trascini l'isola aperta dallo spazio vuoto dell'intestazione | Resta lì finché è aperta; chiudendola torna al posto di Slime |
 | Trascini una pillola o una scheda in alto | Cambia posto (si blocca in Impostazioni → Integrazioni) |
 | Clicchi su Slime | Si infastidisce. Tre volte di fila e gli gira la testa |

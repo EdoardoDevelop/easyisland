@@ -127,19 +127,22 @@ export function buildHeader(actions: ViewActions): ViewHost {
     State.summary = true;
     go("overview");
   } }, svg(ICONS.house, 16));
-  const tabClaude = h("button", { class: "tab", "data-id": "tab:claude", title: "Claude Code", style: "--c:#D97757", onclick: () => {
+  const tabClaude = h("button", { class: "tab", "data-id": "tab:claude", title: "Agenti: le sessioni di Claude Code e degli altri agenti", style: "--c:#D97757", onclick: () => {
     State.setFocus("integration_claude");
     go("overview");
   } });
-  // Icon (default), name or emoji: Impostazioni → Claude → Scheda nell'isola.
+  // Agenti: the coding agents' sessions (Claude Code, Codex, opencode…), not
+  // only Claude's. Terminal icon (default), Claude's logo, name or emoji:
+  // Impostazioni → Claude → Scheda nell'isola.
   let claudeLook: string | null = null;
   const drawClaudeTab = () => {
     const look = State.settings.integrationTabIcons?.integration_claude?.trim() ?? "";
     if (look === claudeLook) return;
     claudeLook = look;
-    tabClaude.className = look === "@name" ? "tab int-tab" : look ? "tab int-tab icon" : "tab";
-    tabClaude.replaceChildren(look === "@name" ? h("span", { text: "Claude Code" })
-      : look ? h("span", { class: "int-tab-icon", text: look }) : brandIcon("integration_claude", 15) ?? svg(ICONS.spark, 15));
+    tabClaude.className = look === "@name" ? "tab int-tab" : look && look !== "@logo" ? "tab int-tab icon" : "tab";
+    tabClaude.replaceChildren(look === "@name" ? h("span", { text: "Agenti" })
+      : look === "@logo" ? brandIcon("integration_claude", 15) ?? svg(ICONS.spark, 15)
+      : look ? h("span", { class: "int-tab-icon", text: look }) : svg(ICONS.terminal, 15));
   };
   drawClaudeTab();
   const tabChat = h("button", { class: "tab", "data-id": "tab:chat", title: "Chiedi", style: "--c:#A78BFA", onclick: () => go("prompt") }, svg(ICONS.bubble, 16));
