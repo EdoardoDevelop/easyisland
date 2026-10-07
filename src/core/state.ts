@@ -414,8 +414,24 @@ export interface QuickAction {
   confirm: boolean;
   /** Optional global shortcut, e.g. "Ctrl+Alt+E". */
   hotkey: string;
-  /** Folder in the ⚡ tab ("" or missing: top level). A leading emoji is the folder's icon. */
+  /** Folder in the ⚡ tab ("" or missing: top level): "i:<icon> Name", "🖥 Name" or "Name". */
   folder?: string;
+}
+
+/** An action's folder split into icon and name; the name groups the actions. */
+export function folderLook(folder: string | undefined): { icon: string; name: string } {
+  const f = (folder ?? "").trim();
+  const drawn = f.match(/^(i:[\w-]+)\s+(.+)$/);
+  if (drawn) return { icon: drawn[1], name: drawn[2].trim() };
+  const emoji = f.match(/^(\p{Extended_Pictographic}\uFE0F?)\s*(.*)$/u);
+  if (emoji && emoji[2]) return { icon: emoji[1], name: emoji[2].trim() };
+  return { icon: "i:folder", name: f };
+}
+
+/** Writes a folder back: its icon (unless the default) and its name. */
+export function folderValue(icon: string, name: string): string {
+  const n = name.trim();
+  return !n ? "" : icon && icon !== "i:folder" ? `${icon} ${n}` : n;
 }
 
 /** A probe the user set up in the settings (src-tauri/src/widgets.rs). */

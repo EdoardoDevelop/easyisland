@@ -6,7 +6,7 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { Bridge, onEvent, type HookStatus } from "../core/bridge";
-import { CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type Settings, type WidgetDef } from "../core/state";
+import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type Settings, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
 import { h, clear } from "../views/dom";
@@ -1399,7 +1399,7 @@ function actionsSection(): HTMLElement {
     clear(list);
     const actions = settings.actions;
     // Folder names already in use, offered while typing a new one.
-    const names = [...new Set(actions.map((a) => a.folder?.trim() ?? "").filter(Boolean))];
+    const names = [...new Set(actions.map((a) => folderLook(a.folder).name).filter(Boolean))];
     list.append(h("datalist", { id: "qa-folders" }, ...names.map((n) => h("option", { value: n }))));
     actions.forEach((a, idx) => {
       const field = (value: string, placeholder: string, apply: (v: string) => void, style = "flex:1 1 auto;min-width:0") => {
@@ -1484,10 +1484,24 @@ function actionsSection(): HTMLElement {
       card.append(h("div", { class: "row" }, h("label", { text: "Scorciatoia" }),
         hotkeyInput(a.hotkey, (v) => { a.hotkey = v; commit(); })));
       if (!(a.kind === "prompt" && a.input === "file")) {
-        const folderField = field(a.folder ?? "", "Nessuna (in primo piano)", (v) => { a.folder = v.trim(); }, "width:220px");
+        // Icon from the same grid as the actions (no emoji keyboard needed), and a
+        // name: actions with the same name share the folder, and its icon.
+        const look = folderLook(a.folder);
+        const folderField = field(look.name, "Nessuna (in primo piano)", (v) => {
+          const name = v.trim();
+          const other = actions.find((x) => x !== a && name && folderLook(x.folder).name === name);
+          a.folder = folderValue(other ? folderLook(other.folder).icon : look.icon, name);
+        }, "width:200px");
         folderField.setAttribute("list", "qa-folders");
-        card.append(h("div", { class: "row" }, h("label", { text: "Cartella" }), folderField,
-          h("span", { class: "hint note", text: "le azioni con la stessa cartella si raggruppano nella scheda ⚡; un'emoji all'inizio ne è l'icona" })));
+        folderField.addEventListener("change", () => draw());
+        const folderIcon = iconPicker(look.icon, "#94a3b8", (v) => {
+          if (!look.name) return;
+          for (const x of actions) if (folderLook(x.folder).name === look.name) x.folder = folderValue(v, look.name);
+          commit();
+          draw();
+        });
+        card.append(h("div", { class: "row" }, h("label", { text: "Cartella" }), folderIcon, folderField,
+          h("span", { class: "hint note", text: "le azioni con lo stesso nome di cartella si raggruppano nella scheda ⚡; l'icona vale per tutta la cartella" })));
       }
       list.append(card);
     });

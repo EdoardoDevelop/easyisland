@@ -5,7 +5,7 @@ import { h, clear } from "./dom";
 import { Bridge } from "../core/bridge";
 import { renderActionIcon } from "./action-icons";
 import { suggestionsFor, type Suggestion } from "../island/context";
-import { State, type QuickAction } from "../core/state";
+import { State, folderLook, type QuickAction } from "../core/state";
 import type { ViewHost } from "./views";
 
 export interface ActionHandlers {
@@ -61,12 +61,6 @@ function actionButton(a: QuickAction, onClick: () => void): HTMLElement {
   return b;
 }
 
-/** "🖥 Clienti" → icon "🖥", name "Clienti"; no leading emoji → the folder icon. */
-function folderLook(folder: string): { icon: string; name: string } {
-  const m = folder.match(/^(\p{Extended_Pictographic}\uFE0F?)\s*(.*)$/u);
-  return m ? { icon: m[1], name: m[2] || folder } : { icon: "📁", name: folder };
-}
-
 /** Actions above this many get the search field. */
 const SEARCH_FROM = 8;
 
@@ -91,7 +85,7 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
   let folder: string | null = null;
   const matches = () => {
     const q = search.value.trim().toLowerCase();
-    return q ? tabActions().filter((a) => `${a.name} ${a.folder ?? ""}`.toLowerCase().includes(q)) : [];
+    return q ? tabActions().filter((a) => `${a.name} ${folderLook(a.folder).name}`.toLowerCase().includes(q)) : [];
   };
   const el = h("div", { class: "view" }, card);
   // The buttons wrap differently while the island is still widening: measure
@@ -103,7 +97,10 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
     sync() {
       const list = tabActions();
       const sugg = State.settings.contextActions === false ? null : suggestionsFor(State.foreground);
-      const folders = [...new Set(list.map((a) => a.folder?.trim() ?? "").filter(Boolean))];
+      // Grouped by name; the icon is the first one found for that name.
+      const fname = (a: QuickAction) => folderLook(a.folder).name;
+      const folders = [...new Set(list.map(fname).filter(Boolean))];
+      const iconOf = (f: string) => folderLook(list.find((a) => fname(a) === f)?.folder).icon;
       if (folder && !folders.includes(folder)) folder = null;
       const k = JSON.stringify([list.map((a) => [a.id, a.name, a.icon, a.color, a.kind, a.hotkey, a.folder ?? ""]),
         sugg?.app ?? "", sugg?.items.length ?? 0, folder, search.value]);
@@ -152,28 +149,26 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
       }
       if (folder) {
         // Inside a folder: ‹ back, its name, its actions.
-        const look = folderLook(folder);
         crumb.style.display = "";
         crumb.append(
           h("button", { class: "qa-back", title: "Indietro", text: "‹", onclick: () => { folder = null; key = ""; State.notify(); } }),
-          h("span", { class: "qa-icon" }, renderActionIcon(look.icon, 14)),
-          h("b", { text: look.name }));
-        for (const a of list.filter((x) => (x.folder?.trim() ?? "") === folder)) {
+          h("span", { class: "qa-icon" }, renderActionIcon(iconOf(folder), 14)),
+          h("b", { text: folder }));
+        for (const a of list.filter((x) => fname(x) === folder)) {
           grid.append(actionButton(a, () => handlers.runAction(a)));
         }
         return;
       }
       // Top level: the folders first, then the actions without one.
       for (const f of folders) {
-        const look = folderLook(f);
-        const n = list.filter((x) => (x.folder?.trim() ?? "") === f).length;
+        const n = list.filter((x) => fname(x) === f).length;
         const b = h("button", { class: "qa qa-folder", title: `${n} azioni`, onclick: () => { folder = f; key = ""; State.notify(); } },
-          h("span", { class: "qa-icon" }, renderActionIcon(look.icon, 18)),
-          h("span", { class: "qa-name", text: look.name }),
+          h("span", { class: "qa-icon" }, renderActionIcon(iconOf(f), 18)),
+          h("span", { class: "qa-name", text: f }),
           h("span", { class: "qa-count", text: String(n) }));
         grid.append(b);
       }
-      for (const a of list.filter((x) => !x.folder?.trim())) grid.append(actionButton(a, () => handlers.runAction(a)));
+      for (const a of list.filter((x) => !fname(x))) grid.append(actionButton(a, () => handlers.runAction(a)));
     },
     // Many actions wrap onto more rows: the island grows to show them all.
     // scrollHeight: the card's padding and the gap under the suggestions included.

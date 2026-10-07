@@ -147,8 +147,8 @@ export async function runScene(island: Island, scene: string) {
         { ...base, id: "a2", name: "Desktop remoto", icon: "i:remote", color: "#A78BFA", kind: "app", target: "mstsc" },
         { ...base, id: "a3", name: "Spooler", icon: "i:printer", color: "#F5A524", kind: "script", script: "Restart-Service Spooler" },
         { ...base, id: "a4", name: "Spiega errore", icon: "i:bolt", color: "#22C55E", kind: "prompt", prompt: "Spiega questo errore", hotkey: "Ctrl+Alt+E" },
-        { ...base, id: "a5", name: "Server Rossi", icon: "i:remote", color: "#A78BFA", kind: "app", target: "mstsc", folder: "🖥 Clienti" },
-        { ...base, id: "a6", name: "Server Bianchi", icon: "i:remote", color: "#A78BFA", kind: "app", target: "mstsc", folder: "🖥 Clienti" },
+        { ...base, id: "a5", name: "Server Rossi", icon: "i:remote", color: "#A78BFA", kind: "app", target: "mstsc", folder: "i:remote Clienti" },
+        { ...base, id: "a6", name: "Server Bianchi", icon: "i:remote", color: "#A78BFA", kind: "app", target: "mstsc", folder: "i:remote Clienti" },
         { ...base, id: "a7", name: "Pulizia temp", icon: "i:printer", color: "#F5A524", kind: "script", script: "cleanmgr", folder: "Manutenzione" },
       ];
       State.foreground = { exe: "outlook.exe", title: "Posta in arrivo - Outlook" };
