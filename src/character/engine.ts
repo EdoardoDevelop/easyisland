@@ -212,6 +212,8 @@ export class BotEngine {
   private nextBlink = now() + 1.5 + Math.random() * 2;
   waveUntil = 0;
   waveStart = 0;
+  /** The hand is held up with a small wiggle (hello) instead of waving (greet). */
+  waveCalm = false;
   private greetToken = 0;
   private lastAmbient = 0;
   private slapTimes: number[] = [];
@@ -325,10 +327,36 @@ export class BotEngine {
     this.anim("roll", [[Math.PI * 2 * turns, durationMs, Ease.inOut]], () => { this.roll = 0; });
   }
 
+  /**
+   * Hover on the resting character: a hop towards the viewer, happy eyes and
+   * one hand held up — a quieter cousin of the greeting's wave, without sound.
+   */
+  hello() {
+    const t = now();
+    const tok = ++this.greetToken;
+    this.waveCalm = true;
+    this.waveStart = t + 0.1;
+    this.waveUntil = t + 1.15;
+    this.eyeOverride = "happy";
+    this.eyeOverrideUntil = t + 1.25;
+    this.anim("oy", [[-0.16, 170, Ease.out], [0.0, 300, Ease.back]]);
+    this.anim("sy", [[0.9, 80, Ease.out], [1.07, 140, Ease.out], [1.0, 240, Ease.back]]);
+    this.anim("sx", [[1.08, 80, Ease.out], [0.95, 140, Ease.out], [1.0, 240, Ease.back]]);
+    this.anim("hands", [[1, 200, Ease.out]]);
+    setTimeout(() => { if (this.greetToken === tok) this.blink(); }, 700);
+    setTimeout(() => {
+      if (this.greetToken !== tok) return;
+      this.waveUntil = 0;
+      this.anim("hands", [[0, 200, Ease.inOut]]);
+    }, 1150);
+    setTimeout(() => { if (this.greetToken === tok) this.waveCalm = false; }, 1400);
+  }
+
   /** Peek wave — the greeting. Timings from BotEngine.greet(). */
   greet() {
     const t = now();
     const tok = ++this.greetToken;
+    this.waveCalm = false;
     this.waveStart = t + 0.45;
     this.waveUntil = t + 1.55;
 
@@ -471,6 +499,7 @@ export class BotEngine {
   get busyBeyondLook(): boolean {
     return (
       this.tweens.size > 0 ||
+      now() < this.waveUntil ||
       this.particles.length > 0 ||
       this.jelly.busy ||
       this.cfg.bounces || this.cfg.scans || this.cfg.breathes || this.cfg.zz || this.cfg.sweat ||
@@ -1070,7 +1099,9 @@ export class BotEngine {
     R: number, rx: number, ry: number, cx: number, cy: number, pal?: Palette,
   ) {
     if (this.hands <= 0.01 || this.isMini) return;
-    if (R <= 14) return; // meaningless at compact/peek sizes
+    // Too small to read at compact/peek sizes, except for the hover hello's
+    // raised hand, which is the whole point of it there.
+    if (R <= 14 && !(this.waveCalm && R > 4)) return;
 
     const n = now();
     const bodyH = 2 * ry;
@@ -1091,13 +1122,16 @@ export class BotEngine {
         const riseEased = 1 - Math.pow(1 - rise, 3);
         const restX = hwB * 1.08;
         const restY = hhB * 0.7;
-        const oscX = Math.cos(13 * wt) * 0.06 * bodyH;
-        const oscY = -Math.sin(13 * wt) * 0.14 * bodyH;
+        // Hello holds the hand up with a slow, small wiggle; greet waves it.
+        const f = this.waveCalm ? 6 : 13;
+        const amp = this.waveCalm ? 0.3 : 1;
+        const oscX = Math.cos(f * wt) * 0.06 * bodyH * amp;
+        const oscY = -Math.sin(f * wt) * 0.14 * bodyH * amp;
         const waveX = hwB * 1.1 + oscX;
         const waveY = -hhB * 0.15 + oscY;
         localX = restX + (waveX - restX) * riseEased;
         localY = restY + (waveY - restY) * riseEased;
-        handRot = (-0.5 + Math.sin(13 * wt) * 0.35) * riseEased;
+        handRot = (-0.5 + Math.sin(f * wt) * 0.35 * amp) * riseEased;
       } else if (sd < 0 && isWaving) {
         const wt = n - this.waveStart;
         localX = -hwB * 1.08;

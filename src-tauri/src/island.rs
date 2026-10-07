@@ -89,6 +89,9 @@ pub struct PollGate {
     /// The character is being dragged: the window keeps the mouse even when a quick
     /// move leaves the cursor outside it for a moment.
     pub dragging: AtomicBool,
+    /// Where the cursor holds the window during a drag (physical px from its
+    /// top-left corner): the window follows the cursor, whatever the displays' scale.
+    pub drag_grab: Mutex<Option<(f64, f64)>>,
     /// The island is open.
     pub expanded: AtomicBool,
     /// Where the open island was dragged to, from its usual place (logical px).
@@ -108,6 +111,7 @@ impl PollGate {
             collapsed_size: Mutex::new((STRIP_W, STRIP_H)),
             fullscreen: AtomicBool::new(false),
             dragging: AtomicBool::new(false),
+            drag_grab: Mutex::new(None),
             expanded: AtomicBool::new(false),
             panel_offset: Mutex::new((0.0, 0.0)),
         }
@@ -144,7 +148,7 @@ pub fn window(app: &AppHandle) -> Option<WebviewWindow> {
     app.get_webview_window(WINDOW_LABEL)
 }
 
-fn cursor_physical() -> Option<(f64, f64)> {
+pub fn cursor_physical() -> Option<(f64, f64)> {
     let mut p = POINT::default();
     unsafe { GetCursorPos(&mut p).ok()? };
     Some((p.x as f64, p.y as f64))
@@ -165,9 +169,16 @@ fn monitor_contains(m: &Monitor, x: f64, y: f64) -> bool {
         && y < (p.y + s.height as i32) as f64
 }
 
-/// The display the island lives on: the primary one, or the one under the cursor.
+/// The display the island lives on: the primary one, the one under the cursor,
+/// or the one the character was dragged to ("monitor:<name>"; back to the
+/// primary one while that display is unplugged).
 fn target_monitor(app: &AppHandle, pref: &str) -> Option<Monitor> {
     let monitors = app.available_monitors().ok()?;
+    if let Some(name) = pref.strip_prefix("monitor:") {
+        if let Some(m) = monitors.iter().find(|m| m.name().map(|n| n.as_str()) == Some(name)) {
+            return Some(m.clone());
+        }
+    }
     if pref == "cursor" {
         if let Some((cx, cy)) = cursor_physical() {
             if let Some(m) = monitors.iter().find(|m| monitor_contains(m, cx, cy)) {
@@ -402,6 +413,25 @@ fn island_area(m: &Monitor, settings: &Settings) -> (i32, i32, u32, u32) {
     }
 }
 
+/// The `screen` setting for a character dropped with its centre at (x, y),
+/// physical px: unchanged on the same display (or with "cursor"), otherwise
+/// the display it was dropped on.
+pub fn screen_for_drop(app: &AppHandle, settings: &Settings, x: f64, y: f64) -> String {
+    if settings.screen == "cursor" {
+        return settings.screen.clone();
+    }
+    let Ok(monitors) = app.available_monitors() else { return settings.screen.clone() };
+    let Some(m) = monitors.iter().find(|m| monitor_contains(m, x, y)) else { return settings.screen.clone() };
+    let primary = app.primary_monitor().ok().flatten();
+    if primary.as_ref().map(|p| p.position()) == Some(m.position()) {
+        return "primary".to_string();
+    }
+    match m.name() {
+        Some(name) => format!("monitor:{name}"),
+        None => settings.screen.clone(),
+    }
+}
+
 /// The island's area (physical) and scale on its screen.
 pub fn work_area(app: &AppHandle, settings: &Settings) -> Option<((i32, i32, u32, u32), f64)> {
     let m = target_monitor(app, &settings.screen)?;
@@ -456,6 +486,7 @@ pub fn spawn_fullscreen_watch(app: AppHandle, gate: Arc<PollGate>) {
 /// the island takes the front back every 100 ms. One GetAsyncKeyState per tick,
 /// and only while the user wants the island over the taskbar.
 pub fn spawn_drag_raise(app: AppHandle, gate: Arc<PollGate>) {
+    let _ = RAISE_ON_FOREGROUND.set((app.clone(), gate.clone()));
     std::thread::spawn(move || {
         let mut over = false;
         let mut ticks: u32 = 0;
@@ -472,6 +503,30 @@ pub fn spawn_drag_raise(app: AppHandle, gate: Arc<PollGate>) {
             if over && gate.collapsed.load(Ordering::Relaxed) && left_button_down() {
                 raise_over_taskbar(&app);
             }
+        }
+    });
+}
+
+static RAISE_ON_FOREGROUND: std::sync::OnceLock<(AppHandle, Arc<PollGate>)> = std::sync::OnceLock::new();
+
+/// Another window came to the front (context.rs follows the foreground): the
+/// Start menu, the search or a click on the taskbar bring the taskbar forward
+/// and the resting island would stay behind it until the next two-second
+/// raise. Raise now and again while the Start menu finishes opening or closing.
+pub fn on_foreground_change() {
+    let Some((app, gate)) = RAISE_ON_FOREGROUND.get() else { return };
+    let over = app
+        .try_state::<crate::Shared>()
+        .map(|s| s.settings.lock().unwrap().over_taskbar)
+        .unwrap_or(false);
+    if !over || !gate.collapsed.load(Ordering::Relaxed) {
+        return;
+    }
+    let app = app.clone();
+    std::thread::spawn(move || {
+        for ms in [0, 120, 350, 800] {
+            std::thread::sleep(Duration::from_millis(ms));
+            raise_over_taskbar(&app);
         }
     });
 }

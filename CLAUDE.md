@@ -1,6 +1,6 @@
 # EasyIsland (Windows) — guida per gli agenti AI
 
-EasyIsland è un'app desktop per Windows 10/11: un piccolo personaggio animato (Slime, o in alternativa Goccia o EasyTech) che vive in un'isola in alto al centro dello schermo, mostra le sessioni di Claude Code e alcune integrazioni, e permette all'utente di approvare, rispondere, chattare e rilasciare file dall'isola. Fork solo per Windows di Louis-CFM/coucou (Coucou con il personaggio Mochi; l'app macOS è stata rimossa), rinominato EasyIsland il 2 ottobre 2026. Handoff personale e roadmap: `HANDOFF.md`.
+EasyIsland è un'app desktop per Windows 10/11: un piccolo personaggio animato (Slime, o in alternativa Goccia o EasyTech) che vive in un'isola in alto al centro dello schermo, mostra le sessioni di Claude Code e alcune integrazioni, e permette all'utente di approvare, rispondere, chattare e rilasciare file dall'isola. Fork solo per Windows di Louis-CFM/coucou (Coucou con il personaggio Mochi; l'app macOS è stata rimossa), rinominato EasyIsland il 2 ottobre 2026. Stato, cose da fare e prove dal vivo: `HANDOFF.md` (ridotto il 6 ottobre 2026); la storia completa, con la roadmap 6.1–6.6 citata nei commenti del codice ("HANDOFF 6.6, point …") e il registro fino al 6 ottobre 2026, è in `HANDOFF-archivio.md` (non più aggiornato).
 
 **Lingua del progetto: italiano.** Testi dell'interfaccia, messaggi d'errore mostrati all'utente, documentazione e messaggi di commit sono in italiano. Identificatori e commenti nel codice restano in inglese.
 
@@ -29,7 +29,7 @@ npm run build       # typecheck + solo front end (funziona anche su Linux/macOS)
 La parte Rust si compila solo su Windows (toolchain MSVC). CI: `.github/workflows/build.yml` (windows-latest); i tag `v*` pubblicano quando `PUBLISH` vale `'true'`.
 
 ## Regole
-- `HANDOFF.md` va tenuto sempre aggiornato: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al Registro delle modifiche (sezione 10), compresi i problemi rimasti aperti.
+- `HANDOFF.md` va tenuto sempre aggiornato: a ogni modifica rilevante aggiorna lo stato della sezione interessata e aggiungi una voce al Registro (ultima sezione), compresi i problemi rimasti aperti. Tienilo corto: solo ciò che serve per continuare.
 - TypeScript + Rust (Tauri 2). Nessuna nuova dipendenza se non davvero inevitabile. Il personaggio è disegnato nel codice (Canvas 2D), niente Rive/Lottie/immagini.
 - I segreti stanno in Gestione credenziali di Windows, mai su disco, nell'interfaccia o in git. Il front end può solo chiedere se una chiave esiste.
 - Nessuna telemetria. Chiamate di rete solo verso i servizi configurati dall'utente, più il controllo degli aggiornamenti su GitHub (`src-tauri/src/updates.rs`), disattivabile. Gli aggiornamenti si installano solo dopo un clic, con la firma verificata; la chiave privata non entra mai nel repo.

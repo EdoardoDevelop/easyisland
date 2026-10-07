@@ -4,14 +4,14 @@
 import { Tracked, Spring, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop } from "../core/bridge";
 import {
-  EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, NOTCH_W, PANEL_H, PANEL_W,
+  EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_MAX_W, ISLAND_MIN_W, MAX_ISLAND_H, NOTCH_W, PANEL_H, PANEL_W,
   ROUNDED_CORNER, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
   chatPromptHeight, collapsedBox, compactSize, cornerRadii, glueFor, isGlued, islandSize,
   type IslandMode, type IslandViewName, type Placement,
 } from "../core/layout";
 import { suggestionsFor, type Suggestion } from "./context";
 import { Sound } from "../core/sound";
-import { State, isSessionTask } from "../core/state";
+import { OPENED_BY_APP, OPEN_URLS, State, isSessionTask } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
 import { character, setCharacter } from "../character/character";
 import { Greeting } from "../character/greeting";
@@ -41,6 +41,8 @@ const LOOK_FRAME_MS = 33;
 const DRAG_THRESHOLD = 4;
 
 /** The three views the drop sequence owns; leaving them stops the engine. */
+/** Views drawn at a fixed size: the user's width and height do not apply. */
+const FIXED_SIZE_VIEWS: ReadonlySet<IslandViewName> = new Set(["greeting", "upload", "uploading", "choose"]);
 const UPLOAD_VIEWS: ReadonlySet<IslandViewName> = new Set(["upload", "uploading", "choose"]);
 
 /**
@@ -71,6 +73,8 @@ export class Island {
   private wakeStrip!: HTMLElement;
   /** What stays on screen while the island is hidden (the character or a dot). */
   private restIcon!: HTMLElement;
+  /** Corner of the open island that sets its width and height. */
+  private resizeGrip = h("div", { id: "island-resize", title: "Trascina per cambiare larghezza e altezza · doppio clic: predefinite" });
   private restCanvas!: HTMLCanvasElement;
   private restDot!: HTMLElement;
   private restKey = "";
@@ -164,14 +168,6 @@ export class Island {
       openTarget: () => {
         const task = State.focusTask;
         if (!task) return;
-        const urls: Record<string, string> = {
-          integration_resend: "https://resend.com/emails",
-          integration_vercel: "https://vercel.com/dashboard",
-          integration_github: "https://github.com",
-          integration_stripe: "https://dashboard.stripe.com/payments",
-          integration_notion: "https://notion.so",
-          integration_calcom: "https://app.cal.com/bookings",
-        };
         if (isSessionTask(task)) {
           // A session seen by the hooks goes back to its own app; otherwise VS Code.
           if (task.sessionHost) void Bridge.openSession(task.sessionHost, task.sessionCwd ?? null);
@@ -179,7 +175,8 @@ export class Island {
         }
         else if (task.id === "integration_n8n") void Bridge.openN8n();
         else if (task.id === "integration_zammad") void Bridge.openZammad();
-        else if (urls[task.id]) void Bridge.openUrl(urls[task.id]);
+        else if (OPEN_URLS[task.id]) void Bridge.openUrl(OPEN_URLS[task.id]);
+        else if (OPENED_BY_APP.has(task.id)) void Bridge.openIntegration(task.id);
       },
       openUrl: (url) => {
         if (url) void Bridge.openUrl(url);
@@ -236,6 +233,7 @@ export class Island {
       runSuggestion: (sg, app) => void this.runSuggestion(sg, app),
       extractZip: (place) => void this.extractZip(place),
       openFiles: () => void this.openFiles(),
+      cancelDrop: () => this.cancelDrop(),
       refreshFiles: () => void this.refreshFiles(),
       askAboutFile: (f) => this.askAboutFile(f),
       captureScreen: () => void this.captureScreen(),
@@ -287,8 +285,8 @@ export class Island {
           : null;
         this.setView("prompt");
       },
-      // The file is already in the tray: "Annulla" shows it there.
-      cancel: () => void this.openFiles(),
+      cancel: () => this.cancelDrop(),
+      tray: () => void this.openFiles(),
       runAction: (a) => void this.runAction(a),
     });
 
@@ -307,6 +305,7 @@ export class Island {
       this.botCanvas,
       this.miniGrid,
       this.countdown,
+      this.resizeGrip,
     );
 
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -317,6 +316,28 @@ export class Island {
 
     this.root.append(this.wakeStrip, this.restIcon, this.islandEl);
     this.applyGeometry();
+    this.watchScale();
+  }
+
+  /**
+   * Moved to a display with another scale: the canvases were sized for the old
+   * one, so the character came out too small or too big for its box until the
+   * island was opened and closed. Redraw them, and once the drag is over let
+   * Rust size the window for the new display.
+   */
+  private watchScale() {
+    const dpr = window.devicePixelRatio;
+    matchMedia(`(resolution: ${dpr}dppx)`).addEventListener("change", () => {
+      void Bridge.log(`scale ${dpr} -> ${window.devicePixelRatio}`);
+      this.canvasPx = 0;
+      this.restKey = "";
+      this.drawRestIcon();
+      this.applyGeometry();
+      State.notify();
+      this.ensureRunning();
+      if (!this.press?.moved) void Bridge.reposition();
+      this.watchScale();
+    }, { once: true });
   }
 
   // ── FSM ─────────────────────────────────────────────────────────────────────
@@ -1098,6 +1119,7 @@ export class Island {
    * slow disk can never stall the animation — same as FileDropHandler on macOS.
    */
   private swallow(path: string) {
+    const seq = ++this.dropSeq;
     const name = path.split(/[\\/]/).pop() || "file";
     State.droppedFile = { name, path, source: path };
     State.promptContext = { kind: "file", name, path };
@@ -1124,13 +1146,19 @@ export class Island {
 
     void Bridge.ingestFile(path)
       .then((file) => {
+        // "Annulla" pressed before the copy landed: the copy goes too.
+        if (seq !== this.dropSeq) {
+          void Bridge.inboxDelete(file.name).catch(() => {});
+          return;
+        }
         State.droppedFile = { name: file.name, path: file.path, source: path };
         State.promptContext = { kind: "file", name: file.name, path: file.path };
-        // "Annulla" pressed before the copy landed: the tray shows it now.
+        // "Vassoio" pressed before the copy landed: list it now.
         if (State.view === "files") void this.refreshFiles();
         State.notify();
       })
       .catch((err) => {
+        if (seq !== this.dropSeq) return;
         UploadSeq.deactivate();
         State.noteMessage = String(err).replace(/^Error:\s*/, "");
         this.engine.animateMorph(0);
@@ -1138,6 +1166,21 @@ export class Island {
         Sound.play("error");
         window.setTimeout(() => this.setView(State.defaultView()), 2400);
       });
+  }
+
+  /** Bumped by every drop and by "Annulla": a copy that lands later is dropped. */
+  private dropSeq = 0;
+
+  /** "Annulla" on a dropped file: forget it (its copy leaves the tray) and go back. */
+  private cancelDrop() {
+    const f = State.droppedFile;
+    this.dropSeq++;
+    UploadSeq.deactivate();
+    this.engine.animateMorph(0);
+    if (f && f.path !== f.source) void Bridge.inboxDelete(f.name).catch(() => {});
+    State.droppedFile = null;
+    State.promptContext = null;
+    this.setView(State.defaultView());
   }
 
   /**
@@ -1186,7 +1229,22 @@ export class Island {
   private targetSize(): { w: number; h: number; r: number } {
     const compact = compactSize(this.placement);
     const fit = this.fit.view === State.view ? this.fit.h : 0;
-    const { w, h } = islandSize(State.mode, State.view, State.chatHistory.length, compact, fit);
+    let { w, h } = islandSize(State.mode, State.view, State.chatHistory.length, compact, fit);
+    // The user's size of the open island (its corner, or Impostazioni → Posizione).
+    // Greeting and drop sequence are drawn at a fixed size and keep theirs.
+    if (State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view)) {
+      const s = State.settings;
+      w = Math.round(Math.min(ISLAND_MAX_W, Math.max(ISLAND_MIN_W, s.islandWidth || EXPANDED_W)));
+      if (s.islandHeight > 0) h = Math.max(h, Math.min(MAX_ISLAND_H, Math.round(s.islandHeight)));
+    }
+    // Height the user added beyond the view's own: lists and text boxes grow by
+    // it (CSS max-height: calc(… + var(--extra-h))) instead of keeping their
+    // scroll bar in an island that has room. Measured against the natural
+    // height so a list that grows does not feed back into the island's size.
+    const natural = islandSize(State.mode, State.view, State.chatHistory.length, compact, fit).h;
+    const extra = State.mode === "expanded" ? Math.max(0, h - natural) : 0;
+    this.islandEl.style.setProperty("--extra-h", `${extra}px`);
+    this.islandEl.style.setProperty("--extra-w", `${State.mode === "expanded" ? Math.max(0, w - EXPANDED_W) : 0}px`);
     let r = State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
     // The hover badge is a circle; a floating bar is a pill.
     if (State.mode !== "expanded" && this.placement.hoverStyle === "icon") r = compact.w / 2;
@@ -1225,6 +1283,20 @@ export class Island {
     // the state-driven DOM sync.
     this.miniGrid.style.left = `${w - 40 - 14.5}px`;
     this.miniGrid.style.top = `${hh / 2 - 14.5}px`;
+    // The resize corner: opposite the anchored side, on the free edge.
+    const grip = this.resizeGrip.style;
+    const showGrip = State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view) && !this.uploadActive;
+    grip.display = showGrip ? "block" : "none";
+    if (showGrip) {
+      const left = p.h === "right";
+      const up = p.v === "bottom";
+      grip.left = left ? "0px" : "";
+      grip.right = left ? "" : "0px";
+      grip.top = up ? "0px" : "";
+      grip.bottom = up ? "" : "0px";
+      grip.cursor = left !== up ? "nesw-resize" : "nwse-resize";
+      this.resizeGrip.dataset.corner = `${up ? "t" : "b"}${left ? "l" : "r"}`;
+    }
     this.greetingCanvas.style.left = `${(w - EXPANDED_W) / 2}px`;
     this.uploadCanvas.el.style.left = `${(w - EXPANDED_W) / 2}px`;
 
@@ -1286,7 +1358,7 @@ export class Island {
   private drawRestIcon() {
     const p = this.placement;
     const state = State.effectiveState;
-    const key = `${p.iconStyle}|${p.iconSize}|${state}|${State.paused}|${State.settings.theme.slimeColor}|${character().id}`;
+    const key = `${window.devicePixelRatio}|${p.iconStyle}|${p.iconSize}|${state}|${State.paused}|${State.settings.theme.slimeColor}|${character().id}`;
     if (key === this.restKey) return;
     this.restKey = key;
 
@@ -1310,16 +1382,79 @@ export class Island {
       this.restCanvas.height = Math.round(w * dpr);
       this.restCanvas.style.width = `${w}px`;
       this.restCanvas.style.height = `${w}px`;
-      const ctx = this.restCanvas.getContext("2d");
-      if (!ctx) return;
       const engine = new BotEngine();
       engine.bodyColor = this.themeBody();
       engine.setState(state, true);
       engine.update(0);
+      const ctx = this.restCanvas.getContext("2d");
+      if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, w);
       engine.draw(ctx, w, w);
     }
+  }
+
+  /**
+   * The corner opposite the anchored side resizes the open island: width and
+   * a minimum height, saved in the settings on release. A centred island grows
+   * on both sides, so the width moves twice as fast as the pointer.
+   */
+  private wireResize() {
+    const g = this.resizeGrip;
+    let start: { x: number; y: number; w: number; h: number } | null = null;
+    const dirs = () => {
+      const s = State.settings;
+      return { fx: s.anchorH === "right" ? -1 : s.anchorH === "center" ? 2 : 1, fy: s.anchorV === "bottom" ? -1 : 1 };
+    };
+    g.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      e.preventDefault();
+      this.cancelHoverOpen();
+      start = { x: e.screenX, y: e.screenY, w: this.width.value, h: this.height.value };
+      g.setPointerCapture(e.pointerId);
+    });
+    g.addEventListener("pointermove", (e) => {
+      if (!start) return;
+      const { fx, fy } = dirs();
+      const s = State.settings;
+      s.islandWidth = Math.round(Math.min(ISLAND_MAX_W, Math.max(ISLAND_MIN_W, start.w + (e.screenX - start.x) * fx)));
+      s.islandHeight = Math.round(Math.min(MAX_ISLAND_H, Math.max(0, start.h + (e.screenY - start.y) * fy)));
+      State.lastActivity = performance.now();
+      this.animateGeometry(false);
+    });
+    const end = () => {
+      if (!start) return;
+      start = null;
+      void Bridge.saveSettings(State.settings);
+    };
+    g.addEventListener("pointerup", end);
+    g.addEventListener("pointercancel", end);
+    g.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      State.settings.islandWidth = EXPANDED_W;
+      State.settings.islandHeight = 0;
+      this.animateGeometry(false);
+      void Bridge.saveSettings(State.settings);
+    });
+  }
+
+  /** Until when the hover hello runs (the character looks at the cursor meanwhile). */
+  private helloUntil = 0;
+
+  /**
+   * The cursor reached the closed island (rest icon, wake strip or compact
+   * view): the character hops, looks at you and lifts a hand. The rest icon
+   * gives way to the compact view on that same hover, so the hello is the
+   * compact character's. Not more than once per hello.
+   */
+  private hoverHello() {
+    if (State.mode === "expanded" || State.paused || State.quiet) return;
+    const t = performance.now();
+    if (t < this.helloUntil) return;
+    this.helloUntil = t + 1500;
+    this.engine.hello();
+    this.ensureRunning();
   }
 
   /** The character's body colour from the theme; null keeps the slime green. */
@@ -1427,7 +1562,9 @@ export class Island {
       this.scheduleHoverOpen();
     };
     this.wakeStrip.addEventListener("mouseenter", wake);
-    this.restIcon.addEventListener("mouseenter", wake);
+    this.restIcon.addEventListener("mouseenter", () => { wake(); this.hoverHello(); });
+    this.wakeStrip.addEventListener("mouseenter", () => this.hoverHello());
+    this.islandEl.addEventListener("mouseenter", () => { if (State.mode === "compact") this.hoverHello(); });
     // The island can be moved in every state: the rest icon, the compact island and,
     // by its header, the open one. A still press keeps doing what it did (open);
     // moving past the threshold drags, and the place is remembered (end_drag).
@@ -1489,6 +1626,7 @@ export class Island {
       startPress(e, this.islandEl, expanded);
     });
     this.islandEl.addEventListener("pointermove", movePress);
+    this.wireResize();
     const openFromCompact = () => {
       if (State.mode !== "expanded") this.fsm.click();
     };
@@ -1764,14 +1902,13 @@ export class Island {
     const ctx = this.botCanvas.getContext("2d");
     if (!ctx) return;
 
-    const focus = State.focusTask;
-    // The character wears the focused integration's colour, unless it has a fixed
-    // look (the cube keeps the logo's). Claude Code (the default focus, white for its pill) keeps the
-    // character's own colour, or the slime would be white most of the time.
+    // The character wears the focused integration's colour. Claude Code (white
+    // for its pill) and the ⌂ summary keep the character's own (theme) colour.
+    const focus = State.characterTask;
     const wears = focus?.isIntegration && focus.id !== "integration_claude" && character().wearsIntegrationColor;
     this.engine.bodyColor = wears ? hexToRGB(focus.color) : this.themeBody();
     this.engine.particleOverhang = BOT_OVERHANG;
-    const follow = this.followsCursor();
+    const follow = this.followsCursor() || performance.now() < this.helloUntil;
     this.engine.lookX = follow ? this.lookX() : this.wanderLook.x;
     this.engine.lookY = follow ? this.lookY() : this.wanderLook.y;
     if (follow) this.drawnLook = { x: this.engine.lookX, y: this.engine.lookY };
@@ -1907,6 +2044,8 @@ export class Island {
     this.applyPlacement();
     this.keepCompactUp();
     this.scheduleWander();
+    // Width or minimum height changed in the settings window.
+    this.animateGeometry(false);
     State.notify();
   }
 

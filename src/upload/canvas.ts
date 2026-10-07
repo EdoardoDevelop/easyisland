@@ -75,6 +75,8 @@ export interface UploadCanvasActions {
   ask(): void;
   /** Secondary button. */
   cancel(): void;
+  /** "Vassoio": the file stays there, the tray opens. */
+  tray(): void;
   /** One of the user's file actions (a saved prompt applied to the file). */
   runAction(a: QuickAction): void;
 }
@@ -340,14 +342,10 @@ export class UploadCanvas {
 
     const ask = { label: "Fai una domanda", hint: "Fai una domanda su questo file", run: this.actions.ask };
     const cancel = { label: "Annulla", hint: "Annulla", run: this.actions.cancel };
+    const tray = { label: "Vassoio", hint: "Tieni il file nel vassoio", run: this.actions.tray };
     const out: ChooseButton[] = [];
 
-    if (list.length === 0) {
-      out.push(
-        { ...ask, x: 114, w: 168, style: "primary", dot: null },
-        { ...cancel, x: 290, w: 120, style: "secondary", dot: null },
-      );
-    } else {
+    {
       ctx.font = BTN_FONT;
       const pad = 14;
       const gap = 8;
@@ -365,6 +363,7 @@ export class UploadCanvas {
       });
       const askW = width(ask.label);
       const cancelW = width(cancel.label);
+      const trayW = width(tray.label);
       const more = {
         label: "Altre…",
         hint: "Altre azioni sul file",
@@ -378,7 +377,7 @@ export class UploadCanvas {
       // Split the actions into pages that fit the row; with more than one page,
       // "Altre…" steps through them.
       const room = (withMore: boolean) =>
-        right - 114 - askW - gap - cancelW - (withMore ? moreW + gap : 0);
+        right - 114 - askW - gap - trayW - gap - cancelW - (withMore ? moreW + gap : 0);
       const pages: (typeof items)[] = [];
       const all = items.reduce((s, it) => s + it.w + gap, 0);
       if (all <= room(false)) {
@@ -414,6 +413,8 @@ export class UploadCanvas {
         out.push({ ...more, x, w: moreW, style: "secondary", dot: null });
         x += moreW + gap;
       }
+      out.push({ ...tray, x, w: trayW, style: "secondary", dot: null });
+      x += trayW + gap;
       out.push({ ...cancel, x, w: cancelW, style: "secondary", dot: null });
     }
 

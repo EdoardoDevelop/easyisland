@@ -471,9 +471,10 @@ html.browser-preview #root {
   height: 100%;
 }
 
+/* A wider island (islandWidth) shares the extra room between the two cards. */
 .overview > .left {
-  flex: 0 0 322px;
-  width: 322px;
+  flex: 0 0 calc(322px + var(--extra-w, 0px) / 2);
+  width: calc(322px + var(--extra-w, 0px) / 2);
 }
 
 .overview > .right {
@@ -786,7 +787,7 @@ html.browser-preview #root {
 /* Approval card: ExitPlanMode's plan, scrolling inside the card. */
 .plan-box {
   flex: 0 0 auto;
-  max-height: 190px;
+  max-height: calc(190px + var(--extra-h, 0px));
   overflow-y: auto;
   padding: 6px 10px;
   border-radius: 8px;
@@ -1848,7 +1849,7 @@ input[type="range"]::-webkit-slider-thumb {
   font: 400 10.5px/1.5 var(--mono);
   color: var(--dim);
   margin-top: 8px;
-  max-height: 88px;
+  max-height: calc(88px + var(--extra-h, 0px));
   overflow: auto;
   white-space: pre-wrap;
   user-select: text;
@@ -1966,7 +1967,7 @@ input[type="range"]::-webkit-slider-thumb {
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 4px;
-  max-height: 72px;
+  max-height: calc(72px + var(--extra-h, 0px));
   overflow-y: auto;
 }
 
@@ -2016,7 +2017,7 @@ input[type="range"]::-webkit-slider-thumb {
 /* ── Appunti ─────────────────────────────────────────────────────────────── */
 
 .clip-list {
-  max-height: 168px;
+  max-height: calc(168px + var(--extra-h, 0px));
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -2497,7 +2498,7 @@ input[type="range"]::-webkit-slider-thumb {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-height: 120px;
+  max-height: calc(120px + var(--extra-h, 0px));
   overflow-y: auto;
 }
 
@@ -2653,7 +2654,7 @@ input[type="range"]::-webkit-slider-thumb {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  max-height: 210px;
+  max-height: calc(210px + var(--extra-h, 0px));
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -2841,7 +2842,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .diff-list {
-  max-height: 300px;
+  max-height: calc(300px + var(--extra-h, 0px));
   overflow-y: auto;
   padding: 4px 0;
   border-radius: 8px;
@@ -3087,7 +3088,7 @@ input[type="range"]::-webkit-slider-thumb {
   flex-direction: column;
   gap: 2px;
   padding-top: 4px;
-  max-height: 150px;
+  max-height: calc(150px + var(--extra-h, 0px));
   overflow-y: auto;
 }
 
@@ -3192,3 +3193,180 @@ input[type="range"]::-webkit-slider-thumb {
   opacity: 1;
   visibility: visible;
 }
+
+/* ── Panoramica: every integration at a glance ─────────────────────────── */
+
+.summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 8px;
+  padding: 10px 12px 12px 108px;
+}
+.summary-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  font: inherit;
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.summary-row:hover { background: rgba(255, 255, 255, 0.08); }
+.summary-row.badge-approval { border-color: rgba(245, 165, 36, 0.6); }
+.summary-row.badge-error { border-color: rgba(244, 80, 94, 0.6); }
+.summary-row.badge-finished { border-color: rgba(34, 197, 94, 0.5); }
+.summary-name { font-weight: 600; white-space: nowrap; }
+.summary-status {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.6;
+}
+
+.tcx-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+.tcx-list-close {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  cursor: pointer;
+}
+.tcx-list-close:hover { background: rgba(244, 80, 94, 0.35); }
+
+/* Vassoio as a grid: a tile per file, its tools on hover. */
+.files-layout {
+  border: 0;
+  border-radius: 6px;
+  padding: 1px 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--dim-2);
+  font: 500 12px var(--font);
+  cursor: pointer;
+}
+.files-layout:hover { color: var(--ink); background: rgba(255, 255, 255, 0.12); }
+.files-list.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+}
+.files-list.grid .files-row {
+  position: relative;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 8px 6px 6px;
+  text-align: center;
+}
+.files-list.grid .files-info { align-items: center; }
+.files-list.grid .files-name { max-width: 100%; }
+.files-ext {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 30px;
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.16);
+  color: #7dd3fc;
+  font: 700 10px var(--font);
+  letter-spacing: 0.04em;
+}
+.files-list.grid .files-tools {
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.files-list.grid .files-row:hover .files-tools { opacity: 1; }
+
+/* Brand logos (src/views/brands.ts) in place of the coloured dots. */
+svg.brand { flex: 0 0 auto; color: #f5f6f8; }
+.pill svg.brand { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); }
+.pill.has-brand .lbl { padding-right: 40px; padding-left: 30px; }
+
+/* Corner that resizes the open island (island.ts, wireResize). */
+#island-resize {
+  position: absolute;
+  z-index: 5;
+  width: 18px;
+  height: 18px;
+  display: none;
+  opacity: 0.35;
+  transition: opacity 0.15s;
+}
+#island-resize::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-color: rgba(255, 255, 255, 0.9);
+  border-style: solid;
+  border-width: 0;
+}
+#island-resize[data-corner="br"]::after { right: 6px; bottom: 6px; border-right-width: 2px; border-bottom-width: 2px; border-bottom-right-radius: 4px; }
+#island-resize[data-corner="bl"]::after { left: 6px; bottom: 6px; border-left-width: 2px; border-bottom-width: 2px; border-bottom-left-radius: 4px; }
+#island-resize[data-corner="tr"]::after { right: 6px; top: 6px; border-right-width: 2px; border-top-width: 2px; border-top-right-radius: 4px; }
+#island-resize[data-corner="tl"]::after { left: 6px; top: 6px; border-left-width: 2px; border-top-width: 2px; border-top-left-radius: 4px; }
+#island:hover #island-resize { opacity: 0.6; }
+#island-resize:hover { opacity: 1 !important; }
+
+/* ⚡ tab: search, folders (src/views/actions.ts). */
+.qa-search {
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  font: 400 12px var(--font);
+  outline: none;
+}
+.qa-search:focus { border-color: rgba(245, 165, 36, 0.6); }
+.qa-crumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font: 600 12px var(--font);
+  color: var(--ink);
+}
+.qa-back {
+  border: 0;
+  border-radius: 7px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  font: 600 14px var(--font);
+  cursor: pointer;
+}
+.qa-back:hover { background: rgba(255, 255, 255, 0.16); }
+.qa-folder { --qa: #94a3b8; border-style: dashed; }
+.qa-count {
+  margin-left: 2px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 10px;
+  color: var(--dim-2);
+}
+.qa-none { font: 400 11px var(--font); color: var(--dim-2); padding: 4px 0; }

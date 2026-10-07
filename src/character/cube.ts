@@ -261,6 +261,7 @@ export const CUBE: CubeCharacter = {
   name: "EasyTech (cubo)",
   color: LOGO.left,
   aspect: 1.34,
-  // The logo's colours are its identity: it does not wear the integrations'.
-  wearsIntegrationColor: false,
+  // Like the soft characters, it wears the focused integration's colour and
+  // the theme colour; with neither it keeps the logo's.
+  wearsIntegrationColor: true,
 };

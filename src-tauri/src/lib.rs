@@ -353,23 +353,30 @@ fn presence_state() -> Option<String> {
     presence::current()
 }
 
-/// Moves the island window by `dx`, `dy` logical px while the character is dragged.
+/// Moves the island window while the character is dragged. The first call
+/// remembers where the cursor holds the window (the drag's first `dx`, `dy`,
+/// logical px, included); from then on the window is placed under the cursor
+/// in physical px. Adding up the page's deltas drifted away from the cursor
+/// as soon as the drag crossed displays with a different scale.
 #[tauri::command]
 fn drag_island(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) {
     shared.gate.dragging.store(true, Ordering::Relaxed);
     let Some(win) = island::window(&app) else { return };
     let Ok(pos) = win.outer_position() else { return };
-    let scale = win.scale_factor().unwrap_or(1.0);
-    let _ = win.set_position(tauri::PhysicalPosition::new(
-        pos.x + (dx * scale).round() as i32,
-        pos.y + (dy * scale).round() as i32,
-    ));
+    let Some((cx, cy)) = island::cursor_physical() else { return };
+    let mut grab = shared.gate.drag_grab.lock().unwrap();
+    let (gx, gy) = *grab.get_or_insert_with(|| {
+        let scale = win.scale_factor().unwrap_or(1.0);
+        (cx - pos.x as f64 - dx * scale, cy - pos.y as f64 - dy * scale)
+    });
+    let _ = win.set_position(tauri::PhysicalPosition::new((cx - gx).round() as i32, (cy - gy).round() as i32));
 }
 
 /// The drag is over: remember where the character was left, in the active profile.
 #[tauri::command]
 fn end_drag(app: AppHandle, shared: State<Shared>) {
     shared.gate.dragging.store(false, Ordering::Relaxed);
+    *shared.gate.drag_grab.lock().unwrap() = None;
     let Some(win) = island::window(&app) else { return };
     let (Ok(pos), Ok(size)) = (win.outer_position(), win.outer_size()) else { return };
     let open = shared.gate.expanded.load(Ordering::Relaxed) && !shared.gate.collapsed.load(Ordering::Relaxed);
@@ -384,6 +391,13 @@ fn end_drag(app: AppHandle, shared: State<Shared>) {
     }
     let settings = {
         let mut s = shared.settings.lock().unwrap();
+        // Dropped on another display: the island moves there for good.
+        let centre = (pos.x as f64 + size.width as f64 / 2.0, pos.y as f64 + size.height as f64 / 2.0);
+        let screen = island::screen_for_drop(&app, &s, centre.0, centre.1);
+        if screen != s.screen {
+            log::line(format!("island moved to screen {screen}"));
+            s.screen = screen;
+        }
         let Some((work, scale)) = island::work_area(&app, &s) else { return };
         let (bw, bh) = *shared.gate.collapsed_size.lock().unwrap();
         let box_size = ((bw * scale).round() as u32, (bh * scale).round() as u32);
@@ -689,6 +703,41 @@ fn secret_clear(key: String) -> Result<(), String> {
 fn open_n8n() {
     if let Some(url) = secrets::get("n8n-url") {
         open_url(url);
+    }
+}
+
+/// "Apri" on the cards of the integrations that are a Windows tool or a
+/// server: the matching program, settings page or web client. Fixed targets
+/// only, never a path or a command from the front end.
+#[tauri::command]
+fn open_integration(id: String) -> bool {
+    let shell = |target: &str| {
+        Command::new("explorer.exe").arg(target).creation_flags(CREATE_NO_WINDOW).spawn().is_ok()
+    };
+    // Through ShellExecute: it reads App Paths (outlook.exe) and asks for
+    // elevation when a program wants it (Task Manager), CreateProcess does neither.
+    let start = |exe: &str| {
+        Command::new("powershell.exe")
+            .args(["-NoProfile", "-NonInteractive", "-Command", &format!("Start-Process {exe}")])
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .is_ok()
+    };
+    match id.as_str() {
+        "integration_system" => start("taskmgr.exe"),
+        "integration_security" => shell("windowsdefender:"),
+        "integration_network" => shell("ms-settings:network-status"),
+        "integration_clipboard" => shell("ms-settings:clipboard"),
+        "integration_weather" => shell("msnweather:"),
+        "integration_outlook" => start("outlook.exe"),
+        "integration_3cx" => match secrets::get("3cx-url").as_deref().and_then(threecx::base_url) {
+            Some(url) => {
+                open_url_now(&format!("{url}/webclient"));
+                true
+            }
+            None => false,
+        },
+        _ => false,
     }
 }
 
@@ -1083,6 +1132,7 @@ pub fn run() {
             process_alive,
             open_n8n,
             open_zammad,
+            open_integration,
             open_settings_window,
             set_paused,
         ])

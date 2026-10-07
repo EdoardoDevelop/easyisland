@@ -37,6 +37,7 @@ unsafe extern "system" fn on_foreground(
     if hwnd.0.is_null() {
         return;
     }
+    crate::island::on_foreground_change();
     let Some(path) = exe_path(hwnd) else { return };
     let exe = path.rsplit('\\').next().unwrap_or(&path).to_lowercase();
     if exe != "easyisland.exe" {

@@ -6,10 +6,12 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { Bridge, onEvent, type HookStatus } from "../core/bridge";
-import { CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type Settings, type WidgetDef } from "../core/state";
+import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type Settings, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
 import { h, clear } from "../views/dom";
+import { BRAND_SVG } from "../views/brands";
+import { ISLAND_MAX_W, ISLAND_MIN_W, MAX_ISLAND_H } from "../core/layout";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
@@ -229,7 +231,41 @@ function claudeSection(status: HookStatus, tool: HookTool = "claude", refreshFir
 
   if (refreshFirst) void rebuild();
   else draw();
+  if (tool === "claude") section.append(claudeTabRow());
   return section;
+}
+
+/**
+ * How the Claude Code tab looks in the island's header: its icon (the
+ * default), its name, or an emoji. Kept in integrationTabIcons like the other
+ * tabs: missing = the icon, "@name" = the name, anything else = that emoji.
+ */
+function claudeTabRow(): HTMLElement {
+  const id = "integration_claude";
+  const icons = () => (settings.integrationTabIcons ??= {});
+  const cur = icons()[id];
+  const place = h("select", {},
+    h("option", { value: "icon", text: "Logo di Claude" }),
+    h("option", { value: "name", text: "Nome" }),
+    h("option", { value: "emoji", text: "Emoji o lettere" })) as HTMLSelectElement;
+  place.value = !cur ? "icon" : cur === "@name" ? "name" : "emoji";
+  const emoji = h("input", {
+    type: "text", maxlength: "4", spellcheck: "false", style: "width:56px;text-align:center",
+    title: "Un'emoji o una o due lettere", placeholder: "✳",
+    value: cur && cur !== "@name" ? cur : "",
+  }) as HTMLInputElement;
+  const apply = () => {
+    emoji.style.display = place.value === "emoji" ? "" : "none";
+    if (place.value === "icon") delete icons()[id];
+    else if (place.value === "name") icons()[id] = "@name";
+    else icons()[id] = emoji.value.trim() || (emoji.value = "✳");
+  };
+  emoji.style.display = place.value === "emoji" ? "" : "none";
+  place.addEventListener("change", () => { apply(); void save(); });
+  emoji.addEventListener("change", () => { apply(); void save(); });
+  return h("div", { class: "row" },
+    h("label", { text: "Scheda nell'isola" }), place, emoji,
+    h("span", { class: "hint note", text: "come appare la scheda Claude Code in alto" }));
 }
 
 // ── Claude chat section ───────────────────────────────────────────────────────
@@ -768,21 +804,25 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
       h("option", { value: "pill", text: "Pillola nella panoramica" }),
       h("option", { value: "tab", text: "Scheda in alto, con il nome" }),
       h("option", { value: "icon", text: "Scheda in alto, con un'icona" })) as HTMLSelectElement;
+    // Integrations with a brand logo can show just that in their tab.
+    if (BRAND_SVG[def.id]) place.insertBefore(h("option", { value: "logo", text: "Scheda in alto, con il logo" }), place.lastChild);
     const iconInput = h("input", {
       type: "text", maxlength: "4", spellcheck: "false", style: "width:56px;text-align:center",
       title: "Un'emoji o una o due lettere", placeholder: TAB_ICONS[def.id] ?? "★",
     }) as HTMLInputElement;
     const icons = () => (settings.integrationTabIcons ??= {});
-    iconInput.value = icons()[def.id] ?? "";
+    iconInput.value = icons()[def.id] === "@logo" ? "" : icons()[def.id] ?? "";
     const isTab = (settings.integrationTabs ?? []).includes(def.id);
-    place.value = !isTab ? "pill" : icons()[def.id] ? "icon" : "tab";
+    place.value = !isTab ? "pill" : icons()[def.id] === "@logo" ? "logo" : icons()[def.id] ? "icon" : "tab";
     const syncIcon = () => { iconInput.style.display = place.value === "icon" ? "" : "none"; };
     syncIcon();
     place.addEventListener("change", () => {
       const rest = (settings.integrationTabs ?? []).filter((x) => x !== def.id);
       settings.integrationTabs = place.value === "pill" ? rest : [...rest, def.id];
-      if (place.value === "icon") {
-        if (!iconInput.value.trim()) iconInput.value = TAB_ICONS[def.id] ?? "★";
+      if (place.value === "logo") {
+        icons()[def.id] = "@logo";
+      } else if (place.value === "icon") {
+        if (!iconInput.value.trim() || iconInput.value === "@logo") iconInput.value = TAB_ICONS[def.id] ?? "★";
         icons()[def.id] = iconInput.value.trim();
       } else {
         delete icons()[def.id];
@@ -862,8 +902,11 @@ function slider(
 function placementSection(): HTMLElement {
   const commit = () => void save();
 
+  const screens: [string, string][] = [["primary", "Schermo principale"], ["cursor", "Schermo sotto il cursore"]];
+  // Dragging the character to another display picks that one.
+  if (settings.screen.startsWith("monitor:")) screens.push([settings.screen, `Dove l'hai trascinato (${settings.screen.slice(8).replace(/^\\\\\.\\/, "")})`]);
   const screen = select<Settings["screen"]>(
-    [["primary", "Schermo principale"], ["cursor", "Schermo sotto il cursore"]],
+    screens,
     settings.screen,
     (v) => { settings.screen = v; commit(); },
   );
@@ -974,6 +1017,16 @@ function placementSection(): HTMLElement {
     }),
     h("div", { class: "row" }, h("label", { text: "Schermo" }), screen),
     h("div", { class: "row" }, h("label", { text: "Posizione" }), vertical, horizontal),
+    h("div", { class: "row" },
+      h("label", { text: "Larghezza" }),
+      slider(ISLAND_MIN_W, ISLAND_MAX_W, 8, Math.round(settings.islandWidth ?? 640), "px", (v) => { settings.islandWidth = v; commit(); }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "Altezza minima" }),
+      slider(0, MAX_ISLAND_H, 8, Math.round(settings.islandHeight ?? 0), "px", (v) => { settings.islandHeight = v; commit(); }),
+      h("button", { text: "Predefinite", onclick: () => { settings.islandWidth = 640; settings.islandHeight = 0; commit(); render(); } }),
+      h("span", { class: "hint note", text: "0 = l'altezza di ogni vista; anche trascinando l'angolo dell'isola aperta" }),
+    ),
     h("div", { class: "row" },
       h("label", { text: "Sopra la barra" }),
       toggle(settings.overTaskbar, (v) => { settings.overTaskbar = v; commit(); }),
@@ -1345,6 +1398,9 @@ function actionsSection(): HTMLElement {
   function draw() {
     clear(list);
     const actions = settings.actions;
+    // Folder names already in use, offered while typing a new one.
+    const names = [...new Set(actions.map((a) => folderLook(a.folder).name).filter(Boolean))];
+    list.append(h("datalist", { id: "qa-folders" }, ...names.map((n) => h("option", { value: n }))));
     actions.forEach((a, idx) => {
       const field = (value: string, placeholder: string, apply: (v: string) => void, style = "flex:1 1 auto;min-width:0") => {
         const el = h("input", { type: "text", value, placeholder, style, spellcheck: "false" }) as HTMLInputElement;
@@ -1427,6 +1483,26 @@ function actionsSection(): HTMLElement {
       }
       card.append(h("div", { class: "row" }, h("label", { text: "Scorciatoia" }),
         hotkeyInput(a.hotkey, (v) => { a.hotkey = v; commit(); })));
+      if (!(a.kind === "prompt" && a.input === "file")) {
+        // Icon from the same grid as the actions (no emoji keyboard needed), and a
+        // name: actions with the same name share the folder, and its icon.
+        const look = folderLook(a.folder);
+        const folderField = field(look.name, "Nessuna (in primo piano)", (v) => {
+          const name = v.trim();
+          const other = actions.find((x) => x !== a && name && folderLook(x.folder).name === name);
+          a.folder = folderValue(other ? folderLook(other.folder).icon : look.icon, name);
+        }, "width:200px");
+        folderField.setAttribute("list", "qa-folders");
+        folderField.addEventListener("change", () => draw());
+        const folderIcon = iconPicker(look.icon, "#94a3b8", (v) => {
+          if (!look.name) return;
+          for (const x of actions) if (folderLook(x.folder).name === look.name) x.folder = folderValue(v, look.name);
+          commit();
+          draw();
+        });
+        card.append(h("div", { class: "row" }, h("label", { text: "Cartella" }), folderIcon, folderField,
+          h("span", { class: "hint note", text: "le azioni con lo stesso nome di cartella si raggruppano nella scheda ⚡; l'icona vale per tutta la cartella" })));
+      }
       list.append(card);
     });
   }
@@ -2219,17 +2295,12 @@ function themeSection(): HTMLElement {
   const t = settings.theme;
   const commit = () => void save();
   const pct = (v: number) => Math.round(v * 100);
-  // The colour row follows the character: its own colour is the default, and
-  // the cube has none to change (it keeps the logo's).
+  // The colour row follows the character: its own colour is the default (for
+  // the cube, the logo's colours).
   const colorRow = h("div", { class: "row" });
   const drawColorRow = () => {
     clear(colorRow);
     const c = characters().find((x) => x.id === t.character) ?? characters()[0];
-    if (c.kind === "cube") {
-      colorRow.append(h("label", { text: "Colore" }),
-        h("span", { class: "hint note", text: "EasyTech a riposo ha i colori del logo; negli altri stati prende il colore dello stato" }));
-      return;
-    }
     colorRow.append(
       h("label", { text: `Colore di ${c.name}` }),
       colorField(t.slimeColor, rgbHex(c.color), (v) => { t.slimeColor = v; commit(); }, "Il suo"),

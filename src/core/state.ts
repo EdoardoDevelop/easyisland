@@ -197,7 +197,7 @@ export const PROBE_INTEGRATIONS: Record<string, string> = {
 
 /** AgentTask.integrationAgents — same ids, names and colours as macOS. */
 export const INTEGRATION_AGENTS: AgentTask[] = [
-  task("integration_claude", "VS Code", "#F5F6F8", "claudeCode"),
+  task("integration_claude", "Claude Code", "#F5F6F8", "claudeCode"),
   task("integration_resend", "Resend", "#22C55E", "n8n"),
   task("integration_n8n", "n8n", "#F29B38", "n8n"),
   task("integration_vercel", "Vercel", "#7C5CFF", "n8n"),
@@ -215,6 +215,30 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_clipboard", "Appunti", "#A78BFA", "n8n"),
   task("integration_media", "Musica", "#1ED760", "n8n"),
   task("integration_3cx", "3CX", "#0596D4", "n8n"),
+];
+
+/** "Apri" on an integration card: its web dashboard… */
+export const OPEN_URLS: Record<string, string> = {
+  integration_resend: "https://resend.com/emails",
+  integration_vercel: "https://vercel.com/dashboard",
+  integration_github: "https://github.com",
+  integration_stripe: "https://dashboard.stripe.com/payments",
+  integration_notion: "https://notion.so",
+  integration_calcom: "https://app.cal.com/bookings",
+};
+/** …the Windows tool or server it watches (open_integration in lib.rs)… */
+export const OPENED_BY_APP = new Set([
+  "integration_n8n", "integration_zammad", "integration_system", "integration_security",
+  "integration_network", "integration_clipboard", "integration_weather", "integration_outlook", "integration_3cx",
+]);
+/** …and nothing for the others: no "Apri" button there. */
+export function canOpen(t: AgentTask | null): boolean {
+  return !!t && (isSessionTask(t) || !!OPEN_URLS[t.id] || OPENED_BY_APP.has(t.id));
+}
+
+/** States from least to most urgent: on the summary the character shows the top one. */
+const URGENCY: BotStateName[] = [
+  "idle", "sleeping", "finished", "searching", "thinking", "working", "ratelimit", "error", "question", "approval",
 ];
 
 export const TOGGLEABLE_INTEGRATION_IDS = [
@@ -248,7 +272,8 @@ export interface Settings {
   tabOrder: string[];
   /** No dragging pills and tabs around in the island (this PC). */
   lockOrder: boolean;
-  screen: "primary" | "cursor";
+  /** "primary", "cursor", or "monitor:<name>" (the display the character was dragged to). */
+  screen: string;
   autostart: boolean;
   hooksInstalled: boolean;
   /** Claude model used by the chat with an API key. */
@@ -274,6 +299,10 @@ export interface Settings {
   glueEdges: boolean;
   /** Use the whole screen, taskbar included, instead of the work area. */
   overTaskbar: boolean;
+  /** Width of the open island, px (dragged with its corner, or Impostazioni → Posizione). */
+  islandWidth: number;
+  /** Minimum height of the open island, px; 0 = each view's own height. */
+  islandHeight: number;
   /** ✕ in the open island's header. */
   closeButton: boolean;
   /** The compact view follows the cursor too (the open island always does). */
@@ -385,6 +414,24 @@ export interface QuickAction {
   confirm: boolean;
   /** Optional global shortcut, e.g. "Ctrl+Alt+E". */
   hotkey: string;
+  /** Folder in the ⚡ tab ("" or missing: top level): "i:<icon> Name", "🖥 Name" or "Name". */
+  folder?: string;
+}
+
+/** An action's folder split into icon and name; the name groups the actions. */
+export function folderLook(folder: string | undefined): { icon: string; name: string } {
+  const f = (folder ?? "").trim();
+  const drawn = f.match(/^(i:[\w-]+)\s+(.+)$/);
+  if (drawn) return { icon: drawn[1], name: drawn[2].trim() };
+  const emoji = f.match(/^(\p{Extended_Pictographic}\uFE0F?)\s*(.*)$/u);
+  if (emoji && emoji[2]) return { icon: emoji[1], name: emoji[2].trim() };
+  return { icon: "i:folder", name: f };
+}
+
+/** Writes a folder back: its icon (unless the default) and its name. */
+export function folderValue(icon: string, name: string): string {
+  const n = name.trim();
+  return !n ? "" : icon && icon !== "i:folder" ? `${icon} ${n}` : n;
 }
 
 /** A probe the user set up in the settings (src-tauri/src/widgets.rs). */
@@ -541,6 +588,8 @@ export const DEFAULT_SETTINGS: Settings = {
   offsetY: 0,
   glueEdges: true,
   overTaskbar: false,
+  islandWidth: 640,
+  islandHeight: 0,
   closeButton: true,
   followCursorCompact: false,
   presenceMeeting: true,
@@ -599,6 +648,8 @@ class AppState {
 
   tasks: AgentTask[] = [];
   focusId: string | null = null;
+  /** The ⌂ tab shows the summary of every integration instead of one card; any focus change leaves it. */
+  summary = true;
 
   stateOverride: BotStateName | null = null;
 
@@ -693,8 +744,25 @@ class AppState {
     return this.tasks.find((t) => t.id === this.focusId) ?? this.tasks[0] ?? null;
   }
 
+  /** ⌂ shows every integration (not while a permission or a question waits). */
+  get showsSummary(): boolean {
+    return this.summary && !this.pendingApproval;
+  }
+
+  /**
+   * The task the character speaks for: the focused one, or none on the summary
+   * (then it keeps its own colour and shows the most urgent state of all).
+   */
+  get characterTask(): AgentTask | null {
+    return this.showsSummary ? null : this.focusTask;
+  }
+
   get effectiveState(): BotStateName {
-    return this.stateOverride ?? this.focusTask?.state ?? "idle";
+    if (this.stateOverride) return this.stateOverride;
+    if (!this.showsSummary) return this.focusTask?.state ?? "idle";
+    let best: BotStateName = "idle";
+    for (const t of this.tasks) if (URGENCY.indexOf(t.state) > URGENCY.indexOf(best)) best = t.state;
+    return best;
   }
 
   /** Pills in the overview: everything but the focused task and the header tabs. */
@@ -715,6 +783,7 @@ class AppState {
     const t = this.tasks.find((x) => x.id === id);
     if (!t) return;
     this.focusId = id;
+    this.summary = false;
     t.pillBadge = null;
     this.notify();
   }
@@ -780,7 +849,7 @@ class AppState {
     this.notify();
   }
 
-  /** loadIntegrationTasks() — VS Code always on, the rest opt-in. */
+  /** loadIntegrationTasks() — Claude Code always on, the rest opt-in. */
   loadIntegrationTasks() {
     for (const proto of INTEGRATION_AGENTS) {
       const shouldLoad =

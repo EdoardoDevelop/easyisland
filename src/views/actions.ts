@@ -2,9 +2,10 @@
 // (confirm a script, watch it, read its output).
 
 import { h, clear } from "./dom";
+import { Bridge } from "../core/bridge";
 import { renderActionIcon } from "./action-icons";
 import { suggestionsFor, type Suggestion } from "../island/context";
-import { State, type QuickAction } from "../core/state";
+import { State, folderLook, type QuickAction } from "../core/state";
 import type { ViewHost } from "./views";
 
 export interface ActionHandlers {
@@ -60,10 +61,32 @@ function actionButton(a: QuickAction, onClick: () => void): HTMLElement {
   return b;
 }
 
+/** Actions above this many get the search field. */
+const SEARCH_FROM = 8;
+
 export function buildActions(handlers: ActionHandlers): ViewHost {
   const grid = h("div", { class: "qa-grid" });
   const suggest = h("div", { class: "qa-suggest" });
-  const card = h("div", { class: "card qa-card" }, suggest, grid);
+  // Search across every action, folders included.
+  const search = h("input", { type: "text", class: "qa-search", placeholder: "Cerca un'azione", spellcheck: "false", autocomplete: "off" }) as HTMLInputElement;
+  search.addEventListener("pointerdown", () => void Bridge.focusWindow(true));
+  search.addEventListener("focus", () => void Bridge.focusWindow(true));
+  search.addEventListener("input", () => { key = ""; State.notify(); });
+  search.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && search.value) { e.stopPropagation(); search.value = ""; key = ""; State.notify(); }
+    else if (e.key === "Enter") {
+      const first = matches()[0];
+      if (first) handlers.runAction(first);
+    }
+  });
+  const crumb = h("div", { class: "qa-crumb" });
+  const card = h("div", { class: "card qa-card" }, suggest, search, crumb, grid);
+  /** The folder open in the tab, or null at the top level. */
+  let folder: string | null = null;
+  const matches = () => {
+    const q = search.value.trim().toLowerCase();
+    return q ? tabActions().filter((a) => `${a.name} ${folderLook(a.folder).name}`.toLowerCase().includes(q)) : [];
+  };
   const el = h("div", { class: "view" }, card);
   // The buttons wrap differently while the island is still widening: measure
   // again whenever their block changes size, not only when the actions change.
@@ -74,8 +97,13 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
     sync() {
       const list = tabActions();
       const sugg = State.settings.contextActions === false ? null : suggestionsFor(State.foreground);
-      const k = JSON.stringify([list.map((a) => [a.id, a.name, a.icon, a.color, a.kind, a.hotkey]),
-        sugg?.app ?? "", sugg?.items.length ?? 0]);
+      // Grouped by name; the icon is the first one found for that name.
+      const fname = (a: QuickAction) => folderLook(a.folder).name;
+      const folders = [...new Set(list.map(fname).filter(Boolean))];
+      const iconOf = (f: string) => folderLook(list.find((a) => fname(a) === f)?.folder).icon;
+      if (folder && !folders.includes(folder)) folder = null;
+      const k = JSON.stringify([list.map((a) => [a.id, a.name, a.icon, a.color, a.kind, a.hotkey, a.folder ?? ""]),
+        sugg?.app ?? "", sugg?.items.length ?? 0, folder, search.value]);
       if (k === key) return;
       key = k;
       clear(suggest);
@@ -110,7 +138,37 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
         );
         return;
       }
-      for (const a of list) grid.append(actionButton(a, () => handlers.runAction(a)));
+      search.style.display = list.length > SEARCH_FROM ? "" : "none";
+      clear(crumb);
+      crumb.style.display = "none";
+      if (search.value.trim()) {
+        const found = matches();
+        for (const a of found) grid.append(actionButton(a, () => handlers.runAction(a)));
+        if (!found.length) grid.append(h("div", { class: "qa-none", text: "Nessuna azione trovata" }));
+        return;
+      }
+      if (folder) {
+        // Inside a folder: ‹ back, its name, its actions.
+        crumb.style.display = "";
+        crumb.append(
+          h("button", { class: "qa-back", title: "Indietro", text: "‹", onclick: () => { folder = null; key = ""; State.notify(); } }),
+          h("span", { class: "qa-icon" }, renderActionIcon(iconOf(folder), 14)),
+          h("b", { text: folder }));
+        for (const a of list.filter((x) => fname(x) === folder)) {
+          grid.append(actionButton(a, () => handlers.runAction(a)));
+        }
+        return;
+      }
+      // Top level: the folders first, then the actions without one.
+      for (const f of folders) {
+        const n = list.filter((x) => fname(x) === f).length;
+        const b = h("button", { class: "qa qa-folder", title: `${n} azioni`, onclick: () => { folder = f; key = ""; State.notify(); } },
+          h("span", { class: "qa-icon" }, renderActionIcon(iconOf(f), 18)),
+          h("span", { class: "qa-name", text: f }),
+          h("span", { class: "qa-count", text: String(n) }));
+        grid.append(b);
+      }
+      for (const a of list.filter((x) => !fname(x))) grid.append(actionButton(a, () => handlers.runAction(a)));
     },
     // Many actions wrap onto more rows: the island grows to show them all.
     // scrollHeight: the card's padding and the gap under the suggestions included.
