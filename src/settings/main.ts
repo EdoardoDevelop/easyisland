@@ -1398,6 +1398,9 @@ function actionsSection(): HTMLElement {
   function draw() {
     clear(list);
     const actions = settings.actions;
+    // Folder names already in use, offered while typing a new one.
+    const names = [...new Set(actions.map((a) => a.folder?.trim() ?? "").filter(Boolean))];
+    list.append(h("datalist", { id: "qa-folders" }, ...names.map((n) => h("option", { value: n }))));
     actions.forEach((a, idx) => {
       const field = (value: string, placeholder: string, apply: (v: string) => void, style = "flex:1 1 auto;min-width:0") => {
         const el = h("input", { type: "text", value, placeholder, style, spellcheck: "false" }) as HTMLInputElement;
@@ -1480,6 +1483,12 @@ function actionsSection(): HTMLElement {
       }
       card.append(h("div", { class: "row" }, h("label", { text: "Scorciatoia" }),
         hotkeyInput(a.hotkey, (v) => { a.hotkey = v; commit(); })));
+      if (!(a.kind === "prompt" && a.input === "file")) {
+        const folderField = field(a.folder ?? "", "Nessuna (in primo piano)", (v) => { a.folder = v.trim(); }, "width:220px");
+        folderField.setAttribute("list", "qa-folders");
+        card.append(h("div", { class: "row" }, h("label", { text: "Cartella" }), folderField,
+          h("span", { class: "hint note", text: "le azioni con la stessa cartella si raggruppano nella scheda ⚡; un'emoji all'inizio ne è l'icona" })));
+      }
       list.append(card);
     });
   }

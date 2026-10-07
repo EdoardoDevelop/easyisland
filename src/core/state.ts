@@ -414,6 +414,8 @@ export interface QuickAction {
   confirm: boolean;
   /** Optional global shortcut, e.g. "Ctrl+Alt+E". */
   hotkey: string;
+  /** Folder in the ⚡ tab ("" or missing: top level). A leading emoji is the folder's icon. */
+  folder?: string;
 }
 
 /** A probe the user set up in the settings (src-tauri/src/widgets.rs). */
