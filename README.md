@@ -183,7 +183,7 @@ disinstallatore volutamente non tocca il `settings.json` di Claude Code. Poi
 ## Come si usa
 
 <img src="screenshots/compact.png" width="288" alt="L'isola compatta, con le pillole delle integrazioni come mini Slime">
-<img src="screenshots/overview.png" width="640" alt="La panoramica: una sessione di Claude Code al lavoro a sinistra, le altre pillole a destra">
+<img src="screenshots/overview.png" width="640" alt="La panoramica: tutte le integrazioni con il loro stato">
 <img src="screenshots/approval.png" width="640" alt="Una richiesta di permesso di Claude Code, con Nega e Consenti">
 <img src="screenshots/chat.png" width="640" alt="Chat con Claude dall'isola">
 <img src="screenshots/drop.png" width="640" alt="Slime trasformato in una scatola, in attesa di un file, con Cattura una zona e Vassoio">
@@ -192,9 +192,12 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 
 | Cosa fai | Cosa succede |
 |---|---|
-| Porti il mouse sull'icona di Slime (in alto al centro, o nell'angolo che hai scelto) | Slime si ingrandisce (o resta sempre così, con **Sempre visibile**) |
+| Porti il mouse sull'icona di Slime (in alto al centro, o nell'angolo che hai scelto) | Slime si ingrandisce (o resta sempre così, con **Sempre visibile**), fa un balzo, ti guarda e alza una mano |
 | Clicchi su Slime, o lasci il mouse sopra per un attimo se "Apri dopo" lo prevede | Si apre l'isola, allineata a quel lato |
-| Trascini Slime tenendo premuto il tasto sinistro (anche l'icona a riposo) | Si sposta dove lo lasci, e la posizione resta salvata nel profilo |
+| Trascini Slime tenendo premuto il tasto sinistro (anche l'icona a riposo) | Si sposta dove lo lasci, anche su un altro schermo, e la posizione resta salvata nel profilo |
+| Trascini l'angolo in basso dell'isola aperta | Cambia larghezza e altezza dell'isola; il contenuto si adatta. Doppio clic sull'angolo: misure predefinite |
+| Scheda ⌂ **Panoramica** | Tutte le integrazioni con il loro stato e il loro logo; un clic ne apre una, trascinandole le riordini. Il personaggio mostra lo stato più urgente |
+| Scheda di **Claude Code** (il logo di Claude) | La sessione di Claude Code: avanzamento, modifiche, permessi. L'aspetto della scheda (logo, nome o emoji) si sceglie in Impostazioni → Claude |
 | Trascini l'isola aperta dallo spazio vuoto dell'intestazione | Resta lì finché è aperta; chiudendola torna al posto di Slime |
 | Trascini una pillola o una scheda in alto | Cambia posto (si blocca in Impostazioni → Integrazioni) |
 | Clicchi su Slime | Si infastidisce. Tre volte di fila e gli gira la testa |
@@ -205,7 +208,7 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 | Scrivi un calcolo nella chat, es. `840 + 22%` o `15% di 840` | Compare subito il risultato; **Invio** lo copia negli appunti, **Ctrl+Invio** chiede comunque a Claude. Il calcolo è fatto in locale, senza Claude |
 | Rilasci uno ZIP | Oltre a "Fai una domanda" c'è **Estrai…**: vedi cosa contiene e lo estrai in una cartella nuova accanto all'originale, in Download o sul Desktop |
 | Scheda **+** → **Cattura una zona** (o `Ctrl+Alt+Shift+S`) | Lo Strumento di cattura di Windows: scegli una zona, una finestra o lo schermo e la chat si apre con l'immagine allegata |
-| Scheda **+** → **Vassoio** | I file rilasciati sull'isola, tenuti finché EasyIsland non si riavvia: trascinali in un'altra app (mail, chat, cartella), chiedi a Claude, apri, mostra nella cartella, togli uno o tutti. Sono copie: gli originali non vengono toccati |
+| Scheda **+** → **Vassoio** (o il pulsante **Vassoio** dopo aver rilasciato un file) | I file rilasciati sull'isola, in elenco o a griglia, tenuti finché EasyIsland non si riavvia: trascinali in un'altra app (mail, chat, cartella), chiedi a Claude, apri, mostra nella cartella, togli uno o tutti. Sono copie: gli originali non vengono toccati |
 | Icona nell'area di notifica | Apri, Impostazioni…, Pausa, Esci |
 
 Tutto il resto succede da solo: una richiesta di permesso di Claude Code apre
@@ -242,6 +245,10 @@ modifiche al massimo, un'ora al massimo, cancellate a fine sessione). Oltre
   l'icona a riposo (un clic la apre). L'isola **aperta** si sposta tenendo premuto
   sullo spazio vuoto dell'intestazione: resta lì finché è aperta, poi alla chiusura
   torna scivolando al posto del personaggio e si riapre sempre da lì.
+- **Schermo**: principale, quello sotto il cursore, oppure quello su cui hai
+  trascinato Slime (se viene scollegato, torna sul principale).
+- **Larghezza** e **Altezza minima** dell'isola aperta (anche trascinando il suo
+  angolo in basso; *Predefinite* le riporta a 640 px e all'altezza di ogni vista).
 - **Sopra la barra**: Slime può stare anche sopra la barra delle applicazioni
   (spento: resta sopra di essa, nell'area di lavoro).
 - **Aggancia ai bordi**: lasciato a pochi pixel da un bordo dello schermo, lo
@@ -291,6 +298,12 @@ di EasyIsland. Le impostazioni si cambiano nell'indirizzo, per esempio
 | **Script** | esegue comandi PowerShell o del Prompt dei comandi, nascosti, e mostra l'output nell'isola (con *Interrompi*, timeout di 5 minuti). Parte **solo dopo un clic**; con "Chiedi conferma" mostra prima i comandi |
 | **Programma / cartella** | avvia un programma con i suoi argomenti (es. `mstsc /v:server01`) o apre una cartella |
 | **Link** | apre un indirizzo nel browser |
+
+**Cartelle**: ogni azione può stare in una cartella (campo *Cartella*, con
+un'icona scelta dalla griglia). Nella scheda ⚡ le cartelle compaiono prima delle
+altre azioni, con il numero di azioni dentro; un clic le apre, **‹** torna
+indietro. Con più di 8 azioni compare **Cerca un'azione**: cerca anche dentro le
+cartelle, Invio esegue la prima trovata.
 
 **Suggerimenti per l'app in uso**: in cima alla scheda ⚡ compaiono azioni pronte
 per l'app che stai usando, applicate al testo che hai selezionato: per Outlook
@@ -478,7 +491,8 @@ attivo.
   isola chiusa resta solo il personaggio, senza il cerchio o la barra), volume
   separato per avvisi, interfaccia ed emozioni. Slime è uno slime di gelatina verde che ondeggia quando si
   muove; Goccia è un piccolo spirito d'acqua azzurro, lucido, a forma di goccia;
-  EasyTech è un cubo, a riposo con i colori del logo da cui è disegnato. Negli
+  EasyTech è un cubo, a riposo con i colori del logo da cui è disegnato (o con il
+  colore del tema, se lo scegli). Negli
   altri stati tutti prendono il colore dello stato (blu mentre lavora, ambra per
   un permesso, rosso per un errore…). EasyTech ha gli occhi su un lato, con le
   stesse espressioni, e segue il mouse come gli altri. Anteprima senza

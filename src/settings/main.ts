@@ -1025,7 +1025,7 @@ function placementSection(): HTMLElement {
       h("label", { text: "Altezza minima" }),
       slider(0, MAX_ISLAND_H, 8, Math.round(settings.islandHeight ?? 0), "px", (v) => { settings.islandHeight = v; commit(); }),
       h("button", { text: "Predefinite", onclick: () => { settings.islandWidth = 640; settings.islandHeight = 0; commit(); render(); } }),
-      h("span", { class: "hint note", text: "dell'isola aperta; 0 = ogni vista con la sua altezza. Si regolano anche trascinando l'angolo in basso dell'isola aperta (doppio clic: predefinite)" }),
+      h("span", { class: "hint note", text: "0 = l'altezza di ogni vista; anche trascinando l'angolo dell'isola aperta" }),
     ),
     h("div", { class: "row" },
       h("label", { text: "Sopra la barra" }),

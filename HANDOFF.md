@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 6 ottobre 2026 · versione pubblicata **0.5.8** · branch di lavoro `claude/sviluppo`, principale `main` · repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 7 ottobre 2026 · versione **0.5.9** (in `main`, tag da creare) · branch di lavoro `claude/sviluppo`, principale `main` · repository pubblico `EdoardoDevelop/easyisland`._
 
 Il minimo per riprendere il lavoro. Struttura del codice e regole sono in `CLAUDE.md` (caricato in automatico); la storia completa (roadmap originale, analisi, registro dal 1° al 6 ottobre 2026) è in `HANDOFF-archivio.md`.
 
@@ -70,6 +70,10 @@ Verificato solo con i test o nell'anteprima del browser:
 ## 7. Registro
 
 Il registro completo fino al 6 ottobre 2026 è in `HANDOFF-archivio.md`. Le nuove voci vanno qui sotto, la più recente in alto.
+
+### 7 ottobre 2026 — versione 0.5.9
+- README aggiornato (Panoramica, scheda Claude Code, larghezza/altezza, schermi, Vassoio, cartelle delle azioni, ciao al passaggio) e schermate rifatte con `scripts/screenshots.mjs` (qui con Chromium su Linux: i caratteri possono differire leggermente da Edge).
+- Versione 0.5.9 in `package.json`, `Cargo.toml`, `tauri.conf.json`, lock; unita in `main`. Rust non compilato in questa sessione: la CI su Windows è il primo controllo.
 
 ### 6 ottobre 2026 — correzioni dalla prova di Edoardo
 - **EasyTech** prende il colore del tema e quello dell'integrazione in primo piano (`wearsIntegrationColor: true`); senza, resta il logo.
