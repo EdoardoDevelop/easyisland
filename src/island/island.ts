@@ -1237,6 +1237,14 @@ export class Island {
       w = Math.round(Math.min(ISLAND_MAX_W, Math.max(ISLAND_MIN_W, s.islandWidth || EXPANDED_W)));
       if (s.islandHeight > 0) h = Math.max(h, Math.min(MAX_ISLAND_H, Math.round(s.islandHeight)));
     }
+    // Height the user added beyond the view's own: lists and text boxes grow by
+    // it (CSS max-height: calc(… + var(--extra-h))) instead of keeping their
+    // scroll bar in an island that has room. Measured against the natural
+    // height so a list that grows does not feed back into the island's size.
+    const natural = islandSize(State.mode, State.view, State.chatHistory.length, compact, fit).h;
+    const extra = State.mode === "expanded" ? Math.max(0, h - natural) : 0;
+    this.islandEl.style.setProperty("--extra-h", `${extra}px`);
+    this.islandEl.style.setProperty("--extra-w", `${State.mode === "expanded" ? Math.max(0, w - EXPANDED_W) : 0}px`);
     let r = State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
     // The hover badge is a circle; a floating bar is a pill.
     if (State.mode !== "expanded" && this.placement.hoverStyle === "icon") r = compact.w / 2;
