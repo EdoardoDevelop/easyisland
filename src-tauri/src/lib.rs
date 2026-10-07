@@ -353,23 +353,30 @@ fn presence_state() -> Option<String> {
     presence::current()
 }
 
-/// Moves the island window by `dx`, `dy` logical px while the character is dragged.
+/// Moves the island window while the character is dragged. The first call
+/// remembers where the cursor holds the window (the drag's first `dx`, `dy`,
+/// logical px, included); from then on the window is placed under the cursor
+/// in physical px. Adding up the page's deltas drifted away from the cursor
+/// as soon as the drag crossed displays with a different scale.
 #[tauri::command]
 fn drag_island(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) {
     shared.gate.dragging.store(true, Ordering::Relaxed);
     let Some(win) = island::window(&app) else { return };
     let Ok(pos) = win.outer_position() else { return };
-    let scale = win.scale_factor().unwrap_or(1.0);
-    let _ = win.set_position(tauri::PhysicalPosition::new(
-        pos.x + (dx * scale).round() as i32,
-        pos.y + (dy * scale).round() as i32,
-    ));
+    let Some((cx, cy)) = island::cursor_physical() else { return };
+    let mut grab = shared.gate.drag_grab.lock().unwrap();
+    let (gx, gy) = *grab.get_or_insert_with(|| {
+        let scale = win.scale_factor().unwrap_or(1.0);
+        (cx - pos.x as f64 - dx * scale, cy - pos.y as f64 - dy * scale)
+    });
+    let _ = win.set_position(tauri::PhysicalPosition::new((cx - gx).round() as i32, (cy - gy).round() as i32));
 }
 
 /// The drag is over: remember where the character was left, in the active profile.
 #[tauri::command]
 fn end_drag(app: AppHandle, shared: State<Shared>) {
     shared.gate.dragging.store(false, Ordering::Relaxed);
+    *shared.gate.drag_grab.lock().unwrap() = None;
     let Some(win) = island::window(&app) else { return };
     let (Ok(pos), Ok(size)) = (win.outer_position(), win.outer_size()) else { return };
     let open = shared.gate.expanded.load(Ordering::Relaxed) && !shared.gate.collapsed.load(Ordering::Relaxed);

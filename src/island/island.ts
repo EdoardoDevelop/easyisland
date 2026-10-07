@@ -316,6 +316,28 @@ export class Island {
 
     this.root.append(this.wakeStrip, this.restIcon, this.islandEl);
     this.applyGeometry();
+    this.watchScale();
+  }
+
+  /**
+   * Moved to a display with another scale: the canvases were sized for the old
+   * one, so the character came out too small or too big for its box until the
+   * island was opened and closed. Redraw them, and once the drag is over let
+   * Rust size the window for the new display.
+   */
+  private watchScale() {
+    const dpr = window.devicePixelRatio;
+    matchMedia(`(resolution: ${dpr}dppx)`).addEventListener("change", () => {
+      void Bridge.log(`scale ${dpr} -> ${window.devicePixelRatio}`);
+      this.canvasPx = 0;
+      this.restKey = "";
+      this.drawRestIcon();
+      this.applyGeometry();
+      State.notify();
+      this.ensureRunning();
+      if (!this.press?.moved) void Bridge.reposition();
+      this.watchScale();
+    }, { once: true });
   }
 
   // ── FSM ─────────────────────────────────────────────────────────────────────
@@ -1328,7 +1350,7 @@ export class Island {
   private drawRestIcon() {
     const p = this.placement;
     const state = State.effectiveState;
-    const key = `${p.iconStyle}|${p.iconSize}|${state}|${State.paused}|${State.settings.theme.slimeColor}|${character().id}`;
+    const key = `${window.devicePixelRatio}|${p.iconStyle}|${p.iconSize}|${state}|${State.paused}|${State.settings.theme.slimeColor}|${character().id}`;
     if (key === this.restKey) return;
     this.restKey = key;
 

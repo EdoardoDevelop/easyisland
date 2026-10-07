@@ -89,6 +89,9 @@ pub struct PollGate {
     /// The character is being dragged: the window keeps the mouse even when a quick
     /// move leaves the cursor outside it for a moment.
     pub dragging: AtomicBool,
+    /// Where the cursor holds the window during a drag (physical px from its
+    /// top-left corner): the window follows the cursor, whatever the displays' scale.
+    pub drag_grab: Mutex<Option<(f64, f64)>>,
     /// The island is open.
     pub expanded: AtomicBool,
     /// Where the open island was dragged to, from its usual place (logical px).
@@ -108,6 +111,7 @@ impl PollGate {
             collapsed_size: Mutex::new((STRIP_W, STRIP_H)),
             fullscreen: AtomicBool::new(false),
             dragging: AtomicBool::new(false),
+            drag_grab: Mutex::new(None),
             expanded: AtomicBool::new(false),
             panel_offset: Mutex::new((0.0, 0.0)),
         }
@@ -144,7 +148,7 @@ pub fn window(app: &AppHandle) -> Option<WebviewWindow> {
     app.get_webview_window(WINDOW_LABEL)
 }
 
-fn cursor_physical() -> Option<(f64, f64)> {
+pub fn cursor_physical() -> Option<(f64, f64)> {
     let mut p = POINT::default();
     unsafe { GetCursorPos(&mut p).ok()? };
     Some((p.x as f64, p.y as f64))
