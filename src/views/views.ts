@@ -369,7 +369,8 @@ function buildOverview(actions: ViewActions): ViewHost {
         }
       } else if (showsSummary()) {
         const key = "summary~" + State.tasks.map((t) => `${t.id}:${t.state}:${t.pillBadge ?? ""}:${pillLabel(t).text}:${t.steps.join("|")}`).join("~");
-        if (key !== cardKey) {
+        const sorting = leftBody.firstElementChild instanceof HTMLElement && isSorting(leftBody.firstElementChild);
+        if (key !== cardKey && !sorting) {
           cardKey = key;
           mode = "card";
           clear(leftBody);
@@ -435,7 +436,7 @@ function renderSummary(actions: ViewActions): HTMLElement {
   for (const t of State.tasks) {
     const label = pillLabel(t);
     const status = t.steps.length ? t.steps[t.steps.length - 1] : t.state === "idle" ? "" : t.state;
-    const row = h("button", { class: "summary-row", title: label.title ?? t.name, onclick: () => actions.setFocus(t.id) },
+    const row = h("button", { class: "summary-row", "data-id": t.id, title: label.title ?? t.name, onclick: () => actions.setFocus(t.id) },
       brandOrDot(t.id, t.color, 8),
       h("span", { class: "summary-name", text: label.text }),
       h("span", { class: "summary-status", text: status }));
@@ -443,6 +444,8 @@ function renderSummary(actions: ViewActions): HTMLElement {
     grid.append(row);
   }
   if (!State.tasks.length) grid.append(h("span", { class: "hint", text: "Nessuna integrazione attiva" }));
+  // Dragged into the order the user wants: the same order as the pills.
+  sortable(grid, { enabled: () => !State.settings.lockOrder, onReorder: (ids) => actions.reorder(ids) });
   return grid;
 }
 
