@@ -216,7 +216,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
       }
       for (const b of intTabs) {
         const t = tabs.find((x) => x.id === b.dataset.id);
-        b.classList.toggle("on", overview && State.focusId === b.dataset.id);
+        // On ⌂ only the house is lit, even though the last integration keeps the focus.
+        b.classList.toggle("on", overview && !showsSummary() && State.focusId === b.dataset.id);
         b.classList.toggle("badge", !!t?.pillBadge);
       }
       tabChat.classList.toggle("on", v === "prompt");

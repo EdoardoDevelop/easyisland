@@ -82,6 +82,14 @@ const HOOK_TOOLS = {
     off: "Se usi GitHub Copilot CLI, installa i suoi hook per vedere le sue sessioni nell'isola. EasyIsland scrive un file tutto suo in .copilot\\hooks e solo hook che osservano: non può mai bloccare Copilot.",
     done: "Apri una nuova sessione di Copilot CLI per attivare gli hook.",
   },
+  opencode: {
+    name: "opencode", file: "easyisland.js",
+    on: "Le sessioni di opencode compaiono nell'isola con una pillola tutta loro: passi, piano, modifiche ai file con il diff, esito dei test e richieste di permesso con Consenti / Nega / Sempre (puoi rispondere anche in opencode, come sempre).",
+    off: "Se usi opencode, installa il plugin di EasyIsland: opencode non ha hook a comando, quindi EasyIsland scrive un plugin tutto suo in .config\\opencode\\plugins che passa gli eventi all'isola. Non blocca mai opencode.",
+    done: "Riavvia opencode per caricare il plugin.",
+    preview: "Ecco il plugin che EasyIsland scrive in .config\\opencode\\plugins: un file tutto suo, gli altri plugin non vengono toccati.",
+    outdated: "Il plugin di opencode è di una versione precedente di EasyIsland (o il relay si è spostato): reinstallalo per aggiornarlo.",
+  },
 } as const;
 type HookTool = keyof typeof HOOK_TOOLS;
 
@@ -139,7 +147,7 @@ function claudeSection(status: HookStatus, tool: HookTool = "claude", refreshFir
     if (status.outdated && !status.legacy) {
       body.append(h("div", {
         class: "notice warn",
-        text: "Questa versione di EasyIsland ascolta eventi nuovi (per esempio quando la conversazione viene riassunta). Reinstalla gli hook per averli: le voci di EasyIsland vengono aggiornate, le tue restano.",
+        text: "outdated" in T ? T.outdated : "Questa versione di EasyIsland ascolta eventi nuovi (per esempio quando la conversazione viene riassunta). Reinstalla gli hook per averli: le voci di EasyIsland vengono aggiornate, le tue restano.",
       }));
     }
 
@@ -196,7 +204,7 @@ function claudeSection(status: HookStatus, tool: HookTool = "claude", refreshFir
       h("div", {
         class: "hint",
         text: install
-          ? `Ecco esattamente cosa cambierà nel tuo ${T.file}. I tuoi hook non vengono toccati.`
+          ? "preview" in T ? T.preview : `Ecco esattamente cosa cambierà nel tuo ${T.file}. I tuoi hook non vengono toccati.`
           : "Vengono rimosse solo le voci di EasyIsland. I tuoi hook non vengono toccati.",
       }),
       renderDiff(preview.diff),
@@ -1381,6 +1389,7 @@ function hotkeyInput(value: string, apply: (v: string) => void): HTMLElement {
 
 function actionsSection(): HTMLElement {
   const list = h("div", { style: "display:flex;flex-direction:column;gap:10px" });
+  const folders = h("div", { class: "row qa-folders" });
   const warn = h("div", {});
   const commit = () => {
     void save().then(() => window.setTimeout(checkHotkeys, 600));
@@ -1397,51 +1406,137 @@ function actionsSection(): HTMLElement {
     }
   }
 
+  /** Edited copies not saved yet, by action id. A new action lives only here until saved. */
+  const drafts = new Map<string, QuickAction>();
+  /** Ids of the new actions never saved, in the order they were added. */
+  const fresh: string[] = [];
+
+  function forget(id: string) {
+    drafts.delete(id);
+    const i = fresh.indexOf(id);
+    if (i >= 0) fresh.splice(i, 1);
+  }
+
+  function saveAction(a: QuickAction) {
+    const i = settings.actions.findIndex((x) => x.id === a.id);
+    if (i >= 0) settings.actions[i] = a;
+    else settings.actions.push(a);
+    forget(a.id);
+    commit();
+    draw();
+  }
+
+  /** Folder names of the ⚡ tab, in the order the tab shows them (first action first). */
+  function folderNames(): string[] {
+    return [...new Set(settings.actions.filter((a) => !(a.kind === "prompt" && a.input === "file"))
+      .map((a) => folderLook(a.folder).name).filter(Boolean))];
+  }
+
+  /**
+   * Moves a folder before or after its neighbour: the two folders' actions swap
+   * places in the list, everything else stays where it is.
+   */
+  function moveFolder(name: string, delta: number) {
+    const names = folderNames();
+    const other = names[names.indexOf(name) + delta];
+    if (!other) return;
+    const [first, second] = delta < 0 ? [name, other] : [other, name];
+    const pair = [first, second];
+    const of = (n: string) => settings.actions.filter((a) => folderLook(a.folder).name === n);
+    const moved = [...of(first), ...of(second)];
+    const slots = settings.actions.map((a, i) => (pair.includes(folderLook(a.folder).name) ? i : -1)).filter((i) => i >= 0);
+    slots.forEach((slot, k) => { settings.actions[slot] = moved[k]; });
+    commit();
+    draw();
+  }
+
+  function drawFolders() {
+    clear(folders);
+    const names = folderNames();
+    folders.style.display = names.length < 2 ? "none" : "";
+    if (names.length < 2) return;
+    const chips = names.map((n, i) => {
+      const look = folderLook(settings.actions.find((a) => folderLook(a.folder).name === n)?.folder);
+      return h("span", { class: "qa-folder-chip" },
+        h("button", { class: "icon", text: "‹", title: "Prima", disabled: i === 0, onclick: () => moveFolder(n, -1) }),
+        renderActionIcon(look.icon, 14),
+        h("span", { text: n }),
+        h("button", { class: "icon", text: "›", title: "Dopo", disabled: i === names.length - 1, onclick: () => moveFolder(n, 1) }));
+    });
+    folders.append(h("label", { text: "Ordine delle cartelle" }), ...chips);
+  }
+
   function draw() {
     clear(list);
+    drawFolders();
     const actions = settings.actions;
+    // What each card edits: its unsaved draft, or a copy of the saved action.
+    const rows = [
+      ...actions.map((x) => drafts.get(x.id) ?? (structuredClone(x) as QuickAction)),
+      ...fresh.map((id) => drafts.get(id)).filter((x): x is QuickAction => !!x),
+    ];
     // Folder names already in use, offered while typing a new one.
-    const names = [...new Set(actions.map((a) => folderLook(a.folder).name).filter(Boolean))];
+    const names = [...new Set(rows.map((a) => folderLook(a.folder).name).filter(Boolean))];
     list.append(h("datalist", { id: "qa-folders" }, ...names.map((n) => h("option", { value: n }))));
-    actions.forEach((a, idx) => {
+    rows.forEach((a) => {
+      const isNew = fresh.includes(a.id);
+      const idx = actions.findIndex((x) => x.id === a.id);
+      const bar = h("div", { class: "row qa-save" },
+        h("span", { class: "hint", text: isNew ? "Nuova azione, non ancora salvata" : "Modifiche non salvate" }),
+        h("button", { text: isNew ? "Scarta" : "Annulla", onclick: () => { forget(a.id); draw(); } }),
+        h("button", { class: "primary", text: "Salva", onclick: () => saveAction(a) }));
+      // Any edit keeps the draft and shows Salva / Annulla.
+      const touch = () => {
+        drafts.set(a.id, a);
+        bar.style.display = "";
+        card.classList.add("dirty");
+      };
       const field = (value: string, placeholder: string, apply: (v: string) => void, style = "flex:1 1 auto;min-width:0") => {
         const el = h("input", { type: "text", value, placeholder, style, spellcheck: "false" }) as HTMLInputElement;
-        el.addEventListener("change", () => { apply(el.value); commit(); });
+        el.addEventListener("input", () => { apply(el.value); touch(); });
         return el;
       };
       const area = (value: string, placeholder: string, apply: (v: string) => void, mono = false) => {
         const el = h("textarea", { placeholder, rows: "3", spellcheck: "false", class: mono ? "mono" : "" }) as HTMLTextAreaElement;
         el.value = value;
-        el.addEventListener("change", () => { apply(el.value); commit(); });
+        el.addEventListener("input", () => { apply(el.value); touch(); });
         return el;
       };
 
       const color = h("input", { type: "color", value: /^#[0-9a-f]{6}$/i.test(a.color) ? a.color : "#8b5cf6" }) as HTMLInputElement;
-      color.addEventListener("change", () => { a.color = color.value; commit(); draw(); });
+      color.addEventListener("change", () => { a.color = color.value; touch(); draw(); });
 
       const kind = select<QuickAction["kind"]>(
         [["prompt", "Chiedi a Claude"], ["script", "Script"], ["app", "Programma / cartella"], ["url", "Link"]],
         a.kind,
-        (v) => { a.kind = v; commit(); draw(); },
+        (v) => { a.kind = v; touch(); draw(); },
       );
 
+      // Moving and deleting act on the saved list at once; a new action is just dropped.
       const move = (delta: number) => {
         const j = idx + delta;
-        if (j < 0 || j >= actions.length) return;
+        if (idx < 0 || j < 0 || j >= actions.length) return;
         [actions[idx], actions[j]] = [actions[j], actions[idx]];
         commit();
         draw();
       };
-      const up = h("button", { class: "icon", text: "↑", title: "Sposta su", onclick: () => move(-1) });
-      const down = h("button", { class: "icon", text: "↓", title: "Sposta giù", onclick: () => move(1) });
+      const up = h("button", { class: "icon", text: "↑", title: "Sposta su", disabled: isNew || idx === 0, onclick: () => move(-1) });
+      const down = h("button", { class: "icon", text: "↓", title: "Sposta giù", disabled: isNew || idx === actions.length - 1, onclick: () => move(1) });
       const del = h("button", {
         class: "danger icon", text: "✕", title: "Elimina",
-        onclick: () => { actions.splice(idx, 1); commit(); draw(); },
+        onclick: () => {
+          if (idx >= 0) {
+            actions.splice(idx, 1);
+            commit();
+          }
+          forget(a.id);
+          draw();
+        },
       });
 
       const card = h("div", { class: "qa-edit" },
         h("div", { class: "row head" },
-          iconPicker(a.icon, a.color, (v) => { a.icon = v; commit(); draw(); }),
+          iconPicker(a.icon, a.color, (v) => { a.icon = v; touch(); draw(); }),
           field(a.name, "Nome", (v) => { a.name = v.trim(); }),
           color, kind, up, down, del,
         ),
@@ -1455,7 +1550,7 @@ function actionsSection(): HTMLElement {
         case "app":
           card.append(
             h("div", { class: "row" }, h("label", { text: "Programma o cartella" }),
-              field(a.target, "es. mstsc, C:\\Strumenti\\app.exe, C:\\Clienti", (v) => { a.target = v.trim(); })),
+              field(a.target, "es. mstsc, chrome, regedit, %ProgramFiles%\\App\\app.exe, C:\\Clienti", (v) => { a.target = v.trim(); })),
             h("div", { class: "row" }, h("label", { text: "Argomenti" }),
               field(a.args, "es. /v:server01 — le virgolette raggruppano", (v) => { a.args = v; })),
           );
@@ -1464,9 +1559,9 @@ function actionsSection(): HTMLElement {
           card.append(
             h("div", { class: "row" }, h("label", { text: "Shell" }),
               select<QuickAction["shell"]>([["powershell", "PowerShell"], ["cmd", "Prompt dei comandi"]], a.shell,
-                (v) => { a.shell = v; commit(); }),
+                (v) => { a.shell = v; touch(); }),
               h("span", { class: "hint", text: "Chiedi conferma" }),
-              toggle(a.confirm, (v) => { a.confirm = v; commit(); }),
+              toggle(a.confirm, (v) => { a.confirm = v; touch(); }),
             ),
             area(a.script, "I comandi da eseguire. Partono solo dopo un clic nell'isola.", (v) => { a.script = v; }, true),
           );
@@ -1477,34 +1572,39 @@ function actionsSection(): HTMLElement {
               select<QuickAction["input"]>(
                 [["clipboard", "Testo copiato negli appunti"], ["selection", "Testo selezionato"], ["file", "File rilasciato sull'isola"], ["none", "Niente (solo la domanda)"]],
                 a.input,
-                (v) => { a.input = v; commit(); },
+                (v) => { a.input = v; touch(); draw(); },
               )),
             area(a.prompt, "Cosa chiedere a Claude", (v) => { a.prompt = v; }),
           );
           break;
       }
       card.append(h("div", { class: "row" }, h("label", { text: "Scorciatoia" }),
-        hotkeyInput(a.hotkey, (v) => { a.hotkey = v; commit(); })));
+        hotkeyInput(a.hotkey, (v) => { a.hotkey = v; touch(); })));
       if (!(a.kind === "prompt" && a.input === "file")) {
         // Icon from the same grid as the actions (no emoji keyboard needed), and a
         // name: actions with the same name share the folder, and its icon.
         const look = folderLook(a.folder);
         const folderField = field(look.name, "Nessuna (in primo piano)", (v) => {
           const name = v.trim();
-          const other = actions.find((x) => x !== a && name && folderLook(x.folder).name === name);
+          const other = rows.find((x) => x !== a && name && folderLook(x.folder).name === name);
           a.folder = folderValue(other ? folderLook(other.folder).icon : look.icon, name);
         }, "width:200px");
         folderField.setAttribute("list", "qa-folders");
         folderField.addEventListener("change", () => draw());
+        // The folder's icon belongs to the whole folder: saved at once for every action in it.
         const folderIcon = iconPicker(look.icon, "#94a3b8", (v) => {
           if (!look.name) return;
-          for (const x of actions) if (folderLook(x.folder).name === look.name) x.folder = folderValue(v, look.name);
+          for (const x of [...actions, ...drafts.values()]) if (folderLook(x.folder).name === look.name) x.folder = folderValue(v, look.name);
           commit();
           draw();
         });
         card.append(h("div", { class: "row" }, h("label", { text: "Cartella" }), folderIcon, folderField,
           h("span", { class: "hint note", text: "le azioni con lo stesso nome di cartella si raggruppano nella scheda ⚡; l'icona vale per tutta la cartella" })));
       }
+      const dirty = drafts.has(a.id);
+      bar.style.display = dirty ? "" : "none";
+      card.classList.toggle("dirty", dirty);
+      card.append(bar);
       list.append(card);
     });
   }
@@ -1513,7 +1613,16 @@ function actionsSection(): HTMLElement {
     hotkeyInput(value, (v) => { apply(v); commit(); });
 
   const add = h("button", { class: "primary", text: "Aggiungi azione" });
-  add.addEventListener("click", () => { settings.actions.push(blankAction()); commit(); draw(); });
+  add.addEventListener("click", () => {
+    // Saved only with its Salva button.
+    const a = blankAction();
+    drafts.set(a.id, a);
+    fresh.push(a.id);
+    draw();
+    const card = list.lastElementChild as HTMLElement | null;
+    card?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    card?.querySelector<HTMLInputElement>(".row.head input[type=text]")?.select();
+  });
 
   draw();
   void checkHotkeys();
@@ -1550,6 +1659,7 @@ function actionsSection(): HTMLElement {
       toggle(settings.contextActions !== false, (v) => { settings.contextActions = v; void save(); }),
       h("span", { class: "hint note", text: "in cima alla scheda ⚡: per Outlook, Excel, Word, il browser, il codice… usano il testo che hai selezionato" })),
     warn,
+    folders,
     list,
     h("div", { class: "row" }, add),
   );
@@ -2552,8 +2662,8 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     },
     {
       id: "claude", label: "Agenti e chat", icon: "sparkles", color: "#E07A5F", title: "Agenti e chat",
-      intro: "Le sessioni di Claude Code, Codex, Gemini CLI, Cursor e Copilot CLI nell'isola, la chat con il motore che preferisci e i connettori che può usare.",
-      sections: () => [claudeSection(b.status), agentHooksSection("codex"), agentHooksSection("gemini"), agentHooksSection("cursor"), agentHooksSection("copilot"), claudeChatSection(b.hasKey), connectorsSection()],
+      intro: "Le sessioni di Claude Code, Codex, Gemini CLI, Cursor, Copilot CLI e opencode nell'isola, la chat con il motore che preferisci e i connettori che può usare.",
+      sections: () => [claudeSection(b.status), agentHooksSection("codex"), agentHooksSection("gemini"), agentHooksSection("cursor"), agentHooksSection("copilot"), agentHooksSection("opencode"), claudeChatSection(b.hasKey), connectorsSection()],
     },
     {
       id: "azioni", label: "Azioni rapide", icon: "bolt", color: "#FACC15", title: "Azioni rapide",

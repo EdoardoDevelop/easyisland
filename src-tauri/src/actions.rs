@@ -52,9 +52,46 @@ pub fn split_args(s: &str) -> Vec<String> {
     out
 }
 
+/// The target as typed or pasted: `"C:\Program Files\x.exe"` (Explorer's "Copy
+/// as path" adds the quotes) loses them, `%ProgramFiles%` and friends expand.
+pub fn clean_target(target: &str) -> String {
+    let t = target.trim();
+    let t = t.strip_prefix('"').and_then(|s| s.strip_suffix('"')).unwrap_or(t).trim();
+    expand_env(t, |name| std::env::var(name).ok())
+}
+
+/// `%NAME%` → its value; unknown names and a lone `%` stay as they are.
+fn expand_env(s: &str, lookup: impl Fn(&str) -> Option<String>) -> String {
+    let mut out = String::new();
+    let mut rest = s;
+    while let Some(start) = rest.find('%') {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 1..];
+        match after.find('%') {
+            Some(end) if end > 0 => match lookup(&after[..end]) {
+                Some(v) => {
+                    out.push_str(&v);
+                    rest = &after[end + 1..];
+                }
+                None => {
+                    out.push('%');
+                    rest = after;
+                }
+            },
+            _ => {
+                out.push('%');
+                rest = after;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
 /// Starts a program (or opens a folder/file with its default handler).
 pub fn open_app(target: &str, args: &str) -> Result<(), String> {
-    let target = target.trim();
+    let target = clean_target(target);
+    let target = target.as_str();
     if target.is_empty() {
         return Err("Nessun programma indicato.".into());
     }
@@ -67,11 +104,28 @@ pub fn open_app(target: &str, args: &str) -> Result<(), String> {
             .map_err(|e| format!("Impossibile aprire {target}: {e}"))?;
         return Ok(());
     }
-    std::process::Command::new(target)
-        .args(split_args(args))
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| format!("Impossibile avviare {target}: {e}"))
+    match std::process::Command::new(target).args(split_args(args)).spawn() {
+        Ok(_) => Ok(()),
+        // CreateProcess only knows full paths and the PATH. ShellExecute also
+        // reads App Paths (chrome, winword, excel), opens shell: and ms-settings:
+        // targets and asks for elevation when a program wants it (regedit):
+        // the usual reasons a "Programma" action did not start.
+        Err(e) => shell_execute(target, args).map_err(|_| format!("Impossibile avviare {target}: {e}")),
+    }
+}
+
+/// ShellExecute "open": no shell in between, the arguments go as typed.
+fn shell_execute(target: &str, args: &str) -> Result<(), ()> {
+    use windows::core::{HSTRING, PCWSTR};
+    use windows::Win32::UI::Shell::ShellExecuteW;
+    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+
+    let file = HSTRING::from(target);
+    let params = HSTRING::from(args.trim());
+    let params = if args.trim().is_empty() { PCWSTR::null() } else { PCWSTR(params.as_ptr()) };
+    let r = unsafe { ShellExecuteW(None, windows::core::w!("open"), PCWSTR(file.as_ptr()), params, PCWSTR::null(), SW_SHOWNORMAL) };
+    // ShellExecute reports success with a value above 32.
+    if r.0 as usize > 32 { Ok(()) } else { Err(()) }
 }
 
 fn is_executable(p: &Path) -> bool {
@@ -250,7 +304,20 @@ pub fn set_clipboard_text(text: &str) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::split_args;
+    use super::{expand_env, split_args};
+
+    #[test]
+    fn expands_environment_variables() {
+        let env = |n: &str| match n {
+            "ProgramFiles" => Some(r"C:\Program Files".to_string()),
+            _ => None,
+        };
+        assert_eq!(expand_env(r"%ProgramFiles%\App\app.exe", env), r"C:\Program Files\App\app.exe");
+        assert_eq!(expand_env("%Nope%\\x", env), "%Nope%\\x");
+        assert_eq!(expand_env("100% sicuro", env), "100% sicuro");
+        assert_eq!(expand_env("a%%b", env), "a%%b");
+        assert_eq!(expand_env("mstsc", env), "mstsc");
+    }
 
     #[test]
     fn splits_like_a_command_line() {

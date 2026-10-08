@@ -22,7 +22,7 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 - **Claude Code nell'isola**: vedi le sessioni lavorare, rispondi ai permessi
   con **Nega / Consenti / Sempre** e alle domande, guarda le **modifiche ai file**
   in tempo reale, torna all'app della sessione con un clic; anche **Codex**,
-  **Gemini CLI** e Claude Code nel terminale di **Cursor** ([Claude Code](#claude-code)).
+  **opencode**, **Gemini CLI** e Claude Code nel terminale di **Cursor** ([Claude Code](#claude-code)).
 - **Chat** dall'isola con Claude (abbonamento o chiave API), **OpenRouter**,
   **OpenAI**, **Gemini** o modelli locali **Ollama** e **LM Studio**; allega
   testo, file, immagini copiate o una **zona dello schermo**; risposte formattate
@@ -519,13 +519,17 @@ terminale come al solito.
 Funziona da qualsiasi terminale: Windows Terminal, PowerShell, VS Code, Git Bash,
 e nel terminale di **Cursor** ("Apri" riporta a Cursor).
 
-**Codex e Gemini CLI.** Nella stessa pagina (Impostazioni → Agenti e chat) ci sono
+**Codex, opencode e Gemini CLI.** Nella stessa pagina (Impostazioni → Agenti e chat) ci sono
 i loro hook, installati con le stesse regole: diff, backup datato, conferma.
 Ogni agente ha la sua pillola con passi, modifiche ai file e ultimo messaggio.
 
 - **Codex** (`%USERPROFILE%\.codex\hooks.json`): anche le richieste di permesso,
   con **Consenti / Nega** nell'isola. Dopo l'installazione apri `/hooks` in Codex e
   approva gli hook di EasyIsland (Codex chiede di fidarsi degli hook nuovi).
+- **opencode** (`%USERPROFILE%\.config\opencode\plugins\easyisland.js`):
+  opencode non ha hook a comando, quindi EasyIsland scrive un plugin tutto suo.
+  Le richieste di permesso arrivano nell'isola con **Consenti / Nega / Sempre**, e
+  puoi rispondere anche in opencode come sempre. Dopo l'installazione riavvia opencode.
 - **Gemini CLI** (`%USERPROFILE%\.gemini\settings.json`): Gemini non lascia
   rispondere ai permessi da fuori, quindi l'isola si apre e ti dice che sta
   aspettando, con il pulsante per tornare al terminale.

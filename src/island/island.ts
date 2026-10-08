@@ -9,7 +9,7 @@ import {
   chatPromptHeight, collapsedBox, compactSize, cornerRadii, glueFor, isGlued, islandSize,
   type IslandMode, type IslandViewName, type Placement,
 } from "../core/layout";
-import { suggestionsFor, type Suggestion } from "./context";
+import type { Suggestion } from "./context";
 import { Sound } from "../core/sound";
 import { OPENED_BY_APP, OPEN_URLS, State, isSessionTask } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
@@ -794,10 +794,11 @@ export class Island {
             }
             context = { label: "Testo copiato", text };
           } else if (a.input === "selection") {
-            const app = suggestionsFor(State.foreground)?.app ?? "";
-            const text = await this.selectedText(app);
+            // The user's own actions work on text selected in any app: no
+            // suggestion group ("Browser", "Outlook") in the labels or the notes.
+            const text = await this.selectedText("");
             if (text == null) return;
-            context = { label: app ? `Testo da ${app}` : "Testo selezionato", text };
+            context = { label: "Testo selezionato", text };
           }
           this.startChat(a.prompt, context, false);
           break;
