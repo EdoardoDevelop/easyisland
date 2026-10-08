@@ -33,9 +33,9 @@ I dettagli che `HANDOFF.md` riassume in una riga. Le idee più vecchie e l'anali
   - interfaccia ITA/ENG
   - cronologia delle sessioni di chat
   - personaggio trascinato su una cartella → ne aggiunge il percorso alla chat
-- **Da decidere prima di farle**, perché vanno contro `decisioni.md`: file del Vassoio «permanenti»; nuovi personaggi (polpo, rana, granchio, geco) e personaggio che cambia col meteo.
+- **Da decidere prima di farle**, perché vanno contro `decisioni.md`: file del Vassoio «permanenti» solo se deciso dal'utente tramite un flag; nuovi personaggi (polpo, rana, granchio, geco) e personaggio che cambia col meteo.
 - **opencode, ancora aperti:**
-  - lo strumento `question` è negato (nessuna card per le domande del modello);
+  - nella **chat** lo strumento `question` è negato (`opencode.rs`): la card c'è già per l'agente (`opencode_agent.rs`, form), si può riusare;
   - nell'elenco dei modelli manca l'indicazione gratuito/a pagamento;
   - il menu dei motori non controlla se Ollama/LM Studio rispondono.
 - **Decisioni aperte:**

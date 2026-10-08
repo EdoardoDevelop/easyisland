@@ -54,6 +54,10 @@ interface HookPayload {
   easyisland_after_only?: boolean;
   /** Claude Code's permission mode, on every event. */
   permission_mode?: string;
+  /** PostToolUseFailure: why the tool failed (opencode_agent.rs puts opencode's message here too). */
+  error?: string;
+  /** PostToolUseFailure: the user stopped it. */
+  is_interrupt?: boolean;
   /** PreCompact: "manual" (/compact) or "auto" (context full). */
   trigger?: string;
   /** Added by the relay: the agent's own process (hook/src/win.rs → agent_process). */
@@ -282,6 +286,7 @@ const TOOL_LABELS: Record<string, string> = {
   MultiEdit: "Modifica",
   NotebookEdit: "Notebook",
   PowerShell: "Esegue",
+  AskUserQuestion: "Domanda",
 };
 
 /**
@@ -333,6 +338,18 @@ function stepLabel(tool: string, input: Record<string, unknown>): string {
   const query = str("query");
   if (query) return `${label} · ${query.slice(0, 40)}`;
   return label;
+}
+
+/**
+ * A failed tool, said so it can be understood: "⚠ Domanda · Invalid arguments
+ * for tool…", "⚠ Legge · a.ts · errore". The agent usually retries by itself;
+ * the reason tells whether that was the model's mistake or something to look at.
+ */
+function failStep(p: HookPayload): string {
+  if (p.is_interrupt) return "⏹ interrotto";
+  const what = p.tool_name ? stepLabel(p.tool_name, p.tool_input ?? {}) : "Strumento";
+  const why = typeof p.error === "string" ? firstLine(p.error, 60) : "";
+  return `⚠ ${what} · ${why || "errore"}`;
 }
 
 /**
@@ -657,7 +674,7 @@ export function handleHook(island: Island, payload: HookPayload) {
         if (t?.steps.includes(step)) State.replaceStep(tid, step, text);
         else State.appendStep(tid, text);
       } else {
-        State.appendStep(tid, "⚠ fallito");
+        State.appendStep(tid, failStep(payload));
       }
       break;
 

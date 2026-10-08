@@ -7,6 +7,7 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
     - Se il registro ha le righe ma l'isola no, il problema è in `hooks.ts`.
     - Se il registro non le ha, il problema è nello stream del servizio.
     - Con `"*": "allow"` di serie opencode chiede pochi permessi: per vedere la card provare un comando fuori dalla cartella.
+    - Domande: chiedere a opencode qualcosa di vago perché usi `question`. Deve comparire la card con le opzioni; un clic risponde e opencode prosegue. Rispondere in opencode deve chiudere la card. Nel log: `opencode form`, e nessun `opencode form reply: HTTP …`.
   - (b) Chat: Impostazioni → Chat → opencode, scegliere un modello e fare una domanda che richiede un comando. Devono comparire la card Consenti / Nega / Sempre, il testo in streaming e i passi `> ⚙`.
   - (c) Il menu dei motori nella chat vale solo per la conversazione: «Nuova chat» torna al predefinito.
 - [ ] **3CX con il centralino vero:** accesso, rubrica, chiamate in uscita da ogni dispositivo, in arrivo con Rispondi/Rifiuta, Riaggancia, stato, perse, Recenti, modalità client API. L'isola deve chiudersi quando risponde un collega o quando rispondi dal telefono. Se non succede, servono le righe `3cx: call` del log.

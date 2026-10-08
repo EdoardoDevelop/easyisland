@@ -14,6 +14,11 @@
 // Permissions: the island's card, like Claude Code's. A click answers through
 // the service (once / always / reject); no click and opencode keeps asking in
 // its own window. An answer given in opencode releases the card's wait.
+//
+// Questions (the `question` tool, and any other form opencode opens): a form is
+// shown as the island's AskUserQuestion card when every field is a choice or a
+// text; the answer goes back through the service (`form/{id}/reply`). Other
+// forms (numbers, an external login…) only say that opencode is waiting.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -86,8 +91,20 @@ struct Sessions {
     /// session → the text block being written, and the last one finished
     text: HashMap<String, String>,
     last: HashMap<String, String>,
-    /// opencode permission id → the island's request id
+    /// opencode permission or form id → the island's request id
     asks: HashMap<String, String>,
+}
+
+/// One field of an opencode form as the island's card shows it, and how its
+/// answer (the chosen labels, or typed text) goes back as the field's value.
+#[derive(Debug, PartialEq, Clone)]
+struct FormField {
+    key: String,
+    /// The text on the card; the island's answer is keyed by it.
+    question: String,
+    multi: bool,
+    /// (label, value)
+    options: Vec<(String, String)>,
 }
 
 /// Reads the service's events until the stream ends or the setting goes off.
@@ -106,6 +123,15 @@ async fn follow(app: &AppHandle, url: &str, password: Option<&str>) -> String {
         Err(e) => return e.to_string(),
     };
     let mut state = Sessions::default();
+    // Sessions opened before EasyIsland started (or reconnected): their folder,
+    // or the card would name the project after nothing ("Session").
+    let mut list = client.get(format!("{url}/api/session")).timeout(Duration::from_secs(10));
+    if let Some(p) = password {
+        list = list.basic_auth("opencode", Some(p));
+    }
+    if let Ok(body) = async { list.send().await?.json::<Value>().await }.await {
+        state.cwd.extend(session_dirs(&body));
+    }
     let mut pending = Vec::<u8>::new();
     loop {
         if !ENABLED.load(Ordering::Relaxed) {
@@ -134,6 +160,8 @@ enum Out {
     Hook(Value),
     /// A PermissionRequest to show and answer: (opencode request id, session id, payload).
     Ask(String, String, Value),
+    /// A form to answer from the island: (form id, session id, payload, its fields).
+    Form(String, String, Value, Vec<FormField>),
     /// opencode answered it itself: release the island's wait.
     Answered(String),
 }
@@ -187,6 +215,29 @@ fn deliver(app: &AppHandle, url: &str, password: Option<&str>, state: &mut Sessi
                 let _ = req.send().await;
             });
         }
+        Out::Form(id, session, mut payload, fields) => {
+            truncate_strings(&mut payload);
+            crate::log::line("opencode form");
+            let request = crate::pipe::new_request_id();
+            state.asks.insert(id.clone(), request.clone());
+            let (app, url, password) = (app.clone(), url.to_string(), password.map(str::to_string));
+            tauri::async_runtime::spawn(async move {
+                // No answer (closed, "Rispondi nel terminale", timeout): opencode keeps asking in its window.
+                let Some(decision) = crate::pipe::request_decision_as(&app, &request, payload).await else { return };
+                let Some(answer) = decision.strip_prefix("answer ").and_then(|j| serde_json::from_str::<Map<String, Value>>(j).ok())
+                    .map(|a| form_answer(&fields, &a)) else { return };
+                let Ok(client) = reqwest::Client::builder().timeout(Duration::from_secs(20)).build() else { return };
+                let mut req = client.post(format!("{url}/api/session/{session}/form/{id}/reply")).json(&json!({ "answer": answer }));
+                if let Some(p) = password {
+                    req = req.basic_auth("opencode", Some(p));
+                }
+                match req.send().await {
+                    Ok(r) if r.status().is_success() => {}
+                    Ok(r) => crate::log::line(format!("opencode form reply: HTTP {}", r.status())),
+                    Err(e) => crate::log::line(format!("opencode form reply: {e}")),
+                }
+            });
+        }
         Out::Answered(id) => {
             if let Some(request) = state.asks.remove(&id) {
                 crate::pipe::decline(app, &request);
@@ -213,6 +264,7 @@ fn tool(name: &str) -> &str {
         "websearch" => "WebSearch",
         "todowrite" => "TodoWrite",
         "task" => "Task",
+        "question" => "AskUserQuestion",
         other => other,
     }
 }
@@ -244,8 +296,9 @@ fn translate(state: &mut Sessions, ev: &Value) -> Vec<Out> {
     let kind = ev.get("type").and_then(Value::as_str).unwrap_or_default();
     let data = ev.get("data").cloned().unwrap_or(Value::Null);
     let s = |k: &str| data.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
-    let session = s("sessionID");
-    if session.is_empty() {
+    // A form carries its session inside it; "global" ones (an MCP login) belong to no session.
+    let session = data.pointer("/form/sessionID").and_then(Value::as_str).map(str::to_string).unwrap_or_else(|| s("sessionID"));
+    if session.is_empty() || session == "global" {
         return Vec::new();
     }
     let hook = |m: Map<String, Value>| vec![Out::Hook(Value::Object(m))];
@@ -358,8 +411,101 @@ fn translate(state: &mut Sessions, ev: &Value) -> Vec<Out> {
             vec![Out::Ask(s("id"), session, payload)]
         }
         "permission.replied" => vec![Out::Answered(s("requestID"))],
+        "form.created" => {
+            let form = data.get("form").cloned().unwrap_or(Value::Null);
+            let id = form.get("id").and_then(Value::as_str).unwrap_or_default().to_string();
+            match form_fields(&form) {
+                Some(fields) => {
+                    let mut m = base(state, "PermissionRequest", &session);
+                    let questions: Vec<Value> = fields.iter().zip(form_visible(&form)).map(|(f, raw)| json!({
+                        "question": f.question,
+                        "header": raw.get("title").cloned().unwrap_or(json!("")),
+                        "multiSelect": f.multi,
+                        "options": raw.get("options").and_then(Value::as_array).into_iter().flatten()
+                            .map(|o| json!({ "label": o.get("label").cloned().unwrap_or(json!("")), "description": o.get("description").cloned().unwrap_or(json!("")) }))
+                            .collect::<Vec<_>>(),
+                    })).collect();
+                    m.insert("tool_name".into(), json!("AskUserQuestion"));
+                    m.insert("tool_input".into(), json!({ "questions": questions }));
+                    vec![Out::Form(id, session, Value::Object(m), fields)]
+                }
+                // Something the card cannot ask: say opencode is waiting, "Apri" answers there.
+                None => {
+                    let mut m = base(state, "Notification", &session);
+                    let title = form.get("title").and_then(Value::as_str).unwrap_or("una risposta");
+                    m.insert("message".into(), json!(format!("Aspetta una risposta: {title}")));
+                    m.insert("easyisland_waiting".into(), json!(true));
+                    hook(m)
+                }
+            }
+        }
+        "form.replied" | "form.cancelled" => vec![Out::Answered(s("id"))],
         _ => Vec::new(),
     }
+}
+
+/// `GET /api/session` → session id → its folder.
+fn session_dirs(body: &Value) -> Vec<(String, String)> {
+    body.get("data").and_then(Value::as_array).into_iter().flatten()
+        .filter_map(|s| Some((s.get("id")?.as_str()?.to_string(), s.pointer("/location/directory")?.as_str()?.to_string())))
+        .collect()
+}
+
+/// The fields a person fills in (opencode hides the others).
+fn form_visible(form: &Value) -> Vec<&Value> {
+    form.get("fields").and_then(Value::as_array).into_iter().flatten()
+        .filter(|f| f.get("hidden").and_then(Value::as_bool) != Some(true))
+        .collect()
+}
+
+/// The form as the card's questions; None when a field is not a choice or a
+/// text, or depends on another answer (`when`): those are answered in opencode.
+fn form_fields(form: &Value) -> Option<Vec<FormField>> {
+    let visible = form_visible(form);
+    if visible.is_empty() {
+        return None;
+    }
+    let mut out: Vec<FormField> = Vec::new();
+    for f in visible {
+        let kind = f.get("type").and_then(Value::as_str)?;
+        if !matches!(kind, "string" | "multiselect") || f.get("when").and_then(Value::as_array).is_some_and(|w| !w.is_empty()) {
+            return None;
+        }
+        let str_of = |k: &str| f.get(k).and_then(Value::as_str).map(str::trim).filter(|t| !t.is_empty());
+        let mut question = str_of("description").or_else(|| str_of("title")).unwrap_or("Risposta").to_string();
+        // The island keys the answers by the question's text: two equal ones would collide.
+        while out.iter().any(|o| o.question == question) {
+            question.push('\u{200B}');
+        }
+        let options = f.get("options").and_then(Value::as_array).into_iter().flatten()
+            .filter_map(|o| {
+                let label = o.get("label").and_then(Value::as_str)?.to_string();
+                let value = o.get("value").and_then(Value::as_str).map(str::to_string).unwrap_or_else(|| label.clone());
+                Some((label, value))
+            })
+            .collect();
+        out.push(FormField { key: f.get("key").and_then(Value::as_str)?.to_string(), question, multi: kind == "multiselect", options });
+    }
+    Some(out)
+}
+
+/// The island's answers (question → chosen labels joined by ", ", or typed
+/// text) as opencode's: field key → option value(s).
+fn form_answer(fields: &[FormField], answers: &Map<String, Value>) -> Map<String, Value> {
+    let mut out = Map::new();
+    for f in fields {
+        let Some(text) = answers.get(&f.question).and_then(Value::as_str).map(str::trim).filter(|t| !t.is_empty()) else { continue };
+        let value_of = |label: &str| f.options.iter().find(|(l, _)| l == label).map(|(_, v)| v.clone());
+        let value = if f.multi {
+            // Labels joined by the card; typed text (or a label with ", " in it) is one answer.
+            let parts: Option<Vec<String>> = text.split(", ").map(value_of).collect();
+            json!(parts.unwrap_or_else(|| vec![value_of(text).unwrap_or_else(|| text.to_string())]))
+        } else {
+            json!(value_of(text).unwrap_or_else(|| text.to_string()))
+        };
+        out.insert(f.key.clone(), value);
+    }
+    out
 }
 
 #[cfg(test)]
@@ -417,6 +563,58 @@ mod tests {
         assert_eq!(payload["permission_suggestions"][0]["rules"][0]["ruleContent"], "npm publish *");
         assert_eq!(translate(&mut st, &ev("permission.replied", json!({ "sessionID": "ses_1", "requestID": "per_1", "reply": "once" }))),
             vec![Out::Answered("per_1".into())]);
+    }
+
+    /// The `question` tool's form, as opencode 2 opens it (fields q0, q1…).
+    fn question_form() -> Value {
+        json!({ "form": { "id": "frm_1", "sessionID": "ses_1", "title": "Domande", "metadata": { "kind": "question" }, "fields": [
+            { "key": "q0", "title": "Tipo", "description": "Che tipo di messaggio?", "type": "string", "custom": true,
+              "options": [{ "value": "Errore app", "label": "Errore app", "description": "Per un sito" }, { "value": "popup", "label": "Popup, di sistema" }] },
+            { "key": "q1", "title": "Dove", "description": "Dove lo usi?", "type": "multiselect", "custom": true,
+              "options": [{ "value": "web", "label": "Web" }, { "value": "app", "label": "App" }] },
+        ] } })
+    }
+
+    #[test]
+    fn a_question_becomes_the_islands_card_and_its_answer_goes_back() {
+        let mut st = Sessions::default();
+        let Some(Out::Form(id, session, payload, fields)) = translate(&mut st, &ev("form.created", question_form())).into_iter().next() else { panic!() };
+        assert_eq!((id.as_str(), session.as_str()), ("frm_1", "ses_1"));
+        assert_eq!((payload["hook_event_name"].as_str(), payload["tool_name"].as_str()), (Some("PermissionRequest"), Some("AskUserQuestion")));
+        assert_eq!(payload["tool_input"]["questions"][0]["question"], "Che tipo di messaggio?");
+        assert_eq!(payload["tool_input"]["questions"][0]["header"], "Tipo");
+        assert_eq!(payload["tool_input"]["questions"][1]["multiSelect"], true);
+        assert_eq!(payload["easyisland_agent"]["id"], "opencode");
+
+        // Labels back to values; a label with ", " in it, several labels, typed text.
+        let a = |q0: &str, q1: &str| form_answer(&fields, json!({ "Che tipo di messaggio?": q0, "Dove lo usi?": q1 }).as_object().unwrap());
+        assert_eq!(Value::Object(a("Popup, di sistema", "Web, App")), json!({ "q0": "popup", "q1": ["web", "app"] }));
+        assert_eq!(Value::Object(a("Un banner", "Ovunque")), json!({ "q0": "Un banner", "q1": ["Ovunque"] }));
+
+        assert_eq!(translate(&mut st, &ev("form.replied", json!({ "sessionID": "ses_1", "id": "frm_1" }))), vec![Out::Answered("frm_1".into())]);
+        assert_eq!(translate(&mut st, &ev("form.cancelled", json!({ "sessionID": "ses_1", "id": "frm_1" }))), vec![Out::Answered("frm_1".into())]);
+    }
+
+    #[test]
+    fn sessions_opened_earlier_get_their_folder() {
+        let body = json!({ "data": [
+            { "id": "ses_1", "location": { "directory": "C:\\Users\\Edoardo" } },
+            { "id": "ses_2" },
+        ] });
+        assert_eq!(session_dirs(&body), vec![("ses_1".to_string(), "C:\\Users\\Edoardo".to_string())]);
+    }
+
+    #[test]
+    fn a_form_the_card_cannot_ask_says_opencode_is_waiting() {
+        let mut st = Sessions::default();
+        let form = json!({ "form": { "id": "frm_2", "sessionID": "ses_1", "title": "Accesso a GitHub",
+            "fields": [{ "key": "auth", "type": "external", "url": "https://example.com" }] } });
+        let n = only_hook(translate(&mut st, &ev("form.created", form)));
+        assert_eq!((n["hook_event_name"].as_str(), n["easyisland_waiting"].as_bool()), (Some("Notification"), Some(true)));
+        assert_eq!(n["message"], "Aspetta una risposta: Accesso a GitHub");
+        // A global form (no session) is not an agent's.
+        let global = json!({ "form": { "id": "frm_3", "sessionID": "global", "title": "x", "fields": [{ "key": "a", "type": "string" }] } });
+        assert!(translate(&mut st, &ev("form.created", global)).is_empty());
     }
 
     /// The background service of the opencode on this PC:

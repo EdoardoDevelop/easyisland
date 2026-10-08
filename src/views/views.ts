@@ -712,7 +712,12 @@ function buildAsk(actions: ViewActions): ViewHost {
         next(q, text);
       });
       options.append(other);
-      foot.append(h("button", { class: "link-btn", text: "Rispondi nel terminale", onclick: () => actions.handToTerminal() }));
+      // opencode asks in its own window too (opencode_agent.rs): the link brings it back.
+      const inOpencode = State.focusTask?.sessionHost === "opencode";
+      foot.append(h("button", { class: "link-btn", text: inOpencode ? "Rispondi in opencode" : "Rispondi nel terminale", onclick: () => {
+        if (inOpencode) actions.openTarget();
+        actions.handToTerminal();
+      } }));
       if (q.multiSelect) foot.append(go);
     },
   };

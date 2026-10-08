@@ -11,7 +11,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **3CX + Zammad:** ticket del cliente sulla chiamata in arrivo (`docs/idee.md`).
 - [ ] **Remote Desktop Manager** come integrazione. Prima va capito dove sta la fonte dati (`docs/idee.md`).
 - [ ] **Scheda esatta di Windows Terminal** per «Apri» (`docs/idee.md`).
-- [ ] **opencode:** card per lo strumento `question`, indicazione gratuito/a pagamento nei modelli, controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
+- [ ] **opencode:** card per lo strumento `question` anche nella chat (per l'agente c'è), indicazione gratuito/a pagamento nei modelli, controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
 - [ ] **Spunti da Coucou:** Amp/Hermes, limiti del piano dalla `statusLine`, card ripiegabile, riepilogo settimanale, GitHub (`docs/idee.md`).
 - [ ] **Da decidere con Edoardo:** Vassoio permanente, nuovi personaggi, quali integrazioni tenere, firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
 
@@ -29,6 +29,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 8 ottobre 2026 — domande di opencode nell'isola
+- «EasyIsland dice fallito»: il modello aveva chiamato `question` con argomenti sbagliati, poi ha riprovato e opencode aspettava la risposta, invisibile nell'isola.
+- Ora le domande di opencode 2 (form) sono la card «ask» e si risponde dall'isola; lo step di errore dice strumento e motivo. Aperta: la prova dal vivo.
+
 ### 8 ottobre 2026 — scena con due agenti
 - `/?scene=agenti` in `dev/scenes.ts`: Claude Code e opencode (eventi come da `opencode_agent.rs`) nella scheda Agenti, con la barra dei pulsanti. `&claude` seleziona Claude Code. L'isola resta fissata.
 
@@ -44,7 +48,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 8 ottobre 2026 — «Claude e opencode non funzionano»
 - Claude: il login di Claude Code su questo PC è scaduto; la chat ora lo spiega.
 - opencode: mancava il modello salvato. Ora si salva mentre si scrive e un avviso lo segnala. Le sessioni di EasyIsland si cancellano da sole.
-
-### 8 ottobre 2026 — opencode 2: motore della chat e agente dal servizio
-- `opencode.rs` (server privato, permessi nell'isola) e `opencode_agent.rs` (segue il servizio in background). Il plugin resta solo per la 1.x. Dettagli in `docs/chat.md` e `docs/agenti.md`.
-

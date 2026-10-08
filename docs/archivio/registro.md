@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 8 ottobre 2026 — opencode 2: motore della chat e agente dal servizio
+- `opencode.rs` (server privato, permessi nell'isola) e `opencode_agent.rs` (segue il servizio in background). Il plugin resta solo per la 1.x. Dettagli in `docs/chat.md` e `docs/agenti.md`.
+
 ### 8 ottobre 2026 — versione 0.6.0
 - Correzioni di layout, scheda attiva sulla ⌂, Azioni rapide (bozze con Salva/Annulla, ordine delle cartelle, «Programma» con ShellExecute), plugin di opencode 1.x.
 
