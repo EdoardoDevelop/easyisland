@@ -1,6 +1,6 @@
 // Staged island states for the README screenshots, in the browser preview only:
 //   /?scene=overview   (greeting, compact, overview, approval, chat, drop, actions,
-//                       threecx, clipboard, media, network, suggestion)
+//                       threecx, clipboard, media, network, suggestion, agenti)
 // When the scene has settled the page turns transparent and its title says
 // "scene ready"; scripts/screenshots.mjs then captures just the island.
 
@@ -241,6 +241,26 @@ export async function runScene(island: Island, scene: string) {
       handleHook(island, { hook_event_name: "SessionStart", cwd: "C:\\Users\\Edoardo\\WORK\\sito", easyisland_agent: gemini });
       handleHook(island, { hook_event_name: "Notification", cwd: "C:\\Users\\Edoardo\\WORK\\sito", easyisland_agent: gemini,
         easyisland_waiting: true, message: "Chiede un permesso nel terminale: rm -rf build" });
+      island.alert("overview");
+      await wait(1500);
+      break;
+    }
+    case "agenti": {
+      // The Agenti tab with two agents: Claude Code at work and opencode as
+      // opencode_agent.rs forwards it, so the switch bar shows (.agent-switch).
+      await wait(300);
+      (window as unknown as { island: Island }).island = island;
+      session("working", ["Read · src/views/views.ts", "Edit · src/views/integrations.ts"]);
+      const opencode = { id: "opencode", name: "opencode", color: "#FAB283" };
+      const cwd = "C:\\Users\\Edoardo\\WORK\\gestionale";
+      handleHook(island, { hook_event_name: "SessionStart", cwd, easyisland_agent: opencode, easyisland_host: "opencode" });
+      handleHook(island, { hook_event_name: "UserPromptSubmit", cwd, prompt: "Aggiungi l'export in CSV",
+        easyisland_agent: opencode, easyisland_host: "opencode" });
+      handleHook(island, { hook_event_name: "PreToolUse", cwd, tool_name: "Read", tool_input: { file_path: `${cwd}\\src\\export.rs` },
+        easyisland_agent: opencode, easyisland_host: "opencode" });
+      // ?claude: the chip of Claude Code selected instead of opencode's.
+      State.setFocus(new URLSearchParams(location.search).has("claude") ? CLAUDE : "agent:opencode");
+      State.isPinned = true;
       island.alert("overview");
       await wait(1500);
       break;

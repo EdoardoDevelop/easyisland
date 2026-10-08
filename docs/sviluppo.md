@@ -8,7 +8,7 @@
 - La shell di Claude Code passa variabili proprie (`ANTHROPIC_BASE_URL`, token del desktop). Per riprodurre l'ambiente dell'app usare `env -i` con solo PATH e le cartelle del profilo.
 
 ## Anteprima nel browser
-- `npm run dev`, poi le scene di `dev/scenes.ts`: `/?scene=diff`, `threecx`, `drop`, `chat&long`, `clipboard&long`, `media&long&summary`… Le scene `diff` e `threecx` espongono `window.island` per simulare eventi con `handleHook`.
+- `npm run dev`, poi le scene di `dev/scenes.ts`: `/?scene=diff`, `threecx`, `drop`, `chat&long`, `clipboard&long`, `media&long&summary`, `agenti` (due agenti e la barra della scheda Agenti, `&claude` per l'altro pulsante)… Le scene `diff` e `threecx` espongono `window.island` per simulare eventi con `handleHook`.
 - `npm run ui`: solo l'interfaccia nel browser.
 - Schermate del README: `node scripts/screenshots.mjs` con `npm run dev` acceso. L'errore EPERM finale riguarda solo la pulizia della cartella temporanea di Edge e si può ignorare.
 

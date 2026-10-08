@@ -14,7 +14,6 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **opencode:** card per lo strumento `question`, indicazione gratuito/a pagamento nei modelli, controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
 - [ ] **Spunti da Coucou:** Amp/Hermes, limiti del piano dalla `statusLine`, card ripiegabile, riepilogo settimanale, GitHub (`docs/idee.md`).
 - [ ] **Da decidere con Edoardo:** Vassoio permanente, nuovi personaggi, quali integrazioni tenere, firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
-- [ ] **Anteprima:** in `dev/scenes.ts` manca una scena con due agenti, per vedere la barra della scheda Agenti.
 
 ## Problemi noti
 - **Sopra la barra:** cliccando la barra o aprendo Start il personaggio va dietro. Torna davanti a ogni cambio di finestra in primo piano. Va verificato con Start aperto.
@@ -29,6 +28,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 8 ottobre 2026 — scena con due agenti
+- `/?scene=agenti` in `dev/scenes.ts`: Claude Code e opencode (eventi come da `opencode_agent.rs`) nella scheda Agenti, con la barra dei pulsanti. `&claude` seleziona Claude Code. L'isola resta fissata.
 
 ### 8 ottobre 2026 — documentazione divisa in `docs/`
 - `CLAUDE.md` diventa un indice con le regole. I dettagli sono in `docs/`. L'HANDOFF tiene solo lo stato. Archivio e registro vecchio sono in `docs/archivio/`.
@@ -46,5 +48,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 8 ottobre 2026 — opencode 2: motore della chat e agente dal servizio
 - `opencode.rs` (server privato, permessi nell'isola) e `opencode_agent.rs` (segue il servizio in background). Il plugin resta solo per la 1.x. Dettagli in `docs/chat.md` e `docs/agenti.md`.
 
-### 8 ottobre 2026 — versione 0.6.0
-- Correzioni di layout, scheda attiva sulla ⌂, Azioni rapide (bozze con Salva/Annulla, ordine delle cartelle, «Programma» con ShellExecute), plugin di opencode 1.x.
