@@ -645,8 +645,13 @@ async fn chat_send(
         let url = s.engine_urls.get(&e).cloned();
         (e, s.model.clone(), s.cli_model.clone(), s.mcp_servers.clone(), s.agent_tools, other, url)
     };
-    // A different model is a different conversation too: start over.
+    // A different model is a different conversation too: start over (an
+    // opencode conversation left behind is deleted from opencode's history).
+    let before = chat.cli_session();
     chat.use_engine(&format!("{engine}:{other_model}"));
+    if before.is_some() && chat.cli_session().is_none() {
+        opencode::forget(before);
+    }
     if engine == "api" {
         claude::send(&chat, &model, query, context).await
     } else if engine == "opencode" {
@@ -660,7 +665,9 @@ async fn chat_send(
 
 #[tauri::command]
 fn chat_reset(chat: State<Chat>) {
+    let before = chat.cli_session();
     chat.reset();
+    opencode::forget(before);
 }
 
 /// Impostazioni → Chat → "Carica modelli" for an OpenAI-compatible engine.

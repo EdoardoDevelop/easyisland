@@ -322,6 +322,16 @@ pub fn model_ids(body: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
+    /// The OpenRouter key saved on this PC, and whether it works:
+    /// `cargo test --lib openai::tests::live -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn live_openrouter_key() {
+        println!("key present: {}", crate::secrets::present("openrouter-api-key"));
+        let r = tauri::async_runtime::block_on(models("openrouter", None));
+        println!("models: {:?}", r.as_ref().map(|m| (m.len(), m.iter().filter(|x| x.ends_with(":free")).take(3).collect::<Vec<_>>())));
+    }
+
     use super::*;
 
     #[test]

@@ -556,19 +556,35 @@ function otherEngineBlock(changed: () => void) {
     // opencode Zen's free models may keep what you send: never customer data there.
     const privacy = h("div", { class: "notice warn", style: "display:none",
       text: "Modello online di opencode Zen: per quasi tutti i modelli gratuiti i dati possono essere usati per migliorare il modello (per alcuni: «non inviare dati personali o riservati»). Non usarlo con dati dei clienti: per quelli scegli un modello locale (ollama/…, lmstudio/…) o uno a pagamento a ritenzione zero." });
-    const paintPrivacy = () => { privacy.style.display = opencode && model.value.trim().startsWith("opencode/") ? "" : "none"; };
+    // Without a model the chat cannot start: say so where the model goes.
+    const missing = h("div", { class: "notice err", text: opencode
+      ? "Nessun modello scelto: la chat non può partire. Premi «Carica modelli» e scegline uno."
+      : "Nessun modello scelto: la chat non può partire." });
+    const paintPrivacy = () => {
+      privacy.style.display = opencode && model.value.trim().startsWith("opencode/") ? "" : "none";
+      missing.style.display = model.value.trim() ? "none" : "";
+    };
     paintPrivacy();
-    model.addEventListener("input", paintPrivacy);
+    // Saved while typing too (a pause of half a second), not only on leaving the field.
+    let typing: number | undefined;
+    model.addEventListener("input", () => {
+      paintPrivacy();
+      window.clearTimeout(typing);
+      typing = window.setTimeout(() => model.dispatchEvent(new Event("change")), 500);
+    });
     const options = h("datalist", { id: listId });
     const load = h("button", { text: "Carica modelli" }) as HTMLButtonElement;
     const loaded = h("span", { class: "hint note" });
     model.addEventListener("change", () => {
+      window.clearTimeout(typing);
+      if ((settings.engineModels![id] ?? "") === model.value.trim()) return;
       settings.engineModels![id] = model.value.trim();
       paintPrivacy();
       void save();
       changed();
     });
-    load.addEventListener("click", async () => {
+    /** `pick`: take the first model when none is set (only on a click: never a model chosen behind your back). */
+    const loadModels = async (pick: boolean) => {
       load.disabled = true;
       loaded.textContent = "Chiedo l'elenco…";
       try {
@@ -578,7 +594,7 @@ function otherEngineBlock(changed: () => void) {
         loaded.textContent = ids.length ? `${ids.length} modelli: scrivi per cercare` : opencode
           ? "Nessun modello: collega un fornitore in opencode («opencode auth login») o avvia Ollama."
           : "Nessun modello disponibile.";
-        if (!model.value && ids.length) {
+        if (pick && !model.value && ids.length) {
           model.value = ids[0];
           model.dispatchEvent(new Event("change"));
         }
@@ -586,8 +602,11 @@ function otherEngineBlock(changed: () => void) {
         loaded.textContent = String(err).replace(/^Error:\s*/, "");
       }
       load.disabled = false;
-    });
-    el.append(h("div", { class: "row" }, h("label", { text: "Modello" }), model, options, load), loaded, privacy, feedback);
+    };
+    load.addEventListener("click", () => void loadModels(true));
+    el.append(h("div", { class: "row" }, h("label", { text: "Modello" }), model, options, load), loaded, missing, privacy, feedback);
+    // opencode with no model yet: the list straight away, so a model is one click.
+    if (opencode && !model.value.trim()) void loadModels(false);
     changed();
   }
 
