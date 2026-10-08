@@ -133,7 +133,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   } });
   // Agenti: the coding agents' sessions (Claude Code, Codex, opencode…), not
   // only Claude's. Terminal icon (default), Claude's logo, name or emoji:
-  // Impostazioni → Claude → Scheda nell'isola.
+  // Impostazioni → Agenti → Scheda nell'isola.
   let claudeLook: string | null = null;
   const drawClaudeTab = () => {
     const look = State.settings.integrationTabIcons?.integration_claude?.trim() ?? "";

@@ -1,5 +1,5 @@
 // EasyIsland: le sessioni di opencode nell'isola.
-// Scritto da EasyIsland (Impostazioni → Agenti e chat → opencode), che lo
+// Scritto da EasyIsland (Impostazioni → Agenti → opencode), che lo
 // riscrive o lo toglie da lì: non modificarlo a mano.
 // Passa gli eventi a easyisland-hook.exe e non aspetta mai, tranne per un
 // permesso: si può rispondere dall'isola o qui, e se EasyIsland è chiuso

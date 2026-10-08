@@ -81,9 +81,14 @@ struct Server {
     password: String,
     child: tokio::process::Child,
     last_used: Instant,
+    /// Which start this is: the idle timer of an older server leaves this one alone.
+    generation: u64,
 }
 
 static SERVER: tokio::sync::Mutex<Option<Server>> = tokio::sync::Mutex::const_new(None);
+/// The server's process id, readable at exit without the lock (0 = none).
+static SERVER_PID: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+static GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 /// Turns in progress: the idle timer never stops a server mid-answer.
 static BUSY: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
@@ -163,21 +168,33 @@ async fn server() -> Result<(String, String), String> {
         }
         tokio::time::sleep(Duration::from_millis(150)).await;
     }
-    *guard = Some(Server { url: url.clone(), password: password.clone(), child, last_used: Instant::now() });
+    let generation = GENERATION.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+    SERVER_PID.store(child.id().unwrap_or(0), std::sync::atomic::Ordering::SeqCst);
+    *guard = Some(Server { url: url.clone(), password: password.clone(), child, last_used: Instant::now(), generation });
     drop(guard);
-    spawn_idle_stop();
+    spawn_idle_stop(generation);
     Ok((url, password))
 }
 
+/// The server and every shell it started (taskkill /T): stopping opencode.exe
+/// alone would leave a long command running.
+fn stop(s: &mut Server) {
+    if let Some(pid) = s.child.id() {
+        crate::actions::kill_tree(pid);
+    }
+    let _ = s.child.start_kill();
+    SERVER_PID.store(0, std::sync::atomic::Ordering::SeqCst);
+}
+
 /// Once per server: stops it after IDLE_STOP without a turn.
-fn spawn_idle_stop() {
-    tauri::async_runtime::spawn(async {
+fn spawn_idle_stop(generation: u64) {
+    tauri::async_runtime::spawn(async move {
         loop {
             tokio::time::sleep(Duration::from_secs(60)).await;
             let mut guard = SERVER.lock().await;
-            let Some(s) = guard.as_mut() else { return };
+            let Some(s) = guard.as_mut().filter(|s| s.generation == generation) else { return };
             if BUSY.load(std::sync::atomic::Ordering::SeqCst) == 0 && s.last_used.elapsed() > IDLE_STOP {
-                let _ = s.child.start_kill();
+                stop(s);
                 *guard = None;
                 crate::log::line("opencode: server stopped (idle)");
                 return;
@@ -186,12 +203,11 @@ fn spawn_idle_stop() {
     });
 }
 
-/// The app is quitting: no server left behind.
+/// The app is quitting: no server left behind, even if a turn holds the lock.
 pub fn shutdown() {
-    if let Ok(mut guard) = SERVER.try_lock() {
-        if let Some(mut s) = guard.take() {
-            let _ = s.child.start_kill();
-        }
+    let pid = SERVER_PID.swap(0, std::sync::atomic::Ordering::SeqCst);
+    if pid != 0 {
+        crate::actions::kill_tree(pid);
     }
 }
 
@@ -271,6 +287,9 @@ pub fn step_line(tool: &str, input: &Value) -> String {
         "webfetch" => "Apre",
         "websearch" => "Cerca sul web",
         "todowrite" => "Aggiorna il piano",
+        // opencode's "code mode": a small script that calls its other tools.
+        "execute" => "Esegue uno script",
+        "skill" => "Usa una skill",
         other => other,
     };
     let what: String = what.lines().next().unwrap_or_default().chars().take(80).collect();
@@ -418,6 +437,19 @@ async fn run_turn(chat: &Chat, model: &str, query: String, context: Option<ChatC
 }
 
 async fn turn(chat: &Chat, model: Value, query: String, context: Option<ChatContext>, on_text: &(dyn Fn(&str) + Sync), ask: impl Ask) -> Result<ChatReply, String> {
+    match turn_once(chat, model.clone(), &query, context.as_ref(), on_text, ask.clone()).await {
+        // The session is gone (opencode restarted without it): a fresh one, once.
+        Err(e) if e == SESSION_GONE => {
+            chat.set_cli_session(None);
+            turn_once(chat, model, &query, context.as_ref(), on_text, ask).await
+        }
+        other => other,
+    }
+}
+
+const SESSION_GONE: &str = "opencode: sessione non trovata";
+
+async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&ChatContext>, on_text: &(dyn Fn(&str) + Sync), ask: impl Ask) -> Result<ChatReply, String> {
     let (url, password) = server().await?;
     let client = http_short()?;
     let stream = http()?;
@@ -445,8 +477,11 @@ async fn turn(chat: &Chat, model: Value, query: String, context: Option<ChatCont
 
     // The stream first, so no event of this turn is missed.
     let mut events = auth(stream.get(format!("{url}/api/event"))).send().await.map_err(|e| e.to_string())?;
-    let r = auth(client.post(format!("{url}/api/session/{session}/prompt")).json(&prompt_body(first, &query, context.as_ref())))
+    let r = auth(client.post(format!("{url}/api/session/{session}/prompt")).json(&prompt_body(first, query, context)))
         .send().await.map_err(|e| e.to_string())?;
+    if r.status() == reqwest::StatusCode::NOT_FOUND && !first {
+        return Err(SESSION_GONE.into());
+    }
     if !r.status().is_success() {
         let status = r.status();
         let v: Value = r.json().await.unwrap_or(Value::Null);
@@ -561,8 +596,7 @@ fn error_text(v: &Value) -> String {
         .map(str::to_string).unwrap_or_else(|| v.to_string().chars().take(200).collect())
 }
 
-/// Impostazioni → Chat → "Carica modelli": "provider/model" for every enabled
-/// model, free ones marked so the settings can warn about them.
+/// Impostazioni → Chat → "Carica modelli": "provider/model" for every enabled model.
 pub async fn models() -> Result<Vec<String>, String> {
     let (url, password) = server().await?;
     let v: Value = http_short()?.get(format!("{url}/api/model")).basic_auth("opencode", Some(password))

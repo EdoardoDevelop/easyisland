@@ -6,7 +6,7 @@
 // exactly as hook/src/agents.rs does for the other agents. (opencode 1.x: the
 // plugin of hooks.rs, Target::OpenCode.)
 //
-// Off by default (Impostazioni → Agenti e chat → opencode → `opencodeWatch`).
+// Off by default (Impostazioni → Agenti → opencode → `opencodeWatch`).
 // The service is found with `opencode service status` (its address) and its
 // password is read from opencode's own `service.json`, in memory only and only
 // to talk to that local service.
@@ -138,12 +138,34 @@ enum Out {
     Answered(String),
 }
 
+/// Like the relay (hook/src/main.rs): no string over 2,000 characters reaches
+/// the island; a whole file written by a tool would only weigh on the webview.
+const MAX_FIELD_LEN: usize = 2_000;
+
+fn truncate_strings(value: &mut Value) {
+    match value {
+        Value::String(s) if s.len() > MAX_FIELD_LEN => {
+            let mut end = MAX_FIELD_LEN;
+            while end > 0 && !s.is_char_boundary(end) {
+                end -= 1;
+            }
+            s.truncate(end);
+            s.push('…');
+        }
+        Value::Array(items) => items.iter_mut().for_each(truncate_strings),
+        Value::Object(map) => map.values_mut().for_each(truncate_strings),
+        _ => {}
+    }
+}
+
 fn deliver(app: &AppHandle, url: &str, password: Option<&str>, state: &mut Sessions, out: Out) {
     match out {
-        Out::Hook(payload) => {
+        Out::Hook(mut payload) => {
+            truncate_strings(&mut payload);
             let _ = app.emit_to(WINDOW_LABEL, "hook", payload);
         }
-        Out::Ask(id, session, payload) => {
+        Out::Ask(id, session, mut payload) => {
+            truncate_strings(&mut payload);
             let request = crate::pipe::new_request_id();
             state.asks.insert(id.clone(), request.clone());
             let (app, url, password) = (app.clone(), url.to_string(), password.map(str::to_string));
@@ -409,6 +431,15 @@ mod tests {
             let first = tokio::time::timeout(Duration::from_secs(10), r.chunk()).await.expect("an event").expect("chunk").expect("data");
             println!("{}", String::from_utf8_lossy(&first).lines().next().unwrap_or_default());
         });
+    }
+
+    #[test]
+    fn long_strings_are_cut_like_the_relay_does() {
+        let mut v = json!({ "tool_input": { "content": "è".repeat(3000) }, "n": 1 });
+        truncate_strings(&mut v);
+        let c = v["tool_input"]["content"].as_str().unwrap();
+        assert!(c.len() <= MAX_FIELD_LEN + '…'.len_utf8() && c.ends_with('…'));
+        assert_eq!(v["n"], 1);
     }
 
     #[test]

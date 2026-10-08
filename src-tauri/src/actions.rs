@@ -115,17 +115,25 @@ pub fn open_app(target: &str, args: &str) -> Result<(), String> {
 }
 
 /// ShellExecute "open": no shell in between, the arguments go as typed.
+/// SEE_MASK_FLAG_NO_UI: a name that does not exist is an error in the island,
+/// not a Windows dialog (the UAC prompt of an elevated program still shows).
 fn shell_execute(target: &str, args: &str) -> Result<(), ()> {
     use windows::core::{HSTRING, PCWSTR};
-    use windows::Win32::UI::Shell::ShellExecuteW;
+    use windows::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_FLAG_NO_UI, SHELLEXECUTEINFOW};
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
     let file = HSTRING::from(target);
     let params = HSTRING::from(args.trim());
-    let params = if args.trim().is_empty() { PCWSTR::null() } else { PCWSTR(params.as_ptr()) };
-    let r = unsafe { ShellExecuteW(None, windows::core::w!("open"), PCWSTR(file.as_ptr()), params, PCWSTR::null(), SW_SHOWNORMAL) };
-    // ShellExecute reports success with a value above 32.
-    if r.0 as usize > 32 { Ok(()) } else { Err(()) }
+    let mut info = SHELLEXECUTEINFOW {
+        cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
+        fMask: SEE_MASK_FLAG_NO_UI,
+        lpVerb: windows::core::w!("open"),
+        lpFile: PCWSTR(file.as_ptr()),
+        lpParameters: if args.trim().is_empty() { PCWSTR::null() } else { PCWSTR(params.as_ptr()) },
+        nShow: SW_SHOWNORMAL.0,
+        ..Default::default()
+    };
+    unsafe { ShellExecuteExW(&mut info) }.map_err(|_| ())
 }
 
 fn is_executable(p: &Path) -> bool {
@@ -213,7 +221,7 @@ pub fn kill(run_id: &str) {
     }
 }
 
-fn kill_tree(pid: u32) {
+pub(crate) fn kill_tree(pid: u32) {
     let _ = std::process::Command::new("taskkill")
         .args(["/PID", &pid.to_string(), "/T", "/F"])
         .creation_flags(CREATE_NO_WINDOW)
@@ -305,6 +313,12 @@ pub fn set_clipboard_text(text: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{expand_env, split_args};
+
+    #[test]
+    fn a_name_that_does_not_exist_is_an_error_without_a_dialog() {
+        assert!(super::shell_execute("easyisland-programma-che-non-esiste-42", "").is_err());
+        assert!(super::open_app("easyisland-programma-che-non-esiste-42", "").is_err());
+    }
 
     #[test]
     fn expands_environment_variables() {

@@ -387,7 +387,7 @@ pub async fn send(
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
     let exe = find_claude().ok_or_else(|| {
-        "Per la chat con l'abbonamento serve Claude Code da riga di comando (la CLI), installato su questo PC e con il login fatto: quello dentro l'app desktop di Claude non si può usare da altri programmi. Impostazioni → Agenti e chat → Chat spiega come installarlo; oppure lì scegli un altro motore."
+        "Per la chat con l'abbonamento serve Claude Code da riga di comando (la CLI), installato su questo PC e con il login fatto: quello dentro l'app desktop di Claude non si può usare da altri programmi. Impostazioni → Chat spiega come installarlo; oppure lì scegli un altro motore."
             .to_string()
     })?;
     let connectors = Connectors::from_choices(mcp, agent);
@@ -484,7 +484,7 @@ pub async fn send(
 }
 
 /// What the chat says when Claude Code has no login of its own.
-const LOGIN_HELP: &str = "Claude Code non ha il login. Apri un terminale, scrivi «claude» e accedi con il tuo account Claude (Pro o Max), poi riprova. Se «claude» non viene trovato, installalo come spiega Impostazioni → Agenti e chat → Chat.";
+const LOGIN_HELP: &str = "Claude Code non ha il login. Apri un terminale, scrivi «claude» e accedi con il tuo account Claude (Pro o Max), poi riprova. Se «claude» non viene trovato, installalo come spiega Impostazioni → Chat.";
 
 /// Claude Code's own ways of saying "nobody is signed in".
 fn needs_login(text: &str) -> bool {

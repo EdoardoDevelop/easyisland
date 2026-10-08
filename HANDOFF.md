@@ -48,7 +48,6 @@ Isola in alto (o dove la trascini) con un personaggio (Slime, Goccia o EasyTech)
 - [ ] **Scheda esatta di Windows Terminal** per "Apri" (VS Code è già a posto): il relay legge il titolo della console della sessione, l'app seleziona la scheda con quel nome via UI Automation. Da sperimentare con una sessione vera in Windows Terminal.
 - [ ] **Decisioni aperte:** quali integrazioni tenere (Stripe, Resend, Cal.com… se non servono si possono togliere); firma del codice (Authenticode o Azure Trusted Signing: senza, SmartScreen avvisa al primo download); tag `windows-latest` sul repo (release 0.2.0 creata per sbaglio, può confondere chi scarica a mano); funzioni del Mac mai portate (invio di un file per email, personaggio trascinato su una finestra per allegarla).
 - [ ] **Idee ancora da valutare:** libreria di comandi PowerShell/cmd con conferma; casa (promemoria, Home Assistant); integrazioni proposte il 2 ottobre e non fatte (Windows Update, stampanti bloccate, Teams, Docker, Git locali, WSL, IMAP, DNS/blacklist, pagine di stato, CISA KEV, RSS, ntfy/Telegram, Uptime Kuma, Proxmox, Synology/TrueNAS, UniFi, Pi-hole, GLPI). Dettagli in `HANDOFF-archivio.md`, sezione 7.
-- [ ] `screenshots/drop.png` mostra ancora "File caricati": rifarlo con `scripts/screenshots.mjs` (con `npm run dev` acceso).
 
 ## 5. Problemi noti
 
@@ -81,6 +80,11 @@ Verificato solo con i test o nell'anteprima del browser:
 ## 7. Registro
 
 Il registro completo fino al 6 ottobre 2026 è in `HANDOFF-archivio.md`. Le nuove voci vanno qui sotto, la più recente in alto.
+
+### 8 ottobre 2026 — Impostazioni riordinate e revisione
+- **«Agenti e chat» diviso in due pagine.** **Chat** (`claudeChatSection`): «Predefinito» con i soli nomi dei motori e una riga che dice cos'è quello scelto (`ENGINE_HINTS`), poi solo le impostazioni di quel motore; la guida a Claude Code compare solo se manca; i **Connettori** (`connectorsBlock`) stanno dentro il blocco dell'abbonamento Claude, l'unico che li usa. **Agenti** (`agentsSection`, `agentRow`, id di pagina ancora `claude`): una riga per agente con stato («Collegato», «Da aggiornare»…), una frase e un pulsante; il relay una volta sola in cima; l'anteprima con il diff si apre sotto la riga; opencode ha sulla stessa riga «Segui opencode 2» e il plugin 1.x; «Scheda nell'isola» in una sezione a parte. Corretto il testo di opencode che mostrava `.configopencodeplugins` (barre perse). Rimandi a «Agenti e chat» aggiornati (messaggi di `claude_cli.rs`, README).
+- **Revisione:** il server privato di opencode ora si ferma con tutto l'albero dei processi (`actions::kill_tree`, anche le shell aperte), all'uscita anche senza il lock (`SERVER_PID`); il timer d'inattività di un server vecchio non tocca quello nuovo (`generation`); se opencode non conosce più la sessione della chat se ne apre una nuova e si riprova una volta (`SESSION_GONE`); passi `execute` e `skill` con un nome italiano; l'agente opencode accorcia le stringhe a 2.000 caratteri come il relay; «Programma» usa `ShellExecuteExW` con `SEE_MASK_FLAG_NO_UI` (un nome sbagliato è un errore nell'isola, non una finestra di Windows). Test dal vivo ripassati, nessun opencode orfano dopo `shutdown`.
+- Schermate `settings*.png` e `drop.png` rifatte (`scripts/screenshots.mjs`; l'errore EPERM finale è solo la pulizia della cartella temporanea di Edge).
 
 ### 8 ottobre 2026 — opencode 2: motore della chat e agente dal servizio
 - **Scoperto sul PC:** opencode installato è la **2.0.24** (`@opencode/cli` da npm, `%APPDATA%

@@ -632,3 +632,102 @@ button.icon {
   color: var(--dim);
   overflow-wrap: anywhere;
 }
+
+/* ── Agenti: one row per coding agent (agentsSection) ── */
+.agents {
+  display: flex;
+  flex-direction: column;
+}
+
+.agent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.agent:first-child {
+  border-top: 0;
+}
+
+.agent-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: 30px;
+}
+
+.agent-name {
+  font: 600 13px var(--font);
+  min-width: 140px;
+}
+
+.agent-state {
+  font: 500 11px var(--font);
+  color: var(--dim);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.agent-state:empty {
+  display: none;
+}
+
+.agent-state.ok {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.agent-state.warn {
+  color: #fbc06a;
+  background: rgba(245, 165, 36, 0.13);
+}
+
+.agent-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent > .hint {
+  padding-left: 18px;
+}
+
+.agent-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 18px;
+}
+
+.agent-detail:empty {
+  display: none;
+}
+
+/* ── Chat: the chosen engine's settings, and Claude Code's connectors ── */
+.engine-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.sub-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+}
+
+.sub-block > h3 {
+  font: 600 12.5px var(--font);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
