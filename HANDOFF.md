@@ -1,11 +1,10 @@
 # Handoff — EasyIsland
 
-_Aggiornato all'8 ottobre 2026. Versione **0.6.0** su `claude/sviluppo`: installata su questo PC, non ancora in `main` né taggata. In `main` c'è la 0.5.9, con il tag `v0.5.9` pubblicato. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato all'8 ottobre 2026. Versione **0.6.0** in `main` con il tag `v0.6.0` (la CI pubblica l'installer), installata su questo PC. Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
-- [ ] **Unire la 0.6.0 in `main` e creare il tag `v0.6.0`**, con la conferma di Edoardo (`docs/sviluppo.md`).
 - [ ] **Prove dal vivo:** prima di tutto opencode nell'app installata. Elenco completo in `docs/prove-dal-vivo.md`.
 - [ ] **Funzioni chieste da Edoardo:** ricerca unica, ITA/ENG, cronologia delle chat, cartella trascinata nella chat (`docs/idee.md`).
 - [ ] **3CX + Zammad:** ticket del cliente sulla chiamata in arrivo (`docs/idee.md`).
