@@ -160,7 +160,7 @@ async fn handle(app: AppHandle, mut pipe: NamedPipeServer) {
         Some(i) => &buf[..i],
         None => &buf[..],
     };
-    let Ok(mut payload) = serde_json::from_slice::<Value>(line) else { return };
+    let Ok(payload) = serde_json::from_slice::<Value>(line) else { return };
     if !payload.is_object() {
         return;
     }
@@ -190,7 +190,34 @@ async fn handle(app: AppHandle, mut pipe: NamedPipeServer) {
         return;
     }
 
-    let id = format!("{}-{}", std::process::id(), COUNTER.fetch_add(1, Ordering::Relaxed));
+    let decision = request_decision(&app, payload).await;
+
+    // No decision: say nothing at all. easyisland-hook then writes nothing to stdout
+    // and Claude Code asks in the terminal, exactly as if EasyIsland were closed.
+    if let Some(d) = decision {
+        let _ = pipe.write_all(format!("{d}\n").as_bytes()).await;
+        let _ = pipe.flush().await;
+    }
+    let _ = pipe.disconnect();
+}
+
+/// Shows a PermissionRequest card (a Claude-Code-shaped hook payload) and
+/// waits for the click: `allow`, `deny`, `always` or `answer {…}`; None when
+/// nobody could answer (paused island, another card up, timeout). Also used by
+/// opencode.rs, whose permissions come from opencode's server, not the relay.
+pub async fn request_decision(app: &AppHandle, payload: Value) -> Option<String> {
+    request_decision_as(app, &new_request_id(), payload).await
+}
+
+/// A fresh request id, for a caller that may need to release the wait itself
+/// (`decline`), as opencode_agent.rs does when the answer comes from opencode.
+pub fn new_request_id() -> String {
+    format!("{}-{}", std::process::id(), COUNTER.fetch_add(1, Ordering::Relaxed))
+}
+
+/// `request_decision` under a chosen id.
+pub async fn request_decision_as(app: &AppHandle, id: &str, mut payload: Value) -> Option<String> {
+    let id = id.to_string();
     let (tx, mut rx) = mpsc::channel::<Reply>(4);
     {
         let pending = app.state::<Pending>();
@@ -202,14 +229,7 @@ async fn handle(app: AppHandle, mut pipe: NamedPipeServer) {
 
     let decision = wait_for_decision(&id, &mut rx).await;
     app.state::<Pending>().0.lock().unwrap().remove(&id);
-
-    // No decision: say nothing at all. easyisland-hook then writes nothing to stdout
-    // and Claude Code asks in the terminal, exactly as if EasyIsland were closed.
-    if let Some(d) = decision {
-        let _ = pipe.write_all(format!("{d}\n").as_bytes()).await;
-        let _ = pipe.flush().await;
-    }
-    let _ = pipe.disconnect();
+    decision
 }
 
 /// Two waits: a short one for "the card is up", then the long one for a human.

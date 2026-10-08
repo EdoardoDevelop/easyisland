@@ -572,7 +572,8 @@ function buildApproval(actions: ViewActions): ViewHost {
       const risks = State.pendingApproval?.risks ?? [];
       risk.textContent = risks.map((r) => `⚠ ${r}`).join("\n");
       risk.style.display = risks.length ? "" : "none";
-      const rule = State.pendingApproval?.source === "chat" ? undefined : State.pendingApproval?.always;
+      // A chat's card has "Sempre" only when its engine offered it (opencode, read-only commands).
+      const rule = State.pendingApproval?.always;
       always.textContent = rule ? `Sempre: ${rule}` : "";
       always.style.display = rule ? "" : "none";
       // Rebuilt only when a request with or without "Sempre" comes in: rebuilding
@@ -584,7 +585,7 @@ function buildApproval(actions: ViewActions): ViewHost {
       row.append(btn("Nega", "secondary", () => actions.decide("deny"), "N"));
       if (rule) {
         const b = btn("Sempre", "secondary", () => actions.decide("always"), "S");
-        b.title = "Consenti e non chiedere più (la regola che propone Claude Code)";
+        b.title = "Consenti e non chiedere più (la regola proposta dall'agente)";
         row.append(b);
       }
       row.append(btn("Consenti", "primary", () => actions.decide("allow"), "Y"));

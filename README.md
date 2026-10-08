@@ -526,10 +526,12 @@ Ogni agente ha la sua pillola con passi, modifiche ai file e ultimo messaggio.
 - **Codex** (`%USERPROFILE%\.codex\hooks.json`): anche le richieste di permesso,
   con **Consenti / Nega** nell'isola. Dopo l'installazione apri `/hooks` in Codex e
   approva gli hook di EasyIsland (Codex chiede di fidarsi degli hook nuovi).
-- **opencode** (`%USERPROFILE%\.config\opencode\plugins\easyisland.js`):
-  opencode non ha hook a comando, quindi EasyIsland scrive un plugin tutto suo.
-  Le richieste di permesso arrivano nell'isola con **Consenti / Nega / Sempre**, e
-  puoi rispondere anche in opencode come sempre. Dopo l'installazione riavvia opencode.
+- **opencode**: con opencode 2 accendi **Segui opencode 2**. EasyIsland legge il
+  servizio in background di opencode sul tuo PC, senza installare nulla. Le
+  richieste di permesso arrivano nell'isola con **Consenti / Nega / Sempre**, e
+  puoi rispondere anche in opencode come sempre. Con opencode 1.x c'è invece un
+  plugin (`%USERPROFILE%\.config\opencode\plugins\easyisland.js`); dopo
+  l'installazione riavvia opencode.
 - **Gemini CLI** (`%USERPROFILE%\.gemini\settings.json`): Gemini non lascia
   rispondere ai permessi da fuori, quindi l'isola si apre e ti dice che sta
   aspettando, con il pulsante per tornare al terminale.
@@ -541,8 +543,9 @@ sono quelli degli hook di Claude Code).
 
 ## Chat con Claude
 
-**Impostazioni… → Agenti e chat → Chat** ti fa scegliere il motore della chat (e
-si cambia anche dal nome del modello in alto a destra nella chat):
+**Impostazioni… → Agenti e chat → Chat** ti fa scegliere il motore **predefinito**
+della chat. Dal nome del modello in alto a destra nella chat puoi sceglierne un
+altro solo per quella conversazione (il menu mostra solo i motori pronti):
 
 - **Abbonamento Claude (tramite Claude Code)**, il predefinito. Slime usa
   Claude Code installato sul PC (`claude -p`, nascosto, senza finestre) e il tuo
@@ -574,8 +577,19 @@ si cambia anche dal nome del modello in alto a destra nella chat):
   dall'elenco (**Carica modelli**). Si paga a consumo da loro.
 - **Ollama** e **LM Studio**: modelli sul tuo PC (o su un altro della rete), nessuna
   chiave, solo l'indirizzo (vuoto = quello predefinito). Nulla esce dalla rete.
+- **opencode** (serve opencode 2 sul PC): modelli gratuiti di opencode Zen, locali
+  (Ollama, LM Studio) o dei fornitori collegati in opencode, **con strumenti**. Il
+  modello può eseguire comandi, leggere e modificare file e cercare sul web, e ogni
+  comando, modifica o accesso al web chiede **Consenti / Nega** nell'isola
+  (**Sempre** solo per i comandi che leggono soltanto); se non rispondi è un no.
+  EasyIsland avvia un server privato di opencode solo mentre chatti, lo spegne dopo
+  10 minuti e lavora in `%LOCALAPPDATA%\EasyIsland\opencode`. Il modello si scrive
+  come `fornitore/modello` (**Carica modelli**). Le chiavi dei fornitori restano in
+  opencode (`opencode auth login`). **Attenzione ai modelli gratuiti online:** per
+  quasi tutti i dati possono essere usati per migliorare il modello, quindi
+  niente dati dei clienti; per quelli usa un modello locale.
 
-Con questi ultimi cinque la risposta compare mentre arriva e il "ragionamento" dei
+Con OpenRouter, OpenAI, Gemini, Ollama e LM Studio la risposta compare mentre arriva e il "ragionamento" dei
 modelli che lo mostrano resta nascosto; non hanno strumenti (niente ricerche sul
 web né azioni sul PC). Le immagini vanno ai modelli che le leggono, i file di testo
 nel messaggio; i PDF solo con Claude.

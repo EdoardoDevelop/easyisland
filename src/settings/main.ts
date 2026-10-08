@@ -84,10 +84,10 @@ const HOOK_TOOLS = {
   },
   opencode: {
     name: "opencode", file: "easyisland.js",
-    on: "Le sessioni di opencode compaiono nell'isola con una pillola tutta loro: passi, piano, modifiche ai file con il diff, esito dei test e richieste di permesso con Consenti / Nega / Sempre (puoi rispondere anche in opencode, come sempre).",
-    off: "Se usi opencode, installa il plugin di EasyIsland: opencode non ha hook a comando, quindi EasyIsland scrive un plugin tutto suo in .config\\opencode\\plugins che passa gli eventi all'isola. Non blocca mai opencode.",
+    on: "Plugin per opencode 1.x installato: le sessioni compaiono nell'isola con passi, piano, diff, test e permessi con Consenti / Nega / Sempre (puoi rispondere anche in opencode). Con opencode 2 il plugin non serve: usa l'interruttore qui sotto.",
+    off: "Con opencode 2 basta l'interruttore qui sotto: EasyIsland segue il suo servizio in background, senza installare nulla. Il plugin qui serve solo a opencode 1.x (che non ha hook a comando): EasyIsland scrive un file tutto suo in .config\opencode\plugins.",
     done: "Riavvia opencode per caricare il plugin.",
-    preview: "Ecco il plugin che EasyIsland scrive in .config\\opencode\\plugins: un file tutto suo, gli altri plugin non vengono toccati.",
+    preview: "Ecco il plugin che EasyIsland scrive in .config\opencode\plugins (solo per opencode 1.x): un file tutto suo, gli altri plugin non vengono toccati.",
     outdated: "Il plugin di opencode è di una versione precedente di EasyIsland (o il relay si è spostato): reinstallalo per aggiornarlo.",
   },
 } as const;
@@ -240,7 +240,19 @@ function claudeSection(status: HookStatus, tool: HookTool = "claude", refreshFir
   if (refreshFirst) void rebuild();
   else draw();
   if (tool === "claude") section.append(claudeTabRow());
+  if (tool === "opencode") section.append(opencodeWatchRow());
   return section;
+}
+
+/**
+ * opencode 2: its sessions from its background service (opencode_agent.rs),
+ * nothing to install. Of the PC.
+ */
+function opencodeWatchRow(): HTMLElement {
+  return h("div", { class: "row" },
+    h("label", { text: "Segui opencode 2" }),
+    toggle(settings.opencodeWatch === true, (v) => { settings.opencodeWatch = v; void save(); }),
+    h("span", { class: "hint note", text: "le sessioni del TUI di opencode 2 nell'isola, lette dal suo servizio in background su questo PC (indirizzo da «opencode service status», password dal suo service.json, solo in memoria). I permessi arrivano con Consenti / Nega / Sempre; se non rispondi, li chiede opencode come sempre" }));
 }
 
 /**
@@ -487,7 +499,8 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
     "section",
     {},
     h("h2", {}, dot, h("span", { text: "Chat" })),
-    h("div", { class: "row" }, h("label", { text: "Motore" }), engine),
+    h("div", { class: "row" }, h("label", { text: "Motore predefinito" }), engine),
+    h("div", { class: "hint", text: "Nella chat, dal nome del motore in alto, puoi sceglierne un altro solo per quella conversazione; qui resta il predefinito." }),
     cliBlock,
     apiBlock,
     other.el,
@@ -511,9 +524,12 @@ function otherEngineBlock(changed: () => void) {
     if (!e || id === "subscription" || id === "api") return;
     settings.engineModels ??= {};
     settings.engineUrls ??= {};
-    el.append(h("div", { class: "hint", text: e.key
-      ? `La chat chiama ${e.name} con la tua chiave (${e.hint}): si paga a consumo da loro. Nessuno strumento: niente ricerche sul web né azioni sul PC.`
-      : `La chat usa ${e.name} su questo PC o in rete (${e.hint}): nulla esce dalla tua rete. Avvialo e scarica almeno un modello.` }));
+    const opencode = id === "opencode";
+    el.append(h("div", { class: "hint", text: opencode
+      ? "La chat usa opencode installato su questo PC (versione 2), avviato da EasyIsland solo mentre chatti, con un server privato. Il modello può eseguire comandi, leggere e modificare file e cercare sul web: ogni comando, modifica o accesso al web chiede Consenti / Nega nell'isola (Sempre solo per i comandi che leggono soltanto); senza risposta è un no. Le chiavi dei fornitori restano in opencode («opencode auth login»), mai qui. Lavora nella cartella %LOCALAPPDATA%\\EasyIsland\\opencode."
+      : e.key
+        ? `La chat chiama ${e.name} con la tua chiave (${e.hint}): si paga a consumo da loro. Nessuno strumento: niente ricerche sul web né azioni sul PC.`
+        : `La chat usa ${e.name} su questo PC o in rete (${e.hint}): nulla esce dalla tua rete. Avvialo e scarica almeno un modello.` }));
     const feedback = h("div", {});
     if (e.key) {
       const state = h("span", { class: "hint" });
@@ -554,7 +570,7 @@ function otherEngineBlock(changed: () => void) {
       });
       el.append(state, h("div", { class: "row" }, h("label", { text: "Chiave API" }), field, saveBtn, clearBtn));
       paint();
-    } else {
+    } else if (!opencode) {
       const url = h("input", { type: "text", value: settings.engineUrls[id] ?? "", placeholder: e.url ?? "", style: "flex:1 1 auto;min-width:0", spellcheck: "false" }) as HTMLInputElement;
       url.addEventListener("change", () => {
         settings.engineUrls![id] = url.value.trim();
@@ -564,12 +580,19 @@ function otherEngineBlock(changed: () => void) {
         h("span", { class: "hint note", text: "vuoto = quello predefinito; anche un altro PC della rete" })));
     }
     const listId = `models-${id}`;
-    const model = h("input", { type: "text", value: settings.engineModels[id] ?? "", list: listId, placeholder: "nome del modello", style: "flex:1 1 auto;min-width:0", spellcheck: "false" }) as HTMLInputElement;
+    const model = h("input", { type: "text", value: settings.engineModels[id] ?? "", list: listId, placeholder: opencode ? "fornitore/modello, es. ollama/qwen3:8b" : "nome del modello", style: "flex:1 1 auto;min-width:0", spellcheck: "false" }) as HTMLInputElement;
+    // opencode Zen's free models may keep what you send: never customer data there.
+    const privacy = h("div", { class: "notice warn", style: "display:none",
+      text: "Modello online di opencode Zen: per quasi tutti i modelli gratuiti i dati possono essere usati per migliorare il modello (per alcuni: «non inviare dati personali o riservati»). Non usarlo con dati dei clienti: per quelli scegli un modello locale (ollama/…, lmstudio/…) o uno a pagamento a ritenzione zero." });
+    const paintPrivacy = () => { privacy.style.display = opencode && model.value.trim().startsWith("opencode/") ? "" : "none"; };
+    paintPrivacy();
+    model.addEventListener("input", paintPrivacy);
     const options = h("datalist", { id: listId });
     const load = h("button", { text: "Carica modelli" }) as HTMLButtonElement;
     const loaded = h("span", { class: "hint note" });
     model.addEventListener("change", () => {
       settings.engineModels![id] = model.value.trim();
+      paintPrivacy();
       void save();
       changed();
     });
@@ -580,7 +603,9 @@ function otherEngineBlock(changed: () => void) {
         const ids = await Bridge.chatModels(id, settings.engineUrls?.[id] || null);
         clear(options);
         for (const m of ids) options.append(h("option", { value: m }));
-        loaded.textContent = ids.length ? `${ids.length} modelli: scrivi per cercare` : "Nessun modello disponibile.";
+        loaded.textContent = ids.length ? `${ids.length} modelli: scrivi per cercare` : opencode
+          ? "Nessun modello: collega un fornitore in opencode («opencode auth login») o avvia Ollama."
+          : "Nessun modello disponibile.";
         if (!model.value && ids.length) {
           model.value = ids[0];
           model.dispatchEvent(new Event("change"));
@@ -590,7 +615,7 @@ function otherEngineBlock(changed: () => void) {
       }
       load.disabled = false;
     });
-    el.append(h("div", { class: "row" }, h("label", { text: "Modello" }), model, options, load), loaded, feedback);
+    el.append(h("div", { class: "row" }, h("label", { text: "Modello" }), model, options, load), loaded, privacy, feedback);
     changed();
   }
 

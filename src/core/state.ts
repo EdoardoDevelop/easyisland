@@ -43,12 +43,13 @@ export function isSessionTask(t: AgentTask | null | undefined): boolean {
   return !!t && (t.id === "integration_claude" || t.id.startsWith("agent:"));
 }
 
-export type ChatEngine = "subscription" | "api" | "openrouter" | "openai" | "gemini" | "ollama" | "lmstudio";
+export type ChatEngine = "subscription" | "api" | "opencode" | "openrouter" | "openai" | "gemini" | "ollama" | "lmstudio";
 
 /** The chat engines: name, Credential Manager key (if any), default address (local ones). */
 export const CHAT_ENGINES: { id: ChatEngine; name: string; key?: string; url?: string; hint: string }[] = [
   { id: "subscription", name: "Claude (abbonamento)", hint: "il tuo piano Pro o Max, serve Claude Code da riga di comando con il login" },
   { id: "api", name: "Claude (chiave API)", key: "anthropic-api-key", hint: "API di Anthropic, a consumo" },
+  { id: "opencode", name: "opencode", hint: "modelli gratuiti o locali con strumenti (comandi, file, web), con i permessi nell'isola; serve opencode 2 sul PC" },
   { id: "openrouter", name: "OpenRouter", key: "openrouter-api-key", hint: "una chiave per centinaia di modelli (openrouter.ai)" },
   { id: "openai", name: "OpenAI", key: "openai-api-key", hint: "API di OpenAI (platform.openai.com)" },
   { id: "gemini", name: "Gemini", key: "gemini-api-key", hint: "Google AI Studio (aistudio.google.com)" },
@@ -361,6 +362,8 @@ export interface Settings {
   contextActions: boolean;
   /** The chat (Claude Code engine) may use EasyIsland's tools: open programs, quick actions… */
   agentTools: boolean;
+  /** opencode 2's sessions in the island, from its background service (opencode_agent.rs). Of the PC. */
+  opencodeWatch?: boolean;
   /** "Quando… allora…" rules, run by src-tauri/src/automations.rs. */
   automations: Automation[];
   /** Record what happens on the PC to propose automations; off until switched on. */
@@ -622,6 +625,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hotkeyMute: "",
   contextActions: true,
   agentTools: true,
+  opencodeWatch: false,
   automations: [],
   habitsEnabled: false,
   suggestionsDismissed: [],
@@ -699,6 +703,12 @@ class AppState {
   noteMessage: string | null = null;
   searchResult: SearchResult | null = null;
   chatHistory: ChatMessage[] = [];
+  /** The engine picked in the chat's menu for the conversation in progress; null = the default (settings.chatEngine). Never saved. */
+  chatEngineOverride: ChatEngine | null = null;
+  /** The engine the chat uses right now. */
+  get chatEngine(): ChatEngine {
+    return this.chatEngineOverride ?? this.settings.chatEngine;
+  }
   pendingApproval: ApprovalInfo | null = null;
 
   /** File edits of the Claude Code session (addDiff); cleared when it starts or ends. */

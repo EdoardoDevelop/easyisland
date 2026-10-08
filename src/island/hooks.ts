@@ -29,6 +29,8 @@ interface HookPayload {
   tool_input?: Record<string, unknown>;
   /** Set by easyisland-hook.exe --chat: a connector call from the character's own chat. */
   easyisland_chat?: boolean;
+  /** The chat engine asking (opencode.rs sends "opencode"); absent = Claude Code. */
+  easyisland_engine?: string;
   /** PermissionRequest: the rules Claude Code offers to remember ("Sempre"). */
   permission_suggestions?: unknown;
   /** Added by the relay (hook/src/diff.rs) to Edit / MultiEdit / Write. */
@@ -208,12 +210,18 @@ function handleChatPermission(island: Island, payload: HookPayload) {
   }
   const raw = payload.tool_name ?? "Connettore";
   const tool = raw.startsWith("mcp__easyisland__") ? "EasyIsland" : raw;
+  const input = payload.tool_input ?? {};
+  // opencode's own tools (a command, a file): shown as they are, and "Sempre"
+  // when opencode.rs offers it (read-only commands only).
+  const opencode = payload.easyisland_engine === "opencode";
+  const plain = typeof input.command === "string" ? input.command : typeof input.path === "string" ? input.path : null;
   State.pendingApproval = {
     requestId,
     sessionId: payload.session_id ?? "",
     tool,
-    command: connectorTarget(raw, payload.tool_input ?? {}),
+    command: opencode && plain != null ? `${tool} · ${plain}` : connectorTarget(raw, input),
     source: "chat",
+    always: opencode ? alwaysLabel(payload.permission_suggestions) ?? undefined : undefined,
   };
   if (requestId) void Bridge.approvalAck(requestId);
   State.isPinned = true;
