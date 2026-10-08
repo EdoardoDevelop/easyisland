@@ -3383,3 +3383,43 @@ svg.brand { flex: 0 0 auto; color: #f5f6f8; }
   color: var(--dim-2);
 }
 .qa-none { font: 400 11px var(--font); color: var(--dim-2); padding: 4px 0; }
+
+/* Agenti: one chip per agent with a session (Claude Code, opencode, Codex…). */
+.agent-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 36px 2px 108px;
+}
+
+.agent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--dim-2);
+  font: 600 10.5px var(--font);
+  cursor: pointer;
+}
+
+.agent-chip:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.agent-chip.on {
+  color: var(--ink);
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.agent-busy {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 5px #22c55e;
+}

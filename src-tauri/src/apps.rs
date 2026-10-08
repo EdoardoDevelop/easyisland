@@ -168,6 +168,22 @@ pub fn open_session(host: &str, path: Option<&str>) -> &'static str {
                 return "terminal";
             }
         }
+        // opencode: Desktop's window, else the terminal its TUI runs in, else
+        // Desktop started; never VS Code (it is not where opencode lives).
+        "opencode" => {
+            if focus_app(&["opencode.exe"]) || focus_app(&["windowsterminal.exe", "openconsole.exe", "conhost.exe"]) {
+                return "opencode";
+            }
+            let desktop = std::env::var_os("LOCALAPPDATA")
+                .map(|l| PathBuf::from(l).join(r"Programs\@opencodedesktop\OpenCode.exe"))
+                .filter(|p| p.is_file());
+            if let Some(exe) = desktop {
+                if Command::new(exe).spawn().is_ok() {
+                    return "opencode";
+                }
+            }
+            return if open_folder(path) { "folder" } else { "" };
+        }
         // Claude Code in Cursor's terminal: Cursor's window, or Cursor on the folder.
         "cursor" => {
             if focus_app(&["cursor.exe"]) {

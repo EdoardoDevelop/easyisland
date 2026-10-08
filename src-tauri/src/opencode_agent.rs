@@ -162,10 +162,13 @@ fn deliver(app: &AppHandle, url: &str, password: Option<&str>, state: &mut Sessi
     match out {
         Out::Hook(mut payload) => {
             truncate_strings(&mut payload);
+            let event = payload.get("hook_event_name").and_then(Value::as_str).unwrap_or_default();
+            crate::log::line(format!("opencode {event}"));
             let _ = app.emit_to(WINDOW_LABEL, "hook", payload);
         }
         Out::Ask(id, session, mut payload) => {
             truncate_strings(&mut payload);
+            crate::log::line("opencode PermissionRequest");
             let request = crate::pipe::new_request_id();
             state.asks.insert(id.clone(), request.clone());
             let (app, url, password) = (app.clone(), url.to_string(), password.map(str::to_string));
@@ -231,6 +234,8 @@ fn base(state: &Sessions, event: &str, session: &str) -> Map<String, Value> {
     m.insert("session_id".into(), json!(session));
     m.insert("cwd".into(), json!(state.cwd.get(session).cloned().unwrap_or_default()));
     m.insert("easyisland_agent".into(), agent());
+    // "Apri" brings back opencode Desktop or the terminal of its TUI, never VS Code.
+    m.insert("easyisland_host".into(), json!("opencode"));
     m
 }
 
@@ -341,6 +346,7 @@ fn translate(state: &mut Sessions, ev: &Value) -> Vec<Out> {
                 m.remove("easyisland_engine");
                 m.insert("easyisland_agent".into(), agent());
                 m.insert("cwd".into(), json!(state.cwd.get(&session).cloned().unwrap_or_default()));
+                m.insert("easyisland_host".into(), json!("opencode"));
             });
             // An agent's "Sempre": opencode's own patterns, whatever the command (as Claude Code proposes).
             let save: Vec<Value> = data.get("save").and_then(Value::as_array).cloned().unwrap_or_default();
@@ -431,6 +437,24 @@ mod tests {
             let first = tokio::time::timeout(Duration::from_secs(10), r.chunk()).await.expect("an event").expect("chunk").expect("data");
             println!("{}", String::from_utf8_lossy(&first).lines().next().unwrap_or_default());
         });
+    }
+
+    /// Replays a recorded `/api/event` stream (OPENCODE_EVENTS=<file>) through translate:
+    /// `cargo test --lib opencode_agent::tests::replay -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn replay_recorded_events() {
+        let path = std::env::var("OPENCODE_EVENTS").expect("OPENCODE_EVENTS");
+        let mut st = Sessions::default();
+        for line in std::fs::read_to_string(path).unwrap().lines() {
+            let Some(ev) = crate::opencode::parse_event(line) else { continue };
+            for out in translate(&mut st, &ev) {
+                match out {
+                    Out::Hook(v) => println!("HOOK {} {} {}", v["hook_event_name"], v["tool_name"], v["session_id"]),
+                    other => println!("{other:?}"),
+                }
+            }
+        }
     }
 
     #[test]

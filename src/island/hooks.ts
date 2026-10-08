@@ -46,6 +46,8 @@ interface HookPayload {
   easyisland_tests?: TestVerdict;
   /** Another agent (Codex, Gemini CLI, any tool): its pill. */
   easyisland_agent?: { id?: string; name?: string; color?: string };
+  /** The app to bring back on "Apri" when the agent says so (opencode_agent.rs: "opencode"). */
+  easyisland_host?: string;
   /** Gemini asks for a permission in its terminal (the island cannot answer it). */
   easyisland_waiting?: boolean;
   /** Cursor, Copilot CLI: a tool reported only after it ran, with no PreToolUse before it. */
@@ -105,6 +107,7 @@ function taskFor(p: HookPayload): string {
 }
 
 function sessionHost(p: HookPayload): SessionHost {
+  if (p.easyisland_host === "opencode") return "opencode";
   // CLAUDE_CODE_ENTRYPOINT describes Claude Code; another agent may only have
   // inherited it from a terminal the Claude app opened.
   if (p.entrypoint === "claude-desktop" && !p.easyisland_agent) return "desktop";
@@ -445,6 +448,8 @@ const HOST_APPS: Record<SessionHost, string[]> = {
   wt: ["windowsterminal.exe"],
   terminal: ["windowsterminal.exe", "conhost.exe", "openconsole.exe", "powershell.exe", "pwsh.exe", "cmd.exe",
     "wezterm-gui.exe", "alacritty.exe", "mintty.exe"],
+  // opencode Desktop, or its TUI in a terminal.
+  opencode: ["opencode.exe", "windowsterminal.exe", "conhost.exe", "openconsole.exe", "pwsh.exe", "powershell.exe", "cmd.exe"],
 };
 
 /** True when the session's own app is in front: the user is already looking at it. */
@@ -528,6 +533,10 @@ export function handleHook(island: Island, payload: HookPayload) {
     return;
   }
   const tid = taskFor(payload);
+  {
+    const t = State.tasks.find((x) => x.id === tid);
+    if (t) t.lastActive = Date.now();
+  }
   const cwd = payload.cwd ?? "";
   const raw = lastPathComponent(cwd);
   const projectName = aliasProjectName(raw || "Session");

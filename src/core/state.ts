@@ -36,6 +36,8 @@ export interface AgentTask {
   permissionMode?: string | null;
   /** The agent's own process, found by the relay: the session is over when it is gone. */
   sessionPid?: { pid: number; exe: string } | null;
+  /** When its last hook event arrived (ms): the Agenti tab opens on the most recent agent. */
+  lastActive?: number;
 }
 
 /** A coding session: Claude Code's task, or another agent's (`agent:<id>`). */
@@ -85,7 +87,7 @@ export const MAX_DIFFS = 50;
 export const DIFF_TTL_MS = 60 * 60 * 1000;
 
 /** The Claude desktop app, VS Code, Cursor, Windows Terminal, or any other console. */
-export type SessionHost = "desktop" | "vscode" | "cursor" | "wt" | "terminal";
+export type SessionHost = "desktop" | "vscode" | "cursor" | "wt" | "terminal" | "opencode";
 
 /** A message card in the island: from a script (`easyisland-hook notify`) or an update. */
 export interface Notice {
@@ -117,6 +119,7 @@ export function sessionOpenLabel(host: SessionHost | null | undefined): string {
     case "desktop": return "Apri Claude";
     case "vscode": return "Apri VS Code";
     case "cursor": return "Apri Cursor";
+    case "opencode": return "Apri opencode";
     default: return "Apri terminale";
   }
 }
@@ -752,6 +755,16 @@ class AppState {
 
   get focusTask(): AgentTask | null {
     return this.tasks.find((t) => t.id === this.focusId) ?? this.tasks[0] ?? null;
+  }
+
+  /** The coding agents' sessions (Claude Code and agent:<id>), most recent first. */
+  get sessionTasks(): AgentTask[] {
+    return this.tasks.filter((t) => isSessionTask(t)).sort((a, b) => (b.lastActive ?? 0) - (a.lastActive ?? 0));
+  }
+
+  /** The agent the Agenti tab opens on: the one heard from last (Claude Code when none was). */
+  get latestSessionTask(): AgentTask | null {
+    return this.sessionTasks.find((t) => t.lastActive) ?? this.tasks.find((t) => t.id === "integration_claude") ?? null;
   }
 
   /** ⌂ shows every integration (not while a permission or a question waits). */
