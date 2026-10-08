@@ -30,7 +30,7 @@ npm run pack        # l'installer in release\
 - CPU a ~0 % quando l'isola è a riposo.
 
 Le regole complete e la mappa del codice sono in [CLAUDE.md](CLAUDE.md); lo
-stato dei lavori in [HANDOFF.md](HANDOFF.md).
+stato dei lavori in [HANDOFF.md](HANDOFF.md), i dettagli per area in [docs/](docs/).
 
 ## Segnalazioni e pull request
 
