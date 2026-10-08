@@ -19,6 +19,14 @@
 //!   makes the diff), `afterShellExecution` a Bash with its output (testrun.rs
 //!   reads the tests).
 //!
+//! * **opencode** — no shell hooks: a plugin EasyIsland writes
+//!   (`~/.config/opencode/plugins/easyisland.js`, hooks.rs) runs the relay with
+//!   opencode's own event names (`tool.execute.before`, `session.idle`,
+//!   `permission.asked`…) and camelCase arguments; they become Claude Code's.
+//!   A permission waits for the island like Claude Code's, and the plugin
+//!   passes the answer to opencode's server; with no answer opencode asks in
+//!   its own window, as always.
+//!
 //! Any other tool can send a payload with `easyisland_agent: {"id", "name", "color"}`
 //! and gets its pill too; `sanitize` keeps that field harmless.
 
@@ -31,6 +39,7 @@ fn known(id: &str) -> Option<(&'static str, &'static str)> {
         "gemini" => Some(("Gemini CLI", "#4285F4")),
         "cursor" => Some(("Cursor", "#9CA3AF")),
         "copilot" => Some(("Copilot", "#8957E5")),
+        "opencode" => Some(("opencode", "#FAB283")),
         _ => None,
     }
 }
@@ -58,6 +67,9 @@ pub fn normalize(agent: Option<&str>, map: &mut Map<String, Value>) {
         }
         if id == "copilot" {
             copilot(map);
+        }
+        if id == "opencode" {
+            opencode(map);
         }
     }
     sanitize(map);
@@ -300,6 +312,108 @@ fn copilot(map: &mut Map<String, Value>) {
     }
 }
 
+/// opencode's tools under Claude Code's names.
+fn opencode_tool(tool: &str) -> &str {
+    match tool {
+        "bash" => "Bash",
+        "read" => "Read",
+        "write" => "Write",
+        "edit" => "Edit",
+        "multiedit" => "MultiEdit",
+        "patch" | "apply_patch" => "Patch",
+        "glob" => "Glob",
+        "grep" => "Grep",
+        "list" => "LS",
+        "webfetch" => "WebFetch",
+        "websearch" => "WebSearch",
+        "todowrite" => "TodoWrite",
+        "todoread" => "TodoRead",
+        "task" => "Task",
+        other => other,
+    }
+}
+
+/// opencode's camelCase arguments under Claude Code's names (filePath →
+/// file_path…), for the step labels and the diff; a multiedit's edits too.
+fn opencode_args(input: &mut Map<String, Value>) {
+    for (from, to) in [("filePath", "file_path"), ("oldString", "old_string"), ("newString", "new_string"), ("replaceAll", "replace_all")] {
+        if let Some(v) = input.get(from).cloned() {
+            input.entry(to.to_string()).or_insert(v);
+        }
+    }
+    if let Some(edits) = input.get_mut("edits").and_then(Value::as_array_mut) {
+        for e in edits.iter_mut().filter_map(Value::as_object_mut) {
+            opencode_args(e);
+        }
+    }
+}
+
+/// opencode (through EasyIsland's plugin) → Claude Code's events, tools and fields.
+fn opencode(map: &mut Map<String, Value>) {
+    let event = map.get("hook_event_name").and_then(Value::as_str).unwrap_or_default().to_string();
+    let renamed = match event.as_str() {
+        "session.created" => "SessionStart",
+        "session.deleted" => "SessionEnd",
+        "chat.message" => "UserPromptSubmit",
+        "tool.execute.before" => "PreToolUse",
+        "tool.execute.after" => "PostToolUse",
+        "session.idle" => "Stop",
+        "session.error" => "StopFailure",
+        "session.compacted" => "PreCompact",
+        "permission.asked" => "PermissionRequest",
+        other => other,
+    };
+    set_event(map, renamed);
+
+    if event == "permission.asked" {
+        // { permission: "bash", patterns: ["git push"], always: [...], metadata: {...} }
+        let permission = map.remove("permission").unwrap_or(Value::Null);
+        let kind = permission.as_str().unwrap_or_default().to_string();
+        let patterns: Vec<String> = map.remove("patterns").and_then(|p| p.as_array().cloned()).unwrap_or_default()
+            .iter().filter_map(Value::as_str).map(str::to_string).collect();
+        let always: Vec<String> = map.remove("always").and_then(|p| p.as_array().cloned()).unwrap_or_default()
+            .iter().filter_map(Value::as_str).map(str::to_string).collect();
+        let mut input = map.remove("metadata").and_then(|m| m.as_object().cloned()).unwrap_or_default();
+        let tool = opencode_tool(&kind).to_string();
+        if let Some(first) = patterns.first() {
+            if tool == "Bash" {
+                input.entry("command".to_string()).or_insert(Value::String(first.clone()));
+            } else if !input.contains_key("filepath") && !input.contains_key("filePath") {
+                input.entry("path".to_string()).or_insert(Value::String(first.clone()));
+            }
+        }
+        if let Some(v) = input.get("filepath").cloned() {
+            input.entry("file_path".to_string()).or_insert(v);
+        }
+        opencode_args(&mut input);
+        map.insert("tool_name".into(), Value::String(tool.clone()));
+        map.insert("tool_input".into(), Value::Object(input));
+        // "Sempre": opencode's own `always` patterns, approved for this session.
+        if !always.is_empty() {
+            let rules: Vec<Value> = always.iter().map(|p| json!({ "toolName": tool, "ruleContent": p })).collect();
+            map.insert(
+                "permission_suggestions".into(),
+                json!([{ "type": "addRules", "rules": rules, "behavior": "allow", "destination": "session" }]),
+            );
+        }
+        return;
+    }
+
+    if let Some(tool) = map.get("tool_name").and_then(Value::as_str) {
+        let claude = opencode_tool(tool).to_string();
+        map.insert("tool_name".into(), Value::String(claude));
+    }
+    if let Some(input) = map.get_mut("tool_input").and_then(Value::as_object_mut) {
+        opencode_args(input);
+    }
+    if event == "session.error" {
+        let message = map.get("error").and_then(|e| {
+            e.get("data").and_then(|d| d.get("message")).or_else(|| e.get("message")).or_else(|| e.get("name"))
+        }).and_then(Value::as_str).unwrap_or_default().to_string();
+        map.insert("error".into(), Value::String(message));
+    }
+}
+
 /// The patch text of a Codex `apply_patch`, wherever its input keeps it.
 pub fn patch_text(input: &Value) -> Option<String> {
     fn find(v: &Value) -> Option<String> {
@@ -389,6 +503,45 @@ mod tests {
 
     fn map(v: Value) -> Map<String, Value> {
         v.as_object().unwrap().clone()
+    }
+
+    #[test]
+    fn opencode_events() {
+        let mut edit = map(json!({ "hook_event_name": "tool.execute.after", "session_id": "ses_1", "tool_name": "edit",
+            "tool_input": { "filePath": "C:/x/a.ts", "oldString": "a", "newString": "b" },
+            "tool_response": { "stdout": "ok" } }));
+        normalize(Some("opencode"), &mut edit);
+        assert_eq!((edit["hook_event_name"].as_str(), edit["tool_name"].as_str()), (Some("PostToolUse"), Some("Edit")));
+        assert_eq!(edit["tool_input"]["file_path"], "C:/x/a.ts");
+        assert_eq!((edit["tool_input"]["old_string"].as_str(), edit["tool_input"]["new_string"].as_str()), (Some("a"), Some("b")));
+        assert_eq!(edit["easyisland_agent"]["name"], "opencode");
+
+        let mut todo = map(json!({ "hook_event_name": "tool.execute.before", "tool_name": "todowrite", "tool_input": { "todos": [] } }));
+        normalize(Some("opencode"), &mut todo);
+        assert_eq!((todo["hook_event_name"].as_str(), todo["tool_name"].as_str()), (Some("PreToolUse"), Some("TodoWrite")));
+
+        let mut ask = map(json!({ "hook_event_name": "permission.asked", "session_id": "ses_1", "permission": "bash",
+            "patterns": ["git push origin main"], "always": ["git push *"], "metadata": {} }));
+        normalize(Some("opencode"), &mut ask);
+        assert_eq!((ask["hook_event_name"].as_str(), ask["tool_name"].as_str()), (Some("PermissionRequest"), Some("Bash")));
+        assert_eq!(ask["tool_input"]["command"], "git push origin main");
+        let s = &ask["permission_suggestions"][0];
+        assert_eq!((s["destination"].as_str(), s["rules"][0]["ruleContent"].as_str()), (Some("session"), Some("git push *")));
+        assert!(ask.get("patterns").is_none() && ask.get("always").is_none());
+
+        let mut read = map(json!({ "hook_event_name": "permission.asked", "permission": "external_directory",
+            "patterns": ["C:/Clienti/*"], "always": [], "metadata": { "filepath": "C:/Clienti/a.txt" } }));
+        normalize(Some("opencode"), &mut read);
+        assert_eq!(read["tool_input"]["file_path"], "C:/Clienti/a.txt");
+        assert!(read.get("permission_suggestions").is_none());
+
+        let mut idle = map(json!({ "hook_event_name": "session.idle", "session_id": "ses_1" }));
+        normalize(Some("opencode"), &mut idle);
+        assert_eq!(idle["hook_event_name"], "Stop");
+
+        let mut failed = map(json!({ "hook_event_name": "session.error", "error": { "name": "APIError", "data": { "message": "Rate limit" } } }));
+        normalize(Some("opencode"), &mut failed);
+        assert_eq!((failed["hook_event_name"].as_str(), failed["error"].as_str()), (Some("StopFailure"), Some("Rate limit")));
     }
 
     #[test]

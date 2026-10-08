@@ -408,6 +408,10 @@ pub struct Settings {
     /// The chat (Claude Code engine) may use EasyIsland's own tools (agent.rs).
     #[serde(default = "default_true")]
     pub agent_tools: bool,
+    /// opencode 2's sessions in the island, read from its background service
+    /// (opencode_agent.rs). Belongs to the PC; off by default.
+    #[serde(default)]
+    pub opencode_watch: bool,
     /// "Quando… allora…" rules (automations.rs). Belong to the PC; each can be
     /// limited to one profile.
     #[serde(default)]
@@ -569,6 +573,7 @@ impl Default for Settings {
             hotkey_mute: String::new(),
             context_actions: true,
             agent_tools: true,
+            opencode_watch: false,
             automations: Vec::new(),
             habits_enabled: false,
             suggestions_dismissed: Vec::new(),

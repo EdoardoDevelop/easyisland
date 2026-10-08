@@ -1,6 +1,6 @@
 // Staged island states for the README screenshots, in the browser preview only:
 //   /?scene=overview   (greeting, compact, overview, approval, chat, drop, actions,
-//                       threecx, clipboard, media, network, suggestion)
+//                       threecx, clipboard, media, network, suggestion, agenti)
 // When the scene has settled the page turns transparent and its title says
 // "scene ready"; scripts/screenshots.mjs then captures just the island.
 
@@ -56,6 +56,13 @@ export async function runScene(island: Island, scene: string) {
       break;
     case "chat": {
       await wait(300);
+      // ?long: a pasted path with no spaces in the history.
+      if (new URLSearchParams(location.search).has("long")) {
+        State.chatHistory = [
+          { id: 1, role: "user", content: "Cos'è C:\\Users\\Edoardo\\AppData\\Local\\Packages\\Microsoft.WindowsTerminal_8wekyb3d8bbwe\\LocalState\\settings_senza_spazi.json?" },
+          { id: 2, role: "assistant", content: "È il file delle impostazioni di **Windows Terminal**." },
+        ];
+      }
       island.alert("prompt");
       await wait(800);
       const input = document.querySelector<HTMLInputElement>(".chat-input");
@@ -87,12 +94,24 @@ export async function runScene(island: Island, scene: string) {
           { id: 1, preview: "{\"name\":\"easyisland\",\"version\":\"0.2.0\"}", chars: 40, lines: 1, at: now - 900_000, pinned: false },
         ] },
       };
+      // ?long: overlong texts, to check that nothing runs out of the card.
+      if (new URLSearchParams(location.search).has("long")) {
+        (State.integrations.integration_clipboard.data.items as unknown[]).unshift(
+          { id: 6, preview: "C:\\Users\\Edoardo\\AppData\\Local\\Packages\\Microsoft.WindowsTerminal_8wekyb3d8bbwe\\LocalState\\settings_senza_spazi.json",
+            chars: 110, lines: 1, at: now - 1_000, pinned: false },
+          { id: 5, preview: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+            chars: 2400, lines: 40, at: now - 2_000, pinned: false });
+      }
+      const song = new URLSearchParams(location.search).has("long")
+        ? "Bohemian Rhapsody (Remastered 2011, versione estesa dal vivo a Wembley)" : "Bohemian Rhapsody";
       State.integrations.integration_media = {
         loaded: true, configured: true, error: null,
-        data: { active: true, title: "Bohemian Rhapsody", artist: "Queen", app: "Spotify", playing: true,
+        data: { active: true, title: song, artist: "Queen", app: "Spotify", playing: true,
           canPrev: true, canNext: true, duration: 354, position: 121, cover: null },
       };
       State.setFocus(scene === "clipboard" ? "integration_clipboard" : "integration_media");
+      // ?summary: the ⌂ tab instead of the card.
+      if (new URLSearchParams(location.search).has("summary")) State.summary = true;
       island.alert("overview");
       await wait(2500);
       break;
@@ -222,6 +241,26 @@ export async function runScene(island: Island, scene: string) {
       handleHook(island, { hook_event_name: "SessionStart", cwd: "C:\\Users\\Edoardo\\WORK\\sito", easyisland_agent: gemini });
       handleHook(island, { hook_event_name: "Notification", cwd: "C:\\Users\\Edoardo\\WORK\\sito", easyisland_agent: gemini,
         easyisland_waiting: true, message: "Chiede un permesso nel terminale: rm -rf build" });
+      island.alert("overview");
+      await wait(1500);
+      break;
+    }
+    case "agenti": {
+      // The Agenti tab with two agents: Claude Code at work and opencode as
+      // opencode_agent.rs forwards it, so the switch bar shows (.agent-switch).
+      await wait(300);
+      (window as unknown as { island: Island }).island = island;
+      session("working", ["Read · src/views/views.ts", "Edit · src/views/integrations.ts"]);
+      const opencode = { id: "opencode", name: "opencode", color: "#FAB283" };
+      const cwd = "C:\\Users\\Edoardo\\WORK\\gestionale";
+      handleHook(island, { hook_event_name: "SessionStart", cwd, easyisland_agent: opencode, easyisland_host: "opencode" });
+      handleHook(island, { hook_event_name: "UserPromptSubmit", cwd, prompt: "Aggiungi l'export in CSV",
+        easyisland_agent: opencode, easyisland_host: "opencode" });
+      handleHook(island, { hook_event_name: "PreToolUse", cwd, tool_name: "Read", tool_input: { file_path: `${cwd}\\src\\export.rs` },
+        easyisland_agent: opencode, easyisland_host: "opencode" });
+      // ?claude: the chip of Claude Code selected instead of opencode's.
+      State.setFocus(new URLSearchParams(location.search).has("claude") ? CLAUDE : "agent:opencode");
+      State.isPinned = true;
       island.alert("overview");
       await wait(1500);
       break;

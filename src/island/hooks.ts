@@ -29,6 +29,8 @@ interface HookPayload {
   tool_input?: Record<string, unknown>;
   /** Set by easyisland-hook.exe --chat: a connector call from the character's own chat. */
   easyisland_chat?: boolean;
+  /** The chat engine asking (opencode.rs sends "opencode"); absent = Claude Code. */
+  easyisland_engine?: string;
   /** PermissionRequest: the rules Claude Code offers to remember ("Sempre"). */
   permission_suggestions?: unknown;
   /** Added by the relay (hook/src/diff.rs) to Edit / MultiEdit / Write. */
@@ -44,12 +46,18 @@ interface HookPayload {
   easyisland_tests?: TestVerdict;
   /** Another agent (Codex, Gemini CLI, any tool): its pill. */
   easyisland_agent?: { id?: string; name?: string; color?: string };
+  /** The app to bring back on "Apri" when the agent says so (opencode_agent.rs: "opencode"). */
+  easyisland_host?: string;
   /** Gemini asks for a permission in its terminal (the island cannot answer it). */
   easyisland_waiting?: boolean;
   /** Cursor, Copilot CLI: a tool reported only after it ran, with no PreToolUse before it. */
   easyisland_after_only?: boolean;
   /** Claude Code's permission mode, on every event. */
   permission_mode?: string;
+  /** PostToolUseFailure: why the tool failed (opencode_agent.rs puts opencode's message here too). */
+  error?: string;
+  /** PostToolUseFailure: the user stopped it. */
+  is_interrupt?: boolean;
   /** PreCompact: "manual" (/compact) or "auto" (context full). */
   trigger?: string;
   /** Added by the relay: the agent's own process (hook/src/win.rs → agent_process). */
@@ -103,6 +111,7 @@ function taskFor(p: HookPayload): string {
 }
 
 function sessionHost(p: HookPayload): SessionHost {
+  if (p.easyisland_host === "opencode") return "opencode";
   // CLAUDE_CODE_ENTRYPOINT describes Claude Code; another agent may only have
   // inherited it from a terminal the Claude app opened.
   if (p.entrypoint === "claude-desktop" && !p.easyisland_agent) return "desktop";
@@ -208,12 +217,18 @@ function handleChatPermission(island: Island, payload: HookPayload) {
   }
   const raw = payload.tool_name ?? "Connettore";
   const tool = raw.startsWith("mcp__easyisland__") ? "EasyIsland" : raw;
+  const input = payload.tool_input ?? {};
+  // opencode's own tools (a command, a file): shown as they are, and "Sempre"
+  // when opencode.rs offers it (read-only commands only).
+  const opencode = payload.easyisland_engine === "opencode";
+  const plain = typeof input.command === "string" ? input.command : typeof input.path === "string" ? input.path : null;
   State.pendingApproval = {
     requestId,
     sessionId: payload.session_id ?? "",
     tool,
-    command: connectorTarget(raw, payload.tool_input ?? {}),
+    command: opencode && plain != null ? `${tool} · ${plain}` : connectorTarget(raw, input),
     source: "chat",
+    always: opencode ? alwaysLabel(payload.permission_suggestions) ?? undefined : undefined,
   };
   if (requestId) void Bridge.approvalAck(requestId);
   State.isPinned = true;
@@ -271,6 +286,7 @@ const TOOL_LABELS: Record<string, string> = {
   MultiEdit: "Modifica",
   NotebookEdit: "Notebook",
   PowerShell: "Esegue",
+  AskUserQuestion: "Domanda",
 };
 
 /**
@@ -322,6 +338,18 @@ function stepLabel(tool: string, input: Record<string, unknown>): string {
   const query = str("query");
   if (query) return `${label} · ${query.slice(0, 40)}`;
   return label;
+}
+
+/**
+ * A failed tool, said so it can be understood: "⚠ Domanda · Invalid arguments
+ * for tool…", "⚠ Legge · a.ts · errore". The agent usually retries by itself;
+ * the reason tells whether that was the model's mistake or something to look at.
+ */
+function failStep(p: HookPayload): string {
+  if (p.is_interrupt) return "⏹ interrotto";
+  const what = p.tool_name ? stepLabel(p.tool_name, p.tool_input ?? {}) : "Strumento";
+  const why = typeof p.error === "string" ? firstLine(p.error, 60) : "";
+  return `⚠ ${what} · ${why || "errore"}`;
 }
 
 /**
@@ -437,6 +465,8 @@ const HOST_APPS: Record<SessionHost, string[]> = {
   wt: ["windowsterminal.exe"],
   terminal: ["windowsterminal.exe", "conhost.exe", "openconsole.exe", "powershell.exe", "pwsh.exe", "cmd.exe",
     "wezterm-gui.exe", "alacritty.exe", "mintty.exe"],
+  // opencode Desktop, or its TUI in a terminal.
+  opencode: ["opencode.exe", "windowsterminal.exe", "conhost.exe", "openconsole.exe", "pwsh.exe", "powershell.exe", "cmd.exe"],
 };
 
 /** True when the session's own app is in front: the user is already looking at it. */
@@ -520,6 +550,10 @@ export function handleHook(island: Island, payload: HookPayload) {
     return;
   }
   const tid = taskFor(payload);
+  {
+    const t = State.tasks.find((x) => x.id === tid);
+    if (t) t.lastActive = Date.now();
+  }
   const cwd = payload.cwd ?? "";
   const raw = lastPathComponent(cwd);
   const projectName = aliasProjectName(raw || "Session");
@@ -640,7 +674,7 @@ export function handleHook(island: Island, payload: HookPayload) {
         if (t?.steps.includes(step)) State.replaceStep(tid, step, text);
         else State.appendStep(tid, text);
       } else {
-        State.appendStep(tid, "⚠ fallito");
+        State.appendStep(tid, failStep(payload));
       }
       break;
 

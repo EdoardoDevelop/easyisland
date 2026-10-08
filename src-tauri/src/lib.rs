@@ -21,6 +21,19 @@ mod legacy;
 mod log;
 mod media;
 mod openai;
+mod opencode;
+mod opencode_agent;
+// The relay's own diff, test-verdict and patch code (hook/), shared with
+// opencode_agent.rs, which builds the same payloads from opencode's service.
+#[allow(dead_code)]
+#[path = "../../hook/src/diff.rs"]
+mod hook_diff;
+#[allow(dead_code)]
+#[path = "../../hook/src/testrun.rs"]
+mod hook_testrun;
+#[allow(dead_code)]
+#[path = "../../hook/src/agents.rs"]
+mod hook_agents;
 mod outlook;
 mod pipe;
 mod presence;
@@ -110,6 +123,7 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
         eprintln!("[easyisland] could not save settings: {err}");
     }
     habits::apply(&settings);
+    opencode_agent::apply(&settings);
     if autostart_changed {
         let manager = app.autolaunch();
         let result = if settings.autostart { manager.enable() } else { manager.disable() };
@@ -621,18 +635,27 @@ async fn chat_send(
     chat: State<'_, Chat>,
     query: String,
     context: Option<ChatContext>,
+    engine: Option<String>,
 ) -> Result<ChatReply, String> {
     let (engine, model, cli_model, mcp, agent, other_model, url) = {
         let s = shared.settings.lock().unwrap();
-        let e = s.chat_engine.clone();
+        // The engine picked in the chat for this conversation, else the default.
+        let e = engine.filter(|e| !e.is_empty()).unwrap_or_else(|| s.chat_engine.clone());
         let other = s.engine_models.get(&e).cloned().unwrap_or_default();
         let url = s.engine_urls.get(&e).cloned();
         (e, s.model.clone(), s.cli_model.clone(), s.mcp_servers.clone(), s.agent_tools, other, url)
     };
-    // A different model is a different conversation too: start over.
+    // A different model is a different conversation too: start over (an
+    // opencode conversation left behind is deleted from opencode's history).
+    let before = chat.cli_session();
     chat.use_engine(&format!("{engine}:{other_model}"));
+    if before.is_some() && chat.cli_session().is_none() {
+        opencode::forget(before);
+    }
     if engine == "api" {
         claude::send(&chat, &model, query, context).await
+    } else if engine == "opencode" {
+        opencode::send(&app, &chat, &other_model, query, context).await
     } else if openai::ENGINES.contains(&engine.as_str()) {
         openai::send(&app, &chat, &engine, &other_model, url.as_deref(), query, context).await
     } else {
@@ -642,12 +665,17 @@ async fn chat_send(
 
 #[tauri::command]
 fn chat_reset(chat: State<Chat>) {
+    let before = chat.cli_session();
     chat.reset();
+    opencode::forget(before);
 }
 
 /// Impostazioni → Chat → "Carica modelli" for an OpenAI-compatible engine.
 #[tauri::command]
 async fn chat_models(engine: String, url: Option<String>) -> Result<Vec<String>, String> {
+    if engine == "opencode" {
+        return opencode::models().await;
+    }
     openai::models(&engine, url.as_deref()).await
 }
 
@@ -1162,6 +1190,7 @@ pub fn run() {
             threecx::spawn(handle.clone());
             automations::spawn(handle.clone());
             habits::spawn(handle.clone());
+            opencode_agent::spawn(handle.clone());
             widgets::start(handle.clone());
 
             log::line(format!("--- EasyIsland {} started ---", env!("CARGO_PKG_VERSION")));
@@ -1179,6 +1208,12 @@ pub fn run() {
             updates::spawn(handle.clone());
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running EasyIsland");
+        .build(tauri::generate_context!())
+        .expect("error while running EasyIsland")
+        .run(|_, event| {
+            // The chat's private opencode server goes with the app.
+            if let tauri::RunEvent::Exit = event {
+                opencode::shutdown();
+            }
+        });
 }

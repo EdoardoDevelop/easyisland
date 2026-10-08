@@ -48,224 +48,211 @@ function renderDiff(text: string): HTMLElement {
   return box;
 }
 
-// ── Claude Code section ───────────────────────────────────────────────────────
+// ── Agents (Agenti page) ──────────────────────────────────────────────────────
 
 /** The tools whose hooks EasyIsland can install (hooks.rs → Target). */
 const HOOK_TOOLS = {
   claude: {
     name: "Claude Code", file: "settings.json",
-    on: "EasyIsland è collegato alle tue sessioni di Claude Code. Strumenti usati, domande e richieste di permesso compaiono nell'isola, e puoi rispondere da lì.",
-    off: "Installa gli hook per vedere le sessioni di Claude Code nell'isola e approvare i permessi senza interrompere quello che stai facendo.",
+    what: "Sessioni, domande, diff ed esito dei test; permessi con Consenti / Nega / Sempre dall'isola.",
     done: "Apri una nuova sessione di Claude Code per attivare gli hook.",
   },
   codex: {
     name: "Codex", file: "hooks.json",
-    on: "Le sessioni di Codex compaiono nell'isola con una pillola tutta loro: passi, modifiche ai file e richieste di permesso con Consenti / Nega.",
-    off: "Se usi Codex (OpenAI), installa i suoi hook: sessioni, modifiche e richieste di permesso arrivano nell'isola come per Claude Code.",
-    done: "In Codex apri /hooks e approva gli hook di EasyIsland (Codex chiede di fidarsi degli hook nuovi), poi apri una nuova sessione.",
+    what: "Sessioni e diff; permessi con Consenti / Nega. Dopo l'installazione approva gli hook in Codex con /hooks.",
+    done: "In Codex apri /hooks e approva gli hook di EasyIsland, poi apri una nuova sessione.",
   },
   gemini: {
     name: "Gemini CLI", file: "settings.json",
-    on: "Le sessioni di Gemini CLI compaiono nell'isola: passi, modifiche ai file, ultimo messaggio, e un avviso quando chiede un permesso (a cui rispondi nel suo terminale: Gemini non lascia rispondere da fuori).",
-    off: "Se usi Gemini CLI, installa i suoi hook per vedere le sue sessioni nell'isola. I permessi restano nel suo terminale, l'isola ti avvisa quando ne chiede uno.",
+    what: "Sessioni, diff e ultimo messaggio. I permessi restano nel suo terminale: l'isola ti avvisa.",
     done: "Apri una nuova sessione di Gemini CLI per attivare gli hook.",
   },
   cursor: {
     name: "Cursor", file: "hooks.json",
-    on: "Le sessioni dell'agente di Cursor compaiono nell'isola: comandi (con l'esito dei test), modifiche ai file con il diff, connettori MCP e fine del lavoro. Solo da guardare: i permessi restano in Cursor.",
-    off: "Se usi l'agente di Cursor, installa i suoi hook per vedere il suo lavoro nell'isola. EasyIsland installa solo hook che osservano: non può mai bloccare Cursor né rispondere ai suoi permessi.",
+    what: "Solo da guardare: comandi con l'esito dei test, diff, connettori e fine del lavoro.",
     done: "Riapri Cursor (o una nuova chat dell'agente) per attivare gli hook.",
   },
   copilot: {
     name: "GitHub Copilot CLI", file: "easyisland.json",
-    on: "Le sessioni di Copilot CLI compaiono nell'isola: strumenti usati, esito dei test, modifiche ai file e fine del lavoro. Solo da guardare: i permessi restano nel suo terminale.",
-    off: "Se usi GitHub Copilot CLI, installa i suoi hook per vedere le sue sessioni nell'isola. EasyIsland scrive un file tutto suo in .copilot\\hooks e solo hook che osservano: non può mai bloccare Copilot.",
+    what: "Solo da guardare: strumenti, esito dei test, diff e fine del lavoro.",
     done: "Apri una nuova sessione di Copilot CLI per attivare gli hook.",
+  },
+  opencode: {
+    name: "opencode", file: "easyisland.js",
+    what: "opencode 2: accendi l'interruttore, EasyIsland segue il suo servizio in background senza installare nulla; i permessi arrivano con Consenti / Nega / Sempre. Il plugin serve solo a opencode 1.x.",
+    done: "Riavvia opencode per caricare il plugin.",
   },
 } as const;
 type HookTool = keyof typeof HOOK_TOOLS;
 
-/** Codex and Gemini CLI: the same section, filled in once their status is read. */
-function agentHooksSection(tool: HookTool): HTMLElement {
-  const status: HookStatus = { installed: false, legacy: false, settingsPath: "…", hookPath: "", hookReady: false };
-  return claudeSection(status, tool, true);
+const AGENT_ORDER: HookTool[] = ["claude", "codex", "opencode", "gemini", "cursor", "copilot"];
+
+/**
+ * Every coding agent on one card: a row each with its state and one button,
+ * the relay once at the top. Installing opens the diff under the row; nothing
+ * is written before "Fai il backup e scrivi".
+ */
+function agentsSection(claudeStatus: HookStatus): HTMLElement {
+  const relay = h("div", { class: "row" });
+  const relayWarn = h("div", {});
+  const paintRelay = (s: HookStatus) => {
+    clear(relay);
+    clear(relayWarn);
+    relay.append(h("label", { text: "Relay" }), h("span", { class: "path", text: s.hookPath || "…" }), statusDot(s.hookReady));
+    if (!s.hookReady) {
+      relayWarn.append(h("div", {
+        class: "notice warn",
+        text: "easyisland-hook.exe non è ancora al suo posto: gli hook non si possono installare. Riavvia EasyIsland; se non basta, compilalo con `cargo build -p easyisland-hook`.",
+      }));
+    }
+  };
+  paintRelay(claudeStatus);
+  const rows = h("div", { class: "agents" });
+  for (const tool of AGENT_ORDER) rows.append(agentRow(tool, tool === "claude" ? claudeStatus : null));
+  return h("section", {},
+    h("h2", {}, h("span", { text: "Collegati all'isola" })),
+    h("div", { class: "hint", text: "Ogni agente ha la sua pillola nell'isola. «Installa» mostra prima cosa cambia nel suo file, ne fa una copia e scrive solo dopo la tua conferma; i tuoi hook restano." }),
+    relay,
+    relayWarn,
+    rows,
+  );
 }
 
-function claudeSection(status: HookStatus, tool: HookTool = "claude", refreshFirst = false): HTMLElement {
+function agentRow(tool: HookTool, initial: HookStatus | null): HTMLElement {
   const T = HOOK_TOOLS[tool];
   const agent = tool === "claude" ? undefined : tool;
-  const body = h("div", { style: "display:flex;flex-direction:column;gap:12px" });
-  const section = h(
-    "section",
-    {},
-    h("h2", {}, statusDot(status.installed), h("span", { text: T.name })),
-    body,
-  );
+  const status: HookStatus = initial ?? { installed: false, legacy: false, settingsPath: "", hookPath: "", hookReady: false };
+  let known = initial != null;
+  const head = h("div", { class: "agent-head" });
+  const detail = h("div", { class: "agent-detail" });
+  const el = h("div", { class: "agent" }, head, h("div", { class: "hint", text: T.what }), detail);
 
-  const rebuild = async () => {
-    const fresh = await Bridge.hooksStatus(agent);
-    if (fresh) Object.assign(status, fresh);
-    clear(body);
-    draw();
-    const head = section.querySelector("h2")!;
-    clear(head);
-    head.append(statusDot(status.installed), h("span", { text: T.name }));
-  };
+  function badge(): HTMLElement {
+    if (!known) return h("span", { class: "agent-state", text: "…" });
+    if (status.legacy) return h("span", { class: "agent-state warn", text: "Hook vecchi (Coucou)" });
+    if (status.installed && status.outdated) return h("span", { class: "agent-state warn", text: "Da aggiornare" });
+    if (status.installed) return h("span", { class: "agent-state ok", text: tool === "opencode" ? "Plugin 1.x installato" : "Collegato" });
+    return h("span", { class: "agent-state", text: tool === "opencode" ? "" : "Non collegato" });
+  }
 
   function draw() {
-    body.append(
-      h("div", {
-        class: "hint",
-        text: status.installed ? T.on : T.off,
-      }),
-      h("div", { class: "row" },
-        h("label", { text: T.file }),
-        h("span", { class: "path", text: status.settingsPath }),
-      ),
-      h("div", { class: "row" },
-        h("label", { text: "Relay" }),
-        h("span", { class: "path", text: status.hookPath }),
-        statusDot(status.hookReady),
-      ),
-    );
-
-    if (status.legacy) {
-      body.append(h("div", {
-        class: "notice warn",
-        text: "settings.json usa ancora gli hook della vecchia versione (Coucou), che non arrivano a EasyIsland. Reinstalla gli hook: le voci vecchie vengono sostituite.",
-      }));
+    clear(head);
+    const on = status.installed || (tool === "opencode" && settings.opencodeWatch === true);
+    const actions = h("div", { class: "agent-actions" });
+    if (tool === "opencode") {
+      actions.append(
+        h("span", { class: "hint", text: "Segui opencode 2" }),
+        toggle(settings.opencodeWatch === true, (v) => { settings.opencodeWatch = v; void save(); draw(); }),
+      );
     }
-
-    if (status.outdated && !status.legacy) {
-      body.append(h("div", {
-        class: "notice warn",
-        text: "Questa versione di EasyIsland ascolta eventi nuovi (per esempio quando la conversazione viene riassunta). Reinstalla gli hook per averli: le voci di EasyIsland vengono aggiornate, le tue restano.",
-      }));
-    }
-
-    if (!status.hookReady) {
-      body.append(h("div", {
-        class: "notice warn",
-        text: "easyisland-hook.exe non è ancora al suo posto. Riavvia EasyIsland; se non basta, compilalo con `cargo build -p easyisland-hook`.",
-      }));
-    }
-
-    const actions = h("div", { class: "row" });
-    const install = h("button", {
-      class: "primary",
-      text: status.installed || status.legacy ? "Reinstalla hook…" : "Installa hook…",
-      onclick: () => showPreview(true),
-    });
-    // Writing hook commands that point at a relay which isn't there would give
-    // every Claude Code session a broken hook and nothing to show for it.
-    if (!status.hookReady) {
-      install.disabled = true;
-      install.title = "Il relay non è ancora installato.";
-    }
-    actions.append(install);
+    const label = (verb: string) => (tool === "opencode" ? `${verb} plugin 1.x…` : `${verb}…`);
     if (status.installed || status.legacy) {
-      actions.append(h("button", {
-        class: "danger",
-        text: "Disinstalla hook…",
-        onclick: () => showPreview(false),
-      }));
+      if (status.outdated || status.legacy) actions.append(installButton(label("Aggiorna"), true));
+      actions.append(h("button", { class: "danger", text: label("Disinstalla"), onclick: () => void showPreview(false) }));
+    } else {
+      actions.append(installButton(label("Installa"), tool !== "opencode"));
     }
-    body.append(actions);
+    head.append(statusDot(on), h("span", { class: "agent-name", text: T.name, title: status.settingsPath }), badge(), actions);
+  }
+
+  function installButton(text: string, primary: boolean): HTMLButtonElement {
+    const b = h("button", { class: primary ? "primary" : "", text, onclick: () => void showPreview(true) }) as HTMLButtonElement;
+    // A hook pointing at a relay that is not there would break every session.
+    if (known && !status.hookReady) {
+      b.disabled = true;
+      b.title = "Il relay non è ancora installato.";
+    }
+    return b;
+  }
+
+  async function refresh() {
+    const fresh = await Bridge.hooksStatus(agent);
+    if (fresh) Object.assign(status, fresh);
+    known = true;
+    draw();
   }
 
   async function showPreview(install: boolean) {
+    clear(detail);
     let preview;
     try {
       preview = await Bridge.hooksPreview(install, agent);
     } catch (err) {
-      // An unreadable or invalid settings.json stops here rather than being
-      // treated as empty and written over.
-      clear(body);
-      body.append(
+      // An unreadable or invalid file stops here rather than being written over.
+      detail.append(
         h("div", { class: "notice err", text: String(err).replace(/^Error:\s*/, "") }),
-        h("div", { class: "row" }, h("button", {
-          text: "Indietro",
-          onclick: () => { clear(body); draw(); },
-        })),
+        h("div", { class: "row" }, h("button", { text: "Chiudi", onclick: () => clear(detail) })),
       );
       return;
     }
     if (!preview) return;
-    clear(body);
-    body.append(
-      h("div", {
-        class: "hint",
-        text: install
-          ? `Ecco esattamente cosa cambierà nel tuo ${T.file}. I tuoi hook non vengono toccati.`
-          : "Vengono rimosse solo le voci di EasyIsland. I tuoi hook non vengono toccati.",
-      }),
+    detail.append(
+      h("div", { class: "hint", text: install
+        ? `Cosa cambia in ${preview.settingsPath}:`
+        : `Vengono tolte solo le voci di EasyIsland da ${preview.settingsPath}:` }),
       renderDiff(preview.diff),
-      h("div", { class: "row" },
-        h("span", { class: "path", text: `Copia di sicurezza → ${preview.backup}` }),
-      ),
+      h("span", { class: "path", text: `Copia di sicurezza → ${preview.backup}` }),
     );
     const confirm = h("button", {
       class: install ? "primary" : "danger",
       text: install ? "Fai il backup e scrivi" : "Fai il backup e rimuovi",
-    });
+    }) as HTMLButtonElement;
     confirm.addEventListener("click", async () => {
       confirm.disabled = true;
       try {
         const backup = await Bridge.hooksApply(install, preview.fingerprint, agent);
-        clear(body);
-        body.append(h("div", {
-          class: "notice ok",
-          text: `Fatto. Impostazioni precedenti salvate in ${backup}. ${install ? T.done : ""}`,
-        }));
-        window.setTimeout(() => void rebuild(), 2600);
+        clear(detail);
+        detail.append(h("div", { class: "notice ok", text: `Fatto. Copia di prima in ${backup}. ${install ? T.done : ""}` }));
+        window.setTimeout(() => clear(detail), 6000);
+        await refresh();
       } catch (err) {
         confirm.disabled = false;
-        body.append(h("div", { class: "notice err", text: `Scrittura non riuscita: ${String(err)}` }));
+        detail.append(h("div", { class: "notice err", text: `Scrittura non riuscita: ${String(err)}` }));
       }
     });
-    body.append(h("div", { class: "row" }, confirm, h("button", {
-      text: "Annulla",
-      onclick: () => { clear(body); draw(); },
-    })));
+    detail.append(h("div", { class: "row" }, confirm, h("button", { text: "Annulla", onclick: () => clear(detail) })));
   }
 
-  if (refreshFirst) void rebuild();
-  else draw();
-  if (tool === "claude") section.append(claudeTabRow());
-  return section;
+  draw();
+  if (!known) void refresh();
+  return el;
 }
 
 /**
- * How the Claude Code tab looks in the island's header: its icon (the
- * default), its name, or an emoji. Kept in integrationTabIcons like the other
- * tabs: missing = the icon, "@name" = the name, anything else = that emoji.
+ * How the Agenti tab looks in the island's header: the terminal icon (the
+ * default), Claude's logo, its name or an emoji. Kept in integrationTabIcons
+ * like the other tabs: missing = the icon, "@logo", "@name", anything else = that emoji.
  */
-function claudeTabRow(): HTMLElement {
+function agentsTabSection(): HTMLElement {
   const id = "integration_claude";
   const icons = () => (settings.integrationTabIcons ??= {});
   const cur = icons()[id];
   const place = h("select", {},
-    h("option", { value: "icon", text: "Logo di Claude" }),
-    h("option", { value: "name", text: "Nome" }),
+    h("option", { value: "icon", text: "Icona del terminale" }),
+    h("option", { value: "logo", text: "Logo di Claude" }),
+    h("option", { value: "name", text: "Nome (Agenti)" }),
     h("option", { value: "emoji", text: "Emoji o lettere" })) as HTMLSelectElement;
-  place.value = !cur ? "icon" : cur === "@name" ? "name" : "emoji";
+  place.value = !cur ? "icon" : cur === "@name" ? "name" : cur === "@logo" ? "logo" : "emoji";
   const emoji = h("input", {
     type: "text", maxlength: "4", spellcheck: "false", style: "width:56px;text-align:center",
     title: "Un'emoji o una o due lettere", placeholder: "✳",
-    value: cur && cur !== "@name" ? cur : "",
+    value: cur && !cur.startsWith("@") ? cur : "",
   }) as HTMLInputElement;
   const apply = () => {
     emoji.style.display = place.value === "emoji" ? "" : "none";
     if (place.value === "icon") delete icons()[id];
     else if (place.value === "name") icons()[id] = "@name";
+    else if (place.value === "logo") icons()[id] = "@logo";
     else icons()[id] = emoji.value.trim() || (emoji.value = "✳");
   };
   emoji.style.display = place.value === "emoji" ? "" : "none";
   place.addEventListener("change", () => { apply(); void save(); });
   emoji.addEventListener("change", () => { apply(); void save(); });
-  return h("div", { class: "row" },
-    h("label", { text: "Scheda nell'isola" }), place, emoji,
-    h("span", { class: "hint note", text: "come appare la scheda Claude Code in alto" }));
+  return h("section", {},
+    h("h2", {}, h("span", { text: "Scheda nell'isola" })),
+    h("div", { class: "row" },
+      h("label", { text: "Aspetto" }), place, emoji,
+      h("span", { class: "hint note", text: "la scheda in alto con le sessioni degli agenti" })));
 }
 
 // ── Claude chat section ───────────────────────────────────────────────────────
@@ -306,17 +293,18 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
   let keyPresent = hasKey;
   let cliReady = false;
 
-  // ── Engine picker ──
+  // ── Engine picker: names only; what the chosen one is, on the line below ──
   const engine = h("select", {}) as HTMLSelectElement;
-  for (const e of CHAT_ENGINES) engine.append(h("option", { value: e.id, text: `${e.name} — ${e.hint}` }));
+  for (const e of CHAT_ENGINES) engine.append(h("option", { value: e.id, text: e.name }));
   engine.value = settings.chatEngine;
-  // The model can also be changed from the chat itself (the name above it).
+  const engineHint = h("div", { class: "hint" });
   const other = otherEngineBlock(() => paintDot());
 
   // ── Subscription block ──
+  const cliDot = statusDot(false);
   const cliState = h("span", { class: "hint", text: "Verifica di Claude Code…" });
   const recheck = h("button", { text: "Ricontrolla" });
-  // Shown until Claude Code is ready: what to install and how, step by step.
+  // Shown only until Claude Code is ready: what to install and how.
   const INSTALL_CMD = "irm https://claude.ai/install.ps1 | iex";
   const copyCmd = h("button", { text: "Copia" }) as HTMLButtonElement;
   copyCmd.addEventListener("click", async () => {
@@ -330,24 +318,16 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
   });
   const howTo = h("div", { class: "notice warn", style: "display:none;flex-direction:column;gap:8px" },
     h("b", { text: "Come preparare Claude Code (una volta sola)" }),
-    h("div", { text: "1. Apri PowerShell (tasto Windows, scrivi «PowerShell») e incolla questo comando, poi Invio:" }),
+    h("div", { text: "1. In PowerShell incolla questo comando e premi Invio:" }),
     h("div", { class: "row" }, h("code", { class: "path", text: INSTALL_CMD }), copyCmd),
-    h("div", { text: "2. Chiudi e riapri PowerShell, scrivi «claude» e premi Invio: accedi con il tuo account Claude (Pro o Max) come ti chiede." }),
-    h("div", { text: "3. Torna qui e premi Ricontrolla: il pallino diventa verde." }),
-    h("div", { class: "hint", text: "Non vuoi installarlo? Scegli un altro motore qui sopra: chiave API Anthropic, OpenRouter, OpenAI, Gemini, oppure Ollama o LM Studio sul tuo PC." }));
+    h("div", { text: "2. Chiudi e riapri PowerShell, scrivi «claude» e accedi con il tuo account Claude (Pro o Max)." }),
+    h("div", { text: "3. Torna qui e premi Ricontrolla." }),
+    h("div", { class: "hint", text: "L'app desktop di Claude da sola non basta: il suo Claude Code non si può usare da altri programmi." }));
   const cliBlock = h(
     "div",
-    { style: "display:flex;flex-direction:column;gap:10px" },
-    h("div", {
-      class: "hint",
-      text: "Usa il tuo abbonamento Claude (Pro o Max), senza chiavi né costi extra (conta nei limiti d'uso del piano). Serve Claude Code da riga di comando (la CLI) installato su questo PC e con il login fatto: l'app desktop di Claude da sola non basta, perché il suo Claude Code è chiuso dentro l'app e non si può usare da altri programmi. Claude Code gira nascosto, senza hook, e può cercare sul web, leggere i file che rilasci e, se lo permetti qui sotto, usare EasyIsland.",
-    }),
-    h("div", { class: "row" }, cliState, recheck),
+    { class: "engine-block" },
+    h("div", { class: "row" }, cliDot, cliState, recheck),
     howTo,
-    h("div", { class: "row" },
-      h("label", { text: "Claude può usare il PC" }),
-      toggle(settings.agentTools !== false, (v) => { settings.agentTools = v; void save(); }),
-      h("span", { class: "hint note", text: "aprire programmi, cartelle e link, eseguire le tue azioni rapide, leggere lo stato di PC, rete, meteo, posta e ticket, appunti e musica. Ogni azione che cambia qualcosa chiede Consenti / Nega nell'isola; nessun comando che non sia una tua azione rapida" })),
     h("div", { class: "row" },
       h("label", { text: "Modello" }),
       modelSelect(CLI_MODELS, settings.cliModel, (v) => {
@@ -355,6 +335,11 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
         void save();
       }),
     ),
+    h("div", { class: "row" },
+      h("label", { text: "Può usare il PC" }),
+      toggle(settings.agentTools !== false, (v) => { settings.agentTools = v; void save(); }),
+      h("span", { class: "hint note", text: "programmi, cartelle, link, le tue azioni rapide, lo stato di PC, rete, posta e ticket. Ogni azione che cambia qualcosa chiede Consenti / Nega nell'isola" })),
+    connectorsBlock(),
   );
 
   async function refreshCli() {
@@ -364,15 +349,16 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
     recheck.disabled = false;
     cliReady = !!status?.found && !!status.loggedIn;
     if (!status?.found) {
-      cliState.textContent = "Claude Code da riga di comando non è installato su questo PC: la chat con l'abbonamento non può funzionare.";
+      cliState.textContent = "Claude Code da riga di comando non è installato su questo PC.";
     } else if (!status.loggedIn && status.source === "vscode") {
-      cliState.textContent = "Trovato solo il Claude Code dell'estensione di VS Code, che non ha il login per l'uso da solo: installa la CLI come spiegato qui sotto.";
+      cliState.textContent = "C'è solo il Claude Code dell'estensione di VS Code, senza login proprio: installa la CLI.";
     } else if (!status.loggedIn) {
-      cliState.textContent = "Claude Code è installato ma senza login: fai solo i passi 2 e 3 qui sotto.";
+      cliState.textContent = "Claude Code è installato ma senza login: fai i passi 2 e 3.";
     } else {
-      const from = status.source === "vscode" ? " (quello dell'estensione di VS Code)" : "";
+      const from = status.source === "vscode" ? " (estensione di VS Code)" : "";
       cliState.textContent = `Pronto: ${status.path}${from}`;
     }
+    cliDot.style.background = cliReady ? "#22c55e" : "#f4505e";
     howTo.style.display = cliReady ? "none" : "flex";
     paintDot();
   }
@@ -393,7 +379,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
   function paintKey() {
     state.textContent = keyPresent
       ? "Chiave salvata in Gestione credenziali di Windows."
-      : "Nessuna chiave: in questa modalità la chat ne ha bisogno.";
+      : "Nessuna chiave: serve per usare questo motore.";
     field.placeholder = keyPresent ? "••••••••••••  (salvata)" : "sk-ant-...";
     clearBtn.style.display = keyPresent ? "" : "none";
     paintDot();
@@ -431,11 +417,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
 
   const apiBlock = h(
     "div",
-    { style: "display:flex;flex-direction:column;gap:10px" },
-    h("div", {
-      class: "hint",
-      text: "La chat chiama direttamente l'API di Anthropic con la tua chiave. Si paga a consumo dalla Console di Anthropic, separatamente da qualsiasi abbonamento.",
-    }),
+    { class: "engine-block" },
     state,
     h("div", { class: "row" }, h("label", { text: "Chiave API" }), field, saveBtn, clearBtn),
     h("div", { class: "row" },
@@ -457,6 +439,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
   function showEngine() {
     const api = settings.chatEngine === "api";
     const cli = settings.chatEngine === "subscription";
+    engineHint.textContent = ENGINE_HINTS[settings.chatEngine] ?? "";
     apiBlock.style.display = api ? "flex" : "none";
     cliBlock.style.display = cli ? "flex" : "none";
     other.show(settings.chatEngine);
@@ -476,13 +459,27 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
   return h(
     "section",
     {},
-    h("h2", {}, dot, h("span", { text: "Chat" })),
-    h("div", { class: "row" }, h("label", { text: "Motore" }), engine),
+    h("h2", {}, dot, h("span", { text: "Motore della chat" })),
+    h("div", { class: "row" }, h("label", { text: "Predefinito" }), engine,
+      h("span", { class: "hint note", text: "nella chat, dal nome del motore in alto, ne scegli un altro solo per quella conversazione" })),
+    engineHint,
     cliBlock,
     apiBlock,
     other.el,
   );
 }
+
+/** What each engine is, in one line under the picker. */
+const ENGINE_HINTS: Record<string, string> = {
+  subscription: "Il tuo abbonamento Claude Pro o Max, tramite Claude Code da riga di comando (gira nascosto). Nessun costo extra: conta nei limiti del piano. Cerca sul web e legge i file che rilasci.",
+  api: "L'API di Anthropic con la tua chiave, a consumo dalla Console di Anthropic.",
+  opencode: "opencode 2 su questo PC: modelli gratuiti, locali o dei tuoi fornitori, con strumenti (comandi, file, web). Ogni comando o modifica chiede Consenti / Nega nell'isola; senza risposta è un no.",
+  openrouter: "Una chiave per centinaia di modelli (openrouter.ai), a consumo. Solo chat: niente web né azioni sul PC.",
+  openai: "L'API di OpenAI con la tua chiave, a consumo. Solo chat: niente web né azioni sul PC.",
+  gemini: "Google AI Studio con la tua chiave. Solo chat: niente web né azioni sul PC.",
+  ollama: "Modelli locali con Ollama, su questo PC o in rete: nulla esce dalla tua rete. Solo chat.",
+  lmstudio: "Modelli locali con LM Studio, su questo PC o in rete: nulla esce dalla tua rete. Solo chat.",
+};
 
 /**
  * OpenRouter, OpenAI, Gemini, Ollama, LM Studio (src-tauri/src/openai.rs): the
@@ -490,7 +487,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
  * the engine offers ("Carica modelli"). Rebuilt for the engine shown.
  */
 function otherEngineBlock(changed: () => void) {
-  const el = h("div", { style: "display:flex;flex-direction:column;gap:10px" });
+  const el = h("div", { class: "engine-block" });
   let current = "";
   let keyPresent = false;
 
@@ -501,9 +498,10 @@ function otherEngineBlock(changed: () => void) {
     if (!e || id === "subscription" || id === "api") return;
     settings.engineModels ??= {};
     settings.engineUrls ??= {};
-    el.append(h("div", { class: "hint", text: e.key
-      ? `La chat chiama ${e.name} con la tua chiave (${e.hint}): si paga a consumo da loro. Nessuno strumento: niente ricerche sul web né azioni sul PC.`
-      : `La chat usa ${e.name} su questo PC o in rete (${e.hint}): nulla esce dalla tua rete. Avvialo e scarica almeno un modello.` }));
+    const opencode = id === "opencode";
+    if (opencode) {
+      el.append(h("div", { class: "hint", text: "EasyIsland avvia un opencode tutto suo solo mentre chatti (cartella %LOCALAPPDATA%\\EasyIsland\\opencode). Le chiavi dei fornitori restano in opencode («opencode auth login»), mai qui." }));
+    }
     const feedback = h("div", {});
     if (e.key) {
       const state = h("span", { class: "hint" });
@@ -544,7 +542,7 @@ function otherEngineBlock(changed: () => void) {
       });
       el.append(state, h("div", { class: "row" }, h("label", { text: "Chiave API" }), field, saveBtn, clearBtn));
       paint();
-    } else {
+    } else if (!opencode) {
       const url = h("input", { type: "text", value: settings.engineUrls[id] ?? "", placeholder: e.url ?? "", style: "flex:1 1 auto;min-width:0", spellcheck: "false" }) as HTMLInputElement;
       url.addEventListener("change", () => {
         settings.engineUrls![id] = url.value.trim();
@@ -554,24 +552,49 @@ function otherEngineBlock(changed: () => void) {
         h("span", { class: "hint note", text: "vuoto = quello predefinito; anche un altro PC della rete" })));
     }
     const listId = `models-${id}`;
-    const model = h("input", { type: "text", value: settings.engineModels[id] ?? "", list: listId, placeholder: "nome del modello", style: "flex:1 1 auto;min-width:0", spellcheck: "false" }) as HTMLInputElement;
+    const model = h("input", { type: "text", value: settings.engineModels[id] ?? "", list: listId, placeholder: opencode ? "fornitore/modello, es. ollama/qwen3:8b" : "nome del modello", style: "flex:1 1 auto;min-width:0", spellcheck: "false" }) as HTMLInputElement;
+    // opencode Zen's free models may keep what you send: never customer data there.
+    const privacy = h("div", { class: "notice warn", style: "display:none",
+      text: "Modello online di opencode Zen: per quasi tutti i modelli gratuiti i dati possono essere usati per migliorare il modello (per alcuni: «non inviare dati personali o riservati»). Non usarlo con dati dei clienti: per quelli scegli un modello locale (ollama/…, lmstudio/…) o uno a pagamento a ritenzione zero." });
+    // Without a model the chat cannot start: say so where the model goes.
+    const missing = h("div", { class: "notice err", text: opencode
+      ? "Nessun modello scelto: la chat non può partire. Premi «Carica modelli» e scegline uno."
+      : "Nessun modello scelto: la chat non può partire." });
+    const paintPrivacy = () => {
+      privacy.style.display = opencode && model.value.trim().startsWith("opencode/") ? "" : "none";
+      missing.style.display = model.value.trim() ? "none" : "";
+    };
+    paintPrivacy();
+    // Saved while typing too (a pause of half a second), not only on leaving the field.
+    let typing: number | undefined;
+    model.addEventListener("input", () => {
+      paintPrivacy();
+      window.clearTimeout(typing);
+      typing = window.setTimeout(() => model.dispatchEvent(new Event("change")), 500);
+    });
     const options = h("datalist", { id: listId });
     const load = h("button", { text: "Carica modelli" }) as HTMLButtonElement;
     const loaded = h("span", { class: "hint note" });
     model.addEventListener("change", () => {
+      window.clearTimeout(typing);
+      if ((settings.engineModels![id] ?? "") === model.value.trim()) return;
       settings.engineModels![id] = model.value.trim();
+      paintPrivacy();
       void save();
       changed();
     });
-    load.addEventListener("click", async () => {
+    /** `pick`: take the first model when none is set (only on a click: never a model chosen behind your back). */
+    const loadModels = async (pick: boolean) => {
       load.disabled = true;
       loaded.textContent = "Chiedo l'elenco…";
       try {
         const ids = await Bridge.chatModels(id, settings.engineUrls?.[id] || null);
         clear(options);
         for (const m of ids) options.append(h("option", { value: m }));
-        loaded.textContent = ids.length ? `${ids.length} modelli: scrivi per cercare` : "Nessun modello disponibile.";
-        if (!model.value && ids.length) {
+        loaded.textContent = ids.length ? `${ids.length} modelli: scrivi per cercare` : opencode
+          ? "Nessun modello: collega un fornitore in opencode («opencode auth login») o avvia Ollama."
+          : "Nessun modello disponibile.";
+        if (pick && !model.value && ids.length) {
           model.value = ids[0];
           model.dispatchEvent(new Event("change"));
         }
@@ -579,8 +602,11 @@ function otherEngineBlock(changed: () => void) {
         loaded.textContent = String(err).replace(/^Error:\s*/, "");
       }
       load.disabled = false;
-    });
-    el.append(h("div", { class: "row" }, h("label", { text: "Modello" }), model, options, load), loaded, feedback);
+    };
+    load.addEventListener("click", () => void loadModels(true));
+    el.append(h("div", { class: "row" }, h("label", { text: "Modello" }), model, options, load), loaded, missing, privacy, feedback);
+    // opencode with no model yet: the list straight away, so a model is one click.
+    if (opencode && !model.value.trim()) void loadModels(false);
     changed();
   }
 
@@ -1379,6 +1405,7 @@ function hotkeyInput(value: string, apply: (v: string) => void): HTMLElement {
 
 function actionsSection(): HTMLElement {
   const list = h("div", { style: "display:flex;flex-direction:column;gap:10px" });
+  const folders = h("div", { class: "row qa-folders" });
   const warn = h("div", {});
   const commit = () => {
     void save().then(() => window.setTimeout(checkHotkeys, 600));
@@ -1395,51 +1422,137 @@ function actionsSection(): HTMLElement {
     }
   }
 
+  /** Edited copies not saved yet, by action id. A new action lives only here until saved. */
+  const drafts = new Map<string, QuickAction>();
+  /** Ids of the new actions never saved, in the order they were added. */
+  const fresh: string[] = [];
+
+  function forget(id: string) {
+    drafts.delete(id);
+    const i = fresh.indexOf(id);
+    if (i >= 0) fresh.splice(i, 1);
+  }
+
+  function saveAction(a: QuickAction) {
+    const i = settings.actions.findIndex((x) => x.id === a.id);
+    if (i >= 0) settings.actions[i] = a;
+    else settings.actions.push(a);
+    forget(a.id);
+    commit();
+    draw();
+  }
+
+  /** Folder names of the ⚡ tab, in the order the tab shows them (first action first). */
+  function folderNames(): string[] {
+    return [...new Set(settings.actions.filter((a) => !(a.kind === "prompt" && a.input === "file"))
+      .map((a) => folderLook(a.folder).name).filter(Boolean))];
+  }
+
+  /**
+   * Moves a folder before or after its neighbour: the two folders' actions swap
+   * places in the list, everything else stays where it is.
+   */
+  function moveFolder(name: string, delta: number) {
+    const names = folderNames();
+    const other = names[names.indexOf(name) + delta];
+    if (!other) return;
+    const [first, second] = delta < 0 ? [name, other] : [other, name];
+    const pair = [first, second];
+    const of = (n: string) => settings.actions.filter((a) => folderLook(a.folder).name === n);
+    const moved = [...of(first), ...of(second)];
+    const slots = settings.actions.map((a, i) => (pair.includes(folderLook(a.folder).name) ? i : -1)).filter((i) => i >= 0);
+    slots.forEach((slot, k) => { settings.actions[slot] = moved[k]; });
+    commit();
+    draw();
+  }
+
+  function drawFolders() {
+    clear(folders);
+    const names = folderNames();
+    folders.style.display = names.length < 2 ? "none" : "";
+    if (names.length < 2) return;
+    const chips = names.map((n, i) => {
+      const look = folderLook(settings.actions.find((a) => folderLook(a.folder).name === n)?.folder);
+      return h("span", { class: "qa-folder-chip" },
+        h("button", { class: "icon", text: "‹", title: "Prima", disabled: i === 0, onclick: () => moveFolder(n, -1) }),
+        renderActionIcon(look.icon, 14),
+        h("span", { text: n }),
+        h("button", { class: "icon", text: "›", title: "Dopo", disabled: i === names.length - 1, onclick: () => moveFolder(n, 1) }));
+    });
+    folders.append(h("label", { text: "Ordine delle cartelle" }), ...chips);
+  }
+
   function draw() {
     clear(list);
+    drawFolders();
     const actions = settings.actions;
+    // What each card edits: its unsaved draft, or a copy of the saved action.
+    const rows = [
+      ...actions.map((x) => drafts.get(x.id) ?? (structuredClone(x) as QuickAction)),
+      ...fresh.map((id) => drafts.get(id)).filter((x): x is QuickAction => !!x),
+    ];
     // Folder names already in use, offered while typing a new one.
-    const names = [...new Set(actions.map((a) => folderLook(a.folder).name).filter(Boolean))];
+    const names = [...new Set(rows.map((a) => folderLook(a.folder).name).filter(Boolean))];
     list.append(h("datalist", { id: "qa-folders" }, ...names.map((n) => h("option", { value: n }))));
-    actions.forEach((a, idx) => {
+    rows.forEach((a) => {
+      const isNew = fresh.includes(a.id);
+      const idx = actions.findIndex((x) => x.id === a.id);
+      const bar = h("div", { class: "row qa-save" },
+        h("span", { class: "hint", text: isNew ? "Nuova azione, non ancora salvata" : "Modifiche non salvate" }),
+        h("button", { text: isNew ? "Scarta" : "Annulla", onclick: () => { forget(a.id); draw(); } }),
+        h("button", { class: "primary", text: "Salva", onclick: () => saveAction(a) }));
+      // Any edit keeps the draft and shows Salva / Annulla.
+      const touch = () => {
+        drafts.set(a.id, a);
+        bar.style.display = "";
+        card.classList.add("dirty");
+      };
       const field = (value: string, placeholder: string, apply: (v: string) => void, style = "flex:1 1 auto;min-width:0") => {
         const el = h("input", { type: "text", value, placeholder, style, spellcheck: "false" }) as HTMLInputElement;
-        el.addEventListener("change", () => { apply(el.value); commit(); });
+        el.addEventListener("input", () => { apply(el.value); touch(); });
         return el;
       };
       const area = (value: string, placeholder: string, apply: (v: string) => void, mono = false) => {
         const el = h("textarea", { placeholder, rows: "3", spellcheck: "false", class: mono ? "mono" : "" }) as HTMLTextAreaElement;
         el.value = value;
-        el.addEventListener("change", () => { apply(el.value); commit(); });
+        el.addEventListener("input", () => { apply(el.value); touch(); });
         return el;
       };
 
       const color = h("input", { type: "color", value: /^#[0-9a-f]{6}$/i.test(a.color) ? a.color : "#8b5cf6" }) as HTMLInputElement;
-      color.addEventListener("change", () => { a.color = color.value; commit(); draw(); });
+      color.addEventListener("change", () => { a.color = color.value; touch(); draw(); });
 
       const kind = select<QuickAction["kind"]>(
         [["prompt", "Chiedi a Claude"], ["script", "Script"], ["app", "Programma / cartella"], ["url", "Link"]],
         a.kind,
-        (v) => { a.kind = v; commit(); draw(); },
+        (v) => { a.kind = v; touch(); draw(); },
       );
 
+      // Moving and deleting act on the saved list at once; a new action is just dropped.
       const move = (delta: number) => {
         const j = idx + delta;
-        if (j < 0 || j >= actions.length) return;
+        if (idx < 0 || j < 0 || j >= actions.length) return;
         [actions[idx], actions[j]] = [actions[j], actions[idx]];
         commit();
         draw();
       };
-      const up = h("button", { class: "icon", text: "↑", title: "Sposta su", onclick: () => move(-1) });
-      const down = h("button", { class: "icon", text: "↓", title: "Sposta giù", onclick: () => move(1) });
+      const up = h("button", { class: "icon", text: "↑", title: "Sposta su", disabled: isNew || idx === 0, onclick: () => move(-1) });
+      const down = h("button", { class: "icon", text: "↓", title: "Sposta giù", disabled: isNew || idx === actions.length - 1, onclick: () => move(1) });
       const del = h("button", {
         class: "danger icon", text: "✕", title: "Elimina",
-        onclick: () => { actions.splice(idx, 1); commit(); draw(); },
+        onclick: () => {
+          if (idx >= 0) {
+            actions.splice(idx, 1);
+            commit();
+          }
+          forget(a.id);
+          draw();
+        },
       });
 
       const card = h("div", { class: "qa-edit" },
         h("div", { class: "row head" },
-          iconPicker(a.icon, a.color, (v) => { a.icon = v; commit(); draw(); }),
+          iconPicker(a.icon, a.color, (v) => { a.icon = v; touch(); draw(); }),
           field(a.name, "Nome", (v) => { a.name = v.trim(); }),
           color, kind, up, down, del,
         ),
@@ -1453,7 +1566,7 @@ function actionsSection(): HTMLElement {
         case "app":
           card.append(
             h("div", { class: "row" }, h("label", { text: "Programma o cartella" }),
-              field(a.target, "es. mstsc, C:\\Strumenti\\app.exe, C:\\Clienti", (v) => { a.target = v.trim(); })),
+              field(a.target, "es. mstsc, chrome, regedit, %ProgramFiles%\\App\\app.exe, C:\\Clienti", (v) => { a.target = v.trim(); })),
             h("div", { class: "row" }, h("label", { text: "Argomenti" }),
               field(a.args, "es. /v:server01 — le virgolette raggruppano", (v) => { a.args = v; })),
           );
@@ -1462,9 +1575,9 @@ function actionsSection(): HTMLElement {
           card.append(
             h("div", { class: "row" }, h("label", { text: "Shell" }),
               select<QuickAction["shell"]>([["powershell", "PowerShell"], ["cmd", "Prompt dei comandi"]], a.shell,
-                (v) => { a.shell = v; commit(); }),
+                (v) => { a.shell = v; touch(); }),
               h("span", { class: "hint", text: "Chiedi conferma" }),
-              toggle(a.confirm, (v) => { a.confirm = v; commit(); }),
+              toggle(a.confirm, (v) => { a.confirm = v; touch(); }),
             ),
             area(a.script, "I comandi da eseguire. Partono solo dopo un clic nell'isola.", (v) => { a.script = v; }, true),
           );
@@ -1475,34 +1588,39 @@ function actionsSection(): HTMLElement {
               select<QuickAction["input"]>(
                 [["clipboard", "Testo copiato negli appunti"], ["selection", "Testo selezionato"], ["file", "File rilasciato sull'isola"], ["none", "Niente (solo la domanda)"]],
                 a.input,
-                (v) => { a.input = v; commit(); },
+                (v) => { a.input = v; touch(); draw(); },
               )),
             area(a.prompt, "Cosa chiedere a Claude", (v) => { a.prompt = v; }),
           );
           break;
       }
       card.append(h("div", { class: "row" }, h("label", { text: "Scorciatoia" }),
-        hotkeyInput(a.hotkey, (v) => { a.hotkey = v; commit(); })));
+        hotkeyInput(a.hotkey, (v) => { a.hotkey = v; touch(); })));
       if (!(a.kind === "prompt" && a.input === "file")) {
         // Icon from the same grid as the actions (no emoji keyboard needed), and a
         // name: actions with the same name share the folder, and its icon.
         const look = folderLook(a.folder);
         const folderField = field(look.name, "Nessuna (in primo piano)", (v) => {
           const name = v.trim();
-          const other = actions.find((x) => x !== a && name && folderLook(x.folder).name === name);
+          const other = rows.find((x) => x !== a && name && folderLook(x.folder).name === name);
           a.folder = folderValue(other ? folderLook(other.folder).icon : look.icon, name);
         }, "width:200px");
         folderField.setAttribute("list", "qa-folders");
         folderField.addEventListener("change", () => draw());
+        // The folder's icon belongs to the whole folder: saved at once for every action in it.
         const folderIcon = iconPicker(look.icon, "#94a3b8", (v) => {
           if (!look.name) return;
-          for (const x of actions) if (folderLook(x.folder).name === look.name) x.folder = folderValue(v, look.name);
+          for (const x of [...actions, ...drafts.values()]) if (folderLook(x.folder).name === look.name) x.folder = folderValue(v, look.name);
           commit();
           draw();
         });
         card.append(h("div", { class: "row" }, h("label", { text: "Cartella" }), folderIcon, folderField,
           h("span", { class: "hint note", text: "le azioni con lo stesso nome di cartella si raggruppano nella scheda ⚡; l'icona vale per tutta la cartella" })));
       }
+      const dirty = drafts.has(a.id);
+      bar.style.display = dirty ? "" : "none";
+      card.classList.toggle("dirty", dirty);
+      card.append(bar);
       list.append(card);
     });
   }
@@ -1511,7 +1629,16 @@ function actionsSection(): HTMLElement {
     hotkeyInput(value, (v) => { apply(v); commit(); });
 
   const add = h("button", { class: "primary", text: "Aggiungi azione" });
-  add.addEventListener("click", () => { settings.actions.push(blankAction()); commit(); draw(); });
+  add.addEventListener("click", () => {
+    // Saved only with its Salva button.
+    const a = blankAction();
+    drafts.set(a.id, a);
+    fresh.push(a.id);
+    draw();
+    const card = list.lastElementChild as HTMLElement | null;
+    card?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    card?.querySelector<HTMLInputElement>(".row.head input[type=text]")?.select();
+  });
 
   draw();
   void checkHotkeys();
@@ -1548,6 +1675,7 @@ function actionsSection(): HTMLElement {
       toggle(settings.contextActions !== false, (v) => { settings.contextActions = v; void save(); }),
       h("span", { class: "hint note", text: "in cima alla scheda ⚡: per Outlook, Excel, Word, il browser, il codice… usano il testo che hai selezionato" })),
     warn,
+    folders,
     list,
     h("div", { class: "row" }, add),
   );
@@ -1867,7 +1995,8 @@ function automationsSection(): HTMLElement {
 
 // ── Connectors (MCP) ──────────────────────────────────────────────────────────
 
-function connectorsSection(): HTMLElement {
+/** MCP connectors of Claude Code: only the subscription engine can use them. */
+function connectorsBlock(): HTMLElement {
   const list = h("div", { style: "display:flex;flex-direction:column;gap:8px" });
   const refresh = h("button", { text: "Ricarica elenco" });
 
@@ -1908,12 +2037,12 @@ function connectorsSection(): HTMLElement {
   void draw();
 
   return h(
-    "section",
-    {},
-    h("h2", {}, h("span", { text: "Connettori in chat" }), profileChip()),
+    "div",
+    { class: "sub-block" },
+    h("h3", {}, h("span", { text: "Connettori" }), profileChip()),
     h("div", {
       class: "hint",
-      text: "La chat può usare i server MCP che hai configurato in Claude Code (calendario, documenti, ticketing…). Funziona con il motore «Abbonamento Claude». Con la conferma attiva ogni operazione su quel connettore compare nell'isola con Consenti / Nega: disattivala solo per connettori di sola lettura. I connettori di claude.ai non sono disponibili in questa modalità di Claude Code.",
+      text: "I server MCP che hai configurato in Claude Code (calendario, documenti, ticketing…). Con la conferma accesa ogni operazione chiede Consenti / Nega nell'isola: spegnila solo per connettori di sola lettura. Quelli di claude.ai qui non ci sono.",
     }),
     list,
     h("div", { class: "row" }, refresh),
@@ -2549,9 +2678,14 @@ function pages(b: NonNullable<typeof boot>): Page[] {
       sections: () => [notifySection(), presenceSection(), scriptsSection(b.status.hookPath)],
     },
     {
-      id: "claude", label: "Agenti e chat", icon: "sparkles", color: "#E07A5F", title: "Agenti e chat",
-      intro: "Le sessioni di Claude Code, Codex, Gemini CLI, Cursor e Copilot CLI nell'isola, la chat con il motore che preferisci e i connettori che può usare.",
-      sections: () => [claudeSection(b.status), agentHooksSection("codex"), agentHooksSection("gemini"), agentHooksSection("cursor"), agentHooksSection("copilot"), claudeChatSection(b.hasKey), connectorsSection()],
+      id: "chat", label: "Chat", icon: "chat", color: "#A78BFA", title: "Chat",
+      intro: "Con quale intelligenza artificiale parla il personaggio quando gli scrivi.",
+      sections: () => [claudeChatSection(b.hasKey)],
+    },
+    {
+      id: "claude", label: "Agenti", icon: "terminal", color: "#E07A5F", title: "Agenti di programmazione",
+      intro: "Le sessioni di Claude Code, Codex, opencode e degli altri agenti nell'isola, con i loro permessi.",
+      sections: () => [agentsSection(b.status), agentsTabSection()],
     },
     {
       id: "azioni", label: "Azioni rapide", icon: "bolt", color: "#FACC15", title: "Azioni rapide",

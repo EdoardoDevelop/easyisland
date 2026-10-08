@@ -22,7 +22,7 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 - **Claude Code nell'isola**: vedi le sessioni lavorare, rispondi ai permessi
   con **Nega / Consenti / Sempre** e alle domande, guarda le **modifiche ai file**
   in tempo reale, torna all'app della sessione con un clic; anche **Codex**,
-  **Gemini CLI** e Claude Code nel terminale di **Cursor** ([Claude Code](#claude-code)).
+  **opencode**, **Gemini CLI** e Claude Code nel terminale di **Cursor** ([Claude Code](#claude-code)).
 - **Chat** dall'isola con Claude (abbonamento o chiave API), **OpenRouter**,
   **OpenAI**, **Gemini** o modelli locali **Ollama** e **LM Studio**; allega
   testo, file, immagini copiate o una **zona dello schermo**; risposte formattate
@@ -132,9 +132,9 @@ EasyIsland si avvia e Slime ti saluta; da lì in poi lo trovi nel menu Start e
 nell'area di notifica. Dall'icona di EasyIsland nell'area di notifica →
 **Impostazioni…**:
 
-1. **Agenti e chat → Claude Code → Installa hook…** per vedere le sessioni
+1. **Agenti → Claude Code → Installa…** per vedere le sessioni
    nell'isola (vedi sotto). Funziona anche con l'app desktop di Claude.
-2. **Agenti e chat → Chat**: scegli il motore. "Claude (abbonamento)" usa il tuo
+2. **Chat**: scegli il motore. "Claude (abbonamento)" usa il tuo
    piano Pro o Max ma **richiede Claude Code da riga di comando** installato e con
    il login (vedi [Chat con Claude](#chat-con-claude)); altrimenti scegli una
    chiave API o un altro motore.
@@ -163,7 +163,7 @@ L'installer sostituisce la versione precedente; impostazioni e chiavi restano.
 
 ### Disinstallare
 
-Prima, in **Impostazioni… → Agenti e chat → Claude Code**, clicca **Disinstalla hook…**: il
+Prima, in **Impostazioni… → Agenti**, sulla riga di Claude Code clicca **Disinstalla…**: il
 disinstallatore volutamente non tocca il `settings.json` di Claude Code. Poi
 **Impostazioni di Windows → App → App installate → EasyIsland → Disinstalla**.
 
@@ -197,7 +197,7 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 | Trascini Slime tenendo premuto il tasto sinistro (anche l'icona a riposo) | Si sposta dove lo lasci, anche su un altro schermo, e la posizione resta salvata nel profilo |
 | Trascini l'angolo in basso dell'isola aperta | Cambia larghezza e altezza dell'isola; il contenuto si adatta. Doppio clic sull'angolo: misure predefinite |
 | Scheda ⌂ **Panoramica** | Tutte le integrazioni con il loro stato e il loro logo; un clic ne apre una, trascinandole le riordini. Il personaggio mostra lo stato più urgente |
-| Scheda di **Claude Code** (il logo di Claude) | La sessione di Claude Code: avanzamento, modifiche, permessi. L'aspetto della scheda (logo, nome o emoji) si sceglie in Impostazioni → Claude |
+| Scheda **Agenti** (l'icona del terminale) | La sessione dell'agente di programmazione (Claude Code, Codex…): avanzamento, modifiche, permessi. L'aspetto della scheda (icona, logo di Claude, nome o emoji) si sceglie in Impostazioni → Agenti |
 | Trascini l'isola aperta dallo spazio vuoto dell'intestazione | Resta lì finché è aperta; chiudendola torna al posto di Slime |
 | Trascini una pillola o una scheda in alto | Cambia posto (si blocca in Impostazioni → Integrazioni) |
 | Clicchi su Slime | Si infastidisce. Tre volte di fila e gli gira la testa |
@@ -504,7 +504,7 @@ attivo.
 
 ## Claude Code
 
-Apri **Impostazioni… → Agenti e chat → Claude Code → Installa hook…**. Vedi il diff esatto di cosa
+Apri **Impostazioni… → Agenti** e sulla riga di Claude Code clicca **Installa…**. Vedi il diff esatto di cosa
 cambierà in `%USERPROFILE%\.claude\settings.json` e il percorso della copia di
 backup datata che verrà creata. Non viene scritto nulla finché non clicchi. I tuoi
 hook non vengono mai toccati e la disinstallazione rimuove solo le voci di EasyIsland.
@@ -519,13 +519,19 @@ terminale come al solito.
 Funziona da qualsiasi terminale: Windows Terminal, PowerShell, VS Code, Git Bash,
 e nel terminale di **Cursor** ("Apri" riporta a Cursor).
 
-**Codex e Gemini CLI.** Nella stessa pagina (Impostazioni → Agenti e chat) ci sono
+**Codex, opencode e Gemini CLI.** Nella stessa pagina (Impostazioni → Agenti) ci sono
 i loro hook, installati con le stesse regole: diff, backup datato, conferma.
 Ogni agente ha la sua pillola con passi, modifiche ai file e ultimo messaggio.
 
 - **Codex** (`%USERPROFILE%\.codex\hooks.json`): anche le richieste di permesso,
   con **Consenti / Nega** nell'isola. Dopo l'installazione apri `/hooks` in Codex e
   approva gli hook di EasyIsland (Codex chiede di fidarsi degli hook nuovi).
+- **opencode**: con opencode 2 accendi **Segui opencode 2**. EasyIsland legge il
+  servizio in background di opencode sul tuo PC, senza installare nulla. Le
+  richieste di permesso arrivano nell'isola con **Consenti / Nega / Sempre**, e
+  puoi rispondere anche in opencode come sempre. Con opencode 1.x c'è invece un
+  plugin (`%USERPROFILE%\.config\opencode\plugins\easyisland.js`); dopo
+  l'installazione riavvia opencode.
 - **Gemini CLI** (`%USERPROFILE%\.gemini\settings.json`): Gemini non lascia
   rispondere ai permessi da fuori, quindi l'isola si apre e ti dice che sta
   aspettando, con il pulsante per tornare al terminale.
@@ -537,8 +543,9 @@ sono quelli degli hook di Claude Code).
 
 ## Chat con Claude
 
-**Impostazioni… → Agenti e chat → Chat** ti fa scegliere il motore della chat (e
-si cambia anche dal nome del modello in alto a destra nella chat):
+**Impostazioni… → Chat** ti fa scegliere il motore **predefinito**
+della chat. Dal nome del modello in alto a destra nella chat puoi sceglierne un
+altro solo per quella conversazione (il menu mostra solo i motori pronti):
 
 - **Abbonamento Claude (tramite Claude Code)**, il predefinito. Slime usa
   Claude Code installato sul PC (`claude -p`, nascosto, senza finestre) e il tuo
@@ -554,7 +561,7 @@ si cambia anche dal nome del modello in alto a destra nella chat):
   > 1. in PowerShell: `irm https://claude.ai/install.ps1 | iex`
   > 2. chiudi e riapri PowerShell, scrivi `claude` e accedi con il tuo account
   >    Claude (Pro o Max);
-  > 3. in Impostazioni → Agenti e chat → Chat premi **Ricontrolla**: il pallino
+  > 3. in Impostazioni → Chat premi **Ricontrolla**: il pallino
   >    diventa verde.
   >
   > Le sessioni di Claude Code nell'isola (permessi, modifiche…) invece
@@ -570,13 +577,24 @@ si cambia anche dal nome del modello in alto a destra nella chat):
   dall'elenco (**Carica modelli**). Si paga a consumo da loro.
 - **Ollama** e **LM Studio**: modelli sul tuo PC (o su un altro della rete), nessuna
   chiave, solo l'indirizzo (vuoto = quello predefinito). Nulla esce dalla rete.
+- **opencode** (serve opencode 2 sul PC): modelli gratuiti di opencode Zen, locali
+  (Ollama, LM Studio) o dei fornitori collegati in opencode, **con strumenti**. Il
+  modello può eseguire comandi, leggere e modificare file e cercare sul web, e ogni
+  comando, modifica o accesso al web chiede **Consenti / Nega** nell'isola
+  (**Sempre** solo per i comandi che leggono soltanto); se non rispondi è un no.
+  EasyIsland avvia un server privato di opencode solo mentre chatti, lo spegne dopo
+  10 minuti e lavora in `%LOCALAPPDATA%\EasyIsland\opencode`. Il modello si scrive
+  come `fornitore/modello` (**Carica modelli**). Le chiavi dei fornitori restano in
+  opencode (`opencode auth login`). **Attenzione ai modelli gratuiti online:** per
+  quasi tutti i dati possono essere usati per migliorare il modello, quindi
+  niente dati dei clienti; per quelli usa un modello locale.
 
-Con questi ultimi cinque la risposta compare mentre arriva e il "ragionamento" dei
+Con OpenRouter, OpenAI, Gemini, Ollama e LM Studio la risposta compare mentre arriva e il "ragionamento" dei
 modelli che lo mostrano resta nascosto; non hanno strumenti (niente ricerche sul
 web né azioni sul PC). Le immagini vanno ai modelli che le leggono, i file di testo
 nel messaggio; i PDF solo con Claude.
 
-**Connettori in chat** (solo con "Abbonamento Claude"): Slime può usare i
+**Connettori** (Impostazioni → Chat, solo con "Abbonamento Claude"): Slime può usare i
 server MCP che hai configurato in Claude Code per l'utente
 (`claude mcp add --scope user …`), scegliendo quali profilo per profilo. Con
 "chiedi conferma" (predefinito) ogni operazione su quel connettore compare
@@ -667,7 +685,7 @@ Outlook e il portale fornitori", "com'è messo il PC?", "lancia il backup".
 Tutto ciò che apre, esegue o cambia qualcosa chiede prima **Consenti / Nega**
 nell'isola, con una descrizione chiara di cosa sta per fare. Claude non può
 eseguire comandi qualsiasi: solo le azioni rapide che hai creato tu. Si spegne
-in **Impostazioni → Agenti e chat → Claude può usare il PC**.
+in **Impostazioni → Chat → Può usare il PC**.
 
 ## Compilarlo da te
 

@@ -36,6 +36,8 @@ export interface AgentTask {
   permissionMode?: string | null;
   /** The agent's own process, found by the relay: the session is over when it is gone. */
   sessionPid?: { pid: number; exe: string } | null;
+  /** When its last hook event arrived (ms): the Agenti tab opens on the most recent agent. */
+  lastActive?: number;
 }
 
 /** A coding session: Claude Code's task, or another agent's (`agent:<id>`). */
@@ -43,12 +45,13 @@ export function isSessionTask(t: AgentTask | null | undefined): boolean {
   return !!t && (t.id === "integration_claude" || t.id.startsWith("agent:"));
 }
 
-export type ChatEngine = "subscription" | "api" | "openrouter" | "openai" | "gemini" | "ollama" | "lmstudio";
+export type ChatEngine = "subscription" | "api" | "opencode" | "openrouter" | "openai" | "gemini" | "ollama" | "lmstudio";
 
 /** The chat engines: name, Credential Manager key (if any), default address (local ones). */
 export const CHAT_ENGINES: { id: ChatEngine; name: string; key?: string; url?: string; hint: string }[] = [
   { id: "subscription", name: "Claude (abbonamento)", hint: "il tuo piano Pro o Max, serve Claude Code da riga di comando con il login" },
   { id: "api", name: "Claude (chiave API)", key: "anthropic-api-key", hint: "API di Anthropic, a consumo" },
+  { id: "opencode", name: "opencode", hint: "modelli gratuiti o locali con strumenti (comandi, file, web), con i permessi nell'isola; serve opencode 2 sul PC" },
   { id: "openrouter", name: "OpenRouter", key: "openrouter-api-key", hint: "una chiave per centinaia di modelli (openrouter.ai)" },
   { id: "openai", name: "OpenAI", key: "openai-api-key", hint: "API di OpenAI (platform.openai.com)" },
   { id: "gemini", name: "Gemini", key: "gemini-api-key", hint: "Google AI Studio (aistudio.google.com)" },
@@ -84,7 +87,7 @@ export const MAX_DIFFS = 50;
 export const DIFF_TTL_MS = 60 * 60 * 1000;
 
 /** The Claude desktop app, VS Code, Cursor, Windows Terminal, or any other console. */
-export type SessionHost = "desktop" | "vscode" | "cursor" | "wt" | "terminal";
+export type SessionHost = "desktop" | "vscode" | "cursor" | "wt" | "terminal" | "opencode";
 
 /** A message card in the island: from a script (`easyisland-hook notify`) or an update. */
 export interface Notice {
@@ -116,6 +119,7 @@ export function sessionOpenLabel(host: SessionHost | null | undefined): string {
     case "desktop": return "Apri Claude";
     case "vscode": return "Apri VS Code";
     case "cursor": return "Apri Cursor";
+    case "opencode": return "Apri opencode";
     default: return "Apri terminale";
   }
 }
@@ -361,6 +365,8 @@ export interface Settings {
   contextActions: boolean;
   /** The chat (Claude Code engine) may use EasyIsland's tools: open programs, quick actions… */
   agentTools: boolean;
+  /** opencode 2's sessions in the island, from its background service (opencode_agent.rs). Of the PC. */
+  opencodeWatch?: boolean;
   /** "Quando… allora…" rules, run by src-tauri/src/automations.rs. */
   automations: Automation[];
   /** Record what happens on the PC to propose automations; off until switched on. */
@@ -622,6 +628,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hotkeyMute: "",
   contextActions: true,
   agentTools: true,
+  opencodeWatch: false,
   automations: [],
   habitsEnabled: false,
   suggestionsDismissed: [],
@@ -699,6 +706,12 @@ class AppState {
   noteMessage: string | null = null;
   searchResult: SearchResult | null = null;
   chatHistory: ChatMessage[] = [];
+  /** The engine picked in the chat's menu for the conversation in progress; null = the default (settings.chatEngine). Never saved. */
+  chatEngineOverride: ChatEngine | null = null;
+  /** The engine the chat uses right now. */
+  get chatEngine(): ChatEngine {
+    return this.chatEngineOverride ?? this.settings.chatEngine;
+  }
   pendingApproval: ApprovalInfo | null = null;
 
   /** File edits of the Claude Code session (addDiff); cleared when it starts or ends. */
@@ -742,6 +755,16 @@ class AppState {
 
   get focusTask(): AgentTask | null {
     return this.tasks.find((t) => t.id === this.focusId) ?? this.tasks[0] ?? null;
+  }
+
+  /** The coding agents' sessions (Claude Code and agent:<id>), most recent first. */
+  get sessionTasks(): AgentTask[] {
+    return this.tasks.filter((t) => isSessionTask(t)).sort((a, b) => (b.lastActive ?? 0) - (a.lastActive ?? 0));
+  }
+
+  /** The agent the Agenti tab opens on: the one heard from last (Claude Code when none was). */
+  get latestSessionTask(): AgentTask | null {
+    return this.sessionTasks.find((t) => t.lastActive) ?? this.tasks.find((t) => t.id === "integration_claude") ?? null;
   }
 
   /** ⌂ shows every integration (not while a permission or a question waits). */

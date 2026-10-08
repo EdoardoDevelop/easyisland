@@ -656,7 +656,18 @@ function widgetCard(task: AgentTask, openSettings: () => void): HTMLElement {
   );
 }
 
+/** An agent (opencode, Codex…) between sessions: no keys, nothing to configure here. */
+function agentIdleCard(task: AgentTask): HTMLElement {
+  const name = task.agentName ?? task.name;
+  const when = task.lastActive ? `ultima attività ${timeAgo(task.lastActive)}` : "nessuna sessione da quando EasyIsland è aperto";
+  return h("div", { class: "int-card" },
+    header(task.color, name, "In attesa"),
+    h("div", { class: "int-rows" },
+      h("div", { class: "int-empty", text: `Nessuna sessione in corso: ${when}.` })));
+}
+
 export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHooks): HTMLElement {
+  if (task.id.startsWith("agent:")) return agentIdleCard(task);
   if (task.id === "integration_clipboard") return clipboardCard(task, hooks);
   if (task.id === "integration_media") return mediaCard(task);
   if (task.id === THREECX) return threecxCard(task, hooks.openSettings);

@@ -127,19 +127,23 @@ export function buildHeader(actions: ViewActions): ViewHost {
     State.summary = true;
     go("overview");
   } }, svg(ICONS.house, 16));
-  const tabClaude = h("button", { class: "tab", "data-id": "tab:claude", title: "Claude Code", style: "--c:#D97757", onclick: () => {
-    State.setFocus("integration_claude");
+  const tabClaude = h("button", { class: "tab", "data-id": "tab:claude", title: "Agenti: le sessioni di Claude Code, opencode e degli altri agenti", style: "--c:#D97757", onclick: () => {
+    // The agent heard from last (Claude Code, opencode, Codex…); the bar on the card switches.
+    State.setFocus(State.latestSessionTask?.id ?? "integration_claude");
     go("overview");
   } });
-  // Icon (default), name or emoji: Impostazioni → Claude → Scheda nell'isola.
+  // Agenti: the coding agents' sessions (Claude Code, Codex, opencode…), not
+  // only Claude's. Terminal icon (default), Claude's logo, name or emoji:
+  // Impostazioni → Agenti → Scheda nell'isola.
   let claudeLook: string | null = null;
   const drawClaudeTab = () => {
     const look = State.settings.integrationTabIcons?.integration_claude?.trim() ?? "";
     if (look === claudeLook) return;
     claudeLook = look;
-    tabClaude.className = look === "@name" ? "tab int-tab" : look ? "tab int-tab icon" : "tab";
-    tabClaude.replaceChildren(look === "@name" ? h("span", { text: "Claude Code" })
-      : look ? h("span", { class: "int-tab-icon", text: look }) : brandIcon("integration_claude", 15) ?? svg(ICONS.spark, 15));
+    tabClaude.className = look === "@name" ? "tab int-tab" : look && look !== "@logo" ? "tab int-tab icon" : "tab";
+    tabClaude.replaceChildren(look === "@name" ? h("span", { text: "Agenti" })
+      : look === "@logo" ? brandIcon("integration_claude", 15) ?? svg(ICONS.spark, 15)
+      : look ? h("span", { class: "int-tab-icon", text: look }) : svg(ICONS.terminal, 15));
   };
   drawClaudeTab();
   const tabChat = h("button", { class: "tab", "data-id": "tab:chat", title: "Chiedi", style: "--c:#A78BFA", onclick: () => go("prompt") }, svg(ICONS.bubble, 16));
@@ -181,7 +185,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
       const overview = v === "overview" || v === "empty";
       tabHome.classList.toggle("on", overview && showsSummary());
       drawClaudeTab();
-      tabClaude.classList.toggle("on", overview && !showsSummary() && State.focusId === "integration_claude");
+      tabClaude.classList.toggle("on", overview && !showsSummary() && isSessionTask(State.focusTask));
       const tabs = State.tabTasks;
       const icons = State.settings.integrationTabIcons ?? {};
       const tabOrder = State.settings.tabOrder ?? [];
@@ -213,7 +217,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
       }
       for (const b of intTabs) {
         const t = tabs.find((x) => x.id === b.dataset.id);
-        b.classList.toggle("on", overview && State.focusId === b.dataset.id);
+        // On ⌂ only the house is lit, even though the last integration keeps the focus.
+        b.classList.toggle("on", overview && !showsSummary() && State.focusId === b.dataset.id);
         b.classList.toggle("badge", !!t?.pillBadge);
       }
       tabChat.classList.toggle("on", v === "prompt");
@@ -262,12 +267,15 @@ function buildOverview(actions: ViewActions): ViewHost {
   let filesKey = "";
   const tickerBody = h("div", { class: "card-body" }, who, ticker.el, files);
   const leftBody = h("div", { class: "left-body" });
+  // Agenti: one chip per agent with a session, to switch between them.
+  const agentBar = h("div", { class: "agent-switch" });
+  let agentBarKey = "";
   const jump = h(
     "button",
     { class: "icon-btn jump", title: "Apri", onclick: () => actions.openTarget() },
     svg(ICONS.arrowUpRight, 12),
   );
-  const left = card(null, leftBody, jump);
+  const left = card(null, agentBar, leftBody, jump);
   const pills = h("div", { class: "pills" });
   sortable(pills, { enabled: () => !State.settings.lockOrder, onReorder: (ids) => actions.reorder(ids) });
   const right = card(null, pills);
@@ -314,6 +322,30 @@ function buildOverview(actions: ViewActions): ViewHost {
         detailOpen = false;
         cardKey = "";
         mode = null;
+      }
+
+      // Agenti: a chip per agent that has been heard from (Claude Code always),
+      // when there is more than one to choose from.
+      const agents = isSessionTask(task) && !showsSummary()
+        ? State.sessionTasks.filter((t) => t.id === "integration_claude" || t.lastActive)
+        : [];
+      const barKey = agents.length > 1 ? agents.map((t) => `${t.id}:${t.state}:${t.id === task?.id}`).join("|") : "";
+      if (barKey !== agentBarKey) {
+        agentBarKey = barKey;
+        agentBar.replaceChildren(...(agents.length > 1 ? [...agents]
+          // Always the same order, so a chip does not jump under the mouse.
+          .sort((a, b) => (a.id === "integration_claude" ? -1 : b.id === "integration_claude" ? 1 : a.id.localeCompare(b.id)))
+          .map((t) => {
+            const busy = t.state !== "idle" && t.state !== "sleeping" && t.state !== "finished";
+            const chip = h("button", {
+              class: t.id === task?.id ? "agent-chip on" : "agent-chip",
+              title: t.lastActive ? `${t.agentName ?? "Claude Code"} · ${t.name}` : t.agentName ?? "Claude Code",
+              onclick: () => actions.setFocus(t.id),
+            }, brandOrDot(t.id, t.color, 7), h("span", { text: t.agentName ?? "Claude Code" }));
+            if (busy) chip.append(h("i", { class: "agent-busy" }));
+            return chip;
+          }) : []));
+        agentBar.style.display = agents.length > 1 ? "" : "none";
       }
 
       // VS Code with a live Claude Code session keeps the ticker; every other
@@ -397,9 +429,10 @@ function buildOverview(actions: ViewActions): ViewHost {
       // Every pill is shown (the island grows to fit them); alerts go first.
       // An integration opened from its header tab stands alone: pills only on ⌂.
       // Claude Code has its own tab too; the summary already lists everything.
-      const onTab = showsSummary() || (task != null && (State.isTab(task.id) || task.id === "integration_claude"));
+      const onTab = showsSummary() || (task != null && (State.isTab(task.id) || isSessionTask(task)));
       // In the user's order (dragged in the island): a pill with an alert keeps its place.
-      const others = onTab ? [] : State.otherTasks.filter((t) => t.id !== "integration_claude");
+      // Agents live in the Agenti tab (and the summary), not among the pills.
+      const others = onTab ? [] : State.otherTasks.filter((t) => !isSessionTask(t));
       pillCount = others.length;
       const pillKey = others.map((t) => `${t.id}:${t.pillBadge ?? ""}:${pillLabel(t).title ?? pillLabel(t).text}`).join("|");
       if (pillKey !== pillIds && !isSorting(pills)) {
@@ -414,7 +447,7 @@ function buildOverview(actions: ViewActions): ViewHost {
     fitHeight() {
       // The left card's content (it flows from the top), plus a bottom margin…
       const content = leftBody.firstElementChild as HTMLElement | null;
-      const leftH = content ? content.offsetHeight + 12 : 0;
+      const leftH = (content ? content.offsetHeight + 12 : 0) + (agentBar.style.display === "none" ? 0 : agentBar.offsetHeight);
       // …and the pills, two per row.
       const rows = Math.ceil(pillCount / 2);
       const pillsH = rows > 0 ? rows * 28 + (rows - 1) * 4 + 16 : 0;
@@ -568,7 +601,8 @@ function buildApproval(actions: ViewActions): ViewHost {
       const risks = State.pendingApproval?.risks ?? [];
       risk.textContent = risks.map((r) => `⚠ ${r}`).join("\n");
       risk.style.display = risks.length ? "" : "none";
-      const rule = State.pendingApproval?.source === "chat" ? undefined : State.pendingApproval?.always;
+      // A chat's card has "Sempre" only when its engine offered it (opencode, read-only commands).
+      const rule = State.pendingApproval?.always;
       always.textContent = rule ? `Sempre: ${rule}` : "";
       always.style.display = rule ? "" : "none";
       // Rebuilt only when a request with or without "Sempre" comes in: rebuilding
@@ -580,7 +614,7 @@ function buildApproval(actions: ViewActions): ViewHost {
       row.append(btn("Nega", "secondary", () => actions.decide("deny"), "N"));
       if (rule) {
         const b = btn("Sempre", "secondary", () => actions.decide("always"), "S");
-        b.title = "Consenti e non chiedere più (la regola che propone Claude Code)";
+        b.title = "Consenti e non chiedere più (la regola proposta dall'agente)";
         row.append(b);
       }
       row.append(btn("Consenti", "primary", () => actions.decide("allow"), "Y"));
@@ -678,7 +712,12 @@ function buildAsk(actions: ViewActions): ViewHost {
         next(q, text);
       });
       options.append(other);
-      foot.append(h("button", { class: "link-btn", text: "Rispondi nel terminale", onclick: () => actions.handToTerminal() }));
+      // opencode asks in its own window too (opencode_agent.rs): the link brings it back.
+      const inOpencode = State.focusTask?.sessionHost === "opencode";
+      foot.append(h("button", { class: "link-btn", text: inOpencode ? "Rispondi in opencode" : "Rispondi nel terminale", onclick: () => {
+        if (inOpencode) actions.openTarget();
+        actions.handToTerminal();
+      } }));
       if (q.multiSelect) foot.append(go);
     },
   };

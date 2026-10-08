@@ -136,7 +136,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
 
     streamed = "";
     try {
-      const reply = await Bridge.chatSend(query, context);
+      const reply = await Bridge.chatSend(query, context, State.chatEngine);
       State.chatHistory.push({ id: nextId++, role: "assistant", content: reply.text });
       State.stateOverride = null;
       Sound.play("finish");
@@ -163,6 +163,8 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     State.droppedFile = null;
     State.chatText = null;
     State.promptContext = null;
+    // An engine picked in the menu was for that conversation only.
+    State.chatEngineOverride = null;
     void Bridge.chatReset();
     Sound.play("blip");
     State.notify();
@@ -171,12 +173,20 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     input.focus();
   }
 
-  /** Engines worth offering: Claude Code always, the others once they have a key or a model. */
+  /** Claude Code with its login, asked once per run (it starts a process). */
+  let cliReady: Promise<boolean> | null = null;
+
+  /** Engines worth offering: the default and the one in use, then only the configured ones. */
   async function readyEngines(): Promise<typeof CHAT_ENGINES> {
     const s = State.settings;
     const out: typeof CHAT_ENGINES = [];
     for (const e of CHAT_ENGINES) {
-      if (e.id === s.chatEngine || e.id === "subscription") { out.push(e); continue; }
+      if (e.id === s.chatEngine || e.id === State.chatEngine) { out.push(e); continue; }
+      if (e.id === "subscription") {
+        cliReady ??= Bridge.claudeCliStatus().then((st) => !!st?.found && !!st.loggedIn);
+        if (await cliReady) out.push(e);
+        continue;
+      }
       const hasModel = e.id === "api" || !!s.engineModels?.[e.id];
       const hasKey = !e.key || ((await Bridge.secretPresent(e.key)) ?? false);
       if (hasModel && hasKey) out.push(e);
@@ -192,24 +202,24 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     const list = await readyEngines();
     clear(engineMenu);
     for (const e of list) {
-      const label = engineLabel({ ...State.settings, chatEngine: e.id });
+      const label = engineLabel({ ...State.settings, chatEngine: e.id }) + (e.id === State.settings.chatEngine ? " (predefinito)" : "");
       engineMenu.append(h("button", {
-        class: `engine-item${e.id === State.settings.chatEngine ? " on" : ""}`, title: e.hint, text: label,
+        class: `engine-item${e.id === State.chatEngine ? " on" : ""}`, title: e.hint, text: label,
         onclick: () => pickEngine(e.id),
       }));
     }
-    engineMenu.append(h("div", { class: "engine-note", text: "Chiavi, modelli e indirizzi: Impostazioni → Chat" }));
+    engineMenu.append(h("div", { class: "engine-note", text: "Vale per questa chat. Predefinito, chiavi e modelli: Impostazioni → Chat" }));
     engineMenu.style.display = "";
   }
 
+  /** Only for the conversation in progress: the default stays in Impostazioni → Chat. */
   function pickEngine(id: ChatEngine) {
     engineMenu.style.display = "none";
-    if (id === State.settings.chatEngine || sending) return;
-    State.settings.chatEngine = id;
-    void Bridge.saveSettings(State.settings);
+    if (id === State.chatEngine || sending) return;
     // Another engine is another conversation (the backend starts over too).
     if (State.chatHistory.length) startOver();
-    else State.notify();
+    State.chatEngineOverride = id === State.settings.chatEngine ? null : id;
+    State.notify();
   }
 
   engineBtn.addEventListener("click", () => void toggleEngineMenu());
@@ -255,7 +265,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
         if (wantChip) chipRow.append(contextChip(wantChip));
       }
 
-      engineBtn.textContent = `${engineLabel(State.settings)} ▾`;
+      engineBtn.textContent = `${engineLabel({ ...State.settings, chatEngine: State.chatEngine })} ▾`;
       const thinking = State.stateOverride === "thinking";
       const count = State.chatHistory.length + (thinking ? 0.5 : 0) + (streamed ? 0.25 : 0);
       if (count !== renderedCount) {

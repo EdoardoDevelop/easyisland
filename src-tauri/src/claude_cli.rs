@@ -387,7 +387,7 @@ pub async fn send(
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
     let exe = find_claude().ok_or_else(|| {
-        "Per la chat con l'abbonamento serve Claude Code da riga di comando (la CLI), installato su questo PC e con il login fatto: quello dentro l'app desktop di Claude non si può usare da altri programmi. Impostazioni → Agenti e chat → Chat spiega come installarlo; oppure lì scegli un altro motore."
+        "Per la chat con l'abbonamento serve Claude Code da riga di comando (la CLI), installato su questo PC e con il login fatto: quello dentro l'app desktop di Claude non si può usare da altri programmi. Impostazioni → Chat spiega come installarlo; oppure lì scegli un altro motore."
             .to_string()
     })?;
     let connectors = Connectors::from_choices(mcp, agent);
@@ -484,12 +484,13 @@ pub async fn send(
 }
 
 /// What the chat says when Claude Code has no login of its own.
-const LOGIN_HELP: &str = "Claude Code non ha il login. Apri un terminale, scrivi «claude» e accedi con il tuo account Claude (Pro o Max), poi riprova. Se «claude» non viene trovato, installalo come spiega Impostazioni → Agenti e chat → Chat.";
+const LOGIN_HELP: &str = "Il login di Claude Code manca o è scaduto. Apri un terminale, scrivi «claude», poi «/login» e accedi con il tuo account Claude (Pro o Max); quindi riprova. Se «claude» non viene trovato, installalo come spiega Impostazioni → Chat.";
 
 /// Claude Code's own ways of saying "nobody is signed in".
 fn needs_login(text: &str) -> bool {
     let t = text.to_lowercase();
-    ["/login", "not logged in", "please log in", "log in to", "invalid api key", "oauth token"]
+    // "Failed to authenticate: OAuth session expired and could not be refreshed"
+    ["/login", "not logged in", "please log in", "log in to", "invalid api key", "oauth token", "failed to authenticate", "session expired"]
         .iter()
         .any(|k| t.contains(k))
 }
@@ -546,9 +547,26 @@ pub async fn status() -> CliStatus {
 
 #[cfg(test)]
 mod tests {
+    /// `claude -p` on this PC, as the island's chat runs it:
+    /// `cargo test --lib claude_cli::tests::live -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn live_chat_turn() {
+        tauri::async_runtime::block_on(async {
+            println!("claude: {:?}", super::find_claude());
+            let chat = crate::claude::Chat::default();
+            for agent in [false, true] {
+                let r = super::send(&chat, "", &[], agent, "Rispondi solo con la parola: ok".into(), None).await;
+                println!("agent={agent}: {:?}", r.as_ref().map(|x| &x.text));
+                chat.reset();
+            }
+        });
+    }
+
     #[test]
     fn login_errors_are_recognised() {
         assert!(super::needs_login("Invalid API key · Please run /login"));
+        assert!(super::needs_login("Failed to authenticate: OAuth session expired and could not be refreshed"));
         assert!(super::needs_login("Not logged in"));
         assert!(!super::needs_login("Rate limit reached"));
     }

@@ -75,6 +75,9 @@ pub struct HookPreview {
 /// (`~/.cursor/hooks.json`) or Copilot CLI (a file of its own,
 /// `~/.copilot/hooks/easyisland.json`).
 ///
+/// opencode has no command hooks: it gets a plugin of EasyIsland's own,
+/// `~/.config/opencode/plugins/easyisland.js` (see `opencode_*` below).
+///
 /// Cursor and Copilot get observation hooks only: on their permission hooks a
 /// reply they cannot parse (Cursor) or an error (Copilot) blocks the tool, and
 /// the island must never be able to block an agent.
@@ -85,6 +88,7 @@ pub enum Target {
     Gemini,
     Cursor,
     Copilot,
+    OpenCode,
 }
 
 impl Target {
@@ -94,6 +98,7 @@ impl Target {
             Some("gemini") => Target::Gemini,
             Some("cursor") => Target::Cursor,
             Some("copilot") => Target::Copilot,
+            Some("opencode") => Target::OpenCode,
             _ => Target::Claude,
         }
     }
@@ -105,6 +110,8 @@ impl Target {
             Target::Gemini => home().join(".gemini").join("settings.json"),
             Target::Cursor => home().join(".cursor").join("hooks.json"),
             Target::Copilot => home().join(".copilot").join("hooks").join("easyisland.json"),
+            // opencode reads ~/.config on Windows too.
+            Target::OpenCode => home().join(".config").join("opencode").join("plugins").join("easyisland.js"),
         }
     }
 
@@ -158,6 +165,8 @@ impl Target {
                 ("preCompact", 10),
                 ("errorOccurred", 10),
             ],
+            // A plugin, not a list of hooks: the plugin picks its events.
+            Target::OpenCode => &[],
         }
     }
 
@@ -178,6 +187,7 @@ impl Target {
             Target::Gemini => format!("{exe} {event} --agent gemini"),
             Target::Cursor => format!("{exe} {event} --agent cursor"),
             Target::Copilot => format!("{exe} {event} --agent copilot"),
+            Target::OpenCode => format!("{exe} {event} --agent opencode"),
         }
     }
 
@@ -396,6 +406,9 @@ pub fn status() -> HookStatus {
 }
 
 pub fn status_for(target: Target) -> HookStatus {
+    if target == Target::OpenCode {
+        return opencode_status();
+    }
     // Read-only and never loud: an unreadable file just reads as "not installed".
     let current = read_settings_at(target).unwrap_or_else(|_| json!({}));
     let entries = all_entries(&current);
@@ -424,6 +437,9 @@ pub fn preview(install: bool) -> Result<HookPreview, String> {
 }
 
 pub fn preview_for(install: bool, target: Target) -> Result<HookPreview, String> {
+    if target == Target::OpenCode {
+        return opencode_preview(install);
+    }
     let current = read_settings_at(target)?;
     let next = if install { merged_for(&current, target) } else { without_ours(&current) };
     Ok(HookPreview {
@@ -446,6 +462,9 @@ pub fn write(install: bool, fingerprint: &str) -> Result<String, String> {
 /// and make them look at a fresh diff, because the only thing worse than not
 /// installing the hooks is silently reverting somebody else's edit.
 pub fn write_for(install: bool, fingerprint: &str, target: Target) -> Result<String, String> {
+    if target == Target::OpenCode {
+        return opencode_write(install, fingerprint);
+    }
     let path = target.file();
     let dir = path.parent().unwrap_or(Path::new("."));
     std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
@@ -476,6 +495,89 @@ pub fn write_for(install: bool, fingerprint: &str, target: Target) -> Result<Str
     if let Err(err) = std::fs::rename(&temp, &path) {
         let _ = std::fs::remove_file(&temp);
         return Err(format!("scrittura non riuscita: {err}"));
+    }
+    Ok(backup.to_string_lossy().to_string())
+}
+
+// ── opencode: a plugin file of EasyIsland's own ──────────────────────────────
+
+/// The plugin as EasyIsland writes it, with this PC's relay path.
+fn opencode_plugin() -> String {
+    let exe = settings::hook_exe_path().to_string_lossy().replace('\\', "/");
+    let literal = serde_json::to_string(&exe).unwrap_or_else(|_| "\"\"".into());
+    include_str!("opencode-plugin.js").replace("__HOOK__", &literal)
+}
+
+/// The plugin file's text: `None` when there is none. A file of somebody
+/// else's under the same name is an error: EasyIsland never writes over it.
+fn opencode_current() -> Result<Option<String>, String> {
+    let path = Target::OpenCode.file();
+    match std::fs::read(&path) {
+        Ok(bytes) => {
+            let text = String::from_utf8_lossy(&bytes).to_string();
+            if text.contains(MARKER) || text.trim().is_empty() {
+                Ok(Some(text))
+            } else {
+                Err(format!("{} non è di EasyIsland: non lo tocca. Rinominalo e riprova.", path.display()))
+            }
+        }
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(err) => Err(format!("Impossibile leggere {}: {err}", path.display())),
+    }
+}
+
+fn opencode_status() -> HookStatus {
+    let current = opencode_current().ok().flatten();
+    let installed = current.as_deref().is_some_and(|t| t.contains(MARKER));
+    let hook_path = settings::hook_exe_path();
+    HookStatus {
+        installed,
+        // A newer plugin, or the relay moved: installing again rewrites it.
+        outdated: installed && current.as_deref() != Some(opencode_plugin().as_str()),
+        legacy: false,
+        settings_path: Target::OpenCode.file().to_string_lossy().to_string(),
+        hook_ready: hook_path.exists(),
+        hook_path: hook_path.to_string_lossy().to_string(),
+    }
+}
+
+fn opencode_preview(install: bool) -> Result<HookPreview, String> {
+    let current = opencode_current()?.unwrap_or_default();
+    let next = if install { opencode_plugin() } else { String::new() };
+    Ok(HookPreview {
+        diff: unified_diff(&current, &next),
+        backup: backup_path(Target::OpenCode).to_string_lossy().to_string(),
+        settings_path: Target::OpenCode.file().to_string_lossy().to_string(),
+        fingerprint: current_fingerprint(Target::OpenCode),
+    })
+}
+
+/// Writes the plugin (or removes it) after a dated backup of the old one; the
+/// same fingerprint check as `write_for`.
+fn opencode_write(install: bool, fingerprint: &str) -> Result<String, String> {
+    let path = Target::OpenCode.file();
+    let current = opencode_current()?;
+    if current_fingerprint(Target::OpenCode) != fingerprint {
+        return Err(format!(
+            "{} è cambiato dopo l'anteprima. Non è stato scritto nulla: controlla il nuovo diff.",
+            path.display()
+        ));
+    }
+    let backup = backup_path(Target::OpenCode);
+    if current.is_some() {
+        std::fs::copy(&path, &backup).map_err(|e| format!("backup non riuscito: {e}"))?;
+    }
+    if install {
+        let dir = path.parent().unwrap_or(Path::new("."));
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+        let temp = path.with_extension(format!("js.easyisland-{}", std::process::id()));
+        std::fs::write(&temp, opencode_plugin().as_bytes()).map_err(|e| format!("scrittura non riuscita: {e}"))?;
+        if let Err(err) = std::fs::rename(&temp, &path) {
+            let _ = std::fs::remove_file(&temp);
+            return Err(format!("scrittura non riuscita: {err}"));
+        }
+    } else if current.is_some() {
+        std::fs::remove_file(&path).map_err(|e| format!("rimozione non riuscita: {e}"))?;
     }
     Ok(backup.to_string_lossy().to_string())
 }
@@ -754,6 +856,16 @@ mod tests {
         assert!(without_ours(&copilot).get("hooks").is_none());
         assert!(Target::Copilot.file().ends_with(Path::new(".copilot").join("hooks").join("easyisland.json")));
         assert_eq!(Target::parse(Some("cursor")), Target::Cursor);
+    }
+
+    #[test]
+    fn opencode_gets_a_plugin_with_the_relay_path() {
+        let plugin = opencode_plugin();
+        assert!(!plugin.contains("__HOOK__"));
+        assert!(plugin.contains(MARKER), "the marker is how status() recognises it");
+        assert!(plugin.contains("--agent\", \"opencode"));
+        assert!(Target::OpenCode.file().ends_with(Path::new(".config").join("opencode").join("plugins").join("easyisland.js")));
+        assert!(Target::OpenCode.events().is_empty());
     }
 
     #[test]
