@@ -10,7 +10,7 @@
 //
 // The user approved each automation by creating it, so it runs without
 // asking — except a quick-action script marked "Chiedi conferma", which the
-// island shows with Esegui as always, and "Chiedi a Claude" actions, which open
+// island shows with Esegui as always, and "Chiedi alla chat" actions, which open
 // the chat. Nothing runs while EasyIsland is paused. Every run lands in a log
 // (in memory, the last 100) shown in the settings.
 //

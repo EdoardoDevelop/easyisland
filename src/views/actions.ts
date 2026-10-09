@@ -22,7 +22,7 @@ const KIND_HINT: Record<QuickAction["kind"], string> = {
   url: "Apre un link",
   app: "Avvia un programma",
   script: "Esegue uno script",
-  prompt: "Chiede a Claude",
+  prompt: "Chiede alla chat",
 };
 
 const isFileAction = (a: QuickAction) => a.kind === "prompt" && a.input === "file";
@@ -129,7 +129,7 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
         grid.append(
           h("div", { class: "qa-empty" },
             h("div", { class: "title", text: "Nessuna azione rapida." }),
-            h("div", { class: "sub", text: "Creale in Impostazioni → Azioni rapide: link, programmi, script e domande a Claude." }),
+            h("div", { class: "sub", text: "Creale in Impostazioni → Azioni rapide: link, programmi, script e domande alla chat." }),
             h("button", {
               class: "btn secondary", text: "Apri le impostazioni",
               onclick: () => handlers.openSettingsWindow(),

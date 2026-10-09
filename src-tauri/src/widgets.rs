@@ -630,6 +630,13 @@ pub fn last_result(id: &str) -> Option<WidgetResult> {
     LAST_RESULTS.lock().unwrap().as_ref()?.get(id).cloned()
 }
 
+/// Every check's last result. The first round runs at startup, often before the
+/// island listens for `widget-update`: it asks for these once it is ready, or
+/// Meteo (every 15 min) would show nothing until its next run.
+pub fn last_results() -> Vec<WidgetResult> {
+    LAST_RESULTS.lock().unwrap().as_ref().map(|m| m.values().cloned().collect()).unwrap_or_default()
+}
+
 pub async fn run_now(app: &AppHandle, w: &Widget) -> WidgetResult {
     let result = probe(w).await;
     remember(&result);

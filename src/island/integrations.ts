@@ -24,9 +24,21 @@ const clearTimers = new Map<string, number>();
 
 export function registerIntegrationHandlers(island: Island) {
   void onEvent<IntegrationUpdate>("integration", (update) => handle(island, update));
-  void onEvent<WidgetStatus>("widget-update", (r) => handleWidget(island, r));
+  void onEvent<WidgetStatus>("widget-update", (r) => handleWidget(island, r)).then(() => catchUpWidgets(island));
   void onEvent<ThreecxCall>("threecx-call", (c) => incomingCall(island, c));
   void refreshConfigured();
+}
+
+/**
+ * The checks that ran before the island was listening (the first round starts
+ * with the app): their last results, unless a newer one has arrived since.
+ * Without this Meteo had no sky until its next run, 15 minutes later.
+ */
+async function catchUpWidgets(island: Island) {
+  for (const r of await Bridge.widgetResults()) {
+    const seen = State.widgetStatus[r.id];
+    if (!seen || seen.at < r.at) handleWidget(island, r);
+  }
 }
 
 /** Asks Rust which keys exist so the idle cards can say so. */

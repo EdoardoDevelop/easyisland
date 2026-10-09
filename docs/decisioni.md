@@ -4,7 +4,7 @@ Da controllare prima di proporre o fare una funzione. Una richiesta che va contr
 
 - **Integrazione o widget:** un servizio o programma che c'è una volta sola è un'integrazione. I widget sono solo controlli ripetibili.
 - **Cursor e Copilot CLI solo in osservazione:** sui loro hook di permesso una risposta illeggibile o un errore bloccano lo strumento. L'isola non deve mai poter bloccare un agente.
-- **Vassoio temporaneo:** si svuota a ogni avvio, di proposito.
+- **Vassoio temporaneo:** si svuota a ogni avvio, di proposito. Restano solo i file che l'utente fissa con la puntina (deciso il 9 ottobre 2026).
 - **Esclusi per ora:**
   - widget "Oggi"
   - rubrica clienti

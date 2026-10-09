@@ -552,7 +552,7 @@ function buildEmpty(actions: ViewActions): ViewHost {
       h("div", { class: "sub", text: "Trascina un file o chiedimi qualsiasi cosa." }),
     ),
     h("div", { class: "grow" }),
-    btn("Chiedi a Claude", "primary", () => actions.setView("prompt")),
+    btn("Chiedi alla chat", "primary", () => actions.setView("prompt")),
   );
   return { el: h("div", { class: "view" }, card(null, body)), sync() {} };
 }

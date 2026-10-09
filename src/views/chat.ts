@@ -72,7 +72,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
   const bar = h("div", { class: "chat-bar" }, fresh, input, send);
   // The calculator: a calculation typed in the field shows its result here.
   const calcValue = h("b", { class: "calc-value" });
-  const calcHint = h("span", { class: "calc-hint", text: "Invio copia · Ctrl+Invio chiede a Claude" });
+  const calcHint = h("span", { class: "calc-hint", text: "Invio copia · Ctrl+Invio chiede alla chat" });
   const calcRow = h("div", { class: "calc-row" }, h("span", { class: "calc-eq", text: "=" }), calcValue, calcHint);
   calcRow.style.display = "none";
   let calcResult: number | null = null;
@@ -81,7 +81,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     calcRow.style.display = calcResult == null ? "none" : "";
     if (calcResult != null) {
       calcValue.textContent = formatResult(calcResult);
-      calcHint.textContent = "Invio copia · Ctrl+Invio chiede a Claude";
+      calcHint.textContent = "Invio copia · Ctrl+Invio chiede alla chat";
       calcRow.classList.remove("copied");
     }
   }
@@ -107,6 +107,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
 
   let sending = false;
   let renderedCount = -1;
+  let drafted = false;
 
   async function submit(override?: string) {
     const query = (override ?? input.value).trim();
@@ -286,6 +287,12 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
         log.scrollTop = log.scrollHeight;
       }
 
+      if (State.chatDraft != null) {
+        input.value = State.chatDraft;
+        State.chatDraft = null;
+        drafted = true;
+        updateCalc();
+      }
       input.placeholder = State.chatHistory.length === 0 ? "Chiedimi qualsiasi cosa… o fai un calcolo" : "Continua…";
       input.disabled = sending;
       // Only when there is something to forget.
@@ -294,7 +301,10 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     },
     focus() {
       input.focus();
-      input.select();
+      // A drafted question keeps its text: the cursor goes after it.
+      if (drafted) input.setSelectionRange(input.value.length, input.value.length);
+      else input.select();
+      drafted = false;
     },
   };
 }

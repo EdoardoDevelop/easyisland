@@ -42,6 +42,7 @@ mod profiles;
 mod screenshot;
 mod secrets;
 mod settings;
+mod start_apps;
 mod threecx;
 mod tray;
 mod updates;
@@ -226,6 +227,12 @@ fn action_open_app(target: String, args: String) -> Result<(), String> {
     actions::open_app(&target, &args)
 }
 
+/// The island's search bar: the programs of the Start menu.
+#[tauri::command]
+async fn start_apps() -> Vec<start_apps::StartApp> {
+    tauri::async_runtime::spawn_blocking(start_apps::list).await.unwrap_or_default()
+}
+
 /// Runs a script the user just confirmed in the island.
 #[tauri::command]
 async fn action_run_script(
@@ -251,6 +258,12 @@ async fn clipboard_text() -> Option<String> {
 #[tauri::command]
 async fn widget_test(app: AppHandle, widget: serde_json::Value) -> Result<widgets::WidgetResult, String> {
     widgets::run_once(&app, widget).await
+}
+
+/// The checks' last results, for an island that started listening after them.
+#[tauri::command]
+fn widget_results() -> Vec<widgets::WidgetResult> {
+    widgets::last_results()
 }
 
 /// Island → "Aggiorna" on a widget card.
@@ -788,7 +801,7 @@ async fn clipboard_use(app: AppHandle, id: u64, transform: String, paste: bool) 
         .map_err(|e| e.to_string())?
 }
 
-/// Appunti → "Chiedi a Claude" on a picture.
+/// Appunti → "Chiedi alla chat" on a picture.
 #[tauri::command]
 fn clipboard_ask(id: u64) -> Result<DroppedFile, String> {
     clipboard::picture_to_inbox(id)
@@ -919,6 +932,11 @@ fn inbox_delete(name: String) -> Result<(), String> {
 #[tauri::command]
 fn inbox_clear() -> usize {
     files::clear_inbox()
+}
+
+#[tauri::command]
+fn inbox_keep(name: String, keep: bool) -> Result<(), String> {
+    files::set_kept(&name, keep)
 }
 
 /// "Apri" opens the copy with its app; "Mostra" selects it in Explorer.
@@ -1121,6 +1139,7 @@ pub fn run() {
             hotkeys_suspend,
             widget_test,
             widget_refresh,
+            widget_results,
             ingest_file,
             capture_screen,
             secret_present,
@@ -1151,6 +1170,8 @@ pub fn run() {
             inbox_list,
             inbox_delete,
             inbox_clear,
+            inbox_keep,
+            start_apps,
             inbox_open,
             inbox_drag,
             mouse_button_down,
@@ -1180,7 +1201,7 @@ pub fn run() {
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             island::spawn_fullscreen_watch(handle.clone(), gate.clone());
             island::spawn_drag_raise(handle.clone(), gate.clone());
-            // The tray is temporary: every start begins with it empty.
+            // The tray is temporary: every start begins with only the pinned files.
             std::thread::spawn(files::clear_inbox);
             profiles::spawn_auto_switch(handle.clone());
             hotkeys::spawn(handle.clone());
