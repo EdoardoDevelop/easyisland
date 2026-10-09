@@ -535,6 +535,8 @@ export class Greeting {
   private timers: number[] = [];
 
   onComplete: (() => void) | null = null;
+  /** Only the character, halo and particles: no card, badge or minis (dev/greeting-preview). */
+  bare = false;
 
   start() {
     this.startMs = performance.now();
@@ -587,6 +589,12 @@ export class Greeting {
     const p = pose(t, this.tc);
     x.clearRect(0, 0, 640, 150);
 
+    if (this.bare) {
+      p.badge = 0;
+      drawParticles(x, t, p);
+      drawCharacter(x, p);
+      return;
+    }
     if (p.card > 0) {
       x.save();
       x.globalAlpha = p.card;

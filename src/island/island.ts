@@ -21,7 +21,6 @@ import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { buildSearch, type SearchHost } from "../views/search";
 import { sendToChat } from "../views/chat";
-import { tabActions } from "../views/actions";
 import type { ApprovalInfo, Notice, QuickAction } from "../core/state";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
@@ -115,6 +114,10 @@ export class Island {
   /** Left button held on the compact island: a click or the start of a drag. */
   /** A press that may become a drag of the whole island (`expanded`: started on the open island's header). */
   private press: { x: number; y: number; moved: boolean; expanded: boolean } | null = null;
+  /** The open island dragged off its place this opening, logical px (0 = still at that edge). */
+  private openOffset = { x: 0, y: 0 };
+  /** Carried around, until Rust has settled where it was dropped: rounded all round. */
+  private carried = false;
   private collapseTimer: number | null = null;
   private wasInIsland = false;
   /** Last shape handed to Rust for the click-through test. */
@@ -158,6 +161,7 @@ export class Island {
     this.wireInput();
     this.engine.onDizzy = () => this.handleDizzy();
     this.greeting.onComplete = () => this.fsm.greetComplete();
+    this.greeting.bare = true;
     State.subscribe(() => {
       this.dirty = true;
       this.ensureRunning();
@@ -677,6 +681,19 @@ export class Island {
     this.draftChat(prompt);
   }
 
+  /**
+   * A folder dropped on the island, or the character dropped on one: the paths
+   * are added to the chat field, after what is already written, and the
+   * conversation goes on.
+   */
+  private pathToChat(paths: string[]) {
+    Sound.play("blip");
+    State.chatInsert = paths.map((p) => (/\s/.test(p) ? `"${p}"` : p)).join(" ");
+    this.alert("prompt");
+    void Bridge.focusWindow(true);
+    window.setTimeout(() => this.views.get("prompt")?.focus?.(), 120);
+  }
+
   /** A fresh chat with `prompt` in its field, not sent: the text goes after it. */
   private draftChat(prompt: string) {
     const q = prompt.trim();
@@ -880,7 +897,9 @@ export class Island {
   async onHotkey(name: string) {
     Sound.resume();
     if (name === "open") {
-      this.setView(tabActions().length > 0 ? "actions" : "prompt");
+      // The Panoramica, as the ⌂ tab; a request waiting for an answer comes first.
+      State.summary = true;
+      this.setView(State.pendingCard() ?? "overview");
     } else if (name === "ask") {
       const text = await Bridge.clipboardText();
       // A picture copied (and no text): attach it instead.
@@ -1152,8 +1171,18 @@ export class Island {
           else this.setView(State.defaultView());
           return;
         }
-        this.beforeDrop = null;
-        this.swallow(path);
+        void Bridge.isFolder(path).then((folder) => {
+          if (!folder) {
+            this.beforeDrop = null;
+            this.swallow(path);
+            return;
+          }
+          // A folder (it cannot be dropped as a file): every dropped path goes
+          // to the chat field instead.
+          this.beforeDrop = null;
+          this.engine.animateMorph(0);
+          this.pathToChat(e.paths!);
+        });
         break;
       }
     }
@@ -1273,6 +1302,7 @@ export class Island {
 
   /** The window opens at the chosen place; it goes there before the island grows. */
   private openAway() {
+    this.openOffset = { x: 0, y: 0 };
     if (this.awayClosing != null) {
       window.clearTimeout(this.awayClosing);
       this.awayClosing = null;
@@ -1393,9 +1423,12 @@ export class Island {
     this.islandEl.style.top = `${o.y}px`;
     this.islandEl.style.width = `${w}px`;
     this.islandEl.style.height = `${hh}px`;
-    // Square where it meets a screen edge; a floating island is rounded all round.
+    // Square where it meets a screen edge; a floating island is rounded all round,
+    // and so is one being carried or the open one dragged off the edge.
     const rr = Math.min(r, w / 2, hh / 2);
-    this.islandEl.style.borderRadius = cornerRadii(p, rr);
+    const off = State.mode === "expanded" ? this.openOffset : { x: 0, y: 0 };
+    const edges = { ...p, glueX: p.glueX && !this.carried && off.x === 0, glueY: p.glueY && !this.carried && off.y === 0 };
+    this.islandEl.style.borderRadius = cornerRadii(edges, rr);
     // These follow the island as it resizes, so they belong here rather than in
     // the state-driven DOM sync.
     this.miniGrid.style.left = `${w - 40 - 14.5}px`;
@@ -1583,11 +1616,14 @@ export class Island {
 
   /**
    * "Sfondo a isola chiusa" off: while the island is not open, its background
-   * goes away and only the character is left.
+   * goes away and only the character is left. The launch greeting is always
+   * the character alone, with its halo and particles.
    */
   private applyBare() {
-    const bare = State.mode !== "expanded" && State.settings.theme?.compactBackground === false;
+    const greeting = State.mode === "expanded" && State.view === "greeting";
+    const bare = greeting || (State.mode !== "expanded" && State.settings.theme?.compactBackground === false);
     this.islandEl.classList.toggle("bare", bare);
+    this.islandEl.classList.toggle("greeting", greeting);
   }
 
   /** Island colour/opacity and per-family volumes from the theme. */
@@ -1721,6 +1757,10 @@ export class Island {
       if (!p.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
       // An open island must not close under the pointer while it is carried.
       if (!p.moved && p.expanded) this.fsm.pinned = true;
+      if (!p.moved) {
+        this.carried = true;
+        this.applyGeometry();
+      }
       p.moved = true;
       p.x = e.screenX;
       p.y = e.screenY;
@@ -1735,7 +1775,14 @@ export class Island {
       this.press = null;
       if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
       if (p.moved) {
-        void Bridge.endDrag();
+        const expanded = p.expanded;
+        void Bridge.endDrag().then((end) => {
+          const off = end?.offset;
+          if (expanded && off) this.openOffset = { x: off[0], y: off[1] };
+          if (end?.path) this.pathToChat([end.path]);
+          this.carried = false;
+          this.applyGeometry();
+        });
         if (p.expanded) this.fsm.pinned = State.isPinned;
       } else if (!cancelled) {
         click();
@@ -1754,6 +1801,17 @@ export class Island {
     };
     this.restIcon.addEventListener("pointerup", (e) => endPress(e, this.restIcon, false, openFromRest));
     this.restIcon.addEventListener("pointercancel", (e) => endPress(e, this.restIcon, true, openFromRest));
+    // Right click on the resting character: the same menu as the notification-area
+    // icon. Hovering the rest icon already wakes the compact island, so that is
+    // usually the one that gets the click.
+    const restMenu = (e: MouseEvent) => {
+      if (State.mode === "expanded") return;
+      e.preventDefault();
+      if (this.press) return;
+      void Bridge.showIslandMenu();
+    };
+    this.restIcon.addEventListener("contextmenu", restMenu);
+    this.islandEl.addEventListener("contextmenu", restMenu);
 
     // Compact island: a press opens on release, a drag moves it. Open island: the
     // header's empty space drags it (tabs, buttons and fields keep their clicks).
@@ -2100,6 +2158,7 @@ export class Island {
     this.contentEl.style.opacity = expanded && !greetingActive ? "1" : "0";
     this.contentEl.style.pointerEvents = expanded && !greetingActive ? "auto" : "none";
     this.greetingCanvas.style.display = greetingActive ? "block" : "none";
+    this.applyBare();
 
     this.header.sync();
     this.search.el.style.display = this.searchShown ? "" : "none";

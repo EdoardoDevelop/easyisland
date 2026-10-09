@@ -52,6 +52,12 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.6.5** — una **cartella trascinata sull'isola** (o il personaggio lasciato su una
+cartella di Esplora file o del desktop) mette il suo percorso nella chat; **clic
+destro sul personaggio** per il menu dell'area di notifica; il **saluto all'avvio** è
+solo il personaggio con le sue particelle, senza isola; `Ctrl+Space` apre la
+Panoramica; l'isola staccata dai bordi ha tutti gli angoli arrotondati.
+
 **0.6.4** — Goccia è il personaggio predefinito; **cronologia delle chat** (l'orologio
 in alto nella chat riapre una conversazione e la continua); l'isola aperta si
 allarga **fino ai bordi dello schermo**; **«L'isola si apre»** dove sta il
@@ -61,7 +67,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.6.4** | 9 ott 2026 | Goccia predefinita, cronologia delle chat, isola fino ai bordi dello schermo, posizione dell'isola aperta |
+| **0.6.5** | 9 ott 2026 | Cartella trascinata nella chat, menu col clic destro sul personaggio, saluto senza isola, `Ctrl+Space` sulla Panoramica, angoli arrotondati dell'isola staccata |
+| 0.6.4 | 9 ott 2026 | Goccia predefinita, cronologia delle chat, isola fino ai bordi dello schermo, posizione dell'isola aperta |
 | 0.6.3 | 9 ott 2026 | Interfaccia in inglese, `Ctrl+Space` per aprire l'isola, riepilogo settimanale degli agenti, limiti del piano Pro/Max, prezzi dei modelli |
 | 0.6.2 | 9 ott 2026 | Barra di ricerca (integrazioni, azioni, programmi), file fissati nel Vassoio, azioni ⚡ senza selezione, «Chiedi alla chat» |
 | 0.6.1 | 9 ott 2026 | Card «finito» da qualsiasi programma, cielo del Meteo sul personaggio, appunti lunghi nella card |

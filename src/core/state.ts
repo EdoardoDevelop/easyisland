@@ -725,6 +725,8 @@ class AppState {
   chatText: { label: string; text: string } | null = null;
   /** Put in the chat field once, not sent (an action with no selection: the text goes after it). */
   chatDraft: string | null = null;
+  /** Added once to the chat field, after what is there (a folder the character was dropped on). */
+  chatInsert: string | null = null;
   /** The script being confirmed / run / shown in the Run view. */
   run: ScriptRun | null = null;
   /** Latest result per widget id. */

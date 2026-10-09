@@ -383,6 +383,13 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
         drafted = true;
         updateCalc();
       }
+      if (State.chatInsert != null) {
+        const before = input.value.trimEnd();
+        input.value = `${before}${before ? " " : ""}${State.chatInsert} `;
+        State.chatInsert = null;
+        drafted = true;
+        updateCalc();
+      }
       input.placeholder = State.chatHistory.length === 0 ? t("Chiedimi qualsiasi cosa… o fai un calcolo") : t("Continua…");
 
       input.disabled = sending;

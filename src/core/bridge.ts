@@ -71,6 +71,9 @@ export const Bridge = {
 
   /** Give the window keyboard focus (chat field) and take it away again. */
   focusWindow: (focused: boolean) => call<void>("focus_window", { focused }),
+  /** The notification-area menu at the cursor (tray.rs `popup`). */
+  showIslandMenu: () => call<void>("show_island_menu"),
+  isFolder: (path: string) => call<boolean>("is_folder", { path }),
 
   reposition: () => call<void>("reposition"),
   /** The window the open island needs, logical px (island.rs `set_panel_size`). */
@@ -87,7 +90,8 @@ export const Bridge = {
 
   /** Moves the window while the character is dragged; `endDrag` saves where it was left. */
   dragIsland: (dx: number, dy: number) => call<void>("drag_island", { dx, dy }),
-  endDrag: () => call<void>("end_drag"),
+  /** The open island's offset from home; the file or folder the character was dropped on (lib.rs `end_drag`). */
+  endDrag: () => call<{ offset: [number, number] | null; path: string | null }>("end_drag"),
 
   openUrl: (url: string) => call<void>("open_url", { url }),
 

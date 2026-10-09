@@ -2,6 +2,25 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 9 ottobre 2026 — interfaccia in inglese, Ctrl+Space
+- **Lingua** (Generale → Lingua: come Windows, italiano, inglese): 1.312 testi in `src/i18n/en.json`, condiviso da isola, impostazioni e Rust (menu, card delle integrazioni, errori). La chat risponde nella lingua scelta. Il cambio vale dal riavvio, offerto con «Riavvia ora». `npm run build` controlla che ogni testo abbia l'inglese. Provata nell'anteprima con `?lang=en`.
+- **`Ctrl+Space` apre l'isola** di predefinito (schema 6: chi aveva ancora `Ctrl+Alt+Shift+M` passa a `Ctrl+Space`; una scorciatoia scelta a mano resta).
+
+### 9 ottobre 2026 — prezzi dei modelli, limiti del piano, riepilogo settimanale
+- **Modelli di opencode e OpenRouter:** «Carica modelli» dice gratuito, locale o a pagamento (dollari per milione di token), con «solo gratuiti» e il prezzo sotto il campo. opencode lo legge da `cost` di `/api/model`, OpenRouter da `pricing`.
+- **Limiti del piano (Pro / Max)** nella card Consumo, presi da Coucou: il relay diventa la `statusLine` di Claude Code (`easyisland-hook statusline`), passa all'app solo `rate_limits` ed esegue la status line di prima, salvata in `statusline-previous.json`. Avviso dall'80 %.
+- **Riepilogo settimanale** (`recap.rs`, `src/island/recap.ts`, preso da Coucou): il lunedì dalle 8 la settimana prima degli agenti; anche dal menu dell'area di notifica e da Impostazioni → Agenti. Prova: `/?scene=recap`. Manca l'immagine da condividere.
+
+### 9 ottobre 2026 — versione 0.6.2: ricerca, Vassoio, azioni senza selezione
+- **Barra di ricerca** in fondo all'isola aperta (`src/views/search.ts`, `start_apps.rs`): integrazioni, sessioni, azioni ⚡ e programmi del menu Start, anche dello Store. Si spegne in Posizione e aspetto. Provata nell'anteprima; i programmi veri solo nell'app installata.
+- **Vassoio:** la puntina fissa un file, che resta dopo il riavvio e con «Svuota» (`inbox-kept.json`).
+- **Cielo del Meteo dopo un avvio:** il primo giro dei controlli parte con l'app, spesso prima che l'isola ascolti `widget-update`, e il Meteo (ogni 15 min) restava senza cielo fino al giro dopo. Ora l'isola chiede gli ultimi risultati quando è pronta (`widget_results`, `catchUpWidgets`).
+- **Fuoco nella barra di ricerca** quando apri tu l'isola; non per gli avvisi.
+- **Azioni ⚡:** «Chiedi a Claude» ora è «Chiedi alla chat». Senza selezione o con appunti vuoti l'azione apre la chat con la domanda già scritta, invece di «Nessun testo selezionato in Browser».
+
+### 9 ottobre 2026 — fine della risposta da un altro programma
+- La card «finito» compariva solo se nell'isola era in primo piano la scheda della sessione: con un'altra scheda c'era solo il segno sulla pillola (il `Stop` arrivava, si vede nel log). Ora compare sempre, tranne quando in primo piano c'è l'app della sessione stessa (Claude, opencode, terminale, VS Code). Provato nell'anteprima (`/?scene=agenti`) con Claude Code (terminale e app Claude) e opencode, simulando il programma in primo piano. Da provare dal vivo.
+
 ### 8 ottobre 2026 — cielo del Meteo sul personaggio
 - Le «gocce che salgono» erano il sudore dello stato `ratelimit`, che il Meteo usava per la pioggia probabile. Ora il sudore cade lungo la testa.
 - Il Meteo manda il tipo di cielo (`sky_kind` in `probes.rs`). Il personaggio lo porta sopra la testa (`character/weather.ts`) sulla pillola Meteo e, con «Cielo sul personaggio: anche quando è inattivo», da inattivo. Prova: `/?scene=meteo`, provato dal vivo il 9 ottobre.
