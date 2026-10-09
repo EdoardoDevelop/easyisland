@@ -618,7 +618,7 @@ pub fn raise_over_taskbar(app: &AppHandle) {
     }
 }
 
-fn hwnd_of(win: &WebviewWindow) -> Option<HWND> {
+pub fn hwnd_of(win: &WebviewWindow) -> Option<HWND> {
     let raw = win.hwnd().ok()?.0 as isize;
     if raw == 0 {
         return None;

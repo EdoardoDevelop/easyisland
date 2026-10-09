@@ -11,7 +11,7 @@ Un servizio o programma che di solito c'è una volta sola è un'**integrazione**
   - Zammad (usa `ticket_overviews`, che funziona senza Elasticsearch): `zammad.rs`
 - Widget: `widgets.rs`, `probes.rs` (domini), `calendar.rs` (ICS). Lo scheduler gira ogni 5 s, con intervalli minimi per ogni controllo, ed è più lento a batteria.
 - Consumo di Claude Code (`integration_claude_usage`): `usage.rs`. Legge i token dalle trascrizioni in `~/.claude/projects`, solo i campi di consumo e mai il testo, una volta per `message.id`. In cima mette i limiti del piano (5 ore e settimana) arrivati dalla status line (`set_plan`, `plan-limits.json`); dall'80 % la card avvisa, e al cambio di fascia (50/80/100 %) il controllo riparte subito (`widgets::refresh`).
-- Profili automatici: `profiles.rs`. "Davanti al cliente": `presence.rs` (niente nomi né titoli sullo schermo). Scorciatoie globali: `hotkeys.rs`.
+- Profili automatici: `profiles.rs`. "Davanti al cliente": `presence.rs` (niente nomi né titoli sullo schermo). Scorciatoie globali: `hotkeys.rs`; «Apri l'isola» apre la Panoramica (`onHotkey` in `island.ts`), o la richiesta in attesa se ce n'è una.
 - «Apri» delle integrazioni: `open_integration` in `lib.rs`, solo bersagli fissi. Se non c'è nulla da aprire il pulsante non compare (`canOpen`).
 
 ## 3CX

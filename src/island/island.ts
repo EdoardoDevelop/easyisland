@@ -21,7 +21,6 @@ import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { buildSearch, type SearchHost } from "../views/search";
 import { sendToChat } from "../views/chat";
-import { tabActions } from "../views/actions";
 import type { ApprovalInfo, Notice, QuickAction } from "../core/state";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
@@ -682,6 +681,19 @@ export class Island {
     this.draftChat(prompt);
   }
 
+  /**
+   * A folder dropped on the island, or the character dropped on one: the paths
+   * are added to the chat field, after what is already written, and the
+   * conversation goes on.
+   */
+  private pathToChat(paths: string[]) {
+    Sound.play("blip");
+    State.chatInsert = paths.map((p) => (/\s/.test(p) ? `"${p}"` : p)).join(" ");
+    this.alert("prompt");
+    void Bridge.focusWindow(true);
+    window.setTimeout(() => this.views.get("prompt")?.focus?.(), 120);
+  }
+
   /** A fresh chat with `prompt` in its field, not sent: the text goes after it. */
   private draftChat(prompt: string) {
     const q = prompt.trim();
@@ -885,7 +897,9 @@ export class Island {
   async onHotkey(name: string) {
     Sound.resume();
     if (name === "open") {
-      this.setView(tabActions().length > 0 ? "actions" : "prompt");
+      // The Panoramica, as the ⌂ tab; a request waiting for an answer comes first.
+      State.summary = true;
+      this.setView(State.pendingCard() ?? "overview");
     } else if (name === "ask") {
       const text = await Bridge.clipboardText();
       // A picture copied (and no text): attach it instead.
@@ -1157,8 +1171,18 @@ export class Island {
           else this.setView(State.defaultView());
           return;
         }
-        this.beforeDrop = null;
-        this.swallow(path);
+        void Bridge.isFolder(path).then((folder) => {
+          if (!folder) {
+            this.beforeDrop = null;
+            this.swallow(path);
+            return;
+          }
+          // A folder (it cannot be dropped as a file): every dropped path goes
+          // to the chat field instead.
+          this.beforeDrop = null;
+          this.engine.animateMorph(0);
+          this.pathToChat(e.paths!);
+        });
         break;
       }
     }
@@ -1752,8 +1776,10 @@ export class Island {
       if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
       if (p.moved) {
         const expanded = p.expanded;
-        void Bridge.endDrag().then((off) => {
+        void Bridge.endDrag().then((end) => {
+          const off = end?.offset;
           if (expanded && off) this.openOffset = { x: off[0], y: off[1] };
+          if (end?.path) this.pathToChat([end.path]);
           this.carried = false;
           this.applyGeometry();
         });

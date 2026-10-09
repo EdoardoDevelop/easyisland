@@ -13,6 +13,7 @@ mod clipimage;
 mod context;
 mod drop;
 mod files;
+mod folder_drop;
 mod habits;
 mod hooks;
 mod hotkeys;
@@ -364,6 +365,12 @@ fn focus_window(app: AppHandle, focused: bool) {
     }
 }
 
+/// A folder dropped on the island goes to the chat, not into the drop sequence.
+#[tauri::command]
+fn is_folder(path: String) -> bool {
+    std::path::Path::new(&path).is_dir()
+}
+
 /// Right click on the resting character: the notification-area menu at the cursor.
 /// Sync on purpose: it runs on the main thread, where the menu loop blocks until it closes.
 #[tauri::command]
@@ -424,14 +431,23 @@ fn drag_island(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) {
     let _ = win.set_position(tauri::PhysicalPosition::new((cx - gx).round() as i32, (cy - gy).round() as i32));
 }
 
+/// How a drag ended, for the front end.
+#[derive(Serialize, Default)]
+struct DragEnd {
+    /// The open island: its offset from home (logical px, 0 = at that edge).
+    offset: Option<(f64, f64)>,
+    /// The character was dropped on this file or folder (folder_drop.rs).
+    path: Option<String>,
+}
+
 /// The drag is over: remember where the character was left, in the active profile.
-/// The open island returns its offset from home (logical px, 0 = at that edge).
+/// Dropped on a folder, it goes back home instead and the folder goes to the chat.
 #[tauri::command]
-fn end_drag(app: AppHandle, shared: State<Shared>) -> Option<(f64, f64)> {
+fn end_drag(app: AppHandle, shared: State<Shared>) -> DragEnd {
     shared.gate.dragging.store(false, Ordering::Relaxed);
     *shared.gate.drag_grab.lock().unwrap() = None;
-    let Some(win) = island::window(&app) else { return None };
-    let (Ok(pos), Ok(size)) = (win.outer_position(), win.outer_size()) else { return None };
+    let Some(win) = island::window(&app) else { return DragEnd::default() };
+    let (Ok(pos), Ok(size)) = (win.outer_position(), win.outer_size()) else { return DragEnd::default() };
     let open = shared.gate.expanded.load(Ordering::Relaxed) && !shared.gate.collapsed.load(Ordering::Relaxed);
     if open {
         // The open island moved: it stays there while it is open, nothing is
@@ -444,7 +460,16 @@ fn end_drag(app: AppHandle, shared: State<Shared>) -> Option<(f64, f64)> {
             // Snapped to an edge or pulled back on screen.
             island::apply_geometry(&app, &shared.gate, &s, false);
         }
-        return offset;
+        return DragEnd { offset, path: None };
+    }
+    if let Some(path) = island::hwnd_of(&win)
+        .zip(island::cursor_physical())
+        .and_then(|(hwnd, (x, y))| folder_drop::path_at(hwnd, x as i32, y as i32))
+    {
+        log::line(format!("island dropped on {}", path.display()));
+        let s = shared.settings.lock().unwrap().clone();
+        island::apply_geometry(&app, &shared.gate, &s, shared.gate.collapsed.load(Ordering::Relaxed));
+        return DragEnd { offset: None, path: Some(path.to_string_lossy().into_owned()) };
     }
     let settings = {
         let mut s = shared.settings.lock().unwrap();
@@ -455,7 +480,7 @@ fn end_drag(app: AppHandle, shared: State<Shared>) -> Option<(f64, f64)> {
             log::line(format!("island moved to screen {screen}"));
             s.screen = screen;
         }
-        let Some((work, scale)) = island::work_area(&app, &s) else { return None };
+        let Some((work, scale)) = island::work_area(&app, &s) else { return DragEnd::default() };
         let (bw, bh) = *shared.gate.collapsed_size.lock().unwrap();
         let box_size = ((bw * scale).round() as u32, (bh * scale).round() as u32);
         let origin = island::box_in_window(
@@ -481,7 +506,7 @@ fn end_drag(app: AppHandle, shared: State<Shared>) -> Option<(f64, f64)> {
     island::apply_geometry(&app, &shared.gate, &settings, collapsed);
     crate::threecx::settings_saved(&settings);
     let _ = app.emit("settings-changed", settings);
-    None
+    DragEnd::default()
 }
 
 /// The island opened or closed. Closing takes the window back to the character's
@@ -1206,6 +1231,7 @@ pub fn run() {
             set_island_rect,
             focus_window,
             show_island_menu,
+            is_folder,
             reposition,
             set_panel_size,
             panel_limits,

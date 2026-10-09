@@ -16,3 +16,5 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
 - [ ] **`Ctrl+Space`:** apre l'isola; controllare che non serva in VS Code (suggerimenti), Excel (seleziona la colonna) o per cambiare lingua della tastiera.
 - [ ] **Prezzi dei modelli:** «Carica modelli» con opencode e con OpenRouter, «solo gratuiti».
 - [ ] **Cronologia delle chat:** una conversazione per motore (abbonamento, API, opencode, uno compatibile OpenAI) riaperta dall'orologio continua con il contesto di prima; dopo un riavvio dell'app; «Cancella la cronologia» e l'interruttore spento.
+- [ ] **Personaggio lasciato su una cartella:** su una riga di Esplora file (anche con più schede), sullo sfondo, su un'icona del desktop; il percorso compare nel campo della chat dopo il testo già scritto e il personaggio torna al suo posto. Lasciato su un'altra app o sul desktop vuoto si sposta come prima.
+- [ ] **Cartella rilasciata sull'isola:** una o più cartelle da Esplora file; il percorso compare nel campo della chat. Un file continua a entrare nella sequenza del file.
