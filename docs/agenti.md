@@ -33,5 +33,6 @@
 ## Nell'isola
 - Le sessioni diventano `AgentTask` (`src/island/hooks.ts`, `taskFor`). Ogni agente ha la sua chiave `agent:<id>`.
 - **Scheda Agenti:** gli agenti non sono pillole, ma stanno nella scheda Agenti e nella Panoramica. `AgentTask.lastActive` viene aggiornato a ogni evento. `State.sessionTasks` / `latestSessionTask` danno l'agente sentito per ultimo, che è quello aperto dal clic. Con più agenti compare una barra di pulsanti (`.agent-switch`, `.agent-chip`, con un puntino verde se l'agente lavora; Claude Code per primo). Un agente senza sessione mostra «In attesa» (`agentIdleCard`). L'aspetto della scheda si regola in Impostazioni → Agenti → «Scheda nell'isola».
+- **Fine della risposta (`Stop`):** se in primo piano c'è l'app della sessione (`HOST_APPS` in `hooks.ts`: Claude, VS Code, terminale, opencode) niente suono né card. In ogni altro programma l'isola si apre sulla sessione con la card «finito», qualunque scheda stesse mostrando. Sopra un'app a schermo intero o con «Avvisi: solo permessi» resta solo il segno sulla pillola.
 - **«Apri»:** `apps::open_session` per `SessionHost`. Per opencode prova Desktop, poi il terminale, poi avvia Desktop (`%LOCALAPPDATA%\Programs\@opencodedesktop\OpenCode.exe`), poi la cartella. Mai VS Code.
 - Gli hook di Claude Code vanno reinstallati per ricevere `PreCompact`. Le Impostazioni lo segnalano.

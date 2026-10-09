@@ -6,6 +6,7 @@ import "../src/character/roster";
 import { setCharacter } from "../src/character/character";
 import { Greeting } from "../src/character/greeting";
 import type { BotEmoteName, BotStateName } from "../src/core/layout";
+import type { Sky } from "../src/character/weather";
 
 const params = new URLSearchParams(location.search);
 setCharacter(params.get("character") ?? undefined);
@@ -53,6 +54,9 @@ for (const em of EMOTES) {
     loop();
   });
 }
+const SKIES: Sky[] = ["sun", "moon", "sun-cloud", "moon-cloud", "cloud", "fog", "drizzle", "rain", "snow", "storm"];
+for (const sky of SKIES) add("skies", sky, 120, (e) => { e.setState("idle", true); e.sky = sky; });
+add("skies", "rain + working", 120, (e) => { e.setState("working", true); e.sky = "rain"; });
 for (const [c, s] of [["#3E86E0", "working"], ["#EFAE5A", "approval"], ["#8C73F2", "finished"], ["#E86A6A", "error"]] as const) {
   add("minis", `mini ${s}`, 46, (e) => { e.isMini = true; e.bodyColor = hexToRGB(c); e.setState(s, true); });
 }

@@ -6,7 +6,7 @@ Un servizio o programma che di solito c'è una volta sola è un'**integrazione**
 ## Dove stanno
 - Integrazioni con API (Stripe, n8n, GitHub, Vercel, Resend, Notion, Cal.com): `src-tauri/src/integrations.rs`.
 - Integrazioni che sono controlli (`settings::PROBE_INTEGRATIONS`) girano nello scheduler di `src-tauri/src/widgets.rs` (`all_widgets`), con le opzioni in `integrationConfig`:
-  - stato del PC, sicurezza, rete e meteo: `probes.rs`
+  - stato del PC, sicurezza, rete e meteo: `probes.rs`. Il meteo manda anche `sky` (`sky_kind`: codice WMO e `is_day` → il cielo che il personaggio mostra). Con la pioggia probabile resta l'avviso (badge e suono), ma la pillola non usa lo stato `ratelimit` (`integrations.ts`).
   - Outlook classico (COM via PowerShell; il nuovo Outlook `olk.exe` non è supportato): `outlook.rs`
   - Zammad (usa `ticket_overviews`, che funziona senza Elasticsearch): `zammad.rs`
 - Widget: `widgets.rs`, `probes.rs` (domini), `calendar.rs` (ICS). Lo scheduler gira ogni 5 s, con intervalli minimi per ogni controllo, ed è più lento a batteria.

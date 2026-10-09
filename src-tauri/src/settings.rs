@@ -40,6 +40,9 @@ pub struct IntegrationConfig {
     pub outlook_warn: i64,
     #[serde(default)]
     pub weather_city: String,
+    /// Meteo: the sky stays on the idle character, not only on the Meteo pill.
+    #[serde(default)]
+    pub weather_on_character: bool,
     /// 3CX: "user" (the extension's own login) or "api" (an API client).
     #[serde(default = "user_mode")]
     pub threecx_mode: String,
@@ -57,6 +60,7 @@ impl Default for IntegrationConfig {
             system_warn: 10,
             outlook_warn: 10,
             weather_city: String::new(),
+            weather_on_character: false,
             threecx_mode: user_mode(),
             threecx_extension: String::new(),
             threecx_device: String::new(),

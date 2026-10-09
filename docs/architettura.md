@@ -24,6 +24,11 @@
 - **Nuovo personaggio soft:** un file che esporta un `SoftCharacter` e una riga in `roster.ts`. Si prova con `dev/character-preview.html?character=<id>` e `dev/upload-preview.html?character=<id>`.
 - EasyTech prende il colore del tema e quello dell'integrazione in primo piano (`wearsIntegrationColor`).
 - Sulla Panoramica (⌂, `State.characterTask` = null) il personaggio ha il colore del tema e mostra lo stato più urgente fra tutti (`URGENCY` in `state.ts`: permesso > domanda > errore > limite > lavoro > … > riposo).
+- **Cielo del Meteo:** `src/character/weather.ts` disegna sole, luna, nuvole, nebbia, pioggia, neve o temporale sopra la testa (`BotEngine.sky`, mai sulle mini). Quale cielo e quando lo decide `State.characterSky`:
+  - sempre sulla pillola Meteo;
+  - sul personaggio inattivo (`idle`) se c'è `weatherOnCharacter`;
+  - mai sull'icona a riposo, e nemmeno con una lettura più vecchia di 3 ore.
+  Si muovono solo pioggia e neve, che tengono vivo il ciclo come il sudore: con l'isola ritirata il ciclo è fermo comunque. Le gocce di sudore (`ratelimit`) cadono lungo la testa, le altre particelle salgono.
 - «Ciao» al passaggio del mouse: `BotEngine.hello()` e `hoverHello()` in `island.ts`, al massimo una volta ogni 1,5 s.
 
 ## Isola, layout e posizione
@@ -37,7 +42,7 @@
 ## Viste e intestazione
 - La Panoramica (⌂) riassume tutte le integrazioni (`State.summary`, `renderSummary` in `views.ts`). Le righe si riordinano trascinandole, nello stesso ordine delle pillole (`pillOrder`). L'ordine si blocca con `lockOrder`.
 - Le integrazioni possono stare in pillola o in scheda nell'intestazione (`integrationTabs`, `integrationTabIcons`; `@logo` = solo il logo, `@name` = il nome). Il pulsante 📌 è `State.keepOpen`.
-- Loghi dei marchi: SVG in `brand/`, una riga nella mappa di `scripts/gen-brands.mjs`, poi `node scripts/gen-brands.mjs` genera `src/views/brands.ts`. Si usano con `brandOrDot`.
+- Loghi dei marchi: SVG in `brand/`, una riga nella mappa di `scripts/gen-brands.mjs`, poi `node scripts/gen-brands.mjs` genera `src/views/brands.ts`. Si usano con `brandOrDot` e `markIcon` (`dom.ts`). Le integrazioni in `ICON_MARKS` (Meteo, Appunti, Musica, Consumo) non hanno un logo e mostrano al suo posto l'icona predefinita della scheda (`TAB_ICONS`). Le altre senza logo mostrano il pallino.
 - Markdown delle risposte: `src/core/markdown.ts` (DOM, mai `innerHTML`).
 
 ## Impostazioni

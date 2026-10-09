@@ -27,13 +27,14 @@ I dettagli che `HANDOFF.md` riassume in una riga. Le idee più vecchie e l'anali
 5. **GitHub:** PR con CI e revisioni, avvisi CI rossa/verde, griglia dei contributi. Da noi «GitHub rinnovato» era escluso.
 
 ## Altro
-- **Scheda esatta di Windows Terminal** per «Apri»: il relay legge il titolo della console e l'app seleziona la scheda con UI Automation. Da sperimentare con una sessione vera.
+- **Scheda esatta di Windows Terminal** per «Apri»: il relay legge il titolo della console e l'app seleziona la scheda con UI Automation. Da sperimentare con una sessione vera. Tolta dal Da fare il 9 ottobre: per ora non serve.
+- **Azioni nel menu contestuale** (clic destro su file o testo in Windows): da valutare. Per i file serve una voce nel registro di Windows (`HKCU\Software\Classes\*\shell`) che passa il percorso all'app (scrittura solo dopo la conferma di Edoardo). Per il testo selezionato Windows non ha un menu comune: resta la scorciatoia.
 - **Funzioni chieste da Edoardo:**
   - ricerca unica (integrazioni, azioni, programmi installati)
   - interfaccia ITA/ENG
   - cronologia delle sessioni di chat
   - personaggio trascinato su una cartella → ne aggiunge il percorso alla chat
-- **Da decidere prima di farle**, perché vanno contro `decisioni.md`: file del Vassoio «permanenti» solo se deciso dal'utente tramite un flag; nuovi personaggi (polpo, rana, granchio, geco) e personaggio che cambia col meteo.
+- **Da decidere prima di farle**, perché vanno contro `decisioni.md`: file del Vassoio «permanenti» solo se deciso dal'utente tramite un flag; nuovi personaggi (polpo, rana, granchio, geco). Le prove dell'8 ottobre sono venute male: rimandati. Rimandate anche le pose di Goccia della tavola del 3 ottobre (saluto con la mano, salto, caduta, onda): oggi usa quelle comuni.
 - **opencode, ancora aperti:**
   - nella **chat** lo strumento `question` è negato (`opencode.rs`): la card c'è già per l'agente (`opencode_agent.rs`, form), si può riusare;
   - nell'elenco dei modelli manca l'indicazione gratuito/a pagamento;

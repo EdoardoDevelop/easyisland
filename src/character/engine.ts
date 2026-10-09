@@ -9,6 +9,7 @@ import type { BotEmoteName, BotStateName } from "../core/layout";
 import {
   Jelly, applyJelly, character, handStops, rgba as paletteRGBA, type Palette, type SoftCharacter,
 } from "./character";
+import { drawSky, skyMoves, type Sky } from "./weather";
 import { CUBE_EYE_X, CUBE_EYE_Y, CUBE_TIP, CUBE_TURN, cubeEyeRoom, cubeHandStops, drawCube, onRightFace } from "./cube";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -177,6 +178,9 @@ export class BotEngine {
 
   // Targets
   tgYaw = 0; tgPitch = 0; tgTilt = 0; tgSy = 1; tgSx = 1; tgEs = 1;
+
+  /** The Meteo sky over the head (character/weather.ts); null = none. Never on mini bots. */
+  sky: Sky | null = null;
 
   /** Extra canvas height above the body so hearts can fly out without clipping. */
   particleOverhang = 0;
@@ -461,6 +465,15 @@ export class BotEngine {
   emit(type: Particle["type"], count: number) {
     for (let i = 0; i < count; i++) {
       const isZ = type === "z";
+      if (type === "sweat") {
+        // A drop on the brow that slides down the side of the head (gravity in drawParticles).
+        const side = Math.random() < 0.5 ? -1 : 1;
+        this.particles.push({
+          type, x: side * (0.42 + Math.random() * 0.12), y: -0.5, vx: side * 0.04, vy: 0.12,
+          age: -i * 0.14, life: 0.9 + Math.random() * 0.25, rot: 0, size: 0.13 + Math.random() * 0.05,
+        });
+        continue;
+      }
       this.particles.push({
         type,
         x: (Math.random() - 0.5) * 0.9 + (isZ ? 0.55 : 0),
@@ -503,6 +516,7 @@ export class BotEngine {
       this.particles.length > 0 ||
       this.jelly.busy ||
       this.cfg.bounces || this.cfg.scans || this.cfg.breathes || this.cfg.zz || this.cfg.sweat ||
+      skyMoves(this.sky) ||
       this.isMini ||
       Math.abs(this.tgTilt - this.tilt) > 0.002 ||
       Math.abs(this.tgSy - this.sy) > 0.002 ||
@@ -772,6 +786,7 @@ export class BotEngine {
     if (this.badge && this.badgeS > 0.01 && this.morph < 0.25) {
       this.drawBadge(x, this.badge, R, cx, cy);
     }
+    if (this.sky) drawSky(x, this.sky, R, cx, cy - ry * this.sy, now());
     this.drawParticles(x, R, cx, cy);
   }
 
@@ -865,6 +880,7 @@ export class BotEngine {
     if (this.badge && this.badgeS > 0.01 && this.morph < 0.25) {
       this.drawBadge(x, this.badge, R, cx, cy);
     }
+    if (this.sky) drawSky(x, this.sky, R, cx, cy - s * this.sy, now());
     this.drawParticles(x, R, cx, cy);
   }
 
@@ -1246,7 +1262,8 @@ export class BotEngine {
       const k = p.age / p.life;
       const a = k < 0.2 ? k / 0.2 : 1 - (k - 0.2) / 0.8;
       const px = cx + (p.x + p.vx * p.age) * R * 1.3;
-      const py = cy + (p.y + p.vy * p.age) * R * 1.3;
+      const fall = p.type === "sweat" ? 0.6 * p.age * p.age : 0;
+      const py = cy + (p.y + p.vy * p.age + fall) * R * 1.3;
       const sz = R * p.size * (1 + k * 0.4);
 
       x.save();

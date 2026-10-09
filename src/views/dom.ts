@@ -77,7 +77,30 @@ export function brandIcon(id: string, size = 14): SVGSVGElement | null {
   return document.importNode(el, true);
 }
 
-/** The brand logo, or the coloured dot for integrations without one. */
+/** Suggested icon for each integration when its tab shows an icon (Impostazioni → Integrazioni). */
+export const TAB_ICONS: Record<string, string> = {
+  integration_stripe: "💳", integration_github: "🐙", integration_vercel: "▲", integration_n8n: "🔁",
+  integration_resend: "✉️", integration_notion: "📝", integration_calcom: "📅", integration_outlook: "📧",
+  integration_zammad: "🎫", integration_3cx: "📞", integration_system: "💻", integration_security: "🛡️", integration_network: "🌐",
+  integration_weather: "⛅", integration_clipboard: "📋", integration_media: "🎵", integration_claude_usage: "📊",
+};
+
+/** Integrations with no brand logo that show their tab icon in its place. */
+const ICON_MARKS = new Set(["integration_weather", "integration_clipboard", "integration_media", "integration_claude_usage"]);
+
+/** True when `markIcon` has something for this integration. */
+export function hasMark(id: string): boolean {
+  return id in BRAND_SVG || ICON_MARKS.has(id);
+}
+
+/** The brand logo, or the tab icon for the integrations in ICON_MARKS; null otherwise. */
+export function markIcon(id: string, size = 14): Element | null {
+  const logo = brandIcon(id, size);
+  if (logo || !ICON_MARKS.has(id)) return logo;
+  return h("span", { class: "brand mark", text: TAB_ICONS[id], style: `font-size:${Math.round(size * 0.85)}px`, "aria-hidden": "true" });
+}
+
+/** The brand logo (or tab icon), or the coloured dot for integrations without one. */
 export function brandOrDot(id: string, color: string, size = 8): Element {
-  return brandIcon(id, Math.round(size * 1.75)) ?? dot(color, size);
+  return markIcon(id, Math.round(size * 1.75)) ?? dot(color, size);
 }

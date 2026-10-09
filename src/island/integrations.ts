@@ -57,6 +57,8 @@ function handleWidget(island: Island, r: WidgetStatus) {
   const task = State.tasks.find((t) => t.id === `widget:${r.id}` || t.id === r.id);
   if (task) {
     task.state = r.level === "ok" ? "idle" : r.level === "warn" ? "ratelimit" : "error";
+    // Meteo wears its sky (rain on the way shows as the clouds and the badge), not the tired, sweating warn.
+    if (r.sky && r.level === "warn") task.state = "idle";
     task.steps = [r.summary];
     task.stepIndex = 0;
     const wasBad = prev ? prev.level !== "ok" : false;

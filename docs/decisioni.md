@@ -14,6 +14,6 @@ Da controllare prima di proporre o fare una funzione. Una richiesta che va contr
   - più sub-agenti in parallelo
   - consumo a 30 giorni
 - **Saltato:** uso del piano Claude (limiti di 5 ore e settimanali). L'app desktop di Claude non esegue la `statusLine` e Anthropic non pubblica i limiti in token. Al suo posto c'è l'integrazione Consumo Claude. Nelle sessioni nel terminale la `statusLine` invece funziona: vedi `idee.md`.
-- **Rimandato:** il personaggio (guardaroba, personaggio sul desktop, balla con la musica, nuovi personaggi, personaggio che cambia col meteo). Le animazioni continue vanno contro la regola sulla CPU.
+- **Rimandato:** il personaggio (guardaroba, personaggio sul desktop, balla con la musica, nuovi personaggi). Le animazioni continue vanno contro la regola sulla CPU. Il cielo del Meteo sopra la testa è stato fatto l'8 ottobre 2026: si muove solo con pioggia o neve e mai a isola ritirata.
 - **Identità:** nome EasyIsland, identifier `it.edoardo.easyisland` (da non cambiare più). Degli asset di Coucou non resta nulla, solo il codice MIT. EasyTech è ispirato a un logo aziendale: va verificato prima di distribuire.
 - **Non supportati:** il nuovo Outlook (`olk.exe`, niente COM); Teams via API locale (le riunioni si riconoscono da microfono e webcam); i connettori di claude.ai in `claude -p`; la verifica in due passaggi di 3CX.

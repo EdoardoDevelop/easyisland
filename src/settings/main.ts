@@ -9,7 +9,7 @@ import { Bridge, onEvent, type HookStatus } from "../core/bridge";
 import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type Settings, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
-import { h, clear } from "../views/dom";
+import { h, clear, TAB_ICONS } from "../views/dom";
 import { BRAND_SVG } from "../views/brands";
 import { ISLAND_MAX_W, ISLAND_MIN_W, MAX_ISLAND_H } from "../core/layout";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
@@ -713,8 +713,12 @@ const INTEGRATIONS: IntegrationDef[] = [
     options: [{
       label: "Città", type: "text", placeholder: "es. Milano, Bologna, Lugano",
       get: (c) => c.weatherCity, set: (c, v) => { c.weatherCity = v.trim(); },
+    }, {
+      label: "Cielo sul personaggio", type: "select", placeholder: "",
+      choices: [["pill", "Solo sulla pillola Meteo"], ["idle", "Anche quando è inattivo"]],
+      get: (c) => (c.weatherOnCharacter ? "idle" : "pill"), set: (c, v) => { c.weatherOnCharacter = v === "idle"; },
     }],
-    hint: "Da Open-Meteo, gratuito e senza chiave. Avvisa quando è probabile la pioggia nelle prossime ore." },
+    hint: "Da Open-Meteo, gratuito e senza chiave. Il personaggio mostra il cielo (sole, luna, nuvole, nebbia, pioggia, neve, temporale) sulla pillola Meteo e, se scegli «Anche quando è inattivo», ogni volta che non c'è altro da fare. Avvisa quando è probabile la pioggia nelle prossime ore." },
   { id: "integration_claude_usage", name: "Consumo Claude", color: "#D97757", fields: [],
     hint: "Quanti token hanno usato le sessioni di Claude Code (terminale, VS Code e app desktop di Claude) nelle ultime 5 ore, oggi e negli ultimi 7 giorni, per progetto e per modello. Letti dalle trascrizioni che Claude Code salva già in %USERPROFILE%\\.claude\\projects: solo i conteggi, mai il testo, e niente esce dal PC. Anthropic non pubblica i limiti di Pro e Max in token, quindi non ci sono percentuali: il confronto è con la tua media." },
   { id: "integration_clipboard", name: "Appunti", color: "#A78BFA", fields: [],
@@ -722,14 +726,6 @@ const INTEGRATIONS: IntegrationDef[] = [
   { id: "integration_media", name: "Musica", color: "#1ED760", fields: [],
     hint: "Cosa sta suonando (Spotify, una scheda del browser, Lettore multimediale… tutto ciò che compare nei controlli multimediali di Windows), con copertina, play/pausa, brano precedente e successivo. Tutto in locale, nessun account." },
 ];
-
-/** Suggested icon for each integration when its tab shows an icon. */
-const TAB_ICONS: Record<string, string> = {
-  integration_stripe: "💳", integration_github: "🐙", integration_vercel: "▲", integration_n8n: "🔁",
-  integration_resend: "✉️", integration_notion: "📝", integration_calcom: "📅", integration_outlook: "📧",
-  integration_zammad: "🎫", integration_3cx: "📞", integration_system: "💻", integration_security: "🛡️", integration_network: "🌐",
-  integration_weather: "⛅", integration_clipboard: "📋", integration_media: "🎵", integration_claude_usage: "📊",
-};
 
 function integrationsSection(present: Record<string, boolean>): HTMLElement {
   const note = h("div", { class: "hint" });
