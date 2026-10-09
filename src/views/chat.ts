@@ -3,18 +3,24 @@
 
 import { h, svg, clear } from "./dom";
 import { ICONS } from "./icons";
-import { Bridge, onEvent, type ChatContext } from "../core/bridge";
+import { Bridge, onEvent, type ChatContext, type ChatSummary } from "../core/bridge";
 import { Sound } from "../core/sound";
 import { CHAT_ENGINES, State, engineLabel, type ChatEngine, type ChatMessage } from "../core/state";
 import { calculate, formatResult, plainResult } from "../core/calc";
 import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
-import { locale, t } from "../core/i18n";
+import { locale, t, tn } from "../core/i18n";
 
 let nextId = 1;
 
 /** Set by the chat view: sends a message as if typed (used by quick actions). */
 let externalSend: ((query: string) => void) | null = null;
+
+/** The browser preview has no backend: a scene fills the history list here (dev/scenes.ts). */
+let historyDemo: ChatSummary[] = [];
+export function setHistoryDemo(list: ChatSummary[]) {
+  historyDemo = list;
+}
 
 /** Starts a question from outside the chat (a quick action, a shortcut). */
 export function sendToChat(query: string) {
@@ -57,7 +63,11 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
   const engineBtn = h("button", { class: "engine-pick", title: t("Cambia motore della chat") }) as HTMLButtonElement;
   const engineMenu = h("div", { class: "engine-menu" });
   engineMenu.style.display = "none";
-  const head = h("div", { class: "chat-head" }, chipRow, engineBtn, engineMenu);
+  // The conversations of before (chat_log.rs): a click reopens one.
+  const historyBtn = h("button", { class: "history-btn", title: t("Cronologia delle chat") }, svg(ICONS.history, 13, { stroke: 2 })) as HTMLButtonElement;
+  const historyMenu = h("div", { class: "history-menu" });
+  historyMenu.style.display = "none";
+  const head = h("div", { class: "chat-head" }, chipRow, engineBtn, historyBtn, engineMenu);
   const log = h("div", { class: "chat-log" });
   // A reply arriving (OpenAI-compatible engines stream it, openai.rs).
   let streamEl: HTMLElement | null = null;
@@ -102,7 +112,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
   const el = h(
     "div",
     { class: "view" },
-    h("div", { class: "card wash chat-card" }, h("div", { class: "chat-body" }, head, log, calcRow, bar)),
+    h("div", { class: "card wash chat-card" }, h("div", { class: "chat-body" }, head, historyMenu, log, calcRow, bar)),
   );
   (el.querySelector(".card") as HTMLElement).style.setProperty("--wash", "rgba(99,102,241,0.5)");
 
@@ -118,6 +128,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       updateCalc();
     }
     sending = true;
+    if (historyMenu.style.display !== "none") showHistory(false);
     Sound.play("send");
 
     State.chatHistory.push({ id: nextId++, role: "user", content: query });
@@ -161,6 +172,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
   /** Forgets the conversation and whatever it was about (file, copied text). */
   function startOver() {
     if (sending) return;
+    if (historyMenu.style.display !== "none") showHistory(false);
     State.chatHistory = [];
     State.droppedFile = null;
     State.chatText = null;
@@ -224,7 +236,84 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     State.notify();
   }
 
-  engineBtn.addEventListener("click", () => void toggleEngineMenu());
+  /** "14:30" today, "8 ott" this year, "8 ott 2025" before. */
+  function when(ms: number): string {
+    const d = new Date(ms);
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleDateString(locale(), { day: "numeric", month: "short", ...(d.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }) });
+  }
+
+  /** The list takes the conversation's place in the card while it is open. */
+  function showHistory(open: boolean) {
+    historyMenu.style.display = open ? "" : "none";
+    log.style.display = open ? "none" : "";
+    historyBtn.classList.toggle("on", open);
+    State.notify();
+    onHeightChange();
+  }
+
+  async function toggleHistory() {
+    engineMenu.style.display = "none";
+    if (historyMenu.style.display !== "none") {
+      showHistory(false);
+      return;
+    }
+    const list = (await Bridge.chatHistoryList()) ?? historyDemo;
+    clear(historyMenu);
+    if (!list.length) {
+      historyMenu.append(h("div", { class: "engine-note", text: State.settings.chatHistory === false
+        ? t("La cronologia è spenta: Impostazioni → Chat.")
+        : t("Ancora nessuna conversazione. Restano qui, su questo PC.") }));
+    }
+    for (const c of list) {
+      const engine = CHAT_ENGINES.find((e) => e.id === c.engine)?.name ?? c.engine;
+      const del = h("button", { class: "history-del", title: t("Elimina"), text: "✕" });
+      del.addEventListener("click", (e) => {
+        e.stopPropagation();
+        void Bridge.chatHistoryDelete(c.id);
+        historyDemo = historyDemo.filter((x) => x.id !== c.id);
+        row.remove();
+        onHeightChange();
+      });
+      const row = h("div", { class: "history-item", title: c.title, onclick: () => void reopen(c.id) },
+        h("div", { class: "history-text" },
+          h("span", { class: "history-title", text: c.title }),
+          h("span", { class: "history-meta", text: `${when(c.updated)} · ${engine} · ${tn("{n} domanda", "{n} domande", c.turns)}` })),
+        del);
+      historyMenu.append(row);
+    }
+    showHistory(true);
+  }
+
+  /** The conversation comes back in place of the current one, on its engine. */
+  async function reopen(id: string) {
+    if (sending) return;
+    try {
+      const c = await Bridge.chatHistoryOpen(id);
+      State.chatHistory = c.lines.map((l) => ({ id: nextId++, role: l.role, content: l.content }));
+      State.droppedFile = null;
+      State.chatText = null;
+      State.promptContext = null;
+      State.chatEngineOverride = c.engine === State.settings.chatEngine ? null : (c.engine as ChatEngine);
+      renderedCount = -1;
+      Sound.play("blip");
+      showHistory(false);
+      State.notify();
+      input.focus();
+    } catch (err) {
+      showHistory(false);
+      State.noteMessage = String(err).replace(/^Error:\s*/, "");
+      State.view = "note";
+      State.notify();
+    }
+  }
+
+  engineBtn.addEventListener("click", () => {
+    if (historyMenu.style.display !== "none") showHistory(false);
+    void toggleEngineMenu();
+  });
+  historyBtn.addEventListener("click", () => void toggleHistory());
   // Drawn in the island (a native <select> menu would open behind it); a click elsewhere closes it.
   document.addEventListener("pointerdown", (e) => {
     if (engineMenu.style.display !== "none" && !head.contains(e.target as Node)) engineMenu.style.display = "none";
@@ -300,6 +389,11 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       // Only when there is something to forget.
       fresh.style.display = State.chatHistory.length > 0 || file || text ? "" : "none";
       (fresh as HTMLButtonElement).disabled = sending;
+    },
+    // The open history list makes the island as tall as it needs (up to its maximum).
+    fitHeight() {
+      if (historyMenu.style.display === "none") return 0;
+      return 26 + head.offsetHeight + 12 + Math.min(historyMenu.scrollHeight, 380) + bar.offsetHeight + 8;
     },
     focus() {
       input.focus();

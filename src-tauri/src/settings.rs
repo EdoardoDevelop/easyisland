@@ -286,6 +286,9 @@ pub struct Settings {
     /// shown on Monday.
     #[serde(default = "default_true")]
     pub weekly_recap: bool,
+    /// The chat history (chat_log.rs): conversations kept on this PC to reopen.
+    #[serde(default = "default_true")]
+    pub chat_history: bool,
     /// "primary" = the main display, "cursor" = whichever display the mouse is on.
     pub screen: String,
     pub autostart: bool,
@@ -546,6 +549,7 @@ impl Default for Settings {
             lock_order: false,
             search_bar: true,
             weekly_recap: true,
+            chat_history: true,
             language: String::new(),
             screen: "primary".into(),
             autostart: false,

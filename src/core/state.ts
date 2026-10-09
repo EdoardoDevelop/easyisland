@@ -287,6 +287,8 @@ export interface Settings {
   language: string;
   /** The weekly recap of the coding agents (recap.rs, src/island/recap.ts). */
   weeklyRecap: boolean;
+  /** The chat history (chat_log.rs), on this PC. */
+  chatHistory: boolean;
   /** "primary", "cursor", or "monitor:<name>" (the display the character was dragged to). */
   screen: string;
   autostart: boolean;
@@ -599,6 +601,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lockOrder: false,
   searchBar: true,
   weeklyRecap: true,
+  chatHistory: true,
   language: "",
   screen: "primary",
   autostart: false,

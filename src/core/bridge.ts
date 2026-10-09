@@ -136,6 +136,11 @@ export const Bridge = {
   /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
   chatModels: (engine: string, url: string | null) => callOrThrow<ModelOption[]>("chat_models", { engine, url }),
   chatReset: () => call<void>("chat_reset"),
+  /** The chat history (chat_log.rs): list, reopen in place of the current conversation, delete. */
+  chatHistoryList: () => call<ChatSummary[]>("chat_history_list"),
+  chatHistoryOpen: (id: string) => callOrThrow<{ engine: string; lines: { role: "user" | "assistant"; content: string }[] }>("chat_history_open", { id }),
+  chatHistoryDelete: (id: string) => call<void>("chat_history_delete", { id }),
+  chatHistoryClear: () => call<void>("chat_history_clear"),
   /** Quick actions. */
   actionOpenApp: (target: string, args: string) => callOrThrow<void>("action_open_app", { target, args }),
   actionRunScript: (runId: string, shell: string, script: string) =>
@@ -260,6 +265,15 @@ export interface IntegrationUpdate {
   data: Record<string, unknown>;
   error: string | null;
   event: { success: boolean; label: string; detail: string | null } | null;
+}
+
+/** One conversation in the chat history (chat_log.rs `Summary`); `updated` in ms. */
+export interface ChatSummary {
+  id: string;
+  title: string;
+  engine: string;
+  updated: number;
+  turns: number;
 }
 
 export type ChatContext =

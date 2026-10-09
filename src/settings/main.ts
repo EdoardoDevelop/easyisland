@@ -485,7 +485,27 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
     cliBlock,
     apiBlock,
     other.el,
+    historyRow(),
   );
+}
+
+/** Impostazioni → Chat → Cronologia: on, off (which empties it), or emptied now. */
+function historyRow(): HTMLElement {
+  const clearBtn = h("button", { text: t("Cancella la cronologia") }) as HTMLButtonElement;
+  clearBtn.addEventListener("click", async () => {
+    await Bridge.chatHistoryClear();
+    clearBtn.textContent = t("Cancellata ✓");
+    window.setTimeout(() => { clearBtn.textContent = t("Cancella la cronologia"); }, 1800);
+  });
+  return h("div", { class: "row" },
+    h("label", { text: t("Cronologia") }),
+    toggle(settings.chatHistory !== false, (v) => {
+      settings.chatHistory = v;
+      void save();
+      if (!v) void Bridge.chatHistoryClear();
+    }),
+    clearBtn,
+    h("span", { class: "hint note", text: t("le conversazioni restano su questo PC (fino a 100) e si riaprono dall'orologio in alto nella chat. Spegnendola si cancellano") }));
 }
 
 /** What each engine is, in one line under the picker. */

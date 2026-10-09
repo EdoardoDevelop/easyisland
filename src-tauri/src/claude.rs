@@ -44,12 +44,44 @@ pub struct Chat {
     cli_session: Mutex<Option<String>>,
     /// Engine the current conversation started on ("api" or "subscription").
     engine: Mutex<String>,
+    /// The conversation's id in the chat history (chat_log.rs), from its first turn.
+    log_id: Mutex<Option<String>>,
+    /// A reopened conversation the engine cannot resume on its own: it goes
+    /// in front of the next question (chat_log.rs).
+    preamble: Mutex<Option<String>>,
 }
 
 impl Chat {
     pub fn reset(&self) {
         self.messages.lock().unwrap().clear();
         *self.cli_session.lock().unwrap() = None;
+        *self.log_id.lock().unwrap() = None;
+        *self.preamble.lock().unwrap() = None;
+    }
+
+    /// A conversation from the history takes the place of the current one.
+    pub(crate) fn restore(&self, engine: &str, messages: Vec<Value>, log_id: Option<String>, preamble: Option<String>) {
+        self.reset();
+        *self.engine.lock().unwrap() = engine.to_string();
+        *self.messages.lock().unwrap() = messages;
+        *self.log_id.lock().unwrap() = log_id;
+        *self.preamble.lock().unwrap() = preamble;
+    }
+
+    pub(crate) fn log_id(&self) -> Option<String> {
+        self.log_id.lock().unwrap().clone()
+    }
+
+    pub(crate) fn set_log_id(&self, id: Option<String>) {
+        *self.log_id.lock().unwrap() = id;
+    }
+
+    pub(crate) fn take_preamble(&self) -> Option<String> {
+        self.preamble.lock().unwrap().take()
+    }
+
+    pub(crate) fn put_back_preamble(&self, text: String) {
+        *self.preamble.lock().unwrap() = Some(text);
     }
 
     /// The two engines keep separate histories; switching mid-conversation

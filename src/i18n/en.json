@@ -1355,5 +1355,17 @@
   "{path} non è di EasyIsland: non lo tocca. Rinominalo e riprova.": "{path} is not EasyIsland's: it leaves it alone. Rename it and try again.",
   "rimozione non riuscita: {e}": "removal failed: {e}",
   "Nessuna modifica.": "No changes.",
-  "L'indirizzo di {name} deve iniziare con http:// o https://": "The {name} address must start with http:// or https://"
+  "L'indirizzo di {name} deve iniziare con http:// o https://": "The {name} address must start with http:// or https://",
+  "Cancellata ✓": "Cleared ✓",
+  "le conversazioni restano su questo PC (fino a 100) e si riaprono dall'orologio in alto nella chat. Spegnendola si cancellano": "conversations stay on this PC (up to 100) and reopen from the clock at the top of the chat. Turning it off deletes them",
+  "Cronologia delle chat": "Chat history",
+  "La cronologia è spenta: Impostazioni → Chat.": "History is off: Settings → Chat.",
+  "Ancora nessuna conversazione. Restano qui, su questo PC.": "No conversations yet. They stay here, on this PC.",
+  "{n} domanda": "{n} question",
+  "{n} domande": "{n} questions",
+  "[file allegato: non più disponibile]": "[attached file: no longer available]",
+  "Questa conversazione non c'è più.": "This conversation is no longer there.",
+  "Utente": "User",
+  "Assistente": "Assistant",
+  "Riprendiamo una conversazione di prima. Ecco com'era andata:\n\n{text}---\n\nNuova domanda: ": "Let's pick up an earlier conversation. Here is how it went:\n\n{text}---\n\nNew question: "
 }
