@@ -46,6 +46,8 @@ export interface SearchHost {
   /** Results shown: they cover the view, so the island must not close under them. */
   readonly open: boolean;
   sync(): void;
+  /** Takes the keyboard: the island was opened by the user. */
+  focus(): void;
 }
 
 export function buildSearch(actions: SearchActions): SearchHost {
@@ -163,6 +165,10 @@ export function buildSearch(actions: SearchActions): SearchHost {
     sync() {
       // The island closed: start again empty next time.
       if (State.mode !== "expanded" && input.value) reset();
+    },
+    focus() {
+      void Bridge.focusWindow(true);
+      input.focus();
     },
   };
 }

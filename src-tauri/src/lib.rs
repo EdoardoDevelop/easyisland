@@ -260,6 +260,12 @@ async fn widget_test(app: AppHandle, widget: serde_json::Value) -> Result<widget
     widgets::run_once(&app, widget).await
 }
 
+/// The checks' last results, for an island that started listening after them.
+#[tauri::command]
+fn widget_results() -> Vec<widgets::WidgetResult> {
+    widgets::last_results()
+}
+
 /// Island → "Aggiorna" on a widget card.
 #[tauri::command]
 async fn widget_refresh(app: AppHandle, shared: State<'_, Shared>, id: String) -> Result<(), String> {
@@ -1133,6 +1139,7 @@ pub fn run() {
             hotkeys_suspend,
             widget_test,
             widget_refresh,
+            widget_results,
             ingest_file,
             capture_screen,
             secret_present,

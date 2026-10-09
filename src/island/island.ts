@@ -84,6 +84,8 @@ export class Island {
 
   private header!: ViewHost;
   private search!: SearchHost;
+  /** Set while the user's own hover or click opens the island (openByUser). */
+  private openedByUser = false;
   private views!: Map<IslandViewName, ViewHost>;
   private uploadCanvas!: UploadCanvas;
 
@@ -376,6 +378,7 @@ export class Island {
           break;
         case "home":
           this.expand(State.defaultView());
+          if (this.openedByUser) this.focusSearchSoon();
           if (!this.wasInIsland) this.fsm.mouseLeft();
           break;
         case "greeting":
@@ -912,6 +915,7 @@ export class Island {
     if (State.mode === "expanded" && (name === "open" || name === "pending" || name === "nextPill")) {
       this.keyboard = true;
       void Bridge.focusWindow(true);
+      if (name === "open") this.focusSearchSoon();
     }
   }
 
@@ -1544,8 +1548,28 @@ export class Island {
       const { x, y } = State.mouse;
       const inside = x >= r.x - HIT_MARGIN && x <= r.x + r.w + HIT_MARGIN &&
         y >= r.y - HIT_MARGIN && y <= r.y + r.h + HIT_MARGIN;
-      if (inside) this.fsm.click();
+      if (inside) this.openByUser();
     }, delay * 1000);
+  }
+
+  /** Opened by the user (hover, click): the search bar takes the keyboard. */
+  private openByUser() {
+    this.openedByUser = true;
+    this.fsm.click();
+    this.openedByUser = false;
+  }
+
+  /**
+   * The search bar takes the keyboard. Only when the user opened the island,
+   * never for an alert (it would steal the keys from the app being typed in),
+   * and not over a request waiting for its N / Y keys.
+   */
+  private focusSearchSoon() {
+    window.setTimeout(() => {
+      if (State.mode !== "expanded" || !this.searchShown || State.pendingApproval) return;
+      this.keyboard = true;
+      this.search.focus();
+    }, 120);
   }
 
   private cancelHoverOpen() {
@@ -1645,7 +1669,7 @@ export class Island {
     this.restIcon.addEventListener("pointermove", movePress);
     const openFromRest = () => {
       wake();
-      this.fsm.click();
+      this.openByUser();
     };
     this.restIcon.addEventListener("pointerup", (e) => endPress(e, this.restIcon, false, openFromRest));
     this.restIcon.addEventListener("pointercancel", (e) => endPress(e, this.restIcon, true, openFromRest));
@@ -1661,7 +1685,7 @@ export class Island {
     this.islandEl.addEventListener("pointermove", movePress);
     this.wireResize();
     const openFromCompact = () => {
-      if (State.mode !== "expanded") this.fsm.click();
+      if (State.mode !== "expanded") this.openByUser();
     };
     this.islandEl.addEventListener("pointerup", (e) => endPress(e, this.islandEl, false, openFromCompact));
     this.islandEl.addEventListener("pointercancel", (e) => endPress(e, this.islandEl, true, openFromCompact));

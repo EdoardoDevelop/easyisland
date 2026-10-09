@@ -4,7 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { Settings } from "./state";
+import type { Settings, WidgetStatus } from "./state";
 
 export const IS_TAURI =
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -197,6 +197,8 @@ export const Bridge = {
       "widget_test", { widget },
     ),
   widgetRefresh: (id: string) => call<void>("widget_refresh", { id }),
+  /** The checks' last results (the first round runs before the island listens). */
+  widgetResults: async () => (await call<WidgetStatus[]>("widget_results")) ?? [],
   /** Profiles, backup. */
   switchProfile: (id: string) => call<void>("switch_profile", { id }),
   settingsExport: () => callOrThrow<string>("settings_export"),
