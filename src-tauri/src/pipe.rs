@@ -183,8 +183,21 @@ async fn handle(app: AppHandle, mut pipe: NamedPipeServer) {
         return;
     }
 
+    // The plan limits from Claude Code's status line (easyisland-hook statusline):
+    // not a session event, and it comes at every message, so it is not logged.
+    if event == "StatusLine" {
+        let _ = pipe.disconnect();
+        if let Some(limits) = payload.get("rate_limits") {
+            if crate::usage::set_plan(limits) {
+                crate::widgets::refresh(&app, "integration_claude_usage").await;
+            }
+        }
+        return;
+    }
+
     if event != "PermissionRequest" {
         log::line(format!("hook {event}"));
+        crate::recap::observe(&app, &payload);
         let _ = app.emit_to(WINDOW_LABEL, "hook", payload);
         let _ = pipe.disconnect();
         return;
@@ -225,6 +238,7 @@ pub async fn request_decision_as(app: &AppHandle, id: &str, mut payload: Value) 
     }
     payload["request_id"] = json!(id);
     log::line(format!("hook PermissionRequest id={id}"));
+    crate::recap::note_request(&id, &payload);
     let _ = app.emit_to(WINDOW_LABEL, "hook", payload);
 
     let decision = wait_for_decision(&id, &mut rx).await;
@@ -303,6 +317,7 @@ pub fn answer(app: &AppHandle, request_id: &str, decision: &str) {
         _ => "deny",
     };
     log::line(format!("decision id={request_id} {word}"));
+    crate::recap::record_decision(app, request_id, word);
     send(app, request_id, Reply::Decision(word.to_string()), false);
 }
 

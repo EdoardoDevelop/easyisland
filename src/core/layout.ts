@@ -45,7 +45,8 @@ export type IslandViewName =
   | "run"
   | "unzip"
   | "files"
-  | "diff";
+  | "diff"
+  | "recap";
 
 export type BotStateName =
   | "idle"
@@ -193,6 +194,7 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   unzip: { height: 230, botX: 52, botY: 92, botDiameter: 44, agentMode: "none" },
   files: { height: 230, botX: 52, botY: 92, botDiameter: 44, agentMode: "none" },
   diff: { height: 280, botX: 52, botY: 92, botDiameter: 44, agentMode: "none" },
+  recap: { height: 170, botX: 62, botY: null, botDiameter: 56, agentMode: "none" },
 };
 
 // The upload views above are only the fallback geometry. Once a file is actually

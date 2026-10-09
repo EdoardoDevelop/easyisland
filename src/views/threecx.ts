@@ -9,6 +9,7 @@ import { h, svg, clear, dot, brandOrDot } from "./dom";
 import { ICONS } from "./icons";
 import { State, type AgentTask } from "../core/state";
 import { Bridge, type ThreecxCall, type ThreecxContact, type ThreecxHistoryItem } from "../core/bridge";
+import { locale, t } from "../core/i18n";
 
 export const THREECX = "integration_3cx";
 
@@ -70,8 +71,8 @@ class Dialer {
 
   constructor() {
     this.input = h("input", {
-      type: "text", class: "tcx-input", placeholder: "Cerca o componi",
-      title: "Un nome, un'azienda o un numero; Invio chiama",
+      type: "text", class: "tcx-input", placeholder: t("Cerca o componi"),
+      title: t("Un nome, un'azienda o un numero; Invio chiama"),
       spellcheck: "false", autocomplete: "off",
     }) as HTMLInputElement;
     // The island never takes the keyboard by itself: ask for it while typing here.
@@ -92,10 +93,10 @@ class Dialer {
         this.search();
       }
     });
-    const go = h("button", { class: "tcx-go", title: "Chiama", style: `--c:${GREEN}`, onclick: () => {
+    const go = h("button", { class: "tcx-go", title: t("Chiama"), style: `--c:${GREEN}`, onclick: () => {
       const to = dialable(this.input.value) ?? this.results[0]?.numbers[0];
       if (to) void this.call(to);
-      else this.say("Scrivi un numero o cerca un nome");
+      else this.say(t("Scrivi un numero o cerca un nome"));
     } }, svg(ICONS.phone, 13));
     this.list = h("div", { class: "tcx-list" });
     this.note = h("div", { class: "tcx-note" });
@@ -137,7 +138,7 @@ class Dialer {
     }
     this.input.value = "";
     clear(this.list);
-    this.list.append(this.historyHead(), h("div", { class: "int-empty", text: "Carico…" }));
+    this.list.append(this.historyHead(), h("div", { class: "int-empty", text: t("Carico…") }));
     const seq = ++this.seq;
     Bridge.threecxHistory(panel === "missed")
       .then((items) => {
@@ -170,7 +171,7 @@ class Dialer {
           for (const c of list.slice(0, 8)) {
             this.list.append(this.row(c.name, c.colleague ? "interno" : c.company, c.numbers, c.colleague ? "#38BDF8" : "#A78BFA"));
           }
-          if (list.length === 0 && !number) this.list.append(h("div", { class: "int-empty", text: "Nessun contatto" }));
+          if (list.length === 0 && !number) this.list.append(h("div", { class: "int-empty", text: t("Nessun contatto") }));
           refit();
         })
         .catch((e) => { if (seq === this.seq) this.say(message(e)); });
@@ -193,15 +194,15 @@ class Dialer {
   /** Title of the recent / missed list, with ✕ back to the search. */
   private historyHead(): HTMLElement {
     return h("div", { class: "tcx-list-head" },
-      h("span", { text: this.panel === "missed" ? "Chiamate perse" : "Chiamate recenti" }),
-      h("button", { class: "tcx-list-close", title: "Chiudi l'elenco", onclick: () => this.show("search") }, svg(ICONS.xmark, 9)));
+      h("span", { text: this.panel === "missed" ? t("Chiamate perse") : t("Chiamate recenti") }),
+      h("button", { class: "tcx-list-close", title: t("Chiudi l'elenco"), onclick: () => this.show("search") }, svg(ICONS.xmark, 9)));
   }
 
   private renderHistory(items: ThreecxHistoryItem[]) {
     clear(this.list);
     this.list.append(this.historyHead());
     if (items.length === 0) {
-      this.list.append(h("div", { class: "int-empty", text: this.panel === "missed" ? "Nessuna chiamata persa" : "Nessuna chiamata" }));
+      this.list.append(h("div", { class: "int-empty", text: this.panel === "missed" ? t("Nessuna chiamata persa") : t("Nessuna chiamata") }));
       return;
     }
     const colors = { missed: RED, received: GREEN, outgoing: "#38BDF8", other: "#8e939c" } as const;
@@ -210,10 +211,10 @@ class Dialer {
       const when = it.at ? new Date(it.at) : null;
       const time = when
         ? when.toDateString() === new Date().toDateString()
-          ? when.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })
-          : when.toLocaleDateString("it-IT", { day: "numeric", month: "short" })
+          ? when.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })
+          : when.toLocaleDateString(locale(), { day: "numeric", month: "short" })
         : "";
-      const label = it.name || it.number || "Sconosciuto";
+      const label = it.name || it.number || t("Sconosciuto");
       const r = this.row(label, [kinds[it.kind], time].filter(Boolean).join(" · "), it.number ? [it.number] : [], colors[it.kind]);
       if (!it.number) r.onclick = null;
       this.list.append(r);
@@ -235,8 +236,8 @@ let devicesOpen = false;
 function callRow(c: ThreecxCall): HTMLElement {
   const ringing = c.state === "ringing";
   const color = ringing ? AMBER : c.state === "connected" ? GREEN : "#38BDF8";
-  const label = c.name || c.number || "Sconosciuto";
-  const what = ringing ? (c.incoming ? "Ti sta chiamando" : "Squilla") : c.state === "dialing" ? "Sto chiamando" : c.state === "connected" ? "In linea" : "";
+  const label = c.name || c.number || t("Sconosciuto");
+  const what = ringing ? (c.incoming ? t("Ti sta chiamando") : t("Squilla")) : c.state === "dialing" ? t("Sto chiamando") : c.state === "connected" ? t("In linea") : "";
   const time = h("span", { class: "int-ago" });
   const tick = () => { time.textContent = `${what}${c.state === "connected" ? ` · ${mmss(Date.now() - c.since)}` : ""}`; };
   tick();
@@ -250,10 +251,10 @@ function callRow(c: ThreecxCall): HTMLElement {
     } }, svg(icon, 12));
   const buttons = h("span", { class: "tcx-acts" });
   if (ringing && c.incoming) {
-    if (c.canAnswer) buttons.append(act(ICONS.phone, "Rispondi", GREEN, "answer"));
-    buttons.append(act(ICONS.hangup, "Rifiuta", RED, "decline"));
+    if (c.canAnswer) buttons.append(act(ICONS.phone, t("Rispondi"), GREEN, "answer"));
+    buttons.append(act(ICONS.hangup, t("Rifiuta"), RED, "decline"));
   } else {
-    buttons.append(act(ICONS.hangup, "Riaggancia", RED, "hangup"));
+    buttons.append(act(ICONS.hangup, t("Riaggancia"), RED, "hangup"));
   }
   return h("div", { class: ringing ? "tcx-call ringing" : "tcx-call", style: `--c:${color}` },
     dot(color, 7),
@@ -271,15 +272,15 @@ export function threecxCard(task: AgentTask, openSettings: () => void): HTMLElem
   const current = profiles.find((p) => p.id === d.profile);
 
   // Header: who, status (a menu with the login), missed calls.
-  const statusBtn = h("button", { class: "tcx-status", title: profiles.length ? "Cambia stato" : "", onclick: () => {
+  const statusBtn = h("button", { class: "tcx-status", title: profiles.length ? t("Cambia stato") : "", onclick: () => {
     if (!profiles.length) return;
     statusOpen = !statusOpen;
     chips.style.display = statusOpen ? "" : "none";
     refit();
-  } }, current?.name ?? (d.connected ? (d.number ? `Interno ${d.number}` : "Collegato") : "Non collegato"),
+  } }, current?.name ?? (d.connected ? (d.number ? t("Interno {n}", { n: d.number }) : t("Collegato")) : t("Non collegato")),
   profiles.length ? h("span", { class: "tcx-caret", text: "▾" }) : null);
   const missed = (d.missed ?? 0) > 0
-    ? h("button", { class: "tcx-missed", title: "Chiamate perse", onclick: () => dialer?.show("missed") }, `${d.missed} perse`)
+    ? h("button", { class: "tcx-missed", title: t("Chiamate perse"), onclick: () => dialer?.show("missed") }, `${d.missed} perse`)
     : null;
   const head = h("div", { class: "int-head" }, brandOrDot(task.id, task.color, 7), h("b", { text: "3CX" }), statusBtn);
   if (missed) head.append(missed);
@@ -301,9 +302,9 @@ export function threecxCard(task: AgentTask, openSettings: () => void): HTMLElem
     const configured = info?.loaded || info?.error;
     card.append(
       h("div", { class: "int-status wrap" }, dot(info?.error ? RED : "#5b5f67", 5),
-        h("span", { text: info?.error ?? (configured ? "Collegamento a 3CX…" : "Collego il centralino…") })),
+        h("span", { text: info?.error ?? (configured ? t("Collegamento a 3CX…") : t("Collego il centralino…")) })),
       h("div", { class: "int-actions" },
-        h("button", { class: "link-btn", style: "color:#8e939c", text: "Impostazioni…", onclick: openSettings })),
+        h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: openSettings })),
     );
     return card;
   }
@@ -322,8 +323,8 @@ export function threecxCard(task: AgentTask, openSettings: () => void): HTMLElem
   const foot = h("div", { class: "int-actions tcx-foot" });
   if (d.mode === "user") {
     foot.append(
-      h("button", { class: "link-btn", style: `color:${task.color}d9`, text: "Recenti", onclick: () => dialer?.show("recent") }),
-      h("button", { class: "link-btn", style: `color:${task.color}d9`, text: "Perse", onclick: () => dialer?.show("missed") }),
+      h("button", { class: "link-btn", style: `color:${task.color}d9`, text: t("Recenti"), onclick: () => dialer?.show("recent") }),
+      h("button", { class: "link-btn", style: `color:${task.color}d9`, text: t("Perse"), onclick: () => dialer?.show("missed") }),
     );
   }
   // The device list is drawn in the card: a native <select> opens its list in a
@@ -333,8 +334,8 @@ export function threecxCard(task: AgentTask, openSettings: () => void): HTMLElem
   const pickList = h("div", { class: "tcx-chips" });
   pickList.style.display = devicesOpen ? "" : "none";
   if (devices.length > 1) {
-    const label = h("span", { text: `Da ${chosen?.name ?? "automatico"}` });
-    foot.append(h("button", { class: "tcx-from tcx-pick", title: "Dispositivo da cui partono le chiamate", onclick: () => {
+    const label = h("span", { text: t("Da {name}", { name: chosen?.name ?? t("automatico") }) });
+    foot.append(h("button", { class: "tcx-from tcx-pick", title: t("Dispositivo da cui partono le chiamate"), onclick: () => {
       devicesOpen = !devicesOpen;
       pickList.style.display = devicesOpen ? "" : "none";
       refit();
@@ -344,16 +345,16 @@ export function threecxCard(task: AgentTask, openSettings: () => void): HTMLElem
       devicesOpen = false;
       State.settings.integrationConfig = { ...State.settings.integrationConfig, threecxDevice: id };
       void Bridge.saveSettings(State.settings);
-      label.textContent = `Da ${id ? name : "automatico"}`;
+      label.textContent = t("Da {name}", { name: id ? name : t("automatico") });
       for (const c of Array.from(pickList.children) as HTMLElement[]) c.classList.toggle("on", c.dataset.dev === id);
       pickList.style.display = "none";
       refit();
     };
     const chip = (id: string, name: string) =>
       h("button", { class: (chosen?.id ?? "") === id ? "clip-chip on" : "clip-chip", "data-dev": id, text: name, onclick: () => choose(id, name) });
-    pickList.append(chip("", "Automatico"), ...devices.map((x) => chip(x.id, x.name)));
+    pickList.append(chip("", t("Automatico")), ...devices.map((x) => chip(x.id, x.name)));
   } else if (devices.length === 1) {
-    foot.append(h("span", { class: "tcx-from", text: `Da ${devices[0].name}` }));
+    foot.append(h("span", { class: "tcx-from", text: t("Da {name}", { name: devices[0].name }) }));
   }
   card.append(foot, pickList);
   // After the card is in the page: keyboard back to the dialer, island fitted to the card.

@@ -4,6 +4,8 @@ App desktop per Windows 10/11: un personaggio animato (Slime, Goccia o EasyTech)
 
 **Lingua del progetto: italiano.** Testi dell'interfaccia, messaggi d'errore per l'utente, documentazione e commit sono in italiano. Identificatori e commenti nel codice restano in inglese.
 
+**Interfaccia in italiano o inglese.** Ogni testo che l'utente vede passa da `t("testo italiano")` (TypeScript: `src/core/i18n.ts`; Rust: `crate::i18n::t` / `tf("… {nome} …", &[("nome", &x)])`) e ha l'inglese in `src/i18n/en.json`, chiave = testo italiano. `npm run build` si ferma se ne manca uno (`npm run check:i18n -- --todo` li elenca).
+
 ## Dove leggere (solo ciò che serve al compito)
 - `HANDOFF.md`: stato, cose da fare, problemi aperti. Leggilo a inizio lavoro.
 - `docs/architettura.md`: mappa delle cartelle, interfaccia, personaggi, layout, suoni, impostazioni.

@@ -9,16 +9,17 @@ import { ICONS } from "./icons";
 import { State, PROBE_INTEGRATIONS, sessionOpenLabel, type AgentTask } from "../core/state";
 import { Bridge } from "../core/bridge";
 import { THREECX, threecxCard } from "./threecx";
+import { locale, t } from "../core/i18n";
 
 /** Same shape as the Swift `timeAgo` computed properties. */
 export function timeAgo(value: unknown): string {
   const date = typeof value === "number" ? new Date(value) : new Date(String(value));
   const diff = (Date.now() - date.getTime()) / 1000;
   if (!Number.isFinite(diff)) return "";
-  if (diff < 60) return "adesso";
+  if (diff < 60) return t("adesso");
   if (diff < 3600) return `${Math.floor(diff / 60)}m`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-  return `${Math.floor(diff / 86400)}g`;
+  return t("{n}g", { n: Math.floor(diff / 86400) });
 }
 
 /** Card titles that are not the task's own name, mapped to the brand logo's id. */
@@ -67,7 +68,7 @@ function idleCard(task: AgentTask, openSettings: () => void): HTMLElement {
   const error = info?.error ?? null;
   // The Claude Code pill is about hooks, not a key — the macOS wording would be
   // misleading here.
-  const missing = task.id === "integration_claude" ? "Hook non installati" : "Chiave non configurata";
+  const missing = task.id === "integration_claude" ? t("Hook non installati") : t("Chiave non configurata");
   const label = error ?? (configured ? "Connesso · caricamento…" : missing);
   const statusColor = error || !configured ? "#F4505E" : "#22C55E";
 
@@ -80,7 +81,7 @@ function idleCard(task: AgentTask, openSettings: () => void): HTMLElement {
       h("button", {
         class: "link-btn",
         style: `color:${task.color}b3`,
-        text: host ? sessionOpenLabel(host) : "Apri Visual Studio Code",
+        text: host ? sessionOpenLabel(host) : t("Apri Visual Studio Code"),
         onclick: () => void (host
           ? Bridge.openSession(host, task.sessionCwd ?? null)
           : Bridge.openInVSCode(task.sessionCwd ?? null)),
@@ -91,7 +92,7 @@ function idleCard(task: AgentTask, openSettings: () => void): HTMLElement {
       h("button", {
         class: "link-btn",
         style: `color:${task.color}d9`,
-        text: "Apri n8n",
+        text: t("Apri n8n"),
         onclick: () => void Bridge.openN8n(),
       }),
     );
@@ -100,7 +101,7 @@ function idleCard(task: AgentTask, openSettings: () => void): HTMLElement {
       h("button", {
         class: "link-btn",
         style: `color:${task.color}d9`,
-        text: `Apri ${task.name}`,
+        text: t("Apri {name}", { name: task.name }),
         onclick: () => void Bridge.openUrl(OPEN_URLS[task.id]),
       }),
     );
@@ -110,20 +111,20 @@ function idleCard(task: AgentTask, openSettings: () => void): HTMLElement {
       h("button", {
         class: "link-btn",
         style: `color:${task.color}d9`,
-        text: "Aggiorna",
+        text: t("Aggiorna"),
         onclick: () => void Bridge.refreshIntegration(task.id),
       }),
     );
   } else {
     actions.append(
-      h("button", { class: "link-btn", style: "color:#8e939c", text: "Impostazioni…", onclick: openSettings }),
+      h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: openSettings }),
     );
   }
 
   return h(
     "div",
     { class: "int-card" },
-    header(task.color, task.name, "Integrazione"),
+    header(task.color, task.name, t("Integrazione")),
     h("div", { class: "int-status" }, dot(statusColor, 5), h("span", { text: label })),
     actions,
   );
@@ -141,7 +142,7 @@ function vercelCard(onDetail: () => void): HTMLElement {
     if (i === 0) {
       const more = h(
         "button",
-        { class: "int-more", title: "Dettagli", onclick: onDetail },
+        { class: "int-more", title: t("Dettagli"), onclick: onDetail },
         svg(ICONS.ellipsis, 12),
       );
       rows.append(listRow(accent, true, name, ago, more));
@@ -156,7 +157,7 @@ function vercelDetail(onBack: () => void): HTMLElement {
   const d = arr("integration_vercel", "deployments")[0] ?? {};
   const success = d.state === "READY";
   const accent = success ? "#22C55E" : "#F4505E";
-  const status = success ? "Pronto" : d.state === "CANCELED" ? "Annullato" : "Errore";
+  const status = success ? t("Pronto") : d.state === "CANCELED" ? t("Annullato") : t("Errore");
   const body = h("div", { class: "int-detail-body" });
   if (d.commitMessage) body.append(h("div", { class: "int-commit", text: String(d.commitMessage) }));
   const meta = h("div", { class: "int-meta" });
@@ -209,7 +210,7 @@ function resendCard(): HTMLElement {
     if (i === 0 && e.subject) cells.push(h("span", { class: "int-sub", text: String(e.subject) }));
     rows.append(listRow(accent, i === 0, ...cells));
   });
-  return h("div", { class: "int-card" }, header("#22C55E", "Resend", "Email", extra), rows);
+  return h("div", { class: "int-card" }, header("#22C55E", "Resend", t("Email"), extra), rows);
 }
 
 // ── GitHub ────────────────────────────────────────────────────────────────────
@@ -232,11 +233,11 @@ function githubCard(): HTMLElement {
   return h(
     "div",
     { class: "int-card" },
-    header("#F4505E", "GitHub", "Panoramica"),
+    header("#F4505E", "GitHub", t("Panoramica")),
     h(
       "div",
       { class: "int-stats" },
-      statRow(ICONS.star, "#F5A524", "Stelle totali", fmt(stars)),
+      statRow(ICONS.star, "#F5A524", t("Stelle totali"), fmt(stars)),
       statRow(ICONS.stack, "#6B7079", "Repository", String(repos)),
     ),
   );
@@ -257,7 +258,7 @@ function stripeCard(): HTMLElement {
         "div",
         { class: "int-row" },
         dot(accent, 5),
-        h("span", { class: "int-name", text: String(p.description ?? "Pagamento") }),
+        h("span", { class: "int-name", text: String(p.description ?? t("Pagamento")) }),
         h("span", {
           class: "int-amount",
           style: "color:#22c55e",
@@ -270,7 +271,7 @@ function stripeCard(): HTMLElement {
   return h(
     "div",
     { class: "int-card" },
-    header("#0570DE", "Stripe", "Pagamenti"),
+    header("#0570DE", "Stripe", t("Pagamenti")),
     h("div", { class: "int-balance" }, h("span", { text: balance }), h("i", { text: currency })),
     rows,
   );
@@ -293,12 +294,12 @@ function notionCard(): HTMLElement {
         p.emoji
           ? h("span", { class: "int-emoji", text: String(p.emoji) })
           : h("i", { class: "int-emoji" }, svg(ICONS.doc, 11)),
-        h("span", { class: "int-name", text: String(p.title ?? "Senza titolo") }),
+        h("span", { class: "int-name", text: String(p.title ?? t("Senza titolo")) }),
         h("span", { class: "int-ago", text: timeAgo(p.lastEditedAt) }),
       ),
     );
   }
-  return h("div", { class: "int-card" }, header("#E8E8E8", "Notion", "Recenti"), rows);
+  return h("div", { class: "int-card" }, header("#E8E8E8", "Notion", t("Recenti")), rows);
 }
 
 // ── Cal.com ───────────────────────────────────────────────────────────────────
@@ -309,23 +310,23 @@ function calcomCard(): HTMLElement {
     .sort((a, b) => new Date(String(a.start)).getTime() - new Date(String(b.start)).getTime());
   const rows = h("div", { class: "int-rows tight" });
   if (bookings.length === 0) {
-    rows.append(h("div", { class: "int-empty", text: "Nessuna chiamata in programma" }));
+    rows.append(h("div", { class: "int-empty", text: t("Nessuna chiamata in programma") }));
   }
   for (const b of bookings.slice(0, 3)) {
     const when = new Date(String(b.start));
-    const day = when.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit" });
-    const time = when.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+    const day = when.toLocaleDateString(locale(), { day: "2-digit", month: "2-digit" });
+    const time = when.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
     rows.append(
       h(
         "div",
         { class: "int-row" },
         dot("#C9956A", 4),
         h("span", { class: "int-time", text: `${day} ${time}` }),
-        h("span", { class: "int-name", text: String(b.title ?? "Riunione") }),
+        h("span", { class: "int-name", text: String(b.title ?? t("Riunione")) }),
       ),
     );
   }
-  return h("div", { class: "int-card" }, header("#C9956A", "Cal.com", "Agenda"), rows);
+  return h("div", { class: "int-card" }, header("#C9956A", "Cal.com", t("Agenda")), rows);
 }
 
 // ── n8n ───────────────────────────────────────────────────────────────────────
@@ -373,14 +374,14 @@ function n8nDetail(task: AgentTask, onBack: () => void): HTMLElement {
       h("span", {
         class: "int-badge",
         style: `color:${accent};background:${accent}24`,
-        text: success ? "Riuscito" : "Fallito",
+        text: success ? t("Riuscito") : t("Fallito"),
       }),
     ),
     detail
       ? h("pre", { class: "int-detail-text", text: detail })
       : h("div", {
           class: "int-status",
-          text: success ? "Completato con successo." : "Nessun dettaglio sull'errore.",
+          text: success ? t("Completato con successo.") : t("Nessun dettaglio sull'errore."),
         }),
   );
 }
@@ -396,8 +397,8 @@ function ensureLoaded(id: string) {
 }
 
 const TRANSFORMS: [string, string][] = [
-  ["upper", "MAIUSCOLO"], ["lower", "minuscolo"], ["oneline", "Una riga"],
-  ["trim", "Senza spazi"], ["json", "JSON"], ["urldecode", "URL"],
+  ["upper", t("MAIUSCOLO")], ["lower", t("minuscolo")], ["oneline", t("Una riga")],
+  ["trim", t("Senza spazi")], ["json", "JSON"], ["urldecode", "URL"],
 ];
 
 function iconButton(icon: string, title: string, color: string, onclick: (e: MouseEvent) => void, active = false): HTMLElement {
@@ -438,23 +439,23 @@ function clipboardPictureRow(task: AgentTask, it: Record<string, unknown>, hooks
     dot(it.pinned ? task.color : "#5b5f67", 5), thumb, label,
     h("span", { class: "int-ago", text: timeAgo(it.at) }),
     h("span", { class: "clip-tools" },
-      iconButton(ICONS.copy, "Copia senza incollare", "#38BDF8", () => void use(false)),
-      iconButton(ICONS.bubble, "Chiedi alla chat su questa immagine", "#A78BFA", () => void ask()),
-      iconButton(ICONS.pin, it.pinned ? "Togli dai fissati" : "Fissa in cima", "#A78BFA",
+      iconButton(ICONS.copy, t("Copia senza incollare"), "#38BDF8", () => void use(false)),
+      iconButton(ICONS.bubble, t("Chiedi alla chat su questa immagine"), "#A78BFA", () => void ask()),
+      iconButton(ICONS.pin, it.pinned ? t("Togli dai fissati") : t("Fissa in cima"), "#A78BFA",
         () => void Bridge.clipboardPin(id, !it.pinned), !!it.pinned),
-      iconButton(ICONS.xmark, "Elimina", "#F4505E", () => void Bridge.clipboardRemove(id))));
+      iconButton(ICONS.xmark, t("Elimina"), "#F4505E", () => void Bridge.clipboardRemove(id))));
 }
 
 function clipboardCard(task: AgentTask, hooks: IntegrationCardHooks): HTMLElement {
   ensureLoaded(task.id);
   const items = arr(task.id, "items");
   const extra = items.some((i) => !i.pinned)
-    ? h("button", { class: "link-btn clip-clear", style: "color:#8e939c", text: "Svuota",
+    ? h("button", { class: "link-btn clip-clear", style: "color:#8e939c", text: t("Svuota"),
       onclick: () => void Bridge.clipboardClear() })
     : undefined;
   const rows = h("div", { class: "int-rows tight clip-list" });
   if (items.length === 0) {
-    rows.append(h("div", { class: "int-empty", text: "Copia un testo o un'immagine: lo ritrovi qui." }));
+    rows.append(h("div", { class: "int-empty", text: t("Copia un testo o un'immagine: lo ritrovi qui.") }));
   }
   for (const it of items) {
     if (it.kind === "image") {
@@ -484,35 +485,35 @@ function clipboardCard(task: AgentTask, hooks: IntegrationCardHooks): HTMLElemen
         onclick: (e: Event) => { e.stopPropagation(); void use(key, true); } }));
     }
     const row = h("div", { class: it.pinned ? "int-row clip-row pinned" : "int-row clip-row",
-      title: "Clic: incolla nell'app in primo piano", onclick: () => void use("", true) },
+      title: t("Clic: incolla nell'app in primo piano"), onclick: () => void use("", true) },
       dot(it.pinned ? task.color : "#5b5f67", 5), label, meta,
       h("span", { class: "clip-tools" },
-        iconButton(ICONS.copy, "Copia senza incollare", "#38BDF8", () => void use("", false)),
-        iconButton(ICONS.ellipsis, "Trasforma e incolla", "#F5A524", () => {
+        iconButton(ICONS.copy, t("Copia senza incollare"), "#38BDF8", () => void use("", false)),
+        iconButton(ICONS.ellipsis, t("Trasforma e incolla"), "#F5A524", () => {
           chips.style.display = chips.style.display === "none" ? "" : "none";
         }),
-        iconButton(ICONS.pin, it.pinned ? "Togli dai fissati" : "Fissa in cima", "#A78BFA",
+        iconButton(ICONS.pin, it.pinned ? t("Togli dai fissati") : t("Fissa in cima"), "#A78BFA",
           () => void Bridge.clipboardPin(id, !it.pinned), !!it.pinned),
-        iconButton(ICONS.xmark, "Elimina", "#F4505E", () => void Bridge.clipboardRemove(id))));
+        iconButton(ICONS.xmark, t("Elimina"), "#F4505E", () => void Bridge.clipboardRemove(id))));
     rows.append(h("div", { class: "clip-item" }, row, chips));
   }
-  return h("div", { class: "int-card" }, header(task.color, "Appunti", "Cronologia", extra), rows);
+  return h("div", { class: "int-card" }, header(task.color, t("Appunti"), t("Cronologia"), extra), rows);
 }
 
 // ── Musica ────────────────────────────────────────────────────────────────────
 
 function mmss(s: number): string {
-  const t = Math.max(0, Math.floor(s));
-  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+  const secs = Math.max(0, Math.floor(s));
+  return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
 }
 
 function mediaCard(task: AgentTask): HTMLElement {
   ensureLoaded(task.id);
   const d = get(task.id);
   if (!d.active) {
-    return h("div", { class: "int-card" }, header(task.color, "Musica", "In riproduzione"),
+    return h("div", { class: "int-card" }, header(task.color, t("Musica"), t("In riproduzione")),
       h("div", { class: "int-status" }, dot("#5b5f67", 5),
-        h("span", { text: State.integrations[task.id]?.loaded ? "Niente in riproduzione" : "Cerco un lettore…" })));
+        h("span", { text: State.integrations[task.id]?.loaded ? t("Niente in riproduzione") : t("Cerco un lettore…") })));
   }
   const playing = !!d.playing;
   const duration = Number(d.duration ?? 0);
@@ -544,7 +545,7 @@ function mediaCard(task: AgentTask): HTMLElement {
       onclick: () => void Bridge.mediaCommand(cmd), style: `--c:${task.color}` }, svg(icon, main ? 16 : 13));
 
   return h("div", { class: "int-card" },
-    header(task.color, "Musica", playing ? "In riproduzione" : "In pausa"),
+    header(task.color, t("Musica"), playing ? t("In riproduzione") : t("In pausa")),
     h("div", { class: "media-row" },
       cover,
       h("div", { class: "media-info" },
@@ -552,9 +553,9 @@ function mediaCard(task: AgentTask): HTMLElement {
         h("span", { class: "media-sub", text: sub }),
         h("div", { class: "media-bar" }, fill))),
     h("div", { class: "media-ctl" },
-      ctl(ICONS.prev, "Precedente", "prev", !!d.canPrev),
-      ctl(playing ? ICONS.pause : ICONS.play, playing ? "Pausa" : "Riproduci", "toggle", true, true),
-      ctl(ICONS.next, "Successivo", "next", !!d.canNext),
+      ctl(ICONS.prev, t("Precedente"), "prev", !!d.canPrev),
+      ctl(playing ? ICONS.pause : ICONS.play, playing ? t("Pausa") : t("Riproduci"), "toggle", true, true),
+      ctl(ICONS.next, t("Successivo"), "next", !!d.canNext),
       time));
 }
 
@@ -592,24 +593,24 @@ export function hasIntegrationData(id: string): boolean {
 }
 
 const WIDGET_KIND: Record<string, string> = {
-  ping: "Ping", tcp: "Porta", http: "Sito web", tls: "Certificato", service: "Servizio", json: "API",
-  calendar: "Calendario", domain: "Domini",
+  ping: "Ping", tcp: t("Porta"), http: t("Sito web"), tls: t("Certificato"), service: t("Servizio"), json: "API",
+  calendar: t("Calendario"), domain: t("Domini"),
 };
 
 const LEVEL_COLOR = { ok: "#22C55E", warn: "#F5A524", error: "#F4505E" } as const;
 
 function copyInfoButton(color: string): HTMLElement {
-  const b = h("button", { class: "link-btn", style: `color:${color}d9`, text: "Copia info PC" }) as HTMLButtonElement;
+  const b = h("button", { class: "link-btn", style: `color:${color}d9`, text: t("Copia info PC") }) as HTMLButtonElement;
   b.addEventListener("click", async () => {
     b.disabled = true;
-    b.textContent = "Raccolgo…";
+    b.textContent = t("Raccolgo…");
     try {
       await Bridge.copyPcInfo();
-      b.textContent = "Copiato ✓";
+      b.textContent = t("Copiato ✓");
     } catch {
-      b.textContent = "Non riuscito";
+      b.textContent = t("Non riuscito");
     }
-    window.setTimeout(() => { b.textContent = "Copia info PC"; b.disabled = false; }, 2200);
+    window.setTimeout(() => { b.textContent = t("Copia info PC"); b.disabled = false; }, 2200);
   });
   return b;
 }
@@ -637,21 +638,21 @@ function widgetCard(task: AgentTask, openSettings: () => void): HTMLElement {
   return h(
     "div",
     { class: "int-card" },
-    header(task.color, task.name, isWidget ? WIDGET_KIND[kind] ?? "Widget" : "Integrazione",
+    header(task.color, task.name, isWidget ? WIDGET_KIND[kind] ?? "Widget" : t("Integrazione"),
       st ? h("span", { class: "int-ago", text: timeAgo(st.at * 1000) }) : undefined),
     h("div", { class: "int-status wrap" }, dot(color, 5),
-      h("span", { text: st?.summary ?? "In attesa del primo controllo…" })),
+      h("span", { text: st?.summary ?? t("In attesa del primo controllo…") })),
     rows,
     h("div", { class: "int-actions" },
-      h("button", { class: "link-btn", style: `color:${task.color}d9`, text: "Aggiorna",
+      h("button", { class: "link-btn", style: `color:${task.color}d9`, text: t("Aggiorna"),
         onclick: () => void Bridge.widgetRefresh(id) }),
       // Everything a ticket asks for (name, serial, IP, Windows…), one click.
       kind === "system" || kind === "network" ? copyInfoButton(task.color) : null,
       kind === "zammad"
-        ? h("button", { class: "link-btn", style: `color:${task.color}d9`, text: "Apri Zammad",
+        ? h("button", { class: "link-btn", style: `color:${task.color}d9`, text: t("Apri Zammad"),
           onclick: () => void Bridge.openZammad() })
         : null,
-      h("button", { class: "link-btn", style: "color:#8e939c", text: "Impostazioni…", onclick: openSettings }),
+      h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: openSettings }),
     ),
   );
 }
@@ -659,11 +660,11 @@ function widgetCard(task: AgentTask, openSettings: () => void): HTMLElement {
 /** An agent (opencode, Codex…) between sessions: no keys, nothing to configure here. */
 function agentIdleCard(task: AgentTask): HTMLElement {
   const name = task.agentName ?? task.name;
-  const when = task.lastActive ? `ultima attività ${timeAgo(task.lastActive)}` : "nessuna sessione da quando EasyIsland è aperto";
+  const when = task.lastActive ? t("ultima attività {ago}", { ago: timeAgo(task.lastActive) }) : t("nessuna sessione da quando EasyIsland è aperto");
   return h("div", { class: "int-card" },
-    header(task.color, name, "In attesa"),
+    header(task.color, name, t("In attesa")),
     h("div", { class: "int-rows" },
-      h("div", { class: "int-empty", text: `Nessuna sessione in corso: ${when}.` })));
+      h("div", { class: "int-empty", text: t("Nessuna sessione in corso: {when}.", { when }) })));
 }
 
 export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHooks): HTMLElement {

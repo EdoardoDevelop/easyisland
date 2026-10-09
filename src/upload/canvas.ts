@@ -10,6 +10,7 @@ import { fileActions } from "../views/actions";
 import { character, type SoftCharacter } from "../character/character";
 import { CUBE_EYE_X, CUBE_EYE_Y, CUBE_TIP, CUBE_TURN, drawCube, onRightFace } from "../character/cube";
 import { hexToRGB } from "../character/engine";
+import { t } from "../core/i18n";
 import {
   USC, eIn, eInOut, eOut, lerp, progressAt,
   type UploadEyeShape, type UploadFrame,
@@ -207,10 +208,10 @@ export class UploadCanvas {
   private drawDropText(ctx: CanvasRenderingContext2D, f: UploadFrame) {
     ctx.save();
     ctx.globalAlpha = f.textAlpha;
-    text(ctx, "Rilascia qui i tuoi file", USC.TEXT_X, USC.TEXT_Y - 4, `500 13px ${FONT}`, "#D5D7DB");
+    text(ctx, t("Rilascia qui i tuoi file"), USC.TEXT_X, USC.TEXT_Y - 4, `500 13px ${FONT}`, "#D5D7DB");
 
     let cx = USC.TEXT_X;
-    for (const chip of ["PDF", "Immagini", "Codice", "Documenti"]) {
+    for (const chip of ["PDF", t("Immagini"), t("Codice"), t("Documenti")]) {
       // The macOS port measures chips the same rough way, so the row lines up.
       const w = chip.length * 6.5 + 16;
       ctx.fillStyle = "rgba(255,255,255,0.07)";
@@ -234,7 +235,7 @@ export class UploadCanvas {
     const barLen = (x1 - x0) * f.barReveal;
 
     const name = State.droppedFile?.name ?? "file";
-    text(ctx, `Caricamento di ${name}`, x0, by - 30, `500 12.5px ${FONT}`, "#A9ADB5");
+    text(ctx, t("Caricamento di {name}", { name }), x0, by - 30, `500 12.5px ${FONT}`, "#A9ADB5");
 
     if (f.check > 0) {
       ctx.save();
@@ -306,7 +307,7 @@ export class UploadCanvas {
     ctx.translate(0, (1 - f.chooseAlpha) * 4);
 
     const name = State.droppedFile?.name ?? "file";
-    text(ctx, `${name} è pronto.`, 114, 80, `600 14px ${FONT}`, "#F5F6F8");
+    text(ctx, t("{name} è pronto.", { name }), 114, 80, `600 14px ${FONT}`, "#F5F6F8");
     text(ctx, "Cosa vuoi farne?", 114, 100, `400 12.5px ${FONT}`, "#9398A1");
 
     const cy = BTN_Y + BTN_H / 2;
@@ -340,9 +341,9 @@ export class UploadCanvas {
     if (key === this.buttonsKey) return this.buttons;
     this.buttonsKey = key;
 
-    const ask = { label: "Fai una domanda", hint: "Fai una domanda su questo file", run: this.actions.ask };
-    const cancel = { label: "Annulla", hint: "Annulla", run: this.actions.cancel };
-    const tray = { label: "Vassoio", hint: "Tieni il file nel vassoio", run: this.actions.tray };
+    const ask = { label: t("Fai una domanda"), hint: t("Fai una domanda su questo file"), run: this.actions.ask };
+    const cancel = { label: t("Annulla"), hint: t("Annulla"), run: this.actions.cancel };
+    const tray = { label: t("Vassoio"), hint: t("Tieni il file nel vassoio"), run: this.actions.tray };
     const out: ChooseButton[] = [];
 
     {
@@ -358,15 +359,16 @@ export class UploadCanvas {
       };
 
       const items = list.map((a) => {
-        const label = fit(a.name || "Senza nome", 130);
+        const label = fit(a.name || t("Senza nome"), 130);
+
         return { a, label, w: width(label, 12) };
       });
       const askW = width(ask.label);
       const cancelW = width(cancel.label);
       const trayW = width(tray.label);
       const more = {
-        label: "Altre…",
-        hint: "Altre azioni sul file",
+        label: t("Altre…"),
+        hint: t("Altre azioni sul file"),
         run: () => {
           this.page++;
           this.buttonsKey = null;

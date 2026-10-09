@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 // Claude's replies in the chat, read as markdown (HANDOFF 6.6, point 4).
 //
 // A small renderer, no library: it builds DOM nodes and never touches
@@ -89,15 +90,16 @@ function cells(line: string): string[] {
 function codeBlock(code: string, lang: string): HTMLElement {
   const box = el("div", "md-pre");
   const head = el("div", "md-pre-head");
-  const copy = el("button", "md-copy", "Copia");
+  const copy = el("button", "md-copy", t("Copia"));
   copy.addEventListener("click", async () => {
     try {
       await navigator.clipboard.writeText(code);
       copy.textContent = "Copiato ✓";
     } catch {
-      copy.textContent = "Non riuscito";
+      copy.textContent = t("Non riuscito");
     }
-    window.setTimeout(() => (copy.textContent = "Copia"), 1600);
+    window.setTimeout(() => (copy.textContent = t("Copia")), 1600);
+
   });
   head.append(el("span", "md-lang", lang), copy);
   const pre = el("pre");

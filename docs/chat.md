@@ -14,6 +14,7 @@
 - Un turno apre `/api/event`, manda `/prompt` e porta il testo con `chat-stream`. I passi diventano righe `> ⚙ …`. Se non arriva nessun evento per 3 minuti, il turno è interrotto.
 - I permessi vanno sulla card dell'isola con `pipe::request_decision`. «Sempre» è offerto solo per i comandi di sola lettura (`read_only()`). Nessuna risposta vale `reject`. Un rifiuto diventa la risposta «Permesso negato».
 - Il modello è `fornitore/modello` in `engineModels.opencode`. Sui modelli `opencode/…` (Zen) compare un avviso sulla privacy.
+- **Prezzo dei modelli:** «Carica modelli» riceve `ModelOption` (`openai.rs`) con `price` gratuito / a pagamento / locale e il costo in dollari per milione di token. opencode lo prende da `cost` di `/api/model` (una lista di fasce, la prima è il prezzo base; Ollama e LM Studio sono sempre «locale»), OpenRouter da `pricing`. Gli altri motori non lo dicono.
 - **API di opencode 2** (diversa dalla 1.x): endpoint sotto `/api/…`; eventi `session.text.delta`, `session.tool.called/success`, `permission.asked` (`action`, `resources`, `save`); risposta con `POST /api/session/{id}/permission/{rid}/reply` e `{"decision"}`; regole `{action, resource, effect}`, dove l'ultima vince.
 - Il trait `Ask` esiste perché i test non tocchino la webview (vedi `sviluppo.md`). Test dal vivo: `cargo test --lib opencode::tests::live -- --ignored`.
 

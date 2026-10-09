@@ -9,6 +9,7 @@ import { renderActionIcon } from "./action-icons";
 import { tabActions } from "./actions";
 import { State, isSessionTask, type QuickAction } from "../core/state";
 import { Bridge } from "../core/bridge";
+import { t } from "../core/i18n";
 
 export interface SearchActions {
   openTask(id: string): void;
@@ -35,7 +36,10 @@ function score(name: string, q: string): number {
   return n.includes(q) ? 1 : 0;
 }
 
+const KIND_LABEL: Record<Hit["kind"], string> = { Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma") };
+
 /** How many of each kind at most, so programs do not drown the rest. */
+
 const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8 };
 
 /** The Start menu, read again after this long (a program installed meanwhile). */
@@ -51,7 +55,7 @@ export interface SearchHost {
 }
 
 export function buildSearch(actions: SearchActions): SearchHost {
-  const input = h("input", { type: "text", class: "search-input", placeholder: "Cerca integrazioni, azioni e programmi",
+  const input = h("input", { type: "text", class: "search-input", placeholder: t("Cerca integrazioni, azioni e programmi"),
     spellcheck: "false", autocomplete: "off" }) as HTMLInputElement;
   const results = h("div", { class: "search-results" });
   const bar = h("div", { class: "search-bar" }, svg(ICONS.search, 13), input);
@@ -82,7 +86,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
     for (const a of tabActions()) {
       const s = score(a.name, q);
       if (!s) continue;
-      out.push({ kind: "Azione", name: a.name || "Senza nome", score: s,
+      out.push({ kind: "Azione", name: a.name || t("Senza nome"), score: s,
         icon: () => renderActionIcon(a.icon, 14), run: () => actions.runAction(a) });
     }
     for (const p of apps) {
@@ -109,9 +113,9 @@ export function buildSearch(actions: SearchActions): SearchHost {
         onclick: () => choose(hit) },
       h("span", { class: "search-icon" }, hit.icon()),
       h("span", { class: "search-name", text: hit.name }),
-      h("span", { class: "search-kind", text: hit.kind })));
+      h("span", { class: "search-kind", text: KIND_LABEL[hit.kind] })));
     });
-    if (!hits.length) results.append(h("div", { class: "search-none", text: "Nessun risultato" }));
+    if (!hits.length) results.append(h("div", { class: "search-none", text: t("Nessun risultato") }));
   };
 
   const mark = () => {

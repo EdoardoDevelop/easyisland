@@ -6,6 +6,7 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, Wry};
 
 use crate::island::WINDOW_LABEL;
+use crate::i18n::{t, tf};
 
 const TRAY_ID: &str = "easyisland";
 const PROFILE_PREFIX: &str = "profile:";
@@ -22,18 +23,20 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         })
         .unwrap_or_default();
 
-    let open = MenuItem::with_id(app, "open", "Apri EasyIsland", true, None::<&str>)?;
-    let settings = MenuItem::with_id(app, "settings", "Impostazioni…", true, None::<&str>)?;
-    let pause = MenuItem::with_id(app, "pause", "Pausa", true, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", t("Apri EasyIsland"), true, None::<&str>)?;
+    // Handled by the island (src/main.ts, "tray" event).
+    let recap = MenuItem::with_id(app, "recap", t("Riepilogo settimanale"), true, None::<&str>)?;
+    let settings = MenuItem::with_id(app, "settings", t("Impostazioni…"), true, None::<&str>)?;
+    let pause = MenuItem::with_id(app, "pause", t("Pausa"), true, None::<&str>)?;
     let presence = CheckMenuItem::with_id(
         app,
         "presence",
-        "Davanti al cliente",
+        t("Davanti al cliente"),
         true,
         crate::presence::MANUAL.load(std::sync::atomic::Ordering::Relaxed),
         None::<&str>,
     )?;
-    let quit = MenuItem::with_id(app, "quit", "Esci", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", t("Esci"), true, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
 
@@ -51,9 +54,10 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         })
         .collect::<tauri::Result<Vec<_>>>()?;
     let refs: Vec<&dyn IsMenuItem<Wry>> = items.iter().map(|i| i as &dyn IsMenuItem<Wry>).collect();
-    let profile = Submenu::with_items(app, "Profilo", !refs.is_empty(), &refs)?;
+    let profile = Submenu::with_items(app, t("Profilo"), !refs.is_empty(), &refs)?;
 
-    Menu::with_items(app, &[&open, &profile, &sep1, &presence, &settings, &pause, &sep2, &quit])
+
+    Menu::with_items(app, &[&open, &profile, &recap, &sep1, &presence, &settings, &pause, &sep2, &quit])
 }
 
 pub fn build(app: &AppHandle) -> tauri::Result<()> {
@@ -93,7 +97,7 @@ pub fn refresh(app: &AppHandle) {
         let _ = tray.set_menu(Some(menu));
     }
     let tip = match crate::presence::current() {
-        Some(why) => format!("EasyIsland — davanti al cliente ({why})"),
+        Some(why) => tf("EasyIsland — davanti al cliente ({why})", &[("why", &why)]),
         None => "EasyIsland".to_string(),
     };
     let _ = tray.set_tooltip(Some(tip));

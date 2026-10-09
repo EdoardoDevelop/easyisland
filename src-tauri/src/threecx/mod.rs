@@ -26,6 +26,7 @@ use crate::integrations::{self, IntegrationUpdate};
 use crate::island::WINDOW_LABEL;
 use crate::secrets;
 use crate::wss::{self, Frame};
+use crate::i18n::{t, tf};
 
 pub const ID: &str = "integration_3cx";
 
@@ -173,7 +174,7 @@ fn config(app: &AppHandle) -> Result<Config, String> {
         })
         .unwrap_or_default();
     let base = base_url(&secrets::get("3cx-url").unwrap_or_default())
-        .ok_or("Indirizzo del centralino mancante (Impostazioni → Integrazioni → 3CX)")?;
+        .ok_or(t("Indirizzo del centralino mancante (Impostazioni → Integrazioni → 3CX)"))?;
     let api = mode == "api";
     let cfg = Config {
         api,
@@ -186,10 +187,11 @@ fn config(app: &AppHandle) -> Result<Config, String> {
         device,
     };
     if api && (cfg.client_id.is_empty() || cfg.secret.is_empty() || cfg.extension.is_empty()) {
-        return Err("Mancano Client ID, chiave API o interno".into());
+        return Err(t("Mancano Client ID, chiave API o interno").into());
     }
     if !api && (cfg.user.is_empty() || cfg.password.is_empty()) {
-        return Err("Mancano interno (o e-mail) e password".into());
+        return Err(t("Mancano interno (o e-mail) e password").into());
+
     }
     Ok(cfg)
 }
@@ -354,7 +356,7 @@ async fn events(url: String, headers: Vec<(String, String)>) -> Result<tokio::sy
         let stop = !matches!(next, Ok(Some(_)));
         let msg = match next {
             Ok(Some(f)) => Ok(f),
-            Ok(None) => Err("Il centralino ha chiuso il canale degli eventi".to_string()),
+            Ok(None) => Err(t("Il centralino ha chiuso il canale degli eventi").to_string()),
             Err(e) => Err(e),
         };
         if tx.send(msg).is_err() || stop {
@@ -423,11 +425,11 @@ async fn run_user(app: &AppHandle, cfg: &Config, generation: u64) -> Result<(), 
             }
             Ok(Some(Ok(Frame::Text(t)))) => {
                 if t == "NOT AUTH" || t == "STOP" {
-                    return Err("Il centralino ha chiuso la sessione".into());
+                    return Err(crate::i18n::t("Il centralino ha chiuso la sessione").into());
                 }
             }
             Ok(Some(Err(e))) => return if stale(generation) { Ok(()) } else { Err(e) },
-            Ok(None) => return if stale(generation) { Ok(()) } else { Err("Canale degli eventi chiuso".into()) },
+            Ok(None) => return if stale(generation) { Ok(()) } else { Err(t("Canale degli eventi chiuso").into()) },
             Err(_) => {
                 if stale(generation) || !wanted(app) {
                     return Ok(());
@@ -522,7 +524,7 @@ async fn run_api(app: &AppHandle, cfg: &Config, generation: u64) -> Result<(), S
             }
             Ok(Some(Ok(Frame::Binary(_)))) => {}
             Ok(Some(Err(e))) => return if stale(generation) { Ok(()) } else { Err(e) },
-            Ok(None) => return if stale(generation) { Ok(()) } else { Err("Canale degli eventi chiuso".into()) },
+            Ok(None) => return if stale(generation) { Ok(()) } else { Err(t("Canale degli eventi chiuso").into()) },
             Err(_) => {
                 if stale(generation) || !wanted(app) {
                     return Ok(());
@@ -535,7 +537,7 @@ async fn run_api(app: &AppHandle, cfg: &Config, generation: u64) -> Result<(), S
 // ── Commands from the island ─────────────────────────────────────────────────
 
 fn conn() -> Result<Arc<Conn>, String> {
-    live(|l| l.conn.clone()).ok_or_else(|| "3CX non è collegato".to_string())
+    live(|l| l.conn.clone()).ok_or_else(|| t("3CX non è collegato").to_string())
 }
 
 /// Digits, +, * and #: what a phone can dial. Spaces, dots and dashes are dropped.
@@ -562,7 +564,7 @@ fn pick_device(requested: Option<&str>) -> Option<String> {
 }
 
 pub async fn call(number: &str, device: Option<&str>) -> Result<(), String> {
-    let to = dialable(number).ok_or("Numero non valido")?;
+    let to = dialable(number).ok_or(t("Numero non valido"))?;
     let device = pick_device(device);
     match &*conn()? {
         Conn::User(s) => s.request(&http(), myphone::T_MAKE_CALL, myphone::make_call(&to, device.as_deref())).await.map(|_| ()),
@@ -572,23 +574,23 @@ pub async fn call(number: &str, device: Option<&str>) -> Result<(), String> {
 
 /// "answer" | "hangup" | "decline".
 pub async fn call_action(id: &str, what: &str) -> Result<(), String> {
-    let n: i64 = id.parse().map_err(|_| "Chiamata sconosciuta".to_string())?;
+    let n: i64 = id.parse().map_err(|_| t("Chiamata sconosciuta").to_string())?;
     match &*conn()? {
         Conn::User(s) => {
             let (t, body) = match what {
                 "answer" => (myphone::T_AUTO_ANSWER, myphone::answer(n)),
                 "hangup" | "decline" => (myphone::T_DROP_CALL, myphone::drop_call(n)),
-                _ => return Err("Azione sconosciuta".into()),
+                _ => return Err(t("Azione sconosciuta").into()),
             };
             s.request(&http(), t, body).await.map(|_| ()).map_err(|e| {
-                if what == "answer" { format!("Questo dispositivo non si può far rispondere da qui: {e}") } else { e }
+                if what == "answer" { tf("Questo dispositivo non si può far rispondere da qui: {e}", &[("e", &e)]) } else { e }
             })
         }
         Conn::Api { base, token, dn } => {
             let action = match what {
                 "answer" => "answer",
                 "hangup" | "decline" => "drop",
-                _ => return Err("Azione sconosciuta".into()),
+                _ => return Err(t("Azione sconosciuta").into()),
             };
             api::action(&http(), base, token, dn, id, action).await
         }
@@ -615,15 +617,15 @@ pub async fn history(missed_only: bool) -> Result<Vec<HistoryItem>, String> {
             let (id, m) = s.request(&http(), myphone::T_CALL_HISTORY, myphone::call_history(missed_only, 20)).await?;
             Ok(if id == myphone::T_CALL_HISTORY_RESULT { myphone::history(&m) } else { Vec::new() })
         }
-        Conn::Api { .. } => Err("La cronologia è disponibile solo con l'accesso dell'interno".into()),
+        Conn::Api { .. } => Err(t("La cronologia è disponibile solo con l'accesso dell'interno").into()),
     }
 }
 
 pub async fn set_status(profile: &str) -> Result<(), String> {
-    let id: i64 = profile.parse().map_err(|_| "Stato sconosciuto".to_string())?;
+    let id: i64 = profile.parse().map_err(|_| t("Stato sconosciuto").to_string())?;
     match &*conn()? {
         Conn::User(s) => s.request(&http(), myphone::T_CHANGE_STATUS, myphone::change_status(id)).await.map(|_| ()),
-        Conn::Api { .. } => Err("Lo stato si cambia solo con l'accesso dell'interno".into()),
+        Conn::Api { .. } => Err(t("Lo stato si cambia solo con l'accesso dell'interno").into()),
     }
 }
 

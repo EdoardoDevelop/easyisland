@@ -22,6 +22,7 @@ use serde_json::Value;
 use windows::core::HSTRING;
 
 use crate::widgets::{client, days_until, icmp_ms, FieldValue, Widget, WidgetResult};
+use crate::i18n::{t, tf};
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
@@ -39,8 +40,8 @@ fn duration_it(secs: u64) -> String {
     match (d, h) {
         (0, 0) => format!("{m} min"),
         (0, _) => format!("{h} h {m} min"),
-        (1, _) => format!("1 giorno, {h} h"),
-        _ => format!("{d} giorni, {h} h"),
+        (1, _) => tf("1 giorno, {h} h", &[("h", &h)]),
+        _ => tf("{d} giorni, {h} h", &[("d", &d), ("h", &h)]),
     }
 }
 
@@ -58,7 +59,7 @@ async fn powershell(script: &str, timeout: Duration) -> Result<String, String> {
             Err(err.lines().find(|l| !l.trim().is_empty()).unwrap_or("errore").trim().to_string())
         }
         Ok(Err(e)) => Err(e.to_string()),
-        Err(_) => Err("nessuna risposta".into()),
+        Err(_) => Err(t("nessuna risposta").into()),
     }
 }
 
@@ -152,20 +153,21 @@ fn system_blocking(w: &Widget) -> WidgetResult {
     {
         let pct = free as f64 * 100.0 / total as f64;
         let warn = if w.warn_days > 0 { w.warn_days as f64 } else { 10.0 };
-        fields.push(field(&format!("Disco {drive}"), format!("{} liberi su {} ({pct:.0}%)", gb(free), gb(total))));
+        fields.push(field(&tf("Disco {drive}", &[("drive", &drive)]),
+            tf("{free} liberi su {total} ({pct}%)", &[("free", &gb(free)), ("total", &gb(total)), ("pct", &format!("{pct:.0}"))])));
         if pct < 5.0 {
-            issues.push((2, format!("Disco {drive} quasi pieno: {} liberi", gb(free))));
+            issues.push((2, tf("Disco {drive} quasi pieno: {free} liberi", &[("drive", &drive), ("free", &gb(free))])));
         } else if pct < warn {
-            issues.push((1, format!("Poco spazio su {drive}: {} liberi", gb(free))));
+            issues.push((1, tf("Poco spazio su {drive}: {free} liberi", &[("drive", &drive), ("free", &gb(free))])));
         }
     }
 
     // Memory.
     let mut m = MEMORYSTATUSEX { dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32, ..Default::default() };
     if unsafe { GlobalMemoryStatusEx(&mut m) }.is_ok() {
-        fields.push(field("Memoria", format!("{}% in uso di {}", m.dwMemoryLoad, gb(m.ullTotalPhys))));
+        fields.push(field(t("Memoria"), tf("{pct}% in uso di {total}", &[("pct", &m.dwMemoryLoad), ("total", &gb(m.ullTotalPhys))])));
         if m.dwMemoryLoad >= 92 {
-            issues.push((1, format!("Memoria quasi esaurita ({}%)", m.dwMemoryLoad)));
+            issues.push((1, tf("Memoria quasi esaurita ({pct}%)", &[("pct", &m.dwMemoryLoad)])));
         }
     }
 
@@ -173,18 +175,18 @@ fn system_blocking(w: &Widget) -> WidgetResult {
     let mut p = SYSTEM_POWER_STATUS::default();
     if unsafe { GetSystemPowerStatus(&mut p) }.is_ok() && p.BatteryFlag != 128 && p.BatteryLifePercent <= 100 {
         let plugged = p.ACLineStatus == 1;
-        fields.push(field("Batteria", format!("{}%{}", p.BatteryLifePercent, if plugged { ", in carica" } else { "" })));
+        fields.push(field(t("Batteria"), format!("{}%{}", p.BatteryLifePercent, if plugged { t(", in carica") } else { "" })));
         if !plugged && p.BatteryLifePercent <= 15 {
-            issues.push((1, format!("Batteria al {}%", p.BatteryLifePercent)));
+            issues.push((1, tf("Batteria al {pct}%", &[("pct", &p.BatteryLifePercent)])));
         }
     }
 
     // Uptime and a pending restart.
     let up = unsafe { GetTickCount64() } / 1000;
-    fields.push(field("Acceso da", duration_it(up)));
+    fields.push(field(t("Acceso da"), duration_it(up)));
     if restart_pending() {
-        fields.push(field("Riavvio", "richiesto da Windows"));
-        issues.push((1, "Windows chiede un riavvio".into()));
+        fields.push(field(t("Riavvio"), t("richiesto da Windows")));
+        issues.push((1, t("Windows chiede un riavvio").into()));
     }
 
     let worst = issues.iter().map(|i| i.0).max().unwrap_or(0);
@@ -193,7 +195,7 @@ fn system_blocking(w: &Widget) -> WidgetResult {
         .iter()
         .max_by_key(|i| i.0)
         .map(|i| i.1.clone())
-        .unwrap_or_else(|| fields.first().map(|f| format!("Tutto a posto · {}", f.value)).unwrap_or_else(|| "Tutto a posto".into()));
+        .unwrap_or_else(|| fields.first().map(|f| format!("{} · {}", t("Tutto a posto"), f.value)).unwrap_or_else(|| t("Tutto a posto").into()));
     let mut r = WidgetResult::new(&w.id, level, summary);
     r.fields = fields;
     r
@@ -203,7 +205,7 @@ pub async fn system(w: &Widget) -> WidgetResult {
     let w2 = w.clone();
     tauri::async_runtime::spawn_blocking(move || system_blocking(&w2))
         .await
-        .unwrap_or_else(|_| WidgetResult::new(&w.id, "error", "Controllo interrotto"))
+        .unwrap_or_else(|_| WidgetResult::new(&w.id, "error", t("Controllo interrotto")))
 }
 
 // ── security ──────────────────────────────────────────────────────────────────
@@ -221,7 +223,7 @@ $fwp=@(Get-CimInstance -Namespace root/SecurityCenter2 -ClassName FirewallProduc
 pub async fn security(w: &Widget) -> WidgetResult {
     let text = match powershell(SECURITY_SCRIPT, Duration::from_secs(40)).await {
         Ok(t) => t,
-        Err(e) => return WidgetResult::new(&w.id, "error", format!("Stato della sicurezza non leggibile: {e}")),
+        Err(e) => return WidgetResult::new(&w.id, "error", tf("Stato della sicurezza non leggibile: {e}", &[("e", &e)])),
     };
     let v: Value = serde_json::from_str(&text).unwrap_or(Value::Null);
     let mut issues: Vec<(u8, String)> = Vec::new();
@@ -240,52 +242,52 @@ pub async fn security(w: &Widget) -> WidgetResult {
         })
         .unwrap_or_default();
     if let Some((name, _, current)) = products.iter().find(|p| p.1) {
-        fields.push(field("Antivirus", format!("{name}, attivo")));
+        fields.push(field(t("Antivirus"), tf("{name}, attivo", &[("name", &name)])));
         if !current {
-            issues.push((1, format!("{name}: definizioni non aggiornate")));
+            issues.push((1, tf("{name}: definizioni non aggiornate", &[("name", &name)])));
         }
     } else if products.is_empty() {
-        fields.push(field("Antivirus", "non rilevato"));
-        issues.push((1, "Nessun antivirus rilevato".into()));
+        fields.push(field(t("Antivirus"), t("non rilevato")));
+        issues.push((1, t("Nessun antivirus rilevato").into()));
     } else {
-        fields.push(field("Antivirus", format!("{} disattivato", products[0].0)));
-        issues.push((2, "Antivirus disattivato".into()));
+        fields.push(field(t("Antivirus"), tf("{name} disattivato", &[("name", &products[0].0)])));
+        issues.push((2, t("Antivirus disattivato").into()));
     }
     if let Some(sig) = v["sig"].as_i64().filter(|s| *s < 10_000) {
-        fields.push(field("Firme Defender", if sig == 0 { "di oggi".into() } else { format!("di {sig} giorni fa") }));
+        fields.push(field(t("Firme Defender"), if sig == 0 { t("di oggi").into() } else { tf("di {sig} giorni fa", &[("sig", &sig)]) }));
         if sig > 3 {
-            issues.push((1, format!("Firme di Defender vecchie di {sig} giorni")));
+            issues.push((1, tf("Firme di Defender vecchie di {sig} giorni", &[("sig", &sig)])));
         }
     }
     if let Some(q) = v["quick"].as_i64().filter(|q| *q < 10_000) {
-        fields.push(field("Ultima scansione", if q == 0 { "oggi".into() } else { format!("{q} giorni fa") }));
+        fields.push(field(t("Ultima scansione"), if q == 0 { t("oggi").into() } else { tf("{q} giorni fa", &[("q", &q)]) }));
     }
     if v["rt"] == Value::Bool(false) && products.iter().any(|p| p.0.to_lowercase().contains("defender") && p.1) {
-        issues.push((2, "Protezione in tempo reale disattivata".into()));
+        issues.push((2, t("Protezione in tempo reale disattivata").into()));
     }
     // Windows Firewall off is fine when another product registered one that is on.
     let other_fw = v["fwp"].as_array().and_then(|a| {
         a.iter().find(|p| (p["state"].as_i64().unwrap_or(0) >> 12) & 0xF == 1).and_then(|p| p["name"].as_str()).map(str::to_string)
     });
     match (v["fwOff"].as_i64(), other_fw) {
-        (_, Some(name)) => fields.push(field("Firewall", format!("{name}, attivo"))),
-        (Some(0), None) => fields.push(field("Firewall", "Windows, attivo")),
+        (_, Some(name)) => fields.push(field(t("Firewall"), tf("{name}, attivo", &[("name", &name)]))),
+        (Some(0), None) => fields.push(field(t("Firewall"), t("Windows, attivo"))),
         (Some(n), None) => {
-            fields.push(field("Firewall", format!("Windows: {n} profili disattivati")));
-            issues.push((2, "Firewall disattivato".into()));
+            fields.push(field(t("Firewall"), tf("Windows: {n} profili disattivati", &[("n", &n)])));
+            issues.push((2, t("Firewall disattivato").into()));
         }
         (None, None) => {}
     }
     if let Some(t) = v["threats"].as_i64().filter(|t| *t > 0) {
-        fields.push(field("Minacce rilevate", t.to_string()));
-        issues.push((2, format!("{t} minacce rilevate da Defender")));
+        fields.push(field(crate::i18n::t("Minacce rilevate"), t.to_string()));
+        issues.push((2, tf("{t} minacce rilevate da Defender", &[("t", &t)])));
     }
     if restart_pending() {
-        issues.push((1, "Windows chiede un riavvio".into()));
+        issues.push((1, t("Windows chiede un riavvio").into()));
     }
 
     let worst = issues.iter().map(|i| i.0).max().unwrap_or(0);
-    let summary = issues.iter().max_by_key(|i| i.0).map(|i| i.1.clone()).unwrap_or_else(|| "Protezione attiva".into());
+    let summary = issues.iter().max_by_key(|i| i.0).map(|i| i.1.clone()).unwrap_or_else(|| t("Protezione attiva").into());
     let mut r = WidgetResult::new(&w.id, ["ok", "warn", "error"][worst as usize], summary);
     r.fields = fields;
     r
@@ -406,7 +408,7 @@ pub async fn network(w: &Widget) -> WidgetResult {
     })
     .await;
     let Ok((list, primary, ssid, latency)) = local else {
-        return WidgetResult::new(&w.id, "error", "Controllo interrotto");
+        return WidgetResult::new(&w.id, "error", t("Controllo interrotto"));
     };
 
     let mut fields = Vec::new();
@@ -414,30 +416,30 @@ pub async fn network(w: &Widget) -> WidgetResult {
     let net = match (&ssid, main) {
         (Some(s), _) => format!("Wi-Fi {s}"),
         (None, Some(a)) => a.name.clone(),
-        _ => "nessuna".into(),
+        _ => t("nessuna").into(),
     };
-    fields.push(field("Rete", net.clone()));
+    fields.push(field(t("Rete"), net.clone()));
     if let Some(ip) = primary {
-        fields.push(field("IP locale", ip.to_string()));
+        fields.push(field(t("IP locale"), ip.to_string()));
     }
     let vpns: Vec<&str> = list.iter().filter(|a| a.vpn).map(|a| a.name.as_str()).collect();
-    fields.push(field("VPN", if vpns.is_empty() { "nessuna".into() } else { vpns.join(", ") }));
+    fields.push(field("VPN", if vpns.is_empty() { t("nessuna").into() } else { vpns.join(", ") }));
 
     let Some(ms) = latency else {
-        fields.push(field("Internet", "non raggiungibile"));
-        let mut r = WidgetResult::new(&w.id, "error", if primary.is_some() { "Internet non raggiungibile" } else { "Nessuna connessione" });
+        fields.push(field(t("Internet"), t("non raggiungibile")));
+        let mut r = WidgetResult::new(&w.id, "error", if primary.is_some() { t("Internet non raggiungibile") } else { t("Nessuna connessione") });
         r.fields = fields;
         return r;
     };
-    fields.push(field("Latenza", format!("{ms} ms")));
+    fields.push(field(t("Latenza"), format!("{ms} ms")));
     if let Some(ip) = public_ip().await {
-        fields.insert(2, field("IP pubblico", ip));
+        fields.insert(2, field(t("IP pubblico"), ip));
     }
     let slow = ms > 150;
     let summary = if !vpns.is_empty() {
-        format!("{net} · VPN attiva · {ms} ms")
+        tf("{net} · VPN attiva · {ms} ms", &[("net", &net), ("ms", &ms)])
     } else if slow {
-        format!("Connessione lenta: {ms} ms")
+        tf("Connessione lenta: {ms} ms", &[("ms", &ms)])
     } else {
         format!("{net} · {ms} ms")
     };
@@ -456,19 +458,19 @@ async fn geocode(city: &str) -> Result<(f64, f64, String), String> {
     if let Some(hit) = PLACES.lock().unwrap().as_ref().and_then(|m| m.get(&key).cloned()) {
         return Ok(hit);
     }
-    let c = client().ok_or("HTTP non disponibile")?;
+    let c = client().ok_or(t("HTTP non disponibile"))?;
     let v: Value = c
         .get("https://geocoding-api.open-meteo.com/v1/search")
         .query(&[("name", city.trim()), ("count", "1"), ("language", "it"), ("format", "json")])
         .send()
         .await
-        .map_err(|e| format!("Meteo non raggiungibile: {e}"))?
+        .map_err(|e| tf("Meteo non raggiungibile: {e}", &[("e", &e)]))?
         .json()
         .await
-        .map_err(|_| "Risposta del meteo non valida".to_string())?;
+        .map_err(|_| t("Risposta del meteo non valida").to_string())?;
     let r = &v["results"][0];
     let (Some(lat), Some(lon)) = (r["latitude"].as_f64(), r["longitude"].as_f64()) else {
-        return Err(format!("Località «{}» non trovata", city.trim()));
+        return Err(tf("Località «{city}» non trovata", &[("city", &city.trim())]));
     };
     let name = r["name"].as_str().unwrap_or(city).to_string();
     PLACES.lock().unwrap().get_or_insert_with(HashMap::new).insert(key, (lat, lon, name.clone()));
@@ -478,23 +480,23 @@ async fn geocode(city: &str) -> Result<(f64, f64, String), String> {
 /// WMO weather code → Italian.
 fn weather_text(code: i64) -> &'static str {
     match code {
-        0 => "sereno",
-        1 => "poco nuvoloso",
-        2 => "parzialmente nuvoloso",
-        3 => "coperto",
-        45 | 48 => "nebbia",
-        51 | 53 | 55 => "pioviggine",
-        56 | 57 => "pioviggine gelata",
-        61 => "pioggia debole",
-        63 => "pioggia",
-        65 => "pioggia forte",
-        66 | 67 => "pioggia gelata",
-        71 | 73 | 75 | 77 => "neve",
-        80 | 81 => "rovesci",
-        82 => "rovesci forti",
-        85 | 86 => "rovesci di neve",
-        95 => "temporale",
-        96 | 99 => "temporale con grandine",
+        0 => t("sereno"),
+        1 => t("poco nuvoloso"),
+        2 => t("parzialmente nuvoloso"),
+        3 => t("coperto"),
+        45 | 48 => t("nebbia"),
+        51 | 53 | 55 => t("pioviggine"),
+        56 | 57 => t("pioviggine gelata"),
+        61 => t("pioggia debole"),
+        63 => t("pioggia"),
+        65 => t("pioggia forte"),
+        66 | 67 => t("pioggia gelata"),
+        71 | 73 | 75 | 77 => t("neve"),
+        80 | 81 => t("rovesci"),
+        82 => t("rovesci forti"),
+        85 | 86 => t("rovesci di neve"),
+        95 => t("temporale"),
+        96 | 99 => t("temporale con grandine"),
         _ => "—",
     }
 }
@@ -520,13 +522,13 @@ fn sky_kind(code: i64, day: bool) -> Option<&'static str> {
 pub async fn weather(w: &Widget) -> WidgetResult {
     let city = w.host.trim();
     if city.is_empty() {
-        return WidgetResult::new(&w.id, "error", "Scrivi la città in Impostazioni → Integrazioni → Meteo");
+        return WidgetResult::new(&w.id, "error", t("Scrivi la città in Impostazioni → Integrazioni → Meteo"));
     }
     let (lat, lon, place) = match geocode(city).await {
         Ok(p) => p,
         Err(e) => return WidgetResult::new(&w.id, "error", e),
     };
-    let Some(c) = client() else { return WidgetResult::new(&w.id, "error", "HTTP non disponibile") };
+    let Some(c) = client() else { return WidgetResult::new(&w.id, "error", t("HTTP non disponibile")) };
     let v: Value = match c
         .get("https://api.open-meteo.com/v1/forecast")
         .query(&[
@@ -542,9 +544,9 @@ pub async fn weather(w: &Widget) -> WidgetResult {
     {
         Ok(r) => match r.json().await {
             Ok(v) => v,
-            Err(_) => return WidgetResult::new(&w.id, "error", "Risposta del meteo non valida"),
+            Err(_) => return WidgetResult::new(&w.id, "error", t("Risposta del meteo non valida")),
         },
-        Err(e) => return WidgetResult::new(&w.id, "error", format!("Meteo non raggiungibile: {e}")),
+        Err(e) => return WidgetResult::new(&w.id, "error", tf("Meteo non raggiungibile: {e}", &[("e", &e)])),
     };
     let cur = &v["current"];
     let temp = cur["temperature_2m"].as_f64();
@@ -557,18 +559,18 @@ pub async fn weather(w: &Widget) -> WidgetResult {
         .unwrap_or(0);
 
     let t = temp.map(|t| format!("{t:.0}°")).unwrap_or_else(|| "—".into());
-    let mut fields = vec![field("Cielo", sky)];
+    let mut fields = vec![field(crate::i18n::t("Cielo"), sky)];
     if let Some(f) = feels {
-        fields.push(field("Percepita", format!("{f:.0}°")));
+        fields.push(field(crate::i18n::t("Percepita"), format!("{f:.0}°")));
     }
-    fields.push(field("Pioggia (prossime 3 ore)", format!("{rain}%")));
+    fields.push(field(crate::i18n::t("Pioggia (prossime 3 ore)"), format!("{rain}%")));
     if let Some(wv) = wind {
-        fields.push(field("Vento", format!("{wv:.0} km/h")));
+        fields.push(field(crate::i18n::t("Vento"), format!("{wv:.0} km/h")));
     }
     // A warning only when rain is likely soon: that is the useful bit ("prendi l'ombrello").
     let soon = rain >= 60;
     let summary = if soon {
-        format!("{place}: {t}, pioggia probabile a breve ({rain}%)")
+        crate::i18n::tf("{place}: {t}, pioggia probabile a breve ({rain}%)", &[("place", &place), ("t", &t), ("rain", &rain)])
     } else {
         format!("{place}: {t}, {sky}")
     };
@@ -642,7 +644,7 @@ pub async fn domain(w: &Widget) -> WidgetResult {
         .filter(|d| d.contains('.'))
         .collect();
     if names.is_empty() {
-        return WidgetResult::new(&w.id, "error", "Scrivi uno o più domini nelle impostazioni del widget");
+        return WidgetResult::new(&w.id, "error", t("Scrivi uno o più domini nelle impostazioni del widget"));
     }
     let warn = if w.warn_days <= 0 { 30 } else { w.warn_days };
     let mut fields = Vec::new();
@@ -656,29 +658,29 @@ pub async fn domain(w: &Widget) -> WidgetResult {
         match expiry.as_deref().and_then(days_until) {
             Some(days) => {
                 let date = expiry.as_deref().and_then(|e| e.get(..10)).unwrap_or("").to_string();
-                fields.push(field(d, if days < 0 { format!("scaduto il {date}") } else { format!("{days} giorni ({date})") }));
+                fields.push(field(d, if days < 0 { tf("scaduto il {date}", &[("date", &date)]) } else { tf("{days} giorni ({date})", &[("days", &days), ("date", &date)]) }));
                 if soonest.as_ref().is_none_or(|s| days < s.0) {
                     soonest = Some((days, d.clone()));
                 }
             }
             None => {
                 unreadable += 1;
-                fields.push(field(d, "scadenza non leggibile"));
+                fields.push(field(d, t("scadenza non leggibile")));
             }
         }
     }
     let Some((days, name)) = soonest else {
-        let mut r = WidgetResult::new(&w.id, "error", "Scadenza dei domini non leggibile");
+        let mut r = WidgetResult::new(&w.id, "error", t("Scadenza dei domini non leggibile"));
         r.fields = fields;
         return r;
     };
     let level = if days <= 7 { "error" } else if days <= warn || unreadable > 0 { "warn" } else { "ok" };
     let summary = if days < 0 {
-        format!("{name} è scaduto")
+        tf("{name} è scaduto", &[("name", &name)])
     } else if names.len() == 1 {
-        format!("{name}: scade tra {days} giorni")
+        tf("{name}: scade tra {days} giorni", &[("name", &name), ("days", &days)])
     } else {
-        format!("Il primo a scadere: {name}, tra {days} giorni")
+        tf("Il primo a scadere: {name}, tra {days} giorni", &[("name", &name), ("days", &days)])
     };
     let mut r = WidgetResult::new(&w.id, level, summary);
     r.fields = fields;

@@ -7,6 +7,7 @@
 import type { Island } from "../src/island/island";
 import { State } from "../src/core/state";
 import { handleHook } from "../src/island/hooks";
+import { Recap } from "../src/island/recap";
 
 const CLAUDE = "integration_claude";
 const wait = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
@@ -284,6 +285,12 @@ export async function runScene(island: Island, scene: string) {
       await wait(1500);
       break;
     }
+    case "recap":
+      // Last week's recap, on the made-up week of src/island/recap.ts.
+      await wait(300);
+      await Recap.open(island);
+      await wait(1500);
+      break;
     case "finished":
       // A finished session whose last message is long and has markdown in it.
       await wait(300);

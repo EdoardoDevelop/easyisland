@@ -17,6 +17,7 @@ use windows::Win32::System::DataExchange::{
 };
 use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock, GMEM_MOVEABLE};
 use windows::Win32::System::Ole::CF_DIB;
+use crate::i18n::t;
 
 /// Bigger images are not worth keeping (or sending to Claude): 8K × 4K.
 const MAX_PIXELS: u64 = 33_000_000;
@@ -96,7 +97,7 @@ pub fn write(img: &Rgba) -> Result<(), String> {
     let png_bytes = encode_png(img)?;
     unsafe {
         if !open() {
-            return Err("Gli appunti sono occupati da un'altra app".into());
+            return Err(t("Gli appunti sono occupati da un'altra app").into());
         }
         let result = (|| {
             EmptyClipboard().map_err(|e| e.to_string())?;
@@ -118,14 +119,14 @@ unsafe fn put(format: u32, bytes: &[u8]) -> Result<(), String> {
     let ptr = GlobalLock(mem) as *mut u8;
     if ptr.is_null() {
         let _ = GlobalFree(Some(mem));
-        return Err("memoria non disponibile".into());
+        return Err(t("memoria non disponibile").into());
     }
     std::ptr::copy_nonoverlapping(bytes.as_ptr(), ptr, bytes.len());
     let _ = GlobalUnlock(mem);
     // On success the clipboard owns the memory.
     if SetClipboardData(format, Some(HANDLE(mem.0))).is_err() {
         let _ = GlobalFree(Some(mem));
-        return Err("copia non riuscita".into());
+        return Err(t("copia non riuscita").into());
     }
     Ok(())
 }
@@ -250,11 +251,12 @@ pub fn decode_png(bytes: &[u8]) -> Result<Rgba, String> {
     let mut dec = png::Decoder::new(Cursor::new(bytes));
     dec.set_transformations(png::Transformations::normalize_to_color8());
     let mut reader = dec.read_info().map_err(|e| e.to_string())?;
-    let size = reader.output_buffer_size().ok_or("immagine troppo grande")?;
+    let size = reader.output_buffer_size().ok_or(t("immagine troppo grande"))?;
     let mut buf = vec![0u8; size];
     let info = reader.next_frame(&mut buf).map_err(|e| e.to_string())?;
     if info.width as u64 * info.height as u64 > MAX_PIXELS {
-        return Err("immagine troppo grande".into());
+        return Err(t("immagine troppo grande").into());
+
     }
     buf.truncate(info.buffer_size());
     let pixels: Vec<u8> = match info.color_type {
@@ -262,7 +264,7 @@ pub fn decode_png(bytes: &[u8]) -> Result<Rgba, String> {
         png::ColorType::Rgb => buf.chunks_exact(3).flat_map(|p| [p[0], p[1], p[2], 255]).collect(),
         png::ColorType::GrayscaleAlpha => buf.chunks_exact(2).flat_map(|p| [p[0], p[0], p[0], p[1]]).collect(),
         png::ColorType::Grayscale => buf.iter().flat_map(|&g| [g, g, g, 255]).collect(),
-        png::ColorType::Indexed => return Err("formato PNG non supportato".into()),
+        png::ColorType::Indexed => return Err(t("formato PNG non supportato").into()),
     };
     Ok(Rgba { width: info.width, height: info.height, pixels })
 }

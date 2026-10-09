@@ -21,6 +21,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::island::WINDOW_LABEL;
 use crate::probes::reg::{Key, HKEY_CURRENT_USER};
+use crate::i18n::{t, tf};
 
 /// Switched on by hand from the tray menu.
 pub static MANUAL: AtomicBool = AtomicBool::new(false);
@@ -44,7 +45,8 @@ fn app_name(key: &str) -> String {
     let known = [
         ("teams", "Teams"), ("zoom", "Zoom"), ("webex", "Webex"), ("skype", "Skype"), ("slack", "Slack"),
         ("discord", "Discord"), ("chrome", "Chrome"), ("msedge", "Edge"), ("firefox", "Firefox"),
-        ("whatsapp", "WhatsApp"), ("telegram", "Telegram"), ("windowscamera", "Fotocamera"), ("gotomeeting", "GoTo"),
+        ("whatsapp", "WhatsApp"), ("telegram", "Telegram"), ("windowscamera", t("Fotocamera")), ("gotomeeting", "GoTo"),
+
     ];
     known.iter().find(|(k, _)| low.contains(k)).map(|(_, n)| n.to_string()).unwrap_or_else(|| base.to_string())
 }
@@ -95,12 +97,12 @@ pub(crate) fn processes() -> Vec<String> {
 fn remote_help(extra: &[String]) -> Option<String> {
     use windows::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SM_REMOTESESSION};
     if unsafe { GetSystemMetrics(SM_REMOTESESSION) } != 0 {
-        return Some("sessione Desktop remoto".into());
+        return Some(t("sessione Desktop remoto").into());
     }
     let running = processes();
     let has = |exe: &str| running.iter().any(|p| p == exe);
     if has("quickassist.exe") {
-        return Some("Assistenza rapida".into());
+        return Some(t("Assistenza rapida").into());
     }
     if has("teamviewer_desktop.exe") {
         return Some("TeamViewer".into());
@@ -131,10 +133,10 @@ fn detect(app: &AppHandle) -> Option<String> {
         .unwrap_or((false, false, Vec::new()));
     if meeting {
         if let Some(a) = device_in_use("microphone") {
-            return Some(format!("{a} usa il microfono"));
+            return Some(tf("{a} usa il microfono", &[("a", &a)]));
         }
         if let Some(a) = device_in_use("webcam") {
-            return Some(format!("{a} usa la webcam"));
+            return Some(tf("{a} usa la webcam", &[("a", &a)]));
         }
     }
     if remote {
@@ -152,8 +154,8 @@ pub fn current() -> Option<String> {
 
 fn publish(app: &AppHandle, reason: Option<String>) {
     crate::log::line(match &reason {
-        Some(r) => format!("davanti al cliente: sì ({r})"),
-        None => "davanti al cliente: no".to_string(),
+        Some(r) => tf("davanti al cliente: sì ({r})", &[("r", &r)]),
+        None => t("davanti al cliente: no").to_string(),
     });
     *CURRENT.lock().unwrap() = reason.clone();
     let _ = app.emit_to(WINDOW_LABEL, "presence", Presence { active: reason.is_some(), reason: reason.unwrap_or_default() });

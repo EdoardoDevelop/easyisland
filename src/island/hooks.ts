@@ -10,7 +10,9 @@ import { Sound } from "../core/sound";
 import { State, type AskQuestion, type SessionHost } from "../core/state";
 import type { Island } from "./island";
 import { applyPlanTool, planStep } from "./plan";
+import { Recap } from "./recap";
 import { risksOf } from "./risk";
+import { t, tn } from "../core/i18n";
 
 const CLAUDE_ID = "integration_claude";
 
@@ -86,18 +88,19 @@ interface TestVerdict {
  * "✓ Test · 12 superati", "✗ Test · 1 fallito su 13 · math › adds — Expected: 3…".
  * The ✓ / ✗ in front is what the ticker colours (views/ticker.ts).
  */
-export function testStep(t: TestVerdict): string {
+export function testStep(v: TestVerdict): string {
   const n = (x: number | undefined) => x ?? 0;
-  const unit = t.unit === "pacchetti" ? " pacchetti" : "";
-  const skipped = n(t.skipped) ? `, ${n(t.skipped)} saltati` : "";
-  if (t.status === "passed") {
-    return `✓ Test · ${n(t.passed)}${unit} ${n(t.passed) === 1 ? "superato" : "superati"}${skipped}`;
+  const pkg = v.unit === "pacchetti";
+  const skipped = n(v.skipped) ? t(", {n} saltati", { n: n(v.skipped) }) : "";
+  if (v.status === "passed") {
+    const ok = pkg ? tn("{n} pacchetto superato", "{n} pacchetti superati", n(v.passed)) : tn("{n} superato", "{n} superati", n(v.passed));
+    return `✓ Test · ${ok}${skipped}`;
   }
-  const total = n(t.passed) + n(t.failed);
-  const head = t.known === false
-    ? "✗ Test falliti"
-    : `✗ Test · ${n(t.failed)}${unit} ${n(t.failed) === 1 ? "fallito" : "falliti"} su ${total}`;
-  return t.reason ? `${head} · ${t.reason}` : head;
+  const total = n(v.passed) + n(v.failed);
+  const failed = pkg ? tn("{n} pacchetto fallito su {total}", "{n} pacchetti falliti su {total}", n(v.failed), { total })
+    : tn("{n} fallito su {total}", "{n} falliti su {total}", n(v.failed), { total });
+  const head = v.known === false ? t("✗ Test falliti") : `✗ Test · ${failed}`;
+  return v.reason ? `${head} · ${v.reason}` : head;
 }
 
 /** Where the session runs, from what the relay saw in its environment. */
@@ -123,69 +126,77 @@ function sessionHost(p: HookPayload): SessionHost {
 
 /** The preview of an automation Claude wants to create: "Quando… / Allora…". */
 function describeAutomation(input: Record<string, unknown>): string {
-  const t = (input.trigger ?? {}) as Record<string, unknown>;
+  const trig = (input.trigger ?? {}) as Record<string, unknown>;
   const str = (o: Record<string, unknown>, k: string) => String(o[k] ?? "").trim();
-  const names = ["", "lun", "mar", "mer", "gio", "ven", "sab", "dom"];
-  const days = Array.isArray(t.days) && t.days.length && t.days.length < 7
-    ? (t.days as number[]).map((d) => names[d] ?? d).join(", ")
-    : "ogni giorno";
-  const src = (State.settings.widgets ?? []).find((w) => w.id === str(t, "source"))?.name
-    ?? State.tasks.find((x) => x.id === str(t, "source"))?.name ?? str(t, "source");
+  const names = ["", t("lun"), t("mar"), t("mer"), t("gio"), t("ven"), t("sab"), t("dom")];
+  const days = Array.isArray(trig.days) && trig.days.length && trig.days.length < 7
+    ? (trig.days as number[]).map((d) => names[d] ?? d).join(", ")
+    : t("ogni giorno");
+  const src = (State.settings.widgets ?? []).find((w) => w.id === str(trig, "source"))?.name
+    ?? State.tasks.find((x) => x.id === str(trig, "source"))?.name ?? str(trig, "source");
+  const what_ = str(trig, "when") === "event" ? t("una novità") : str(trig, "when") === "any" ? t("un problema o una novità") : t("un problema");
   const when: Record<string, string> = {
-    time: `alle ${str(t, "time")}, ${days}`,
-    startup: `${Number(t.delay ?? 30) || 30} secondi dopo l'avvio del PC`,
-    unlock: "quando sblocchi il PC",
-    wifi: `quando ti colleghi alla rete ${str(t, "ssid")}`,
-    app: `quando parte ${str(t, "exe")}`,
-    drive: "quando colleghi una chiavetta o un disco",
-    folder: `quando arriva un file in ${str(t, "folder")}`,
-    integration: `quando ${src} segnala ${str(t, "when") === "event" ? "una novità" : str(t, "when") === "any" ? "un problema o una novità" : "un problema"}`,
+    time: t("alle {time}, {days}", { time: str(trig, "time"), days }),
+    startup: t("{n} secondi dopo l'avvio del PC", { n: Number(trig.delay ?? 30) || 30 }),
+    unlock: t("quando sblocchi il PC"),
+    wifi: t("quando ti colleghi alla rete {ssid}", { ssid: str(trig, "ssid") }),
+    app: t("quando parte {exe}", { exe: str(trig, "exe") }),
+    drive: t("quando colleghi una chiavetta o un disco"),
+    folder: t("quando arriva un file in {folder}", { folder: str(trig, "folder") }),
+    integration: t("quando {src} segnala {what}", { src, what: what_ }),
   };
   const actions = State.settings.actions ?? [];
   const profiles = State.settings.profiles ?? [];
   const steps = (Array.isArray(input.steps) ? input.steps : []) as Record<string, unknown>[];
   const what = steps.map((st) => {
     switch (str(st, "kind")) {
-      case "quick": return `esegue «${actions.find((a) => a.id === str(st, "id"))?.name ?? str(st, "id")}»`;
-      case "notice": return `mostra l'avviso «${str(st, "title") || str(st, "text")}»`;
-      case "profile": return `passa al profilo «${profiles.find((p) => p.id === str(st, "id"))?.name ?? str(st, "id")}»`;
-      case "app": return `apre ${str(st, "target")}${str(st, "args") ? ` ${str(st, "args")}` : ""}`;
-      case "url": return `apre ${str(st, "url")}`;
+      case "quick": return t("esegue «{name}»", { name: actions.find((a) => a.id === str(st, "id"))?.name ?? str(st, "id") });
+      case "notice": return t("mostra l'avviso «{title}»", { title: str(st, "title") || str(st, "text") });
+      case "profile": return t("passa al profilo «{name}»", { name: profiles.find((p) => p.id === str(st, "id"))?.name ?? str(st, "id") });
+      case "app": return t("apre {target}", { target: `${str(st, "target")}${str(st, "args") ? ` ${str(st, "args")}` : ""}` });
+      case "url": return t("apre {target}", { target: str(st, "url") });
       default: return str(st, "kind");
     }
   });
   const profile = profiles.find((p) => p.id === str(input, "profile"))?.name;
-  return `Creare l'automazione «${str(input, "name")}»\nQuando: ${when[str(t, "kind")] ?? str(t, "kind")}${profile ? ` (solo nel profilo ${profile})` : ""}\nAllora: ${what.join(", poi ") || "niente"}`;
+  return [
+    t("Creare l'automazione «{name}»", { name: str(input, "name") }),
+    t("Quando: {when}", { when: (when[str(trig, "kind")] ?? str(trig, "kind")) + (profile ? t(" (solo nel profilo {profile})", { profile }) : "") }),
+    t("Allora: {what}", { what: what.join(t(", poi ")) || t("niente") }),
+  ].join("\n");
 }
 
 /** EasyIsland's own tools (agent.rs) in words, for the Consenti / Nega card. */
 function easyislandTarget(name: string, input: Record<string, unknown>): string | null {
   const s = (k: string) => String(input[k] ?? "").trim();
-  const short = (t: string, n = 160) => (t.length > n ? `${t.slice(0, n)}…` : t);
+  const short = (x: string, n = 160) => (x.length > n ? `${x.slice(0, n)}…` : x);
   switch (name) {
     case "open_app":
-      return `Aprire ${s("target")}${s("args") ? ` ${s("args")}` : ""}`;
+      return t("Aprire {target}", { target: `${s("target")}${s("args") ? ` ${s("args")}` : ""}` });
     case "open_url":
-      return `Aprire ${s("url")}`;
+      return t("Aprire {target}", { target: s("url") });
     case "run_quick_action": {
       const a = (State.settings.actions ?? []).find((x) => x.id === s("id"));
-      if (!a) return `Eseguire l'azione rapida ${s("id")}`;
-      const what = a.kind === "script" ? `lo script «${a.name}»:\n${short(a.script, 400)}` : `l'azione «${a.name}»`;
-      return `Eseguire ${what}`;
+      if (!a) return t("Eseguire l'azione rapida {id}", { id: s("id") });
+      return a.kind === "script"
+        ? t("Eseguire lo script «{name}»:", { name: a.name }) + `\n${short(a.script, 400)}`
+        : t("Eseguire l'azione «{name}»", { name: a.name });
     }
     case "read_clipboard":
-      return "Leggere il testo negli appunti";
+      return t("Leggere il testo negli appunti");
     case "write_clipboard":
-      return `Mettere negli appunti: ${short(s("text"))}`;
+      return t("Mettere negli appunti: {text}", { text: short(s("text")) });
     case "switch_profile": {
       const p = (State.settings.profiles ?? []).find((x) => x.id === s("id"));
-      return `Passare al profilo «${p?.name ?? s("id")}»`;
+      return t("Passare al profilo «{name}»", { name: p?.name ?? s("id") });
     }
     case "create_automation":
       return describeAutomation(input);
     case "set_automation_enabled": {
       const a = (State.settings.automations ?? []).find((x) => x.id === s("id"));
-      return `${input.enabled ? "Accendere" : "Spegnere"} l'automazione «${a?.name ?? s("id")}»`;
+      return input.enabled
+        ? t("Accendere l'automazione «{name}»", { name: a?.name ?? s("id") })
+        : t("Spegnere l'automazione «{name}»", { name: a?.name ?? s("id") });
     }
     default:
       return null;
@@ -215,7 +226,7 @@ function handleChatPermission(island: Island, payload: HookPayload) {
     if (requestId) void Bridge.approvalDecline(requestId);
     return;
   }
-  const raw = payload.tool_name ?? "Connettore";
+  const raw = payload.tool_name ?? t("Connettore");
   const tool = raw.startsWith("mcp__easyisland__") ? "EasyIsland" : raw;
   const input = payload.tool_input ?? {};
   // opencode's own tools (a command, a file): shown as they are, and "Sempre"
@@ -272,21 +283,21 @@ function lastPathComponent(p: string): string {
 
 /** Step labels shown in the ticker (frenchStep() in the macOS app, now in Italian). */
 const TOOL_LABELS: Record<string, string> = {
-  Bash: "Esegue",
-  Read: "Legge",
-  Write: "Scrive",
-  Edit: "Modifica",
-  Glob: "Cerca",
-  Grep: "Ricerca",
-  WebSearch: "Ricerca web",
-  WebFetch: "Scarica",
-  TodoWrite: "Attività",
+  Bash: t("Esegue"),
+  Read: t("Legge"),
+  Write: t("Scrive"),
+  Edit: t("Modifica"),
+  Glob: t("Cerca"),
+  Grep: t("Ricerca"),
+  WebSearch: t("Ricerca web"),
+  WebFetch: t("Scarica"),
+  TodoWrite: t("Attività"),
   Task: "Agent",
-  LS: "Elenca",
-  MultiEdit: "Modifica",
+  LS: t("Elenca"),
+  MultiEdit: t("Modifica"),
   NotebookEdit: "Notebook",
-  PowerShell: "Esegue",
-  AskUserQuestion: "Domanda",
+  PowerShell: t("Esegue"),
+  AskUserQuestion: t("Domanda"),
 };
 
 /**
@@ -297,7 +308,7 @@ const TOOL_LABELS: Record<string, string> = {
 function alwaysLabel(suggestions: unknown): string | null {
   if (!Array.isArray(suggestions)) return null;
   const where = (d: unknown) =>
-    d === "session" ? "in questa sessione" : d === "projectSettings" ? "in questo progetto" : "in questo progetto, solo per te";
+    d === "session" ? t("in questa sessione") : d === "projectSettings" ? t("in questo progetto") : t("in questo progetto, solo per te");
   const parts: string[] = [];
   for (const s of suggestions as Record<string, unknown>[]) {
     if (!s || typeof s !== "object") continue;
@@ -307,9 +318,9 @@ function alwaysLabel(suggestions: unknown): string | null {
         typeof r.ruleContent === "string" && r.ruleContent ? `${r.toolName}(${r.ruleContent})` : String(r.toolName ?? ""));
       parts.push(`${rules.join(", ")} ${where(s.destination)}`);
     } else if (type === "addDirectories" && Array.isArray(s.directories) && s.directories.length) {
-      parts.push(`accesso a ${(s.directories as string[]).join(", ")} ${where(s.destination)}`);
+      parts.push(t("accesso a {dirs} {where}", { dirs: (s.directories as string[]).join(", "), where: where(s.destination) }));
     } else if (type === "setMode" && s.mode === "acceptEdits") {
-      parts.push("tutte le modifiche ai file in questa sessione");
+      parts.push(t("tutte le modifiche ai file in questa sessione"));
     }
   }
   return parts.length ? parts.join("; ") : null;
@@ -346,10 +357,10 @@ function stepLabel(tool: string, input: Record<string, unknown>): string {
  * the reason tells whether that was the model's mistake or something to look at.
  */
 function failStep(p: HookPayload): string {
-  if (p.is_interrupt) return "⏹ interrotto";
-  const what = p.tool_name ? stepLabel(p.tool_name, p.tool_input ?? {}) : "Strumento";
+  if (p.is_interrupt) return t("⏹ interrotto");
+  const what = p.tool_name ? stepLabel(p.tool_name, p.tool_input ?? {}) : t("Strumento");
   const why = typeof p.error === "string" ? firstLine(p.error, 60) : "";
-  return `⚠ ${what} · ${why || "errore"}`;
+  return `⚠ ${what} · ${why || t("errore")}`;
 }
 
 /**
@@ -514,10 +525,10 @@ function watchSessions(island: Island) {
 /** Claude Code's permission mode for the session card: a word, and what it means; null for the default. */
 export function permissionModeLabel(mode: string | null | undefined): { text: string; tip: string; warn: boolean } | null {
   switch (mode) {
-    case "plan": return { text: "piano", tip: "Modalità piano: Claude prepara un piano, non modifica nulla", warn: false };
-    case "acceptEdits": return { text: "auto", tip: "Le modifiche ai file vengono accettate senza chiedere", warn: false };
-    case "bypassPermissions": return { text: "libero", tip: "Nessuna conferma: Claude esegue tutto senza chiedere", warn: true };
-    case "dontAsk": return { text: "non chiede", tip: "Non chiede: ciò che non è già consentito viene rifiutato", warn: true };
+    case "plan": return { text: t("piano"), tip: t("Modalità piano: Claude prepara un piano, non modifica nulla"), warn: false };
+    case "acceptEdits": return { text: "auto", tip: t("Le modifiche ai file vengono accettate senza chiedere"), warn: false };
+    case "bypassPermissions": return { text: t("libero"), tip: t("Nessuna conferma: Claude esegue tutto senza chiedere"), warn: true };
+    case "dontAsk": return { text: t("non chiede"), tip: t("Non chiede: ciò che non è già consentito viene rifiutato"), warn: true };
     default: return null;
   }
 }
@@ -590,6 +601,9 @@ export function handleHook(island: Island, payload: HookPayload) {
     }
   };
 
+  // Monday from 8:00: an agent starting work may open last week's recap.
+  if (name === "SessionStart" || name === "UserPromptSubmit") void Recap.check(island);
+
   switch (name) {
     case "SessionStart":
       upsert(tid, projectName, cwd, host);
@@ -612,12 +626,12 @@ export function handleHook(island: Island, payload: HookPayload) {
     case "PreToolUse": {
       upsert(tid, projectName, cwd, host);
       State.updateTask(tid, "working");
-      const tool = payload.tool_name ?? "Strumento";
-      const t = State.tasks.find((x) => x.id === tid);
+      const tool = payload.tool_name ?? t("Strumento");
+      const task = State.tasks.find((x) => x.id === tid);
       // A plan tool: the plan, and "Piano · <what is being done>" as the step.
-      const plan = applyPlanTool(t?.plan, tool, payload.tool_input ?? {});
-      if (t && plan) {
-        t.plan = plan;
+      const plan = applyPlanTool(task?.plan, tool, payload.tool_input ?? {});
+      if (task && plan) {
+        task.plan = plan;
         State.appendStep(tid, planStep(plan));
       } else {
         State.appendStep(tid, stepLabel(tool, payload.tool_input ?? {}));
@@ -629,7 +643,7 @@ export function handleHook(island: Island, payload: HookPayload) {
     case "PostToolUse": {
       if (payload.easyisland_after_only) {
         upsert(tid, projectName, cwd, host);
-        State.appendStep(tid, stepLabel(payload.tool_name ?? "Strumento", payload.tool_input ?? {}));
+        State.appendStep(tid, stepLabel(payload.tool_name ?? t("Strumento"), payload.tool_input ?? {}));
         surface("overview", false);
       }
       State.updateTask(tid, "working");
@@ -651,7 +665,7 @@ export function handleHook(island: Island, payload: HookPayload) {
         const add = all.reduce((n, x) => n + (x?.added ?? 0), 0);
         const del = all.reduce((n, x) => n + (x?.removed ?? 0), 0);
         const names = all.map((x) => lastPathComponent(x!.file!)).join(", ");
-        State.appendStep(tid, `Modifica · ${names}${diffCounts(add, del)}`);
+        State.appendStep(tid, `${t("Modifica")} · ${names}${diffCounts(add, del)}`);
       }
       if (payload.easyisland_tests) {
         // "Esegue · npm test" becomes what the run really said.
@@ -664,7 +678,7 @@ export function handleHook(island: Island, payload: HookPayload) {
     case "PostToolUseFailure":
       if (payload.easyisland_after_only) {
         upsert(tid, projectName, cwd, host);
-        State.appendStep(tid, stepLabel(payload.tool_name ?? "Strumento", payload.tool_input ?? {}));
+        State.appendStep(tid, stepLabel(payload.tool_name ?? t("Strumento"), payload.tool_input ?? {}));
       }
       State.updateTask(tid, "working");
       if (payload.easyisland_tests) {
@@ -682,9 +696,12 @@ export function handleHook(island: Island, payload: HookPayload) {
       const message = payload.message ?? "";
       if (payload.easyisland_waiting) {
         // Gemini asks in its terminal: say so, loudly enough to be seen.
+        // The relay writes it in Italian (hook/src/agents.rs).
+        const asked = message.replace(/^Chiede un permesso nel terminale: /, t("Chiede un permesso nel terminale: "))
+          .replace(/un'azione$/, t("un'azione"));
         upsert(tid, projectName, cwd, host);
         State.updateTask(tid, "question");
-        State.appendStep(tid, message.slice(0, 80));
+        State.appendStep(tid, asked.slice(0, 80));
         Sound.play("question");
         // Like a permission card: it blocks the agent, so it shows (a badge only
         // over a full-screen app or in front of a client).
@@ -745,16 +762,16 @@ export function handleHook(island: Island, payload: HookPayload) {
     case "PreCompact":
       // Claude summarises the conversation: it takes a while and looks stuck.
       State.updateTask(tid, "thinking");
-      State.appendStep(tid, payload.trigger === "auto" ? "Riassume la conversazione (contesto pieno)" : "Riassume la conversazione");
+      State.appendStep(tid, payload.trigger === "auto" ? t("Riassume la conversazione (contesto pieno)") : t("Riassume la conversazione"));
       surface("overview", false);
       break;
 
     case "SubagentStart":
-      State.appendStep(tid, "+ sub-agente");
+      State.appendStep(tid, t("+ sub-agente"));
       break;
 
     case "SubagentStop":
-      State.appendStep(tid, "• sub-agente finito");
+      State.appendStep(tid, t("• sub-agente finito"));
       break;
 
     case "PermissionRequest": {
@@ -768,7 +785,7 @@ export function handleHook(island: Island, payload: HookPayload) {
       }
       upsert(tid, projectName, cwd, host);
       if (pendingTimeout != null) window.clearTimeout(pendingTimeout);
-      const tool = payload.tool_name ?? "Strumento";
+      const tool = payload.tool_name ?? t("Strumento");
       const input = payload.tool_input ?? {};
       const questions = tool === "AskUserQuestion" ? askQuestions(input) : null;
       const always = questions ? null : alwaysLabel(payload.permission_suggestions);
@@ -785,7 +802,7 @@ export function handleHook(island: Island, payload: HookPayload) {
         ...(questions ? { questions } : {}),
         ...(always ? { always } : {}),
         ...(risks.length ? { risks } : {}),
-        ...(plan ? { plan, command: "Piano pronto: Consenti per iniziare a lavorarci" } : {}),
+        ...(plan ? { plan, command: t("Piano pronto: Consenti per iniziare a lavorarci") } : {}),
       };
       const card = questions ? "ask" : "approval";
       // The relay's short ack window closes in 800 ms; everything below this

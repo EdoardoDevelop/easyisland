@@ -5,6 +5,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Settings, WidgetStatus } from "./state";
+import type { RecapHistory } from "../island/recap";
 
 export const IS_TAURI =
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -40,6 +41,14 @@ export interface ClaudeCliStatus {
   loggedIn: boolean;
   /** "cli" (installed on its own), "vscode" (the VS Code extension's copy), "desktop" (the Claude app's). */
   source?: string;
+}
+
+/** A model of a chat engine, with its price when the engine says it (openai.rs, opencode.rs). */
+export interface ModelOption {
+  id: string;
+  price?: "free" | "paid" | "local";
+  /** Dollars per million tokens, input / output. */
+  cost?: string;
 }
 
 export const Bridge = {
@@ -125,7 +134,7 @@ export const Bridge = {
   chatSend: (query: string, context: ChatContext | null, engine: string | null = null) =>
     callOrThrow<{ text: string }>("chat_send", { query, context, engine }),
   /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
-  chatModels: (engine: string, url: string | null) => callOrThrow<string[]>("chat_models", { engine, url }),
+  chatModels: (engine: string, url: string | null) => callOrThrow<ModelOption[]>("chat_models", { engine, url }),
   chatReset: () => call<void>("chat_reset"),
   /** Quick actions. */
   actionOpenApp: (target: string, args: string) => callOrThrow<void>("action_open_app", { target, args }),
@@ -199,6 +208,14 @@ export const Bridge = {
   widgetRefresh: (id: string) => call<void>("widget_refresh", { id }),
   /** The checks' last results (the first round runs before the island listens). */
   widgetResults: async () => (await call<WidgetStatus[]>("widget_results")) ?? [],
+  /** Weekly recap (recap.rs): turns and decisions from `since` (Unix seconds). */
+  recapHistory: (since: number) => call<RecapHistory>("recap_history", { since }),
+  recapMarkShown: (week: string) => call<void>("recap_mark_shown", { week }),
+  recapClear: () => call<void>("recap_clear"),
+  /** From the settings window: the island opens the recap. */
+  recapShow: () => call<void>("recap_show"),
+  /** Lingua: the windows are rebuilt in the new language. */
+  restartApp: () => call<void>("restart_app"),
   /** Profiles, backup. */
   switchProfile: (id: string) => call<void>("switch_profile", { id }),
   settingsExport: () => callOrThrow<string>("settings_export"),

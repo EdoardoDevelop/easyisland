@@ -14,6 +14,7 @@ use tauri_plugin_updater::UpdaterExt;
 
 use crate::island::WINDOW_LABEL;
 use crate::{log, Shared};
+use crate::i18n::{t, tf};
 
 /// First check a minute after start, then once a day.
 const FIRST_CHECK: Duration = Duration::from_secs(60);
@@ -43,13 +44,13 @@ pub async fn check(app: &AppHandle) -> Result<Option<UpdateInfo>, String> {
 pub async fn install(app: &AppHandle) -> Result<(), String> {
     let updater = app.updater().map_err(|e| e.to_string())?;
     let Some(update) = updater.check().await.map_err(|e| e.to_string())? else {
-        return Err("Nessun aggiornamento disponibile.".into());
+        return Err(t("Nessun aggiornamento disponibile.").into());
     };
     log::line(format!("update: installing {}", update.version));
     update
         .download_and_install(|_, _| {}, || {})
         .await
-        .map_err(|e| format!("Aggiornamento non riuscito: {e}"))?;
+        .map_err(|e| tf("Aggiornamento non riuscito: {e}", &[("e", &e)]))?;
     app.restart();
 }
 

@@ -27,6 +27,7 @@ use tokio::process::Command;
 
 use crate::claude::{Chat, ChatContext, ChatReply};
 use crate::settings::McpChoice;
+use crate::i18n::{t, tf};
 
 /// Opus with a few web searches can take a while; the island shows "thinking".
 const TIMEOUT: Duration = Duration::from_secs(180);
@@ -211,9 +212,9 @@ impl Connectors {
 /// to read; it also holds the two small files we pass by path.
 fn work_dir(connectors: &Connectors) -> Result<PathBuf, String> {
     let dir = crate::settings::local_dir().join("chat");
-    std::fs::create_dir_all(&dir).map_err(|e| format!("cartella della chat non creata: {e}"))?;
+    std::fs::create_dir_all(&dir).map_err(|e| tf("cartella della chat non creata: {e}", &[("e", &e)]))?;
 
-    let mut prompt = SYSTEM_PROMPT.to_string();
+    let mut prompt = crate::i18n::prompt(SYSTEM_PROMPT);
     if connectors.agent {
         prompt.push_str(AGENT_PROMPT);
         // `easyisland-hook mcp`: the tools of agent.rs, through the pipe.
@@ -387,7 +388,7 @@ pub async fn send(
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
     let exe = find_claude().ok_or_else(|| {
-        "Per la chat con l'abbonamento serve Claude Code da riga di comando (la CLI), installato su questo PC e con il login fatto: quello dentro l'app desktop di Claude non si può usare da altri programmi. Impostazioni → Chat spiega come installarlo; oppure lì scegli un altro motore."
+        t("Per la chat con l'abbonamento serve Claude Code da riga di comando (la CLI), installato su questo PC e con il login fatto: quello dentro l'app desktop di Claude non si può usare da altri programmi. Impostazioni → Chat spiega come installarlo; oppure lì scegli un altro motore.")
             .to_string()
     })?;
     let connectors = Connectors::from_choices(mcp, agent);
@@ -400,7 +401,7 @@ pub async fn send(
     if session.is_none() {
         match &context {
             Some(ChatContext::File { name, path }) => {
-                prompt.push_str(&format!("File allegato: {name}\nPercorso: {path}\nLeggilo con Read prima di rispondere.\n\n"));
+                prompt.push_str(&tf("File allegato: {name}\nPercorso: {path}\nLeggilo con Read prima di rispondere.\n\n", &[("name", &name), ("path", &path)]));
                 extra_dir = Path::new(path).parent().map(Path::to_path_buf);
             }
             Some(ChatContext::Text { label, text }) => {
@@ -427,7 +428,7 @@ pub async fn send(
         .args(args(&dir, model, session.as_deref(), extra_dir.as_deref(), &connectors));
     let mut child = cmd
         .spawn()
-        .map_err(|e| format!("Claude Code non si avvia: {e}"))?;
+        .map_err(|e| tf("Claude Code non si avvia: {e}", &[("e", &e)]))?;
     if let Some(mut stdin) = child.stdin.take() {
         stdin
             .write_all(prompt.as_bytes())
@@ -439,8 +440,8 @@ pub async fn send(
     let limit = if connectors.uses_mcp() { TIMEOUT_WITH_CONNECTORS } else { TIMEOUT };
     let output = match tokio::time::timeout(limit, child.wait_with_output()).await {
         Ok(Ok(o)) => o,
-        Ok(Err(e)) => return Err(format!("Claude Code si è interrotto: {e}")),
-        Err(_) => return Err("Claude Code non ha risposto in tempo.".into()),
+        Ok(Err(e)) => return Err(tf("Claude Code si è interrotto: {e}", &[("e", &e)])),
+        Err(_) => return Err(t("Claude Code non ha risposto in tempo.").into()),
     };
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -453,10 +454,8 @@ pub async fn send(
             return Err(LOGIN_HELP.into());
         }
         return Err(if detail.is_empty() {
-            format!(
-                "Claude Code ha restituito un errore (codice {}).",
-                output.status.code().unwrap_or(-1)
-            )
+            tf("Claude Code ha restituito un errore (codice {code}).", &[("code", &output.status.code().unwrap_or(-1))])
+
         } else {
             format!("Claude Code: {detail}")
         });
@@ -468,7 +467,7 @@ pub async fn send(
             return Err(LOGIN_HELP.into());
         }
         return Err(if outcome.text.is_empty() {
-            "Claude Code ha restituito un errore.".into()
+            t("Claude Code ha restituito un errore.").into()
         } else {
             format!("Claude Code: {}", outcome.text)
         });
@@ -478,7 +477,7 @@ pub async fn send(
         chat.set_cli_session(Some(id));
     }
     if outcome.text.is_empty() {
-        return Err("Nessun testo nella risposta.".into());
+        return Err(t("Nessun testo nella risposta.").into());
     }
     Ok(ChatReply { text: outcome.text })
 }

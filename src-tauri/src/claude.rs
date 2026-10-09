@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::secrets;
+use crate::i18n::{t, tf};
 
 const ENDPOINT: &str = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION: &str = "2023-06-01";
@@ -128,7 +129,7 @@ fn request_body(model: &str, messages: Vec<Value>) -> Value {
     let mut body = json!({
         "model": model,
         "max_tokens": MAX_TOKENS,
-        "system": SYSTEM_PROMPT,
+        "system": crate::i18n::prompt(SYSTEM_PROMPT),
         "tools": [web_search_tool(model)],
         "messages": messages,
     });
@@ -153,7 +154,7 @@ pub async fn send(
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
     let key = secrets::get("anthropic-api-key")
-        .ok_or_else(|| "Manca la chiave API. Apri le impostazioni.".to_string())?;
+        .ok_or_else(|| t("Manca la chiave API. Apri le impostazioni.").to_string())?;
 
     let mut content: Vec<Value> = Vec::new();
 
@@ -213,7 +214,7 @@ pub async fn send(
                 .get("stop_details")
                 .and_then(|d| d.get("explanation"))
                 .and_then(Value::as_str)
-                .unwrap_or("Claude ha rifiutato questa richiesta.");
+                .unwrap_or(t("Claude ha rifiutato questa richiesta."));
             return Err(why.to_string());
         }
 
@@ -221,7 +222,7 @@ pub async fn send(
             for _ in 0..pushed {
                 chat.pop();
             }
-            return Err("Risposta inattesa dall'API.".into());
+            return Err(t("Risposta inattesa dall'API.").into());
         };
 
         // Store the whole content — thinking, server tool use and search results
@@ -250,11 +251,12 @@ pub async fn send(
         .to_string();
 
     if truncated && !text.is_empty() {
-        text.push_str("\n\n[Risposta interrotta: troppo lunga.]");
+        text.push_str(t("\n\n[Risposta interrotta: troppo lunga.]"));
+
     }
 
     if text.is_empty() {
-        return Err("Nessun testo nella risposta.".into());
+        return Err(t("Nessun testo nella risposta.").into());
     }
     Ok(ChatReply { text })
 }
@@ -277,7 +279,7 @@ async fn call(key: &str, body: &Value, fallback_beta: bool) -> Result<Value, Str
         .json(body)
         .send()
         .await
-        .map_err(|e| format!("Errore di rete: {e}"))?;
+        .map_err(|e| tf("Errore di rete: {e}", &[("e", &e)]))?;
 
     let status = response.status();
     let text = response.text().await.map_err(|e| e.to_string())?;
@@ -294,7 +296,7 @@ async fn call(key: &str, body: &Value, fallback_beta: bool) -> Result<Value, Str
             .unwrap_or_else(|| text.chars().take(200).collect());
         return Err(format!("API Claude {status}: {detail}"));
     }
-    serde_json::from_str(&text).map_err(|e| format!("Risposta API non valida: {e}"))
+    serde_json::from_str(&text).map_err(|e| tf("Risposta API non valida: {e}", &[("e", &e)]))
 }
 
 /// PDF → document block, image → image block, text/code → inline text.
@@ -328,7 +330,7 @@ fn file_block(path: &str) -> Option<Value> {
         return None;
     }
     let text = std::fs::read_to_string(path).ok()?;
-    Some(json!({ "type": "text", "text": format!("Contenuto del file:\n{text}") }))
+    Some(json!({ "type": "text", "text": tf("Contenuto del file:\n{text}", &[("text", &text)]) }))
 }
 
 /// Small standalone base64 encoder — not worth another dependency.

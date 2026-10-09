@@ -1,31 +1,36 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 9 ottobre 2026. Versione **0.6.2** in `main` con il tag `v0.6.2` (la CI pubblica l'installer), installata su questo PC. Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 9 ottobre 2026. Versione **0.6.2** in `main` con il tag `v0.6.2` (la CI pubblica l'installer), installata su questo PC. Su `claude/sviluppo` è pronta la **0.6.3** (interfaccia in inglese, `Ctrl+Space`, riepilogo settimanale, limiti del piano, prezzi dei modelli): mancano le prove dal vivo, poi unione in `main` e tag. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
-- [ ] **Prove dal vivo:** opencode, 3CX, Claude Code, gli altri agenti, Outlook, Zammad, Vassoio, schermi secondari e cielo del Meteo sono provati (9 ottobre). Quelle che restano sono in `docs/prove-dal-vivo.md`.
-- [ ] **Funzioni chieste da Edoardo:** ITA/ENG, cronologia delle chat, cartella trascinata nella chat (`docs/idee.md`).
+- [ ] **Prove dal vivo:** la 0.6.2 è provata (9 ottobre). Quelle che restano sono in `docs/prove-dal-vivo.md`.
+- [ ] **Funzioni chieste da Edoardo:** cronologia delle chat, cartella trascinata nella chat (`docs/idee.md`).
 - [ ] **3CX + Zammad:** ticket del cliente sulla chiamata in arrivo (`docs/idee.md`).
 - [ ] **Remote Desktop Manager** come integrazione. Prima va capito dove sta la fonte dati (`docs/idee.md`).
 - [ ] **Azioni ⚡:** valutare le azioni nel menu contestuale di Windows (`docs/idee.md`).
-- [ ] **opencode:** card per lo strumento `question` anche nella chat (per l'agente c'è), indicazione gratuito/a pagamento nei modelli, controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
-- [ ] **Spunti da Coucou:** Amp/Hermes, limiti del piano dalla `statusLine`, card ripiegabile, riepilogo settimanale, GitHub (`docs/idee.md`).
-- [ ] **Da decidere con Edoardo:** nuovi personaggi (rimandati: le prove sono venute male), quali integrazioni tenere, firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
+- [ ] **opencode:** card per lo strumento `question` anche nella chat (per l'agente c'è), controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
+- [ ] **Spunti da Coucou:** Amp/Hermes, limiti di Codex, card ripiegabile, riepilogo condivisibile come immagine, GitHub (`docs/idee.md`).
+- [ ] **Da decidere con Edoardo:** nuovi personaggi (rimandati: le prove sono venute male), firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
 
 ## Problemi noti
 - **Sopra la barra:** cliccando la barra o aprendo Start il personaggio va dietro. Torna davanti a ogni cambio di finestra in primo piano. Va verificato con Start aperto.
 - **Cattura una zona:** Esc nello Strumento di cattura non si vede, e la cattura annullata resta in ascolto fino a 60 s.
 - **Copia della selezione:** un'immagine o dei file che erano negli appunti non vengono rimessi; si ripristina solo il testo.
-- **Gestione credenziali molto piena:** con centinaia di voci, quelle con nomi lunghi vengono rifiutate (errore 8). Se il salvataggio di una chiave fallisce, eliminare voci vecchie.
-- **Loghi mancanti:** Cal.com, Rete, Stato del PC e Sicurezza usano ancora il pallino colorato (procedura in `docs/architettura.md`). Meteo, Appunti, Musica e Consumo mostrano l'icona della loro scheda.
-- **Claude Code su questo PC:** il login è scaduto (8 ottobre). Finché Edoardo non rifà `claude` → `/login`, la chat «Claude (abbonamento)» non risponde.
-- **Cronologia di opencode:** restano 17 sessioni «Chat di EasyIsland» create dalle prove dell'8 ottobre. Si tolgono da opencode Desktop.
-- **Hook di Claude Code da reinstallare** (Impostazioni → Agenti) per ricevere `PreCompact`.
+- **Limiti del piano:** arrivano solo dalle sessioni che disegnano la status line (terminale, VS Code), non dall'app Claude. Servono gli hook di Claude Code aggiornati (Impostazioni → Agenti → «Aggiorna»).
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 9 ottobre 2026 — interfaccia in inglese, Ctrl+Space
+- **Lingua** (Generale → Lingua: come Windows, italiano, inglese): 1.312 testi in `src/i18n/en.json`, condiviso da isola, impostazioni e Rust (menu, card delle integrazioni, errori). La chat risponde nella lingua scelta. Il cambio vale dal riavvio, offerto con «Riavvia ora». `npm run build` controlla che ogni testo abbia l'inglese. Provata nell'anteprima con `?lang=en`.
+- **`Ctrl+Space` apre l'isola** di predefinito (schema 6: chi aveva ancora `Ctrl+Alt+Shift+M` passa a `Ctrl+Space`; una scorciatoia scelta a mano resta).
+
+### 9 ottobre 2026 — prezzi dei modelli, limiti del piano, riepilogo settimanale
+- **Modelli di opencode e OpenRouter:** «Carica modelli» dice gratuito, locale o a pagamento (dollari per milione di token), con «solo gratuiti» e il prezzo sotto il campo. opencode lo legge da `cost` di `/api/model`, OpenRouter da `pricing`.
+- **Limiti del piano (Pro / Max)** nella card Consumo, presi da Coucou: il relay diventa la `statusLine` di Claude Code (`easyisland-hook statusline`), passa all'app solo `rate_limits` ed esegue la status line di prima, salvata in `statusline-previous.json`. Avviso dall'80 %.
+- **Riepilogo settimanale** (`recap.rs`, `src/island/recap.ts`, preso da Coucou): il lunedì dalle 8 la settimana prima degli agenti; anche dal menu dell'area di notifica e da Impostazioni → Agenti. Prova: `/?scene=recap`. Manca l'immagine da condividere.
 
 ### 9 ottobre 2026 — versione 0.6.2: ricerca, Vassoio, azioni senza selezione
 - **Barra di ricerca** in fondo all'isola aperta (`src/views/search.ts`, `start_apps.rs`): integrazioni, sessioni, azioni ⚡ e programmi del menu Start, anche dello Store. Si spegne in Posizione e aspetto. Provata nell'anteprima; i programmi veri solo nell'app installata.
@@ -42,10 +47,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Il Meteo manda il tipo di cielo (`sky_kind` in `probes.rs`). Il personaggio lo porta sopra la testa (`character/weather.ts`) sulla pillola Meteo e, con «Cielo sul personaggio: anche quando è inattivo», da inattivo. Prova: `/?scene=meteo`, provato dal vivo il 9 ottobre.
 - Nelle pillole e nella Panoramica, Meteo, Appunti, Musica e Consumo mostrano l'icona della loro scheda al posto del pallino.
 - Appunti lunghi allargavano la card oltre l'isola quando era da sola (`.overview.solo > .left` senza `min-width: 0`). Ora si troncano con i puntini.
-
-### 8 ottobre 2026 — domande di opencode nell'isola
-- «EasyIsland dice fallito»: il modello aveva chiamato `question` con argomenti sbagliati, poi ha riprovato e opencode aspettava la risposta, invisibile nell'isola.
-- Ora le domande di opencode 2 (form) sono la card «ask» e si risponde dall'isola; lo step di errore dice strumento e motivo. Aperta: la prova dal vivo.
-
-### 8 ottobre 2026 — scena con due agenti
-- `/?scene=agenti` in `dev/scenes.ts`: Claude Code e opencode (eventi come da `opencode_agent.rs`) nella scheda Agenti, con la barra dei pulsanti. `&claude` seleziona Claude Code. L'isola resta fissata.

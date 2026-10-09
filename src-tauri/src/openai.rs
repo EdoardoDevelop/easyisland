@@ -15,6 +15,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::claude::{Chat, ChatContext, ChatReply};
 use crate::secrets;
+use crate::i18n::{t, tf};
 
 /// The engines this module serves, by their `chatEngine` value.
 pub const ENGINES: &[&str] = &["openrouter", "openai", "gemini", "ollama", "lmstudio"];
@@ -44,7 +45,7 @@ pub fn provider(engine: &str) -> Option<Provider> {
 /// The API root: the user's address for a local server (any http(s) URL, a
 /// trailing `/v1` added when missing), the fixed one otherwise.
 pub fn base_url(engine: &str, custom: Option<&str>) -> Result<String, String> {
-    let p = provider(engine).ok_or("Motore della chat sconosciuto.")?;
+    let p = provider(engine).ok_or(t("Motore della chat sconosciuto."))?;
     let custom = custom.map(str::trim).filter(|u| !u.is_empty());
     let Some(url) = custom.filter(|_| p.key.is_none()) else { return Ok(p.base.to_string()) };
     if !(url.starts_with("http://") || url.starts_with("https://")) {
@@ -125,10 +126,10 @@ fn file_parts(name: &str, path: &str) -> Vec<Value> {
         }
     } else if len <= MAX_INLINE_TEXT {
         if let Ok(text) = std::fs::read_to_string(path) {
-            return vec![json!({ "type": "text", "text": format!("File: {name}\nContenuto del file:\n{text}") })];
+            return vec![json!({ "type": "text", "text": tf("File: {name}\nContenuto del file:\n{text}", &[("name", &name), ("text", &text)]) })];
         }
     }
-    vec![json!({ "type": "text", "text": format!("File: {name} (questo motore non può leggerlo: solo immagini e file di testo)") })]
+    vec![json!({ "type": "text", "text": tf("File: {name} (questo motore non può leggerlo: solo immagini e file di testo)", &[("name", &name)]) })]
 }
 
 /// The visible part of a reply: `<think>…</think>` blocks removed, and an
@@ -186,9 +187,9 @@ fn client() -> Result<reqwest::Client, String> {
 }
 
 fn auth(engine: &str, request: reqwest::RequestBuilder) -> Result<reqwest::RequestBuilder, String> {
-    let p = provider(engine).ok_or("Motore della chat sconosciuto.")?;
+    let p = provider(engine).ok_or(t("Motore della chat sconosciuto."))?;
     let Some(key_name) = p.key else { return Ok(request) };
-    let key = secrets::get(key_name).ok_or_else(|| format!("Manca la chiave di {}. Apri le impostazioni.", p.name))?;
+    let key = secrets::get(key_name).ok_or_else(|| tf("Manca la chiave di {name}. Apri le impostazioni.", &[("name", &p.name)]))?;
     let mut request = request.bearer_auth(key);
     if engine == "openrouter" {
         // OpenRouter's app attribution: who is calling, nothing about the user.
@@ -200,11 +201,11 @@ fn auth(engine: &str, request: reqwest::RequestBuilder) -> Result<reqwest::Reque
 fn network_error(engine: &str, base: &str, err: reqwest::Error) -> String {
     let p = provider(engine).map(|p| p.name).unwrap_or("Il servizio");
     if err.is_connect() && provider(engine).is_some_and(|p| p.key.is_none()) {
-        format!("{p} non risponde su {base}: è avviato?")
+        tf("{p} non risponde su {base}: è avviato?", &[("p", &p), ("base", &base)])
     } else if err.is_timeout() {
-        format!("{p} non ha risposto in tempo.")
+        tf("{p} non ha risposto in tempo.", &[("p", &p)])
     } else {
-        format!("Errore di rete con {p}: {err}")
+        tf("Errore di rete con {p}: {err}", &[("p", &p), ("err", &err)])
     }
 }
 
@@ -218,14 +219,15 @@ pub async fn send(
     query: String,
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
-    let p = provider(engine).ok_or("Motore della chat sconosciuto.")?;
+    let p = provider(engine).ok_or(t("Motore della chat sconosciuto."))?;
     if model.trim().is_empty() {
-        return Err(format!("Scegli un modello di {} nelle impostazioni (Chat).", p.name));
+        return Err(tf("Scegli un modello di {name} nelle impostazioni (Chat).", &[("name", &p.name)]));
     }
     let base = base_url(engine, custom_url)?;
 
     chat.push(user_message(chat.is_empty(), &query, context.as_ref()));
-    let mut messages = vec![json!({ "role": "system", "content": SYSTEM_PROMPT })];
+    let mut messages = vec![json!({ "role": "system", "content": crate::i18n::prompt(SYSTEM_PROMPT) })];
+
     messages.extend(chat.snapshot());
     let body = json!({ "model": model.trim(), "messages": messages, "stream": true });
 
@@ -240,7 +242,7 @@ pub async fn send(
         }
         Ok(_) => {
             chat.pop();
-            Err("Nessun testo nella risposta.".into())
+            Err(t("Nessun testo nella risposta.").into())
         }
         Err(e) => {
             chat.pop();
@@ -270,7 +272,7 @@ async fn stream_turn(engine: &str, base: &str, body: &Value, on_text: &(dyn Fn(&
             let line: Vec<u8> = pending.drain(..=nl).collect();
             let line = String::from_utf8_lossy(&line);
             if let Some(err) = line.trim().strip_prefix("data:").and_then(|d| serde_json::from_str::<Value>(d.trim()).ok()).and_then(|v| v.get("error").cloned()) {
-                let msg = err.get("message").and_then(Value::as_str).unwrap_or("errore durante la risposta");
+                let msg = err.get("message").and_then(Value::as_str).unwrap_or(t("errore durante la risposta"));
                 return Err(msg.to_string());
             }
             if let Some(d) = delta(&line) {
@@ -290,7 +292,7 @@ async fn stream_turn(engine: &str, base: &str, body: &Value, on_text: &(dyn Fn(&
 }
 
 /// Impostazioni → Chat → "Carica modelli": the model ids the engine offers.
-pub async fn models(engine: &str, custom_url: Option<&str>) -> Result<Vec<String>, String> {
+pub async fn models(engine: &str, custom_url: Option<&str>) -> Result<Vec<ModelOption>, String> {
     let base = base_url(engine, custom_url)?;
     let request = auth(engine, client()?.get(format!("{base}/models")))?;
     let response = request.send().await.map_err(|e| network_error(engine, &base, e))?;
@@ -299,25 +301,61 @@ pub async fn models(engine: &str, custom_url: Option<&str>) -> Result<Vec<String
     if !status.is_success() {
         return Err(format!("{status}: {}", error_text(&text)));
     }
-    Ok(model_ids(&text))
+    Ok(model_options(&text))
 }
 
-/// `{"data":[{"id":…}]}` → sorted ids; Gemini's names lose their "models/" prefix.
-pub fn model_ids(body: &str) -> Vec<String> {
+/// A model in Impostazioni → Chat, with what it costs when the engine says so.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ModelOption {
+    pub id: String,
+    /// "free" | "paid" | "local"; absent when the engine does not tell.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub price: Option<&'static str>,
+    /// Dollars per million tokens, input and output ("0,15 $ / 0,60 $").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost: Option<String>,
+}
+
+/// Dollars per million tokens, as the settings show them.
+pub fn per_million(input: f64, output: f64) -> String {
+    let f = |x: f64| {
+        let s = if x >= 10.0 { format!("{x:.0}") } else if x >= 1.0 { format!("{x:.2}") } else { format!("{x:.3}") };
+        let s = if s.contains('.') { s.trim_end_matches('0').trim_end_matches('.').to_string() } else { s };
+        s.replace('.', ",")
+    };
+    format!("{} $ / {} $", f(input), f(output))
+}
+
+/// `{"data":[{"id":…}]}` → sorted models; Gemini's names lose their "models/" prefix.
+/// OpenRouter adds `pricing` (dollars per token, as strings): free or paid.
+pub fn model_options(body: &str) -> Vec<ModelOption> {
     let v: Value = serde_json::from_str(body).unwrap_or_default();
-    let mut ids: Vec<String> = v
+    let price = |m: &Value| -> Option<(f64, f64)> {
+        let p = m.get("pricing")?;
+        let n = |k: &str| p.get(k).and_then(|x| x.as_str().and_then(|s| s.parse::<f64>().ok()).or_else(|| x.as_f64()));
+        Some((n("prompt")?, n("completion")?))
+    };
+    let mut out: Vec<ModelOption> = v
         .get("data")
         .and_then(Value::as_array)
         .map(|list| {
             list.iter()
-                .filter_map(|m| m.get("id").and_then(Value::as_str))
-                .map(|id| id.strip_prefix("models/").unwrap_or(id).to_string())
+                .filter_map(|m| {
+                    let id = m.get("id").and_then(Value::as_str)?;
+                    let id = id.strip_prefix("models/").unwrap_or(id).to_string();
+                    let (price, cost) = match price(m) {
+                        Some((i, o)) if i <= 0.0 && o <= 0.0 => (Some("free"), None),
+                        Some((i, o)) => (Some("paid"), Some(per_million(i * 1e6, o * 1e6))),
+                        None => (None, None),
+                    };
+                    Some(ModelOption { id, price, cost })
+                })
                 .collect()
         })
         .unwrap_or_default();
-    ids.sort();
-    ids.dedup();
-    ids
+    out.sort_by(|a, b| a.id.cmp(&b.id));
+    out.dedup_by(|a, b| a.id == b.id);
+    out
 }
 
 #[cfg(test)]
@@ -329,7 +367,7 @@ mod tests {
     fn live_openrouter_key() {
         println!("key present: {}", crate::secrets::present("openrouter-api-key"));
         let r = tauri::async_runtime::block_on(models("openrouter", None));
-        println!("models: {:?}", r.as_ref().map(|m| (m.len(), m.iter().filter(|x| x.ends_with(":free")).take(3).collect::<Vec<_>>())));
+        println!("models: {:?}", r.as_ref().map(|m| (m.len(), m.iter().filter(|x| x.price == Some("free")).take(3).map(|x| x.id.as_str()).collect::<Vec<_>>())));
     }
 
     use super::*;
@@ -366,8 +404,21 @@ mod tests {
     #[test]
     fn model_lists_are_sorted_ids() {
         let body = r#"{"data":[{"id":"z-model"},{"id":"models/gemini-2.5-pro"},{"id":"a-model"},{"id":"a-model"}]}"#;
-        assert_eq!(model_ids(body), ["a-model", "gemini-2.5-pro", "z-model"]);
-        assert!(model_ids("not json").is_empty());
+        let ids: Vec<String> = model_options(body).into_iter().map(|m| m.id).collect();
+        assert_eq!(ids, ["a-model", "gemini-2.5-pro", "z-model"]);
+        assert!(model_options("not json").is_empty());
+    }
+
+    #[test]
+    fn openrouter_prices_say_free_or_paid() {
+        let body = r#"{"data":[{"id":"x:free","pricing":{"prompt":"0","completion":"0"}},
+            {"id":"y","pricing":{"prompt":"0.00000015","completion":"0.0000006"}},{"id":"z"}]}"#;
+        let m = model_options(body);
+        assert_eq!(m[0].price, Some("free"));
+        assert_eq!(m[1].price, Some("paid"));
+        assert_eq!(m[1].cost.as_deref(), Some("0,15 $ / 0,6 $"));
+        assert_eq!(m[2].price, None);
+        assert_eq!(per_million(3.0, 15.0), "3 $ / 15 $");
     }
 
     #[test]

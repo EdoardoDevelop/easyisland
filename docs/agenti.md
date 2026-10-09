@@ -3,6 +3,7 @@
 ## Relay (`hook/`)
 - `easyisland-hook.exe` riceve gli hook di Claude Code e li passa all'app sulla named pipe (accessibile solo all'utente che ha avviato l'app). Se l'app non risponde entro il timeout, esce con 0. `DECISION_TIMEOUT` = 108 s in `pipe.rs`: non accorciarlo.
 - `easyisland-hook notify …` manda un messaggio all'isola da qualsiasi script.
+- `easyisland-hook statusline` (`hook/src/statusline.rs`, da Coucou) è la `statusLine` di Claude Code, installata con gli hook. Passa all'app solo `rate_limits` e la sessione (evento `StatusLine`, non loggato: arriva a ogni messaggio), poi esegue con Git Bash la status line che c'era prima. Quella resta in `%LOCALAPPDATA%\EasyIslandin\statusline-previous.json` e torna in `settings.json` disinstallando. L'app desktop di Claude non esegue la status line: i limiti arrivano solo da terminale e VS Code.
 - Il relay accorcia ogni stringa a 2.000 caratteri e scarta `tool_response` e `transcript_path`. Ciò che serve intero va calcolato lì, prima del taglio:
   - `hook/src/diff.rs`: diff delle modifiche (`easyisland_diff`) e ultimo messaggio (`easyisland_last_message`). La vista è `src/views/diff.ts`.
   - `hook/src/testrun.rs`: esito dei test letto dall'output (`easyisland_tests`).
@@ -35,4 +36,8 @@
 - **Scheda Agenti:** gli agenti non sono pillole, ma stanno nella scheda Agenti e nella Panoramica. `AgentTask.lastActive` viene aggiornato a ogni evento. `State.sessionTasks` / `latestSessionTask` danno l'agente sentito per ultimo, che è quello aperto dal clic. Con più agenti compare una barra di pulsanti (`.agent-switch`, `.agent-chip`, con un puntino verde se l'agente lavora; Claude Code per primo). Un agente senza sessione mostra «In attesa» (`agentIdleCard`). L'aspetto della scheda si regola in Impostazioni → Agenti → «Scheda nell'isola».
 - **Fine della risposta (`Stop`):** se in primo piano c'è l'app della sessione (`HOST_APPS` in `hooks.ts`: Claude, VS Code, terminale, opencode) niente suono né card. In ogni altro programma l'isola si apre sulla sessione con la card «finito», qualunque scheda stesse mostrando. Sopra un'app a schermo intero o con «Avvisi: solo permessi» resta solo il segno sulla pillola.
 - **«Apri»:** `apps::open_session` per `SessionHost`. Per opencode prova Desktop, poi il terminale, poi avvia Desktop (`%LOCALAPPDATA%\Programs\@opencodedesktop\OpenCode.exe`), poi la cartella. Mai VS Code.
-- Gli hook di Claude Code vanno reinstallati per ricevere `PreCompact`. Le Impostazioni lo segnalano.
+- Gli hook di Claude Code installati prima della 0.6.3 non hanno la status line: le Impostazioni li segnalano «Da aggiornare».
+
+## Riepilogo settimanale
+- `src-tauri/src/recap.rs` (da Coucou) vede ogni evento degli agenti (`pipe.rs`, `opencode_agent.rs`) e chiude un «turno» da una richiesta a `Stop`. Tiene solo numeri, l'id dell'agente e il nome della cartella del progetto: righe da `easyisland_diff(s)`, comandi da `tool_name`, permessi dai clic sulla card (`pipe::answer`). File `recap.json` in `%LOCALAPPDATA%\EasyIsland`, 12 settimane. La chat dell'isola non conta.
+- `src/island/recap.ts` somma la settimana (ora locale) e decide quando aprire la card (`src/views/recap.ts`): il lunedì dalle 8, una volta, all'avvio o al primo agente che lavora, solo se l'isola non è occupata. Si apre anche dal menu dell'area di notifica e da Impostazioni → Agenti (evento `tray` = `recap`). Si spegne con `weeklyRecap`.

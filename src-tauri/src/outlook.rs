@@ -17,6 +17,7 @@ use serde::Deserialize;
 
 use crate::calendar::{describe, now_local, Occurrence};
 use crate::widgets::{days_from_civil, FieldValue, Widget, WidgetResult};
+use crate::i18n::{t, tf};
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
@@ -89,7 +90,8 @@ fn occurrences(items: &[Item]) -> Vec<Occurrence> {
         .iter()
         .filter_map(|i| {
             Some(Occurrence {
-                summary: if i.s.trim().is_empty() { "(senza oggetto)".into() } else { i.s.trim().to_string() },
+                summary: if i.s.trim().is_empty() { t("(senza oggetto)").into() } else {
+ i.s.trim().to_string() },
                 start: local_secs(&i.b)?,
                 end: local_secs(&i.e)?,
                 all_day: i.d,
@@ -102,17 +104,17 @@ fn occurrences(items: &[Item]) -> Vec<Occurrence> {
 fn result_for(id: &str, snap: &Snapshot, now: i64, warn_min: i64) -> WidgetResult {
     let list = occurrences(&snap.items);
     let mail = match snap.unread {
-        0 => "nessuna mail da leggere".to_string(),
-        1 => "1 mail da leggere".to_string(),
-        n => format!("{n} mail da leggere"),
+        0 => t("nessuna mail da leggere").to_string(),
+        1 => t("1 mail da leggere").to_string(),
+        n => tf("{n} mail da leggere", &[("n", &n)]),
     };
     let (level, summary, mut fields) = describe(&list, now, warn_min);
     let summary = if list.is_empty() {
-        format!("Nessun appuntamento fino a domani · {mail}")
+        tf("Nessun appuntamento fino a domani · {mail}", &[("mail", &mail)])
     } else {
         format!("{summary} · {mail}")
     };
-    fields.insert(0, FieldValue { label: "Posta in arrivo".into(), value: mail });
+    fields.insert(0, FieldValue { label: t("Posta in arrivo").into(), value: mail });
     let mut r = WidgetResult::new(id, level, summary);
     r.fields = fields;
     r
@@ -122,7 +124,7 @@ pub async fn probe(w: &Widget) -> WidgetResult {
     // No PowerShell at all while Outlook is closed.
     let running = tokio::task::spawn_blocking(|| !crate::apps::pids_of(&["outlook.exe"]).is_empty()).await.unwrap_or(true);
     if !running {
-        return WidgetResult::new(&w.id, "ok", "Outlook non è aperto");
+        return WidgetResult::new(&w.id, "ok", t("Outlook non è aperto"));
     }
     let out = tokio::process::Command::new("powershell")
         .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", SCRIPT])
@@ -136,16 +138,16 @@ pub async fn probe(w: &Widget) -> WidgetResult {
             let line = err.lines().find(|l| !l.trim().is_empty()).unwrap_or("errore").trim().to_string();
             return WidgetResult::new(&w.id, "error", format!("Outlook: {line}"));
         }
-        _ => return WidgetResult::new(&w.id, "error", "Outlook non risponde"),
+        _ => return WidgetResult::new(&w.id, "error", t("Outlook non risponde")),
     };
     let text = String::from_utf8_lossy(&out.stdout).trim().trim_start_matches('\u{feff}').to_string();
     if text == "NOT_RUNNING" {
         // Closed Outlook is normal (evening, weekend): not a problem to flag.
-        return WidgetResult::new(&w.id, "ok", "Outlook non è aperto");
+        return WidgetResult::new(&w.id, "ok", t("Outlook non è aperto"));
     }
     let snap: Snapshot = match serde_json::from_str(&text) {
         Ok(s) => s,
-        Err(_) => return WidgetResult::new(&w.id, "error", "Risposta di Outlook non leggibile"),
+        Err(_) => return WidgetResult::new(&w.id, "error", t("Risposta di Outlook non leggibile")),
     };
     let warn_min = if w.warn_days > 0 { w.warn_days } else { 10 };
     result_for(&w.id, &snap, now_local(), warn_min)
