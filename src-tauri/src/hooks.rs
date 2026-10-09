@@ -14,6 +14,7 @@
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
+use crate::i18n::{t, tf};
 use serde_json::{json, Map, Value};
 use tauri::{AppHandle, Manager};
 use windows::Win32::System::SystemInformation::GetLocalTime;
@@ -245,7 +246,7 @@ fn read_settings_at(target: Target) -> Result<Value, String> {
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(json!({})),
         // A lock, a permission problem, a bad drive: all of them mean we do not
         // know what is in there, and not knowing is not the same as empty.
-        Err(err) => Err(format!("Impossibile leggere {}: {err}", path.display())),
+        Err(err) => Err(tf("Impossibile leggere {path}: {err}", &[("path", &path.display()), ("err", &err)])),
     }
 }
 
@@ -261,9 +262,10 @@ fn parse_settings(bytes: &[u8], path: &str) -> Result<Value, String> {
     }
     match serde_json::from_slice::<Value>(text) {
         Ok(v) if v.is_object() => Ok(v),
-        Ok(_) => Err(format!("{path} non è un oggetto JSON: EasyIsland non lo tocca.")),
-        Err(err) => Err(format!(
-            "{path} non è JSON valido ({err}). Correggilo o spostalo e riprova: EasyIsland non lo sovrascrive."
+        Ok(_) => Err(tf("{path} non è un oggetto JSON: EasyIsland non lo tocca.", &[("path", &path)])),
+        Err(err) => Err(tf(
+            "{path} non è JSON valido ({err}). Correggilo o spostalo e riprova: EasyIsland non lo sovrascrive.",
+            &[("path", &path), ("err", &err)],
         )),
     }
 }
@@ -523,15 +525,15 @@ pub fn write_for(install: bool, fingerprint: &str, target: Target) -> Result<Str
     // anything at all.
     let current = read_settings_at(target)?;
     if current_fingerprint(target) != fingerprint {
-        return Err(format!(
-            "{} è cambiato dopo l'anteprima. Non è stato scritto nulla: controlla il nuovo diff.",
-            path.display()
+        return Err(tf(
+            "{path} è cambiato dopo l'anteprima. Non è stato scritto nulla: controlla il nuovo diff.",
+            &[("path", &path.display())],
         ));
     }
 
     let backup = backup_path(target);
     if path.exists() {
-        std::fs::copy(&path, &backup).map_err(|e| format!("backup non riuscito: {e}"))?;
+        std::fs::copy(&path, &backup).map_err(|e| tf("backup non riuscito: {e}", &[("e", &e)]))?;
     }
 
     // The user's own status line is kept before the relay takes its place.
@@ -541,7 +543,7 @@ pub fn write_for(install: bool, fingerprint: &str, target: Target) -> Result<Str
             if let Some(dir) = saved.parent() {
                 std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
             }
-            std::fs::write(&saved, pretty(own)).map_err(|e| format!("salvataggio della status line non riuscito: {e}"))?;
+            std::fs::write(&saved, pretty(own)).map_err(|e| tf("salvataggio della status line non riuscito: {e}", &[("e", &e)]))?;
         }
     }
     let previous = previous_statusline();
@@ -553,10 +555,10 @@ pub fn write_for(install: bool, fingerprint: &str, target: Target) -> Result<Str
     // Write beside the target and rename over it: a crash or a full disk leaves
     // the original file intact rather than half a file.
     let temp = path.with_extension(format!("json.easyisland-{}", std::process::id()));
-    std::fs::write(&temp, text.as_bytes()).map_err(|e| format!("scrittura non riuscita: {e}"))?;
+    std::fs::write(&temp, text.as_bytes()).map_err(|e| tf("scrittura non riuscita: {e}", &[("e", &e)]))?;
     if let Err(err) = std::fs::rename(&temp, &path) {
         let _ = std::fs::remove_file(&temp);
-        return Err(format!("scrittura non riuscita: {err}"));
+        return Err(tf("scrittura non riuscita: {e}", &[("e", &err)]));
     }
     // Uninstalled: the status line is the user's again.
     if !install && target == Target::Claude {
@@ -584,11 +586,11 @@ fn opencode_current() -> Result<Option<String>, String> {
             if text.contains(MARKER) || text.trim().is_empty() {
                 Ok(Some(text))
             } else {
-                Err(format!("{} non è di EasyIsland: non lo tocca. Rinominalo e riprova.", path.display()))
+                Err(tf("{path} non è di EasyIsland: non lo tocca. Rinominalo e riprova.", &[("path", &path.display())]))
             }
         }
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(err) => Err(format!("Impossibile leggere {}: {err}", path.display())),
+        Err(err) => Err(tf("Impossibile leggere {path}: {err}", &[("path", &path.display()), ("err", &err)])),
     }
 }
 
@@ -624,26 +626,26 @@ fn opencode_write(install: bool, fingerprint: &str) -> Result<String, String> {
     let path = Target::OpenCode.file();
     let current = opencode_current()?;
     if current_fingerprint(Target::OpenCode) != fingerprint {
-        return Err(format!(
-            "{} è cambiato dopo l'anteprima. Non è stato scritto nulla: controlla il nuovo diff.",
-            path.display()
+        return Err(tf(
+            "{path} è cambiato dopo l'anteprima. Non è stato scritto nulla: controlla il nuovo diff.",
+            &[("path", &path.display())],
         ));
     }
     let backup = backup_path(Target::OpenCode);
     if current.is_some() {
-        std::fs::copy(&path, &backup).map_err(|e| format!("backup non riuscito: {e}"))?;
+        std::fs::copy(&path, &backup).map_err(|e| tf("backup non riuscito: {e}", &[("e", &e)]))?;
     }
     if install {
         let dir = path.parent().unwrap_or(Path::new("."));
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
         let temp = path.with_extension(format!("js.easyisland-{}", std::process::id()));
-        std::fs::write(&temp, opencode_plugin().as_bytes()).map_err(|e| format!("scrittura non riuscita: {e}"))?;
+        std::fs::write(&temp, opencode_plugin().as_bytes()).map_err(|e| tf("scrittura non riuscita: {e}", &[("e", &e)]))?;
         if let Err(err) = std::fs::rename(&temp, &path) {
             let _ = std::fs::remove_file(&temp);
-            return Err(format!("scrittura non riuscita: {err}"));
+            return Err(tf("scrittura non riuscita: {e}", &[("e", &err)]));
         }
     } else if current.is_some() {
-        std::fs::remove_file(&path).map_err(|e| format!("rimozione non riuscita: {e}"))?;
+        std::fs::remove_file(&path).map_err(|e| tf("rimozione non riuscita: {e}", &[("e", &e)]))?;
     }
     Ok(backup.to_string_lossy().to_string())
 }
@@ -755,7 +757,7 @@ fn unified_diff(before: &str, after: &str) -> String {
         .map(|(i, _)| i)
         .collect();
     if changed.is_empty() {
-        return "Nessuna modifica.".into();
+        return t("Nessuna modifica.").into();
     }
     let mut keep = vec![false; out.len()];
     for idx in changed {

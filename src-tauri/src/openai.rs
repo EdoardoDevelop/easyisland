@@ -49,7 +49,7 @@ pub fn base_url(engine: &str, custom: Option<&str>) -> Result<String, String> {
     let custom = custom.map(str::trim).filter(|u| !u.is_empty());
     let Some(url) = custom.filter(|_| p.key.is_none()) else { return Ok(p.base.to_string()) };
     if !(url.starts_with("http://") || url.starts_with("https://")) {
-        return Err(format!("L'indirizzo di {} deve iniziare con http:// o https://", p.name));
+        return Err(tf("L'indirizzo di {name} deve iniziare con http:// o https://", &[("name", &p.name)]));
     }
     let url = url.trim_end_matches('/');
     Ok(if url.ends_with("/v1") { url.to_string() } else { format!("{url}/v1") })

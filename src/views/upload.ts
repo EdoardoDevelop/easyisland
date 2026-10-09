@@ -246,11 +246,11 @@ export function buildUnzip(actions: ViewActions): ViewHost {
 
 function ago(ms: number): string {
   const s = (Date.now() - ms) / 1000;
-  if (s < 60) return "adesso";
-  if (s < 3600) return `${Math.floor(s / 60)} min fa`;
-  if (s < 86400) return `${Math.floor(s / 3600)} h fa`;
+  if (s < 60) return t("adesso");
+  if (s < 3600) return t("{n} min fa", { n: Math.floor(s / 60) });
+  if (s < 86400) return t("{n} h fa", { n: Math.floor(s / 3600) });
   const d = Math.floor(s / 86400);
-  return d === 1 ? "ieri" : `${d} giorni fa`;
+  return d === 1 ? t("ieri") : t("{n} giorni fa", { n: d });
 }
 
 /**

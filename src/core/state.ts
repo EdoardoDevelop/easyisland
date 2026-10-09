@@ -53,7 +53,7 @@ export type ChatEngine = "subscription" | "api" | "opencode" | "openrouter" | "o
 
 /** The chat engines: name, Credential Manager key (if any), default address (local ones). */
 export const CHAT_ENGINES: { id: ChatEngine; name: string; key?: string; url?: string; hint: string }[] = [
-  { id: "subscription", name: "Claude (abbonamento)", hint: t("il tuo piano Pro o Max, serve Claude Code da riga di comando con il login") },
+  { id: "subscription", name: t("Claude (abbonamento)"), hint: t("il tuo piano Pro o Max, serve Claude Code da riga di comando con il login") },
   { id: "api", name: t("Claude (chiave API)"), key: "anthropic-api-key",
  hint: t("API di Anthropic, a consumo") },
   { id: "opencode", name: "opencode", hint: t("modelli gratuiti o locali con strumenti (comandi, file, web), con i permessi nell'isola; serve opencode 2 sul PC") },

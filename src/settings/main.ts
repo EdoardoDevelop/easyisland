@@ -508,8 +508,8 @@ const ENGINE_HINTS: Record<string, string> = {
 /** "Gratuito", "Locale" or "A pagamento · 2 $ / 10 $" (the list and the line under the field). */
 function priceLabel(m: ModelOption): string {
   if (m.price === "free") return t("Gratuito");
-  if (m.price === "local") return "Locale, sul tuo PC";
-  if (m.price === "paid") return m.cost ? `A pagamento · ${m.cost}` : "A pagamento";
+  if (m.price === "local") return t("Locale, sul tuo PC");
+  if (m.price === "paid") return m.cost ? t("A pagamento · {cost}", { cost: m.cost }) : t("A pagamento");
   return "";
 }
 
@@ -1282,7 +1282,7 @@ function profilesSection(): HTMLElement {
   };
 
   const ssids = h("input", {
-    type: "text", value: rules.ssids.join(", "), placeholder: "es. Ufficio-WiFi, Cliente-Ospiti",
+    type: "text", value: rules.ssids.join(", "), placeholder: t("es. Ufficio-WiFi, Cliente-Ospiti"),
     style: "flex:1 1 auto;min-width:0",
   }) as HTMLInputElement;
   ssids.addEventListener("change", () => {
@@ -1646,7 +1646,7 @@ function actionsSection(): HTMLElement {
         case "app":
           card.append(
             h("div", { class: "row" }, h("label", { text: t("Programma o cartella") }),
-              field(a.target, "es. mstsc, chrome, regedit, %ProgramFiles%\\App\\app.exe, C:\\Clienti", (v) => { a.target = v.trim(); })),
+              field(a.target, t("es. mstsc, chrome, regedit, %ProgramFiles%\\App\\app.exe, C:\\Clienti"), (v) => { a.target = v.trim(); })),
             h("div", { class: "row" }, h("label", { text: t("Argomenti") }),
               field(a.args, t("es. /v:server01 — le virgolette raggruppano"), (v) => { a.args = v; })),
           );
@@ -1948,7 +1948,7 @@ function automationsSection(): HTMLElement {
           }
           case "app":
             row.append(
-              field(s.target, "es. outlook, C:\\Clienti, mstsc", (v) => { s.target = v.trim(); }),
+              field(s.target, t("es. outlook, C:\\Clienti, mstsc"), (v) => { s.target = v.trim(); }),
               field(s.args, "argomenti (facoltativi)", (v) => { s.args = v; }, "width:160px"));
             break;
           case "url":
@@ -2060,7 +2060,7 @@ function automationsSection(): HTMLElement {
     h("div", { class: "row" }, h("label", { text: t("Programmi da non osservare") }),
       (() => {
         const el = h("input", { type: "text", value: (settings.habitsExcluded ?? []).join(", "),
-          placeholder: "es. steam.exe, spotify", spellcheck: "false", style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
+          placeholder: t("es. steam.exe, spotify"), spellcheck: "false", style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
         el.addEventListener("change", () => {
           settings.habitsExcluded = el.value.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
           void save();
@@ -2146,10 +2146,10 @@ const WIDGET_KINDS: [WidgetDef["kind"], string][] = [
 
 /** Mirrors default_every / min_every in src-tauri/src/widgets.rs. */
 const EVERY_HINT: Partial<Record<WidgetDef["kind"], string>> = {
-  tls: "predefinito 6 ore, minimo 1 ora",
-  json: "predefinito 120, minimo 15",
-  calendar: "predefinito 5 minuti, minimo 1",
-  domain: "predefinito 12 ore, minimo 1 ora",
+  tls: t("predefinito 6 ore, minimo 1 ora"),
+  json: t("predefinito 120, minimo 15"),
+  calendar: t("predefinito 5 minuti, minimo 1"),
+  domain: t("predefinito 12 ore, minimo 1 ora"),
 };
 
 /**
@@ -2168,7 +2168,7 @@ function secretInput(key: string, placeholder: string, what: string): HTMLInputE
     try {
       await Bridge.secretSet(key, v);
       el.value = "";
-      el.placeholder = "••••••••  (salvato)";
+      el.placeholder = t("••••••••  (salvato)");
     } catch (err) {
       el.placeholder = String(err).replace(/^Error:\s*/, "");
     }
@@ -2258,7 +2258,7 @@ function widgetsSection(): HTMLElement {
       switch (w.kind) {
         case "calendar": {
           card.append(
-            row(t("Link ICS"), secretInput(`widget:${w.id}:ics`, "https://… o webcal://… (salvato in Gestione credenziali)", "link")),
+            row(t("Link ICS"), secretInput(`widget:${w.id}:ics`, t("https://… o webcal://… (salvato in Gestione credenziali)"), "link")),
             h("div", { class: "hint", text: t("Google Calendar: Impostazioni → il calendario → «Indirizzo segreto in formato iCal». Outlook.com: Impostazioni → Calendario → Calendari condivisi → Pubblica un calendario → link ICS. iCloud: condividi il calendario come pubblico. Il link è come una password: resta in Gestione credenziali.") }),
             row(t("Avvisa"), input(w.warnDays || 10, "10", (v) => { w.warnDays = Math.max(1, Number(v) || 10); }, "width:80px", "number"),
               h("span", { class: "hint note", text: t("minuti prima dell'inizio") })),
@@ -2267,7 +2267,7 @@ function widgetsSection(): HTMLElement {
         }
         case "domain":
           card.append(
-            row(t("Domini"), input(w.host, "es. cliente.it, altrocliente.com", (v) => { w.host = v.trim(); })),
+            row(t("Domini"), input(w.host, t("es. cliente.it, altrocliente.com"), (v) => { w.host = v.trim(); })),
             row(t("Avvisa da"), input(w.warnDays || 30, "30", (v) => { w.warnDays = Number(v) || 30; }, "width:80px", "number"),
               h("span", { class: "hint note", text: t("giorni prima della scadenza (in rosso sotto i 7). Fino a 10 domini, separati da virgole; dati da RDAP o WHOIS del registro.") })),
           );
@@ -2295,7 +2295,7 @@ function widgetsSection(): HTMLElement {
             input(w.port || "", "3389", (v) => { w.port = Number(v) || 0; }, "width:90px", "number")));
           break;
         case "service":
-          card.append(row(t("Nome servizio"), input(w.service, "es. Spooler, wuauserv", (v) => { w.service = v.trim(); })));
+          card.append(row(t("Nome servizio"), input(w.service, t("es. Spooler, wuauserv"), (v) => { w.service = v.trim(); })));
           break;
         case "json": {
           card.append(
@@ -2308,7 +2308,7 @@ function widgetsSection(): HTMLElement {
             const key = `widget:${w.id}:${hd.name}`;
             const value = h("input", {
               type: hd.secret ? "password" : "text", value: hd.secret ? "" : hd.value,
-              placeholder: hd.secret ? t("valore segreto (salvato in Gestione credenziali)") : "valore",
+              placeholder: hd.secret ? t("valore segreto (salvato in Gestione credenziali)") : t("valore"),
               style: "flex:1 1 auto;min-width:0", spellcheck: "false",
             }) as HTMLInputElement;
             value.addEventListener("change", async () => {
@@ -2316,7 +2316,7 @@ function widgetsSection(): HTMLElement {
                 try {
                   await Bridge.secretSet(key, value.value);
                   value.value = "";
-                  value.placeholder = "••••••••  (salvato)";
+                  value.placeholder = t("••••••••  (salvato)");
                 } catch {
                   value.placeholder = t("Nome intestazione non valido per un segreto");
                 }
@@ -2326,9 +2326,9 @@ function widgetsSection(): HTMLElement {
               }
             });
             card.append(row(hi === 0 ? t("Intestazioni") : "",
-              input(hd.name, "es. Authorization", (v) => { hd.name = v.trim(); }, "width:160px"),
+              input(hd.name, t("es. Authorization"), (v) => { hd.name = v.trim(); }, "width:160px"),
               value,
-              h("span", { class: "hint", text: "segreto" }),
+              h("span", { class: "hint", text: t("segreto") }),
               toggle(hd.secret, (v) => { hd.secret = v; if (v) hd.value = ""; commit(); draw(); }),
               h("button", { class: "icon", text: "✕", title: t("Rimuovi"), onclick: () => { w.headers.splice(hi, 1); commit(); draw(); } }),
             ));
@@ -2336,32 +2336,32 @@ function widgetsSection(): HTMLElement {
           w.fields.forEach((f, fi) => {
             card.append(row(fi === 0 ? t("Campi da mostrare") : "",
               input(f.label, t("Etichetta"), (v) => { f.label = v; }, "width:160px"),
-              input(f.path, "percorso, es. data.tickets.open", (v) => { f.path = v.trim(); }),
+              input(f.path, t("percorso, es. data.tickets.open"), (v) => { f.path = v.trim(); }),
               h("button", { class: "icon", text: "✕", title: t("Rimuovi"), onclick: () => { w.fields.splice(fi, 1); commit(); draw(); } }),
             ));
           });
           const alert = w.alert ?? { path: "", op: ">", value: "" };
           card.append(
             h("div", { class: "row" },
-              h("button", { text: "+ Intestazione", onclick: () => { w.headers.push({ name: "", value: "", secret: false }); commit(); draw(); } }),
-              h("button", { text: "+ Campo", onclick: () => { w.fields.push({ label: "", path: "" }); commit(); draw(); } }),
+              h("button", { text: t("+ Intestazione"), onclick: () => { w.headers.push({ name: "", value: "", secret: false }); commit(); draw(); } }),
+              h("button", { text: t("+ Campo"), onclick: () => { w.fields.push({ label: "", path: "" }); commit(); draw(); } }),
             ),
             row(t("Avvisa se"),
-              input(alert.path, "percorso", (v) => { alert.path = v.trim(); w.alert = alert.path ? alert : null; }, "width:180px"),
+              input(alert.path, t("percorso"), (v) => { alert.path = v.trim(); w.alert = alert.path ? alert : null; }, "width:180px"),
               select<string>(
-                [["==", "="], ["!=", "≠"], [">", ">"], ["<", "<"], [">=", "≥"], ["<=", "≤"], ["contains", "contiene"], ["missing", "manca"]],
+                [["==", "="], ["!=", "≠"], [">", ">"], ["<", "<"], [">=", "≥"], ["<=", "≤"], ["contains", t("contiene")], ["missing", t("manca")]],
                 alert.op,
                 (v) => { alert.op = v; w.alert = alert.path ? alert : null; commit(); },
               ),
-              input(alert.value, "valore", (v) => { alert.value = v; w.alert = alert.path ? alert : null; }, "width:120px"),
+              input(alert.value, t("valore"), (v) => { alert.value = v; w.alert = alert.path ? alert : null; }, "width:120px"),
             ),
           );
           break;
         }
       }
       card.append(row(t("Ogni"),
-        input(w.every || "", "predefinito", (v) => { w.every = Math.max(0, Number(v) || 0); }, "width:110px", "number"),
-        h("span", { class: "hint", text: `secondi (${EVERY_HINT[w.kind] ?? "predefinito 60, minimo 15"}; ×3 a batteria)` })),
+        input(w.every || "", t("predefinito"), (v) => { w.every = Math.max(0, Number(v) || 0); }, "width:110px", "number"),
+        h("span", { class: "hint", text: t("secondi ({hint}; ×3 a batteria)", { hint: EVERY_HINT[w.kind] ?? t("predefinito 60, minimo 15") }) })),
         result);
       list.append(card);
     });
@@ -2413,7 +2413,7 @@ function notifySection(): HTMLElement {
 function presenceSection(): HTMLElement {
   const commit = () => void save();
   const apps = h("input", {
-    type: "text", value: settings.presenceApps.join(", "), placeholder: "es. AnyDesk, RustDesk", spellcheck: "false",
+    type: "text", value: settings.presenceApps.join(", "), placeholder: t("es. AnyDesk, RustDesk"), spellcheck: "false",
     style: "flex:1 1 auto;min-width:0",
   }) as HTMLInputElement;
   apps.addEventListener("change", () => {
@@ -2450,7 +2450,7 @@ function presenceSection(): HTMLElement {
 // ── Messages from scripts ─────────────────────────────────────────────────────
 
 function scriptsSection(hookPath: string): HTMLElement {
-  const command = `"${hookPath}" notify "Backup" "Completato in 4 minuti" --stato ok`;
+  const command = `"${hookPath}" notify "Backup" "${t("Completato in 4 minuti")}" --stato ok`;
   const feedback = h("div", {});
   const copy = h("button", { text: t("Copia comando") });
   copy.addEventListener("click", async () => {
@@ -2629,7 +2629,7 @@ function backupSection(): HTMLElement {
     clear(feedback);
     try {
       const path = await Bridge.settingsExport();
-      feedback.append(h("div", { class: "notice ok", text: `Salvato in ${path}` }));
+      feedback.append(h("div", { class: "notice ok", text: t("Salvato in {path}", { path }) }));
     } catch (err) {
       feedback.append(h("div", { class: "notice err", text: String(err).replace(/^Error:\s*/, "") }));
     }

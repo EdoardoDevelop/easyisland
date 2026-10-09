@@ -204,7 +204,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     const list = await readyEngines();
     clear(engineMenu);
     for (const e of list) {
-      const label = engineLabel({ ...State.settings, chatEngine: e.id }) + (e.id === State.settings.chatEngine ? " (predefinito)" : "");
+      const label = engineLabel({ ...State.settings, chatEngine: e.id }) + (e.id === State.settings.chatEngine ? t(" (predefinito)") : "");
       engineMenu.append(h("button", {
         class: `engine-item${e.id === State.chatEngine ? " on" : ""}`, title: e.hint, text: label,
         onclick: () => pickEngine(e.id),
