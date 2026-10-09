@@ -19,7 +19,7 @@
 - `brand/`: SVG sorgente dei loghi. L'app non lo legge mai.
 
 ## Personaggi
-- Slime (`slime.ts`) e Goccia (`drop.ts`) sono personaggi "soft": contorno, ombreggiatura e occhio. Tutto il resto è comune. EasyTech è il cubo 3D (`cube.ts`).
+- Goccia (`drop.ts`, il personaggio predefinito dalla 0.6.4: `default_character` in `settings.rs`, `DEFAULT_SETTINGS` in `state.ts` e primo in `roster.ts`) e Slime (`slime.ts`) sono personaggi "soft": contorno, ombreggiatura e occhio. Tutto il resto è comune. EasyTech è il cubo 3D (`cube.ts`). Chi aveva già scelto un personaggio lo tiene.
 - `engine.ts`, `greeting.ts` e `src/upload/canvas.ts` disegnano chiedendo `character()`, mai un personaggio per nome.
 - **Nuovo personaggio soft:** un file che esporta un `SoftCharacter` e una riga in `roster.ts`. Si prova con `dev/character-preview.html?character=<id>` e `dev/upload-preview.html?character=<id>`.
 - EasyTech prende il colore del tema e quello dell'integrazione in primo piano (`wearsIntegrationColor`).

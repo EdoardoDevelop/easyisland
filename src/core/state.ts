@@ -578,7 +578,7 @@ export interface Profile {
 }
 
 export const DEFAULT_THEME: Theme = {
-  character: "slime",
+  character: "drop",
   slimeColor: "",
   islandColor: "#000000",
   islandOpacity: 1,

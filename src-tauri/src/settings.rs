@@ -127,7 +127,7 @@ pub const PROFILE_KEYS: &[&str] = &[
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Theme {
-    /// Who lives in the island: "slime" or "cube" (EasyTech).
+    /// Who lives in the island: "drop" (Goccia, the default), "slime" or "cube" (EasyTech).
     #[serde(default = "default_character")]
     pub character: String,
     /// The slime's body colour, "#rrggbb"; empty = its green.
@@ -165,7 +165,7 @@ impl Default for Theme {
 }
 
 fn default_character() -> String {
-    "slime".into()
+    "drop".into()
 }
 fn default_island_color() -> String {
     "#000000".into()
@@ -671,7 +671,7 @@ impl Settings {
             self.icon_style = default_icon_style();
         }
         if LEGACY_CHARACTERS.contains(&self.theme.character.as_str()) {
-            self.theme.character = default_character();
+            self.theme.character = SLIME.into();
         }
         for p in &mut self.profiles {
             rename_legacy_values(&mut p.values);
@@ -812,6 +812,9 @@ pub fn apply_pending_secrets(settings: &mut Settings) {
     }
 }
 
+/// The slime's id: Mochi and Ezzy were its earlier names, so they become it (not the default).
+const SLIME: &str = "slime";
+
 /// Earlier names of the slime ("character" for iconStyle) in settings files.
 const LEGACY_CHARACTERS: &[&str] = &["mochi", "ezzy"];
 
@@ -823,7 +826,7 @@ fn rename_legacy_values(values: &mut Map<String, Value>) {
     }
     if let Some(Value::Object(theme)) = values.get_mut("theme") {
         if legacy(theme.get("character")) {
-            theme.insert("character".into(), Value::from(default_character()));
+            theme.insert("character".into(), Value::from(SLIME));
         }
         for old in ["mochiColor", "ezzyColor"] {
             if let Some(color) = theme.remove(old) {
