@@ -8,8 +8,11 @@
 // leaves the PC. Files are read incrementally (from where the last check
 // stopped), and only those touched in the last 8 days.
 //
-// Anthropic does not publish the Pro / Max limits in tokens, so there is no
-// percentage here: counts, and how today compares with the week.
+// Anthropic does not publish the Pro / Max limits in tokens: the percentages
+// of the plan come from Claude Code itself, which hands them (`rate_limits`) to
+// its status line command — the relay's `statusline` (hook/src/statusline.rs,
+// installed with the hooks). They arrive only from sessions that draw a status
+// line (terminal, VS Code), and survive a restart in plan-limits.json.
 //
 // One answer appears on several lines (one per content block), each with the
 // same usage: entries are counted once per `message.id`.
@@ -20,6 +23,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::widgets::{days_from_civil, FieldValue, Widget, WidgetResult};
@@ -296,17 +300,187 @@ pub async fn probe(w: &Widget) -> WidgetResult {
         let local = crate::calendar::now_local();
         let midnight = now - local.rem_euclid(86_400);
         let list = scan(now);
-        result_for(&id, &list, now, midnight)
+        with_plan(result_for(&id, &list, now, midnight), plan().as_ref(), now, local - now)
     })
     .await
     .unwrap_or_else(|_| WidgetResult::new(&w.id, "error", "Lettura delle trascrizioni interrotta"))
+}
+
+// ── Plan limits (Pro / Max) ──────────────────────────────────────────────────
+
+/// One window of the plan: used percentage (0–100) and when it starts over.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PlanWindow {
+    pub pct: f64,
+    /// Unix seconds.
+    pub resets_at: i64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Plan {
+    pub five_hour: Option<PlanWindow>,
+    pub seven_day: Option<PlanWindow>,
+    /// When Claude Code last sent them (Unix seconds).
+    pub at: i64,
+}
+
+impl Plan {
+    /// The higher of the two windows, counting a window past its reset as 0.
+    fn top(&self, now: i64) -> f64 {
+        [self.five_hour, self.seven_day].iter().flatten().map(|w| effective(w, now)).fold(0.0, f64::max)
+    }
+}
+
+const DAY: i64 = 86_400;
+
+fn effective(w: &PlanWindow, now: i64) -> f64 {
+    if w.resets_at <= now { 0.0 } else { w.pct }
+}
+
+/// `rate_limits.five_hour` or `.seven_day`: `used_percentage` and `resets_at`
+/// (epoch seconds). Anything that does not look like it is dropped.
+fn parse_window(v: Option<&Value>, now: i64) -> Option<PlanWindow> {
+    let v = v?;
+    let pct = v.get("used_percentage").and_then(Value::as_f64)?;
+    let at = v.get("resets_at").and_then(Value::as_f64)? as i64;
+    // 100–200 is a plan over its limit, shown full; a date more than 400 days
+    // away is milliseconds in disguise.
+    if !(0.0..=200.0).contains(&pct) || at <= 0 || at > now + 400 * DAY {
+        return None;
+    }
+    Some(PlanWindow { pct: pct.min(100.0), resets_at: at })
+}
+
+pub fn parse_plan(rate_limits: &Value, now: i64) -> Option<Plan> {
+    let five_hour = parse_window(rate_limits.get("five_hour"), now);
+    let seven_day = parse_window(rate_limits.get("seven_day"), now);
+    (five_hour.is_some() || seven_day.is_some()).then_some(Plan { five_hour, seven_day, at: now })
+}
+
+/// The last numbers; `None` until a status line has sent some.
+static PLAN: Mutex<Option<Option<Plan>>> = Mutex::new(None);
+
+fn plan_file() -> PathBuf {
+    crate::settings::local_dir().join("plan-limits.json")
+}
+
+fn plan() -> Option<Plan> {
+    let mut guard = PLAN.lock().unwrap_or_else(|e| e.into_inner());
+    guard
+        .get_or_insert_with(|| std::fs::read(plan_file()).ok().and_then(|b| serde_json::from_slice(&b).ok()))
+        .clone()
+}
+
+/// Which band the plan is in (under 50, 80, 100 %, full): the card is checked
+/// again at once when it changes, not at the next round.
+fn band(p: Option<&Plan>, now: i64) -> u8 {
+    match p.map(|p| p.top(now)) {
+        None => 0,
+        Some(x) if x < 50.0 => 1,
+        Some(x) if x < 80.0 => 2,
+        Some(x) if x < 100.0 => 3,
+        Some(_) => 4,
+    }
+}
+
+/// A status line call with `rate_limits` (pipe.rs). True when the card should
+/// be checked again now (first numbers, or another band).
+pub fn set_plan(rate_limits: &Value) -> bool {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    let Some(next) = parse_plan(rate_limits, now) else { return false };
+    let before = plan();
+    // On disk only when the numbers change, or once a minute (the status line
+    // runs at every message).
+    let same = before.as_ref().is_some_and(|b| b.five_hour == next.five_hour && b.seven_day == next.seven_day);
+    if !same || before.as_ref().is_none_or(|b| now - b.at >= 60) {
+        let _ = std::fs::write(plan_file(), serde_json::to_vec(&next).unwrap_or_default());
+    }
+    let changed = band(before.as_ref(), now) != band(Some(&next), now);
+    *PLAN.lock().unwrap_or_else(|e| e.into_inner()) = Some(Some(next));
+    changed
+}
+
+/// "tra 1 h 20" / "tra 5 min" for the 5 hours; "lun 9:00" for the week.
+/// `offset`: local time minus UTC, in seconds.
+fn reset_text(w: &PlanWindow, weekly: bool, now: i64, offset: i64) -> String {
+    let left = w.resets_at - now;
+    if left <= 0 {
+        return "azzerato".into();
+    }
+    if weekly && left > DAY {
+        const DAYS: [&str; 7] = ["gio", "ven", "sab", "dom", "lun", "mar", "mer"]; // 1 Jan 1970 was a Thursday
+        let local = w.resets_at + offset;
+        let day = DAYS[local.div_euclid(DAY).rem_euclid(7) as usize];
+        let secs = local.rem_euclid(DAY);
+        return format!("si azzera {day} {}:{:02}", secs / 3600, (secs % 3600) / 60);
+    }
+    let (h, m) = (left / 3600, (left % 3600) / 60);
+    if h > 0 { format!("si azzera tra {h} h {m:02}") } else { format!("si azzera tra {} min", m.max(1)) }
+}
+
+/// The plan's lines on top of the card; it warns from 80 %.
+fn with_plan(mut r: WidgetResult, plan: Option<&Plan>, now: i64, offset: i64) -> WidgetResult {
+    let Some(p) = plan else { return r };
+    let pct = |w: &PlanWindow| format!("{}%", effective(w, now).round() as i64);
+    let mut fields = Vec::new();
+    let mut parts = Vec::new();
+    if let Some(w) = &p.five_hour {
+        fields.push(FieldValue { label: "Piano · 5 ore".into(), value: format!("{} · {}", pct(w), reset_text(w, false, now, offset)) });
+        parts.push(format!("5 ore {}", pct(w)));
+    }
+    if let Some(w) = &p.seven_day {
+        fields.push(FieldValue { label: "Piano · settimana".into(), value: format!("{} · {}", pct(w), reset_text(w, true, now, offset)) });
+        parts.push(format!("settimana {}", pct(w)));
+    }
+    let age = now - p.at;
+    if age >= 15 * 60 {
+        let ago = if age < 3600 { format!("{} min fa", age / 60) } else if age < DAY { format!("{} h fa", age / 3600) } else { format!("{} giorni fa", age / DAY) };
+        fields.push(FieldValue { label: "Piano aggiornato".into(), value: format!("{ago}, dall'ultima sessione nel terminale") });
+    }
+    fields.append(&mut r.fields);
+    r.fields = fields;
+    r.summary = format!("Piano: {}", parts.join(" · "));
+    let top = p.top(now);
+    if top >= 80.0 && r.level == "ok" {
+        r.level = "warn".into();
+        r.summary.push_str(if top >= 100.0 { " (limite raggiunto)" } else { " (quasi al limite)" });
+    }
+    r
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn line(id: &str, ts: &str, model: &str, input: u64, output: u64) -> String {
+    #[test]
+    fn plan_limits_from_the_status_line() {
+        let now = 1_791_207_149; // Mon 2026-10-05 13:32 UTC
+        let rl = serde_json::json!({
+            "five_hour": { "used_percentage": 42.4, "resets_at": now + 3600 + 20 * 60 },
+            "seven_day": { "used_percentage": 85, "resets_at": now + 3 * DAY },
+        });
+        let p = parse_plan(&rl, now).unwrap();
+        assert_eq!(p.five_hour.unwrap().pct, 42.4);
+        // Milliseconds, a negative percentage, nothing at all: dropped.
+        assert!(parse_plan(&serde_json::json!({ "five_hour": { "used_percentage": 5, "resets_at": now * 1000 } }), now).is_none());
+        assert!(parse_plan(&serde_json::json!({ "five_hour": { "used_percentage": -1, "resets_at": now } }), now).is_none());
+        assert!(parse_plan(&serde_json::json!({}), now).is_none());
+
+        let r = with_plan(WidgetResult::new("x", "ok", "Ultime 5 ore: …"), Some(&p), now, 2 * 3600);
+        assert_eq!(r.summary, "Piano: 5 ore 42% · settimana 85% (quasi al limite)");
+        assert_eq!(r.level, "warn");
+        assert_eq!(r.fields[0].value, "42% · si azzera tra 1 h 20");
+        // Three days on, 15:32 local time: a Thursday.
+        assert_eq!(r.fields[1].value, "85% · si azzera gio 15:32");
+        // Past its reset a window counts as 0.
+        let later = with_plan(WidgetResult::new("x", "ok", ""), Some(&p), now + 2 * 3600, 0);
+        assert!(later.fields[0].value.starts_with("0% · azzerato"));
+        assert!(later.fields.iter().any(|f| f.label == "Piano aggiornato"));
+        assert_ne!(band(None, now), band(Some(&p), now));
+    }
+
+    fn line(
+id: &str, ts: &str, model: &str, input: u64, output: u64) -> String {
         serde_json::json!({
             "type": "assistant", "timestamp": ts, "cwd": "C:\\Users\\x\\WORK\\progetto",
             "message": { "id": id, "model": model, "role": "assistant", "content": [{ "type": "text", "text": "segreto" }],

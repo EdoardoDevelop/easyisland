@@ -10,6 +10,7 @@ import { Sound } from "../core/sound";
 import { State, type AskQuestion, type SessionHost } from "../core/state";
 import type { Island } from "./island";
 import { applyPlanTool, planStep } from "./plan";
+import { Recap } from "./recap";
 import { risksOf } from "./risk";
 
 const CLAUDE_ID = "integration_claude";
@@ -589,6 +590,9 @@ export function handleHook(island: Island, payload: HookPayload) {
       island.reveal();
     }
   };
+
+  // Monday from 8:00: an agent starting work may open last week's recap.
+  if (name === "SessionStart" || name === "UserPromptSubmit") void Recap.check(island);
 
   switch (name) {
     case "SessionStart":

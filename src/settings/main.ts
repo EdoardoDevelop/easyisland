@@ -5,7 +5,7 @@
 import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
-import { Bridge, onEvent, type HookStatus } from "../core/bridge";
+import { Bridge, onEvent, type HookStatus, type ModelOption } from "../core/bridge";
 import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type Settings, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
@@ -54,7 +54,7 @@ function renderDiff(text: string): HTMLElement {
 const HOOK_TOOLS = {
   claude: {
     name: "Claude Code", file: "settings.json",
-    what: "Sessioni, domande, diff ed esito dei test; permessi con Consenti / Nega / Sempre dall'isola.",
+    what: "Sessioni, domande, diff ed esito dei test; permessi con Consenti / Nega / Sempre dall'isola. Prende anche la status line, per leggere i limiti del piano (Pro / Max) nella card Consumo: se ne avevi una, continua a comparire uguale.",
     done: "Apri una nuova sessione di Claude Code per attivare gli hook.",
   },
   codex: {
@@ -223,6 +223,24 @@ function agentRow(tool: HookTool, initial: HookStatus | null): HTMLElement {
  * default), Claude's logo, its name or an emoji. Kept in integrationTabIcons
  * like the other tabs: missing = the icon, "@logo", "@name", anything else = that emoji.
  */
+/** The weekly recap (recap.rs): on or off, show it now, forget it. */
+function recapSection(): HTMLElement {
+  const done = h("span", { class: "hint note" });
+  const clearBtn = h("button", { class: "danger", text: "Cancella la cronologia", onclick: async () => {
+    await Bridge.recapClear();
+    done.textContent = "Cronologia cancellata.";
+  } });
+  return h("section", {},
+    h("h2", {}, h("span", { text: "Riepilogo settimanale" })),
+    h("div", { class: "hint", text: "Il lunedì dalle 8 l'isola mostra la settimana prima: tempo, sessioni, file e righe cambiate, comandi, permessi. Si contano solo i numeri e il nome della cartella del progetto, mai comandi, file o richieste; restano su questo PC (12 settimane)." }),
+    h("div", { class: "row" },
+      h("label", { text: "Riepilogo" }),
+      toggle(settings.weeklyRecap !== false, (v) => { settings.weeklyRecap = v; void save(); }),
+      h("button", { text: "Mostra ora", onclick: () => void Bridge.recapShow() }),
+      clearBtn,
+      done));
+}
+
 function agentsTabSection(): HTMLElement {
   const id = "integration_claude";
   const icons = () => (settings.integrationTabIcons ??= {});
@@ -486,6 +504,14 @@ const ENGINE_HINTS: Record<string, string> = {
  * key (Gestione credenziali) or the local address, and the model, with the list
  * the engine offers ("Carica modelli"). Rebuilt for the engine shown.
  */
+/** "Gratuito", "Locale" or "A pagamento · 2 $ / 10 $" (the list and the line under the field). */
+function priceLabel(m: ModelOption): string {
+  if (m.price === "free") return "Gratuito";
+  if (m.price === "local") return "Locale, sul tuo PC";
+  if (m.price === "paid") return m.cost ? `A pagamento · ${m.cost}` : "A pagamento";
+  return "";
+}
+
 function otherEngineBlock(changed: () => void) {
   const el = h("div", { class: "engine-block" });
   let current = "";
@@ -560,9 +586,19 @@ function otherEngineBlock(changed: () => void) {
     const missing = h("div", { class: "notice err", text: opencode
       ? "Nessun modello scelto: la chat non può partire. Premi «Carica modelli» e scegline uno."
       : "Nessun modello scelto: la chat non può partire." });
+    // What the chosen model costs, once the list is loaded.
+    const known = new Map<string, ModelOption>();
+    const priceEl = h("div", { class: "hint model-price" });
+    const paintPrice = () => {
+      const m = known.get(model.value.trim());
+      priceEl.textContent = m?.price ? `${priceLabel(m)}${m.price === "paid" ? " per milione di token (ingresso / uscita)" : ""}` : "";
+      priceEl.className = `hint model-price ${m?.price ?? ""}`;
+      priceEl.style.display = m?.price ? "" : "none";
+    };
     const paintPrivacy = () => {
       privacy.style.display = opencode && model.value.trim().startsWith("opencode/") ? "" : "none";
       missing.style.display = model.value.trim() ? "none" : "";
+      paintPrice();
     };
     paintPrivacy();
     // Saved while typing too (a pause of half a second), not only on leaving the field.
@@ -575,6 +611,17 @@ function otherEngineBlock(changed: () => void) {
     const options = h("datalist", { id: listId });
     const load = h("button", { text: "Carica modelli" }) as HTMLButtonElement;
     const loaded = h("span", { class: "hint note" });
+    // Only the free (and local) models in the list.
+    const onlyFree = h("input", { type: "checkbox" }) as HTMLInputElement;
+    const onlyFreeRow = h("label", { class: "hint only-free", style: "display:none" }, onlyFree, h("span", { text: "solo gratuiti" }));
+    const fillOptions = () => {
+      clear(options);
+      for (const m of known.values()) {
+        if (onlyFree.checked && m.price === "paid") continue;
+        options.append(h("option", { value: m.id, label: priceLabel(m) }));
+      }
+    };
+    onlyFree.addEventListener("change", fillOptions);
     model.addEventListener("change", () => {
       window.clearTimeout(typing);
       if ((settings.engineModels![id] ?? "") === model.value.trim()) return;
@@ -588,10 +635,18 @@ function otherEngineBlock(changed: () => void) {
       load.disabled = true;
       loaded.textContent = "Chiedo l'elenco…";
       try {
-        const ids = await Bridge.chatModels(id, settings.engineUrls?.[id] || null);
-        clear(options);
-        for (const m of ids) options.append(h("option", { value: m }));
-        loaded.textContent = ids.length ? `${ids.length} modelli: scrivi per cercare` : opencode
+        const list = await Bridge.chatModels(id, settings.engineUrls?.[id] || null);
+        known.clear();
+        for (const m of list) known.set(m.id, m);
+        fillOptions();
+        paintPrice();
+        const ids = list.map((m) => m.id);
+        const free = list.filter((m) => m.price === "free" || m.price === "local").length;
+        const priced = list.some((m) => m.price);
+        onlyFreeRow.style.display = priced && free > 0 && free < list.length ? "" : "none";
+        loaded.textContent = ids.length
+          ? `${ids.length} modelli${priced ? `, ${free} gratuiti` : ""}: scrivi per cercare`
+          : opencode
           ? "Nessun modello: collega un fornitore in opencode («opencode auth login») o avvia Ollama."
           : "Nessun modello disponibile.";
         if (pick && !model.value && ids.length) {
@@ -604,7 +659,8 @@ function otherEngineBlock(changed: () => void) {
       load.disabled = false;
     };
     load.addEventListener("click", () => void loadModels(true));
-    el.append(h("div", { class: "row" }, h("label", { text: "Modello" }), model, options, load), loaded, missing, privacy, feedback);
+    el.append(h("div", { class: "row" }, h("label", { text: "Modello" }), model, options, load),
+      h("div", { class: "row" }, loaded, onlyFreeRow), priceEl, missing, privacy, feedback);
     // opencode with no model yet: the list straight away, so a model is one click.
     if (opencode && !model.value.trim()) void loadModels(false);
     changed();
@@ -2686,7 +2742,7 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     {
       id: "claude", label: "Agenti", icon: "terminal", color: "#E07A5F", title: "Agenti di programmazione",
       intro: "Le sessioni di Claude Code, Codex, opencode e degli altri agenti nell'isola, con i loro permessi.",
-      sections: () => [agentsSection(b.status), agentsTabSection()],
+      sections: () => [agentsSection(b.status), agentsTabSection(), recapSection()],
     },
     {
       id: "azioni", label: "Azioni rapide", icon: "bolt", color: "#FACC15", title: "Azioni rapide",

@@ -290,7 +290,7 @@ async fn stream_turn(engine: &str, base: &str, body: &Value, on_text: &(dyn Fn(&
 }
 
 /// Impostazioni → Chat → "Carica modelli": the model ids the engine offers.
-pub async fn models(engine: &str, custom_url: Option<&str>) -> Result<Vec<String>, String> {
+pub async fn models(engine: &str, custom_url: Option<&str>) -> Result<Vec<ModelOption>, String> {
     let base = base_url(engine, custom_url)?;
     let request = auth(engine, client()?.get(format!("{base}/models")))?;
     let response = request.send().await.map_err(|e| network_error(engine, &base, e))?;
@@ -299,25 +299,61 @@ pub async fn models(engine: &str, custom_url: Option<&str>) -> Result<Vec<String
     if !status.is_success() {
         return Err(format!("{status}: {}", error_text(&text)));
     }
-    Ok(model_ids(&text))
+    Ok(model_options(&text))
 }
 
-/// `{"data":[{"id":…}]}` → sorted ids; Gemini's names lose their "models/" prefix.
-pub fn model_ids(body: &str) -> Vec<String> {
+/// A model in Impostazioni → Chat, with what it costs when the engine says so.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ModelOption {
+    pub id: String,
+    /// "free" | "paid" | "local"; absent when the engine does not tell.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub price: Option<&'static str>,
+    /// Dollars per million tokens, input and output ("0,15 $ / 0,60 $").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost: Option<String>,
+}
+
+/// Dollars per million tokens, as the settings show them.
+pub fn per_million(input: f64, output: f64) -> String {
+    let f = |x: f64| {
+        let s = if x >= 10.0 { format!("{x:.0}") } else if x >= 1.0 { format!("{x:.2}") } else { format!("{x:.3}") };
+        let s = if s.contains('.') { s.trim_end_matches('0').trim_end_matches('.').to_string() } else { s };
+        s.replace('.', ",")
+    };
+    format!("{} $ / {} $", f(input), f(output))
+}
+
+/// `{"data":[{"id":…}]}` → sorted models; Gemini's names lose their "models/" prefix.
+/// OpenRouter adds `pricing` (dollars per token, as strings): free or paid.
+pub fn model_options(body: &str) -> Vec<ModelOption> {
     let v: Value = serde_json::from_str(body).unwrap_or_default();
-    let mut ids: Vec<String> = v
+    let price = |m: &Value| -> Option<(f64, f64)> {
+        let p = m.get("pricing")?;
+        let n = |k: &str| p.get(k).and_then(|x| x.as_str().and_then(|s| s.parse::<f64>().ok()).or_else(|| x.as_f64()));
+        Some((n("prompt")?, n("completion")?))
+    };
+    let mut out: Vec<ModelOption> = v
         .get("data")
         .and_then(Value::as_array)
         .map(|list| {
             list.iter()
-                .filter_map(|m| m.get("id").and_then(Value::as_str))
-                .map(|id| id.strip_prefix("models/").unwrap_or(id).to_string())
+                .filter_map(|m| {
+                    let id = m.get("id").and_then(Value::as_str)?;
+                    let id = id.strip_prefix("models/").unwrap_or(id).to_string();
+                    let (price, cost) = match price(m) {
+                        Some((i, o)) if i <= 0.0 && o <= 0.0 => (Some("free"), None),
+                        Some((i, o)) => (Some("paid"), Some(per_million(i * 1e6, o * 1e6))),
+                        None => (None, None),
+                    };
+                    Some(ModelOption { id, price, cost })
+                })
                 .collect()
         })
         .unwrap_or_default();
-    ids.sort();
-    ids.dedup();
-    ids
+    out.sort_by(|a, b| a.id.cmp(&b.id));
+    out.dedup_by(|a, b| a.id == b.id);
+    out
 }
 
 #[cfg(test)]
@@ -329,7 +365,7 @@ mod tests {
     fn live_openrouter_key() {
         println!("key present: {}", crate::secrets::present("openrouter-api-key"));
         let r = tauri::async_runtime::block_on(models("openrouter", None));
-        println!("models: {:?}", r.as_ref().map(|m| (m.len(), m.iter().filter(|x| x.ends_with(":free")).take(3).collect::<Vec<_>>())));
+        println!("models: {:?}", r.as_ref().map(|m| (m.len(), m.iter().filter(|x| x.price == Some("free")).take(3).map(|x| x.id.as_str()).collect::<Vec<_>>())));
     }
 
     use super::*;
@@ -366,8 +402,21 @@ mod tests {
     #[test]
     fn model_lists_are_sorted_ids() {
         let body = r#"{"data":[{"id":"z-model"},{"id":"models/gemini-2.5-pro"},{"id":"a-model"},{"id":"a-model"}]}"#;
-        assert_eq!(model_ids(body), ["a-model", "gemini-2.5-pro", "z-model"]);
-        assert!(model_ids("not json").is_empty());
+        let ids: Vec<String> = model_options(body).into_iter().map(|m| m.id).collect();
+        assert_eq!(ids, ["a-model", "gemini-2.5-pro", "z-model"]);
+        assert!(model_options("not json").is_empty());
+    }
+
+    #[test]
+    fn openrouter_prices_say_free_or_paid() {
+        let body = r#"{"data":[{"id":"x:free","pricing":{"prompt":"0","completion":"0"}},
+            {"id":"y","pricing":{"prompt":"0.00000015","completion":"0.0000006"}},{"id":"z"}]}"#;
+        let m = model_options(body);
+        assert_eq!(m[0].price, Some("free"));
+        assert_eq!(m[1].price, Some("paid"));
+        assert_eq!(m[1].cost.as_deref(), Some("0,15 $ / 0,6 $"));
+        assert_eq!(m[2].price, None);
+        assert_eq!(per_million(3.0, 15.0), "3 $ / 15 $");
     }
 
     #[test]

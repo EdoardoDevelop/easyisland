@@ -42,6 +42,7 @@ mod profiles;
 mod screenshot;
 mod secrets;
 mod settings;
+mod recap;
 mod start_apps;
 mod threecx;
 mod tray;
@@ -225,6 +226,12 @@ fn settings_import(app: AppHandle, shared: State<Shared>, text: String) -> Resul
 #[tauri::command]
 fn action_open_app(target: String, args: String) -> Result<(), String> {
     actions::open_app(&target, &args)
+}
+
+/// Impostazioni → «Mostra il riepilogo»: the island opens it, as from the tray.
+#[tauri::command]
+fn recap_show(app: AppHandle) {
+    let _ = app.emit_to(island::WINDOW_LABEL, "tray", "recap");
 }
 
 /// The island's search bar: the programs of the Start menu.
@@ -685,7 +692,7 @@ fn chat_reset(chat: State<Chat>) {
 
 /// Impostazioni → Chat → "Carica modelli" for an OpenAI-compatible engine.
 #[tauri::command]
-async fn chat_models(engine: String, url: Option<String>) -> Result<Vec<String>, String> {
+async fn chat_models(engine: String, url: Option<String>) -> Result<Vec<openai::ModelOption>, String> {
     if engine == "opencode" {
         return opencode::models().await;
     }
@@ -1172,6 +1179,10 @@ pub fn run() {
             inbox_clear,
             inbox_keep,
             start_apps,
+            recap::recap_history,
+            recap::recap_mark_shown,
+            recap::recap_clear,
+            recap_show,
             inbox_open,
             inbox_drag,
             mouse_button_down,

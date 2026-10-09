@@ -21,9 +21,9 @@ I dettagli che `HANDOFF.md` riassume in una riga. Le idee più vecchie e l'anali
 
 ## Spunti da Coucou (letto l'8 ottobre 2026, `louis-cfm/coucou` Windows/Linux 0.2.0)
 1. Lo stesso schema del plugin di opencode vale per **Amp** e **Hermes**.
-2. **Limiti del piano Claude** dalla `statusLine` di Claude Code, che riceve `rate_limits`: `--statusline` inoltra solo quelli e poi esegue la status line di prima (Git Bash su Windows, mai `cmd /C`). L'installazione tocca solo la chiave `statusLine`, con diff e backup. Funziona nel terminale, non nell'app desktop. Ci sono anche i limiti di Codex.
+2. **Limiti di Codex** (fatti quelli di Claude il 9 ottobre): Coucou chiede `account/rateLimits/read` a `codex app-server` (`codex_plan.rs`).
 3. **Card del permesso «ripiegabile»:** il chevron o Esc la riducono all'isola compatta senza rispondere. La richiesta resta in attesa e ricompare riaprendo l'isola.
-4. **Riepilogo settimanale** il lunedì (tempo, sessioni, file e righe, comandi, permessi), solo in locale, condivisibile come immagine.
+4. **Riepilogo settimanale come immagine** da condividere (fatto il riepilogo il 9 ottobre): in Coucou `recap/share.ts`, con «Nascondi i nomi dei progetti».
 5. **GitHub:** PR con CI e revisioni, avvisi CI rossa/verde, griglia dei contributi. Da noi «GitHub rinnovato» era escluso.
 
 ## Altro
@@ -36,10 +36,8 @@ I dettagli che `HANDOFF.md` riassume in una riga. Le idee più vecchie e l'anali
 - **Da decidere prima di farle**, perché vanno contro `decisioni.md`: nuovi personaggi (polpo, rana, granchio, geco). Le prove dell'8 ottobre sono venute male: rimandati. Rimandate anche le pose di Goccia della tavola del 3 ottobre (saluto con la mano, salto, caduta, onda): oggi usa quelle comuni.
 - **opencode, ancora aperti:**
   - nella **chat** lo strumento `question` è negato (`opencode.rs`): la card c'è già per l'agente (`opencode_agent.rs`, form), si può riusare;
-  - nell'elenco dei modelli manca l'indicazione gratuito/a pagamento;
   - il menu dei motori non controlla se Ollama/LM Studio rispondono.
 - **Decisioni aperte:**
-  - quali integrazioni tenere (Stripe, Resend, Cal.com…)
   - firma del codice (Authenticode o Azure Trusted Signing)
   - tag `windows-latest` sul repo, creato per sbaglio
   - funzioni del Mac mai portate (invio di un file per email, personaggio trascinato su una finestra per allegarla)

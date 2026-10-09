@@ -281,6 +281,8 @@ export interface Settings {
   lockOrder: boolean;
   /** The search bar at the bottom of the open island (src/views/search.ts). */
   searchBar: boolean;
+  /** The weekly recap of the coding agents (recap.rs, src/island/recap.ts). */
+  weeklyRecap: boolean;
   /** "primary", "cursor", or "monitor:<name>" (the display the character was dragged to). */
   screen: string;
   autostart: boolean;
@@ -592,6 +594,7 @@ export const DEFAULT_SETTINGS: Settings = {
   tabOrder: [],
   lockOrder: false,
   searchBar: true,
+  weeklyRecap: true,
   screen: "primary",
   autostart: false,
   hooksInstalled: false,

@@ -3510,3 +3510,50 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   font: 400 12px var(--font);
   color: var(--dim-3);
 }
+/* ── Weekly recap (src/views/recap.ts) ─────────────────────────────────── */
+
+.recap-stack {
+  padding: 4px 16px 4px 116px;
+  gap: 7px;
+}
+
+.recap-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.recap-head .grow { flex: 1 1 auto; }
+
+.recap-title { font: 600 14px var(--font); }
+
+.recap-range { font: 400 12px var(--font); color: var(--dim-2); white-space: nowrap; }
+
+.recap-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.recap-chip {
+  padding: 4px 9px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.recap-chip .v { font: 600 13px var(--font); color: var(--ink); white-space: nowrap; }
+
+.recap-chip .l { font: 400 10.5px var(--font); color: var(--dim-2); }
+
+.recap-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  font: 400 12px var(--font);
+  color: var(--dim-2);
+}
+
+.recap-meta .n { font-weight: 600; color: var(--ink); }
+
+.recap-meta .sep { color: var(--dim-4); }

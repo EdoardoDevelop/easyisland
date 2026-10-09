@@ -20,6 +20,9 @@
 //!
 //! `easyisland-hook mcp` is the third: EasyIsland's tools as an MCP server for
 //! the app's own chat (see `mcp.rs`).
+//!
+//! `easyisland-hook statusline` is Claude Code's status line command: it hands
+//! the plan limits to the app (see `statusline.rs`).
 
 use std::io::{Read, Write};
 use std::sync::mpsc;
@@ -46,6 +49,7 @@ const MAX_FIELD_LEN: usize = 2_000;
 mod agents;
 mod diff;
 mod mcp;
+mod statusline;
 mod testrun;
 mod win;
 
@@ -91,6 +95,12 @@ fn main() {
     if std::env::args().nth(1).as_deref() == Some("mcp") {
         std::process::exit(mcp::serve());
     }
+    // Claude Code's status line (see statusline.rs): prints the user's own
+    // status line, if there was one, and never waits on the app.
+    if std::env::args().nth(1).as_deref() == Some("statusline") {
+        statusline::run();
+    }
+
     // EasyIsland's own chat runs `claude -p` with hooks disabled; this is the second
     // guard, so that chat never shows up in the island as a work session.
     // `--chat` marks the one hook EasyIsland installs for its own chat (connector

@@ -8,6 +8,7 @@ import { State, type Settings } from "./core/state";
 import { Island } from "./island/island";
 import { installTooltips } from "./core/tooltip";
 import { registerHookHandlers } from "./island/hooks";
+import { Recap } from "./island/recap";
 import { registerIntegrationHandlers, refreshConfigured } from "./island/integrations";
 
 async function main() {
@@ -72,6 +73,10 @@ async function main() {
         setPaused(false);
         island.alert(State.defaultView());
         break;
+      case "recap":
+        setPaused(false);
+        void Recap.open(island);
+        break;
       case "pause":
         setPaused(!State.paused);
         if (State.paused) island.fsm.forceHidden();
@@ -111,6 +116,8 @@ async function main() {
   registerIntegrationHandlers(island);
 
   island.launch();
+  // Monday from 8:00: last week's recap, once the greeting is over.
+  window.setTimeout(() => void Recap.check(island), 12_000);
 
   // In a plain browser there is no wake strip behind the cursor: make the whole
   // page wake the island so the visuals can be checked with `npm run dev`.

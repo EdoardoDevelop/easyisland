@@ -637,7 +637,14 @@ pub fn last_results() -> Vec<WidgetResult> {
     LAST_RESULTS.lock().unwrap().as_ref().map(|m| m.values().cloned().collect()).unwrap_or_default()
 }
 
+/// The check `id` again now, if it is active (the plan limits changed band).
+pub async fn refresh(app: &AppHandle, id: &str) {
+    let Some(w) = current_widgets(app).into_iter().find(|w| w.id == id) else { return };
+    run_now(app, &w).await;
+}
+
 pub async fn run_now(app: &AppHandle, w: &Widget) -> WidgetResult {
+
     let result = probe(w).await;
     remember(&result);
     let _ = app.emit_to(WINDOW_LABEL, "widget-update", result.clone());

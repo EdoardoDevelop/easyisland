@@ -12,6 +12,7 @@ import { createMiniBot, pruneMiniBots } from "../character/minibots";
 import { buildPrompt } from "./chat";
 import { buildChoose, buildFiles, buildUnzip, buildUpload, buildUploading } from "./upload";
 import { buildDiff } from "./diff";
+import { buildRecap } from "./recap";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, type ActionHandlers } from "./actions";
 import { planSummary, planText } from "../island/plan";
@@ -999,6 +1000,7 @@ export function buildViews(
   map.set("unzip", buildUnzip(actions));
   map.set("files", buildFiles(actions));
   map.set("diff", buildDiff(actions));
+  map.set("recap", buildRecap(actions));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder("L'invio via email non è disponibile in questa versione.", ""));
   map.set("searching", buildPlaceholder("Claude sta cercando…", ""));

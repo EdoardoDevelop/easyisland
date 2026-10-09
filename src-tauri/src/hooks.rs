@@ -45,6 +45,10 @@ const MARKER: &str = "easyisland-hook";
 /// ours too: installing replaces them, uninstalling removes them.
 const LEGACY_MARKER: &str = "coucou-hook";
 
+/// Claude Code's own status line, kept here while the relay holds its place
+/// (the relay runs it, `hook/src/statusline.rs`) and put back on uninstall.
+const PREVIOUS_STATUSLINE: &str = "statusline-previous.json";
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HookStatus {
@@ -287,6 +291,51 @@ fn entry_is_ours(entry: &Value) -> bool {
     entry_has(entry, MARKER) || entry_has(entry, LEGACY_MARKER)
 }
 
+// ── Claude Code's status line: the plan limits ───────────────────────────────
+//
+// Claude Code hands its status line command `rate_limits` (Pro and Max): the
+// relay takes that place to read them (`easyisland-hook statusline`), and runs
+// the user's own status line, if there was one, so the terminal shows the same.
+// The status line is one command only: the old one is kept in
+// PREVIOUS_STATUSLINE next to the relay, never lost, and comes back on uninstall.
+
+fn statusline_entry() -> Value {
+    let exe = settings::hook_exe_path().to_string_lossy().replace('\\', "/");
+    json!({ "type": "command", "command": format!("\"{exe}\" statusline") })
+}
+
+fn statusline_is_ours(settings: &Value) -> bool {
+    settings.get("statusLine").is_some_and(|s| entry_has(s, MARKER) || entry_has(s, LEGACY_MARKER))
+}
+
+fn previous_statusline_path() -> PathBuf {
+    settings::hook_exe_path().with_file_name(PREVIOUS_STATUSLINE)
+}
+
+/// The status line the relay replaced, as it was in settings.json.
+fn previous_statusline() -> Option<Value> {
+    let bytes = std::fs::read(previous_statusline_path()).ok()?;
+    serde_json::from_slice::<Value>(&bytes).ok().filter(Value::is_object)
+}
+
+/// `next` with the status line as it should be: the relay's when installing,
+/// the saved one (or none) when uninstalling. Only Claude Code has one.
+fn with_statusline(mut next: Value, install: bool, target: Target, previous: Option<Value>) -> Value {
+    if target != Target::Claude {
+        return next;
+    }
+    let Some(root) = next.as_object_mut() else { return next };
+    if install {
+        root.insert("statusLine".into(), statusline_entry());
+    } else if root.get("statusLine").is_some_and(|s| entry_has(s, MARKER) || entry_has(s, LEGACY_MARKER)) {
+        match previous {
+            Some(p) => root.insert("statusLine".into(), p),
+            None => root.remove("statusLine"),
+        };
+    }
+    next
+}
+
 /// Every hook entry in the file, whatever the event.
 fn all_entries(settings: &Value) -> Vec<&Value> {
     settings
@@ -420,7 +469,7 @@ pub fn status_for(target: Target) -> HookStatus {
             .and_then(|h| h.get(*event))
             .and_then(Value::as_array)
             .is_some_and(|list| list.iter().any(|e| entry_has(e, MARKER)))
-    });
+    }) || (target == Target::Claude && !statusline_is_ours(&current));
     HookStatus {
         installed,
         outdated: installed && missing,
@@ -442,6 +491,7 @@ pub fn preview_for(install: bool, target: Target) -> Result<HookPreview, String>
     }
     let current = read_settings_at(target)?;
     let next = if install { merged_for(&current, target) } else { without_ours(&current) };
+    let next = with_statusline(next, install, target, previous_statusline());
     Ok(HookPreview {
         diff: unified_diff(&pretty(&current), &pretty(&next)),
         backup: backup_path(target).to_string_lossy().to_string(),
@@ -484,7 +534,19 @@ pub fn write_for(install: bool, fingerprint: &str, target: Target) -> Result<Str
         std::fs::copy(&path, &backup).map_err(|e| format!("backup non riuscito: {e}"))?;
     }
 
+    // The user's own status line is kept before the relay takes its place.
+    if install && target == Target::Claude && !statusline_is_ours(&current) {
+        if let Some(own) = current.get("statusLine").filter(|s| s.is_object()) {
+            let saved = previous_statusline_path();
+            if let Some(dir) = saved.parent() {
+                std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+            }
+            std::fs::write(&saved, pretty(own)).map_err(|e| format!("salvataggio della status line non riuscito: {e}"))?;
+        }
+    }
+    let previous = previous_statusline();
     let next = if install { merged_for(&current, target) } else { without_ours(&current) };
+    let next = with_statusline(next, install, target, previous);
     let mut text = pretty(&next);
     text.push('\n');
 
@@ -495,6 +557,10 @@ pub fn write_for(install: bool, fingerprint: &str, target: Target) -> Result<Str
     if let Err(err) = std::fs::rename(&temp, &path) {
         let _ = std::fs::remove_file(&temp);
         return Err(format!("scrittura non riuscita: {err}"));
+    }
+    // Uninstalled: the status line is the user's again.
+    if !install && target == Target::Claude {
+        let _ = std::fs::remove_file(previous_statusline_path());
     }
     Ok(backup.to_string_lossy().to_string())
 }
@@ -781,6 +847,26 @@ mod tests {
         // And removing ours puts it back exactly as it was.
         let cleaned = without_ours(&after);
         assert_eq!(cleaned, existing);
+    }
+
+    #[test]
+    fn the_status_line_goes_to_the_relay_and_comes_back() {
+        let own = json!({ "type": "command", "command": "~/bin/line.sh" });
+        let current = json!({ "theme": "dark", "statusLine": own.clone() });
+        let installed = with_statusline(merged(&current), true, Target::Claude, None);
+        assert!(statusline_is_ours(&installed));
+        assert!(installed["statusLine"]["command"].as_str().unwrap().ends_with("\" statusline"));
+        assert_eq!(installed["theme"], "dark");
+        // Uninstalling puts the saved one back, or removes ours when there was none.
+        let back = with_statusline(without_ours(&installed), false, Target::Claude, Some(own.clone()));
+        assert_eq!(back["statusLine"], own);
+        let none = with_statusline(without_ours(&installed), false, Target::Claude, None);
+        assert!(none.get("statusLine").is_none());
+        // A status line of somebody else's is never removed by an uninstall.
+        let foreign = with_statusline(without_ours(&current), false, Target::Claude, None);
+        assert_eq!(foreign["statusLine"], own);
+        // Only Claude Code has one.
+        assert!(with_statusline(json!({}), true, Target::Codex, None).get("statusLine").is_none());
     }
 
     #[test]

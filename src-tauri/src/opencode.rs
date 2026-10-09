@@ -649,16 +649,44 @@ fn error_text(v: &Value) -> String {
 }
 
 /// Impostazioni → Chat → "Carica modelli": "provider/model" for every enabled model.
-pub async fn models() -> Result<Vec<String>, String> {
+pub async fn models() -> Result<Vec<crate::openai::ModelOption>, String> {
     let (url, password) = server().await?;
     let v: Value = http_short()?.get(format!("{url}/api/model")).basic_auth("opencode", Some(password))
         .send().await.map_err(|e| e.to_string())?.json().await.map_err(|e| e.to_string())?;
-    let mut out: Vec<String> = v.get("data").and_then(Value::as_array).into_iter().flatten()
+    Ok(model_options(&v))
+}
+
+/// Providers that run on this PC: nothing to pay, whatever the catalog says.
+const LOCAL_PROVIDERS: &[&str] = &["ollama", "lmstudio", "llama.cpp", "llamacpp"];
+
+/// The models of `/api/model`, with their price: `cost` is a list of tiers
+/// (opencode 2.x, the first is the base price) or one object (older), in
+/// dollars per million tokens. Input and output at 0 is a free model.
+fn model_options(v: &Value) -> Vec<crate::openai::ModelOption> {
+    let mut out: Vec<crate::openai::ModelOption> = v.get("data").and_then(Value::as_array).into_iter().flatten()
         .filter(|m| m.get("enabled").and_then(Value::as_bool).unwrap_or(true))
-        .filter_map(|m| Some(format!("{}/{}", m.get("providerID")?.as_str()?, m.get("id")?.as_str()?)))
+        .filter_map(|m| {
+            let provider = m.get("providerID")?.as_str()?;
+            let id = format!("{provider}/{}", m.get("id")?.as_str()?);
+            let base = match m.get("cost") {
+                Some(Value::Array(tiers)) => tiers.first(),
+                other => other,
+            };
+            let n = |k: &str| base.and_then(|c| c.get(k)).and_then(Value::as_f64);
+            let (price, cost) = if LOCAL_PROVIDERS.contains(&provider) {
+                (Some("local"), None)
+            } else {
+                match (n("input"), n("output")) {
+                    (Some(i), Some(o)) if i <= 0.0 && o <= 0.0 => (Some("free"), None),
+                    (Some(i), Some(o)) => (Some("paid"), Some(crate::openai::per_million(i, o))),
+                    _ => (None, None),
+                }
+            };
+            Some(crate::openai::ModelOption { id, price, cost })
+        })
         .collect();
-    out.sort();
-    Ok(out)
+    out.sort_by(|a, b| a.id.cmp(&b.id));
+    out
 }
 
 #[cfg(test)]
@@ -673,6 +701,25 @@ mod tests {
         assert!(!r.iter().any(|x| x["effect"] == "allow" && (x["action"] == "shell" || x["action"] == "edit" || x["action"] == "*")));
         assert!(r.iter().any(|x| x["action"] == "question" && x["effect"] == "deny"));
         assert!(r.iter().any(|x| x["action"] == "read" && x["resource"] == "*.env" && x["effect"] == "deny"));
+    }
+
+    #[test]
+    fn model_prices_from_the_catalog() {
+        let v = json!({ "data": [
+            { "providerID": "opencode", "id": "exo-free", "cost": [{ "input": 0, "output": 0 }] },
+            { "providerID": "openrouter", "id": "a/b", "cost": [{ "input": 2, "output": 10 }, { "tier": {}, "input": 4, "output": 15 }] },
+            { "providerID": "ollama", "id": "qwen3:8b", "cost": { "input": 1, "output": 1 } },
+            { "providerID": "x", "id": "unknown" },
+            { "providerID": "x", "id": "off", "enabled": false },
+        ]});
+        let m = model_options(&v);
+        let find = |id: &str| m.iter().find(|x| x.id == id).unwrap().clone();
+        assert_eq!(m.len(), 4);
+        assert_eq!(find("opencode/exo-free").price, Some("free"));
+        assert_eq!(find("openrouter/a/b").price, Some("paid"));
+        assert_eq!(find("openrouter/a/b").cost.as_deref(), Some("2 $ / 10 $"));
+        assert_eq!(find("ollama/qwen3:8b").price, Some("local"));
+        assert_eq!(find("x/unknown").price, None);
     }
 
     #[test]

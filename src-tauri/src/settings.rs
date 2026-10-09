@@ -278,6 +278,10 @@ pub struct Settings {
     /// The search bar at the bottom of the open island (integrations, actions, programs).
     #[serde(default = "default_true")]
     pub search_bar: bool,
+    /// The weekly recap of the coding agents (recap.rs): counts kept on this PC,
+    /// shown on Monday.
+    #[serde(default = "default_true")]
+    pub weekly_recap: bool,
     /// "primary" = the main display, "cursor" = whichever display the mouse is on.
     pub screen: String,
     pub autostart: bool,
@@ -534,6 +538,7 @@ impl Default for Settings {
             tab_order: Vec::new(),
             lock_order: false,
             search_bar: true,
+            weekly_recap: true,
             screen: "primary".into(),
             autostart: false,
             hooks_installed: false,

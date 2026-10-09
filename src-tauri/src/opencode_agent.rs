@@ -192,6 +192,7 @@ fn deliver(app: &AppHandle, url: &str, password: Option<&str>, state: &mut Sessi
             truncate_strings(&mut payload);
             let event = payload.get("hook_event_name").and_then(Value::as_str).unwrap_or_default();
             crate::log::line(format!("opencode {event}"));
+            crate::recap::observe(app, &payload);
             let _ = app.emit_to(WINDOW_LABEL, "hook", payload);
         }
         Out::Ask(id, session, mut payload) => {
