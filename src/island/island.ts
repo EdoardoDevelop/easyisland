@@ -2017,6 +2017,7 @@ export class Island {
 
     syncMiniBotStates(State.tasks);
     this.engine.setState(State.effectiveState);
+    this.engine.sky = State.characterSky;
 
     // The rest icon shows only while the island is hidden — and not over a
     // full-screen app.

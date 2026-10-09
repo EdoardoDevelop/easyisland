@@ -3313,7 +3313,8 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* Brand logos (src/views/brands.ts) in place of the coloured dots. */
 svg.brand { flex: 0 0 auto; color: #f5f6f8; }
-.pill svg.brand { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); }
+span.brand.mark { flex: 0 0 auto; line-height: 1; }
+.pill .brand { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); }
 .pill.has-brand .lbl { padding-right: 40px; padding-left: 30px; }
 
 /* Corner that resizes the open island (island.ts, wireResize). */

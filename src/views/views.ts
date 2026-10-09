@@ -3,9 +3,8 @@
 // identically.
 
 import { isSorting, sortable } from "./sortable";
-import { h, svg, clear, dot, brandIcon, brandOrDot } from "./dom";
+import { h, svg, clear, dot, brandIcon, brandOrDot, hasMark, markIcon } from "./dom";
 import { ICONS } from "./icons";
-import { BRAND_SVG } from "./brands";
 import { Ticker } from "./ticker";
 import { State, canOpen, engineLabel, isSessionTask, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
 import { ISLAND_CHROME_H, MAX_ISLAND_H, washRGBA, type IslandViewName, type Wash } from "../core/layout";
@@ -195,7 +194,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
         intTabs = [];
         for (const t of tabs) {
           // "@logo": the brand logo alone (Impostazioni → Integrazioni → Mostra come).
-          const logo = icons[t.id]?.trim() === "@logo" ? brandIcon(t.id, 15) : null;
+          const logo = icons[t.id]?.trim() === "@logo" ? markIcon(t.id, 15) : null;
           const icon = logo ? "" : icons[t.id]?.trim();
           intTabs.push(h("button", {
             class: logo ? "tab" : icon ? "tab int-tab icon" : "tab int-tab", "data-id": t.id, title: t.name,
@@ -495,17 +494,16 @@ function pillLabel(task: AgentTask): { text: string; title?: string; song?: bool
   return { text: task.name };
 }
 
-const BRAND_IDS = new Set(Object.keys(BRAND_SVG));
 
 function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
   const label = pillLabel(task);
   const canvas = createMiniBot(task, 24);
   const pill = h(
     "div",
-    { class: (label.song ? "pill song" : "pill") + (BRAND_IDS.has(task.id) ? " has-brand" : ""), "data-id": task.id, title: label.title ?? "",
+    { class: (label.song ? "pill song" : "pill") + (hasMark(task.id) ? " has-brand" : ""), "data-id": task.id, title: label.title ?? "",
       onclick: () => actions.setFocus(task.id) },
     canvas,
-    brandIcon(task.id, 13),
+    markIcon(task.id, 13),
     h("span", { class: "lbl", text: label.text }),
   );
   pill.style.borderColor = `${task.color}24`;

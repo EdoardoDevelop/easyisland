@@ -3,6 +3,9 @@
 import type { AnchorH, AnchorV, BotEmoteName, BotStateName, IslandMode, IslandViewName } from "./layout";
 import type { EyeShape } from "../character/engine";
 import type { PlanItem } from "../island/plan";
+import { isSky, type Sky } from "../character/weather";
+
+const WEATHER = "integration_weather";
 
 /** "agent": Codex, Gemini CLI or any tool that sends `easyisland_agent` (hooks.ts). */
 export type AgentSource = "claudeCode" | "n8n" | "agent";
@@ -389,6 +392,8 @@ export interface IntegrationConfig {
   /** Outlook: warn this many minutes before a meeting. */
   outlookWarn: number;
   weatherCity: string;
+  /** Meteo: the sky stays on the idle character, not only on the Meteo pill. */
+  weatherOnCharacter: boolean;
   /** 3CX: "user" (the extension's own login) or "api" (an API client). */
   threecxMode: "user" | "api";
   /** 3CX, API mode: the extension the API client monitors. */
@@ -515,6 +520,8 @@ export interface WidgetStatus {
   at: number;
   /** Something that just happened (a new ticket), announced even when the level stays the same. */
   event?: string;
+  /** Meteo: the sky the character wears (character/weather.ts). */
+  sky?: string;
 }
 
 /** A script launched from the Azioni tab. */
@@ -636,7 +643,7 @@ export const DEFAULT_SETTINGS: Settings = {
   habitsExcluded: [],
   updateCheck: true,
   integrationConfig: {
-    systemWarn: 10, outlookWarn: 10, weatherCity: "",
+    systemWarn: 10, outlookWarn: 10, weatherCity: "", weatherOnCharacter: false,
     threecxMode: "user", threecxExtension: "", threecxDevice: "",
   },
 };
@@ -786,6 +793,18 @@ class AppState {
     let best: BotStateName = "idle";
     for (const t of this.tasks) if (URGENCY.indexOf(t.state) > URGENCY.indexOf(best)) best = t.state;
     return best;
+  }
+
+  /**
+   * The Meteo sky over the character: on the Meteo pill, and on the idle
+   * character when "Sul personaggio" says so. None once the reading is stale.
+   */
+  get characterSky(): Sky | null {
+    const w = this.widgetStatus[WEATHER];
+    if (!w || !isSky(w.sky) || Date.now() / 1000 - w.at > 3 * 3600) return null;
+    if (!this.tasks.some((t) => t.id === WEATHER)) return null;
+    if (this.characterTask?.id === WEATHER) return w.sky;
+    return this.settings.integrationConfig.weatherOnCharacter && this.effectiveState === "idle" ? w.sky : null;
   }
 
   /** Pills in the overview: everything but the focused task and the header tabs. */

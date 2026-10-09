@@ -1,6 +1,6 @@
 // Staged island states for the README screenshots, in the browser preview only:
 //   /?scene=overview   (greeting, compact, overview, approval, chat, drop, actions,
-//                       threecx, clipboard, media, network, suggestion, agenti)
+//                       threecx, clipboard, media, network, meteo, suggestion, agenti)
 // When the scene has settled the page turns transparent and its title says
 // "scene ready"; scripts/screenshots.mjs then captures just the island.
 
@@ -153,6 +153,25 @@ export async function runScene(island: Island, scene: string) {
         ],
       };
       State.setFocus("integration_network");
+      island.alert("overview");
+      await wait(2500);
+      break;
+    }
+    case "meteo": {
+      // ?activeIntegrations=integration_weather&sky=rain (sun, moon, fog, snow, storm…):
+      // the sky on the Meteo pill; &idle shows it on the idle character instead (Claude Code focused).
+      await wait(300);
+      const q = new URLSearchParams(location.search);
+      State.widgetStatus.integration_weather = {
+        id: "integration_weather", level: "warn", at: Math.floor(Date.now() / 1000) - 60,
+        summary: "Bologna: 14°, pioggia probabile a breve (80%)", sky: q.get("sky") ?? "rain",
+        fields: [{ label: "Cielo", value: "pioggia" }, { label: "Pioggia (prossime 3 ore)", value: "80%" }],
+      };
+      if (q.has("idle")) {
+        State.settings.integrationConfig.weatherOnCharacter = true;
+        State.setFocus(CLAUDE);
+      } else State.setFocus("integration_weather");
+      State.isPinned = true;
       island.alert("overview");
       await wait(2500);
       break;

@@ -499,6 +499,24 @@ fn weather_text(code: i64) -> &'static str {
     }
 }
 
+/// WMO weather code → the sky the character wears (character/weather.ts draws
+/// each kind). Clear skies at night get the moon.
+fn sky_kind(code: i64, day: bool) -> Option<&'static str> {
+    Some(match code {
+        0 if day => "sun",
+        0 => "moon",
+        1 | 2 if day => "sun-cloud",
+        1 | 2 => "moon-cloud",
+        3 => "cloud",
+        45 | 48 => "fog",
+        51..=57 => "drizzle",
+        61..=67 | 80..=82 => "rain",
+        71..=77 | 85 | 86 => "snow",
+        95..=99 => "storm",
+        _ => return None,
+    })
+}
+
 pub async fn weather(w: &Widget) -> WidgetResult {
     let city = w.host.trim();
     if city.is_empty() {
@@ -514,7 +532,7 @@ pub async fn weather(w: &Widget) -> WidgetResult {
         .query(&[
             ("latitude", lat.to_string()),
             ("longitude", lon.to_string()),
-            ("current", "temperature_2m,apparent_temperature,weather_code,wind_speed_10m".into()),
+            ("current", "temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day".into()),
             ("hourly", "precipitation_probability".into()),
             ("forecast_hours", "4".into()),
             ("timezone", "auto".into()),
@@ -556,6 +574,8 @@ pub async fn weather(w: &Widget) -> WidgetResult {
     };
     let mut r = WidgetResult::new(&w.id, if soon { "warn" } else { "ok" }, summary);
     r.fields = fields;
+    let code = cur["weather_code"].as_i64().unwrap_or(-1);
+    r.sky = sky_kind(code, cur["is_day"].as_i64() != Some(0)).map(str::to_string);
     r
 }
 
@@ -708,6 +728,12 @@ mod tests {
         assert_eq!(weather_text(0), "sereno");
         assert_eq!(weather_text(63), "pioggia");
         assert_eq!(weather_text(95), "temporale");
+        assert_eq!(sky_kind(0, true), Some("sun"));
+        assert_eq!(sky_kind(2, false), Some("moon-cloud"));
+        assert_eq!(sky_kind(81, true), Some("rain"));
+        assert_eq!(sky_kind(86, true), Some("snow"));
+        assert_eq!(sky_kind(99, false), Some("storm"));
+        assert_eq!(sky_kind(-1, true), None);
     }
 
     #[test]

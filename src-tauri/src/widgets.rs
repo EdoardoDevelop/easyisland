@@ -113,6 +113,9 @@ pub struct WidgetResult {
     /// when the level does not change.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub event: Option<String>,
+    /// Meteo: the sky the character wears (probes::sky_kind).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sky: Option<String>,
 }
 
 impl WidgetResult {
@@ -124,6 +127,7 @@ impl WidgetResult {
             fields: Vec::new(),
             at: SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0),
             event: None,
+            sky: None,
         }
     }
 }
