@@ -1,11 +1,11 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 9 ottobre 2026. Versione **0.6.2** in `main` con il tag `v0.6.2` (la CI pubblica l'installer), installata su questo PC. Su `claude/sviluppo` è pronta la **0.6.3** (interfaccia in inglese, `Ctrl+Space`, riepilogo settimanale, limiti del piano, prezzi dei modelli): mancano le prove dal vivo, poi unione in `main` e tag. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 9 ottobre 2026. Versione **0.6.3** in `main` con il tag `v0.6.3` (la CI pubblica l'installer), installata su questo PC. Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
-- [ ] **Prove dal vivo:** la 0.6.2 è provata (9 ottobre). Quelle che restano sono in `docs/prove-dal-vivo.md`.
+- [ ] **Prove dal vivo:** della 0.6.3 vanno provati interfaccia in inglese, limiti del piano, card «finito» da un altro programma e riepilogo settimanale. Le altre sono in `docs/prove-dal-vivo.md`.
 - [ ] **Funzioni chieste da Edoardo:** cronologia delle chat, cartella trascinata nella chat (`docs/idee.md`).
 - [ ] **3CX + Zammad:** ticket del cliente sulla chiamata in arrivo (`docs/idee.md`).
 - [ ] **Remote Desktop Manager** come integrazione. Prima va capito dove sta la fonte dati (`docs/idee.md`).
