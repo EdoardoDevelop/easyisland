@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <title>EasyIsland — saluto senza isola</title>
+    <style>
+      body { margin: 0; min-height: 100vh; display: grid; place-content: center; gap: 12px; background: #1b1b1f; font: 12px system-ui; color: #ddd; }
+      .bar { display: flex; gap: 8px; justify-content: center; }
+      button, select { font: inherit; padding: 4px 10px; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <canvas id="greet"></canvas>
+    <div class="bar">
+      <select id="character">
+        <option value="drop">Goccia</option>
+        <option value="slime">Slime</option>
+        <option value="cube">EasyTech</option>
+      </select>
+      <label><input id="loop" type="checkbox" checked /> ripeti</label>
+      <button id="again">Ricomincia</button>
+    </div>
+    <script type="module" src="./greeting-preview.ts"></script>
+  </body>
+</html>

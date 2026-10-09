@@ -165,6 +165,23 @@ html.browser-preview #root {
   pointer-events: none;
 }
 
+/* The launch greeting has no island behind it: the particle rings fade out
+   before the window's edge instead of stopping in a straight line. */
+#island.greeting #greeting-canvas {
+  -webkit-mask-image: radial-gradient(closest-side, #000 70%, transparent);
+  mask-image: radial-gradient(closest-side, #000 70%, transparent);
+}
+
+/* Nothing to clip it to while the island grows, and the header must not
+   fade out over the desktop. */
+#island.greeting #island-clip {
+  overflow: visible;
+}
+
+#island.greeting #content {
+  transition: none;
+}
+
 /* The drop sequence. Sits under the header and takes over the island body; it
    cross-fades in and out, so the last frame stays up while the views return. */
 #upload-layer {

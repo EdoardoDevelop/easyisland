@@ -162,6 +162,7 @@ export class Island {
     this.wireInput();
     this.engine.onDizzy = () => this.handleDizzy();
     this.greeting.onComplete = () => this.fsm.greetComplete();
+    this.greeting.bare = true;
     State.subscribe(() => {
       this.dirty = true;
       this.ensureRunning();
@@ -1591,11 +1592,14 @@ export class Island {
 
   /**
    * "Sfondo a isola chiusa" off: while the island is not open, its background
-   * goes away and only the character is left.
+   * goes away and only the character is left. The launch greeting is always
+   * the character alone, with its halo and particles.
    */
   private applyBare() {
-    const bare = State.mode !== "expanded" && State.settings.theme?.compactBackground === false;
+    const greeting = State.mode === "expanded" && State.view === "greeting";
+    const bare = greeting || (State.mode !== "expanded" && State.settings.theme?.compactBackground === false);
     this.islandEl.classList.toggle("bare", bare);
+    this.islandEl.classList.toggle("greeting", greeting);
   }
 
   /** Island colour/opacity and per-family volumes from the theme. */
@@ -2128,6 +2132,7 @@ export class Island {
     this.contentEl.style.opacity = expanded && !greetingActive ? "1" : "0";
     this.contentEl.style.pointerEvents = expanded && !greetingActive ? "auto" : "none";
     this.greetingCanvas.style.display = greetingActive ? "block" : "none";
+    this.applyBare();
 
     this.header.sync();
     this.search.el.style.display = this.searchShown ? "" : "none";

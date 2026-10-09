@@ -10,6 +10,7 @@
 ## Anteprima nel browser
 - `npm run dev`, poi le scene di `dev/scenes.ts`: `/?scene=diff`, `threecx`, `drop`, `chat&long`, `clipboard&long`, `media&long&summary`, `agenti` (due agenti e la barra della scheda Agenti, `&claude` per l'altro pulsante), `meteo&activeIntegrations=integration_weather&sky=rain` (oppure `sun`, `snow`, `storm`…, con `&idle` sul personaggio inattivo)… Le scene `diff` e `threecx` espongono `window.island` per simulare eventi con `handleHook`.
 - `npm run ui`: solo l'interfaccia nel browser.
+- `/dev/greeting-preview.html` (`?character=slime`, `cube`): il saluto all'avvio da solo, ripetuto, su una tela più grande.
 - Schermate del README: `node scripts/screenshots.mjs` con `npm run dev` acceso. L'errore EPERM finale riguarda solo la pulizia della cartella temporanea di Edge e si può ignorare.
 
 ## Installare su questo PC
