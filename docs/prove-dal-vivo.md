@@ -10,3 +10,6 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
 - [ ] **Appunti e Musica** (Ctrl+V, immagini da varie app, Spotify/browser), **Cattura una zona** con entrambi i motori, **calcolatrice**, **ZIP** veri.
 - [ ] **Widget:** script del certificato TLS, calendario ICS reale. **«Davanti al cliente»** con Teams e assistenza remota veri.
 - [ ] **Isola:** Start aperto con «Sopra la barra» (il personaggio deve tornare davanti).
+- [ ] **Barra di ricerca:** programmi veri (Outlook nuovo, Teams, Excel) che si aprono dal risultato; l'isola che resta aperta mentre si scrive.
+- [ ] **Vassoio:** un file fissato che resta dopo il riavvio di EasyIsland e con «Svuota».
+- [ ] **Azione ⚡ senza selezione:** in Outlook e nel browser la chat si apre con la domanda già scritta.

@@ -169,9 +169,14 @@ export const Bridge = {
   automationsLog: () => call<{ at: number; name: string; cause: string; ok: boolean; detail: string }[]>("automations_log"),
   automationRunNow: (id: string) => callOrThrow<void>("automation_run_now", { id }),
   /** The tray ("Vassoio"): the copies of dropped files, kept until EasyIsland restarts. */
-  inboxList: () => call<{ name: string; path: string; size: number; at: number }[]>("inbox_list"),
+  inboxList: () => call<{ name: string; path: string; size: number; at: number; kept?: boolean }[]>("inbox_list"),
   inboxDelete: (name: string) => callOrThrow<void>("inbox_delete", { name }),
+  /** "Svuota": every file that is not pinned. */
   inboxClear: () => call<number>("inbox_clear"),
+  /** The programs of the Start menu (shortcuts), for the search bar. Empty in the browser preview. */
+  startApps: async () => (await call<{ name: string; path: string }[]>("start_apps")) ?? [],
+  /** Pins a file of the tray: it stays across restarts and "Svuota". */
+  inboxKeep: (name: string, keep: boolean) => callOrThrow<void>("inbox_keep", { name, keep }),
   inboxOpen: (name: string, reveal: boolean) => callOrThrow<void>("inbox_open", { name, reveal }),
   /** Drags a file of the tray out of the island into another app (Windows' own drag); resolves when it is over. */
   inboxDrag: (name: string) => callOrThrow<void>("inbox_drag", { name }),

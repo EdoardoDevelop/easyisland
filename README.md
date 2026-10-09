@@ -205,10 +205,11 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 | Trascini un file sull'isola | Si apre anche se è impostata "solo con un clic": Slime diventa una scatola, lo inghiotte e poi si offre di rispondere a domande sul file |
 | `Esc`, o la ✕ in alto a destra | Chiude subito l'isola, senza aspettare i secondi della chiusura automatica |
 | 📌 in alto a destra | **Tieni aperta**: l'isola non si chiude più da sola finché non la togli (Esc e ✕ la chiudono comunque) |
-| Scrivi un calcolo nella chat, es. `840 + 22%` o `15% di 840` | Compare subito il risultato; **Invio** lo copia negli appunti, **Ctrl+Invio** chiede comunque a Claude. Il calcolo è fatto in locale, senza Claude |
+| Scrivi un calcolo nella chat, es. `840 + 22%` o `15% di 840` | Compare subito il risultato; **Invio** lo copia negli appunti, **Ctrl+Invio** chiede comunque alla chat. Il calcolo è fatto in locale, senza Claude |
 | Rilasci uno ZIP | Oltre a "Fai una domanda" c'è **Estrai…**: vedi cosa contiene e lo estrai in una cartella nuova accanto all'originale, in Download o sul Desktop |
 | Scheda **+** → **Cattura una zona** (o `Ctrl+Alt+Shift+S`) | Lo Strumento di cattura di Windows: scegli una zona, una finestra o lo schermo e la chat si apre con l'immagine allegata |
-| Scheda **+** → **Vassoio** (o il pulsante **Vassoio** dopo aver rilasciato un file) | I file rilasciati sull'isola, in elenco o a griglia, tenuti finché EasyIsland non si riavvia: trascinali in un'altra app (mail, chat, cartella), chiedi a Claude, apri, mostra nella cartella, togli uno o tutti. Sono copie: gli originali non vengono toccati |
+| Scheda **+** → **Vassoio** (o il pulsante **Vassoio** dopo aver rilasciato un file) | I file rilasciati sull'isola, in elenco o a griglia, tenuti finché EasyIsland non si riavvia, tranne quelli fissati con la puntina: trascinali in un'altra app (mail, chat, cartella), chiedi alla chat, apri, mostra nella cartella, fissa, togli uno o tutti. Sono copie: gli originali non vengono toccati |
+| Scrivi nella **barra di ricerca** in fondo all'isola aperta | Trova integrazioni, sessioni degli agenti, azioni ⚡ e programmi installati (anche quelli dello Store); frecce per scegliere, **Invio** per aprire, **Esc** per svuotare. Si spegne in Impostazioni → Posizione e aspetto |
 | Icona nell'area di notifica | Apri, Impostazioni…, Pausa, Esci |
 
 Tutto il resto succede da solo: una richiesta di permesso di Claude Code apre
@@ -294,7 +295,7 @@ di EasyIsland. Le impostazioni si cambiano nell'indirizzo, per esempio
 
 | Tipo | Cosa fa |
 |---|---|
-| **Chiedi a Claude** | manda un prompt salvato, applicato al testo copiato negli appunti o al file rilasciato sull'isola |
+| **Chiedi alla chat** | manda un prompt salvato, applicato al testo copiato negli appunti o al file rilasciato sull'isola |
 | **Script** | esegue comandi PowerShell o del Prompt dei comandi, nascosti, e mostra l'output nell'isola (con *Interrompi*, timeout di 5 minuti). Parte **solo dopo un clic**; con "Chiedi conferma" mostra prima i comandi |
 | **Programma / cartella** | avvia un programma con i suoi argomenti (es. `mstsc /v:server01`) o apre una cartella |
 | **Link** | apre un indirizzo nel browser |
@@ -367,7 +368,7 @@ sbaglio, e **Ripristina l'ordine**.
 | **Sicurezza** | antivirus (Defender o un altro, dal Centro sicurezza di Windows), età delle firme, ultima scansione, firewall, minacce rilevate |
 | **Rete** | Wi-Fi o cavo, IP locale e pubblico (api.ipify.org, al massimo ogni 15 minuti), VPN attive, latenza verso 1.1.1.1; avvisa se internet non risponde o è lento |
 | **Meteo** | meteo attuale di una città (Open-Meteo, gratuito e senza chiave); avvisa se è probabile pioggia nelle prossime ore |
-| **Appunti** | gli ultimi 30 testi e immagini copiati (fino a 10 immagini), più quelli fissati: clic per incollarli nell'app in primo piano, oppure copia, trasforma (MAIUSCOLO, minuscolo, una riga, senza spazi, JSON, URL), fissa, elimina; sulle immagini **Chiedi a Claude**. Solo in memoria, mai su disco; ciò che i gestori di password segnano come privato non viene registrato |
+| **Appunti** | gli ultimi 30 testi e immagini copiati (fino a 10 immagini), più quelli fissati: clic per incollarli nell'app in primo piano, oppure copia, trasforma (MAIUSCOLO, minuscolo, una riga, senza spazi, JSON, URL), fissa, elimina; sulle immagini **Chiedi alla chat**. Solo in memoria, mai su disco; ciò che i gestori di password segnano come privato non viene registrato |
 | **Musica** | cosa sta suonando in qualsiasi app che compare nei controlli multimediali di Windows (Spotify, il browser, Lettore multimediale…), con copertina, avanzamento e ⏮ ⏯ ⏭; la pillola mostra il titolo del brano. Tutto in locale |
 | **3CX** | il centralino 3CX V20: chiamare (numero o ricerca in rubrica, da un dispositivo a scelta), chiamate in arrivo nell'isola con **Rispondi** / **Rifiuta**, **Riaggancia**, durata, stato, chiamate perse e recenti. Due accessi: **interno e password** (come l'app 3CX, senza licenze in più; accesso non documentato da 3CX) o un **client API** dell'Admin Console (licenza 8SC+; senza stato e cronologia). Numeri e nomi solo in memoria |
 
@@ -609,7 +610,7 @@ per le chiavi di ogni integrazione.
 
 Alla chat si può allegare il testo copiato o un'immagine (`Ctrl+Alt+K`), un file
 rilasciato sull'isola, una **zona dello schermo** (`Ctrl+Alt+Shift+S` o scheda
-**+**) o un'immagine della cronologia Appunti (**Chiedi a Claude**).
+**+**) o un'immagine della cronologia Appunti (**Chiedi alla chat**).
 
 Slime risponde in italiano, a meno che tu non gli scriva in un'altra lingua.
 **Nuova chat**, a sinistra del campo di testo, dimentica la conversazione (e il

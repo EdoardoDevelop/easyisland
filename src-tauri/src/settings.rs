@@ -275,6 +275,9 @@ pub struct Settings {
     /// No dragging pills and tabs around in the island. Belongs to the PC.
     #[serde(default)]
     pub lock_order: bool,
+    /// The search bar at the bottom of the open island (integrations, actions, programs).
+    #[serde(default = "default_true")]
+    pub search_bar: bool,
     /// "primary" = the main display, "cursor" = whichever display the mouse is on.
     pub screen: String,
     pub autostart: bool,
@@ -530,6 +533,7 @@ impl Default for Settings {
             pill_order: Vec::new(),
             tab_order: Vec::new(),
             lock_order: false,
+            search_bar: true,
             screen: "primary".into(),
             autostart: false,
             hooks_installed: false,

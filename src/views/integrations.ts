@@ -439,7 +439,7 @@ function clipboardPictureRow(task: AgentTask, it: Record<string, unknown>, hooks
     h("span", { class: "int-ago", text: timeAgo(it.at) }),
     h("span", { class: "clip-tools" },
       iconButton(ICONS.copy, "Copia senza incollare", "#38BDF8", () => void use(false)),
-      iconButton(ICONS.bubble, "Chiedi a Claude su questa immagine", "#A78BFA", () => void ask()),
+      iconButton(ICONS.bubble, "Chiedi alla chat su questa immagine", "#A78BFA", () => void ask()),
       iconButton(ICONS.pin, it.pinned ? "Togli dai fissati" : "Fissa in cima", "#A78BFA",
         () => void Bridge.clipboardPin(id, !it.pinned), !!it.pinned),
       iconButton(ICONS.xmark, "Elimina", "#F4505E", () => void Bridge.clipboardRemove(id))));

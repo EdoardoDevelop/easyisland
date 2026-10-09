@@ -1050,6 +1050,11 @@ function placementSection(): HTMLElement {
       h("span", { class: "hint note", text: "0 = l'altezza di ogni vista; anche trascinando l'angolo dell'isola aperta" }),
     ),
     h("div", { class: "row" },
+      h("label", { text: "Barra di ricerca" }),
+      toggle(settings.searchBar !== false, (v) => { settings.searchBar = v; commit(); }),
+      h("span", { class: "hint note", text: "in fondo all'isola aperta: cerca integrazioni, azioni e programmi installati" }),
+    ),
+    h("div", { class: "row" },
       h("label", { text: "Sopra la barra" }),
       toggle(settings.overTaskbar, (v) => { settings.overTaskbar = v; commit(); }),
       h("span", { class: "hint note", text: "il personaggio può stare anche sopra la barra delle applicazioni" }),
@@ -1519,7 +1524,7 @@ function actionsSection(): HTMLElement {
       color.addEventListener("change", () => { a.color = color.value; touch(); draw(); });
 
       const kind = select<QuickAction["kind"]>(
-        [["prompt", "Chiedi a Claude"], ["script", "Script"], ["app", "Programma / cartella"], ["url", "Link"]],
+        [["prompt", "Chiedi alla chat"], ["script", "Script"], ["app", "Programma / cartella"], ["url", "Link"]],
         a.kind,
         (v) => { a.kind = v; touch(); draw(); },
       );
@@ -1586,7 +1591,7 @@ function actionsSection(): HTMLElement {
                 a.input,
                 (v) => { a.input = v; touch(); draw(); },
               )),
-            area(a.prompt, "Cosa chiedere a Claude", (v) => { a.prompt = v; }),
+            area(a.prompt, "Cosa chiedere alla chat", (v) => { a.prompt = v; }),
           );
           break;
       }
@@ -1645,7 +1650,7 @@ function actionsSection(): HTMLElement {
     h("h2", {}, h("span", { text: "Azioni rapide" }), profileChip()),
     h("div", {
       class: "hint",
-      text: "Pulsanti nella scheda ⚡ dell'isola: link, programmi, script (partono solo dopo un clic) e domande a Claude sul testo copiato, sul testo selezionato o sul file rilasciato. Nessuna chiave o password qui dentro.",
+      text: "Pulsanti nella scheda ⚡ dell'isola: link, programmi, script (partono solo dopo un clic) e domande alla chat sul testo copiato, sul testo selezionato o sul file rilasciato. Nessuna chiave o password qui dentro.",
     }),
     h("div", { class: "row" }, h("label", { text: "Apri l'isola" }),
       hotkeyField(settings.hotkeyOpen, (v) => { settings.hotkeyOpen = v; })),
@@ -1964,7 +1969,7 @@ function automationsSection(): HTMLElement {
 
   return h("section", {},
     h("h2", {}, h("span", { text: "Automazioni" })),
-    h("div", { class: "hint", text: "Quando succede qualcosa, EasyIsland esegue i passi che scegli, senza chiedere: le hai approvate creandole. Fanno eccezione gli script con \"Chiedi conferma\" e le domande a Claude, che si aprono nell'isola. In pausa non parte niente. Valgono per questo PC; ognuna si può limitare a un profilo." }),
+    h("div", { class: "hint", text: "Quando succede qualcosa, EasyIsland esegue i passi che scegli, senza chiedere: le hai approvate creandole. Fanno eccezione gli script con \"Chiedi conferma\" e le domande alla chat, che si aprono nell'isola. In pausa non parte niente. Valgono per questo PC; ognuna si può limitare a un profilo." }),
     list,
     h("div", { class: "row" }, add),
     h("h3", { text: "Proposte dalle tue abitudini" }),

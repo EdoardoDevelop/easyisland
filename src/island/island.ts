@@ -19,6 +19,7 @@ import { createMiniBot, pruneMiniBots, syncMiniBotStates, tickMiniBots } from ".
 import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
+import { buildSearch, type SearchHost } from "../views/search";
 import { sendToChat } from "../views/chat";
 import { tabActions } from "../views/actions";
 import type { ApprovalInfo, Notice, QuickAction } from "../core/state";
@@ -43,6 +44,8 @@ const DRAG_THRESHOLD = 4;
 /** The three views the drop sequence owns; leaving them stops the engine. */
 /** Views drawn at a fixed size: the user's width and height do not apply. */
 const FIXED_SIZE_VIEWS: ReadonlySet<IslandViewName> = new Set(["greeting", "upload", "uploading", "choose"]);
+/** The search bar under the views (src/views/search.ts): its height and the gap above it. */
+const SEARCH_H = 36;
 const UPLOAD_VIEWS: ReadonlySet<IslandViewName> = new Set(["upload", "uploading", "choose"]);
 
 /**
@@ -80,6 +83,7 @@ export class Island {
   private restKey = "";
 
   private header!: ViewHost;
+  private search!: SearchHost;
   private views!: Map<IslandViewName, ViewHost>;
   private uploadCanvas!: UploadCanvas;
 
@@ -274,7 +278,19 @@ export class Island {
     this.views = buildViews(actions, () => this.animateGeometry(false));
     this.viewsEl = h("div", { id: "views" });
     for (const v of this.views.values()) this.viewsEl.append(v.el);
-    this.contentEl = h("div", { id: "content" }, this.header.el, this.viewsEl);
+    this.search = buildSearch({
+      openTask: (id) => {
+        State.summary = false;
+        State.setFocus(id);
+        this.setView("overview");
+      },
+      runAction: (a) => void this.runAction(a),
+      openProgram: (path) => {
+        Sound.play("blip");
+        void Bridge.actionOpenApp(path, "").then(() => this.collapse(), (e) => this.note(String(e), State.view));
+      },
+    });
+    this.contentEl = h("div", { id: "content" }, this.header.el, this.viewsEl, this.search.el);
 
     // The drop sequence draws the card, the bar and its own the character. It sits under
     // the header, which stays visible on top of it exactly as on macOS.
@@ -344,7 +360,8 @@ export class Island {
 
   private wireFsm() {
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
-    this.fsm.waiting = () => State.pendingApproval != null;
+    // A pending request, or results of the search bar being looked through.
+    this.fsm.waiting = () => State.pendingApproval != null || this.search.open;
     this.fsm.onTransition = (from, to) => {
       switch (to) {
         case "hidden":
@@ -458,6 +475,15 @@ export class Island {
   /** True while the drop sequence owns the island body. */
   private get uploadActive(): boolean {
     return State.mode === "expanded" && UploadSeq.isActive && UPLOAD_VIEWS.has(State.view);
+  }
+
+  /**
+   * The search bar under the views: on the open island, not in the chat (it has
+   * its own field), the greeting or the drop sequence.
+   */
+  private get searchShown(): boolean {
+    return State.mode === "expanded" && State.settings.searchBar !== false
+      && !FIXED_SIZE_VIEWS.has(State.view) && State.view !== "prompt" && !this.uploadActive;
   }
 
   /** Navigating out of the drop flow ends the sequence, as on macOS. */
@@ -618,26 +644,32 @@ export class Island {
     }
   }
 
-  /** A suggestion: copy the selection in the app in front, then ask Claude. */
-  async runSuggestion(s: Suggestion, app: string) {
+  /** A suggestion: copy the selection in the app in front, then ask the chat. */
+  async runSuggestion(s: Suggestion, _app: string) {
     Sound.play("blip");
-    const text = await this.selectedText(app);
-    if (text == null) return;
-    this.startChat(s.prompt, { label: app ? `Testo da ${app}` : "Testo selezionato", text }, false);
+    await this.askAboutSelection(s.prompt);
   }
 
-  /** The text selected in the app in front; null (with a note saying why) when there is none. */
-  private async selectedText(app: string, back: IslandViewName = "actions"): Promise<string | null> {
+  /**
+   * The question about the text selected in whatever app is in front. With no
+   * selection (or one that cannot be copied) the chat opens with the question
+   * in its field, for the user to paste or type the text after it.
+   */
+  private async askAboutSelection(prompt: string) {
     const r = await Bridge.captureSelection();
-    if ("text" in r) return r.text;
-    const where = app ? ` in ${app}` : "";
-    const why: Record<string, string> = {
-      "no-window": "Non trovo l'app da cui leggere: fai clic nell'app con il testo, poi riprova.",
-      "no-focus": `Windows non mi ha lasciato tornare${app ? ` a ${app}` : " all'app"}: fai clic lì e riprova.`,
-      "not-text": `Hai selezionato un'immagine o dei file${where}, non del testo.`,
-    };
-    this.note(why[r.error] ?? `Nessun testo selezionato${where}: selezionalo, poi scegli l'azione. Se è già selezionato, l'app non lascia copiarlo: usa Ctrl+C e l'azione sul testo copiato.`, back);
-    return null;
+    if ("text" in r) {
+      this.startChat(prompt, { label: "Testo selezionato", text: r.text }, false);
+      return;
+    }
+    this.draftChat(prompt);
+  }
+
+  /** A fresh chat with `prompt` in its field, not sent: the text goes after it. */
+  private draftChat(prompt: string) {
+    const q = prompt.trim();
+    this.startChat("", null, false);
+    State.chatDraft = q ? `${q.replace(/[:.]$/, "")}: ` : "";
+    State.notify();
   }
 
   /** "Estrai…" on a dropped ZIP: list what is inside, then wait for a destination. */
@@ -785,20 +817,18 @@ export class Island {
             this.startChat(a.prompt, null, true);
             return;
           }
+          if (a.input === "selection") {
+            await this.askAboutSelection(a.prompt);
+            return;
+          }
           let context: { label: string; text: string } | null = null;
           if (a.input === "clipboard") {
             const text = await Bridge.clipboardText();
             if (!text) {
-              this.note("Gli appunti sono vuoti: copia prima il testo.");
+              this.draftChat(a.prompt);
               return;
             }
             context = { label: "Testo copiato", text };
-          } else if (a.input === "selection") {
-            // The user's own actions work on text selected in any app: no
-            // suggestion group ("Browser", "Outlook") in the labels or the notes.
-            const text = await this.selectedText("");
-            if (text == null) return;
-            context = { label: "Testo selezionato", text };
           }
           this.startChat(a.prompt, context, false);
           break;
@@ -1244,6 +1274,8 @@ export class Island {
     // height so a list that grows does not feed back into the island's size.
     const natural = islandSize(State.mode, State.view, State.chatHistory.length, compact, fit).h;
     const extra = State.mode === "expanded" ? Math.max(0, h - natural) : 0;
+    // The search bar adds its own height: the views keep theirs.
+    if (this.searchShown) h = Math.min(MAX_ISLAND_H, h + SEARCH_H);
     this.islandEl.style.setProperty("--extra-h", `${extra}px`);
     this.islandEl.style.setProperty("--extra-w", `${State.mode === "expanded" ? Math.max(0, w - EXPANDED_W) : 0}px`);
     let r = State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
@@ -1690,7 +1722,7 @@ export class Island {
     if (!inIsland && this.wasInIsland) {
       this.cancelHoverOpen();
       this.fsm.mouseLeft();
-      if (this.fsm.state === "home" && !State.isPinned && !State.keepOpen && !State.pendingApproval) {
+      if (this.fsm.state === "home" && !State.isPinned && !State.keepOpen && !State.pendingApproval && !this.search.open) {
         this.homeCollapseAt = performance.now() + State.settings.autoCloseInterval * 1000;
       }
     }
@@ -1858,8 +1890,10 @@ export class Island {
   };
 
   private updateBotTargets() {
+    // Centred on the views, not on the search bar under them.
     const p = botPosition(
-      State.mode, State.view, this.height.value, State.uploadProgress, compactSize(this.placement),
+      State.mode, State.view, this.height.value - (this.searchShown ? SEARCH_H : 0), State.uploadProgress,
+      compactSize(this.placement),
     );
     this.botCx.target = p.cx;
     this.botCy.target = p.cy;
@@ -1963,6 +1997,8 @@ export class Island {
     this.greetingCanvas.style.display = greetingActive ? "block" : "none";
 
     this.header.sync();
+    this.search.el.style.display = this.searchShown ? "" : "none";
+    this.search.sync();
     for (const [name, view] of this.views) {
       const on = name === State.view;
       view.el.classList.toggle("on", on);

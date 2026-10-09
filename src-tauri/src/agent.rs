@@ -118,7 +118,7 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
                     json!({
                         "id": a.get("id"),
                         "nome": a.get("name"),
-                        "tipo": match kind { "url" => "link", "app" => "programma", "script" => "script", "prompt" => "domanda a Claude (non eseguibile da qui)", _ => kind },
+                        "tipo": match kind { "url" => "link", "app" => "programma", "script" => "script", "prompt" => "domanda alla chat (non eseguibile da qui)", _ => kind },
                         "dettaglio": detail,
                     })
                 })
@@ -163,7 +163,7 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
                     };
                     Ok(format!("Script «{name}» {status}.\nOutput:\n{}", if res.output.is_empty() { "(nessuno)" } else { &res.output }))
                 }
-                _ => Err("Le azioni di tipo domanda a Claude non si eseguono da qui: chiedi direttamente.".into()),
+                _ => Err("Le azioni di tipo domanda alla chat non si eseguono da qui: chiedi direttamente.".into()),
             }
         }
 

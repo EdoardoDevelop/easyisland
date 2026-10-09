@@ -279,6 +279,8 @@ export interface Settings {
   tabOrder: string[];
   /** No dragging pills and tabs around in the island (this PC). */
   lockOrder: boolean;
+  /** The search bar at the bottom of the open island (src/views/search.ts). */
+  searchBar: boolean;
   /** "primary", "cursor", or "monitor:<name>" (the display the character was dragged to). */
   screen: string;
   autostart: boolean;
@@ -589,6 +591,7 @@ export const DEFAULT_SETTINGS: Settings = {
   pillOrder: [],
   tabOrder: [],
   lockOrder: false,
+  searchBar: true,
   screen: "primary",
   autostart: false,
   hooksInstalled: false,
@@ -697,7 +700,7 @@ class AppState {
   /** `source`: where the file was dropped from (the copy is in `path`). */
   droppedFile: { name: string; path: string; source?: string } | null = null;
   /** The tray ("Vassoio"): the inbox, as last listed. */
-  inbox: { name: string; path: string; size: number; at: number }[] | null = null;
+  inbox: { name: string; path: string; size: number; at: number; kept?: boolean }[] | null = null;
   /** "Estrai…" on a dropped ZIP: what is inside, and how the extraction went. */
   unzip: {
     info: { count: number; size: number; names: string[] } | null;
@@ -706,6 +709,8 @@ class AppState {
   } | null = null;
   /** Text the chat is about (clipboard, a quick action) — sent with the first message. */
   chatText: { label: string; text: string } | null = null;
+  /** Put in the chat field once, not sent (an action with no selection: the text goes after it). */
+  chatDraft: string | null = null;
   /** The script being confirmed / run / shown in the Run view. */
   run: ScriptRun | null = null;
   /** Latest result per widget id. */

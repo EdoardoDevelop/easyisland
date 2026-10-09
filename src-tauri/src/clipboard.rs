@@ -426,7 +426,7 @@ pub fn use_entry(app: &AppHandle, id: u64, how: &str, paste: bool) -> Result<(),
     Ok(())
 }
 
-/// "Chiedi a Claude" on a picture: a PNG copy in the inbox, for the chat.
+/// "Chiedi alla chat" on a picture: a PNG copy in the inbox, for the chat.
 pub fn picture_to_inbox(id: u64) -> Result<DroppedFile, String> {
     let png = HISTORY
         .lock()

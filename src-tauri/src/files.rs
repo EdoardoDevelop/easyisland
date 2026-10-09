@@ -5,7 +5,11 @@
 // time EasyIsland starts (so after a restart of the PC too), and by hand, one
 // file or all of them. A file of the tray can be dragged out into another app
 // (`drag_out`).
+//
+// Only the files the user pins ("kept") stay: across restarts and "Svuota".
+// Their names are listed in inbox-kept.json next to the inbox, never inside it.
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
@@ -135,10 +139,44 @@ pub struct InboxFile {
     pub size: u64,
     /// When it was dropped (the copy is stamped then), ms since 1970.
     pub at: u64,
+    /// Pinned by the user: survives restarts and "Svuota".
+    pub kept: bool,
+}
+
+fn kept_file() -> PathBuf {
+    settings::local_dir().join("inbox-kept.json")
+}
+
+/// The names of the pinned files (lower case, as Windows compares them).
+fn kept_names() -> HashSet<String> {
+    std::fs::read_to_string(kept_file())
+        .ok()
+        .and_then(|s| serde_json::from_str::<Vec<String>>(&s).ok())
+        .unwrap_or_default()
+        .into_iter()
+        .map(|n| n.to_lowercase())
+        .collect()
+}
+
+fn save_kept(names: &HashSet<String>) -> Result<(), String> {
+    let mut list: Vec<&String> = names.iter().collect();
+    list.sort();
+    let json = serde_json::to_string(&list).map_err(|e| e.to_string())?;
+    std::fs::write(kept_file(), json).map_err(|e| format!("Salvataggio non riuscito: {e}"))
+}
+
+/// Pins or unpins one file of the tray.
+pub fn set_kept(name: &str, keep: bool) -> Result<(), String> {
+    inbox_path(name)?;
+    let mut names = kept_names();
+    let key = name.to_lowercase();
+    if keep { names.insert(key) } else { names.remove(&key) };
+    save_kept(&names)
 }
 
 /// Every copy in the inbox, newest first.
 pub fn list_inbox() -> Vec<InboxFile> {
+    let kept = kept_names();
     let Ok(entries) = std::fs::read_dir(inbox_dir()) else { return Vec::new() };
     let mut out: Vec<InboxFile> = entries
         .flatten()
@@ -153,8 +191,10 @@ pub fn list_inbox() -> Vec<InboxFile> {
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .map(|d| d.as_millis() as u64)
                 .unwrap_or(0);
+            let name = e.file_name().to_string_lossy().to_string();
             Some(InboxFile {
-                name: e.file_name().to_string_lossy().to_string(),
+                kept: kept.contains(&name.to_lowercase()),
+                name,
                 path: e.path().to_string_lossy().to_string(),
                 size: meta.len(),
                 at,
@@ -179,17 +219,29 @@ pub fn inbox_path(name: &str) -> Result<PathBuf, String> {
     Ok(path)
 }
 
-/// Deletes one copy (the original the user dropped is never touched).
+/// Deletes one copy, pinned or not (the original the user dropped is never touched).
 pub fn delete_from_inbox(name: &str) -> Result<(), String> {
-    std::fs::remove_file(inbox_path(name)?).map_err(|e| format!("Eliminazione non riuscita: {e}"))
+    std::fs::remove_file(inbox_path(name)?).map_err(|e| format!("Eliminazione non riuscita: {e}"))?;
+    let mut names = kept_names();
+    if names.remove(&name.to_lowercase()) {
+        save_kept(&names)?;
+    }
+    Ok(())
 }
 
-/// Deletes every copy; returns how many went.
+/// Deletes every copy that is not pinned ("Svuota", and every start); returns
+/// how many went. Pins whose file is gone are forgotten.
 pub fn clear_inbox() -> usize {
-    list_inbox()
-        .into_iter()
-        .filter(|f| std::fs::remove_file(&f.path).is_ok())
-        .count()
+    let files = list_inbox();
+    let gone = files
+        .iter()
+        .filter(|f| !f.kept && std::fs::remove_file(&f.path).is_ok())
+        .count();
+    let present: HashSet<String> = files.iter().filter(|f| f.kept).map(|f| f.name.to_lowercase()).collect();
+    if present != kept_names() {
+        let _ = save_kept(&present);
+    }
+    gone
 }
 
 #[cfg(test)]

@@ -3425,3 +3425,88 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   background: #22c55e;
   box-shadow: 0 0 5px #22c55e;
 }
+
+/* ── Search bar (src/views/search.ts) ───────────────────────────────────── */
+/* Under the views; the island grows by SEARCH_H (36 = 28 + 8) for it. */
+#search {
+  flex: 0 0 28px;
+  margin-top: 8px;
+}
+.search-bar {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--dim-3);
+}
+.search-bar:focus-within {
+  border-color: rgba(56, 189, 248, 0.55);
+  color: var(--ink);
+}
+.search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 400 12px var(--font);
+  outline: none;
+}
+.search-input::placeholder { color: var(--dim-3); }
+/* The results cover the view between the header and the bar. */
+.search-results {
+  display: none;
+  position: absolute;
+  z-index: 4;
+  left: 10px;
+  right: 10px;
+  top: 42px;
+  bottom: 46px;
+  padding: 6px;
+  overflow-y: auto;
+  border-radius: 16px;
+  background: #121316;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+#search.open .search-results { display: block; }
+.search-hit {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #c5c8cd;
+  font: 500 12px var(--font);
+  text-align: left;
+}
+.search-hit.on { background: rgba(56, 189, 248, 0.16); color: var(--ink); }
+.search-icon {
+  flex: 0 0 18px;
+  display: inline-grid;
+  place-items: center;
+  color: #8e939c;
+}
+.search-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.search-kind {
+  flex: 0 0 auto;
+  font: 400 10px var(--font);
+  color: var(--dim-3);
+}
+.search-none {
+  padding: 10px;
+  font: 400 12px var(--font);
+  color: var(--dim-3);
+}

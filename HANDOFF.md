@@ -1,21 +1,18 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 9 ottobre 2026. Versione **0.6.1** in `main` con il tag `v0.6.1` (la CI pubblica l'installer), installata su questo PC. Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 9 ottobre 2026. Versione **0.6.1** in `main` con il tag `v0.6.1` (la CI pubblica l'installer), installata su questo PC. Su `claude/sviluppo`, non ancora installate: ricerca, Vassoio con i fissati, azioni senza selezione. Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
 - [ ] **Prove dal vivo:** opencode, 3CX, Claude Code, gli altri agenti, Outlook, Zammad, Vassoio, schermi secondari e cielo del Meteo sono provati (9 ottobre). Quelle che restano sono in `docs/prove-dal-vivo.md`.
-- [ ] **Funzioni chieste da Edoardo:** ricerca unica, ITA/ENG, cronologia delle chat, cartella trascinata nella chat (`docs/idee.md`).
+- [ ] **Funzioni chieste da Edoardo:** ITA/ENG, cronologia delle chat, cartella trascinata nella chat (`docs/idee.md`).
 - [ ] **3CX + Zammad:** ticket del cliente sulla chiamata in arrivo (`docs/idee.md`).
 - [ ] **Remote Desktop Manager** come integrazione. Prima va capito dove sta la fonte dati (`docs/idee.md`).
-- [ ] **Azioni ⚡:**
-  - «Chiedi a Claude» diventa «Chiedi alla chat», perché il motore può essere un altro (impostazioni delle azioni, Vassoio, Appunti, Cattura).
-  - Un'azione lanciata senza selezione non deve fermarsi con «Nessun testo selezionato in Browser»: deve funzionare con qualsiasi testo e senza legarsi al Browser (`selectedText` in `island.ts`).
-  - Valutare le azioni nel menu contestuale di Windows (`docs/idee.md`).
+- [ ] **Azioni ⚡:** valutare le azioni nel menu contestuale di Windows (`docs/idee.md`).
 - [ ] **opencode:** card per lo strumento `question` anche nella chat (per l'agente c'è), indicazione gratuito/a pagamento nei modelli, controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
 - [ ] **Spunti da Coucou:** Amp/Hermes, limiti del piano dalla `statusLine`, card ripiegabile, riepilogo settimanale, GitHub (`docs/idee.md`).
-- [ ] **Da decidere con Edoardo:** Vassoio permanente, nuovi personaggi (rimandati: le prove sono venute male), quali integrazioni tenere, firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
+- [ ] **Da decidere con Edoardo:** nuovi personaggi (rimandati: le prove sono venute male), quali integrazioni tenere, firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
 
 ## Problemi noti
 - **Sopra la barra:** cliccando la barra o aprendo Start il personaggio va dietro. Torna davanti a ogni cambio di finestra in primo piano. Va verificato con Start aperto.
@@ -29,6 +26,11 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 9 ottobre 2026 — ricerca, Vassoio, azioni senza selezione
+- **Barra di ricerca** in fondo all'isola aperta (`src/views/search.ts`, `start_apps.rs`): integrazioni, sessioni, azioni ⚡ e programmi del menu Start, anche dello Store. Si spegne in Posizione e aspetto. Provata nell'anteprima; i programmi veri solo nell'app installata.
+- **Vassoio:** la puntina fissa un file, che resta dopo il riavvio e con «Svuota» (`inbox-kept.json`).
+- **Azioni ⚡:** «Chiedi a Claude» ora è «Chiedi alla chat». Senza selezione o con appunti vuoti l'azione apre la chat con la domanda già scritta, invece di «Nessun testo selezionato in Browser».
 
 ### 9 ottobre 2026 — fine della risposta da un altro programma
 - La card «finito» compariva solo se nell'isola era in primo piano la scheda della sessione: con un'altra scheda c'era solo il segno sulla pillola (il `Stop` arrivava, si vede nel log). Ora compare sempre, tranne quando in primo piano c'è l'app della sessione stessa (Claude, opencode, terminale, VS Code). Provato nell'anteprima (`/?scene=agenti`) con Claude Code (terminale e app Claude) e opencode, simulando il programma in primo piano. Da provare dal vivo.
@@ -45,7 +47,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 8 ottobre 2026 — scena con due agenti
 - `/?scene=agenti` in `dev/scenes.ts`: Claude Code e opencode (eventi come da `opencode_agent.rs`) nella scheda Agenti, con la barra dei pulsanti. `&claude` seleziona Claude Code. L'isola resta fissata.
-
-### 8 ottobre 2026 — documentazione divisa in `docs/`
-- `CLAUDE.md` diventa un indice con le regole. I dettagli sono in `docs/`. L'HANDOFF tiene solo lo stato. Archivio e registro vecchio sono in `docs/archivio/`.
-- Tolto `OPTIMIZATIONS.md`: le sue segnalazioni (panici, rebuild per frame) non erano vere nel codice e la CPU non è un problema; le due pulizie reali sono in `docs/idee.md`.

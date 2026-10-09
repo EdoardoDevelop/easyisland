@@ -4,7 +4,8 @@
 // Sending a file by email is not in the Windows v1, so `choose` offers asking a
 // question about it, plus the user's quick actions that work on a file.
 
-import { h, clear } from "./dom";
+import { h, clear, svg } from "./dom";
+import { ICONS } from "./icons";
 import { State } from "../core/state";
 import { fileActions } from "./actions";
 import { renderActionIcon } from "./action-icons";
@@ -40,12 +41,12 @@ export function buildUpload(actions: ViewActions): ViewHost {
   );
   // The tray: what was dropped since EasyIsland started.
   const history = h("button", {
-    class: "drop-history", title: "I file rilasciati sull'isola: da trascinare in un'altra app, aprire o chiedere a Claude",
+    class: "drop-history", title: "I file rilasciati sull'isola: da trascinare in un'altra app, aprire o chiedere alla chat",
     onclick: () => actions.openFiles(),
   }, h("span", { text: "Vassoio" }), h("span", { class: "arrow", text: "›" }));
   // A picture of the screen instead of a file: Windows' own snipping overlay.
   const capture = h("button", {
-    class: "drop-history drop-capture", title: "Cattura una zona dello schermo e chiedi a Claude",
+    class: "drop-history drop-capture", title: "Cattura una zona dello schermo e chiedi alla chat",
     onclick: () => actions.captureScreen(),
   }, renderActionIcon("i:camera", 13), h("span", { text: "Cattura una zona" }));
   const links = h("div", { class: "drop-links" }, capture, history);
@@ -253,9 +254,9 @@ function ago(ms: number): string {
 
 /**
  * The tray ("Vassoio"): the copies of the files dropped on the island (the
- * inbox), emptied every time EasyIsland starts. Drag one out into another app,
- * open it, show it in the folder, ask about it again, take one or all of them
- * out. The originals are never touched.
+ * inbox), emptied every time EasyIsland starts except the pinned ones. Drag
+ * one out into another app, open it, show it in the folder, ask about it again,
+ * pin it, take one or all of them out. The originals are never touched.
  */
 export function buildFiles(actions: ViewActions): ViewHost {
   const count = h("span", { class: "files-count" });
@@ -282,7 +283,7 @@ export function buildFiles(actions: ViewActions): ViewHost {
   const list = h("div", { class: "files-list" });
   showLayout();
   const note = h("div", { class: "files-note",
-    text: "Trascina un file in un'altra app per usarlo. Sono copie: gli originali restano dove sono. Il vassoio si svuota quando EasyIsland si riavvia." });
+    text: "Trascina un file in un'altra app per usarlo. Sono copie: gli originali restano dove sono. Il vassoio si svuota quando EasyIsland si riavvia, tranne i file fissati con la puntina." });
   const body = h("div", { class: "files-body" }, head, list, note);
   const el = h("div", { class: "view" }, h("div", { class: "card files-card" }, body));
 
@@ -318,17 +319,21 @@ export function buildFiles(actions: ViewActions): ViewHost {
       onclick: (e: Event) => { e.stopPropagation(); fn(); } }, renderActionIcon(`i:${icon}`, 13));
     return b;
   };
+  const pinBtn = (kept: boolean, fn: () => void) =>
+    h("button", { class: kept ? "clip-btn on" : "clip-btn", style: "--c:#A78BFA",
+      title: kept ? "Non tenere più (si toglie al prossimo riavvio)" : "Tieni anche dopo il riavvio e «Svuota»",
+      onclick: (e: Event) => { e.stopPropagation(); fn(); } }, svg(ICONS.pin, 13));
 
   return {
     el,
     sync() {
       const files = State.inbox ?? [];
-      const k = files.map((f) => `${f.name}:${f.at}`).join("|");
+      const k = files.map((f) => `${f.name}:${f.at}:${f.kept ? 1 : 0}`).join("|");
       if (k === key) return;
       key = k;
       const total = files.reduce((s, f) => s + f.size, 0);
       count.textContent = files.length ? `${files.length} · ${size(total)}` : "";
-      clearAll.style.display = files.length ? "" : "none";
+      clearAll.style.display = files.some((f) => !f.kept) ? "" : "none";
       clear(list);
       if (files.length === 0) {
         list.append(h("div", { class: "files-empty", text: "Il vassoio è vuoto. I file che rilasci sull'isola restano qui finché EasyIsland è aperto." }));
@@ -337,17 +342,18 @@ export function buildFiles(actions: ViewActions): ViewHost {
       for (const f of files) {
         const err = h("span", { class: "files-err" });
         const fail = (e: unknown) => { err.textContent = String(e).replace(/^Error:\s*/, ""); };
-        const row = h("div", { class: "files-row", title: "Trascina in un'altra app · doppio clic: apri",
+        const row = h("div", { class: f.kept ? "files-row kept" : "files-row", title: "Trascina in un'altra app · doppio clic: apri",
           ondblclick: () => void Bridge.inboxOpen(f.name, false).catch(fail) },
         grid ? h("span", { class: "files-ext", text: (f.name.match(/\.([^.]{1,5})$/)?.[1] ?? "file").toUpperCase() }) : null,
         h("div", { class: "files-info" },
           h("span", { class: "files-name", text: f.name, title: f.name }),
-          h("span", { class: "files-meta", text: `${size(f.size)} · ${ago(f.at)}` }),
+          h("span", { class: "files-meta", text: `${f.kept ? "📌 fissato · " : ""}${size(f.size)} · ${ago(f.at)}` }),
           err),
         h("span", { class: "files-tools" },
-          iconBtn("chat", "Chiedi a Claude su questo file", "#A78BFA", () => actions.askAboutFile(f)),
+          iconBtn("chat", "Chiedi alla chat su questo file", "#A78BFA", () => actions.askAboutFile(f)),
           iconBtn("file", "Apri", "#38BDF8", () => void Bridge.inboxOpen(f.name, false).catch(fail)),
           iconBtn("folder", "Mostra nella cartella", "#F5A524", () => void Bridge.inboxOpen(f.name, true).catch(fail)),
+          pinBtn(!!f.kept, () => void Bridge.inboxKeep(f.name, !f.kept).then(() => actions.refreshFiles()).catch(fail)),
           iconBtn("trash", "Togli dal vassoio", "#F4505E", () => {
             void Bridge.inboxDelete(f.name).then(() => actions.refreshFiles()).catch(fail);
           })));
