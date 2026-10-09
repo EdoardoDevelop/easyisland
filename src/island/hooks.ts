@@ -716,11 +716,13 @@ export function handleHook(island: Island, payload: HookPayload) {
         if (said) State.appendStep(tid, firstLine(said, 80));
       }
       // Already looking at the session's terminal or editor: no sound, no card.
+      // In any other app the island opens on the session to say it is done,
+      // whatever tab it was showing.
       void watchingSession(tid).then((watching) => {
         if (watching) return;
         Sound.play("finish");
-        if (State.focusId === tid) surface("finished", true);
-        else State.setPillBadge(tid, "finished");
+        if (!quietNow()) State.setFocus(tid);
+        surface("finished", true);
         State.notify();
       });
       window.setTimeout(() => {
