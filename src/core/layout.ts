@@ -5,7 +5,8 @@
 export type IslandMode = "hidden" | "compact" | "expanded";
 
 export type AnchorH = "left" | "center" | "right";
-export type AnchorV = "top" | "bottom";
+/** "middle" only for an island opened in the middle of the screen (`islandPlace`). */
+export type AnchorV = "top" | "middle" | "bottom";
 
 /** Placement and look of the island outside of the expanded panel. */
 export interface Placement {
@@ -73,14 +74,16 @@ export interface ViewLayout {
   agentMode: AgentLayoutMode;
 }
 
-// The window is a fixed 720×560 while open; the island is drawn inside it, pinned
+// The window is at least 720×560 while open; the island is drawn inside it, pinned
 // to the chosen corner. 560 leaves room for views that grow with their content.
+// An island the user made bigger gets a bigger window, up to the work area
+// (`panelFor`, island.rs `set_panel_size`).
 export const PANEL_W = 720;
 export const PANEL_H = 560;
 
 /** Island chrome around the views: 8 px top inset + 34 px header + 10 px bottom. */
 export const ISLAND_CHROME_H = 52;
-/** The tallest an expanded island may grow to fit its content. */
+/** The tallest an expanded island may grow on its own to fit its content. */
 export const MAX_ISLAND_H = PANEL_H - 2 * 8;
 
 // No notch on a PC: these are the hidden/compact sizes of the original spec.
@@ -88,9 +91,27 @@ export const NOTCH_W = 184;
 export const NOTCH_H = 32;
 export const COMPACT_W = 288; // NOTCH_W + 104
 export const EXPANDED_W = 640;
-/** Bounds for the user's width of the open island (it must fit the window). */
+/** Narrowest the user can make the open island. */
 export const ISLAND_MIN_W = 560;
-export const ISLAND_MAX_W = PANEL_W - 2 * 8;
+
+/**
+ * The largest open island on a screen whose work area is `limits` (logical px):
+ * the work area less the edge margins, never below the usual window's room.
+ */
+export function islandMax(limits: { w: number; h: number }): { w: number; h: number } {
+  return {
+    w: Math.max(PANEL_W, limits.w) - 2 * EDGE_MARGIN,
+    h: Math.max(PANEL_H, limits.h) - 2 * EDGE_MARGIN,
+  };
+}
+
+/** The window an island of `w`×`h` needs: the usual one, or bigger, up to `limits`. */
+export function panelFor(w: number, h: number, limits: { w: number; h: number }): { w: number; h: number } {
+  return {
+    w: Math.min(Math.max(PANEL_W, limits.w), Math.max(PANEL_W, Math.ceil(w + 2 * EDGE_MARGIN))),
+    h: Math.min(Math.max(PANEL_H, limits.h), Math.max(PANEL_H, Math.ceil(h + 2 * EDGE_MARGIN))),
+  };
+}
 
 export const ROUNDED_CORNER = 14; // hidden / compact
 export const EXPANDED_CORNER = 22;
@@ -149,7 +170,7 @@ export function anchoredOrigin(
   const mx = p.glueX ? 0 : EDGE_MARGIN;
   const my = p.glueY ? 0 : EDGE_MARGIN;
   const x = p.h === "left" ? mx : p.h === "right" ? winW - mx - w : (winW - w) / 2;
-  const y = p.v === "bottom" ? winH - my - hh : my;
+  const y = p.v === "bottom" ? winH - my - hh : p.v === "middle" ? (winH - hh) / 2 : my;
   return { x, y };
 }
 

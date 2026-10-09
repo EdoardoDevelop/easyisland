@@ -7,4 +7,4 @@ import { CUBE } from "./cube";
 import { DROP } from "./drop";
 import { SLIME } from "./slime";
 
-registerCharacters(SLIME, CUBE, DROP);
+registerCharacters(DROP, SLIME, CUBE);

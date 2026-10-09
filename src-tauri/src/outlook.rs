@@ -135,7 +135,7 @@ pub async fn probe(w: &Widget) -> WidgetResult {
         Ok(Ok(o)) if o.status.success() => o,
         Ok(Ok(o)) => {
             let err = String::from_utf8_lossy(&o.stderr);
-            let line = err.lines().find(|l| !l.trim().is_empty()).unwrap_or("errore").trim().to_string();
+            let line = err.lines().find(|l| !l.trim().is_empty()).unwrap_or(t("errore")).trim().to_string();
             return WidgetResult::new(&w.id, "error", format!("Outlook: {line}"));
         }
         _ => return WidgetResult::new(&w.id, "error", t("Outlook non risponde")),

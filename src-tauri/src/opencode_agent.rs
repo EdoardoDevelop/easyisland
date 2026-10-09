@@ -385,7 +385,7 @@ fn translate(state: &mut Sessions, ev: &Value) -> Vec<Out> {
         "session.execution.failed" => {
             let mut m = base(state, "StopFailure", &session);
             let msg = data.pointer("/error/message").or_else(|| data.get("message")).or_else(|| data.get("error"))
-                .and_then(Value::as_str).unwrap_or("errore").to_string();
+                .and_then(Value::as_str).unwrap_or(t("errore")).to_string();
             m.insert("error".into(), json!(msg));
             hook(m)
         }

@@ -53,7 +53,7 @@ export type ChatEngine = "subscription" | "api" | "opencode" | "openrouter" | "o
 
 /** The chat engines: name, Credential Manager key (if any), default address (local ones). */
 export const CHAT_ENGINES: { id: ChatEngine; name: string; key?: string; url?: string; hint: string }[] = [
-  { id: "subscription", name: "Claude (abbonamento)", hint: t("il tuo piano Pro o Max, serve Claude Code da riga di comando con il login") },
+  { id: "subscription", name: t("Claude (abbonamento)"), hint: t("il tuo piano Pro o Max, serve Claude Code da riga di comando con il login") },
   { id: "api", name: t("Claude (chiave API)"), key: "anthropic-api-key",
  hint: t("API di Anthropic, a consumo") },
   { id: "opencode", name: "opencode", hint: t("modelli gratuiti o locali con strumenti (comandi, file, web), con i permessi nell'isola; serve opencode 2 sul PC") },
@@ -287,6 +287,8 @@ export interface Settings {
   language: string;
   /** The weekly recap of the coding agents (recap.rs, src/island/recap.ts). */
   weeklyRecap: boolean;
+  /** The chat history (chat_log.rs), on this PC. */
+  chatHistory: boolean;
   /** "primary", "cursor", or "monitor:<name>" (the display the character was dragged to). */
   screen: string;
   autostart: boolean;
@@ -318,6 +320,8 @@ export interface Settings {
   islandWidth: number;
   /** Minimum height of the open island, px; 0 = each view's own height. */
   islandHeight: number;
+  /** Where the open island appears: where the character is, or top / centre / bottom of the screen (island.rs). */
+  islandPlace: "character" | "top" | "center" | "bottom";
   /** ✕ in the open island's header. */
   closeButton: boolean;
   /** The compact view follows the cursor too (the open island always does). */
@@ -574,7 +578,7 @@ export interface Profile {
 }
 
 export const DEFAULT_THEME: Theme = {
-  character: "slime",
+  character: "drop",
   slimeColor: "",
   islandColor: "#000000",
   islandOpacity: 1,
@@ -599,6 +603,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lockOrder: false,
   searchBar: true,
   weeklyRecap: true,
+  chatHistory: true,
   language: "",
   screen: "primary",
   autostart: false,
@@ -614,6 +619,7 @@ export const DEFAULT_SETTINGS: Settings = {
   overTaskbar: false,
   islandWidth: 640,
   islandHeight: 0,
+  islandPlace: "character",
   closeButton: true,
   followCursorCompact: false,
   presenceMeeting: true,

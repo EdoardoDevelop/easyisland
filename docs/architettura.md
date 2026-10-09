@@ -19,7 +19,7 @@
 - `brand/`: SVG sorgente dei loghi. L'app non lo legge mai.
 
 ## Personaggi
-- Slime (`slime.ts`) e Goccia (`drop.ts`) sono personaggi "soft": contorno, ombreggiatura e occhio. Tutto il resto è comune. EasyTech è il cubo 3D (`cube.ts`).
+- Goccia (`drop.ts`, il personaggio predefinito dalla 0.6.4: `default_character` in `settings.rs`, `DEFAULT_SETTINGS` in `state.ts` e primo in `roster.ts`) e Slime (`slime.ts`) sono personaggi "soft": contorno, ombreggiatura e occhio. Tutto il resto è comune. EasyTech è il cubo 3D (`cube.ts`). Chi aveva già scelto un personaggio lo tiene.
 - `engine.ts`, `greeting.ts` e `src/upload/canvas.ts` disegnano chiedendo `character()`, mai un personaggio per nome.
 - **Nuovo personaggio soft:** un file che esporta un `SoftCharacter` e una riga in `roster.ts`. Si prova con `dev/character-preview.html?character=<id>` e `dev/upload-preview.html?character=<id>`.
 - EasyTech prende il colore del tema e quello dell'integrazione in primo piano (`wearsIntegrationColor`).
@@ -35,7 +35,8 @@
 - Geometria in `src/core/layout.ts` (`anchoredOrigin`, `glueFor`, `cornerRadii`, `collapsedBox`, `compactSize`). Lato Rust: `island.rs` (`apply_geometry`, `placement_from_drop`).
 - Specifici di Windows e configurabili: posizione (angoli e bordi, trascinamento con `offsetX`/`offsetY`, `overTaskbar`), aggancio ai bordi (`glueEdges`), icona a riposo, vista compatta sempre visibile (`revealDuration` 0), stile al passaggio del mouse.
 - **Schermi secondari:** trascinando il personaggio su un altro schermo, `screen` diventa `monitor:<nome>` (`island::screen_for_drop`). Il trascinamento è ancorato al cursore in pixel fisici (`drag_grab`, `drag_island`). Al cambio di scala, `watchScale` ridisegna le tele.
-- **Dimensioni dell'isola aperta:** `islandWidth` va da 560 a 704 px. `islandHeight` è l'altezza minima (0 = quella della vista). Si regolano trascinando l'angolo (`wireResize`). La finestra è 720×560 (`PANEL_W/H`): per andare oltre va ingrandita anche in Rust. Saluto e sequenza del file hanno misura fissa (`FIXED_SIZE_VIEWS`).
+- **Dimensioni dell'isola aperta:** `islandWidth` (da 560 px) e `islandHeight` (altezza minima, 0 = quella della vista) arrivano fino all'area di lavoro dello schermo meno i margini (`islandMax`, limiti da `panel_limits`). Si regolano trascinando l'angolo (`wireResize`) o in Posizione e aspetto. La finestra è almeno 720×560 (`PANEL_W/H`, uguali in `layout.ts` e `island.rs`); un'isola più grande chiede una finestra più grande (`fitPanel` → `set_panel_size`, `gate.panel_size`), che cambia solo quando l'utente cambia la misura, mai con la vista: così non taglia un'animazione. L'altezza che una vista prende da sola per il contenuto resta entro `MAX_ISLAND_H`. Saluto e sequenza del file hanno misura fissa (`FIXED_SIZE_VIEWS`).
+- **Dove si apre (`islandPlace`):** «character» = dove sta il personaggio (come prima); «top», «center», «bottom» = centrata in alto, in mezzo o in basso nell'area di lavoro. Il personaggio a riposo e la vista compatta restano al loro posto (`homePlacement`); solo da aperta la finestra va lì (`open_origin`/`place_origin` in `island.rs`, `placement` con `v: "middle"` in `island.ts`). Chiudendosi si ritira sul posto (altezza 0) e dopo 320 ms la finestra torna al personaggio (`closeAway`). Il trascinamento dell'isola aperta vale da quel punto (`panel_offset_from_drop`).
 - **Liste a scorrimento nuove:** `max-height: calc(Npx + var(--extra-h, 0px))`, così si allungano con l'isola. `--extra-w` allarga la card sinistra della Panoramica.
 - Griglie con `minmax(0, 1fr)` e testo troncato con i puntini. Nelle bolle della chat si usa `overflow-wrap: anywhere`.
 

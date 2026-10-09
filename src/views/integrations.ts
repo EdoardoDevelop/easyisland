@@ -435,7 +435,7 @@ function clipboardPictureRow(task: AgentTask, it: Record<string, unknown>, hooks
   };
   const thumb = h("img", { class: "clip-thumb", src: String(it.thumb ?? ""), alt: "" });
   return h("div", { class: it.pinned ? "int-row clip-row clip-pic pinned" : "int-row clip-row clip-pic",
-    title: `Immagine ${size} · clic: incolla nell'app in primo piano`, onclick: () => void use(true) },
+    title: t("Immagine {size} · clic: incolla nell'app in primo piano", { size }), onclick: () => void use(true) },
     dot(it.pinned ? task.color : "#5b5f67", 5), thumb, label,
     h("span", { class: "int-ago", text: timeAgo(it.at) }),
     h("span", { class: "clip-tools" },

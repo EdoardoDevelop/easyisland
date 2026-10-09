@@ -15,19 +15,21 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 </div>
 
-<img src="screenshots/greeting.png" width="640" alt="Slime che saluta all'avvio">
+<img src="screenshots/greeting.png" width="640" alt="Goccia che saluta all'avvio">
 
 ## Cosa fa
 
 - **Claude Code nell'isola**: vedi le sessioni lavorare, rispondi ai permessi
   con **Nega / Consenti / Sempre** e alle domande, guarda le **modifiche ai file**
   in tempo reale, torna all'app della sessione con un clic; anche **Codex**,
-  **opencode**, **Gemini CLI** e Claude Code nel terminale di **Cursor** ([Claude Code](#claude-code)).
+  **opencode**, **Gemini CLI** e Claude Code nel terminale di **Cursor**; il
+  **riepilogo settimanale** degli agenti e i **limiti del piano** Pro/Max
+  ([Claude Code](#claude-code)).
 - **Chat** dall'isola con Claude (abbonamento o chiave API), **OpenRouter**,
   **OpenAI**, **Gemini** o modelli locali **Ollama** e **LM Studio**; allega
   testo, file, immagini copiate o una **zona dello schermo**; risposte formattate
-  (elenchi, tabelle, codice con **Copia**); calcolatrice nel campo
-  ([Chat con Claude](#chat-con-claude)).
+  (elenchi, tabelle, codice con **Copia**); calcolatrice nel campo;
+  **cronologia** delle conversazioni da riaprire ([Chat con Claude](#chat-con-claude)).
 - **Azioni rapide** (link, programmi, script, domande a Claude) con scorciatoie
   globali, e suggerimenti per l'app che stai usando
   ([Azioni rapide](#azioni-rapide-e-scorciatoie)).
@@ -43,8 +45,39 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
   file caricati.
 - **Profili** (lavoro, casa, concentrazione) che cambiano da soli, modalità
   **davanti al cliente**, messaggi da qualsiasi script, backup delle impostazioni.
-- **Tre personaggi** (Slime, Goccia, EasyTech), posizione libera, tema, suoni
-  generati nel codice; leggera a batteria, nessuna telemetria.
+- **Tre personaggi** (Goccia, la predefinita, Slime ed EasyTech), posizione libera,
+  isola grande fino ai bordi dello schermo e aperta dove vuoi, tema, suoni
+  generati nel codice, interfaccia in **italiano o inglese**; leggera a batteria,
+  nessuna telemetria.
+
+## Novità
+
+**0.6.4** — Goccia è il personaggio predefinito; **cronologia delle chat** (l'orologio
+in alto nella chat riapre una conversazione e la continua); l'isola aperta si
+allarga **fino ai bordi dello schermo**; **«L'isola si apre»** dove sta il
+personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in inglese.
+
+<img src="screenshots/chat-history.png" width="640" alt="La cronologia delle chat: tre conversazioni di prima, con data, motore e numero di domande">
+
+| Versione | Data | Novità |
+|---|---|---|
+| **0.6.4** | 9 ott 2026 | Goccia predefinita, cronologia delle chat, isola fino ai bordi dello schermo, posizione dell'isola aperta |
+| 0.6.3 | 9 ott 2026 | Interfaccia in inglese, `Ctrl+Space` per aprire l'isola, riepilogo settimanale degli agenti, limiti del piano Pro/Max, prezzi dei modelli |
+| 0.6.2 | 9 ott 2026 | Barra di ricerca (integrazioni, azioni, programmi), file fissati nel Vassoio, azioni ⚡ senza selezione, «Chiedi alla chat» |
+| 0.6.1 | 9 ott 2026 | Card «finito» da qualsiasi programma, cielo del Meteo sul personaggio, appunti lunghi nella card |
+| 0.6.0 | 8 ott 2026 | opencode 2 come motore della chat e come agente, scheda Agenti per tutti gli agenti, pagine Chat e Agenti separate |
+| 0.5.9 | 7 ott 2026 | Isola aperta ridimensionabile, loghi dei servizi, Panoramica riordinabile, cartelle delle azioni ⚡ |
+| 0.5.8 | 6 ott 2026 | Vassoio dei file, consumo di Claude, Cursor e Copilot CLI, piano dell'agente e avvisi di rischio sui permessi |
+| 0.5.7 | 5 ott 2026 | Azioni sul testo selezionato, Outlook senza PowerShell, registro delle chiamate 3CX |
+| 0.5.6 | 5 ott 2026 | Chat con l'abbonamento: spiegato cosa serve (Claude Code da riga di comando) |
+| 0.5.5 | 4 ott 2026 | Altri motori della chat e altri agenti, markdown nelle risposte, **Sempre** sui permessi, modifiche ai file in tempo reale |
+| 0.5.4 | 4 ott 2026 | README completo e nuove schermate |
+| 0.5.3 | 4 ott 2026 | Integrazione 3CX, isola aperta spostabile |
+| 0.5.2 | 4 ott 2026 | Pillole e schede riordinabili trascinandole |
+| 0.5.1 | 4 ott 2026 | Scorciatoie registrate premendo i tasti, Cattura una zona, immagini negli Appunti |
+| 0.5.0 | 4 ott 2026 | Proposte di automazioni dalle tue abitudini |
+| 0.3.0 | 4 ott 2026 | Automazioni, Claude che usa il PC dalla chat, calcolatrice, ZIP, schede delle integrazioni |
+| 0.2.0 | 2 ott 2026 | Prima versione pubblica, aggiornamenti automatici |
 
 ---
 
@@ -128,7 +161,7 @@ L'installer non è firmato, quindi Windows SmartScreen mostra un avviso: clicca
 
 ### Dopo l'installazione
 
-EasyIsland si avvia e Slime ti saluta; da lì in poi lo trovi nel menu Start e
+EasyIsland si avvia e il personaggio ti saluta; da lì in poi lo trovi nel menu Start e
 nell'area di notifica. Dall'icona di EasyIsland nell'area di notifica →
 **Impostazioni…**:
 
@@ -175,34 +208,36 @@ disinstallatore volutamente non tocca il `settings.json` di Claude Code. Poi
 | `linker 'link.exe' not found` | mancano i Visual Studio Build Tools con il carico C++: rilancia l'ultimo comando `winget` del passo 1 |
 | `error: toolchain 'stable-x86_64-pc-windows-msvc' is not installed` | `rustup default stable-msvc` |
 | l'installer viene bloccato da Defender | è il falso positivo descritto sopra: usa "Esegui comunque", oppure lancia direttamente `target\release\easyisland.exe` |
-| Slime non compare | guarda nell'area di notifica (la freccia ^ accanto all'orologio) e il log in `%LOCALAPPDATA%\EasyIsland\easyisland.log` |
+| Il personaggio non compare | guarda nell'area di notifica (la freccia ^ accanto all'orologio) e il log in `%LOCALAPPDATA%\EasyIsland\easyisland.log` |
 | le Impostazioni | sono divise in pagine (Generale, Aspetto, Notifiche, Claude, Azioni rapide, Automazioni, Integrazioni, Widget, Backup) nel menu a sinistra; la finestra ricorda l'ultima aperta |
 | una chiave o una password "non si salva" | Gestione credenziali di Windows è piena (spesso di centinaia di token in cache di Xbox o di altre app) e rifiuta le voci nuove: le Impostazioni lo dicono sotto il campo. Elimina le voci che non servono da Pannello di controllo → Gestione credenziali → Credenziali generiche e riprova |
 | vuoi aprire le impostazioni senza l'area di notifica | `"%LOCALAPPDATA%\EasyIsland\easyisland.exe" --settings` (anche come collegamento) |
 
 ## Come si usa
 
-<img src="screenshots/compact.png" width="288" alt="L'isola compatta, con le pillole delle integrazioni come mini Slime">
+<img src="screenshots/compact.png" width="288" alt="L'isola compatta, con le pillole delle integrazioni come mini personaggi">
 <img src="screenshots/overview.png" width="640" alt="La panoramica: tutte le integrazioni con il loro stato">
 <img src="screenshots/approval.png" width="640" alt="Una richiesta di permesso di Claude Code, con Nega e Consenti">
+<img src="screenshots/agenti.png" width="640" alt="La scheda Agenti: Claude Code e opencode al lavoro">
 <img src="screenshots/chat.png" width="640" alt="Chat con Claude dall'isola">
-<img src="screenshots/drop.png" width="640" alt="Slime trasformato in una scatola, in attesa di un file, con Cattura una zona e Vassoio">
+<img src="screenshots/drop.png" width="640" alt="Il personaggio trasformato in una scatola, in attesa di un file, con Cattura una zona e Vassoio">
 
 _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `npm run dev` acceso), con dati di prova delle scene in `dev/scenes.ts`._
 
 | Cosa fai | Cosa succede |
 |---|---|
-| Porti il mouse sull'icona di Slime (in alto al centro, o nell'angolo che hai scelto) | Slime si ingrandisce (o resta sempre così, con **Sempre visibile**), fa un balzo, ti guarda e alza una mano |
-| Clicchi su Slime, o lasci il mouse sopra per un attimo se "Apri dopo" lo prevede | Si apre l'isola, allineata a quel lato |
-| Trascini Slime tenendo premuto il tasto sinistro (anche l'icona a riposo) | Si sposta dove lo lasci, anche su un altro schermo, e la posizione resta salvata nel profilo |
-| Trascini l'angolo in basso dell'isola aperta | Cambia larghezza e altezza dell'isola; il contenuto si adatta. Doppio clic sull'angolo: misure predefinite |
+| Porti il mouse sull'icona del personaggio (in alto al centro, o nell'angolo che hai scelto) | Il personaggio si ingrandisce (o resta sempre così, con **Sempre visibile**), fa un balzo, ti guarda e alza una mano |
+| Clicchi sul personaggio, o lasci il mouse sopra per un attimo se "Apri dopo" lo prevede | Si apre l'isola, allineata a quel lato |
+| Trascini il personaggio tenendo premuto il tasto sinistro (anche l'icona a riposo) | Si sposta dove lo lasci, anche su un altro schermo, e la posizione resta salvata nel profilo |
+| Trascini l'angolo in basso dell'isola aperta | Cambia larghezza e altezza dell'isola, fino ai bordi dello schermo; il contenuto si adatta. Doppio clic sull'angolo: misure predefinite |
 | Scheda ⌂ **Panoramica** | Tutte le integrazioni con il loro stato e il loro logo; un clic ne apre una, trascinandole le riordini. Il personaggio mostra lo stato più urgente |
 | Scheda **Agenti** (l'icona del terminale) | La sessione dell'agente di programmazione (Claude Code, Codex…): avanzamento, modifiche, permessi. L'aspetto della scheda (icona, logo di Claude, nome o emoji) si sceglie in Impostazioni → Agenti |
-| Trascini l'isola aperta dallo spazio vuoto dell'intestazione | Resta lì finché è aperta; chiudendola torna al posto di Slime |
+| Trascini l'isola aperta dallo spazio vuoto dell'intestazione | Resta lì finché è aperta; chiudendola torna al posto del personaggio |
 | Trascini una pillola o una scheda in alto | Cambia posto (si blocca in Impostazioni → Integrazioni) |
-| Clicchi su Slime | Si infastidisce. Tre volte di fila e gli gira la testa |
-| Lasci il puntatore su Slime per due secondi | Cuori |
-| Trascini un file sull'isola | Si apre anche se è impostata "solo con un clic": Slime diventa una scatola, lo inghiotte e poi si offre di rispondere a domande sul file |
+| Clicchi sul personaggio | Si infastidisce. Tre volte di fila e gli gira la testa |
+| Lasci il puntatore sul personaggio per due secondi | Cuori |
+| Trascini un file sull'isola | Si apre anche se è impostata "solo con un clic": il personaggio diventa una scatola, lo inghiotte e poi si offre di rispondere a domande sul file |
+| Clicchi l'orologio in alto nella chat | La **cronologia**: le conversazioni di prima, con data e motore; un clic ne riapre una e la continui da lì |
 | `Esc`, o la ✕ in alto a destra | Chiude subito l'isola, senza aspettare i secondi della chiusura automatica |
 | 📌 in alto a destra | **Tieni aperta**: l'isola non si chiude più da sola finché non la togli (Esc e ✕ la chiudono comunque) |
 | Scrivi un calcolo nella chat, es. `840 + 22%` o `15% di 840` | Compare subito il risultato; **Invio** lo copia negli appunti, **Ctrl+Invio** chiede comunque alla chat. Il calcolo è fatto in locale, senza Claude |
@@ -216,7 +251,7 @@ Tutto il resto succede da solo: una richiesta di permesso di Claude Code apre
 l'isola con **Nega / Consenti** (e **Sempre** quando Claude Code propone una regola
 da ricordare: la card dice quale; anche sopra un'altra scheda; resta finché non
 rispondi, poi l'isola torna dov'era), una sessione finita mostra l'ultimo messaggio
-di Claude e le tue integrazioni stanno nelle pillole colorate accanto a Slime. Non c'è un
+di Claude e le tue integrazioni stanno nelle pillole colorate accanto al personaggio. Non c'è un
 numero massimo di integrazioni e widget: l'isola si allunga per mostrare tutte
 le pillole e tutto il testo della scheda in primo piano (fino a circa 540 px,
 poi le pillole scorrono).
@@ -232,13 +267,13 @@ modifiche al massimo, un'ora al massimo, cancellate a fine sessione). Oltre
 
 ## Posizione e aspetto
 
-**Impostazioni… → Posizione e aspetto** decide dove vive Slime e quanto si fa notare:
+**Impostazioni… → Posizione e aspetto** decide dove vive il personaggio e quanto si fa notare:
 
 <img src="screenshots/settings.png" width="700" alt="La finestra delle impostazioni, pagina Aspetto">
 
 - **Posizione**: in alto o in basso, a sinistra, al centro o a destra. Quando si
   apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel
-  lato. Puoi anche **trascinare Slime** con il mouse dove vuoi: al rilascio la
+  lato. Puoi anche **trascinare il personaggio** con il mouse dove vuoi: al rilascio la
   posizione resta salvata nel profilo, e il lato da cui si apre l'isola viene
   scelto da solo (il terzo e la metà dello schermo in cui lo lasci), così il
   pannello cresce verso l'interno. Vicino a un bordo o al centro si aggancia.
@@ -247,33 +282,37 @@ modifiche al massimo, un'ora al massimo, cancellate a fine sessione). Oltre
   sullo spazio vuoto dell'intestazione: resta lì finché è aperta, poi alla chiusura
   torna scivolando al posto del personaggio e si riapre sempre da lì.
 - **Schermo**: principale, quello sotto il cursore, oppure quello su cui hai
-  trascinato Slime (se viene scollegato, torna sul principale).
-- **Larghezza** e **Altezza minima** dell'isola aperta (anche trascinando il suo
-  angolo in basso; *Predefinite* le riporta a 640 px e all'altezza di ogni vista).
-- **Sopra la barra**: Slime può stare anche sopra la barra delle applicazioni
+  trascinato il personaggio (se viene scollegato, torna sul principale).
+- **L'isola si apre**: dove sta il personaggio (predefinito), oppure sempre **in
+  alto al centro**, **al centro dello schermo** o **in basso al centro**. Il
+  personaggio resta al suo posto; chiudendosi, l'isola torna da lui.
+- **Larghezza** e **Altezza minima** dell'isola aperta, fino ai bordi dello
+  schermo (anche trascinando il suo angolo in basso; *Predefinite* le riporta a
+  640 px e all'altezza di ogni vista).
+- **Sopra la barra**: il personaggio può stare anche sopra la barra delle applicazioni
   (spento: resta sopra di essa, nell'area di lavoro).
 - **Aggancia ai bordi**: lasciato a pochi pixel da un bordo dello schermo, lo
   sfondo si attacca al bordo con gli angoli squadrati da quel lato; altrimenti è
   una bolla solo intorno all'icona. Spento: si attacca solo in alto al centro.
-- **Vista compatta**: uno Slime più grande e animato, oppure la barra compatta
+- **Vista compatta**: il personaggio più grande e animato, oppure la barra compatta
   con le integrazioni, con dimensione regolabile.
 - **Segue il mouse**: se attivo, anche nella vista compatta il personaggio
   guarda il cursore. Spento (predefinito): si guarda intorno da solo, sbatte le
   palpebre e ogni tanto fa una smorfia, e consuma meno. A isola aperta segue
   sempre il mouse.
 - **Sempre visibile**: la vista compatta resta sempre sullo schermo e non torna
-  mai all'icona a riposo. Costa un po' di CPU (Slime è animato): sul portatile a
+  mai all'icona a riposo. Costa un po' di CPU (il personaggio è animato): sul portatile a
   batteria valuta se spegnerla.
 - **Icona a riposo** e **Torna a riposo dopo** (solo se *Sempre visibile* è
-  spenta): Slime fermo, un pallino con il colore dello stato, oppure nulla (solo
+  spenta): il personaggio fermo, un pallino con il colore dello stato, oppure nulla (solo
   una striscia invisibile sul bordo), e dopo quanti secondi tornarci. L'icona a
   riposo è un'immagine ferma: non consuma CPU.
 - **Apri dopo**: quanto tenere il mouse sopra prima che si apra, oppure **solo
-  con un clic**. Trascinare un file sopra Slime lo apre sempre.
+  con un clic**. Trascinare un file sopra il personaggio lo apre sempre.
 - **Pannello aperto**: dopo quanti secondi dall'uscita del mouse il pannello si
   riduce alla vista compatta.
 - **Pulsante chiudi**: la ✕ in alto a destra del pannello per chiuderlo subito.
-- **Schermo intero**: durante video, giochi e presentazioni Slime sparisce; le
+- **Schermo intero**: durante video, giochi e presentazioni il personaggio sparisce; le
   richieste di permesso compaiono comunque.
 
 Per provare le combinazioni senza compilare l'app (basta Node, niente Rust):
@@ -322,7 +361,7 @@ calendario, posta…); prende il colore dell'azione.
 
 **Scorciatoie globali**, valide in ogni app (modificabili):
 
-- `Ctrl+Space` apre Slime sulle azioni (o sulla chat se non ce ne sono);
+- `Ctrl+Space` apre l'isola sulle azioni (o sulla chat se non ce ne sono);
 - `Ctrl+Alt+K` apre la chat con il testo (o l'immagine) copiato già allegato: scrivi la domanda;
 - `Ctrl+Alt+H` apre la cronologia degli **Appunti** (se l'integrazione è accesa);
 - `Ctrl+Alt+Shift+S` **cattura una zona dello schermo** (con lo Strumento di
@@ -351,7 +390,7 @@ Le azioni appartengono al profilo attivo; le scorciatoie Apri/Chiedi al PC.
 ## Integrazioni
 
 **Impostazioni… → Integrazioni** accende le integrazioni, una per tipo, che
-compaiono come pillole accanto a Slime. Chiavi, token e indirizzi stanno in
+compaiono come pillole accanto al personaggio. Chiavi, token e indirizzi stanno in
 Gestione credenziali di Windows.
 
 Pillole e schede, comprese ⌂ 💬 ⚡ +, si **riordinano trascinandole** direttamente
@@ -438,14 +477,14 @@ ricollega da solo se il collegamento cade. Numeri e nomi restano in memoria.
 | **API JSON** | qualsiasi API: scegli i campi da mostrare (percorso tipo `data.items[0].stato`) e una regola di avviso (es. `aperti > 10`). Le intestazioni segrete (token, chiavi) vanno in Gestione credenziali |
 
 Quando un controllo (widget o integrazione come Stato del PC, Rete, Outlook…)
-passa da OK a problema, la pillola prende un badge, Slime suona e l'isola si fa
+passa da OK a problema, la pillola prende un badge, il personaggio suona e l'isola si fa
 vedere (secondo le regole di notifica del profilo). Il pulsante ▶ prova un widget
 subito. I controlli si fermano con EasyIsland in pausa e diventano tre volte più
 radi a batteria. I widget appartengono al profilo.
 
 ## Davanti al cliente
 
-**Impostazioni… → Notifiche → Davanti al cliente**: Slime si fa da parte quando
+**Impostazioni… → Notifiche → Davanti al cliente**: il personaggio si fa da parte quando
 qualcuno potrebbe vedere il tuo schermo.
 
 - **Durante le chiamate**: microfono o webcam in uso da qualsiasi app (Teams,
@@ -454,7 +493,7 @@ qualcuno potrebbe vedere il tuo schermo.
 - **Durante l'assistenza**: qualcuno è collegato a questo PC (Desktop remoto,
   Assistenza rapida, TeamViewer), più i programmi che aggiungi tu.
 - **A mano**: icona nell'area di notifica → **Davanti al cliente**.
-- **Cosa fa**: nasconde Slime e silenzia i suoni (le richieste di permesso di
+- **Cosa fa**: nasconde il personaggio e silenzia i suoni (le richieste di permesso di
   Claude Code compaiono comunque), oppure solo silenzio.
 
 ## Messaggi dagli script
@@ -474,6 +513,9 @@ Notifiche** c'è il comando pronto da copiare e un pulsante **Prova**.
 
 ## Profili, tema e backup
 
+**Lingua** (Impostazioni → Generale): come Windows, italiano o inglese. Vale
+dal riavvio, offerto con **Riavvia ora**; anche la chat risponde in quella lingua.
+
 **Impostazioni… → Profilo**: ogni profilo (di partenza *Lavoro*, *Casa* e
 *Concentrazione*) ha le sue integrazioni, posizione, aspetto, suoni, tema e
 regole di notifica. Le sezioni con l'etichetta viola si salvano nel profilo
@@ -487,7 +529,7 @@ attivo.
   finché la situazione non cambia.
 - **Notifiche**: tutto, solo avvisi, oppure solo le richieste di permesso
   (com'è *Concentrazione* all'inizio).
-- **Tema**: il personaggio (**Slime**, **Goccia** o **EasyTech**), il suo
+- **Tema**: il personaggio (**Goccia**, la predefinita, **Slime** o **EasyTech**), il suo
   colore, colore e opacità dell'isola, **sfondo a isola chiusa** (spento, a
   isola chiusa resta solo il personaggio, senza il cerchio o la barra), volume
   separato per avvisi, interfaccia ed emozioni. Slime è uno slime di gelatina verde che ondeggia quando si
@@ -520,6 +562,16 @@ terminale come al solito.
 Funziona da qualsiasi terminale: Windows Terminal, PowerShell, VS Code, Git Bash,
 e nel terminale di **Cursor** ("Apri" riporta a Cursor).
 
+<img src="screenshots/recap.png" width="640" alt="Il riepilogo settimanale degli agenti: ore al lavoro, sessioni, file, righe e comandi">
+
+**Riepilogo settimanale**: il lunedì dalle 8 l'isola mostra la settimana prima
+degli agenti (ore al lavoro, sessioni, file e righe cambiati, comandi, permessi);
+anche dal menu dell'icona nell'area di notifica. Tiene solo i conteggi e il nome
+della cartella del progetto, mai comandi o contenuti. **Limiti del piano** (Pro e
+Max): la card Consumo mostra le percentuali delle 5 ore e della settimana, con un
+avviso dall'80 %; arrivano dalle sessioni nel terminale o in VS Code dopo
+«Aggiorna» degli hook.
+
 **Codex, opencode e Gemini CLI.** Nella stessa pagina (Impostazioni → Agenti) ci sono
 i loro hook, installati con le stesse regole: diff, backup datato, conferma.
 Ogni agente ha la sua pillola con passi, modifiche ai file e ultimo messaggio.
@@ -548,7 +600,7 @@ sono quelli degli hook di Claude Code).
 della chat. Dal nome del modello in alto a destra nella chat puoi sceglierne un
 altro solo per quella conversazione (il menu mostra solo i motori pronti):
 
-- **Abbonamento Claude (tramite Claude Code)**, il predefinito. Slime usa
+- **Abbonamento Claude (tramite Claude Code)**, il predefinito. EasyIsland usa
   Claude Code installato sul PC (`claude -p`, nascosto, senza finestre) e il tuo
   abbonamento Pro o Max: nessuna chiave e nessun costo extra, ma le domande
   contano nei limiti d'uso del piano.
@@ -571,7 +623,7 @@ altro solo per quella conversazione (il menu mostra solo i motori pronti):
   Claude Code gira in una cartella vuota
   (`%LOCALAPPDATA%\EasyIsland\chat`), con gli hook disattivati e solo con ricerca
   web, lettura di pagine web e lettura dei file che rilasci.
-- **Chiave API Anthropic**. Slime chiama direttamente l'API con la tua chiave,
+- **Chiave API Anthropic**. EasyIsland chiama direttamente l'API con la tua chiave,
   pagata a consumo dalla Console di Anthropic.
 - **OpenRouter** (una chiave per centinaia di modelli), **OpenAI** e **Gemini**
   (Google AI Studio): la chiave va in Gestione credenziali, il modello si sceglie
@@ -595,7 +647,7 @@ modelli che lo mostrano resta nascosto; non hanno strumenti (niente ricerche sul
 web né azioni sul PC). Le immagini vanno ai modelli che le leggono, i file di testo
 nel messaggio; i PDF solo con Claude.
 
-**Connettori** (Impostazioni → Chat, solo con "Abbonamento Claude"): Slime può usare i
+**Connettori** (Impostazioni → Chat, solo con "Abbonamento Claude"): la chat può usare i
 server MCP che hai configurato in Claude Code per l'utente
 (`claude mcp add --scope user …`), scegliendo quali profilo per profilo. Con
 "chiedi conferma" (predefinito) ogni operazione su quel connettore compare
@@ -612,9 +664,17 @@ Alla chat si può allegare il testo copiato o un'immagine (`Ctrl+Alt+K`), un fil
 rilasciato sull'isola, una **zona dello schermo** (`Ctrl+Alt+Shift+S` o scheda
 **+**) o un'immagine della cronologia Appunti (**Chiedi alla chat**).
 
-Slime risponde in italiano, a meno che tu non gli scriva in un'altra lingua.
+La chat risponde nella lingua dell'interfaccia, a meno che tu non gli scriva in un'altra lingua.
 **Nuova chat**, a sinistra del campo di testo, dimentica la conversazione (e il
 file o il testo a cui si riferiva) e ne comincia una da zero.
+
+**Cronologia**: l'orologio in alto nella chat mostra le conversazioni di prima
+(fino a 100, salvate solo su questo PC in `%LOCALAPPDATA%\EasyIsland\chats.json`).
+Un clic ne riapre una sul suo motore e la continui: con chiave API, OpenRouter,
+OpenAI, Gemini, Ollama e LM Studio riprende esattamente da dove era; con
+l'abbonamento e con opencode la conversazione di prima viene passata come testo
+insieme alla nuova domanda. I file allegati non vengono salvati. Impostazioni →
+Chat → **Cronologia** la spegne (e la cancella) o la svuota.
 
 Con "Abbonamento Claude", EasyIsland cerca Claude Code nel `PATH`, in
 `%USERPROFILE%\.local\bin` e nella cartella di npm; se non c'è un'installazione

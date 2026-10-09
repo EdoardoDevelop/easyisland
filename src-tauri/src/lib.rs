@@ -6,6 +6,7 @@ mod automations;
 mod apps;
 mod calendar;
 mod claude;
+mod chat_log;
 mod claude_cli;
 mod clipboard;
 mod clipimage;
@@ -494,6 +495,28 @@ fn set_expanded(app: AppHandle, shared: State<Shared>, expanded: bool) {
     }
 }
 
+/// The open island grew past the usual window (or came back within it): the
+/// window takes `width`×`height`, logical px, within the work area.
+#[tauri::command]
+fn set_panel_size(app: AppHandle, shared: State<Shared>, width: f64, height: f64) {
+    let size = (width.max(island::PANEL_W).round(), height.max(island::PANEL_H).round());
+    if std::mem::replace(&mut *shared.gate.panel_size.lock().unwrap(), size) == size {
+        return;
+    }
+    if shared.gate.collapsed.load(Ordering::Relaxed) {
+        return;
+    }
+    let settings = shared.settings.lock().unwrap().clone();
+    island::apply_geometry(&app, &shared.gate, &settings, false);
+}
+
+/// How big the window (and so the island) may get on its screen, logical px.
+#[tauri::command]
+fn panel_limits(app: AppHandle, shared: State<Shared>) -> (f64, f64) {
+    let settings = shared.settings.lock().unwrap().clone();
+    island::panel_limits(&app, &settings)
+}
+
 #[tauri::command]
 fn reposition(app: AppHandle, shared: State<Shared>) {
     let settings = shared.settings.lock().unwrap().clone();
@@ -682,7 +705,14 @@ async fn chat_send(
     if before.is_some() && chat.cli_session().is_none() {
         opencode::forget(before);
     }
-    if engine == "api" {
+    // A reopened conversation the engine cannot resume: it rides in front of the question.
+    let preamble = chat.take_preamble();
+    let asked = query.clone();
+    let query = match &preamble {
+        Some(p) => format!("{p}{query}"),
+        None => query,
+    };
+    let reply = if engine == "api" {
         claude::send(&chat, &model, query, context).await
     } else if engine == "opencode" {
         opencode::send(&app, &chat, &other_model, query, context).await
@@ -690,7 +720,17 @@ async fn chat_send(
         openai::send(&app, &chat, &engine, &other_model, url.as_deref(), query, context).await
     } else {
         claude_cli::send(&chat, &cli_model, &mcp, agent, query, context).await
+    };
+    match &reply {
+        Ok(r) if shared.settings.lock().unwrap().chat_history => chat_log::record(&chat, &engine, &asked, &r.text),
+        Ok(_) => {}
+        Err(_) => {
+            if let Some(p) = preamble {
+                chat.put_back_preamble(p);
+            }
+        }
     }
+    reply
 }
 
 #[tauri::command]
@@ -698,6 +738,34 @@ fn chat_reset(chat: State<Chat>) {
     let before = chat.cli_session();
     chat.reset();
     opencode::forget(before);
+}
+
+/// The chat's history list, most recent first.
+#[tauri::command]
+fn chat_history_list() -> Vec<chat_log::Summary> {
+    chat_log::list()
+}
+
+/// Reopens a conversation from the history in place of the current one.
+#[tauri::command]
+fn chat_history_open(shared: State<'_, Shared>, chat: State<'_, Chat>, id: String) -> Result<chat_log::Opened, String> {
+    let before = chat.cli_session();
+    let engine = chat_log::engine_of(&id).ok_or_else(|| t("Questa conversazione non c'è più.").to_string())?;
+    // The key chat_send will compute for this engine, so it does not start over.
+    let model = shared.settings.lock().unwrap().engine_models.get(&engine).cloned().unwrap_or_default();
+    let opened = chat_log::open(&chat, &id, &format!("{engine}:{model}"))?;
+    opencode::forget(before);
+    Ok(opened)
+}
+
+#[tauri::command]
+fn chat_history_delete(id: String) {
+    chat_log::delete(&id);
+}
+
+#[tauri::command]
+fn chat_history_clear() {
+    chat_log::clear();
 }
 
 /// Impostazioni → Chat → "Carica modelli" for an OpenAI-compatible engine.
@@ -1125,6 +1193,8 @@ pub fn run() {
             set_island_rect,
             focus_window,
             reposition,
+            set_panel_size,
+            panel_limits,
             open_url,
             open_in_vscode,
             open_file_in_vscode,
@@ -1143,6 +1213,10 @@ pub fn run() {
             log_line,
             chat_send,
             chat_reset,
+            chat_history_list,
+            chat_history_open,
+            chat_history_delete,
+            chat_history_clear,
             claude_cli_status,
             mcp_servers_configured,
             switch_profile,

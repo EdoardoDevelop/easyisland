@@ -23,10 +23,11 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WS_EX_TOOLWINDOW,
 };
 
-/// Logical size of the full window while open. Taller than any fixed view so the
-/// island can grow with its content. MUST match PANEL_W / PANEL_H in
-/// src/core/layout.ts: the front end places the island inside a window of this
-/// size, and a mismatch puts a bottom-anchored island outside the window.
+/// Logical size of the full window while open, at least. Taller than any fixed
+/// view so the island can grow with its content. MUST match PANEL_W / PANEL_H in
+/// src/core/layout.ts. An island the user made bigger asks for a bigger window
+/// (`set_panel_size`), up to the work area: the front end places the island
+/// inside a window of exactly that size.
 pub const PANEL_W: f64 = 720.0;
 pub const PANEL_H: f64 = 560.0;
 /// Logical size of the invisible strip that wakes the island when it is hidden.
@@ -98,6 +99,9 @@ pub struct PollGate {
     /// Only for this opening: closing the island forgets it, so the character
     /// goes back to its place and the next opening starts from there.
     pub panel_offset: Mutex<(f64, f64)>,
+    /// Logical size of the window while not collapsed, asked by the front end
+    /// (never below PANEL_W × PANEL_H; clamped to the work area when applied).
+    pub panel_size: Mutex<(f64, f64)>,
 }
 
 impl PollGate {
@@ -114,6 +118,7 @@ impl PollGate {
             drag_grab: Mutex::new(None),
             expanded: AtomicBool::new(false),
             panel_offset: Mutex::new((0.0, 0.0)),
+            panel_size: Mutex::new((PANEL_W, PANEL_H)),
         }
     }
 
@@ -221,12 +226,16 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
     let scale = m.scale_factor();
     let work = island_area(&m, settings);
 
-    let (lw, lh) = if collapsed { *gate.collapsed_size.lock().unwrap() } else { (PANEL_W, PANEL_H) };
-    let pw = (lw * scale).round().max(1.0) as u32;
-    let ph = (lh * scale).round().max(1.0) as u32;
-    let (x, y) = home_origin(work, (pw, ph), settings, scale);
+    let (pw, ph) = if collapsed {
+        let (lw, lh) = *gate.collapsed_size.lock().unwrap();
+        ((lw * scale).round().max(1.0) as u32, (lh * scale).round().max(1.0) as u32)
+    } else {
+        panel_physical(gate, work, scale)
+    };
+    let open = !collapsed && gate.expanded.load(Ordering::Relaxed);
+    let (x, y) = open_origin(work, (pw, ph), settings, scale, open);
     // The open island stays where it was dragged to; closed, it is back home.
-    let (x, y) = if !collapsed && gate.expanded.load(Ordering::Relaxed) {
+    let (x, y) = if open {
         let (dx, dy) = *gate.panel_offset.lock().unwrap();
         clamp_to_work(work, (pw, ph), x + (dx * scale).round() as i32, y + (dy * scale).round() as i32)
     } else {
@@ -238,6 +247,40 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
     // Moving across displays can rescale the window: re-assert the physical size.
     let _ = win.set_size(PhysicalSize::new(pw, ph));
     let _ = win.set_always_on_top(true);
+}
+
+/// The panel in physical px: the size the front end asked for, within the work area.
+fn panel_physical(gate: &PollGate, work: (i32, i32, u32, u32), scale: f64) -> (u32, u32) {
+    let (lw, lh) = *gate.panel_size.lock().unwrap();
+    let pw = ((lw.max(PANEL_W) * scale).round() as u32).min(work.2.max(1));
+    let ph = ((lh.max(PANEL_H) * scale).round() as u32).min(work.3.max(1));
+    (pw.max(1), ph.max(1))
+}
+
+/// Where the window goes: home, or, open with `island_place` set, the top,
+/// centre or bottom of the work area (horizontally centred).
+fn open_origin(work: (i32, i32, u32, u32), size: (u32, u32), settings: &Settings, scale: f64, open: bool) -> (i32, i32) {
+    if !open {
+        return home_origin(work, size, settings, scale);
+    }
+    match place_origin(work, size, &settings.island_place) {
+        Some(o) => o,
+        None => home_origin(work, size, settings, scale),
+    }
+}
+
+/// The window's corner for an island opened at `place`; None = where the character is.
+fn place_origin(work: (i32, i32, u32, u32), size: (u32, u32), place: &str) -> Option<(i32, i32)> {
+    let (wx, wy, ww, wh) = work;
+    let (pw, ph) = (size.0 as i32, size.1 as i32);
+    let x = wx + (ww as i32 - pw) / 2;
+    let y = match place {
+        "top" => wy,
+        "center" => wy + (wh as i32 - ph) / 2,
+        "bottom" => wy + wh as i32 - ph,
+        _ => return None,
+    };
+    Some((x, y))
 }
 
 /// The window's place when the island is not open: the side it is pinned to,
@@ -282,7 +325,7 @@ pub fn glide_home(app: &AppHandle, gate: Arc<PollGate>, settings: &Settings) {
     let Some(m) = target_monitor(app, &settings.screen) else { return };
     let scale = m.scale_factor();
     let work = island_area(&m, settings);
-    let size = ((PANEL_W * scale).round() as u32, (PANEL_H * scale).round() as u32);
+    let size = panel_physical(&gate, work, scale);
     let to = home_origin(work, size, settings, scale);
     let Ok(from) = win.outer_position() else { return };
     if (from.x, from.y) == to {
@@ -315,8 +358,21 @@ pub fn panel_offset_from_drop(app: &AppHandle, settings: &Settings, win_origin: 
     let m = target_monitor(app, &settings.screen)?;
     let scale = m.scale_factor();
     let work = island_area(&m, settings);
-    let (hx, hy) = home_origin(work, win_size, settings, scale);
+    let (hx, hy) = open_origin(work, win_size, settings, scale, true);
     Some(((win_origin.0 - hx) as f64 / scale, (win_origin.1 - hy) as f64 / scale))
+}
+
+/// The largest the window may be on the island's screen, logical px (the work
+/// area, or the whole screen over the taskbar).
+pub fn panel_limits(app: &AppHandle, settings: &Settings) -> (f64, f64) {
+    match target_monitor(app, &settings.screen) {
+        Some(m) => {
+            let (_, _, w, h) = island_area(&m, settings);
+            let scale = m.scale_factor();
+            (w as f64 / scale, h as f64 / scale)
+        }
+        None => (PANEL_W, PANEL_H),
+    }
 }
 
 /// Top-left corner, in physical px, of a `size` window pinned to the requested
@@ -740,9 +796,18 @@ pub fn set_ignore_cursor(app: &AppHandle, ignore: bool) {
 
 #[cfg(test)]
 mod tests {
-    use super::{box_in_window, clamp_to_work, placement_from_drop, PANEL_H, PANEL_W};
+    use super::{box_in_window, clamp_to_work, place_origin, placement_from_drop, PANEL_H, PANEL_W};
 
     const WORK: (i32, i32, u32, u32) = (0, 0, 1920, 1040);
+
+    #[test]
+    fn open_place_is_centred_on_the_work_area() {
+        let size = (720, 560);
+        assert_eq!(place_origin(WORK, size, "top"), Some((600, 0)));
+        assert_eq!(place_origin(WORK, size, "center"), Some((600, 240)));
+        assert_eq!(place_origin(WORK, size, "bottom"), Some((600, 480)));
+        assert_eq!(place_origin(WORK, size, "character"), None);
+    }
 
     /// The front end lays the island out inside a window of this size: if the two
     /// disagree, a bottom-anchored island ends up outside the window, invisible.

@@ -127,7 +127,7 @@ pub const PROFILE_KEYS: &[&str] = &[
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Theme {
-    /// Who lives in the island: "slime" or "cube" (EasyTech).
+    /// Who lives in the island: "drop" (Goccia, the default), "slime" or "cube" (EasyTech).
     #[serde(default = "default_character")]
     pub character: String,
     /// The slime's body colour, "#rrggbb"; empty = its green.
@@ -165,7 +165,7 @@ impl Default for Theme {
 }
 
 fn default_character() -> String {
-    "slime".into()
+    "drop".into()
 }
 fn default_island_color() -> String {
     "#000000".into()
@@ -286,6 +286,9 @@ pub struct Settings {
     /// shown on Monday.
     #[serde(default = "default_true")]
     pub weekly_recap: bool,
+    /// The chat history (chat_log.rs): conversations kept on this PC to reopen.
+    #[serde(default = "default_true")]
+    pub chat_history: bool,
     /// "primary" = the main display, "cursor" = whichever display the mouse is on.
     pub screen: String,
     pub autostart: bool,
@@ -332,6 +335,10 @@ pub struct Settings {
     /// Minimum height of the open island, logical px; 0 = each view's own.
     #[serde(default)]
     pub island_height: f64,
+    /// Where the open island appears: "character" (where the character is, the
+    /// default), or "top" | "center" | "bottom" of the screen, centred (island.rs).
+    #[serde(default = "default_island_place")]
+    pub island_place: String,
     /// ✕ in the open island's header.
     #[serde(default = "default_true")]
     pub close_button: bool,
@@ -489,6 +496,9 @@ fn default_notify() -> String {
     "all".into()
 }
 
+fn default_island_place() -> String {
+    "character".into()
+}
 fn default_anchor_v() -> String {
     "top".into()
 }
@@ -546,6 +556,7 @@ impl Default for Settings {
             lock_order: false,
             search_bar: true,
             weekly_recap: true,
+            chat_history: true,
             language: String::new(),
             screen: "primary".into(),
             autostart: false,
@@ -563,6 +574,7 @@ impl Default for Settings {
             over_taskbar: false,
             island_width: default_island_width(),
             island_height: 0.0,
+            island_place: default_island_place(),
             close_button: true,
             follow_cursor_compact: false,
             presence_meeting: true,
@@ -659,7 +671,7 @@ impl Settings {
             self.icon_style = default_icon_style();
         }
         if LEGACY_CHARACTERS.contains(&self.theme.character.as_str()) {
-            self.theme.character = default_character();
+            self.theme.character = SLIME.into();
         }
         for p in &mut self.profiles {
             rename_legacy_values(&mut p.values);
@@ -800,6 +812,9 @@ pub fn apply_pending_secrets(settings: &mut Settings) {
     }
 }
 
+/// The slime's id: Mochi and Ezzy were its earlier names, so they become it (not the default).
+const SLIME: &str = "slime";
+
 /// Earlier names of the slime ("character" for iconStyle) in settings files.
 const LEGACY_CHARACTERS: &[&str] = &["mochi", "ezzy"];
 
@@ -811,7 +826,7 @@ fn rename_legacy_values(values: &mut Map<String, Value>) {
     }
     if let Some(Value::Object(theme)) = values.get_mut("theme") {
         if legacy(theme.get("character")) {
-            theme.insert("character".into(), Value::from(default_character()));
+            theme.insert("character".into(), Value::from(SLIME));
         }
         for old in ["mochiColor", "ezzyColor"] {
             if let Some(color) = theme.remove(old) {

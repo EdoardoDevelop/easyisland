@@ -1045,6 +1045,96 @@ input[type="range"]::-webkit-slider-thumb {
   background: rgba(167, 139, 250, 0.14);
 }
 
+/* The chat history: a clock next to the engine, the list under both. */
+.history-btn {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: var(--dim-2);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.history-btn:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.history-btn.on {
+  color: #c4b5fd;
+  background: rgba(167, 139, 250, 0.22);
+}
+
+.history-menu {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0 -6px;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 6px 10px;
+  border-radius: 8px;
+  font: 500 12px var(--font);
+  color: var(--ink-2);
+}
+
+.history-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.history-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.history-title,
+.history-meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-meta {
+  font: 400 10.5px var(--font);
+  color: var(--dim-2);
+}
+
+.history-del {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  font-size: 10px;
+  color: var(--dim-2);
+  background: transparent;
+  opacity: 0;
+}
+
+.history-item:hover .history-del {
+  opacity: 1;
+}
+
+.history-del:hover {
+  color: #f4505e;
+  background: rgba(244, 80, 94, 0.14);
+}
+
 .engine-note {
   padding: 5px 10px 3px;
   font: 400 10.5px var(--font);

@@ -8,6 +8,7 @@ import type { Island } from "../src/island/island";
 import { State } from "../src/core/state";
 import { handleHook } from "../src/island/hooks";
 import { Recap } from "../src/island/recap";
+import { setHistoryDemo } from "../src/views/chat";
 
 const CLAUDE = "integration_claude";
 const wait = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
@@ -63,6 +64,20 @@ export async function runScene(island: Island, scene: string) {
           { id: 1, role: "user", content: "Cos'è C:\\Users\\Edoardo\\AppData\\Local\\Packages\\Microsoft.WindowsTerminal_8wekyb3d8bbwe\\LocalState\\settings_senza_spazi.json?" },
           { id: 2, role: "assistant", content: "È il file delle impostazioni di **Windows Terminal**." },
         ];
+      }
+      // ?history: the list of earlier conversations, open.
+      if (new URLSearchParams(location.search).has("history")) {
+        const now = Date.now();
+        setHistoryDemo([
+          { id: "a", title: "Come si rinnova un certificato Let's Encrypt su IIS?", engine: "subscription", updated: now - 600_000, turns: 3 },
+          { id: "b", title: "Riassumi questo PDF del preventivo per il cliente Rossi in tre punti", engine: "api", updated: now - 86_400_000, turns: 1 },
+          { id: "c", title: "Script PowerShell per elencare le stampanti di rete", engine: "opencode", updated: now - 9 * 86_400_000, turns: 5 },
+        ]);
+        island.alert("prompt");
+        await wait(500);
+        document.querySelector<HTMLButtonElement>(".history-btn")?.click();
+        await wait(800);
+        break;
       }
       island.alert("prompt");
       await wait(800);

@@ -56,7 +56,7 @@ async fn powershell(script: &str, timeout: Duration) -> Result<String, String> {
         Ok(Ok(o)) if o.status.success() => Ok(String::from_utf8_lossy(&o.stdout).trim().to_string()),
         Ok(Ok(o)) => {
             let err = String::from_utf8_lossy(&o.stderr);
-            Err(err.lines().find(|l| !l.trim().is_empty()).unwrap_or("errore").trim().to_string())
+            Err(err.lines().find(|l| !l.trim().is_empty()).unwrap_or(t("errore")).trim().to_string())
         }
         Ok(Err(e)) => Err(e.to_string()),
         Err(_) => Err(t("nessuna risposta").into()),

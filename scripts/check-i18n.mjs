@@ -43,7 +43,8 @@ for (const f of files(join(root, "src"), ".ts")) {
 for (const f of files(join(root, "src-tauri/src"), ".rs")) {
   const text = readFileSync(f, "utf8");
   if (!/i18n::|use crate::i18n/.test(text) && !f.endsWith("i18n.rs")) continue;
-  const body = code(text.split("#[cfg(test)]")[0]);
+  // Only the tests module is left out: `#[cfg(test)]` also marks helpers mid-file.
+  const body = code(text.split(/#\[cfg\(test\)\]\s*mod tests\b/)[0]);
   for (const m of body.matchAll(new RegExp(String.raw`\b(?:t|tf)\(\s*${STR}`, "g"))) note(unescape(m[1]), f);
 }
 
