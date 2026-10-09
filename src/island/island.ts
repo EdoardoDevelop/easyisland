@@ -115,6 +115,10 @@ export class Island {
   /** Left button held on the compact island: a click or the start of a drag. */
   /** A press that may become a drag of the whole island (`expanded`: started on the open island's header). */
   private press: { x: number; y: number; moved: boolean; expanded: boolean } | null = null;
+  /** The open island dragged off its place this opening, logical px (0 = still at that edge). */
+  private openOffset = { x: 0, y: 0 };
+  /** Carried around, until Rust has settled where it was dropped: rounded all round. */
+  private carried = false;
   private collapseTimer: number | null = null;
   private wasInIsland = false;
   /** Last shape handed to Rust for the click-through test. */
@@ -1273,6 +1277,7 @@ export class Island {
 
   /** The window opens at the chosen place; it goes there before the island grows. */
   private openAway() {
+    this.openOffset = { x: 0, y: 0 };
     if (this.awayClosing != null) {
       window.clearTimeout(this.awayClosing);
       this.awayClosing = null;
@@ -1393,9 +1398,12 @@ export class Island {
     this.islandEl.style.top = `${o.y}px`;
     this.islandEl.style.width = `${w}px`;
     this.islandEl.style.height = `${hh}px`;
-    // Square where it meets a screen edge; a floating island is rounded all round.
+    // Square where it meets a screen edge; a floating island is rounded all round,
+    // and so is one being carried or the open one dragged off the edge.
     const rr = Math.min(r, w / 2, hh / 2);
-    this.islandEl.style.borderRadius = cornerRadii(p, rr);
+    const off = State.mode === "expanded" ? this.openOffset : { x: 0, y: 0 };
+    const edges = { ...p, glueX: p.glueX && !this.carried && off.x === 0, glueY: p.glueY && !this.carried && off.y === 0 };
+    this.islandEl.style.borderRadius = cornerRadii(edges, rr);
     // These follow the island as it resizes, so they belong here rather than in
     // the state-driven DOM sync.
     this.miniGrid.style.left = `${w - 40 - 14.5}px`;
@@ -1721,6 +1729,10 @@ export class Island {
       if (!p.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
       // An open island must not close under the pointer while it is carried.
       if (!p.moved && p.expanded) this.fsm.pinned = true;
+      if (!p.moved) {
+        this.carried = true;
+        this.applyGeometry();
+      }
       p.moved = true;
       p.x = e.screenX;
       p.y = e.screenY;
@@ -1735,7 +1747,12 @@ export class Island {
       this.press = null;
       if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
       if (p.moved) {
-        void Bridge.endDrag();
+        const expanded = p.expanded;
+        void Bridge.endDrag().then((off) => {
+          if (expanded && off) this.openOffset = { x: off[0], y: off[1] };
+          this.carried = false;
+          this.applyGeometry();
+        });
         if (p.expanded) this.fsm.pinned = State.isPinned;
       } else if (!cancelled) {
         click();
@@ -1754,6 +1771,17 @@ export class Island {
     };
     this.restIcon.addEventListener("pointerup", (e) => endPress(e, this.restIcon, false, openFromRest));
     this.restIcon.addEventListener("pointercancel", (e) => endPress(e, this.restIcon, true, openFromRest));
+    // Right click on the resting character: the same menu as the notification-area
+    // icon. Hovering the rest icon already wakes the compact island, so that is
+    // usually the one that gets the click.
+    const restMenu = (e: MouseEvent) => {
+      if (State.mode === "expanded") return;
+      e.preventDefault();
+      if (this.press) return;
+      void Bridge.showIslandMenu();
+    };
+    this.restIcon.addEventListener("contextmenu", restMenu);
+    this.islandEl.addEventListener("contextmenu", restMenu);
 
     // Compact island: a press opens on release, a drag moves it. Open island: the
     // header's empty space drags it (tabs, buttons and fields keep their clicks).

@@ -364,6 +364,13 @@ fn focus_window(app: AppHandle, focused: bool) {
     }
 }
 
+/// Right click on the resting character: the notification-area menu at the cursor.
+/// Sync on purpose: it runs on the main thread, where the menu loop blocks until it closes.
+#[tauri::command]
+fn show_island_menu(app: AppHandle) {
+    tray::popup(&app);
+}
+
 /// "Copia info PC": everything a ticket asks for, put on the clipboard.
 #[tauri::command]
 async fn copy_pc_info() -> Result<String, String> {
@@ -418,21 +425,26 @@ fn drag_island(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) {
 }
 
 /// The drag is over: remember where the character was left, in the active profile.
+/// The open island returns its offset from home (logical px, 0 = at that edge).
 #[tauri::command]
-fn end_drag(app: AppHandle, shared: State<Shared>) {
+fn end_drag(app: AppHandle, shared: State<Shared>) -> Option<(f64, f64)> {
     shared.gate.dragging.store(false, Ordering::Relaxed);
     *shared.gate.drag_grab.lock().unwrap() = None;
-    let Some(win) = island::window(&app) else { return };
-    let (Ok(pos), Ok(size)) = (win.outer_position(), win.outer_size()) else { return };
+    let Some(win) = island::window(&app) else { return None };
+    let (Ok(pos), Ok(size)) = (win.outer_position(), win.outer_size()) else { return None };
     let open = shared.gate.expanded.load(Ordering::Relaxed) && !shared.gate.collapsed.load(Ordering::Relaxed);
     if open {
         // The open island moved: it stays there while it is open, nothing is
-        // saved, and closing it takes the character back to its place.
+        // saved, and closing it takes the character back to its place. The
+        // front end gets the offset back to round the corners off the edges.
         let s = shared.settings.lock().unwrap().clone();
-        if let Some(offset) = island::panel_offset_from_drop(&app, &s, (pos.x, pos.y), (size.width, size.height)) {
+        let offset = island::panel_offset_from_drop(&app, &s, (pos.x, pos.y), (size.width, size.height));
+        if let Some(offset) = offset {
             *shared.gate.panel_offset.lock().unwrap() = offset;
+            // Snapped to an edge or pulled back on screen.
+            island::apply_geometry(&app, &shared.gate, &s, false);
         }
-        return;
+        return offset;
     }
     let settings = {
         let mut s = shared.settings.lock().unwrap();
@@ -443,7 +455,7 @@ fn end_drag(app: AppHandle, shared: State<Shared>) {
             log::line(format!("island moved to screen {screen}"));
             s.screen = screen;
         }
-        let Some((work, scale)) = island::work_area(&app, &s) else { return };
+        let Some((work, scale)) = island::work_area(&app, &s) else { return None };
         let (bw, bh) = *shared.gate.collapsed_size.lock().unwrap();
         let box_size = ((bw * scale).round() as u32, (bh * scale).round() as u32);
         let origin = island::box_in_window(
@@ -469,6 +481,7 @@ fn end_drag(app: AppHandle, shared: State<Shared>) {
     island::apply_geometry(&app, &shared.gate, &settings, collapsed);
     crate::threecx::settings_saved(&settings);
     let _ = app.emit("settings-changed", settings);
+    None
 }
 
 /// The island opened or closed. Closing takes the window back to the character's
@@ -1192,6 +1205,7 @@ pub fn run() {
             set_expanded,
             set_island_rect,
             focus_window,
+            show_island_menu,
             reposition,
             set_panel_size,
             panel_limits,

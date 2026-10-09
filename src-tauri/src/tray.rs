@@ -1,4 +1,5 @@
-// Notification-area icon: Open, Profile ▸, Settings, Pause, Quit.
+// Notification-area icon: Open, Profile ▸, Settings, Pause, Quit. The same
+// menu opens with a right click on the resting character (`popup`).
 // The menu is rebuilt whenever profiles change (names, the active one).
 
 use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
@@ -88,6 +89,20 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
 
     builder.build(app)?;
     Ok(())
+}
+
+/// The same menu at the cursor, from a right click on the resting character.
+/// Its clicks reach the tray's handler, which Tauri calls for every menu event.
+pub fn popup(app: &AppHandle) {
+    let Some(win) = crate::island::window(app) else { return };
+    let Ok(menu) = build_menu(app) else { return };
+    // TrackPopupMenu needs a foreground owner, or the menu never closes on an
+    // outside click; the resting island is otherwise non-activating.
+    crate::island::set_activating(&win, true);
+    if let Err(e) = win.popup_menu(&menu) {
+        crate::log::line(format!("island menu: {e}"));
+    }
+    crate::island::set_activating(&win, false);
 }
 
 /// Re-reads profiles into the menu (after a rename, a switch, an import…).

@@ -353,13 +353,16 @@ pub fn glide_home(app: &AppHandle, gate: Arc<PollGate>, settings: &Settings) {
 }
 
 /// The open island was dropped with its window at `win_origin`: how far that is
-/// from home, in logical px.
+/// from home, in logical px. Near home it snaps back (it touches the edge again),
+/// and past the screen's edge it counts as at the edge, where the window is kept.
 pub fn panel_offset_from_drop(app: &AppHandle, settings: &Settings, win_origin: (i32, i32), win_size: (u32, u32)) -> Option<(f64, f64)> {
     let m = target_monitor(app, &settings.screen)?;
     let scale = m.scale_factor();
     let work = island_area(&m, settings);
     let (hx, hy) = open_origin(work, win_size, settings, scale, true);
-    Some(((win_origin.0 - hx) as f64 / scale, (win_origin.1 - hy) as f64 / scale))
+    let snap = |d: i32| if (d as f64 / scale).abs() < SNAP { 0 } else { d };
+    let (x, y) = clamp_to_work(work, win_size, hx + snap(win_origin.0 - hx), hy + snap(win_origin.1 - hy));
+    Some(((x - hx) as f64 / scale, (y - hy) as f64 / scale))
 }
 
 /// The largest the window may be on the island's screen, logical px (the work
