@@ -26,6 +26,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager};
+use crate::i18n::{t, tf};
 
 const KEEP_DAYS: u64 = 45;
 /// Days looked at to find a habit.
@@ -262,17 +263,20 @@ pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
         let name = pretty_exe(exe);
         out.push(Suggestion {
             fp: format!("time|{exe}|{}|{}", if weekdays_only { "wd" } else { "all" }, hhmm(slot)),
-            title: format!("Apro {name} alle {}?", hhmm(at)),
-            text: format!(
-                "Negli ultimi {} giorni hai aperto {name} verso le {} in {} giorni su {}{}.",
-                WINDOW_DAYS, hhmm(med), near.len(), base, if weekdays_only { " lavorativi" } else { "" }
-            ),
+            title: tf("Apro {name} alle {time}?", &[("name", &name), ("time", &hhmm(at))]),
+            text: if weekdays_only {
+                tf("Negli ultimi {window} giorni hai aperto {name} verso le {time} in {n} giorni su {base} lavorativi.",
+                    &[("window", &WINDOW_DAYS), ("name", &name), ("time", &hhmm(med)), ("n", &near.len()), ("base", &base)])
+            } else {
+                tf("Negli ultimi {window} giorni hai aperto {name} verso le {time} in {n} giorni su {base}.",
+                    &[("window", &WINDOW_DAYS), ("name", &name), ("time", &hhmm(med)), ("n", &near.len()), ("base", &base)])
+            },
             automation: json!({
-                "name": format!("Apri {name} alle {}", hhmm(at)),
+                "name": tf("Apri {name} alle {time}", &[("name", &name), ("time", &hhmm(at))]),
                 "trigger": { "kind": "time", "time": hhmm(at), "days": days },
                 "steps": [{ "kind": "app", "target": exe_path }],
             }),
-            accept: "Crea".into(),
+            accept: t("Crea").into(),
         });
     }
 
@@ -305,14 +309,14 @@ pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
             let name = pretty_exe(exe);
             out.push(Suggestion {
                 fp: format!("startup|{exe}"),
-                title: format!("Apro {name} quando accendi il PC?"),
-                text: format!("Le ultime {} volte che hai acceso il PC, in {n} hai aperto {name} subito dopo.", starts.len()),
+                title: tf("Apro {name} quando accendi il PC?", &[("name", &name)]),
+                text: tf("Le ultime {total} volte che hai acceso il PC, in {n} hai aperto {name} subito dopo.", &[("total", &starts.len()), ("n", &n), ("name", &name)]),
                 automation: json!({
-                    "name": format!("Apri {name} all'avvio"),
+                    "name": tf("Apri {name} all'avvio", &[("name", &name)]),
                     "trigger": { "kind": "startup", "delay": 30 },
                     "steps": [{ "kind": "app", "target": target }],
                 }),
-                accept: "Crea".into(),
+                accept: t("Crea").into(),
             });
         }
     }
@@ -334,14 +338,14 @@ pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
         let pname = (ctx.profile_name)(profile).unwrap_or_else(|| profile.to_string());
         out.push(Suggestion {
             fp: format!("wifi|{}|{profile}", net.to_lowercase()),
-            title: format!("Passo al profilo {pname} sulla rete {net}?"),
-            text: format!("Quando ti colleghi a {net} passi quasi sempre a {pname} ({n} volte su {joins})."),
+            title: tf("Passo al profilo {pname} sulla rete {net}?", &[("pname", &pname), ("net", &net)]),
+            text: tf("Quando ti colleghi a {net} passi quasi sempre a {pname} ({n} volte su {joins}).", &[("net", &net), ("pname", &pname), ("n", &n), ("joins", &joins)]),
             automation: json!({
                 "name": format!("{pname} su {net}"),
                 "trigger": { "kind": "wifi", "ssid": net },
                 "steps": [{ "kind": "profile", "id": profile }],
             }),
-            accept: "Crea".into(),
+            accept: t("Crea").into(),
         });
     }
 
@@ -359,14 +363,14 @@ pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
                 if let Some(aname) = (ctx.action_name)(id) {
                     out.push(Suggestion {
                         fp: format!("drive|{id}"),
-                        title: format!("Eseguo «{aname}» quando colleghi una chiavetta?"),
-                        text: format!("Dopo aver collegato una chiavetta o un disco hai usato «{aname}» {n} volte su {}.", plugs.len()),
+                        title: tf("Eseguo «{aname}» quando colleghi una chiavetta?", &[("aname", &aname)]),
+                        text: tf("Dopo aver collegato una chiavetta o un disco hai usato «{aname}» {n} volte su {total}.", &[("aname", &aname), ("n", &n), ("total", &plugs.len())]),
                         automation: json!({
-                            "name": format!("{aname} con la chiavetta"),
+                            "name": tf("{aname} con la chiavetta", &[("aname", &aname)]),
                             "trigger": { "kind": "drive" },
                             "steps": [{ "kind": "quick", "id": id }],
                         }),
-                        accept: "Crea".into(),
+                        accept: t("Crea").into(),
                     });
                 }
             }
@@ -404,14 +408,14 @@ pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
         let (xn, yn) = (pretty_exe(x), pretty_exe(y));
         out.push(Suggestion {
             fp: format!("seq|{x}|{y}"),
-            title: format!("Quando apri {xn}, apro anche {yn}?"),
-            text: format!("Dopo aver aperto {xn} apri quasi sempre {yn} entro pochi minuti ({n} volte su {total})."),
+            title: tf("Quando apri {xn}, apro anche {yn}?", &[("xn", &xn), ("yn", &yn)]),
+            text: tf("Dopo aver aperto {xn} apri quasi sempre {yn} entro pochi minuti ({n} volte su {total}).", &[("xn", &xn), ("yn", &yn), ("n", &n), ("total", &total)]),
             automation: json!({
                 "name": format!("{xn} → {yn}"),
                 "trigger": { "kind": "app", "exe": x },
                 "steps": [{ "kind": "app", "target": target }],
             }),
-            accept: "Crea".into(),
+            accept: t("Crea").into(),
         });
     }
 
@@ -442,10 +446,10 @@ pub fn analyse(events: &[Event], now: u64, ctx: &Context) -> Vec<Suggestion> {
         }
         out.push(Suggestion {
             fp: format!("off|{id}"),
-            title: format!("Spengo l'automazione «{name}»?"),
-            text: format!("Le ultime {} volte che è partita sembra che non ti sia servita ({unused} su {}).", recent.len(), recent.len()),
+            title: tf("Spengo l'automazione «{name}»?", &[("name", &name)]),
+            text: tf("Le ultime {total} volte che è partita sembra che non ti sia servita ({unused} su {total}).", &[("total", &recent.len()), ("unused", &unused)]),
             automation: json!({ "disable": id }),
-            accept: "Spegni".into(),
+            accept: t("Spegni").into(),
         });
     }
 
@@ -563,7 +567,7 @@ pub fn refresh(app: &AppHandle) -> Vec<Suggestion> {
 
 /// Crea / Non ora / No, mai — from the island or the settings.
 pub fn answer(app: &AppHandle, fp: &str, choice: &str) -> Result<String, String> {
-    let shared = app.try_state::<crate::Shared>().ok_or("EasyIsland non è pronto.")?;
+    let shared = app.try_state::<crate::Shared>().ok_or(t("EasyIsland non è pronto."))?;
     let sugg = PENDING.lock().unwrap().iter().find(|g| g.fp == fp).cloned();
     let dismissed = {
         let s = shared.settings.lock().unwrap();
@@ -579,7 +583,7 @@ pub fn answer(app: &AppHandle, fp: &str, choice: &str) -> Result<String, String>
                     }
                 }
             })?;
-            Ok("Automazione spenta: la riaccendi quando vuoi in Impostazioni → Automazioni.".into())
+            Ok(t("Automazione spenta: la riaccendi quando vuoi in Impostazioni → Automazioni.").into())
         }
         "create" => {
             // A refused proposal can be created later from the settings.
@@ -587,7 +591,7 @@ pub fn answer(app: &AppHandle, fp: &str, choice: &str) -> Result<String, String>
                 .as_ref()
                 .map(|g| g.automation.clone())
                 .or_else(|| dismissed.as_ref().and_then(|d| d.get("automation").cloned()))
-                .ok_or("Proposta non più disponibile.")?;
+                .ok_or(t("Proposta non più disponibile."))?;
             if let Some(id) = automation.get("disable").and_then(Value::as_str) {
                 let id = id.to_string();
                 crate::agent::update_settings(app, |s| {
@@ -600,7 +604,7 @@ pub fn answer(app: &AppHandle, fp: &str, choice: &str) -> Result<String, String>
                 })?;
                 PENDING.lock().unwrap().retain(|g| g.fp != fp);
                 let _ = app.emit_to(crate::SETTINGS_LABEL, "habits-changed", ());
-                return Ok("Automazione spenta.".into());
+                return Ok(t("Automazione spenta.").into());
             }
             let s = shared.settings.lock().unwrap().clone();
             let mut auto = crate::automations::validate(&automation, &s)?;
@@ -612,33 +616,33 @@ pub fn answer(app: &AppHandle, fp: &str, choice: &str) -> Result<String, String>
                 s.suggestions_dismissed.retain(|d| d.get("fp").and_then(Value::as_str) != Some(fp));
                 s.suggestions_snoozed.remove(fp);
             })?;
-            Ok(format!("Creata l'automazione «{}».", auto.name))
+            Ok(tf("Creata l'automazione «{name}».", &[("name", &auto.name)]))
         }
         "snooze" => {
             let until = now_ms() + SNOOZE_DAYS * 86_400_000;
             crate::agent::update_settings(app, |s| {
                 s.suggestions_snoozed.insert(fp.to_string(), json!(until));
             })?;
-            Ok("Te la ripropongo più avanti, se l'abitudine continua.".into())
+            Ok(t("Te la ripropongo più avanti, se l'abitudine continua.").into())
         }
         "dismiss" => {
-            let g = sugg.ok_or("Proposta non più disponibile.")?;
+            let g = sugg.ok_or(t("Proposta non più disponibile."))?;
             crate::agent::update_settings(app, |s| {
                 s.suggestions_dismissed.retain(|d| d.get("fp").and_then(Value::as_str) != Some(fp));
                 s.suggestions_dismissed.push(json!({
                     "fp": g.fp, "title": g.title, "text": g.text, "automation": g.automation, "accept": g.accept, "at": now_ms(),
                 }));
             })?;
-            Ok("Non te la propongo più. La ritrovi tra le proposte rifiutate.".into())
+            Ok(t("Non te la propongo più. La ritrovi tra le proposte rifiutate.").into())
         }
         // "Togli dai rifiutati": may be proposed again.
         "restore" => {
             crate::agent::update_settings(app, |s| {
                 s.suggestions_dismissed.retain(|d| d.get("fp").and_then(Value::as_str) != Some(fp));
             })?;
-            Ok("Potrà essere riproposta.".into())
+            Ok(t("Potrà essere riproposta.").into())
         }
-        _ => Err("Scelta sconosciuta.".into()),
+        _ => Err(t("Scelta sconosciuta.").into()),
     };
     PENDING.lock().unwrap().retain(|g| g.fp != fp);
     let _ = app.emit_to(crate::SETTINGS_LABEL, "habits-changed", ());

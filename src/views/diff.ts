@@ -7,6 +7,7 @@ import { h } from "./dom";
 import { State, type FileDiff } from "../core/state";
 import { Bridge } from "../core/bridge";
 import type { ViewActions, ViewHost } from "./views";
+import { t } from "../core/i18n";
 
 function baseName(path: string): string {
   return path.split(/[\\/]/).pop() || path;
@@ -26,7 +27,7 @@ function renderEdit(d: FileDiff, index: number, total: number): HTMLElement {
   const el = h("div", { class: "diff-edit" });
   if (total > 1) {
     el.append(h("div", { class: "diff-edit-head",
-      text: `Modifica ${index + 1} di ${total}  ·  +${d.added} −${d.removed}` }));
+      text: `${t("Modifica {i} di {n}", { i: index + 1, n: total })}  ·  +${d.added} −${d.removed}` }));
   }
   if (d.tooBig) {
     el.append(h("div", { class: "diff-big", text: `Diff troppo grande: +${d.added} −${d.removed} righe.` }));
@@ -59,9 +60,9 @@ function renderEdit(d: FileDiff, index: number, total: number): HTMLElement {
 export function buildDiff(actions: ViewActions): ViewHost {
   const name = h("b", { class: "diff-title" });
   const counts = h("span", { class: "diff-counts" });
-  const open = h("button", { class: "diff-open", title: "Apri in VS Code", text: "↗" }) as HTMLButtonElement;
+  const open = h("button", { class: "diff-open", title: t("Apri in VS Code"), text: "↗" }) as HTMLButtonElement;
   const head = h("div", { class: "files-head" },
-    h("button", { class: "files-back", title: "Indietro", text: "‹", onclick: () => actions.setView("overview") }),
+    h("button", { class: "files-back", title: t("Indietro"), text: "‹", onclick: () => actions.setView("overview") }),
     name, counts, open);
   const tabs = h("div", { class: "diff-tabs" });
   const list = h("div", { class: "diff-list" });
@@ -75,7 +76,7 @@ export function buildDiff(actions: ViewActions): ViewHost {
     const file = State.diffFile;
     if (!file) return;
     const ok = await Bridge.openFileInVSCode(file, line).catch(() => false);
-    open.title = ok ? "Apri in VS Code" : "VS Code non trovato, o il file non esiste più";
+    open.title = ok ? t("Apri in VS Code") : t("VS Code non trovato, o il file non esiste più");
     open.classList.toggle("fail", !ok);
   });
 
@@ -106,12 +107,13 @@ export function buildDiff(actions: ViewActions): ViewHost {
       tabs.style.display = files.length > 1 ? "" : "none";
 
       if (!file) {
-        name.textContent = "Modifiche";
+        name.textContent = t("Modifiche");
+
         name.title = "";
         counts.textContent = "";
         open.style.display = "none";
         list.replaceChildren(h("div", { class: "files-empty",
-          text: "Nessuna modifica in questa sessione. I file che Claude Code cambia compaiono qui." }));
+          text: t("Nessuna modifica in questa sessione. I file che Claude Code cambia compaiono qui.") }));
         return;
       }
       const added = edits.reduce((s, d) => s + d.added, 0);

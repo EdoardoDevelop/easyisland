@@ -15,6 +15,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::claude::{Chat, ChatContext, ChatReply};
 use crate::secrets;
+use crate::i18n::{t, tf};
 
 /// The engines this module serves, by their `chatEngine` value.
 pub const ENGINES: &[&str] = &["openrouter", "openai", "gemini", "ollama", "lmstudio"];
@@ -44,7 +45,7 @@ pub fn provider(engine: &str) -> Option<Provider> {
 /// The API root: the user's address for a local server (any http(s) URL, a
 /// trailing `/v1` added when missing), the fixed one otherwise.
 pub fn base_url(engine: &str, custom: Option<&str>) -> Result<String, String> {
-    let p = provider(engine).ok_or("Motore della chat sconosciuto.")?;
+    let p = provider(engine).ok_or(t("Motore della chat sconosciuto."))?;
     let custom = custom.map(str::trim).filter(|u| !u.is_empty());
     let Some(url) = custom.filter(|_| p.key.is_none()) else { return Ok(p.base.to_string()) };
     if !(url.starts_with("http://") || url.starts_with("https://")) {
@@ -125,10 +126,10 @@ fn file_parts(name: &str, path: &str) -> Vec<Value> {
         }
     } else if len <= MAX_INLINE_TEXT {
         if let Ok(text) = std::fs::read_to_string(path) {
-            return vec![json!({ "type": "text", "text": format!("File: {name}\nContenuto del file:\n{text}") })];
+            return vec![json!({ "type": "text", "text": tf("File: {name}\nContenuto del file:\n{text}", &[("name", &name), ("text", &text)]) })];
         }
     }
-    vec![json!({ "type": "text", "text": format!("File: {name} (questo motore non può leggerlo: solo immagini e file di testo)") })]
+    vec![json!({ "type": "text", "text": tf("File: {name} (questo motore non può leggerlo: solo immagini e file di testo)", &[("name", &name)]) })]
 }
 
 /// The visible part of a reply: `<think>…</think>` blocks removed, and an
@@ -186,9 +187,9 @@ fn client() -> Result<reqwest::Client, String> {
 }
 
 fn auth(engine: &str, request: reqwest::RequestBuilder) -> Result<reqwest::RequestBuilder, String> {
-    let p = provider(engine).ok_or("Motore della chat sconosciuto.")?;
+    let p = provider(engine).ok_or(t("Motore della chat sconosciuto."))?;
     let Some(key_name) = p.key else { return Ok(request) };
-    let key = secrets::get(key_name).ok_or_else(|| format!("Manca la chiave di {}. Apri le impostazioni.", p.name))?;
+    let key = secrets::get(key_name).ok_or_else(|| tf("Manca la chiave di {name}. Apri le impostazioni.", &[("name", &p.name)]))?;
     let mut request = request.bearer_auth(key);
     if engine == "openrouter" {
         // OpenRouter's app attribution: who is calling, nothing about the user.
@@ -200,11 +201,11 @@ fn auth(engine: &str, request: reqwest::RequestBuilder) -> Result<reqwest::Reque
 fn network_error(engine: &str, base: &str, err: reqwest::Error) -> String {
     let p = provider(engine).map(|p| p.name).unwrap_or("Il servizio");
     if err.is_connect() && provider(engine).is_some_and(|p| p.key.is_none()) {
-        format!("{p} non risponde su {base}: è avviato?")
+        tf("{p} non risponde su {base}: è avviato?", &[("p", &p), ("base", &base)])
     } else if err.is_timeout() {
-        format!("{p} non ha risposto in tempo.")
+        tf("{p} non ha risposto in tempo.", &[("p", &p)])
     } else {
-        format!("Errore di rete con {p}: {err}")
+        tf("Errore di rete con {p}: {err}", &[("p", &p), ("err", &err)])
     }
 }
 
@@ -218,14 +219,15 @@ pub async fn send(
     query: String,
     context: Option<ChatContext>,
 ) -> Result<ChatReply, String> {
-    let p = provider(engine).ok_or("Motore della chat sconosciuto.")?;
+    let p = provider(engine).ok_or(t("Motore della chat sconosciuto."))?;
     if model.trim().is_empty() {
-        return Err(format!("Scegli un modello di {} nelle impostazioni (Chat).", p.name));
+        return Err(tf("Scegli un modello di {name} nelle impostazioni (Chat).", &[("name", &p.name)]));
     }
     let base = base_url(engine, custom_url)?;
 
     chat.push(user_message(chat.is_empty(), &query, context.as_ref()));
-    let mut messages = vec![json!({ "role": "system", "content": SYSTEM_PROMPT })];
+    let mut messages = vec![json!({ "role": "system", "content": crate::i18n::prompt(SYSTEM_PROMPT) })];
+
     messages.extend(chat.snapshot());
     let body = json!({ "model": model.trim(), "messages": messages, "stream": true });
 
@@ -240,7 +242,7 @@ pub async fn send(
         }
         Ok(_) => {
             chat.pop();
-            Err("Nessun testo nella risposta.".into())
+            Err(t("Nessun testo nella risposta.").into())
         }
         Err(e) => {
             chat.pop();
@@ -270,7 +272,7 @@ async fn stream_turn(engine: &str, base: &str, body: &Value, on_text: &(dyn Fn(&
             let line: Vec<u8> = pending.drain(..=nl).collect();
             let line = String::from_utf8_lossy(&line);
             if let Some(err) = line.trim().strip_prefix("data:").and_then(|d| serde_json::from_str::<Value>(d.trim()).ok()).and_then(|v| v.get("error").cloned()) {
-                let msg = err.get("message").and_then(Value::as_str).unwrap_or("errore durante la risposta");
+                let msg = err.get("message").and_then(Value::as_str).unwrap_or(t("errore durante la risposta"));
                 return Err(msg.to_string());
             }
             if let Some(d) = delta(&line) {

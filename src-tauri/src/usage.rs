@@ -27,6 +27,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::widgets::{days_from_civil, FieldValue, Widget, WidgetResult};
+use crate::i18n::{t, tf};
 
 const WEEK: i64 = 7 * 86_400;
 const FIVE_HOURS: i64 = 5 * 3600;
@@ -219,7 +220,8 @@ impl Totals {
         self.answers += 1;
     }
     fn text(&self) -> String {
-        format!("{} token · {} {}", amount(self.tokens), self.answers, if self.answers == 1 { "risposta" } else { "risposte" })
+        let answers = if self.answers == 1 { t("1 risposta").to_string() } else { tf("{n} risposte", &[("n", &self.answers)]) };
+        format!("{} token · {answers}", amount(self.tokens))
     }
 }
 
@@ -247,26 +249,26 @@ fn result_for(id: &str, list: &[(String, bool, Entry)], now: i64, midnight: i64)
         }
     }
     if week.answers == 0 && chat.answers == 0 {
-        return WidgetResult::new(id, "ok", "Nessuna sessione di Claude Code negli ultimi 7 giorni");
+        return WidgetResult::new(id, "ok", t("Nessuna sessione di Claude Code negli ultimi 7 giorni"));
     }
 
     // Today against the other active days of the week.
     let past: Vec<u64> = days.iter().filter(|(d, _)| **d < 0).map(|(_, t)| *t).collect();
     let average = if past.is_empty() { 0 } else { past.iter().sum::<u64>() / past.len() as u64 };
-    let mut summary = format!("Ultime 5 ore: {} token · oggi {}", amount(five.tokens), amount(today.tokens));
+    let mut summary = tf("Ultime 5 ore: {five} token · oggi {today}", &[("five", &amount(five.tokens)), ("today", &amount(today.tokens))]);
     if average > 0 && today.tokens > average * 3 / 2 {
-        summary.push_str(" (più del solito)");
+        summary.push_str(t(" (più del solito)"));
     }
 
     let mut r = WidgetResult::new(id, "ok", summary);
     let field = |label: &str, value: String| FieldValue { label: label.into(), value };
-    r.fields.push(field("Ultime 5 ore", five.text()));
-    r.fields.push(field("Oggi", today.text()));
+    r.fields.push(field(t("Ultime 5 ore"), five.text()));
+    r.fields.push(field(t("Oggi"), today.text()));
     let mut w = week.text();
     if average > 0 {
-        w.push_str(&format!(" · media {} al giorno", amount(average)));
+        w.push_str(&tf(" · media {n} al giorno", &[("n", &amount(average))]));
     }
-    r.fields.push(field("7 giorni", w));
+    r.fields.push(field(t("7 giorni"), w));
 
     let top = |map: Vec<(String, u64)>, total: u64| -> String {
         let mut v = map;
@@ -280,14 +282,14 @@ fn result_for(id: &str, list: &[(String, bool, Entry)], now: i64, midnight: i64)
         if more > 0 { format!("{} e altri {more}", shown.join(", ")) } else { shown.join(", ") }
     };
     if !projects.is_empty() {
-        r.fields.push(field("Progetti", top(projects.into_iter().map(|(k, v)| (k.to_string(), v)).collect(), week.tokens)));
+        r.fields.push(field(t("Progetti"), top(projects.into_iter().map(|(k, v)| (k.to_string(), v)).collect(), week.tokens)));
     }
     if !models.is_empty() {
-        r.fields.push(field("Modelli", top(models.into_iter().collect(), week.tokens)));
+        r.fields.push(field(t("Modelli"), top(models.into_iter().collect(), week.tokens)));
     }
-    r.fields.push(field("Letti dalla cache", format!("{} token in 7 giorni", amount(week.cache_read))));
+    r.fields.push(field(t("Letti dalla cache"), tf("{n} token in 7 giorni", &[("n", &amount(week.cache_read))])));
     if chat.answers > 0 {
-        r.fields.push(field("Chat dell'isola", chat.text()));
+        r.fields.push(field(t("Chat dell'isola"), chat.text()));
     }
     r
 }
@@ -303,7 +305,7 @@ pub async fn probe(w: &Widget) -> WidgetResult {
         with_plan(result_for(&id, &list, now, midnight), plan().as_ref(), now, local - now)
     })
     .await
-    .unwrap_or_else(|_| WidgetResult::new(&w.id, "error", "Lettura delle trascrizioni interrotta"))
+    .unwrap_or_else(|_| WidgetResult::new(&w.id, "error", t("Lettura delle trascrizioni interrotta")))
 }
 
 // ── Plan limits (Pro / Max) ──────────────────────────────────────────────────
@@ -408,14 +410,18 @@ fn reset_text(w: &PlanWindow, weekly: bool, now: i64, offset: i64) -> String {
         return "azzerato".into();
     }
     if weekly && left > DAY {
-        const DAYS: [&str; 7] = ["gio", "ven", "sab", "dom", "lun", "mar", "mer"]; // 1 Jan 1970 was a Thursday
+        // 1 Jan 1970 was a Thursday.
+        const DAYS: [&str; 7] = ["gio", "ven", "sab", "dom", "lun", "mar", "mer"];
+        const DAYS_EN: [&str; 7] = ["Thu", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"];
         let local = w.resets_at + offset;
-        let day = DAYS[local.div_euclid(DAY).rem_euclid(7) as usize];
+        let i = local.div_euclid(DAY).rem_euclid(7) as usize;
+        let day = if crate::i18n::english() { DAYS_EN[i] } else { DAYS[i] };
         let secs = local.rem_euclid(DAY);
-        return format!("si azzera {day} {}:{:02}", secs / 3600, (secs % 3600) / 60);
+        let at = format!("{day} {}:{:02}", secs / 3600, (secs % 3600) / 60);
+        return tf("si azzera {when}", &[("when", &at)]);
     }
     let (h, m) = (left / 3600, (left % 3600) / 60);
-    if h > 0 { format!("si azzera tra {h} h {m:02}") } else { format!("si azzera tra {} min", m.max(1)) }
+    if h > 0 { tf("si azzera tra {h} h {m}", &[("h", &h), ("m", &format!("{m:02}"))]) } else { tf("si azzera tra {m} min", &[("m", &m.max(1))]) }
 }
 
 /// The plan's lines on top of the card; it warns from 80 %.
@@ -425,25 +431,32 @@ fn with_plan(mut r: WidgetResult, plan: Option<&Plan>, now: i64, offset: i64) ->
     let mut fields = Vec::new();
     let mut parts = Vec::new();
     if let Some(w) = &p.five_hour {
-        fields.push(FieldValue { label: "Piano · 5 ore".into(), value: format!("{} · {}", pct(w), reset_text(w, false, now, offset)) });
-        parts.push(format!("5 ore {}", pct(w)));
+        fields.push(FieldValue { label: t("Piano · 5 ore").into(), value: format!("{} · {}", pct(w), reset_text(w, false, now, offset)) });
+        parts.push(tf("5 ore {pct}", &[("pct", &pct(w))]));
     }
     if let Some(w) = &p.seven_day {
-        fields.push(FieldValue { label: "Piano · settimana".into(), value: format!("{} · {}", pct(w), reset_text(w, true, now, offset)) });
-        parts.push(format!("settimana {}", pct(w)));
+        fields.push(FieldValue { label: t("Piano · settimana").into(), value: format!("{} · {}", pct(w), reset_text(w, true, now, offset)) });
+        parts.push(tf("settimana {pct}", &[("pct", &pct(w))]));
     }
     let age = now - p.at;
     if age >= 15 * 60 {
-        let ago = if age < 3600 { format!("{} min fa", age / 60) } else if age < DAY { format!("{} h fa", age / 3600) } else { format!("{} giorni fa", age / DAY) };
-        fields.push(FieldValue { label: "Piano aggiornato".into(), value: format!("{ago}, dall'ultima sessione nel terminale") });
+        let ago = if age < 3600 {
+            tf("{n} min fa", &[("n", &(age / 60))])
+        } else if age < DAY {
+            tf("{n} h fa", &[("n", &(age / 3600))])
+        } else {
+            tf("{n} giorni fa", &[("n", &(age / DAY))])
+        };
+        fields.push(FieldValue { label: t("Piano aggiornato").into(), value: tf("{ago}, dall'ultima sessione nel terminale", &[("ago", &ago)]) });
     }
     fields.append(&mut r.fields);
     r.fields = fields;
-    r.summary = format!("Piano: {}", parts.join(" · "));
+    r.summary = tf("Piano: {parts}", &[("parts", &parts.join(" · "))]);
     let top = p.top(now);
     if top >= 80.0 && r.level == "ok" {
         r.level = "warn".into();
-        r.summary.push_str(if top >= 100.0 { " (limite raggiunto)" } else { " (quasi al limite)" });
+        r.summary.push_str(if top >= 100.0 { t(" (limite raggiunto)") } else { t(" (quasi al limite)") });
+
     }
     r
 }

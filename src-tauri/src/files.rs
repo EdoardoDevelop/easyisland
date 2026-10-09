@@ -16,6 +16,7 @@ use std::time::SystemTime;
 use serde::Serialize;
 
 use crate::settings;
+use crate::i18n::{t, tf};
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -31,9 +32,9 @@ pub fn inbox_dir() -> PathBuf {
 
 pub fn ingest(source: &str) -> Result<DroppedFile, String> {
     let src = Path::new(source);
-    let meta = std::fs::metadata(src).map_err(|e| format!("impossibile leggere {source}: {e}"))?;
+    let meta = std::fs::metadata(src).map_err(|e| tf("impossibile leggere {source}: {e}", &[("source", &source), ("e", &e)]))?;
     if meta.is_dir() {
-        return Err("Le cartelle non si possono ancora rilasciare.".into());
+        return Err(t("Le cartelle non si possono ancora rilasciare.").into());
     }
 
     let dir = inbox_dir();
@@ -53,7 +54,7 @@ pub fn ingest(source: &str) -> Result<DroppedFile, String> {
         .unwrap_or_else(|| "file".into());
 
     let dest = unique_dest(&dir, &name);
-    std::fs::copy(src, &dest).map_err(|e| format!("copia non riuscita: {e}"))?;
+    std::fs::copy(src, &dest).map_err(|e| tf("copia non riuscita: {e}", &[("e", &e)]))?;
     // CopyFileEx carries the source's timestamps across, so a file last edited
     // three years ago would arrive already older than the sweep window and be
     // listed by its date as if dropped long ago. The tray sorts by when *we* copied it.
@@ -89,7 +90,7 @@ pub fn save_new(name: &str, bytes: &[u8]) -> Result<DroppedFile, String> {
     let dir = inbox_dir();
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let dest = unique_dest(&dir, name);
-    std::fs::write(&dest, bytes).map_err(|e| format!("salvataggio non riuscito: {e}"))?;
+    std::fs::write(&dest, bytes).map_err(|e| tf("salvataggio non riuscito: {e}", &[("e", &e)]))?;
     Ok(DroppedFile {
         name: dest.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| name.to_string()),
         path: dest.to_string_lossy().to_string(),
@@ -125,7 +126,8 @@ pub fn drag_out(hwnd: windows::Win32::Foundation::HWND, path: &Path) -> Result<(
         if ole {
             OleUninitialize();
         }
-        result.map_err(|e| format!("Trascinamento non riuscito: {}", e.message()))
+        result.map_err(|e| tf("Trascinamento non riuscito: {e}", &[("e", &e.message())]))
+
     }
 }
 
@@ -162,7 +164,7 @@ fn save_kept(names: &HashSet<String>) -> Result<(), String> {
     let mut list: Vec<&String> = names.iter().collect();
     list.sort();
     let json = serde_json::to_string(&list).map_err(|e| e.to_string())?;
-    std::fs::write(kept_file(), json).map_err(|e| format!("Salvataggio non riuscito: {e}"))
+    std::fs::write(kept_file(), json).map_err(|e| tf("Salvataggio non riuscito: {e}", &[("e", &e)]))
 }
 
 /// Pins or unpins one file of the tray.
@@ -210,18 +212,18 @@ pub fn list_inbox() -> Vec<InboxFile> {
 pub fn inbox_path(name: &str) -> Result<PathBuf, String> {
     let bare = Path::new(name).file_name().map(|n| n.to_string_lossy().to_string());
     if bare.as_deref() != Some(name) || name.is_empty() || name == "." || name == ".." {
-        return Err("Nome di file non valido".into());
+        return Err(t("Nome di file non valido").into());
     }
     let path = inbox_dir().join(name);
     if !path.is_file() {
-        return Err("Il file non c'è più".into());
+        return Err(t("Il file non c'è più").into());
     }
     Ok(path)
 }
 
 /// Deletes one copy, pinned or not (the original the user dropped is never touched).
 pub fn delete_from_inbox(name: &str) -> Result<(), String> {
-    std::fs::remove_file(inbox_path(name)?).map_err(|e| format!("Eliminazione non riuscita: {e}"))?;
+    std::fs::remove_file(inbox_path(name)?).map_err(|e| tf("Eliminazione non riuscita: {e}", &[("e", &e)]))?;
     let mut names = kept_names();
     if names.remove(&name.to_lowercase()) {
         save_kept(&names)?;

@@ -15,6 +15,7 @@ use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 
 use crate::clipimage;
 use crate::files::{self, DroppedFile};
+use crate::i18n::t;
 
 /// Long enough to pick a zone calmly; Esc in the overlay is not reported, so
 /// this is also how long a cancelled capture keeps listening.
@@ -39,7 +40,7 @@ pub fn clipboard_picture() -> Result<Option<DroppedFile>, String> {
         return Ok(None);
     }
     let Some(img) = clipimage::read() else { return Ok(None) };
-    files::save_new(&file_name("Immagine copiata"), &clipimage::encode_png(&img)?).map(Some)
+    files::save_new(&file_name(t("Immagine copiata")), &clipimage::encode_png(&img)?).map(Some)
 }
 
 /// Opens the snipping overlay and waits for the picture. `Ok(None)` when the
@@ -51,7 +52,7 @@ pub async fn capture() -> Result<Option<DroppedFile>, String> {
     let opened = unsafe { ShellExecuteW(None, w!("open"), w!("ms-screenclip:"), PCWSTR::null(), PCWSTR::null(), SW_SHOWNORMAL) };
     // ShellExecute reports success with a value above 32.
     if opened.0 as usize <= 32 {
-        return Err("Strumento di cattura non disponibile su questo PC".into());
+        return Err(t("Strumento di cattura non disponibile su questo PC").into());
     }
 
     let started = Instant::now();
@@ -76,7 +77,8 @@ pub async fn capture() -> Result<Option<DroppedFile>, String> {
         let saved = tauri::async_runtime::spawn_blocking(|| -> Result<Option<DroppedFile>, String> {
             let Some(img) = clipimage::read() else { return Ok(None) };
             let png = clipimage::encode_png(&img)?;
-            files::save_new(&file_name("Schermata"), &png).map(Some)
+            files::save_new(&file_name(t("Schermata")), &png).map(Some)
+
         })
         .await
         .map_err(|e| e.to_string())??;

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "ui": "vite --open \"/?revealDuration=3\"",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && node scripts/check-i18n.mjs && vite build",
+    "check:i18n": "node scripts/check-i18n.mjs",
     "preview": "vite preview",
     "icons": "node scripts/gen-icons.mjs",
     "tauri": "tauri",

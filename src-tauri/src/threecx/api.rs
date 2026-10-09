@@ -12,6 +12,7 @@
 use serde_json::{json, Value};
 
 use super::{Call, Contact, Device};
+use crate::i18n::{t, tf};
 
 pub struct Token {
     pub access: String,
@@ -25,14 +26,14 @@ pub async fn token(http: &reqwest::Client, base: &str, client_id: &str, secret: 
         .form(&[("client_id", client_id), ("client_secret", secret), ("grant_type", "client_credentials")])
         .send()
         .await
-        .map_err(|e| format!("Centralino non raggiungibile: {e}"))?;
+        .map_err(|e| tf("Centralino non raggiungibile: {e}", &[("e", &e)]))?;
     match resp.status().as_u16() {
         200 => {}
-        400 | 401 | 403 => return Err("Client ID o chiave API non validi".into()),
-        code => return Err(format!("Token non ottenuto ({code})")),
+        400 | 401 | 403 => return Err(t("Client ID o chiave API non validi").into()),
+        code => return Err(tf("Token non ottenuto ({code})", &[("code", &code)])),
     }
     let v: Value = resp.json().await.map_err(|e| e.to_string())?;
-    let access = v["access_token"].as_str().ok_or("Il centralino non ha dato un token")?.to_string();
+    let access = v["access_token"].as_str().ok_or(t("Il centralino non ha dato un token"))?.to_string();
     // 3CX gives minutes here; a value too big for minutes is seconds.
     let exp = v["expires_in"].as_u64().unwrap_or(60);
     let secs = if exp <= 600 { exp * 60 } else { exp };
@@ -42,11 +43,12 @@ pub async fn token(http: &reqwest::Client, base: &str, client_id: &str, secret: 
 fn check(resp: &reqwest::Response) -> Result<(), String> {
     match resp.status().as_u16() {
         200..=299 => Ok(()),
-        401 => Err("Token scaduto".into()),
-        403 => Err("Il client API non può controllare questo interno: aggiungilo agli interni monitorati".into()),
-        404 => Err("Non trovato sul centralino".into()),
-        422 | 424 => Err("Il centralino non ha potuto eseguire l'operazione".into()),
-        code => Err(format!("Richiesta rifiutata ({code})")),
+        401 => Err(t("Token scaduto").into()),
+        403 => Err(t("Il client API non può controllare questo interno: aggiungilo agli interni monitorati").into()),
+        404 => Err(t("Non trovato sul centralino").into()),
+        422 | 424 => Err(t("Il centralino non ha potuto eseguire l'operazione").into()),
+        code => Err(tf("Richiesta rifiutata ({code})", &[("code", &code)])),
+
     }
 }
 
@@ -63,7 +65,7 @@ async fn post(http: &reqwest::Client, base: &str, token: &str, path: &str, body:
     // 200/202 with a final status that says it failed.
     if let Some(reason) = v["finalstatus"].as_str().filter(|s| s.eq_ignore_ascii_case("Failure")) {
         let text = v["reasontext"].as_str().or(v["reason"].as_str()).unwrap_or(reason);
-        return Err(format!("Operazione non riuscita: {text}"));
+        return Err(tf("Operazione non riuscita: {text}", &[("text", &text)]));
     }
     Ok(v)
 }
@@ -172,7 +174,7 @@ pub async fn contacts(http: &reqwest::Client, base: &str, token: &str, query: &s
     let users = get(http, base, token, &url_query(&users)).await;
     let contacts = get(http, base, token, &url_query(&contacts)).await;
     if let (Err(e), Err(_)) = (&users, &contacts) {
-        return Err(format!("Rubrica non disponibile: serve l'accesso alla Configuration API nel client API ({e})"));
+        return Err(tf("Rubrica non disponibile: serve l'accesso alla Configuration API nel client API ({e})", &[("e", &e)]));
     }
     for u in users.ok().and_then(|v| v["value"].as_array().cloned()).unwrap_or_default() {
         let name = format!("{} {}", u["FirstName"].as_str().unwrap_or(""), u["LastName"].as_str().unwrap_or("")).trim().to_string();

@@ -2,6 +2,8 @@
 // (src-tauri/src/context.rs tells which one). Each one asks Claude about the
 // text selected in that app; nothing is read until the button is clicked.
 
+import { t } from "../core/i18n";
+
 export interface Foreground {
   exe: string;
   title: string;
@@ -27,72 +29,72 @@ const RULES: Rule[] = [
   {
     app: "Outlook", color: "#0A84D6", exes: ["outlook.exe", "olk.exe"],
     items: [
-      S("Riassumi la mail", "mail", "Riassumi questa mail in pochi punti: chi scrive, cosa chiede, scadenze."),
-      S("Scrivi una risposta", "chat", "Scrivi una risposta cordiale e professionale a questa mail, in italiano. Solo il testo della risposta."),
-      S("Cosa devo fare?", "check", "Elenca le cose che devo fare dopo aver letto questa mail, con eventuali scadenze."),
+      S(t("Riassumi la mail"), "mail", t("Riassumi questa mail in pochi punti: chi scrive, cosa chiede, scadenze.")),
+      S(t("Scrivi una risposta"), "chat", t("Scrivi una risposta cordiale e professionale a questa mail, in italiano. Solo il testo della risposta.")),
+      S(t("Cosa devo fare?"), "check", t("Elenca le cose che devo fare dopo aver letto questa mail, con eventuali scadenze.")),
     ],
   },
   {
     app: "Excel", color: "#22A565", exes: ["excel.exe"],
     items: [
-      S("Spiega questi dati", "chart", "Spiega questi dati copiati da Excel: cosa contengono, totali, tendenze, anomalie."),
-      S("Spiega la formula", "code", "Spiega passo per passo questa formula di Excel e proponi una versione più semplice se esiste."),
-      S("Crea una formula", "sparkles", "Ecco dei dati di Excel. Proponi la formula di Excel (in italiano, separatore ;) più utile per analizzarli e spiega come usarla."),
+      S(t("Spiega questi dati"), "chart", t("Spiega questi dati copiati da Excel: cosa contengono, totali, tendenze, anomalie.")),
+      S(t("Spiega la formula"), "code", t("Spiega passo per passo questa formula di Excel e proponi una versione più semplice se esiste.")),
+      S(t("Crea una formula"), "sparkles", t("Ecco dei dati di Excel. Proponi la formula di Excel (in italiano, separatore ;) più utile per analizzarli e spiega come usarla.")),
     ],
   },
   {
     app: "Word", color: "#2B7CD3", exes: ["winword.exe"],
     items: [
-      S("Correggi", "check", "Correggi errori di ortografia, grammatica e punteggiatura di questo testo. Restituisci solo il testo corretto."),
-      S("Rendi più formale", "briefcase", "Riscrivi questo testo in un tono più formale e professionale, stessa lingua. Solo il testo."),
-      S("Riassumi", "note", "Riassumi questo testo in pochi punti."),
+      S(t("Correggi"), "check", t("Correggi errori di ortografia, grammatica e punteggiatura di questo testo. Restituisci solo il testo corretto.")),
+      S(t("Rendi più formale"), "briefcase", t("Riscrivi questo testo in un tono più formale e professionale, stessa lingua. Solo il testo.")),
+      S(t("Riassumi"), "note", t("Riassumi questo testo in pochi punti.")),
     ],
   },
   {
     app: "PowerPoint", color: "#D35230", exes: ["powerpnt.exe"],
     items: [
-      S("Migliora la slide", "sparkles", "Migliora il testo di questa slide: più breve, chiaro, a punti. Solo il testo."),
-      S("Note del relatore", "note", "Scrivi le note del relatore per presentare questo contenuto in un minuto."),
+      S(t("Migliora la slide"), "sparkles", t("Migliora il testo di questa slide: più breve, chiaro, a punti. Solo il testo.")),
+      S(t("Note del relatore"), "note", t("Scrivi le note del relatore per presentare questo contenuto in un minuto.")),
     ],
   },
   {
     app: "Browser", color: "#38BDF8",
     exes: ["chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe", "vivaldi.exe", "arc.exe"],
     items: [
-      S("Riassumi", "note", "Riassumi questo testo preso da una pagina web in pochi punti."),
-      S("Traduci in italiano", "globe", "Traduci in italiano questo testo. Solo la traduzione."),
-      S("Spiegamelo", "info", "Spiegami questo testo in modo semplice, come a chi non è del settore."),
+      S(t("Riassumi"), "note", t("Riassumi questo testo preso da una pagina web in pochi punti.")),
+      S(t("Traduci in italiano"), "globe", t("Traduci in italiano questo testo. Solo la traduzione.")),
+      S(t("Spiegamelo"), "info", t("Spiegami questo testo in modo semplice, come a chi non è del settore.")),
     ],
   },
   {
-    app: "Codice", color: "#A78BFA",
+    app: t("Codice"), color: "#A78BFA",
     exes: ["code.exe", "cursor.exe", "devenv.exe", "rider64.exe", "idea64.exe", "pycharm64.exe", "notepad++.exe", "sublime_text.exe"],
     items: [
-      S("Spiega il codice", "code", "Spiega cosa fa questo codice, in breve."),
-      S("Trova bug", "bug", "Cerca bug, casi limite e problemi di sicurezza in questo codice. Sii concreto."),
-      S("Migliora", "wrench", "Proponi una versione più pulita e leggibile di questo codice, mantenendo il comportamento."),
+      S(t("Spiega il codice"), "code", t("Spiega cosa fa questo codice, in breve.")),
+      S(t("Trova bug"), "bug", t("Cerca bug, casi limite e problemi di sicurezza in questo codice. Sii concreto.")),
+      S(t("Migliora"), "wrench", t("Proponi una versione più pulita e leggibile di questo codice, mantenendo il comportamento.")),
     ],
   },
   {
-    app: "Terminale", color: "#22C55E",
+    app: t("Terminale"), color: "#22C55E",
     exes: ["windowsterminal.exe", "powershell.exe", "pwsh.exe", "cmd.exe", "conhost.exe", "wezterm-gui.exe", "alacritty.exe"],
     items: [
-      S("Spiega l'errore", "alert", "Spiega questo errore del terminale e come risolverlo, con i comandi da usare su Windows."),
-      S("Spiega il comando", "terminal", "Spiega cosa fa questo comando o output, riga per riga."),
+      S(t("Spiega l'errore"), "alert", t("Spiega questo errore del terminale e come risolverlo, con i comandi da usare su Windows.")),
+      S(t("Spiega il comando"), "terminal", t("Spiega cosa fa questo comando o output, riga per riga.")),
     ],
   },
   {
     app: "Teams", color: "#6264A7", exes: ["ms-teams.exe", "teams.exe"],
     items: [
-      S("Riassumi la chat", "chat", "Riassumi questa conversazione: decisioni, domande aperte, chi deve fare cosa."),
-      S("Rispondi", "mail", "Scrivi una risposta breve e cordiale a questo messaggio. Solo il testo."),
+      S(t("Riassumi la chat"), "chat", t("Riassumi questa conversazione: decisioni, domande aperte, chi deve fare cosa.")),
+      S(t("Rispondi"), "mail", t("Scrivi una risposta breve e cordiale a questo messaggio. Solo il testo.")),
     ],
   },
   {
     app: "PDF", color: "#F4505E", exes: ["acrord32.exe", "acrobat.exe", "foxitpdfreader.exe", "sumatrapdf.exe"],
     items: [
-      S("Riassumi", "file", "Riassumi questo testo preso da un PDF in pochi punti."),
-      S("Punti importanti", "star", "Elenca date, importi, scadenze e obblighi presenti in questo testo."),
+      S(t("Riassumi"), "file", t("Riassumi questo testo preso da un PDF in pochi punti.")),
+      S(t("Punti importanti"), "star", t("Elenca date, importi, scadenze e obblighi presenti in questo testo.")),
     ],
   },
 ];
@@ -101,9 +103,9 @@ const RULES: Rule[] = [
 const ANY: Rule = {
   app: "", color: "#8E939C", exes: [],
   items: [
-    S("Riassumi", "note", "Riassumi questo testo in pochi punti."),
-    S("Traduci", "globe", "Traduci questo testo in italiano (se è già italiano, in inglese). Solo la traduzione."),
-    S("Correggi", "check", "Correggi errori di ortografia e grammatica di questo testo. Solo il testo corretto."),
+    S(t("Riassumi"), "note", t("Riassumi questo testo in pochi punti.")),
+    S(t("Traduci"), "globe", t("Traduci questo testo in italiano (se è già italiano, in inglese). Solo la traduzione.")),
+    S(t("Correggi"), "check", t("Correggi errori di ortografia e grammatica di questo testo. Solo il testo corretto.")),
   ],
 };
 

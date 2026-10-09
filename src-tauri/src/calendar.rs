@@ -12,6 +12,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::widgets::{client, days_from_civil, secret_key, FieldValue, Widget, WidgetResult};
+use crate::i18n::{t, tf};
 
 /// How far ahead the widget looks.
 const HORIZON_DAYS: i64 = 7;
@@ -371,7 +372,7 @@ pub fn upcoming(text: &str, now: i64, to_local: &dyn Fn(i64) -> i64) -> Vec<Occu
             if e.recurrence_id.is_none() && (e.exdates.contains(&s) || overridden.contains(&(e.uid.clone(), s))) {
                 continue;
             }
-            out.push(Occurrence { summary: if e.summary.is_empty() { "(senza titolo)".into() } else { e.summary.clone() }, start: s, end: s + span, all_day: e.all_day });
+            out.push(Occurrence { summary: if e.summary.is_empty() { t("(senza titolo)").into() } else { e.summary.clone() }, start: s, end: s + span, all_day: e.all_day });
         }
     }
     out.sort_by_key(|o| (o.start, o.all_day));
@@ -385,6 +386,8 @@ pub fn upcoming(text: &str, now: i64, to_local: &dyn Fn(i64) -> i64) -> Vec<Occu
 
 const DAYS_IT: [&str; 7] = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"];
 const MONTHS_IT: [&str; 12] = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"];
+const DAYS_EN: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MONTHS_EN: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 fn hm(t: i64) -> String {
     let s = t.rem_euclid(86_400);
@@ -395,11 +398,15 @@ fn hm(t: i64) -> String {
 fn day_label(t: i64, now: i64) -> String {
     let (d, today) = (t.div_euclid(86_400), now.div_euclid(86_400));
     match d - today {
-        0 => "oggi".into(),
-        1 => "domani".into(),
+        0 => crate::i18n::t("oggi").into(),
+        1 => crate::i18n::t("domani").into(),
         _ => {
             let (_, m, day) = civil_from_days(d);
-            format!("{} {day} {}", DAYS_IT[weekday(d) as usize], MONTHS_IT[(m - 1) as usize])
+            if crate::i18n::english() {
+                format!("{} {day} {}", DAYS_EN[weekday(d) as usize], MONTHS_EN[(m - 1) as usize])
+            } else {
+                format!("{} {day} {}", DAYS_IT[weekday(d) as usize], MONTHS_IT[(m - 1) as usize])
+            }
         }
     }
 }
@@ -417,22 +424,23 @@ pub fn describe(list: &[Occurrence], now: i64, warn_min: i64) -> (&'static str, 
         .collect();
     let timed: Vec<&Occurrence> = list.iter().filter(|o| !o.all_day).collect();
     if let Some(o) = timed.iter().find(|o| o.start <= now && o.end > now) {
-        return ("ok", format!("In corso: {} (fino alle {})", o.summary, hm(o.end)), fields);
+        return ("ok", tf("In corso: {what} (fino alle {end})", &[("what", &o.summary), ("end", &hm(o.end))]), fields);
     }
     if let Some(o) = timed.iter().find(|o| o.start > now) {
         let mins = (o.start - now + 59) / 60;
         let soon = mins <= warn_min;
         let when = if mins < 60 {
-            format!("Tra {mins} min")
+            tf("Tra {mins} min", &[("mins", &mins)])
         } else {
-            capitalise(&format!("{} alle {}", day_label(o.start, now), hm(o.start)))
+            capitalise(&tf("{day} alle {time}", &[("day", &day_label(o.start, now)), ("time", &hm(o.start))]))
         };
         return (if soon { "warn" } else { "ok" }, format!("{when}: {}", o.summary), fields);
     }
     if let Some(o) = list.first() {
-        return ("ok", format!("{}: {} (tutto il giorno)", capitalise(&day_label(o.start, now)), o.summary), fields);
+        return ("ok", tf("{day}: {what} (tutto il giorno)", &[("day", &capitalise(&day_label(o.start, now))), ("what", &o.summary)]), fields);
+
     }
-    ("ok", "Nessun appuntamento nei prossimi 7 giorni".into(), fields)
+    ("ok", t("Nessun appuntamento nei prossimi 7 giorni").into(), fields)
 }
 
 fn capitalise(s: &str) -> String {
@@ -471,26 +479,26 @@ fn utc_to_local(secs: i64) -> i64 {
 
 pub async fn probe(w: &Widget) -> WidgetResult {
     let Some(link) = crate::secrets::get(&secret_key(&w.id, "ics")) else {
-        return WidgetResult::new(&w.id, "error", "Incolla il link ICS del calendario nelle impostazioni del widget");
+        return WidgetResult::new(&w.id, "error", t("Incolla il link ICS del calendario nelle impostazioni del widget"));
     };
     let link = link.trim().replacen("webcal://", "https://", 1);
     if !link.starts_with("https://") && !link.starts_with("http://") {
-        return WidgetResult::new(&w.id, "error", "Il link del calendario deve iniziare con https://");
+        return WidgetResult::new(&w.id, "error", t("Il link del calendario deve iniziare con https://"));
     }
-    let Some(c) = client() else { return WidgetResult::new(&w.id, "error", "HTTP non disponibile") };
+    let Some(c) = client() else { return WidgetResult::new(&w.id, "error", t("HTTP non disponibile")) };
     let resp = match c.get(&link).send().await {
         Ok(r) if r.status().is_success() => r,
         Ok(r) => return WidgetResult::new(&w.id, "error", format!("Calendario: HTTP {}", r.status().as_u16())),
-        Err(e) => return WidgetResult::new(&w.id, "error", format!("Calendario non raggiungibile: {e}")),
+        Err(e) => return WidgetResult::new(&w.id, "error", tf("Calendario non raggiungibile: {e}", &[("e", &e)])),
     };
     let bytes = match resp.bytes().await {
         Ok(b) if b.len() <= MAX_ICS_BYTES => b,
-        Ok(_) => return WidgetResult::new(&w.id, "error", "Calendario troppo grande"),
-        Err(e) => return WidgetResult::new(&w.id, "error", format!("Calendario non leggibile: {e}")),
+        Ok(_) => return WidgetResult::new(&w.id, "error", t("Calendario troppo grande")),
+        Err(e) => return WidgetResult::new(&w.id, "error", tf("Calendario non leggibile: {e}", &[("e", &e)])),
     };
     let text = String::from_utf8_lossy(&bytes);
     if !text.contains("BEGIN:VCALENDAR") {
-        return WidgetResult::new(&w.id, "error", "Il link non è un calendario ICS");
+        return WidgetResult::new(&w.id, "error", t("Il link non è un calendario ICS"));
     }
     let now = now_local();
     let list = upcoming(&text, now, &utc_to_local);

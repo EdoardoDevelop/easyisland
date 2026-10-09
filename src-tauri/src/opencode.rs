@@ -26,6 +26,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
 
 use crate::claude::{Chat, ChatContext, ChatReply};
+use crate::i18n::{t, tf};
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 /// The private server stops after this long without a message.
@@ -137,7 +138,7 @@ async fn server() -> Result<(String, String), String> {
         }
         *guard = None;
     }
-    let exe = find_exe().ok_or("opencode non è installato su questo PC (npm i -g @opencode/cli, oppure opencode.ai).")?;
+    let exe = find_exe().ok_or(t("opencode non è installato su questo PC (npm i -g @opencode/cli, oppure opencode.ai)."))?;
     let port = free_port()?;
     let password = random_password();
     let url = format!("http://127.0.0.1:{port}");
@@ -151,7 +152,7 @@ async fn server() -> Result<(String, String), String> {
         .stderr(std::process::Stdio::null())
         .kill_on_drop(true);
     cmd.creation_flags(CREATE_NO_WINDOW);
-    let child = cmd.spawn().map_err(|e| format!("Impossibile avviare opencode: {e}"))?;
+    let child = cmd.spawn().map_err(|e| tf("Impossibile avviare opencode: {e}", &[("e", &e)]))?;
     crate::log::line(format!("opencode: server on port {port}"));
 
     // Up when /api/info answers; a 1.x opencode has no /api and never does.
@@ -164,7 +165,7 @@ async fn server() -> Result<(String, String), String> {
             break;
         }
         if started.elapsed() > START_TIMEOUT {
-            return Err("opencode non risponde. Serve la versione 2 (opencode upgrade).".into());
+            return Err(t("opencode non risponde. Serve la versione 2 (opencode upgrade).").into());
         }
         tokio::time::sleep(Duration::from_millis(150)).await;
     }
@@ -318,7 +319,7 @@ fn tool_name(action: &str) -> String {
         "websearch" => "WebSearch",
         "glob" => "Glob",
         "grep" => "Grep",
-        "external_directory" => "Cartella esterna",
+        "external_directory" => t("Cartella esterna"),
         other => other,
     }
     .to_string()
@@ -330,16 +331,16 @@ pub fn step_line(tool: &str, input: &Value) -> String {
     let what = s("command").or_else(|| s("filePath")).or_else(|| s("path")).or_else(|| s("pattern"))
         .or_else(|| s("url")).or_else(|| s("query")).unwrap_or_default();
     let label = match tool {
-        "shell" | "bash" => "Esegue",
-        "read" => "Legge",
-        "edit" | "write" | "apply_patch" => "Modifica",
-        "glob" | "grep" => "Cerca",
-        "webfetch" => "Apre",
-        "websearch" => "Cerca sul web",
-        "todowrite" => "Aggiorna il piano",
+        "shell" | "bash" => t("Esegue"),
+        "read" => t("Legge"),
+        "edit" | "write" | "apply_patch" => t("Modifica"),
+        "glob" | "grep" => t("Cerca"),
+        "webfetch" => t("Apre"),
+        "websearch" => t("Cerca sul web"),
+        "todowrite" => t("Aggiorna il piano"),
         // opencode's "code mode": a small script that calls its other tools.
-        "execute" => "Esegue uno script",
-        "skill" => "Usa una skill",
+        "execute" => t("Esegue uno script"),
+        "skill" => t("Usa una skill"),
         other => other,
     };
     let what: String = what.lines().next().unwrap_or_default().chars().take(80).collect();
@@ -438,12 +439,12 @@ fn turn_state(kind: &str, data: &Value) -> Turn {
         "session.execution.succeeded" => Turn::Done,
         "session.execution.failed" => {
             let msg = data.pointer("/error/message").or_else(|| data.get("message")).or_else(|| data.get("error"))
-                .and_then(Value::as_str).unwrap_or("opencode si è fermato per un errore.");
+                .and_then(Value::as_str).unwrap_or(t("opencode si è fermato per un errore."));
             Turn::Failed(msg.to_string())
         }
         "session.execution.interrupted" => {
             let why = data.get("reason").and_then(Value::as_str).unwrap_or("");
-            Turn::Failed(if why.is_empty() { "Risposta interrotta.".into() } else { format!("Risposta interrotta ({why}).") })
+            Turn::Failed(if why.is_empty() { t("Risposta interrotta.").into() } else { tf("Risposta interrotta ({why}).", &[("why", &why)]) })
         }
         _ => Turn::Going,
     }
@@ -476,7 +477,7 @@ pub async fn send(app: &AppHandle, chat: &Chat, model: &str, query: String, cont
 }
 
 async fn run_turn(chat: &Chat, model: &str, query: String, context: Option<ChatContext>, on_text: &(dyn Fn(&str) + Sync), ask: impl Ask) -> Result<ChatReply, String> {
-    let model_ref = model_ref(model).ok_or("Scegli un modello di opencode nelle impostazioni (Chat).")?;
+    let model_ref = model_ref(model).ok_or(t("Scegli un modello di opencode nelle impostazioni (Chat)."))?;
     BUSY.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     let result = turn(chat, model_ref, query, context, on_text, ask).await;
     BUSY.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
@@ -556,11 +557,11 @@ async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&Chat
         let next = tokio::time::timeout(Duration::from_secs(20), events.chunk()).await;
         if last_event.elapsed() > STALL {
             let _ = auth(client.post(format!("{url}/api/session/{session}/interrupt"))).send().await;
-            return Err("Il modello non risponde da 3 minuti: risposta interrotta. Riprova o scegli un altro modello.".into());
+            return Err(t("Il modello non risponde da 3 minuti: risposta interrotta. Riprova o scegli un altro modello.").into());
         }
         let Ok(chunk) = next else { continue };
-        let chunk = chunk.map_err(|e| format!("opencode ha chiuso la connessione: {e}"))?;
-        let Some(chunk) = chunk else { return Err("opencode ha chiuso la connessione.".into()) };
+        let chunk = chunk.map_err(|e| tf("opencode ha chiuso la connessione: {e}", &[("e", &e)]))?;
+        let Some(chunk) = chunk else { return Err(t("opencode ha chiuso la connessione.").into()) };
         pending.extend_from_slice(&chunk);
         while let Some(nl) = pending.iter().position(|b| *b == b'\n') {
             let line: Vec<u8> = pending.drain(..=nl).collect();
@@ -594,7 +595,8 @@ async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&Chat
                 // A refused call says so once, at the end, in Italian.
                 "session.tool.failed" | "session.tool.error" if refused.load(std::sync::atomic::Ordering::SeqCst) => {}
                 "session.tool.failed" | "session.tool.error" => {
-                    let msg = data.pointer("/error/message").or_else(|| data.get("message")).and_then(Value::as_str).unwrap_or("non riuscito");
+                    let msg = data.pointer("/error/message").or_else(|| data.get("message")).and_then(Value::as_str).unwrap_or(t("non riuscito"));
+
                     out = shown(&out, &format!("> ✗ {}", msg.lines().next().unwrap_or_default()));
                 }
                 "permission.asked" => {
@@ -623,7 +625,7 @@ async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&Chat
                     Turn::Done => {
                         let text = shown(&out, &block);
                         if text.is_empty() {
-                            return Err("Nessun testo nella risposta.".into());
+                            return Err(t("Nessun testo nella risposta.").into());
                         }
                         return Ok(ChatReply { text });
                     }

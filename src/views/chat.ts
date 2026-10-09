@@ -9,6 +9,7 @@ import { CHAT_ENGINES, State, engineLabel, type ChatEngine, type ChatMessage } f
 import { calculate, formatResult, plainResult } from "../core/calc";
 import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
+import { locale, t } from "../core/i18n";
 
 let nextId = 1;
 
@@ -53,7 +54,7 @@ function contextChip(label: string): HTMLElement {
 export function buildPrompt(onHeightChange: () => void): ViewHost {
   const chipRow = h("div", { class: "chip-row" });
   // The engine and model, above the chat: a click picks another one.
-  const engineBtn = h("button", { class: "engine-pick", title: "Cambia motore della chat" }) as HTMLButtonElement;
+  const engineBtn = h("button", { class: "engine-pick", title: t("Cambia motore della chat") }) as HTMLButtonElement;
   const engineMenu = h("div", { class: "engine-menu" });
   engineMenu.style.display = "none";
   const head = h("div", { class: "chat-head" }, chipRow, engineBtn, engineMenu);
@@ -64,15 +65,15 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
   const input = h("input", {
     type: "text",
     class: "chat-input",
-    placeholder: "Chiedimi qualsiasi cosa…",
+    placeholder: t("Chiedimi qualsiasi cosa…"),
     spellcheck: "false",
   }) as HTMLInputElement;
-  const send = h("button", { class: "send-btn", title: "Invia" }, svg(ICONS.arrowUp, 14));
-  const fresh = h("button", { class: "new-chat-btn", title: "Nuova chat (Ctrl+N)" }, svg(ICONS.plus, 12), h("span", { text: "Nuova chat" }));
+  const send = h("button", { class: "send-btn", title: t("Invia") }, svg(ICONS.arrowUp, 14));
+  const fresh = h("button", { class: "new-chat-btn", title: t("Nuova chat (Ctrl+N)") }, svg(ICONS.plus, 12), h("span", { text: t("Nuova chat") }));
   const bar = h("div", { class: "chat-bar" }, fresh, input, send);
   // The calculator: a calculation typed in the field shows its result here.
   const calcValue = h("b", { class: "calc-value" });
-  const calcHint = h("span", { class: "calc-hint", text: "Invio copia · Ctrl+Invio chiede alla chat" });
+  const calcHint = h("span", { class: "calc-hint", text: t("Invio copia · Ctrl+Invio chiede alla chat") });
   const calcRow = h("div", { class: "calc-row" }, h("span", { class: "calc-eq", text: "=" }), calcValue, calcHint);
   calcRow.style.display = "none";
   let calcResult: number | null = null;
@@ -81,7 +82,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     calcRow.style.display = calcResult == null ? "none" : "";
     if (calcResult != null) {
       calcValue.textContent = formatResult(calcResult);
-      calcHint.textContent = "Invio copia · Ctrl+Invio chiede alla chat";
+      calcHint.textContent = t("Invio copia · Ctrl+Invio chiede alla chat");
       calcRow.classList.remove("copied");
     }
   }
@@ -90,11 +91,11 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     const text = plainResult(calcResult);
     try {
       await navigator.clipboard.writeText(text);
-      calcHint.textContent = "Copiato negli appunti ✓";
+      calcHint.textContent = t("Copiato negli appunti ✓");
       calcRow.classList.add("copied");
       Sound.play("finish");
     } catch {
-      calcHint.textContent = "Copia non riuscita";
+      calcHint.textContent = t("Copia non riuscita");
     }
   }
 
@@ -209,7 +210,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
         onclick: () => pickEngine(e.id),
       }));
     }
-    engineMenu.append(h("div", { class: "engine-note", text: "Vale per questa chat. Predefinito, chiavi e modelli: Impostazioni → Chat" }));
+    engineMenu.append(h("div", { class: "engine-note", text: t("Vale per questa chat. Predefinito, chiavi e modelli: Impostazioni → Chat") }));
     engineMenu.style.display = "";
   }
 
@@ -258,7 +259,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       const file = State.droppedFile;
       const text = State.chatText;
       const wantChip = text
-        ? `${text.label} · ${text.text.length.toLocaleString("it-IT")} caratteri`
+        ? `${text.label} · ${t("{n} caratteri", { n: text.text.length.toLocaleString(locale()) })}`
         : file?.name ?? "";
       if (chipRow.dataset.label !== wantChip) {
         chipRow.dataset.label = wantChip;
@@ -293,7 +294,8 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
         drafted = true;
         updateCalc();
       }
-      input.placeholder = State.chatHistory.length === 0 ? "Chiedimi qualsiasi cosa… o fai un calcolo" : "Continua…";
+      input.placeholder = State.chatHistory.length === 0 ? t("Chiedimi qualsiasi cosa… o fai un calcolo") : t("Continua…");
+
       input.disabled = sending;
       // Only when there is something to forget.
       fresh.style.display = State.chatHistory.length > 0 || file || text ? "" : "none";

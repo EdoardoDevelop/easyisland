@@ -9,6 +9,7 @@
 import { Bridge, IS_TAURI } from "../core/bridge";
 import type { IslandViewName } from "../core/layout";
 import { State } from "../core/state";
+import { locale, t } from "../core/i18n";
 
 /** One finished turn, as recap.rs stores it. Times are Unix seconds. */
 export interface RecapTurn {
@@ -87,7 +88,7 @@ export function shouldAutoShow(now: Date, lastShownWeek: string): boolean {
 
 // ── Aggregation ───────────────────────────────────────────────────────────────
 
-const DAY_NAMES = ["domenica", "lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato"];
+const DAY_NAMES = () => [t("domenica"), t("lunedì"), t("martedì"), t("mercoledì"), t("giovedì"), t("venerdì"), t("sabato")];
 
 /** recap.rs agent ids → the names of the island's pills. */
 const AGENT_NAMES: Record<string, string> = {
@@ -174,7 +175,7 @@ export function summarize(history: RecapHistory, weekStart: Date): WeeklySummary
     permissionsDenied: decisions.filter((d) => d.decision === "deny").length,
     topAgent: topAgent === null ? null : agentName(topAgent),
     topProject: topKey(byProject, byName),
-    busiestDay: busiest === null ? null : DAY_NAMES[busiest],
+    busiestDay: busiest === null ? null : DAY_NAMES()[busiest],
     longestSessionMinutes: Math.floor(Math.max(0, ...turns.map((t) => t.end - t.start)) / 60),
   };
 }
@@ -189,15 +190,16 @@ export function formatDuration(minutes: number): string {
   return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
 
-/** 1234 → "1.234"; 12345 → "12,3 mila": keeps a chip narrow. */
+/** 1234 → "1.234"; 12345 → "12,3 mila" ("12.3k"): keeps a chip narrow. */
 export function formatCount(n: number): string {
-  if (n >= 10_000) return `${(n / 1000).toLocaleString("it-IT", { maximumFractionDigits: n >= 100_000 ? 0 : 1 })} mila`;
-  return n.toLocaleString("it-IT");
+  if (n >= 10_000) return t("{n} mila", { n: (n / 1000).toLocaleString(locale(), { maximumFractionDigits: n >= 100_000 ? 0 : 1 }) });
+  return n.toLocaleString(locale());
 }
 
 /** "29 set – 5 ott". */
 export function weekRangeLabel(s: Pick<WeeklySummary, "weekStart" | "weekEnd">): string {
-  const f = (d: Date) => d.toLocaleDateString("it-IT", { day: "numeric", month: "short" }).replace(".", "");
+  const f = (d: Date) => d.toLocaleDateString(locale(), { day: "numeric", month: "short" }).replace(".", "");
+
   return `${f(s.weekStart)} – ${f(s.weekEnd)}`;
 }
 

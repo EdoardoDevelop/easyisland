@@ -214,6 +214,8 @@ export const Bridge = {
   recapClear: () => call<void>("recap_clear"),
   /** From the settings window: the island opens the recap. */
   recapShow: () => call<void>("recap_show"),
+  /** Lingua: the windows are rebuilt in the new language. */
+  restartApp: () => call<void>("restart_app"),
   /** Profiles, backup. */
   switchProfile: (id: string) => call<void>("switch_profile", { id }),
   settingsExport: () => callOrThrow<string>("settings_export"),

@@ -25,6 +25,7 @@ import { tabActions } from "../views/actions";
 import type { ApprovalInfo, Notice, QuickAction } from "../core/state";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
+import { t } from "../core/i18n";
 
 const BOT_OVERHANG = 40;
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
@@ -77,7 +78,7 @@ export class Island {
   /** What stays on screen while the island is hidden (the character or a dot). */
   private restIcon!: HTMLElement;
   /** Corner of the open island that sets its width and height. */
-  private resizeGrip = h("div", { id: "island-resize", title: "Trascina per cambiare larghezza e altezza · doppio clic: predefinite" });
+  private resizeGrip = h("div", { id: "island-resize", title: t("Trascina per cambiare larghezza e altezza · doppio clic: predefinite") });
   private restCanvas!: HTMLCanvasElement;
   private restDot!: HTMLElement;
   private restKey = "";
@@ -661,7 +662,7 @@ export class Island {
   private async askAboutSelection(prompt: string) {
     const r = await Bridge.captureSelection();
     if ("text" in r) {
-      this.startChat(prompt, { label: "Testo selezionato", text: r.text }, false);
+      this.startChat(prompt, { label: t("Testo selezionato"), text: r.text }, false);
       return;
     }
     this.draftChat(prompt);
@@ -791,7 +792,7 @@ export class Island {
       switch (a.kind) {
         case "url":
           if (!/^https?:\/\//i.test(a.target.trim())) {
-            this.note("Il link deve iniziare con http:// o https://");
+            this.note(t("Il link deve iniziare con http:// o https://"));
             return;
           }
           await Bridge.openUrl(a.target.trim());
@@ -814,7 +815,7 @@ export class Island {
         case "prompt": {
           if (a.input === "file") {
             if (!State.droppedFile) {
-              this.note("Rilascia prima un file sull'isola, poi scegli l'azione.");
+              this.note(t("Rilascia prima un file sull'isola, poi scegli l'azione."));
               return;
             }
             this.startChat(a.prompt, null, true);
@@ -831,7 +832,7 @@ export class Island {
               this.draftChat(a.prompt);
               return;
             }
-            context = { label: "Testo copiato", text };
+            context = { label: t("Testo copiato"), text };
           }
           this.startChat(a.prompt, context, false);
           break;
@@ -876,7 +877,7 @@ export class Island {
       // A picture copied (and no text): attach it instead.
       const picture = text ? null : await Bridge.clipboardPicture();
       if (picture) this.askAboutPicture(picture);
-      else this.startChat("", text ? { label: "Testo copiato", text } : null, false);
+      else this.startChat("", text ? { label: t("Testo copiato"), text } : null, false);
     } else if (name === "screenshot") {
       await this.captureScreen();
     } else if (name === "clipboard") {
@@ -886,7 +887,7 @@ export class Island {
     } else if (name === "pending") {
       const card = State.pendingCard();
       if (!card) {
-        State.noteMessage = "Nessuna richiesta in attesa.";
+        State.noteMessage = t("Nessuna richiesta in attesa.");
         this.setView("note");
         window.setTimeout(() => { if (State.view === "note") this.setView(State.defaultView()); }, 1800);
         return;
@@ -1020,8 +1021,8 @@ export class Island {
   /** A newer version is on GitHub: offer it, never install on our own. */
   showUpdate(version: string, current: string) {
     this.showNotice({
-      title: `EasyIsland ${version} è disponibile`,
-      text: `Ora hai la ${current}. Installando, l'app si chiude e si riapre da sola.`,
+      title: t("EasyIsland {version} è disponibile", { version }),
+      text: t("Ora hai la {current}. Installando, l'app si chiude e si riapre da sola.", { current }),
       level: "info",
       url: "",
       install: version,
@@ -1029,7 +1030,8 @@ export class Island {
   }
 
   private async installUpdate() {
-    State.noteMessage = "Scarico l'aggiornamento…";
+    State.noteMessage = t("Scarico l'aggiornamento…");
+
     this.setView("note");
     try {
       await Bridge.updateInstall();

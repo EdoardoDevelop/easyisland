@@ -19,6 +19,7 @@ import { planSummary, planText } from "../island/plan";
 import { permissionModeLabel } from "../island/hooks";
 import { renderMarkdown } from "../core/markdown";
 import { Bridge } from "../core/bridge";
+import { t } from "../core/i18n";
 
 export interface ViewActions extends ActionHandlers {
   setView(v: IslandViewName): void;
@@ -122,12 +123,12 @@ function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElem
 // ── Header ────────────────────────────────────────────────────────────────────
 
 export function buildHeader(actions: ViewActions): ViewHost {
-  const tabHome = h("button", { class: "tab", "data-id": "tab:home", title: "Panoramica", style: "--c:#38BDF8", onclick: () => {
+  const tabHome = h("button", { class: "tab", "data-id": "tab:home", title: t("Panoramica"), style: "--c:#38BDF8", onclick: () => {
     // Every integration at a glance; a click on one opens its card.
     State.summary = true;
     go("overview");
   } }, svg(ICONS.house, 16));
-  const tabClaude = h("button", { class: "tab", "data-id": "tab:claude", title: "Agenti: le sessioni di Claude Code, opencode e degli altri agenti", style: "--c:#D97757", onclick: () => {
+  const tabClaude = h("button", { class: "tab", "data-id": "tab:claude", title: t("Agenti: le sessioni di Claude Code, opencode e degli altri agenti"), style: "--c:#D97757", onclick: () => {
     // The agent heard from last (Claude Code, opencode, Codex…); the bar on the card switches.
     State.setFocus(State.latestSessionTask?.id ?? "integration_claude");
     go("overview");
@@ -141,23 +142,23 @@ export function buildHeader(actions: ViewActions): ViewHost {
     if (look === claudeLook) return;
     claudeLook = look;
     tabClaude.className = look === "@name" ? "tab int-tab" : look && look !== "@logo" ? "tab int-tab icon" : "tab";
-    tabClaude.replaceChildren(look === "@name" ? h("span", { text: "Agenti" })
+    tabClaude.replaceChildren(look === "@name" ? h("span", { text: t("Agenti") })
       : look === "@logo" ? brandIcon("integration_claude", 15) ?? svg(ICONS.spark, 15)
       : look ? h("span", { class: "int-tab-icon", text: look }) : svg(ICONS.terminal, 15));
   };
   drawClaudeTab();
-  const tabChat = h("button", { class: "tab", "data-id": "tab:chat", title: "Chiedi", style: "--c:#A78BFA", onclick: () => go("prompt") }, svg(ICONS.bubble, 16));
-  const tabDrop = h("button", { class: "tab", "data-id": "tab:drop", title: "Rilascia", style: "--c:#22C55E", onclick: () => go("upload") }, svg(ICONS.plus, 16));
-  const tabActions = h("button", { class: "tab", "data-id": "tab:actions", title: "Azioni", style: "--c:#F5A524", onclick: () => go("actions") }, svg(ICONS.bolt, 16));
+  const tabChat = h("button", { class: "tab", "data-id": "tab:chat", title: t("Chiedi"), style: "--c:#A78BFA", onclick: () => go("prompt") }, svg(ICONS.bubble, 16));
+  const tabDrop = h("button", { class: "tab", "data-id": "tab:drop", title: t("Rilascia"), style: "--c:#22C55E", onclick: () => go("upload") }, svg(ICONS.plus, 16));
+  const tabActions = h("button", { class: "tab", "data-id": "tab:actions", title: t("Azioni"), style: "--c:#F5A524", onclick: () => go("actions") }, svg(ICONS.bolt, 16));
   const fixedTabs = [tabHome, tabClaude, tabChat, tabActions, tabDrop];
 
-  const pinBtn = h("button", { title: "Tieni aperta", style: "--c:#A78BFA", onclick: () => {
+  const pinBtn = h("button", { title: t("Tieni aperta"), style: "--c:#A78BFA", onclick: () => {
     actions.blip();
     actions.toggleKeepOpen();
   } }, svg(ICONS.pin, 15));
-  const gearBtn = h("button", { title: "Impostazioni", style: "--c:#94A3B8", onclick: () => go("settings") }, svg(ICONS.gear, 16));
-  const soundBtn = h("button", { title: "Silenzia", style: "--c:#22D3EE", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 16));
-  const closeBtn = h("button", { title: "Chiudi", style: "--c:#F4505E", onclick: () => actions.dismiss() }, svg(ICONS.xmark, 14));
+  const gearBtn = h("button", { title: t("Impostazioni"), style: "--c:#94A3B8", onclick: () => go("settings") }, svg(ICONS.gear, 16));
+  const soundBtn = h("button", { title: t("Silenzia"), style: "--c:#22D3EE", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 16));
+  const closeBtn = h("button", { title: t("Chiudi"), style: "--c:#F4505E", onclick: () => actions.dismiss() }, svg(ICONS.xmark, 14));
 
   function go(v: IslandViewName) {
     actions.blip();
@@ -227,7 +228,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
       gearBtn.classList.toggle("on", v === "settings");
       pinBtn.classList.toggle("on", State.keepOpen);
       pinBtn.classList.toggle("pinned", State.keepOpen);
-      pinBtn.title = State.keepOpen ? "Resta aperta: clic per lasciarla chiudere da sola (Ctrl+P)" : "Tieni aperta (Ctrl+P)";
+      pinBtn.title = State.keepOpen ? t("Resta aperta: clic per lasciarla chiudere da sola (Ctrl+P)") : t("Tieni aperta (Ctrl+P)");
       clear(gearBtn);
       gearBtn.append(svg(v === "settings" ? ICONS.gearFill : ICONS.gear, 16));
       clear(soundBtn);
@@ -235,7 +236,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
       soundBtn.style.setProperty("--c", State.settings.soundEnabled ? "#22D3EE" : "#F4505E");
       el.style.opacity = v === "confused" ? "0" : "1";
       closeBtn.style.display = State.settings.closeButton ? "" : "none";
-      closeBtn.title = State.pendingApproval ? "Chiudi: rispondi nel terminale" : "Chiudi (Esc)";
+      closeBtn.title = State.pendingApproval ? t("Chiudi: rispondi nel terminale") : t("Chiudi (Esc)");
     },
   };
 }
@@ -272,7 +273,7 @@ function buildOverview(actions: ViewActions): ViewHost {
   let agentBarKey = "";
   const jump = h(
     "button",
-    { class: "icon-btn jump", title: "Apri", onclick: () => actions.openTarget() },
+    { class: "icon-btn jump", title: t("Apri"), onclick: () => actions.openTarget() },
     svg(ICONS.arrowUpRight, 12),
   );
   const left = card(null, agentBar, leftBody, jump);
@@ -476,7 +477,7 @@ function renderSummary(actions: ViewActions): HTMLElement {
     if (t.pillBadge) row.classList.add(`badge-${t.pillBadge}`);
     grid.append(row);
   }
-  if (!State.tasks.length) grid.append(h("span", { class: "hint", text: "Nessuna integrazione attiva" }));
+  if (!State.tasks.length) grid.append(h("span", { class: "hint", text: t("Nessuna integrazione attiva") }));
   // Dragged into the order the user wants: the same order as the pills.
   sortable(grid, { enabled: () => !State.settings.lockOrder, onReorder: (ids) => actions.reorder(ids) });
   return grid;
@@ -549,11 +550,11 @@ function buildEmpty(actions: ViewActions): ViewHost {
     h(
       "div",
       { style: "display:flex;flex-direction:column;gap:5px" },
-      h("div", { class: "title", text: "Nulla in esecuzione al momento." }),
-      h("div", { class: "sub", text: "Trascina un file o chiedimi qualsiasi cosa." }),
+      h("div", { class: "title", text: t("Nulla in esecuzione al momento.") }),
+      h("div", { class: "sub", text: t("Trascina un file o chiedimi qualsiasi cosa.") }),
     ),
     h("div", { class: "grow" }),
-    btn("Chiedi alla chat", "primary", () => actions.setView("prompt")),
+    btn(t("Chiedi alla chat"), "primary", () => actions.setView("prompt")),
   );
   return { el: h("div", { class: "view" }, card(null, body)), sync() {} };
 }
@@ -579,12 +580,12 @@ function buildApproval(actions: ViewActions): ViewHost {
       clear(who);
       if (State.pendingApproval?.source === "chat") {
         who.append(h("div", { class: "who-row" },
-          h("span", { class: "n", text: "La chat" }),
-          h("span", { text: "vuole usare un connettore" })));
+          h("span", { class: "n", text: t("La chat") }),
+          h("span", { text: t("vuole usare un connettore") })));
       } else {
-        const t = State.focusTask;
-        const asks = State.pendingApproval?.plan ? "ha un piano pronto" : "chiede un permesso";
-        who.append(agentWho(t, t?.agentName ? `· ${t.agentName} ${asks}` : asks));
+        const task = State.focusTask;
+        const asks = State.pendingApproval?.plan ? t("ha un piano pronto") : t("chiede un permesso");
+        who.append(agentWho(task, task?.agentName ? `· ${task.agentName} ${asks}` : asks));
       }
       // The whole point of approving here rather than in the terminal: this line
       // is the command, the file path or the URL being authorised, not just the
@@ -602,7 +603,7 @@ function buildApproval(actions: ViewActions): ViewHost {
       risk.style.display = risks.length ? "" : "none";
       // A chat's card has "Sempre" only when its engine offered it (opencode, read-only commands).
       const rule = State.pendingApproval?.always;
-      always.textContent = rule ? `Sempre: ${rule}` : "";
+      always.textContent = rule ? t("Sempre: {rule}", { rule }) : "";
       always.style.display = rule ? "" : "none";
       // Rebuilt only when a request with or without "Sempre" comes in: rebuilding
       // between a mouse-down and a mouse-up would swallow the click.
@@ -610,13 +611,13 @@ function buildApproval(actions: ViewActions): ViewHost {
       if (rowKey === key) return;
       rowKey = key;
       clear(row);
-      row.append(btn("Nega", "secondary", () => actions.decide("deny"), "N"));
+      row.append(btn(t("Nega"), "secondary", () => actions.decide("deny"), "N"));
       if (rule) {
-        const b = btn("Sempre", "secondary", () => actions.decide("always"), "S");
-        b.title = "Consenti e non chiedere più (la regola proposta dall'agente)";
+        const b = btn(t("Sempre"), "secondary", () => actions.decide("always"), "S");
+        b.title = t("Consenti e non chiedere più (la regola proposta dall'agente)");
         row.append(b);
       }
-      row.append(btn("Consenti", "primary", () => actions.decide("allow"), "Y"));
+      row.append(btn(t("Consenti"), "primary", () => actions.decide("allow"), "Y"));
     },
     // The "Sempre" line can wrap: grow rather than slide under the buttons.
     fitHeight: () => who.offsetHeight + risk.offsetHeight + code.offsetHeight + plan.offsetHeight + always.offsetHeight
@@ -677,7 +678,7 @@ function buildAsk(actions: ViewActions): ViewHost {
       clear(foot);
       if (!q) return;
       who.append(agentWho(State.focusTask,
-        all.length > 1 ? `ha ${all.length} domande · ${index + 1} di ${all.length}` : "ha una domanda"));
+        all.length > 1 ? t("ha {n} domande · {i} di {n}", { n: all.length, i: index + 1 }) : t("ha una domanda")));
       title.textContent = q.question;
       q.options.forEach((o, i) => {
         // 1–9 pick the option from the keyboard (onIslandKey in island.ts).
@@ -693,13 +694,13 @@ function buildAsk(actions: ViewActions): ViewHost {
         options.append(b);
       });
       const go = h("button", { class: "btn primary ask-go", "data-key": "Enter",
-        text: index + 1 < all.length ? "Avanti" : "Invia" }) as HTMLButtonElement;
+        text: index + 1 < all.length ? t("Avanti") : t("Invia") }) as HTMLButtonElement;
       go.disabled = true;
       go.addEventListener("click", () => {
         if (picked.size) next(q, q.options.map((o) => o.label).filter((l) => picked.has(l)).join(", "));
       });
       // Anything the buttons cannot say: typed here, sent as the answer.
-      const other = h("input", { class: "ask-other", type: "text", placeholder: "Altro… scrivi la risposta e premi Invio" }) as HTMLInputElement;
+      const other = h("input", { class: "ask-other", type: "text", placeholder: t("Altro… scrivi la risposta e premi Invio") }) as HTMLInputElement;
       other.addEventListener("pointerdown", () => void Bridge.focusWindow(true));
       other.addEventListener("focus", () => void Bridge.focusWindow(true));
       other.addEventListener("keydown", (e) => {
@@ -713,7 +714,7 @@ function buildAsk(actions: ViewActions): ViewHost {
       options.append(other);
       // opencode asks in its own window too (opencode_agent.rs): the link brings it back.
       const inOpencode = State.focusTask?.sessionHost === "opencode";
-      foot.append(h("button", { class: "link-btn", text: inOpencode ? "Rispondi in opencode" : "Rispondi nel terminale", onclick: () => {
+      foot.append(h("button", { class: "link-btn", text: inOpencode ? t("Rispondi in opencode") : t("Rispondi nel terminale"), onclick: () => {
         if (inOpencode) actions.openTarget();
         actions.handToTerminal();
       } }));
@@ -727,7 +728,7 @@ function buildAsk(actions: ViewActions): ViewHost {
 function buildQuestion(actions: ViewActions): ViewHost {
   const who = h("div");
   const title = h("div", { class: "title" });
-  const open = btn("Apri terminale", "primary", () => actions.openTerminal());
+  const open = btn(t("Apri terminale"), "primary", () => actions.openTerminal());
   const note = h("div", { class: "sub" });
   const row = h("div", { class: "actions" }, open, note);
   const el = h("div", { class: "view" }, card("cyan", stack(116, 16, who, title, row)));
@@ -737,10 +738,10 @@ function buildQuestion(actions: ViewActions): ViewHost {
       clear(who);
       const task = State.focusTask;
       // Gemini CLI asks its permissions in its own terminal: say who, and take you there.
-      who.append(agentWho(task, task?.agentName ? `${task.agentName} aspetta una risposta` : "Claude Code ha una domanda"));
-      title.textContent = task?.steps.at(-1) ?? "Claude ha bisogno di una risposta.";
+      who.append(agentWho(task, task?.agentName ? t("{name} aspetta una risposta", { name: task.agentName }) : t("Claude Code ha una domanda")));
+      title.textContent = task?.steps.at(-1) ?? t("Claude ha bisogno di una risposta.");
       (open.firstChild as HTMLElement).textContent = sessionOpenLabel(task?.sessionHost);
-      note.textContent = "Si risponde nel suo terminale.";
+      note.textContent = t("Si risponde nel suo terminale.");
     },
   };
 }
@@ -749,15 +750,15 @@ function buildQuestion(actions: ViewActions): ViewHost {
 
 function buildError(actions: ViewActions): ViewHost {
   const who = h("div");
-  const title = h("div", { class: "title", text: "Workflow interrotto." });
+  const title = h("div", { class: "title", text: t("Workflow interrotto.") });
   const detail = h("div", { class: "detail" });
   // n8n opens its editor; a Claude Code session goes back to the app it runs in.
-  const open = btn("Apri in n8n", "secondary", () => {
+  const open = btn(t("Apri in n8n"), "secondary", () => {
     if (State.focusTask?.source === "n8n") actions.openUrl("");
     else actions.openTerminal();
   });
   const row = h("div", { class: "actions" },
-    btn("Riprova", "primary", () => actions.setView(State.defaultView())),
+    btn(t("Riprova"), "primary", () => actions.setView(State.defaultView())),
     open,
   );
   const el = h("div", { class: "view" }, card("red", stack(116, 16, who, title, detail, row)));
@@ -767,10 +768,10 @@ function buildError(actions: ViewActions): ViewHost {
       const task = State.focusTask;
       clear(who);
       who.append(agentWho(task, task?.source === "n8n" ? "n8n" : task?.agentName ?? "Claude Code"));
-      title.textContent = task?.source === "n8n" ? "Workflow interrotto." : "Sessione interrotta da un errore.";
-      detail.textContent = task?.steps.at(-1) ?? "Nessun dettaglio disponibile.";
+      title.textContent = task?.source === "n8n" ? t("Workflow interrotto.") : t("Sessione interrotta da un errore.");
+      detail.textContent = task?.steps.at(-1) ?? t("Nessun dettaglio disponibile.");
       (open.firstChild as HTMLElement).textContent =
-        task?.source === "n8n" ? "Apri in n8n" : sessionOpenLabel(task?.sessionHost);
+        task?.source === "n8n" ? t("Apri in n8n") : sessionOpenLabel(task?.sessionHost);
     },
   };
 }
@@ -795,7 +796,7 @@ function plainText(md: string): string {
 function buildFinished(actions: ViewActions): ViewHost {
   const who = h("div");
   const title = h("div", { class: "title" });
-  const open = btn("Apri terminale", "primary", () => actions.openTerminal());
+  const open = btn(t("Apri terminale"), "primary", () => actions.openTerminal());
   const row = h("div", { class: "actions" },
     open,
     btn("OK", "secondary", () => actions.collapse()),
@@ -809,7 +810,7 @@ function buildFinished(actions: ViewActions): ViewHost {
       // Claude's last message when the relay found it, else the last step.
       const said = State.focusTask?.lastMessage;
       title.classList.toggle("last-msg", !!said);
-      title.textContent = said ? plainText(said) : State.focusTask?.steps.at(-1) ?? "Sessione terminata";
+      title.textContent = said ? plainText(said) : State.focusTask?.steps.at(-1) ?? t("Sessione terminata");
       // "Apri Claude", "Apri VS Code" or "Apri terminale": where the session runs.
       (open.firstChild as HTMLElement).textContent = sessionOpenLabel(State.focusTask?.sessionHost);
     },
@@ -825,8 +826,8 @@ function buildConfused(): ViewHost {
   const body = h(
     "div",
     { class: "stack", style: "padding:0 18px 0 128px" },
-    h("div", { class: "title", text: "Troppi colpi tutti insieme." }),
-    h("div", { class: "sub", text: "Dammi un attimo: torno al lavoro tra tre secondi." }),
+    h("div", { class: "title", text: t("Troppi colpi tutti insieme.") }),
+    h("div", { class: "sub", text: t("Dammi un attimo: torno al lavoro tra tre secondi.") }),
   );
   return { el: h("div", { class: "view" }, card("pink", body)), sync() {} };
 }
@@ -847,7 +848,7 @@ function buildNote(): ViewHost {
 // ── Notice (easyisland-hook notify) ───────────────────────────────────────────────
 
 const NOTICE_WASH: Record<string, Wash> = { ok: "green", warn: "amber", error: "red", info: "indigo" };
-const NOTICE_LABEL: Record<string, string> = { ok: "fatto", warn: "attenzione", error: "errore", info: "notifica" };
+const NOTICE_LABEL: Record<string, string> = { ok: t("fatto"), warn: t("attenzione"), error: t("errore"), info: t("notifica") };
 
 /** A message from any script: `easyisland-hook notify "Titolo" "Testo" --stato ok`. */
 function buildNotify(actions: ViewActions): ViewHost {
@@ -867,26 +868,26 @@ function buildNotify(actions: ViewActions): ViewHost {
       clear(host);
       if (!n) return;
       clear(who);
-      who.append(h("span", { class: "n", text: "Notifica" }), h("span", { text: NOTICE_LABEL[n.level] ?? "" }));
+      who.append(h("span", { class: "n", text: t("Notifica") }), h("span", { text: NOTICE_LABEL[n.level] ?? "" }));
       title.textContent = n.title || n.text;
       text.textContent = n.title ? n.text : "";
       clear(row);
       if (n.suggestion) {
         const fp = n.suggestion;
-        who.firstChild!.textContent = "Proposta";
+        who.firstChild!.textContent = t("Proposta");
         row.append(
-          btn(n.suggestionAccept || "Crea", "primary", () => actions.answerSuggestion(fp, "create")),
-          btn("Non ora", "secondary", () => actions.answerSuggestion(fp, "snooze")),
-          btn("No, mai", "secondary", () => actions.answerSuggestion(fp, "dismiss")),
+          btn(n.suggestionAccept || t("Crea"), "primary", () => actions.answerSuggestion(fp, "create")),
+          btn(t("Non ora"), "secondary", () => actions.answerSuggestion(fp, "snooze")),
+          btn(t("No, mai"), "secondary", () => actions.answerSuggestion(fp, "dismiss")),
         );
       } else if (n.install) {
         // A new version: installed only with this click.
         row.append(
-          btn("Installa", "primary", () => actions.installUpdate()),
-          btn("Più tardi", "secondary", () => actions.collapse()),
+          btn(t("Installa"), "primary", () => actions.installUpdate()),
+          btn(t("Più tardi"), "secondary", () => actions.collapse()),
         );
       } else {
-        if (n.url) row.append(btn("Apri", "primary", () => { actions.openUrl(n.url); actions.collapse(); }));
+        if (n.url) row.append(btn(t("Apri"), "primary", () => { actions.openUrl(n.url); actions.collapse(); }));
         row.append(btn("OK", n.url ? "secondary" : "primary", () => actions.collapse()));
       }
       host.append(card(NOTICE_WASH[n.level] ?? "indigo", stack(116, 16, who, title, text, row)));
@@ -912,7 +913,7 @@ function buildSettings(actions: ViewActions): ViewHost {
   const rows = h(
     "div",
     { class: "settings-rows" },
-    h("div", { class: "settings-row" }, soundSwitch, h("span", { text: "Suono" }), volume),
+    h("div", { class: "settings-row" }, soundSwitch, h("span", { text: t("Suono") }), volume),
     h(
       "div",
       { class: "settings-row" },
@@ -929,7 +930,7 @@ function buildSettings(actions: ViewActions): ViewHost {
       h("button", {
         class: "link-btn",
         style: "color:#8e939c;font-size:11.5px",
-        text: "Impostazioni…",
+        text: t("Impostazioni…"),
         onclick: () => actions.openSettingsWindow(),
       }),
     ),
@@ -950,7 +951,7 @@ function buildSettings(actions: ViewActions): ViewHost {
       clear(claudeBadge);
       claudeBadge.append(
         dot(s.hooksInstalled ? "#22C55E" : "#F4505E", 6),
-        h("span", { text: "Claude Code" }),
+        h("span", { text: t("Claude Code") }),
       );
       clear(apiBadge);
       apiBadge.append(
@@ -1002,8 +1003,8 @@ export function buildViews(
   map.set("diff", buildDiff(actions));
   map.set("recap", buildRecap(actions));
   // Not in the Windows v1: sending a file by email, window attach + web result.
-  map.set("mail", buildPlaceholder("L'invio via email non è disponibile in questa versione.", ""));
-  map.set("searching", buildPlaceholder("Claude sta cercando…", ""));
-  map.set("result", buildPlaceholder("Risultato", ""));
+  map.set("mail", buildPlaceholder(t("L'invio via email non è disponibile in questa versione."), ""));
+  map.set("searching", buildPlaceholder(t("Claude sta cercando…"), ""));
+  map.set("result", buildPlaceholder(t("Risultato"), ""));
   return map;
 }

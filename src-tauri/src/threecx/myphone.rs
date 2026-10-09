@@ -17,6 +17,7 @@ use serde_json::{json, Value};
 
 use super::pb::{Msg, Writer};
 use super::{Call, Contact, Device, HistoryItem, Profile};
+use crate::i18n::{t, tf};
 
 pub const T_MY_INFO_REQUEST: i64 = 102;
 pub const T_CHANGE_STATUS: i64 = 103;
@@ -66,19 +67,19 @@ pub async fn open(http: &reqwest::Client, base: &str, user: &str, password: &str
         .json(&json!({ "Username": user, "Password": password, "SecurityCode": "", "ReCaptchaResponse": null }))
         .send()
         .await
-        .map_err(|e| format!("Centralino non raggiungibile: {e}"))?;
+        .map_err(|e| tf("Centralino non raggiungibile: {e}", &[("e", &e)]))?;
     let status = resp.status();
     let jar = cookies(&resp);
     let body: Value = resp.json().await.unwrap_or(Value::Null);
     let login = field(&body, "Status").and_then(Value::as_str).unwrap_or("");
     if login.eq_ignore_ascii_case("Required2FA") {
-        return Err("Il centralino chiede il codice di verifica in due passaggi: per ora non è supportato, usa la modalità API".into());
+        return Err(t("Il centralino chiede il codice di verifica in due passaggi: per ora non è supportato, usa la modalità API").into());
     }
     if !status.is_success() || (!login.is_empty() && !login.eq_ignore_ascii_case("AuthSuccess")) {
         return Err(match status.as_u16() {
-            401 | 403 => "Interno o password non validi".into(),
-            _ if !login.is_empty() => format!("Accesso rifiutato ({login})"),
-            code => format!("Accesso non riuscito ({code})"),
+            401 | 403 => t("Interno o password non validi").into(),
+            _ if !login.is_empty() => tf("Accesso rifiutato ({login})", &[("login", &login)]),
+            code => tf("Accesso non riuscito ({code})", &[("code", &code)]),
         });
     }
 
@@ -89,12 +90,12 @@ pub async fn open(http: &reqwest::Client, base: &str, user: &str, password: &str
         .form(&[("client_id", CLIENT), ("grant_type", "refresh_token")])
         .send()
         .await
-        .map_err(|e| format!("Token non ottenuto: {e}"))?;
+        .map_err(|e| tf("Token non ottenuto: {e}", &[("e", &e)]))?;
     if !resp.status().is_success() {
-        return Err(format!("Token non ottenuto ({})", resp.status().as_u16()));
+        return Err(tf("Token non ottenuto ({code})", &[("code", &resp.status().as_u16())]));
     }
     let token: Value = resp.json().await.map_err(|e| e.to_string())?;
-    let access = field(&token, "access_token").and_then(Value::as_str).ok_or("Il centralino non ha dato un token")?.to_string();
+    let access = field(&token, "access_token").and_then(Value::as_str).ok_or(t("Il centralino non ha dato un token"))?.to_string();
 
     let resp = http
         .post(format!("{base}/webclient/api/MyPhone/session"))
@@ -102,12 +103,12 @@ pub async fn open(http: &reqwest::Client, base: &str, user: &str, password: &str
         .json(&json!({ "name": CLIENT, "version": CLIENT_VERSION, "isHuman": true }))
         .send()
         .await
-        .map_err(|e| format!("Sessione non aperta: {e}"))?;
+        .map_err(|e| tf("Sessione non aperta: {e}", &[("e", &e)]))?;
     if !resp.status().is_success() {
-        return Err(format!("Sessione non aperta ({})", resp.status().as_u16()));
+        return Err(tf("Sessione non aperta ({code})", &[("code", &resp.status().as_u16())]));
     }
     let s: Value = resp.json().await.map_err(|e| e.to_string())?;
-    let key = field(&s, "sessionKey").and_then(Value::as_str).ok_or("Sessione senza chiave")?.to_string();
+    let key = field(&s, "sessionKey").and_then(Value::as_str).ok_or(t("Sessione senza chiave"))?.to_string();
     let pass = field(&s, "pass").and_then(Value::as_str).unwrap_or_default().to_string();
     Ok(Session { base: base.to_string(), key, pass })
 }
@@ -129,18 +130,18 @@ impl Session {
             .body(payload)
             .send()
             .await
-            .map_err(|e| format!("Centralino non raggiungibile: {e}"))?;
+            .map_err(|e| tf("Centralino non raggiungibile: {e}", &[("e", &e)]))?;
         if resp.status().as_u16() == 401 || resp.status().as_u16() == 403 {
-            return Err("Sessione scaduta".into());
+            return Err(t("Sessione scaduta").into());
         }
         if !resp.status().is_success() {
-            return Err(format!("Richiesta rifiutata ({})", resp.status().as_u16()));
+            return Err(tf("Richiesta rifiutata ({code})", &[("code", &resp.status().as_u16())]));
         }
         let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
-        let (id, msg) = unwrap(&bytes).ok_or("Risposta del centralino non leggibile")?;
+        let (id, msg) = unwrap(&bytes).ok_or(t("Risposta del centralino non leggibile"))?;
         if id == T_ACK && msg.bool(1) != Some(true) {
             let text = msg.str(3).or_else(|| msg.str(5)).filter(|s| !s.is_empty());
-            return Err(text.unwrap_or_else(|| format!("Operazione non riuscita (errore {})", msg.int(2).unwrap_or(0))));
+            return Err(text.unwrap_or_else(|| tf("Operazione non riuscita (errore {code})", &[("code", &msg.int(2).unwrap_or(0))])));
         }
         Ok((id, msg))
     }
@@ -353,17 +354,17 @@ pub fn device_name(agent: &str) -> String {
         }
     }
     let short: String = agent.split(['(', '/']).next().unwrap_or(agent).trim().chars().take(40).collect();
-    if short.is_empty() { "Telefono".into() } else { short }
+    if short.is_empty() { t("Telefono").into() } else { short }
 }
 
 /// V20's built-in statuses, in Italian.
 pub fn profile_name(name: &str) -> String {
     match name.to_lowercase().as_str() {
-        "available" => "Disponibile",
-        "away" => "Assente",
-        "out of office" | "do not disturb" | "dnd" => "Non disturbare",
-        "custom 1" | "lunch" => "Pausa pranzo",
-        "custom 2" | "business trip" => "Trasferta",
+        "available" => t("Disponibile"),
+        "away" => t("Assente"),
+        "out of office" | "do not disturb" | "dnd" => t("Non disturbare"),
+        "custom 1" | "lunch" => t("Pausa pranzo"),
+        "custom 2" | "business trip" => t("Trasferta"),
         _ => return name.to_string(),
     }
     .into()

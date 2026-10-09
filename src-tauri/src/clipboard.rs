@@ -37,6 +37,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 use crate::clipimage::{self, Rgba};
 use crate::files::DroppedFile;
 use crate::integrations::{self, IntegrationUpdate};
+use crate::i18n::t;
 
 pub const ID: &str = "integration_clipboard";
 const WM_CLIPBOARDUPDATE: u32 = 0x031D;
@@ -367,11 +368,11 @@ fn transform(text: &str, how: &str) -> Result<String, String> {
         "trim" => text.lines().map(str::trim_end).collect::<Vec<_>>().join("\n").trim().to_string(),
         "json" => {
             let v: serde_json::Value =
-                serde_json::from_str(text.trim()).map_err(|_| "Il testo non è JSON valido".to_string())?;
+                serde_json::from_str(text.trim()).map_err(|_| t("Il testo non è JSON valido").to_string())?;
             serde_json::to_string_pretty(&v).map_err(|e| e.to_string())?
         }
         "urldecode" => url_decode(text.trim()),
-        _ => return Err("Trasformazione sconosciuta".into()),
+        _ => return Err(t("Trasformazione sconosciuta").into()),
     })
 }
 
@@ -399,10 +400,10 @@ pub fn use_entry(app: &AppHandle, id: u64, how: &str, paste: bool) -> Result<(),
         .iter()
         .find(|c| c.id == id)
         .cloned()
-        .ok_or_else(|| "Elemento non più negli appunti".to_string())?;
+        .ok_or_else(|| t("Elemento non più negli appunti").to_string())?;
     if let Some(picture) = &clip.picture {
         if !how.is_empty() {
-            return Err("Le immagini non si possono trasformare".into());
+            return Err(t("Le immagini non si possono trasformare").into());
         }
         clipimage::write(&clipimage::decode_png(&picture.png)?)?;
         // The listener sees the same picture and leaves it be: move it up here.
@@ -434,8 +435,9 @@ pub fn picture_to_inbox(id: u64) -> Result<DroppedFile, String> {
         .iter()
         .find(|c| c.id == id)
         .and_then(|c| c.picture.as_ref().map(|p| p.png.clone()))
-        .ok_or_else(|| "Immagine non più negli appunti".to_string())?;
-    crate::files::save_new(&crate::screenshot::file_name("Immagine copiata"), &png)
+        .ok_or_else(|| t("Immagine non più negli appunti").to_string())?;
+    crate::files::save_new(&crate::screenshot::file_name(t("Immagine copiata")), &png)
+
 }
 
 pub fn pin(app: &AppHandle, id: u64, pinned: bool) {

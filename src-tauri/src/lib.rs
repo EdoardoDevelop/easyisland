@@ -42,6 +42,7 @@ mod profiles;
 mod screenshot;
 mod secrets;
 mod settings;
+mod i18n;
 mod recap;
 mod start_apps;
 mod threecx;
@@ -69,6 +70,7 @@ use hooks::{HookPreview, HookStatus};
 use island::{PollGate, ScreenInfo};
 use pipe::Pending;
 use settings::Settings;
+use crate::i18n::{t, tf};
 
 /// Label of the settings window (automations log updates go there).
 pub const SETTINGS_LABEL: &str = "settings";
@@ -109,6 +111,7 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
     // Whatever was edited belongs to the active profile.
     let mut settings = settings.migrated();
     settings.commit_active();
+    i18n::set(&settings.language);
     let (screen_changed, autostart_changed) = {
         let mut current = shared.settings.lock().unwrap();
         let screen_changed = current.screen != settings.screen
@@ -186,13 +189,13 @@ fn settings_export(shared: State<Shared>) -> Result<String, String> {
         .map(|h| h.join("Documents"))
         .filter(|d| d.is_dir())
         .or(home)
-        .ok_or_else(|| "Cartella Documenti non trovata.".to_string())?;
+        .ok_or_else(|| t("Cartella Documenti non trovata.").to_string())?;
     let t = unsafe { windows::Win32::System::SystemInformation::GetLocalTime() };
     let path = dir.join(format!(
         "EasyIsland-impostazioni-{:04}{:02}{:02}-{:02}{:02}.json",
         t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute
     ));
-    std::fs::write(&path, text).map_err(|e| format!("Esportazione non riuscita: {e}"))?;
+    std::fs::write(&path, text).map_err(|e| tf("Esportazione non riuscita: {e}", &[("e", &e)]))?;
     let _ = reveal_in_explorer(&path);
     Ok(path.display().to_string())
 }
@@ -210,7 +213,7 @@ fn reveal_in_explorer(path: &std::path::Path) -> std::io::Result<std::process::C
 fn settings_import(app: AppHandle, shared: State<Shared>, text: String) -> Result<Settings, String> {
     let next = shared.settings.lock().unwrap().import_json(&text)?;
     *shared.settings.lock().unwrap() = next.clone();
-    settings::save(&next).map_err(|e| format!("Salvataggio non riuscito: {e}"))?;
+    settings::save(&next).map_err(|e| tf("Salvataggio non riuscito: {e}", &[("e", &e)]))?;
     log::line("settings imported".to_string());
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
     island::apply_geometry(&app, &shared.gate, &next, collapsed);
@@ -226,6 +229,12 @@ fn settings_import(app: AppHandle, shared: State<Shared>, text: String) -> Resul
 #[tauri::command]
 fn action_open_app(target: String, args: String) -> Result<(), String> {
     actions::open_app(&target, &args)
+}
+
+/// Impostazioni → Lingua: the island and the menus are built in one language.
+#[tauri::command]
+fn restart_app(app: AppHandle) {
+    app.restart();
 }
 
 /// Impostazioni → «Mostra il riepilogo»: the island opens it, as from the tray.
@@ -280,7 +289,7 @@ async fn widget_refresh(app: AppHandle, shared: State<'_, Shared>, id: String) -
     let widget = widgets::all_widgets(&shared.settings.lock().unwrap())
         .into_iter()
         .find(|w| w.id == id)
-        .ok_or_else(|| "Widget non trovato".to_string())?;
+        .ok_or_else(|| t("Widget non trovato").to_string())?;
     widgets::run_now(&app, &widget).await;
     Ok(())
 }
@@ -357,7 +366,7 @@ fn focus_window(app: AppHandle, focused: bool) {
 /// "Copia info PC": everything a ticket asks for, put on the clipboard.
 #[tauri::command]
 async fn copy_pc_info() -> Result<String, String> {
-    let text = probes::pc_info_text().await.map_err(|e| format!("Informazioni non leggibili: {e}"))?;
+    let text = probes::pc_info_text().await.map_err(|e| tf("Informazioni non leggibili: {e}", &[("e", &e)]))?;
     let t = text.clone();
     tauri::async_runtime::spawn_blocking(move || actions::set_clipboard_text(&t))
         .await
@@ -373,8 +382,9 @@ fn notify_test(app: AppHandle) {
         "hook",
         serde_json::json!({
             "hook_event_name": "EasyIslandNotify",
-            "title": "Prova",
-            "text": "Così compare un messaggio mandato da uno script.",
+            "title": i18n::t("Prova"),
+            "text": i18n::t("Così compare un messaggio mandato da uno script."),
+
             "level": "ok",
             "url": "",
         }),
@@ -904,7 +914,7 @@ fn automation_run_now(app: AppHandle, id: String) -> Result<(), String> {
 #[tauri::command]
 async fn inbox_drag(app: AppHandle, name: String) -> Result<(), String> {
     let path = files::inbox_path(&name)?;
-    let win = island::window(&app).ok_or("Isola non trovata")?;
+    let win = island::window(&app).ok_or(t("Isola non trovata"))?;
     let hwnd = win.hwnd().map_err(|e| e.to_string())?.0 as isize;
     let (tx, rx) = std::sync::mpsc::channel();
     // Windows' drag loop belongs on the window's thread.
@@ -1039,7 +1049,7 @@ fn create_settings_window(app: &AppHandle) {
     let url = settings_page_url(app);
     match WebviewWindowBuilder::new(app, "settings", url)
         .additional_browser_args(BROWSER_ARGS)
-        .title("Impostazioni — EasyIsland")
+        .title(i18n::t("Impostazioni — EasyIsland"))
         .inner_size(980.0, 720.0)
         .min_inner_size(760.0, 520.0)
         .resizable(true)
@@ -1080,6 +1090,7 @@ pub fn run() {
     // First launch after the rename: bring Coucou's settings and keys over.
     let moved = legacy::migrate();
     let mut loaded = settings::load();
+    i18n::set(&loaded.language);
     // Zammad's address and token, when a widget became the integration (schema 5).
     settings::apply_pending_secrets(&mut loaded);
     let gate = Arc::new(PollGate::new());
@@ -1183,6 +1194,7 @@ pub fn run() {
             recap::recap_mark_shown,
             recap::recap_clear,
             recap_show,
+            restart_app,
             inbox_open,
             inbox_drag,
             mouse_button_down,

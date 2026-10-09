@@ -322,7 +322,7 @@ calendario, posta…); prende il colore dell'azione.
 
 **Scorciatoie globali**, valide in ogni app (modificabili):
 
-- `Ctrl+Alt+Shift+M` apre Slime sulle azioni (o sulla chat se non ce ne sono);
+- `Ctrl+Space` apre Slime sulle azioni (o sulla chat se non ce ne sono);
 - `Ctrl+Alt+K` apre la chat con il testo (o l'immagine) copiato già allegato: scrivi la domanda;
 - `Ctrl+Alt+H` apre la cronologia degli **Appunti** (se l'integrazione è accesa);
 - `Ctrl+Alt+Shift+S` **cattura una zona dello schermo** (con lo Strumento di

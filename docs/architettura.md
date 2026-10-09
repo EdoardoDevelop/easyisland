@@ -50,6 +50,12 @@
 - Le pagine sono in `pages()` di `src/settings/main.ts`. «Chat» = motore e connettori (`claudeChatSection`). «Agenti» = una riga per agente (`agentsSection`, `agentRow`; l'id di pagina è ancora `claude`). Altre sezioni: `automationsSection` e `actionsSection`.
 - `commit()` salva soltanto; `render()` ricostruisce la pagina intera e si chiama solo quando cambia la struttura (non mentre si scrive).
 
+## Lingua
+- Italiano o inglese (`settings.language`: `""` = come Windows, `"it"`, `"en"`). Un solo dizionario, `src/i18n/en.json`, chiave = testo italiano, usato da TypeScript (`src/core/i18n.ts`: `t`, `tn`, `locale()`) e da Rust (`src-tauri/src/i18n.rs`: `t`, `tf`, `english()`, `prompt()` per la lingua delle risposte della chat).
+- Le finestre sono costruite in una lingua sola: la pagina la sa prima che giri qualunque modulo (`localStorage` `easyisland.lang`, condiviso da isola e impostazioni; `?lang=en` nell'anteprima). Dopo il boot `syncLanguage` la allinea alle impostazioni (ricarica una volta). Cambiarla in Generale → Lingua offre «Riavvia ora» (`restart_app`); Rust cambia subito.
+- `scripts/check-i18n.mjs` (dentro `npm run build`) trova ogni `t("…")`/`tn`/`N_` nel TypeScript e `t`/`tf` nei file Rust che usano `crate::i18n`, e fallisce se manca l'inglese. Restano in italiano di proposito: i messaggi del relay (`hook/`, salvo «Chiede un permesso nel terminale», tradotto nell'isola), le descrizioni degli strumenti e le risposte per il modello (`agent.rs`, `mcp.rs`), le etichette di «Copia info PC».
+- Giorni e mesi abbreviati in Rust non passano dal dizionario («mar» è sia martedì sia marzo): tabelle inglesi accanto a quelle italiane (`calendar.rs`, `usage.rs`).
+
 ## Suoni
 - I 28 suoni sono sintetizzati in `src/core/synth.ts` e riprodotti da `src/core/sound.ts`. Si ascoltano in `dev/sounds-preview.html`. Il volume di ciascuno è tarato sul WAV originale che ha sostituito.
 

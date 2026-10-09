@@ -28,6 +28,7 @@ use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::island::WINDOW_LABEL;
+use crate::i18n::{t, tf};
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const TICK: Duration = Duration::from_secs(5);
@@ -182,7 +183,7 @@ pub async fn probe(w: &Widget) -> WidgetResult {
             let (host, id) = (w.host.clone(), w.id.clone());
             tauri::async_runtime::spawn_blocking(move || ping(&id, &host))
                 .await
-                .unwrap_or_else(|_| WidgetResult::new(&w.id, "error", "Controllo interrotto"))
+                .unwrap_or_else(|_| WidgetResult::new(&w.id, "error", t("Controllo interrotto")))
         }
         "tcp" => tcp(w).await,
         "http" => http(w).await,
@@ -191,7 +192,7 @@ pub async fn probe(w: &Widget) -> WidgetResult {
             let (svc, id) = (w.service.clone(), w.id.clone());
             tauri::async_runtime::spawn_blocking(move || service(&id, &svc))
                 .await
-                .unwrap_or_else(|_| WidgetResult::new(&w.id, "error", "Controllo interrotto"))
+                .unwrap_or_else(|_| WidgetResult::new(&w.id, "error", t("Controllo interrotto")))
         }
         "json" => json_api(w).await,
         "system" => crate::probes::system(w).await,
@@ -203,7 +204,7 @@ pub async fn probe(w: &Widget) -> WidgetResult {
         "outlook" => crate::outlook::probe(w).await,
         "zammad" => crate::zammad::probe(w).await,
         "claude_usage" => crate::usage::probe(w).await,
-        other => WidgetResult::new(&w.id, "error", format!("Tipo di widget sconosciuto: {other}")),
+        other => WidgetResult::new(&w.id, "error", tf("Tipo di widget sconosciuto: {other}", &[("other", &other)])),
     }
 }
 
@@ -244,14 +245,14 @@ pub(crate) fn icmp_ms(ip: std::net::Ipv4Addr, timeout_ms: u32) -> Option<u32> {
 
 fn ping(id: &str, host: &str) -> WidgetResult {
     let Some(ip) = ipv4_of(host) else {
-        return WidgetResult::new(id, "error", format!("{host}: nome non risolto"));
+        return WidgetResult::new(id, "error", tf("{host}: nome non risolto", &[("host", &host)]));
     };
     let Some(ms) = icmp_ms(ip, 2000) else {
-        return WidgetResult::new(id, "error", format!("{host} non risponde"));
+        return WidgetResult::new(id, "error", tf("{host} non risponde", &[("host", &host)]));
     };
-    let mut res = WidgetResult::new(id, "ok", format!("{host} risponde in {ms} ms"));
-    res.fields.push(FieldValue { label: "Indirizzo".into(), value: ip.to_string() });
-    res.fields.push(FieldValue { label: "Tempo".into(), value: format!("{ms} ms") });
+    let mut res = WidgetResult::new(id, "ok", tf("{host} risponde in {ms} ms", &[("host", &host), ("ms", &ms)]));
+    res.fields.push(FieldValue { label: t("Indirizzo").into(), value: ip.to_string() });
+    res.fields.push(FieldValue { label: t("Tempo").into(), value: format!("{ms} ms") });
     res
 }
 
@@ -265,7 +266,7 @@ async fn tcp(w: &Widget) -> WidgetResult {
             format!("{addr} aperta ({} ms)", start.elapsed().as_millis()),
         ),
         Ok(Err(e)) => WidgetResult::new(&w.id, "error", format!("{addr} chiusa: {e}")),
-        Err(_) => WidgetResult::new(&w.id, "error", format!("{addr} non risponde")),
+        Err(_) => WidgetResult::new(&w.id, "error", tf("{addr} non risponde", &[("addr", &addr)])),
     }
 }
 
@@ -283,9 +284,9 @@ fn valid_url(url: &str) -> bool {
 
 async fn http(w: &Widget) -> WidgetResult {
     if !valid_url(&w.url) {
-        return WidgetResult::new(&w.id, "error", "Indirizzo non valido (serve http:// o https://)");
+        return WidgetResult::new(&w.id, "error", t("Indirizzo non valido (serve http:// o https://)"));
     }
-    let Some(client) = client() else { return WidgetResult::new(&w.id, "error", "HTTP non disponibile") };
+    let Some(client) = client() else { return WidgetResult::new(&w.id, "error", t("HTTP non disponibile")) };
     let start = Instant::now();
     match client.get(&w.url).send().await {
         Ok(resp) => {
@@ -297,13 +298,13 @@ async fn http(w: &Widget) -> WidgetResult {
                 if ok { "ok" } else { "error" },
                 format!("HTTP {code} in {ms} ms"),
             );
-            r.fields.push(FieldValue { label: "Stato".into(), value: code.to_string() });
-            r.fields.push(FieldValue { label: "Tempo".into(), value: format!("{ms} ms") });
+            r.fields.push(FieldValue { label: t("Stato").into(), value: code.to_string() });
+            r.fields.push(FieldValue { label: t("Tempo").into(), value: format!("{ms} ms") });
             r
         }
         Err(e) => {
-            let why = if e.is_timeout() { "tempo scaduto".to_string() } else { e.to_string() };
-            WidgetResult::new(&w.id, "error", format!("Non risponde: {why}"))
+            let why = if e.is_timeout() { t("tempo scaduto").to_string() } else { e.to_string() };
+            WidgetResult::new(&w.id, "error", tf("Non risponde: {why}", &[("why", &why)]))
         }
     }
 }
@@ -335,24 +336,24 @@ async fn tls(w: &Widget) -> WidgetResult {
             let line = err.lines().find(|l| !l.trim().is_empty()).unwrap_or("errore").trim().to_string();
             return WidgetResult::new(&w.id, "error", format!("{host}: {line}"));
         }
-        _ => return WidgetResult::new(&w.id, "error", format!("{host}: nessuna risposta")),
+        _ => return WidgetResult::new(&w.id, "error", tf("{host}: nessuna risposta", &[("host", &host)])),
     };
     let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
     let (expiry, issuer) = text.split_once('|').unwrap_or((text.as_str(), ""));
     let Some(days) = days_until(expiry) else {
-        return WidgetResult::new(&w.id, "error", format!("{host}: scadenza non leggibile"));
+        return WidgetResult::new(&w.id, "error", tf("{host}: scadenza non leggibile", &[("host", &host)]));
     };
     let warn = if w.warn_days <= 0 { 30 } else { w.warn_days };
     let level = if days < 0 { "error" } else if days <= 7 { "error" } else if days <= warn { "warn" } else { "ok" };
     let summary = if days < 0 {
-        format!("Certificato di {host} scaduto da {} giorni", -days)
+        tf("Certificato di {host} scaduto da {days} giorni", &[("host", &host), ("days", &-days)])
     } else {
-        format!("Certificato di {host}: scade tra {days} giorni")
+        tf("Certificato di {host}: scade tra {days} giorni", &[("host", &host), ("days", &days)])
     };
     let mut r = WidgetResult::new(&w.id, level, summary);
-    r.fields.push(FieldValue { label: "Scadenza".into(), value: expiry.get(..10).unwrap_or(expiry).to_string() });
+    r.fields.push(FieldValue { label: t("Scadenza").into(), value: expiry.get(..10).unwrap_or(expiry).to_string() });
     if !issuer.is_empty() {
-        r.fields.push(FieldValue { label: "Emesso da".into(), value: issuer.to_string() });
+        r.fields.push(FieldValue { label: t("Emesso da").into(), value: issuer.to_string() });
     }
     r
 }
@@ -391,24 +392,25 @@ fn service(id: &str, name: &str) -> WidgetResult {
     let name = name.trim();
     unsafe {
         let Ok(scm) = OpenSCManagerW(None, None, SC_MANAGER_CONNECT) else {
-            return WidgetResult::new(id, "error", "Gestione servizi non accessibile");
+            return WidgetResult::new(id, "error", t("Gestione servizi non accessibile"));
         };
         let result = match OpenServiceW(scm, &HSTRING::from(name), SERVICE_QUERY_STATUS) {
             Ok(svc) => {
                 let mut st = SERVICE_STATUS::default();
                 let r = if QueryServiceStatus(svc, &mut st).is_ok() {
                     if st.dwCurrentState == SERVICE_RUNNING {
-                        WidgetResult::new(id, "ok", format!("Servizio {name} in esecuzione"))
+                        WidgetResult::new(id, "ok", tf("Servizio {name} in esecuzione", &[("name", &name)]))
+
                     } else {
                         WidgetResult::new(id, "error", format!("Servizio {name} fermo (stato {})", st.dwCurrentState.0))
                     }
                 } else {
-                    WidgetResult::new(id, "error", format!("Stato di {name} non leggibile"))
+                    WidgetResult::new(id, "error", tf("Stato di {name} non leggibile", &[("name", &name)]))
                 };
                 let _ = CloseServiceHandle(svc);
                 r
             }
-            Err(_) => WidgetResult::new(id, "error", format!("Servizio {name} non trovato")),
+            Err(_) => WidgetResult::new(id, "error", tf("Servizio {name} non trovato", &[("name", &name)])),
         };
         let _ = CloseServiceHandle(scm);
         result
@@ -484,9 +486,9 @@ pub fn alert_fires(root: &Value, a: &Alert) -> bool {
 
 async fn json_api(w: &Widget) -> WidgetResult {
     if !valid_url(&w.url) {
-        return WidgetResult::new(&w.id, "error", "Indirizzo non valido (serve http:// o https://)");
+        return WidgetResult::new(&w.id, "error", t("Indirizzo non valido (serve http:// o https://)"));
     }
-    let Some(client) = client() else { return WidgetResult::new(&w.id, "error", "HTTP non disponibile") };
+    let Some(client) = client() else { return WidgetResult::new(&w.id, "error", t("HTTP non disponibile")) };
     let mut req = if w.method.eq_ignore_ascii_case("POST") { client.post(&w.url) } else { client.get(&w.url) };
     req = req.header("Accept", "application/json");
     for h in &w.headers {
@@ -501,7 +503,7 @@ async fn json_api(w: &Widget) -> WidgetResult {
     }
     let resp = match req.send().await {
         Ok(r) => r,
-        Err(e) => return WidgetResult::new(&w.id, "error", format!("Non risponde: {e}")),
+        Err(e) => return WidgetResult::new(&w.id, "error", tf("Non risponde: {e}", &[("e", &e)])),
     };
     let code = resp.status();
     if !code.is_success() {
@@ -509,7 +511,7 @@ async fn json_api(w: &Widget) -> WidgetResult {
     }
     let body: Value = match resp.json().await {
         Ok(v) => v,
-        Err(_) => return WidgetResult::new(&w.id, "error", "La risposta non è JSON"),
+        Err(_) => return WidgetResult::new(&w.id, "error", t("La risposta non è JSON")),
     };
     let firing = w.alert.as_ref().is_some_and(|a| alert_fires(&body, a));
     let mut r = WidgetResult::new(&w.id, if firing { "warn" } else { "ok" }, "");
@@ -601,7 +603,7 @@ pub fn start(app: AppHandle) {
 
 /// "Aggiorna" in the island, or "Prova" in the settings: one check, now.
 pub async fn run_once(app: &AppHandle, widget: Value) -> Result<WidgetResult, String> {
-    let w: Widget = serde_json::from_value(widget).map_err(|e| format!("Widget non valido: {e}"))?;
+    let w: Widget = serde_json::from_value(widget).map_err(|e| tf("Widget non valido: {e}", &[("e", &e)]))?;
     Ok(run_now(app, &w).await)
 }
 

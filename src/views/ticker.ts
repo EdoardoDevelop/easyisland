@@ -15,6 +15,7 @@ import { h, svg } from "./dom";
 import { ICONS } from "./icons";
 import { cubicBezier, clamp, lerp } from "../core/anim";
 import type { AgentTask } from "../core/state";
+import { t } from "../core/i18n";
 
 const ROW_H = 22;
 /** One step transition, milliseconds. */
@@ -92,7 +93,7 @@ function setText(row: Row, text: string) {
   const diff = COUNTS.test(text);
   row.el.classList.toggle("has-diff", diff);
   // A failed test's reason rarely fits the row: all of it on hover.
-  row.el.title = diff ? "Mostra le modifiche" : TEST_MARK.test(text) ? text : "";
+  row.el.title = diff ? t("Mostra le modifiche") : TEST_MARK.test(text) ? text : "";
 }
 
 /**

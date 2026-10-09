@@ -19,6 +19,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use crate::island::WINDOW_LABEL;
 use crate::log;
 use crate::secrets;
+use crate::i18n::{t, tf};
 
 const TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -135,9 +136,9 @@ fn is_new(key: &'static str, id: &str) -> bool {
 
 fn status_error(code: u16, unauthorised_hint: &str) -> String {
     match code {
-        401 => "Chiave API non valida (401)".into(),
+        401 => t("Chiave API non valida (401)").into(),
         403 => unauthorised_hint.into(),
-        _ => format!("Errore API {code}"),
+        _ => tf("Errore API {code}", &[("code", &code)]),
     }
 }
 
@@ -180,7 +181,7 @@ async fn poll_stripe(app: AppHandle) {
             emit(&app, IntegrationUpdate {
                 id: "integration_stripe",
                 data: json!({}),
-                error: Some(status_error(code, "Usa una chiave segreta (sk_live_…, non pk_live_…)")),
+                error: Some(status_error(code, t("Usa una chiave segreta (sk_live_…, non pk_live_…)"))),
                 event: None,
             });
             return;
@@ -189,7 +190,7 @@ async fn poll_stripe(app: AppHandle) {
             emit(&app, IntegrationUpdate {
                 id: "integration_stripe",
                 data: json!({}),
-                error: Some(format!("Nessuna connessione: {e}")),
+                error: Some(tf("Nessuna connessione: {e}", &[("e", &e)])),
                 event: None,
             });
             return;
@@ -280,7 +281,7 @@ async fn poll_github(app: AppHandle) {
         emit(&app, IntegrationUpdate {
             id: "integration_github",
             data: json!({}),
-            error: Some(status_error(response.status().as_u16(), "Il token non ha i permessi necessari")),
+            error: Some(status_error(response.status().as_u16(), t("Il token non ha i permessi necessari"))),
             event: None,
         });
         return;
@@ -338,7 +339,7 @@ async fn poll_vercel(app: AppHandle) {
         emit(&app, IntegrationUpdate {
             id: "integration_vercel",
             data: json!({}),
-            error: Some(status_error(response.status().as_u16(), "Il token non ha accesso")),
+            error: Some(status_error(response.status().as_u16(), t("Il token non ha accesso"))),
             event: None,
         });
         return;
@@ -472,7 +473,7 @@ async fn poll_notion(app: AppHandle) {
         emit(&app, IntegrationUpdate {
             id: "integration_notion",
             data: json!({}),
-            error: Some(status_error(response.status().as_u16(), "L'integrazione non ha accesso")),
+            error: Some(status_error(response.status().as_u16(), t("L'integrazione non ha accesso"))),
             event: None,
         });
         return;
@@ -496,7 +497,7 @@ fn parse_notion_page(obj: &Value) -> Option<Value> {
     let id = obj.get("id")?.as_str()?;
     let is_database = obj.get("object").and_then(Value::as_str) == Some("database");
 
-    let mut title = "Senza titolo".to_string();
+    let mut title = t("Senza titolo").to_string();
     if is_database {
         if let Some(text) = obj
             .get("title")
@@ -585,7 +586,7 @@ async fn poll_calcom(app: AppHandle) {
                         .filter(|s| !s.is_empty());
                     Some(json!({
                         "id": b.get("id").map(|v| v.to_string()).unwrap_or_default(),
-                        "title": b.get("title").and_then(Value::as_str).unwrap_or("Riunione"),
+                        "title": b.get("title").and_then(Value::as_str).unwrap_or(t("Riunione")),
                         "start": start,
                         "status": b.get("status").and_then(Value::as_str).unwrap_or("accepted"),
                         "attendeeName": attendee.and_then(|a| a.get("name")).and_then(Value::as_str),
@@ -664,7 +665,7 @@ async fn poll_n8n(app: AppHandle) {
         format!("{base}/rest/executions/{id}?includeData=true"),
         format!("{base}/rest/executions/{id}"),
     ];
-    let mut name = "Workflow".to_string();
+    let mut name = t("Workflow").to_string();
     let mut detail = None;
     for url in &detail_urls {
         let Ok(response) = http.get(url).header("X-N8N-API-KEY", &key).header("Accept", "application/json").send().await
@@ -734,7 +735,12 @@ fn n8n_detail(json: &Value, success: bool) -> Option<String> {
         .first()?
         .as_array()?;
     let count = items.len();
-    let header = format!("→ {last_node} · {count} element{}", if count == 1 { "o" } else { "i" });
+    let header = if count == 1 {
+        tf("→ {node} · 1 elemento", &[("node", &last_node)])
+    } else {
+        tf("→ {node} · {count} elementi", &[("node", &last_node), ("count", &count)])
+    };
+
 
     let fields = items
         .first()

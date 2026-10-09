@@ -1,3 +1,4 @@
+import { t } from "../core/i18n";
 // The agent's plan ("2/4 · Aggiorno i test"), rebuilt from the tool calls that
 // write it, read on PreToolUse (the input is the plan; no response needed):
 //   - Claude Code: TodoWrite { todos: [{ content, status, activeForm }] }, the
@@ -92,8 +93,9 @@ export function planSummary(plan: PlanItem[] | undefined): PlanSummary | null {
 /** The ticker step for a plan update: "Piano · Aggiorno i test" or "Piano · tutto fatto". */
 export function planStep(plan: PlanItem[]): string {
   const s = planSummary(plan);
-  if (!s) return "Piano";
-  return s.current ? `Piano · ${s.current}` : `Piano · tutto fatto (${s.done}/${s.total})`;
+  if (!s) return t("Piano");
+  return s.current ? t("Piano · {step}", { step: s.current }) : t("Piano · tutto fatto ({done}/{total})", { done: s.done, total: s.total });
+
 }
 
 /** The plan as a list, for the tooltip of "2/4". */

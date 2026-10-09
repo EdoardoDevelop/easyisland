@@ -12,6 +12,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::Serialize;
+use crate::i18n::{t, tf};
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 /// Output kept for the island; a script printing megabytes is cut, not shown.
@@ -93,7 +94,7 @@ pub fn open_app(target: &str, args: &str) -> Result<(), String> {
     let target = clean_target(target);
     let target = target.as_str();
     if target.is_empty() {
-        return Err("Nessun programma indicato.".into());
+        return Err(t("Nessun programma indicato.").into());
     }
     let path = Path::new(target);
     // A folder or a document: Explorer knows what to do with it.
@@ -101,7 +102,7 @@ pub fn open_app(target: &str, args: &str) -> Result<(), String> {
         std::process::Command::new("explorer")
             .arg(target)
             .spawn()
-            .map_err(|e| format!("Impossibile aprire {target}: {e}"))?;
+            .map_err(|e| tf("Impossibile aprire {target}: {e}", &[("target", &target), ("e", &e)]))?;
         return Ok(());
     }
     match std::process::Command::new(target).args(split_args(args)).spawn() {
@@ -110,7 +111,7 @@ pub fn open_app(target: &str, args: &str) -> Result<(), String> {
         // reads App Paths (chrome, winword, excel), opens shell: and ms-settings:
         // targets and asks for elevation when a program wants it (regedit):
         // the usual reasons a "Programma" action did not start.
-        Err(e) => shell_execute(target, args).map_err(|_| format!("Impossibile avviare {target}: {e}")),
+        Err(e) => shell_execute(target, args).map_err(|_| tf("Impossibile avviare {target}: {e}", &[("target", &target), ("e", &e)])),
     }
 }
 
@@ -154,7 +155,8 @@ pub struct ScriptResult {
 fn truncate(mut s: String) -> String {
     if s.chars().count() > MAX_OUTPUT_CHARS {
         s = s.chars().take(MAX_OUTPUT_CHARS).collect();
-        s.push_str("\n… (output troncato)");
+        s.push_str(t("\n… (output troncato)"));
+
     }
     s
 }
@@ -184,7 +186,7 @@ pub async fn run_script(run_id: &str, shell: &str, script: &str) -> Result<Scrip
         .kill_on_drop(true)
         .creation_flags(CREATE_NO_WINDOW);
 
-    let child = cmd.spawn().map_err(|e| format!("Lo script non parte: {e}"))?;
+    let child = cmd.spawn().map_err(|e| tf("Lo script non parte: {e}", &[("e", &e)]))?;
     if let Some(pid) = child.id() {
         RUNNING.lock().unwrap().get_or_insert_with(HashMap::new).insert(run_id.to_string(), pid);
     }
@@ -203,7 +205,7 @@ pub async fn run_script(run_id: &str, shell: &str, script: &str) -> Result<Scrip
             }
             Ok(ScriptResult { code: out.status.code(), output: truncate(text), timed_out: false })
         }
-        Ok(Err(e)) => Err(format!("Lo script si è interrotto: {e}")),
+        Ok(Err(e)) => Err(tf("Lo script si è interrotto: {e}", &[("e", &e)])),
         Err(_) => {
             if let Some(pid) = pid {
                 kill_tree(pid);
@@ -288,7 +290,7 @@ pub fn set_clipboard_text(text: &str) -> Result<(), String> {
             std::thread::sleep(Duration::from_millis(20));
         }
         if !opened {
-            return Err("Gli appunti sono occupati da un'altra app".into());
+            return Err(t("Gli appunti sono occupati da un'altra app").into());
         }
         let result = (|| {
             EmptyClipboard().map_err(|e| e.to_string())?;
@@ -296,14 +298,14 @@ pub fn set_clipboard_text(text: &str) -> Result<(), String> {
             let ptr = GlobalLock(mem) as *mut u16;
             if ptr.is_null() {
                 let _ = GlobalFree(Some(mem));
-                return Err("memoria non disponibile".to_string());
+                return Err(t("memoria non disponibile").to_string());
             }
             std::ptr::copy_nonoverlapping(wide.as_ptr(), ptr, wide.len());
             let _ = GlobalUnlock(mem);
             // On success the clipboard owns the memory.
             if SetClipboardData(CF_UNICODETEXT.0 as u32, Some(HANDLE(mem.0))).is_err() {
                 let _ = GlobalFree(Some(mem));
-                return Err("copia non riuscita".to_string());
+                return Err(t("copia non riuscita").to_string());
             }
             Ok(())
         })();

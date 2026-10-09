@@ -11,6 +11,7 @@ import { fileActions } from "./actions";
 import { renderActionIcon } from "./action-icons";
 import { Bridge } from "../core/bridge";
 import type { ViewActions, ViewHost } from "./views";
+import { locale, t } from "../core/i18n";
 
 /** Dashed rounded rect drawn as SVG so the dashes can march like on macOS. */
 function dashedFrame(): SVGSVGElement {
@@ -33,22 +34,22 @@ function dashedFrame(): SVGSVGElement {
 
 export function buildUpload(actions: ViewActions): ViewHost {
   const frame = dashedFrame();
-  const title = h("div", { class: "drop-title", text: "Rilascia qui i tuoi file" });
+  const title = h("div", { class: "drop-title", text: t("Rilascia qui i tuoi file") });
   const tags = h(
     "div",
     { class: "drop-tags" },
-    ...["PDF", "Immagini", "Codice", "Documenti"].map((t) => h("span", { text: t })),
+    ...["PDF", t("Immagini"), t("Codice"), t("Documenti")].map((label) => h("span", { text: label })),
   );
   // The tray: what was dropped since EasyIsland started.
   const history = h("button", {
-    class: "drop-history", title: "I file rilasciati sull'isola: da trascinare in un'altra app, aprire o chiedere alla chat",
+    class: "drop-history", title: t("I file rilasciati sull'isola: da trascinare in un'altra app, aprire o chiedere alla chat"),
     onclick: () => actions.openFiles(),
-  }, h("span", { text: "Vassoio" }), h("span", { class: "arrow", text: "›" }));
+  }, h("span", { text: t("Vassoio") }), h("span", { class: "arrow", text: "›" }));
   // A picture of the screen instead of a file: Windows' own snipping overlay.
   const capture = h("button", {
-    class: "drop-history drop-capture", title: "Cattura una zona dello schermo e chiedi alla chat",
+    class: "drop-history drop-capture", title: t("Cattura una zona dello schermo e chiedi alla chat"),
     onclick: () => actions.captureScreen(),
-  }, renderActionIcon("i:camera", 13), h("span", { text: "Cattura una zona" }));
+  }, renderActionIcon("i:camera", 13), h("span", { text: t("Cattura una zona") }));
   const links = h("div", { class: "drop-links" }, capture, history);
   const card = h(
     "div",
@@ -87,7 +88,7 @@ export function buildUploading(): ViewHost {
       const pct = Math.round(State.uploadProgress * 100);
       label.textContent = done
         ? `✓  ${State.droppedFile?.name ?? "File"}`
-        : `Caricamento di ${State.droppedFile?.name ?? "file"}`;
+        : t("Caricamento di {name}", { name: State.droppedFile?.name ?? "file" });
       label.classList.toggle("done", done);
       percent.textContent = done ? "" : `${pct} %`;
       const w = State.uploadProgress * 526;
@@ -101,7 +102,7 @@ export function buildUploading(): ViewHost {
 
 export function buildChoose(actions: ViewActions): ViewHost {
   const title = h("div", { class: "title" });
-  const sub = h("div", { class: "sub", text: "Cosa vuoi farne?" });
+  const sub = h("div", { class: "sub", text: t("Cosa vuoi farne?") });
   const row = h("div", { class: "actions" });
   let rowKey: string | null = null;
   const el = h(
@@ -120,7 +121,7 @@ export function buildChoose(actions: ViewActions): ViewHost {
       clear(title);
       title.append(
         h("b", { text: State.droppedFile?.name ?? "file" }),
-        document.createTextNode(" è pronto."),
+        document.createTextNode(t(" è pronto.")),
       );
 
       // The user's file actions sit between the question and the way out.
@@ -132,24 +133,24 @@ export function buildChoose(actions: ViewActions): ViewHost {
       row.append(
         h("button", {
           class: "btn primary",
-          text: "Fai una domanda",
+          text: t("Fai una domanda"),
           onclick: () => actions.setView("prompt"),
         }),
         ...list.map((a) => h("button", {
           class: "btn secondary",
-          text: a.name || "Senza nome",
+          text: a.name || t("Senza nome"),
           title: a.prompt,
           onclick: () => actions.runAction(a),
         })),
         h("button", {
           class: "btn secondary",
-          text: "Vassoio",
-          title: "Tieni il file nel vassoio",
+          text: t("Vassoio"),
+          title: t("Tieni il file nel vassoio"),
           onclick: () => actions.openFiles(),
         }),
         h("button", {
           class: "btn secondary",
-          text: "Annulla",
+          text: t("Annulla"),
           onclick: () => actions.cancelDrop(),
         }),
       );
@@ -166,7 +167,7 @@ function size(bytes: number): string {
     v /= 1024;
     i++;
   }
-  return `${v.toLocaleString("it-IT", { maximumFractionDigits: v < 10 ? 1 : 0 })} ${units[i]}`;
+  return `${v.toLocaleString(locale(), { maximumFractionDigits: v < 10 ? 1 : 0 })} ${units[i]}`;
 }
 
 /** "Estrai…" on a dropped ZIP: what is inside and where to put it. */
@@ -199,43 +200,43 @@ export function buildUnzip(actions: ViewActions): ViewHost {
 
       switch (u.status) {
         case "loading":
-          sub.textContent = "Leggo il contenuto…";
-          row.append(btn("Annulla", "secondary", back));
+          sub.textContent = t("Leggo il contenuto…");
+          row.append(btn(t("Annulla"), "secondary", back));
           break;
         case "ready":
         case "working": {
           const info = u.info!;
-          sub.textContent = `${info.count} file · ${size(info.size)} una volta estratti`;
+          sub.textContent = t("{n} file · {size} una volta estratti", { n: info.count, size: size(info.size) });
           for (const n of info.names) list.append(h("div", { class: "zip-item", text: n }));
           if (info.count > info.names.length) {
             list.append(h("div", { class: "zip-item more", text: `…e altri ${info.count - info.names.length}` }));
           }
           if (u.status === "working") {
-            row.append(h("div", { class: "sub", text: "Estraggo…" }));
+            row.append(h("div", { class: "sub", text: t("Estraggo…") }));
           } else if (file.source) {
             row.append(
-              btn("Estrai accanto all'originale", "primary", () => actions.extractZip("beside")),
-              btn("In Download", "secondary", () => actions.extractZip("downloads")),
-              btn("Sul Desktop", "secondary", () => actions.extractZip("desktop")),
-              btn("Annulla", "secondary", back),
+              btn(t("Estrai accanto all'originale"), "primary", () => actions.extractZip("beside")),
+              btn(t("In Download"), "secondary", () => actions.extractZip("downloads")),
+              btn(t("Sul Desktop"), "secondary", () => actions.extractZip("desktop")),
+              btn(t("Annulla"), "secondary", back),
             );
           } else {
             row.append(
-              btn("Estrai in Download", "primary", () => actions.extractZip("downloads")),
-              btn("Sul Desktop", "secondary", () => actions.extractZip("desktop")),
-              btn("Annulla", "secondary", back),
+              btn(t("Estrai in Download"), "primary", () => actions.extractZip("downloads")),
+              btn(t("Sul Desktop"), "secondary", () => actions.extractZip("desktop")),
+              btn(t("Annulla"), "secondary", back),
             );
           }
           break;
         }
         case "done":
-          sub.textContent = "Estratto in una nuova cartella, già aperta in Esplora file:";
+          sub.textContent = t("Estratto in una nuova cartella, già aperta in Esplora file:");
           list.append(h("div", { class: "zip-item dest", text: u.message }));
-          row.append(btn("Fatto", "primary", back));
+          row.append(btn(t("Fatto"), "primary", back));
           break;
         case "error":
           sub.textContent = u.message;
-          row.append(btn("Chiudi", "secondary", back));
+          row.append(btn(t("Chiudi"), "secondary", back));
           break;
       }
     },
@@ -267,7 +268,7 @@ export function buildFiles(actions: ViewActions): ViewHost {
   const layoutBtn = h("button", { class: "files-layout" }) as HTMLButtonElement;
   const showLayout = () => {
     layoutBtn.textContent = grid ? "☰" : "▦";
-    layoutBtn.title = grid ? "Mostra come elenco" : "Mostra come griglia";
+    layoutBtn.title = grid ? t("Mostra come elenco") : t("Mostra come griglia");
     list.classList.toggle("grid", grid);
   };
   layoutBtn.addEventListener("click", () => {
@@ -278,12 +279,12 @@ export function buildFiles(actions: ViewActions): ViewHost {
     State.notify();
   });
   const head = h("div", { class: "files-head" },
-    h("button", { class: "files-back", title: "Indietro", text: "‹", onclick: () => actions.setView("upload") }),
-    h("b", { text: "Vassoio" }), count, layoutBtn, clearAll);
+    h("button", { class: "files-back", title: t("Indietro"), text: "‹", onclick: () => actions.setView("upload") }),
+    h("b", { text: t("Vassoio") }), count, layoutBtn, clearAll);
   const list = h("div", { class: "files-list" });
   showLayout();
   const note = h("div", { class: "files-note",
-    text: "Trascina un file in un'altra app per usarlo. Sono copie: gli originali restano dove sono. Il vassoio si svuota quando EasyIsland si riavvia, tranne i file fissati con la puntina." });
+    text: t("Trascina un file in un'altra app per usarlo. Sono copie: gli originali restano dove sono. Il vassoio si svuota quando EasyIsland si riavvia, tranne i file fissati con la puntina.") });
   const body = h("div", { class: "files-body" }, head, list, note);
   const el = h("div", { class: "view" }, h("div", { class: "card files-card" }, body));
 
@@ -294,14 +295,14 @@ export function buildFiles(actions: ViewActions): ViewHost {
 
   const resetClear = () => {
     confirming = false;
-    clearAll.textContent = "Svuota";
+    clearAll.textContent = t("Svuota");
     clearAll.classList.remove("confirm");
   };
   clearAll.addEventListener("click", async () => {
     if (!confirming) {
       // Two clicks: everything goes at once, and there is no undo.
       confirming = true;
-      clearAll.textContent = "Sicuro? Clic per svuotare";
+      clearAll.textContent = t("Sicuro? Clic per svuotare");
       clearAll.classList.add("confirm");
       window.clearTimeout(confirmTimer);
       confirmTimer = window.setTimeout(resetClear, 3500);
@@ -321,7 +322,7 @@ export function buildFiles(actions: ViewActions): ViewHost {
   };
   const pinBtn = (kept: boolean, fn: () => void) =>
     h("button", { class: kept ? "clip-btn on" : "clip-btn", style: "--c:#A78BFA",
-      title: kept ? "Non tenere più (si toglie al prossimo riavvio)" : "Tieni anche dopo il riavvio e «Svuota»",
+      title: kept ? t("Non tenere più (si toglie al prossimo riavvio)") : t("Tieni anche dopo il riavvio e «Svuota»"),
       onclick: (e: Event) => { e.stopPropagation(); fn(); } }, svg(ICONS.pin, 13));
 
   return {
@@ -336,13 +337,13 @@ export function buildFiles(actions: ViewActions): ViewHost {
       clearAll.style.display = files.some((f) => !f.kept) ? "" : "none";
       clear(list);
       if (files.length === 0) {
-        list.append(h("div", { class: "files-empty", text: "Il vassoio è vuoto. I file che rilasci sull'isola restano qui finché EasyIsland è aperto." }));
+        list.append(h("div", { class: "files-empty", text: t("Il vassoio è vuoto. I file che rilasci sull'isola restano qui finché EasyIsland è aperto.") }));
         return;
       }
       for (const f of files) {
         const err = h("span", { class: "files-err" });
         const fail = (e: unknown) => { err.textContent = String(e).replace(/^Error:\s*/, ""); };
-        const row = h("div", { class: f.kept ? "files-row kept" : "files-row", title: "Trascina in un'altra app · doppio clic: apri",
+        const row = h("div", { class: f.kept ? "files-row kept" : "files-row", title: t("Trascina in un'altra app · doppio clic: apri"),
           ondblclick: () => void Bridge.inboxOpen(f.name, false).catch(fail) },
         grid ? h("span", { class: "files-ext", text: (f.name.match(/\.([^.]{1,5})$/)?.[1] ?? "file").toUpperCase() }) : null,
         h("div", { class: "files-info" },
@@ -350,11 +351,12 @@ export function buildFiles(actions: ViewActions): ViewHost {
           h("span", { class: "files-meta", text: `${f.kept ? "📌 fissato · " : ""}${size(f.size)} · ${ago(f.at)}` }),
           err),
         h("span", { class: "files-tools" },
-          iconBtn("chat", "Chiedi alla chat su questo file", "#A78BFA", () => actions.askAboutFile(f)),
-          iconBtn("file", "Apri", "#38BDF8", () => void Bridge.inboxOpen(f.name, false).catch(fail)),
-          iconBtn("folder", "Mostra nella cartella", "#F5A524", () => void Bridge.inboxOpen(f.name, true).catch(fail)),
+          iconBtn("chat", t("Chiedi alla chat su questo file"), "#A78BFA", () => actions.askAboutFile(f)),
+          iconBtn("file", t("Apri"), "#38BDF8", () => void Bridge.inboxOpen(f.name, false).catch(fail)),
+          iconBtn("folder", t("Mostra nella cartella"), "#F5A524", () => void Bridge.inboxOpen(f.name, true).catch(fail)),
           pinBtn(!!f.kept, () => void Bridge.inboxKeep(f.name, !f.kept).then(() => actions.refreshFiles()).catch(fail)),
-          iconBtn("trash", "Togli dal vassoio", "#F4505E", () => {
+          iconBtn("trash", t("Togli dal vassoio"), "#F4505E", () => {
+
             void Bridge.inboxDelete(f.name).then(() => actions.refreshFiles()).catch(fail);
           })));
         // Pressed and moved past a few pixels: Windows' drag takes over, so the

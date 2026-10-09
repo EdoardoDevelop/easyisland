@@ -7,6 +7,7 @@ import { renderActionIcon } from "./action-icons";
 import { suggestionsFor, type Suggestion } from "../island/context";
 import { State, folderLook, type QuickAction } from "../core/state";
 import type { ViewHost } from "./views";
+import { t } from "../core/i18n";
 
 export interface ActionHandlers {
   runAction(a: QuickAction): void;
@@ -19,10 +20,10 @@ export interface ActionHandlers {
 }
 
 const KIND_HINT: Record<QuickAction["kind"], string> = {
-  url: "Apre un link",
-  app: "Avvia un programma",
-  script: "Esegue uno script",
-  prompt: "Chiede alla chat",
+  url: t("Apre un link"),
+  app: t("Avvia un programma"),
+  script: t("Esegue uno script"),
+  prompt: t("Chiede alla chat"),
 };
 
 const isFileAction = (a: QuickAction) => a.kind === "prompt" && a.input === "file";
@@ -36,7 +37,7 @@ const builtin = (id: string, name: string, color: string): QuickAction => ({
 /** The actions offered on "Cosa vuoi farne?" after a drop: built-ins, then prompts applied to the file. */
 export function fileActions(): QuickAction[] {
   const name = State.droppedFile?.name.toLowerCase() ?? "";
-  const extras = name.endsWith(".zip") ? [builtin("unzip", "Estrai…", "#F5A524")] : [];
+  const extras = name.endsWith(".zip") ? [builtin("unzip", t("Estrai…"), "#F5A524")] : [];
   return [...extras, ...(State.settings.actions ?? []).filter(isFileAction)];
 }
 
@@ -55,7 +56,7 @@ function actionButton(a: QuickAction, onClick: () => void): HTMLElement {
       onclick: onClick,
     },
     h("span", { class: "qa-icon" }, renderActionIcon(a.icon, 18)),
-    h("span", { class: "qa-name", text: a.name || "Senza nome" }),
+    h("span", { class: "qa-name", text: a.name || t("Senza nome") }),
   );
   b.style.setProperty("--qa", color);
   return b;
@@ -68,7 +69,7 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
   const grid = h("div", { class: "qa-grid" });
   const suggest = h("div", { class: "qa-suggest" });
   // Search across every action, folders included.
-  const search = h("input", { type: "text", class: "qa-search", placeholder: "Cerca un'azione", spellcheck: "false", autocomplete: "off" }) as HTMLInputElement;
+  const search = h("input", { type: "text", class: "qa-search", placeholder: t("Cerca un'azione"), spellcheck: "false", autocomplete: "off" }) as HTMLInputElement;
   search.addEventListener("pointerdown", () => void Bridge.focusWindow(true));
   search.addEventListener("focus", () => void Bridge.focusWindow(true));
   search.addEventListener("input", () => { key = ""; State.notify(); });
@@ -111,7 +112,7 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
       if (sugg) {
         const row = h("div", { class: "qa-suggest-row" });
         for (const s of sugg.items) {
-          const b = h("button", { class: "qa-chip", title: "Usa il testo selezionato nell'app",
+          const b = h("button", { class: "qa-chip", title: t("Usa il testo selezionato nell'app"),
             onclick: () => handlers.runSuggestion(s, sugg.app) },
           renderActionIcon(`i:${s.icon}`, 14), h("span", { text: s.label }));
           b.style.setProperty("--qa", sugg.color);
@@ -120,18 +121,18 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
         suggest.append(
           h("div", { class: "qa-suggest-head" },
             h("i", { class: "dot", style: `width:7px;height:7px;background:${sugg.color}` }),
-            h("b", { text: sugg.app ? `Per ${sugg.app}` : "Per l'app in primo piano" }),
-            h("span", { text: "sul testo selezionato" })),
+            h("b", { text: sugg.app ? t("Per {app}", { app: sugg.app }) : t("Per l'app in primo piano") }),
+            h("span", { text: t("sul testo selezionato") })),
           row);
       }
       if (list.length === 0 && sugg) return;
       if (list.length === 0) {
         grid.append(
           h("div", { class: "qa-empty" },
-            h("div", { class: "title", text: "Nessuna azione rapida." }),
-            h("div", { class: "sub", text: "Creale in Impostazioni → Azioni rapide: link, programmi, script e domande alla chat." }),
+            h("div", { class: "title", text: t("Nessuna azione rapida.") }),
+            h("div", { class: "sub", text: t("Creale in Impostazioni → Azioni rapide: link, programmi, script e domande alla chat.") }),
             h("button", {
-              class: "btn secondary", text: "Apri le impostazioni",
+              class: "btn secondary", text: t("Apri le impostazioni"),
               onclick: () => handlers.openSettingsWindow(),
             }),
           ),
@@ -144,14 +145,14 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
       if (search.value.trim()) {
         const found = matches();
         for (const a of found) grid.append(actionButton(a, () => handlers.runAction(a)));
-        if (!found.length) grid.append(h("div", { class: "qa-none", text: "Nessuna azione trovata" }));
+        if (!found.length) grid.append(h("div", { class: "qa-none", text: t("Nessuna azione trovata") }));
         return;
       }
       if (folder) {
         // Inside a folder: ‹ back, its name, its actions.
         crumb.style.display = "";
         crumb.append(
-          h("button", { class: "qa-back", title: "Indietro", text: "‹", onclick: () => { folder = null; key = ""; State.notify(); } }),
+          h("button", { class: "qa-back", title: t("Indietro"), text: "‹", onclick: () => { folder = null; key = ""; State.notify(); } }),
           h("span", { class: "qa-icon" }, renderActionIcon(iconOf(folder), 14)),
           h("b", { text: folder }));
         for (const a of list.filter((x) => fname(x) === folder)) {
@@ -206,32 +207,33 @@ export function buildRun(handlers: ActionHandlers): ViewHost {
 
       switch (run.status) {
         case "confirm":
-          status.textContent = `Controlla i comandi prima di eseguirli (${run.action.shell === "cmd" ? "Prompt dei comandi" : "PowerShell"}).`;
+          status.textContent = t("Controlla i comandi prima di eseguirli ({shell}).", { shell: run.action.shell === "cmd" ? t("Prompt dei comandi") : "PowerShell" });
           code.style.display = "";
           output.style.display = "none";
-          row.append(btn("Annulla", "secondary", handlers.closeRun), btn("Esegui", "primary", handlers.confirmRun));
+          row.append(btn(t("Annulla"), "secondary", handlers.closeRun), btn(t("Esegui"), "primary", handlers.confirmRun));
           break;
         case "running":
-          status.textContent = "In esecuzione…";
+          status.textContent = t("In esecuzione…");
           code.style.display = "";
           output.style.display = "none";
-          row.append(btn("Interrompi", "secondary", handlers.killRun));
+          row.append(btn(t("Interrompi"), "secondary", handlers.killRun));
           break;
         case "done":
         case "error": {
           status.textContent = run.status === "error"
-            ? "Errore"
+            ? t("Errore")
             : run.timedOut
-              ? "Tempo scaduto: lo script è stato interrotto."
-              : `Terminato${run.code != null ? ` (codice ${run.code})` : ""}`;
+              ? t("Tempo scaduto: lo script è stato interrotto.")
+              : run.code != null ? t("Terminato (codice {code})", { code: run.code }) : t("Terminato");
           status.classList.toggle("bad", run.status === "error" || run.timedOut || (run.code ?? 0) !== 0);
           code.style.display = "none";
           output.style.display = "";
-          output.textContent = run.output || "(nessun output)";
-          const copy = btn("Copia output", "secondary", () => {
+          output.textContent = run.output || t("(nessun output)");
+
+          const copy = btn(t("Copia output"), "secondary", () => {
             void navigator.clipboard?.writeText(run.output).catch(() => undefined);
           });
-          row.append(copy, btn("Chiudi", "primary", handlers.closeRun));
+          row.append(copy, btn(t("Chiudi"), "primary", handlers.closeRun));
           break;
         }
       }

@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use windows::core::{HSTRING, PCWSTR};
 use windows::Win32::Networking::WinHttp::*;
+use crate::i18n::{t, tf};
 
 pub enum Frame {
     Binary(Vec<u8>),
@@ -43,17 +44,17 @@ unsafe impl Send for WebSocket {}
 fn split_url(url: &str) -> Result<(String, u16, String), String> {
     let rest = url
         .strip_prefix("wss://")
-        .ok_or_else(|| "Indirizzo websocket non valido (serve wss://)".to_string())?;
+        .ok_or_else(|| t("Indirizzo websocket non valido (serve wss://)").to_string())?;
     let (hostport, path) = match rest.find('/') {
         Some(i) => (&rest[..i], &rest[i..]),
         None => (rest, "/"),
     };
     let (host, port) = match hostport.rsplit_once(':') {
-        Some((h, p)) => (h, p.parse::<u16>().map_err(|_| "Porta non valida".to_string())?),
+        Some((h, p)) => (h, p.parse::<u16>().map_err(|_| t("Porta non valida").to_string())?),
         None => (hostport, 443),
     };
     if host.is_empty() {
-        return Err("Indirizzo websocket senza host".into());
+        return Err(t("Indirizzo websocket senza host").into());
     }
     Ok((host.to_string(), port, path.to_string()))
 }
@@ -102,9 +103,9 @@ impl WebSocket {
                 let header_text: String = headers.iter().map(|(k, v)| format!("{k}: {v}\r\n")).collect();
                 let wide: Vec<u16> = header_text.encode_utf16().collect();
                 WinHttpSendRequest(request, if wide.is_empty() { None } else { Some(&wide) }, None, 0, 0, 0)
-                    .map_err(|e| format!("Connessione non riuscita: {}", e.message()))?;
+                    .map_err(|e| tf("Connessione non riuscita: {e}", &[("e", &e.message())]))?;
                 WinHttpReceiveResponse(request, std::ptr::null_mut())
-                    .map_err(|e| format!("Nessuna risposta: {}", e.message()))?;
+                    .map_err(|e| tf("Nessuna risposta: {e}", &[("e", &e.message())]))?;
                 let mut status = 0u32;
                 let mut len = 4u32;
                 let _ = WinHttpQueryHeaders(
@@ -117,8 +118,8 @@ impl WebSocket {
                 );
                 if status != 101 {
                     return Err(match status {
-                        401 | 403 => "Accesso negato al canale degli eventi".to_string(),
-                        _ => format!("Il centralino ha risposto {status} invece di aprire il websocket"),
+                        401 | 403 => t("Accesso negato al canale degli eventi").to_string(),
+                        _ => tf("Il centralino ha risposto {status} invece di aprire il websocket", &[("status", &status)]),
                     });
                 }
                 let ws = WinHttpWebSocketCompleteUpgrade(request, None);
@@ -153,7 +154,8 @@ impl WebSocket {
                 if self.ws.load(Ordering::SeqCst).is_null() {
                     return Ok(None);
                 }
-                return Err(format!("Canale degli eventi interrotto ({err})"));
+                return Err(tf("Canale degli eventi interrotto ({err})", &[("err", &err)]));
+
             }
             out.extend_from_slice(&buf[..read as usize]);
             match kind {

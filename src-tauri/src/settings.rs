@@ -9,12 +9,13 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::path::PathBuf;
+use crate::i18n::{t, tf};
 
 /// Bumped whenever the file layout changes; `migrate` brings old files up.
 /// 3–4: the character was renamed (Mochi → Ezzy → Slime), so were its values.
 /// 5: system / security / network / weather / outlook / zammad widgets became
 ///    integrations (`integration_<kind>`, options in `integrationConfig`).
-pub const SCHEMA_VERSION: u32 = 5;
+pub const SCHEMA_VERSION: u32 = 6;
 
 /// Widget kinds that are integrations since schema 5: one per PC, switched on
 /// in Impostazioni → Integrazioni. Their checks still run through widgets.rs.
@@ -278,6 +279,9 @@ pub struct Settings {
     /// The search bar at the bottom of the open island (integrations, actions, programs).
     #[serde(default = "default_true")]
     pub search_bar: bool,
+    /// Interface language: "it", "en", or "" for Windows' own (i18n.rs).
+    #[serde(default)]
+    pub language: String,
     /// The weekly recap of the coding agents (recap.rs): counts kept on this PC,
     /// shown on Monday.
     #[serde(default = "default_true")]
@@ -452,8 +456,11 @@ pub struct Settings {
 }
 
 fn default_hotkey_open() -> String {
-    "Ctrl+Alt+Shift+M".into()
+    "Ctrl+Space".into()
 }
+
+/// The default for "Apri l'isola" before schema 6.
+const OLD_HOTKEY_OPEN: &str = "Ctrl+Alt+Shift+M";
 fn default_hotkey_ask() -> String {
     "Ctrl+Alt+K".into()
 }
@@ -539,6 +546,7 @@ impl Default for Settings {
             lock_order: false,
             search_bar: true,
             weekly_recap: true,
+            language: String::new(),
             screen: "primary".into(),
             autostart: false,
             hooks_installed: false,
@@ -656,6 +664,10 @@ impl Settings {
         for p in &mut self.profiles {
             rename_legacy_values(&mut p.values);
         }
+        // Schema 6: Ctrl+Space opens the island; a shortcut the user chose stays.
+        if self.schema_version < 6 && self.hotkey_open == OLD_HOTKEY_OPEN {
+            self.hotkey_open = default_hotkey_open();
+        }
         // Schema 5: widgets that are integrations now, in every profile too.
         let mut moved = Vec::new();
         let widgets = std::mem::take(&mut self.widgets);
@@ -681,9 +693,9 @@ impl Settings {
             focus.insert("notify".into(), Value::from("permissions"));
             focus.insert("soundEnabled".into(), Value::from(false));
             self.profiles = vec![
-                Profile { id: "lavoro".into(), name: "Lavoro".into(), values: snap.clone(), rules: ProfileRules::default() },
-                Profile { id: "casa".into(), name: "Casa".into(), values: snap, rules: ProfileRules::default() },
-                Profile { id: "concentrazione".into(), name: "Concentrazione".into(), values: focus, rules: ProfileRules::default() },
+                Profile { id: "lavoro".into(), name: t("Lavoro").into(), values: snap.clone(), rules: ProfileRules::default() },
+                Profile { id: "casa".into(), name: t("Casa").into(), values: snap, rules: ProfileRules::default() },
+                Profile { id: "concentrazione".into(), name: t("Concentrazione").into(), values: focus, rules: ProfileRules::default() },
             ];
             self.active_profile = "lavoro".into();
         }
@@ -706,12 +718,12 @@ impl Settings {
     /// Reads an exported file. Machine-specific state stays as it is here.
     pub fn import_json(&self, text: &str) -> Result<Settings, String> {
         let value: Value = serde_json::from_str(text.trim_start_matches('\u{feff}'))
-            .map_err(|e| format!("Il file non è un JSON valido: {e}"))?;
+            .map_err(|e| tf("Il file non è un JSON valido: {e}", &[("e", &e)]))?;
         if !value.is_object() {
-            return Err("Il file non contiene impostazioni di EasyIsland.".into());
+            return Err(t("Il file non contiene impostazioni di EasyIsland.").into());
         }
         let mut next: Settings = serde_json::from_value(value)
-            .map_err(|e| format!("Impostazioni non riconosciute: {e}"))?;
+            .map_err(|e| tf("Impostazioni non riconosciute: {e}", &[("e", &e)]))?;
         next.hooks_installed = self.hooks_installed;
         Ok(next.migrated())
     }
@@ -900,6 +912,17 @@ mod tests {
         // A file saved by schema 3 (ezzyColor at the top level) still loads its colour.
         let t: Theme = serde_json::from_str(r##"{"character":"ezzy","ezzyColor":"#123456"}"##).unwrap();
         assert_eq!(t.slime_color, "#123456");
+    }
+
+    #[test]
+    fn the_old_default_shortcut_becomes_ctrl_space() {
+        let old = |key: &str| format!(r#"{{"soundEnabled":true,"soundVolume":0.1,"autoCloseInterval":15,"absenceInterval":180,
+            "activeIntegrations":[],"screen":"primary","autostart":false,"hooksInstalled":false,"schemaVersion":5,"hotkeyOpen":"{key}"}}"#);
+        let s = serde_json::from_str::<Settings>(&old("Ctrl+Alt+Shift+M")).unwrap().migrated();
+        assert_eq!(s.hotkey_open, "Ctrl+Space");
+        // One the user chose stays.
+        let s = serde_json::from_str::<Settings>(&old("Ctrl+Win+Z")).unwrap().migrated();
+        assert_eq!(s.hotkey_open, "Ctrl+Win+Z");
     }
 
     #[test]

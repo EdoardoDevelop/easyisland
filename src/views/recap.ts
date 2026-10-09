@@ -5,6 +5,7 @@ import { h, clear } from "./dom";
 import { washRGBA } from "../core/layout";
 import { Recap, formatCount, formatDuration, weekRangeLabel, type WeeklySummary } from "../island/recap";
 import type { ViewActions, ViewHost } from "./views";
+import { t } from "../core/i18n";
 
 function chip(value: string, label: string): HTMLElement {
   return h("div", { class: "recap-chip" }, h("div", { class: "v", text: value }), h("div", { class: "l", text: label }));
@@ -34,27 +35,28 @@ export function buildRecap(actions: ViewActions): ViewHost {
 
   function summaryBody(s: WeeklySummary): Node[] {
     const chips = h("div", { class: "recap-chips" },
-      chip(formatDuration(s.totalMinutes), "al lavoro"),
-      chip(formatCount(s.sessionCount), plural(s.sessionCount, "sessione", "sessioni")),
-      chip(formatCount(s.filesChanged), plural(s.filesChanged, "file", "file")),
+      chip(formatDuration(s.totalMinutes), t("al lavoro")),
+      chip(formatCount(s.sessionCount), plural(s.sessionCount, t("sessione"), t("sessioni"))),
+      chip(formatCount(s.filesChanged), plural(s.filesChanged, t("file"), t("file "))),
     );
-    if (s.linesAdded + s.linesRemoved > 0) chips.append(chip(`+${formatCount(s.linesAdded)} / −${formatCount(s.linesRemoved)}`, "righe"));
-    if (s.commandsRun > 0) chips.append(chip(formatCount(s.commandsRun), plural(s.commandsRun, "comando", "comandi")));
+    if (s.linesAdded + s.linesRemoved > 0) chips.append(chip(`+${formatCount(s.linesAdded)} / −${formatCount(s.linesRemoved)}`, t("righe")));
+    if (s.commandsRun > 0) chips.append(chip(formatCount(s.commandsRun), plural(s.commandsRun, t("comando"), t("comandi"))));
 
     const first: [string, string][] = [];
-    if (s.topAgent) first.push(["Agente", s.topAgent]);
-    if (s.topProject) first.push(["Progetto", s.topProject]);
-    if (s.busiestDay) first.push(["Giorno più pieno", s.busiestDay]);
+    if (s.topAgent) first.push([t("Agente"), s.topAgent]);
+    if (s.topProject) first.push([t("Progetto"), s.topProject]);
+    if (s.busiestDay) first.push([t("Giorno più pieno"), s.busiestDay]);
     const second: [string, string][] = [];
-    if (s.longestSessionMinutes > 1) second.push(["Sessione più lunga", formatDuration(s.longestSessionMinutes)]);
+    if (s.longestSessionMinutes > 1) second.push([t("Sessione più lunga"), formatDuration(s.longestSessionMinutes)]);
     if (s.permissionsAllowed + s.permissionsDenied > 0) {
-      second.push(["Permessi", `${s.permissionsAllowed} ${plural(s.permissionsAllowed, "consentito", "consentiti")}, ${s.permissionsDenied} ${plural(s.permissionsDenied, "negato", "negati")}`]);
+      second.push([t("Permessi"), `${s.permissionsAllowed} ${plural(s.permissionsAllowed, t("consentito"), t("consentiti"))}, ${s.permissionsDenied} ${plural(s.permissionsDenied, t("negato"), t("negati"))}`]);
     }
-    if (s.questions > 0) second.push(["Domande", formatCount(s.questions)]);
+    if (s.questions > 0) second.push([t("Domande"), formatCount(s.questions)]);
+
 
     return [
       h("div", { class: "recap-head" },
-        h("span", { class: "recap-title", text: "La tua settimana con gli agenti" }),
+        h("span", { class: "recap-title", text: t("La tua settimana con gli agenti") }),
         h("span", { class: "grow" }),
         h("span", { class: "recap-range", text: weekRangeLabel(s) })),
       chips,
@@ -65,8 +67,8 @@ export function buildRecap(actions: ViewActions): ViewHost {
 
   function emptyBody(): Node[] {
     return [
-      h("div", { class: "title", text: "Nessuna sessione la settimana scorsa" }),
-      h("div", { class: "sub", text: "EasyIsland conta le sessioni degli agenti mentre lavorano: ripassa lunedì prossimo." }),
+      h("div", { class: "title", text: t("Nessuna sessione la settimana scorsa") }),
+      h("div", { class: "sub", text: t("EasyIsland conta le sessioni degli agenti mentre lavorano: ripassa lunedì prossimo.") }),
       ok(),
     ];
   }

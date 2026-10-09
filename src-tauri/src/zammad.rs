@@ -16,6 +16,7 @@ use std::sync::Mutex;
 use serde_json::Value;
 
 use crate::widgets::{client, FieldValue, Widget, WidgetResult};
+use crate::i18n::{t, tf};
 
 const MY_ASSIGNED: &str = "my_assigned";
 const UNASSIGNED: &str = "all_unassigned";
@@ -53,7 +54,7 @@ fn newest_titles(data: &Value, max: usize) -> Vec<String> {
             let id = t.get("id")?.as_i64()?;
             let ticket = tickets?.get(id.to_string())?;
             let number = ticket.get("number").and_then(Value::as_str).unwrap_or("");
-            let title = ticket.get("title").and_then(Value::as_str).unwrap_or("(senza titolo)");
+            let title = ticket.get("title").and_then(Value::as_str).unwrap_or(crate::i18n::t("(senza titolo)"));
             Some((id, if number.is_empty() { title.to_string() } else { format!("#{number} {title}") }))
         })
         .collect();
@@ -68,18 +69,18 @@ fn plural(n: i64, one: &str, many: &str) -> String {
 /// Level, summary and fields for the three counts.
 fn describe(mine: i64, unassigned: i64, escalated: i64) -> (&'static str, String, Vec<FieldValue>) {
     let fields = vec![
-        FieldValue { label: "Assegnati a me".into(), value: mine.to_string() },
-        FieldValue { label: "Non assegnati".into(), value: unassigned.to_string() },
-        FieldValue { label: "In escalation".into(), value: escalated.to_string() },
+        FieldValue { label: t("Assegnati a me").into(), value: mine.to_string() },
+        FieldValue { label: t("Non assegnati").into(), value: unassigned.to_string() },
+        FieldValue { label: t("In escalation").into(), value: escalated.to_string() },
     ];
     let mut parts = Vec::new();
     if escalated > 0 {
-        parts.push(plural(escalated, "ticket in escalation", "ticket in escalation"));
+        parts.push(plural(escalated, t("ticket in escalation"), t("ticket in escalation")));
     }
     if unassigned > 0 {
-        parts.push(plural(unassigned, "non assegnato", "non assegnati"));
+        parts.push(plural(unassigned, t("non assegnato"), t("non assegnati")));
     }
-    parts.push(plural(mine, "assegnato a te", "assegnati a te"));
+    parts.push(plural(mine, t("assegnato a te"), t("assegnati a te")));
     let level = if escalated > 0 { "warn" } else { "ok" };
     (level, parts.join(" · "), fields)
 }
@@ -99,12 +100,12 @@ async fn get_json(c: &reqwest::Client, url: &str, token: &str) -> Result<Value, 
         .header("Accept", "application/json")
         .send()
         .await
-        .map_err(|e| if e.is_timeout() { "Zammad non risponde (tempo scaduto)".to_string() } else { format!("Zammad non raggiungibile: {e}") })?;
+        .map_err(|e| if e.is_timeout() { t("Zammad non risponde (tempo scaduto)").to_string() } else { tf("Zammad non raggiungibile: {e}", &[("e", &e)]) })?;
     match resp.status().as_u16() {
-        200..=299 => resp.json().await.map_err(|_| "Risposta di Zammad non leggibile".to_string()),
-        401 => Err("Token non valido o scaduto (401)".into()),
-        403 => Err("Il token non ha il permesso ticket.agent (403)".into()),
-        404 => Err("Indirizzo di Zammad non trovato (404)".into()),
+        200..=299 => resp.json().await.map_err(|_| t("Risposta di Zammad non leggibile").to_string()),
+        401 => Err(t("Token non valido o scaduto (401)").into()),
+        403 => Err(t("Il token non ha il permesso ticket.agent (403)").into()),
+        404 => Err(t("Indirizzo di Zammad non trovato (404)").into()),
         code => Err(format!("Zammad: HTTP {code}")),
     }
 }
@@ -112,12 +113,12 @@ async fn get_json(c: &reqwest::Client, url: &str, token: &str) -> Result<Value, 
 pub async fn probe(w: &Widget) -> WidgetResult {
     let base = base_url(&crate::secrets::get("zammad-url").unwrap_or_default());
     if !base.starts_with("https://") && !base.starts_with("http://") {
-        return WidgetResult::new(&w.id, "error", "Scrivi l'indirizzo di Zammad (https://…) in Impostazioni → Integrazioni");
+        return WidgetResult::new(&w.id, "error", t("Scrivi l'indirizzo di Zammad (https://…) in Impostazioni → Integrazioni"));
     }
     let Some(token) = crate::secrets::get("zammad-token") else {
-        return WidgetResult::new(&w.id, "error", "Incolla il token di accesso in Impostazioni → Integrazioni → Zammad");
+        return WidgetResult::new(&w.id, "error", t("Incolla il token di accesso in Impostazioni → Integrazioni → Zammad"));
     };
-    let Some(c) = client() else { return WidgetResult::new(&w.id, "error", "HTTP non disponibile") };
+    let Some(c) = client() else { return WidgetResult::new(&w.id, "error", t("HTTP non disponibile")) };
 
     let list = match get_json(&c, &format!("{base}/api/v1/ticket_overviews"), token.trim()).await {
         Ok(v) => v,
@@ -125,7 +126,7 @@ pub async fn probe(w: &Widget) -> WidgetResult {
     };
     let n = counts(&list);
     if n.is_empty() {
-        return WidgetResult::new(&w.id, "error", "Nessuna vista dei ticket: l'utente del token è un agente?");
+        return WidgetResult::new(&w.id, "error", t("Nessuna vista dei ticket: l'utente del token è un agente?"));
     }
     let get = |k: &str| n.get(k).copied().unwrap_or(0);
     let (mine, unassigned, escalated) = (get(MY_ASSIGNED), get(UNASSIGNED), get(ESCALATED));
@@ -139,16 +140,17 @@ pub async fn probe(w: &Widget) -> WidgetResult {
         }
     }
     for t in &titles {
-        fields.push(FieldValue { label: "Da assegnare".into(), value: t.clone() });
+        fields.push(FieldValue { label: crate::i18n::t("Da assegnare").into(), value: t.clone() });
     }
 
     let mut r = WidgetResult::new(&w.id, level, summary);
     r.fields = fields;
     if let Some(more) = new_ticket_event(&w.id, unassigned) {
         r.event = Some(match (more, titles.first()) {
-            (1, Some(t)) => format!("Nuovo ticket: {t}"),
-            (1, None) => "Nuovo ticket da assegnare".to_string(),
-            (k, _) => format!("{k} nuovi ticket da assegnare"),
+            (1, Some(title)) => tf("Nuovo ticket: {title}", &[("title", &title)]),
+
+            (1, None) => t("Nuovo ticket da assegnare").to_string(),
+            (k, _) => tf("{k} nuovi ticket da assegnare", &[("k", &k)]),
         });
     }
     r

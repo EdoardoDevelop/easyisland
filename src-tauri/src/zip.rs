@@ -10,6 +10,7 @@
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
+use crate::i18n::{t, tf};
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
@@ -78,7 +79,7 @@ async fn powershell(script: &str, env: &[(&str, &str)], timeout: Duration) -> Re
     let out = match tokio::time::timeout(timeout, cmd.output()).await {
         Ok(Ok(o)) => o,
         Ok(Err(e)) => return Err(e.to_string()),
-        Err(_) => return Err("Tempo scaduto".into()),
+        Err(_) => return Err(t("Tempo scaduto").into()),
     };
     if !out.status.success() {
         let err = String::from_utf8_lossy(&out.stderr);
@@ -86,7 +87,8 @@ async fn powershell(script: &str, env: &[(&str, &str)], timeout: Duration) -> Re
             .lines()
             .map(str::trim)
             .find(|l| !l.is_empty() && !l.starts_with("At line") && !l.starts_with("In riga"))
-            .unwrap_or("errore sconosciuto");
+            .unwrap_or(t("errore sconosciuto"));
+
         return Err(line.trim_start_matches("Exception calling").trim().to_string());
     }
     Ok(String::from_utf8_lossy(&out.stdout).trim().trim_start_matches('\u{feff}').to_string())
@@ -96,8 +98,8 @@ async fn powershell(script: &str, env: &[(&str, &str)], timeout: Duration) -> Re
 pub async fn list(path: &str) -> Result<ZipInfo, String> {
     let text = powershell(LIST, &[("EI_ZIP", path)], Duration::from_secs(20))
         .await
-        .map_err(|e| format!("Non è un archivio ZIP leggibile: {e}"))?;
-    serde_json::from_str(&text).map_err(|_| "Non è un archivio ZIP leggibile".to_string())
+        .map_err(|e| tf("Non è un archivio ZIP leggibile: {e}", &[("e", &e)]))?;
+    serde_json::from_str(&text).map_err(|_| t("Non è un archivio ZIP leggibile").to_string())
 }
 
 /// Extracts into a new folder and returns its path. `place`: "beside" (next to
@@ -113,10 +115,10 @@ pub async fn extract(path: &str, name: &str, place: &str, source: Option<&str>) 
         Duration::from_secs(600),
     )
     .await
-    .map_err(|e| format!("Estrazione non riuscita: {e}"))?;
+    .map_err(|e| tf("Estrazione non riuscita: {e}", &[("e", &e)]))?;
     let dest = dest.lines().last().unwrap_or_default().trim().to_string();
     if dest.is_empty() {
-        return Err("Estrazione non riuscita".into());
+        return Err(t("Estrazione non riuscita").into());
     }
     let _ = std::process::Command::new("explorer").arg(&dest).spawn();
     Ok(dest)

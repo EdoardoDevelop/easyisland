@@ -29,6 +29,7 @@ use std::time::Duration;
 use serde_json::{json, Map, Value};
 use tauri::{AppHandle, Emitter};
 
+use crate::i18n::{t, tf};
 use crate::island::WINDOW_LABEL;
 
 static ENABLED: AtomicBool = AtomicBool::new(false);
@@ -433,8 +434,8 @@ fn translate(state: &mut Sessions, ev: &Value) -> Vec<Out> {
                 // Something the card cannot ask: say opencode is waiting, "Apri" answers there.
                 None => {
                     let mut m = base(state, "Notification", &session);
-                    let title = form.get("title").and_then(Value::as_str).unwrap_or("una risposta");
-                    m.insert("message".into(), json!(format!("Aspetta una risposta: {title}")));
+                    let title = form.get("title").and_then(Value::as_str).unwrap_or(t("una risposta"));
+                    m.insert("message".into(), json!(tf("Aspetta una risposta: {title}", &[("title", &title)])));
                     m.insert("easyisland_waiting".into(), json!(true));
                     hook(m)
                 }
@@ -473,7 +474,8 @@ fn form_fields(form: &Value) -> Option<Vec<FormField>> {
             return None;
         }
         let str_of = |k: &str| f.get(k).and_then(Value::as_str).map(str::trim).filter(|t| !t.is_empty());
-        let mut question = str_of("description").or_else(|| str_of("title")).unwrap_or("Risposta").to_string();
+        let mut question = str_of("description").or_else(|| str_of("title")).unwrap_or(t("Risposta")).to_string();
+
         // The island keys the answers by the question's text: two equal ones would collide.
         while out.iter().any(|o| o.question == question) {
             question.push('\u{200B}');

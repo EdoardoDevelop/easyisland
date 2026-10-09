@@ -4,6 +4,7 @@ import type { AnchorH, AnchorV, BotEmoteName, BotStateName, IslandMode, IslandVi
 import type { EyeShape } from "../character/engine";
 import type { PlanItem } from "../island/plan";
 import { isSky, type Sky } from "../character/weather";
+import { t } from "./i18n";
 
 const WEATHER = "integration_weather";
 
@@ -52,14 +53,15 @@ export type ChatEngine = "subscription" | "api" | "opencode" | "openrouter" | "o
 
 /** The chat engines: name, Credential Manager key (if any), default address (local ones). */
 export const CHAT_ENGINES: { id: ChatEngine; name: string; key?: string; url?: string; hint: string }[] = [
-  { id: "subscription", name: "Claude (abbonamento)", hint: "il tuo piano Pro o Max, serve Claude Code da riga di comando con il login" },
-  { id: "api", name: "Claude (chiave API)", key: "anthropic-api-key", hint: "API di Anthropic, a consumo" },
-  { id: "opencode", name: "opencode", hint: "modelli gratuiti o locali con strumenti (comandi, file, web), con i permessi nell'isola; serve opencode 2 sul PC" },
-  { id: "openrouter", name: "OpenRouter", key: "openrouter-api-key", hint: "una chiave per centinaia di modelli (openrouter.ai)" },
-  { id: "openai", name: "OpenAI", key: "openai-api-key", hint: "API di OpenAI (platform.openai.com)" },
-  { id: "gemini", name: "Gemini", key: "gemini-api-key", hint: "Google AI Studio (aistudio.google.com)" },
-  { id: "ollama", name: "Ollama", url: "http://localhost:11434", hint: "modelli locali, nessuna chiave" },
-  { id: "lmstudio", name: "LM Studio", url: "http://localhost:1234", hint: "modelli locali, nessuna chiave" },
+  { id: "subscription", name: "Claude (abbonamento)", hint: t("il tuo piano Pro o Max, serve Claude Code da riga di comando con il login") },
+  { id: "api", name: t("Claude (chiave API)"), key: "anthropic-api-key",
+ hint: t("API di Anthropic, a consumo") },
+  { id: "opencode", name: "opencode", hint: t("modelli gratuiti o locali con strumenti (comandi, file, web), con i permessi nell'isola; serve opencode 2 sul PC") },
+  { id: "openrouter", name: "OpenRouter", key: "openrouter-api-key", hint: t("una chiave per centinaia di modelli (openrouter.ai)") },
+  { id: "openai", name: "OpenAI", key: "openai-api-key", hint: t("API di OpenAI (platform.openai.com)") },
+  { id: "gemini", name: "Gemini", key: "gemini-api-key", hint: t("Google AI Studio (aistudio.google.com)") },
+  { id: "ollama", name: "Ollama", url: "http://localhost:11434", hint: t("modelli locali, nessuna chiave") },
+  { id: "lmstudio", name: "LM Studio", url: "http://localhost:1234", hint: t("modelli locali, nessuna chiave") },
 ];
 
 /** "Gemini · gemini-2.5-flash": the engine and its model, for the chat. */
@@ -119,11 +121,11 @@ export interface HabitSuggestion {
 /** The label of the button that brings a session's app back. */
 export function sessionOpenLabel(host: SessionHost | null | undefined): string {
   switch (host) {
-    case "desktop": return "Apri Claude";
-    case "vscode": return "Apri VS Code";
-    case "cursor": return "Apri Cursor";
-    case "opencode": return "Apri opencode";
-    default: return "Apri terminale";
+    case "desktop": return t("Apri Claude");
+    case "vscode": return t("Apri VS Code");
+    case "cursor": return t("Apri Cursor");
+    case "opencode": return t("Apri opencode");
+    default: return t("Apri terminale");
   }
 }
 
@@ -213,14 +215,14 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_calcom", "Cal.com", "#C9956A", "n8n"),
   task("integration_stripe", "Stripe", "#0570DE", "n8n"),
   task("integration_system", "PC", "#38BDF8", "n8n"),
-  task("integration_security", "Sicurezza", "#22C55E", "n8n"),
-  task("integration_network", "Rete", "#6366F1", "n8n"),
-  task("integration_weather", "Meteo", "#0EA5E9", "n8n"),
+  task("integration_security", t("Sicurezza"), "#22C55E", "n8n"),
+  task("integration_network", t("Rete"), "#6366F1", "n8n"),
+  task("integration_weather", t("Meteo"), "#0EA5E9", "n8n"),
   task("integration_outlook", "Outlook", "#0A84D6", "n8n"),
-  task("integration_zammad", "Ticket", "#F59E0B", "n8n"),
-  task("integration_claude_usage", "Consumo", "#D97757", "n8n"),
-  task("integration_clipboard", "Appunti", "#A78BFA", "n8n"),
-  task("integration_media", "Musica", "#1ED760", "n8n"),
+  task("integration_zammad", t("Ticket"), "#F59E0B", "n8n"),
+  task("integration_claude_usage", t("Consumo"), "#D97757", "n8n"),
+  task("integration_clipboard", t("Appunti"), "#A78BFA", "n8n"),
+  task("integration_media", t("Musica"), "#1ED760", "n8n"),
   task("integration_3cx", "3CX", "#0596D4", "n8n"),
 ];
 
@@ -281,6 +283,8 @@ export interface Settings {
   lockOrder: boolean;
   /** The search bar at the bottom of the open island (src/views/search.ts). */
   searchBar: boolean;
+  /** Interface language: "it", "en", or "" for Windows' own (src/core/i18n.ts). */
+  language: string;
   /** The weekly recap of the coding agents (recap.rs, src/island/recap.ts). */
   weeklyRecap: boolean;
   /** "primary", "cursor", or "monitor:<name>" (the display the character was dragged to). */
@@ -595,6 +599,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lockOrder: false,
   searchBar: true,
   weeklyRecap: true,
+  language: "",
   screen: "primary",
   autostart: false,
   hooksInstalled: false,
@@ -631,7 +636,7 @@ export const DEFAULT_SETTINGS: Settings = {
   profiles: [],
   activeProfile: "",
   autoProfile: false,
-  hotkeyOpen: "Ctrl+Alt+Shift+M",
+  hotkeyOpen: "Ctrl+Space",
   hotkeyAsk: "Ctrl+Alt+K",
   hotkeyClipboard: "Ctrl+Alt+H",
   hotkeyScreenshot: "Ctrl+Alt+Shift+S",

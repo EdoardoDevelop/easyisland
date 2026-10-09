@@ -29,6 +29,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::island::WINDOW_LABEL;
+use crate::i18n::{t, tf};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
@@ -161,32 +162,32 @@ async fn run_step(app: &AppHandle, step: &Step, actions: &[Value]) -> Result<Str
             let a = actions
                 .iter()
                 .find(|a| a.get("id").and_then(Value::as_str) == Some(step.id.as_str()))
-                .ok_or("azione rapida non trovata (eliminata?)")?;
+                .ok_or(t("azione rapida non trovata (eliminata?)"))?;
             let get = |k: &str| a.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
             let name = get("name");
             match get("kind").as_str() {
                 "url" => {
                     crate::open_url_now(&get("target"));
-                    Ok(format!("aperto «{name}»"))
+                    Ok(tf("aperto «{name}»", &[("name", &name)]))
                 }
-                "app" => crate::actions::open_app(&get("target"), &get("args")).map(|_| format!("avviato «{name}»")),
+                "app" => crate::actions::open_app(&get("target"), &get("args")).map(|_| tf("avviato «{name}»", &[("name", &name)])),
                 "script" if !a.get("confirm").and_then(Value::as_bool).unwrap_or(false) => {
                     let run_id = format!("auto-{}", now_ms());
                     let r = crate::actions::run_script(&run_id, &get("shell"), &get("script")).await?;
                     if r.timed_out {
-                        return Err(format!("«{name}» interrotto: tempo scaduto"));
+                        return Err(tf("«{name}» interrotto: tempo scaduto", &[("name", &name)]));
                     }
                     let first = r.output.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or("").to_string();
                     match r.code {
-                        Some(0) | None => Ok(format!("«{name}» eseguito{}", if first.is_empty() { String::new() } else { format!(": {first}") })),
-                        Some(c) => Err(format!("«{name}» terminato con codice {c}{}", if first.is_empty() { String::new() } else { format!(": {first}") })),
+                        Some(0) | None => Ok(tf("«{name}» eseguito", &[("name", &name)]) + &if first.is_empty() { String::new() } else { format!(": {first}") }),
+                        Some(c) => Err(tf("«{name}» terminato con codice {c}", &[("name", &name), ("c", &c)]) + &if first.is_empty() { String::new() } else { format!(": {first}") }),
                     }
                 }
                 // A script that wants confirmation, or a question to Claude:
                 // the island takes it from here, exactly as from the ⚡ tab.
                 _ => {
                     let _ = app.emit_to(WINDOW_LABEL, "automation-action", get("id"));
-                    Ok(format!("«{name}» aperto nell'isola"))
+                    Ok(tf("«{name}» aperto nell'isola", &[("name", &name)]))
                 }
             }
         }
@@ -196,27 +197,27 @@ async fn run_step(app: &AppHandle, step: &Step, actions: &[Value]) -> Result<Str
                 _ => "info",
             };
             notice(app, &step.title, &step.text, level);
-            Ok("avviso mostrato".into())
+            Ok(t("avviso mostrato").into())
         }
         "profile" => {
             crate::activate_profile(app, &step.id, "automazione");
-            Ok("profilo cambiato".into())
+            Ok(t("profilo cambiato").into())
         }
         "app" => {
             if step.target.trim().is_empty() {
-                return Err("programma non indicato".into());
+                return Err(t("programma non indicato").into());
             }
             crate::actions::open_app(step.target.trim(), &step.args).map(|_| format!("aperto {}", step.target.trim()))
         }
         "url" => {
             let url = step.url.trim();
             if !(url.starts_with("https://") || url.starts_with("http://")) {
-                return Err("il link deve iniziare con http:// o https://".into());
+                return Err(t("il link deve iniziare con http:// o https://").into());
             }
             crate::open_url_now(url);
             Ok(format!("aperto {url}"))
         }
-        other => Err(format!("passo sconosciuto: {other}")),
+        other => Err(tf("passo sconosciuto: {other}", &[("other", &other)])),
     }
 }
 
@@ -224,7 +225,7 @@ async fn run_step(app: &AppHandle, step: &Step, actions: &[Value]) -> Result<Str
 /// asked to (or when something failed).
 pub async fn run(app: AppHandle, auto: Automation, cause: String, actions: Vec<Value>) {
     crate::log::line(format!("automation {} ({cause})", auto.name));
-    if cause != "Prova" {
+    if cause != t("Prova") {
         crate::habits::note("auto", &auto.id);
     }
     let mut done = Vec::new();
@@ -234,17 +235,17 @@ pub async fn run(app: AppHandle, auto: Automation, cause: String, actions: Vec<V
             Ok(t) => done.push(t),
             Err(e) => {
                 ok = false;
-                done.push(format!("errore: {e}"));
+                done.push(tf("errore: {e}", &[("e", &e)]));
             }
         }
     }
     if auto.steps.is_empty() {
-        done.push("nessun passo da eseguire".into());
+        done.push(t("nessun passo da eseguire").into());
     }
     let detail = done.join(" · ");
-    let name = if auto.name.trim().is_empty() { "Automazione".to_string() } else { auto.name.clone() };
+    let name = if auto.name.trim().is_empty() { t("Automazione").to_string() } else { auto.name.clone() };
     if auto.notify || !ok {
-        notice(&app, &format!("Automazione «{name}»"), &detail, if ok { "ok" } else { "error" });
+        notice(&app, &tf("Automazione «{name}»", &[("name", &name)]), &detail, if ok { "ok" } else { "error" });
     }
     push_log(LogEntry { at: now_ms(), name, cause, ok, detail });
     let _ = app.emit_to(crate::SETTINGS_LABEL, "automations-log", ());
@@ -253,9 +254,9 @@ pub async fn run(app: AppHandle, auto: Automation, cause: String, actions: Vec<V
 /// Settings → "Prova ora".
 pub fn run_now(app: &AppHandle, id: &str) -> Result<(), String> {
     let (autos, _, actions) = list(app);
-    let auto = autos.into_iter().find(|a| a.id == id).ok_or("Automazione non trovata (salvata?)")?;
+    let auto = autos.into_iter().find(|a| a.id == id).ok_or(t("Automazione non trovata (salvata?)"))?;
     let app = app.clone();
-    tauri::async_runtime::spawn(run(app, auto, "Prova".into(), actions));
+    tauri::async_runtime::spawn(run(app, auto, t("Prova").into(), actions));
     Ok(())
 }
 
@@ -267,10 +268,10 @@ const STEP_KINDS: &[&str] = &["quick", "notice", "profile", "app", "url"];
 /// Checks an automation proposed by Claude against the user's settings and
 /// fills the defaults the settings page expects. Err = a message for Claude.
 pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, String> {
-    let mut a: Automation = serde_json::from_value(v.clone()).map_err(|e| format!("Automazione non valida: {e}"))?;
+    let mut a: Automation = serde_json::from_value(v.clone()).map_err(|e| tf("Automazione non valida: {e}", &[("e", &e)]))?;
     a.name = a.name.trim().chars().take(80).collect();
     if a.name.is_empty() {
-        return Err("Serve un nome.".into());
+        return Err(t("Serve un nome.").into());
     }
     let t = &mut a.trigger;
     if !TRIGGER_KINDS.contains(&t.kind.as_str()) {
@@ -514,7 +515,7 @@ pub fn spawn(app: AppHandle) {
                         && fired_minute.get(&a.id) != Some(&key)
                     {
                         fired_minute.insert(a.id.clone(), key.clone());
-                        fire.push(((*a).clone(), format!("ore {hhmm}")));
+                        fire.push(((*a).clone(), tf("ore {hhmm}", &[("hhmm", &hhmm)])));
                     }
                 }
             }
@@ -523,13 +524,13 @@ pub fn spawn(app: AppHandle) {
             for a in on.iter().filter(|a| a.trigger.kind == "startup") {
                 if !fired_startup.contains(&a.id) && started.elapsed() >= Duration::from_secs(a.trigger.delay.max(5)) {
                     fired_startup.insert(a.id.clone());
-                    fire.push(((*a).clone(), "avvio".into()));
+                    fire.push(((*a).clone(), t("avvio").into()));
                 }
             }
 
             if unlocked {
                 for a in on.iter().filter(|a| a.trigger.kind == "unlock") {
-                    fire.push(((*a).clone(), "PC sbloccato".into()));
+                    fire.push(((*a).clone(), t("PC sbloccato").into()));
                 }
             }
 
@@ -542,7 +543,7 @@ pub fn spawn(app: AppHandle) {
                         if let Some(name) = &now {
                             for a in on.iter().filter(|a| a.trigger.kind == "wifi") {
                                 if a.trigger.ssid.trim().eq_ignore_ascii_case(name) {
-                                    fire.push(((*a).clone(), format!("rete {name}")));
+                                    fire.push(((*a).clone(), tf("rete {name}", &[("name", &name)])));
                                 }
                             }
                         }
@@ -561,7 +562,7 @@ pub fn spawn(app: AppHandle) {
                             exe.push_str(".exe");
                         }
                         if !exe.is_empty() && now.contains(&exe) && !prev.contains(&exe) {
-                            fire.push(((*a).clone(), format!("avviato {exe}")));
+                            fire.push(((*a).clone(), tf("avviato {exe}", &[("exe", &exe)])));
                         }
                     }
                 }
@@ -582,7 +583,7 @@ pub fn spawn(app: AppHandle) {
                             .collect::<Vec<_>>()
                             .join(" ");
                         for a in on.iter().filter(|a| a.trigger.kind == "drive") {
-                            fire.push(((*a).clone(), format!("unità {letters}")));
+                            fire.push(((*a).clone(), tf("unità {letters}", &[("letters", &letters)])));
                         }
                     }
                 }
@@ -608,7 +609,8 @@ pub fn spawn(app: AppHandle) {
                         if let Some(first) = new.first() {
                             let what = if new.len() == 1 { (*first).clone() } else { format!("{} e altri {}", first, new.len() - 1) };
                             for a in on.iter().filter(|a| a.trigger.kind == "folder" && a.trigger.folder.trim() == folder) {
-                                fire.push(((*a).clone(), format!("nuovo file {what}")));
+                                fire.push(((*a).clone(), tf("nuovo file {what}", &[("what", &what)])));
+
                             }
                         }
                     }

@@ -9,6 +9,7 @@ import { Island } from "./island/island";
 import { installTooltips } from "./core/tooltip";
 import { registerHookHandlers } from "./island/hooks";
 import { Recap } from "./island/recap";
+import { syncLanguage } from "./core/i18n";
 import { registerIntegrationHandlers, refreshConfigured } from "./island/integrations";
 
 async function main() {
@@ -23,6 +24,8 @@ async function main() {
   const boot = await Bridge.boot();
   if (boot) {
     State.settings = { ...State.settings, ...boot.settings };
+    // The language this page was built in must be the one chosen (once, at the first start).
+    syncLanguage(State.settings.language);
   } else {
     // Plain browser (`npm run dev`): settings can be tried from the URL, e.g.
     // /?anchorV=bottom&anchorH=left&iconSize=32 (lists comma-separated, e.g.

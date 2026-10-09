@@ -61,7 +61,7 @@ fn app_name(aumid: &str) -> String {
         ("firefox", "Firefox"),
         ("brave", "Brave"),
         ("opera", "Opera"),
-        ("zunemusic", "Lettore multimediale"),
+        ("zunemusic", crate::i18n::t("Lettore multimediale")),
         ("vlc", "VLC"),
         ("itunes", "iTunes"),
         ("applemusic", "Apple Music"),
