@@ -335,6 +335,10 @@ pub struct Settings {
     /// Minimum height of the open island, logical px; 0 = each view's own.
     #[serde(default)]
     pub island_height: f64,
+    /// Where the open island appears: "character" (where the character is, the
+    /// default), or "top" | "center" | "bottom" of the screen, centred (island.rs).
+    #[serde(default = "default_island_place")]
+    pub island_place: String,
     /// ✕ in the open island's header.
     #[serde(default = "default_true")]
     pub close_button: bool,
@@ -492,6 +496,9 @@ fn default_notify() -> String {
     "all".into()
 }
 
+fn default_island_place() -> String {
+    "character".into()
+}
 fn default_anchor_v() -> String {
     "top".into()
 }
@@ -567,6 +574,7 @@ impl Default for Settings {
             over_taskbar: false,
             island_width: default_island_width(),
             island_height: 0.0,
+            island_place: default_island_place(),
             close_button: true,
             follow_cursor_compact: false,
             presence_meeting: true,

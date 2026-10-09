@@ -4,9 +4,9 @@
 import { Tracked, Spring, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop } from "../core/bridge";
 import {
-  EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_MAX_W, ISLAND_MIN_W, MAX_ISLAND_H, NOTCH_W, PANEL_H, PANEL_W,
+  EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_MIN_W, MAX_ISLAND_H, NOTCH_W, PANEL_H, PANEL_W,
   ROUNDED_CORNER, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
-  chatPromptHeight, collapsedBox, compactSize, cornerRadii, glueFor, isGlued, islandSize,
+  chatPromptHeight, collapsedBox, compactSize, cornerRadii, glueFor, isGlued, islandMax, islandSize, panelFor,
   type IslandMode, type IslandViewName, type Placement,
 } from "../core/layout";
 import type { Suggestion } from "./context";
@@ -119,6 +119,14 @@ export class Island {
   private wasInIsland = false;
   /** Last shape handed to Rust for the click-through test. */
   private pushedRect = { x: -1, y: -1, w: -1, h: -1 };
+  /** The window the island is drawn in (logical px): 720×560, or bigger for a bigger island. */
+  private panel = { w: PANEL_W, h: PANEL_H };
+  /** The work area of the island's screen (logical px): how big the window may get. */
+  private limits = { w: PANEL_W, h: PANEL_H };
+  /** Open somewhere else than the character (`islandPlace`): the window is there. */
+  private away = false;
+  /** Closing from there: the island retracts in place, then the window goes home. */
+  private awayClosing: number | null = null;
   private homeCollapseAt: number | null = null;
   /** Hovering the compact island for `openDelay` seconds opens it. */
   private hoverOpenTimer: number | null = null;
@@ -403,7 +411,8 @@ export class Island {
     State.mode = mode;
     // Before the animation: an open island that was dragged away goes back to
     // the character's place, so it shrinks there and the next opening starts there.
-    if ((mode === "expanded") !== (prev === "expanded")) void Bridge.setExpanded(mode === "expanded");
+    if (mode === "expanded" && prev !== "expanded") this.openAway();
+    else if (prev === "expanded" && mode !== "expanded") this.closeAway();
     if (mode === "expanded") {
       Sound.play("open");
       void this.refreshForeground();
@@ -1249,8 +1258,47 @@ export class Island {
 
   // ── Geometry ────────────────────────────────────────────────────────────────
 
-  /** Placement settings, in the shape the layout helpers take. */
+  /**
+   * Where the island is drawn: at the character's place, or — open with
+   * `islandPlace` set — centred at the top, middle or bottom of the screen.
+   */
   private get placement(): Placement {
+    const home = this.homePlacement;
+    if (!this.away) return home;
+    const place = State.settings.islandPlace;
+    const v = place === "bottom" ? "bottom" : place === "center" ? "middle" : "top";
+    const glue = State.settings.glueEdges !== false && v !== "middle";
+    return { ...home, h: "center", v, glueX: false, glueY: glue };
+  }
+
+  /** The window opens at the chosen place; it goes there before the island grows. */
+  private openAway() {
+    if (this.awayClosing != null) {
+      window.clearTimeout(this.awayClosing);
+      this.awayClosing = null;
+    }
+    this.away = (State.settings.islandPlace ?? "character") !== "character";
+    void Bridge.setExpanded(true);
+  }
+
+  /** Opened elsewhere: it retracts there, then the window goes back to the character. */
+  private closeAway() {
+    if (!this.away) {
+      void Bridge.setExpanded(false);
+      return;
+    }
+    if (this.awayClosing != null) window.clearTimeout(this.awayClosing);
+    this.awayClosing = window.setTimeout(() => {
+      this.awayClosing = null;
+      if (State.mode === "expanded") return;
+      this.away = false;
+      void Bridge.setExpanded(false);
+      this.animateGeometry(false);
+    }, 320);
+  }
+
+  /** The character's place: settings, in the shape the layout helpers take. */
+  private get homePlacement(): Placement {
     const s = State.settings;
     return {
       h: s.anchorH,
@@ -1269,10 +1317,11 @@ export class Island {
     let { w, h } = islandSize(State.mode, State.view, State.chatHistory.length, compact, fit);
     // The user's size of the open island (its corner, or Impostazioni → Posizione).
     // Greeting and drop sequence are drawn at a fixed size and keep theirs.
+    const max = islandMax(this.limits);
     if (State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view)) {
       const s = State.settings;
-      w = Math.round(Math.min(ISLAND_MAX_W, Math.max(ISLAND_MIN_W, s.islandWidth || EXPANDED_W)));
-      if (s.islandHeight > 0) h = Math.max(h, Math.min(MAX_ISLAND_H, Math.round(s.islandHeight)));
+      w = Math.round(Math.min(max.w, Math.max(ISLAND_MIN_W, s.islandWidth || EXPANDED_W)));
+      if (s.islandHeight > 0) h = Math.max(h, Math.min(max.h, Math.round(s.islandHeight)));
     }
     // Height the user added beyond the view's own: lists and text boxes grow by
     // it (CSS max-height: calc(… + var(--extra-h))) instead of keeping their
@@ -1281,7 +1330,10 @@ export class Island {
     const natural = islandSize(State.mode, State.view, State.chatHistory.length, compact, fit).h;
     const extra = State.mode === "expanded" ? Math.max(0, h - natural) : 0;
     // The search bar adds its own height: the views keep theirs.
-    if (this.searchShown) h = Math.min(MAX_ISLAND_H, h + SEARCH_H);
+    if (this.searchShown) h = Math.min(Math.max(MAX_ISLAND_H, max.h), h + SEARCH_H);
+    this.fitPanel();
+    // Closing far from the character: it retracts where it is.
+    if (this.away && State.mode !== "expanded") h = 0;
     this.islandEl.style.setProperty("--extra-h", `${extra}px`);
     this.islandEl.style.setProperty("--extra-w", `${State.mode === "expanded" ? Math.max(0, w - EXPANDED_W) : 0}px`);
     let r = State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
@@ -1289,6 +1341,32 @@ export class Island {
     if (State.mode !== "expanded" && this.placement.hoverStyle === "icon") r = compact.w / 2;
     else if (State.mode !== "expanded" && !isGlued(this.placement)) r = compact.h / 2;
     return { w, h, r };
+  }
+
+  /**
+   * The window follows the user's size of the open island (search bar included):
+   * the usual 720×560, or bigger up to the work area. It does not change with
+   * the view, only when the user resizes, so it never cuts an island in mid-animation.
+   */
+  private fitPanel() {
+    const s = State.settings;
+    const max = islandMax(this.limits);
+    const w = Math.min(max.w, Math.max(ISLAND_MIN_W, s.islandWidth || EXPANDED_W));
+    const h = s.islandHeight > 0 ? Math.min(max.h, s.islandHeight) + (s.searchBar !== false ? SEARCH_H : 0) : 0;
+    const next = panelFor(w, Math.min(h, max.h), this.limits);
+    if (next.w === this.panel.w && next.h === this.panel.h) return;
+    this.panel = next;
+    void Bridge.setPanelSize(next.w, next.h);
+  }
+
+  /** The work area of the island's screen, asked again when screen or settings change. */
+  async refreshLimits() {
+    const l = await Bridge.panelLimits();
+    if (!l) return;
+    const [w, h] = l;
+    if (Math.abs(w - this.limits.w) < 1 && Math.abs(h - this.limits.h) < 1) return;
+    this.limits = { w, h };
+    this.animateGeometry(false);
   }
 
   private animateGeometry(shrinking: boolean) {
@@ -1310,7 +1388,7 @@ export class Island {
     const hh = this.height.value;
     const r = this.radius.value;
     const p = this.placement;
-    const o = anchoredOrigin(p, w, hh);
+    const o = anchoredOrigin(p, w, hh, this.panel.w, this.panel.h);
     this.islandEl.style.left = `${o.x}px`;
     this.islandEl.style.top = `${o.y}px`;
     this.islandEl.style.width = `${w}px`;
@@ -1361,7 +1439,7 @@ export class Island {
   private islandRect(): { x: number; y: number; w: number; h: number } {
     const w = this.width.value;
     const hh = this.height.value;
-    const o = anchoredOrigin(this.placement, w, hh);
+    const o = anchoredOrigin(this.placement, w, hh, this.panel.w, this.panel.h);
     return { x: o.x, y: o.y, w, h: hh };
   }
 
@@ -1374,7 +1452,7 @@ export class Island {
    * or the full panel — both are pinned to the same corner.
    */
   private placeRestElements() {
-    const p = this.placement;
+    const p = this.homePlacement;
     const pin = (el: HTMLElement, w: number, hh: number, margin: number) => {
       el.style.width = `${w}px`;
       el.style.height = `${hh}px`;
@@ -1395,7 +1473,7 @@ export class Island {
    * runs no animation loop at all.
    */
   private drawRestIcon() {
-    const p = this.placement;
+    const p = this.homePlacement;
     const state = State.effectiveState;
     const key = `${window.devicePixelRatio}|${p.iconStyle}|${p.iconSize}|${state}|${State.paused}|${State.settings.theme.slimeColor}|${character().id}`;
     if (key === this.restKey) return;
@@ -1442,8 +1520,8 @@ export class Island {
     const g = this.resizeGrip;
     let start: { x: number; y: number; w: number; h: number } | null = null;
     const dirs = () => {
-      const s = State.settings;
-      return { fx: s.anchorH === "right" ? -1 : s.anchorH === "center" ? 2 : 1, fy: s.anchorV === "bottom" ? -1 : 1 };
+      const p = this.placement;
+      return { fx: p.h === "right" ? -1 : p.h === "center" ? 2 : 1, fy: p.v === "bottom" ? -1 : p.v === "middle" ? 2 : 1 };
     };
     g.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return;
@@ -1457,8 +1535,9 @@ export class Island {
       if (!start) return;
       const { fx, fy } = dirs();
       const s = State.settings;
-      s.islandWidth = Math.round(Math.min(ISLAND_MAX_W, Math.max(ISLAND_MIN_W, start.w + (e.screenX - start.x) * fx)));
-      s.islandHeight = Math.round(Math.min(MAX_ISLAND_H, Math.max(0, start.h + (e.screenY - start.y) * fy)));
+      const max = islandMax(this.limits);
+      s.islandWidth = Math.round(Math.min(max.w, Math.max(ISLAND_MIN_W, start.w + (e.screenX - start.x) * fx)));
+      s.islandHeight = Math.round(Math.min(max.h, Math.max(0, start.h + (e.screenY - start.y) * fy)));
       State.lastActivity = performance.now();
       this.animateGeometry(false);
     });
@@ -1530,7 +1609,7 @@ export class Island {
     this.drawRestIcon();
     this.animateGeometry(false);
     if (this.collapsed) {
-      const box = collapsedBox(this.placement);
+      const box = collapsedBox(this.homePlacement);
       void Bridge.setCollapsed(true, box.w, box.h);
     } else {
       void Bridge.reposition();
@@ -1593,7 +1672,7 @@ export class Island {
         this.collapseTimer = null;
         if (State.mode !== "hidden") return;
         this.collapsed = true;
-        const box = collapsedBox(this.placement);
+        const box = collapsedBox(this.homePlacement);
         void Bridge.setCollapsed(true, box.w, box.h);
       }, 420);
     } else if (this.collapsed) {
@@ -2106,6 +2185,7 @@ export class Island {
     this.fsm.petitToHiddenDelay = State.settings.revealDuration;
     this.applyTheme();
     this.applyPlacement();
+    void this.refreshLimits();
     this.keepCompactUp();
     this.scheduleWander();
     // Width or minimum height changed in the settings window.
@@ -2114,7 +2194,7 @@ export class Island {
   }
 
   get panelSize() {
-    return { w: PANEL_W, h: PANEL_H };
+    return this.panel;
   }
 
   get chatHeight() {

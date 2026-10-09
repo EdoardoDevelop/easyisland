@@ -15,3 +15,6 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
 - [ ] **Lingua inglese:** Generale → Lingua → English, «Riavvia ora»: isola, impostazioni, menu dell'icona, card delle integrazioni e risposte della chat in inglese.
 - [ ] **`Ctrl+Space`:** apre l'isola; controllare che non serva in VS Code (suggerimenti), Excel (seleziona la colonna) o per cambiare lingua della tastiera.
 - [ ] **Prezzi dei modelli:** «Carica modelli» con opencode e con OpenRouter, «solo gratuiti».
+- [ ] **Cronologia delle chat:** una conversazione per motore (abbonamento, API, opencode, uno compatibile OpenAI) riaperta dall'orologio continua con il contesto di prima; dopo un riavvio dell'app; «Cancella la cronologia» e l'interruttore spento.
+- [ ] **Isola grande:** trascinando l'angolo o con i cursori arriva fino ai bordi dello schermo (anche con la barra di ricerca e «Sopra la barra»), su uno schermo con scala 100 % e uno con 150 %; nessun pezzo tagliato all'apertura e alla chiusura.
+- [ ] **L'isola si apre in alto / al centro / in basso:** si apre lì e chiudendosi torna al personaggio; trascinamento dell'isola aperta; apertura al passaggio del mouse (si chiude dopo «Pannello aperto» se il mouse non ci va).

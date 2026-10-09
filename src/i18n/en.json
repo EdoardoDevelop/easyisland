@@ -18,7 +18,6 @@
   ", in carica": ", charging",
   ", poi ": ", then ",
   ", {n} saltati": ", {n} skipped",
-  "0 = l'altezza di ogni vista; anche trascinando l'angolo dell'isola aperta": "0 = each view's own height; you can also drag the corner of the open island",
   "1 giorno, {h} h": "1 day, {h} h",
   "1 mail da leggere": "1 unread email",
   "1 risposta": "1 answer",
@@ -1367,5 +1366,14 @@
   "Questa conversazione non c'è più.": "This conversation is no longer there.",
   "Utente": "User",
   "Assistente": "Assistant",
-  "Riprendiamo una conversazione di prima. Ecco com'era andata:\n\n{text}---\n\nNuova domanda: ": "Let's pick up an earlier conversation. Here is how it went:\n\n{text}---\n\nNew question: "
+  "Riprendiamo una conversazione di prima. Ecco com'era andata:\n\n{text}---\n\nNuova domanda: ": "Let's pick up an earlier conversation. Here is how it went:\n\n{text}---\n\nNew question: ",
+  "A sinistra": "Left",
+  "A destra": "Right",
+  "Dove sta il personaggio": "Where the character is",
+  "In alto al centro": "Top centre",
+  "Al centro dello schermo": "Middle of the screen",
+  "In basso al centro": "Bottom centre",
+  "L'isola si apre": "The island opens",
+  "vicino al personaggio, oppure sempre nello stesso punto dello schermo; il personaggio resta dov'è": "next to the character, or always at the same spot on the screen; the character stays where it is",
+  "0 = l'altezza di ogni vista; fino alla grandezza dello schermo, anche trascinando l'angolo dell'isola aperta": "0 = each view's own height; up to the size of the screen, also by dragging the open island's corner"
 }

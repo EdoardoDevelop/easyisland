@@ -11,7 +11,7 @@ import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRAT
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
 import { h, clear, TAB_ICONS } from "../views/dom";
 import { BRAND_SVG } from "../views/brands";
-import { ISLAND_MAX_W, ISLAND_MIN_W, MAX_ISLAND_H } from "../core/layout";
+import { ISLAND_MIN_W, PANEL_H, PANEL_W, islandMax } from "../core/layout";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 import { language, locale, resolveLanguage, syncLanguage, t } from "../core/i18n";
 
@@ -1016,10 +1016,33 @@ function placementSection(): HTMLElement {
     (v) => { settings.anchorV = v; settings.offsetX = 0; settings.offsetY = 0; commit(); },
   );
   const horizontal = select<Settings["anchorH"]>(
-    [["left", "A sinistra"], ["center", t("Al centro")], ["right", "A destra"]],
+    [["left", t("A sinistra")], ["center", t("Al centro")], ["right", t("A destra")]],
     settings.anchorH,
     (v) => { settings.anchorH = v; settings.offsetX = 0; settings.offsetY = 0; commit(); },
   );
+
+  // Where the island opens: the character's place, or a fixed spot on the screen.
+  const place = select<Settings["islandPlace"]>(
+    [
+      ["character", t("Dove sta il personaggio")],
+      ["top", t("In alto al centro")],
+      ["center", t("Al centro dello schermo")],
+      ["bottom", t("In basso al centro")],
+    ],
+    settings.islandPlace ?? "character",
+    (v) => { settings.islandPlace = v; commit(); },
+  );
+
+  // As big as the screen allows: the limits come from the island's display.
+  const defaults = islandMax({ w: PANEL_W, h: PANEL_H });
+  const widthSlider = slider(ISLAND_MIN_W, defaults.w, 8, Math.round(settings.islandWidth ?? 640), "px", (v) => { settings.islandWidth = v; commit(); });
+  const heightSlider = slider(0, defaults.h, 8, Math.round(settings.islandHeight ?? 0), "px", (v) => { settings.islandHeight = v; commit(); });
+  void Bridge.panelLimits().then((l) => {
+    if (!l) return;
+    const max = islandMax({ w: l[0], h: l[1] });
+    widthSlider.querySelector("input")!.max = String(max.w);
+    heightSlider.querySelector("input")!.max = String(max.h);
+  });
 
   const iconSize = h("div", { class: "row" },
     h("label", { text: t("Dimensione") }),
@@ -1117,14 +1140,19 @@ function placementSection(): HTMLElement {
     h("div", { class: "row" }, h("label", { text: t("Schermo") }), screen),
     h("div", { class: "row" }, h("label", { text: t("Posizione") }), vertical, horizontal),
     h("div", { class: "row" },
+      h("label", { text: t("L'isola si apre") }),
+      place,
+      h("span", { class: "hint note", text: t("vicino al personaggio, oppure sempre nello stesso punto dello schermo; il personaggio resta dov'è") }),
+    ),
+    h("div", { class: "row" },
       h("label", { text: t("Larghezza") }),
-      slider(ISLAND_MIN_W, ISLAND_MAX_W, 8, Math.round(settings.islandWidth ?? 640), "px", (v) => { settings.islandWidth = v; commit(); }),
+      widthSlider,
     ),
     h("div", { class: "row" },
       h("label", { text: t("Altezza minima") }),
-      slider(0, MAX_ISLAND_H, 8, Math.round(settings.islandHeight ?? 0), "px", (v) => { settings.islandHeight = v; commit(); }),
+      heightSlider,
       h("button", { text: t("Predefinite"), onclick: () => { settings.islandWidth = 640; settings.islandHeight = 0; commit(); render(); } }),
-      h("span", { class: "hint note", text: t("0 = l'altezza di ogni vista; anche trascinando l'angolo dell'isola aperta") }),
+      h("span", { class: "hint note", text: t("0 = l'altezza di ogni vista; fino alla grandezza dello schermo, anche trascinando l'angolo dell'isola aperta") }),
     ),
     h("div", { class: "row" },
       h("label", { text: t("Barra di ricerca") }),

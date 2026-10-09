@@ -495,6 +495,28 @@ fn set_expanded(app: AppHandle, shared: State<Shared>, expanded: bool) {
     }
 }
 
+/// The open island grew past the usual window (or came back within it): the
+/// window takes `width`×`height`, logical px, within the work area.
+#[tauri::command]
+fn set_panel_size(app: AppHandle, shared: State<Shared>, width: f64, height: f64) {
+    let size = (width.max(island::PANEL_W).round(), height.max(island::PANEL_H).round());
+    if std::mem::replace(&mut *shared.gate.panel_size.lock().unwrap(), size) == size {
+        return;
+    }
+    if shared.gate.collapsed.load(Ordering::Relaxed) {
+        return;
+    }
+    let settings = shared.settings.lock().unwrap().clone();
+    island::apply_geometry(&app, &shared.gate, &settings, false);
+}
+
+/// How big the window (and so the island) may get on its screen, logical px.
+#[tauri::command]
+fn panel_limits(app: AppHandle, shared: State<Shared>) -> (f64, f64) {
+    let settings = shared.settings.lock().unwrap().clone();
+    island::panel_limits(&app, &settings)
+}
+
 #[tauri::command]
 fn reposition(app: AppHandle, shared: State<Shared>) {
     let settings = shared.settings.lock().unwrap().clone();
@@ -1171,6 +1193,8 @@ pub fn run() {
             set_island_rect,
             focus_window,
             reposition,
+            set_panel_size,
+            panel_limits,
             open_url,
             open_in_vscode,
             open_file_in_vscode,

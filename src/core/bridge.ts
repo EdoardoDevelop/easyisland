@@ -73,6 +73,10 @@ export const Bridge = {
   focusWindow: (focused: boolean) => call<void>("focus_window", { focused }),
 
   reposition: () => call<void>("reposition"),
+  /** The window the open island needs, logical px (island.rs `set_panel_size`). */
+  setPanelSize: (width: number, height: number) => call<void>("set_panel_size", { width, height }),
+  /** The largest the window may be on the island's screen: [width, height], logical px. */
+  panelLimits: () => call<[number, number]>("panel_limits"),
 
   /** "Copia info PC": the text it put on the clipboard. */
   copyPcInfo: () => callOrThrow<string>("copy_pc_info"),

@@ -320,6 +320,8 @@ export interface Settings {
   islandWidth: number;
   /** Minimum height of the open island, px; 0 = each view's own height. */
   islandHeight: number;
+  /** Where the open island appears: where the character is, or top / centre / bottom of the screen (island.rs). */
+  islandPlace: "character" | "top" | "center" | "bottom";
   /** ✕ in the open island's header. */
   closeButton: boolean;
   /** The compact view follows the cursor too (the open island always does). */
@@ -617,6 +619,7 @@ export const DEFAULT_SETTINGS: Settings = {
   overTaskbar: false,
   islandWidth: 640,
   islandHeight: 0,
+  islandPlace: "character",
   closeButton: true,
   followCursorCompact: false,
   presenceMeeting: true,
