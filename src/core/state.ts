@@ -204,6 +204,10 @@ export const PROBE_INTEGRATIONS: Record<string, string> = {
   integration_claude_usage: "claude_usage",
 };
 
+export const CLAUDE_TASK = "integration_claude";
+/** opencode's agent task (hook/src/agents.rs gives it this name and colour). */
+const OPENCODE_TASK = "agent:opencode";
+
 /** AgentTask.integrationAgents — same ids, names and colours as macOS. */
 export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_claude", "Claude Code", "#F5F6F8", "claudeCode"),
@@ -322,6 +326,10 @@ export interface Settings {
   islandHeight: number;
   /** Where the open island appears: where the character is, or top / centre / bottom of the screen (island.rs). */
   islandPlace: "character" | "top" | "center" | "bottom";
+  /** The greeting at launch; off, the character just shows up at its place. */
+  greeting: boolean;
+  /** Where the greeting plays: the centre of the screen, or where the character lives. */
+  greetingPlace: "center" | "character";
   /** ✕ in the open island's header. */
   closeButton: boolean;
   /** The compact view follows the cursor too (the open island always does). */
@@ -620,6 +628,8 @@ export const DEFAULT_SETTINGS: Settings = {
   islandWidth: 640,
   islandHeight: 0,
   islandPlace: "character",
+  greeting: true,
+  greetingPlace: "center",
   closeButton: true,
   followCursorCompact: false,
   presenceMeeting: true,
@@ -756,10 +766,32 @@ class AppState {
     this.notify();
   }
 
+  /** A Claude Code event without the hooks known as installed: its task is there for the session. */
+  ensureClaudeTask() {
+    if (this.tasks.some((t) => t.id === CLAUDE_TASK)) return;
+    this.tasks.push({ ...INTEGRATION_AGENTS.find((t) => t.id === CLAUDE_TASK)!, steps: [] });
+    this.notify();
+  }
+
+  /**
+   * The agent that stays in the Agenti tab between sessions: Claude Code when
+   * its hooks are installed, else opencode when it is followed. None: the tab
+   * shows only while a session runs.
+   */
+  get homeAgentId(): string | null {
+    if (this.settings.hooksInstalled) return CLAUDE_TASK;
+    return this.settings.opencodeWatch ? OPENCODE_TASK : null;
+  }
+
+  /** Where the focus goes when its task is gone. */
+  private fallbackFocus(): string | null {
+    return this.tasks.find((t) => t.id === this.homeAgentId)?.id ?? this.tasks[0]?.id ?? null;
+  }
+
   /** An agent's session ended: its pill goes. */
   removeTask(id: string) {
     this.tasks = this.tasks.filter((t) => t.id !== id);
-    if (this.focusId === id) this.focusId = "integration_claude";
+    if (this.focusId === id) this.focusId = this.fallbackFocus();
     this.notify();
   }
 
@@ -790,9 +822,12 @@ class AppState {
     return this.tasks.filter((t) => isSessionTask(t)).sort((a, b) => (b.lastActive ?? 0) - (a.lastActive ?? 0));
   }
 
-  /** The agent the Agenti tab opens on: the one heard from last (Claude Code when none was). */
+  /** The agent the Agenti tab opens on: the one heard from last (else the home agent). */
   get latestSessionTask(): AgentTask | null {
-    return this.sessionTasks.find((t) => t.lastActive) ?? this.tasks.find((t) => t.id === "integration_claude") ?? null;
+    return this.sessionTasks.find((t) => t.lastActive)
+      ?? this.tasks.find((t) => t.id === this.homeAgentId)
+      ?? this.sessionTasks[0]
+      ?? null;
   }
 
   /** ⌂ shows every integration (not while a permission or a question waits). */
@@ -912,12 +947,14 @@ class AppState {
     this.notify();
   }
 
-  /** loadIntegrationTasks() — Claude Code always on, the rest opt-in. */
+  /** loadIntegrationTasks() — Claude Code with its hooks installed, the rest opt-in. */
   loadIntegrationTasks() {
     for (const proto of INTEGRATION_AGENTS) {
-      const shouldLoad =
-        proto.id === "integration_claude" || this.settings.activeIntegrations.includes(proto.id);
       const idx = this.tasks.findIndex((t) => t.id === proto.id);
+      // No hooks: a task made by one of its sessions stays until the session ends.
+      const shouldLoad = proto.id === CLAUDE_TASK
+        ? this.settings.hooksInstalled || (idx >= 0 && !!this.tasks[idx].lastActive)
+        : this.settings.activeIntegrations.includes(proto.id);
       if (shouldLoad && idx < 0) this.tasks.push({ ...proto, steps: [] });
       if (!shouldLoad && idx >= 0) this.tasks.splice(idx, 1);
     }
@@ -946,11 +983,17 @@ class AppState {
       const i = user.indexOf(id);
       return i >= 0 ? i : user.length + order.indexOf(id);
     };
-    this.tasks.sort((a, b) => rank(a.id) - rank(b.id));
-    if (this.focusId && !this.tasks.some((t) => t.id === this.focusId)) {
-      this.focusId = "integration_claude";
+    // opencode in place of Claude Code: waiting in the Agenti tab between sessions.
+    const opencode = this.tasks.find((t) => t.id === OPENCODE_TASK);
+    if (this.homeAgentId === OPENCODE_TASK && !opencode) {
+      this.tasks.push({ ...task(OPENCODE_TASK, "opencode", "#FAB283", "agent"), agentName: "opencode", isIntegration: false });
+    } else if (this.homeAgentId !== OPENCODE_TASK && opencode && !opencode.lastActive) {
+      this.tasks = this.tasks.filter((t) => t !== opencode);
     }
-    if (!this.focusId) this.focusId = "integration_claude";
+    this.tasks.sort((a, b) => rank(a.id) - rank(b.id));
+    if (!this.focusId || !this.tasks.some((t) => t.id === this.focusId)) {
+      this.focusId = this.fallbackFocus();
+    }
     this.notify();
   }
 
@@ -969,11 +1012,11 @@ class AppState {
   }
 
   toggleIntegration(id: string) {
-    if (id === "integration_claude") return;
+    if (id === CLAUDE_TASK) return;
     const active = this.settings.activeIntegrations;
     if (active.includes(id)) {
       this.settings.activeIntegrations = active.filter((x) => x !== id);
-      if (this.focusId === id) this.focusId = "integration_claude";
+      if (this.focusId === id) this.focusId = null;
     } else {
       this.settings.activeIntegrations = [...active, id];
     }

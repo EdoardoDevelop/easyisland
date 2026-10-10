@@ -102,6 +102,9 @@ pub struct PollGate {
     /// Logical size of the window while not collapsed, asked by the front end
     /// (never below PANEL_W × PANEL_H; clamped to the work area when applied).
     pub panel_size: Mutex<(f64, f64)>,
+    /// Where this opening shows, instead of `island_place` (the launch greeting
+    /// asks for the centre). Forgotten when the island closes.
+    pub open_place: Mutex<Option<String>>,
 }
 
 impl PollGate {
@@ -119,6 +122,7 @@ impl PollGate {
             expanded: AtomicBool::new(false),
             panel_offset: Mutex::new((0.0, 0.0)),
             panel_size: Mutex::new((PANEL_W, PANEL_H)),
+            open_place: Mutex::new(None),
         }
     }
 
@@ -233,7 +237,8 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
         panel_physical(gate, work, scale)
     };
     let open = !collapsed && gate.expanded.load(Ordering::Relaxed);
-    let (x, y) = open_origin(work, (pw, ph), settings, scale, open);
+    let place = gate.open_place.lock().unwrap().clone();
+    let (x, y) = open_origin(work, (pw, ph), settings, place.as_deref(), scale, open);
     // The open island stays where it was dragged to; closed, it is back home.
     let (x, y) = if open {
         let (dx, dy) = *gate.panel_offset.lock().unwrap();
@@ -257,13 +262,13 @@ fn panel_physical(gate: &PollGate, work: (i32, i32, u32, u32), scale: f64) -> (u
     (pw.max(1), ph.max(1))
 }
 
-/// Where the window goes: home, or, open with `island_place` set, the top,
-/// centre or bottom of the work area (horizontally centred).
-fn open_origin(work: (i32, i32, u32, u32), size: (u32, u32), settings: &Settings, scale: f64, open: bool) -> (i32, i32) {
+/// Where the window goes: home, or, open with `island_place` (or this opening's
+/// `place`) set, the top, centre or bottom of the work area (horizontally centred).
+fn open_origin(work: (i32, i32, u32, u32), size: (u32, u32), settings: &Settings, place: Option<&str>, scale: f64, open: bool) -> (i32, i32) {
     if !open {
         return home_origin(work, size, settings, scale);
     }
-    match place_origin(work, size, &settings.island_place) {
+    match place_origin(work, size, place.unwrap_or(&settings.island_place)) {
         Some(o) => o,
         None => home_origin(work, size, settings, scale),
     }
@@ -355,11 +360,12 @@ pub fn glide_home(app: &AppHandle, gate: Arc<PollGate>, settings: &Settings) {
 /// The open island was dropped with its window at `win_origin`: how far that is
 /// from home, in logical px. Near home it snaps back (it touches the edge again),
 /// and past the screen's edge it counts as at the edge, where the window is kept.
-pub fn panel_offset_from_drop(app: &AppHandle, settings: &Settings, win_origin: (i32, i32), win_size: (u32, u32)) -> Option<(f64, f64)> {
+pub fn panel_offset_from_drop(app: &AppHandle, gate: &PollGate, settings: &Settings, win_origin: (i32, i32), win_size: (u32, u32)) -> Option<(f64, f64)> {
     let m = target_monitor(app, &settings.screen)?;
     let scale = m.scale_factor();
     let work = island_area(&m, settings);
-    let (hx, hy) = open_origin(work, win_size, settings, scale, true);
+    let place = gate.open_place.lock().unwrap().clone();
+    let (hx, hy) = open_origin(work, win_size, settings, place.as_deref(), scale, true);
     let snap = |d: i32| if (d as f64 / scale).abs() < SNAP { 0 } else { d };
     let (x, y) = clamp_to_work(work, win_size, hx + snap(win_origin.0 - hx), hy + snap(win_origin.1 - hy));
     Some(((x - hx) as f64 / scale, (y - hy) as f64 / scale))

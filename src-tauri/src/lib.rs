@@ -96,9 +96,13 @@ pub struct BootInfo {
 
 #[tauri::command]
 fn boot(app: AppHandle, shared: State<Shared>) -> BootInfo {
-    let mut settings = shared.settings.lock().unwrap().clone();
-    // The real state of ~/.claude/settings.json wins over whatever we stored.
-    settings.hooks_installed = hooks::status().installed;
+    // The real state of ~/.claude/settings.json wins over whatever we stored
+    // (it decides whether Claude Code is in the Agenti tab).
+    let settings = {
+        let mut current = shared.settings.lock().unwrap();
+        current.hooks_installed = hooks::status().installed;
+        current.clone()
+    };
     let screen = island::screen_info(&app, &settings.screen);
     BootInfo {
         settings,
@@ -123,6 +127,9 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
             || current.offset_y != settings.offset_y
             || current.over_taskbar != settings.over_taskbar;
         let autostart_changed = current.autostart != settings.autostart;
+        // Only boot and hooks_apply know whether the hooks are there; a window
+        // opened before an install would send the old value.
+        settings.hooks_installed = current.hooks_installed;
         *current = settings.clone();
         (screen_changed, autostart_changed)
     };
@@ -454,7 +461,7 @@ fn end_drag(app: AppHandle, shared: State<Shared>) -> DragEnd {
         // saved, and closing it takes the character back to its place. The
         // front end gets the offset back to round the corners off the edges.
         let s = shared.settings.lock().unwrap().clone();
-        let offset = island::panel_offset_from_drop(&app, &s, (pos.x, pos.y), (size.width, size.height));
+        let offset = island::panel_offset_from_drop(&app, &shared.gate, &s, (pos.x, pos.y), (size.width, size.height));
         if let Some(offset) = offset {
             *shared.gate.panel_offset.lock().unwrap() = offset;
             // Snapped to an edge or pulled back on screen.
@@ -511,8 +518,10 @@ fn end_drag(app: AppHandle, shared: State<Shared>) -> DragEnd {
 
 /// The island opened or closed. Closing takes the window back to the character's
 /// place (an open island dragged elsewhere comes home), and every opening starts there.
+/// `place` puts this opening somewhere else than `island_place` (the launch greeting).
 #[tauri::command]
-fn set_expanded(app: AppHandle, shared: State<Shared>, expanded: bool) {
+fn set_expanded(app: AppHandle, shared: State<Shared>, expanded: bool, place: Option<String>) {
+    *shared.gate.open_place.lock().unwrap() = if expanded { place } else { None };
     if shared.gate.expanded.swap(expanded, Ordering::Relaxed) == expanded {
         return;
     }

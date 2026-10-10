@@ -586,7 +586,7 @@ Ogni agente ha la sua pillola con passi, modifiche ai file e ultimo messaggio.
 - **Codex** (`%USERPROFILE%\.codex\hooks.json`): anche le richieste di permesso,
   con **Consenti / Nega** nell'isola. Dopo l'installazione apri `/hooks` in Codex e
   approva gli hook di EasyIsland (Codex chiede di fidarsi degli hook nuovi).
-- **opencode**: con opencode 2 accendi **Segui opencode 2**. EasyIsland legge il
+- **opencode**: con opencode 2 accendi **Collega opencode**. EasyIsland legge il
   servizio in background di opencode sul tuo PC, senza installare nulla. Le
   richieste di permesso arrivano nell'isola con **Consenti / Nega / Sempre**, e
   puoi rispondere anche in opencode come sempre. Con opencode 1.x c'è invece un

@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 9 ottobre 2026. Versione **0.6.5** in `main` con il tag `v0.6.5` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 10 ottobre 2026. Versione **0.6.5** in `main` con il tag `v0.6.5` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -22,6 +22,11 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 10 ottobre 2026 — Claude Code facoltativo, saluto al centro, «Apri l'isola» chiude anche
+- **Claude Code solo con i suoi hook:** senza hook installati niente card Claude Code. Con «Collega opencode» (prima «Segui opencode 2») la scheda Agenti parte da opencode «In attesa»; senza agenti la scheda non c'è. `hooksInstalled` lo scrivono solo `boot` e `hooks_apply` (il salvataggio delle Impostazioni non lo tocca più). Nell'anteprima del browser gli hook contano come installati (`?hooksInstalled=false` per provarne l'assenza).
+- **Saluto all'avvio** al centro dello schermo di predefinito. In Posizione e aspetto: acceso/spento (`greeting`; spento, il personaggio compare al suo posto senza suono) e dove (`greetingPlace`: centro o dove sta il personaggio). La finestra va al centro con `set_expanded(…, place)` → `gate.open_place`, che vale solo per quell'apertura. Provato nell'anteprima; la finestra vera è da provare dal vivo.
+- La scorciatoia «Apri l'isola» (`Ctrl+Space`) premuta con l'isola aperta la chiude (`onHotkey` in `island.ts`). Con una richiesta in attesa resta sulla card, come con Esc o il clic fuori (`collapse`).
+
 ### 9 ottobre 2026 — versione 0.6.5
 - Unione in `main` e tag `v0.6.5`: cartella nella chat, menu col clic destro, saluto senza isola, `Ctrl+Space` sulla Panoramica, angoli dell'isola staccata (voci sotto). README con novità e tabella delle versioni.
 
@@ -38,10 +43,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Clic destro sull'icona a riposo: lo stesso menu dell'area di notifica (Apri, Profilo, Riepilogo, Davanti al cliente, Impostazioni, Pausa, Esci) dove sta il cursore (`show_island_menu` in `lib.rs`, `tray::popup`). Le voci passano dallo stesso gestore del menu dell'area di notifica.
 - La finestra a riposo non prende il fuoco (`WS_EX_NOACTIVATE`): per la durata del menu lo prende, sennò un clic fuori non lo chiude. Provato dal vivo il 9 ottobre.
 - **Angoli:** l'isola aperta trascinata via dal bordo restava squadrata verso il bordo; ora `end_drag` restituisce lo spostamento (agganciato entro 16 px, riportato dentro lo schermo) e gli angoli si arrotondano. Mentre la si trascina, in ogni stato, è arrotondata tutta. Provato dal vivo.
-
-### 9 ottobre 2026 — versione 0.6.4: Goccia predefinita, cronologia delle chat, isola grande, dove si apre
-- **Goccia** è il personaggio predefinito (nuove installazioni; chi ne aveva scelto uno lo tiene). README con schermate nuove (`node scripts/screenshots.mjs`, aggiunte `chat-history`, `agenti`, `recap`), sezione Novità e tabella delle versioni.
-- **Cronologia delle chat** (`chat_log.rs`, orologio in alto nella chat): fino a 100 conversazioni in `chats.json`, riaperte sul loro motore. Claude Code e opencode ricevono la conversazione di prima come testo. Si spegne e si cancella in Impostazioni → Chat.
-- **Isola fino ai bordi dello schermo:** la finestra non è più fissa a 720×560 ma segue la misura scelta (`set_panel_size`, limiti da `panel_limits`).
-- **«L'isola si apre»** (Posizione e aspetto): dove sta il personaggio, oppure in alto, al centro o in basso nello schermo (`islandPlace`). Provato nell'anteprima; la finestra vera si sposta solo nell'app.
-- Testi rimasti in italiano tradotti (motore «abbonamento», «Pannello aperto», widget, Vassoio, errori degli hook). Il controllo delle traduzioni saltava il resto di un file Rust dopo il primo `#[cfg(test)]`.

@@ -107,7 +107,12 @@ export function testStep(v: TestVerdict): string {
 /** The pill an event belongs to: Claude Code's, or the agent's (made on its first event). */
 function taskFor(p: HookPayload): string {
   const a = p.easyisland_agent;
-  if (!a?.id) return CLAUDE_ID;
+  if (!a?.id) {
+    // Hooks not known as installed (a project's own settings.json can have
+    // them): it shows for the session, a permission must never wait unseen.
+    State.ensureClaudeTask();
+    return CLAUDE_ID;
+  }
   const id = `agent:${a.id}`;
   State.ensureAgentTask(id, a.name || a.id, a.color || "#8E939C");
   return id;
@@ -444,8 +449,8 @@ function endSession(tid: string) {
   clearSession(tid);
   // The diffs live as long as the session (or an hour, see State.addDiff).
   State.diffs = State.diffs.filter((d) => d.task !== tid);
-  // Another agent's pill lasts as long as its session.
-  if (tid !== CLAUDE_ID) State.removeTask(tid);
+  // Another agent's pill lasts as long as its session; the Agenti tab's own stays.
+  if (tid !== State.homeAgentId) State.removeTask(tid);
 }
 
 /**

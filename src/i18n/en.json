@@ -1042,7 +1042,7 @@
   "secondi dopo che sposti via il mouse, poi si riduce alla vista compatta": "seconds after you move the mouse away, then it shrinks to the compact view",
   "secondi dopo un evento o dopo che sposti via il mouse": "seconds after an event or after you move the mouse away",
   "Segue il mouse": "Follows the mouse",
-  "Segui opencode 2": "Follow opencode 2",
+  "Collega opencode": "Connect opencode",
   "Sempre": "Always",
   "Sempre visibile": "Always visible",
   "Sempre: {rule}": "Always: {rule}",
@@ -1374,6 +1374,8 @@
   "Al centro dello schermo": "Middle of the screen",
   "In basso al centro": "Bottom centre",
   "L'isola si apre": "The island opens",
+  "Saluto all'avvio": "Greeting at launch",
+  "l'animazione del personaggio quando parte l'app; spento, compare subito al suo posto": "the character's animation when the app starts; off, it simply shows up at its place",
   "vicino al personaggio, oppure sempre nello stesso punto dello schermo; il personaggio resta dov'è": "next to the character, or always at the same spot on the screen; the character stays where it is",
   "0 = l'altezza di ogni vista; fino alla grandezza dello schermo, anche trascinando l'angolo dell'isola aperta": "0 = each view's own height; up to the size of the screen, also by dragging the open island's corner"
 }

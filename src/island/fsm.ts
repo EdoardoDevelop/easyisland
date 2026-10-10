@@ -34,6 +34,12 @@ export class IslandStateMachine {
     this.transition("greeting");
   }
 
+  /** No greeting: straight to the compact island, which then rests as usual. */
+  launchQuiet() {
+    this.cancelTimers();
+    this.transition("petit");
+  }
+
   mouseEntered() {
     switch (this.state) {
       case "hidden":

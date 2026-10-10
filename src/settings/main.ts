@@ -142,7 +142,7 @@ function agentRow(tool: HookTool, initial: HookStatus | null): HTMLElement {
     const actions = h("div", { class: "agent-actions" });
     if (tool === "opencode") {
       actions.append(
-        h("span", { class: "hint", text: t("Segui opencode 2") }),
+        h("span", { class: "hint", text: t("Collega opencode") }),
         toggle(settings.opencodeWatch === true, (v) => { settings.opencodeWatch = v; void save(); draw(); }),
       );
     }
@@ -1033,6 +1033,19 @@ function placementSection(): HTMLElement {
     (v) => { settings.islandPlace = v; commit(); },
   );
 
+  // The launch greeting: on or off, and where it plays.
+  const greetingPlace = select<Settings["greetingPlace"]>(
+    [["center", t("Al centro dello schermo")], ["character", t("Dove sta il personaggio")]],
+    settings.greetingPlace ?? "center",
+    (v) => { settings.greetingPlace = v; commit(); },
+  );
+  greetingPlace.style.display = settings.greeting === false ? "none" : "";
+  const greeting = toggle(settings.greeting !== false, (v) => {
+    settings.greeting = v;
+    greetingPlace.style.display = v ? "" : "none";
+    commit();
+  });
+
   // As big as the screen allows: the limits come from the island's display.
   const defaults = islandMax({ w: PANEL_W, h: PANEL_H });
   const widthSlider = slider(ISLAND_MIN_W, defaults.w, 8, Math.round(settings.islandWidth ?? 640), "px", (v) => { settings.islandWidth = v; commit(); });
@@ -1143,6 +1156,12 @@ function placementSection(): HTMLElement {
       h("label", { text: t("L'isola si apre") }),
       place,
       h("span", { class: "hint note", text: t("vicino al personaggio, oppure sempre nello stesso punto dello schermo; il personaggio resta dov'è") }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Saluto all'avvio") }),
+      greeting,
+      greetingPlace,
+      h("span", { class: "hint note", text: t("l'animazione del personaggio quando parte l'app; spento, compare subito al suo posto") }),
     ),
     h("div", { class: "row" },
       h("label", { text: t("Larghezza") }),
