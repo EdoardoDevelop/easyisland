@@ -1,11 +1,11 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 10 ottobre 2026. Versione **0.6.5** in `main` con il tag `v0.6.5` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 10 ottobre 2026. Versione **0.6.6** in `main` con il tag `v0.6.6` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
-- [ ] **Prove dal vivo:** della 0.6.3 interfaccia in inglese, limiti del piano, card «finito» da un altro programma e riepilogo settimanale; della 0.6.4 cronologia delle chat; della 0.6.5 il personaggio lasciato su un'icona del desktop. Tutte in `docs/prove-dal-vivo.md`.
+- [ ] **Prove dal vivo:** della 0.6.3 interfaccia in inglese, limiti del piano, card «finito» da un altro programma e riepilogo settimanale; della 0.6.4 cronologia delle chat; della 0.6.5 il personaggio lasciato su un'icona del desktop; della 0.6.6 saluto al centro, Claude Code assente sul notebook e standby con la Rete. Tutte in `docs/prove-dal-vivo.md`.
 - [ ] **3CX + Zammad:** ticket del cliente sulla chiamata in arrivo (`docs/idee.md`).
 - [ ] **Remote Desktop Manager** come integrazione. Prima va capito dove sta la fonte dati (`docs/idee.md`).
 - [ ] **Azioni ⚡:** valutare le azioni nel menu contestuale di Windows (`docs/idee.md`).
@@ -21,6 +21,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 10 ottobre 2026 — versione 0.6.6
+- Unione in `main` e tag `v0.6.6`: saluto al centro, `Ctrl+Space` che chiude, Claude Code solo con i suoi hook, «Collega opencode», controlli dopo lo standby, passi della sessione (voci sotto). README con novità e tabella delle versioni.
 
 ### 10 ottobre 2026 — passi sovrapposti, controlli dopo lo standby
 - **Card della sessione:** il passo completato (grigio) finiva una riga sotto, sopra quello in corso. Il testo grigio di ogni riga del ticker era assoluto senza `top` (`src/views/ticker.ts`); ora sta in alto e `.tick-text` è un blocco, così anche i puntini di troppo-lungo funzionano. Il passo con l'ultimo messaggio di Claude passa da `plainText` (ora in `src/core/markdown.ts`, come la card «ha finito»): niente `**`, corsivi, backtick né link in markdown.
@@ -39,6 +42,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - **Scorciatoia «Apri l'isola»** (`Ctrl+Space`): apre la Panoramica invece di ⚡ o della chat; con una richiesta in attesa apre quella.
 - **Personaggio lasciato su una cartella:** trascinando il personaggio (a riposo o compatto) su Esplora file o su un'icona del desktop, il percorso va nel campo della chat e il personaggio torna al suo posto (`folder_drop.rs`, `docs/strumenti.md`). Provata la ricerca su Esplora file vero (sfondo, barra degli indirizzi, righe); il desktop e il gesto intero sono da provare dal vivo.
 - Feature `Win32_System_Variant` e `Win32_UI_Shell_Common` del crate `windows` già presente.
-
-### 9 ottobre 2026 — saluto all'avvio senza isola
-- Il saluto è solo il personaggio con alone e particelle, sul desktop: niente card scura, distintivo o mini personaggi (`Greeting.bare`, classe `greeting` sull'isola). Anteprima ripetuta: `/dev/greeting-preview.html`.
