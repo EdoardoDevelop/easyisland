@@ -42,6 +42,7 @@ mod presence;
 mod probes;
 mod profiles;
 mod screenshot;
+mod session_reply;
 mod secrets;
 mod settings;
 mod i18n;
@@ -1246,6 +1247,8 @@ pub fn run() {
             panel_limits,
             open_url,
             open_in_vscode,
+            session_reply::session_reply,
+            claude_cli::session_ask,
             open_file_in_vscode,
             chat_models,
             open_session,

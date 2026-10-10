@@ -59,6 +59,26 @@ async fn service() -> Option<(String, Option<String>)> {
     Some((url, password))
 }
 
+/// "Continua" on an opencode session's finished card: the text goes to the
+/// session through the service, which runs it like a message typed in opencode.
+pub async fn prompt(session: &str, text: &str) -> Result<(), String> {
+    if !session.starts_with("ses") {
+        return Err(t("Sessione di opencode non riconosciuta.").into());
+    }
+    let (url, password) = service().await.ok_or_else(|| t("Il servizio di opencode non risponde.").to_string())?;
+    let client = reqwest::Client::builder().timeout(Duration::from_secs(20)).build().map_err(|e| e.to_string())?;
+    let mut req = client.post(format!("{url}/api/session/{session}/prompt")).json(&json!({ "text": text }));
+    if let Some(p) = password.as_deref() {
+        req = req.basic_auth("opencode", Some(p));
+    }
+    let resp = req.send().await.map_err(|e| e.to_string())?;
+    if resp.status().is_success() {
+        Ok(())
+    } else {
+        Err(tf("opencode ha rifiutato il messaggio (HTTP {code}).", &[("code", &resp.status().as_u16())]))
+    }
+}
+
 pub fn spawn(app: AppHandle) {
     if let Some(s) = app.try_state::<crate::Shared>() {
         apply(&s.settings.lock().unwrap());

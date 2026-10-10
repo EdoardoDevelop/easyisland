@@ -332,6 +332,37 @@ function alwaysLabel(suggestions: unknown): string | null {
   return parts.length ? parts.join("; ") : null;
 }
 
+/**
+ * "Sempre" when Claude Code proposed nothing, in words: the same choice as the
+ * relay's session_rule (hook/src/main.rs) — this command, this domain, all file
+ * edits or this tool, for this session only. Null where there is no "Sempre".
+ */
+function sessionAlways(tool: string, input: Record<string, unknown>): string | null {
+  const text = (k: string) => (typeof input[k] === "string" ? (input[k] as string).trim() : "");
+  const session = t("in questa sessione");
+  switch (tool) {
+    case "AskUserQuestion":
+    case "ExitPlanMode":
+      return null;
+    case "Bash":
+    case "PowerShell": {
+      const cmd = text("command");
+      return cmd && !cmd.includes("\n") ? `${tool}(${cmd}) ${session}` : null;
+    }
+    case "Edit":
+    case "Write":
+    case "MultiEdit":
+    case "NotebookEdit":
+      return t("tutte le modifiche ai file in questa sessione");
+    case "WebFetch": {
+      const host = text("url").replace(/^[a-z]+:\/\//i, "").split(/[/?#]/)[0].split("@").pop()!.split(":")[0].toLowerCase();
+      return host ? `WebFetch(domain:${host}) ${session}` : null;
+    }
+    default:
+      return tool ? `${tool} ${session}` : null;
+  }
+}
+
 /** " +12 −3": the edit's balance, as the ticker colours it (views/ticker.ts). */
 export function diffCounts(added: number, removed: number): string {
   return `  +${added} −${removed}`;
@@ -432,6 +463,8 @@ function clearSession(tid: string) {
   t.plan = undefined;
   t.permissionMode = null;
   t.sessionPid = null;
+  t.sessionId = null;
+  t.sessionEntry = null;
   t.steps = [];
   t.stepIndex = 0;
   t.stepSeq = 0;
@@ -581,6 +614,8 @@ export function handleHook(island: Island, payload: HookPayload) {
   {
     const t = State.tasks.find((x) => x.id === tid);
     if (t && payload.permission_mode !== undefined) t.permissionMode = payload.permission_mode || null;
+    if (t && name !== "SessionEnd" && payload.session_id) t.sessionId = payload.session_id;
+    if (t && payload.entrypoint) t.sessionEntry = payload.entrypoint;
     const pid = payload.easyisland_pid;
     if (t && name !== "SessionEnd" && typeof pid?.pid === "number" && pid.pid > 0 && pid.exe) {
       if (t.sessionPid?.pid !== pid.pid) t.sessionPid = { pid: pid.pid, exe: pid.exe };
@@ -795,7 +830,9 @@ export function handleHook(island: Island, payload: HookPayload) {
       const tool = payload.tool_name ?? t("Strumento");
       const input = payload.tool_input ?? {};
       const questions = tool === "AskUserQuestion" ? askQuestions(input) : null;
-      const always = questions ? null : alwaysLabel(payload.permission_suggestions);
+      // Claude Code's own proposal, else (Claude Code only) this very thing for the session.
+      const always = questions ? null
+        : alwaysLabel(payload.permission_suggestions) ?? (payload.easyisland_agent ? null : sessionAlways(tool, input));
       const risks = questions ? [] : risksOf(tool, input);
       // ExitPlanMode: the plan itself is what is being approved.
       const plan = tool === "ExitPlanMode" && typeof input.plan === "string" && input.plan.trim() ? input.plan : null;

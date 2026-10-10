@@ -544,8 +544,117 @@ pub async fn status() -> CliStatus {
     }
 }
 
+/// "Chiedi a questa sessione": what the copy is told before the question.
+const ASK_PROMPT: &str = "You are a read-only copy of the user's Claude Code session, asked a side question from the EasyIsland island. \
+The real session goes on without you: never edit files, run commands or continue its work. \
+Answer from what the session already knows, reading files only if needed. Be brief: the answer is shown in a small window. \
+Respond in Italian unless the user writes in another language.";
+const ASK_TOOLS: &str = "Read,Glob,Grep";
+
+#[derive(Serialize)]
+pub struct AskReply {
+    text: String,
+    /// The copy's session id: the next question goes on there.
+    fork: Option<String>,
+}
+
+/// The arguments for one side question. Kept apart from the spawn so it can be tested.
+fn ask_args(dir: &Path, session: &str, fork: Option<&str>) -> Vec<String> {
+    let mut a: Vec<String> = vec![
+        "-p".into(),
+        "--output-format".into(),
+        "json".into(),
+        "--settings".into(),
+        dir.join("ask-settings.json").to_string_lossy().into_owned(),
+        "--append-system-prompt-file".into(),
+        dir.join("ask-prompt.txt").to_string_lossy().into_owned(),
+        "--tools".into(),
+        ASK_TOOLS.into(),
+        "--allowedTools".into(),
+        ASK_TOOLS.into(),
+        "--permission-mode".into(),
+        "dontAsk".into(),
+        "--strict-mcp-config".into(),
+        "--resume".into(),
+    ];
+    match fork {
+        // The copy made by the first question: its own history goes on.
+        Some(f) => a.push(f.into()),
+        // A copy of the session: the session itself is never written to.
+        None => a.extend([session.into(), "--fork-session".into()]),
+    }
+    a
+}
+
+/// A side question to a Claude Code session, answered by a read-only copy of it
+/// (`--fork-session`), run in the session's folder (where Claude Code keeps it),
+/// with hooks off so the copy never shows up in the island as a session.
+#[tauri::command]
+pub async fn session_ask(session: String, fork: Option<String>, cwd: String, question: String) -> Result<AskReply, String> {
+    let question = question.trim().to_string();
+    let valid = |s: &str| !s.is_empty() && s.len() <= 80 && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
+    if question.is_empty() || !valid(&session) || fork.as_deref().is_some_and(|f| !valid(f)) {
+        return Err(t("Domanda o sessione non valida.").into());
+    }
+    let folder = PathBuf::from(&cwd);
+    if !folder.is_dir() {
+        return Err(t("La cartella della sessione non esiste più.").into());
+    }
+    let exe = find_claude().ok_or_else(|| {
+        t("Per chiedere a una sessione serve Claude Code da riga di comando (la CLI) su questo PC.").to_string()
+    })?;
+    let dir = crate::settings::local_dir().join("chat");
+    std::fs::create_dir_all(&dir).map_err(|e| tf("cartella della chat non creata: {e}", &[("e", &e)]))?;
+    std::fs::write(dir.join("ask-prompt.txt"), crate::i18n::prompt(ASK_PROMPT)).map_err(|e| e.to_string())?;
+    std::fs::write(dir.join("ask-settings.json"), r#"{ "disableAllHooks": true }"#).map_err(|e| e.to_string())?;
+
+    let mut cmd = command(&exe);
+    cmd.current_dir(&folder).args(ask_args(&dir, &session, fork.as_deref()));
+    let mut child = cmd.spawn().map_err(|e| tf("Claude Code non si avvia: {e}", &[("e", &e)]))?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(question.as_bytes()).await.map_err(|e| e.to_string())?;
+    }
+    let output = match tokio::time::timeout(TIMEOUT, child.wait_with_output()).await {
+        Ok(Ok(o)) => o,
+        Ok(Err(e)) => return Err(tf("Claude Code si è interrotto: {e}", &[("e", &e)])),
+        Err(_) => return Err(t("Claude Code non ha risposto in tempo.").into()),
+    };
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let Some(outcome) = parse_output(&stdout) else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let detail: String = stderr.trim().chars().take(300).collect();
+        if needs_login(&detail) {
+            return Err(LOGIN_HELP.into());
+        }
+        return Err(if detail.is_empty() { t("Claude Code ha restituito un errore.").into() } else { format!("Claude Code: {detail}") });
+    };
+    if outcome.is_error || !output.status.success() {
+        if needs_login(&outcome.text) {
+            return Err(LOGIN_HELP.into());
+        }
+        return Err(if outcome.text.is_empty() { t("Claude Code ha restituito un errore.").into() } else { format!("Claude Code: {}", outcome.text) });
+    }
+    if outcome.text.is_empty() {
+        return Err(t("Nessun testo nella risposta.").into());
+    }
+    Ok(AskReply { text: outcome.text, fork: outcome.session_id.or(fork) })
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_side_question_forks_once_then_goes_on_in_the_copy() {
+        let dir = std::path::Path::new("C:/x");
+        let first = super::ask_args(dir, "abc", None);
+        let at = first.iter().position(|a| a == "--resume").unwrap();
+        assert_eq!(&first[at + 1..], ["abc", "--fork-session"]);
+        assert!(first.windows(2).any(|w| w[0] == "--permission-mode" && w[1] == "dontAsk"));
+        assert!(first.windows(2).any(|w| w[0] == "--tools" && w[1] == "Read,Glob,Grep"));
+        let next = super::ask_args(dir, "abc", Some("def"));
+        assert_eq!(next.last().unwrap(), "def");
+        assert!(!next.iter().any(|a| a == "--fork-session"));
+    }
+
     /// `claude -p` on this PC, as the island's chat runs it:
     /// `cargo test --lib claude_cli::tests::live -- --ignored --nocapture`.
     #[test]

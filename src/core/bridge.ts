@@ -145,6 +145,12 @@ export const Bridge = {
   /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
   chatModels: (engine: string, url: string | null) => callOrThrow<ModelOption[]>("chat_models", { engine, url }),
   chatReset: () => call<void>("chat_reset"),
+  /** "Continua": the next message for a session (session_reply.rs). "sent" or "prefilled". */
+  sessionReply: (mode: string, text: string, pid: number | null, session: string | null, scheme: string | null) =>
+    callOrThrow<string>("session_reply", { mode, text, pid, session, scheme }),
+  /** "Chiedi a questa sessione": a read-only copy answers (claude_cli.rs → ask_session). */
+  sessionAsk: (session: string, fork: string | null, cwd: string, question: string) =>
+    callOrThrow<{ text: string; fork: string | null }>("session_ask", { session, fork, cwd, question }),
   /** The chat history (chat_log.rs): list, reopen in place of the current conversation, delete. */
   chatHistoryList: () => call<ChatSummary[]>("chat_history_list"),
   chatHistoryOpen: (id: string) => callOrThrow<{ engine: string; lines: { role: "user" | "assistant"; content: string }[] }>("chat_history_open", { id }),

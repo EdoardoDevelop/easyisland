@@ -737,14 +737,62 @@ html.browser-preview #root {
 }
 
 /* Claude's last message on the "finished" card: four lines at most, the card grows. */
-.title.last-msg {
+/* Finished card: Claude's last message, as markdown, scrolling inside the card. */
+.finished-md {
   flex: 0 0 auto;
-  font: 500 13px/1.35 var(--font);
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  white-space: pre-line;
+  max-height: calc(150px + var(--extra-h, 0px));
+  overflow-y: auto;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+/* "Continua": the next message for the session. */
+.reply-row {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+}
+
+.reply-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 400 12px var(--font);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 6px 10px;
+  outline: none;
+}
+
+.reply-input:focus {
+  border-color: rgba(34, 197, 94, 0.55);
+}
+
+.reply-send {
+  flex: 0 0 auto;
+}
+
+.reply-status {
+  flex: 0 0 auto;
+  font: 400 11px/1.35 var(--font);
+  color: var(--dim);
+}
+
+/* Approval card: "Più tardi" folds the island, the request keeps waiting. */
+.later-btn {
+  align-self: center;
+  margin-left: 4px;
+  color: var(--dim-3);
+}
+
+.later-btn:hover {
+  color: var(--ink);
+}
+
+/* Session card: "Chiedi a questa sessione", left of the ↗. */
+.jump.ask-jump {
+  right: 32px;
 }
 
 .sub {

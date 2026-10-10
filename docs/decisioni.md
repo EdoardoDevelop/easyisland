@@ -13,6 +13,7 @@ Da controllare prima di proporre o fare una funzione. Una richiesta che va contr
   - funzioni nuove dai progetti simili (timer, avvisi di sistema, sostituzione dei riquadri di volume e luminosità, gioco del personaggio)
   - più sub-agenti in parallelo
   - consumo a 30 giorni
+- **«Sempre» senza proposta di Claude Code** (deciso il 10 ottobre 2026): prima EasyIsland non inventava mai una regola. Ora, quando Claude Code non ne propone, «Sempre» salva una regola solo per la sessione e solo per ciò che si sta approvando (comando esatto, dominio, modifiche ai file, strumento). Mai scritta in un file di impostazioni.
 - **Limiti del piano Claude:** solo dalla `statusLine` di Claude Code (terminale, VS Code), nella card Consumo (9 ottobre 2026). L'app desktop di Claude non la esegue e Anthropic non pubblica i limiti in token: niente altre fonti.
 - **Integrazioni:** si tengono tutte (deciso il 9 ottobre 2026).
 - **Rimandato:** il personaggio (guardaroba, personaggio sul desktop, balla con la musica, nuovi personaggi). Le animazioni continue vanno contro la regola sulla CPU. Il cielo del Meteo sopra la testa è stato fatto l'8 ottobre 2026: si muove solo con pioggia o neve e mai a isola ritirata.
