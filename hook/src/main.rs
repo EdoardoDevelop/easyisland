@@ -47,6 +47,7 @@ const DROPPED_FIELDS: &[&str] = &["tool_response", "transcript_path"];
 const MAX_FIELD_LEN: usize = 2_000;
 
 mod agents;
+mod console;
 mod diff;
 mod mcp;
 mod statusline;
@@ -90,6 +91,10 @@ fn main() {
     if std::env::args().nth(1).as_deref() == Some("notify") {
         std::process::exit(notify(std::env::args().skip(2).collect()));
     }
+    // "Continua" on the island: text from stdin into a session's console (console.rs).
+    if std::env::args().nth(1).as_deref() == Some("type") {
+        std::process::exit(console::run(std::env::args().skip(2).collect()));
+    }
     // EasyIsland as an MCP server for its own chat (see mcp.rs). Started by
     // Claude Code inside the chat, so before the EASYISLAND_INTERNAL guard.
     if std::env::args().nth(1).as_deref() == Some("mcp") {
@@ -109,7 +114,7 @@ fn main() {
     if std::env::var_os("EASYISLAND_INTERNAL").is_some() && !chat {
         std::process::exit(0);
     }
-    let Some((payload, event, tool_input, suggestions)) = read_event() else { std::process::exit(0) };
+    let Some((payload, event, tool_input, suggestions, fallback)) = read_event() else { std::process::exit(0) };
 
     let waits_for_answer = event == "PermissionRequest";
     let budget = if waits_for_answer { DECISION_BUDGET } else { FIRE_AND_FORGET_BUDGET };
@@ -124,7 +129,7 @@ fn main() {
     });
 
     if let Ok(Some(decision)) = rx.recv_timeout(budget) {
-        if let Some(json) = decision_json(&decision, tool_input.as_ref(), suggestions.as_ref()) {
+        if let Some(json) = decision_json(&decision, tool_input.as_ref(), suggestions.as_ref(), fallback.as_ref()) {
             let mut out = std::io::stdout();
             let _ = writeln!(out, "{json}");
             let _ = out.flush();
@@ -145,14 +150,19 @@ fn main() {
 /// `always` ("Sempre") is an allow that also hands Claude Code back the rules
 /// it proposed itself (`permission_suggestions`, see `always_rules`): the same
 /// thing as "Yes, and don't ask again" in the terminal. With nothing usable
-/// proposed it is a plain allow.
+/// proposed it saves `fallback` (`session_rule`: this very thing, this session
+/// only), and without that either it is a plain allow.
 fn decision_json(
     decision: &str,
     tool_input: Option<&serde_json::Value>,
     suggestions: Option<&serde_json::Value>,
+    fallback: Option<&serde_json::Value>,
 ) -> Option<String> {
     if decision.trim() == "always" {
-        let rules = always_rules(suggestions);
+        let mut rules = always_rules(suggestions);
+        if rules.is_empty() {
+            rules.extend(fallback.cloned());
+        }
         if !rules.is_empty() {
             let out = serde_json::json!({
                 "hookSpecificOutput": {
@@ -222,6 +232,41 @@ fn always_rules(suggestions: Option<&serde_json::Value>) -> Vec<serde_json::Valu
             _ => None,
         })
         .collect()
+}
+
+/// "Sempre" when Claude Code proposed nothing usable: exactly what is being
+/// approved, for this session only, so nothing is ever written to a settings
+/// file. A command (one line), the URL's domain, all file edits (as the
+/// terminal offers), or the tool by name (an MCP tool, a search…). None for
+/// questions, plans and multi-line commands: then there is no "Sempre".
+/// The island words the same choice (`sessionAlways` in src/island/hooks.ts).
+fn session_rule(tool: &str, input: Option<&serde_json::Value>) -> Option<serde_json::Value> {
+    use serde_json::{json, Value};
+    let text = |k: &str| input.and_then(|i| i.get(k)).and_then(Value::as_str).map(str::trim).filter(|v| !v.is_empty());
+    let rule = |content: Option<String>| {
+        let mut r = json!({ "toolName": tool });
+        if let Some(c) = content {
+            r["ruleContent"] = json!(c);
+        }
+        json!({ "type": "addRules", "rules": [r], "behavior": "allow", "destination": "session" })
+    };
+    match tool {
+        "" | "AskUserQuestion" | "ExitPlanMode" => None,
+        "Bash" | "PowerShell" => text("command").filter(|c| !c.contains('\n')).map(|c| rule(Some(c.to_string()))),
+        "Edit" | "Write" | "MultiEdit" | "NotebookEdit" => {
+            Some(json!({ "type": "setMode", "mode": "acceptEdits", "destination": "session" }))
+        }
+        "WebFetch" => url_host(text("url")?).map(|h| rule(Some(format!("domain:{h}")))),
+        _ => Some(rule(None)),
+    }
+}
+
+/// "https://docs.rs:443/a?b" → "docs.rs".
+fn url_host(url: &str) -> Option<String> {
+    let rest = url.split_once("://").map_or(url, |(_, r)| r);
+    let host = rest.split(['/', '?', '#']).next()?.rsplit('@').next()?;
+    let host = host.split(':').next()?.to_ascii_lowercase();
+    (!host.is_empty()).then_some(host)
 }
 
 const NOTIFY_USAGE: &str = "Uso: easyisland-hook notify [titolo] [testo] [opzioni]
@@ -307,7 +352,11 @@ fn notify(args: Vec<String>) -> i32 {
 
 /// Reads stdin and returns the payload to forward, the event name and the
 /// tool's input exactly as received (before any truncation).
-fn read_event() -> Option<(String, String, Option<serde_json::Value>, Option<serde_json::Value>)> {
+/// The payload line, the event, and for a permission request what "Sempre" may
+/// send back: the tool's input, Claude Code's proposal and the session rule.
+type Event = (String, String, Option<serde_json::Value>, Option<serde_json::Value>, Option<serde_json::Value>);
+
+fn read_event() -> Option<Event> {
     let mut raw = Vec::new();
     if std::io::stdin().read_to_end(&mut raw).is_err() || raw.is_empty() {
         return None;
@@ -388,8 +437,14 @@ fn read_event() -> Option<(String, String, Option<serde_json::Value>, Option<ser
         map.remove(*field);
     }
     let tool_input = map.get("tool_input").cloned();
-    // What "Sempre" sends back: Claude Code's own proposal, untruncated.
+    // What "Sempre" sends back: Claude Code's own proposal, untruncated, or
+    // the session rule (Claude Code only: other agents read decisions their way).
     let suggestions = map.get("permission_suggestions").cloned();
+    let fallback = if event == "PermissionRequest" && !map.contains_key("easyisland_agent") {
+        session_rule(map.get("tool_name").and_then(|v| v.as_str()).unwrap_or(""), tool_input.as_ref())
+    } else {
+        None
+    };
 
     let cwd_missing = map
         .get("cwd")
@@ -431,7 +486,7 @@ fn read_event() -> Option<(String, String, Option<serde_json::Value>, Option<ser
 
     let mut line = payload.to_string();
     line.push('\n');
-    Some((line, event, tool_input, suggestions))
+    Some((line, event, tool_input, suggestions, fallback))
 }
 
 /// Caps every string in the payload. A single Write can carry a whole file.
@@ -492,31 +547,31 @@ mod tests {
     #[test]
     fn decision_json_matches_the_documented_shape() {
         assert_eq!(
-            decision_json("allow", None, None).unwrap(),
+            decision_json("allow", None, None, None).unwrap(),
             r#"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}"#
         );
         assert_eq!(
-            decision_json("deny", None, None).unwrap(),
+            decision_json("deny", None, None, None).unwrap(),
             r#"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny","message":"Negato da EasyIsland"}}}"#
         );
         // "always" is an island concept; Claude Code just gets an allow.
-        assert!(decision_json("always", None, None).unwrap().contains(r#""behavior":"allow""#));
+        assert!(decision_json("always", None, None, None).unwrap().contains(r#""behavior":"allow""#));
     }
 
     #[test]
     fn answers_go_back_inside_the_original_input() {
         let input = serde_json::json!({ "questions": [{ "question": "Quale?", "options": [] }] });
-        let out = decision_json(r#"answer {"Quale?":"Questa"}"#, Some(&input), None).unwrap();
+        let out = decision_json(r#"answer {"Quale?":"Questa"}"#, Some(&input), None, None).unwrap();
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let d = &v["hookSpecificOutput"]["decision"];
         assert_eq!(d["behavior"], "allow");
         assert_eq!(d["updatedInput"]["answers"]["Quale?"], "Questa");
         assert_eq!(d["updatedInput"]["questions"], input["questions"]);
         // No input, empty or malformed answers: say nothing.
-        assert!(decision_json(r#"answer {"Quale?":"Questa"}"#, None, None).is_none());
-        assert!(decision_json("answer {}", Some(&input), None).is_none());
-        assert!(decision_json(r#"answer {"Quale?":1}"#, Some(&input), None).is_none());
-        assert!(decision_json("answer nope", Some(&input), None).is_none());
+        assert!(decision_json(r#"answer {"Quale?":"Questa"}"#, None, None, None).is_none());
+        assert!(decision_json("answer {}", Some(&input), None, None).is_none());
+        assert!(decision_json(r#"answer {"Quale?":1}"#, Some(&input), None, None).is_none());
+        assert!(decision_json("answer nope", Some(&input), None, None).is_none());
     }
 
     #[test]
@@ -529,7 +584,7 @@ mod tests {
             { "type": "setMode", "mode": "acceptEdits", "destination": "session" },
             { "type": "addDirectories", "directories": ["C:\\dati"], "destination": "session" },
         ]);
-        let out = decision_json("always", None, Some(&suggestions)).unwrap();
+        let out = decision_json("always", None, Some(&suggestions), None).unwrap();
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let d = &v["hookSpecificOutput"]["decision"];
         assert_eq!(d["behavior"], "allow");
@@ -540,19 +595,39 @@ mod tests {
         assert_eq!(p[1]["destination"], "localSettings");
         assert_eq!(p[2]["mode"], "acceptEdits");
         assert_eq!(p[3]["type"], "addDirectories");
-        // Nothing usable proposed: a plain allow.
+        // Nothing usable proposed and no session rule: a plain allow.
         assert_eq!(
-            decision_json("always", None, Some(&serde_json::json!([]))).unwrap(),
-            decision_json("allow", None, None).unwrap()
+            decision_json("always", None, Some(&serde_json::json!([])), None).unwrap(),
+            decision_json("allow", None, None, None).unwrap()
         );
     }
 
     #[test]
+    fn always_without_a_proposal_saves_this_very_thing_for_the_session() {
+        use serde_json::json;
+        let cmd = session_rule("Bash", Some(&json!({ "command": "npm run build" }))).unwrap();
+        assert_eq!(cmd["destination"], "session");
+        assert_eq!(cmd["rules"][0], json!({ "toolName": "Bash", "ruleContent": "npm run build" }));
+        assert_eq!(session_rule("Edit", Some(&json!({}))).unwrap()["mode"], "acceptEdits");
+        let web = session_rule("WebFetch", Some(&json!({ "url": "https://User@Docs.rs:443/a?b" }))).unwrap();
+        assert_eq!(web["rules"][0]["ruleContent"], "domain:docs.rs");
+        assert_eq!(session_rule("mcp__zammad__search", None).unwrap()["rules"][0], json!({ "toolName": "mcp__zammad__search" }));
+        // Nothing to save for questions, plans or a multi-line script.
+        assert!(session_rule("AskUserQuestion", None).is_none());
+        assert!(session_rule("ExitPlanMode", None).is_none());
+        assert!(session_rule("Bash", Some(&json!({ "command": "a\nb" }))).is_none());
+        // Claude Code's own proposal wins; the session rule is only the fallback.
+        let out = decision_json("always", None, None, Some(&cmd)).unwrap();
+        let d: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(d["hookSpecificOutput"]["decision"]["updatedPermissions"][0], cmd);
+    }
+
+    #[test]
     fn anything_unrecognised_prints_nothing() {
-        assert!(decision_json("", None, None).is_none());
-        assert!(decision_json("maybe", None, None).is_none());
+        assert!(decision_json("", None, None, None).is_none());
+        assert!(decision_json("maybe", None, None, None).is_none());
         // The shape the app used to send must not be mistaken for a decision.
-        assert!(decision_json(r#"{"permissionDecision":"allow"}"#, None, None).is_none());
+        assert!(decision_json(r#"{"permissionDecision":"allow"}"#, None, None, None).is_none());
     }
 
     #[test]

@@ -40,8 +40,30 @@ export interface AgentTask {
   permissionMode?: string | null;
   /** The agent's own process, found by the relay: the session is over when it is gone. */
   sessionPid?: { pid: number; exe: string } | null;
+  /** The agent's session id (Claude Code's uuid, opencode's `ses_…`): "Continua" and "Chiedi". */
+  sessionId?: string | null;
+  /** Claude Code's CLAUDE_CODE_ENTRYPOINT ("cli", "claude-vscode", "claude-desktop"…). */
+  sessionEntry?: string | null;
   /** When its last hook event arrived (ms): the Agenti tab opens on the most recent agent. */
   lastActive?: number;
+}
+
+/**
+ * How "Continua" reaches a session: typed into its console, prefilled in the VS
+ * Code / Cursor extension, or through opencode's service. Null where it cannot
+ * (the Claude app, a session that is over). src-tauri/src/session_reply.rs.
+ */
+export function replyMode(t: AgentTask | null | undefined): { mode: "console" | "link" | "opencode"; scheme?: "vscode" | "cursor" } | null {
+  if (!t || !isSessionTask(t)) return null;
+  if (t.sessionHost === "opencode") return t.sessionId ? { mode: "opencode" } : null;
+  if (t.sessionEntry === "claude-vscode") return { mode: "link", scheme: t.sessionHost === "cursor" ? "cursor" : "vscode" };
+  if (t.sessionHost === "desktop") return null;
+  return t.sessionPid ? { mode: "console" } : null;
+}
+
+/** "Chiedi a questa sessione": Claude Code sessions with an id and a folder. */
+export function canAskSession(t: AgentTask | null | undefined): boolean {
+  return !!t && t.id === "integration_claude" && !!t.sessionId && !!t.sessionCwd;
 }
 
 /** A coding session: Claude Code's task, or another agent's (`agent:<id>`). */
@@ -737,6 +759,11 @@ class AppState {
   chatDraft: string | null = null;
   /** Added once to the chat field, after what is there (a folder the character was dropped on). */
   chatInsert: string | null = null;
+  /**
+   * "Chiedi a questa sessione": the chat asks a read-only copy of a Claude Code
+   * session instead of its engine. `fork` is that copy, once the first answer made it.
+   */
+  chatSession: { sessionId: string; cwd: string; name: string; fork: string | null } | null = null;
   /** The script being confirmed / run / shown in the Run view. */
   run: ScriptRun | null = null;
   /** Latest result per widget id. */

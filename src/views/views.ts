@@ -6,8 +6,7 @@ import { isSorting, sortable } from "./sortable";
 import { h, svg, clear, dot, brandIcon, brandOrDot, hasMark, markIcon } from "./dom";
 import { ICONS } from "./icons";
 import { Ticker } from "./ticker";
-import { plainText } from "../core/markdown";
-import { State, canOpen, engineLabel, isSessionTask, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
+import { State, canAskSession, canOpen, engineLabel, isSessionTask, replyMode, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
 import { ISLAND_CHROME_H, MAX_ISLAND_H, washRGBA, type IslandViewName, type Wash } from "../core/layout";
 import { createMiniBot, pruneMiniBots } from "../character/minibots";
 import { buildPrompt } from "./chat";
@@ -20,6 +19,7 @@ import { planSummary, planText } from "../island/plan";
 import { permissionModeLabel } from "../island/hooks";
 import { renderMarkdown } from "../core/markdown";
 import { Bridge } from "../core/bridge";
+import { Sound } from "../core/sound";
 import { t } from "../core/i18n";
 
 export interface ViewActions extends ActionHandlers {
@@ -50,6 +50,12 @@ export interface ViewActions extends ActionHandlers {
   answerQuestions(answers: Record<string, string>): void;
   /** Leave the pending request to the terminal (Claude Code asks there). */
   handToTerminal(): void;
+  /** Esc or "Più tardi" on a permission or a question: fold the island, the request keeps waiting. */
+  foldCard(): void;
+  /** Something is being written in a card: the island does not close on its own meanwhile. */
+  holdOpen(on: boolean): void;
+  /** "Chiedi a questa sessione": the chat asks a read-only copy of the focused session. */
+  askSession(): void;
   /** The ✕: closes now, handing any pending request back to the terminal. */
   dismiss(): void;
   toggleSound(): void;
@@ -280,7 +286,13 @@ function buildOverview(actions: ViewActions): ViewHost {
     { class: "icon-btn jump", title: t("Apri"), onclick: () => actions.openTarget() },
     svg(ICONS.arrowUpRight, 12),
   );
-  const left = card(null, agentBar, leftBody, jump);
+  // A side question to the session on screen, answered by a read-only copy of it.
+  const askJump = h(
+    "button",
+    { class: "icon-btn jump ask-jump", title: t("Chiedi a questa sessione"), onclick: () => actions.askSession() },
+    svg(ICONS.bubble, 12),
+  );
+  const left = card(null, agentBar, leftBody, jump, askJump);
   const pills = h("div", { class: "pills" });
   sortable(pills, { enabled: () => !State.settings.lockOrder, onReorder: (ids) => actions.reorder(ids) });
   const right = card(null, pills);
@@ -431,6 +443,7 @@ function buildOverview(actions: ViewActions): ViewHost {
       }
 
       jump.style.display = detailOpen || showsSummary() || !canOpen(task) ? "none" : "";
+      askJump.style.display = mode === "ticker" && !showsSummary() && canAskSession(task) ? "" : "none";
 
       // Every pill is shown (the island grows to fit them); alerts go first.
       // An integration opened from its header tab stands alone: pills only on ⌂.
@@ -619,10 +632,14 @@ function buildApproval(actions: ViewActions): ViewHost {
       row.append(btn(t("Nega"), "secondary", () => actions.decide("deny"), "N"));
       if (rule) {
         const b = btn(t("Sempre"), "secondary", () => actions.decide("always"), "S");
-        b.title = t("Consenti e non chiedere più (la regola proposta dall'agente)");
+        b.title = t("Consenti e non chiedere più per quanto scritto sopra");
         row.append(b);
       }
       row.append(btn(t("Consenti"), "primary", () => actions.decide("allow"), "Y"));
+      // Not now: the island folds, the request keeps waiting and comes back on opening.
+      const later = h("button", { class: "link-btn later-btn", text: t("Più tardi"), onclick: () => actions.foldCard() });
+      later.title = t("Riduci l'isola senza rispondere (Esc): la richiesta resta in attesa");
+      row.append(later);
     },
     // The "Sempre" line can wrap: grow rather than slide under the buttons.
     fitHeight: () => who.offsetHeight + risk.offsetHeight + code.offsetHeight + plan.offsetHeight + always.offsetHeight
@@ -785,28 +802,108 @@ function buildError(actions: ViewActions): ViewHost {
 
 function buildFinished(actions: ViewActions): ViewHost {
   const who = h("div");
+  // Claude's last message, rendered as markdown and scrolling inside the card.
+  const said = h("div", { class: "finished-md md" });
+  let saidShown: string | null = null;
   const title = h("div", { class: "title" });
+
+  // "Continua": the next message for the session, without leaving the island
+  // (src-tauri/src/session_reply.rs). Shown only where the session can take it.
+  const input = h("input", { class: "reply-input", type: "text" }) as HTMLInputElement;
+  const send = h("button", { class: "btn primary reply-send", text: t("Invia") }) as HTMLButtonElement;
+  const status = h("div", { class: "reply-status" });
+  const reply = h("div", { class: "reply-row" }, input, send);
+  let sending = false;
+  async function submit() {
+    const task = State.focusTask;
+    const how = replyMode(task);
+    const text = input.value.trim();
+    if (!task || !how || !text || sending) return;
+    sending = true;
+    send.disabled = true;
+    status.textContent = "";
+    try {
+      const got = await Bridge.sessionReply(how.mode, text, task.sessionPid?.pid ?? null, task.sessionId ?? null, how.scheme ?? null);
+      input.value = "";
+      actions.holdOpen(false);
+      void Bridge.focusWindow(false);
+      Sound.play("send");
+      if (got === "prefilled") {
+        status.textContent = t("Scritto in {app}: premi Invio lì per mandarlo.", { app: how.scheme === "cursor" ? "Cursor" : "VS Code" });
+      } else {
+        // The session works again: the card's job is done.
+        actions.collapse();
+      }
+    } catch (err) {
+      status.textContent = String(err).replace(/^Error:\s*/, "");
+      Sound.play("error");
+    } finally {
+      sending = false;
+      send.disabled = false;
+    }
+  }
+  send.addEventListener("click", () => void submit());
+  input.addEventListener("pointerdown", () => void Bridge.focusWindow(true));
+  input.addEventListener("focus", () => void Bridge.focusWindow(true));
+  // While something is being written, the island does not close on its own.
+  input.addEventListener("input", () => actions.holdOpen(input.value.trim().length > 0));
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void submit();
+    }
+    // Esc and the card's letter keys stay with the field while typing.
+    if (e.key !== "Escape") e.stopPropagation();
+  });
+
   const open = btn(t("Apri terminale"), "primary", () => actions.openTerminal());
+  const askBtn = btn(t("Chiedi"), "secondary", () => actions.askSession());
+  (askBtn as HTMLElement).title = t("Una domanda a una copia della sessione, che intanto non viene toccata");
   const row = h("div", { class: "actions" },
     open,
+    askBtn,
     btn("OK", "secondary", () => actions.collapse()),
   );
-  const el = h("div", { class: "view" }, card("green", stack(116, 16, who, title, row)));
+  const el = h("div", { class: "view" }, card("green", stack(116, 16, who, said, title, reply, status, row)));
+  let lastTask: string | null = null;
   return {
     el,
     sync() {
+      const task = State.focusTask;
       clear(who);
-      who.append(agentWho(State.focusTask, `${State.focusTask?.agentName ?? "Claude Code"} ha finito`));
+      who.append(agentWho(task, `${task?.agentName ?? "Claude Code"} ha finito`));
       // Claude's last message when the relay found it, else the last step.
-      const said = State.focusTask?.lastMessage;
-      title.classList.toggle("last-msg", !!said);
-      title.textContent = said ? plainText(said) : State.focusTask?.steps.at(-1) ?? t("Sessione terminata");
+      const message = task?.lastMessage?.trim() || null;
+      if (message !== saidShown) {
+        saidShown = message;
+        said.replaceChildren(...(message ? renderMarkdown(message, { openUrl: (u) => void Bridge.openUrl(u) }) : []));
+        said.scrollTop = 0;
+      }
+      said.style.display = message ? "" : "none";
+      title.textContent = message ? "" : task?.steps.at(-1) ?? t("Sessione terminata");
+      title.style.display = message ? "none" : "";
+      // A new session's card starts empty.
+      if (task?.id !== lastTask) {
+        lastTask = task?.id ?? null;
+        input.value = "";
+        status.textContent = "";
+      }
+      const how = replyMode(task);
+      reply.style.display = how ? "" : "none";
+      input.placeholder = how?.mode === "link"
+        ? t("Continua… (si apre in {app}, poi premi Invio lì)", { app: how.scheme === "cursor" ? "Cursor" : "VS Code" })
+        : t("Continua… scrivi il prossimo messaggio e premi Invio");
+      status.style.display = status.textContent ? "" : "none";
+      (askBtn as HTMLElement).style.display = canAskSession(task) ? "" : "none";
       // "Apri Claude", "Apri VS Code" or "Apri terminale": where the session runs.
-      (open.firstChild as HTMLElement).textContent = sessionOpenLabel(State.focusTask?.sessionHost);
+      (open.firstChild as HTMLElement).textContent = sessionOpenLabel(task?.sessionHost);
     },
     // A long last message grows the card instead of sliding under the buttons:
-    // the three rows, the stack's gaps and padding, the card's margins.
-    fitHeight: () => who.offsetHeight + title.offsetHeight + row.offsetHeight + 2 * 5 + 8 + 20,
+    // the rows, the stack's gaps and padding, the card's margins.
+    fitHeight: () => {
+      const rows = [who, said, title, reply, status, row].filter((e) => e.offsetHeight > 0);
+      return rows.reduce((s, e) => s + e.offsetHeight, 0) + (rows.length - 1) * 5 + 8 + 20;
+    },
   };
 }
 

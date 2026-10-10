@@ -52,6 +52,14 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.6.7** — la card «finito» mostra la risposta in markdown e ha **«Continua»**: scrivi
+il prossimo messaggio e arriva alla sessione (nel terminale parte subito, in VS Code
+resta da premere Invio, con opencode passa dal suo servizio); **«Chiedi a questa
+sessione»** interroga una copia in sola lettura; la card del permesso si può
+rimandare con **«Più tardi»** o Esc; **«Sempre»** c'è sempre (senza proposta di
+Claude Code vale per la sessione); con il **📌** l'isola diventa una finestra
+normale, con l'icona nella barra delle applicazioni.
+
 **0.6.6** — il **saluto all'avvio** si fa al centro dello schermo (oppure dove sta il
 personaggio, o si spegne); `Ctrl+Space` **chiude** anche l'isola; **Claude Code
 compare solo se i suoi hook sono installati**, così chi usa solo opencode vede solo
@@ -73,7 +81,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.6.6** | 10 ott 2026 | Saluto al centro dello schermo (o spento), `Ctrl+Space` apre e chiude, Claude Code solo con i suoi hook, niente falsi errori di rete dopo lo standby, passi della sessione senza sovrapposizioni |
+| **0.6.7** | 10 ott 2026 | Risposta in markdown e «Continua» sulla card «finito», «Chiedi a questa sessione», «Più tardi» sul permesso, «Sempre» di sessione, 📌 come finestra normale |
+| 0.6.6 | 10 ott 2026 | Saluto al centro dello schermo (o spento), `Ctrl+Space` apre e chiude, Claude Code solo con i suoi hook, niente falsi errori di rete dopo lo standby, passi della sessione senza sovrapposizioni |
 | 0.6.5 | 9 ott 2026 | Cartella trascinata nella chat, menu col clic destro sul personaggio, saluto senza isola, `Ctrl+Space` sulla Panoramica, angoli arrotondati dell'isola staccata |
 | 0.6.4 | 9 ott 2026 | Goccia predefinita, cronologia delle chat, isola fino ai bordi dello schermo, posizione dell'isola aperta |
 | 0.6.3 | 9 ott 2026 | Interfaccia in inglese, `Ctrl+Space` per aprire l'isola, riepilogo settimanale degli agenti, limiti del piano Pro/Max, prezzi dei modelli |

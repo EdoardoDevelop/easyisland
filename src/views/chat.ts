@@ -149,7 +149,15 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
 
     streamed = "";
     try {
-      const reply = await Bridge.chatSend(query, context, State.chatEngine);
+      // "Chiedi a questa sessione": a read-only copy of the session answers;
+      // the next questions go on in that copy.
+      const asked = State.chatSession;
+      const reply = asked
+        ? await Bridge.sessionAsk(asked.sessionId, asked.fork, asked.cwd, query).then((r) => {
+          if (State.chatSession === asked) asked.fork = r.fork;
+          return r;
+        })
+        : await Bridge.chatSend(query, context, State.chatEngine);
       State.chatHistory.push({ id: nextId++, role: "assistant", content: reply.text });
       State.stateOverride = null;
       Sound.play("finish");
@@ -177,6 +185,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     State.droppedFile = null;
     State.chatText = null;
     State.promptContext = null;
+    State.chatSession = null;
     // An engine picked in the menu was for that conversation only.
     State.chatEngineOverride = null;
     void Bridge.chatReset();
@@ -295,6 +304,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       State.droppedFile = null;
       State.chatText = null;
       State.promptContext = null;
+      State.chatSession = null;
       State.chatEngineOverride = c.engine === State.settings.chatEngine ? null : (c.engine as ChatEngine);
       renderedCount = -1;
       Sound.play("blip");
@@ -347,7 +357,10 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     sync() {
       const file = State.droppedFile;
       const text = State.chatText;
-      const wantChip = text
+      const asked = State.chatSession;
+      const wantChip = asked
+        ? t("Sessione {name} · copia in sola lettura", { name: asked.name })
+        : text
         ? `${text.label} · ${t("{n} caratteri", { n: text.text.length.toLocaleString(locale()) })}`
         : file?.name ?? "";
       if (chipRow.dataset.label !== wantChip) {
@@ -357,6 +370,8 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       }
 
       engineBtn.textContent = `${engineLabel({ ...State.settings, chatEngine: State.chatEngine })} ▾`;
+      // Asking a session: Claude Code answers, whatever the chat's engine.
+      engineBtn.style.display = asked ? "none" : "";
       const thinking = State.stateOverride === "thinking";
       const count = State.chatHistory.length + (thinking ? 0.5 : 0) + (streamed ? 0.25 : 0);
       if (count !== renderedCount) {
@@ -390,11 +405,13 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
         drafted = true;
         updateCalc();
       }
-      input.placeholder = State.chatHistory.length === 0 ? t("Chiedimi qualsiasi cosa… o fai un calcolo") : t("Continua…");
+      input.placeholder = asked
+        ? t("Chiedi alla sessione {name}…", { name: asked.name })
+        : State.chatHistory.length === 0 ? t("Chiedimi qualsiasi cosa… o fai un calcolo") : t("Continua…");
 
       input.disabled = sending;
       // Only when there is something to forget.
-      fresh.style.display = State.chatHistory.length > 0 || file || text ? "" : "none";
+      fresh.style.display = State.chatHistory.length > 0 || file || text || asked ? "" : "none";
       (fresh as HTMLButtonElement).disabled = sending;
     },
     // The open history list makes the island as tall as it needs (up to its maximum).

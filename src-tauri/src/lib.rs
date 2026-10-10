@@ -42,6 +42,7 @@ mod presence;
 mod probes;
 mod profiles;
 mod screenshot;
+mod session_reply;
 mod secrets;
 mod settings;
 mod i18n;
@@ -370,6 +371,18 @@ fn focus_window(app: AppHandle, focused: bool) {
     if focused {
         let _ = win.set_focus();
     }
+}
+
+/// 📌 "Tieni aperta" on or off: the open island as an ordinary app window or not.
+#[tauri::command]
+fn set_app_mode(app: AppHandle, on: bool) {
+    island::set_app_mode(&app, on);
+}
+
+/// A permission or a question while the pinned island is behind other windows.
+#[tauri::command]
+fn flash_if_behind(app: AppHandle) {
+    island::flash_if_behind(&app);
 }
 
 /// A folder dropped on the island goes to the chat, not into the drop sequence.
@@ -1246,6 +1259,10 @@ pub fn run() {
             panel_limits,
             open_url,
             open_in_vscode,
+            session_reply::session_reply,
+            set_app_mode,
+            flash_if_behind,
+            claude_cli::session_ask,
             open_file_in_vscode,
             chat_models,
             open_session,

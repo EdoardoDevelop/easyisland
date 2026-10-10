@@ -11,7 +11,7 @@ import {
 } from "../core/layout";
 import type { Suggestion } from "./context";
 import { Sound } from "../core/sound";
-import { OPENED_BY_APP, OPEN_URLS, State, isSessionTask } from "../core/state";
+import { OPENED_BY_APP, OPEN_URLS, State, canAskSession, isSessionTask } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
 import { character, setCharacter } from "../character/character";
 import { Greeting } from "../character/greeting";
@@ -146,6 +146,8 @@ export class Island {
 
   private confusedRecovery: number | null = null;
   private prevViewBeforeConfused: IslandViewName = "overview";
+  /** 📌 on and open: the window is an ordinary app (Bridge.setAppMode). */
+  private appMode = false;
   /** Opened from a shortcut: the island keeps the keyboard until it closes. */
   private keyboard = false;
   /** Where the island was before a permission card took it (rememberBeforeCard). */
@@ -169,6 +171,13 @@ export class Island {
     State.subscribe(() => {
       this.dirty = true;
       this.ensureRunning();
+      // 📌 makes the open island an ordinary app window; unpinning, or closing
+      // (which drops the pin), gives the usual island back.
+      const app = State.keepOpen && State.mode === "expanded";
+      if (app !== this.appMode) {
+        this.appMode = app;
+        void Bridge.setAppMode(app);
+      }
     });
   }
 
@@ -229,6 +238,9 @@ export class Island {
         if (State.pendingApproval) actions.handToTerminal();
         this.collapse();
       },
+      foldCard: () => this.foldCard(),
+      holdOpen: (on) => this.setPinned(on),
+      askSession: () => this.askSession(),
       toggleSound: () => {
         State.settings.soundEnabled = !State.settings.soundEnabled;
         Sound.setEnabled(State.settings.soundEnabled);
@@ -603,6 +615,36 @@ export class Island {
     this.fsm.forcePetit();
   }
 
+  /**
+   * "Più tardi" (or Esc) on a permission or a question: the island goes back to
+   * the compact view without answering. The request keeps waiting (the agent
+   * too, up to the relay's own limit) with a badge on its pill, and its card
+   * is what the island opens on next (State.defaultView → pendingCard).
+   */
+  foldCard() {
+    const req = State.pendingApproval;
+    if (!req) return;
+    State.setPillBadge(req.taskId ?? "integration_claude", "approval");
+    Sound.play("blip");
+    this.collapse(true);
+  }
+
+  /**
+   * "Chiedi a questa sessione": the chat, asking a read-only copy of the
+   * focused Claude Code session (claude_cli.rs → session_ask) instead of its engine.
+   */
+  askSession() {
+    const task = State.focusTask;
+    if (!canAskSession(task)) return;
+    State.chatHistory = [];
+    void Bridge.chatReset();
+    State.chatText = null;
+    State.droppedFile = null;
+    State.promptContext = null;
+    State.chatSession = { sessionId: task!.sessionId!, cwd: task!.sessionCwd!, name: task!.name, fork: null };
+    this.setView("prompt");
+  }
+
   /** Keeps the island open (or lets it close again on its own). */
   setPinned(on: boolean) {
     State.isPinned = on;
@@ -631,6 +673,8 @@ export class Island {
     this.fsm.pinned = State.isPinned;
     this.fsm.forceHome();
     this.expand(view);
+    // Pinned as an app it may sit behind other windows: a request flashes its taskbar button.
+    if (this.appMode && (view === "approval" || view === "ask" || view === "question")) void Bridge.flashIfBehind();
   }
 
   // ── Quick actions ─────────────────────────────────────────────────────────
@@ -650,6 +694,7 @@ export class Island {
   /** Starts a fresh chat about `context` and asks `question` right away. */
   private startChat(question: string, context: { label: string; text: string } | null, keepFile: boolean) {
     State.chatHistory = [];
+    State.chatSession = null;
     void Bridge.chatReset();
     State.chatText = context;
     if (!keepFile) {
@@ -1858,7 +1903,9 @@ export class Island {
     });
 
     window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned && !State.pendingApproval) this.collapse();
+      // Esc on a permission or a question folds the island: the request keeps waiting.
+      if (e.key === "Escape" && State.mode === "expanded" && State.pendingApproval && (State.view === "approval" || State.view === "ask")) this.foldCard();
+      else if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned && !State.pendingApproval) this.collapse();
       else this.onIslandKey(e);
       State.lastActivity = performance.now();
     });

@@ -17,10 +17,10 @@ use tauri::{AppHandle, Emitter, Manager, Monitor, PhysicalPosition, PhysicalSize
 use windows::Win32::Foundation::{HWND, POINT};
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
 use windows::Win32::UI::WindowsAndMessaging::{
-    FindWindowW, GetCursorPos, GetWindowLongPtrW, IsWindowVisible, SetWindowLongPtrW, SetWindowPos,
-    GWL_EXSTYLE, HWND_TOPMOST,
-    SWP_ASYNCWINDOWPOS, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSIZE, WS_EX_NOACTIVATE,
-    WS_EX_TOOLWINDOW,
+    FindWindowW, FlashWindowEx, GetCursorPos, GetForegroundWindow, GetWindowLongPtrW, IsWindowVisible, SetWindowLongPtrW,
+    SetWindowPos, FLASHWINFO, FLASHW_TIMERNOFG, FLASHW_TRAY, GWL_EXSTYLE, GWL_STYLE, HWND_NOTOPMOST, HWND_TOPMOST,
+    SWP_ASYNCWINDOWPOS, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOOWNERZORDER, SWP_NOSIZE, WS_EX_APPWINDOW,
+    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_MINIMIZEBOX,
 };
 
 /// Logical size of the full window while open, at least. Taller than any fixed
@@ -251,7 +251,10 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
     let _ = win.set_position(PhysicalPosition::new(x, y));
     // Moving across displays can rescale the window: re-assert the physical size.
     let _ = win.set_size(PhysicalSize::new(pw, ph));
-    let _ = win.set_always_on_top(true);
+    // Pinned as an app it stays an ordinary window (set_app_mode).
+    if !app_mode() {
+        let _ = win.set_always_on_top(true);
+    }
 }
 
 /// The panel in physical px: the size the front end asked for, within the work area.
@@ -605,6 +608,10 @@ pub fn on_foreground_change() {
 /// would cover it, and the file would vanish behind the island: then the
 /// island goes just below it instead, still above the taskbar.
 pub fn raise_over_taskbar(app: &AppHandle) {
+    // Pinned as an app, other windows may cover it: nothing pulls it forward.
+    if app_mode() {
+        return;
+    }
     let Some(win) = window(app) else { return };
     let Some(hwnd) = hwnd_of(&win) else { return };
     unsafe {
@@ -644,7 +651,11 @@ pub fn make_non_activating(win: &WebviewWindow) {
 }
 
 /// Temporarily allow activation so a text field inside the island can be typed in.
+/// Pinned as an app the window is always activatable, like any other.
 pub fn set_activating(win: &WebviewWindow, activating: bool) {
+    if !activating && app_mode() {
+        return;
+    }
     let Some(hwnd) = hwnd_of(win) else { return };
     unsafe {
         let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
@@ -654,6 +665,82 @@ pub fn set_activating(win: &WebviewWindow, activating: bool) {
             ex | WS_EX_NOACTIVATE.0 as isize
         };
         SetWindowLongPtrW(hwnd, GWL_EXSTYLE, want);
+    }
+}
+
+/// 📌 "Tieni aperta": the open island is an ordinary window while it is pinned.
+static APP_MODE: AtomicBool = AtomicBool::new(false);
+
+pub fn app_mode() -> bool {
+    APP_MODE.load(Ordering::Relaxed)
+}
+
+/// 📌 on: the open island becomes an ordinary app window — a button on the
+/// taskbar and in Alt+Tab, activatable, no longer always on top (other windows
+/// may cover it), and a click on its taskbar button minimises it (that needs
+/// WS_MINIMIZEBOX). 📌 off (or the island closing, which drops the pin): back to
+/// the usual tool window, non-activating, out of the taskbar and on top.
+/// Every place that raises the island (apply_geometry, raise_over_taskbar,
+/// set_activating) checks `app_mode` first.
+pub fn set_app_mode(app: &AppHandle, on: bool) {
+    if APP_MODE.swap(on, Ordering::Relaxed) == on {
+        return;
+    }
+    let Some(win) = window(app) else { return };
+    if !on && win.is_minimized().unwrap_or(false) {
+        let _ = win.unminimize();
+    }
+    if let Some(hwnd) = hwnd_of(&win) {
+        let (tool, noact, appw) = (WS_EX_TOOLWINDOW.0 as isize, WS_EX_NOACTIVATE.0 as isize, WS_EX_APPWINDOW.0 as isize);
+        let minbox = WS_MINIMIZEBOX.0 as isize;
+        unsafe {
+            let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+            let ex = if on { (ex & !tool & !noact) | appw } else { (ex & !appw) | tool | noact };
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex);
+            let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+            SetWindowLongPtrW(hwnd, GWL_STYLE, if on { style | minbox } else { style & !minbox });
+            let _ = SetWindowPos(
+                hwnd,
+                Some(if on { HWND_NOTOPMOST } else { HWND_TOPMOST }),
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+            );
+        }
+    }
+    // Tao's own flags follow, so its later calls agree with the window.
+    let _ = win.set_always_on_top(!on);
+    let _ = win.set_skip_taskbar(!on);
+    if on {
+        // Just pinned with a click on it: it is the active window now.
+        let _ = win.set_focus();
+    }
+    crate::log::line(format!("island as an app: {on}"));
+}
+
+/// A permission or a question while the pinned island is behind other windows:
+/// its taskbar button flashes until the island is brought forward (FLASHW_TIMERNOFG).
+/// Nothing when it is not pinned (it is on top anyway) or already in front.
+pub fn flash_if_behind(app: &AppHandle) {
+    if !app_mode() {
+        return;
+    }
+    let Some(win) = window(app) else { return };
+    let Some(hwnd) = hwnd_of(&win) else { return };
+    unsafe {
+        if GetForegroundWindow() == hwnd {
+            return;
+        }
+        let info = FLASHWINFO {
+            cbSize: std::mem::size_of::<FLASHWINFO>() as u32,
+            hwnd,
+            dwFlags: FLASHW_TRAY | FLASHW_TIMERNOFG,
+            uCount: 0,
+            dwTimeout: 0,
+        };
+        let _ = FlashWindowEx(&info);
     }
 }
 
@@ -722,6 +809,11 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                 }
 
                 let Some(win) = window(&app) else { continue };
+                // Pinned as an app and minimised: nothing to look at or click.
+                if app_mode() && win.is_minimized().unwrap_or(false) {
+                    slow = true;
+                    continue;
+                }
                 let Ok(origin) = win.outer_position() else { continue };
                 let scale = win.scale_factor().unwrap_or(1.0);
                 let Some((cx, cy)) = cursor_physical() else { continue };
