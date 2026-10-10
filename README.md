@@ -52,6 +52,12 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.6.6** — il **saluto all'avvio** si fa al centro dello schermo (oppure dove sta il
+personaggio, o si spegne); `Ctrl+Space` **chiude** anche l'isola; **Claude Code
+compare solo se i suoi hook sono installati**, così chi usa solo opencode vede solo
+opencode (interruttore **Collega opencode**); dopo lo **standby** niente falsi
+«Nessuna connessione»; nella card della sessione i passi non si sovrappongono più.
+
 **0.6.5** — una **cartella trascinata sull'isola** (o il personaggio lasciato su una
 cartella di Esplora file o del desktop) mette il suo percorso nella chat; **clic
 destro sul personaggio** per il menu dell'area di notifica; il **saluto all'avvio** è
@@ -67,7 +73,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.6.5** | 9 ott 2026 | Cartella trascinata nella chat, menu col clic destro sul personaggio, saluto senza isola, `Ctrl+Space` sulla Panoramica, angoli arrotondati dell'isola staccata |
+| **0.6.6** | 10 ott 2026 | Saluto al centro dello schermo (o spento), `Ctrl+Space` apre e chiude, Claude Code solo con i suoi hook, niente falsi errori di rete dopo lo standby, passi della sessione senza sovrapposizioni |
+| 0.6.5 | 9 ott 2026 | Cartella trascinata nella chat, menu col clic destro sul personaggio, saluto senza isola, `Ctrl+Space` sulla Panoramica, angoli arrotondati dell'isola staccata |
 | 0.6.4 | 9 ott 2026 | Goccia predefinita, cronologia delle chat, isola fino ai bordi dello schermo, posizione dell'isola aperta |
 | 0.6.3 | 9 ott 2026 | Interfaccia in inglese, `Ctrl+Space` per aprire l'isola, riepilogo settimanale degli agenti, limiti del piano Pro/Max, prezzi dei modelli |
 | 0.6.2 | 9 ott 2026 | Barra di ricerca (integrazioni, azioni, programmi), file fissati nel Vassoio, azioni ⚡ senza selezione, «Chiedi alla chat» |
@@ -586,7 +593,7 @@ Ogni agente ha la sua pillola con passi, modifiche ai file e ultimo messaggio.
 - **Codex** (`%USERPROFILE%\.codex\hooks.json`): anche le richieste di permesso,
   con **Consenti / Nega** nell'isola. Dopo l'installazione apri `/hooks` in Codex e
   approva gli hook di EasyIsland (Codex chiede di fidarsi degli hook nuovi).
-- **opencode**: con opencode 2 accendi **Segui opencode 2**. EasyIsland legge il
+- **opencode**: con opencode 2 accendi **Collega opencode**. EasyIsland legge il
   servizio in background di opencode sul tuo PC, senza installare nulla. Le
   richieste di permesso arrivano nell'isola con **Consenti / Nega / Sempre**, e
   puoi rispondere anche in opencode come sempre. Con opencode 1.x c'è invece un

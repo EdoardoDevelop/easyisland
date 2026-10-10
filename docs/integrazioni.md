@@ -9,9 +9,9 @@ Un servizio o programma che di solito c'è una volta sola è un'**integrazione**
   - stato del PC, sicurezza, rete e meteo: `probes.rs`. Il meteo manda anche `sky` (`sky_kind`: codice WMO e `is_day` → il cielo che il personaggio mostra). Con la pioggia probabile resta l'avviso (badge e suono), ma la pillola non usa lo stato `ratelimit` (`integrations.ts`).
   - Outlook classico (COM via PowerShell; il nuovo Outlook `olk.exe` non è supportato): `outlook.rs`
   - Zammad (usa `ticket_overviews`, che funziona senza Elasticsearch): `zammad.rs`
-- Widget: `widgets.rs`, `probes.rs` (domini), `calendar.rs` (ICS). Lo scheduler gira ogni 5 s, con intervalli minimi per ogni controllo, ed è più lento a batteria.
+- Widget: `widgets.rs`, `probes.rs` (domini), `calendar.rs` (ICS). Lo scheduler gira ogni 5 s, con intervalli minimi per ogni controllo, ed è più lento a batteria. Un errore nuovo si mostra solo dopo un secondo controllo 15 s dopo (`hold_back`); dopo uno standby (salto dell'orologio di più di 60 s tra due giri) per 90 s i nuovi errori si riprovano soltanto, perché la rete torna con calma.
 - Consumo di Claude Code (`integration_claude_usage`): `usage.rs`. Legge i token dalle trascrizioni in `~/.claude/projects`, solo i campi di consumo e mai il testo, una volta per `message.id`. In cima mette i limiti del piano (5 ore e settimana) arrivati dalla status line (`set_plan`, `plan-limits.json`); dall'80 % la card avvisa, e al cambio di fascia (50/80/100 %) il controllo riparte subito (`widgets::refresh`).
-- Profili automatici: `profiles.rs`. "Davanti al cliente": `presence.rs` (niente nomi né titoli sullo schermo). Scorciatoie globali: `hotkeys.rs`; «Apri l'isola» apre la Panoramica (`onHotkey` in `island.ts`), o la richiesta in attesa se ce n'è una.
+- Profili automatici: `profiles.rs`. "Davanti al cliente": `presence.rs` (niente nomi né titoli sullo schermo). Scorciatoie globali: `hotkeys.rs`; «Apri l'isola» apre la Panoramica (`onHotkey` in `island.ts`), o la richiesta in attesa se ce n'è una; premuta con l'isola aperta la chiude.
 - «Apri» delle integrazioni: `open_integration` in `lib.rs`, solo bersagli fissi. Se non c'è nulla da aprire il pulsante non compare (`canOpen`).
 
 ## 3CX

@@ -597,6 +597,7 @@ html.browser-preview #root {
 }
 
 .ticker-row .tick-text {
+  display: block;
   font: 500 13px var(--font);
   white-space: nowrap;
   overflow: hidden;

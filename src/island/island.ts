@@ -21,7 +21,7 @@ import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { buildSearch, type SearchHost } from "../views/search";
 import { sendToChat } from "../views/chat";
-import type { ApprovalInfo, Notice, QuickAction } from "../core/state";
+import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
 import { t } from "../core/i18n";
@@ -128,6 +128,10 @@ export class Island {
   private limits = { w: PANEL_W, h: PANEL_H };
   /** Open somewhere else than the character (`islandPlace`): the window is there. */
   private away = false;
+  /** Where this opening is, while `away` (the greeting has its own place). */
+  private awayPlace: Settings["islandPlace"] = "character";
+  /** Launched without the greeting: the character shows up without a sound. */
+  private quietLaunch = false;
   /** Closing from there: the island retracts in place, then the window goes home. */
   private awayClosing: number | null = null;
   private homeCollapseAt: number | null = null;
@@ -384,7 +388,8 @@ export class Island {
           break;
         case "petit":
           if (from === "greeting") this.greeting.interrupt();
-          else if (from === "hidden") Sound.play("peek");
+          else if (from === "hidden" && !this.quietLaunch) Sound.play("peek");
+          this.quietLaunch = false;
           this.setMode("compact");
           if (from === "greeting") State.view = State.defaultView();
           if (!this.wasInIsland) this.fsm.mouseLeft();
@@ -404,7 +409,12 @@ export class Island {
   }
 
   launch() {
-    this.fsm.launch();
+    if (State.settings.greeting === false) {
+      this.quietLaunch = true;
+      this.fsm.launchQuiet();
+    } else {
+      this.fsm.launch();
+    }
   }
 
   // ── Mode / view ─────────────────────────────────────────────────────────────
@@ -897,6 +907,11 @@ export class Island {
   async onHotkey(name: string) {
     Sound.resume();
     if (name === "open") {
+      // Pressed again with the island open: it closes (a waiting request stays, see collapse).
+      if (State.mode === "expanded") {
+        this.collapse();
+        return;
+      }
       // The Panoramica, as the ⌂ tab; a request waiting for an answer comes first.
       State.summary = true;
       this.setView(State.pendingCard() ?? "overview");
@@ -950,7 +965,7 @@ export class Island {
 
   /** The app the Claude Code session runs in (terminal, VS Code, Cursor, Claude). */
   openSessionApp() {
-    const t = isSessionTask(State.focusTask) ? State.focusTask : State.tasks.find((x) => x.id === "integration_claude");
+    const t = isSessionTask(State.focusTask) ? State.focusTask : State.latestSessionTask;
     if (t?.sessionHost) void Bridge.openSession(t.sessionHost, t.sessionCwd ?? null);
     else void Bridge.openInVSCode(t?.sessionCwd ?? null);
   }
@@ -1294,7 +1309,7 @@ export class Island {
   private get placement(): Placement {
     const home = this.homePlacement;
     if (!this.away) return home;
-    const place = State.settings.islandPlace;
+    const place = this.awayPlace;
     const v = place === "bottom" ? "bottom" : place === "center" ? "middle" : "top";
     const glue = State.settings.glueEdges !== false && v !== "middle";
     return { ...home, h: "center", v, glueX: false, glueY: glue };
@@ -1307,8 +1322,11 @@ export class Island {
       window.clearTimeout(this.awayClosing);
       this.awayClosing = null;
     }
-    this.away = (State.settings.islandPlace ?? "character") !== "character";
-    void Bridge.setExpanded(true);
+    // The greeting plays at its own place (Impostazioni → Posizione e aspetto).
+    const greeting = State.view === "greeting";
+    this.awayPlace = greeting ? (State.settings.greetingPlace ?? "center") : (State.settings.islandPlace ?? "character");
+    this.away = this.awayPlace !== "character";
+    void Bridge.setExpanded(true, greeting ? this.awayPlace : null);
   }
 
   /** Opened elsewhere: it retracts there, then the window goes back to the character. */

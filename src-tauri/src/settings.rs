@@ -339,6 +339,13 @@ pub struct Settings {
     /// default), or "top" | "center" | "bottom" of the screen, centred (island.rs).
     #[serde(default = "default_island_place")]
     pub island_place: String,
+    /// The greeting at launch (character, halo and particles).
+    #[serde(default = "default_true")]
+    pub greeting: bool,
+    /// Where the greeting plays: "center" of the screen (the default) or
+    /// "character", where the character lives (island.rs, `open_place`).
+    #[serde(default = "default_greeting_place")]
+    pub greeting_place: String,
     /// ✕ in the open island's header.
     #[serde(default = "default_true")]
     pub close_button: bool,
@@ -499,6 +506,9 @@ fn default_notify() -> String {
 fn default_island_place() -> String {
     "character".into()
 }
+fn default_greeting_place() -> String {
+    "center".into()
+}
 fn default_anchor_v() -> String {
     "top".into()
 }
@@ -575,6 +585,8 @@ impl Default for Settings {
             island_width: default_island_width(),
             island_height: 0.0,
             island_place: default_island_place(),
+            greeting: true,
+            greeting_place: default_greeting_place(),
             close_button: true,
             follow_cursor_compact: false,
             presence_meeting: true,

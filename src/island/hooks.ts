@@ -13,6 +13,7 @@ import { applyPlanTool, planStep } from "./plan";
 import { Recap } from "./recap";
 import { risksOf } from "./risk";
 import { t, tn } from "../core/i18n";
+import { plainText } from "../core/markdown";
 
 const CLAUDE_ID = "integration_claude";
 
@@ -107,7 +108,12 @@ export function testStep(v: TestVerdict): string {
 /** The pill an event belongs to: Claude Code's, or the agent's (made on its first event). */
 function taskFor(p: HookPayload): string {
   const a = p.easyisland_agent;
-  if (!a?.id) return CLAUDE_ID;
+  if (!a?.id) {
+    // Hooks not known as installed (a project's own settings.json can have
+    // them): it shows for the session, a permission must never wait unseen.
+    State.ensureClaudeTask();
+    return CLAUDE_ID;
+  }
   const id = `agent:${a.id}`;
   State.ensureAgentTask(id, a.name || a.id, a.color || "#8E939C");
   return id;
@@ -444,8 +450,8 @@ function endSession(tid: string) {
   clearSession(tid);
   // The diffs live as long as the session (or an hour, see State.addDiff).
   State.diffs = State.diffs.filter((d) => d.task !== tid);
-  // Another agent's pill lasts as long as its session.
-  if (tid !== CLAUDE_ID) State.removeTask(tid);
+  // Another agent's pill lasts as long as its session; the Agenti tab's own stays.
+  if (tid !== State.homeAgentId) State.removeTask(tid);
 }
 
 /**
@@ -730,7 +736,8 @@ export function handleHook(island: Island, payload: HookPayload) {
         const said = payload.easyisland_last_message?.trim() || payload.message?.trim() || "";
         const t = State.tasks.find((x) => x.id === tid);
         if (t) t.lastMessage = said || null;
-        if (said) State.appendStep(tid, firstLine(said, 80));
+        // As text: the row has no room for "**" and backticks.
+        if (said) State.appendStep(tid, firstLine(plainText(said), 80));
       }
       // Already looking at the session's terminal or editor: no sound, no card.
       // In any other app the island opens on the session to say it is done,

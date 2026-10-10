@@ -6,6 +6,7 @@ import { isSorting, sortable } from "./sortable";
 import { h, svg, clear, dot, brandIcon, brandOrDot, hasMark, markIcon } from "./dom";
 import { ICONS } from "./icons";
 import { Ticker } from "./ticker";
+import { plainText } from "../core/markdown";
 import { State, canOpen, engineLabel, isSessionTask, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
 import { ISLAND_CHROME_H, MAX_ISLAND_H, washRGBA, type IslandViewName, type Wash } from "../core/layout";
 import { createMiniBot, pruneMiniBots } from "../character/minibots";
@@ -130,7 +131,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
   } }, svg(ICONS.house, 16));
   const tabClaude = h("button", { class: "tab", "data-id": "tab:claude", title: t("Agenti: le sessioni di Claude Code, opencode e degli altri agenti"), style: "--c:#D97757", onclick: () => {
     // The agent heard from last (Claude Code, opencode, Codex…); the bar on the card switches.
-    State.setFocus(State.latestSessionTask?.id ?? "integration_claude");
+    const agent = State.latestSessionTask;
+    if (agent) State.setFocus(agent.id);
     go("overview");
   } });
   // Agenti: the coding agents' sessions (Claude Code, Codex, opencode…), not
@@ -186,6 +188,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
       const overview = v === "overview" || v === "empty";
       tabHome.classList.toggle("on", overview && showsSummary());
       drawClaudeTab();
+      // No agent to show (Claude Code off, nothing followed, no session): no tab.
+      tabClaude.style.display = State.latestSessionTask ? "" : "none";
       tabClaude.classList.toggle("on", overview && !showsSummary() && isSessionTask(State.focusTask));
       const tabs = State.tabTasks;
       const icons = State.settings.integrationTabIcons ?? {};
@@ -325,17 +329,18 @@ function buildOverview(actions: ViewActions): ViewHost {
         mode = null;
       }
 
-      // Agenti: a chip per agent that has been heard from (Claude Code always),
-      // when there is more than one to choose from.
+      // Agenti: a chip per agent that has been heard from (the tab's own agent
+      // always), when there is more than one to choose from.
+      const home = State.homeAgentId;
       const agents = isSessionTask(task) && !showsSummary()
-        ? State.sessionTasks.filter((t) => t.id === "integration_claude" || t.lastActive)
+        ? State.sessionTasks.filter((t) => t.id === home || t.lastActive)
         : [];
       const barKey = agents.length > 1 ? agents.map((t) => `${t.id}:${t.state}:${t.id === task?.id}`).join("|") : "";
       if (barKey !== agentBarKey) {
         agentBarKey = barKey;
         agentBar.replaceChildren(...(agents.length > 1 ? [...agents]
           // Always the same order, so a chip does not jump under the mouse.
-          .sort((a, b) => (a.id === "integration_claude" ? -1 : b.id === "integration_claude" ? 1 : a.id.localeCompare(b.id)))
+          .sort((a, b) => (a.id === home ? -1 : b.id === home ? 1 : a.id.localeCompare(b.id)))
           .map((t) => {
             const busy = t.state !== "idle" && t.state !== "sleeping" && t.state !== "finished";
             const chip = h("button", {
@@ -777,21 +782,6 @@ function buildError(actions: ViewActions): ViewHost {
 }
 
 // ── Finished ──────────────────────────────────────────────────────────────────
-
-/**
- * Claude's markdown read as plain text: no code fences, backticks, bold or
- * heading marks. (Rendering it properly is 6.6, point 4.)
- */
-function plainText(md: string): string {
-  return md
-    .replace(/^```.*$/gm, "")
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/\*\*(.+?)\*\*|__(.+?)__/g, "$1$2")
-    .replace(/`([^`]+)`/g, "$1")
-    // Blank lines between paragraphs would take one of the four lines shown.
-    .replace(/\n\s*\n+/g, "\n")
-    .trim();
-}
 
 function buildFinished(actions: ViewActions): ViewHost {
   const who = h("div");

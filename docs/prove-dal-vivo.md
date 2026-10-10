@@ -13,7 +13,10 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
 - [ ] **Limiti del piano:** dopo «Aggiorna» degli hook di Claude Code, una sessione nel terminale porta le percentuali nella card Consumo; una status line propria resta uguale nel terminale e torna disinstallando.
 - [ ] **Riepilogo settimanale:** lunedì 12 ottobre dalle 8 la card si apre da sola una volta; «Mostra ora» dalle Impostazioni e dal menu dell'area di notifica.
 - [ ] **Lingua inglese:** Generale → Lingua → English, «Riavvia ora»: isola, impostazioni, menu dell'icona, card delle integrazioni e risposte della chat in inglese.
-- [ ] **`Ctrl+Space`:** apre l'isola; controllare che non serva in VS Code (suggerimenti), Excel (seleziona la colonna) o per cambiare lingua della tastiera.
+- [ ] **Standby con l'integrazione Rete** (notebook): dopo il risveglio nessun avviso «Nessuna connessione»; staccando davvero la rete l'avviso arriva entro 15–20 s.
+- [ ] **Claude Code solo con gli hook:** sul notebook senza Claude Code nessuna card Claude Code; con «Collega opencode» la scheda Agenti mostra opencode. Qui, installando o togliendo gli hook dalle Impostazioni, la card compare o sparisce senza riavviare.
+- [ ] **Saluto all'avvio:** al centro dello schermo (anche su un secondo monitor scelto in «Schermo»), poi il personaggio torna al suo posto; «Dove sta il personaggio»; spento, il personaggio compare senza animazione.
+- [ ] **`Ctrl+Space`:** apre e chiude l'isola; controllare che non serva in VS Code (suggerimenti), Excel (seleziona la colonna) o per cambiare lingua della tastiera.
 - [ ] **Prezzi dei modelli:** «Carica modelli» con opencode e con OpenRouter, «solo gratuiti».
 - [ ] **Cronologia delle chat:** una conversazione per motore (abbonamento, API, opencode, uno compatibile OpenAI) riaperta dall'orologio continua con il contesto di prima; dopo un riavvio dell'app; «Cancella la cronologia» e l'interruttore spento.
 - [ ] **Personaggio lasciato su una cartella:** su una riga di Esplora file (anche con più schede), sullo sfondo, su un'icona del desktop; il percorso compare nel campo della chat dopo il testo già scritto e il personaggio torna al suo posto. Lasciato su un'altra app o sul desktop vuoto si sposta come prima.

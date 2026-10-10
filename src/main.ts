@@ -29,7 +29,9 @@ async function main() {
   } else {
     // Plain browser (`npm run dev`): settings can be tried from the URL, e.g.
     // /?anchorV=bottom&anchorH=left&iconSize=32 (lists comma-separated, e.g.
-    // ?activeIntegrations= for none)
+    // ?activeIntegrations= for none). Claude Code's hooks count as installed
+    // here, so its card is there; ?hooksInstalled=false shows a PC without them.
+    State.settings.hooksInstalled = true;
     const params = new URLSearchParams(location.search);
     const overrides: Record<string, unknown> = {};
     for (const [key, value] of params) {

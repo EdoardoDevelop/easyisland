@@ -18,6 +18,12 @@
 // One scheduler task wakes every few seconds, runs whatever is due, and sends
 // `widget-update` to the island. Nothing runs while EasyIsland is paused, and on
 // battery every interval is tripled.
+//
+// A check that starts failing is shown only once a second check, RETRY later,
+// fails too: a blip is not an alert. After the PC wakes from sleep (a jump in
+// the wall clock between two scheduler rounds) the network needs a while to come
+// back, so for WAKE_GRACE a new failure is only tried again; a check that ran
+// across the sleep is thrown away.
 
 use std::collections::HashMap;
 use std::net::ToSocketAddrs;
@@ -33,6 +39,12 @@ use crate::i18n::{t, tf};
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const TICK: Duration = Duration::from_secs(5);
 const IDLE_TICK: Duration = Duration::from_secs(30);
+/** A new failure is checked again after this long before it is shown. */
+const RETRY: Duration = Duration::from_secs(15);
+/** The wall clock jumped this much between two rounds: the PC was asleep. */
+const SLEEP_GAP: Duration = Duration::from_secs(60);
+/** After waking, new failures are only tried again for this long. */
+const WAKE_GRACE: Duration = Duration::from_secs(90);
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -572,10 +584,32 @@ fn current_widgets(app: &AppHandle) -> Vec<Widget> {
     all_widgets(&settings)
 }
 
+/// Whether a check's result can be shown, or it must be tried again first.
+/// `prev_error`: the last result shown was already an error; `retrying`: this
+/// is the second check of a new failure; `grace`: the PC woke a moment ago.
+fn hold_back(level: &str, prev_error: bool, retrying: bool, grace: bool) -> bool {
+    level == "error" && !prev_error && (!retrying || grace)
+}
+
+/// The wall clock moved on more than `gap` since `since` (a sleep in between).
+fn slept(since: SystemTime, gap: Duration) -> bool {
+    SystemTime::now().duration_since(since).unwrap_or_default() > gap
+}
+
 pub fn start(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         let mut last: HashMap<String, Instant> = HashMap::new();
+        // Checks with a new failure waiting for their second run.
+        let retry: std::sync::Arc<std::sync::Mutex<std::collections::HashSet<String>>> = Default::default();
+        let mut round = SystemTime::now();
+        let mut woke: Option<Instant> = None;
         loop {
+            if slept(round, SLEEP_GAP) {
+                crate::log::line("widgets: woke from sleep, failures wait".to_string());
+                woke = Some(Instant::now());
+            }
+            round = SystemTime::now();
+            let grace = woke.is_some_and(|t| t.elapsed() < WAKE_GRACE);
             let widgets = current_widgets(&app);
             if widgets.is_empty() || crate::integrations::PAUSED.load(std::sync::atomic::Ordering::Relaxed) {
                 tokio::time::sleep(IDLE_TICK).await;
@@ -584,14 +618,25 @@ pub fn start(app: AppHandle) {
             let slow = if on_battery() { 3 } else { 1 };
             last.retain(|id, _| widgets.iter().any(|w| &w.id == id));
             for w in widgets {
-                let due = last.get(&w.id).is_none_or(|t| t.elapsed() >= interval(&w) * slow);
+                let retrying = retry.lock().unwrap().contains(&w.id);
+                let wait = if retrying { RETRY } else { interval(&w) * slow };
+                let due = last.get(&w.id).is_none_or(|t| t.elapsed() >= wait);
                 if !due {
                     continue;
                 }
                 last.insert(w.id.clone(), Instant::now());
                 let app = app.clone();
+                let retry = retry.clone();
                 tauri::async_runtime::spawn(async move {
+                    let started = SystemTime::now();
                     let result = probe(&w).await;
+                    let prev_error = last_result(&w.id).is_some_and(|p| p.level == "error");
+                    // Ran across a sleep, or a new failure not confirmed yet: try again soon.
+                    if slept(started, SLEEP_GAP) || hold_back(&result.level, prev_error, retrying, grace) {
+                        retry.lock().unwrap().insert(w.id.clone());
+                        return;
+                    }
+                    retry.lock().unwrap().remove(&w.id);
                     remember(&result);
                     let _ = app.emit_to(WINDOW_LABEL, "widget-update", result);
                 });
@@ -686,6 +731,20 @@ mod tests {
         assert_eq!(days_from_civil(1970, 1, 1), 0);
         assert_eq!(days_from_civil(2000, 3, 1), 11_017);
         assert_eq!(days_from_civil(2026, 10, 1) - days_from_civil(2026, 9, 1), 30);
+    }
+
+    #[test]
+    fn new_failures_wait_for_a_second_check() {
+        use super::hold_back;
+        // First failure: held back; confirmed by the second check.
+        assert!(hold_back("error", false, false, false));
+        assert!(!hold_back("error", false, true, false));
+        // Just woken: even the second check waits.
+        assert!(hold_back("error", false, true, true));
+        // Already shown as an error, or not an error: shown at once.
+        assert!(!hold_back("error", true, false, true));
+        assert!(!hold_back("warn", false, false, true));
+        assert!(!hold_back("ok", false, false, false));
     }
 
     #[test]
