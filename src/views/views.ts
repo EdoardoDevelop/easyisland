@@ -6,6 +6,7 @@ import { isSorting, sortable } from "./sortable";
 import { h, svg, clear, dot, brandIcon, brandOrDot, hasMark, markIcon } from "./dom";
 import { ICONS } from "./icons";
 import { Ticker } from "./ticker";
+import { plainText } from "../core/markdown";
 import { State, canOpen, engineLabel, isSessionTask, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
 import { ISLAND_CHROME_H, MAX_ISLAND_H, washRGBA, type IslandViewName, type Wash } from "../core/layout";
 import { createMiniBot, pruneMiniBots } from "../character/minibots";
@@ -781,21 +782,6 @@ function buildError(actions: ViewActions): ViewHost {
 }
 
 // ── Finished ──────────────────────────────────────────────────────────────────
-
-/**
- * Claude's markdown read as plain text: no code fences, backticks, bold or
- * heading marks. (Rendering it properly is 6.6, point 4.)
- */
-function plainText(md: string): string {
-  return md
-    .replace(/^```.*$/gm, "")
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/\*\*(.+?)\*\*|__(.+?)__/g, "$1$2")
-    .replace(/`([^`]+)`/g, "$1")
-    // Blank lines between paragraphs would take one of the four lines shown.
-    .replace(/\n\s*\n+/g, "\n")
-    .trim();
-}
 
 function buildFinished(actions: ViewActions): ViewHost {
   const who = h("div");

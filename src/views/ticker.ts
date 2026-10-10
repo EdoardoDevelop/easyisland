@@ -47,7 +47,8 @@ function makeRow(onPick: (text: string) => void): Row {
   const shimmer = h("span", { class: "tick-text shimmer" });
   const dim = h("span", {
     class: "tick-text",
-    style: "position:absolute;left:0;right:0;color:#6b7079",
+    // Pinned to the top: left to its static place it sat a line lower, over the current step.
+    style: "position:absolute;top:0;left:0;right:0;color:#6b7079",
   });
   const el = h(
     "div",

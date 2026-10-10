@@ -8,6 +8,25 @@ import { t } from "./i18n";
 // ~~strike~~, `code` and [links](https://…). Links open in the browser only
 // when they are http(s); anything else stays text.
 
+/**
+ * Claude's markdown read as plain text, for a card or a ticker row: no code
+ * fences, heading marks, bold, italics, strike or backticks; a link keeps its text.
+ */
+export function plainText(md: string): string {
+  return md
+    .replace(/^```.*$/gm, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*(.+?)\*\*|__(.+?)__/g, "$1$2")
+    // *italic*, but not a lone "*" or a "2 * 3".
+    .replace(/(^|[\s(«"'])\*(?!\s)([^*\n]+?)\*(?=$|[\s).,;:!?»"'])/gm, "$1$2")
+    .replace(/~~(.+?)~~/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    // Blank lines between paragraphs would take one of the four lines shown.
+    .replace(/\n\s*\n+/g, "\n")
+    .trim();
+}
+
 /** What the renderer needs from the outside (the island passes Bridge.openUrl). */
 export interface MarkdownHooks {
   openUrl(url: string): void;

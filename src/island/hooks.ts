@@ -13,6 +13,7 @@ import { applyPlanTool, planStep } from "./plan";
 import { Recap } from "./recap";
 import { risksOf } from "./risk";
 import { t, tn } from "../core/i18n";
+import { plainText } from "../core/markdown";
 
 const CLAUDE_ID = "integration_claude";
 
@@ -735,7 +736,8 @@ export function handleHook(island: Island, payload: HookPayload) {
         const said = payload.easyisland_last_message?.trim() || payload.message?.trim() || "";
         const t = State.tasks.find((x) => x.id === tid);
         if (t) t.lastMessage = said || null;
-        if (said) State.appendStep(tid, firstLine(said, 80));
+        // As text: the row has no room for "**" and backticks.
+        if (said) State.appendStep(tid, firstLine(plainText(said), 80));
       }
       // Already looking at the session's terminal or editor: no sound, no card.
       // In any other app the island opens on the session to say it is done,
