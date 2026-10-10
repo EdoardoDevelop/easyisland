@@ -366,10 +366,22 @@ html.browser-preview #root {
 .view {
   position: absolute;
   inset: 0;
+  /* Laid out at the open island's final width while it grows or shrinks
+     (animateGeometry in island.ts), so nothing rewraps mid-animation. */
+  width: var(--view-w, auto);
   opacity: 0;
   transform: scale(0.97);
   pointer-events: none;
   transition: opacity 0.16s ease-in;
+}
+
+/* …anchored on the side the island grows from: the island uncovers it. */
+#views[data-anchor="right"] > .view {
+  left: auto;
+}
+
+#views[data-anchor="center"] > .view {
+  left: calc(50% - var(--view-w, 100%) / 2);
 }
 
 .view.on {

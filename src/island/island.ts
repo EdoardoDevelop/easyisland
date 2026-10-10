@@ -1464,6 +1464,16 @@ export class Island {
 
   private animateGeometry(shrinking: boolean) {
     const { w, h, r } = this.targetSize();
+    // The views are laid out at the open island's final width, not the animated
+    // one (CSS: `.view` width from --view-w, anchored on the island's side): text
+    // that rewrapped and scroll bars that came and went at every frame changed
+    // the measured content height (fitHeight) while the island grew, and the
+    // island chased it in jerks. Closing keeps the last width while it fades.
+    if (State.mode === "expanded") {
+      const chrome = this.islandEl.offsetWidth - this.viewsEl.offsetWidth;
+      this.viewsEl.style.setProperty("--view-w", `${Math.round(w - (chrome > 0 && chrome < 80 ? chrome : 20))}px`);
+      this.viewsEl.dataset.anchor = this.placement.h;
+    }
     if (shrinking) {
       this.width.curveTowards(w);
       this.height.curveTowards(h);

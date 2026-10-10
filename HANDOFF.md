@@ -22,6 +22,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 10 ottobre 2026 — scatti dell'isola con il contenuto che scorre
+- Aprendo l'isola o trascinandone l'angolo, una vista con barra di scorrimento faceva scattare l'altezza: il contenuto si reimpaginava a ogni fotogramma con la larghezza che si animava. Ora è impaginato subito alla larghezza finale (`--view-w`, `animateGeometry`; `docs/architettura.md`). Riprodotto nell'anteprima facendo avanzare i fotogrammi a mano: prima l'altezza misurata passava da 336 a 271 a metà apertura, ora resta 271.
+
 ### 10 ottobre 2026 — versione 0.6.7
 - Unione in `main` e tag `v0.6.7`: markdown e «Continua» sulla card «finito», «Chiedi a questa sessione», «Più tardi» sul permesso, «Sempre» di sessione, 📌 come finestra normale (voci sotto). README con novità e tabella delle versioni.
 
@@ -35,7 +38,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 10 ottobre 2026 — versione 0.6.6
 - Unione in `main` e tag `v0.6.6`: saluto al centro, `Ctrl+Space` che chiude, Claude Code solo con i suoi hook, «Collega opencode», controlli dopo lo standby, passi della sessione (voci sotto). README con novità e tabella delle versioni.
-
-### 10 ottobre 2026 — passi sovrapposti, controlli dopo lo standby
-- **Card della sessione:** il passo completato (grigio) finiva una riga sotto, sopra quello in corso. Il testo grigio di ogni riga del ticker era assoluto senza `top` (`src/views/ticker.ts`); ora sta in alto e `.tick-text` è un blocco, così anche i puntini di troppo-lungo funzionano. Il passo con l'ultimo messaggio di Claude passa da `plainText` (ora in `src/core/markdown.ts`, come la card «ha finito»): niente `**`, corsivi, backtick né link in markdown.
-- **Controlli e standby** (`widgets.rs`): un controllo che inizia a fallire si mostra solo se lo conferma un secondo controllo 15 s dopo. Dopo il risveglio (salto dell'orologio tra due giri dello scheduler) per 90 s i nuovi errori si riprovano soltanto; un controllo a cavallo dello standby si scarta. Vale per Rete e per ogni widget o integrazione-controllo.

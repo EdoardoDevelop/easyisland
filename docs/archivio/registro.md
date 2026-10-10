@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 10 ottobre 2026 — passi sovrapposti, controlli dopo lo standby
+- **Card della sessione:** il passo completato (grigio) finiva una riga sotto, sopra quello in corso. Il testo grigio di ogni riga del ticker era assoluto senza `top` (`src/views/ticker.ts`); ora sta in alto e `.tick-text` è un blocco, così anche i puntini di troppo-lungo funzionano. Il passo con l'ultimo messaggio di Claude passa da `plainText` (ora in `src/core/markdown.ts`, come la card «ha finito»): niente `**`, corsivi, backtick né link in markdown.
+- **Controlli e standby** (`widgets.rs`): un controllo che inizia a fallire si mostra solo se lo conferma un secondo controllo 15 s dopo. Dopo il risveglio (salto dell'orologio tra due giri dello scheduler) per 90 s i nuovi errori si riprovano soltanto; un controllo a cavallo dello standby si scarta. Vale per Rete e per ogni widget o integrazione-controllo.
+
 ### 10 ottobre 2026 — Claude Code facoltativo, saluto al centro, «Apri l'isola» chiude anche
 - **Claude Code solo con i suoi hook:** senza hook installati niente card Claude Code. Con «Collega opencode» (prima «Segui opencode 2») la scheda Agenti parte da opencode «In attesa»; senza agenti la scheda non c'è. `hooksInstalled` lo scrivono solo `boot` e `hooks_apply` (il salvataggio delle Impostazioni non lo tocca più). Nell'anteprima del browser gli hook contano come installati (`?hooksInstalled=false` per provarne l'assenza).
 - **Saluto all'avvio** al centro dello schermo di predefinito. In Posizione e aspetto: acceso/spento (`greeting`; spento, il personaggio compare al suo posto senza suono) e dove (`greetingPlace`: centro o dove sta il personaggio). La finestra va al centro con `set_expanded(…, place)` → `gate.open_place`, che vale solo per quell'apertura. Provato nell'anteprima; la finestra vera è da provare dal vivo.
