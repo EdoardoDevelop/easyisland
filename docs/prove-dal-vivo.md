@@ -13,6 +13,7 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
 - [ ] **Limiti del piano:** dopo «Aggiorna» degli hook di Claude Code, una sessione nel terminale porta le percentuali nella card Consumo; una status line propria resta uguale nel terminale e torna disinstallando.
 - [ ] **Riepilogo settimanale:** lunedì 12 ottobre dalle 8 la card si apre da sola una volta; «Mostra ora» dalle Impostazioni e dal menu dell'area di notifica.
 - [ ] **Lingua inglese:** Generale → Lingua → English, «Riavvia ora»: isola, impostazioni, menu dell'icona, card delle integrazioni e risposte della chat in inglese.
+- [ ] **📌 «Tieni aperta» come finestra normale:** icona nella barra e in Alt+Tab, un'altra finestra le va sopra, clic sull'icona riduce e riporta; permesso con l'isola coperta → l'icona lampeggia; togliendo il 📌 o con ✕/Esc torna sempre davanti e sparisce dalla barra. Anche con «Sopra la barra» acceso.
 - [ ] **«Continua» dalla card «finito»:** Claude Code in Windows Terminal e nel terminale di VS Code (il testo arriva e parte); estensione di VS Code (si apre la sessione con il testo scritto); opencode 2 (il messaggio parte dal servizio). Testo con accenti.
 - [ ] **«Chiedi a questa sessione»** su una sessione vera di terminale e una dell'app Claude: la risposta conosce la sessione e la sessione non cambia.
 - [ ] **«Sempre» di sessione** su un comando senza proposta di Claude Code: lo stesso comando non chiede più fino alla fine della sessione; **«Più tardi»/Esc** sulla card e riapertura.

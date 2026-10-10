@@ -373,6 +373,18 @@ fn focus_window(app: AppHandle, focused: bool) {
     }
 }
 
+/// 📌 "Tieni aperta" on or off: the open island as an ordinary app window or not.
+#[tauri::command]
+fn set_app_mode(app: AppHandle, on: bool) {
+    island::set_app_mode(&app, on);
+}
+
+/// A permission or a question while the pinned island is behind other windows.
+#[tauri::command]
+fn flash_if_behind(app: AppHandle) {
+    island::flash_if_behind(&app);
+}
+
 /// A folder dropped on the island goes to the chat, not into the drop sequence.
 #[tauri::command]
 fn is_folder(path: String) -> bool {
@@ -1248,6 +1260,8 @@ pub fn run() {
             open_url,
             open_in_vscode,
             session_reply::session_reply,
+            set_app_mode,
+            flash_if_behind,
             claude_cli::session_ask,
             open_file_in_vscode,
             chat_models,

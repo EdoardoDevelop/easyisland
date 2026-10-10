@@ -72,6 +72,10 @@ export const Bridge = {
 
   /** Give the window keyboard focus (chat field) and take it away again. */
   focusWindow: (focused: boolean) => call<void>("focus_window", { focused }),
+  /** 📌 on: the open island as an ordinary app window (taskbar, not always on top). island.rs → set_app_mode. */
+  setAppMode: (on: boolean) => call<void>("set_app_mode", { on }),
+  /** The pinned island behind other windows: flash its taskbar button. */
+  flashIfBehind: () => call<void>("flash_if_behind"),
   /** The notification-area menu at the cursor (tray.rs `popup`). */
   showIslandMenu: () => call<void>("show_island_menu"),
   isFolder: (path: string) => call<boolean>("is_folder", { path }),

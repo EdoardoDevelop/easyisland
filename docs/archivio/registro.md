@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 9 ottobre 2026 — versione 0.6.5
+- Unione in `main` e tag `v0.6.5`: cartella nella chat, menu col clic destro, saluto senza isola, `Ctrl+Space` sulla Panoramica, angoli dell'isola staccata (voci sotto). README con novità e tabella delle versioni.
+
 ### 9 ottobre 2026 — cartella nella chat, scorciatoia «Apri» sulla Panoramica
 - **Cartella rilasciata sull'isola:** finiva nella sequenza del file («Rilascia», poi errore); ora i percorsi vanno nel campo della chat.
 - **Scorciatoia «Apri l'isola»** (`Ctrl+Space`): apre la Panoramica invece di ⚡ o della chat; con una richiesta in attesa apre quella.

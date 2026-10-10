@@ -22,6 +22,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 10 ottobre 2026 — 📌 «Tieni aperta» come finestra normale
+- Con il 📌 l'isola aperta ha l'icona nella barra e in Alt+Tab, non è più sempre in primo piano, si riduce con un clic sull'icona; un permesso fa solo lampeggiare l'icona. Togliendo il 📌 o chiudendo torna com'era (`set_app_mode`, `flash_if_behind` in `island.rs`, `docs/architettura.md`). Compila e passa i test; il comportamento della finestra è da provare dal vivo.
+
 ### 10 ottobre 2026 — sessioni: «Continua», «Chiedi», card ripiegabile, «Sempre» di sessione
 - **Card «finito»:** risposta in markdown e campo **«Continua»** (`session_reply.rs`): nel terminale scrive nella console della sessione (`easyisland-hook type`, provato con `cmd` e Python veri), in VS Code/Cursor precompila con il link dell'estensione, opencode lo riceve dal servizio.
 - **«Chiedi a questa sessione»:** la chat interroga una copia in sola lettura (`--fork-session`, `session_ask` in `claude_cli.rs`); provato dal vivo con una mini-sessione.
@@ -38,6 +41,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - **Claude Code solo con i suoi hook:** senza hook installati niente card Claude Code. Con «Collega opencode» (prima «Segui opencode 2») la scheda Agenti parte da opencode «In attesa»; senza agenti la scheda non c'è. `hooksInstalled` lo scrivono solo `boot` e `hooks_apply` (il salvataggio delle Impostazioni non lo tocca più). Nell'anteprima del browser gli hook contano come installati (`?hooksInstalled=false` per provarne l'assenza).
 - **Saluto all'avvio** al centro dello schermo di predefinito. In Posizione e aspetto: acceso/spento (`greeting`; spento, il personaggio compare al suo posto senza suono) e dove (`greetingPlace`: centro o dove sta il personaggio). La finestra va al centro con `set_expanded(…, place)` → `gate.open_place`, che vale solo per quell'apertura. Provato nell'anteprima; la finestra vera è da provare dal vivo.
 - La scorciatoia «Apri l'isola» (`Ctrl+Space`) premuta con l'isola aperta la chiude (`onHotkey` in `island.ts`). Con una richiesta in attesa resta sulla card, come con Esc o il clic fuori (`collapse`).
-
-### 9 ottobre 2026 — versione 0.6.5
-- Unione in `main` e tag `v0.6.5`: cartella nella chat, menu col clic destro, saluto senza isola, `Ctrl+Space` sulla Panoramica, angoli dell'isola staccata (voci sotto). README con novità e tabella delle versioni.

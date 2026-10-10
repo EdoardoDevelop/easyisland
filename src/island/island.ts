@@ -146,6 +146,8 @@ export class Island {
 
   private confusedRecovery: number | null = null;
   private prevViewBeforeConfused: IslandViewName = "overview";
+  /** 📌 on and open: the window is an ordinary app (Bridge.setAppMode). */
+  private appMode = false;
   /** Opened from a shortcut: the island keeps the keyboard until it closes. */
   private keyboard = false;
   /** Where the island was before a permission card took it (rememberBeforeCard). */
@@ -169,6 +171,13 @@ export class Island {
     State.subscribe(() => {
       this.dirty = true;
       this.ensureRunning();
+      // 📌 makes the open island an ordinary app window; unpinning, or closing
+      // (which drops the pin), gives the usual island back.
+      const app = State.keepOpen && State.mode === "expanded";
+      if (app !== this.appMode) {
+        this.appMode = app;
+        void Bridge.setAppMode(app);
+      }
     });
   }
 
@@ -664,6 +673,8 @@ export class Island {
     this.fsm.pinned = State.isPinned;
     this.fsm.forceHome();
     this.expand(view);
+    // Pinned as an app it may sit behind other windows: a request flashes its taskbar button.
+    if (this.appMode && (view === "approval" || view === "ask" || view === "question")) void Bridge.flashIfBehind();
   }
 
   // ── Quick actions ─────────────────────────────────────────────────────────
