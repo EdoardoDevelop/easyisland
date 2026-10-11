@@ -50,6 +50,11 @@ interface CharacterBase {
    * fixed identity (the cube's logo) keeps its own.
    */
   wearsIntegrationColor: boolean;
+  /**
+   * Moves on its own (the flame flickers): keeps the frame loop going at the
+   * gaze rate while the island is shown. A hidden island draws nothing anyway.
+   */
+  animated?: boolean;
 }
 
 /** Where the face sits on a soft body. */
