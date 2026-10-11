@@ -81,9 +81,31 @@ function radius(a: number): number {
     (3 * p1 - p0 - 3 * p2 + p3) * t * t * t);
 }
 
+// ── The flicker ───────────────────────────────────────────────────────────────
+// The flame sways and flickers on its own (`animated`): nothing at the base,
+// more and more towards the tip. The inner layers lag a little behind.
+
+const clock = () => performance.now() / 1000;
+
+/** How free the flame is at height y: 0 on the base (y = hh), 1 at the tip. */
+function freedom(y: number, hh: number): number {
+  return Math.pow(Math.max(0, Math.min(1, (1 - y / hh) / 2)), 1.5);
+}
+
+/** The sideways sway at height y, for a layer `lag` behind the outer flame. */
+function sway(y: number, hh: number, t: number, lag: number): number {
+  const v = y / hh;
+  return hh * freedom(y, hh) *
+    (0.045 * Math.sin(1.9 * t + v * 2.2 - lag) + 0.02 * Math.sin(3.3 * t + 1.7 - lag * 1.3));
+}
+
 function flamePoint(ca: number, sa: number, hw: number, hh: number): { x: number; y: number } {
-  const r = radius(Math.atan2(sa, ca));
-  return { x: ca * r * hw, y: sa * r * hh };
+  const a = Math.atan2(sa, ca);
+  const t = clock();
+  const y0 = sa * radius(a) * hh;
+  const r = radius(a) * (1 + freedom(y0, hh) * 0.025 * Math.sin(4.6 * t + a * 4));
+  const y = sa * r * hh;
+  return { x: ca * r * hw + sway(y, hh, t, 0), y };
 }
 
 /** The outer flame is the body colour; the orange and yellow lean towards fire from it. */
@@ -95,11 +117,19 @@ function flamePalette(base: RGB): Palette {
   };
 }
 
-/** A closed shape through the points, rounded with curves through their midpoints. */
-function shape(pts: number[], hw: number, hh: number): Path2D {
+/**
+ * A closed shape through the points, rounded with curves through their
+ * midpoints, swaying `lag` behind the outline and stretched up by `stretch`.
+ */
+function shape(pts: number[], hw: number, hh: number, lag = 0, stretch = 0): Path2D {
   const p = new Path2D();
   const n = pts.length / 2;
-  const at = (i: number): [number, number] => [pts[(i % n) * 2] * hw, pts[(i % n) * 2 + 1] * hh];
+  const t = clock();
+  const at = (i: number): [number, number] => {
+    let y = pts[(i % n) * 2 + 1] * hh;
+    y -= (hh - y) * stretch;
+    return [pts[(i % n) * 2] * hw + sway(y, hh, t, lag), y];
+  };
   const mid = (i: number): [number, number] => {
     const [ax, ay] = at(i), [bx, by] = at(i + 1);
     return [(ax + bx) / 2, (ay + by) / 2];
@@ -122,15 +152,16 @@ function drawFlameBody(x: CanvasRenderingContext2D, body: Path2D, hw: number, hh
   x.fill(body);
   x.save();
   x.clip(body);
+  const t = clock();
   x.fillStyle = orange;
-  x.fill(shape(ORANGE, hw, hh));
+  x.fill(shape(ORANGE, hw, hh, 0.5, 0.02 * Math.sin(2.7 * t)));
   x.fillStyle = rgba(pal.light);
-  x.fill(shape(YELLOW, hw, hh));
+  x.fill(shape(YELLOW, hw, hh, 1.0, 0.035 * Math.sin(2.3 * t + 1)));
   x.fillStyle = rgba(pal.edge);
   x.fill(shape(EMBER, hw, hh));
 
   if (!look.simple) {
-    const droplet = shape(DROPLET, hw, hh);
+    const droplet = shape(DROPLET, hw, hh, 0.3, 0.04 * Math.sin(3.1 * t + 2));
     x.fillStyle = orange;
     x.fill(droplet);
     x.strokeStyle = rgba(mix(pal.body, pal.edge, 0.5), 0.8);
@@ -139,10 +170,13 @@ function drawFlameBody(x: CanvasRenderingContext2D, body: Path2D, hw: number, hh
 
     const gloss = look.gloss ?? 1;
     if (gloss > 0.01) {
-      x.fillStyle = `rgba(255,214,200,${0.95 * gloss})`;
+      // Sparks drift up a little, fading in and out.
       for (let i = 0; i < SPARKS.length; i += 3) {
+        const k = (t * 0.25 + i * 0.13) % 1;
+        const y = (SPARKS[i + 1] - 0.18 * k) * hh;
+        x.fillStyle = `rgba(255,214,200,${0.95 * gloss * Math.sin(k * Math.PI)})`;
         x.beginPath();
-        x.arc(SPARKS[i] * hw, SPARKS[i + 1] * hh, Math.max(0.6, SPARKS[i + 2] * hh), 0, Math.PI * 2);
+        x.arc(SPARKS[i] * hw + sway(y, hh, t, 0.2), y, Math.max(0.6, SPARKS[i + 2] * hh), 0, Math.PI * 2);
         x.fill();
       }
     }
@@ -162,6 +196,7 @@ export const FLAME: SoftCharacter = {
   color: FLAME_RED,
   aspect: 0.86,
   wearsIntegrationColor: true,
+  animated: true,
   size: { hw: 0.86, hh: 1.0 },
   // The face sits low on the yellow heart, centred on it.
   face: { eyeSpread: 0.337, eyeDrop: 0.567, eyeRadius: 0.16, blushX: 0.34, blushY: 0.665 },

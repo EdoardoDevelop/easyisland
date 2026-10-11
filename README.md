@@ -53,6 +53,12 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.7.0** — personaggi rifatti e più vivi: la **Fiamma** ondeggia e tremola di continuo
+(solo a isola visibile), il **Geco** ha il bordo più fine e le pupille che arrivano fino al
+bordo dell'occhio guardando il mouse; **Roccia**, **Magma** e **Pietra** sono tre
+sassolini con grandi occhi neri (il muschio, la lava, il germoglio) e **Foglia** è una
+foglia lucida con le venature.
+
 **0.6.9** — **sei nuovi personaggi**, tutti disegnati nel codice: il **Geco**, con
 grandi occhi ambrati le cui pupille seguono lo sguardo e una palpebra che scende quando
 sbatte; la **Fiamma**, una fiammella rossa, arancione e gialla con le scintille; e
@@ -98,7 +104,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.6.9** | 11 ott 2026 | Sei nuovi personaggi: Geco, Fiamma, Magma, Pietra, Roccia e Foglia |
+| **0.7.0** | 11 ott 2026 | Fiamma animata, Geco con sguardo fino all'orbita, Roccia, Magma, Pietra e Foglia ridisegnati |
+| 0.6.9 | 11 ott 2026 | Sei nuovi personaggi: Geco, Fiamma, Magma, Pietra, Roccia e Foglia |
 | 0.6.8 | 11 ott 2026 | Menu sul testo selezionato con `Win+Alt+A`, «Sostituisci» con anteprima, «Lavora su» nelle azioni rapide, reazioni del personaggio per situazione, niente salti d'altezza dell'isola |
 | 0.6.7 | 10 ott 2026 | Risposta in markdown e «Continua» sulla card «finito», «Chiedi a questa sessione», «Più tardi» sul permesso, «Sempre» di sessione, 📌 come finestra normale |
 | 0.6.6 | 10 ott 2026 | Saluto al centro dello schermo (o spento), `Ctrl+Space` apre e chiude, Claude Code solo con i suoi hook, niente falsi errori di rete dopo lo standby, passi della sessione senza sovrapposizioni |
@@ -579,8 +586,8 @@ attivo.
   muove; Goccia è un piccolo spirito d'acqua azzurro, lucido, a forma di goccia;
   EasyTech è un cubo, a riposo con i colori del logo da cui è disegnato (o con il
   colore del tema, se lo scegli); Geco è una testa di geco con gli occhi ambrati che
-  sbattono le palpebre, Fiamma una fiammella a strati, Magma, Pietra, Roccia e Foglia
-  quattro gelatine tonde con crepe di lava, blocchi di pietra, un guscio e una corona di foglie. Negli
+  sbattono le palpebre, Fiamma una fiammella a strati che ondeggia, Magma, Pietra, Roccia e Foglia
+  tre sassolini con grandi occhi neri (Roccia col muschio, Magma con la lava, Pietra col germoglio) e Foglia una foglia lucida con le venature. Negli
   altri stati tutti prendono il colore dello stato (blu mentre lavora, ambra per
   un permesso, rosso per un errore…). EasyTech ha gli occhi su un lato, con le
   stesse espressioni, e segue il mouse come gli altri. Anteprima senza

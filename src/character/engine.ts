@@ -503,6 +503,7 @@ export class BotEngine {
   get busy(): boolean {
     return (
       this.busyBeyondLook ||
+      character().animated === true ||
       Math.abs(this.tgYaw - this.yaw) > 0.002 ||
       Math.abs(this.tgPitch - this.pitch) > 0.002
     );

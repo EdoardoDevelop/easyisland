@@ -61,8 +61,12 @@ const EYE = { x: -0.6426, y: -0.2581, rx: 0.2791, ry: 0.4995, tilt: 0.08 };
 const PUPIL = { x: -0.5861, y: -0.2692, rx: 0.2157, ry: 0.3774 };
 /** The round glint on the pupil (offset from the pupil's centre) and its radius (× hh). */
 const GLINT = { dx: 0.0453, dy: -0.222, r: 0.0932 };
-/** How far the pupil follows the engine's gaze: the eyeball itself stays in its dome. */
-const GAZE = 0.35;
+/**
+ * How far the engine's eye moves, from rest, when it looks all the way to one
+ * side (× hw) or up/down (× hh): at that point the pupil touches the eyeball's
+ * rim on that side. The eyeball itself stays in its dome.
+ */
+const GAZE = { x: 0.28, y: 0.3 };
 
 const CREAM: RGB = [1.0, 0.96, 0.66];
 const CREAM_EDGE: RGB = [0.86, 0.8, 0.41];
@@ -234,7 +238,7 @@ function drawGeckoBody(x: CanvasRenderingContext2D, body: Path2D, hw: number, hh
   og.addColorStop(0.35, rgba(mix(pal.edge, [0.5, 0.65, 0.08], 0.55)));
   og.addColorStop(1, rgba(mix(pal.edge, [0, 0, 0], 0.25)));
   x.strokeStyle = og;
-  x.lineWidth = outline * 2.4;
+  x.lineWidth = outline * 1.4;
   x.lineJoin = "round";
   x.stroke(body);
 
@@ -250,8 +254,10 @@ function drawGeckoBody(x: CanvasRenderingContext2D, body: Path2D, hw: number, hh
 
 /**
  * The amber eyeball and its pupil, back in the body's frame: the engine's eye
- * position says which eye this is and where it looks; the pupil follows a part
- * of that, the eyeball stays put in its dome. A blink brings the lid down.
+ * position says which eye this is and where it looks. Looking at the cursor
+ * the pupil goes from its rest (on the inner side) to the rim of the eyeball
+ * on the cursor's side; the eyeball stays put in its dome. A blink brings the
+ * lid down.
  */
 function drawGeckoEye(x: CanvasRenderingContext2D, r: number, open: number, ink: string) {
   const f = frame;
@@ -271,9 +277,16 @@ function drawGeckoEye(x: CanvasRenderingContext2D, r: number, open: number, ink:
   const restX = -s * PUPIL.x * hw, restY = PUPIL.y * hh;
   const dx = at.e - restX, dy = at.f - restY;
   const m = f.morph;
-  const px = restX + dx * GAZE * (1 - m);
-  const py = restY + dy * GAZE * (1 - m);
   const prx = PUPIL.rx * hw * k, pry = PUPIL.ry * hh * k;
+  // Where the gaze points, −1…1 each way, and the pupil against the rim there.
+  const gx = Math.max(-1, Math.min(1, dx / (GAZE.x * hw)));
+  const gy = Math.max(-1, Math.min(1, dy / (GAZE.y * hh)));
+  const ex = -s * EYE.x * hw, ey = EYE.y * hh;
+  const tx = ex + gx * Math.max(0, EYE.rx * hw - prx);
+  const ty = ey + gy * Math.max(0, EYE.ry * hh - pry);
+  const g = Math.min(1, Math.hypot(gx, gy) * 1.5) * (1 - m);
+  const px = restX + (tx - restX) * g;
+  const py = restY + (ty - restY) * g;
 
   x.save();
   x.setTransform(f.m);
