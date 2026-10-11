@@ -405,12 +405,14 @@ fn prompt_body(first: bool, query: &str, context: Option<&ChatContext>) -> Value
     if first {
         match context {
             Some(ChatContext::Text { label, text: t }) => text.push_str(&format!("{label}:\n{t}\n\n")),
-            Some(ChatContext::Window { app_name, title, url }) => {
-                text.push_str(&format!("Contesto — App: {app_name}, Finestra: {title}"));
-                if let Some(u) = url {
-                    text.push_str(&format!(", URL: {u}"));
-                }
+            Some(ChatContext::Window { app_name, title, url, image }) => {
+                text.push_str(&crate::claude::window_line(app_name, title, url.as_deref()));
                 text.push_str("\n\n");
+                if let Some(path) = image {
+                    let uri = format!("file:///{}", path.replace('\\', "/").trim_start_matches('/'));
+                    let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                    files.push(json!({ "uri": uri, "name": name }));
+                }
             }
             Some(ChatContext::File { name, path }) => {
                 let uri = format!("file:///{}", path.replace('\\', "/").trim_start_matches('/'));

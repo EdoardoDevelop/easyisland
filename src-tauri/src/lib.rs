@@ -5,6 +5,7 @@ mod agent;
 mod automations;
 mod apps;
 mod calendar;
+mod carry;
 mod claude;
 mod chat_log;
 mod claude_cli;
@@ -55,6 +56,7 @@ mod usage;
 mod widgets;
 mod zip;
 mod win_user;
+mod window_drop;
 mod wss;
 mod zammad;
 
@@ -912,6 +914,47 @@ async fn capture_screen() -> Result<Option<DroppedFile>, String> {
     screenshot::capture().await
 }
 
+/// The character of the chat tab is carried over the other windows
+/// (window_drop.rs): meanwhile the island's window keeps the mouse, as in a drag.
+#[tauri::command]
+fn window_pick(shared: State<Shared>, active: bool) {
+    shared.gate.dragging.store(active, Ordering::Relaxed);
+    if !active {
+        carry::hide();
+    }
+}
+
+/// The carried character's face, drawn under the pointer by carry.rs (RGBA, physical px).
+#[tauri::command]
+fn carry_frame(shared: State<Shared>, width: u32, height: u32, rgba: Vec<u8>) {
+    // A frame still on its way after the drop must not bring the window back.
+    if shared.gate.dragging.load(Ordering::Relaxed) {
+        carry::frame(width, height, rgba);
+    }
+}
+
+/// The window the carried character is over: its program and title.
+#[tauri::command]
+fn window_under_cursor() -> Option<window_drop::WindowInfo> {
+    let (x, y) = island::cursor_physical()?;
+    window_drop::info_at(x as i32, y as i32).map(|(_, info)| info)
+}
+
+/// The character let go on a window: its picture in the inbox, for the chat.
+#[tauri::command]
+async fn window_drop(shared: State<'_, Shared>) -> Result<Option<window_drop::WindowShot>, String> {
+    shared.gate.dragging.store(false, Ordering::Relaxed);
+    carry::hide();
+    let Some((x, y)) = island::cursor_physical() else { return Ok(None) };
+    let shot = tauri::async_runtime::spawn_blocking(move || window_drop::capture_at(x as i32, y as i32))
+        .await
+        .map_err(|e| e.to_string())??;
+    if let Some(s) = &shot {
+        log::line(format!("window dropped: {}", s.app_name));
+    }
+    Ok(shot)
+}
+
 /// The island may only ask whether a key exists — never read it.
 #[tauri::command]
 fn secret_present(key: String) -> bool {
@@ -1418,6 +1461,10 @@ pub fn run() {
             widget_results,
             ingest_file,
             capture_screen,
+            window_pick,
+            carry_frame,
+            window_under_cursor,
+            window_drop,
             secret_present,
             secret_set,
             secret_clear,

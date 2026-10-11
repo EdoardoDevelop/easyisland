@@ -80,6 +80,26 @@ export async function runScene(island: Island, scene: string) {
         await wait(800);
         break;
       }
+      // ?window: a window the character was dropped on (window_drop.rs), with a
+      // drawn thumbnail; ?pick: the character being carried, over a window.
+      const params = new URLSearchParams(location.search);
+      if (params.has("window")) {
+        const c = document.createElement("canvas");
+        c.width = 64;
+        c.height = 40;
+        const g = c.getContext("2d")!;
+        g.fillStyle = "#f3f4f6";
+        g.fillRect(0, 0, 64, 40);
+        g.fillStyle = "#2563eb";
+        g.fillRect(0, 0, 64, 7);
+        g.fillStyle = "#9ca3af";
+        for (let y = 12; y < 36; y += 6) g.fillRect(6, y, 30 + ((y * 7) % 20), 2);
+        State.chatWindow = {
+          appName: "Google Chrome", title: "Errore 502 Bad Gateway — portale clienti", name: "Finestra.png", path: "C:\\x\\Finestra.png",
+          thumb: c.toDataURL(),
+        };
+      }
+      if (params.has("pick")) State.windowPick = { over: "Microsoft Excel — Preventivi 2026.xlsx" };
       island.alert("prompt");
       await wait(800);
       const input = document.querySelector<HTMLInputElement>(".chat-input");

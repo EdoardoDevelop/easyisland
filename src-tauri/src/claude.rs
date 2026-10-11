@@ -126,7 +126,19 @@ pub enum ChatContext {
     File { name: String, path: String },
     /// Text handed over by a quick action or the "ask about clipboard" shortcut.
     Text { label: String, text: String },
-    Window { app_name: String, title: String, url: Option<String> },
+    /// Another app's window: the character of the chat tab dropped on it
+    /// (window_drop.rs), with its picture in the inbox.
+    #[serde(rename_all = "camelCase")]
+    Window { app_name: String, title: String, url: Option<String>, image: Option<String> },
+}
+
+/// The line every engine puts before a window given as context.
+pub(crate) fn window_line(app_name: &str, title: &str, url: Option<&str>) -> String {
+    let mut text = tf("Finestra allegata — app: {app}, titolo: {title}", &[("app", &app_name), ("title", &title)]);
+    if let Some(url) = url {
+        text.push_str(&format!(", URL: {url}"));
+    }
+    text
 }
 
 /// `web_search_20260209` (dynamic filtering) exists only on recent Opus and
@@ -203,12 +215,11 @@ pub async fn send(
             Some(ChatContext::Text { label, text }) => {
                 content.push(json!({ "type": "text", "text": format!("{label}:\n{text}") }));
             }
-            Some(ChatContext::Window { app_name, title, url }) => {
-                let mut text = format!("Contesto — App: {app_name}, Finestra: {title}");
-                if let Some(url) = url {
-                    text.push_str(&format!(", URL: {url}"));
+            Some(ChatContext::Window { app_name, title, url, image }) => {
+                if let Some(block) = image.as_deref().and_then(file_block) {
+                    content.push(block);
                 }
-                content.push(json!({ "type": "text", "text": text }));
+                content.push(json!({ "type": "text", "text": window_line(app_name, title, url.as_deref()) }));
             }
             None => {}
         }
