@@ -52,6 +52,15 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.6.8** — un **menu sul testo selezionato** in qualunque app, browser compresi:
+`Win+Alt+A` mostra le tue azioni rapide (con icone e cartelle) e quelle impostate su
+«lo sostituisce» riscrivono la selezione con un'**anteprima prima/dopo**, incollando
+solo dopo «Sostituisci»; nelle Azioni rapide una scelta sola, «Lavora su», e un
+pulsante per partire con Riscrivi, Correggi, Più formale e In inglese; le **reazioni
+del personaggio** si scelgono per ogni situazione (per esempio la Rete del notebook
+può restare tranquilla); l'isola non salta più scrivendo in «Continua» né aprendosi
+con il contenuto che scorre.
+
 **0.6.7** — la card «finito» mostra la risposta in markdown e ha **«Continua»**: scrivi
 il prossimo messaggio e arriva alla sessione (nel terminale parte subito, in VS Code
 resta da premere Invio, con opencode passa dal suo servizio); **«Chiedi a questa
@@ -81,7 +90,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.6.7** | 10 ott 2026 | Risposta in markdown e «Continua» sulla card «finito», «Chiedi a questa sessione», «Più tardi» sul permesso, «Sempre» di sessione, 📌 come finestra normale |
+| **0.6.8** | 11 ott 2026 | Menu sul testo selezionato con `Win+Alt+A`, «Sostituisci» con anteprima, «Lavora su» nelle azioni rapide, reazioni del personaggio per situazione, niente salti d'altezza dell'isola |
+| 0.6.7 | 10 ott 2026 | Risposta in markdown e «Continua» sulla card «finito», «Chiedi a questa sessione», «Più tardi» sul permesso, «Sempre» di sessione, 📌 come finestra normale |
 | 0.6.6 | 10 ott 2026 | Saluto al centro dello schermo (o spento), `Ctrl+Space` apre e chiude, Claude Code solo con i suoi hook, niente falsi errori di rete dopo lo standby, passi della sessione senza sovrapposizioni |
 | 0.6.5 | 9 ott 2026 | Cartella trascinata nella chat, menu col clic destro sul personaggio, saluto senza isola, `Ctrl+Space` sulla Panoramica, angoli arrotondati dell'isola staccata |
 | 0.6.4 | 9 ott 2026 | Goccia predefinita, cronologia delle chat, isola fino ai bordi dello schermo, posizione dell'isola aperta |
