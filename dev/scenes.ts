@@ -6,6 +6,7 @@
 
 import type { Island } from "../src/island/island";
 import { State } from "../src/core/state";
+import { Bridge } from "../src/core/bridge";
 import { handleHook } from "../src/island/hooks";
 import { Recap } from "../src/island/recap";
 import { setHistoryDemo } from "../src/views/chat";
@@ -146,8 +147,41 @@ export async function runScene(island: Island, scene: string) {
             { id: "7", state: "ringing", incoming: true, name: "Cliente Srl", number: "+39 051 123456", since: now, canAnswer: true },
             { id: "5", state: "connected", incoming: false, name: "", number: "0512345678", since: now - 95_000, canAnswer: false },
           ],
+          // Team, chat, voicemail and queues: the footer opens them (the PBX answers are faked below).
+          team: [
+            { number: "102", name: "Anna Bianchi", presence: "available", status: "Disponibile", ringingCall: null, mobile: "" },
+            { number: "103", name: "Bruno Verdi", presence: "busy", status: "Disponibile", ringingCall: null, mobile: "" },
+            { number: "104", name: "Carla Neri", presence: "ringing", status: "Disponibile", ringingCall: "90", mobile: "" },
+            { number: "105", name: "Davide Russo", presence: "away", status: "Torno alle 15", ringingCall: null, mobile: "" },
+            { number: "106", name: "Elena Gallo", presence: "dnd", status: "Non disturbare", ringingCall: null, mobile: "" },
+            { number: "107", name: "Franco Costa", presence: "offline", status: "Disponibile", ringingCall: null, mobile: "" },
+          ],
+          unread: 2, unreadByChat: { "7": 2 }, voicemail: 1, queue: true,
         },
       };
+      const ago = (min: number) => now - min * 60_000;
+      const msg = (id: number, mine: boolean, from: string, text: string, min: number) =>
+        ({ id, conversation: 7, mine, from, text, file: null, at: ago(min), isNew: !mine && min < 5, system: false });
+      Object.assign(Bridge, {
+        threecxChats: async () => [
+          { id: 7, name: "Anna Bianchi", external: false, group: false, number: "102", last: "Mi richiami quando puoi?", lastAt: ago(2), lastMine: false, unread: 2 },
+          { id: 8, name: "Ufficio tecnico", external: false, group: true, number: "", last: "Domani il server va giù alle 7", lastAt: ago(90), lastMine: true, unread: 0 },
+          { id: 9, name: "Visitatore del sito", external: true, group: false, number: "", last: "Buongiorno, avete assistenza il sabato?", lastAt: ago(60 * 26), lastMine: false, unread: 0 },
+        ],
+        threecxMessages: async () => [
+          msg(1, false, "Anna Bianchi", "Ciao Mario, il cliente di Bologna ha chiamato di nuovo", 30),
+          msg(2, true, "Mario Rossi", "Ok, lo sento io dopo pranzo", 25),
+          msg(3, false, "Anna Bianchi", "Perfetto grazie!", 4),
+          msg(4, false, "Anna Bianchi", "Mi richiami quando puoi?", 2),
+        ],
+        threecxChatWith: async (numbers: string[]) =>
+          ({ id: 7, name: "Anna Bianchi", external: false, group: false, number: numbers[0], last: "", lastAt: 0, lastMine: false, unread: 0 }),
+        threecxVoicemails: async () => [
+          { id: 1, name: "Cliente Srl", number: "0511234567", at: ago(40), seconds: 42, isNew: true, transcription: "Buongiorno, sono Rossi di Cliente Srl, la stampante dell'ufficio non stampa più. Mi richiamate? Grazie." },
+          { id: 2, name: "", number: "3331234567", at: ago(60 * 30), seconds: 12, isNew: false, transcription: "" },
+        ],
+        threecxSend: async () => {}, threecxRead: async () => {}, threecxTyping: async () => {},
+      });
       State.setFocus("integration_3cx");
       (window as unknown as { island: Island }).island = island;
       island.alert("overview");

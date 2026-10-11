@@ -38,6 +38,8 @@ const SHOTS = {
   media: { url: `/?scene=media&activeIntegrations=${PILLS}` },
   network: { url: `/?scene=network&activeIntegrations=${PILLS}` },
   suggestion: { url: "/?scene=suggestion" },
+  // Every character but the cube, without the island (dev/characters.html).
+  characters: { url: "/dev/characters.html" },
   // Whole windows, not an island.
   settings: { url: "/settings.html?page=aspetto", page: { w: 980, h: 720 } },
   "settings-integrations": { url: "/settings.html?page=integrazioni", page: { w: 980, h: 720 } },

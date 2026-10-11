@@ -181,6 +181,8 @@ export class BotEngine {
 
   /** The Meteo sky over the head (character/weather.ts); null = none. Never on mini bots. */
   sky: Sky | null = null;
+  /** Big sky behind the head (true) or the small sign above it. */
+  bigSky = true;
 
   /** Extra canvas height above the body so hearts can fly out without clipping. */
   particleOverhang = 0;
@@ -751,6 +753,7 @@ export class BotEngine {
     const cy = H / 2 + this.particleOverhang / 2 + this.oy * R + R * 0.06;
     const pal = this.palette(c);
 
+    if (this.sky && this.bigSky) drawSky(x, this.sky, R, cx, cy - ry * this.sy, now());
     this.drawHandsBehind(x, R, rx, ry, cx, cy, pal);
 
     x.save();
@@ -787,7 +790,7 @@ export class BotEngine {
     if (this.badge && this.badgeS > 0.01 && this.morph < 0.25) {
       this.drawBadge(x, this.badge, R, cx, cy);
     }
-    if (this.sky) drawSky(x, this.sky, R, cx, cy - ry * this.sy, now());
+    if (this.sky && !this.bigSky) drawSky(x, this.sky, R, cx, cy - ry * this.sy, now(), false);
     this.drawParticles(x, R, cx, cy);
   }
 
@@ -802,6 +805,7 @@ export class BotEngine {
     const cx = W / 2 + this.ox * R;
     const cy = H / 2 + this.particleOverhang / 2 + this.oy * R + R * 0.06;
 
+    if (this.sky && this.bigSky) drawSky(x, this.sky, R, cx, cy - s * this.sy, now());
     this.drawHandsBehind(x, R, r, s * 0.8, cx, cy);
 
     x.save();
@@ -881,7 +885,7 @@ export class BotEngine {
     if (this.badge && this.badgeS > 0.01 && this.morph < 0.25) {
       this.drawBadge(x, this.badge, R, cx, cy);
     }
-    if (this.sky) drawSky(x, this.sky, R, cx, cy - s * this.sy, now());
+    if (this.sky && !this.bigSky) drawSky(x, this.sky, R, cx, cy - s * this.sy, now(), false);
     this.drawParticles(x, R, cx, cy);
   }
 

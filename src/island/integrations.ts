@@ -2,8 +2,8 @@
 // pollers: a genuinely new item flips the pill to finished/error, badges it when
 // the pill isn't focused, plays a sound, and clears itself after 60 s.
 
-import { onEvent, Bridge, type IntegrationUpdate, type ThreecxCall } from "../core/bridge";
-import { THREECX, ringing } from "../views/threecx";
+import { onEvent, Bridge, type IntegrationUpdate, type ThreecxCall, type ThreecxMessage } from "../core/bridge";
+import { THREECX, ringing, chatMessage, chatTyping, openChat } from "../views/threecx";
 import { Sound } from "../core/sound";
 import { State, type WidgetStatus } from "../core/state";
 import type { Island } from "./island";
@@ -26,6 +26,8 @@ export function registerIntegrationHandlers(island: Island) {
   void onEvent<IntegrationUpdate>("integration", (update) => handle(island, update));
   void onEvent<WidgetStatus>("widget-update", (r) => handleWidget(island, r)).then(() => catchUpWidgets(island));
   void onEvent<ThreecxCall>("threecx-call", (c) => incomingCall(island, c));
+  void onEvent<ThreecxMessage>("threecx-chat", (m) => incomingMessage(island, m));
+  void onEvent<{ conversation: number; name: string }>("threecx-typing", (e) => chatTyping(e.conversation, e.name));
   void refreshConfigured();
 }
 
@@ -125,6 +127,35 @@ function incomingCall(island: Island, _c: ThreecxCall) {
   island.alert("overview");
 }
 
+/**
+ * 3CX: a chat message. In the open conversation it just appears; otherwise the
+ * 3CX pill is badged, the bell rings and, when the island is not in use, it
+ * opens briefly on that conversation, ready for a reply. In front of a client
+ * (or with "solo permessi") only the badge: no names or text on a shared screen.
+ */
+function incomingMessage(island: Island, m: ThreecxMessage) {
+  if (State.paused || m.mine || m.system) return;
+  if (chatMessage(m)) return;
+  if (!m.isNew) return;
+  const task = State.tasks.find((t) => t.id === THREECX);
+  if (!task) return;
+  // Not "approval": that one belongs to a ringing call and goes when it stops.
+  if (State.focusId !== THREECX && task.pillBadge !== "approval") task.pillBadge = "finished";
+  if (State.settings.notify === "permissions") {
+    State.notify();
+    return;
+  }
+  Sound.play("blip");
+  // In use (open on something else, or typing): don't pull the island away.
+  if (State.quiet || State.mode === "expanded") {
+    State.notify();
+    return;
+  }
+  State.setFocus(THREECX);
+  openChat(m.conversation);
+  island.alert("overview");
+}
+
 function handle(island: Island, update: IntegrationUpdate) {
   if (State.paused) return;
 
@@ -135,6 +166,12 @@ function handle(island: Island, update: IntegrationUpdate) {
     loaded: update.error ? (previous?.loaded ?? false) : true,
     configured: previous?.configured ?? true,
   };
+
+  // Every chat message read (here or on another device): the chat badge goes.
+  if (update.id === THREECX && !update.error && !Number(update.data.unread ?? 0)) {
+    const task = State.tasks.find((t) => t.id === THREECX);
+    if (task?.pillBadge === "finished") task.pillBadge = null;
+  }
 
   // The call stopped ringing (answered, declined, hung up): stop holding the island.
   if (update.id === THREECX && !ringing()) {

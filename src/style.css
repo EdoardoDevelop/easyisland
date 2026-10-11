@@ -3404,6 +3404,194 @@ input[type="range"]::-webkit-slider-thumb {
 .tcx-foot + .tcx-chips {
   padding: 0 0 8px;
 }
+/* Team, chat, voicemail, queues */
+.tcx-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.tcx-badge {
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  display: inline-grid;
+  place-items: center;
+  font: 700 9.5px var(--font);
+  color: #fff;
+  background: #0596d4;
+}
+.tcx-queue {
+  border: 0;
+  border-radius: 9px;
+  padding: 1px 8px;
+  font: 600 10px var(--font);
+  color: var(--dim-2);
+  background: rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
+}
+.tcx-queue.on {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.14);
+}
+.tcx-queue:hover {
+  filter: brightness(1.25);
+}
+.tcx-mini {
+  width: 21px;
+  height: 21px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 50%;
+  color: var(--c);
+  background: color-mix(in srgb, var(--c) 16%, transparent);
+}
+.tcx-mini:hover {
+  color: #fff;
+  background: var(--c);
+}
+.tcx-mate .int-name {
+  flex: 0 1 auto;
+}
+.tcx-ext {
+  font: 400 10px var(--font);
+  color: var(--dim-3);
+  flex: 0 0 auto;
+}
+.tcx-presence {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+.tcx-chat-row .int-name {
+  flex: 0 0 auto;
+  max-width: 40%;
+}
+.tcx-unread-name {
+  font-weight: 700;
+  color: var(--ink) !important;
+}
+.tcx-preview {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 10.5px var(--font);
+  color: var(--dim-3);
+}
+.tcx-chat-head {
+  gap: 6px;
+}
+.tcx-chat-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tcx-back {
+  order: -1;
+}
+.tcx-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 2px;
+  max-height: calc(170px + var(--extra-h, 0px));
+  overflow-y: auto;
+}
+.tcx-msg {
+  align-self: flex-start;
+  max-width: 78%;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 9px 3px;
+  border-radius: 11px 11px 11px 3px;
+  background: rgba(255, 255, 255, 0.08);
+  font: 400 11.5px/1.35 var(--font);
+  color: var(--ink);
+}
+.tcx-msg.mine {
+  align-self: flex-end;
+  border-radius: 11px 11px 3px 11px;
+  background: rgba(5, 150, 212, 0.32);
+}
+.tcx-from-name {
+  font: 600 10px var(--font);
+  color: #7dd3fc;
+}
+.tcx-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.tcx-file {
+  font: 500 10.5px var(--font);
+  color: #c5c8cd;
+}
+.tcx-time {
+  align-self: flex-end;
+  font: 400 9px var(--font);
+  color: var(--dim-3);
+}
+.tcx-sys {
+  align-self: center;
+  font: 400 10px var(--font);
+  color: var(--dim-3);
+  padding: 2px 0;
+}
+.tcx-typing {
+  font: italic 400 10px var(--font);
+  color: var(--dim-2);
+  padding: 0 4px;
+  min-height: 0;
+}
+.tcx-typing:empty {
+  display: none;
+}
+.tcx-compose-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding-top: 4px;
+}
+.tcx-compose {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 26px;
+  max-height: 80px;
+  padding: 5px 10px;
+  resize: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  font: 400 11.5px/1.35 var(--font);
+  outline: none;
+}
+.tcx-compose:focus {
+  border-color: rgba(5, 150, 212, 0.7);
+}
+.tcx-vm {
+  border-radius: 7px;
+}
+.tcx-vm.tcx-new .int-name {
+  font-weight: 700;
+  color: var(--ink);
+}
+.tcx-transcript {
+  margin: 0 8px 4px 22px;
+  font: 400 10.5px/1.35 var(--font);
+  color: #c5c8cd;
+  user-select: text;
+}
 
 /* Tooltips drawn in the page (src/core/tooltip.ts): WebView2's own went behind the island. */
 .tip {

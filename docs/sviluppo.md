@@ -11,7 +11,7 @@
 - `npm run dev`, poi le scene di `dev/scenes.ts`: `/?scene=diff`, `threecx`, `drop`, `chat&long`, `clipboard&long`, `media&long&summary`, `agenti` (due agenti e la barra della scheda Agenti, `&claude` per l'altro pulsante), `meteo&activeIntegrations=integration_weather&sky=rain` (oppure `sun`, `snow`, `storm`…, con `&idle` sul personaggio inattivo), `rewrite` (card di «Sostituisci», con `&loading` o `&changed`), `finished&islandHeight=440` (card «ha finito» con «Continua»)… Le scene `diff` e `threecx` espongono `window.island` per simulare eventi con `handleHook`.
 - `npm run ui`: solo l'interfaccia nel browser.
 - `/dev/greeting-preview.html` (`?character=slime`, `cube`): il saluto all'avvio da solo, ripetuto, su una tela più grande.
-- Schermate del README: `node scripts/screenshots.mjs` con `npm run dev` acceso. L'errore EPERM finale riguarda solo la pulizia della cartella temporanea di Edge e si può ignorare.
+- Schermate del README: `node scripts/screenshots.mjs` con `npm run dev` acceso. L'immagine con tutti i personaggi (cubo escluso, senza isola) viene da `dev/characters.html`: `node scripts/screenshots.mjs characters`; un personaggio nuovo compare da solo. L'errore EPERM finale riguarda solo la pulizia della cartella temporanea di Edge e si può ignorare.
 
 ## Installare su questo PC
 - **Mai** lanciare installer o app dalla shell di Claude: l'app Claude è MSIX e reindirizza AppData.

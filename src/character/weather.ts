@@ -1,6 +1,6 @@
 // The sky the character wears: sun, moon, clouds, fog, rain, snow or a storm
-// over its head, from the Meteo integration (probes.rs `sky_kind`). Drawn by
-// the engine after the body. Only falling rain and snow move: the rest is a
+// behind its head, from the Meteo integration (probes.rs `sky_kind`). Drawn by
+// the engine before the body, big, so the character stands in front of it. Only falling rain and snow move: the rest is a
 // still picture, so a clear sky never keeps the animation loop running.
 
 export type Sky =
@@ -19,27 +19,33 @@ export function skyMoves(s: Sky | null): boolean {
 }
 
 /**
- * Draws `sky` above a body whose top is at `top`, centred on `cx`; `R` is the
- * engine's unit and `t` the time in seconds.
+ * Draws `sky` behind a body whose top is at `top`, centred on `cx`; `unit` is
+ * the engine's unit and `t` the time in seconds. With `big` it is the backdrop
+ * behind the head, otherwise the small sign above it.
  */
-export function drawSky(x: CanvasRenderingContext2D, sky: Sky, R: number, cx: number, top: number, t: number) {
-  // Slightly right of centre, so the state badge (top left) stays clear.
-  const ax = cx + R * 0.32;
-  const ay = top - R * 0.36;
+export function drawSky(x: CanvasRenderingContext2D, sky: Sky, unit: number, cx: number, top: number, t: number, big = true) {
+  // Right of centre, so the state badge (top left) stays clear.
+  const R = big ? unit * 2.4 : unit;
+  const ax = big ? cx + unit * 0.58 : cx + R * 0.32;
+  const ay = big ? top + unit * 0.1 : top - R * 0.36;
+  // Behind the body there are more drops, and the sun and moon sit lower so
+  // their rays stay inside the canvas.
+  const wide = big ? 2.4 : 1;
+  const sy = big ? ay + R * 0.12 : ay;
   x.save();
   switch (sky) {
     case "sun":
-      sun(x, ax + R * 0.05, ay, R * 0.2);
+      sun(x, ax + R * 0.05, sy, R * 0.2);
       break;
     case "moon":
-      moon(x, ax + R * 0.05, ay, R * 0.21);
+      moon(x, ax + R * 0.05, sy, R * 0.21);
       break;
     case "sun-cloud":
-      sun(x, ax + R * 0.16, ay - R * 0.08, R * 0.17);
+      sun(x, ax + R * 0.16, sy - R * 0.08, R * 0.17);
       cloud(x, ax - R * 0.06, ay + R * 0.06, R * 0.6, "#F3F6FA");
       break;
     case "moon-cloud":
-      moon(x, ax + R * 0.16, ay - R * 0.08, R * 0.17);
+      moon(x, ax + R * 0.16, sy - R * 0.08, R * 0.17);
       cloud(x, ax - R * 0.06, ay + R * 0.06, R * 0.6, "#E3E8EF");
       break;
     case "cloud":
@@ -49,20 +55,20 @@ export function drawSky(x: CanvasRenderingContext2D, sky: Sky, R: number, cx: nu
       fog(x, ax, ay, R);
       break;
     case "drizzle":
-      fall(x, ax, ay, R, t, { n: 3, rate: 0.7, drop: "rain", size: 0.07 });
+      fall(x, ax, ay, R, t, { n: 3 * wide, rate: 0.7, drop: "rain", size: 0.07 });
       cloud(x, ax, ay, R * 0.78, "#D5DCE5");
       break;
     case "rain":
-      fall(x, ax, ay, R, t, { n: 5, rate: 1.25, drop: "rain", size: 0.09 });
+      fall(x, ax, ay, R, t, { n: 5 * wide, rate: 1.25, drop: "rain", size: 0.09 });
       cloud(x, ax, ay, R * 0.82, "#BCC6D3");
       break;
     case "snow":
-      fall(x, ax, ay, R, t, { n: 5, rate: 0.45, drop: "snow", size: 0.06 });
+      fall(x, ax, ay, R, t, { n: 5 * wide, rate: 0.45, drop: "snow", size: 0.06 });
       cloud(x, ax, ay, R * 0.82, "#DCE3EC");
       break;
     case "storm":
-      fall(x, ax, ay, R, t, { n: 5, rate: 1.4, drop: "rain", size: 0.09 });
-      bolt(x, ax + R * 0.04, ay + R * 0.12, R, t);
+      fall(x, ax, ay, R, t, { n: 5 * wide, rate: 1.4, drop: "rain", size: 0.09 });
+      bolt(x, ax + R * (big ? 0.24 : 0.04), ay + R * 0.12, R, t);
       cloud(x, ax, ay, R * 0.86, "#8C97A8");
       break;
   }
@@ -131,17 +137,21 @@ function fog(x: CanvasRenderingContext2D, cx: number, cy: number, R: number) {
   }
 }
 
-/** Rain or snow falling from under the cloud; each drop loops on its own phase. */
+/**
+ * Rain or snow falling from under the cloud, spread across its width (never
+ * past its sides); each drop loops on its own phase.
+ */
 function fall(
   x: CanvasRenderingContext2D, cx: number, cy: number, R: number, t: number,
   o: { n: number; rate: number; drop: "rain" | "snow"; size: number },
 ) {
   const len = R * 0.62;
-  for (let i = 0; i < o.n; i++) {
+  const n = Math.round(o.n);
+  for (let i = 0; i < n; i++) {
     const phase = (t * o.rate + i * 0.618) % 1;
     const a = phase < 0.15 ? phase / 0.15 : 1 - (phase - 0.15) / 0.85;
     const sway = o.drop === "snow" ? Math.sin(t * 2.2 + i * 1.7) * R * 0.04 : 0;
-    const px = cx + ((i + 0.5) / o.n - 0.5) * R * 0.6 + sway;
+    const px = cx + ((i + 0.5) / n - 0.5) * R * 0.62 + sway;
     const py = cy + R * 0.12 + phase * len;
     const s = R * o.size;
     x.globalAlpha = Math.max(0, a);

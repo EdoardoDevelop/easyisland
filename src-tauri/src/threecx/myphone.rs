@@ -12,25 +12,55 @@
 //
 // GenericMessage: field 1 = the type id, and the message itself in the field
 // with that same number (RequestMakeCall = 119, MyInfo = 201…).
+//
+// Team and chat (October 2026, from the same code): the colleagues and their
+// presence come pushed as Groups (208); a chat with colleagues is a
+// conversation created from the sorted extension numbers joined by ":"
+// ("101:105"), then written with SendChatMessageToConversation (190); new
+// messages, unread counts and "is typing" are pushed (209, 229, 180).
 
 use serde_json::{json, Value};
 
 use super::pb::{Msg, Writer};
-use super::{Call, Contact, Device, HistoryItem, Profile};
+use super::{Call, ChatMessage, ChatSummary, Colleague, Contact, Device, HistoryItem, Profile, Voicemail};
 use crate::i18n::{t, tf};
 
 pub const T_MY_INFO_REQUEST: i64 = 102;
 pub const T_CHANGE_STATUS: i64 = 103;
 pub const T_LOOKUP_CONTACT: i64 = 104;
 pub const T_CALL_HISTORY: i64 = 106;
+pub const T_SET_CHAT_RECEIVED: i64 = 112;
+pub const T_SET_VOICEMAIL_HEARD: i64 = 114;
 pub const T_DROP_CALL: i64 = 115;
+pub const T_DIVERT_CALL: i64 = 116;
+pub const T_PICKUP_CALL: i64 = 117;
+pub const T_TRANSFER_CALL: i64 = 118;
 pub const T_MAKE_CALL: i64 = 119;
 pub const T_RESET_MISSED: i64 = 125;
+pub const T_PLAY_VOICEMAIL: i64 = 127;
+pub const T_MY_CHAT_PARTIES: i64 = 138;
 pub const T_AUTO_ANSWER: i64 = 152;
+pub const T_LAST_MESSAGES: i64 = 162;
+pub const T_UNREAD_COUNT: i64 = 165;
+pub const T_TYPING: i64 = 180;
+pub const T_CREATE_CONVERSATION: i64 = 189;
+pub const T_SEND_TO_CONVERSATION: i64 = 190;
+pub const T_GET_VOICEMAILS: i64 = 565;
 pub const T_MY_INFO: i64 = 201;
 pub const T_LOOKUP_RESULT: i64 = 202;
 pub const T_CALL_HISTORY_RESULT: i64 = 204;
 pub const T_ACK: i64 = 207;
+/// The colleagues with their presence, by group: sent whole on connect, then as deltas.
+pub const T_GROUPS: i64 = 208;
+/// New chat messages (pushed), or the answer to `T_LAST_MESSAGES`.
+pub const T_MESSAGES: i64 = 209;
+/// The call queues the extension sees (pushed on connect).
+pub const T_QUEUES: i64 = 211;
+pub const T_CHAT_PARTIES: i64 = 220;
+/// Unread chat messages per conversation (pushed, or the answer to `T_UNREAD_COUNT`).
+pub const T_UNREAD: i64 = 229;
+pub const T_CONVERSATION_INFO: i64 = 236;
+pub const T_VOICEMAILS: i64 = 268;
 
 /// What the web client says about itself when it opens a session.
 const CLIENT: &str = "Webclient";
@@ -198,6 +228,88 @@ pub fn call_history(missed_only: bool, count: i64) -> Writer {
     Writer::new().int(1, if missed_only { 1 } else { 0 }).int(3, count).int(4, 0)
 }
 
+/// Just the queue login (agent in / out of the queues), the rest of the status untouched.
+pub fn queue_status(logged_in: bool) -> Writer {
+    Writer::new().bool(3, logged_in)
+}
+
+/// A call of ours, connected, handed to `destination` (blind transfer).
+pub fn transfer(connection: i64, destination: &str) -> Writer {
+    Writer::new().int(1, connection).bool(2, false).str(3, destination)
+}
+
+/// A call ringing for us sent elsewhere: to `destination`, or to our voicemail.
+pub fn divert(connection: i64, destination: &str, voicemail: bool) -> Writer {
+    let w = Writer::new().int(1, connection).bool(2, voicemail).str(3, destination);
+    if voicemail { w.bool(4, true) } else { w }
+}
+
+/// A colleague's ringing call answered here, on `device`.
+pub fn pickup(connection: i64, device: Option<&str>) -> Writer {
+    let w = Writer::new().int(1, connection);
+    let w = match device {
+        Some(d) if !d.is_empty() => w.str(3, d),
+        _ => w,
+    };
+    w.bool(4, true)
+}
+
+/// The latest conversations (with participants and their last message).
+pub fn chat_parties(count: i64) -> Writer {
+    Writer::new().int(1, 0).int(2, count).bool(3, true)
+}
+
+/// The latest `count` messages of a conversation, or those before `before`.
+pub fn last_messages(conversation: i64, count: i64, before: Option<i64>) -> Writer {
+    let w = Writer::new().int(2, count);
+    let w = match before {
+        Some(id) => w.int(3, id),
+        None => w,
+    };
+    w.int(4, conversation)
+}
+
+/// The conversation of these extensions (ours included), created if new.
+pub fn create_conversation(party: &str) -> Writer {
+    Writer::new().str(1, party).str(4, "")
+}
+
+/// "101:105": the extensions sorted as text and joined, as the web client does.
+pub fn party(mine: &str, others: &[&str]) -> String {
+    let mut all: Vec<String> = others.iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+    if !all.iter().any(|s| s == mine) {
+        all.push(mine.to_string());
+    }
+    all.sort();
+    all.dedup();
+    all.join(":").replace('#', "@")
+}
+
+pub fn send_message(conversation: i64, text: &str) -> Writer {
+    Writer::new().int(1, conversation).str(2, text)
+}
+
+/// Messages read: their ids (a repeated field, not packed).
+pub fn chat_received(ids: &[i64]) -> Writer {
+    ids.iter().fold(Writer::new(), |w, id| w.int(1, *id))
+}
+
+pub fn typing(conversation: i64) -> Writer {
+    Writer::new().int(3, conversation)
+}
+
+pub fn voicemails(count: i64) -> Writer {
+    Writer::new().int(3, 0).int(4, count)
+}
+
+pub fn voicemail_heard(id: i64) -> Writer {
+    Writer::new().int(1, id).bool(2, true)
+}
+
+pub fn play_voicemail(id: i64) -> Writer {
+    Writer::new().int(1, id)
+}
+
 // ── MyInfo: the extension's live state, sent whole and then as deltas ───────
 
 const ACTION_FULL: i64 = 1;
@@ -242,6 +354,9 @@ pub struct MyInfo {
     pub profile: i64,
     pub dnd: bool,
     pub missed: i64,
+    /// Logged in to the call queues (as an agent).
+    pub queue: bool,
+    pub new_voicemails: i64,
     pub devices: Items,
     pub profiles: Items,
     pub connections: Items,
@@ -266,6 +381,12 @@ impl MyInfo {
         }
         if let Some(v) = m.int(24) {
             self.missed = v;
+        }
+        if let Some(v) = m.bool(6) {
+            self.queue = v;
+        }
+        if let Some(v) = m.int(53) {
+            self.new_voicemails = v;
         }
         if let Some(l) = m.msg(9) {
             self.devices.apply(&l);
@@ -434,6 +555,248 @@ pub fn history(m: &Msg) -> Vec<HistoryItem> {
         .collect()
 }
 
+// ── Team: the colleagues by group, with their presence ──────────────────────
+
+struct Member {
+    msg: Msg,
+    /// The member's calls: a list of its own inside the member, merged item by item.
+    calls: Items,
+}
+
+struct Group {
+    /// "" for this PBX, the bridge for a linked one.
+    source: String,
+    id: i64,
+    members: Vec<(i64, Member)>,
+}
+
+#[derive(Default)]
+pub struct Team {
+    groups: Vec<Group>,
+}
+
+fn apply_members(members: &mut Vec<(i64, Member)>, list: &Msg) {
+    if list.int(1) == Some(ACTION_FULL) {
+        members.clear();
+    }
+    for item in list.msgs(2) {
+        let Some(id) = item.int(2) else { continue };
+        let pos = members.iter().position(|(m, _)| *m == id);
+        match (item.int(1), pos) {
+            (Some(ACTION_DELETED), Some(i)) => {
+                members.remove(i);
+            }
+            (Some(ACTION_DELETED), None) => {}
+            (_, Some(i)) => {
+                let m = &mut members[i].1;
+                if let Some(c) = item.msg(15) {
+                    m.calls.apply(&c);
+                }
+                merge(&mut m.msg, &item);
+            }
+            (_, None) => {
+                let mut calls = Items::default();
+                if let Some(c) = item.msg(15) {
+                    calls.apply(&c);
+                }
+                members.push((id, Member { msg: item, calls }));
+            }
+        }
+    }
+}
+
+impl Team {
+    pub fn apply(&mut self, m: &Msg) {
+        let source = m.str(4).unwrap_or_default();
+        if m.int(1) == Some(ACTION_FULL) {
+            self.groups.retain(|g| g.source != source);
+        }
+        for g in m.msgs(2) {
+            let Some(id) = g.int(2) else { continue };
+            let pos = self.groups.iter().position(|x| x.source == source && x.id == id);
+            if g.int(1) == Some(ACTION_DELETED) {
+                if let Some(i) = pos {
+                    self.groups.remove(i);
+                }
+                continue;
+            }
+            let i = pos.unwrap_or_else(|| {
+                self.groups.push(Group { source: source.clone(), id, members: Vec::new() });
+                self.groups.len() - 1
+            });
+            if let Some(list) = g.msg(5) {
+                apply_members(&mut self.groups[i].members, &list);
+            }
+        }
+    }
+
+    /// Every colleague once (an extension can be in several groups), not `me`, by name.
+    pub fn colleagues(&self, me: &str) -> Vec<Colleague> {
+        let mut out: Vec<Colleague> = Vec::new();
+        let mut groups: Vec<&Group> = self.groups.iter().collect();
+        groups.sort_by_key(|g| !g.source.is_empty());
+        for g in groups {
+            for (_, m) in &g.members {
+                let Some(c) = colleague(m) else { continue };
+                if c.number == me || out.iter().any(|x| x.number == c.number) {
+                    continue;
+                }
+                out.push(c);
+            }
+        }
+        out.sort_by_key(|c| c.name.to_lowercase());
+        out
+    }
+}
+
+fn colleague(m: &Member) -> Option<Colleague> {
+    let g = &m.msg;
+    let number = g.str(3).filter(|s| !s.is_empty())?;
+    let name = [g.str(4), g.str(5)].into_iter().flatten().filter(|s| !s.trim().is_empty()).collect::<Vec<_>>().join(" ");
+    let overridden = g.bool(19) == Some(true);
+    let pick = |normal: u32, temp: u32| {
+        let t = if overridden { g.str(temp).filter(|s| !s.is_empty()) } else { None };
+        t.or_else(|| g.str(normal)).unwrap_or_default()
+    };
+    let internal = pick(14, 23);
+    let custom = pick(9, 21);
+    let ringing_call = m.calls.0.iter().find(|c| c.int(5) == Some(1) && c.bool(12) == Some(true)).and_then(|c| c.int(2));
+    let presence = if ringing_call.is_some() || g.bool(27) == Some(true) {
+        "ringing"
+    } else if g.bool(11) == Some(true) || m.calls.0.iter().any(|c| c.int(5) == Some(3)) {
+        "busy"
+    } else if g.bool(6) != Some(true) {
+        "offline"
+    } else if g.bool(7) == Some(true) {
+        "dnd"
+    } else {
+        match internal.to_lowercase().as_str() {
+            "available" | "" => "available",
+            "out of office" | "do not disturb" | "dnd" => "dnd",
+            _ => "away",
+        }
+    };
+    let profile = if internal.is_empty() { pick(8, 20) } else { internal };
+    let status = if custom.trim().is_empty() { profile_name(&profile) } else { custom.trim().to_string() };
+    Some(Colleague {
+        name: if name.is_empty() { number.clone() } else { name },
+        number,
+        presence: presence.into(),
+        status,
+        ringing_call: ringing_call.map(|id| id.to_string()),
+        mobile: g.str(13).unwrap_or_default(),
+    })
+}
+
+// ── Chat ─────────────────────────────────────────────────────────────────────
+
+/// A ChatMessage → what the island shows. `me`: our extension, to tell our own apart.
+pub fn chat_message(m: &Msg, me: &str) -> Option<ChatMessage> {
+    let id = m.int(1)?;
+    let sender = m.str(2).unwrap_or_default();
+    let bridge = m.str(4).unwrap_or_default();
+    let kind = m.int(15).unwrap_or(0);
+    let file = m.msg(11).and_then(|f| f.str(1)).filter(|s| !s.is_empty());
+    let text = m.str(6).unwrap_or_default();
+    Some(ChatMessage {
+        id,
+        conversation: m.int(13).unwrap_or(0),
+        mine: !sender.is_empty() && sender == me && bridge.is_empty(),
+        from: m.str(3).filter(|s| !s.trim().is_empty()).unwrap_or(sender),
+        text,
+        file,
+        at: m.msg(7).and_then(|d| date_ms(&d)).unwrap_or(0),
+        is_new: m.bool(8) == Some(true),
+        // Closed, transferred, "is in DND"…: told by the PBX, not written by someone.
+        system: kind != 0,
+    })
+}
+
+/// The people in a conversation other than us, by name (or number).
+fn others(info: &Msg, me: &str) -> Vec<(String, String)> {
+    info.msgs(2)
+        .iter()
+        .filter_map(|r| r.msg(1))
+        .filter(|r| !(r.str(1).as_deref() == Some(me) && r.str(3).unwrap_or_default().is_empty() && r.int(7).unwrap_or(0) == 0))
+        .map(|r| {
+            let number = r.str(1).filter(|s| !s.is_empty()).or_else(|| r.str(8)).unwrap_or_default();
+            let name = r.str(2).filter(|s| !s.trim().is_empty()).unwrap_or_else(|| number.clone());
+            (name, number)
+        })
+        .collect()
+}
+
+/// A ChatPartyInfo → a conversation of the list (its last message and unread count come apart).
+pub fn conversation(info: &Msg, me: &str) -> Option<ChatSummary> {
+    let id = info.int(4)?;
+    let people = others(info, me);
+    let named = [info.str(6), info.str(9)].into_iter().flatten().find(|s| !s.trim().is_empty());
+    let name = named.unwrap_or_else(|| people.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>().join(", "));
+    let colleagues: Vec<String> = info
+        .msgs(2)
+        .iter()
+        .filter_map(|r| r.msg(1))
+        .filter(|r| r.int(7).unwrap_or(0) == 0 && r.str(3).unwrap_or_default().is_empty())
+        .filter_map(|r| r.str(1))
+        .filter(|n| n != me)
+        .collect();
+    Some(ChatSummary {
+        id,
+        name: if name.is_empty() { info.str(8).unwrap_or_default() } else { name },
+        external: info.bool(3) == Some(true),
+        group: people.len() > 1,
+        // A one-to-one chat with a colleague: the one to call from the chat.
+        number: if colleagues.len() == 1 && people.len() == 1 { colleagues[0].clone() } else { String::new() },
+        last: String::new(),
+        last_at: 0,
+        last_mine: false,
+        unread: 0,
+    })
+}
+
+/// ResponseMyChatParties → the conversations, newest first, with their last message.
+pub fn conversations(m: &Msg, me: &str) -> Vec<ChatSummary> {
+    let last: Vec<ChatMessage> = m.msgs(2).iter().filter_map(|x| chat_message(x, me)).collect();
+    let mut out: Vec<ChatSummary> = m.msgs(3).iter().filter_map(|x| conversation(x, me)).collect();
+    for c in &mut out {
+        if let Some(l) = last.iter().find(|l| l.conversation == c.id) {
+            c.last = l.file.clone().unwrap_or_else(|| l.text.clone());
+            c.last_at = l.at;
+            c.last_mine = l.mine;
+        }
+    }
+    out.sort_by_key(|c| std::cmp::Reverse(c.last_at));
+    out
+}
+
+/// ResponseUnreadMessagesCount → conversation id → unread messages.
+pub fn unread(m: &Msg) -> Vec<(i64, i64)> {
+    m.msgs(1).iter().filter_map(|p| Some((p.int(3)?, p.int(2).unwrap_or(0)))).filter(|(_, n)| *n > 0).collect()
+}
+
+// ── Voicemail ────────────────────────────────────────────────────────────────
+
+pub fn voicemail_list(m: &Msg) -> Vec<Voicemail> {
+    let mut out: Vec<Voicemail> = m
+        .msgs(2)
+        .iter()
+        .filter_map(|v| {
+            let number = v.str(5).unwrap_or_default();
+            Some(Voicemail {
+                id: v.int(2)?,
+                name: v.str(6).filter(|s| !s.trim().is_empty() && *s != number).unwrap_or_default(),
+                number,
+                at: v.msg(7).and_then(|d| date_ms(&d)).unwrap_or(0),
+                seconds: v.int(8).unwrap_or(0),
+                is_new: v.bool(9) == Some(true),
+                transcription: v.str(10).unwrap_or_default().trim().to_string(),
+            })
+        })
+        .collect();
+    out.sort_by_key(|v| std::cmp::Reverse(v.at));
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -482,6 +845,94 @@ mod tests {
         info.apply(&Msg::decode(&gone).unwrap());
         assert!(info.calls(&mut seen, 6000).is_empty());
         assert!(seen.is_empty());
+    }
+
+    fn member(action: i64, id: i64, ext: &str, first: &str) -> Writer {
+        Writer::new().int(1, action).int(2, id).str(3, ext).str(4, first).str(5, "Rossi").bool(6, true).str(14, "Available")
+    }
+
+    fn groups(action: i64, members: Writer) -> Vec<u8> {
+        Writer::new().int(1, action).msg(2, Writer::new().int(1, action).int(2, 7).str(3, "Tutti").msg(5, members)).finish()
+    }
+
+    #[test]
+    fn team_presence_and_deltas() {
+        let mut team = Team::default();
+        let full = Writer::new()
+            .int(1, 1)
+            .msg(2, member(1, 1, "101", "Io"))
+            .msg(2, member(1, 2, "102", "Anna"))
+            .msg(2, member(1, 3, "103", "Bruno").bool(6, false));
+        team.apply(&Msg::decode(&groups(1, full)).unwrap());
+        let list = team.colleagues("101");
+        assert_eq!(list.iter().map(|c| c.number.as_str()).collect::<Vec<_>>(), vec!["102", "103"], "not me, by name");
+        assert_eq!(list[0].presence, "available");
+        assert_eq!(list[0].status, "Disponibile");
+        assert_eq!(list[1].presence, "offline");
+
+        // Anna goes away with a message of her own, then a call rings for her.
+        let away = Writer::new().int(1, 3).msg(2, Writer::new().int(1, 3).int(2, 2).str(14, "Away").str(9, "Torno alle 15"));
+        team.apply(&Msg::decode(&groups(3, away)).unwrap());
+        let anna = &team.colleagues("101")[0];
+        assert_eq!((anna.presence.as_str(), anna.status.as_str()), ("away", "Torno alle 15"));
+        assert_eq!(anna.name, "Anna Rossi");
+        let ring = Writer::new().int(1, 3).msg(2, Writer::new().int(1, 3).int(2, 2).msg(15,
+            Writer::new().int(1, 3).msg(2, Writer::new().int(1, 2).int(2, 90).int(5, 1).bool(12, true))));
+        team.apply(&Msg::decode(&groups(3, ring)).unwrap());
+        let anna = &team.colleagues("101")[0];
+        assert_eq!(anna.presence, "ringing");
+        assert_eq!(anna.ringing_call.as_deref(), Some("90"));
+
+        // Bruno leaves the group.
+        let gone = Writer::new().int(1, 3).msg(2, Writer::new().int(1, 4).int(2, 3));
+        team.apply(&Msg::decode(&groups(3, gone)).unwrap());
+        assert_eq!(team.colleagues("101").len(), 1);
+    }
+
+    #[test]
+    fn chats_and_messages() {
+        assert_eq!(party("101", &["105"]), "101:105");
+        assert_eq!(party("2000", &["105", "101", "105"]), "101:105:2000", "sorted as text, once each");
+
+        let who = |ext: &str, name: &str| Writer::new().msg(1, Writer::new().str(1, ext).str(2, name));
+        let when = Writer::new().int(1, 2026).int(2, 10).int(3, 11).int(4, 9);
+        let parties = Writer::new()
+            .str(1, "101:105")
+            .msg(2, Writer::new().int(1, 40).str(2, "105").str(3, "Anna").str(6, "Ciao").msg(7, when).int(13, 7))
+            .msg(3, Writer::new().int(4, 7).msg(2, who("101", "Io")).msg(2, who("105", "Anna")))
+            .msg(3, Writer::new().int(4, 8).str(9, "Ufficio").msg(2, who("101", "Io")).msg(2, who("102", "B")).msg(2, who("105", "Anna")))
+            .finish();
+        let list = conversations(&Msg::decode(&parties).unwrap(), "101");
+        assert_eq!(list[0].id, 7, "the one with the newest message first");
+        assert_eq!(list[0].name, "Anna");
+        assert_eq!(list[0].number, "105");
+        assert_eq!(list[0].last, "Ciao");
+        assert!(!list[0].last_mine && !list[0].group);
+        assert_eq!(list[1].name, "Ufficio");
+        assert!(list[1].group && list[1].number.is_empty());
+
+        let mine = Writer::new().int(1, 41).str(2, "101").str(6, "Arrivo").int(13, 7).finish();
+        let m = chat_message(&Msg::decode(&mine).unwrap(), "101").unwrap();
+        assert!(m.mine && !m.system);
+        let closed = Writer::new().int(1, 42).str(2, "105").int(13, 7).int(15, 1).bool(8, true).finish();
+        assert!(chat_message(&Msg::decode(&closed).unwrap(), "101").unwrap().system);
+
+        let counts = Writer::new().msg(1, Writer::new().str(1, "101:105").int(2, 3).int(3, 7)).msg(1, Writer::new().int(2, 0).int(3, 8)).finish();
+        assert_eq!(unread(&Msg::decode(&counts).unwrap()), vec![(7, 3)]);
+        assert_eq!(chat_received(&[4, 5]).finish(), vec![0x08, 4, 0x08, 5], "one field per id, not packed");
+    }
+
+    #[test]
+    fn voicemail_items() {
+        let vm = |id: i64, day: i64, new: bool| {
+            Writer::new().int(2, id).str(5, "0511234").str(6, "Cliente").msg(7, Writer::new().int(1, 2026).int(2, 10).int(3, day))
+                .int(8, 42).bool(9, new).str(10, " Richiamami ")
+        };
+        let list = voicemail_list(&Msg::decode(&Writer::new().int(1, 1).msg(2, vm(1, 9, false)).msg(2, vm(2, 10, true)).finish()).unwrap());
+        assert_eq!(list[0].id, 2, "newest first");
+        assert!(list[0].is_new && !list[1].is_new);
+        assert_eq!(list[0].transcription, "Richiamami");
+        assert_eq!(list[0].seconds, 42);
     }
 
     #[test]
