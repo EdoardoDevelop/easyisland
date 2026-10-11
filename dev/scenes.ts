@@ -211,6 +211,42 @@ export async function runScene(island: Island, scene: string) {
       await wait(4000);
       break;
     }
+    case "finished": {
+      // The "ha finito" card with a long answer and «Continua» (try &islandHeight=440:
+      // the island must keep its height while typing in the field).
+      await wait(300);
+      (window as unknown as { island: Island }).island = island;
+      const t = State.tasks.find((x) => x.id === CLAUDE);
+      if (!t) break;
+      t.name = "easyisland";
+      t.sessionHost = "terminal";
+      t.sessionPid = { pid: 1234, exe: "claude.exe" };
+      t.lastMessage = Array.from({ length: 12 }, (_, i) =>
+        `- **Punto ${i + 1}:** una riga di risposta abbastanza lunga da andare a capo nella card dell'isola.`).join("\n");
+      State.updateTask(CLAUDE, "finished");
+      State.setFocus(CLAUDE);
+      State.isPinned = true;
+      island.alert("finished");
+      await wait(900);
+      break;
+    }
+    case "rewrite": {
+      // "Sostituisci": a mail paragraph selected in Outlook, before and after.
+      // &loading stops on the wait; &changed on the selection that moved.
+      await wait(300);
+      const p = new URLSearchParams(location.search);
+      State.rewrite = {
+        id: "scene", label: "Più formale", prompt: "",
+        original: "Ciao Marco, ti giro il preventivo, dacci un'occhiata quando puoi e fammi sapere se va bene così o se c'è da cambiare qualcosa.",
+        result: p.has("loading") ? "" : "Gentile Marco,\n\nLe inoltro il preventivo richiesto. Quando avrà modo di esaminarlo, Le chiedo cortesemente di farmi sapere se è adeguato o se desidera apportare delle modifiche.\n\nCordiali saluti",
+        status: p.has("loading") ? "loading" : "ready",
+        message: p.has("changed") ? "La selezione è cambiata e non ho sostituito niente: selezionala di nuovo o usa «Copia»." : "",
+      };
+      State.isPinned = true;
+      island.alert("rewrite");
+      await wait(900);
+      break;
+    }
     case "suggestion":
       // A proposal from the habits (habits.rs), as the island shows it.
       await wait(300);

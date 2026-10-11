@@ -2,7 +2,8 @@
 // menu opens with a right click on the resting character (`popup`).
 // The menu is rebuilt whenever profiles change (names, the active one).
 
-use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::image::Image;
+use tauri::menu::{CheckMenuItem, IconMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, Wry};
 
@@ -101,6 +102,81 @@ pub fn popup(app: &AppHandle) {
     crate::island::set_activating(&win, true);
     if let Err(e) = win.popup_menu(&menu) {
         crate::log::line(format!("island menu: {e}"));
+    }
+    crate::island::set_activating(&win, false);
+}
+
+/// One line of the menu on the selected text, built by the island
+/// (src/island/selection-menu.ts). An empty `id` is a separator; a line that
+/// is not `enabled` is a heading (the text that was selected); `items` make a
+/// submenu (a folder of actions); `icon` is the action's or the folder's icon,
+/// drawn by the island.
+#[derive(serde::Deserialize)]
+pub struct MenuEntry {
+    id: String,
+    label: String,
+    #[serde(default = "yes")]
+    enabled: bool,
+    #[serde(default)]
+    items: Vec<MenuEntry>,
+    #[serde(default)]
+    icon: Option<MenuIcon>,
+}
+
+/// A small RGBA picture, `width` × `height` pixels.
+#[derive(serde::Deserialize)]
+struct MenuIcon {
+    rgba: Vec<u8>,
+    width: u32,
+    height: u32,
+}
+
+impl MenuIcon {
+    /// None when the bytes do not match the size (or it is far too big for a menu).
+    fn image(&self) -> Option<Image<'_>> {
+        let fits = (1..=128).contains(&self.width) && (1..=128).contains(&self.height);
+        (fits && self.rgba.len() == (self.width * self.height * 4) as usize).then(|| Image::new(&self.rgba, self.width, self.height))
+    }
+}
+
+fn yes() -> bool {
+    true
+}
+
+/// Adds `entries` to a menu or a submenu.
+fn append_entries(app: &AppHandle, entries: &[MenuEntry], add: &dyn Fn(&dyn IsMenuItem<Wry>) -> tauri::Result<()>) -> tauri::Result<()> {
+    for e in entries {
+        // "&" underlines the next letter in a Windows menu.
+        let label = e.label.replace('&', "&&");
+        if e.id.is_empty() {
+            add(&PredefinedMenuItem::separator(app)?)?;
+        } else if !e.items.is_empty() {
+            let icon = e.icon.as_ref().and_then(MenuIcon::image);
+            let sub = Submenu::new_with_icon(app, label, true, icon)?;
+            append_entries(app, &e.items, &|item| sub.append(item))?;
+            add(&sub)?;
+        } else if let Some(icon) = e.icon.as_ref().and_then(MenuIcon::image) {
+            add(&IconMenuItem::with_id(app, format!("sel:{}", e.id), label, e.enabled, Some(icon), None::<&str>)?)?;
+        } else {
+            add(&MenuItem::with_id(app, format!("sel:{}", e.id), label, e.enabled, None::<&str>)?)?;
+        }
+    }
+    Ok(())
+}
+
+/// The menu on the selected text, at the mouse, over whatever app is in front.
+/// A click comes back as the "tray" event "sel:<id>" (the tray's handler sends
+/// on every id it does not know); closing it without a choice sends nothing.
+pub fn popup_entries(app: &AppHandle, entries: &[MenuEntry]) {
+    let Some(win) = crate::island::window(app) else { return };
+    let built = Menu::new(app).and_then(|menu| {
+        append_entries(app, entries, &|item| menu.append(item))?;
+        Ok(menu)
+    });
+    let Ok(menu) = built else { return };
+    crate::island::set_activating(&win, true);
+    if let Err(e) = win.popup_menu(&menu) {
+        crate::log::line(format!("selection menu: {e}"));
     }
     crate::island::set_activating(&win, false);
 }

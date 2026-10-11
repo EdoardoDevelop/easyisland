@@ -793,6 +793,54 @@ async fn chat_send(
     reply
 }
 
+/// "Sostituisci": the text selected in an app, rewritten as `prompt` asks, in
+/// one answer of its own. It goes through the chat's engine but never into the
+/// chat: a conversation of its own, no connectors, nothing in the history.
+#[tauri::command]
+async fn rewrite_text(app: AppHandle, shared: State<'_, Shared>, prompt: String, text: String) -> Result<String, String> {
+    let (engine, model, cli_model, other_model, url) = {
+        let s = shared.settings.lock().unwrap();
+        let other = s.engine_models.get(&s.chat_engine).cloned().unwrap_or_default();
+        let url = s.engine_urls.get(&s.chat_engine).cloned();
+        (s.chat_engine.clone(), s.model.clone(), s.cli_model.clone(), other, url)
+    };
+    let chat = Chat::default();
+    let query = format!(
+        "{}\n\n{}",
+        prompt.trim(),
+        t("Rispondi solo con il testo nuovo che prenderà il posto di quello selezionato: niente introduzioni, commenti, virgolette o markdown. Mantieni la lingua del testo, salvo che ti sia chiesto di tradurlo."),
+    );
+    let context = Some(ChatContext::Text { label: t("Testo selezionato").into(), text });
+    let reply = if engine == "api" {
+        claude::send(&chat, &model, query, context).await
+    } else if engine == "opencode" {
+        let r = opencode::send(&app, &chat, &other_model, query, context).await;
+        opencode::forget(chat.cli_session());
+        r
+    } else if openai::ENGINES.contains(&engine.as_str()) {
+        openai::send(&app, &chat, &engine, &other_model, url.as_deref(), query, context).await
+    } else {
+        claude_cli::send(&chat, &cli_model, &[], false, query, context).await
+    };
+    Ok(context::clean_reply(&reply?.text))
+}
+
+/// "Sostituisci" in the card: `text` in place of the selection, if it is still
+/// `original`. The error is a reason code (see `context::replace`).
+#[tauri::command]
+async fn replace_selection(original: String, text: String) -> Result<(), String> {
+    match tauri::async_runtime::spawn_blocking(move || context::replace(&original, &text)).await {
+        Ok(r) => r.map_err(String::from),
+        Err(_) => Err("no-window".into()),
+    }
+}
+
+/// The menu by the mouse on the selected text (the island builds the entries).
+#[tauri::command]
+fn selection_menu(app: AppHandle, entries: Vec<tray::MenuEntry>) {
+    tray::popup_entries(&app, &entries);
+}
+
 #[tauri::command]
 fn chat_reset(chat: State<Chat>) {
     let before = chat.cli_session();
@@ -1341,6 +1389,9 @@ pub fn run() {
             zip_extract,
             foreground_app,
             capture_selection,
+            rewrite_text,
+            replace_selection,
+            selection_menu,
             process_alive,
             open_n8n,
             open_zammad,

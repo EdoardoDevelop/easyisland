@@ -1,6 +1,8 @@
 // "Cosa fai adesso": actions suggested in the ⚡ tab for the app in front
 // (src-tauri/src/context.rs tells which one). Each one asks Claude about the
 // text selected in that app; nothing is read until the button is clicked.
+// The ones marked `replace` rewrite the selection instead: the new text is
+// shown before and after, and pasted in its place only on a click.
 
 import { t } from "../core/i18n";
 
@@ -14,6 +16,8 @@ export interface Suggestion {
   /** An icon of action-icons.ts. */
   icon: string;
   prompt: string;
+  /** The answer takes the selection's place (after the preview), not the chat. */
+  replace?: boolean;
 }
 
 interface Rule {
@@ -24,6 +28,8 @@ interface Rule {
 }
 
 const S = (label: string, icon: string, prompt: string): Suggestion => ({ label, icon, prompt });
+/** A suggestion that rewrites the selection in place. */
+const R = (label: string, icon: string, prompt: string): Suggestion => ({ label, icon, prompt, replace: true });
 
 const RULES: Rule[] = [
   {
@@ -45,15 +51,15 @@ const RULES: Rule[] = [
   {
     app: "Word", color: "#2B7CD3", exes: ["winword.exe"],
     items: [
-      S(t("Correggi"), "check", t("Correggi errori di ortografia, grammatica e punteggiatura di questo testo. Restituisci solo il testo corretto.")),
-      S(t("Rendi più formale"), "briefcase", t("Riscrivi questo testo in un tono più formale e professionale, stessa lingua. Solo il testo.")),
+      R(t("Correggi"), "check", t("Correggi errori di ortografia, grammatica e punteggiatura di questo testo. Restituisci solo il testo corretto.")),
+      R(t("Più formale"), "briefcase", t("Riscrivi questo testo in un tono più formale e professionale, stessa lingua.")),
       S(t("Riassumi"), "note", t("Riassumi questo testo in pochi punti.")),
     ],
   },
   {
     app: "PowerPoint", color: "#D35230", exes: ["powerpnt.exe"],
     items: [
-      S(t("Migliora la slide"), "sparkles", t("Migliora il testo di questa slide: più breve, chiaro, a punti. Solo il testo.")),
+      R(t("Migliora la slide"), "sparkles", t("Migliora il testo di questa slide: più breve, chiaro, a punti. Solo il testo.")),
       S(t("Note del relatore"), "note", t("Scrivi le note del relatore per presentare questo contenuto in un minuto.")),
     ],
   },
@@ -105,7 +111,7 @@ const ANY: Rule = {
   items: [
     S(t("Riassumi"), "note", t("Riassumi questo testo in pochi punti.")),
     S(t("Traduci"), "globe", t("Traduci questo testo in italiano (se è già italiano, in inglese). Solo la traduzione.")),
-    S(t("Correggi"), "check", t("Correggi errori di ortografia e grammatica di questo testo. Solo il testo corretto.")),
+    R(t("Correggi"), "check", t("Correggi errori di ortografia e grammatica di questo testo. Solo il testo corretto.")),
   ],
 };
 

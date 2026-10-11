@@ -119,6 +119,7 @@ pub const PROFILE_KEYS: &[&str] = &[
     "autoCloseInterval",
     "theme",
     "notify",
+    "reactions",
     "actions",
     "widgets",
     "mcpServers",
@@ -391,6 +392,11 @@ pub struct Settings {
     /// "permissions" (only Claude Code permission requests).
     #[serde(default = "default_notify")]
     pub notify: String,
+    /// How the character takes each situation ("agentFinished", "agentError",
+    /// "agentLimit", or a check's pill id): "show", "quiet" or "off". Missing = "show".
+    /// The front end owns the meaning (src/core/state.ts `reactionKey`).
+    #[serde(default)]
+    pub reactions: Map<String, Value>,
     /// Quick actions (6.2) — kept as JSON here; the front end owns the shape.
     #[serde(default)]
     pub actions: Vec<Value>,
@@ -431,6 +437,9 @@ pub struct Settings {
     /// Global shortcut: sounds on / off (none by default).
     #[serde(default)]
     pub hotkey_mute: String,
+    /// Global shortcut: the menu by the mouse with what can be done on the selected text.
+    #[serde(default = "default_hotkey_selection_menu")]
+    pub hotkey_selection_menu: String,
     /// ⚡ tab: actions suggested for the app in front (Outlook, Excel, the browser…).
     #[serde(default = "default_true")]
     pub context_actions: bool,
@@ -493,6 +502,10 @@ fn default_hotkey_pending() -> String {
 }
 fn default_hotkey_session() -> String {
     "Ctrl+Alt+Shift+T".into()
+}
+
+fn default_hotkey_selection_menu() -> String {
+    "Win+Alt+A".into()
 }
 
 fn default_presence_mode() -> String {
@@ -602,6 +615,7 @@ impl Default for Settings {
             quiet_fullscreen: true,
             theme: Theme::default(),
             notify: default_notify(),
+            reactions: Map::new(),
             actions: Vec::new(),
             widgets: Vec::new(),
             mcp_servers: Vec::new(),
@@ -616,6 +630,7 @@ impl Default for Settings {
             hotkey_session: default_hotkey_session(),
             hotkey_next_pill: String::new(),
             hotkey_mute: String::new(),
+            hotkey_selection_menu: default_hotkey_selection_menu(),
             context_actions: true,
             agent_tools: true,
             opencode_watch: false,

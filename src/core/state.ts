@@ -71,6 +71,26 @@ export function isSessionTask(t: AgentTask | null | undefined): boolean {
   return !!t && (t.id === "integration_claude" || t.id.startsWith("agent:"));
 }
 
+/**
+ * How the character takes a situation (Impostazioni → Notifiche → Reazioni del
+ * personaggio): "show" = it shows, sounds and opens as usual; "quiet" = it
+ * changes face but makes no sound and does not open; "off" = it stays calm and
+ * only the pill tells. Permissions and questions always show: an agent waits on them.
+ */
+export type Reaction = "show" | "quiet" | "off";
+
+/**
+ * The situation a pill's state is, for the reactions: agents by what happened
+ * ("agentFinished", "agentError", "agentLimit"), every other pill (Rete, a
+ * widget…) by its own id when something is wrong or new. Null: always shown.
+ */
+export function reactionKey(t: AgentTask): string | null {
+  if (isSessionTask(t)) {
+    return t.state === "finished" ? "agentFinished" : t.state === "error" ? "agentError" : t.state === "ratelimit" ? "agentLimit" : null;
+  }
+  return t.state === "error" || t.state === "ratelimit" || t.state === "finished" ? t.id : null;
+}
+
 export type ChatEngine = "subscription" | "api" | "opencode" | "openrouter" | "openai" | "gemini" | "ollama" | "lmstudio";
 
 /** The chat engines: name, Credential Manager key (if any), default address (local ones). */
@@ -382,6 +402,8 @@ export interface Settings {
   theme: Theme;
   /** What may surface the island: everything, alerts only, or permissions only. */
   notify: "all" | "alerts" | "permissions";
+  /** How the character takes each situation (see `reactionKey`); missing = "show". */
+  reactions?: Record<string, Reaction>;
   /** Quick actions (6.2). */
   actions: QuickAction[];
   /** Configurable widgets (6.4). */
@@ -406,6 +428,8 @@ export interface Settings {
   hotkeyNextPill: string;
   /** Sounds on / off. */
   hotkeyMute: string;
+  /** The menu by the mouse on the selected text (src/island/selection-menu.ts). */
+  hotkeySelectionMenu: string;
   /** ⚡ tab: actions suggested for the app in front. */
   contextActions: boolean;
   /** The chat (Claude Code engine) may use EasyIsland's tools: open programs, quick actions… */
@@ -463,6 +487,8 @@ export interface QuickAction {
   prompt: string;
   /** prompt: what the prompt is applied to ("selection": the text selected in the app in front). */
   input: "clipboard" | "selection" | "file" | "none";
+  /** prompt on "selection": the answer goes to the chat (default) or takes the selection's place, after a preview. */
+  output?: "chat" | "replace";
   /** script: show the commands and wait for "Esegui". */
   confirm: boolean;
   /** Optional global shortcut, e.g. "Ctrl+Alt+E". */
@@ -564,6 +590,24 @@ export interface WidgetStatus {
   event?: string;
   /** Meteo: the sky the character wears (character/weather.ts). */
   sky?: string;
+}
+
+/**
+ * "Sostituisci": a text selected in an app, rewritten, shown before and after
+ * in the card (src/views/rewrite.ts), pasted in its place only on a click.
+ */
+export interface Rewrite {
+  id: string;
+  /** "Correggi", "Riscrivi"…: the card's title. */
+  label: string;
+  prompt: string;
+  /** The text selected in the app, as copied. */
+  original: string;
+  /** The new text; the user may edit it in the card. */
+  result: string;
+  status: "loading" | "ready" | "replacing" | "error";
+  /** Why it failed, or why nothing was pasted. */
+  message: string;
 }
 
 /** A script launched from the Azioni tab. */
@@ -668,6 +712,7 @@ export const DEFAULT_SETTINGS: Settings = {
   schemaVersion: 2,
   theme: { ...DEFAULT_THEME },
   notify: "all",
+  reactions: {},
   actions: [],
   widgets: [],
   mcpServers: [],
@@ -682,6 +727,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hotkeySession: "Ctrl+Alt+Shift+T",
   hotkeyNextPill: "",
   hotkeyMute: "",
+  hotkeySelectionMenu: "Win+Alt+A",
   contextActions: true,
   agentTools: true,
   opencodeWatch: false,
@@ -766,6 +812,7 @@ class AppState {
   chatSession: { sessionId: string; cwd: string; name: string; fork: string | null } | null = null;
   /** The script being confirmed / run / shown in the Run view. */
   run: ScriptRun | null = null;
+  rewrite: Rewrite | null = null;
   /** Latest result per widget id. */
   widgetStatus: Record<string, WidgetStatus> = {};
   noteMessage: string | null = null;
@@ -870,11 +917,26 @@ class AppState {
     return this.showsSummary ? null : this.focusTask;
   }
 
+  /** How the character takes `key` (a `reactionKey`); "show" when not set. */
+  reaction(key: string | null): Reaction {
+    return (key && this.settings.reactions?.[key]) || "show";
+  }
+
+  /** A pill whose state the character should not take on ("Resta tranquillo"). */
+  private calm(t: AgentTask): boolean {
+    return this.reaction(reactionKey(t)) === "off";
+  }
+
   get effectiveState(): BotStateName {
     if (this.stateOverride) return this.stateOverride;
-    if (!this.showsSummary) return this.focusTask?.state ?? "idle";
+    if (!this.showsSummary) {
+      const f = this.focusTask;
+      return f && !this.calm(f) ? f.state : "idle";
+    }
     let best: BotStateName = "idle";
-    for (const t of this.tasks) if (URGENCY.indexOf(t.state) > URGENCY.indexOf(best)) best = t.state;
+    for (const t of this.tasks) {
+      if (!this.calm(t) && URGENCY.indexOf(t.state) > URGENCY.indexOf(best)) best = t.state;
+    }
     return best;
   }
 

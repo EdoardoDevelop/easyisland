@@ -179,10 +179,26 @@ export const Bridge = {
   clipboardRemove: (id: number) => call<void>("clipboard_remove", { id }),
   clipboardClear: () => call<void>("clipboard_clear"),
   /** The app in front, and the text selected in it (⚡ suggestions). */
+  /** "Sostituisci": the selected text rewritten as `prompt` asks, outside the chat (lib.rs rewrite_text). */
+  rewriteText: (prompt: string, text: string) => callOrThrow<string>("rewrite_text", { prompt, text }),
+  /** `text` in place of the selection, if it is still `original`; else why not
+   * ("changed" | "no-window" | "no-focus" | "held" | "clipboard"). */
+  replaceSelection: async (original: string, text: string): Promise<string | null> => {
+    if (!IS_TAURI) return null;
+    try {
+      await invoke<void>("replace_selection", { original, text });
+      return null;
+    } catch (err) {
+      return String(err);
+    }
+  },
+  /** The native menu at the mouse; a click comes back as the "tray" event "sel:<id>". */
+  selectionMenu: (entries: { id: string; label: string; enabled?: boolean }[]) =>
+    call<void>("selection_menu", { entries }),
   foregroundApp: () => call<{ exe: string; title: string } | null>("foreground_app"),
   /** Is process `pid` still running `exe`? (A session's agent, hooks.ts → watchSessions.) True when unknown. */
   processAlive: async (pid: number, exe: string) => (await call<boolean>("process_alive", { pid, exe })) ?? true,
-  /** The selected text, or why there is none ("no-window" | "no-focus" | "empty" | "not-text"). */
+  /** The selected text, or why there is none ("no-window" | "no-focus" | "held" | "empty" | "not-text"). */
   captureSelection: async (): Promise<{ text: string } | { error: string }> => {
     if (!IS_TAURI) return { error: "empty" };
     try {

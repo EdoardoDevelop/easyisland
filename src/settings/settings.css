@@ -332,6 +332,7 @@ select {
   border-radius: 8px;
   color: var(--ink);
   padding: 5px 8px;
+  max-width: 100%;
 }
 
 input::placeholder {

@@ -27,7 +27,7 @@ I dettagli che `HANDOFF.md` riassume in una riga. Le idee più vecchie e l'anali
 
 ## Altro
 - **Scheda esatta di Windows Terminal** per «Apri»: il relay legge il titolo della console e l'app seleziona la scheda con UI Automation. Da sperimentare con una sessione vera. Tolta dal Da fare il 9 ottobre: per ora non serve.
-- **Azioni nel menu contestuale** (clic destro su file o testo in Windows): da valutare. Per i file serve una voce nel registro di Windows (`HKCU\Software\Classes\*\shell`) che passa il percorso all'app (scrittura solo dopo la conferma di Edoardo). Per il testo selezionato Windows non ha un menu comune: resta la scorciatoia.
+- **Clic destro sui file in Esplora file** (prossimo passo, deciso l'11 ottobre 2026): una voce nel registro di Windows (`HKCU\Software\Classes\*\shell`) che passa il percorso all'app, scritta solo dopo la conferma di Edoardo. In Windows 11 finisce sotto «Mostra altre opzioni» (il menu nuovo vuole un pacchetto MSIX con `IExplorerCommand`). Per il testo selezionato c'è già il menu di `Win+Alt+A`.
 - **Da decidere prima di farle**, perché vanno contro `decisioni.md`: nuovi personaggi (polpo, rana, granchio, geco). Le prove dell'8 ottobre sono venute male: rimandati. Rimandate anche le pose di Goccia della tavola del 3 ottobre (saluto con la mano, salto, caduta, onda): oggi usa quelle comuni.
 - **opencode, ancora aperti:**
   - nella **chat** lo strumento `question` è negato (`opencode.rs`): la card c'è già per l'agente (`opencode_agent.rs`, form), si può riusare;

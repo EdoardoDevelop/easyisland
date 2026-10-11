@@ -87,6 +87,10 @@ async function main() {
         if (State.paused) island.fsm.forceHidden();
         else island.reveal();
         break;
+      default:
+        // The menu on the selected text (src/island/selection-menu.ts).
+        if (what.startsWith("sel:")) island.pickSelectionMenu(what.slice(4));
+        break;
     }
   });
 
