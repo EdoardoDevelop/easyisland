@@ -1,0 +1,104 @@
+// The menu on the selected text: a shortcut (Win+Alt+A by default) opens a
+// native Windows menu at the mouse, over any app — browsers included, where
+// EasyIsland cannot add to the app's own right-click menu. It lists the user's
+// own quick actions on the selected text (nothing built in), their folders as
+// submenus. The selection is copied first (while the app still has the focus),
+// so the menu shows what it works on. An action set to "replace" takes the
+// selection's place after a preview (rewrite.ts); the others ask the chat.
+// The menu itself is drawn by Rust (tray.rs `popup_entries`); a click comes
+// back as the "tray" event "sel:<id>". Each entry carries its icon, drawn
+// here on a canvas (our stroked icons in the action's colour, or the old emoji).
+
+import { t } from "../core/i18n";
+import { State, folderLook, type QuickAction } from "../core/state";
+import { actionIcon } from "../views/action-icons";
+
+/** A small picture for a menu line, as Rust wants it (tray.rs `MenuIcon`). */
+export interface MenuIcon {
+  rgba: number[];
+  width: number;
+  height: number;
+}
+
+export interface MenuEntry {
+  /** "" = a separator. */
+  id: string;
+  label: string;
+  enabled?: boolean;
+  /** A submenu (a folder of actions). */
+  items?: MenuEntry[];
+  icon?: MenuIcon;
+}
+
+/** Windows draws menu icons 16 px wide at 100 % scale. */
+const ICON_PX = 16;
+
+/** The icon an action or a folder stores ("i:<name>" or an emoji), as pixels. */
+export function menuIcon(value: string | undefined, color: string): MenuIcon | undefined {
+  const size = Math.round(ICON_PX * Math.max(1, window.devicePixelRatio || 1));
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const g = canvas.getContext("2d", { willReadFrequently: true });
+  if (!g) return undefined;
+  const icon = actionIcon(value);
+  if (icon) {
+    g.scale(size / 24, size / 24);
+    g.strokeStyle = /^#[0-9a-f]{6}$/i.test(color) ? color : "#8e939c";
+    g.lineWidth = 2.2;
+    g.lineCap = "round";
+    g.lineJoin = "round";
+    g.stroke(new Path2D(icon.d));
+  } else {
+    const text = (value ?? "").trim();
+    if (!text) return undefined;
+    g.font = `${Math.round(size * 0.82)}px "Segoe UI Emoji", "Segoe UI", sans-serif`;
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.fillStyle = color;
+    g.fillText(text, size / 2, size / 2 + size * 0.05);
+  }
+  return { rgba: Array.from(g.getImageData(0, 0, size, size).data), width: size, height: size };
+}
+
+export interface SelectionMenu {
+  entries: MenuEntry[];
+  /** The action behind each entry id; "settings" opens Impostazioni → Azioni rapide. */
+  picks: Map<string, QuickAction | "settings">;
+}
+
+/** The quick actions the menu offers: the prompts applied to the selected text. */
+export function selectionActions(): QuickAction[] {
+  return (State.settings.actions ?? []).filter((a) => a.kind === "prompt" && a.input === "selection");
+}
+
+/** The first words of the selection, on one line, for the menu's heading. */
+export function snippet(text: string, max = 48): string {
+  const one = text.replace(/\s+/g, " ").trim();
+  return one.length > max ? `${one.slice(0, max - 1).trimEnd()}…` : one;
+}
+
+export function buildSelectionMenu(text: string): SelectionMenu {
+  const picks = new Map<string, QuickAction | "settings">();
+  const entries: MenuEntry[] = [{ id: "head", label: `«${snippet(text)}»`, enabled: false }, { id: "", label: "" }];
+  const actions = selectionActions();
+  if (!actions.length) {
+    entries.push({ id: "settings", label: t("Crea le azioni sul testo selezionato…") });
+    picks.set("settings", "settings");
+    return { entries, picks };
+  }
+  const entry = (a: QuickAction): MenuEntry => {
+    const id = `a:${a.id}`;
+    picks.set(id, a);
+    return { id, label: a.name || t("Senza nome"), icon: menuIcon(a.icon, a.color) };
+  };
+  // Folders first, as in the ⚡ tab, then the actions without one.
+  const folders = [...new Set(actions.map((a) => folderLook(a.folder).name).filter(Boolean))];
+  for (const f of folders) {
+    const inside = actions.filter((a) => folderLook(a.folder).name === f);
+    // The folder's icon is the one of its first action's folder, as in the ⚡ tab.
+    const look = folderLook(inside[0].folder);
+    entries.push({ id: `f:${f}`, label: f, icon: menuIcon(look.icon, "#94a3b8"), items: inside.map(entry) });
+  }
+  for (const a of actions.filter((x) => !folderLook(x.folder).name)) entries.push(entry(a));
+  return { entries, picks };
+}

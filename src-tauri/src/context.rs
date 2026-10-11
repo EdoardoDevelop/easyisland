@@ -127,15 +127,12 @@ fn key(vk: VIRTUAL_KEY, up: bool) -> INPUT {
     }
 }
 
-/// The text selected in the app in front: Ctrl+C, read, then the clipboard is
-/// put back as it was. On failure, why — the island turns it into a message:
-/// "no-window" (no app to read from), "no-focus" (Windows kept the island in
-/// front), "empty" (the app copied nothing: no selection, or it does not let
-/// you copy), "not-text" (a picture or files were selected).
-pub fn selection() -> Result<String, &'static str> {
-    // Ctrl+C must reach the user's app, never the island (focused for its chat):
-    // give the focus back to the user's window first.
-    let hwnd = target().ok_or("no-window")?;
+/// The window the last selection was read from: "Sostituisci" pastes there.
+static CAPTURED: AtomicIsize = AtomicIsize::new(0);
+
+/// Brings `hwnd` to the front, so the keys sent next reach it and never the
+/// island (focused for its chat or a card).
+fn focus(hwnd: HWND) -> Result<(), &'static str> {
     unsafe {
         if GetForegroundWindow() != hwnd {
             let _ = SetForegroundWindow(hwnd);
@@ -148,24 +145,39 @@ pub fn selection() -> Result<String, &'static str> {
             }
         }
     }
-    // A shortcut may still be held (Ctrl+Alt+…): Ctrl+C would become something else.
+    Ok(())
+}
+
+/// A shortcut may still be held (Ctrl+Alt+…, Win+Shift+…): Ctrl+C would become
+/// something else (Win+Ctrl+C turns on Windows' colour filters). Waits for the
+/// keys to be let go; "held" if they never are.
+fn wait_keys_released() -> Result<(), &'static str> {
     let held = || unsafe {
         [VK_MENU, VK_SHIFT, VK_LWIN, VK_RWIN, VK_CONTROL]
             .iter()
             .any(|k| (GetAsyncKeyState(k.0 as i32) as u16 & 0x8000) != 0)
     };
     let wait = Instant::now();
-    while held() && wait.elapsed() < Duration::from_millis(800) {
+    while held() && wait.elapsed() < Duration::from_millis(1500) {
         std::thread::sleep(Duration::from_millis(30));
     }
+    if held() { Err("held") } else { Ok(()) }
+}
 
+/// Ctrl (down), `letter`, Ctrl (up), to the window in front.
+fn ctrl(letter: u8) {
+    let k = VIRTUAL_KEY(letter as u16);
+    unsafe {
+        SendInput(&[key(VK_CONTROL, false), key(k, false), key(k, true), key(VK_CONTROL, true)], std::mem::size_of::<INPUT>() as i32);
+    }
+}
+
+/// Ctrl+C in the window in front, read, then the clipboard put back as it was.
+fn copy_selected() -> Result<String, &'static str> {
     let before = crate::actions::clipboard_text();
     crate::clipboard::ignore_next(Duration::from_millis(2000));
     let seq = unsafe { GetClipboardSequenceNumber() };
-    let c = VIRTUAL_KEY(b'C' as u16);
-    unsafe {
-        SendInput(&[key(VK_CONTROL, false), key(c, false), key(c, true), key(VK_CONTROL, true)], std::mem::size_of::<INPUT>() as i32);
-    }
+    ctrl(b'C');
     // Excel and Outlook can take a while with a large selection.
     let start = Instant::now();
     while unsafe { GetClipboardSequenceNumber() } == seq && start.elapsed() < Duration::from_millis(1200) {
@@ -184,5 +196,110 @@ pub fn selection() -> Result<String, &'static str> {
         Some(t) if !t.trim().is_empty() => Ok(t),
         Some(_) => Err("empty"),
         None => Err("not-text"),
+    }
+}
+
+/// The text selected in the app in front: Ctrl+C, read, then the clipboard is
+/// put back as it was. On failure, why — the island turns it into a message:
+/// "no-window" (no app to read from), "no-focus" (Windows kept the island in
+/// front), "held" (the shortcut's keys were never let go), "empty" (the app
+/// copied nothing: no selection, or it does not let you copy), "not-text" (a
+/// picture or files were selected).
+pub fn selection() -> Result<String, &'static str> {
+    // Ctrl+C must reach the user's app, never the island (focused for its chat):
+    // give the focus back to the user's window first.
+    let hwnd = target().ok_or("no-window")?;
+    focus(hwnd)?;
+    wait_keys_released()?;
+    let text = copy_selected()?;
+    CAPTURED.store(hwnd.0 as isize, Ordering::Relaxed);
+    Ok(text)
+}
+
+/// Same text for "Sostituisci": line ends and the spaces around do not count
+/// (Word adds a paragraph mark, the browser a newline).
+fn same_text(a: &str, b: &str) -> bool {
+    let norm = |s: &str| s.replace("\r\n", "\n").trim().to_string();
+    norm(a) == norm(b)
+}
+
+/// "Sostituisci": `text` in place of the selection read before (`original`),
+/// in the window it came from. The selection is copied again first: if the
+/// user clicked elsewhere meanwhile, nothing is pasted ("changed"). The
+/// clipboard is put back as it was afterwards (text only, like `selection`).
+pub fn replace(original: &str, text: &str) -> Result<(), &'static str> {
+    let hwnd = HWND(CAPTURED.load(Ordering::Relaxed) as *mut _);
+    if hwnd.0.is_null() || !unsafe { IsWindow(Some(hwnd)) }.as_bool() {
+        return Err("no-window");
+    }
+    focus(hwnd)?;
+    wait_keys_released()?;
+    match copy_selected() {
+        Ok(now) if same_text(&now, original) => {}
+        Ok(_) | Err("empty") => return Err("changed"),
+        Err(e) => return Err(e),
+    }
+    let before = crate::actions::clipboard_text();
+    crate::clipboard::ignore_next(Duration::from_millis(3000));
+    // Windows apps want CRLF for a new line (the card's text area gives LF).
+    let text = text.replace("\r\n", "\n").replace('\n', "\r\n");
+    crate::actions::set_clipboard_text(&text).map_err(|_| "clipboard")?;
+    ctrl(b'V');
+    // The app reads the clipboard while it handles the paste; browsers a bit later.
+    std::thread::sleep(Duration::from_millis(500));
+    if let Some(prev) = before {
+        let _ = crate::actions::set_clipboard_text(&prev);
+    }
+    Ok(())
+}
+
+/// A rewritten text as the model wrote it, made ready to paste: a code fence
+/// or quotes around the whole of it go (the prompt asks for neither, small
+/// models add them anyway).
+pub fn clean_reply(reply: &str) -> String {
+    let mut s = reply.trim().replace("\r\n", "\n");
+    if s.starts_with("```") && s.ends_with("```") && s.len() >= 6 {
+        let inner = &s[3..s.len() - 3];
+        // The fence's language tag ("```text") is the rest of its first line.
+        let inner = match inner.split_once('\n') {
+            Some((tag, rest)) if !tag.contains(' ') => rest,
+            _ => inner,
+        };
+        s = inner.trim().to_string();
+    }
+    for (open, close) in [('"', '"'), ('«', '»'), ('“', '”')] {
+        let n = s.chars().count();
+        if n >= 2 && s.starts_with(open) && s.ends_with(close) {
+            let body: String = s.chars().skip(1).take(n - 2).collect();
+            // Only when the quotes wrap it all, not a text that starts and ends with a quotation.
+            if !body.contains(open) && !body.contains(close) {
+                s = body.trim().to_string();
+            }
+            break;
+        }
+    }
+    s
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{clean_reply, same_text};
+
+    #[test]
+    fn clean_reply_strips_fences_and_wrapping_quotes() {
+        assert_eq!(clean_reply("```\nCiao\n```"), "Ciao");
+        assert_eq!(clean_reply("```text\nUno\ndue\n```"), "Uno\ndue");
+        assert_eq!(clean_reply("\"Buongiorno a tutti\""), "Buongiorno a tutti");
+        assert_eq!(clean_reply("«Testo»"), "Testo");
+        assert_eq!(clean_reply("\"A\" e \"B\""), "\"A\" e \"B\"");
+        assert_eq!(clean_reply("  Solo testo \n"), "Solo testo");
+    }
+
+    #[test]
+    fn same_text_ignores_line_ends_and_edges() {
+        assert!(same_text("Ciao\r\nmondo\r\n", "Ciao\nmondo"));
+        assert!(same_text("  testo ", "testo"));
+        assert!(!same_text("Ciao mondo", "Ciao Mondo"));
+        assert!(!same_text("uno\ndue", "uno due"));
     }
 }

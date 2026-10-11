@@ -10,6 +10,7 @@ import {
   type IslandMode, type IslandViewName, type Placement,
 } from "../core/layout";
 import type { Suggestion } from "./context";
+import { buildSelectionMenu, type SelectionMenu } from "./selection-menu";
 import { Sound } from "../core/sound";
 import { OPENED_BY_APP, OPEN_URLS, State, canAskSession, isSessionTask } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
@@ -293,6 +294,9 @@ export class Island {
         this.fsm.pinned = false;
         this.setView("actions");
       },
+      applyRewrite: (text) => void this.applyRewrite(text),
+      retryRewrite: () => void this.fetchRewrite(),
+      closeRewrite: () => this.closeRewrite(),
     };
 
     this.wakeStrip = h("div", { id: "wake-strip" });
@@ -520,6 +524,24 @@ export class Island {
    * The search bar under the views: on the open island, not in the chat (it has
    * its own field), the greeting or the drop sequence.
    */
+  /**
+   * How tall the open view's content is (its fitHeight), measured as if the
+   * island had no room to spare (--extra-h at 0). Boxes that grow with the
+   * spare room (the "ha finito" message, the plan, the lists) would otherwise
+   * feed their grown height back into the island's: the spare room shrank,
+   * the next measure was smaller, and the island flipped between two heights
+   * at every update — at every letter typed in «Continua».
+   */
+  private measureFit(): number {
+    const view = this.views.get(State.view);
+    if (!view?.fitHeight) return 0;
+    const extra = this.islandEl.style.getPropertyValue("--extra-h");
+    this.islandEl.style.setProperty("--extra-h", "0px");
+    const h = view.fitHeight();
+    this.islandEl.style.setProperty("--extra-h", extra);
+    return h;
+  }
+
   private get searchShown(): boolean {
     return State.mode === "expanded" && State.settings.searchBar !== false
       && !FIXED_SIZE_VIEWS.has(State.view) && State.view !== "prompt" && !this.uploadActive;
@@ -716,10 +738,137 @@ export class Island {
     }
   }
 
-  /** A suggestion: copy the selection in the app in front, then ask the chat. */
+  /** A suggestion: copy the selection in the app in front, then ask the chat (or rewrite it in place). */
   async runSuggestion(s: Suggestion, _app: string) {
     Sound.play("blip");
-    await this.askAboutSelection(s.prompt);
+    if (s.replace) await this.rewriteSelection(s.label, s.prompt);
+    else await this.askAboutSelection(s.prompt);
+  }
+
+  // ── The selection: its menu and "Sostituisci" ────────────────────────────
+
+  /** The menu on the selected text, while it is up: what each entry does, and the text. */
+  private selMenu: { menu: SelectionMenu; text: string } | null = null;
+
+  /** Why the selection could not be read or replaced, for the user (context.rs reason codes). */
+  private selectionProblem(code: string): string {
+    switch (code) {
+      case "empty": return t("Nessun testo selezionato: seleziona del testo nell'app e riprova.");
+      case "not-text": return t("La selezione non è testo.");
+      case "held": return t("Lascia i tasti della scorciatoia e riprova.");
+      case "no-focus": return t("Windows non ha lasciato tornare all'app: riprova.");
+      case "changed": return t("La selezione è cambiata e non ho sostituito niente: selezionala di nuovo o usa «Copia».");
+      case "clipboard": return t("Gli appunti sono occupati da un'altra app: riprova.");
+      default: return t("Non trovo l'app da cui veniva il testo: usa «Copia».");
+    }
+  }
+
+  /** A short message, then the island closes again (it was opened for this). */
+  private flashNote(message: string) {
+    State.noteMessage = message;
+    this.setView("note");
+    Sound.play("error");
+    window.setTimeout(() => {
+      if (State.view === "note" && State.noteMessage === message) this.collapse();
+    }, 3200);
+  }
+
+  /** The selection shortcut: copy the selected text, then the menu at the mouse. */
+  private async openSelectionMenu() {
+    const r = await Bridge.captureSelection();
+    if (!("text" in r)) {
+      this.flashNote(this.selectionProblem(r.error));
+      return;
+    }
+    const menu = buildSelectionMenu(r.text);
+    this.selMenu = { menu, text: r.text };
+    await Bridge.selectionMenu(menu.entries);
+  }
+
+  /** An entry of the menu on the selection was clicked ("tray" event "sel:<id>"). */
+  pickSelectionMenu(id: string) {
+    const sel = this.selMenu;
+    const pick = sel?.menu.picks.get(id);
+    this.selMenu = null;
+    if (!sel || !pick) return;
+    if (pick === "settings") {
+      void Bridge.openSettingsWindow();
+      return;
+    }
+    Sound.resume();
+    Sound.play("blip");
+    if (pick.output === "replace") this.startRewrite(pick.name, pick.prompt, sel.text);
+    else this.startChat(pick.prompt, { label: t("Testo selezionato"), text: sel.text }, false);
+  }
+
+  /** From the ⚡ tab or an action: copy the selection, then the rewrite card. */
+  private async rewriteSelection(label: string, prompt: string) {
+    const r = await Bridge.captureSelection();
+    if ("text" in r) this.startRewrite(label, prompt, r.text);
+    else this.note(this.selectionProblem(r.error));
+  }
+
+  /** The rewrite card: pinned (it waits for a click), then the answer comes in. */
+  private startRewrite(label: string, prompt: string, original: string) {
+    State.rewrite = {
+      id: `w${Date.now().toString(36)}`, label: label || t("Riscrivi"), prompt, original,
+      result: "", status: "loading", message: "",
+    };
+    State.isPinned = true;
+    this.fsm.pinned = true;
+    this.setView("rewrite");
+    void this.fetchRewrite();
+  }
+
+  private async fetchRewrite() {
+    const w = State.rewrite;
+    if (!w) return;
+    w.status = "loading";
+    w.result = "";
+    w.message = "";
+    State.notify();
+    try {
+      const text = await Bridge.rewriteText(w.prompt, w.original);
+      if (State.rewrite !== w) return;
+      w.result = text;
+      w.status = "ready";
+      Sound.play("finish");
+    } catch (err) {
+      if (State.rewrite !== w) return;
+      w.status = "error";
+      w.message = String(err).replace(/^Error:\s*/, "");
+      Sound.play("error");
+    }
+    State.notify();
+  }
+
+  /** "Sostituisci": paste the new text over the selection, if it is still there. */
+  private async applyRewrite(text: string) {
+    const w = State.rewrite;
+    if (!w || w.status !== "ready" || !text.trim()) return;
+    w.result = text;
+    w.status = "replacing";
+    w.message = "";
+    State.notify();
+    const why = await Bridge.replaceSelection(w.original, text);
+    if (State.rewrite !== w) return;
+    if (!why) {
+      Sound.play("finish");
+      this.closeRewrite();
+      this.collapse();
+      return;
+    }
+    w.status = "ready";
+    w.message = this.selectionProblem(why);
+    Sound.play("error");
+    State.notify();
+  }
+
+  private closeRewrite() {
+    State.rewrite = null;
+    State.isPinned = false;
+    this.fsm.pinned = false;
+    if (State.view === "rewrite") this.collapse();
   }
 
   /**
@@ -903,7 +1052,8 @@ export class Island {
             return;
           }
           if (a.input === "selection") {
-            await this.askAboutSelection(a.prompt);
+            if (a.output === "replace") await this.rewriteSelection(a.name, a.prompt);
+            else await this.askAboutSelection(a.prompt);
             return;
           }
           let context: { label: string; text: string } | null = null;
@@ -987,6 +1137,9 @@ export class Island {
     } else if (name === "nextPill") {
       if (State.mode !== "expanded") this.setView("overview");
       this.cycleFocus(1);
+    } else if (name === "selectionMenu") {
+      await this.openSelectionMenu();
+      return;
     } else if (name === "mute") {
       State.settings.soundEnabled = !State.settings.soundEnabled;
       Sound.setEnabled(State.settings.soundEnabled);
@@ -1915,6 +2068,7 @@ export class Island {
     window.addEventListener("keydown", (e) => {
       // Esc on a permission or a question folds the island: the request keeps waiting.
       if (e.key === "Escape" && State.mode === "expanded" && State.pendingApproval && (State.view === "approval" || State.view === "ask")) this.foldCard();
+      else if (e.key === "Escape" && State.mode === "expanded" && State.view === "rewrite") this.closeRewrite();
       else if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned && !State.pendingApproval) this.collapse();
       else this.onIslandKey(e);
       State.lastActivity = performance.now();
@@ -2247,7 +2401,7 @@ export class Island {
     // Views that know how tall their content is make the island grow (or
     // shrink back) to show all of it.
     if (expanded) {
-      const fitH = this.views.get(State.view)?.fitHeight?.() ?? 0;
+      const fitH = this.measureFit();
       const prev = this.fit;
       if (prev.view !== State.view || Math.abs(prev.h - fitH) > 1) {
         this.fit = { view: State.view, h: fitH };

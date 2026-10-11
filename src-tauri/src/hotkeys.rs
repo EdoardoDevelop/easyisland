@@ -3,7 +3,7 @@
 //
 // Shortcuts: open the island, ask about the clipboard, the clipboard history, capture a
 // zone of the screen, the waiting request, the session's app, the next pill, sounds
-// on/off, and one per quick action that has one. They are re-registered whenever the settings change.
+// on/off, the menu on the selected text, and one per quick action that has one. They are re-registered whenever the settings change.
 
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Mutex;
@@ -79,6 +79,7 @@ fn wanted(app: &AppHandle) -> Vec<(String, String)> {
         ("session".to_string(), s.hotkey_session.clone()),
         ("nextPill".to_string(), s.hotkey_next_pill.clone()),
         ("mute".to_string(), s.hotkey_mute.clone()),
+        ("selectionMenu".to_string(), s.hotkey_selection_menu.clone()),
     ];
     for a in &s.actions {
         let id = a.get("id").and_then(|v| v.as_str()).unwrap_or_default();

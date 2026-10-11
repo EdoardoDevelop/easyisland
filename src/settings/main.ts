@@ -6,7 +6,7 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { Bridge, onEvent, type HookStatus, type ModelOption } from "../core/bridge";
-import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type Settings, type WidgetDef } from "../core/state";
+import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type Settings, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
 import { h, clear, TAB_ICONS } from "../views/dom";
@@ -1288,7 +1288,7 @@ const PROFILE_KEYS = [
   "activeIntegrations", "anchorV", "anchorH", "offsetX", "offsetY", "glueEdges", "overTaskbar",
   "closeButton", "followCursorCompact", "presenceMeeting", "presenceRemote", "presenceApps", "presenceMode", "iconStyle", "iconSize", "hoverStyle",
   "hoverSize", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
-  "soundVolume", "autoCloseInterval", "theme", "notify", "actions", "widgets", "mcpServers",
+  "soundVolume", "autoCloseInterval", "theme", "notify", "reactions", "actions", "widgets", "mcpServers",
 ] as const;
 
 function snapshot(): Record<string, unknown> {
@@ -1419,6 +1419,17 @@ function profilesSection(): HTMLElement {
 function newActionId(): string {
   return `a${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
+
+/** What a prompt action works on, and where its answer goes, as one choice in the editor. */
+type PromptUse = QuickAction["input"] | "replace";
+
+/** Actions on the selected text to start from: name, icon, colour, prompt. */
+const STARTER_REWRITES = (): [string, string, string, string][] => [
+  [t("Riscrivi"), "i:sparkles", "#8b5cf6", t("Riscrivi questo testo in modo più chiaro e scorrevole, stesso tono e stessa lingua.")],
+  [t("Correggi"), "i:check", "#22c55e", t("Correggi errori di ortografia, grammatica e punteggiatura di questo testo, senza cambiarne il senso.")],
+  [t("Più formale"), "i:briefcase", "#0a84d6", t("Riscrivi questo testo in un tono più formale e professionale, stessa lingua.")],
+  [t("In inglese"), "i:globe", "#38bdf8", t("Traduci questo testo in inglese, con lo stesso tono.")],
+];
 
 function blankAction(kind: QuickAction["kind"] = "prompt"): QuickAction {
   return {
@@ -1554,6 +1565,7 @@ function actionsSection(): HTMLElement {
   const list = h("div", { style: "display:flex;flex-direction:column;gap:10px" });
   const folders = h("div", { class: "row qa-folders" });
   const warn = h("div", {});
+  const starters = h("div", { class: "row" });
   const commit = () => {
     void save().then(() => window.setTimeout(checkHotkeys, 600));
   };
@@ -1632,6 +1644,7 @@ function actionsSection(): HTMLElement {
   function draw() {
     clear(list);
     drawFolders();
+    drawStarters();
     const actions = settings.actions;
     // What each card edits: its unsaved draft, or a copy of the saved action.
     const rows = [
@@ -1729,17 +1742,37 @@ function actionsSection(): HTMLElement {
             area(a.script, t("I comandi da eseguire. Partono solo dopo un clic nell'isola."), (v) => { a.script = v; }, true),
           );
           break;
-        case "prompt":
+        case "prompt": {
+          // One choice for what the action works on and where the answer goes.
+          const use: PromptUse = a.input === "selection" && a.output === "replace" ? "replace" : a.input;
+          const replacing = use === "replace";
           card.append(
-            h("div", { class: "row" }, h("label", { text: t("Applicata a") }),
-              select<QuickAction["input"]>(
-                [["clipboard", t("Testo copiato negli appunti")], ["selection", t("Testo selezionato")], ["file", t("File rilasciato sull'isola")], ["none", t("Niente (solo la domanda)")]],
-                a.input,
-                (v) => { a.input = v; touch(); draw(); },
-              )),
-            area(a.prompt, t("Cosa chiedere alla chat"), (v) => { a.prompt = v; }),
+            h("div", { class: "row" }, h("label", { text: t("Lavora su") }),
+              select<PromptUse>(
+                [
+                  ["replace", t("Testo selezionato: lo sostituisce")],
+                  ["selection", t("Testo selezionato: risposta in chat")],
+                  ["clipboard", t("Testo copiato negli appunti")],
+                  ["file", t("File rilasciato sull'isola")],
+                  ["none", t("Niente (solo la domanda)")],
+                ],
+                use,
+                (v) => {
+                  a.input = v === "replace" ? "selection" : v;
+                  if (v === "replace") a.output = "replace";
+                  else delete a.output;
+                  touch();
+                  draw();
+                },
+              ),
+              a.input === "selection"
+                ? h("span", { class: "hint note", text: t("compare nel menu di {key}", { key: settings.hotkeySelectionMenu || "Win+Alt+A" }) })
+                : null),
+            area(a.prompt, replacing ? t("Come riscrivere il testo, es. «Rendilo più cortese»") : t("Cosa chiedere alla chat"),
+              (v) => { a.prompt = v; }),
           );
           break;
+        }
       }
       card.append(h("div", { class: "row" }, h("label", { text: t("Scorciatoia") }),
         hotkeyInput(a.hotkey, (v) => { a.hotkey = v; touch(); })));
@@ -1775,6 +1808,27 @@ function actionsSection(): HTMLElement {
   const hotkeyField = (value: string, apply: (v: string) => void) =>
     hotkeyInput(value, (v) => { apply(v); commit(); });
 
+  /** With no action on the selected text, the menu is empty: offer four to start from. */
+  function drawStarters() {
+    clear(starters);
+    const none = !settings.actions.some((a) => a.kind === "prompt" && a.input === "selection");
+    starters.style.display = none ? "" : "none";
+    if (!none) return;
+    starters.append(
+      h("span", { class: "hint", text: t("Il menu è vuoto finché non crei un'azione sul testo selezionato.") }),
+      h("button", {
+        text: t("Aggiungi Riscrivi, Correggi, Più formale, In inglese"),
+        onclick: () => {
+          settings.actions.push(...STARTER_REWRITES().map(([name, icon, color, prompt]) => ({
+            ...blankAction(), name, icon, color, prompt, input: "selection" as const, output: "replace" as const,
+          })));
+          commit();
+          draw();
+        },
+      }),
+    );
+  }
+
   const add = h("button", { class: "primary", text: t("Aggiungi azione") });
   add.addEventListener("click", () => {
     // Saved only with its Salva button.
@@ -1802,6 +1856,10 @@ function actionsSection(): HTMLElement {
       hotkeyField(settings.hotkeyOpen, (v) => { settings.hotkeyOpen = v; })),
     h("div", { class: "row" }, h("label", { text: t("Chiedi sul testo copiato") }),
       hotkeyField(settings.hotkeyAsk, (v) => { settings.hotkeyAsk = v; })),
+    h("div", { class: "row" }, h("label", { text: t("Menu sul testo selezionato") }),
+      hotkeyField(settings.hotkeySelectionMenu ?? "", (v) => { settings.hotkeySelectionMenu = v; }),
+      h("span", { class: "hint note", text: t("in qualunque app, browser compresi: mostra le azioni che lavorano sul testo selezionato") })),
+    starters,
     h("div", { class: "row" }, h("label", { text: t("Cronologia appunti") }),
       hotkeyField(settings.hotkeyClipboard, (v) => { settings.hotkeyClipboard = v; })),
     h("div", { class: "row" }, h("label", { text: t("Cattura una zona e chiedi") }),
@@ -2475,6 +2533,58 @@ function notifySection(): HTMLElement {
   );
 }
 
+// ── Reazioni del personaggio ──────────────────────────────────────────────────
+
+/** Pills that never complain (or have their own way to show up, like a 3CX call). */
+const NO_REACTION = new Set(["integration_claude", "integration_clipboard", "integration_media", "integration_weather", "integration_3cx"]);
+
+/**
+ * What the character does in each situation: show itself and sound, change
+ * face quietly, or stay calm (only the pill tells). One row per situation of
+ * the agents, and one per active check or integration, so a shaky notebook
+ * connection can stay quiet while the rest still speaks up.
+ */
+function reactionsSection(): HTMLElement {
+  const choices: [Reaction, string][] = [
+    ["show", t("Si fa vedere e suona")],
+    ["quiet", t("Cambia faccia, in silenzio")],
+    ["off", t("Resta tranquillo")],
+  ];
+  const row = (label: string, key: string) =>
+    h("div", { class: "row" }, h("label", { text: label }),
+      select<Reaction>(choices, settings.reactions?.[key] ?? "show", (v) => {
+        const all = { ...(settings.reactions ?? {}) };
+        // "show" is the default: not written, so a new situation starts as before.
+        if (v === "show") delete all[key];
+        else all[key] = v;
+        settings.reactions = all;
+        void save();
+      }));
+  const checks = [
+    ...settings.activeIntegrations
+      .filter((id) => !NO_REACTION.has(id))
+      .map((id) => [INTEGRATIONS.find((i) => i.id === id)?.name ?? id, id] as const),
+    ...(settings.widgets ?? []).map((w) => [w.name || t("Widget"), `widget:${w.id}`] as const),
+  ];
+  return h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: t("Reazioni del personaggio") }), profileChip()),
+    h("div", {
+      class: "hint",
+      text: t("Per ogni situazione scegli cosa fa il personaggio. «Cambia faccia, in silenzio»: niente suono e l'isola non si apre. «Resta tranquillo»: lo dice solo la pillola. Permessi e domande degli agenti si fanno sempre vedere, perché l'agente aspetta te."),
+    }),
+    h("h3", { text: t("Agenti") }),
+    row(t("Ha finito"), "agentFinished"),
+    row(t("Si ferma per un errore"), "agentError"),
+    row(t("Arriva a un limite"), "agentLimit"),
+    h("h3", { text: t("Controlli e integrazioni") }),
+    ...(checks.length
+      ? checks.map(([name, key]) => row(name, key))
+      : [h("div", { class: "hint", text: t("Nessun controllo attivo: le integrazioni e i widget accesi compaiono qui.") })]),
+  );
+}
+
 // ── Davanti al cliente ────────────────────────────────────────────────────────
 
 function presenceSection(): HTMLElement {
@@ -2826,7 +2936,7 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     {
       id: "notifiche", label: t("Notifiche"), icon: "alert", color: "#F5A524", title: t("Notifiche"),
       intro: t("Quando il personaggio si fa vedere, quando si fa da parte e i messaggi dagli script."),
-      sections: () => [notifySection(), presenceSection(), scriptsSection(b.status.hookPath)],
+      sections: () => [notifySection(), reactionsSection(), presenceSection(), scriptsSection(b.status.hookPath)],
     },
     {
       id: "chat", label: t("Chat"), icon: "chat", color: "#A78BFA", title: t("Chat"),

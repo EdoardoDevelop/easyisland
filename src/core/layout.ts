@@ -44,6 +44,7 @@ export type IslandViewName =
   | "greeting"
   | "actions"
   | "run"
+  | "rewrite"
   | "unzip"
   | "files"
   | "diff"
@@ -212,6 +213,7 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   greeting: { height: 150, botX: 320, botY: 90, botDiameter: 0, agentMode: "none" },
   actions: { height: 200, botX: 52, botY: null, botDiameter: 44, agentMode: "none" },
   run: { height: 280, botX: 52, botY: 92, botDiameter: 44, agentMode: "none" },
+  rewrite: { height: 380, botX: 52, botY: 92, botDiameter: 44, agentMode: "none" },
   unzip: { height: 230, botX: 52, botY: 92, botDiameter: 44, agentMode: "none" },
   files: { height: 230, botX: 52, botY: 92, botDiameter: 44, agentMode: "none" },
   diff: { height: 280, botX: 52, botY: 92, botDiameter: 44, agentMode: "none" },

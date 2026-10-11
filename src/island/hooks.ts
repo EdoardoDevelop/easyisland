@@ -756,7 +756,7 @@ export function handleHook(island: Island, payload: HookPayload) {
       const lower = message.toLowerCase();
       if (lower.includes("rate limit") || lower.includes("limite d")) {
         State.updateTask(tid, "ratelimit");
-        Sound.play("rate");
+        if (State.reaction("agentLimit") === "show") Sound.play("rate");
       } else if (message.endsWith("?")) {
         State.updateTask(tid, "question");
         State.appendStep(tid, message);
@@ -779,6 +779,12 @@ export function handleHook(island: Island, payload: HookPayload) {
       // whatever tab it was showing.
       void watchingSession(tid).then((watching) => {
         if (watching) return;
+        // "Cambia faccia, in silenzio" / "Resta tranquillo": no sound, no card; the pill says it.
+        if (State.reaction("agentFinished") !== "show") {
+          if (State.focusId !== tid) State.setPillBadge(tid, "finished");
+          State.notify();
+          return;
+        }
         Sound.play("finish");
         if (!quietNow()) State.setFocus(tid);
         surface("finished", true);
@@ -792,9 +798,12 @@ export function handleHook(island: Island, payload: HookPayload) {
 
     case "StopFailure":
       State.updateTask(tid, "error");
-      Sound.play("error");
-      if (focused) surface("error", true);
-      else State.setPillBadge(tid, "error");
+      if (State.reaction("agentError") !== "show") State.setPillBadge(tid, "error");
+      else {
+        Sound.play("error");
+        if (focused) surface("error", true);
+        else State.setPillBadge(tid, "error");
+      }
       break;
 
     case "SessionEnd":

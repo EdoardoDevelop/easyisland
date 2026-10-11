@@ -59,7 +59,9 @@ export async function refreshConfigured() {
 /**
  * A widget check came back. Going from fine to not fine badges the pill, plays
  * a sound and shows the island (within the profile's notification rules);
- * recovering clears the badge.
+ * recovering clears the badge. Sound and island only when the check's
+ * reaction is "show" (Impostazioni → Notifiche → Reazioni del personaggio);
+ * the badge stays in any case.
  */
 function handleWidget(island: Island, r: WidgetStatus) {
   if (State.paused) return;
@@ -75,21 +77,24 @@ function handleWidget(island: Island, r: WidgetStatus) {
     task.stepIndex = 0;
     const wasBad = prev ? prev.level !== "ok" : false;
     const isBad = r.level !== "ok";
+    const shows = State.reaction(task.id) === "show";
     if (isBad && !wasBad) {
       if (State.focusId !== task.id) task.pillBadge = "error";
       // The very first result only sets the badge: no fanfare at startup.
-      if (prev) {
+      if (prev && shows) {
         Sound.play("error");
         island.reveal();
       }
     } else if (!isBad && wasBad) {
       task.pillBadge = null;
-      Sound.play("finish");
+      if (shows) Sound.play("finish");
     } else if (r.event && prev) {
       // A new ticket and the like: announced even though the level stayed put.
       if (State.focusId !== task.id && task.pillBadge !== "error") task.pillBadge = "finished";
-      Sound.play("finish");
-      island.reveal();
+      if (shows) {
+        Sound.play("finish");
+        island.reveal();
+      }
     }
     if (r.event) task.steps = [r.event, r.summary];
   }
@@ -153,10 +158,12 @@ function handle(island: Island, update: IntegrationUpdate) {
       if (State.focusId !== update.id) {
         task.pillBadge = event.success ? "finished" : "error";
       }
-      Sound.play(event.success ? "finish" : "error");
       // Same as the Swift pollers: show the compact island so the badge is seen,
       // but never steal the screen for a successful deploy.
-      island.reveal();
+      if (State.reaction(update.id) === "show") {
+        Sound.play(event.success ? "finish" : "error");
+        island.reveal();
+      }
 
       const existing = clearTimers.get(update.id);
       if (existing != null) window.clearTimeout(existing);

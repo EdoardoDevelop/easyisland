@@ -15,6 +15,7 @@ import { buildDiff } from "./diff";
 import { buildRecap } from "./recap";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, type ActionHandlers } from "./actions";
+import { buildRewrite, type RewriteHandlers } from "./rewrite";
 import { planSummary, planText } from "../island/plan";
 import { permissionModeLabel } from "../island/hooks";
 import { renderMarkdown } from "../core/markdown";
@@ -22,7 +23,7 @@ import { Bridge } from "../core/bridge";
 import { Sound } from "../core/sound";
 import { t } from "../core/i18n";
 
-export interface ViewActions extends ActionHandlers {
+export interface ViewActions extends ActionHandlers, RewriteHandlers {
   setView(v: IslandViewName): void;
   /** The tray ("Vassoio"): the files dropped since EasyIsland started. */
   openFiles(): void;
@@ -1085,6 +1086,7 @@ export function buildViews(
   map.set("choose", buildChoose(actions));
   map.set("actions", buildActions(actions));
   map.set("run", buildRun(actions));
+  map.set("rewrite", buildRewrite(actions));
   map.set("unzip", buildUnzip(actions));
   map.set("files", buildFiles(actions));
   map.set("diff", buildDiff(actions));
