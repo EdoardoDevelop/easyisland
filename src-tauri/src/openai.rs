@@ -85,12 +85,11 @@ fn user_message(first: bool, query: &str, context: Option<&ChatContext>) -> Valu
             Some(ChatContext::Text { label, text }) => {
                 parts.push(json!({ "type": "text", "text": format!("{label}:\n{text}") }));
             }
-            Some(ChatContext::Window { app_name, title, url }) => {
-                let mut text = format!("Contesto — App: {app_name}, Finestra: {title}");
-                if let Some(url) = url {
-                    text.push_str(&format!(", URL: {url}"));
+            Some(ChatContext::Window { app_name, title, url, image }) => {
+                if let Some(path) = image {
+                    parts.extend(file_parts(t("Finestra"), path));
                 }
-                parts.push(json!({ "type": "text", "text": text }));
+                parts.push(json!({ "type": "text", "text": crate::claude::window_line(app_name, title, url.as_deref()) }));
             }
             None => {}
         }

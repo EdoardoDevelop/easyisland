@@ -89,7 +89,7 @@ fn exe_of(hwnd: HWND) -> Option<String> {
 }
 
 /// Full path of the program that owns the window.
-fn exe_path(hwnd: HWND) -> Option<String> {
+pub(crate) fn exe_path(hwnd: HWND) -> Option<String> {
     unsafe {
         let mut pid = 0u32;
         GetWindowThreadProcessId(hwnd, Some(&mut pid));

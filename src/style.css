@@ -1245,6 +1245,49 @@ input[type="range"]::-webkit-slider-thumb {
   background: linear-gradient(135deg, #ff6b5b, #f7b32b, #2dd4a7, #38bdf8, #a78bfa);
 }
 
+/* A window attached to the chat (window_drop.rs): its picture, its name, ✕. */
+.chat-head .chip {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.chat-head .chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-thumb {
+  flex: 0 0 auto;
+  height: 16px;
+  max-width: 28px;
+  margin-left: -4px;
+  border-radius: 3px;
+  object-fit: cover;
+}
+
+.chip-del {
+  flex: 0 0 auto;
+  margin-right: -4px;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  font: 400 10px var(--font);
+  color: var(--dim-2);
+  cursor: pointer;
+}
+
+.chip-del:hover {
+  color: var(--ink-2);
+}
+
+/* The character being carried over the windows: where it would be let go. */
+.chip.pick {
+  border: 1.5px dashed rgba(167, 139, 250, 0.8);
+  transform: none;
+  color: #c4b5fd;
+}
+
 .chat-log {
   flex: 1 1 auto;
   min-height: 0;
@@ -3975,3 +4018,12 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 .recap-meta .n { font-weight: 600; color: var(--ink); }
 
 .recap-meta .sep { color: var(--dim-4); }
+
+/* The carried character in the browser preview (the app draws it in carry.rs). */
+#carry-canvas {
+  position: fixed;
+  width: 56px;
+  height: 56px;
+  pointer-events: none;
+  z-index: 1000;
+}

@@ -57,6 +57,13 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.7.2** — **una finestra come contesto della chat**: nella scheda Chat trascini il
+personaggio su una finestra di un'altra app (Chrome, Outlook, Excel…) e la chat la
+riceve con la sua immagine, il nome dell'app e il titolo. Mentre lo porti il personaggio
+segue il mouse e cambia faccia: sorpreso quando lo sollevi, contento sopra una finestra
+che può allegare, cuori quando la lasci. Nel chip la miniatura, con la ✕ per toglierla.
+Era una funzione di Coucou sul Mac che mancava.
+
 **0.7.1** — **3CX** molto più completo (con l'accesso «Interno e password»): il **Team**
 con lo stato dei colleghi in tempo reale, da chiamare, a cui scrivere o a cui rispondere
 al posto loro quando squilla; la **Chat** con colleghi, gruppi e conversazioni esterne,
@@ -115,7 +122,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.7.1** | 11 ott 2026 | 3CX: team, chat, segreteria, code, trasferimento e deviazione; cielo del Meteo grande dietro il personaggio |
+| **0.7.2** | 11 ott 2026 | Il personaggio della chat trascinato su una finestra la allega come contesto, con faccia che cambia mentre lo porti |
+| 0.7.1 | 11 ott 2026 | 3CX: team, chat, segreteria, code, trasferimento e deviazione; cielo del Meteo grande dietro il personaggio |
 | 0.7.0 | 11 ott 2026 | Fiamma animata, Geco con sguardo fino all'orbita, Roccia, Magma, Pietra e Foglia ridisegnati |
 | 0.6.9 | 11 ott 2026 | Sei nuovi personaggi: Geco, Fiamma, Magma, Pietra, Roccia e Foglia |
 | 0.6.8 | 11 ott 2026 | Menu sul testo selezionato con `Win+Alt+A`, «Sostituisci» con anteprima, «Lavora su» nelle azioni rapide, reazioni del personaggio per situazione, niente salti d'altezza dell'isola |
@@ -297,6 +305,7 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 | Trascini una pillola o una scheda in alto | Cambia posto (si blocca in Impostazioni → Integrazioni) |
 | Clicchi sul personaggio | Si infastidisce. Tre volte di fila e gli gira la testa |
 | Lasci il puntatore sul personaggio per due secondi | Cuori |
+| Nella chat, trascini il personaggio su una finestra di un'altra app | La finestra diventa il contesto della chat: ne prende un'immagine, con il nome dell'app e il titolo, e la tua domanda parte insieme a lei. La ✕ sul chip la toglie, Esc annulla mentre lo trascini |
 | Trascini un file sull'isola | Si apre anche se è impostata "solo con un clic": il personaggio diventa una scatola, lo inghiotte e poi si offre di rispondere a domande sul file |
 | Clicchi l'orologio in alto nella chat | La **cronologia**: le conversazioni di prima, con data e motore; un clic ne riapre una e la continui da lì |
 | `Esc`, o la ✕ in alto a destra | Chiude subito l'isola, senza aspettare i secondi della chiusura automatica |
@@ -906,9 +915,9 @@ EasyIsland nasce come fork solo per Windows di
 personaggio Mochi), app nativa macOS per il notch. Slime, uno slime,
 ha preso il posto di Mochi. Il codice macOS e il prototipo originale sono stati
 rimossi (restano nella storia git). Alcune funzioni
-esistevano solo sul Mac e non sono presenti qui: invio di un file per email,
-trascinamento di Slime su una finestra per allegarla come contesto, salto alla
-finestra esatta del terminale. Al suo posto, quando una sessione finisce o va
+esistevano solo sul Mac e non sono presenti qui: invio di un file per email e
+salto alla finestra esatta del terminale. Il trascinamento del personaggio su una
+finestra per allegarla come contesto c'è, dalla scheda Chat. Al suo posto, quando una sessione finisce o va
 in errore, il pulsante **Apri Claude / Apri VS Code / Apri terminale** riporta in
 primo piano l'app in cui gira la sessione (l'app desktop di Claude, VS Code con
 la cartella del progetto, Windows Terminal o la console); se non la trova apre

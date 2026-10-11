@@ -1483,5 +1483,12 @@
   "Disponibile solo con l'accesso dell'interno": "Only available with the extension's login",
   "Scegli almeno un collega": "Pick at least one colleague",
   "Il centralino non ha aperto la conversazione": "The PBX did not open the conversation",
-  "Messaggio troppo lungo": "Message too long"
+  "Messaggio troppo lungo": "Message too long",
+  "Togli la finestra": "Remove the window",
+  "Finestra": "Window",
+  "Lascia per allegare: {name}": "Let go to attach: {name}",
+  "Lascia il personaggio su una finestra": "Drop the character on a window",
+  "Finestra allegata — app: {app}, titolo: {title}": "Attached window — app: {app}, title: {title}",
+  "Immagine della finestra: {path}\nGuardala con Read prima di rispondere.\n": "Picture of the window: {path}\nLook at it with Read before answering.\n",
+  "Non riesco a catturare questa finestra": "Could not capture this window"
 }

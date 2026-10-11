@@ -407,16 +407,14 @@ pub async fn send(
             Some(ChatContext::Text { label, text }) => {
                 prompt.push_str(&format!("{label}:\n{text}\n\n"));
             }
-            Some(ChatContext::Window {
-                app_name,
-                title,
-                url,
-            }) => {
-                prompt.push_str(&format!("Contesto — App: {app_name}, Finestra: {title}"));
-                if let Some(url) = url {
-                    prompt.push_str(&format!(", URL: {url}"));
+            Some(ChatContext::Window { app_name, title, url, image }) => {
+                prompt.push_str(&crate::claude::window_line(app_name, title, url.as_deref()));
+                prompt.push('\n');
+                if let Some(path) = image {
+                    prompt.push_str(&tf("Immagine della finestra: {path}\nGuardala con Read prima di rispondere.\n", &[("path", &path)]));
+                    extra_dir = Path::new(path).parent().map(Path::to_path_buf);
                 }
-                prompt.push_str("\n\n");
+                prompt.push('\n');
             }
             None => {}
         }

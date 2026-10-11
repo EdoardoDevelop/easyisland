@@ -269,6 +269,14 @@ export const Bridge = {
   ingestFile: (path: string) => callOrThrow<DroppedFile>("ingest_file", { path }),
   /** Windows' snipping overlay; the picture saved in the inbox, or null if the user gave up. */
   captureScreen: () => callOrThrow<DroppedFile | null>("capture_screen"),
+  /** The carried character's face, drawn under the pointer in a window of its own (carry.rs). */
+  carryFrame: (width: number, height: number, rgba: number[]) => call<void>("carry_frame", { width, height, rgba }),
+  /** The character of the chat tab carried over other windows: the island keeps the mouse meanwhile. */
+  windowPick: (active: boolean) => call<void>("window_pick", { active }),
+  /** The window under the cursor while the character is carried. */
+  windowUnderCursor: () => call<WindowInfo | null>("window_under_cursor"),
+  /** The character let go: the window under the cursor, captured. */
+  windowDrop: () => callOrThrow<WindowShot | null>("window_drop"),
   /** Only ever tells you whether a key exists — never its value. */
   secretPresent: (key: string) => call<boolean>("secret_present", { key }),
   secretSet: (key: string, value: string) => callOrThrow<void>("secret_set", { key, value }),
@@ -332,7 +340,20 @@ export interface ChatSummary {
 export type ChatContext =
   | { kind: "file"; name: string; path: string }
   | { kind: "text"; label: string; text: string }
-  | { kind: "window"; appName: string; title: string; url?: string };
+  | { kind: "window"; appName: string; title: string; url?: string; image?: string };
+
+/** The window the character of the chat tab is carried over (window_drop.rs). */
+export interface WindowInfo {
+  appName: string;
+  title: string;
+}
+
+/** The window the character was dropped on: its picture in the inbox, a small copy for the chip. */
+export interface WindowShot extends WindowInfo {
+  name: string;
+  path: string;
+  thumb: string;
+}
 
 export interface ThreecxContact {
   name: string;

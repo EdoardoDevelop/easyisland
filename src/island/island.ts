@@ -2,7 +2,7 @@
 // Mirrors IslandRootView.swift + IslandWindowController.swift.
 
 import { Tracked, Spring, clamp } from "../core/anim";
-import { Bridge, IS_TAURI, onDragDrop } from "../core/bridge";
+import { Bridge, IS_TAURI, onDragDrop, type WindowShot } from "../core/bridge";
 import {
   EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_MIN_W, MAX_ISLAND_H, NOTCH_W, PANEL_H, PANEL_W,
   ROUNDED_CORNER, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
@@ -21,7 +21,7 @@ import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { buildSearch, type SearchHost } from "../views/search";
-import { sendToChat } from "../views/chat";
+import { sendToChat, windowLabel } from "../views/chat";
 import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
@@ -41,6 +41,8 @@ const LOOK_EPS = 0.01;
 const LOOK_FRAME_MS = 33;
 /** Pointer travel (px) that turns a press on the compact island into a drag. */
 const DRAG_THRESHOLD = 4;
+/** The carried character, logical px (carry.rs draws it this big, a little below the pointer). */
+const CARRY_SIZE = 56;
 
 /** The three views the drop sequence owns; leaving them stops the engine. */
 /** Views drawn at a fixed size: the user's width and height do not apply. */
@@ -115,6 +117,20 @@ export class Island {
   /** Left button held on the compact island: a click or the start of a drag. */
   /** A press that may become a drag of the whole island (`expanded`: started on the open island's header). */
   private press: { x: number; y: number; moved: boolean; expanded: boolean } | null = null;
+  /**
+   * A press on the character of the chat tab: carried onto another app's window,
+   * it attaches that window to the chat (window_drop.rs). `busy`/`again`: one
+   * lookup of the window under the cursor at a time, and one more after it if
+   * the pointer moved meanwhile.
+   */
+  private windowPress: { x: number; y: number; moved: boolean; cancelled: boolean; busy: boolean; again: boolean } | null = null;
+  /** While carried: where the character looks (the way it is moving), when its face was last sent, and whether one is on its way. */
+  private pickLook = { x: 0, y: 0 };
+  private pickCursorAt = 0;
+  private pickSending = false;
+  /** The browser preview has no carry.rs: the carried character is drawn in the page instead. */
+  private carryEl: HTMLCanvasElement | null = null;
+  private carryAt = { x: 0, y: 0 };
   /** The open island dragged off its place this opening, logical px (0 = still at that edge). */
   private openOffset = { x: 0, y: 0 };
   /** Carried around, until Rust has settled where it was dropped: rounded all round. */
@@ -661,6 +677,7 @@ export class Island {
     State.chatHistory = [];
     void Bridge.chatReset();
     State.chatText = null;
+    State.chatWindow = null;
     State.droppedFile = null;
     State.promptContext = null;
     State.chatSession = { sessionId: task!.sessionId!, cwd: task!.sessionCwd!, name: task!.name, fork: null };
@@ -719,6 +736,7 @@ export class Island {
     State.chatSession = null;
     void Bridge.chatReset();
     State.chatText = context;
+    State.chatWindow = null;
     if (!keepFile) {
       State.droppedFile = null;
       State.promptContext = null;
@@ -898,6 +916,152 @@ export class Island {
     window.setTimeout(() => this.views.get("prompt")?.focus?.(), 120);
   }
 
+  // ── The character of the chat tab carried onto a window ─────────────────────
+
+  /** Only in the chat, not while it answers, and not when it asks a session. */
+  private canPickWindow(): boolean {
+    return State.mode === "expanded" && State.view === "prompt" && !State.chatSession
+      && State.stateOverride !== "thinking";
+  }
+
+  private startWindowPick() {
+    // The island must not close while the pointer is away from it.
+    this.fsm.pinned = true;
+    State.windowPick = { over: "" };
+    // Lifted: surprised, until it is over a window it can take.
+    this.pickFace(false);
+    this.engine.triggerEmote("surprised");
+    this.pickLook = { x: 0, y: 0 };
+    // The character leaves the island and follows the pointer in a window of
+    // its own (carry.rs), its face sent by the frame loop: refreshPickCursor.
+    this.islandEl.style.cursor = "grabbing";
+    this.pickCursorAt = performance.now();
+    void Bridge.windowPick(true).then(() => this.sendCarryFrame());
+    this.botCanvas.style.visibility = "hidden";
+    this.botGlow.style.visibility = "hidden";
+    this.ensureRunning();
+    Sound.play("blip");
+    State.notify();
+  }
+
+  /** The face while carried: happy over a window it can take, surprised elsewhere. */
+  private pickFace(overWindow: boolean) {
+    const emote = overWindow ? "happy" : "surprised";
+    if (this.engine.permanentEmote === emote) return;
+    this.engine.setPermanentEmote(emote);
+    if (overWindow) this.engine.triggerEmote("happy");
+    this.ensureRunning();
+  }
+
+  /** The window under the pointer gets the character's face about 15 times a second. */
+  private refreshPickCursor(nowMs: number) {
+    if (nowMs - this.pickCursorAt < 66 || this.pickSending) return;
+    this.pickCursorAt = nowMs;
+    this.sendCarryFrame();
+  }
+
+  /** The window under the cursor, shown in the chat while the character is carried. */
+  private askPickWindow(p: NonNullable<Island["windowPress"]>) {
+    if (p.busy) {
+      p.again = true;
+      return;
+    }
+    p.busy = true;
+    void Bridge.windowUnderCursor().then((w) => {
+      p.busy = false;
+      if (this.windowPress !== p || p.cancelled || !State.windowPick) return;
+      const over = w ? windowLabel(w) : "";
+      this.pickFace(!!w);
+      if (State.windowPick.over !== over) {
+        State.windowPick = { over };
+        State.notify();
+      }
+      if (p.again) {
+        p.again = false;
+        this.askPickWindow(p);
+      }
+    });
+  }
+
+  /** Let go (`drop`) or given up: the character comes back, the window is captured. */
+  private async endWindowPick(drop: boolean) {
+    let shot: WindowShot | null = null;
+    if (drop) {
+      try {
+        shot = await Bridge.windowDrop();
+      } catch (err) {
+        this.note(String(err).replace(/^Error:\s*/, ""), "prompt");
+      }
+    } else {
+      void Bridge.windowPick(false);
+    }
+    State.windowPick = null;
+    this.carryEl?.remove();
+    this.carryEl = null;
+    this.engine.setPermanentEmote(null);
+    this.islandEl.style.cursor = "";
+    this.botCanvas.style.visibility = "";
+    this.botGlow.style.visibility = "";
+    this.fsm.pinned = State.isPinned;
+    if (shot) this.attachWindow(shot);
+    else State.notify();
+  }
+
+  private placeCarry() {
+    if (!this.carryEl) return;
+    this.carryEl.style.left = `${this.carryAt.x - CARRY_SIZE / 2}px`;
+    this.carryEl.style.top = `${this.carryAt.y - CARRY_SIZE * 0.3}px`;
+  }
+
+  /** The character's face, at its size on screen in physical pixels, for the window under the pointer (carry.rs). */
+  private sendCarryFrame() {
+    if (!State.windowPick || this.pickSending) return;
+    const src = this.botCanvas;
+    if (!src.width || !this.canvasPx) return;
+    const size = Math.round(CARRY_SIZE * (window.devicePixelRatio || 1));
+    if (!IS_TAURI) {
+      this.carryEl ??= document.body.appendChild(h("canvas", { id: "carry-canvas" }) as HTMLCanvasElement);
+      this.carryEl.width = this.carryEl.height = size;
+      this.placeCarry();
+      const g = this.carryEl.getContext("2d");
+      g?.clearRect(0, 0, size, size);
+      g?.drawImage(src, 0, BOT_OVERHANG * (src.width / this.canvasPx), src.width, src.width, 0, 0, size, size);
+      return;
+    }
+    const c = document.createElement("canvas");
+    c.width = c.height = size;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    // The body is the w × w square under the particles' overhang (drawBot).
+    const dpr = src.width / this.canvasPx;
+    const side = this.canvasPx * dpr;
+    ctx.drawImage(src, 0, BOT_OVERHANG * dpr, side, side, 0, 0, size, size);
+    const rgba = Array.from(ctx.getImageData(0, 0, size, size).data);
+    this.pickSending = true;
+    void Bridge.carryFrame(size, size, rgba).finally(() => { this.pickSending = false; });
+  }
+
+  /**
+   * The window the character was dropped on: the chat is about it from the
+   * first question. It goes with the first message only, so a conversation in
+   * progress starts over (it stays in the history).
+   */
+  private attachWindow(w: WindowShot) {
+    Sound.play("approve");
+    if (State.chatHistory.length) {
+      State.chatHistory = [];
+      void Bridge.chatReset();
+    }
+    State.chatText = null;
+    State.droppedFile = null;
+    State.promptContext = null;
+    State.chatWindow = w;
+    this.engine.triggerEmote("love");
+    void Bridge.focusWindow(true);
+    State.notify();
+    window.setTimeout(() => this.views.get("prompt")?.focus?.(), 120);
+  }
+
   /** A fresh chat with `prompt` in its field, not sent: the text goes after it. */
   private draftChat(prompt: string) {
     const q = prompt.trim();
@@ -938,6 +1102,7 @@ export class Island {
     State.droppedFile = { name: f.name, path: f.path };
     State.promptContext = { kind: "file", name: f.name, path: f.path };
     State.chatText = null;
+    State.chatWindow = null;
     State.chatHistory = [];
     void Bridge.chatReset();
     this.setView("choose");
@@ -967,6 +1132,7 @@ export class Island {
     State.droppedFile = { name: f.name, path: f.path };
     State.promptContext = { kind: "file", name: f.name, path: f.path };
     State.chatText = null;
+    State.chatWindow = null;
     State.chatHistory = [];
     void Bridge.chatReset();
     this.setView("prompt");
@@ -1412,6 +1578,7 @@ export class Island {
     State.droppedFile = { name, path, source: path };
     State.promptContext = { kind: "file", name, path };
     State.chatText = null;
+    State.chatWindow = null;
     State.chatHistory = [];
     void Bridge.chatReset();
 
@@ -1693,6 +1860,12 @@ export class Island {
     const r = this.islandRect();
     return r.w > 0 && x >= r.x - DROP_MARGIN && x <= r.x + r.w + DROP_MARGIN
       && y >= r.y - DROP_MARGIN && y <= r.y + r.h + DROP_MARGIN;
+  }
+
+  /** Inside the island shape (client px). */
+  private overIsland(x: number, y: number): boolean {
+    const r = this.islandRect();
+    return r.w > 0 && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
   }
 
   private islandRect(): { x: number; y: number; w: number; h: number } {
@@ -2039,6 +2212,70 @@ export class Island {
     this.restIcon.addEventListener("contextmenu", restMenu);
     this.islandEl.addEventListener("contextmenu", restMenu);
 
+    // Chat tab: the character carried onto another app's window attaches that
+    // window to the chat (window_drop.rs). A still press stays a pat. Registered
+    // before the island's own press, which it keeps from starting.
+    this.islandEl.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0 || !this.canPickWindow() || !this.isBotHit(e.clientX, e.clientY)) return;
+      e.stopImmediatePropagation();
+      Sound.resume();
+      State.lastActivity = performance.now();
+      this.cancelHoverOpen();
+      this.windowPress = { x: e.screenX, y: e.screenY, moved: false, cancelled: false, busy: false, again: false };
+      this.islandEl.setPointerCapture(e.pointerId);
+    });
+    this.islandEl.addEventListener("pointermove", (e) => {
+      const p = this.windowPress;
+      if (!p || p.cancelled) return;
+      const dx = e.screenX - p.x;
+      const dy = e.screenY - p.y;
+      if (!p.moved) {
+        if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+        p.moved = true;
+        this.startWindowPick();
+      }
+      p.x = e.screenX;
+      p.y = e.screenY;
+      this.carryAt = { x: e.clientX, y: e.clientY };
+      this.placeCarry();
+      // It wobbles as it is carried, and looks the way it goes.
+      this.engine.jiggle(dx, dy);
+      this.pickLook = {
+        x: clamp(this.pickLook.x * 0.6 + dx / 25, -1, 1),
+        y: clamp(this.pickLook.y * 0.6 + dy / 25, -1, 1),
+      };
+      this.ensureRunning();
+      // Over the island itself nothing would be attached.
+      if (this.overIsland(e.clientX, e.clientY)) {
+        this.pickFace(false);
+        if (State.windowPick?.over) {
+          State.windowPick = { over: "" };
+          State.notify();
+        }
+        return;
+      }
+      this.askPickWindow(p);
+    });
+    const endWindowPress = (e: PointerEvent, cancelled: boolean) => {
+      const p = this.windowPress;
+      if (!p) return;
+      this.windowPress = null;
+      if (this.islandEl.hasPointerCapture(e.pointerId)) this.islandEl.releasePointerCapture(e.pointerId);
+      if (!p.moved || p.cancelled) return;
+      void this.endWindowPick(!cancelled && !this.overIsland(e.clientX, e.clientY));
+    };
+    this.islandEl.addEventListener("pointerup", (e) => endWindowPress(e, false));
+    this.islandEl.addEventListener("pointercancel", (e) => endWindowPress(e, true));
+    // Esc gives up while it is carried (before the chat field, which keeps its keys).
+    window.addEventListener("keydown", (e) => {
+      const p = this.windowPress;
+      if (e.key !== "Escape" || !p?.moved || p.cancelled) return;
+      e.preventDefault();
+      e.stopPropagation();
+      p.cancelled = true;
+      void this.endWindowPick(false);
+    }, true);
+
     // Compact island: a press opens on release, a drag moves it. Open island: the
     // header's empty space drags it (tabs, buttons and fields keep their clicks).
     this.islandEl.addEventListener("pointerdown", (e) => {
@@ -2239,6 +2476,7 @@ export class Island {
       // Kept running even while the drop canvas is up, so the island's own the character
       // is already in the right place the moment the canvas fades out.
       this.drawBot(dt);
+      if (State.windowPick) this.refreshPickCursor(nowMs);
     }
 
     const uploadActive = this.uploadActive;
@@ -2263,7 +2501,7 @@ export class Island {
       ? settling
       : settling ||
         !this.botCx.settled || !this.botCy.settled || !this.botSize.settled ||
-        greetingActive || this.engine.busy || UploadSeq.isActive;
+        greetingActive || this.engine.busy || UploadSeq.isActive || !!State.windowPick;
 
     // Only following the cursor: 30 fps is plenty for a gaze and halves the cost.
     // Tweens, geometry, particles, the greeting and the drop keep the full rate.
@@ -2339,6 +2577,11 @@ export class Island {
     this.engine.lookX = follow ? this.lookX() : this.wanderLook.x;
     this.engine.lookY = follow ? this.lookY() : this.wanderLook.y;
     if (follow) this.drawnLook = { x: this.engine.lookX, y: this.engine.lookY };
+    // Carried as the pointer: it looks the way it is moving, not at itself.
+    if (State.windowPick) {
+      this.engine.lookX = this.pickLook.x;
+      this.engine.lookY = this.pickLook.y;
+    }
     if (this.engine.morph > 0.3) {
       this.engine.slotHTarget = State.fileDragOver ? 0.2 : 0;
     } else {

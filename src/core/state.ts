@@ -5,6 +5,7 @@ import type { EyeShape } from "../character/engine";
 import type { PlanItem } from "../island/plan";
 import { isSky, type Sky } from "../character/weather";
 import { t } from "./i18n";
+import type { WindowShot } from "./bridge";
 
 const WEATHER = "integration_weather";
 
@@ -801,6 +802,10 @@ class AppState {
   } | null = null;
   /** Text the chat is about (clipboard, a quick action) — sent with the first message. */
   chatText: { label: string; text: string } | null = null;
+  /** Another app's window the character of the chat tab was dropped on — sent with the first message. */
+  chatWindow: WindowShot | null = null;
+  /** The character of the chat tab is being carried: the window it is over ("" = none yet). */
+  windowPick: { over: string } | null = null;
   /** Put in the chat field once, not sent (an action with no selection: the text goes after it). */
   chatDraft: string | null = null;
   /** Added once to the chat field, after what is there (a folder the character was dropped on). */

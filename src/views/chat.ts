@@ -50,11 +50,23 @@ function typingDots(): HTMLElement {
   );
 }
 
-/** The coloured chip showing what the question is about (a dropped file). */
-function contextChip(label: string): HTMLElement {
-  const chip = h("div", { class: "chip" }, h("i", { class: "chip-dot" }), h("span", { text: label }));
+/**
+ * The coloured chip showing what the question is about (a dropped file, a
+ * window: then a small picture of it, and ✕ takes it away).
+ */
+function contextChip(label: string, thumb?: string, remove?: () => void): HTMLElement {
+  const lead = thumb ? h("img", { class: "chip-thumb", src: thumb, alt: "" }) : h("i", { class: "chip-dot" });
+  const chip = h("div", { class: "chip" }, lead, h("span", { text: label }));
+  if (remove) chip.append(h("button", { class: "chip-del", title: t("Togli la finestra"), text: "✕", onclick: remove }));
   requestAnimationFrame(() => chip.classList.add("settled"));
   return chip;
+}
+
+/** "Google Chrome — Titolo della pagina", shortened: the chip has one line. */
+export function windowLabel(w: { appName: string; title: string }): string {
+  const title = w.title.length > 60 ? `${w.title.slice(0, 59)}…` : w.title;
+  if (!w.appName) return title || t("Finestra");
+  return title && title !== w.appName ? `${w.appName} — ${title}` : w.appName;
 }
 
 export function buildPrompt(onHeightChange: () => void): ViewHost {
@@ -138,14 +150,17 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
 
     const file = State.droppedFile;
     const text = State.chatText;
+    const win = State.chatWindow;
     const first = State.chatHistory.length === 1;
     const context: ChatContext | null = !first
       ? null
       : text
         ? { kind: "text", label: text.label, text: text.text }
-        : file
-          ? { kind: "file", name: file.name, path: file.path }
-          : null;
+        : win
+          ? { kind: "window", appName: win.appName, title: win.title, image: win.path }
+          : file
+            ? { kind: "file", name: file.name, path: file.path }
+            : null;
 
     streamed = "";
     try {
@@ -184,6 +199,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     State.chatHistory = [];
     State.droppedFile = null;
     State.chatText = null;
+    State.chatWindow = null;
     State.promptContext = null;
     State.chatSession = null;
     // An engine picked in the menu was for that conversation only.
@@ -303,6 +319,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       State.chatHistory = c.lines.map((l) => ({ id: nextId++, role: l.role, content: l.content }));
       State.droppedFile = null;
       State.chatText = null;
+      State.chatWindow = null;
       State.promptContext = null;
       State.chatSession = null;
       State.chatEngineOverride = c.engine === State.settings.chatEngine ? null : (c.engine as ChatEngine);
@@ -357,16 +374,35 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     sync() {
       const file = State.droppedFile;
       const text = State.chatText;
+      const win = State.chatWindow;
       const asked = State.chatSession;
-      const wantChip = asked
+      const pick = State.windowPick;
+      const wantChip = pick
+        ? (pick.over ? t("Lascia per allegare: {name}", { name: pick.over }) : t("Lascia il personaggio su una finestra"))
+        : asked
         ? t("Sessione {name} · copia in sola lettura", { name: asked.name })
         : text
         ? `${text.label} · ${t("{n} caratteri", { n: text.text.length.toLocaleString(locale()) })}`
+        : win
+        ? windowLabel(win)
         : file?.name ?? "";
-      if (chipRow.dataset.label !== wantChip) {
-        chipRow.dataset.label = wantChip;
+      const chipKey = `${pick ? "pick" : ""}${wantChip}${win && !pick ? win.path : ""}`;
+      if (chipRow.dataset.label !== chipKey) {
+        chipRow.dataset.label = chipKey;
         clear(chipRow);
-        if (wantChip) chipRow.append(contextChip(wantChip));
+        // The window can be taken away until the first question goes.
+        const removable = !pick && !asked && !text && win && State.chatHistory.length === 0;
+        const removeWin = () => {
+          State.chatWindow = null;
+          Sound.play("blip");
+          State.notify();
+          input.focus();
+        };
+        if (wantChip) {
+          const chip = contextChip(wantChip, !pick && !asked && !text && win ? win.thumb : undefined, removable ? removeWin : undefined);
+          if (pick) chip.classList.add("pick");
+          chipRow.append(chip);
+        }
       }
 
       engineBtn.textContent = `${engineLabel({ ...State.settings, chatEngine: State.chatEngine })} ▾`;
@@ -411,7 +447,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
 
       input.disabled = sending;
       // Only when there is something to forget.
-      fresh.style.display = State.chatHistory.length > 0 || file || text || asked ? "" : "none";
+      fresh.style.display = State.chatHistory.length > 0 || file || text || win || asked ? "" : "none";
       (fresh as HTMLButtonElement).disabled = sending;
     },
     // The open history list makes the island as tall as it needs (up to its maximum).
