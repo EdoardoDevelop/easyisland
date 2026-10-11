@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 10 ottobre 2026 — versione 0.6.7
+- Unione in `main` e tag `v0.6.7`: markdown e «Continua» sulla card «finito», «Chiedi a questa sessione», «Più tardi» sul permesso, «Sempre» di sessione, 📌 come finestra normale (voci sotto). README con novità e tabella delle versioni.
+
 ### 10 ottobre 2026 — 📌 «Tieni aperta» come finestra normale
 - Con il 📌 l'isola aperta ha l'icona nella barra e in Alt+Tab, non è più sempre in primo piano, si riduce con un clic sull'icona; un permesso fa solo lampeggiare l'icona. Togliendo il 📌 o chiudendo torna com'era (`set_app_mode`, `flash_if_behind` in `island.rs`, `docs/architettura.md`). Compila e passa i test; il comportamento della finestra è da provare dal vivo.
 

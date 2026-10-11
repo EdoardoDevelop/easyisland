@@ -5,6 +5,7 @@
 import { registerCharacters } from "./character";
 import { CUBE } from "./cube";
 import { DROP } from "./drop";
+import { GECKO } from "./gecko";
 import { SLIME } from "./slime";
 
-registerCharacters(DROP, SLIME, CUBE);
+registerCharacters(DROP, SLIME, CUBE, GECKO);

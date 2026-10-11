@@ -11,7 +11,8 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Clic destro in Esplora file:** voci di EasyIsland sui file («Manda a EasyIsland», azioni sui file), deciso con Edoardo l'11 ottobre come passo successivo al menu sulla selezione (`docs/idee.md`).
 - [ ] **opencode:** card per lo strumento `question` anche nella chat (per l'agente c'è), controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
 - [ ] **Spunti da Coucou:** Amp/Hermes, limiti di Codex, riepilogo condivisibile come immagine, GitHub (`docs/idee.md`).
-- [ ] **Da decidere con Edoardo:** nuovi personaggi (rimandati: le prove sono venute male), firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
+- [ ] **Prova dal vivo del Geco** (`docs/prove-dal-vivo.md`) e verifica della provenienza del disegno prima di distribuirlo.
+- [ ] **Da decidere con Edoardo:** firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
 
 ## Problemi noti
 - **Sopra la barra:** cliccando la barra o aprendo Start il personaggio va dietro. Torna davanti a ogni cambio di finestra in primo piano. Va verificato con Start aperto.
@@ -21,6 +22,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 11 ottobre 2026 — nuovo personaggio: Geco
+- `src/character/gecko.ts`: testa di geco con due cupole, grandi occhi ambrati e mento crema, ricalcata da un disegno di Edoardo (134×92 px) misurando contorno, occhi e macchie; in anteprima la differenza col disegno resta entro 1–2 px. Pupille che guardano dentro il globo, palpebra che scende nel battito, occhi chiusi sul verde, occhi dentro la scatola del rilascio file (`docs/architettura.md`). Provato in `dev/character-preview.html`, `upload-preview.html` e `greeting-preview.html`; dal vivo da provare.
 
 ### 11 ottobre 2026 — versione 0.6.8
 - Unione in `main` e tag `v0.6.8`: menu sul testo selezionato con `Win+Alt+A` (azioni rapide con icone e cartelle), «Sostituisci» con anteprima, «Lavora su» nell'editor delle azioni, reazioni del personaggio, isola senza salti d'altezza (voci sotto). README con novità e tabella delle versioni.
@@ -34,6 +38,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 11 ottobre 2026 — «Sostituisci» sul testo selezionato e menu con Win+Alt+A
 - **Sostituisci con anteprima:** «Riscrivi», «Correggi», «Più formale»… riscrivono la selezione con il motore della chat (`rewrite_text`, una risposta a parte, fuori dalla cronologia) e mostrano prima e dopo (`src/views/rewrite.ts`). Con «Sostituisci» `context::replace` ricopia la selezione, incolla solo se è ancora la stessa, poi rimette gli appunti.
 - **Menu sul testo selezionato** in qualunque app, browser compresi: `Win+Alt+A` copia la selezione e apre un menu nativo al mouse (`selection-menu.ts`, `tray::popup_entries`) con **solo le azioni rapide** sul testo selezionato, con le loro icone e le cartelle come sottomenu. Nell'editor «Lavora su» sceglie anche «lo sostituisce»; un pulsante crea quattro azioni di partenza. Anteprima provata (scena `rewrite`, Impostazioni); le app vere sono da provare dal vivo.
-
-### 10 ottobre 2026 — versione 0.6.7
-- Unione in `main` e tag `v0.6.7`: markdown e «Continua» sulla card «finito», «Chiedi a questa sessione», «Più tardi» sul permesso, «Sempre» di sessione, 📌 come finestra normale (voci sotto). README con novità e tabella delle versioni.
