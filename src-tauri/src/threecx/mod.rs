@@ -75,6 +75,73 @@ pub struct HistoryItem {
     pub answered: bool,
 }
 
+/// A colleague of the same PBX and how they are right now.
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Colleague {
+    pub number: String,
+    pub name: String,
+    /// "available" | "away" | "dnd" | "busy" | "ringing" | "offline"
+    pub presence: String,
+    /// Their status as they set it ("Pausa pranzo", a custom message…).
+    pub status: String,
+    /// The call ringing for them, which we can answer in their place.
+    pub ringing_call: Option<String>,
+    pub mobile: String,
+}
+
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatSummary {
+    pub id: i64,
+    pub name: String,
+    /// A visitor of the site, WhatsApp, SMS…: not a colleague.
+    pub external: bool,
+    pub group: bool,
+    /// The colleague's extension in a one-to-one chat (to call them), else "".
+    pub number: String,
+    pub last: String,
+    pub last_at: u64,
+    pub last_mine: bool,
+    pub unread: i64,
+}
+
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatMessage {
+    pub id: i64,
+    pub conversation: i64,
+    pub mine: bool,
+    pub from: String,
+    pub text: String,
+    /// The name of an attached file (the file itself stays on the PBX).
+    pub file: Option<String>,
+    pub at: u64,
+    pub is_new: bool,
+    /// Written by the PBX (chat closed, transferred…), not by a person.
+    pub system: bool,
+}
+
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Voicemail {
+    pub id: i64,
+    pub name: String,
+    pub number: String,
+    pub at: u64,
+    pub seconds: i64,
+    pub is_new: bool,
+    /// The PBX's transcription, when it makes one.
+    pub transcription: String,
+}
+
+/// Someone is writing in a conversation.
+#[derive(Serialize, Clone)]
+struct Typing {
+    conversation: i64,
+    name: String,
+}
+
 /// What the island is shown.
 #[derive(Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
@@ -89,6 +156,15 @@ struct Snapshot {
     device: String,
     calls: Vec<Call>,
     missed: i64,
+    /// The colleagues (login mode only).
+    team: Vec<Colleague>,
+    /// Unread chat messages, all conversations.
+    unread: i64,
+    /// Conversation id → unread messages.
+    unread_by_chat: HashMap<String, i64>,
+    voicemail: i64,
+    /// Logged in to the queues; None when the extension is in no queue.
+    queue: Option<bool>,
 }
 
 enum Conn {
@@ -105,6 +181,16 @@ struct Live {
     announced: HashSet<String>,
     /// Last state of every call, for the log (states only, never numbers or names).
     states: HashMap<String, String>,
+    /// Conversation id → unread chat messages.
+    unread: HashMap<i64, i64>,
+}
+
+impl Live {
+    fn set_unread(&mut self, unread: HashMap<i64, i64>) {
+        self.unread = unread;
+        self.snapshot.unread = self.unread.values().sum();
+        self.snapshot.unread_by_chat = self.unread.iter().map(|(k, v)| (k.to_string(), *v)).collect();
+    }
 }
 
 static LIVE: Mutex<Option<Live>> = Mutex::new(None);
@@ -366,6 +452,26 @@ async fn events(url: String, headers: Vec<(String, String)>) -> Result<tokio::sy
     Ok(rx)
 }
 
+/// New chat messages pushed by the PBX: counted as unread (unless ours) and
+/// handed to the island, which shows them in an open chat or announces them.
+fn new_messages(app: &AppHandle, m: &pb::Msg, me: &str) {
+    let messages: Vec<ChatMessage> = m.msgs(1).iter().filter_map(|x| myphone::chat_message(x, me)).collect();
+    if messages.is_empty() {
+        return;
+    }
+    live(|l| {
+        let mut unread = std::mem::take(&mut l.unread);
+        for msg in messages.iter().filter(|x| x.is_new && !x.mine && !x.system) {
+            *unread.entry(msg.conversation).or_insert(0) += 1;
+        }
+        l.set_unread(unread);
+    });
+    publish(app);
+    for msg in messages {
+        let _ = app.emit_to(WINDOW_LABEL, "threecx-chat", &msg);
+    }
+}
+
 fn stale(generation: u64) -> bool {
     GENERATION.load(Ordering::SeqCst) != generation
 }
@@ -382,13 +488,17 @@ async fn run_user(app: &AppHandle, cfg: &Config, generation: u64) -> Result<(), 
         info.apply(&info_msg);
     }
     let mut seen: HashMap<i64, (u64, bool)> = HashMap::new();
+    let mut team = myphone::Team::default();
+    // In at least one queue: the queues pushed on connect are those of the extension.
+    let mut in_queues = false;
     // Only the first few message types, for diagnosis: never their content.
     let mut logged = 0;
 
-    let refresh_snapshot = |info: &myphone::MyInfo, seen: &mut HashMap<i64, (u64, bool)>| {
+    let refresh_snapshot = |info: &myphone::MyInfo, team: &myphone::Team, in_queues: bool, seen: &mut HashMap<i64, (u64, bool)>| {
         let calls = info.calls(seen, now_ms());
         live(|l| {
             l.error = None;
+            let unread = std::mem::take(&mut l.unread);
             l.snapshot = Snapshot {
                 mode: "user".into(),
                 connected: true,
@@ -400,11 +510,22 @@ async fn run_user(app: &AppHandle, cfg: &Config, generation: u64) -> Result<(), 
                 device: cfg.device.clone(),
                 calls,
                 missed: info.missed,
+                team: team.colleagues(&info.number),
+                voicemail: info.new_voicemails,
+                queue: in_queues.then_some(info.queue),
+                ..Snapshot::default()
             };
+            l.set_unread(unread);
         });
     };
+    // The unread chat messages, once: then they come pushed.
+    if let Ok((reply, m)) = session.request(&http, myphone::T_UNREAD_COUNT, pb::Writer::new()).await {
+        if reply == myphone::T_UNREAD {
+            live(|l| l.unread = myphone::unread(&m).into_iter().collect());
+        }
+    }
     live(|l| l.conn = Some(Arc::new(Conn::User(session))));
-    refresh_snapshot(&info, &mut seen);
+    refresh_snapshot(&info, &team, in_queues, &mut seen);
     publish(app);
     crate::log::line("3cx: connected (login)");
 
@@ -412,15 +533,44 @@ async fn run_user(app: &AppHandle, cfg: &Config, generation: u64) -> Result<(), 
         match tokio::time::timeout(Duration::from_secs(60), rx.recv()).await {
             Ok(Some(Ok(Frame::Binary(bytes)))) => {
                 if let Some((id, m)) = myphone::unwrap(&bytes) {
-                    if logged < 5 {
+                    if logged < 8 {
                         logged += 1;
                         crate::log::line(format!("3cx: event type {id}"));
                     }
-                    if id == myphone::T_MY_INFO {
-                        info.apply(&m);
-                        refresh_snapshot(&info, &mut seen);
-                        publish(app);
+                    match id {
+                        myphone::T_MY_INFO => info.apply(&m),
+                        myphone::T_GROUPS => {
+                            let before = team.colleagues(&info.number).len();
+                            team.apply(&m);
+                            // How many, never who: enough to check a real PBX from the log.
+                            let now = team.colleagues(&info.number).len();
+                            if now != before && (before == 0 || now == 0) {
+                                crate::log::line(format!("3cx: team of {now} colleagues"));
+                            }
+                        }
+                        myphone::T_QUEUES => {
+                            // Whole list: in a queue if it has any. A delta can only add one.
+                            if m.int(1) == Some(1) {
+                                in_queues = !m.msgs(2).is_empty();
+                            } else if !m.msgs(2).is_empty() {
+                                in_queues = true;
+                            }
+                        }
+                        myphone::T_UNREAD => live(|l| l.set_unread(myphone::unread(&m).into_iter().collect())),
+                        myphone::T_MESSAGES => {
+                            new_messages(app, &m, &info.number);
+                            continue;
+                        }
+                        myphone::T_TYPING => {
+                            let conversation = m.int(3).unwrap_or(0);
+                            let name = m.str(2).filter(|s| !s.trim().is_empty()).unwrap_or_default();
+                            let _ = app.emit_to(WINDOW_LABEL, "threecx-typing", Typing { conversation, name });
+                            continue;
+                        }
+                        _ => continue,
                     }
+                    refresh_snapshot(&info, &team, in_queues, &mut seen);
+                    publish(app);
                 }
             }
             Ok(Some(Ok(Frame::Text(t)))) => {
@@ -473,6 +623,7 @@ async fn run_api(app: &AppHandle, cfg: &Config, generation: u64) -> Result<(), S
                 device: cfg.device.clone(),
                 calls,
                 missed: 0,
+                ..Snapshot::default()
             };
         });
     };
@@ -634,6 +785,148 @@ pub async fn reset_missed() -> Result<(), String> {
         Conn::User(s) => s.request(&http(), myphone::T_RESET_MISSED, pb::Writer::new()).await.map(|_| ()),
         Conn::Api { .. } => Ok(()),
     }
+}
+
+/// The login session: team, chat, voicemail and queues only exist there.
+fn user_session() -> Result<Arc<Conn>, String> {
+    let c = conn()?;
+    match &*c {
+        Conn::User(_) => Ok(c),
+        Conn::Api { .. } => Err(t("Disponibile solo con l'accesso dell'interno").into()),
+    }
+}
+
+async fn user_request(type_id: i64, body: pb::Writer) -> Result<(i64, pb::Msg), String> {
+    let c = user_session()?;
+    let Conn::User(s) = &*c else { unreachable!() };
+    s.request(&http(), type_id, body).await
+}
+
+fn my_number() -> String {
+    live(|l| l.snapshot.number.clone())
+}
+
+fn connection_id(id: &str) -> Result<i64, String> {
+    id.parse().map_err(|_| t("Chiamata sconosciuta").to_string())
+}
+
+/// Our connected call handed to `number` (a colleague or any number).
+pub async fn transfer(id: &str, number: &str) -> Result<(), String> {
+    let to = dialable(number).ok_or(t("Numero non valido"))?;
+    user_request(myphone::T_TRANSFER_CALL, myphone::transfer(connection_id(id)?, &to)).await.map(|_| ())
+}
+
+/// A call ringing for us sent to `number`, or to our voicemail when `number` is empty.
+pub async fn divert(id: &str, number: &str) -> Result<(), String> {
+    let n = connection_id(id)?;
+    let body = if number.trim().is_empty() {
+        myphone::divert(n, &my_number(), true)
+    } else {
+        myphone::divert(n, &dialable(number).ok_or(t("Numero non valido"))?, false)
+    };
+    user_request(myphone::T_DIVERT_CALL, body).await.map(|_| ())
+}
+
+/// A colleague's ringing call answered here.
+pub async fn pickup(id: &str, device: Option<&str>) -> Result<(), String> {
+    let device = pick_device(device);
+    user_request(myphone::T_PICKUP_CALL, myphone::pickup(connection_id(id)?, device.as_deref())).await.map(|_| ())
+}
+
+pub async fn set_queue(logged_in: bool) -> Result<(), String> {
+    user_request(myphone::T_CHANGE_STATUS, myphone::queue_status(logged_in)).await.map(|_| ())
+}
+
+/// The latest conversations, with each one's unread messages.
+pub async fn chats() -> Result<Vec<ChatSummary>, String> {
+    let (id, m) = user_request(myphone::T_MY_CHAT_PARTIES, myphone::chat_parties(30)).await?;
+    if id != myphone::T_CHAT_PARTIES {
+        return Ok(Vec::new());
+    }
+    let me = my_number();
+    let mut list = myphone::conversations(&m, &me);
+    live(|l| {
+        for c in &mut list {
+            c.unread = l.unread.get(&c.id).copied().unwrap_or(0);
+        }
+    });
+    Ok(list)
+}
+
+/// The latest messages of a conversation (or those before `before`), oldest first.
+pub async fn messages(conversation: i64, before: Option<i64>) -> Result<Vec<ChatMessage>, String> {
+    let (id, m) = user_request(myphone::T_LAST_MESSAGES, myphone::last_messages(conversation, 30, before)).await?;
+    if id != myphone::T_MESSAGES {
+        return Ok(Vec::new());
+    }
+    let me = my_number();
+    let mut list: Vec<ChatMessage> = m.msgs(1).iter().filter_map(|x| myphone::chat_message(x, &me)).collect();
+    list.sort_by_key(|x| x.id);
+    Ok(list)
+}
+
+/// The conversation with these colleagues (created if new).
+pub async fn chat_with(numbers: &[String]) -> Result<ChatSummary, String> {
+    let me = my_number();
+    let others: Vec<&str> = numbers.iter().map(|s| s.trim()).filter(|s| !s.is_empty() && *s != me).collect();
+    if others.is_empty() {
+        return Err(t("Scegli almeno un collega").into());
+    }
+    let (id, m) = user_request(myphone::T_CREATE_CONVERSATION, myphone::create_conversation(&myphone::party(&me, &others))).await?;
+    let info = (id == myphone::T_CONVERSATION_INFO).then(|| m.msg(1)).flatten();
+    let mut chat = info.and_then(|i| myphone::conversation(&i, &me)).ok_or(t("Il centralino non ha aperto la conversazione"))?;
+    chat.unread = live(|l| l.unread.get(&chat.id).copied().unwrap_or(0));
+    Ok(chat)
+}
+
+pub async fn send(conversation: i64, text: &str) -> Result<(), String> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Ok(());
+    }
+    if text.chars().count() > 4000 {
+        return Err(t("Messaggio troppo lungo").into());
+    }
+    user_request(myphone::T_SEND_TO_CONVERSATION, myphone::send_message(conversation, text)).await.map(|_| ())
+}
+
+/// The conversation was read on screen: its new messages are marked as received.
+pub async fn read(conversation: i64, ids: &[i64]) -> Result<(), String> {
+    if !ids.is_empty() {
+        user_request(myphone::T_SET_CHAT_RECEIVED, myphone::chat_received(ids)).await?;
+    }
+    if let Some(app) = APP.get() {
+        let changed = live(|l| {
+            let mut unread = std::mem::take(&mut l.unread);
+            let had = unread.remove(&conversation).is_some();
+            l.set_unread(unread);
+            had
+        });
+        if changed {
+            publish(app);
+        }
+    }
+    Ok(())
+}
+
+/// "Is typing" to the others in the conversation.
+pub async fn typing(conversation: i64) -> Result<(), String> {
+    user_request(myphone::T_TYPING, myphone::typing(conversation)).await.map(|_| ())
+}
+
+pub async fn voicemails() -> Result<Vec<Voicemail>, String> {
+    let (id, m) = user_request(myphone::T_GET_VOICEMAILS, myphone::voicemails(20)).await?;
+    Ok(if id == myphone::T_VOICEMAILS { myphone::voicemail_list(&m) } else { Vec::new() })
+}
+
+/// Plays a voicemail on our phone (the PBX calls it), and marks it heard.
+pub async fn play_voicemail(id: i64) -> Result<(), String> {
+    user_request(myphone::T_PLAY_VOICEMAIL, myphone::play_voicemail(id)).await?;
+    user_request(myphone::T_SET_VOICEMAIL_HEARD, myphone::voicemail_heard(id)).await.map(|_| ())
+}
+
+pub async fn voicemail_heard(id: i64) -> Result<(), String> {
+    user_request(myphone::T_SET_VOICEMAIL_HEARD, myphone::voicemail_heard(id)).await.map(|_| ())
 }
 
 #[cfg(test)]

@@ -45,13 +45,24 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
   file caricati.
 - **Profili** (lavoro, casa, concentrazione) che cambiano da soli, modalità
   **davanti al cliente**, messaggi da qualsiasi script, backup delle impostazioni.
-- **Nove personaggi** (Goccia, la predefinita, Slime, EasyTech, Geco, Fiamma, Magma,
+- **Nove personaggi** (Goccia, la predefinita, Slime, Geco, Fiamma, Magma,
   Pietra, Roccia e Foglia), posizione libera,
   isola grande fino ai bordi dello schermo e aperta dove vuoi, tema, suoni
   generati nel codice, interfaccia in **italiano o inglese**; leggera a batteria,
   nessuna telemetria.
 
+<p align="center">
+<img src="screenshots/characters.png" width="640" alt="I personaggi: Goccia, Slime, Geco, Fiamma, Magma, Pietra, Roccia e Foglia">
+</p>
+
 ## Novità
+
+**0.7.1** — **3CX** molto più completo (con l'accesso «Interno e password»): il **Team**
+con lo stato dei colleghi in tempo reale, da chiamare, a cui scrivere o a cui rispondere
+al posto loro quando squilla; la **Chat** con colleghi, gruppi e conversazioni esterne,
+con avviso, non letti e «sta scrivendo»; la **Segreteria** con la trascrizione;
+**In coda / Fuori coda**; **Trasferisci** e **Devia** sulle chiamate. Il **cielo del
+Meteo** è in grande, dietro il personaggio. Nel README, l'immagine di tutti i personaggi.
 
 **0.7.0** — personaggi rifatti e più vivi: la **Fiamma** ondeggia e tremola di continuo
 (solo a isola visibile), il **Geco** ha il bordo più fine e le pupille che arrivano fino al
@@ -104,7 +115,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.7.0** | 11 ott 2026 | Fiamma animata, Geco con sguardo fino all'orbita, Roccia, Magma, Pietra e Foglia ridisegnati |
+| **0.7.1** | 11 ott 2026 | 3CX: team, chat, segreteria, code, trasferimento e deviazione; cielo del Meteo grande dietro il personaggio |
+| 0.7.0 | 11 ott 2026 | Fiamma animata, Geco con sguardo fino all'orbita, Roccia, Magma, Pietra e Foglia ridisegnati |
 | 0.6.9 | 11 ott 2026 | Sei nuovi personaggi: Geco, Fiamma, Magma, Pietra, Roccia e Foglia |
 | 0.6.8 | 11 ott 2026 | Menu sul testo selezionato con `Win+Alt+A`, «Sostituisci» con anteprima, «Lavora su» nelle azioni rapide, reazioni del personaggio per situazione, niente salti d'altezza dell'isola |
 | 0.6.7 | 10 ott 2026 | Risposta in markdown e «Continua» sulla card «finito», «Chiedi a questa sessione», «Più tardi» sul permesso, «Sempre» di sessione, 📌 come finestra normale |
@@ -578,18 +590,18 @@ attivo.
   finché la situazione non cambia.
 - **Notifiche**: tutto, solo avvisi, oppure solo le richieste di permesso
   (com'è *Concentrazione* all'inizio).
-- **Tema**: il personaggio (**Goccia**, la predefinita, **Slime**, **EasyTech**, **Geco**,
+- **Tema**: il personaggio (**Goccia**, la predefinita, **Slime**, **Geco**,
   **Fiamma**, **Magma**, **Pietra**, **Roccia** o **Foglia**), il suo
   colore, colore e opacità dell'isola, **sfondo a isola chiusa** (spento, a
   isola chiusa resta solo il personaggio, senza il cerchio o la barra), volume
   separato per avvisi, interfaccia ed emozioni. Slime è uno slime di gelatina verde che ondeggia quando si
   muove; Goccia è un piccolo spirito d'acqua azzurro, lucido, a forma di goccia;
-  EasyTech è un cubo, a riposo con i colori del logo da cui è disegnato (o con il
+  Ezzy è un cubo, a riposo con i colori del logo da cui è disegnato (o con il
   colore del tema, se lo scegli); Geco è una testa di geco con gli occhi ambrati che
-  sbattono le palpebre, Fiamma una fiammella a strati che ondeggia, Magma, Pietra, Roccia e Foglia
+  sbattono le palpebre, Fiamma una fiammella a strati che ondeggia, Magma, Pietra e Roccia
   tre sassolini con grandi occhi neri (Roccia col muschio, Magma con la lava, Pietra col germoglio) e Foglia una foglia lucida con le venature. Negli
   altri stati tutti prendono il colore dello stato (blu mentre lavora, ambra per
-  un permesso, rosso per un errore…). EasyTech ha gli occhi su un lato, con le
+  un permesso, rosso per un errore…). Ezzy ha gli occhi su un lato, con le
   stesse espressioni, e segue il mouse come gli altri. Anteprima senza
   compilare: `npm run ui`, poi aggiungi `?character=drop` o `?character=cube`
   all'indirizzo.

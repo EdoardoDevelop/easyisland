@@ -1,11 +1,12 @@
 # Handoff — EasyIsland
 
-_Aggiornato all'11 ottobre 2026. Versione **0.7.0** in `main` con il tag `v0.7.0` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato all'11 ottobre 2026. Versione **0.7.1** in `main` con il tag `v0.7.1` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
-- [ ] **Prove dal vivo:** della 0.6.3 interfaccia in inglese, limiti del piano, card «finito» da un altro programma e riepilogo settimanale; della 0.6.4 cronologia delle chat; della 0.6.5 il personaggio lasciato su un'icona del desktop; della 0.6.6 saluto al centro, Claude Code assente sul notebook e standby con la Rete; della 0.6.7 «Continua», «Chiedi», «Sempre» di sessione e 📌 come finestra; della 0.6.8 menu con `Win+Alt+A`, «Sostituisci» e reazioni del personaggio; della 0.6.9 e 0.7.0 i nuovi personaggi e la Fiamma animata. Tutte in `docs/prove-dal-vivo.md`.
+- [ ] **Prove dal vivo:** della 0.6.3 interfaccia in inglese, limiti del piano, card «finito» da un altro programma e riepilogo settimanale; della 0.6.4 cronologia delle chat; della 0.6.5 il personaggio lasciato su un'icona del desktop; della 0.6.6 saluto al centro, Claude Code assente sul notebook e standby con la Rete; della 0.6.7 «Continua», «Chiedi», «Sempre» di sessione e 📌 come finestra; della 0.6.8 menu con `Win+Alt+A`, «Sostituisci» e reazioni del personaggio; della 0.6.9 e 0.7.0 i nuovi personaggi e la Fiamma animata; della 0.7.1 team e chat di 3CX e il cielo grande. Tutte in `docs/prove-dal-vivo.md`.
+- [ ] **3CX team e chat:** fatti nel codice, da provare sul centralino vero (`docs/prove-dal-vivo.md`). Se qualcosa non arriva, il log dice quali tipi di messaggio manda il centralino (`3cx: event type …`).
 - [ ] **3CX + Zammad:** ticket del cliente sulla chiamata in arrivo (`docs/idee.md`).
 - [ ] **Remote Desktop Manager** come integrazione. Prima va capito dove sta la fonte dati (`docs/idee.md`).
 - [ ] **Clic destro in Esplora file:** voci di EasyIsland sui file («Manda a EasyIsland», azioni sui file), deciso con Edoardo l'11 ottobre come passo successivo al menu sulla selezione (`docs/idee.md`).
@@ -23,17 +24,17 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 11 ottobre 2026 — versione 0.7.1
+- Unione in `main` e tag `v0.7.1`: 3CX con team, chat, segreteria, code, trasferimento e deviazione; cielo del Meteo grande dietro il personaggio; immagine di tutti i personaggi nel README (`dev/characters.html`). README con novità e tabella delle versioni.
+
+### 11 ottobre 2026 — 3CX: team, chat, segreteria, code e trasferimento
+- Con «Interno e password» la scheda 3CX ha Team (colleghi con lo stato in tempo reale, Chiama, Scrivi, Rispondi al suo posto), Chat (elenco, conversazione, invio, non letti, «sta scrivendo», avviso con suono e isola aperta), Segreteria (con trascrizione, «Ascolta» sul telefono), In coda / Fuori coda, Trasferisci e Devia. Protocollo ricavato dal web client del centralino di Edoardo (`myphone.rs`, `docs/integrazioni.md`). Provato con i test e nell'anteprima (scena `threecx`); dal vivo da provare.
+
+### 11 ottobre 2026 — il cielo del Meteo in grande dietro il personaggio
+- Sole, luna, nuvole, pioggia, neve e temporale sono circa il doppio e stanno dietro la testa, spostati a destra (`weather.ts`, `docs/architettura.md`). Gocce e fiocchi cadono solo sotto la nuvola, sole e luna più in basso perché i raggi non vengano tagliati, fulmine spostato fuori dal corpo. L'anteprima del personaggio mostra anche il cielo piccolo di prima, per confronto. Provato nell'anteprima e nella scena `meteo`.
+
 ### 11 ottobre 2026 — versione 0.7.0
 - Unione in `main` e tag `v0.7.0`: Fiamma animata, Geco con bordo fine e sguardo fino all'orbita, Roccia, Magma e Pietra dal foglio personaggi, Foglia nuova (voci sotto). README con novità e tabella delle versioni.
 
 ### 11 ottobre 2026 — Roccia, Magma e Pietra dal foglio personaggi, Foglia nuova
 - Dopo vari tentativi, Roccia, Magma e Pietra sono ricalcati dal foglio personaggi di Edoardo: contorno, occhi e zone di colore misurati sulle viste frontali e salvati come curve (`blobs.ts`, `docs/architettura.md`). Foglia (`leaf.ts`) ha la sagoma misurata sulla foglia di Edoardo, senza il ricciolo, e l'interno a sfumature continue. Contorni ammorbiditi e bordo fine. Confrontati affiancati all'originale e provati nell'anteprima con tutti gli stati.
-
-### 11 ottobre 2026 — Geco: bordo più fine e sguardo fino all'orbita
-- Contorno visibile circa la metà di prima. Guardando il mouse la pupilla va dalla posizione di riposo fino al bordo del globo dalla parte del mouse, in orizzontale e in verticale (`GAZE` in `gecko.ts`); prima ne seguiva solo il 35 % e restava quasi ferma. Provato nell'anteprima con lo sguardo simulato nelle quattro direzioni.
-
-### 11 ottobre 2026 — la Fiamma si muove
-- La Fiamma ondeggia e tremola di continuo: la punta si muove di più, la base resta ferma, gli strati interni seguono con un ritardo e le scintille salgono (`flame.ts`). Nuovo campo `animated` nel contratto dei personaggi: tiene vivo il ciclo a 30 fps solo a isola visibile (`engine.busy`; `docs/architettura.md`). Provato nell'anteprima; CPU a isola ritirata da verificare dal vivo.
-
-### 11 ottobre 2026 — versione 0.6.9
-- Unione in `main` e tag `v0.6.9`: sei nuovi personaggi, Geco, Fiamma, Magma, Pietra, Roccia e Foglia (voce sotto). README con novità, elenco dei personaggi e tabella delle versioni.

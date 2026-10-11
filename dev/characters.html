@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <title>EasyIsland — i personaggi</title>
+    <style>
+      /* Transparent: the README shot (scripts/screenshots.mjs "characters") keeps only the characters. */
+      body { margin: 0; padding: 24px; background: transparent; font: 600 13px system-ui, "Segoe UI", sans-serif; }
+      #island { display: inline-grid; grid-template-columns: repeat(4, 160px); gap: 4px 12px; padding: 8px; }
+      figure { margin: 0; text-align: center; color: #8b8f98; }
+      canvas { display: block; }
+      figcaption { margin-top: -18px; padding-bottom: 6px; }
+    </style>
+  </head>
+  <body>
+    <div id="island"></div>
+    <script type="module" src="./characters.ts"></script>
+  </body>
+</html>

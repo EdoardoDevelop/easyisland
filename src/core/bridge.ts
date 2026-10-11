@@ -290,6 +290,24 @@ export const Bridge = {
   threecxHistory: (missed: boolean) => callOrThrow<ThreecxHistoryItem[]>("threecx_history", { missed }),
   threecxStatus: (profile: string) => callOrThrow<void>("threecx_status", { profile }),
   threecxResetMissed: () => call<void>("threecx_reset_missed"),
+  /** Our connected call handed to a colleague or a number. */
+  threecxTransfer: (id: string, number: string) => callOrThrow<void>("threecx_transfer", { id, number }),
+  /** A call ringing for us sent to a number, or to our voicemail (""). */
+  threecxDivert: (id: string, number: string) => callOrThrow<void>("threecx_divert", { id, number }),
+  /** A colleague's ringing call answered here. */
+  threecxPickup: (id: string, device: string | null) => callOrThrow<void>("threecx_pickup", { id, device }),
+  threecxQueue: (loggedIn: boolean) => callOrThrow<void>("threecx_queue", { loggedIn }),
+  threecxChats: () => callOrThrow<ThreecxChat[]>("threecx_chats"),
+  threecxMessages: (conversation: number, before: number | null = null) =>
+    callOrThrow<ThreecxMessage[]>("threecx_messages", { conversation, before }),
+  threecxChatWith: (numbers: string[]) => callOrThrow<ThreecxChat>("threecx_chat_with", { numbers }),
+  threecxSend: (conversation: number, text: string) => callOrThrow<void>("threecx_send", { conversation, text }),
+  threecxRead: (conversation: number, ids: number[]) => call<void>("threecx_read", { conversation, ids }),
+  threecxTyping: (conversation: number) => call<void>("threecx_typing", { conversation }),
+  threecxVoicemails: () => callOrThrow<ThreecxVoicemail[]>("threecx_voicemails"),
+  /** The PBX calls our phone and plays it. */
+  threecxPlayVoicemail: (id: number) => callOrThrow<void>("threecx_play_voicemail", { id }),
+  threecxVoicemailHeard: (id: number) => call<void>("threecx_voicemail_heard", { id }),
 
   /** Tray → Pause. Stops the integration pollers, not just the island. */
   setPaused: (paused: boolean) => call<void>("set_paused", { paused }),
@@ -329,6 +347,53 @@ export interface ThreecxHistoryItem {
   kind: "missed" | "received" | "outgoing" | "other";
   at: number;
   answered: boolean;
+}
+
+/** A colleague on the PBX (3CX team). */
+export interface ThreecxColleague {
+  number: string;
+  name: string;
+  presence: "available" | "away" | "dnd" | "busy" | "ringing" | "offline";
+  status: string;
+  /** The call ringing for them, which can be answered here. */
+  ringingCall: string | null;
+  mobile: string;
+}
+
+/** A 3CX chat conversation. */
+export interface ThreecxChat {
+  id: number;
+  name: string;
+  external: boolean;
+  group: boolean;
+  /** The colleague's extension in a one-to-one chat, else "". */
+  number: string;
+  last: string;
+  lastAt: number;
+  lastMine: boolean;
+  unread: number;
+}
+
+export interface ThreecxMessage {
+  id: number;
+  conversation: number;
+  mine: boolean;
+  from: string;
+  text: string;
+  file: string | null;
+  at: number;
+  isNew: boolean;
+  system: boolean;
+}
+
+export interface ThreecxVoicemail {
+  id: number;
+  name: string;
+  number: string;
+  at: number;
+  seconds: number;
+  isNew: boolean;
+  transcription: string;
 }
 
 /** A call of the extension, as the 3CX integration reports it. */

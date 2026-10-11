@@ -20,6 +20,14 @@ Un servizio o programma che di solito c'è una volta sola è un'**integrazione**
   - `api.rs`: client API ufficiale (serve una licenza 8SC+).
   - `pb.rs`: protobuf minimo.
 - Websocket con WinHTTP: `src-tauri/src/wss.rs`. Scheda: `src/views/threecx.ts`. Le righe `3cx: call` finiscono in `easyisland.log`.
+- **Team, chat, segreteria, code, trasferimento** (11 ottobre 2026, solo con «Interno e password»): messaggi ricavati dal codice pubblico del web client V20 (schema protobuf nei suoi file `main.*.js` e nei pezzi caricati dopo); numeri dei tipi e dei campi in `myphone.rs`.
+  - Team: i colleghi arrivano spinti dal centralino come gruppi (tipo 208), interi alla connessione e poi a pezzi; lo stato (disponibile, assente, non disturbare, al telefono, squilla, non collegato) si ricava da registrazione, profilo, «occupato» e chiamate del collega (`Team` in `myphone.rs`). Una chiamata che squilla a un collega si prende con «Rispondi al suo posto» (PickupCall).
+  - Chat: la conversazione con dei colleghi si apre con CreateConversation e gli interni ordinati come testo e uniti da «:» (il proprio compreso), come fa il web client; i messaggi nuovi, i non letti e «sta scrivendo» arrivano spinti (209, 229, 180). I messaggi letti a schermo si segnano con i loro id (SetChatReceived). Le conversazioni esterne (live chat, WhatsApp…) si leggono e si scrivono come le altre, senza le azioni da operatore (prendi, chiudi, trasferisci).
+  - Un messaggio nuovo: badge sulla pillola 3CX, suono e isola aperta sulla conversazione, ma solo se l'isola non è già in uso; davanti al cliente o con «solo permessi» solo il badge (`incomingMessage` in `src/island/integrations.ts`).
+  - Segreteria: elenco con la trascrizione del centralino; «Ascolta» fa squillare il telefono (PlayVoiceMail), non scarica l'audio.
+  - Code: «In coda / Fuori coda» compare solo se il centralino manda delle code per l'interno; cambia solo quel campo dello stato.
+  - Trasferisci (chiamata in linea) e Devia (chiamata che squilla, anche in segreteria): il team si apre in modalità scelta; Invio passa la chiamata al primo collega o al numero scritto.
+  - Tutto in memoria come le chiamate: nessun messaggio o nome su disco né nel log (solo quanti colleghi, `3cx: team of N colleagues`).
 - L'analisi completa del protocollo è in `archivio/HANDOFF-fino-al-6-ottobre.md`, sezione 7.
 
 ## Azioni rapide (`actions.rs`, `actionsSection`)

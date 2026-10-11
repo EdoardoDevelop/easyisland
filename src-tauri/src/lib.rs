@@ -1184,6 +1184,76 @@ async fn threecx_reset_missed() -> Result<(), String> {
     threecx::reset_missed().await
 }
 
+/// 3CX: our connected call handed to a colleague or a number.
+#[tauri::command]
+async fn threecx_transfer(id: String, number: String) -> Result<(), String> {
+    threecx::transfer(&id, &number).await
+}
+
+/// 3CX: a call ringing for us sent to a number, or to our voicemail ("").
+#[tauri::command]
+async fn threecx_divert(id: String, number: String) -> Result<(), String> {
+    threecx::divert(&id, &number).await
+}
+
+/// 3CX: a colleague's ringing call answered here.
+#[tauri::command]
+async fn threecx_pickup(id: String, device: Option<String>) -> Result<(), String> {
+    threecx::pickup(&id, device.as_deref()).await
+}
+
+#[tauri::command]
+async fn threecx_queue(logged_in: bool) -> Result<(), String> {
+    threecx::set_queue(logged_in).await
+}
+
+#[tauri::command]
+async fn threecx_chats() -> Result<Vec<threecx::ChatSummary>, String> {
+    threecx::chats().await
+}
+
+#[tauri::command]
+async fn threecx_messages(conversation: i64, before: Option<i64>) -> Result<Vec<threecx::ChatMessage>, String> {
+    threecx::messages(conversation, before).await
+}
+
+#[tauri::command]
+async fn threecx_chat_with(numbers: Vec<String>) -> Result<threecx::ChatSummary, String> {
+    threecx::chat_with(&numbers).await
+}
+
+/// 3CX: a chat message, sent only from the island's Invio / send button.
+#[tauri::command]
+async fn threecx_send(conversation: i64, text: String) -> Result<(), String> {
+    threecx::send(conversation, &text).await
+}
+
+#[tauri::command]
+async fn threecx_read(conversation: i64, ids: Vec<i64>) -> Result<(), String> {
+    threecx::read(conversation, &ids).await
+}
+
+#[tauri::command]
+async fn threecx_typing(conversation: i64) -> Result<(), String> {
+    threecx::typing(conversation).await
+}
+
+#[tauri::command]
+async fn threecx_voicemails() -> Result<Vec<threecx::Voicemail>, String> {
+    threecx::voicemails().await
+}
+
+/// 3CX: the PBX calls our phone and plays the voicemail.
+#[tauri::command]
+async fn threecx_play_voicemail(id: i64) -> Result<(), String> {
+    threecx::play_voicemail(id).await
+}
+
+#[tauri::command]
+async fn threecx_voicemail_heard(id: i64) -> Result<(), String> {
+    threecx::voicemail_heard(id).await
+}
+
 /// Musica: "toggle", "prev" or "next".
 #[tauri::command]
 fn media_command(command: String) {
@@ -1365,6 +1435,19 @@ pub fn run() {
             threecx_history,
             threecx_status,
             threecx_reset_missed,
+            threecx_transfer,
+            threecx_divert,
+            threecx_pickup,
+            threecx_queue,
+            threecx_chats,
+            threecx_messages,
+            threecx_chat_with,
+            threecx_send,
+            threecx_read,
+            threecx_typing,
+            threecx_voicemails,
+            threecx_play_voicemail,
+            threecx_voicemail_heard,
             zip_list,
             automations_log,
             habits_stats,

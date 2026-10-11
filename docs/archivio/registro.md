@@ -2,6 +2,15 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 11 ottobre 2026 — Geco: bordo più fine e sguardo fino all'orbita
+- Contorno visibile circa la metà di prima. Guardando il mouse la pupilla va dalla posizione di riposo fino al bordo del globo dalla parte del mouse, in orizzontale e in verticale (`GAZE` in `gecko.ts`); prima ne seguiva solo il 35 % e restava quasi ferma. Provato nell'anteprima con lo sguardo simulato nelle quattro direzioni.
+
+### 11 ottobre 2026 — la Fiamma si muove
+- La Fiamma ondeggia e tremola di continuo: la punta si muove di più, la base resta ferma, gli strati interni seguono con un ritardo e le scintille salgono (`flame.ts`). Nuovo campo `animated` nel contratto dei personaggi: tiene vivo il ciclo a 30 fps solo a isola visibile (`engine.busy`; `docs/architettura.md`). Provato nell'anteprima; CPU a isola ritirata da verificare dal vivo.
+
+### 11 ottobre 2026 — versione 0.6.9
+- Unione in `main` e tag `v0.6.9`: sei nuovi personaggi, Geco, Fiamma, Magma, Pietra, Roccia e Foglia (voce sotto). README con novità, elenco dei personaggi e tabella delle versioni.
+
 ### 11 ottobre 2026 — nuovi personaggi: Geco, Fiamma e quattro gelatine
 - `src/character/gecko.ts`: testa di geco con due cupole, grandi occhi ambrati e mento crema, ricalcata da un disegno di Edoardo (134×92 px) misurando contorno, occhi e macchie; in anteprima la differenza col disegno resta entro 1–2 px. Pupille che guardano dentro il globo, palpebra che scende nel battito, occhi chiusi sul verde, occhi dentro la scatola del rilascio file (`docs/architettura.md`). Provato in `dev/character-preview.html`, `upload-preview.html` e `greeting-preview.html`; dal vivo da provare.
 - `src/character/flame.ts`: fiamma rossa con strati arancione e giallo, base scura, goccia e scintille, ricalcata allo stesso modo da un disegno ma con la faccia comune del motore.
