@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 11 ottobre 2026 — «Sostituisci» sul testo selezionato e menu con Win+Alt+A
+- **Sostituisci con anteprima:** «Riscrivi», «Correggi», «Più formale»… riscrivono la selezione con il motore della chat (`rewrite_text`, una risposta a parte, fuori dalla cronologia) e mostrano prima e dopo (`src/views/rewrite.ts`). Con «Sostituisci» `context::replace` ricopia la selezione, incolla solo se è ancora la stessa, poi rimette gli appunti.
+- **Menu sul testo selezionato** in qualunque app, browser compresi: `Win+Alt+A` copia la selezione e apre un menu nativo al mouse (`selection-menu.ts`, `tray::popup_entries`) con **solo le azioni rapide** sul testo selezionato, con le loro icone e le cartelle come sottomenu. Nell'editor «Lavora su» sceglie anche «lo sostituisce»; un pulsante crea quattro azioni di partenza. Anteprima provata (scena `rewrite`, Impostazioni); le app vere sono da provare dal vivo.
+
 ### 10 ottobre 2026 — versione 0.6.7
 - Unione in `main` e tag `v0.6.7`: markdown e «Continua» sulla card «finito», «Chiedi a questa sessione», «Più tardi» sul permesso, «Sempre» di sessione, 📌 come finestra normale (voci sotto). README con novità e tabella delle versioni.
 
