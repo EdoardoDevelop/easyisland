@@ -11,7 +11,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Clic destro in Esplora file:** voci di EasyIsland sui file («Manda a EasyIsland», azioni sui file), deciso con Edoardo l'11 ottobre come passo successivo al menu sulla selezione (`docs/idee.md`).
 - [ ] **opencode:** card per lo strumento `question` anche nella chat (per l'agente c'è), controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
 - [ ] **Spunti da Coucou:** Amp/Hermes, limiti di Codex, riepilogo condivisibile come immagine, GitHub (`docs/idee.md`).
-- [ ] **Prova dal vivo del Geco** (`docs/prove-dal-vivo.md`) e verifica della provenienza del disegno prima di distribuirlo.
+- [ ] **Prova dal vivo di Geco e Fiamma** (`docs/prove-dal-vivo.md`) e verifica della provenienza dei disegni prima di distribuirli.
 - [ ] **Da decidere con Edoardo:** firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
 
 ## Problemi noti
@@ -23,8 +23,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
-### 11 ottobre 2026 — nuovo personaggio: Geco
+### 11 ottobre 2026 — nuovi personaggi: Geco e Fiamma
 - `src/character/gecko.ts`: testa di geco con due cupole, grandi occhi ambrati e mento crema, ricalcata da un disegno di Edoardo (134×92 px) misurando contorno, occhi e macchie; in anteprima la differenza col disegno resta entro 1–2 px. Pupille che guardano dentro il globo, palpebra che scende nel battito, occhi chiusi sul verde, occhi dentro la scatola del rilascio file (`docs/architettura.md`). Provato in `dev/character-preview.html`, `upload-preview.html` e `greeting-preview.html`; dal vivo da provare.
+- `src/character/flame.ts`: fiamma rossa con strati arancione e giallo, base scura, goccia e scintille, ricalcata allo stesso modo da un disegno ma con la faccia comune del motore.
 
 ### 11 ottobre 2026 — versione 0.6.8
 - Unione in `main` e tag `v0.6.8`: menu sul testo selezionato con `Win+Alt+A` (azioni rapide con icone e cartelle), «Sostituisci» con anteprima, «Lavora su» nell'editor delle azioni, reazioni del personaggio, isola senza salti d'altezza (voci sotto). README con novità e tabella delle versioni.

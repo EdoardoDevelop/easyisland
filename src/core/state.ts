@@ -622,7 +622,7 @@ export interface ScriptRun {
 
 export interface Theme {
   /** Who lives in the island: the character, or the cube (src/character/cube.ts). */
-  /** A character id from src/character/roster.ts ("drop", "slime", "cube", "gecko"…). */
+  /** A character id from src/character/roster.ts ("drop", "slime", "cube", "gecko", "flame"…). */
   character: string;
   /** "#rrggbb", or "" for the original cream (the logo's orange for the cube). */
   slimeColor: string;
