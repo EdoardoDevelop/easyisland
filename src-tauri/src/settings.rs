@@ -128,7 +128,7 @@ pub const PROFILE_KEYS: &[&str] = &[
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Theme {
-    /// Who lives in the island: "drop" (Goccia, the default), "slime" or "cube" (EasyTech).
+    /// Who lives in the island: "drop" (Goccia, the default), "slime", "cube" (EasyTech), "gecko", "flame", "magma", "stone", "rock" or "leaf".
     #[serde(default = "default_character")]
     pub character: String,
     /// The slime's body colour, "#rrggbb"; empty = its green.

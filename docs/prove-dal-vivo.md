@@ -17,6 +17,7 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
 - [ ] **«Continua» dalla card «finito»:** Claude Code in Windows Terminal e nel terminale di VS Code (il testo arriva e parte); estensione di VS Code (si apre la sessione con il testo scritto); opencode 2 (il messaggio parte dal servizio). Testo con accenti.
 - [ ] **«Chiedi a questa sessione»** su una sessione vera di terminale e una dell'app Claude: la risposta conosce la sessione e la sessione non cambia.
 - [ ] **«Sempre» di sessione** su un comando senza proposta di Claude Code: lo stesso comando non chiede più fino alla fine della sessione; **«Più tardi»/Esc** sulla card e riapertura.
+- [ ] **Geco, Fiamma, Magma, Pietra, Roccia e Foglia** (Impostazioni → Aspetto): isola ritirata e aperta, icona a riposo, saluto all'avvio, rilascio di un file, schermo con scala 125–150 %.
 - [ ] **Standby con l'integrazione Rete** (notebook): dopo il risveglio nessun avviso «Nessuna connessione»; staccando davvero la rete l'avviso arriva entro 15–20 s.
 - [ ] **Claude Code solo con gli hook:** sul notebook senza Claude Code nessuna card Claude Code; con «Collega opencode» la scheda Agenti mostra opencode. Qui, installando o togliendo gli hook dalle Impostazioni, la card compare o sparisce senza riavviare.
 - [ ] **Saluto all'avvio:** al centro dello schermo (anche su un secondo monitor scelto in «Schermo»), poi il personaggio torna al suo posto; «Dove sta il personaggio»; spento, il personaggio compare senza animazione.

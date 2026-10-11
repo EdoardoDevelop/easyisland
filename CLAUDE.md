@@ -1,6 +1,6 @@
 # EasyIsland (Windows) — guida per gli agenti AI
 
-App desktop per Windows 10/11: un personaggio animato (Slime, Goccia o EasyTech) in un'isola in alto sullo schermo mostra le sessioni di Claude Code e degli altri agenti, la chat con vari motori e le integrazioni, e permette di approvare, rispondere e rilasciare file. È un fork solo per Windows di Louis-CFM/coucou. TypeScript senza framework (Canvas 2D) in `src/`, Rust con Tauri 2 in `src-tauri/`, relay degli hook in `hook/`.
+App desktop per Windows 10/11: un personaggio animato (Goccia, Slime, EasyTech, Geco, Fiamma o una delle gelatine) in un'isola in alto sullo schermo mostra le sessioni di Claude Code e degli altri agenti, la chat con vari motori e le integrazioni, e permette di approvare, rispondere e rilasciare file. È un fork solo per Windows di Louis-CFM/coucou. TypeScript senza framework (Canvas 2D) in `src/`, Rust con Tauri 2 in `src-tauri/`, relay degli hook in `hook/`.
 
 **Lingua del progetto: italiano.** Testi dell'interfaccia, messaggi d'errore per l'utente, documentazione e commit sono in italiano. Identificatori e commenti nel codice restano in inglese.
 

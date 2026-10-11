@@ -45,12 +45,20 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
   file caricati.
 - **Profili** (lavoro, casa, concentrazione) che cambiano da soli, modalità
   **davanti al cliente**, messaggi da qualsiasi script, backup delle impostazioni.
-- **Tre personaggi** (Goccia, la predefinita, Slime ed EasyTech), posizione libera,
+- **Nove personaggi** (Goccia, la predefinita, Slime, EasyTech, Geco, Fiamma, Magma,
+  Pietra, Roccia e Foglia), posizione libera,
   isola grande fino ai bordi dello schermo e aperta dove vuoi, tema, suoni
   generati nel codice, interfaccia in **italiano o inglese**; leggera a batteria,
   nessuna telemetria.
 
 ## Novità
+
+**0.6.9** — **sei nuovi personaggi**, tutti disegnati nel codice: il **Geco**, con
+grandi occhi ambrati le cui pupille seguono lo sguardo e una palpebra che scende quando
+sbatte; la **Fiamma**, una fiammella rossa, arancione e gialla con le scintille; e
+quattro gelatine lucide, **Magma** (crepe di lava), **Pietra** (blocchi d'ardesia e
+cristalli), **Roccia** (guscio di piastre) e **Foglia** (corona di foglie). Si
+scelgono in Impostazioni → Aspetto e hanno tutte le espressioni degli altri.
 
 **0.6.8** — un **menu sul testo selezionato** in qualunque app, browser compresi:
 `Win+Alt+A` mostra le tue azioni rapide (con icone e cartelle) e quelle impostate su
@@ -90,7 +98,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.6.8** | 11 ott 2026 | Menu sul testo selezionato con `Win+Alt+A`, «Sostituisci» con anteprima, «Lavora su» nelle azioni rapide, reazioni del personaggio per situazione, niente salti d'altezza dell'isola |
+| **0.6.9** | 11 ott 2026 | Sei nuovi personaggi: Geco, Fiamma, Magma, Pietra, Roccia e Foglia |
+| 0.6.8 | 11 ott 2026 | Menu sul testo selezionato con `Win+Alt+A`, «Sostituisci» con anteprima, «Lavora su» nelle azioni rapide, reazioni del personaggio per situazione, niente salti d'altezza dell'isola |
 | 0.6.7 | 10 ott 2026 | Risposta in markdown e «Continua» sulla card «finito», «Chiedi a questa sessione», «Più tardi» sul permesso, «Sempre» di sessione, 📌 come finestra normale |
 | 0.6.6 | 10 ott 2026 | Saluto al centro dello schermo (o spento), `Ctrl+Space` apre e chiude, Claude Code solo con i suoi hook, niente falsi errori di rete dopo lo standby, passi della sessione senza sovrapposizioni |
 | 0.6.5 | 9 ott 2026 | Cartella trascinata nella chat, menu col clic destro sul personaggio, saluto senza isola, `Ctrl+Space` sulla Panoramica, angoli arrotondati dell'isola staccata |
@@ -562,13 +571,16 @@ attivo.
   finché la situazione non cambia.
 - **Notifiche**: tutto, solo avvisi, oppure solo le richieste di permesso
   (com'è *Concentrazione* all'inizio).
-- **Tema**: il personaggio (**Goccia**, la predefinita, **Slime** o **EasyTech**), il suo
+- **Tema**: il personaggio (**Goccia**, la predefinita, **Slime**, **EasyTech**, **Geco**,
+  **Fiamma**, **Magma**, **Pietra**, **Roccia** o **Foglia**), il suo
   colore, colore e opacità dell'isola, **sfondo a isola chiusa** (spento, a
   isola chiusa resta solo il personaggio, senza il cerchio o la barra), volume
   separato per avvisi, interfaccia ed emozioni. Slime è uno slime di gelatina verde che ondeggia quando si
   muove; Goccia è un piccolo spirito d'acqua azzurro, lucido, a forma di goccia;
   EasyTech è un cubo, a riposo con i colori del logo da cui è disegnato (o con il
-  colore del tema, se lo scegli). Negli
+  colore del tema, se lo scegli); Geco è una testa di geco con gli occhi ambrati che
+  sbattono le palpebre, Fiamma una fiammella a strati, Magma, Pietra, Roccia e Foglia
+  quattro gelatine tonde con crepe di lava, blocchi di pietra, un guscio e una corona di foglie. Negli
   altri stati tutti prendono il colore dello stato (blu mentre lavora, ambra per
   un permesso, rosso per un errore…). EasyTech ha gli occhi su un lato, con le
   stesse espressioni, e segue il mouse come gli altri. Anteprima senza
@@ -852,7 +864,7 @@ mano. Tienine una copia al sicuro.
 ```
 ./
   src/                 front end dell'isola (TypeScript, nessun framework)
-    character/         i personaggi (Slime, Goccia, EasyTech) e il saluto all'avvio, in Canvas 2D
+    character/         i personaggi (Goccia, Slime, EasyTech, Geco, Fiamma, gelatine) e il saluto, in Canvas 2D
     island/            macchina a stati, hook, integrazioni
     views/             tutte le viste dell'isola
     settings/          la finestra delle impostazioni
