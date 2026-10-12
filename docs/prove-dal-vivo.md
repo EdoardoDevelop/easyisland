@@ -4,6 +4,7 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
 
 - [ ] **Azioni rapide:** «Programma» con `chrome`, `regedit`, un percorso tra virgolette e `%ProgramFiles%`; Salva / Annulla e ordine delle cartelle nella finestra vera.
 - [ ] **Selezione e suggerimenti ⚡:** Ctrl+C reale in Excel, Outlook e browser, con il ripristino degli appunti: un'immagine o dei file copiati prima tornano negli appunti.
+- [ ] **Avvio (0.7.5):** su un altro PC, aggiornamento dalla 0.7.4 col clic nell'isola (l'app riparte da sola) e avvio automatico subito dopo un riavvio di Windows; nel log nessuna riga `panic:`.
 - [ ] **Trascinamento del personaggio della chat (0.7.4):** un trascinamento veloce e uno lento oltre il tempo di chiusura: l'isola resta aperta finché lo lasci. Aprendo una scheda di integrazione e chiudendo l'isola, il personaggio compatto ha il suo colore.
 - [ ] **Tempo sui permessi:** la card di un permesso vero di Claude Code dice «attende ancora 1:47» e scende; dopo «Più tardi» e riapertura il tempo è andato avanti; a zero la card sparisce e si risponde nel terminale.
 - [ ] **Consumo Claude:** il messaggio di limite raggiunto non è mai comparso.
