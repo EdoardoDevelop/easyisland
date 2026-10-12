@@ -56,6 +56,16 @@ pub struct IntegrationConfig {
     /// 3CX: the device that places calls (id from the PBX); empty = automatic.
     #[serde(default)]
     pub threecx_device: String,
+    /// 3CX, "Questo PC": the PC rings for incoming calls.
+    #[serde(default = "default_true")]
+    pub threecx_ring: bool,
+    /// 3CX: an incoming call opens the island with a sound (off: only the badge).
+    #[serde(default = "default_true")]
+    pub threecx_alert: bool,
+    /// 3CX: the name of the user's own ringtone (copied as ringtone.* next to
+    /// the settings, see threecx::ringtone); "" = the built-in one.
+    #[serde(default)]
+    pub threecx_ringtone: String,
 }
 
 impl Default for IntegrationConfig {
@@ -69,6 +79,9 @@ impl Default for IntegrationConfig {
             threecx_mode: user_mode(),
             threecx_extension: String::new(),
             threecx_device: String::new(),
+            threecx_ring: true,
+            threecx_alert: true,
+            threecx_ringtone: String::new(),
         }
     }
 }

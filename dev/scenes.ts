@@ -164,8 +164,8 @@ export async function runScene(island: Island, scene: string) {
           profiles: [{ id: "1", name: "Disponibile" }, { id: "2", name: "Assente" }, { id: "3", name: "Non disturbare" }],
           devices: [{ id: "a", name: "App 3CX per Windows" }, { id: "b", name: "Yealink T46U" }],
           calls: [
-            { id: "7", state: "ringing", incoming: true, name: "Cliente Srl", number: "+39 051 123456", since: now, canAnswer: true },
-            { id: "5", state: "connected", incoming: false, name: "", number: "0512345678", since: now - 95_000, canAnswer: false },
+            { id: "7", state: "ringing", incoming: true, name: "Cliente Srl", number: "+39 051 123456", since: now, canAnswer: true, dialog: "" },
+            { id: "5", state: "connected", incoming: false, name: "", number: "0512345678", since: now - 95_000, canAnswer: false, dialog: "" },
           ],
           // Team, chat, voicemail and queues: the footer opens them (the PBX answers are faked below).
           team: [
@@ -201,6 +201,15 @@ export async function runScene(island: Island, scene: string) {
           { id: 2, name: "", number: "3331234567", at: ago(60 * 30), seconds: 12, isNew: false, transcription: "" },
         ],
         threecxSend: async () => {}, threecxRead: async () => {}, threecxTyping: async () => {},
+        threecxHistory: async (missed: boolean) => [
+          { name: "Cliente Srl", number: "0511234567", kind: "missed", at: ago(12), answered: false },
+          ...(missed ? [] : [
+            { name: "Anna Bianchi", number: "102", kind: "outgoing", at: ago(35), answered: true },
+            { name: "", number: "3331234567", kind: "received", at: ago(80), answered: true },
+            { name: "Studio Verdi", number: "051987654", kind: "received", at: ago(60 * 26), answered: true },
+          ]),
+        ],
+        threecxContacts: async () => [{ name: "Cliente Srl", company: "Cliente Srl", numbers: ["0511234567"], colleague: false }],
       });
       State.setFocus("integration_3cx");
       (window as unknown as { island: Island }).island = island;

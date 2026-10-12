@@ -21,6 +21,8 @@ import { permissionModeLabel } from "../island/hooks";
 import { renderMarkdown } from "../core/markdown";
 import { Bridge } from "../core/bridge";
 import { Sound } from "../core/sound";
+import { softphoneVersion } from "../core/softphone";
+import { THREECX } from "./threecx";
 import { t } from "../core/i18n";
 
 export interface ViewActions extends ActionHandlers, RewriteHandlers {
@@ -476,6 +478,9 @@ function buildOverview(actions: ViewActions): ViewHost {
           info?.loaded, info?.error, info?.configured,
           JSON.stringify(info?.data ?? {}),
           JSON.stringify(State.widgetStatus[task.id.replace(/^widget:/, "")] ?? null),
+          task.id === THREECX ? softphoneVersion() : 0,
+          // The header's bell and speaker change only a setting.
+          task.id === THREECX ? `${State.settings.integrationConfig?.threecxAlert}${State.settings.integrationConfig?.threecxRing}` : "",
         ].join("~");
         if (key !== cardKey) {
           cardKey = key;

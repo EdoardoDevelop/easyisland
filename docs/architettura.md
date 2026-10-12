@@ -6,7 +6,7 @@
   - `src/island/`: macchina a stati (`fsm.ts`), hook (`hooks.ts`), integrazioni, contesto, piano dell'agente (`plan.ts`), avvisi di rischio (`risk.ts`).
   - `src/views/`: tutte le viste.
   - `src/settings/`: la finestra delle impostazioni.
-  - `src/core/`: stato (`state.ts`), markdown, suoni, calcolatrice, layout.
+  - `src/core/`: stato (`state.ts`), markdown, suoni, calcolatrice, layout, telefono 3CX nel PC (`softphone.ts`).
 - `src-tauri/`: backend Rust (Tauri 2): finestra, named pipe, API, poller, Gestione credenziali, area di notifica, hook NSIS.
 - `hook/`: `easyisland-hook.exe`, il relay degli hook (vedi `agenti.md`).
 - `dev/`: anteprime nel browser (`scenes.ts`, `*-preview.html`).
@@ -65,7 +65,7 @@
 - Giorni e mesi abbreviati in Rust non passano dal dizionario («mar» è sia martedì sia marzo): tabelle inglesi accanto a quelle italiane (`calendar.rs`, `usage.rs`).
 
 ## Suoni
-- I 28 suoni sono sintetizzati in `src/core/synth.ts` e riprodotti da `src/core/sound.ts`. Si ascoltano in `dev/sounds-preview.html`. Il volume di ciascuno è tarato sul WAV originale che ha sostituito.
+- I 28 suoni sono sintetizzati in `src/core/synth.ts` e riprodotti da `src/core/sound.ts`. A parte la suoneria di «Questo PC» (3CX): trillo sintetizzato in `softphone.ts` o un file scelto dall'utente, che resta suo e non fa parte dell'app (`docs/integrazioni.md`). Si ascoltano in `dev/sounds-preview.html`. Il volume di ciascuno è tarato sul WAV originale che ha sostituito.
 
 ## Coerenza visiva
 Animazioni, tempi e viste vengono dal prototipo originale di Coucou (storia git). Sono specifici di EasyIsland l'aspetto dei personaggi, l'icona dell'app e le opzioni di posizione elencate sopra.

@@ -469,8 +469,14 @@ export interface IntegrationConfig {
   threecxMode: "user" | "api";
   /** 3CX, API mode: the extension the API client monitors. */
   threecxExtension: string;
-  /** 3CX: the device that places calls; "" = automatic. */
+  /** 3CX: the device that places calls; "" = automatic, "pc" = EasyIsland itself (WebRTC). */
   threecxDevice: string;
+  /** 3CX, "Questo PC": the PC rings for incoming calls. */
+  threecxRing: boolean;
+  /** 3CX: an incoming call opens the island with a sound (off: only the badge). */
+  threecxAlert: boolean;
+  /** 3CX: name of the user's own ringtone; "" = the built-in one. */
+  threecxRingtone: string;
 }
 
 /** A user-defined button in the Azioni tab. */
@@ -747,6 +753,7 @@ export const DEFAULT_SETTINGS: Settings = {
   integrationConfig: {
     systemWarn: 10, outlookWarn: 10, weatherCity: "", weatherOnCharacter: false, planInHeader: true,
     threecxMode: "user", threecxExtension: "", threecxDevice: "",
+    threecxRing: true, threecxAlert: true, threecxRingtone: "",
   },
 };
 

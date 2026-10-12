@@ -714,6 +714,8 @@ interface IntegrationDef {
   options?: IntegrationOption[];
   /** What it shows and where the data comes from. */
   hint?: string;
+  /** A row of its own after the options (3CX: the ringtone file). */
+  extra?: () => HTMLElement;
 }
 
 interface IntegrationOption {
@@ -767,7 +769,14 @@ const INTEGRATIONS: IntegrationDef[] = [
         get: (c) => c.threecxMode ?? "user", set: (c, v) => { c.threecxMode = v === "api" ? "api" : "user"; } },
       { label: t("Interno"), type: "text", placeholder: "es. 101", when: (c) => c.threecxMode === "api",
         get: (c) => c.threecxExtension ?? "", set: (c, v) => { c.threecxExtension = v.trim(); } },
+      { label: t("Chiamata in arrivo"), type: "select", placeholder: "",
+        choices: [["on", t("Apre l'isola con un suono")], ["off", t("Solo il pallino sulla pillola 3CX")]],
+        get: (c) => (c.threecxAlert === false ? "off" : "on"), set: (c, v) => { c.threecxAlert = v === "on"; } },
+      { label: t("Suoneria del PC"), type: "select", placeholder: "", when: (c) => c.threecxMode !== "api",
+        choices: [["on", t("Suona quando chiamano «Questo PC»")], ["off", t("Silenziata")]],
+        get: (c) => (c.threecxRing === false ? "off" : "on"), set: (c, v) => { c.threecxRing = v === "on"; } },
     ],
+    extra: ringtoneRow,
     fields: [
       { key: "3cx-url", label: t("Indirizzo"), placeholder: "https://azienda.my3cx.it:5001", secret: false },
       { key: "3cx-user", label: t("Interno o e-mail"), placeholder: "es. 101", secret: false, when: (c) => c.threecxMode !== "api" },
@@ -808,6 +817,43 @@ const INTEGRATIONS: IntegrationDef[] = [
   { id: "integration_media", name: t("Musica"), color: "#1ED760", fields: [],
     hint: t("Cosa sta suonando (Spotify, una scheda del browser, Lettore multimediale… tutto ciò che compare nei controlli multimediali di Windows), con copertina, play/pausa, brano precedente e successivo. Tutto in locale, nessun account.") },
 ];
+
+/** 3CX: the ringtone of "Questo PC", the built-in one or a file of the user's. */
+function ringtoneRow(): HTMLElement {
+  const name = h("span", { class: "hint note", style: "flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" });
+  const error = h("div", { class: "notice warn", style: "display:none" });
+  const show = () => { name.textContent = settings.integrationConfig.threecxRingtone || t("Predefinita (generata da EasyIsland)"); };
+  show();
+  const file = h("input", { type: "file", accept: ".mp3,.wav,.ogg,.m4a,audio/*", style: "display:none" }) as HTMLInputElement;
+  file.addEventListener("change", async () => {
+    const f = file.files?.[0];
+    file.value = "";
+    if (!f) return;
+    error.style.display = "none";
+    try {
+      await Bridge.threecxSetRingtone(f.name, new Uint8Array(await f.arrayBuffer()));
+      settings.integrationConfig.threecxRingtone = f.name;
+      show();
+      void save();
+    } catch (e) {
+      error.textContent = String(e).replace(/^Error:\s*/, "");
+      error.style.display = "";
+    }
+  });
+  const reset = h("button", { text: t("Predefinita"), onclick: async () => {
+    await Bridge.threecxSetRingtone("", new Uint8Array());
+    settings.integrationConfig.threecxRingtone = "";
+    show();
+    void save();
+  } });
+  return h("div", { style: "display:flex;flex-direction:column;gap:4px" },
+    h("div", { class: "row" },
+      h("label", { style: "min-width:104px", text: t("Suoneria") }),
+      name,
+      h("button", { text: t("Scegli un file…"), title: t("MP3, WAV, OGG o M4A, fino a 10 MB"), onclick: () => file.click() }),
+      reset, file),
+    error);
+}
 
 function integrationsSection(present: Record<string, boolean>): HTMLElement {
   const note = h("div", { class: "hint" });
@@ -901,6 +947,11 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
         saveError,
       );
       if (field.when) conditional.push([row, field.when]);
+      rows.append(row);
+    }
+    if (def.extra) {
+      const row = def.extra();
+      if (def.id === "integration_3cx") conditional.push([row, (c) => c.threecxMode !== "api"]);
       rows.append(row);
     }
     syncVisible();

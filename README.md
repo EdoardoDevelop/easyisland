@@ -57,6 +57,13 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.7.5** — **3CX direttamente nel PC**: scegliendo «Questo PC» tra i dispositivi,
+EasyIsland diventa il telefono del tuo interno, con muto, tastierino e una **suoneria**
+generata o scelta da te (MP3, WAV, OGG, M4A), silenziabile dalla scheda. La scheda 3CX
+è ridisegnata come un telefono, con tastierino a sinistra e chiamate a destra. Corretti
+due problemi di avvio: l'app che si chiudeva **dopo un aggiornamento** e quella che non
+partiva **nelle prime ore dopo un riavvio** del PC.
+
 **0.7.4** — piccole correzioni all'isola: chiusa, il personaggio torna al **suo colore**
 invece di tenere quello della scheda aperta; trascinando il personaggio della chat su una
 finestra l'isola **non si chiude** più; con molte integrazioni come schede l'isola aperta
@@ -134,7 +141,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.7.4** | 12 ott 2026 | Personaggio col suo colore a isola chiusa, isola aperta durante il trascinamento nella chat, schede che allargano l'isola |
+| **0.7.5** | 12 ott 2026 | 3CX «Questo PC» con suoneria e scheda da telefono, avvio corretto dopo aggiornamenti e riavvii |
+| 0.7.4 | 12 ott 2026 | Personaggio col suo colore a isola chiusa, isola aperta durante il trascinamento nella chat, schede che allargano l'isola |
 | 0.7.3 | 12 ott 2026 | Limiti del piano chiesti ad Anthropic e mostrati nell'isola, tempo rimasto sui permessi, appunti rimessi per intero |
 | 0.7.2 | 11 ott 2026 | Il personaggio della chat trascinato su una finestra la allega come contesto, con faccia che cambia mentre lo porti |
 | 0.7.1 | 11 ott 2026 | 3CX: team, chat, segreteria, code, trasferimento e deviazione; cielo del Meteo grande dietro il personaggio |

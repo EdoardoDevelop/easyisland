@@ -54,7 +54,34 @@ pub struct Call {
     /// ms since 1970: when it started ringing, or when it was answered.
     pub since: u64,
     pub can_answer: bool,
+    /// SIPDialogID: links the call to one of our WebRTC calls (`RtcCall::dialog`).
+    pub dialog: String,
 }
+
+/// A call of our WebRTC phone, with the PBX's SDP: the island page does the audio.
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RtcCall {
+    pub id: i64,
+    /// WebRTCEndpointSDPState: 1 offer, 4 request for offer, 8 answer provided, 9 confirmed…
+    pub sdp_type: i64,
+    pub name: String,
+    pub number: String,
+    pub transaction: i64,
+    pub sdp: String,
+    pub dialog: String,
+    pub hold: i64,
+}
+
+/// Our WebRTC phone, sent to the island as `threecx-webrtc`.
+#[derive(Serialize, Clone, Default)]
+struct Rtc {
+    registered: bool,
+    calls: Vec<RtcCall>,
+}
+
+/// The device setting that makes EasyIsland itself the phone.
+pub const PC_DEVICE: &str = "pc";
 
 #[derive(Serialize, Clone, Debug)]
 pub struct Contact {
@@ -165,6 +192,8 @@ struct Snapshot {
     voicemail: i64,
     /// Logged in to the queues; None when the extension is in no queue.
     queue: Option<bool>,
+    /// EasyIsland is a phone of the extension (WebRTC, "Questo PC" chosen and accepted by the PBX).
+    pc: bool,
 }
 
 enum Conn {
@@ -183,6 +212,8 @@ struct Live {
     states: HashMap<String, String>,
     /// Conversation id → unread chat messages.
     unread: HashMap<i64, i64>,
+    /// Our WebRTC phone, re-sent when the card opens.
+    rtc: Rtc,
 }
 
 impl Live {
@@ -337,14 +368,23 @@ fn call_changes(states: &mut HashMap<String, String>, calls: &[Call]) -> Vec<Str
 /// Re-sends the last state (the card asks when it first opens).
 pub fn publish_now(app: &AppHandle) {
     publish(app);
+    let rtc = live(|l| l.rtc.clone());
+    let _ = app.emit_to(WINDOW_LABEL, "threecx-webrtc", &rtc);
 }
 
 /// Reconnects only when something 3CX cares about changed (on, mode, extension).
 pub fn settings_saved(s: &crate::settings::Settings) {
     static LAST: Mutex<String> = Mutex::new(String::new());
     let c = &s.integration_config;
-    // The device is not here: the island passes it with every call.
-    let key = format!("{}|{}|{}", s.active_integrations.iter().any(|x| x == ID), c.threecx_mode, c.threecx_extension);
+    // The device is not here (the island passes it with every call), except
+    // "Questo PC": the session registers as a phone only when it opens.
+    let key = format!(
+        "{}|{}|{}|{}",
+        s.active_integrations.iter().any(|x| x == ID),
+        c.threecx_mode,
+        c.threecx_extension,
+        c.threecx_device == PC_DEVICE
+    );
     let mut last = LAST.lock().unwrap();
     if *last != key {
         let first = last.is_empty();
@@ -370,8 +410,10 @@ fn set_error(app: &AppHandle, e: Option<String>) {
         l.snapshot.connected = false;
         l.snapshot.calls.clear();
         l.conn = None;
+        l.rtc = Rtc::default();
     });
     publish(app);
+    let _ = app.emit_to(WINDOW_LABEL, "threecx-webrtc", Rtc::default());
 }
 
 // ── Connection loop ──────────────────────────────────────────────────────────
@@ -489,12 +531,20 @@ async fn run_user(app: &AppHandle, cfg: &Config, generation: u64) -> Result<(), 
     }
     let mut seen: HashMap<i64, (u64, bool)> = HashMap::new();
     let mut team = myphone::Team::default();
+    let mut rtc = myphone::WebRtc::default();
+    // "Questo PC": the session becomes a WebRTC phone of the extension.
+    let pc = cfg.device == PC_DEVICE;
+    if pc {
+        if let Err(e) = session.request(&http, myphone::T_REGISTER_WEBRTC, myphone::register_webrtc(true)).await {
+            crate::log::line(format!("3cx: webrtc not registered: {e}"));
+        }
+    }
     // In at least one queue: the queues pushed on connect are those of the extension.
     let mut in_queues = false;
     // Only the first few message types, for diagnosis: never their content.
     let mut logged = 0;
 
-    let refresh_snapshot = |info: &myphone::MyInfo, team: &myphone::Team, in_queues: bool, seen: &mut HashMap<i64, (u64, bool)>| {
+    let refresh_snapshot = |info: &myphone::MyInfo, team: &myphone::Team, rtc: &myphone::WebRtc, in_queues: bool, seen: &mut HashMap<i64, (u64, bool)>| {
         let calls = info.calls(seen, now_ms());
         live(|l| {
             l.error = None;
@@ -506,13 +556,15 @@ async fn run_user(app: &AppHandle, cfg: &Config, generation: u64) -> Result<(), 
                 name: format!("{} {}", info.first, info.last).trim().to_string(),
                 profile: info.profile.to_string(),
                 profiles: info.profiles(),
-                devices: info.devices(),
+                // Our own WebRTC phone is "Questo PC", not one of the devices.
+                devices: info.devices().into_iter().filter(|d| rtc.contact.is_empty() || d.id != rtc.contact).collect(),
                 device: cfg.device.clone(),
                 calls,
                 missed: info.missed,
                 team: team.colleagues(&info.number),
                 voicemail: info.new_voicemails,
                 queue: in_queues.then_some(info.queue),
+                pc: pc && rtc.registered,
                 ..Snapshot::default()
             };
             l.set_unread(unread);
@@ -525,7 +577,7 @@ async fn run_user(app: &AppHandle, cfg: &Config, generation: u64) -> Result<(), 
         }
     }
     live(|l| l.conn = Some(Arc::new(Conn::User(session))));
-    refresh_snapshot(&info, &team, in_queues, &mut seen);
+    refresh_snapshot(&info, &team, &rtc, in_queues, &mut seen);
     publish(app);
     crate::log::line("3cx: connected (login)");
 
@@ -557,6 +609,16 @@ async fn run_user(app: &AppHandle, cfg: &Config, generation: u64) -> Result<(), 
                             }
                         }
                         myphone::T_UNREAD => live(|l| l.set_unread(myphone::unread(&m).into_iter().collect())),
+                        myphone::T_WEBRTC => {
+                            let was = rtc.registered;
+                            rtc.apply(&m);
+                            if rtc.registered != was {
+                                crate::log::line(format!("3cx: webrtc registered {}", rtc.registered));
+                            }
+                            let state = Rtc { registered: rtc.registered, calls: rtc.calls() };
+                            live(|l| l.rtc = state.clone());
+                            let _ = app.emit_to(WINDOW_LABEL, "threecx-webrtc", &state);
+                        }
                         myphone::T_MESSAGES => {
                             new_messages(app, &m, &info.number);
                             continue;
@@ -569,7 +631,7 @@ async fn run_user(app: &AppHandle, cfg: &Config, generation: u64) -> Result<(), 
                         }
                         _ => continue,
                     }
-                    refresh_snapshot(&info, &team, in_queues, &mut seen);
+                    refresh_snapshot(&info, &team, &rtc, in_queues, &mut seen);
                     publish(app);
                 }
             }
@@ -578,15 +640,24 @@ async fn run_user(app: &AppHandle, cfg: &Config, generation: u64) -> Result<(), 
                     return Err(crate::i18n::t("Il centralino ha chiuso la sessione").into());
                 }
             }
-            Ok(Some(Err(e))) => return if stale(generation) { Ok(()) } else { Err(e) },
-            Ok(None) => return if stale(generation) { Ok(()) } else { Err(t("Canale degli eventi chiuso").into()) },
+            Ok(Some(Err(e))) => return if stale(generation) { unregister(pc).await } else { Err(e) },
+            Ok(None) => return if stale(generation) { unregister(pc).await } else { Err(t("Canale degli eventi chiuso").into()) },
             Err(_) => {
                 if stale(generation) || !wanted(app) {
-                    return Ok(());
+                    return unregister(pc).await;
                 }
             }
         }
     }
+}
+
+/// Leaving on purpose (new settings, integration off): our WebRTC phone stops
+/// ringing at once instead of when the PBX drops the session.
+async fn unregister(pc: bool) -> Result<(), String> {
+    if pc {
+        let _ = user_request(myphone::T_REGISTER_WEBRTC, myphone::register_webrtc(false)).await;
+    }
+    Ok(())
 }
 
 async fn run_api(app: &AppHandle, cfg: &Config, generation: u64) -> Result<(), String> {
@@ -827,6 +898,88 @@ pub async fn divert(id: &str, number: &str) -> Result<(), String> {
     user_request(myphone::T_DIVERT_CALL, body).await.map(|_| ())
 }
 
+// ── Ringtone of "Questo PC" ──────────────────────────────────────────────────
+//
+// The built-in one is synthesised in the page (softphone.ts). The user's own
+// is a copy of the file they picked, `ringtone.<ext>` next to the settings:
+// their file, not an asset of the app, and never sent anywhere.
+
+const RINGTONE_TYPES: [(&str, &str); 4] = [("mp3", "audio/mpeg"), ("wav", "audio/wav"), ("ogg", "audio/ogg"), ("m4a", "audio/mp4")];
+const RINGTONE_MAX: usize = 10 * 1024 * 1024;
+
+fn ringtone_path(ext: &str) -> std::path::PathBuf {
+    crate::settings::config_dir().join(format!("ringtone.{ext}"))
+}
+
+/// The user's ringtone as a data URL, or None for the built-in one.
+pub fn ringtone() -> Option<String> {
+    RINGTONE_TYPES.iter().find_map(|(ext, mime)| {
+        let bytes = std::fs::read(ringtone_path(ext)).ok()?;
+        Some(format!("data:{mime};base64,{}", crate::claude::base64_for(&bytes)))
+    })
+}
+
+/// Keeps a copy of the picked file as the ringtone (the old one goes).
+pub fn set_ringtone(name: &str, data: &[u8]) -> Result<(), String> {
+    let ext = name.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
+    if !RINGTONE_TYPES.iter().any(|(e, _)| *e == ext) {
+        return Err(t("Scegli un file MP3, WAV, OGG o M4A").into());
+    }
+    if data.is_empty() || data.len() > RINGTONE_MAX {
+        return Err(t("La suoneria deve essere più piccola di 10 MB").into());
+    }
+    clear_ringtone();
+    let _ = std::fs::create_dir_all(crate::settings::config_dir());
+    std::fs::write(ringtone_path(&ext), data).map_err(|e| tf("Suoneria non salvata: {e}", &[("e", &e)]))
+}
+
+/// Back to the built-in ringtone.
+pub fn clear_ringtone() {
+    for (ext, _) in RINGTONE_TYPES {
+        let _ = std::fs::remove_file(ringtone_path(ext));
+    }
+}
+
+/// "Questo PC" speaks through the island page: WebView2 would ask for the
+/// microphone with its own prompt, which an always-on-top island without a
+/// frame cannot show well. Only the microphone, only for our page.
+pub fn allow_microphone(app: &AppHandle) {
+    use webview2_com::Microsoft::Web::WebView2::Win32::{
+        COREWEBVIEW2_PERMISSION_KIND, COREWEBVIEW2_PERMISSION_KIND_MICROPHONE, COREWEBVIEW2_PERMISSION_STATE_ALLOW,
+    };
+    let Some(win) = crate::island::window(app) else { return };
+    let _ = win.with_webview(|webview| unsafe {
+        let Ok(core) = webview.controller().CoreWebView2() else { return };
+        let handler = webview2_com::PermissionRequestedEventHandler::create(Box::new(|_, args| {
+            let Some(args) = args else { return Ok(()) };
+            let mut kind = COREWEBVIEW2_PERMISSION_KIND::default();
+            args.PermissionKind(&mut kind)?;
+            if kind == COREWEBVIEW2_PERMISSION_KIND_MICROPHONE {
+                args.SetState(COREWEBVIEW2_PERMISSION_STATE_ALLOW)?;
+            }
+            Ok(())
+        }));
+        let mut token = 0i64;
+        if let Err(e) = core.add_PermissionRequested(&handler, &mut token) {
+            crate::log::line(format!("3cx: microphone permission not set: {e}"));
+        }
+    });
+}
+
+/// One step of a call of our WebRTC phone (see `myphone::webrtc_sdp`); the
+/// PBX's id of the call (new for an offer that starts one).
+pub async fn webrtc(id: i64, sdp_type: i64, transaction: Option<i64>, sdp: &str, destination: &str, replace: Option<i64>) -> Result<i64, String> {
+    let to = if destination.is_empty() { String::new() } else { dialable(destination).ok_or(t("Numero non valido"))? };
+    let (reply, m) = user_request(myphone::T_WEBRTC_SDP, myphone::webrtc_sdp(id, sdp_type, transaction, sdp, &to, replace)).await?;
+    if reply != myphone::T_WEBRTC_SDP_RESULT {
+        return Ok(id);
+    }
+    if m.bool(1) != Some(true) {
+        return Err(m.str(2).filter(|s| !s.is_empty()).unwrap_or_else(|| t("Il centralino ha rifiutato la chiamata dal PC").into()));
+    }
+    Ok(m.int(3).unwrap_or(id))
+}
+
 /// A colleague's ringing call answered here.
 pub async fn pickup(id: &str, device: Option<&str>) -> Result<(), String> {
     let device = pick_device(device);
@@ -937,7 +1090,7 @@ mod tests {
     fn call_changes_are_logged_without_numbers() {
         let call = |state: &str| Call {
             id: "50".into(), state: state.into(), incoming: true, name: "Cliente".into(),
-            number: "+39051".into(), since: 0, can_answer: false,
+            number: "+39051".into(), since: 0, can_answer: false, dialog: String::new(),
         };
         let mut states = HashMap::new();
         assert_eq!(call_changes(&mut states, &[call("ringing")]), vec!["3cx: call 50 in ringing"]);

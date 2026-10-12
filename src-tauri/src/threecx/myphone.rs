@@ -18,11 +18,17 @@
 // conversation created from the sorted extension numbers joined by ":"
 // ("101:105"), then written with SendChatMessageToConversation (190); new
 // messages, unread counts and "is typing" are pushed (209, 229, 180).
+//
+// The PC as a phone (October 2026, same code): RegisterWebRTCEndpoint (163)
+// makes the session a WebRTC device of the extension; its calls come pushed
+// as MyWebRTCEndpoint (227) and every step of the SDP offer/answer goes back
+// with ChangeSDPState (164 → 228). The audio itself is WebRTC in the island
+// page (src/core/softphone.ts); here only the signalling.
 
 use serde_json::{json, Value};
 
 use super::pb::{Msg, Writer};
-use super::{Call, ChatMessage, ChatSummary, Colleague, Contact, Device, HistoryItem, Profile, Voicemail};
+use super::{Call, ChatMessage, ChatSummary, Colleague, Contact, Device, HistoryItem, Profile, RtcCall, Voicemail};
 use crate::i18n::{t, tf};
 
 pub const T_MY_INFO_REQUEST: i64 = 102;
@@ -45,6 +51,8 @@ pub const T_UNREAD_COUNT: i64 = 165;
 pub const T_TYPING: i64 = 180;
 pub const T_CREATE_CONVERSATION: i64 = 189;
 pub const T_SEND_TO_CONVERSATION: i64 = 190;
+pub const T_REGISTER_WEBRTC: i64 = 163;
+pub const T_WEBRTC_SDP: i64 = 164;
 pub const T_GET_VOICEMAILS: i64 = 565;
 pub const T_MY_INFO: i64 = 201;
 pub const T_LOOKUP_RESULT: i64 = 202;
@@ -59,6 +67,10 @@ pub const T_QUEUES: i64 = 211;
 pub const T_CHAT_PARTIES: i64 = 220;
 /// Unread chat messages per conversation (pushed, or the answer to `T_UNREAD_COUNT`).
 pub const T_UNREAD: i64 = 229;
+/// Our WebRTC phone and its calls (pushed, whole and then as deltas).
+pub const T_WEBRTC: i64 = 227;
+/// The answer to `T_WEBRTC_SDP`: Success, Message, CallId.
+pub const T_WEBRTC_SDP_RESULT: i64 = 228;
 pub const T_CONVERSATION_INFO: i64 = 236;
 pub const T_VOICEMAILS: i64 = 268;
 
@@ -310,6 +322,74 @@ pub fn play_voicemail(id: i64) -> Writer {
     Writer::new().int(1, id)
 }
 
+/// Our WebRTC phone on (or off): the PBX then rings it like any other device
+/// and pushes its calls as `T_WEBRTC` (the web client sends this on connect).
+pub fn register_webrtc(on: bool) -> Writer {
+    Writer::new().bool(1, on).bool(2, false) // register, NeedsRegistration
+}
+
+/// One step of a WebRTC call (ChangeSDPState): an offer for a new call
+/// (`id` 0, with `destination` or `replace` for a pickup), the answer to the
+/// PBX's offer, the confirmation of its answer, or the end of the call.
+pub fn webrtc_sdp(id: i64, sdp_type: i64, transaction: Option<i64>, sdp: &str, destination: &str, replace: Option<i64>) -> Writer {
+    let mut w = Writer::new().int(1, id).int(2, sdp_type);
+    if let Some(t) = transaction {
+        w = w.int(3, t);
+    }
+    if !sdp.is_empty() {
+        w = w.str(4, sdp);
+    }
+    if !destination.is_empty() {
+        w = w.str(5, destination);
+    }
+    if let Some(r) = replace {
+        w = w.int(8, r);
+    }
+    w
+}
+
+/// Our WebRTC phone (MyWebRTCEndpoint): registered or not, and its calls with
+/// the SDP the PBX sends (WebRTCCall: Action, Id, sdpType, name, number,
+/// transactionId, sdp, SIPDialogID, holdState).
+#[derive(Default)]
+pub struct WebRtc {
+    pub registered: bool,
+    /// The SIP contact of our phone: the device to leave out of the device list.
+    pub contact: String,
+    pub calls: Items,
+}
+
+impl WebRtc {
+    pub fn apply(&mut self, m: &Msg) {
+        if let Some(v) = m.bool(3) {
+            self.registered = v;
+        }
+        if let Some(v) = m.str(4) {
+            self.contact = v;
+        }
+        self.calls.apply(m);
+    }
+
+    pub fn calls(&self) -> Vec<RtcCall> {
+        self.calls
+            .0
+            .iter()
+            .filter_map(|c| {
+                Some(RtcCall {
+                    id: c.int(2)?,
+                    sdp_type: c.int(3).unwrap_or(10),
+                    name: c.str(4).unwrap_or_default(),
+                    number: c.str(5).unwrap_or_default(),
+                    transaction: c.int(6).unwrap_or(0),
+                    sdp: c.str(7).unwrap_or_default(),
+                    dialog: c.str(8).unwrap_or_default(),
+                    hold: c.int(9).unwrap_or(0),
+                })
+            })
+            .collect()
+    }
+}
+
 // ── MyInfo: the extension's live state, sent whole and then as deltas ───────
 
 const ACTION_FULL: i64 = 1;
@@ -449,6 +529,7 @@ impl MyInfo {
                 number,
                 since: entry.0,
                 can_answer: incoming && state == "ringing",
+                dialog: c.str(32).unwrap_or_default(),
             });
         }
         first_seen.retain(|id, _| self.connections.0.iter().any(|c| c.int(2) == Some(*id)));
@@ -803,6 +884,29 @@ mod tests {
 
     fn conn(action: i64, id: i64, state: i64, incoming: bool, name: &str, number: &str) -> Writer {
         Writer::new().int(1, action).int(2, id).int(5, state).str(10, name).str(11, number).bool(12, incoming)
+    }
+
+    #[test]
+    fn webrtc_offer_and_endpoint_deltas() {
+        // ChangeSDPState: Id, sdpType, transactionId, sdp, destinationNumber, replaceConnectionId.
+        let m = Msg::decode(&webrtc_sdp(0, 1, Some(3), "v=0", "0511234", None).finish()).unwrap();
+        assert_eq!((m.int(1), m.int(2), m.int(3)), (Some(0), Some(1), Some(3)));
+        assert_eq!((m.str(4).as_deref(), m.str(5).as_deref(), m.int(8)), (Some("v=0"), Some("0511234"), None));
+        let m = Msg::decode(&webrtc_sdp(42, 0, None, "", "", Some(9)).finish()).unwrap();
+        assert_eq!((m.int(1), m.int(2), m.str(4), m.int(8)), (Some(42), Some(0), None, Some(9)));
+
+        // MyWebRTCEndpoint: whole on connect, then a call item by item.
+        let mut rtc = WebRtc::default();
+        rtc.apply(&Msg::decode(&Writer::new().int(1, 1).bool(3, true).str(4, "sip:101@pc").finish()).unwrap());
+        assert!(rtc.registered && rtc.contact == "sip:101@pc" && rtc.calls().is_empty());
+        let offer = Writer::new().int(1, 2).int(2, 7).int(3, 1).str(5, "0511234").int(6, 4).str(7, "v=0 offer").str(8, "dlg-1");
+        rtc.apply(&Msg::decode(&Writer::new().int(1, 3).msg(2, offer).finish()).unwrap());
+        let c = &rtc.calls()[0];
+        assert_eq!((c.id, c.sdp_type, c.number.as_str(), c.transaction, c.dialog.as_str()), (7, 1, "0511234", 4, "dlg-1"));
+        rtc.apply(&Msg::decode(&Writer::new().int(1, 3).msg(2, Writer::new().int(1, 3).int(2, 7).int(3, 9)).finish()).unwrap());
+        assert_eq!((rtc.calls()[0].sdp_type, rtc.calls()[0].sdp.as_str()), (9, "v=0 offer"));
+        rtc.apply(&Msg::decode(&Writer::new().int(1, 3).msg(2, Writer::new().int(1, 4).int(2, 7)).finish()).unwrap());
+        assert!(rtc.calls().is_empty() && rtc.registered);
     }
 
     #[test]

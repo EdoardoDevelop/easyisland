@@ -144,6 +144,7 @@ pub fn call(p: &Value, first_seen: &mut std::collections::HashMap<i64, (u64, boo
         number,
         since: entry.0,
         can_answer: state == "ringing" && p["direct_control"].as_bool().unwrap_or(false),
+        dialog: String::new(),
     })
 }
 

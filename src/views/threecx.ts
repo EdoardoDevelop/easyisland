@@ -1,11 +1,12 @@
-// The 3CX card (src-tauri/src/threecx): status, the calls in progress with
-// answer / decline / hang up / transfer / divert, and below them one panel at
-// a time: the dialer (phonebook search), the recent and missed calls, the team
-// with its presence, the chats, the voicemail.
+// The 3CX card (src-tauri/src/threecx), laid out like a phone: on the left the
+// display, the keypad and the green button, with the device the calls start
+// from ("Questo PC" makes EasyIsland itself the phone, src/core/softphone.ts);
+// on the right the calls in progress and one list at a time (recent calls,
+// missed, team, chats, voicemail, phonebook results); below, the tab bar.
 //
-// The card is rebuilt whenever the PBX sends news; the dialer is one element
-// kept across rebuilds, so typing (a number or a chat message) is never
-// interrupted by an incoming update.
+// The card is rebuilt whenever the PBX sends news; the phone (Dialer) is one
+// element kept across rebuilds, so typing (a number or a chat message) is
+// never interrupted by an incoming update.
 
 import { h, svg, clear, dot, brandOrDot } from "./dom";
 import { ICONS } from "./icons";
@@ -15,8 +16,14 @@ import {
   type ThreecxMessage, type ThreecxVoicemail,
 } from "../core/bridge";
 import { locale, t } from "../core/i18n";
+import {
+  answerOnPc, callFromPc, muted, onPc, pickupOnPc, ringOn, rtcFor, setMuted, setRingOn, tone, type RtcCall,
+} from "../core/softphone";
 
 export const THREECX = "integration_3cx";
+
+/** The device setting that makes EasyIsland the phone (threecx::PC_DEVICE). */
+const PC = "pc";
 
 interface Snapshot {
   mode?: "user" | "api";
@@ -34,6 +41,8 @@ interface Snapshot {
   voicemail?: number;
   /** Logged in to the queues; null when the extension is in no queue. */
   queue?: boolean | null;
+  /** "Questo PC" is registered as a phone of the extension. */
+  pc?: boolean;
 }
 
 /** Presence colours and their order in the team list (free first). */
@@ -56,6 +65,15 @@ function presenceText(c: ThreecxColleague): string {
 const GREEN = "#22C55E";
 const RED = "#F4505E";
 const AMBER = "#F5A524";
+const BLUE = "#0596D4";
+
+/** The keypad: digit and the letters under it, like a phone. */
+const KEYS: [string, string][] = [
+  ["1", ""], ["2", "ABC"], ["3", "DEF"],
+  ["4", "GHI"], ["5", "JKL"], ["6", "MNO"],
+  ["7", "PQRS"], ["8", "TUV"], ["9", "WXYZ"],
+  ["*", ""], ["0", "+"], ["#", ""],
+];
 
 function data(): Snapshot {
   return (State.integrations[THREECX]?.data ?? {}) as Snapshot;
@@ -86,17 +104,32 @@ function when(ms: number): string {
     : d.toLocaleDateString(locale(), { day: "numeric", month: "short" });
 }
 
+/** "MR" for Mario Rossi; "" for a number. */
+function initials(name: string): string {
+  const words = name.trim().split(/\s+/).filter((w) => /\p{L}/u.test(w[0] ?? ""));
+  return words.slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+}
+
 /** The card is on screen (not just built): new messages count as read. */
 function onScreen(el: HTMLElement): boolean {
   return el.isConnected && State.mode === "expanded" && State.focusId === THREECX && !document.hidden;
 }
 
-/** The device chosen in the card ("" = let EasyIsland pick). */
+/** The device chosen in the card ("" = let EasyIsland pick, "pc" = this PC). */
 function device(): string | null {
   return State.settings.integrationConfig?.threecxDevice || null;
 }
 
-// ── The dialer: one element for the life of the island ──────────────────────
+function fromPc(): boolean {
+  return data().mode === "user" && device() === PC;
+}
+
+/** The call of "Questo PC" behind a call of the card, when this PC is the phone. */
+function pcCall(c: ThreecxCall): RtcCall | null {
+  return data().pc ? rtcFor(c) : null;
+}
+
+// ── The phone: one element for the life of the island ───────────────────────
 
 type Panel = "search" | "recent" | "missed" | "team" | "chats" | "chat" | "voicemail";
 
@@ -115,11 +148,17 @@ interface OpenChat {
 
 class Dialer {
   el: HTMLElement;
+  /** The tab bar, at the foot of the card. */
+  tabs: HTMLElement;
   private input: HTMLInputElement;
-  private dial: HTMLElement;
+  private pad: HTMLElement;
+  private go: HTMLElement;
+  /** Under the green button: the device the calls start from (drawn by the card). */
+  private padFoot: HTMLElement;
+  private calls: HTMLElement;
   private list: HTMLElement;
   private note: HTMLElement;
-  private panel: Panel = "search";
+  private panel: Panel = "recent";
   private timer = 0;
   private seq = 0;
   private focused = false;
@@ -134,6 +173,9 @@ class Dialer {
   private composerFocused = false;
   private typingSent = 0;
   private typingTimer = 0;
+  /** A call of this PC in progress: the keypad sends tones to it. */
+  private tones: RtcCall | null = null;
+  private callCount = 0;
 
   constructor() {
     this.input = h("input", {
@@ -142,7 +184,7 @@ class Dialer {
       spellcheck: "false", autocomplete: "off",
     }) as HTMLInputElement;
     keyboard(this.input, (on) => { this.focused = on; });
-    this.input.addEventListener("input", () => (this.panel === "team" ? this.renderTeam() : this.search()));
+    this.input.addEventListener("input", () => this.typed());
     this.input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -151,14 +193,34 @@ class Dialer {
         e.stopPropagation();
         if (this.input.value) this.input.value = "";
         else this.pick = null;
-        this.show(this.panel === "team" && !this.pick ? "team" : "search", true);
+        this.show(this.panel === "team" && !this.pick ? "team" : "recent", true);
+      } else if (this.tones && e.key.length === 1 && /[0-9*#]/.test(e.key)) {
+        tone(this.tones, e.key);
       }
     });
-    const go = h("button", { class: "tcx-go", title: t("Chiama"), style: `--c:${GREEN}`, onclick: () => this.enter() }, svg(ICONS.phone, 13));
+    const back = h("button", { class: "tcx-back-key", title: t("Cancella"), onclick: () => {
+      this.input.value = this.input.value.slice(0, -1);
+      this.typed();
+    } }, svg(ICONS.backspace, 14, { stroke: 1.8 }));
+    const display = h("div", { class: "tcx-display" }, this.input, back);
+
+    this.pad = h("div", { class: "tcx-pad" });
+    for (const [digit, letters] of KEYS) {
+      this.pad.append(h("button", { class: "tcx-key", title: digit, onclick: () => this.key(digit) },
+        h("b", { text: digit }), h("small", { text: letters })));
+    }
+    this.go = h("button", { class: "tcx-call-btn", title: t("Chiama"), onclick: () => this.enter() }, svg(ICONS.phone, 17));
+    this.padFoot = h("div", { class: "tcx-pad-foot" });
+    const phone = h("div", { class: "tcx-phone" }, display, this.pad, h("div", { class: "tcx-call-row" }, this.go), this.padFoot);
+
+    this.calls = h("div", { class: "tcx-calls" });
     this.list = h("div", { class: "tcx-list" });
     this.note = h("div", { class: "tcx-note" });
-    this.dial = h("div", { class: "tcx-dial" }, this.input, go);
-    this.el = h("div", { class: "tcx-dialer" }, this.dial, this.note, this.list);
+    const side = h("div", { class: "tcx-side" }, this.calls, this.note, this.list);
+    this.el = h("div", { class: "tcx-body" }, phone, side);
+    this.tabs = h("div", { class: "tcx-tabs" });
+    // With an API client there is no call history: the phonebook is the list.
+    this.show(data().mode === "api" ? "search" : "recent", true);
   }
 
   /** Back in a freshly built card: give the keyboard back if it was here. */
@@ -178,18 +240,32 @@ class Dialer {
     window.setTimeout(() => { if (this.note.textContent === shown) this.note.textContent = ""; }, 4000);
   }
 
+  /** A key of the keypad: a tone into the call of this PC, or a digit on the display. */
+  private key(digit: string) {
+    if (this.tones) tone(this.tones, digit);
+    this.input.value += digit;
+    this.typed();
+  }
+
+  /** The display changed: the team filters, anything else searches the phonebook. */
+  private typed() {
+    if (this.panel === "team") {
+      this.renderTeam();
+      return;
+    }
+    if (this.tones) return; // tones for the call: nothing to look up
+    if (this.input.value.trim()) this.search();
+    else if (this.panel === "search") this.show("recent", true);
+  }
+
   /** Invio or the green button: call, or hand the waiting call to what was typed / the first match. */
   private enter() {
     const typed = dialable(this.input.value);
     if (this.panel === "team") {
-      const first = this.team()[0];
-      if (this.pick) {
-        const to = typed ?? first?.number;
-        if (to) void this.handOver(to);
-        return;
-      }
-      const to = typed ?? first?.number;
-      if (to) void this.call(to);
+      const to = typed ?? this.team()[0]?.number;
+      if (!to) return;
+      if (this.pick) void this.handOver(to);
+      else void this.call(to);
       return;
     }
     const to = typed ?? this.results[0]?.numbers[0];
@@ -199,7 +275,13 @@ class Dialer {
 
   async call(number: string) {
     try {
-      await Bridge.threecxCall(number, device());
+      if (fromPc()) {
+        if (!data().pc) throw new Error(t("Questo PC non è ancora pronto come telefono: riprova tra poco"));
+        await callFromPc(number);
+      } else {
+        await Bridge.threecxCall(number, device());
+      }
+      this.input.value = "";
       this.say(t("Chiamo {n}…", { n: number }), false);
     } catch (e) {
       this.say(message(e));
@@ -216,7 +298,7 @@ class Dialer {
       this.pick = null;
       this.input.value = "";
       this.say(pick.kind === "transfer" ? t("Trasferita a {n}", { n: number }) : t("Deviata a {n}", { n: number }), false);
-      this.show("search", true);
+      this.show("recent", true);
     } catch (e) {
       this.say(message(e));
     }
@@ -230,14 +312,13 @@ class Dialer {
   }
 
   show(panel: Panel, force = false) {
-    // The same link again closes the list.
-    if (!force && panel !== "search" && panel === this.panel && panel !== "chat") panel = "search";
+    if (!force && panel === this.panel && panel !== "chat") return;
     if (panel !== "chat") this.leaveChat();
     if (panel !== "team") this.pick = null;
     this.panel = panel;
-    this.dial.style.display = panel === "chat" ? "none" : "";
     this.input.placeholder = panel === "team" ? (this.pick ? t("Collega o numero a cui passarla") : t("Cerca un collega")) : t("Cerca o componi");
     this.input.title = this.pick ? t("Invio la passa al primo collega dell'elenco o al numero scritto") : t("Un nome, un'azienda o un numero; Invio chiama");
+    this.drawTabs();
     if (panel === "search") {
       this.search();
       return;
@@ -247,7 +328,7 @@ class Dialer {
       return;
     }
     if (panel === "chat") return; // drawn by openChat
-    this.input.value = "";
+    if (!this.tones) this.input.value = "";
     clear(this.list);
     this.list.append(this.head(), h("div", { class: "int-empty", text: t("Carico…") }));
     refit();
@@ -267,7 +348,7 @@ class Dialer {
       Bridge.threecxHistory(panel === "missed")
         .then((items) => {
           if (seq !== this.seq) return;
-          this.renderHistory(items);
+          this.renderHistory(items ?? []);
           refit();
           if (panel === "missed" && (data().missed ?? 0) > 0) void Bridge.threecxResetMissed();
         })
@@ -275,24 +356,79 @@ class Dialer {
     }
   }
 
+  // ── Tab bar ───────────────────────────────────────────────────────────────
+
+  drawTabs() {
+    const d = data();
+    clear(this.tabs);
+    // API client: no team, chat, voicemail or history, so no tabs.
+    if (d.mode !== "user") return;
+    const free = (d.team ?? []).filter((c) => c.presence === "available").length;
+    this.tabs.append(
+      this.tab("team", ICONS.people, t("Team"), 0, false, BLUE, t("{n} colleghi disponibili", { n: free })),
+      this.tab("chats", ICONS.bubble, t("Chat"), d.unread ?? 0),
+      this.tab("voicemail", ICONS.voicemail, t("Segreteria"), d.voicemail ?? 0, true),
+      this.tab("recent", ICONS.history, t("Recenti"), 0, true),
+      this.tab("missed", ICONS.missed, t("Perse"), d.missed ?? 0, true, RED),
+    );
+  }
+
+  private tab(panel: Panel, icon: string, label: string, count: number, stroke = false, badge = BLUE, title = ""): HTMLElement {
+    const on = this.panel === panel || (panel === "chats" && this.panel === "chat");
+    return h("button", { class: on ? "tcx-tab on" : "tcx-tab", title: title || label, onclick: () => this.show(panel, panel === "chats") },
+      h("span", { class: "tcx-tab-icon" }, svg(icon, 15, stroke ? { stroke: 1.9 } : {}),
+        count > 0 ? h("span", { class: "tcx-tab-badge", style: `background:${badge}`, text: count > 99 ? "99+" : String(count) }) : null),
+      h("span", { class: "tcx-tab-label", text: label }));
+  }
+
+  // ── What the card draws into the phone ────────────────────────────────────
+
+  /** The calls in progress, at the top of the right side. */
+  setCalls(rows: HTMLElement[]) {
+    clear(this.calls);
+    this.calls.append(...rows);
+  }
+
+  /** The device line under the green button. */
+  setPadFoot(...els: (HTMLElement | null)[]) {
+    clear(this.padFoot);
+    for (const el of els) if (el) this.padFoot.append(el);
+  }
+
   /** New data from the PBX: lists that show it are drawn again (the scroll stays). */
   update() {
+    const d = data();
+    const calls = d.calls ?? [];
+    // A call of this PC in progress: the keypad plays tones into it, the green button rests.
+    const live = calls.map(pcCall).find((r) => r && onPc(r) && r.sdpType !== 4) ?? null;
+    if (!!live !== !!this.tones) this.input.value = "";
+    this.tones = live;
+    this.go.style.visibility = live ? "hidden" : "";
+    this.input.placeholder = live ? t("Toni alla chiamata") : this.panel === "team" ? this.input.placeholder : t("Cerca o componi");
     if (this.panel === "team") this.renderTeam();
     else if (this.panel === "chats") this.renderChats();
-    if (this.pick && !(data().calls ?? []).some((c) => c.id === this.pick?.callId)) {
+    else if ((this.panel === "recent" || this.panel === "missed") && calls.length < this.callCount) {
+      // A call just ended: it belongs in the list now.
+      window.setTimeout(() => { if (this.panel === "recent" || this.panel === "missed") this.show(this.panel, true); }, 1500);
+    }
+    this.callCount = calls.length;
+    if (this.pick && !calls.some((c) => c.id === this.pick?.callId)) {
       // The call ended (or went) while picking.
       this.pick = null;
       if (this.panel === "team") this.show("team", true);
     }
+    this.drawTabs();
   }
 
   private search() {
     this.panel = "search";
+    this.drawTabs();
     window.clearTimeout(this.timer);
     const q = this.input.value.trim();
     const seq = ++this.seq;
     this.results = [];
     clear(this.list);
+    this.list.append(this.head(t("Rubrica")));
     const number = dialable(q);
     if (number) {
       this.list.append(this.row(t("Chiama {n}", { n: number }), "", [number], GREEN));
@@ -303,11 +439,11 @@ class Dialer {
       Bridge.threecxContacts(q)
         .then((list) => {
           if (seq !== this.seq) return;
-          this.results = list;
-          for (const c of list.slice(0, 8)) {
+          this.results = list ?? [];
+          for (const c of this.results.slice(0, 8)) {
             this.list.append(this.row(c.name, c.colleague ? t("interno") : c.company, c.numbers, c.colleague ? "#38BDF8" : "#A78BFA"));
           }
-          if (list.length === 0 && !number) this.list.append(h("div", { class: "int-empty", text: t("Nessun contatto") }));
+          if (this.results.length === 0 && !number) this.list.append(h("div", { class: "int-empty", text: t("Nessun contatto") }));
           refit();
         })
         .catch((e) => { if (seq === this.seq) this.say(message(e)); });
@@ -320,21 +456,19 @@ class Dialer {
       nums.append(h("button", { class: "tcx-num", title: t("Chiama {n}", { n }), onclick: (e: Event) => { e.stopPropagation(); void this.call(n); } },
         svg(ICONS.phone, 9), h("span", { text: n })));
     }
-    return h("div", { class: "int-row tcx-row", title: t("Chiama {n}", { n: numbers[0] }), onclick: () => void this.call(numbers[0]) },
+    return h("div", { class: "int-row tcx-row", title: numbers[0] ? t("Chiama {n}", { n: numbers[0] }) : "", onclick: () => { if (numbers[0]) void this.call(numbers[0]); } },
       dot(color, 5),
       h("span", { class: "int-name", text: name }),
       sub ? h("span", { class: "int-ago", text: sub }) : null,
       nums);
   }
 
-  /** Title of a list, with ✕ back to the search. */
+  /** Title of a list. */
   private head(title?: string): HTMLElement {
     const titles: Partial<Record<Panel, string>> = {
       missed: t("Chiamate perse"), recent: t("Chiamate recenti"), team: t("Team"), chats: t("Chat"), voicemail: t("Segreteria"),
     };
-    return h("div", { class: "tcx-list-head" },
-      h("span", { text: title ?? titles[this.panel] ?? "" }),
-      h("button", { class: "tcx-list-close", title: t("Chiudi l'elenco"), onclick: () => { this.input.value = ""; this.show("search", true); } }, svg(ICONS.xmark, 9)));
+    return h("div", { class: "tcx-list-head" }, h("span", { text: title ?? titles[this.panel] ?? "" }));
   }
 
   private renderHistory(items: ThreecxHistoryItem[]) {
@@ -348,9 +482,7 @@ class Dialer {
     const kinds = { missed: t("persa"), received: t("ricevuta"), outgoing: t("fatta"), other: "" } as const;
     for (const it of items.slice(0, 15)) {
       const label = it.name || it.number || t("Sconosciuto");
-      const r = this.row(label, [kinds[it.kind], when(it.at)].filter(Boolean).join(" · "), it.number ? [it.number] : [], colors[it.kind]);
-      if (!it.number) r.onclick = null;
-      this.list.append(r);
+      this.list.append(this.row(label, [kinds[it.kind], when(it.at)].filter(Boolean).join(" · "), it.number ? [it.number] : [], colors[it.kind]));
     }
   }
 
@@ -402,7 +534,7 @@ class Dialer {
         acts.append(btn(ICONS.phone, t("Rispondi al suo posto"), AMBER, () => void this.pickup(id)));
       }
       acts.append(
-        btn(ICONS.bubble, t("Scrivi"), "#0596D4", () => void this.chatWith(c)),
+        btn(ICONS.bubble, t("Scrivi"), BLUE, () => void this.chatWith(c)),
         btn(ICONS.phone, t("Chiama {n}", { n: c.number }), GREEN, () => void this.call(c.number)),
       );
     }
@@ -420,7 +552,8 @@ class Dialer {
 
   private async pickup(id: string) {
     try {
-      await Bridge.threecxPickup(id, device());
+      if (fromPc() && data().pc) await pickupOnPc(id);
+      else await Bridge.threecxPickup(id, device());
       this.say(t("Rispondo…"), false);
     } catch (e) {
       this.say(message(e));
@@ -432,7 +565,7 @@ class Dialer {
       await Bridge.threecxDivert(callId, "");
       this.pick = null;
       this.say(t("In segreteria"), false);
-      this.show("search", true);
+      this.show("recent", true);
     } catch (e) {
       this.say(message(e));
     }
@@ -451,7 +584,7 @@ class Dialer {
       const n = unread[String(c.id)] ?? 0;
       const preview = `${c.lastMine ? t("Tu: ") : ""}${c.last}`;
       this.list.append(h("div", { class: "int-row tcx-row tcx-chat-row", onclick: () => void this.openChat(c) },
-        dot(c.external ? "#A78BFA" : c.group ? "#38BDF8" : "#0596D4", 6),
+        dot(c.external ? "#A78BFA" : c.group ? "#38BDF8" : BLUE, 6),
         h("span", { class: n ? "int-name tcx-unread-name" : "int-name", text: c.name || t("Conversazione") }),
         h("span", { class: "tcx-preview", text: preview }),
         h("span", { class: "int-ago", text: when(c.lastAt) }),
@@ -515,7 +648,7 @@ class Dialer {
         this.show("chats", true);
       }
     });
-    const send = h("button", { class: "tcx-go", title: t("Invia (Invio)"), style: "--c:#0596D4", onclick: () => void this.sendMessage() }, svg(ICONS.send, 12));
+    const send = h("button", { class: "tcx-go", title: t("Invia (Invio)"), style: `--c:${BLUE}`, onclick: () => void this.sendMessage() }, svg(ICONS.send, 12));
     this.list.append(head, this.thread, this.typingNote, h("div", { class: "tcx-compose-row" }, composer, send));
     refit();
     composer.focus();
@@ -635,7 +768,7 @@ class Dialer {
       const btn = (icon: string, title: string, tint: string, run: () => void) =>
         h("button", { class: "tcx-mini", title, style: `--c:${tint}`, onclick: (e: Event) => { e.stopPropagation(); run(); } }, svg(icon, 10));
       const acts = h("span", { class: "tcx-acts" },
-        btn(ICONS.play, t("Ascolta (squilla il tuo telefono)"), "#0596D4", () => {
+        btn(ICONS.play, t("Ascolta (squilla il tuo telefono)"), BLUE, () => {
           Bridge.threecxPlayVoicemail(v.id).then(() => { this.say(t("Il centralino ti sta chiamando per fartela ascoltare"), false); }).catch((e) => this.say(message(e)));
           row.classList.remove("tcx-new");
         }),
@@ -679,45 +812,97 @@ let devicesOpen = false;
 
 // ── The card ──────────────────────────────────────────────────────────────────
 
+/** A round button with its word under it, like a phone's call screen. */
+function callButton(icon: string, label: string, color: string, run: () => void, opts: { stroke?: number; on?: boolean } = {}): HTMLElement {
+  return h("button", { class: opts.on ? "tcx-cb on" : "tcx-cb", title: label, style: `--c:${color}`, onclick: (e: Event) => { e.stopPropagation(); run(); } },
+    h("span", { class: "tcx-cb-ring" }, svg(icon, 13, opts.stroke ? { stroke: opts.stroke } : {})),
+    h("span", { class: "tcx-cb-label", text: label }));
+}
+
 function callRow(c: ThreecxCall): HTMLElement {
   const ringing = c.state === "ringing";
   const color = ringing ? AMBER : c.state === "connected" ? GREEN : "#38BDF8";
   const label = c.name || c.number || t("Sconosciuto");
-  const what = ringing ? (c.incoming ? t("Ti sta chiamando") : t("Squilla")) : c.state === "dialing" ? t("Sto chiamando") : c.state === "connected" ? t("In linea") : "";
-  const time = h("span", { class: "int-ago" });
+  const rtc = pcCall(c);
+  const here = onPc(rtc);
+  const what = ringing
+    ? (c.incoming ? (rtc ? t("Squilla su questo PC") : t("Ti sta chiamando")) : t("Squilla"))
+    : c.state === "dialing" ? t("Sto chiamando") : c.state === "connected" ? (here ? t("In linea dal PC") : t("In linea")) : "";
+  const time = h("span", { class: "tcx-sub" });
   const tick = () => { time.textContent = `${what}${c.state === "connected" ? ` · ${mmss(Date.now() - c.since)}` : ""}`; };
   tick();
   if (c.state === "connected") {
-    const t = window.setInterval(() => { if (!time.isConnected) { window.clearInterval(t); return; } tick(); }, 1000);
+    const timer = window.setInterval(() => { if (!time.isConnected) { window.clearInterval(timer); return; } tick(); }, 1000);
   }
-  const act = (icon: string, title: string, color: string, action: string) =>
-    h("button", { class: "tcx-act", title, style: `--c:${color}`, onclick: (e: Event) => {
-      e.stopPropagation();
-      void Bridge.threecxAction(c.id, action).catch((err) => dialer?.say(message(err)));
-    } }, svg(icon, 12));
-  // Transfer / divert: the team opens and the colleague picked takes the call.
-  const handOver = (kind: "transfer" | "divert", title: string) =>
-    h("button", { class: "tcx-act", title, style: "--c:#0596D4", onclick: (e: Event) => {
-      e.stopPropagation();
-      dialer?.startPick(kind, c);
-    } }, svg(ICONS.forward, 12));
+  const fail = (err: unknown) => dialer?.say(message(err));
+  const act = (action: string) => () => void Bridge.threecxAction(c.id, action).catch(fail);
   const login = data().mode === "user";
-  const buttons = h("span", { class: "tcx-acts" });
+  const buttons = h("div", { class: "tcx-cbs" });
   if (ringing && c.incoming) {
-    if (c.canAnswer) buttons.append(act(ICONS.phone, t("Rispondi"), GREEN, "answer"));
-    if (login) buttons.append(handOver("divert", t("Devia a un collega o in segreteria")));
-    buttons.append(act(ICONS.hangup, t("Rifiuta"), RED, "decline"));
+    if (rtc) buttons.append(callButton(ICONS.phone, t("Rispondi"), GREEN, () => void answerOnPc(rtc).catch(fail)));
+    else if (c.canAnswer) buttons.append(callButton(ICONS.phone, t("Rispondi"), GREEN, act("answer")));
+    if (login) buttons.append(callButton(ICONS.forward, t("Devia"), BLUE, () => dialer?.startPick("divert", c)));
+    buttons.append(callButton(ICONS.hangup, t("Rifiuta"), RED, act("decline")));
   } else {
-    if (login && c.state === "connected") buttons.append(handOver("transfer", t("Trasferisci")));
-    buttons.append(act(ICONS.hangup, t("Riaggancia"), RED, "hangup"));
+    if (here && rtc) {
+      const off = muted(rtc);
+      buttons.append(callButton(off ? ICONS.micOff : ICONS.mic, off ? t("Riattiva") : t("Muto"), off ? RED : "#8e939c", () => setMuted(rtc, !off), { stroke: 1.9, on: off }));
+    }
+    if (login && c.state === "connected") buttons.append(callButton(ICONS.forward, t("Trasferisci"), BLUE, () => dialer?.startPick("transfer", c)));
+    buttons.append(callButton(ICONS.hangup, t("Riaggancia"), RED, act("hangup")));
   }
+  const face = initials(c.name);
   return h("div", { class: ringing ? "tcx-call ringing" : "tcx-call", style: `--c:${color}` },
-    dot(color, 7),
+    h("span", { class: "tcx-avatar" }, face ? h("b", { text: face }) : svg(ICONS.phone, 13)),
     h("div", { class: "tcx-who" },
       h("b", { text: label }),
       c.name && c.number ? h("span", { class: "tcx-sub", text: c.number }) : null,
       time),
     buttons);
+}
+
+/** The device line under the keypad: where the calls start from, as chips to pick. */
+function deviceLine(d: Snapshot): [HTMLElement | null, HTMLElement | null] {
+  const devices = d.devices ?? [];
+  const choices: { id: string; name: string }[] = d.mode === "user" ? [{ id: PC, name: t("Questo PC") }, ...devices] : devices;
+  if (choices.length === 0) return [null, null];
+  const current = device() ?? "";
+  const nameOf = (id: string) => (id ? choices.find((x) => x.id === id)?.name : "") || t("automatico");
+  const ready = (id: string) => (id === PC ? (d.pc ? GREEN : AMBER) : "");
+  const list = h("div", { class: "tcx-chips tcx-devices" });
+  list.style.display = devicesOpen ? "" : "none";
+  if (choices.length === 1 && d.mode !== "user") {
+    return [h("span", { class: "tcx-from", text: t("Da {name}", { name: choices[0].name }) }), null];
+  }
+  const dotEl = h("span", { class: "tcx-ready" });
+  const label = h("span", { text: t("Da {name}", { name: nameOf(current) }) });
+  const paint = (id: string) => {
+    const c = ready(id);
+    dotEl.style.display = c ? "" : "none";
+    dotEl.style.background = c;
+    dotEl.title = id === PC ? (d.pc ? t("Pronto: il PC squilla e chiama") : t("Mi registro come telefono…")) : "";
+  };
+  paint(current);
+  const btn = h("button", { class: "tcx-from tcx-pick", title: t("Dispositivo da cui partono le chiamate"), onclick: () => {
+    devicesOpen = !devicesOpen;
+    list.style.display = devicesOpen ? "" : "none";
+    refit();
+  } }, dotEl, label, h("span", { class: "tcx-caret", text: "▾" }));
+  // The card is not rebuilt for a setting: update it in place.
+  const choose = (id: string) => {
+    devicesOpen = false;
+    State.settings.integrationConfig = { ...State.settings.integrationConfig, threecxDevice: id };
+    void Bridge.saveSettings(State.settings);
+    label.textContent = t("Da {name}", { name: nameOf(id) });
+    paint(id);
+    for (const c of Array.from(list.children) as HTMLElement[]) c.classList.toggle("on", c.dataset.dev === id);
+    list.style.display = "none";
+    refit();
+  };
+  const chip = (id: string, name: string) =>
+    h("button", { class: current === id ? "clip-chip on" : "clip-chip", "data-dev": id, text: name, onclick: () => choose(id) });
+  list.append(chip("", t("Automatico")), ...choices.map((x) => chip(x.id, x.name)));
+  return [btn, list];
 }
 
 export function threecxCard(task: AgentTask, openSettings: () => void): HTMLElement {
@@ -726,7 +911,7 @@ export function threecxCard(task: AgentTask, openSettings: () => void): HTMLElem
   const profiles = d.profiles ?? [];
   const current = profiles.find((p) => p.id === d.profile);
 
-  // Header: who, status (a menu with the login), missed calls.
+  // Header: who, status (a menu with the profiles), queues, the ringtone and the island's notice.
   const statusBtn = h("button", { class: "tcx-status", title: profiles.length ? t("Cambia stato") : "", onclick: () => {
     if (!profiles.length) return;
     statusOpen = !statusOpen;
@@ -734,9 +919,6 @@ export function threecxCard(task: AgentTask, openSettings: () => void): HTMLElem
     refit();
   } }, current?.name ?? (d.connected ? (d.number ? t("Interno {n}", { n: d.number }) : t("Collegato")) : t("Non collegato")),
   profiles.length ? h("span", { class: "tcx-caret", text: "▾" }) : null);
-  const missed = (d.missed ?? 0) > 0
-    ? h("button", { class: "tcx-missed", title: t("Chiamate perse"), onclick: () => dialer?.show("missed") }, `${d.missed} perse`)
-    : null;
   // Queue login: only for an extension that is in a queue.
   const queue = d.queue == null ? null : h("button", {
     class: d.queue ? "tcx-queue on" : "tcx-queue",
@@ -744,7 +926,24 @@ export function threecxCard(task: AgentTask, openSettings: () => void): HTMLElem
     onclick: () => void Bridge.threecxQueue(!d.queue).catch((e) => dialer?.say(message(e))),
   }, d.queue ? t("In coda") : t("Fuori coda"));
   const head = h("div", { class: "int-head" }, brandOrDot(task.id, task.color, 7), h("b", { text: "3CX" }), statusBtn, queue);
-  if (missed) head.append(missed);
+  if (d.connected) {
+    const toggles = h("span", { class: "tcx-toggles" });
+    if (fromPc()) {
+      const on = ringOn();
+      toggles.append(h("button", { class: on ? "tcx-toggle" : "tcx-toggle off", title: on ? t("Suoneria del PC attiva: clic per silenziarla") : t("Suoneria del PC silenziata: clic per riattivarla"),
+        onclick: () => setRingOn(!on) }, svg(on ? ICONS.speakerOn : ICONS.speakerOff, 13)));
+    }
+    const alert = State.settings.integrationConfig?.threecxAlert !== false;
+    toggles.append(h("button", { class: alert ? "tcx-toggle" : "tcx-toggle off",
+      title: alert ? t("Le chiamate in arrivo aprono l'isola con un suono: clic per avere solo il pallino") : t("Chiamate in arrivo: solo il pallino sulla pillola. Clic per aprire di nuovo l'isola"),
+      onclick: () => {
+        State.settings.integrationConfig = { ...State.settings.integrationConfig, threecxAlert: !alert };
+        void Bridge.saveSettings(State.settings);
+        State.notify();
+        refit();
+      } }, svg(alert ? ICONS.bell : ICONS.bellOff, 13, { stroke: 1.8 })));
+    head.append(toggles);
+  }
 
   const chips = h("div", { class: "tcx-chips" });
   chips.style.display = statusOpen ? "" : "none";
@@ -770,64 +969,15 @@ export function threecxCard(task: AgentTask, openSettings: () => void): HTMLElem
     return card;
   }
 
-  const calls = d.calls ?? [];
-  if (calls.length) {
-    const box = h("div", { class: "tcx-calls" });
-    for (const c of calls) box.append(callRow(c));
-    card.append(box);
-  }
-
   dialer ??= new Dialer();
-  card.append(dialer.el);
-
+  dialer.setCalls((d.calls ?? []).map(callRow));
+  const [from, devices] = deviceLine(d);
+  dialer.setPadFoot(from);
   dialer.update();
-
-  // Footer: team, chats, voicemail, recent and missed calls, and the device the calls start from.
-  const foot = h("div", { class: "int-actions tcx-foot" });
-  if (d.mode === "user") {
-    const link = (text: string, panel: Parameters<Dialer["show"]>[0], count = 0, title = "") =>
-      h("button", { class: "link-btn tcx-link", style: `color:${task.color}d9`, title, onclick: () => dialer?.show(panel) },
-        text, count > 0 ? h("span", { class: "tcx-badge", text: String(count) }) : null);
-    const free = (d.team ?? []).filter((c) => c.presence === "available").length;
-    foot.append(
-      link(t("Team"), "team", 0, t("{n} colleghi disponibili", { n: free })),
-      link(t("Chat"), "chats", d.unread ?? 0),
-      link(t("Segreteria"), "voicemail", d.voicemail ?? 0),
-      link(t("Recenti"), "recent"),
-      link(t("Perse"), "missed"),
-    );
-  }
-  // The device list is drawn in the card: a native <select> opens its list in a
-  // window of its own, which lands behind the always-on-top island.
-  const devices = d.devices ?? [];
-  const chosen = devices.find((x) => x.id === device());
-  const pickList = h("div", { class: "tcx-chips" });
-  pickList.style.display = devicesOpen ? "" : "none";
-  if (devices.length > 1) {
-    const label = h("span", { text: t("Da {name}", { name: chosen?.name ?? t("automatico") }) });
-    foot.append(h("button", { class: "tcx-from tcx-pick", title: t("Dispositivo da cui partono le chiamate"), onclick: () => {
-      devicesOpen = !devicesOpen;
-      pickList.style.display = devicesOpen ? "" : "none";
-      refit();
-    } }, label, h("span", { class: "tcx-caret", text: "▾" })));
-    // The card is not rebuilt for a setting: update it in place.
-    const choose = (id: string, name: string) => {
-      devicesOpen = false;
-      State.settings.integrationConfig = { ...State.settings.integrationConfig, threecxDevice: id };
-      void Bridge.saveSettings(State.settings);
-      label.textContent = t("Da {name}", { name: id ? name : t("automatico") });
-      for (const c of Array.from(pickList.children) as HTMLElement[]) c.classList.toggle("on", c.dataset.dev === id);
-      pickList.style.display = "none";
-      refit();
-    };
-    const chip = (id: string, name: string) =>
-      h("button", { class: (chosen?.id ?? "") === id ? "clip-chip on" : "clip-chip", "data-dev": id, text: name, onclick: () => choose(id, name) });
-    pickList.append(chip("", t("Automatico")), ...devices.map((x) => chip(x.id, x.name)));
-  } else if (devices.length === 1) {
-    foot.append(h("span", { class: "tcx-from", text: t("Da {name}", { name: devices[0].name }) }));
-  }
-  card.append(foot, pickList);
-  // After the card is in the page: keyboard back to the dialer, the open chat
+  card.append(dialer.el);
+  if (devices) card.append(devices);
+  card.append(dialer.tabs);
+  // After the card is in the page: keyboard back to the phone, the open chat
   // read (the card may just have come on screen), island fitted to the card.
   queueMicrotask(() => { dialer?.attached(); dialer?.markRead(); });
   refit();

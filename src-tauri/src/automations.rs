@@ -479,7 +479,7 @@ pub fn spawn(app: AppHandle) {
         let mut drive_mask: Option<u32> = None;
         let mut folders: HashMap<String, HashSet<String>> = HashMap::new();
         let mut ssid: Option<Option<String>> = None;
-        let mut ssid_checked = Instant::now() - Duration::from_secs(60);
+        let mut ssid_checked: Option<Instant> = None;
         let mut ticks: u64 = 0;
 
         loop {
@@ -535,8 +535,8 @@ pub fn spawn(app: AppHandle) {
             }
 
             // Wi-Fi network joined: asked every 30 s (netsh is a process).
-            if wants("wifi") && ssid_checked.elapsed() >= Duration::from_secs(30) {
-                ssid_checked = Instant::now();
+            if wants("wifi") && ssid_checked.is_none_or(|t| t.elapsed() >= Duration::from_secs(30)) {
+                ssid_checked = Some(Instant::now());
                 let now = crate::profiles::current_ssid();
                 if let Some(prev) = &ssid {
                     if *prev != now {

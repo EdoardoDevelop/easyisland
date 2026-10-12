@@ -675,8 +675,11 @@ pub fn spawn(app: AppHandle) {
     std::thread::spawn(move || {
         let mut drives: Option<u32> = None;
         let mut ssid: Option<Option<String>> = None;
-        let mut last_ssid = Instant::now() - Duration::from_secs(3600);
-        let mut last_analysis = Instant::now() - Duration::from_secs(6 * 3600 - 600);
+        // No `Instant::now() - d`: an Instant counts from boot on Windows, so
+        // it panics in the first hours after a restart (and panic = "abort").
+        let started = Instant::now();
+        let mut last_ssid: Option<Instant> = None;
+        let mut last_analysis: Option<Instant> = None;
         loop {
             std::thread::sleep(Duration::from_secs(10));
             if !ENABLED.load(Ordering::Relaxed) {
@@ -692,8 +695,8 @@ pub fn spawn(app: AppHandle) {
                 }
             }
             drives = Some(now);
-            if last_ssid.elapsed() >= Duration::from_secs(600) {
-                last_ssid = Instant::now();
+            if last_ssid.is_none_or(|t| t.elapsed() >= Duration::from_secs(600)) {
+                last_ssid = Some(Instant::now());
                 let cur = crate::profiles::current_ssid();
                 if ssid.as_ref().is_some_and(|p| *p != cur) {
                     if let Some(n) = &cur {
@@ -702,8 +705,13 @@ pub fn spawn(app: AppHandle) {
                 }
                 ssid = Some(cur);
             }
-            if last_analysis.elapsed() >= Duration::from_secs(6 * 3600) {
-                last_analysis = Instant::now();
+            // The first analysis 10 minutes after start, then every 6 hours.
+            let due = match last_analysis {
+                None => started.elapsed() >= Duration::from_secs(600),
+                Some(t) => t.elapsed() >= Duration::from_secs(6 * 3600),
+            };
+            if due {
+                last_analysis = Some(Instant::now());
                 refresh(&app);
             }
             offer(&app);
