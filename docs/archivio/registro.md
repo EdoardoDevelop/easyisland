@@ -2,6 +2,16 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 12 ottobre 2026 — piano da Anthropic, tempo sui permessi, appunti interi
+- I limiti del piano arrivano anche usando solo l'app desktop di Claude: la card Consumo li chiede ad Anthropic con l'accesso di Claude Code (`ask_anthropic` in `usage.rs`; decisione del 9 ottobre cambiata con Edoardo, `docs/decisioni.md`), con la settimana Opus, e li mostra anche nell'intestazione dell'isola. Provato dal vivo (risposta vera) e nell'anteprima (scena `usage`).
+- Le card del permesso e della domanda dicono quanto manca ai 108 s (scena `approval`). Copia della selezione e «Sostituisci» rimettono gli appunti in tutti i formati: provati dal vivo testo, file e immagine (test `clipboard_round_trip`).
+
+### 11 ottobre 2026 — versione 0.7.2
+- Unione in `main` e tag `v0.7.2`: il personaggio della chat trascinato su una finestra la allega come contesto, con la faccia che cambia mentre lo porti (voce sotto). README con novità e tabella delle versioni.
+
+### 11 ottobre 2026 — il personaggio della chat allega una finestra
+- Nella scheda Chat il personaggio si trascina su una finestra di un'altra app: al rilascio ne prende un'immagine (`PrintWindow`), con app e titolo, e la allega alla chat come contesto per tutti i motori (`window_drop.rs`, `ChatContext::Window` con `image`, `docs/strumenti.md`). Funzione di Coucou che mancava. Mentre lo porti il personaggio segue il puntatore in una finestra sua (`carry.rs`) e cambia faccia: sorpreso, contento sopra una finestra, cuori al rilascio. Provati nell'anteprima chip, ✕ e rilascio sull'isola (scene `chat&window`, `chat&pick`) e dal vivo la cattura nativa (test `live`); il gesto intero è da provare (`docs/prove-dal-vivo.md`).
+
 ### 11 ottobre 2026 — versione 0.7.1
 - Unione in `main` e tag `v0.7.1`: 3CX con team, chat, segreteria, code, trasferimento e deviazione; cielo del Meteo grande dietro il personaggio; immagine di tutti i personaggi nel README (`dev/characters.html`). README con novità e tabella delle versioni.
 

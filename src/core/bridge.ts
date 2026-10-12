@@ -304,6 +304,16 @@ export const Bridge = {
   threecxDivert: (id: string, number: string) => callOrThrow<void>("threecx_divert", { id, number }),
   /** A colleague's ringing call answered here. */
   threecxPickup: (id: string, device: string | null) => callOrThrow<void>("threecx_pickup", { id, device }),
+  /** "Questo PC": one step of a WebRTC call; the PBX's id of the call. */
+  threecxWebrtc: (id: number, sdpType: number, transaction: number | null, sdp: string, destination: string, replace: number | null) =>
+    callOrThrow<number>("threecx_webrtc", { id, sdpType, transaction, sdp, destination, replace }),
+  /** The user's ringtone as a data URL; null = the built-in one. */
+  threecxRingtone: () => call<string | null>("threecx_ringtone"),
+  /** A picked ringtone file (empty = back to the built-in one). */
+  threecxSetRingtone: async (name: string, data: Uint8Array) => {
+    if (!IS_TAURI) return;
+    await invoke<void>("threecx_set_ringtone", data, { headers: { "x-name": encodeURIComponent(name) } });
+  },
   threecxQueue: (loggedIn: boolean) => callOrThrow<void>("threecx_queue", { loggedIn }),
   threecxChats: () => callOrThrow<ThreecxChat[]>("threecx_chats"),
   threecxMessages: (conversation: number, before: number | null = null) =>
@@ -426,6 +436,8 @@ export interface ThreecxCall {
   number: string;
   since: number;
   canAnswer: boolean;
+  /** SIP dialog: links the call to one of "Questo PC" (softphone.ts). */
+  dialog: string;
 }
 
 export interface DroppedFile {

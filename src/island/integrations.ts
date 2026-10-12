@@ -5,6 +5,7 @@
 import { onEvent, Bridge, type IntegrationUpdate, type ThreecxCall, type ThreecxMessage } from "../core/bridge";
 import { THREECX, ringing, chatMessage, chatTyping, openChat } from "../views/threecx";
 import { Sound } from "../core/sound";
+import { startSoftphone, onSoftphone } from "../core/softphone";
 import { State, type WidgetStatus } from "../core/state";
 import type { Island } from "./island";
 
@@ -28,6 +29,9 @@ export function registerIntegrationHandlers(island: Island) {
   void onEvent<ThreecxCall>("threecx-call", (c) => incomingCall(island, c));
   void onEvent<ThreecxMessage>("threecx-chat", (m) => incomingMessage(island, m));
   void onEvent<{ conversation: number; name: string }>("threecx-typing", (e) => chatTyping(e.conversation, e.name));
+  // "Questo PC": the 3CX card follows the calls of EasyIsland's own phone.
+  startSoftphone();
+  onSoftphone(() => State.notify());
   void refreshConfigured();
 }
 
@@ -116,6 +120,11 @@ function incomingCall(island: Island, _c: ThreecxCall) {
   const task = State.tasks.find((t) => t.id === THREECX);
   if (!task) return;
   if (State.focusId !== THREECX) task.pillBadge = "approval";
+  // "Chiamata in arrivo: solo il pallino" (Impostazioni or the card's bell).
+  if (State.settings.integrationConfig?.threecxAlert === false) {
+    State.notify();
+    return;
+  }
   Sound.play("question");
   if (State.quiet) {
     State.notify();

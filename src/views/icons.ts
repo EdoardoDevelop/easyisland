@@ -67,4 +67,14 @@ export const ICONS = {
   search: "M10.5 3.5a7 7 0 0 1 5.6 11.2l4.6 4.6-1.4 1.4-4.6-4.6A7 7 0 1 1 10.5 3.5zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10z",
   // square.grid — a program of the Start menu
   apps: "M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z",
+  // phone.arrow.down.left — 3CX missed calls (drawn with a stroke)
+  missed: "M3.5 7.5 10 14l4.5-4.5L20.5 15.5M20.5 10v5.5H15",
+  // mic / mic.slash — mute on a call of "Questo PC" (drawn with a stroke)
+  mic: "M12 3.5a2.8 2.8 0 0 0-2.8 2.8v5.4a2.8 2.8 0 0 0 5.6 0V6.3A2.8 2.8 0 0 0 12 3.5zM6 11.2a6 6 0 0 0 12 0M12 17.2v3.3",
+  micOff: "M12 3.5a2.8 2.8 0 0 0-2.8 2.8v5.4a2.8 2.8 0 0 0 5.6 0V6.3A2.8 2.8 0 0 0 12 3.5zM6 11.2a6 6 0 0 0 12 0M12 17.2v3.3M4 4l16 16",
+  // bell / bell.slash — the island's notice of an incoming call (drawn with a stroke)
+  bell: "M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15L6 16.5zM10 20.5h4",
+  bellOff: "M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15L6 16.5zM10 20.5h4M4 4l16 16",
+  // delete.left — the keypad's backspace (drawn with a stroke)
+  backspace: "M9 5.5h10.5v13H9L3.5 12 9 5.5zM12 9.5l5 5M17 9.5l-5 5",
 } as const;

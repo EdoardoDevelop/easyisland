@@ -47,6 +47,7 @@ mod session_reply;
 mod secrets;
 mod settings;
 mod i18n;
+mod webview_profile;
 mod recap;
 mod start_apps;
 mod threecx;
@@ -1239,6 +1240,41 @@ async fn threecx_divert(id: String, number: String) -> Result<(), String> {
     threecx::divert(&id, &number).await
 }
 
+/// 3CX, "Questo PC": one step of a WebRTC call (offer, answer, confirm, end);
+/// the PBX's id of the call. The audio is in the island page (softphone.ts).
+#[tauri::command]
+async fn threecx_webrtc(
+    id: i64,
+    sdp_type: i64,
+    transaction: Option<i64>,
+    sdp: String,
+    destination: String,
+    replace: Option<i64>,
+) -> Result<i64, String> {
+    threecx::webrtc(id, sdp_type, transaction, &sdp, &destination, replace).await
+}
+
+/// 3CX, "Questo PC": the user's ringtone as a data URL; None = the built-in one.
+#[tauri::command]
+fn threecx_ringtone() -> Option<String> {
+    threecx::ringtone()
+}
+
+/// 3CX: a ringtone picked in Impostazioni, sent as raw bytes with its file name
+/// (percent-encoded) in the `x-name` header. An empty body goes back to the built-in one.
+#[tauri::command]
+fn threecx_set_ringtone(request: tauri::ipc::Request<'_>) -> Result<(), String> {
+    let tauri::ipc::InvokeBody::Raw(data) = request.body() else {
+        return Err(i18n::t("Suoneria non ricevuta").into());
+    };
+    if data.is_empty() {
+        threecx::clear_ringtone();
+        return Ok(());
+    }
+    let name = request.headers().get("x-name").and_then(|v| v.to_str().ok()).unwrap_or("");
+    threecx::set_ringtone(name, data)
+}
+
 /// 3CX: a colleague's ringing call answered here.
 #[tauri::command]
 async fn threecx_pickup(id: String, device: Option<String>) -> Result<(), String> {
@@ -1334,9 +1370,13 @@ fn settings_page_url(app: &AppHandle) -> WebviewUrl {
 /// hidden afterwards. A WebView2 window created later — on the main thread or
 /// not — silently comes up blank in this app, so the window that works is the
 /// one that exists before the island's webview does.
-fn create_settings_window(app: &AppHandle) {
+fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
     let url = settings_page_url(app);
-    match WebviewWindowBuilder::new(app, "settings", url)
+    let mut builder = WebviewWindowBuilder::new(app, "settings", url);
+    if let Some(dir) = data_dir {
+        builder = builder.data_directory(dir.to_path_buf());
+    }
+    match builder
         .additional_browser_args(BROWSER_ARGS)
         .title(i18n::t("Impostazioni — EasyIsland"))
         .inner_size(980.0, 720.0)
@@ -1376,6 +1416,16 @@ fn open_settings_window(app: AppHandle) {
 }
 
 pub fn run() {
+    // The release build aborts on a panic (panic = "abort"): without this the
+    // reason is lost and Windows only reports 0xc0000409.
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        log::line(format!("panic: {info}"));
+        default_hook(info);
+    }));
+    // An update or a crash can leave the old WebView2 holding the profile:
+    // then this run uses a spare one (see webview_profile.rs).
+    let webview_dir = webview_profile::free();
     // First launch after the rename: bring Coucou's settings and keys over.
     let moved = legacy::migrate();
     let mut loaded = settings::load();
@@ -1485,6 +1535,9 @@ pub fn run() {
             threecx_transfer,
             threecx_divert,
             threecx_pickup,
+            threecx_webrtc,
+            threecx_ringtone,
+            threecx_set_ringtone,
             threecx_queue,
             threecx_chats,
             threecx_messages,
@@ -1532,8 +1585,17 @@ pub fn run() {
         .setup(move |app| {
             let handle = app.handle().clone();
             tray::build(&handle)?;
-            // Before the island: see create_settings_window.
-            create_settings_window(&handle);
+            // The island's window is in tauri.conf.json with "create": false:
+            // built here so it can take the spare WebView2 profile.
+            if let Some(cfg) = app.config().app.windows.iter().find(|w| w.label == island::WINDOW_LABEL).cloned() {
+                let mut builder = WebviewWindowBuilder::from_config(&handle, &cfg)?;
+                if let Some(dir) = &webview_dir {
+                    builder = builder.data_directory(dir.clone());
+                }
+                builder.build()?;
+            }
+            // Before the island's webview is ready: see create_settings_window.
+            create_settings_window(&handle, webview_dir.as_deref());
 
             if let Some(win) = island::window(&handle) {
                 island::make_non_activating(&win);
@@ -1568,6 +1630,7 @@ pub fn run() {
             }
             pipe::start(handle.clone());
             drop::install(&handle);
+            threecx::allow_microphone(&handle);
             presence::spawn(handle.clone());
             integrations::start(handle.clone());
             updates::spawn(handle.clone());
