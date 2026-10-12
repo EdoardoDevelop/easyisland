@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 11 ottobre 2026 — versione 0.7.1
+- Unione in `main` e tag `v0.7.1`: 3CX con team, chat, segreteria, code, trasferimento e deviazione; cielo del Meteo grande dietro il personaggio; immagine di tutti i personaggi nel README (`dev/characters.html`). README con novità e tabella delle versioni.
+
 ### 11 ottobre 2026 — 3CX: team, chat, segreteria, code e trasferimento
 - Con «Interno e password» la scheda 3CX ha Team (colleghi con lo stato in tempo reale, Chiama, Scrivi, Rispondi al suo posto), Chat (elenco, conversazione, invio, non letti, «sta scrivendo», avviso con suono e isola aperta), Segreteria (con trascrizione, «Ascolta» sul telefono), In coda / Fuori coda, Trasferisci e Devia. Protocollo ricavato dal web client del centralino di Edoardo (`myphone.rs`, `docs/integrazioni.md`). Provato con i test e nell'anteprima (scena `threecx`); dal vivo da provare.
 
