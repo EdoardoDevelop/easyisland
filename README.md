@@ -57,6 +57,11 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.7.4** — piccole correzioni all'isola: chiusa, il personaggio torna al **suo colore**
+invece di tenere quello della scheda aperta; trascinando il personaggio della chat su una
+finestra l'isola **non si chiude** più; con molte integrazioni come schede l'isola aperta
+**si allarga** quanto serve perché ci stiano tutte.
+
 **0.7.3** — **i limiti del piano Claude sempre aggiornati**: la card Consumo li chiede
 ad Anthropic con l'accesso già fatto in Claude Code, quindi arrivano anche usando solo
 l'app desktop di Claude (5 ore, settimana e settimana Opus), e compaiono in alto
@@ -129,7 +134,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.7.3** | 12 ott 2026 | Limiti del piano chiesti ad Anthropic e mostrati nell'isola, tempo rimasto sui permessi, appunti rimessi per intero |
+| **0.7.4** | 12 ott 2026 | Personaggio col suo colore a isola chiusa, isola aperta durante il trascinamento nella chat, schede che allargano l'isola |
+| 0.7.3 | 12 ott 2026 | Limiti del piano chiesti ad Anthropic e mostrati nell'isola, tempo rimasto sui permessi, appunti rimessi per intero |
 | 0.7.2 | 11 ott 2026 | Il personaggio della chat trascinato su una finestra la allega come contesto, con faccia che cambia mentre lo porti |
 | 0.7.1 | 11 ott 2026 | 3CX: team, chat, segreteria, code, trasferimento e deviazione; cielo del Meteo grande dietro il personaggio |
 | 0.7.0 | 11 ott 2026 | Fiamma animata, Geco con sguardo fino all'orbita, Roccia, Magma, Pietra e Foglia ridisegnati |

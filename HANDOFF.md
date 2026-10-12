@@ -1,11 +1,11 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 12 ottobre 2026. Versione **0.7.3** in `main` con il tag `v0.7.3` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 12 ottobre 2026. Versione **0.7.4** in `main` con il tag `v0.7.4` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
-- [ ] **Prove dal vivo:** della 0.6.3 interfaccia in inglese, limiti del piano, card «finito» da un altro programma e riepilogo settimanale; della 0.6.4 cronologia delle chat; della 0.6.5 il personaggio lasciato su un'icona del desktop; della 0.6.6 saluto al centro, Claude Code assente sul notebook e standby con la Rete; della 0.6.7 «Continua», «Chiedi», «Sempre» di sessione e 📌 come finestra; della 0.6.8 menu con `Win+Alt+A`, «Sostituisci» e reazioni del personaggio; della 0.6.9 e 0.7.0 i nuovi personaggi e la Fiamma animata; della 0.7.1 team e chat di 3CX e il cielo grande; della 0.7.2 il personaggio della chat lasciato su una finestra; della 0.7.3 il piano letto da Anthropic, il tempo rimasto sui permessi e gli appunti rimessi per intero. Tutte in `docs/prove-dal-vivo.md`.
+- [ ] **Prove dal vivo:** della 0.6.3 interfaccia in inglese, limiti del piano, card «finito» da un altro programma e riepilogo settimanale; della 0.6.4 cronologia delle chat; della 0.6.5 il personaggio lasciato su un'icona del desktop; della 0.6.6 saluto al centro, Claude Code assente sul notebook e standby con la Rete; della 0.6.7 «Continua», «Chiedi», «Sempre» di sessione e 📌 come finestra; della 0.6.8 menu con `Win+Alt+A`, «Sostituisci» e reazioni del personaggio; della 0.6.9 e 0.7.0 i nuovi personaggi e la Fiamma animata; della 0.7.1 team e chat di 3CX e il cielo grande; della 0.7.2 il personaggio della chat lasciato su una finestra; della 0.7.3 il piano letto da Anthropic, il tempo rimasto sui permessi e gli appunti rimessi per intero; della 0.7.4 l'isola che non si chiude trascinando il personaggio della chat. Tutte in `docs/prove-dal-vivo.md`.
 - [ ] **3CX team e chat:** fatti nel codice, da provare sul centralino vero (`docs/prove-dal-vivo.md`). Se qualcosa non arriva, il log dice quali tipi di messaggio manda il centralino (`3cx: event type …`).
 - [ ] **3CX + Zammad:** ticket del cliente sulla chiamata in arrivo (`docs/idee.md`).
 - [ ] **Remote Desktop Manager** come integrazione. Prima va capito dove sta la fonte dati (`docs/idee.md`).
@@ -24,6 +24,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 12 ottobre 2026 — versione 0.7.4
+- Unione in `main` e tag `v0.7.4`. A isola chiusa il personaggio torna al suo colore (quello della scheda vale solo aperta, `drawBot`); trascinando il personaggio della chat l'isola tiene il mouse dalla pressione e il timer di chiusura ricontrolla quando scade (`fsm.ts`); schede e pulsanti dell'intestazione allargano l'isola aperta se non ci stanno (`measureHeader`, `openWidth`). Allargamento provato nell'anteprima; colore e trascinamento da provare dal vivo.
+
 ### 12 ottobre 2026 — versione 0.7.3
 - Unione in `main` e tag `v0.7.3`: limiti del piano chiesti ad Anthropic e mostrati nell'intestazione, tempo rimasto sui permessi, appunti rimessi in tutti i formati (voce sotto). README con novità e tabella delle versioni.
 
@@ -36,6 +39,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 11 ottobre 2026 — il personaggio della chat allega una finestra
 - Nella scheda Chat il personaggio si trascina su una finestra di un'altra app: al rilascio ne prende un'immagine (`PrintWindow`), con app e titolo, e la allega alla chat come contesto per tutti i motori (`window_drop.rs`, `ChatContext::Window` con `image`, `docs/strumenti.md`). Funzione di Coucou che mancava. Mentre lo porti il personaggio segue il puntatore in una finestra sua (`carry.rs`) e cambia faccia: sorpreso, contento sopra una finestra, cuori al rilascio. Provati nell'anteprima chip, ✕ e rilascio sull'isola (scene `chat&window`, `chat&pick`) e dal vivo la cattura nativa (test `live`); il gesto intero è da provare (`docs/prove-dal-vivo.md`).
-
-### 11 ottobre 2026 — versione 0.7.1
-- Unione in `main` e tag `v0.7.1`: 3CX con team, chat, segreteria, code, trasferimento e deviazione; cielo del Meteo grande dietro il personaggio; immagine di tutti i personaggi nel README (`dev/characters.html`). README con novità e tabella delle versioni.
