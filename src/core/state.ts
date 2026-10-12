@@ -194,6 +194,8 @@ export interface ApprovalInfo {
   plan?: string;
   /** Tool and what it acts on, as first received: how hooks.ts recognises the same call ran. */
   target?: string;
+  /** When the relay stops waiting (Date.now() ms): the card shows the time left. */
+  deadline?: number;
 }
 
 /** One question of Claude Code's AskUserQuestion tool. */
@@ -461,6 +463,8 @@ export interface IntegrationConfig {
   weatherCity: string;
   /** Meteo: the sky stays on the idle character, not only on the Meteo pill. */
   weatherOnCharacter: boolean;
+  /** Consumo Claude: the plan's percentages in the open island's header too. */
+  planInHeader: boolean;
   /** 3CX: "user" (the extension's own login) or "api" (an API client). */
   threecxMode: "user" | "api";
   /** 3CX, API mode: the extension the API client monitors. */
@@ -591,6 +595,8 @@ export interface WidgetStatus {
   event?: string;
   /** Meteo: the sky the character wears (character/weather.ts). */
   sky?: string;
+  /** Consumo Claude: [used %, resets at (Unix s)] per window of the plan (usage.rs PlanGauge). */
+  plan?: { fiveHour?: [number, number]; sevenDay?: [number, number]; sevenDayOpus?: [number, number] };
 }
 
 /**
@@ -739,7 +745,7 @@ export const DEFAULT_SETTINGS: Settings = {
   habitsExcluded: [],
   updateCheck: true,
   integrationConfig: {
-    systemWarn: 10, outlookWarn: 10, weatherCity: "", weatherOnCharacter: false,
+    systemWarn: 10, outlookWarn: 10, weatherCity: "", weatherOnCharacter: false, planInHeader: true,
     threecxMode: "user", threecxExtension: "", threecxDevice: "",
   },
 };

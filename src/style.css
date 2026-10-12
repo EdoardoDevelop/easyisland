@@ -802,6 +802,72 @@ html.browser-preview #root {
   color: var(--ink);
 }
 
+/* Header: Claude's plan (Consumo Claude), "5h 12%  7g 83%". */
+#header .plan-gauge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  padding: 0 6px;
+  font: 500 10.5px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--dim-2);
+}
+
+.plan-gauge .pg {
+  position: relative;
+  display: inline-flex;
+  gap: 3px;
+  padding-bottom: 3px;
+}
+
+.plan-gauge .pg b {
+  font-weight: 600;
+  color: var(--dim-3);
+}
+
+/* The bar under each number: used part over the rest. */
+.plan-gauge .pg::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, #d97757 var(--p), rgba(255, 255, 255, 0.12) var(--p));
+}
+
+.plan-gauge .pg.warn {
+  color: var(--amber);
+}
+
+.plan-gauge .pg.warn::after {
+  background: linear-gradient(90deg, var(--amber) var(--p), rgba(255, 255, 255, 0.12) var(--p));
+}
+
+.plan-gauge .pg.full {
+  color: #f4505e;
+}
+
+.plan-gauge .pg.full::after {
+  background: #f4505e;
+}
+
+/* Permission and question cards: time left before the terminal takes over. */
+.wait-left {
+  align-self: center;
+  margin-left: auto;
+  font: 400 11px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--dim-3);
+  white-space: nowrap;
+}
+
+.wait-left.soon {
+  color: var(--amber);
+}
+
 /* Session card: "Chiedi a questa sessione", left of the ↗. */
 .jump.ask-jump {
   right: 32px;

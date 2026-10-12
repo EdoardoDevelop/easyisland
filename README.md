@@ -57,6 +57,13 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.7.3** — **i limiti del piano Claude sempre aggiornati**: la card Consumo li chiede
+ad Anthropic con l'accesso già fatto in Claude Code, quindi arrivano anche usando solo
+l'app desktop di Claude (5 ore, settimana e settimana Opus), e compaiono in alto
+nell'isola («5h 12% 7g 83%»), con un clic per aprire la card. Le card dei **permessi**
+dicono quanto tempo manca prima che la richiesta torni al terminale. La copia della
+selezione e «Sostituisci» rimettono negli appunti anche **immagini e file** copiati prima.
+
 **0.7.2** — **una finestra come contesto della chat**: nella scheda Chat trascini il
 personaggio su una finestra di un'altra app (Chrome, Outlook, Excel…) e la chat la
 riceve con la sua immagine, il nome dell'app e il titolo. Mentre lo porti il personaggio
@@ -122,7 +129,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.7.2** | 11 ott 2026 | Il personaggio della chat trascinato su una finestra la allega come contesto, con faccia che cambia mentre lo porti |
+| **0.7.3** | 12 ott 2026 | Limiti del piano chiesti ad Anthropic e mostrati nell'isola, tempo rimasto sui permessi, appunti rimessi per intero |
+| 0.7.2 | 11 ott 2026 | Il personaggio della chat trascinato su una finestra la allega come contesto, con faccia che cambia mentre lo porti |
 | 0.7.1 | 11 ott 2026 | 3CX: team, chat, segreteria, code, trasferimento e deviazione; cielo del Meteo grande dietro il personaggio |
 | 0.7.0 | 11 ott 2026 | Fiamma animata, Geco con sguardo fino all'orbita, Roccia, Magma, Pietra e Foglia ridisegnati |
 | 0.6.9 | 11 ott 2026 | Sei nuovi personaggi: Geco, Fiamma, Magma, Pietra, Roccia e Foglia |
@@ -641,9 +649,12 @@ e nel terminale di **Cursor** ("Apri" riporta a Cursor).
 degli agenti (ore al lavoro, sessioni, file e righe cambiati, comandi, permessi);
 anche dal menu dell'icona nell'area di notifica. Tiene solo i conteggi e il nome
 della cartella del progetto, mai comandi o contenuti. **Limiti del piano** (Pro e
-Max): la card Consumo mostra le percentuali delle 5 ore e della settimana, con un
-avviso dall'80 %; arrivano dalle sessioni nel terminale o in VS Code dopo
-«Aggiorna» degli hook.
+Max): la card Consumo mostra le percentuali delle 5 ore, della settimana e della
+settimana Opus, con un avviso dall'80 %, e le riporta in alto nell'isola (si tolgono
+in Impostazioni → Integrazioni → Consumo Claude). Le chiede ad Anthropic ogni 5 minuti
+con l'accesso già fatto in Claude Code (lo stesso dato di `/usage`; l'accesso viene
+solo letto), anche se usi solo l'app desktop di Claude; arrivano anche dalla status
+line delle sessioni nel terminale o in VS Code.
 
 **Codex, opencode e Gemini CLI.** Nella stessa pagina (Impostazioni → Agenti) ci sono
 i loro hook, installati con le stesse regole: diff, backup datato, conferma.

@@ -9,10 +9,16 @@
 // stopped), and only those touched in the last 8 days.
 //
 // Anthropic does not publish the Pro / Max limits in tokens: the percentages
-// of the plan come from Claude Code itself, which hands them (`rate_limits`) to
-// its status line command — the relay's `statusline` (hook/src/statusline.rs,
-// installed with the hooks). They arrive only from sessions that draw a status
-// line (terminal, VS Code), and survive a restart in plan-limits.json.
+// of the plan come from two places, the newest wins, and survive a restart in
+// plan-limits.json:
+//   - Anthropic itself, asked every 5 minutes while the card is on, with the
+//     login Claude Code keeps in %USERPROFILE%\.claude\.credentials.json (the
+//     same call as Claude Code's /usage; read only, never copied, logged or
+//     renewed: an expired login waits for Claude Code to renew it). It is not
+//     a documented API: when it stops answering the card keeps the last numbers;
+//   - Claude Code's status line (`rate_limits`), the relay's `statusline`
+//     (hook/src/statusline.rs, installed with the hooks), from the sessions
+//     that draw one (terminal, VS Code).
 //
 // One answer appears on several lines (one per content block), each with the
 // same usage: entries are counted once per `message.id`.
@@ -295,17 +301,20 @@ fn result_for(id: &str, list: &[(String, bool, Entry)], now: i64, midnight: i64)
 }
 
 pub async fn probe(w: &Widget) -> WidgetResult {
-    let id = w.id.clone();
-    tauri::async_runtime::spawn_blocking(move || {
+    // The transcripts are read while Anthropic is asked for the plan.
+    let scanning = tauri::async_runtime::spawn_blocking(move || {
         let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
         // Local midnight in UTC seconds: now minus the local time of day.
         let local = crate::calendar::now_local();
         let midnight = now - local.rem_euclid(86_400);
         let list = scan(now);
-        with_plan(result_for(&id, &list, now, midnight), plan().as_ref(), now, local - now)
-    })
-    .await
-    .unwrap_or_else(|_| WidgetResult::new(&w.id, "error", t("Lettura delle trascrizioni interrotta")))
+        (list, now, midnight, local)
+    });
+    ask_anthropic().await;
+    scanning
+        .await
+        .map(|(list, now, midnight, local)| with_plan(result_for(&w.id, &list, now, midnight), plan().as_ref(), now, local - now))
+        .unwrap_or_else(|_| WidgetResult::new(&w.id, "error", t("Lettura delle trascrizioni interrotta")))
 }
 
 // ── Plan limits (Pro / Max) ──────────────────────────────────────────────────
@@ -322,14 +331,17 @@ pub struct PlanWindow {
 pub struct Plan {
     pub five_hour: Option<PlanWindow>,
     pub seven_day: Option<PlanWindow>,
-    /// When Claude Code last sent them (Unix seconds).
+    /// Max plans: the week's own limit for Opus (Anthropic only).
+    #[serde(default)]
+    pub seven_day_opus: Option<PlanWindow>,
+    /// When they last arrived (Unix seconds).
     pub at: i64,
 }
 
 impl Plan {
-    /// The higher of the two windows, counting a window past its reset as 0.
-    fn top(&self, now: i64) -> f64 {
-        [self.five_hour, self.seven_day].iter().flatten().map(|w| effective(w, now)).fold(0.0, f64::max)
+    /// The highest window, counting a window past its reset as 0.
+    pub fn top(&self, now: i64) -> f64 {
+        [self.five_hour, self.seven_day, self.seven_day_opus].iter().flatten().map(|w| effective(w, now)).fold(0.0, f64::max)
     }
 }
 
@@ -356,7 +368,117 @@ fn parse_window(v: Option<&Value>, now: i64) -> Option<PlanWindow> {
 pub fn parse_plan(rate_limits: &Value, now: i64) -> Option<Plan> {
     let five_hour = parse_window(rate_limits.get("five_hour"), now);
     let seven_day = parse_window(rate_limits.get("seven_day"), now);
-    (five_hour.is_some() || seven_day.is_some()).then_some(Plan { five_hour, seven_day, at: now })
+    (five_hour.is_some() || seven_day.is_some()).then_some(Plan { five_hour, seven_day, seven_day_opus: None, at: now })
+}
+
+// ── Asking Anthropic ──
+
+const USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage";
+/// Between two questions; after a refusal or an error, much longer.
+const ASK_EVERY: i64 = 5 * 60;
+const ASK_AFTER_ERROR: i64 = 30 * 60;
+
+/// When the next question may go (Unix seconds), and the last outcome logged.
+static NEXT_ASK: Mutex<(i64, String)> = Mutex::new((0, String::new()));
+
+/// "2026-10-12T15:00:00.123456+00:00" (or "Z", or another offset) → Unix seconds.
+fn iso_seconds(s: &str) -> Option<i64> {
+    let (date, rest) = s.split_once('T')?;
+    let mut d = date.split('-').map(|x| x.parse::<i64>().ok());
+    let (y, m, day) = (d.next()??, d.next()??, d.next()??);
+    let (time, offset) = match rest.find(['Z', 'z', '+', '-']) {
+        Some(i) => rest.split_at(i),
+        None => (rest, ""),
+    };
+    let mut t = time.split(':');
+    let h = t.next()?.parse::<i64>().ok()?;
+    let mi = t.next()?.parse::<i64>().ok()?;
+    let sec = t.next().map_or(Some(0.0), |x| x.parse::<f64>().ok())? as i64;
+    let off = match offset.as_bytes().first() {
+        Some(b'+') | Some(b'-') => {
+            let sign = if offset.starts_with('-') { -1 } else { 1 };
+            let body = &offset[1..];
+            let (oh, om) = body.split_once(':').unwrap_or((body.get(..2)?, body.get(2..).filter(|x| !x.is_empty()).unwrap_or("0")));
+            sign * (oh.parse::<i64>().ok()? * 3600 + om.parse::<i64>().ok()? * 60)
+        }
+        _ => 0,
+    };
+    Some(crate::widgets::days_from_civil(y, m, day) * DAY + h * 3600 + mi * 60 + sec - off)
+}
+
+/// One window of Anthropic's answer: `utilization` (0–100) and `resets_at` (ISO).
+fn usage_window(v: Option<&Value>, now: i64) -> Option<PlanWindow> {
+    let v = v?;
+    let pct = v.get("utilization").and_then(Value::as_f64)?;
+    let at = v.get("resets_at").and_then(Value::as_str).and_then(iso_seconds)?;
+    if !(0.0..=200.0).contains(&pct) || at <= 0 || at > now + 400 * DAY {
+        return None;
+    }
+    Some(PlanWindow { pct: pct.min(100.0), resets_at: at })
+}
+
+pub fn parse_usage(v: &Value, now: i64) -> Option<Plan> {
+    let five_hour = usage_window(v.get("five_hour"), now);
+    let seven_day = usage_window(v.get("seven_day"), now);
+    let seven_day_opus = usage_window(v.get("seven_day_opus"), now);
+    (five_hour.is_some() || seven_day.is_some()).then_some(Plan { five_hour, seven_day, seven_day_opus, at: now })
+}
+
+/// Claude Code's login, while it is valid (`claudeAiOauth.accessToken`).
+fn claude_login(now: i64) -> Option<String> {
+    let home = std::env::var_os("USERPROFILE")?;
+    let bytes = std::fs::read(Path::new(&home).join(".claude").join(".credentials.json")).ok()?;
+    let v: Value = serde_json::from_slice(&bytes).ok()?;
+    let oauth = v.get("claudeAiOauth")?;
+    // Milliseconds; a minute's margin.
+    if let Some(expires) = oauth.get("expiresAt").and_then(Value::as_i64) {
+        if expires / 1000 <= now + 60 {
+            return None;
+        }
+    }
+    oauth.get("accessToken").and_then(Value::as_str).filter(|t| !t.is_empty()).map(str::to_string)
+}
+
+/// Asks Anthropic for the plan, at most every ASK_EVERY. Quiet on failure:
+/// one log line when the outcome changes, the token never in it.
+async fn ask_anthropic() {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    {
+        let next = NEXT_ASK.lock().unwrap_or_else(|e| e.into_inner());
+        if now < next.0 || crate::integrations::PAUSED.load(std::sync::atomic::Ordering::Relaxed) {
+            return;
+        }
+    }
+    let outcome = match claude_login(now) {
+        None => "no-login".to_string(),
+        Some(token) => {
+            let client = reqwest::Client::builder().timeout(Duration::from_secs(10)).build().unwrap_or_default();
+            let sent = client
+                .get(USAGE_URL)
+                .bearer_auth(token)
+                .header("anthropic-beta", "oauth-2025-04-20")
+                .header("accept", "application/json")
+                .send()
+                .await;
+            match sent {
+                Err(_) => "network".to_string(),
+                Ok(r) if !r.status().is_success() => format!("HTTP {}", r.status().as_u16()),
+                Ok(r) => match r.json::<Value>().await.ok().and_then(|v| parse_usage(&v, now)) {
+                    Some(p) => {
+                        store_plan(p, now);
+                        "ok".to_string()
+                    }
+                    None => "unreadable".to_string(),
+                },
+            }
+        }
+    };
+    let mut next = NEXT_ASK.lock().unwrap_or_else(|e| e.into_inner());
+    next.0 = now + if outcome == "ok" || outcome == "no-login" { ASK_EVERY } else { ASK_AFTER_ERROR };
+    if next.1 != outcome {
+        crate::log::line(format!("limiti del piano da Anthropic: {outcome}"));
+        next.1 = outcome;
+    }
 }
 
 /// The last numbers; `None` until a status line has sent some.
@@ -389,11 +511,18 @@ fn band(p: Option<&Plan>, now: i64) -> u8 {
 /// be checked again now (first numbers, or another band).
 pub fn set_plan(rate_limits: &Value) -> bool {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
-    let Some(next) = parse_plan(rate_limits, now) else { return false };
+    let Some(mut next) = parse_plan(rate_limits, now) else { return false };
+    // The status line has no Opus week: keep Anthropic's.
+    next.seven_day_opus = plan().and_then(|p| p.seven_day_opus);
+    store_plan(next, now)
+}
+
+/// The newest numbers, from either source. True when the band changed.
+fn store_plan(next: Plan, now: i64) -> bool {
     let before = plan();
     // On disk only when the numbers change, or once a minute (the status line
     // runs at every message).
-    let same = before.as_ref().is_some_and(|b| b.five_hour == next.five_hour && b.seven_day == next.seven_day);
+    let same = before.as_ref().is_some_and(|b| b.five_hour == next.five_hour && b.seven_day == next.seven_day && b.seven_day_opus == next.seven_day_opus);
     if !same || before.as_ref().is_none_or(|b| now - b.at >= 60) {
         let _ = std::fs::write(plan_file(), serde_json::to_vec(&next).unwrap_or_default());
     }
@@ -424,9 +553,21 @@ fn reset_text(w: &PlanWindow, weekly: bool, now: i64, offset: i64) -> String {
     if h > 0 { tf("si azzera tra {h} h {m}", &[("h", &h), ("m", &format!("{m:02}"))]) } else { tf("si azzera tra {m} min", &[("m", &m.max(1))]) }
 }
 
+/// The plan in the island's header: what is used now (0 past a reset), and when
+/// each window starts over (Unix seconds).
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanGauge {
+    pub five_hour: Option<[f64; 2]>,
+    pub seven_day: Option<[f64; 2]>,
+    pub seven_day_opus: Option<[f64; 2]>,
+}
+
 /// The plan's lines on top of the card; it warns from 80 %.
 fn with_plan(mut r: WidgetResult, plan: Option<&Plan>, now: i64, offset: i64) -> WidgetResult {
     let Some(p) = plan else { return r };
+    let gauge = |w: &Option<PlanWindow>| w.map(|w| [effective(&w, now), w.resets_at as f64]);
+    r.plan = Some(PlanGauge { five_hour: gauge(&p.five_hour), seven_day: gauge(&p.seven_day), seven_day_opus: gauge(&p.seven_day_opus) });
     let pct = |w: &PlanWindow| format!("{}%", effective(w, now).round() as i64);
     let mut fields = Vec::new();
     let mut parts = Vec::new();
@@ -438,6 +579,9 @@ fn with_plan(mut r: WidgetResult, plan: Option<&Plan>, now: i64, offset: i64) ->
         fields.push(FieldValue { label: t("Piano · settimana").into(), value: format!("{} · {}", pct(w), reset_text(w, true, now, offset)) });
         parts.push(tf("settimana {pct}", &[("pct", &pct(w))]));
     }
+    if let Some(w) = &p.seven_day_opus {
+        fields.push(FieldValue { label: t("Piano · settimana Opus").into(), value: format!("{} · {}", pct(w), reset_text(w, true, now, offset)) });
+    }
     let age = now - p.at;
     if age >= 15 * 60 {
         let ago = if age < 3600 {
@@ -447,7 +591,7 @@ fn with_plan(mut r: WidgetResult, plan: Option<&Plan>, now: i64, offset: i64) ->
         } else {
             tf("{n} giorni fa", &[("n", &(age / DAY))])
         };
-        fields.push(FieldValue { label: t("Piano aggiornato").into(), value: tf("{ago}, dall'ultima sessione nel terminale", &[("ago", &ago)]) });
+        fields.push(FieldValue { label: t("Piano aggiornato").into(), value: ago });
     }
     fields.append(&mut r.fields);
     r.fields = fields;
@@ -464,6 +608,35 @@ fn with_plan(mut r: WidgetResult, plan: Option<&Plan>, now: i64, offset: i64) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn plan_limits_from_anthropic() {
+        assert_eq!(iso_seconds("1970-01-02T00:00:00Z"), Some(86_400));
+        assert_eq!(iso_seconds("2026-10-12T15:00:00.123456+00:00"), iso_seconds("2026-10-12T17:00:00+02:00"));
+        assert_eq!(iso_seconds("2026-10-12T15:00:00+0200"), iso_seconds("2026-10-12T13:00:00Z"));
+        assert_eq!(iso_seconds("2026-10-12"), None);
+        let now = iso_seconds("2026-10-12T12:00:00Z").unwrap();
+        let v = serde_json::json!({
+            "five_hour": { "utilization": 37.0, "resets_at": "2026-10-12T15:00:00.5+00:00" },
+            "seven_day": { "utilization": 12.5, "resets_at": "2026-10-16T09:00:00+00:00" },
+            "seven_day_opus": null,
+        });
+        let p = parse_usage(&v, now).unwrap();
+        assert_eq!(p.five_hour.unwrap().pct, 37.0);
+        assert_eq!(p.five_hour.unwrap().resets_at - now, 3 * 3600);
+        assert!(p.seven_day_opus.is_none());
+        assert!(parse_usage(&serde_json::json!({ "error": "x" }), now).is_none());
+    }
+
+    #[test]
+    #[ignore = "asks Anthropic with this PC's Claude Code login: cargo test plan_from_anthropic_live -- --ignored"]
+    fn plan_from_anthropic_live() {
+        tauri::async_runtime::block_on(ask_anthropic());
+        let next = NEXT_ASK.lock().unwrap();
+        println!("outcome: {}", next.1);
+        println!("plan: {:?}", plan());
+        assert_eq!(next.1, "ok");
+    }
 
     #[test]
     fn plan_limits_from_the_status_line() {

@@ -44,6 +44,9 @@ pub struct IntegrationConfig {
     /// Meteo: the sky stays on the idle character, not only on the Meteo pill.
     #[serde(default)]
     pub weather_on_character: bool,
+    /// Consumo Claude: the plan's percentages in the open island's header too.
+    #[serde(default = "default_true")]
+    pub plan_in_header: bool,
     /// 3CX: "user" (the extension's own login) or "api" (an API client).
     #[serde(default = "user_mode")]
     pub threecx_mode: String,
@@ -62,6 +65,7 @@ impl Default for IntegrationConfig {
             outlook_warn: 10,
             weather_city: String::new(),
             weather_on_character: false,
+            plan_in_header: true,
             threecx_mode: user_mode(),
             threecx_extension: String::new(),
             threecx_device: String::new(),

@@ -172,9 +172,10 @@ fn ctrl(letter: u8) {
     }
 }
 
-/// Ctrl+C in the window in front, read, then the clipboard put back as it was.
+/// Ctrl+C in the window in front, read, then the clipboard put back as it was
+/// (every format: pictures and copied files too, see actions::ClipboardBefore).
 fn copy_selected() -> Result<String, &'static str> {
-    let before = crate::actions::clipboard_text();
+    let before = crate::actions::ClipboardBefore::take();
     crate::clipboard::ignore_next(Duration::from_millis(2000));
     let seq = unsafe { GetClipboardSequenceNumber() };
     ctrl(b'C');
@@ -189,9 +190,7 @@ fn copy_selected() -> Result<String, &'static str> {
     // Let the app finish writing every format.
     std::thread::sleep(Duration::from_millis(60));
     let text = crate::actions::clipboard_text();
-    if let Some(prev) = before {
-        let _ = crate::actions::set_clipboard_text(&prev);
-    }
+    before.put_back();
     match text {
         Some(t) if !t.trim().is_empty() => Ok(t),
         Some(_) => Err("empty"),
@@ -226,7 +225,7 @@ fn same_text(a: &str, b: &str) -> bool {
 /// "Sostituisci": `text` in place of the selection read before (`original`),
 /// in the window it came from. The selection is copied again first: if the
 /// user clicked elsewhere meanwhile, nothing is pasted ("changed"). The
-/// clipboard is put back as it was afterwards (text only, like `selection`).
+/// clipboard is put back as it was afterwards, like `selection`.
 pub fn replace(original: &str, text: &str) -> Result<(), &'static str> {
     let hwnd = HWND(CAPTURED.load(Ordering::Relaxed) as *mut _);
     if hwnd.0.is_null() || !unsafe { IsWindow(Some(hwnd)) }.as_bool() {
@@ -239,7 +238,7 @@ pub fn replace(original: &str, text: &str) -> Result<(), &'static str> {
         Ok(_) | Err("empty") => return Err("changed"),
         Err(e) => return Err(e),
     }
-    let before = crate::actions::clipboard_text();
+    let before = crate::actions::ClipboardBefore::take();
     crate::clipboard::ignore_next(Duration::from_millis(3000));
     // Windows apps want CRLF for a new line (the card's text area gives LF).
     let text = text.replace("\r\n", "\n").replace('\n', "\r\n");
@@ -247,9 +246,7 @@ pub fn replace(original: &str, text: &str) -> Result<(), &'static str> {
     ctrl(b'V');
     // The app reads the clipboard while it handles the paste; browsers a bit later.
     std::thread::sleep(Duration::from_millis(500));
-    if let Some(prev) = before {
-        let _ = crate::actions::set_clipboard_text(&prev);
-    }
+    before.put_back();
     Ok(())
 }
 

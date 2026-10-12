@@ -797,7 +797,12 @@ const INTEGRATIONS: IntegrationDef[] = [
     }],
     hint: t("Da Open-Meteo, gratuito e senza chiave. Il personaggio mostra il cielo (sole, luna, nuvole, nebbia, pioggia, neve, temporale) sulla pillola Meteo e, se scegli «Anche quando è inattivo», ogni volta che non c'è altro da fare. Avvisa quando è probabile la pioggia nelle prossime ore.") },
   { id: "integration_claude_usage", name: t("Consumo Claude"), color: "#D97757", fields: [],
-    hint: t("Quanti token hanno usato le sessioni di Claude Code (terminale, VS Code e app desktop di Claude) nelle ultime 5 ore, oggi e negli ultimi 7 giorni, per progetto e per modello. Letti dalle trascrizioni che Claude Code salva già in %USERPROFILE%\\.claude\\projects: solo i conteggi, mai il testo, e niente esce dal PC. In cima, le percentuali del piano Pro o Max (5 ore e settimana) che Claude Code passa alla sua status line: servono gli hook di Claude Code installati, e arrivano solo dalle sessioni nel terminale o in VS Code.") },
+    options: [{
+      label: t("Piano nell'isola"), type: "select", placeholder: "",
+      choices: [["header", t("Anche nell'intestazione dell'isola")], ["card", t("Solo nella card")]],
+      get: (c) => (c.planInHeader === false ? "card" : "header"), set: (c, v) => { c.planInHeader = v === "header"; },
+    }],
+    hint: t("Quanti token hanno usato le sessioni di Claude Code (terminale, VS Code e app desktop di Claude) nelle ultime 5 ore, oggi e negli ultimi 7 giorni, per progetto e per modello. Letti dalle trascrizioni che Claude Code salva già in %USERPROFILE%\\.claude\\projects: solo i conteggi, mai il testo. In cima, le percentuali del piano Pro o Max (5 ore, settimana e settimana Opus): chieste ad Anthropic ogni 5 minuti con l'accesso già fatto in Claude Code (lo stesso dato di /usage; l'accesso viene solo letto), o passate da Claude Code alla sua status line.") },
   { id: "integration_clipboard", name: t("Appunti"), color: "#A78BFA", fields: [],
     hint: t("Gli ultimi 30 testi copiati, più quelli fissati: clic per incollarli nell'app in primo piano, o trasformarli (maiuscole, una riga, JSON, URL). Si apre anche con la scorciatoia in Azioni rapide. Restano solo in memoria (mai su disco) e si svuotano alla chiusura; ciò che i gestori di password segnano come privato non viene registrato.") },
   { id: "integration_media", name: t("Musica"), color: "#1ED760", fields: [],

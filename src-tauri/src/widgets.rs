@@ -129,6 +129,9 @@ pub struct WidgetResult {
     /// Meteo: the sky the character wears (probes::sky_kind).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sky: Option<String>,
+    /// Consumo Claude: the plan's percentages, for the island's header (usage.rs).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plan: Option<crate::usage::PlanGauge>,
 }
 
 impl WidgetResult {
@@ -141,6 +144,7 @@ impl WidgetResult {
             at: SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0),
             event: None,
             sky: None,
+            plan: None,
         }
     }
 }
