@@ -43,6 +43,8 @@ const LOOK_FRAME_MS = 33;
 const DRAG_THRESHOLD = 4;
 /** The carried character, logical px (carry.rs draws it this big, a little below the pointer). */
 const CARRY_SIZE = 56;
+/** Room kept between the header's tabs and its buttons (measureHeader). */
+const HEADER_GAP = 16;
 
 /** The three views the drop sequence owns; leaving them stops the engine. */
 /** Views drawn at a fixed size: the user's width and height do not apply. */
@@ -152,6 +154,8 @@ export class Island {
   /** Closing from there: the island retracts in place, then the window goes home. */
   private awayClosing: number | null = null;
   private homeCollapseAt: number | null = null;
+  /** Width the header's tabs and buttons need (measureHeader). */
+  private headerNeed = 0;
   /** Hovering the compact island for `openDelay` seconds opens it. */
   private hoverOpenTimer: number | null = null;
 
@@ -412,7 +416,7 @@ export class Island {
   private wireFsm() {
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
     // A pending request, or results of the search bar being looked through.
-    this.fsm.waiting = () => State.pendingApproval != null || this.search.open;
+    this.fsm.waiting = () => State.pendingApproval != null || this.search.open || State.windowPick != null || this.windowPress != null;
     this.fsm.onTransition = (from, to) => {
       switch (to) {
         case "hidden":
@@ -1733,7 +1737,7 @@ export class Island {
     const max = islandMax(this.limits);
     if (State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view)) {
       const s = State.settings;
-      w = Math.round(Math.min(max.w, Math.max(ISLAND_MIN_W, s.islandWidth || EXPANDED_W)));
+      w = this.openWidth(max.w);
       if (s.islandHeight > 0) h = Math.max(h, Math.min(max.h, Math.round(s.islandHeight)));
     }
     // Height the user added beyond the view's own: lists and text boxes grow by
@@ -1764,12 +1768,35 @@ export class Island {
   private fitPanel() {
     const s = State.settings;
     const max = islandMax(this.limits);
-    const w = Math.min(max.w, Math.max(ISLAND_MIN_W, s.islandWidth || EXPANDED_W));
+    const w = this.openWidth(max.w);
     const h = s.islandHeight > 0 ? Math.min(max.h, s.islandHeight) + (s.searchBar !== false ? SEARCH_H : 0) : 0;
     const next = panelFor(w, Math.min(h, max.h), this.limits);
     if (next.w === this.panel.w && next.h === this.panel.h) return;
     this.panel = next;
     void Bridge.setPanelSize(next.w, next.h);
+  }
+
+  /**
+   * The open island's width: the user's, or wider when the header's tabs and
+   * buttons need more room (many integrations as tabs), up to the work area.
+   */
+  private openWidth(maxW: number): number {
+    const s = State.settings;
+    return Math.round(Math.min(maxW, Math.max(ISLAND_MIN_W, s.islandWidth || EXPANDED_W, this.headerNeed)));
+  }
+
+  /**
+   * What the header needs (its tabs at their own width, the buttons, a gap):
+   * measured after every header sync; a change resizes the island.
+   */
+  private measureHeader() {
+    const tabs = this.header.el.querySelector<HTMLElement>(".tabs");
+    const buttons = this.header.el.querySelector<HTMLElement>(".header-actions");
+    if (!tabs || !buttons || !tabs.offsetWidth) return;
+    const need = Math.ceil(tabs.offsetWidth + buttons.offsetWidth + HEADER_GAP);
+    if (Math.abs(need - this.headerNeed) <= 1) return;
+    this.headerNeed = need;
+    if (State.mode === "expanded") this.animateGeometry(false);
   }
 
   /** The work area of the island's screen, asked again when screen or settings change. */
@@ -2223,6 +2250,10 @@ export class Island {
       this.cancelHoverOpen();
       this.windowPress = { x: e.screenX, y: e.screenY, moved: false, cancelled: false, busy: false, again: false };
       this.islandEl.setPointerCapture(e.pointerId);
+      // The window keeps the mouse from the press on: a quick drag used to leave
+      // the island before window_pick(true) landed, and the window let go.
+      this.fsm.pinned = true;
+      void Bridge.windowPick(true);
     });
     this.islandEl.addEventListener("pointermove", (e) => {
       const p = this.windowPress;
@@ -2261,7 +2292,13 @@ export class Island {
       if (!p) return;
       this.windowPress = null;
       if (this.islandEl.hasPointerCapture(e.pointerId)) this.islandEl.releasePointerCapture(e.pointerId);
-      if (!p.moved || p.cancelled) return;
+      if (!p.moved) {
+        // A pat, not a drag.
+        void Bridge.windowPick(false);
+        this.fsm.pinned = State.isPinned;
+        return;
+      }
+      if (p.cancelled) return;
       void this.endWindowPick(!cancelled && !this.overIsland(e.clientX, e.clientY));
     };
     this.islandEl.addEventListener("pointerup", (e) => endWindowPress(e, false));
@@ -2351,7 +2388,7 @@ export class Island {
     if (!inIsland && this.wasInIsland) {
       this.cancelHoverOpen();
       this.fsm.mouseLeft();
-      if (this.fsm.state === "home" && !State.isPinned && !State.keepOpen && !State.pendingApproval && !this.search.open) {
+      if (this.fsm.state === "home" && !State.isPinned && !State.keepOpen && !State.pendingApproval && !this.search.open && !State.windowPick) {
         this.homeCollapseAt = performance.now() + State.settings.autoCloseInterval * 1000;
       }
     }
@@ -2567,10 +2604,11 @@ export class Island {
     const ctx = this.botCanvas.getContext("2d");
     if (!ctx) return;
 
-    // The character wears the focused integration's colour. Claude Code (white
-    // for its pill) and the ⌂ summary keep the character's own (theme) colour.
+    // The open island's character wears the focused integration's colour. Claude
+    // Code (white for its pill), the ⌂ summary and the compact island keep the
+    // character's own (theme) colour: the tab is no longer on screen there.
     const focus = State.characterTask;
-    const wears = focus?.isIntegration && focus.id !== "integration_claude" && character().wearsIntegrationColor;
+    const wears = State.mode === "expanded" && focus?.isIntegration && focus.id !== "integration_claude" && character().wearsIntegrationColor;
     this.engine.bodyColor = wears ? hexToRGB(focus.color) : this.themeBody();
     this.engine.particleOverhang = BOT_OVERHANG;
     const follow = this.followsCursor() || performance.now() < this.helloUntil;
@@ -2633,6 +2671,7 @@ export class Island {
     this.applyBare();
 
     this.header.sync();
+    this.measureHeader();
     this.search.el.style.display = this.searchShown ? "" : "none";
     this.search.sync();
     for (const [name, view] of this.views) {

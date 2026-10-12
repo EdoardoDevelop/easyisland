@@ -128,7 +128,8 @@ export class IslandStateMachine {
     if (this.pinned || this.keepOpen || this.waiting()) return;
     this.homeCollapse = window.setTimeout(() => {
       this.homeCollapse = null;
-      if (this.state === "home") this.transition("petit");
+      // Pinned or waiting since the timer started (a drag that began right after): stay.
+      if (this.state === "home" && !this.pinned && !this.keepOpen && !this.waiting()) this.transition("petit");
     }, this.homeToPetitDelay * 1000);
   }
 
