@@ -226,6 +226,9 @@ function connectorTarget(tool: string, input: Record<string, unknown>): string {
  * A connector call from the chat asks for a click. It is the user's own chat,
  * already on screen, so the card simply takes over and hands back to the chat.
  */
+/** How long the app waits for a click before the relay gives up (pipe.rs, DECISION_TIMEOUT). */
+const DECISION_MS = 108_000;
+
 function handleChatPermission(island: Island, payload: HookPayload) {
   const requestId = payload.request_id ?? "";
   if (State.pendingApproval && State.pendingApproval.requestId !== requestId) {
@@ -246,6 +249,7 @@ function handleChatPermission(island: Island, payload: HookPayload) {
     command: opencode && plain != null ? `${tool} · ${plain}` : connectorTarget(raw, input),
     source: "chat",
     always: opencode ? alwaysLabel(payload.permission_suggestions) ?? undefined : undefined,
+    deadline: Date.now() + DECISION_MS,
   };
   if (requestId) void Bridge.approvalAck(requestId);
   State.isPinned = true;
@@ -852,6 +856,7 @@ export function handleHook(island: Island, payload: HookPayload) {
         tool,
         command: approvalTarget(tool, input),
         target: approvalTarget(tool, input),
+        deadline: Date.now() + DECISION_MS,
         ...(questions ? { questions } : {}),
         ...(always ? { always } : {}),
         ...(risks.length ? { risks } : {}),

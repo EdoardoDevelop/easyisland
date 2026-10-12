@@ -921,7 +921,6 @@
   "Quando un'integrazione o un widget segnala…": "When an integration or a widget reports…",
   "quando {src} segnala {what}": "when {src} reports {what}",
   "Quando: {when}": "When: {when}",
-  "Quanti token hanno usato le sessioni di Claude Code (terminale, VS Code e app desktop di Claude) nelle ultime 5 ore, oggi e negli ultimi 7 giorni, per progetto e per modello. Letti dalle trascrizioni che Claude Code salva già in %USERPROFILE%\\.claude\\projects: solo i conteggi, mai il testo, e niente esce dal PC. In cima, le percentuali del piano Pro o Max (5 ore e settimana) che Claude Code passa alla sua status line: servono gli hook di Claude Code installati, e arrivano solo dalle sessioni nel terminale o in VS Code.": "How many tokens Claude Code sessions (terminal, VS Code and the Claude desktop app) used in the last 5 hours, today and in the last 7 days, by project and by model. Read from the transcripts Claude Code already saves in %USERPROFILE%\\.claude\\projects: only the counts, never the text, and nothing leaves the PC. At the top, the Pro or Max plan percentages (5 hours and week) that Claude Code hands its status line: they need Claude Code's hooks installed, and they come only from terminal or VS Code sessions.",
   "Questi valori valgono per il profilo attivo": "These values apply to the active profile",
   "Questo dispositivo non si può far rispondere da qui: {e}": "This device cannot be answered from here: {e}",
   "Raccolgo…": "Collecting…",
@@ -1264,7 +1263,6 @@
   "Zammad non raggiungibile: {e}": "Zammad not reachable: {e}",
   "Zammad non risponde (tempo scaduto)": "Zammad does not answer (timed out)",
   "{addr} non risponde": "{addr} does not answer",
-  "{ago}, dall'ultima sessione nel terminale": "{ago}, from the last terminal session",
   "{aname} con la chiavetta": "{aname} with the USB stick",
   "{a} usa il microfono": "{a} is using the microphone",
   "{a} usa la webcam": "{a} is using the webcam",
@@ -1490,5 +1488,16 @@
   "Lascia il personaggio su una finestra": "Drop the character on a window",
   "Finestra allegata — app: {app}, titolo: {title}": "Attached window — app: {app}, title: {title}",
   "Immagine della finestra: {path}\nGuardala con Read prima di rispondere.\n": "Picture of the window: {path}\nLook at it with Read before answering.\n",
-  "Non riesco a catturare questa finestra": "Could not capture this window"
+  "Non riesco a catturare questa finestra": "Could not capture this window",
+  "attende ancora {t}": "still waiting {t}",
+  "Poi la chiamata al connettore viene rifiutata": "Then the connector call is refused",
+  "Poi si risponde solo nel terminale; l'agente intanto resta fermo": "After that, answer in the terminal only; the agent stays paused meanwhile",
+  "Piano nell'isola": "Plan in the island",
+  "Anche nell'intestazione dell'isola": "In the island's header too",
+  "Solo nella card": "On the card only",
+  "Quanti token hanno usato le sessioni di Claude Code (terminale, VS Code e app desktop di Claude) nelle ultime 5 ore, oggi e negli ultimi 7 giorni, per progetto e per modello. Letti dalle trascrizioni che Claude Code salva già in %USERPROFILE%\\.claude\\projects: solo i conteggi, mai il testo. In cima, le percentuali del piano Pro o Max (5 ore, settimana e settimana Opus): chieste ad Anthropic ogni 5 minuti con l'accesso già fatto in Claude Code (lo stesso dato di /usage; l'accesso viene solo letto), o passate da Claude Code alla sua status line.": "How many tokens Claude Code sessions (terminal, VS Code and the Claude desktop app) used in the last 5 hours, today and in the last 7 days, per project and per model. Read from the transcripts Claude Code already saves in %USERPROFILE%\\.claude\\projects: counts only, never the text. On top, the Pro or Max plan percentages (5 hours, week and Opus week): asked from Anthropic every 5 minutes with the login already made in Claude Code (the same data as /usage; the login is only read), or handed by Claude Code to its status line.",
+  "5h": "5h",
+  "7g": "7d",
+  "Piano Claude": "Claude plan",
+  "Piano · settimana Opus": "Plan · Opus week"
 }

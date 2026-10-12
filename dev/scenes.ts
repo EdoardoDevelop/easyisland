@@ -51,7 +51,7 @@ export async function runScene(island: Island, scene: string) {
       await wait(300);
       session("approval", ["Bash · npm run pack"]);
       State.pendingApproval = {
-        requestId: "scene", sessionId: "", tool: "Bash", command: "Bash · npm run pack",
+        requestId: "scene", sessionId: "", tool: "Bash", command: "Bash · npm run pack", deadline: Date.now() + 94_000,
       };
       State.isPinned = true;
       island.alert("approval");
@@ -223,6 +223,26 @@ export async function runScene(island: Island, scene: string) {
         ],
       };
       State.setFocus("integration_network");
+      island.alert("overview");
+      await wait(2500);
+      break;
+    }
+    case "usage": {
+      // ?activeIntegrations=integration_claude_usage — the plan in the header and on the card.
+      await wait(300);
+      const now = Math.floor(Date.now() / 1000);
+      State.widgetStatus.integration_claude_usage = {
+        id: "integration_claude_usage", level: "warn", at: now - 30,
+        summary: "Piano: 5 ore 12% · settimana 83% (quasi al limite)",
+        plan: { fiveHour: [12, now + 2 * 3600 + 600], sevenDay: [83, now + 3 * 86_400] },
+        fields: [
+          { label: "Piano · 5 ore", value: "12% · si azzera tra 2 h 10" },
+          { label: "Piano · settimana", value: "83% · si azzera gio 9:00" },
+          { label: "Ultime 5 ore", value: "1,2 M token" },
+        ],
+      };
+      State.setFocus("integration_claude_usage");
+      State.isPinned = true;
       island.alert("overview");
       await wait(2500);
       break;

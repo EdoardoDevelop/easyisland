@@ -130,6 +130,34 @@ function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElem
 
 // ── Header ────────────────────────────────────────────────────────────────────
 
+const USAGE_ID = "integration_claude_usage";
+
+/**
+ * The plan's windows for the header (usage.rs PlanGauge), or null when the
+ * card is off, has no plan yet, or the user keeps it in the card only.
+ */
+function planGauge(): { key: string; parts: HTMLElement[]; title: string } | null {
+  if (!State.settings.activeIntegrations.includes(USAGE_ID) || State.settings.integrationConfig.planInHeader === false) return null;
+  const status = State.widgetStatus[USAGE_ID];
+  const plan = status?.plan;
+  if (!plan) return null;
+  const now = Date.now() / 1000;
+  const windows: [string, [number, number] | undefined][] = [[t("5h"), plan.fiveHour], [t("7g"), plan.sevenDay]];
+  const shown = windows.flatMap(([label, w]) => {
+    if (!w) return [];
+    const pct = Math.round(w[1] <= now ? 0 : w[0]);
+    return [{ label, pct }];
+  });
+  if (!shown.length) return null;
+  const level = (p: number) => (p >= 100 ? "full" : p >= 80 ? "warn" : "");
+  const parts = shown.map(({ label, pct }) =>
+    h("span", { class: `pg ${level(pct)}`, style: `--p:${Math.min(100, pct)}%` },
+      h("b", { text: label }), h("span", { text: `${pct}%` })));
+  // The card's own lines ("Piano · 5 ore: 12% · si azzera tra 2 h 10"), as the tooltip.
+  const lines = (status.fields ?? []).filter((f) => f.label.startsWith(t("Piano"))).map((f) => `${f.label}: ${f.value}`);
+  return { key: shown.map((s) => `${s.label}${s.pct}`).join("|") + lines.join("|"), parts, title: [t("Piano Claude"), ...lines].join("\n") };
+}
+
 export function buildHeader(actions: ViewActions): ViewHost {
   const tabHome = h("button", { class: "tab", "data-id": "tab:home", title: t("Panoramica"), style: "--c:#38BDF8", onclick: () => {
     // Every integration at a glance; a click on one opens its card.
@@ -168,6 +196,13 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const gearBtn = h("button", { title: t("Impostazioni"), style: "--c:#94A3B8", onclick: () => go("settings") }, svg(ICONS.gear, 16));
   const soundBtn = h("button", { title: t("Silenzia"), style: "--c:#22D3EE", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 16));
   const closeBtn = h("button", { title: t("Chiudi"), style: "--c:#F4505E", onclick: () => actions.dismiss() }, svg(ICONS.xmark, 14));
+  // Claude's plan (Consumo Claude): "5h 12%  7g 83%", a click opens the card.
+  const planBtn = h("button", { class: "plan-gauge", onclick: () => {
+    actions.blip();
+    State.setFocus(USAGE_ID);
+    actions.setView("overview");
+  } });
+  let planKey = "";
 
   function go(v: IslandViewName) {
     actions.blip();
@@ -185,7 +220,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
     "div",
     { id: "header" },
     tabsRow,
-    h("div", { class: "header-actions" }, pinBtn, gearBtn, soundBtn, closeBtn),
+    h("div", { class: "header-actions" }, planBtn, pinBtn, gearBtn, soundBtn, closeBtn),
   );
 
   return {
@@ -247,6 +282,13 @@ export function buildHeader(actions: ViewActions): ViewHost {
       soundBtn.style.setProperty("--c", State.settings.soundEnabled ? "#22D3EE" : "#F4505E");
       el.style.opacity = v === "confused" ? "0" : "1";
       closeBtn.style.display = State.settings.closeButton ? "" : "none";
+      const plan = planGauge();
+      planBtn.style.display = plan ? "" : "none";
+      if (plan && plan.key !== planKey) {
+        planKey = plan.key;
+        planBtn.replaceChildren(...plan.parts);
+        planBtn.title = plan.title;
+      }
       closeBtn.title = State.pendingApproval ? t("Chiudi: rispondi nel terminale") : t("Chiudi (Esc)");
     },
   };
@@ -578,6 +620,42 @@ function buildEmpty(actions: ViewActions): ViewHost {
   return { el: h("div", { class: "view" }, card(null, body)), sync() {} };
 }
 
+/**
+ * How long a permission or a question still waits for a click here ("1:32"):
+ * after that the relay gives up and the terminal (or, for the chat, a refusal)
+ * takes over. Written only when the second changes.
+ */
+function waitLeft(el: HTMLElement) {
+  const req = State.pendingApproval;
+  const ms = req?.deadline != null ? req.deadline - Date.now() : null;
+  const text = ms == null ? "" : (() => {
+    const s = Math.max(0, Math.ceil(ms / 1000));
+    return t("attende ancora {t}", { t: `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` });
+  })();
+  if (el.textContent === text) return;
+  el.textContent = text;
+  el.classList.toggle("soon", ms != null && ms < 20_000);
+  el.title = req?.source === "chat"
+    ? t("Poi la chiamata al connettore viene rifiutata")
+    : t("Poi si risponde solo nel terminale; l'agente intanto resta fermo");
+}
+
+/** Keeps waitLeft ticking once a second while a request waits; stops by itself. */
+function waitTimer(el: HTMLElement): () => void {
+  let timer = 0;
+  return () => {
+    waitLeft(el);
+    if (timer || State.pendingApproval?.deadline == null) return;
+    timer = window.setInterval(() => {
+      if (!State.pendingApproval) {
+        window.clearInterval(timer);
+        timer = 0;
+      }
+      waitLeft(el);
+    }, 1000);
+  };
+}
+
 // ── Approval ──────────────────────────────────────────────────────────────────
 
 function buildApproval(actions: ViewActions): ViewHost {
@@ -591,11 +669,14 @@ function buildApproval(actions: ViewActions): ViewHost {
   const plan = h("div", { class: "plan-box md" });
   let planShown = "";
   const row = h("div", { class: "actions" });
+  const left = h("span", { class: "wait-left" });
+  const showLeft = waitTimer(left);
   const el = h("div", { class: "view" }, card("amber", stack(116, 16, who, risk, code, plan, always, row)));
   let rowKey = "";
   return {
     el,
     sync() {
+      showLeft();
       clear(who);
       if (State.pendingApproval?.source === "chat") {
         who.append(h("div", { class: "who-row" },
@@ -640,7 +721,7 @@ function buildApproval(actions: ViewActions): ViewHost {
       // Not now: the island folds, the request keeps waiting and comes back on opening.
       const later = h("button", { class: "link-btn later-btn", text: t("Più tardi"), onclick: () => actions.foldCard() });
       later.title = t("Riduci l'isola senza rispondere (Esc): la richiesta resta in attesa");
-      row.append(later);
+      row.append(later, left);
     },
     // The "Sempre" line can wrap: grow rather than slide under the buttons.
     fitHeight: () => who.offsetHeight + risk.offsetHeight + code.offsetHeight + plan.offsetHeight + always.offsetHeight
@@ -660,6 +741,8 @@ function buildAsk(actions: ViewActions): ViewHost {
   const title = h("div", { class: "title ask-q" });
   const options = h("div", { class: "ask-options" });
   const foot = h("div", { class: "ask-foot" });
+  const left = h("span", { class: "wait-left" });
+  const showLeft = waitTimer(left);
   const el = h("div", { class: "view" }, card("cyan", stack(116, 16, who, title, options, foot)));
 
   let key = "";
@@ -683,6 +766,7 @@ function buildAsk(actions: ViewActions): ViewHost {
   return {
     el,
     sync() {
+      showLeft();
       const req = State.pendingApproval;
       const all = req?.questions ?? [];
       const id = req?.requestId ?? "";
@@ -742,6 +826,7 @@ function buildAsk(actions: ViewActions): ViewHost {
         actions.handToTerminal();
       } }));
       if (q.multiSelect) foot.append(go);
+      foot.append(left);
     },
   };
 }

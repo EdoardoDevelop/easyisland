@@ -1,11 +1,11 @@
 # Handoff — EasyIsland
 
-_Aggiornato all'11 ottobre 2026. Versione **0.7.2** in `main` con il tag `v0.7.2` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 12 ottobre 2026. Versione **0.7.2** in `main` con il tag `v0.7.2` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
-- [ ] **Prove dal vivo:** della 0.6.3 interfaccia in inglese, limiti del piano, card «finito» da un altro programma e riepilogo settimanale; della 0.6.4 cronologia delle chat; della 0.6.5 il personaggio lasciato su un'icona del desktop; della 0.6.6 saluto al centro, Claude Code assente sul notebook e standby con la Rete; della 0.6.7 «Continua», «Chiedi», «Sempre» di sessione e 📌 come finestra; della 0.6.8 menu con `Win+Alt+A`, «Sostituisci» e reazioni del personaggio; della 0.6.9 e 0.7.0 i nuovi personaggi e la Fiamma animata; della 0.7.1 team e chat di 3CX e il cielo grande; della 0.7.2 il personaggio della chat lasciato su una finestra. Tutte in `docs/prove-dal-vivo.md`.
+- [ ] **Prove dal vivo:** della 0.6.3 interfaccia in inglese, limiti del piano, card «finito» da un altro programma e riepilogo settimanale; della 0.6.4 cronologia delle chat; della 0.6.5 il personaggio lasciato su un'icona del desktop; della 0.6.6 saluto al centro, Claude Code assente sul notebook e standby con la Rete; della 0.6.7 «Continua», «Chiedi», «Sempre» di sessione e 📌 come finestra; della 0.6.8 menu con `Win+Alt+A`, «Sostituisci» e reazioni del personaggio; della 0.6.9 e 0.7.0 i nuovi personaggi e la Fiamma animata; della 0.7.1 team e chat di 3CX e il cielo grande; della 0.7.2 il personaggio della chat lasciato su una finestra; dopo la 0.7.2 il piano letto da Anthropic, il tempo rimasto sui permessi e gli appunti rimessi per intero. Tutte in `docs/prove-dal-vivo.md`.
 - [ ] **3CX team e chat:** fatti nel codice, da provare sul centralino vero (`docs/prove-dal-vivo.md`). Se qualcosa non arriva, il log dice quali tipi di messaggio manda il centralino (`3cx: event type …`).
 - [ ] **3CX + Zammad:** ticket del cliente sulla chiamata in arrivo (`docs/idee.md`).
 - [ ] **Remote Desktop Manager** come integrazione. Prima va capito dove sta la fonte dati (`docs/idee.md`).
@@ -18,11 +18,15 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Problemi noti
 - **Sopra la barra:** cliccando la barra o aprendo Start il personaggio va dietro. Torna davanti a ogni cambio di finestra in primo piano. Va verificato con Start aperto.
 - **Cattura una zona:** Esc nello Strumento di cattura non si vede, e la cattura annullata resta in ascolto fino a 60 s.
-- **Copia della selezione e «Sostituisci»:** un'immagine o dei file che erano negli appunti non vengono rimessi; si ripristina solo il testo. «Sostituisci» incolla testo semplice: in Word e Outlook il pezzo sostituito perde grassetti e link interni.
-- **Limiti del piano:** arrivano solo dalle sessioni che disegnano la status line (terminale, VS Code), non dall'app Claude. Servono gli hook di Claude Code aggiornati (Impostazioni → Agenti → «Aggiorna»).
+- **«Sostituisci»** incolla testo semplice: in Word e Outlook il pezzo sostituito perde grassetti e link interni.
+- **Limiti del piano da Anthropic:** l'indirizzo (`/api/oauth/usage`) non è documentato e può cambiare; se smette di rispondere il log scrive «limiti del piano da Anthropic: HTTP …» e restano i numeri della status line.
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 12 ottobre 2026 — piano da Anthropic, tempo sui permessi, appunti interi
+- I limiti del piano arrivano anche usando solo l'app desktop di Claude: la card Consumo li chiede ad Anthropic con l'accesso di Claude Code (`ask_anthropic` in `usage.rs`; decisione del 9 ottobre cambiata con Edoardo, `docs/decisioni.md`), con la settimana Opus, e li mostra anche nell'intestazione dell'isola. Provato dal vivo (risposta vera) e nell'anteprima (scena `usage`).
+- Le card del permesso e della domanda dicono quanto manca ai 108 s (scena `approval`). Copia della selezione e «Sostituisci» rimettono gli appunti in tutti i formati: provati dal vivo testo, file e immagine (test `clipboard_round_trip`).
 
 ### 11 ottobre 2026 — versione 0.7.2
 - Unione in `main` e tag `v0.7.2`: il personaggio della chat trascinato su una finestra la allega come contesto, con la faccia che cambia mentre lo porti (voce sotto). README con novità e tabella delle versioni.
@@ -35,6 +39,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 11 ottobre 2026 — 3CX: team, chat, segreteria, code e trasferimento
 - Con «Interno e password» la scheda 3CX ha Team (colleghi con lo stato in tempo reale, Chiama, Scrivi, Rispondi al suo posto), Chat (elenco, conversazione, invio, non letti, «sta scrivendo», avviso con suono e isola aperta), Segreteria (con trascrizione, «Ascolta» sul telefono), In coda / Fuori coda, Trasferisci e Devia. Protocollo ricavato dal web client del centralino di Edoardo (`myphone.rs`, `docs/integrazioni.md`). Provato con i test e nell'anteprima (scena `threecx`); dal vivo da provare.
-
-### 11 ottobre 2026 — il cielo del Meteo in grande dietro il personaggio
-- Sole, luna, nuvole, pioggia, neve e temporale sono circa il doppio e stanno dietro la testa, spostati a destra (`weather.ts`, `docs/architettura.md`). Gocce e fiocchi cadono solo sotto la nuvola, sole e luna più in basso perché i raggi non vengano tagliati, fulmine spostato fuori dal corpo. L'anteprima del personaggio mostra anche il cielo piccolo di prima, per confronto. Provato nell'anteprima e nella scena `meteo`.
