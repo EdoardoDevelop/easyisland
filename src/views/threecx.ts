@@ -935,7 +935,7 @@ export function threecxCard(task: AgentTask, openSettings: () => void): HTMLElem
     }
     const alert = State.settings.integrationConfig?.threecxAlert !== false;
     toggles.append(h("button", { class: alert ? "tcx-toggle" : "tcx-toggle off",
-      title: alert ? t("Le chiamate in arrivo aprono l'isola con un suono: clic per avere solo il pallino") : t("Chiamate in arrivo: solo il pallino sulla pillola. Clic per aprire di nuovo l'isola"),
+      title: alert ? t("Le chiamate in arrivo aprono l'isola con un suono: clic per avere solo il pallino") : t("Chiamate in arrivo: solo il pallino nel menu. Clic per aprire di nuovo l'isola"),
       onclick: () => {
         State.settings.integrationConfig = { ...State.settings.integrationConfig, threecxAlert: !alert };
         void Bridge.saveSettings(State.settings);

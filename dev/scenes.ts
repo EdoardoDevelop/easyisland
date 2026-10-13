@@ -76,8 +76,33 @@ export async function runScene(island: Island, scene: string) {
     case "overview":
       await wait(300);
       session("working", ["Read · src/character/slime.ts", "Edit · src/character/engine.ts", "Bash · npm run build"]);
+      // Panoramica: each tile with its latest line, as the integrations write them.
+      for (const [id, line] of [
+        ["integration_network", "Wi-Fi Ufficio · 12 ms"], ["integration_weather", "Bologna: 14°, poco nuvoloso"],
+        ["integration_zammad", "3 ticket tuoi, 1 non assegnato"], ["integration_clipboard", "8 elementi, 1 immagine"],
+        ["integration_media", "Lo-fi beats — Chillhop"], ["integration_3cx", "Libero · interno 101"],
+      ]) {
+        const t = State.tasks.find((x) => x.id === id);
+        if (t) t.steps = [line];
+      }
       island.alert("overview");
       await wait(2500);
+      break;
+    case "files":
+      // File e schermo: drop tile, Cerchia e chiedi, the Tray.
+      await wait(300);
+      State.isPinned = true;
+      island.alert("overview");
+      await wait(400);
+      await island.openFiles();
+      // A few files in the tray (the browser preview has no inbox).
+      State.inbox = [
+        { name: "preventivo-ottobre.pdf", path: "C:\inbox\preventivo-ottobre.pdf", size: 248_000, at: Date.now() - 600_000, kept: true },
+        { name: "schermata.png", path: "C:\inbox\schermata.png", size: 412_000, at: Date.now() - 120_000 },
+        { name: "log-server.zip", path: "C:\inbox\log-server.zip", size: 1_800_000, at: Date.now() - 60_000 },
+      ];
+      State.notify();
+      await wait(2000);
       break;
     case "approval":
       await wait(300);
@@ -345,7 +370,8 @@ export async function runScene(island: Island, scene: string) {
         // The card's data (probes.rs forecast_of); &night for the night sky.
         forecast: {
           place: "Bologna", temp: 14.3, feels: 12, humidity: 71, wind: 9, windDir: 225,
-          day: !q.has("night"), sky: q.get("sky") ?? "rain", text: "pioggia debole",
+          day: !q.has("night"), sky: q.get("sky") ?? "rain",
+          text: ({ sun: "sereno", moon: "sereno", "sun-cloud": "poco nuvoloso", "moon-cloud": "poco nuvoloso", cloud: "coperto", fog: "nebbia", snow: "neve", storm: "temporale" } as Record<string, string>)[q.get("sky") ?? ""] ?? "pioggia debole",
           sunrise: "07:21", sunset: "18:40", uv: 2,
           hourly: Array.from({ length: 12 }, (_, i) => ({
             hour: String((14 + i) % 24).padStart(2, "0"), temp: 14 - i * 0.4,

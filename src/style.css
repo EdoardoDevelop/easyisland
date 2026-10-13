@@ -4603,14 +4603,15 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 .weather-card { padding-top: 0; }
 .wx-sky {
   position: absolute;
-  top: 0;
+  /* Up to the card's edge: the card body starts ~10 px lower; the card clips the rest. */
+  top: -12px;
   left: 0;
   width: 100%;
   pointer-events: none;
   -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent);
   mask-image: linear-gradient(to bottom, #000 40%, transparent);
 }
-.wx-hero { position: relative; padding: 14px 0 34px; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35); }
+.wx-hero { position: relative; padding: 12px 0 30px; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35); }
 .wx-place { display: flex; align-items: baseline; gap: 8px; }
 .wx-place b { font: 600 12.5px var(--font); color: #fff; }
 .wx-ago { font: 400 10px var(--font); color: rgba(255, 255, 255, 0.7); }

@@ -57,6 +57,19 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.7.8** — **isola nuova**: a sinistra un menu con il personaggio in cima, poi
+**Panoramica** (tutte le integrazioni a riquadri), Agenti, Chat, Azioni, **File e
+schermo** e le tue integrazioni; in alto il fumetto del personaggio e un solo campo
+per cercare, avviare o chiedere alla chat. A isola chiusa, accanto al personaggio, le
+**risposte rapide**: Nega / Consenti sui permessi, Rispondi / Rifiuta e Riaggancia sulle
+chiamate 3CX, senza aprire l'isola (a destra, a sinistra o spente). Il **Meteo** ha una
+card nuova con il cielo di adesso animato, le prossime 12 ore e 7 giorni. Il personaggio
+torna al suo colore anche se interrompi l'agente, e l'angolo dell'isola non fa più scatti.
+
+<p align="center">
+<img src="screenshots/overview.png" width="640" alt="La Panoramica: menu a sinistra con il personaggio, integrazioni a riquadri con il loro stato">
+</p>
+
 **0.7.7** — **Cerchia e chiedi** al posto di «Cattura una zona»: con `Ctrl+Alt+Shift+S`
 lo schermo si ferma, cerchi o riquadri una zona e accanto scrivi la domanda per la chat,
 oppure usi le tue azioni rapide, ne copi l'immagine o il **testo** (riconosciuto da
@@ -154,7 +167,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.7.7** | 13 ott 2026 | Cerchia e chiedi con OCR, personaggio visibile durante le chiamate 3CX, suoneria predefinita, colore delle integrazioni |
+| **0.7.8** | 13 ott 2026 | Isola nuova con menu a sinistra e Panoramica, risposte rapide a isola chiusa, card del Meteo animata, personaggio che torna al suo colore, angolo senza scatti |
+| 0.7.7 | 13 ott 2026 | Cerchia e chiedi con OCR, personaggio visibile durante le chiamate 3CX, suoneria predefinita, colore delle integrazioni |
 | 0.7.6 | 13 ott 2026 | Limiti del piano vecchi in grigio con il motivo, «Aggiorna» del Consumo che chiede subito |
 | 0.7.5 | 12 ott 2026 | 3CX «Questo PC» con suoneria e scheda da telefono, avvio corretto dopo aggiornamenti e riavvii |
 | 0.7.4 | 12 ott 2026 | Personaggio col suo colore a isola chiusa, isola aperta durante il trascinamento nella chat, schede che allargano l'isola |
@@ -321,12 +335,15 @@ disinstallatore volutamente non tocca il `settings.json` di Claude Code. Poi
 
 ## Come si usa
 
-<img src="screenshots/compact.png" width="288" alt="L'isola compatta, con le pillole delle integrazioni come mini personaggi">
-<img src="screenshots/overview.png" width="640" alt="La panoramica: tutte le integrazioni con il loro stato">
+<img src="screenshots/compact.png" width="288" alt="L'isola compatta a barra, con le integrazioni come mini personaggi">
+<img src="screenshots/strip-approval.png" width="298" alt="Isola chiusa: accanto al personaggio la richiesta di permesso con Nega e Consenti">
+<img src="screenshots/strip-call.png" width="312" alt="Isola chiusa: una chiamata 3CX in arrivo con Rispondi e Rifiuta">
+<img src="screenshots/overview.png" width="640" alt="La Panoramica: tutte le integrazioni a riquadri con il loro stato">
 <img src="screenshots/approval.png" width="640" alt="Una richiesta di permesso di Claude Code, con Nega e Consenti">
-<img src="screenshots/agenti.png" width="640" alt="La scheda Agenti: Claude Code e opencode al lavoro">
+<img src="screenshots/agenti.png" width="640" alt="Agenti: Claude Code e opencode al lavoro">
 <img src="screenshots/chat.png" width="640" alt="Chat con Claude dall'isola">
-<img src="screenshots/drop.png" width="640" alt="Il personaggio trasformato in una scatola, in attesa di un file, con Cattura una zona e Vassoio">
+<img src="screenshots/files.png" width="640" alt="File e schermo: rilascia un file, Cerchia e chiedi e il Vassoio">
+<img src="screenshots/drop.png" width="640" alt="Il personaggio trasformato in una scatola, in attesa di un file">
 
 _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `npm run dev` acceso), con dati di prova delle scene in `dev/scenes.ts`._
 
@@ -479,16 +496,16 @@ calendario, posta…); prende il colore dell'azione.
 - `Ctrl+Alt+Shift+S` **cerchia e chiedi**: lo schermo si ferma, cerchi la zona
   e accanto scrivi la domanda (per esempio per farti spiegare una finestra
   d'errore), oppure ne copi l'immagine o il testo, o la tieni nel Vassoio.
-  Si può fare anche dalla scheda **+** dell'isola, con **Cerchia e chiedi**;
+  Si può fare anche da **File e schermo** nel menu dell'isola, con **Cerchia e chiedi**;
 - `Ctrl+Alt+Shift+P` va alla **richiesta in attesa** (permesso o domanda) e dà la
   tastiera all'isola: `N` nega, `Y` consente, `S` sempre, `1`–`9` sceglie una risposta;
 - `Ctrl+Alt+Shift+T` porta avanti l'**app della sessione** (terminale, VS Code,
   Cursor o l'app di Claude);
-- **pillola successiva** e **suoni sì / no**: vuote di serie, si assegnano in
+- **integrazione successiva** e **suoni sì / no**: vuote di serie, si assegnano in
   Impostazioni → Azioni rapide;
 - ogni azione può avere la sua scorciatoia, es. `Ctrl+Alt+E` per "Spiega errore".
 
-**Nell'isola aperta da tastiera** (o nella chat): `←` `→` cambiano pillola,
+**Nell'isola aperta da tastiera** (o nella chat): `←` `→` passano all'integrazione successiva,
 `↑` `↓` scorrono la lista, `Ctrl+N` apre una nuova chat, `Ctrl+P` la tiene aperta,
 `Esc` la chiude. Con il mouse l'isola non prende la tastiera, per non rubarla
 all'app che stai usando.
@@ -529,6 +546,7 @@ indossa quando la sua scheda è aperta.
 
 Quali integrazioni sono accese, e come sono mostrate, dipende dal profilo.
 
+<img src="screenshots/meteo.png" width="640" alt="Meteo: il cielo di adesso animato, umidità, vento, alba e tramonto, le prossime ore e i prossimi giorni">
 <img src="screenshots/threecx.png" width="640" alt="3CX: una chiamata in arrivo con Rispondi e Rifiuta, una chiamata in linea e la ricerca in rubrica">
 <img src="screenshots/clipboard.png" width="640" alt="Appunti: un'immagine copiata, un link, un indirizzo fissato e un JSON">
 <img src="screenshots/media.png" width="640" alt="Musica: il brano in riproduzione con i controlli">
@@ -563,7 +581,8 @@ Nella scheda **3CX**:
 - **Chiamate in arrivo**: l'isola si apre sulla scheda 3CX con un suono e resta
   aperta finché squilla, con **Rispondi** (se il dispositivo si può comandare a
   distanza, come l'app 3CX) e **Rifiuta**. Con "davanti al cliente" attivo compare
-  solo il segnale sulla pillola, senza il nome di chi chiama.
+  solo il pallino nel menu, senza il nome di chi chiama. Con le **risposte rapide**
+  accese e l'isola chiusa, Rispondi e Rifiuta compaiono accanto al personaggio.
 - **In linea**: durata della chiamata e **Riaggancia**.
 - **Stato** (Disponibile, Assente, Non disturbare…) dal menu accanto a "3CX",
   **chiamate perse** e **Recenti** (solo con interno e password).
@@ -588,7 +607,7 @@ ricollega da solo se il collegamento cade. Numeri e nomi restano in memoria.
 | **API JSON** | qualsiasi API: scegli i campi da mostrare (percorso tipo `data.items[0].stato`) e una regola di avviso (es. `aperti > 10`). Le intestazioni segrete (token, chiavi) vanno in Gestione credenziali |
 
 Quando un controllo (widget o integrazione come Stato del PC, Rete, Outlook…)
-passa da OK a problema, la pillola prende un badge, il personaggio suona e l'isola si fa
+passa da OK a problema, la sua voce nel menu prende un pallino, il personaggio suona e l'isola si fa
 vedere (secondo le regole di notifica del profilo). Il pulsante ▶ prova un widget
 subito. I controlli si fermano con EasyIsland in pausa e diventano tre volte più
 radi a batteria. I widget appartengono al profilo.
@@ -691,7 +710,7 @@ line delle sessioni nel terminale o in VS Code.
 
 **Codex, opencode e Gemini CLI.** Nella stessa pagina (Impostazioni → Agenti) ci sono
 i loro hook, installati con le stesse regole: diff, backup datato, conferma.
-Ogni agente ha la sua pillola con passi, modifiche ai file e ultimo messaggio.
+Ogni agente ha la sua sessione nella voce **Agenti**, con passi, modifiche ai file e ultimo messaggio.
 
 - **Codex** (`%USERPROFILE%\.codex\hooks.json`): anche le richieste di permesso,
   con **Consenti / Nega** nell'isola. Dopo l'installazione apri `/hooks` in Codex e
@@ -706,7 +725,7 @@ Ogni agente ha la sua pillola con passi, modifiche ai file e ultimo messaggio.
   rispondere ai permessi da fuori, quindi l'isola si apre e ti dice che sta
   aspettando, con il pulsante per tornare al terminale.
 
-**Altri strumenti.** Qualsiasi programma può avere la sua pillola mandando gli eventi
+**Altri strumenti.** Qualsiasi programma può comparire in **Agenti** mandando gli eventi
 a `easyisland-hook <Evento>` con un campo `easyisland_agent`:
 `{"id": "mio-bot", "name": "Il mio bot", "color": "#22C55E"}` (gli eventi e i campi
 sono quelli degli hook di Claude Code).

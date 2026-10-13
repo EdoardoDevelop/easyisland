@@ -32,7 +32,7 @@ export interface Forecast {
 }
 
 /** The sky's height, px: the card's top, under the temperature. */
-const SKY_H = 150;
+const SKY_H = 162;
 /** At most this many frames a second: a sky has no need of more. */
 const FPS = 30;
 

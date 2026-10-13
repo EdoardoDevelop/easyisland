@@ -111,7 +111,7 @@ function agentsSection(claudeStatus: HookStatus): HTMLElement {
   for (const tool of AGENT_ORDER) rows.append(agentRow(tool, tool === "claude" ? claudeStatus : null));
   return h("section", {},
     h("h2", {}, h("span", { text: t("Collegati all'isola") })),
-    h("div", { class: "hint", text: t("Ogni agente ha la sua pillola nell'isola. «Installa» mostra prima cosa cambia nel suo file, ne fa una copia e scrive solo dopo la tua conferma; i tuoi hook restano.") }),
+    h("div", { class: "hint", text: t("Ogni agente ha la sua sessione nella voce Agenti dell'isola. «Installa» mostra prima cosa cambia nel suo file, ne fa una copia e scrive solo dopo la tua conferma; i tuoi hook restano.") }),
     relay,
     relayWarn,
     rows,
@@ -768,7 +768,7 @@ const INTEGRATIONS: IntegrationDef[] = [
       { label: t("Interno"), type: "text", placeholder: "es. 101", when: (c) => c.threecxMode === "api",
         get: (c) => c.threecxExtension ?? "", set: (c, v) => { c.threecxExtension = v.trim(); } },
       { label: t("Chiamata in arrivo"), type: "select", placeholder: "",
-        choices: [["on", t("Apre l'isola con un suono")], ["off", t("Solo il pallino sulla pillola 3CX")]],
+        choices: [["on", t("Apre l'isola con un suono")], ["off", t("Solo il pallino su 3CX nel menu")]],
         get: (c) => (c.threecxAlert === false ? "off" : "on"), set: (c, v) => { c.threecxAlert = v === "on"; } },
       { label: t("Suoneria del PC"), type: "select", placeholder: "", when: (c) => c.threecxMode !== "api",
         choices: [["on", t("Suona quando chiamano «Questo PC»")], ["off", t("Silenziata")]],
@@ -799,10 +799,10 @@ const INTEGRATIONS: IntegrationDef[] = [
       get: (c) => c.weatherCity, set: (c, v) => { c.weatherCity = v.trim(); },
     }, {
       label: t("Cielo sul personaggio"), type: "select", placeholder: "",
-      choices: [["pill", t("Solo sulla pillola Meteo")], ["idle", t("Anche quando è inattivo")]],
+      choices: [["pill", t("Solo con il Meteo aperto")], ["idle", t("Anche quando è inattivo")]],
       get: (c) => (c.weatherOnCharacter ? "idle" : "pill"), set: (c, v) => { c.weatherOnCharacter = v === "idle"; },
     }],
-    hint: t("Da Open-Meteo, gratuito e senza chiave. Il personaggio mostra il cielo (sole, luna, nuvole, nebbia, pioggia, neve, temporale) sulla pillola Meteo e, se scegli «Anche quando è inattivo», ogni volta che non c'è altro da fare. Avvisa quando è probabile la pioggia nelle prossime ore.") },
+    hint: t("Da Open-Meteo, gratuito e senza chiave. Il personaggio mostra il cielo (sole, luna, nuvole, nebbia, pioggia, neve, temporale) con il Meteo aperto e, se scegli «Anche quando è inattivo», ogni volta che non c'è altro da fare. Avvisa quando è probabile la pioggia nelle prossime ore.") },
   { id: "integration_claude_usage", name: t("Consumo Claude"), color: "#D97757", fields: [],
     options: [{
       label: t("Piano nell'isola"), type: "select", placeholder: "",
@@ -859,7 +859,7 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
 
   function updateNote() {
     const used = settings.activeIntegrations.length;
-    note.textContent = t("Scegli quali pillole mostrare accanto al personaggio ({n} attive): l'isola si allarga per mostrarle tutte. Le chiavi restano in Gestione credenziali di Windows, mai su disco.", { n: used });
+    note.textContent = t("Scegli quali integrazioni mostrare nel menu dell'isola ({n} attive). Le chiavi restano in Gestione credenziali di Windows, mai su disco.", { n: used });
   }
 
   for (const def of INTEGRATIONS) {
@@ -1022,7 +1022,7 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
     h("label", { text: t("Blocca lo spostamento") }),
     toggle(!!settings.lockOrder, (v) => { settings.lockOrder = v; void save(); }),
     resetOrder,
-    h("span", { class: "hint note", text: t("nell'isola pillole e schede (anche ⌂ 💬 ⚡ +) si riordinano trascinandole; acceso, restano dove sono") }));
+    h("span", { class: "hint note", text: t("nell'isola le integrazioni del menu e i riquadri della Panoramica si riordinano trascinandoli; acceso, restano dove sono") }));
   return h("section", {}, h("h2", {}, h("span", { text: t("Integrazioni") }), profileChip()), note, orderRow, list);
 }
 
@@ -1953,11 +1953,11 @@ function actionsSection(): HTMLElement {
     h("div", { class: "row" }, h("label", { text: t("Porta avanti la sessione") }),
       hotkeyField(settings.hotkeySession, (v) => { settings.hotkeySession = v; }),
       h("span", { class: "hint note", text: t("l'app dove gira la sessione: terminale, VS Code, Cursor o Claude") })),
-    h("div", { class: "row" }, h("label", { text: t("Pillola successiva") }),
+    h("div", { class: "row" }, h("label", { text: t("Integrazione successiva") }),
       hotkeyField(settings.hotkeyNextPill ?? "", (v) => { settings.hotkeyNextPill = v; })),
     h("div", { class: "row" }, h("label", { text: t("Suoni sì / no") }),
       hotkeyField(settings.hotkeyMute ?? "", (v) => { settings.hotkeyMute = v; }),
-      h("span", { class: "hint note", text: t("Isola aperta: ← → pillole, ↑ ↓ scorre, Ctrl+N nuova chat, Ctrl+P tieni aperta, Esc chiude") })),
+      h("span", { class: "hint note", text: t("Isola aperta: ← → voce successiva, ↑ ↓ scorre, Ctrl+N nuova chat, Ctrl+P tieni aperta, Esc chiude") })),
     h("div", { class: "row" }, h("label", { text: t("Suggerimenti per l'app in uso") }),
       toggle(settings.contextActions !== false, (v) => { settings.contextActions = v; void save(); }),
       h("span", { class: "hint note", text: t("in cima alla scheda ⚡: per Outlook, Excel, Word, il browser, il codice… usano il testo che hai selezionato") })),
@@ -2586,7 +2586,7 @@ function widgetsSection(): HTMLElement {
     h("h2", {}, h("span", { text: t("Widget") }), profileChip()),
     h("div", {
       class: "hint",
-      text: t("Controlli che compaiono come pillole accanto al personaggio: il calendario (link ICS), la scadenza dei domini, siti, certificati, server, porte, servizi Windows o qualsiasi API JSON; se ne possono creare quanti servono. Stato del PC, sicurezza, rete, meteo, Outlook e Zammad sono in Integrazioni. Quando un controllo passa da OK a problema, il personaggio ti avvisa. Si fermano quando EasyIsland è in pausa."),
+      text: t("Controlli che compaiono nel menu dell'isola: il calendario (link ICS), la scadenza dei domini, siti, certificati, server, porte, servizi Windows o qualsiasi API JSON; se ne possono creare quanti servono. Stato del PC, sicurezza, rete, meteo, Outlook e Zammad sono in Integrazioni. Quando un controllo passa da OK a problema, il personaggio ti avvisa. Si fermano quando EasyIsland è in pausa."),
     }),
     list,
     templates,
@@ -2654,7 +2654,7 @@ function reactionsSection(): HTMLElement {
     h("h2", {}, h("span", { text: t("Reazioni del personaggio") }), profileChip()),
     h("div", {
       class: "hint",
-      text: t("Per ogni situazione scegli cosa fa il personaggio. «Cambia faccia, in silenzio»: niente suono e l'isola non si apre. «Resta tranquillo»: lo dice solo la pillola. Permessi e domande degli agenti si fanno sempre vedere, perché l'agente aspetta te."),
+      text: t("Per ogni situazione scegli cosa fa il personaggio. «Cambia faccia, in silenzio»: niente suono e l'isola non si apre. «Resta tranquillo»: lo dice solo il pallino nel menu. Permessi e domande degli agenti si fanno sempre vedere, perché l'agente aspetta te."),
     }),
     h("h3", { text: t("Agenti") }),
     row(t("Ha finito"), "agentFinished"),
@@ -2802,7 +2802,7 @@ function themeSection(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: t("Sfondo a isola chiusa") }),
       toggle(th.compactBackground ?? true, (v) => { th.compactBackground = v; commit(); }),
-      h("span", { class: "hint note", text: t("spento, a isola chiusa resta solo il personaggio, senza il cerchio o la barra dell'isola; aprendola lo sfondo torna. Con la barra al passaggio del mouse le pillole restano senza sfondo") }),
+      h("span", { class: "hint note", text: t("spento, a isola chiusa resta solo il personaggio, senza il cerchio o la barra dell'isola; aprendola lo sfondo torna. Con la barra al passaggio del mouse i mini personaggi restano senza sfondo") }),
     ),
     h("div", { class: "row" },
       h("label", { text: t("Volume avvisi") }),

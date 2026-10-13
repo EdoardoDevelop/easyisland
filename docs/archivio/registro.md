@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 13 ottobre 2026 — «Cerchia e chiedi» al posto di «Cattura una zona»
+- Lo Strumento di cattura di Windows è sostituito dal nostro velo: lo schermo sotto il mouse si ferma nella finestra dell'isola stessa, si cerchia o riquadra la zona e accanto ci sono domanda alla chat, azioni rapide, Copia immagine, Copia testo (OCR di Windows) e Nel Vassoio (`screenshot.rs`, `capture.ts`, `docs/strumenti.md`). Provati nell'anteprima (scena `capture`) e dal vivo congelamento e OCR (`screenshot::live`); il velo vero va provato (`docs/prove-dal-vivo.md`). Proposte «al momento giusto» annotate in `docs/idee.md`.
+
 ### 13 ottobre 2026 — 3CX: personaggio che spariva in chiamata, suoneria predefinita muta, colore delle integrazioni
 - In chiamata col telefono «Questo PC» l'isola usa il microfono e «Davanti al cliente» la prendeva per una riunione, nascondendo il personaggio: ora durante una chiamata 3CX il microfono non conta (`threecx::in_call` in `presence.rs`).
 - La suoneria predefinita era un `AudioContext` aperto senza clic, che WebView2 può lasciare sospeso: ora è un WAV generato una volta e suonato da `<audio>` come il file dell'utente (provato nell'anteprima: suona senza clic). Da riprovare sul centralino vero.
