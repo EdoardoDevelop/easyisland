@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 12 ottobre 2026. Versione **0.7.5** in `main` con il tag `v0.7.5` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 12 ottobre 2026. Versione **0.7.6** in `main` con il tag `v0.7.6` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -26,6 +26,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 13 ottobre 2026 — versione 0.7.6
+- Unione in `main` e tag `v0.7.6`: limiti del piano vecchi in grigio con il motivo, richiesta subito quando l'accesso di Claude Code cambia, «Aggiorna» della card Consumo che chiede subito (voce sotto). README con novità e tabella delle versioni.
+
 ### 13 ottobre 2026 — limiti del piano fermi a un numero vecchio
 - L'isola diceva «7g 85%» con `/usage` al 94%: l'accesso in `.credentials.json` era scaduto (l'app desktop di Claude non lo rinnova) e restavano i numeri vecchi. Ora i numeri di oltre 15 minuti sono grigi nell'intestazione, con il motivo nel suggerimento e nella card (scena `usage&stale`); quando il file cambia si richiede subito (provato: rinnovo alle 06:10:24, numeri alle 06:11:13); «Aggiorna» della card chiede ad Anthropic senza aspettare il turno. Provato e tolto il rinnovo con `claude auth status`, che non rinnova (`docs/decisioni.md`).
 
@@ -38,6 +41,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 12 ottobre 2026 — EasyIsland che non partiva dopo l'aggiornamento
 - Su due PC la 0.7.4 si chiudeva al primo avvio dopo l'aggiornamento: i WebView2 della versione vecchia tenevano occupato il profilo (0x800700AA → panic nel setup). Ora l'avvio aspetta e chiude gli avanzi e, se serve, usa un profilo di riserva per quella volta (`webview_profile.rs`, `docs/sviluppo.md`); i panic finiscono nel log. Provato qui con tre aggiornamenti sopra un'istanza in esecuzione.
-
-### 12 ottobre 2026 — 3CX: telefono nel PC, suoneria, scheda da telefono
-- «Questo PC» tra i dispositivi della scheda 3CX: EasyIsland si registra come telefono WebRTC dell'interno, come il web client V20 (messaggi 163, 164/228, 227 ricavati dal suo codice, `myphone.rs`; audio in `src/core/softphone.ts`), con muto, toni e microfono concesso solo all'isola. Suoneria sintetizzata o file MP3/WAV/OGG/M4A dell'utente, silenziabile; avviso della chiamata nell'isola disattivabile (Impostazioni e intestazione della scheda). Scheda ridisegnata come un telefono: tastierino a sinistra, chiamate ed elenchi a destra, barra di icone Team/Chat/Segreteria/Recenti/Perse. Test Rust dei messaggi e anteprima (scena `threecx`); l'audio vero è da provare dal vivo (`docs/integrazioni.md`).
