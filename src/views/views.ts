@@ -446,7 +446,7 @@ function buildOverview(actions: ViewActions): ViewHost {
           cardKey = key;
           mode = "card";
           clear(leftBody);
-          leftBody.append(renderIntegrationCard(task, hooks));
+          leftBody.append(safeCard(task, hooks));
         }
       }
 
@@ -460,6 +460,25 @@ function buildOverview(actions: ViewActions): ViewHost {
       return (content ? content.offsetHeight + 12 : 0) + (agentBar.style.display === "none" ? 0 : agentBar.offsetHeight);
     },
   };
+}
+
+/**
+ * An integration's card, or a plain one saying it cannot be shown when its
+ * data trips the card up: the error is logged and the rest of the island
+ * keeps working (another card, the menu, the next update of the same one).
+ */
+function safeCard(task: AgentTask, hooks: IntegrationCardHooks): HTMLElement {
+  try {
+    return renderIntegrationCard(task, hooks);
+  } catch (e) {
+    void Bridge.log(`card ${task.id}: ${(e as Error)?.stack ?? e}`).catch(() => {});
+    console.error(e);
+    return h("div", { class: "int-card" },
+      h("div", { class: "int-head" }, dot(task.color, 7), h("b", { text: task.name })),
+      h("div", { class: "int-status wrap" }, h("span", { text: t("Questa scheda non si può mostrare: i dati ricevuti non sono nel formato atteso. Riprovo al prossimo aggiornamento.") })),
+      h("div", { class: "int-actions" },
+        h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: () => hooks.openSettings() })));
+  }
 }
 
 /** The ⌂ tab shows the summary, unless a permission or a question is waiting. */

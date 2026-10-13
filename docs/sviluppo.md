@@ -5,6 +5,7 @@
 - CI: `.github/workflows/build.yml` (windows-latest). I tag `v*` pubblicano quando `PUBLISH` vale `'true'`.
 - I test Rust che arrivano a `AppHandle::emit_to` fanno fallire l'avvio del binario dei test con `STATUS_ENTRYPOINT_NOT_FOUND`. Per questo si passa da un trait (es. `Ask` in `opencode.rs`) che i test sostituiscono.
 - I test dal vivo sono `#[ignore]` e si lanciano con `-- --ignored`.
+- **Collaudo dell'interfaccia:** `npm run smoke` con `npm run dev` acceso (`PREVIEW_URL=http://localhost:1420` se serve). Edge senza finestra apre ogni scena di `dev/scenes.ts`, clicca ogni voce del menu, trascina l'angolo, chiude e riapre; poi le pagine delle Impostazioni, usando ogni select, interruttore, campo e pulsante. Qualsiasi eccezione o `console.error` è un errore (esce con il numero di scene che ne hanno). Comprende `fuzz` (5 semi): centinaia di eventi casuali degli agenti, clic e dati malformati delle integrazioni, e alla fine ogni sessione deve essere a riposo. Un errore del fuzz si ripete con lo stesso seme: `/?scene=fuzz&seed=N&steps=3000`. Da lanciare prima di ogni rilascio e dopo modifiche a hook, viste o integrazioni. `tsc` controlla anche `dev/`.
 - La shell di Claude Code passa variabili proprie (`ANTHROPIC_BASE_URL`, token del desktop). Per riprodurre l'ambiente dell'app usare `env -i` con solo PATH e le cartelle del profilo.
 
 ## Anteprima nel browser

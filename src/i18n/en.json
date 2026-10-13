@@ -1591,5 +1591,6 @@
   "Prossime ore": "Next hours",
   "Prossimi giorni": "Next days",
   "Pioggia": "Rain",
-  "Ora": "Now"
+  "Ora": "Now",
+  "Questa scheda non si può mostrare: i dati ricevuti non sono nel formato atteso. Riprovo al prossimo aggiornamento.": "This card cannot be shown: the data received is not in the expected format. I'll try again at the next update."
 }

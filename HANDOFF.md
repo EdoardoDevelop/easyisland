@@ -25,6 +25,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 13 ottobre 2026 — scansione di stabilità
+- Su richiesta di Edoardo: clippy, ricerca dei panic in Rust, collaudo automatico nuovo (`npm run smoke`: tutte le scene, le Impostazioni e un fuzz di eventi e dati malformati). Corretti: isola che si congelava per sempre dopo un'eccezione in una card (`guard`, `safeCard`), eventi degli agenti con campi del tipo sbagliato (`sanitize`), dati 3CX e Meteo malformati, impostazioni perse se il salvataggio veniva interrotto (`write_atomic`, copia di riserva), panic su caratteri accentati in calendari ICS e WHOIS, copia di file grandi che bloccava l'isola. Dettagli in `docs/architettura.md` → Robustezza. Tutto verde: 172 + 36 test Rust, 45 scene e pagine del collaudo.
+
 ### 13 ottobre 2026 — versione 0.7.8 e homepage
 - Unione in `main` e tag `v0.7.8`: nuovo impianto dell'isola, risposte rapide a isola chiusa, card del Meteo, angolo e colore del personaggio (voci sotto). Schermate del README rifatte (scene nuove `files`, `strip`; `overview` con le righe dei riquadri), parole «pillola» tolte da README e Impostazioni. Homepage (`site/`, GitHub Pages, arrivata in `main` da `claude/homepage`) aggiornata al nuovo impianto con le stesse schermate.
 
@@ -36,6 +39,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 13 ottobre 2026 — nuovo impianto dell'isola aperta
 - Dopo un prototipo approvato da Edoardo: menu a sinistra con il personaggio in cima (`rail.ts`), barra in alto con il suo fumetto, il campo unico (cerca e «Chiedi alla chat», Ctrl+Invio) e i pulsanti di prima, «Oggi» a riquadri al posto della Panoramica, niente più schede in alto né pillole. Personaggi e animazioni invariati, impostazioni di prima tutte valide (`integrationTabs` non serve più), nuove «Personaggio nel menu» e «Fumetto». Personalizzazione solo in Impostazioni (`docs/decisioni.md`). Provato nell'anteprima (scene overview, approval, chat, threecx, agenti, actions, drop). Dopo la prima prova di Edoardo: l'isola cresceva fino all'altezza dello schermo e, ancorata in basso, perdeva la barra in alto (misura del menu e finestra corrette, `docs/architettura.md`); 8 px sotto la barra; «File e schermo» come nel prototipo (titolo, riquadri Rilascia e Cerchia e chiedi, Vassoio).
-
-### 13 ottobre 2026 — versione 0.7.7
-- Unione in `main` e tag `v0.7.7`: «Cerchia e chiedi» con OCR al posto dello Strumento di cattura, personaggio visibile durante le chiamate 3CX, suoneria predefinita come WAV, colore per ogni integrazione (voci sotto). README con novità e tabella delle versioni.

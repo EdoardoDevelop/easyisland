@@ -905,10 +905,12 @@ async fn claude_cli_status() -> claude_cli::CliStatus {
     claude_cli::status().await
 }
 
-/// Copies a dropped file into the inbox and reports its name back.
+/// Copies a dropped file into the inbox and reports its name back. Off the
+/// main thread: a sync command runs there, and copying a file of a few GB
+/// froze the whole island ("not responding") until it was done.
 #[tauri::command]
-fn ingest_file(path: String) -> Result<DroppedFile, String> {
-    files::ingest(&path)
+async fn ingest_file(path: String) -> Result<DroppedFile, String> {
+    tauri::async_runtime::spawn_blocking(move || files::ingest(&path)).await.map_err(|e| e.to_string())?
 }
 
 /// "Cerchia e chiedi" (screenshot.rs): freezes the screen under the mouse.

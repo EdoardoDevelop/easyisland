@@ -914,9 +914,18 @@ class AppState {
     return () => this.listeners.delete(fn);
   }
 
-  /** Marks the UI dirty; the island re-renders on the next frame. */
+  /**
+   * Marks the UI dirty; the island re-renders on the next frame. A listener
+   * that throws does not keep the others (the island's own) from hearing it.
+   */
   notify() {
-    for (const fn of this.listeners) fn();
+    for (const fn of this.listeners) {
+      try {
+        fn();
+      } catch (e) {
+        console.error(e);
+      }
+    }
   }
 
   get focusTask(): AgentTask | null {

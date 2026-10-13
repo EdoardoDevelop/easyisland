@@ -24,7 +24,7 @@ const KEY_FOR: Record<string, string> = {
 const clearTimers = new Map<string, number>();
 
 export function registerIntegrationHandlers(island: Island) {
-  void onEvent<IntegrationUpdate>("integration", (update) => handle(island, update));
+  void onEvent<IntegrationUpdate>("integration", (update) => handleIntegration(island, update));
   void onEvent<WidgetStatus>("widget-update", (r) => handleWidget(island, r)).then(() => catchUpWidgets(island));
   void onEvent<ThreecxCall>("threecx-call", (c) => incomingCall(island, c));
   void onEvent<ThreecxMessage>("threecx-chat", (m) => incomingMessage(island, m));
@@ -69,8 +69,10 @@ export async function refreshConfigured() {
  * reaction is "show" (Impostazioni → Notifiche → Reazioni del personaggio);
  * the badge stays in any case.
  */
-function handleWidget(island: Island, r: WidgetStatus) {
-  if (State.paused) return;
+export function handleWidget(island: Island, r: WidgetStatus) {
+  if (State.paused || !r || typeof r.id !== "string") return;
+  // What the poller sent, made whole: an older or newer backend may leave a field out.
+  r = { ...r, summary: String(r.summary ?? ""), fields: Array.isArray(r.fields) ? r.fields : [] };
   const prev = State.widgetStatus[r.id];
   State.widgetStatus[r.id] = r;
   // A widget's pill is `widget:<id>`; an integration run as a check uses its own id.
@@ -170,8 +172,12 @@ function incomingMessage(island: Island, m: ThreecxMessage) {
   island.alert("overview");
 }
 
-function handle(island: Island, update: IntegrationUpdate) {
-  if (State.paused) return;
+/** Exported for dev/scenes.ts (the fuzz scene); the app gets these from `registerIntegrationHandlers`. */
+export function handleIntegration(island: Island, update: IntegrationUpdate) {
+  if (State.paused || !update || typeof update.id !== "string") return;
+  // An update without data (an older or newer backend, a poller that failed
+  // half-way) is read as empty, never as a crash of every later update.
+  if (update.data == null || typeof update.data !== "object") update = { ...update, data: {} };
 
   const previous = State.integrations[update.id];
   State.integrations[update.id] = {

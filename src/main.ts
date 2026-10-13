@@ -12,9 +12,25 @@ import { Recap } from "./island/recap";
 import { syncLanguage } from "./core/i18n";
 import { registerIntegrationHandlers, refreshConfigured } from "./island/integrations";
 
+/**
+ * Uncaught errors of the page go to easyisland.log (the WebView's console is
+ * read by nobody on a PC), each at most once and no more than 30 in all.
+ */
+function logPageErrors() {
+  const seen = new Set<string>();
+  const report = (text: string) => {
+    if (seen.has(text) || seen.size >= 30) return;
+    seen.add(text);
+    void Bridge.log(`errore nella pagina · ${text}`).catch(() => {});
+  };
+  window.addEventListener("error", (e) => report(`${e.message} (${e.filename}:${e.lineno})${e.error?.stack ? ` ${e.error.stack}` : ""}`));
+  window.addEventListener("unhandledrejection", (e) => report(`promessa rifiutata: ${(e.reason as Error)?.stack ?? String(e.reason)}`));
+}
+
 async function main() {
   const root = document.getElementById("root");
   if (!root) return;
+  logPageErrors();
 
   void Sound.preload();
 

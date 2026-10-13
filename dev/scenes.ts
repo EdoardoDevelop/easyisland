@@ -8,6 +8,7 @@ import type { Island } from "../src/island/island";
 import { State } from "../src/core/state";
 import { Bridge } from "../src/core/bridge";
 import { handleHook } from "../src/island/hooks";
+import { handleIntegration, handleWidget } from "../src/island/integrations";
 import { Recap } from "../src/island/recap";
 import { setHistoryDemo } from "../src/views/chat";
 
@@ -544,8 +545,9 @@ export async function runScene(island: Island, scene: string) {
       await Recap.open(island);
       await wait(1500);
       break;
-    case "finished":
-      // A finished session whose last message is long and has markdown in it.
+    case "stop":
+      // A finished session whose last message is long and has markdown in it,
+      // through the real Stop handler (?scene=finished is the card on its own).
       await wait(300);
       session("working", ["Edit · src/views/views.ts"]);
       handleHook(island, { hook_event_name: "Stop", cwd: "C:\\Users\\Edoardo\\WORK\\easyisland",
@@ -570,8 +572,131 @@ export async function runScene(island: Island, scene: string) {
         ],
       });
       return;
+    case "fuzz":
+      // Not a screenshot: hundreds of random agent events, clicks and malformed
+      // integration data (?seed=7&steps=600). Every exception is reported by
+      // scripts/smoke.mjs; at the end every session must be back at rest.
+      await wait(300);
+      await fuzz(island);
+      break;
     default:
       return;
   }
   frame();
+}
+
+
+/** A small seeded generator, so a failing run can be replayed with its seed. */
+function rng(seed: number) {
+  let x = seed >>> 0 || 1;
+  return () => {
+    x ^= x << 13; x >>>= 0;
+    x ^= x >>> 17;
+    x ^= x << 5; x >>>= 0;
+    return x / 4294967296;
+  };
+}
+
+async function fuzz(island: Island) {
+  const q = new URLSearchParams(location.search);
+  const seed = Number(q.get("seed") ?? 7);
+  const steps = Number(q.get("steps") ?? 600);
+  const r = rng(seed);
+  const pick = <T,>(a: readonly T[]): T => a[Math.floor(r() * a.length)];
+  const junk = () => pick<unknown>([undefined, null, "", 0, 42, "x".repeat(5000), "à€😀\u0000", {}, [], { a: { b: [1, null] } }, true]);
+  const maybe = <T,>(v: T): T => (r() < 0.12 ? junk() : v) as T;
+  const agents = [
+    undefined,
+    { id: "codex", name: "Codex", color: "#10A37F" },
+    { id: "opencode", name: "opencode", color: "#FAB283" },
+    { id: "gemini", name: "Gemini CLI", color: "#4285F4" },
+  ];
+  const events = ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "Notification",
+    "Stop", "StopFailure", "PermissionRequest", "SubagentStart", "SubagentStop", "PreCompact", "SessionEnd"];
+  const tools = ["Bash", "Edit", "Write", "Read", "Grep", "WebFetch", "AskUserQuestion", "ExitPlanMode", "TodoWrite", "mcp__x__y", "Patch"];
+  const views = ["overview", "prompt", "actions", "files", "approval", "ask", "finished", "note", "empty"] as const;
+  const cwds = ["C:\\Users\\Edoardo\\WORK\\easyisland", "C:\\progetti\\gestionale", "/home/x/y", ""];
+  const ids = State.tasks.map((t) => t.id);
+  const errors: string[] = [];
+  const step = async (i: number) => {
+    const roll = r();
+    if (roll < 0.55) {
+      const tool = pick(tools);
+      const input = tool === "AskUserQuestion"
+        ? { questions: maybe([{ question: "Quale?", header: "H", multiSelect: r() < 0.5, options: [{ label: "A" }, { label: "B" }] }]) }
+        : tool === "ExitPlanMode" ? { plan: maybe("1. uno\n2. due") }
+        : tool === "TodoWrite" ? { todos: maybe([{ content: "a", status: pick(["pending", "in_progress", "completed"]) }]) }
+        : { command: maybe("npm run build"), file_path: maybe("C:\\x\\a.ts"), old_string: maybe("a"), new_string: maybe("b") };
+      handleHook(island, {
+        hook_event_name: pick(events),
+        session_id: maybe(pick(["s1", "s2", "s3"])),
+        request_id: maybe(`r${i}`),
+        cwd: maybe(pick(cwds)),
+        tool_name: maybe(tool),
+        tool_input: maybe(input),
+        message: maybe(pick(["Claude is waiting for your input", "Rate limit reached", "Vuoi continuare?", "Claude needs your permission to use Bash"])),
+        notification_type: maybe(pick(["idle_prompt", "permission_prompt", undefined])),
+        prompt: maybe("Correggi il bug"),
+        easyisland_last_message: maybe("**Fatto.** `ok`"),
+        easyisland_agent: maybe(pick(agents)),
+        permission_suggestions: maybe([{ type: "addRules", rules: [{ toolName: tool, ruleContent: "x:*" }], behavior: "allow", destination: "session" }]),
+        easyisland_diff: maybe({ file: "C:\\x\\a.ts", added: 3, removed: 1, hunks: [{ old: 1, new: 1, lines: ["-a", "+b"] }] }),
+        permission_mode: maybe(pick(["default", "plan", "acceptEdits", "bypassPermissions"])),
+      } as never);
+    } else if (roll < 0.68) {
+      handleIntegration(island, {
+        id: pick(ids),
+        error: r() < 0.2 ? "rete giù" : null,
+        data: maybe({
+          calls: maybe([{ id: "1", state: pick(["ringing", "connected", "x"]), incoming: true, name: maybe("Cliente"), number: maybe("051"), since: Date.now() }]),
+          connected: maybe(true), unread: maybe(2), items: maybe([{ title: maybe("t") }]), active: maybe(true), title: maybe("Brano"),
+        }) as never,
+        event: r() < 0.2 ? { success: r() < 0.5, label: "evento", detail: maybe("dettaglio") } : null,
+      });
+    } else if (roll < 0.78) {
+      const id = pick(ids);
+      handleWidget(island, {
+        id, level: pick(["ok", "warn", "error"] as const), summary: maybe("riassunto"), fields: maybe([{ label: "a", value: "b" }]),
+        at: Math.floor(Date.now() / 1000), sky: maybe(pick(["sun", "rain", "storm", "nonsense"])),
+        forecast: id === "integration_weather"
+          ? maybe({ place: "X", temp: maybe(10), day: maybe(true), sky: maybe("rain"), text: "pioggia",
+            hourly: maybe([{ hour: "10", temp: 1, sky: "sun", rain: 5 }]), daily: maybe([{ date: "2026-10-13", min: 1, max: 9, sky: "rain", text: "p", rain: 50 }]) })
+          : undefined,
+        plan: maybe({ fiveHour: [50, 0] as [number, number] }),
+      });
+    } else if (roll < 0.9) {
+      // A click on something on screen.
+      const buttons = [...document.querySelectorAll<HTMLElement>("#island button, #rail .rail-item, #island .summary-row")]
+        .filter((b) => b.offsetParent);
+      if (buttons.length) pick(buttons).click();
+    } else {
+      const a = r();
+      if (a < 0.3) island.alert(pick(views));
+      else if (a < 0.5) island.collapse(r() < 0.5);
+      else if (a < 0.7) island.setView(pick(views));
+      else if (a < 0.85) State.setFocus(pick(ids));
+      else island.showInStrip();
+    }
+  };
+  for (let i = 0; i < steps; i++) {
+    try {
+      await step(i);
+    } catch (e) {
+      errors.push(`passo ${i}: ${(e as Error)?.stack ?? e}`);
+    }
+    if (i % 10 === 0) await wait(16);
+  }
+  // Every session ends its turn: after the "finito" pause all must be at rest.
+  if (State.pendingApproval) island.settleApproval(State.pendingApproval);
+  for (const t of State.sessionTasks) {
+    const agent = t.id === CLAUDE ? undefined : { id: t.id.slice("agent:".length), name: t.agentName ?? "x", color: t.color };
+    handleHook(island, { hook_event_name: "Stop", cwd: "C:\\x", easyisland_agent: agent } as never);
+  }
+  await wait(5600);
+  const busy = State.sessionTasks.filter((t) => !["idle", "sleeping", "finished"].includes(t.state));
+  if (busy.length) errors.push(`sessioni non a riposo: ${busy.map((t) => `${t.id}=${t.state}`).join(", ")}`);
+  const box = document.getElementById("island")!.getBoundingClientRect();
+  if (!Number.isFinite(box.width) || !Number.isFinite(box.height)) errors.push("misure dell'isola non valide");
+  for (const e of errors) console.error(`fuzz (seed ${seed}): ${e}`);
+  (window as unknown as { fuzzReport: unknown }).fuzzReport = { seed, steps, errors: errors.length };
 }

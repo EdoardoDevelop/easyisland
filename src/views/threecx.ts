@@ -75,8 +75,26 @@ const KEYS: [string, string][] = [
   ["*", ""], ["0", "+"], ["#", ""],
 ];
 
+/**
+ * The poller's snapshot, made safe to read: every list a list of objects,
+ * every count a number. Whatever a newer centralino or a half-failed poll
+ * sends, the card and the strip read it without throwing.
+ */
 function data(): Snapshot {
-  return (State.integrations[THREECX]?.data ?? {}) as Snapshot;
+  const raw = (State.integrations[THREECX]?.data ?? {}) as Record<string, unknown>;
+  const list = <T,>(v: unknown): T[] => (Array.isArray(v) ? v.filter((x) => x !== null && typeof x === "object") as T[] : []);
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  return {
+    ...raw,
+    calls: list<ThreecxCall>(raw.calls),
+    team: list<ThreecxColleague>(raw.team),
+    devices: list<{ id: string; name: string }>(raw.devices),
+    profiles: list<{ id: string; name: string }>(raw.profiles),
+    missed: num(raw.missed),
+    unread: num(raw.unread),
+    voicemail: num(raw.voicemail),
+    unreadByChat: raw.unreadByChat && typeof raw.unreadByChat === "object" ? raw.unreadByChat as Record<string, number> : {},
+  } as Snapshot;
 }
 
 function message(e: unknown): string {

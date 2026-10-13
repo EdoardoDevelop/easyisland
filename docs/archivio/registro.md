@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 13 ottobre 2026 — versione 0.7.7
+- Unione in `main` e tag `v0.7.7`: «Cerchia e chiedi» con OCR al posto dello Strumento di cattura, personaggio visibile durante le chiamate 3CX, suoneria predefinita come WAV, colore per ogni integrazione (voci sotto). README con novità e tabella delle versioni.
+
 ### 13 ottobre 2026 — «Cerchia e chiedi» al posto di «Cattura una zona»
 - Lo Strumento di cattura di Windows è sostituito dal nostro velo: lo schermo sotto il mouse si ferma nella finestra dell'isola stessa, si cerchia o riquadra la zona e accanto ci sono domanda alla chat, azioni rapide, Copia immagine, Copia testo (OCR di Windows) e Nel Vassoio (`screenshot.rs`, `capture.ts`, `docs/strumenti.md`). Provati nell'anteprima (scena `capture`) e dal vivo congelamento e OCR (`screenshot::live`); il velo vero va provato (`docs/prove-dal-vivo.md`). Proposte «al momento giusto» annotate in `docs/idee.md`.
 

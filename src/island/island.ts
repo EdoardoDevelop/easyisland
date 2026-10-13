@@ -42,6 +42,28 @@ const WANDER_SPREAD_MS = 4200;
 const LOOK_EPS = 0.01;
 /** Frame interval while the character only follows the cursor (nothing else moving), ms. */
 const LOOK_FRAME_MS = 33;
+
+/** Errors already written to the log: a broken card fails every frame, logged once. */
+const reported = new Set<string>();
+
+/**
+ * Runs one part of a frame (a view's sync, the character's drawing…). An
+ * exception is written to the log once and the rest of the frame goes on: one
+ * card that cannot read its data used to stop the animation loop for good
+ * (`running` stayed true, so nothing ever started it again) and froze the
+ * whole island until a restart.
+ */
+function guard(part: string, fn: () => void) {
+  try {
+    fn();
+  } catch (e) {
+    const text = `${part}: ${(e as Error)?.stack ?? e}`;
+    if (reported.has(text)) return;
+    if (reported.size < 50) reported.add(text);
+    console.error(text);
+    void Bridge.log(`errore nell'isola · ${text}`).catch(() => {});
+  }
+}
 /** Pointer travel (px) that turns a press on the compact island into a drag. */
 const DRAG_THRESHOLD = 4;
 /** The carried character, logical px (carry.rs draws it this big, a little below the pointer). */
@@ -2598,7 +2620,7 @@ export class Island {
 
     if (this.dirty) {
       this.dirty = false;
-      this.syncDom();
+      guard("sync", () => this.syncDom());
     }
 
     this.updateBotTargets();
@@ -2617,17 +2639,17 @@ export class Island {
     } else {
       // Kept running even while the drop canvas is up, so the island's own the character
       // is already in the right place the moment the canvas fades out.
-      this.drawBot(dt);
-      if (State.windowPick) this.refreshPickCursor(nowMs);
+      guard("character", () => this.drawBot(dt));
+      if (State.windowPick) guard("pick", () => this.refreshPickCursor(nowMs));
     }
 
     const uploadActive = this.uploadActive;
-    if (uploadActive) this.uploadCanvas.draw(UploadSeq.frame(), nowMs / 1000);
+    if (uploadActive) guard("drop", () => this.uploadCanvas.draw(UploadSeq.frame(), nowMs / 1000));
     this.uploadCanvas.el.classList.toggle("on", uploadActive);
     this.viewsEl.classList.toggle("hidden-by-upload", uploadActive);
 
     tickMiniBots(dt);
-    this.views.get(State.view)?.tick?.(nowMs);
+    guard(`tick ${State.view}`, () => this.views.get(State.view)?.tick?.(nowMs));
     if (UploadSeq.isActive) this.stepSequence();
     this.updateCountdown(nowMs);
 
@@ -2783,14 +2805,14 @@ export class Island {
     this.greetingCanvas.style.display = greetingActive ? "block" : "none";
     this.applyBare();
 
-    this.header.sync();
+    guard("header", () => this.header.sync());
     this.measureHeader();
     // The menu: shown with the open island, the views beside it with no room
     // kept for the character any more (--bot-room in style.css).
     const railed = this.railShown;
     this.islandEl.classList.toggle("railed", railed);
     if (railed) {
-      this.rail.sync();
+      guard("menu", () => this.rail.sync());
       // An integration switched on or off changes the menu's height: the island follows.
       const need = Math.round(this.rail.fitHeight?.() ?? 0);
       if (Math.abs(need - this.railNeed) > 1) {
@@ -2799,11 +2821,11 @@ export class Island {
       }
     }
     this.search.el.style.display = this.searchShown ? "" : "none";
-    this.search.sync();
+    guard("search", () => this.search.sync());
     for (const [name, view] of this.views) {
       const on = name === State.view;
       view.el.classList.toggle("on", on);
-      if (on) view.sync();
+      if (on) guard(`view ${name}`, () => view.sync());
     }
 
     // Views that know how tall their content is make the island grow (or
@@ -2831,7 +2853,7 @@ export class Island {
     }
 
     // Compact mini grid
-    this.syncStrip();
+    guard("strip", () => this.syncStrip());
     const showGrid = State.mode === "compact" && this.placement.hoverStyle === "bar" && !this.stripShown;
     this.miniGrid.style.opacity = showGrid ? "1" : "0";
     if (showGrid) {

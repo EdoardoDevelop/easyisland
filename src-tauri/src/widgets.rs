@@ -364,7 +364,8 @@ async fn tls(w: &Widget) -> WidgetResult {
         return WidgetResult::new(&w.id, "error", tf("{host}: scadenza non leggibile", &[("host", &host)]));
     };
     let warn = if w.warn_days <= 0 { 30 } else { w.warn_days };
-    let level = if days < 0 { "error" } else if days <= 7 { "error" } else if days <= warn { "warn" } else { "ok" };
+    // Expired or within a week: error; within the warning days: warn.
+    let level = if days <= 7 { "error" } else if days <= warn { "warn" } else { "ok" };
     let summary = if days < 0 {
         tf("Certificato di {host} scaduto da {days} giorni", &[("host", &host), ("days", &-days)])
     } else {
