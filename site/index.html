@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EasyIsland — Un'isola sempre a portata di mano su Windows</title>
+<meta name="description" content="Isola animata per Windows per agenti coding (Claude Code, Codex, opencode, Gemini CLI) e chat AI: permessi, azioni rapide, automazioni e integrazioni (3CX, Outlook, GitHub).">
+<link rel="icon" href="media/icon.png">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<div class="wrap">
+
+<header>
+<a href="index.html"><img src="media/icon.png" alt="EasyIsland"></a>
+<span class="name">EasyIsland</span>
+<nav>
+<a href="index.html" class="on">Home</a>
+<a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a>
+<a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a>
+</nav>
+</header>
+
+<div class="hero">
+<h1>Un'isola sempre a portata di mano su Windows</h1>
+<p class="meta" style="font-size:17px">
+Un piccolo personaggio animato tiene d'occhio i tuoi agenti coding —
+<strong>Claude Code, Codex, opencode, Gemini CLI</strong> — e i tuoi servizi.
+Approvi i permessi con <strong>Nega / Consenti / Sempre</strong>, chatti con Claude,
+usi <strong>3CX come telefono del PC</strong>, azioni rapide e automazioni:
+tutto senza interrompere quello che stai facendo. Gratis e open source (MIT).
+</p>
+<a class="btn" href="https://github.com/EdoardoDevelop/easyisland/releases">Scarica per Windows</a>
+<a class="btn ghost" href="https://github.com/EdoardoDevelop/easyisland">Vedi su GitHub</a>
+<img class="demo" src="media/approval.png" alt="Permesso di Claude Code nell'isola: Nega, Consenti, tempo rimasto">
+<p class="meta">Windows 10/11 · Tauri 2 + Rust · italiano o inglese · nessuna telemetria</p>
+</div>
+
+<h2>Agenti coding nell'isola</h2>
+<p>Le sessioni di <strong>Claude Code, Codex, opencode e Gemini CLI</strong> (anche Claude Code nel terminale di Cursor) diventano schede vive: avanzamento, passi, <strong>modifiche ai file in tempo reale</strong> con righe aggiunte/tolte e scheda Modifiche con contesto e apertura in VS Code alla riga giusta.</p>
+<ul>
+<li><b>Nega / Consenti / Sempre</b> sui permessi (con la regola proposta da Claude Code, o regola di sola sessione), risposte alle domande, <b>«Più tardi»</b> per rimandare con conto alla rovescia.</li>
+<li>Card <b>«ha finito»</b> con l'ultimo messaggio in markdown e <b>«Continua»</b>: il testo arriva alla sessione (nel terminale parte subito).</li>
+<li><b>«Chiedi a questa sessione»</b>: interroghi una copia in sola lettura senza toccare il lavoro vero.</li>
+<li><b>Riepilogo settimanale</b> ogni lunedì (ore, sessioni, file, righe, comandi) e <b>limiti del piano</b> Pro/Max chiesti ad Anthropic e mostrati nell'isola.</li>
+<li>Il relay <b>non blocca mai l'agente</b>: se l'app non risponde, l'hook esce in silenzio e tutto continua nel terminale.</li>
+</ul>
+<img src="media/agenti.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Scheda Agenti con Claude Code e opencode al lavoro">
+<img src="media/recap.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Riepilogo settimanale degli agenti">
+
+<h2>Chat con il motore che vuoi</h2>
+<p><strong>Abbonamento Claude</strong> (usa il tuo Pro/Max via Claude Code, niente chiave), <strong>chiave API Anthropic</strong>, <strong>OpenRouter, OpenAI, Gemini</strong>, modelli locali <strong>Ollama e LM Studio</strong>, <strong>opencode con strumenti</strong> (legge e modifica file solo dopo il tuo Consenti). Connettori MCP scelti profilo per profilo.</p>
+<img src="media/chat.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Chat con Claude dall'isola">
+<ul>
+<li>Alleghi <b>testo copiato</b> (<kbd>Ctrl+Alt+K</kbd>), <b>file trascinati</b> (anche ZIP da estrarre), <b>immagini dagli appunti</b>, una <b>zona dello schermo</b> (<kbd>Ctrl+Alt+Shift+S</kbd>).</li>
+<li><b>Trascini il personaggio su una finestra</b> di Chrome, Outlook, Excel… e la chat la riceve come contesto con immagine e titolo.</li>
+<li><b>Cronologia</b> dall'orologio (100 conversazioni, solo su questo PC), risposte in markdown con Copia, <b>calcolatrice</b> direttamente nel campo.</li>
+</ul>
+<img src="media/drop.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="File rilasciato sull'isola, pronto per le domande">
+<img src="media/chat-history.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Cronologia delle conversazioni da riaprire">
+
+<h2>3CX direttamente nel PC</h2>
+<p>Scegli <b>«Questo PC»</b> tra i dispositivi: EasyIsland si registra come <b>telefono WebRTC del tuo interno</b> — chiami, rispondi, muto, toni del tastierino, <b>suoneria sintetizzata o un tuo MP3</b>, trasferisci e devii. In più <b>team in tempo reale</b> (stati, «rispondi al suo posto»), <b>chat</b> con colleghi e gruppi, <b>segreteria con trascrizione</b>, code e cronologia.</p>
+<img src="media/threecx.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="3CX: chiamata in arrivo con Rispondi e Rifiuta, chiamata in linea e rubrica">
+
+<h2>Azioni rapide, anche da tastiera</h2>
+<p>Link, programmi, script PowerShell e prompt su appunti, selezione o file — in cartelle, con <b>suggerimenti pronti per l'app che stai usando</b> (Outlook, Excel, Word, browser, terminale…). E la parte bella: <b>ogni azione può avere la sua scorciatoia globale</b> (es. <kbd>Ctrl+Alt+E</kbd> per "Spiega errore"), più quelle fisse: <kbd>Ctrl+Space</kbd> apre l'isola, <kbd>Ctrl+Alt+K</kbd> chatta col testo copiato, <kbd>Ctrl+Alt+H</kbd> apre gli appunti.</p>
+<img src="media/actions.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Azioni rapide con suggerimenti per Outlook">
+
+<h2>Menu in qualsiasi app</h2>
+<p>Seleziona un testo in <b>qualunque programma</b> — Outlook, Word, Chrome, Blocco note — premi <b>Win+Alt+A</b> e compare il menu con le tue azioni rapide <b>al mouse</b>. Quella che hai scelto arriva all'isola; se lavora sul testo, la riscrittura mostra l'<b>anteprima prima/dopo</b> e incolla solo dopo <b>«Sostituisci»</b>, rimettendo negli appunti quello che c'era prima.</p>
+<img src="media/rewrite.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Sostituisci: prima e dopo con Annulla, Rigenera, Copia">
+
+<h2>Automazioni che imparano da te</h2>
+<p>Regole <b>«quando… allora…»</b> create dalle Impostazioni o <b>a parole in chat</b>, e proposte dalle tue abitudini (solo nomi di programmi e orari, mai contenuti). Claude può anche <b>usare il PC per te</b> con il tuo consenso, e qualsiasi script mostra un messaggio con <code>easyisland-hook.exe notify</code>.</p>
+<img src="media/suggestion.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Proposta di automazione dalle abitudini">
+<img src="media/settings-automations.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Impostazioni, pagina Automazioni">
+
+<h2>Integrazioni e widget</h2>
+<p><strong>Zammad</strong> (ticket tuoi, non assegnati, escalation), <strong>Outlook classico</strong> (non lette, appuntamenti, avviso riunione), <strong>stato del PC</strong> (disco, memoria, batteria, «copia info PC»), <strong>sicurezza</strong>, <strong>rete</strong>, <strong>meteo</strong>, <strong>appunti</strong> (30 testi + immagini, solo in memoria), <strong>musica</strong>, <strong>GitHub, Vercel, Stripe, Resend, Notion, Cal.com, n8n</strong> — come pillole o schede riordinabili trascinandole.</p>
+<img src="media/overview.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Panoramica con tutte le integrazioni">
+<div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:16px 0">
+<img src="media/clipboard.png" style="width:100%;max-width:310px;border-radius:14px;border:1px solid var(--line)" alt="Appunti con testi e immagini">
+<img src="media/network.png" style="width:100%;max-width:310px;border-radius:14px;border:1px solid var(--line)" alt="Rete: IP, Wi-Fi, VPN e latenza">
+<img src="media/media.png" style="width:100%;max-width:310px;border-radius:14px;border:1px solid var(--line)" alt="Musica in riproduzione con controlli">
+</div>
+
+<h2>Meteo sul personaggio</h2>
+<p>Il meteo della tua città (Open-Meteo, gratis e senza chiave) con <b>avviso se pioverà</b> — e il cielo compare <b>in grande dietro il personaggio</b>: sole, luna, nuvole, pioggia o neve animata. Si muove solo quando serve e mai a isola ritirata.</p>
+<img src="media/meteo.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Meteo: pioggia a Bologna con il cielo sul personaggio">
+
+<h2>Impostazioni per tutto</h2>
+<p>Dieci pagine, tutto regolabile: <b>Generale</b> (lingua italiano/inglese, aggiornamenti), <b>Posizione e aspetto</b> (angolo, schermo, dimensioni fino ai bordi, sopra la barra, vista compatta), <b>Notifiche</b> e <b>davanti al cliente</b>, <b>Chat</b> e <b>Agenti</b>, <b>Azioni rapide</b>, <b>Automazioni</b>, <b>Integrazioni</b>, <b>Widget</b>, <b>Backup</b> (esporta/importa, chiavi sempre escluse). E i <b>profili</b> (Lavoro, Casa, Concentrazione) che cambiano da soli su Wi-Fi e orario.</p>
+<img src="media/settings.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Impostazioni, pagina Aspetto">
+<img src="media/settings-integrations.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Impostazioni, pagina Integrazioni">
+
+<h2>Nove personaggi, zero distrazioni</h2>
+<p>Goccia, Slime, Geco, Fiamma, Magma, Pietra, Roccia e Foglia — disegnati nel codice, con suoni sintetizzati, tema, posizione libera anche su più schermi, isola ridimensionabile fino ai bordi. A isola ritirata la CPU resta a ~0%.</p>
+<img src="media/characters.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="I personaggi di EasyIsland">
+<img src="media/greeting.png" style="width:100%;border-radius:14px;border:1px solid var(--line);display:block;margin:16px auto" alt="Goccia che saluta all'avvio">
+
+<div class="card"><b>Privata di proposito.</b> Nessun account, nessuna telemetria. Chiavi e password solo in Gestione credenziali di Windows, mai su disco né in git. Gli aggiornamenti si installano solo dopo il tuo clic, con firma verificata.</div>
+
+<h2>Installazione</h2>
+<p>Vai alle <a href="https://github.com/EdoardoDevelop/easyisland/releases"><b>releases</b></a>, scarica <b>EasyIsland-Windows-setup.exe</b> dell'ultima versione ed eseguilo (solo utente corrente, niente amministratore). L'installer non è ancora firmato: SmartScreen mostra un avviso, clicca <b>Ulteriori informazioni → Esegui comunque</b>. Poi: icona nell'area di notifica → Impostazioni → Agenti → Installa (Claude Code) e pagina Chat per il motore.</p>
+
+<p class="meta">Novità 0.7.5: 3CX «Questo PC» con suoneria e scheda da telefono, avvio corretto dopo aggiornamenti e riavvii. <a href="https://github.com/EdoardoDevelop/easyisland/releases">Tutte le releases</a>.</p>
+
+<footer>© 2026 Edoardo · EasyIsland è open source (MIT), fork solo-Windows di Coucou · <a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a></footer>
+</div>
+</body>
+</html>
