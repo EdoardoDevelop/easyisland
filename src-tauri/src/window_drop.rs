@@ -270,7 +270,7 @@ fn capture(hwnd: HWND) -> Option<Rgba> {
 
 /// BGRA rows of `width` pixels → the RGBA box (x0, y0)–(x1, y1), opaque (the
 /// alpha PrintWindow leaves is meaningless).
-fn crop_bgra(src: &[u8], width: u32, (x0, y0, x1, y1): (u32, u32, u32, u32)) -> Rgba {
+pub(crate) fn crop_bgra(src: &[u8], width: u32, (x0, y0, x1, y1): (u32, u32, u32, u32)) -> Rgba {
     let (cw, ch) = (x1 - x0, y1 - y0);
     let mut pixels = Vec::with_capacity((cw * ch * 4) as usize);
     for y in y0..y1 {

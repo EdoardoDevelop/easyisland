@@ -33,7 +33,7 @@ export interface ViewActions extends ActionHandlers, RewriteHandlers {
   cancelDrop(): void;
   refreshFiles(): void;
   askAboutFile(f: { name: string; path: string }): void;
-  /** "Cattura una zona": snip a part of the screen and ask Claude about it. */
+  /** "Cerchia e chiedi": circle a zone of the screen and ask about it (capture.ts). */
   captureScreen(): void;
   /** A picture saved in the inbox (screenshot, clipboard): open the chat with it attached. */
   askAboutPicture(f: { name: string; path: string }): void;

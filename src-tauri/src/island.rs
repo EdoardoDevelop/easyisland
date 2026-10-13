@@ -219,11 +219,19 @@ pub fn screen_info(app: &AppHandle, pref: &str) -> ScreenInfo {
     }
 }
 
+/// "Cerchia e chiedi" (screenshot.rs, capture.ts): the window covers a whole
+/// screen with the frozen picture; geometry and the full-screen watch keep off it.
+pub static CAPTURING: AtomicBool = AtomicBool::new(false);
+
 /// Places and sizes the window. `collapsed` picks the rest icon / wake strip box
 /// instead of the panel. Both are pinned to the same corner (or edge centre) of
 /// the work area, so the island never jumps when the window grows or shrinks,
 /// and nothing ever sits on the taskbar.
 pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, collapsed: bool) {
+    // Covering a frozen screen (screenshot.rs): nothing moves it until that ends.
+    if CAPTURING.load(Ordering::Relaxed) {
+        return;
+    }
     let Some(win) = window(app) else { return };
     let Some(m) = target_monitor(app, &settings.screen) else { return };
 
@@ -522,6 +530,10 @@ pub fn spawn_fullscreen_watch(app: AppHandle, gate: Arc<PollGate>) {
             .unwrap_or(false);
         if over && gate.collapsed.load(Ordering::Relaxed) {
             raise_over_taskbar(&app);
+        }
+        // Our own full-screen overlay is not a full-screen app.
+        if CAPTURING.load(Ordering::Relaxed) {
+            continue;
         }
         let wanted = app
             .try_state::<crate::Shared>()

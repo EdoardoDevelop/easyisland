@@ -132,7 +132,9 @@ fn detect(app: &AppHandle) -> Option<String> {
         })
         .unwrap_or((false, false, Vec::new()));
     if meeting {
-        if let Some(a) = device_in_use("microphone") {
+        // A 3CX call (EasyIsland's own phone or another one of the extension) is
+        // handled from the island: the character must stay to end it.
+        if let Some(a) = device_in_use("microphone").filter(|_| !crate::threecx::in_call()) {
             return Some(tf("{a} usa il microfono", &[("a", &a)]));
         }
         if let Some(a) = device_in_use("webcam") {

@@ -993,13 +993,27 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
     });
     rows.append(h("div", { class: "row" },
       h("label", { style: "min-width:104px", text: t("Mostra come") }), place, iconInput));
+    // Its colour: pill, card and the character while its tab is open.
+    const colors = () => (settings.integrationColors ??= {});
+    const dot = h("i", { class: "dot" });
+    const paint = () => { dot.style.background = colors()[def.id] || def.color; };
+    paint();
+    rows.append(h("div", { class: "row" },
+      h("label", { style: "min-width:104px", text: t("Colore") }),
+      colorField(colors()[def.id] ?? "", def.color, (v) => {
+        if (v) colors()[def.id] = v;
+        else delete colors()[def.id];
+        paint();
+        void save();
+      }, t("Predefinito")),
+      h("span", { class: "hint note", text: t("anche del personaggio quando la sua scheda è aperta") })));
     if (def.hint) rows.append(h("div", { class: "hint", text: def.hint }));
 
     list.append(
       h("div", { style: "display:flex;gap:12px;align-items:flex-start" },
         h("div", { style: "display:flex;align-items:center;gap:8px;min-width:132px;padding-top:4px" },
           sw,
-          h("i", { class: "dot", style: `background:${def.color}` }),
+          dot,
           h("span", { style: "font-size:12.5px", text: def.name }),
         ),
         rows,
@@ -1918,7 +1932,7 @@ function actionsSection(): HTMLElement {
     starters,
     h("div", { class: "row" }, h("label", { text: t("Cronologia appunti") }),
       hotkeyField(settings.hotkeyClipboard, (v) => { settings.hotkeyClipboard = v; })),
-    h("div", { class: "row" }, h("label", { text: t("Cattura una zona e chiedi") }),
+    h("div", { class: "row" }, h("label", { text: t("Cerchia e chiedi") }),
       hotkeyField(settings.hotkeyScreenshot, (v) => { settings.hotkeyScreenshot = v; }),
       h("span", { class: "hint note", text: t("scorciatoie di questo PC, valgono in ogni app") })),
     h("div", { class: "row" }, h("label", { text: t("Vai alla richiesta in attesa") }),

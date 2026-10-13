@@ -18,13 +18,20 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 
 ## Problemi noti
 - **Sopra la barra:** cliccando la barra o aprendo Start il personaggio va dietro. Torna davanti a ogni cambio di finestra in primo piano. Va verificato con Start aperto.
-- **Cattura una zona:** Esc nello Strumento di cattura non si vede, e la cattura annullata resta in ascolto fino a 60 s.
 - **«Sostituisci»** incolla testo semplice: in Word e Outlook il pezzo sostituito perde grassetti e link interni.
 - **Limiti del piano da Anthropic:** l'indirizzo (`/api/oauth/usage`) non è documentato e può cambiare; se smette di rispondere il log scrive «limiti del piano da Anthropic: HTTP …» e restano i numeri della status line.
 - **Limiti del piano con la sola app desktop di Claude:** l'accesso in `.credentials.json` scade ogni ~8 ore e l'app desktop non lo rinnova: i numeri restano grigi finché Claude Code non gira nel terminale o in VS Code. Un rinnovo senza consumare il piano non è stato trovato.
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 13 ottobre 2026 — «Cerchia e chiedi» al posto di «Cattura una zona»
+- Lo Strumento di cattura di Windows è sostituito dal nostro velo: lo schermo sotto il mouse si ferma nella finestra dell'isola stessa, si cerchia o riquadra la zona e accanto ci sono domanda alla chat, azioni rapide, Copia immagine, Copia testo (OCR di Windows) e Nel Vassoio (`screenshot.rs`, `capture.ts`, `docs/strumenti.md`). Provati nell'anteprima (scena `capture`) e dal vivo congelamento e OCR (`screenshot::live`); il velo vero va provato (`docs/prove-dal-vivo.md`). Proposte «al momento giusto» annotate in `docs/idee.md`.
+
+### 13 ottobre 2026 — 3CX: personaggio che spariva in chiamata, suoneria predefinita muta, colore delle integrazioni
+- In chiamata col telefono «Questo PC» l'isola usa il microfono e «Davanti al cliente» la prendeva per una riunione, nascondendo il personaggio: ora durante una chiamata 3CX il microfono non conta (`threecx::in_call` in `presence.rs`).
+- La suoneria predefinita era un `AudioContext` aperto senza clic, che WebView2 può lasciare sospeso: ora è un WAV generato una volta e suonato da `<audio>` come il file dell'utente (provato nell'anteprima: suona senza clic). Da riprovare sul centralino vero.
+- Impostazioni → Integrazioni → Colore per ogni integrazione (`integrationColors`): pallino, card e personaggio con la scheda aperta. Provato nell'anteprima (scena `threecx`).
 
 ### 13 ottobre 2026 — versione 0.7.6
 - Unione in `main` e tag `v0.7.6`: limiti del piano vecchi in grigio con il motivo, richiesta subito quando l'accesso di Claude Code cambia, «Aggiorna» della card Consumo che chiede subito (voce sotto). README con novità e tabella delle versioni.
@@ -34,10 +41,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 12 ottobre 2026 — versione 0.7.5
 - Unione in `main` e tag `v0.7.5`: 3CX «Questo PC» con suoneria e scheda da telefono, avvio sicuro dopo un aggiornamento (profilo WebView2) e dopo un riavvio del PC (timer senza `Instant - Duration`), campanella 3CX che cambia icona (voci sotto). README con novità e tabella delle versioni.
-
-### 12 ottobre 2026 — EasyIsland che non partiva dopo un riavvio del PC
-- Nelle prime ~6 ore dopo l'accensione l'app si chiudeva all'avvio: `habits.rs` e `automations.rs` calcolavano `Instant::now() - durata`, e su Windows l'`Instant` conta dall'accensione, quindi andava sotto zero (panic «overflow when subtracting duration from instant», visto nel log grazie all'hook dei panic). Ora i timer sono `Option<Instant>`; non usare mai `Instant - Duration` senza `checked_sub`. Provato qui 15 minuti dopo un riavvio.
-- Campanella dell'intestazione 3CX che non cambiava icona: la card si ridisegna solo se cambia la sua chiave in `views.ts`, che ora include `threecxAlert` e `threecxRing`. Provato nell'anteprima (scena `threecx`).
-
-### 12 ottobre 2026 — EasyIsland che non partiva dopo l'aggiornamento
-- Su due PC la 0.7.4 si chiudeva al primo avvio dopo l'aggiornamento: i WebView2 della versione vecchia tenevano occupato il profilo (0x800700AA → panic nel setup). Ora l'avvio aspetta e chiude gli avanzi e, se serve, usa un profilo di riserva per quella volta (`webview_profile.rs`, `docs/sviluppo.md`); i panic finiscono nel log. Provato qui con tre aggiornamenti sopra un'istanza in esecuzione.

@@ -355,7 +355,7 @@ fn set_collapsed(
     island::apply_geometry(&app, &shared.gate, &settings, collapsed);
     // Hidden behind a full-screen app while resting; always back for anything else.
     if let Some(win) = island::window(&app) {
-        let quiet = collapsed && shared.gate.fullscreen.load(Ordering::Relaxed);
+        let quiet = collapsed && shared.gate.fullscreen.load(Ordering::Relaxed) && !island::CAPTURING.load(Ordering::Relaxed);
         let _ = if quiet { win.hide() } else { win.show() };
     }
     // The wake strip must always take the mouse, and a resize invalidates the flag.
@@ -911,11 +911,79 @@ fn ingest_file(path: String) -> Result<DroppedFile, String> {
     files::ingest(&path)
 }
 
-/// "Cattura una zona": the snipping overlay, then the picture saved in the inbox.
-/// None when the user gave up.
+/// "Cerchia e chiedi" (screenshot.rs): freezes the screen under the mouse.
 #[tauri::command]
-async fn capture_screen() -> Result<Option<DroppedFile>, String> {
-    screenshot::capture().await
+async fn capture_begin() -> Result<screenshot::Screen, String> {
+    tauri::async_runtime::spawn_blocking(screenshot::freeze).await.map_err(|e| e.to_string())?
+}
+
+/// The frozen screen's RGBA pixels, raw: a 4K screen is 33 MB, far too much for JSON.
+#[tauri::command]
+fn capture_frame() -> tauri::ipc::Response {
+    tauri::ipc::Response::new(screenshot::frame().unwrap_or_default())
+}
+
+/// The island's window covers the frozen screen and takes the mouse and the keys.
+#[tauri::command]
+fn capture_show(app: AppHandle) -> Result<(), String> {
+    let s = screenshot::frozen_screen().ok_or(i18n::t("La cattura è già chiusa"))?;
+    let win = island::window(&app).ok_or("no island window")?;
+    island::CAPTURING.store(true, Ordering::Relaxed);
+    let _ = win.show();
+    let _ = win.set_position(tauri::PhysicalPosition::new(s.x, s.y));
+    let _ = win.set_size(tauri::PhysicalSize::new(s.width, s.height));
+    // Moving to another display can rescale the window: re-assert the physical size.
+    let _ = win.set_position(tauri::PhysicalPosition::new(s.x, s.y));
+    let _ = win.set_size(tauri::PhysicalSize::new(s.width, s.height));
+    let _ = win.set_ignore_cursor_events(false);
+    island::raise_over_taskbar(&app);
+    island::set_activating(&win, true);
+    let _ = win.set_focus();
+    Ok(())
+}
+
+/// The overlay is gone: the window goes back to the island, the frozen screen is dropped.
+#[tauri::command]
+fn capture_end(app: AppHandle, shared: State<Shared>) {
+    screenshot::clear();
+    if !island::CAPTURING.swap(false, Ordering::Relaxed) {
+        return;
+    }
+    let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
+    let settings = shared.settings.lock().unwrap().clone();
+    island::apply_geometry(&app, &shared.gate, &settings, collapsed);
+    if let Some(win) = island::window(&app) {
+        island::set_activating(&win, false);
+        if collapsed && shared.gate.fullscreen.load(Ordering::Relaxed) {
+            let _ = win.hide();
+        }
+    }
+    shared.gate.forget_ignore_state();
+}
+
+/// The zone (physical px of the frozen screen) as a PNG in the inbox: for the
+/// chat, a quick action or the tray.
+#[tauri::command]
+async fn capture_save(x: f64, y: f64, width: f64, height: f64) -> Result<DroppedFile, String> {
+    tauri::async_runtime::spawn_blocking(move || screenshot::save_zone(x, y, width, height))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// The zone on the clipboard as a picture.
+#[tauri::command]
+async fn capture_copy(x: f64, y: f64, width: f64, height: f64) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || screenshot::copy_zone(x, y, width, height))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// The zone's text (Windows' OCR), also copied.
+#[tauri::command]
+async fn capture_text(x: f64, y: f64, width: f64, height: f64) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || screenshot::zone_text(x, y, width, height))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// The character of the chat tab is carried over the other windows
@@ -1513,7 +1581,13 @@ pub fn run() {
             widget_refresh,
             widget_results,
             ingest_file,
-            capture_screen,
+            capture_begin,
+            capture_frame,
+            capture_show,
+            capture_end,
+            capture_save,
+            capture_copy,
+            capture_text,
             window_pick,
             carry_frame,
             window_under_cursor,

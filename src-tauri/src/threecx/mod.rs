@@ -365,6 +365,14 @@ fn call_changes(states: &mut HashMap<String, String>, calls: &[Call]) -> Vec<Str
     out
 }
 
+/// A 3CX call is on (ringing, dialing or answered, here or on another phone of
+/// the extension). "Davanti al cliente" ignores the microphone then: the
+/// character must stay, the call is ended from the island.
+pub fn in_call() -> bool {
+    let guard = LIVE.lock().unwrap();
+    guard.as_ref().is_some_and(|l| !l.snapshot.calls.is_empty() || !l.rtc.calls.is_empty())
+}
+
 /// Re-sends the last state (the card asks when it first opens).
 pub fn publish_now(app: &AppHandle) {
     publish(app);
