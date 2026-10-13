@@ -305,12 +305,14 @@ function close(m: Media) {
 //
 // The user's file (Impostazioni → Integrazioni → 3CX) in a loop, or a desk-phone
 // trill synthesised here. "Suoneria del PC" off (also from the card) silences it.
+// Both play through an <audio> element: a fresh AudioContext opened by a push
+// from the PBX (no click) could stay suspended in WebView2 and ring in silence.
 
-let ringCtx: AudioContext | null = null;
-let ringTimer = 0;
 let ringFile: HTMLAudioElement | null = null;
 /** The user's ringtone as loaded, and the name it was loaded for. */
 let custom: { name: string; url: string | null } | null = null;
+/** The built-in trill as a WAV, made once. */
+let trillWav: string | null = null;
 
 /** A call rings here and the ringtone is on. */
 export function ringingHere(): boolean {
@@ -342,55 +344,56 @@ async function customUrl(): Promise<string | null> {
 
 function ring(on: boolean) {
   if (!on) {
-    window.clearInterval(ringTimer);
-    ringTimer = 0;
-    void ringCtx?.close();
-    ringCtx = null;
     ringFile?.pause();
     ringFile = null;
     return;
   }
-  if (ringCtx || ringFile) return;
+  if (ringFile) return;
   const file = new Audio();
+  file.loop = true;
+  file.volume = 0.8;
   ringFile = file;
-  void customUrl().then((url) => {
+  const play = (url: string, fallback: boolean) => {
     if (ringFile !== file) return;
-    if (url) {
-      file.src = url;
-      file.loop = true;
-      file.volume = 0.8;
-      void file.play().catch(() => { if (ringFile === file) { ringFile = null; trill(); } });
-    } else {
-      ringFile = null;
-      trill();
-    }
-  });
+    file.src = url;
+    void file.play().catch((e) => {
+      console.warn("softphone: ringtone", e);
+      if (fallback) play(trill(), false);
+    });
+  };
+  void customUrl().then((url) => play(url ?? trill(), !!url), () => play(trill(), false));
 }
 
-function trill() {
-  if (ringCtx) return;
-  ringCtx = new AudioContext();
-  const burst = () => {
-    const ctx = ringCtx;
-    if (!ctx) return;
-    const now = ctx.currentTime;
-    const gain = ctx.createGain();
-    gain.connect(ctx.destination);
-    // Two short trills, like a desk phone.
+/** Two short trills (440 + 480 Hz, like a desk phone), then silence: 3 s, looped. */
+function trill(): string {
+  if (trillWav) return trillWav;
+  const rate = 16000;
+  const n = rate * 3;
+  const data = new DataView(new ArrayBuffer(44 + n * 2));
+  const text = (at: number, s: string) => { for (let i = 0; i < s.length; i++) data.setUint8(at + i, s.charCodeAt(i)); };
+  text(0, "RIFF");
+  data.setUint32(4, 36 + n * 2, true);
+  text(8, "WAVE");
+  text(12, "fmt ");
+  data.setUint32(16, 16, true);
+  data.setUint16(20, 1, true);
+  data.setUint16(22, 1, true);
+  data.setUint32(24, rate, true);
+  data.setUint32(28, rate * 2, true);
+  data.setUint16(32, 2, true);
+  data.setUint16(34, 16, true);
+  text(36, "data");
+  data.setUint32(40, n * 2, true);
+  const fade = 0.02;
+  for (let i = 0; i < n; i++) {
+    const t = i / rate;
+    let env = 0;
     for (const [from, to] of [[0, 0.4], [0.6, 1.0]]) {
-      gain.gain.setValueAtTime(0, now + from);
-      gain.gain.linearRampToValueAtTime(0.09, now + from + 0.02);
-      gain.gain.setValueAtTime(0.09, now + to - 0.03);
-      gain.gain.linearRampToValueAtTime(0, now + to);
+      if (t >= from && t < to) env = Math.min(1, (t - from) / fade, (to - t) / fade);
     }
-    for (const f of [440, 480]) {
-      const osc = ctx.createOscillator();
-      osc.frequency.value = f;
-      osc.connect(gain);
-      osc.start(now);
-      osc.stop(now + 1.05);
-    }
-  };
-  burst();
-  ringTimer = window.setInterval(burst, 3000);
+    const v = env * 0.3 * (Math.sin(2 * Math.PI * 440 * t) + Math.sin(2 * Math.PI * 480 * t));
+    data.setInt16(44 + i * 2, Math.round(v * 32767), true);
+  }
+  trillWav = URL.createObjectURL(new Blob([data.buffer], { type: "audio/wav" }));
+  return trillWav;
 }

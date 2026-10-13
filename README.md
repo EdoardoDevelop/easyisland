@@ -57,6 +57,13 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.7.7** — **Cerchia e chiedi** al posto di «Cattura una zona»: con `Ctrl+Alt+Shift+S`
+lo schermo si ferma, cerchi o riquadri una zona e accanto scrivi la domanda per la chat,
+oppure usi le tue azioni rapide, ne copi l'immagine o il **testo** (riconosciuto da
+Windows) o la tieni nel Vassoio. Con **3CX** il personaggio **non sparisce più durante
+una chiamata** e la suoneria predefinita suona davvero; ogni integrazione ha il suo
+**colore**, scelto in Impostazioni, che il personaggio indossa con la sua scheda aperta.
+
 **0.7.6** — i **limiti del piano Claude** non si spacciano più per attuali: se non
 arrivano da più di 15 minuti (l'accesso di Claude Code scade e l'app desktop di Claude
 non lo rinnova) diventano grigi, e il suggerimento dice da quanto e perché. Appena Claude
@@ -147,7 +154,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.7.6** | 13 ott 2026 | Limiti del piano vecchi in grigio con il motivo, «Aggiorna» del Consumo che chiede subito |
+| **0.7.7** | 13 ott 2026 | Cerchia e chiedi con OCR, personaggio visibile durante le chiamate 3CX, suoneria predefinita, colore delle integrazioni |
+| 0.7.6 | 13 ott 2026 | Limiti del piano vecchi in grigio con il motivo, «Aggiorna» del Consumo che chiede subito |
 | 0.7.5 | 12 ott 2026 | 3CX «Questo PC» con suoneria e scheda da telefono, avvio corretto dopo aggiornamenti e riavvii |
 | 0.7.4 | 12 ott 2026 | Personaggio col suo colore a isola chiusa, isola aperta durante il trascinamento nella chat, schede che allargano l'isola |
 | 0.7.3 | 12 ott 2026 | Limiti del piano chiesti ad Anthropic e mostrati nell'isola, tempo rimasto sui permessi, appunti rimessi per intero |
@@ -341,7 +349,7 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 | 📌 in alto a destra | **Tieni aperta**: l'isola non si chiude più da sola finché non la togli (Esc e ✕ la chiudono comunque) |
 | Scrivi un calcolo nella chat, es. `840 + 22%` o `15% di 840` | Compare subito il risultato; **Invio** lo copia negli appunti, **Ctrl+Invio** chiede comunque alla chat. Il calcolo è fatto in locale, senza Claude |
 | Rilasci uno ZIP | Oltre a "Fai una domanda" c'è **Estrai…**: vedi cosa contiene e lo estrai in una cartella nuova accanto all'originale, in Download o sul Desktop |
-| Scheda **+** → **Cattura una zona** (o `Ctrl+Alt+Shift+S`) | Lo Strumento di cattura di Windows: scegli una zona, una finestra o lo schermo e la chat si apre con l'immagine allegata |
+| Scheda **+** → **Cerchia e chiedi** (o `Ctrl+Alt+Shift+S`) | Lo schermo si ferma e si scurisce: cerchia o riquadra una zona e accanto compare **Chiedi…** (Invio: la chat si apre con la zona e la domanda), le tue azioni rapide, **Copia immagine**, **Copia testo** (riconosciuto da Windows) e **Nel Vassoio**. Esc o il tasto destro annullano |
 | Scheda **+** → **Vassoio** (o il pulsante **Vassoio** dopo aver rilasciato un file) | I file rilasciati sull'isola, in elenco o a griglia, tenuti finché EasyIsland non si riavvia, tranne quelli fissati con la puntina: trascinali in un'altra app (mail, chat, cartella), chiedi alla chat, apri, mostra nella cartella, fissa, togli uno o tutti. Sono copie: gli originali non vengono toccati |
 | Scrivi nella **barra di ricerca** in fondo all'isola aperta | Trova integrazioni, sessioni degli agenti, azioni ⚡ e programmi installati (anche quelli dello Store); frecce per scegliere, **Invio** per aprire, **Esc** per svuotare. Si spegne in Impostazioni → Posizione e aspetto |
 | Icona nell'area di notifica | Apri, Impostazioni…, Pausa, Esci |
@@ -463,10 +471,10 @@ calendario, posta…); prende il colore dell'azione.
 - `Ctrl+Space` apre l'isola sulle azioni (o sulla chat se non ce ne sono);
 - `Ctrl+Alt+K` apre la chat con il testo (o l'immagine) copiato già allegato: scrivi la domanda;
 - `Ctrl+Alt+H` apre la cronologia degli **Appunti** (se l'integrazione è accesa);
-- `Ctrl+Alt+Shift+S` **cattura una zona dello schermo** (con lo Strumento di
-  cattura di Windows: zona, finestra o schermo intero) e apre la chat con
-  l'immagine allegata, per esempio per farsi spiegare una finestra d'errore.
-  Si può fare anche dalla scheda **+** dell'isola, con **Cattura una zona**;
+- `Ctrl+Alt+Shift+S` **cerchia e chiedi**: lo schermo si ferma, cerchi la zona
+  e accanto scrivi la domanda (per esempio per farti spiegare una finestra
+  d'errore), oppure ne copi l'immagine o il testo, o la tieni nel Vassoio.
+  Si può fare anche dalla scheda **+** dell'isola, con **Cerchia e chiedi**;
 - `Ctrl+Alt+Shift+P` va alla **richiesta in attesa** (permesso o domanda) e dà la
   tastiera all'isola: `N` nega, `Y` consente, `S` sempre, `1`–`9` sceglie una risposta;
 - `Ctrl+Alt+Shift+T` porta avanti l'**app della sessione** (terminale, VS Code,

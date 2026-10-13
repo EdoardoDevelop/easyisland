@@ -324,6 +324,8 @@ export interface Settings {
   integrationTabs: string[];
   /** Tabs that show an icon (emoji or short text) instead of the name: id → icon. */
   integrationTabIcons: Record<string, string>;
+  /** Colour chosen for an integration (pill, card, the character on its tab): id → "#rrggbb". */
+  integrationColors: Record<string, string>;
   /** Order of the pills, as dragged in the island (per profile). */
   pillOrder: string[];
   /** Order of the header's tabs, fixed ("tab:home"…) and integrations, as dragged (per profile). */
@@ -685,6 +687,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ],
   integrationTabs: [],
   integrationTabIcons: {},
+  integrationColors: {},
   pillOrder: [],
   tabOrder: [],
   lockOrder: false,
@@ -1062,7 +1065,11 @@ class AppState {
       const shouldLoad = proto.id === CLAUDE_TASK
         ? this.settings.hooksInstalled || (idx >= 0 && !!this.tasks[idx].lastActive)
         : this.settings.activeIntegrations.includes(proto.id);
-      if (shouldLoad && idx < 0) this.tasks.push({ ...proto, steps: [] });
+      // The user's colour for it (Impostazioni → Integrazioni), or its own.
+      const chosen = this.settings.integrationColors?.[proto.id] ?? "";
+      const color = /^#[0-9a-f]{6}$/i.test(chosen) ? chosen : proto.color;
+      if (shouldLoad && idx < 0) this.tasks.push({ ...proto, color, steps: [] });
+      if (shouldLoad && idx >= 0) this.tasks[idx].color = color;
       if (!shouldLoad && idx >= 0) this.tasks.splice(idx, 1);
     }
     // Widgets follow the integrations, in the order they were defined.

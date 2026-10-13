@@ -217,6 +217,48 @@ export async function runScene(island: Island, scene: string) {
       await wait(2500);
       break;
     }
+    case "capture": {
+      // "Cerchia e chiedi" over a pretend desktop: Bridge's capture calls answer
+      // from here. `window.capture` tells what the overlay asked for.
+      await wait(300);
+      const dpr = window.devicePixelRatio || 1;
+      const W = Math.round(innerWidth * dpr);
+      const H = Math.round(innerHeight * dpr);
+      const fake = document.createElement("canvas");
+      fake.width = W;
+      fake.height = H;
+      const g = fake.getContext("2d")!;
+      const sky = g.createLinearGradient(0, 0, W, H);
+      sky.addColorStop(0, "#1e3a8a");
+      sky.addColorStop(1, "#0f766e");
+      g.fillStyle = sky;
+      g.fillRect(0, 0, W, H);
+      g.fillStyle = "#f8fafc";
+      g.fillRect(W * 0.12, H * 0.14, W * 0.5, H * 0.6);
+      g.fillStyle = "#0f172a";
+      g.font = `${Math.round(18 * dpr)}px Segoe UI, sans-serif`;
+      ["Errore 0x80070005: accesso negato", "Impossibile salvare il file di configurazione.", "Contatta l'amministratore di sistema."]
+        .forEach((line, i) => g.fillText(line, W * 0.15, H * 0.24 + i * 30 * dpr));
+      const log: unknown[] = [];
+      (window as unknown as { capture: unknown[] }).capture = log;
+      State.settings.actions = [
+        { id: "a1", name: "Traduci in italiano", icon: "i:globe", color: "#22d3ee", kind: "prompt", target: "", args: "", script: "", shell: "powershell", prompt: "Traduci in italiano", input: "selection", confirm: false, hotkey: "" },
+        { id: "a2", name: "Spiega l'errore", icon: "i:bug", color: "#f4505e", kind: "prompt", target: "", args: "", script: "", shell: "powershell", prompt: "Spiega questo errore e come risolverlo", input: "file", confirm: false, hotkey: "" },
+      ];
+      Object.assign(Bridge, {
+        captureBegin: async () => ({ x: 0, y: 0, width: W, height: H }),
+        captureFrame: async () => g.getImageData(0, 0, W, H).data.buffer,
+        captureShow: async () => { log.push("show"); },
+        captureEnd: async () => { log.push("end"); },
+        captureSave: async (z: unknown) => { log.push(["save", z]); return { name: "Schermata.png", path: "C:\\inbox\\Schermata.png" }; },
+        captureCopy: async (z: unknown) => { log.push(["copy", z]); },
+        captureText: async (z: unknown) => { log.push(["text", z]); return "Errore 0x80070005: accesso negato\nImpossibile salvare il file di configurazione."; },
+      });
+      (window as unknown as { island: Island }).island = island;
+      void island.captureScreen();
+      await wait(400);
+      break;
+    }
     case "network": {
       // ?activeIntegrations=integration_network,… — an integration run as a check.
       await wait(300);

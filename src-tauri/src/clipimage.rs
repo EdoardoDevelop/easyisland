@@ -12,7 +12,7 @@ use std::time::Duration;
 use windows::core::w;
 use windows::Win32::Foundation::{GlobalFree, HANDLE, HGLOBAL};
 use windows::Win32::System::DataExchange::{
-    CloseClipboard, EmptyClipboard, GetClipboardData, GetClipboardSequenceNumber, IsClipboardFormatAvailable,
+    CloseClipboard, EmptyClipboard, GetClipboardData, IsClipboardFormatAvailable,
     OpenClipboard, RegisterClipboardFormatW, SetClipboardData,
 };
 use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock, GMEM_MOVEABLE};
@@ -28,11 +28,6 @@ pub struct Rgba {
     pub width: u32,
     pub height: u32,
     pub pixels: Vec<u8>,
-}
-
-/// Changes every time anything is copied, by any app.
-pub fn sequence() -> u32 {
-    unsafe { GetClipboardSequenceNumber() }
 }
 
 fn png_format() -> u32 {

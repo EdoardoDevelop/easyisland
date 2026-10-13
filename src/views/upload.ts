@@ -45,11 +45,11 @@ export function buildUpload(actions: ViewActions): ViewHost {
     class: "drop-history", title: t("I file rilasciati sull'isola: da trascinare in un'altra app, aprire o chiedere alla chat"),
     onclick: () => actions.openFiles(),
   }, h("span", { text: t("Vassoio") }), h("span", { class: "arrow", text: "›" }));
-  // A picture of the screen instead of a file: Windows' own snipping overlay.
+  // A zone of the screen instead of a file: "Cerchia e chiedi" (src/island/capture.ts).
   const capture = h("button", {
-    class: "drop-history drop-capture", title: t("Cattura una zona dello schermo e chiedi alla chat"),
+    class: "drop-history drop-capture", title: t("Cerchia una zona dello schermo: chiedi alla chat, copia il testo o tienila nel Vassoio"),
     onclick: () => actions.captureScreen(),
-  }, renderActionIcon("i:camera", 13), h("span", { text: t("Cattura una zona") }));
+  }, renderActionIcon("i:camera", 13), h("span", { text: t("Cerchia e chiedi") }));
   const links = h("div", { class: "drop-links" }, capture, history);
   const card = h(
     "div",

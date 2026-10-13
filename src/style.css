@@ -4309,3 +4309,99 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   pointer-events: none;
   z-index: 1000;
 }
+
+/* ── "Cerchia e chiedi" (src/island/capture.ts): the frozen screen over everything ── */
+#capture {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  cursor: crosshair;
+  outline: none;
+  transition: opacity 0.12s ease-out;
+  user-select: none;
+}
+#capture .cap-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#capture .cap-hint {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(14, 15, 17, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  font: 12.5px var(--font);
+  pointer-events: none;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+#capture .cap-panel {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(14, 15, 17, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  cursor: default;
+  font: 12.5px var(--font);
+  color: var(--ink);
+}
+#capture .cap-panel.busy { opacity: 0.75; pointer-events: none; }
+#capture .cap-ask { display: flex; gap: 6px; }
+#capture .cap-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+}
+#capture .cap-input:focus { border-color: rgba(34, 211, 238, 0.55); }
+#capture .cap-send {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: #22d3ee;
+  color: #04232a;
+  cursor: pointer;
+}
+#capture .cap-row { display: flex; flex-wrap: wrap; gap: 6px; }
+#capture .cap-tool,
+#capture .cap-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--tab-on);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+#capture .cap-tool { color: var(--dim); }
+#capture .cap-tool:hover,
+#capture .cap-chip:hover { background: #262930; color: var(--ink); }
+#capture .cap-chip-icon { display: inline-flex; color: var(--c); }
+#capture .working { animation: cap-pulse 0.9s ease-in-out infinite; }
+@keyframes cap-pulse { 50% { opacity: 0.45; } }
+#capture .cap-error { color: var(--red-text); font-size: 12px; }

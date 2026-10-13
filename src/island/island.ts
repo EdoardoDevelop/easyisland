@@ -22,6 +22,7 @@ import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { buildSearch, type SearchHost } from "../views/search";
 import { sendToChat, windowLabel } from "../views/chat";
+import { capturing, startCapture } from "./capture";
 import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
@@ -639,7 +640,7 @@ export class Island {
   /**
    * Closes the island. A permission request waiting for an answer is never
    * closed this way (only ✕ hands it to the terminal): the island goes back to
-   * its card instead. `force` is for stepping aside on purpose (Cattura una zona).
+   * its card instead. `force` is for stepping aside on purpose (Cerchia e chiedi).
    */
   collapse(force = false) {
     const card = State.pendingCard();
@@ -1113,22 +1114,35 @@ export class Island {
   }
 
   /**
-   * "Cattura una zona" (scheda + or its shortcut): the island steps aside, Windows'
-   * snipping overlay picks the zone, and the picture opens the chat as an attached file.
+   * "Cerchia e chiedi" (scheda + or its shortcut, src/island/capture.ts): the
+   * island steps aside, the screen freezes under the island's own window, and the
+   * zone circled goes to the chat, a quick action, the clipboard or the tray.
    */
   async captureScreen() {
+    if (capturing()) return;
     Sound.play("blip");
-    this.collapse(true);
-    let file: { name: string; path: string } | null;
-    try {
-      file = await Bridge.captureScreen();
-    } catch (err) {
-      this.note(String(err).replace(/^Error:\s*/, ""), State.defaultView());
-      return;
+    if (State.mode === "expanded") {
+      this.collapse(true);
+      // Out of the picture before the screen freezes.
+      await new Promise((r) => window.setTimeout(r, 380));
     }
-    if (!file) return;
-    Sound.play("approve");
-    this.askAboutPicture(file);
+    await startCapture({
+      ask: (file, question) => {
+        Sound.play("approve");
+        this.askAboutPicture(file);
+        if (question) window.setTimeout(() => sendToChat(question), 60);
+      },
+      done: (message) => {
+        Sound.play("approve");
+        void this.refreshFiles();
+        State.noteMessage = message;
+        this.setView("note");
+        window.setTimeout(() => {
+          if (State.view === "note" && State.noteMessage === message) this.collapse();
+        }, 2200);
+      },
+      failed: (message) => this.note(message, State.defaultView()),
+    });
   }
 
   /** A picture already in the inbox goes straight to the chat, ready for the question. */

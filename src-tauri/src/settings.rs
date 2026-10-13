@@ -110,6 +110,7 @@ pub const PROFILE_KEYS: &[&str] = &[
     "activeIntegrations",
     "integrationTabs",
     "integrationTabIcons",
+    "integrationColors",
     "pillOrder",
     "tabOrder",
     "anchorV",
@@ -283,6 +284,9 @@ pub struct Settings {
     /// Integrations whose tab shows an icon (emoji or short text) instead of the name: id → icon.
     #[serde(default)]
     pub integration_tab_icons: serde_json::Map<String, Value>,
+    /// Colour chosen for an integration (pill, card and the character on its tab): id → "#rrggbb".
+    #[serde(default)]
+    pub integration_colors: serde_json::Map<String, Value>,
     /// Order of the pills, as dragged in the island (ids; anything not listed
     /// follows in the usual order).
     #[serde(default)]
@@ -591,6 +595,7 @@ impl Default for Settings {
             ],
             integration_tabs: Vec::new(),
             integration_tab_icons: serde_json::Map::new(),
+            integration_colors: serde_json::Map::new(),
             pill_order: Vec::new(),
             tab_order: Vec::new(),
             lock_order: false,

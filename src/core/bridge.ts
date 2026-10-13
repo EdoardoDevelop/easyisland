@@ -267,8 +267,20 @@ export const Bridge = {
   claudeCliStatus: () => call<ClaudeCliStatus>("claude_cli_status"),
   /** Copies a dropped file into the inbox. */
   ingestFile: (path: string) => callOrThrow<DroppedFile>("ingest_file", { path }),
-  /** Windows' snipping overlay; the picture saved in the inbox, or null if the user gave up. */
-  captureScreen: () => callOrThrow<DroppedFile | null>("capture_screen"),
+  /** "Cerchia e chiedi" (screenshot.rs): freezes the screen under the mouse; where it is, in physical px. */
+  captureBegin: () => callOrThrow<CaptureScreen>("capture_begin"),
+  /** The frozen screen's pixels, RGBA, raw. */
+  captureFrame: () => callOrThrow<ArrayBuffer>("capture_frame"),
+  /** The island's window covers the frozen screen and takes mouse and keys. */
+  captureShow: () => callOrThrow<void>("capture_show"),
+  /** Back to the island; the frozen screen is dropped. */
+  captureEnd: () => call<void>("capture_end"),
+  /** A zone of the frozen screen (physical px) as a PNG in the inbox. */
+  captureSave: (z: CaptureZone) => callOrThrow<DroppedFile>("capture_save", { ...z }),
+  /** A zone on the clipboard, as a picture. */
+  captureCopy: (z: CaptureZone) => callOrThrow<void>("capture_copy", { ...z }),
+  /** A zone's text (Windows' OCR), also copied. */
+  captureText: (z: CaptureZone) => callOrThrow<string>("capture_text", { ...z }),
   /** The carried character's face, drawn under the pointer in a window of its own (carry.rs). */
   carryFrame: (width: number, height: number, rgba: number[]) => call<void>("carry_frame", { width, height, rgba }),
   /** The character of the chat tab carried over other windows: the island keeps the mouse meanwhile. */
@@ -564,6 +576,22 @@ export async function onDragDrop(handler: (e: DragDropPayload) => void, accepts:
     }
   });
   return listen<string[]>("file-drop", (ev) => handler({ type: "drop", paths: ev.payload }));
+}
+
+/** The frozen screen of "Cerchia e chiedi", physical px. */
+export interface CaptureScreen {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** A zone of the frozen screen, physical px from its top-left corner. */
+export interface CaptureZone {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 export async function onEvent<T>(name: string, handler: (payload: T) => void) {
