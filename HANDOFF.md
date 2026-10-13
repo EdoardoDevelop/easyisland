@@ -21,9 +21,13 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - **Cattura una zona:** Esc nello Strumento di cattura non si vede, e la cattura annullata resta in ascolto fino a 60 s.
 - **«Sostituisci»** incolla testo semplice: in Word e Outlook il pezzo sostituito perde grassetti e link interni.
 - **Limiti del piano da Anthropic:** l'indirizzo (`/api/oauth/usage`) non è documentato e può cambiare; se smette di rispondere il log scrive «limiti del piano da Anthropic: HTTP …» e restano i numeri della status line.
+- **Limiti del piano con la sola app desktop di Claude:** l'accesso in `.credentials.json` scade ogni ~8 ore e l'app desktop non lo rinnova: i numeri restano grigi finché Claude Code non gira nel terminale o in VS Code. Un rinnovo senza consumare il piano non è stato trovato.
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 13 ottobre 2026 — limiti del piano fermi a un numero vecchio
+- L'isola diceva «7g 85%» con `/usage` al 94%: l'accesso in `.credentials.json` era scaduto (l'app desktop di Claude non lo rinnova) e restavano i numeri vecchi. Ora i numeri di oltre 15 minuti sono grigi nell'intestazione, con il motivo nel suggerimento e nella card (scena `usage&stale`); quando il file cambia si richiede subito (provato: rinnovo alle 06:10:24, numeri alle 06:11:13); «Aggiorna» della card chiede ad Anthropic senza aspettare il turno. Provato e tolto il rinnovo con `claude auth status`, che non rinnova (`docs/decisioni.md`).
 
 ### 12 ottobre 2026 — versione 0.7.5
 - Unione in `main` e tag `v0.7.5`: 3CX «Questo PC» con suoneria e scheda da telefono, avvio sicuro dopo un aggiornamento (profilo WebView2) e dopo un riavvio del PC (timer senza `Instant - Duration`), campanella 3CX che cambia icona (voci sotto). README con novità e tabella delle versioni.
@@ -37,6 +41,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 12 ottobre 2026 — 3CX: telefono nel PC, suoneria, scheda da telefono
 - «Questo PC» tra i dispositivi della scheda 3CX: EasyIsland si registra come telefono WebRTC dell'interno, come il web client V20 (messaggi 163, 164/228, 227 ricavati dal suo codice, `myphone.rs`; audio in `src/core/softphone.ts`), con muto, toni e microfono concesso solo all'isola. Suoneria sintetizzata o file MP3/WAV/OGG/M4A dell'utente, silenziabile; avviso della chiamata nell'isola disattivabile (Impostazioni e intestazione della scheda). Scheda ridisegnata come un telefono: tastierino a sinistra, chiamate ed elenchi a destra, barra di icone Team/Chat/Segreteria/Recenti/Perse. Test Rust dei messaggi e anteprima (scena `threecx`); l'audio vero è da provare dal vivo (`docs/integrazioni.md`).
-
-### 12 ottobre 2026 — versione 0.7.4
-- Unione in `main` e tag `v0.7.4`. A isola chiusa il personaggio torna al suo colore (quello della scheda vale solo aperta, `drawBot`); trascinando il personaggio della chat l'isola tiene il mouse dalla pressione e il timer di chiusura ricontrolla quando scade (`fsm.ts`); schede e pulsanti dell'intestazione allargano l'isola aperta se non ci stanno (`measureHeader`, `openWidth`). Allargamento provato nell'anteprima; colore e trascinamento da provare dal vivo.

@@ -377,9 +377,21 @@ const USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage";
 /// Between two questions; after a refusal or an error, much longer.
 const ASK_EVERY: i64 = 5 * 60;
 const ASK_AFTER_ERROR: i64 = 30 * 60;
+struct Ask {
+    /// When the next question may go (Unix seconds).
+    next: i64,
+    /// The last outcome, logged when it changes.
+    outcome: String,
+    /// `.credentials.json`'s last change: a new one is asked about at once.
+    stamp: Option<SystemTime>,
+}
 
-/// When the next question may go (Unix seconds), and the last outcome logged.
-static NEXT_ASK: Mutex<(i64, String)> = Mutex::new((0, String::new()));
+static ASK: Mutex<Ask> = Mutex::new(Ask { next: 0, outcome: String::new(), stamp: None });
+
+/// "Aggiorna" on the card: the next check asks Anthropic without waiting its turn.
+pub fn ask_now() {
+    ASK.lock().unwrap_or_else(|e| e.into_inner()).next = 0;
+}
 
 /// "2026-10-12T15:00:00.123456+00:00" (or "Z", or another offset) → Unix seconds.
 fn iso_seconds(s: &str) -> Option<i64> {
@@ -424,34 +436,72 @@ pub fn parse_usage(v: &Value, now: i64) -> Option<Plan> {
     (five_hour.is_some() || seven_day.is_some()).then_some(Plan { five_hour, seven_day, seven_day_opus, at: now })
 }
 
-/// Claude Code's login, while it is valid (`claudeAiOauth.accessToken`).
-fn claude_login(now: i64) -> Option<String> {
-    let home = std::env::var_os("USERPROFILE")?;
-    let bytes = std::fs::read(Path::new(&home).join(".claude").join(".credentials.json")).ok()?;
-    let v: Value = serde_json::from_slice(&bytes).ok()?;
-    let oauth = v.get("claudeAiOauth")?;
+fn credentials_file() -> Option<PathBuf> {
+    Some(Path::new(&std::env::var_os("USERPROFILE")?).join(".claude").join(".credentials.json"))
+}
+
+fn credentials_stamp() -> Option<SystemTime> {
+    std::fs::metadata(credentials_file()?).and_then(|m| m.modified()).ok()
+}
+
+#[derive(Debug, PartialEq)]
+enum Login {
+    Valid(String),
+    /// Past `expiresAt`. The Claude desktop app does not renew this file, and
+    /// `claude auth status` does not either (tried 13 October 2026): it comes
+    /// back when Claude Code runs in a terminal or VS Code.
+    Expired,
+    Missing,
+}
+
+/// Claude Code's login (`claudeAiOauth.accessToken`).
+fn claude_login(now: i64) -> Login {
+    let Some(v) = credentials_file().and_then(|f| std::fs::read(f).ok()).and_then(|b| serde_json::from_slice::<Value>(&b).ok()) else {
+        return Login::Missing;
+    };
+    read_login(&v, now)
+}
+
+fn read_login(v: &Value, now: i64) -> Login {
+    let Some(oauth) = v.get("claudeAiOauth") else { return Login::Missing };
+    let Some(token) = oauth.get("accessToken").and_then(Value::as_str).filter(|t| !t.is_empty()) else {
+        return Login::Missing;
+    };
     // Milliseconds; a minute's margin.
-    if let Some(expires) = oauth.get("expiresAt").and_then(Value::as_i64) {
-        if expires / 1000 <= now + 60 {
-            return None;
-        }
+    match oauth.get("expiresAt").and_then(Value::as_i64) {
+        Some(expires) if expires / 1000 <= now + 60 => Login::Expired,
+        _ => Login::Valid(token.to_string()),
     }
-    oauth.get("accessToken").and_then(Value::as_str).filter(|t| !t.is_empty()).map(str::to_string)
+}
+
+/// Why the plan's numbers stopped coming, for the card's "Piano aggiornato".
+fn plan_problem() -> Option<&'static str> {
+    let ask = ASK.lock().unwrap_or_else(|e| e.into_inner());
+    match ask.outcome.as_str() {
+        "" | "ok" => None,
+        "expired" => Some(t("l'accesso di Claude Code è scaduto: torna usando Claude Code nel terminale o in VS Code")),
+        "no-login" => Some(t("Claude Code non ha un accesso su questo PC")),
+        _ => Some(t("Anthropic non risponde")),
+    }
 }
 
 /// Asks Anthropic for the plan, at most every ASK_EVERY. Quiet on failure:
 /// one log line when the outcome changes, the token never in it.
 async fn ask_anthropic() {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    let stamp = credentials_stamp();
     {
-        let next = NEXT_ASK.lock().unwrap_or_else(|e| e.into_inner());
-        if now < next.0 || crate::integrations::PAUSED.load(std::sync::atomic::Ordering::Relaxed) {
+        let ask = ASK.lock().unwrap_or_else(|e| e.into_inner());
+        // A login renewed meanwhile (Claude Code in a terminal) is used at once.
+        let renewed = ask.outcome != "ok" && stamp != ask.stamp;
+        if (now < ask.next && !renewed) || crate::integrations::PAUSED.load(std::sync::atomic::Ordering::Relaxed) {
             return;
         }
     }
     let outcome = match claude_login(now) {
-        None => "no-login".to_string(),
-        Some(token) => {
+        Login::Missing => "no-login".to_string(),
+        Login::Expired => "expired".to_string(),
+        Login::Valid(token) => {
             let client = reqwest::Client::builder().timeout(Duration::from_secs(10)).build().unwrap_or_default();
             let sent = client
                 .get(USAGE_URL)
@@ -473,11 +523,12 @@ async fn ask_anthropic() {
             }
         }
     };
-    let mut next = NEXT_ASK.lock().unwrap_or_else(|e| e.into_inner());
-    next.0 = now + if outcome == "ok" || outcome == "no-login" { ASK_EVERY } else { ASK_AFTER_ERROR };
-    if next.1 != outcome {
+    let mut ask = ASK.lock().unwrap_or_else(|e| e.into_inner());
+    ask.next = now + if matches!(outcome.as_str(), "ok" | "no-login" | "expired") { ASK_EVERY } else { ASK_AFTER_ERROR };
+    ask.stamp = credentials_stamp();
+    if ask.outcome != outcome {
         crate::log::line(format!("limiti del piano da Anthropic: {outcome}"));
-        next.1 = outcome;
+        ask.outcome = outcome;
     }
 }
 
@@ -561,13 +612,15 @@ pub struct PlanGauge {
     pub five_hour: Option<[f64; 2]>,
     pub seven_day: Option<[f64; 2]>,
     pub seven_day_opus: Option<[f64; 2]>,
+    /// When the numbers arrived (Unix seconds): old ones are shown grey.
+    pub at: i64,
 }
 
 /// The plan's lines on top of the card; it warns from 80 %.
 fn with_plan(mut r: WidgetResult, plan: Option<&Plan>, now: i64, offset: i64) -> WidgetResult {
     let Some(p) = plan else { return r };
     let gauge = |w: &Option<PlanWindow>| w.map(|w| [effective(&w, now), w.resets_at as f64]);
-    r.plan = Some(PlanGauge { five_hour: gauge(&p.five_hour), seven_day: gauge(&p.seven_day), seven_day_opus: gauge(&p.seven_day_opus) });
+    r.plan = Some(PlanGauge { five_hour: gauge(&p.five_hour), seven_day: gauge(&p.seven_day), seven_day_opus: gauge(&p.seven_day_opus), at: p.at });
     let pct = |w: &PlanWindow| format!("{}%", effective(w, now).round() as i64);
     let mut fields = Vec::new();
     let mut parts = Vec::new();
@@ -591,7 +644,11 @@ fn with_plan(mut r: WidgetResult, plan: Option<&Plan>, now: i64, offset: i64) ->
         } else {
             tf("{n} giorni fa", &[("n", &(age / DAY))])
         };
-        fields.push(FieldValue { label: t("Piano aggiornato").into(), value: ago });
+        let value = match plan_problem() {
+            Some(why) => format!("{ago} · {why}"),
+            None => ago,
+        };
+        fields.push(FieldValue { label: t("Piano aggiornato").into(), value });
     }
     fields.append(&mut r.fields);
     r.fields = fields;
@@ -629,13 +686,23 @@ mod tests {
     }
 
     #[test]
+    fn an_expired_login_is_not_a_missing_one() {
+        let now = 1_000_000;
+        let login = |expires: i64| serde_json::json!({ "claudeAiOauth": { "accessToken": "x", "expiresAt": expires * 1000 } });
+        assert_eq!(read_login(&login(now + 3600), now), Login::Valid("x".into()));
+        assert_eq!(read_login(&login(now + 30), now), Login::Expired);
+        assert_eq!(read_login(&serde_json::json!({ "claudeAiOauth": { "accessToken": "" } }), now), Login::Missing);
+        assert_eq!(read_login(&serde_json::json!({}), now), Login::Missing);
+    }
+
+    #[test]
     #[ignore = "asks Anthropic with this PC's Claude Code login: cargo test plan_from_anthropic_live -- --ignored"]
     fn plan_from_anthropic_live() {
         tauri::async_runtime::block_on(ask_anthropic());
-        let next = NEXT_ASK.lock().unwrap();
-        println!("outcome: {}", next.1);
+        let ask = ASK.lock().unwrap();
+        println!("outcome: {}", ask.outcome);
         println!("plan: {:?}", plan());
-        assert_eq!(next.1, "ok");
+        assert_eq!(ask.outcome, "ok");
     }
 
     #[test]

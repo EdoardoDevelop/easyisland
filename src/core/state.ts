@@ -601,8 +601,8 @@ export interface WidgetStatus {
   event?: string;
   /** Meteo: the sky the character wears (character/weather.ts). */
   sky?: string;
-  /** Consumo Claude: [used %, resets at (Unix s)] per window of the plan (usage.rs PlanGauge). */
-  plan?: { fiveHour?: [number, number]; sevenDay?: [number, number]; sevenDayOpus?: [number, number] };
+  /** Consumo Claude: [used %, resets at (Unix s)] per window of the plan, and when they arrived (usage.rs PlanGauge). */
+  plan?: { fiveHour?: [number, number]; sevenDay?: [number, number]; sevenDayOpus?: [number, number]; at?: number };
 }
 
 /**

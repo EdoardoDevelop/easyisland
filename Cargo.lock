@@ -956,7 +956,7 @@ dependencies = [
 
 [[package]]
 name = "easyisland-hook"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "serde_json",
  "windows 0.61.3",

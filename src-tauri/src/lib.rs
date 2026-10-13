@@ -303,6 +303,9 @@ async fn widget_refresh(app: AppHandle, shared: State<'_, Shared>, id: String) -
         .into_iter()
         .find(|w| w.id == id)
         .ok_or_else(|| t("Widget non trovato").to_string())?;
+    if id == "integration_claude_usage" {
+        usage::ask_now();
+    }
     widgets::run_now(&app, &widget).await;
     Ok(())
 }
