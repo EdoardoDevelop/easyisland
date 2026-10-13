@@ -192,3 +192,216 @@ function bolt(x: CanvasRenderingContext2D, cx: number, cy: number, R: number, t:
   x.fill();
   x.globalAlpha = 1;
 }
+
+// ── The Meteo card (src/views/weather.ts) ───────────────────────────────────
+
+/** Sky colours, top to bottom, by kind and time of day. */
+function skyColors(sky: Sky, day: boolean): [string, string] {
+  if (sky === "moon" || sky === "moon-cloud") return ["#0B1430", "#23305C"];
+  if (!day) return sky === "storm" ? ["#0E1118", "#262C38"] : ["#141B2B", "#2E3647"];
+  switch (sky) {
+    case "sun": return ["#2F7FD8", "#7FC3F2"];
+    case "sun-cloud": return ["#3A7CC4", "#8DBFE3"];
+    case "cloud": return ["#56657A", "#8E9BAC"];
+    case "fog": return ["#76808C", "#A9B1BB"];
+    case "drizzle": return ["#4A5A6E", "#7D8A9B"];
+    case "rain": return ["#36445A", "#64728A"];
+    case "snow": return ["#6F7F96", "#B3C0D0"];
+    case "storm": return ["#1D2330", "#414A5C"];
+  }
+}
+
+/** A number from 0 to 1, always the same for the same `i`: particles without state. */
+function rnd(i: number): number {
+  const s = Math.sin(i * 127.1 + 311.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+/** The clouds' colour in the card's sky. */
+function cloudTone(sky: Sky, night: boolean): string {
+  switch (sky) {
+    case "sun-cloud": return "#F3F6FA";
+    case "moon-cloud": return "#56607A";
+    case "fog": return "#C9D0D8";
+    case "drizzle": return night ? "#3D4556" : "#B7C1CD";
+    case "rain": return night ? "#343B4A" : "#9AA6B6";
+    case "snow": return night ? "#4A5366" : "#D5DDE7";
+    case "storm": return "#5E6878";
+    default: return night ? "#4A5366" : "#D9DFE7";
+  }
+}
+
+/**
+ * The card's sky, `w`×`h`, at `t` seconds: its colours and what moves in it
+ * (rays turning, clouds drifting, rain, snow, mist, stars, lightning). The
+ * card fades it out towards the bottom (CSS mask).
+ */
+export function drawSkyScene(x: CanvasRenderingContext2D, sky: Sky, day: boolean, w: number, h: number, t: number) {
+  const [top, bottom] = skyColors(sky, day);
+  const g = x.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, top);
+  g.addColorStop(1, bottom);
+  x.fillStyle = g;
+  x.fillRect(0, 0, w, h);
+
+  const night = !day || sky === "moon" || sky === "moon-cloud";
+  // Stars on a clear or partly clear night.
+  if (night && (sky === "moon" || sky === "moon-cloud" || sky === "cloud")) {
+    x.fillStyle = "#FFFFFF";
+    for (let i = 0; i < 46; i++) {
+      const a = 0.35 + 0.65 * Math.abs(Math.sin(t * (0.6 + rnd(i + 9) * 1.4) + i));
+      x.globalAlpha = a * (sky === "cloud" ? 0.4 : 0.9);
+      x.beginPath();
+      x.arc(rnd(i) * w, rnd(i + 50) * h * 0.75, 0.5 + rnd(i + 100) * 1.1, 0, Math.PI * 2);
+      x.fill();
+    }
+    x.globalAlpha = 1;
+  }
+
+  const bx = w * 0.8;
+  const by = h * 0.36;
+  const r = Math.min(26, h * 0.17);
+  if (sky === "sun" || sky === "sun-cloud") {
+    // A breathing glow and rays that turn.
+    const glow = x.createRadialGradient(bx, by, r * 0.6, bx, by, r * (3.4 + Math.sin(t * 1.3) * 0.25));
+    glow.addColorStop(0, "rgba(255,214,90,0.55)");
+    glow.addColorStop(1, "rgba(255,214,90,0)");
+    x.fillStyle = glow;
+    x.fillRect(0, 0, w, h);
+    x.save();
+    x.translate(bx, by);
+    x.rotate(t * 0.15);
+    sun(x, 0, 0, r);
+    x.restore();
+  } else if (sky === "moon" || sky === "moon-cloud") {
+    const glow = x.createRadialGradient(bx, by, r * 0.5, bx, by, r * 3);
+    glow.addColorStop(0, "rgba(246,231,168,0.28)");
+    glow.addColorStop(1, "rgba(246,231,168,0)");
+    x.fillStyle = glow;
+    x.fillRect(0, 0, w, h);
+    moon(x, bx, by, r * 1.05);
+  }
+
+  // Lightning lights the whole sky now and then, a bolt somewhere new each time.
+  if (sky === "storm") {
+    const k = (t % 4.2) / 4.2;
+    const flash = k < 0.03 ? 0.5 : k > 0.06 && k < 0.085 ? 0.35 : 0;
+    if (flash) {
+      x.fillStyle = `rgba(230,236,255,${flash})`;
+      x.fillRect(0, 0, w, h);
+      x.save();
+      bolt(x, w * (0.3 + rnd(Math.floor(t / 4.2)) * 0.5), h * 0.18, h * 1.1, 0.01);
+      x.restore();
+    }
+  }
+
+  // Clouds drifting across and coming back round: a few with the sun, many with rain.
+  if (sky !== "sun" && sky !== "moon") {
+    const tone = cloudTone(sky, night);
+    const n = sky === "sun-cloud" || sky === "moon-cloud" ? 3 : 6;
+    for (let i = 0; i < n; i++) {
+      const size = (0.22 + rnd(i + 7) * 0.2) * Math.max(w * 0.6, 220);
+      const speed = 6 + rnd(i + 3) * 8;
+      const span = w + size;
+      const cx = ((rnd(i) * span + t * speed) % span) - size / 2;
+      const cy = h * (0.18 + rnd(i + 20) * (n > 3 ? 0.32 : 0.2));
+      x.globalAlpha = sky === "fog" ? 0.55 : 0.92;
+      cloud(x, cx, cy, size * 0.5, tone);
+    }
+    x.globalAlpha = 1;
+  }
+
+  if (sky === "fog") {
+    // Bands of mist sliding past each other.
+    x.lineCap = "round";
+    for (let i = 0; i < 5; i++) {
+      const y = h * (0.3 + i * 0.13);
+      const off = Math.sin(t * 0.25 + i * 1.3) * w * 0.08;
+      x.strokeStyle = `rgba(225,230,236,${0.35 + rnd(i) * 0.25})`;
+      x.lineWidth = 7 + rnd(i + 4) * 6;
+      x.beginPath();
+      x.moveTo(w * (0.05 + rnd(i + 8) * 0.15) + off, y);
+      x.lineTo(w * (0.6 + rnd(i + 12) * 0.35) + off, y);
+      x.stroke();
+    }
+  }
+
+  if (sky === "drizzle" || sky === "rain" || sky === "storm") {
+    // Slanted streaks over the whole sky.
+    const n = sky === "drizzle" ? 40 : 90;
+    const speed = sky === "drizzle" ? 140 : 260;
+    const len = sky === "drizzle" ? 6 : 11;
+    x.strokeStyle = night ? "rgba(150,180,220,0.55)" : "rgba(210,228,250,0.7)";
+    x.lineWidth = 1.2;
+    x.beginPath();
+    for (let i = 0; i < n; i++) {
+      const y = ((rnd(i) * (h + 20) + t * speed * (0.8 + rnd(i + 30) * 0.4)) % (h + 20)) - 10;
+      const px = (((rnd(i + 60) * (w + 40) - y * 0.18) % (w + 40)) + w + 40) % (w + 40);
+      x.moveTo(px, y);
+      x.lineTo(px - len * 0.25, y + len);
+    }
+    x.stroke();
+  }
+
+  if (sky === "snow") {
+    x.fillStyle = "#FFFFFF";
+    for (let i = 0; i < 70; i++) {
+      const y = ((rnd(i) * (h + 10) + t * (18 + rnd(i + 5) * 22)) % (h + 10)) - 5;
+      const px = rnd(i + 40) * w + Math.sin(t * 1.1 + i) * 8;
+      x.globalAlpha = 0.6 + rnd(i + 2) * 0.4;
+      x.beginPath();
+      x.arc(px, y, 1 + rnd(i + 70) * 1.8, 0, Math.PI * 2);
+      x.fill();
+    }
+    x.globalAlpha = 1;
+  }
+}
+
+/** A small still icon of `sky` in a `size`×`size` box (the card's hours and days). */
+export function drawSkyIcon(x: CanvasRenderingContext2D, sky: Sky, size: number) {
+  const c = size / 2;
+  const drops = (kind: "rain" | "snow" | "drizzle") => {
+    const n = kind === "drizzle" ? 2 : 3;
+    for (let i = 0; i < n; i++) {
+      const px = c + (i - (n - 1) / 2) * size * 0.2;
+      const py = size * 0.8 + (i % 2) * size * 0.06;
+      if (kind === "snow") {
+        x.fillStyle = "#FFFFFF";
+        x.beginPath();
+        x.arc(px, py, size * 0.055, 0, Math.PI * 2);
+        x.fill();
+      } else {
+        x.strokeStyle = "#5AB4FF";
+        x.lineWidth = size * 0.07;
+        x.lineCap = "round";
+        x.beginPath();
+        x.moveTo(px, py - size * 0.06);
+        x.lineTo(px - size * 0.03, py + size * 0.06);
+        x.stroke();
+      }
+    }
+  };
+  x.save();
+  switch (sky) {
+    case "sun": sun(x, c, c, size * 0.2); break;
+    case "moon": moon(x, c, c, size * 0.3); break;
+    case "sun-cloud":
+      sun(x, c + size * 0.14, c - size * 0.12, size * 0.15);
+      cloud(x, c - size * 0.06, c + size * 0.08, size * 0.7, "#F3F6FA");
+      break;
+    case "moon-cloud":
+      moon(x, c + size * 0.14, c - size * 0.14, size * 0.2);
+      cloud(x, c - size * 0.06, c + size * 0.08, size * 0.7, "#C9D0DC");
+      break;
+    case "cloud": cloud(x, c, c, size * 0.85, "#E6EBF1"); break;
+    case "fog": fog(x, c, c, size); break;
+    case "drizzle": cloud(x, c, c - size * 0.1, size * 0.8, "#D5DCE5"); drops("drizzle"); break;
+    case "rain": cloud(x, c, c - size * 0.1, size * 0.8, "#BCC6D3"); drops("rain"); break;
+    case "snow": cloud(x, c, c - size * 0.1, size * 0.8, "#DCE3EC"); drops("snow"); break;
+    case "storm":
+      cloud(x, c, c - size * 0.12, size * 0.8, "#8C97A8");
+      bolt(x, c + size * 0.02, c + size * 0.02, size * 0.9, 0.01);
+      break;
+  }
+  x.restore();
+}

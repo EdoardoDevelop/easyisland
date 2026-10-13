@@ -22,6 +22,8 @@ export class IslandStateMachine {
   keepOpen = false;
   /** A permission request is waiting: the island stays open whatever else unpinned it. */
   waiting: () => boolean = () => false;
+  /** Something in the compact view waits for an answer (its strip): it does not hide. */
+  held: () => boolean = () => false;
 
   private petitHide: number | null = null;
   private homeCollapse: number | null = null;
@@ -116,10 +118,10 @@ export class IslandStateMachine {
 
   private schedulePetitHide() {
     this.clear("petitHide");
-    if (this.petitToHiddenDelay <= 0) return;
+    if (this.petitToHiddenDelay <= 0 || this.held()) return;
     this.petitHide = window.setTimeout(() => {
       this.petitHide = null;
-      if (this.state === "petit") this.transition("hidden");
+      if (this.state === "petit" && !this.held()) this.transition("hidden");
     }, this.petitToHiddenDelay * 1000);
   }
 

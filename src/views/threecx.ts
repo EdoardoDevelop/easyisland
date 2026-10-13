@@ -935,7 +935,7 @@ export function threecxCard(task: AgentTask, openSettings: () => void): HTMLElem
     }
     const alert = State.settings.integrationConfig?.threecxAlert !== false;
     toggles.append(h("button", { class: alert ? "tcx-toggle" : "tcx-toggle off",
-      title: alert ? t("Le chiamate in arrivo aprono l'isola con un suono: clic per avere solo il pallino") : t("Chiamate in arrivo: solo il pallino sulla pillola. Clic per aprire di nuovo l'isola"),
+      title: alert ? t("Le chiamate in arrivo aprono l'isola con un suono: clic per avere solo il pallino") : t("Chiamate in arrivo: solo il pallino nel menu. Clic per aprire di nuovo l'isola"),
       onclick: () => {
         State.settings.integrationConfig = { ...State.settings.integrationConfig, threecxAlert: !alert };
         void Bridge.saveSettings(State.settings);
@@ -987,6 +987,49 @@ export function threecxCard(task: AgentTask, openSettings: () => void): HTMLElem
 /** True when the extension has a call ringing for the user. */
 export function ringing(): boolean {
   return (data().calls ?? []).some((c) => c.incoming && c.state === "ringing");
+}
+
+export interface QuickReply {
+  label: string;
+  tone: "green" | "red" | "plain" | "light";
+  run: () => void;
+}
+
+/**
+ * The call for the strip beside the closed character (src/views/strip.ts): the
+ * one ringing for this user, else the one in progress, with the same replies as
+ * the card. In front of a client (`hideNames`) no name or number. Null without a call.
+ */
+export function stripCall(hideNames: boolean): { id: string; ringing: boolean; title: string; sub: string; buttons: QuickReply[] } | null {
+  const calls = data().calls ?? [];
+  const c = calls.find((x) => x.incoming && x.state === "ringing") ?? calls.find((x) => x.state === "connected");
+  if (!c) return null;
+  const rtc = pcCall(c);
+  const fail = (action: string) => (e: unknown) => void Bridge.log(`3CX ${action} dalla striscia: ${message(e)}`);
+  const act = (action: string) => () => void Bridge.threecxAction(c.id, action).catch(fail(action));
+  const who = c.name || c.number || t("Sconosciuto");
+  if (c.state === "ringing") {
+    const buttons: QuickReply[] = [];
+    if (rtc) buttons.push({ label: t("Rispondi"), tone: "green", run: () => void answerOnPc(rtc).catch(fail("answer")) });
+    else if (c.canAnswer) buttons.push({ label: t("Rispondi"), tone: "green", run: act("answer") });
+    buttons.push({ label: t("Rifiuta"), tone: "red", run: act("decline") });
+    return {
+      id: c.id, ringing: true, buttons,
+      title: hideNames ? t("Chiamata in arrivo") : who,
+      sub: hideNames ? "3CX" : [c.name ? c.number : "", "3CX"].filter(Boolean).join(" · "),
+    };
+  }
+  const buttons: QuickReply[] = [];
+  if (rtc && onPc(rtc)) {
+    const off = muted(rtc);
+    buttons.push({ label: off ? t("Riattiva") : t("Muto"), tone: off ? "light" : "plain", run: () => { setMuted(rtc, !off); State.notify(); } });
+  }
+  buttons.push({ label: t("Riaggancia"), tone: "red", run: act("hangup") });
+  return {
+    id: c.id, ringing: false, buttons,
+    title: `${t("In linea")} · ${mmss(Date.now() - c.since)}`,
+    sub: hideNames ? "3CX" : who,
+  };
 }
 
 /** A chat message pushed by the PBX. True when it showed in the open, visible conversation. */

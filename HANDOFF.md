@@ -1,11 +1,11 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 13 ottobre 2026. Versione **0.7.7** in `main` con il tag `v0.7.7` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 13 ottobre 2026. Versione **0.7.8** in `main` con il tag `v0.7.8` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
-- [ ] **Prove dal vivo:** della 0.6.3 interfaccia in inglese, limiti del piano, card «finito» da un altro programma e riepilogo settimanale; della 0.6.4 cronologia delle chat; della 0.6.5 il personaggio lasciato su un'icona del desktop; della 0.6.6 saluto al centro, Claude Code assente sul notebook e standby con la Rete; della 0.6.7 «Continua», «Chiedi», «Sempre» di sessione e 📌 come finestra; della 0.6.8 menu con `Win+Alt+A`, «Sostituisci» e reazioni del personaggio; della 0.6.9 e 0.7.0 i nuovi personaggi e la Fiamma animata; della 0.7.1 team e chat di 3CX e il cielo grande; della 0.7.2 il personaggio della chat lasciato su una finestra; della 0.7.3 il piano letto da Anthropic, il tempo rimasto sui permessi e gli appunti rimessi per intero; della 0.7.4 l'isola che non si chiude trascinando il personaggio della chat; della 0.7.5 «Questo PC» di 3CX con audio e suoneria e l'avvio dopo un aggiornamento su un altro PC; della 0.7.7 «Cerchia e chiedi» e il personaggio durante una chiamata 3CX. Tutte in `docs/prove-dal-vivo.md`.
+- [ ] **Prove dal vivo:** della 0.6.3 interfaccia in inglese, limiti del piano, card «finito» da un altro programma e riepilogo settimanale; della 0.6.4 cronologia delle chat; della 0.6.5 il personaggio lasciato su un'icona del desktop; della 0.6.6 saluto al centro, Claude Code assente sul notebook e standby con la Rete; della 0.6.7 «Continua», «Chiedi», «Sempre» di sessione e 📌 come finestra; della 0.6.8 menu con `Win+Alt+A`, «Sostituisci» e reazioni del personaggio; della 0.6.9 e 0.7.0 i nuovi personaggi e la Fiamma animata; della 0.7.1 team e chat di 3CX e il cielo grande; della 0.7.2 il personaggio della chat lasciato su una finestra; della 0.7.3 il piano letto da Anthropic, il tempo rimasto sui permessi e gli appunti rimessi per intero; della 0.7.4 l'isola che non si chiude trascinando il personaggio della chat; della 0.7.5 «Questo PC» di 3CX con audio e suoneria e l'avvio dopo un aggiornamento su un altro PC; della 0.7.7 «Cerchia e chiedi» e il personaggio durante una chiamata 3CX; della 0.7.8 il nuovo impianto, le risposte rapide, la card del Meteo e il personaggio che torna al suo colore. Tutte in `docs/prove-dal-vivo.md`.
 - [ ] **3CX team e chat:** fatti nel codice, da provare sul centralino vero (`docs/prove-dal-vivo.md`). Se qualcosa non arriva, il log dice quali tipi di messaggio manda il centralino (`3cx: event type …`).
 - [ ] **3CX «Questo PC»:** telefono WebRTC nell'isola, suoneria e scheda da telefono fatti nel codice e nell'anteprima; audio vero da provare sul centralino (`docs/prove-dal-vivo.md`).
 - [ ] **3CX + Zammad:** ticket del cliente sulla chiamata in arrivo (`docs/idee.md`).
@@ -25,19 +25,17 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 13 ottobre 2026 — versione 0.7.8 e homepage
+- Unione in `main` e tag `v0.7.8`: nuovo impianto dell'isola, risposte rapide a isola chiusa, card del Meteo, angolo e colore del personaggio (voci sotto). Schermate del README rifatte (scene nuove `files`, `strip`; `overview` con le righe dei riquadri), parole «pillola» tolte da README e Impostazioni. Homepage (`site/`, GitHub Pages, arrivata in `main` da `claude/homepage`) aggiornata al nuovo impianto con le stesse schermate.
+
+### 13 ottobre 2026 — Panoramica, card del Meteo, angolo e colore del personaggio
+- Dopo la prova di Edoardo: «Oggi» torna a chiamarsi Panoramica; loghi del menu larghi quanto un'emoji; numeri e pallini del menu nascosti con la voce aperta. Card del Meteo nuova (`src/views/weather.ts`, dati `forecast_of` in `probes.rs`): cielo di adesso animato che sfuma in basso, riquadri, 12 ore e 7 giorni. Angolo di ridimensionamento senza scatto e fermo all'altezza minima (si salvava la posizione del mouse). Il personaggio torna al suo colore anche quando l'agente non manda `Stop` (`armStale`, `idle_prompt` in `hooks.ts`). Provato nell'anteprima (scena `meteo`, anche `&night`).
+
+### 13 ottobre 2026 — risposte rapide a isola chiusa
+- Seconda tappa del nuovo impianto: accanto al personaggio della vista compatta una striscia (`src/views/strip.ts`) con chi lavora e, a isola chiusa, Nega / Consenti sui permessi semplici e Rispondi / Rifiuta, Muto / Riaggancia sulle chiamate 3CX, senza aprire l'isola. Impostazioni → Posizione e aspetto → «Risposte rapide»: a destra, a sinistra o spente (spente = come prima). Provata nell'anteprima (scena `strip`, tutte le varianti e i due lati).
+
+### 13 ottobre 2026 — nuovo impianto dell'isola aperta
+- Dopo un prototipo approvato da Edoardo: menu a sinistra con il personaggio in cima (`rail.ts`), barra in alto con il suo fumetto, il campo unico (cerca e «Chiedi alla chat», Ctrl+Invio) e i pulsanti di prima, «Oggi» a riquadri al posto della Panoramica, niente più schede in alto né pillole. Personaggi e animazioni invariati, impostazioni di prima tutte valide (`integrationTabs` non serve più), nuove «Personaggio nel menu» e «Fumetto». Personalizzazione solo in Impostazioni (`docs/decisioni.md`). Provato nell'anteprima (scene overview, approval, chat, threecx, agenti, actions, drop). Dopo la prima prova di Edoardo: l'isola cresceva fino all'altezza dello schermo e, ancorata in basso, perdeva la barra in alto (misura del menu e finestra corrette, `docs/architettura.md`); 8 px sotto la barra; «File e schermo» come nel prototipo (titolo, riquadri Rilascia e Cerchia e chiedi, Vassoio).
+
 ### 13 ottobre 2026 — versione 0.7.7
 - Unione in `main` e tag `v0.7.7`: «Cerchia e chiedi» con OCR al posto dello Strumento di cattura, personaggio visibile durante le chiamate 3CX, suoneria predefinita come WAV, colore per ogni integrazione (voci sotto). README con novità e tabella delle versioni.
-
-### 13 ottobre 2026 — «Cerchia e chiedi» al posto di «Cattura una zona»
-- Lo Strumento di cattura di Windows è sostituito dal nostro velo: lo schermo sotto il mouse si ferma nella finestra dell'isola stessa, si cerchia o riquadra la zona e accanto ci sono domanda alla chat, azioni rapide, Copia immagine, Copia testo (OCR di Windows) e Nel Vassoio (`screenshot.rs`, `capture.ts`, `docs/strumenti.md`). Provati nell'anteprima (scena `capture`) e dal vivo congelamento e OCR (`screenshot::live`); il velo vero va provato (`docs/prove-dal-vivo.md`). Proposte «al momento giusto» annotate in `docs/idee.md`.
-
-### 13 ottobre 2026 — 3CX: personaggio che spariva in chiamata, suoneria predefinita muta, colore delle integrazioni
-- In chiamata col telefono «Questo PC» l'isola usa il microfono e «Davanti al cliente» la prendeva per una riunione, nascondendo il personaggio: ora durante una chiamata 3CX il microfono non conta (`threecx::in_call` in `presence.rs`).
-- La suoneria predefinita era un `AudioContext` aperto senza clic, che WebView2 può lasciare sospeso: ora è un WAV generato una volta e suonato da `<audio>` come il file dell'utente (provato nell'anteprima: suona senza clic). Da riprovare sul centralino vero.
-- Impostazioni → Integrazioni → Colore per ogni integrazione (`integrationColors`): pallino, card e personaggio con la scheda aperta. Provato nell'anteprima (scena `threecx`).
-
-### 13 ottobre 2026 — versione 0.7.6
-- Unione in `main` e tag `v0.7.6`: limiti del piano vecchi in grigio con il motivo, richiesta subito quando l'accesso di Claude Code cambia, «Aggiorna» della card Consumo che chiede subito (voce sotto). README con novità e tabella delle versioni.
-
-### 13 ottobre 2026 — limiti del piano fermi a un numero vecchio
-- L'isola diceva «7g 85%» con `/usage` al 94%: l'accesso in `.credentials.json` era scaduto (l'app desktop di Claude non lo rinnova) e restavano i numeri vecchi. Ora i numeri di oltre 15 minuti sono grigi nell'intestazione, con il motivo nel suggerimento e nella card (scena `usage&stale`); quando il file cambia si richiede subito (provato: rinnovo alle 06:10:24, numeri alle 06:11:13); «Aggiorna» della card chiede ad Anthropic senza aspettare il turno. Provato e tolto il rinnovo con `claude auth status`, che non rinnova (`docs/decisioni.md`).

@@ -1,7 +1,8 @@
-// The search bar at the bottom of the open island: one field for the
-// integrations (and agents' sessions), the quick actions and the programs of
-// the Start menu (start_apps.rs). The results cover the view above the bar
-// while there is something typed; Enter opens the selected one, Esc clears.
+// The one field in the open island's top bar: the integrations (and agents'
+// sessions), the quick actions, the programs of the Start menu (start_apps.rs),
+// and last the chat, asked what was typed. The results cover the views while
+// there is something typed; Enter opens the selected one, Ctrl+Enter asks the
+// chat, Esc clears.
 
 import { h, svg, clear, markIcon, dot } from "./dom";
 import { ICONS } from "./icons";
@@ -15,10 +16,12 @@ export interface SearchActions {
   openTask(id: string): void;
   runAction(a: QuickAction): void;
   openProgram(path: string): void;
+  /** What was typed, asked to the chat. */
+  ask(text: string): void;
 }
 
 interface Hit {
-  kind: "Integrazione" | "Agente" | "Azione" | "Programma";
+  kind: "Integrazione" | "Agente" | "Azione" | "Programma" | "Chat";
   name: string;
   icon: () => Node;
   run: () => void;
@@ -36,11 +39,11 @@ function score(name: string, q: string): number {
   return n.includes(q) ? 1 : 0;
 }
 
-const KIND_LABEL: Record<Hit["kind"], string> = { Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma") };
+const KIND_LABEL: Record<Hit["kind"], string> = { Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Chat: "Ctrl+Invio" };
 
 /** How many of each kind at most, so programs do not drown the rest. */
 
-const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8 };
+const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Chat: 1 };
 
 /** The Start menu, read again after this long (a program installed meanwhile). */
 const APPS_TTL_MS = 5 * 60_000;
@@ -55,7 +58,7 @@ export interface SearchHost {
 }
 
 export function buildSearch(actions: SearchActions): SearchHost {
-  const input = h("input", { type: "text", class: "search-input", placeholder: t("Cerca integrazioni, azioni e programmi"),
+  const input = h("input", { type: "text", class: "search-input", placeholder: t("Chiedi, cerca o avvia…"),
     spellcheck: "false", autocomplete: "off" }) as HTMLInputElement;
   const results = h("div", { class: "search-results" });
   const bar = h("div", { class: "search-bar" }, svg(ICONS.search, 13), input);
@@ -74,6 +77,9 @@ export function buildSearch(actions: SearchActions): SearchHost {
       if (input.value.trim()) refresh();
     });
   };
+
+  const askHit = (text: string): Hit => ({ kind: "Chat", name: t("Chiedi alla chat: «{q}»", { q: text }), score: 0,
+    icon: () => svg(ICONS.bubble, 13), run: () => actions.ask(text) });
 
   const collect = (q: string): Hit[] => {
     const out: Hit[] = [];
@@ -102,6 +108,8 @@ export function buildSearch(actions: SearchActions): SearchHost {
       used[hit.kind] = (used[hit.kind] ?? 0) + 1;
       if (used[hit.kind] <= LIMIT[hit.kind]) kept.push(hit);
     }
+    // Last, always: the words typed, asked to the chat.
+    kept.push(askHit(input.value.trim()));
     return kept;
   };
 
@@ -115,7 +123,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
       h("span", { class: "search-name", text: hit.name }),
       h("span", { class: "search-kind", text: KIND_LABEL[hit.kind] })));
     });
-    if (!hits.length) results.append(h("div", { class: "search-none", text: t("Nessun risultato") }));
+
   };
 
   const mark = () => {
@@ -158,7 +166,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
       sel = (sel + (e.key === "ArrowDown" ? 1 : hits.length - 1)) % hits.length;
       mark();
     } else if (e.key === "Enter") {
-      const hit = hits[sel];
+      const hit = e.ctrlKey ? hits.find((x) => x.kind === "Chat") : hits[sel];
       if (hit) choose(hit);
     }
   });

@@ -82,8 +82,18 @@ export interface ViewLayout {
 export const PANEL_W = 720;
 export const PANEL_H = 560;
 
-/** Island chrome around the views: 8 px top inset + 34 px header + 10 px bottom. */
+/** Island chrome around the views: 8 px top inset + 34 px top bar + 10 px bottom. */
 export const ISLAND_CHROME_H = 52;
+/** The open island's top bar (the character's bubble, the field, the buttons): the
+ *  header's old height, which the drop sequence and the greeting are drawn around. */
+export const TOPBAR_H = 34;
+/** Room between the top bar and the menu and views below it (`#island.railed #body`). */
+export const BODY_GAP = 8;
+/** The menu on the left of the open island (sections, integrations), and the gap after it. */
+export const RAIL_W = 164;
+export const RAIL_GAP = 10;
+/** The character at the head of the menu: its diameter for each size (`menuCharacter`). */
+export const RAIL_BOT: Record<string, number> = { large: 64, medium: 52, small: 40 };
 /** The tallest an expanded island may grow on its own to fit its content. */
 export const MAX_ISLAND_H = PANEL_H - 2 * 8;
 
@@ -91,6 +101,8 @@ export const MAX_ISLAND_H = PANEL_H - 2 * 8;
 export const NOTCH_W = 184;
 export const NOTCH_H = 32;
 export const COMPACT_W = 288; // NOTCH_W + 104
+/** The compact island with its strip (src/views/strip.ts): at least this tall, for two lines and the buttons. */
+export const STRIP_H = 44;
 export const EXPANDED_W = 640;
 /** Narrowest the user can make the open island. */
 export const ISLAND_MIN_W = 560;
@@ -266,6 +278,8 @@ export function botPosition(
   islandH: number,
   uploadProgress = 0,
   compact: { w: number; h: number } = { w: COMPACT_W, h: NOTCH_H },
+  /** The open island has its menu: the character sits at its head (diameter). */
+  rail = 0,
 ): BotPlacement {
   const badge = compact.w !== COMPACT_W;
   switch (mode) {
@@ -278,6 +292,10 @@ export function botPosition(
         ? { cx: compact.w / 2, cy: compact.h / 2, diameter: compact.w * 0.56, opacity: 1 }
         : { cx: 40, cy: 16, diameter: 20, opacity: 1 };
     case "expanded": {
+      if (rail > 0) {
+        // Top inset + top bar + gap, then the head of the menu (railHead).
+        return { cx: 10 + RAIL_W / 2, cy: 8 + TOPBAR_H + BODY_GAP + railHead(rail) / 2, diameter: rail, opacity: 1 };
+      }
       const layout = VIEW_LAYOUTS[view];
       if (view === "uploading") {
         return {
@@ -297,6 +315,11 @@ export function botPosition(
       return { cx: layout.botX, cy, diameter: layout.botDiameter, opacity: 1 };
     }
   }
+}
+
+/** Height of the menu's head, where the character stands (with room for its badge and glow). */
+export function railHead(diameter: number): number {
+  return Math.round(diameter * 1.45);
 }
 
 export function botGlowColor(s: BotStateName): string {

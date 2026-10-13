@@ -332,8 +332,12 @@ export interface Settings {
   tabOrder: string[];
   /** No dragging pills and tabs around in the island (this PC). */
   lockOrder: boolean;
-  /** The search bar at the bottom of the open island (src/views/search.ts). */
+  /** The one field in the open island's top bar (src/views/search.ts). */
   searchBar: boolean;
+  /** The character at the head of the open island's menu (src/views/rail.ts). */
+  menuCharacter: "large" | "medium" | "small";
+  /** The character's bubble in the top bar: what is going on. */
+  characterBubble: boolean;
   /** Interface language: "it", "en", or "" for Windows' own (src/core/i18n.ts). */
   language: string;
   /** The weekly recap of the coding agents (recap.rs, src/island/recap.ts). */
@@ -397,6 +401,8 @@ export interface Settings {
   hoverStyle: "icon" | "bar";
   /** Hovered icon size, px. */
   hoverSize: number;
+  /** The strip beside the closed island's character (status, quick replies): its side, or off. */
+  compactStrip: "right" | "left" | "off";
   /** Seconds of hover before the island opens; 0 = only on click. */
   openDelay: number;
   /** Seconds the hover icon / bar stays up after the mouse leaves or an event. */
@@ -605,6 +611,8 @@ export interface WidgetStatus {
   sky?: string;
   /** Consumo Claude: [used %, resets at (Unix s)] per window of the plan, and when they arrived (usage.rs PlanGauge). */
   plan?: { fiveHour?: [number, number]; sevenDay?: [number, number]; sevenDayOpus?: [number, number]; at?: number };
+  /** Meteo: now, the next hours and days, for its card (src/views/weather.ts). */
+  forecast?: unknown;
 }
 
 /**
@@ -692,6 +700,8 @@ export const DEFAULT_SETTINGS: Settings = {
   tabOrder: [],
   lockOrder: false,
   searchBar: true,
+  menuCharacter: "large",
+  characterBubble: true,
   weeklyRecap: true,
   chatHistory: true,
   language: "",
@@ -722,6 +732,7 @@ export const DEFAULT_SETTINGS: Settings = {
   iconSize: 24,
   hoverStyle: "icon",
   hoverSize: 40,
+  compactStrip: "right",
   openDelay: 0.6,
   revealDuration: 8,
   quietFullscreen: true,
@@ -973,18 +984,9 @@ class AppState {
     return this.settings.integrationConfig.weatherOnCharacter && this.effectiveState === "idle" ? w.sky : null;
   }
 
-  /** Pills in the overview: everything but the focused task and the header tabs. */
+  /** Everything but the focused task: the compact bar's mini characters. */
   get otherTasks(): AgentTask[] {
-    return this.tasks.filter((t) => t.id !== this.focusId && !this.isTab(t.id));
-  }
-
-  /** Active integrations the user put in the header as tabs, in pill order. */
-  get tabTasks(): AgentTask[] {
-    return this.tasks.filter((t) => this.isTab(t.id));
-  }
-
-  isTab(id: string): boolean {
-    return (this.settings.integrationTabs ?? []).includes(id);
+    return this.tasks.filter((t) => t.id !== this.focusId);
   }
 
   setFocus(id: string) {

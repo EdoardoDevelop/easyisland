@@ -38,7 +38,10 @@ const SHOTS = {
   media: { url: `/?scene=media&activeIntegrations=${PILLS}` },
   network: { url: `/?scene=network&activeIntegrations=${PILLS}` },
   suggestion: { url: "/?scene=suggestion" },
-  meteo: { url: `/?scene=meteo&sky=rain&activeIntegrations=${PILLS}` },
+  meteo: { url: `/?scene=meteo&sky=sun-cloud&activeIntegrations=${PILLS}` },
+  files: { url: `/?scene=files&activeIntegrations=${PILLS}` },
+  "strip-approval": { url: "/?scene=strip&strip=approval" },
+  "strip-call": { url: "/?scene=strip&strip=call&activeIntegrations=integration_3cx" },
   rewrite: { url: "/?scene=rewrite" },
   // Every character but the cube, without the island (dev/characters.html).
   characters: { url: "/dev/characters.html" },

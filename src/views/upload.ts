@@ -111,7 +111,7 @@ export function buildChoose(actions: ViewActions): ViewHost {
     h(
       "div",
       { class: "card" },
-      h("div", { class: "stack", style: "padding:0 18px 0 98px" }, title, sub, row),
+      h("div", { class: "stack", style: "padding:0 18px 0 max(16px, calc(98px * var(--bot-room, 1)))" }, title, sub, row),
     ),
   );
 
@@ -254,10 +254,12 @@ function ago(ms: number): string {
 }
 
 /**
- * The tray ("Vassoio"): the copies of the files dropped on the island (the
- * inbox), emptied every time EasyIsland starts except the pinned ones. Drag
- * one out into another app, open it, show it in the folder, ask about it again,
- * pin it, take one or all of them out. The originals are never touched.
+ * "File e schermo" in the menu: two tiles (where to drop a file, and "Cerchia e
+ * chiedi" for a zone of the screen), then the tray ("Vassoio"): the copies of
+ * the files dropped on the island (the inbox), emptied every time EasyIsland
+ * starts except the pinned ones. Drag one out into another app, open it, show
+ * it in the folder, ask about it again, pin it, take one or all of them out.
+ * The originals are never touched.
  */
 export function buildFiles(actions: ViewActions): ViewHost {
   const count = h("span", { class: "files-count" });
@@ -278,14 +280,25 @@ export function buildFiles(actions: ViewActions): ViewHost {
     key = null;
     State.notify();
   });
+  // The two ways in: a file dropped anywhere on the island, or a zone of the screen.
+  const dropTile = h("div", { class: "files-tile drop" },
+    h("strong", { text: t("Rilascia qui un file") }),
+    h("span", { text: t("PDF, immagini, codice, ZIP") }));
+  const hotkey = h("span");
+  const captureTile = h("button", { class: "files-tile capture",
+    title: t("Cerchia una zona dello schermo: chiedi alla chat, copia il testo o tienila nel Vassoio"),
+    onclick: () => actions.captureScreen() },
+  h("strong", {}, renderActionIcon("i:camera", 14), h("span", { text: t("Cerchia e chiedi") })), hotkey);
   const head = h("div", { class: "files-head" },
-    h("button", { class: "files-back", title: t("Indietro"), text: "‹", onclick: () => actions.setView("upload") }),
     h("b", { text: t("Vassoio") }), count, layoutBtn, clearAll);
   const list = h("div", { class: "files-list" });
   showLayout();
   const note = h("div", { class: "files-note",
     text: t("Trascina un file in un'altra app per usarlo. Sono copie: gli originali restano dove sono. Il vassoio si svuota quando EasyIsland si riavvia, tranne i file fissati con la puntina.") });
-  const body = h("div", { class: "files-body" }, head, list, note);
+  const body = h("div", { class: "files-body" },
+    h("h1", { class: "files-title", text: t("File e schermo") }),
+    h("div", { class: "files-tiles" }, dropTile, captureTile),
+    head, list, note);
   const el = h("div", { class: "view" }, h("div", { class: "card files-card" }, body));
 
   // Null until the first draw: an empty tray must still draw its message.
@@ -328,12 +341,14 @@ export function buildFiles(actions: ViewActions): ViewHost {
   return {
     el,
     sync() {
+      dropTile.classList.toggle("over", State.fileDragOver);
+      hotkey.textContent = State.settings.hotkeyScreenshot ?? "";
       const files = State.inbox ?? [];
       const k = files.map((f) => `${f.name}:${f.at}:${f.kept ? 1 : 0}`).join("|");
       if (k === key) return;
       key = k;
       const total = files.reduce((s, f) => s + f.size, 0);
-      count.textContent = files.length ? `${files.length} · ${size(total)}` : "";
+      count.textContent = files.length ? `· ${files.length} · ${size(total)}` : "";
       clearAll.style.display = files.some((f) => !f.kept) ? "" : "none";
       clear(list);
       if (files.length === 0) {

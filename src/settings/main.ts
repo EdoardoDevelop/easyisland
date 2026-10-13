@@ -9,8 +9,7 @@ import { Bridge, onEvent, type HookStatus, type ModelOption } from "../core/brid
 import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type Settings, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
-import { h, clear, TAB_ICONS } from "../views/dom";
-import { BRAND_SVG } from "../views/brands";
+import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
 import { ISLAND_MIN_W, PANEL_H, PANEL_W, islandMax } from "../core/layout";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 import { language, locale, resolveLanguage, syncLanguage, t } from "../core/i18n";
@@ -112,7 +111,7 @@ function agentsSection(claudeStatus: HookStatus): HTMLElement {
   for (const tool of AGENT_ORDER) rows.append(agentRow(tool, tool === "claude" ? claudeStatus : null));
   return h("section", {},
     h("h2", {}, h("span", { text: t("Collegati all'isola") })),
-    h("div", { class: "hint", text: t("Ogni agente ha la sua pillola nell'isola. «Installa» mostra prima cosa cambia nel suo file, ne fa una copia e scrive solo dopo la tua conferma; i tuoi hook restano.") }),
+    h("div", { class: "hint", text: t("Ogni agente ha la sua sessione nella voce Agenti dell'isola. «Installa» mostra prima cosa cambia nel suo file, ne fa una copia e scrive solo dopo la tua conferma; i tuoi hook restano.") }),
     relay,
     relayWarn,
     rows,
@@ -249,9 +248,9 @@ function agentsTabSection(): HTMLElement {
   const place = h("select", {},
     h("option", { value: "icon", text: t("Icona del terminale") }),
     h("option", { value: "logo", text: t("Logo di Claude") }),
-    h("option", { value: "name", text: t("Nome (Agenti)") }),
     h("option", { value: "emoji", text: t("Emoji o lettere") })) as HTMLSelectElement;
-  place.value = !cur ? "icon" : cur === "@name" ? "name" : cur === "@logo" ? "logo" : "emoji";
+  // "@name" was the header tab with the word "Agenti": the menu always has the name.
+  place.value = !cur || cur === "@name" ? "icon" : cur === "@logo" ? "logo" : "emoji";
   const emoji = h("input", {
     type: "text", maxlength: "4", spellcheck: "false", style: "width:56px;text-align:center",
     title: t("Un'emoji o una o due lettere"), placeholder: "✳",
@@ -260,7 +259,6 @@ function agentsTabSection(): HTMLElement {
   const apply = () => {
     emoji.style.display = place.value === "emoji" ? "" : "none";
     if (place.value === "icon") delete icons()[id];
-    else if (place.value === "name") icons()[id] = "@name";
     else if (place.value === "logo") icons()[id] = "@logo";
     else icons()[id] = emoji.value.trim() || (emoji.value = "✳");
   };
@@ -268,10 +266,10 @@ function agentsTabSection(): HTMLElement {
   place.addEventListener("change", () => { apply(); void save(); });
   emoji.addEventListener("change", () => { apply(); void save(); });
   return h("section", {},
-    h("h2", {}, h("span", { text: t("Scheda nell'isola") })),
+    h("h2", {}, h("span", { text: t("Nel menu dell'isola") })),
     h("div", { class: "row" },
-      h("label", { text: t("Aspetto") }), place, emoji,
-      h("span", { class: "hint note", text: t("la scheda in alto con le sessioni degli agenti") })));
+      h("label", { text: t("Icona") }), place, emoji,
+      h("span", { class: "hint note", text: t("la voce Agenti, con le sessioni degli agenti") })));
 }
 
 // ── Claude chat section ───────────────────────────────────────────────────────
@@ -770,7 +768,7 @@ const INTEGRATIONS: IntegrationDef[] = [
       { label: t("Interno"), type: "text", placeholder: "es. 101", when: (c) => c.threecxMode === "api",
         get: (c) => c.threecxExtension ?? "", set: (c, v) => { c.threecxExtension = v.trim(); } },
       { label: t("Chiamata in arrivo"), type: "select", placeholder: "",
-        choices: [["on", t("Apre l'isola con un suono")], ["off", t("Solo il pallino sulla pillola 3CX")]],
+        choices: [["on", t("Apre l'isola con un suono")], ["off", t("Solo il pallino su 3CX nel menu")]],
         get: (c) => (c.threecxAlert === false ? "off" : "on"), set: (c, v) => { c.threecxAlert = v === "on"; } },
       { label: t("Suoneria del PC"), type: "select", placeholder: "", when: (c) => c.threecxMode !== "api",
         choices: [["on", t("Suona quando chiamano «Questo PC»")], ["off", t("Silenziata")]],
@@ -801,10 +799,10 @@ const INTEGRATIONS: IntegrationDef[] = [
       get: (c) => c.weatherCity, set: (c, v) => { c.weatherCity = v.trim(); },
     }, {
       label: t("Cielo sul personaggio"), type: "select", placeholder: "",
-      choices: [["pill", t("Solo sulla pillola Meteo")], ["idle", t("Anche quando è inattivo")]],
+      choices: [["pill", t("Solo con il Meteo aperto")], ["idle", t("Anche quando è inattivo")]],
       get: (c) => (c.weatherOnCharacter ? "idle" : "pill"), set: (c, v) => { c.weatherOnCharacter = v === "idle"; },
     }],
-    hint: t("Da Open-Meteo, gratuito e senza chiave. Il personaggio mostra il cielo (sole, luna, nuvole, nebbia, pioggia, neve, temporale) sulla pillola Meteo e, se scegli «Anche quando è inattivo», ogni volta che non c'è altro da fare. Avvisa quando è probabile la pioggia nelle prossime ore.") },
+    hint: t("Da Open-Meteo, gratuito e senza chiave. Il personaggio mostra il cielo (sole, luna, nuvole, nebbia, pioggia, neve, temporale) con il Meteo aperto e, se scegli «Anche quando è inattivo», ogni volta che non c'è altro da fare. Avvisa quando è probabile la pioggia nelle prossime ore.") },
   { id: "integration_claude_usage", name: t("Consumo Claude"), color: "#D97757", fields: [],
     options: [{
       label: t("Piano nell'isola"), type: "select", placeholder: "",
@@ -861,7 +859,7 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
 
   function updateNote() {
     const used = settings.activeIntegrations.length;
-    note.textContent = t("Scegli quali pillole mostrare accanto al personaggio ({n} attive): l'isola si allarga per mostrarle tutte. Le chiavi restano in Gestione credenziali di Windows, mai su disco.", { n: used });
+    note.textContent = t("Scegli quali integrazioni mostrare nel menu dell'isola ({n} attive). Le chiavi restano in Gestione credenziali di Windows, mai su disco.", { n: used });
   }
 
   for (const def of INTEGRATIONS) {
@@ -955,29 +953,23 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
       rows.append(row);
     }
     syncVisible();
+    // Its icon in the island's menu: the logo (or its colour) or the user's emoji.
     const place = h("select", {},
-      h("option", { value: "pill", text: t("Pillola nella panoramica") }),
-      h("option", { value: "tab", text: t("Scheda in alto, con il nome") }),
-      h("option", { value: "icon", text: t("Scheda in alto, con un'icona") })) as HTMLSelectElement;
-    // Integrations with a brand logo can show just that in their tab.
-    if (BRAND_SVG[def.id]) place.insertBefore(h("option", { value: "logo", text: t("Scheda in alto, con il logo") }), place.lastChild);
+      h("option", { value: "logo", text: hasMark(def.id) ? t("Logo") : t("Pallino del suo colore") }),
+      h("option", { value: "icon", text: t("Emoji o lettere") })) as HTMLSelectElement;
     const iconInput = h("input", {
       type: "text", maxlength: "4", spellcheck: "false", style: "width:56px;text-align:center",
       title: t("Un'emoji o una o due lettere"), placeholder: TAB_ICONS[def.id] ?? "★",
     }) as HTMLInputElement;
     const icons = () => (settings.integrationTabIcons ??= {});
-    iconInput.value = icons()[def.id] === "@logo" ? "" : icons()[def.id] ?? "";
-    const isTab = (settings.integrationTabs ?? []).includes(def.id);
-    place.value = !isTab ? "pill" : icons()[def.id] === "@logo" ? "logo" : icons()[def.id] ? "icon" : "tab";
+    const own = icons()[def.id]?.trim() ?? "";
+    iconInput.value = own.startsWith("@") ? "" : own;
+    place.value = own && !own.startsWith("@") ? "icon" : "logo";
     const syncIcon = () => { iconInput.style.display = place.value === "icon" ? "" : "none"; };
     syncIcon();
     place.addEventListener("change", () => {
-      const rest = (settings.integrationTabs ?? []).filter((x) => x !== def.id);
-      settings.integrationTabs = place.value === "pill" ? rest : [...rest, def.id];
-      if (place.value === "logo") {
-        icons()[def.id] = "@logo";
-      } else if (place.value === "icon") {
-        if (!iconInput.value.trim() || iconInput.value === "@logo") iconInput.value = TAB_ICONS[def.id] ?? "★";
+      if (place.value === "icon") {
+        if (!iconInput.value.trim()) iconInput.value = TAB_ICONS[def.id] ?? "★";
         icons()[def.id] = iconInput.value.trim();
       } else {
         delete icons()[def.id];
@@ -992,7 +984,8 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
       void save();
     });
     rows.append(h("div", { class: "row" },
-      h("label", { style: "min-width:104px", text: t("Mostra come") }), place, iconInput));
+      h("label", { style: "min-width:104px", text: t("Nel menu") }), place, iconInput,
+      h("span", { class: "hint note", text: t("l'icona accanto al nome, nel menu a sinistra dell'isola") })));
     // Its colour: pill, card and the character while its tab is open.
     const colors = () => (settings.integrationColors ??= {});
     const dot = h("i", { class: "dot" });
@@ -1029,7 +1022,7 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
     h("label", { text: t("Blocca lo spostamento") }),
     toggle(!!settings.lockOrder, (v) => { settings.lockOrder = v; void save(); }),
     resetOrder,
-    h("span", { class: "hint note", text: t("nell'isola pillole e schede (anche ⌂ 💬 ⚡ +) si riordinano trascinandole; acceso, restano dove sono") }));
+    h("span", { class: "hint note", text: t("nell'isola le integrazioni del menu e i riquadri della Panoramica si riordinano trascinandoli; acceso, restano dove sono") }));
   return h("section", {}, h("h2", {}, h("span", { text: t("Integrazioni") }), profileChip()), note, orderRow, list);
 }
 
@@ -1236,6 +1229,7 @@ function placementSection(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: t("Larghezza") }),
       widthSlider,
+      h("span", { class: "hint note", text: t("delle schede, il menu a sinistra si aggiunge") }),
     ),
     h("div", { class: "row" },
       h("label", { text: t("Altezza minima") }),
@@ -1244,9 +1238,20 @@ function placementSection(): HTMLElement {
       h("span", { class: "hint note", text: t("0 = l'altezza di ogni vista; fino alla grandezza dello schermo, anche trascinando l'angolo dell'isola aperta") }),
     ),
     h("div", { class: "row" },
-      h("label", { text: t("Barra di ricerca") }),
+      h("label", { text: t("Campo in alto") }),
       toggle(settings.searchBar !== false, (v) => { settings.searchBar = v; commit(); }),
-      h("span", { class: "hint note", text: t("in fondo all'isola aperta: cerca integrazioni, azioni e programmi installati") }),
+      h("span", { class: "hint note", text: t("nella barra dell'isola aperta: cerca integrazioni, azioni e programmi installati") }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Personaggio nel menu") }),
+      select([["large", t("Grande")], ["medium", t("Medio")], ["small", t("Piccolo")]], settings.menuCharacter ?? "large",
+        (v) => { settings.menuCharacter = v as Settings["menuCharacter"]; commit(); }),
+      h("span", { class: "hint note", text: t("in cima al menu a sinistra dell'isola aperta") }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Fumetto") }),
+      toggle(settings.characterBubble !== false, (v) => { settings.characterBubble = v; commit(); }),
+      h("span", { class: "hint note", text: t("in alto il personaggio dice cosa succede: la richiesta in attesa, la sessione al lavoro, la scheda aperta") }),
     ),
     h("div", { class: "row" },
       h("label", { text: t("Sopra la barra") }),
@@ -1260,6 +1265,13 @@ function placementSection(): HTMLElement {
     ),
     h("div", { class: "row" }, h("label", { text: t("Vista compatta") }), hoverStyle),
     hoverSize,
+    h("div", { class: "row" },
+      h("label", { text: t("Risposte rapide") }),
+      select([["right", t("A destra del personaggio")], ["left", t("A sinistra del personaggio")], ["off", t("Spente")]],
+        settings.compactStrip ?? "right",
+        (v) => { settings.compactStrip = v as Settings["compactStrip"]; commit(); }),
+      h("span", { class: "hint note", text: t("a isola chiusa, accanto al personaggio: chi lavora e cosa fa, Nega / Consenti sui permessi, Rispondi / Rifiuta e Riaggancia sulle chiamate 3CX, senza aprire l'isola. Spente: i permessi e le chiamate aprono l'isola come prima.") }),
+    ),
     h("div", { class: "row" },
       h("label", { text: t("Segue il mouse") }),
       toggle(settings.followCursorCompact, (v) => { settings.followCursorCompact = v; commit(); }),
@@ -1357,7 +1369,7 @@ function profileChip(): HTMLElement {
 const PROFILE_KEYS = [
   "activeIntegrations", "anchorV", "anchorH", "offsetX", "offsetY", "glueEdges", "overTaskbar",
   "closeButton", "followCursorCompact", "presenceMeeting", "presenceRemote", "presenceApps", "presenceMode", "iconStyle", "iconSize", "hoverStyle",
-  "hoverSize", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
+  "hoverSize", "compactStrip", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
   "soundVolume", "autoCloseInterval", "theme", "notify", "reactions", "actions", "widgets", "mcpServers",
 ] as const;
 
@@ -1941,11 +1953,11 @@ function actionsSection(): HTMLElement {
     h("div", { class: "row" }, h("label", { text: t("Porta avanti la sessione") }),
       hotkeyField(settings.hotkeySession, (v) => { settings.hotkeySession = v; }),
       h("span", { class: "hint note", text: t("l'app dove gira la sessione: terminale, VS Code, Cursor o Claude") })),
-    h("div", { class: "row" }, h("label", { text: t("Pillola successiva") }),
+    h("div", { class: "row" }, h("label", { text: t("Integrazione successiva") }),
       hotkeyField(settings.hotkeyNextPill ?? "", (v) => { settings.hotkeyNextPill = v; })),
     h("div", { class: "row" }, h("label", { text: t("Suoni sì / no") }),
       hotkeyField(settings.hotkeyMute ?? "", (v) => { settings.hotkeyMute = v; }),
-      h("span", { class: "hint note", text: t("Isola aperta: ← → pillole, ↑ ↓ scorre, Ctrl+N nuova chat, Ctrl+P tieni aperta, Esc chiude") })),
+      h("span", { class: "hint note", text: t("Isola aperta: ← → voce successiva, ↑ ↓ scorre, Ctrl+N nuova chat, Ctrl+P tieni aperta, Esc chiude") })),
     h("div", { class: "row" }, h("label", { text: t("Suggerimenti per l'app in uso") }),
       toggle(settings.contextActions !== false, (v) => { settings.contextActions = v; void save(); }),
       h("span", { class: "hint note", text: t("in cima alla scheda ⚡: per Outlook, Excel, Word, il browser, il codice… usano il testo che hai selezionato") })),
@@ -2574,7 +2586,7 @@ function widgetsSection(): HTMLElement {
     h("h2", {}, h("span", { text: t("Widget") }), profileChip()),
     h("div", {
       class: "hint",
-      text: t("Controlli che compaiono come pillole accanto al personaggio: il calendario (link ICS), la scadenza dei domini, siti, certificati, server, porte, servizi Windows o qualsiasi API JSON; se ne possono creare quanti servono. Stato del PC, sicurezza, rete, meteo, Outlook e Zammad sono in Integrazioni. Quando un controllo passa da OK a problema, il personaggio ti avvisa. Si fermano quando EasyIsland è in pausa."),
+      text: t("Controlli che compaiono nel menu dell'isola: il calendario (link ICS), la scadenza dei domini, siti, certificati, server, porte, servizi Windows o qualsiasi API JSON; se ne possono creare quanti servono. Stato del PC, sicurezza, rete, meteo, Outlook e Zammad sono in Integrazioni. Quando un controllo passa da OK a problema, il personaggio ti avvisa. Si fermano quando EasyIsland è in pausa."),
     }),
     list,
     templates,
@@ -2642,7 +2654,7 @@ function reactionsSection(): HTMLElement {
     h("h2", {}, h("span", { text: t("Reazioni del personaggio") }), profileChip()),
     h("div", {
       class: "hint",
-      text: t("Per ogni situazione scegli cosa fa il personaggio. «Cambia faccia, in silenzio»: niente suono e l'isola non si apre. «Resta tranquillo»: lo dice solo la pillola. Permessi e domande degli agenti si fanno sempre vedere, perché l'agente aspetta te."),
+      text: t("Per ogni situazione scegli cosa fa il personaggio. «Cambia faccia, in silenzio»: niente suono e l'isola non si apre. «Resta tranquillo»: lo dice solo il pallino nel menu. Permessi e domande degli agenti si fanno sempre vedere, perché l'agente aspetta te."),
     }),
     h("h3", { text: t("Agenti") }),
     row(t("Ha finito"), "agentFinished"),
@@ -2790,7 +2802,7 @@ function themeSection(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: t("Sfondo a isola chiusa") }),
       toggle(th.compactBackground ?? true, (v) => { th.compactBackground = v; commit(); }),
-      h("span", { class: "hint note", text: t("spento, a isola chiusa resta solo il personaggio, senza il cerchio o la barra dell'isola; aprendola lo sfondo torna. Con la barra al passaggio del mouse le pillole restano senza sfondo") }),
+      h("span", { class: "hint note", text: t("spento, a isola chiusa resta solo il personaggio, senza il cerchio o la barra dell'isola; aprendola lo sfondo torna. Con la barra al passaggio del mouse i mini personaggi restano senza sfondo") }),
     ),
     h("div", { class: "row" },
       h("label", { text: t("Volume avvisi") }),

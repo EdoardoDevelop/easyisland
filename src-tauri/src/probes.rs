@@ -534,9 +534,11 @@ pub async fn weather(w: &Widget) -> WidgetResult {
         .query(&[
             ("latitude", lat.to_string()),
             ("longitude", lon.to_string()),
-            ("current", "temperature_2m,apparent_temperature,weather_code,wind_speed_10m,is_day".into()),
-            ("hourly", "precipitation_probability".into()),
-            ("forecast_hours", "4".into()),
+            ("current", "temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,is_day".into()),
+            ("hourly", "temperature_2m,weather_code,precipitation_probability,is_day".into()),
+            ("forecast_hours", "24".into()),
+            ("daily", "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max".into()),
+            ("forecast_days", "7".into()),
             ("timezone", "auto".into()),
         ])
         .send()
@@ -553,9 +555,10 @@ pub async fn weather(w: &Widget) -> WidgetResult {
     let feels = cur["apparent_temperature"].as_f64();
     let wind = cur["wind_speed_10m"].as_f64();
     let sky = weather_text(cur["weather_code"].as_i64().unwrap_or(-1));
+    // This hour and the next three, as before the card asked for a whole day.
     let rain = v["hourly"]["precipitation_probability"]
         .as_array()
-        .map(|a| a.iter().filter_map(|x| x.as_i64()).max().unwrap_or(0))
+        .map(|a| a.iter().take(4).filter_map(|x| x.as_i64()).max().unwrap_or(0))
         .unwrap_or(0);
 
     let t = temp.map(|t| format!("{t:.0}°")).unwrap_or_else(|| "—".into());
@@ -578,7 +581,63 @@ pub async fn weather(w: &Widget) -> WidgetResult {
     r.fields = fields;
     let code = cur["weather_code"].as_i64().unwrap_or(-1);
     r.sky = sky_kind(code, cur["is_day"].as_i64() != Some(0)).map(str::to_string);
+    r.forecast = Some(forecast_of(&v, &place));
     r
+}
+
+/// What the Meteo card shows (src/views/weather.ts), from Open-Meteo's answer:
+/// now, the next 12 hours and the next 7 days, each with the sky its icon draws.
+/// Times stay the place's own ("14", "07:21"): `timezone=auto`.
+fn forecast_of(v: &Value, place: &str) -> Value {
+    use serde_json::json;
+    let cur = &v["current"];
+    let day = cur["is_day"].as_i64() != Some(0);
+    let code = cur["weather_code"].as_i64().unwrap_or(-1);
+    let num = |x: &Value| x.as_f64().map(|f| (f * 10.0).round() / 10.0);
+    let list = |o: &Value, k: &str| o[k].as_array().cloned().unwrap_or_default();
+    let hv = &v["hourly"];
+    let (times, temps, codes, rains, days) =
+        (list(hv, "time"), list(hv, "temperature_2m"), list(hv, "weather_code"), list(hv, "precipitation_probability"), list(hv, "is_day"));
+    let hourly: Vec<Value> = times.iter().enumerate().take(12).map(|(i, t)| {
+        let c = codes.get(i).and_then(Value::as_i64).unwrap_or(-1);
+        json!({
+            "hour": t.as_str().and_then(|s| s.get(11..13)).unwrap_or(""),
+            "temp": temps.get(i).and_then(num),
+            "sky": sky_kind(c, days.get(i).and_then(Value::as_i64) != Some(0)),
+            "rain": rains.get(i).and_then(Value::as_i64),
+        })
+    }).collect();
+    let dv = &v["daily"];
+    let (dates, dcodes, maxs, mins, drains) =
+        (list(dv, "time"), list(dv, "weather_code"), list(dv, "temperature_2m_max"), list(dv, "temperature_2m_min"), list(dv, "precipitation_probability_max"));
+    let daily: Vec<Value> = dates.iter().enumerate().map(|(i, d)| {
+        let c = dcodes.get(i).and_then(Value::as_i64).unwrap_or(-1);
+        json!({
+            "date": d.as_str().unwrap_or(""),
+            "max": maxs.get(i).and_then(num),
+            "min": mins.get(i).and_then(num),
+            "sky": sky_kind(c, true),
+            "text": weather_text(c),
+            "rain": drains.get(i).and_then(Value::as_i64),
+        })
+    }).collect();
+    let clock = |k: &str| dv[k][0].as_str().and_then(|s| s.get(11..16)).map(str::to_string);
+    json!({
+        "place": place,
+        "temp": num(&cur["temperature_2m"]),
+        "feels": num(&cur["apparent_temperature"]),
+        "humidity": cur["relative_humidity_2m"].as_i64(),
+        "wind": num(&cur["wind_speed_10m"]),
+        "windDir": cur["wind_direction_10m"].as_f64(),
+        "day": day,
+        "sky": sky_kind(code, day),
+        "text": weather_text(code),
+        "sunrise": clock("sunrise"),
+        "sunset": clock("sunset"),
+        "uv": num(&dv["uv_index_max"][0]),
+        "hourly": hourly,
+        "daily": daily,
+    })
 }
 
 // ── domain expiry (RDAP, WHOIS fallback) ──────────────────────────────────────
@@ -723,6 +782,28 @@ mod tests {
         assert_eq!(duration_it(3 * 3600 + 120), "3 h 2 min");
         assert_eq!(duration_it(86_400 + 3600), "1 giorno, 1 h");
         assert_eq!(duration_it(5 * 86_400), "5 giorni, 0 h");
+    }
+
+    #[test]
+    fn forecast_reads_open_meteo() {
+        let v: Value = serde_json::from_str(r#"{
+            "current": { "temperature_2m": 14.26, "apparent_temperature": 12.0, "relative_humidity_2m": 71,
+                         "weather_code": 61, "wind_speed_10m": 9.4, "wind_direction_10m": 225, "is_day": 0 },
+            "hourly": { "time": ["2026-10-13T21:00", "2026-10-13T22:00"], "temperature_2m": [14.2, 13.8],
+                        "weather_code": [61, 0], "precipitation_probability": [80, 10], "is_day": [0, 0] },
+            "daily": { "time": ["2026-10-13", "2026-10-14"], "weather_code": [61, 2], "temperature_2m_max": [18.0, 20.5],
+                       "temperature_2m_min": [9.0, 10.0], "precipitation_probability_max": [90, 20],
+                       "sunrise": ["2026-10-13T07:21", "2026-10-14T07:22"], "sunset": ["2026-10-13T18:40", "2026-10-14T18:38"],
+                       "uv_index_max": [2.35, 3.0] }
+        }"#).unwrap();
+        let f = forecast_of(&v, "Milano");
+        assert_eq!(f["temp"], 14.3);
+        assert_eq!(f["sky"], "rain");
+        assert_eq!((f["sunrise"].as_str(), f["sunset"].as_str()), (Some("07:21"), Some("18:40")));
+        assert_eq!(f["hourly"][0]["hour"], "21");
+        assert_eq!(f["hourly"][1]["sky"], "moon");
+        assert_eq!(f["daily"][1]["sky"], "sun-cloud");
+        assert_eq!(f["daily"][0]["rain"], 90);
     }
 
     #[test]
