@@ -33,7 +33,7 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 - **Azioni rapide** (link, programmi, script, domande a Claude) con scorciatoie
   globali, e suggerimenti per l'app che stai usando
   ([Azioni rapide](#azioni-rapide-e-scorciatoie)).
-- **Integrazioni** come pillole o schede: 3CX (chiamate, rubrica, chiamate in
+- **Integrazioni** nel menu dell'isola: 3CX (chiamate, rubrica, chiamate in
   arrivo), Zammad, Outlook, stato del PC, sicurezza, rete, meteo, appunti con
   testi e immagini, musica, GitHub, Vercel, Stripe, n8n e altre
   ([Integrazioni](#integrazioni)); **widget** per siti, certificati, server,
@@ -336,10 +336,11 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 | Clicchi sul personaggio, o lasci il mouse sopra per un attimo se "Apri dopo" lo prevede | Si apre l'isola, allineata a quel lato |
 | Trascini il personaggio tenendo premuto il tasto sinistro (anche l'icona a riposo) | Si sposta dove lo lasci, anche su un altro schermo, e la posizione resta salvata nel profilo |
 | Trascini l'angolo in basso dell'isola aperta | Cambia larghezza e altezza dell'isola, fino ai bordi dello schermo; il contenuto si adatta. Doppio clic sull'angolo: misure predefinite |
-| Scheda ⌂ **Panoramica** | Tutte le integrazioni con il loro stato e il loro logo; un clic ne apre una, trascinandole le riordini. Il personaggio mostra lo stato più urgente |
-| Scheda **Agenti** (l'icona del terminale) | La sessione dell'agente di programmazione (Claude Code, Codex…): avanzamento, modifiche, permessi. L'aspetto della scheda (icona, logo di Claude, nome o emoji) si sceglie in Impostazioni → Agenti |
-| Trascini l'isola aperta dallo spazio vuoto dell'intestazione | Resta lì finché è aperta; chiudendola torna al posto del personaggio |
-| Trascini una pillola o una scheda in alto | Cambia posto (si blocca in Impostazioni → Integrazioni) |
+| Il **menu a sinistra** dell'isola aperta | In cima il personaggio, poi **Panoramica**, **Agenti**, **Chat**, **Azioni**, **File e schermo** e le tue integrazioni, ognuna con il suo logo (o un'emoji) e un pallino quando ha novità. In alto il personaggio ti dice in un fumetto cosa succede |
+| **Panoramica** | Tutte le integrazioni e gli agenti a riquadri, con il loro stato; un clic ne apre uno, trascinandoli li riordini. Il personaggio mostra lo stato più urgente |
+| **Agenti** (l'icona del terminale) | La sessione dell'agente di programmazione (Claude Code, Codex…): avanzamento, modifiche, permessi. L'icona (terminale, logo di Claude o emoji) si sceglie in Impostazioni → Agenti |
+| Trascini l'isola aperta dalla barra in alto | Resta lì finché è aperta; chiudendola torna al posto del personaggio |
+| Trascini una voce delle integrazioni nel menu o un riquadro della Panoramica | Cambia posto (si blocca in Impostazioni → Integrazioni) |
 | Clicchi sul personaggio | Si infastidisce. Tre volte di fila e gli gira la testa |
 | Lasci il puntatore sul personaggio per due secondi | Cuori |
 | Nella chat, trascini il personaggio su una finestra di un'altra app | La finestra diventa il contesto della chat: ne prende un'immagine, con il nome dell'app e il titolo, e la tua domanda parte insieme a lei. La ✕ sul chip la toglie, Esc annulla mentre lo trascini |
@@ -349,19 +350,19 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 | 📌 in alto a destra | **Tieni aperta**: l'isola non si chiude più da sola finché non la togli (Esc e ✕ la chiudono comunque) |
 | Scrivi un calcolo nella chat, es. `840 + 22%` o `15% di 840` | Compare subito il risultato; **Invio** lo copia negli appunti, **Ctrl+Invio** chiede comunque alla chat. Il calcolo è fatto in locale, senza Claude |
 | Rilasci uno ZIP | Oltre a "Fai una domanda" c'è **Estrai…**: vedi cosa contiene e lo estrai in una cartella nuova accanto all'originale, in Download o sul Desktop |
-| Scheda **+** → **Cerchia e chiedi** (o `Ctrl+Alt+Shift+S`) | Lo schermo si ferma e si scurisce: cerchia o riquadra una zona e accanto compare **Chiedi…** (Invio: la chat si apre con la zona e la domanda), le tue azioni rapide, **Copia immagine**, **Copia testo** (riconosciuto da Windows) e **Nel Vassoio**. Esc o il tasto destro annullano |
-| Scheda **+** → **Vassoio** (o il pulsante **Vassoio** dopo aver rilasciato un file) | I file rilasciati sull'isola, in elenco o a griglia, tenuti finché EasyIsland non si riavvia, tranne quelli fissati con la puntina: trascinali in un'altra app (mail, chat, cartella), chiedi alla chat, apri, mostra nella cartella, fissa, togli uno o tutti. Sono copie: gli originali non vengono toccati |
-| Scrivi nella **barra di ricerca** in fondo all'isola aperta | Trova integrazioni, sessioni degli agenti, azioni ⚡ e programmi installati (anche quelli dello Store); frecce per scegliere, **Invio** per aprire, **Esc** per svuotare. Si spegne in Impostazioni → Posizione e aspetto |
+| **File e schermo** → **Cerchia e chiedi** (o `Ctrl+Alt+Shift+S`) | Lo schermo si ferma e si scurisce: cerchia o riquadra una zona e accanto compare **Chiedi…** (Invio: la chat si apre con la zona e la domanda), le tue azioni rapide, **Copia immagine**, **Copia testo** (riconosciuto da Windows) e **Nel Vassoio**. Esc o il tasto destro annullano |
+| **File e schermo** (o il pulsante **Vassoio** dopo aver rilasciato un file) | I file rilasciati sull'isola, in elenco o a griglia, tenuti finché EasyIsland non si riavvia, tranne quelli fissati con la puntina: trascinali in un'altra app (mail, chat, cartella), chiedi alla chat, apri, mostra nella cartella, fissa, togli uno o tutti. Sono copie: gli originali non vengono toccati |
+| Scrivi nel **campo in alto** dell'isola aperta | Trova integrazioni, sessioni degli agenti, azioni ⚡ e programmi installati (anche quelli dello Store), e in fondo **Chiedi alla chat** con quello che hai scritto; frecce per scegliere, **Invio** per aprire, **Ctrl+Invio** per chiedere alla chat, **Esc** per svuotare. Si spegne in Impostazioni → Posizione e aspetto |
 | Icona nell'area di notifica | Apri, Impostazioni…, Pausa, Esci |
 
 Tutto il resto succede da solo: una richiesta di permesso di Claude Code apre
 l'isola con **Nega / Consenti** (e **Sempre** quando Claude Code propone una regola
 da ricordare: la card dice quale; anche sopra un'altra scheda; resta finché non
 rispondi, poi l'isola torna dov'era), una sessione finita mostra l'ultimo messaggio
-di Claude e le tue integrazioni stanno nelle pillole colorate accanto al personaggio. Non c'è un
-numero massimo di integrazioni e widget: l'isola si allunga per mostrare tutte
-le pillole e tutto il testo della scheda in primo piano (fino a circa 540 px,
-poi le pillole scorrono).
+di Claude e le tue integrazioni stanno nel menu a sinistra, sotto il personaggio. Non c'è un
+numero massimo di integrazioni e widget: l'isola si allunga per mostrare tutto il
+menu e il testo della scheda aperta (fino all'altezza dello schermo, poi
+l'elenco delle integrazioni scorre).
 
 **Modifiche in tempo reale:** mentre Claude Code lavora, ogni file che modifica
 compare nei passi con le righe aggiunte in verde e tolte in rosso (`+12 −3`), e
@@ -403,6 +404,10 @@ modifiche al massimo, un'ora al massimo, cancellate a fine sessione). Oltre
   una bolla solo intorno all'icona. Spento: si attacca solo in alto al centro.
 - **Vista compatta**: il personaggio più grande e animato, oppure la barra compatta
   con le integrazioni, con dimensione regolabile.
+- **Risposte rapide**: a isola chiusa, accanto al personaggio (a destra o a
+  sinistra, a scelta) chi lavora e cosa fa, **Nega / Consenti** sui permessi e
+  **Rispondi / Rifiuta** e **Riaggancia** sulle chiamate 3CX, senza aprire
+  l'isola. Spente, permessi e chiamate aprono l'isola come prima.
 - **Segue il mouse**: se attivo, anche nella vista compatta il personaggio
   guarda il cursore. Spento (predefinito): si guarda intorno da solo, sbatte le
   palpebre e ogni tanto fa una smorfia, e consuma meno. A isola aperta segue
@@ -497,13 +502,13 @@ Le azioni appartengono al profilo attivo; le scorciatoie Apri/Chiedi al PC.
 ## Integrazioni
 
 **Impostazioni… → Integrazioni** accende le integrazioni, una per tipo, che
-compaiono come pillole accanto al personaggio. Chiavi, token e indirizzi stanno in
-Gestione credenziali di Windows.
+compaiono nel menu a sinistra dell'isola e nei riquadri della **Panoramica**. Chiavi, token e
+indirizzi stanno in Gestione credenziali di Windows.
 
-Pillole e schede, comprese ⌂ 💬 ⚡ +, si **riordinano trascinandole** direttamente
-nell'isola (un clic senza trascinare le apre come sempre). L'ordine vale per il profilo
-attivo; in Integrazioni c'è **Blocca lo spostamento**, per non spostarle per
-sbaglio, e **Ripristina l'ordine**.
+Le integrazioni si **riordinano trascinandole** nel menu o nella Panoramica (un clic senza
+trascinare le apre come sempre). L'ordine vale per il profilo attivo; in
+Integrazioni c'è **Blocca lo spostamento**, per non spostarle per sbaglio, e
+**Ripristina l'ordine**.
 
 | Integrazione | Cosa mostra |
 |---|---|
@@ -513,15 +518,14 @@ sbaglio, e **Ripristina l'ordine**.
 | **Stato del PC** | spazio sul disco di sistema (arancione sotto la soglia, 10 %, rosso sotto il 5 %), memoria, batteria, da quanto è acceso, riavvio richiesto da Windows. Pulsante **Copia info PC**: nome, utente, Windows, modello, numero di serie, IP e MAC negli appunti, pronti per un ticket |
 | **Sicurezza** | antivirus (Defender o un altro, dal Centro sicurezza di Windows), età delle firme, ultima scansione, firewall, minacce rilevate |
 | **Rete** | Wi-Fi o cavo, IP locale e pubblico (api.ipify.org, al massimo ogni 15 minuti), VPN attive, latenza verso 1.1.1.1; avvisa se internet non risponde o è lento |
-| **Meteo** | meteo attuale di una città (Open-Meteo, gratuito e senza chiave); avvisa se è probabile pioggia nelle prossime ore |
+| **Meteo** | meteo di una città (Open-Meteo, gratuito e senza chiave): in cima il cielo di adesso animato, poi umidità, vento, alba e tramonto, le prossime 12 ore e i prossimi 7 giorni; avvisa se è probabile pioggia nelle prossime ore |
 | **Appunti** | gli ultimi 30 testi e immagini copiati (fino a 10 immagini), più quelli fissati: clic per incollarli nell'app in primo piano, oppure copia, trasforma (MAIUSCOLO, minuscolo, una riga, senza spazi, JSON, URL), fissa, elimina; sulle immagini **Chiedi alla chat**. Solo in memoria, mai su disco; ciò che i gestori di password segnano come privato non viene registrato |
-| **Musica** | cosa sta suonando in qualsiasi app che compare nei controlli multimediali di Windows (Spotify, il browser, Lettore multimediale…), con copertina, avanzamento e ⏮ ⏯ ⏭; la pillola mostra il titolo del brano. Tutto in locale |
+| **Musica** | cosa sta suonando in qualsiasi app che compare nei controlli multimediali di Windows (Spotify, il browser, Lettore multimediale…), con copertina, avanzamento e ⏮ ⏯ ⏭; la Panoramica mostra il titolo del brano. Tutto in locale |
 | **3CX** | il centralino 3CX V20: chiamare (numero o ricerca in rubrica, da un dispositivo a scelta), chiamate in arrivo nell'isola con **Rispondi** / **Rifiuta**, **Riaggancia**, durata, stato, chiamate perse e recenti. Due accessi: **interno e password** (come l'app 3CX, senza licenze in più; accesso non documentato da 3CX) o un **client API** dell'Admin Console (licenza 8SC+; senza stato e cronologia). Numeri e nomi solo in memoria |
 
-Ogni integrazione può stare tra le pillole della panoramica oppure in alto
-nell'isola come **scheda**, con il suo nome o con un'icona a scelta ("Mostra
-come"). Aprendo la scheda si vede solo quell'integrazione; le pillole restano
-sulla scheda ⌂.
+Nel menu ogni integrazione mostra il suo logo (o il pallino del suo colore) oppure
+un'emoji a scelta ("Nel menu"), e ha un **colore** a scelta, che il personaggio
+indossa quando la sua scheda è aperta.
 
 Quali integrazioni sono accese, e come sono mostrate, dipende dal profilo.
 

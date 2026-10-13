@@ -4,8 +4,8 @@
 import { Tracked, Spring, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop, type WindowShot } from "../core/bridge";
 import {
-  EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_MIN_W, MAX_ISLAND_H, NOTCH_W, PANEL_H, PANEL_W,
-  ROUNDED_CORNER, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
+  BODY_GAP, EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_CHROME_H, ISLAND_MIN_W, NOTCH_W, PANEL_H, PANEL_W,
+  RAIL_GAP, RAIL_W, ROUNDED_CORNER, STRIP_H, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
   chatPromptHeight, collapsedBox, compactSize, cornerRadii, glueFor, isGlued, islandMax, islandSize, panelFor,
   type IslandMode, type IslandViewName, type Placement,
 } from "../core/layout";
@@ -21,6 +21,8 @@ import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { buildSearch, type SearchHost } from "../views/search";
+import { buildRail, railBotSize } from "../views/rail";
+import { buildStrip, type Strip } from "../views/strip";
 import { sendToChat, windowLabel } from "../views/chat";
 import { capturing, startCapture } from "./capture";
 import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state";
@@ -44,14 +46,12 @@ const LOOK_FRAME_MS = 33;
 const DRAG_THRESHOLD = 4;
 /** The carried character, logical px (carry.rs draws it this big, a little below the pointer). */
 const CARRY_SIZE = 56;
-/** Room kept between the header's tabs and its buttons (measureHeader). */
-const HEADER_GAP = 16;
+/** Least room for the character's bubble and the field in the top bar (measureHeader). */
+const HEADER_MIN = 420;
 
 /** The three views the drop sequence owns; leaving them stops the engine. */
 /** Views drawn at a fixed size: the user's width and height do not apply. */
 const FIXED_SIZE_VIEWS: ReadonlySet<IslandViewName> = new Set(["greeting", "upload", "uploading", "choose"]);
-/** The search bar under the views (src/views/search.ts): its height and the gap above it. */
-const SEARCH_H = 36;
 const UPLOAD_VIEWS: ReadonlySet<IslandViewName> = new Set(["upload", "uploading", "choose"]);
 
 /**
@@ -74,6 +74,13 @@ export class Island {
   private clipEl!: HTMLElement;
   private contentEl!: HTMLElement;
   private viewsEl!: HTMLElement;
+  /** The menu on the left of the open island (src/views/rail.ts), and the height it last needed. */
+  private rail!: ViewHost;
+  private railNeed = 0;
+  /** Beside the compact island's character (src/views/strip.ts), its measured width and its hold. */
+  private strip!: Strip;
+  private stripW = 0;
+  private stripHeld = false;
   private botCanvas!: HTMLCanvasElement;
   private botGlow!: HTMLElement;
   private greetingCanvas!: HTMLCanvasElement;
@@ -88,7 +95,7 @@ export class Island {
   private restDot!: HTMLElement;
   private restKey = "";
 
-  private header!: ViewHost;
+  private header!: ViewHost & { field: HTMLElement };
   private search!: SearchHost;
   /** Set while the user's own hover or click opens the island (openByUser). */
   private openedByUser = false;
@@ -155,7 +162,7 @@ export class Island {
   /** Closing from there: the island retracts in place, then the window goes home. */
   private awayClosing: number | null = null;
   private homeCollapseAt: number | null = null;
-  /** Width the header's tabs and buttons need (measureHeader). */
+  /** Width of the views the top bar needs for its buttons, bubble and field (measureHeader). */
   private headerNeed = 0;
   /** Hovering the compact island for `openDelay` seconds opens it. */
   private hoverOpenTimer: number | null = null;
@@ -299,11 +306,6 @@ export class Island {
         void Bridge.saveSettings(State.settings);
         State.notify();
       },
-      reorderTabs: (ids) => {
-        State.settings.tabOrder = ids;
-        void Bridge.saveSettings(State.settings);
-        State.notify();
-      },
       askAboutPicture: (f) => this.askAboutPicture(f),
       confirmRun: () => void this.startScript(),
       killRun: () => {
@@ -345,8 +347,16 @@ export class Island {
         Sound.play("blip");
         void Bridge.actionOpenApp(path, "").then(() => this.collapse(), (e) => this.note(String(e), State.view));
       },
+      ask: (text) => {
+        Sound.play("blip");
+        this.startChat(text, null, false);
+      },
     });
-    this.contentEl = h("div", { id: "content" }, this.header.el, this.viewsEl, this.search.el);
+    // The one field sits in the top bar; its results cover the views.
+    this.header.field.append(this.search.el);
+    this.rail = buildRail(actions);
+    this.strip = buildStrip({ decide: (d) => actions.decide(d) });
+    this.contentEl = h("div", { id: "content" }, this.header.el, h("div", { id: "body" }, this.rail.el, this.viewsEl));
 
     // The drop sequence draws the card, the bar and its own the character. It sits under
     // the header, which stays visible on top of it exactly as on macOS.
@@ -368,6 +378,7 @@ export class Island {
       this.greetingCanvas,
       this.uploadCanvas.el,
       this.contentEl,
+      this.strip.el,
     );
     this.islandEl = h(
       "div",
@@ -418,6 +429,7 @@ export class Island {
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
     // A pending request, or results of the search bar being looked through.
     this.fsm.waiting = () => State.pendingApproval != null || this.search.open || State.windowPick != null || this.windowPress != null;
+    this.fsm.held = () => this.strip.item?.urgent === true;
     this.fsm.onTransition = (from, to) => {
       switch (to) {
         case "hidden":
@@ -566,6 +578,19 @@ export class Island {
   private get searchShown(): boolean {
     return State.mode === "expanded" && State.settings.searchBar !== false
       && !FIXED_SIZE_VIEWS.has(State.view) && State.view !== "prompt" && !this.uploadActive;
+  }
+
+  /**
+   * The open island has its menu on the left, the character at its head. Not
+   * for the greeting and the drop sequence, drawn at their fixed size.
+   */
+  private get railShown(): boolean {
+    return State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view) && !this.uploadActive;
+  }
+
+  /** What the menu adds to the island's width. */
+  private get railRoom(): number {
+    return this.railShown ? RAIL_W + RAIL_GAP : 0;
   }
 
   /** Navigating out of the drop flow ends the sequence, as on macOS. */
@@ -1354,7 +1379,7 @@ export class Island {
 
   /** ← / → in the overview, or the "next pill" shortcut: focus the next pill. */
   cycleFocus(dir: 1 | -1) {
-    const list = State.tasks.filter((t) => !State.isTab(t.id));
+    const list = State.tasks;
     if (list.length < 2) return;
     const i = list.findIndex((t) => t.id === State.focusId);
     const next = list[(i + dir + list.length) % list.length];
@@ -1742,9 +1767,42 @@ export class Island {
     };
   }
 
+  /** The strip beside the compact island's character is up (src/views/strip.ts). */
+  private get stripShown(): boolean {
+    return State.mode === "compact" && this.strip.item != null && this.stripW > 0;
+  }
+
+  /**
+   * The compact island: the badge (or the bar), or with the strip the character
+   * in a square of the badge's height and the strip beside it.
+   */
+  private compactBox(): { w: number; h: number } {
+    const c = compactSize(this.placement);
+    if (!this.stripShown) return c;
+    const side = Math.max(c.h, STRIP_H);
+    return { w: side + this.stripW, h: side };
+  }
+
+  /**
+   * A request or a call the strip can answer, with the island closed: shown
+   * there (the compact island comes up and stays) instead of opening. False
+   * when the island should open as before: strip off, island open, greeting.
+   */
+  showInStrip(): boolean {
+    if ((State.settings.compactStrip ?? "right") === "off" || State.mode === "expanded" || this.fsm.state === "greeting") return false;
+    if (this.fsm.state === "hidden") {
+      this.quietLaunch = true; // the request's own sound, not the peek
+      this.fsm.reveal();
+    }
+    State.notify();
+    return true;
+  }
+
   private targetSize(): { w: number; h: number; r: number } {
-    const compact = compactSize(this.placement);
-    const fit = this.fit.view === State.view ? this.fit.h : 0;
+    const compact = this.compactBox();
+    const measured = this.fit.view === State.view ? this.fit.h : 0;
+    // With the menu, the views start below the top bar's gap (BODY_GAP).
+    const fit = measured > 0 && this.railShown ? measured + BODY_GAP : measured;
     let { w, h } = islandSize(State.mode, State.view, State.chatHistory.length, compact, fit);
     // The user's size of the open island (its corner, or Impostazioni → Posizione).
     // Greeting and drop sequence are drawn at a fixed size and keep theirs.
@@ -1753,6 +1811,11 @@ export class Island {
       const s = State.settings;
       w = this.openWidth(max.w);
       if (s.islandHeight > 0) h = Math.max(h, Math.min(max.h, Math.round(s.islandHeight)));
+      // The menu sits beside the views and keeps all its rows in sight.
+      if (this.railShown) {
+        w = Math.min(max.w, w + this.railRoom);
+        h = Math.max(h, Math.min(max.h, this.railMinH));
+      }
     }
     // Height the user added beyond the view's own: lists and text boxes grow by
     // it (CSS max-height: calc(… + var(--extra-h))) instead of keeping their
@@ -1760,8 +1823,6 @@ export class Island {
     // height so a list that grows does not feed back into the island's size.
     const natural = islandSize(State.mode, State.view, State.chatHistory.length, compact, fit).h;
     const extra = State.mode === "expanded" ? Math.max(0, h - natural) : 0;
-    // The search bar adds its own height: the views keep theirs.
-    if (this.searchShown) h = Math.min(Math.max(MAX_ISLAND_H, max.h), h + SEARCH_H);
     this.fitPanel();
     // Closing far from the character: it retracts where it is.
     if (this.away && State.mode !== "expanded") h = 0;
@@ -1769,21 +1830,42 @@ export class Island {
     this.islandEl.style.setProperty("--extra-w", `${State.mode === "expanded" ? Math.max(0, w - EXPANDED_W) : 0}px`);
     let r = State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
     // The hover badge is a circle; a floating bar is a pill.
-    if (State.mode !== "expanded" && this.placement.hoverStyle === "icon") r = compact.w / 2;
+    if (State.mode !== "expanded" && this.placement.hoverStyle === "icon") r = Math.min(compact.w, compact.h) / 2;
     else if (State.mode !== "expanded" && !isGlued(this.placement)) r = compact.h / 2;
     return { w, h, r };
   }
 
   /**
+   * The open island's least height on this view: its content (or the view's
+   * own size) and, with the menu, all the menu's rows. The corner stops here.
+   */
+  private minOpenHeight(): number {
+    const measured = this.fit.view === State.view ? this.fit.h : 0;
+    const fit = measured > 0 && this.railShown ? measured + BODY_GAP : measured;
+    let h = islandSize("expanded", State.view, State.chatHistory.length, this.compactBox(), fit).h;
+    if (this.railShown) h = Math.max(h, this.railMinH);
+    return Math.min(islandMax(this.limits).h, h);
+  }
+
+  /** The open island's least height with the menu: all its rows in sight. */
+  private get railMinH(): number {
+    return Math.ceil(ISLAND_CHROME_H + BODY_GAP + (this.rail.fitHeight?.() ?? 0));
+  }
+
+  /**
    * The window follows the user's size of the open island (search bar included):
    * the usual 720×560, or bigger up to the work area. It does not change with
-   * the view, only when the user resizes, so it never cuts an island in mid-animation.
+   * the view, only when the user resizes or the menu grows, so it never cuts an
+   * island in mid-animation. An island taller than its window, anchored at the
+   * bottom or in the middle, lost its top bar off the window.
    */
   private fitPanel() {
     const s = State.settings;
     const max = islandMax(this.limits);
-    const w = this.openWidth(max.w);
-    const h = s.islandHeight > 0 ? Math.min(max.h, s.islandHeight) + (s.searchBar !== false ? SEARCH_H : 0) : 0;
+    const w = Math.min(max.w, this.openWidth(max.w) + RAIL_W + RAIL_GAP);
+    const user = s.islandHeight > 0 ? s.islandHeight : 0;
+    const menu = this.railNeed > 0 ? ISLAND_CHROME_H + BODY_GAP + this.railNeed : 0;
+    const h = Math.min(max.h, Math.max(user, menu));
     const next = panelFor(w, Math.min(h, max.h), this.limits);
     if (next.w === this.panel.w && next.h === this.panel.h) return;
     this.panel = next;
@@ -1804,10 +1886,9 @@ export class Island {
    * measured after every header sync; a change resizes the island.
    */
   private measureHeader() {
-    const tabs = this.header.el.querySelector<HTMLElement>(".tabs");
     const buttons = this.header.el.querySelector<HTMLElement>(".header-actions");
-    if (!tabs || !buttons || !tabs.offsetWidth) return;
-    const need = Math.ceil(tabs.offsetWidth + buttons.offsetWidth + HEADER_GAP);
+    if (!buttons || !buttons.offsetWidth) return;
+    const need = Math.ceil(buttons.offsetWidth + HEADER_MIN) - this.railRoom;
     if (Math.abs(need - this.headerNeed) <= 1) return;
     this.headerNeed = need;
     if (State.mode === "expanded") this.animateGeometry(false);
@@ -1831,8 +1912,7 @@ export class Island {
     // the measured content height (fitHeight) while the island grew, and the
     // island chased it in jerks. Closing keeps the last width while it fades.
     if (State.mode === "expanded") {
-      const chrome = this.islandEl.offsetWidth - this.viewsEl.offsetWidth;
-      this.viewsEl.style.setProperty("--view-w", `${Math.round(w - (chrome > 0 && chrome < 80 ? chrome : 20))}px`);
+      this.viewsEl.style.setProperty("--view-w", `${Math.round(w - 20 - this.railRoom)}px`);
       this.viewsEl.dataset.anchor = this.placement.h;
     }
     if (shrinking) {
@@ -2001,7 +2081,12 @@ export class Island {
       e.stopPropagation();
       e.preventDefault();
       this.cancelHoverOpen();
-      start = { x: e.screenX, y: e.screenY, w: this.width.value, h: this.height.value };
+      // The width the user sets is the views' own: the menu beside them is
+      // not counted, or the island jumped by the menu's width on the first move.
+      start = {
+        x: e.screenX, y: e.screenY,
+        w: this.width.value - this.railRoom, h: this.height.value,
+      };
       g.setPointerCapture(e.pointerId);
     });
     g.addEventListener("pointermove", (e) => {
@@ -2009,8 +2094,12 @@ export class Island {
       const { fx, fy } = dirs();
       const s = State.settings;
       const max = islandMax(this.limits);
-      s.islandWidth = Math.round(Math.min(max.w, Math.max(ISLAND_MIN_W, start.w + (e.screenX - start.x) * fx)));
-      s.islandHeight = Math.round(Math.min(max.h, Math.max(0, start.h + (e.screenY - start.y) * fy)));
+      s.islandWidth = Math.round(Math.min(max.w, Math.max(ISLAND_MIN_W, this.headerNeed, start.w + (e.screenX - start.x) * fx)));
+      // Not below what the view needs: a height under it was saved as it was
+      // (the island stopped, the number went on with the pointer), so the
+      // corner no longer followed the pointer on the way back, and the island
+      // reopened at another size on a view of another height.
+      s.islandHeight = Math.round(Math.min(max.h, Math.max(this.minOpenHeight(), start.h + (e.screenY - start.y) * fy)));
       State.lastActivity = performance.now();
       this.animateGeometry(false);
     });
@@ -2096,6 +2185,8 @@ export class Island {
   private scheduleHoverOpen() {
     const delay = State.settings.openDelay;
     if (delay <= 0 || this.hoverOpenTimer != null || this.press) return;
+    // Its buttons are there to be clicked: the island opens only on a click.
+    if (this.stripShown && this.strip.item?.buttons.length) return;
     this.hoverOpenTimer = window.setTimeout(() => {
       this.hoverOpenTimer = null;
       if (State.mode !== "compact" || this.press) return;
@@ -2572,10 +2663,18 @@ export class Island {
 
   private updateBotTargets() {
     // Centred on the views, not on the search bar under them.
+    const compact = this.compactBox();
     const p = botPosition(
-      State.mode, State.view, this.height.value - (this.searchShown ? SEARCH_H : 0), State.uploadProgress,
-      compactSize(this.placement),
+      State.mode, State.view, this.height.value, State.uploadProgress,
+      compact, this.railShown ? railBotSize() : 0,
     );
+    if (this.stripShown) {
+      // In its square at one end, the strip on the other side.
+      const side = compact.h;
+      p.cx = State.settings.compactStrip === "left" ? this.width.value - side / 2 : side / 2;
+      p.cy = side / 2;
+      p.diameter = side * 0.56;
+    }
     this.botCx.target = p.cx;
     this.botCy.target = p.cy;
     this.botSize.target = p.diameter / 0.6;
@@ -2686,6 +2785,19 @@ export class Island {
 
     this.header.sync();
     this.measureHeader();
+    // The menu: shown with the open island, the views beside it with no room
+    // kept for the character any more (--bot-room in style.css).
+    const railed = this.railShown;
+    this.islandEl.classList.toggle("railed", railed);
+    if (railed) {
+      this.rail.sync();
+      // An integration switched on or off changes the menu's height: the island follows.
+      const need = Math.round(this.rail.fitHeight?.() ?? 0);
+      if (Math.abs(need - this.railNeed) > 1) {
+        this.railNeed = need;
+        this.animateGeometry(false);
+      }
+    }
     this.search.el.style.display = this.searchShown ? "" : "none";
     this.search.sync();
     for (const [name, view] of this.views) {
@@ -2719,7 +2831,8 @@ export class Island {
     }
 
     // Compact mini grid
-    const showGrid = State.mode === "compact" && this.placement.hoverStyle === "bar";
+    this.syncStrip();
+    const showGrid = State.mode === "compact" && this.placement.hoverStyle === "bar" && !this.stripShown;
     this.miniGrid.style.opacity = showGrid ? "1" : "0";
     if (showGrid) {
       // Four slots: past four, alerts first, three of them and "+N" for the rest.
@@ -2751,6 +2864,35 @@ export class Island {
       !State.quiet;
     this.restIcon.classList.toggle("on", showRest);
     if (showRest) this.drawRestIcon();
+  }
+
+  /**
+   * The strip beside the compact character: drawn, measured (a new width
+   * resizes the island) and placed on the chosen side. When what it held for
+   * is over, the compact island may hide again as usual.
+   */
+  private syncStrip() {
+    const changed = this.strip.sync();
+    const el = this.strip.el;
+    const item = this.strip.item;
+    if (changed) {
+      const w = item ? Math.ceil(el.offsetWidth) : 0;
+      if (w !== this.stripW) {
+        this.stripW = w;
+        if (State.mode === "compact") this.animateGeometry(false);
+      }
+    }
+    const shown = this.stripShown;
+    const side = Math.max(compactSize(this.placement).h, STRIP_H);
+    const left = State.settings.compactStrip === "left";
+    el.classList.toggle("on", shown);
+    el.classList.toggle("left", left);
+    el.style.height = `${side}px`;
+    el.style.left = left ? "" : `${side}px`;
+    el.style.right = left ? `${side}px` : "";
+    const held = item?.urgent === true;
+    if (this.stripHeld && !held && this.fsm.state === "petit" && !this.wasInIsland) this.fsm.mouseLeft();
+    this.stripHeld = held;
   }
 
   /** "Sempre visibile": a resting island comes straight back as the compact view. */

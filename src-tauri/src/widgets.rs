@@ -132,6 +132,9 @@ pub struct WidgetResult {
     /// Consumo Claude: the plan's percentages, for the island's header (usage.rs).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plan: Option<crate::usage::PlanGauge>,
+    /// Meteo: now, the next hours and the next days, for its card (probes::forecast_of).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub forecast: Option<serde_json::Value>,
 }
 
 impl WidgetResult {
@@ -145,6 +148,7 @@ impl WidgetResult {
             event: None,
             sky: None,
             plan: None,
+            forecast: None,
         }
     }
 }

@@ -130,6 +130,11 @@ function incomingCall(island: Island, _c: ThreecxCall) {
     State.notify();
     return;
   }
+  // Closed island: Rispondi / Rifiuta in the strip beside the character.
+  if (island.showInStrip()) {
+    State.notify();
+    return;
+  }
   State.setFocus(THREECX);
   heldByCall = true;
   island.setPinned(true);

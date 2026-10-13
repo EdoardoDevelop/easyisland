@@ -3,12 +3,11 @@
 // identically.
 
 import { isSorting, sortable } from "./sortable";
-import { h, svg, clear, dot, brandIcon, brandOrDot, hasMark, markIcon } from "./dom";
+import { h, svg, clear, dot, brandOrDot } from "./dom";
 import { ICONS } from "./icons";
 import { Ticker } from "./ticker";
 import { State, canAskSession, canOpen, engineLabel, isSessionTask, replyMode, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
-import { ISLAND_CHROME_H, MAX_ISLAND_H, washRGBA, type IslandViewName, type Wash } from "../core/layout";
-import { createMiniBot, pruneMiniBots } from "../character/minibots";
+import { washRGBA, type IslandViewName, type Wash } from "../core/layout";
 import { buildPrompt } from "./chat";
 import { buildChoose, buildFiles, buildUnzip, buildUpload, buildUploading } from "./upload";
 import { buildDiff } from "./diff";
@@ -72,8 +71,6 @@ export interface ViewActions extends ActionHandlers, RewriteHandlers {
   installUpdate(): void;
   /** Pills dragged into a new order (ids of the ones dragged among). */
   reorder(ids: string[]): void;
-  /** The header's tabs (fixed and integrations) dragged into a new order. */
-  reorderTabs(ids: string[]): void;
 }
 
 export interface ViewHost {
@@ -126,7 +123,7 @@ function agentWho(task: AgentTask | null, label: string): HTMLElement {
 
 function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElement {
   const el = h("div", { class: "stack" }, ...children);
-  el.style.padding = `4px ${padRight}px 4px ${padLeft}px`;
+  el.style.padding = `4px ${padRight}px 4px max(16px, calc(${padLeft}px * var(--bot-room, 1)))`;
   return el;
 }
 
@@ -164,37 +161,39 @@ function planGauge(): { key: string; parts: HTMLElement[]; title: string } | nul
   return { key: `${stale}|` + shown.map((s) => `${s.label}${s.pct}`).join("|") + lines.join("|"), parts, title: [t("Piano Claude"), ...lines].join("\n") };
 }
 
-export function buildHeader(actions: ViewActions): ViewHost {
-  const tabHome = h("button", { class: "tab", "data-id": "tab:home", title: t("Panoramica"), style: "--c:#38BDF8", onclick: () => {
-    // Every integration at a glance; a click on one opens its card.
-    State.summary = true;
-    go("overview");
-  } }, svg(ICONS.house, 16));
-  const tabClaude = h("button", { class: "tab", "data-id": "tab:claude", title: t("Agenti: le sessioni di Claude Code, opencode e degli altri agenti"), style: "--c:#D97757", onclick: () => {
-    // The agent heard from last (Claude Code, opencode, Codex…); the bar on the card switches.
-    const agent = State.latestSessionTask;
-    if (agent) State.setFocus(agent.id);
-    go("overview");
-  } });
-  // Agenti: the coding agents' sessions (Claude Code, Codex, opencode…), not
-  // only Claude's. Terminal icon (default), Claude's logo, name or emoji:
-  // Impostazioni → Agenti → Scheda nell'isola.
-  let claudeLook: string | null = null;
-  const drawClaudeTab = () => {
-    const look = State.settings.integrationTabIcons?.integration_claude?.trim() ?? "";
-    if (look === claudeLook) return;
-    claudeLook = look;
-    tabClaude.className = look === "@name" ? "tab int-tab" : look && look !== "@logo" ? "tab int-tab icon" : "tab";
-    tabClaude.replaceChildren(look === "@name" ? h("span", { text: t("Agenti") })
-      : look === "@logo" ? brandIcon("integration_claude", 15) ?? svg(ICONS.spark, 15)
-      : look ? h("span", { class: "int-tab-icon", text: look }) : svg(ICONS.terminal, 15));
-  };
-  drawClaudeTab();
-  const tabChat = h("button", { class: "tab", "data-id": "tab:chat", title: t("Chiedi"), style: "--c:#A78BFA", onclick: () => go("prompt") }, svg(ICONS.bubble, 16));
-  const tabDrop = h("button", { class: "tab", "data-id": "tab:drop", title: t("Rilascia"), style: "--c:#22C55E", onclick: () => go("upload") }, svg(ICONS.plus, 16));
-  const tabActions = h("button", { class: "tab", "data-id": "tab:actions", title: t("Azioni"), style: "--c:#F5A524", onclick: () => go("actions") }, svg(ICONS.bolt, 16));
-  const fixedTabs = [tabHome, tabClaude, tabChat, tabActions, tabDrop];
+/**
+ * What the character says in the top bar: the request waiting, the session at
+ * work or the card on screen; on Panoramica, what needs looking at. Two short lines.
+ */
+function bubble(): [string, string] {
+  const req = State.pendingApproval;
+  const task = State.focusTask;
+  if (req) {
+    const who = req.source === "chat" ? t("La chat") : task?.name ?? t("Un agente");
+    return [req.questions?.length ? t("{who} ha una domanda", { who }) : t("{who} chiede un permesso", { who }), req.command || req.tool || ""];
+  }
+  switch (State.view) {
+    case "prompt": return [t("Chiedimi pure."), `Chat · ${engineLabel(State.settings)}`];
+    case "actions": case "run": case "rewrite": return [t("Le tue azioni."), t("anche sul testo selezionato nell'app in primo piano")];
+    case "files": case "unzip": return [t("File e schermo."), t("Rilascia un file sull'isola o cerchia una zona")];
+    case "settings": return [t("Impostazioni rapide."), ""];
+    case "upload": case "choose": return [t("Rilascia qui un file."), t("Ti chiedo cosa farne")];
+  }
+  if (State.showsSummary) {
+    const news = State.tasks.filter((x) => x.pillBadge);
+    const busy = State.sessionTasks.filter((x) => x.state !== "idle" && x.state !== "sleeping" && x.state !== "finished");
+    const first = news.length === 1 ? t("Novità da {name}.", { name: news[0].name })
+      : news.length > 1 ? t("{n} integrazioni hanno novità.", { n: news.length }) : t("Tutto tranquillo.");
+    const second = busy.length === 1 ? t("{name} sta lavorando", { name: busy[0].name })
+      : busy.length > 1 ? t("{n} sessioni al lavoro", { n: busy.length }) : "";
+    return [first, second];
+  }
+  if (!task) return [t("Tutto tranquillo."), ""];
+  const last = task.steps.at(-1) ?? "";
+  return [task.agentName ? `${task.name} · ${task.agentName}` : task.name, last];
+}
 
+export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLElement } {
   const pinBtn = h("button", { title: t("Tieni aperta"), style: "--c:#A78BFA", onclick: () => {
     actions.blip();
     actions.toggleKeepOpen();
@@ -215,68 +214,32 @@ export function buildHeader(actions: ViewActions): ViewHost {
     actions.setView(v);
   }
 
-  // One row: the fixed tabs and the integrations the user wants as tabs
-  // (Impostazioni → Integrazioni), in the order dragged in the island.
-  const tabsRow = h("div", { class: "tabs" }, ...fixedTabs);
-  let tabsKey = "";
-  let intTabs: HTMLElement[] = [];
-  sortable(tabsRow, { enabled: () => !State.settings.lockOrder, onReorder: (ids) => actions.reorderTabs(ids) });
+  // The character's bubble (Impostazioni → Posizione e aspetto → Fumetto), and
+  // the place of the one field (search.ts, put here by island.ts).
+  const say = h("span", { class: "say-1" });
+  const sayMore = h("span", { class: "say-2" });
+  const talk = h("div", { class: "say" }, say, sayMore);
+  const field = h("div", { class: "header-field" });
 
   const el = h(
     "div",
     { id: "header" },
-    tabsRow,
+    talk,
+    field,
     h("div", { class: "header-actions" }, planBtn, pinBtn, gearBtn, soundBtn, closeBtn),
   );
 
   return {
     el,
+    field,
     sync() {
       const v = State.view;
-      const overview = v === "overview" || v === "empty";
-      tabHome.classList.toggle("on", overview && showsSummary());
-      drawClaudeTab();
-      // No agent to show (Claude Code off, nothing followed, no session): no tab.
-      tabClaude.style.display = State.latestSessionTask ? "" : "none";
-      tabClaude.classList.toggle("on", overview && !showsSummary() && isSessionTask(State.focusTask));
-      const tabs = State.tabTasks;
-      const icons = State.settings.integrationTabIcons ?? {};
-      const tabOrder = State.settings.tabOrder ?? [];
-      const key = tabs.map((t) => `${t.id}:${t.name}:${t.color}:${icons[t.id] ?? ""}`).join("|") + `#${tabOrder.join("|")}`;
-      if (key !== tabsKey && !isSorting(tabsRow)) {
-        tabsKey = key;
-        intTabs = [];
-        for (const t of tabs) {
-          // "@logo": the brand logo alone (Impostazioni → Integrazioni → Mostra come).
-          const logo = icons[t.id]?.trim() === "@logo" ? markIcon(t.id, 15) : null;
-          const icon = logo ? "" : icons[t.id]?.trim();
-          intTabs.push(h("button", {
-            class: logo ? "tab" : icon ? "tab int-tab icon" : "tab int-tab", "data-id": t.id, title: t.name,
-            onclick: () => {
-              actions.blip();
-              State.setFocus(t.id);
-              actions.setView("overview");
-            },
-          }, logo ?? (icon ? h("span", { class: "int-tab-icon", text: icon }) : brandOrDot(t.id, t.color, 8)),
-            logo || icon ? null : h("span", { text: t.name })));
-        }
-        // Dragged order first; the rest as usual: fixed tabs, then integrations.
-        const all = [...fixedTabs, ...intTabs];
-        const rank = (b: HTMLElement) => {
-          const i = tabOrder.indexOf(b.dataset.id ?? "");
-          return i >= 0 ? i : tabOrder.length + all.indexOf(b);
-        };
-        tabsRow.replaceChildren(...all.sort((a, b) => rank(a) - rank(b)));
-      }
-      for (const b of intTabs) {
-        const t = tabs.find((x) => x.id === b.dataset.id);
-        // On ⌂ only the house is lit, even though the last integration keeps the focus.
-        b.classList.toggle("on", overview && !showsSummary() && State.focusId === b.dataset.id);
-        b.classList.toggle("badge", !!t?.pillBadge);
-      }
-      tabChat.classList.toggle("on", v === "prompt");
-      tabDrop.classList.toggle("on", v === "upload");
-      tabActions.classList.toggle("on", v === "actions" || v === "run");
+      const [a, b] = bubble();
+      if (say.textContent !== a) say.textContent = a;
+      if (sayMore.textContent !== b) sayMore.textContent = b;
+      talk.style.display = State.settings.characterBubble === false ? "none" : "";
+      talk.title = b ? `${a}
+${b}` : a;
       gearBtn.classList.toggle("on", v === "settings");
       pinBtn.classList.toggle("on", State.keepOpen);
       pinBtn.classList.toggle("pinned", State.keepOpen);
@@ -342,17 +305,9 @@ function buildOverview(actions: ViewActions): ViewHost {
     svg(ICONS.bubble, 12),
   );
   const left = card(null, agentBar, leftBody, jump, askJump);
-  const pills = h("div", { class: "pills" });
-  sortable(pills, { enabled: () => !State.settings.lockOrder, onReorder: (ids) => actions.reorder(ids) });
-  const right = card(null, pills);
+  // One card: the menu on the left (rail.ts) lists the integrations.
+  const el = h("div", { class: "view overview solo" }, h("div", { class: "left" }, left));
 
-  const el = h("div", { class: "view overview" },
-    h("div", { class: "left" }, left),
-    h("div", { class: "right" }, right),
-  );
-
-  let pillIds = "";
-  let pillCount = 0;
   let detailOpen = false;
   let lastFocus: string | null = null;
   let mode: "ticker" | "card" | null = null;
@@ -468,7 +423,8 @@ function buildOverview(actions: ViewActions): ViewHost {
         }
       } else if (showsSummary()) {
         const key = "summary~" + State.tasks.map((t) => `${t.id}:${t.state}:${t.pillBadge ?? ""}:${pillLabel(t).text}:${t.steps.join("|")}`).join("~");
-        const sorting = leftBody.firstElementChild instanceof HTMLElement && isSorting(leftBody.firstElementChild);
+        const grid = leftBody.querySelector<HTMLElement>(".summary");
+        const sorting = !!grid && isSorting(grid);
         if (key !== cardKey && !sorting) {
           cardKey = key;
           mode = "card";
@@ -497,34 +453,11 @@ function buildOverview(actions: ViewActions): ViewHost {
       jump.style.display = detailOpen || showsSummary() || !canOpen(task) ? "none" : "";
       askJump.style.display = mode === "ticker" && !showsSummary() && canAskSession(task) ? "" : "none";
 
-      // Every pill is shown (the island grows to fit them); alerts go first.
-      // An integration opened from its header tab stands alone: pills only on ⌂.
-      // Claude Code has its own tab too; the summary already lists everything.
-      const onTab = showsSummary() || (task != null && (State.isTab(task.id) || isSessionTask(task)));
-      // In the user's order (dragged in the island): a pill with an alert keeps its place.
-      // Agents live in the Agenti tab (and the summary), not among the pills.
-      const others = onTab ? [] : State.otherTasks.filter((t) => !isSessionTask(t));
-      pillCount = others.length;
-      const pillKey = others.map((t) => `${t.id}:${t.pillBadge ?? ""}:${pillLabel(t).title ?? pillLabel(t).text}`).join("|");
-      if (pillKey !== pillIds && !isSorting(pills)) {
-        pillIds = pillKey;
-        clear(pills);
-        for (const t of others) pills.append(buildPill(t, actions));
-        pruneMiniBots();
-      }
-      // Every integration switched off: no empty box, the main card takes the room.
-      el.classList.toggle("solo", others.length === 0);
     },
     fitHeight() {
       // The left card's content (it flows from the top), plus a bottom margin…
       const content = leftBody.firstElementChild as HTMLElement | null;
-      const leftH = (content ? content.offsetHeight + 12 : 0) + (agentBar.style.display === "none" ? 0 : agentBar.offsetHeight);
-      // …and the pills, two per row.
-      const rows = Math.ceil(pillCount / 2);
-      const pillsH = rows > 0 ? rows * 28 + (rows - 1) * 4 + 16 : 0;
-      // Only past the tallest island do the pills scroll.
-      pills.classList.toggle("scroll", pillsH > MAX_ISLAND_H - ISLAND_CHROME_H);
-      return Math.max(leftH, pillsH);
+      return (content ? content.offsetHeight + 12 : 0) + (agentBar.style.display === "none" ? 0 : agentBar.offsetHeight);
     },
   };
 }
@@ -534,23 +467,28 @@ function showsSummary(): boolean {
   return State.showsSummary;
 }
 
-/** Panoramica: one row per integration (and agent) with its latest line; a click opens its card. */
+/** Panoramica: a tile per integration (and agent) with its latest line; a click opens its card. */
 function renderSummary(actions: ViewActions): HTMLElement {
+  const date = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+  const head = h("div", { class: "today-head" }, h("span", { class: "today-title", text: t("Panoramica") }), h("span", { class: "today-date", text: date }));
   const grid = h("div", { class: "summary" });
   for (const t of State.tasks) {
     const label = pillLabel(t);
     const status = t.steps.length ? t.steps[t.steps.length - 1] : t.state === "idle" ? "" : t.state;
     const row = h("button", { class: "summary-row", "data-id": t.id, title: label.title ?? t.name, onclick: () => actions.setFocus(t.id) },
-      brandOrDot(t.id, t.color, 8),
-      h("span", { class: "summary-name", text: label.text }),
-      h("span", { class: "summary-status", text: status }));
+      h("span", { class: "summary-top" },
+        brandOrDot(t.id, t.color, 8),
+        h("span", { class: "summary-name", text: label.text }),
+        t.pillBadge ? h("i", { class: "summary-badge" }) : null),
+      h("span", { class: "summary-status", text: status || " " }));
+    row.style.setProperty("--c", t.color);
     if (t.pillBadge) row.classList.add(`badge-${t.pillBadge}`);
     grid.append(row);
   }
   if (!State.tasks.length) grid.append(h("span", { class: "hint", text: t("Nessuna integrazione attiva") }));
-  // Dragged into the order the user wants: the same order as the pills.
+  // Dragged into the order the user wants: the same order as the menu.
   sortable(grid, { enabled: () => !State.settings.lockOrder, onReorder: (ids) => actions.reorder(ids) });
-  return grid;
+  return h("div", { class: "today" }, head, grid);
 }
 
 /** The pill's text: the song for Musica (name and artist in the tooltip), the name otherwise. */
@@ -567,56 +505,12 @@ function pillLabel(task: AgentTask): { text: string; title?: string; song?: bool
 }
 
 
-function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
-  const label = pillLabel(task);
-  const canvas = createMiniBot(task, 24);
-  const pill = h(
-    "div",
-    { class: (label.song ? "pill song" : "pill") + (hasMark(task.id) ? " has-brand" : ""), "data-id": task.id, title: label.title ?? "",
-      onclick: () => actions.setFocus(task.id) },
-    canvas,
-    markIcon(task.id, 13),
-    h("span", { class: "lbl", text: label.text }),
-  );
-  pill.style.borderColor = `${task.color}24`;
-  pill.addEventListener("mouseenter", () => {
-    pill.style.background = `${task.color}2e`;
-    pill.style.borderColor = `${task.color}8c`;
-    pill.style.boxShadow = `0 2px 10px ${task.color}59`;
-    (pill.querySelector(".lbl") as HTMLElement).style.color = lighten(task.color, 0.3);
-  });
-  pill.addEventListener("mouseleave", () => {
-    pill.style.background = "";
-    pill.style.borderColor = `${task.color}24`;
-    pill.style.boxShadow = "";
-    (pill.querySelector(".lbl") as HTMLElement).style.color = "";
-  });
-
-  if (task.pillBadge) {
-    const colors = { approval: "#F5A524", finished: "#22C55E", error: "#F4505E" } as const;
-    const icons = { approval: ICONS.bang, finished: ICONS.check, error: ICONS.xmark } as const;
-    const inner = h("i", { style: `background:${colors[task.pillBadge]}` }, svg(icons[task.pillBadge], 6, { stroke: task.pillBadge === "finished" ? 3 : 0 }));
-    const badge = h("div", { class: "pill-badge" }, inner);
-    badge.style.boxShadow = `0 0 4px ${colors[task.pillBadge]}99`;
-    pill.append(badge);
-  }
-  return pill;
-}
-
-function lighten(hex: string, amount: number): string {
-  const v = parseInt(hex.replace("#", ""), 16);
-  const c = [(v >> 16) & 255, (v >> 8) & 255, v & 255].map((x) =>
-    Math.min(255, Math.round(x + amount * 255)),
-  );
-  return `rgb(${c[0]},${c[1]},${c[2]})`;
-}
-
 // ── Empty ─────────────────────────────────────────────────────────────────────
 
 function buildEmpty(actions: ViewActions): ViewHost {
   const body = h(
     "div",
-    { class: "stack", style: "padding:0 18px 0 118px;flex-direction:row;align-items:center;gap:16px" },
+    { class: "stack", style: "padding:0 18px 0 max(16px, calc(118px * var(--bot-room, 1)));flex-direction:row;align-items:center;gap:16px" },
     h(
       "div",
       { style: "display:flex;flex-direction:column;gap:5px" },
@@ -1007,7 +901,7 @@ function buildFinished(actions: ViewActions): ViewHost {
 function buildConfused(): ViewHost {
   const body = h(
     "div",
-    { class: "stack", style: "padding:0 18px 0 128px" },
+    { class: "stack", style: "padding:0 18px 0 max(16px, calc(128px * var(--bot-room, 1)))" },
     h("div", { class: "title", text: t("Troppi colpi tutti insieme.") }),
     h("div", { class: "sub", text: t("Dammi un attimo: torno al lavoro tra tre secondi.") }),
   );
@@ -1018,7 +912,7 @@ function buildConfused(): ViewHost {
 
 function buildNote(): ViewHost {
   const title = h("div", { class: "title" });
-  const el = h("div", { class: "view" }, card(null, h("div", { class: "stack", style: "padding:0 18px 0 98px" }, title)));
+  const el = h("div", { class: "view" }, card(null, h("div", { class: "stack", style: "padding:0 18px 0 max(16px, calc(98px * var(--bot-room, 1)))" }, title)));
   return {
     el,
     sync() {
@@ -1119,7 +1013,7 @@ function buildSettings(actions: ViewActions): ViewHost {
   );
 
   const el = h("div", { class: "view" },
-    card(null, h("div", { class: "stack", style: "padding:14px 16px 14px 84px" }, rows)));
+    card(null, h("div", { class: "stack", style: "padding:14px 16px 14px max(16px, calc(84px * var(--bot-room, 1)))" }, rows)));
 
   return {
     el,
@@ -1149,7 +1043,7 @@ function buildSettings(actions: ViewActions): ViewHost {
 function buildPlaceholder(title: string, sub: string): ViewHost {
   const body = h(
     "div",
-    { class: "stack", style: "padding:0 18px 0 118px" },
+    { class: "stack", style: "padding:0 18px 0 max(16px, calc(118px * var(--bot-room, 1)))" },
     h("div", { class: "title", text: title }),
     h("div", { class: "sub", text: sub }),
   );

@@ -32,6 +32,9 @@ function frame() {
 }
 
 export async function runScene(island: Island, scene: string) {
+  // Every scene can be driven from the console (and by the checks): `window.island`.
+  (window as unknown as { island: Island; State: typeof State }).island = island;
+  (window as unknown as { State: typeof State }).State = State;
   switch (scene) {
     case "greeting":
       // The launch greeting is already running: catch Slime waving.
@@ -41,6 +44,35 @@ export async function runScene(island: Island, scene: string) {
       // ?hoverStyle=bar&revealDuration=0: the greeting folds into the compact bar.
       await wait(7000);
       break;
+    case "strip": {
+      // The closed island's strip: ?scene=strip&strip=approval|call|live|work (&compactStrip=left).
+      await wait(300);
+      island.collapse(true);
+      const kind = new URLSearchParams(location.search).get("strip") ?? "approval";
+      const now = Date.now();
+      if (kind === "approval") {
+        session("approval", ["Bash · npm run pack"]);
+        State.pendingApproval = {
+          requestId: "scene", taskId: CLAUDE, sessionId: "", tool: "Bash", command: "npm run pack", deadline: now + 94_000,
+        };
+        State.isPinned = true;
+      } else if (kind === "call" || kind === "live") {
+        State.integrations.integration_3cx = {
+          loaded: true, configured: true, error: null,
+          data: {
+            mode: "user", connected: true, number: "101", name: "Mario Rossi",
+            calls: [kind === "call"
+              ? { id: "7", state: "ringing", incoming: true, name: "Cliente Srl", number: "+39 051 123456", since: now, canAnswer: true, dialog: "" }
+              : { id: "5", state: "connected", incoming: false, name: "", number: "0512345678", since: now - 109_000, canAnswer: false, dialog: "" }],
+          },
+        };
+      } else {
+        session("working", ["Read · src/views/strip.ts", "Bash · npm run build"]);
+      }
+      island.showInStrip();
+      await wait(1500);
+      break;
+    }
     case "overview":
       await wait(300);
       session("working", ["Read · src/character/slime.ts", "Edit · src/character/engine.ts", "Bash · npm run build"]);
@@ -310,6 +342,22 @@ export async function runScene(island: Island, scene: string) {
         id: "integration_weather", level: "warn", at: Math.floor(Date.now() / 1000) - 60,
         summary: "Bologna: 14°, pioggia probabile a breve (80%)", sky: q.get("sky") ?? "rain",
         fields: [{ label: "Cielo", value: "pioggia" }, { label: "Pioggia (prossime 3 ore)", value: "80%" }],
+        // The card's data (probes.rs forecast_of); &night for the night sky.
+        forecast: {
+          place: "Bologna", temp: 14.3, feels: 12, humidity: 71, wind: 9, windDir: 225,
+          day: !q.has("night"), sky: q.get("sky") ?? "rain", text: "pioggia debole",
+          sunrise: "07:21", sunset: "18:40", uv: 2,
+          hourly: Array.from({ length: 12 }, (_, i) => ({
+            hour: String((14 + i) % 24).padStart(2, "0"), temp: 14 - i * 0.4,
+            sky: ["rain", "rain", "drizzle", "cloud", "cloud", "sun-cloud", "moon-cloud", "moon", "moon", "moon", "cloud", "fog"][i],
+            rain: [80, 70, 45, 20, 10, 0, 0, 0, 0, 5, 10, 15][i],
+          })),
+          daily: ["rain", "sun-cloud", "sun", "cloud", "storm", "snow", "fog"].map((sky, i) => ({
+            date: new Date(Date.now() + i * 86400000).toISOString().slice(0, 10),
+            max: [18, 20, 22, 19, 16, 6, 12][i], min: [9, 10, 11, 12, 10, -1, 6][i], sky, text: sky,
+            rain: [90, 20, 0, 10, 70, 60, 5][i],
+          })),
+        },
       };
       if (q.has("idle")) {
         State.settings.integrationConfig.weatherOnCharacter = true;

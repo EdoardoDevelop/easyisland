@@ -9,6 +9,7 @@ import { ICONS } from "./icons";
 import { State, PROBE_INTEGRATIONS, sessionOpenLabel, type AgentTask } from "../core/state";
 import { Bridge } from "../core/bridge";
 import { THREECX, threecxCard } from "./threecx";
+import { weatherCard } from "./weather";
 import { locale, t } from "../core/i18n";
 
 /** Same shape as the Swift `timeAgo` computed properties. */
@@ -672,6 +673,10 @@ export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHoo
   if (task.id === "integration_clipboard") return clipboardCard(task, hooks);
   if (task.id === "integration_media") return mediaCard(task);
   if (task.id === THREECX) return threecxCard(task, hooks.openSettings);
+  if (task.id === "integration_weather") {
+    const card = weatherCard(task, hooks.openSettings);
+    if (card) return card;
+  }
   if (task.id.startsWith("widget:") || PROBE_INTEGRATIONS[task.id]) return widgetCard(task, hooks.openSettings);
   if (task.id === "integration_n8n") {
     const hasActivity = task.steps.length > 0 && (task.state === "finished" || task.state === "error");

@@ -15,7 +15,7 @@
 
 ## Installare su questo PC
 - **Mai** lanciare installer o app dalla shell di Claude: l'app Claude è MSIX e reindirizza AppData.
-- Dopo `npm run pack`, aggiorna la versione in `release\installa.cmd` e avvialo tramite Esplora file:
+- Dopo `npm run pack` avvia `release\installa.cmd` tramite Esplora file (installa `EasyIsland-Windows-setup.exe`, la copia senza versione che `pack` rifà ogni volta: niente numero da aggiornare a mano):
   `Start-Process explorer.exe -ArgumentList "`"$PWD\release\installa.cmd`""`
 - Per controllare che l'installazione sia andata: `\\localhost\C$\Users\Edoardo\AppData\Local\EasyIsland\` (data dell'exe e riga `started` in `easyisland.log`).
 - **Avvio dopo un aggiornamento** (12 ottobre 2026): l'installer chiude EasyIsland, ma i suoi processi WebView2 possono restare in chiusura per minuti e tenere occupato il profilo (`%LOCALAPPDATA%\it.edoardo.easyisland\EBWebView`). La nuova istanza falliva con 0x800700AA, Tauri andava in panic e l'app si chiudeva (0xc0000409); WerFault poi teneva in vita una copia del processo e ogni nuovo avvio restava bloccato dall'istanza singola. Ora `webview_profile.rs` aspetta, chiude gli avanzi del nostro profilo e, se è ancora occupato, per quella volta usa `spare\EBWebView`: per questo la finestra dell'isola ha `"create": false` in `tauri.conf.json` e la crea il setup. Un panic finisce nel log come `panic: …`.

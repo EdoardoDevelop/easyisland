@@ -14,6 +14,7 @@ import { Recap } from "./recap";
 import { risksOf } from "./risk";
 import { t, tn } from "../core/i18n";
 import { plainText } from "../core/markdown";
+import { quickApproval } from "../views/strip";
 
 const CLAUDE_ID = "integration_claude";
 
@@ -26,6 +27,8 @@ interface HookPayload {
   session_id?: string;
   cwd?: string;
   message?: string;
+  /** Notification: "idle_prompt" when Claude Code has been waiting for input for a minute. */
+  notification_type?: string;
   /** UserPromptSubmit carries `prompt`; `message` belongs to Notification/Stop. */
   prompt?: string;
   tool_name?: string;
@@ -254,7 +257,7 @@ function handleChatPermission(island: Island, payload: HookPayload) {
   if (requestId) void Bridge.approvalAck(requestId);
   State.isPinned = true;
   Sound.play("approval");
-  island.alert("approval");
+  if (!(quickApproval(State.pendingApproval) && island.showInStrip())) island.alert("approval");
   State.notify();
   // The relay gives up after ~110 s and the call is refused; the card must not
   // outlive it.
@@ -475,6 +478,38 @@ function clearSession(tid: string) {
   t.lastMessage = null;
   t.name = t.agentName ?? "Claude Code";
   t.pillBadge = null;
+}
+
+/**
+ * A session that went quiet while it looked busy (interrupted with Esc, a turn
+ * that ended without Stop, an agent that never says it is done): after this
+ * long without an event its character goes back to its own colour. A long
+ * tool or answer still at work puts it back on the next event.
+ */
+const STALE_MS = 5 * 60_000;
+const BUSY = new Set(["thinking", "working", "question", "approval"]);
+const staleTimers = new Map<string, number>();
+
+function armStale(tid: string) {
+  const old = staleTimers.get(tid);
+  if (old != null) window.clearTimeout(old);
+  staleTimers.delete(tid);
+  const t = State.tasks.find((x) => x.id === tid);
+  if (!t || !BUSY.has(t.state)) return;
+  staleTimers.set(tid, window.setTimeout(() => {
+    staleTimers.delete(tid);
+    // A card still waiting for an answer keeps its colour (it has its own timeout).
+    if (State.pendingApproval != null && (State.pendingApproval.taskId ?? CLAUDE_ID) === tid) return armStale(tid);
+    goIdle(tid);
+  }, STALE_MS));
+}
+
+/** Back to the character's own colour, unless a permission still waits for this session. */
+function goIdle(tid: string) {
+  const t = State.tasks.find((x) => x.id === tid);
+  const waiting = State.pendingApproval != null && (State.pendingApproval.taskId ?? CLAUDE_ID) === tid;
+  if (!t || !BUSY.has(t.state) || waiting) return;
+  State.updateTask(tid, "idle");
 }
 
 export function registerHookHandlers(island: Island) {
@@ -758,7 +793,10 @@ export function handleHook(island: Island, payload: HookPayload) {
         break;
       }
       const lower = message.toLowerCase();
-      if (lower.includes("rate limit") || lower.includes("limite d")) {
+      // Claude Code waiting for the next prompt (Esc, or a turn over without Stop).
+      if (payload.notification_type === "idle_prompt" || lower.includes("waiting for your input")) {
+        goIdle(tid);
+      } else if (lower.includes("rate limit") || lower.includes("limite d")) {
         State.updateTask(tid, "ratelimit");
         if (State.reaction("agentLimit") === "show") Sound.play("rate");
       } else if (message.endsWith("?")) {
@@ -795,7 +833,8 @@ export function handleHook(island: Island, payload: HookPayload) {
         State.notify();
       });
       window.setTimeout(() => {
-        State.updateTask(tid, "idle");
+        // A new prompt meanwhile keeps its own state.
+        if (State.tasks.find((x) => x.id === tid)?.state === "finished") State.updateTask(tid, "idle");
         State.setPillBadge(tid, null);
       }, 5200);
       break;
@@ -873,7 +912,9 @@ export function handleHook(island: Island, payload: HookPayload) {
       // even over another pill or view; answering goes back there.
       island.rememberBeforeCard();
       State.setFocus(tid);
-      island.alert(card);
+      // A plain allow / deny with the island closed: answered from the strip
+      // beside the character (src/views/strip.ts), the island stays closed.
+      if (!(card === "approval" && quickApproval(State.pendingApproval) && island.showInStrip())) island.alert(card);
       // EasyIsland answers within 108 s or not at all; after that the terminal has
       // taken over and the card would be lying.
       pendingTimeout = window.setTimeout(() => {
@@ -889,5 +930,6 @@ export function handleHook(island: Island, payload: HookPayload) {
     default:
       break;
   }
+  armStale(tid);
   State.notify();
 }

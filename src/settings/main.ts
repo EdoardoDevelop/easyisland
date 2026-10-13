@@ -9,8 +9,7 @@ import { Bridge, onEvent, type HookStatus, type ModelOption } from "../core/brid
 import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type Settings, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
-import { h, clear, TAB_ICONS } from "../views/dom";
-import { BRAND_SVG } from "../views/brands";
+import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
 import { ISLAND_MIN_W, PANEL_H, PANEL_W, islandMax } from "../core/layout";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 import { language, locale, resolveLanguage, syncLanguage, t } from "../core/i18n";
@@ -249,9 +248,9 @@ function agentsTabSection(): HTMLElement {
   const place = h("select", {},
     h("option", { value: "icon", text: t("Icona del terminale") }),
     h("option", { value: "logo", text: t("Logo di Claude") }),
-    h("option", { value: "name", text: t("Nome (Agenti)") }),
     h("option", { value: "emoji", text: t("Emoji o lettere") })) as HTMLSelectElement;
-  place.value = !cur ? "icon" : cur === "@name" ? "name" : cur === "@logo" ? "logo" : "emoji";
+  // "@name" was the header tab with the word "Agenti": the menu always has the name.
+  place.value = !cur || cur === "@name" ? "icon" : cur === "@logo" ? "logo" : "emoji";
   const emoji = h("input", {
     type: "text", maxlength: "4", spellcheck: "false", style: "width:56px;text-align:center",
     title: t("Un'emoji o una o due lettere"), placeholder: "✳",
@@ -260,7 +259,6 @@ function agentsTabSection(): HTMLElement {
   const apply = () => {
     emoji.style.display = place.value === "emoji" ? "" : "none";
     if (place.value === "icon") delete icons()[id];
-    else if (place.value === "name") icons()[id] = "@name";
     else if (place.value === "logo") icons()[id] = "@logo";
     else icons()[id] = emoji.value.trim() || (emoji.value = "✳");
   };
@@ -268,10 +266,10 @@ function agentsTabSection(): HTMLElement {
   place.addEventListener("change", () => { apply(); void save(); });
   emoji.addEventListener("change", () => { apply(); void save(); });
   return h("section", {},
-    h("h2", {}, h("span", { text: t("Scheda nell'isola") })),
+    h("h2", {}, h("span", { text: t("Nel menu dell'isola") })),
     h("div", { class: "row" },
-      h("label", { text: t("Aspetto") }), place, emoji,
-      h("span", { class: "hint note", text: t("la scheda in alto con le sessioni degli agenti") })));
+      h("label", { text: t("Icona") }), place, emoji,
+      h("span", { class: "hint note", text: t("la voce Agenti, con le sessioni degli agenti") })));
 }
 
 // ── Claude chat section ───────────────────────────────────────────────────────
@@ -955,29 +953,23 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
       rows.append(row);
     }
     syncVisible();
+    // Its icon in the island's menu: the logo (or its colour) or the user's emoji.
     const place = h("select", {},
-      h("option", { value: "pill", text: t("Pillola nella panoramica") }),
-      h("option", { value: "tab", text: t("Scheda in alto, con il nome") }),
-      h("option", { value: "icon", text: t("Scheda in alto, con un'icona") })) as HTMLSelectElement;
-    // Integrations with a brand logo can show just that in their tab.
-    if (BRAND_SVG[def.id]) place.insertBefore(h("option", { value: "logo", text: t("Scheda in alto, con il logo") }), place.lastChild);
+      h("option", { value: "logo", text: hasMark(def.id) ? t("Logo") : t("Pallino del suo colore") }),
+      h("option", { value: "icon", text: t("Emoji o lettere") })) as HTMLSelectElement;
     const iconInput = h("input", {
       type: "text", maxlength: "4", spellcheck: "false", style: "width:56px;text-align:center",
       title: t("Un'emoji o una o due lettere"), placeholder: TAB_ICONS[def.id] ?? "★",
     }) as HTMLInputElement;
     const icons = () => (settings.integrationTabIcons ??= {});
-    iconInput.value = icons()[def.id] === "@logo" ? "" : icons()[def.id] ?? "";
-    const isTab = (settings.integrationTabs ?? []).includes(def.id);
-    place.value = !isTab ? "pill" : icons()[def.id] === "@logo" ? "logo" : icons()[def.id] ? "icon" : "tab";
+    const own = icons()[def.id]?.trim() ?? "";
+    iconInput.value = own.startsWith("@") ? "" : own;
+    place.value = own && !own.startsWith("@") ? "icon" : "logo";
     const syncIcon = () => { iconInput.style.display = place.value === "icon" ? "" : "none"; };
     syncIcon();
     place.addEventListener("change", () => {
-      const rest = (settings.integrationTabs ?? []).filter((x) => x !== def.id);
-      settings.integrationTabs = place.value === "pill" ? rest : [...rest, def.id];
-      if (place.value === "logo") {
-        icons()[def.id] = "@logo";
-      } else if (place.value === "icon") {
-        if (!iconInput.value.trim() || iconInput.value === "@logo") iconInput.value = TAB_ICONS[def.id] ?? "★";
+      if (place.value === "icon") {
+        if (!iconInput.value.trim()) iconInput.value = TAB_ICONS[def.id] ?? "★";
         icons()[def.id] = iconInput.value.trim();
       } else {
         delete icons()[def.id];
@@ -992,7 +984,8 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
       void save();
     });
     rows.append(h("div", { class: "row" },
-      h("label", { style: "min-width:104px", text: t("Mostra come") }), place, iconInput));
+      h("label", { style: "min-width:104px", text: t("Nel menu") }), place, iconInput,
+      h("span", { class: "hint note", text: t("l'icona accanto al nome, nel menu a sinistra dell'isola") })));
     // Its colour: pill, card and the character while its tab is open.
     const colors = () => (settings.integrationColors ??= {});
     const dot = h("i", { class: "dot" });
@@ -1236,6 +1229,7 @@ function placementSection(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: t("Larghezza") }),
       widthSlider,
+      h("span", { class: "hint note", text: t("delle schede, il menu a sinistra si aggiunge") }),
     ),
     h("div", { class: "row" },
       h("label", { text: t("Altezza minima") }),
@@ -1244,9 +1238,20 @@ function placementSection(): HTMLElement {
       h("span", { class: "hint note", text: t("0 = l'altezza di ogni vista; fino alla grandezza dello schermo, anche trascinando l'angolo dell'isola aperta") }),
     ),
     h("div", { class: "row" },
-      h("label", { text: t("Barra di ricerca") }),
+      h("label", { text: t("Campo in alto") }),
       toggle(settings.searchBar !== false, (v) => { settings.searchBar = v; commit(); }),
-      h("span", { class: "hint note", text: t("in fondo all'isola aperta: cerca integrazioni, azioni e programmi installati") }),
+      h("span", { class: "hint note", text: t("nella barra dell'isola aperta: cerca integrazioni, azioni e programmi installati") }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Personaggio nel menu") }),
+      select([["large", t("Grande")], ["medium", t("Medio")], ["small", t("Piccolo")]], settings.menuCharacter ?? "large",
+        (v) => { settings.menuCharacter = v as Settings["menuCharacter"]; commit(); }),
+      h("span", { class: "hint note", text: t("in cima al menu a sinistra dell'isola aperta") }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Fumetto") }),
+      toggle(settings.characterBubble !== false, (v) => { settings.characterBubble = v; commit(); }),
+      h("span", { class: "hint note", text: t("in alto il personaggio dice cosa succede: la richiesta in attesa, la sessione al lavoro, la scheda aperta") }),
     ),
     h("div", { class: "row" },
       h("label", { text: t("Sopra la barra") }),
@@ -1260,6 +1265,13 @@ function placementSection(): HTMLElement {
     ),
     h("div", { class: "row" }, h("label", { text: t("Vista compatta") }), hoverStyle),
     hoverSize,
+    h("div", { class: "row" },
+      h("label", { text: t("Risposte rapide") }),
+      select([["right", t("A destra del personaggio")], ["left", t("A sinistra del personaggio")], ["off", t("Spente")]],
+        settings.compactStrip ?? "right",
+        (v) => { settings.compactStrip = v as Settings["compactStrip"]; commit(); }),
+      h("span", { class: "hint note", text: t("a isola chiusa, accanto al personaggio: chi lavora e cosa fa, Nega / Consenti sui permessi, Rispondi / Rifiuta e Riaggancia sulle chiamate 3CX, senza aprire l'isola. Spente: i permessi e le chiamate aprono l'isola come prima.") }),
+    ),
     h("div", { class: "row" },
       h("label", { text: t("Segue il mouse") }),
       toggle(settings.followCursorCompact, (v) => { settings.followCursorCompact = v; commit(); }),
@@ -1357,7 +1369,7 @@ function profileChip(): HTMLElement {
 const PROFILE_KEYS = [
   "activeIntegrations", "anchorV", "anchorH", "offsetX", "offsetY", "glueEdges", "overTaskbar",
   "closeButton", "followCursorCompact", "presenceMeeting", "presenceRemote", "presenceApps", "presenceMode", "iconStyle", "iconSize", "hoverStyle",
-  "hoverSize", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
+  "hoverSize", "compactStrip", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
   "soundVolume", "autoCloseInterval", "theme", "notify", "reactions", "actions", "widgets", "mcpServers",
 ] as const;
 

@@ -111,6 +111,8 @@ pub const PROFILE_KEYS: &[&str] = &[
     "integrationTabs",
     "integrationTabIcons",
     "integrationColors",
+    "menuCharacter",
+    "characterBubble",
     "pillOrder",
     "tabOrder",
     "anchorV",
@@ -129,6 +131,7 @@ pub const PROFILE_KEYS: &[&str] = &[
     "iconSize",
     "hoverStyle",
     "hoverSize",
+    "compactStrip",
     "openDelay",
     "revealDuration",
     "quietFullscreen",
@@ -298,9 +301,15 @@ pub struct Settings {
     /// No dragging pills and tabs around in the island. Belongs to the PC.
     #[serde(default)]
     pub lock_order: bool,
-    /// The search bar at the bottom of the open island (integrations, actions, programs).
+    /// The one field in the open island's top bar (integrations, actions, programs, the chat).
     #[serde(default = "default_true")]
     pub search_bar: bool,
+    /// The character at the head of the open island's menu: "large", "medium", "small".
+    #[serde(default = "default_menu_character")]
+    pub menu_character: String,
+    /// The character says what is going on in the top bar (its bubble).
+    #[serde(default = "default_true")]
+    pub character_bubble: bool,
     /// Interface language: "it", "en", or "" for Windows' own (i18n.rs).
     #[serde(default)]
     pub language: String,
@@ -398,6 +407,10 @@ pub struct Settings {
     /// Size of the hovered icon, logical px.
     #[serde(default = "default_hover_size")]
     pub hover_size: f64,
+    /// The strip beside the closed island's character (status line, quick
+    /// replies): "right", "left" or "off".
+    #[serde(default = "default_compact_strip")]
+    pub compact_strip: String,
     /// Seconds of hover before the island opens; 0 = only on click.
     #[serde(default = "default_open_delay")]
     pub open_delay: f64,
@@ -537,6 +550,10 @@ fn default_notify() -> String {
     "all".into()
 }
 
+fn default_menu_character() -> String {
+    "large".into()
+}
+
 fn default_island_place() -> String {
     "character".into()
 }
@@ -560,6 +577,9 @@ fn default_hover_style() -> String {
 }
 fn default_hover_size() -> f64 {
     40.0
+}
+fn default_compact_strip() -> String {
+    "right".into()
 }
 fn default_open_delay() -> f64 {
     0.6
@@ -600,6 +620,8 @@ impl Default for Settings {
             tab_order: Vec::new(),
             lock_order: false,
             search_bar: true,
+            menu_character: default_menu_character(),
+            character_bubble: true,
             weekly_recap: true,
             chat_history: true,
             language: String::new(),
@@ -632,6 +654,7 @@ impl Default for Settings {
             icon_size: default_icon_size(),
             hover_style: default_hover_style(),
             hover_size: default_hover_size(),
+            compact_strip: default_compact_strip(),
             open_delay: default_open_delay(),
             reveal_duration: default_reveal_duration(),
             quiet_fullscreen: true,
