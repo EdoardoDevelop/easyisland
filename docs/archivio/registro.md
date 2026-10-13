@@ -2,6 +2,12 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 12 ottobre 2026 — 3CX: telefono nel PC, suoneria, scheda da telefono
+- «Questo PC» tra i dispositivi della scheda 3CX: EasyIsland si registra come telefono WebRTC dell'interno, come il web client V20 (messaggi 163, 164/228, 227 ricavati dal suo codice, `myphone.rs`; audio in `src/core/softphone.ts`), con muto, toni e microfono concesso solo all'isola. Suoneria sintetizzata o file MP3/WAV/OGG/M4A dell'utente, silenziabile; avviso della chiamata nell'isola disattivabile (Impostazioni e intestazione della scheda). Scheda ridisegnata come un telefono: tastierino a sinistra, chiamate ed elenchi a destra, barra di icone Team/Chat/Segreteria/Recenti/Perse. Test Rust dei messaggi e anteprima (scena `threecx`); l'audio vero è da provare dal vivo (`docs/integrazioni.md`).
+
+### 12 ottobre 2026 — versione 0.7.4
+- Unione in `main` e tag `v0.7.4`. A isola chiusa il personaggio torna al suo colore (quello della scheda vale solo aperta, `drawBot`); trascinando il personaggio della chat l'isola tiene il mouse dalla pressione e il timer di chiusura ricontrolla quando scade (`fsm.ts`); schede e pulsanti dell'intestazione allargano l'isola aperta se non ci stanno (`measureHeader`, `openWidth`). Allargamento provato nell'anteprima; colore e trascinamento da provare dal vivo.
+
 ### 12 ottobre 2026 — versione 0.7.3
 - Unione in `main` e tag `v0.7.3`: limiti del piano chiesti ad Anthropic e mostrati nell'intestazione, tempo rimasto sui permessi, appunti rimessi in tutti i formati (voce sotto). README con novità e tabella delle versioni.
 

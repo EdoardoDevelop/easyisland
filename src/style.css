@@ -854,6 +854,15 @@ html.browser-preview #root {
   background: #f4505e;
 }
 
+/* Numbers that stopped coming (Claude Code's login expired): grey, bar included. */
+.plan-gauge .pg.stale {
+  color: var(--dim-3);
+}
+
+.plan-gauge .pg.stale::after {
+  background: linear-gradient(90deg, var(--dim-3) var(--p), rgba(255, 255, 255, 0.12) var(--p));
+}
+
 /* Permission and question cards: time left before the terminal takes over. */
 .wait-left {
   align-self: center;

@@ -237,16 +237,19 @@ export async function runScene(island: Island, scene: string) {
       break;
     }
     case "usage": {
-      // ?activeIntegrations=integration_claude_usage — the plan in the header and on the card.
+      // ?activeIntegrations=integration_claude_usage — the plan in the header and on the card;
+      // &stale: numbers 7 hours old, Claude Code's login expired (grey in the header).
       await wait(300);
       const now = Math.floor(Date.now() / 1000);
+      const stale = new URLSearchParams(location.search).has("stale");
       State.widgetStatus.integration_claude_usage = {
         id: "integration_claude_usage", level: "warn", at: now - 30,
         summary: "Piano: 5 ore 12% · settimana 83% (quasi al limite)",
-        plan: { fiveHour: [12, now + 2 * 3600 + 600], sevenDay: [83, now + 3 * 86_400] },
+        plan: { fiveHour: [12, now + 2 * 3600 + 600], sevenDay: [83, now + 3 * 86_400], at: stale ? now - 7 * 3600 : now - 30 },
         fields: [
           { label: "Piano · 5 ore", value: "12% · si azzera tra 2 h 10" },
           { label: "Piano · settimana", value: "83% · si azzera gio 9:00" },
+          ...(stale ? [{ label: "Piano aggiornato", value: "7 h fa · l'accesso di Claude Code è scaduto: torna usando Claude Code nel terminale o in VS Code" }] : []),
           { label: "Ultime 5 ore", value: "1,2 M token" },
         ],
       };

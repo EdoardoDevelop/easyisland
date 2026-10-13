@@ -57,6 +57,12 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.7.6** — i **limiti del piano Claude** non si spacciano più per attuali: se non
+arrivano da più di 15 minuti (l'accesso di Claude Code scade e l'app desktop di Claude
+non lo rinnova) diventano grigi, e il suggerimento dice da quanto e perché. Appena Claude
+Code rinnova l'accesso tornano in un minuto, e **«Aggiorna»** nella card Consumo li chiede
+subito.
+
 **0.7.5** — **3CX direttamente nel PC**: scegliendo «Questo PC» tra i dispositivi,
 EasyIsland diventa il telefono del tuo interno, con muto, tastierino e una **suoneria**
 generata o scelta da te (MP3, WAV, OGG, M4A), silenziabile dalla scheda. La scheda 3CX
@@ -141,7 +147,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.7.5** | 12 ott 2026 | 3CX «Questo PC» con suoneria e scheda da telefono, avvio corretto dopo aggiornamenti e riavvii |
+| **0.7.6** | 13 ott 2026 | Limiti del piano vecchi in grigio con il motivo, «Aggiorna» del Consumo che chiede subito |
+| 0.7.5 | 12 ott 2026 | 3CX «Questo PC» con suoneria e scheda da telefono, avvio corretto dopo aggiornamenti e riavvii |
 | 0.7.4 | 12 ott 2026 | Personaggio col suo colore a isola chiusa, isola aperta durante il trascinamento nella chat, schede che allargano l'isola |
 | 0.7.3 | 12 ott 2026 | Limiti del piano chiesti ad Anthropic e mostrati nell'isola, tempo rimasto sui permessi, appunti rimessi per intero |
 | 0.7.2 | 11 ott 2026 | Il personaggio della chat trascinato su una finestra la allega come contesto, con faccia che cambia mentre lo porti |

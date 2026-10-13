@@ -151,13 +151,17 @@ function planGauge(): { key: string; parts: HTMLElement[]; title: string } | nul
     return [{ label, pct }];
   });
   if (!shown.length) return null;
-  const level = (p: number) => (p >= 100 ? "full" : p >= 80 ? "warn" : "");
+  // Past 15 minutes the numbers are old (as the card's "Piano aggiornato"): grey.
+  const stale = plan.at != null && now - plan.at >= 15 * 60;
+  const level = (p: number) => (stale ? "stale" : p >= 100 ? "full" : p >= 80 ? "warn" : "");
   const parts = shown.map(({ label, pct }) =>
     h("span", { class: `pg ${level(pct)}`, style: `--p:${Math.min(100, pct)}%` },
       h("b", { text: label }), h("span", { text: `${pct}%` })));
-  // The card's own lines ("Piano · 5 ore: 12% · si azzera tra 2 h 10"), as the tooltip.
+  // The card's own lines ("Piano · 5 ore: 12% · si azzera tra 2 h 10"), as the tooltip;
+  // "Piano aggiornato" (how old, and why) first when the numbers are old.
   const lines = (status.fields ?? []).filter((f) => f.label.startsWith(t("Piano"))).map((f) => `${f.label}: ${f.value}`);
-  return { key: shown.map((s) => `${s.label}${s.pct}`).join("|") + lines.join("|"), parts, title: [t("Piano Claude"), ...lines].join("\n") };
+  if (stale) lines.sort((a, b) => Number(b.startsWith(t("Piano aggiornato"))) - Number(a.startsWith(t("Piano aggiornato"))));
+  return { key: `${stale}|` + shown.map((s) => `${s.label}${s.pct}`).join("|") + lines.join("|"), parts, title: [t("Piano Claude"), ...lines].join("\n") };
 }
 
 export function buildHeader(actions: ViewActions): ViewHost {
