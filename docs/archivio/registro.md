@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 12 ottobre 2026 — versione 0.7.5
+- Unione in `main` e tag `v0.7.5`: 3CX «Questo PC» con suoneria e scheda da telefono, avvio sicuro dopo un aggiornamento (profilo WebView2) e dopo un riavvio del PC (timer senza `Instant - Duration`), campanella 3CX che cambia icona (voci sotto). README con novità e tabella delle versioni.
+
 ### 12 ottobre 2026 — EasyIsland che non partiva dopo un riavvio del PC
 - Nelle prime ~6 ore dopo l'accensione l'app si chiudeva all'avvio: `habits.rs` e `automations.rs` calcolavano `Instant::now() - durata`, e su Windows l'`Instant` conta dall'accensione, quindi andava sotto zero (panic «overflow when subtracting duration from instant», visto nel log grazie all'hook dei panic). Ora i timer sono `Option<Instant>`; non usare mai `Instant - Duration` senza `checked_sub`. Provato qui 15 minuti dopo un riavvio.
 - Campanella dell'intestazione 3CX che non cambiava icona: la card si ridisegna solo se cambia la sua chiave in `views.ts`, che ora include `threecxAlert` e `threecxRing`. Provato nell'anteprima (scena `threecx`).

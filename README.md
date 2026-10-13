@@ -57,6 +57,13 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.7.7** — **Cerchia e chiedi** al posto di «Cattura una zona»: con `Ctrl+Alt+Shift+S`
+lo schermo si ferma, cerchi o riquadri una zona e accanto scrivi la domanda per la chat,
+oppure usi le tue azioni rapide, ne copi l'immagine o il **testo** (riconosciuto da
+Windows) o la tieni nel Vassoio. Con **3CX** il personaggio **non sparisce più durante
+una chiamata** e la suoneria predefinita suona davvero; ogni integrazione ha il suo
+**colore**, scelto in Impostazioni, che il personaggio indossa con la sua scheda aperta.
+
 **0.7.6** — i **limiti del piano Claude** non si spacciano più per attuali: se non
 arrivano da più di 15 minuti (l'accesso di Claude Code scade e l'app desktop di Claude
 non lo rinnova) diventano grigi, e il suggerimento dice da quanto e perché. Appena Claude
@@ -147,7 +154,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.7.6** | 13 ott 2026 | Limiti del piano vecchi in grigio con il motivo, «Aggiorna» del Consumo che chiede subito |
+| **0.7.7** | 13 ott 2026 | Cerchia e chiedi con OCR, personaggio visibile durante le chiamate 3CX, suoneria predefinita, colore delle integrazioni |
+| 0.7.6 | 13 ott 2026 | Limiti del piano vecchi in grigio con il motivo, «Aggiorna» del Consumo che chiede subito |
 | 0.7.5 | 12 ott 2026 | 3CX «Questo PC» con suoneria e scheda da telefono, avvio corretto dopo aggiornamenti e riavvii |
 | 0.7.4 | 12 ott 2026 | Personaggio col suo colore a isola chiusa, isola aperta durante il trascinamento nella chat, schede che allargano l'isola |
 | 0.7.3 | 12 ott 2026 | Limiti del piano chiesti ad Anthropic e mostrati nell'isola, tempo rimasto sui permessi, appunti rimessi per intero |
