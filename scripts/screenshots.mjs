@@ -38,6 +38,8 @@ const SHOTS = {
   media: { url: `/?scene=media&activeIntegrations=${PILLS}` },
   network: { url: `/?scene=network&activeIntegrations=${PILLS}` },
   suggestion: { url: "/?scene=suggestion" },
+  meteo: { url: `/?scene=meteo&sky=rain&activeIntegrations=${PILLS}` },
+  rewrite: { url: "/?scene=rewrite" },
   // Every character but the cube, without the island (dev/characters.html).
   characters: { url: "/dev/characters.html" },
   // Whole windows, not an island.
