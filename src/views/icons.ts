@@ -14,6 +14,8 @@ export const ICONS = {
   terminal: "M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 18.5v-13zm4.2 3.3-1.4 1.4 2.8 2.8-2.8 2.8 1.4 1.4 4.2-4.2-4.2-4.2zM12 15.5v2h6v-2h-6z",
   // plus
   plus: "M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4z",
+  // book.closed with a person, drawn as a stroke — the 3CX phonebook tab
+  book: "M6.5 3h11a1.5 1.5 0 0 1 1.5 1.5v15a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5v-15A1.5 1.5 0 0 1 6.5 3zM12 8a2.2 2.2 0 1 1 0 4.4A2.2 2.2 0 0 1 12 8zM8.6 16.8c.6-1.7 1.9-2.6 3.4-2.6s2.8.9 3.4 2.6M3.5 7.5H5M3.5 12H5M3.5 16.5H5",
   // slider.horizontal.3 — Impostazioni (opens the settings window)
   sliders: "M3 5.2h18v1.6H3zM8 3.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6zM3 11.2h18v1.6H3zM16 9.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6zM3 17.2h18v1.6H3zM10 15.2a2.8 2.8 0 1 1 0 5.6 2.8 2.8 0 0 1 0-5.6z",
   // speaker.wave.2
