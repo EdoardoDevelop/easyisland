@@ -5,8 +5,8 @@
 import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
-import { Bridge, onEvent, type HookStatus, type ModelOption } from "../core/bridge";
-import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type Settings, type WidgetDef } from "../core/state";
+import { Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage } from "../core/bridge";
+import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type NotionRef, type Settings, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
@@ -818,7 +818,9 @@ const INTEGRATIONS: IntegrationDef[] = [
   { id: "integration_resend", name: "Resend", color: "#22C55E",
     fields: [{ key: "resend-api-key", label: t("Chiave API"), placeholder: "re_…", secret: true }] },
   { id: "integration_notion", name: "Notion", color: "#8C8C8C",
-    fields: [{ key: "notion-api-key", label: t("Token"), placeholder: "ntn_…", secret: true }] },
+    fields: [{ key: "notion-api-key", label: t("Token"), placeholder: "ntn_…", secret: true }],
+    hint: t("Le tue attività da un database (oggi e scadute, spuntate con un clic), le note veloci in una pagina o in un database, le pagine che tieni a portata e la ricerca. Le pagine si aprono nell'app Notion se è installata. Crea un'integrazione interna su notion.so/profile/integrations (leggere, aggiornare e inserire contenuti), copia il token e condividi con lei le pagine e i database che vuoi usare (… → Connessioni)."),
+    extra: () => notionRows() },
   { id: "integration_calcom", name: "Cal.com", color: "#C9956A",
     fields: [{ key: "calcom-api-key", label: t("Chiave API"), placeholder: "cal_…", secret: true }] },
   { id: "integration_outlook", name: "Outlook", color: "#0A84D6", fields: [],
@@ -888,6 +890,83 @@ const INTEGRATIONS: IntegrationDef[] = [
   { id: "integration_media", name: t("Media"), color: "#1ED760", fields: [],
     hint: t("Cosa è in riproduzione (musica, video, podcast: Spotify, YouTube o un'altra scheda del browser, Lettore multimediale… tutto ciò che compare nei controlli multimediali di Windows), con copertina, play/pausa, precedente e successivo. Tutto in locale, nessun account.") },
 ];
+
+// ── Notion: what the card shows ─────────────────────────────────────────────
+
+function notionRef(p: NotionPage): NotionRef {
+  return { id: p.id, title: p.title || t("Senza titolo"), emoji: p.emoji ?? null, url: p.url, database: !!p.database };
+}
+
+const notionIcon = (r: { emoji: string | null; database: boolean }) => r.emoji || (r.database ? "🗂️" : "📄");
+
+/** A search field that lists Notion pages (or only databases) to pick one. */
+function notionPicker(placeholder: string, kind: "page" | "database" | null, onPick: (r: NotionRef) => void): HTMLElement {
+  const input = h("input", { type: "text", placeholder, spellcheck: "false", autocomplete: "off", style: "width:100%;box-sizing:border-box" }) as HTMLInputElement;
+  const results = h("div", { style: "display:flex;flex-direction:column;gap:2px" });
+  let timer = 0;
+  input.addEventListener("input", () => {
+    window.clearTimeout(timer);
+    const q = input.value.trim();
+    if (!q) { clear(results); return; }
+    timer = window.setTimeout(async () => {
+      try {
+        const list = await Bridge.notionSearch(q, 8, kind);
+        if (input.value.trim() !== q) return;
+        clear(results);
+        for (const p of list) {
+          results.append(h("button", { class: "notion-pick", title: t("Scegli"), onclick: () => {
+            onPick(notionRef(p));
+            input.value = "";
+            clear(results);
+          } }, `${notionIcon(notionRef(p))}  ${p.title || t("Senza titolo")}`));
+        }
+        if (list.length === 0) results.append(h("div", { class: "hint", text: t("Nessuna pagina trovata: l'integrazione vede solo le pagine condivise con lei.") }));
+      } catch (e) {
+        clear(results);
+        results.append(h("div", { class: "notice warn", text: String(e).replace(/^Error:\s*/, "") }));
+      }
+    }, 350);
+  });
+  return h("div", { style: "display:flex;flex-direction:column;gap:4px;flex:1 1 auto;min-width:0" }, input, results);
+}
+
+/** Notion: the tasks database, where notes go, the pages kept in the card. */
+function notionRows(): HTMLElement {
+  const box = h("div", { style: "display:flex;flex-direction:column;gap:10px" });
+  const changed = (schemas = false) => {
+    void save();
+    if (schemas) void Bridge.notionForgetSchemas();
+    void Bridge.refreshIntegration("integration_notion");
+    draw();
+  };
+  const chosen = (r: NotionRef, remove: () => void) => h("div", { class: "row" },
+    h("span", { style: "flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap", text: `${notionIcon(r)}  ${r.title}`, title: r.url }),
+    h("button", { text: t("Togli"), onclick: remove }));
+  const block = (label: string, hint: string, ...rows: (Node | null)[]) => h("div", { class: "row", style: "align-items:flex-start" },
+    h("label", { style: "min-width:104px;padding-top:2px", text: label }),
+    h("div", { style: "display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-width:0" }, h("div", { class: "hint", text: hint }), ...rows));
+
+  function draw() {
+    clear(box);
+    const c = settings.integrationConfig;
+    box.append(
+      block(t("Attività"), t("Il database delle tue cose da fare: la card mostra quelle non fatte, prima le scadute e quelle di oggi. Serve una data e una casella o uno stato «fatto»."),
+        c.notionTasks ? chosen(c.notionTasks, () => { c.notionTasks = null; changed(true); })
+          : notionPicker(t("Cerca il database…"), "database", (r) => { c.notionTasks = r; changed(true); })),
+      block(t("Note"), t("Dove va «+ Nota»: in una pagina il testo si aggiunge in fondo con data e ora, in un database diventa una riga nuova."),
+        c.notionInbox ? chosen(c.notionInbox, () => { c.notionInbox = null; changed(true); })
+          : notionPicker(t("Cerca una pagina o un database…"), null, (r) => { c.notionInbox = r; changed(true); })),
+      block(t("Pagine"), t("Le pagine e i database da tenere nella card, nell'ordine in cui li aggiungi (al massimo 6 visibili)."),
+        ...c.notionPins.map((r) => chosen(r, () => { c.notionPins = c.notionPins.filter((x) => x.id !== r.id); changed(); })),
+        notionPicker(t("Aggiungi una pagina…"), null, (r) => {
+          if (!c.notionPins.some((x) => x.id === r.id)) c.notionPins = [...c.notionPins, r];
+          changed();
+        })),
+    );
+  }
+  draw();
+  return box;
+}
 
 /** 3CX: the ringtone of "Questo PC", the built-in one or a file of the user's. */
 function ringtoneRow(): HTMLElement {

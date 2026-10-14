@@ -66,6 +66,30 @@ pub struct IntegrationConfig {
     /// the settings, see threecx::ringtone); "" = the built-in one.
     #[serde(default)]
     pub threecx_ringtone: String,
+    /// Notion: the pages and databases the user keeps in the card.
+    #[serde(default)]
+    pub notion_pins: Vec<NotionRef>,
+    /// Notion: the database of the user's tasks (notion.rs → tasks).
+    #[serde(default)]
+    pub notion_tasks: Option<NotionRef>,
+    /// Notion: where "Nuova nota" writes (a page gets a paragraph, a database a row).
+    #[serde(default)]
+    pub notion_inbox: Option<NotionRef>,
+}
+
+/// A Notion page or database chosen in the settings (its title as it was then).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct NotionRef {
+    pub id: String,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub emoji: Option<String>,
+    #[serde(default)]
+    pub url: String,
+    #[serde(default)]
+    pub database: bool,
 }
 
 impl Default for IntegrationConfig {
@@ -82,6 +106,9 @@ impl Default for IntegrationConfig {
             threecx_ring: true,
             threecx_alert: true,
             threecx_ringtone: String::new(),
+            notion_pins: Vec::new(),
+            notion_tasks: None,
+            notion_inbox: None,
         }
     }
 }

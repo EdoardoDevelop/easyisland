@@ -372,7 +372,7 @@ export async function runScene(island: Island, scene: string) {
       break;
     }
     case "notion": {
-      // ?activeIntegrations=integration_notion — recent pages, search (Bridge mocked), the chat on a page.
+      // ?activeIntegrations=integration_notion — tasks, pinned pages, + Nota, search (Bridge mocked), the chat on a page.
       const ago = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
       const pages = [
         { id: "a1", title: "Piano di lancio Q4", emoji: "🚀", lastEditedAt: ago(12), url: "https://www.notion.so/a1" },
@@ -385,8 +385,25 @@ export async function runScene(island: Island, scene: string) {
         notionSearch: async (q: string) => { await wait(300); return pages.filter((p) => p.title.toLowerCase().includes(q.toLowerCase())); },
         notionPageText: async () => ["Piano di lancio Q4", "# Obiettivi\n- 500 utenti\n- [ ] Homepage nuova"],
       });
+      const day = (n: number) => { const d = new Date(Date.now() + n * 86_400_000); return d.toISOString().slice(0, 10); };
+      const tasks = [
+        { id: "t1", title: "Rinnovo certificato SSL cliente Rossi", url: "https://www.notion.so/t1", due: day(-2), canTick: true },
+        { id: "t2", title: "Chiamare il fornitore per il preventivo", url: "https://www.notion.so/t2", due: day(0), canTick: true },
+        { id: "t3", title: "Backup NAS ufficio", url: "https://www.notion.so/t3", due: day(1), canTick: true },
+        { id: "t4", title: "Aggiornare la documentazione VPN", url: "https://www.notion.so/t4", due: day(5), canTick: true },
+        { id: "t5", title: "Idee per il sito", url: "https://www.notion.so/t5", due: null, canTick: true },
+      ];
+      Object.assign(Bridge, {
+        notionTaskDone: async () => { await wait(400); },
+        notionAddNote: async () => { await wait(500); return "Inbox"; },
+      });
+      State.settings.integrationConfig.notionPins = pages.filter((p) => ["a1", "a3", "a4"].includes(p.id))
+        .map((p) => ({ id: p.id, title: p.title, emoji: p.emoji, url: p.url, database: !!p.database }));
+      State.settings.integrationConfig.notionTasks = { id: "db", title: "Attività", emoji: "✅", url: "https://www.notion.so/db", database: true };
+      State.settings.integrationConfig.notionInbox = new URLSearchParams(location.search).has("noinbox") ? null
+        : { id: "in", title: "Inbox", emoji: "📥", url: "https://www.notion.so/in", database: false };
       await wait(300);
-      State.integrations.integration_notion = { data: { pages }, error: null, loaded: true, configured: true };
+      State.integrations.integration_notion = { data: { tasks, tasksSet: true }, error: null, loaded: true, configured: true };
       State.setFocus("integration_notion");
       island.alert("overview");
       await wait(1500);

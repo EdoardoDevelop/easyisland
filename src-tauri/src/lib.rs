@@ -625,8 +625,33 @@ pub(crate) fn open_url_now(url: &str) {
 
 /// Notion pages and databases matching `query` (card and search bar).
 #[tauri::command]
-async fn notion_search(query: String, limit: Option<usize>) -> Result<Vec<serde_json::Value>, String> {
-    notion::search(&query, limit.unwrap_or(8)).await
+async fn notion_search(query: String, limit: Option<usize>, kind: Option<String>) -> Result<Vec<serde_json::Value>, String> {
+    notion::search(&query, limit.unwrap_or(8), kind.as_deref()).await
+}
+
+/// "Fatto" on a task of the Notion card, then the card reads the tasks again.
+#[tauri::command]
+async fn notion_task_done(app: AppHandle, shared: State<'_, Shared>, id: String) -> Result<(), String> {
+    let db = shared.settings.lock().unwrap().integration_config.notion_tasks.as_ref().map(|r| r.id.clone());
+    let db = db.ok_or_else(|| t("Scegli il database delle attività nelle Impostazioni").to_string())?;
+    notion::set_done(&db, &id).await?;
+    notion::poll(app).await;
+    Ok(())
+}
+
+/// "Nuova nota" from the Notion card: to the page or database chosen in the settings.
+#[tauri::command]
+async fn notion_add_note(shared: State<'_, Shared>, text: String, stamp: String) -> Result<String, String> {
+    let target = shared.settings.lock().unwrap().integration_config.notion_inbox.clone();
+    let target = target.ok_or_else(|| t("Scegli nelle Impostazioni dove salvare le note").to_string())?;
+    notion::add_note(&target.id, target.database, &text, &stamp).await?;
+    Ok(target.title)
+}
+
+/// The settings chose another database: its properties are read again.
+#[tauri::command]
+fn notion_forget_schemas() {
+    notion::forget_schemas();
 }
 
 /// "Chiedi alla chat" on a Notion page: its title and text.
@@ -1754,6 +1779,9 @@ pub fn run() {
             inbox_copy,
             notion_search,
             notion_page_text,
+            notion_task_done,
+            notion_add_note,
+            notion_forget_schemas,
             inbox_drag,
             mouse_button_down,
             zip_extract,

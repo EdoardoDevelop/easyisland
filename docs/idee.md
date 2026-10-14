@@ -19,6 +19,13 @@ I dettagli che `HANDOFF.md` riassume in una riga. Le idee più vecchie e l'anali
   3. Link ICS pubblicato da Outlook web nel widget Calendario (c'è già); alcune aziende bloccano anche questo, e non copre le mail.
 - Domande aperte per Edoardo: Outlook classico o nuovo; chi amministra il Microsoft 365 aziendale.
 
+## Notion, seconda parte (annotata il 14 ottobre 2026)
+Edoardo usa Notion per attività, note, documentazione e clienti. Fatti: attività, nota veloce, pagine fissate, ricerca, chat sulla pagina. Restano:
+- **«Manda a Notion»** dal testo selezionato (menu di `Win+Alt+A`), da una voce degli Appunti e dalla risposta della chat, nella pagina o database delle note.
+- **Clienti:** un database clienti scelto nelle Impostazioni con la proprietà del telefono; su una chiamata 3CX in arrivo, e su un ticket Zammad, la scheda del cliente (nome, note, link) con «Apri in Notion». Numero normalizzato come per Zammad.
+- **Avviso** quando un'attività con orario scade (oggi solo il conteggio nell'intestazione).
+- Attività assegnate a me: serve scegliere la persona (l'API vede il bot, non l'utente).
+
 ## Remote Desktop Manager (Devolutions), come integrazione
 - **Prima di tutto:** capire dove sta la fonte dati delle voci (Devolutions Server, Hub, database SQL o file locale).
 - Cosa offre RDM: `rdm://open?Filter=<testo>`, `RemoteDesktopManager.exe /DataSource:<id> /Session:<id>` e il modulo PowerShell Devolutions.PowerShell (`Get-RDMSession`, PowerShell 7.2+).

@@ -506,6 +506,21 @@ export interface IntegrationConfig {
   threecxAlert: boolean;
   /** 3CX: name of the user's own ringtone; "" = the built-in one. */
   threecxRingtone: string;
+  /** Notion: the pages and databases kept in the card. */
+  notionPins: NotionRef[];
+  /** Notion: the database of the user's tasks. */
+  notionTasks: NotionRef | null;
+  /** Notion: where "Nuova nota" writes (a page or a database). */
+  notionInbox: NotionRef | null;
+}
+
+/** A Notion page or database chosen in the settings (settings.rs NotionRef). */
+export interface NotionRef {
+  id: string;
+  title: string;
+  emoji: string | null;
+  url: string;
+  database: boolean;
 }
 
 /** A user-defined button in the Azioni tab. */
@@ -801,6 +816,7 @@ export const DEFAULT_SETTINGS: Settings = {
     systemWarn: 10, outlookWarn: 10, weatherCity: "", weatherOnCharacter: false, planInHeader: true,
     threecxMode: "user", threecxExtension: "", threecxDevice: "",
     threecxRing: true, threecxAlert: true, threecxRingtone: "",
+    notionPins: [], notionTasks: null, notionInbox: null,
   },
 };
 

@@ -267,7 +267,14 @@ export const Bridge = {
   inboxKeep: (name: string, keep: boolean) => callOrThrow<void>("inbox_keep", { name, keep }),
   inboxOpen: (name: string, reveal: boolean) => callOrThrow<void>("inbox_open", { name, reveal }),
   /** Notion pages and databases matching `query`, most recently edited first (notion.rs). */
-  notionSearch: (query: string, limit = 8) => callOrThrow<NotionPage[]>("notion_search", { query, limit }),
+  notionSearch: (query: string, limit = 8, kind: "page" | "database" | null = null) =>
+    callOrThrow<NotionPage[]>("notion_search", { query, limit, kind }),
+  /** "Fatto" on a task of the card (the database chosen in the settings). */
+  notionTaskDone: (id: string) => callOrThrow<void>("notion_task_done", { id }),
+  /** "Nuova nota": into the page or database chosen in the settings; its title back. */
+  notionAddNote: (text: string, stamp: string) => callOrThrow<string>("notion_add_note", { text, stamp }),
+  /** Another tasks database chosen: its properties are read again. */
+  notionForgetSchemas: () => call<void>("notion_forget_schemas"),
   /** A Notion page's title and text, for the chat. */
   notionPageText: (id: string) => callOrThrow<[string, string]>("notion_page_text", { id }),
   /** A picture of the tray on the clipboard. */

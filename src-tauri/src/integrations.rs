@@ -455,42 +455,9 @@ async fn poll_resend(app: AppHandle) {
 
 // ── Notion ────────────────────────────────────────────────────────────────────
 
+/// The tasks and the token check: notion.rs → poll.
 async fn poll_notion(app: AppHandle) {
-    let Some(token) = secrets::get("notion-api-key") else { return };
-    let response = client()
-        .post("https://api.notion.com/v1/search")
-        .header("Authorization", format!("Bearer {token}"))
-        .header("Notion-Version", "2022-06-28")
-        .header("Content-Type", "application/json")
-        .json(&json!({
-            "sort": { "direction": "descending", "timestamp": "last_edited_time" },
-            "page_size": 6
-        }))
-        .send()
-        .await;
-    let Ok(response) = response else { return };
-    if !response.status().is_success() {
-        emit(&app, IntegrationUpdate {
-            id: "integration_notion",
-            data: json!({}),
-            error: Some(status_error(response.status().as_u16(), t("L'integrazione non ha accesso"))),
-            event: None,
-        });
-        return;
-    }
-    let json: Value = response.json().await.unwrap_or(json!({}));
-    let pages: Vec<Value> = json
-        .get("results")
-        .and_then(Value::as_array)
-        .map(|list| list.iter().filter_map(parse_notion_page).collect())
-        .unwrap_or_default();
-
-    emit(&app, IntegrationUpdate {
-        id: "integration_notion",
-        data: json!({ "pages": pages }),
-        error: None,
-        event: None,
-    });
+    crate::notion::poll(app).await;
 }
 
 pub(crate) fn parse_notion_page(obj: &Value) -> Option<Value> {
