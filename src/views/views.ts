@@ -63,8 +63,6 @@ export interface ViewActions extends ActionHandlers, RewriteHandlers, MomentActi
   /** The ✕: closes now, handing any pending request back to the terminal. */
   dismiss(): void;
   toggleSound(): void;
-  setVolume(v: number): void;
-  setAutoClose(seconds: number): void;
   openSettingsWindow(): void;
   blip(): void;
   /** A proposal from the habits: Crea / Non ora / No, mai. */
@@ -178,7 +176,6 @@ function bubble(): [string, string] {
     case "prompt": return [t("Chiedimi pure."), `Chat · ${engineLabel(State.settings)}`];
     case "actions": case "run": case "rewrite": return [t("Le tue azioni."), t("anche sul testo selezionato nell'app in primo piano")];
     case "files": case "unzip": return [t("File e schermo."), t("Rilascia un file sull'isola o cerchia una zona")];
-    case "settings": return [t("Impostazioni rapide."), ""];
     case "upload": case "choose": return [t("Rilascia qui un file."), t("Ti chiedo cosa farne")];
   }
   if (State.showsSummary) {
@@ -200,7 +197,11 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
     actions.blip();
     actions.toggleKeepOpen();
   } }, svg(ICONS.pin, 15));
-  const gearBtn = h("button", { title: t("Impostazioni"), style: "--c:#94A3B8", onclick: () => go("settings") }, svg(ICONS.gear, 16));
+  // Impostazioni open in their own window, never inside the island.
+  const gearBtn = h("button", { title: t("Impostazioni"), style: "--c:#94A3B8", onclick: () => {
+    actions.blip();
+    actions.openSettingsWindow();
+  } }, svg(ICONS.sliders, 16));
   const soundBtn = h("button", { title: t("Silenzia"), style: "--c:#22D3EE", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 16));
   const closeBtn = h("button", { title: t("Chiudi"), style: "--c:#F4505E", onclick: () => actions.dismiss() }, svg(ICONS.xmark, 14));
   // Claude's plan (Consumo Claude): "5h 12%  7g 83%", a click opens the card.
@@ -210,11 +211,6 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
     actions.setView("overview");
   } });
   let planKey = "";
-
-  function go(v: IslandViewName) {
-    actions.blip();
-    actions.setView(v);
-  }
 
   // The character's bubble (Impostazioni → Posizione e aspetto → Fumetto), and
   // the place of the one field (search.ts, put here by island.ts).
@@ -242,12 +238,9 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
       talk.style.display = State.settings.characterBubble === false ? "none" : "";
       talk.title = b ? `${a}
 ${b}` : a;
-      gearBtn.classList.toggle("on", v === "settings");
       pinBtn.classList.toggle("on", State.keepOpen);
       pinBtn.classList.toggle("pinned", State.keepOpen);
       pinBtn.title = State.keepOpen ? t("Resta aperta: clic per lasciarla chiudere da sola (Ctrl+P)") : t("Tieni aperta (Ctrl+P)");
-      clear(gearBtn);
-      gearBtn.append(svg(v === "settings" ? ICONS.gearFill : ICONS.gear, 16));
       clear(soundBtn);
       soundBtn.append(svg(State.settings.soundEnabled ? ICONS.speakerOn : ICONS.speakerOff, 16));
       soundBtn.style.setProperty("--c", State.settings.soundEnabled ? "#22D3EE" : "#F4505E");
@@ -994,71 +987,6 @@ function buildNotify(actions: ViewActions): ViewHost {
 
 // ── In-island settings ────────────────────────────────────────────────────────
 
-function buildSettings(actions: ViewActions): ViewHost {
-  const soundSwitch = h("button", { class: "switch", onclick: () => actions.toggleSound() });
-  const volume = h("input", {
-    type: "range", min: "0", max: "0.2", step: "0.005",
-    oninput: (e: Event) => actions.setVolume(Number((e.target as HTMLInputElement).value)),
-  }) as HTMLInputElement;
-  const autoLabel = h("span", {});
-  const segButtons = [10, 15, 30].map((s) =>
-    h("button", { onclick: () => actions.setAutoClose(s) }, `${s}s`),
-  );
-  const claudeBadge = h("span", { class: "status-badge" });
-  const apiBadge = h("span", { class: "status-badge" });
-
-  const rows = h(
-    "div",
-    { class: "settings-rows" },
-    h("div", { class: "settings-row" }, soundSwitch, h("span", { text: t("Suono") }), volume),
-    h(
-      "div",
-      { class: "settings-row" },
-      svg(ICONS.timer, 14),
-      autoLabel,
-      h("div", { class: "seg" }, ...segButtons),
-    ),
-    h(
-      "div",
-      { class: "settings-row", style: "gap:14px" },
-      claudeBadge,
-      apiBadge,
-      h("div", { class: "grow" }),
-      h("button", {
-        class: "link-btn",
-        style: "color:#8e939c;font-size:11.5px",
-        text: t("Impostazioni…"),
-        onclick: () => actions.openSettingsWindow(),
-      }),
-    ),
-  );
-
-  const el = h("div", { class: "view" },
-    card(null, h("div", { class: "stack", style: "padding:14px 16px 14px max(16px, calc(84px * var(--bot-room, 1)))" }, rows)));
-
-  return {
-    el,
-    sync() {
-      const s = State.settings;
-      soundSwitch.classList.toggle("on", s.soundEnabled);
-      volume.value = String(s.soundVolume);
-      volume.style.opacity = s.soundEnabled ? "1" : "0.4";
-      autoLabel.textContent = `${t("Pannello aperto")} · ${Math.round(s.autoCloseInterval)}s`;
-      segButtons.forEach((b, i) => b.classList.toggle("on", s.autoCloseInterval === [10, 15, 30][i]));
-      clear(claudeBadge);
-      claudeBadge.append(
-        dot(s.hooksInstalled ? "#22C55E" : "#F4505E", 6),
-        h("span", { text: t("Claude Code") }),
-      );
-      clear(apiBadge);
-      apiBadge.append(
-        dot("#8E939C", 6),
-        h("span", { text: `Chat · ${engineLabel(s)}` }),
-      );
-    },
-  };
-}
-
 // ── Placeholders filled in later stages ───────────────────────────────────────
 
 function buildPlaceholder(title: string, sub: string): ViewHost {
@@ -1088,7 +1016,6 @@ export function buildViews(
   map.set("confused", buildConfused());
   map.set("note", buildNote());
   map.set("notify", buildNotify(actions));
-  map.set("settings", buildSettings(actions));
   map.set("prompt", buildPrompt(onChatHeightChange));
   map.set("upload", buildUpload(actions));
   map.set("uploading", buildUploading());

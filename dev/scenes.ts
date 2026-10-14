@@ -201,10 +201,20 @@ export async function runScene(island: Island, scene: string) {
       }
       const song = new URLSearchParams(location.search).has("long")
         ? "Bohemian Rhapsody (Remastered 2011, versione estesa dal vivo a Wembley)" : "Bohemian Rhapsody";
+      // A cover drawn here: a dusk sky over a hill (?nocover: none).
+      const art = document.createElement("canvas");
+      art.width = art.height = 300;
+      const a = art.getContext("2d")!;
+      const sky = a.createLinearGradient(0, 0, 0, 300);
+      sky.addColorStop(0, "#3b1d6e"); sky.addColorStop(0.55, "#e0607e"); sky.addColorStop(1, "#f6b26b");
+      a.fillStyle = sky; a.fillRect(0, 0, 300, 300);
+      a.fillStyle = "#ffe8a3"; a.beginPath(); a.arc(200, 170, 46, 0, Math.PI * 2); a.fill();
+      a.fillStyle = "#1c1233"; a.beginPath(); a.moveTo(0, 300); a.quadraticCurveTo(110, 170, 300, 240); a.lineTo(300, 300); a.fill();
+      const cover = new URLSearchParams(location.search).has("nocover") ? null : art.toDataURL("image/jpeg", 0.85);
       State.integrations.integration_media = {
         loaded: true, configured: true, error: null,
         data: { active: true, title: song, artist: "Queen", app: "Spotify", playing: true,
-          canPrev: true, canNext: true, duration: 354, position: 121, cover: null },
+          canPrev: true, canNext: true, duration: 354, position: 121, cover },
       };
       State.setFocus(scene === "clipboard" ? "integration_clipboard" : "integration_media");
       // ?summary: the ⌂ tab instead of the card.

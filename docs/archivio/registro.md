@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 13 ottobre 2026 — risposte rapide a isola chiusa
+- Seconda tappa del nuovo impianto: accanto al personaggio della vista compatta una striscia (`src/views/strip.ts`) con chi lavora e, a isola chiusa, Nega / Consenti sui permessi semplici e Rispondi / Rifiuta, Muto / Riaggancia sulle chiamate 3CX, senza aprire l'isola. Impostazioni → Posizione e aspetto → «Risposte rapide»: a destra, a sinistra o spente (spente = come prima). Provata nell'anteprima (scena `strip`, tutte le varianti e i due lati).
+
 ### 13 ottobre 2026 — nuovo impianto dell'isola aperta
 - Dopo un prototipo approvato da Edoardo: menu a sinistra con il personaggio in cima (`rail.ts`), barra in alto con il suo fumetto, il campo unico (cerca e «Chiedi alla chat», Ctrl+Invio) e i pulsanti di prima, «Oggi» a riquadri al posto della Panoramica, niente più schede in alto né pillole. Personaggi e animazioni invariati, impostazioni di prima tutte valide (`integrationTabs` non serve più), nuove «Personaggio nel menu» e «Fumetto». Personalizzazione solo in Impostazioni (`docs/decisioni.md`). Provato nell'anteprima (scene overview, approval, chat, threecx, agenti, actions, drop). Dopo la prima prova di Edoardo: l'isola cresceva fino all'altezza dello schermo e, ancorata in basso, perdeva la barra in alto (misura del menu e finestra corrette, `docs/architettura.md`); 8 px sotto la barra; «File e schermo» come nel prototipo (titolo, riquadri Rilascia e Cerchia e chiedi, Vassoio).
 

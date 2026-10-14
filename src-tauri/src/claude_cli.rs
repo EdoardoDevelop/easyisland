@@ -64,7 +64,7 @@ Use them when the user asks you to do something on the PC, or when they make the
 You cannot run arbitrary commands: only the user's quick actions. \
 Before a tool that opens, runs or changes something, say in one short sentence what you are about to do: \
 the user confirms or refuses it with a click, and a refusal is final for that request.";
-const INHERITED_SESSION_VARS: &[&str] = &[
+pub(crate) const INHERITED_SESSION_VARS: &[&str] = &[
     "CLAUDECODE",
     "CLAUDE_CODE_SESSION_ID",
     "CLAUDE_CODE_CHILD_SESSION",

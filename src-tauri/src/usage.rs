@@ -13,9 +13,10 @@
 // plan-limits.json:
 //   - Anthropic itself, asked every 5 minutes while the card is on, with the
 //     login Claude Code keeps in %USERPROFILE%\.claude\.credentials.json (the
-//     same call as Claude Code's /usage; read only, never copied, logged or
-//     renewed: an expired login waits for Claude Code to renew it). It is not
-//     a documented API: when it stops answering the card keeps the last numbers;
+//     same call as Claude Code's /usage; read only, never copied or logged:
+//     an expired login is renewed by Claude Code itself, started hidden by
+//     renew.rs). It is not a documented API: when it stops answering the card
+//     keeps the last numbers;
 //   - Claude Code's status line (`rate_limits`), the relay's `statusline`
 //     (hook/src/statusline.rs, installed with the hooks), from the sessions
 //     that draw one (terminal, VS Code).
@@ -26,6 +27,7 @@
 use std::collections::HashMap;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -388,9 +390,51 @@ struct Ask {
 
 static ASK: Mutex<Ask> = Mutex::new(Ask { next: 0, outcome: String::new(), stamp: None });
 
-/// "Aggiorna" on the card: the next check asks Anthropic without waiting its turn.
+/// "Aggiorna" on the card: the next check asks Anthropic without waiting its
+/// turn, and renews an expired login at once.
 pub fn ask_now() {
     ASK.lock().unwrap_or_else(|e| e.into_inner()).next = 0;
+    RENEW_NEXT.store(0, Ordering::Relaxed);
+}
+
+/// An expired login is renewed by Claude Code (renew.rs) at most once per
+/// RENEW_EVERY on its own: one that does not renew is not started every round.
+const RENEW_EVERY: i64 = 30 * 60;
+const RENEW_TIMEOUT: Duration = Duration::from_secs(45);
+static RENEW_NEXT: AtomicI64 = AtomicI64::new(0);
+static RENEWING: AtomicBool = AtomicBool::new(false);
+/// The last attempt did not renew it (for the card's reason).
+static RENEW_FAILED: AtomicBool = AtomicBool::new(false);
+
+fn unix_now() -> i64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
+}
+
+/// Has Claude Code renew an expired login; the new token when it did.
+async fn renew_login(now: i64) -> Option<String> {
+    if now < RENEW_NEXT.load(Ordering::Relaxed) || RENEWING.swap(true, Ordering::AcqRel) {
+        return None;
+    }
+    RENEW_NEXT.store(now + RENEW_EVERY, Ordering::Relaxed);
+    let renewed = match crate::claude_cli::find_claude() {
+        Some(exe) => tokio::task::spawn_blocking(move || {
+            crate::renew::renew(&exe, RENEW_TIMEOUT, || matches!(claude_login(unix_now()), Login::Valid(_)))
+        })
+        .await
+        .unwrap_or(false),
+        None => false,
+    };
+    RENEWING.store(false, Ordering::Release);
+    RENEW_FAILED.store(!renewed, Ordering::Relaxed);
+    crate::log::line(if renewed {
+        "limiti del piano: accesso di Claude Code rinnovato".to_string()
+    } else {
+        "limiti del piano: Claude Code non ha rinnovato l'accesso".to_string()
+    });
+    match claude_login(unix_now()) {
+        Login::Valid(token) => Some(token),
+        _ => None,
+    }
 }
 
 /// "2026-10-12T15:00:00.123456+00:00" (or "Z", or another offset) → Unix seconds.
@@ -447,9 +491,9 @@ fn credentials_stamp() -> Option<SystemTime> {
 #[derive(Debug, PartialEq)]
 enum Login {
     Valid(String),
-    /// Past `expiresAt`. The Claude desktop app does not renew this file, and
-    /// `claude auth status` does not either (tried 13 October 2026): it comes
-    /// back when Claude Code runs in a terminal or VS Code.
+    /// Past `expiresAt`. The Claude desktop app does not renew this file, nor
+    /// `claude auth status` (tried 13 October 2026): renew.rs has an
+    /// interactive Claude Code do it.
     Expired,
     Missing,
 }
@@ -479,7 +523,10 @@ fn plan_problem() -> Option<&'static str> {
     let ask = ASK.lock().unwrap_or_else(|e| e.into_inner());
     match ask.outcome.as_str() {
         "" | "ok" => None,
-        "expired" => Some(t("l'accesso di Claude Code è scaduto: torna usando Claude Code nel terminale o in VS Code")),
+        "expired" if RENEW_FAILED.load(Ordering::Relaxed) => {
+            Some(t("l'accesso di Claude Code è scaduto e Claude Code non l'ha rinnovato: riprovo tra mezz'ora, o premi Aggiorna"))
+        }
+        "expired" => Some(t("l'accesso di Claude Code è scaduto: lo rinnovo con Claude Code")),
         "no-login" => Some(t("Claude Code non ha un accesso su questo PC")),
         _ => Some(t("Anthropic non risponde")),
     }
@@ -488,7 +535,7 @@ fn plan_problem() -> Option<&'static str> {
 /// Asks Anthropic for the plan, at most every ASK_EVERY. Quiet on failure:
 /// one log line when the outcome changes, the token never in it.
 async fn ask_anthropic() {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    let now = unix_now();
     let stamp = credentials_stamp();
     {
         let ask = ASK.lock().unwrap_or_else(|e| e.into_inner());
@@ -500,8 +547,25 @@ async fn ask_anthropic() {
     }
     let outcome = match claude_login(now) {
         Login::Missing => "no-login".to_string(),
-        Login::Expired => "expired".to_string(),
-        Login::Valid(token) => {
+        Login::Expired => match renew_login(now).await {
+            Some(token) => request(token, now).await,
+            None => "expired".to_string(),
+        },
+        Login::Valid(token) => request(token, now).await,
+    };
+    let mut ask = ASK.lock().unwrap_or_else(|e| e.into_inner());
+    ask.next = now + if matches!(outcome.as_str(), "ok" | "no-login" | "expired") { ASK_EVERY } else { ASK_AFTER_ERROR };
+    ask.stamp = credentials_stamp();
+    if ask.outcome != outcome {
+        crate::log::line(format!("limiti del piano da Anthropic: {outcome}"));
+        ask.outcome = outcome;
+    }
+}
+
+/// One question to Anthropic; the outcome for the log.
+async fn request(token: String, now: i64) -> String {
+    {
+        {
             let client = reqwest::Client::builder().timeout(Duration::from_secs(10)).build().unwrap_or_default();
             let sent = client
                 .get(USAGE_URL)
@@ -522,13 +586,6 @@ async fn ask_anthropic() {
                 },
             }
         }
-    };
-    let mut ask = ASK.lock().unwrap_or_else(|e| e.into_inner());
-    ask.next = now + if matches!(outcome.as_str(), "ok" | "no-login" | "expired") { ASK_EVERY } else { ASK_AFTER_ERROR };
-    ask.stamp = credentials_stamp();
-    if ask.outcome != outcome {
-        crate::log::line(format!("limiti del piano da Anthropic: {outcome}"));
-        ask.outcome = outcome;
     }
 }
 

@@ -13,7 +13,7 @@
 
 ## Altri strumenti
 - **Appunti** (`clipboard.rs`, `integration_clipboard`): listener di Windows, cronologia solo in memoria. Le immagini negli appunti stanno in `clipimage.rs`, anche loro solo in memoria.
-- **Musica** (`media.rs`, `integration_media`): sessioni multimediali di Windows.
+- **Musica** (`media.rs`, `integration_media`): sessioni multimediali di Windows. Nella card la copertina fa da sfondo, chiara in alto e sfumata verso il centro, dove stanno brano, avanzamento e comandi (`.media-backdrop` in `style.css`; senza copertina un alone del colore della scheda).
 - **Suggerimenti ⚡:** app in primo piano e testo selezionato in `context.rs` + `src/island/context.ts`, con regole per app. Dopo la copia della selezione gli appunti tornano come prima, in tutti i formati (testo formattato, immagini, file copiati): `ClipboardBefore` in `actions.rs` copia ogni formato in memoria, tranne gli handle GDI che Windows rigenera; oltre 64 MB si rimette solo il testo. Senza selezione (o con appunti vuoti) un'azione non si ferma: apre la chat con la sua domanda già scritta nel campo (`draftChat` in `island.ts`, `State.chatDraft`), e il testo si incolla dopo.
 - **Menu sul testo selezionato e «Sostituisci»** (`src/island/selection-menu.ts`, `src/views/rewrite.ts`, `replace` e `clean_reply` in `context.rs`, `rewrite_text` in `lib.rs`):
   - `hotkeySelectionMenu` (`Win+Alt+A`) copia la selezione *prima* di aprire il menu, mentre l'app ha ancora il fuoco; il menu è nativo, al mouse (`tray::popup_entries`) e il clic torna come evento `tray` «sel:<id>». Così funziona in ogni app, browser compresi: Windows non ha un menu del tasto destro comune per il testo, e le estensioni del browser sono state scartate (deciso con Edoardo l'11 ottobre 2026).

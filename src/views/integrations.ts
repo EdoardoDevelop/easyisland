@@ -518,20 +518,24 @@ function mediaCard(task: AgentTask): HTMLElement {
   }
   const playing = !!d.playing;
   const duration = Number(d.duration ?? 0);
-  const cover = typeof d.cover === "string"
-    ? h("img", { class: "media-cover", src: d.cover, alt: "" })
-    : h("div", { class: "media-cover empty" }, svg(ICONS.play, 18));
+  // The cover fills the card behind everything, clear at the top and fading
+  // out towards the middle, where the song and the buttons are.
+  const backdrop = h("div", { class: "media-backdrop" });
+  if (typeof d.cover === "string" && d.cover) backdrop.style.backgroundImage = `url(${JSON.stringify(d.cover)})`;
+  else backdrop.style.background = `radial-gradient(120% 90% at 50% 0%, ${task.color}55, transparent 70%)`;
   const sub = [d.artist, d.app].filter((x) => typeof x === "string" && x).join(" · ");
 
   // The position ticks on here between the (rare) updates from Rust.
   const fill = h("i", { class: "media-fill", style: `background:${task.color}` });
-  const time = h("span", { class: "int-ago", text: "" });
+  const time = h("span", { class: "media-time", text: "" });
+  const left = h("span", { class: "media-time", text: "" });
   const start = Number(d.position ?? 0);
   const t0 = performance.now();
   const tick = () => {
     const pos = Math.min(duration, start + (playing ? (performance.now() - t0) / 1000 : 0));
     fill.style.width = duration > 0 ? `${(pos / duration) * 100}%` : "0";
-    time.textContent = duration > 0 ? `${mmss(pos)} / ${mmss(duration)}` : "";
+    left.textContent = duration > 0 ? mmss(pos) : "";
+    time.textContent = duration > 0 ? mmss(duration) : "";
   };
   tick();
   if (playing && duration > 0) {
@@ -543,21 +547,19 @@ function mediaCard(task: AgentTask): HTMLElement {
 
   const ctl = (icon: string, title: string, cmd: string, enabled = true, main = false) =>
     h("button", { class: main ? "media-btn main" : "media-btn", title, disabled: !enabled,
-      onclick: () => void Bridge.mediaCommand(cmd), style: `--c:${task.color}` }, svg(icon, main ? 16 : 13));
+      onclick: () => void Bridge.mediaCommand(cmd), style: `--c:${task.color}` }, svg(icon, main ? 18 : 14));
 
-  return h("div", { class: "int-card" },
+  return h("div", { class: "int-card media-card" },
+    backdrop,
     header(task.color, t("Musica"), playing ? t("In riproduzione") : t("In pausa")),
-    h("div", { class: "media-row" },
-      cover,
-      h("div", { class: "media-info" },
-        h("b", { class: "media-title", text: String(d.title ?? "") }),
-        h("span", { class: "media-sub", text: sub }),
-        h("div", { class: "media-bar" }, fill))),
+    h("div", { class: "media-info" },
+      h("b", { class: "media-title", text: String(d.title ?? "") }),
+      h("span", { class: "media-sub", text: sub })),
+    h("div", { class: "media-progress" }, left, h("div", { class: "media-bar" }, fill), time),
     h("div", { class: "media-ctl" },
       ctl(ICONS.prev, t("Precedente"), "prev", !!d.canPrev),
       ctl(playing ? ICONS.pause : ICONS.play, playing ? t("Pausa") : t("Riproduci"), "toggle", true, true),
-      ctl(ICONS.next, t("Successivo"), "next", !!d.canNext),
-      time));
+      ctl(ICONS.next, t("Successivo"), "next", !!d.canNext)));
 }
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────

@@ -54,6 +54,7 @@ mod settings;
 mod i18n;
 mod webview_profile;
 mod recap;
+mod renew;
 mod start_apps;
 mod threecx;
 mod tray;

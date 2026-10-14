@@ -240,7 +240,7 @@ export interface RecapHost {
 }
 
 /** Views the Monday card may replace; anything else is the user busy with something. */
-const QUIET_VIEWS: ReadonlySet<IslandViewName> = new Set(["overview", "empty", "settings"]);
+const QUIET_VIEWS: ReadonlySet<IslandViewName> = new Set(["overview", "empty"]);
 
 /** Never on top of the event that triggered it. */
 const SHOW_DELAY_MS = 1500;
