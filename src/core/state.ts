@@ -282,7 +282,7 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_zammad", t("Ticket"), "#F59E0B", "n8n"),
   task("integration_claude_usage", t("Consumo"), "#D97757", "n8n"),
   task("integration_clipboard", t("Appunti"), "#A78BFA", "n8n"),
-  task("integration_media", t("Musica"), "#1ED760", "n8n"),
+  task("integration_media", t("Media"), "#1ED760", "n8n"),
   task("integration_3cx", "3CX", "#0596D4", "n8n"),
 ];
 

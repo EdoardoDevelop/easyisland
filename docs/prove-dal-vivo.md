@@ -13,7 +13,7 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
 - [ ] **Consumo Claude:** il messaggio di limite raggiunto non è mai comparso.
 - [ ] **Agente e automazioni:** card Consenti/Nega in una chat vera; ogni tipo di «Quando» e «Prova ora»; proposte dalle abitudini (servono settimane con `habitsEnabled`).
 - [ ] **Altri motori della chat** con chiavi vere e Ollama/LM Studio; markdown (Copia, link).
-- [ ] **Appunti e Musica** (Ctrl+V, immagini da varie app, Spotify/browser), **Cerchia e chiedi** (vedi sotto), **calcolatrice**, **ZIP** veri.
+- [ ] **Appunti e Media** (Ctrl+V, immagini da varie app, Spotify/browser), **Cerchia e chiedi** (vedi sotto), **calcolatrice**, **ZIP** veri.
 - [ ] **Widget:** script del certificato TLS, calendario ICS reale. **«Davanti al cliente»** con Teams e assistenza remota veri.
 - [ ] **Isola:** Start aperto con «Sopra la barra» (il personaggio deve tornare davanti).
 - [ ] **Limiti del piano:** con la card Consumo attiva e solo l'app desktop di Claude, le percentuali arrivano entro 5 minuti (log «limiti del piano da Anthropic: ok») e compaiono nell'intestazione dell'isola; il clic apre la card; «Solo nella card» le toglie. Dopo «Aggiorna» degli hook, una status line propria resta uguale nel terminale e torna disinstallando.

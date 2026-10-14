@@ -576,7 +576,7 @@ Integrazioni c'è **Blocca lo spostamento**, per non spostarle per sbaglio, e
 | **Rete** | Wi-Fi o cavo, IP locale e pubblico (api.ipify.org, al massimo ogni 15 minuti), gateway e DNS, le altre schede di rete con i loro IP, VPN attive, latenza verso 1.1.1.1; avvisa se internet non risponde o è lento |
 | **Meteo** | meteo di una città (Open-Meteo, gratuito e senza chiave): in cima il cielo di adesso animato, poi umidità, vento, alba e tramonto, le prossime 12 ore e i prossimi 7 giorni; avvisa se è probabile pioggia nelle prossime ore |
 | **Appunti** | gli ultimi 30 testi e immagini copiati (fino a 10 immagini), più quelli fissati: clic per incollarli nell'app in primo piano, oppure copia, trasforma (MAIUSCOLO, minuscolo, una riga, senza spazi, JSON, URL), fissa, elimina; sulle immagini **Chiedi alla chat**. Solo in memoria, mai su disco; ciò che i gestori di password segnano come privato non viene registrato |
-| **Musica** | cosa sta suonando in qualsiasi app che compare nei controlli multimediali di Windows (Spotify, il browser, Lettore multimediale…), con copertina, avanzamento e ⏮ ⏯ ⏭; la Panoramica mostra il titolo del brano. Tutto in locale |
+| **Media** | cosa è in riproduzione (musica, video, podcast) in qualsiasi app che compare nei controlli multimediali di Windows (Spotify, il browser, Lettore multimediale…), con copertina, avanzamento e ⏮ ⏯ ⏭; la Panoramica mostra il titolo del brano. Tutto in locale |
 | **3CX** | il centralino 3CX V20: chiamare (numero o ricerca in rubrica, da un dispositivo a scelta), chiamate in arrivo nell'isola con **Rispondi** / **Rifiuta**, **Riaggancia**, durata, stato, chiamate perse e recenti. Due accessi: **interno e password** (come l'app 3CX, senza licenze in più; accesso non documentato da 3CX) o un **client API** dell'Admin Console (licenza 8SC+; senza stato e cronologia). Numeri e nomi solo in memoria |
 
 Nel menu ogni integrazione mostra il suo logo (o il pallino del suo colore) oppure
@@ -588,7 +588,7 @@ Quali integrazioni sono accese, e come sono mostrate, dipende dal profilo.
 <img src="screenshots/meteo.png" width="640" alt="Meteo: il cielo di adesso animato, umidità, vento, alba e tramonto, le prossime ore e i prossimi giorni">
 <img src="screenshots/threecx.png" width="640" alt="3CX: una chiamata in arrivo con Rispondi e Rifiuta, una chiamata in linea e la ricerca in rubrica">
 <img src="screenshots/clipboard.png" width="640" alt="Appunti: un'immagine copiata, un link, un indirizzo fissato e un JSON">
-<img src="screenshots/media.png" width="640" alt="Musica: il brano in riproduzione con i controlli">
+<img src="screenshots/media.png" width="640" alt="Media: ciò che è in riproduzione, con i controlli">
 <img src="screenshots/network.png" width="640" alt="Rete: schede con IP, gateway e DNS, VPN, latenza e ping continuo">
 <img src="screenshots/settings-integrations.png" width="700" alt="Impostazioni, pagina Integrazioni">
 

@@ -540,3 +540,21 @@ mod tests {
         let _ = m.plain("⟦");
     }
 }
+
+/// Live check with Word: put a copy from Word on the clipboard first, then
+/// `cargo test --lib richtext::live -- --ignored --nocapture`: the clipboard
+/// gets the same HTML with the words changed, as a rewrite would leave it.
+#[cfg(test)]
+mod live {
+    #[test]
+    #[ignore]
+    fn rewrite_what_is_on_the_clipboard() {
+        let clip = super::read_clipboard().expect("niente HTML negli appunti");
+        let marked = super::mark(&clip.fragment).expect("niente testo");
+        println!("al modello: {:?}", marked.text);
+        let reply = marked.text.replace("Capitolo", "Sezione").replace("forte", "nuova");
+        let fragment = marked.rebuild(&reply).expect("segni persi");
+        println!("frammento: {fragment}");
+        super::set_clipboard(&marked.plain(&reply), Some(&clip.with_fragment(&fragment))).unwrap();
+    }
+}
