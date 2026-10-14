@@ -201,10 +201,20 @@ export async function runScene(island: Island, scene: string) {
       }
       const song = new URLSearchParams(location.search).has("long")
         ? "Bohemian Rhapsody (Remastered 2011, versione estesa dal vivo a Wembley)" : "Bohemian Rhapsody";
+      // A cover drawn here: a dusk sky over a hill (?nocover: none).
+      const art = document.createElement("canvas");
+      art.width = art.height = 300;
+      const a = art.getContext("2d")!;
+      const sky = a.createLinearGradient(0, 0, 0, 300);
+      sky.addColorStop(0, "#3b1d6e"); sky.addColorStop(0.55, "#e0607e"); sky.addColorStop(1, "#f6b26b");
+      a.fillStyle = sky; a.fillRect(0, 0, 300, 300);
+      a.fillStyle = "#ffe8a3"; a.beginPath(); a.arc(200, 170, 46, 0, Math.PI * 2); a.fill();
+      a.fillStyle = "#1c1233"; a.beginPath(); a.moveTo(0, 300); a.quadraticCurveTo(110, 170, 300, 240); a.lineTo(300, 300); a.fill();
+      const cover = new URLSearchParams(location.search).has("nocover") ? null : art.toDataURL("image/jpeg", 0.85);
       State.integrations.integration_media = {
         loaded: true, configured: true, error: null,
         data: { active: true, title: song, artist: "Queen", app: "Spotify", playing: true,
-          canPrev: true, canNext: true, duration: 354, position: 121, cover: null },
+          canPrev: true, canNext: true, duration: 354, position: 121, cover },
       };
       State.setFocus(scene === "clipboard" ? "integration_clipboard" : "integration_media");
       // ?summary: the ⌂ tab instead of the card.
@@ -321,13 +331,29 @@ export async function runScene(island: Island, scene: string) {
     }
     case "network": {
       // ?activeIntegrations=integration_network,… — an integration run as a check.
+      // &form: the adapter settings open.
+      Object.assign(Bridge, {
+        networkAdapters: async () => [
+          { index: 4, name: "Ethernet", up: true, wireless: false, virtualHost: false, dhcp: true, dnsAuto: true, main: true,
+            addresses: [{ ip: "192.168.1.24", prefix: 24 }], gateway: "192.168.1.1", dns: ["192.168.1.1", "1.1.1.1"] },
+          { index: 27, name: "Wi-Fi", up: false, wireless: true, virtualHost: false, dhcp: true, dnsAuto: true, main: false,
+            addresses: [], gateway: "", dns: [] },
+        ],
+        networkApply: async () => { await wait(600); },
+        networkPing: async (target: string) => (target === "gateway" ? "192.168.1.1" : target),
+      });
       await wait(300);
       State.widgetStatus.integration_network = {
         id: "integration_network", level: "ok", at: Math.floor(Date.now() / 1000) - 40,
         summary: "Wi-Fi Ufficio · 18 ms",
         fields: [
+          { label: "Rete", value: "Wi-Fi Ufficio" },
           { label: "IP locale", value: "192.168.1.24" },
           { label: "IP pubblico", value: "203.0.113.57" },
+          { label: "Gateway", value: "192.168.1.1" },
+          { label: "DNS", value: "192.168.1.1, 1.1.1.1" },
+          { label: "Ethernet 2", value: "10.20.0.15 · gateway 10.20.0.1" },
+          { label: "vEthernet (WSL)", value: "172.28.96.1" },
           { label: "Wi-Fi", value: "Ufficio (5 GHz, 86%)" },
           { label: "VPN", value: "nessuna" },
           { label: "Latenza", value: "18 ms" },

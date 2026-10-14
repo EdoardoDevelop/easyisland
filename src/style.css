@@ -919,22 +919,6 @@ html.browser-preview #root {
   color: var(--dim-2);
 }
 
-/* ── Settings view (in-island) ──────────────────────────────────────────── */
-
-.settings-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.settings-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font: 400 12.5px var(--font);
-  color: #c5c8cd;
-}
-
 .switch {
   position: relative;
   width: 32px;
@@ -1705,7 +1689,14 @@ input[type="range"]::-webkit-slider-thumb {
   position: relative;
   z-index: 1;
   height: 100%;
+  /* Every tab's content in the middle of the card's height (Edoardo, 14
+     October 2026); content taller than the card starts at the top as before. */
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
 }
+
+.left-body > * { flex-shrink: 0; }
 
 .int-card {
   padding: 10px 12px 0 max(16px, calc(108px * var(--bot-room, 1)));
@@ -2059,12 +2050,91 @@ input[type="range"]::-webkit-slider-thumb {
   padding-top: 8px;
 }
 
+/* ── Rete: continuous ping and adapter settings (netconfig.ts) ────────── */
+.nc-ping {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding-top: 7px;
+}
+.nc-label { font: 500 10.5px var(--font); color: var(--dim-2); white-space: nowrap; }
+.nc-ping > .nc-label { margin-right: 2px; }
+.nc-chip {
+  border: 0;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font: 500 10.5px var(--font);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--c) 22%, transparent);
+  cursor: default;
+}
+.nc-chip:hover { background: color-mix(in srgb, var(--c) 34%, transparent); }
+.nc-input {
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  font: 400 11px var(--font);
+  outline: none;
+  user-select: text;
+}
+.nc-input:focus { border-color: rgba(255, 255, 255, 0.28); }
+.nc-ping-input { width: 120px; }
+.nc-note { font: 400 10.5px var(--font); color: var(--dim-2); flex: 1 1 100%; }
+.nc-card { gap: 6px; padding-bottom: 8px; }
+.nc-back { margin-left: auto; }
+.nc-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.nc-row > .nc-label { flex: 0 0 64px; }
+.nc-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid var(--hairline);
+  border-radius: 7px;
+  background: #1d1f25;
+  color: var(--ink);
+  font: 400 11px var(--font);
+  outline: none;
+}
+.nc-now { font: 400 10.5px var(--font); color: var(--dim-3); padding-left: 72px; }
+.nc-seg { display: flex; gap: 4px; }
+.nc-seg button {
+  border: 0;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font: 400 11px var(--font);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--dim-3);
+  cursor: default;
+}
+.nc-seg button.on { background: #2f333d; color: var(--ink); }
+.nc-seg button:disabled { opacity: 0.35; }
+.nc-grid {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 64px minmax(0, 1fr);
+  align-items: center;
+  gap: 5px 8px;
+  padding-left: 72px;
+}
+.nc-grid > .nc-label { text-align: right; }
+.nc-foot { padding-top: 4px; }
+.nc-foot .nc-note { flex: 1 1 auto; }
+.nc-hint { font: 400 10px var(--font); color: var(--dim-3); }
+
 /* ── Quick actions ─────────────────────────────────────────────────────── */
 
 .qa-card {
   padding: 12px 14px 12px max(16px, calc(104px * var(--bot-room, 1)));
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
 }
+
+.qa-card > * { flex-shrink: 0; }
 
 .qa-grid {
   display: flex;
@@ -2476,6 +2546,71 @@ input[type="range"]::-webkit-slider-thumb {
   opacity: 0.35;
 }
 
+/* Musica: the cover behind the whole card, clear at the top and fading out
+   towards the middle, where the song and the buttons are (asked by Edoardo,
+   14 October 2026). Like the Meteo sky, up to the card's edges. */
+.media-card {
+  align-items: center;
+  text-align: center;
+  padding-left: 16px;
+  padding-right: 16px;
+  gap: 2px;
+}
+.media-card > :not(.media-backdrop) { position: relative; }
+.media-card .int-head { justify-content: center; padding-right: 0; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); }
+.media-backdrop {
+  position: absolute;
+  top: -12px;
+  left: 0;
+  right: 0;
+  height: calc(72% + 12px);
+  background-size: cover;
+  background-position: center 40%;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, 0.85) 30%, rgba(0, 0, 0, 0.35) 62%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, 0.85) 30%, rgba(0, 0, 0, 0.35) 62%, transparent 100%);
+}
+/* A light shade so the song stays readable on a bright cover. */
+.media-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.35));
+}
+.media-card .media-info {
+  align-items: center;
+  width: 100%;
+  padding-top: 10px;
+  flex: 0 0 auto;
+}
+.media-card .media-title {
+  max-width: 100%;
+  font: 600 15px var(--font);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+.media-card .media-sub {
+  max-width: 100%;
+  font-size: 11.5px;
+  color: var(--dim-2);
+}
+.media-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(100%, 420px);
+  padding-top: 10px;
+}
+.media-progress .media-bar { flex: 1 1 auto; margin-top: 0; }
+.media-time {
+  min-width: 30px;
+  font: 400 10px var(--font);
+  color: var(--dim-3);
+  font-variant-numeric: tabular-nums;
+}
+.media-card .media-ctl { justify-content: center; gap: 14px; padding-top: 8px; }
+.media-card .media-btn { width: 30px; height: 30px; }
+.media-card .media-btn.main { width: 40px; height: 40px; }
+
 /* Integrations shown as header tabs (settings.integrationTabs). */
 .tab.int-tab {
   width: auto;
@@ -2867,6 +3002,9 @@ input[type="range"]::-webkit-slider-thumb {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  height: 100%;
+  box-sizing: border-box;
+  justify-content: safe center;
 }
 
 .files-head {

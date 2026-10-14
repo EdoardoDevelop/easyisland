@@ -298,18 +298,6 @@ export class Island {
         void Bridge.saveSettings(State.settings);
         State.notify();
       },
-      setVolume: (v) => {
-        State.settings.soundVolume = v;
-        Sound.setVolume(v);
-        void Bridge.saveSettings(State.settings);
-        State.notify();
-      },
-      setAutoClose: (s) => {
-        State.settings.autoCloseInterval = s;
-        this.fsm.homeToPetitDelay = s;
-        void Bridge.saveSettings(State.settings);
-        State.notify();
-      },
       openSettingsWindow: () => void Bridge.openSettingsWindow(),
       blip: () => Sound.play("blip"),
       toggleKeepOpen: () => this.toggleKeepOpen(),

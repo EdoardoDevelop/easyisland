@@ -2,8 +2,9 @@
 // icons are rasterised here and encoded with node:zlib, so the icon stays
 // "drawn in code" like the character.
 //
-// The icon is the island itself — a pill with a status light and a line of
-// content — not the character, which the user can change (Slime or EasyTech).
+// The icon is three pills, the island's own shape, stacked into an "E" from
+// indigo to cyan (chosen by Edoardo on 14 October 2026, proposal 10): not the
+// character, which the user can change.
 //
 //   node scripts/gen-icons.mjs
 
@@ -14,14 +15,13 @@ import { fileURLToPath } from "node:url";
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "src-tauri", "icons");
 
-// ── The island ────────────────────────────────────────────────────────────────
+// ── Three pills ───────────────────────────────────────────────────────────────
 
-const LEFT = [99, 102, 241]; // #6366F1 — the rim, left
-const RIGHT = [34, 211, 238]; // #22D3EE — the rim, right
-const TOP = [40, 43, 54]; // the island's body, top
-const BOTTOM = [17, 18, 24]; // … and bottom
-const STATUS = [110, 227, 106]; // #6EE36A — the status light
-const TEXT = [236, 238, 244];
+const PILLS = [
+  { color: [99, 102, 241], length: 1 }, // #6366F1
+  { color: [63, 155, 243], length: 0.69 }, // #3F9BF3, shorter: the "E"
+  { color: [34, 211, 238], length: 1 }, // #22D3EE
+];
 
 const SS = 4; // supersampling factor
 
@@ -31,66 +31,53 @@ function capsule(x, y, a, r) {
   return Math.hypot(x - cx, y) - r;
 }
 
-const over = (dst, src, a) => dst.map((c, i) => c * (1 - a) + src[i] * a);
+/**
+ * Bar height and gap. Up to 32 px they are whole pixels, with thicker bars
+ * and thinner gaps, so the three stay apart and sharp in the notification
+ * area; larger, the proportions of the drawing (16 : 10).
+ */
+function metrics(size) {
+  if (size <= 32) {
+    const h = Math.max(4, Math.round(size * 0.25));
+    const g = Math.max(1, Math.round(size * 0.07));
+    return { h, g, w: Math.round(size * 0.86) };
+  }
+  const total = size * 0.74;
+  const unit = total / 68;
+  return { h: 16 * unit, g: 10 * unit, w: 64 * unit };
+}
 
 function renderIcon(size) {
   const px = new Uint8Array(size * size * 4);
-  const small = size <= 24;
-  const a = size * (small ? 0.48 : 0.45); // half-width of the pill
-  const r = size * (small ? 0.3 : 0.24); // half-height = corner radius
-  const rim = Math.max(1.1, size * 0.045);
-  const cx = size / 2;
-  const cy = size / 2;
-  const dotX = -a + r * 1.05; // the status light, in the left cap
-  const dotR = r * (small ? 0.42 : 0.34);
-  const glowR = dotR * 2.1;
-  const textX0 = dotX + r * (small ? 0.75 : 0.72);
-  const lines = small
-    ? [{ y: 0, x1: a - r * 0.55, h: r * 0.24, alpha: 0.95 }]
-    : [
-        { y: -r * 0.26, x1: a - r * 0.6, h: r * 0.16, alpha: 0.95 },
-        { y: r * 0.3, x1: a - r * 1.35, h: r * 0.13, alpha: 0.5 },
-      ];
+  const { h, g, w } = metrics(size);
+  const total = 3 * h + 2 * g;
+  const top = Math.round((size - total) / 2);
+  const left = Math.round((size - w) / 2);
+  const bars = PILLS.map((p, i) => {
+    const len = Math.round(w * p.length);
+    return { ...p, cx: left + len / 2, cy: top + i * (h + g) + h / 2, a: len / 2, r: h / 2 };
+  });
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      let pill = 0;
-      let inner = 0;
-      let dot = 0;
-      const text = lines.map(() => 0);
-      let glow = 0;
+      const hits = bars.map(() => 0);
       for (let sy = 0; sy < SS; sy++) {
         for (let sx = 0; sx < SS; sx++) {
-          const u = x + (sx + 0.5) / SS - cx;
-          const v = y + (sy + 0.5) / SS - cy;
-          if (capsule(u, v, a, r) > 0) continue;
-          pill++;
-          if (capsule(u, v, a - rim, r - rim) > 0) continue;
-          inner++;
-          const d = Math.hypot(u - dotX, v);
-          if (d <= dotR) { dot++; continue; }
-          if (!small && d <= glowR) glow += 1 - (d - dotR) / (glowR - dotR);
-          lines.forEach((l, i) => {
-            if (capsule(u - (textX0 + l.x1) / 2, v - l.y, (l.x1 - textX0) / 2, l.h) <= 0) text[i]++;
-          });
+          const u = x + (sx + 0.5) / SS;
+          const v = y + (sy + 0.5) / SS;
+          const i = bars.findIndex((b) => capsule(u - b.cx, v - b.cy, b.a, b.r) <= 0);
+          if (i >= 0) hits[i]++;
         }
       }
-      if (pill === 0) continue;
-      const total = SS * SS;
-      const t = Math.min(1, Math.max(0, (x - (cx - a)) / (2 * a)));
-      const k = Math.min(1, Math.max(0, (y - (cy - r)) / (2 * r)));
-      // The rim's gradient first, the dark body over it.
-      let col = LEFT.map((c, i) => c + (RIGHT[i] - c) * t);
-      col = over(col, TOP.map((c, i) => c + (BOTTOM[i] - c) * k), inner / pill);
-      col = over(col, STATUS, 0.35 * (glow / pill));
-      lines.forEach((l, i) => { col = over(col, TEXT, l.alpha * (text[i] / pill)); });
-      col = over(col, STATUS, dot / pill);
-
+      const n = hits.reduce((s, k) => s + k, 0);
+      if (n === 0) continue;
+      const col = [0, 0, 0];
+      hits.forEach((k, i) => bars[i].color.forEach((c, j) => { col[j] += (c * k) / n; }));
       const o = (y * size + x) * 4;
       px[o] = Math.round(col[0]);
       px[o + 1] = Math.round(col[1]);
       px[o + 2] = Math.round(col[2]);
-      px[o + 3] = Math.round((pill / total) * 255);
+      px[o + 3] = Math.round((n / (SS * SS)) * 255);
     }
   }
   return px;

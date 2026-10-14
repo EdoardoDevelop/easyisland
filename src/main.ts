@@ -89,8 +89,7 @@ async function main() {
   await onEvent<string>("tray", (what) => {
     switch (what) {
       case "settings":
-        setPaused(false);
-        island.alert("settings");
+        void Bridge.openSettingsWindow();
         break;
       case "open":
         setPaused(false);

@@ -30,6 +30,17 @@ Fatte il 14 ottobre 2026: download finito, errore copiato, server di sviluppo pa
 - **Dettatura ripulita:** tieni premuta una scorciatoia, parli anche male, nel campo arriva la frase pulita. Vuole riconoscimento vocale: un modello locale da ~200 MB o un servizio esterno; per ora no.
 - **Personaggio che cresce con l'uso:** gioco e timer sono esclusi (`decisioni.md`); resta solo la domanda già aperta del personaggio che esce dall'isola e vive sul desktop.
 
+## Automazioni più intelligenti (ragionate il 14 ottobre 2026, da decidere con Edoardo)
+Oggi un'automazione è «quando → (solo nel profilo) → passi fissi». Possibili passi avanti, dal più utile:
+1. **Dati del «quando» nei passi:** `{file}`, `{cartella}`, `{rete}`, `{programma}`, `{ticket}`, `{chiamante}` dentro link, azioni rapide e domande alla chat (es. nuovo file in una cartella → «Chiedi alla chat di riassumere {file}»). Serve un segnaposto sicuro: nei link codificato, negli script solo come argomento, mai incollato nel comando.
+2. **«Quando» nuovi**, dagli eventi che l'isola già vede: download finito, server di sviluppo partito, agente che ha finito o aspetta un permesso da N minuti, chiamata 3CX in arrivo o finita, N minuti prima di un evento del calendario, fine giornata (`eveningHour`), rientro dopo una pausa (inattività).
+3. **«Se» più ricchi**, anche più d'uno insieme: fascia oraria e giorni, rete Wi-Fi, alimentazione o batteria, programma aperto, in riunione (microfono/webcam), davanti al cliente, nessun agente al lavoro. Più «al massimo una volta al giorno / ogni N minuti» contro le ripetizioni.
+4. **Passi più flessibili:** «aspetta N minuti», «chiedi prima» (card con Esegui/Annulla e conto alla rovescia di pochi secondi per i passi che disturbano), «ferma se il passo prima non è riuscito».
+5. **Crea a parole:** «ogni lunedì alle 9 apri Teams e la bacheca dei ticket» → la chat produce la regola, `automations::validate` la controlla, l'utente vede l'anteprima e la crea con un clic. Nessun passo nuovo per il modello: usa solo quelli esistenti.
+6. **Decide la chat (passo «valuta»):** il modello legge l'evento (ticket, email, errore) e sceglie fra rami preparati dall'utente («se è urgente → avviso rosso e apri il ticket, altrimenti niente»). Solo scelte fra passi già approvati; mai inviare email, eseguire comandi o eliminare.
+7. **Impara dall'uso:** le abitudini (`habits.rs`) propongono anche dai nuovi eventi (es. ogni PDF scaricato viene aperto subito); un'automazione annullata o ignorata spesso propone di spegnersi o cambiare orario; nel registro, quante volte è partita e quante annullata. «Prova ora» per vedere cosa farebbe senza aspettare il «quando».
+Proposta di partenza: 1 + 2 + 3 (più utili, nessun modello coinvolto), poi 5, poi 6.
+
 ## Altro
 - **Scheda esatta di Windows Terminal** per «Apri»: il relay legge il titolo della console e l'app seleziona la scheda con UI Automation. Da sperimentare con una sessione vera. Tolta dal Da fare il 9 ottobre: per ora non serve.
 - **Clic destro sui file in Esplora file** (prossimo passo, deciso l'11 ottobre 2026): una voce nel registro di Windows (`HKCU\Software\Classes\*\shell`) che passa il percorso all'app, scritta solo dopo la conferma di Edoardo. In Windows 11 finisce sotto «Mostra altre opzioni» (il menu nuovo vuole un pacchetto MSIX con `IExplorerCommand`). Per il testo selezionato c'è già il menu di `Win+Alt+A`.

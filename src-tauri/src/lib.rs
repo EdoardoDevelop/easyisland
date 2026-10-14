@@ -28,6 +28,7 @@ mod log;
 mod mcp_setup;
 mod media;
 mod moments;
+mod netconfig;
 mod openai;
 mod opencode;
 mod opencode_agent;
@@ -54,6 +55,7 @@ mod settings;
 mod i18n;
 mod webview_profile;
 mod recap;
+mod renew;
 mod start_apps;
 mod threecx;
 mod tray;
@@ -1554,6 +1556,9 @@ pub fn run() {
             set_collapsed,
             drag_island,
             copy_pc_info,
+            netconfig::network_adapters,
+            netconfig::network_apply,
+            netconfig::network_ping,
             presence_state,
             notify_test,
             end_drag,

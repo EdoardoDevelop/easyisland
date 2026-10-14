@@ -86,7 +86,7 @@ export interface DailyHost {
 }
 
 /** Views the card may replace; anything else is the user busy with something. */
-const QUIET_VIEWS: ReadonlySet<IslandViewName> = new Set(["overview", "empty", "settings"]);
+const QUIET_VIEWS: ReadonlySet<IslandViewName> = new Set(["overview", "empty"]);
 const SHOW_DELAY_MS = 1500;
 
 class DailyController {

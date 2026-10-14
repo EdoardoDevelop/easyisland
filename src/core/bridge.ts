@@ -20,6 +20,30 @@ async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T |
   }
 }
 
+export interface NetAdapter {
+  index: number;
+  name: string;
+  up: boolean;
+  wireless: boolean;
+  virtualHost: boolean;
+  dhcp: boolean;
+  dnsAuto: boolean;
+  addresses: { ip: string; prefix: number }[];
+  gateway: string;
+  dns: string[];
+  main: boolean;
+}
+
+export interface NetConfigInput {
+  index: number;
+  dhcp: boolean;
+  ip: string;
+  mask: string;
+  gateway: string;
+  dnsAuto: boolean;
+  dns: string[];
+}
+
 export interface BootInfo {
   settings: Settings;
   /** Logical screen rect of the monitor the island lives on. */
@@ -88,6 +112,12 @@ export const Bridge = {
 
   /** "Copia info PC": the text it put on the clipboard. */
   copyPcInfo: () => callOrThrow<string>("copy_pc_info"),
+  /** Rete: the adapters with their address and DNS settings (netconfig.rs). */
+  networkAdapters: () => call<NetAdapter[]>("network_adapters"),
+  /** Rete: applies an adapter's settings as administrator (Windows asks). */
+  networkApply: (config: NetConfigInput) => callOrThrow<void>("network_apply", { config }),
+  /** Rete: a continuous ping in a new terminal; "gateway" = the main adapter's. */
+  networkPing: (target: string) => callOrThrow<string>("network_ping", { target }),
   /** "Davanti al cliente" right now: why, or null. */
   presenceState: () => call<string | null>("presence_state"),
   /** "Prova" for messages from scripts. */

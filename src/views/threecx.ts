@@ -2,7 +2,7 @@
 // display, the keypad and the green button, with the device the calls start
 // from ("Questo PC" makes EasyIsland itself the phone, src/core/softphone.ts);
 // on the right the calls in progress and one list at a time (recent calls,
-// missed, team, chats, voicemail, phonebook results); below, the tab bar.
+// missed, team, phonebook, chats, voicemail); below, the tab bar.
 //
 // The card is rebuilt whenever the PBX sends news; the phone (Dialer) is one
 // element kept across rebuilds, so typing (a number or a chat message) is
@@ -177,6 +177,8 @@ class Dialer {
   private list: HTMLElement;
   private note: HTMLElement;
   private panel: Panel = "recent";
+  /** Rubrica opened from its tab: an empty display keeps it, with the hint. */
+  private book = false;
   private timer = 0;
   private seq = 0;
   private focused = false;
@@ -272,7 +274,7 @@ class Dialer {
       return;
     }
     if (this.tones) return; // tones for the call: nothing to look up
-    if (this.input.value.trim()) this.search();
+    if (this.input.value.trim() || (this.panel === "search" && this.book)) this.search();
     else if (this.panel === "search") this.show("recent", true);
   }
 
@@ -333,6 +335,7 @@ class Dialer {
     if (!force && panel === this.panel && panel !== "chat") return;
     if (panel !== "chat") this.leaveChat();
     if (panel !== "team") this.pick = null;
+    if (panel !== "search") this.book = false;
     this.panel = panel;
     this.input.placeholder = panel === "team" ? (this.pick ? t("Collega o numero a cui passarla") : t("Cerca un collega")) : t("Cerca o componi");
     this.input.title = this.pick ? t("Invio la passa al primo collega dell'elenco o al numero scritto") : t("Un nome, un'azienda o un numero; Invio chiama");
@@ -384,6 +387,7 @@ class Dialer {
     const free = (d.team ?? []).filter((c) => c.presence === "available").length;
     this.tabs.append(
       this.tab("team", ICONS.people, t("Team"), 0, false, BLUE, t("{n} colleghi disponibili", { n: free })),
+      this.tab("search", ICONS.book, t("Rubrica"), 0, true, BLUE, t("Cerca un contatto nella rubrica di 3CX")),
       this.tab("chats", ICONS.bubble, t("Chat"), d.unread ?? 0),
       this.tab("voicemail", ICONS.voicemail, t("Segreteria"), d.voicemail ?? 0, true),
       this.tab("recent", ICONS.history, t("Recenti"), 0, true),
@@ -393,7 +397,16 @@ class Dialer {
 
   private tab(panel: Panel, icon: string, label: string, count: number, stroke = false, badge = BLUE, title = ""): HTMLElement {
     const on = this.panel === panel || (panel === "chats" && this.panel === "chat");
-    return h("button", { class: on ? "tcx-tab on" : "tcx-tab", title: title || label, onclick: () => this.show(panel, panel === "chats") },
+    return h("button", { class: on ? "tcx-tab on" : "tcx-tab", title: title || label, onclick: () => {
+      if (panel === "search") {
+        // The phonebook is searched from the display: open it there, ready to type.
+        this.book = true;
+        this.show("search", true);
+        this.input.focus();
+        return;
+      }
+      this.show(panel, panel === "chats");
+    } },
       h("span", { class: "tcx-tab-icon" }, svg(icon, 15, stroke ? { stroke: 1.9 } : {}),
         count > 0 ? h("span", { class: "tcx-tab-badge", style: `background:${badge}`, text: count > 99 ? "99+" : String(count) }) : null),
       h("span", { class: "tcx-tab-label", text: label }));
@@ -452,7 +465,12 @@ class Dialer {
       this.list.append(this.row(t("Chiama {n}", { n: number }), "", [number], GREEN));
     }
     refit();
-    if (q.length < 2 || (number && /^\+?\d+$/.test(number) && number.length > 6)) return;
+    if (q.length < 2) {
+      this.list.append(h("div", { class: "int-empty", text: t("Scrivi nel display almeno due lettere di un nome o di un'azienda") }));
+      refit();
+      return;
+    }
+    if (number && /^\+?\d+$/.test(number) && number.length > 6) return;
     this.timer = window.setTimeout(() => {
       Bridge.threecxContacts(q)
         .then((list) => {
