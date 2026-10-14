@@ -276,7 +276,7 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "media_status" => {
             let s = settings(app)?;
             if !s.active_integrations.iter().any(|a| a == crate::media::ID) {
-                return Err("L'integrazione Musica è spenta (Impostazioni → Integrazioni).".into());
+                return Err("L'integrazione Media è spenta (Impostazioni → Integrazioni).".into());
             }
             match crate::media::last() {
                 Some(v) if v.get("active").and_then(Value::as_bool) == Some(true) => Ok(pretty(&json!({

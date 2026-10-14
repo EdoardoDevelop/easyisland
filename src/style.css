@@ -2292,6 +2292,11 @@ input[type="range"]::-webkit-slider-thumb {
   justify-content: flex-end;
 }
 
+.rw-format {
+  font: 400 11px var(--font);
+  color: var(--dim-2);
+}
+
 /* ── AskUserQuestion ────────────────────────────────────────────────────── */
 
 .ask-q {
@@ -3175,6 +3180,41 @@ input[type="range"]::-webkit-slider-thumb {
   display: inline-flex;
   gap: 4px;
   flex: 0 0 auto;
+}
+
+/* The zone just put in the tray by Cerchia e chiedi: lit, Chiedi and Copia in sight. */
+.files-row.fresh {
+  flex-wrap: wrap;
+  background: rgba(103, 232, 249, 0.09);
+  box-shadow: inset 0 0 0 1px rgba(103, 232, 249, 0.45);
+  animation: files-fresh 1.2s ease-out 1;
+}
+.files-row.fresh:hover { background: rgba(103, 232, 249, 0.14); }
+.files-fresh-tag {
+  color: #67e8f9;
+  font-weight: 600;
+}
+.files-fresh-row {
+  flex: 1 0 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.files-fresh-row .btn {
+  height: 24px;
+  padding: 0 12px;
+  font-size: 11.5px;
+}
+.files-fresh-done {
+  font: 400 10.5px var(--font);
+  color: #22c55e;
+}
+.files-list.grid .files-row.fresh { grid-column: 1 / -1; }
+.files-list.grid .files-row.fresh .files-tools { opacity: 1; }
+.files-list.grid .files-fresh-row { justify-content: center; }
+@keyframes files-fresh {
+  from { box-shadow: inset 0 0 0 1px rgba(103, 232, 249, 0.45), 0 0 0 4px rgba(103, 232, 249, 0.35); }
+  to { box-shadow: inset 0 0 0 1px rgba(103, 232, 249, 0.45), 0 0 0 0 rgba(103, 232, 249, 0); }
 }
 
 .files-empty,

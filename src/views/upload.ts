@@ -344,7 +344,8 @@ export function buildFiles(actions: ViewActions): ViewHost {
       dropTile.classList.toggle("over", State.fileDragOver);
       hotkey.textContent = State.settings.hotkeyScreenshot ?? "";
       const files = State.inbox ?? [];
-      const k = files.map((f) => `${f.name}:${f.at}:${f.kept ? 1 : 0}`).join("|");
+      const fresh = State.trayFresh && State.trayFresh.until > Date.now() ? State.trayFresh.name : "";
+      const k = `${fresh}#` + files.map((f) => `${f.name}:${f.at}:${f.kept ? 1 : 0}`).join("|");
       if (k === key) return;
       key = k;
       const total = files.reduce((s, f) => s + f.size, 0);
@@ -358,12 +359,15 @@ export function buildFiles(actions: ViewActions): ViewHost {
       for (const f of files) {
         const err = h("span", { class: "files-err" });
         const fail = (e: unknown) => { err.textContent = String(e).replace(/^Error:\s*/, ""); };
-        const row = h("div", { class: f.kept ? "files-row kept" : "files-row", title: t("Trascina in un'altra app · doppio clic: apri"),
+        const isFresh = f.name === fresh;
+        const row = h("div", { class: `files-row${f.kept ? " kept" : ""}${isFresh ? " fresh" : ""}`, title: t("Trascina in un'altra app · doppio clic: apri"),
           ondblclick: () => void Bridge.inboxOpen(f.name, false).catch(fail) },
         grid ? h("span", { class: "files-ext", text: (f.name.match(/\.([^.]{1,5})$/)?.[1] ?? "file").toUpperCase() }) : null,
         h("div", { class: "files-info" },
           h("span", { class: "files-name", text: f.name, title: f.name }),
-          h("span", { class: "files-meta", text: `${f.kept ? "📌 fissato · " : ""}${size(f.size)} · ${ago(f.at)}` }),
+          h("span", { class: "files-meta" },
+            isFresh ? h("span", { class: "files-fresh-tag", text: `${t("Appena aggiunta")} · ` }) : null,
+            `${f.kept ? "📌 fissato · " : ""}${size(f.size)} · ${ago(f.at)}`),
           err),
         h("span", { class: "files-tools" },
           iconBtn("chat", t("Chiedi alla chat su questo file"), "#A78BFA", () => actions.askAboutFile(f)),
@@ -374,6 +378,20 @@ export function buildFiles(actions: ViewActions): ViewHost {
 
             void Bridge.inboxDelete(f.name).then(() => actions.refreshFiles()).catch(fail);
           })));
+        if (isFresh) {
+          // Ask about it or copy it, without looking for the icons.
+          const done = h("span", { class: "files-fresh-done" });
+          row.append(h("div", { class: "files-fresh-row" },
+            h("button", { class: "btn primary", onclick: (e: Event) => { e.stopPropagation(); State.trayFresh = null; actions.askAboutPicture(f); } },
+              h("span", { text: t("Chiedi") })),
+            /\.png$/i.test(f.name)
+              ? h("button", { class: "btn secondary", onclick: (e: Event) => {
+                e.stopPropagation();
+                void Bridge.inboxCopy(f.name).then(() => { done.textContent = t("Copiata negli appunti ✓"); }).catch(fail);
+              } }, h("span", { text: t("Copia") }))
+              : null,
+            done));
+        }
         // Pressed and moved past a few pixels: Windows' drag takes over, so the
         // file can be dropped in a mail, a chat or a folder.
         let press: { x: number; y: number } | null = null;

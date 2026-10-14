@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 13 ottobre 2026 — versione 0.7.8 e homepage
+- Unione in `main` e tag `v0.7.8`: nuovo impianto dell'isola, risposte rapide a isola chiusa, card del Meteo, angolo e colore del personaggio (voci sotto). Schermate del README rifatte (scene nuove `files`, `strip`; `overview` con le righe dei riquadri), parole «pillola» tolte da README e Impostazioni. Homepage (`site/`, GitHub Pages, arrivata in `main` da `claude/homepage`) aggiornata al nuovo impianto con le stesse schermate.
+
 ### 13 ottobre 2026 — Panoramica, card del Meteo, angolo e colore del personaggio
 - Dopo la prova di Edoardo: «Oggi» torna a chiamarsi Panoramica; loghi del menu larghi quanto un'emoji; numeri e pallini del menu nascosti con la voce aperta. Card del Meteo nuova (`src/views/weather.ts`, dati `forecast_of` in `probes.rs`): cielo di adesso animato che sfuma in basso, riquadri, 12 ore e 7 giorni. Angolo di ridimensionamento senza scatto e fermo all'altezza minima (si salvava la posizione del mouse). Il personaggio torna al suo colore anche quando l'agente non manda `Stop` (`armStale`, `idle_prompt` in `hooks.ts`). Provato nell'anteprima (scena `meteo`, anche `&night`).
 

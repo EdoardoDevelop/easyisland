@@ -56,6 +56,7 @@ mod i18n;
 mod webview_profile;
 mod recap;
 mod renew;
+mod richtext;
 mod start_apps;
 mod threecx;
 mod tray;
@@ -816,7 +817,7 @@ async fn chat_send(
 /// one answer of its own. It goes through the chat's engine but never into the
 /// chat: a conversation of its own, no connectors, nothing in the history.
 #[tauri::command]
-async fn rewrite_text(app: AppHandle, shared: State<'_, Shared>, prompt: String, text: String) -> Result<String, String> {
+async fn rewrite_text(app: AppHandle, shared: State<'_, Shared>, prompt: String, text: String) -> Result<Rewritten, String> {
     let (engine, model, cli_model, other_model, url) = {
         let s = shared.settings.lock().unwrap();
         let other = s.engine_models.get(&s.chat_engine).cloned().unwrap_or_default();
@@ -824,12 +825,22 @@ async fn rewrite_text(app: AppHandle, shared: State<'_, Shared>, prompt: String,
         (s.chat_engine.clone(), s.model.clone(), s.cli_model.clone(), other, url)
     };
     let chat = Chat::default();
+    // With the app's HTML, the model gets the text with marks where the
+    // formatting is, and the reply is put back together with it (richtext.rs).
+    let html = context::captured_html(&text);
+    let marked = html.as_ref().and_then(|c| richtext::mark(&c.fragment));
+    let marks_note = match &marked {
+        Some(_) => format!("\n\n{}", t("Nel testo ci sono segni come ⟦1⟧ al posto della formattazione (grassetto, link, paragrafi): lasciali tutti, ognuno una volta sola e nello stesso ordine, accanto alle parole a cui si riferiscono.")),
+        None => String::new(),
+    };
     let query = format!(
-        "{}\n\n{}",
+        "{}\n\n{}{}",
         prompt.trim(),
         t("Rispondi solo con il testo nuovo che prenderà il posto di quello selezionato: niente introduzioni, commenti, virgolette o markdown. Mantieni la lingua del testo, salvo che ti sia chiesto di tradurlo."),
+        marks_note,
     );
-    let context = Some(ChatContext::Text { label: t("Testo selezionato").into(), text });
+    let sent = marked.as_ref().map_or(text, |m| m.text.clone());
+    let context = Some(ChatContext::Text { label: t("Testo selezionato").into(), text: sent });
     let reply = if engine == "api" {
         claude::send(&chat, &model, query, context).await
     } else if engine == "opencode" {
@@ -841,14 +852,45 @@ async fn rewrite_text(app: AppHandle, shared: State<'_, Shared>, prompt: String,
     } else {
         claude_cli::send(&chat, &cli_model, &[], false, query, context).await
     };
-    Ok(context::clean_reply(&reply?.text))
+    let reply = context::clean_reply(&reply?.text);
+    let (Some(clip), Some(marked)) = (html, marked) else {
+        context::keep_rewrite(&reply, None);
+        return Ok(Rewritten { text: reply, formatted: false, lost: false });
+    };
+    let plain = marked.plain(&reply);
+    match marked.rebuild(&reply) {
+        Some(fragment) => {
+            context::keep_rewrite(&plain, Some(clip.with_fragment(&fragment)));
+            Ok(Rewritten { text: plain, formatted: true, lost: false })
+        }
+        None => {
+            log::line(format!("sostituisci: formattazione persa ({} segni attesi)", marked.marks()));
+            context::keep_rewrite(&plain, None);
+            Ok(Rewritten { text: plain, formatted: false, lost: true })
+        }
+    }
+}
+
+/// A rewrite for the card: `formatted` when "Sostituisci" can paste it with the
+/// selection's formatting, `lost` when the selection had some and it could not be kept.
+#[derive(serde::Serialize)]
+struct Rewritten {
+    text: String,
+    formatted: bool,
+    lost: bool,
+}
+
+/// "Copia" in the rewrite card: with the formatting, or as plain text.
+#[tauri::command]
+fn copy_rewrite(text: String, formatted: bool) -> Result<(), String> {
+    context::copy_rewrite(&text, formatted)
 }
 
 /// "Sostituisci" in the card: `text` in place of the selection, if it is still
 /// `original`. The error is a reason code (see `context::replace`).
 #[tauri::command]
-async fn replace_selection(original: String, text: String) -> Result<(), String> {
-    match tauri::async_runtime::spawn_blocking(move || context::replace(&original, &text)).await {
+async fn replace_selection(original: String, text: String, formatted: bool) -> Result<(), String> {
+    match tauri::async_runtime::spawn_blocking(move || context::replace(&original, &text, formatted)).await {
         Ok(r) => r.map_err(String::from),
         Err(_) => Err("no-window".into()),
     }
@@ -1260,6 +1302,18 @@ fn inbox_clear() -> usize {
 #[tauri::command]
 fn inbox_keep(name: String, keep: bool) -> Result<(), String> {
     files::set_kept(&name, keep)
+}
+
+/// "Copia" on a picture of the tray: on the clipboard as an image.
+#[tauri::command]
+async fn inbox_copy(name: String) -> Result<(), String> {
+    let path = files::inbox_path(&name)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+        clipimage::write(&clipimage::decode_png(&bytes)?)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// "Apri" opens the copy with its app; "Mostra" selects it in Explorer.
@@ -1682,6 +1736,7 @@ pub fn run() {
             daily_show,
             restart_app,
             inbox_open,
+            inbox_copy,
             inbox_drag,
             mouse_button_down,
             zip_extract,
@@ -1689,6 +1744,7 @@ pub fn run() {
             capture_selection,
             rewrite_text,
             replace_selection,
+            copy_rewrite,
             selection_menu,
             process_alive,
             open_n8n,

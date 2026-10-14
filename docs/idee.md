@@ -9,6 +9,16 @@ I dettagli che `HANDOFF.md` riassume in una riga. Le idee più vecchie e l'anali
 - Regole: solo con entrambe le integrazioni accese, tutto in memoria, niente nomi né titoli davanti al cliente, nessuna azione senza un clic.
 - Seguito possibile: «Nuovo ticket» dalla chiamata.
 
+## Account Microsoft: mail nuove e calendario (annotata il 14 ottobre 2026, da decidere)
+- **Via principale, Microsoft Graph:** «Accedi con Microsoft» nelle Impostazioni (browser, permessi di sola lettura `Mail.Read`, `Calendars.Read`, accesso con PKCE e indirizzo locale di ritorno). Vale per account di lavoro (Microsoft 365) e personali (Outlook.com), senza Outlook aperto e anche con il nuovo Outlook. Controllo circa ogni minuto (le notifiche push di Graph vogliono un server pubblico). Card «mail nuova» con mittente e oggetto, Apri e Chiedi alla chat (riassunto o bozza, mai inviata); card prima di un evento con «Partecipa» per Teams (`onlineMeeting.joinUrl`). Poi «quando» per le automazioni (idea 2 sotto).
+- **Vincoli:** token di aggiornamento in Gestione credenziali; rete solo verso Microsoft e solo con l'integrazione accesa. Serve registrare una volta l'app in Microsoft Entra (gratis): ne esce un ID applicazione pubblico, non segreto.
+- **Problema:** molte aziende bloccano il consenso degli utenti alle app esterne → serve l'ok dell'amministratore IT («Richiede l'approvazione dell'amministratore»). Mai aggirarlo (per esempio con l'ID di un'app di Microsoft già approvata).
+- **Ripieghi senza consenso dell'IT:**
+  1. Outlook classico (`outlook.rs`, c'è già): aggiungere l'avviso di mail nuova con mittente e oggetto. Solo con Outlook classico aperto.
+  2. Notifiche di Windows (`UserNotificationListener`, permesso «Accesso alle notifiche» dato dall'utente): l'isola mostrerebbe quelle di nuovo Outlook, Outlook web e Teams. **Da provare prima:** potrebbe servire l'identità di pacchetto (pacchetto sparse).
+  3. Link ICS pubblicato da Outlook web nel widget Calendario (c'è già); alcune aziende bloccano anche questo, e non copre le mail.
+- Domande aperte per Edoardo: Outlook classico o nuovo; chi amministra il Microsoft 365 aziendale.
+
 ## Remote Desktop Manager (Devolutions), come integrazione
 - **Prima di tutto:** capire dove sta la fonte dati delle voci (Devolutions Server, Hub, database SQL o file locale).
 - Cosa offre RDM: `rdm://open?Filter=<testo>`, `RemoteDesktopManager.exe /DataSource:<id> /Session:<id>` e il modulo PowerShell Devolutions.PowerShell (`Get-RDMSession`, PowerShell 7.2+).

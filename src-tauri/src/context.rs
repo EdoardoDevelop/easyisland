@@ -6,6 +6,7 @@
 // its chat, and then it would be "the app in front" itself.
 
 use std::sync::atomic::{AtomicIsize, Ordering};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
@@ -130,6 +131,42 @@ fn key(vk: VIRTUAL_KEY, up: bool) -> INPUT {
 /// The window the last selection was read from: "Sostituisci" pastes there.
 static CAPTURED: AtomicIsize = AtomicIsize::new(0);
 
+/// The last selection's text and its HTML, when the app copied some (richtext.rs).
+static CAPTURED_HTML: Mutex<Option<(String, crate::richtext::Clip)>> = Mutex::new(None);
+
+/// The last rewrite with its formatting: the plain text shown in the card and the CF_HTML.
+static REWRITTEN: Mutex<Option<(String, String)>> = Mutex::new(None);
+
+/// The HTML of the selection read last, if `text` is that selection.
+pub fn captured_html(text: &str) -> Option<crate::richtext::Clip> {
+    let held = CAPTURED_HTML.lock().ok()?;
+    held.as_ref().filter(|(t, _)| t == text).map(|(_, clip)| clip.clone())
+}
+
+/// Keeps a rewrite's formatted version for "Sostituisci" and "Copia".
+pub fn keep_rewrite(plain: &str, cf_html: Option<String>) {
+    if let Ok(mut r) = REWRITTEN.lock() {
+        *r = cf_html.map(|h| (plain.to_string(), h));
+    }
+}
+
+/// The formatted version of `text`, if it is the rewrite kept (unchanged in the card).
+fn rewritten_html(text: &str) -> Option<String> {
+    let r = REWRITTEN.lock().ok()?;
+    r.as_ref().filter(|(plain, _)| same_text(plain, text)).map(|(_, h)| h.clone())
+}
+
+/// "Copia" in the card: the text, with its formatting when asked and still the same.
+pub fn copy_rewrite(text: &str, formatted: bool) -> Result<(), String> {
+    let html = if formatted { rewritten_html(text) } else { None };
+    crate::richtext::set_clipboard(&crlf(text), html.as_deref())
+}
+
+/// Windows apps want CRLF for a new line (the card's text area gives LF).
+fn crlf(text: &str) -> String {
+    text.replace("\r\n", "\n").replace('\n', "\r\n")
+}
+
 /// Brings `hwnd` to the front, so the keys sent next reach it and never the
 /// island (focused for its chat or a card).
 fn focus(hwnd: HWND) -> Result<(), &'static str> {
@@ -172,9 +209,10 @@ fn ctrl(letter: u8) {
     }
 }
 
-/// Ctrl+C in the window in front, read, then the clipboard put back as it was
-/// (every format: pictures and copied files too, see actions::ClipboardBefore).
-fn copy_selected() -> Result<String, &'static str> {
+/// Ctrl+C in the window in front, read (the text, and its HTML if the app gave
+/// some), then the clipboard put back as it was (every format: pictures and
+/// copied files too, see actions::ClipboardBefore).
+fn copy_selected() -> Result<(String, Option<crate::richtext::Clip>), &'static str> {
     let before = crate::actions::ClipboardBefore::take();
     crate::clipboard::ignore_next(Duration::from_millis(2000));
     let seq = unsafe { GetClipboardSequenceNumber() };
@@ -190,9 +228,10 @@ fn copy_selected() -> Result<String, &'static str> {
     // Let the app finish writing every format.
     std::thread::sleep(Duration::from_millis(60));
     let text = crate::actions::clipboard_text();
+    let html = crate::richtext::read_clipboard();
     before.put_back();
     match text {
-        Some(t) if !t.trim().is_empty() => Ok(t),
+        Some(t) if !t.trim().is_empty() => Ok((t, html)),
         Some(_) => Err("empty"),
         None => Err("not-text"),
     }
@@ -210,8 +249,11 @@ pub fn selection() -> Result<String, &'static str> {
     let hwnd = target().ok_or("no-window")?;
     focus(hwnd)?;
     wait_keys_released()?;
-    let text = copy_selected()?;
+    let (text, html) = copy_selected()?;
     CAPTURED.store(hwnd.0 as isize, Ordering::Relaxed);
+    if let Ok(mut held) = CAPTURED_HTML.lock() {
+        *held = html.map(|clip| (text.clone(), clip));
+    }
     Ok(text)
 }
 
@@ -225,8 +267,9 @@ fn same_text(a: &str, b: &str) -> bool {
 /// "Sostituisci": `text` in place of the selection read before (`original`),
 /// in the window it came from. The selection is copied again first: if the
 /// user clicked elsewhere meanwhile, nothing is pasted ("changed"). The
-/// clipboard is put back as it was afterwards, like `selection`.
-pub fn replace(original: &str, text: &str) -> Result<(), &'static str> {
+/// clipboard is put back as it was afterwards, like `selection`. `formatted`:
+/// the rewrite's HTML goes too, if `text` is still the rewrite kept.
+pub fn replace(original: &str, text: &str, formatted: bool) -> Result<(), &'static str> {
     let hwnd = HWND(CAPTURED.load(Ordering::Relaxed) as *mut _);
     if hwnd.0.is_null() || !unsafe { IsWindow(Some(hwnd)) }.as_bool() {
         return Err("no-window");
@@ -234,15 +277,14 @@ pub fn replace(original: &str, text: &str) -> Result<(), &'static str> {
     focus(hwnd)?;
     wait_keys_released()?;
     match copy_selected() {
-        Ok(now) if same_text(&now, original) => {}
+        Ok((now, _)) if same_text(&now, original) => {}
         Ok(_) | Err("empty") => return Err("changed"),
         Err(e) => return Err(e),
     }
     let before = crate::actions::ClipboardBefore::take();
     crate::clipboard::ignore_next(Duration::from_millis(3000));
-    // Windows apps want CRLF for a new line (the card's text area gives LF).
-    let text = text.replace("\r\n", "\n").replace('\n', "\r\n");
-    crate::actions::set_clipboard_text(&text).map_err(|_| "clipboard")?;
+    let html = if formatted { rewritten_html(text) } else { None };
+    crate::richtext::set_clipboard(&crlf(text), html.as_deref()).map_err(|_| "clipboard")?;
     ctrl(b'V');
     // The app reads the clipboard while it handles the paste; browsers a bit later.
     std::thread::sleep(Duration::from_millis(500));

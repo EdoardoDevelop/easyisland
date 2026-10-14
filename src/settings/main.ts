@@ -885,8 +885,8 @@ const INTEGRATIONS: IntegrationDef[] = [
     hint: t("Quanti token hanno usato le sessioni di Claude Code (terminale, VS Code e app desktop di Claude) nelle ultime 5 ore, oggi e negli ultimi 7 giorni, per progetto e per modello. Letti dalle trascrizioni che Claude Code salva già in %USERPROFILE%\\.claude\\projects: solo i conteggi, mai il testo. In cima, le percentuali del piano Pro o Max (5 ore, settimana e settimana Opus): chieste ad Anthropic ogni 5 minuti con l'accesso già fatto in Claude Code (lo stesso dato di /usage; l'accesso viene solo letto), o passate da Claude Code alla sua status line.") },
   { id: "integration_clipboard", name: t("Appunti"), color: "#A78BFA", fields: [],
     hint: t("Gli ultimi 30 testi copiati, più quelli fissati: clic per incollarli nell'app in primo piano, o trasformarli (maiuscole, una riga, JSON, URL). Si apre anche con la scorciatoia in Azioni rapide. Restano solo in memoria (mai su disco) e si svuotano alla chiusura; ciò che i gestori di password segnano come privato non viene registrato.") },
-  { id: "integration_media", name: t("Musica"), color: "#1ED760", fields: [],
-    hint: t("Cosa sta suonando (Spotify, una scheda del browser, Lettore multimediale… tutto ciò che compare nei controlli multimediali di Windows), con copertina, play/pausa, brano precedente e successivo. Tutto in locale, nessun account.") },
+  { id: "integration_media", name: t("Media"), color: "#1ED760", fields: [],
+    hint: t("Cosa è in riproduzione (musica, video, podcast: Spotify, YouTube o un'altra scheda del browser, Lettore multimediale… tutto ciò che compare nei controlli multimediali di Windows), con copertina, play/pausa, precedente e successivo. Tutto in locale, nessun account.") },
 ];
 
 /** 3CX: the ringtone of "Questo PC", the built-in one or a file of the user's. */

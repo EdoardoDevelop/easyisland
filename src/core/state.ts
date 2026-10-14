@@ -282,7 +282,7 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_zammad", t("Ticket"), "#F59E0B", "n8n"),
   task("integration_claude_usage", t("Consumo"), "#D97757", "n8n"),
   task("integration_clipboard", t("Appunti"), "#A78BFA", "n8n"),
-  task("integration_media", t("Musica"), "#1ED760", "n8n"),
+  task("integration_media", t("Media"), "#1ED760", "n8n"),
   task("integration_3cx", "3CX", "#0596D4", "n8n"),
 ];
 
@@ -652,6 +652,12 @@ export interface Rewrite {
   status: "loading" | "ready" | "replacing" | "error";
   /** Why it failed, or why nothing was pasted. */
   message: string;
+  /** The rewrite can be pasted with the selection's formatting (as long as it is not edited). */
+  formatted?: boolean;
+  /** The text `formatted` belongs to: once edited in the card, it pastes as plain text. */
+  formattedText?: string;
+  /** The selection had formatting and the rewrite lost it. */
+  lost?: boolean;
 }
 
 /** A script launched from the Azioni tab. */
@@ -850,6 +856,8 @@ class AppState {
   droppedFile: { name: string; path: string; source?: string } | null = null;
   /** The tray ("Vassoio"): the inbox, as last listed. */
   inbox: { name: string; path: string; size: number; at: number; kept?: boolean }[] | null = null;
+  /** The zone just put in the tray by "Cerchia e chiedi": lit, with Chiedi and Copia at hand. */
+  trayFresh: { name: string; until: number } | null = null;
   /** "Estrai…" on a dropped ZIP: what is inside, and how the extraction went. */
   unzip: {
     info: { count: number; size: number; names: string[] } | null;

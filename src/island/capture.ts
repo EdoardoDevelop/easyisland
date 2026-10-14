@@ -18,6 +18,8 @@ export interface CaptureHandlers {
   ask(file: DroppedFile, question: string): void;
   /** Done without the chat: a short message from the island. */
   done(message: string): void;
+  /** Saved in the inbox: the island opens on the tray, with it lit. */
+  tray(file: DroppedFile): void;
   /** The capture could not start. */
   failed(message: string): void;
 }
@@ -241,9 +243,9 @@ export async function startCapture(handlers: CaptureHandlers): Promise<void> {
       handlers.done(lines === 1 ? t("Testo copiato: 1 riga") : t("Testo copiato: {n} righe", { n: lines }));
     }),
     tool(ICONS.stack, t("Nel Vassoio"), async (z) => {
-      await Bridge.captureSave(z);
+      const file = await Bridge.captureSave(z);
       finish();
-      handlers.done(t("Zona salvata nel Vassoio"));
+      handlers.tray(file);
     }),
   );
 

@@ -10,7 +10,8 @@ import type { ViewHost } from "./views";
 import { t } from "../core/i18n";
 
 export interface RewriteHandlers {
-  applyRewrite(text: string): void;
+  /** `plain`: without the selection's formatting. */
+  applyRewrite(text: string, plain?: boolean): void;
   retryRewrite(): void;
   closeRewrite(): void;
 }
@@ -33,6 +34,7 @@ export function buildRewrite(handlers: RewriteHandlers): ViewHost {
   after.addEventListener("pointerdown", () => void Bridge.focusWindow(true));
   after.addEventListener("input", () => {
     if (State.rewrite) State.rewrite.result = after.value;
+    showFormat();
   });
   after.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
@@ -40,6 +42,27 @@ export function buildRewrite(handlers: RewriteHandlers): ViewHost {
       handlers.applyRewrite(after.value);
     }
   });
+
+  const formatNote = h("div", { class: "rw-format" });
+  body.insertBefore(formatNote, row);
+  /** Formatting kept, lost, or dropped because the text was edited here. */
+  const keeps = () => {
+    const w = State.rewrite;
+    return !!w?.formatted && after.value === w.formattedText;
+  };
+  const showFormat = () => {
+    const w = State.rewrite;
+    let text = "";
+    if (w?.status === "ready" || w?.status === "replacing") {
+      if (keeps()) text = t("La formattazione del testo (grassetti, link, paragrafi) resta com'era.");
+      else if (w.formatted) text = t("Testo modificato qui: si incolla senza formattazione.");
+      else if (w.lost) text = t("Non sono riuscito a tenere la formattazione: si incolla come testo semplice.");
+    }
+    formatNote.textContent = text;
+    formatNote.style.display = text ? "" : "none";
+    plainBtn.style.display = keeps() ? "" : "none";
+  };
+  let plainBtn: HTMLElement = h("span");
 
   let key = "";
   return {
@@ -73,13 +96,15 @@ export function buildRewrite(handlers: RewriteHandlers): ViewHost {
         row.append(button(t("Rigenera"), "secondary", handlers.retryRewrite));
       }
       if (w.status === "ready") {
+        plainBtn = button(t("Senza formattazione"), "secondary", () => handlers.applyRewrite(after.value, true));
+        plainBtn.title = t("Sostituisci con il solo testo, senza grassetti, link e caratteri dell'originale");
         row.append(
-          button(t("Copia"), "secondary", () => {
-            void navigator.clipboard?.writeText(after.value).catch(() => undefined);
-          }),
+          button(t("Copia"), "secondary", () => void Bridge.copyRewrite(after.value, keeps()).catch(() => undefined)),
+          plainBtn,
           button(t("Sostituisci"), "primary", () => handlers.applyRewrite(after.value), "Enter"),
         );
       }
+      showFormat();
     },
   };
 }

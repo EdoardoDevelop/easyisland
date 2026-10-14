@@ -513,7 +513,7 @@ function mediaCard(task: AgentTask): HTMLElement {
   ensureLoaded(task.id);
   const d = get(task.id);
   if (!d.active) {
-    return h("div", { class: "int-card" }, header(task.color, t("Musica"), t("In riproduzione")),
+    return h("div", { class: "int-card" }, header(task.color, t("Media"), t("In riproduzione")),
       h("div", { class: "int-status" }, dot("#5b5f67", 5),
         h("span", { text: State.integrations[task.id]?.loaded ? t("Niente in riproduzione") : t("Cerco un lettore…") })));
   }
@@ -552,7 +552,7 @@ function mediaCard(task: AgentTask): HTMLElement {
 
   return h("div", { class: "int-card media-card" },
     backdrop,
-    header(task.color, t("Musica"), playing ? t("In riproduzione") : t("In pausa")),
+    header(task.color, t("Media"), playing ? t("In riproduzione") : t("In pausa")),
     h("div", { class: "media-info" },
       h("b", { class: "media-title", text: String(d.title ?? "") }),
       h("span", { class: "media-sub", text: sub })),
