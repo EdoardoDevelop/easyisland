@@ -7,7 +7,7 @@
 import { h, svg, clear, dot, brandOrDot } from "./dom";
 import { ICONS } from "./icons";
 import { State, PROBE_INTEGRATIONS, sessionOpenLabel, type AgentTask } from "../core/state";
-import { Bridge } from "../core/bridge";
+import { Bridge, type NotionPage } from "../core/bridge";
 import { THREECX, threecxCard } from "./threecx";
 import { weatherCard } from "./weather";
 import { netConfigCard, pingRow, resetNetConfig } from "./netconfig";
@@ -281,27 +281,114 @@ function stripeCard(): HTMLElement {
 
 // ── Notion ────────────────────────────────────────────────────────────────────
 
-function notionCard(): HTMLElement {
-  const rows = h("div", { class: "int-rows tight" });
-  for (const p of arr("integration_notion", "pages").slice(0, 3)) {
-    rows.append(
-      h(
-        "button",
-        {
-          class: "int-page",
-          onclick: () => {
-            if (typeof p.url === "string") void Bridge.openUrl(p.url);
-          },
-        },
-        p.emoji
-          ? h("span", { class: "int-emoji", text: String(p.emoji) })
-          : h("i", { class: "int-emoji" }, svg(ICONS.doc, 11)),
-        h("span", { class: "int-name", text: String(p.title ?? t("Senza titolo")) }),
-        h("span", { class: "int-ago", text: timeAgo(p.lastEditedAt) }),
-      ),
-    );
+/**
+ * The latest pages, or the pages found with the card's own search field. A
+ * click opens the page (in the Notion app when it is installed, lib.rs
+ * open_url_now); the bubble sends its text to the chat. The field and what it
+ * found live outside the card, which is rebuilt at every update.
+ */
+const notion = {
+  query: "",
+  found: null as NotionPage[] | null,
+  busy: false,
+  note: "",
+  input: null as HTMLInputElement | null,
+  timer: 0,
+  redraw: null as (() => void) | null,
+};
+
+function notionSearchSoon() {
+  window.clearTimeout(notion.timer);
+  const q = notion.query.trim();
+  if (q.length < 2) {
+    notion.found = null;
+    notion.busy = false;
+    notion.redraw?.();
+    return;
   }
-  return h("div", { class: "int-card" }, header("#E8E8E8", "Notion", t("Recenti")), rows);
+  notion.busy = true;
+  notion.redraw?.();
+  notion.timer = window.setTimeout(async () => {
+    try {
+      const found = await Bridge.notionSearch(q, 8);
+      if (notion.query.trim() !== q) return;
+      notion.found = found;
+      notion.note = "";
+    } catch (e) {
+      notion.note = String(e).replace(/^Error:\s*/, "");
+    }
+    notion.busy = false;
+    notion.redraw?.();
+  }, 350);
+}
+
+function notionCard(hooks: IntegrationCardHooks): HTMLElement {
+  const rows = h("div", { class: "int-rows tight notion-rows" });
+  const note = h("div", { class: "notion-note" });
+  const input = notion.input ?? (notion.input = h("input", {
+    class: "nc-input notion-search", placeholder: t("Cerca in Notion…"), spellcheck: "false",
+    onpointerdown: () => void Bridge.focusWindow(true),
+    oninput: (e: Event) => { notion.query = (e.target as HTMLInputElement).value; notionSearchSoon(); },
+    onkeydown: (e: Event) => {
+      const k = e as KeyboardEvent;
+      if (k.key === "Escape" && notion.query) {
+        k.stopPropagation();
+        notion.query = "";
+        (k.target as HTMLInputElement).value = "";
+        notionSearchSoon();
+      } else if (k.key === "Enter") {
+        const first = (notion.found ?? [])[0];
+        if (first) void Bridge.openUrl(first.url);
+      }
+    },
+  }) as HTMLInputElement);
+
+  const ask = async (p: NotionPage, b: HTMLElement) => {
+    b.classList.add("working");
+    try {
+      const [title, text] = await Bridge.notionPageText(p.id);
+      hooks.askAboutText(`Notion · ${title}`, text);
+    } catch (e) {
+      note.textContent = String(e).replace(/^Error:\s*/, "");
+    } finally {
+      b.classList.remove("working");
+    }
+  };
+
+  const draw = () => {
+    clear(rows);
+    const searching = notion.query.trim().length >= 2;
+    const list: NotionPage[] = searching
+      ? notion.found ?? []
+      : (arr("integration_notion", "pages") as unknown as NotionPage[]).slice(0, 6);
+    for (const p of list) {
+      const askBtn = p.database ? null : iconButton(ICONS.bubble, t("Chiedi alla chat su questa pagina"), "#A78BFA", () => void ask(p, askBtn!));
+      rows.append(h("div", { class: "int-page", role: "button", title: t("Apri in Notion"),
+        onclick: () => { if (typeof p.url === "string") void Bridge.openUrl(p.url); } },
+      p.emoji
+        ? h("span", { class: "int-emoji", text: String(p.emoji) })
+        : h("i", { class: "int-emoji" }, svg(p.database ? ICONS.stack : ICONS.doc, 11)),
+      h("span", { class: "int-name", text: String(p.title || t("Senza titolo")) }),
+      h("span", { class: "int-ago", text: timeAgo(p.lastEditedAt) }),
+      askBtn ? h("span", { class: "notion-tools" }, askBtn) : null));
+    }
+    note.textContent = notion.note
+      || (searching && notion.busy ? t("Cerco…") : "")
+      || (searching && !notion.busy && list.length === 0 ? t("Nessuna pagina trovata: l'integrazione vede solo le pagine condivise con lei.") : "");
+    note.style.display = note.textContent ? "" : "none";
+  };
+  const head = header("#E8E8E8", "Notion", t("Recenti"));
+  const kind = head.querySelector("span:last-of-type");
+  notion.redraw = () => {
+    draw();
+    if (kind) kind.textContent = notion.query.trim().length >= 2 ? t("Risultati") : t("Recenti");
+  };
+  notion.redraw();
+  // Put back into a rebuilt card: the search keeps the keyboard.
+  if (document.activeElement === input || notion.query) {
+    window.setTimeout(() => { if (input.isConnected && notion.query) input.focus(); }, 0);
+  }
+  return h("div", { class: "int-card" }, head, input, rows, note);
 }
 
 // ── Cal.com ───────────────────────────────────────────────────────────────────
@@ -572,6 +659,8 @@ export interface IntegrationCardHooks {
   openSettings(): void;
   /** Appunti: open the chat with a picture of the history attached. */
   askAboutPicture(f: { name: string; path: string }): void;
+  /** Notion: open the chat with a page's text attached, waiting for the question. */
+  askAboutText(label: string, text: string): void;
 }
 
 /** True when this integration has data worth showing instead of the idle card. */
@@ -709,7 +798,7 @@ export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHoo
     case "integration_stripe":
       return stripeCard();
     case "integration_notion":
-      return notionCard();
+      return notionCard(hooks);
     case "integration_calcom":
       return calcomCard();
     default:

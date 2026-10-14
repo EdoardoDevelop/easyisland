@@ -25,6 +25,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 14 ottobre 2026 — Notion nell'app, ricerca e chat; pulizia del disco
+- Notion: le pagine si aprono nell'app installata (`notion://`, `notion.rs`), ricerca nella card e nella barra in alto, «Chiedi alla chat» con il testo della pagina allegato; card con 6 pagine recenti. Provato con i test e nell'anteprima (`notion`), non ancora con l'account vero. `cargo clean` su richiesta di Edoardo (48 GB): dopo, `cargo build --release -p easyisland-hook` prima dei test, perché l'app include il relay come risorsa.
+
 ### 14 ottobre 2026 — «Sostituisci» con la formattazione, zona nuova nel Vassoio, versione 0.8.2
 - Versione **0.8.2** con queste voci. «Sostituisci» tiene grassetti, link e paragrafi: l'HTML copiato dall'app va al modello con segni `⟦n⟧` e torna con gli stessi tag (`richtext.rs`, test); «Senza formattazione» incolla il solo testo. Provato con i test e la card nell'anteprima (`rewrite`, `&lost`), non ancora in Word e Outlook veri. Vassoio: la zona appena aggiunta da Cerchia e chiedi è evidenziata con «Chiedi» e «Copia» (`files&fresh`). Edoardo: grassetto e sottolineato restano, un titolo no in un suo caso; con Word automatizzato qui Titolo e Titolo 1 restano, caso da capire. L'integrazione «Musica» ora si chiama «Media» (icona ⏯️): comprende video e podcast.
 
@@ -36,7 +39,4 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 14 ottobre 2026 — proposte al momento giusto, riepilogo del giorno, EasyIsland in Claude Code
 - Su richiesta di Edoardo, le sei idee di `docs/idee.md`: card per un download finito (`downloads.rs`), un errore copiato con «Spiega e correggi» e chi tiene la porta (`moments.rs`), un server di sviluppo partito con «Apri nel browser» (`devservers.rs`), password e chiavi tolte dagli appunti dopo 30 s; riepilogo del mattino e di fine giornata con repository non salvati e pull request (`daily.rs`, `src/island/daily.ts`); il server MCP aggiungibile a Claude Code con `show_card` e `add_to_tray` (`mcp_setup.rs`). Ognuna si spegne nelle Impostazioni. Dettagli in `docs/strumenti.md` e `docs/agenti.md`; scene `moment` e `daily`, anche nel fuzz del collaudo. Provati dal vivo qui (log e card di MCP) download, server, errore, chiave, `show_card`, `add_to_tray`. Versione **0.7.9** con la scansione di stabilità; schermate nuove nel README e nella homepage.
-
-### 13 ottobre 2026 — scansione di stabilità
-- Su richiesta di Edoardo: clippy, ricerca dei panic in Rust, collaudo automatico nuovo (`npm run smoke`: tutte le scene, le Impostazioni e un fuzz di eventi e dati malformati). Corretti: isola che si congelava per sempre dopo un'eccezione in una card (`guard`, `safeCard`), eventi degli agenti con campi del tipo sbagliato (`sanitize`), dati 3CX e Meteo malformati, impostazioni perse se il salvataggio veniva interrotto (`write_atomic`, copia di riserva), panic su caratteri accentati in calendari ICS e WHOIS, copia di file grandi che bloccava l'isola. Dettagli in `docs/architettura.md` → Robustezza. Tutto verde: 172 + 36 test Rust, 45 scene e pagine del collaudo.
 

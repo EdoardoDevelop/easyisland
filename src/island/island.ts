@@ -319,6 +319,7 @@ export class Island {
         State.notify();
       },
       askAboutPicture: (f) => this.askAboutPicture(f),
+      askAboutText: (label, text) => this.startChat("", { label, text }, false),
       explainError: (text, note) => this.explainError(text, note),
       confirmRun: () => void this.startScript(),
       killRun: () => {

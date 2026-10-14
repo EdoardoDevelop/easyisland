@@ -266,6 +266,10 @@ export const Bridge = {
   /** Pins a file of the tray: it stays across restarts and "Svuota". */
   inboxKeep: (name: string, keep: boolean) => callOrThrow<void>("inbox_keep", { name, keep }),
   inboxOpen: (name: string, reveal: boolean) => callOrThrow<void>("inbox_open", { name, reveal }),
+  /** Notion pages and databases matching `query`, most recently edited first (notion.rs). */
+  notionSearch: (query: string, limit = 8) => callOrThrow<NotionPage[]>("notion_search", { query, limit }),
+  /** A Notion page's title and text, for the chat. */
+  notionPageText: (id: string) => callOrThrow<[string, string]>("notion_page_text", { id }),
   /** A picture of the tray on the clipboard. */
   inboxCopy: (name: string) => callOrThrow<void>("inbox_copy", { name }),
   /** A file anywhere (a finished download): open it as Explorer would, or select it there. */
@@ -637,6 +641,16 @@ export interface DailyDigest {
   repos: { name: string; path: string; branch: string; changed: number; ahead: number }[];
   /** null when neither `gh` nor a GitHub token is there. */
   prs: { title: string; repo: string; url: string; number: number; review: boolean }[] | null;
+}
+
+/** A Notion page or database (integrations.rs parse_notion_page). */
+export interface NotionPage {
+  id: string;
+  title: string;
+  emoji: string | null;
+  database?: boolean;
+  lastEditedAt: string;
+  url: string;
 }
 
 /** The frozen screen of "Cerchia e chiedi", physical px. */

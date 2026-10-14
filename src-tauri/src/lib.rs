@@ -29,6 +29,7 @@ mod mcp_setup;
 mod media;
 mod moments;
 mod netconfig;
+mod notion;
 mod openai;
 mod opencode;
 mod opencode_agent;
@@ -610,14 +611,28 @@ fn open_url(url: String) {
 }
 
 /// Opens an http(s) link in the default browser; anything else is ignored.
+/// A notion.so link opens in the Notion app when it is installed (notion.rs).
 pub(crate) fn open_url_now(url: &str) {
     if !(url.starts_with("http://") || url.starts_with("https://")) {
         return;
     }
+    let target = notion::link_for(url);
     let _ = Command::new("rundll32.exe")
-        .args(["url.dll,FileProtocolHandler", url])
+        .args(["url.dll,FileProtocolHandler", target.as_deref().unwrap_or(url)])
         .creation_flags(CREATE_NO_WINDOW)
         .spawn();
+}
+
+/// Notion pages and databases matching `query` (card and search bar).
+#[tauri::command]
+async fn notion_search(query: String, limit: Option<usize>) -> Result<Vec<serde_json::Value>, String> {
+    notion::search(&query, limit.unwrap_or(8)).await
+}
+
+/// "Chiedi alla chat" on a Notion page: its title and text.
+#[tauri::command]
+async fn notion_page_text(id: String) -> Result<(String, String), String> {
+    notion::page_text(&id).await
 }
 
 /// "Apri Visual Studio Code" on the VS Code pill: the working folder in VS Code
@@ -1737,6 +1752,8 @@ pub fn run() {
             restart_app,
             inbox_open,
             inbox_copy,
+            notion_search,
+            notion_page_text,
             inbox_drag,
             mouse_button_down,
             zip_extract,

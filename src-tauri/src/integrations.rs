@@ -464,7 +464,7 @@ async fn poll_notion(app: AppHandle) {
         .header("Content-Type", "application/json")
         .json(&json!({
             "sort": { "direction": "descending", "timestamp": "last_edited_time" },
-            "page_size": 3
+            "page_size": 6
         }))
         .send()
         .await;
@@ -493,7 +493,7 @@ async fn poll_notion(app: AppHandle) {
     });
 }
 
-fn parse_notion_page(obj: &Value) -> Option<Value> {
+pub(crate) fn parse_notion_page(obj: &Value) -> Option<Value> {
     let id = obj.get("id")?.as_str()?;
     let is_database = obj.get("object").and_then(Value::as_str) == Some("database");
 
@@ -540,6 +540,7 @@ fn parse_notion_page(obj: &Value) -> Option<Value> {
         "id": id,
         "title": title,
         "emoji": emoji,
+        "database": is_database,
         "lastEditedAt": obj.get("last_edited_time").and_then(Value::as_str)?,
         "url": obj.get("url").and_then(Value::as_str).unwrap_or("https://notion.so"),
     }))

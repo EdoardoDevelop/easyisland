@@ -4190,6 +4190,14 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .tcx-list-close:hover { background: rgba(244, 80, 94, 0.35); }
 
+/* Notion: its search field, the pages with the chat button on hover. */
+.notion-search { width: 100%; box-sizing: border-box; margin: 2px 0 4px; }
+.notion-rows .int-page { position: relative; }
+.notion-tools { margin-left: 4px; opacity: 0; transition: opacity 0.12s; display: inline-flex; }
+.notion-rows .int-page:hover .notion-tools,
+.notion-tools:has(.working) { opacity: 1; }
+.notion-note { font: 400 10.5px var(--font); color: var(--dim-2); padding: 2px 2px 0; }
+
 /* Vassoio as a grid: a tile per file, its tools on hover. */
 .files-layout {
   border: 0;

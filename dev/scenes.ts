@@ -371,6 +371,27 @@ export async function runScene(island: Island, scene: string) {
       await wait(2500);
       break;
     }
+    case "notion": {
+      // ?activeIntegrations=integration_notion — recent pages, search (Bridge mocked), the chat on a page.
+      const ago = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+      const pages = [
+        { id: "a1", title: "Piano di lancio Q4", emoji: "🚀", lastEditedAt: ago(12), url: "https://www.notion.so/a1" },
+        { id: "a2", title: "Riunione clienti 14 ottobre", emoji: null, lastEditedAt: ago(55), url: "https://www.notion.so/a2" },
+        { id: "a3", title: "Ticket aperti", emoji: "🎫", database: true, lastEditedAt: ago(130), url: "https://www.notion.so/a3" },
+        { id: "a4", title: "Procedure di assistenza", emoji: "🛠️", lastEditedAt: ago(60 * 26), url: "https://www.notion.so/a4" },
+        { id: "a5", title: "Idee EasyIsland", emoji: "💡", lastEditedAt: ago(60 * 50), url: "https://www.notion.so/a5" },
+      ];
+      Object.assign(Bridge, {
+        notionSearch: async (q: string) => { await wait(300); return pages.filter((p) => p.title.toLowerCase().includes(q.toLowerCase())); },
+        notionPageText: async () => ["Piano di lancio Q4", "# Obiettivi\n- 500 utenti\n- [ ] Homepage nuova"],
+      });
+      await wait(300);
+      State.integrations.integration_notion = { data: { pages }, error: null, loaded: true, configured: true };
+      State.setFocus("integration_notion");
+      island.alert("overview");
+      await wait(1500);
+      break;
+    }
     case "usage": {
       // ?activeIntegrations=integration_claude_usage — the plan in the header and on the card;
       // &stale: numbers 7 hours old, Claude Code's login expired (grey in the header).
