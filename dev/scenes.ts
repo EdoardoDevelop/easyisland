@@ -104,6 +104,11 @@ export async function runScene(island: Island, scene: string) {
         { name: "schermata.png", path: "C:\inbox\schermata.png", size: 412_000, at: Date.now() - 120_000 },
         { name: "log-server.zip", path: "C:\inbox\log-server.zip", size: 1_800_000, at: Date.now() - 60_000 },
       ];
+      // &fresh: a zone just put there by Cerchia e chiedi.
+      if (new URLSearchParams(location.search).has("fresh")) {
+        State.inbox.unshift({ name: "Schermata 14-10 16.02.png", path: "C:\inbox\Schermata.png", size: 186_000, at: Date.now() - 4_000 });
+        State.trayFresh = { name: "Schermata 14-10 16.02.png", until: Date.now() + 300_000 };
+      }
       State.notify();
       await wait(2000);
       break;
@@ -474,7 +479,11 @@ export async function runScene(island: Island, scene: string) {
         result: p.has("loading") ? "" : "Gentile Marco,\n\nLe inoltro il preventivo richiesto. Quando avrà modo di esaminarlo, Le chiedo cortesemente di farmi sapere se è adeguato o se desidera apportare delle modifiche.\n\nCordiali saluti",
         status: p.has("loading") ? "loading" : "ready",
         message: p.has("changed") ? "La selezione è cambiata e non ho sostituito niente: selezionala di nuovo o usa «Copia»." : "",
+        // &plain: a selection without formatting; &lost: formatting the model did not keep.
+        formatted: !p.has("plain") && !p.has("lost"),
+        lost: p.has("lost"),
       };
+      State.rewrite.formattedText = State.rewrite.formatted ? State.rewrite.result : "";
       State.isPinned = true;
       island.alert("rewrite");
       await wait(900);

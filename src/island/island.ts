@@ -330,7 +330,7 @@ export class Island {
         this.fsm.pinned = false;
         this.setView("actions");
       },
-      applyRewrite: (text) => void this.applyRewrite(text),
+      applyRewrite: (text, plain) => void this.applyRewrite(text, plain),
       retryRewrite: () => void this.fetchRewrite(),
       closeRewrite: () => this.closeRewrite(),
     };
@@ -899,9 +899,12 @@ ${note}` : text };
     w.message = "";
     State.notify();
     try {
-      const text = await Bridge.rewriteText(w.prompt, w.original);
+      const r = await Bridge.rewriteText(w.prompt, w.original);
       if (State.rewrite !== w) return;
-      w.result = text;
+      w.result = r.text;
+      w.formatted = r.formatted;
+      w.formattedText = r.formatted ? r.text : "";
+      w.lost = r.lost;
       w.status = "ready";
       Sound.play("finish");
     } catch (err) {
@@ -913,15 +916,20 @@ ${note}` : text };
     State.notify();
   }
 
-  /** "Sostituisci": paste the new text over the selection, if it is still there. */
-  private async applyRewrite(text: string) {
+  /**
+   * "Sostituisci": paste the new text over the selection, if it is still there,
+   * with the selection's formatting unless `plain` ("Senza formattazione") or
+   * the text was edited in the card.
+   */
+  private async applyRewrite(text: string, plain = false) {
     const w = State.rewrite;
     if (!w || w.status !== "ready" || !text.trim()) return;
+    const formatted = !plain && !!w.formatted && text === w.formattedText;
     w.result = text;
     w.status = "replacing";
     w.message = "";
     State.notify();
-    const why = await Bridge.replaceSelection(w.original, text);
+    const why = await Bridge.replaceSelection(w.original, text, formatted);
     if (State.rewrite !== w) return;
     if (!why) {
       Sound.play("finish");
@@ -1189,8 +1197,9 @@ ${note}` : text };
           if (State.view === "note" && State.noteMessage === message) this.collapse();
         }, 2200);
       },
-      tray: () => {
+      tray: (file) => {
         Sound.play("approve");
+        State.trayFresh = { name: file.name, until: Date.now() + 5 * 60_000 };
         // Open on the tray, and reopen there if it closes before anything else is opened.
         void this.openFiles().then(() => { this.trayUntil = performance.now() + 5 * 60_000; });
       },

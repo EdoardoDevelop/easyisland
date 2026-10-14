@@ -42,7 +42,7 @@ pub fn has_image() -> bool {
     }
 }
 
-unsafe fn open() -> bool {
+pub(crate) unsafe fn open() -> bool {
     // Another app may hold the clipboard for a moment.
     for _ in 0..5 {
         if OpenClipboard(None).is_ok() {
@@ -54,7 +54,7 @@ unsafe fn open() -> bool {
 }
 
 /// The bytes of one clipboard format, if it is there.
-unsafe fn read_format(format: u32) -> Option<Vec<u8>> {
+pub(crate) unsafe fn read_format(format: u32) -> Option<Vec<u8>> {
     let handle = GetClipboardData(format).ok()?;
     let global = HGLOBAL(handle.0);
     let size = GlobalSize(global);
@@ -109,7 +109,7 @@ pub fn write(img: &Rgba) -> Result<(), String> {
     }
 }
 
-unsafe fn put(format: u32, bytes: &[u8]) -> Result<(), String> {
+pub(crate) unsafe fn put(format: u32, bytes: &[u8]) -> Result<(), String> {
     let mem = GlobalAlloc(GMEM_MOVEABLE, bytes.len()).map_err(|e| e.to_string())?;
     let ptr = GlobalLock(mem) as *mut u8;
     if ptr.is_null() {

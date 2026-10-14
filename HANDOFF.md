@@ -18,12 +18,14 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 
 ## Problemi noti
 - **Sopra la barra:** cliccando la barra o aprendo Start il personaggio va dietro. Torna davanti a ogni cambio di finestra in primo piano. Va verificato con Start aperto.
-- **«Sostituisci»** incolla testo semplice: in Word e Outlook il pezzo sostituito perde grassetti e link interni.
 - **Limiti del piano da Anthropic:** l'indirizzo (`/api/oauth/usage`) non è documentato e può cambiare; se smette di rispondere il log scrive «limiti del piano da Anthropic: HTTP …» e restano i numeri della status line.
 - **Rinnovo dell'accesso di Claude Code** (`renew.rs`): provato qui che Claude Code parte invisibile, apre `/usage` e si chiude senza lasciare processi; il rinnovo vero di un accesso scaduto va visto alla prossima scadenza (`docs/prove-dal-vivo.md`). Chiudendolo, Claude Code al lancio dopo può dire che il suo renderer a schermo intero «non ha finito di partire» e usare quello classico una volta.
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 14 ottobre 2026 — «Sostituisci» con la formattazione, zona nuova nel Vassoio
+- «Sostituisci» tiene grassetti, link e paragrafi: l'HTML copiato dall'app va al modello con segni `⟦n⟧` e torna con gli stessi tag (`richtext.rs`, test); «Senza formattazione» incolla il solo testo. Provato con i test e la card nell'anteprima (`rewrite`, `&lost`), non ancora in Word e Outlook veri. Vassoio: la zona appena aggiunta da Cerchia e chiedi è evidenziata con «Chiedi» e «Copia» (`files&fresh`).
 
 ### 14 ottobre 2026 — logo nuovo, rete con tutte le schede, versione 0.8.0
 - Versione **0.8.0** con le voci di oggi; schermate di Musica e Rete rifatte nel README e nella homepage. Logo scelto da Edoardo fra 12 proposte (la 10): tre pillole a «E» dal viola all'azzurro, in `scripts/gen-icons.mjs` (icone dell'app, area di notifica, `site/media/icon.png`). Rete: tutte le schede attive con i loro IPv4, gateway e DNS della principale (`probes::network`, `docs/integrazioni.md`); provato su questo PC (Ethernet e vEthernet). 3CX: scheda Rubrica nella barra (cerca dal display), provata nell'anteprima. Rete: ping continuo in un terminale (gateway, 8.8.8.8, indirizzo scritto) e «Modifica rete…» (DHCP/manuale, maschera, gateway, DNS) con `netsh` e la richiesta di amministratore di Windows (`netconfig.rs`); comandi provati con i test e il modulo nell'anteprima, mai applicati a una scheda vera da qui. Versione **0.8.1**: scelta della scheda con pulsanti (il `<select>` non funzionava nell'isola) e un pulsante di ping per il gateway di ogni scheda. Cerchia e chiedi → «Nel Vassoio» apre l'isola sul Vassoio invece di chiuderla con un messaggio, e la riapertura entro 5 minuti torna lì (`openingView` in `island.ts`).
@@ -37,5 +39,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 13 ottobre 2026 — scansione di stabilità
 - Su richiesta di Edoardo: clippy, ricerca dei panic in Rust, collaudo automatico nuovo (`npm run smoke`: tutte le scene, le Impostazioni e un fuzz di eventi e dati malformati). Corretti: isola che si congelava per sempre dopo un'eccezione in una card (`guard`, `safeCard`), eventi degli agenti con campi del tipo sbagliato (`sanitize`), dati 3CX e Meteo malformati, impostazioni perse se il salvataggio veniva interrotto (`write_atomic`, copia di riserva), panic su caratteri accentati in calendari ICS e WHOIS, copia di file grandi che bloccava l'isola. Dettagli in `docs/architettura.md` → Robustezza. Tutto verde: 172 + 36 test Rust, 45 scene e pagine del collaudo.
 
-### 13 ottobre 2026 — versione 0.7.8 e homepage
-- Unione in `main` e tag `v0.7.8`: nuovo impianto dell'isola, risposte rapide a isola chiusa, card del Meteo, angolo e colore del personaggio (voci sotto). Schermate del README rifatte (scene nuove `files`, `strip`; `overview` con le righe dei riquadri), parole «pillola» tolte da README e Impostazioni. Homepage (`site/`, GitHub Pages, arrivata in `main` da `claude/homepage`) aggiornata al nuovo impianto con le stesse schermate.

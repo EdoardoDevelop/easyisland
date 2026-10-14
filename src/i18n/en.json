@@ -1,4 +1,12 @@
 {
+  "Nel testo ci sono segni come ⟦1⟧ al posto della formattazione (grassetto, link, paragrafi): lasciali tutti, ognuno una volta sola e nello stesso ordine, accanto alle parole a cui si riferiscono.": "The text contains marks such as ⟦1⟧ in place of the formatting (bold, links, paragraphs): keep them all, each one once and in the same order, next to the words they belong to.",
+  "La formattazione del testo (grassetti, link, paragrafi) resta com'era.": "The text's formatting (bold, links, paragraphs) stays as it was.",
+  "Testo modificato qui: si incolla senza formattazione.": "Text edited here: it is pasted without formatting.",
+  "Non sono riuscito a tenere la formattazione: si incolla come testo semplice.": "I couldn't keep the formatting: it is pasted as plain text.",
+  "Senza formattazione": "Without formatting",
+  "Sostituisci con il solo testo, senza grassetti, link e caratteri dell'originale": "Replace with the text only, without the original's bold, links and fonts",
+  "Appena aggiunta": "Just added",
+  "Copiata negli appunti ✓": "Copied to the clipboard ✓",
   "Ping continuo verso il gateway di {name} ({ip})": "Continuous ping to {name}'s gateway ({ip})",
   "{what} non valido: «{v}»": "{what} not valid: «{v}»",
   "Maschera non valida: «{v}»": "Mask not valid: «{v}»",

@@ -210,17 +210,26 @@ export const Bridge = {
   clipboardClear: () => call<void>("clipboard_clear"),
   /** The app in front, and the text selected in it (⚡ suggestions). */
   /** "Sostituisci": the selected text rewritten as `prompt` asks, outside the chat (lib.rs rewrite_text). */
-  rewriteText: (prompt: string, text: string) => callOrThrow<string>("rewrite_text", { prompt, text }),
+  /** `formatted`: it can be pasted with the selection's formatting; `lost`: the
+   * selection had some and the rewrite could not keep it (richtext.rs). */
+  rewriteText: (prompt: string, text: string) =>
+    callOrThrow<{ text: string; formatted: boolean; lost: boolean }>("rewrite_text", { prompt, text }),
   /** `text` in place of the selection, if it is still `original`; else why not
-   * ("changed" | "no-window" | "no-focus" | "held" | "clipboard"). */
-  replaceSelection: async (original: string, text: string): Promise<string | null> => {
+   * ("changed" | "no-window" | "no-focus" | "held" | "clipboard"). `formatted`:
+   * with the rewrite's formatting (when `text` is still the rewrite). */
+  replaceSelection: async (original: string, text: string, formatted: boolean): Promise<string | null> => {
     if (!IS_TAURI) return null;
     try {
-      await invoke<void>("replace_selection", { original, text });
+      await invoke<void>("replace_selection", { original, text, formatted });
       return null;
     } catch (err) {
       return String(err);
     }
+  },
+  /** "Copia" in the rewrite card: with the formatting, or plain text. */
+  copyRewrite: async (text: string, formatted: boolean) => {
+    if (!IS_TAURI) { await navigator.clipboard?.writeText(text).catch(() => undefined); return; }
+    await invoke<void>("copy_rewrite", { text, formatted });
   },
   /** The native menu at the mouse; a click comes back as the "tray" event "sel:<id>". */
   selectionMenu: (entries: { id: string; label: string; enabled?: boolean }[]) =>
@@ -257,6 +266,8 @@ export const Bridge = {
   /** Pins a file of the tray: it stays across restarts and "Svuota". */
   inboxKeep: (name: string, keep: boolean) => callOrThrow<void>("inbox_keep", { name, keep }),
   inboxOpen: (name: string, reveal: boolean) => callOrThrow<void>("inbox_open", { name, reveal }),
+  /** A picture of the tray on the clipboard. */
+  inboxCopy: (name: string) => callOrThrow<void>("inbox_copy", { name }),
   /** A file anywhere (a finished download): open it as Explorer would, or select it there. */
   fileOpen: (path: string, reveal: boolean) => callOrThrow<void>("file_open", { path, reveal }),
   /** Drags a file of the tray out of the island into another app (Windows' own drag); resolves when it is over. */
