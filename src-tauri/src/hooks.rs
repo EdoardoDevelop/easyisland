@@ -416,7 +416,7 @@ fn pretty(v: &Value) -> String {
 
 /// Down to the second: installing then uninstalling in the same minute must not
 /// quietly overwrite the first backup.
-fn stamp() -> String {
+pub(crate) fn stamp() -> String {
     let t = unsafe { GetLocalTime() };
     format!(
         "{:04}{:02}{:02}-{:02}{:02}{:02}",

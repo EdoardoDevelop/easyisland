@@ -329,6 +329,7 @@ export class Island {
         State.notify();
       },
       askAboutPicture: (f) => this.askAboutPicture(f),
+      explainError: (text, note) => this.explainError(text, note),
       confirmRun: () => void this.startScript(),
       killRun: () => {
         if (State.run?.status === "running") void Bridge.actionKill(State.run.runId);
@@ -783,6 +784,15 @@ export class Island {
   }
 
   /** Starts a fresh chat about `context` and asks `question` right away. */
+  /** «Spiega e correggi» on a copied error: the chat with the error attached. */
+  explainError(text: string, note: string) {
+    State.moment = null;
+    const context = { label: t("Errore copiato"), text: note ? `${text}
+
+${note}` : text };
+    this.startChat(t("Spiega questo errore e come correggerlo."), context, false);
+  }
+
   private startChat(question: string, context: { label: string; text: string } | null, keepFile: boolean) {
     State.chatHistory = [];
     State.chatSession = null;

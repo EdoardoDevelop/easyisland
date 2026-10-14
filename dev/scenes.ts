@@ -10,6 +10,8 @@ import { Bridge } from "../src/core/bridge";
 import { handleHook } from "../src/island/hooks";
 import { handleIntegration, handleWidget } from "../src/island/integrations";
 import { Recap } from "../src/island/recap";
+import { Daily } from "../src/island/daily";
+import { handleMoment } from "../src/island/moments";
 import { setHistoryDemo } from "../src/views/chat";
 
 const CLAUDE = "integration_claude";
@@ -539,6 +541,35 @@ export async function runScene(island: Island, scene: string) {
       await wait(1500);
       break;
     }
+    case "moment": {
+      // A proposal at the right moment (src/island/moments.ts), through the real
+      // handler: ?moment=download (default), error, port, server, card, tray.
+      await wait(300);
+      const host = { alert: (v: never) => island.alert(v), collapse: () => island.collapse(), holdOpen: (on: boolean) => island.setPinned(on) };
+      const which = new URLSearchParams(location.search).get("moment") ?? "download";
+      const events: Record<string, unknown> = {
+        download: { kind: "download", name: "Fattura-ottobre-2026.pdf", path: "C:\\Users\\Edoardo\\Downloads\\Fattura-ottobre-2026.pdf", size: 248_320 },
+        zip: { kind: "download", name: "progetto.zip", path: "C:\\Users\\Edoardo\\Downloads\\progetto.zip", size: 18_400_000 },
+        tray: { kind: "tray", name: "report-test.html", path: "C:\\x\\report-test.html", size: 12_800 },
+        error: { kind: "error", error: "python", summary: "ZeroDivisionError: division by zero", port: null, holder: null,
+          text: "Traceback (most recent call last):\n  File \"app.py\", line 3, in <module>\n    1/0\nZeroDivisionError: division by zero" },
+        port: { kind: "error", error: "port", summary: "Error: listen EADDRINUSE: address already in use :::3000", port: 3000,
+          holder: { name: "node.exe", pid: 18244 }, text: "Error: listen EADDRINUSE: address already in use :::3000\n    at Server.setupListenHandle (node:net:1872:16)" },
+        server: { kind: "server", port: 5173, url: "http://localhost:5173/", process: "node.exe" },
+        card: { kind: "card", id: "card1", title: "Build finita: 3 test falliti", text: "Vuoi che li corregga adesso o preferisci guardarli tu?", level: "warn", buttons: ["Correggi", "Li guardo io"] },
+      };
+      handleMoment(host, events[which] ?? events.download);
+      // It waits for the greeting to end (moments.ts): ready once it is on screen.
+      for (let i = 0; i < 40 && State.view !== "moment"; i++) await wait(250);
+      await wait(1500);
+      break;
+    }
+    case "daily":
+      // The morning card (?evening: the end-of-day one), on made-up numbers.
+      await wait(300);
+      await Daily.open(island, new URLSearchParams(location.search).has("evening") ? "evening" : "morning");
+      await wait(1500);
+      break;
     case "recap":
       // Last week's recap, on the made-up week of src/island/recap.ts.
       await wait(300);
@@ -614,7 +645,7 @@ async function fuzz(island: Island) {
   const events = ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "Notification",
     "Stop", "StopFailure", "PermissionRequest", "SubagentStart", "SubagentStop", "PreCompact", "SessionEnd"];
   const tools = ["Bash", "Edit", "Write", "Read", "Grep", "WebFetch", "AskUserQuestion", "ExitPlanMode", "TodoWrite", "mcp__x__y", "Patch"];
-  const views = ["overview", "prompt", "actions", "files", "approval", "ask", "finished", "note", "empty"] as const;
+  const views = ["overview", "prompt", "actions", "files", "approval", "ask", "finished", "note", "empty", "moment", "daily"] as const;
   const cwds = ["C:\\Users\\Edoardo\\WORK\\easyisland", "C:\\progetti\\gestionale", "/home/x/y", ""];
   const ids = State.tasks.map((t) => t.id);
   const errors: string[] = [];
@@ -674,8 +705,19 @@ async function fuzz(island: Island) {
       if (a < 0.3) island.alert(pick(views));
       else if (a < 0.5) island.collapse(r() < 0.5);
       else if (a < 0.7) island.setView(pick(views));
-      else if (a < 0.85) State.setFocus(pick(ids));
-      else island.showInStrip();
+      else if (a < 0.8) State.setFocus(pick(ids));
+      else if (a < 0.9) island.showInStrip();
+      else {
+        // A proposal of moments.rs, its fields sometimes junk.
+        const host = { alert: (v: never) => island.alert(v), collapse: () => island.collapse(), holdOpen: (on: boolean) => island.setPinned(on) };
+        handleMoment(host, maybe({
+          kind: maybe(pick(["download", "tray", "error", "server", "card", "card-expired", "nope"])),
+          id: maybe(pick(["card1", "card2"])), name: maybe("a.pdf"), path: maybe("C:\\x\\a.pdf"), size: maybe(1234),
+          summary: maybe("Error: x"), text: maybe("Traceback (most recent call last):\nX: y"), port: maybe(pick([3000, 0, 70000])),
+          holder: maybe({ name: maybe("node.exe"), pid: maybe(1) }), process: maybe("node.exe"), url: maybe("http://localhost:1/"),
+          title: maybe("Titolo"), level: maybe(pick(["ok", "warn", "x"])), buttons: maybe(["A", junk(), "C", "D"]),
+        }));
+      }
     }
   };
   for (let i = 0; i < steps; i++) {

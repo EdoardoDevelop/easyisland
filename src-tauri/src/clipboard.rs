@@ -21,7 +21,7 @@ use tauri::AppHandle;
 use windows::core::w;
 use windows::Win32::Foundation::{HGLOBAL, HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::DataExchange::{
-    AddClipboardFormatListener, CloseClipboard, GetClipboardData, IsClipboardFormatAvailable,
+    AddClipboardFormatListener, CloseClipboard, GetClipboardData, GetClipboardSequenceNumber, IsClipboardFormatAvailable,
     OpenClipboard, RegisterClipboardFormatW,
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -215,18 +215,28 @@ fn record_picture(img: &Rgba) -> bool {
     true
 }
 
-/// True when the app that copied asked monitors not to look (password managers do).
-unsafe fn is_private() -> bool {
+/// What the app that copied asked of clipboard monitors.
+#[derive(PartialEq)]
+enum Marks {
+    None,
+    /// "Clipboard Viewer Ignore" only: a clipboard tool's own copy, not recorded.
+    Ignore,
+    /// Sensitive (ExcludeClipboardContentFromMonitorProcessing, or
+    /// CanIncludeInClipboardHistory = 0): what password managers set.
+    Secret,
+}
+
+/// None when the clipboard could not be read to tell.
+unsafe fn private_marks() -> Option<Marks> {
     let exclude = RegisterClipboardFormatW(w!("ExcludeClipboardContentFromMonitorProcessing"));
-    let ignore = RegisterClipboardFormatW(w!("Clipboard Viewer Ignore"));
-    if (exclude != 0 && IsClipboardFormatAvailable(exclude).is_ok())
-        || (ignore != 0 && IsClipboardFormatAvailable(ignore).is_ok())
-    {
-        return true;
+    if exclude != 0 && IsClipboardFormatAvailable(exclude).is_ok() {
+        return Some(Marks::Secret);
     }
+    let ignore = RegisterClipboardFormatW(w!("Clipboard Viewer Ignore"));
+    let ignored = ignore != 0 && IsClipboardFormatAvailable(ignore).is_ok();
     let history = RegisterClipboardFormatW(w!("CanIncludeInClipboardHistory"));
     if history == 0 || IsClipboardFormatAvailable(history).is_err() {
-        return false;
+        return Some(if ignored { Marks::Ignore } else { Marks::None });
     }
     // A DWORD: 0 means "keep me out of any history".
     let mut opened = false;
@@ -238,7 +248,7 @@ unsafe fn is_private() -> bool {
         std::thread::sleep(Duration::from_millis(20));
     }
     if !opened {
-        return true;
+        return None;
     }
     let private = (|| {
         let handle = GetClipboardData(history).ok()?;
@@ -249,28 +259,41 @@ unsafe fn is_private() -> bool {
         }
         let value = *ptr;
         let _ = GlobalUnlock(global);
-        Some(value == 0)
-    })()
-    .unwrap_or(true);
+        Some(if value == 0 { Marks::Secret } else if ignored { Marks::Ignore } else { Marks::None })
+    })();
     let _ = CloseClipboard();
     private
 }
 
 fn on_change() {
     let Some(app) = APP.get() else { return };
-    if integrations::PAUSED.load(Ordering::Relaxed) || !integrations::enabled(app, ID) {
-        return;
-    }
     if IGNORE_UNTIL.lock().unwrap().is_some_and(|t| std::time::Instant::now() < t) {
         return;
     }
-    if unsafe { is_private() } {
+    let seq = unsafe { GetClipboardSequenceNumber() };
+    // A password manager's copy: never recorded, and off the clipboard after
+    // 30 s (moments.rs). This reads no content, so it works with Appunti off too.
+    match unsafe { private_marks() } {
+        Some(Marks::Secret) => {
+            crate::moments::clear_later(app, seq);
+            return;
+        }
+        None | Some(Marks::Ignore) => return,
+        Some(Marks::None) => {}
+    }
+    if integrations::PAUSED.load(Ordering::Relaxed) || !integrations::enabled(app, ID) {
         return;
     }
     // Apps that copy both (Excel cells, a Word paragraph…) are recorded as text.
     if let Some(text) = crate::actions::clipboard_text() {
-        if record(text) {
+        // An API key or a private key copied from a page or a file: like a password.
+        if crate::moments::looks_secret(&text) {
+            crate::moments::clear_later(app, seq);
+            return;
+        }
+        if record(text.clone()) {
             publish(app);
+            crate::moments::on_copied_text(app, &text);
         }
     } else if clipimage::has_image() {
         if let Some(img) = clipimage::read() {

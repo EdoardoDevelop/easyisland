@@ -9,6 +9,8 @@ import { Island } from "./island/island";
 import { installTooltips } from "./core/tooltip";
 import { registerHookHandlers } from "./island/hooks";
 import { Recap } from "./island/recap";
+import { Daily } from "./island/daily";
+import { registerMoments } from "./island/moments";
 import { syncLanguage } from "./core/i18n";
 import { registerIntegrationHandlers, refreshConfigured } from "./island/integrations";
 
@@ -98,6 +100,10 @@ async function main() {
         setPaused(false);
         void Recap.open(island);
         break;
+      case "daily":
+        setPaused(false);
+        void Daily.open(island);
+        break;
       case "pause":
         setPaused(!State.paused);
         if (State.paused) island.fsm.forceHidden();
@@ -142,10 +148,18 @@ async function main() {
 
   registerHookHandlers(island);
   registerIntegrationHandlers(island);
+  registerMoments({
+    alert: (v) => island.alert(v),
+    collapse: () => island.collapse(),
+    holdOpen: (on) => island.setPinned(on),
+  });
 
   island.launch();
   // Monday from 8:00: last week's recap, once the greeting is over.
   window.setTimeout(() => void Recap.check(island), 12_000);
+  // The morning and end-of-day recap: after the weekly one, then at its hours.
+  window.setTimeout(() => void Daily.check(island), 16_000);
+  Daily.schedule(island);
 
   // In a plain browser there is no wake strip behind the cursor: make the whole
   // page wake the island so the visuals can be checked with `npm run dev`.

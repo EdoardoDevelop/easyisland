@@ -35,8 +35,8 @@ const builtin = (id: string, name: string, color: string): QuickAction => ({
 });
 
 /** The actions offered on "Cosa vuoi farne?" after a drop: built-ins, then prompts applied to the file. */
-export function fileActions(): QuickAction[] {
-  const name = State.droppedFile?.name.toLowerCase() ?? "";
+export function fileActions(fileName = State.droppedFile?.name ?? ""): QuickAction[] {
+  const name = fileName.toLowerCase();
   const extras = name.endsWith(".zip") ? [builtin("unzip", t("Estrai…"), "#F5A524")] : [];
   return [...extras, ...(State.settings.actions ?? []).filter(isFileAction)];
 }

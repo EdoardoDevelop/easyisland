@@ -43,6 +43,10 @@ const SHOTS = {
   "strip-approval": { url: "/?scene=strip&strip=approval" },
   "strip-call": { url: "/?scene=strip&strip=call&activeIntegrations=integration_3cx" },
   rewrite: { url: "/?scene=rewrite" },
+  "moment-download": { url: `/?scene=moment&moment=download&activeIntegrations=${PILLS}` },
+  "moment-error": { url: `/?scene=moment&moment=port&activeIntegrations=${PILLS}` },
+  "moment-card": { url: `/?scene=moment&moment=card&activeIntegrations=${PILLS}` },
+  daily: { url: `/?scene=daily&activeIntegrations=${PILLS}` },
   // Every character but the cube, without the island (dev/characters.html).
   characters: { url: "/dev/characters.html" },
   // Whole windows, not an island.

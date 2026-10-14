@@ -158,7 +158,7 @@ export function buildChoose(actions: ViewActions): ViewHost {
   };
 }
 
-function size(bytes: number): string {
+export function size(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   const units = ["KB", "MB", "GB"];
   let v = bytes / 1024;

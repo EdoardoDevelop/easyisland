@@ -227,6 +227,8 @@ export const Bridge = {
   /** Pins a file of the tray: it stays across restarts and "Svuota". */
   inboxKeep: (name: string, keep: boolean) => callOrThrow<void>("inbox_keep", { name, keep }),
   inboxOpen: (name: string, reveal: boolean) => callOrThrow<void>("inbox_open", { name, reveal }),
+  /** A file anywhere (a finished download): open it as Explorer would, or select it there. */
+  fileOpen: (path: string, reveal: boolean) => callOrThrow<void>("file_open", { path, reveal }),
   /** Drags a file of the tray out of the island into another app (Windows' own drag); resolves when it is over. */
   inboxDrag: (name: string) => callOrThrow<void>("inbox_drag", { name }),
   /** Is the left mouse button held (anywhere on the screen)? */
@@ -251,9 +253,20 @@ export const Bridge = {
   /** Weekly recap (recap.rs): turns and decisions from `since` (Unix seconds). */
   recapHistory: (since: number) => call<RecapHistory>("recap_history", { since }),
   recapMarkShown: (week: string) => call<void>("recap_mark_shown", { week }),
+  /** The morning ("morning") or end-of-day ("evening") recap was shown on `day` (YYYY-MM-DD). */
+  recapMarkDay: (which: "morning" | "evening", day: string) => call<void>("recap_mark_day", { which, day }),
+  /** Repositories with changes not committed, pull requests waiting (daily.rs). */
+  dailyDigest: () => call<DailyDigest>("daily_digest"),
+  /** A card from Claude Code: the button clicked, or why there is none ("closed", "hidden", "replaced"). */
+  momentCardAnswer: (id: string, choice: string | null, reason: string | null) =>
+    call<void>("moment_card_answer", { id, choice, reason }),
+  /** EasyIsland's tools in Claude Code's user configuration (mcp_setup.rs). */
+  mcpClaudeStatus: () => call<{ cli: boolean; installed: boolean; current: boolean; entry: string }>("mcp_claude_status"),
+  mcpClaudeApply: (install: boolean) => callOrThrow<string>("mcp_claude_apply", { install }),
   recapClear: () => call<void>("recap_clear"),
   /** From the settings window: the island opens the recap. */
   recapShow: () => call<void>("recap_show"),
+  dailyShow: () => call<void>("daily_show"),
   /** Lingua: the windows are rebuilt in the new language. */
   restartApp: () => call<void>("restart_app"),
   /** Profiles, backup. */
@@ -576,6 +589,13 @@ export async function onDragDrop(handler: (e: DragDropPayload) => void, accepts:
     }
   });
   return listen<string[]>("file-drop", (ev) => handler({ type: "drop", paths: ev.payload }));
+}
+
+/** What the morning and end-of-day card shows (daily.rs). */
+export interface DailyDigest {
+  repos: { name: string; path: string; branch: string; changed: number; ahead: number }[];
+  /** null when neither `gh` nor a GitHub token is there. */
+  prs: { title: string; repo: string; url: string; number: number; review: boolean }[] | null;
 }
 
 /** The frozen screen of "Cerchia e chiedi", physical px. */

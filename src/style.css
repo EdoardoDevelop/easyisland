@@ -4292,6 +4292,39 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 
 .recap-meta .sep { color: var(--dim-4); }
 
+/* The morning and end-of-day card (src/views/daily.ts). */
+.daily-list { display: flex; flex-direction: column; gap: 2px; }
+
+.daily-h { font: 600 11px var(--font); color: var(--dim-2); letter-spacing: 0.02em; margin-bottom: 1px; }
+
+.daily-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 3px 8px;
+  margin: 0 -8px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.daily-row:hover { background: rgba(255, 255, 255, 0.07); }
+
+.daily-main { font: 500 12.5px var(--font); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+
+.daily-side { font: 400 11.5px var(--font); color: var(--dim-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1 1 auto; }
+
+.daily-more { font: 400 11px var(--font); color: var(--dim-3, var(--dim-2)); }
+
+/* A proposal at the right moment (src/views/moment.ts). */
+.moment-title { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.moment-text { white-space: pre-line; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+
 /* The carried character in the browser preview (the app draws it in carry.rs). */
 #carry-canvas {
   position: fixed;

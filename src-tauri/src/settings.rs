@@ -317,6 +317,25 @@ pub struct Settings {
     /// shown on Monday.
     #[serde(default = "default_true")]
     pub weekly_recap: bool,
+    /// The morning and end-of-day recap (daily.rs, src/island/daily.ts):
+    /// "both", "morning", "evening" or "off".
+    #[serde(default = "default_daily_recap")]
+    pub daily_recap: String,
+    /// When the end-of-day recap may open, local hour (0–23).
+    #[serde(default = "default_evening_hour")]
+    pub evening_hour: f64,
+    /// Proposals at the right moment (moments.rs): a finished download…
+    #[serde(default = "default_true")]
+    pub moment_downloads: bool,
+    /// …an error copied to the clipboard («Spiega e correggi»)…
+    #[serde(default = "default_true")]
+    pub moment_errors: bool,
+    /// …a development server that started («Apri nel browser»)…
+    #[serde(default = "default_true")]
+    pub moment_servers: bool,
+    /// …and a copied password or key taken off the clipboard after 30 s.
+    #[serde(default = "default_true")]
+    pub clear_secrets: bool,
     /// The chat history (chat_log.rs): conversations kept on this PC to reopen.
     #[serde(default = "default_true")]
     pub chat_history: bool,
@@ -587,6 +606,14 @@ fn default_open_delay() -> f64 {
 fn default_reveal_duration() -> f64 {
     8.0
 }
+fn default_daily_recap() -> String {
+    "both".into()
+}
+
+fn default_evening_hour() -> f64 {
+    18.0
+}
+
 fn default_true() -> bool {
     true
 }
@@ -623,6 +650,12 @@ impl Default for Settings {
             menu_character: default_menu_character(),
             character_bubble: true,
             weekly_recap: true,
+            daily_recap: default_daily_recap(),
+            evening_hour: default_evening_hour(),
+            moment_downloads: true,
+            moment_errors: true,
+            moment_servers: true,
+            clear_secrets: true,
             chat_history: true,
             language: String::new(),
             screen: "primary".into(),

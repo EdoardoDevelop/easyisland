@@ -11,6 +11,7 @@ import { State, type AskQuestion, type SessionHost } from "../core/state";
 import type { Island } from "./island";
 import { applyPlanTool, planStep } from "./plan";
 import { Recap } from "./recap";
+import { Daily } from "./daily";
 import { risksOf } from "./risk";
 import { t, tn } from "../core/i18n";
 import { plainText } from "../core/markdown";
@@ -730,7 +731,11 @@ function handle(island: Island, payload: HookPayload) {
   };
 
   // Monday from 8:00: an agent starting work may open last week's recap.
-  if (name === "SessionStart" || name === "UserPromptSubmit") void Recap.check(island);
+  if (name === "SessionStart" || name === "UserPromptSubmit") {
+    void Recap.check(island);
+    // The morning and end-of-day recap, once a day each (src/island/daily.ts).
+    void Daily.check(island);
+  }
 
   switch (name) {
     case "SessionStart":

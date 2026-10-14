@@ -2,6 +2,7 @@
 
 Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli una voce quando è provata, e annota in `HANDOFF.md` ciò che non va.
 
+- [ ] **Proposte al momento giusto (0.7.9):** provati qui dal vivo il 14 ottobre, dal log e con le card di MCP sullo schermo: download (rinomina da `.crdownload`), server Python sulla porta 8765, traceback copiato, chiave `ghp_` tolta dopo 30 s, `show_card` con e senza pulsanti, `add_to_tray`. Da provare: download veri da Edge, Chrome e Firefox (anche grandi), «Spiega e correggi» fino alla risposta, «Apri nel browser» su `npm run dev`, una password da un gestore di password; riepilogo del mattino dalle 8 e di fine giornata dalle 18 con pull request vere; Impostazioni → Agenti → «Strumenti di EasyIsland in Claude Code» → Aggiungi, poi `show_card` da una sessione nel terminale.
 - [ ] **Azioni rapide:** «Programma» con `chrome`, `regedit`, un percorso tra virgolette e `%ProgramFiles%`; Salva / Annulla e ordine delle cartelle nella finestra vera.
 - [ ] **Selezione e suggerimenti ⚡:** Ctrl+C reale in Excel, Outlook e browser, con il ripristino degli appunti: un'immagine o dei file copiati prima tornano negli appunti.
 - [ ] **Avvio (0.7.5):** su un altro PC, aggiornamento dalla 0.7.4 col clic nell'isola (l'app riparte da sola) e avvio automatico subito dopo un riavvio di Windows; nel log nessuna riga `panic:`.

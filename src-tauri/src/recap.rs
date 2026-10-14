@@ -69,6 +69,9 @@ struct History {
     decisions: Vec<Decision>,
     /// Monday (YYYY-MM-DD) of the week the recap last opened on its own.
     last_shown_week: String,
+    /// Days (YYYY-MM-DD) the morning and the end-of-day recap last opened (daily.ts).
+    last_shown_morning: String,
+    last_shown_evening: String,
 }
 
 /// What the island reads.
@@ -78,6 +81,8 @@ pub struct HistoryView {
     pub turns: Vec<Turn>,
     pub decisions: Vec<Decision>,
     pub last_shown_week: String,
+    pub last_shown_morning: String,
+    pub last_shown_evening: String,
 }
 
 /// A turn in progress, in memory only. The paths are only there to count
@@ -235,6 +240,8 @@ impl Recap {
             turns: self.history.turns.iter().filter(|t| t.start >= since).cloned().collect(),
             decisions: self.history.decisions.iter().filter(|d| d.date >= since).cloned().collect(),
             last_shown_week: self.history.last_shown_week.clone(),
+            last_shown_morning: self.history.last_shown_morning.clone(),
+            last_shown_evening: self.history.last_shown_evening.clone(),
         }
     }
 
@@ -332,13 +339,28 @@ fn with<T>(f: impl FnOnce(&mut Recap) -> T) -> T {
 
 fn enabled(app: &tauri::AppHandle) -> bool {
     use tauri::Manager;
-    app.try_state::<crate::Shared>().is_none_or(|s| s.settings.lock().unwrap().weekly_recap)
+    // The daily recap counts yesterday's and today's turns from here too.
+    app.try_state::<crate::Shared>().is_none_or(|s| {
+        let s = s.settings.lock().unwrap();
+        s.weekly_recap || s.daily_recap != "off"
+    })
+}
+
+fn daily_on(app: &tauri::AppHandle) -> bool {
+    use tauri::Manager;
+    app.try_state::<crate::Shared>().is_some_and(|s| s.settings.lock().unwrap().daily_recap != "off")
 }
 
 /// One agent event, as the relay or opencode delivered it. The island's own
 /// chat is not a coding session.
 pub fn observe(app: &tauri::AppHandle, payload: &Value) {
-    if payload.get("easyisland_chat").is_some() || !enabled(app) {
+    if payload.get("easyisland_chat").is_some() {
+        return;
+    }
+    if daily_on(app) {
+        crate::daily::note(payload);
+    }
+    if !enabled(app) {
         return;
     }
     with(|r| r.observe(payload, now()));
@@ -372,6 +394,23 @@ pub fn recap_mark_shown(week: String) {
             r.save();
         });
     }
+}
+
+/// `which` ("morning" / "evening") was shown on `day` (YYYY-MM-DD).
+#[tauri::command]
+pub fn recap_mark_day(which: String, day: String) {
+    let ok = day.len() == 10 && day.bytes().enumerate().all(|(i, b)| if i == 4 || i == 7 { b == b'-' } else { b.is_ascii_digit() });
+    if !ok {
+        return;
+    }
+    with(|r| {
+        match which.as_str() {
+            "morning" => r.history.last_shown_morning = day,
+            "evening" => r.history.last_shown_evening = day,
+            _ => return,
+        }
+        r.save();
+    });
 }
 
 /// Impostazioni → Riepilogo settimanale → «Cancella la cronologia».

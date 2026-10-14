@@ -12,6 +12,8 @@ import { buildPrompt } from "./chat";
 import { buildChoose, buildFiles, buildUnzip, buildUpload, buildUploading } from "./upload";
 import { buildDiff } from "./diff";
 import { buildRecap } from "./recap";
+import { buildMoment, type MomentActions } from "./moment";
+import { buildDaily } from "./daily";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, type ActionHandlers } from "./actions";
 import { buildRewrite, type RewriteHandlers } from "./rewrite";
@@ -24,7 +26,7 @@ import { softphoneVersion } from "../core/softphone";
 import { THREECX } from "./threecx";
 import { t } from "../core/i18n";
 
-export interface ViewActions extends ActionHandlers, RewriteHandlers {
+export interface ViewActions extends ActionHandlers, RewriteHandlers, MomentActions {
   setView(v: IslandViewName): void;
   /** The tray ("Vassoio"): the files dropped since EasyIsland started. */
   openFiles(): void;
@@ -1098,6 +1100,8 @@ export function buildViews(
   map.set("files", buildFiles(actions));
   map.set("diff", buildDiff(actions));
   map.set("recap", buildRecap(actions));
+  map.set("moment", buildMoment(actions));
+  map.set("daily", buildDaily(actions));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder(t("L'invio via email non è disponibile in questa versione."), ""));
   map.set("searching", buildPlaceholder(t("Claude sta cercando…"), ""));

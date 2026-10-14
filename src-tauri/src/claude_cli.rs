@@ -256,7 +256,7 @@ the user confirms or refuses it with a click, and a refusal is final for that re
     Ok(dir)
 }
 
-fn command(exe: &Path) -> Command {
+pub(crate) fn command(exe: &Path) -> Command {
     let mut cmd = Command::new(exe);
     // If EasyIsland itself was started from inside a Claude Code session (e.g.
     // `npm run tauri dev` run by Claude), these would make the chat attach to

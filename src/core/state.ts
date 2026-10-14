@@ -151,6 +151,17 @@ export interface Notice {
   suggestionAccept?: string;
 }
 
+/** A proposal at the right moment (src-tauri/src/moments.rs, src/island/moments.ts). */
+export type Moment =
+  /** A finished download, or a file Claude Code put in the tray. */
+  | { kind: "download" | "tray"; name: string; path: string; size: number }
+  /** An error copied to the clipboard; `holder` holds the port of an EADDRINUSE. */
+  | { kind: "error"; error: string; summary: string; text: string; port: number | null; holder: { name: string; pid: number } | null }
+  /** A development server that started listening. */
+  | { kind: "server"; port: number; url: string; process: string }
+  /** A card from Claude Code (`show_card`): waits for a button. */
+  | { kind: "card"; id: string; title: string; text: string; level: "ok" | "warn" | "error" | "info"; buttons: string[] };
+
 /** An automation proposed from the user's habits (src-tauri/src/habits.rs). */
 export interface HabitSuggestion {
   fp: string;
@@ -342,6 +353,16 @@ export interface Settings {
   language: string;
   /** The weekly recap of the coding agents (recap.rs, src/island/recap.ts). */
   weeklyRecap: boolean;
+  /** The morning and end-of-day recap (daily.rs, src/island/daily.ts). */
+  dailyRecap: "both" | "morning" | "evening" | "off";
+  /** From which hour (local) the end-of-day recap may open. */
+  eveningHour: number;
+  /** Proposals at the right moment (moments.rs, src/island/moments.ts). */
+  momentDownloads: boolean;
+  momentErrors: boolean;
+  momentServers: boolean;
+  /** A copied password or key leaves the clipboard after 30 s. */
+  clearSecrets: boolean;
   /** The chat history (chat_log.rs), on this PC. */
   chatHistory: boolean;
   /** "primary", "cursor", or "monitor:<name>" (the display the character was dragged to). */
@@ -703,6 +724,12 @@ export const DEFAULT_SETTINGS: Settings = {
   menuCharacter: "large",
   characterBubble: true,
   weeklyRecap: true,
+  dailyRecap: "both",
+  eveningHour: 18,
+  momentDownloads: true,
+  momentErrors: true,
+  momentServers: true,
+  clearSecrets: true,
   chatHistory: true,
   language: "",
   screen: "primary",
@@ -803,6 +830,8 @@ class AppState {
   presence = { active: false, reason: "" };
   /** The last message from `easyisland-hook notify`. */
   notice: Notice | null = null;
+  /** The proposal in the "moment" view. */
+  moment: Moment | null = null;
 
   /** The character keeps out of sight: over a full-screen app, or in front of a client. */
   get quiet(): boolean {

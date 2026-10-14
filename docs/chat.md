@@ -33,4 +33,5 @@
 ## Agente: Claude che usa il PC
 - `easyisland-hook mcp` (`hook/src/mcp.rs`) è un server MCP stdio con gli strumenti di EasyIsland. Ogni chiamata va all'app sulla named pipe (`EasyIslandTool` in `pipe.rs`) e la esegue `src-tauri/src/agent.rs`.
 - La chat con l'abbonamento lo carica con `--mcp-config` (`claude_cli.rs`, `agentTools`). Sono pre-consentiti solo gli strumenti in `AGENT_READ_ONLY` (stessa lista in `mcp.rs`). Il resto passa da Consenti/Nega.
+- Lo stesso server si aggiunge anche a Claude Code ovunque (`agenti.md` → Server MCP in Claude Code). `show_card` è solo lì: nella chat (`EASYISLAND_INTERNAL`) coprirebbe la chat stessa.
 - **Mai** aggiungere uno strumento che esegue comandi arbitrari, invia email o elimina. Per eseguire c'è solo `run_quick_action`. Le automazioni dalla chat passano da `create_automation`, controllata da `automations::validate`, con anteprima nella card.
