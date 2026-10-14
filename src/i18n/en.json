@@ -1,4 +1,5 @@
 {
+  "Ping continuo verso il gateway di {name} ({ip})": "Continuous ping to {name}'s gateway ({ip})",
   "{what} non valido: «{v}»": "{what} not valid: «{v}»",
   "Maschera non valida: «{v}»": "Mask not valid: «{v}»",
   "Il gateway non è nella rete dell'indirizzo IP": "The gateway is not in the IP address's network",

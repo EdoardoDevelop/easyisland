@@ -336,6 +336,8 @@ export async function runScene(island: Island, scene: string) {
         networkAdapters: async () => [
           { index: 4, name: "Ethernet", up: true, wireless: false, virtualHost: false, dhcp: true, dnsAuto: true, main: true,
             addresses: [{ ip: "192.168.1.24", prefix: 24 }], gateway: "192.168.1.1", dns: ["192.168.1.1", "1.1.1.1"] },
+          { index: 14, name: "Ethernet 2", up: true, wireless: false, virtualHost: false, dhcp: false, dnsAuto: false, main: false,
+            addresses: [{ ip: "10.20.0.15", prefix: 24 }], gateway: "10.20.0.1", dns: ["10.20.0.1"] },
           { index: 27, name: "Wi-Fi", up: false, wireless: true, virtualHost: false, dhcp: true, dnsAuto: true, main: false,
             addresses: [], gateway: "", dns: [] },
         ],
