@@ -14,7 +14,7 @@
 // as pills and warns on a change from ok to warn/error.
 
 use std::collections::HashMap;
-use std::net::{Ipv4Addr, UdpSocket};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, UdpSocket};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -297,26 +297,56 @@ pub async fn security(w: &Widget) -> WidgetResult {
 
 struct Adapter {
     name: String,
-    ipv4: Option<Ipv4Addr>,
+    /// Every IPv4 address, in Windows' order.
+    ipv4: Vec<Ipv4Addr>,
+    gateways: Vec<IpAddr>,
+    dns: Vec<IpAddr>,
     wireless: bool,
     vpn: bool,
+    /// Hyper-V, WSL, Docker, VirtualBox, VMware: listed after the real ones.
+    virtual_host: bool,
 }
 
-/// Adapters that are up, with their first IPv4 address.
+/// An address from a SOCKADDR (IPv4 or IPv6); `None` for anything else.
+///
+/// # Safety
+/// `sa` is null or points to a SOCKADDR of the family it says.
+unsafe fn sockaddr_ip(sa: *const windows::Win32::Networking::WinSock::SOCKADDR) -> Option<IpAddr> {
+    use windows::Win32::Networking::WinSock::{AF_INET, AF_INET6, SOCKADDR_IN, SOCKADDR_IN6};
+    if sa.is_null() {
+        return None;
+    }
+    if (*sa).sa_family == AF_INET {
+        let sin = &*(sa as *const SOCKADDR_IN);
+        Some(IpAddr::V4(Ipv4Addr::from(u32::from_be(sin.sin_addr.S_un.S_addr))))
+    } else if (*sa).sa_family == AF_INET6 {
+        let sin6 = &*(sa as *const SOCKADDR_IN6);
+        Some(IpAddr::V6(Ipv6Addr::from(sin6.sin6_addr.u.Byte)))
+    } else {
+        None
+    }
+}
+
+/// Windows' placeholder DNS servers (fec0:0:0:ffff::1–3) on adapters without one.
+fn placeholder_dns(ip: &IpAddr) -> bool {
+    matches!(ip, IpAddr::V6(v) if v.segments()[..4] == [0xfec0, 0, 0, 0xffff])
+}
+
+/// Adapters that are up, with their IPv4 addresses, gateways and DNS servers.
 fn adapters() -> Vec<Adapter> {
     use windows::Win32::NetworkManagement::IpHelper::{
-        GetAdaptersAddresses, GAA_FLAG_SKIP_ANYCAST, GAA_FLAG_SKIP_DNS_SERVER, GAA_FLAG_SKIP_MULTICAST,
+        GetAdaptersAddresses, GAA_FLAG_INCLUDE_GATEWAYS, GAA_FLAG_SKIP_ANYCAST, GAA_FLAG_SKIP_MULTICAST,
         IP_ADAPTER_ADDRESSES_LH,
     };
     use windows::Win32::NetworkManagement::Ndis::IfOperStatusUp;
-    use windows::Win32::Networking::WinSock::{AF_INET, AF_UNSPEC, SOCKADDR_IN};
+    use windows::Win32::Networking::WinSock::AF_UNSPEC;
 
     const IF_TYPE_SOFTWARE_LOOPBACK: u32 = 24;
     const IF_TYPE_PPP: u32 = 23;
     const IF_TYPE_IEEE80211: u32 = 71;
     const IF_TYPE_TUNNEL: u32 = 131;
 
-    let flags = GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER;
+    let flags = GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_INCLUDE_GATEWAYS;
     let mut size = 16 * 1024u32;
     let mut buf: Vec<u64> = Vec::new();
     for _ in 0..3 {
@@ -343,16 +373,29 @@ fn adapters() -> Vec<Adapter> {
             }
             let name = a.FriendlyName.to_string().unwrap_or_default();
             let desc = a.Description.to_string().unwrap_or_default();
-            let mut ipv4 = None;
+            let mut ipv4 = Vec::new();
             let mut u = a.FirstUnicastAddress;
             while !u.is_null() {
-                let sa = (*u).Address.lpSockaddr;
-                if !sa.is_null() && (*sa).sa_family == AF_INET {
-                    let sin = &*(sa as *const SOCKADDR_IN);
-                    ipv4 = Some(Ipv4Addr::from(u32::from_be(sin.sin_addr.S_un.S_addr)));
-                    break;
+                if let Some(IpAddr::V4(v)) = sockaddr_ip((*u).Address.lpSockaddr) {
+                    ipv4.push(v);
                 }
                 u = (*u).Next;
+            }
+            let mut gateways = Vec::new();
+            let mut g = a.FirstGatewayAddress;
+            while !g.is_null() {
+                if let Some(ip) = sockaddr_ip((*g).Address.lpSockaddr).filter(|ip| !ip.is_unspecified()) {
+                    gateways.push(ip);
+                }
+                g = (*g).Next;
+            }
+            let mut dns = Vec::new();
+            let mut d = a.FirstDnsServerAddress;
+            while !d.is_null() {
+                if let Some(ip) = sockaddr_ip((*d).Address.lpSockaddr).filter(|ip| !placeholder_dns(ip)) {
+                    dns.push(ip);
+                }
+                d = (*d).Next;
             }
             let text = format!("{name} {desc}").to_lowercase();
             let virtual_host = ["vethernet", "virtualbox", "vmware", "hyper-v", "wsl", "docker"].iter().any(|k| text.contains(k));
@@ -364,7 +407,7 @@ fn adapters() -> Vec<Adapter> {
             let tunnel = matches!(a.IfType, IF_TYPE_PPP | IF_TYPE_TUNNEL)
                 && !["teredo", "isatap", "6to4", "ip-https"].iter().any(|k| text.contains(k));
             let vpn = !virtual_host && (vpn_word || tunnel);
-            out.push(Adapter { name, ipv4, wireless: a.IfType == IF_TYPE_IEEE80211, vpn });
+            out.push(Adapter { name, ipv4, gateways, dns, wireless: a.IfType == IF_TYPE_IEEE80211, vpn, virtual_host });
         }
     }
     out
@@ -398,6 +441,29 @@ async fn public_ip() -> Option<String> {
     Some(ip)
 }
 
+fn join_ips(ips: &[IpAddr]) -> String {
+    ips.iter().map(|ip| ip.to_string()).collect::<Vec<_>>().join(", ")
+}
+
+/// The adapters besides the main one that have an IPv4 address, real ones first.
+fn other_adapters<'a>(list: &'a [Adapter], main: Option<&Adapter>) -> Vec<&'a Adapter> {
+    let mut out: Vec<&Adapter> = list
+        .iter()
+        .filter(|a| !a.ipv4.is_empty() && main.is_none_or(|m| !std::ptr::eq(*a, m)))
+        .collect();
+    out.sort_by_key(|a| a.virtual_host);
+    out
+}
+
+/// "192.168.56.1, 10.0.0.4 · gateway 10.0.0.1"
+fn adapter_line(a: &Adapter) -> String {
+    let ips = a.ipv4.iter().map(|ip| ip.to_string()).collect::<Vec<_>>().join(", ");
+    match a.gateways.first() {
+        Some(g) => tf("{ips} · gateway {gw}", &[("ips", &ips), ("gw", &g.to_string())]),
+        None => ips,
+    }
+}
+
 pub async fn network(w: &Widget) -> WidgetResult {
     let local = tauri::async_runtime::spawn_blocking(|| {
         let list = adapters();
@@ -412,7 +478,7 @@ pub async fn network(w: &Widget) -> WidgetResult {
     };
 
     let mut fields = Vec::new();
-    let main = primary.and_then(|ip| list.iter().find(|a| a.ipv4 == Some(ip)));
+    let main = primary.and_then(|ip| list.iter().find(|a| a.ipv4.contains(&ip)));
     let net = match (&ssid, main) {
         (Some(s), _) => format!("Wi-Fi {s}"),
         (None, Some(a)) => a.name.clone(),
@@ -421,6 +487,18 @@ pub async fn network(w: &Widget) -> WidgetResult {
     fields.push(field(t("Rete"), net.clone()));
     if let Some(ip) = primary {
         fields.push(field(t("IP locale"), ip.to_string()));
+    }
+    if let Some(a) = main {
+        if !a.gateways.is_empty() {
+            fields.push(field(t("Gateway"), join_ips(&a.gateways)));
+        }
+        if !a.dns.is_empty() {
+            fields.push(field("DNS", join_ips(&a.dns)));
+        }
+    }
+    // Every other adapter with an address: its name, its addresses and gateway.
+    for a in other_adapters(&list, main) {
+        fields.push(field(&a.name, adapter_line(a)));
     }
     let vpns: Vec<&str> = list.iter().filter(|a| a.vpn).map(|a| a.name.as_str()).collect();
     fields.push(field("VPN", if vpns.is_empty() { t("nessuna").into() } else { vpns.join(", ") }));
@@ -433,7 +511,8 @@ pub async fn network(w: &Widget) -> WidgetResult {
     };
     fields.push(field(t("Latenza"), format!("{ms} ms")));
     if let Some(ip) = public_ip().await {
-        fields.insert(2, field(t("IP pubblico"), ip));
+        let at = if primary.is_some() { 2 } else { 1 };
+        fields.insert(at.min(fields.len()), field(t("IP pubblico"), ip));
     }
     let slow = ms > 150;
     let summary = if !vpns.is_empty() {
@@ -446,6 +525,54 @@ pub async fn network(w: &Widget) -> WidgetResult {
     let mut r = WidgetResult::new(&w.id, if slow { "warn" } else { "ok" }, summary);
     r.fields = fields;
     r
+}
+
+#[cfg(test)]
+mod network_tests {
+    use super::*;
+
+    fn adapter(name: &str, ips: &[&str], gw: Option<&str>, virtual_host: bool) -> Adapter {
+        Adapter {
+            name: name.into(),
+            ipv4: ips.iter().map(|s| s.parse().unwrap()).collect(),
+            gateways: gw.map(|g| vec![g.parse().unwrap()]).unwrap_or_default(),
+            dns: Vec::new(),
+            wireless: false,
+            vpn: false,
+            virtual_host,
+        }
+    }
+
+    #[test]
+    fn lists_every_other_adapter_real_ones_first() {
+        let list = vec![
+            adapter("vEthernet (WSL)", &["172.20.0.1"], None, true),
+            adapter("Ethernet", &["192.168.1.5"], Some("192.168.1.1"), false),
+            adapter("Ethernet 2", &["10.0.0.4", "10.0.0.5"], Some("10.0.0.1"), false),
+            adapter("Bluetooth", &[], None, false),
+        ];
+        let others: Vec<&str> = other_adapters(&list, Some(&list[1])).iter().map(|a| a.name.as_str()).collect();
+        assert_eq!(others, ["Ethernet 2", "vEthernet (WSL)"]);
+        assert_eq!(adapter_line(&list[2]), "10.0.0.4, 10.0.0.5 · gateway 10.0.0.1");
+        assert_eq!(adapter_line(&list[0]), "172.20.0.1");
+    }
+
+    /// This PC's adapters: `cargo test -- --ignored prints_this_pc --nocapture`.
+    #[test]
+    #[ignore]
+    fn prints_this_pc() {
+        for a in adapters() {
+            println!("{} | {} | gw {} | dns {} | virtual {}", a.name, adapter_line(&a), join_ips(&a.gateways), join_ips(&a.dns), a.virtual_host);
+        }
+        println!("primary {:?}", primary_ipv4());
+    }
+
+    #[test]
+    fn windows_placeholder_dns_is_skipped() {
+        assert!(placeholder_dns(&"fec0:0:0:ffff::1".parse().unwrap()));
+        assert!(!placeholder_dns(&"1.1.1.1".parse().unwrap()));
+        assert!(!placeholder_dns(&"2606:4700::1111".parse().unwrap()));
+    }
 }
 
 // ── weather (Open-Meteo) ──────────────────────────────────────────────────────

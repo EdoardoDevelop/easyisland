@@ -1,4 +1,6 @@
 {
+  "{ips} · gateway {gw}": "{ips} · gateway {gw}",
+  "Gateway": "Gateway",
   "\n\n[Risposta interrotta: troppo lunga.]": "\n\n[Answer cut: too long.]",
   "\n… (output troncato)": "\n… (output cut)",
   " (estensione di VS Code)": " (VS Code extension)",

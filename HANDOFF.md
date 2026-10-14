@@ -25,6 +25,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 14 ottobre 2026 — logo nuovo, rete con tutte le schede
+- Logo scelto da Edoardo fra 12 proposte (la 10): tre pillole a «E» dal viola all'azzurro, in `scripts/gen-icons.mjs` (icone dell'app, area di notifica, `site/media/icon.png`). Rete: tutte le schede attive con i loro IPv4, gateway e DNS della principale (`probes::network`, `docs/integrazioni.md`); provato su questo PC (Ethernet e vEthernet).
+
 ### 14 ottobre 2026 — Impostazioni in finestra, schede centrate, copertina della Musica
 - Su richiesta di Edoardo: tolta la vista «Impostazioni rapide» dell'isola; il pulsante della barra (icona nuova a cursori, `ICONS.sliders`) apre subito la finestra delle Impostazioni, come la voce del menu dell'area di notifica. Contenuti delle schede centrati in altezza (`.left-body`, `.qa-card`, `.files-body` con `justify-content: safe center`: un contenuto più alto parte dall'alto come prima). Musica: la copertina riempie la card, chiara in alto e sfumata verso il centro, con brano, avanzamento e comandi al centro (`.media-backdrop`; senza copertina un alone del colore della scheda; scena `media`, `&nocover`). Automazioni più intelligenti ragionate in `docs/idee.md`. Consumo Claude: con l'accesso scaduto, o con «Aggiorna», EasyIsland lo fa rinnovare a Claude Code avviato in una console invisibile con `/usage` e poi chiuso (`renew.rs`, scelta di Edoardo; `docs/decisioni.md`). Provato qui l'avvio e la chiusura; il rinnovo vero alla prossima scadenza.
 
@@ -36,6 +39,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 13 ottobre 2026 — versione 0.7.8 e homepage
 - Unione in `main` e tag `v0.7.8`: nuovo impianto dell'isola, risposte rapide a isola chiusa, card del Meteo, angolo e colore del personaggio (voci sotto). Schermate del README rifatte (scene nuove `files`, `strip`; `overview` con le righe dei riquadri), parole «pillola» tolte da README e Impostazioni. Homepage (`site/`, GitHub Pages, arrivata in `main` da `claude/homepage`) aggiornata al nuovo impianto con le stesse schermate.
-
-### 13 ottobre 2026 — Panoramica, card del Meteo, angolo e colore del personaggio
-- Dopo la prova di Edoardo: «Oggi» torna a chiamarsi Panoramica; loghi del menu larghi quanto un'emoji; numeri e pallini del menu nascosti con la voce aperta. Card del Meteo nuova (`src/views/weather.ts`, dati `forecast_of` in `probes.rs`): cielo di adesso animato che sfuma in basso, riquadri, 12 ore e 7 giorni. Angolo di ridimensionamento senza scatto e fermo all'altezza minima (si salvava la posizione del mouse). Il personaggio torna al suo colore anche quando l'agente non manda `Stop` (`armStale`, `idle_prompt` in `hooks.ts`). Provato nell'anteprima (scena `meteo`, anche `&night`).

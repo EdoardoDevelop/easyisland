@@ -11,7 +11,7 @@
 - `hook/`: `easyisland-hook.exe`, il relay degli hook (vedi `agenti.md`).
 - `dev/`: anteprime nel browser (`scenes.ts`, `*-preview.html`).
 - `scripts/`:
-  - `gen-icons.mjs`: icone disegnate nel codice (l'isola, non il personaggio).
+  - `gen-icons.mjs`: icona dell'app disegnata nel codice: tre pillole a «E» dal viola all'azzurro (scelta da Edoardo il 14 ottobre 2026), non il personaggio; fino a 32 px barre a pixel interi. Rigenera anche `site/media/icon.png` copiando `icon.png`.
   - `gen-brands.mjs`: loghi dei marchi.
   - `pack.mjs`: copia l'installer in `release/`.
   - `screenshots.mjs`: rifà le schermate del README.

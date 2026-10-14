@@ -336,8 +336,13 @@ export async function runScene(island: Island, scene: string) {
         id: "integration_network", level: "ok", at: Math.floor(Date.now() / 1000) - 40,
         summary: "Wi-Fi Ufficio · 18 ms",
         fields: [
+          { label: "Rete", value: "Wi-Fi Ufficio" },
           { label: "IP locale", value: "192.168.1.24" },
           { label: "IP pubblico", value: "203.0.113.57" },
+          { label: "Gateway", value: "192.168.1.1" },
+          { label: "DNS", value: "192.168.1.1, 1.1.1.1" },
+          { label: "Ethernet 2", value: "10.20.0.15 · gateway 10.20.0.1" },
+          { label: "vEthernet (WSL)", value: "172.28.96.1" },
           { label: "Wi-Fi", value: "Ufficio (5 GHz, 86%)" },
           { label: "VPN", value: "nessuna" },
           { label: "Latenza", value: "18 ms" },
