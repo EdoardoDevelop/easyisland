@@ -11,6 +11,7 @@ import { State, type AskQuestion, type SessionHost } from "../core/state";
 import type { Island } from "./island";
 import { applyPlanTool, planStep } from "./plan";
 import { Recap } from "./recap";
+import { Daily } from "./daily";
 import { risksOf } from "./risk";
 import { t, tn } from "../core/i18n";
 import { plainText } from "../core/markdown";
@@ -611,7 +612,55 @@ export function permissionModeLabel(mode: string | null | undefined): { text: st
   }
 }
 
-export function handleHook(island: Island, payload: HookPayload) {
+/** Fields of a hook payload by type: anything else in them is dropped by `sanitize`. */
+const STRING_FIELDS = [
+  "hook_event_name", "request_id", "session_id", "cwd", "message", "notification_type", "prompt", "tool_name",
+  "easyisland_engine", "easyisland_last_message", "easyisland_host", "permission_mode", "error", "trigger",
+  "entrypoint", "term_program", "wt_session", "vscode_pid",
+] as const;
+const BOOL_FIELDS = ["easyisland_chat", "easyisland_waiting", "easyisland_after_only", "is_interrupt", "cursor"] as const;
+const OBJECT_FIELDS = ["tool_input", "easyisland_agent", "easyisland_diff", "easyisland_pid", "easyisland_tests"] as const;
+
+/**
+ * A payload as the handlers expect it. Events come from every agent and from
+ * any program through the relay (`easyisland_agent`), so a field may hold
+ * anything: one of the wrong type is dropped, as if it were not there, instead
+ * of throwing half-way through an event (a permission whose card never showed
+ * kept the agent waiting). Unknown fields stay (EasyIslandNotify reads its own).
+ */
+export function sanitize(raw: unknown): HookPayload {
+  const p: Record<string, unknown> = raw && typeof raw === "object" && !Array.isArray(raw) ? { ...(raw as object) } : {};
+  const isObject = (v: unknown) => v !== null && typeof v === "object" && !Array.isArray(v);
+  for (const k of STRING_FIELDS) if (k in p && typeof p[k] !== "string") delete p[k];
+  for (const k of BOOL_FIELDS) if (k in p && typeof p[k] !== "boolean") delete p[k];
+  for (const k of OBJECT_FIELDS) if (k in p && !isObject(p[k])) delete p[k];
+  if ("easyisland_diffs" in p && !Array.isArray(p.easyisland_diffs)) delete p.easyisland_diffs;
+  if (Array.isArray(p.easyisland_diffs)) p.easyisland_diffs = p.easyisland_diffs.filter(isObject);
+  if (isObject(p.easyisland_agent)) {
+    const a = p.easyisland_agent as Record<string, unknown>;
+    const str = (v: unknown) => (typeof v === "string" ? v : undefined);
+    p.easyisland_agent = { id: str(a.id), name: str(a.name), color: str(a.color) };
+  }
+  return p as HookPayload;
+}
+
+export function handleHook(island: Island, raw: HookPayload) {
+  const payload = sanitize(raw);
+  try {
+    handle(island, payload);
+  } catch (e) {
+    // A bug here must not leave an agent waiting on a card that never showed:
+    // its question goes back to the terminal at once.
+    const id = payload.request_id;
+    if (payload.hook_event_name === "PermissionRequest" && id && State.pendingApproval?.requestId !== id) {
+      void Bridge.approvalDecline(id);
+    }
+    void Bridge.log(`hook ${payload.hook_event_name ?? "?"}: ${(e as Error)?.stack ?? e}`).catch(() => {});
+    console.error(e);
+  }
+}
+
+function handle(island: Island, payload: HookPayload) {
   if (State.paused) {
     // Silence here used to cost Claude Code nearly two minutes: the relay waited
     // for a decision from an island that had already decided not to look. Say so,
@@ -682,7 +731,11 @@ export function handleHook(island: Island, payload: HookPayload) {
   };
 
   // Monday from 8:00: an agent starting work may open last week's recap.
-  if (name === "SessionStart" || name === "UserPromptSubmit") void Recap.check(island);
+  if (name === "SessionStart" || name === "UserPromptSubmit") {
+    void Recap.check(island);
+    // The morning and end-of-day recap, once a day each (src/island/daily.ts).
+    void Daily.check(island);
+  }
 
   switch (name) {
     case "SessionStart":

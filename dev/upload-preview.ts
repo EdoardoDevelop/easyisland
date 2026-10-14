@@ -29,7 +29,9 @@ const clock = document.getElementById("clock")!;
 const canvas = new UploadCanvas({
   ask: () => (clock.textContent = "ASK clicked"),
   cancel: () => (clock.textContent = "CANCEL clicked"),
-  runAction: (a) => (clock.textContent = `ACTION ${a.name} clicked`),});
+  runAction: (a) => (clock.textContent = `ACTION ${a.name} clicked`),
+  tray: () => (clock.textContent = "TRAY clicked"),
+});
 canvas.el.classList.add("on");
 canvas.el.style.position = "absolute";
 canvas.el.style.left = "0";

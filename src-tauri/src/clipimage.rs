@@ -266,6 +266,11 @@ pub fn decode_png(bytes: &[u8]) -> Result<Rgba, String> {
 
 /// A copy that fits in `max` × `max`, each pixel the average of the ones it covers.
 pub fn thumbnail(img: &Rgba, max: u32) -> Rgba {
+    // An empty picture has nothing to average (and `clamp` below would panic).
+    if img.width == 0 || img.height == 0 || img.pixels.len() < (img.width as usize * img.height as usize * 4) {
+        return Rgba { width: 1, height: 1, pixels: vec![0; 4] };
+    }
+    let max = max.max(1);
     let scale = (img.width.max(img.height) as f64 / max as f64).max(1.0);
     let w = ((img.width as f64 / scale).round() as u32).max(1);
     let h = ((img.height as f64 / scale).round() as u32).max(1);

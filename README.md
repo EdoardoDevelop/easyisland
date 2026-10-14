@@ -57,6 +57,24 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.7.9** — **proposte al momento giusto**: l'isola nota cosa succede sul PC e propone
+il passo dopo con un clic. Un **download finito** ha Apri, Mostra nella cartella e le
+tue azioni sui file; un **errore copiato** (stack trace, traceback, porta occupata) ha
+«Spiega e correggi», e per una porta occupata dice quale programma la tiene; un
+**server di sviluppo** appena partito (`npm run dev`, vite, uvicorn…) si apre nel
+browser; una **password o una chiave copiata** sparisce dagli appunti dopo 30 secondi.
+Il **riepilogo del giorno**, al mattino e a fine giornata: tempo degli agenti,
+repository con modifiche non salvate e pull request in attesa. E gli **strumenti di
+EasyIsland in Claude Code**, nel terminale o in VS Code: card con pulsanti nell'isola,
+avvisi e file nel Vassoio. Tutto si spegne nelle Impostazioni. In più, l'isola non si
+blocca più per un dato inatteso e le impostazioni sono al sicuro da un salvataggio
+interrotto.
+
+<p align="center">
+<img src="screenshots/moment-error.png" width="420" alt="Errore copiato: porta 3000 occupata da node.exe, con Spiega e correggi">
+<img src="screenshots/daily.png" width="420" alt="Riepilogo del mattino: tempo degli agenti, repository con modifiche non salvate, pull request">
+</p>
+
 **0.7.8** — **isola nuova**: a sinistra un menu con il personaggio in cima, poi
 **Panoramica** (tutte le integrazioni a riquadri), Agenti, Chat, Azioni, **File e
 schermo** e le tue integrazioni; in alto il fumetto del personaggio e un solo campo
@@ -167,7 +185,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.7.8** | 13 ott 2026 | Isola nuova con menu a sinistra e Panoramica, risposte rapide a isola chiusa, card del Meteo animata, personaggio che torna al suo colore, angolo senza scatti |
+| **0.7.9** | 14 ott 2026 | Proposte al momento giusto (download, errore copiato, server di sviluppo, chiavi tolte dagli appunti), riepilogo del giorno, strumenti di EasyIsland in Claude Code, isola e impostazioni più stabili |
+| 0.7.8 | 13 ott 2026 | Isola nuova con menu a sinistra e Panoramica, risposte rapide a isola chiusa, card del Meteo animata, personaggio che torna al suo colore, angolo senza scatti |
 | 0.7.7 | 13 ott 2026 | Cerchia e chiedi con OCR, personaggio visibile durante le chiamate 3CX, suoneria predefinita, colore delle integrazioni |
 | 0.7.6 | 13 ott 2026 | Limiti del piano vecchi in grigio con il motivo, «Aggiorna» del Consumo che chiede subito |
 | 0.7.5 | 12 ott 2026 | 3CX «Questo PC» con suoneria e scheda da telefono, avvio corretto dopo aggiornamenti e riavvii |

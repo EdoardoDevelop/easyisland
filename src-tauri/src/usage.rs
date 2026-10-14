@@ -575,7 +575,7 @@ fn store_plan(next: Plan, now: i64) -> bool {
     // runs at every message).
     let same = before.as_ref().is_some_and(|b| b.five_hour == next.five_hour && b.seven_day == next.seven_day && b.seven_day_opus == next.seven_day_opus);
     if !same || before.as_ref().is_none_or(|b| now - b.at >= 60) {
-        let _ = std::fs::write(plan_file(), serde_json::to_vec(&next).unwrap_or_default());
+        let _ = crate::settings::write_atomic(&plan_file(), &serde_json::to_vec(&next).unwrap_or_default());
     }
     let changed = band(before.as_ref(), now) != band(Some(&next), now);
     *PLAN.lock().unwrap_or_else(|e| e.into_inner()) = Some(Some(next));

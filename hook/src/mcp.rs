@@ -86,6 +86,24 @@ fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             true,
         ),
         (
+            "show_card",
+            "Mostra una card nell'isola di EasyIsland, in alto sullo schermo dell'utente, anche mentre lavora in un'altra finestra. Con buttons (fino a 3 etichette brevi) aspetta il clic e restituisce l'etichetta scelta: utile per una domanda rapida o per avvisare che un lavoro lungo è finito. wait_seconds: quanto aspettare (5–300, predefinito 120). level: info, ok, warn o error.",
+            json!({ "type": "object", "properties": {
+                "title": { "type": "string" },
+                "text": { "type": "string" },
+                "level": { "type": "string", "enum": ["info", "ok", "warn", "error"] },
+                "buttons": { "type": "array", "items": { "type": "string" }, "maxItems": 3 },
+                "wait_seconds": { "type": "integer", "minimum": 5, "maximum": 300 }
+            }, "required": ["title"] }),
+            true,
+        ),
+        (
+            "add_to_tray",
+            "Mette una copia di un file nel Vassoio di EasyIsland, da dove l'utente lo trascina in un'email, in una chat o in un'altra app (es. un report, un'immagine o uno ZIP appena creati). path: percorso completo del file.",
+            json!({ "type": "object", "properties": { "path": { "type": "string" } }, "required": ["path"] }),
+            false,
+        ),
+        (
             "media_status",
             "Cosa sta suonando sul PC (titolo, artista, app, in riproduzione o in pausa), se l'integrazione Musica è accesa.",
             none.clone(),
@@ -99,7 +117,7 @@ fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "list_uploaded_files",
-            "I file che l'utente ha rilasciato sull'isola negli ultimi 7 giorni (copie), con percorso, dimensione e data. Si possono leggere con Read.",
+            "I file nel Vassoio di EasyIsland: quelli che l'utente ha rilasciato sull'isola (copie) e quelli messi con add_to_tray, con percorso, dimensione e data. Si possono leggere con Read.",
             none.clone(),
             true,
         ),
@@ -162,6 +180,19 @@ fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
     ]
+}
+
+/// Started by EasyIsland's own chat (Claude Code there runs with
+/// EASYISLAND_INTERNAL): the chat is already in the island, a card would
+/// cover it, so `show_card` is only for Claude Code elsewhere.
+fn in_chat() -> bool {
+    std::env::var_os("EASYISLAND_INTERNAL").is_some()
+}
+
+/// The tools offered here.
+fn offered() -> Vec<(&'static str, &'static str, Value, bool)> {
+    let chat = in_chat();
+    tools().into_iter().filter(|t| !(chat && t.0 == "show_card")).collect()
 }
 
 /// Names of the tools that change nothing (or nothing that matters). The app
@@ -240,12 +271,12 @@ pub fn handle(msg: &Value) -> Option<Value> {
                 "protocolVersion": version,
                 "capabilities": { "tools": {} },
                 "serverInfo": { "name": "easyisland", "version": env!("CARGO_PKG_VERSION") },
-                "instructions": "Strumenti di EasyIsland sul PC dell'utente: aprire programmi e link, eseguire le sue azioni rapide, leggere lo stato di PC, rete, meteo, posta e ticket, gestire appunti e musica. Le azioni che cambiano qualcosa chiedono conferma all'utente."
+                "instructions": "Strumenti di EasyIsland sul PC dell'utente: avvisi e card nell'isola (show_notice, show_card con pulsanti), il Vassoio dei file (add_to_tray, list_uploaded_files), aprire programmi e link, eseguire le sue azioni rapide, leggere lo stato di PC, rete, meteo, posta e ticket, gestire appunti e musica. Le azioni che cambiano qualcosa chiedono conferma all'utente."
             }))
         }
         "ping" => result(id, json!({})),
         "tools/list" => {
-            let list: Vec<Value> = tools()
+            let list: Vec<Value> = offered()
                 .into_iter()
                 .map(|(name, description, schema, read_only)| {
                     json!({
@@ -260,7 +291,7 @@ pub fn handle(msg: &Value) -> Option<Value> {
         }
         "tools/call" => {
             let name = params.get("name").and_then(Value::as_str).unwrap_or_default();
-            if !tools().iter().any(|t| t.0 == name) {
+            if !offered().iter().any(|t| t.0 == name) {
                 return Some(error(id, -32602, &format!("Strumento sconosciuto: {name}")));
             }
             let args = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
@@ -317,6 +348,8 @@ mod tests {
             .map(|t| t["name"].as_str().unwrap()).collect();
         assert!(names.contains(&"open_app"));
         assert!(names.contains(&"run_quick_action"));
+        assert!(names.contains(&"show_card"));
+        assert!(names.contains(&"add_to_tray"));
 
         // Notifications get no answer.
         assert!(handle(&json!({ "jsonrpc": "2.0", "method": "notifications/initialized" })).is_none());

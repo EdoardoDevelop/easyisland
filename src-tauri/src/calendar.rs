@@ -74,13 +74,15 @@ const DAY_CODES: [&str; 7] = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
 fn parse_time(value: &str, params: &str, to_local: &dyn Fn(i64) -> i64) -> Option<(i64, bool)> {
     let v = value.trim();
     let date = v.get(..8)?;
-    let (y, m, d): (i64, i64, i64) = (date[..4].parse().ok()?, date[4..6].parse().ok()?, date[6..8].parse().ok()?);
+    // `get`, not `[..]`: a calendar from the network may put any character
+    // there, and slicing inside one would panic (the release build aborts).
+    let (y, m, d): (i64, i64, i64) = (date.get(..4)?.parse().ok()?, date.get(4..6)?.parse().ok()?, date.get(6..8)?.parse().ok()?);
     let day = days_from_civil(y, m, d);
     if v.len() < 15 || params.to_uppercase().contains("VALUE=DATE") && !params.to_uppercase().contains("VALUE=DATE-TIME") {
         return Some((day * 86_400, true));
     }
-    let t = &v[9..15];
-    let (hh, mm, ss): (i64, i64, i64) = (t[..2].parse().ok()?, t[2..4].parse().ok()?, t[4..6].parse().ok()?);
+    let t = v.get(9..15)?;
+    let (hh, mm, ss): (i64, i64, i64) = (t.get(..2)?.parse().ok()?, t.get(2..4)?.parse().ok()?, t.get(4..6)?.parse().ok()?);
     let secs = day * 86_400 + hh * 3600 + mm * 60 + ss;
     let tzid = params.split(';').find_map(|p| p.strip_prefix("TZID=")).unwrap_or("").trim_matches('"').to_uppercase();
     let utc = v.ends_with('Z') || matches!(tzid.as_str(), "UTC" | "ETC/UTC" | "GMT" | "Z" | "ETC/GMT");
@@ -212,8 +214,9 @@ fn parse_rule(rule: &str, to_local: &dyn Fn(i64) -> i64) -> Option<Rule> {
             "UNTIL" => r.until = parse_time(v, "", to_local).map(|(t, all_day)| if all_day { t + 86_399 } else { t }),
             "BYDAY" => {
                 for d in v.split(',') {
-                    let code = &d[d.len().saturating_sub(2)..];
-                    let ord: i64 = d[..d.len().saturating_sub(2)].parse().unwrap_or(0);
+                    let cut = d.len().saturating_sub(2);
+                    let (Some(code), Some(ord)) = (d.get(cut..), d.get(..cut)) else { continue };
+                    let ord: i64 = ord.parse().unwrap_or(0);
                     if let Some(wd) = DAY_CODES.iter().position(|c| *c == code) {
                         r.by_day.push((ord, wd as i64));
                     }
@@ -512,6 +515,23 @@ pub async fn probe(w: &Widget) -> WidgetResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn odd_characters_never_panic() {
+        // Calendars come from the network: a character slicing would cut must
+        // give no event, never a panic (the release build aborts on one).
+        let local = |t: i64| t;
+        for v in ["2026€1002T090000", "20261002Té900000", "2026100é", "€€€€€€€€€€€€€€€€"] {
+            let _ = parse_time(v, "", &local);
+        }
+        let ics = "BEGIN:VEVENT
+DTSTART:20261002T090000
+RRULE:FREQ=WEEKLY;BYDAY=1é,€,MO
+SUMMARY:x
+END:VEVENT
+";
+        let _ = upcoming(ics, 1_790_000_000, &local);
+    }
 
     const SAME: fn(i64) -> i64 = |t| t;
     // A fixed "UTC+2": to check that only …Z times move.

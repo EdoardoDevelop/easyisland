@@ -104,10 +104,41 @@ function chip(label: string, value: string | Node): HTMLElement {
   return h("div", { class: "wx-chip" }, h("span", { class: "wx-chip-l", text: label }), h("span", { class: "wx-chip-v" }, value));
 }
 
+/**
+ * The probe's forecast made safe to draw: numbers or null, strings, lists of
+ * objects. Null when there is nothing usable (an older reading, a broken one).
+ */
+export function readForecast(raw: unknown): Forecast | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is Record<string, unknown> => !!x && typeof x === "object") : []);
+  return {
+    place: str(o.place),
+    temp: num(o.temp),
+    feels: num(o.feels),
+    humidity: num(o.humidity),
+    wind: num(o.wind),
+    windDir: num(o.windDir),
+    day: o.day !== false,
+    sky: typeof o.sky === "string" ? o.sky : null,
+    text: str(o.text),
+    sunrise: str(o.sunrise) || null,
+    sunset: str(o.sunset) || null,
+    uv: num(o.uv),
+    hourly: list(o.hourly).slice(0, 24).map((x) => ({ hour: str(x.hour), temp: num(x.temp), sky: typeof x.sky === "string" ? x.sky : null, rain: num(x.rain) })),
+    daily: list(o.daily).slice(0, 10).map((x) => ({
+      date: str(x.date), max: num(x.max), min: num(x.min), sky: typeof x.sky === "string" ? x.sky : null, text: str(x.text), rain: num(x.rain),
+    })),
+  };
+}
+
 export function weatherCard(task: AgentTask, openSettings: () => void): HTMLElement | null {
   const st = State.widgetStatus[task.id];
-  const f = st?.forecast as Forecast | undefined;
+  const f = readForecast(st?.forecast);
   if (!st || !f || st.level === "error") return null;
+  const ago = Number.isFinite(st.at) ? timeAgo(st.at * 1000) : "";
   const sky: Sky = isSky(f.sky) ? f.sky : "cloud";
 
   const canvas = document.createElement("canvas");
@@ -117,7 +148,7 @@ export function weatherCard(task: AgentTask, openSettings: () => void): HTMLElem
 
   const today = f.daily[0];
   const hero = h("div", { class: "wx-hero" },
-    h("div", { class: "wx-place" }, h("b", { text: f.place }), h("span", { class: "wx-ago", text: timeAgo(st.at * 1000) })),
+    h("div", { class: "wx-place" }, h("b", { text: f.place }), h("span", { class: "wx-ago", text: ago })),
     h("div", { class: "wx-now" },
       h("span", { class: "wx-temp", text: deg(f.temp) }),
       h("div", { class: "wx-desc" },

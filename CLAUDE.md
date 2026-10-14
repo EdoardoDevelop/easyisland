@@ -40,4 +40,5 @@ La parte Rust si compila solo su Windows (MSVC). Test Rust: `cargo test --worksp
 - La versione sta in `package.json`, `Cargo.toml` e `src-tauri/tauri.conf.json` e deve coincidere (la CI lo controlla sui tag).
 - Non cambiare `identifier` in `tauri.conf.json`: sposterebbe i dati dell'app e le voci in Gestione credenziali.
 - Un servizio a istanza singola è un'**integrazione**, mai un widget.
+- **Stabilità:** prima di un rilascio e dopo modifiche a hook, viste o integrazioni, `npm run smoke` con `npm run dev` acceso deve dire «nessun errore». In Rust niente tagli `[a..b]` o indici su dati esterni (usa `get`): in release un panic chiude l'app. Regole in `docs/architettura.md` → Robustezza.
 - Le modifiche visive restano coerenti con l'aspetto attuale (`screenshots/`, scene in `dev/scenes.ts`). Vedi `docs/architettura.md`.

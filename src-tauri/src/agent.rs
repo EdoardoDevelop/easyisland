@@ -219,6 +219,60 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             Ok("Avviso mostrato.".into())
         }
 
+        "show_card" => {
+            let cut = |s: &str, n: usize| s.chars().take(n).collect::<String>();
+            let title = cut(arg(args, "title"), 120);
+            if title.is_empty() {
+                return Err("Manca title.".into());
+            }
+            let level = match arg(args, "level") {
+                "ok" | "warn" | "error" => arg(args, "level"),
+                _ => "info",
+            };
+            let buttons: Vec<String> = args
+                .get("buttons")
+                .and_then(Value::as_array)
+                .map(|b| b.iter().filter_map(Value::as_str).map(|s| cut(s.trim(), 40)).filter(|s| !s.is_empty()).take(3).collect())
+                .unwrap_or_default();
+            let wait = args.get("wait_seconds").and_then(Value::as_u64).unwrap_or(120).clamp(5, 300);
+            let asks = !buttons.is_empty();
+            let answer = crate::moments::ask_card(
+                app,
+                &title,
+                &cut(arg(args, "text"), 1200),
+                level,
+                buttons,
+                std::time::Duration::from_secs(if asks { wait } else { 2 }),
+            )
+            .await;
+            use crate::moments::CardAnswer;
+            Ok(match (asks, answer) {
+                (false, Some(CardAnswer::Without(r))) if r == "hidden" => "Card non mostrata: l'utente ha le notifiche ridotte o è davanti a un cliente.".into(),
+                (false, _) => "Card mostrata.".into(),
+                (true, Some(CardAnswer::Chose(c))) => format!("L'utente ha scelto: «{c}»."),
+                (true, Some(CardAnswer::Without(r))) if r == "hidden" => "Card non mostrata: l'utente ha le notifiche ridotte o è davanti a un cliente. Chiedi nel terminale.".into(),
+                (true, Some(CardAnswer::Without(_))) => "L'utente ha chiuso la card senza scegliere.".into(),
+                (true, None) => format!("Nessuna risposta entro {wait} s."),
+            })
+        }
+
+        "add_to_tray" => {
+            let path = arg(args, "path").trim_matches('"').to_string();
+            if path.is_empty() {
+                return Err("Manca path.".into());
+            }
+            let meta = std::fs::metadata(&path).map_err(|e| format!("File non leggibile: {e}"))?;
+            if meta.is_dir() {
+                return Err("Solo file, non cartelle (comprimile prima in uno ZIP).".into());
+            }
+            if meta.len() > 2 * 1024 * 1024 * 1024 {
+                return Err("Il file supera 2 GB.".into());
+            }
+            let file = tauri::async_runtime::spawn_blocking(move || crate::files::ingest(&path)).await.map_err(|e| e.to_string())??;
+            crate::moments::emit(app, json!({ "kind": "tray", "name": file.name, "path": file.path, "size": file.size }));
+            Ok(format!("«{}» è nel Vassoio di EasyIsland ({}).", file.name, file.path))
+        }
+
         "media_status" => {
             let s = settings(app)?;
             if !s.active_integrations.iter().any(|a| a == crate::media::ID) {
@@ -248,7 +302,7 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "list_uploaded_files" => {
             let files = crate::files::list_inbox();
             if files.is_empty() {
-                return Ok("Nessun file rilasciato sull'isola negli ultimi 7 giorni.".into());
+                return Ok("Il Vassoio è vuoto.".into());
             }
             Ok(pretty(&json!(files)))
         }

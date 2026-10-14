@@ -164,7 +164,7 @@ fn save_kept(names: &HashSet<String>) -> Result<(), String> {
     let mut list: Vec<&String> = names.iter().collect();
     list.sort();
     let json = serde_json::to_string(&list).map_err(|e| e.to_string())?;
-    std::fs::write(kept_file(), json).map_err(|e| tf("Salvataggio non riuscito: {e}", &[("e", &e)]))
+    crate::settings::write_atomic(&kept_file(), json.as_bytes()).map_err(|e| tf("Salvataggio non riuscito: {e}", &[("e", &e)]))
 }
 
 /// Pins or unpins one file of the tray.

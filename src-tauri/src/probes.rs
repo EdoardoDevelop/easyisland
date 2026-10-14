@@ -688,7 +688,7 @@ async fn whois_expiry(domain: &str) -> Option<String> {
         let key = ["expire date:", "expiry date:", "expiration date:", "registry expiry date:", "paid-till:", "renewal date:"]
             .iter()
             .find(|k| low.trim_start().starts_with(*k))?;
-        let value = l.trim_start()[key.len()..].trim();
+        let value = l.trim_start().get(key.len()..)?.trim();
         // Normalise "2026-11-03 00:00:00" / "2026-11-03T…" to the date.
         let date = value.get(..10)?;
         (date.as_bytes()[4] == b'-').then(|| format!("{date}T00:00:00Z"))

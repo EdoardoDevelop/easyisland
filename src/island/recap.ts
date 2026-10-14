@@ -35,6 +35,9 @@ export interface RecapHistory {
   decisions: RecapDecision[];
   /** Monday (YYYY-MM-DD) of the week the recap last opened on its own. */
   lastShownWeek: string;
+  /** Days (YYYY-MM-DD) the morning and end-of-day recap last opened (daily.ts). */
+  lastShownMorning?: string;
+  lastShownEvening?: string;
 }
 
 export interface WeeklySummary {

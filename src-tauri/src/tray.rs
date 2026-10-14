@@ -28,6 +28,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let open = MenuItem::with_id(app, "open", t("Apri EasyIsland"), true, None::<&str>)?;
     // Handled by the island (src/main.ts, "tray" event).
     let recap = MenuItem::with_id(app, "recap", t("Riepilogo settimanale"), true, None::<&str>)?;
+    let daily = MenuItem::with_id(app, "daily", t("Riepilogo del giorno"), true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", t("Impostazioni…"), true, None::<&str>)?;
     let pause = MenuItem::with_id(app, "pause", t("Pausa"), true, None::<&str>)?;
     let presence = CheckMenuItem::with_id(
@@ -59,7 +60,7 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let profile = Submenu::with_items(app, t("Profilo"), !refs.is_empty(), &refs)?;
 
 
-    Menu::with_items(app, &[&open, &profile, &recap, &sep1, &presence, &settings, &pause, &sep2, &quit])
+    Menu::with_items(app, &[&open, &profile, &recap, &daily, &sep1, &presence, &settings, &pause, &sep2, &quit])
 }
 
 pub fn build(app: &AppHandle) -> tauri::Result<()> {

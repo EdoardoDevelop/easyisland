@@ -12,6 +12,9 @@ mod claude_cli;
 mod clipboard;
 mod clipimage;
 mod context;
+mod daily;
+mod devservers;
+mod downloads;
 mod drop;
 mod files;
 mod folder_drop;
@@ -22,7 +25,9 @@ mod integrations;
 mod island;
 mod legacy;
 mod log;
+mod mcp_setup;
 mod media;
+mod moments;
 mod openai;
 mod opencode;
 mod opencode_agent;
@@ -254,6 +259,12 @@ fn restart_app(app: AppHandle) {
 #[tauri::command]
 fn recap_show(app: AppHandle) {
     let _ = app.emit_to(island::WINDOW_LABEL, "tray", "recap");
+}
+
+/// Impostazioni → Riepilogo del giorno → «Mostra ora».
+#[tauri::command]
+fn daily_show(app: AppHandle) {
+    let _ = app.emit_to(island::WINDOW_LABEL, "tray", "daily");
 }
 
 /// The island's search bar: the programs of the Start menu.
@@ -905,10 +916,12 @@ async fn claude_cli_status() -> claude_cli::CliStatus {
     claude_cli::status().await
 }
 
-/// Copies a dropped file into the inbox and reports its name back.
+/// Copies a dropped file into the inbox and reports its name back. Off the
+/// main thread: a sync command runs there, and copying a file of a few GB
+/// froze the whole island ("not responding") until it was done.
 #[tauri::command]
-fn ingest_file(path: String) -> Result<DroppedFile, String> {
-    files::ingest(&path)
+async fn ingest_file(path: String) -> Result<DroppedFile, String> {
+    tauri::async_runtime::spawn_blocking(move || files::ingest(&path)).await.map_err(|e| e.to_string())?
 }
 
 /// "Cerchia e chiedi" (screenshot.rs): freezes the screen under the mouse.
@@ -1251,6 +1264,19 @@ fn inbox_keep(name: String, keep: bool) -> Result<(), String> {
 #[tauri::command]
 fn inbox_open(name: String, reveal: bool) -> Result<(), String> {
     let path = files::inbox_path(&name)?;
+    let spawned = if reveal { reveal_in_explorer(&path) } else { Command::new("explorer").arg(&path).spawn() };
+    spawned.map(|_| ()).map_err(|e| e.to_string())
+}
+
+/// A finished download (moments.rs): "Apri" through Explorer, like a double
+/// click there (Windows' own warnings for downloaded programs included);
+/// "Mostra nella cartella" selects it.
+#[tauri::command]
+fn file_open(path: String, reveal: bool) -> Result<(), String> {
+    let path = std::path::PathBuf::from(&path);
+    if !path.is_file() {
+        return Err(t("Il file non c'è più.").into());
+    }
     let spawned = if reveal { reveal_in_explorer(&path) } else { Command::new("explorer").arg(&path).spawn() };
     spawned.map(|_| ()).map_err(|e| e.to_string())
 }
@@ -1641,7 +1667,14 @@ pub fn run() {
             recap::recap_history,
             recap::recap_mark_shown,
             recap::recap_clear,
+            recap::recap_mark_day,
+            daily::daily_digest,
+            file_open,
+            moments::moment_card_answer,
+            mcp_setup::mcp_claude_status,
+            mcp_setup::mcp_claude_apply,
             recap_show,
+            daily_show,
             restart_app,
             inbox_open,
             inbox_drag,
@@ -1689,6 +1722,8 @@ pub fn run() {
             profiles::spawn_auto_switch(handle.clone());
             hotkeys::spawn(handle.clone());
             clipboard::spawn(handle.clone());
+            downloads::spawn(handle.clone());
+            devservers::spawn(handle.clone());
             context::spawn();
             media::spawn(handle.clone());
             threecx::spawn(handle.clone());

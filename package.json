@@ -1,7 +1,7 @@
 {
   "name": "easyisland",
   "private": true,
-  "version": "0.7.8",
+  "version": "0.7.9",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,8 @@
     "tauri": "tauri",
     "predev": "cargo build --release -p easyisland-hook",
     "prebuild": "cargo build --release -p easyisland-hook",
-    "pack": "tauri build && node scripts/pack.mjs"
+    "pack": "tauri build && node scripts/pack.mjs",
+    "smoke": "node scripts/smoke.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

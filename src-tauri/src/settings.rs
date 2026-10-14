@@ -8,7 +8,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use crate::i18n::{t, tf};
 
 /// Bumped whenever the file layout changes; `migrate` brings old files up.
@@ -317,6 +317,25 @@ pub struct Settings {
     /// shown on Monday.
     #[serde(default = "default_true")]
     pub weekly_recap: bool,
+    /// The morning and end-of-day recap (daily.rs, src/island/daily.ts):
+    /// "both", "morning", "evening" or "off".
+    #[serde(default = "default_daily_recap")]
+    pub daily_recap: String,
+    /// When the end-of-day recap may open, local hour (0–23).
+    #[serde(default = "default_evening_hour")]
+    pub evening_hour: f64,
+    /// Proposals at the right moment (moments.rs): a finished download…
+    #[serde(default = "default_true")]
+    pub moment_downloads: bool,
+    /// …an error copied to the clipboard («Spiega e correggi»)…
+    #[serde(default = "default_true")]
+    pub moment_errors: bool,
+    /// …a development server that started («Apri nel browser»)…
+    #[serde(default = "default_true")]
+    pub moment_servers: bool,
+    /// …and a copied password or key taken off the clipboard after 30 s.
+    #[serde(default = "default_true")]
+    pub clear_secrets: bool,
     /// The chat history (chat_log.rs): conversations kept on this PC to reopen.
     #[serde(default = "default_true")]
     pub chat_history: bool,
@@ -587,6 +606,14 @@ fn default_open_delay() -> f64 {
 fn default_reveal_duration() -> f64 {
     8.0
 }
+fn default_daily_recap() -> String {
+    "both".into()
+}
+
+fn default_evening_hour() -> f64 {
+    18.0
+}
+
 fn default_true() -> bool {
     true
 }
@@ -623,6 +650,12 @@ impl Default for Settings {
             menu_character: default_menu_character(),
             character_bubble: true,
             weekly_recap: true,
+            daily_recap: default_daily_recap(),
+            evening_hour: default_evening_hour(),
+            moment_downloads: true,
+            moment_errors: true,
+            moment_servers: true,
+            clear_secrets: true,
             chat_history: true,
             language: String::new(),
             screen: "primary".into(),
@@ -932,23 +965,79 @@ fn settings_path() -> PathBuf {
     config_dir().join("settings.json")
 }
 
-pub fn load() -> Settings {
-    match std::fs::read(settings_path()) {
-        Ok(bytes) => match serde_json::from_slice::<Settings>(&bytes) {
-            Ok(old) => {
-                let from = old.schema_version;
-                let s = old.migrated();
-                // A converted file is written back at once, so what is on disk
-                // matches what the app shows.
-                if from < SCHEMA_VERSION {
-                    let _ = save(&s);
-                }
-                s
-            }
-            Err(_) => Settings::default(),
-        },
-        Err(_) => Settings::default(),
+/// The last settings.json that could be read, kept by `save` before replacing it.
+fn backup_path() -> PathBuf {
+    config_dir().join("settings.bak.json")
+}
+
+/// Writes `bytes` to `path` whole or not at all: a temporary file next to it,
+/// flushed to disk, then renamed over it (an atomic replace on NTFS). A crash
+/// or a power cut in the middle used to leave a truncated file behind, and a
+/// truncated settings.json was read as "no settings": every action, automation,
+/// widget and profile went back to the defaults and was then saved over.
+pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let n = SEQ.fetch_add(1, Ordering::Relaxed);
+    let name = path.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
+    let temp = path.with_file_name(format!("{name}.{}-{n}.tmp", std::process::id()));
+    let written = (|| {
+        let mut f = std::fs::File::create(&temp)?;
+        f.write_all(bytes)?;
+        f.sync_all()
+    })()
+    .and_then(|()| std::fs::rename(&temp, path));
+    if written.is_err() {
+        let _ = std::fs::remove_file(&temp);
     }
+    written
+}
+
+/// A settings file: None when there is none, Err when it is there but unreadable.
+fn read_settings(path: &Path) -> Result<Option<Settings>, String> {
+    match std::fs::read(path) {
+        Ok(bytes) => serde_json::from_slice::<Settings>(&bytes).map(Some).map_err(|e| e.to_string()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// The settings in `path`, else (unreadable) the backup; the unreadable file
+/// is set aside first, so the defaults saved next never overwrite what may
+/// still be recovered by hand. The second value says what happened, for the log.
+fn load_from(path: &Path, backup: &Path, now: u64) -> (Option<Settings>, Option<String>) {
+    match read_settings(path) {
+        Ok(found) => (found, None),
+        Err(e) => {
+            let kept = path.with_file_name(format!("settings.illeggibile-{now}.json"));
+            let _ = std::fs::copy(path, &kept);
+            let from_backup = read_settings(backup).ok().flatten();
+            let what = format!(
+                "settings.json illeggibile ({e}): messo da parte come {}, {}",
+                kept.display(),
+                if from_backup.is_some() { "ripristinata la copia di riserva" } else { "nessuna copia di riserva, impostazioni predefinite" },
+            );
+            (from_backup, Some(what))
+        }
+    }
+}
+
+pub fn load() -> Settings {
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let (found, problem) = load_from(&settings_path(), &backup_path(), now);
+    if let Some(p) = &problem {
+        crate::log::line(p.clone());
+    }
+    let Some(old) = found else { return Settings::default() };
+    let from = old.schema_version;
+    let s = old.migrated();
+    // A converted (or recovered) file is written back at once, so what is on
+    // disk matches what the app shows.
+    if from < SCHEMA_VERSION || problem.is_some() {
+        let _ = save(&s);
+    }
+    s
 }
 
 pub fn save(settings: &Settings) -> std::io::Result<()> {
@@ -956,12 +1045,52 @@ pub fn save(settings: &Settings) -> std::io::Result<()> {
     std::fs::create_dir_all(&dir)?;
     let json = serde_json::to_vec_pretty(settings)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    std::fs::write(settings_path(), json)
+    let path = settings_path();
+    // The file about to be replaced becomes the backup, when it reads.
+    if let Ok(bytes) = std::fs::read(&path) {
+        if bytes != json && serde_json::from_slice::<Settings>(&bytes).is_ok() {
+            let _ = write_atomic(&backup_path(), &bytes);
+        }
+    }
+    write_atomic(&path, &json)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unreadable_settings_fall_back_to_the_backup_and_are_kept() {
+        let dir = std::env::temp_dir().join(format!("easyisland-settings-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (path, backup) = (dir.join("settings.json"), dir.join("settings.bak.json"));
+        let mut good = Settings::default();
+        good.sound_volume = 0.42;
+        write_atomic(&backup, &serde_json::to_vec(&good).unwrap()).unwrap();
+        // Cut off half-way, as after a power cut.
+        std::fs::write(&path, br#"{"soundEnabled":true,"soundVol"#).unwrap();
+        let (found, problem) = load_from(&path, &backup, 7);
+        assert_eq!(found.map(|s| s.sound_volume), Some(0.42));
+        assert!(problem.is_some());
+        assert!(dir.join("settings.illeggibile-7.json").exists(), "the broken file is set aside, not lost");
+        // No file at all: the defaults, the backup untouched (a deleted file is a reset).
+        std::fs::remove_file(&path).unwrap();
+        let (found, problem) = load_from(&path, &backup, 8);
+        assert!(found.is_none() && problem.is_none());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn write_atomic_replaces_whole_and_leaves_no_temp() {
+        let dir = std::env::temp_dir().join(format!("easyisland-atomic-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("a.json");
+        write_atomic(&path, b"one").unwrap();
+        write_atomic(&path, b"two").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"two");
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn old_file_gets_three_profiles() {

@@ -241,6 +241,79 @@ function recapSection(): HTMLElement {
       done));
 }
 
+/** The morning and end-of-day recap (daily.rs, src/island/daily.ts). */
+function dailySection(): HTMLElement {
+  const hour = h("input", {
+    type: "number", min: "12", max: "23", step: "1", style: "width:64px",
+    value: String(settings.eveningHour ?? 18),
+  }) as HTMLInputElement;
+  hour.addEventListener("change", () => {
+    const v = Math.round(Number(hour.value));
+    settings.eveningHour = Number.isFinite(v) ? Math.min(23, Math.max(12, v)) : 18;
+    hour.value = String(settings.eveningHour);
+    void save();
+  });
+  return h("section", {},
+    h("h2", {}, h("span", { text: t("Riepilogo del giorno") })),
+    h("div", { class: "hint", text: t("Al mattino (dalle 8) il tempo degli agenti di ieri, a fine giornata quello di oggi; in tutti e due i repository con modifiche non salvate e le pull request in attesa (con gh o il token di GitHub). Si apre una volta, solo se c'è qualcosa da dire. I repository sono quelli dove hanno lavorato gli agenti: se ne tiene solo il percorso, su questo PC.") }),
+    h("div", { class: "row" },
+      h("label", { text: t("Riepilogo") }),
+      select<Settings["dailyRecap"]>(
+        [["both", t("Al mattino e a fine giornata")], ["morning", t("Solo al mattino")], ["evening", t("Solo a fine giornata")], ["off", t("Spento")]],
+        settings.dailyRecap ?? "both",
+        (v) => { settings.dailyRecap = v; void save(); },
+      ),
+      h("button", { text: t("Mostra ora"), onclick: () => void Bridge.dailyShow() })),
+    h("div", { class: "row" }, h("label", { text: t("Fine giornata alle") }), hour, h("span", { class: "hint note", text: t("ora, da 12 a 23") })));
+}
+
+/** EasyIsland's tools in Claude Code everywhere (mcp_setup.rs). */
+function mcpSection(): HTMLElement {
+  const body = h("div", {});
+  const el = h("section", {},
+    h("h2", {}, h("span", { text: t("Strumenti di EasyIsland in Claude Code") })),
+    h("div", { class: "hint", text: t("Claude Code, nel terminale o in VS Code, può mostrare card con pulsanti nell'isola (per esempio «ho finito» o una domanda rapida), avvisi, e mettere file nel Vassoio. La chat dell'isola li ha già. Claude Code chiede il permesso prima di usare uno strumento.") }),
+    body);
+  const draw = async () => {
+    const s = await Bridge.mcpClaudeStatus();
+    clear(body);
+    if (!s) return;
+    const state = !s.cli ? t("Claude Code non è installato") : s.current ? t("Aggiunti") : s.installed ? t("Aggiunti, ma con un percorso vecchio") : t("Non aggiunti");
+    const detail = h("div", {});
+    const ask = (install: boolean) => {
+      clear(detail);
+      const what = install
+        ? t("Claude Code aggiunge questa voce ai suoi server MCP (~/.claude.json, per tutti i progetti), dopo una copia del file:")
+        : t("Claude Code toglie la voce «easyisland» dai suoi server MCP, dopo una copia del file.");
+      const confirm = h("button", { class: "primary", text: t("Conferma") }) as HTMLButtonElement;
+      confirm.addEventListener("click", async () => {
+        confirm.disabled = true;
+        try {
+          const backup = await Bridge.mcpClaudeApply(install);
+          clear(detail);
+          detail.append(h("div", { class: "notice ok", text: `${backup ? t("Fatto. Copia di prima in {path}.", { path: backup }) : t("Fatto.")} ${install ? t("Vale dalla prossima sessione di Claude Code.") : ""}` }));
+          window.setTimeout(() => void draw(), 6000);
+        } catch (err) {
+          confirm.disabled = false;
+          detail.append(h("div", { class: "notice err", text: t("Non riuscito: {err}", { err: String(err) }) }));
+        }
+      });
+      detail.append(h("div", { class: "hint", text: what }));
+      if (install) detail.append(h("pre", { class: "diff", text: s.entry }));
+      detail.append(h("div", { class: "row" }, confirm, h("button", { text: t("Annulla"), onclick: () => clear(detail) })));
+    };
+    body.append(
+      h("div", { class: "row" },
+        h("label", { text: t("Stato") }),
+        statusDot(s.current), h("span", { text: state }),
+        s.cli && !s.current ? h("button", { text: t("Aggiungi…"), onclick: () => ask(true) }) : null,
+        s.installed ? h("button", { text: t("Togli…"), onclick: () => ask(false) }) : null),
+      detail);
+  };
+  void draw();
+  return el;
+}
+
 function agentsTabSection(): HTMLElement {
   const id = "integration_claude";
   const icons = () => (settings.integrationTabIcons ??= {});
@@ -2669,6 +2742,22 @@ function reactionsSection(): HTMLElement {
 
 // ── Davanti al cliente ────────────────────────────────────────────────────────
 
+/** "Proposte al momento giusto" (moments.rs): each one on or off. */
+function momentsSection(): HTMLElement {
+  const row = (label: string, key: "momentDownloads" | "momentErrors" | "momentServers" | "clearSecrets", note: string) =>
+    h("div", { class: "row" },
+      h("label", { text: label }),
+      toggle(settings[key] !== false, (v) => { settings[key] = v; void save(); }),
+      h("span", { class: "hint note", text: note }));
+  return h("section", {},
+    h("h2", {}, h("span", { text: t("Proposte al momento giusto") })),
+    h("div", { class: "hint", text: t("L'isola nota cosa succede sul PC e propone il passo dopo con un clic. Non copre mai quello che stai facendo e segue le regole qui sopra.") }),
+    row(t("Download finito"), "momentDownloads", t("Apri, Mostra nella cartella e le azioni sui file, per un file nuovo nella cartella Download")),
+    row(t("Errore copiato"), "momentErrors", t("«Spiega e correggi» per uno stack trace o un traceback negli appunti, e chi tiene una porta occupata (serve l'integrazione Appunti)")),
+    row(t("Server di sviluppo"), "momentServers", t("«Apri nel browser» quando npm run dev, vite, uvicorn… iniziano ad ascoltare su localhost")),
+    row(t("Password e chiavi copiate"), "clearSecrets", t("tolte dagli appunti dopo 30 secondi, se nel frattempo non hai copiato altro")));
+}
+
 function presenceSection(): HTMLElement {
   const commit = () => void save();
   const apps = h("input", {
@@ -3018,7 +3107,7 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     {
       id: "notifiche", label: t("Notifiche"), icon: "alert", color: "#F5A524", title: t("Notifiche"),
       intro: t("Quando il personaggio si fa vedere, quando si fa da parte e i messaggi dagli script."),
-      sections: () => [notifySection(), reactionsSection(), presenceSection(), scriptsSection(b.status.hookPath)],
+      sections: () => [notifySection(), momentsSection(), reactionsSection(), presenceSection(), scriptsSection(b.status.hookPath)],
     },
     {
       id: "chat", label: t("Chat"), icon: "chat", color: "#A78BFA", title: t("Chat"),
@@ -3028,7 +3117,7 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     {
       id: "claude", label: t("Agenti"), icon: "terminal", color: "#E07A5F", title: t("Agenti di programmazione"),
       intro: t("Le sessioni di Claude Code, Codex, opencode e degli altri agenti nell'isola, con i loro permessi."),
-      sections: () => [agentsSection(b.status), agentsTabSection(), recapSection()],
+      sections: () => [agentsSection(b.status), agentsTabSection(), recapSection(), dailySection(), mcpSection()],
     },
     {
       id: "azioni", label: t("Azioni rapide"), icon: "bolt", color: "#FACC15", title: t("Azioni rapide"),

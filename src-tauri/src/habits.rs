@@ -159,7 +159,7 @@ fn prune(events: &[Event]) {
         .map(|e| format!("{}\n", serde_json::to_string(e).unwrap_or_default()))
         .collect();
     let _guard = FILE_LOCK.lock().unwrap();
-    let _ = std::fs::write(path(), kept);
+    let _ = crate::settings::write_atomic(&path(), kept.as_bytes());
 }
 
 /// "Cancella lo storico".
