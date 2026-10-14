@@ -203,6 +203,8 @@ export class Island {
   private keyboard = false;
   /** Where the island was before a permission card took it (rememberBeforeCard). */
   private beforeCard: { view: IslandViewName | null; focusId: string | null } | null = null;
+  /** A zone just put in the tray: until then (ms), the island reopens on the tray. */
+  private trayUntil = 0;
   private lastSyncedView: IslandViewName | null = null;
   /** Natural content height reported by the current view (0 = its fixed height). */
   private fit: { view: IslandViewName | null; h: number } = { view: null, h: 0 };
@@ -455,7 +457,7 @@ export class Island {
           if (!this.wasInIsland) this.fsm.mouseLeft();
           break;
         case "home":
-          this.expand(State.defaultView());
+          this.expand(this.openingView());
           if (this.openedByUser) this.focusSearchSoon();
           if (!this.wasInIsland) this.fsm.mouseLeft();
           break;
@@ -621,6 +623,7 @@ export class Island {
 
   setView(view: IslandViewName) {
     if (view === "actions") void this.refreshForeground();
+    if (view !== "files") this.trayUntil = 0;
     this.stopSequenceIfLeaving(view);
     if (State.mode !== "expanded") {
       this.fsm.forceHome();
@@ -1186,8 +1189,20 @@ ${note}` : text };
           if (State.view === "note" && State.noteMessage === message) this.collapse();
         }, 2200);
       },
+      tray: () => {
+        Sound.play("approve");
+        // Open on the tray, and reopen there if it closes before anything else is opened.
+        void this.openFiles().then(() => { this.trayUntil = performance.now() + 5 * 60_000; });
+      },
       failed: (message) => this.note(message, State.defaultView()),
     });
+  }
+
+  /** Where a reopening lands: a waiting request, the tray just filled, or the usual place. */
+  private openingView(): IslandViewName {
+    const tray = performance.now() < this.trayUntil;
+    this.trayUntil = 0;
+    return State.pendingCard() ?? (tray ? "files" : State.defaultView());
   }
 
   /** A picture already in the inbox goes straight to the chat, ready for the question. */
