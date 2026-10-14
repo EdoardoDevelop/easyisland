@@ -57,6 +57,9 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.8.1** — Rete: la scheda da modificare si sceglie con pulsanti (il menu a tendina non
+funzionava) e il ping continuo ha un pulsante per il gateway di ogni scheda.
+
 **0.8.0** — **logo nuovo**: tre pillole a «E», la forma dell'isola, dal viola
 all'azzurro. **Rete** più completa: tutte le schede con i loro IP, gateway e DNS, un
 **ping continuo** in un terminale (gateway, 8.8.8.8 o un indirizzo a scelta) e
@@ -200,7 +203,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.8.0** | 14 ott 2026 | Logo nuovo, Rete con tutte le schede, ping continuo e impostazioni della scheda, copertina della Musica, schede centrate, Impostazioni in finestra, Rubrica di 3CX, rinnovo dell'accesso di Claude Code per i limiti del piano |
+| **0.8.1** | 14 ott 2026 | Rete: scelta della scheda con pulsanti, un ping per il gateway di ogni scheda |
+| 0.8.0 | 14 ott 2026 | Logo nuovo, Rete con tutte le schede, ping continuo e impostazioni della scheda, copertina della Musica, schede centrate, Impostazioni in finestra, Rubrica di 3CX, rinnovo dell'accesso di Claude Code per i limiti del piano |
 | 0.7.9 | 14 ott 2026 | Proposte al momento giusto (download, errore copiato, server di sviluppo, chiavi tolte dagli appunti), riepilogo del giorno, strumenti di EasyIsland in Claude Code, isola e impostazioni più stabili |
 | 0.7.8 | 13 ott 2026 | Isola nuova con menu a sinistra e Panoramica, risposte rapide a isola chiusa, card del Meteo animata, personaggio che torna al suo colore, angolo senza scatti |
 | 0.7.7 | 13 ott 2026 | Cerchia e chiedi con OCR, personaggio visibile durante le chiamate 3CX, suoneria predefinita, colore delle integrazioni |
