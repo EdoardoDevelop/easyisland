@@ -25,12 +25,14 @@ fn app_installed() -> bool {
 pub fn app_link(url: &str) -> Option<String> {
     let rest = url.strip_prefix("https://").or_else(|| url.strip_prefix("http://"))?;
     let host = rest.split(['/', '?', '#']).next().unwrap_or("").to_ascii_lowercase();
-    let notion = host == "notion.so" || host == "www.notion.so" || host.ends_with(".notion.site");
-    if !notion || host.ends_with(".notion.site") {
-        return None; // public sites (*.notion.site) stay in the browser
-    }
     let path = rest.get(host.len()..).unwrap_or("");
-    Some(format!("notion://www.notion.so{path}"))
+    match host.as_str() {
+        "notion.so" | "www.notion.so" => Some(format!("notion://www.notion.so{path}")),
+        // The links the API gives since 2026: app.notion.com/p/<title-id>.
+        "app.notion.com" => Some(format!("notion://www.notion.so{}", path.strip_prefix("/p/").map_or(path.to_string(), |p| format!("/{p}")))),
+        // Public sites (*.notion.site) and anything else stay in the browser.
+        _ => None,
+    }
 }
 
 /// The link to open: in the Notion app when it is there, the web link otherwise.
@@ -181,10 +183,31 @@ mod tests {
         assert_eq!(app_link("https://www.notion.so/Piano-abc123").as_deref(), Some("notion://www.notion.so/Piano-abc123"));
         assert_eq!(app_link("https://notion.so/team/Pagina-1?pvs=4").as_deref(), Some("notion://www.notion.so/team/Pagina-1?pvs=4"));
         assert_eq!(app_link("https://notion.so").as_deref(), Some("notion://www.notion.so"));
+        assert_eq!(
+            app_link("https://app.notion.com/p/Piano-3f984c09bb6781128e7feb757ba97f87").as_deref(),
+            Some("notion://www.notion.so/Piano-3f984c09bb6781128e7feb757ba97f87")
+        );
         assert_eq!(app_link("https://acme.notion.site/Pubblica-1"), None);
         assert_eq!(app_link("https://notion.so.evil.com/x"), None);
         assert_eq!(app_link("https://github.com"), None);
         assert_eq!(app_link("notion://www.notion.so/x"), None);
+    }
+
+    /// On a PC with the Notion app: `cargo test --lib notion::tests::live -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn live_link() {
+        println!("app installata: {}", app_installed());
+        println!("link: {:?}", link_for("https://www.notion.so/Prova-0123456789abcdef0123456789abcdef"));
+        if std::env::var("NOTION_OPEN").is_ok() {
+            let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+            let pages = rt.block_on(search("", 1)).unwrap();
+            let url = pages.first().and_then(|p| p.get("url")).and_then(Value::as_str).unwrap().to_string();
+            println!("pagina: {url}");
+            println!("apro: {:?}", link_for(&url));
+            crate::open_url_now(&url);
+            std::thread::sleep(std::time::Duration::from_secs(3));
+        }
     }
 
     #[test]
