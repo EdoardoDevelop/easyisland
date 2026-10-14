@@ -57,6 +57,21 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.8.0** — **logo nuovo**: tre pillole a «E», la forma dell'isola, dal viola
+all'azzurro. **Rete** più completa: tutte le schede con i loro IP, gateway e DNS, un
+**ping continuo** in un terminale (gateway, 8.8.8.8 o un indirizzo a scelta) e
+**Modifica rete…** per passare una scheda da DHCP a indirizzo manuale e cambiare i DNS,
+con la conferma da amministratore di Windows. **Musica** con la copertina sullo sfondo
+della scheda; contenuti delle schede centrati; le Impostazioni si aprono subito nella
+loro finestra. In **3CX** la scheda Rubrica. Con la sola app desktop di Claude, i
+**limiti del piano** non restano più fermi: quando l'accesso di Claude Code scade,
+EasyIsland lo fa rinnovare a Claude Code stesso, senza finestre e senza consumare il piano.
+
+<p align="center">
+<img src="screenshots/network.png" width="420" alt="Rete: schede, gateway, DNS e ping continuo">
+<img src="screenshots/media.png" width="420" alt="Musica: la copertina sullo sfondo della scheda">
+</p>
+
 **0.7.9** — **proposte al momento giusto**: l'isola nota cosa succede sul PC e propone
 il passo dopo con un clic. Un **download finito** ha Apri, Mostra nella cartella e le
 tue azioni sui file; un **errore copiato** (stack trace, traceback, porta occupata) ha
@@ -185,7 +200,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.7.9** | 14 ott 2026 | Proposte al momento giusto (download, errore copiato, server di sviluppo, chiavi tolte dagli appunti), riepilogo del giorno, strumenti di EasyIsland in Claude Code, isola e impostazioni più stabili |
+| **0.8.0** | 14 ott 2026 | Logo nuovo, Rete con tutte le schede, ping continuo e impostazioni della scheda, copertina della Musica, schede centrate, Impostazioni in finestra, Rubrica di 3CX, rinnovo dell'accesso di Claude Code per i limiti del piano |
+| 0.7.9 | 14 ott 2026 | Proposte al momento giusto (download, errore copiato, server di sviluppo, chiavi tolte dagli appunti), riepilogo del giorno, strumenti di EasyIsland in Claude Code, isola e impostazioni più stabili |
 | 0.7.8 | 13 ott 2026 | Isola nuova con menu a sinistra e Panoramica, risposte rapide a isola chiusa, card del Meteo animata, personaggio che torna al suo colore, angolo senza scatti |
 | 0.7.7 | 13 ott 2026 | Cerchia e chiedi con OCR, personaggio visibile durante le chiamate 3CX, suoneria predefinita, colore delle integrazioni |
 | 0.7.6 | 13 ott 2026 | Limiti del piano vecchi in grigio con il motivo, «Aggiorna» del Consumo che chiede subito |
@@ -569,7 +585,7 @@ Quali integrazioni sono accese, e come sono mostrate, dipende dal profilo.
 <img src="screenshots/threecx.png" width="640" alt="3CX: una chiamata in arrivo con Rispondi e Rifiuta, una chiamata in linea e la ricerca in rubrica">
 <img src="screenshots/clipboard.png" width="640" alt="Appunti: un'immagine copiata, un link, un indirizzo fissato e un JSON">
 <img src="screenshots/media.png" width="640" alt="Musica: il brano in riproduzione con i controlli">
-<img src="screenshots/network.png" width="640" alt="Rete: IP locale e pubblico, Wi-Fi, VPN e latenza">
+<img src="screenshots/network.png" width="640" alt="Rete: schede con IP, gateway e DNS, VPN, latenza e ping continuo">
 <img src="screenshots/settings-integrations.png" width="700" alt="Impostazioni, pagina Integrazioni">
 
 ### 3CX
