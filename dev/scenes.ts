@@ -331,6 +331,17 @@ export async function runScene(island: Island, scene: string) {
     }
     case "network": {
       // ?activeIntegrations=integration_network,… — an integration run as a check.
+      // &form: the adapter settings open.
+      Object.assign(Bridge, {
+        networkAdapters: async () => [
+          { index: 4, name: "Ethernet", up: true, wireless: false, virtualHost: false, dhcp: true, dnsAuto: true, main: true,
+            addresses: [{ ip: "192.168.1.24", prefix: 24 }], gateway: "192.168.1.1", dns: ["192.168.1.1", "1.1.1.1"] },
+          { index: 27, name: "Wi-Fi", up: false, wireless: true, virtualHost: false, dhcp: true, dnsAuto: true, main: false,
+            addresses: [], gateway: "", dns: [] },
+        ],
+        networkApply: async () => { await wait(600); },
+        networkPing: async (target: string) => (target === "gateway" ? "192.168.1.1" : target),
+      });
       await wait(300);
       State.widgetStatus.integration_network = {
         id: "integration_network", level: "ok", at: Math.floor(Date.now() / 1000) - 40,

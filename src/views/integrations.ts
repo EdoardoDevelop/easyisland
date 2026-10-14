@@ -10,6 +10,7 @@ import { State, PROBE_INTEGRATIONS, sessionOpenLabel, type AgentTask } from "../
 import { Bridge } from "../core/bridge";
 import { THREECX, threecxCard } from "./threecx";
 import { weatherCard } from "./weather";
+import { netConfigCard, pingRow, resetNetConfig } from "./netconfig";
 import { locale, t } from "../core/i18n";
 
 /** Same shape as the Swift `timeAgo` computed properties. */
@@ -622,7 +623,7 @@ function copyInfoButton(color: string): HTMLElement {
  * A configurable widget, or an integration run as a check (Stato del PC,
  * Outlook, Zammad…): status line, its fields, Aggiorna.
  */
-function widgetCard(task: AgentTask, openSettings: () => void): HTMLElement {
+function widgetCard(task: AgentTask, openSettings: () => void, openDetail?: () => void): HTMLElement {
   const isWidget = task.id.startsWith("widget:");
   const id = isWidget ? task.id.slice("widget:".length) : task.id;
   const kind = isWidget
@@ -646,9 +647,15 @@ function widgetCard(task: AgentTask, openSettings: () => void): HTMLElement {
     h("div", { class: "int-status wrap" }, dot(color, 5),
       h("span", { text: st?.summary ?? t("In attesa del primo controllo…") })),
     rows,
+    // Rete: a continuous ping in a terminal, and the adapter's settings.
+    kind === "network" ? pingRow(task.color) : null,
     h("div", { class: "int-actions" },
       h("button", { class: "link-btn", style: `color:${task.color}d9`, text: t("Aggiorna"),
         onclick: () => void Bridge.widgetRefresh(id) }),
+      kind === "network" && openDetail
+        ? h("button", { class: "link-btn", style: `color:${task.color}d9`, text: t("Modifica rete…"),
+          onclick: () => { resetNetConfig(); openDetail(); } })
+        : null,
       // Everything a ticket asks for (name, serial, IP, Windows…), one click.
       kind === "system" || kind === "network" ? copyInfoButton(task.color) : null,
       kind === "zammad"
@@ -679,7 +686,10 @@ export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHoo
     const card = weatherCard(task, hooks.openSettings);
     if (card) return card;
   }
-  if (task.id.startsWith("widget:") || PROBE_INTEGRATIONS[task.id]) return widgetCard(task, hooks.openSettings);
+  if (task.id === "integration_network" && hooks.detailOpen) return netConfigCard(task.color, hooks.closeDetail);
+  if (task.id.startsWith("widget:") || PROBE_INTEGRATIONS[task.id]) {
+    return widgetCard(task, hooks.openSettings, task.id === "integration_network" ? hooks.openDetail : undefined);
+  }
   if (task.id === "integration_n8n") {
     const hasActivity = task.steps.length > 0 && (task.state === "finished" || task.state === "error");
     return hooks.detailOpen && hasActivity

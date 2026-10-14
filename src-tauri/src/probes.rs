@@ -99,6 +99,24 @@ pub mod reg {
             })
         }
 
+        /// A REG_SZ value; `None` when missing or of another type.
+        pub fn string(&self, name: &str) -> Option<String> {
+            use windows::Win32::System::Registry::REG_SZ;
+            let mut buf = vec![0u16; 1024];
+            let mut len = (buf.len() * 2) as u32;
+            let mut ty = REG_VALUE_TYPE::default();
+            let r = unsafe {
+                RegQueryValueExW(self.0, &HSTRING::from(name), None, Some(&mut ty), Some(buf.as_mut_ptr().cast()), Some(&mut len))
+            };
+            if r != ERROR_SUCCESS || ty != REG_SZ {
+                return None;
+            }
+            let n = (len as usize / 2).min(buf.len());
+            let s = buf.get(..n).unwrap_or(&[]);
+            let end = s.iter().position(|c| *c == 0).unwrap_or(s.len());
+            Some(String::from_utf16_lossy(s.get(..end).unwrap_or(&[])))
+        }
+
         pub fn subkeys(&self) -> Vec<String> {
             let mut out = Vec::new();
             for i in 0..4096u32 {
@@ -295,16 +313,27 @@ pub async fn security(w: &Widget) -> WidgetResult {
 
 // ── network ───────────────────────────────────────────────────────────────────
 
-struct Adapter {
-    name: String,
-    /// Every IPv4 address, in Windows' order.
-    ipv4: Vec<Ipv4Addr>,
-    gateways: Vec<IpAddr>,
-    dns: Vec<IpAddr>,
-    wireless: bool,
-    vpn: bool,
+pub(crate) struct Adapter {
+    pub name: String,
+    /// The interface index (netsh `name=`, see netconfig.rs).
+    pub index: u32,
+    /// Every IPv4 address, in Windows' order, with its prefix length.
+    pub ipv4: Vec<Ipv4Addr>,
+    pub prefixes: Vec<u8>,
+    pub gateways: Vec<IpAddr>,
+    pub dns: Vec<IpAddr>,
+    pub wireless: bool,
+    pub vpn: bool,
     /// Hyper-V, WSL, Docker, VirtualBox, VMware: listed after the real ones.
-    virtual_host: bool,
+    pub virtual_host: bool,
+    /// Connected (operational status up).
+    pub up: bool,
+    /// The address comes from DHCP.
+    pub dhcp: bool,
+    /// No DNS servers typed in Windows: they come from DHCP.
+    pub dns_auto: bool,
+    /// Ethernet, Wi-Fi or a virtual switch: the adapters netsh can set up.
+    pub configurable: bool,
 }
 
 /// An address from a SOCKADDR (IPv4 or IPv6); `None` for anything else.
@@ -332,8 +361,10 @@ fn placeholder_dns(ip: &IpAddr) -> bool {
     matches!(ip, IpAddr::V6(v) if v.segments()[..4] == [0xfec0, 0, 0, 0xffff])
 }
 
-/// Adapters that are up, with their IPv4 addresses, gateways and DNS servers.
-fn adapters() -> Vec<Adapter> {
+/// The adapters (not loopback), with their IPv4 addresses, gateways and DNS
+/// servers. Ethernet and Wi-Fi adapters are listed even when disconnected,
+/// for the network settings; the card shows only those that are `up`.
+pub(crate) fn adapters() -> Vec<Adapter> {
     use windows::Win32::NetworkManagement::IpHelper::{
         GetAdaptersAddresses, GAA_FLAG_INCLUDE_GATEWAYS, GAA_FLAG_SKIP_ANYCAST, GAA_FLAG_SKIP_MULTICAST,
         IP_ADAPTER_ADDRESSES_LH,
@@ -345,6 +376,8 @@ fn adapters() -> Vec<Adapter> {
     const IF_TYPE_PPP: u32 = 23;
     const IF_TYPE_IEEE80211: u32 = 71;
     const IF_TYPE_TUNNEL: u32 = 131;
+    const IF_TYPE_ETHERNET: u32 = 6;
+    const IP_ADAPTER_DHCP_ENABLED: u32 = 0x4;
 
     let flags = GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_INCLUDE_GATEWAYS;
     let mut size = 16 * 1024u32;
@@ -368,16 +401,28 @@ fn adapters() -> Vec<Adapter> {
         while !cur.is_null() {
             let a = &*cur;
             cur = a.Next;
-            if a.OperStatus != IfOperStatusUp || a.IfType == IF_TYPE_SOFTWARE_LOOPBACK {
+            let up = a.OperStatus == IfOperStatusUp;
+            if a.IfType == IF_TYPE_SOFTWARE_LOOPBACK {
                 continue;
             }
             let name = a.FriendlyName.to_string().unwrap_or_default();
             let desc = a.Description.to_string().unwrap_or_default();
+            // Windows' own helpers (Wi-Fi Direct, kernel debugger) are not set up by hand.
+            let helper = ["wi-fi direct", "kernel debug"].iter().any(|k| desc.to_lowercase().contains(k));
+            let configurable = matches!(a.IfType, IF_TYPE_ETHERNET | IF_TYPE_IEEE80211) && !helper;
+            if !up && !configurable {
+                continue;
+            }
             let mut ipv4 = Vec::new();
+            let mut prefixes = Vec::new();
             let mut u = a.FirstUnicastAddress;
             while !u.is_null() {
                 if let Some(IpAddr::V4(v)) = sockaddr_ip((*u).Address.lpSockaddr) {
-                    ipv4.push(v);
+                    // 169.254.x.x: Windows' own address while DHCP has not answered.
+                    if !v.is_link_local() {
+                        ipv4.push(v);
+                        prefixes.push((*u).OnLinkPrefixLength);
+                    }
                 }
                 u = (*u).Next;
             }
@@ -407,14 +452,41 @@ fn adapters() -> Vec<Adapter> {
             let tunnel = matches!(a.IfType, IF_TYPE_PPP | IF_TYPE_TUNNEL)
                 && !["teredo", "isatap", "6to4", "ip-https"].iter().any(|k| text.contains(k));
             let vpn = !virtual_host && (vpn_word || tunnel);
-            out.push(Adapter { name, ipv4, gateways, dns, wireless: a.IfType == IF_TYPE_IEEE80211, vpn, virtual_host });
+            let guid = a.AdapterName.to_string().unwrap_or_default();
+            out.push(Adapter {
+                name,
+                index: a.Anonymous1.Anonymous.IfIndex,
+                ipv4,
+                prefixes,
+                gateways,
+                dns,
+                wireless: a.IfType == IF_TYPE_IEEE80211,
+                vpn,
+                virtual_host,
+                up,
+                dhcp: a.Anonymous2.Flags & IP_ADAPTER_DHCP_ENABLED != 0,
+                dns_auto: static_dns(&guid).is_empty(),
+                configurable,
+            });
         }
     }
     out
 }
 
+/// The DNS servers typed in Windows for the adapter `guid` (empty: from DHCP).
+fn static_dns(guid: &str) -> String {
+    if guid.is_empty() {
+        return String::new();
+    }
+    reg::Key::open(reg::HKEY_LOCAL_MACHINE, &format!(r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\{guid}"))
+        .and_then(|k| k.string("NameServer"))
+        .unwrap_or_default()
+        .trim()
+        .to_string()
+}
+
 /// The IPv4 address the default route leaves from: no packet is sent.
-fn primary_ipv4() -> Option<Ipv4Addr> {
+pub(crate) fn primary_ipv4() -> Option<Ipv4Addr> {
     let s = UdpSocket::bind("0.0.0.0:0").ok()?;
     s.connect("1.1.1.1:80").ok()?;
     match s.local_addr().ok()?.ip() {
@@ -466,7 +538,7 @@ fn adapter_line(a: &Adapter) -> String {
 
 pub async fn network(w: &Widget) -> WidgetResult {
     let local = tauri::async_runtime::spawn_blocking(|| {
-        let list = adapters();
+        let list: Vec<Adapter> = adapters().into_iter().filter(|a| a.up).collect();
         let primary = primary_ipv4();
         let ssid = if list.iter().any(|a| a.wireless) { crate::profiles::current_ssid() } else { None };
         let latency = icmp_ms(Ipv4Addr::new(1, 1, 1, 1), 1500);
@@ -534,12 +606,18 @@ mod network_tests {
     fn adapter(name: &str, ips: &[&str], gw: Option<&str>, virtual_host: bool) -> Adapter {
         Adapter {
             name: name.into(),
+            index: 1,
             ipv4: ips.iter().map(|s| s.parse().unwrap()).collect(),
+            prefixes: ips.iter().map(|_| 24).collect(),
             gateways: gw.map(|g| vec![g.parse().unwrap()]).unwrap_or_default(),
             dns: Vec::new(),
             wireless: false,
             vpn: false,
             virtual_host,
+            up: true,
+            dhcp: true,
+            dns_auto: true,
+            configurable: true,
         }
     }
 
@@ -562,7 +640,11 @@ mod network_tests {
     #[ignore]
     fn prints_this_pc() {
         for a in adapters() {
-            println!("{} | {} | gw {} | dns {} | virtual {}", a.name, adapter_line(&a), join_ips(&a.gateways), join_ips(&a.dns), a.virtual_host);
+            println!(
+                "{} #{} | {} /{:?} | gw {} | dns {} | dhcp {} dns_auto {} up {} conf {} virtual {}",
+                a.name, a.index, adapter_line(&a), a.prefixes, join_ips(&a.gateways), join_ips(&a.dns),
+                a.dhcp, a.dns_auto, a.up, a.configurable, a.virtual_host
+            );
         }
         println!("primary {:?}", primary_ipv4());
     }

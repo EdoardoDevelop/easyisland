@@ -28,6 +28,7 @@ mod log;
 mod mcp_setup;
 mod media;
 mod moments;
+mod netconfig;
 mod openai;
 mod opencode;
 mod opencode_agent;
@@ -1555,6 +1556,9 @@ pub fn run() {
             set_collapsed,
             drag_island,
             copy_pc_info,
+            netconfig::network_adapters,
+            netconfig::network_apply,
+            netconfig::network_ping,
             presence_state,
             notify_test,
             end_drag,
