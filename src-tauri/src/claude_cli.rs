@@ -159,19 +159,72 @@ fn claude_json_path() -> Option<PathBuf> {
     std::env::var_os("USERPROFILE").map(|h| PathBuf::from(h).join(".claude.json"))
 }
 
-/// Names of the MCP servers configured for the user in Claude Code. Only the
-/// names: the configuration (and any key in it) is never read into EasyIsland.
+/// Names of the MCP servers configured for the user in Claude Code: the
+/// user-scope ones (`claude mcp add --scope user`) and those of the plugins
+/// turned on for the user ("plugin:Notion:notion", see `plugin_servers`). Only
+/// the names: the configuration (and any key in it) is never read into EasyIsland.
 pub fn configured_mcp_servers() -> Vec<String> {
-    let Some(path) = claude_json_path() else { return Vec::new() };
-    let Ok(bytes) = std::fs::read(path) else { return Vec::new() };
-    let Ok(json) = serde_json::from_slice::<Value>(&bytes) else { return Vec::new() };
-    let mut names: Vec<String> = json
-        .get("mcpServers")
-        .and_then(Value::as_object)
-        .map(|m| m.keys().cloned().collect())
+    let mut names: Vec<String> = claude_json_path()
+        .and_then(|path| std::fs::read(path).ok())
+        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+        .and_then(|json| json.get("mcpServers").and_then(Value::as_object).map(|m| m.keys().cloned().collect()))
         .unwrap_or_default();
+    if let Some(dir) = claude_dir() {
+        names.extend(plugin_servers(&dir));
+    }
     names.sort_by_key(|n| n.to_lowercase());
+    names.dedup();
     names
+}
+
+/// `~/.claude`, or CLAUDE_CONFIG_DIR when that is set.
+fn claude_dir() -> Option<PathBuf> {
+    if let Some(dir) = std::env::var_os("CLAUDE_CONFIG_DIR") {
+        return Some(PathBuf::from(dir));
+    }
+    std::env::var_os("USERPROFILE").map(|h| PathBuf::from(h).join(".claude"))
+}
+
+fn read_json(path: &Path) -> Option<Value> {
+    serde_json::from_slice(&std::fs::read(path).ok()?).ok()
+}
+
+/// The MCP servers of the plugins turned on in the user's settings
+/// (`enabledPlugins` in settings.json, installed as `plugins/installed_plugins.json`
+/// says), named as Claude Code names them: "plugin:<plugin>:<server>", whose
+/// tools are `mcp__plugin_<plugin>_<server>__…` (the same as `tool_prefix`).
+/// Claude Code loads them in `claude -p` too.
+fn plugin_servers(claude_dir: &Path) -> Vec<String> {
+    let enabled: Vec<String> = read_json(&claude_dir.join("settings.json"))
+        .and_then(|s| s.get("enabledPlugins").and_then(Value::as_object).cloned())
+        .map(|m| m.into_iter().filter(|(_, on)| on.as_bool() == Some(true)).map(|(k, _)| k).collect())
+        .unwrap_or_default();
+    let installed = read_json(&claude_dir.join("plugins").join("installed_plugins.json"));
+    let mut out = Vec::new();
+    for key in enabled {
+        let Some(path) = installed
+            .as_ref()
+            .and_then(|i| i.get("plugins")?.get(&key)?.as_array()?.iter().find_map(|e| e.get("installPath")?.as_str()))
+            .map(PathBuf::from)
+        else {
+            continue;
+        };
+        let manifest = read_json(&path.join(".claude-plugin").join("plugin.json"));
+        let plugin = manifest
+            .as_ref()
+            .and_then(|m| m.get("name")?.as_str().map(String::from))
+            .unwrap_or_else(|| key.split('@').next().unwrap_or(&key).to_string());
+        let mut servers: Vec<String> = read_json(&path.join(".mcp.json"))
+            .and_then(|m| m.get("mcpServers").and_then(Value::as_object).map(|o| o.keys().cloned().collect()))
+            .unwrap_or_default();
+        if let Some(inline) = manifest.as_ref().and_then(|m| m.get("mcpServers")).and_then(Value::as_object) {
+            servers.extend(inline.keys().cloned());
+        }
+        for s in servers {
+            out.push(format!("plugin:{plugin}:{s}"));
+        }
+    }
+    out
 }
 
 /// The connectors this turn may use, already filtered to configured ones.
@@ -640,6 +693,29 @@ pub async fn session_ask(session: String, fork: Option<String>, cwd: String, que
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn plugin_servers_of_enabled_plugins() {
+        let dir = std::env::temp_dir().join(format!("ei-plugins-{}", std::process::id()));
+        let notion = dir.join("cache").join("notion");
+        let off = dir.join("cache").join("off");
+        std::fs::create_dir_all(notion.join(".claude-plugin")).unwrap();
+        std::fs::create_dir_all(dir.join("plugins")).unwrap();
+        std::fs::create_dir_all(&off).unwrap();
+        std::fs::write(dir.join("settings.json"), r#"{"enabledPlugins":{"notion@dir":true,"off@dir":false,"missing@dir":true}}"#).unwrap();
+        let installed = serde_json::json!({ "version": 2, "plugins": {
+            "notion@dir": [{ "scope": "user", "installPath": notion.to_string_lossy() }],
+            "off@dir": [{ "scope": "user", "installPath": off.to_string_lossy() }],
+        }});
+        std::fs::write(dir.join("plugins").join("installed_plugins.json"), installed.to_string()).unwrap();
+        std::fs::write(notion.join(".claude-plugin").join("plugin.json"), r#"{"name":"Notion"}"#).unwrap();
+        std::fs::write(notion.join(".mcp.json"), r#"{"mcpServers":{"notion":{"type":"http","url":"https://mcp.notion.com/mcp"}}}"#).unwrap();
+        std::fs::write(off.join(".mcp.json"), r#"{"mcpServers":{"x":{}}}"#).unwrap();
+        assert_eq!(super::plugin_servers(&dir), vec!["plugin:Notion:notion".to_string()]);
+        assert_eq!(super::tool_prefix("plugin:Notion:notion"), "mcp__plugin_Notion_notion");
+        assert!(super::plugin_servers(&dir.join("nessuna")).is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn a_side_question_forks_once_then_goes_on_in_the_copy() {
         let dir = std::path::Path::new("C:/x");

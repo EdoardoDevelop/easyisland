@@ -29,6 +29,7 @@
 - Con connettori scelti nel profilo (`mcpServers`): `--permission-mode default`. I server non scelti finiscono in `--disallowedTools`, quelli senza conferma in `--allowedTools`. Le altre chiamate passano dall'hook `PermissionRequest` → `easyisland-hook.exe PermissionRequest --chat` → card Consenti/Nega nell'isola.
 - `easyisland-hook.exe` ignora i processi con `EASYISLAND_INTERNAL`, tranne le chiamate con `--chat`.
 - I connettori di claude.ai non funzionano in `claude -p`.
+- Anche i server MCP dei **plugin** di Claude Code attivi per l'utente (`enabledPlugins` in `~/.claude/settings.json`, percorso in `plugins/installed_plugins.json`, server in `.mcp.json` o `plugin.json`) compaiono come `plugin:<plugin>:<server>` (`plugin_servers`); i loro strumenti sono `mcp__plugin_<plugin>_<server>__…`, lo stesso di `tool_prefix`. Provato il 14 ottobre 2026: `claude -p` carica il plugin Notion con il suo accesso. Senza connettori scelti restano fuori per `--strict-mcp-config`; con altri connettori scelti finiscono in `--disallowedTools`.
 
 ## Agente: Claude che usa il PC
 - `easyisland-hook mcp` (`hook/src/mcp.rs`) è un server MCP stdio con gli strumenti di EasyIsland. Ogni chiamata va all'app sulla named pipe (`EasyIslandTool` in `pipe.rs`) e la esegue `src-tauri/src/agent.rs`.

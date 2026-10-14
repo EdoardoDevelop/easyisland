@@ -1,4 +1,6 @@
 {
+  "plugin": "plugin",
+  "I server MCP che hai configurato in Claude Code (calendario, documenti, ticketing…), anche quelli dei plugin di Claude Code. Con la conferma accesa ogni operazione chiede Consenti / Nega nell'isola: spegnila solo per connettori di sola lettura. Quelli di claude.ai qui non ci sono.": "The MCP servers you set up in Claude Code (calendar, documents, ticketing…), including those of Claude Code plugins. With confirmation on, every operation asks Allow / Deny in the island: turn it off only for read-only connectors. claude.ai's connectors are not here.",
   "Cerca in Notion…": "Search Notion…",
   "Chiedi alla chat su questa pagina": "Ask the chat about this page",
   "Apri in Notion": "Open in Notion",
@@ -531,7 +533,6 @@
   "HTTP non disponibile": "HTTP not available",
   "I comandi da eseguire. Partono solo dopo un clic nell'isola.": "The commands to run. They start only after a click in the island.",
   "I file rilasciati sull'isola: da trascinare in un'altra app, aprire o chiedere alla chat": "The files dropped on the island: drag them into another app, open them or ask the chat",
-  "I server MCP che hai configurato in Claude Code (calendario, documenti, ticketing…). Con la conferma accesa ogni operazione chiede Consenti / Nega nell'isola: spegnila solo per connettori di sola lettura. Quelli di claude.ai qui non ci sono.": "The MCP servers you configured in Claude Code (calendar, documents, ticketing…). With confirmation on, every operation asks Allow / Deny in the island: turn it off only for read-only connectors. The claude.ai ones are not here.",
   "Icona a riposo": "Resting icon",
   "Icona del terminale": "Terminal icon",
   "Il centralino chiede il codice di verifica in due passaggi: per ora non è supportato, usa la modalità API": "The phone system asks for a two-step verification code: not supported yet, use the API mode",

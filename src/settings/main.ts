@@ -2383,7 +2383,10 @@ function connectorsBlock(): HTMLElement {
         void save();
         void draw();
       });
-      const row = h("div", { class: "row" }, use, h("span", { style: "min-width:160px", text: name }));
+      // "plugin:Notion:notion" → "Notion (plugin)": a server of a Claude Code plugin.
+      const plugin = /^plugin:([^:]+):(.+)$/.exec(name);
+      const label = plugin ? `${plugin[1]}${plugin[2].toLowerCase() === plugin[1].toLowerCase() ? "" : ` · ${plugin[2]}`} (${t("plugin")})` : name;
+      const row = h("div", { class: "row" }, use, h("span", { style: "min-width:160px", text: label, title: name }));
       if (missing) row.append(h("span", { class: "hint", text: t("non più configurato in Claude Code") }));
       const c = choice();
       if (c) {
@@ -2404,7 +2407,7 @@ function connectorsBlock(): HTMLElement {
     h("h3", {}, h("span", { text: t("Connettori") }), profileChip()),
     h("div", {
       class: "hint",
-      text: t("I server MCP che hai configurato in Claude Code (calendario, documenti, ticketing…). Con la conferma accesa ogni operazione chiede Consenti / Nega nell'isola: spegnila solo per connettori di sola lettura. Quelli di claude.ai qui non ci sono."),
+      text: t("I server MCP che hai configurato in Claude Code (calendario, documenti, ticketing…), anche quelli dei plugin di Claude Code. Con la conferma accesa ogni operazione chiede Consenti / Nega nell'isola: spegnila solo per connettori di sola lettura. Quelli di claude.ai qui non ci sono."),
     }),
     list,
     h("div", { class: "row" }, refresh),
