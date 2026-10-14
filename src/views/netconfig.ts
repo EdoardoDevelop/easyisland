@@ -1,11 +1,12 @@
 // The Rete card's tools (src-tauri/src/netconfig.rs): a continuous ping in a
-// terminal (gateway, 8.8.8.8 or an address typed here) and a form to set an
+// terminal (each adapter's gateway, 8.8.8.8 or an address typed here) and a form to set an
 // adapter's address and DNS servers. Applying asks Windows for administrator
 // rights (its own UAC prompt); EasyIsland never runs elevated.
 //
 // The overview rebuilds a card whenever the network check reports, so the
 // form is one element kept across rebuilds (like the 3CX phone): what the user
-// is typing is never lost.
+// is typing is never lost. Adapters are picked with buttons, not a <select>:
+// the native drop-down list does not work reliably in the island's window.
 
 import { h, clear } from "./dom";
 import { Bridge, type NetAdapter } from "../core/bridge";
@@ -14,7 +15,19 @@ import { t } from "../core/i18n";
 const GREEN = "#22C55E";
 const RED = "#F4505E";
 
-/** "Ping continuo: Gateway · 8.8.8.8 · [indirizzo] ▶", under the network card. */
+/** The adapters' gateways for the ping buttons, read at most every 30 s. */
+let gateways: { ip: string; name: string }[] | null = null;
+let gatewaysAt = 0;
+
+async function loadGateways(): Promise<{ ip: string; name: string }[]> {
+  if (gateways && Date.now() - gatewaysAt < 30_000) return gateways;
+  const list = (await Bridge.networkAdapters()) ?? [];
+  gateways = list.filter((a) => a.up && a.gateway).map((a) => ({ ip: a.gateway, name: a.name }));
+  gatewaysAt = Date.now();
+  return gateways;
+}
+
+/** "Ping continuo: [gateway of each adapter] · 8.8.8.8 · [indirizzo] Avvia", under the network card. */
 export function pingRow(color: string): HTMLElement {
   const note = h("span", { class: "nc-note" });
   const say = (text: string, bad = false) => {
@@ -37,9 +50,20 @@ export function pingRow(color: string): HTMLElement {
   }) as HTMLInputElement;
   const chip = (label: string, target: () => string, title: string) =>
     h("button", { class: "nc-chip", style: `--c:${color}`, title, text: label, onclick: () => void ping(target()) });
+  // One button per gateway (one per adapter that has one), named after its adapter.
+  const gwBox = h("span", { class: "nc-gws" });
+  const fill = (list: { ip: string; name: string }[]) => {
+    clear(gwBox);
+    for (const g of list) {
+      gwBox.append(chip(list.length > 1 ? `${g.name} · ${g.ip}` : `${t("Gateway")} ${g.ip}`, () => g.ip,
+        t("Ping continuo verso il gateway di {name} ({ip})", { name: g.name, ip: g.ip })));
+    }
+  };
+  if (gateways) fill(gateways);
+  void loadGateways().then(fill).catch(() => {});
   return h("div", { class: "nc-ping" },
     h("span", { class: "nc-label", text: t("Ping continuo") }),
-    chip(t("Gateway"), () => "gateway", t("Ping continuo verso il gateway della scheda principale")),
+    gwBox,
     chip("8.8.8.8", () => "8.8.8.8", t("Ping continuo verso 8.8.8.8 (DNS di Google)")),
     input,
     chip(t("Avvia"), () => input.value, t("Ping continuo verso l'indirizzo scritto")),
@@ -63,13 +87,16 @@ let panel: HTMLElement | null = null;
 export function netConfigCard(color: string, close: () => void): HTMLElement {
   if (panel) {
     closeFn = close;
+    // Put back into a rebuilt card: the field being typed in keeps the keyboard.
+    const field = lastFocus;
+    if (field) window.setTimeout(() => { if (field.isConnected && document.activeElement !== field) field.focus(); }, 0);
     return panel;
   }
   closeFn = close;
   let adapters: NetAdapter[] = [];
   const form: Form = { index: 0, dhcp: true, ip: "", mask: "", gateway: "", dnsAuto: true, dns1: "", dns2: "" };
 
-  const select = h("select", { class: "nc-select", onchange: () => pick(Number(select.value)) }) as HTMLSelectElement;
+  const choices = h("div", { class: "nc-adapters" });
   const now = h("div", { class: "nc-now" });
   const field = (key: "ip" | "mask" | "gateway" | "dns1" | "dns2", placeholder: string) => {
     const el = h("input", { class: "nc-input", placeholder, spellcheck: "false",
@@ -129,22 +156,32 @@ export function netConfigCard(color: string, close: () => void): HTMLElement {
     ].filter(Boolean);
     now.textContent = `${t("Ora")}: ${parts.join(" · ")}`;
     status.textContent = "";
+    drawChoices();
     draw();
+  }
+
+  /** One button per adapter; the chosen one lit. */
+  function drawChoices() {
+    clear(choices);
+    for (const a of adapters) {
+      const b = h("button", {
+        class: a.index === form.index ? "on" : "",
+        title: a.up ? a.name : `${a.name} (${t("scollegata")})`,
+        onclick: () => pick(a.index),
+      }, h("i", { class: "nc-dot", style: `background:${a.up ? GREEN : "#5b5f67"}` }), h("span", { text: a.name }));
+      choices.append(b);
+    }
   }
 
   async function load() {
     const list = await Bridge.networkAdapters();
     adapters = list ?? [];
-    clear(select);
-    for (const a of adapters) {
-      select.append(h("option", { value: String(a.index), text: a.up ? a.name : `${a.name} (${t("scollegata")})` }));
-    }
     if (adapters.length === 0) {
+      clear(choices);
       now.textContent = t("Nessuna scheda di rete da impostare");
       return;
     }
     const keep = adapters.some((a) => a.index === form.index) ? form.index : adapters[0].index;
-    select.value = String(keep);
     pick(keep);
   }
 
@@ -173,7 +210,7 @@ export function netConfigCard(color: string, close: () => void): HTMLElement {
     h("div", { class: "int-head" },
       h("b", { text: t("Rete") }), h("span", { text: t("Impostazioni della scheda") }),
       h("button", { class: "link-btn nc-back", style: `color:${color}d9`, text: `← ${t("Indietro")}`, onclick: () => closeFn() })),
-    h("div", { class: "nc-row" }, label(t("Scheda")), select),
+    h("div", { class: "nc-row nc-top" }, label(t("Scheda")), choices),
     now,
     h("div", { class: "nc-row" }, label(t("Indirizzo")), addrSeg.el),
     addrGrid,
@@ -181,14 +218,23 @@ export function netConfigCard(color: string, close: () => void): HTMLElement {
     dnsGrid,
     h("div", { class: "nc-row nc-foot" }, apply, status),
     h("div", { class: "nc-hint", text: t("Serve il permesso di amministratore: Windows lo chiede a ogni modifica.") }));
+  panel.addEventListener("focusin", (e) => { lastFocus = e.target instanceof HTMLInputElement ? e.target : null; });
+  panel.addEventListener("focusout", (e) => {
+    const to = (e as FocusEvent).relatedTarget;
+    if (to instanceof Node && !panel?.contains(to)) lastFocus = null;
+  });
   void load();
   draw();
   return panel;
 }
+
+/** The form's field that had the keyboard, given back after a rebuild. */
+let lastFocus: HTMLInputElement | null = null;
 
 let closeFn: () => void = () => {};
 
 /** Opening the form again reads the adapters again. */
 export function resetNetConfig() {
   panel = null;
+  lastFocus = null;
 }
