@@ -71,6 +71,7 @@ In release Rust ha `panic = "abort"`: un panic in qualsiasi thread chiude l'app.
 ## Impostazioni
 - Le pagine sono in `pages()` di `src/settings/main.ts`. «Chat» = motore e connettori (`claudeChatSection`). «Agenti» = una riga per agente (`agentsSection`, `agentRow`; l'id di pagina è ancora `claude`). Altre sezioni: `automationsSection` e `actionsSection`.
 - `commit()` salva soltanto; `render()` ricostruisce la pagina intera e si chiama solo quando cambia la struttura (non mentre si scrive).
+- **Finestra sopra l'isola** (chiesto da Edoardo il 15 ottobre 2026): l'isola è sempre in primo piano e copriva la parte alta delle Impostazioni. Mentre la finestra delle Impostazioni è quella attiva entra anche lei tra le finestre sempre in primo piano, sopra l'isola, e `raise_over_taskbar` mette l'isola subito sotto (`keep_settings_above`, `settings_in_front` in `island.rs`, chiamati da `WindowEvent::Focused`). Quando si passa a un'altra finestra torna normale: non copre mai gli altri programmi.
 
 ## Lingua
 - Italiano o inglese (`settings.language`: `""` = come Windows, `"it"`, `"en"`). Un solo dizionario, `src/i18n/en.json`, chiave = testo italiano, usato da TypeScript (`src/core/i18n.ts`: `t`, `tn`, `locale()`) e da Rust (`src-tauri/src/i18n.rs`: `t`, `tf`, `english()`, `prompt()` per la lingua delle risposte della chat).

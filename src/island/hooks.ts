@@ -154,7 +154,34 @@ function describeAutomation(input: Record<string, unknown>): string {
     drive: t("quando colleghi una chiavetta o un disco"),
     folder: t("quando arriva un file in {folder}", { folder: str(trig, "folder") }),
     integration: t("quando {src} segnala {what}", { src, what: what_ }),
+    foreground: t("quando passi a {exe}", { exe: str(trig, "exe") }),
+    download: t("quando finisce un download"),
+    call: t("quando arriva una chiamata"),
+    agent: str(trig, "when") === "permission" ? t("quando un agente aspetta un permesso")
+      : str(trig, "when") === "any" ? t("quando un agente finisce o aspetta un permesso") : t("quando un agente ha finito"),
+    server: t("quando parte un server di sviluppo"),
+    back: t("quando torni dopo {n} minuti di assenza", { n: Number(trig.minutes ?? 15) || 15 }),
   };
+  const filter = str(trig, "filter");
+  const conds = (Array.isArray(input.conditions) ? input.conditions : []) as Record<string, unknown>[];
+  const ifs = conds.map((c) => {
+    const cdays = Array.isArray(c.days) && c.days.length && c.days.length < 7
+      ? (c.days as number[]).map((d) => names[d] ?? d).join(", ") : t("ogni giorno");
+    const what: Record<string, string> = {
+      hours: t("tra le {from} e le {to}, {days}", { from: str(c, "from"), to: str(c, "to"), days: cdays }),
+      wifi: t("sulla rete {ssid}", { ssid: str(c, "ssid") }),
+      app: t("con {exe} aperto", { exe: str(c, "exe") }),
+      foreground: t("con {exe} in primo piano", { exe: str(c, "exe") }),
+      meeting: t("in riunione"),
+      client: t("davanti al cliente"),
+      idle: t("assente da {n} minuti", { n: Number(c.minutes ?? 10) || 10 }),
+      battery: Number(c.percent ?? 0) > 0 ? t("con la batteria sotto il {n}%", { n: Number(c.percent) }) : t("a batteria"),
+    };
+    const w = what[str(c, "kind")] ?? str(c, "kind");
+    return c.not === true ? t("non {what}", { what: w }) : w;
+  });
+  if (str(input, "repeat") === "every") ifs.push(t("al massimo ogni {n} minuti", { n: Number(input.every ?? 60) || 60 }));
+  if (str(input, "repeat") === "day") ifs.push(t("una volta al giorno"));
   const actions = State.settings.actions ?? [];
   const profiles = State.settings.profiles ?? [];
   const steps = (Array.isArray(input.steps) ? input.steps : []) as Record<string, unknown>[];
@@ -165,13 +192,15 @@ function describeAutomation(input: Record<string, unknown>): string {
       case "profile": return t("passa al profilo «{name}»", { name: profiles.find((p) => p.id === str(st, "id"))?.name ?? str(st, "id") });
       case "app": return t("apre {target}", { target: `${str(st, "target")}${str(st, "args") ? ` ${str(st, "args")}` : ""}` });
       case "url": return t("apre {target}", { target: str(st, "url") });
+      case "chat": return t("chiede alla chat «{text}»", { text: str(st, "text") });
       default: return str(st, "kind");
     }
   });
   const profile = profiles.find((p) => p.id === str(input, "profile"))?.name;
   return [
     t("Creare l'automazione «{name}»", { name: str(input, "name") }),
-    t("Quando: {when}", { when: (when[str(trig, "kind")] ?? str(trig, "kind")) + (profile ? t(" (solo nel profilo {profile})", { profile }) : "") }),
+    t("Quando: {when}", { when: (when[str(trig, "kind")] ?? str(trig, "kind")) + (filter ? t(" (solo «{filter}»)", { filter }) : "") + (profile ? t(" (solo nel profilo {profile})", { profile }) : "") }),
+    ...(ifs.length ? [t("Se: {ifs}", { ifs: ifs.join(t(" e ")) })] : []),
     t("Allora: {what}", { what: what.join(t(", poi ")) || t("niente") }),
   ].join("\n");
 }

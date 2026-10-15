@@ -195,6 +195,7 @@ async fn handle(app: AppHandle, mut pipe: NamedPipeServer) {
         return;
     }
 
+    crate::automations::on_hook(&event, &payload);
     if event != "PermissionRequest" {
         log::line(format!("hook {event}"));
         crate::recap::observe(&app, &payload);

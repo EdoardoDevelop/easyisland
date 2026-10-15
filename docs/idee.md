@@ -62,8 +62,8 @@ Fatte il 14 ottobre 2026: download finito, errore copiato, server di sviluppo pa
 - **Dettatura ripulita:** tieni premuta una scorciatoia, parli anche male, nel campo arriva la frase pulita. Vuole riconoscimento vocale: un modello locale da ~200 MB o un servizio esterno; per ora no.
 - **Personaggio che cresce con l'uso:** gioco e timer sono esclusi (`decisioni.md`); resta solo la domanda già aperta del personaggio che esce dall'isola e vive sul desktop.
 
-## Automazioni più intelligenti (ragionate il 14 ottobre 2026, da decidere con Edoardo)
-Oggi un'automazione è «quando → (solo nel profilo) → passi fissi». Possibili passi avanti, dal più utile:
+## Automazioni più intelligenti (ragionate il 14 ottobre 2026)
+Fatti il 15 ottobre 2026 i punti 1, 2 e 3 (`integrazioni.md` → Automazioni), tranne: «N minuti prima di un evento del calendario», «fine giornata» come evento a sé (oggi è un orario), «nessun agente al lavoro» come condizione (Rust non tiene lo stato delle sessioni), chiamata 3CX finita. Restano da fare 4–7. Il testo originale:
 1. **Dati del «quando» nei passi:** `{file}`, `{cartella}`, `{rete}`, `{programma}`, `{ticket}`, `{chiamante}` dentro link, azioni rapide e domande alla chat (es. nuovo file in una cartella → «Chiedi alla chat di riassumere {file}»). Serve un segnaposto sicuro: nei link codificato, negli script solo come argomento, mai incollato nel comando.
 2. **«Quando» nuovi**, dagli eventi che l'isola già vede: download finito, server di sviluppo partito, agente che ha finito o aspetta un permesso da N minuti, chiamata 3CX in arrivo o finita, N minuti prima di un evento del calendario, fine giornata (`eveningHour`), rientro dopo una pausa (inattività).
 3. **«Se» più ricchi**, anche più d'uno insieme: fascia oraria e giorni, rete Wi-Fi, alimentazione o batteria, programma aperto, in riunione (microfono/webcam), davanti al cliente, nessun agente al lavoro. Più «al massimo una volta al giorno / ogni N minuti» contro le ripetizioni.

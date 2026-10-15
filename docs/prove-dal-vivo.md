@@ -11,6 +11,8 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
 - [ ] **Trascinamento del personaggio della chat (0.7.4):** un trascinamento veloce e uno lento oltre il tempo di chiusura: l'isola resta aperta finché lo lasci. Aprendo una scheda di integrazione e chiudendo l'isola, il personaggio compatto ha il suo colore.
 - [ ] **Tempo sui permessi:** la card di un permesso vero di Claude Code dice «attende ancora 1:47» e scende; dopo «Più tardi» e riapertura il tempo è andato avanti; a zero la card sparisce e si risponde nel terminale.
 - [ ] **Consumo Claude:** il messaggio di limite raggiunto non è mai comparso.
+- [ ] **Automazioni con contesto (0.8.4):** un download di un PDF con «Solo se .pdf» e «Chiedi alla chat: Riassumi {percorso}»; «Quando torni al PC dopo una pausa» di 5 minuti; «agente ha finito» con un progetto nel filtro; «se non in riunione» con Teams in chiamata (non deve partire); «al massimo ogni 30 minuti». Un download di un `.exe` con «Apri {percorso}» deve dare errore nel registro, non aprirlo.
+- [ ] **Impostazioni sopra l'isola (0.8.4):** con l'isola aperta in alto, le Impostazioni le stanno sopra mentre sono attive; cliccando un altro programma tornano normali e l'isola resta sopra di loro.
 - [ ] **Agente e automazioni:** card Consenti/Nega in una chat vera; ogni tipo di «Quando» e «Prova ora»; proposte dalle abitudini (servono settimane con `habitsEnabled`).
 - [ ] **Altri motori della chat** con chiavi vere e Ollama/LM Studio; markdown (Copia, link).
 - [ ] **Appunti e Media** (Ctrl+V, immagini da varie app, Spotify/browser), **Cerchia e chiedi** (vedi sotto), **calcolatrice**, **ZIP** veri.

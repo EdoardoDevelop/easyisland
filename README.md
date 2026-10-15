@@ -57,6 +57,16 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.8.4** — **Automazioni con più contesto**: nuovi «quando» (download finito, chiamata
+3CX, agente che ha finito o aspetta un permesso, server di sviluppo, programma in primo
+piano, rientro dopo una pausa) con un filtro («solo i .pdf», un cliente, un progetto); più
+condizioni insieme («tra le 9 e le 18», «non in riunione», «Excel aperto», «a batteria»…);
+«al massimo ogni N minuti» o «una volta al giorno»; i dati dell'evento nei passi
+(`{file}`, `{chiamante}`, `{progetto}`…) e il passo «Chiedi alla chat». Le **Impostazioni**
+restano sopra l'isola. **Notion**: viste delle attività, avvisi delle scadenze e dei
+commenti, attività nel riepilogo del mattino, configurazione rapida. **Remote Desktop
+Manager** (in prova). Impostazioni → Integrazioni a gruppi.
+
 **0.8.3** — **Modalità terminale** della chat (Impostazioni → Chat): esegue comandi, modifica
 file e usa tutti i tuoi server MCP, plugin e skill come Claude Code o opencode da terminale,
 nella cartella che scegli; ogni comando chiede Consenti / Nega, con «Sempre». Con tutti i
@@ -217,7 +227,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.8.3** | 15 ott 2026 | Modalità terminale della chat per tutti i motori, ⚡ Automatica, Notion con attività, note e pagine scelte che si aprono nell'app, connettori dai plugin di Claude Code |
+| **0.8.4** | 15 ott 2026 | Automazioni con nuovi eventi, filtri, più condizioni, ripetizioni e dati dell'evento nei passi; Impostazioni sopra l'isola; Notion con viste e avvisi; Remote Desktop Manager in prova; Integrazioni a gruppi |
+| 0.8.3 | 15 ott 2026 | Modalità terminale della chat per tutti i motori, ⚡ Automatica, Notion con attività, note e pagine scelte che si aprono nell'app, connettori dai plugin di Claude Code |
 | 0.8.2 | 14 ott 2026 | Sostituisci con la formattazione dell'originale o senza, Vassoio dopo Cerchia e chiedi con la zona nuova evidenziata, Media al posto di Musica |
 | 0.8.1 | 14 ott 2026 | Rete: scelta della scheda con pulsanti, un ping per il gateway di ogni scheda |
 | 0.8.0 | 14 ott 2026 | Logo nuovo, Rete con tutte le schede, ping continuo e impostazioni della scheda, copertina della Musica, schede centrate, Impostazioni in finestra, Rubrica di 3CX, rinnovo dell'accesso di Claude Code per i limiti del piano |

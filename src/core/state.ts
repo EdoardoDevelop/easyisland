@@ -616,7 +616,8 @@ export function folderValue(icon: string, name: string): string {
 /** A probe the user set up in the settings (src-tauri/src/widgets.rs). */
 /** When an automation starts (src-tauri/src/automations.rs). */
 export interface AutomationTrigger {
-  kind: "time" | "startup" | "unlock" | "wifi" | "app" | "drive" | "folder" | "integration";
+  kind: "time" | "startup" | "unlock" | "wifi" | "app" | "foreground" | "drive" | "folder" | "download" | "integration"
+    | "call" | "agent" | "server" | "back";
   /** time: "HH:MM". */
   time: string;
   /** time: 1 = Monday … 7 = Sunday; empty = every day. */
@@ -624,17 +625,36 @@ export interface AutomationTrigger {
   /** startup: seconds after EasyIsland starts. */
   delay: number;
   ssid: string;
-  /** app: executable, e.g. "teams.exe". */
+  /** app, foreground: executable, e.g. "teams.exe". */
   exe: string;
   folder: string;
   /** integration: id of the integration or widget. */
   source: string;
-  when: "problem" | "event" | "any";
+  /** integration: problem | event | any · agent: stop | permission | any. */
+  when: "problem" | "event" | "any" | "stop" | "permission";
+  /** Comma-separated: ".pdf" = extension, other words = contained (automations.rs `matches`). */
+  filter?: string;
+  /** back: away for at least these minutes. */
+  minutes?: number;
+}
+
+/** One "se" of an automation: all must hold; `not` turns it around. */
+export interface AutomationCondition {
+  kind: "hours" | "wifi" | "app" | "foreground" | "battery" | "idle" | "meeting" | "client";
+  not: boolean;
+  from: string;
+  to: string;
+  days: number[];
+  ssid: string;
+  exe: string;
+  minutes: number;
+  /** battery: 0 = on battery, otherwise below this %. */
+  percent: number;
 }
 
 /** One thing an automation does. */
 export interface AutomationStep {
-  kind: "quick" | "notice" | "profile" | "app" | "url";
+  kind: "quick" | "notice" | "profile" | "app" | "url" | "chat";
   /** quick: action id · profile: profile id. */
   id: string;
   title: string;
@@ -653,6 +673,10 @@ export interface Automation {
   trigger: AutomationTrigger;
   /** Only while this profile is active; "" = any. */
   profile: string;
+  conditions?: AutomationCondition[];
+  /** "" = every time · "every" = at most every `every` minutes · "day" = once a day. */
+  repeat?: "" | "every" | "day";
+  every?: number;
   steps: AutomationStep[];
   /** A notice every time it runs (errors always show). */
   notify: boolean;

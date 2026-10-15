@@ -44,6 +44,7 @@ unsafe extern "system" fn on_foreground(
     if exe != "easyisland.exe" {
         LAST.store(hwnd.0 as isize, Ordering::Relaxed);
         crate::habits::note_app(&exe, &path);
+        crate::automations::on_foreground(&exe);
     }
 }
 

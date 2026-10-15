@@ -1728,11 +1728,16 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
         Ok(win) => {
             // Closing it must only hide it, or it could never be reopened.
             let hidden = win.clone();
-            win.on_window_event(move |event| {
-                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            let handle = app.clone();
+            win.on_window_event(move |event| match event {
+                tauri::WindowEvent::CloseRequested { api, .. } => {
                     api.prevent_close();
+                    island::keep_settings_above(&handle, false);
                     let _ = hidden.hide();
                 }
+                // Above the island while in use (island::keep_settings_above).
+                tauri::WindowEvent::Focused(active) => island::keep_settings_above(&handle, *active),
+                _ => {}
             });
         }
         Err(err) => log::line(format!("settings window failed: {err}")),

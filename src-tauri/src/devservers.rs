@@ -181,7 +181,9 @@ pub fn spawn(app: AppHandle) {
         let mut recent: HashMap<u16, Instant> = HashMap::new();
         loop {
             std::thread::sleep(EVERY);
-            if !enabled(&app) {
+            // The card in the island, or an automation waiting for a dev server.
+            let card = enabled(&app);
+            if !card && !crate::automations::wants("server") {
                 // Off: the baseline follows along, so turning it on does not announce old servers.
                 before = listeners().into_iter().collect();
                 continue;
@@ -202,6 +204,16 @@ pub fn spawn(app: AppHandle) {
                 }
                 recent.insert(l.port, at);
                 crate::log::line(format!("server di sviluppo: {name} sulla porta {}", l.port));
+                let url = format!("http://localhost:{}/", l.port);
+                crate::automations::on_event(
+                    "server",
+                    &format!("{name} {}", l.port),
+                    "",
+                    &[("porta", l.port.to_string()), ("link", url.clone()), ("programma", name.clone())],
+                );
+                if !card {
+                    continue;
+                }
                 crate::moments::emit(&app, json!({
                     "kind": "server",
                     "port": l.port,

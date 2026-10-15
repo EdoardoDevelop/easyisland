@@ -786,6 +786,11 @@ ${note}` : text };
     this.startChat(t("Spiega questo errore e come correggerlo."), context, false);
   }
 
+  /** A question from an automation (automations.rs, step "chat"): a new chat that sends it. */
+  askChat(question: string) {
+    this.startChat(question, null, false);
+  }
+
   private startChat(question: string, context: { label: string; text: string } | null, keepFile: boolean) {
     State.chatHistory = [];
     State.chatSession = null;
