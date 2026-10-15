@@ -123,7 +123,9 @@ function when(ms: number): string {
 }
 
 /** "MR" for Mario Rossi; "" for a number. */
-function initials(name: string): string {
+function initials(name: unknown): string {
+  // A call or colleague from the PBX may come without a name.
+  if (typeof name !== "string") return "";
   const words = name.trim().split(/\s+/).filter((w) => /\p{L}/u.test(w[0] ?? ""));
   return words.slice(0, 2).map((w) => w[0].toUpperCase()).join("");
 }

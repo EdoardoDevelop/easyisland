@@ -1762,5 +1762,10 @@
   "Claude Code non ha finito entro 30 minuti: interrotto.": "Claude Code did not finish within 30 minutes: stopped.",
   "La modalità terminale con questo motore passa da opencode, che non è installato su questo PC (npm i -g @opencode/cli, oppure opencode.ai). Oppure spegnila in Impostazioni → Chat.": "Terminal mode with this engine goes through opencode, which is not installed on this PC (npm i -g @opencode/cli, or opencode.ai). Or turn it off in Settings → Chat.",
   "Scegli un modello per questo motore nelle impostazioni (Chat).": "Choose a model for this engine in the settings (Chat).",
-  "Questo motore non ha la modalità terminale.": "This engine has no terminal mode."
+  "Questo motore non ha la modalità terminale.": "This engine has no terminal mode.",
+  "Automatica": "Automatic",
+  "Automatica: Claude Code decide da solo e blocca le azioni rischiose. Clic per tornare a Consenti / Nega": "Automatic: Claude Code decides on its own and blocks risky actions. Click to go back to Allow / Deny",
+  "Automatica: in questa conversazione Claude Code non chiede conferma per le azioni normali e blocca quelle rischiose": "Automatic: in this conversation Claude Code does not ask about routine actions and blocks risky ones",
+  "Automatica: comandi e modifiche normali vanno da soli; cancellare, pubblicare, installare o cambiare il sistema chiede ancora. Clic per tornare a Consenti / Nega": "Automatic: routine commands and changes go ahead on their own; deleting, publishing, installing or changing the system still asks. Click to go back to Allow / Deny",
+  "Automatica: in questa conversazione comandi e modifiche normali vanno senza chiedere; cancellare, pubblicare, installare o cambiare il sistema chiede ancora": "Automatic: in this conversation routine commands and changes go ahead without asking; deleting, publishing, installing or changing the system still asks"
 }

@@ -124,6 +124,16 @@ export async function runScene(island: Island, scene: string) {
       break;
     case "chat": {
       await wait(300);
+      // ?terminal: Modalità terminale on, the "Automatica" switch in the head (&auto: on).
+      if (new URLSearchParams(location.search).has("terminal")) {
+        State.settings.chatTerminal = true;
+        State.chatAuto = new URLSearchParams(location.search).has("auto");
+        State.chatHistory = [
+          { id: 1, role: "user", content: "Che file ci sono in questa cartella?" },
+          { id: 2, role: "assistant", content: "> ⚙ Esegue · `Get-ChildItem`\n\nCi sono `package.json`, `src` e `README.md`." },
+        ];
+        State.notify();
+      }
       // ?long: a pasted path with no spaces in the history.
       if (new URLSearchParams(location.search).has("long")) {
         State.chatHistory = [

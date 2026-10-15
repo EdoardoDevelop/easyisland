@@ -443,12 +443,16 @@ fn args(
 /// plugins), `default` permissions: what is not allowed by the user's own
 /// rules goes to the island. Connectors marked "no confirmation" and the
 /// easyisland tools that change nothing are pre-allowed, as outside it.
+/// `auto` ("Automatica" in the chat): Claude Code's auto mode, where its own
+/// check approves routine actions and refuses risky ones; what it still
+/// asks about comes to the island as before.
 fn terminal_args(
     dir: &Path,
     model: &str,
     session: Option<&str>,
     extra_dir: Option<&Path>,
     connectors: &Connectors,
+    auto: bool,
 ) -> Vec<String> {
     let mut a: Vec<String> = vec![
         "-p".into(),
@@ -460,7 +464,7 @@ fn terminal_args(
         "--append-system-prompt-file".into(),
         dir.join("chat-prompt.txt").to_string_lossy().into_owned(),
         "--permission-mode".into(),
-        "default".into(),
+        if auto { "auto".into() } else { "default".into() },
     ];
     let mut allowed: Vec<String> = connectors.enabled.iter().filter(|c| !c.confirm).map(|c| tool_prefix(&c.name)).collect();
     if connectors.agent {
@@ -636,6 +640,7 @@ pub async fn send(
     query: String,
     context: Option<ChatContext>,
     terminal: Option<&Path>,
+    auto: bool,
     on_text: &(dyn Fn(&str) + Sync),
 ) -> Result<ChatReply, String> {
     let exe = find_claude().ok_or_else(|| {
@@ -674,7 +679,7 @@ pub async fn send(
 
     let mut cmd = command(&exe);
     match terminal {
-        Some(folder) => cmd.current_dir(folder).args(terminal_args(&dir, model, session.as_deref(), extra_dir.as_deref(), &connectors)),
+        Some(folder) => cmd.current_dir(folder).args(terminal_args(&dir, model, session.as_deref(), extra_dir.as_deref(), &connectors, auto)),
         None => cmd.current_dir(&dir).args(args(&dir, model, session.as_deref(), extra_dir.as_deref(), &connectors)),
     };
     let mut child = cmd
@@ -948,7 +953,7 @@ mod tests {
             println!("claude: {:?}", super::find_claude());
             let chat = crate::claude::Chat::default();
             for agent in [false, true] {
-                let r = super::send(&chat, "", &[], agent, "Rispondi solo con la parola: ok".into(), None, None, &|_| {}).await;
+                let r = super::send(&chat, "", &[], agent, "Rispondi solo con la parola: ok".into(), None, None, false, &|_| {}).await;
                 println!("agent={agent}: {:?}", r.as_ref().map(|x| &x.text));
                 chat.reset();
             }
@@ -987,7 +992,7 @@ mod tests {
             disabled: vec!["altro".into()],
             agent: true,
         };
-        let a = terminal_args(Path::new("C:/x"), "opus", Some("abc"), None, &c);
+        let a = terminal_args(Path::new("C:/x"), "opus", Some("abc"), None, &c, false);
         let at = |flag: &str| a[a.iter().position(|x| x == flag).unwrap() + 1].clone();
         assert!(!a.contains(&"--tools".to_string()));
         assert!(!a.contains(&"--strict-mcp-config".to_string()));
@@ -999,6 +1004,8 @@ mod tests {
         assert!(allowed.starts_with("mcp__docs,mcp__easyisland__"));
         assert!(!allowed.contains("Bash"));
         assert_eq!(at("--resume"), "abc");
+        let a = terminal_args(Path::new("C:/x"), "", None, None, &none(), true);
+        assert_eq!(a[a.iter().position(|x| x == "--permission-mode").unwrap() + 1], "auto");
     }
 
     #[test]

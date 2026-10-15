@@ -174,8 +174,8 @@ export const Bridge = {
 
   // ── Chat, files, secrets ──────────────────────────────────────────────────
   /** One chat turn. The API key and any file bytes never leave Rust. */
-  chatSend: (query: string, context: ChatContext | null, engine: string | null = null) =>
-    callOrThrow<{ text: string }>("chat_send", { query, context, engine }),
+  chatSend: (query: string, context: ChatContext | null, engine: string | null = null, auto = false) =>
+    callOrThrow<{ text: string }>("chat_send", { query, context, engine, auto }),
   /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
   chatModels: (engine: string, url: string | null) => callOrThrow<ModelOption[]>("chat_models", { engine, url }),
   chatReset: () => call<void>("chat_reset"),

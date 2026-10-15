@@ -825,6 +825,7 @@ async fn chat_send(
     query: String,
     context: Option<ChatContext>,
     engine: Option<String>,
+    auto: Option<bool>,
 ) -> Result<ChatReply, String> {
     let (engine, model, cli_model, mcp, agent, other_model, url, terminal) = {
         let s = shared.settings.lock().unwrap();
@@ -853,9 +854,14 @@ async fn chat_send(
     let on_text = |text: &str| {
         let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "text": text }));
     };
+    // "Automatica" (the chat's switch): only with Modalità terminale.
+    let auto = auto.unwrap_or(false) && terminal.is_some();
+    if auto {
+        log::line(format!("chat: turno in automatica ({engine})"));
+    }
     let reply = match (&terminal, engine.as_str()) {
         (Some(folder), "opencode") => {
-            let o = opencode::Options { folder: Some(folder.clone()), ..Default::default() };
+            let o = opencode::Options { folder: Some(folder.clone()), auto, ..Default::default() };
             opencode::send(&app, &chat, &other_model, query, context, &o).await
         }
         // "Modalità terminale" for an engine without tools: through opencode.
@@ -864,17 +870,18 @@ async fn chat_send(
             match opencode::via(e, &api_model, url.as_deref()) {
                 Ok((m, mut o)) if opencode::find_exe().is_some() => {
                     o.folder = Some(folder.clone());
+                    o.auto = auto;
                     opencode::send(&app, &chat, &m, query, context, &o).await
                 }
                 Ok(_) => Err(t("La modalità terminale con questo motore passa da opencode, che non è installato su questo PC (npm i -g @opencode/cli, oppure opencode.ai). Oppure spegnila in Impostazioni → Chat.").into()),
                 Err(e) => Err(e),
             }
         }
-        (Some(folder), _) => claude_cli::send(&chat, &cli_model, &mcp, agent, query, context, Some(folder), &on_text).await,
+        (Some(folder), _) => claude_cli::send(&chat, &cli_model, &mcp, agent, query, context, Some(folder), auto, &on_text).await,
         (None, "api") => claude::send(&chat, &model, query, context).await,
         (None, "opencode") => opencode::send(&app, &chat, &other_model, query, context, &opencode::Options::default()).await,
         (None, e) if openai::ENGINES.contains(&e) => openai::send(&app, &chat, &engine, &other_model, url.as_deref(), query, context).await,
-        (None, _) => claude_cli::send(&chat, &cli_model, &mcp, agent, query, context, None, &on_text).await,
+        (None, _) => claude_cli::send(&chat, &cli_model, &mcp, agent, query, context, None, false, &on_text).await,
     };
     match &reply {
         Ok(r) if shared.settings.lock().unwrap().chat_history => chat_log::record(&chat, &engine, &asked, &r.text),
@@ -925,7 +932,7 @@ async fn rewrite_text(app: AppHandle, shared: State<'_, Shared>, prompt: String,
     } else if openai::ENGINES.contains(&engine.as_str()) {
         openai::send(&app, &chat, &engine, &other_model, url.as_deref(), query, context).await
     } else {
-        claude_cli::send(&chat, &cli_model, &[], false, query, context, None, &|_| {}).await
+        claude_cli::send(&chat, &cli_model, &[], false, query, context, None, false, &|_| {}).await
     };
     let reply = context::clean_reply(&reply?.text);
     let (Some(clip), Some(marked)) = (html, marked) else {

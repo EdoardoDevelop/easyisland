@@ -911,6 +911,8 @@ class AppState {
   chatHistory: ChatMessage[] = [];
   /** The engine picked in the chat's menu for the conversation in progress; null = the default (settings.chatEngine). Never saved. */
   chatEngineOverride: ChatEngine | null = null;
+  /** "Automatica" (chat head, Modalità terminale only): no Consenti / Nega for this conversation. Never saved. */
+  chatAuto = false;
   /** The engine the chat uses right now. */
   get chatEngine(): ChatEngine {
     return this.chatEngineOverride ?? this.settings.chatEngine;

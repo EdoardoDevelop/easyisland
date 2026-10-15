@@ -49,3 +49,7 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
   - **opencode:** lavora nella cartella; «Sempre» su un comando che non è di sola lettura. Aggiungendo un server MCP a `opencode.json`, il turno dopo lo vede (log «opencode: server restarted»).
   - **Altri motori** (API, OpenRouter, Ollama): rispondono con i comandi tramite opencode. Con opencode disinstallato, il messaggio è chiaro.
   - **Spegnendo la modalità** la chat torna come prima, in una conversazione nuova.
+  - **⚡ «Automatica»:**
+    - Con Claude Code, «crea prova.txt e mostrami git status» va senza card; «cancella la cartella build» si ferma o chiede.
+    - Con opencode, `npm run build` va da solo; `Remove-Item` e `git push` mostrano la card.
+    - «Nuova chat» lo spegne.
