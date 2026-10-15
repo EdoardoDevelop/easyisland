@@ -273,6 +273,12 @@ export const Bridge = {
   notionTaskDone: (id: string) => callOrThrow<void>("notion_task_done", { id }),
   /** "Nuova nota": into the page or database chosen in the settings; its title back. */
   notionAddNote: (text: string, stamp: string) => callOrThrow<string>("notion_add_note", { text, stamp }),
+  /** "+ Attività" in the Notion card (due: "YYYY-MM-DD" or null). */
+  notionAddTask: (title: string, due: string | null) => callOrThrow<void>("notion_add_task", { title, due }),
+  /** "Rimanda" on a task: its new due date. */
+  notionPostpone: (id: string, date: string) => callOrThrow<void>("notion_postpone", { id, date }),
+  /** Impostazioni → Notion: the databases that look like tasks (score 2 = also by name) or notes. */
+  notionSuggest: () => callOrThrow<(NotionPage & { tasks: boolean; notes: boolean; score: number })[]>("notion_suggest"),
   /** Impostazioni → Notion → Viste: what the tasks can be filtered by. */
   notionProperties: (id: string) => callOrThrow<{ name: string; kind: string; options: [string, string][] }[]>("notion_properties", { id }),
   /** Another tasks database chosen: its properties are read again. */

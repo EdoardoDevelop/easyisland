@@ -21,9 +21,9 @@ I dettagli che `HANDOFF.md` riassume in una riga. Le idee più vecchie e l'anali
 
 ## Notion, seconda parte (annotata il 14 ottobre 2026)
 Edoardo usa Notion per attività, note, documentazione e clienti. Fatti: attività, nota veloce, pagine fissate, ricerca, chat sulla pagina. Restano:
-- **«Manda a Notion»** dal testo selezionato (menu di `Win+Alt+A`), da una voce degli Appunti e dalla risposta della chat, nella pagina o database delle note.
+- **«Manda a Notion»** da una voce degli Appunti e dalla risposta della chat. Dal testo selezionato c'è dal 15 ottobre 2026.
 - **Clienti:** un database clienti scelto nelle Impostazioni con la proprietà del telefono; su una chiamata 3CX in arrivo, e su un ticket Zammad, la scheda del cliente (nome, note, link) con «Apri in Notion». Numero normalizzato come per Zammad.
-- **Avviso** quando un'attività con orario scade (oggi solo il conteggio nell'intestazione).
+- Fatti il 15 ottobre 2026: gli avvisi delle scadenze con orario e dei commenti nuovi, la configurazione rapida, «+ Attività» e «Rimanda».
 - **Viste legate ai profili:** con il profilo «Ufficio» la card apre da sola la vista «Ufficio» (le viste ci sono dal 15 ottobre 2026).
 - Attività assegnate a me: serve scegliere la persona (l'API vede il bot, non l'utente).
 

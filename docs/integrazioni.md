@@ -12,6 +12,19 @@ Un servizio o programma che di solito c'è una volta sola è un'**integrazione**
       - per ogni select, multi-select, stato o relazione del database i valori voluti: in una proprietà basta uno qualsiasi, fra proprietà diverse servono tutti;
       - l'ordine per scadenza o per priorità.
       `view_filter` le traduce nel filtro della query di Notion. `notion_properties` dà le colonne all'editor delle Impostazioni: le relazioni con le prime 100 pagine del database collegato, salvate per id. Il poller legge tutte le viste (`byView`), così la card le cambia con un clic sui pulsanti senza aspettare, e la scelta resta in `notionView`. Senza viste, tutte le non fatte come prima. Provato in sola lettura sul database vero («settimana» 1 attività su 20); scena `notion&views`.
+    - **Avvisi** (`due_alerts`, `comment_alerts`, chiesti da Edoardo il 15 ottobre 2026). Notion non dà alle integrazioni le sue notifiche (menzioni, promemoria): l'API non le ha. Gli avvisi si ricavano a ogni giro (5 minuti) dalle attività di oggi (`today`, anche quelle in ritardo, al di là delle viste).
+      - **Attività con orario:** un avviso `notionAlertLead` minuti prima, con un timer se cade prima del giro dopo. Uno solo per attività e orario (`ALERTED`); nessun avviso oltre un'ora di ritardo.
+      - **Commenti nuovi** sulle pagine fissate e sulle prime 10 attività di oggi (`GET /comments`): il primo giro dopo l'avvio segna solo dove si è arrivati; al massimo 3 avvisi a giro.
+      - Gli avvisi passano da `EasyIslandNotify` con il link, quindi valgono le regole di Notifiche, e un clic apre l'app Notion.
+      - **Riepilogo del mattino:** le attività di oggi vanno nella card del mattino (`src/island/daily.ts`, «Oggi in Notion»), se `notionMorning` è acceso.
+    - **Nella card:**
+      - «+ Attività» crea una riga con titolo e scadenza (Oggi, Domani, Lunedì o senza data) e con i valori unici dei filtri della vista in uso, così compare in quella vista (`add_task`).
+      - «Rimanda a domani», al passaggio del mouse, sposta la data a domani, o al giorno dopo la scadenza se è più avanti, e tiene l'ora (`postpone`, `postponedDue`).
+    - **Dal testo selezionato** (`Win+Alt+A`): con Notion attivo, il menu ha «Nota in Notion» e «Attività in Notion» (la prima riga diventa il titolo).
+    - **Configurazione rapida:** quando mancano il database delle attività o le note, le Impostazioni propongono i database adatti (`suggest`):
+      - per le attività, quelli con una data e un «fatto», prima quelli con un nome da attività;
+      - per le note, quelli con un nome da note, appunti, inbox, idee o diario.
+      Scegliere un database delle attività crea le viste Oggi, Settimana e Tutte, e la card parte da «Oggi».
     - **Nota veloce** («+ Nota» nell'intestazione): in una pagina un paragrafo in fondo con data e ora in grassetto grigio, in un database una riga col titolo dalla prima riga (`add_note`). Testo a pezzi di 2000 caratteri, al massimo 90 paragrafi.
     - **Pagine:** quelle scelte, mostrate senza chiamate a Notion (titolo ed emoji di quando sono state scelte). Le pagine «recenti» non ci sono più: erano anche righe di database prese a caso.
     - Ricerca nella card e nella barra in alto (`notion_search`, dalla terza lettera con 400 ms di attesa, solo con il token); «Chiedi alla chat» allega titolo e testo (`notion_page_text`: blocchi e un livello sotto, al massimo 30.000 caratteri) senza inviare.
@@ -69,3 +82,11 @@ Un servizio o programma che di solito c'è una volta sola è un'**integrazione**
 ## Proposte dalle abitudini (`src-tauri/src/habits.rs`)
 - Spente di serie (`habitsEnabled`). Registrano solo nomi di programmi e orari in `habits.jsonl` locale, mai titoli o contenuti. L'analisi è la funzione pura `analyse`.
 - Rifiuti in `suggestionsDismissed`, rimandi in `suggestionsSnoozed`. Una proposta diventa un'automazione solo con un clic e passa da `automations::validate`.
+
+## Impostazioni → Integrazioni
+Rifatta il 15 ottobre 2026 su richiesta di Edoardo («troppo confusionaria»).
+- **Gruppi** (`INTEGRATION_GROUPS` in `src/settings/main.ts`): Lavoro e clienti, Sviluppo e servizi, Questo PC, più «Altre» per quelle non elencate. Una integrazione nuova va aggiunta a un gruppo.
+- **Una riga per integrazione:** interruttore, colore, nome, stato (Spenta, Attiva, oppure «Manca: chiave» quando un campo di Gestione credenziali non c'è) e la prima frase della spiegazione.
+- **Dettagli:** un clic apre spiegazione, campi, opzioni, icona e colore, una integrazione alla volta (`openIntegration`).
+- **Sopra l'elenco:** la ricerca e «Solo attive». In fondo, «Menu dell'isola» con il blocco dello spostamento.
+

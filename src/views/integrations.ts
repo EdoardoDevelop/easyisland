@@ -304,6 +304,12 @@ const notion = {
   noteMsg: "",
   /** Tasks ticked off and waiting for Notion: hidden at once. */
   ticking: new Set<string>(),
+  /** "+ Attività": open, its title field, the due chosen, how the save went. */
+  taskOpen: false,
+  taskInput: null as HTMLInputElement | null,
+  taskDue: "today" as "none" | "today" | "tomorrow" | "monday",
+  taskState: "" as "" | "saving" | "error",
+  taskMsg: "",
   redraw: null as (() => void) | null,
 };
 
@@ -339,6 +345,29 @@ const NOTION_COLORS: Record<string, string> = {
   red: "#F87171", orange: "#FB923C", yellow: "#FACC15", green: "#4ADE80", blue: "#60A5FA",
   purple: "#C084FC", pink: "#F472B6", brown: "#C4A484", gray: "#9CA3AF", default: "#9CA3AF",
 };
+
+/** "YYYY-MM-DD" of a local day. */
+function isoDay(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** "Rimanda a domani": tomorrow, or the day after the due day if that is later; a time stays. */
+export function postponedDue(due: string | null, now = new Date()): string {
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const day = due ? new Date(`${due.slice(0, 10)}T00:00:00`) : null;
+  const base = day && !Number.isNaN(day.getTime()) && day >= tomorrow ? new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1) : tomorrow;
+  const time = due && due.includes("T") ? due.slice(10) : "";
+  return isoDay(base) + time;
+}
+
+/** The due date of "+ Attività": today, tomorrow, next Monday or none. */
+export function quickDue(which: "none" | "today" | "tomorrow" | "monday", now = new Date()): string | null {
+  const day = (n: number) => isoDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() + n));
+  if (which === "today") return day(0);
+  if (which === "tomorrow") return day(1);
+  if (which === "monday") return day(((8 - now.getDay()) % 7) || 7);
+  return null;
+}
 
 /** When a task is due, in words, and whether it is late. */
 export function dueLabel(due: string | null, now = new Date()): { text: string; late: boolean; today: boolean } {
@@ -443,11 +472,23 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
       },
     });
     const prio = Array.isArray(x.priority) && typeof x.priority[0] === "string" ? x.priority : null;
+    const later: HTMLElement = iconButton(ICONS.forward, t("Rimanda a domani"), "#E8E8E8", async () => {
+      later.classList.add("working");
+      try {
+        await Bridge.notionPostpone(x.id, postponedDue(x.due));
+        Sound.play("blip");
+      } catch (err) {
+        say(String(err).replace(/^Error:\s*/, ""));
+      } finally {
+        later.classList.remove("working");
+      }
+    });
     return h("div", { class: "int-page notion-task", role: "button", title: t("Apri in Notion"),
       onclick: () => { if (x.url) void Bridge.openUrl(x.url); } },
     tick,
     prio ? h("i", { class: "notion-prio", title: prio[0], style: `background:${NOTION_COLORS[String(prio[1])] ?? NOTION_COLORS.default}` }) : null,
     h("span", { class: "int-name", text: x.title }),
+    h("span", { class: "notion-tools" }, later),
     when.text ? h("span", { class: `notion-due${when.late ? " due-late" : when.today ? " due-today" : ""}`, text: when.text }) : null);
   };
 
@@ -491,6 +532,52 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
           h("span", { text: notion.noteState === "saving" ? t("Salvo…") : t("Salva") }))));
   };
 
+  const taskBox = () => {
+    const input = notion.taskInput ?? (notion.taskInput = h("input", {
+      class: "nc-input", type: "text", spellcheck: "true", placeholder: t("Cosa c'è da fare? (Invio per salvare)"),
+      onpointerdown: () => void Bridge.focusWindow(true),
+      onkeydown: (e: Event) => {
+        const k = e as KeyboardEvent;
+        if (k.key === "Enter") { k.preventDefault(); void saveTask(); }
+        if (k.key === "Escape") { k.stopPropagation(); notion.taskOpen = false; notion.redraw?.(); }
+      },
+    }) as HTMLInputElement);
+    const saveTask = async () => {
+      const title = input.value.trim();
+      if (!title || notion.taskState === "saving") return;
+      notion.taskState = "saving";
+      notion.redraw?.();
+      try {
+        await Bridge.notionAddTask(title, quickDue(notion.taskDue));
+        input.value = "";
+        notion.taskState = "";
+        notion.taskOpen = false;
+        Sound.play("approve");
+      } catch (e) {
+        notion.taskState = "error";
+        notion.taskMsg = String(e).replace(/^Error:\s*/, "");
+      }
+      notion.redraw?.();
+    };
+    const dues: ["none" | "today" | "tomorrow" | "monday", string][] = [
+      ["today", t("Oggi")], ["tomorrow", t("Domani")], ["monday", t("Lunedì")], ["none", t("Senza data")],
+    ];
+    window.setTimeout(() => { if (input.isConnected && document.activeElement !== input) input.focus(); }, 0);
+    const v = activeView();
+    const fixed = (v?.filters ?? []).filter((f) => f.values.length === 1 && f.kind !== "relation").map((f) => f.values[0]);
+    return h("div", { class: "notion-compose" }, input,
+      h("div", { class: "notion-views" }, ...dues.map(([id, label]) => h("button", {
+        class: `notion-view${notion.taskDue === id ? " on" : ""}`, text: label,
+        onclick: (e: Event) => { e.stopPropagation(); notion.taskDue = id; notion.redraw?.(); },
+      }))),
+      h("div", { class: "notion-compose-row" },
+        h("span", { class: `notion-note${notion.taskState === "error" ? " bad" : ""}`,
+          text: notion.taskState === "error" ? notion.taskMsg : fixed.length ? t("Con {v}, come la vista «{name}»", { v: fixed.join(", "), name: v?.name ?? "" }) : "" }),
+        h("button", { class: "btn secondary", onclick: () => { notion.taskOpen = false; notion.redraw?.(); } }, h("span", { text: t("Annulla") })),
+        h("button", { class: "btn primary", disabled: notion.taskState === "saving", onclick: () => void saveTask() },
+          h("span", { text: notion.taskState === "saving" ? t("Salvo…") : t("Aggiungi") }))));
+  };
+
   const section = (label: string, extra?: Node | null) => h("div", { class: "notion-section" }, h("span", { text: label }), extra ?? null);
 
   const draw = () => {
@@ -513,7 +600,10 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
     if (data.tasksSet) {
       const more = shown.length > 5 ? h("button", { class: "link-btn", text: t("tutte ({n})", { n: shown.length }),
         onclick: () => { if (cfg.notionTasks?.url) void Bridge.openUrl(cfg.notionTasks.url); } }) : null;
-      body.append(section(views.length === 1 ? views[0].name : t("Da fare"), more));
+      const addBtn = h("button", { class: "link-btn", text: `+ ${t("Attività")}`, title: t("Nuova attività in «{p}»", { p: cfg.notionTasks?.title ?? "Notion" }),
+        onclick: (e: Event) => { e.stopPropagation(); notion.taskOpen = !notion.taskOpen; notion.taskState = ""; notion.redraw?.(); } });
+      body.append(section(views.length === 1 ? views[0].name : t("Da fare"), h("span", { class: "notion-section-tools" }, more, addBtn)));
+      if (notion.taskOpen) body.append(taskBox());
       if (views.length > 1) {
         const active = activeView();
         body.append(h("div", { class: "notion-views" }, ...views.map((v) => h("button", {

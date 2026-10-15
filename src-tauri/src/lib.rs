@@ -654,6 +654,38 @@ fn notion_forget_schemas() {
     notion::forget_schemas();
 }
 
+/// "+ Attività" in the Notion card: a task in the chosen database, with the
+/// values of the view in use; then the card reads the tasks again.
+#[tauri::command]
+async fn notion_add_task(app: AppHandle, shared: State<'_, Shared>, title: String, due: Option<String>) -> Result<(), String> {
+    let (db, view) = {
+        let s = shared.settings.lock().unwrap();
+        let c = &s.integration_config;
+        let view = c.notion_views.iter().find(|v| v.name == c.notion_view).or_else(|| c.notion_views.first()).cloned();
+        (c.notion_tasks.as_ref().map(|r| r.id.clone()), view)
+    };
+    let db = db.ok_or_else(|| t("Scegli il database delle attività nelle Impostazioni").to_string())?;
+    notion::add_task(&db, &title, due.as_deref(), view.as_ref()).await?;
+    notion::poll(app).await;
+    Ok(())
+}
+
+/// "Rimanda" on a task of the Notion card: its due date moved.
+#[tauri::command]
+async fn notion_postpone(app: AppHandle, shared: State<'_, Shared>, id: String, date: String) -> Result<(), String> {
+    let db = shared.settings.lock().unwrap().integration_config.notion_tasks.as_ref().map(|r| r.id.clone());
+    let db = db.ok_or_else(|| t("Scegli il database delle attività nelle Impostazioni").to_string())?;
+    notion::postpone(&db, &id, &date).await?;
+    notion::poll(app).await;
+    Ok(())
+}
+
+/// Impostazioni → Notion, first time: the databases that look like tasks or notes.
+#[tauri::command]
+async fn notion_suggest() -> Result<Vec<serde_json::Value>, String> {
+    notion::suggest().await
+}
+
 /// Impostazioni → Notion → Viste: what the tasks can be filtered by.
 #[tauri::command]
 async fn notion_properties(id: String) -> Result<Vec<notion::Property>, String> {
@@ -1832,6 +1864,9 @@ pub fn run() {
             notion_page_text,
             notion_task_done,
             notion_properties,
+            notion_add_task,
+            notion_postpone,
+            notion_suggest,
             notion_add_note,
             notion_forget_schemas,
             inbox_drag,

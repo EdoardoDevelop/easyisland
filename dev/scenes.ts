@@ -405,6 +405,8 @@ export async function runScene(island: Island, scene: string) {
       ];
       Object.assign(Bridge, {
         notionTaskDone: async () => { await wait(400); },
+        notionAddTask: async () => { await wait(400); },
+        notionPostpone: async () => { await wait(400); },
         notionAddNote: async () => { await wait(500); return "Inbox"; },
       });
       State.settings.integrationConfig.notionPins = pages.filter((p) => ["a1", "a3", "a4"].includes(p.id))

@@ -54,3 +54,12 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
     - Con opencode, `npm run build` va da solo; `Remove-Item` e `git push` mostrano la card.
     - «Nuova chat» lo spegne.
 - [ ] **Viste delle attività di Notion (15 ottobre 2026):** in Impostazioni → Notion «+ Oggi», «+ Settimana» e una vista con Contesto «Ufficio» e Priorità «Alta». Nella card i pulsanti cambiano l'elenco subito; la vista scelta resta dopo un riavvio; il pallino ha il colore della priorità; rinominando la vista scelta resta scelta; un filtro su Progetto (relazione) funziona; togliendo tutte le viste tornano tutte le non fatte.
+- [ ] **Notion: avvisi e uso semplice (15 ottobre 2026):**
+  - Un'attività con orario fra 15 minuti: l'avviso arriva 10 minuti prima (o come scelto), una volta sola, e il clic apre Notion.
+  - Un commento nuovo, scritto dal telefono, su una pagina fissata: l'avviso arriva entro 5 minuti.
+  - Il mattino dopo le 8, il riepilogo ha «Oggi in Notion».
+  - Nella card, «+ Attività» con Oggi e con una vista con Contesto Ufficio: la riga compare in quella vista. «Rimanda a domani» tiene l'ora.
+  - `Win+Alt+A` su un testo, «Nota in Notion» e «Attività in Notion».
+  - Configurazione rapida togliendo e rimettendo il database delle attività.
+- [ ] **Impostazioni → Integrazioni:** gruppi, stato «Manca: chiave», apertura di una sola alla volta, ricerca, «Solo attive», 3CX con i campi che cambiano secondo il tipo di accesso.
+

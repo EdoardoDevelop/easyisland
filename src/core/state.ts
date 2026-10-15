@@ -520,6 +520,13 @@ export interface IntegrationConfig {
   notionViews?: NotionView[];
   /** Notion: the view shown in the card (its name; "" = the first). */
   notionView?: string;
+  /** Notion notices (notion.rs): before a task with a time, this many minutes before. */
+  notionAlertDue?: boolean;
+  notionAlertLead?: number;
+  /** Notion notices: a new comment on a kept page or a task due today. */
+  notionAlertComments?: boolean;
+  /** Notion: today's tasks in the morning recap. */
+  notionMorning?: boolean;
 }
 
 /** A view of the Notion tasks (settings.rs NotionView, notion.rs view_filter). */
@@ -841,6 +848,7 @@ export const DEFAULT_SETTINGS: Settings = {
     threecxMode: "user", threecxExtension: "", threecxDevice: "",
     threecxRing: true, threecxAlert: true, threecxRingtone: "",
     notionPins: [], notionTasks: null, notionInbox: null, notionViews: [], notionView: "",
+    notionAlertDue: true, notionAlertLead: 10, notionAlertComments: true, notionMorning: true,
   },
 };
 

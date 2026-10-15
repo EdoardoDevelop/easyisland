@@ -4228,6 +4228,7 @@ input[type="range"]::-webkit-slider-thumb {
 .notion-body .int-page:hover .notion-tools,
 .notion-tools:has(.working) { opacity: 1; }
 .notion-note { font: 400 10.5px var(--font); color: var(--dim-2); padding: 2px 2px 0; }
+.notion-section-tools { display: inline-flex; align-items: center; gap: 8px; text-transform: none; letter-spacing: 0; }
 .notion-note.bad { color: #f4505e; }
 .notion-section {
   display: flex;

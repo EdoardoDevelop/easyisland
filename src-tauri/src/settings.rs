@@ -81,6 +81,22 @@ pub struct IntegrationConfig {
     /// Notion: the view shown in the card (its name; "" = the first).
     #[serde(default)]
     pub notion_view: String,
+    /// Notion: a notice before a task with a time is due (notion.rs → alerts).
+    #[serde(default = "yes")]
+    pub notion_alert_due: bool,
+    /// …this many minutes before (0 = at the time).
+    #[serde(default = "ten_minutes")]
+    pub notion_alert_lead: u32,
+    /// Notion: a notice for a new comment on a kept page or a task due today.
+    #[serde(default = "yes")]
+    pub notion_alert_comments: bool,
+    /// Notion: today's tasks in the morning recap (src/island/daily.ts).
+    #[serde(default = "yes")]
+    pub notion_morning: bool,
+}
+
+fn ten_minutes() -> u32 {
+    10
 }
 
 /// A view of the tasks: which ones the card shows (notion.rs → view_filter).
@@ -154,6 +170,10 @@ impl Default for IntegrationConfig {
             notion_inbox: None,
             notion_views: Vec::new(),
             notion_view: String::new(),
+            notion_alert_due: true,
+            notion_alert_lead: 10,
+            notion_alert_comments: true,
+            notion_morning: true,
         }
     }
 }

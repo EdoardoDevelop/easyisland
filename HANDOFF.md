@@ -26,6 +26,16 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 15 ottobre 2026 — Notion più semplice e con avvisi; Impostazioni → Integrazioni rifatta
+- **Notion:**
+  - avvisi nell'isola prima delle attività con orario e per i commenti nuovi (l'API non dà le notifiche di Notion);
+  - le attività di oggi nel riepilogo del mattino;
+  - «+ Attività» con la scadenza e i valori della vista in uso, «Rimanda a domani»;
+  - «Nota / Attività in Notion» dal testo selezionato;
+  - la configurazione rapida, che propone i database e crea le viste Oggi, Settimana e Tutte.
+- **Integrazioni:** rifatta a gruppi, una riga per integrazione con il suo stato, che si apre al clic; ricerca e «Solo attive» (`docs/integrazioni.md`).
+- **Prove:** con i test, nell'anteprima, e in sola lettura sul Notion vero (la configurazione rapida propone «✅ Attività» e «📝 Note»). Non provati gli avvisi veri.
+
 ### 15 ottobre 2026 — Notion: viste delle attività
 - Su richiesta di Edoardo (troppe attività che non gli servono ogni giorno), le «viste» in Impostazioni → Notion: filtri con un nome per periodo (oggi, settimana, mese, prossimi N giorni, con o senza quelle senza data), per i valori di select, multi-select, stato e relazioni (Contesto, Tipo, Priorità, Progetto, Area…) e con l'ordine per scadenza o priorità. Nella card si cambiano con dei pulsanti, e c'è il pallino della priorità (`notion.rs` `view_filter`, `docs/integrazioni.md`). Provato in sola lettura sul suo database, con i test, nell'anteprima (`notion&views`) e con l'editor delle Impostazioni.
 
@@ -37,6 +47,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 14 ottobre 2026 — «Sostituisci» con la formattazione, zona nuova nel Vassoio, versione 0.8.2
 - Versione **0.8.2** con queste voci. «Sostituisci» tiene grassetti, link e paragrafi: l'HTML copiato dall'app va al modello con segni `⟦n⟧` e torna con gli stessi tag (`richtext.rs`, test); «Senza formattazione» incolla il solo testo. Provato con i test e la card nell'anteprima (`rewrite`, `&lost`), non ancora in Word e Outlook veri. Vassoio: la zona appena aggiunta da Cerchia e chiedi è evidenziata con «Chiedi» e «Copia» (`files&fresh`). Edoardo: grassetto e sottolineato restano, un titolo no in un suo caso; con Word automatizzato qui Titolo e Titolo 1 restano, caso da capire. L'integrazione «Musica» ora si chiama «Media» (icona ⏯️): comprende video e podcast.
-
-### 14 ottobre 2026 — logo nuovo, rete con tutte le schede, versione 0.8.0
-- Versione **0.8.0** con le voci di oggi; schermate di Musica e Rete rifatte nel README e nella homepage. Logo scelto da Edoardo fra 12 proposte (la 10): tre pillole a «E» dal viola all'azzurro, in `scripts/gen-icons.mjs` (icone dell'app, area di notifica, `site/media/icon.png`). Rete: tutte le schede attive con i loro IPv4, gateway e DNS della principale (`probes::network`, `docs/integrazioni.md`); provato su questo PC (Ethernet e vEthernet). 3CX: scheda Rubrica nella barra (cerca dal display), provata nell'anteprima. Rete: ping continuo in un terminale (gateway, 8.8.8.8, indirizzo scritto) e «Modifica rete…» (DHCP/manuale, maschera, gateway, DNS) con `netsh` e la richiesta di amministratore di Windows (`netconfig.rs`); comandi provati con i test e il modulo nell'anteprima, mai applicati a una scheda vera da qui. Versione **0.8.1**: scelta della scheda con pulsanti (il `<select>` non funzionava nell'isola) e un pulsante di ping per il gateway di ogni scheda. Cerchia e chiedi → «Nel Vassoio» apre l'isola sul Vassoio invece di chiuderla con un messaggio, e la riapertura entro 5 minuti torna lì (`openingView` in `island.ts`).

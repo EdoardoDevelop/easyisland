@@ -1087,6 +1087,34 @@ function notionViewsEditor(db: string, saved: () => void): HTMLElement {
   return box;
 }
 
+/** What notion_suggest found, once per window. */
+let notionFound: Promise<Awaited<ReturnType<typeof Bridge.notionSuggest>>> | null = null;
+
+/**
+ * Notion, before anything is chosen: the databases that look like tasks or
+ * notes, one click each. Nothing shows when nothing fits (or no token yet).
+ */
+function notionQuickSetup(useTasks: (r: NotionRef) => void, useNotes: (r: NotionRef) => void): HTMLElement {
+  const c = settings.integrationConfig;
+  const box = h("div", { class: "notice", style: "display:none;flex-direction:column;gap:6px" });
+  notionFound ??= Bridge.notionSuggest().catch(() => []);
+  void notionFound.then((list) => {
+    const tasks = c.notionTasks ? [] : list.filter((d) => d.tasks).slice(0, 2);
+    const notes = c.notionInbox ? [] : list.filter((d) => d.notes && !d.tasks).slice(0, 2);
+    if (!tasks.length && !notes.length) return;
+    box.append(h("b", { text: t("Configurazione rapida") }),
+      h("div", { class: "hint", text: t("Ho trovato questi database: un clic e la card è pronta (poi si cambia tutto qui sotto).") }));
+    for (const d of tasks) box.append(h("div", { class: "row" },
+      h("span", { style: "flex:1 1 auto;min-width:0", text: `${notionIcon(notionRef(d))}  ${d.title}` }),
+      h("button", { class: "primary", text: t("Usa per le attività"), onclick: () => useTasks(notionRef(d)) })));
+    for (const d of notes) box.append(h("div", { class: "row" },
+      h("span", { style: "flex:1 1 auto;min-width:0", text: `${notionIcon(notionRef(d))}  ${d.title}` }),
+      h("button", { text: t("Usa per le note"), onclick: () => useNotes(notionRef(d)) })));
+    box.style.display = "flex";
+  });
+  return box;
+}
+
 /** Notion: the tasks database, where notes go, the pages kept in the card. */
 function notionRows(): HTMLElement {
   const box = h("div", { style: "display:flex;flex-direction:column;gap:10px" });
@@ -1103,13 +1131,27 @@ function notionRows(): HTMLElement {
     h("label", { style: "min-width:104px;padding-top:2px", text: label }),
     h("div", { style: "display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-width:0" }, h("div", { class: "hint", text: hint }), ...rows));
 
+  // A tasks database chosen: three views to start from, "Oggi" in the card.
+  const useTasks = (r: NotionRef) => {
+    const c = settings.integrationConfig;
+    c.notionTasks = r;
+    c.notionViews = [
+      { name: t("Oggi"), period: "today", days: 7, undated: false, filters: [], sort: "due" },
+      { name: t("Settimana"), period: "week", days: 7, undated: false, filters: [], sort: "due" },
+      { name: t("Tutte"), period: "all", days: 7, undated: true, filters: [], sort: "due" },
+    ];
+    c.notionView = t("Oggi");
+    changed(true);
+  };
+
   function draw() {
     clear(box);
     const c = settings.integrationConfig;
+    if (!c.notionTasks || !c.notionInbox) box.append(notionQuickSetup(useTasks, (r) => { c.notionInbox = r; changed(true); }));
     box.append(
       block(t("Attività"), t("Il database delle tue cose da fare: la card mostra quelle non fatte, prima le scadute e quelle di oggi. Serve una data e una casella o uno stato «fatto»."),
         c.notionTasks ? chosen(c.notionTasks, () => { c.notionTasks = null; c.notionViews = []; c.notionView = ""; changed(true); })
-          : notionPicker(t("Cerca il database…"), "database", (r) => { c.notionTasks = r; c.notionViews = []; c.notionView = ""; changed(true); })),
+          : notionPicker(t("Cerca il database…"), "database", useTasks)),
       ...(c.notionTasks
         ? [block(t("Viste"), t("Quali attività vedere nella card: per scadenza, categoria, contesto, progetto… Con più viste, nella card le cambi con un clic. Senza viste compaiono tutte quelle non fatte."),
           notionViewsEditor(c.notionTasks.id, () => { void save(); void Bridge.refreshIntegration("integration_notion"); }))]
@@ -1123,6 +1165,18 @@ function notionRows(): HTMLElement {
           if (!c.notionPins.some((x) => x.id === r.id)) c.notionPins = [...c.notionPins, r];
           changed();
         })),
+      block(t("Avvisi"), t("Notion non passa alle integrazioni le sue notifiche (menzioni, promemoria): EasyIsland le ricava dalle attività e dai commenti, ogni 5 minuti, e le mostra nell'isola. Un clic apre la pagina."),
+        h("div", { class: "row" },
+          toggle(c.notionAlertDue !== false, (v) => { c.notionAlertDue = v; void save(); }),
+          h("span", { text: t("Prima di un'attività con orario") }),
+          select<string>([["0", t("all'ora")], ["5", t("5 minuti prima")], ["10", t("10 minuti prima")], ["15", t("15 minuti prima")], ["30", t("30 minuti prima")], ["60", t("un'ora prima")]],
+            String(c.notionAlertLead ?? 10), (v) => { c.notionAlertLead = Number(v); void save(); })),
+        h("div", { class: "row" },
+          toggle(c.notionAlertComments !== false, (v) => { c.notionAlertComments = v; void save(); }),
+          h("span", { text: t("Nuovi commenti sulle pagine qui sopra e sulle attività di oggi") })),
+        h("div", { class: "row" },
+          toggle(c.notionMorning !== false, (v) => { c.notionMorning = v; void save(); }),
+          h("span", { text: t("Le attività di oggi nel riepilogo del mattino") }))),
     );
   }
   draw();
@@ -1166,9 +1220,27 @@ function ringtoneRow(): HTMLElement {
     error);
 }
 
+/** Impostazioni → Integrazioni: the groups, in this order; anything else goes last. */
+const INTEGRATION_GROUPS: [string, string[]][] = [
+  [t("Lavoro e clienti"), ["integration_3cx", "integration_zammad", "integration_outlook", "integration_calcom", "integration_notion"]],
+  [t("Sviluppo e servizi"), ["integration_github", "integration_vercel", "integration_n8n", "integration_stripe", "integration_resend"]],
+  [t("Questo PC"), ["integration_system", "integration_security", "integration_network", "integration_weather", "integration_claude_usage", "integration_clipboard", "integration_media"]],
+];
+
+/** The integration whose settings are open (one at a time), kept while the window is. */
+let openIntegration = "";
+let integrationQuery = "";
+let onlyActive = false;
+
+/**
+ * Impostazioni → Integrazioni: a short list by group, each integration one
+ * row (switch, name, state, what it is); a click opens its settings under it,
+ * one at a time. A search and "solo attive" narrow the list.
+ */
 function integrationsSection(present: Record<string, boolean>): HTMLElement {
   const note = h("div", { class: "hint" });
-  const list = h("div", { style: "display:flex;flex-direction:column;gap:14px" });
+  const list = h("div", { class: "int-groups" });
+  const entries: { def: IntegrationDef; el: HTMLElement; text: string; refresh: () => void; open: (on: boolean) => void }[] = [];
 
   function updateNote() {
     const used = settings.activeIntegrations.length;
@@ -1178,7 +1250,8 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
   for (const def of INTEGRATIONS) {
     const active = settings.activeIntegrations.includes(def.id);
     const sw = h("button", { class: active ? "switch on" : "switch" });
-    sw.addEventListener("click", () => {
+    sw.addEventListener("click", (e) => {
+      e.stopPropagation();
       const on = settings.activeIntegrations.includes(def.id);
       if (on) {
         settings.activeIntegrations = settings.activeIntegrations.filter((x) => x !== def.id);
@@ -1187,6 +1260,7 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
       }
       sw.classList.toggle("on", !on);
       updateNote();
+      refreshAll();
       void save();
     });
 
@@ -1313,19 +1387,73 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
         void save();
       }, t("Predefinito")),
       h("span", { class: "hint note", text: t("anche del personaggio quando la sua scheda è aperta") })));
-    if (def.hint) rows.append(h("div", { class: "hint", text: def.hint }));
+    if (def.hint) rows.prepend(h("div", { class: "hint int-hint", text: def.hint }));
 
-    list.append(
-      h("div", { style: "display:flex;gap:12px;align-items:flex-start" },
-        h("div", { style: "display:flex;align-items:center;gap:8px;min-width:132px;padding-top:4px" },
-          sw,
-          dot,
-          h("span", { style: "font-size:12.5px", text: def.name }),
-        ),
-        rows,
-      ),
-    );
+    // The row: switch, colour, name, its state and the first words of what it is.
+    const state = h("span", { class: "int-state" });
+    const summary = h("span", { class: "int-summary", text: firstSentence(def.hint ?? "") });
+    const chevron = h("span", { class: "int-chevron", text: "›" });
+    const head = h("div", { class: "int-row-head", role: "button", tabindex: "0" },
+      sw, dot, h("span", { class: "int-row-name", text: def.name }), state, summary, chevron);
+    const details = h("div", { class: "int-details" }, rows);
+    const el = h("div", { class: "int-row" }, head, details);
+    const open = (on: boolean) => {
+      el.classList.toggle("open", on);
+      details.style.display = on ? "" : "none";
+    };
+    const refresh = () => {
+      const on = settings.activeIntegrations.includes(def.id);
+      const missing = def.fields.filter((f) => !(f.when && !f.when(settings.integrationConfig)) && !present[f.key]);
+      state.className = `int-state ${!on ? "off" : missing.length ? "warn" : "ok"}`;
+      state.textContent = !on ? t("Spenta") : missing.length ? t("Manca: {what}", { what: missing.map((f) => f.label.toLowerCase()).join(", ") }) : t("Attiva");
+    };
+    const toggleOpen = () => {
+      const next = openIntegration === def.id ? "" : def.id;
+      openIntegration = next;
+      for (const e of entries) e.open(e.def.id === next);
+      if (next) requestAnimationFrame(() => el.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+    };
+    head.addEventListener("click", toggleOpen);
+    head.addEventListener("keydown", (e) => { if ((e as KeyboardEvent).key === "Enter") toggleOpen(); });
+    // A key saved in this row changes its state.
+    rows.addEventListener("click", () => window.setTimeout(refresh, 300));
+    open(openIntegration === def.id);
+    refresh();
+    entries.push({ def, el, text: `${def.name} ${def.hint ?? ""}`.toLowerCase(), refresh, open });
   }
+
+  function refreshAll() {
+    for (const e of entries) e.refresh();
+    draw();
+  }
+
+  // Groups, then the search and "solo attive" over them.
+  function draw() {
+    clear(list);
+    const q = integrationQuery.trim().toLowerCase();
+    const shown = (e: (typeof entries)[number]) =>
+      (!q || e.text.includes(q)) && (!onlyActive || settings.activeIntegrations.includes(e.def.id));
+    const grouped = new Set(INTEGRATION_GROUPS.flatMap(([, ids]) => ids));
+    const groups: [string, (typeof entries)[number][]][] = [
+      ...INTEGRATION_GROUPS.map(([name, ids]) => [name, ids.map((id) => entries.find((e) => e.def.id === id)).filter((e): e is (typeof entries)[number] => !!e)] as [string, (typeof entries)[number][]]),
+      [t("Altre"), entries.filter((e) => !grouped.has(e.def.id))],
+    ];
+    for (const [name, items] of groups) {
+      const visible = items.filter(shown);
+      if (!visible.length) continue;
+      const on = items.filter((e) => settings.activeIntegrations.includes(e.def.id)).length;
+      list.append(h("div", { class: "int-group" },
+        h("div", { class: "int-group-head" }, h("span", { text: name }), h("span", { class: "hint", text: t("{n} di {total} attive", { n: on, total: items.length }) })),
+        ...visible.map((e) => e.el)));
+    }
+    if (!list.childElementCount) list.append(h("div", { class: "hint", text: t("Nessuna integrazione trovata.") }));
+  }
+
+  const search = h("input", { type: "text", placeholder: t("Cerca un'integrazione…"), value: integrationQuery, spellcheck: "false", style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
+  search.addEventListener("input", () => { integrationQuery = search.value; draw(); });
+  const filterRow = h("div", { class: "row" }, search,
+    h("label", { class: "inline-check" }, toggle(onlyActive, (v) => { onlyActive = v; draw(); }), h("span", { text: t("Solo attive") })));
+  draw();
 
   updateNote();
   // Pills and tabs are dragged into order right in the island.
@@ -1336,7 +1464,14 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
     toggle(!!settings.lockOrder, (v) => { settings.lockOrder = v; void save(); }),
     resetOrder,
     h("span", { class: "hint note", text: t("nell'isola le integrazioni del menu e i riquadri della Panoramica si riordinano trascinandoli; acceso, restano dove sono") }));
-  return h("section", {}, h("h2", {}, h("span", { text: t("Integrazioni") }), profileChip()), note, orderRow, list);
+  return h("section", {}, h("h2", {}, h("span", { text: t("Integrazioni") }), profileChip()), note, filterRow, list,
+    h("h3", { class: "int-sub", text: t("Menu dell'isola") }), orderRow);
+}
+
+/** The first sentence of a hint, for the integration's row. */
+function firstSentence(text: string): string {
+  const s = text.split(/(?<=\.)\s/)[0] ?? "";
+  return s.replace(/\.$/, "");
 }
 
 // ── Placement section ─────────────────────────────────────────────────────────
