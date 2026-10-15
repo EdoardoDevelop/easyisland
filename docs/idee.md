@@ -41,6 +41,22 @@ Preparata il 15 ottobre 2026 (`docs/integrazioni.md`). Da valutare dopo le prove
 3. **Riepilogo settimanale come immagine** da condividere (fatto il riepilogo il 9 ottobre): in Coucou `recap/share.ts`, con «Nascondi i nomi dei progetti».
 4. **GitHub:** PR con CI e revisioni, avvisi CI rossa/verde, griglia dei contributi. Da noi «GitHub rinnovato» era escluso.
 
+### Riletto il 15 ottobre 2026 (Windows/Linux 0.5.0, Mac 0.4.0): da scegliere con Edoardo
+- **Nuovo aspetto delle Impostazioni:** è il consigliato. Coucou ha una finestra unica (`windows/src/hub/`):
+  - in ogni pagina un'intestazione con titolo, sottotitolo e personaggi animati su nero con particelle (`hero.ts`), un colore per pagina;
+  - sezioni a riquadri con righe «titolo + descrizione a sinistra, comando a destra».
+  Le opzioni sono quasi le nostre: cambia la presentazione.
+- **Note delle chiamate (Notetaker):** registra il microfono e l'audio del PC, senza bot. Ne esce la trascrizione per persona, con riassunto, punti chiave e cose da fare; l'audio poi si cancella. Per noi: chiamate 3CX e riunioni, da allegare a un ticket Zammad o a Notion. Servono il riconoscimento vocale e l'avviso a chi è in chiamata.
+- **Dettatura ovunque (Flow):** tieni premuto un tasto, parli, il testo si incolla. Con dizionario, testi rapidi, stili per programma e statistiche. Il riconoscimento è locale: Parakeet con sherpa-onnx, circa 700 MB, italiano compreso. Condivide il riconoscimento con le note. In alternativa c'è la dettatura di Windows (`Win+H`).
+- **Opzioni piccole:**
+  - quanto tenere la cronologia (7 giorni, 30, un anno, per sempre);
+  - «ripristina i valori predefiniti» per pagina;
+  - aprire le Impostazioni quando EasyIsland si avvia a mano.
+- **Lasciati fuori per ora:**
+  - «OK Coucou», i comandi a voce: c'è già la chat, e un microfono sempre in ascolto in ufficio è delicato;
+  - l'app Android con un server in rete;
+  - i suoni da file: i nostri sono sintetizzati per scelta.
+
 ## Proposte al momento giusto (annotate il 13 ottobre 2026)
 Fatte il 14 ottobre 2026: download finito, errore copiato, server di sviluppo partito, password e chiavi tolte dagli appunti dopo 30 s (`strumenti.md`), riepilogo del mattino e di fine giornata, EasyIsland come server MCP per Claude Code (`agenti.md`). Possibili seguiti: «Chiudi il programma» sulla porta occupata (oggi solo chi la tiene), la cartella del progetto nella card del server di sviluppo (servirebbe leggere la riga di comando del processo).
 - **Dettatura ripulita:** tieni premuta una scorciatoia, parli anche male, nel campo arriva la frase pulita. Vuole riconoscimento vocale: un modello locale da ~200 MB o un servizio esterno; per ora no.
