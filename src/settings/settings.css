@@ -738,3 +738,15 @@ button.icon {
 .model-price.local { color: #4ADE80; }
 .model-price.paid { color: #F5B455; }
 .only-free { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+
+/* Notion: a page or database found by the picker (Impostazioni → Integrazioni → Notion). */
+button.notion-pick {
+  text-align: left;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-weight: 400;
+  background: rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

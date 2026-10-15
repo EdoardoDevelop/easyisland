@@ -1,5 +1,6 @@
 // The one field in the open island's top bar: the integrations (and agents'
 // sessions), the quick actions, the programs of the Start menu (start_apps.rs),
+// the Notion pages when Notion is set up (asked as the user stops typing, notion.rs),
 // and last the chat, asked what was typed. The results cover the views while
 // there is something typed; Enter opens the selected one, Ctrl+Enter asks the
 // chat, Esc clears.
@@ -9,7 +10,7 @@ import { ICONS } from "./icons";
 import { renderActionIcon } from "./action-icons";
 import { tabActions } from "./actions";
 import { State, isSessionTask, type QuickAction } from "../core/state";
-import { Bridge } from "../core/bridge";
+import { Bridge, type NotionPage } from "../core/bridge";
 import { t } from "../core/i18n";
 
 export interface SearchActions {
@@ -21,7 +22,7 @@ export interface SearchActions {
 }
 
 interface Hit {
-  kind: "Integrazione" | "Agente" | "Azione" | "Programma" | "Chat";
+  kind: "Integrazione" | "Agente" | "Azione" | "Programma" | "Notion" | "Chat";
   name: string;
   icon: () => Node;
   run: () => void;
@@ -39,11 +40,11 @@ function score(name: string, q: string): number {
   return n.includes(q) ? 1 : 0;
 }
 
-const KIND_LABEL: Record<Hit["kind"], string> = { Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Chat: "Ctrl+Invio" };
+const KIND_LABEL: Record<Hit["kind"], string> = { Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Notion: "Notion", Chat: "Ctrl+Invio" };
 
 /** How many of each kind at most, so programs do not drown the rest. */
 
-const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Chat: 1 };
+const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Notion: 5, Chat: 1 };
 
 /** The Start menu, read again after this long (a program installed meanwhile). */
 const APPS_TTL_MS = 5 * 60_000;
@@ -68,6 +69,21 @@ export function buildSearch(actions: SearchActions): SearchHost {
   let appsAt = 0;
   let hits: Hit[] = [];
   let sel = 0;
+  // Notion's answer for the words typed (it comes later than the rest).
+  let notion: { q: string; pages: NotionPage[] } = { q: "", pages: [] };
+  let notionTimer = 0;
+
+  const askNotion = (q: string) => {
+    window.clearTimeout(notionTimer);
+    const info = State.integrations.integration_notion;
+    if (q.length < 3 || !info?.configured || notion.q === q) return;
+    notionTimer = window.setTimeout(() => {
+      void Bridge.notionSearch(q, 5).then((pages) => {
+        notion = { q, pages };
+        if (input.value.trim() === q) refresh(true);
+      }).catch(() => {});
+    }, 400);
+  };
 
   const loadApps = () => {
     if (performance.now() - appsAt < APPS_TTL_MS && appsAt > 0) return;
@@ -101,6 +117,13 @@ export function buildSearch(actions: SearchActions): SearchHost {
       out.push({ kind: "Programma", name: p.name, score: s,
         icon: () => svg(ICONS.apps, 13), run: () => actions.openProgram(p.path) });
     }
+    if (notion.q === input.value.trim()) {
+      for (const p of notion.pages) {
+        out.push({ kind: "Notion", name: p.title || t("Senza titolo"), score: Math.max(1, score(p.title, q)),
+          icon: () => (p.emoji ? h("span", { text: p.emoji }) : markIcon("integration_notion", 14) ?? svg(ICONS.doc, 13)),
+          run: () => void Bridge.openUrl(p.url) });
+      }
+    }
     // Best match first; at equal match, the order of the kinds above.
     const kept: Hit[] = [];
     const used: Record<string, number> = {};
@@ -131,10 +154,14 @@ export function buildSearch(actions: SearchActions): SearchHost {
     (results.children[sel] as HTMLElement | undefined)?.scrollIntoView({ block: "nearest" });
   };
 
-  const refresh = () => {
+  /** `keep`: Notion answered, the selection stays where it is. */
+  const refresh = (keep = false) => {
     const q = fold(input.value.trim());
     hits = q ? collect(q) : [];
-    sel = 0;
+    if (!keep) {
+      sel = 0;
+      askNotion(input.value.trim());
+    } else if (sel >= hits.length) sel = 0;
     el.classList.toggle("open", !!q);
     if (q) draw();
     else clear(results);
@@ -154,7 +181,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
   // The island's window takes no keys until asked (as for the ⚡ search field).
   input.addEventListener("pointerdown", () => void Bridge.focusWindow(true));
   input.addEventListener("focus", () => { void Bridge.focusWindow(true); loadApps(); });
-  input.addEventListener("input", refresh);
+  input.addEventListener("input", () => refresh());
   input.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       e.stopPropagation();

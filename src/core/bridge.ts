@@ -174,8 +174,8 @@ export const Bridge = {
 
   // ── Chat, files, secrets ──────────────────────────────────────────────────
   /** One chat turn. The API key and any file bytes never leave Rust. */
-  chatSend: (query: string, context: ChatContext | null, engine: string | null = null) =>
-    callOrThrow<{ text: string }>("chat_send", { query, context, engine }),
+  chatSend: (query: string, context: ChatContext | null, engine: string | null = null, auto = false) =>
+    callOrThrow<{ text: string }>("chat_send", { query, context, engine, auto }),
   /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
   chatModels: (engine: string, url: string | null) => callOrThrow<ModelOption[]>("chat_models", { engine, url }),
   chatReset: () => call<void>("chat_reset"),
@@ -266,6 +266,17 @@ export const Bridge = {
   /** Pins a file of the tray: it stays across restarts and "Svuota". */
   inboxKeep: (name: string, keep: boolean) => callOrThrow<void>("inbox_keep", { name, keep }),
   inboxOpen: (name: string, reveal: boolean) => callOrThrow<void>("inbox_open", { name, reveal }),
+  /** Notion pages and databases matching `query`, most recently edited first (notion.rs). */
+  notionSearch: (query: string, limit = 8, kind: "page" | "database" | null = null) =>
+    callOrThrow<NotionPage[]>("notion_search", { query, limit, kind }),
+  /** "Fatto" on a task of the card (the database chosen in the settings). */
+  notionTaskDone: (id: string) => callOrThrow<void>("notion_task_done", { id }),
+  /** "Nuova nota": into the page or database chosen in the settings; its title back. */
+  notionAddNote: (text: string, stamp: string) => callOrThrow<string>("notion_add_note", { text, stamp }),
+  /** Another tasks database chosen: its properties are read again. */
+  notionForgetSchemas: () => call<void>("notion_forget_schemas"),
+  /** A Notion page's title and text, for the chat. */
+  notionPageText: (id: string) => callOrThrow<[string, string]>("notion_page_text", { id }),
   /** A picture of the tray on the clipboard. */
   inboxCopy: (name: string) => callOrThrow<void>("inbox_copy", { name }),
   /** A file anywhere (a finished download): open it as Explorer would, or select it there. */
@@ -637,6 +648,16 @@ export interface DailyDigest {
   repos: { name: string; path: string; branch: string; changed: number; ahead: number }[];
   /** null when neither `gh` nor a GitHub token is there. */
   prs: { title: string; repo: string; url: string; number: number; review: boolean }[] | null;
+}
+
+/** A Notion page or database (integrations.rs parse_notion_page). */
+export interface NotionPage {
+  id: string;
+  title: string;
+  emoji: string | null;
+  database?: boolean;
+  lastEditedAt: string;
+  url: string;
 }
 
 /** The frozen screen of "Cerchia e chiedi", physical px. */

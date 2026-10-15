@@ -7,11 +7,12 @@
 import { h, svg, clear, dot, brandOrDot } from "./dom";
 import { ICONS } from "./icons";
 import { State, PROBE_INTEGRATIONS, sessionOpenLabel, type AgentTask } from "../core/state";
-import { Bridge } from "../core/bridge";
+import { Bridge, type NotionPage } from "../core/bridge";
 import { THREECX, threecxCard } from "./threecx";
 import { weatherCard } from "./weather";
 import { netConfigCard, pingRow, resetNetConfig } from "./netconfig";
 import { locale, t } from "../core/i18n";
+import { Sound } from "../core/sound";
 
 /** Same shape as the Swift `timeAgo` computed properties. */
 export function timeAgo(value: unknown): string {
@@ -281,27 +282,251 @@ function stripeCard(): HTMLElement {
 
 // ── Notion ────────────────────────────────────────────────────────────────────
 
-function notionCard(): HTMLElement {
-  const rows = h("div", { class: "int-rows tight" });
-  for (const p of arr("integration_notion", "pages").slice(0, 3)) {
-    rows.append(
-      h(
-        "button",
-        {
-          class: "int-page",
-          onclick: () => {
-            if (typeof p.url === "string") void Bridge.openUrl(p.url);
-          },
-        },
-        p.emoji
-          ? h("span", { class: "int-emoji", text: String(p.emoji) })
-          : h("i", { class: "int-emoji" }, svg(ICONS.doc, 11)),
-        h("span", { class: "int-name", text: String(p.title ?? t("Senza titolo")) }),
-        h("span", { class: "int-ago", text: timeAgo(p.lastEditedAt) }),
-      ),
-    );
+/**
+ * Notion (notion.rs): the user's tasks from the database chosen in the
+ * settings (soonest first, ticked off with a click), "Nuova nota" into the
+ * page or database chosen there, the pages the user keeps in the card, and a
+ * search. A page opens in the Notion app when it is installed (lib.rs
+ * open_url_now); the bubble sends its text to the chat. What is being typed
+ * lives outside the card, which is rebuilt at every update.
+ */
+const notion = {
+  query: "",
+  found: null as NotionPage[] | null,
+  busy: false,
+  note: "",
+  timer: 0,
+  search: null as HTMLInputElement | null,
+  /** "Nuova nota": open, its text, and how the last save went. */
+  noteOpen: false,
+  noteArea: null as HTMLTextAreaElement | null,
+  noteState: "" as "" | "saving" | "saved" | "error",
+  noteMsg: "",
+  /** Tasks ticked off and waiting for Notion: hidden at once. */
+  ticking: new Set<string>(),
+  redraw: null as (() => void) | null,
+};
+
+function notionSearchSoon() {
+  window.clearTimeout(notion.timer);
+  const q = notion.query.trim();
+  if (q.length < 2) {
+    notion.found = null;
+    notion.busy = false;
+    notion.redraw?.();
+    return;
   }
-  return h("div", { class: "int-card" }, header("#E8E8E8", "Notion", t("Recenti")), rows);
+  notion.busy = true;
+  notion.redraw?.();
+  notion.timer = window.setTimeout(async () => {
+    try {
+      const found = await Bridge.notionSearch(q, 8);
+      if (notion.query.trim() !== q) return;
+      notion.found = found;
+      notion.note = "";
+    } catch (e) {
+      notion.note = String(e).replace(/^Error:\s*/, "");
+    }
+    notion.busy = false;
+    notion.redraw?.();
+  }, 350);
+}
+
+interface NotionTask { id: string; title: string; url: string; due: string | null; canTick: boolean }
+
+/** When a task is due, in words, and whether it is late. */
+export function dueLabel(due: string | null, now = new Date()): { text: string; late: boolean; today: boolean } {
+  if (!due) return { text: "", late: false, today: false };
+  const hasTime = due.includes("T");
+  const d = hasTime ? new Date(due) : new Date(`${due}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return { text: "", late: false, today: false };
+  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((day(d) - day(now)) / 86_400_000);
+  const time = hasTime ? ` ${d.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}` : "";
+  if (days < 0) return { text: days === -1 ? t("ieri") : t("{n} giorni fa", { n: -days }), late: true, today: false };
+  if (days === 0) {
+    const late = hasTime && d.getTime() < now.getTime();
+    return { text: `${t("oggi")}${time}`, late, today: true };
+  }
+  if (days === 1) return { text: `${t("domani")}${time}`, late: false, today: false };
+  return { text: d.toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "short" }), late: false, today: false };
+}
+
+function notionCard(hooks: IntegrationCardHooks): HTMLElement {
+  const cfg = State.settings.integrationConfig;
+  const data = get("integration_notion");
+  const all = arr("integration_notion", "tasks") as unknown as NotionTask[];
+  for (const id of notion.ticking) if (!all.some((x) => x.id === id)) notion.ticking.delete(id);
+  const tasks = all.filter((x) => !notion.ticking.has(x.id));
+  const due = tasks.filter((x) => dueLabel(x.due).late || dueLabel(x.due).today).length;
+
+  const body = h("div", { class: "notion-body" });
+  const msg = h("div", { class: "notion-note" });
+  const say = (text: string) => { msg.textContent = text; msg.style.display = text ? "" : "none"; };
+
+  const search = notion.search ?? (notion.search = h("input", {
+    class: "nc-input notion-search", placeholder: t("Cerca in Notion…"), spellcheck: "false",
+    onpointerdown: () => void Bridge.focusWindow(true),
+    oninput: (e: Event) => { notion.query = (e.target as HTMLInputElement).value; notionSearchSoon(); },
+    onkeydown: (e: Event) => {
+      const k = e as KeyboardEvent;
+      if (k.key === "Escape" && notion.query) {
+        k.stopPropagation();
+        notion.query = "";
+        (k.target as HTMLInputElement).value = "";
+        notionSearchSoon();
+      } else if (k.key === "Enter") {
+        const first = (notion.found ?? [])[0];
+        if (first) void Bridge.openUrl(first.url);
+      }
+    },
+  }) as HTMLInputElement);
+
+  const ask = async (p: { id: string }, b: HTMLElement) => {
+    b.classList.add("working");
+    try {
+      const [title, text] = await Bridge.notionPageText(p.id);
+      hooks.askAboutText(`Notion · ${title}`, text);
+    } catch (e) {
+      say(String(e).replace(/^Error:\s*/, ""));
+    } finally {
+      b.classList.remove("working");
+    }
+  };
+
+  const pageRow = (p: { id: string; title: string; emoji?: string | null; url: string; database?: boolean; lastEditedAt?: string }) => {
+    const askBtn: HTMLElement | null = p.database ? null
+      : iconButton(ICONS.bubble, t("Chiedi alla chat su questa pagina"), "#A78BFA", () => void ask(p, askBtn!));
+    return h("div", { class: "int-page", role: "button", title: t("Apri in Notion"),
+      onclick: () => { if (p.url) void Bridge.openUrl(p.url); } },
+    p.emoji
+      ? h("span", { class: "int-emoji", text: String(p.emoji) })
+      : h("i", { class: "int-emoji" }, svg(p.database ? ICONS.stack : ICONS.doc, 11)),
+    h("span", { class: "int-name", text: String(p.title || t("Senza titolo")) }),
+    p.lastEditedAt ? h("span", { class: "int-ago", text: timeAgo(p.lastEditedAt) }) : null,
+    askBtn ? h("span", { class: "notion-tools" }, askBtn) : null);
+  };
+
+  const taskRow = (x: NotionTask) => {
+    const when = dueLabel(x.due);
+    const tick = h("button", {
+      class: "notion-tick", title: x.canTick ? t("Segna come fatta") : t("Questo database non ha una casella o uno stato «fatto»"),
+      disabled: !x.canTick,
+      onclick: async (e: Event) => {
+        e.stopPropagation();
+        notion.ticking.add(x.id);
+        notion.redraw?.();
+        try {
+          await Bridge.notionTaskDone(x.id);
+          Sound.play("approve");
+        } catch (err) {
+          notion.ticking.delete(x.id);
+          say(String(err).replace(/^Error:\s*/, ""));
+          notion.redraw?.();
+        }
+      },
+    });
+    return h("div", { class: "int-page notion-task", role: "button", title: t("Apri in Notion"),
+      onclick: () => { if (x.url) void Bridge.openUrl(x.url); } },
+    tick,
+    h("span", { class: "int-name", text: x.title }),
+    when.text ? h("span", { class: `notion-due${when.late ? " due-late" : when.today ? " due-today" : ""}`, text: when.text }) : null);
+  };
+
+  const noteBox = () => {
+    const area = notion.noteArea ?? (notion.noteArea = h("textarea", {
+      class: "nc-input notion-note-area", rows: "3", spellcheck: "true",
+      placeholder: t("Scrivi la nota… (Ctrl+Invio per salvare)"),
+      onpointerdown: () => void Bridge.focusWindow(true),
+      onkeydown: (e: Event) => {
+        const k = e as KeyboardEvent;
+        if (k.key === "Enter" && (k.ctrlKey || k.metaKey)) { k.preventDefault(); void saveNote(); }
+        if (k.key === "Escape") { k.stopPropagation(); notion.noteOpen = false; notion.redraw?.(); }
+      },
+    }) as HTMLTextAreaElement);
+    const saveNote = async () => {
+      const text = area.value.trim();
+      if (!text || notion.noteState === "saving") return;
+      notion.noteState = "saving";
+      notion.redraw?.();
+      const now = new Date();
+      const stamp = `${now.toLocaleDateString(locale(), { day: "numeric", month: "short" })} ${now.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}`;
+      try {
+        const where = await Bridge.notionAddNote(text, stamp);
+        area.value = "";
+        notion.noteState = "saved";
+        notion.noteMsg = t("Salvata in «{p}» ✓", { p: where });
+        notion.noteOpen = false;
+        Sound.play("approve");
+      } catch (e) {
+        notion.noteState = "error";
+        notion.noteMsg = String(e).replace(/^Error:\s*/, "");
+      }
+      notion.redraw?.();
+    };
+    window.setTimeout(() => { if (area.isConnected && document.activeElement !== area) area.focus(); }, 0);
+    return h("div", { class: "notion-compose" }, area,
+      h("div", { class: "notion-compose-row" },
+        h("span", { class: "notion-note", text: t("In «{p}»", { p: cfg.notionInbox?.title || "Notion" }) }),
+        h("button", { class: "btn secondary", onclick: () => { notion.noteOpen = false; notion.redraw?.(); } }, h("span", { text: t("Annulla") })),
+        h("button", { class: "btn primary", disabled: notion.noteState === "saving", onclick: () => void saveNote() },
+          h("span", { text: notion.noteState === "saving" ? t("Salvo…") : t("Salva") }))));
+  };
+
+  const section = (label: string, extra?: Node | null) => h("div", { class: "notion-section" }, h("span", { text: label }), extra ?? null);
+
+  const draw = () => {
+    clear(body);
+    say("");
+    const searching = notion.query.trim().length >= 2;
+    if (searching) {
+      const list = notion.found ?? [];
+      for (const p of list) body.append(pageRow(p));
+      say(notion.note
+        || (notion.busy ? t("Cerco…") : "")
+        || (list.length === 0 ? t("Nessuna pagina trovata: l'integrazione vede solo le pagine condivise con lei.") : ""));
+      return;
+    }
+    if (notion.noteOpen && cfg.notionInbox) body.append(noteBox());
+    else if (notion.noteState === "saved" || notion.noteState === "error") {
+      body.append(h("div", { class: `notion-note${notion.noteState === "error" ? " bad" : ""}`, text: notion.noteMsg }));
+    }
+    const shown = tasks.filter((x) => !notion.ticking.has(x.id));
+    if (data.tasksSet) {
+      const more = shown.length > 5 ? h("button", { class: "link-btn", text: t("tutte ({n})", { n: shown.length }),
+        onclick: () => { if (cfg.notionTasks?.url) void Bridge.openUrl(cfg.notionTasks.url); } }) : null;
+      body.append(section(t("Da fare"), more));
+      if (typeof data.tasksError === "string" && data.tasksError) body.append(h("div", { class: "notion-note bad", text: data.tasksError }));
+      else if (shown.length === 0) body.append(h("div", { class: "notion-note", text: t("Niente da fare ✓") }));
+      for (const x of shown.slice(0, 5)) body.append(taskRow(x));
+    }
+    if (cfg.notionPins.length) {
+      body.append(section(t("Pagine")));
+      for (const p of cfg.notionPins.slice(0, 6)) body.append(pageRow(p));
+    }
+    if (!data.tasksSet && !cfg.notionPins.length && !cfg.notionInbox) {
+      body.append(h("div", { class: "notion-note", text: t("Scegli nelle Impostazioni il database delle tue attività, le pagine da tenere qui e dove salvare le note.") }),
+        h("button", { class: "btn secondary notion-setup", onclick: () => hooks.openSettings() }, h("span", { text: t("Impostazioni di Notion") })));
+    }
+  };
+  notion.redraw = () => {
+    // A tick or a note changes the header too: rebuild through the overview.
+    draw();
+    kind.textContent = sub();
+  };
+
+  const sub = () => (notion.query.trim().length >= 2 ? t("Risultati")
+    : data.tasksSet ? (due ? t("{n} da fare oggi", { n: due }) : t("In ordine")) : t("Le tue pagine"));
+  const noteBtn = cfg.notionInbox
+    ? h("button", { class: "link-btn notion-new", style: "color:#E8E8E8d9", text: `+ ${t("Nota")}`, title: t("Nuova nota in «{p}»", { p: cfg.notionInbox.title }),
+      onclick: () => { notion.noteOpen = !notion.noteOpen; notion.noteState = ""; notion.redraw?.(); } })
+    : undefined;
+  const head = header("#E8E8E8", "Notion", sub(), noteBtn);
+  const kind = head.querySelector("span:last-of-type") ?? h("span");
+  draw();
+  // Put back into a rebuilt card: the search keeps the keyboard.
+  if (notion.query) window.setTimeout(() => { if (search.isConnected) search.focus(); }, 0);
+  return h("div", { class: "int-card notion-card" }, head, search, body, msg);
 }
 
 // ── Cal.com ───────────────────────────────────────────────────────────────────
@@ -572,6 +797,8 @@ export interface IntegrationCardHooks {
   openSettings(): void;
   /** Appunti: open the chat with a picture of the history attached. */
   askAboutPicture(f: { name: string; path: string }): void;
+  /** Notion: open the chat with a page's text attached, waiting for the question. */
+  askAboutText(label: string, text: string): void;
 }
 
 /** True when this integration has data worth showing instead of the idle card. */
@@ -588,7 +815,7 @@ export function hasIntegrationData(id: string): boolean {
     case "integration_stripe":
       return info.loaded;
     case "integration_notion":
-      return arr(id, "pages").length > 0;
+      return info.loaded;
     case "integration_calcom":
       return info.loaded;
     default:
@@ -709,7 +936,7 @@ export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHoo
     case "integration_stripe":
       return stripeCard();
     case "integration_notion":
-      return notionCard();
+      return notionCard(hooks);
     case "integration_calcom":
       return calcomCard();
     default:

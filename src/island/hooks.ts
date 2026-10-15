@@ -245,14 +245,21 @@ function handleChatPermission(island: Island, payload: HookPayload) {
   // opencode's own tools (a command, a file): shown as they are, and "Sempre"
   // when opencode.rs offers it (read-only commands only).
   const opencode = payload.easyisland_engine === "opencode";
-  const plain = typeof input.command === "string" ? input.command : typeof input.path === "string" ? input.path : null;
+  // "Modalità terminale": Claude Code's own tools ask here too, with "Sempre"
+  // as in a terminal (its proposal, or this very thing for the session).
+  const terminal = State.settings.chatTerminal === true && !opencode;
+  const own = terminal && !raw.startsWith("mcp__");
+  const str = (k: string) => (typeof input[k] === "string" ? (input[k] as string) : null);
+  const plain = str("command") ?? str("path") ?? str("file_path") ?? str("url");
   State.pendingApproval = {
     requestId,
     sessionId: payload.session_id ?? "",
     tool,
-    command: opencode && plain != null ? `${tool} · ${plain}` : connectorTarget(raw, input),
+    command: (opencode || own) && plain != null ? `${tool} · ${plain}` : connectorTarget(raw, input),
     source: "chat",
-    always: opencode ? alwaysLabel(payload.permission_suggestions) ?? undefined : undefined,
+    always: opencode
+      ? alwaysLabel(payload.permission_suggestions) ?? undefined
+      : terminal ? alwaysLabel(payload.permission_suggestions) ?? sessionAlways(raw, input) ?? undefined : undefined,
     deadline: Date.now() + DECISION_MS,
   };
   if (requestId) void Bridge.approvalAck(requestId);

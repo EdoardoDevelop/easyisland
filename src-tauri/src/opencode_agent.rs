@@ -415,7 +415,7 @@ fn translate(state: &mut Sessions, ev: &Value) -> Vec<Out> {
             hook(base(state, "SessionEnd", &session))
         }
         "permission.asked" => {
-            let (mut payload, _) = crate::opencode::permission_payload(&data);
+            let (mut payload, _) = crate::opencode::permission_payload(&data, false);
             payload.as_object_mut().map(|m| {
                 m.remove("easyisland_chat");
                 m.remove("easyisland_engine");

@@ -29,6 +29,7 @@ mod mcp_setup;
 mod media;
 mod moments;
 mod netconfig;
+mod notion;
 mod openai;
 mod opencode;
 mod opencode_agent;
@@ -610,14 +611,53 @@ fn open_url(url: String) {
 }
 
 /// Opens an http(s) link in the default browser; anything else is ignored.
+/// A notion.so link opens in the Notion app when it is installed (notion.rs).
 pub(crate) fn open_url_now(url: &str) {
     if !(url.starts_with("http://") || url.starts_with("https://")) {
         return;
     }
+    let target = notion::link_for(url);
     let _ = Command::new("rundll32.exe")
-        .args(["url.dll,FileProtocolHandler", url])
+        .args(["url.dll,FileProtocolHandler", target.as_deref().unwrap_or(url)])
         .creation_flags(CREATE_NO_WINDOW)
         .spawn();
+}
+
+/// Notion pages and databases matching `query` (card and search bar).
+#[tauri::command]
+async fn notion_search(query: String, limit: Option<usize>, kind: Option<String>) -> Result<Vec<serde_json::Value>, String> {
+    notion::search(&query, limit.unwrap_or(8), kind.as_deref()).await
+}
+
+/// "Fatto" on a task of the Notion card, then the card reads the tasks again.
+#[tauri::command]
+async fn notion_task_done(app: AppHandle, shared: State<'_, Shared>, id: String) -> Result<(), String> {
+    let db = shared.settings.lock().unwrap().integration_config.notion_tasks.as_ref().map(|r| r.id.clone());
+    let db = db.ok_or_else(|| t("Scegli il database delle attività nelle Impostazioni").to_string())?;
+    notion::set_done(&db, &id).await?;
+    notion::poll(app).await;
+    Ok(())
+}
+
+/// "Nuova nota" from the Notion card: to the page or database chosen in the settings.
+#[tauri::command]
+async fn notion_add_note(shared: State<'_, Shared>, text: String, stamp: String) -> Result<String, String> {
+    let target = shared.settings.lock().unwrap().integration_config.notion_inbox.clone();
+    let target = target.ok_or_else(|| t("Scegli nelle Impostazioni dove salvare le note").to_string())?;
+    notion::add_note(&target.id, target.database, &text, &stamp).await?;
+    Ok(target.title)
+}
+
+/// The settings chose another database: its properties are read again.
+#[tauri::command]
+fn notion_forget_schemas() {
+    notion::forget_schemas();
+}
+
+/// "Chiedi alla chat" on a Notion page: its title and text.
+#[tauri::command]
+async fn notion_page_text(id: String) -> Result<(String, String), String> {
+    notion::page_text(&id).await
 }
 
 /// "Apri Visual Studio Code" on the VS Code pill: the working folder in VS Code
@@ -760,6 +800,22 @@ fn approval_decline(app: AppHandle, request_id: String) {
 
 // ── Chat, files and secrets ───────────────────────────────────────────────────
 
+/// What `Chat::use_engine` gets: engine, model and "Modalità terminale" —
+/// any of them changed, the conversation starts over.
+fn chat_key(engine: &str, model: &str, terminal: bool) -> String {
+    if terminal { format!("{engine}:{model}:terminal") } else { format!("{engine}:{model}") }
+}
+
+/// "Modalità terminale": the folder the chat works in — the user's, if it
+/// exists, else their home.
+fn chat_folder(chosen: &str) -> std::path::PathBuf {
+    let chosen = std::path::PathBuf::from(chosen.trim());
+    if !chosen.as_os_str().is_empty() && chosen.is_dir() {
+        return chosen;
+    }
+    std::env::var_os("USERPROFILE").map(std::path::PathBuf::from).unwrap_or_else(|| std::path::PathBuf::from("C:\\"))
+}
+
 /// One chat turn. The API key and any file bytes stay on the Rust side.
 #[tauri::command]
 async fn chat_send(
@@ -769,19 +825,22 @@ async fn chat_send(
     query: String,
     context: Option<ChatContext>,
     engine: Option<String>,
+    auto: Option<bool>,
 ) -> Result<ChatReply, String> {
-    let (engine, model, cli_model, mcp, agent, other_model, url) = {
+    let (engine, model, cli_model, mcp, agent, other_model, url, terminal) = {
         let s = shared.settings.lock().unwrap();
         // The engine picked in the chat for this conversation, else the default.
         let e = engine.filter(|e| !e.is_empty()).unwrap_or_else(|| s.chat_engine.clone());
         let other = s.engine_models.get(&e).cloned().unwrap_or_default();
         let url = s.engine_urls.get(&e).cloned();
-        (e, s.model.clone(), s.cli_model.clone(), s.mcp_servers.clone(), s.agent_tools, other, url)
+        let terminal = s.chat_terminal.then(|| chat_folder(&s.chat_folder));
+        (e, s.model.clone(), s.cli_model.clone(), s.mcp_servers.clone(), s.agent_tools, other, url, terminal)
     };
     // A different model is a different conversation too: start over (an
     // opencode conversation left behind is deleted from opencode's history).
+    // So is turning "Modalità terminale" on or off.
     let before = chat.cli_session();
-    chat.use_engine(&format!("{engine}:{other_model}"));
+    chat.use_engine(&chat_key(&engine, &other_model, terminal.is_some()));
     if before.is_some() && chat.cli_session().is_none() {
         opencode::forget(before);
     }
@@ -792,14 +851,37 @@ async fn chat_send(
         Some(p) => format!("{p}{query}"),
         None => query,
     };
-    let reply = if engine == "api" {
-        claude::send(&chat, &model, query, context).await
-    } else if engine == "opencode" {
-        opencode::send(&app, &chat, &other_model, query, context).await
-    } else if openai::ENGINES.contains(&engine.as_str()) {
-        openai::send(&app, &chat, &engine, &other_model, url.as_deref(), query, context).await
-    } else {
-        claude_cli::send(&chat, &cli_model, &mcp, agent, query, context).await
+    let on_text = |text: &str| {
+        let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "text": text }));
+    };
+    // "Automatica" (the chat's switch): only with Modalità terminale.
+    let auto = auto.unwrap_or(false) && terminal.is_some();
+    if auto {
+        log::line(format!("chat: turno in automatica ({engine})"));
+    }
+    let reply = match (&terminal, engine.as_str()) {
+        (Some(folder), "opencode") => {
+            let o = opencode::Options { folder: Some(folder.clone()), auto, ..Default::default() };
+            opencode::send(&app, &chat, &other_model, query, context, &o).await
+        }
+        // "Modalità terminale" for an engine without tools: through opencode.
+        (Some(folder), e) if e == "api" || openai::ENGINES.contains(&e) => {
+            let api_model = if e == "api" { model.clone() } else { other_model.clone() };
+            match opencode::via(e, &api_model, url.as_deref()) {
+                Ok((m, mut o)) if opencode::find_exe().is_some() => {
+                    o.folder = Some(folder.clone());
+                    o.auto = auto;
+                    opencode::send(&app, &chat, &m, query, context, &o).await
+                }
+                Ok(_) => Err(t("La modalità terminale con questo motore passa da opencode, che non è installato su questo PC (npm i -g @opencode/cli, oppure opencode.ai). Oppure spegnila in Impostazioni → Chat.").into()),
+                Err(e) => Err(e),
+            }
+        }
+        (Some(folder), _) => claude_cli::send(&chat, &cli_model, &mcp, agent, query, context, Some(folder), auto, &on_text).await,
+        (None, "api") => claude::send(&chat, &model, query, context).await,
+        (None, "opencode") => opencode::send(&app, &chat, &other_model, query, context, &opencode::Options::default()).await,
+        (None, e) if openai::ENGINES.contains(&e) => openai::send(&app, &chat, &engine, &other_model, url.as_deref(), query, context).await,
+        (None, _) => claude_cli::send(&chat, &cli_model, &mcp, agent, query, context, None, false, &on_text).await,
     };
     match &reply {
         Ok(r) if shared.settings.lock().unwrap().chat_history => chat_log::record(&chat, &engine, &asked, &r.text),
@@ -844,13 +926,13 @@ async fn rewrite_text(app: AppHandle, shared: State<'_, Shared>, prompt: String,
     let reply = if engine == "api" {
         claude::send(&chat, &model, query, context).await
     } else if engine == "opencode" {
-        let r = opencode::send(&app, &chat, &other_model, query, context).await;
+        let r = opencode::send(&app, &chat, &other_model, query, context, &opencode::Options::default()).await;
         opencode::forget(chat.cli_session());
         r
     } else if openai::ENGINES.contains(&engine.as_str()) {
         openai::send(&app, &chat, &engine, &other_model, url.as_deref(), query, context).await
     } else {
-        claude_cli::send(&chat, &cli_model, &[], false, query, context).await
+        claude_cli::send(&chat, &cli_model, &[], false, query, context, None, false, &|_| {}).await
     };
     let reply = context::clean_reply(&reply?.text);
     let (Some(clip), Some(marked)) = (html, marked) else {
@@ -921,8 +1003,11 @@ fn chat_history_open(shared: State<'_, Shared>, chat: State<'_, Chat>, id: Strin
     let before = chat.cli_session();
     let engine = chat_log::engine_of(&id).ok_or_else(|| t("Questa conversazione non c'è più.").to_string())?;
     // The key chat_send will compute for this engine, so it does not start over.
-    let model = shared.settings.lock().unwrap().engine_models.get(&engine).cloned().unwrap_or_default();
-    let opened = chat_log::open(&chat, &id, &format!("{engine}:{model}"))?;
+    let (model, terminal) = {
+        let s = shared.settings.lock().unwrap();
+        (s.engine_models.get(&engine).cloned().unwrap_or_default(), s.chat_terminal)
+    };
+    let opened = chat_log::open(&chat, &id, &chat_key(&engine, &model, terminal))?;
     opencode::forget(before);
     Ok(opened)
 }
@@ -1737,6 +1822,11 @@ pub fn run() {
             restart_app,
             inbox_open,
             inbox_copy,
+            notion_search,
+            notion_page_text,
+            notion_task_done,
+            notion_add_note,
+            notion_forget_schemas,
             inbox_drag,
             mouse_button_down,
             zip_extract,

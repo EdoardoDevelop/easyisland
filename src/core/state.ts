@@ -466,6 +466,10 @@ export interface Settings {
   contextActions: boolean;
   /** The chat (Claude Code engine) may use EasyIsland's tools: open programs, quick actions… */
   agentTools: boolean;
+  /** "Modalità terminale" (docs/chat.md): the chat works as Claude Code / opencode in a terminal, in chatFolder. */
+  chatTerminal?: boolean;
+  /** Its working folder; "" = the user's home. */
+  chatFolder?: string;
   /** opencode 2's sessions in the island, from its background service (opencode_agent.rs). Of the PC. */
   opencodeWatch?: boolean;
   /** "Quando… allora…" rules, run by src-tauri/src/automations.rs. */
@@ -506,6 +510,21 @@ export interface IntegrationConfig {
   threecxAlert: boolean;
   /** 3CX: name of the user's own ringtone; "" = the built-in one. */
   threecxRingtone: string;
+  /** Notion: the pages and databases kept in the card. */
+  notionPins: NotionRef[];
+  /** Notion: the database of the user's tasks. */
+  notionTasks: NotionRef | null;
+  /** Notion: where "Nuova nota" writes (a page or a database). */
+  notionInbox: NotionRef | null;
+}
+
+/** A Notion page or database chosen in the settings (settings.rs NotionRef). */
+export interface NotionRef {
+  id: string;
+  title: string;
+  emoji: string | null;
+  url: string;
+  database: boolean;
 }
 
 /** A user-defined button in the Azioni tab. */
@@ -790,6 +809,8 @@ export const DEFAULT_SETTINGS: Settings = {
   hotkeySelectionMenu: "Win+Alt+A",
   contextActions: true,
   agentTools: true,
+  chatTerminal: false,
+  chatFolder: "",
   opencodeWatch: false,
   automations: [],
   habitsEnabled: false,
@@ -801,6 +822,7 @@ export const DEFAULT_SETTINGS: Settings = {
     systemWarn: 10, outlookWarn: 10, weatherCity: "", weatherOnCharacter: false, planInHeader: true,
     threecxMode: "user", threecxExtension: "", threecxDevice: "",
     threecxRing: true, threecxAlert: true, threecxRingtone: "",
+    notionPins: [], notionTasks: null, notionInbox: null,
   },
 };
 
@@ -889,6 +911,8 @@ class AppState {
   chatHistory: ChatMessage[] = [];
   /** The engine picked in the chat's menu for the conversation in progress; null = the default (settings.chatEngine). Never saved. */
   chatEngineOverride: ChatEngine | null = null;
+  /** "Automatica" (chat head, Modalità terminale only): no Consenti / Nega for this conversation. Never saved. */
+  chatAuto = false;
   /** The engine the chat uses right now. */
   get chatEngine(): ChatEngine {
     return this.chatEngineOverride ?? this.settings.chatEngine;

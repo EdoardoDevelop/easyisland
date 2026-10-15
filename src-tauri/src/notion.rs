@@ -1,0 +1,570 @@
+// The Notion integration (integrations.rs → poll_notion calls `poll` here):
+// - the user's tasks from the database chosen in the settings (`tasks`): not
+//   done, soonest first; "fatto" ticks them off (`set_done`, one click);
+// - "Nuova nota" (`add_note`): a paragraph at the end of the chosen page, or a
+//   row in the chosen database;
+// - the pages the user keeps in the card (settings only, nothing to fetch);
+// - search (card and search bar) and a page's text for the chat;
+// - a notion.so link opens in the Notion app when it is installed (notion://).
+// Only what the integration's token can see. It never deletes anything.
+
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+use serde::Serialize;
+use serde_json::{json, Value};
+use tauri::{AppHandle, Manager};
+
+use crate::i18n::t;
+use crate::probes::reg;
+use crate::secrets;
+
+const API: &str = "https://api.notion.com/v1";
+const VERSION: &str = "2022-06-28";
+/// A page's text for the chat: enough for a summary, never a whole wiki.
+const MAX_CHARS: usize = 30_000;
+const MAX_BLOCKS: usize = 400;
+
+/// True when the Notion app registered its notion:// links (it does at install).
+fn app_installed() -> bool {
+    reg::Key::exists(reg::HKEY_CURRENT_USER, r"Software\Classes\notion")
+        || reg::Key::exists(reg::HKEY_LOCAL_MACHINE, r"SOFTWARE\Classes\notion")
+}
+
+/// A notion.so link as the app's own link (same path), or None for any other site.
+pub fn app_link(url: &str) -> Option<String> {
+    let rest = url.strip_prefix("https://").or_else(|| url.strip_prefix("http://"))?;
+    let host = rest.split(['/', '?', '#']).next().unwrap_or("").to_ascii_lowercase();
+    let path = rest.get(host.len()..).unwrap_or("");
+    match host.as_str() {
+        "notion.so" | "www.notion.so" => Some(format!("notion://www.notion.so{path}")),
+        // The links the API gives since 2026: app.notion.com/p/<title-id>.
+        "app.notion.com" => Some(format!("notion://www.notion.so{}", path.strip_prefix("/p/").map_or(path.to_string(), |p| format!("/{p}")))),
+        // Public sites (*.notion.site) and anything else stay in the browser.
+        _ => None,
+    }
+}
+
+/// The link to open: in the Notion app when it is there, the web link otherwise.
+pub fn link_for(url: &str) -> Option<String> {
+    app_link(url).filter(|_| app_installed())
+}
+
+fn client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(12))
+        .build()
+        .unwrap_or_default()
+}
+
+fn token() -> Result<String, String> {
+    secrets::get("notion-api-key").ok_or_else(|| t("Notion non è configurato").to_string())
+}
+
+async fn call(req: reqwest::RequestBuilder) -> Result<Value, String> {
+    let r = req
+        .header("Authorization", format!("Bearer {}", token()?))
+        .header("Notion-Version", VERSION)
+        .send()
+        .await
+        .map_err(|_| t("Notion non risponde").to_string())?;
+    if !r.status().is_success() {
+        return Err(match r.status().as_u16() {
+            401 => t("Il token di Notion non è valido").to_string(),
+            403 => t("L'integrazione di Notion non ha il permesso: nelle sue impostazioni su notion.so attiva leggere, aggiornare e inserire contenuti").to_string(),
+            404 => t("La pagina non è condivisa con l'integrazione di Notion").to_string(),
+            429 => t("Notion chiede di aspettare un momento").to_string(),
+            code => format!("Notion: HTTP {code}"),
+        });
+    }
+    r.json().await.map_err(|e| e.to_string())
+}
+
+/// Pages and databases whose title matches `query`, most recently edited
+/// first; `kind` "page" or "database" keeps only those.
+pub async fn search(query: &str, limit: usize, kind: Option<&str>) -> Result<Vec<Value>, String> {
+    let mut body = json!({
+        "query": query.trim(),
+        "sort": { "direction": "descending", "timestamp": "last_edited_time" },
+        "page_size": limit.clamp(1, 20),
+    });
+    if let Some(k @ ("page" | "database")) = kind {
+        body["filter"] = json!({ "property": "object", "value": k });
+    }
+    let v = call(client().post(format!("{API}/search")).json(&body)).await?;
+    Ok(v.get("results")
+        .and_then(Value::as_array)
+        .map(|list| list.iter().filter_map(crate::integrations::parse_notion_page).collect())
+        .unwrap_or_default())
+}
+
+/// The text of a rich_text array.
+fn plain(rich: Option<&Value>) -> String {
+    rich.and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(|r| r.get("plain_text").and_then(Value::as_str)).collect())
+        .unwrap_or_default()
+}
+
+/// One block as a line of text (markdown-ish), or None for what has no text.
+fn block_line(b: &Value) -> Option<String> {
+    let kind = b.get("type")?.as_str()?;
+    let body = b.get(kind)?;
+    let text = plain(body.get("rich_text"));
+    let line = match kind {
+        "heading_1" => format!("# {text}"),
+        "heading_2" => format!("## {text}"),
+        "heading_3" => format!("### {text}"),
+        "bulleted_list_item" => format!("- {text}"),
+        "numbered_list_item" => format!("1. {text}"),
+        "to_do" => {
+            let done = body.get("checked").and_then(Value::as_bool).unwrap_or(false);
+            format!("- [{}] {text}", if done { "x" } else { " " })
+        }
+        "quote" | "callout" => format!("> {text}"),
+        "code" => format!("```\n{text}\n```"),
+        "paragraph" | "toggle" => text,
+        "child_page" | "child_database" => format!("[{}]", body.get("title").and_then(Value::as_str).unwrap_or("")),
+        "divider" => "---".into(),
+        _ => return None,
+    };
+    Some(line)
+}
+
+/// A page's title and text (top-level blocks and one level below), for the chat.
+pub async fn page_text(id: &str) -> Result<(String, String), String> {
+    if id.is_empty() || !id.chars().all(|c| c.is_ascii_hexdigit() || c == '-') {
+        return Err(t("Pagina di Notion non valida").into());
+    }
+    let page = call(client().get(format!("{API}/pages/{id}"))).await?;
+    let title = crate::integrations::parse_notion_page(&page)
+        .and_then(|p| p.get("title").and_then(Value::as_str).map(String::from))
+        .unwrap_or_else(|| t("Senza titolo").into());
+
+    let mut lines: Vec<String> = Vec::new();
+    let mut size = 0usize;
+    let mut blocks = 0usize;
+    let mut cursor: Option<String> = None;
+    'pages: loop {
+        let mut url = format!("{API}/blocks/{id}/children?page_size=100");
+        if let Some(c) = &cursor {
+            url.push_str(&format!("&start_cursor={c}"));
+        }
+        let v = call(client().get(url)).await?;
+        for b in v.get("results").and_then(Value::as_array).into_iter().flatten() {
+            blocks += 1;
+            if let Some(line) = block_line(b) {
+                size += line.len();
+                lines.push(line);
+            }
+            // Toggles and list items keep their content one level down.
+            if b.get("has_children").and_then(Value::as_bool) == Some(true)
+                && !matches!(b.get("type").and_then(Value::as_str), Some("child_page" | "child_database"))
+            {
+                if let Some(child) = b.get("id").and_then(Value::as_str) {
+                    if let Ok(inner) = call(client().get(format!("{API}/blocks/{child}/children?page_size=100"))).await {
+                        for c in inner.get("results").and_then(Value::as_array).into_iter().flatten() {
+                            blocks += 1;
+                            if let Some(line) = block_line(c) {
+                                size += line.len();
+                                lines.push(format!("  {line}"));
+                            }
+                        }
+                    }
+                }
+            }
+            if size > MAX_CHARS || blocks > MAX_BLOCKS {
+                lines.push(t("[…il resto della pagina è stato tagliato]").to_string());
+                break 'pages;
+            }
+        }
+        cursor = v.get("next_cursor").and_then(Value::as_str).map(String::from);
+        if cursor.is_none() || v.get("has_more").and_then(Value::as_bool) != Some(true) {
+            break;
+        }
+    }
+    let text = lines.join("\n");
+    if text.trim().is_empty() {
+        return Err(t("La pagina di Notion è vuota").into());
+    }
+    Ok((title, text))
+}
+
+// ── Tasks ─────────────────────────────────────────────────────────────────────
+
+/// How "done" is written in a tasks database.
+#[derive(Clone, Debug, PartialEq)]
+enum Done {
+    /// A checkbox ("Fatto", "Done"…).
+    Checkbox(String),
+    /// A status: the options of its "complete" group, the first one set by "fatto".
+    Status { prop: String, done: Vec<String> },
+    /// Nothing to tick: the tasks are listed, not ticked off.
+    None,
+}
+
+/// What EasyIsland needs of a database: its title, due date and done properties.
+#[derive(Clone, Debug, PartialEq)]
+struct Schema {
+    title: String,
+    date: Option<String>,
+    done: Done,
+}
+
+static SCHEMAS: Mutex<Option<HashMap<String, Schema>>> = Mutex::new(None);
+
+/// The property whose name best matches `words`, among those of `kind`.
+fn pick(props: &serde_json::Map<String, Value>, kind: &str, words: &[&str]) -> Option<String> {
+    let mut of_kind: Vec<&String> = props
+        .iter()
+        .filter(|(_, p)| p.get("type").and_then(Value::as_str) == Some(kind))
+        .map(|(n, _)| n)
+        .collect();
+    of_kind.sort();
+    of_kind
+        .iter()
+        .find(|n| {
+            let l = n.to_lowercase();
+            words.iter().any(|w| l.contains(w))
+        })
+        .or_else(|| of_kind.first())
+        .map(|n| n.to_string())
+}
+
+fn schema_of(db: &Value) -> Option<Schema> {
+    let props = db.get("properties")?.as_object()?;
+    let title = props.iter().find(|(_, p)| p.get("type").and_then(Value::as_str) == Some("title"))?.0.clone();
+    let date = pick(props, "date", &["scad", "due", "deadline", "data", "date", "quando", "entro"]);
+    let done = if let Some(prop) = pick(props, "status", &["stato", "status"]) {
+        let status = props.get(&prop).and_then(|p| p.get("status"));
+        let options: Vec<(String, String)> = status
+            .and_then(|s| s.get("options")?.as_array().cloned())
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|o| Some((o.get("id")?.as_str()?.to_string(), o.get("name")?.as_str()?.to_string())))
+            .collect();
+        let groups = status.and_then(|s| s.get("groups")?.as_array().cloned()).unwrap_or_default();
+        // The "Complete" group (any language), else the last one.
+        let complete = groups
+            .iter()
+            .find(|g| {
+                let n = g.get("name").and_then(Value::as_str).unwrap_or("").to_lowercase();
+                ["complete", "completat", "done", "fatto", "chius", "termin"].iter().any(|w| n.contains(w))
+            })
+            .or_else(|| groups.last());
+        let ids: Vec<String> = complete
+            .and_then(|g| g.get("option_ids")?.as_array().cloned())
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect();
+        let done: Vec<String> = options.iter().filter(|(id, _)| ids.contains(id)).map(|(_, n)| n.clone()).collect();
+        if done.is_empty() { Done::None } else { Done::Status { prop, done } }
+    } else if let Some(prop) = pick(props, "checkbox", &["fatt", "done", "complet", "chius", "termin"]) {
+        Done::Checkbox(prop)
+    } else {
+        Done::None
+    };
+    Some(Schema { title, date, done })
+}
+
+async fn schema(db: &str) -> Result<Schema, String> {
+    if let Some(s) = SCHEMAS.lock().ok().and_then(|m| m.as_ref()?.get(db).cloned()) {
+        return Ok(s);
+    }
+    let v = call(client().get(format!("{API}/databases/{db}"))).await?;
+    let s = schema_of(&v).ok_or_else(|| t("Il database di Notion non ha un titolo").to_string())?;
+    if let Ok(mut m) = SCHEMAS.lock() {
+        m.get_or_insert_with(HashMap::new).insert(db.to_string(), s.clone());
+    }
+    Ok(s)
+}
+
+/// The query's filter: not done.
+fn not_done_filter(done: &Done) -> Option<Value> {
+    match done {
+        Done::Checkbox(p) => Some(json!({ "property": p, "checkbox": { "equals": false } })),
+        Done::Status { prop, done } => {
+            let and: Vec<Value> = done.iter().map(|d| json!({ "property": prop, "status": { "does_not_equal": d } })).collect();
+            Some(json!({ "and": and }))
+        }
+        Done::None => None,
+    }
+}
+
+/// A task for the card.
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Task {
+    id: String,
+    title: String,
+    url: String,
+    /// "2026-10-14" or "2026-10-14T15:00:00.000+02:00"; None without a date.
+    due: Option<String>,
+    /// The database lets EasyIsland tick it off.
+    can_tick: bool,
+}
+
+/// The tasks not done, soonest due first, then those without a date.
+pub async fn tasks(db: &str) -> Result<Vec<Task>, String> {
+    let s = schema(db).await?;
+    let mut body = json!({ "page_size": 40 });
+    if let Some(f) = not_done_filter(&s.done) {
+        body["filter"] = f;
+    }
+    if let Some(d) = &s.date {
+        body["sorts"] = json!([{ "property": d, "direction": "ascending" }]);
+    }
+    let v = call(client().post(format!("{API}/databases/{db}/query")).json(&body)).await?;
+    let mut out: Vec<Task> = v
+        .get("results")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|p| {
+            let props = p.get("properties")?;
+            let title = plain(props.get(&s.title).and_then(|t| t.get("title")));
+            let due = s
+                .date
+                .as_ref()
+                .and_then(|d| props.get(d)?.get("date")?.get("start")?.as_str().map(String::from));
+            Some(Task {
+                id: p.get("id")?.as_str()?.to_string(),
+                title: if title.trim().is_empty() { t("Senza titolo").to_string() } else { title },
+                url: p.get("url").and_then(Value::as_str).unwrap_or("").to_string(),
+                due,
+                can_tick: s.done != Done::None,
+            })
+        })
+        .collect();
+    // Notion puts the empty dates first when sorting ascending: those go last.
+    out.sort_by(|a, b| match (&a.due, &b.due) {
+        (Some(x), Some(y)) => x.cmp(y),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => std::cmp::Ordering::Equal,
+    });
+    Ok(out)
+}
+
+/// "Fatto" on a task: its checkbox ticked, or its status set to the first "complete" one.
+pub async fn set_done(db: &str, page: &str) -> Result<(), String> {
+    check_id(page)?;
+    let s = schema(db).await?;
+    let props = match &s.done {
+        Done::Checkbox(p) => one(p, json!({ "checkbox": true })),
+        Done::Status { prop, done } => one(prop, json!({ "status": { "name": done.first().cloned().unwrap_or_default() } })),
+        Done::None => return Err(t("Questo database non ha una casella o uno stato «fatto»").into()),
+    };
+    call(client().patch(format!("{API}/pages/{page}")).json(&json!({ "properties": props }))).await?;
+    Ok(())
+}
+
+/// `{ key: value }` with a key known only at run time.
+fn one(key: &str, value: Value) -> Value {
+    let mut m = serde_json::Map::new();
+    m.insert(key.to_string(), value);
+    Value::Object(m)
+}
+
+fn check_id(id: &str) -> Result<(), String> {
+    if id.is_empty() || !id.chars().all(|c| c.is_ascii_hexdigit() || c == '-') {
+        return Err(t("Pagina di Notion non valida").into());
+    }
+    Ok(())
+}
+
+// ── Notes ─────────────────────────────────────────────────────────────────────
+
+/// Text as rich_text pieces of at most 2000 characters (Notion's limit).
+fn rich(text: &str) -> Vec<Value> {
+    let chars: Vec<char> = text.chars().collect();
+    chars
+        .chunks(2000)
+        .map(|c| json!({ "type": "text", "text": { "content": c.iter().collect::<String>() } }))
+        .collect()
+}
+
+/// One paragraph block per line (empty lines dropped), at most 90.
+fn paragraphs(text: &str) -> Vec<Value> {
+    text.lines()
+        .map(str::trim_end)
+        .filter(|l| !l.trim().is_empty())
+        .take(90)
+        .map(|l| json!({ "object": "block", "type": "paragraph", "paragraph": { "rich_text": rich(l) } }))
+        .collect()
+}
+
+/// "Nuova nota": in a database, a row titled with the first line (the rest
+/// inside); in a page, the text appended at the end, after the date and time.
+pub async fn add_note(target_id: &str, database: bool, text: &str, stamp: &str) -> Result<(), String> {
+    check_id(target_id)?;
+    let text = text.trim();
+    if text.is_empty() {
+        return Err(t("Scrivi qualcosa").into());
+    }
+    if database {
+        let s = schema(target_id).await?;
+        let (first, rest) = text.split_once('\n').unwrap_or((text, ""));
+        let title: String = first.chars().take(200).collect();
+        let body = json!({
+            "parent": { "database_id": target_id },
+            "properties": one(&s.title, json!({ "title": rich(&title) })),
+            "children": paragraphs(rest),
+        });
+        call(client().post(format!("{API}/pages")).json(&body)).await?;
+    } else {
+        let mut blocks = vec![json!({ "object": "block", "type": "paragraph", "paragraph": { "rich_text": [
+            { "type": "text", "text": { "content": stamp }, "annotations": { "bold": true, "color": "gray" } }
+        ] } })];
+        blocks.extend(paragraphs(text));
+        call(client().patch(format!("{API}/blocks/{target_id}/children")).json(&json!({ "children": blocks }))).await?;
+    }
+    Ok(())
+}
+
+// ── Polling ───────────────────────────────────────────────────────────────────
+
+/// Every 5 minutes (and on "Aggiorna"): the tasks, or with no tasks database
+/// just a check that the token works. The card's pages come from the settings.
+pub async fn poll(app: AppHandle) {
+    if secrets::get("notion-api-key").is_none() {
+        return;
+    }
+    let tasks_db = app.try_state::<crate::Shared>().and_then(|s| {
+        s.settings.lock().ok().and_then(|g| g.integration_config.notion_tasks.as_ref().map(|r| r.id.clone()))
+    });
+    let (data, error) = match tasks_db {
+        Some(db) => match tasks(&db).await {
+            Ok(list) => (json!({ "tasks": list, "tasksSet": true }), None),
+            // The card still works without them: the error goes on the tasks only.
+            Err(e) => (json!({ "tasks": [], "tasksSet": true, "tasksError": e }), None),
+        },
+        None => match call(client().get(format!("{API}/users/me"))).await {
+            Ok(_) => (json!({ "tasks": [], "tasksSet": false }), None),
+            Err(e) => (json!({}), Some(e)),
+        },
+    };
+    crate::integrations::emit(&app, crate::integrations::IntegrationUpdate {
+        id: "integration_notion",
+        data,
+        error,
+        event: None,
+    });
+}
+
+/// A database chosen again in the settings: its properties are read again.
+pub fn forget_schemas() {
+    if let Ok(mut m) = SCHEMAS.lock() {
+        *m = None;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn notion_links_become_app_links() {
+        assert_eq!(app_link("https://www.notion.so/Piano-abc123").as_deref(), Some("notion://www.notion.so/Piano-abc123"));
+        assert_eq!(app_link("https://notion.so/team/Pagina-1?pvs=4").as_deref(), Some("notion://www.notion.so/team/Pagina-1?pvs=4"));
+        assert_eq!(app_link("https://notion.so").as_deref(), Some("notion://www.notion.so"));
+        assert_eq!(
+            app_link("https://app.notion.com/p/Piano-3f984c09bb6781128e7feb757ba97f87").as_deref(),
+            Some("notion://www.notion.so/Piano-3f984c09bb6781128e7feb757ba97f87")
+        );
+        assert_eq!(app_link("https://acme.notion.site/Pubblica-1"), None);
+        assert_eq!(app_link("https://notion.so.evil.com/x"), None);
+        assert_eq!(app_link("https://github.com"), None);
+        assert_eq!(app_link("notion://www.notion.so/x"), None);
+    }
+
+    /// On a PC with the Notion app: `cargo test --lib notion::tests::live -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn live_link() {
+        println!("app installata: {}", app_installed());
+        println!("link: {:?}", link_for("https://www.notion.so/Prova-0123456789abcdef0123456789abcdef"));
+        if std::env::var("NOTION_OPEN").is_ok() {
+            let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+            let pages = rt.block_on(search("", 1, None)).unwrap();
+            let url = pages.first().and_then(|p| p.get("url")).and_then(Value::as_str).unwrap().to_string();
+            println!("pagina: {url}");
+            println!("apro: {:?}", link_for(&url));
+            crate::open_url_now(&url);
+            std::thread::sleep(std::time::Duration::from_secs(3));
+        }
+    }
+
+    /// The databases the token sees and what EasyIsland would use of each:
+    /// `NOTION_DBS=1 cargo test --lib notion::tests::live_databases -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn live_databases() {
+        if std::env::var("NOTION_DBS").is_err() {
+            return;
+        }
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let dbs = rt.block_on(search("", 20, Some("database"))).unwrap();
+        for d in dbs {
+            let id = d.get("id").and_then(Value::as_str).unwrap_or("").to_string();
+            let s = rt.block_on(schema(&id));
+            println!("{} → {:?}", d.get("title").and_then(Value::as_str).unwrap_or(""), s);
+        }
+    }
+
+    #[test]
+    fn task_databases() {
+        let db = json!({ "properties": {
+            "Nome": { "type": "title", "title": {} },
+            "Creato": { "type": "created_time" },
+            "Scadenza": { "type": "date", "date": {} },
+            "Stato": { "type": "status", "status": {
+                "options": [ { "id": "a", "name": "Da fare" }, { "id": "b", "name": "In corso" }, { "id": "c", "name": "Fatto" } ],
+                "groups": [
+                    { "name": "To-do", "option_ids": ["a"] },
+                    { "name": "In progress", "option_ids": ["b"] },
+                    { "name": "Complete", "option_ids": ["c"] }
+                ] } }
+        } });
+        let s = schema_of(&db).unwrap();
+        assert_eq!(s.title, "Nome");
+        assert_eq!(s.date.as_deref(), Some("Scadenza"));
+        assert_eq!(s.done, Done::Status { prop: "Stato".into(), done: vec!["Fatto".into()] });
+        assert_eq!(
+            not_done_filter(&s.done).unwrap(),
+            json!({ "and": [{ "property": "Stato", "status": { "does_not_equal": "Fatto" } }] })
+        );
+
+        let db = json!({ "properties": {
+            "Task": { "type": "title", "title": {} },
+            "Urgente": { "type": "checkbox", "checkbox": {} },
+            "Done": { "type": "checkbox", "checkbox": {} },
+        } });
+        let s = schema_of(&db).unwrap();
+        assert_eq!(s.done, Done::Checkbox("Done".into()));
+        assert_eq!(s.date, None);
+
+        let notes = json!({ "properties": { "Titolo": { "type": "title", "title": {} } } });
+        assert_eq!(schema_of(&notes).unwrap().done, Done::None);
+        assert!(schema_of(&json!({ "properties": {} })).is_none());
+    }
+
+    #[test]
+    fn notes_as_blocks() {
+        assert_eq!(paragraphs("uno\n\n  \ndue").len(), 2);
+        let long = "x".repeat(4500);
+        assert_eq!(rich(&long).len(), 3);
+        assert!(paragraphs("").is_empty());
+    }
+
+    #[test]
+    fn blocks_as_text() {
+        let b = json!({ "type": "heading_2", "heading_2": { "rich_text": [{ "plain_text": "Obiettivi" }] } });
+        assert_eq!(block_line(&b).as_deref(), Some("## Obiettivi"));
+        let b = json!({ "type": "to_do", "to_do": { "checked": true, "rich_text": [{ "plain_text": "Fatto" }] } });
+        assert_eq!(block_line(&b).as_deref(), Some("- [x] Fatto"));
+        let b = json!({ "type": "image", "image": {} });
+        assert_eq!(block_line(&b), None);
+        assert_eq!(block_line(&json!({ "type": "paragraph" })), None);
+    }
+}

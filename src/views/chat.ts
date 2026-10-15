@@ -79,7 +79,10 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
   const historyBtn = h("button", { class: "history-btn", title: t("Cronologia delle chat") }, svg(ICONS.history, 13, { stroke: 2 })) as HTMLButtonElement;
   const historyMenu = h("div", { class: "history-menu" });
   historyMenu.style.display = "none";
-  const head = h("div", { class: "chat-head" }, chipRow, engineBtn, historyBtn, engineMenu);
+  // "Automatica" (Modalità terminale): this conversation goes on without
+  // Consenti / Nega — Claude Code's auto mode, everything for opencode.
+  const autoBtn = h("button", { class: "auto-btn" }, svg(ICONS.bolt, 12), h("span", { text: t("Automatica") })) as HTMLButtonElement;
+  const head = h("div", { class: "chat-head" }, chipRow, engineBtn, autoBtn, historyBtn, engineMenu);
   const log = h("div", { class: "chat-log" });
   // A reply arriving (OpenAI-compatible engines stream it, openai.rs).
   let streamEl: HTMLElement | null = null;
@@ -172,7 +175,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
           if (State.chatSession === asked) asked.fork = r.fork;
           return r;
         })
-        : await Bridge.chatSend(query, context, State.chatEngine);
+        : await Bridge.chatSend(query, context, State.chatEngine, State.chatAuto && State.settings.chatTerminal === true);
       State.chatHistory.push({ id: nextId++, role: "assistant", content: reply.text });
       State.stateOverride = null;
       Sound.play("finish");
@@ -202,8 +205,9 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     State.chatWindow = null;
     State.promptContext = null;
     State.chatSession = null;
-    // An engine picked in the menu was for that conversation only.
+    // An engine picked in the menu was for that conversation only; so was "Automatica".
     State.chatEngineOverride = null;
+    State.chatAuto = false;
     void Bridge.chatReset();
     Sound.play("blip");
     State.notify();
@@ -323,6 +327,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       State.promptContext = null;
       State.chatSession = null;
       State.chatEngineOverride = c.engine === State.settings.chatEngine ? null : (c.engine as ChatEngine);
+      State.chatAuto = false;
       renderedCount = -1;
       Sound.play("blip");
       showHistory(false);
@@ -341,6 +346,12 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     void toggleEngineMenu();
   });
   historyBtn.addEventListener("click", () => void toggleHistory());
+  autoBtn.addEventListener("click", () => {
+    State.chatAuto = !State.chatAuto;
+    Sound.play("blip");
+    State.notify();
+    input.focus();
+  });
   // Drawn in the island (a native <select> menu would open behind it); a click elsewhere closes it.
   document.addEventListener("pointerdown", (e) => {
     if (engineMenu.style.display !== "none" && !head.contains(e.target as Node)) engineMenu.style.display = "none";
@@ -408,6 +419,17 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       engineBtn.textContent = `${engineLabel({ ...State.settings, chatEngine: State.chatEngine })} ▾`;
       // Asking a session: Claude Code answers, whatever the chat's engine.
       engineBtn.style.display = asked ? "none" : "";
+      // "Automatica": only with Modalità terminale, never on a session copy.
+      const terminal = State.settings.chatTerminal === true && !asked;
+      const auto = terminal && State.chatAuto;
+      autoBtn.style.display = terminal ? "" : "none";
+      autoBtn.classList.toggle("on", auto);
+      el.querySelector(".chat-card")?.classList.toggle("auto", auto);
+      autoBtn.title = State.chatEngine === "subscription"
+        ? (auto ? t("Automatica: Claude Code decide da solo e blocca le azioni rischiose. Clic per tornare a Consenti / Nega")
+          : t("Automatica: in questa conversazione Claude Code non chiede conferma per le azioni normali e blocca quelle rischiose"))
+        : (auto ? t("Automatica: comandi e modifiche normali vanno da soli; cancellare, pubblicare, installare o cambiare il sistema chiede ancora. Clic per tornare a Consenti / Nega")
+          : t("Automatica: in questa conversazione comandi e modifiche normali vanno senza chiedere; cancellare, pubblicare, installare o cambiare il sistema chiede ancora"));
       const thinking = State.stateOverride === "thinking";
       const count = State.chatHistory.length + (thinking ? 0.5 : 0) + (streamed ? 0.25 : 0);
       if (count !== renderedCount) {

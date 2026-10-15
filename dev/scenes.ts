@@ -124,6 +124,16 @@ export async function runScene(island: Island, scene: string) {
       break;
     case "chat": {
       await wait(300);
+      // ?terminal: Modalità terminale on, the "Automatica" switch in the head (&auto: on).
+      if (new URLSearchParams(location.search).has("terminal")) {
+        State.settings.chatTerminal = true;
+        State.chatAuto = new URLSearchParams(location.search).has("auto");
+        State.chatHistory = [
+          { id: 1, role: "user", content: "Che file ci sono in questa cartella?" },
+          { id: 2, role: "assistant", content: "> ⚙ Esegue · `Get-ChildItem`\n\nCi sono `package.json`, `src` e `README.md`." },
+        ];
+        State.notify();
+      }
       // ?long: a pasted path with no spaces in the history.
       if (new URLSearchParams(location.search).has("long")) {
         State.chatHistory = [
@@ -369,6 +379,44 @@ export async function runScene(island: Island, scene: string) {
       State.setFocus("integration_network");
       island.alert("overview");
       await wait(2500);
+      break;
+    }
+    case "notion": {
+      // ?activeIntegrations=integration_notion — tasks, pinned pages, + Nota, search (Bridge mocked), the chat on a page.
+      const ago = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+      const pages = [
+        { id: "a1", title: "Piano di lancio Q4", emoji: "🚀", lastEditedAt: ago(12), url: "https://www.notion.so/a1" },
+        { id: "a2", title: "Riunione clienti 14 ottobre", emoji: null, lastEditedAt: ago(55), url: "https://www.notion.so/a2" },
+        { id: "a3", title: "Ticket aperti", emoji: "🎫", database: true, lastEditedAt: ago(130), url: "https://www.notion.so/a3" },
+        { id: "a4", title: "Procedure di assistenza", emoji: "🛠️", lastEditedAt: ago(60 * 26), url: "https://www.notion.so/a4" },
+        { id: "a5", title: "Idee EasyIsland", emoji: "💡", lastEditedAt: ago(60 * 50), url: "https://www.notion.so/a5" },
+      ];
+      Object.assign(Bridge, {
+        notionSearch: async (q: string) => { await wait(300); return pages.filter((p) => p.title.toLowerCase().includes(q.toLowerCase())); },
+        notionPageText: async () => ["Piano di lancio Q4", "# Obiettivi\n- 500 utenti\n- [ ] Homepage nuova"],
+      });
+      const day = (n: number) => { const d = new Date(Date.now() + n * 86_400_000); return d.toISOString().slice(0, 10); };
+      const tasks = [
+        { id: "t1", title: "Rinnovo certificato SSL cliente Rossi", url: "https://www.notion.so/t1", due: day(-2), canTick: true },
+        { id: "t2", title: "Chiamare il fornitore per il preventivo", url: "https://www.notion.so/t2", due: day(0), canTick: true },
+        { id: "t3", title: "Backup NAS ufficio", url: "https://www.notion.so/t3", due: day(1), canTick: true },
+        { id: "t4", title: "Aggiornare la documentazione VPN", url: "https://www.notion.so/t4", due: day(5), canTick: true },
+        { id: "t5", title: "Idee per il sito", url: "https://www.notion.so/t5", due: null, canTick: true },
+      ];
+      Object.assign(Bridge, {
+        notionTaskDone: async () => { await wait(400); },
+        notionAddNote: async () => { await wait(500); return "Inbox"; },
+      });
+      State.settings.integrationConfig.notionPins = pages.filter((p) => ["a1", "a3", "a4"].includes(p.id))
+        .map((p) => ({ id: p.id, title: p.title, emoji: p.emoji, url: p.url, database: !!p.database }));
+      State.settings.integrationConfig.notionTasks = { id: "db", title: "Attività", emoji: "✅", url: "https://www.notion.so/db", database: true };
+      State.settings.integrationConfig.notionInbox = new URLSearchParams(location.search).has("noinbox") ? null
+        : { id: "in", title: "Inbox", emoji: "📥", url: "https://www.notion.so/in", database: false };
+      await wait(300);
+      State.integrations.integration_notion = { data: { tasks, tasksSet: true }, error: null, loaded: true, configured: true };
+      State.setFocus("integration_notion");
+      island.alert("overview");
+      await wait(1500);
       break;
     }
     case "usage": {
