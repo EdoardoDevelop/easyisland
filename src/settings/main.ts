@@ -6,7 +6,7 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage } from "../core/bridge";
-import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type NotionRef, type Settings, type WidgetDef } from "../core/state";
+import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationCondition, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
@@ -855,6 +855,8 @@ const INTEGRATIONS: IntegrationDef[] = [
     fields: [{ key: "notion-api-key", label: t("Token"), placeholder: "ntn_…", secret: true }],
     hint: t("Le tue attività da un database (oggi e scadute, spuntate con un clic), le note veloci in una pagina o in un database, le pagine che tieni a portata e la ricerca. Le pagine si aprono nell'app Notion se è installata. Crea un'integrazione interna su notion.so/profile/integrations (leggere, aggiornare e inserire contenuti), copia il token e condividi con lei le pagine e i database che vuoi usare (… → Connessioni)."),
     extra: () => notionRows() },
+  { id: "integration_rdm", name: "Remote Desktop Manager", color: "#E8542A", fields: [], extra: () => rdmRows(),
+    hint: t("Le tue connessioni di Remote Desktop Manager, cercate e aperte dall'isola: nella card, nella barra in alto, su una chiamata 3CX, su un ticket Zammad e dal testo selezionato (Win+Alt+A). Si collega sempre RDM: EasyIsland trova la connessione e gliela fa aprire o modificare. L'elenco arriva dal modulo PowerShell di Devolutions, qualunque sia l'origine dati (file, Devolutions Server, Hub, SQL), con i permessi di chi usa il PC: solo nome, cartella, indirizzo e tipo, mai le password, e resta in memoria. Senza il modulo la ricerca si apre dentro RDM e ci si connette comunque a un indirizzo.") },
   { id: "integration_calcom", name: "Cal.com", color: "#C9956A",
     fields: [{ key: "calcom-api-key", label: t("Chiave API"), placeholder: "cal_…", secret: true }] },
   { id: "integration_outlook", name: "Outlook", color: "#0A84D6", fields: [],
@@ -964,6 +966,241 @@ function notionPicker(placeholder: string, kind: "page" | "database" | null, onP
   return h("div", { style: "display:flex;flex-direction:column;gap:4px;flex:1 1 auto;min-width:0" }, input, results);
 }
 
+/** The properties of the tasks database, read once per database (notion.rs → properties). */
+let notionProps: { db: string; list: { name: string; kind: string; options: [string, string][] }[] | null; error: string } | null = null;
+
+const PERIODS: [string, string][] = [
+  ["all", t("Tutte le date")],
+  ["today", t("Scadute e di oggi")],
+  ["week", t("Fino a domenica")],
+  ["month", t("Fino a fine mese")],
+  ["days", t("Nei prossimi giorni…")],
+];
+
+/**
+ * Impostazioni → Notion → Viste: named filters of the tasks (settings.rs
+ * NotionView). Each one: a period, the undated ones or not, the order, and
+ * for each select, multi-select, status or relation the values wanted.
+ */
+function notionViewsEditor(db: string, saved: () => void): HTMLElement {
+  const c = settings.integrationConfig;
+  const box = h("div", { style: "display:flex;flex-direction:column;gap:8px" });
+  if (!notionProps || notionProps.db !== db) {
+    const mine = { db, list: null, error: "" } as NonNullable<typeof notionProps>;
+    notionProps = mine;
+    Bridge.notionProperties(db)
+      .then((l) => { mine.list = l; })
+      .catch((e) => { mine.error = String(e).replace(/^Error:\s*/, ""); })
+      .finally(() => { if (notionProps === mine) draw(); });
+  }
+  let timer = 0;
+  const later = () => { window.clearTimeout(timer); timer = window.setTimeout(saved, 600); };
+
+  const uniqueName = (base: string) => {
+    const names = new Set((c.notionViews ?? []).map((v) => v.name));
+    if (!names.has(base)) return base;
+    let n = 2;
+    while (names.has(`${base} ${n}`)) n++;
+    return `${base} ${n}`;
+  };
+  const add = (v: Partial<NotionView>) => {
+    const views = c.notionViews ?? [];
+    if (views.length >= 6) return;
+    c.notionViews = [...views, { name: uniqueName(v.name ?? t("Vista")), period: "all", days: 7, undated: true, filters: [], sort: "due", ...v, }];
+    saved();
+    draw();
+  };
+
+  function viewBox(v: NotionView): HTMLElement {
+    const name = h("input", { type: "text", value: v.name, spellcheck: "false", style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
+    name.addEventListener("input", () => {
+      const next = name.value.trim();
+      if (!next || (c.notionViews ?? []).some((x) => x !== v && x.name === next)) return;
+      if (c.notionView === v.name) c.notionView = next;
+      v.name = next;
+      later();
+    });
+    const remove = h("button", { text: t("Togli"), onclick: () => {
+      c.notionViews = (c.notionViews ?? []).filter((x) => x !== v);
+      if (c.notionView === v.name) c.notionView = "";
+      saved();
+      draw();
+    } });
+    const period = h("select", {}, ...PERIODS.map(([id, label]) => h("option", { value: id, text: label }))) as HTMLSelectElement;
+    period.value = v.period || "all";
+    const days = h("input", { type: "number", min: "1", max: "366", value: String(v.days || 7), style: "width:64px" }) as HTMLInputElement;
+    const showDays = () => { days.style.display = period.value === "days" ? "" : "none"; };
+    period.addEventListener("change", () => { v.period = period.value; showDays(); saved(); });
+    days.addEventListener("input", () => { const n = Math.round(Number(days.value)); if (n >= 1 && n <= 366) { v.days = n; later(); } });
+    showDays();
+    const sort = h("select", {},
+      h("option", { value: "due", text: t("Per scadenza") }),
+      h("option", { value: "priority", text: t("Per priorità") })) as HTMLSelectElement;
+    sort.value = v.sort === "priority" ? "priority" : "due";
+    sort.addEventListener("change", () => { v.sort = sort.value; saved(); });
+
+    const filters = h("div", { style: "display:flex;flex-direction:column;gap:6px" });
+    const props = notionProps?.list ?? [];
+    for (const p of props) {
+      const current = () => v.filters.find((f) => f.prop === p.name);
+      const chips = p.options.map(([value, label]) => {
+        const b = h("button", { class: "chip-opt", text: label, title: label }) as HTMLButtonElement;
+        const paint = () => b.classList.toggle("on", !!current()?.values.includes(value));
+        b.addEventListener("click", () => {
+          let f = current();
+          if (!f) { f = { prop: p.name, kind: p.kind, values: [] }; v.filters.push(f); }
+          f.values = f.values.includes(value) ? f.values.filter((x) => x !== value) : [...f.values, value];
+          if (f.values.length === 0) v.filters = v.filters.filter((x) => x !== f);
+          paint();
+          saved();
+        });
+        paint();
+        return b;
+      });
+      filters.append(h("div", { class: "row", style: "align-items:flex-start" },
+        h("span", { class: "hint", style: "min-width:84px;padding-top:3px", text: p.name }),
+        h("div", { class: "chip-opts" }, ...chips)));
+    }
+    if (notionProps?.error) filters.append(h("div", { class: "notice warn", text: notionProps.error }));
+    else if (!notionProps?.list) filters.append(h("div", { class: "hint", text: t("Leggo le colonne del database…") }));
+    else if (props.length) filters.append(h("div", { class: "hint", text: t("In ogni riga, nessuna scelta = tutte; più scelte = una qualsiasi.") }));
+
+    return h("div", { class: "notion-view-edit" },
+      h("div", { class: "row" }, name, remove),
+      h("div", { class: "row" }, h("span", { class: "hint", style: "min-width:84px", text: t("Scadenza") }), period, days,
+        h("label", { class: "inline-check" }, toggle(v.undated, (on) => { v.undated = on; saved(); }), h("span", { text: t("anche senza scadenza") }))),
+      h("div", { class: "row" }, h("span", { class: "hint", style: "min-width:84px", text: t("Ordine") }), sort),
+      filters);
+  }
+
+  function draw() {
+    clear(box);
+    const views = c.notionViews ?? [];
+    for (const v of views) box.append(viewBox(v));
+    if (views.length < 6) {
+      box.append(h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" },
+        h("button", { text: `+ ${t("Nuova vista")}`, onclick: () => add({}) }),
+        h("button", { text: `+ ${t("Oggi")}`, onclick: () => add({ name: t("Oggi"), period: "today", undated: false }) }),
+        h("button", { text: `+ ${t("Settimana")}`, onclick: () => add({ name: t("Settimana"), period: "week", undated: false }) }),
+        h("button", { text: `+ ${t("Tutte")}`, onclick: () => add({ name: t("Tutte"), period: "all", undated: true }) })));
+    }
+  }
+  draw();
+  return box;
+}
+
+/**
+ * Remote Desktop Manager: what is installed and what is missing (each with
+ * the command to type, never run from here), the workspace to read, the list.
+ */
+function rdmRows(): HTMLElement {
+  const box = h("div", { style: "display:flex;flex-direction:column;gap:8px" });
+  const c = settings.integrationConfig;
+  const copyBtn = (text: string) => {
+    const b = h("button", { text: t("Copia") }) as HTMLButtonElement;
+    b.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(text); b.textContent = t("Copiato ✓"); } catch { b.textContent = t("Non riuscito"); }
+      window.setTimeout(() => { b.textContent = t("Copia"); }, 1600);
+    });
+    return b;
+  };
+  const line = (ok: boolean | null, label: string, value: string, fix?: string) => h("div", { style: "display:flex;flex-direction:column;gap:4px" },
+    h("div", { class: "row" },
+      statusDot(ok ?? false),
+      h("span", { style: "min-width:150px", text: label }),
+      h("span", { class: "hint", style: "flex:1 1 auto;min-width:0;overflow-wrap:anywhere", text: value })),
+    fix ? h("div", { class: "row", style: "padding-left:18px" }, h("code", { class: "path", text: fix }), copyBtn(fix)) : null);
+
+  const state = h("div", { style: "display:flex;flex-direction:column;gap:6px" }, h("div", { class: "hint", text: t("Controllo…") }));
+  const check = async () => {
+    const s = await Bridge.rdmStatus();
+    clear(state);
+    if (!s) { state.append(h("div", { class: "hint", text: t("Disponibile nell'app installata.") })); return; }
+    state.append(
+      line(!!s.exe || s.protocol, "Remote Desktop Manager", s.exe ?? (s.protocol ? t("solo i link rdm://") : t("non trovato su questo PC"))),
+      line(!!s.pwsh, t("PowerShell 7"), s.pwsh ?? t("manca: serve per leggere l'elenco"), s.pwsh ? undefined : "winget install Microsoft.PowerShell"),
+      line(!!s.module, t("Modulo di Devolutions"), s.module ? `Devolutions.PowerShell ${s.module}` : t("manca: da installare in PowerShell 7, della stessa versione di RDM"),
+        s.module || !s.pwsh ? undefined : "Install-Module Devolutions.PowerShell -Scope CurrentUser"),
+      line(s.count > 0 ? true : s.listError ? false : null, t("Elenco"),
+        s.count > 0 ? t("{n} connessioni da «{ds}»", { n: s.count, ds: s.dataSource ?? "RDM" }) : s.listError ?? t("non ancora letto")),
+    );
+  };
+
+  const reread = h("button", { text: t("Rileggi l'elenco") }) as HTMLButtonElement;
+  reread.addEventListener("click", async () => {
+    reread.disabled = true;
+    reread.textContent = t("Leggo…");
+    await Bridge.refreshIntegration("integration_rdm");
+    await check();
+    reread.disabled = false;
+    reread.textContent = t("Rileggi l'elenco");
+  });
+
+  // The workspace: RDM's current one, or one chosen (loaded on request: it starts PowerShell).
+  const source = h("select", {}, h("option", { value: "", text: t("Quella aperta in RDM") })) as HTMLSelectElement;
+  if (c.rdmDataSource) source.append(h("option", { value: c.rdmDataSource, text: t("Scelta prima ({id})", { id: c.rdmDataSource.slice(0, 8) }) }));
+  source.value = c.rdmDataSource ?? "";
+  source.addEventListener("change", () => {
+    c.rdmDataSource = source.value;
+    void save();
+    void Bridge.refreshIntegration("integration_rdm").then(check);
+  });
+  const load = h("button", { text: t("Carica le origini") }) as HTMLButtonElement;
+  const sourceNote = h("span", { class: "hint note" });
+  load.addEventListener("click", async () => {
+    load.disabled = true;
+    sourceNote.textContent = t("Chiedo a RDM…");
+    try {
+      const list = await Bridge.rdmDataSources();
+      clear(source);
+      source.append(h("option", { value: "", text: t("Quella aperta in RDM") }));
+      for (const d of list) source.append(h("option", { value: d.id, text: d.kind ? `${d.name} (${d.kind})` : d.name }));
+      source.value = list.some((d) => d.id === c.rdmDataSource) ? c.rdmDataSource ?? "" : "";
+      sourceNote.textContent = t("{n} origini dati", { n: list.length });
+    } catch (e) {
+      sourceNote.textContent = String(e).replace(/^Error:\s*/, "");
+    }
+    load.disabled = false;
+  });
+
+  box.append(
+    state,
+    h("div", { class: "row" }, reread, h("span", { class: "hint note", text: t("si rilegge da solo ogni 30 minuti") })),
+    h("div", { class: "row" }, h("label", { style: "min-width:104px", text: t("Origine dati") }), source, load, sourceNote),
+    h("div", { class: "hint", text: t("Con più origini (il tuo file, il server dei colleghi…) scegli quale leggere. Ognuno legge con i propri permessi di RDM: un collega vede solo ciò che vede in RDM. Se l'origine chiede un accesso o un secondo fattore, aprila prima in RDM e salva le credenziali.") }),
+  );
+  void check();
+  return box;
+}
+
+/** What notion_suggest found, once per window. */
+let notionFound: Promise<Awaited<ReturnType<typeof Bridge.notionSuggest>>> | null = null;
+
+/**
+ * Notion, before anything is chosen: the databases that look like tasks or
+ * notes, one click each. Nothing shows when nothing fits (or no token yet).
+ */
+function notionQuickSetup(useTasks: (r: NotionRef) => void, useNotes: (r: NotionRef) => void): HTMLElement {
+  const c = settings.integrationConfig;
+  const box = h("div", { class: "notice", style: "display:none;flex-direction:column;gap:6px" });
+  notionFound ??= Bridge.notionSuggest().catch(() => []);
+  void notionFound.then((list) => {
+    const tasks = c.notionTasks ? [] : list.filter((d) => d.tasks).slice(0, 2);
+    const notes = c.notionInbox ? [] : list.filter((d) => d.notes && !d.tasks).slice(0, 2);
+    if (!tasks.length && !notes.length) return;
+    box.append(h("b", { text: t("Configurazione rapida") }),
+      h("div", { class: "hint", text: t("Ho trovato questi database: un clic e la card è pronta (poi si cambia tutto qui sotto).") }));
+    for (const d of tasks) box.append(h("div", { class: "row" },
+      h("span", { style: "flex:1 1 auto;min-width:0", text: `${notionIcon(notionRef(d))}  ${d.title}` }),
+      h("button", { class: "primary", text: t("Usa per le attività"), onclick: () => useTasks(notionRef(d)) })));
+    for (const d of notes) box.append(h("div", { class: "row" },
+      h("span", { style: "flex:1 1 auto;min-width:0", text: `${notionIcon(notionRef(d))}  ${d.title}` }),
+      h("button", { text: t("Usa per le note"), onclick: () => useNotes(notionRef(d)) })));
+    box.style.display = "flex";
+  });
+  return box;
+}
+
 /** Notion: the tasks database, where notes go, the pages kept in the card. */
 function notionRows(): HTMLElement {
   const box = h("div", { style: "display:flex;flex-direction:column;gap:10px" });
@@ -980,13 +1217,31 @@ function notionRows(): HTMLElement {
     h("label", { style: "min-width:104px;padding-top:2px", text: label }),
     h("div", { style: "display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-width:0" }, h("div", { class: "hint", text: hint }), ...rows));
 
+  // A tasks database chosen: three views to start from, "Oggi" in the card.
+  const useTasks = (r: NotionRef) => {
+    const c = settings.integrationConfig;
+    c.notionTasks = r;
+    c.notionViews = [
+      { name: t("Oggi"), period: "today", days: 7, undated: false, filters: [], sort: "due" },
+      { name: t("Settimana"), period: "week", days: 7, undated: false, filters: [], sort: "due" },
+      { name: t("Tutte"), period: "all", days: 7, undated: true, filters: [], sort: "due" },
+    ];
+    c.notionView = t("Oggi");
+    changed(true);
+  };
+
   function draw() {
     clear(box);
     const c = settings.integrationConfig;
+    if (!c.notionTasks || !c.notionInbox) box.append(notionQuickSetup(useTasks, (r) => { c.notionInbox = r; changed(true); }));
     box.append(
       block(t("Attività"), t("Il database delle tue cose da fare: la card mostra quelle non fatte, prima le scadute e quelle di oggi. Serve una data e una casella o uno stato «fatto»."),
-        c.notionTasks ? chosen(c.notionTasks, () => { c.notionTasks = null; changed(true); })
-          : notionPicker(t("Cerca il database…"), "database", (r) => { c.notionTasks = r; changed(true); })),
+        c.notionTasks ? chosen(c.notionTasks, () => { c.notionTasks = null; c.notionViews = []; c.notionView = ""; changed(true); })
+          : notionPicker(t("Cerca il database…"), "database", useTasks)),
+      ...(c.notionTasks
+        ? [block(t("Viste"), t("Quali attività vedere nella card: per scadenza, categoria, contesto, progetto… Con più viste, nella card le cambi con un clic. Senza viste compaiono tutte quelle non fatte."),
+          notionViewsEditor(c.notionTasks.id, () => { void save(); void Bridge.refreshIntegration("integration_notion"); }))]
+        : []),
       block(t("Note"), t("Dove va «+ Nota»: in una pagina il testo si aggiunge in fondo con data e ora, in un database diventa una riga nuova."),
         c.notionInbox ? chosen(c.notionInbox, () => { c.notionInbox = null; changed(true); })
           : notionPicker(t("Cerca una pagina o un database…"), null, (r) => { c.notionInbox = r; changed(true); })),
@@ -996,6 +1251,18 @@ function notionRows(): HTMLElement {
           if (!c.notionPins.some((x) => x.id === r.id)) c.notionPins = [...c.notionPins, r];
           changed();
         })),
+      block(t("Avvisi"), t("Notion non passa alle integrazioni le sue notifiche (menzioni, promemoria): EasyIsland le ricava dalle attività e dai commenti, ogni 5 minuti, e le mostra nell'isola. Un clic apre la pagina."),
+        h("div", { class: "row" },
+          toggle(c.notionAlertDue !== false, (v) => { c.notionAlertDue = v; void save(); }),
+          h("span", { text: t("Prima di un'attività con orario") }),
+          select<string>([["0", t("all'ora")], ["5", t("5 minuti prima")], ["10", t("10 minuti prima")], ["15", t("15 minuti prima")], ["30", t("30 minuti prima")], ["60", t("un'ora prima")]],
+            String(c.notionAlertLead ?? 10), (v) => { c.notionAlertLead = Number(v); void save(); })),
+        h("div", { class: "row" },
+          toggle(c.notionAlertComments !== false, (v) => { c.notionAlertComments = v; void save(); }),
+          h("span", { text: t("Nuovi commenti sulle pagine qui sopra e sulle attività di oggi") })),
+        h("div", { class: "row" },
+          toggle(c.notionMorning !== false, (v) => { c.notionMorning = v; void save(); }),
+          h("span", { text: t("Le attività di oggi nel riepilogo del mattino") }))),
     );
   }
   draw();
@@ -1039,9 +1306,27 @@ function ringtoneRow(): HTMLElement {
     error);
 }
 
+/** Impostazioni → Integrazioni: the groups, in this order; anything else goes last. */
+const INTEGRATION_GROUPS: [string, string[]][] = [
+  [t("Lavoro e clienti"), ["integration_3cx", "integration_zammad", "integration_rdm", "integration_outlook", "integration_calcom", "integration_notion"]],
+  [t("Sviluppo e servizi"), ["integration_github", "integration_vercel", "integration_n8n", "integration_stripe", "integration_resend"]],
+  [t("Questo PC"), ["integration_system", "integration_security", "integration_network", "integration_weather", "integration_claude_usage", "integration_clipboard", "integration_media"]],
+];
+
+/** The integration whose settings are open (one at a time), kept while the window is. */
+let openIntegration = "";
+let integrationQuery = "";
+let onlyActive = false;
+
+/**
+ * Impostazioni → Integrazioni: a short list by group, each integration one
+ * row (switch, name, state, what it is); a click opens its settings under it,
+ * one at a time. A search and "solo attive" narrow the list.
+ */
 function integrationsSection(present: Record<string, boolean>): HTMLElement {
   const note = h("div", { class: "hint" });
-  const list = h("div", { style: "display:flex;flex-direction:column;gap:14px" });
+  const list = h("div", { class: "int-groups" });
+  const entries: { def: IntegrationDef; el: HTMLElement; text: string; refresh: () => void; open: (on: boolean) => void }[] = [];
 
   function updateNote() {
     const used = settings.activeIntegrations.length;
@@ -1051,7 +1336,8 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
   for (const def of INTEGRATIONS) {
     const active = settings.activeIntegrations.includes(def.id);
     const sw = h("button", { class: active ? "switch on" : "switch" });
-    sw.addEventListener("click", () => {
+    sw.addEventListener("click", (e) => {
+      e.stopPropagation();
       const on = settings.activeIntegrations.includes(def.id);
       if (on) {
         settings.activeIntegrations = settings.activeIntegrations.filter((x) => x !== def.id);
@@ -1060,6 +1346,7 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
       }
       sw.classList.toggle("on", !on);
       updateNote();
+      refreshAll();
       void save();
     });
 
@@ -1186,19 +1473,73 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
         void save();
       }, t("Predefinito")),
       h("span", { class: "hint note", text: t("anche del personaggio quando la sua scheda è aperta") })));
-    if (def.hint) rows.append(h("div", { class: "hint", text: def.hint }));
+    if (def.hint) rows.prepend(h("div", { class: "hint int-hint", text: def.hint }));
 
-    list.append(
-      h("div", { style: "display:flex;gap:12px;align-items:flex-start" },
-        h("div", { style: "display:flex;align-items:center;gap:8px;min-width:132px;padding-top:4px" },
-          sw,
-          dot,
-          h("span", { style: "font-size:12.5px", text: def.name }),
-        ),
-        rows,
-      ),
-    );
+    // The row: switch, colour, name, its state and the first words of what it is.
+    const state = h("span", { class: "int-state" });
+    const summary = h("span", { class: "int-summary", text: firstSentence(def.hint ?? "") });
+    const chevron = h("span", { class: "int-chevron", text: "›" });
+    const head = h("div", { class: "int-row-head", role: "button", tabindex: "0" },
+      sw, dot, h("span", { class: "int-row-name", text: def.name }), state, summary, chevron);
+    const details = h("div", { class: "int-details" }, rows);
+    const el = h("div", { class: "int-row" }, head, details);
+    const open = (on: boolean) => {
+      el.classList.toggle("open", on);
+      details.style.display = on ? "" : "none";
+    };
+    const refresh = () => {
+      const on = settings.activeIntegrations.includes(def.id);
+      const missing = def.fields.filter((f) => !(f.when && !f.when(settings.integrationConfig)) && !present[f.key]);
+      state.className = `int-state ${!on ? "off" : missing.length ? "warn" : "ok"}`;
+      state.textContent = !on ? t("Spenta") : missing.length ? t("Manca: {what}", { what: missing.map((f) => f.label.toLowerCase()).join(", ") }) : t("Attiva");
+    };
+    const toggleOpen = () => {
+      const next = openIntegration === def.id ? "" : def.id;
+      openIntegration = next;
+      for (const e of entries) e.open(e.def.id === next);
+      if (next) requestAnimationFrame(() => el.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+    };
+    head.addEventListener("click", toggleOpen);
+    head.addEventListener("keydown", (e) => { if ((e as KeyboardEvent).key === "Enter") toggleOpen(); });
+    // A key saved in this row changes its state.
+    rows.addEventListener("click", () => window.setTimeout(refresh, 300));
+    open(openIntegration === def.id);
+    refresh();
+    entries.push({ def, el, text: `${def.name} ${def.hint ?? ""}`.toLowerCase(), refresh, open });
   }
+
+  function refreshAll() {
+    for (const e of entries) e.refresh();
+    draw();
+  }
+
+  // Groups, then the search and "solo attive" over them.
+  function draw() {
+    clear(list);
+    const q = integrationQuery.trim().toLowerCase();
+    const shown = (e: (typeof entries)[number]) =>
+      (!q || e.text.includes(q)) && (!onlyActive || settings.activeIntegrations.includes(e.def.id));
+    const grouped = new Set(INTEGRATION_GROUPS.flatMap(([, ids]) => ids));
+    const groups: [string, (typeof entries)[number][]][] = [
+      ...INTEGRATION_GROUPS.map(([name, ids]) => [name, ids.map((id) => entries.find((e) => e.def.id === id)).filter((e): e is (typeof entries)[number] => !!e)] as [string, (typeof entries)[number][]]),
+      [t("Altre"), entries.filter((e) => !grouped.has(e.def.id))],
+    ];
+    for (const [name, items] of groups) {
+      const visible = items.filter(shown);
+      if (!visible.length) continue;
+      const on = items.filter((e) => settings.activeIntegrations.includes(e.def.id)).length;
+      list.append(h("div", { class: "int-group" },
+        h("div", { class: "int-group-head" }, h("span", { text: name }), h("span", { class: "hint", text: t("{n} di {total} attive", { n: on, total: items.length }) })),
+        ...visible.map((e) => e.el)));
+    }
+    if (!list.childElementCount) list.append(h("div", { class: "hint", text: t("Nessuna integrazione trovata.") }));
+  }
+
+  const search = h("input", { type: "text", placeholder: t("Cerca un'integrazione…"), value: integrationQuery, spellcheck: "false", style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
+  search.addEventListener("input", () => { integrationQuery = search.value; draw(); });
+  const filterRow = h("div", { class: "row" }, search,
+    h("label", { class: "inline-check" }, toggle(onlyActive, (v) => { onlyActive = v; draw(); }), h("span", { text: t("Solo attive") })));
+  draw();
 
   updateNote();
   // Pills and tabs are dragged into order right in the island.
@@ -1209,7 +1550,14 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
     toggle(!!settings.lockOrder, (v) => { settings.lockOrder = v; void save(); }),
     resetOrder,
     h("span", { class: "hint note", text: t("nell'isola le integrazioni del menu e i riquadri della Panoramica si riordinano trascinandoli; acceso, restano dove sono") }));
-  return h("section", {}, h("h2", {}, h("span", { text: t("Integrazioni") }), profileChip()), note, orderRow, list);
+  return h("section", {}, h("h2", {}, h("span", { text: t("Integrazioni") }), profileChip()), note, filterRow, list,
+    h("h3", { class: "int-sub", text: t("Menu dell'isola") }), orderRow);
+}
+
+/** The first sentence of a hint, for the integration's row. */
+function firstSentence(text: string): string {
+  const s = text.split(/(?<=\.)\s/)[0] ?? "";
+  return s.replace(/\.$/, "");
 }
 
 // ── Placement section ─────────────────────────────────────────────────────────
@@ -2160,23 +2508,60 @@ const TRIGGER_KINDS: [AutomationTrigger["kind"], string][] = [
   ["time", t("A un orario")],
   ["startup", t("All'avvio (con il PC)")],
   ["unlock", t("Quando sblocchi il PC")],
+  ["back", t("Quando torni al PC dopo una pausa")],
   ["wifi", t("Quando ti colleghi a una rete Wi-Fi")],
   ["app", t("Quando parte un programma")],
+  ["foreground", t("Quando passi a un programma")],
   ["drive", t("Quando colleghi una chiavetta o un disco")],
   ["folder", t("Quando arriva un file in una cartella")],
+  ["download", t("Quando finisce un download")],
   ["integration", t("Quando un'integrazione o un widget segnala…")],
+  ["call", t("Quando arriva una chiamata (3CX)")],
+  ["agent", t("Quando un agente finisce o chiede un permesso")],
+  ["server", t("Quando parte un server di sviluppo")],
 ];
 
 const STEP_KINDS: [AutomationStep["kind"], string][] = [
   ["quick", t("Esegui un'azione rapida")],
   ["notice", t("Mostra un avviso nell'isola")],
+  ["chat", t("Chiedi alla chat")],
   ["profile", t("Passa a un profilo")],
   ["app", t("Apri un programma o una cartella")],
   ["url", t("Apri un link")],
 ];
 
+const CONDITION_KINDS: [AutomationCondition["kind"], string][] = [
+  ["hours", t("è tra le…")],
+  ["wifi", t("sei sulla rete Wi-Fi")],
+  ["app", t("è aperto il programma")],
+  ["foreground", t("è in primo piano il programma")],
+  ["meeting", t("sei in riunione (microfono o webcam in uso)")],
+  ["client", t("sei «davanti al cliente»")],
+  ["idle", t("sei assente da")],
+  ["battery", t("il PC va a batteria")],
+];
+
+/** The trigger's data each "quando" hands to the steps (automations.rs `fill`). */
+const PLACEHOLDERS: Partial<Record<AutomationTrigger["kind"], string[]>> = {
+  wifi: ["rete"],
+  app: ["programma"],
+  foreground: ["programma"],
+  drive: ["unità"],
+  folder: ["file", "percorso", "cartella"],
+  download: ["file", "percorso", "cartella"],
+  integration: ["testo", "fonte"],
+  call: ["chiamante", "numero"],
+  agent: ["agente", "progetto", "cartella"],
+  server: ["link", "porta", "programma"],
+  back: ["minuti"],
+};
+
 function blankStep(kind: AutomationStep["kind"] = "notice"): AutomationStep {
   return { kind, id: "", title: "", text: "", level: "info", target: "", args: "", url: "" };
+}
+
+function blankCondition(kind: AutomationCondition["kind"] = "hours"): AutomationCondition {
+  return { kind, not: false, from: "09:00", to: "18:00", days: [1, 2, 3, 4, 5], ssid: "", exe: "", minutes: 10, percent: 0 };
 }
 
 function blankAutomation(): Automation {
@@ -2184,8 +2569,11 @@ function blankAutomation(): Automation {
     id: `a${Date.now().toString(36)}`,
     name: t("Nuova automazione"),
     enabled: true,
-    trigger: { kind: "time", time: "09:00", days: [1, 2, 3, 4, 5], delay: 30, ssid: "", exe: "", folder: "", source: "", when: "problem" },
+    trigger: { kind: "time", time: "09:00", days: [1, 2, 3, 4, 5], delay: 30, ssid: "", exe: "", folder: "", source: "", when: "problem", filter: "", minutes: 15 },
     profile: "",
+    conditions: [],
+    repeat: "",
+    every: 60,
     steps: [{ ...blankStep("notice"), title: t("Buongiorno!"), text: t("Si comincia.") }],
     notify: false,
   };
@@ -2218,20 +2606,59 @@ function automationsSection(): HTMLElement {
     return out;
   }
 
+  /** L M M G V S D: none on = every day. */
+  function dayButtons(days: number[], apply: (d: number[]) => void): HTMLElement {
+    const box = h("div", { class: "days" });
+    let now = [...days];
+    for (const [d, label] of DAYS) {
+      const b = h("button", { class: now.includes(d) ? "day on" : "day", text: label, title: t("Vuoto = tutti i giorni") });
+      b.addEventListener("click", () => {
+        now = now.includes(d) ? now.filter((x) => x !== d) : [...now, d].sort();
+        b.classList.toggle("on");
+        apply(now);
+        commit();
+      });
+      box.append(b);
+    }
+    return box;
+  }
+
+  function timeInput(value: string, apply: (v: string) => void): HTMLInputElement {
+    const el = h("input", { type: "time", value: value || "09:00" }) as HTMLInputElement;
+    el.addEventListener("change", () => { apply(el.value); commit(); });
+    return el;
+  }
+
+  function numberInput(value: number, min: number, max: number, apply: (v: number) => void): HTMLInputElement {
+    const el = h("input", { type: "number", min: String(min), max: String(max), value: String(value), style: "width:80px" }) as HTMLInputElement;
+    el.addEventListener("change", () => {
+      const n = Math.min(max, Math.max(min, Math.round(Number(el.value)) || min));
+      el.value = String(n);
+      apply(n);
+      commit();
+    });
+    return el;
+  }
+
   function draw() {
     clear(list);
     if (settings.automations.length === 0) {
-      list.append(h("div", { class: "hint", text: t("Nessuna automazione. Esempi: alle 9 dei giorni feriali apri Outlook e il gestionale; quando colleghi una chiavetta mostra un avviso; quando il sito di un cliente va giù esegui lo script di controllo.") }));
+      list.append(h("div", { class: "hint", text: t("Nessuna automazione. Esempi: alle 9 dei giorni feriali apri Outlook e il gestionale; quando finisce il download di un PDF in orario d'ufficio chiedi alla chat di riassumerlo; quando torni dalla pausa e non sei in riunione mostra le attività; quando il sito di un cliente va giù esegui lo script di controllo.") }));
     }
     settings.automations.forEach((a, idx) => {
       const trg = a.trigger;
+      const conditions = (a.conditions ??= []);
       const field = (value: string, placeholder: string, apply: (v: string) => void, style = "flex:1 1 auto;min-width:0") => {
         const el = h("input", { type: "text", value, placeholder, style, spellcheck: "false" }) as HTMLInputElement;
         el.addEventListener("change", () => { apply(el.value); commit(); });
         return el;
       };
+      const filterRow = (placeholder: string) =>
+        h("div", { class: "row" }, h("label", { text: t("Solo se") }),
+          field(trg.filter ?? "", placeholder, (v) => { trg.filter = v.trim(); }),
+          h("span", { class: "hint note", text: t("vuoto = sempre") }));
       const tested = h("span", { class: "hint note" });
-      const test = h("button", { text: t("Prova ora"), title: t("Esegue subito i passi (salva prima)") });
+      const test = h("button", { text: t("Prova ora"), title: t("Esegue subito i passi, senza guardare le condizioni (salva prima)") });
       test.addEventListener("click", async () => {
         await save();
         try {
@@ -2253,44 +2680,60 @@ function automationsSection(): HTMLElement {
 
       // ── Quando ──
       const when = h("div", { class: "row" }, h("label", { text: t("Quando") }),
-        select<AutomationTrigger["kind"]>(TRIGGER_KINDS, trg.kind, (v) => { trg.kind = v; commit(); draw(); }));
+        select<AutomationTrigger["kind"]>(TRIGGER_KINDS, trg.kind, (v) => {
+          trg.kind = v;
+          if (v === "agent" && !["stop", "permission", "any"].includes(trg.when)) trg.when = "stop";
+          if (v === "integration" && !["problem", "event", "any"].includes(trg.when)) trg.when = "problem";
+          commit();
+          draw();
+        }));
       card.append(when);
       switch (trg.kind) {
-        case "time": {
-          const time = h("input", { type: "time", value: trg.time || "09:00" }) as HTMLInputElement;
-          time.addEventListener("change", () => { trg.time = time.value; commit(); });
-          const days = h("div", { class: "days" });
-          for (const [d, label] of DAYS) {
-            const b = h("button", { class: trg.days.includes(d) ? "day on" : "day", text: label, title: t("Vuoto = tutti i giorni") });
-            b.addEventListener("click", () => {
-              trg.days = trg.days.includes(d) ? trg.days.filter((x) => x !== d) : [...trg.days, d].sort();
-              b.classList.toggle("on");
-              commit();
-            });
-            days.append(b);
-          }
-          card.append(h("div", { class: "row" }, h("label", { text: t("Alle") }), time, days,
+        case "time":
+          card.append(h("div", { class: "row" }, h("label", { text: t("Alle") }),
+            timeInput(trg.time, (v) => { trg.time = v; }),
+            dayButtons(trg.days, (d) => { trg.days = d; }),
             h("span", { class: "hint note", text: t("nessun giorno = tutti i giorni") })));
           break;
-        }
-        case "startup": {
-          const delay = h("input", { type: "number", min: "5", value: String(trg.delay || 30), style: "width:80px" }) as HTMLInputElement;
-          delay.addEventListener("change", () => { trg.delay = Math.max(5, Number(delay.value) || 30); commit(); });
-          card.append(h("div", { class: "row" }, h("label", { text: t("Dopo") }), delay,
+        case "startup":
+          card.append(h("div", { class: "row" }, h("label", { text: t("Dopo") }),
+            numberInput(trg.delay || 30, 5, 3600, (n) => { trg.delay = n; }),
             h("span", { class: "hint note", text: t("secondi dall'avvio di EasyIsland (che parte con Windows, se attivo in Generale)") })));
           break;
-        }
+        case "back":
+          card.append(h("div", { class: "row" }, h("label", { text: t("Assente da") }),
+            numberInput(trg.minutes || 15, 1, 720, (n) => { trg.minutes = n; }),
+            h("span", { class: "hint note", text: t("minuti almeno, senza toccare tastiera e mouse") })));
+          break;
         case "wifi":
           card.append(h("div", { class: "row" }, h("label", { text: t("Rete") }),
             field(trg.ssid, t("nome della rete Wi-Fi, es. Ufficio-5G"), (v) => { trg.ssid = v.trim(); })));
           break;
         case "app":
+        case "foreground":
           card.append(h("div", { class: "row" }, h("label", { text: t("Programma") }),
             field(trg.exe, t("nome dell'eseguibile, es. teams.exe, excel.exe"), (v) => { trg.exe = v.trim(); })));
           break;
         case "folder":
           card.append(h("div", { class: "row" }, h("label", { text: t("Cartella") }),
             field(trg.folder, t("es. C:\\Users\\nome\\Downloads o \\\\server\\scansioni"), (v) => { trg.folder = v.trim(); })));
+          card.append(filterRow(t("es. .pdf, .docx oppure una parola del nome")));
+          break;
+        case "download":
+          card.append(filterRow(t("es. .pdf, .zip oppure una parola del nome")));
+          break;
+        case "call":
+          card.append(filterRow(t("nome o numero di chi chiama, es. Rossi, 0331")));
+          break;
+        case "agent":
+          card.append(h("div", { class: "row" }, h("label", { text: t("Quando") }),
+            select<AutomationTrigger["when"]>(
+              [["stop", t("ha finito")], ["permission", t("aspetta un permesso")], ["any", t("ha finito o aspetta un permesso")]],
+              trg.when, (v) => { trg.when = v; commit(); })));
+          card.append(filterRow(t("progetto o agente, es. easyisland, Codex")));
+          break;
+        case "server":
+          card.append(filterRow(t("programma o porta, es. node, 5173")));
           break;
         case "integration": {
           const opts = sources();
@@ -2302,6 +2745,7 @@ function automationsSection(): HTMLElement {
             select<AutomationTrigger["when"]>(
               [["problem", t("un problema (diventa giallo o rosso)")], ["event", t("una novità (es. nuovo ticket)")], ["any", t("un problema o una novità")]],
               (trg.when || "problem") as AutomationTrigger["when"], (v) => { trg.when = v; commit(); })));
+          card.append(filterRow(t("una parola del messaggio, es. urgente")));
           break;
         }
       }
@@ -2310,6 +2754,55 @@ function automationsSection(): HTMLElement {
       card.append(h("div", { class: "row" }, h("label", { text: t("Solo nel profilo") }),
         select<string>([["", t("Qualsiasi profilo")], ...settings.profiles.map((p): [string, string] => [p.id, p.name])],
           a.profile, (v) => { a.profile = v; commit(); })));
+      conditions.forEach((c, ci) => {
+        const remove = h("button", { class: "danger icon", text: "✕", title: t("Togli questa condizione"),
+          onclick: () => { conditions.splice(ci, 1); commit(); draw(); } });
+        // "Se" / "Se non" sits in the label column.
+        const lead = select<string>([["", ci === 0 ? t("Se") : t("e se")], ["not", ci === 0 ? t("Se non") : t("e se non")]],
+          c.not ? "not" : "", (v) => { c.not = v === "not"; commit(); });
+        lead.style.width = "132px";
+        const row = h("div", { class: "row" }, lead,
+          select<AutomationCondition["kind"]>(CONDITION_KINDS, c.kind, (v) => { conditions[ci] = { ...blankCondition(v), not: c.not }; commit(); draw(); }));
+        // The days of "è tra le…" go on a line of their own, under the times.
+        let below: HTMLElement | null = null;
+        switch (c.kind) {
+          case "hours":
+            row.append(timeInput(c.from, (v) => { c.from = v; }), h("span", { class: "hint", text: t("e le") }),
+              timeInput(c.to || "18:00", (v) => { c.to = v; }));
+            below = h("div", { class: "row" }, h("label", { text: "" }), dayButtons(c.days, (d) => { c.days = d; }),
+              h("span", { class: "hint note", text: t("nessun giorno = tutti i giorni") }));
+            break;
+          case "wifi":
+            row.append(field(c.ssid, t("nome della rete, es. Ufficio-5G"), (v) => { c.ssid = v.trim(); }));
+            break;
+          case "app":
+          case "foreground":
+            row.append(field(c.exe, t("es. excel.exe"), (v) => { c.exe = v.trim(); }));
+            break;
+          case "idle":
+            row.append(numberInput(c.minutes || 10, 1, 720, (n) => { c.minutes = n; }), h("span", { class: "hint", text: t("minuti") }));
+            break;
+          case "battery":
+            row.append(h("span", { class: "hint", text: t("sotto il") }), numberInput(c.percent, 0, 100, (n) => { c.percent = n; }),
+              h("span", { class: "hint note", text: t("% (0 = basta che vada a batteria)") }));
+            break;
+        }
+        row.append(remove);
+        card.append(row);
+        if (below) card.append(below);
+      });
+      const repeat = a.repeat ?? "";
+      const repeatRow = h("div", { class: "row" }, h("label", { text: t("Ripeti") }),
+        select<"" | "every" | "day">(
+          [["", t("ogni volta")], ["every", t("al massimo una volta ogni…")], ["day", t("una volta al giorno")]],
+          repeat, (v) => { a.repeat = v; if (v === "every" && !a.every) a.every = 60; commit(); draw(); }));
+      if (repeat === "every") {
+        repeatRow.append(numberInput(a.every || 60, 1, 1440, (n) => { a.every = n; }), h("span", { class: "hint", text: t("minuti") }));
+      }
+      const addCondition = h("button", { text: t("+ Aggiungi una condizione"),
+        onclick: () => { conditions.push(blankCondition("hours")); commit(); draw(); } });
+      repeatRow.append(addCondition);
+      card.append(repeatRow);
 
       // ── Allora ──
       a.steps.forEach((s, si) => {
@@ -2333,6 +2826,9 @@ function automationsSection(): HTMLElement {
               select<string>([["info", t("Info")], ["ok", t("Ok")], ["warn", t("Avviso")], ["error", t("Errore")]], s.level || "info",
                 (v) => { s.level = v; commit(); }));
             break;
+          case "chat":
+            row.append(field(s.text, t("la domanda, es. Riassumi {percorso}"), (v) => { s.text = v; }));
+            break;
           case "profile": {
             if (!s.id && settings.profiles[0]) s.id = settings.profiles[0].id;
             row.append(select<string>(settings.profiles.map((p): [string, string] => [p.id, p.name]), s.id,
@@ -2342,7 +2838,7 @@ function automationsSection(): HTMLElement {
           case "app":
             row.append(
               field(s.target, t("es. outlook, C:\\Clienti, mstsc"), (v) => { s.target = v.trim(); }),
-              field(s.args, "argomenti (facoltativi)", (v) => { s.args = v; }, "width:160px"));
+              field(s.args, t("argomenti (facoltativi)"), (v) => { s.args = v; }, "width:160px"));
             break;
           case "url":
             row.append(field(s.url, "https://…", (v) => { s.url = v.trim(); }));
@@ -2351,6 +2847,10 @@ function automationsSection(): HTMLElement {
         row.append(remove);
         card.append(row);
       });
+      // The trigger's data, to put in notices, links, arguments and questions.
+      const names = [...(PLACEHOLDERS[trg.kind] ?? []), "ora", "data"];
+      card.append(h("div", { class: "row" }, h("label", { text: "" }),
+        h("span", { class: "hint note", text: t("Nei passi puoi usare: {list}. Negli script no: lì non entrano mai.", { list: names.map((n) => `{${n}}`).join(" ") }) })));
       const addStep = h("button", { text: t("+ Aggiungi un passo"),
         onclick: () => { a.steps.push(blankStep("quick")); commit(); draw(); } });
       card.append(h("div", { class: "row" }, h("label", { text: "" }), addStep,
@@ -2807,7 +3307,7 @@ function notifySection(): HTMLElement {
 // ── Reazioni del personaggio ──────────────────────────────────────────────────
 
 /** Pills that never complain (or have their own way to show up, like a 3CX call). */
-const NO_REACTION = new Set(["integration_claude", "integration_clipboard", "integration_media", "integration_weather", "integration_3cx"]);
+const NO_REACTION = new Set(["integration_claude", "integration_clipboard", "integration_media", "integration_weather", "integration_3cx", "integration_rdm"]);
 
 /**
  * What the character does in each situation: show itself and sound, change

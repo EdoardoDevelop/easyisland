@@ -629,7 +629,7 @@ pub fn raise_over_taskbar(app: &AppHandle) {
     unsafe {
         let after = match FindWindowW(windows::core::w!("SysDragImage"), None) {
             Ok(drag) if !drag.is_invalid() && IsWindowVisible(drag).as_bool() => drag,
-            _ => HWND_TOPMOST,
+            _ => settings_in_front(app).unwrap_or(HWND_TOPMOST),
         };
         let _ = SetWindowPos(
             hwnd,
@@ -639,6 +639,41 @@ pub fn raise_over_taskbar(app: &AppHandle) {
             0,
             0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_ASYNCWINDOWPOS,
+        );
+    }
+}
+
+/// True while the settings window is the active window (`keep_settings_above`).
+static SETTINGS_FRONT: AtomicBool = AtomicBool::new(false);
+
+/// The settings window, when it is in use and must stay above the island.
+fn settings_in_front(app: &AppHandle) -> Option<HWND> {
+    if !SETTINGS_FRONT.load(Ordering::Relaxed) {
+        return None;
+    }
+    let win = app.get_webview_window(crate::SETTINGS_LABEL)?;
+    let hwnd = hwnd_of(&win)?;
+    unsafe { IsWindowVisible(hwnd).as_bool() }.then_some(hwnd)
+}
+
+/// The island is topmost and covers the top of the screen, so the settings
+/// window went behind it. While the settings window is active it joins the
+/// topmost band above the island (and raise_over_taskbar puts the island just
+/// below it); once another window is activated it is an ordinary window again,
+/// so it never covers other programs.
+pub fn keep_settings_above(app: &AppHandle, active: bool) {
+    SETTINGS_FRONT.store(active, Ordering::Relaxed);
+    let Some(win) = app.get_webview_window(crate::SETTINGS_LABEL) else { return };
+    let Some(hwnd) = hwnd_of(&win) else { return };
+    unsafe {
+        let _ = SetWindowPos(
+            hwnd,
+            Some(if active { HWND_TOPMOST } else { HWND_NOTOPMOST }),
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
         );
     }
 }

@@ -69,7 +69,9 @@ pub fn start(app: AppHandle) {
     spawn(app.clone(), "integration_resend", 6, 60, poll_resend);
     spawn(app.clone(), "integration_github", 7, 300, poll_github);
     spawn(app.clone(), "integration_calcom", 8, 300, poll_calcom);
-    spawn(app, "integration_notion", 9, 300, poll_notion);
+    spawn(app.clone(), "integration_notion", 9, 300, poll_notion);
+    // Remote Desktop Manager: its list read again every 30 minutes (rdm.rs).
+    spawn(app, crate::rdm::ID, 12, 1800, crate::rdm::poll);
 }
 
 /// True when the user has this integration switched on in settings.
@@ -114,6 +116,7 @@ pub async fn poll_once(app: AppHandle, id: &str) {
         "integration_resend" => poll_resend(app).await,
         "integration_notion" => poll_notion(app).await,
         "integration_calcom" => poll_calcom(app).await,
+        crate::rdm::ID => crate::rdm::refresh(&app).await,
         _ => {}
     }
 }

@@ -21,6 +21,7 @@ import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { buildSearch, type SearchHost } from "../views/search";
+import { rdmLookFor } from "../views/rdm";
 import { buildRail, railBotSize } from "../views/rail";
 import { buildStrip, type Strip } from "../views/strip";
 import { sendToChat, windowLabel } from "../views/chat";
@@ -28,7 +29,7 @@ import { capturing, startCapture } from "./capture";
 import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
-import { t } from "../core/i18n";
+import { locale, t } from "../core/i18n";
 
 const BOT_OVERHANG = 40;
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
@@ -785,6 +786,11 @@ ${note}` : text };
     this.startChat(t("Spiega questo errore e come correggerlo."), context, false);
   }
 
+  /** A question from an automation (automations.rs, step "chat"): a new chat that sends it. */
+  askChat(question: string) {
+    this.startChat(question, null, false);
+  }
+
   private startChat(question: string, context: { label: string; text: string } | null, keepFile: boolean) {
     State.chatHistory = [];
     State.chatSession = null;
@@ -867,10 +873,44 @@ ${note}` : text };
       void Bridge.openSettingsWindow();
       return;
     }
+    if (pick === "notion-note" || pick === "notion-task") {
+      void this.sendToNotion(pick, sel.text);
+      return;
+    }
+    if (pick === "rdm-find") {
+      rdmLookFor(sel.text);
+      this.alert("overview");
+      return;
+    }
+    if (pick === "rdm-rdp" || pick === "rdm-ssh") {
+      Bridge.rdmQuick(pick === "rdm-rdp" ? "RDP" : "SSH", sel.text.trim()).catch((e) => this.flashNote(String(e).replace(/^Error:\s*/, "")));
+      return;
+    }
     Sound.resume();
     Sound.play("blip");
     if (pick.output === "replace") this.startRewrite(pick.name, pick.prompt, sel.text);
     else this.startChat(pick.prompt, { label: t("Testo selezionato"), text: sel.text }, false);
+  }
+
+  /** "Nota / Attività in Notion" on the selection: saved, a short note says where. */
+  private async sendToNotion(kind: "notion-note" | "notion-task", text: string) {
+    const c = State.settings.integrationConfig;
+    try {
+      if (kind === "notion-note") {
+        const now = new Date();
+        const stamp = `${now.toLocaleDateString(locale(), { day: "numeric", month: "short" })} ${now.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })}`;
+        const where = await Bridge.notionAddNote(text, stamp);
+        this.flashNote(t("Salvata in «{p}» ✓", { p: where }));
+      } else {
+        // A task's title is one line: the first of the selection.
+        const title = text.split(/\r?\n/).map((l) => l.trim()).find(Boolean) ?? text.trim();
+        await Bridge.notionAddTask(title.slice(0, 200), null);
+        this.flashNote(t("Attività aggiunta in «{p}» ✓", { p: c.notionTasks?.title ?? "Notion" }));
+      }
+      Sound.play("approve");
+    } catch (e) {
+      this.flashNote(String(e).replace(/^Error:\s*/, ""));
+    }
   }
 
   /** From the ⚡ tab or an action: copy the selection, then the rewrite card. */

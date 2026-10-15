@@ -21,20 +21,19 @@ I dettagli che `HANDOFF.md` riassume in una riga. Le idee più vecchie e l'anali
 
 ## Notion, seconda parte (annotata il 14 ottobre 2026)
 Edoardo usa Notion per attività, note, documentazione e clienti. Fatti: attività, nota veloce, pagine fissate, ricerca, chat sulla pagina. Restano:
-- **«Manda a Notion»** dal testo selezionato (menu di `Win+Alt+A`), da una voce degli Appunti e dalla risposta della chat, nella pagina o database delle note.
+- **«Manda a Notion»** da una voce degli Appunti e dalla risposta della chat. Dal testo selezionato c'è dal 15 ottobre 2026.
 - **Clienti:** un database clienti scelto nelle Impostazioni con la proprietà del telefono; su una chiamata 3CX in arrivo, e su un ticket Zammad, la scheda del cliente (nome, note, link) con «Apri in Notion». Numero normalizzato come per Zammad.
-- **Avviso** quando un'attività con orario scade (oggi solo il conteggio nell'intestazione).
+- Fatti il 15 ottobre 2026: gli avvisi delle scadenze con orario e dei commenti nuovi, la configurazione rapida, «+ Attività» e «Rimanda».
+- **Viste legate ai profili:** con il profilo «Ufficio» la card apre da sola la vista «Ufficio» (le viste ci sono dal 15 ottobre 2026).
 - Attività assegnate a me: serve scegliere la persona (l'API vede il bot, non l'utente).
 
-## Remote Desktop Manager (Devolutions), come integrazione
-- **Prima di tutto:** capire dove sta la fonte dati delle voci (Devolutions Server, Hub, database SQL o file locale).
-- Cosa offre RDM: `rdm://open?Filter=<testo>`, `RemoteDesktopManager.exe /DataSource:<id> /Session:<id>` e il modulo PowerShell Devolutions.PowerShell (`Get-RDMSession`, PowerShell 7.2+).
-- Passi:
-  1. cerca e apri dall'isola con `rdm://open?Filter=…`;
-  2. «Apri in RDM» sulla chiamata 3CX e sui ticket Zammad;
-  3. suggerimento ⚡ «Cerca in RDM» su un nome di server o un IP selezionato;
-  4. solo se serve, l'elenco delle voci dentro l'isola.
-- Oggi, senza codice: azione rapida «Programma» con gli id. Da non fare: legare RDM a «davanti al cliente».
+## Remote Desktop Manager, dopo la prima versione
+Preparata il 15 ottobre 2026 (`docs/integrazioni.md`). Da valutare dopo le prove sul PC con RDM:
+- **Devolutions Server o Hub senza PowerShell:** l'API REST di DVLS (chiave applicativa, `Search-DSEntry`/`Get-DSEntry`) e quella di Hub (`Get-HubEntry`). Serve solo se il modulo non va bene in azienda, per esempio per le licenze o le policy.
+- **Creare una voce** dall'isola (`New-RDMSession` e `Set-RDMSession`) con i campi base. Le modifiche complesse restano nella finestra di RDM («Modifica in RDM»).
+- **Strumento per la chat:** «apri il server di Rossi» con le stesse regole di `run_quick_action` (Consenti / Nega).
+- **Associazione esplicita** fra un cliente di 3CX o un'organizzazione di Zammad e una cartella di RDM, se la ricerca per nome non basta.
+- Da non fare: legare RDM a «davanti al cliente»; leggere le password o i campi sensibili.
 
 ## Spunti da Coucou (letto l'8 ottobre 2026, `louis-cfm/coucou` Windows/Linux 0.2.0)
 1. Lo stesso schema del plugin di opencode vale per **Amp** e **Hermes**.
@@ -42,13 +41,29 @@ Edoardo usa Notion per attività, note, documentazione e clienti. Fatti: attivit
 3. **Riepilogo settimanale come immagine** da condividere (fatto il riepilogo il 9 ottobre): in Coucou `recap/share.ts`, con «Nascondi i nomi dei progetti».
 4. **GitHub:** PR con CI e revisioni, avvisi CI rossa/verde, griglia dei contributi. Da noi «GitHub rinnovato» era escluso.
 
+### Riletto il 15 ottobre 2026 (Windows/Linux 0.5.0, Mac 0.4.0): da scegliere con Edoardo
+- **Nuovo aspetto delle Impostazioni:** è il consigliato. Coucou ha una finestra unica (`windows/src/hub/`):
+  - in ogni pagina un'intestazione con titolo, sottotitolo e personaggi animati su nero con particelle (`hero.ts`), un colore per pagina;
+  - sezioni a riquadri con righe «titolo + descrizione a sinistra, comando a destra».
+  Le opzioni sono quasi le nostre: cambia la presentazione.
+- **Note delle chiamate (Notetaker):** registra il microfono e l'audio del PC, senza bot. Ne esce la trascrizione per persona, con riassunto, punti chiave e cose da fare; l'audio poi si cancella. Per noi: chiamate 3CX e riunioni, da allegare a un ticket Zammad o a Notion. Servono il riconoscimento vocale e l'avviso a chi è in chiamata.
+- **Dettatura ovunque (Flow):** tieni premuto un tasto, parli, il testo si incolla. Con dizionario, testi rapidi, stili per programma e statistiche. Il riconoscimento è locale: Parakeet con sherpa-onnx, circa 700 MB, italiano compreso. Condivide il riconoscimento con le note. In alternativa c'è la dettatura di Windows (`Win+H`).
+- **Opzioni piccole:**
+  - quanto tenere la cronologia (7 giorni, 30, un anno, per sempre);
+  - «ripristina i valori predefiniti» per pagina;
+  - aprire le Impostazioni quando EasyIsland si avvia a mano.
+- **Lasciati fuori per ora:**
+  - «OK Coucou», i comandi a voce: c'è già la chat, e un microfono sempre in ascolto in ufficio è delicato;
+  - l'app Android con un server in rete;
+  - i suoni da file: i nostri sono sintetizzati per scelta.
+
 ## Proposte al momento giusto (annotate il 13 ottobre 2026)
 Fatte il 14 ottobre 2026: download finito, errore copiato, server di sviluppo partito, password e chiavi tolte dagli appunti dopo 30 s (`strumenti.md`), riepilogo del mattino e di fine giornata, EasyIsland come server MCP per Claude Code (`agenti.md`). Possibili seguiti: «Chiudi il programma» sulla porta occupata (oggi solo chi la tiene), la cartella del progetto nella card del server di sviluppo (servirebbe leggere la riga di comando del processo).
 - **Dettatura ripulita:** tieni premuta una scorciatoia, parli anche male, nel campo arriva la frase pulita. Vuole riconoscimento vocale: un modello locale da ~200 MB o un servizio esterno; per ora no.
 - **Personaggio che cresce con l'uso:** gioco e timer sono esclusi (`decisioni.md`); resta solo la domanda già aperta del personaggio che esce dall'isola e vive sul desktop.
 
-## Automazioni più intelligenti (ragionate il 14 ottobre 2026, da decidere con Edoardo)
-Oggi un'automazione è «quando → (solo nel profilo) → passi fissi». Possibili passi avanti, dal più utile:
+## Automazioni più intelligenti (ragionate il 14 ottobre 2026)
+Fatti il 15 ottobre 2026 i punti 1, 2 e 3 (`integrazioni.md` → Automazioni), tranne: «N minuti prima di un evento del calendario», «fine giornata» come evento a sé (oggi è un orario), «nessun agente al lavoro» come condizione (Rust non tiene lo stato delle sessioni), chiamata 3CX finita. Restano da fare 4–7. Il testo originale:
 1. **Dati del «quando» nei passi:** `{file}`, `{cartella}`, `{rete}`, `{programma}`, `{ticket}`, `{chiamante}` dentro link, azioni rapide e domande alla chat (es. nuovo file in una cartella → «Chiedi alla chat di riassumere {file}»). Serve un segnaposto sicuro: nei link codificato, negli script solo come argomento, mai incollato nel comando.
 2. **«Quando» nuovi**, dagli eventi che l'isola già vede: download finito, server di sviluppo partito, agente che ha finito o aspetta un permesso da N minuti, chiamata 3CX in arrivo o finita, N minuti prima di un evento del calendario, fine giornata (`eveningHour`), rientro dopo una pausa (inattività).
 3. **«Se» più ricchi**, anche più d'uno insieme: fascia oraria e giorni, rete Wi-Fi, alimentazione o batteria, programma aperto, in riunione (microfono/webcam), davanti al cliente, nessun agente al lavoro. Più «al massimo una volta al giorno / ogni N minuti» contro le ripetizioni.

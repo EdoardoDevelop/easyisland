@@ -190,6 +190,7 @@ fn settle_loop(app: AppHandle) {
                     announced.insert(path.clone(), now);
                     let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
                     crate::log::line(format!("download finito ({} KB)", size / 1024));
+                    crate::automations::on_event("download", &name, "", &crate::automations::file_ctx(&path));
                     crate::moments::emit(&app, json!({
                         "kind": "download",
                         "name": name,

@@ -27,6 +27,17 @@ export interface DailySummary {
   linesAdded: number;
   linesRemoved: number;
   digest: DailyDigest;
+  /** The morning only: today's Notion tasks, late ones included (notion.rs → `today`). */
+  notion: { id: string; title: string; url: string; due: string | null }[];
+}
+
+/** Today's Notion tasks, if the integration is on and the morning recap may show them. */
+function notionToday(): DailySummary["notion"] {
+  const c = State.settings.integrationConfig;
+  if (c.notionMorning === false || !State.settings.activeIntegrations.includes("integration_notion")) return [];
+  const list = State.integrations.integration_notion?.data?.today;
+  return (Array.isArray(list) ? list : [])
+    .filter((x): x is DailySummary["notion"][number] => !!x && typeof x === "object" && typeof (x as { id?: unknown }).id === "string" && typeof (x as { title?: unknown }).title === "string");
 }
 
 /** The end-of-day hour, as set (12–23). */
@@ -63,7 +74,7 @@ export function sumDay(history: RecapHistory, day: Date) {
 }
 
 export function hasNews(s: DailySummary): boolean {
-  return s.minutes > 0 || s.digest.repos.length > 0 || (s.digest.prs?.length ?? 0) > 0;
+  return s.minutes > 0 || s.digest.repos.length > 0 || (s.digest.prs?.length ?? 0) > 0 || s.notion.length > 0;
 }
 
 /** A made-up day for the browser preview. */
@@ -102,7 +113,7 @@ class DailyController {
     const history = IS_TAURI ? await Bridge.recapHistory(since) : sampleHistory(day);
     const digest = (IS_TAURI ? await Bridge.dailyDigest() : sampleDigest()) ?? { repos: [], prs: null };
     const empty: RecapHistory = { turns: [], decisions: [], lastShownWeek: "" };
-    this.summary = { which, day, digest, ...sumDay(history ?? empty, day) };
+    this.summary = { which, day, digest, notion: which === "morning" ? notionToday() : [], ...sumDay(history ?? empty, day) };
     this.version++;
     return this.summary;
   }

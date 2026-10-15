@@ -5,8 +5,26 @@ Un servizio o programma che di solito c'è una volta sola è un'**integrazione**
 
 ## Dove stanno
 - Integrazioni con API (Stripe, n8n, GitHub, Vercel, Resend, Notion, Cal.com): `src-tauri/src/integrations.rs`.
-  - Notion: `notion.rs` (il poller di `integrations.rs` chiama `notion::poll`). Scelte in Impostazioni → Integrazioni → Notion, in `integrationConfig` (`notionTasks`, `notionInbox`, `notionPins`, tipo `NotionRef`):
-    - **Attività:** il database scelto; `schema_of` trova titolo, data (nomi come Scadenza/Due, altrimenti la prima data) e «fatto» (stato: le opzioni del gruppo Complete; altrimenti una casella come Fatto/Done). La card mostra le non fatte, prima scadute e di oggi (`dueLabel`), al massimo 5; il cerchio le segna fatte (`notion_task_done`, PATCH della pagina) e la card si rilegge. Lo schema resta in memoria finché non si sceglie un altro database (`notion_forget_schemas`).
+  - Notion: `notion.rs` (il poller di `integrations.rs` chiama `notion::poll`). Scelte in Impostazioni → Integrazioni → Notion, in `integrationConfig` (`notionTasks`, `notionInbox`, `notionPins`, tipo `NotionRef`; `notionViews`, `notionView`):
+    - **Attività:** il database scelto; `schema_of` trova titolo, data (nomi come Scadenza/Due, altrimenti la prima data) e «fatto» (stato: le opzioni del gruppo Complete; altrimenti una casella come Fatto/Done). La card mostra le non fatte, prima scadute e di oggi (`dueLabel`), al massimo 5; il cerchio le segna fatte (`notion_task_done`, PATCH della pagina) e la card si rilegge. Lo schema resta in memoria finché non si sceglie un altro database (`notion_forget_schemas`). Un select con «priorità» nel nome dà il pallino del colore dell'opzione accanto all'attività.
+    - **Viste** (chieste da Edoardo il 15 ottobre 2026: troppe attività che non gli servono ogni giorno): filtri con un nome in `notionViews`, al massimo 6. Ognuna ha:
+      - un periodo: tutte, scadute e di oggi, fino a domenica, fino a fine mese o i prossimi N giorni. Le scadute ci sono sempre, quelle senza data solo se la vista lo dice;
+      - per ogni select, multi-select, stato o relazione del database i valori voluti: in una proprietà basta uno qualsiasi, fra proprietà diverse servono tutti;
+      - l'ordine per scadenza o per priorità.
+      `view_filter` le traduce nel filtro della query di Notion. `notion_properties` dà le colonne all'editor delle Impostazioni: le relazioni con le prime 100 pagine del database collegato, salvate per id. Il poller legge tutte le viste (`byView`), così la card le cambia con un clic sui pulsanti senza aspettare, e la scelta resta in `notionView`. Senza viste, tutte le non fatte come prima. Provato in sola lettura sul database vero («settimana» 1 attività su 20); scena `notion&views`.
+    - **Avvisi** (`due_alerts`, `comment_alerts`, chiesti da Edoardo il 15 ottobre 2026). Notion non dà alle integrazioni le sue notifiche (menzioni, promemoria): l'API non le ha. Gli avvisi si ricavano a ogni giro (5 minuti) dalle attività di oggi (`today`, anche quelle in ritardo, al di là delle viste).
+      - **Attività con orario:** un avviso `notionAlertLead` minuti prima, con un timer se cade prima del giro dopo. Uno solo per attività e orario (`ALERTED`); nessun avviso oltre un'ora di ritardo.
+      - **Commenti nuovi** sulle pagine fissate e sulle prime 10 attività di oggi (`GET /comments`): il primo giro dopo l'avvio segna solo dove si è arrivati; al massimo 3 avvisi a giro.
+      - Gli avvisi passano da `EasyIslandNotify` con il link, quindi valgono le regole di Notifiche, e un clic apre l'app Notion.
+      - **Riepilogo del mattino:** le attività di oggi vanno nella card del mattino (`src/island/daily.ts`, «Oggi in Notion»), se `notionMorning` è acceso.
+    - **Nella card:**
+      - «+ Attività» crea una riga con titolo e scadenza (Oggi, Domani, Lunedì o senza data) e con i valori unici dei filtri della vista in uso, così compare in quella vista (`add_task`).
+      - «Rimanda a domani», al passaggio del mouse, sposta la data a domani, o al giorno dopo la scadenza se è più avanti, e tiene l'ora (`postpone`, `postponedDue`).
+    - **Dal testo selezionato** (`Win+Alt+A`): con Notion attivo, il menu ha «Nota in Notion» e «Attività in Notion» (la prima riga diventa il titolo).
+    - **Configurazione rapida:** quando mancano il database delle attività o le note, le Impostazioni propongono i database adatti (`suggest`):
+      - per le attività, quelli con una data e un «fatto», prima quelli con un nome da attività;
+      - per le note, quelli con un nome da note, appunti, inbox, idee o diario.
+      Scegliere un database delle attività crea le viste Oggi, Settimana e Tutte, e la card parte da «Oggi».
     - **Nota veloce** («+ Nota» nell'intestazione): in una pagina un paragrafo in fondo con data e ora in grassetto grigio, in un database una riga col titolo dalla prima riga (`add_note`). Testo a pezzi di 2000 caratteri, al massimo 90 paragrafi.
     - **Pagine:** quelle scelte, mostrate senza chiamate a Notion (titolo ed emoji di quando sono state scelte). Le pagine «recenti» non ci sono più: erano anche righe di database prese a caso.
     - Ricerca nella card e nella barra in alto (`notion_search`, dalla terza lettera con 400 ms di attesa, solo con il token); «Chiedi alla chat» allega titolo e testo (`notion_page_text`: blocchi e un livello sotto, al massimo 30.000 caratteri) senza inviare.
@@ -58,9 +76,44 @@ Un servizio o programma che di solito c'è una volta sola è un'**integrazione**
 
 ## Automazioni (`src-tauri/src/automations.rs`)
 - Regole "quando… se… allora…" in `settings.automations` (salvate per PC). La pagina è `automationsSection`.
+- **Quando** (dal 15 ottobre 2026, su richiesta di Edoardo: «non solo orario e programmi, più contesto»): oltre a orario, avvio, sblocco, Wi-Fi, programma che parte, chiavetta, file in una cartella e integrazioni, anche programma che passa in primo piano, download finito, chiamata 3CX in arrivo, agente che ha finito o aspetta un permesso (non la chat dell'isola), server di sviluppo partito, rientro dopo N minuti senza tastiera e mouse. Gli eventi li spingono i loro moduli con `automations::on_event` (`downloads.rs`, `threecx/mod.rs`, `pipe.rs` → `on_hook`, `devservers.rs`, `context.rs` → `on_foreground`), e solo se un'automazione accesa li aspetta (`WANTED`, un solo atomico). Il rilevamento dei server di sviluppo gira anche con la proposta spenta, se un'automazione lo vuole.
+- **Filtro** («Solo se», `trigger.filter`) per cartella, download, integrazioni, chiamate, agenti e server: parole separate da virgola, `.pdf` = estensione, il resto = contenuto nel nome del file, chiamante, progetto o messaggio (`matches`).
+- **Se** (`conditions`, tutte vere, ognuna può diventare «se non»): fascia oraria e giorni (anche a cavallo della mezzanotte), rete Wi-Fi, programma aperto o in primo piano, a batteria o sotto N %, assente da N minuti, in riunione (microfono o webcam, come `presence.rs`), «davanti al cliente». Si guardano solo quando un'automazione sta per partire (`Look`, `holds`). «Ripeti»: ogni volta, al massimo ogni N minuti, una volta al giorno (`repeat_allows`, in memoria). «Prova ora» salta condizioni e ripetizioni.
+- **Dati del quando nei passi** (`fill`): `{file}` `{percorso}` `{cartella}` `{rete}` `{programma}` `{unità}` `{testo}` `{fonte}` `{chiamante}` `{numero}` `{agente}` `{progetto}` `{porta}` `{link}` `{minuti}`, sempre `{ora}` e `{data}`; l'editor elenca quelli del «quando» scelto. Vincoli di sicurezza: negli avvisi e nella domanda alla chat (passo «Chiedi alla chat», evento `automation-ask` → `island.askChat`) entrano così come sono; nei link sono codificati, tranne all'inizio (`{link}` di un server); negli argomenti di un programma sono un argomento tra virgolette e mai per una shell (`SHELLS`); un file dell'evento non si apre se si esegue (`RUNNABLE`, es. un `setup.exe` scaricato); negli script delle azioni rapide non entrano mai. Un nome sconosciuto resta scritto, così si vede l'errore.
 - Il registro è in memoria. Lo sblocco del PC arriva da `WTSRegisterSessionNotification`. Si interroga solo ciò che serve alle automazioni accese. I controlli arrivano da `widgets.rs` (`automations::on_widget`).
 - Le azioni che vogliono una conferma o Claude passano all'isola (`automation-action`). Ogni regola passa da `automations::validate`.
 
 ## Proposte dalle abitudini (`src-tauri/src/habits.rs`)
 - Spente di serie (`habitsEnabled`). Registrano solo nomi di programmi e orari in `habits.jsonl` locale, mai titoli o contenuti. L'analisi è la funzione pura `analyse`.
 - Rifiuti in `suggestionsDismissed`, rimandi in `suggestionsSnoozed`. Una proposta diventa un'automazione solo con un clic e passa da `automations::validate`.
+
+## Impostazioni → Integrazioni
+Rifatta il 15 ottobre 2026 su richiesta di Edoardo («troppo confusionaria»).
+- **Gruppi** (`INTEGRATION_GROUPS` in `src/settings/main.ts`): Lavoro e clienti, Sviluppo e servizi, Questo PC, più «Altre» per quelle non elencate. Una integrazione nuova va aggiunta a un gruppo.
+- **Una riga per integrazione:** interruttore, colore, nome, stato (Spenta, Attiva, oppure «Manca: chiave» quando un campo di Gestione credenziali non c'è) e la prima frase della spiegazione.
+- **Dettagli:** un clic apre spiegazione, campi, opzioni, icona e colore, una integrazione alla volta (`openIntegration`).
+- **Sopra l'elenco:** la ricerca e «Solo attive». In fondo, «Menu dell'isola» con il blocco dello spostamento.
+
+## Remote Desktop Manager (`rdm.rs`, `src/views/rdm.ts`)
+Preparata il 15 ottobre 2026, senza RDM su questo PC: da provare dove c'è (`docs/prove-dal-vivo.md`). Edoardo vuole usare RDM da EasyIsland per tutto, anche con un database che non conosce ancora e condiviso con i colleghi.
+- **RDM resta il programma che si collega.** EasyIsland trova la connessione e chiede a RDM di aprirla, modificarla o cercarla. Non legge mai una password, non scrive e non cancella voci di RDM.
+- **L'elenco** viene dal modulo ufficiale `Devolutions.PowerShell` (serve PowerShell 7.2 o più, `pwsh`). Il modulo apre la stessa origine dati di RDM con i permessi dell'utente, quindi vale per qualsiasi origine: SQLite o XML locale, Devolutions Server, Hub, SQL.
+  - `SESSIONS` prende id, nome, cartella, host (o URL) e tipo; cartelle e credenziali restano fuori.
+  - Lo script parte nascosto (`-NoProfile -NonInteractive -EncodedCommand`, limite 120 s). L'origine scelta arriva come variabile d'ambiente, mai sulla riga di comando.
+  - L'elenco sta solo in memoria (`INDEX`) e si rilegge ogni 30 minuti (`integrations.rs`) o con «Rileggi l'elenco». Se una lettura fallisce resta quello di prima.
+  - Alla card va solo il conteggio; le ricerche passano da `rdm_search`.
+  - Nota di Devolutions: il modulo va tenuto della stessa versione di RDM, e su alcune installazioni legge la configurazione sbagliata (`Set-RDMPowerShellOverride`).
+- **Aprire:** `RemoteDesktopManager.exe /DataSource:<id> /Session:<id>`, con l'exe trovato in App Paths o nelle cartelle di Devolutions (anche Free). Senza exe, gli stessi parametri con `rdm://open?…`. «Modifica in RDM» usa solo `rdm://edit?…`, perché l'exe non ha un'opzione per modificare.
+  - Prima di andare sulla riga di comando: gli id devono essere GUID, gli host passano un filtro di caratteri e il testo di ricerca viene ripulito.
+  - Il `DataSource` è quello letto dal modulo: un id di origine vale solo sul PC dove è stato creato.
+- **Senza modulo:** la ricerca si apre dentro RDM (`/Filter:`), e ci si collega a un indirizzo senza salvarlo (`/Template:RDP|SSH /Host:`).
+- **Dove compare:**
+  - **Card:** ricerca, «Fissate» (`rdmPins`), «Recenti» (`rdmRecent`, le ultime 8 aperte da EasyIsland); al passaggio del mouse, Modifica, Copia indirizzo e puntina.
+  - **Barra in alto:** il tipo «RDM».
+  - **Chiamata 3CX:** pulsante «Connessioni in RDM» con il nome di chi chiama.
+  - **Ticket Zammad «Da assegnare»:** pulsante «RDM» con l'organizzazione o il cliente, che `zammad.rs` mette dopo « — ».
+  - **Testo selezionato** (`Win+Alt+A`): «Cerca in Remote Desktop Manager», e su un IP o un nome host anche «Connetti con RDP/SSH».
+- **Ricerca** (`score`): ogni parola nel nome, nella cartella o nell'host; senza risultati, basta una parola di almeno 3 lettere (`loose_score`). Così «Mario Rossi» trova la cartella «Rossi Srl».
+- **Impostazioni:** stato di RDM, PowerShell 7, modulo ed elenco, con i comandi da copiare (mai eseguiti da EasyIsland); scelta dell'origine dati (`rdmDataSource`, caricata a richiesta perché avvia PowerShell).
+- **Prove:** test `rdm::tests` e `cargo test --lib rdm::tests::live -- --ignored --nocapture` dove c'è RDM. Scena `rdm&activeIntegrations=integration_rdm` (`&nolist` per il caso senza modulo).
+

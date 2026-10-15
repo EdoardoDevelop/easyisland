@@ -65,13 +65,21 @@ export function buildDaily(actions: ViewActions): ViewHost {
       row(p.title, `${p.repo} #${p.number}`, p.url, () => actions.openUrl(p.url))));
     const mine = list(t("Le tue pull request aperte"), prs.filter((p) => !p.review).map((p) =>
       row(p.title, `${p.repo} #${p.number}`, p.url, () => actions.openUrl(p.url))));
-    const nothing = !chips.childElementCount && !repos.length && !prs.length;
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const notion = list(t("Oggi in Notion"), s.notion.map((x) => {
+      const day = (x.due ?? "").slice(0, 10);
+      const time = x.due && x.due.includes("T") ? new Date(x.due).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) : "";
+      return row(x.title, day && day < today ? t("scaduta") : time || t("oggi"), x.url, () => actions.openUrl(x.url));
+    }));
+    const nothing = !chips.childElementCount && !repos.length && !prs.length && !notion.length;
     return [
       h("div", { class: "recap-head" },
         h("span", { class: "recap-title", text: morning ? t("Buongiorno") : t("Fine giornata") }),
         h("span", { class: "grow" }),
         h("span", { class: "recap-range", text: morning ? t("ieri, {date}", { date }) : date })),
       ...(chips.childElementCount ? [chips] : []),
+      ...notion,
       ...repos,
       ...review,
       ...mine,

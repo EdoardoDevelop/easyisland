@@ -11,6 +11,8 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
 - [ ] **Trascinamento del personaggio della chat (0.7.4):** un trascinamento veloce e uno lento oltre il tempo di chiusura: l'isola resta aperta finché lo lasci. Aprendo una scheda di integrazione e chiudendo l'isola, il personaggio compatto ha il suo colore.
 - [ ] **Tempo sui permessi:** la card di un permesso vero di Claude Code dice «attende ancora 1:47» e scende; dopo «Più tardi» e riapertura il tempo è andato avanti; a zero la card sparisce e si risponde nel terminale.
 - [ ] **Consumo Claude:** il messaggio di limite raggiunto non è mai comparso.
+- [ ] **Automazioni con contesto (0.8.4):** un download di un PDF con «Solo se .pdf» e «Chiedi alla chat: Riassumi {percorso}»; «Quando torni al PC dopo una pausa» di 5 minuti; «agente ha finito» con un progetto nel filtro; «se non in riunione» con Teams in chiamata (non deve partire); «al massimo ogni 30 minuti». Un download di un `.exe` con «Apri {percorso}» deve dare errore nel registro, non aprirlo.
+- [ ] **Impostazioni sopra l'isola (0.8.4):** con l'isola aperta in alto, le Impostazioni le stanno sopra mentre sono attive; cliccando un altro programma tornano normali e l'isola resta sopra di loro.
 - [ ] **Agente e automazioni:** card Consenti/Nega in una chat vera; ogni tipo di «Quando» e «Prova ora»; proposte dalle abitudini (servono settimane con `habitsEnabled`).
 - [ ] **Altri motori della chat** con chiavi vere e Ollama/LM Studio; markdown (Copia, link).
 - [ ] **Appunti e Media** (Ctrl+V, immagini da varie app, Spotify/browser), **Cerchia e chiedi** (vedi sotto), **calcolatrice**, **ZIP** veri.
@@ -53,3 +55,27 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
     - Con Claude Code, «crea prova.txt e mostrami git status» va senza card; «cancella la cartella build» si ferma o chiede.
     - Con opencode, `npm run build` va da solo; `Remove-Item` e `git push` mostrano la card.
     - «Nuova chat» lo spegne.
+- [ ] **Viste delle attività di Notion (15 ottobre 2026):** in Impostazioni → Notion «+ Oggi», «+ Settimana» e una vista con Contesto «Ufficio» e Priorità «Alta». Nella card i pulsanti cambiano l'elenco subito; la vista scelta resta dopo un riavvio; il pallino ha il colore della priorità; rinominando la vista scelta resta scelta; un filtro su Progetto (relazione) funziona; togliendo tutte le viste tornano tutte le non fatte.
+- [ ] **Notion: avvisi e uso semplice (15 ottobre 2026):**
+  - Un'attività con orario fra 15 minuti: l'avviso arriva 10 minuti prima (o come scelto), una volta sola, e il clic apre Notion.
+  - Un commento nuovo, scritto dal telefono, su una pagina fissata: l'avviso arriva entro 5 minuti.
+  - Il mattino dopo le 8, il riepilogo ha «Oggi in Notion».
+  - Nella card, «+ Attività» con Oggi e con una vista con Contesto Ufficio: la riga compare in quella vista. «Rimanda a domani» tiene l'ora.
+  - `Win+Alt+A` su un testo, «Nota in Notion» e «Attività in Notion».
+  - Configurazione rapida togliendo e rimettendo il database delle attività.
+- [ ] **Impostazioni → Integrazioni:** gruppi, stato «Manca: chiave», apertura di una sola alla volta, ricerca, «Solo attive», 3CX con i campi che cambiano secondo il tipo di accesso.
+- [ ] **Remote Desktop Manager** (predisposto il 15 ottobre 2026), sul PC con RDM:
+  1. **Diagnosi:** `cargo test --lib rdm::tests::live -- --ignored --nocapture` dice exe, `rdm://`, pwsh, versione del modulo, origini, numero di connessioni e i tipi trovati. Se un tipo da tenere fuori (credenziali, cartelle) compare con un altro nome, va aggiunto a `is_connection`.
+  2. **Impostazioni → Integrazioni → Remote Desktop Manager:** i quattro stati. Senza PowerShell 7 o senza modulo, i comandi da copiare; installarli e premere «Rileggi l'elenco».
+  3. **Origine dati:**
+     - «Carica le origini» elenca quelle di RDM; sceglierne un'altra rilegge.
+     - Con Devolutions Server o Hub che chiede l'accesso: dopo 120 s il messaggio «non ha risposto in tempo», l'app non si blocca.
+     - Il modulo della stessa versione di RDM.
+  4. **Card:** ricerca per nome, cliente (cartella) e IP; Invio apre la prima; «Apri» apre in RDM la connessione giusta, nell'origine giusta; Modifica in RDM; Copia indirizzo; puntina; Recenti dopo un'apertura (anche dopo un riavvio).
+  5. **Barra in alto:** «rossi» mostra le connessioni RDM e le apre.
+  6. **3CX:** chiamata da un cliente con una cartella in RDM → «Connessioni in RDM» → la card con le sue connessioni (anche col nome e cognome di chi chiama).
+  7. **Zammad:** un ticket da assegnare mostra « — Organizzazione» e il pulsante RDM. Se `ticket_overviews` non dà Organization/User negli assets, il cliente manca: da vedere nel log.
+  8. **`Win+Alt+A`:** su un IP, «Connetti con RDP/SSH» apre una connessione al volo, che non viene salvata; su un nome, «Cerca in Remote Desktop Manager».
+  9. **Senza modulo:** la ricerca della card apre RDM con il campo di ricerca già compilato.
+  10. **Con un collega su un altro PC:** vede solo le connessioni che vede in RDM.
+

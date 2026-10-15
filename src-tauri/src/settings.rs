@@ -75,6 +75,88 @@ pub struct IntegrationConfig {
     /// Notion: where "Nuova nota" writes (a page gets a paragraph, a database a row).
     #[serde(default)]
     pub notion_inbox: Option<NotionRef>,
+    /// Notion: the views of the tasks (filters the user saved); none = all not done.
+    #[serde(default)]
+    pub notion_views: Vec<NotionView>,
+    /// Notion: the view shown in the card (its name; "" = the first).
+    #[serde(default)]
+    pub notion_view: String,
+    /// Notion: a notice before a task with a time is due (notion.rs → alerts).
+    #[serde(default = "yes")]
+    pub notion_alert_due: bool,
+    /// …this many minutes before (0 = at the time).
+    #[serde(default = "ten_minutes")]
+    pub notion_alert_lead: u32,
+    /// Notion: a notice for a new comment on a kept page or a task due today.
+    #[serde(default = "yes")]
+    pub notion_alert_comments: bool,
+    /// Notion: today's tasks in the morning recap (src/island/daily.ts).
+    #[serde(default = "yes")]
+    pub notion_morning: bool,
+    /// Remote Desktop Manager: the workspace to read (its id; "" = RDM's current one).
+    #[serde(default)]
+    pub rdm_data_source: String,
+    /// Remote Desktop Manager: the connections kept in the card.
+    #[serde(default)]
+    pub rdm_pins: Vec<RdmRef>,
+    /// Remote Desktop Manager: the last ones opened from EasyIsland (newest first, 8).
+    #[serde(default)]
+    pub rdm_recent: Vec<RdmRef>,
+}
+
+/// A connection of Remote Desktop Manager kept in the settings (rdm.rs Entry).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RdmRef {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub group: String,
+    #[serde(default)]
+    pub host: String,
+    #[serde(default)]
+    pub kind: String,
+}
+
+fn ten_minutes() -> u32 {
+    10
+}
+
+/// A view of the tasks: which ones the card shows (notion.rs → view_filter).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct NotionView {
+    pub name: String,
+    /// "all", "today" (late and today), "week" (to Sunday), "month" (to the
+    /// month's end) or "days" (the next `days`). Late tasks are always in.
+    #[serde(default)]
+    pub period: String,
+    #[serde(default)]
+    pub days: u32,
+    /// Tasks without a due date too.
+    #[serde(default = "yes")]
+    pub undated: bool,
+    /// One per property; within one, any of the values.
+    #[serde(default)]
+    pub filters: Vec<NotionFilter>,
+    /// "due" (default) or "priority".
+    #[serde(default)]
+    pub sort: String,
+}
+
+/// Values a property must have: option names (select, multi_select, status)
+/// or page ids (relation).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct NotionFilter {
+    pub prop: String,
+    pub kind: String,
+    #[serde(default)]
+    pub values: Vec<String>,
+}
+
+fn yes() -> bool {
+    true
 }
 
 /// A Notion page or database chosen in the settings (its title as it was then).
@@ -109,6 +191,15 @@ impl Default for IntegrationConfig {
             notion_pins: Vec::new(),
             notion_tasks: None,
             notion_inbox: None,
+            notion_views: Vec::new(),
+            notion_view: String::new(),
+            notion_alert_due: true,
+            notion_alert_lead: 10,
+            notion_alert_comments: true,
+            notion_morning: true,
+            rdm_data_source: String::new(),
+            rdm_pins: Vec::new(),
+            rdm_recent: Vec::new(),
         }
     }
 }

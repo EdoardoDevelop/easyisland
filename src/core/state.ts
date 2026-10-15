@@ -272,6 +272,7 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_vercel", "Vercel", "#7C5CFF", "n8n"),
   task("integration_github", "GitHub", "#F4505E", "n8n"),
   task("integration_notion", "Notion", "#8C8C8C", "n8n"),
+  task("integration_rdm", "RDM", "#E8542A", "n8n"),
   task("integration_calcom", "Cal.com", "#C9956A", "n8n"),
   task("integration_stripe", "Stripe", "#0570DE", "n8n"),
   task("integration_system", "PC", "#38BDF8", "n8n"),
@@ -299,6 +300,7 @@ export const OPEN_URLS: Record<string, string> = {
 export const OPENED_BY_APP = new Set([
   "integration_n8n", "integration_zammad", "integration_system", "integration_security",
   "integration_network", "integration_clipboard", "integration_weather", "integration_outlook", "integration_3cx",
+  "integration_rdm",
 ]);
 /** …and nothing for the others: no "Apri" button there. */
 export function canOpen(t: AgentTask | null): boolean {
@@ -314,7 +316,7 @@ export const TOGGLEABLE_INTEGRATION_IDS = [
   "integration_resend", "integration_n8n", "integration_vercel", "integration_github",
   "integration_notion", "integration_calcom", "integration_stripe",
   ...Object.keys(PROBE_INTEGRATIONS),
-  "integration_clipboard", "integration_media", "integration_3cx",
+  "integration_clipboard", "integration_media", "integration_3cx", "integration_rdm",
 ];
 
 /** What an integration poller last reported. */
@@ -516,6 +518,45 @@ export interface IntegrationConfig {
   notionTasks: NotionRef | null;
   /** Notion: where "Nuova nota" writes (a page or a database). */
   notionInbox: NotionRef | null;
+  /** Notion: the views of the tasks (saved filters); none = all not done. */
+  notionViews?: NotionView[];
+  /** Notion: the view shown in the card (its name; "" = the first). */
+  notionView?: string;
+  /** Notion notices (notion.rs): before a task with a time, this many minutes before. */
+  notionAlertDue?: boolean;
+  notionAlertLead?: number;
+  /** Notion notices: a new comment on a kept page or a task due today. */
+  notionAlertComments?: boolean;
+  /** Notion: today's tasks in the morning recap. */
+  notionMorning?: boolean;
+  /** Remote Desktop Manager: the workspace read (its id; "" = RDM's current one). */
+  rdmDataSource?: string;
+  /** Remote Desktop Manager: connections kept in the card, and the last opened (rdm.rs). */
+  rdmPins?: RdmRef[];
+  rdmRecent?: RdmRef[];
+}
+
+/** A connection of Remote Desktop Manager (settings.rs RdmRef, rdm.rs Entry). */
+export interface RdmRef {
+  id: string;
+  name: string;
+  group: string;
+  host: string;
+  kind: string;
+}
+
+/** A view of the Notion tasks (settings.rs NotionView, notion.rs view_filter). */
+export interface NotionView {
+  name: string;
+  /** "all", "today", "week" (to Sunday), "month" (to its end), "days" (the next `days`). Late ones always in. */
+  period: string;
+  days: number;
+  /** Tasks without a due date too. */
+  undated: boolean;
+  /** One per property; within one, any of the values (option names or page ids). */
+  filters: { prop: string; kind: string; values: string[] }[];
+  /** "due" or "priority". */
+  sort: string;
 }
 
 /** A Notion page or database chosen in the settings (settings.rs NotionRef). */
@@ -575,7 +616,8 @@ export function folderValue(icon: string, name: string): string {
 /** A probe the user set up in the settings (src-tauri/src/widgets.rs). */
 /** When an automation starts (src-tauri/src/automations.rs). */
 export interface AutomationTrigger {
-  kind: "time" | "startup" | "unlock" | "wifi" | "app" | "drive" | "folder" | "integration";
+  kind: "time" | "startup" | "unlock" | "wifi" | "app" | "foreground" | "drive" | "folder" | "download" | "integration"
+    | "call" | "agent" | "server" | "back";
   /** time: "HH:MM". */
   time: string;
   /** time: 1 = Monday … 7 = Sunday; empty = every day. */
@@ -583,17 +625,36 @@ export interface AutomationTrigger {
   /** startup: seconds after EasyIsland starts. */
   delay: number;
   ssid: string;
-  /** app: executable, e.g. "teams.exe". */
+  /** app, foreground: executable, e.g. "teams.exe". */
   exe: string;
   folder: string;
   /** integration: id of the integration or widget. */
   source: string;
-  when: "problem" | "event" | "any";
+  /** integration: problem | event | any · agent: stop | permission | any. */
+  when: "problem" | "event" | "any" | "stop" | "permission";
+  /** Comma-separated: ".pdf" = extension, other words = contained (automations.rs `matches`). */
+  filter?: string;
+  /** back: away for at least these minutes. */
+  minutes?: number;
+}
+
+/** One "se" of an automation: all must hold; `not` turns it around. */
+export interface AutomationCondition {
+  kind: "hours" | "wifi" | "app" | "foreground" | "battery" | "idle" | "meeting" | "client";
+  not: boolean;
+  from: string;
+  to: string;
+  days: number[];
+  ssid: string;
+  exe: string;
+  minutes: number;
+  /** battery: 0 = on battery, otherwise below this %. */
+  percent: number;
 }
 
 /** One thing an automation does. */
 export interface AutomationStep {
-  kind: "quick" | "notice" | "profile" | "app" | "url";
+  kind: "quick" | "notice" | "profile" | "app" | "url" | "chat";
   /** quick: action id · profile: profile id. */
   id: string;
   title: string;
@@ -612,6 +673,10 @@ export interface Automation {
   trigger: AutomationTrigger;
   /** Only while this profile is active; "" = any. */
   profile: string;
+  conditions?: AutomationCondition[];
+  /** "" = every time · "every" = at most every `every` minutes · "day" = once a day. */
+  repeat?: "" | "every" | "day";
+  every?: number;
   steps: AutomationStep[];
   /** A notice every time it runs (errors always show). */
   notify: boolean;
@@ -822,7 +887,9 @@ export const DEFAULT_SETTINGS: Settings = {
     systemWarn: 10, outlookWarn: 10, weatherCity: "", weatherOnCharacter: false, planInHeader: true,
     threecxMode: "user", threecxExtension: "", threecxDevice: "",
     threecxRing: true, threecxAlert: true, threecxRingtone: "",
-    notionPins: [], notionTasks: null, notionInbox: null,
+    notionPins: [], notionTasks: null, notionInbox: null, notionViews: [], notionView: "",
+    notionAlertDue: true, notionAlertLead: 10, notionAlertComments: true, notionMorning: true,
+    rdmDataSource: "", rdmPins: [], rdmRecent: [],
   },
 };
 

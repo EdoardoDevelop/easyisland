@@ -56,7 +56,7 @@ fn in_use(k: &Key) -> bool {
 }
 
 /// The first app using the microphone or the webcam right now.
-fn device_in_use(device: &str) -> Option<String> {
+pub(crate) fn device_in_use(device: &str) -> Option<String> {
     let root = Key::open(HKEY_CURRENT_USER, &format!(r"{CONSENT}\{device}"))?;
     for name in root.subkeys() {
         let Some(k) = root.child(&name) else { continue };

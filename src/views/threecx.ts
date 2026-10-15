@@ -16,6 +16,7 @@ import {
   type ThreecxMessage, type ThreecxVoicemail,
 } from "../core/bridge";
 import { locale, t } from "../core/i18n";
+import { rdmActive, rdmLookFor } from "./rdm";
 import {
   answerOnPc, callFromPc, muted, onPc, pickupOnPc, ringOn, rtcFor, setMuted, setRingOn, tone, type RtcCall,
 } from "../core/softphone";
@@ -889,6 +890,8 @@ function callRow(c: ThreecxCall): HTMLElement {
     if (login && c.state === "connected") buttons.append(callButton(ICONS.forward, t("Trasferisci"), BLUE, () => dialer?.startPick("transfer", c)));
     buttons.append(callButton(ICONS.hangup, t("Riaggancia"), RED, act("hangup")));
   }
+  // The caller's connections in Remote Desktop Manager (rdm.ts), by name.
+  if (rdmActive() && c.name) buttons.append(callButton(ICONS.apps, t("Connessioni in RDM"), "#E8542A", () => rdmLookFor(c.name)));
   const face = initials(c.name);
   return h("div", { class: ringing ? "tcx-call ringing" : "tcx-call", style: `--c:${color}` },
     h("span", { class: "tcx-avatar" }, face ? h("b", { text: face }) : svg(ICONS.phone, 13)),

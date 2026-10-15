@@ -30,6 +30,7 @@ mod media;
 mod moments;
 mod netconfig;
 mod notion;
+mod rdm;
 mod openai;
 mod opencode;
 mod opencode_agent;
@@ -654,6 +655,105 @@ fn notion_forget_schemas() {
     notion::forget_schemas();
 }
 
+/// "+ Attività" in the Notion card: a task in the chosen database, with the
+/// values of the view in use; then the card reads the tasks again.
+#[tauri::command]
+async fn notion_add_task(app: AppHandle, shared: State<'_, Shared>, title: String, due: Option<String>) -> Result<(), String> {
+    let (db, view) = {
+        let s = shared.settings.lock().unwrap();
+        let c = &s.integration_config;
+        let view = c.notion_views.iter().find(|v| v.name == c.notion_view).or_else(|| c.notion_views.first()).cloned();
+        (c.notion_tasks.as_ref().map(|r| r.id.clone()), view)
+    };
+    let db = db.ok_or_else(|| t("Scegli il database delle attività nelle Impostazioni").to_string())?;
+    notion::add_task(&db, &title, due.as_deref(), view.as_ref()).await?;
+    notion::poll(app).await;
+    Ok(())
+}
+
+/// "Rimanda" on a task of the Notion card: its due date moved.
+#[tauri::command]
+async fn notion_postpone(app: AppHandle, shared: State<'_, Shared>, id: String, date: String) -> Result<(), String> {
+    let db = shared.settings.lock().unwrap().integration_config.notion_tasks.as_ref().map(|r| r.id.clone());
+    let db = db.ok_or_else(|| t("Scegli il database delle attività nelle Impostazioni").to_string())?;
+    notion::postpone(&db, &id, &date).await?;
+    notion::poll(app).await;
+    Ok(())
+}
+
+// ── Remote Desktop Manager (rdm.rs) ───────────────────────────────────────────
+
+/// The connections matching the words, best first (card, search bar, calls).
+#[tauri::command]
+fn rdm_search(query: String, limit: Option<usize>) -> Vec<rdm::Entry> {
+    rdm::search(&query, limit.unwrap_or(8))
+}
+
+/// The connections whose host is this IP or name (the text selected).
+#[tauri::command]
+fn rdm_by_host(host: String) -> Vec<rdm::Entry> {
+    rdm::by_host(&host)
+}
+
+/// "Apri" on a connection: RDM opens it; it goes first in the recent ones.
+#[tauri::command]
+fn rdm_open(app: AppHandle, shared: State<'_, Shared>, entry: settings::RdmRef) -> Result<(), String> {
+    rdm::open(&entry.id)?;
+    let snapshot = {
+        let mut s = shared.settings.lock().unwrap();
+        let recent = &mut s.integration_config.rdm_recent;
+        recent.retain(|r| r.id != entry.id);
+        recent.insert(0, entry);
+        recent.truncate(8);
+        s.clone()
+    };
+    let _ = settings::save(&snapshot);
+    let _ = app.emit("settings-changed", &snapshot);
+    Ok(())
+}
+
+/// "Modifica in RDM": its properties open in RDM.
+#[tauri::command]
+fn rdm_edit(id: String) -> Result<(), String> {
+    rdm::edit(&id)
+}
+
+/// RDM with its search filled in (no list here, or "Cerca in RDM").
+#[tauri::command]
+fn rdm_filter(text: String) -> Result<(), String> {
+    rdm::filter(&text)
+}
+
+/// A connection on the fly to a host (RDP, SSH, VNC), not saved in RDM.
+#[tauri::command]
+fn rdm_quick(kind: String, host: String) -> Result<(), String> {
+    rdm::quick(&kind, &host)
+}
+
+/// Impostazioni → Remote Desktop Manager: what is installed, what is missing.
+#[tauri::command]
+async fn rdm_status() -> rdm::Status {
+    rdm::status().await
+}
+
+/// Impostazioni → Remote Desktop Manager: the workspaces to choose from.
+#[tauri::command]
+async fn rdm_data_sources() -> Result<Vec<serde_json::Value>, String> {
+    rdm::data_sources().await
+}
+
+/// Impostazioni → Notion, first time: the databases that look like tasks or notes.
+#[tauri::command]
+async fn notion_suggest() -> Result<Vec<serde_json::Value>, String> {
+    notion::suggest().await
+}
+
+/// Impostazioni → Notion → Viste: what the tasks can be filtered by.
+#[tauri::command]
+async fn notion_properties(id: String) -> Result<Vec<notion::Property>, String> {
+    notion::properties(&id).await
+}
+
 /// "Chiedi alla chat" on a Notion page: its title and text.
 #[tauri::command]
 async fn notion_page_text(id: String) -> Result<(String, String), String> {
@@ -1221,6 +1321,7 @@ fn open_integration(id: String) -> bool {
         "integration_clipboard" => shell("ms-settings:clipboard"),
         "integration_weather" => shell("msnweather:"),
         "integration_outlook" => start("outlook.exe"),
+        "integration_rdm" => rdm::open_app(),
         "integration_3cx" => match secrets::get("3cx-url").as_deref().and_then(threecx::base_url) {
             Some(url) => {
                 open_url_now(&format!("{url}/webclient"));
@@ -1627,11 +1728,16 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
         Ok(win) => {
             // Closing it must only hide it, or it could never be reopened.
             let hidden = win.clone();
-            win.on_window_event(move |event| {
-                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            let handle = app.clone();
+            win.on_window_event(move |event| match event {
+                tauri::WindowEvent::CloseRequested { api, .. } => {
                     api.prevent_close();
+                    island::keep_settings_above(&handle, false);
                     let _ = hidden.hide();
                 }
+                // Above the island while in use (island::keep_settings_above).
+                tauri::WindowEvent::Focused(active) => island::keep_settings_above(&handle, *active),
+                _ => {}
             });
         }
         Err(err) => log::line(format!("settings window failed: {err}")),
@@ -1825,6 +1931,18 @@ pub fn run() {
             notion_search,
             notion_page_text,
             notion_task_done,
+            notion_properties,
+            notion_add_task,
+            notion_postpone,
+            notion_suggest,
+            rdm_search,
+            rdm_by_host,
+            rdm_open,
+            rdm_edit,
+            rdm_filter,
+            rdm_quick,
+            rdm_status,
+            rdm_data_sources,
             notion_add_note,
             notion_forget_schemas,
             inbox_drag,

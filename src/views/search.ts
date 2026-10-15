@@ -10,7 +10,8 @@ import { ICONS } from "./icons";
 import { renderActionIcon } from "./action-icons";
 import { tabActions } from "./actions";
 import { State, isSessionTask, type QuickAction } from "../core/state";
-import { Bridge, type NotionPage } from "../core/bridge";
+import { Bridge, type NotionPage, type RdmEntry } from "../core/bridge";
+import { kindLabel } from "./rdm";
 import { t } from "../core/i18n";
 
 export interface SearchActions {
@@ -22,7 +23,7 @@ export interface SearchActions {
 }
 
 interface Hit {
-  kind: "Integrazione" | "Agente" | "Azione" | "Programma" | "Notion" | "Chat";
+  kind: "Integrazione" | "Agente" | "Azione" | "Programma" | "Notion" | "RDM" | "Chat";
   name: string;
   icon: () => Node;
   run: () => void;
@@ -40,11 +41,11 @@ function score(name: string, q: string): number {
   return n.includes(q) ? 1 : 0;
 }
 
-const KIND_LABEL: Record<Hit["kind"], string> = { Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Notion: "Notion", Chat: "Ctrl+Invio" };
+const KIND_LABEL: Record<Hit["kind"], string> = { Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Notion: "Notion", RDM: "RDM", Chat: "Ctrl+Invio" };
 
 /** How many of each kind at most, so programs do not drown the rest. */
 
-const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Notion: 5, Chat: 1 };
+const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Notion: 5, RDM: 5, Chat: 1 };
 
 /** The Start menu, read again after this long (a program installed meanwhile). */
 const APPS_TTL_MS = 5 * 60_000;
@@ -72,6 +73,15 @@ export function buildSearch(actions: SearchActions): SearchHost {
   // Notion's answer for the words typed (it comes later than the rest).
   let notion: { q: string; pages: NotionPage[] } = { q: "", pages: [] };
   let notionTimer = 0;
+  // Remote Desktop Manager's connections (rdm.rs keeps the list in memory).
+  let rdmFound: { q: string; list: RdmEntry[] } = { q: "", list: [] };
+  const askRdm = (q: string) => {
+    if (q.length < 2 || !State.settings.activeIntegrations.includes("integration_rdm") || rdmFound.q === q) return;
+    void Bridge.rdmSearch(q, 5).then((list) => {
+      rdmFound = { q, list };
+      if (input.value.trim() === q && list.length) refresh(true);
+    });
+  };
 
   const askNotion = (q: string) => {
     window.clearTimeout(notionTimer);
@@ -124,6 +134,13 @@ export function buildSearch(actions: SearchActions): SearchHost {
           run: () => void Bridge.openUrl(p.url) });
       }
     }
+    if (rdmFound.q === input.value.trim()) {
+      for (const e of rdmFound.list) {
+        out.push({ kind: "RDM", name: e.group ? `${e.name} · ${e.group.split(/[\\/]/).pop()}` : e.name, score: Math.max(1, score(e.name, q)),
+          icon: () => h("span", { class: "rdm-kind", text: kindLabel(e.kind) }),
+          run: () => void Bridge.rdmOpen(e).catch(() => {}) });
+      }
+    }
     // Best match first; at equal match, the order of the kinds above.
     const kept: Hit[] = [];
     const used: Record<string, number> = {};
@@ -161,6 +178,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
     if (!keep) {
       sel = 0;
       askNotion(input.value.trim());
+      askRdm(input.value.trim());
     } else if (sel >= hits.length) sel = 0;
     el.classList.toggle("open", !!q);
     if (q) draw();

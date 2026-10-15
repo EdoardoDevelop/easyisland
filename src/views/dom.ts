@@ -83,10 +83,11 @@ export const TAB_ICONS: Record<string, string> = {
   integration_resend: "✉️", integration_notion: "📝", integration_calcom: "📅", integration_outlook: "📧",
   integration_zammad: "🎫", integration_3cx: "📞", integration_system: "💻", integration_security: "🛡️", integration_network: "🌐",
   integration_weather: "⛅", integration_clipboard: "📋", integration_media: "⏯️", integration_claude_usage: "📊",
+  integration_rdm: "🖥️",
 };
 
 /** Integrations with no brand logo that show their tab icon in its place. */
-const ICON_MARKS = new Set(["integration_weather", "integration_clipboard", "integration_media", "integration_claude_usage"]);
+const ICON_MARKS = new Set(["integration_weather", "integration_clipboard", "integration_media", "integration_claude_usage", "integration_rdm"]);
 
 /** True when `markIcon` has something for this integration. */
 export function hasMark(id: string): boolean {

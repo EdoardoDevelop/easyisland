@@ -1,12 +1,20 @@
 // Automations: "quando… (se…) allora…", set up in Impostazioni → Automazioni.
 //
 // Triggers: a time of day on chosen days, EasyIsland starting (with the PC),
-// the PC being unlocked, joining a Wi-Fi network, a program starting, a drive
-// (USB stick, external disk) being plugged in, a new file in a folder, an
-// integration or widget reporting a problem or an event (new ticket…).
-// Condition: optionally, only in one profile.
+// the PC being unlocked, joining a Wi-Fi network, a program starting or coming
+// to the front, a drive (USB stick, external disk) being plugged in, a new file
+// in a folder, a download finishing, an integration or widget reporting a
+// problem or an event (new ticket…), a 3CX call ringing, an agent finishing or
+// waiting for a permission, a dev server starting, coming back after a break.
+// Most of them can be narrowed with a filter (".pdf", a caller, a project).
+// Conditions ("se", all of them must hold, each one can be turned into "non"):
+// a profile, hours and days, a Wi-Fi network, a program open or in front, on
+// battery or below N %, away for N minutes, microphone or webcam in use, "davanti
+// al cliente". Plus how often: every time, at most every N minutes, once a day.
 // Actions, in order: a quick action of the user's, a notice in the island, a
-// profile switch, opening a program/folder or a link.
+// profile switch, opening a program/folder or a link, a question to the chat.
+// The trigger's data ({file}, {chiamante}, {progetto}…) fill notices, links,
+// arguments and questions (`fill`), never a script: see `run_step` for the rules.
 //
 // The user approved each automation by creating it, so it runs without
 // asking — except a quick-action script marked "Chiedi conferma", which the
@@ -16,11 +24,14 @@
 //
 // Cost: one thread that sleeps 5 s between looks, 30 s when no automation is
 // on, and only asks for what an enabled automation needs (process list, drive
-// letters, a folder, the Wi-Fi name every 30 s). Unlock comes from Windows
-// (WTSRegisterSessionNotification) on a thread that sleeps in GetMessageW.
+// letters, a folder, the Wi-Fi name every 30 s). Conditions are looked at only
+// when their automation is about to run. Unlock comes from Windows
+// (WTSRegisterSessionNotification) on a thread that sleeps in GetMessageW;
+// downloads, calls, agents, dev servers and the window in front are pushed by
+// their own modules (`on_event`), and only while an automation wants them.
 
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -34,7 +45,8 @@ use crate::i18n::{t, tf};
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Trigger {
-    /// time | startup | unlock | wifi | app | drive | folder | integration
+    /// time | startup | unlock | wifi | app | foreground | drive | folder | download
+    /// | integration | call | agent | server | back
     pub kind: String,
     /// time: "HH:MM".
     pub time: String,
@@ -43,19 +55,48 @@ pub struct Trigger {
     /// startup: seconds after EasyIsland starts.
     pub delay: u64,
     pub ssid: String,
-    /// app: executable name, e.g. "teams.exe".
+    /// app, foreground: executable name, e.g. "teams.exe".
     pub exe: String,
     pub folder: String,
     /// integration: id of the integration or widget ("integration_zammad", a widget id).
     pub source: String,
     /// integration: "problem" (turns warn/error) | "event" (new ticket…) | "any".
+    /// agent: "stop" (finished) | "permission" (waits for Consenti) | "any".
     pub when: String,
+    /// folder, download, integration, call, agent, server: only when the event
+    /// matches, comma-separated: ".pdf" / "*.pdf" = the file's extension, any
+    /// other word = contained in the file name, caller, project… "" = always.
+    pub filter: String,
+    /// back: away (no keyboard or mouse) for at least these minutes.
+    pub minutes: u64,
+}
+
+/// One "se": all of an automation's conditions must hold when it would run.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Condition {
+    /// hours | wifi | app | foreground | battery | idle | meeting | client
+    pub kind: String,
+    /// "non": the condition must NOT hold.
+    pub not: bool,
+    /// hours: "HH:MM" to "HH:MM" (across midnight when `to` is earlier).
+    pub from: String,
+    pub to: String,
+    /// hours: 1 = Monday … 7 = Sunday; empty = every day.
+    pub days: Vec<u8>,
+    pub ssid: String,
+    /// app (open), foreground (in front): "excel.exe".
+    pub exe: String,
+    /// idle: no keyboard or mouse for at least these minutes.
+    pub minutes: u64,
+    /// battery: 0 = running on battery, otherwise the charge is below this %.
+    pub percent: u8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Step {
-    /// quick | notice | profile | app | url
+    /// quick | notice | profile | app | url | chat (`text` is the question)
     pub kind: String,
     /// quick: action id · profile: profile id.
     pub id: String,
@@ -76,6 +117,11 @@ pub struct Automation {
     pub trigger: Trigger,
     /// Only while this profile is active; "" = any.
     pub profile: String,
+    /// More "se", all of them must hold.
+    pub conditions: Vec<Condition>,
+    /// "" = every time · "every" = at most once every `every` minutes · "day" = once a day.
+    pub repeat: String,
+    pub every: u64,
     pub steps: Vec<Step>,
     /// A notice in the island every time it runs (errors always show).
     pub notify: bool,
@@ -100,6 +146,175 @@ const LOG_KEEP: usize = 100;
 static UNLOCKED: AtomicBool = AtomicBool::new(false);
 /// (source id, "problem" | "event", text) reported by widgets.rs.
 static WIDGET_EVENTS: Mutex<Vec<(String, String, String)>> = Mutex::new(Vec::new());
+
+/// The trigger's data, by placeholder name without braces ("file" → "fattura.pdf").
+pub type Ctx = Vec<(String, String)>;
+
+/// Something another module saw (`on_event`): trigger kind, what the filter
+/// looks at, the "when" ("stop", "permission"… or ""), the data for the steps.
+struct Event {
+    kind: String,
+    subject: String,
+    when: String,
+    ctx: Ctx,
+}
+static EVENTS: Mutex<Vec<Event>> = Mutex::new(Vec::new());
+/// Bit i = an enabled automation listens to TRIGGER_KINDS[i]: the modules that
+/// push events stop at one atomic load otherwise.
+static WANTED: AtomicU32 = AtomicU32::new(0);
+
+fn kind_bit(kind: &str) -> u32 {
+    TRIGGER_KINDS.iter().position(|k| *k == kind).map(|i| 1u32 << i).unwrap_or(0)
+}
+
+/// Is any enabled automation waiting for this kind of event?
+pub fn wants(kind: &str) -> bool {
+    WANTED.load(Ordering::Relaxed) & kind_bit(kind) != 0
+}
+
+/// downloads.rs, threecx, pipe.rs, devservers.rs, context.rs: an event happened.
+/// Queued for the engine's next look (at most 5 s later).
+pub fn on_event(kind: &str, subject: &str, when: &str, ctx: &[(&str, String)]) {
+    if !wants(kind) {
+        return;
+    }
+    let mut q = EVENTS.lock().unwrap();
+    if q.len() >= 50 {
+        return;
+    }
+    q.push(Event {
+        kind: kind.into(),
+        subject: subject.into(),
+        when: when.into(),
+        ctx: ctx.iter().map(|(k, v)| (k.to_string(), v.clone())).collect(),
+    });
+}
+
+/// An agent's hook (pipe.rs): finished (Stop) or waiting for a permission.
+/// The island's own chat does not count.
+pub fn on_hook(event: &str, payload: &Value) {
+    let when = match event {
+        "Stop" => "stop",
+        "PermissionRequest" => "permission",
+        _ => return,
+    };
+    if payload.get("easyisland_chat").is_some() || !wants("agent") {
+        return;
+    }
+    let agent = payload
+        .pointer("/easyisland_agent/name")
+        .and_then(Value::as_str)
+        .unwrap_or("Claude Code")
+        .to_string();
+    let cwd = payload.get("cwd").and_then(Value::as_str).unwrap_or_default().to_string();
+    let project = cwd.trim_end_matches(['\\', '/']).rsplit(['\\', '/']).next().unwrap_or_default().to_string();
+    on_event(
+        "agent",
+        &format!("{agent} {project}"),
+        when,
+        &[("agente", agent.clone()), ("progetto", project.clone()), ("cartella", cwd)],
+    );
+}
+
+/// The program in front changed (context.rs): only a different program counts,
+/// not another window of the same one.
+pub fn on_foreground(exe: &str) {
+    static LAST: Mutex<String> = Mutex::new(String::new());
+    let mut last = LAST.lock().unwrap();
+    if *last == exe {
+        return;
+    }
+    *last = exe.to_string();
+    drop(last);
+    on_event("foreground", exe, "", &[("programma", exe.to_string())]);
+}
+
+/// File name, full path and folder of a path, for the steps.
+pub fn file_ctx(path: &std::path::Path) -> Vec<(&'static str, String)> {
+    vec![
+        ("file", path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()),
+        ("percorso", path.to_string_lossy().into_owned()),
+        ("cartella", path.parent().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default()),
+    ]
+}
+
+/// The trigger's filter: comma-separated terms, any of them may match.
+/// ".pdf" or "*.pdf" = the subject ends with that extension; anything else =
+/// contained in the subject. Case does not matter; an empty filter matches all.
+pub fn matches(filter: &str, subject: &str) -> bool {
+    let subject = subject.to_lowercase();
+    let terms: Vec<String> = filter.split(',').map(|t| t.trim().to_lowercase()).filter(|t| !t.is_empty()).collect();
+    terms.is_empty()
+        || terms.iter().any(|term| match term.strip_prefix("*.").or_else(|| term.strip_prefix('.')) {
+            Some(ext) => subject.ends_with(&format!(".{ext}")),
+            None => subject.contains(term.as_str()),
+        })
+}
+
+/// Percent-encoding for a value put inside a link.
+fn url_encode(s: &str) -> String {
+    let mut out = String::new();
+    for b in s.bytes() {
+        if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) {
+            out.push(b as char);
+        } else {
+            out.push_str(&format!("%{b:02X}"));
+        }
+    }
+    out
+}
+
+/// Replaces `{name}` with the trigger's data. `wrap(value, at_start)` shapes
+/// each value for where it goes (a link, an argument…); unknown names stay as
+/// they are, so a typo shows in the result instead of vanishing.
+pub fn fill(template: &str, ctx: &Ctx, wrap: &dyn Fn(&str, bool) -> String) -> String {
+    let mut out = String::new();
+    let mut rest = template;
+    while let Some(open) = rest.find('{') {
+        let (before, after) = rest.split_at(open);
+        out.push_str(before);
+        let found = after.find('}').and_then(|close| {
+            let name = after.get(1..close)?;
+            ctx.iter().find(|(k, _)| k == name).map(|(_, v)| (close, v))
+        });
+        match found {
+            Some((close, value)) => {
+                out.push_str(&wrap(value, out.trim().is_empty()));
+                rest = after.get(close + 1..).unwrap_or("");
+            }
+            None => {
+                out.push('{');
+                rest = after.get(1..).unwrap_or("");
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Did the template use any of the trigger's data?
+fn uses_ctx(template: &str, ctx: &Ctx) -> bool {
+    ctx.iter().any(|(k, _)| template.contains(&format!("{{{k}}}")))
+}
+
+/// Programs that would run their arguments as code: the trigger's data (a file
+/// name, a caller…) never goes to them.
+const SHELLS: &[&str] = &[
+    "cmd", "powershell", "pwsh", "wscript", "cscript", "mshta", "bash", "wsl", "sh", "rundll32", "regsvr32", "python",
+    "pythonw", "py", "node", "conhost", "wt",
+];
+
+/// Files that would run if opened: an automation never opens one it was handed
+/// by an event (a download, a new file).
+const RUNNABLE: &[&str] = &[
+    "exe", "com", "bat", "cmd", "ps1", "psm1", "vbs", "vbe", "js", "jse", "wsf", "wsh", "msi", "msp", "scr", "pif",
+    "hta", "cpl", "msc", "jar", "lnk", "reg", "url", "appref-ms", "application", "gadget", "inf", "scf",
+];
+
+fn stem_of(target: &str) -> String {
+    let name = target.trim().trim_matches('"').rsplit(['\\', '/']).next().unwrap_or("").to_lowercase();
+    name.strip_suffix(".exe").unwrap_or(&name).to_string()
+}
 
 fn now_ms() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
@@ -156,8 +371,10 @@ fn notice(app: &AppHandle, title: &str, text: &str, level: &str) {
     }));
 }
 
-async fn run_step(app: &AppHandle, step: &Step, actions: &[Value]) -> Result<String, String> {
+async fn run_step(app: &AppHandle, step: &Step, actions: &[Value], ctx: &Ctx) -> Result<String, String> {
+    let plain = |v: &str, _: bool| v.to_string();
     match step.kind.as_str() {
+        // The user's own action, as it is: a script never gets the trigger's data.
         "quick" => {
             let a = actions
                 .iter()
@@ -196,7 +413,7 @@ async fn run_step(app: &AppHandle, step: &Step, actions: &[Value]) -> Result<Str
                 "ok" | "warn" | "error" => step.level.as_str(),
                 _ => "info",
             };
-            notice(app, &step.title, &step.text, level);
+            notice(app, &fill(&step.title, ctx, &plain), &fill(&step.text, ctx, &plain), level);
             Ok(t("avviso mostrato").into())
         }
         "profile" => {
@@ -204,18 +421,47 @@ async fn run_step(app: &AppHandle, step: &Step, actions: &[Value]) -> Result<Str
             Ok(t("profilo cambiato").into())
         }
         "app" => {
-            if step.target.trim().is_empty() {
+            let target = fill(step.target.trim(), ctx, &plain);
+            let target = target.trim();
+            if target.is_empty() {
                 return Err(t("programma non indicato").into());
             }
-            crate::actions::open_app(step.target.trim(), &step.args).map(|_| format!("aperto {}", step.target.trim()))
+            // A file handed over by the event is opened only if opening it
+            // does not run it (a downloaded setup.exe, a script).
+            if uses_ctx(&step.target, ctx) {
+                let ext = target.rsplit_once('.').map(|(_, e)| e.to_lowercase()).unwrap_or_default();
+                if RUNNABLE.contains(&ext.as_str()) {
+                    return Err(tf("non apro {target}: è un file che si esegue", &[("target", &target)]));
+                }
+            }
+            // The event's data as separate quoted arguments, and never for a
+            // program that would run them as code.
+            if uses_ctx(&step.args, ctx) && SHELLS.contains(&stem_of(target).as_str()) {
+                return Err(tf("i dati dell'evento non vanno passati a {target}", &[("target", &target)]));
+            }
+            let args = fill(&step.args, ctx, &|v: &str, _| {
+                let v = v.replace('"', "");
+                if v.chars().any(char::is_whitespace) { format!("\"{v}\"") } else { v }
+            });
+            crate::actions::open_app(target, &args).map(|_| format!("aperto {target}"))
         }
         "url" => {
-            let url = step.url.trim();
+            // A value at the very start may be the link itself ({link} of a dev
+            // server); anywhere else it is encoded, so it stays one value.
+            let url = fill(step.url.trim(), ctx, &|v: &str, at_start| if at_start { v.to_string() } else { url_encode(v) });
             if !(url.starts_with("https://") || url.starts_with("http://")) {
                 return Err(t("il link deve iniziare con http:// o https://").into());
             }
-            crate::open_url_now(url);
+            crate::open_url_now(&url);
             Ok(format!("aperto {url}"))
+        }
+        "chat" => {
+            let prompt = fill(step.text.trim(), ctx, &plain);
+            if prompt.is_empty() {
+                return Err(t("domanda per la chat vuota").into());
+            }
+            let _ = app.emit_to(WINDOW_LABEL, "automation-ask", prompt);
+            Ok(t("domanda mandata alla chat").into())
         }
         other => Err(tf("passo sconosciuto: {other}", &[("other", &other)])),
     }
@@ -223,15 +469,19 @@ async fn run_step(app: &AppHandle, step: &Step, actions: &[Value]) -> Result<Str
 
 /// Runs every step, in order, logs the outcome and tells the island when
 /// asked to (or when something failed).
-pub async fn run(app: AppHandle, auto: Automation, cause: String, actions: Vec<Value>) {
+pub async fn run(app: AppHandle, auto: Automation, cause: String, actions: Vec<Value>, mut ctx: Ctx) {
     crate::log::line(format!("automation {} ({cause})", auto.name));
     if cause != t("Prova") {
         crate::habits::note("auto", &auto.id);
     }
+    let (_, key) = minute_key();
+    let part = |a: usize, b: usize| key.get(a..b).unwrap_or("");
+    ctx.push(("data".into(), format!("{}/{}/{}", part(8, 10), part(5, 7), part(0, 4))));
+    ctx.push(("ora".into(), key.get(11..).unwrap_or("").to_string()));
     let mut done = Vec::new();
     let mut ok = true;
     for step in &auto.steps {
-        match run_step(&app, step, &actions).await {
+        match run_step(&app, step, &actions, &ctx).await {
             Ok(t) => done.push(t),
             Err(e) => {
                 ok = false;
@@ -256,14 +506,35 @@ pub fn run_now(app: &AppHandle, id: &str) -> Result<(), String> {
     let (autos, _, actions) = list(app);
     let auto = autos.into_iter().find(|a| a.id == id).ok_or(t("Automazione non trovata (salvata?)"))?;
     let app = app.clone();
-    tauri::async_runtime::spawn(run(app, auto, t("Prova").into(), actions));
+    // No event behind it: the placeholders stay as they are, so they show.
+    tauri::async_runtime::spawn(run(app, auto, t("Prova").into(), actions, Vec::new()));
     Ok(())
 }
 
 // ── Made from the chat (agent.rs: create_automation) ─────────────────────────
 
-const TRIGGER_KINDS: &[&str] = &["time", "startup", "unlock", "wifi", "app", "drive", "folder", "integration"];
-const STEP_KINDS: &[&str] = &["quick", "notice", "profile", "app", "url"];
+const TRIGGER_KINDS: &[&str] = &[
+    "time", "startup", "unlock", "wifi", "app", "foreground", "drive", "folder", "download", "integration", "call", "agent",
+    "server", "back",
+];
+const STEP_KINDS: &[&str] = &["quick", "notice", "profile", "app", "url", "chat"];
+const CONDITION_KINDS: &[&str] = &["hours", "wifi", "app", "foreground", "battery", "idle", "meeting", "client"];
+
+/// "HH:MM" → minutes since midnight.
+fn hhmm(s: &str) -> Option<u32> {
+    let s = s.trim();
+    let (h, m) = s.split_once(':')?;
+    let (h, m) = (h.parse::<u32>().ok()?, m.parse::<u32>().ok()?);
+    (h < 24 && m < 60 && s.len() == 5).then_some(h * 60 + m)
+}
+
+fn exe_name(exe: &str) -> String {
+    let mut e = exe.trim().to_lowercase();
+    if !e.is_empty() && !e.ends_with(".exe") {
+        e.push_str(".exe");
+    }
+    e
+}
 
 /// Checks an automation proposed by Claude against the user's settings and
 /// fills the defaults the settings page expects. Err = a message for Claude.
@@ -279,11 +550,7 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
     }
     match t.kind.as_str() {
         "time" => {
-            let ok = t.time.len() == 5
-                && t.time.as_bytes()[2] == b':'
-                && t.time[..2].parse::<u8>().is_ok_and(|h| h < 24)
-                && t.time[3..].parse::<u8>().is_ok_and(|m| m < 60);
-            if !ok {
+            if hhmm(&t.time).is_none() {
                 return Err("trigger.time deve essere HH:MM (es. 09:00).".into());
             }
             t.days.retain(|d| (1..=7).contains(d));
@@ -292,7 +559,7 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
         }
         "startup" => t.delay = t.delay.clamp(5, 3600),
         "wifi" if t.ssid.trim().is_empty() => return Err("trigger.ssid: il nome della rete Wi-Fi.".into()),
-        "app" if t.exe.trim().is_empty() => return Err("trigger.exe: l'eseguibile, es. teams.exe.".into()),
+        "app" | "foreground" if t.exe.trim().is_empty() => return Err("trigger.exe: l'eseguibile, es. teams.exe.".into()),
         "folder" if t.folder.trim().is_empty() => return Err("trigger.folder: il percorso della cartella.".into()),
         "integration" => {
             let known = crate::widgets::all_widgets(s).iter().any(|w| w.id == t.source);
@@ -303,8 +570,11 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
                 t.when = "problem".into();
             }
         }
+        "agent" if !["stop", "permission", "any"].contains(&t.when.as_str()) => t.when = "stop".into(),
+        "back" => t.minutes = if t.minutes == 0 { 15 } else { t.minutes.clamp(1, 720) },
         _ => {}
     }
+    t.filter = t.filter.trim().chars().take(200).collect();
     if t.when.is_empty() {
         t.when = "problem".into();
     }
@@ -316,6 +586,34 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
     }
     if !a.profile.is_empty() && !s.profiles.iter().any(|p| p.id == a.profile) {
         return Err("profile: l'id di un profilo (vedi list_profiles), oppure vuoto.".into());
+    }
+    if a.conditions.len() > 8 {
+        return Err("Al massimo 8 condizioni.".into());
+    }
+    for c in &mut a.conditions {
+        if !CONDITION_KINDS.contains(&c.kind.as_str()) {
+            return Err(format!("conditions[].kind deve essere uno di: {}", CONDITION_KINDS.join(", ")));
+        }
+        match c.kind.as_str() {
+            "hours" => {
+                if hhmm(&c.from).is_none() || hhmm(&c.to).is_none() {
+                    return Err("conditions[]: from e to devono essere HH:MM.".into());
+                }
+                c.days.retain(|d| (1..=7).contains(d));
+                c.days.sort();
+                c.days.dedup();
+            }
+            "wifi" if c.ssid.trim().is_empty() => return Err("conditions[].ssid: il nome della rete Wi-Fi.".into()),
+            "app" | "foreground" if c.exe.trim().is_empty() => return Err("conditions[].exe: l'eseguibile, es. excel.exe.".into()),
+            "idle" => c.minutes = if c.minutes == 0 { 10 } else { c.minutes.clamp(1, 720) },
+            "battery" => c.percent = c.percent.min(100),
+            _ => {}
+        }
+    }
+    match a.repeat.as_str() {
+        "every" => a.every = if a.every == 0 { 60 } else { a.every.clamp(1, 1440) },
+        "day" => {}
+        _ => a.repeat.clear(),
     }
     if a.steps.is_empty() {
         return Err("Serve almeno un passo in steps.".into());
@@ -344,9 +642,10 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
                 return Err("Un avviso ha bisogno almeno di un titolo.".into());
             }
             "app" if st.target.trim().is_empty() => return Err("steps[].target: il programma o la cartella da aprire.".into()),
-            "url" if !(st.url.starts_with("https://") || st.url.starts_with("http://")) => {
-                return Err("steps[].url deve iniziare con http:// o https://.".into());
+            "url" if !(st.url.starts_with("https://") || st.url.starts_with("http://") || st.url.starts_with('{')) => {
+                return Err("steps[].url deve iniziare con http:// o https:// (o con {link}).".into());
             }
+            "chat" if st.text.trim().is_empty() => return Err("steps[].text: la domanda per la chat.".into()),
             _ => {}
         }
         if st.level.is_empty() {
@@ -359,44 +658,188 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
     Ok(a)
 }
 
+fn day_names(d: &[u8]) -> String {
+    if d.is_empty() || d.len() == 7 {
+        "ogni giorno".to_string()
+    } else {
+        d.iter()
+            .filter_map(|x| ["", "lun", "mar", "mer", "gio", "ven", "sab", "dom"].get(*x as usize))
+            .copied()
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+}
+
+/// One condition in words, for the chat: "non in riunione".
+fn describe_condition(c: &Condition) -> String {
+    let what = match c.kind.as_str() {
+        "hours" => format!("tra le {} e le {} ({})", c.from, c.to, day_names(&c.days)),
+        "wifi" => format!("in rete Wi-Fi {}", c.ssid),
+        "app" => format!("{} aperto", c.exe),
+        "foreground" => format!("{} in primo piano", c.exe),
+        "battery" if c.percent == 0 => "a batteria".into(),
+        "battery" => format!("batteria sotto il {}%", c.percent),
+        "idle" => format!("assente da {} minuti", c.minutes),
+        "meeting" => "in riunione (microfono o webcam in uso)".into(),
+        "client" => "davanti al cliente".into(),
+        k => k.to_string(),
+    };
+    if c.not { format!("non {what}") } else { what }
+}
+
 /// One line per automation for the chat: "Mattina (accesa): alle 09:00 L-V → …".
 pub fn describe(a: &Automation, s: &crate::settings::Settings) -> String {
     let t = &a.trigger;
-    let days = |d: &[u8]| {
-        if d.is_empty() || d.len() == 7 {
-            "ogni giorno".to_string()
-        } else {
-            d.iter().map(|x| ["", "lun", "mar", "mer", "gio", "ven", "sab", "dom"][*x as usize]).collect::<Vec<_>>().join(", ")
-        }
-    };
-    let when = match t.kind.as_str() {
-        "time" => format!("alle {} ({})", t.time, days(&t.days)),
+    let mut when = match t.kind.as_str() {
+        "time" => format!("alle {} ({})", t.time, day_names(&t.days)),
         "startup" => format!("{} s dopo l'avvio", t.delay),
         "unlock" => "allo sblocco del PC".into(),
         "wifi" => format!("in rete Wi-Fi {}", t.ssid),
         "app" => format!("quando parte {}", t.exe),
+        "foreground" => format!("quando passi a {}", t.exe),
         "drive" => "quando si collega una chiavetta o un disco".into(),
         "folder" => format!("nuovo file in {}", t.folder),
+        "download" => "download finito".into(),
         "integration" => format!("{} da {}", if t.when == "event" { "novità" } else { "problema" }, t.source),
+        "call" => "chiamata 3CX in arrivo".into(),
+        "agent" => match t.when.as_str() {
+            "permission" => "un agente aspetta un permesso".into(),
+            "any" => "un agente finisce o aspetta un permesso".into(),
+            _ => "un agente ha finito".into(),
+        },
+        "server" => "parte un server di sviluppo".into(),
+        "back" => format!("rientro dopo {} minuti di assenza", t.minutes),
         k => k.to_string(),
     };
-    let steps: Vec<String> = a.steps.iter().map(|st| match st.kind.as_str() {
-        "quick" => format!("azione rapida {}", st.id),
-        "notice" => format!("avviso «{}»", st.title),
-        "profile" => format!("profilo {}", s.profiles.iter().find(|p| p.id == st.id).map(|p| p.name.as_str()).unwrap_or(&st.id)),
-        "app" => format!("apri {}", st.target),
-        "url" => format!("apri {}", st.url),
-        k => k.to_string(),
-    }).collect();
+    if !t.filter.is_empty() && FILTERED.contains(&t.kind.as_str()) {
+        when.push_str(&format!(" (solo «{}»)", t.filter));
+    }
+    let mut ifs: Vec<String> = a.conditions.iter().map(describe_condition).collect();
+    if !a.profile.is_empty() {
+        ifs.insert(0, format!("solo nel profilo {}", a.profile));
+    }
+    match a.repeat.as_str() {
+        "every" => ifs.push(format!("al massimo ogni {} minuti", a.every)),
+        "day" => ifs.push("una volta al giorno".into()),
+        _ => {}
+    }
+    let steps: Vec<String> = a
+        .steps
+        .iter()
+        .map(|st| match st.kind.as_str() {
+            "quick" => format!("azione rapida {}", st.id),
+            "notice" => format!("avviso «{}»", st.title),
+            "profile" => format!("profilo {}", s.profiles.iter().find(|p| p.id == st.id).map(|p| p.name.as_str()).unwrap_or(&st.id)),
+            "app" => format!("apri {}", st.target),
+            "url" => format!("apri {}", st.url),
+            "chat" => format!("chiedi alla chat «{}»", st.text),
+            k => k.to_string(),
+        })
+        .collect();
     format!(
-        "{} [id {}] ({}){}: {} → {}",
+        "{} [id {}] ({}): {}{} → {}",
         a.name,
         a.id,
         if a.enabled { "accesa" } else { "spenta" },
-        if a.profile.is_empty() { String::new() } else { format!(", solo nel profilo {}", a.profile) },
         when,
+        if ifs.is_empty() { String::new() } else { format!(", se {}", ifs.join(" e ")) },
         steps.join(", ")
     )
+}
+
+/// Triggers whose events the filter narrows down.
+const FILTERED: &[&str] = &["folder", "download", "integration", "call", "agent", "server"];
+
+// ── Conditions ───────────────────────────────────────────────────────────────
+
+/// What the conditions look at, read once per look and only when asked.
+#[derive(Default)]
+struct Look {
+    procs: Option<HashSet<String>>,
+    ssid: Option<Option<String>>,
+    fg: Option<String>,
+    power: Option<(bool, u8)>,
+}
+
+impl Look {
+    fn procs(&mut self) -> &HashSet<String> {
+        self.procs.get_or_insert_with(|| crate::presence::processes().into_iter().collect())
+    }
+    fn ssid(&mut self) -> Option<String> {
+        self.ssid.get_or_insert_with(crate::profiles::current_ssid).clone()
+    }
+    fn foreground(&mut self) -> String {
+        self.fg.get_or_insert_with(|| crate::context::foreground().map(|f| f.exe).unwrap_or_default()).clone()
+    }
+    /// (on battery, charge %), charge 255 when unknown.
+    fn power(&mut self) -> (bool, u8) {
+        *self.power.get_or_insert_with(|| {
+            use windows::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
+            let mut p = SYSTEM_POWER_STATUS::default();
+            if unsafe { GetSystemPowerStatus(&mut p) }.is_ok() && p.BatteryFlag != 128 {
+                (p.ACLineStatus == 0, p.BatteryLifePercent)
+            } else {
+                (false, 255)
+            }
+        })
+    }
+}
+
+/// Milliseconds since the last key or mouse movement.
+fn idle_ms() -> u64 {
+    use windows::Win32::System::SystemInformation::GetTickCount;
+    use windows::Win32::UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO};
+    let mut li = LASTINPUTINFO { cbSize: std::mem::size_of::<LASTINPUTINFO>() as u32, dwTime: 0 };
+    if unsafe { GetLastInputInfo(&mut li) }.as_bool() {
+        unsafe { GetTickCount() }.wrapping_sub(li.dwTime) as u64
+    } else {
+        0
+    }
+}
+
+/// Is `now` (minutes since midnight, day 1–7) inside from–to on the chosen days?
+/// `to` earlier than `from` goes across midnight (22:00–06:00).
+fn in_hours(from: u32, to: u32, days: &[u8], now: u32, day: u8) -> bool {
+    let inside = if from <= to { now >= from && now < to } else { now >= from || now < to };
+    inside && (days.is_empty() || days.contains(&day))
+}
+
+fn holds(c: &Condition, look: &mut Look) -> bool {
+    let yes = match c.kind.as_str() {
+        "hours" => {
+            let t = unsafe { windows::Win32::System::SystemInformation::GetLocalTime() };
+            let day = if t.wDayOfWeek == 0 { 7 } else { t.wDayOfWeek as u8 };
+            match (hhmm(&c.from), hhmm(&c.to)) {
+                (Some(f), Some(to)) => in_hours(f, to, &c.days, t.wHour as u32 * 60 + t.wMinute as u32, day),
+                _ => false,
+            }
+        }
+        "wifi" => look.ssid().is_some_and(|n| n.eq_ignore_ascii_case(c.ssid.trim())),
+        "app" => {
+            let exe = exe_name(&c.exe);
+            look.procs().contains(&exe)
+        }
+        "foreground" => look.foreground() == exe_name(&c.exe),
+        "battery" => {
+            let (on_battery, pct) = look.power();
+            if c.percent == 0 { on_battery } else { pct <= 100 && pct < c.percent }
+        }
+        "idle" => idle_ms() >= c.minutes.max(1) * 60_000,
+        "meeting" => crate::presence::device_in_use("microphone").is_some() || crate::presence::device_in_use("webcam").is_some(),
+        "client" => crate::presence::current().is_some(),
+        _ => false,
+    };
+    yes != c.not
+}
+
+/// How often: "every" N minutes or once a "day", from the last run.
+fn repeat_allows(a: &Automation, last: Option<&(Instant, String)>, now: Instant, today: &str) -> bool {
+    let Some((at, day)) = last else { return true };
+    match a.repeat.as_str() {
+        "every" => now.duration_since(*at) >= Duration::from_secs(a.every.max(1) * 60),
+        "day" => day != today,
+        _ => true,
+    }
 }
 
 // ── Sensors ──────────────────────────────────────────────────────────────────
@@ -480,6 +923,10 @@ pub fn spawn(app: AppHandle) {
         let mut folders: HashMap<String, HashSet<String>> = HashMap::new();
         let mut ssid: Option<Option<String>> = None;
         let mut ssid_checked: Option<Instant> = None;
+        // Longest time without keyboard or mouse in the current absence, in ms.
+        let mut away_ms: u64 = 0;
+        // When each automation last ran, and on which day ("YYYY-MM-DD").
+        let mut last_run: HashMap<String, (Instant, String)> = HashMap::new();
         let mut ticks: u64 = 0;
 
         loop {
@@ -488,9 +935,11 @@ pub fn spawn(app: AppHandle) {
                 .iter()
                 .filter(|a| a.enabled && (a.profile.is_empty() || a.profile == profile))
                 .collect();
+            WANTED.store(on.iter().fold(0, |m, a| m | kind_bit(&a.trigger.kind)), Ordering::Relaxed);
             let paused = crate::integrations::PAUSED.load(Ordering::Relaxed);
             let unlocked = UNLOCKED.swap(false, Ordering::Relaxed);
             let widget_events: Vec<_> = std::mem::take(&mut *WIDGET_EVENTS.lock().unwrap());
+            let events: Vec<Event> = std::mem::take(&mut *EVENTS.lock().unwrap());
             if on.is_empty() {
                 // Forget the baselines, so switching one on later does not fire
                 // on everything that changed meanwhile.
@@ -498,16 +947,18 @@ pub fn spawn(app: AppHandle) {
                 drive_mask = None;
                 folders.clear();
                 ssid = None;
+                away_ms = 0;
                 std::thread::sleep(Duration::from_secs(30));
                 continue;
             }
             let wants = |k: &str| on.iter().any(|a| a.trigger.kind == k);
-            let mut fire: Vec<(Automation, String)> = Vec::new();
+            let mut fire: Vec<(Automation, String, Ctx)> = Vec::new();
+            let ctx1 = |k: &str, v: &str| vec![(k.to_string(), v.to_string())];
 
             // Time of day.
+            let (day, key) = minute_key();
             if wants("time") {
-                let (day, key) = minute_key();
-                let hhmm = &key[11..];
+                let hhmm = key.get(11..).unwrap_or("");
                 for a in on.iter().filter(|a| a.trigger.kind == "time") {
                     let t = &a.trigger;
                     if t.time == hhmm
@@ -515,7 +966,7 @@ pub fn spawn(app: AppHandle) {
                         && fired_minute.get(&a.id) != Some(&key)
                     {
                         fired_minute.insert(a.id.clone(), key.clone());
-                        fire.push(((*a).clone(), tf("ore {hhmm}", &[("hhmm", &hhmm)])));
+                        fire.push(((*a).clone(), tf("ore {hhmm}", &[("hhmm", &hhmm)]), Vec::new()));
                     }
                 }
             }
@@ -524,14 +975,31 @@ pub fn spawn(app: AppHandle) {
             for a in on.iter().filter(|a| a.trigger.kind == "startup") {
                 if !fired_startup.contains(&a.id) && started.elapsed() >= Duration::from_secs(a.trigger.delay.max(5)) {
                     fired_startup.insert(a.id.clone());
-                    fire.push(((*a).clone(), t("avvio").into()));
+                    fire.push(((*a).clone(), t("avvio").into(), Vec::new()));
                 }
             }
 
             if unlocked {
                 for a in on.iter().filter(|a| a.trigger.kind == "unlock") {
-                    fire.push(((*a).clone(), t("PC sbloccato").into()));
+                    fire.push(((*a).clone(), t("PC sbloccato").into(), Vec::new()));
                 }
+            }
+
+            // Back after a break: the longest absence is remembered until a key
+            // or the mouse moves again.
+            if wants("back") {
+                let idle = idle_ms();
+                if idle >= 60_000 {
+                    away_ms = away_ms.max(idle);
+                } else if idle < 15_000 && away_ms > 0 {
+                    let minutes = away_ms / 60_000;
+                    for a in on.iter().filter(|a| a.trigger.kind == "back" && minutes >= a.trigger.minutes.max(1)) {
+                        fire.push(((*a).clone(), tf("di nuovo qui dopo {n} min", &[("n", &minutes)]), ctx1("minuti", &minutes.to_string())));
+                    }
+                    away_ms = 0;
+                }
+            } else {
+                away_ms = 0;
             }
 
             // Wi-Fi network joined: asked every 30 s (netsh is a process).
@@ -543,7 +1011,7 @@ pub fn spawn(app: AppHandle) {
                         if let Some(name) = &now {
                             for a in on.iter().filter(|a| a.trigger.kind == "wifi") {
                                 if a.trigger.ssid.trim().eq_ignore_ascii_case(name) {
-                                    fire.push(((*a).clone(), tf("rete {name}", &[("name", &name)])));
+                                    fire.push(((*a).clone(), tf("rete {name}", &[("name", &name)]), ctx1("rete", name)));
                                 }
                             }
                         }
@@ -557,12 +1025,9 @@ pub fn spawn(app: AppHandle) {
                 let now: HashSet<String> = crate::presence::processes().into_iter().collect();
                 if let Some(prev) = &procs {
                     for a in on.iter().filter(|a| a.trigger.kind == "app") {
-                        let mut exe = a.trigger.exe.trim().to_lowercase();
-                        if !exe.is_empty() && !exe.ends_with(".exe") {
-                            exe.push_str(".exe");
-                        }
+                        let exe = exe_name(&a.trigger.exe);
                         if !exe.is_empty() && now.contains(&exe) && !prev.contains(&exe) {
-                            fire.push(((*a).clone(), tf("avviato {exe}", &[("exe", &exe)])));
+                            fire.push(((*a).clone(), tf("avviato {exe}", &[("exe", &exe)]), ctx1("programma", &exe)));
                         }
                     }
                 }
@@ -583,7 +1048,7 @@ pub fn spawn(app: AppHandle) {
                             .collect::<Vec<_>>()
                             .join(" ");
                         for a in on.iter().filter(|a| a.trigger.kind == "drive") {
-                            fire.push(((*a).clone(), tf("unità {letters}", &[("letters", &letters)])));
+                            fire.push(((*a).clone(), tf("unità {letters}", &[("letters", &letters)]), ctx1("unità", &letters)));
                         }
                     }
                 }
@@ -606,12 +1071,16 @@ pub fn spawn(app: AppHandle) {
                     if let Some(prev) = folders.get(folder) {
                         let mut new: Vec<&String> = now.difference(prev).collect();
                         new.sort();
-                        if let Some(first) = new.first() {
-                            let what = if new.len() == 1 { (*first).clone() } else { format!("{} e altri {}", first, new.len() - 1) };
-                            for a in on.iter().filter(|a| a.trigger.kind == "folder" && a.trigger.folder.trim() == folder) {
-                                fire.push(((*a).clone(), tf("nuovo file {what}", &[("what", &what)])));
-
-                            }
+                        for a in on.iter().filter(|a| a.trigger.kind == "folder" && a.trigger.folder.trim() == folder) {
+                            // The first new file that passes the filter is the one the steps get.
+                            let mine: Vec<&&String> = new.iter().filter(|n| matches(&a.trigger.filter, n)).collect();
+                            let Some(first) = mine.first() else { continue };
+                            let what = if mine.len() == 1 { (**first).clone() } else { format!("{} e altri {}", first, mine.len() - 1) };
+                            let ctx = file_ctx(&std::path::Path::new(folder).join(first.as_str()))
+                                .into_iter()
+                                .map(|(k, v)| (k.to_string(), v))
+                                .collect();
+                            fire.push(((*a).clone(), tf("nuovo file {what}", &[("what", &what)]), ctx));
                         }
                     }
                     folders.insert(folder.clone(), now);
@@ -622,15 +1091,51 @@ pub fn spawn(app: AppHandle) {
             for (source, kind, text) in &widget_events {
                 for a in on.iter().filter(|a| a.trigger.kind == "integration" && &a.trigger.source == source) {
                     let when = if a.trigger.when.is_empty() { "any" } else { a.trigger.when.as_str() };
-                    if when == "any" || when == kind {
-                        fire.push(((*a).clone(), text.clone()));
+                    if (when == "any" || when == kind) && matches(&a.trigger.filter, text) {
+                        let ctx = vec![("testo".to_string(), text.clone()), ("fonte".to_string(), source.clone())];
+                        fire.push(((*a).clone(), text.clone(), ctx));
                     }
                 }
             }
 
-            if !paused {
-                for (auto, cause) in fire {
-                    tauri::async_runtime::spawn(run(app.clone(), auto, cause, actions.clone()));
+            // Events pushed by the other modules: downloads, calls, agents,
+            // dev servers, the program in front.
+            for e in &events {
+                for a in on.iter().filter(|a| a.trigger.kind == e.kind) {
+                    let tr = &a.trigger;
+                    let ok = match e.kind.as_str() {
+                        "foreground" => exe_name(&tr.exe) == e.subject,
+                        "agent" => (tr.when == "any" || tr.when == e.when) && matches(&tr.filter, &e.subject),
+                        _ => matches(&tr.filter, &e.subject),
+                    };
+                    if ok {
+                        let cause = match e.kind.as_str() {
+                            "download" => tf("scaricato {what}", &[("what", &e.subject)]),
+                            "call" => tf("chiamata da {who}", &[("who", &e.subject)]),
+                            "agent" if e.when == "permission" => tf("permesso da {who}", &[("who", &e.subject)]),
+                            "agent" => tf("finito: {who}", &[("who", &e.subject)]),
+                            "server" => tf("server {what}", &[("what", &e.subject)]),
+                            _ => tf("in primo piano {exe}", &[("exe", &e.subject)]),
+                        };
+                        fire.push(((*a).clone(), cause, e.ctx.clone()));
+                    }
+                }
+            }
+
+            // The "se": looked at only for what is about to run, then how often.
+            if !paused && !fire.is_empty() {
+                let mut look = Look::default();
+                let now = Instant::now();
+                let today = key.get(..10).unwrap_or("").to_string();
+                for (auto, cause, ctx) in fire {
+                    if !auto.conditions.iter().all(|c| holds(c, &mut look)) {
+                        continue;
+                    }
+                    if !repeat_allows(&auto, last_run.get(&auto.id), now, &today) {
+                        continue;
+                    }
+                    last_run.insert(auto.id.clone(), (now, today.clone()));
+                    tauri::async_runtime::spawn(run(app.clone(), auto, cause, actions.clone(), ctx));
                 }
             }
             ticks += 1;
@@ -692,5 +1197,88 @@ mod tests {
         assert_eq!(q.len(), 2);
         assert_eq!(q[0].1, "problem");
         assert_eq!(q[1], ("z".into(), "event".into(), "Nuovo ticket #12".into()));
+    }
+
+    #[test]
+    fn filters_match_extensions_and_words() {
+        assert!(matches("", "qualsiasi.txt"));
+        assert!(matches(".pdf", "Fattura 12.PDF"));
+        assert!(matches("*.pdf, *.docx", "offerta.docx"));
+        assert!(!matches(".pdf", "fattura.pdf.exe"));
+        assert!(matches("rossi", "Mario Rossi 3331234567"));
+        assert!(!matches("bianchi", "Mario Rossi 3331234567"));
+        assert!(matches(" , ", "x"));
+    }
+
+    #[test]
+    fn placeholders_are_filled_and_shaped() {
+        let ctx: Ctx = vec![("file".into(), "a b.pdf".into()), ("link".into(), "http://localhost:5173/".into())];
+        let plain = |v: &str, _: bool| v.to_string();
+        assert_eq!(fill("Scaricato {file}", &ctx, &plain), "Scaricato a b.pdf");
+        // Unknown names, a lone brace and multi-byte text stay as they are.
+        assert_eq!(fill("{nulla} {file", &ctx, &plain), "{nulla} {file");
+        assert_eq!(fill("è {file}à", &ctx, &plain), "è a b.pdfà");
+        let url = |v: &str, start: bool| if start { v.to_string() } else { url_encode(v) };
+        assert_eq!(fill("https://x.it/?q={file}", &ctx, &url), "https://x.it/?q=a%20b.pdf");
+        assert_eq!(fill("{link}docs", &ctx, &url), "http://localhost:5173/docs");
+        assert!(uses_ctx("apri {file}", &ctx) && !uses_ctx("apri {altro}", &ctx));
+        assert_eq!(stem_of("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"), "powershell");
+        assert_eq!(stem_of("\"cmd\""), "cmd");
+    }
+
+    #[test]
+    fn hours_and_repeats() {
+        assert!(in_hours(9 * 60, 18 * 60, &[], 12 * 60, 3));
+        assert!(!in_hours(9 * 60, 18 * 60, &[1, 2, 3, 4, 5], 12 * 60, 6));
+        assert!(!in_hours(9 * 60, 18 * 60, &[], 18 * 60, 3));
+        // Across midnight.
+        assert!(in_hours(22 * 60, 6 * 60, &[], 23 * 60, 1) && in_hours(22 * 60, 6 * 60, &[], 60, 1));
+        assert!(!in_hours(22 * 60, 6 * 60, &[], 12 * 60, 1));
+        assert_eq!(hhmm("07:05"), Some(425));
+        assert!(hhmm("7:05").is_none() && hhmm("24:00").is_none() && hhmm("é:00").is_none());
+
+        let now = Instant::now();
+        let mut a = Automation { repeat: "every".into(), every: 30, ..Default::default() };
+        assert!(repeat_allows(&a, None, now, "2026-10-15"));
+        let just_now = (now, "2026-10-15".to_string());
+        assert!(!repeat_allows(&a, Some(&just_now), now, "2026-10-15"));
+        a.repeat = "day".into();
+        assert!(!repeat_allows(&a, Some(&just_now), now, "2026-10-15"));
+        assert!(repeat_allows(&a, Some(&just_now), now, "2026-10-16"));
+        a.repeat.clear();
+        assert!(repeat_allows(&a, Some(&just_now), now, "2026-10-15"));
+    }
+
+    #[test]
+    fn conditions_and_new_triggers_are_checked() {
+        let s = crate::settings::Settings::default();
+        let ok = validate(&json!({
+            "name": "Download in ufficio",
+            "trigger": { "kind": "download", "filter": " .pdf " },
+            "conditions": [
+                { "kind": "hours", "from": "09:00", "to": "18:00", "days": [1, 2, 3, 4, 5] },
+                { "kind": "meeting", "not": true },
+                { "kind": "idle" }
+            ],
+            "repeat": "every",
+            "steps": [{ "kind": "chat", "text": "Riassumi {percorso}" }]
+        }), &s).unwrap();
+        assert_eq!(ok.trigger.filter, ".pdf");
+        assert_eq!(ok.conditions[2].minutes, 10);
+        assert_eq!(ok.every, 60);
+        let line = describe(&ok, &s);
+        assert!(line.contains("download finito (solo «.pdf»)") && line.contains("non in riunione"), "{line}");
+
+        let agent = validate(&json!({ "name": "x", "trigger": { "kind": "agent", "when": "boh" }, "steps": [{ "kind": "notice", "title": "a" }] }), &s).unwrap();
+        assert_eq!(agent.trigger.when, "stop");
+        let back = validate(&json!({ "name": "x", "trigger": { "kind": "back" }, "steps": [{ "kind": "notice", "title": "a" }] }), &s).unwrap();
+        assert_eq!(back.trigger.minutes, 15);
+
+        let bad = |v: Value| validate(&v, &s).is_err();
+        let step = json!([{ "kind": "notice", "title": "a" }]);
+        assert!(bad(json!({ "name": "x", "trigger": { "kind": "unlock" }, "conditions": [{ "kind": "luna" }], "steps": step })));
+        assert!(bad(json!({ "name": "x", "trigger": { "kind": "unlock" }, "conditions": [{ "kind": "hours", "from": "9", "to": "18:00" }], "steps": step })));
+        assert!(bad(json!({ "name": "x", "trigger": { "kind": "foreground" }, "steps": step })));
+        assert!(bad(json!({ "name": "x", "trigger": { "kind": "unlock" }, "steps": [{ "kind": "chat", "text": " " }] })));
     }
 }

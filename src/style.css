@@ -4228,6 +4228,7 @@ input[type="range"]::-webkit-slider-thumb {
 .notion-body .int-page:hover .notion-tools,
 .notion-tools:has(.working) { opacity: 1; }
 .notion-note { font: 400 10.5px var(--font); color: var(--dim-2); padding: 2px 2px 0; }
+.notion-section-tools { display: inline-flex; align-items: center; gap: 8px; text-transform: none; letter-spacing: 0; }
 .notion-note.bad { color: #f4505e; }
 .notion-section {
   display: flex;
@@ -4240,6 +4241,42 @@ input[type="range"]::-webkit-slider-thumb {
   color: var(--dim-2);
 }
 .notion-section .link-btn { font-size: 10.5px; text-transform: none; letter-spacing: 0; }
+/* Notion: the views saved in the settings, as chips over the tasks. */
+.notion-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 4px;
+}
+
+.notion-view {
+  height: 20px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--dim-2);
+  background: rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+}
+
+.notion-view:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.notion-view.on {
+  color: #111;
+  background: #E8E8E8;
+}
+
+.notion-prio {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+}
+
 .notion-tick {
   flex: 0 0 auto;
   width: 14px;
@@ -4975,3 +5012,18 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   background: linear-gradient(90deg, #5ab4ff, #ffc93c);
 }
 .weather-card .int-actions { padding-bottom: 4px; }
+
+/* Remote Desktop Manager (src/views/rdm.ts): the connection's type as a small tag. */
+.rdm-kind {
+  flex: 0 0 auto;
+  min-width: 26px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font: 600 9px var(--font);
+  line-height: 14px;
+  text-align: center;
+  color: #ffd2c2;
+  background: rgba(232, 84, 42, 0.28);
+}
+.rdm-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 4px 2px 0; }
+.rdm-link { margin-left: 6px; flex: 0 0 auto; color: #E8542Ad9; font-size: 10.5px; }

@@ -339,6 +339,12 @@ fn publish(app: &AppHandle) {
         IntegrationUpdate { id: ID, data: serde_json::to_value(&snapshot).unwrap_or(Value::Null), error, event: None },
     );
     for c in ring {
+        crate::automations::on_event(
+            "call",
+            &format!("{} {}", c.name, c.number),
+            "",
+            &[("chiamante", if c.name.is_empty() { c.number.clone() } else { c.name.clone() }), ("numero", c.number.clone())],
+        );
         let _ = app.emit_to(WINDOW_LABEL, "threecx-call", &c);
     }
 }
