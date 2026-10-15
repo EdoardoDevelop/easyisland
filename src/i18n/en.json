@@ -331,7 +331,6 @@
   "Claude (chiave API)": "Claude (API key)",
   "Claude Code": "Claude Code",
   "Claude Code da riga di comando non è installato su questo PC.": "The Claude Code command line is not installed on this PC.",
-  "Claude Code ha restituito un errore (codice {code}).": "Claude Code returned an error (code {code}).",
   "Claude Code ha restituito un errore.": "Claude Code returned an error.",
   "Claude Code ha una domanda": "Claude Code has a question",
   "Claude Code non ha risposto in tempo.": "Claude Code did not answer in time.",
@@ -1752,5 +1751,16 @@
   "Copia indirizzo": "Copy address",
   "Il file non c'è più.": "The file is gone.",
   "Claude Code non è installato.": "Claude Code is not installed.",
-  "Copia di sicurezza non riuscita: {e}": "Backup copy failed: {e}"
+  "Copia di sicurezza non riuscita: {e}": "Backup copy failed: {e}",
+  "la tua cartella utente": "your user folder",
+  "questa cartella non c'è: la chat lavora nella tua cartella utente": "this folder does not exist: the chat works in your user folder",
+  "Cartella di lavoro": "Working folder",
+  "Modalità terminale": "Terminal mode",
+  "la chat lavora come Claude Code o opencode da terminale: esegue comandi, modifica file e usa tutti i tuoi server MCP, plugin e skill. Ogni comando o modifica chiede Consenti / Nega nell'isola, con «Sempre» per non ripetere la domanda. Gli altri motori passano da opencode, che deve essere installato": "the chat works like Claude Code or opencode in a terminal: it runs commands, edits files and uses all your MCP servers, plugins and skills. Every command or change asks Allow / Deny in the island, with “Always” so the question is not repeated. The other engines go through opencode, which must be installed",
+  "Sotto-agente": "Sub-agent",
+  "Claude Code si è interrotto.": "Claude Code stopped.",
+  "Claude Code non ha finito entro 30 minuti: interrotto.": "Claude Code did not finish within 30 minutes: stopped.",
+  "La modalità terminale con questo motore passa da opencode, che non è installato su questo PC (npm i -g @opencode/cli, oppure opencode.ai). Oppure spegnila in Impostazioni → Chat.": "Terminal mode with this engine goes through opencode, which is not installed on this PC (npm i -g @opencode/cli, or opencode.ai). Or turn it off in Settings → Chat.",
+  "Scegli un modello per questo motore nelle impostazioni (Chat).": "Choose a model for this engine in the settings (Chat).",
+  "Questo motore non ha la modalità terminale.": "This engine has no terminal mode."
 }

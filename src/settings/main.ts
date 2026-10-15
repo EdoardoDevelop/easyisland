@@ -556,8 +556,42 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
     cliBlock,
     apiBlock,
     other.el,
+    terminalRow(),
     historyRow(),
   );
+}
+
+/**
+ * Impostazioni → Chat → Modalità terminale (docs/chat.md): the chat works as
+ * Claude Code or opencode in a terminal, in a folder of the user's. Commands
+ * and changes still ask in the island.
+ */
+function terminalRow(): HTMLElement {
+  const folder = h("input", {
+    type: "text", value: settings.chatFolder ?? "", placeholder: t("la tua cartella utente"),
+    style: "flex:1 1 auto;min-width:0", spellcheck: "false",
+  }) as HTMLInputElement;
+  const bad = h("span", { class: "hint note" });
+  let timer = 0;
+  folder.addEventListener("input", () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(async () => {
+      const v = folder.value.trim();
+      const ok = !v || (await Bridge.isFolder(v));
+      bad.textContent = ok ? "" : t("questa cartella non c'è: la chat lavora nella tua cartella utente");
+      settings.chatFolder = v;
+      void save();
+    }, 500);
+  });
+  const folderRow = h("div", { class: "row" }, h("label", { text: t("Cartella di lavoro") }), folder, bad);
+  const show = () => { folderRow.style.display = settings.chatTerminal === true ? "" : "none"; };
+  show();
+  return h("div", { style: "display:flex;flex-direction:column;gap:8px" },
+    h("div", { class: "row" },
+      h("label", { text: t("Modalità terminale") }),
+      toggle(settings.chatTerminal === true, (v) => { settings.chatTerminal = v; void save(); show(); }),
+      h("span", { class: "hint note", text: t("la chat lavora come Claude Code o opencode da terminale: esegue comandi, modifica file e usa tutti i tuoi server MCP, plugin e skill. Ogni comando o modifica chiede Consenti / Nega nell'isola, con «Sempre» per non ripetere la domanda. Gli altri motori passano da opencode, che deve essere installato") })),
+    folderRow);
 }
 
 /** Impostazioni → Chat → Cronologia: on, off (which empties it), or emptied now. */

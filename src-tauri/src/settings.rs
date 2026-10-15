@@ -526,6 +526,14 @@ pub struct Settings {
     /// The chat (Claude Code engine) may use EasyIsland's own tools (agent.rs).
     #[serde(default = "default_true")]
     pub agent_tools: bool,
+    /// "Modalità terminale" (chat.md): the chat works as Claude Code or opencode
+    /// in a terminal, every tool and the user's MCP servers, in `chat_folder`;
+    /// commands and changes still wait for Consenti / Nega.
+    #[serde(default)]
+    pub chat_terminal: bool,
+    /// Its working folder; "" = the user's home.
+    #[serde(default)]
+    pub chat_folder: String,
     /// opencode 2's sessions in the island, read from its background service
     /// (opencode_agent.rs). Belongs to the PC; off by default.
     #[serde(default)]
@@ -738,6 +746,8 @@ impl Default for Settings {
             hotkey_selection_menu: default_hotkey_selection_menu(),
             context_actions: true,
             agent_tools: true,
+            chat_terminal: false,
+            chat_folder: String::new(),
             opencode_watch: false,
             automations: Vec::new(),
             habits_enabled: false,

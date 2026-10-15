@@ -15,6 +15,13 @@
 //     the Consenti/Nega card in the island.
 // The prompt goes in on stdin, and every other argument is a plain word or a
 // path, so nothing needs quoting when the target is `claude.cmd`.
+//
+// "Modalità terminale" (settings.chat_terminal, chat.md) is the other way: the
+// chat works as Claude Code does in a terminal — every built-in tool, the
+// user's own MCP servers, plugins, CLAUDE.md and skills, in the folder the user
+// chose — and every call Claude Code would ask about in a terminal goes to the
+// island's Consenti / Nega card instead (same hook, every tool). The steps
+// stream to the island while it works (`--output-format stream-json`).
 
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -22,7 +29,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 use serde_json::Value;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 
 use crate::claude::{Chat, ChatContext, ChatReply};
@@ -34,6 +41,10 @@ const TIMEOUT: Duration = Duration::from_secs(180);
 /// With connectors a turn may also wait for the user's Consenti/Nega.
 const TIMEOUT_WITH_CONNECTORS: Duration = Duration::from_secs(420);
 const STATUS_TIMEOUT: Duration = Duration::from_secs(20);
+/// "Modalità terminale": a turn may run commands and wait for several clicks.
+const TIMEOUT_TERMINAL: Duration = Duration::from_secs(30 * 60);
+/// The island gets the growing reply at most this often.
+const STREAM_EVERY: Duration = Duration::from_millis(120);
 /// CREATE_NO_WINDOW: no console window flashing up on every message.
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -64,6 +75,8 @@ Use them when the user asks you to do something on the PC, or when they make the
 You cannot run arbitrary commands: only the user's quick actions. \
 Before a tool that opens, runs or changes something, say in one short sentence what you are about to do: \
 the user confirms or refuses it with a click, and a refusal is final for that request.";
+/// The sentence of AGENT_PROMPT that "Modalità terminale" leaves out.
+const NO_COMMANDS: &str = "You cannot run arbitrary commands: only the user's quick actions. ";
 pub(crate) const INHERITED_SESSION_VARS: &[&str] = &[
     "CLAUDECODE",
     "CLAUDE_CODE_SESSION_ID",
@@ -78,6 +91,17 @@ You are not working on a codebase here: never try to edit files or run commands.
 Use WebSearch and WebFetch when the question needs current or external information, and Read to look at a file the user attached. \
 Respond in Italian unless the user writes in another language. Be thorough but keep it readable in a small window. \
 Markdown is rendered: use short paragraphs, lists, tables and code blocks when they help.";
+
+/// "Modalità terminale": Claude Code's own system prompt stays (it is the one of
+/// the terminal); this goes after it. `{folder}` is the working folder.
+const TERMINAL_PROMPT: &str = "You are working on the user's Windows PC from the chat bubble of the EasyIsland desktop app, \
+as Claude Code does in a terminal: run commands (PowerShell or Bash), read and edit files, use the user's MCP servers and skills. \
+The working folder is {folder}; work elsewhere on the PC when the user asks. \
+Every command or change that Claude Code would ask about in a terminal waits for the user's click on Consenti / Nega in the island: \
+a refusal is final for that request. Nobody can type into a running command: never start interactive programs \
+(text interfaces, editors, logins or prompts that wait for input); tell the user to run those in their own terminal. \
+Respond in Italian unless the user writes in another language. The reply is shown in a small window with markdown rendered: \
+keep it readable, short paragraphs and lists, code blocks for commands and output.";
 
 /// Where `claude` lives: %PATH% first (npm installs `claude.cmd`), then the
 /// native installer's and npm's default folders, which a GUI app launched at
@@ -263,13 +287,17 @@ impl Connectors {
 
 /// %LOCALAPPDATA%\EasyIsland\chat — an empty folder, so Claude Code has no project
 /// to read; it also holds the two small files we pass by path.
-fn work_dir(connectors: &Connectors) -> Result<PathBuf, String> {
+fn work_dir(connectors: &Connectors, terminal: Option<&Path>) -> Result<PathBuf, String> {
     let dir = crate::settings::local_dir().join("chat");
     std::fs::create_dir_all(&dir).map_err(|e| tf("cartella della chat non creata: {e}", &[("e", &e)]))?;
 
-    let mut prompt = crate::i18n::prompt(SYSTEM_PROMPT);
+    let mut prompt = match terminal {
+        Some(folder) => crate::i18n::prompt(&TERMINAL_PROMPT.replace("{folder}", &folder.to_string_lossy())),
+        None => crate::i18n::prompt(SYSTEM_PROMPT),
+    };
     if connectors.agent {
-        prompt.push_str(AGENT_PROMPT);
+        // With the terminal's own tools the chat can run commands after all.
+        prompt.push_str(&if terminal.is_some() { AGENT_PROMPT.replace(NO_COMMANDS, "") } else { AGENT_PROMPT.to_string() });
         // `easyisland-hook mcp`: the tools of agent.rs, through the pipe.
         let hook = crate::settings::hook_exe_path().to_string_lossy().into_owned();
         let mcp = serde_json::json!({
@@ -277,7 +305,12 @@ fn work_dir(connectors: &Connectors) -> Result<PathBuf, String> {
         });
         std::fs::write(dir.join("chat-mcp.json"), mcp.to_string()).map_err(|e| e.to_string())?;
     }
-    let settings = if connectors.uses_mcp() {
+    let settings = if terminal.is_some() {
+        // Every tool Claude Code would ask about goes to the island. The
+        // user's own hooks run as in a terminal (easyisland-hook ignores them
+        // here: EASYISLAND_INTERNAL).
+        permission_hook(".*")
+    } else if connectors.uses_mcp() {
         if connectors.any() {
             let names: Vec<&str> = connectors.enabled.iter().map(|c| c.name.as_str()).collect();
             prompt.push_str(&format!(
@@ -287,26 +320,32 @@ the user confirms or refuses it with a click, and a refusal is final for that re
                 names.join(", ")
             ));
         }
-        let exe = crate::settings::hook_exe_path().to_string_lossy().replace('\\', "/");
-        serde_json::json!({
-            "hooks": {
-                "PermissionRequest": [{
-                    "matcher": "mcp__.*",
-                    "hooks": [{
-                        "type": "command",
-                        "command": format!("\"{exe}\" PermissionRequest --chat"),
-                        "timeout": 130
-                    }]
-                }]
-            }
-        })
-        .to_string()
+        permission_hook("mcp__.*")
     } else {
         r#"{ "disableAllHooks": true }"#.to_string()
     };
     std::fs::write(dir.join("chat-prompt.txt"), prompt).map_err(|e| e.to_string())?;
     std::fs::write(dir.join("chat-settings.json"), settings).map_err(|e| e.to_string())?;
     Ok(dir)
+}
+
+/// The chat's settings: the PermissionRequest hook that puts Claude Code's
+/// questions on the island's card, for the tools `matcher` covers.
+fn permission_hook(matcher: &str) -> String {
+    let exe = crate::settings::hook_exe_path().to_string_lossy().replace('\\', "/");
+    serde_json::json!({
+        "hooks": {
+            "PermissionRequest": [{
+                "matcher": matcher,
+                "hooks": [{
+                    "type": "command",
+                    "command": format!("\"{exe}\" PermissionRequest --chat"),
+                    "timeout": 130
+                }]
+            }]
+        }
+    })
+    .to_string()
 }
 
 pub(crate) fn command(exe: &Path) -> Command {
@@ -399,6 +438,163 @@ fn args(
     a
 }
 
+/// "Modalità terminale": the arguments of a turn. No `--tools` (all of
+/// Claude Code's), no `--strict-mcp-config` (the user's own servers and
+/// plugins), `default` permissions: what is not allowed by the user's own
+/// rules goes to the island. Connectors marked "no confirmation" and the
+/// easyisland tools that change nothing are pre-allowed, as outside it.
+fn terminal_args(
+    dir: &Path,
+    model: &str,
+    session: Option<&str>,
+    extra_dir: Option<&Path>,
+    connectors: &Connectors,
+) -> Vec<String> {
+    let mut a: Vec<String> = vec![
+        "-p".into(),
+        "--output-format".into(),
+        "stream-json".into(),
+        "--verbose".into(),
+        "--settings".into(),
+        dir.join("chat-settings.json").to_string_lossy().into_owned(),
+        "--append-system-prompt-file".into(),
+        dir.join("chat-prompt.txt").to_string_lossy().into_owned(),
+        "--permission-mode".into(),
+        "default".into(),
+    ];
+    let mut allowed: Vec<String> = connectors.enabled.iter().filter(|c| !c.confirm).map(|c| tool_prefix(&c.name)).collect();
+    if connectors.agent {
+        allowed.extend(AGENT_READ_ONLY.iter().map(|t| format!("mcp__easyisland__{t}")));
+        a.extend(["--mcp-config".into(), dir.join("chat-mcp.json").to_string_lossy().into_owned()]);
+    }
+    if !allowed.is_empty() {
+        a.extend(["--allowedTools".into(), allowed.join(",")]);
+    }
+    if !model.is_empty() {
+        a.extend(["--model".into(), model.into()]);
+    }
+    if let Some(id) = session {
+        a.extend(["--resume".into(), id.into()]);
+    }
+    if let Some(d) = extra_dir {
+        a.extend(["--add-dir".into(), d.to_string_lossy().into_owned()]);
+    }
+    a
+}
+
+/// "Modalità terminale": what the island shows while Claude Code works, from
+/// its `stream-json` lines — the steps as short lines ("> ⚙ Esegue · `git
+/// status`", as opencode.rs does) and the text in between.
+#[derive(Default)]
+struct Progress {
+    shown: String,
+}
+
+impl Progress {
+    /// One line of the stream; true when what is shown changed.
+    fn feed(&mut self, line: &str) -> bool {
+        let Ok(v) = serde_json::from_str::<Value>(line.trim()) else { return false };
+        if v.get("type").and_then(Value::as_str) != Some("assistant") {
+            return false;
+        }
+        // A sub-agent's own steps stay inside its one step.
+        if v.get("parent_tool_use_id").is_some_and(|p| !p.is_null()) {
+            return false;
+        }
+        let mut changed = false;
+        for block in v.pointer("/message/content").and_then(Value::as_array).into_iter().flatten() {
+            let piece = match block.get("type").and_then(Value::as_str) {
+                Some("text") => block.get("text").and_then(Value::as_str).map(|t| t.trim().to_string()),
+                Some("tool_use") => Some(step_line(
+                    block.get("name").and_then(Value::as_str).unwrap_or_default(),
+                    block.get("input").unwrap_or(&Value::Null),
+                )),
+                _ => None,
+            };
+            if let Some(p) = piece.filter(|p| !p.is_empty()) {
+                if !self.shown.is_empty() {
+                    self.shown.push_str("\n\n");
+                }
+                self.shown.push_str(&p);
+                changed = true;
+            }
+        }
+        changed
+    }
+}
+
+/// A step of Claude Code in the words of opencode.rs's (`step_line`).
+fn step_line(tool: &str, input: &Value) -> String {
+    if let Some(rest) = tool.strip_prefix("mcp__") {
+        // mcp__<server>__<tool>
+        let (server, name) = rest.split_once("__").unwrap_or(("", rest));
+        let server = server.trim_start_matches("plugin_").replace('_', " ");
+        return if server.is_empty() { format!("> ⚙ {name}") } else { format!("> ⚙ {name} · {server}") };
+    }
+    let as_opencode = match tool {
+        "Bash" | "PowerShell" => "bash",
+        "Read" => "read",
+        "Edit" | "Write" | "MultiEdit" | "NotebookEdit" => "edit",
+        "Glob" | "Grep" => "glob",
+        "WebFetch" => "webfetch",
+        "WebSearch" => "websearch",
+        "TodoWrite" => "todowrite",
+        "Skill" => "skill",
+        "Task" | "Agent" => return match input.get("description").and_then(Value::as_str) {
+            Some(d) => format!("> ⚙ {} · `{}`", t("Sotto-agente"), d.replace('`', "'")),
+            None => format!("> ⚙ {}", t("Sotto-agente")),
+        },
+        other => other,
+    };
+    crate::opencode::step_line(as_opencode, input)
+}
+
+/// "Modalità terminale": reads the turn as it streams, the steps to `on_text`.
+/// Back: the last JSON line (the result), what was shown, stderr, and the exit.
+async fn read_stream(
+    child: &mut tokio::process::Child,
+    on_text: &(dyn Fn(&str) + Sync),
+) -> Result<(String, String, String, bool), String> {
+    let stdout = child.stdout.take().ok_or(t("Claude Code si è interrotto."))?;
+    let stderr = child.stderr.take();
+    // Read alongside, or a full stderr pipe would stall Claude Code.
+    let err = tauri::async_runtime::spawn(async move {
+        let mut s = String::new();
+        if let Some(mut e) = stderr {
+            let _ = e.read_to_string(&mut s).await;
+        }
+        s
+    });
+    let mut lines = tokio::io::BufReader::new(stdout).lines();
+    let mut progress = Progress::default();
+    let mut last = String::new();
+    let mut emitted = std::time::Instant::now();
+    let deadline = tokio::time::Instant::now() + TIMEOUT_TERMINAL;
+    loop {
+        match tokio::time::timeout_at(deadline, lines.next_line()).await {
+            Err(_) => {
+                let _ = child.start_kill();
+                return Err(t("Claude Code non ha finito entro 30 minuti: interrotto.").into());
+            }
+            Ok(Err(e)) => return Err(tf("Claude Code si è interrotto: {e}", &[("e", &e)])),
+            Ok(Ok(None)) => break,
+            Ok(Ok(Some(line))) => {
+                if !line.trim_start().starts_with('{') {
+                    continue;
+                }
+                if progress.feed(&line) && emitted.elapsed() >= STREAM_EVERY {
+                    emitted = std::time::Instant::now();
+                    on_text(&progress.shown);
+                }
+                last = line;
+            }
+        }
+    }
+    let ok = matches!(child.wait().await, Ok(s) if s.success());
+    let stderr = err.await.unwrap_or_default();
+    Ok((last, progress.shown, stderr, ok))
+}
+
 /// What `claude -p --output-format json` printed. Claude Code reports a failed
 /// run (not logged in, usage limit…) as a result with `is_error`, on stdout.
 struct Outcome {
@@ -439,13 +635,15 @@ pub async fn send(
     agent: bool,
     query: String,
     context: Option<ChatContext>,
+    terminal: Option<&Path>,
+    on_text: &(dyn Fn(&str) + Sync),
 ) -> Result<ChatReply, String> {
     let exe = find_claude().ok_or_else(|| {
         t("Per la chat con l'abbonamento serve Claude Code da riga di comando (la CLI), installato su questo PC e con il login fatto: quello dentro l'app desktop di Claude non si può usare da altri programmi. Impostazioni → Chat spiega come installarlo; oppure lì scegli un altro motore.")
             .to_string()
     })?;
     let connectors = Connectors::from_choices(mcp, agent);
-    let dir = work_dir(&connectors)?;
+    let dir = work_dir(&connectors, terminal)?;
     let session = chat.cli_session();
 
     // Context rides along with the first message only, as in the API path.
@@ -475,8 +673,10 @@ pub async fn send(
     prompt.push_str(&query);
 
     let mut cmd = command(&exe);
-    cmd.current_dir(&dir)
-        .args(args(&dir, model, session.as_deref(), extra_dir.as_deref(), &connectors));
+    match terminal {
+        Some(folder) => cmd.current_dir(folder).args(terminal_args(&dir, model, session.as_deref(), extra_dir.as_deref(), &connectors)),
+        None => cmd.current_dir(&dir).args(args(&dir, model, session.as_deref(), extra_dir.as_deref(), &connectors)),
+    };
     let mut child = cmd
         .spawn()
         .map_err(|e| tf("Claude Code non si avvia: {e}", &[("e", &e)]))?;
@@ -488,16 +688,24 @@ pub async fn send(
         // Dropping stdin closes it: that is what tells `claude -p` the prompt is complete.
     }
 
-    let limit = if connectors.uses_mcp() { TIMEOUT_WITH_CONNECTORS } else { TIMEOUT };
-    let output = match tokio::time::timeout(limit, child.wait_with_output()).await {
-        Ok(Ok(o)) => o,
-        Ok(Err(e)) => return Err(tf("Claude Code si è interrotto: {e}", &[("e", &e)])),
-        Err(_) => return Err(t("Claude Code non ha risposto in tempo.").into()),
+    let (stdout, shown, stderr, success) = if terminal.is_some() {
+        read_stream(&mut child, on_text).await?
+    } else {
+        let limit = if connectors.uses_mcp() { TIMEOUT_WITH_CONNECTORS } else { TIMEOUT };
+        let output = match tokio::time::timeout(limit, child.wait_with_output()).await {
+            Ok(Ok(o)) => o,
+            Ok(Err(e)) => return Err(tf("Claude Code si è interrotto: {e}", &[("e", &e)])),
+            Err(_) => return Err(t("Claude Code non ha risposto in tempo.").into()),
+        };
+        (
+            String::from_utf8_lossy(&output.stdout).into_owned(),
+            String::new(),
+            String::from_utf8_lossy(&output.stderr).into_owned(),
+            output.status.success(),
+        )
     };
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
     let Some(outcome) = parse_output(&stdout) else {
-        let stderr = String::from_utf8_lossy(&output.stderr);
         let detail: String = stderr.trim().chars().take(300).collect();
         // A broken session id would fail every later turn the same way.
         chat.set_cli_session(None);
@@ -505,14 +713,14 @@ pub async fn send(
             return Err(LOGIN_HELP.into());
         }
         return Err(if detail.is_empty() {
-            tf("Claude Code ha restituito un errore (codice {code}).", &[("code", &output.status.code().unwrap_or(-1))])
+            t("Claude Code ha restituito un errore.").to_string()
 
         } else {
             format!("Claude Code: {detail}")
         });
     };
 
-    if outcome.is_error || !output.status.success() {
+    if outcome.is_error || !success {
         chat.set_cli_session(None);
         if needs_login(&outcome.text) {
             return Err(LOGIN_HELP.into());
@@ -527,10 +735,12 @@ pub async fn send(
     if let Some(id) = outcome.session_id {
         chat.set_cli_session(Some(id));
     }
-    if outcome.text.is_empty() {
+    // The terminal's steps stay above the answer, as they were shown.
+    let text = if shown.trim().is_empty() { outcome.text } else { shown };
+    if text.is_empty() {
         return Err(t("Nessun testo nella risposta.").into());
     }
-    Ok(ChatReply { text: outcome.text })
+    Ok(ChatReply { text })
 }
 
 /// What the chat says when Claude Code has no login of its own.
@@ -738,7 +948,7 @@ mod tests {
             println!("claude: {:?}", super::find_claude());
             let chat = crate::claude::Chat::default();
             for agent in [false, true] {
-                let r = super::send(&chat, "", &[], agent, "Rispondi solo con la parola: ok".into(), None).await;
+                let r = super::send(&chat, "", &[], agent, "Rispondi solo con la parola: ok".into(), None, None, &|_| {}).await;
                 println!("agent={agent}: {:?}", r.as_ref().map(|x| &x.text));
                 chat.reset();
             }
@@ -762,12 +972,45 @@ mod tests {
         assert_eq!(super::source_of(Path::new("C:/Users/x/AppData/Roaming/Claude/claude-code/2.1.286/claude.exe")), "desktop");
     }
 
-    use super::{args, parse_output, tool_prefix, version_key, Connectors};
+    use super::{args, parse_output, step_line, terminal_args, tool_prefix, version_key, Connectors, Progress};
     use crate::settings::McpChoice;
     use std::path::Path;
 
     fn none() -> Connectors {
         Connectors { enabled: Vec::new(), disabled: Vec::new(), agent: false }
+    }
+
+    #[test]
+    fn terminal_mode_has_every_tool_and_the_users_servers() {
+        let c = Connectors {
+            enabled: vec![McpChoice { name: "docs".into(), confirm: false }],
+            disabled: vec!["altro".into()],
+            agent: true,
+        };
+        let a = terminal_args(Path::new("C:/x"), "opus", Some("abc"), None, &c);
+        let at = |flag: &str| a[a.iter().position(|x| x == flag).unwrap() + 1].clone();
+        assert!(!a.contains(&"--tools".to_string()));
+        assert!(!a.contains(&"--strict-mcp-config".to_string()));
+        assert!(!a.contains(&"--disallowedTools".to_string()));
+        assert_eq!(at("--permission-mode"), "default");
+        assert_eq!(at("--output-format"), "stream-json");
+        assert!(a.contains(&"--verbose".to_string()));
+        let allowed = at("--allowedTools");
+        assert!(allowed.starts_with("mcp__docs,mcp__easyisland__"));
+        assert!(!allowed.contains("Bash"));
+        assert_eq!(at("--resume"), "abc");
+    }
+
+    #[test]
+    fn terminal_steps_and_text_as_shown() {
+        let mut p = Progress::default();
+        assert!(!p.feed(r#"{"type":"system","subtype":"init"}"#));
+        assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"text","text":"Controllo."},{"type":"tool_use","name":"Bash","input":{"command":"git status"}}]}}"#));
+        assert!(!p.feed(r#"{"type":"assistant","parent_tool_use_id":"t1","message":{"content":[{"type":"text","text":"dentro"}]}}"#));
+        assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"mcp__plugin_Notion_notion__notion-search","input":{}}]}}"#));
+        assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"text","text":"Fatto."}]}}"#));
+        assert_eq!(p.shown, "Controllo.\n\n> ⚙ Esegue · `git status`\n\n> ⚙ notion-search · Notion notion\n\nFatto.");
+        assert_eq!(step_line("Edit", &serde_json::json!({ "file_path": "C:/a.txt" })), "> ⚙ Modifica · `C:/a.txt`");
     }
 
     #[test]

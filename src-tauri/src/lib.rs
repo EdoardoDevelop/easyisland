@@ -800,6 +800,22 @@ fn approval_decline(app: AppHandle, request_id: String) {
 
 // ── Chat, files and secrets ───────────────────────────────────────────────────
 
+/// What `Chat::use_engine` gets: engine, model and "Modalità terminale" —
+/// any of them changed, the conversation starts over.
+fn chat_key(engine: &str, model: &str, terminal: bool) -> String {
+    if terminal { format!("{engine}:{model}:terminal") } else { format!("{engine}:{model}") }
+}
+
+/// "Modalità terminale": the folder the chat works in — the user's, if it
+/// exists, else their home.
+fn chat_folder(chosen: &str) -> std::path::PathBuf {
+    let chosen = std::path::PathBuf::from(chosen.trim());
+    if !chosen.as_os_str().is_empty() && chosen.is_dir() {
+        return chosen;
+    }
+    std::env::var_os("USERPROFILE").map(std::path::PathBuf::from).unwrap_or_else(|| std::path::PathBuf::from("C:\\"))
+}
+
 /// One chat turn. The API key and any file bytes stay on the Rust side.
 #[tauri::command]
 async fn chat_send(
@@ -810,18 +826,20 @@ async fn chat_send(
     context: Option<ChatContext>,
     engine: Option<String>,
 ) -> Result<ChatReply, String> {
-    let (engine, model, cli_model, mcp, agent, other_model, url) = {
+    let (engine, model, cli_model, mcp, agent, other_model, url, terminal) = {
         let s = shared.settings.lock().unwrap();
         // The engine picked in the chat for this conversation, else the default.
         let e = engine.filter(|e| !e.is_empty()).unwrap_or_else(|| s.chat_engine.clone());
         let other = s.engine_models.get(&e).cloned().unwrap_or_default();
         let url = s.engine_urls.get(&e).cloned();
-        (e, s.model.clone(), s.cli_model.clone(), s.mcp_servers.clone(), s.agent_tools, other, url)
+        let terminal = s.chat_terminal.then(|| chat_folder(&s.chat_folder));
+        (e, s.model.clone(), s.cli_model.clone(), s.mcp_servers.clone(), s.agent_tools, other, url, terminal)
     };
     // A different model is a different conversation too: start over (an
     // opencode conversation left behind is deleted from opencode's history).
+    // So is turning "Modalità terminale" on or off.
     let before = chat.cli_session();
-    chat.use_engine(&format!("{engine}:{other_model}"));
+    chat.use_engine(&chat_key(&engine, &other_model, terminal.is_some()));
     if before.is_some() && chat.cli_session().is_none() {
         opencode::forget(before);
     }
@@ -832,14 +850,31 @@ async fn chat_send(
         Some(p) => format!("{p}{query}"),
         None => query,
     };
-    let reply = if engine == "api" {
-        claude::send(&chat, &model, query, context).await
-    } else if engine == "opencode" {
-        opencode::send(&app, &chat, &other_model, query, context).await
-    } else if openai::ENGINES.contains(&engine.as_str()) {
-        openai::send(&app, &chat, &engine, &other_model, url.as_deref(), query, context).await
-    } else {
-        claude_cli::send(&chat, &cli_model, &mcp, agent, query, context).await
+    let on_text = |text: &str| {
+        let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "text": text }));
+    };
+    let reply = match (&terminal, engine.as_str()) {
+        (Some(folder), "opencode") => {
+            let o = opencode::Options { folder: Some(folder.clone()), ..Default::default() };
+            opencode::send(&app, &chat, &other_model, query, context, &o).await
+        }
+        // "Modalità terminale" for an engine without tools: through opencode.
+        (Some(folder), e) if e == "api" || openai::ENGINES.contains(&e) => {
+            let api_model = if e == "api" { model.clone() } else { other_model.clone() };
+            match opencode::via(e, &api_model, url.as_deref()) {
+                Ok((m, mut o)) if opencode::find_exe().is_some() => {
+                    o.folder = Some(folder.clone());
+                    opencode::send(&app, &chat, &m, query, context, &o).await
+                }
+                Ok(_) => Err(t("La modalità terminale con questo motore passa da opencode, che non è installato su questo PC (npm i -g @opencode/cli, oppure opencode.ai). Oppure spegnila in Impostazioni → Chat.").into()),
+                Err(e) => Err(e),
+            }
+        }
+        (Some(folder), _) => claude_cli::send(&chat, &cli_model, &mcp, agent, query, context, Some(folder), &on_text).await,
+        (None, "api") => claude::send(&chat, &model, query, context).await,
+        (None, "opencode") => opencode::send(&app, &chat, &other_model, query, context, &opencode::Options::default()).await,
+        (None, e) if openai::ENGINES.contains(&e) => openai::send(&app, &chat, &engine, &other_model, url.as_deref(), query, context).await,
+        (None, _) => claude_cli::send(&chat, &cli_model, &mcp, agent, query, context, None, &on_text).await,
     };
     match &reply {
         Ok(r) if shared.settings.lock().unwrap().chat_history => chat_log::record(&chat, &engine, &asked, &r.text),
@@ -884,13 +919,13 @@ async fn rewrite_text(app: AppHandle, shared: State<'_, Shared>, prompt: String,
     let reply = if engine == "api" {
         claude::send(&chat, &model, query, context).await
     } else if engine == "opencode" {
-        let r = opencode::send(&app, &chat, &other_model, query, context).await;
+        let r = opencode::send(&app, &chat, &other_model, query, context, &opencode::Options::default()).await;
         opencode::forget(chat.cli_session());
         r
     } else if openai::ENGINES.contains(&engine.as_str()) {
         openai::send(&app, &chat, &engine, &other_model, url.as_deref(), query, context).await
     } else {
-        claude_cli::send(&chat, &cli_model, &[], false, query, context).await
+        claude_cli::send(&chat, &cli_model, &[], false, query, context, None, &|_| {}).await
     };
     let reply = context::clean_reply(&reply?.text);
     let (Some(clip), Some(marked)) = (html, marked) else {
@@ -961,8 +996,11 @@ fn chat_history_open(shared: State<'_, Shared>, chat: State<'_, Chat>, id: Strin
     let before = chat.cli_session();
     let engine = chat_log::engine_of(&id).ok_or_else(|| t("Questa conversazione non c'è più.").to_string())?;
     // The key chat_send will compute for this engine, so it does not start over.
-    let model = shared.settings.lock().unwrap().engine_models.get(&engine).cloned().unwrap_or_default();
-    let opened = chat_log::open(&chat, &id, &format!("{engine}:{model}"))?;
+    let (model, terminal) = {
+        let s = shared.settings.lock().unwrap();
+        (s.engine_models.get(&engine).cloned().unwrap_or_default(), s.chat_terminal)
+    };
+    let opened = chat_log::open(&chat, &id, &chat_key(&engine, &model, terminal))?;
     opencode::forget(before);
     Ok(opened)
 }

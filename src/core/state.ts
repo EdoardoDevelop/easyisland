@@ -466,6 +466,10 @@ export interface Settings {
   contextActions: boolean;
   /** The chat (Claude Code engine) may use EasyIsland's tools: open programs, quick actions… */
   agentTools: boolean;
+  /** "Modalità terminale" (docs/chat.md): the chat works as Claude Code / opencode in a terminal, in chatFolder. */
+  chatTerminal?: boolean;
+  /** Its working folder; "" = the user's home. */
+  chatFolder?: string;
   /** opencode 2's sessions in the island, from its background service (opencode_agent.rs). Of the PC. */
   opencodeWatch?: boolean;
   /** "Quando… allora…" rules, run by src-tauri/src/automations.rs. */
@@ -805,6 +809,8 @@ export const DEFAULT_SETTINGS: Settings = {
   hotkeySelectionMenu: "Win+Alt+A",
   contextActions: true,
   agentTools: true,
+  chatTerminal: false,
+  chatFolder: "",
   opencodeWatch: false,
   automations: [],
   habitsEnabled: false,

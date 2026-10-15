@@ -16,7 +16,15 @@
 // request becomes the island's Consenti / Nega card (pipe::request_decision).
 // "Sempre" only for read-only commands; no click in time = reject.
 //
-// Provider keys stay with opencode (`opencode auth login`), never here.
+// Provider keys stay with opencode (`opencode auth login`), never here — except
+// in "Modalità terminale" (chat.md): another engine of the chat (Anthropic's
+// API, OpenAI, OpenRouter, Gemini, Ollama, LM Studio) then runs through
+// opencode, to have its tools, and the key of that engine goes from Gestione
+// credenziali to the private server's environment only (`Options::env`).
+//
+// The server reads opencode's config when it starts: when the config files
+// change (an MCP server added, say) or the environment it needs does, it is
+// started again before the turn (`Server::fingerprint`).
 
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -75,6 +83,75 @@ fn workspace() -> PathBuf {
     dir
 }
 
+/// How a turn runs. The default is the opencode engine as it always was.
+#[derive(Default, Clone)]
+pub struct Options {
+    /// "Modalità terminale": the user's working folder, and "Sempre" on offer
+    /// for any command, as in opencode's own terminal.
+    pub folder: Option<PathBuf>,
+    /// For the server's environment: the key of the engine run through opencode.
+    pub env: Vec<(&'static str, String)>,
+    /// For the server: opencode config of its own (OPENCODE_CONFIG_CONTENT), e.g.
+    /// the address of an Ollama on another PC. Merged with the user's.
+    pub config: Option<String>,
+}
+
+/// "Modalità terminale" for an engine that has no tools of its own: the same
+/// provider and model through opencode ("provider/model" and the options).
+pub fn via(engine: &str, model: &str, custom_url: Option<&str>) -> Result<(String, Options), String> {
+    let key = |name: &str, provider: &str| -> Result<String, String> {
+        crate::secrets::get(name).ok_or_else(|| tf("Manca la chiave di {name}. Apri le impostazioni.", &[("name", &provider)]))
+    };
+    let model = model.trim().trim_start_matches("models/");
+    if model.is_empty() {
+        return Err(t("Scegli un modello per questo motore nelle impostazioni (Chat).").into());
+    }
+    let mut o = Options::default();
+    let provider = match engine {
+        "api" => { o.env.push(("ANTHROPIC_API_KEY", key("anthropic-api-key", "Anthropic")?)); "anthropic" }
+        "openai" => { o.env.push(("OPENAI_API_KEY", key("openai-api-key", "OpenAI")?)); "openai" }
+        "openrouter" => { o.env.push(("OPENROUTER_API_KEY", key("openrouter-api-key", "OpenRouter")?)); "openrouter" }
+        "gemini" => { o.env.push(("GOOGLE_GENERATIVE_AI_API_KEY", key("gemini-api-key", "Gemini")?)); "google" }
+        "ollama" | "lmstudio" => {
+            // opencode finds both at their usual address; another one is given.
+            if custom_url.is_some_and(|u| !u.trim().is_empty()) {
+                let base = crate::openai::base_url(engine, custom_url)?;
+                o.config = Some(json!({ "providers": { engine: { "settings": { "baseURL": base } } } }).to_string());
+            }
+            engine
+        }
+        _ => return Err(t("Questo motore non ha la modalità terminale.").into()),
+    };
+    Ok((format!("{provider}/{model}"), o))
+}
+
+/// The config files opencode reads at start, with their times: a change means
+/// the server must start again to see it.
+fn config_stamp() -> Vec<(String, Option<std::time::SystemTime>)> {
+    let Some(home) = std::env::var_os("USERPROFILE").map(PathBuf::from) else { return Vec::new() };
+    let dir = home.join(".config").join("opencode");
+    let mut out: Vec<(String, Option<std::time::SystemTime>)> = std::fs::read_dir(&dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.path().extension().is_some_and(|x| x == "json" || x == "jsonc"))
+        .map(|e| (e.file_name().to_string_lossy().into_owned(), e.metadata().and_then(|m| m.modified()).ok()))
+        .collect();
+    out.sort();
+    out
+}
+
+/// What the server was started with: config times, environment, own config.
+/// Only a hash is kept, never the key.
+fn fingerprint(o: &Options) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    config_stamp().hash(&mut h);
+    o.env.hash(&mut h);
+    o.config.hash(&mut h);
+    h.finish()
+}
+
 // ── The private server ────────────────────────────────────────────────────────
 
 struct Server {
@@ -84,6 +161,8 @@ struct Server {
     last_used: Instant,
     /// Which start this is: the idle timer of an older server leaves this one alone.
     generation: u64,
+    /// What it was started with (`fingerprint`).
+    fingerprint: u64,
 }
 
 static SERVER: tokio::sync::Mutex<Option<Server>> = tokio::sync::Mutex::const_new(None);
@@ -128,13 +207,20 @@ fn http_short() -> Result<reqwest::Client, String> {
         .map_err(|e| e.to_string())
 }
 
-/// The running server's address and password, started if needed.
-async fn server() -> Result<(String, String), String> {
+/// The running server's address and password, started if needed — or again,
+/// when its config or the environment it needs changed (sessions stay in
+/// opencode's database and go on).
+async fn server(o: &Options) -> Result<(String, String), String> {
+    let print = fingerprint(o);
     let mut guard = SERVER.lock().await;
     if let Some(s) = guard.as_mut() {
         if matches!(s.child.try_wait(), Ok(None)) {
-            s.last_used = Instant::now();
-            return Ok((s.url.clone(), s.password.clone()));
+            if s.fingerprint == print {
+                s.last_used = Instant::now();
+                return Ok((s.url.clone(), s.password.clone()));
+            }
+            stop(s);
+            crate::log::line("opencode: server restarted (config changed)");
         }
         *guard = None;
     }
@@ -146,11 +232,15 @@ async fn server() -> Result<(String, String), String> {
     cmd.args(["serve", "--hostname", "127.0.0.1", "--port", &port.to_string()])
         .env("OPENCODE_SERVER_PASSWORD", &password)
         .env("EASYISLAND_INTERNAL", "1")
+        .envs(o.env.iter().map(|(k, v)| (*k, v.as_str())))
         .current_dir(workspace())
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .kill_on_drop(true);
+    if let Some(c) = &o.config {
+        cmd.env("OPENCODE_CONFIG_CONTENT", c);
+    }
     cmd.creation_flags(CREATE_NO_WINDOW);
     let child = cmd.spawn().map_err(|e| tf("Impossibile avviare opencode: {e}", &[("e", &e)]))?;
     crate::log::line(format!("opencode: server on port {port}"));
@@ -171,7 +261,7 @@ async fn server() -> Result<(String, String), String> {
     }
     let generation = GENERATION.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
     SERVER_PID.store(child.id().unwrap_or(0), std::sync::atomic::Ordering::SeqCst);
-    *guard = Some(Server { url: url.clone(), password: password.clone(), child, last_used: Instant::now(), generation });
+    *guard = Some(Server { url: url.clone(), password: password.clone(), child, last_used: Instant::now(), generation, fingerprint: print });
     drop(guard);
     spawn_idle_stop(generation);
     Ok((url, password))
@@ -328,7 +418,7 @@ fn tool_name(action: &str) -> String {
 /// A step line under the reply: "Esegue · echo ciao".
 pub fn step_line(tool: &str, input: &Value) -> String {
     let s = |k: &str| input.get(k).and_then(Value::as_str).map(str::to_string);
-    let what = s("command").or_else(|| s("filePath")).or_else(|| s("path")).or_else(|| s("pattern"))
+    let what = s("command").or_else(|| s("filePath")).or_else(|| s("file_path")).or_else(|| s("path")).or_else(|| s("pattern"))
         .or_else(|| s("url")).or_else(|| s("query")).unwrap_or_default();
     let label = match tool {
         "shell" | "bash" => t("Esegue"),
@@ -348,8 +438,9 @@ pub fn step_line(tool: &str, input: &Value) -> String {
 }
 
 /// A `permission.asked` event's data → the island's PermissionRequest payload,
-/// and whether "Sempre" is on offer (a read-only command with patterns to save).
-pub fn permission_payload(data: &Value) -> (Value, bool) {
+/// and whether "Sempre" is on offer: a read-only command with patterns to save,
+/// or (`terminal`, "Modalità terminale") whatever opencode proposes to save.
+pub fn permission_payload(data: &Value, terminal: bool) -> (Value, bool) {
     let action = data.get("action").and_then(Value::as_str).unwrap_or_default();
     let list = |k: &str| -> Vec<String> {
         data.get(k).and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect()).unwrap_or_default()
@@ -362,8 +453,9 @@ pub fn permission_payload(data: &Value) -> (Value, bool) {
     } else {
         json!({ "path": resources.join(", ") })
     };
-    let always = (action == "shell" || action == "bash") && !save.is_empty() && !resources.is_empty()
-        && resources.iter().all(|c| read_only(c));
+    let shell = action == "shell" || action == "bash";
+    let always = !save.is_empty() && !resources.is_empty()
+        && (if terminal { true } else { shell && resources.iter().all(|c| read_only(c)) });
     let mut payload = json!({
         "hook_event_name": "PermissionRequest",
         "easyisland_chat": true,
@@ -373,7 +465,7 @@ pub fn permission_payload(data: &Value) -> (Value, bool) {
         "tool_input": input,
     });
     if always {
-        let rules: Vec<Value> = save.iter().map(|p| json!({ "toolName": "Bash", "ruleContent": p })).collect();
+        let rules: Vec<Value> = save.iter().map(|p| json!({ "toolName": tool, "ruleContent": p })).collect();
         payload["permission_suggestions"] = json!([{ "type": "addRules", "rules": rules, "behavior": "allow", "destination": "session" }]);
     }
     (payload, always)
@@ -471,17 +563,17 @@ impl Ask for Island {
 }
 
 /// One chat turn on opencode. `model` is "provider/model".
-pub async fn send(app: &AppHandle, chat: &Chat, model: &str, query: String, context: Option<ChatContext>) -> Result<ChatReply, String> {
+pub async fn send(app: &AppHandle, chat: &Chat, model: &str, query: String, context: Option<ChatContext>, o: &Options) -> Result<ChatReply, String> {
     let on_text = |text: &str| {
         let _ = app.emit_to(crate::island::WINDOW_LABEL, "chat-stream", Stream { text });
     };
-    run_turn(chat, model, query, context, &on_text, Island(app.clone())).await
+    run_turn(chat, model, query, context, &on_text, Island(app.clone()), o).await
 }
 
-async fn run_turn(chat: &Chat, model: &str, query: String, context: Option<ChatContext>, on_text: &(dyn Fn(&str) + Sync), ask: impl Ask) -> Result<ChatReply, String> {
+async fn run_turn(chat: &Chat, model: &str, query: String, context: Option<ChatContext>, on_text: &(dyn Fn(&str) + Sync), ask: impl Ask, o: &Options) -> Result<ChatReply, String> {
     let model_ref = model_ref(model).ok_or(t("Scegli un modello di opencode nelle impostazioni (Chat)."))?;
     BUSY.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    let result = turn(chat, model_ref, query, context, on_text, ask).await;
+    let result = turn(chat, model_ref, query, context, on_text, ask, o).await;
     BUSY.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
     if let Some(s) = SERVER.lock().await.as_mut() {
         s.last_used = Instant::now();
@@ -489,13 +581,13 @@ async fn run_turn(chat: &Chat, model: &str, query: String, context: Option<ChatC
     result
 }
 
-async fn turn(chat: &Chat, model: Value, query: String, context: Option<ChatContext>, on_text: &(dyn Fn(&str) + Sync), ask: impl Ask) -> Result<ChatReply, String> {
-    match turn_once(chat, model.clone(), &query, context.as_ref(), on_text, ask.clone()).await {
+async fn turn(chat: &Chat, model: Value, query: String, context: Option<ChatContext>, on_text: &(dyn Fn(&str) + Sync), ask: impl Ask, o: &Options) -> Result<ChatReply, String> {
+    match turn_once(chat, model.clone(), &query, context.as_ref(), on_text, ask.clone(), o).await {
         // The session is gone (opencode restarted without it): a fresh one, once.
         Err(e) if e == SESSION_GONE => {
             forget(chat.cli_session());
             chat.set_cli_session(None);
-            turn_once(chat, model, &query, context.as_ref(), on_text, ask).await
+            turn_once(chat, model, &query, context.as_ref(), on_text, ask, o).await
         }
         other => other,
     }
@@ -503,8 +595,9 @@ async fn turn(chat: &Chat, model: Value, query: String, context: Option<ChatCont
 
 const SESSION_GONE: &str = "opencode: sessione non trovata";
 
-async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&ChatContext>, on_text: &(dyn Fn(&str) + Sync), ask: impl Ask) -> Result<ChatReply, String> {
-    let (url, password) = server().await?;
+async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&ChatContext>, on_text: &(dyn Fn(&str) + Sync), ask: impl Ask, o: &Options) -> Result<ChatReply, String> {
+    let (url, password) = server(o).await?;
+    let terminal = o.folder.is_some();
     let client = http_short()?;
     let stream = http()?;
     let auth = |r: reqwest::RequestBuilder| r.basic_auth("opencode", Some(password.clone()));
@@ -516,7 +609,7 @@ async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&Chat
             let body = json!({
                 "title": "Chat di EasyIsland",
                 "model": model,
-                "location": { "directory": workspace().to_string_lossy() },
+                "location": { "directory": o.folder.clone().unwrap_or_else(workspace).to_string_lossy() },
                 "permissions": rules(),
             });
             let r = auth(client.post(format!("{url}/api/session")).json(&body)).send().await.map_err(|e| e.to_string())?;
@@ -607,7 +700,7 @@ async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&Chat
                     let (url, password, session, data) = (url.clone(), password.clone(), session.clone(), data.clone());
                     // Never inside the stream loop: the stream must keep flowing.
                     tauri::async_runtime::spawn(async move {
-                        let (payload, always) = permission_payload(&data);
+                        let (payload, always) = permission_payload(&data, terminal);
                         let decision = ask.decide(payload).await;
                         let word = reply_word(decision.as_deref(), always);
                         if word == "reject" {
@@ -654,7 +747,7 @@ fn error_text(v: &Value) -> String {
 
 /// Impostazioni → Chat → "Carica modelli": "provider/model" for every enabled model.
 pub async fn models() -> Result<Vec<crate::openai::ModelOption>, String> {
-    let (url, password) = server().await?;
+    let (url, password) = server(&Options::default()).await?;
     let v: Value = http_short()?.get(format!("{url}/api/model")).basic_auth("opencode", Some(password))
         .send().await.map_err(|e| e.to_string())?.json().await.map_err(|e| e.to_string())?;
     Ok(model_options(&v))
@@ -750,17 +843,24 @@ mod tests {
     #[test]
     fn a_permission_becomes_the_islands_card() {
         let (p, always) = permission_payload(&json!({ "id": "per_1", "sessionID": "ses_1", "action": "shell",
-            "resources": ["git status"], "save": ["git status *"] }));
+            "resources": ["git status"], "save": ["git status *"] }), false);
         assert!(always);
         assert_eq!((p["tool_name"].as_str(), p["tool_input"]["command"].as_str()), (Some("Bash"), Some("git status")));
         assert_eq!(p["easyisland_chat"], true);
         assert_eq!(p["permission_suggestions"][0]["rules"][0]["ruleContent"], "git status *");
 
-        let (p, always) = permission_payload(&json!({ "action": "shell", "resources": ["Remove-Item C:\\x"], "save": ["Remove-Item *"] }));
+        let (p, always) = permission_payload(&json!({ "action": "shell", "resources": ["Remove-Item C:\\x"], "save": ["Remove-Item *"] }), false);
         assert!(!always);
         assert!(p.get("permission_suggestions").is_none());
+        // "Modalità terminale": as in opencode's terminal, any command.
+        let (p, always) = permission_payload(&json!({ "action": "shell", "resources": ["npm install"], "save": ["npm install *"] }), true);
+        assert!(always);
+        assert_eq!(p["permission_suggestions"][0]["rules"][0]["ruleContent"], "npm install *");
+        let (p, always) = permission_payload(&json!({ "action": "edit", "resources": ["C:\\a.txt"], "save": ["*"] }), true);
+        assert!(always);
+        assert_eq!(p["permission_suggestions"][0]["rules"][0]["toolName"], "Edit");
 
-        let (p, _) = permission_payload(&json!({ "action": "edit", "resources": ["C:\\a.txt"], "save": [] }));
+        let (p, _) = permission_payload(&json!({ "action": "edit", "resources": ["C:\\a.txt"], "save": [] }), false);
         assert_eq!((p["tool_name"].as_str(), p["tool_input"]["path"].as_str()), (Some("Edit"), Some("C:\\a.txt")));
     }
 
@@ -810,7 +910,8 @@ mod tests {
             let seen = std::sync::Mutex::new(0usize);
             let on_text = |t: &str| { *seen.lock().unwrap() += 1; let _ = t; };
             let model = std::env::var("OPENCODE_TEST_MODEL").unwrap_or_else(|_| "opencode/big-pickle".into());
-            let r = run_turn(&chat, &model, "Esegui il comando: echo ciao-easyisland  e dimmi in una frase cosa ha stampato.".into(), None, &on_text, Fixed("allow")).await;
+            let o = Options::default();
+            let r = run_turn(&chat, &model, "Esegui il comando: echo ciao-easyisland  e dimmi in una frase cosa ha stampato.".into(), None, &on_text, Fixed("allow"), &o).await;
             println!("1: {:?}", r.as_ref().map(|x| &x.text));
             let text = r.expect("turn").text;
             // Free models do not always show the step (or call the tool at all).
@@ -819,11 +920,11 @@ mod tests {
             }
             assert!(text.contains("ciao-easyisland"), "{text}");
             assert!(*seen.lock().unwrap() > 0, "streamed");
-            let r = run_turn(&chat, &model, "Rispondi solo con la parola: fatto".into(), None, &on_text, Fixed("allow")).await;
+            let r = run_turn(&chat, &model, "Rispondi solo con la parola: fatto".into(), None, &on_text, Fixed("allow"), &o).await;
             println!("2: {:?}", r.as_ref().map(|x| &x.text));
             assert!(r.expect("follow-up").text.to_lowercase().contains("fatto"));
             let denied = Chat::default();
-            let r = run_turn(&denied, &model, "Esegui il comando: echo vietato e dimmi cosa è successo.".into(), None, &on_text, Fixed("deny")).await;
+            let r = run_turn(&denied, &model, "Esegui il comando: echo vietato e dimmi cosa è successo.".into(), None, &on_text, Fixed("deny"), &o).await;
             println!("3: {:?}", r.as_ref().map(|x| &x.text));
             // Both conversations leave opencode's history with the server.
             assert_eq!(OURS.lock().unwrap().len(), 2);
@@ -833,6 +934,16 @@ mod tests {
         // Outside the runtime, as at the app's exit.
         shutdown();
         assert!(OURS.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn other_engines_through_opencode() {
+        assert_eq!(via("ollama", "qwen3:8b", None).unwrap().0, "ollama/qwen3:8b");
+        let (m, o) = via("lmstudio", "google/gemma-3n", Some("http://pc:1234")).unwrap();
+        assert_eq!(m, "lmstudio/google/gemma-3n");
+        assert!(o.config.unwrap().contains("http://pc:1234/v1"));
+        assert!(via("ollama", "", None).is_err());
+        assert!(via("subscription", "x", None).is_err());
     }
 
     #[test]
