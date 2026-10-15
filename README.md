@@ -57,6 +57,14 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.8.3** — **Modalità terminale** della chat (Impostazioni → Chat): esegue comandi, modifica
+file e usa tutti i tuoi server MCP, plugin e skill come Claude Code o opencode da terminale,
+nella cartella che scegli; ogni comando chiede Consenti / Nega, con «Sempre». Con tutti i
+motori: quelli senza strumenti passano da opencode. **⚡ Automatica** nella chat: per una
+conversazione le operazioni normali vanno da sole, quelle delicate chiedono ancora.
+**Notion** rifatto: attività con la spunta, nota veloce, pagine scelte, ricerca e pagine
+che si aprono nell'app. I server MCP dei plugin di Claude Code sono tra i connettori.
+
 **0.8.2** — **Sostituisci** tiene grassetti, link e paragrafi del testo originale (Word,
 Outlook, Gmail), con il pulsante «Senza formattazione» per incollare il solo testo.
 **Cerchia e chiedi → Nel Vassoio** apre l'isola sul Vassoio, con la zona appena aggiunta
@@ -209,7 +217,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.8.2** | 14 ott 2026 | Sostituisci con la formattazione dell'originale o senza, Vassoio dopo Cerchia e chiedi con la zona nuova evidenziata, Media al posto di Musica |
+| **0.8.3** | 15 ott 2026 | Modalità terminale della chat per tutti i motori, ⚡ Automatica, Notion con attività, note e pagine scelte che si aprono nell'app, connettori dai plugin di Claude Code |
+| 0.8.2 | 14 ott 2026 | Sostituisci con la formattazione dell'originale o senza, Vassoio dopo Cerchia e chiedi con la zona nuova evidenziata, Media al posto di Musica |
 | 0.8.1 | 14 ott 2026 | Rete: scelta della scheda con pulsanti, un ping per il gateway di ogni scheda |
 | 0.8.0 | 14 ott 2026 | Logo nuovo, Rete con tutte le schede, ping continuo e impostazioni della scheda, copertina della Musica, schede centrate, Impostazioni in finestra, Rubrica di 3CX, rinnovo dell'accesso di Claude Code per i limiti del piano |
 | 0.7.9 | 14 ott 2026 | Proposte al momento giusto (download, errore copiato, server di sviluppo, chiavi tolte dagli appunti), riepilogo del giorno, strumenti di EasyIsland in Claude Code, isola e impostazioni più stabili |
