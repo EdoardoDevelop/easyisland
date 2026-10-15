@@ -273,6 +273,8 @@ export const Bridge = {
   notionTaskDone: (id: string) => callOrThrow<void>("notion_task_done", { id }),
   /** "Nuova nota": into the page or database chosen in the settings; its title back. */
   notionAddNote: (text: string, stamp: string) => callOrThrow<string>("notion_add_note", { text, stamp }),
+  /** Impostazioni → Notion → Viste: what the tasks can be filtered by. */
+  notionProperties: (id: string) => callOrThrow<{ name: string; kind: string; options: [string, string][] }[]>("notion_properties", { id }),
   /** Another tasks database chosen: its properties are read again. */
   notionForgetSchemas: () => call<void>("notion_forget_schemas"),
   /** A Notion page's title and text, for the chat. */

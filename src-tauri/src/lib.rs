@@ -654,6 +654,12 @@ fn notion_forget_schemas() {
     notion::forget_schemas();
 }
 
+/// Impostazioni → Notion → Viste: what the tasks can be filtered by.
+#[tauri::command]
+async fn notion_properties(id: String) -> Result<Vec<notion::Property>, String> {
+    notion::properties(&id).await
+}
+
 /// "Chiedi alla chat" on a Notion page: its title and text.
 #[tauri::command]
 async fn notion_page_text(id: String) -> Result<(String, String), String> {
@@ -1825,6 +1831,7 @@ pub fn run() {
             notion_search,
             notion_page_text,
             notion_task_done,
+            notion_properties,
             notion_add_note,
             notion_forget_schemas,
             inbox_drag,

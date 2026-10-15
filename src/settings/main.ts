@@ -6,7 +6,7 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage } from "../core/bridge";
-import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type NotionRef, type Settings, type WidgetDef } from "../core/state";
+import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
@@ -964,6 +964,129 @@ function notionPicker(placeholder: string, kind: "page" | "database" | null, onP
   return h("div", { style: "display:flex;flex-direction:column;gap:4px;flex:1 1 auto;min-width:0" }, input, results);
 }
 
+/** The properties of the tasks database, read once per database (notion.rs → properties). */
+let notionProps: { db: string; list: { name: string; kind: string; options: [string, string][] }[] | null; error: string } | null = null;
+
+const PERIODS: [string, string][] = [
+  ["all", t("Tutte le date")],
+  ["today", t("Scadute e di oggi")],
+  ["week", t("Fino a domenica")],
+  ["month", t("Fino a fine mese")],
+  ["days", t("Nei prossimi giorni…")],
+];
+
+/**
+ * Impostazioni → Notion → Viste: named filters of the tasks (settings.rs
+ * NotionView). Each one: a period, the undated ones or not, the order, and
+ * for each select, multi-select, status or relation the values wanted.
+ */
+function notionViewsEditor(db: string, saved: () => void): HTMLElement {
+  const c = settings.integrationConfig;
+  const box = h("div", { style: "display:flex;flex-direction:column;gap:8px" });
+  if (!notionProps || notionProps.db !== db) {
+    const mine = { db, list: null, error: "" } as NonNullable<typeof notionProps>;
+    notionProps = mine;
+    Bridge.notionProperties(db)
+      .then((l) => { mine.list = l; })
+      .catch((e) => { mine.error = String(e).replace(/^Error:\s*/, ""); })
+      .finally(() => { if (notionProps === mine) draw(); });
+  }
+  let timer = 0;
+  const later = () => { window.clearTimeout(timer); timer = window.setTimeout(saved, 600); };
+
+  const uniqueName = (base: string) => {
+    const names = new Set((c.notionViews ?? []).map((v) => v.name));
+    if (!names.has(base)) return base;
+    let n = 2;
+    while (names.has(`${base} ${n}`)) n++;
+    return `${base} ${n}`;
+  };
+  const add = (v: Partial<NotionView>) => {
+    const views = c.notionViews ?? [];
+    if (views.length >= 6) return;
+    c.notionViews = [...views, { name: uniqueName(v.name ?? t("Vista")), period: "all", days: 7, undated: true, filters: [], sort: "due", ...v, }];
+    saved();
+    draw();
+  };
+
+  function viewBox(v: NotionView): HTMLElement {
+    const name = h("input", { type: "text", value: v.name, spellcheck: "false", style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
+    name.addEventListener("input", () => {
+      const next = name.value.trim();
+      if (!next || (c.notionViews ?? []).some((x) => x !== v && x.name === next)) return;
+      if (c.notionView === v.name) c.notionView = next;
+      v.name = next;
+      later();
+    });
+    const remove = h("button", { text: t("Togli"), onclick: () => {
+      c.notionViews = (c.notionViews ?? []).filter((x) => x !== v);
+      if (c.notionView === v.name) c.notionView = "";
+      saved();
+      draw();
+    } });
+    const period = h("select", {}, ...PERIODS.map(([id, label]) => h("option", { value: id, text: label }))) as HTMLSelectElement;
+    period.value = v.period || "all";
+    const days = h("input", { type: "number", min: "1", max: "366", value: String(v.days || 7), style: "width:64px" }) as HTMLInputElement;
+    const showDays = () => { days.style.display = period.value === "days" ? "" : "none"; };
+    period.addEventListener("change", () => { v.period = period.value; showDays(); saved(); });
+    days.addEventListener("input", () => { const n = Math.round(Number(days.value)); if (n >= 1 && n <= 366) { v.days = n; later(); } });
+    showDays();
+    const sort = h("select", {},
+      h("option", { value: "due", text: t("Per scadenza") }),
+      h("option", { value: "priority", text: t("Per priorità") })) as HTMLSelectElement;
+    sort.value = v.sort === "priority" ? "priority" : "due";
+    sort.addEventListener("change", () => { v.sort = sort.value; saved(); });
+
+    const filters = h("div", { style: "display:flex;flex-direction:column;gap:6px" });
+    const props = notionProps?.list ?? [];
+    for (const p of props) {
+      const current = () => v.filters.find((f) => f.prop === p.name);
+      const chips = p.options.map(([value, label]) => {
+        const b = h("button", { class: "chip-opt", text: label, title: label }) as HTMLButtonElement;
+        const paint = () => b.classList.toggle("on", !!current()?.values.includes(value));
+        b.addEventListener("click", () => {
+          let f = current();
+          if (!f) { f = { prop: p.name, kind: p.kind, values: [] }; v.filters.push(f); }
+          f.values = f.values.includes(value) ? f.values.filter((x) => x !== value) : [...f.values, value];
+          if (f.values.length === 0) v.filters = v.filters.filter((x) => x !== f);
+          paint();
+          saved();
+        });
+        paint();
+        return b;
+      });
+      filters.append(h("div", { class: "row", style: "align-items:flex-start" },
+        h("span", { class: "hint", style: "min-width:84px;padding-top:3px", text: p.name }),
+        h("div", { class: "chip-opts" }, ...chips)));
+    }
+    if (notionProps?.error) filters.append(h("div", { class: "notice warn", text: notionProps.error }));
+    else if (!notionProps?.list) filters.append(h("div", { class: "hint", text: t("Leggo le colonne del database…") }));
+    else if (props.length) filters.append(h("div", { class: "hint", text: t("In ogni riga, nessuna scelta = tutte; più scelte = una qualsiasi.") }));
+
+    return h("div", { class: "notion-view-edit" },
+      h("div", { class: "row" }, name, remove),
+      h("div", { class: "row" }, h("span", { class: "hint", style: "min-width:84px", text: t("Scadenza") }), period, days,
+        h("label", { class: "inline-check" }, toggle(v.undated, (on) => { v.undated = on; saved(); }), h("span", { text: t("anche senza scadenza") }))),
+      h("div", { class: "row" }, h("span", { class: "hint", style: "min-width:84px", text: t("Ordine") }), sort),
+      filters);
+  }
+
+  function draw() {
+    clear(box);
+    const views = c.notionViews ?? [];
+    for (const v of views) box.append(viewBox(v));
+    if (views.length < 6) {
+      box.append(h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" },
+        h("button", { text: `+ ${t("Nuova vista")}`, onclick: () => add({}) }),
+        h("button", { text: `+ ${t("Oggi")}`, onclick: () => add({ name: t("Oggi"), period: "today", undated: false }) }),
+        h("button", { text: `+ ${t("Settimana")}`, onclick: () => add({ name: t("Settimana"), period: "week", undated: false }) }),
+        h("button", { text: `+ ${t("Tutte")}`, onclick: () => add({ name: t("Tutte"), period: "all", undated: true }) })));
+    }
+  }
+  draw();
+  return box;
+}
+
 /** Notion: the tasks database, where notes go, the pages kept in the card. */
 function notionRows(): HTMLElement {
   const box = h("div", { style: "display:flex;flex-direction:column;gap:10px" });
@@ -985,8 +1108,12 @@ function notionRows(): HTMLElement {
     const c = settings.integrationConfig;
     box.append(
       block(t("Attività"), t("Il database delle tue cose da fare: la card mostra quelle non fatte, prima le scadute e quelle di oggi. Serve una data e una casella o uno stato «fatto»."),
-        c.notionTasks ? chosen(c.notionTasks, () => { c.notionTasks = null; changed(true); })
-          : notionPicker(t("Cerca il database…"), "database", (r) => { c.notionTasks = r; changed(true); })),
+        c.notionTasks ? chosen(c.notionTasks, () => { c.notionTasks = null; c.notionViews = []; c.notionView = ""; changed(true); })
+          : notionPicker(t("Cerca il database…"), "database", (r) => { c.notionTasks = r; c.notionViews = []; c.notionView = ""; changed(true); })),
+      ...(c.notionTasks
+        ? [block(t("Viste"), t("Quali attività vedere nella card: per scadenza, categoria, contesto, progetto… Con più viste, nella card le cambi con un clic. Senza viste compaiono tutte quelle non fatte."),
+          notionViewsEditor(c.notionTasks.id, () => { void save(); void Bridge.refreshIntegration("integration_notion"); }))]
+        : []),
       block(t("Note"), t("Dove va «+ Nota»: in una pagina il testo si aggiunge in fondo con data e ora, in un database diventa una riga nuova."),
         c.notionInbox ? chosen(c.notionInbox, () => { c.notionInbox = null; changed(true); })
           : notionPicker(t("Cerca una pagina o un database…"), null, (r) => { c.notionInbox = r; changed(true); })),

@@ -4240,6 +4240,42 @@ input[type="range"]::-webkit-slider-thumb {
   color: var(--dim-2);
 }
 .notion-section .link-btn { font-size: 10.5px; text-transform: none; letter-spacing: 0; }
+/* Notion: the views saved in the settings, as chips over the tasks. */
+.notion-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 4px;
+}
+
+.notion-view {
+  height: 20px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--dim-2);
+  background: rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+}
+
+.notion-view:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.notion-view.on {
+  color: #111;
+  background: #E8E8E8;
+}
+
+.notion-prio {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+}
+
 .notion-tick {
   flex: 0 0 auto;
   width: 14px;

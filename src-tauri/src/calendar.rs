@@ -43,7 +43,7 @@ pub struct Occurrence {
 // ── Calendar arithmetic ───────────────────────────────────────────────────────
 
 /// (year, month, day) for days since 1970-01-01 (Howard Hinnant).
-fn civil_from_days(z: i64) -> (i64, i64, i64) {
+pub(crate) fn civil_from_days(z: i64) -> (i64, i64, i64) {
     let z = z + 719_468;
     let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
     let doe = z - era * 146_097;
@@ -57,7 +57,7 @@ fn civil_from_days(z: i64) -> (i64, i64, i64) {
 }
 
 /// 0 = Monday … 6 = Sunday.
-fn weekday(days: i64) -> i64 {
+pub(crate) fn weekday(days: i64) -> i64 {
     (days + 3).rem_euclid(7)
 }
 
@@ -515,7 +515,8 @@ pub async fn probe(w: &Widget) -> WidgetResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-
+
+
     #[test]
     fn odd_characters_never_panic() {
         // Calendars come from the network: a character slicing would cut must

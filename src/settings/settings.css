@@ -750,3 +750,44 @@ button.notion-pick {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Impostazioni → Notion → Viste: one box per view, the values as chips. */
+.notion-view-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.chip-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+button.chip-opt {
+  padding: 3px 9px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 400;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+button.chip-opt.on {
+  color: #111;
+  background: #E8E8E8;
+}
+
+.inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

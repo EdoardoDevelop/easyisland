@@ -382,7 +382,7 @@ export async function runScene(island: Island, scene: string) {
       break;
     }
     case "notion": {
-      // ?activeIntegrations=integration_notion — tasks, pinned pages, + Nota, search (Bridge mocked), the chat on a page.
+      // ?activeIntegrations=integration_notion — tasks, pinned pages, + Nota, search (Bridge mocked), the chat on a page; &views.
       const ago = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
       const pages = [
         { id: "a1", title: "Piano di lancio Q4", emoji: "🚀", lastEditedAt: ago(12), url: "https://www.notion.so/a1" },
@@ -413,7 +413,28 @@ export async function runScene(island: Island, scene: string) {
       State.settings.integrationConfig.notionInbox = new URLSearchParams(location.search).has("noinbox") ? null
         : { id: "in", title: "Inbox", emoji: "📥", url: "https://www.notion.so/in", database: false };
       await wait(300);
-      State.integrations.integration_notion = { data: { tasks, tasksSet: true }, error: null, loaded: true, configured: true };
+      // &views: three views saved in the settings, chips in the card, priority dots.
+      const withViews = new URLSearchParams(location.search).has("views");
+      const prio = (name: string, color: string) => [name, color];
+      const data: Record<string, unknown> = { tasks, tasksSet: true };
+      if (withViews) {
+        State.settings.integrationConfig.notionViews = [
+          { name: "Oggi", period: "today", days: 7, undated: false, filters: [], sort: "due" },
+          { name: "Ufficio", period: "week", days: 7, undated: true, filters: [{ prop: "Contesto", kind: "multi_select", values: ["Ufficio"] }], sort: "priority" },
+          { name: "EasyIsland", period: "all", days: 7, undated: true, filters: [], sort: "due" },
+        ];
+        State.settings.integrationConfig.notionView = "Ufficio";
+        data.byView = {
+          Oggi: tasks.slice(0, 2),
+          Ufficio: [
+            { ...tasks[2], priority: prio("Alta", "red") },
+            { ...tasks[0], priority: prio("Media", "yellow") },
+            { ...tasks[3], priority: prio("Bassa", "green") },
+          ],
+          EasyIsland: tasks.slice(3),
+        };
+      }
+      State.integrations.integration_notion = { data, error: null, loaded: true, configured: true };
       State.setFocus("integration_notion");
       island.alert("overview");
       await wait(1500);

@@ -1767,5 +1767,22 @@
   "Automatica: Claude Code decide da solo e blocca le azioni rischiose. Clic per tornare a Consenti / Nega": "Automatic: Claude Code decides on its own and blocks risky actions. Click to go back to Allow / Deny",
   "Automatica: in questa conversazione Claude Code non chiede conferma per le azioni normali e blocca quelle rischiose": "Automatic: in this conversation Claude Code does not ask about routine actions and blocks risky ones",
   "Automatica: comandi e modifiche normali vanno da soli; cancellare, pubblicare, installare o cambiare il sistema chiede ancora. Clic per tornare a Consenti / Nega": "Automatic: routine commands and changes go ahead on their own; deleting, publishing, installing or changing the system still asks. Click to go back to Allow / Deny",
-  "Automatica: in questa conversazione comandi e modifiche normali vanno senza chiedere; cancellare, pubblicare, installare o cambiare il sistema chiede ancora": "Automatic: in this conversation routine commands and changes go ahead without asking; deleting, publishing, installing or changing the system still asks"
+  "Automatica: in questa conversazione comandi e modifiche normali vanno senza chiedere; cancellare, pubblicare, installare o cambiare il sistema chiede ancora": "Automatic: in this conversation routine commands and changes go ahead without asking; deleting, publishing, installing or changing the system still asks",
+  "Tutte le date": "All dates",
+  "Scadute e di oggi": "Late and due today",
+  "Fino a domenica": "Until Sunday",
+  "Fino a fine mese": "Until the end of the month",
+  "Nei prossimi giorni…": "In the next days…",
+  "Vista": "View",
+  "Per scadenza": "By due date",
+  "Per priorità": "By priority",
+  "Leggo le colonne del database…": "Reading the database's properties…",
+  "In ogni riga, nessuna scelta = tutte; più scelte = una qualsiasi.": "In each row, nothing chosen = all; several chosen = any of them.",
+  "anche senza scadenza": "also without a due date",
+  "Ordine": "Order",
+  "Nuova vista": "New view",
+  "Settimana": "Week",
+  "Tutte": "All",
+  "Viste": "Views",
+  "Quali attività vedere nella card: per scadenza, categoria, contesto, progetto… Con più viste, nella card le cambi con un clic. Senza viste compaiono tutte quelle non fatte.": "Which tasks the card shows: by due date, category, context, project… With several views you switch them in the card with a click. Without views all the tasks not done are shown."
 }

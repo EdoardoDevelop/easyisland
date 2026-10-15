@@ -332,7 +332,13 @@ function notionSearchSoon() {
   }, 350);
 }
 
-interface NotionTask { id: string; title: string; url: string; due: string | null; canTick: boolean }
+interface NotionTask { id: string; title: string; url: string; due: string | null; canTick: boolean; priority?: [string, string] | null }
+
+/** Notion's option colors, for the priority dot. */
+const NOTION_COLORS: Record<string, string> = {
+  red: "#F87171", orange: "#FB923C", yellow: "#FACC15", green: "#4ADE80", blue: "#60A5FA",
+  purple: "#C084FC", pink: "#F472B6", brown: "#C4A484", gray: "#9CA3AF", default: "#9CA3AF",
+};
 
 /** When a task is due, in words, and whether it is late. */
 export function dueLabel(due: string | null, now = new Date()): { text: string; late: boolean; today: boolean } {
@@ -355,10 +361,20 @@ export function dueLabel(due: string | null, now = new Date()): { text: string; 
 function notionCard(hooks: IntegrationCardHooks): HTMLElement {
   const cfg = State.settings.integrationConfig;
   const data = get("integration_notion");
-  const all = arr("integration_notion", "tasks") as unknown as NotionTask[];
-  for (const id of notion.ticking) if (!all.some((x) => x.id === id)) notion.ticking.delete(id);
-  const tasks = all.filter((x) => !notion.ticking.has(x.id));
-  const due = tasks.filter((x) => dueLabel(x.due).late || dueLabel(x.due).today).length;
+  // The views saved in the settings (notion.rs polls each one): chips to switch.
+  const views = (cfg.notionViews ?? []).slice(0, 6);
+  const activeView = () => views.find((v) => v.name === cfg.notionView) ?? views[0] ?? null;
+  const byView = (data.byView && typeof data.byView === "object" ? data.byView : {}) as Record<string, unknown>;
+  const current = (): NotionTask[] => {
+    const v = activeView();
+    const list = v ? byView[v.name] : data.tasks;
+    return (Array.isArray(list) ? list : []).filter((x): x is NotionTask => !!x && typeof x === "object" && typeof (x as NotionTask).id === "string");
+  };
+  {
+    const every = views.length ? Object.values(byView).flatMap((l) => (Array.isArray(l) ? l as NotionTask[] : [])) : current();
+    for (const id of notion.ticking) if (!every.some((x) => x?.id === id)) notion.ticking.delete(id);
+  }
+  const dueCount = () => current().filter((x) => !notion.ticking.has(x.id) && (dueLabel(x.due).late || dueLabel(x.due).today)).length;
 
   const body = h("div", { class: "notion-body" });
   const msg = h("div", { class: "notion-note" });
@@ -426,9 +442,11 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
         }
       },
     });
+    const prio = Array.isArray(x.priority) && typeof x.priority[0] === "string" ? x.priority : null;
     return h("div", { class: "int-page notion-task", role: "button", title: t("Apri in Notion"),
       onclick: () => { if (x.url) void Bridge.openUrl(x.url); } },
     tick,
+    prio ? h("i", { class: "notion-prio", title: prio[0], style: `background:${NOTION_COLORS[String(prio[1])] ?? NOTION_COLORS.default}` }) : null,
     h("span", { class: "int-name", text: x.title }),
     when.text ? h("span", { class: `notion-due${when.late ? " due-late" : when.today ? " due-today" : ""}`, text: when.text }) : null);
   };
@@ -491,11 +509,24 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
     else if (notion.noteState === "saved" || notion.noteState === "error") {
       body.append(h("div", { class: `notion-note${notion.noteState === "error" ? " bad" : ""}`, text: notion.noteMsg }));
     }
-    const shown = tasks.filter((x) => !notion.ticking.has(x.id));
+    const shown = current().filter((x) => !notion.ticking.has(x.id));
     if (data.tasksSet) {
       const more = shown.length > 5 ? h("button", { class: "link-btn", text: t("tutte ({n})", { n: shown.length }),
         onclick: () => { if (cfg.notionTasks?.url) void Bridge.openUrl(cfg.notionTasks.url); } }) : null;
-      body.append(section(t("Da fare"), more));
+      body.append(section(views.length === 1 ? views[0].name : t("Da fare"), more));
+      if (views.length > 1) {
+        const active = activeView();
+        body.append(h("div", { class: "notion-views" }, ...views.map((v) => h("button", {
+          class: `notion-view${v === active ? " on" : ""}`, text: v.name,
+          onclick: (e: Event) => {
+            e.stopPropagation();
+            if (v === active) return;
+            cfg.notionView = v.name;
+            void Bridge.saveSettings(State.settings);
+            notion.redraw?.();
+          },
+        }))));
+      }
       if (typeof data.tasksError === "string" && data.tasksError) body.append(h("div", { class: "notion-note bad", text: data.tasksError }));
       else if (shown.length === 0) body.append(h("div", { class: "notion-note", text: t("Niente da fare ✓") }));
       for (const x of shown.slice(0, 5)) body.append(taskRow(x));
@@ -516,7 +547,7 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
   };
 
   const sub = () => (notion.query.trim().length >= 2 ? t("Risultati")
-    : data.tasksSet ? (due ? t("{n} da fare oggi", { n: due }) : t("In ordine")) : t("Le tue pagine"));
+    : data.tasksSet ? (dueCount() ? t("{n} da fare oggi", { n: dueCount() }) : t("In ordine")) : t("Le tue pagine"));
   const noteBtn = cfg.notionInbox
     ? h("button", { class: "link-btn notion-new", style: "color:#E8E8E8d9", text: `+ ${t("Nota")}`, title: t("Nuova nota in «{p}»", { p: cfg.notionInbox.title }),
       onclick: () => { notion.noteOpen = !notion.noteOpen; notion.noteState = ""; notion.redraw?.(); } })

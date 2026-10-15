@@ -516,6 +516,24 @@ export interface IntegrationConfig {
   notionTasks: NotionRef | null;
   /** Notion: where "Nuova nota" writes (a page or a database). */
   notionInbox: NotionRef | null;
+  /** Notion: the views of the tasks (saved filters); none = all not done. */
+  notionViews?: NotionView[];
+  /** Notion: the view shown in the card (its name; "" = the first). */
+  notionView?: string;
+}
+
+/** A view of the Notion tasks (settings.rs NotionView, notion.rs view_filter). */
+export interface NotionView {
+  name: string;
+  /** "all", "today", "week" (to Sunday), "month" (to its end), "days" (the next `days`). Late ones always in. */
+  period: string;
+  days: number;
+  /** Tasks without a due date too. */
+  undated: boolean;
+  /** One per property; within one, any of the values (option names or page ids). */
+  filters: { prop: string; kind: string; values: string[] }[];
+  /** "due" or "priority". */
+  sort: string;
 }
 
 /** A Notion page or database chosen in the settings (settings.rs NotionRef). */
@@ -822,7 +840,7 @@ export const DEFAULT_SETTINGS: Settings = {
     systemWarn: 10, outlookWarn: 10, weatherCity: "", weatherOnCharacter: false, planInHeader: true,
     threecxMode: "user", threecxExtension: "", threecxDevice: "",
     threecxRing: true, threecxAlert: true, threecxRingtone: "",
-    notionPins: [], notionTasks: null, notionInbox: null,
+    notionPins: [], notionTasks: null, notionInbox: null, notionViews: [], notionView: "",
   },
 };
 

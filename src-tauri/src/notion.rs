@@ -208,6 +208,8 @@ struct Schema {
     title: String,
     date: Option<String>,
     done: Done,
+    /// A "Priorità" select, for sorting a view by it and the dot in the card.
+    priority: Option<String>,
 }
 
 static SCHEMAS: Mutex<Option<HashMap<String, Schema>>> = Mutex::new(None);
@@ -264,7 +266,13 @@ fn schema_of(db: &Value) -> Option<Schema> {
     } else {
         Done::None
     };
-    Some(Schema { title, date, done })
+    let priority = props
+        .iter()
+        .filter(|(_, p)| p.get("type").and_then(Value::as_str) == Some("select"))
+        .map(|(n, _)| n)
+        .find(|n| { let l = n.to_lowercase(); l.contains("priorit") || l.contains("urgen") })
+        .cloned();
+    Some(Schema { title, date, done, priority })
 }
 
 async fn schema(db: &str) -> Result<Schema, String> {
@@ -302,17 +310,102 @@ pub struct Task {
     due: Option<String>,
     /// The database lets EasyIsland tick it off.
     can_tick: bool,
+    /// Its priority option and that option's color in Notion ("red"…).
+    priority: Option<(String, String)>,
 }
 
-/// The tasks not done, soonest due first, then those without a date.
-pub async fn tasks(db: &str) -> Result<Vec<Task>, String> {
+/// "YYYY-MM-DD" of a day count since 1970-01-01.
+fn iso(days: i64) -> String {
+    let (y, m, d) = crate::calendar::civil_from_days(days);
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
+/// Today, as days since 1970-01-01, on this PC's clock.
+fn today() -> i64 {
+    let t = unsafe { windows::Win32::System::SystemInformation::GetLocalTime() };
+    crate::widgets::days_from_civil(t.wYear as i64, t.wMonth as i64, t.wDay as i64)
+}
+
+/// The last day a view's period covers (None = no limit).
+fn period_end(period: &str, days: u32, today: i64) -> Option<i64> {
+    match period {
+        "today" => Some(today),
+        // To Sunday (weekday: 0 = Monday).
+        "week" => Some(today + 6 - crate::calendar::weekday(today)),
+        "month" => {
+            let (y, m, _) = crate::calendar::civil_from_days(today);
+            let (ny, nm) = if m == 12 { (y + 1, 1) } else { (y, m + 1) };
+            Some(crate::widgets::days_from_civil(ny, nm, 1) - 1)
+        }
+        "days" => Some(today + days.clamp(1, 366) as i64 - 1),
+        _ => None,
+    }
+}
+
+/// One value of a filter, as Notion's query wants it.
+fn value_filter(f: &crate::settings::NotionFilter, v: &str) -> Option<Value> {
+    Some(match f.kind.as_str() {
+        "select" => json!({ "property": f.prop, "select": { "equals": v } }),
+        "multi_select" => json!({ "property": f.prop, "multi_select": { "contains": v } }),
+        "status" => json!({ "property": f.prop, "status": { "equals": v } }),
+        "relation" => json!({ "property": f.prop, "relation": { "contains": v } }),
+        _ => return None,
+    })
+}
+
+/// The query's filter for a view: not done, within its period (late ones
+/// always in, undated if it says so), and for each property any of its values.
+fn view_filter(s: &Schema, view: Option<&crate::settings::NotionView>, today: i64) -> Option<Value> {
+    let mut and: Vec<Value> = Vec::new();
+    if let Some(f) = not_done_filter(&s.done) {
+        and.push(f);
+    }
+    if let (Some(v), Some(date)) = (view, &s.date) {
+        if let Some(end) = period_end(&v.period, v.days, today) {
+            let within = json!({ "property": date, "date": { "on_or_before": iso(end) } });
+            and.push(if v.undated {
+                json!({ "or": [within, { "property": date, "date": { "is_empty": true } }] })
+            } else {
+                within
+            });
+        } else if !v.undated {
+            and.push(json!({ "property": date, "date": { "is_not_empty": true } }));
+        }
+    }
+    for f in view.map(|v| v.filters.as_slice()).unwrap_or_default() {
+        let any: Vec<Value> = f.values.iter().filter_map(|v| value_filter(f, v)).collect();
+        match any.len() {
+            0 => {}
+            1 => and.extend(any),
+            _ => and.push(json!({ "or": any })),
+        }
+    }
+    match and.len() {
+        0 => None,
+        1 => and.pop(),
+        _ => Some(json!({ "and": and })),
+    }
+}
+
+/// The tasks of a view (None = all not done), soonest due first, then those
+/// without a date; or by priority, when the view says so.
+pub async fn tasks(db: &str, view: Option<&crate::settings::NotionView>) -> Result<Vec<Task>, String> {
     let s = schema(db).await?;
     let mut body = json!({ "page_size": 40 });
-    if let Some(f) = not_done_filter(&s.done) {
+    if let Some(f) = view_filter(&s, view, today()) {
         body["filter"] = f;
     }
+    let by_priority = view.is_some_and(|v| v.sort == "priority") && s.priority.is_some();
+    let mut sorts: Vec<Value> = Vec::new();
+    if let (true, Some(p)) = (by_priority, &s.priority) {
+        // Notion sorts a select by the order of its options (Alta, Media, Bassa).
+        sorts.push(json!({ "property": p, "direction": "ascending" }));
+    }
     if let Some(d) = &s.date {
-        body["sorts"] = json!([{ "property": d, "direction": "ascending" }]);
+        sorts.push(json!({ "property": d, "direction": "ascending" }));
+    }
+    if !sorts.is_empty() {
+        body["sorts"] = Value::Array(sorts);
     }
     let v = call(client().post(format!("{API}/databases/{db}/query")).json(&body)).await?;
     let mut out: Vec<Task> = v
@@ -327,15 +420,24 @@ pub async fn tasks(db: &str) -> Result<Vec<Task>, String> {
                 .date
                 .as_ref()
                 .and_then(|d| props.get(d)?.get("date")?.get("start")?.as_str().map(String::from));
+            let priority = s.priority.as_ref().and_then(|k| {
+                let sel = props.get(k)?.get("select")?;
+                Some((sel.get("name")?.as_str()?.to_string(), sel.get("color").and_then(Value::as_str).unwrap_or("default").to_string()))
+            });
             Some(Task {
                 id: p.get("id")?.as_str()?.to_string(),
                 title: if title.trim().is_empty() { t("Senza titolo").to_string() } else { title },
                 url: p.get("url").and_then(Value::as_str).unwrap_or("").to_string(),
                 due,
                 can_tick: s.done != Done::None,
+                priority,
             })
         })
         .collect();
+    if by_priority {
+        // Already in Notion's order; empty priorities stay where Notion put them.
+        return Ok(out);
+    }
     // Notion puts the empty dates first when sorting ascending: those go last.
     out.sort_by(|a, b| match (&a.due, &b.due) {
         (Some(x), Some(y)) => x.cmp(y),
@@ -343,6 +445,63 @@ pub async fn tasks(db: &str) -> Result<Vec<Task>, String> {
         (None, Some(_)) => std::cmp::Ordering::Greater,
         (None, None) => std::cmp::Ordering::Equal,
     });
+    Ok(out)
+}
+
+/// A property a view can filter by, with the values to pick from.
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Property {
+    name: String,
+    kind: String,
+    /// (value, label): option names, or a related database's pages (id, title).
+    options: Vec<(String, String)>,
+}
+
+/// Impostazioni → Notion → Viste: the properties of the tasks database that a
+/// view can filter by — selects, multi-selects, the status and relations (the
+/// first 100 pages of the related database).
+pub async fn properties(db: &str) -> Result<Vec<Property>, String> {
+    check_id(db)?;
+    let v = call(client().get(format!("{API}/databases/{db}"))).await?;
+    let mut out = Vec::new();
+    let mut props: Vec<(&String, &Value)> = v.get("properties").and_then(Value::as_object).into_iter().flatten().collect();
+    props.sort_by_key(|(n, _)| n.to_lowercase());
+    for (name, p) in props {
+        let kind = p.get("type").and_then(Value::as_str).unwrap_or_default();
+        let options: Vec<(String, String)> = match kind {
+            "select" | "multi_select" | "status" => p
+                .get(kind)
+                .and_then(|k| k.get("options"))
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(|o| o.get("name").and_then(Value::as_str).map(|n| (n.to_string(), n.to_string())))
+                .collect(),
+            "relation" => {
+                let Some(other) = p.pointer("/relation/database_id").and_then(Value::as_str) else { continue };
+                // A related database the integration cannot see: left out.
+                let Ok(s) = schema(other).await else { continue };
+                let Ok(rows) = call(client().post(format!("{API}/databases/{other}/query")).json(&json!({ "page_size": 100 }))).await else { continue };
+                let mut list: Vec<(String, String)> = rows
+                    .get("results")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|r| {
+                        let title = plain(r.get("properties")?.get(&s.title)?.get("title"));
+                        Some((r.get("id")?.as_str()?.to_string(), if title.trim().is_empty() { t("Senza titolo").to_string() } else { title }))
+                    })
+                    .collect();
+                list.sort_by_key(|(_, l)| l.to_lowercase());
+                list
+            }
+            _ => continue,
+        };
+        if !options.is_empty() {
+            out.push(Property { name: name.clone(), kind: kind.to_string(), options });
+        }
+    }
     Ok(out)
 }
 
@@ -430,11 +589,33 @@ pub async fn poll(app: AppHandle) {
     if secrets::get("notion-api-key").is_none() {
         return;
     }
-    let tasks_db = app.try_state::<crate::Shared>().and_then(|s| {
-        s.settings.lock().ok().and_then(|g| g.integration_config.notion_tasks.as_ref().map(|r| r.id.clone()))
-    });
+    let (tasks_db, views) = app
+        .try_state::<crate::Shared>()
+        .and_then(|s| {
+            s.settings.lock().ok().map(|g| {
+                let c = &g.integration_config;
+                (c.notion_tasks.as_ref().map(|r| r.id.clone()), c.notion_views.clone())
+            })
+        })
+        .unwrap_or_default();
     let (data, error) = match tasks_db {
-        Some(db) => match tasks(&db).await {
+        // Every view at once (at most 6), so the card switches without waiting.
+        Some(db) if !views.is_empty() => {
+            let mut by_view = serde_json::Map::new();
+            let mut failed: Option<String> = None;
+            for v in views.iter().take(6) {
+                match tasks(&db, Some(v)).await {
+                    Ok(list) => { by_view.insert(v.name.clone(), json!(list)); }
+                    Err(e) => { failed.get_or_insert(e); }
+                }
+            }
+            let mut data = json!({ "tasks": [], "tasksSet": true, "byView": by_view });
+            if let Some(e) = failed {
+                data["tasksError"] = json!(e);
+            }
+            (data, None)
+        }
+        Some(db) => match tasks(&db, None).await {
             Ok(list) => (json!({ "tasks": list, "tasksSet": true }), None),
             // The card still works without them: the error goes on the tasks only.
             Err(e) => (json!({ "tasks": [], "tasksSet": true, "tasksError": e }), None),
@@ -510,6 +691,115 @@ mod tests {
             let s = rt.block_on(schema(&id));
             println!("{} → {:?}", d.get("title").and_then(Value::as_str).unwrap_or(""), s);
         }
+    }
+
+    /// The properties of the databases the token sees (names, types, options):
+    /// `NOTION_DBS=1 cargo test --lib notion::tests::live_properties -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn live_properties() {
+        if std::env::var("NOTION_DBS").is_err() {
+            return;
+        }
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let dbs = rt.block_on(search("", 20, Some("database"))).unwrap();
+        for d in dbs {
+            let id = d.get("id").and_then(Value::as_str).unwrap_or("").to_string();
+            println!("== {}", d.get("title").and_then(Value::as_str).unwrap_or(""));
+            let Ok(v) = rt.block_on(call(client().get(format!("{API}/databases/{id}")))) else { continue };
+            for (name, p) in v.get("properties").and_then(Value::as_object).into_iter().flatten() {
+                let kind = p.get("type").and_then(Value::as_str).unwrap_or("");
+                let opts: Vec<&str> = p.get(kind).and_then(|k| k.get("options")).and_then(Value::as_array).into_iter().flatten()
+                    .filter_map(|o| o.get("name").and_then(Value::as_str)).collect();
+                println!("   {name}: {kind} {opts:?}");
+            }
+        }
+    }
+
+    /// The views on the tasks database (counts only):
+    /// `NOTION_DBS=1 cargo test --lib notion::tests::live_views -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn live_views() {
+        use crate::settings::{NotionFilter, NotionView};
+        if std::env::var("NOTION_DBS").is_err() {
+            return;
+        }
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let dbs = rt.block_on(search("Attività", 5, Some("database"))).unwrap();
+        let db = dbs.first().and_then(|d| d.get("id")).and_then(Value::as_str).unwrap().to_string();
+        for p in rt.block_on(properties(&db)).unwrap() {
+            println!("{} ({}): {} valori", p.name, p.kind, p.options.len());
+        }
+        let views = [
+            NotionView { name: "tutte".into(), period: "all".into(), undated: true, ..Default::default() },
+            NotionView { name: "oggi".into(), period: "today".into(), undated: false, ..Default::default() },
+            NotionView { name: "settimana".into(), period: "week".into(), undated: false, ..Default::default() },
+            NotionView { name: "mese+senza".into(), period: "month".into(), undated: true, sort: "priority".into(), ..Default::default() },
+            NotionView { name: "PC o Ufficio".into(), period: "all".into(), undated: true,
+                filters: vec![NotionFilter { prop: "Contesto".into(), kind: "multi_select".into(), values: vec!["PC".into(), "Ufficio".into()] }], ..Default::default() },
+        ];
+        for v in &views {
+            match rt.block_on(tasks(&db, Some(v))) {
+                Ok(l) => println!("vista {}: {} attività", v.name, l.len()),
+                Err(e) => println!("vista {}: errore {e}", v.name),
+            }
+        }
+    }
+
+    #[test]
+    fn views_become_notion_filters() {
+        use crate::settings::{NotionFilter, NotionView};
+        let s = Schema {
+            title: "Nome".into(),
+            date: Some("Scadenza".into()),
+            done: Done::Status { prop: "Stato".into(), done: vec!["Fatto".into()] },
+            priority: Some("Priorità".into()),
+        };
+        // Wednesday 15 October 2026.
+        let today = crate::widgets::days_from_civil(2026, 10, 15);
+        assert_eq!(iso(today), "2026-10-15");
+        assert_eq!(period_end("week", 0, today).map(iso).as_deref(), Some("2026-10-18"));
+        assert_eq!(period_end("month", 0, today).map(iso).as_deref(), Some("2026-10-31"));
+        assert_eq!(period_end("days", 3, today).map(iso).as_deref(), Some("2026-10-17"));
+        assert_eq!(period_end("all", 0, today), None);
+        let dec = crate::widgets::days_from_civil(2026, 12, 20);
+        assert_eq!(period_end("month", 0, dec).map(iso).as_deref(), Some("2026-12-31"));
+
+        // No view: only "not done".
+        assert_eq!(view_filter(&s, None, today), Some(json!({ "and": [{ "property": "Stato", "status": { "does_not_equal": "Fatto" } }] })));
+
+        let v = NotionView {
+            name: "Ufficio oggi".into(),
+            period: "today".into(),
+            days: 0,
+            undated: false,
+            filters: vec![
+                NotionFilter { prop: "Contesto".into(), kind: "multi_select".into(), values: vec!["Ufficio".into(), "PC".into()] },
+                NotionFilter { prop: "Priorità".into(), kind: "select".into(), values: vec!["Alta".into()] },
+                NotionFilter { prop: "Tipo".into(), kind: "select".into(), values: vec![] },
+            ],
+            sort: "priority".into(),
+        };
+        let f = view_filter(&s, Some(&v), today).unwrap();
+        let and = f["and"].as_array().unwrap();
+        assert_eq!(and.len(), 4);
+        assert_eq!(and[1], json!({ "property": "Scadenza", "date": { "on_or_before": "2026-10-15" } }));
+        assert_eq!(and[2]["or"][1], json!({ "property": "Contesto", "multi_select": { "contains": "PC" } }));
+        assert_eq!(and[3], json!({ "property": "Priorità", "select": { "equals": "Alta" } }));
+
+        // A week with the undated ones too; all dates but only dated ones.
+        let week = NotionView { name: "Settimana".into(), period: "week".into(), undated: true, ..Default::default() };
+        let f = view_filter(&s, Some(&week), today).unwrap();
+        assert_eq!(f["and"][1]["or"][1], json!({ "property": "Scadenza", "date": { "is_empty": true } }));
+        let dated = NotionView { name: "Con data".into(), period: "all".into(), undated: false, ..Default::default() };
+        let f = view_filter(&s, Some(&dated), today).unwrap();
+        assert_eq!(f["and"][1], json!({ "property": "Scadenza", "date": { "is_not_empty": true } }));
+        // A relation: the page id.
+        let p = NotionView { name: "EasyIsland".into(), period: "all".into(), undated: true,
+            filters: vec![NotionFilter { prop: "Progetto".into(), kind: "relation".into(), values: vec!["abc-1".into()] }], ..Default::default() };
+        let f = view_filter(&s, Some(&p), today).unwrap();
+        assert_eq!(f["and"][1], json!({ "property": "Progetto", "relation": { "contains": "abc-1" } }));
     }
 
     #[test]
