@@ -93,6 +93,29 @@ pub struct IntegrationConfig {
     /// Notion: today's tasks in the morning recap (src/island/daily.ts).
     #[serde(default = "yes")]
     pub notion_morning: bool,
+    /// Remote Desktop Manager: the workspace to read (its id; "" = RDM's current one).
+    #[serde(default)]
+    pub rdm_data_source: String,
+    /// Remote Desktop Manager: the connections kept in the card.
+    #[serde(default)]
+    pub rdm_pins: Vec<RdmRef>,
+    /// Remote Desktop Manager: the last ones opened from EasyIsland (newest first, 8).
+    #[serde(default)]
+    pub rdm_recent: Vec<RdmRef>,
+}
+
+/// A connection of Remote Desktop Manager kept in the settings (rdm.rs Entry).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RdmRef {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub group: String,
+    #[serde(default)]
+    pub host: String,
+    #[serde(default)]
+    pub kind: String,
 }
 
 fn ten_minutes() -> u32 {
@@ -174,6 +197,9 @@ impl Default for IntegrationConfig {
             notion_alert_lead: 10,
             notion_alert_comments: true,
             notion_morning: true,
+            rdm_data_source: String::new(),
+            rdm_pins: Vec::new(),
+            rdm_recent: Vec::new(),
         }
     }
 }

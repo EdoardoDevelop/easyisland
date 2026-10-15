@@ -4,6 +4,7 @@
 // When the scene has settled the page turns transparent and its title says
 // "scene ready"; scripts/screenshots.mjs then captures just the island.
 
+import { rdmLookFor } from "../src/views/rdm";
 import type { Island } from "../src/island/island";
 import { State } from "../src/core/state";
 import { Bridge } from "../src/core/bridge";
@@ -439,6 +440,39 @@ export async function runScene(island: Island, scene: string) {
       State.integrations.integration_notion = { data, error: null, loaded: true, configured: true };
       State.setFocus("integration_notion");
       island.alert("overview");
+      await wait(1500);
+      break;
+    }
+    case "rdm": {
+      // ?activeIntegrations=integration_rdm — the card with made-up connections (Bridge mocked);
+      // &q=rossi: a search; &nolist: no PowerShell module (the search opens in RDM).
+      const q = new URLSearchParams(location.search);
+      const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+      const list = [
+        { id: id(1), name: "NAS Rossi", group: "Clienti\\Rossi Srl", host: "192.168.1.10", kind: "RDPConfigured" },
+        { id: id(2), name: "Server Rossi", group: "Clienti\\Rossi Srl", host: "srv01.rossi.local", kind: "RDPConfigured" },
+        { id: id(3), name: "Firewall Rossi", group: "Clienti\\Rossi Srl", host: "192.168.1.1", kind: "WebBrowser" },
+        { id: id(4), name: "Router Bianchi", group: "Clienti\\Bianchi", host: "10.0.0.1", kind: "SSHShell" },
+        { id: id(5), name: "Gestionale", group: "Interni", host: "gest.local", kind: "RDPConfigured" },
+      ];
+      const nolist = q.has("nolist");
+      Object.assign(Bridge, {
+        rdmSearch: async (text: string) => nolist ? [] : list.filter((e) => text.toLowerCase().split(/\s+/).every((w) => `${e.name} ${e.group} ${e.host}`.toLowerCase().includes(w))),
+        rdmOpen: async () => { await wait(200); },
+        rdmEdit: async () => {},
+        rdmFilter: async () => {},
+        rdmQuick: async () => {},
+      });
+      State.settings.integrationConfig.rdmPins = nolist ? [] : [list[4]];
+      State.settings.integrationConfig.rdmRecent = nolist ? [] : [list[1], list[3]];
+      await wait(300);
+      State.integrations.integration_rdm = { data: nolist ? { count: 0, exe: true, protocol: true } : { count: 214, dataSource: "Ufficio", exe: true, protocol: true }, error: null, loaded: true, configured: true };
+      State.setFocus("integration_rdm");
+      island.alert("overview");
+      if (q.get("q")) {
+        await wait(600);
+        rdmLookFor(q.get("q") ?? "");
+      }
       await wait(1500);
       break;
     }

@@ -5012,3 +5012,18 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   background: linear-gradient(90deg, #5ab4ff, #ffc93c);
 }
 .weather-card .int-actions { padding-bottom: 4px; }
+
+/* Remote Desktop Manager (src/views/rdm.ts): the connection's type as a small tag. */
+.rdm-kind {
+  flex: 0 0 auto;
+  min-width: 26px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font: 600 9px var(--font);
+  line-height: 14px;
+  text-align: center;
+  color: #ffd2c2;
+  background: rgba(232, 84, 42, 0.28);
+}
+.rdm-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 4px 2px 0; }
+.rdm-link { margin-left: 6px; flex: 0 0 auto; color: #E8542Ad9; font-size: 10.5px; }

@@ -21,6 +21,7 @@ import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { buildSearch, type SearchHost } from "../views/search";
+import { rdmLookFor } from "../views/rdm";
 import { buildRail, railBotSize } from "../views/rail";
 import { buildStrip, type Strip } from "../views/strip";
 import { sendToChat, windowLabel } from "../views/chat";
@@ -869,6 +870,15 @@ ${note}` : text };
     }
     if (pick === "notion-note" || pick === "notion-task") {
       void this.sendToNotion(pick, sel.text);
+      return;
+    }
+    if (pick === "rdm-find") {
+      rdmLookFor(sel.text);
+      this.alert("overview");
+      return;
+    }
+    if (pick === "rdm-rdp" || pick === "rdm-ssh") {
+      Bridge.rdmQuick(pick === "rdm-rdp" ? "RDP" : "SSH", sel.text.trim()).catch((e) => this.flashNote(String(e).replace(/^Error:\s*/, "")));
       return;
     }
     Sound.resume();

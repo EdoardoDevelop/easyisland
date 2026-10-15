@@ -10,6 +10,7 @@
 // here on a canvas (our stroked icons in the action's colour, or the old emoji).
 
 import { t } from "../core/i18n";
+import { looksLikeHost } from "../views/rdm";
 import { State, folderLook, type QuickAction } from "../core/state";
 import { actionIcon } from "../views/action-icons";
 
@@ -64,7 +65,7 @@ export interface SelectionMenu {
   entries: MenuEntry[];
   /** The action behind each entry id; "settings" opens Impostazioni → Azioni rapide;
    *  "notion-note" / "notion-task" send the text to Notion (notion.rs). */
-  picks: Map<string, QuickAction | "settings" | "notion-note" | "notion-task">;
+  picks: Map<string, QuickAction | "settings" | "notion-note" | "notion-task" | "rdm-find" | "rdm-rdp" | "rdm-ssh">;
 }
 
 /** The quick actions the menu offers: the prompts applied to the selected text. */
@@ -79,7 +80,7 @@ export function snippet(text: string, max = 48): string {
 }
 
 export function buildSelectionMenu(text: string): SelectionMenu {
-  const picks = new Map<string, QuickAction | "settings" | "notion-note" | "notion-task">();
+  const picks = new Map<string, QuickAction | "settings" | "notion-note" | "notion-task" | "rdm-find" | "rdm-rdp" | "rdm-ssh">();
   const entries: MenuEntry[] = [{ id: "head", label: `«${snippet(text)}»`, enabled: false }, { id: "", label: "" }];
   const actions = selectionActions();
   // Notion, when chosen in the settings: the text as a note, or as a task.
@@ -88,6 +89,16 @@ export function buildSelectionMenu(text: string): SelectionMenu {
   if (State.settings.activeIntegrations.includes("integration_notion")) {
     if (c.notionInbox) { notion.push({ id: "notion-note", label: t("Nota in Notion ({p})", { p: c.notionInbox.title }) }); picks.set("notion-note", "notion-note"); }
     if (c.notionTasks) { notion.push({ id: "notion-task", label: t("Attività in Notion ({p})", { p: c.notionTasks.title }) }); picks.set("notion-task", "notion-task"); }
+  }
+  // Remote Desktop Manager: the words searched among the connections; a host connected to.
+  if (State.settings.activeIntegrations.includes("integration_rdm") && text.trim().length <= 120) {
+    notion.push({ id: "rdm-find", label: t("Cerca in Remote Desktop Manager") });
+    picks.set("rdm-find", "rdm-find");
+    if (looksLikeHost(text)) {
+      notion.push({ id: "rdm-rdp", label: t("Connetti con RDP a {h}", { h: text.trim() }) }, { id: "rdm-ssh", label: t("Connetti con SSH a {h}", { h: text.trim() }) });
+      picks.set("rdm-rdp", "rdm-rdp");
+      picks.set("rdm-ssh", "rdm-ssh");
+    }
   }
   const withNotion = () => (notion.length ? [{ id: "", label: "" }, ...notion] : []);
   if (!actions.length) {

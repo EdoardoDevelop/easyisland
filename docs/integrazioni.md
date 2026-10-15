@@ -90,3 +90,26 @@ Rifatta il 15 ottobre 2026 su richiesta di Edoardo («troppo confusionaria»).
 - **Dettagli:** un clic apre spiegazione, campi, opzioni, icona e colore, una integrazione alla volta (`openIntegration`).
 - **Sopra l'elenco:** la ricerca e «Solo attive». In fondo, «Menu dell'isola» con il blocco dello spostamento.
 
+## Remote Desktop Manager (`rdm.rs`, `src/views/rdm.ts`)
+Preparata il 15 ottobre 2026, senza RDM su questo PC: da provare dove c'è (`docs/prove-dal-vivo.md`). Edoardo vuole usare RDM da EasyIsland per tutto, anche con un database che non conosce ancora e condiviso con i colleghi.
+- **RDM resta il programma che si collega.** EasyIsland trova la connessione e chiede a RDM di aprirla, modificarla o cercarla. Non legge mai una password, non scrive e non cancella voci di RDM.
+- **L'elenco** viene dal modulo ufficiale `Devolutions.PowerShell` (serve PowerShell 7.2 o più, `pwsh`). Il modulo apre la stessa origine dati di RDM con i permessi dell'utente, quindi vale per qualsiasi origine: SQLite o XML locale, Devolutions Server, Hub, SQL.
+  - `SESSIONS` prende id, nome, cartella, host (o URL) e tipo; cartelle e credenziali restano fuori.
+  - Lo script parte nascosto (`-NoProfile -NonInteractive -EncodedCommand`, limite 120 s). L'origine scelta arriva come variabile d'ambiente, mai sulla riga di comando.
+  - L'elenco sta solo in memoria (`INDEX`) e si rilegge ogni 30 minuti (`integrations.rs`) o con «Rileggi l'elenco». Se una lettura fallisce resta quello di prima.
+  - Alla card va solo il conteggio; le ricerche passano da `rdm_search`.
+  - Nota di Devolutions: il modulo va tenuto della stessa versione di RDM, e su alcune installazioni legge la configurazione sbagliata (`Set-RDMPowerShellOverride`).
+- **Aprire:** `RemoteDesktopManager.exe /DataSource:<id> /Session:<id>`, con l'exe trovato in App Paths o nelle cartelle di Devolutions (anche Free). Senza exe, gli stessi parametri con `rdm://open?…`. «Modifica in RDM» usa solo `rdm://edit?…`, perché l'exe non ha un'opzione per modificare.
+  - Prima di andare sulla riga di comando: gli id devono essere GUID, gli host passano un filtro di caratteri e il testo di ricerca viene ripulito.
+  - Il `DataSource` è quello letto dal modulo: un id di origine vale solo sul PC dove è stato creato.
+- **Senza modulo:** la ricerca si apre dentro RDM (`/Filter:`), e ci si collega a un indirizzo senza salvarlo (`/Template:RDP|SSH /Host:`).
+- **Dove compare:**
+  - **Card:** ricerca, «Fissate» (`rdmPins`), «Recenti» (`rdmRecent`, le ultime 8 aperte da EasyIsland); al passaggio del mouse, Modifica, Copia indirizzo e puntina.
+  - **Barra in alto:** il tipo «RDM».
+  - **Chiamata 3CX:** pulsante «Connessioni in RDM» con il nome di chi chiama.
+  - **Ticket Zammad «Da assegnare»:** pulsante «RDM» con l'organizzazione o il cliente, che `zammad.rs` mette dopo « — ».
+  - **Testo selezionato** (`Win+Alt+A`): «Cerca in Remote Desktop Manager», e su un IP o un nome host anche «Connetti con RDP/SSH».
+- **Ricerca** (`score`): ogni parola nel nome, nella cartella o nell'host; senza risultati, basta una parola di almeno 3 lettere (`loose_score`). Così «Mario Rossi» trova la cartella «Rossi Srl».
+- **Impostazioni:** stato di RDM, PowerShell 7, modulo ed elenco, con i comandi da copiare (mai eseguiti da EasyIsland); scelta dell'origine dati (`rdmDataSource`, caricata a richiesta perché avvia PowerShell).
+- **Prove:** test `rdm::tests` e `cargo test --lib rdm::tests::live -- --ignored --nocapture` dove c'è RDM. Scena `rdm&activeIntegrations=integration_rdm` (`&nolist` per il caso senza modulo).
+

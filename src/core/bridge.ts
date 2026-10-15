@@ -273,6 +273,15 @@ export const Bridge = {
   notionTaskDone: (id: string) => callOrThrow<void>("notion_task_done", { id }),
   /** "Nuova nota": into the page or database chosen in the settings; its title back. */
   notionAddNote: (text: string, stamp: string) => callOrThrow<string>("notion_add_note", { text, stamp }),
+  // Remote Desktop Manager (rdm.rs): never a password, only names, folders, hosts and ids.
+  rdmSearch: async (query: string, limit = 8) => (await call<RdmEntry[]>("rdm_search", { query, limit })) ?? [],
+  rdmByHost: async (host: string) => (await call<RdmEntry[]>("rdm_by_host", { host })) ?? [],
+  rdmOpen: (entry: RdmEntry) => callOrThrow<void>("rdm_open", { entry }),
+  rdmEdit: (id: string) => callOrThrow<void>("rdm_edit", { id }),
+  rdmFilter: (text: string) => callOrThrow<void>("rdm_filter", { text }),
+  rdmQuick: (kind: "RDP" | "SSH" | "VNC", host: string) => callOrThrow<void>("rdm_quick", { kind, host }),
+  rdmStatus: () => call<RdmStatus>("rdm_status"),
+  rdmDataSources: () => callOrThrow<{ id: string; name: string; kind: string }[]>("rdm_data_sources"),
   /** "+ Attività" in the Notion card (due: "YYYY-MM-DD" or null). */
   notionAddTask: (title: string, due: string | null) => callOrThrow<void>("notion_add_task", { title, due }),
   /** "Rimanda" on a task: its new due date. */
@@ -513,6 +522,28 @@ export interface ThreecxVoicemail {
 }
 
 /** A call of the extension, as the 3CX integration reports it. */
+/** A connection of Remote Desktop Manager (rdm.rs Entry). */
+export interface RdmEntry {
+  id: string;
+  name: string;
+  /** Folder path in RDM ("Clienti\\Rossi Srl"). */
+  group: string;
+  host: string;
+  /** RDM's connection type ("RDPConfigured", "SSHShell"…). */
+  kind: string;
+}
+
+/** Impostazioni → Remote Desktop Manager: what is installed (rdm.rs Status). */
+export interface RdmStatus {
+  exe: string | null;
+  protocol: boolean;
+  pwsh: string | null;
+  module: string | null;
+  count: number;
+  dataSource: string | null;
+  listError: string | null;
+}
+
 export interface ThreecxCall {
   id: string;
   state: "ringing" | "dialing" | "connected" | "other";

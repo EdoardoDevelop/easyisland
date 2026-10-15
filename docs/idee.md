@@ -27,15 +27,13 @@ Edoardo usa Notion per attività, note, documentazione e clienti. Fatti: attivit
 - **Viste legate ai profili:** con il profilo «Ufficio» la card apre da sola la vista «Ufficio» (le viste ci sono dal 15 ottobre 2026).
 - Attività assegnate a me: serve scegliere la persona (l'API vede il bot, non l'utente).
 
-## Remote Desktop Manager (Devolutions), come integrazione
-- **Prima di tutto:** capire dove sta la fonte dati delle voci (Devolutions Server, Hub, database SQL o file locale).
-- Cosa offre RDM: `rdm://open?Filter=<testo>`, `RemoteDesktopManager.exe /DataSource:<id> /Session:<id>` e il modulo PowerShell Devolutions.PowerShell (`Get-RDMSession`, PowerShell 7.2+).
-- Passi:
-  1. cerca e apri dall'isola con `rdm://open?Filter=…`;
-  2. «Apri in RDM» sulla chiamata 3CX e sui ticket Zammad;
-  3. suggerimento ⚡ «Cerca in RDM» su un nome di server o un IP selezionato;
-  4. solo se serve, l'elenco delle voci dentro l'isola.
-- Oggi, senza codice: azione rapida «Programma» con gli id. Da non fare: legare RDM a «davanti al cliente».
+## Remote Desktop Manager, dopo la prima versione
+Preparata il 15 ottobre 2026 (`docs/integrazioni.md`). Da valutare dopo le prove sul PC con RDM:
+- **Devolutions Server o Hub senza PowerShell:** l'API REST di DVLS (chiave applicativa, `Search-DSEntry`/`Get-DSEntry`) e quella di Hub (`Get-HubEntry`). Serve solo se il modulo non va bene in azienda, per esempio per le licenze o le policy.
+- **Creare una voce** dall'isola (`New-RDMSession` e `Set-RDMSession`) con i campi base. Le modifiche complesse restano nella finestra di RDM («Modifica in RDM»).
+- **Strumento per la chat:** «apri il server di Rossi» con le stesse regole di `run_quick_action` (Consenti / Nega).
+- **Associazione esplicita** fra un cliente di 3CX o un'organizzazione di Zammad e una cartella di RDM, se la ricerca per nome non basta.
+- Da non fare: legare RDM a «davanti al cliente»; leggere le password o i campi sensibili.
 
 ## Spunti da Coucou (letto l'8 ottobre 2026, `louis-cfm/coucou` Windows/Linux 0.2.0)
 1. Lo stesso schema del plugin di opencode vale per **Amp** e **Hermes**.

@@ -9,6 +9,7 @@ import { ICONS } from "./icons";
 import { State, PROBE_INTEGRATIONS, sessionOpenLabel, type AgentTask } from "../core/state";
 import { Bridge, type NotionPage } from "../core/bridge";
 import { THREECX, threecxCard } from "./threecx";
+import { RDM, rdmActive, rdmLookFor, rdmCard } from "./rdm";
 import { weatherCard } from "./weather";
 import { netConfigCard, pingRow, resetNetConfig } from "./netconfig";
 import { locale, t } from "../core/i18n";
@@ -937,6 +938,8 @@ export function hasIntegrationData(id: string): boolean {
       return info.loaded;
     case "integration_notion":
       return info.loaded;
+    case RDM:
+      return info.loaded;
     case "integration_calcom":
       return info.loaded;
     default:
@@ -982,9 +985,13 @@ function widgetCard(task: AgentTask, openSettings: () => void, openDetail?: () =
   // Every field, each value wrapping onto more lines when long: the island
   // grows to show them all (see the overview's fitHeight).
   for (const f of st?.fields ?? []) {
+    // A Zammad ticket "… — Rossi Srl": its client's connections in RDM.
+    const client = kind === "zammad" && rdmActive() ? f.value.split(" — ")[1]?.trim() ?? "" : "";
     rows.append(h("div", { class: "int-row w-field" },
       h("span", { class: "int-name", text: f.label }),
-      h("span", { class: "w-value", text: f.value })));
+      h("span", { class: "w-value", text: f.value }),
+      client ? h("button", { class: "link-btn rdm-link", text: "RDM", title: t("Connessioni di «{c}» in Remote Desktop Manager", { c: client }),
+        onclick: (e: Event) => { e.stopPropagation(); rdmLookFor(client); } }) : null));
   }
   const color = st ? LEVEL_COLOR[st.level] : "#8E939C";
   return h(
@@ -1058,6 +1065,8 @@ export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHoo
       return stripeCard();
     case "integration_notion":
       return notionCard(hooks);
+    case RDM:
+      return rdmCard(hooks.openSettings);
     case "integration_calcom":
       return calcomCard();
     default:

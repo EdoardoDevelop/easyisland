@@ -30,6 +30,7 @@ mod media;
 mod moments;
 mod netconfig;
 mod notion;
+mod rdm;
 mod openai;
 mod opencode;
 mod opencode_agent;
@@ -680,6 +681,67 @@ async fn notion_postpone(app: AppHandle, shared: State<'_, Shared>, id: String, 
     Ok(())
 }
 
+// ── Remote Desktop Manager (rdm.rs) ───────────────────────────────────────────
+
+/// The connections matching the words, best first (card, search bar, calls).
+#[tauri::command]
+fn rdm_search(query: String, limit: Option<usize>) -> Vec<rdm::Entry> {
+    rdm::search(&query, limit.unwrap_or(8))
+}
+
+/// The connections whose host is this IP or name (the text selected).
+#[tauri::command]
+fn rdm_by_host(host: String) -> Vec<rdm::Entry> {
+    rdm::by_host(&host)
+}
+
+/// "Apri" on a connection: RDM opens it; it goes first in the recent ones.
+#[tauri::command]
+fn rdm_open(app: AppHandle, shared: State<'_, Shared>, entry: settings::RdmRef) -> Result<(), String> {
+    rdm::open(&entry.id)?;
+    let snapshot = {
+        let mut s = shared.settings.lock().unwrap();
+        let recent = &mut s.integration_config.rdm_recent;
+        recent.retain(|r| r.id != entry.id);
+        recent.insert(0, entry);
+        recent.truncate(8);
+        s.clone()
+    };
+    let _ = settings::save(&snapshot);
+    let _ = app.emit("settings-changed", &snapshot);
+    Ok(())
+}
+
+/// "Modifica in RDM": its properties open in RDM.
+#[tauri::command]
+fn rdm_edit(id: String) -> Result<(), String> {
+    rdm::edit(&id)
+}
+
+/// RDM with its search filled in (no list here, or "Cerca in RDM").
+#[tauri::command]
+fn rdm_filter(text: String) -> Result<(), String> {
+    rdm::filter(&text)
+}
+
+/// A connection on the fly to a host (RDP, SSH, VNC), not saved in RDM.
+#[tauri::command]
+fn rdm_quick(kind: String, host: String) -> Result<(), String> {
+    rdm::quick(&kind, &host)
+}
+
+/// Impostazioni → Remote Desktop Manager: what is installed, what is missing.
+#[tauri::command]
+async fn rdm_status() -> rdm::Status {
+    rdm::status().await
+}
+
+/// Impostazioni → Remote Desktop Manager: the workspaces to choose from.
+#[tauri::command]
+async fn rdm_data_sources() -> Result<Vec<serde_json::Value>, String> {
+    rdm::data_sources().await
+}
+
 /// Impostazioni → Notion, first time: the databases that look like tasks or notes.
 #[tauri::command]
 async fn notion_suggest() -> Result<Vec<serde_json::Value>, String> {
@@ -1259,6 +1321,7 @@ fn open_integration(id: String) -> bool {
         "integration_clipboard" => shell("ms-settings:clipboard"),
         "integration_weather" => shell("msnweather:"),
         "integration_outlook" => start("outlook.exe"),
+        "integration_rdm" => rdm::open_app(),
         "integration_3cx" => match secrets::get("3cx-url").as_deref().and_then(threecx::base_url) {
             Some(url) => {
                 open_url_now(&format!("{url}/webclient"));
@@ -1867,6 +1930,14 @@ pub fn run() {
             notion_add_task,
             notion_postpone,
             notion_suggest,
+            rdm_search,
+            rdm_by_host,
+            rdm_open,
+            rdm_edit,
+            rdm_filter,
+            rdm_quick,
+            rdm_status,
+            rdm_data_sources,
             notion_add_note,
             notion_forget_schemas,
             inbox_drag,

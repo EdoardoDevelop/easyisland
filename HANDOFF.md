@@ -11,7 +11,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **3CX + Zammad:** ticket del cliente sulla chiamata in arrivo (`docs/idee.md`).
 - [ ] **Notion, seconda parte:** «Manda a Notion», scheda cliente su 3CX/Zammad, avviso delle scadenze (`docs/idee.md`).
 - [ ] **Account Microsoft** (mail nuove e calendario con Graph, ripieghi se l'azienda blocca il consenso): da decidere (`docs/idee.md`).
-- [ ] **Remote Desktop Manager** come integrazione. Prima va capito dove sta la fonte dati (`docs/idee.md`).
+- [ ] **Remote Desktop Manager:** predisposto; prova la settimana prossima sul PC con RDM (`docs/prove-dal-vivo.md`), poi i passi in `docs/idee.md`.
 - [ ] **Clic destro in Esplora file:** voci di EasyIsland sui file («Manda a EasyIsland», azioni sui file), deciso con Edoardo l'11 ottobre come passo successivo al menu sulla selezione (`docs/idee.md`).
 - [ ] **opencode:** card per lo strumento `question` anche nella chat (per l'agente c'è), controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
 - [ ] **Spunti da Coucou:** Amp/Hermes, limiti di Codex, riepilogo condivisibile come immagine, GitHub (`docs/idee.md`).
@@ -25,6 +25,14 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 15 ottobre 2026 — Remote Desktop Manager, predisposizione
+- Su richiesta di Edoardo («tutto a portata di mano», origine dati ancora da decidere, forse condivisa con i colleghi): integrazione «Remote Desktop Manager» (`rdm.rs`, `src/views/rdm.ts`, `docs/integrazioni.md`).
+  - **Elenco:** letto dal modulo Devolutions.PowerShell per qualsiasi origine dati, senza password.
+  - **Apertura:** con l'exe o con `rdm://`.
+  - **Dove compare:** card con Fissate e Recenti, barra in alto, chiamata 3CX, ticket Zammad (con il cliente nel titolo), «Cerca in RDM» e «Connetti con RDP/SSH» dal testo selezionato.
+  - **Impostazioni:** stato e origine dati.
+- **Prove:** RDM non è su questo PC, quindi solo test, anteprima (`rdm`) e la verifica che senza RDM e senza PowerShell 7 lo dica senza bloccarsi. Da provare la settimana prossima (`docs/prove-dal-vivo.md`).
 
 ### 15 ottobre 2026 — Notion più semplice e con avvisi; Impostazioni → Integrazioni rifatta
 - **Notion:**
@@ -44,6 +52,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 14 ottobre 2026 — Notion nell'app, attività, note e pagine; pulizia del disco
 - Card di Notion rifatta su richiesta di Edoardo (le «recenti» erano collegamenti a caso): attività da un database con la spunta «fatto», «+ Nota» in una pagina o database, pagine fissate, scelti in Impostazioni (`notion.rs`, `docs/integrazioni.md`); seconda parte in `docs/idee.md`. Provati con i test e nell'anteprima, non con il suo Notion. Notion: le pagine si aprono nell'app installata (`notion://`, `notion.rs`), ricerca nella card e nella barra in alto, «Chiedi alla chat» con il testo della pagina allegato; card con 6 pagine recenti. Provato con i test e nell'anteprima (`notion`), non ancora con l'account vero. Link `app.notion.com/p/…` (quelli che l'API dà ora) aperti anch'essi nell'app. Connettori della chat: anche i server MCP dei plugin di Claude Code (Notion), provato che `claude -p` li carica. `cargo clean` su richiesta di Edoardo (48 GB): dopo, `cargo build --release -p easyisland-hook` prima dei test, perché l'app include il relay come risorsa.
-
-### 14 ottobre 2026 — «Sostituisci» con la formattazione, zona nuova nel Vassoio, versione 0.8.2
-- Versione **0.8.2** con queste voci. «Sostituisci» tiene grassetti, link e paragrafi: l'HTML copiato dall'app va al modello con segni `⟦n⟧` e torna con gli stessi tag (`richtext.rs`, test); «Senza formattazione» incolla il solo testo. Provato con i test e la card nell'anteprima (`rewrite`, `&lost`), non ancora in Word e Outlook veri. Vassoio: la zona appena aggiunta da Cerchia e chiedi è evidenziata con «Chiedi» e «Copia» (`files&fresh`). Edoardo: grassetto e sottolineato restano, un titolo no in un suo caso; con Word automatizzato qui Titolo e Titolo 1 restano, caso da capire. L'integrazione «Musica» ora si chiama «Media» (icona ⏯️): comprende video e podcast.

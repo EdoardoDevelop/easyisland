@@ -62,4 +62,18 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
   - `Win+Alt+A` su un testo, «Nota in Notion» e «Attività in Notion».
   - Configurazione rapida togliendo e rimettendo il database delle attività.
 - [ ] **Impostazioni → Integrazioni:** gruppi, stato «Manca: chiave», apertura di una sola alla volta, ricerca, «Solo attive», 3CX con i campi che cambiano secondo il tipo di accesso.
+- [ ] **Remote Desktop Manager** (predisposto il 15 ottobre 2026), sul PC con RDM:
+  1. **Diagnosi:** `cargo test --lib rdm::tests::live -- --ignored --nocapture` dice exe, `rdm://`, pwsh, versione del modulo, origini, numero di connessioni e i tipi trovati. Se un tipo da tenere fuori (credenziali, cartelle) compare con un altro nome, va aggiunto a `is_connection`.
+  2. **Impostazioni → Integrazioni → Remote Desktop Manager:** i quattro stati. Senza PowerShell 7 o senza modulo, i comandi da copiare; installarli e premere «Rileggi l'elenco».
+  3. **Origine dati:**
+     - «Carica le origini» elenca quelle di RDM; sceglierne un'altra rilegge.
+     - Con Devolutions Server o Hub che chiede l'accesso: dopo 120 s il messaggio «non ha risposto in tempo», l'app non si blocca.
+     - Il modulo della stessa versione di RDM.
+  4. **Card:** ricerca per nome, cliente (cartella) e IP; Invio apre la prima; «Apri» apre in RDM la connessione giusta, nell'origine giusta; Modifica in RDM; Copia indirizzo; puntina; Recenti dopo un'apertura (anche dopo un riavvio).
+  5. **Barra in alto:** «rossi» mostra le connessioni RDM e le apre.
+  6. **3CX:** chiamata da un cliente con una cartella in RDM → «Connessioni in RDM» → la card con le sue connessioni (anche col nome e cognome di chi chiama).
+  7. **Zammad:** un ticket da assegnare mostra « — Organizzazione» e il pulsante RDM. Se `ticket_overviews` non dà Organization/User negli assets, il cliente manca: da vedere nel log.
+  8. **`Win+Alt+A`:** su un IP, «Connetti con RDP/SSH» apre una connessione al volo, che non viene salvata; su un nome, «Cerca in Remote Desktop Manager».
+  9. **Senza modulo:** la ricerca della card apre RDM con il campo di ricerca già compilato.
+  10. **Con un collega su un altro PC:** vede solo le connessioni che vede in RDM.
 

@@ -272,6 +272,7 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_vercel", "Vercel", "#7C5CFF", "n8n"),
   task("integration_github", "GitHub", "#F4505E", "n8n"),
   task("integration_notion", "Notion", "#8C8C8C", "n8n"),
+  task("integration_rdm", "RDM", "#E8542A", "n8n"),
   task("integration_calcom", "Cal.com", "#C9956A", "n8n"),
   task("integration_stripe", "Stripe", "#0570DE", "n8n"),
   task("integration_system", "PC", "#38BDF8", "n8n"),
@@ -299,6 +300,7 @@ export const OPEN_URLS: Record<string, string> = {
 export const OPENED_BY_APP = new Set([
   "integration_n8n", "integration_zammad", "integration_system", "integration_security",
   "integration_network", "integration_clipboard", "integration_weather", "integration_outlook", "integration_3cx",
+  "integration_rdm",
 ]);
 /** …and nothing for the others: no "Apri" button there. */
 export function canOpen(t: AgentTask | null): boolean {
@@ -314,7 +316,7 @@ export const TOGGLEABLE_INTEGRATION_IDS = [
   "integration_resend", "integration_n8n", "integration_vercel", "integration_github",
   "integration_notion", "integration_calcom", "integration_stripe",
   ...Object.keys(PROBE_INTEGRATIONS),
-  "integration_clipboard", "integration_media", "integration_3cx",
+  "integration_clipboard", "integration_media", "integration_3cx", "integration_rdm",
 ];
 
 /** What an integration poller last reported. */
@@ -527,6 +529,20 @@ export interface IntegrationConfig {
   notionAlertComments?: boolean;
   /** Notion: today's tasks in the morning recap. */
   notionMorning?: boolean;
+  /** Remote Desktop Manager: the workspace read (its id; "" = RDM's current one). */
+  rdmDataSource?: string;
+  /** Remote Desktop Manager: connections kept in the card, and the last opened (rdm.rs). */
+  rdmPins?: RdmRef[];
+  rdmRecent?: RdmRef[];
+}
+
+/** A connection of Remote Desktop Manager (settings.rs RdmRef, rdm.rs Entry). */
+export interface RdmRef {
+  id: string;
+  name: string;
+  group: string;
+  host: string;
+  kind: string;
 }
 
 /** A view of the Notion tasks (settings.rs NotionView, notion.rs view_filter). */
@@ -849,6 +865,7 @@ export const DEFAULT_SETTINGS: Settings = {
     threecxRing: true, threecxAlert: true, threecxRingtone: "",
     notionPins: [], notionTasks: null, notionInbox: null, notionViews: [], notionView: "",
     notionAlertDue: true, notionAlertLead: 10, notionAlertComments: true, notionMorning: true,
+    rdmDataSource: "", rdmPins: [], rdmRecent: [],
   },
 };
 

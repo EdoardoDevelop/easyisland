@@ -855,6 +855,8 @@ const INTEGRATIONS: IntegrationDef[] = [
     fields: [{ key: "notion-api-key", label: t("Token"), placeholder: "ntn_…", secret: true }],
     hint: t("Le tue attività da un database (oggi e scadute, spuntate con un clic), le note veloci in una pagina o in un database, le pagine che tieni a portata e la ricerca. Le pagine si aprono nell'app Notion se è installata. Crea un'integrazione interna su notion.so/profile/integrations (leggere, aggiornare e inserire contenuti), copia il token e condividi con lei le pagine e i database che vuoi usare (… → Connessioni)."),
     extra: () => notionRows() },
+  { id: "integration_rdm", name: "Remote Desktop Manager", color: "#E8542A", fields: [], extra: () => rdmRows(),
+    hint: t("Le tue connessioni di Remote Desktop Manager, cercate e aperte dall'isola: nella card, nella barra in alto, su una chiamata 3CX, su un ticket Zammad e dal testo selezionato (Win+Alt+A). Si collega sempre RDM: EasyIsland trova la connessione e gliela fa aprire o modificare. L'elenco arriva dal modulo PowerShell di Devolutions, qualunque sia l'origine dati (file, Devolutions Server, Hub, SQL), con i permessi di chi usa il PC: solo nome, cartella, indirizzo e tipo, mai le password, e resta in memoria. Senza il modulo la ricerca si apre dentro RDM e ci si connette comunque a un indirizzo.") },
   { id: "integration_calcom", name: "Cal.com", color: "#C9956A",
     fields: [{ key: "calcom-api-key", label: t("Chiave API"), placeholder: "cal_…", secret: true }] },
   { id: "integration_outlook", name: "Outlook", color: "#0A84D6", fields: [],
@@ -1087,6 +1089,90 @@ function notionViewsEditor(db: string, saved: () => void): HTMLElement {
   return box;
 }
 
+/**
+ * Remote Desktop Manager: what is installed and what is missing (each with
+ * the command to type, never run from here), the workspace to read, the list.
+ */
+function rdmRows(): HTMLElement {
+  const box = h("div", { style: "display:flex;flex-direction:column;gap:8px" });
+  const c = settings.integrationConfig;
+  const copyBtn = (text: string) => {
+    const b = h("button", { text: t("Copia") }) as HTMLButtonElement;
+    b.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(text); b.textContent = t("Copiato ✓"); } catch { b.textContent = t("Non riuscito"); }
+      window.setTimeout(() => { b.textContent = t("Copia"); }, 1600);
+    });
+    return b;
+  };
+  const line = (ok: boolean | null, label: string, value: string, fix?: string) => h("div", { style: "display:flex;flex-direction:column;gap:4px" },
+    h("div", { class: "row" },
+      statusDot(ok ?? false),
+      h("span", { style: "min-width:150px", text: label }),
+      h("span", { class: "hint", style: "flex:1 1 auto;min-width:0;overflow-wrap:anywhere", text: value })),
+    fix ? h("div", { class: "row", style: "padding-left:18px" }, h("code", { class: "path", text: fix }), copyBtn(fix)) : null);
+
+  const state = h("div", { style: "display:flex;flex-direction:column;gap:6px" }, h("div", { class: "hint", text: t("Controllo…") }));
+  const check = async () => {
+    const s = await Bridge.rdmStatus();
+    clear(state);
+    if (!s) { state.append(h("div", { class: "hint", text: t("Disponibile nell'app installata.") })); return; }
+    state.append(
+      line(!!s.exe || s.protocol, "Remote Desktop Manager", s.exe ?? (s.protocol ? t("solo i link rdm://") : t("non trovato su questo PC"))),
+      line(!!s.pwsh, t("PowerShell 7"), s.pwsh ?? t("manca: serve per leggere l'elenco"), s.pwsh ? undefined : "winget install Microsoft.PowerShell"),
+      line(!!s.module, t("Modulo di Devolutions"), s.module ? `Devolutions.PowerShell ${s.module}` : t("manca: da installare in PowerShell 7, della stessa versione di RDM"),
+        s.module || !s.pwsh ? undefined : "Install-Module Devolutions.PowerShell -Scope CurrentUser"),
+      line(s.count > 0 ? true : s.listError ? false : null, t("Elenco"),
+        s.count > 0 ? t("{n} connessioni da «{ds}»", { n: s.count, ds: s.dataSource ?? "RDM" }) : s.listError ?? t("non ancora letto")),
+    );
+  };
+
+  const reread = h("button", { text: t("Rileggi l'elenco") }) as HTMLButtonElement;
+  reread.addEventListener("click", async () => {
+    reread.disabled = true;
+    reread.textContent = t("Leggo…");
+    await Bridge.refreshIntegration("integration_rdm");
+    await check();
+    reread.disabled = false;
+    reread.textContent = t("Rileggi l'elenco");
+  });
+
+  // The workspace: RDM's current one, or one chosen (loaded on request: it starts PowerShell).
+  const source = h("select", {}, h("option", { value: "", text: t("Quella aperta in RDM") })) as HTMLSelectElement;
+  if (c.rdmDataSource) source.append(h("option", { value: c.rdmDataSource, text: t("Scelta prima ({id})", { id: c.rdmDataSource.slice(0, 8) }) }));
+  source.value = c.rdmDataSource ?? "";
+  source.addEventListener("change", () => {
+    c.rdmDataSource = source.value;
+    void save();
+    void Bridge.refreshIntegration("integration_rdm").then(check);
+  });
+  const load = h("button", { text: t("Carica le origini") }) as HTMLButtonElement;
+  const sourceNote = h("span", { class: "hint note" });
+  load.addEventListener("click", async () => {
+    load.disabled = true;
+    sourceNote.textContent = t("Chiedo a RDM…");
+    try {
+      const list = await Bridge.rdmDataSources();
+      clear(source);
+      source.append(h("option", { value: "", text: t("Quella aperta in RDM") }));
+      for (const d of list) source.append(h("option", { value: d.id, text: d.kind ? `${d.name} (${d.kind})` : d.name }));
+      source.value = list.some((d) => d.id === c.rdmDataSource) ? c.rdmDataSource ?? "" : "";
+      sourceNote.textContent = t("{n} origini dati", { n: list.length });
+    } catch (e) {
+      sourceNote.textContent = String(e).replace(/^Error:\s*/, "");
+    }
+    load.disabled = false;
+  });
+
+  box.append(
+    state,
+    h("div", { class: "row" }, reread, h("span", { class: "hint note", text: t("si rilegge da solo ogni 30 minuti") })),
+    h("div", { class: "row" }, h("label", { style: "min-width:104px", text: t("Origine dati") }), source, load, sourceNote),
+    h("div", { class: "hint", text: t("Con più origini (il tuo file, il server dei colleghi…) scegli quale leggere. Ognuno legge con i propri permessi di RDM: un collega vede solo ciò che vede in RDM. Se l'origine chiede un accesso o un secondo fattore, aprila prima in RDM e salva le credenziali.") }),
+  );
+  void check();
+  return box;
+}
+
 /** What notion_suggest found, once per window. */
 let notionFound: Promise<Awaited<ReturnType<typeof Bridge.notionSuggest>>> | null = null;
 
@@ -1222,7 +1308,7 @@ function ringtoneRow(): HTMLElement {
 
 /** Impostazioni → Integrazioni: the groups, in this order; anything else goes last. */
 const INTEGRATION_GROUPS: [string, string[]][] = [
-  [t("Lavoro e clienti"), ["integration_3cx", "integration_zammad", "integration_outlook", "integration_calcom", "integration_notion"]],
+  [t("Lavoro e clienti"), ["integration_3cx", "integration_zammad", "integration_rdm", "integration_outlook", "integration_calcom", "integration_notion"]],
   [t("Sviluppo e servizi"), ["integration_github", "integration_vercel", "integration_n8n", "integration_stripe", "integration_resend"]],
   [t("Questo PC"), ["integration_system", "integration_security", "integration_network", "integration_weather", "integration_claude_usage", "integration_clipboard", "integration_media"]],
 ];
@@ -3069,7 +3155,7 @@ function notifySection(): HTMLElement {
 // ── Reazioni del personaggio ──────────────────────────────────────────────────
 
 /** Pills that never complain (or have their own way to show up, like a 3CX call). */
-const NO_REACTION = new Set(["integration_claude", "integration_clipboard", "integration_media", "integration_weather", "integration_3cx"]);
+const NO_REACTION = new Set(["integration_claude", "integration_clipboard", "integration_media", "integration_weather", "integration_3cx", "integration_rdm"]);
 
 /**
  * What the character does in each situation: show itself and sound, change

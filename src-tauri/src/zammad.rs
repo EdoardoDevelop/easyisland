@@ -55,7 +55,11 @@ fn newest_titles(data: &Value, max: usize) -> Vec<String> {
             let ticket = tickets?.get(id.to_string())?;
             let number = ticket.get("number").and_then(Value::as_str).unwrap_or("");
             let title = ticket.get("title").and_then(Value::as_str).unwrap_or(crate::i18n::t("(senza titolo)"));
-            Some((id, if number.is_empty() { title.to_string() } else { format!("#{number} {title}") }))
+            let title = if number.is_empty() { title.to_string() } else { format!("#{number} {title}") };
+            // Who it is for, after " — ": the company, else the customer (RDM's
+            // "Connessioni" on the ticket searches by it, src/views/integrations.ts).
+            let who = client_of(data, ticket);
+            Some((id, if who.is_empty() { title } else { format!("{title} — {who}") }))
         })
         .collect();
     list.sort_by(|a, b| b.0.cmp(&a.0));
@@ -108,6 +112,24 @@ async fn get_json(c: &reqwest::Client, url: &str, token: &str) -> Result<Value, 
         404 => Err(t("Indirizzo di Zammad non trovato (404)").into()),
         code => Err(format!("Zammad: HTTP {code}")),
     }
+}
+
+/// The ticket's organization name, else its customer's name, from the assets.
+fn client_of(data: &Value, ticket: &Value) -> String {
+    let asset = |kind: &str, key: &str| -> Option<&Value> {
+        let id = ticket.get(key)?.as_i64()?;
+        data.pointer(&format!("/assets/{kind}/{id}"))
+    };
+    if let Some(name) = asset("Organization", "organization_id").and_then(|o| o.get("name")?.as_str()) {
+        return name.trim().to_string();
+    }
+    asset("User", "customer_id")
+        .map(|u| {
+            let f = u.get("firstname").and_then(Value::as_str).unwrap_or("");
+            let l = u.get("lastname").and_then(Value::as_str).unwrap_or("");
+            format!("{f} {l}").trim().to_string()
+        })
+        .unwrap_or_default()
 }
 
 pub async fn probe(w: &Widget) -> WidgetResult {
@@ -191,6 +213,18 @@ mod tests {
             }}
         });
         assert_eq!(newest_titles(&data, 2), vec!["#31012 VPN giù", "Senza numero"]);
+        let with_client = serde_json::json!({
+            "index": { "tickets": [{ "id": 3 }, { "id": 4 }] },
+            "assets": {
+                "Ticket": {
+                    "3": { "number": "1", "title": "Stampante", "organization_id": 5 },
+                    "4": { "number": "2", "title": "Mail", "customer_id": 8 }
+                },
+                "Organization": { "5": { "name": "Rossi Srl" } },
+                "User": { "8": { "firstname": "Anna", "lastname": "Bianchi" } }
+            }
+        });
+        assert_eq!(newest_titles(&with_client, 5), vec!["#2 Mail — Anna Bianchi", "#1 Stampante — Rossi Srl"]);
     }
 
     #[test]
