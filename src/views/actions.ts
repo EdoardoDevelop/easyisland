@@ -52,6 +52,7 @@ function actionButton(a: QuickAction, onClick: () => void): HTMLElement {
     "button",
     {
       class: "qa",
+      "data-action": a.id,
       title: `${KIND_HINT[a.kind]}${a.hotkey ? ` · ${a.hotkey}` : ""}`,
       onclick: onClick,
     },

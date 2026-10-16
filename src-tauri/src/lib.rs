@@ -1759,6 +1759,14 @@ fn open_settings_window(app: AppHandle) {
     show_settings_window(&app);
 }
 
+/// The island's context menu: the settings on one page, with one entry open
+/// ("integrazioni" + "integration_zammad"). The settings page takes it from the event.
+#[tauri::command]
+fn open_settings_at(app: AppHandle, page: String, item: Option<String>) {
+    show_settings_window(&app);
+    let _ = app.emit_to(SETTINGS_LABEL, "settings-goto", serde_json::json!({ "page": page, "item": item.unwrap_or_default() }));
+}
+
 pub fn run() {
     // The release build aborts on a panic (panic = "abort"): without this the
     // reason is lost and Windows only reports 0xc0000409.
@@ -1959,6 +1967,7 @@ pub fn run() {
             open_zammad,
             open_integration,
             open_settings_window,
+            open_settings_at,
             set_paused,
         ])
         .setup(move |app| {

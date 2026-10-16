@@ -26,8 +26,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
-### 16 ottobre 2026 — Barra dell'app in uso, Panoramica con i loghi grandi
+### 16 ottobre 2026 — Barra dell'app in uso, Panoramica con i loghi grandi, menu contestuale
 - Su richiesta di Edoardo, una «Touch Bar» accanto al personaggio chiuso: le sue azioni rapide legate al programma in primo piano («Nella barra con») e i suggerimenti ⚡ dei programmi noti, quando la striscia non ha altro (`strip.ts`, evento `foreground` da `context.rs`, `docs/architettura.md`). I comandi interni delle app non sono raggiungibili su Windows. Panoramica: logo grande e sbiadito nell'angolo in basso a sinistra, un cerchio per chi non ha logo.
+- Menu contestuale dell'isola al posto di quello di WebView2: per integrazioni, agenti, azioni, testo e chat, con «Impostazioni «nome»» che apre le Impostazioni sulla voce (`ctxmenu.ts`, `open_settings_at`, `docs/architettura.md`).
 - **Prove:** test, scene `strip&strip=app` e `overview`, `npm run smoke`. Da provare dal vivo (`docs/prove-dal-vivo.md`).
 
 ### 15 ottobre 2026 — Automazioni con contesto, Impostazioni sopra l'isola, versione 0.8.4

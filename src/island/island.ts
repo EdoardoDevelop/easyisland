@@ -24,6 +24,7 @@ import { buildSearch, type SearchHost } from "../views/search";
 import { rdmLookFor } from "../views/rdm";
 import { buildRail, railBotSize } from "../views/rail";
 import { buildStrip, type Strip } from "../views/strip";
+import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
 import { sendToChat, windowLabel } from "../views/chat";
 import { capturing, startCapture } from "./capture";
 import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state";
@@ -688,6 +689,7 @@ export class Island {
    * its card instead. `force` is for stepping aside on purpose (Cerchia e chiedi).
    */
   collapse(force = false) {
+    closeMenu();
     const card = State.pendingCard();
     if (card && !force) {
       if (State.view !== card) this.setView(card);
@@ -1588,6 +1590,95 @@ ${note}` : text };
   }
 
   /** 📌 in the header. */
+  /**
+   * The right-click menu for `el`: an integration or an agent (menu, Panoramica,
+   * its card), a quick action, the selected text, a reply of the chat; then the
+   * island's own entries. Only things a click can do anyway: nothing deletes,
+   * sends or runs a command without its usual confirmation.
+   */
+  private contextItems(el: HTMLElement | null): { title: string; items: MenuItem[] } {
+    const items: MenuItem[] = [];
+    let title = "";
+    const settingsAt = (page: string, item = "") => () => void Bridge.openSettingsAt(page, item);
+
+    // Selected text in the island: copy it, or ask about it.
+    const sel = window.getSelection()?.toString().trim() ?? "";
+    if (sel && el && this.islandEl.contains(el)) {
+      title = t("Testo selezionato");
+      items.push(
+        { label: t("Copia"), run: () => void Bridge.copyRewrite(sel, false) },
+        { label: t("Chiedi alla chat"), run: () => this.startChat("", { label: t("Testo selezionato"), text: sel }, false) },
+      );
+    }
+
+    // An integration, a widget or an agent: a row of the menu, a tile, its open card.
+    const rail = el?.closest<HTMLElement>("[data-rail]")?.dataset.rail ?? "";
+    let id = el?.closest<HTMLElement>("[data-id]")?.dataset.id ?? "";
+    if (!id && !items.length && el?.closest(".view") && State.view === "overview" && !State.showsSummary) id = State.focusTask?.id ?? "";
+    if (!id && rail === "agenti") id = State.latestSessionTask?.id ?? "";
+    const task = id ? State.tasks.find((x) => x.id === id) ?? null : null;
+    if (task && !items.length) {
+      const session = isSessionTask(task);
+      title = session ? task.agentName ?? task.name : task.name;
+      items.push({ label: t("Apri"), run: () => { State.setFocus(task.id); this.setView("overview"); } });
+      if (session) {
+        if (task.sessionHost || task.sessionCwd) {
+          items.push({ label: t("Torna alla sessione"), run: () => void Bridge.openSession(task.sessionHost ?? null, task.sessionCwd ?? null) });
+        }
+        if (task.sessionCwd) items.push({ label: t("Apri la cartella"), run: () => void Bridge.actionOpenApp(task.sessionCwd!, "") });
+        items.push({ label: t("Impostazioni degli agenti"), sep: true, run: settingsAt("claude") });
+      } else if (task.id.startsWith("widget:")) {
+        const wid = task.id.slice("widget:".length);
+        items.push({ label: t("Aggiorna ora"), run: () => void Bridge.widgetRefresh(wid) });
+        items.push({ label: t("Impostazioni «{name}»", { name: task.name }), sep: true, run: settingsAt("widget", wid) });
+      } else {
+        items.push({ label: t("Aggiorna ora"), run: () => void Bridge.refreshIntegration(task.id) });
+        items.push({ label: t("Impostazioni «{name}»", { name: task.name }), sep: true, run: settingsAt("integrazioni", task.id) });
+      }
+    }
+
+    // A quick action.
+    const actionId = el?.closest<HTMLElement>("[data-action]")?.dataset.action ?? "";
+    const action = actionId ? (State.settings.actions ?? []).find((a) => a.id === actionId) : undefined;
+    if (action && !items.length) {
+      title = action.name || t("Azione");
+      items.push(
+        { label: t("Esegui"), run: () => void this.runAction(action) },
+        { label: t("Modifica «{name}»", { name: action.name || t("Senza nome") }), run: settingsAt("azioni", action.id) },
+      );
+    }
+
+    // A reply of the chat: all of it.
+    const reply = el?.closest<HTMLElement>(".chat-row .reply, .chat-row .bubble");
+    if (reply && !items.length) {
+      const text = reply.innerText.trim();
+      title = t("Messaggio");
+      items.push({ label: t("Copia il messaggio"), run: () => void Bridge.copyRewrite(text, false) });
+    }
+
+    // The fixed rows of the menu: where their settings are.
+    if (!items.length && rail) {
+      const pages: Record<string, [string, string]> = {
+        chat: ["chat", t("Impostazioni della chat")],
+        azioni: ["azioni", t("Impostazioni delle azioni rapide")],
+      };
+      const p = pages[rail];
+      if (p) items.push({ label: p[1], run: settingsAt(p[0]) });
+    }
+    if (!items.length && State.view === "prompt") items.push({ label: t("Impostazioni della chat"), run: settingsAt("chat") });
+    if (!items.length && State.view === "actions") items.push({ label: t("Impostazioni delle azioni rapide"), run: settingsAt("azioni") });
+
+    // Always: the island itself.
+    const first = items.length > 0;
+    items.push(
+      { label: State.keepOpen ? t("Lascia chiudere da sola") : t("Tieni aperta"), sep: first, run: () => this.toggleKeepOpen() },
+      { label: t("Panoramica"), run: () => { State.summary = true; this.setView("overview"); } },
+      { label: t("Impostazioni…"), run: () => void Bridge.openSettingsWindow() },
+      { label: t("Chiudi l'isola"), run: () => this.collapse() },
+    );
+    return { title, items };
+  }
+
   toggleKeepOpen() {
     State.keepOpen = !State.keepOpen;
     this.fsm.setKeepOpen(State.keepOpen, this.wasInIsland);
@@ -2432,6 +2523,17 @@ ${note}` : text };
     };
     this.restIcon.addEventListener("contextmenu", restMenu);
     this.islandEl.addEventListener("contextmenu", restMenu);
+    // The open island: never WebView2's menu (Indietro, Ricarica, Ispeziona…),
+    // ours instead, made for what is under the mouse. Text fields keep the
+    // native one, for Taglia / Copia / Incolla.
+    document.addEventListener("contextmenu", (e) => {
+      const el = e.target as HTMLElement | null;
+      if (el?.closest("input, textarea, [contenteditable='true']")) return;
+      e.preventDefault();
+      if (State.mode !== "expanded") return;
+      const menu = this.contextItems(el);
+      showMenu(this.islandEl, e.clientX, e.clientY, menu.title, menu.items);
+    });
 
     // Chat tab: the character carried onto another app's window attaches that
     // window to the chat (window_drop.rs). A still press stays a pat. Registered
