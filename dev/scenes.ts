@@ -246,6 +246,25 @@ export async function runScene(island: Island, scene: string) {
       await wait(2500);
       break;
     }
+    case "teams": {
+      // ?activeIntegrations=integration_teams (&call: in a meeting with the webcam on).
+      await wait(300);
+      const call = new URLSearchParams(location.search).has("call");
+      State.integrations.integration_teams = {
+        loaded: true, configured: true, error: null,
+        data: { running: true, inCall: call, mic: call, camera: call },
+      };
+      const task = State.tasks.find((x) => x.id === "integration_teams");
+      if (task) {
+        task.steps = [call ? "In riunione · webcam accesa" : "Teams aperto, nessuna riunione"];
+        task.state = call ? "working" : "idle";
+      }
+      State.setFocus("integration_teams");
+      State.summary = false;
+      island.alert("overview");
+      await wait(1500);
+      break;
+    }
     case "threecx": {
       // ?activeIntegrations=integration_3cx — a call ringing and one in progress.
       await wait(300);

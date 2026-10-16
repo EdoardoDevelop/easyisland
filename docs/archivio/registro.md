@@ -2,6 +2,16 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 15 ottobre 2026 — Notion più semplice e con avvisi; Impostazioni → Integrazioni rifatta
+- **Notion:**
+  - avvisi nell'isola prima delle attività con orario e per i commenti nuovi (l'API non dà le notifiche di Notion);
+  - le attività di oggi nel riepilogo del mattino;
+  - «+ Attività» con la scadenza e i valori della vista in uso, «Rimanda a domani»;
+  - «Nota / Attività in Notion» dal testo selezionato;
+  - la configurazione rapida, che propone i database e crea le viste Oggi, Settimana e Tutte.
+- **Integrazioni:** rifatta a gruppi, una riga per integrazione con il suo stato, che si apre al clic; ricerca e «Solo attive» (`docs/integrazioni.md`).
+- **Prove:** con i test, nell'anteprima, e in sola lettura sul Notion vero (la configurazione rapida propone «✅ Attività» e «📝 Note»). Non provati gli avvisi veri.
+
 ### 15 ottobre 2026 — Notion: viste delle attività
 - Su richiesta di Edoardo (troppe attività che non gli servono ogni giorno), le «viste» in Impostazioni → Notion: filtri con un nome per periodo (oggi, settimana, mese, prossimi N giorni, con o senza quelle senza data), per i valori di select, multi-select, stato e relazioni (Contesto, Tipo, Priorità, Progetto, Area…) e con l'ordine per scadenza o priorità. Nella card si cambiano con dei pulsanti, e c'è il pallino della priorità (`notion.rs` `view_filter`, `docs/integrazioni.md`). Provato in sola lettura sul suo database, con i test, nell'anteprima (`notion&views`) e con l'editor delle Impostazioni.
 

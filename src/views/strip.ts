@@ -18,6 +18,7 @@ import { t } from "../core/i18n";
 import { stripCall, type QuickReply } from "./threecx";
 import { renderActionIcon } from "./action-icons";
 import { appName, type Suggestion } from "../island/context";
+import { stripTeams } from "./teams";
 
 /** A button of the strip: a quick reply, or an action of the app bar with its icon. */
 export interface StripButton extends QuickReply {
@@ -130,6 +131,11 @@ export function stripItem(actions: StripActions): StripItem | null {
       key: `call:${call.id}:${call.ringing}:${call.buttons.map((b) => b.label).join("|")}:${call.ringing ? call.title : ""}`,
       title: call.title, sub: call.sub, tone: call.ringing ? "call" : "live", urgent: true, buttons: call.buttons,
     };
+  }
+  // A Teams meeting: microphone, video, leave.
+  const meeting = stripTeams();
+  if (meeting) {
+    return { key: `teams:${meeting.sub}`, title: meeting.title, sub: meeting.sub, tone: "live", urgent: false, buttons: meeting.buttons };
   }
   // A request it cannot answer: say so; the click opens its card.
   if (req) {

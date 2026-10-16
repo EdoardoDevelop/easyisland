@@ -248,6 +248,10 @@ export const Bridge = {
       return { error: String(err) };
     }
   },
+  /** Teams (teams.rs): a meeting command ("mute", "video", "hand", "share", "leave", "open"). Throws with the reason. */
+  teamsAction: (kind: string) => callOrThrow<void>("teams_action", { kind }),
+  /** Teams: join the meeting link in the clipboard. Throws when there is none. */
+  teamsJoinClipboard: () => callOrThrow<void>("teams_join_clipboard"),
   /** A "Tasti" action: the sequence to the app in front (keys.rs). Throws with the reason. */
   actionSendKeys: (keys: string) => callOrThrow<void>("action_send_keys", { keys }),
   /** All the text of the window in front (Ctrl+A, Ctrl+C), or why not (as captureSelection). */

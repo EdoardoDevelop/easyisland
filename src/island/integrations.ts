@@ -4,6 +4,7 @@
 
 import { onEvent, Bridge, type IntegrationUpdate, type ThreecxCall, type ThreecxMessage } from "../core/bridge";
 import { THREECX, ringing, chatMessage, chatTyping, openChat } from "../views/threecx";
+import { TEAMS, teamsLine } from "../views/teams";
 import { Sound } from "../core/sound";
 import { startSoftphone, onSoftphone } from "../core/softphone";
 import { State, type WidgetStatus } from "../core/state";
@@ -186,6 +187,16 @@ export function handleIntegration(island: Island, update: IntegrationUpdate) {
     loaded: update.error ? (previous?.loaded ?? false) : true,
     configured: previous?.configured ?? true,
   };
+
+  // Teams: its line in the Panoramica, and "working" while in a meeting.
+  if (update.id === TEAMS && !update.error) {
+    const task = State.tasks.find((t) => t.id === TEAMS);
+    if (task) {
+      task.steps = [teamsLine()];
+      task.stepIndex = 0;
+      task.state = update.data.inCall ? "working" : "idle";
+    }
+  }
 
   // Every chat message read (here or on another device): the chat badge goes.
   if (update.id === THREECX && !update.error && !Number(update.data.unread ?? 0)) {

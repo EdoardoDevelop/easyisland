@@ -10,6 +10,7 @@ import { State, PROBE_INTEGRATIONS, sessionOpenLabel, type AgentTask } from "../
 import { Bridge, type NotionPage } from "../core/bridge";
 import { THREECX, threecxCard } from "./threecx";
 import { RDM, rdmActive, rdmLookFor, rdmCard } from "./rdm";
+import { TEAMS, teamsCard } from "./teams";
 import { weatherCard } from "./weather";
 import { netConfigCard, pingRow, resetNetConfig } from "./netconfig";
 import { locale, t } from "../core/i18n";
@@ -940,6 +941,8 @@ export function hasIntegrationData(id: string): boolean {
       return info.loaded;
     case RDM:
       return info.loaded;
+    case TEAMS:
+      return info.loaded;
     case "integration_calcom":
       return info.loaded;
     default:
@@ -1067,6 +1070,8 @@ export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHoo
       return notionCard(hooks);
     case RDM:
       return rdmCard(hooks.openSettings);
+    case TEAMS:
+      return teamsCard(hooks.openSettings);
     case "integration_calcom":
       return calcomCard();
     default:

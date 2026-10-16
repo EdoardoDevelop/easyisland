@@ -871,6 +871,8 @@ const INTEGRATIONS: IntegrationDef[] = [
       { key: "zammad-token", label: t("Token"), placeholder: t("token di accesso"), secret: true },
     ],
     hint: t("In Zammad: avatar → Profilo → Token di accesso → Crea, con il permesso ticket.agent. Ticket assegnati a te, non assegnati e in escalation (avviso giallo); il personaggio ti avvisa quando arriva un nuovo ticket da assegnare.") },
+  { id: "integration_teams", name: "Microsoft Teams", color: "#5B5FC7", fields: [],
+    hint: t("Le riunioni di Teams dall'isola, senza accedere con l'account: riconosce la riunione dal microfono e dalla webcam usati da Teams e mette Microfono, Video, Alza la mano, Condividi ed Esci nella card e accanto al personaggio chiuso (sono le scorciatoie di Teams, mandate alla sua finestra). Apri Teams e «Partecipa dal link copiato». Nelle automazioni: «Quando inizia o finisce una riunione Teams». Chat, riunioni del giorno e stato arriveranno con l'accesso a Microsoft.") },
   { id: "integration_3cx", name: "3CX", color: "#0596D4",
     options: [
       { label: t("Accesso"), type: "select", placeholder: "",
@@ -1308,7 +1310,7 @@ function ringtoneRow(): HTMLElement {
 
 /** Impostazioni → Integrazioni: the groups, in this order; anything else goes last. */
 const INTEGRATION_GROUPS: [string, string[]][] = [
-  [t("Lavoro e clienti"), ["integration_3cx", "integration_zammad", "integration_rdm", "integration_outlook", "integration_calcom", "integration_notion"]],
+  [t("Lavoro e clienti"), ["integration_3cx", "integration_teams", "integration_zammad", "integration_rdm", "integration_outlook", "integration_calcom", "integration_notion"]],
   [t("Sviluppo e servizi"), ["integration_github", "integration_vercel", "integration_n8n", "integration_stripe", "integration_resend"]],
   [t("Questo PC"), ["integration_system", "integration_security", "integration_network", "integration_weather", "integration_claude_usage", "integration_clipboard", "integration_media"]],
 ];
@@ -2602,6 +2604,7 @@ const TRIGGER_KINDS: [AutomationTrigger["kind"], string][] = [
   ["call", t("Quando arriva una chiamata (3CX)")],
   ["agent", t("Quando un agente finisce o chiede un permesso")],
   ["server", t("Quando parte un server di sviluppo")],
+  ["teams", t("Quando inizia o finisce una riunione Teams")],
 ];
 
 const STEP_KINDS: [AutomationStep["kind"], string][] = [
@@ -2767,6 +2770,7 @@ function automationsSection(): HTMLElement {
           trg.kind = v;
           if (v === "agent" && !["stop", "permission", "any"].includes(trg.when)) trg.when = "stop";
           if (v === "integration" && !["problem", "event", "any"].includes(trg.when)) trg.when = "problem";
+          if (v === "teams" && !["start", "end"].includes(trg.when)) trg.when = "start";
           commit();
           draw();
         }));
@@ -2817,6 +2821,12 @@ function automationsSection(): HTMLElement {
           break;
         case "server":
           card.append(filterRow(t("programma o porta, es. node, 5173")));
+          break;
+        case "teams":
+          card.append(h("div", { class: "row" }, h("label", { text: t("Quando") }),
+            select<AutomationTrigger["when"]>([["start", t("inizia")], ["end", t("finisce")]],
+              trg.when === "end" ? "end" : "start", (v) => { trg.when = v; commit(); }),
+            h("span", { class: "hint note", text: t("serve l'integrazione Microsoft Teams accesa") })));
           break;
         case "integration": {
           const opts = sources();
@@ -3390,7 +3400,7 @@ function notifySection(): HTMLElement {
 // ── Reazioni del personaggio ──────────────────────────────────────────────────
 
 /** Pills that never complain (or have their own way to show up, like a 3CX call). */
-const NO_REACTION = new Set(["integration_claude", "integration_clipboard", "integration_media", "integration_weather", "integration_3cx", "integration_rdm"]);
+const NO_REACTION = new Set(["integration_claude", "integration_clipboard", "integration_media", "integration_weather", "integration_3cx", "integration_rdm", "integration_teams"]);
 
 /**
  * What the character does in each situation: show itself and sound, change

@@ -285,6 +285,7 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_clipboard", t("Appunti"), "#A78BFA", "n8n"),
   task("integration_media", t("Media"), "#1ED760", "n8n"),
   task("integration_3cx", "3CX", "#0596D4", "n8n"),
+  task("integration_teams", "Teams", "#5B5FC7", "n8n"),
 ];
 
 /** "Apri" on an integration card: its web dashboard… */
@@ -300,7 +301,7 @@ export const OPEN_URLS: Record<string, string> = {
 export const OPENED_BY_APP = new Set([
   "integration_n8n", "integration_zammad", "integration_system", "integration_security",
   "integration_network", "integration_clipboard", "integration_weather", "integration_outlook", "integration_3cx",
-  "integration_rdm",
+  "integration_rdm", "integration_teams",
 ]);
 /** …and nothing for the others: no "Apri" button there. */
 export function canOpen(t: AgentTask | null): boolean {
@@ -316,7 +317,7 @@ export const TOGGLEABLE_INTEGRATION_IDS = [
   "integration_resend", "integration_n8n", "integration_vercel", "integration_github",
   "integration_notion", "integration_calcom", "integration_stripe",
   ...Object.keys(PROBE_INTEGRATIONS),
-  "integration_clipboard", "integration_media", "integration_3cx", "integration_rdm",
+  "integration_clipboard", "integration_media", "integration_3cx", "integration_rdm", "integration_teams",
 ];
 
 /** What an integration poller last reported. */
@@ -634,7 +635,7 @@ export function folderValue(icon: string, name: string): string {
 /** When an automation starts (src-tauri/src/automations.rs). */
 export interface AutomationTrigger {
   kind: "time" | "startup" | "unlock" | "wifi" | "app" | "foreground" | "drive" | "folder" | "download" | "integration"
-    | "call" | "agent" | "server" | "back";
+    | "call" | "agent" | "server" | "back" | "teams";
   /** time: "HH:MM". */
   time: string;
   /** time: 1 = Monday … 7 = Sunday; empty = every day. */
@@ -648,7 +649,7 @@ export interface AutomationTrigger {
   /** integration: id of the integration or widget. */
   source: string;
   /** integration: problem | event | any · agent: stop | permission | any. */
-  when: "problem" | "event" | "any" | "stop" | "permission";
+  when: "problem" | "event" | "any" | "stop" | "permission" | "start" | "end";
   /** Comma-separated: ".pdf" = extension, other words = contained (automations.rs `matches`). */
   filter?: string;
   /** back: away for at least these minutes. */

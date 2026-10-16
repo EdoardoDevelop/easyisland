@@ -10,7 +10,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **3CX «Questo PC»:** telefono WebRTC nell'isola, suoneria e scheda da telefono fatti nel codice e nell'anteprima; audio vero da provare sul centralino (`docs/prove-dal-vivo.md`).
 - [ ] **3CX + Zammad:** ticket del cliente sulla chiamata in arrivo (`docs/idee.md`).
 - [ ] **Notion, seconda parte:** «Manda a Notion», scheda cliente su 3CX/Zammad, avviso delle scadenze (`docs/idee.md`).
-- [ ] **Account Microsoft** (mail nuove e calendario con Graph, ripieghi se l'azienda blocca il consenso): da decidere (`docs/idee.md`).
+- [ ] **Account Microsoft** (mail nuove e calendario con Graph, ripieghi se l'azienda blocca il consenso; secondo passo di Teams: riunioni, chat, stato): da decidere (`docs/idee.md`).
 - [ ] **Remote Desktop Manager:** predisposto; prova la settimana prossima sul PC con RDM (`docs/prove-dal-vivo.md`), poi i passi in `docs/idee.md`.
 - [ ] **Clic destro in Esplora file:** voci di EasyIsland sui file («Manda a EasyIsland», azioni sui file), deciso con Edoardo l'11 ottobre come passo successivo al menu sulla selezione (`docs/idee.md`).
 - [ ] **opencode:** card per lo strumento `question` anche nella chat (per l'agente c'è), controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
@@ -25,6 +25,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 16 ottobre 2026 — Microsoft Teams, parte locale
+- Su richiesta di Edoardo, integrazione Teams senza account (`teams.rs`, `src/views/teams.ts`, `docs/integrazioni.md`): Teams aperto e in riunione (microfono e webcam), Microfono, Video, Alza la mano, Condividi ed Esci con le scorciatoie di Teams mandate alla sua finestra, anche nella striscia a isola chiusa; Apri Teams, Partecipa dal link copiato; automazioni «inizia / finisce una riunione Teams». Graph (riunioni, chat, stato) è il secondo passo in `docs/idee.md`.
+- **Prove:** test, scena `teams&call`, `npm run smoke`. Da provare in una riunione vera (`docs/prove-dal-vivo.md`).
 
 ### 16 ottobre 2026 — Barra dell'app in uso personalizzabile, azioni Tasti
 - Su richiesta di Edoardo: la barra mostra solo le sue azioni («Nella barra con», `*` = tutti), niente di predefinito; ha la precedenza sulla riga dell'agente. Nuove azioni **Tasti** (`keys.rs`) e domanda su **tutto il testo della finestra**; per azione «Solo nella barra» e aspetto (icona, testo, entrambi); per la barra aspetto, numero massimo, nome del programma. Corretto: `appBar` non era salvato da Rust (mancava in `settings.rs`).
@@ -49,13 +53,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
   - **Dove compare:** card con Fissate e Recenti, barra in alto, chiamata 3CX, ticket Zammad (con il cliente nel titolo), «Cerca in RDM» e «Connetti con RDP/SSH» dal testo selezionato.
   - **Impostazioni:** stato e origine dati.
 - **Prove:** RDM non è su questo PC, quindi solo test, anteprima (`rdm`) e la verifica che senza RDM e senza PowerShell 7 lo dica senza bloccarsi. Da provare la settimana prossima (`docs/prove-dal-vivo.md`).
-
-### 15 ottobre 2026 — Notion più semplice e con avvisi; Impostazioni → Integrazioni rifatta
-- **Notion:**
-  - avvisi nell'isola prima delle attività con orario e per i commenti nuovi (l'API non dà le notifiche di Notion);
-  - le attività di oggi nel riepilogo del mattino;
-  - «+ Attività» con la scadenza e i valori della vista in uso, «Rimanda a domani»;
-  - «Nota / Attività in Notion» dal testo selezionato;
-  - la configurazione rapida, che propone i database e crea le viste Oggi, Settimana e Tutte.
-- **Integrazioni:** rifatta a gruppi, una riga per integrazione con il suo stato, che si apre al clic; ricerca e «Solo attive» (`docs/integrazioni.md`).
-- **Prove:** con i test, nell'anteprima, e in sola lettura sul Notion vero (la configurazione rapida propone «✅ Attività» e «📝 Note»). Non provati gli avvisi veri.

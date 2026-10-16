@@ -285,6 +285,15 @@ pub fn send_keys(spec: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// A key sequence to a given window (Teams' meeting window, teams.rs).
+pub fn send_keys_to(hwnd: HWND, spec: &str) -> Result<(), String> {
+    let steps = crate::keys::parse(spec)?;
+    focus(hwnd)?;
+    wait_keys_released()?;
+    crate::keys::play(&steps);
+    Ok(())
+}
+
 /// All the text of the user's window (a web page, a mail, a document): Ctrl+A,
 /// Ctrl+C, the clipboard put back. For "Chiedi alla chat" on "Tutta la finestra".
 /// Errors are `selection`'s reason codes.

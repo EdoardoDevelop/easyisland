@@ -5,7 +5,8 @@
 // to the front, a drive (USB stick, external disk) being plugged in, a new file
 // in a folder, a download finishing, an integration or widget reporting a
 // problem or an event (new ticket…), a 3CX call ringing, an agent finishing or
-// waiting for a permission, a dev server starting, coming back after a break.
+// waiting for a permission, a dev server starting, coming back after a break,
+// a Teams meeting starting or ending (teams.rs).
 // Most of them can be narrowed with a filter (".pdf", a caller, a project).
 // Conditions ("se", all of them must hold, each one can be turned into "non"):
 // a profile, hours and days, a Wi-Fi network, a program open or in front, on
@@ -523,7 +524,7 @@ pub fn run_now(app: &AppHandle, id: &str) -> Result<(), String> {
 
 const TRIGGER_KINDS: &[&str] = &[
     "time", "startup", "unlock", "wifi", "app", "foreground", "drive", "folder", "download", "integration", "call", "agent",
-    "server", "back",
+    "server", "back", "teams",
 ];
 const STEP_KINDS: &[&str] = &["quick", "notice", "profile", "app", "url", "chat"];
 const CONDITION_KINDS: &[&str] = &["hours", "wifi", "app", "foreground", "battery", "idle", "meeting", "client"];
@@ -579,6 +580,7 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
             }
         }
         "agent" if !["stop", "permission", "any"].contains(&t.when.as_str()) => t.when = "stop".into(),
+        "teams" if !["start", "end"].contains(&t.when.as_str()) => t.when = "start".into(),
         "back" => t.minutes = if t.minutes == 0 { 15 } else { t.minutes.clamp(1, 720) },
         _ => {}
     }
@@ -717,6 +719,8 @@ pub fn describe(a: &Automation, s: &crate::settings::Settings) -> String {
         },
         "server" => "parte un server di sviluppo".into(),
         "back" => format!("rientro dopo {} minuti di assenza", t.minutes),
+        "teams" if t.when == "end" => "finisce una riunione Teams".into(),
+        "teams" => "inizia una riunione Teams".into(),
         k => k.to_string(),
     };
     if !t.filter.is_empty() && FILTERED.contains(&t.kind.as_str()) {
@@ -1114,6 +1118,7 @@ pub fn spawn(app: AppHandle) {
                     let ok = match e.kind.as_str() {
                         "foreground" => exe_name(&tr.exe) == e.subject,
                         "agent" => (tr.when == "any" || tr.when == e.when) && matches(&tr.filter, &e.subject),
+                        "teams" => tr.when == e.when,
                         _ => matches(&tr.filter, &e.subject),
                     };
                     if ok {
@@ -1123,6 +1128,8 @@ pub fn spawn(app: AppHandle) {
                             "agent" if e.when == "permission" => tf("permesso da {who}", &[("who", &e.subject)]),
                             "agent" => tf("finito: {who}", &[("who", &e.subject)]),
                             "server" => tf("server {what}", &[("what", &e.subject)]),
+                            "teams" if e.when == "end" => t("riunione Teams finita").into(),
+                            "teams" => t("riunione Teams iniziata").into(),
                             _ => tf("in primo piano {exe}", &[("exe", &e.subject)]),
                         };
                         fire.push(((*a).clone(), cause, e.ctx.clone()));

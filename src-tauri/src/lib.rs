@@ -55,6 +55,7 @@ mod screenshot;
 mod session_reply;
 mod secrets;
 mod settings;
+mod teams;
 mod i18n;
 mod webview_profile;
 mod recap;
@@ -1323,6 +1324,7 @@ fn open_integration(id: String) -> bool {
         "integration_weather" => shell("msnweather:"),
         "integration_outlook" => start("outlook.exe"),
         "integration_rdm" => rdm::open_app(),
+        "integration_teams" => teams::open(),
         "integration_3cx" => match secrets::get("3cx-url").as_deref().and_then(threecx::base_url) {
             Some(url) => {
                 open_url_now(&format!("{url}/webclient"));
@@ -1341,6 +1343,7 @@ async fn refresh_integration(app: AppHandle, id: String) {
         clipboard::ID => clipboard::publish(&app),
         threecx::ID => threecx::publish_now(&app),
         media::ID => media::refresh(),
+        teams::ID => teams::refresh(&app),
         _ => integrations::poll_once(app, &id).await,
     }
 }
@@ -1401,6 +1404,18 @@ async fn capture_selection() -> Result<String, String> {
         Ok(r) => r.map_err(String::from),
         Err(_) => Err("empty".into()),
     }
+}
+
+/// The Teams card and strip: a meeting command ("mute", "video", "hand", "share", "leave", "open").
+#[tauri::command]
+async fn teams_action(kind: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || teams::action(&kind)).await.map_err(|e| e.to_string())?
+}
+
+/// "Partecipa dal link copiato".
+#[tauri::command]
+fn teams_join_clipboard() -> Result<(), String> {
+    teams::join_from_clipboard()
 }
 
 /// A "Tasti" quick action: the key sequence to the app in front (keys.rs).
@@ -1985,6 +2000,8 @@ pub fn run() {
             open_settings_window,
             open_settings_at,
             action_send_keys,
+            teams_action,
+            teams_join_clipboard,
             capture_window_text,
             set_paused,
         ])
@@ -2023,6 +2040,7 @@ pub fn run() {
             context::spawn(handle.clone());
             media::spawn(handle.clone());
             threecx::spawn(handle.clone());
+            teams::spawn(handle.clone());
             automations::spawn(handle.clone());
             habits::spawn(handle.clone());
             opencode_agent::spawn(handle.clone());

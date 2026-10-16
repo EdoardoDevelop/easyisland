@@ -94,6 +94,14 @@ Rifatta il 15 ottobre 2026 su richiesta di Edoardo («troppo confusionaria»).
 - **Dettagli:** un clic apre spiegazione, campi, opzioni, icona e colore, una integrazione alla volta (`openIntegration`).
 - **Sopra l'elenco:** la ricerca e «Solo attive». In fondo, «Menu dell'isola» con il blocco dello spostamento.
 
+## Microsoft Teams (`teams.rs`, `src/views/teams.ts`)
+Chiesta da Edoardo il 16 ottobre 2026, «entrambe, a passi»: prima la parte locale (fatta), poi Microsoft Graph (`docs/idee.md` → Account Microsoft).
+- **Senza account.** Teams aperto = `ms-teams.exe` o `teams.exe`; in riunione = Teams usa il microfono o la webcam (registro, come `presence.rs`). Controllo ogni 3 s solo con l'integrazione accesa, e l'isola riceve un aggiornamento solo quando qualcosa cambia. Non si sa se il microfono è muto: Teams lo tiene aperto.
+- **Comandi** (card, e nella striscia accanto al personaggio chiuso Microfono, Video, Esci): sono le scorciatoie di Teams (Ctrl+Maiusc+M, O, K, E, H) mandate alla finestra di Teams più in alto (`teams_window`, `context::send_keys_to`), mai alla finestra in uso. Se Microsoft cambia le scorciatoie vanno aggiornate lì.
+- **Partecipa dal link copiato:** solo link `https://` di teams.microsoft.com, teams.live.com, teams.cloud.microsoft (`meeting_link`); quelli di teams.microsoft.com vanno all'app con `msteams:/…` tramite ShellExecute (`actions::shell_open`: `open_app` espanderebbe i `%3a` come variabili), gli altri dal browser.
+- **Automazioni:** «Quando inizia o finisce una riunione Teams» (`on_event("teams", …, "start" | "end")`).
+- La striscia mette la riunione dopo le chiamate 3CX e prima della barra dell'app in uso. Scena `teams` (`&call`).
+
 ## Remote Desktop Manager (`rdm.rs`, `src/views/rdm.ts`)
 Preparata il 15 ottobre 2026, senza RDM su questo PC: da provare dove c'è (`docs/prove-dal-vivo.md`). Edoardo vuole usare RDM da EasyIsland per tutto, anche con un database che non conosce ancora e condiviso con i colleghi.
 - **RDM resta il programma che si collega.** EasyIsland trova la connessione e chiede a RDM di aprirla, modificarla o cercarla. Non legge mai una password, non scrive e non cancella voci di RDM.

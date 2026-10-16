@@ -5107,3 +5107,20 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   margin: 4px 6px;
   background: rgba(255, 255, 255, 0.07);
 }
+
+/* Teams card (src/views/teams.ts). */
+.teams-body { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px 2px; }
+.teams-status { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.teams-dot { width: 8px; height: 8px; border-radius: 50%; background: #5c6069; }
+.teams-dot.on { background: var(--c, #5B5FC7); background: #5B5FC7; }
+.teams-dot.live { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2); }
+.teams-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.teams-btn {
+  height: 30px; padding: 0 12px; border: 0; border-radius: 15px;
+  font: 600 12px var(--font); cursor: default;
+}
+.teams-btn.plain { background: #2b2d31; color: #f5f6f8; }
+.teams-btn.light { background: #5B5FC7; color: #fff; }
+.teams-btn.red { background: #f4505e; color: #2a0508; }
+.teams-btn:hover { filter: brightness(1.12); }
+.teams-hint { font-size: 11px; color: var(--dim); }

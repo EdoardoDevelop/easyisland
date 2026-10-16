@@ -137,6 +137,11 @@ fn shell_execute(target: &str, args: &str) -> Result<(), ()> {
     unsafe { ShellExecuteExW(&mut info) }.map_err(|_| ())
 }
 
+/// A protocol link (msteams:…) to the program that handles it, as it is.
+pub fn shell_open(uri: &str) -> Result<(), ()> {
+    shell_execute(uri, "")
+}
+
 fn is_executable(p: &Path) -> bool {
     matches!(
         p.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase).as_deref(),
