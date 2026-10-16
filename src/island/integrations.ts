@@ -5,6 +5,7 @@
 import { onEvent, Bridge, type IntegrationUpdate, type ThreecxCall, type ThreecxMessage } from "../core/bridge";
 import { THREECX, ringing, chatMessage, chatTyping, openChat } from "../views/threecx";
 import { TEAMS, teamsLine } from "../views/teams";
+import { RECORDER, recorderLine } from "../views/recorder";
 import { Sound } from "../core/sound";
 import { startSoftphone, onSoftphone } from "../core/softphone";
 import { State, type WidgetStatus } from "../core/state";
@@ -195,6 +196,17 @@ export function handleIntegration(island: Island, update: IntegrationUpdate) {
     loaded: update.error ? (previous?.loaded ?? false) : true,
     configured: previous?.configured ?? true,
   };
+
+  // Registra: its line, "working" while it records, and the strip comes up.
+  if (update.id === RECORDER && !update.error) {
+    const task = State.tasks.find((t) => t.id === RECORDER);
+    if (task) {
+      task.steps = [recorderLine()];
+      task.stepIndex = 0;
+      task.state = update.data.recording ? "working" : "idle";
+    }
+    if (update.data.recording) island.showInStrip();
+  }
 
   // Teams: its line in the Panoramica, and "working" while in a meeting.
   if (update.id === TEAMS && !update.error) {

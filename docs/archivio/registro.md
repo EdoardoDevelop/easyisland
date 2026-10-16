@@ -2,6 +2,12 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 15 ottobre 2026 — Automazioni con contesto, Impostazioni sopra l'isola, versione 0.8.4
+- Versione **0.8.4** con queste voci, Notion (viste e avvisi), Remote Desktop Manager e Integrazioni a gruppi. Su richiesta di Edoardo:
+  - **Impostazioni sopra l'isola:** mentre sono la finestra attiva entrano tra quelle sempre in primo piano, sopra l'isola; poi tornano normali (`keep_settings_above` in `island.rs`, `docs/architettura.md`).
+  - **Automazioni** («non solo orario e programmi»): nuovi «quando» (download, chiamata 3CX, agente, server di sviluppo, programma in primo piano, rientro dalla pausa) con filtro; più condizioni con «se non»; ripetizioni; i dati dell'evento nei passi con i vincoli di sicurezza; passo «Chiedi alla chat». Anche lo strumento `create_automation` (`docs/integrazioni.md`). Fatti i punti 1–3 di `docs/idee.md`, tranne calendario e fine giornata.
+- **Prove:** test Rust, editor nell'anteprima, `npm run smoke`. Da provare dal vivo (`docs/prove-dal-vivo.md`).
+
 ### 15 ottobre 2026 — Remote Desktop Manager, predisposizione
 - Su richiesta di Edoardo («tutto a portata di mano», origine dati ancora da decidere, forse condivisa con i colleghi): integrazione «Remote Desktop Manager» (`rdm.rs`, `src/views/rdm.ts`, `docs/integrazioni.md`).
   - **Elenco:** letto dal modulo Devolutions.PowerShell per qualsiasi origine dati, senza password.

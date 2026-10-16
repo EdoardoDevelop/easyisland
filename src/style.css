@@ -5133,3 +5133,15 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 .teams-dot.presence-available, .teams-dot.presence-availableidle { background: #22c55e; }
 .teams-dot.presence-busy, .teams-dot.presence-busyidle, .teams-dot.presence-donotdisturb { background: #f4505e; }
 .teams-dot.presence-away, .teams-dot.presence-berightback { background: #f5a524; }
+
+/* "Registra" (src/views/recorder.ts). */
+.rec-body { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px 2px; }
+.rec-live { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
+.rec-time { font: 600 18px var(--mono); }
+.rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #f4505e; animation: rec-blink 1.2s steps(2, start) infinite; }
+@keyframes rec-blink { to { opacity: 0.25; } }
+.rec-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rec-start.light { background: #f4505e; color: #fff; }
+.rec-chip { height: 26px; padding: 0 10px; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 13px; background: transparent; color: var(--dim); font: 500 11.5px var(--font); cursor: default; }
+.rec-chip.on { background: rgba(244, 80, 94, 0.18); border-color: rgba(244, 80, 94, 0.5); color: var(--ink); }
+.rec-hint { font-size: 11px; color: var(--dim); }

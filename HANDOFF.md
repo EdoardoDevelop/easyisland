@@ -26,6 +26,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 16 ottobre 2026 — Registra (conversazione o schermo)
+- Su richiesta di Edoardo, integrazione «Registra» (`record.rs`, `src/views/recorder.ts`, `docs/integrazioni.md`): conversazione (microfono e audio del PC, .m4a) o schermo con audio (.mp4), solo con Windows (WASAPI, GDI, Media Foundation), nessuna dipendenza nuova. Punto rosso con Stop sempre accanto al personaggio; alla fine la card con Nel Vassoio, Apri, Mostra nella cartella.
+- **Prove:** registrazione vera di 3 s (schermo 671 KB, audio 70 KB, file cancellati), test, scene, `npm run smoke`. Una chiamata vera da provare (`docs/prove-dal-vivo.md`).
+
 ### 16 ottobre 2026 — Account Microsoft (API), predisposizione, versione 0.8.6
 - Versione **0.8.6** con queste voci, Teams e la barra personalizzabile.
 - Su richiesta di Edoardo, Outlook e Teams con Microsoft Graph (`msgraph.rs`, `docs/integrazioni.md`): «Accedi con Microsoft» con PKCE e ritorno su localhost, token in Gestione credenziali, sola lettura. Outlook usa Graph quando c'è l'accesso (anche nuovo Outlook e Outlook chiuso); Teams mostra stato e riunioni con «Partecipa». Guida alla registrazione in Entra nelle Impostazioni.
@@ -44,9 +48,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Su richiesta di Edoardo, una «Touch Bar» accanto al personaggio chiuso: le sue azioni rapide legate al programma in primo piano («Nella barra con») e i suggerimenti ⚡ dei programmi noti, quando la striscia non ha altro (`strip.ts`, evento `foreground` da `context.rs`, `docs/architettura.md`). I comandi interni delle app non sono raggiungibili su Windows. Panoramica: logo grande e sbiadito nell'angolo in basso a sinistra, un cerchio per chi non ha logo.
 - Menu contestuale dell'isola al posto di quello di WebView2: per integrazioni, agenti, azioni, testo e chat, con «Impostazioni «nome»» che apre le Impostazioni sulla voce (`ctxmenu.ts`, `open_settings_at`, `docs/architettura.md`).
 - **Prove:** test, scene `strip&strip=app` e `overview`, `npm run smoke`. Da provare dal vivo (`docs/prove-dal-vivo.md`).
-
-### 15 ottobre 2026 — Automazioni con contesto, Impostazioni sopra l'isola, versione 0.8.4
-- Versione **0.8.4** con queste voci, Notion (viste e avvisi), Remote Desktop Manager e Integrazioni a gruppi. Su richiesta di Edoardo:
-  - **Impostazioni sopra l'isola:** mentre sono la finestra attiva entrano tra quelle sempre in primo piano, sopra l'isola; poi tornano normali (`keep_settings_above` in `island.rs`, `docs/architettura.md`).
-  - **Automazioni** («non solo orario e programmi»): nuovi «quando» (download, chiamata 3CX, agente, server di sviluppo, programma in primo piano, rientro dalla pausa) con filtro; più condizioni con «se non»; ripetizioni; i dati dell'evento nei passi con i vincoli di sicurezza; passo «Chiedi alla chat». Anche lo strumento `create_automation` (`docs/integrazioni.md`). Fatti i punti 1–3 di `docs/idee.md`, tranne calendario e fine giornata.
-- **Prove:** test Rust, editor nell'anteprima, `npm run smoke`. Da provare dal vivo (`docs/prove-dal-vivo.md`).

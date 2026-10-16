@@ -250,6 +250,10 @@ export const Bridge = {
   },
   /** Teams (teams.rs): a meeting command ("mute", "video", "hand", "share", "leave", "open"). Throws with the reason. */
   teamsAction: (kind: string) => callOrThrow<void>("teams_action", { kind }),
+  /** "Registra" (record.rs). Throws with why it could not start. */
+  recordStart: (request: { kind: "audio" | "screen"; mic: boolean; system: boolean; fps: number }) =>
+    callOrThrow<void>("record_start", { request }),
+  recordStop: () => call<void>("record_stop"),
   /** Microsoft account (msgraph.rs). */
   msStatus: () => call<{ configured: boolean; signedIn: boolean; account: string | null; error: string | null; redirect: string; scopes: string }>("ms_status"),
   msLogin: () => callOrThrow<string>("ms_login"),

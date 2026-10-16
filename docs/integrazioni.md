@@ -94,6 +94,16 @@ Rifatta il 15 ottobre 2026 su richiesta di Edoardo («troppo confusionaria»).
 - **Dettagli:** un clic apre spiegazione, campi, opzioni, icona e colore, una integrazione alla volta (`openIntegration`).
 - **Sopra l'elenco:** la ricerca e «Solo attive». In fondo, «Menu dell'isola» con il blocco dello spostamento.
 
+## Registra (`record.rs`, `src/views/recorder.ts`)
+Chiesta da Edoardo il 16 ottobre 2026 («una conversazione o lo schermo; poi si decide se va nel Vassoio»).
+- **Solo Windows, nessuna dipendenza:** audio con WASAPI (microfono, e altoparlanti in loopback per l'altra parte di una chiamata), chiesto a 48 kHz 16 bit stereo con `AUTOCONVERTPCM` e mescolato su un orologio (una sorgente muta dà silenzio, non buchi; più di 2 s di ritardo si scarta). Schermo con GDI: lo schermo sotto il mouse all'inizio, con il cursore, ridotto a 1920 px di larghezza al massimo, 15 fotogrammi al secondo di serie. File con il sink writer di Media Foundation: `.mp4` H.264 + AAC per lo schermo, `.m4a` AAC per l'audio; encoder hardware se ci sono. Un solo thread; limite 4 ore.
+- **Dove:** `integrationConfig.recordFolder` (vuoto = `Video\EasyIsland`). Scelte nella card: microfono e audio del PC (`recordMic`, `recordSystem`); fotogrammi in Impostazioni (`recordFps`).
+- **Visibile sempre:** mentre registra, la striscia accanto al personaggio mostra il punto rosso, il tempo e Stop, prima di riunioni e barra dell'app (`stripRecording`, `urgent`). La card ricorda di avvisare chi è in chiamata.
+- **Alla fine:** il momento `recording` con Nel Vassoio (copia), Apri, Mostra nella cartella, le azioni sui file. Compare anche in riunione e con «solo permessi»: la registrazione l'ha fermata l'utente. Il file resta nella cartella; niente si cancella da solo, tranne un file vuoto di un avvio fallito.
+- La nostra registrazione col microfono non conta come «riunione» per «davanti al cliente» (`presence.rs` salta easyisland).
+- **Prova vera:** `cargo test -p easyisland --lib live_record -- --ignored --nocapture` registra 3 s di schermo e audio del PC (senza microfono) in un file temporaneo, lo controlla e lo cancella. Scene `recorder&live`, `moment&moment=recording`.
+- **Dopo:** trascrizione e riassunto (Notetaker in `docs/idee.md`), scorciatoia e voce nel menu per iniziare, registrazione di una sola finestra.
+
 ## Account Microsoft, API (`msgraph.rs`) — predisposizione
 Fatta il 16 ottobre 2026 su richiesta di Edoardo; da provare con una registrazione vera (`docs/prove-dal-vivo.md`).
 - **Accesso:** blocco «Account Microsoft (API)» nelle righe di Outlook e Teams (`msAccountRows`): ID applicazione (pubblico) e tenant in `integrationConfig.msClientId` / `msTenant` (vuoto = organizations), «Accedi con Microsoft». Codice di autorizzazione con PKCE (SHA-256 e numeri casuali da BCrypt di Windows, nessuna dipendenza nuova), ritorno su `http://localhost:<porta>` a un ascoltatore che accetta solo la risposta con lo `state` giusto, 5 minuti al massimo. Token di aggiornamento in Gestione credenziali (`msgraph-refresh`), quello di accesso solo in memoria. «Esci» li dimentica.

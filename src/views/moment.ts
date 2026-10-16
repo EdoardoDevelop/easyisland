@@ -66,6 +66,25 @@ export function buildMoment(actions: ViewActions & MomentActions): ViewHost {
           ],
         };
       }
+      case "recording": {
+        const mins = Math.floor(m.seconds / 60);
+        const len = mins ? t("{m} min {s} s", { m: mins, s: m.seconds % 60 }) : t("{s} s", { s: m.seconds });
+        return {
+          wash: "red",
+          who: t("Registrazione pronta"),
+          title: m.name,
+          text: `${len} · ${size(m.size)}`,
+          row: [
+            btn(t("Nel Vassoio"), "primary", () => {
+              void Bridge.ingestFile(m.path).then(() => { State.moment = null; actions.openFiles(); }, () => undefined);
+            }, t("Una copia nel Vassoio, da trascinare in una mail o in un ticket")),
+            btn(t("Apri"), "secondary", () => { void Bridge.fileOpen(m.path, false).catch(() => {}); done(); }),
+            btn(t("Mostra nella cartella"), "secondary", () => { void Bridge.fileOpen(m.path, true).catch(() => {}); done(); }),
+            ...fileActions(m.name).map((a) => btn(a.name || t("Senza nome"), "secondary", () => onFile({ kind: "download", name: m.name, path: m.path, size: m.size }, a), a.prompt)),
+            btn(t("Non ora"), "secondary", done),
+          ],
+        };
+      }
       case "error": {
         const port = holderLine(m);
         return {

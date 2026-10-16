@@ -871,6 +871,13 @@ const INTEGRATIONS: IntegrationDef[] = [
       { key: "zammad-token", label: t("Token"), placeholder: t("token di accesso"), secret: true },
     ],
     hint: t("In Zammad: avatar → Profilo → Token di accesso → Crea, con il permesso ticket.agent. Ticket assegnati a te, non assegnati e in escalation (avviso giallo); il personaggio ti avvisa quando arriva un nuovo ticket da assegnare.") },
+  { id: "integration_recorder", name: t("Registra"), color: "#F4505E", fields: [],
+    options: [
+      { label: t("Cartella"), type: "text", placeholder: t("vuoto = Video\\EasyIsland"), get: (c) => c.recordFolder ?? "", set: (c, v) => { c.recordFolder = v.trim(); } },
+      { label: t("Schermo"), type: "number", placeholder: "15", unit: t("fotogrammi al secondo (5–30)"),
+        get: (c) => c.recordFps ?? 15, set: (c, v) => { c.recordFps = Math.min(30, Math.max(5, Math.round(Number(v)) || 15)); } },
+    ],
+    hint: t("Registra una conversazione (microfono e audio del PC, per esempio una chiamata) o lo schermo sotto il mouse con l'audio, finché premi Stop. Tutto con Windows, nessun programma da installare: .m4a per l'audio, .mp4 per lo schermo. Mentre registra, accanto al personaggio c'è sempre il punto rosso con Stop; alla fine scegli se metterla nel Vassoio, aprirla o lasciarla nella cartella. Avvisa chi è in chiamata prima di registrarlo.") },
   { id: "integration_teams", name: "Microsoft Teams", color: "#5B5FC7", fields: [], extra: () => msAccountRows(),
     hint: t("Le riunioni di Teams dall'isola, senza accedere con l'account: riconosce la riunione dal microfono e dalla webcam usati da Teams e mette Microfono, Video, Alza la mano, Condividi ed Esci nella card e accanto al personaggio chiuso (sono le scorciatoie di Teams, mandate alla sua finestra). Apri Teams e «Partecipa dal link copiato». Nelle automazioni: «Quando inizia o finisce una riunione Teams». Chat, riunioni del giorno e stato arriveranno con l'accesso a Microsoft.") },
   { id: "integration_3cx", name: "3CX", color: "#0596D4",
@@ -1381,7 +1388,7 @@ function ringtoneRow(): HTMLElement {
 const INTEGRATION_GROUPS: [string, string[]][] = [
   [t("Lavoro e clienti"), ["integration_3cx", "integration_teams", "integration_zammad", "integration_rdm", "integration_outlook", "integration_calcom", "integration_notion"]],
   [t("Sviluppo e servizi"), ["integration_github", "integration_vercel", "integration_n8n", "integration_stripe", "integration_resend"]],
-  [t("Questo PC"), ["integration_system", "integration_security", "integration_network", "integration_weather", "integration_claude_usage", "integration_clipboard", "integration_media"]],
+  [t("Questo PC"), ["integration_recorder", "integration_system", "integration_security", "integration_network", "integration_weather", "integration_claude_usage", "integration_clipboard", "integration_media"]],
 ];
 
 /** The integration whose settings are open (one at a time), kept while the window is. */
@@ -3469,7 +3476,7 @@ function notifySection(): HTMLElement {
 // ── Reazioni del personaggio ──────────────────────────────────────────────────
 
 /** Pills that never complain (or have their own way to show up, like a 3CX call). */
-const NO_REACTION = new Set(["integration_claude", "integration_clipboard", "integration_media", "integration_weather", "integration_3cx", "integration_rdm", "integration_teams"]);
+const NO_REACTION = new Set(["integration_claude", "integration_clipboard", "integration_media", "integration_weather", "integration_3cx", "integration_rdm", "integration_teams", "integration_recorder"]);
 
 /**
  * What the character does in each situation: show itself and sound, change

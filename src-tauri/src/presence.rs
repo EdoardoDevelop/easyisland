@@ -62,6 +62,10 @@ pub(crate) fn device_in_use(device: &str) -> Option<String> {
         let Some(k) = root.child(&name) else { continue };
         if name.eq_ignore_ascii_case("NonPackaged") {
             for exe in k.subkeys() {
+                // EasyIsland's own recording (record.rs) is not a meeting.
+                if exe.to_lowercase().contains("easyisland") {
+                    continue;
+                }
                 if k.child(&exe).is_some_and(|c| in_use(&c)) {
                     return Some(app_name(&exe));
                 }

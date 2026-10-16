@@ -47,7 +47,7 @@ Preparata il 15 ottobre 2026 (`docs/integrazioni.md`). Da valutare dopo le prove
   - in ogni pagina un'intestazione con titolo, sottotitolo e personaggi animati su nero con particelle (`hero.ts`), un colore per pagina;
   - sezioni a riquadri con righe «titolo + descrizione a sinistra, comando a destra».
   Le opzioni sono quasi le nostre: cambia la presentazione.
-- **Note delle chiamate (Notetaker):** registra il microfono e l'audio del PC, senza bot. Ne esce la trascrizione per persona, con riassunto, punti chiave e cose da fare; l'audio poi si cancella. Per noi: chiamate 3CX e riunioni, da allegare a un ticket Zammad o a Notion. Servono il riconoscimento vocale e l'avviso a chi è in chiamata.
+- **Note delle chiamate (Notetaker):** la registrazione c'è dal 16 ottobre 2026 (`integrazioni.md` → Registra); manca il resto. Registra il microfono e l'audio del PC, senza bot. Ne esce la trascrizione per persona, con riassunto, punti chiave e cose da fare; l'audio poi si cancella. Per noi: chiamate 3CX e riunioni, da allegare a un ticket Zammad o a Notion. Servono il riconoscimento vocale e l'avviso a chi è in chiamata.
 - **Dettatura ovunque (Flow):** tieni premuto un tasto, parli, il testo si incolla. Con dizionario, testi rapidi, stili per programma e statistiche. Il riconoscimento è locale: Parakeet con sherpa-onnx, circa 700 MB, italiano compreso. Condivide il riconoscimento con le note. In alternativa c'è la dettatura di Windows (`Win+H`).
 - **Opzioni piccole:**
   - quanto tenere la cronologia (7 giorni, 30, un anno, per sempre);
