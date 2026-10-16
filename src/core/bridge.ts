@@ -144,6 +144,8 @@ export const Bridge = {
   quit: () => call<void>("quit_app"),
 
   openSettingsWindow: () => call<void>("open_settings_window"),
+  /** The settings on `page`, with `item` (an integration, a widget, an action) open. */
+  openSettingsAt: (page: string, item = "") => call<void>("open_settings_at", { page, item }),
 
   /** Writes to %LOCALAPPDATA%\EasyIsland\easyisland.log, next to the Rust lines. */
   log: (message: string) => call<void>("log_line", { message }),

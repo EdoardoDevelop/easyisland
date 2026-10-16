@@ -910,3 +910,11 @@ h3.int-sub {
   font-size: 12px;
   font-weight: 600;
 }
+
+/* Reached from the island's context menu: a short glow on the entry. */
+.goto {
+  outline: 2px solid rgba(56, 189, 248, 0.7);
+  outline-offset: 2px;
+  border-radius: 12px;
+  transition: outline-color 0.6s;
+}

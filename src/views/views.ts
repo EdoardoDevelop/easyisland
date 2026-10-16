@@ -3,7 +3,7 @@
 // identically.
 
 import { isSorting, sortable } from "./sortable";
-import { h, svg, clear, dot, brandOrDot } from "./dom";
+import { h, svg, clear, dot, brandOrDot, markIcon } from "./dom";
 import { ICONS } from "./icons";
 import { Ticker } from "./ticker";
 import { State, canAskSession, canOpen, engineLabel, isSessionTask, replyMode, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
@@ -493,8 +493,10 @@ function renderSummary(actions: ViewActions): HTMLElement {
     const label = pillLabel(t);
     const status = t.steps.length ? t.steps[t.steps.length - 1] : t.state === "idle" ? "" : t.state;
     const row = h("button", { class: "summary-row", "data-id": t.id, title: label.title ?? t.name, onclick: () => actions.setFocus(t.id) },
+      // The logo, large and half hidden in the bottom-left corner; a circle of
+      // the integration's colour for those without one.
+      h("span", { class: "summary-mark", "aria-hidden": "true" }, markIcon(t.id, 52) ?? h("i", { class: "summary-circle" })),
       h("span", { class: "summary-top" },
-        brandOrDot(t.id, t.color, 8),
         h("span", { class: "summary-name", text: label.text }),
         t.pillBadge ? h("i", { class: "summary-badge" }) : null),
       h("span", { class: "summary-status", text: status || " " }));

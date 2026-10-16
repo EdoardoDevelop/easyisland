@@ -1964,5 +1964,21 @@
   "permesso da {who}": "permission from {who}",
   "finito: {who}": "finished: {who}",
   "server {what}": "server {what}",
-  "in primo piano {exe}": "{exe} in front"
+  "in primo piano {exe}": "{exe} in front",
+  "Barra dell'app in uso": "App-in-use bar",
+  "quando non c'è altro da mostrare, accanto al personaggio chiuso compaiono le tue azioni rapide del programma che stai usando (Azioni rapide → «Nella barra con») e i suggerimenti ⚡ per Outlook, Excel, Word, il browser…": "when there's nothing else to show, your quick actions for the program you're using (Quick actions → “In the bar with”) and the ⚡ suggestions for Outlook, Excel, Word, the browser… appear beside the closed character",
+  "Nella barra con": "In the bar with",
+  "programmi, es. outlook.exe, excel.exe": "programs, e.g. outlook.exe, excel.exe",
+  "accanto al personaggio chiuso, quando usi uno di questi programmi": "beside the closed character, when you use one of these programs",
+  "Torna alla sessione": "Back to the session",
+  "Apri la cartella": "Open the folder",
+  "Impostazioni degli agenti": "Agent settings",
+  "Aggiorna ora": "Refresh now",
+  "Impostazioni «{name}»": "“{name}” settings",
+  "Modifica «{name}»": "Edit “{name}”",
+  "Copia il messaggio": "Copy the message",
+  "Impostazioni della chat": "Chat settings",
+  "Impostazioni delle azioni rapide": "Quick action settings",
+  "Lascia chiudere da sola": "Let it close by itself",
+  "Chiudi l'isola": "Close the island"
 }
