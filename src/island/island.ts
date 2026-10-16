@@ -1026,10 +1026,15 @@ ${note}` : text };
 
   // ── The character of the chat tab carried onto a window ─────────────────────
 
-  /** Only in the chat, not while it answers, and not when it asks a session. */
+  /**
+   * In the chat (the window goes to it), not while it answers nor when it asks a
+   * session; and in File e schermo, where the window is chosen for Registra or
+   * "Foto nel Vassoio".
+   */
   private canPickWindow(): boolean {
-    return State.mode === "expanded" && State.view === "prompt" && !State.chatSession
-      && State.stateOverride !== "thinking";
+    if (State.mode !== "expanded") return false;
+    if (State.view === "files") return !State.paused;
+    return State.view === "prompt" && !State.chatSession && State.stateOverride !== "thinking";
   }
 
   private startWindowPick() {
@@ -1094,7 +1099,14 @@ ${note}` : text };
   /** Let go (`drop`) or given up: the character comes back, the window is captured. */
   private async endWindowPick(drop: boolean) {
     let shot: WindowShot | null = null;
-    if (drop) {
+    if (drop && State.view === "files") {
+      // File e schermo: the window is only chosen; the panel offers what to do.
+      const w = await Bridge.windowPickDrop();
+      if (w) {
+        State.pickedWindow = w;
+        Sound.play("blip");
+      }
+    } else if (drop) {
       try {
         shot = await Bridge.windowDrop();
       } catch (err) {

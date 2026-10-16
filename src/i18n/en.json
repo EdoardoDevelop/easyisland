@@ -2107,5 +2107,19 @@
   "Codifica video non disponibile: {e}": "Video encoding not available: {e}",
   "Codifica audio non disponibile: {e}": "Audio encoding not available: {e}",
   "Il file non si è chiuso bene: {e}": "The file didn't close properly: {e}",
-  "Registrazione interrotta: {e}": "Recording stopped: {e}"
+  "Registrazione interrotta: {e}": "Recording stopped: {e}",
+  "Registro la finestra {w}": "Recording the window {w}",
+  "● Conversazione": "● Conversation",
+  "Microfono e audio del PC, in .m4a": "Microphone and PC sound, as .m4a",
+  "▣ Schermo": "▣ Screen",
+  "Lo schermo dove c'è il mouse, in .mp4": "The screen with the mouse, as .mp4",
+  "Chiudi l'elenco": "Close the list",
+  "▢ Una finestra…": "▢ A window…",
+  "Scegli una finestra da registrare o fotografare": "Choose a window to record or photograph",
+  "Nessuna finestra da registrare": "No windows to record",
+  "● Registra la finestra": "● Record the window",
+  "Foto nel Vassoio": "Photo to the Tray",
+  "Lascia stare": "Never mind",
+  "Trascina il personaggio su una finestra per sceglierla. Avvisa chi è in chiamata prima di registrarlo.": "Drag the character onto a window to choose it. Tell the people on the call before recording them.",
+  "La finestra non c'è più": "The window is gone"
 }

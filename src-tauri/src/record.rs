@@ -53,12 +53,20 @@ pub struct Request {
     /// screen: frames a second (5–30).
     #[serde(default)]
     pub fps: u32,
+    /// screen: only this window (its HWND as a number, window_drop.rs); 0 = the screen.
+    #[serde(default)]
+    pub window: i64,
+    /// What the card shows for the window ("Excel — Budget.xlsx").
+    #[serde(default)]
+    pub label: String,
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 struct Live {
     kind: String,
+    /// The window recorded, "" for the whole screen.
+    window: String,
     mic: bool,
     system: bool,
     /// ms since 1970 when it started.
@@ -99,9 +107,9 @@ fn folder(app: &AppHandle) -> PathBuf {
     home.join("Videos").join("EasyIsland")
 }
 
-fn file_name(kind: &str) -> String {
+fn file_name_for(kind: &str, window: bool) -> String {
     let t = unsafe { windows::Win32::System::SystemInformation::GetLocalTime() };
-    let (what, ext) = if kind == "screen" { ("Schermo", "mp4") } else { ("Registrazione", "m4a") };
+    let (what, ext) = if kind == "screen" { (if window { "Finestra" } else { "Schermo" }, "mp4") } else { ("Registrazione", "m4a") };
     format!("{what} {:04}-{:02}-{:02} {:02}.{:02}.{:02}.{ext}", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond)
 }
 
@@ -123,8 +131,12 @@ pub fn start(app: AppHandle, req: Request) -> Result<(), String> {
     }
     let dir = folder(&app);
     std::fs::create_dir_all(&dir).map_err(|e| tf("Cartella delle registrazioni non utilizzabile: {e}", &[("e", &e)]))?;
-    let path = dir.join(file_name(&req.kind));
-    let live = Live { kind: req.kind.clone(), mic: req.mic, system: req.system, since: now_ms(), path: path.to_string_lossy().into_owned() };
+    let path = dir.join(file_name_for(&req.kind, req.window != 0));
+    if screen && req.window != 0 && crate::window_drop::usable(req.window).is_none() {
+        return Err(t("La finestra non c'è più").into());
+    }
+    let window = if screen && req.window != 0 { req.label.chars().take(120).collect() } else { String::new() };
+    let live = Live { kind: req.kind.clone(), window, mic: req.mic, system: req.system, since: now_ms(), path: path.to_string_lossy().into_owned() };
     STOP.store(false, Ordering::Relaxed);
     *LAST_ERROR.lock().unwrap() = None;
     *LIVE.lock().unwrap() = Some(live);
@@ -260,6 +272,8 @@ fn mix(sources: &mut [Source], frames: usize) -> Vec<i16> {
 // ── Screen ───────────────────────────────────────────────────────────────────
 
 struct Grabber {
+    /// Only this window (PrintWindow, also when covered), or the whole screen.
+    window: Option<windows::Win32::Foundation::HWND>,
     screen_dc: windows::Win32::Graphics::Gdi::HDC,
     mem_dc: windows::Win32::Graphics::Gdi::HDC,
     bitmap: windows::Win32::Graphics::Gdi::HBITMAP,
@@ -272,22 +286,28 @@ struct Grabber {
 }
 
 impl Grabber {
-    unsafe fn new() -> Result<Self, String> {
+    unsafe fn new(window: Option<windows::Win32::Foundation::HWND>) -> Result<Self, String> {
         use windows::Win32::Foundation::POINT;
         use windows::Win32::Graphics::Gdi::*;
         use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
-        let mut p = POINT::default();
-        let _ = GetCursorPos(&mut p);
-        let mon = MonitorFromPoint(p, MONITOR_DEFAULTTONEAREST);
-        let mut info = MONITORINFO { cbSize: std::mem::size_of::<MONITORINFO>() as u32, ..Default::default() };
-        if !GetMonitorInfoW(mon, &mut info).as_bool() {
-            return Err(t("Schermo non trovato").into());
-        }
-        let r = info.rcMonitor;
+        let r = match window {
+            // The window's visible frame at the start: the video keeps that size.
+            Some(hwnd) => crate::window_drop::frame(hwnd).ok_or_else(|| t("La finestra non c'è più").to_string())?,
+            None => {
+                let mut p = POINT::default();
+                let _ = GetCursorPos(&mut p);
+                let mon = MonitorFromPoint(p, MONITOR_DEFAULTTONEAREST);
+                let mut info = MONITORINFO { cbSize: std::mem::size_of::<MONITORINFO>() as u32, ..Default::default() };
+                if !GetMonitorInfoW(mon, &mut info).as_bool() {
+                    return Err(t("Schermo non trovato").into());
+                }
+                info.rcMonitor
+            }
+        };
         let (sw, sh) = (r.right - r.left, r.bottom - r.top);
         let scale = if sw > MAX_WIDTH { MAX_WIDTH as f64 / sw as f64 } else { 1.0 };
-        let w = ((sw as f64 * scale) as i32) & !1;
-        let h = ((sh as f64 * scale) as i32) & !1;
+        let w = (((sw as f64 * scale) as i32) & !1).max(2);
+        let h = (((sh as f64 * scale) as i32) & !1).max(2);
         let screen_dc = GetDC(None);
         let mem_dc = CreateCompatibleDC(Some(screen_dc));
         let bmi = BITMAPINFO {
@@ -306,15 +326,22 @@ impl Grabber {
         let bitmap = CreateDIBSection(Some(mem_dc), &bmi, DIB_RGB_COLORS, &mut bits, None, 0).map_err(|e| e.to_string())?;
         let old = SelectObject(mem_dc, bitmap.into());
         SetStretchBltMode(mem_dc, HALFTONE);
-        Ok(Self { screen_dc, mem_dc, bitmap, old, bits: bits as *mut u8, src: (r.left, r.top, sw, sh), w, h })
+        Ok(Self { window, screen_dc, mem_dc, bitmap, old, bits: bits as *mut u8, src: (r.left, r.top, sw, sh), w, h })
     }
 
     /// The screen now, with the cursor, as top-down BGRA.
     unsafe fn grab(&self) -> &[u8] {
         use windows::Win32::Graphics::Gdi::*;
         use windows::Win32::UI::WindowsAndMessaging::{DrawIconEx, GetCursorInfo, GetIconInfo, CURSORINFO, CURSOR_SHOWING, DI_NORMAL, ICONINFO};
-        let (x, y, sw, sh) = self.src;
-        if sw == self.w && sh == self.h {
+        let (mut x, mut y, sw, sh) = self.src;
+        if let Some(hwnd) = self.window {
+            // Where the window is now (it may have moved); drawn even if covered.
+            if let Some(f) = crate::window_drop::frame(hwnd) {
+                x = f.left;
+                y = f.top;
+            }
+            self.print_window(hwnd, x, y, sw, sh);
+        } else if sw == self.w && sh == self.h {
             let _ = BitBlt(self.mem_dc, 0, 0, self.w, self.h, Some(self.screen_dc), x, y, SRCCOPY);
         } else {
             let _ = StretchBlt(self.mem_dc, 0, 0, self.w, self.h, Some(self.screen_dc), x, y, sw, sh, SRCCOPY);
@@ -340,6 +367,35 @@ impl Grabber {
         }
         let _ = GdiFlush();
         std::slice::from_raw_parts(self.bits, (self.w * self.h * 4) as usize)
+    }
+
+    /// The window drawn by itself (PW_RENDERFULLCONTENT: Chrome, Edge, WebView2
+    /// too), its visible frame at (fx, fy) scaled into the frame. A window grown
+    /// since the start shows its top-left part; a smaller one leaves black.
+    unsafe fn print_window(&self, hwnd: windows::Win32::Foundation::HWND, fx: i32, fy: i32, sw: i32, sh: i32) {
+        use windows::Win32::Foundation::RECT;
+        use windows::Win32::Graphics::Gdi::*;
+        use windows::Win32::Storage::Xps::{PrintWindow, PRINT_WINDOW_FLAGS};
+        use windows::Win32::UI::WindowsAndMessaging::GetWindowRect;
+        let mut rect = RECT::default();
+        if GetWindowRect(hwnd, &mut rect).is_err() {
+            return;
+        }
+        let (ww, wh) = (rect.right - rect.left, rect.bottom - rect.top);
+        if ww <= 0 || wh <= 0 {
+            return;
+        }
+        let tmp = CreateCompatibleDC(Some(self.screen_dc));
+        let bmp = CreateCompatibleBitmap(self.screen_dc, ww, wh);
+        let old = SelectObject(tmp, bmp.into());
+        // PW_RENDERFULLCONTENT = 2.
+        if PrintWindow(hwnd, tmp, PRINT_WINDOW_FLAGS(2)).as_bool() {
+            let _ = PatBlt(self.mem_dc, 0, 0, self.w, self.h, BLACKNESS);
+            let _ = StretchBlt(self.mem_dc, 0, 0, self.w, self.h, Some(tmp), fx - rect.left, fy - rect.top, sw, sh, SRCCOPY);
+        }
+        SelectObject(tmp, old);
+        let _ = DeleteObject(bmp.into());
+        let _ = DeleteDC(tmp);
     }
 }
 
@@ -438,7 +494,12 @@ unsafe fn record(req: &Request, path: &std::path::Path, ready: &std::sync::mpsc:
     if req.system {
         sources.push(open_source(true)?);
     }
-    let grabber = if screen { Some(Grabber::new()?) } else { None };
+    let window = if screen && req.window != 0 {
+        Some(crate::window_drop::usable(req.window).ok_or_else(|| t("La finestra non c'è più").to_string())?)
+    } else {
+        None
+    };
+    let grabber = if screen { Some(Grabber::new(window)?) } else { None };
     let fps = if req.fps == 0 { 15 } else { req.fps.clamp(5, 30) };
 
     let attrs: IMFAttributes = {
@@ -475,6 +536,12 @@ unsafe fn record(req: &Request, path: &std::path::Path, ready: &std::sync::mpsc:
     let mut next_frame: i64 = 0; // 100 ns
     let mut failed: Option<String> = None;
     while !STOP.load(Ordering::Relaxed) && start.elapsed() < MAX_LEN {
+        // The window recorded was closed: the recording ends there, kept.
+        if let Some(hwnd) = window {
+            if !windows::Win32::UI::WindowsAndMessaging::IsWindow(Some(hwnd)).as_bool() {
+                break;
+            }
+        }
         let now = start.elapsed().as_nanos() as i64 / 100;
         if let Some(stream) = audio {
             for s in sources.iter_mut() {
@@ -553,7 +620,7 @@ mod tests {
     fn live_record() {
         for (kind, ext) in [("screen", "mp4"), ("audio", "m4a")] {
             let path = std::env::temp_dir().join(format!("easyisland-prova.{ext}"));
-            let req = Request { kind: kind.into(), mic: false, system: true, fps: 10 };
+            let req = Request { kind: kind.into(), mic: false, system: true, fps: 10, window: 0, label: String::new() };
             let (tx, rx) = std::sync::mpsc::channel();
             STOP.store(false, Ordering::Relaxed);
             let p2 = path.clone();
@@ -570,9 +637,34 @@ mod tests {
         }
     }
 
+    /// A 2-second recording of the first window in the list, no sound, to a
+    /// temporary file, checked and deleted:
+    /// `cargo test -p easyisland --lib live_window -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn live_window() {
+        let w = crate::window_drop::list().into_iter().next().expect("nessuna finestra");
+        println!("finestra: {}", w.app_name);
+        let path = std::env::temp_dir().join("easyisland-finestra.mp4");
+        let req = Request { kind: "screen".into(), mic: false, system: false, fps: 10, window: w.id, label: String::new() };
+        let (tx, rx) = std::sync::mpsc::channel();
+        STOP.store(false, Ordering::Relaxed);
+        let p2 = path.clone();
+        let h = std::thread::spawn(move || unsafe { record(&req, &p2, &tx) });
+        assert!(matches!(rx.recv_timeout(Duration::from_secs(5)), Ok(Ok(()))), "non partita");
+        std::thread::sleep(Duration::from_secs(2));
+        STOP.store(true, Ordering::Relaxed);
+        h.join().unwrap().expect("registrazione");
+        let bytes = std::fs::read(&path).unwrap();
+        println!("finestra: {} KB", bytes.len() / 1024);
+        assert_eq!(bytes.get(4..8), Some(&b"ftyp"[..]));
+        let _ = std::fs::remove_file(&path);
+    }
+
     #[test]
     fn names() {
-        assert!(file_name("screen").starts_with("Schermo ") && file_name("screen").ends_with(".mp4"));
-        assert!(file_name("audio").ends_with(".m4a"));
+        assert!(file_name_for("screen", false).starts_with("Schermo ") && file_name_for("screen", false).ends_with(".mp4"));
+        assert!(file_name_for("screen", true).starts_with("Finestra "));
+        assert!(file_name_for("audio", false).ends_with(".m4a"));
     }
 }

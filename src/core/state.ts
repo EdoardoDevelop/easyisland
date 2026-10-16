@@ -694,6 +694,13 @@ export interface AutomationStep {
   url: string;
 }
 
+/** A window chosen in File e schermo (window_drop.rs): its HWND as a number. */
+export interface PickedWindow {
+  id: number;
+  appName: string;
+  title: string;
+}
+
 /** Teams through Microsoft Graph: status and today's online meetings. */
 export interface MsTeams {
   signedIn: boolean;
@@ -946,6 +953,8 @@ class AppState {
 
   /** The app in front when the island last opened (src/island/context.ts). */
   foreground: { exe: string; title: string } | null = null;
+  /** File e schermo: the window chosen for "Registra" or "Foto nel Vassoio". */
+  pickedWindow: PickedWindow | null = null;
   /** Microsoft Graph for the Teams card (msgraph.rs `teams_snapshot`), once signed in. */
   msTeams: MsTeams | null = null;
 

@@ -4,6 +4,7 @@
 // Sending a file by email is not in the Windows v1, so `choose` offers asking a
 // question about it, plus the user's quick actions that work on a file.
 
+import { buildRecorderPanel } from "./recorder";
 import { h, clear, svg } from "./dom";
 import { ICONS } from "./icons";
 import { State } from "../core/state";
@@ -295,9 +296,12 @@ export function buildFiles(actions: ViewActions): ViewHost {
   showLayout();
   const note = h("div", { class: "files-note",
     text: t("Trascina un file in un'altra app per usarlo. Sono copie: gli originali restano dove sono. Il vassoio si svuota quando EasyIsland si riavvia, tranne i file fissati con la puntina.") });
+  // Registra: a conversation, the screen or one window (src/views/recorder.ts).
+  const recorder = buildRecorderPanel(actions);
   const body = h("div", { class: "files-body" },
     h("h1", { class: "files-title", text: t("File e schermo") }),
     h("div", { class: "files-tiles" }, dropTile, captureTile),
+    recorder.el,
     head, list, note);
   const el = h("div", { class: "view" }, h("div", { class: "card files-card" }, body));
 
@@ -341,6 +345,7 @@ export function buildFiles(actions: ViewActions): ViewHost {
   return {
     el,
     sync() {
+      recorder.sync();
       dropTile.classList.toggle("over", State.fileDragOver);
       hotkey.textContent = State.settings.hotkeyScreenshot ?? "";
       const files = State.inbox ?? [];

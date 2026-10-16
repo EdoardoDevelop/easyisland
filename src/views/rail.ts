@@ -125,7 +125,8 @@ export function buildRail(actions: ViewActions): ViewHost {
       agentsMeta.textContent = news ? String(busy) : "";
       agentsMeta.className = news ? "rail-meta count" : "rail-meta";
 
-      const tasks = State.tasks.filter((x) => !isSessionTask(x));
+      // Registra lives in File e schermo, not in the menu.
+      const tasks = State.tasks.filter((x) => !isSessionTask(x) && x.id !== "integration_recorder");
       const icons = State.settings.integrationTabIcons ?? {};
       const key = tasks.map((x) => `${x.id}:${x.name}:${x.color}:${icons[x.id] ?? ""}`).join("|");
       if (key !== listKey && !isSorting(list)) {

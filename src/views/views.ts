@@ -490,6 +490,8 @@ function renderSummary(actions: ViewActions): HTMLElement {
   const head = h("div", { class: "today-head" }, h("span", { class: "today-title", text: t("Panoramica") }), h("span", { class: "today-date", text: date }));
   const grid = h("div", { class: "summary" });
   for (const t of State.tasks) {
+    // Registra lives in File e schermo.
+    if (t.id === "integration_recorder") continue;
     const label = pillLabel(t);
     const status = t.steps.length ? t.steps[t.steps.length - 1] : t.state === "idle" ? "" : t.state;
     const row = h("button", { class: "summary-row", "data-id": t.id, title: label.title ?? t.name, onclick: () => actions.setFocus(t.id) },

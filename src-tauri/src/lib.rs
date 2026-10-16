@@ -1444,6 +1444,27 @@ fn record_start(app: AppHandle, request: record::Request) -> Result<(), String> 
     record::start(app, request)
 }
 
+/// File e schermo: the windows one can record or photograph.
+#[tauri::command]
+fn record_windows() -> Vec<window_drop::PickedWindow> {
+    window_drop::list()
+}
+
+/// File e schermo: the character let go on a window chooses it (no picture taken).
+#[tauri::command]
+fn window_pick_drop(shared: State<'_, Shared>) -> Option<window_drop::PickedWindow> {
+    shared.gate.dragging.store(false, Ordering::Relaxed);
+    carry::hide();
+    let (x, y) = island::cursor_physical()?;
+    window_drop::picked_at(x as i32, y as i32)
+}
+
+/// "Foto nel Vassoio": the chosen window as a PNG in the inbox.
+#[tauri::command]
+async fn window_shot(id: i64) -> Result<DroppedFile, String> {
+    tauri::async_runtime::spawn_blocking(move || window_drop::shot(id)).await.map_err(|e| e.to_string())?
+}
+
 /// "Registra": Stop. The file is closed on the recording's thread, then offered.
 #[tauri::command]
 fn record_stop() {
@@ -2053,6 +2074,9 @@ pub fn run() {
             teams_action,
             record_start,
             record_stop,
+            record_windows,
+            window_pick_drop,
+            window_shot,
             ms_status,
             ms_login,
             ms_logout,

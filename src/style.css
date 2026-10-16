@@ -5145,3 +5145,17 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 .rec-chip { height: 26px; padding: 0 10px; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 13px; background: transparent; color: var(--dim); font: 500 11.5px var(--font); cursor: default; }
 .rec-chip.on { background: rgba(244, 80, 94, 0.18); border-color: rgba(244, 80, 94, 0.5); color: var(--ink); }
 .rec-hint { font-size: 11px; color: var(--dim); }
+
+/* Registra in File e schermo (buildRecorderPanel). */
+.rec-panel { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; background: rgba(255, 255, 255, 0.02); }
+.rec-panel-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.rec-spacer { flex: 1 1 auto; }
+.rec-dot.off { background: #5c6069; animation: none; }
+.rec-what { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--dim); }
+.rec-windows { display: flex; flex-direction: column; gap: 2px; max-height: 160px; overflow-y: auto; }
+.rec-window { padding: 5px 8px; border: 0; border-radius: 7px; background: transparent; color: var(--ink); font: 400 12px var(--font); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; }
+.rec-window:hover { background: rgba(255, 255, 255, 0.07); }
+.rec-picked { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rec-picked-name { flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; }
+.teams-btn.rec-x { width: 30px; padding: 0; }
+.rec-picked-name { flex-basis: 120px; }

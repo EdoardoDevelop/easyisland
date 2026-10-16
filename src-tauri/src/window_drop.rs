@@ -30,7 +30,7 @@ use windows::Win32::Storage::Xps::{PrintWindow, PRINT_WINDOW_FLAGS};
 use windows::Win32::System::Threading::GetCurrentProcessId;
 use windows::Win32::UI::WindowsAndMessaging::{
     EnumWindows, GetClassNameW, GetWindowLongPtrW, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsIconic,
-    IsWindow, IsWindowVisible, GWL_EXSTYLE, WS_EX_TRANSPARENT,
+    IsWindow, IsWindowVisible, GWL_EXSTYLE, WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT,
 };
 
 use crate::clipimage::{self, Rgba};
@@ -85,6 +85,73 @@ pub fn info_at(x: i32, y: i32) -> Option<(HWND, WindowInfo)> {
     let info = WindowInfo { app_name: app_name(hwnd), title: title(hwnd) };
     *last = Some((hwnd.0 as isize, info.clone()));
     Some((hwnd, info))
+}
+
+/// A window for "Registra" and "Foto nel Vassoio" (File e schermo): its id is
+/// the HWND as a number, checked again (`usable`) every time it comes back.
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PickedWindow {
+    pub id: i64,
+    pub app_name: String,
+    pub title: String,
+}
+
+/// A window id from the front end, if it is still a window of another program,
+/// visible and not minimised.
+pub fn usable(id: i64) -> Option<HWND> {
+    let hwnd = HWND(id as isize as *mut c_void);
+    unsafe {
+        if id == 0 || !IsWindow(Some(hwnd)).as_bool() || !IsWindowVisible(hwnd).as_bool() {
+            return None;
+        }
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(hwnd, Some(&mut pid));
+        (pid != GetCurrentProcessId()).then_some(hwnd)
+    }
+}
+
+/// The window under the cursor, for the character let go on it in File e schermo.
+pub fn picked_at(x: i32, y: i32) -> Option<PickedWindow> {
+    let (hwnd, info) = info_at(x, y)?;
+    Some(PickedWindow { id: hwnd.0 as isize as i64, app_name: info.app_name, title: info.title })
+}
+
+/// The windows one can record, front to back: visible, with a title, not ours,
+/// not minimised, not cloaked, not tool windows.
+pub fn list() -> Vec<PickedWindow> {
+    unsafe extern "system" fn each(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let out = &mut *(lparam.0 as *mut Vec<HWND>);
+        if IsWindowVisible(hwnd).as_bool() && !IsIconic(hwnd).as_bool() && !cloaked(hwnd)
+            && GetWindowLongPtrW(hwnd, GWL_EXSTYLE) & (WS_EX_TRANSPARENT.0 | WS_EX_TOOLWINDOW.0) as isize == 0
+            && !SKIPPED_CLASSES.contains(&class_name(hwnd).as_str())
+        {
+            out.push(hwnd);
+        }
+        BOOL(1)
+    }
+    let mut all: Vec<HWND> = Vec::new();
+    unsafe {
+        let _ = EnumWindows(Some(each), LPARAM(&mut all as *mut Vec<HWND> as isize));
+    }
+    let own = unsafe { GetCurrentProcessId() };
+    all.into_iter()
+        .filter(|h| {
+            let mut pid = 0u32;
+            unsafe { GetWindowThreadProcessId(*h, Some(&mut pid)) };
+            pid != own && !title(*h).trim().is_empty()
+        })
+        .take(40)
+        .map(|h| PickedWindow { id: h.0 as isize as i64, app_name: app_name(h), title: title(h) })
+        .collect()
+}
+
+/// "Foto nel Vassoio": the window as a PNG in the inbox.
+pub fn shot(id: i64) -> Result<DroppedFile, String> {
+    let hwnd = usable(id).ok_or_else(|| t("La finestra non c'è più").to_string())?;
+    let img = capture(hwnd).ok_or_else(|| t("Non riesco a catturare questa finestra").to_string())?;
+    let png = clipimage::encode_png(&img)?;
+    files::save_new(&crate::screenshot::file_name(t("Finestra")), &png)
 }
 
 /// The window under (x, y) as a PNG in the inbox.
@@ -153,7 +220,7 @@ unsafe fn cloaked(hwnd: HWND) -> bool {
     DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, &mut value as *mut u32 as *mut c_void, 4).is_ok() && value != 0
 }
 
-unsafe fn frame(hwnd: HWND) -> Option<RECT> {
+pub(crate) unsafe fn frame(hwnd: HWND) -> Option<RECT> {
     let mut r = RECT::default();
     DwmGetWindowAttribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &mut r as *mut RECT as *mut c_void, size_of::<RECT>() as u32)
         .ok()?;
