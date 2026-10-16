@@ -859,7 +859,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     hint: t("Le tue connessioni di Remote Desktop Manager, cercate e aperte dall'isola: nella card, nella barra in alto, su una chiamata 3CX, su un ticket Zammad e dal testo selezionato (Win+Alt+A). Si collega sempre RDM: EasyIsland trova la connessione e gliela fa aprire o modificare. L'elenco arriva dal modulo PowerShell di Devolutions, qualunque sia l'origine dati (file, Devolutions Server, Hub, SQL), con i permessi di chi usa il PC: solo nome, cartella, indirizzo e tipo, mai le password, e resta in memoria. Senza il modulo la ricerca si apre dentro RDM e ci si connette comunque a un indirizzo.") },
   { id: "integration_calcom", name: "Cal.com", color: "#C9956A",
     fields: [{ key: "calcom-api-key", label: t("Chiave API"), placeholder: "cal_…", secret: true }] },
-  { id: "integration_outlook", name: "Outlook", color: "#0A84D6", fields: [],
+  { id: "integration_outlook", name: "Outlook", color: "#0A84D6", fields: [], extra: () => msAccountRows(),
     options: [{
       label: t("Avvisa"), type: "number", placeholder: "10", unit: t("minuti prima di una riunione"),
       get: (c) => c.outlookWarn, set: (c, v) => { c.outlookWarn = Math.max(1, Number(v) || 10); },
@@ -871,6 +871,8 @@ const INTEGRATIONS: IntegrationDef[] = [
       { key: "zammad-token", label: t("Token"), placeholder: t("token di accesso"), secret: true },
     ],
     hint: t("In Zammad: avatar → Profilo → Token di accesso → Crea, con il permesso ticket.agent. Ticket assegnati a te, non assegnati e in escalation (avviso giallo); il personaggio ti avvisa quando arriva un nuovo ticket da assegnare.") },
+  { id: "integration_teams", name: "Microsoft Teams", color: "#5B5FC7", fields: [], extra: () => msAccountRows(),
+    hint: t("Le riunioni di Teams dall'isola, senza accedere con l'account: riconosce la riunione dal microfono e dalla webcam usati da Teams e mette Microfono, Video, Alza la mano, Condividi ed Esci nella card e accanto al personaggio chiuso (sono le scorciatoie di Teams, mandate alla sua finestra). Apri Teams e «Partecipa dal link copiato». Nelle automazioni: «Quando inizia o finisce una riunione Teams». Chat, riunioni del giorno e stato arriveranno con l'accesso a Microsoft.") },
   { id: "integration_3cx", name: "3CX", color: "#0596D4",
     options: [
       { label: t("Accesso"), type: "select", placeholder: "",
@@ -1093,6 +1095,75 @@ function notionViewsEditor(db: string, saved: () => void): HTMLElement {
  * Remote Desktop Manager: what is installed and what is missing (each with
  * the command to type, never run from here), the workspace to read, the list.
  */
+/**
+ * Microsoft account (msgraph.rs), the same block in Outlook and Teams: the app
+ * registration's id and tenant, Accedi / Esci, and how to register the app.
+ * Everything read-only; the token stays in the Credential Manager.
+ */
+function msAccountRows(): HTMLElement {
+  const c = settings.integrationConfig;
+  const box = h("div", { class: "ms-account", style: "display:flex;flex-direction:column;gap:8px;padding-top:6px;border-top:1px solid var(--hairline)" });
+  const state = h("span", { class: "hint", text: t("Controllo…") });
+  const login = h("button", { class: "primary", text: t("Accedi con Microsoft") }) as HTMLButtonElement;
+  const logout = h("button", { text: t("Esci") }) as HTMLButtonElement;
+  const note = h("div", { class: "hint note" });
+
+  const refresh = async () => {
+    const s = await Bridge.msStatus();
+    if (!s) { state.textContent = t("Disponibile nell'app installata."); login.disabled = true; logout.style.display = "none"; return; }
+    state.textContent = s.signedIn
+      ? t("Collegato: {who}", { who: s.account ?? t("account Microsoft") })
+      : s.configured ? t("Non collegato") : t("Manca l'ID applicazione");
+    login.style.display = s.signedIn ? "none" : "";
+    login.disabled = !s.configured;
+    logout.style.display = s.signedIn ? "" : "none";
+    note.textContent = s.error ?? "";
+  };
+  login.addEventListener("click", async () => {
+    login.disabled = true;
+    note.textContent = t("Completa l'accesso nel browser che si è aperto…");
+    try {
+      await save();
+      const who = await Bridge.msLogin();
+      note.textContent = t("Collegato: {who}", { who });
+    } catch (e) {
+      note.textContent = String(e).replace(/^Error:\s*/, "");
+    }
+    await refresh();
+  });
+  logout.addEventListener("click", async () => {
+    await Bridge.msLogout().catch(() => undefined);
+    await refresh();
+  });
+
+  const input = (value: string, placeholder: string, apply: (v: string) => void) => {
+    const el = h("input", { type: "text", value, placeholder, spellcheck: "false", style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
+    el.addEventListener("change", () => { apply(el.value.trim()); void save().then(refresh); });
+    return el;
+  };
+  box.append(
+    h("div", { class: "row" }, h("b", { text: t("Account Microsoft (API)") }), state),
+    h("div", { class: "hint", text: t("Con l'accesso, Outlook legge posta e calendario da Microsoft 365 (anche con il nuovo Outlook e a Outlook chiuso) e Teams mostra il tuo stato e le riunioni di oggi con «Partecipa». Solo lettura; il token resta in Gestione credenziali.") }),
+    h("div", { class: "row" }, h("label", { text: t("ID applicazione") }),
+      input(c.msClientId ?? "", "00000000-0000-0000-0000-000000000000", (v) => { c.msClientId = v; })),
+    h("div", { class: "row" }, h("label", { text: t("Tenant") }),
+      input(c.msTenant ?? "", t("organizations (lavoro) · consumers (personale) · common · dominio o ID"), (v) => { c.msTenant = v; })),
+    h("div", { class: "row" }, h("label", { text: "" }), login, logout),
+    note,
+    h("details", {},
+      h("summary", { class: "hint", text: t("Come si registra l'app (una volta, gratis)") }),
+      h("ol", { class: "hint", style: "margin:6px 0 0 18px;display:flex;flex-direction:column;gap:4px" },
+        h("li", { text: t("portal.azure.com o entra.microsoft.com → Microsoft Entra ID → Registrazioni app → Nuova registrazione.") }),
+        h("li", { text: t("Nome: EasyIsland. Account: solo questa organizzazione, oppure anche account personali se usi Outlook.com.") }),
+        h("li", { text: t("URI di reindirizzamento: piattaforma «Client pubblico/nativo (dispositivi mobili e desktop)», indirizzo http://localhost.") }),
+        h("li", { text: t("Autorizzazioni API → Microsoft Graph → Autorizzazioni delegate: User.Read, Mail.Read, Calendars.Read, Presence.Read, offline_access.") }),
+        h("li", { text: t("Copia qui l'«ID applicazione (client)» e, per un account di lavoro, l'«ID directory (tenant)» o lascia organizations.") }),
+        h("li", { text: t("Se l'azienda blocca il consenso degli utenti, l'IT deve approvare l'app: EasyIsland non lo aggira.") }))),
+  );
+  void refresh();
+  return box;
+}
+
 function rdmRows(): HTMLElement {
   const box = h("div", { style: "display:flex;flex-direction:column;gap:8px" });
   const c = settings.integrationConfig;
@@ -1308,7 +1379,7 @@ function ringtoneRow(): HTMLElement {
 
 /** Impostazioni → Integrazioni: the groups, in this order; anything else goes last. */
 const INTEGRATION_GROUPS: [string, string[]][] = [
-  [t("Lavoro e clienti"), ["integration_3cx", "integration_zammad", "integration_rdm", "integration_outlook", "integration_calcom", "integration_notion"]],
+  [t("Lavoro e clienti"), ["integration_3cx", "integration_teams", "integration_zammad", "integration_rdm", "integration_outlook", "integration_calcom", "integration_notion"]],
   [t("Sviluppo e servizi"), ["integration_github", "integration_vercel", "integration_n8n", "integration_stripe", "integration_resend"]],
   [t("Questo PC"), ["integration_system", "integration_security", "integration_network", "integration_weather", "integration_claude_usage", "integration_clipboard", "integration_media"]],
 ];
@@ -1809,7 +1880,21 @@ function placementSection(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: t("Barra dell'app in uso") }),
       toggle(settings.appBar !== false, (v) => { settings.appBar = v; commit(); }),
-      h("span", { class: "hint note", text: t("quando non c'è altro da mostrare, accanto al personaggio chiuso compaiono le tue azioni rapide del programma che stai usando (Azioni rapide → «Nella barra con») e i suggerimenti ⚡ per Outlook, Excel, Word, il browser…") }),
+      h("span", { class: "hint note", text: t("accanto al personaggio chiuso, le tue azioni rapide del programma che stai usando (Azioni rapide → «Nella barra con»). Nulla di predefinito: senza azioni per quel programma non compare. Ha la precedenza sulla riga dell'agente al lavoro, non su permessi e chiamate.") }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "" }),
+      h("span", { class: "hint", text: t("Pulsanti") }),
+      select<Settings["appBarLook"]>([["both", t("Icona e testo")], ["icon", t("Solo icona")], ["text", t("Solo testo")]],
+        settings.appBarLook ?? "both", (v) => { settings.appBarLook = v; commit(); }),
+      h("span", { class: "hint", text: t("al massimo") }),
+      (() => {
+        const n = h("input", { type: "number", min: "1", max: "12", value: String(settings.appBarMax || 6), style: "width:64px" }) as HTMLInputElement;
+        n.addEventListener("change", () => { settings.appBarMax = Math.min(12, Math.max(1, Math.round(Number(n.value)) || 6)); n.value = String(settings.appBarMax); commit(); });
+        return n;
+      })(),
+      h("span", { class: "hint", text: t("Nome del programma") }),
+      toggle(settings.appBarName !== false, (v) => { settings.appBarName = v; commit(); }),
     ),
     h("div", { class: "row" },
       h("label", { text: t("Segue il mouse") }),
@@ -1908,7 +1993,7 @@ function profileChip(): HTMLElement {
 const PROFILE_KEYS = [
   "activeIntegrations", "anchorV", "anchorH", "offsetX", "offsetY", "glueEdges", "overTaskbar",
   "closeButton", "followCursorCompact", "presenceMeeting", "presenceRemote", "presenceApps", "presenceMode", "iconStyle", "iconSize", "hoverStyle",
-  "hoverSize", "compactStrip", "appBar", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
+  "hoverSize", "compactStrip", "appBar", "appBarLook", "appBarMax", "appBarName", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
   "soundVolume", "autoCloseInterval", "theme", "notify", "reactions", "actions", "widgets", "mcpServers",
 ] as const;
 
@@ -2304,7 +2389,7 @@ function actionsSection(): HTMLElement {
       color.addEventListener("change", () => { a.color = color.value; touch(); draw(); });
 
       const kind = select<QuickAction["kind"]>(
-        [["prompt", t("Chiedi alla chat")], ["script", "Script"], ["app", t("Programma / cartella")], ["url", "Link"]],
+        [["prompt", t("Chiedi alla chat")], ["keys", t("Tasti nel programma in uso")], ["script", "Script"], ["app", t("Programma / cartella")], ["url", "Link"]],
         a.kind,
         (v) => { a.kind = v; touch(); draw(); },
       );
@@ -2344,6 +2429,41 @@ function actionsSection(): HTMLElement {
           card.append(h("div", { class: "row" }, h("label", { text: t("Link") }),
             field(a.target, "https://…", (v) => { a.target = v.trim(); })));
           break;
+        case "keys": {
+          // The sequence as text, plus a recorder that appends the combination pressed.
+          const keysField = field(a.keys ?? "", t("es. Ctrl+T  ·  Ctrl+L, \"https://…\", Invio  ·  F5"), (v) => { a.keys = v; }) as HTMLInputElement;
+          const rec = h("button", { text: t("● Registra"), title: t("Premi una combinazione: si aggiunge in fondo") });
+          rec.addEventListener("click", () => {
+            rec.textContent = t("Premi i tasti…");
+            void Bridge.hotkeysSuspend(true);
+            const done = () => {
+              window.removeEventListener("keydown", onKey, true);
+              rec.textContent = t("● Registra");
+              void Bridge.hotkeysSuspend(false);
+            };
+            const onKey = (e: KeyboardEvent) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const key = hotkeyKeyName(e.code) ?? ({
+                ArrowUp: "Su", ArrowDown: "Giù", ArrowLeft: "Sinistra", ArrowRight: "Destra", Backspace: "Backspace",
+                Delete: "Canc", Home: "Inizio", End: "Fine", PageUp: "PagSu", PageDown: "PagGiù", Insert: "Ins",
+              } as Record<string, string>)[e.code];
+              if (!key) return; // a modifier alone: wait for the key
+              const combo = [...hotkeyModifiers(e), key].join("+");
+              const now = keysField.value.trim();
+              keysField.value = now ? `${now}, ${combo}` : combo;
+              a.keys = keysField.value;
+              touch();
+              done();
+            };
+            window.addEventListener("keydown", onKey, true);
+          });
+          card.append(
+            h("div", { class: "row" }, h("label", { text: t("Tasti") }), keysField, rec),
+            h("div", { class: "row" }, h("label", { text: "" }), h("span", { class: "hint note", text: t("Separati da virgole: combinazioni (Ctrl, Alt, Maiusc, Win + un tasto), tasti come Invio, Esc, F5, Su, Giù, Tab; il testo tra virgolette viene scritto così com'è; «attendi 300» fa una pausa in millisecondi. Vanno al programma in primo piano.") })),
+          );
+          break;
+        }
         case "app":
           card.append(
             h("div", { class: "row" }, h("label", { text: t("Programma o cartella") }),
@@ -2373,6 +2493,7 @@ function actionsSection(): HTMLElement {
                 [
                   ["replace", t("Testo selezionato: lo sostituisce")],
                   ["selection", t("Testo selezionato: risposta in chat")],
+                  ["page", t("Tutto il testo della finestra in uso (pagina, mail, documento)")],
                   ["clipboard", t("Testo copiato negli appunti")],
                   ["file", t("File rilasciato sull'isola")],
                   ["none", t("Niente (solo la domanda)")],
@@ -2397,13 +2518,34 @@ function actionsSection(): HTMLElement {
       }
       card.append(h("div", { class: "row" }, h("label", { text: t("Scorciatoia") }),
         hotkeyInput(a.hotkey, (v) => { a.hotkey = v; touch(); })));
-      card.append(h("div", { class: "row" }, h("label", { text: t("Nella barra con") }),
-        field(a.apps ?? "", t("programmi, es. outlook.exe, excel.exe"), (v) => {
-          const apps = v.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean).join(", ");
-          if (apps) a.apps = apps;
-          else delete a.apps;
-        }),
-        h("span", { class: "hint note", text: t("accanto al personaggio chiuso, quando usi uno di questi programmi") })));
+      // ── The bar of the app in use ──
+      const appsField = field(a.apps ?? "", t("programmi, es. chrome.exe, msedge.exe — * = tutti"), (v) => {
+        const apps = v.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean).join(", ");
+        if (apps) a.apps = apps;
+        else delete a.apps;
+      }) as HTMLInputElement;
+      // The program in front right now, one click away (not the settings window itself).
+      const addFront = h("button", { text: t("+ Programma in uso"), title: t("Aggiunge il programma che era in primo piano prima delle Impostazioni") });
+      addFront.addEventListener("click", async () => {
+        const fg = await Bridge.foregroundApp();
+        if (!fg?.exe || fg.exe === "easyisland.exe") return;
+        const list = (a.apps ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+        if (!list.includes(fg.exe)) list.push(fg.exe);
+        a.apps = list.join(", ");
+        appsField.value = a.apps;
+        touch();
+      });
+      card.append(
+        h("div", { class: "row" }, h("label", { text: t("Nella barra con") }), appsField, addFront),
+        h("div", { class: "row" }, h("label", { text: "" }),
+          h("span", { class: "hint", text: t("Solo nella barra") }),
+          toggle(a.barOnly === true, (v) => { if (v) a.barOnly = true; else delete a.barOnly; touch(); }),
+          h("span", { class: "hint", text: t("Aspetto") }),
+          select<"" | "both" | "icon" | "text">(
+            [["", t("Come la barra")], ["both", t("Icona e testo")], ["icon", t("Solo icona")], ["text", t("Solo testo")]],
+            a.barLook ?? "", (v) => { if (v) a.barLook = v; else delete a.barLook; touch(); }),
+          h("span", { class: "hint note", text: t("accanto al personaggio chiuso, quando usi uno di questi programmi; «Solo nella barra» la toglie dalla scheda ⚡, dalla ricerca e dal menu della selezione") })),
+      );
       if (!(a.kind === "prompt" && a.input === "file")) {
         // Icon from the same grid as the actions (no emoji keyboard needed), and a
         // name: actions with the same name share the folder, and its icon.
@@ -2531,6 +2673,7 @@ const TRIGGER_KINDS: [AutomationTrigger["kind"], string][] = [
   ["call", t("Quando arriva una chiamata (3CX)")],
   ["agent", t("Quando un agente finisce o chiede un permesso")],
   ["server", t("Quando parte un server di sviluppo")],
+  ["teams", t("Quando inizia o finisce una riunione Teams")],
 ];
 
 const STEP_KINDS: [AutomationStep["kind"], string][] = [
@@ -2696,6 +2839,7 @@ function automationsSection(): HTMLElement {
           trg.kind = v;
           if (v === "agent" && !["stop", "permission", "any"].includes(trg.when)) trg.when = "stop";
           if (v === "integration" && !["problem", "event", "any"].includes(trg.when)) trg.when = "problem";
+          if (v === "teams" && !["start", "end"].includes(trg.when)) trg.when = "start";
           commit();
           draw();
         }));
@@ -2746,6 +2890,12 @@ function automationsSection(): HTMLElement {
           break;
         case "server":
           card.append(filterRow(t("programma o porta, es. node, 5173")));
+          break;
+        case "teams":
+          card.append(h("div", { class: "row" }, h("label", { text: t("Quando") }),
+            select<AutomationTrigger["when"]>([["start", t("inizia")], ["end", t("finisce")]],
+              trg.when === "end" ? "end" : "start", (v) => { trg.when = v; commit(); }),
+            h("span", { class: "hint note", text: t("serve l'integrazione Microsoft Teams accesa") })));
           break;
         case "integration": {
           const opts = sources();
@@ -3319,7 +3469,7 @@ function notifySection(): HTMLElement {
 // ── Reazioni del personaggio ──────────────────────────────────────────────────
 
 /** Pills that never complain (or have their own way to show up, like a 3CX call). */
-const NO_REACTION = new Set(["integration_claude", "integration_clipboard", "integration_media", "integration_weather", "integration_3cx", "integration_rdm"]);
+const NO_REACTION = new Set(["integration_claude", "integration_clipboard", "integration_media", "integration_weather", "integration_3cx", "integration_rdm", "integration_teams"]);
 
 /**
  * What the character does in each situation: show itself and sound, change

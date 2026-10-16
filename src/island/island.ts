@@ -1332,6 +1332,11 @@ ${note}` : text };
           await Bridge.actionOpenApp(a.target, a.args);
           this.collapse();
           break;
+        case "keys":
+          // Back to the program first: the keys go to the window that was in front.
+          if (State.mode === "expanded" && !State.keepOpen) this.collapse();
+          await Bridge.actionSendKeys(a.keys ?? "");
+          break;
         case "script":
           State.run = {
             action: a, runId: `r${Date.now().toString(36)}`, status: "confirm",
@@ -1354,6 +1359,15 @@ ${note}` : text };
           if (a.input === "selection") {
             if (a.output === "replace") await this.rewriteSelection(a.name, a.prompt);
             else await this.askAboutSelection(a.prompt);
+            return;
+          }
+          if (a.input === "page") {
+            const r = await Bridge.captureWindowText();
+            if (!("text" in r)) {
+              this.note(this.selectionProblem(r.error));
+              return;
+            }
+            this.startChat(a.prompt, { label: t("Testo della finestra"), text: r.text }, false);
             return;
           }
           let context: { label: string; text: string } | null = null;

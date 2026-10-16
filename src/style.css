@@ -4955,6 +4955,9 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 .strip-btn.with-icon { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px 0 8px; }
 .strip-icon { display: inline-flex; font-size: 13px; line-height: 1; }
 .strip-label { max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+.strip-btn.icon-only { width: 30px; padding: 0; justify-content: center; }
+/* An action's own colour: a tint on its button. */
+#strip[data-tone="app"] .strip-btn.plain { background: color-mix(in srgb, var(--qa, #2b2d31) 22%, #2b2d31); }
 #strip[data-tone="app"] .strip-title { color: var(--dim); font-weight: 500; }
 .strip-btn.light { background: #f5f6f8; color: #111214; }
 .strip-btn.green { background: #22c55e; color: #052e16; }
@@ -5104,3 +5107,29 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   margin: 4px 6px;
   background: rgba(255, 255, 255, 0.07);
 }
+
+/* Teams card (src/views/teams.ts). */
+.teams-body { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px 2px; }
+.teams-status { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.teams-dot { width: 8px; height: 8px; border-radius: 50%; background: #5c6069; }
+.teams-dot.on { background: var(--c, #5B5FC7); background: #5B5FC7; }
+.teams-dot.live { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2); }
+.teams-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.teams-btn {
+  height: 30px; padding: 0 12px; border: 0; border-radius: 15px;
+  font: 600 12px var(--font); cursor: default;
+}
+.teams-btn.plain { background: #2b2d31; color: #f5f6f8; }
+.teams-btn.light { background: #5B5FC7; color: #fff; }
+.teams-btn.red { background: #f4505e; color: #2a0508; }
+.teams-btn:hover { filter: brightness(1.12); }
+.teams-hint { font-size: 11px; color: var(--dim); }
+
+/* Teams through Microsoft Graph (src/views/teams.ts graphPart). */
+.teams-graph { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.teams-meeting { display: flex; align-items: center; gap: 8px; }
+.teams-meeting .int-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.teams-meeting .teams-btn { height: 26px; }
+.teams-dot.presence-available, .teams-dot.presence-availableidle { background: #22c55e; }
+.teams-dot.presence-busy, .teams-dot.presence-busyidle, .teams-dot.presence-donotdisturb { background: #f4505e; }
+.teams-dot.presence-away, .teams-dot.presence-berightback { background: #f5a524; }

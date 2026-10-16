@@ -161,6 +161,7 @@ function describeAutomation(input: Record<string, unknown>): string {
       : str(trig, "when") === "any" ? t("quando un agente finisce o aspetta un permesso") : t("quando un agente ha finito"),
     server: t("quando parte un server di sviluppo"),
     back: t("quando torni dopo {n} minuti di assenza", { n: Number(trig.minutes ?? 15) || 15 }),
+    teams: str(trig, "when") === "end" ? t("quando finisce una riunione Teams") : t("quando inizia una riunione Teams"),
   };
   const filter = str(trig, "filter");
   const conds = (Array.isArray(input.conditions) ? input.conditions : []) as Record<string, unknown>[];

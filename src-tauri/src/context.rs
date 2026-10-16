@@ -273,6 +273,40 @@ pub fn selection() -> Result<String, &'static str> {
     Ok(text)
 }
 
+/// A "Tasti" action (keys.rs): the sequence to the user's window. Err = what is
+/// wrong with it, or a reason code like `selection`'s.
+pub fn send_keys(spec: &str) -> Result<(), String> {
+    let steps = crate::keys::parse(spec)?;
+    let hwnd = target().ok_or("no-window")?;
+    focus(hwnd)?;
+    // The click's own modifiers (none, usually) must be up, or Ctrl+T becomes Ctrl+Shift+T.
+    wait_keys_released()?;
+    crate::keys::play(&steps);
+    Ok(())
+}
+
+/// A key sequence to a given window (Teams' meeting window, teams.rs).
+pub fn send_keys_to(hwnd: HWND, spec: &str) -> Result<(), String> {
+    let steps = crate::keys::parse(spec)?;
+    focus(hwnd)?;
+    wait_keys_released()?;
+    crate::keys::play(&steps);
+    Ok(())
+}
+
+/// All the text of the user's window (a web page, a mail, a document): Ctrl+A,
+/// Ctrl+C, the clipboard put back. For "Chiedi alla chat" on "Tutta la finestra".
+/// Errors are `selection`'s reason codes.
+pub fn window_text() -> Result<String, &'static str> {
+    let hwnd = target().ok_or("no-window")?;
+    focus(hwnd)?;
+    wait_keys_released()?;
+    ctrl(b'A');
+    std::thread::sleep(Duration::from_millis(120));
+    let (text, _) = copy_selected()?;
+    Ok(text)
+}
+
 /// Same text for "Sostituisci": line ends and the spaces around do not count
 /// (Word adds a paragraph mark, the browser a newline).
 fn same_text(a: &str, b: &str) -> bool {

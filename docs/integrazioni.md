@@ -68,7 +68,7 @@ Un servizio o programma che di solito c'è una volta sola è un'**integrazione**
 - L'analisi completa del protocollo è in `archivio/HANDOFF-fino-al-6-ottobre.md`, sezione 7.
 
 ## Azioni rapide (`actions.rs`, `actionsSection`)
-- Tipi: link, programmi, script, prompt su appunti, testo selezionato o file. Le azioni sui file rilasciati non hanno cartella.
+- Tipi: link, programmi, script, **tasti** nel programma in uso (`keys.rs`: «Ctrl+L, "https://…", Invio»; registratore nell'editor), prompt su appunti, testo selezionato, **tutto il testo della finestra** o file. Ogni azione può stare nella barra dell'app in uso («Nella barra con», «Solo nella barra», aspetto: `docs/architettura.md`). Anche le automazioni e lo strumento `run_quick_action` della chat eseguono le azioni di tipo tasti. Le azioni sui file rilasciati non hanno cartella.
 - Un prompt sul testo selezionato ha `output`: «chat» (predefinito) o «replace», che riscrive la selezione con l'anteprima di «Sostituisci» (`docs/strumenti.md`). Nell'editor è una scelta sola, «Lavora su» (`PromptUse`), invece di due menu. Queste azioni sono le voci del menu di `Win+Alt+A`.
 - `open_app` toglie le virgolette, espande `%VARIABILI%` e, se CreateProcess fallisce, usa `ShellExecuteExW` con `SEE_MASK_FLAG_NO_UI`. Così funzionano App Paths, `shell:` e `ms-settings:`, e la richiesta di elevazione. Un nome sbagliato diventa un errore nell'isola, non una finestra di Windows.
 - Cartelle: `QuickAction.folder` = "i:<icona> Nome", "🖥 Nome" o "Nome" (`folderLook`/`folderValue` in `state.ts`). Oltre 8 azioni compare «Cerca un'azione».
@@ -93,6 +93,23 @@ Rifatta il 15 ottobre 2026 su richiesta di Edoardo («troppo confusionaria»).
 - **Una riga per integrazione:** interruttore, colore, nome, stato (Spenta, Attiva, oppure «Manca: chiave» quando un campo di Gestione credenziali non c'è) e la prima frase della spiegazione.
 - **Dettagli:** un clic apre spiegazione, campi, opzioni, icona e colore, una integrazione alla volta (`openIntegration`).
 - **Sopra l'elenco:** la ricerca e «Solo attive». In fondo, «Menu dell'isola» con il blocco dello spostamento.
+
+## Account Microsoft, API (`msgraph.rs`) — predisposizione
+Fatta il 16 ottobre 2026 su richiesta di Edoardo; da provare con una registrazione vera (`docs/prove-dal-vivo.md`).
+- **Accesso:** blocco «Account Microsoft (API)» nelle righe di Outlook e Teams (`msAccountRows`): ID applicazione (pubblico) e tenant in `integrationConfig.msClientId` / `msTenant` (vuoto = organizations), «Accedi con Microsoft». Codice di autorizzazione con PKCE (SHA-256 e numeri casuali da BCrypt di Windows, nessuna dipendenza nuova), ritorno su `http://localhost:<porta>` a un ascoltatore che accetta solo la risposta con lo `state` giusto, 5 minuti al massimo. Token di aggiornamento in Gestione credenziali (`msgraph-refresh`), quello di accesso solo in memoria. «Esci» li dimentica.
+- **Permessi delegati, sola lettura:** User.Read, Mail.Read, Calendars.Read, Presence.Read, offline_access (`SCOPES`). Se l'azienda chiede l'approvazione dell'amministratore lo diciamo e basta: mai aggirarlo con l'ID di un'altra app.
+- **Outlook:** con l'accesso il controllo usa Graph invece di COM (`outlook::graph_probe`): mail non lette con le ultime tre (mittente, oggetto) e appuntamenti fino a domani, orari locali con `Prefer: outlook.timezone` (nome del fuso di Windows). Vale anche per il nuovo Outlook e a Outlook chiuso.
+- **Teams:** ogni minuto, con l'integrazione accesa, stato (`/me/presence`) e riunioni online di oggi e domani con «Partecipa» (`teams::join`, solo link Teams validi) nella card (`graphPart`). Evento `msgraph-teams`.
+- **Rete:** solo login.microsoftonline.com e graph.microsoft.com, solo dopo l'accesso, mai in pausa.
+- **Da fare dopo:** avviso di mail nuova, chat non lette (`Chat.Read`), cambiare stato, «quando» delle automazioni sulle mail e prima delle riunioni.
+
+## Microsoft Teams (`teams.rs`, `src/views/teams.ts`)
+Chiesta da Edoardo il 16 ottobre 2026, «entrambe, a passi»: prima la parte locale (fatta), poi Microsoft Graph (`docs/idee.md` → Account Microsoft).
+- **Senza account.** Teams aperto = `ms-teams.exe` o `teams.exe`; in riunione = Teams usa il microfono o la webcam (registro, come `presence.rs`). Controllo ogni 3 s solo con l'integrazione accesa, e l'isola riceve un aggiornamento solo quando qualcosa cambia. Non si sa se il microfono è muto: Teams lo tiene aperto.
+- **Comandi** (card, e nella striscia accanto al personaggio chiuso Microfono, Video, Esci): sono le scorciatoie di Teams (Ctrl+Maiusc+M, O, K, E, H) mandate alla finestra di Teams più in alto (`teams_window`, `context::send_keys_to`), mai alla finestra in uso. Se Microsoft cambia le scorciatoie vanno aggiornate lì.
+- **Partecipa dal link copiato:** solo link `https://` di teams.microsoft.com, teams.live.com, teams.cloud.microsoft (`meeting_link`); quelli di teams.microsoft.com vanno all'app con `msteams:/…` tramite ShellExecute (`actions::shell_open`: `open_app` espanderebbe i `%3a` come variabili), gli altri dal browser.
+- **Automazioni:** «Quando inizia o finisce una riunione Teams» (`on_event("teams", …, "start" | "end")`).
+- La striscia mette la riunione dopo le chiamate 3CX e prima della barra dell'app in uso. Scena `teams` (`&call`).
 
 ## Remote Desktop Manager (`rdm.rs`, `src/views/rdm.ts`)
 Preparata il 15 ottobre 2026, senza RDM su questo PC: da provare dove c'è (`docs/prove-dal-vivo.md`). Edoardo vuole usare RDM da EasyIsland per tutto, anche con un database che non conosce ancora e condiviso con i colleghi.

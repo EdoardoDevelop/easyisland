@@ -285,6 +285,7 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_clipboard", t("Appunti"), "#A78BFA", "n8n"),
   task("integration_media", t("Media"), "#1ED760", "n8n"),
   task("integration_3cx", "3CX", "#0596D4", "n8n"),
+  task("integration_teams", "Teams", "#5B5FC7", "n8n"),
 ];
 
 /** "Apri" on an integration card: its web dashboard… */
@@ -300,7 +301,7 @@ export const OPEN_URLS: Record<string, string> = {
 export const OPENED_BY_APP = new Set([
   "integration_n8n", "integration_zammad", "integration_system", "integration_security",
   "integration_network", "integration_clipboard", "integration_weather", "integration_outlook", "integration_3cx",
-  "integration_rdm",
+  "integration_rdm", "integration_teams",
 ]);
 /** …and nothing for the others: no "Apri" button there. */
 export function canOpen(t: AgentTask | null): boolean {
@@ -316,7 +317,7 @@ export const TOGGLEABLE_INTEGRATION_IDS = [
   "integration_resend", "integration_n8n", "integration_vercel", "integration_github",
   "integration_notion", "integration_calcom", "integration_stripe",
   ...Object.keys(PROBE_INTEGRATIONS),
-  "integration_clipboard", "integration_media", "integration_3cx", "integration_rdm",
+  "integration_clipboard", "integration_media", "integration_3cx", "integration_rdm", "integration_teams",
 ];
 
 /** What an integration poller last reported. */
@@ -426,8 +427,14 @@ export interface Settings {
   hoverSize: number;
   /** The strip beside the closed island's character (status, quick replies): its side, or off. */
   compactStrip: "right" | "left" | "off";
-  /** With nothing else to show, the strip holds the actions of the app in use (a "Touch Bar"). */
+  /** The strip holds the user's actions for the app in use (a "Touch Bar"); only theirs, nothing by default. */
   appBar: boolean;
+  /** How its buttons look, unless an action says otherwise. */
+  appBarLook: "both" | "icon" | "text";
+  /** At most this many buttons. */
+  appBarMax: number;
+  /** The program's name before the buttons. */
+  appBarName: boolean;
   /** Seconds of hover before the island opens; 0 = only on click. */
   openDelay: number;
   /** Seconds the hover icon / bar stays up after the mouse leaves or an event. */
@@ -532,6 +539,9 @@ export interface IntegrationConfig {
   /** Notion: today's tasks in the morning recap. */
   notionMorning?: boolean;
   /** Remote Desktop Manager: the workspace read (its id; "" = RDM's current one). */
+  /** Microsoft account (msgraph.rs): app registration id (public) and tenant. */
+  msClientId?: string;
+  msTenant?: string;
   rdmDataSource?: string;
   /** Remote Desktop Manager: connections kept in the card, and the last opened (rdm.rs). */
   rdmPins?: RdmRef[];
@@ -577,7 +587,7 @@ export interface QuickAction {
   /** An emoji or a short text shown on the button. */
   icon: string;
   color: string;
-  kind: "url" | "app" | "script" | "prompt";
+  kind: "url" | "app" | "script" | "prompt" | "keys";
   /** url: the link · app: program, folder or file. */
   target: string;
   /** app: arguments, quotes group words. */
@@ -587,16 +597,23 @@ export interface QuickAction {
   shell: "powershell" | "cmd";
   /** prompt: what Claude is asked. */
   prompt: string;
-  /** prompt: what the prompt is applied to ("selection": the text selected in the app in front). */
-  input: "clipboard" | "selection" | "file" | "none";
+  /** prompt: what the prompt is applied to ("selection": the text selected in the
+   * app in front; "page": all the text of its window, Ctrl+A). */
+  input: "clipboard" | "selection" | "file" | "none" | "page";
   /** prompt on "selection": the answer goes to the chat (default) or takes the selection's place, after a preview. */
   output?: "chat" | "replace";
   /** script: show the commands and wait for "Esegui". */
   confirm: boolean;
   /** Optional global shortcut, e.g. "Ctrl+Alt+E". */
   hotkey: string;
-  /** Programs it belongs to, "outlook.exe, excel.exe": its button in the bar of the app in use (strip.ts). */
+  /** Programs it belongs to, "outlook.exe, excel.exe" ("*" = any): its button in the bar of the app in use (strip.ts). */
   apps?: string;
+  /** keys: the sequence sent to the program in front (src-tauri/src/keys.rs). */
+  keys?: string;
+  /** Only in the bar of the app in use: not in the ⚡ tab, the search or the selection menu. */
+  barOnly?: boolean;
+  /** Its button in the bar: "" = the bar's choice (`appBarLook`). */
+  barLook?: "" | "both" | "icon" | "text";
   /** Folder in the ⚡ tab ("" or missing: top level): "i:<icon> Name", "🖥 Name" or "Name". */
   folder?: string;
 }
@@ -621,7 +638,7 @@ export function folderValue(icon: string, name: string): string {
 /** When an automation starts (src-tauri/src/automations.rs). */
 export interface AutomationTrigger {
   kind: "time" | "startup" | "unlock" | "wifi" | "app" | "foreground" | "drive" | "folder" | "download" | "integration"
-    | "call" | "agent" | "server" | "back";
+    | "call" | "agent" | "server" | "back" | "teams";
   /** time: "HH:MM". */
   time: string;
   /** time: 1 = Monday … 7 = Sunday; empty = every day. */
@@ -635,7 +652,7 @@ export interface AutomationTrigger {
   /** integration: id of the integration or widget. */
   source: string;
   /** integration: problem | event | any · agent: stop | permission | any. */
-  when: "problem" | "event" | "any" | "stop" | "permission";
+  when: "problem" | "event" | "any" | "stop" | "permission" | "start" | "end";
   /** Comma-separated: ".pdf" = extension, other words = contained (automations.rs `matches`). */
   filter?: string;
   /** back: away for at least these minutes. */
@@ -667,6 +684,15 @@ export interface AutomationStep {
   target: string;
   args: string;
   url: string;
+}
+
+/** Teams through Microsoft Graph: status and today's online meetings. */
+export interface MsTeams {
+  signedIn: boolean;
+  availability?: string;
+  activity?: string;
+  meetings?: { subject: string; start: string; end: string; allDay: boolean; joinUrl: string }[];
+  error?: string | null;
 }
 
 /** "Quando… (se…) allora…" — Impostazioni → Automazioni. Belongs to the PC. */
@@ -855,6 +881,9 @@ export const DEFAULT_SETTINGS: Settings = {
   hoverSize: 40,
   compactStrip: "right",
   appBar: true,
+  appBarLook: "both",
+  appBarMax: 6,
+  appBarName: true,
   openDelay: 0.6,
   revealDuration: 8,
   quietFullscreen: true,
@@ -909,6 +938,8 @@ class AppState {
 
   /** The app in front when the island last opened (src/island/context.ts). */
   foreground: { exe: string; title: string } | null = null;
+  /** Microsoft Graph for the Teams card (msgraph.rs `teams_snapshot`), once signed in. */
+  msTeams: MsTeams | null = null;
 
   tasks: AgentTask[] = [];
   focusId: string | null = null;

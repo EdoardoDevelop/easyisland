@@ -23,10 +23,12 @@ mod hooks;
 mod hotkeys;
 mod integrations;
 mod island;
+mod keys;
 mod legacy;
 mod log;
 mod mcp_setup;
 mod media;
+mod msgraph;
 mod moments;
 mod netconfig;
 mod notion;
@@ -54,6 +56,7 @@ mod screenshot;
 mod session_reply;
 mod secrets;
 mod settings;
+mod teams;
 mod i18n;
 mod webview_profile;
 mod recap;
@@ -1322,6 +1325,7 @@ fn open_integration(id: String) -> bool {
         "integration_weather" => shell("msnweather:"),
         "integration_outlook" => start("outlook.exe"),
         "integration_rdm" => rdm::open_app(),
+        "integration_teams" => teams::open(),
         "integration_3cx" => match secrets::get("3cx-url").as_deref().and_then(threecx::base_url) {
             Some(url) => {
                 open_url_now(&format!("{url}/webclient"));
@@ -1340,6 +1344,7 @@ async fn refresh_integration(app: AppHandle, id: String) {
         clipboard::ID => clipboard::publish(&app),
         threecx::ID => threecx::publish_now(&app),
         media::ID => media::refresh(),
+        teams::ID => teams::refresh(&app),
         _ => integrations::poll_once(app, &id).await,
     }
 }
@@ -1397,6 +1402,67 @@ fn process_alive(pid: u32, exe: String) -> bool {
 #[tauri::command]
 async fn capture_selection() -> Result<String, String> {
     match tauri::async_runtime::spawn_blocking(context::selection).await {
+        Ok(r) => r.map_err(String::from),
+        Err(_) => Err("empty".into()),
+    }
+}
+
+/// Microsoft account: configured, signed in, the account's name.
+#[tauri::command]
+async fn ms_status() -> msgraph::Status {
+    let mut st = msgraph::status();
+    if st.signed_in && st.account.is_none() {
+        st.account = msgraph::account().await;
+        st.error = msgraph::status().error;
+    }
+    st
+}
+
+/// "Accedi con Microsoft": the browser, then back here (msgraph.rs).
+#[tauri::command]
+async fn ms_login(app: AppHandle) -> Result<String, String> {
+    msgraph::login(app).await
+}
+
+#[tauri::command]
+fn ms_logout() -> Result<(), String> {
+    msgraph::logout()
+}
+
+/// The Teams card asks right away instead of waiting for the next minute.
+#[tauri::command]
+async fn ms_teams_snapshot() -> serde_json::Value {
+    msgraph::teams_snapshot().await
+}
+
+/// The Teams card and strip: a meeting command ("mute", "video", "hand", "share", "leave", "open").
+#[tauri::command]
+async fn teams_action(kind: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || teams::action(&kind)).await.map_err(|e| e.to_string())?
+}
+
+/// "Partecipa" on a meeting of the Teams card.
+#[tauri::command]
+fn teams_join(url: String) -> Result<(), String> {
+    teams::join(&url)
+}
+
+/// "Partecipa dal link copiato".
+#[tauri::command]
+fn teams_join_clipboard() -> Result<(), String> {
+    teams::join_from_clipboard()
+}
+
+/// A "Tasti" quick action: the key sequence to the app in front (keys.rs).
+#[tauri::command]
+async fn action_send_keys(keys: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || context::send_keys(&keys)).await.map_err(|e| e.to_string())?
+}
+
+/// All the text of the window in front (Ctrl+A, Ctrl+C); errors as `capture_selection`.
+#[tauri::command]
+async fn capture_window_text() -> Result<String, String> {
+    match tauri::async_runtime::spawn_blocking(context::window_text).await {
         Ok(r) => r.map_err(String::from),
         Err(_) => Err("empty".into()),
     }
@@ -1968,6 +2034,15 @@ pub fn run() {
             open_integration,
             open_settings_window,
             open_settings_at,
+            action_send_keys,
+            teams_action,
+            ms_status,
+            ms_login,
+            ms_logout,
+            ms_teams_snapshot,
+            teams_join_clipboard,
+            teams_join,
+            capture_window_text,
             set_paused,
         ])
         .setup(move |app| {
@@ -2005,6 +2080,8 @@ pub fn run() {
             context::spawn(handle.clone());
             media::spawn(handle.clone());
             threecx::spawn(handle.clone());
+            teams::spawn(handle.clone());
+            msgraph::spawn(handle.clone());
             automations::spawn(handle.clone());
             habits::spawn(handle.clone());
             opencode_agent::spawn(handle.clone());

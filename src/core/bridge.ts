@@ -248,6 +248,27 @@ export const Bridge = {
       return { error: String(err) };
     }
   },
+  /** Teams (teams.rs): a meeting command ("mute", "video", "hand", "share", "leave", "open"). Throws with the reason. */
+  teamsAction: (kind: string) => callOrThrow<void>("teams_action", { kind }),
+  /** Microsoft account (msgraph.rs). */
+  msStatus: () => call<{ configured: boolean; signedIn: boolean; account: string | null; error: string | null; redirect: string; scopes: string }>("ms_status"),
+  msLogin: () => callOrThrow<string>("ms_login"),
+  msLogout: () => callOrThrow<void>("ms_logout"),
+  msTeamsSnapshot: () => call<import("./state").MsTeams>("ms_teams_snapshot"),
+  teamsJoin: (url: string) => callOrThrow<void>("teams_join", { url }),
+  /** Teams: join the meeting link in the clipboard. Throws when there is none. */
+  teamsJoinClipboard: () => callOrThrow<void>("teams_join_clipboard"),
+  /** A "Tasti" action: the sequence to the app in front (keys.rs). Throws with the reason. */
+  actionSendKeys: (keys: string) => callOrThrow<void>("action_send_keys", { keys }),
+  /** All the text of the window in front (Ctrl+A, Ctrl+C), or why not (as captureSelection). */
+  captureWindowText: async (): Promise<{ text: string } | { error: string }> => {
+    if (!IS_TAURI) return { error: "empty" };
+    try {
+      return { text: await invoke<string>("capture_window_text") };
+    } catch (err) {
+      return { error: String(err) };
+    }
+  },
   /** Proposals from the habits (habits.rs). */
   habitsStats: () => call<{ events: number; days: number; since: number | null }>("habits_stats"),
   habitsSuggestions: () => call<import("./state").HabitSuggestion[]>("habits_suggestions"),

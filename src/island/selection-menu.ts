@@ -70,7 +70,7 @@ export interface SelectionMenu {
 
 /** The quick actions the menu offers: the prompts applied to the selected text. */
 export function selectionActions(): QuickAction[] {
-  return (State.settings.actions ?? []).filter((a) => a.kind === "prompt" && a.input === "selection");
+  return (State.settings.actions ?? []).filter((a) => a.kind === "prompt" && a.input === "selection" && !a.barOnly);
 }
 
 /** The first words of the selection, on one line, for the menu's heading. */

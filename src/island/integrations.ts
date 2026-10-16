@@ -4,6 +4,7 @@
 
 import { onEvent, Bridge, type IntegrationUpdate, type ThreecxCall, type ThreecxMessage } from "../core/bridge";
 import { THREECX, ringing, chatMessage, chatTyping, openChat } from "../views/threecx";
+import { TEAMS, teamsLine } from "../views/teams";
 import { Sound } from "../core/sound";
 import { startSoftphone, onSoftphone } from "../core/softphone";
 import { State, type WidgetStatus } from "../core/state";
@@ -27,6 +28,14 @@ export function registerIntegrationHandlers(island: Island) {
   void onEvent<IntegrationUpdate>("integration", (update) => handleIntegration(island, update));
   void onEvent<WidgetStatus>("widget-update", (r) => handleWidget(island, r)).then(() => catchUpWidgets(island));
   void onEvent<ThreecxCall>("threecx-call", (c) => incomingCall(island, c));
+  // Teams through Microsoft Graph: status and today's meetings, once a minute.
+  // The card is rebuilt when its integration's data changes: the snapshot rides along.
+  void onEvent<import("../core/state").MsTeams>("msgraph-teams", (v) => {
+    State.msTeams = v;
+    const info = State.integrations.integration_teams;
+    if (info) State.integrations.integration_teams = { ...info, data: { ...info.data, graph: v } };
+    State.notify();
+  });
   void onEvent<ThreecxMessage>("threecx-chat", (m) => incomingMessage(island, m));
   void onEvent<{ conversation: number; name: string }>("threecx-typing", (e) => chatTyping(e.conversation, e.name));
   // "Questo PC": the 3CX card follows the calls of EasyIsland's own phone.
@@ -186,6 +195,16 @@ export function handleIntegration(island: Island, update: IntegrationUpdate) {
     loaded: update.error ? (previous?.loaded ?? false) : true,
     configured: previous?.configured ?? true,
   };
+
+  // Teams: its line in the Panoramica, and "working" while in a meeting.
+  if (update.id === TEAMS && !update.error) {
+    const task = State.tasks.find((t) => t.id === TEAMS);
+    if (task) {
+      task.steps = [teamsLine()];
+      task.stepIndex = 0;
+      task.state = update.data.inCall ? "working" : "idle";
+    }
+  }
 
   // Every chat message read (here or on another device): the chat badge goes.
   if (update.id === THREECX && !update.error && !Number(update.data.unread ?? 0)) {

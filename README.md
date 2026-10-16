@@ -57,6 +57,14 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.8.6** — **Microsoft Teams**: riunione in corso riconosciuta da microfono e webcam, Microfono,
+Video, Alza la mano, Condividi ed Esci nella card e accanto al personaggio chiuso, «Partecipa
+dal link copiato», automazioni all'inizio e alla fine di una riunione. **Account Microsoft
+(API)**, da provare: con l'accesso Outlook legge posta e calendario da Microsoft 365 (anche il
+nuovo Outlook) e Teams mostra stato e riunioni con «Partecipa». **Barra dell'app in uso** tutta
+personalizzabile: solo le tue azioni, azioni **Tasti** (scorciatoie e testo nel programma in
+uso), domande su tutto il testo della finestra, solo icona o solo testo, «Solo nella barra».
+
 **0.8.5** — **Barra dell'app in uso** accanto al personaggio chiuso, come una Touch Bar: le
 tue azioni rapide legate al programma che stai usando («Nella barra con») e i suggerimenti ⚡
 per Outlook, Excel, Word e il browser. **Menu col clic destro** nell'isola al posto di quello
@@ -234,7 +242,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.8.5** | 16 ott 2026 | Barra dell'app in uso accanto al personaggio chiuso, menu col clic destro nell'isola con le Impostazioni aperte sulla voce, Panoramica con i loghi grandi |
+| **0.8.6** | 16 ott 2026 | Microsoft Teams (riunioni, comandi, Partecipa), Account Microsoft con le API per Outlook e Teams (da provare), barra dell'app in uso personalizzabile con azioni Tasti |
+| 0.8.5 | 16 ott 2026 | Barra dell'app in uso accanto al personaggio chiuso, menu col clic destro nell'isola con le Impostazioni aperte sulla voce, Panoramica con i loghi grandi |
 | 0.8.4 | 15 ott 2026 | Automazioni con nuovi eventi, filtri, più condizioni, ripetizioni e dati dell'evento nei passi; Impostazioni sopra l'isola; Notion con viste e avvisi; Remote Desktop Manager in prova; Integrazioni a gruppi |
 | 0.8.3 | 15 ott 2026 | Modalità terminale della chat per tutti i motori, ⚡ Automatica, Notion con attività, note e pagine scelte che si aprono nell'app, connettori dai plugin di Claude Code |
 | 0.8.2 | 14 ott 2026 | Sostituisci con la formattazione dell'originale o senza, Vassoio dopo Cerchia e chiedi con la zona nuova evidenziata, Media al posto di Musica |

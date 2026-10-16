@@ -120,7 +120,36 @@ fn result_for(id: &str, snap: &Snapshot, now: i64, warn_min: i64) -> WidgetResul
     r
 }
 
+/// Through Microsoft Graph (msgraph.rs), once signed in: works with the new
+/// Outlook too and without Outlook open. Same widget, same texts, plus the
+/// newest unread mails as fields.
+async fn graph_probe(w: &Widget) -> WidgetResult {
+    let mail = crate::msgraph::unread_mail().await;
+    let events = crate::msgraph::events().await;
+    let (unread, mails) = match mail {
+        Ok(m) => m,
+        Err(e) => return WidgetResult::new(&w.id, "error", e),
+    };
+    let items: Vec<Item> = events
+        .unwrap_or_default()
+        .into_iter()
+        .map(|e| Item { s: e.subject, b: e.start, e: e.end, d: e.all_day })
+        .collect();
+    let snap = Snapshot { unread: unread as i64, items };
+    let warn_min = if w.warn_days > 0 { w.warn_days } else { 10 };
+    let mut r = result_for(&w.id, &snap, now_local(), warn_min);
+    for m in mails.iter().take(3) {
+        let from = if m.from.is_empty() { t("(mittente sconosciuto)").to_string() } else { m.from.clone() };
+        let subject = if m.subject.trim().is_empty() { t("(senza oggetto)").to_string() } else { m.subject.clone() };
+        r.fields.push(FieldValue { label: from, value: subject });
+    }
+    r
+}
+
 pub async fn probe(w: &Widget) -> WidgetResult {
+    if crate::msgraph::signed_in() {
+        return graph_probe(w).await;
+    }
     // No PowerShell at all while Outlook is closed.
     let running = tokio::task::spawn_blocking(|| !crate::apps::pids_of(&["outlook.exe"]).is_empty()).await.unwrap_or(true);
     if !running {
