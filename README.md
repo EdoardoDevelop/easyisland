@@ -57,6 +57,13 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.8.5** — **Barra dell'app in uso** accanto al personaggio chiuso, come una Touch Bar: le
+tue azioni rapide legate al programma che stai usando («Nella barra con») e i suggerimenti ⚡
+per Outlook, Excel, Word e il browser. **Menu col clic destro** nell'isola al posto di quello
+del browser: Apri, Aggiorna ora e «Impostazioni» di un'integrazione (le Impostazioni si
+aprono proprio lì), Esegui e Modifica su un'azione, Copia e Chiedi alla chat sul testo.
+**Panoramica** con i loghi grandi e sbiaditi nell'angolo dei riquadri.
+
 **0.8.4** — **Automazioni con più contesto**: nuovi «quando» (download finito, chiamata
 3CX, agente che ha finito o aspetta un permesso, server di sviluppo, programma in primo
 piano, rientro dopo una pausa) con un filtro («solo i .pdf», un cliente, un progetto); più
@@ -227,7 +234,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.8.4** | 15 ott 2026 | Automazioni con nuovi eventi, filtri, più condizioni, ripetizioni e dati dell'evento nei passi; Impostazioni sopra l'isola; Notion con viste e avvisi; Remote Desktop Manager in prova; Integrazioni a gruppi |
+| **0.8.5** | 16 ott 2026 | Barra dell'app in uso accanto al personaggio chiuso, menu col clic destro nell'isola con le Impostazioni aperte sulla voce, Panoramica con i loghi grandi |
+| 0.8.4 | 15 ott 2026 | Automazioni con nuovi eventi, filtri, più condizioni, ripetizioni e dati dell'evento nei passi; Impostazioni sopra l'isola; Notion con viste e avvisi; Remote Desktop Manager in prova; Integrazioni a gruppi |
 | 0.8.3 | 15 ott 2026 | Modalità terminale della chat per tutti i motori, ⚡ Automatica, Notion con attività, note e pagine scelte che si aprono nell'app, connettori dai plugin di Claude Code |
 | 0.8.2 | 14 ott 2026 | Sostituisci con la formattazione dell'originale o senza, Vassoio dopo Cerchia e chiedi con la zona nuova evidenziata, Media al posto di Musica |
 | 0.8.1 | 14 ott 2026 | Rete: scelta della scheda con pulsanti, un ping per il gateway di ogni scheda |
