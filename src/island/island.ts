@@ -370,7 +370,11 @@ export class Island {
     // The one field sits in the top bar; its results cover the views.
     this.header.field.append(this.search.el);
     this.rail = buildRail(actions);
-    this.strip = buildStrip({ decide: (d) => actions.decide(d) });
+    this.strip = buildStrip({
+      decide: (d) => actions.decide(d),
+      runAction: (a) => void this.runAction(a),
+      runSuggestion: (s) => void this.runSuggestion(s, ""),
+    });
     this.contentEl = h("div", { id: "content" }, this.header.el, h("div", { id: "body" }, this.rail.el, this.viewsEl));
 
     // The drop sequence draws the card, the bar and its own the character. It sits under

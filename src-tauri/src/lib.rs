@@ -1993,7 +1993,7 @@ pub fn run() {
             clipboard::spawn(handle.clone());
             downloads::spawn(handle.clone());
             devservers::spawn(handle.clone());
-            context::spawn();
+            context::spawn(handle.clone());
             media::spawn(handle.clone());
             threecx::spawn(handle.clone());
             automations::spawn(handle.clone());

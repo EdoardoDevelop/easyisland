@@ -1807,6 +1807,11 @@ function placementSection(): HTMLElement {
       h("span", { class: "hint note", text: t("a isola chiusa, accanto al personaggio: chi lavora e cosa fa, Nega / Consenti sui permessi, Rispondi / Rifiuta e Riaggancia sulle chiamate 3CX, senza aprire l'isola. Spente: i permessi e le chiamate aprono l'isola come prima.") }),
     ),
     h("div", { class: "row" },
+      h("label", { text: t("Barra dell'app in uso") }),
+      toggle(settings.appBar !== false, (v) => { settings.appBar = v; commit(); }),
+      h("span", { class: "hint note", text: t("quando non c'è altro da mostrare, accanto al personaggio chiuso compaiono le tue azioni rapide del programma che stai usando (Azioni rapide → «Nella barra con») e i suggerimenti ⚡ per Outlook, Excel, Word, il browser…") }),
+    ),
+    h("div", { class: "row" },
       h("label", { text: t("Segue il mouse") }),
       toggle(settings.followCursorCompact, (v) => { settings.followCursorCompact = v; commit(); }),
       h("span", { class: "hint note", text: t("anche nella vista compatta. Spento: si guarda intorno da solo, sbatte le palpebre e fa qualche smorfia (consuma meno). A isola aperta segue sempre il mouse.") }),
@@ -1903,7 +1908,7 @@ function profileChip(): HTMLElement {
 const PROFILE_KEYS = [
   "activeIntegrations", "anchorV", "anchorH", "offsetX", "offsetY", "glueEdges", "overTaskbar",
   "closeButton", "followCursorCompact", "presenceMeeting", "presenceRemote", "presenceApps", "presenceMode", "iconStyle", "iconSize", "hoverStyle",
-  "hoverSize", "compactStrip", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
+  "hoverSize", "compactStrip", "appBar", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
   "soundVolume", "autoCloseInterval", "theme", "notify", "reactions", "actions", "widgets", "mcpServers",
 ] as const;
 
@@ -2392,6 +2397,13 @@ function actionsSection(): HTMLElement {
       }
       card.append(h("div", { class: "row" }, h("label", { text: t("Scorciatoia") }),
         hotkeyInput(a.hotkey, (v) => { a.hotkey = v; touch(); })));
+      card.append(h("div", { class: "row" }, h("label", { text: t("Nella barra con") }),
+        field(a.apps ?? "", t("programmi, es. outlook.exe, excel.exe"), (v) => {
+          const apps = v.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean).join(", ");
+          if (apps) a.apps = apps;
+          else delete a.apps;
+        }),
+        h("span", { class: "hint note", text: t("accanto al personaggio chiuso, quando usi uno di questi programmi") })));
       if (!(a.kind === "prompt" && a.input === "file")) {
         // Icon from the same grid as the actions (no emoji keyboard needed), and a
         // name: actions with the same name share the folder, and its icon.

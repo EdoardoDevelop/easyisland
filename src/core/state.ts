@@ -426,6 +426,8 @@ export interface Settings {
   hoverSize: number;
   /** The strip beside the closed island's character (status, quick replies): its side, or off. */
   compactStrip: "right" | "left" | "off";
+  /** With nothing else to show, the strip holds the actions of the app in use (a "Touch Bar"). */
+  appBar: boolean;
   /** Seconds of hover before the island opens; 0 = only on click. */
   openDelay: number;
   /** Seconds the hover icon / bar stays up after the mouse leaves or an event. */
@@ -593,6 +595,8 @@ export interface QuickAction {
   confirm: boolean;
   /** Optional global shortcut, e.g. "Ctrl+Alt+E". */
   hotkey: string;
+  /** Programs it belongs to, "outlook.exe, excel.exe": its button in the bar of the app in use (strip.ts). */
+  apps?: string;
   /** Folder in the ⚡ tab ("" or missing: top level): "i:<icon> Name", "🖥 Name" or "Name". */
   folder?: string;
 }
@@ -850,6 +854,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hoverStyle: "icon",
   hoverSize: 40,
   compactStrip: "right",
+  appBar: true,
   openDelay: 0.6,
   revealDuration: 8,
   quietFullscreen: true,

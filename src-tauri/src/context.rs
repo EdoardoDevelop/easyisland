@@ -4,6 +4,8 @@
 // A WinEvent hook remembers the last window in front that is not EasyIsland
 // (it only wakes when the foreground changes): the island takes the focus for
 // its chat, and then it would be "the app in front" itself.
+// Each change of program is also sent to the island (`foreground` event), for
+// the bar of the app in use beside the closed character (src/views/strip.ts).
 
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Mutex;
@@ -27,6 +29,10 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 /// The last window in front that is not EasyIsland.
 static LAST: AtomicIsize = AtomicIsize::new(0);
+/// For the `foreground` event; set by `spawn`.
+static APP: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
+/// The program last sent to the island: a new window of the same one is not news.
+static SENT: Mutex<String> = Mutex::new(String::new());
 
 fn is_ours(hwnd: HWND) -> bool {
     exe_of(hwnd).is_none_or(|e| e == "easyisland.exe")
@@ -45,11 +51,20 @@ unsafe extern "system" fn on_foreground(
         LAST.store(hwnd.0 as isize, Ordering::Relaxed);
         crate::habits::note_app(&exe, &path);
         crate::automations::on_foreground(&exe);
+        let mut sent = SENT.lock().unwrap();
+        if *sent != exe {
+            sent.clone_from(&exe);
+            if let Some(app) = APP.get() {
+                use tauri::Emitter;
+                let _ = app.emit_to(crate::island::WINDOW_LABEL, "foreground", Foreground { exe: exe.clone(), title: String::new() });
+            }
+        }
     }
 }
 
 /// Starts following the foreground window.
-pub fn spawn() {
+pub fn spawn(app: tauri::AppHandle) {
+    let _ = APP.set(app);
     std::thread::spawn(|| unsafe {
         let now = GetForegroundWindow();
         if !now.0.is_null() && !is_ours(now) {

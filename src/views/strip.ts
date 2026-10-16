@@ -3,25 +3,73 @@
 // Nega / Consenti on a permission, Rispondi / Rifiuta on a 3CX call, Muto /
 // Riaggancia during one. Impostazioni → Posizione e aspetto → "Accanto al
 // personaggio chiuso" (`compactStrip`: right, left or off).
+// With nothing of that to show, it is the bar of the app in use (`appBar`): the
+// user's quick actions tied to the program in front ("Nella barra con") and up to
+// two ⚡ suggestions for the programs EasyIsland knows. context.rs pushes each
+// change of program; clicks never take the focus from it (the island does not
+// activate), so an action on the selected text still finds it.
 
 import { h } from "./dom";
-import { State, type ApprovalInfo } from "../core/state";
+import { State, type ApprovalInfo, type QuickAction } from "../core/state";
 import { t } from "../core/i18n";
 import { stripCall, type QuickReply } from "./threecx";
+import { renderActionIcon } from "./action-icons";
+import { appName, knownSuggestions, type Suggestion } from "../island/context";
+
+/** A button of the strip: a quick reply, or an action of the app bar with its icon. */
+export interface StripButton extends QuickReply {
+  icon?: string;
+  hint?: string;
+}
 
 export interface StripItem {
   /** Changes when the strip must be drawn again (and measured). */
   key: string;
   title: string;
   sub: string;
-  tone: "approval" | "call" | "live" | "work";
+  tone: "approval" | "call" | "live" | "work" | "app";
   /** Waits for an answer: the compact island stays up and does not open on hover. */
   urgent: boolean;
-  buttons: QuickReply[];
+  buttons: StripButton[];
 }
 
 export interface StripActions {
   decide(d: "allow" | "deny"): void;
+  runAction(a: QuickAction): void;
+  runSuggestion(s: Suggestion): void;
+}
+
+/** At most this many buttons, so the strip stays a strip. */
+const APP_BAR_MAX = 5;
+
+/** Does the action belong to this program? `apps` = "outlook.exe, excel" (".exe" optional). */
+export function actionForApp(a: QuickAction, exe: string): boolean {
+  return (a.apps ?? "").split(",").some((x) => {
+    const want = x.trim().toLowerCase();
+    return !!want && (want === exe || `${want}.exe` === exe);
+  });
+}
+
+/** The bar of the app in use: the user's actions for it first, then ⚡ suggestions. */
+function appBarItem(actions: StripActions): StripItem | null {
+  if (State.settings.appBar === false) return null;
+  const exe = State.foreground?.exe ?? "";
+  if (!exe) return null;
+  const mine = (State.settings.actions ?? []).filter((a) => actionForApp(a, exe));
+  const buttons: StripButton[] = mine.slice(0, APP_BAR_MAX).map((a) => ({
+    label: a.name || t("Senza nome"), icon: a.icon, hint: a.name, tone: "plain", run: () => actions.runAction(a),
+  }));
+  const room = Math.min(2, APP_BAR_MAX - buttons.length);
+  if (State.settings.contextActions !== false && room > 0) {
+    for (const s of knownSuggestions(exe)?.items.slice(0, room) ?? []) {
+      buttons.push({ label: s.label, icon: `i:${s.icon}`, hint: s.label, tone: "plain", run: () => actions.runSuggestion(s) });
+    }
+  }
+  if (!buttons.length) return null;
+  return {
+    key: `app:${exe}:${buttons.map((b) => b.label).join("|")}`,
+    title: appName(exe), sub: "", tone: "app", urgent: false, buttons,
+  };
 }
 
 /**
@@ -87,7 +135,7 @@ export function stripItem(actions: StripActions): StripItem | null {
       sub: t("Clic per rispondere"),
     };
   }
-  return workItem();
+  return workItem() ?? appBarItem(actions);
 }
 
 export interface Strip {
@@ -136,15 +184,15 @@ export function buildStrip(actions: StripActions): Strip {
       sub.title = item.sub;
       sub.style.display = item.sub ? "" : "none";
       buttons.replaceChildren(...item.buttons.map((b) => h("button", {
-        class: `strip-btn ${b.tone}`,
-        text: b.label,
+        class: `strip-btn ${b.tone}${b.icon ? " with-icon" : ""}`,
+        title: b.hint ?? "",
         // Not a press on the island: no drag, no opening.
         onpointerdown: (e: Event) => e.stopPropagation(),
         onclick: (e: Event) => {
           e.stopPropagation();
           b.run();
         },
-      })));
+      }, ...(b.icon ? [h("span", { class: "strip-icon" }, renderActionIcon(b.icon, 14))] : []), h("span", { class: "strip-label", text: b.label }))));
       return true;
     },
   };

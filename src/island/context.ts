@@ -128,6 +128,17 @@ function prettyExe(exe: string): string {
   return base.charAt(0).toUpperCase() + base.slice(1);
 }
 
+/** The suggestions of a program EasyIsland knows (Outlook, Excel…), none for the others. */
+export function knownSuggestions(exe: string): Suggestions | null {
+  const rule = RULES.find((r) => r.exes.includes(exe));
+  return rule ? { app: rule.app, color: rule.color, items: rule.items } : null;
+}
+
+/** A readable name of a program, "excel.exe" → "Excel". */
+export function appName(exe: string): string {
+  return RULES.find((r) => r.exes.includes(exe))?.app ?? prettyExe(exe);
+}
+
 export function suggestionsFor(fg: Foreground | null): Suggestions | null {
   if (!fg) return null;
   // The desktop, the taskbar and the like: nothing to act on.

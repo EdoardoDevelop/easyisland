@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 15 ottobre 2026. Versione **0.8.4** in `main` con il tag `v0.8.4` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 16 ottobre 2026. Versione **0.8.4** in `main` con il tag `v0.8.4` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -25,6 +25,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 16 ottobre 2026 — Barra dell'app in uso, Panoramica con i loghi grandi
+- Su richiesta di Edoardo, una «Touch Bar» accanto al personaggio chiuso: le sue azioni rapide legate al programma in primo piano («Nella barra con») e i suggerimenti ⚡ dei programmi noti, quando la striscia non ha altro (`strip.ts`, evento `foreground` da `context.rs`, `docs/architettura.md`). I comandi interni delle app non sono raggiungibili su Windows. Panoramica: logo grande e sbiadito nell'angolo in basso a sinistra, un cerchio per chi non ha logo.
+- **Prove:** test, scene `strip&strip=app` e `overview`, `npm run smoke`. Da provare dal vivo (`docs/prove-dal-vivo.md`).
 
 ### 15 ottobre 2026 — Automazioni con contesto, Impostazioni sopra l'isola, versione 0.8.4
 - Versione **0.8.4** con queste voci, Notion (viste e avvisi), Remote Desktop Manager e Integrazioni a gruppi. Su richiesta di Edoardo:
@@ -52,6 +56,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 15 ottobre 2026 — Notion: viste delle attività
 - Su richiesta di Edoardo (troppe attività che non gli servono ogni giorno), le «viste» in Impostazioni → Notion: filtri con un nome per periodo (oggi, settimana, mese, prossimi N giorni, con o senza quelle senza data), per i valori di select, multi-select, stato e relazioni (Contesto, Tipo, Priorità, Progetto, Area…) e con l'ordine per scadenza o priorità. Nella card si cambiano con dei pulsanti, e c'è il pallino della priorità (`notion.rs` `view_filter`, `docs/integrazioni.md`). Provato in sola lettura sul suo database, con i test, nell'anteprima (`notion&views`) e con l'editor delle Impostazioni.
-
-### 15 ottobre 2026 — Modalità terminale della chat, versione 0.8.3
-- Versione **0.8.3** con queste voci e il Notion del 14 ottobre. Su richiesta di Edoardo («più autonoma, come da terminale»), Impostazioni → Chat → «Modalità terminale» con la cartella di lavoro. Claude Code ha tutti i suoi strumenti, i server MCP, i plugin e le skill, e ogni permesso arriva sulla card con «Sempre». I passi si vedono mentre lavora. opencode lavora nella cartella con «Sempre» per qualsiasi comando. Gli altri motori passano da opencode, con la chiave solo nell'ambiente del server (`docs/chat.md`, `docs/decisioni.md`). Il server di opencode riparte quando cambia la sua configurazione: è il caso di Notion che la chat non vedeva. Poi ⚡ «Automatica» nella testata della chat, per una conversazione: Claude Code nel modo `auto`, opencode con il filtro `delicate()`, e ciò che è delicato resta sulla card (scena `chat&terminal&auto`). Il collaudo ha trovato un nome mancante nelle chiamate 3CX (`initials`): corretto. Provato con i test e le Impostazioni nell'anteprima; il turno vero va provato (`docs/prove-dal-vivo.md`).

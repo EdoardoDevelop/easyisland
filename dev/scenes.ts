@@ -49,7 +49,7 @@ export async function runScene(island: Island, scene: string) {
       await wait(7000);
       break;
     case "strip": {
-      // The closed island's strip: ?scene=strip&strip=approval|call|live|work (&compactStrip=left).
+      // The closed island's strip: ?scene=strip&strip=approval|call|live|work|app (&compactStrip=left).
       await wait(300);
       island.collapse(true);
       const kind = new URLSearchParams(location.search).get("strip") ?? "approval";
@@ -70,6 +70,13 @@ export async function runScene(island: Island, scene: string) {
               : { id: "5", state: "connected", incoming: false, name: "", number: "0512345678", since: now - 109_000, canAnswer: false, dialog: "" }],
           },
         };
+      } else if (kind === "app") {
+        // The bar of the app in use: Outlook in front, one action of the user's for it.
+        State.settings.actions = [...(State.settings.actions ?? []), {
+          id: "scene-crm", name: "Apri nel CRM", icon: "i:briefcase", color: "", kind: "url", target: "https://example.com",
+          args: "", script: "", shell: "powershell", prompt: "", input: "none", confirm: false, hotkey: "", apps: "outlook.exe",
+        }];
+        State.foreground = { exe: "outlook.exe", title: "" };
       } else {
         session("working", ["Read · src/views/strip.ts", "Bash · npm run build"]);
       }

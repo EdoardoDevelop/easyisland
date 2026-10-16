@@ -135,6 +135,11 @@ async function main() {
     const a = (State.settings.actions ?? []).find((x) => x.id === id);
     if (a) void island.runAction(a);
   });
+  // The program in front changed (context.rs): the bar of the app in use follows.
+  await onEvent<{ exe: string; title: string }>("foreground", (fg) => {
+    State.foreground = fg;
+    State.notify();
+  });
   // An automation's "Chiedi alla chat" step, with the trigger's data filled in.
   await onEvent<string>("automation-ask", (prompt) => island.askChat(prompt));
   await onEvent<UpdateInfo>("update-available", (u) => island.showUpdate(u.version, u.current));
