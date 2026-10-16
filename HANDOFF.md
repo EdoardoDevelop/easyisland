@@ -26,6 +26,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 16 ottobre 2026 — Barra dell'app in uso personalizzabile, azioni Tasti
+- Su richiesta di Edoardo: la barra mostra solo le sue azioni («Nella barra con», `*` = tutti), niente di predefinito; ha la precedenza sulla riga dell'agente. Nuove azioni **Tasti** (`keys.rs`) e domanda su **tutto il testo della finestra**; per azione «Solo nella barra» e aspetto (icona, testo, entrambi); per la barra aspetto, numero massimo, nome del programma. Corretto: `appBar` non era salvato da Rust (mancava in `settings.rs`).
+- **Prove:** test (anche delle sequenze di tasti), scena `strip&strip=app`, `npm run smoke`. Tasti veri da provare (`docs/prove-dal-vivo.md`).
+
 ### 16 ottobre 2026 — Barra dell'app in uso, Panoramica con i loghi grandi, menu contestuale, versione 0.8.5
 - Versione **0.8.5** con queste voci.
 - Su richiesta di Edoardo, una «Touch Bar» accanto al personaggio chiuso: le sue azioni rapide legate al programma in primo piano («Nella barra con») e i suggerimenti ⚡ dei programmi noti, quando la striscia non ha altro (`strip.ts`, evento `foreground` da `context.rs`, `docs/architettura.md`). I comandi interni delle app non sono raggiungibili su Windows. Panoramica: logo grande e sbiadito nell'angolo in basso a sinistra, un cerchio per chi non ha logo.
@@ -55,6 +59,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
   - la configurazione rapida, che propone i database e crea le viste Oggi, Settimana e Tutte.
 - **Integrazioni:** rifatta a gruppi, una riga per integrazione con il suo stato, che si apre al clic; ricerca e «Solo attive» (`docs/integrazioni.md`).
 - **Prove:** con i test, nell'anteprima, e in sola lettura sul Notion vero (la configurazione rapida propone «✅ Attività» e «📝 Note»). Non provati gli avvisi veri.
-
-### 15 ottobre 2026 — Notion: viste delle attività
-- Su richiesta di Edoardo (troppe attività che non gli servono ogni giorno), le «viste» in Impostazioni → Notion: filtri con un nome per periodo (oggi, settimana, mese, prossimi N giorni, con o senza quelle senza data), per i valori di select, multi-select, stato e relazioni (Contesto, Tipo, Priorità, Progetto, Area…) e con l'ordine per scadenza o priorità. Nella card si cambiano con dei pulsanti, e c'è il pallino della priorità (`notion.rs` `view_filter`, `docs/integrazioni.md`). Provato in sola lettura sul suo database, con i test, nell'anteprima (`notion&views`) e con l'editor delle Impostazioni.

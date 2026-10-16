@@ -4955,6 +4955,9 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 .strip-btn.with-icon { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px 0 8px; }
 .strip-icon { display: inline-flex; font-size: 13px; line-height: 1; }
 .strip-label { max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+.strip-btn.icon-only { width: 30px; padding: 0; justify-content: center; }
+/* An action's own colour: a tint on its button. */
+#strip[data-tone="app"] .strip-btn.plain { background: color-mix(in srgb, var(--qa, #2b2d31) 22%, #2b2d31); }
 #strip[data-tone="app"] .strip-title { color: var(--dim); font-weight: 500; }
 .strip-btn.light { background: #f5f6f8; color: #111214; }
 .strip-btn.green { background: #22c55e; color: #052e16; }

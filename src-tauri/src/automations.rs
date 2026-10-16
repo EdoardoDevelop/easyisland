@@ -388,6 +388,14 @@ async fn run_step(app: &AppHandle, step: &Step, actions: &[Value], ctx: &Ctx) ->
                     Ok(tf("aperto «{name}»", &[("name", &name)]))
                 }
                 "app" => crate::actions::open_app(&get("target"), &get("args")).map(|_| tf("avviato «{name}»", &[("name", &name)])),
+                // Keys to the program in front, as from its button.
+                "keys" => {
+                    let keys = get("keys");
+                    tauri::async_runtime::spawn_blocking(move || crate::context::send_keys(&keys))
+                        .await
+                        .map_err(|e| e.to_string())?
+                        .map(|_| tf("tasti di «{name}» inviati", &[("name", &name)]))
+                }
                 "script" if !a.get("confirm").and_then(Value::as_bool).unwrap_or(false) => {
                     let run_id = format!("auto-{}", now_ms());
                     let r = crate::actions::run_script(&run_id, &get("shell"), &get("script")).await?;

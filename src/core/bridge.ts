@@ -248,6 +248,17 @@ export const Bridge = {
       return { error: String(err) };
     }
   },
+  /** A "Tasti" action: the sequence to the app in front (keys.rs). Throws with the reason. */
+  actionSendKeys: (keys: string) => callOrThrow<void>("action_send_keys", { keys }),
+  /** All the text of the window in front (Ctrl+A, Ctrl+C), or why not (as captureSelection). */
+  captureWindowText: async (): Promise<{ text: string } | { error: string }> => {
+    if (!IS_TAURI) return { error: "empty" };
+    try {
+      return { text: await invoke<string>("capture_window_text") };
+    } catch (err) {
+      return { error: String(err) };
+    }
+  },
   /** Proposals from the habits (habits.rs). */
   habitsStats: () => call<{ events: number; days: number; since: number | null }>("habits_stats"),
   habitsSuggestions: () => call<import("./state").HabitSuggestion[]>("habits_suggestions"),

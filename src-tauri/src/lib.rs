@@ -23,6 +23,7 @@ mod hooks;
 mod hotkeys;
 mod integrations;
 mod island;
+mod keys;
 mod legacy;
 mod log;
 mod mcp_setup;
@@ -1402,6 +1403,21 @@ async fn capture_selection() -> Result<String, String> {
     }
 }
 
+/// A "Tasti" quick action: the key sequence to the app in front (keys.rs).
+#[tauri::command]
+async fn action_send_keys(keys: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || context::send_keys(&keys)).await.map_err(|e| e.to_string())?
+}
+
+/// All the text of the window in front (Ctrl+A, Ctrl+C); errors as `capture_selection`.
+#[tauri::command]
+async fn capture_window_text() -> Result<String, String> {
+    match tauri::async_runtime::spawn_blocking(context::window_text).await {
+        Ok(r) => r.map_err(String::from),
+        Err(_) => Err("empty".into()),
+    }
+}
+
 /// Impostazioni → Automazioni: the last runs, newest first.
 #[tauri::command]
 fn automations_log() -> Vec<automations::LogEntry> {
@@ -1968,6 +1984,8 @@ pub fn run() {
             open_integration,
             open_settings_window,
             open_settings_at,
+            action_send_keys,
+            capture_window_text,
             set_paused,
         ])
         .setup(move |app| {

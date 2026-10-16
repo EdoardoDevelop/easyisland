@@ -426,8 +426,14 @@ export interface Settings {
   hoverSize: number;
   /** The strip beside the closed island's character (status, quick replies): its side, or off. */
   compactStrip: "right" | "left" | "off";
-  /** With nothing else to show, the strip holds the actions of the app in use (a "Touch Bar"). */
+  /** The strip holds the user's actions for the app in use (a "Touch Bar"); only theirs, nothing by default. */
   appBar: boolean;
+  /** How its buttons look, unless an action says otherwise. */
+  appBarLook: "both" | "icon" | "text";
+  /** At most this many buttons. */
+  appBarMax: number;
+  /** The program's name before the buttons. */
+  appBarName: boolean;
   /** Seconds of hover before the island opens; 0 = only on click. */
   openDelay: number;
   /** Seconds the hover icon / bar stays up after the mouse leaves or an event. */
@@ -577,7 +583,7 @@ export interface QuickAction {
   /** An emoji or a short text shown on the button. */
   icon: string;
   color: string;
-  kind: "url" | "app" | "script" | "prompt";
+  kind: "url" | "app" | "script" | "prompt" | "keys";
   /** url: the link · app: program, folder or file. */
   target: string;
   /** app: arguments, quotes group words. */
@@ -587,16 +593,23 @@ export interface QuickAction {
   shell: "powershell" | "cmd";
   /** prompt: what Claude is asked. */
   prompt: string;
-  /** prompt: what the prompt is applied to ("selection": the text selected in the app in front). */
-  input: "clipboard" | "selection" | "file" | "none";
+  /** prompt: what the prompt is applied to ("selection": the text selected in the
+   * app in front; "page": all the text of its window, Ctrl+A). */
+  input: "clipboard" | "selection" | "file" | "none" | "page";
   /** prompt on "selection": the answer goes to the chat (default) or takes the selection's place, after a preview. */
   output?: "chat" | "replace";
   /** script: show the commands and wait for "Esegui". */
   confirm: boolean;
   /** Optional global shortcut, e.g. "Ctrl+Alt+E". */
   hotkey: string;
-  /** Programs it belongs to, "outlook.exe, excel.exe": its button in the bar of the app in use (strip.ts). */
+  /** Programs it belongs to, "outlook.exe, excel.exe" ("*" = any): its button in the bar of the app in use (strip.ts). */
   apps?: string;
+  /** keys: the sequence sent to the program in front (src-tauri/src/keys.rs). */
+  keys?: string;
+  /** Only in the bar of the app in use: not in the ⚡ tab, the search or the selection menu. */
+  barOnly?: boolean;
+  /** Its button in the bar: "" = the bar's choice (`appBarLook`). */
+  barLook?: "" | "both" | "icon" | "text";
   /** Folder in the ⚡ tab ("" or missing: top level): "i:<icon> Name", "🖥 Name" or "Name". */
   folder?: string;
 }
@@ -855,6 +868,9 @@ export const DEFAULT_SETTINGS: Settings = {
   hoverSize: 40,
   compactStrip: "right",
   appBar: true,
+  appBarLook: "both",
+  appBarMax: 6,
+  appBarName: true,
   openDelay: 0.6,
   revealDuration: 8,
   quietFullscreen: true,

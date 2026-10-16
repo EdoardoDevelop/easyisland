@@ -1809,7 +1809,21 @@ function placementSection(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: t("Barra dell'app in uso") }),
       toggle(settings.appBar !== false, (v) => { settings.appBar = v; commit(); }),
-      h("span", { class: "hint note", text: t("quando non c'è altro da mostrare, accanto al personaggio chiuso compaiono le tue azioni rapide del programma che stai usando (Azioni rapide → «Nella barra con») e i suggerimenti ⚡ per Outlook, Excel, Word, il browser…") }),
+      h("span", { class: "hint note", text: t("accanto al personaggio chiuso, le tue azioni rapide del programma che stai usando (Azioni rapide → «Nella barra con»). Nulla di predefinito: senza azioni per quel programma non compare. Ha la precedenza sulla riga dell'agente al lavoro, non su permessi e chiamate.") }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: "" }),
+      h("span", { class: "hint", text: t("Pulsanti") }),
+      select<Settings["appBarLook"]>([["both", t("Icona e testo")], ["icon", t("Solo icona")], ["text", t("Solo testo")]],
+        settings.appBarLook ?? "both", (v) => { settings.appBarLook = v; commit(); }),
+      h("span", { class: "hint", text: t("al massimo") }),
+      (() => {
+        const n = h("input", { type: "number", min: "1", max: "12", value: String(settings.appBarMax || 6), style: "width:64px" }) as HTMLInputElement;
+        n.addEventListener("change", () => { settings.appBarMax = Math.min(12, Math.max(1, Math.round(Number(n.value)) || 6)); n.value = String(settings.appBarMax); commit(); });
+        return n;
+      })(),
+      h("span", { class: "hint", text: t("Nome del programma") }),
+      toggle(settings.appBarName !== false, (v) => { settings.appBarName = v; commit(); }),
     ),
     h("div", { class: "row" },
       h("label", { text: t("Segue il mouse") }),
@@ -1908,7 +1922,7 @@ function profileChip(): HTMLElement {
 const PROFILE_KEYS = [
   "activeIntegrations", "anchorV", "anchorH", "offsetX", "offsetY", "glueEdges", "overTaskbar",
   "closeButton", "followCursorCompact", "presenceMeeting", "presenceRemote", "presenceApps", "presenceMode", "iconStyle", "iconSize", "hoverStyle",
-  "hoverSize", "compactStrip", "appBar", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
+  "hoverSize", "compactStrip", "appBar", "appBarLook", "appBarMax", "appBarName", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
   "soundVolume", "autoCloseInterval", "theme", "notify", "reactions", "actions", "widgets", "mcpServers",
 ] as const;
 
@@ -2304,7 +2318,7 @@ function actionsSection(): HTMLElement {
       color.addEventListener("change", () => { a.color = color.value; touch(); draw(); });
 
       const kind = select<QuickAction["kind"]>(
-        [["prompt", t("Chiedi alla chat")], ["script", "Script"], ["app", t("Programma / cartella")], ["url", "Link"]],
+        [["prompt", t("Chiedi alla chat")], ["keys", t("Tasti nel programma in uso")], ["script", "Script"], ["app", t("Programma / cartella")], ["url", "Link"]],
         a.kind,
         (v) => { a.kind = v; touch(); draw(); },
       );
@@ -2344,6 +2358,41 @@ function actionsSection(): HTMLElement {
           card.append(h("div", { class: "row" }, h("label", { text: t("Link") }),
             field(a.target, "https://…", (v) => { a.target = v.trim(); })));
           break;
+        case "keys": {
+          // The sequence as text, plus a recorder that appends the combination pressed.
+          const keysField = field(a.keys ?? "", t("es. Ctrl+T  ·  Ctrl+L, \"https://…\", Invio  ·  F5"), (v) => { a.keys = v; }) as HTMLInputElement;
+          const rec = h("button", { text: t("● Registra"), title: t("Premi una combinazione: si aggiunge in fondo") });
+          rec.addEventListener("click", () => {
+            rec.textContent = t("Premi i tasti…");
+            void Bridge.hotkeysSuspend(true);
+            const done = () => {
+              window.removeEventListener("keydown", onKey, true);
+              rec.textContent = t("● Registra");
+              void Bridge.hotkeysSuspend(false);
+            };
+            const onKey = (e: KeyboardEvent) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const key = hotkeyKeyName(e.code) ?? ({
+                ArrowUp: "Su", ArrowDown: "Giù", ArrowLeft: "Sinistra", ArrowRight: "Destra", Backspace: "Backspace",
+                Delete: "Canc", Home: "Inizio", End: "Fine", PageUp: "PagSu", PageDown: "PagGiù", Insert: "Ins",
+              } as Record<string, string>)[e.code];
+              if (!key) return; // a modifier alone: wait for the key
+              const combo = [...hotkeyModifiers(e), key].join("+");
+              const now = keysField.value.trim();
+              keysField.value = now ? `${now}, ${combo}` : combo;
+              a.keys = keysField.value;
+              touch();
+              done();
+            };
+            window.addEventListener("keydown", onKey, true);
+          });
+          card.append(
+            h("div", { class: "row" }, h("label", { text: t("Tasti") }), keysField, rec),
+            h("div", { class: "row" }, h("label", { text: "" }), h("span", { class: "hint note", text: t("Separati da virgole: combinazioni (Ctrl, Alt, Maiusc, Win + un tasto), tasti come Invio, Esc, F5, Su, Giù, Tab; il testo tra virgolette viene scritto così com'è; «attendi 300» fa una pausa in millisecondi. Vanno al programma in primo piano.") })),
+          );
+          break;
+        }
         case "app":
           card.append(
             h("div", { class: "row" }, h("label", { text: t("Programma o cartella") }),
@@ -2373,6 +2422,7 @@ function actionsSection(): HTMLElement {
                 [
                   ["replace", t("Testo selezionato: lo sostituisce")],
                   ["selection", t("Testo selezionato: risposta in chat")],
+                  ["page", t("Tutto il testo della finestra in uso (pagina, mail, documento)")],
                   ["clipboard", t("Testo copiato negli appunti")],
                   ["file", t("File rilasciato sull'isola")],
                   ["none", t("Niente (solo la domanda)")],
@@ -2397,13 +2447,34 @@ function actionsSection(): HTMLElement {
       }
       card.append(h("div", { class: "row" }, h("label", { text: t("Scorciatoia") }),
         hotkeyInput(a.hotkey, (v) => { a.hotkey = v; touch(); })));
-      card.append(h("div", { class: "row" }, h("label", { text: t("Nella barra con") }),
-        field(a.apps ?? "", t("programmi, es. outlook.exe, excel.exe"), (v) => {
-          const apps = v.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean).join(", ");
-          if (apps) a.apps = apps;
-          else delete a.apps;
-        }),
-        h("span", { class: "hint note", text: t("accanto al personaggio chiuso, quando usi uno di questi programmi") })));
+      // ── The bar of the app in use ──
+      const appsField = field(a.apps ?? "", t("programmi, es. chrome.exe, msedge.exe — * = tutti"), (v) => {
+        const apps = v.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean).join(", ");
+        if (apps) a.apps = apps;
+        else delete a.apps;
+      }) as HTMLInputElement;
+      // The program in front right now, one click away (not the settings window itself).
+      const addFront = h("button", { text: t("+ Programma in uso"), title: t("Aggiunge il programma che era in primo piano prima delle Impostazioni") });
+      addFront.addEventListener("click", async () => {
+        const fg = await Bridge.foregroundApp();
+        if (!fg?.exe || fg.exe === "easyisland.exe") return;
+        const list = (a.apps ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+        if (!list.includes(fg.exe)) list.push(fg.exe);
+        a.apps = list.join(", ");
+        appsField.value = a.apps;
+        touch();
+      });
+      card.append(
+        h("div", { class: "row" }, h("label", { text: t("Nella barra con") }), appsField, addFront),
+        h("div", { class: "row" }, h("label", { text: "" }),
+          h("span", { class: "hint", text: t("Solo nella barra") }),
+          toggle(a.barOnly === true, (v) => { if (v) a.barOnly = true; else delete a.barOnly; touch(); }),
+          h("span", { class: "hint", text: t("Aspetto") }),
+          select<"" | "both" | "icon" | "text">(
+            [["", t("Come la barra")], ["both", t("Icona e testo")], ["icon", t("Solo icona")], ["text", t("Solo testo")]],
+            a.barLook ?? "", (v) => { if (v) a.barLook = v; else delete a.barLook; touch(); }),
+          h("span", { class: "hint note", text: t("accanto al personaggio chiuso, quando usi uno di questi programmi; «Solo nella barra» la toglie dalla scheda ⚡, dalla ricerca e dal menu della selezione") })),
+      );
       if (!(a.kind === "prompt" && a.input === "file")) {
         // Icon from the same grid as the actions (no emoji keyboard needed), and a
         // name: actions with the same name share the folder, and its icon.

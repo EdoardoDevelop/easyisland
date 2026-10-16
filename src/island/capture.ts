@@ -37,7 +37,7 @@ export function capturing(): boolean {
 
 /** The prompts the user made for selected text or a file: they fit a picture too. */
 function zoneActions(): QuickAction[] {
-  return (State.settings.actions ?? []).filter((a) => a.kind === "prompt" && a.output !== "replace" && (a.input === "selection" || a.input === "file"));
+  return (State.settings.actions ?? []).filter((a) => a.kind === "prompt" && a.output !== "replace" && !a.barOnly && (a.input === "selection" || a.input === "file"));
 }
 
 const errText = (e: unknown) => String(e).replace(/^Error:\s*/, "");

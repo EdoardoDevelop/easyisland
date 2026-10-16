@@ -24,6 +24,7 @@ const KIND_HINT: Record<QuickAction["kind"], string> = {
   app: t("Avvia un programma"),
   script: t("Esegue uno script"),
   prompt: t("Chiede alla chat"),
+  keys: t("Preme dei tasti nel programma in uso"),
 };
 
 const isFileAction = (a: QuickAction) => a.kind === "prompt" && a.input === "file";
@@ -43,7 +44,8 @@ export function fileActions(fileName = State.droppedFile?.name ?? ""): QuickActi
 
 /** The ⚡ tab: everything but the file actions, which only make sense with a file. */
 export function tabActions(): QuickAction[] {
-  return (State.settings.actions ?? []).filter((a) => !isFileAction(a));
+  // "Solo nella barra": only on the bar of the app in use.
+  return (State.settings.actions ?? []).filter((a) => !isFileAction(a) && !a.barOnly);
 }
 
 function actionButton(a: QuickAction, onClick: () => void): HTMLElement {

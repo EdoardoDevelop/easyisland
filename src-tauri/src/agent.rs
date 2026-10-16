@@ -113,12 +113,13 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
                         ).trim().to_string()),
                         "script" => a.get("script").cloned().unwrap_or_default(),
                         "prompt" => a.get("prompt").cloned().unwrap_or_default(),
+                        "keys" => a.get("keys").cloned().unwrap_or_default(),
                         _ => Value::Null,
                     };
                     json!({
                         "id": a.get("id"),
                         "nome": a.get("name"),
-                        "tipo": match kind { "url" => "link", "app" => "programma", "script" => "script", "prompt" => "domanda alla chat (non eseguibile da qui)", _ => kind },
+                        "tipo": match kind { "url" => "link", "app" => "programma", "script" => "script", "prompt" => "domanda alla chat (non eseguibile da qui)", "keys" => "tasti nel programma in primo piano", _ => kind },
                         "dettaglio": detail,
                     })
                 })
@@ -162,6 +163,13 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
                         format!("terminato con codice {}", res.code.map(|c| c.to_string()).unwrap_or("?".into()))
                     };
                     Ok(format!("Script «{name}» {status}.\nOutput:\n{}", if res.output.is_empty() { "(nessuno)" } else { &res.output }))
+                }
+                "keys" => {
+                    let keys = get("keys");
+                    tauri::async_runtime::spawn_blocking(move || crate::context::send_keys(&keys))
+                        .await
+                        .map_err(|e| e.to_string())??;
+                    Ok(format!("Tasti di «{name}» inviati al programma in primo piano."))
                 }
                 _ => Err("Le azioni di tipo domanda alla chat non si eseguono da qui: chiedi direttamente.".into()),
             }

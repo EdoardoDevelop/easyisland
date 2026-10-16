@@ -250,6 +250,10 @@ pub const PROFILE_KEYS: &[&str] = &[
     "hoverStyle",
     "hoverSize",
     "compactStrip",
+    "appBar",
+    "appBarLook",
+    "appBarMax",
+    "appBarName",
     "openDelay",
     "revealDuration",
     "quietFullscreen",
@@ -548,6 +552,17 @@ pub struct Settings {
     /// replies): "right", "left" or "off".
     #[serde(default = "default_compact_strip")]
     pub compact_strip: String,
+    /// The bar of the app in use in that strip (src/views/strip.ts): on/off,
+    /// how its buttons look ("both" | "icon" | "text"), how many at most, and
+    /// whether the program's name comes first.
+    #[serde(default = "default_true")]
+    pub app_bar: bool,
+    #[serde(default = "default_app_bar_look")]
+    pub app_bar_look: String,
+    #[serde(default = "default_app_bar_max")]
+    pub app_bar_max: u32,
+    #[serde(default = "default_true")]
+    pub app_bar_name: bool,
     /// Seconds of hover before the island opens; 0 = only on click.
     #[serde(default = "default_open_delay")]
     pub open_delay: f64,
@@ -726,6 +741,12 @@ fn default_hover_size() -> f64 {
 fn default_compact_strip() -> String {
     "right".into()
 }
+fn default_app_bar_look() -> String {
+    "both".into()
+}
+fn default_app_bar_max() -> u32 {
+    6
+}
 fn default_open_delay() -> f64 {
     0.6
 }
@@ -814,6 +835,10 @@ impl Default for Settings {
             hover_style: default_hover_style(),
             hover_size: default_hover_size(),
             compact_strip: default_compact_strip(),
+            app_bar: true,
+            app_bar_look: default_app_bar_look(),
+            app_bar_max: default_app_bar_max(),
+            app_bar_name: true,
             open_delay: default_open_delay(),
             reveal_duration: default_reveal_duration(),
             quiet_fullscreen: true,

@@ -68,7 +68,7 @@ Un servizio o programma che di solito c'è una volta sola è un'**integrazione**
 - L'analisi completa del protocollo è in `archivio/HANDOFF-fino-al-6-ottobre.md`, sezione 7.
 
 ## Azioni rapide (`actions.rs`, `actionsSection`)
-- Tipi: link, programmi, script, prompt su appunti, testo selezionato o file. Le azioni sui file rilasciati non hanno cartella.
+- Tipi: link, programmi, script, **tasti** nel programma in uso (`keys.rs`: «Ctrl+L, "https://…", Invio»; registratore nell'editor), prompt su appunti, testo selezionato, **tutto il testo della finestra** o file. Ogni azione può stare nella barra dell'app in uso («Nella barra con», «Solo nella barra», aspetto: `docs/architettura.md`). Anche le automazioni e lo strumento `run_quick_action` della chat eseguono le azioni di tipo tasti. Le azioni sui file rilasciati non hanno cartella.
 - Un prompt sul testo selezionato ha `output`: «chat» (predefinito) o «replace», che riscrive la selezione con l'anteprima di «Sostituisci» (`docs/strumenti.md`). Nell'editor è una scelta sola, «Lavora su» (`PromptUse`), invece di due menu. Queste azioni sono le voci del menu di `Win+Alt+A`.
 - `open_app` toglie le virgolette, espande `%VARIABILI%` e, se CreateProcess fallisce, usa `ShellExecuteExW` con `SEE_MASK_FLAG_NO_UI`. Così funzionano App Paths, `shell:` e `ms-settings:`, e la richiesta di elevazione. Un nome sbagliato diventa un errore nell'isola, non una finestra di Windows.
 - Cartelle: `QuickAction.folder` = "i:<icona> Nome", "🖥 Nome" o "Nome" (`folderLook`/`folderValue` in `state.ts`). Oltre 8 azioni compare «Cerca un'azione».
