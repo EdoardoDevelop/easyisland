@@ -28,6 +28,7 @@ mod legacy;
 mod log;
 mod mcp_setup;
 mod media;
+mod msgraph;
 mod moments;
 mod netconfig;
 mod notion;
@@ -1406,10 +1407,44 @@ async fn capture_selection() -> Result<String, String> {
     }
 }
 
+/// Microsoft account: configured, signed in, the account's name.
+#[tauri::command]
+async fn ms_status() -> msgraph::Status {
+    let mut st = msgraph::status();
+    if st.signed_in && st.account.is_none() {
+        st.account = msgraph::account().await;
+        st.error = msgraph::status().error;
+    }
+    st
+}
+
+/// "Accedi con Microsoft": the browser, then back here (msgraph.rs).
+#[tauri::command]
+async fn ms_login(app: AppHandle) -> Result<String, String> {
+    msgraph::login(app).await
+}
+
+#[tauri::command]
+fn ms_logout() -> Result<(), String> {
+    msgraph::logout()
+}
+
+/// The Teams card asks right away instead of waiting for the next minute.
+#[tauri::command]
+async fn ms_teams_snapshot() -> serde_json::Value {
+    msgraph::teams_snapshot().await
+}
+
 /// The Teams card and strip: a meeting command ("mute", "video", "hand", "share", "leave", "open").
 #[tauri::command]
 async fn teams_action(kind: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || teams::action(&kind)).await.map_err(|e| e.to_string())?
+}
+
+/// "Partecipa" on a meeting of the Teams card.
+#[tauri::command]
+fn teams_join(url: String) -> Result<(), String> {
+    teams::join(&url)
 }
 
 /// "Partecipa dal link copiato".
@@ -2001,7 +2036,12 @@ pub fn run() {
             open_settings_at,
             action_send_keys,
             teams_action,
+            ms_status,
+            ms_login,
+            ms_logout,
+            ms_teams_snapshot,
             teams_join_clipboard,
+            teams_join,
             capture_window_text,
             set_paused,
         ])
@@ -2041,6 +2081,7 @@ pub fn run() {
             media::spawn(handle.clone());
             threecx::spawn(handle.clone());
             teams::spawn(handle.clone());
+            msgraph::spawn(handle.clone());
             automations::spawn(handle.clone());
             habits::spawn(handle.clone());
             opencode_agent::spawn(handle.clone());

@@ -28,6 +28,14 @@ export function registerIntegrationHandlers(island: Island) {
   void onEvent<IntegrationUpdate>("integration", (update) => handleIntegration(island, update));
   void onEvent<WidgetStatus>("widget-update", (r) => handleWidget(island, r)).then(() => catchUpWidgets(island));
   void onEvent<ThreecxCall>("threecx-call", (c) => incomingCall(island, c));
+  // Teams through Microsoft Graph: status and today's meetings, once a minute.
+  // The card is rebuilt when its integration's data changes: the snapshot rides along.
+  void onEvent<import("../core/state").MsTeams>("msgraph-teams", (v) => {
+    State.msTeams = v;
+    const info = State.integrations.integration_teams;
+    if (info) State.integrations.integration_teams = { ...info, data: { ...info.data, graph: v } };
+    State.notify();
+  });
   void onEvent<ThreecxMessage>("threecx-chat", (m) => incomingMessage(island, m));
   void onEvent<{ conversation: number; name: string }>("threecx-typing", (e) => chatTyping(e.conversation, e.name));
   // "Questo PC": the 3CX card follows the calls of EasyIsland's own phone.

@@ -9,7 +9,7 @@ I dettagli che `HANDOFF.md` riassume in una riga. Le idee più vecchie e l'anali
 - Regole: solo con entrambe le integrazioni accese, tutto in memoria, niente nomi né titoli davanti al cliente, nessuna azione senza un clic.
 - Seguito possibile: «Nuovo ticket» dalla chiamata.
 
-## Account Microsoft: mail nuove e calendario (annotata il 14 ottobre 2026, da decidere)
+## Account Microsoft: mail nuove e calendario (annotata il 14 ottobre 2026; predisposizione fatta il 16 ottobre, `integrazioni.md` → Account Microsoft)
 - **Teams, secondo passo** (deciso con Edoardo il 16 ottobre 2026, dopo la parte locale in `integrazioni.md`): con lo stesso accesso, riunioni di oggi con «Partecipa» (`onlineMeeting.joinUrl`), chat non lette (`Chat.Read`), stato Disponibile/Occupato (`Presence.Read`, e `Presence.ReadWrite` per cambiarlo). Serve la registrazione dell'app su Azure; l'azienda può bloccare il consenso.
 - **Via principale, Microsoft Graph:** «Accedi con Microsoft» nelle Impostazioni (browser, permessi di sola lettura `Mail.Read`, `Calendars.Read`, accesso con PKCE e indirizzo locale di ritorno). Vale per account di lavoro (Microsoft 365) e personali (Outlook.com), senza Outlook aperto e anche con il nuovo Outlook. Controllo circa ogni minuto (le notifiche push di Graph vogliono un server pubblico). Card «mail nuova» con mittente e oggetto, Apri e Chiedi alla chat (riassunto o bozza, mai inviata); card prima di un evento con «Partecipa» per Teams (`onlineMeeting.joinUrl`). Poi «quando» per le automazioni (idea 2 sotto).
 - **Vincoli:** token di aggiornamento in Gestione credenziali; rete solo verso Microsoft e solo con l'integrazione accesa. Serve registrare una volta l'app in Microsoft Entra (gratis): ne esce un ID applicazione pubblico, non segreto.

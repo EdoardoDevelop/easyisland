@@ -143,20 +143,26 @@ pub fn meeting_link(text: &str) -> Option<String> {
     (ok && !s.chars().any(char::is_whitespace) && s.len() < 4000).then(|| s.to_string())
 }
 
-/// "Partecipa dal link copiato": the meeting link in the clipboard, to Teams.
-/// teams.microsoft.com links go straight to the app (msteams:/l/…), the others
-/// through the browser, which hands them to Teams.
-pub fn join_from_clipboard() -> Result<(), String> {
-    let text = crate::actions::clipboard_text().unwrap_or_default();
-    let link = meeting_link(&text).ok_or_else(|| t("Negli appunti non c'è un link di una riunione Teams").to_string())?;
+/// A meeting link (from the Teams card, Microsoft Graph's joinUrl), to Teams.
+pub fn join(link: &str) -> Result<(), String> {
+    let link = meeting_link(link).ok_or_else(|| t("Link di riunione Teams non valido").to_string())?;
     match link.strip_prefix("https://teams.microsoft.com/") {
-        // Straight to ShellExecute: open_app would expand the link's %3a… as variables.
         Some(path) => crate::actions::shell_open(&format!("msteams:/{path}")).map_err(|_| t("Teams non si apre").to_string()),
         None => {
             crate::open_url_now(&link);
             Ok(())
         }
     }
+}
+
+/// "Partecipa dal link copiato": the meeting link in the clipboard, to Teams.
+/// teams.microsoft.com links go straight to the app (msteams:/l/…), the others
+/// through the browser, which hands them to Teams.
+pub fn join_from_clipboard() -> Result<(), String> {
+    let text = crate::actions::clipboard_text().unwrap_or_default();
+    let link = meeting_link(&text).ok_or_else(|| t("Negli appunti non c'è un link di una riunione Teams").to_string())?;
+    // Straight to ShellExecute in `join`: open_app would expand the link's %3a… as variables.
+    join(&link)
 }
 
 #[cfg(test)]

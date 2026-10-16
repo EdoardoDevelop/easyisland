@@ -60,6 +60,48 @@ export function stripTeams(): { title: string; sub: string; buttons: QuickReply[
   return { title: t("Riunione Teams"), sub: data().camera ? t("webcam accesa") : "", buttons: [all[0], all[1], all[4]] };
 }
 
+/** Microsoft Graph's availability in words. */
+function presenceLabel(a: string): string {
+  const map: Record<string, string> = {
+    Available: t("Disponibile"), AvailableIdle: t("Disponibile"), Busy: t("Occupato"), BusyIdle: t("Occupato"),
+    DoNotDisturb: t("Non disturbare"), BeRightBack: t("Torno subito"), Away: t("Assente"), Offline: t("Offline"),
+  };
+  return map[a] ?? a;
+}
+
+/** "09:30" from Graph's local "2026-10-16T09:30:00.0000000". */
+function hhmm(s: string): string {
+  return /T(\d{2}:\d{2})/.exec(s)?.[1] ?? "";
+}
+
+/** With the Microsoft account: status and today's online meetings with Partecipa. */
+function graphPart(say: (m: string) => void): HTMLElement | null {
+  const g = State.msTeams;
+  if (!g?.signedIn) return null;
+  const box = h("div", { class: "teams-graph" });
+  if (g.availability) {
+    box.append(h("div", { class: "teams-status" },
+      h("span", { class: `teams-dot presence-${g.availability.toLowerCase()}` }),
+      h("span", { text: t("Stato: {s}", { s: presenceLabel(g.availability) }) })));
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  const meetings = (g.meetings ?? []).filter((m) => m.start.slice(0, 10) >= today).slice(0, 4);
+  for (const m of meetings) {
+    box.append(h("div", { class: "int-row teams-meeting" },
+      h("span", { class: "int-ago", text: m.allDay ? t("tutto il giorno") : hhmm(m.start) }),
+      h("span", { class: "int-name", text: m.subject || t("(senza oggetto)") }),
+      h("button", { class: "teams-btn light", text: t("Partecipa"),
+        onclick: (e: Event) => {
+          e.stopPropagation();
+          Sound.play("blip");
+          void Bridge.teamsJoin(m.joinUrl).catch((err: unknown) => say(String(err).replace(/^Error:\s*/, "")));
+        } })));
+  }
+  if (!meetings.length) box.append(h("div", { class: "hint", text: t("Nessuna riunione Teams oggi e domani") }));
+  if (g.error) box.append(h("div", { class: "notion-note bad", text: g.error }));
+  return box;
+}
+
 export function teamsCard(openSettings: () => void): HTMLElement {
   const d = data();
   const note = h("div", { class: "notion-note", style: "display:none" });
@@ -86,6 +128,8 @@ export function teamsCard(openSettings: () => void): HTMLElement {
         },
       })));
   }
+  const graph = graphPart(say);
+  if (graph) rows.append(graph);
   rows.append(note);
   const head = h("div", { class: "int-head" }, brandOrDot(TEAMS, COLOR, 7), h("b", { text: "Microsoft Teams" }),
     h("span", { text: d.inCall ? t("In riunione") : d.running ? t("Aperto") : t("Chiuso") }),

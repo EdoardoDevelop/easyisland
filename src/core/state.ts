@@ -539,6 +539,9 @@ export interface IntegrationConfig {
   /** Notion: today's tasks in the morning recap. */
   notionMorning?: boolean;
   /** Remote Desktop Manager: the workspace read (its id; "" = RDM's current one). */
+  /** Microsoft account (msgraph.rs): app registration id (public) and tenant. */
+  msClientId?: string;
+  msTenant?: string;
   rdmDataSource?: string;
   /** Remote Desktop Manager: connections kept in the card, and the last opened (rdm.rs). */
   rdmPins?: RdmRef[];
@@ -681,6 +684,15 @@ export interface AutomationStep {
   target: string;
   args: string;
   url: string;
+}
+
+/** Teams through Microsoft Graph: status and today's online meetings. */
+export interface MsTeams {
+  signedIn: boolean;
+  availability?: string;
+  activity?: string;
+  meetings?: { subject: string; start: string; end: string; allDay: boolean; joinUrl: string }[];
+  error?: string | null;
 }
 
 /** "Quando… (se…) allora…" — Impostazioni → Automazioni. Belongs to the PC. */
@@ -926,6 +938,8 @@ class AppState {
 
   /** The app in front when the island last opened (src/island/context.ts). */
   foreground: { exe: string; title: string } | null = null;
+  /** Microsoft Graph for the Teams card (msgraph.rs `teams_snapshot`), once signed in. */
+  msTeams: MsTeams | null = null;
 
   tasks: AgentTask[] = [];
   focusId: string | null = null;

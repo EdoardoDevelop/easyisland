@@ -93,6 +93,12 @@ pub struct IntegrationConfig {
     /// Notion: today's tasks in the morning recap (src/island/daily.ts).
     #[serde(default = "yes")]
     pub notion_morning: bool,
+    /// Microsoft account (msgraph.rs): the app registration's id in Microsoft
+    /// Entra (public, not a secret) and the tenant ("" = organizations).
+    #[serde(default)]
+    pub ms_client_id: String,
+    #[serde(default)]
+    pub ms_tenant: String,
     /// Remote Desktop Manager: the workspace to read (its id; "" = RDM's current one).
     #[serde(default)]
     pub rdm_data_source: String,
@@ -197,6 +203,8 @@ impl Default for IntegrationConfig {
             notion_alert_lead: 10,
             notion_alert_comments: true,
             notion_morning: true,
+            ms_client_id: String::new(),
+            ms_tenant: String::new(),
             rdm_data_source: String::new(),
             rdm_pins: Vec::new(),
             rdm_recent: Vec::new(),

@@ -94,6 +94,15 @@ Rifatta il 15 ottobre 2026 su richiesta di Edoardo («troppo confusionaria»).
 - **Dettagli:** un clic apre spiegazione, campi, opzioni, icona e colore, una integrazione alla volta (`openIntegration`).
 - **Sopra l'elenco:** la ricerca e «Solo attive». In fondo, «Menu dell'isola» con il blocco dello spostamento.
 
+## Account Microsoft, API (`msgraph.rs`) — predisposizione
+Fatta il 16 ottobre 2026 su richiesta di Edoardo; da provare con una registrazione vera (`docs/prove-dal-vivo.md`).
+- **Accesso:** blocco «Account Microsoft (API)» nelle righe di Outlook e Teams (`msAccountRows`): ID applicazione (pubblico) e tenant in `integrationConfig.msClientId` / `msTenant` (vuoto = organizations), «Accedi con Microsoft». Codice di autorizzazione con PKCE (SHA-256 e numeri casuali da BCrypt di Windows, nessuna dipendenza nuova), ritorno su `http://localhost:<porta>` a un ascoltatore che accetta solo la risposta con lo `state` giusto, 5 minuti al massimo. Token di aggiornamento in Gestione credenziali (`msgraph-refresh`), quello di accesso solo in memoria. «Esci» li dimentica.
+- **Permessi delegati, sola lettura:** User.Read, Mail.Read, Calendars.Read, Presence.Read, offline_access (`SCOPES`). Se l'azienda chiede l'approvazione dell'amministratore lo diciamo e basta: mai aggirarlo con l'ID di un'altra app.
+- **Outlook:** con l'accesso il controllo usa Graph invece di COM (`outlook::graph_probe`): mail non lette con le ultime tre (mittente, oggetto) e appuntamenti fino a domani, orari locali con `Prefer: outlook.timezone` (nome del fuso di Windows). Vale anche per il nuovo Outlook e a Outlook chiuso.
+- **Teams:** ogni minuto, con l'integrazione accesa, stato (`/me/presence`) e riunioni online di oggi e domani con «Partecipa» (`teams::join`, solo link Teams validi) nella card (`graphPart`). Evento `msgraph-teams`.
+- **Rete:** solo login.microsoftonline.com e graph.microsoft.com, solo dopo l'accesso, mai in pausa.
+- **Da fare dopo:** avviso di mail nuova, chat non lette (`Chat.Read`), cambiare stato, «quando» delle automazioni sulle mail e prima delle riunioni.
+
 ## Microsoft Teams (`teams.rs`, `src/views/teams.ts`)
 Chiesta da Edoardo il 16 ottobre 2026, «entrambe, a passi»: prima la parte locale (fatta), poi Microsoft Graph (`docs/idee.md` → Account Microsoft).
 - **Senza account.** Teams aperto = `ms-teams.exe` o `teams.exe`; in riunione = Teams usa il microfono o la webcam (registro, come `presence.rs`). Controllo ogni 3 s solo con l'integrazione accesa, e l'isola riceve un aggiornamento solo quando qualcosa cambia. Non si sa se il microfono è muto: Teams lo tiene aperto.

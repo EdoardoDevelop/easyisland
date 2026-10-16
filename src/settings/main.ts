@@ -859,7 +859,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     hint: t("Le tue connessioni di Remote Desktop Manager, cercate e aperte dall'isola: nella card, nella barra in alto, su una chiamata 3CX, su un ticket Zammad e dal testo selezionato (Win+Alt+A). Si collega sempre RDM: EasyIsland trova la connessione e gliela fa aprire o modificare. L'elenco arriva dal modulo PowerShell di Devolutions, qualunque sia l'origine dati (file, Devolutions Server, Hub, SQL), con i permessi di chi usa il PC: solo nome, cartella, indirizzo e tipo, mai le password, e resta in memoria. Senza il modulo la ricerca si apre dentro RDM e ci si connette comunque a un indirizzo.") },
   { id: "integration_calcom", name: "Cal.com", color: "#C9956A",
     fields: [{ key: "calcom-api-key", label: t("Chiave API"), placeholder: "cal_…", secret: true }] },
-  { id: "integration_outlook", name: "Outlook", color: "#0A84D6", fields: [],
+  { id: "integration_outlook", name: "Outlook", color: "#0A84D6", fields: [], extra: () => msAccountRows(),
     options: [{
       label: t("Avvisa"), type: "number", placeholder: "10", unit: t("minuti prima di una riunione"),
       get: (c) => c.outlookWarn, set: (c, v) => { c.outlookWarn = Math.max(1, Number(v) || 10); },
@@ -871,7 +871,7 @@ const INTEGRATIONS: IntegrationDef[] = [
       { key: "zammad-token", label: t("Token"), placeholder: t("token di accesso"), secret: true },
     ],
     hint: t("In Zammad: avatar → Profilo → Token di accesso → Crea, con il permesso ticket.agent. Ticket assegnati a te, non assegnati e in escalation (avviso giallo); il personaggio ti avvisa quando arriva un nuovo ticket da assegnare.") },
-  { id: "integration_teams", name: "Microsoft Teams", color: "#5B5FC7", fields: [],
+  { id: "integration_teams", name: "Microsoft Teams", color: "#5B5FC7", fields: [], extra: () => msAccountRows(),
     hint: t("Le riunioni di Teams dall'isola, senza accedere con l'account: riconosce la riunione dal microfono e dalla webcam usati da Teams e mette Microfono, Video, Alza la mano, Condividi ed Esci nella card e accanto al personaggio chiuso (sono le scorciatoie di Teams, mandate alla sua finestra). Apri Teams e «Partecipa dal link copiato». Nelle automazioni: «Quando inizia o finisce una riunione Teams». Chat, riunioni del giorno e stato arriveranno con l'accesso a Microsoft.") },
   { id: "integration_3cx", name: "3CX", color: "#0596D4",
     options: [
@@ -1095,6 +1095,75 @@ function notionViewsEditor(db: string, saved: () => void): HTMLElement {
  * Remote Desktop Manager: what is installed and what is missing (each with
  * the command to type, never run from here), the workspace to read, the list.
  */
+/**
+ * Microsoft account (msgraph.rs), the same block in Outlook and Teams: the app
+ * registration's id and tenant, Accedi / Esci, and how to register the app.
+ * Everything read-only; the token stays in the Credential Manager.
+ */
+function msAccountRows(): HTMLElement {
+  const c = settings.integrationConfig;
+  const box = h("div", { class: "ms-account", style: "display:flex;flex-direction:column;gap:8px;padding-top:6px;border-top:1px solid var(--hairline)" });
+  const state = h("span", { class: "hint", text: t("Controllo…") });
+  const login = h("button", { class: "primary", text: t("Accedi con Microsoft") }) as HTMLButtonElement;
+  const logout = h("button", { text: t("Esci") }) as HTMLButtonElement;
+  const note = h("div", { class: "hint note" });
+
+  const refresh = async () => {
+    const s = await Bridge.msStatus();
+    if (!s) { state.textContent = t("Disponibile nell'app installata."); login.disabled = true; logout.style.display = "none"; return; }
+    state.textContent = s.signedIn
+      ? t("Collegato: {who}", { who: s.account ?? t("account Microsoft") })
+      : s.configured ? t("Non collegato") : t("Manca l'ID applicazione");
+    login.style.display = s.signedIn ? "none" : "";
+    login.disabled = !s.configured;
+    logout.style.display = s.signedIn ? "" : "none";
+    note.textContent = s.error ?? "";
+  };
+  login.addEventListener("click", async () => {
+    login.disabled = true;
+    note.textContent = t("Completa l'accesso nel browser che si è aperto…");
+    try {
+      await save();
+      const who = await Bridge.msLogin();
+      note.textContent = t("Collegato: {who}", { who });
+    } catch (e) {
+      note.textContent = String(e).replace(/^Error:\s*/, "");
+    }
+    await refresh();
+  });
+  logout.addEventListener("click", async () => {
+    await Bridge.msLogout().catch(() => undefined);
+    await refresh();
+  });
+
+  const input = (value: string, placeholder: string, apply: (v: string) => void) => {
+    const el = h("input", { type: "text", value, placeholder, spellcheck: "false", style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
+    el.addEventListener("change", () => { apply(el.value.trim()); void save().then(refresh); });
+    return el;
+  };
+  box.append(
+    h("div", { class: "row" }, h("b", { text: t("Account Microsoft (API)") }), state),
+    h("div", { class: "hint", text: t("Con l'accesso, Outlook legge posta e calendario da Microsoft 365 (anche con il nuovo Outlook e a Outlook chiuso) e Teams mostra il tuo stato e le riunioni di oggi con «Partecipa». Solo lettura; il token resta in Gestione credenziali.") }),
+    h("div", { class: "row" }, h("label", { text: t("ID applicazione") }),
+      input(c.msClientId ?? "", "00000000-0000-0000-0000-000000000000", (v) => { c.msClientId = v; })),
+    h("div", { class: "row" }, h("label", { text: t("Tenant") }),
+      input(c.msTenant ?? "", t("organizations (lavoro) · consumers (personale) · common · dominio o ID"), (v) => { c.msTenant = v; })),
+    h("div", { class: "row" }, h("label", { text: "" }), login, logout),
+    note,
+    h("details", {},
+      h("summary", { class: "hint", text: t("Come si registra l'app (una volta, gratis)") }),
+      h("ol", { class: "hint", style: "margin:6px 0 0 18px;display:flex;flex-direction:column;gap:4px" },
+        h("li", { text: t("portal.azure.com o entra.microsoft.com → Microsoft Entra ID → Registrazioni app → Nuova registrazione.") }),
+        h("li", { text: t("Nome: EasyIsland. Account: solo questa organizzazione, oppure anche account personali se usi Outlook.com.") }),
+        h("li", { text: t("URI di reindirizzamento: piattaforma «Client pubblico/nativo (dispositivi mobili e desktop)», indirizzo http://localhost.") }),
+        h("li", { text: t("Autorizzazioni API → Microsoft Graph → Autorizzazioni delegate: User.Read, Mail.Read, Calendars.Read, Presence.Read, offline_access.") }),
+        h("li", { text: t("Copia qui l'«ID applicazione (client)» e, per un account di lavoro, l'«ID directory (tenant)» o lascia organizations.") }),
+        h("li", { text: t("Se l'azienda blocca il consenso degli utenti, l'IT deve approvare l'app: EasyIsland non lo aggira.") }))),
+  );
+  void refresh();
+  return box;
+}
+
 function rdmRows(): HTMLElement {
   const box = h("div", { style: "display:flex;flex-direction:column;gap:8px" });
   const c = settings.integrationConfig;
