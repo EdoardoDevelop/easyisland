@@ -13,6 +13,8 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 ![Rust](https://img.shields.io/badge/Rust-backend-000?logo=rust)
 ![Licenza: MIT](https://img.shields.io/badge/licenza-MIT-green)
 
+**Italiano** · [English](README.en.md)
+
 </div>
 
 <img src="screenshots/greeting.png" width="640" alt="Goccia che saluta all'avvio">
@@ -56,6 +58,16 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 </p>
 
 ## Novità
+
+**0.8.7** — **Registra**: una conversazione (microfono e audio del PC) o lo schermo con
+l'audio, oppure **una sola finestra** scelta da un elenco o trascinandoci il personaggio,
+solo con Windows; punto rosso con Stop accanto al personaggio e alla fine Nel Vassoio,
+Apri, Mostra nella cartella. Nella barra di ricerca **Cerca con Google** (`Alt+Invio`).
+Loghi di **Teams** e **Remote Desktop Manager**, alone colorato in basso in tutte le
+schede, un clic su una scheda mentre scrivi nella ricerca la chiude e la svuota. Con
+**⚡ Automatica** nella chat opencode usa gli strumenti dei connettori (Notion e gli
+altri) senza chiedere, tranne quelli che cancellano o inviano. Documentazione in
+inglese: [README.en.md](README.en.md) e [docs/en/](docs/en/).
 
 **0.8.6** — **Microsoft Teams**: riunione in corso riconosciuta da microfono e webcam, Microfono,
 Video, Alza la mano, Condividi ed Esci nella card e accanto al personaggio chiuso, «Partecipa
@@ -242,7 +254,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.8.6** | 16 ott 2026 | Microsoft Teams (riunioni, comandi, Partecipa), Account Microsoft con le API per Outlook e Teams (da provare), barra dell'app in uso personalizzabile con azioni Tasti |
+| **0.8.7** | 17 ott 2026 | Registra (conversazione, schermo o una finestra), Cerca con Google, loghi di Teams e RDM, alone in tutte le schede, ricerca che si chiude al cambio di scheda, ⚡ Automatica con gli strumenti dei connettori, documentazione in inglese |
+| 0.8.6 | 16 ott 2026 | Microsoft Teams (riunioni, comandi, Partecipa), Account Microsoft con le API per Outlook e Teams (da provare), barra dell'app in uso personalizzabile con azioni Tasti |
 | 0.8.5 | 16 ott 2026 | Barra dell'app in uso accanto al personaggio chiuso, menu col clic destro nell'isola con le Impostazioni aperte sulla voce, Panoramica con i loghi grandi |
 | 0.8.4 | 15 ott 2026 | Automazioni con nuovi eventi, filtri, più condizioni, ripetizioni e dati dell'evento nei passi; Impostazioni sopra l'isola; Notion con viste e avvisi; Remote Desktop Manager in prova; Integrazioni a gruppi |
 | 0.8.3 | 15 ott 2026 | Modalità terminale della chat per tutti i motori, ⚡ Automatica, Notion con attività, note e pagine scelte che si aprono nell'app, connettori dai plugin di Claude Code |

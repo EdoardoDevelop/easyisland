@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 16 ottobre 2026 — Microsoft Teams, parte locale
+- Su richiesta di Edoardo, integrazione Teams senza account (`teams.rs`, `src/views/teams.ts`, `docs/integrazioni.md`): Teams aperto e in riunione (microfono e webcam), Microfono, Video, Alza la mano, Condividi ed Esci con le scorciatoie di Teams mandate alla sua finestra, anche nella striscia a isola chiusa; Apri Teams, Partecipa dal link copiato; automazioni «inizia / finisce una riunione Teams». Graph (riunioni, chat, stato) è il secondo passo in `docs/idee.md`.
+- **Prove:** test, scena `teams&call`, `npm run smoke`. Da provare in una riunione vera (`docs/prove-dal-vivo.md`).
+
 ### 16 ottobre 2026 — Barra dell'app in uso personalizzabile, azioni Tasti
 - Su richiesta di Edoardo: la barra mostra solo le sue azioni («Nella barra con», `*` = tutti), niente di predefinito; ha la precedenza sulla riga dell'agente. Nuove azioni **Tasti** (`keys.rs`) e domanda su **tutto il testo della finestra**; per azione «Solo nella barra» e aspetto (icona, testo, entrambi); per la barra aspetto, numero massimo, nome del programma. Corretto: `appBar` non era salvato da Rust (mancava in `settings.rs`).
 - **Prove:** test (anche delle sequenze di tasti), scena `strip&strip=app`, `npm run smoke`. Tasti veri da provare (`docs/prove-dal-vivo.md`).

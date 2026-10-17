@@ -17,6 +17,7 @@ App desktop per Windows 10/11: un personaggio animato (Goccia, Slime, EasyTech, 
 - `docs/decisioni.md`: decisioni prese ed esclusioni. Controllalo prima di proporre una funzione.
 - `docs/idee.md`: idee e progetti non ancora fatti, con i dettagli.
 - `docs/prove-dal-vivo.md`: elenco di ciò che va ancora provato con i servizi veri.
+- `docs/en/`, `README.en.md`, `CONTRIBUTING.en.md`: versioni inglesi per chi arriva da fuori; da aggiornare quando cambia ciò che descrivono.
 - `docs/archivio/`: storia vecchia (roadmap 6.1–6.6 citata nei commenti come "HANDOFF 6.6, point …", registro passato). **Non leggerla** se il compito non lo richiede.
 
 ## Build
