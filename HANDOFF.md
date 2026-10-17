@@ -26,6 +26,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 17 ottobre 2026 — «Automatica» con opencode e i connettori
+- Segnalato da Edoardo: in «Automatica» opencode chiedeva sempre per aggiungere in Notion. Non era un guasto: gli strumenti MCP restavano tutti sulla card. Su sua scelta ora passano da soli, tranne quelli che cancellano o inviano (`mcp_delicate` in `opencode.rs`, `docs/chat.md`).
+- **Prove:** turno vero con opencode 2.0.25 (gli eventi hanno `action` = `<server>_<strumento>`), `cargo test --lib opencode::`.
+
 ### 17 ottobre 2026 — Loghi Teams e RDM, alone in tutte le schede, ricerca che si chiude
 - Su richiesta di Edoardo: loghi di Teams e Remote Desktop Manager da `brand/` (`scripts/gen-brands.mjs`, RDM senza la piastrella chiara). Alone colorato in basso come nella chat anche in Panoramica e integrazioni (colore della scheda), Azioni (ambra) e File e schermo (verde). Un clic su una scheda mentre si scrive nella barra di ricerca la chiude e la svuota.
 - **Prove:** `npm run build`, scena `media&long&summary`, `npm run smoke`.
@@ -42,7 +46,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 16 ottobre 2026 — Microsoft Teams, parte locale
 - Su richiesta di Edoardo, integrazione Teams senza account (`teams.rs`, `src/views/teams.ts`, `docs/integrazioni.md`): Teams aperto e in riunione (microfono e webcam), Microfono, Video, Alza la mano, Condividi ed Esci con le scorciatoie di Teams mandate alla sua finestra, anche nella striscia a isola chiusa; Apri Teams, Partecipa dal link copiato; automazioni «inizia / finisce una riunione Teams». Graph (riunioni, chat, stato) è il secondo passo in `docs/idee.md`.
 - **Prove:** test, scena `teams&call`, `npm run smoke`. Da provare in una riunione vera (`docs/prove-dal-vivo.md`).
-
-### 16 ottobre 2026 — Barra dell'app in uso personalizzabile, azioni Tasti
-- Su richiesta di Edoardo: la barra mostra solo le sue azioni («Nella barra con», `*` = tutti), niente di predefinito; ha la precedenza sulla riga dell'agente. Nuove azioni **Tasti** (`keys.rs`) e domanda su **tutto il testo della finestra**; per azione «Solo nella barra» e aspetto (icona, testo, entrambi); per la barra aspetto, numero massimo, nome del programma. Corretto: `appBar` non era salvato da Rust (mancava in `settings.rs`).
-- **Prove:** test (anche delle sequenze di tasti), scena `strip&strip=app`, `npm run smoke`. Tasti veri da provare (`docs/prove-dal-vivo.md`).
