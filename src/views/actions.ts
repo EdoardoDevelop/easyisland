@@ -5,6 +5,7 @@ import { h, clear } from "./dom";
 import { Bridge } from "../core/bridge";
 import { renderActionIcon } from "./action-icons";
 import { suggestionsFor, type Suggestion } from "../island/context";
+import { washRGBA } from "../core/layout";
 import { State, folderLook, type QuickAction } from "../core/state";
 import type { ViewHost } from "./views";
 import { t } from "../core/i18n";
@@ -84,7 +85,8 @@ export function buildActions(handlers: ActionHandlers): ViewHost {
     }
   });
   const crumb = h("div", { class: "qa-crumb" });
-  const card = h("div", { class: "card qa-card" }, suggest, search, crumb, grid);
+  const card = h("div", { class: "card wash qa-card" }, suggest, search, crumb, grid);
+  card.style.setProperty("--wash", washRGBA("amber"));
   /** The folder open in the tab, or null at the top level. */
   let folder: string | null = null;
   const matches = () => {

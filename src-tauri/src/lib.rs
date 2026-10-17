@@ -60,6 +60,7 @@ mod teams;
 mod i18n;
 mod webview_profile;
 mod recap;
+mod record;
 mod renew;
 mod richtext;
 mod start_apps;
@@ -1304,7 +1305,7 @@ fn open_n8n() {
 /// server: the matching program, settings page or web client. Fixed targets
 /// only, never a path or a command from the front end.
 #[tauri::command]
-fn open_integration(id: String) -> bool {
+fn open_integration(app: AppHandle, id: String) -> bool {
     let shell = |target: &str| {
         Command::new("explorer.exe").arg(target).creation_flags(CREATE_NO_WINDOW).spawn().is_ok()
     };
@@ -1326,6 +1327,7 @@ fn open_integration(id: String) -> bool {
         "integration_outlook" => start("outlook.exe"),
         "integration_rdm" => rdm::open_app(),
         "integration_teams" => teams::open(),
+        "integration_recorder" => record::open_folder(&app),
         "integration_3cx" => match secrets::get("3cx-url").as_deref().and_then(threecx::base_url) {
             Some(url) => {
                 open_url_now(&format!("{url}/webclient"));
@@ -1345,6 +1347,7 @@ async fn refresh_integration(app: AppHandle, id: String) {
         threecx::ID => threecx::publish_now(&app),
         media::ID => media::refresh(),
         teams::ID => teams::refresh(&app),
+        record::ID => record::publish(&app),
         _ => integrations::poll_once(app, &id).await,
     }
 }
@@ -1433,6 +1436,39 @@ fn ms_logout() -> Result<(), String> {
 #[tauri::command]
 async fn ms_teams_snapshot() -> serde_json::Value {
     msgraph::teams_snapshot().await
+}
+
+/// "Registra": starts a recording (record.rs); Err = why not.
+#[tauri::command]
+fn record_start(app: AppHandle, request: record::Request) -> Result<(), String> {
+    record::start(app, request)
+}
+
+/// File e schermo: the windows one can record or photograph.
+#[tauri::command]
+fn record_windows() -> Vec<window_drop::PickedWindow> {
+    window_drop::list()
+}
+
+/// File e schermo: the character let go on a window chooses it (no picture taken).
+#[tauri::command]
+fn window_pick_drop(shared: State<'_, Shared>) -> Option<window_drop::PickedWindow> {
+    shared.gate.dragging.store(false, Ordering::Relaxed);
+    carry::hide();
+    let (x, y) = island::cursor_physical()?;
+    window_drop::picked_at(x as i32, y as i32)
+}
+
+/// "Foto nel Vassoio": the chosen window as a PNG in the inbox.
+#[tauri::command]
+async fn window_shot(id: i64) -> Result<DroppedFile, String> {
+    tauri::async_runtime::spawn_blocking(move || window_drop::shot(id)).await.map_err(|e| e.to_string())?
+}
+
+/// "Registra": Stop. The file is closed on the recording's thread, then offered.
+#[tauri::command]
+fn record_stop() {
+    record::stop();
 }
 
 /// The Teams card and strip: a meeting command ("mute", "video", "hand", "share", "leave", "open").
@@ -2036,6 +2072,11 @@ pub fn run() {
             open_settings_at,
             action_send_keys,
             teams_action,
+            record_start,
+            record_stop,
+            record_windows,
+            window_pick_drop,
+            window_shot,
             ms_status,
             ms_login,
             ms_logout,

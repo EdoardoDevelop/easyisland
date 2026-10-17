@@ -23,7 +23,7 @@ export interface SearchActions {
 }
 
 interface Hit {
-  kind: "Integrazione" | "Agente" | "Azione" | "Programma" | "Notion" | "RDM" | "Chat";
+  kind: "Integrazione" | "Agente" | "Azione" | "Programma" | "Notion" | "RDM" | "Chat" | "Web";
   name: string;
   icon: () => Node;
   run: () => void;
@@ -41,11 +41,11 @@ function score(name: string, q: string): number {
   return n.includes(q) ? 1 : 0;
 }
 
-const KIND_LABEL: Record<Hit["kind"], string> = { Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Notion: "Notion", RDM: "RDM", Chat: "Ctrl+Invio" };
+const KIND_LABEL: Record<Hit["kind"], string> = { Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Notion: "Notion", RDM: "RDM", Chat: "Ctrl+Invio", Web: "Alt+Invio" };
 
 /** How many of each kind at most, so programs do not drown the rest. */
 
-const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Notion: 5, RDM: 5, Chat: 1 };
+const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Notion: 5, RDM: 5, Chat: 1, Web: 1 };
 
 /** The Start menu, read again after this long (a program installed meanwhile). */
 const APPS_TTL_MS = 5 * 60_000;
@@ -57,6 +57,8 @@ export interface SearchHost {
   sync(): void;
   /** Takes the keyboard: the island was opened by the user. */
   focus(): void;
+  /** Empties the field and hides the results (a tab was chosen). */
+  close(): void;
 }
 
 export function buildSearch(actions: SearchActions): SearchHost {
@@ -107,6 +109,11 @@ export function buildSearch(actions: SearchActions): SearchHost {
   const askHit = (text: string): Hit => ({ kind: "Chat", name: t("Chiedi alla chat: «{q}»", { q: text }), score: 0,
     icon: () => svg(ICONS.bubble, 13), run: () => actions.ask(text) });
 
+  // The words typed, searched with Google in the default browser.
+  const webHit = (text: string): Hit => ({ kind: "Web", name: t("Cerca con Google: «{q}»", { q: text }), score: 0,
+    icon: () => renderActionIcon("i:globe", 13),
+    run: () => void Bridge.openUrl(`https://www.google.com/search?q=${encodeURIComponent(text)}`) });
+
   const collect = (q: string): Hit[] => {
     const out: Hit[] = [];
     for (const t of State.tasks) {
@@ -148,8 +155,8 @@ export function buildSearch(actions: SearchActions): SearchHost {
       used[hit.kind] = (used[hit.kind] ?? 0) + 1;
       if (used[hit.kind] <= LIMIT[hit.kind]) kept.push(hit);
     }
-    // Last, always: the words typed, asked to the chat.
-    kept.push(askHit(input.value.trim()));
+    // Last, always: the words typed, asked to the chat or searched on the web.
+    kept.push(askHit(input.value.trim()), webHit(input.value.trim()));
     return kept;
   };
 
@@ -211,7 +218,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
       sel = (sel + (e.key === "ArrowDown" ? 1 : hits.length - 1)) % hits.length;
       mark();
     } else if (e.key === "Enter") {
-      const hit = e.ctrlKey ? hits.find((x) => x.kind === "Chat") : hits[sel];
+      const hit = e.ctrlKey ? hits.find((x) => x.kind === "Chat") : e.altKey ? hits.find((x) => x.kind === "Web") : hits[sel];
       if (hit) choose(hit);
     }
   });
@@ -226,6 +233,10 @@ export function buildSearch(actions: SearchActions): SearchHost {
     focus() {
       void Bridge.focusWindow(true);
       input.focus();
+    },
+    close() {
+      if (input.value) reset();
+      input.blur();
     },
   };
 }

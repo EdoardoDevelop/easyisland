@@ -25,6 +25,7 @@
 - **Homepage:** `site/` (HTML e CSS statici, immagini in `site/media/`), pubblicata su GitHub Pages (https://edoardodevelop.github.io/easyisland/) da `.github/workflows/pages.yml` a ogni push in `main` che tocca `site/`. Le novità in fondo alla pagina vanno aggiornate a ogni versione.
 
 ## Pubblicare una versione
+- Le versioni inglesi (`README.en.md`, `CONTRIBUTING.en.md`, `docs/en/`) vanno aggiornate insieme agli originali quando cambia qualcosa che descrivono; le novità di ogni versione vanno in tutti e due i README.
 1. Stesso numero in `package.json`, `Cargo.toml`, `src-tauri/tauri.conf.json`, `package-lock.json` e `Cargo.lock`.
 2. Commit su `claude/sviluppo`, unione `--no-ff` in `main`, tag `vX.Y.Z`, push di `main` e del tag. **Unione e tag solo con la conferma di Edoardo.** In modalità automatica il controllo dei permessi li blocca, e in alcuni ambienti il proxy rifiuta l'invio dei tag.
 3. La CI pubblica installer, firma e `latest.json`. Le app installate si aggiornano dopo un clic.

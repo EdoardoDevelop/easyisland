@@ -1,5 +1,7 @@
 # Contribuire a EasyIsland
 
+**Italiano** · [English](CONTRIBUTING.en.md)
+
 Grazie per l'interesse! EasyIsland è un progetto personale, ma segnalazioni e
 proposte sono benvenute.
 

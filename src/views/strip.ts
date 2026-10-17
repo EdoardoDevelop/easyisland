@@ -19,6 +19,7 @@ import { stripCall, type QuickReply } from "./threecx";
 import { renderActionIcon } from "./action-icons";
 import { appName, type Suggestion } from "../island/context";
 import { stripTeams } from "./teams";
+import { stripRecording } from "./recorder";
 
 /** A button of the strip: a quick reply, or an action of the app bar with its icon. */
 export interface StripButton extends QuickReply {
@@ -131,6 +132,11 @@ export function stripItem(actions: StripActions): StripItem | null {
       key: `call:${call.id}:${call.ringing}:${call.buttons.map((b) => b.label).join("|")}:${call.ringing ? call.title : ""}`,
       title: call.title, sub: call.sub, tone: call.ringing ? "call" : "live", urgent: true, buttons: call.buttons,
     };
+  }
+  // Recording: always in sight while it lasts, with Stop. The time ticks in the title.
+  const rec = stripRecording();
+  if (rec) {
+    return { key: `rec:${rec.sub}`, title: rec.title, sub: rec.sub, tone: "live", urgent: true, buttons: rec.buttons };
   }
   // A Teams meeting: microphone, video, leave.
   const meeting = stripTeams();

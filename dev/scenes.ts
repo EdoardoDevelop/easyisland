@@ -246,6 +246,20 @@ export async function runScene(island: Island, scene: string) {
       await wait(2500);
       break;
     }
+    case "recorder": {
+      // ?activeIntegrations=integration_recorder (&live: recording for 83 s). The card at the end: ?scene=moment&moment=recording.
+      await wait(300);
+      const live = new URLSearchParams(location.search).has("live") ? { kind: "audio", mic: true, system: true, since: Date.now() - 83_000, path: "C:/Users/x/Videos/EasyIsland/Registrazione.m4a" } : null;
+      State.integrations.integration_recorder = {
+        loaded: true, configured: true, error: null,
+        data: { recording: !!live, live, error: null, folder: "C:/Users/x/Videos/EasyIsland" },
+      };
+      State.setFocus("integration_recorder");
+      State.summary = false;
+      island.alert("overview");
+      await wait(1500);
+      break;
+    }
     case "teams": {
       // ?activeIntegrations=integration_teams (&call: in a meeting with the webcam on).
       await wait(300);
@@ -711,7 +725,7 @@ export async function runScene(island: Island, scene: string) {
     }
     case "moment": {
       // A proposal at the right moment (src/island/moments.ts), through the real
-      // handler: ?moment=download (default), error, port, server, card, tray.
+      // handler: ?moment=download (default), error, port, server, card, tray, recording.
       await wait(300);
       const host = { alert: (v: never) => island.alert(v), collapse: () => island.collapse(), holdOpen: (on: boolean) => island.setPinned(on) };
       const which = new URLSearchParams(location.search).get("moment") ?? "download";
@@ -724,6 +738,7 @@ export async function runScene(island: Island, scene: string) {
         port: { kind: "error", error: "port", summary: "Error: listen EADDRINUSE: address already in use :::3000", port: 3000,
           holder: { name: "node.exe", pid: 18244 }, text: "Error: listen EADDRINUSE: address already in use :::3000\n    at Server.setupListenHandle (node:net:1872:16)" },
         server: { kind: "server", port: 5173, url: "http://localhost:5173/", process: "node.exe" },
+        recording: { kind: "recording", name: "Registrazione 2026-10-16 15.30.12.m4a", path: "C:/x/Registrazione.m4a", size: 1_240_000, seconds: 312 },
         card: { kind: "card", id: "card1", title: "Build finita: 3 test falliti", text: "Vuoi che li corregga adesso o preferisci guardarli tu?", level: "warn", buttons: ["Correggi", "Li guardo io"] },
       };
       handleMoment(host, events[which] ?? events.download);

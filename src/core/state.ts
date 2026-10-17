@@ -155,6 +155,8 @@ export interface Notice {
 export type Moment =
   /** A finished download, or a file Claude Code put in the tray. */
   | { kind: "download" | "tray"; name: string; path: string; size: number }
+  /** A recording just closed (record.rs): what to do with it. */
+  | { kind: "recording"; name: string; path: string; size: number; seconds: number }
   /** An error copied to the clipboard; `holder` holds the port of an EADDRINUSE. */
   | { kind: "error"; error: string; summary: string; text: string; port: number | null; holder: { name: string; pid: number } | null }
   /** A development server that started listening. */
@@ -286,6 +288,7 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_media", t("Media"), "#1ED760", "n8n"),
   task("integration_3cx", "3CX", "#0596D4", "n8n"),
   task("integration_teams", "Teams", "#5B5FC7", "n8n"),
+  task("integration_recorder", t("Registra"), "#F4505E", "n8n"),
 ];
 
 /** "Apri" on an integration card: its web dashboard… */
@@ -301,7 +304,7 @@ export const OPEN_URLS: Record<string, string> = {
 export const OPENED_BY_APP = new Set([
   "integration_n8n", "integration_zammad", "integration_system", "integration_security",
   "integration_network", "integration_clipboard", "integration_weather", "integration_outlook", "integration_3cx",
-  "integration_rdm", "integration_teams",
+  "integration_rdm", "integration_teams", "integration_recorder",
 ]);
 /** …and nothing for the others: no "Apri" button there. */
 export function canOpen(t: AgentTask | null): boolean {
@@ -317,7 +320,7 @@ export const TOGGLEABLE_INTEGRATION_IDS = [
   "integration_resend", "integration_n8n", "integration_vercel", "integration_github",
   "integration_notion", "integration_calcom", "integration_stripe",
   ...Object.keys(PROBE_INTEGRATIONS),
-  "integration_clipboard", "integration_media", "integration_3cx", "integration_rdm", "integration_teams",
+  "integration_clipboard", "integration_media", "integration_3cx", "integration_rdm", "integration_teams", "integration_recorder",
 ];
 
 /** What an integration poller last reported. */
@@ -539,6 +542,11 @@ export interface IntegrationConfig {
   /** Notion: today's tasks in the morning recap. */
   notionMorning?: boolean;
   /** Remote Desktop Manager: the workspace read (its id; "" = RDM's current one). */
+  /** "Registra" (record.rs): folder ("" = Videos\EasyIsland), sound sources, screen fps. */
+  recordFolder?: string;
+  recordMic?: boolean;
+  recordSystem?: boolean;
+  recordFps?: number;
   /** Microsoft account (msgraph.rs): app registration id (public) and tenant. */
   msClientId?: string;
   msTenant?: string;
@@ -684,6 +692,13 @@ export interface AutomationStep {
   target: string;
   args: string;
   url: string;
+}
+
+/** A window chosen in File e schermo (window_drop.rs): its HWND as a number. */
+export interface PickedWindow {
+  id: number;
+  appName: string;
+  title: string;
 }
 
 /** Teams through Microsoft Graph: status and today's online meetings. */
@@ -938,6 +953,8 @@ class AppState {
 
   /** The app in front when the island last opened (src/island/context.ts). */
   foreground: { exe: string; title: string } | null = null;
+  /** File e schermo: the window chosen for "Registra" or "Foto nel Vassoio". */
+  pickedWindow: PickedWindow | null = null;
   /** Microsoft Graph for the Teams card (msgraph.rs `teams_snapshot`), once signed in. */
   msTeams: MsTeams | null = null;
 

@@ -93,6 +93,16 @@ pub struct IntegrationConfig {
     /// Notion: today's tasks in the morning recap (src/island/daily.ts).
     #[serde(default = "yes")]
     pub notion_morning: bool,
+    /// "Registra" (record.rs): the recordings' folder ("" = Videos\EasyIsland).
+    #[serde(default)]
+    pub record_folder: String,
+    /// "Registra": which sound goes in, and the screen's frames a second.
+    #[serde(default = "yes")]
+    pub record_mic: bool,
+    #[serde(default = "yes")]
+    pub record_system: bool,
+    #[serde(default = "fifteen")]
+    pub record_fps: u32,
     /// Microsoft account (msgraph.rs): the app registration's id in Microsoft
     /// Entra (public, not a secret) and the tenant ("" = organizations).
     #[serde(default)]
@@ -161,6 +171,10 @@ pub struct NotionFilter {
     pub values: Vec<String>,
 }
 
+fn fifteen() -> u32 {
+    15
+}
+
 fn yes() -> bool {
     true
 }
@@ -203,6 +217,10 @@ impl Default for IntegrationConfig {
             notion_alert_lead: 10,
             notion_alert_comments: true,
             notion_morning: true,
+            record_folder: String::new(),
+            record_mic: true,
+            record_system: true,
+            record_fps: 15,
             ms_client_id: String::new(),
             ms_tenant: String::new(),
             rdm_data_source: String::new(),

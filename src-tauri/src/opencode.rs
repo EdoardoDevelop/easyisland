@@ -475,16 +475,29 @@ pub fn permission_payload(data: &Value, terminal: bool) -> (Value, bool) {
 }
 
 /// "Automatica": what may go on without the island — file edits, reading the
-/// web, and commands that are not delicate. Anything else (a folder outside the
-/// working one, another tool, a delicate command) still asks.
+/// web, commands that are not delicate and the connectors' tools (Notion…,
+/// asked by Edoardo on 17 Oct 2026) that do not delete or send. Anything else
+/// (a folder outside the working one, a delicate command) still asks.
 pub fn auto_ok(data: &Value) -> bool {
     let action = data.get("action").and_then(Value::as_str).unwrap_or_default();
     let resources: Vec<&str> = data.get("resources").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str).collect();
     match action {
         "edit" | "write" | "apply_patch" | "patch" | "webfetch" | "websearch" | "read" | "glob" | "grep" | "todowrite" => true,
         "shell" | "bash" => !resources.is_empty() && resources.iter().all(|c| !delicate(c)),
-        _ => false,
+        // opencode's own permissions that are not a connector's tool.
+        "external_directory" | "doom_loop" | "task" | "skill" | "question" | "execute" => false,
+        // An MCP tool is "<server>_<tool>".
+        tool => tool.contains('_') && !mcp_delicate(tool),
     }
+}
+
+/// A connector's tool that deletes, or sends something in the user's name
+/// (never without a click, CLAUDE.md): with "Automatica" it still asks.
+fn mcp_delicate(tool: &str) -> bool {
+    const WORDS: &[&str] = &["delete", "remove", "trash", "archive", "destroy", "drop", "purge", "erase", "clear",
+        "send", "mail", "email", "reply", "forward", "publish", "post", "message", "invite", "share", "cancel"];
+    let t = tool.to_ascii_lowercase();
+    t.split(|c: char| !c.is_ascii_alphanumeric()).any(|w| WORDS.contains(&w))
 }
 
 /// Commands that delete, publish, change the system or run what was just
@@ -952,7 +965,13 @@ mod tests {
         }
         assert!(auto_ok(&json!({ "action": "edit", "resources": ["C:\\p\\a.txt"] })));
         assert!(!auto_ok(&json!({ "action": "external_directory", "resources": ["C:\\Windows\\*"] })));
-        assert!(!auto_ok(&json!({ "action": "notion_create_pages", "resources": [] })));
+        // Connectors: creating and changing go on, deleting and sending still ask.
+        for ok in ["notion_notion-create-pages", "notion_notion-update-page", "notion_notion-search", "github_create_issue"] {
+            assert!(auto_ok(&json!({ "action": ok, "resources": [] })), "{ok}");
+        }
+        for no in ["notion_notion-delete-pages", "gmail_send_email", "slack_post_message", "notion_notion-move-pages-to-trash", "task", "execute"] {
+            assert!(!auto_ok(&json!({ "action": no, "resources": [] })), "{no}");
+        }
         assert!(!auto_ok(&json!({ "action": "shell", "resources": [] })));
     }
 

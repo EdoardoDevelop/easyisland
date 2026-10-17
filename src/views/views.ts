@@ -301,7 +301,7 @@ function buildOverview(actions: ViewActions): ViewHost {
     { class: "icon-btn jump ask-jump", title: t("Chiedi a questa sessione"), onclick: () => actions.askSession() },
     svg(ICONS.bubble, 12),
   );
-  const left = card(null, agentBar, leftBody, jump, askJump);
+  const left = card("indigo", agentBar, leftBody, jump, askJump);
   // One card: the menu on the left (rail.ts) lists the integrations.
   const el = h("div", { class: "view overview solo" }, h("div", { class: "left" }, left));
 
@@ -336,6 +336,9 @@ function buildOverview(actions: ViewActions): ViewHost {
     },
     sync() {
       const task = State.focusTask;
+      // The glow at the bottom, as in the chat: the tab's own colour.
+      left.style.setProperty("--wash", task && !showsSummary()
+        ? `color-mix(in srgb, ${task.color} 45%, transparent)` : washRGBA("indigo"));
       if (task?.id !== lastFocus) {
         lastFocus = task?.id ?? null;
         detailOpen = false;
@@ -490,6 +493,8 @@ function renderSummary(actions: ViewActions): HTMLElement {
   const head = h("div", { class: "today-head" }, h("span", { class: "today-title", text: t("Panoramica") }), h("span", { class: "today-date", text: date }));
   const grid = h("div", { class: "summary" });
   for (const t of State.tasks) {
+    // Registra lives in File e schermo.
+    if (t.id === "integration_recorder") continue;
     const label = pillLabel(t);
     const status = t.steps.length ? t.steps[t.steps.length - 1] : t.state === "idle" ? "" : t.state;
     const row = h("button", { class: "summary-row", "data-id": t.id, title: label.title ?? t.name, onclick: () => actions.setFocus(t.id) },

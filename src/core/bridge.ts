@@ -4,7 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { Settings, WidgetStatus } from "./state";
+import type { Settings, WidgetStatus, PickedWindow } from "./state";
 import type { RecapHistory } from "../island/recap";
 
 export const IS_TAURI =
@@ -250,6 +250,16 @@ export const Bridge = {
   },
   /** Teams (teams.rs): a meeting command ("mute", "video", "hand", "share", "leave", "open"). Throws with the reason. */
   teamsAction: (kind: string) => callOrThrow<void>("teams_action", { kind }),
+  /** "Registra" (record.rs). Throws with why it could not start. */
+  recordStart: (request: { kind: "audio" | "screen"; mic: boolean; system: boolean; fps: number; window?: number; label?: string }) =>
+    callOrThrow<void>("record_start", { request }),
+  /** File e schermo: the windows one can record or photograph (window_drop.rs). */
+  recordWindows: async () => (await call<PickedWindow[]>("record_windows")) ?? [],
+  /** The character let go on a window in File e schermo: which one (no picture). */
+  windowPickDrop: () => call<PickedWindow | null>("window_pick_drop"),
+  /** "Foto nel Vassoio": the window as a PNG in the inbox. */
+  windowShot: (id: number) => callOrThrow<DroppedFile>("window_shot", { id }),
+  recordStop: () => call<void>("record_stop"),
   /** Microsoft account (msgraph.rs). */
   msStatus: () => call<{ configured: boolean; signedIn: boolean; account: string | null; error: string | null; redirect: string; scopes: string }>("ms_status"),
   msLogin: () => callOrThrow<string>("ms_login"),

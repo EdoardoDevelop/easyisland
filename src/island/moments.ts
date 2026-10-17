@@ -38,6 +38,11 @@ export function readMoment(raw: unknown): Moment | null {
       if (!path) return null;
       return { kind: m.kind, name: str(m.name, 300) || path.split(/[\\/]/).pop() || "file", path, size: Math.max(0, num(m.size)) };
     }
+    case "recording": {
+      const path = str(m.path, 2000);
+      if (!path) return null;
+      return { kind: "recording", name: str(m.name, 300) || path.split(/[\\/]/).pop() || "file", path, size: Math.max(0, num(m.size)), seconds: Math.max(0, num(m.seconds)) };
+    }
     case "error": {
       const text = str(m.text, 8000);
       if (!text) return null;
@@ -67,7 +72,10 @@ export function readMoment(raw: unknown): Moment | null {
 }
 
 /** The user's rules allow this proposal at all (notifications, in front of a client). */
-function allowed(_m: Moment): boolean {
+function allowed(m: Moment): boolean {
+  // A recording the user just stopped: its file must not be lost from sight,
+  // even in a meeting or with "solo permessi".
+  if (m.kind === "recording") return true;
   if (State.paused) return false;
   // Proposals count as alerts (each has its own switch): only "solo permessi" keeps them away.
   if (State.settings.notify === "permissions") return false;
