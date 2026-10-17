@@ -57,6 +57,8 @@ export interface SearchHost {
   sync(): void;
   /** Takes the keyboard: the island was opened by the user. */
   focus(): void;
+  /** Empties the field and hides the results (a tab was chosen). */
+  close(): void;
 }
 
 export function buildSearch(actions: SearchActions): SearchHost {
@@ -231,6 +233,10 @@ export function buildSearch(actions: SearchActions): SearchHost {
     focus() {
       void Bridge.focusWindow(true);
       input.focus();
+    },
+    close() {
+      if (input.value) reset();
+      input.blur();
     },
   };
 }

@@ -8,6 +8,7 @@ import { buildRecorderPanel } from "./recorder";
 import { h, clear, svg } from "./dom";
 import { ICONS } from "./icons";
 import { State } from "../core/state";
+import { washRGBA } from "../core/layout";
 import { fileActions } from "./actions";
 import { renderActionIcon } from "./action-icons";
 import { Bridge } from "../core/bridge";
@@ -303,7 +304,9 @@ export function buildFiles(actions: ViewActions): ViewHost {
     h("div", { class: "files-tiles" }, dropTile, captureTile),
     recorder.el,
     head, list, note);
-  const el = h("div", { class: "view" }, h("div", { class: "card files-card" }, body));
+  const card = h("div", { class: "card wash files-card" }, body);
+  card.style.setProperty("--wash", washRGBA("green"));
+  const el = h("div", { class: "view" }, card);
 
   // Null until the first draw: an empty tray must still draw its message.
   let key: string | null = null;

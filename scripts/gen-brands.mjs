@@ -3,7 +3,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 const map = { "3CX": "integration_3cx", Claude: "integration_claude", github: "integration_github", n8n: "integration_n8n",
   notion: "integration_notion", outlook: "integration_outlook", resend: "integration_resend", stripe: "integration_stripe",
-  vercel: "integration_vercel", zammad: "integration_zammad" };
+  vercel: "integration_vercel", zammad: "integration_zammad", rdm: "integration_rdm", teams: "integration_teams" };
 let out = `// Brand logos of the integrations, copied from the SVGs in brand/ (the folder
 // is only the source: nothing reads it at run time). Dark marks use
 // currentColor so they stay visible on the island's dark background.
@@ -23,7 +23,9 @@ for (const [file, id] of Object.entries(map)) {
     .replace(/\s+/g, " ").replace(/>\s+</g, "><").trim();
   // The drawing's own bounds (measured in the browser): no empty margins.
   const crop = { integration_3cx: "36 318 887 323", integration_outlook: "170 90 220 220",
-    integration_resend: "450 450 900 900", integration_stripe: "0 0 512 213" }[id];
+    integration_resend: "450 450 900 900", integration_stripe: "0 0 512 213", integration_rdm: "35 35 130 125" }[id];
+  // RDM ships on a light rounded tile: the island draws its own background.
+  if (id === "integration_rdm") s = s.replace(/<rect[^>]*\/>/, "");
   if (crop) s = s.replace(/viewBox="[^"]*"/, `viewBox="${crop}"`);
   out += `  ${id}: ${JSON.stringify(s)},\n`;
 }

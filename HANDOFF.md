@@ -26,6 +26,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 17 ottobre 2026 — Loghi Teams e RDM, alone in tutte le schede, ricerca che si chiude
+- Su richiesta di Edoardo: loghi di Teams e Remote Desktop Manager da `brand/` (`scripts/gen-brands.mjs`, RDM senza la piastrella chiara). Alone colorato in basso come nella chat anche in Panoramica e integrazioni (colore della scheda), Azioni (ambra) e File e schermo (verde). Un clic su una scheda mentre si scrive nella barra di ricerca la chiude e la svuota.
+- **Prove:** `npm run build`, scena `media&long&summary`, `npm run smoke`.
+
 ### 16 ottobre 2026 — Registra (conversazione, schermo o una finestra)
 - Su richiesta di Edoardo, integrazione «Registra» (`record.rs`, `src/views/recorder.ts`, `docs/integrazioni.md`): conversazione (microfono e audio del PC, .m4a) o schermo con audio (.mp4), solo con Windows (WASAPI, GDI, Media Foundation), nessuna dipendenza nuova. Punto rosso con Stop sempre accanto al personaggio; alla fine la card con Nel Vassoio, Apri, Mostra nella cartella. Poi, su richiesta: il pannello sta in «File e schermo» (non nel menu), e si registra o fotografa **una sola finestra**, scelta da un elenco o trascinandoci il personaggio (prova vera di 2 s riuscita). Nella barra di ricerca anche «Cerca con Google» (Alt+Invio).
 - **Prove:** registrazione vera di 3 s (schermo 671 KB, audio 70 KB, file cancellati), test, scene, `npm run smoke`. Una chiamata vera da provare (`docs/prove-dal-vivo.md`).
@@ -42,9 +46,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 16 ottobre 2026 — Barra dell'app in uso personalizzabile, azioni Tasti
 - Su richiesta di Edoardo: la barra mostra solo le sue azioni («Nella barra con», `*` = tutti), niente di predefinito; ha la precedenza sulla riga dell'agente. Nuove azioni **Tasti** (`keys.rs`) e domanda su **tutto il testo della finestra**; per azione «Solo nella barra» e aspetto (icona, testo, entrambi); per la barra aspetto, numero massimo, nome del programma. Corretto: `appBar` non era salvato da Rust (mancava in `settings.rs`).
 - **Prove:** test (anche delle sequenze di tasti), scena `strip&strip=app`, `npm run smoke`. Tasti veri da provare (`docs/prove-dal-vivo.md`).
-
-### 16 ottobre 2026 — Barra dell'app in uso, Panoramica con i loghi grandi, menu contestuale, versione 0.8.5
-- Versione **0.8.5** con queste voci.
-- Su richiesta di Edoardo, una «Touch Bar» accanto al personaggio chiuso: le sue azioni rapide legate al programma in primo piano («Nella barra con») e i suggerimenti ⚡ dei programmi noti, quando la striscia non ha altro (`strip.ts`, evento `foreground` da `context.rs`, `docs/architettura.md`). I comandi interni delle app non sono raggiungibili su Windows. Panoramica: logo grande e sbiadito nell'angolo in basso a sinistra, un cerchio per chi non ha logo.
-- Menu contestuale dell'isola al posto di quello di WebView2: per integrazioni, agenti, azioni, testo e chat, con «Impostazioni «nome»» che apre le Impostazioni sulla voce (`ctxmenu.ts`, `open_settings_at`, `docs/architettura.md`).
-- **Prove:** test, scene `strip&strip=app` e `overview`, `npm run smoke`. Da provare dal vivo (`docs/prove-dal-vivo.md`).

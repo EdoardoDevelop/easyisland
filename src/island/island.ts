@@ -371,6 +371,8 @@ export class Island {
     // The one field sits in the top bar; its results cover the views.
     this.header.field.append(this.search.el);
     this.rail = buildRail(actions);
+    // A tab chosen while typing: the search ends, its words go.
+    this.rail.el.addEventListener("click", () => this.search.close(), true);
     this.strip = buildStrip({
       decide: (d) => actions.decide(d),
       runAction: (a) => void this.runAction(a),
