@@ -70,7 +70,7 @@ pub fn ingest(source: &str) -> Result<DroppedFile, String> {
 }
 
 /// `name` in `dir`, or "name (2).ext", "name (3).ext"… when it is taken.
-fn unique_dest(dir: &Path, name: &str) -> PathBuf {
+pub(crate) fn unique_dest(dir: &Path, name: &str) -> PathBuf {
     let dest = dir.join(name);
     if !dest.exists() {
         return dest;

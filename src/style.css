@@ -3049,7 +3049,17 @@ input[type="range"]::-webkit-slider-thumb {
   height: 100%;
   box-sizing: border-box;
   justify-content: safe center;
+  /* Vassoio and Cartella di lavoro together can be taller than the island: the page scrolls. */
+  overflow-y: auto;
 }
+
+.files-body > * {
+  flex-shrink: 0;
+}
+
+.files-body::-webkit-scrollbar { width: 6px; }
+.files-body::-webkit-scrollbar-button { display: none; }
+.files-body::-webkit-scrollbar-thumb { border-radius: 3px; background: rgba(255, 255, 255, 0.18); }
 
 .files-head {
   display: flex;
@@ -5159,3 +5169,91 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 .rec-picked-name { flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; }
 .teams-btn.rec-x { width: 30px; padding: 0; }
 .rec-picked-name { flex-basis: 120px; }
+
+/* «File e schermo» → Cartella di lavoro (src/views/workdir.ts). */
+.work-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.work-panel .files-head .work-pick {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.12);
+}
+.work-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.work-crumbs:empty { display: none; }
+.work-crumb {
+  border: 0;
+  border-radius: 6px;
+  padding: 1px 6px;
+  background: transparent;
+  color: var(--dim-2);
+  font: 500 11.5px var(--font);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.work-crumb:last-child { color: var(--ink); }
+.work-crumb:hover { background: rgba(255, 255, 255, 0.08); color: var(--ink); }
+.work-sep { color: var(--dim-4); font-size: 11px; }
+.work-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font: 400 11.5px var(--font);
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.1);
+}
+.work-banner:empty { display: none; }
+.work-banner span:first-child { flex: 1 1 auto; min-width: 0; }
+.work-row { cursor: default; flex-wrap: wrap; }
+.work-row.dir { cursor: pointer; }
+.work-row.moving { box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.5); }
+.work-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  flex: 0 0 auto;
+}
+.work-more {
+  flex: 1 0 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 0 2px 26px;
+}
+.work-more .btn,
+.work-banner .btn {
+  padding: 4px 10px;
+  font-size: 11.5px;
+}
+.btn.danger {
+  background: #f4505e;
+  color: #fff;
+}
+.work-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--ink);
+  font: 500 12px var(--font);
+  outline: none;
+}
+.work-input:focus { border-color: #22c55e; }

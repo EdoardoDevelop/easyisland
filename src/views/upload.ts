@@ -5,6 +5,7 @@
 // question about it, plus the user's quick actions that work on a file.
 
 import { buildRecorderPanel } from "./recorder";
+import { buildWorkPanel } from "./workdir";
 import { h, clear, svg } from "./dom";
 import { ICONS } from "./icons";
 import { State } from "../core/state";
@@ -299,11 +300,13 @@ export function buildFiles(actions: ViewActions): ViewHost {
     text: t("Trascina un file in un'altra app per usarlo. Sono copie: gli originali restano dove sono. Il vassoio si svuota quando EasyIsland si riavvia, tranne i file fissati con la puntina.") });
   // Registra: a conversation, the screen or one window (src/views/recorder.ts).
   const recorder = buildRecorderPanel(actions);
+  // The work folder (src/views/workdir.ts), separate from the tray.
+  const work = buildWorkPanel(actions);
   const body = h("div", { class: "files-body" },
     h("h1", { class: "files-title", text: t("File e schermo") }),
     h("div", { class: "files-tiles" }, dropTile, captureTile),
     recorder.el,
-    head, list, note);
+    head, list, note, work.el);
   const card = h("div", { class: "card wash files-card" }, body);
   card.style.setProperty("--wash", washRGBA("green"));
   const el = h("div", { class: "view" }, card);
@@ -349,11 +352,15 @@ export function buildFiles(actions: ViewActions): ViewHost {
     el,
     sync() {
       recorder.sync();
+      work.sync();
+      // The tray's «Sposta nella cartella di lavoro» appears with a work folder.
+      const workHere = work.current();
+      const workKey = workHere === null ? "-" : workHere;
       dropTile.classList.toggle("over", State.fileDragOver);
       hotkey.textContent = State.settings.hotkeyScreenshot ?? "";
       const files = State.inbox ?? [];
       const fresh = State.trayFresh && State.trayFresh.until > Date.now() ? State.trayFresh.name : "";
-      const k = `${fresh}#` + files.map((f) => `${f.name}:${f.at}:${f.kept ? 1 : 0}`).join("|");
+      const k = `${fresh}#${workKey}#` + files.map((f) => `${f.name}:${f.at}:${f.kept ? 1 : 0}`).join("|");
       if (k === key) return;
       key = k;
       const total = files.reduce((s, f) => s + f.size, 0);
@@ -381,6 +388,9 @@ export function buildFiles(actions: ViewActions): ViewHost {
           iconBtn("chat", t("Chiedi alla chat su questo file"), "#A78BFA", () => actions.askAboutFile(f)),
           iconBtn("file", t("Apri"), "#38BDF8", () => void Bridge.inboxOpen(f.name, false).catch(fail)),
           iconBtn("folder", t("Mostra nella cartella"), "#F5A524", () => void Bridge.inboxOpen(f.name, true).catch(fail)),
+          workHere === null ? null : iconBtn("upload",
+            workHere ? t("Sposta nella cartella di lavoro, in «{dir}»", { dir: workHere }) : t("Sposta nella cartella di lavoro"), "#22C55E",
+            () => void Bridge.inboxToWork(f.name, workHere, false).then(() => { actions.refreshFiles(); work.reload(); }).catch(fail)),
           pinBtn(!!f.kept, () => void Bridge.inboxKeep(f.name, !f.kept).then(() => actions.refreshFiles()).catch(fail)),
           iconBtn("trash", t("Togli dal vassoio"), "#F4505E", () => {
 

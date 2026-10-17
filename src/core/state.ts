@@ -321,6 +321,7 @@ export const TOGGLEABLE_INTEGRATION_IDS = [
   "integration_notion", "integration_calcom", "integration_stripe",
   ...Object.keys(PROBE_INTEGRATIONS),
   "integration_clipboard", "integration_media", "integration_3cx", "integration_rdm", "integration_teams", "integration_recorder",
+  "integration_telegram",
 ];
 
 /** What an integration poller last reported. */
@@ -554,6 +555,9 @@ export interface IntegrationConfig {
   /** Remote Desktop Manager: connections kept in the card, and the last opened (rdm.rs). */
   rdmPins?: RdmRef[];
   rdmRecent?: RdmRef[];
+  /** Telegram (telegram.rs): the linked chat (0 = none) and its name. */
+  telegramChatId?: number;
+  telegramName?: string;
 }
 
 /** A connection of Remote Desktop Manager (settings.rs RdmRef, rdm.rs Entry). */

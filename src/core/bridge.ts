@@ -10,6 +10,30 @@ import type { RecapHistory } from "../island/recap";
 export const IS_TAURI =
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
+export interface WorkEntry {
+  name: string;
+  rel: string;
+  dir: boolean;
+  size: number;
+  at: number;
+}
+
+export interface WorkListing {
+  root: string;
+  rel: string;
+  entries: WorkEntry[];
+  more: boolean;
+}
+
+export interface TelegramInfo {
+  token: boolean;
+  running: boolean;
+  bot: string;
+  linked: boolean;
+  name: string;
+  error: string | null;
+}
+
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
   if (!IS_TAURI) return null;
   try {
@@ -314,6 +338,11 @@ export const Bridge = {
   rdmFilter: (text: string) => callOrThrow<void>("rdm_filter", { text }),
   rdmQuick: (kind: "RDP" | "SSH" | "VNC", host: string) => callOrThrow<void>("rdm_quick", { kind, host }),
   rdmStatus: () => call<RdmStatus>("rdm_status"),
+  /** Telegram (telegram.rs): the bot, the linked chat, the last error. */
+  telegramInfo: () => call<TelegramInfo>("telegram_info"),
+  telegramLinkCode: () => callOrThrow<string>("telegram_link_code"),
+  telegramUnlink: () => callOrThrow<void>("telegram_unlink"),
+  telegramRestart: () => call<void>("telegram_restart"),
   rdmDataSources: () => callOrThrow<{ id: string; name: string; kind: string }[]>("rdm_data_sources"),
   /** "+ Attività" in the Notion card (due: "YYYY-MM-DD" or null). */
   notionAddTask: (title: string, due: string | null) => callOrThrow<void>("notion_add_task", { title, due }),
@@ -333,6 +362,19 @@ export const Bridge = {
   fileOpen: (path: string, reveal: boolean) => callOrThrow<void>("file_open", { path, reveal }),
   /** Drags a file of the tray out of the island into another app (Windows' own drag); resolves when it is over. */
   inboxDrag: (name: string) => callOrThrow<void>("inbox_drag", { name }),
+  /** «Sposta nella cartella di lavoro»: into `dest` (relative), moved or copied. */
+  inboxToWork: (name: string, dest: string, copy: boolean) => callOrThrow<string>("inbox_to_work", { name, dest, copy }),
+  /** The work folder (workdir.rs): `rel` is relative to it, with "/". */
+  workList: (rel: string) => callOrThrow<WorkListing>("work_list", { rel }),
+  workOpen: (rel: string, reveal: boolean) => callOrThrow<void>("work_open", { rel, reveal }),
+  workRename: (rel: string, name: string) => callOrThrow<string>("work_rename", { rel, name }),
+  workMkdir: (parent: string, name: string) => callOrThrow<string>("work_mkdir", { parent, name }),
+  workMove: (rel: string, dest: string) => callOrThrow<string>("work_move", { rel, dest }),
+  workTrash: (rel: string) => callOrThrow<void>("work_trash", { rel }),
+  workToInbox: (rel: string) => callOrThrow<{ name: string; path: string; size: number }>("work_to_inbox", { rel }),
+  workDrag: (rel: string) => callOrThrow<void>("work_drag", { rel }),
+  /** Windows' folder dialog; the folder chosen becomes the work folder (null: cancelled). */
+  workPick: () => callOrThrow<string | null>("work_pick"),
   /** Is the left mouse button held (anywhere on the screen)? */
   mouseButtonDown: () => call<boolean>("mouse_button_down"),
   /** "Estrai…" on a dropped ZIP. `place`: "beside" | "downloads" | "desktop". */

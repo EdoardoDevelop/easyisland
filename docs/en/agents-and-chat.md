@@ -62,6 +62,24 @@ disagree, the Italian files are the reference.
   the user's subscription), Anthropic's API (`claude.rs`), OpenRouter, OpenAI, Gemini,
   Ollama and LM Studio (`openai.rs`, OpenAI-compatible streaming, no tools), opencode
   (`opencode.rs`).
+- One turn is `chat_turn` in `lib.rs`: `chat_send` uses it for the island, `telegram.rs`
+  for its own conversation. The streamed text goes to a callback, not straight to the
+  island.
+- **Telegram** (`telegram.rs`): the chat in a Telegram chat through the user's own bot
+  (BotFather token in Credential Manager), long polling only, one chat linked with a
+  6-digit code. Engine and model chosen there (`/motore`, `/modello`) apply to that
+  conversation only. In terminal mode every permission is an Allow / Deny message with
+  buttons in Telegram (`EASYISLAND_CHANNEL=telegram` for Claude Code's hook,
+  `Options::telegram` for opencode). Messages sent while the app was closed are dropped.
+- **EasyIsland's tools for opencode too**: with `agentTools` on, the private opencode
+  server gets `easyisland-hook mcp` as a local MCP server through
+  `OPENCODE_CONFIG_CONTENT` (opencode 2 shape: `mcp.servers.<name>` =
+  `{type: "local", command: [...]}`); read-only tools are allowed in the session's
+  rules, the others ask Allow / Deny. The instructions ride in front of the first message.
+- **Work folder** (`workdir.rs`, `settings.chatFolder`): one folder of the PC browsed in
+  "Files and screen", by the chat (`list_work_folder`, `move_to_work_folder`, readable
+  without asking) and from Telegram (`/cartella`). Every path is checked to stay inside
+  it; deleting goes to the Recycle Bin and only from the user's click.
 - **History**: `chats.json` in `%LOCALAPPDATA%\EasyIsland`, up to 100 conversations,
   without the bytes of attached files. Nothing leaves the PC.
 - **opencode as an engine:** a private `opencode serve` on a free port with a random

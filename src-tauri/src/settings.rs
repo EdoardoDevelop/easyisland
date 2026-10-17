@@ -118,6 +118,12 @@ pub struct IntegrationConfig {
     /// Remote Desktop Manager: the last ones opened from EasyIsland (newest first, 8).
     #[serde(default)]
     pub rdm_recent: Vec<RdmRef>,
+    /// Telegram (telegram.rs): the one chat the bot answers, linked with a
+    /// code from the settings (0 = none yet), and its name, to show there.
+    #[serde(default)]
+    pub telegram_chat_id: i64,
+    #[serde(default)]
+    pub telegram_name: String,
 }
 
 /// A connection of Remote Desktop Manager kept in the settings (rdm.rs Entry).
@@ -226,6 +232,8 @@ impl Default for IntegrationConfig {
             rdm_data_source: String::new(),
             rdm_pins: Vec::new(),
             rdm_recent: Vec::new(),
+            telegram_chat_id: 0,
+            telegram_name: String::new(),
         }
     }
 }

@@ -381,6 +381,10 @@ fn read_event() -> Option<Event> {
     map.insert("hook_event_name".into(), serde_json::Value::String(event.clone()));
     if std::env::args().any(|a| a == "--chat") {
         map.insert("easyisland_chat".into(), serde_json::Value::Bool(true));
+        // A chat turn from Telegram: the app asks there (telegram.rs).
+        if std::env::var("EASYISLAND_CHANNEL").is_ok_and(|c| c == "telegram") {
+            map.insert("easyisland_channel".into(), serde_json::Value::String("telegram".into()));
+        }
     }
     // Codex, Gemini CLI or a tool of its own: Claude Code's shape and its own pill.
     let args: Vec<String> = std::env::args().collect();

@@ -27,6 +27,8 @@ pub const KNOWN_KEYS: &[&str] = &[
     "3cx-password",
     "3cx-client-id",
     "3cx-client-secret",
+    // The Telegram bot's token, from BotFather (telegram.rs).
+    "telegram-bot-token",
 ];
 
 /// Widget header secrets: `widget:<widget id>:<header name>`, plain characters

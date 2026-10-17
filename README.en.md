@@ -58,6 +58,16 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 
 ## What's new
 
+**0.8.8** — **Telegram**: EasyIsland's chat in your own bot (made with @BotFather),
+linked once with a code and to your chat only. Pick engine and model from there
+(`/motore`, `/modello`); in terminal mode Allow / Deny arrive as buttons; photos and
+files go to the Tray, and files the chat puts in the Tray reach you on Telegram
+(`/vassoio`). **Work folder**: a folder of the PC in "Files and screen", with
+subfolders, Rename, Move, To the Tray, Recycle Bin and dragging out; Tray files move
+into it; the chat reads it and moves files into it, Telegram opens it with `/cartella`.
+**opencode** now has EasyIsland's tools like Claude (Tray, apps, notices, quick actions,
+automations).
+
 **0.8.7** — **Record**: a conversation (microphone and PC audio) or the screen with
 audio, or a **single window** picked from a list or by dropping the character on it,
 with Windows only; a red dot with Stop next to the character, and at the end *To the
@@ -84,7 +94,8 @@ the browser's. **Overview** with large, faded logos in the corner of each tile.
 
 | Version | Date | What's new |
 |---|---|---|
-| **0.8.7** | 17 Oct 2026 | Record (conversation, screen or one window), Search with Google, Teams and RDM logos, glow in every tab, search closing on tab click, ⚡ Automatic with connector tools, English documentation |
+| **0.8.8** | 17 Oct 2026 | Telegram (chat, engine and model from there, Allow / Deny, files both ways), work folder in "Files and screen", the chat and Telegram, EasyIsland's tools for opencode too |
+| 0.8.7 | 17 Oct 2026 | Record (conversation, screen or one window), Search with Google, Teams and RDM logos, glow in every tab, search closing on tab click, ⚡ Automatic with connector tools, English documentation |
 | 0.8.6 | 16 Oct 2026 | Microsoft Teams (meetings, controls, Join), Microsoft account with the APIs for Outlook and Teams (to be tested), customisable app bar with Keys actions |
 | 0.8.5 | 16 Oct 2026 | App bar next to the closed character, right-click menu in the island, Overview with large logos |
 | 0.8.4 | 15 Oct 2026 | Automations with new events, filters, more conditions, repeats and event data in the steps; Settings above the island; Notion with views and alerts; Remote Desktop Manager (beta); grouped Integrations |
@@ -342,6 +353,7 @@ Windows Credential Manager.
 |---|---|
 | **GitHub, Vercel, Stripe, Resend, Notion, Cal.com, n8n** | the service's activity (deploys, payments, emails, bookings, runs), with the service's key; Notion also with tasks, quick notes, pinned pages and search |
 | **Zammad** | tickets assigned to you, unassigned and escalated; alerts on a new ticket |
+| **Telegram** | EasyIsland's chat in your own Telegram bot (token from @BotFather, linked with a code valid 10 minutes, then for good and to your chat only). A separate conversation with engine and model picked there (`/motore`, `/modello`, `/nuova`, `/stato`); Allow / Deny as buttons; photos and files to the Tray; the chat's files sent back; `/vassoio` and `/cartella`. Only while the PC is on: messages sent while EasyIsland is closed are dropped |
 | **Outlook** | unread mail and today's and tomorrow's appointments from classic Outlook; with a Microsoft account, from Microsoft 365 too |
 | **Microsoft Teams** | a meeting in progress, with microphone, video, raise hand, share and leave; presence and meetings with a Microsoft account |
 | **Remote Desktop Manager** | your connections, searchable from the island's search bar |
@@ -423,6 +435,13 @@ Any other tool can appear in **Agents** by sending events to
 `easyisland-hook <Event>` with an `easyisland_agent` field.
 
 ## Chat with Claude
+
+**Work folder.** In **"Files and screen"** or **Settings… → Chat**, "Choose…" points to a
+folder of the PC. In "Files and screen" you browse it under the Tray (double click to
+enter a folder or open a file) and with "⋯" rename, move, copy to the Tray, copy the
+path or send to the Recycle Bin; the Tray's green icon moves a file there. The chat
+(with EasyIsland's tools) reads it without asking and moves Tray files into it; in
+terminal mode it is the folder the chat works in. From Telegram: `/cartella`.
 
 **Settings… → Chat** picks the **default** engine; the model name at the top right of
 the chat picks another one for that conversation only:

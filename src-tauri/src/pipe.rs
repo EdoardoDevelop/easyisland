@@ -204,7 +204,12 @@ async fn handle(app: AppHandle, mut pipe: NamedPipeServer) {
         return;
     }
 
-    let decision = request_decision(&app, payload).await;
+    // A chat turn from Telegram: Consenti / Nega there, never on the island.
+    let decision = if payload.get("easyisland_channel").and_then(Value::as_str) == Some("telegram") {
+        crate::telegram::request_decision(&app, payload).await
+    } else {
+        request_decision(&app, payload).await
+    };
 
     // No decision: say nothing at all. easyisland-hook then writes nothing to stdout
     // and Claude Code asks in the terminal, exactly as if EasyIsland were closed.

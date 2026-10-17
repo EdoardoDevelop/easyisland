@@ -11,7 +11,6 @@
 
 use serde::Serialize;
 use serde_json::{json, Value};
-use tauri::{AppHandle, Emitter};
 
 use crate::claude::{Chat, ChatContext, ChatReply};
 use crate::secrets;
@@ -67,11 +66,6 @@ const MAX_IMAGE: u64 = 8_000_000;
 const HTTP_TIMEOUT_SECS: u64 = 300;
 /// The island gets the growing reply at most this often.
 const STREAM_EVERY_MS: u128 = 80;
-
-#[derive(Clone, Serialize)]
-struct Stream<'a> {
-    text: &'a str,
-}
 
 /// The user message of this turn: the attached file or text (first turn only)
 /// and the question.
@@ -209,14 +203,15 @@ fn network_error(engine: &str, base: &str, err: reqwest::Error) -> String {
 }
 
 /// One chat turn on an OpenAI-compatible engine.
+/// `on_text` gets the text so far (the island's chat, or Telegram).
 pub async fn send(
-    app: &AppHandle,
     chat: &Chat,
     engine: &str,
     model: &str,
     custom_url: Option<&str>,
     query: String,
     context: Option<ChatContext>,
+    on_text: &(dyn Fn(&str) + Sync),
 ) -> Result<ChatReply, String> {
     let p = provider(engine).ok_or(t("Motore della chat sconosciuto."))?;
     if model.trim().is_empty() {
@@ -230,10 +225,7 @@ pub async fn send(
     messages.extend(chat.snapshot());
     let body = json!({ "model": model.trim(), "messages": messages, "stream": true });
 
-    let on_text = |text: &str| {
-        let _ = app.emit_to(crate::island::WINDOW_LABEL, "chat-stream", Stream { text });
-    };
-    let result = stream_turn(engine, &base, &body, &on_text).await;
+    let result = stream_turn(engine, &base, &body, on_text).await;
     match result {
         Ok(text) if !text.trim().is_empty() => {
             chat.push(json!({ "role": "assistant", "content": text }));

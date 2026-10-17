@@ -29,9 +29,8 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use serde::Serialize;
 use serde_json::{json, Value};
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 
 use crate::claude::{Chat, ChatContext, ChatReply};
 use crate::i18n::{t, tf};
@@ -46,11 +45,6 @@ const STREAM_EVERY_MS: u128 = 80;
 /// No event of the turn for this long (a model that stopped answering): give up.
 /// Longer than a permission card stays up (pipe.rs, 108 s).
 const STALL: Duration = Duration::from_secs(180);
-
-#[derive(Clone, Serialize)]
-struct Stream<'a> {
-    text: &'a str,
-}
 
 // ── Finding opencode ──────────────────────────────────────────────────────────
 
@@ -97,6 +91,44 @@ pub struct Options {
     /// For the server: opencode config of its own (OPENCODE_CONFIG_CONTENT), e.g.
     /// the address of an Ollama on another PC. Merged with the user's.
     pub config: Option<String>,
+    /// A turn from Telegram (telegram.rs): permissions are asked there, not on the island.
+    pub telegram: bool,
+    /// The easyisland tools (Impostazioni → Chat, `agentTools`), as Claude Code
+    /// has them: `easyisland-hook mcp` as a local MCP server of the private one.
+    pub agent: bool,
+    /// The work folder (workdir.rs): readable without asking, like the chat's own.
+    pub work: Option<PathBuf>,
+}
+
+/// `o.config` with the easyisland MCP server added (opencode 2's shape:
+/// `mcp.servers.<name>` = `{type: "local", command: [...]}`, read from its
+/// own `mcp add`). Merged with the user's config by opencode.
+fn with_agent(o: &Options) -> Options {
+    let mut o = o.clone();
+    if !o.agent {
+        return o;
+    }
+    let mut config: Value = o.config.as_deref().and_then(|c| serde_json::from_str(c).ok()).unwrap_or_else(|| json!({}));
+    let hook = crate::settings::hook_exe_path().to_string_lossy().into_owned();
+    config["mcp"]["servers"]["easyisland"] = json!({ "type": "local", "command": [hook, "mcp"] });
+    o.config = Some(config.to_string());
+    o
+}
+
+/// What the model is told on the first message: opencode has no system prompt
+/// of ours, so the easyisland tools and the work folder ride in front of it.
+fn preface(o: &Options) -> Option<String> {
+    let mut text = String::new();
+    if o.agent {
+        text.push_str(crate::claude_cli::AGENT_PROMPT.replace(crate::claude_cli::NO_COMMANDS, "").trim());
+    }
+    if let Some(w) = &o.work {
+        if !text.is_empty() {
+            text.push(' ');
+        }
+        text.push_str(&format!("The user's work folder is {}: you may read it freely; list it with list_work_folder if you have it.", w.display()));
+    }
+    (!text.is_empty()).then(|| format!("[{text}]"))
 }
 
 /// "Modalità terminale" for an engine that has no tools of its own: the same
@@ -359,7 +391,14 @@ pub fn shutdown() {
 
 /// The session's permissions; the last matching rule wins. Everything asks,
 /// except reading and searching inside the chat's folder and opencode's own.
+#[cfg(test)]
 pub fn rules() -> Value {
+    rules_for(&Options::default())
+}
+
+/// `rules()` plus what the options open: the easyisland tools that change
+/// nothing (as Claude Code pre-allows them) and reading the work folder.
+fn rules_for(o: &Options) -> Value {
     let mut r = vec![
         json!({ "action": "*", "resource": "*", "effect": "ask" }),
     ];
@@ -377,7 +416,23 @@ pub fn rules() -> Value {
     for dir in [format!("{home}\\.local\\share\\opencode\\*"), format!("{temp}\\opencode\\*")] {
         r.push(json!({ "action": "external_directory", "resource": dir, "effect": "allow" }));
     }
+    if o.agent {
+        for tool in crate::claude_cli::AGENT_READ_ONLY {
+            r.push(json!({ "action": format!("easyisland_{tool}"), "resource": "*", "effect": "allow" }));
+        }
+    }
+    if let Some(w) = &o.work {
+        r.push(json!({ "action": "external_directory", "resource": format!("{}\\*", w.display()), "effect": "allow" }));
+    }
     Value::Array(r)
+}
+
+/// The first message with `preface` in front.
+fn with_preface(first: bool, query: &str, o: &Options) -> String {
+    match preface(o).filter(|_| first) {
+        Some(p) => format!("{p}\n\n{query}"),
+        None => query.to_string(),
+    }
 }
 
 /// "provider/model" (as saved in engineModels.opencode) → `{providerID, id}`.
@@ -637,12 +692,26 @@ impl Ask for Island {
     }
 }
 
-/// One chat turn on opencode. `model` is "provider/model".
-pub async fn send(app: &AppHandle, chat: &Chat, model: &str, query: String, context: Option<ChatContext>, o: &Options) -> Result<ChatReply, String> {
-    let on_text = |text: &str| {
-        let _ = app.emit_to(crate::island::WINDOW_LABEL, "chat-stream", Stream { text });
-    };
-    run_turn(chat, model, query, context, &on_text, Island(app.clone()), o).await
+/// One chat turn on opencode. `model` is "provider/model"; `on_text` gets the
+/// text so far (the island's chat, or Telegram).
+pub async fn send(app: &AppHandle, chat: &Chat, model: &str, query: String, context: Option<ChatContext>, o: &Options, on_text: &(dyn Fn(&str) + Sync)) -> Result<ChatReply, String> {
+    let o = &with_agent(o);
+    if o.telegram {
+        run_turn(chat, model, query, context, on_text, Telegram(app.clone()), o).await
+    } else {
+        run_turn(chat, model, query, context, on_text, Island(app.clone()), o).await
+    }
+}
+
+/// A turn from Telegram: Consenti / Nega as buttons in the Telegram chat.
+#[derive(Clone)]
+struct Telegram(AppHandle);
+
+impl Ask for Telegram {
+    fn decide(&self, payload: Value) -> Decision {
+        let app = self.0.clone();
+        Box::pin(async move { crate::telegram::request_decision(&app, payload).await })
+    }
 }
 
 async fn run_turn(chat: &Chat, model: &str, query: String, context: Option<ChatContext>, on_text: &(dyn Fn(&str) + Sync), ask: impl Ask, o: &Options) -> Result<ChatReply, String> {
@@ -686,7 +755,7 @@ async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&Chat
                 "title": "Chat di EasyIsland",
                 "model": model,
                 "location": { "directory": o.folder.clone().unwrap_or_else(workspace).to_string_lossy() },
-                "permissions": rules(),
+                "permissions": rules_for(o),
             });
             let r = auth(client.post(format!("{url}/api/session")).json(&body)).send().await.map_err(|e| e.to_string())?;
             let status = r.status();
@@ -701,7 +770,7 @@ async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&Chat
 
     // The stream first, so no event of this turn is missed.
     let mut events = auth(stream.get(format!("{url}/api/event"))).send().await.map_err(|e| e.to_string())?;
-    let r = auth(client.post(format!("{url}/api/session/{session}/prompt")).json(&prompt_body(first, query, context)))
+    let r = auth(client.post(format!("{url}/api/session/{session}/prompt")).json(&prompt_body(first, &with_preface(first, query, o), context)))
         .send().await.map_err(|e| e.to_string())?;
     if r.status() == reqwest::StatusCode::NOT_FOUND && !first {
         return Err(SESSION_GONE.into());
@@ -1013,6 +1082,24 @@ mod tests {
 
     /// Against the opencode installed on this PC (2.x, a free model):
     /// `cargo test --lib opencode::tests::live -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn live_easyisland_tools() {
+        // Needs EasyIsland running (the tools go through its pipe).
+        tauri::async_runtime::block_on(async {
+            let chat = Chat::default();
+            let model = std::env::var("OPENCODE_TEST_MODEL").unwrap_or_else(|_| "opencode/big-pickle".into());
+            let o = with_agent(&Options { agent: true, ..Default::default() });
+            assert!(o.config.as_deref().unwrap_or_default().contains("easyisland"));
+            let r = run_turn(&chat, &model, "Usa lo strumento easyisland_list_profiles e dimmi i nomi dei profili.".into(), None, &|_: &str| {}, Fixed("allow"), &o).await;
+            println!("{:?}", r.as_ref().map(|x| &x.text));
+            let text = r.expect("turn").text;
+            // opencode 2 often calls tools from its "code mode" (a step "Esegue uno
+            // script"); the profiles' names can only come from EasyIsland.
+            assert!(text.contains("> ⚙"), "a step: {text}");
+        });
+    }
+
     #[test]
     #[ignore]
     fn live_turn_with_a_command_and_a_follow_up() {

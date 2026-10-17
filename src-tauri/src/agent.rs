@@ -315,6 +315,26 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             Ok(pretty(&json!(files)))
         }
 
+        "list_work_folder" => {
+            let l = crate::workdir::list(app, arg(args, "path"))?;
+            Ok(crate::workdir::describe(&l))
+        }
+
+        "move_to_work_folder" => {
+            let name = arg(args, "name").to_string();
+            if name.is_empty() {
+                return Err("Manca name.".into());
+            }
+            let folder = arg(args, "folder").to_string();
+            let copy = args.get("copy").and_then(Value::as_bool).unwrap_or(false);
+            let app2 = app.clone();
+            let rel = tauri::async_runtime::spawn_blocking(move || crate::workdir::from_inbox(&app2, &name, &folder, copy))
+                .await
+                .map_err(|e| e.to_string())??;
+            let path = crate::workdir::path_of(app, &rel)?;
+            Ok(format!("Fatto: {}", path.display()))
+        }
+
         "list_profiles" => {
             let s = settings(app)?;
             let list: Vec<Value> = s
