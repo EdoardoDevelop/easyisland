@@ -83,4 +83,15 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
   8. **`Win+Alt+A`:** su un IP, «Connetti con RDP/SSH» apre una connessione al volo, che non viene salvata; su un nome, «Cerca in Remote Desktop Manager».
   9. **Senza modulo:** la ricerca della card apre RDM con il campo di ricerca già compilato.
   10. **Con un collega su un altro PC:** vede solo le connessioni che vede in RDM.
-
+- [ ] **Telegram** (fatto il 17 ottobre 2026), con un bot vero:
+  1. Token da @BotFather salvato, integrazione accesa: le Impostazioni dicono «@bot in ascolto». Token sbagliato: «Token del bot non valido».
+  2. «Collega», `/start <codice>` dal telefono: «Collegato». Da un altro account o con il codice scaduto: nessuna risposta o «Codice non valido».
+  3. Una domanda: «…» che si aggiorna mentre scrive, poi la risposta formattata; una risposta lunga in più messaggi. Avviso «Telegram» nell'isola, conversazione «Telegram · …» nella cronologia, chat dell'isola intatta.
+  4. `/motore` e `/modello` con i pulsanti, `/modello nome`, `/nuova`, `/stato`.
+  5. Modalità terminale con Claude Code e con opencode: Consenti / Nega arrivano in Telegram e non nell'isola; senza risposta per 100 s, negato.
+  6. Foto e PDF con e senza didascalia: nel Vassoio e letti dal motore.
+  7. App chiusa, messaggio, app riaperta: una sola risposta «Ero spento».
+  8. «Mandami lo screenshot / il file X»: arriva in Telegram (foto, documento, video); `/vassoio` e un pulsante.
+  9. Con un profilo automatico attivo che non ha Telegram acceso, il bot risponde lo stesso.
+  10. `/cartella`: aprire una sottocartella, «Su», farsi mandare un file; un file ricevuto spostato nella cartella di lavoro.
+- [ ] **Cartella di lavoro** (17 ottobre 2026): «Scegli…» in «File e schermo» e nelle Impostazioni; doppio clic su cartelle e file; Rinomina, Sposta… e «Sposta qui», Nel Vassoio, Copia percorso, Cestino (il file è nel Cestino di Windows); trascinare un file e una cartella in Esplora file; dal Vassoio l'icona verde. Chat con Claude e con opencode: «cosa c'è nella cartella di lavoro?», «leggi il file X», «sposta nella cartella di lavoro il file del Vassoio».

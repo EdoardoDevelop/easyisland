@@ -2,6 +2,15 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 16 ottobre 2026 — Registra (conversazione, schermo o una finestra)
+- Su richiesta di Edoardo, integrazione «Registra» (`record.rs`, `src/views/recorder.ts`, `docs/integrazioni.md`): conversazione (microfono e audio del PC, .m4a) o schermo con audio (.mp4), solo con Windows (WASAPI, GDI, Media Foundation), nessuna dipendenza nuova. Punto rosso con Stop sempre accanto al personaggio; alla fine la card con Nel Vassoio, Apri, Mostra nella cartella. Poi, su richiesta: il pannello sta in «File e schermo» (non nel menu), e si registra o fotografa **una sola finestra**, scelta da un elenco o trascinandoci il personaggio (prova vera di 2 s riuscita). Nella barra di ricerca anche «Cerca con Google» (Alt+Invio).
+- **Prove:** registrazione vera di 3 s (schermo 671 KB, audio 70 KB, file cancellati), test, scene, `npm run smoke`. Una chiamata vera da provare (`docs/prove-dal-vivo.md`).
+
+### 16 ottobre 2026 — Account Microsoft (API), predisposizione, versione 0.8.6
+- Versione **0.8.6** con queste voci, Teams e la barra personalizzabile.
+- Su richiesta di Edoardo, Outlook e Teams con Microsoft Graph (`msgraph.rs`, `docs/integrazioni.md`): «Accedi con Microsoft» con PKCE e ritorno su localhost, token in Gestione credenziali, sola lettura. Outlook usa Graph quando c'è l'accesso (anche nuovo Outlook e Outlook chiuso); Teams mostra stato e riunioni con «Partecipa». Guida alla registrazione in Entra nelle Impostazioni.
+- **Prove:** test (anche PKCE con l'esempio dell'RFC 7636), card con dati simulati, `npm run smoke`. Non provato con Microsoft: serve la registrazione.
+
 ### 16 ottobre 2026 — Microsoft Teams, parte locale
 - Su richiesta di Edoardo, integrazione Teams senza account (`teams.rs`, `src/views/teams.ts`, `docs/integrazioni.md`): Teams aperto e in riunione (microfono e webcam), Microfono, Video, Alza la mano, Condividi ed Esci con le scorciatoie di Teams mandate alla sua finestra, anche nella striscia a isola chiusa; Apri Teams, Partecipa dal link copiato; automazioni «inizia / finisce una riunione Teams». Graph (riunioni, chat, stato) è il secondo passo in `docs/idee.md`.
 - **Prove:** test, scena `teams&call`, `npm run smoke`. Da provare in una riunione vera (`docs/prove-dal-vivo.md`).

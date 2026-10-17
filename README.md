@@ -59,6 +59,16 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.8.8** — **Telegram**: la chat di EasyIsland nel tuo bot (creato con @BotFather),
+collegato una volta con un codice e solo alla tua chat. Scegli motore e modello da lì
+(`/motore`, `/modello`), con la modalità terminale Consenti / Nega arrivano come
+pulsanti, foto e file vanno nel Vassoio e i file che la chat mette nel Vassoio ti
+arrivano su Telegram (`/vassoio`). **Cartella di lavoro**: una cartella del PC in
+«File e schermo», con sottocartelle, Rinomina, Sposta, Nel Vassoio, Cestino e
+trascinamento; dal Vassoio ci sposti i file; la chat la legge e ci sposta i file,
+Telegram la apre con `/cartella`. **opencode** ha ora gli strumenti di EasyIsland come
+Claude (Vassoio, app, avvisi, azioni rapide, automazioni).
+
 **0.8.7** — **Registra**: una conversazione (microfono e audio del PC) o lo schermo con
 l'audio, oppure **una sola finestra** scelta da un elenco o trascinandoci il personaggio,
 solo con Windows; punto rosso con Stop accanto al personaggio e alla fine Nel Vassoio,
@@ -254,7 +264,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.8.7** | 17 ott 2026 | Registra (conversazione, schermo o una finestra), Cerca con Google, loghi di Teams e RDM, alone in tutte le schede, ricerca che si chiude al cambio di scheda, ⚡ Automatica con gli strumenti dei connettori, documentazione in inglese |
+| **0.8.8** | 17 ott 2026 | Telegram (chat, motore e modello da lì, Consenti / Nega, file nei due sensi), cartella di lavoro in «File e schermo», nella chat e in Telegram, strumenti di EasyIsland anche per opencode |
+| 0.8.7 | 17 ott 2026 | Registra (conversazione, schermo o una finestra), Cerca con Google, loghi di Teams e RDM, alone in tutte le schede, ricerca che si chiude al cambio di scheda, ⚡ Automatica con gli strumenti dei connettori, documentazione in inglese |
 | 0.8.6 | 16 ott 2026 | Microsoft Teams (riunioni, comandi, Partecipa), Account Microsoft con le API per Outlook e Teams (da provare), barra dell'app in uso personalizzabile con azioni Tasti |
 | 0.8.5 | 16 ott 2026 | Barra dell'app in uso accanto al personaggio chiuso, menu col clic destro nell'isola con le Impostazioni aperte sulla voce, Panoramica con i loghi grandi |
 | 0.8.4 | 15 ott 2026 | Automazioni con nuovi eventi, filtri, più condizioni, ripetizioni e dati dell'evento nei passi; Impostazioni sopra l'isola; Notion con viste e avvisi; Remote Desktop Manager in prova; Integrazioni a gruppi |
@@ -627,6 +638,7 @@ Integrazioni c'è **Blocca lo spostamento**, per non spostarle per sbaglio, e
 |---|---|
 | **GitHub, Vercel, Stripe, Resend, Notion, Cal.com, n8n** | l'attività del servizio (deploy, pagamenti, email, prenotazioni, esecuzioni), con la chiave del servizio |
 | **Zammad** | ticket assegnati a te, non assegnati e in escalation; avvisa quando arriva un nuovo ticket da assegnare. Indirizzo e token di accesso (Profilo → Token di accesso, permesso `ticket.agent`) |
+| **Telegram** | la chat di EasyIsland nel tuo bot di Telegram (token da @BotFather, collegamento con un codice valido 10 minuti, poi per sempre e solo con la tua chat). Conversazione separata con motore e modello scelti da lì (`/motore`, `/modello`, `/nuova`, `/stato`); Consenti / Nega come pulsanti; foto e file nel Vassoio; i file della chat ti arrivano lì; `/vassoio` e `/cartella`. Solo con il PC acceso: i messaggi arrivati a EasyIsland chiuso si scartano |
 | **Outlook** | mail non lette e appuntamenti di oggi e domani da Outlook classico già aperto (non lo avvia mai); avvisa qualche minuto prima di una riunione. Il nuovo Outlook non è supportato |
 | **Stato del PC** | spazio sul disco di sistema (arancione sotto la soglia, 10 %, rosso sotto il 5 %), memoria, batteria, da quanto è acceso, riavvio richiesto da Windows. Pulsante **Copia info PC**: nome, utente, Windows, modello, numero di serie, IP e MAC negli appunti, pronti per un ticket |
 | **Sicurezza** | antivirus (Defender o un altro, dal Centro sicurezza di Windows), età delle firme, ultima scansione, firewall, minacce rilevate |
@@ -827,6 +839,14 @@ a `easyisland-hook <Evento>` con un campo `easyisland_agent`:
 sono quelli degli hook di Claude Code).
 
 ## Chat con Claude
+
+**Cartella di lavoro.** In **«File e schermo»** o in **Impostazioni… → Chat**, «Scegli…»
+indica una cartella del PC. In «File e schermo» la sfogli sotto il Vassoio (doppio clic
+per entrare in una cartella o aprire un file) e con «⋯» rinomini, sposti, metti nel
+Vassoio, copi il percorso o mandi nel Cestino; l'icona verde del Vassoio sposta un file
+lì. La chat (con gli strumenti di EasyIsland) la legge senza chiedere e ci sposta i file
+del Vassoio; con la modalità terminale è la cartella in cui lavora. Da Telegram:
+`/cartella`.
 
 **Impostazioni… → Chat** ti fa scegliere il motore **predefinito**
 della chat. Dal nome del modello in alto a destra nella chat puoi sceglierne un

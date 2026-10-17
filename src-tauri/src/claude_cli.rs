@@ -54,7 +54,7 @@ const TOOLS: &str = "WebSearch,WebFetch,Read";
 /// The `easyisland` MCP server (`easyisland-hook mcp`, see agent.rs): its
 /// tools that change nothing, pre-allowed. Same list as hook/src/mcp.rs.
 /// Every other tool of it waits for Consenti / Nega in the island.
-const AGENT_READ_ONLY: &[&str] = &[
+pub(crate) const AGENT_READ_ONLY: &[&str] = &[
     "get_foreground_app",
     "list_status",
     "list_quick_actions",
@@ -62,13 +62,15 @@ const AGENT_READ_ONLY: &[&str] = &[
     "media_status",
     "media_control",
     "list_uploaded_files",
+    "list_work_folder",
     "list_profiles",
     "list_automations",
 ];
 
-const AGENT_PROMPT: &str = " You also have the easyisland tools, which act on the user's own PC: \
+pub(crate) const AGENT_PROMPT: &str = " You also have the easyisland tools, which act on the user's own PC: \
 open programs, folders and links, run the user's quick actions (list_quick_actions, then run_quick_action), \
 read the status of the PC, network, weather, mail and tickets (list_status), read or fill the clipboard, control the music, show a notice in the island, \
+browse the user's work folder (list_work_folder; read its files with Read) and move files of the tray into it (move_to_work_folder), \
 and set up automations that then run by themselves (list_automations, create_automation, set_automation_enabled): when the user asks for something recurring \
 (\"every morning…\", \"when I plug in a USB stick…\", \"if the client's site goes down…\") propose an automation; check the ids with list_quick_actions, list_profiles and list_status first. \
 Use them when the user asks you to do something on the PC, or when they make the answer better (for example check list_status before answering about the PC or the day). \
@@ -76,7 +78,7 @@ You cannot run arbitrary commands: only the user's quick actions. \
 Before a tool that opens, runs or changes something, say in one short sentence what you are about to do: \
 the user confirms or refuses it with a click, and a refusal is final for that request.";
 /// The sentence of AGENT_PROMPT that "Modalità terminale" leaves out.
-const NO_COMMANDS: &str = "You cannot run arbitrary commands: only the user's quick actions. ";
+pub(crate) const NO_COMMANDS: &str = "You cannot run arbitrary commands: only the user's quick actions. ";
 pub(crate) const INHERITED_SESSION_VARS: &[&str] = &[
     "CLAUDECODE",
     "CLAUDE_CODE_SESSION_ID",
@@ -642,6 +644,8 @@ pub async fn send(
     terminal: Option<&Path>,
     auto: bool,
     on_text: &(dyn Fn(&str) + Sync),
+    telegram: bool,
+    work: Option<&Path>,
 ) -> Result<ChatReply, String> {
     let exe = find_claude().ok_or_else(|| {
         t("Per la chat con l'abbonamento serve Claude Code da riga di comando (la CLI), installato su questo PC e con il login fatto: quello dentro l'app desktop di Claude non si può usare da altri programmi. Impostazioni → Chat spiega come installarlo; oppure lì scegli un altro motore.")
@@ -682,6 +686,15 @@ pub async fn send(
         Some(folder) => cmd.current_dir(folder).args(terminal_args(&dir, model, session.as_deref(), extra_dir.as_deref(), &connectors, auto)),
         None => cmd.current_dir(&dir).args(args(&dir, model, session.as_deref(), extra_dir.as_deref(), &connectors)),
     };
+    // The work folder (workdir.rs): readable with Read outside terminal mode too.
+    if let (None, Some(w)) = (terminal, work) {
+        cmd.arg("--add-dir").arg(w);
+    }
+    // A turn from Telegram: easyisland-hook passes this on, and pipe.rs asks
+    // Consenti / Nega in Telegram instead of on the island (telegram.rs).
+    if telegram {
+        cmd.env("EASYISLAND_CHANNEL", "telegram");
+    }
     let mut child = cmd
         .spawn()
         .map_err(|e| tf("Claude Code non si avvia: {e}", &[("e", &e)]))?;
@@ -953,7 +966,7 @@ mod tests {
             println!("claude: {:?}", super::find_claude());
             let chat = crate::claude::Chat::default();
             for agent in [false, true] {
-                let r = super::send(&chat, "", &[], agent, "Rispondi solo con la parola: ok".into(), None, None, false, &|_| {}).await;
+                let r = super::send(&chat, "", &[], agent, "Rispondi solo con la parola: ok".into(), None, None, false, &|_| {}, false, None).await;
                 println!("agent={agent}: {:?}", r.as_ref().map(|x| &x.text));
                 chat.reset();
             }

@@ -87,7 +87,7 @@ fn set_error(e: Option<String>) {
 
 // ── Small helpers (no new dependency) ────────────────────────────────────────
 
-fn random(n: usize) -> Vec<u8> {
+pub(crate) fn random(n: usize) -> Vec<u8> {
     use windows::Win32::Security::Cryptography::{BCryptGenRandom, BCRYPT_USE_SYSTEM_PREFERRED_RNG};
     let mut buf = vec![0u8; n];
     unsafe {

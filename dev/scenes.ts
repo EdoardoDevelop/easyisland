@@ -99,8 +99,23 @@ export async function runScene(island: Island, scene: string) {
       island.alert("overview");
       await wait(2500);
       break;
-    case "files":
-      // File e schermo: drop tile, Cerchia e chiedi, the Tray.
+    case "files": {
+      // File e schermo: drop tile, Cerchia e chiedi, the Tray, the work folder.
+      // A work folder of example (the browser preview has no disk).
+      const day = Date.now() - 86_400_000;
+      const sample: Record<string, { name: string; dir: boolean; size: number }[]> = {
+        "": [
+          { name: "Clienti", dir: true, size: 0 },
+          { name: "Preventivi", dir: true, size: 0 },
+          { name: "note-riunione.md", dir: false, size: 3_200 },
+          { name: "listino-2026.xlsx", dir: false, size: 84_000 },
+        ],
+        Clienti: [{ name: "Rossi Srl", dir: true, size: 0 }, { name: "contratto-rossi.pdf", dir: false, size: 512_000 }],
+      };
+      Bridge.workList = async (rel: string) => ({
+        root: "C:\\Users\\Edoardo\\Lavoro", rel, more: false,
+        entries: (sample[rel] ?? []).map((e) => ({ ...e, rel: rel ? `${rel}/${e.name}` : e.name, at: day })),
+      });
       await wait(300);
       State.isPinned = true;
       island.alert("overview");
@@ -120,6 +135,7 @@ export async function runScene(island: Island, scene: string) {
       State.notify();
       await wait(2000);
       break;
+    }
     case "approval":
       await wait(300);
       session("approval", ["Bash · npm run pack"]);

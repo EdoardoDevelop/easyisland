@@ -174,8 +174,9 @@ fn resends(engine: &str) -> bool {
     engine == "api" || crate::openai::ENGINES.contains(&engine)
 }
 
-/// After a turn that went well (lib.rs `chat_send`).
-pub fn record(chat: &Chat, engine: &str, query: &str, reply: &str) {
+/// After a turn that went well (lib.rs `chat_turn`).
+/// `prefix` marks a new conversation's title ("Telegram · ").
+pub fn record(chat: &Chat, engine: &str, query: &str, reply: &str, prefix: &str) {
     let id = chat.log_id().unwrap_or_else(|| {
         let id = new_id();
         chat.set_log_id(Some(id.clone()));
@@ -185,6 +186,11 @@ pub fn record(chat: &Chat, engine: &str, query: &str, reply: &str) {
     let now = now();
     with_store(|s| {
         s.record(&id, engine, query, reply, messages, now);
+        if !prefix.is_empty() {
+            if let Some(c) = s.list.iter_mut().find(|c| c.id == id && c.lines.len() == 2) {
+                c.title = format!("{prefix}{}", c.title);
+            }
+        }
         s.save();
     });
 }

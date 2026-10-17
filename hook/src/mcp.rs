@@ -104,6 +104,20 @@ fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
         (
+            "list_work_folder",
+            "La cartella di lavoro dell'utente (scelta in EasyIsland, la stessa della modalità terminale): cartelle e file di una sua sottocartella, con il percorso completo della cartella. path: sottocartella relativa, vuoto = la cartella stessa. I file si leggono con Read dal percorso completo.",
+            json!({ "type": "object", "properties": { "path": { "type": "string" } } }),
+            true,
+        ),
+        (
+            "move_to_work_folder",
+            "Sposta (o copia, con copy=true) un file del Vassoio di EasyIsland nella cartella di lavoro dell'utente. name: nome del file nel Vassoio (da list_uploaded_files); folder: sottocartella relativa di destinazione, vuoto = la cartella stessa.",
+            json!({ "type": "object", "properties": {
+                "name": { "type": "string" }, "folder": { "type": "string" }, "copy": { "type": "boolean" }
+            }, "required": ["name"] }),
+            false,
+        ),
+        (
             "media_status",
             "Cosa sta suonando sul PC (titolo, artista, app, in riproduzione o in pausa), se l'integrazione Musica è accesa.",
             none.clone(),
@@ -286,7 +300,7 @@ pub fn handle(msg: &Value) -> Option<Value> {
                 "protocolVersion": version,
                 "capabilities": { "tools": {} },
                 "serverInfo": { "name": "easyisland", "version": env!("CARGO_PKG_VERSION") },
-                "instructions": "Strumenti di EasyIsland sul PC dell'utente: avvisi e card nell'isola (show_notice, show_card con pulsanti), il Vassoio dei file (add_to_tray, list_uploaded_files), aprire programmi e link, eseguire le sue azioni rapide, leggere lo stato di PC, rete, meteo, posta e ticket, gestire appunti e musica. Le azioni che cambiano qualcosa chiedono conferma all'utente."
+                "instructions": "Strumenti di EasyIsland sul PC dell'utente: avvisi e card nell'isola (show_notice, show_card con pulsanti), il Vassoio dei file (add_to_tray, list_uploaded_files), la cartella di lavoro (list_work_folder, move_to_work_folder), aprire programmi e link, eseguire le sue azioni rapide, leggere lo stato di PC, rete, meteo, posta e ticket, gestire appunti e musica. Le azioni che cambiano qualcosa chiedono conferma all'utente."
             }))
         }
         "ping" => result(id, json!({})),
@@ -376,6 +390,8 @@ mod tests {
     fn read_only_split() {
         let ro = read_only_tools();
         assert!(ro.contains(&"list_status"));
+        assert!(ro.contains(&"list_work_folder"));
+        assert!(!ro.contains(&"move_to_work_folder"));
         assert!(!ro.contains(&"open_app"));
         assert!(!ro.contains(&"run_quick_action"));
         assert!(!ro.contains(&"read_clipboard"));

@@ -57,6 +57,7 @@ mod session_reply;
 mod secrets;
 mod settings;
 mod teams;
+mod telegram;
 mod i18n;
 mod webview_profile;
 mod recap;
@@ -69,6 +70,7 @@ mod tray;
 mod updates;
 mod usage;
 mod widgets;
+mod workdir;
 mod zip;
 mod win_user;
 mod window_drop;
@@ -924,27 +926,60 @@ fn chat_folder(chosen: &str) -> std::path::PathBuf {
 #[tauri::command]
 async fn chat_send(
     app: AppHandle,
-    shared: State<'_, Shared>,
     chat: State<'_, Chat>,
     query: String,
     context: Option<ChatContext>,
     engine: Option<String>,
     auto: Option<bool>,
 ) -> Result<ChatReply, String> {
+    let on_text = |text: &str| {
+        let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "text": text }));
+    };
+    chat_turn(&app, &chat, query, context, engine, None, auto.unwrap_or(false), false, &on_text).await
+}
+
+/// A chat turn on `chat`: the island's conversation (`chat_send`) or
+/// Telegram's (telegram.rs, `telegram` true: permissions asked there, and
+/// its own mark in the history). `on_text` gets the text so far; `model`
+/// replaces the engine's model for this conversation only (Telegram's /modello).
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn chat_turn(
+    app: &AppHandle,
+    chat: &Chat,
+    query: String,
+    context: Option<ChatContext>,
+    engine: Option<String>,
+    model: Option<String>,
+    auto: bool,
+    telegram: bool,
+    on_text: &(dyn Fn(&str) + Sync),
+) -> Result<ChatReply, String> {
+    let shared = app.state::<Shared>();
+    let picked = model.filter(|m| !m.trim().is_empty());
     let (engine, model, cli_model, mcp, agent, other_model, url, terminal) = {
         let s = shared.settings.lock().unwrap();
         // The engine picked in the chat for this conversation, else the default.
         let e = engine.filter(|e| !e.is_empty()).unwrap_or_else(|| s.chat_engine.clone());
-        let other = s.engine_models.get(&e).cloned().unwrap_or_default();
+        let mut other = s.engine_models.get(&e).cloned().unwrap_or_default();
+        let (mut model, mut cli_model) = (s.model.clone(), s.cli_model.clone());
+        match (&picked, e.as_str()) {
+            (Some(m), "api") => model = m.clone(),
+            (Some(m), "subscription") => cli_model = m.clone(),
+            (Some(m), _) => other = m.clone(),
+            (None, _) => {}
+        }
         let url = s.engine_urls.get(&e).cloned();
         let terminal = s.chat_terminal.then(|| chat_folder(&s.chat_folder));
-        (e, s.model.clone(), s.cli_model.clone(), s.mcp_servers.clone(), s.agent_tools, other, url, terminal)
+        (e, model, cli_model, s.mcp_servers.clone(), s.agent_tools, other, url, terminal)
     };
+    // The work folder, when one is chosen (workdir.rs): the engines may read it.
+    let work = workdir::root(app);
     // A different model is a different conversation too: start over (an
     // opencode conversation left behind is deleted from opencode's history).
     // So is turning "Modalità terminale" on or off.
     let before = chat.cli_session();
-    chat.use_engine(&chat_key(&engine, &other_model, terminal.is_some()));
+    let key_model = picked.as_deref().unwrap_or(&other_model);
+    chat.use_engine(&chat_key(&engine, key_model, terminal.is_some()));
     if before.is_some() && chat.cli_session().is_none() {
         opencode::forget(before);
     }
@@ -955,18 +990,15 @@ async fn chat_send(
         Some(p) => format!("{p}{query}"),
         None => query,
     };
-    let on_text = |text: &str| {
-        let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "text": text }));
-    };
     // "Automatica" (the chat's switch): only with Modalità terminale.
-    let auto = auto.unwrap_or(false) && terminal.is_some();
+    let auto = auto && terminal.is_some();
     if auto {
         log::line(format!("chat: turno in automatica ({engine})"));
     }
     let reply = match (&terminal, engine.as_str()) {
         (Some(folder), "opencode") => {
-            let o = opencode::Options { folder: Some(folder.clone()), auto, ..Default::default() };
-            opencode::send(&app, &chat, &other_model, query, context, &o).await
+            let o = opencode::Options { folder: Some(folder.clone()), auto, telegram, agent, work: work.clone(), ..Default::default() };
+            opencode::send(app, chat, &other_model, query, context, &o, on_text).await
         }
         // "Modalità terminale" for an engine without tools: through opencode.
         (Some(folder), e) if e == "api" || openai::ENGINES.contains(&e) => {
@@ -975,20 +1007,28 @@ async fn chat_send(
                 Ok((m, mut o)) if opencode::find_exe().is_some() => {
                     o.folder = Some(folder.clone());
                     o.auto = auto;
-                    opencode::send(&app, &chat, &m, query, context, &o).await
+                    o.telegram = telegram;
+                    o.agent = agent;
+                    o.work = work.clone();
+                    opencode::send(app, chat, &m, query, context, &o, on_text).await
                 }
                 Ok(_) => Err(t("La modalità terminale con questo motore passa da opencode, che non è installato su questo PC (npm i -g @opencode/cli, oppure opencode.ai). Oppure spegnila in Impostazioni → Chat.").into()),
                 Err(e) => Err(e),
             }
         }
-        (Some(folder), _) => claude_cli::send(&chat, &cli_model, &mcp, agent, query, context, Some(folder), auto, &on_text).await,
-        (None, "api") => claude::send(&chat, &model, query, context).await,
-        (None, "opencode") => opencode::send(&app, &chat, &other_model, query, context, &opencode::Options::default()).await,
-        (None, e) if openai::ENGINES.contains(&e) => openai::send(&app, &chat, &engine, &other_model, url.as_deref(), query, context).await,
-        (None, _) => claude_cli::send(&chat, &cli_model, &mcp, agent, query, context, None, false, &on_text).await,
+        (Some(folder), _) => claude_cli::send(chat, &cli_model, &mcp, agent, query, context, Some(folder), auto, on_text, telegram, None).await,
+        (None, "api") => claude::send(chat, &model, query, context).await,
+        (None, "opencode") => {
+            let o = opencode::Options { telegram, agent, work: work.clone(), ..Default::default() };
+            opencode::send(app, chat, &other_model, query, context, &o, on_text).await
+        }
+        (None, e) if openai::ENGINES.contains(&e) => openai::send(chat, &engine, &other_model, url.as_deref(), query, context, on_text).await,
+        (None, _) => claude_cli::send(chat, &cli_model, &mcp, agent, query, context, None, false, on_text, telegram, work.as_deref()).await,
     };
     match &reply {
-        Ok(r) if shared.settings.lock().unwrap().chat_history => chat_log::record(&chat, &engine, &asked, &r.text),
+        Ok(r) if shared.settings.lock().unwrap().chat_history => {
+            chat_log::record(chat, &engine, &asked, &r.text, if telegram { "Telegram · " } else { "" })
+        }
         Ok(_) => {}
         Err(_) => {
             if let Some(p) = preamble {
@@ -997,6 +1037,29 @@ async fn chat_send(
         }
     }
     reply
+}
+
+/// Impostazioni → Integrazioni → Telegram: the bot, the linked chat, errors.
+#[tauri::command]
+fn telegram_info(app: AppHandle) -> telegram::Info {
+    telegram::info(&app)
+}
+
+/// A code for `/start <code>` in the bot's chat (10 minutes).
+#[tauri::command]
+fn telegram_link_code() -> String {
+    telegram::link_code()
+}
+
+#[tauri::command]
+fn telegram_unlink(app: AppHandle) -> Result<(), String> {
+    telegram::unlink(&app)
+}
+
+/// The token was saved: the polling starts over with it.
+#[tauri::command]
+fn telegram_restart() {
+    telegram::restart();
 }
 
 /// "Sostituisci": the text selected in an app, rewritten as `prompt` asks, in
@@ -1030,13 +1093,13 @@ async fn rewrite_text(app: AppHandle, shared: State<'_, Shared>, prompt: String,
     let reply = if engine == "api" {
         claude::send(&chat, &model, query, context).await
     } else if engine == "opencode" {
-        let r = opencode::send(&app, &chat, &other_model, query, context, &opencode::Options::default()).await;
+        let r = opencode::send(&app, &chat, &other_model, query, context, &opencode::Options::default(), &|_| {}).await;
         opencode::forget(chat.cli_session());
         r
     } else if openai::ENGINES.contains(&engine.as_str()) {
-        openai::send(&app, &chat, &engine, &other_model, url.as_deref(), query, context).await
+        openai::send(&chat, &engine, &other_model, url.as_deref(), query, context, &|_| {}).await
     } else {
-        claude_cli::send(&chat, &cli_model, &[], false, query, context, None, false, &|_| {}).await
+        claude_cli::send(&chat, &cli_model, &[], false, query, context, None, false, &|_| {}, false, None).await
     };
     let reply = context::clean_reply(&reply?.text);
     let (Some(clip), Some(marked)) = (html, marked) else {
@@ -1543,6 +1606,82 @@ fn habit_note_quick(id: String) {
 #[tauri::command]
 fn automation_run_now(app: AppHandle, id: String) -> Result<(), String> {
     automations::run_now(&app, &id)
+}
+
+/// «File e schermo» → Cartella di lavoro (workdir.rs): a folder of it.
+#[tauri::command]
+fn work_list(app: AppHandle, rel: String) -> Result<workdir::Listing, String> {
+    workdir::list(&app, &rel)
+}
+
+/// Double click: a file opens with its app; "Mostra" selects it in Explorer.
+#[tauri::command]
+fn work_open(app: AppHandle, rel: String, reveal: bool) -> Result<(), String> {
+    let path = workdir::path_of(&app, &rel)?;
+    let spawned = if reveal { reveal_in_explorer(&path) } else { Command::new("explorer").arg(&path).spawn() };
+    spawned.map(|_| ()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn work_rename(app: AppHandle, rel: String, name: String) -> Result<String, String> {
+    workdir::rename(&app, &rel, &name)
+}
+
+#[tauri::command]
+fn work_mkdir(app: AppHandle, parent: String, name: String) -> Result<String, String> {
+    workdir::mkdir(&app, &parent, &name)
+}
+
+#[tauri::command]
+fn work_move(app: AppHandle, rel: String, dest: String) -> Result<String, String> {
+    workdir::move_entry(&app, &rel, &dest)
+}
+
+/// To the Recycle Bin (never deleted for good).
+#[tauri::command]
+async fn work_trash(app: AppHandle, rel: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || workdir::trash(&app, &rel)).await.map_err(|e| e.to_string())?
+}
+
+/// A file of the work folder into the Vassoio (a copy).
+#[tauri::command]
+async fn work_to_inbox(app: AppHandle, rel: String) -> Result<files::DroppedFile, String> {
+    tauri::async_runtime::spawn_blocking(move || workdir::to_inbox(&app, &rel)).await.map_err(|e| e.to_string())?
+}
+
+/// «Sposta nella cartella di lavoro» on a file of the Vassoio.
+#[tauri::command]
+async fn inbox_to_work(app: AppHandle, name: String, dest: String, copy: bool) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || workdir::from_inbox(&app, &name, &dest, copy)).await.map_err(|e| e.to_string())?
+}
+
+/// Drags a file of the work folder out into another app (as inbox_drag).
+#[tauri::command]
+async fn work_drag(app: AppHandle, rel: String) -> Result<(), String> {
+    let path = workdir::path_of(&app, &rel)?;
+    let win = island::window(&app).ok_or(t("Isola non trovata"))?;
+    let hwnd = win.hwnd().map_err(|e| e.to_string())?.0 as isize;
+    let (tx, rx) = std::sync::mpsc::channel();
+    app.run_on_main_thread(move || {
+        let hwnd = windows::Win32::Foundation::HWND(hwnd as *mut _);
+        let _ = tx.send(files::drag_out(hwnd, &path));
+    })
+    .map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || rx.recv().unwrap_or(Ok(())))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// "Scegli…": Windows' folder dialog; the folder becomes the work folder.
+#[tauri::command]
+async fn work_pick(app: AppHandle) -> Result<Option<String>, String> {
+    let start = workdir::root(&app).map(|p| p.to_string_lossy().to_string());
+    let picked = tauri::async_runtime::spawn_blocking(move || workdir::pick_folder(start)).await.map_err(|e| e.to_string())??;
+    if let Some(folder) = &picked {
+        let folder = folder.clone();
+        agent::update_settings(&app, move |s| s.chat_folder = folder)?;
+    }
+    Ok(picked)
 }
 
 /// Drags a file of the tray out of the island into another app. Returns when
@@ -2085,6 +2224,20 @@ pub fn run() {
             teams_join,
             capture_window_text,
             set_paused,
+            telegram_info,
+            telegram_link_code,
+            telegram_unlink,
+            telegram_restart,
+            work_list,
+            work_open,
+            work_rename,
+            work_mkdir,
+            work_move,
+            work_trash,
+            work_to_inbox,
+            inbox_to_work,
+            work_drag,
+            work_pick,
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -2122,6 +2275,7 @@ pub fn run() {
             media::spawn(handle.clone());
             threecx::spawn(handle.clone());
             teams::spawn(handle.clone());
+            telegram::spawn(handle.clone());
             msgraph::spawn(handle.clone());
             automations::spawn(handle.clone());
             habits::spawn(handle.clone());

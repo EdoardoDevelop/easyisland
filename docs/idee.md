@@ -85,7 +85,7 @@ Proposta di partenza: 1 + 2 + 3 (più utili, nessun modello coinvolto), poi 5, p
   - firma del codice (Authenticode o Azure Trusted Signing)
   - tag `windows-latest` sul repo, creato per sbaglio
   - funzioni del Mac mai portate (invio di un file per email, personaggio trascinato su una finestra per allegarla)
-- **Idee da valutare:** libreria di comandi PowerShell/cmd con conferma; casa (promemoria, Home Assistant); integrazioni proposte il 2 ottobre (Windows Update, stampanti bloccate, Teams, Docker, Git locali, WSL, IMAP, DNS/blacklist, pagine di stato, CISA KEV, RSS, ntfy/Telegram, Uptime Kuma, Proxmox, Synology/TrueNAS, UniFi, Pi-hole, GLPI).
+- **Idee da valutare:** libreria di comandi PowerShell/cmd con conferma; casa (promemoria, Home Assistant); integrazioni proposte il 2 ottobre (Windows Update, stampanti bloccate, Teams, Docker, Git locali, WSL, IMAP, DNS/blacklist, pagine di stato, CISA KEV, RSS, ntfy (Telegram fatto: `docs/integrazioni.md`), Uptime Kuma, Proxmox, Synology/TrueNAS, UniFi, Pi-hole, GLPI).
 
 ## Pulizia del codice (solo quando si tocca quel file)
 - `mmss` è duplicato in `src/views/integrations.ts` (secondi) e `src/views/threecx.ts` (millisecondi); anche il «Copiato ✓» temporaneo è ripetuto in più viste.

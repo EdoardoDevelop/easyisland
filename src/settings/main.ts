@@ -578,18 +578,29 @@ function terminalRow(): HTMLElement {
     timer = window.setTimeout(async () => {
       const v = folder.value.trim();
       const ok = !v || (await Bridge.isFolder(v));
-      bad.textContent = ok ? "" : t("questa cartella non c'è: la chat lavora nella tua cartella utente");
+      bad.textContent = ok ? "" : t("questa cartella non c'è");
       settings.chatFolder = v;
       void save();
     }, 500);
   });
-  const folderRow = h("div", { class: "row" }, h("label", { text: t("Cartella di lavoro") }), folder, bad);
-  const show = () => { folderRow.style.display = settings.chatTerminal === true ? "" : "none"; };
-  show();
+  // Windows' own folder dialog; the folder is saved by Rust (workdir.rs).
+  const pickBtn = h("button", { text: t("Scegli…") }) as HTMLButtonElement;
+  pickBtn.addEventListener("click", async () => {
+    try {
+      const p = await Bridge.workPick();
+      if (p) { folder.value = p; settings.chatFolder = p; bad.textContent = ""; }
+    } catch (e) {
+      bad.textContent = String(e).replace(/^Error:\s*/, "");
+    }
+  });
+  // The work folder is for every chat, not only terminal mode (docs/strumenti.md).
+  const folderRow = h("div", { style: "display:flex;flex-direction:column;gap:4px" },
+    h("div", { class: "row" }, h("label", { text: t("Cartella di lavoro") }), folder, pickBtn, bad),
+    h("span", { class: "hint note", text: t("La chat (con gli strumenti di EasyIsland) e Telegram la consultano e ci spostano i file; la trovi anche in «File e schermo». Con la modalità terminale è la cartella in cui la chat lavora; vuota = la tua cartella utente.") }));
   return h("div", { style: "display:flex;flex-direction:column;gap:8px" },
     h("div", { class: "row" },
       h("label", { text: t("Modalità terminale") }),
-      toggle(settings.chatTerminal === true, (v) => { settings.chatTerminal = v; void save(); show(); }),
+      toggle(settings.chatTerminal === true, (v) => { settings.chatTerminal = v; void save(); }),
       h("span", { class: "hint note", text: t("la chat lavora come Claude Code o opencode da terminale: esegue comandi, modifica file e usa tutti i tuoi server MCP, plugin e skill. Ogni comando o modifica chiede Consenti / Nega nell'isola, con «Sempre» per non ripetere la domanda. Gli altri motori passano da opencode, che deve essere installato") })),
     folderRow);
 }
@@ -821,6 +832,8 @@ interface IntegrationDef {
   hint?: string;
   /** A row of its own after the options (3CX: the ringtone file). */
   extra?: () => HTMLElement;
+  /** Nothing of it in the island (Telegram): no icon or colour to choose. */
+  noMenu?: boolean;
 }
 
 interface IntegrationOption {
@@ -871,6 +884,10 @@ const INTEGRATIONS: IntegrationDef[] = [
       { key: "zammad-token", label: t("Token"), placeholder: t("token di accesso"), secret: true },
     ],
     hint: t("In Zammad: avatar → Profilo → Token di accesso → Crea, con il permesso ticket.agent. Ticket assegnati a te, non assegnati e in escalation (avviso giallo); il personaggio ti avvisa quando arriva un nuovo ticket da assegnare.") },
+  { id: "integration_telegram", name: "Telegram", color: "#29A9EB", noMenu: true,
+    fields: [{ key: "telegram-bot-token", label: t("Token del bot"), placeholder: "123456789:AA…", secret: true }],
+    extra: () => telegramRows(),
+    hint: t("La chat di EasyIsland dentro Telegram, con il tuo bot. In Telegram scrivi a @BotFather, manda /newbot, scegli nome e username e copia qui il token che ti dà. Poi «Collega»: il bot risponde solo alla chat collegata. Conversazione separata da quella dell'isola, con il motore e il modello scelti in Telegram (/motore, /modello); con la modalità terminale, Consenti / Nega arrivano come pulsanti in Telegram. Foto e file mandati al bot finiscono nel Vassoio. Funziona solo con il PC acceso e EasyIsland aperto: i messaggi arrivati nel frattempo vengono scartati.") },
   { id: "integration_recorder", name: t("Registra"), color: "#F4505E", fields: [],
     options: [
       { label: t("Cartella"), type: "text", placeholder: t("vuoto = Video\\EasyIsland"), get: (c) => c.recordFolder ?? "", set: (c, v) => { c.recordFolder = v.trim(); } },
@@ -1171,6 +1188,49 @@ function msAccountRows(): HTMLElement {
   return box;
 }
 
+/** Telegram: the bot, the linked chat, «Collega» with a code, «Scollega». */
+function telegramRows(): HTMLElement {
+  const box = h("div", { style: "display:flex;flex-direction:column;gap:8px;padding-top:6px;border-top:1px solid var(--hairline)" });
+  const state = h("span", { class: "hint", text: t("Controllo…") });
+  const link = h("button", { class: "primary", text: t("Collega") }) as HTMLButtonElement;
+  const unlink = h("button", { text: t("Scollega") }) as HTMLButtonElement;
+  const note = h("div", { class: "hint note" });
+  let bot = "";
+
+  const refresh = async () => {
+    const s = await Bridge.telegramInfo();
+    if (!s) { state.textContent = t("Disponibile nell'app installata."); link.disabled = true; unlink.style.display = "none"; return; }
+    bot = s.bot;
+    const on = settings.activeIntegrations.includes("integration_telegram");
+    state.textContent = !s.token ? t("Manca il token del bot")
+      : !on ? t("Accendi l'integrazione")
+      : !s.running ? t("Non in ascolto")
+      : s.linked ? t("@{bot} risponde a {who}", { bot: s.bot, who: s.name || t("la tua chat") })
+      : t("@{bot} in ascolto, nessuna chat collegata", { bot: s.bot });
+    link.disabled = !s.running;
+    link.textContent = s.linked ? t("Collega un'altra chat") : t("Collega");
+    unlink.style.display = s.linked ? "" : "none";
+    if (s.error) note.textContent = s.error;
+  };
+  link.addEventListener("click", async () => {
+    try {
+      const code = await Bridge.telegramLinkCode();
+      note.textContent = t("In Telegram apri @{bot} e manda: /start {code} (vale 10 minuti).", { bot: bot || "bot", code });
+    } catch (e) {
+      note.textContent = String(e).replace(/^Error:\s*/, "");
+    }
+  });
+  unlink.addEventListener("click", async () => {
+    try { await Bridge.telegramUnlink(); note.textContent = ""; } catch (e) { note.textContent = String(e).replace(/^Error:\s*/, ""); }
+    await refresh();
+  });
+  box.append(h("div", { class: "row" }, h("b", { text: t("Chat collegata") }), state), h("div", { class: "row" }, link, unlink), note);
+  void refresh();
+  // The bot may take a few seconds to start after the token is saved or the switch turned on.
+  const timer = window.setInterval(() => { if (!box.isConnected) window.clearInterval(timer); else void refresh(); }, 4000);
+  return box;
+}
+
 function rdmRows(): HTMLElement {
   const box = h("div", { style: "display:flex;flex-direction:column;gap:8px" });
   const c = settings.integrationConfig;
@@ -1386,7 +1446,7 @@ function ringtoneRow(): HTMLElement {
 
 /** Impostazioni → Integrazioni: the groups, in this order; anything else goes last. */
 const INTEGRATION_GROUPS: [string, string[]][] = [
-  [t("Lavoro e clienti"), ["integration_3cx", "integration_teams", "integration_zammad", "integration_rdm", "integration_outlook", "integration_calcom", "integration_notion"]],
+  [t("Lavoro e clienti"), ["integration_3cx", "integration_teams", "integration_zammad", "integration_rdm", "integration_outlook", "integration_calcom", "integration_notion", "integration_telegram"]],
   [t("Sviluppo e servizi"), ["integration_github", "integration_vercel", "integration_n8n", "integration_stripe", "integration_resend"]],
   [t("Questo PC"), ["integration_recorder", "integration_system", "integration_security", "integration_network", "integration_weather", "integration_claude_usage", "integration_clipboard", "integration_media"]],
 ];
@@ -1472,6 +1532,7 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
         const value = input.value.trim();
         try {
           await Bridge.secretSet(field.key, value);
+          if (field.key === "telegram-bot-token") void Bridge.telegramRestart();
           present[field.key] = value.length > 0;
           input.value = "";
           input.placeholder = value ? "••••••••  (salvata)" : field.placeholder;
@@ -1504,53 +1565,56 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
       rows.append(row);
     }
     syncVisible();
-    // Its icon in the island's menu: the logo (or its colour) or the user's emoji.
-    const place = h("select", {},
-      h("option", { value: "logo", text: hasMark(def.id) ? t("Logo") : t("Pallino del suo colore") }),
-      h("option", { value: "icon", text: t("Emoji o lettere") })) as HTMLSelectElement;
-    const iconInput = h("input", {
-      type: "text", maxlength: "4", spellcheck: "false", style: "width:56px;text-align:center",
-      title: t("Un'emoji o una o due lettere"), placeholder: TAB_ICONS[def.id] ?? "★",
-    }) as HTMLInputElement;
-    const icons = () => (settings.integrationTabIcons ??= {});
-    const own = icons()[def.id]?.trim() ?? "";
-    iconInput.value = own.startsWith("@") ? "" : own;
-    place.value = own && !own.startsWith("@") ? "icon" : "logo";
-    const syncIcon = () => { iconInput.style.display = place.value === "icon" ? "" : "none"; };
-    syncIcon();
-    place.addEventListener("change", () => {
-      if (place.value === "icon") {
-        if (!iconInput.value.trim()) iconInput.value = TAB_ICONS[def.id] ?? "★";
-        icons()[def.id] = iconInput.value.trim();
-      } else {
-        delete icons()[def.id];
-      }
-      syncIcon();
-      void save();
-    });
-    iconInput.addEventListener("change", () => {
-      const v = iconInput.value.trim() || (TAB_ICONS[def.id] ?? "★");
-      iconInput.value = v;
-      icons()[def.id] = v;
-      void save();
-    });
-    rows.append(h("div", { class: "row" },
-      h("label", { style: "min-width:104px", text: t("Nel menu") }), place, iconInput,
-      h("span", { class: "hint note", text: t("l'icona accanto al nome, nel menu a sinistra dell'isola") })));
-    // Its colour: pill, card and the character while its tab is open.
-    const colors = () => (settings.integrationColors ??= {});
     const dot = h("i", { class: "dot" });
-    const paint = () => { dot.style.background = colors()[def.id] || def.color; };
-    paint();
-    rows.append(h("div", { class: "row" },
-      h("label", { style: "min-width:104px", text: t("Colore") }),
-      colorField(colors()[def.id] ?? "", def.color, (v) => {
-        if (v) colors()[def.id] = v;
-        else delete colors()[def.id];
-        paint();
+    dot.style.background = settings.integrationColors?.[def.id] || def.color;
+    if (!def.noMenu) {
+      // Its icon in the island's menu: the logo (or its colour) or the user's emoji.
+      const place = h("select", {},
+        h("option", { value: "logo", text: hasMark(def.id) ? t("Logo") : t("Pallino del suo colore") }),
+        h("option", { value: "icon", text: t("Emoji o lettere") })) as HTMLSelectElement;
+      const iconInput = h("input", {
+        type: "text", maxlength: "4", spellcheck: "false", style: "width:56px;text-align:center",
+        title: t("Un'emoji o una o due lettere"), placeholder: TAB_ICONS[def.id] ?? "★",
+      }) as HTMLInputElement;
+      const icons = () => (settings.integrationTabIcons ??= {});
+      const own = icons()[def.id]?.trim() ?? "";
+      iconInput.value = own.startsWith("@") ? "" : own;
+      place.value = own && !own.startsWith("@") ? "icon" : "logo";
+      const syncIcon = () => { iconInput.style.display = place.value === "icon" ? "" : "none"; };
+      syncIcon();
+      place.addEventListener("change", () => {
+        if (place.value === "icon") {
+          if (!iconInput.value.trim()) iconInput.value = TAB_ICONS[def.id] ?? "★";
+          icons()[def.id] = iconInput.value.trim();
+        } else {
+          delete icons()[def.id];
+        }
+        syncIcon();
         void save();
-      }, t("Predefinito")),
-      h("span", { class: "hint note", text: t("anche del personaggio quando la sua scheda è aperta") })));
+      });
+      iconInput.addEventListener("change", () => {
+        const v = iconInput.value.trim() || (TAB_ICONS[def.id] ?? "★");
+        iconInput.value = v;
+        icons()[def.id] = v;
+        void save();
+      });
+      rows.append(h("div", { class: "row" },
+        h("label", { style: "min-width:104px", text: t("Nel menu") }), place, iconInput,
+        h("span", { class: "hint note", text: t("l'icona accanto al nome, nel menu a sinistra dell'isola") })));
+      // Its colour: pill, card and the character while its tab is open.
+      const colors = () => (settings.integrationColors ??= {});
+      const paint = () => { dot.style.background = colors()[def.id] || def.color; };
+      paint();
+      rows.append(h("div", { class: "row" },
+        h("label", { style: "min-width:104px", text: t("Colore") }),
+        colorField(colors()[def.id] ?? "", def.color, (v) => {
+          if (v) colors()[def.id] = v;
+          else delete colors()[def.id];
+          paint();
+          void save();
+        }, t("Predefinito")),
+        h("span", { class: "hint note", text: t("anche del personaggio quando la sua scheda è aperta") })));
+    }
     if (def.hint) rows.prepend(h("div", { class: "hint int-hint", text: def.hint }));
 
     // The row: switch, colour, name, its state and the first words of what it is.
