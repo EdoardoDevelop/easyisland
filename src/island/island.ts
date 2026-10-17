@@ -1996,6 +1996,20 @@ ${note}` : text };
    * there (the compact island comes up and stays) instead of opening. False
    * when the island should open as before: strip off, island open, greeting.
    */
+  /** Impostazioni → Isola, «Permessi e chiamate»: they open the island by themselves. */
+  alertsOpen(): boolean {
+    return State.settings.alertsOpen !== false;
+  }
+
+  /**
+   * «Permessi e chiamate» off: the request waits with the island closed. The
+   * compact island peeks so the badge is seen; nothing opens.
+   */
+  peek() {
+    if (!State.quiet && this.fsm.state === "hidden") this.fsm.reveal();
+    State.notify();
+  }
+
   showInStrip(): boolean {
     if ((State.settings.compactStrip ?? "right") === "off" || State.mode === "expanded" || this.fsm.state === "greeting") return false;
     if (this.fsm.state === "hidden") {

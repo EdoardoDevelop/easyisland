@@ -334,7 +334,10 @@ mod tests {
     use super::*;
 
     fn temp() -> PathBuf {
-        let d = std::env::temp_dir().join(format!("easyisland-workdir-{}", std::process::id()));
+        // One folder per test: they run in parallel.
+        static N: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let d = std::env::temp_dir().join(format!("easyisland-workdir-{}-{n}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(d.join("sotto")).unwrap();
         std::fs::write(d.join("a.txt"), "ciao").unwrap();

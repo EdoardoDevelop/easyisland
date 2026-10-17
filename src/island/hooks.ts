@@ -295,7 +295,10 @@ function handleChatPermission(island: Island, payload: HookPayload) {
   if (requestId) void Bridge.approvalAck(requestId);
   State.isPinned = true;
   Sound.play("approval");
-  if (!(quickApproval(State.pendingApproval) && island.showInStrip())) island.alert("approval");
+  if (!(quickApproval(State.pendingApproval) && island.showInStrip())) {
+    if (island.alertsOpen()) island.alert("approval");
+    else island.peek();
+  }
   State.notify();
   // The relay gives up after ~110 s and the call is refused; the card must not
   // outlive it.
@@ -876,7 +879,10 @@ function handle(island: Island, payload: HookPayload) {
         // Like a permission card: it blocks the agent, so it shows (a badge only
         // over a full-screen app or in front of a client).
         if (quietNow()) State.setPillBadge(tid, "approval");
-        else {
+        else if (!island.alertsOpen()) {
+          State.setPillBadge(tid, "approval");
+          island.peek();
+        } else {
           State.setFocus(tid);
           island.alert("question");
         }
@@ -1004,7 +1010,14 @@ function handle(island: Island, payload: HookPayload) {
       State.setFocus(tid);
       // A plain allow / deny with the island closed: answered from the strip
       // beside the character (src/views/strip.ts), the island stays closed.
-      if (!(card === "approval" && quickApproval(State.pendingApproval) && island.showInStrip())) island.alert(card);
+      if (!(card === "approval" && quickApproval(State.pendingApproval) && island.showInStrip())) {
+        // «Permessi e chiamate» off: it waits as a badge (the "pending" shortcut opens it).
+        if (island.alertsOpen()) island.alert(card);
+        else {
+          State.setPillBadge(tid, "approval");
+          island.peek();
+        }
+      }
       // EasyIsland answers within 108 s or not at all; after that the terminal has
       // taken over and the card would be lying.
       pendingTimeout = window.setTimeout(() => {

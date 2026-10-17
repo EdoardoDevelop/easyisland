@@ -395,6 +395,14 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             Ok(if on { "Automazione accesa.".into() } else { "Automazione spenta.".into() })
         }
 
+        "get_settings" => Ok(pretty(&crate::agent_settings::get(&settings(app)?))),
+
+        "set_setting" => {
+            let key = arg(args, "key");
+            let value = args.get("value").cloned().unwrap_or(Value::Null);
+            crate::agent_settings::set(app, key, &value)
+        }
+
         _ => Err(format!("Strumento sconosciuto: {tool}")),
     }
 }

@@ -16,7 +16,9 @@
 //   * "Modalità terminale": every permission is a Consenti / Nega message with
 //     buttons here, never on the island (`request_decision`; Claude Code's hook
 //     carries `easyisland_channel`, opencode asks through `opencode::Options::telegram`).
-//     "Automatica" is never on from Telegram;
+//     With Telegram's own "Automatica" (/automatica, `telegramAuto`) every
+//     permission is answered yes at once, except deleting (`asks_anyway`),
+//     asked by Edoardo on 17 Oct 2026; the island's "Automatica" is never used;
 //   * photos and files sent to the bot land in the Vassoio and go with the
 //     question (the caption, or the next message).
 
@@ -395,6 +397,7 @@ fn help() -> String {
         t("/modello — scegli il modello"),
         t("/nuova — nuova conversazione"),
         t("/stato — motore, modello e modalità"),
+        t("/automatica — niente permessi da confermare, tranne le cancellazioni"),
         t("/vassoio — i file del Vassoio, da farti mandare qui"),
         t("/cartella — la cartella di lavoro: apri le cartelle, fatti mandare i file"),
         t("Foto e file finiscono nel Vassoio e vanno con la domanda."),
@@ -435,6 +438,20 @@ async fn command(app: &AppHandle, token: &str, chat: i64, cmd: &str) {
                 .map(|(i, f)| json!([{ "text": format!("{} ({})", f.name, size_text(f.size)), "callback_data": format!("f:{i}") }]))
                 .collect();
             let _ = send(token, chat, t("Quale file ti mando?"), Some(json!({ "inline_keyboard": rows }))).await;
+        }
+        "automatica" | "auto" => {
+            let on = match arg.to_lowercase().as_str() {
+                "on" | "si" | "sì" | "1" => true,
+                "off" | "no" | "0" => false,
+                _ => !auto_on(app),
+            };
+            let saved = crate::agent::update_settings(app, |s| s.integration_config.telegram_auto = on);
+            let msg = match saved {
+                Err(e) => format!("⚠️ {e}"),
+                Ok(()) if on => t("Automatica accesa: in modalità terminale comandi e modifiche vanno senza chiedere; le cancellazioni chiedono ancora.").to_string(),
+                Ok(()) => t("Automatica spenta: ogni permesso chiede Consenti / Nega.").to_string(),
+            };
+            let _ = send(token, chat, &msg, None).await;
         }
         "stato" | "status" => {
             let _ = send(token, chat, &status_text(app), None).await;
@@ -596,7 +613,11 @@ fn status_text(app: &AppHandle) -> String {
     let name = engines(app).into_iter().find(|(id, _, _)| *id == engine).map(|(_, n, _)| n).unwrap_or(engine.clone());
     let model = current_model(app, &engine);
     let terminal = app.try_state::<crate::Shared>().is_some_and(|s| s.settings.lock().unwrap().chat_terminal);
-    let mode = if terminal { t("modalità terminale: comandi e file con Consenti / Nega qui") } else { t("chat semplice") };
+    let mode = match (terminal, auto_on(app)) {
+        (false, _) => t("chat semplice"),
+        (true, true) => t("modalità terminale, automatica: chiede solo per le cancellazioni"),
+        (true, false) => t("modalità terminale: comandi e file con Consenti / Nega qui"),
+    };
     let model = if model.is_empty() { "—".to_string() } else { model };
     format!(
         "{}\n{}\n{}",
@@ -731,6 +752,10 @@ async fn on_button(app: &AppHandle, token: &str, q: &Value) {
 pub async fn request_decision(app: &AppHandle, payload: Value) -> Option<String> {
     let token = crate::secrets::get(SECRET)?;
     let (chat, _) = linked_chat(app)?;
+    if auto_on(app) && !asks_anyway(&payload) {
+        log::line(format!("telegram: automatica, consentito {}", payload.get("tool_name").and_then(Value::as_str).unwrap_or("?")));
+        return Some("allow".into());
+    }
     let rid = crate::msgraph::random(6).iter().map(|b| format!("{b:02x}")).collect::<String>();
     let (tx, rx) = tokio::sync::oneshot::channel();
     PENDING.lock().unwrap().insert(rid.clone(), tx);
@@ -754,6 +779,64 @@ pub async fn request_decision(app: &AppHandle, payload: Value) -> Option<String>
             Some("deny".into())
         }
     }
+}
+
+fn auto_on(app: &AppHandle) -> bool {
+    app.try_state::<crate::Shared>().is_some_and(|s| s.settings.lock().unwrap().integration_config.telegram_auto)
+}
+
+/// With "Automatica" on, what is still asked: deleting (a command, a
+/// connector's tool), a command that could hide one (code built from a string
+/// or downloaded), and the agent's own questions to the user.
+fn asks_anyway(payload: &Value) -> bool {
+    let tool = payload.get("tool_name").and_then(Value::as_str).unwrap_or_default();
+    let lower = tool.to_ascii_lowercase();
+    if matches!(lower.as_str(), "askuserquestion" | "exitplanmode" | "question") {
+        return true;
+    }
+    if let Some(cmd) = payload.pointer("/tool_input/command").and_then(Value::as_str) {
+        return deletes(cmd);
+    }
+    // A connector's tool: "mcp__server__tool" (Claude Code) or "server_tool" (opencode).
+    const WORDS: &[&str] = &["delete", "remove", "trash", "destroy", "drop", "purge", "erase", "unlink", "rmdir", "rm", "del", "wipe"];
+    lower.split(|c: char| !c.is_ascii_alphanumeric()).any(|w| WORDS.contains(&w))
+}
+
+/// A command that deletes files, folders, data or history, or that runs code
+/// built from a string or downloaded (it could delete anything).
+fn deletes(command: &str) -> bool {
+    const WORDS: &[&str] = &[
+        "rm", "rmdir", "rd", "del", "erase", "remove-item", "clear-content", "cipher", "format", "format-volume",
+        "diskpart", "clear-disk", "remove-partition", "mkfs", "dd", "shred", "unlink", "clear-recyclebin", "iex",
+        "invoke-expression",
+    ];
+    const PHRASES: &[&str] = &[
+        "git clean", "git reset --hard", "git branch -d", "git stash drop", "git stash clear", "git tag -d",
+        "git push --force", "git push -f", "git push --delete", "git rm", "git checkout --", "git restore",
+        "gh repo delete", "gh release delete", "docker rm", "docker system prune", "docker volume rm",
+        "npm uninstall", "pip uninstall", "winget uninstall", "drop table", "drop database", "truncate table",
+        "delete from", "::delete(", "-delete", "--delete",
+        "downloadstring", "frombase64string", "-encodedcommand", " -enc ", "| sh", "| bash", "| powershell",
+    ];
+    let c = command.trim().to_ascii_lowercase();
+    if c.contains('`') || c.contains("$(") || PHRASES.iter().any(|p| c.contains(p)) {
+        return true;
+    }
+    // Every command of a chain: its first word, without a path or ".exe".
+    // "cmd /c del …": the word after /c counts too.
+    c.split(|ch| matches!(ch, ';' | '&' | '|' | '\n' | '(' | '{'))
+        .flat_map(|part| {
+            let mut words = part.split_whitespace();
+            let first = words.next();
+            let after_c = part.split_whitespace().skip_while(|w| *w != "/c" && *w != "-command" && *w != "-c").nth(1);
+            first.into_iter().chain(after_c)
+        })
+        .map(|w| {
+            let w = w.trim_matches(|ch| ch == '"' || ch == '\'');
+            let w = w.rsplit(['\\', '/']).next().unwrap_or(w);
+            w.strip_suffix(".exe").unwrap_or(w).to_string()
+        })
+        .any(|w| WORDS.contains(&w.as_str()))
 }
 
 /// "🔐 Bash\n<the command>": what is asked, as the island's card shows it.
@@ -1184,6 +1267,23 @@ mod tests {
         assert_eq!(chunks("àèìòù", 2), vec!["àè", "ìò", "ù"]);
         assert_eq!(chunks("", 10), vec![""]);
         assert_eq!(tail("abcdef", 3), "…def");
+    }
+
+    #[test]
+    fn automatica_asks_only_for_deleting() {
+        let bash = |c: &str| json!({ "tool_name": "Bash", "tool_input": { "command": c } });
+        assert!(!asks_anyway(&bash("npm run build && git commit -m x")));
+        assert!(!asks_anyway(&bash(r"Get-ChildItem C:\temp")));
+        assert!(!asks_anyway(&bash("rmdirx --help")));
+        assert!(!asks_anyway(&json!({ "tool_name": "Edit", "tool_input": { "file_path": "a.ts" } })));
+        assert!(!asks_anyway(&json!({ "tool_name": "mcp__notion__notion-create-pages", "tool_input": {} })));
+        assert!(asks_anyway(&bash("rm -rf dist")));
+        assert!(asks_anyway(&bash("cd x; Remove-Item -Recurse foo")));
+        assert!(asks_anyway(&bash(r"C:\Windows\System32\cmd.exe /c del a.txt")));
+        assert!(asks_anyway(&bash("git clean -fdx")));
+        assert!(asks_anyway(&bash("iex (iwr https://x)")));
+        assert!(asks_anyway(&json!({ "tool_name": "mcp__notion__notion-delete-pages", "tool_input": {} })));
+        assert!(asks_anyway(&json!({ "tool_name": "AskUserQuestion", "tool_input": {} })));
     }
 
     #[test]

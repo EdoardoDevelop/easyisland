@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 17 ottobre 2026 — Loghi Teams e RDM, alone in tutte le schede, ricerca che si chiude
+- Su richiesta di Edoardo: loghi di Teams e Remote Desktop Manager da `brand/` (`scripts/gen-brands.mjs`, RDM senza la piastrella chiara). Alone colorato in basso come nella chat anche in Panoramica e integrazioni (colore della scheda), Azioni (ambra) e File e schermo (verde). Un clic su una scheda mentre si scrive nella barra di ricerca la chiude e la svuota.
+- **Prove:** `npm run build`, scena `media&long&summary`, `npm run smoke`.
+
 ### 16 ottobre 2026 — Registra (conversazione, schermo o una finestra)
 - Su richiesta di Edoardo, integrazione «Registra» (`record.rs`, `src/views/recorder.ts`, `docs/integrazioni.md`): conversazione (microfono e audio del PC, .m4a) o schermo con audio (.mp4), solo con Windows (WASAPI, GDI, Media Foundation), nessuna dipendenza nuova. Punto rosso con Stop sempre accanto al personaggio; alla fine la card con Nel Vassoio, Apri, Mostra nella cartella. Poi, su richiesta: il pannello sta in «File e schermo» (non nel menu), e si registra o fotografa **una sola finestra**, scelta da un elenco o trascinandoci il personaggio (prova vera di 2 s riuscita). Nella barra di ricerca anche «Cerca con Google» (Alt+Invio).
 - **Prove:** registrazione vera di 3 s (schermo 671 KB, audio 70 KB, file cancellati), test, scene, `npm run smoke`. Una chiamata vera da provare (`docs/prove-dal-vivo.md`).

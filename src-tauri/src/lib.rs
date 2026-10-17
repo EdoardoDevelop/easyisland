@@ -2,6 +2,7 @@
 
 mod actions;
 mod agent;
+mod agent_settings;
 mod automations;
 mod apps;
 mod calendar;
@@ -133,7 +134,15 @@ fn boot(app: AppHandle, shared: State<Shared>) -> BootInfo {
 }
 
 #[tauri::command]
-fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
+fn save_settings(app: AppHandle, settings: Settings) {
+    apply_settings(&app, settings);
+}
+
+/// A save from the settings window, or a change by an agent (agent_settings.rs):
+/// on disk, to both windows, and whatever follows from it (language, start
+/// with Windows, the island's place, shortcuts).
+pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
+    let Some(shared) = app.try_state::<Shared>() else { return };
     // Whatever was edited belongs to the active profile.
     let mut settings = settings.migrated();
     settings.commit_active();
@@ -196,7 +205,7 @@ pub(crate) fn activate_profile(app: &AppHandle, id: &str, why: &str) {
         habits::note("profile", id);
     }
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
-    island::apply_geometry(app, &shared.gate, &settings, collapsed);
+    island::apply_geometry(&app, &shared.gate, &settings, collapsed);
     crate::threecx::settings_saved(&settings);
     let _ = app.emit("settings-changed", settings);
     tray::refresh(app);

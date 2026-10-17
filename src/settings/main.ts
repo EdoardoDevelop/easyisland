@@ -1224,7 +1224,12 @@ function telegramRows(): HTMLElement {
     try { await Bridge.telegramUnlink(); note.textContent = ""; } catch (e) { note.textContent = String(e).replace(/^Error:\s*/, ""); }
     await refresh();
   });
-  box.append(h("div", { class: "row" }, h("b", { text: t("Chat collegata") }), state), h("div", { class: "row" }, link, unlink), note);
+  // "Automatica" (telegram.rs `asks_anyway`): in Modalità terminale only deleting asks. Also /automatica in the bot.
+  const auto = h("div", { class: "row" },
+    h("label", { text: t("Automatica") }),
+    toggle(settings.integrationConfig.telegramAuto === true, (v) => { settings.integrationConfig.telegramAuto = v; void save(); }),
+    h("span", { class: "hint note", text: t("in modalità terminale comandi e modifiche vanno senza chiedere; le cancellazioni chiedono ancora (anche /automatica nel bot)") }));
+  box.append(h("div", { class: "row" }, h("b", { text: t("Chat collegata") }), state), h("div", { class: "row" }, link, unlink), auto, note);
   void refresh();
   // The bot may take a few seconds to start after the token is saved or the switch turned on.
   const timer = window.setInterval(() => { if (!box.isConnected) window.clearInterval(timer); else void refresh(); }, 4000);
@@ -1997,6 +2002,11 @@ function placementSection(): HTMLElement {
       h("label", { text: t("Schermo intero") }),
       toggle(settings.quietFullscreen, (v) => { settings.quietFullscreen = v; commit(); }),
       h("span", { class: "hint note", text: t("nascondi durante video, giochi e presentazioni (i permessi compaiono comunque)") }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Permessi e chiamate") }),
+      toggle(settings.alertsOpen !== false, (v) => { settings.alertsOpen = v; commit(); }),
+      h("span", { class: "hint note", text: t("aprono l'isola da soli; spento, aspettano accanto al personaggio o con un pallino (li apre la scorciatoia «Vai alla richiesta in attesa»)") }),
     ),
   );
 }
