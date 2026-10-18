@@ -149,7 +149,7 @@ const DATA_SOURCES: &str = "$list = @(Get-RDMDataSource | ForEach-Object { [pscu
 /// Devolutions Server and Hub keep the entries in vaults (repositories) and
 /// Get-RDMSession reads only the current one, often an empty personal vault:
 /// every vault is read, its name before the folder.
-const SESSIONS: &str = "if ($env:EASYISLAND_RDM_DS) { Set-RDMCurrentDataSource -ID $env:EASYISLAND_RDM_DS }\n$ds = Get-RDMCurrentDataSource\n$repos = @()\nif (Get-Command Get-RDMRepository -ErrorAction SilentlyContinue) { try { $repos = @(Get-RDMRepository) } catch { $repos = @() } }\nif ($repos.Count -eq 0) { $repos = @($null) }\n$list = @(foreach ($r in $repos) {\n  $rid = ''; $rname = ''\n  if ($r) { try { Set-RDMCurrentRepository -Repository $r -ErrorAction Stop } catch { continue }; $rid = \"$($r.ID)\"; $rname = \"$($r.Name)\" }\n  try { $items = @(Get-RDMSession -ErrorAction Stop) } catch { $items = @() }\n  foreach ($e in $items) {\n    $h = if ($e.Host) { \"$($e.Host)\" } elseif ($e.Url) { \"$($e.Url)\" } else { '' }\n    $g = \"$($e.Group)\"; if ($repos.Count -gt 1 -and $rname) { $g = if ($g) { ($rname + [char]92 + $g) } else { $rname } }\n    [pscustomobject]@{ id = \"$($e.ID)\"; name = \"$($e.Name)\"; group = $g; host = $h; kind = \"$($e.ConnectionType)\"; repository = $rid }\n  }\n})\nConvertTo-Json -InputObject ([pscustomobject]@{ dataSource = [pscustomobject]@{ id = \"$($ds.ID)\"; name = \"$($ds.Name)\" }; entries = $list }) -Compress -Depth 4";
+const SESSIONS: &str = "if ($env:EASYISLAND_RDM_DS) { Set-RDMCurrentDataSource -ID $env:EASYISLAND_RDM_DS }\n$ds = Get-RDMCurrentDataSource\n$repos = @()\nif (Get-Command Get-RDMRepository -ErrorAction SilentlyContinue) { try { $repos = @(Get-RDMRepository) } catch { $repos = @() } }\nif ($repos.Count -eq 0) { $repos = @($null) }\n$list = @(foreach ($r in $repos) {\n  $rid = ''; $rname = ''\n  if ($r) { try { Set-RDMCurrentRepository -Repository $r -ErrorAction Stop } catch { continue }; $rid = \"$($r.ID)\"; $rname = \"$($r.Name)\" }\n  try { $items = @(Get-RDMSession -ErrorAction Stop) } catch { $items = @() }\n  foreach ($e in $items) {\n    $h = if ($e.Host) { \"$($e.Host)\" } elseif ($e.Url) { \"$($e.Url)\" } else { '' }\n    $g = \"$($e.Group)\"; if ($repos.Count -gt 1 -and $rname) { $g = if ($g) { ($rname + [char]92 + $g) } else { $rname } }\n    [pscustomobject]@{ id = \"$($e.ID)\"; name = \"$($e.Name)\"; group = $g; host = $h; kind = \"$($e.ConnectionType)\"; repository = $rid }\n  }\n})\nConvertTo-Json -InputObject ([pscustomobject]@{ dataSource = [pscustomobject]@{ id = \"$($ds.ID)\"; name = \"$($ds.Name)\"; kind = \"$($ds.Type)\" }; entries = $list }) -Compress -Depth 4";
 
 // ── The list of connections ───────────────────────────────────────────────────
 
@@ -220,6 +220,19 @@ fn raw_count(json: &str) -> usize {
     }
 }
 
+/// Devolutions Hub: the module has its own session and cannot do the browser
+/// sign-in RDM did, so without an application user it sees no vault.
+fn is_hub(json: &str) -> bool {
+    serde_json::from_str::<Value>(json.trim()).ok()
+        .and_then(|v| v.pointer("/dataSource/kind").and_then(Value::as_str).map(|k| k.to_ascii_lowercase().contains("hub")))
+        .unwrap_or(false)
+}
+
+fn hub_read(ds: Option<&str>) -> String {
+    let ds = ds.filter(|d| !d.trim().is_empty()).unwrap_or("Hub");
+    tf("«{ds}» è un Devolutions Hub: il modulo di PowerShell non può usare l'accesso fatto in RDM e senza un utente applicazione dell'Hub non vede le connessioni. L'elenco nell'isola non è disponibile; la ricerca della card apre RDM con la ricerca già scritta.", &[("ds", &ds)])
+}
+
 /// Why a read found no connections, with what to try.
 fn empty_read(ds: Option<&str>, raw: usize) -> String {
     let ds = ds.filter(|d| !d.trim().is_empty()).unwrap_or("?");
@@ -242,6 +255,9 @@ pub async fn refresh(app: &AppHandle) {
         if entries.is_empty() {
             // An empty read is not "nothing to show": the module answered for a
             // workspace with nothing in it (another one, or one that asks to sign in).
+            if is_hub(&out) {
+                return Err(hub_read(ds.as_ref().map(|d| d.1.as_str())));
+            }
             return Err(empty_read(ds.as_ref().map(|d| d.1.as_str()), raw_count(&out)));
         }
         Ok((ds, entries))
@@ -560,6 +576,8 @@ mod tests {
         assert_eq!(ds, None);
         assert_eq!(e[0].host, "");
         assert!(parse_sessions("Import-Module: …").is_err());
+        assert!(is_hub(r#"{"dataSource":{"id":"x","name":"EasyTech","kind":"Hub"},"entries":[]}"#));
+        assert!(!is_hub(r#"{"dataSource":{"id":"x","name":"Locale","kind":"SQLite"},"entries":[]}"#));
     }
 
     #[test]
