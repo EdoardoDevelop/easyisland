@@ -132,6 +132,9 @@ pub struct IntegrationConfig {
     /// SERVICES: "gemini", "openai", "openrouter"); "" = they are not read.
     #[serde(default)]
     pub telegram_voice: String,
+    /// The model of «Vocali» (transcribe.rs `models`); "" = the service's default.
+    #[serde(default)]
+    pub telegram_voice_model: String,
 }
 
 /// A connection of Remote Desktop Manager kept in the settings (rdm.rs Entry).
@@ -244,6 +247,7 @@ impl Default for IntegrationConfig {
             telegram_name: String::new(),
             telegram_auto: false,
             telegram_voice: String::new(),
+            telegram_voice_model: String::new(),
         }
     }
 }

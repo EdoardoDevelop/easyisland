@@ -1209,6 +1209,12 @@ async fn chat_models(engine: String, url: Option<String>) -> Result<Vec<openai::
     openai::models(&engine, url.as_deref()).await
 }
 
+/// Impostazioni -> Telegram -> «Vocali»: the models of a service that take audio, cheapest first.
+#[tauri::command]
+async fn voice_models(service: String) -> Result<Vec<openai::ModelOption>, String> {
+    transcribe::models(&service).await
+}
+
 /// Settings window: MCP servers configured for the user in Claude Code (names only).
 #[tauri::command]
 async fn mcp_servers_configured() -> Vec<String> {
@@ -2190,6 +2196,7 @@ pub fn run() {
             inbox_copy,
             notion_search,
             notion_page_text,
+            voice_models,
             notion_page::notion_open_page,
             notion_page::notion_open_database,
             notion_page::notion_block_text,

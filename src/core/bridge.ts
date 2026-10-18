@@ -204,6 +204,8 @@ export const Bridge = {
     callOrThrow<{ text: string }>("chat_send", { query, context, engine, auto }),
   /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
   chatModels: (engine: string, url: string | null) => callOrThrow<ModelOption[]>("chat_models", { engine, url }),
+  /** Impostazioni → Telegram → «Vocali»: the models of a service that take audio, cheapest first (transcribe.rs). */
+  voiceModels: (service: string) => callOrThrow<ModelOption[]>("voice_models", { service }),
   chatReset: () => call<void>("chat_reset"),
   /** "Continua": the next message for a session (session_reply.rs). "sent" or "prefilled". */
   sessionReply: (mode: string, text: string, pid: number | null, session: string | null, scheme: string | null) =>

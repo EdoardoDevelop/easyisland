@@ -1041,6 +1041,11 @@ fn voice_service(app: &AppHandle) -> String {
     app.try_state::<crate::Shared>().map(|s| s.settings.lock().unwrap().integration_config.telegram_voice.clone()).unwrap_or_default()
 }
 
+/// The model chosen for «Vocali» ("" = the service's default).
+fn voice_model(app: &AppHandle) -> String {
+    app.try_state::<crate::Shared>().map(|s| s.settings.lock().unwrap().integration_config.telegram_voice_model.clone()).unwrap_or_default()
+}
+
 /// The words of a voice message or audio file (transcribe.rs); the audio is not kept.
 async fn hear(app: &AppHandle, token: &str, v: &Value) -> Result<String, String> {
     let service = voice_service(app);
@@ -1054,7 +1059,7 @@ async fn hear(app: &AppHandle, token: &str, v: &Value) -> Result<String, String>
     };
     let bytes = fetch(token, &f).await?;
     let mime = v.get("mime_type").and_then(Value::as_str).unwrap_or("audio/ogg");
-    let words = crate::transcribe::transcribe(&service, &bytes, mime).await?;
+    let words = crate::transcribe::transcribe(&service, &voice_model(app), &bytes, mime).await?;
     if words.is_empty() {
         return Err(t("Nel vocale non ho sentito parole.").into());
     }

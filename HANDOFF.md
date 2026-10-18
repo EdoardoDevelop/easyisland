@@ -28,6 +28,7 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 18 ottobre 2026 — Vocali da Telegram
 - Richiesto da Edoardo: i vocali mandati al bot si trascrivono e vanno alla chat come testo (`transcribe.rs`, `docs/integrazioni.md`). Il servizio si sceglie in Impostazioni → Telegram → «Vocali» (Gemini, OpenAI, OpenRouter, con le chiavi dei motori della chat): Claude Code e opencode non sentono l'audio.
+- Poi, su richiesta di Edoardo: «Modello per l'audio» con i soli modelli che accettano audio, dal più economico. Rinominate le voci di Impostazioni: «Chat e motori AI» (sezioni Motore e modello, Comandi e file, Conversazioni salvate; «Azioni sul PC», «Connettori (server MCP)») e «Agenti di codice» (titoli delle sezioni più chiari). Nei documenti «Impostazioni → Chat» e «→ Agenti» indicano queste pagine.
 - **Prove:** `cargo test --workspace`, `npm run build`, riga nelle Impostazioni nell'anteprima. Non provato con un vocale vero: sul PC non c'è ancora nessuna di quelle chiavi (`docs/prove-dal-vivo.md`).
 
 ### 18 ottobre 2026 — Mini Notion nella card

@@ -564,6 +564,8 @@ export interface IntegrationConfig {
   telegramAuto?: boolean;
   /** Telegram «Vocali»: who transcribes voice messages (transcribe.rs); "" = nobody. */
   telegramVoice?: string;
+  /** The model of «Vocali»; "" = the service's default (transcribe.rs). */
+  telegramVoiceModel?: string;
 }
 
 /** A connection of Remote Desktop Manager (settings.rs RdmRef, rdm.rs Entry). */
