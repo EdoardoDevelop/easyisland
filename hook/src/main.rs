@@ -111,10 +111,25 @@ fn main() {
     // `--chat` marks the one hook EasyIsland installs for its own chat (connector
     // confirmations); every other hook inside that chat is ignored.
     let chat = std::env::args().any(|a| a == "--chat");
+    // Antigravity validates what a hook prints: it always gets an answer (agents.rs).
+    let args: Vec<String> = std::env::args().collect();
+    let agy = agents::from_args(&args).as_deref() == Some("antigravity");
+    let quiet_exit = |event: &str| -> ! {
+        if agy {
+            println!("{}", agents::antigravity_output(event, None));
+        }
+        std::process::exit(0)
+    };
+    let arg_event = args.get(1).cloned().unwrap_or_default();
     if std::env::var_os("EASYISLAND_INTERNAL").is_some() && !chat {
-        std::process::exit(0);
+        quiet_exit(&arg_event);
     }
-    let Some((payload, event, tool_input, suggestions, fallback)) = read_event() else { std::process::exit(0) };
+    let Some((payload, event, tool_input, suggestions, fallback)) = read_event() else { quiet_exit(&arg_event) };
+    // EasyIsland's own chat with Antigravity (antigravity.rs): only its
+    // permissions reach the island, as the chat's; the rest is no session.
+    if agy && std::env::var_os("EASYISLAND_AGY_CHAT").is_some() && event != "PermissionRequest" {
+        quiet_exit(&event);
+    }
 
     let waits_for_answer = event == "PermissionRequest";
     let budget = if waits_for_answer { DECISION_BUDGET } else { FIRE_AND_FORGET_BUDGET };
@@ -128,6 +143,13 @@ fn main() {
         let _ = tx.send(talk(&payload, waits_for_answer));
     });
 
+    if agy {
+        let answer = rx.recv_timeout(budget).ok().flatten();
+        let mut out = std::io::stdout();
+        let _ = writeln!(out, "{}", agents::antigravity_output(&event, answer.as_deref()));
+        let _ = out.flush();
+        std::process::exit(0);
+    }
     if let Ok(Some(decision)) = rx.recv_timeout(budget) {
         if let Some(json) = decision_json(&decision, tool_input.as_ref(), suggestions.as_ref(), fallback.as_ref()) {
             let mut out = std::io::stdout();
@@ -379,7 +401,7 @@ fn read_event() -> Option<Event> {
         .filter(|s| !s.is_empty())
         .unwrap_or(arg_event);
     map.insert("hook_event_name".into(), serde_json::Value::String(event.clone()));
-    if std::env::args().any(|a| a == "--chat") {
+    if std::env::args().any(|a| a == "--chat") || std::env::var_os("EASYISLAND_AGY_CHAT").is_some() {
         map.insert("easyisland_chat".into(), serde_json::Value::Bool(true));
         // A chat turn from Telegram: the app asks there (telegram.rs).
         if std::env::var("EASYISLAND_CHANNEL").is_ok_and(|c| c == "telegram") {

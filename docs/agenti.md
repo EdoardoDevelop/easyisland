@@ -12,13 +12,14 @@
 - Piano dell'agente (TodoWrite, TaskCreate/TaskUpdate, `update_plan`, `write_todos`): `src/island/plan.ts`. Avvisi di rischio sulla card dei permessi: `src/island/risk.ts`.
 
 ## Altri agenti
-- `easyisland-hook <Evento> --agent codex|gemini|cursor|copilot|opencode` (`hook/src/agents.rs`) traduce i loro eventi nella forma di Claude Code e aggiunge `easyisland_agent`.
+- `easyisland-hook <Evento> --agent codex|gemini|cursor|copilot|opencode|antigravity` (`hook/src/agents.rs`) traduce i loro eventi nella forma di Claude Code e aggiunge `easyisland_agent`.
 - Installazione degli hook: `src-tauri/src/hooks.rs` → `Target`, sempre con backup, diff e conferma. File di ciascun agente:
   - Claude Code: `%USERPROFILE%\.claude\settings.json`
   - Codex: `~/.codex/hooks.json`
   - Gemini: `~/.gemini/settings.json`
   - Cursor: `~/.cursor/hooks.json`
   - Copilot CLI: `~/.copilot/hooks/easyisland.json`
+  - Antigravity: `~/.gemini/config/hooks.json` (gruppo `easyisland`)
 - **Cursor e Copilot solo in osservazione:** mai `preToolUse` o altri hook di permesso, perché lì una risposta illeggibile o un errore bloccano lo strumento. I loro eventi arrivano dopo l'esecuzione con `easyisland_after_only`.
 
 ## opencode
@@ -45,6 +46,13 @@
 - **«Chiedi a questa sessione»** (pulsante sulla card della sessione e sulla card «finito», solo Claude Code con id e cartella): la chat passa in modalità sessione (`State.chatSession`) e le domande vanno a `session_ask` in `claude_cli.rs`: `claude -p --resume <id> --fork-session` nella cartella della sessione, con solo Read/Glob/Grep, `dontAsk` e hook spenti. La sessione vera non viene toccata (la copia ha un id suo); le domande dopo continuano nella copia. Provato dal vivo il 10 ottobre con una mini-sessione.
 - **«Apri»:** `apps::open_session` per `SessionHost`. Per opencode prova Desktop, poi il terminale, poi avvia Desktop (`%LOCALAPPDATA%\Programs\@opencodedesktop\OpenCode.exe`), poi la cartella. Mai VS Code.
 - Gli hook di Claude Code installati prima della 0.6.3 non hanno la status line: le Impostazioni li segnalano «Da aggiornare».
+
+## Antigravity (Google, 18 ottobre 2026)
+- Chiesto da Edoardo: «come Claude Code e opencode». Documentazione ufficiale: antigravity.google/docs/hooks e /docs/cli/headless.
+- **Hook** in `~/.gemini/config/hooks.json`, condiviso da CLI (`agy`), IDE e app. Il file ha gruppi con un nome: quello di EasyIsland è `"easyisland"` (`antigravity_merged`, `antigravity_status`, `without_ours_for` in `hooks.rs`), e gli altri gruppi restano. Sempre backup, diff e conferma (Impostazioni → Agenti di codice → Antigravity).
+- **Eventi:** SessionStart, PreToolUse (timeout 115 s), PostToolUse, Stop. Il payload è camelCase e non ha il nome dell'evento: arriva dalla riga di comando (`easyisland-hook PreToolUse --agent antigravity`). `antigravity()` in `hook/src/agents.rs` lo traduce: `conversationId` → `session_id`, `workspacePaths[0]` → `cwd`, `toolCall` → `tool_name` / `tool_input` con i nomi di Claude Code (`run_command` → Bash, `write_to_file` → Write, `replace_file_content` → Edit, `view_file` → Read, `call_mcp_tool` → `mcp__server__tool`…).
+- **Permessi:** `run_command`, `call_mcp_tool` e `ask_permission` diventano PermissionRequest (Consenti / Nega nell'isola). Antigravity valida sempre quello che stampa l'hook, quindi il relay risponde sempre (`antigravity_output`): Consenti / Sempre → `auto_approve`, Nega → `deny`. Senza risposta, o con l'app chiusa, risponde `allow`, cioè decide la politica di Antigravity (chiede nella sua finestra): l'agente non resta mai bloccato. Le modifiche ai file non chiedono all'isola: le rivede Antigravity secondo la sua modalità.
+- I nomi degli argomenti degli strumenti (`CommandLine`, `TargetFile`, `AbsolutePath`…) vengono dalla documentazione e dagli esempi pubblici; se ne mancano, il passo resta senza dettaglio. Non provato con agy vero: non è installato su questo PC (`docs/prove-dal-vivo.md`).
 
 ## Riepilogo settimanale
 - `src-tauri/src/recap.rs` (da Coucou) vede ogni evento degli agenti (`pipe.rs`, `opencode_agent.rs`) e chiude un «turno» da una richiesta a `Stop`. Tiene solo numeri, l'id dell'agente e il nome della cartella del progetto: righe da `easyisland_diff(s)`, comandi da `tool_name`, permessi dai clic sulla card (`pipe::answer`). File `recap.json` in `%LOCALAPPDATA%\EasyIsland`, 12 settimane. La chat dell'isola non conta.

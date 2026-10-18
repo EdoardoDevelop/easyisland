@@ -24,10 +24,10 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 - **Claude Code nell'isola**: vedi le sessioni lavorare, rispondi ai permessi
   con **Nega / Consenti / Sempre** e alle domande, guarda le **modifiche ai file**
   in tempo reale, torna all'app della sessione con un clic; anche **Codex**,
-  **opencode**, **Gemini CLI** e Claude Code nel terminale di **Cursor**; il
+  **opencode**, **Antigravity** di Google, **Gemini CLI** e Claude Code nel terminale di **Cursor**; il
   **riepilogo settimanale** degli agenti e i **limiti del piano** Pro/Max
   ([Claude Code](#claude-code)).
-- **Chat** dall'isola con Claude (abbonamento o chiave API), **OpenRouter**,
+- **Chat** dall'isola con Claude (abbonamento o chiave API), **opencode**, **Antigravity**, **OpenRouter**,
   **OpenAI**, **Gemini** o modelli locali **Ollama** e **LM Studio**; allega
   testo, file, immagini copiate o una **zona dello schermo**; risposte formattate
   (elenchi, tabelle, codice con **Copia**); calcolatrice nel campo;
@@ -58,6 +58,12 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 </p>
 
 ## Novità
+
+**0.9.0** — **Antigravity** di Google come Claude Code e opencode: le sue sessioni
+(CLI `agy`, IDE e app) nell'isola con passi, diff e **Consenti / Nega** su comandi e
+strumenti MCP, e come **motore della chat** con i suoi strumenti, anche da Telegram;
+le istruzioni di installazione sono nelle Impostazioni. Nella chat con Antigravity i
+passi compaiono mentre lavora, e se mancano gli hook ti dice come averli.
 
 **0.8.9** — **Mini Notion** nella scheda Notion: le pagine scelte come riquadri si
 aprono nell'isola e si vedono come in Notion (titoli, elenchi, caselle, toggle, callout,
@@ -273,7 +279,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.8.9** | 18 ott 2026 | Mini Notion nella scheda (pagine e database visti e modificati nell'isola), vocali da Telegram, «Automatica» in Telegram, impostazioni dagli agenti, «Permessi e chiamate» |
+| **0.9.0** | 18 ott 2026 | Antigravity di Google: sessioni nell'isola con Consenti / Nega e motore della chat, con le istruzioni di installazione |
+| 0.8.9 | 18 ott 2026 | Mini Notion nella scheda (pagine e database visti e modificati nell'isola), vocali da Telegram, «Automatica» in Telegram, impostazioni dagli agenti, «Permessi e chiamate» |
 | 0.8.8 | 17 ott 2026 | Telegram (chat, motore e modello da lì, Consenti / Nega, file nei due sensi), cartella di lavoro in «File e schermo», nella chat e in Telegram, strumenti di EasyIsland anche per opencode |
 | 0.8.7 | 17 ott 2026 | Registra (conversazione, schermo o una finestra), Cerca con Google, loghi di Teams e RDM, alone in tutte le schede, ricerca che si chiude al cambio di scheda, ⚡ Automatica con gli strumenti dei connettori, documentazione in inglese |
 | 0.8.6 | 16 ott 2026 | Microsoft Teams (riunioni, comandi, Partecipa), Account Microsoft con le API per Outlook e Teams (da provare), barra dell'app in uso personalizzabile con azioni Tasti |
@@ -826,7 +833,7 @@ con l'accesso già fatto in Claude Code (lo stesso dato di `/usage`; l'accesso v
 solo letto), anche se usi solo l'app desktop di Claude; arrivano anche dalla status
 line delle sessioni nel terminale o in VS Code.
 
-**Codex, opencode e Gemini CLI.** Nella stessa pagina (Impostazioni → Agenti) ci sono
+**Codex, opencode, Antigravity e Gemini CLI.** Nella stessa pagina (Impostazioni → Agenti di codice) ci sono
 i loro hook, installati con le stesse regole: diff, backup datato, conferma.
 Ogni agente ha la sua sessione nella voce **Agenti**, con passi, modifiche ai file e ultimo messaggio.
 
@@ -839,6 +846,13 @@ Ogni agente ha la sua sessione nella voce **Agenti**, con passi, modifiche ai fi
   puoi rispondere anche in opencode come sempre. Con opencode 1.x c'è invece un
   plugin (`%USERPROFILE%\.config\opencode\plugins\easyisland.js`); dopo
   l'installazione riavvia opencode.
+- **Antigravity** di Google (`%USERPROFILE%\.gemini\config\hooks.json`, un gruppo
+  «easyisland» tutto suo): sessioni della CLI `agy`, dell'IDE e dell'app, con passi e
+  diff; comandi e strumenti MCP con **Consenti / Nega** nell'isola. Se non rispondi
+  decide Antigravity, come sempre. È anche un **motore della chat** (Impostazioni →
+  Chat e motori AI → Antigravity): installi la CLI con
+  `irm https://antigravity.google/cli/install.ps1 | iex`, poi scrivi `agy` e accedi con
+  Google; con gli hook installati i comandi della chat chiedono Consenti / Nega.
 - **Gemini CLI** (`%USERPROFILE%\.gemini\settings.json`): Gemini non lascia
   rispondere ai permessi da fuori, quindi l'isola si apre e ti dice che sta
   aspettando, con il pulsante per tornare al terminale.

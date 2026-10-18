@@ -2,6 +2,11 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 17 ottobre 2026 — Telegram
+- Su richiesta di Edoardo, integrazione «Telegram» (`telegram.rs`, `docs/integrazioni.md`): la chat di EasyIsland nel suo bot (BotFather), solo long polling, una chat collegata con un codice. Conversazione separata con motore e modello scelti da Telegram (`/motore`, `/modello`), Consenti / Nega come pulsanti in Telegram nella modalità terminale, foto e file nel Vassoio, messaggi a app chiusa scartati. Poi, segnalato da Edoardo: i file che il turno mette nel Vassoio arrivano in Telegram (anche `/vassoio`), e il bot resta acceso con qualsiasi profilo.
+- Il turno della chat è ora `chat_turn` in `lib.rs`, con il testo verso una funzione: prima i motori lo mandavano sempre all'isola (anche «Sostituisci», senza effetto).
+- **Prove:** `cargo test --workspace` (anche l'HTML per Telegram e i messaggi lunghi), `npm run build`, riga nelle Impostazioni nell'anteprima. Non provato con un bot vero (`docs/prove-dal-vivo.md`).
+
 ### 17 ottobre 2026 — Documentazione in inglese, versione 0.8.7
 - Versione **0.8.7** con le voci del 16–17 ottobre (Registra, Cerca con Google, loghi, alone, ⚡ Automatica con i connettori).
 - Su richiesta di Edoardo, documentazione in inglese accanto a quella italiana: `README.en.md`, `CONTRIBUTING.en.md`, `docs/en/` (architettura, sviluppo, agenti e chat), con i collegamenti tra le lingue. I file italiani restano il riferimento; regola in `docs/sviluppo.md`.

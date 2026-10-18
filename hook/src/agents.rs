@@ -27,6 +27,13 @@
 //!   passes the answer to opencode's server; with no answer opencode asks in
 //!   its own window, as always.
 //!
+//! * **Antigravity** (Google, `agy` and its IDE) — hooks in
+//!   `~/.gemini/config/hooks.json` (hooks.rs), camelCase payloads with the
+//!   event only on the command line. Its tools become Claude Code's; a
+//!   command, an MCP tool or `ask_permission` becomes a PermissionRequest the
+//!   island answers (`antigravity_output`: `auto_approve` / `deny`; with no
+//!   answer `allow`, i.e. Antigravity's own policy decides, as if we were not here).
+//!
 //! Any other tool can send a payload with `easyisland_agent: {"id", "name", "color"}`
 //! and gets its pill too; `sanitize` keeps that field harmless.
 
@@ -40,6 +47,7 @@ fn known(id: &str) -> Option<(&'static str, &'static str)> {
         "cursor" => Some(("Cursor", "#9CA3AF")),
         "copilot" => Some(("Copilot", "#8957E5")),
         "opencode" => Some(("opencode", "#FAB283")),
+        "antigravity" => Some(("Antigravity", "#4C8BF5")),
         _ => None,
     }
 }
@@ -70,6 +78,9 @@ pub fn normalize(agent: Option<&str>, map: &mut Map<String, Value>) {
         }
         if id == "opencode" {
             opencode(map);
+        }
+        if id == "antigravity" {
+            antigravity(map);
         }
     }
     sanitize(map);
@@ -154,6 +165,84 @@ fn gemini(map: &mut Map<String, Value>) {
             .to_string();
         map.insert("message".into(), Value::String(format!("Chiede un permesso nel terminale: {what}")));
         map.insert("easyisland_waiting".into(), Value::Bool(true));
+    }
+}
+
+/// Antigravity's tools that ask the island first (its default policy asks
+/// for them too): commands, MCP tools, and its own permission request.
+const ANTIGRAVITY_ASKS: &[&str] = &["run_command", "call_mcp_tool", "ask_permission"];
+
+/// Antigravity → Claude Code's events, fields and tool names.
+fn antigravity(map: &mut Map<String, Value>) {
+    let event = map.get("hook_event_name").and_then(Value::as_str).unwrap_or_default().to_string();
+    rename(map, "conversationId", "session_id");
+    rename(map, "transcriptPath", "antigravity_transcript");
+    if !map.contains_key("cwd") {
+        if let Some(root) = map.get("workspacePaths").and_then(|r| r.get(0)).and_then(Value::as_str) {
+            let root = windows_path(root);
+            map.insert("cwd".into(), Value::String(root));
+        }
+    }
+    let call = map.remove("toolCall").unwrap_or(Value::Null);
+    let tool = call.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+    let args = call.get("args").cloned().unwrap_or(Value::Null);
+    let arg = |keys: &[&str]| keys.iter().find_map(|k| args.get(*k).cloned());
+    if !tool.is_empty() {
+        let (name, input) = match tool.as_str() {
+            "run_command" => ("Bash".to_string(), json!({ "command": arg(&["CommandLine", "commandLine", "command"]), "cwd": arg(&["Cwd", "cwd"]) })),
+            "write_to_file" => ("Write".to_string(), json!({
+                "file_path": arg(&["TargetFile", "targetFile", "AbsolutePath", "FilePath"]),
+                "content": arg(&["CodeContent", "codeContent", "Content", "content"]),
+            })),
+            "replace_file_content" | "multi_replace_file_content" => ("Edit".to_string(), json!({
+                "file_path": arg(&["TargetFile", "targetFile", "AbsolutePath", "FilePath"]),
+            })),
+            "view_file" => ("Read".to_string(), json!({ "file_path": arg(&["AbsolutePath", "absolutePath", "TargetFile", "FilePath"]) })),
+            "list_dir" => ("LS".to_string(), json!({ "path": arg(&["DirectoryPath", "directoryPath", "Path"]) })),
+            "grep_search" => ("Grep".to_string(), json!({ "pattern": arg(&["Query", "query", "Pattern"]), "path": arg(&["SearchPath", "searchPath"]) })),
+            "find_by_name" => ("Glob".to_string(), json!({ "pattern": arg(&["Pattern", "pattern"]), "path": arg(&["SearchDirectory", "searchDirectory"]) })),
+            "search_web" => ("WebSearch".to_string(), json!({ "query": arg(&["query", "Query"]) })),
+            "read_url_content" => ("WebFetch".to_string(), json!({ "url": arg(&["Url", "url"]) })),
+            "call_mcp_tool" => {
+                let server = arg(&["ServerName", "serverName"]).and_then(|v| v.as_str().map(String::from)).unwrap_or_else(|| "mcp".into());
+                let name = arg(&["ToolName", "toolName"]).and_then(|v| v.as_str().map(String::from)).unwrap_or_else(|| "tool".into());
+                (format!("mcp__{server}__{name}"), args.clone())
+            }
+            other => (other.to_string(), args.clone()),
+        };
+        map.insert("tool_name".into(), Value::String(name));
+        map.insert("tool_input".into(), input);
+    }
+    match event.as_str() {
+        "PreToolUse" if ANTIGRAVITY_ASKS.contains(&tool.as_str()) => set_event(map, "PermissionRequest"),
+        "PostToolUse" => {
+            if let Some(err) = map.get("error").and_then(Value::as_str).filter(|e| !e.is_empty()).map(String::from) {
+                map.insert("tool_response".into(), json!({ "stderr": err }));
+                set_event(map, "PostToolUseFailure");
+            }
+        }
+        "Stop" => {
+            let failed = map.get("terminationReason").and_then(Value::as_str).is_some_and(|r| r.eq_ignore_ascii_case("error"));
+            set_event(map, if failed { "StopFailure" } else { "Stop" });
+        }
+        _ => {}
+    }
+}
+
+/// What Antigravity reads back on stdout, whatever happened: it validates the
+/// JSON, and `decision` is required on PreToolUse and Stop. `answer` is the
+/// island's (none: no answer in time, or not asked).
+pub fn antigravity_output(event: &str, answer: Option<&str>) -> String {
+    match event {
+        "PermissionRequest" => match answer.map(str::trim) {
+            Some("allow") | Some("always") => r#"{"decision":"auto_approve"}"#.into(),
+            Some("deny") => r#"{"decision":"deny","reason":"Negato da EasyIsland"}"#.into(),
+            // Antigravity's own policy decides: it asks in its window, as without us.
+            _ => r#"{"decision":"allow"}"#.into(),
+        },
+        "PreToolUse" => r#"{"decision":"allow"}"#.into(),
+        "Stop" | "StopFailure" => r#"{"decision":"stop"}"#.into(),
+        _ => "{}".into(),
     }
 }
 
@@ -611,6 +700,34 @@ mod tests {
         assert_eq!(m["tool_name"], "Bash");
         assert_eq!(m["tool_input"]["command"], "npm test");
         assert_eq!(m["easyisland_agent"]["name"], "Codex");
+    }
+
+    #[test]
+    fn antigravity_events_and_answers() {
+        let mut m = json!({ "hook_event_name": "PreToolUse", "conversationId": "c1", "workspacePaths": ["/c:/src/app"],
+            "toolCall": { "name": "run_command", "args": { "CommandLine": "npm test", "Cwd": "c:/src/app" } } })
+            .as_object().unwrap().clone();
+        normalize(Some("antigravity"), &mut m);
+        assert_eq!(m["hook_event_name"], "PermissionRequest");
+        assert_eq!(m["tool_name"], "Bash");
+        assert_eq!(m["tool_input"]["command"], "npm test");
+        assert_eq!(m["session_id"], "c1");
+        assert_eq!(m["cwd"], "c:/src/app");
+        assert_eq!(m["easyisland_agent"]["name"], "Antigravity");
+        let mut read = json!({ "hook_event_name": "PreToolUse", "toolCall": { "name": "view_file", "args": { "AbsolutePath": "c:/a.rs" } } })
+            .as_object().unwrap().clone();
+        normalize(Some("antigravity"), &mut read);
+        assert_eq!(read["hook_event_name"], "PreToolUse");
+        assert_eq!(read["tool_input"]["file_path"], "c:/a.rs");
+        let mut stop = json!({ "hook_event_name": "Stop", "terminationReason": "error", "fullyIdle": true }).as_object().unwrap().clone();
+        normalize(Some("antigravity"), &mut stop);
+        assert_eq!(stop["hook_event_name"], "StopFailure");
+        assert_eq!(antigravity_output("PermissionRequest", Some("allow")), r#"{"decision":"auto_approve"}"#);
+        assert_eq!(antigravity_output("PermissionRequest", Some("deny")), r#"{"decision":"deny","reason":"Negato da EasyIsland"}"#);
+        assert_eq!(antigravity_output("PermissionRequest", None), r#"{"decision":"allow"}"#);
+        assert_eq!(antigravity_output("PreToolUse", None), r#"{"decision":"allow"}"#);
+        assert_eq!(antigravity_output("Stop", None), r#"{"decision":"stop"}"#);
+        assert_eq!(antigravity_output("SessionStart", None), "{}");
     }
 
     #[test]

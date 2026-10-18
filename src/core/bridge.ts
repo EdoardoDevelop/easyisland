@@ -204,6 +204,8 @@ export const Bridge = {
     callOrThrow<{ text: string }>("chat_send", { query, context, engine, auto }),
   /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
   chatModels: (engine: string, url: string | null) => callOrThrow<ModelOption[]>("chat_models", { engine, url }),
+  /** Impostazioni → Chat → Antigravity: is its CLI (agy) on this PC (antigravity.rs). */
+  antigravityStatus: () => call<{ found: boolean; path: string }>("antigravity_status"),
   /** Impostazioni → Telegram → «Vocali»: the models of a service that take audio, cheapest first (transcribe.rs). */
   voiceModels: (service: string) => callOrThrow<ModelOption[]>("voice_models", { service }),
   chatReset: () => call<void>("chat_reset"),

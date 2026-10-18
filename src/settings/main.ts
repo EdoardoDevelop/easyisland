@@ -77,6 +77,11 @@ const HOOK_TOOLS = {
     what: t("Solo da guardare: strumenti, esito dei test, diff e fine del lavoro."),
     done: t("Apri una nuova sessione di Copilot CLI per attivare gli hook."),
   },
+  antigravity: {
+    name: "Antigravity", file: "hooks.json",
+    what: t("Sessioni della CLI (agy), dell'IDE e dell'app di Google Antigravity: passi, diff e fine del lavoro; comandi e strumenti MCP con Consenti / Nega dall'isola (senza risposta decide Antigravity, come sempre). Gli hook vanno in ~/.gemini/config/hooks.json, in un gruppo «easyisland» tutto suo."),
+    done: t("Apri una nuova sessione di Antigravity (agy, IDE o app) per attivare gli hook."),
+  },
   opencode: {
     name: "opencode", file: "easyisland.js",
     what: t("opencode 2: accendi l'interruttore, EasyIsland segue il suo servizio in background senza installare nulla; i permessi arrivano con Consenti / Nega / Sempre. Il plugin serve solo a opencode 1.x."),
@@ -85,7 +90,7 @@ const HOOK_TOOLS = {
 } as const;
 type HookTool = keyof typeof HOOK_TOOLS;
 
-const AGENT_ORDER: HookTool[] = ["claude", "codex", "opencode", "gemini", "cursor", "copilot"];
+const AGENT_ORDER: HookTool[] = ["claude", "codex", "opencode", "antigravity", "gemini", "cursor", "copilot"];
 
 /**
  * Every coding agent on one card: a row each with its state and one button,
@@ -626,10 +631,54 @@ function historyRow(): HTMLElement {
     h("span", { class: "hint note", text: t("le conversazioni restano su questo PC (fino a 100) e si riaprono dall'orologio in alto nella chat. Spegnendola si cancellano") }));
 }
 
+/**
+ * Impostazioni → Chat → Antigravity: is `agy` installed, and how to get it
+ * (its own installer, then the Google sign-in in a terminal). Permissions in
+ * the chat come through its hooks (Agenti di codice → Antigravity).
+ */
+async function antigravityHowTo(): Promise<HTMLElement> {
+  const CMD = "irm https://antigravity.google/cli/install.ps1 | iex";
+  const dot = statusDot(false);
+  const state = h("span", { class: "hint", text: t("Verifica di Antigravity…") });
+  const recheck = h("button", { text: t("Ricontrolla") });
+  const copy = h("button", { text: t("Copia") }) as HTMLButtonElement;
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(CMD);
+      copy.textContent = t("Copiato ✓");
+    } catch {
+      copy.textContent = t("Non riuscito");
+    }
+    window.setTimeout(() => (copy.textContent = t("Copia")), 1800);
+  });
+  const howTo = h("div", { class: "notice warn", style: "display:none;flex-direction:column;gap:8px" },
+    h("b", { text: t("Come preparare Antigravity (una volta sola)") }),
+    h("div", { text: t("1. In PowerShell incolla questo comando e premi Invio (installa la CLI «agy» di Google):") }),
+    h("div", { class: "row" }, h("code", { class: "path", text: CMD }), copy),
+    h("div", { text: t("2. Chiudi e riapri PowerShell, scrivi «agy» e accedi con il tuo account Google (gratuito, Pro o Ultra).") }),
+    h("div", { text: t("3. Per Consenti / Nega su comandi e strumenti: Impostazioni → Agenti di codice → Antigravity → Installa.") }),
+    h("div", { text: t("4. Torna qui e premi Ricontrolla.") }),
+    h("div", { class: "hint", text: t("L'IDE o l'app di Antigravity da soli non bastano: la chat usa la CLI. I modelli (Gemini, Claude, GPT-OSS) dipendono dal tuo piano Google.") }));
+  const paint = async () => {
+    const st = await Bridge.antigravityStatus();
+    const ok = !!st?.found;
+    dot.style.background = ok ? "#22c55e" : "#f4505e";
+    state.textContent = ok ? t("Antigravity (agy) trovato: {p}", { p: st!.path }) : t("Antigravity (agy) non è installato su questo PC.");
+    howTo.style.display = ok ? "none" : "flex";
+  };
+  recheck.addEventListener("click", () => void paint());
+  await paint();
+  return h("div", { style: "display:flex;flex-direction:column;gap:8px" },
+    h("div", { class: "row" }, dot, state, recheck),
+    howTo,
+    h("div", { class: "hint", text: t("Lavora con i suoi strumenti nella cartella della modalità terminale o, se non c'è, nella cartella di lavoro. Comandi e strumenti MCP chiedono Consenti / Nega nell'isola tramite i suoi hook; senza hook li salta. Il modello vuoto = quello predefinito del tuo account.") }));
+}
+
 /** What each engine is, in one line under the picker. */
 const ENGINE_HINTS: Record<string, string> = {
   subscription: t("Il tuo abbonamento Claude Pro o Max, tramite Claude Code da riga di comando (gira nascosto). Nessun costo extra: conta nei limiti del piano. Cerca sul web e legge i file che rilasci."),
   api: t("L'API di Anthropic con la tua chiave, a consumo dalla Console di Anthropic."),
+  antigravity: t("Google Antigravity (la CLI agy) su questo PC, con il tuo account Google: un agente con strumenti come Claude Code e opencode. Ogni comando o strumento MCP chiede Consenti / Nega nell'isola."),
   opencode: t("opencode 2 su questo PC: modelli gratuiti, locali o dei tuoi fornitori, con strumenti (comandi, file, web). Ogni comando o modifica chiede Consenti / Nega nell'isola; senza risposta è un no."),
   openrouter: t("Una chiave per centinaia di modelli (openrouter.ai), a consumo. Solo chat: niente web né azioni sul PC."),
   openai: t("L'API di OpenAI con la tua chiave, a consumo. Solo chat: niente web né azioni sul PC."),
@@ -664,6 +713,9 @@ function otherEngineBlock(changed: () => void) {
     settings.engineModels ??= {};
     settings.engineUrls ??= {};
     const opencode = id === "opencode";
+    const agy = id === "antigravity";
+    if (agy) el.append(await antigravityHowTo());
+    if (current !== id) return;
     if (opencode) {
       el.append(h("div", { class: "hint", text: t("EasyIsland avvia un opencode tutto suo solo mentre chatti (cartella %LOCALAPPDATA%\\EasyIsland\\opencode). Le chiavi dei fornitori restano in opencode («opencode auth login»), mai qui.") }));
     }
@@ -707,7 +759,7 @@ function otherEngineBlock(changed: () => void) {
       });
       el.append(state, h("div", { class: "row" }, h("label", { text: t("Chiave API") }), field, saveBtn, clearBtn));
       paint();
-    } else if (!opencode) {
+    } else if (!opencode && !agy) {
       const url = h("input", { type: "text", value: settings.engineUrls[id] ?? "", placeholder: e.url ?? "", style: "flex:1 1 auto;min-width:0", spellcheck: "false" }) as HTMLInputElement;
       url.addEventListener("change", () => {
         settings.engineUrls![id] = url.value.trim();
@@ -722,7 +774,7 @@ function otherEngineBlock(changed: () => void) {
     const privacy = h("div", { class: "notice warn", style: "display:none",
       text: t("Modello online di opencode Zen: per quasi tutti i modelli gratuiti i dati possono essere usati per migliorare il modello (per alcuni: «non inviare dati personali o riservati»). Non usarlo con dati dei clienti: per quelli scegli un modello locale (ollama/…, lmstudio/…) o uno a pagamento a ritenzione zero.") });
     // Without a model the chat cannot start: say so where the model goes.
-    const missing = h("div", { class: "notice err", text: opencode
+    const missing = h("div", { class: "notice err", style: agy ? "display:none" : "", text: opencode
       ? t("Nessun modello scelto: la chat non può partire. Premi «Carica modelli» e scegline uno.")
       : t("Nessun modello scelto: la chat non può partire.") });
     // What the chosen model costs, once the list is loaded.
@@ -736,7 +788,7 @@ function otherEngineBlock(changed: () => void) {
     };
     const paintPrivacy = () => {
       privacy.style.display = opencode && model.value.trim().startsWith("opencode/") ? "" : "none";
-      missing.style.display = model.value.trim() ? "none" : "";
+      missing.style.display = model.value.trim() || agy ? "none" : "";
       paintPrice();
     };
     paintPrivacy();

@@ -25,6 +25,13 @@
 - **API di opencode 2** (diversa dalla 1.x): endpoint sotto `/api/…`; eventi `session.text.delta`, `session.tool.called/success`, `permission.asked` (`action`, `resources`, `save`); risposta con `POST /api/session/{id}/permission/{rid}/reply` e `{"decision"}`; regole `{action, resource, effect}`, dove l'ultima vince.
 - Il trait `Ask` esiste perché i test non tocchino la webview (vedi `sviluppo.md`). Test dal vivo: `cargo test --lib opencode::tests::live -- --ignored`.
 
+## Antigravity come motore (`src-tauri/src/antigravity.rs`, 18 ottobre 2026)
+- `agy -p <domanda> --output-format stream-json [--model] [--conversation <id>]`, un processo per turno; la conversazione continua con l'id del `result` (salvato come `cli_session`). Gli eventi `step_update` danno il testo (`agent_response`, `text_delta`) e i passi «> ⚙ …» (`tool`, `DONE`).
+- Ha sempre i suoi strumenti: lavora nella cartella della modalità terminale, altrimenti nella cartella di lavoro, altrimenti nella cartella utente. I permessi passano dai suoi hook (`docs/agenti.md`): il turno ha `EASYISLAND_AGY_CHAT=1`, e il relay manda all'isola solo i permessi, come quelli della chat (`easyisland_chat`), e ignora il resto. Senza hook installati la modalità senza interfaccia di Antigravity salta ciò che chiederebbe.
+- Installazione e login sono dell'utente: `irm https://antigravity.google/cli/install.ps1 | iex`, poi `agy` per il login Google (Impostazioni → Chat e motori AI → Antigravity lo spiega, con «Ricontrolla»). L'eseguibile si cerca in `%LOCALAPPDATA%\agy\bin\agy.exe`, poi nel PATH. I modelli vengono da `agy models`; vuoto = il predefinito dell'account. Anche da Telegram (`/motore`).
+- Provato con agy 1.4.2 (18 ottobre 2026): ogni evento ha i suoi campi dentro un oggetto con il suo nome (`{"event":"step_update","step_update":{…}}`), la domanda va come `--print=…` dopo le altre opzioni (agy si ferma al primo argomento), uno strumento negato arriva come `state: ERROR` e il `result` elenca `denied_actions`. Un hook che risponde `auto_approve` fa passare un comando anche senza interfaccia (provato con un hook di prova). Senza hook la chat lo dice sotto la risposta.
+- Il testo allegato viaggia nella riga di comando: tagliato a 20.000 caratteri; un file passa con il suo percorso.
+
 ## Connettori MCP (chat con l'abbonamento)
 - Senza connettori: solo WebSearch/WebFetch/Read, con `dontAsk` e `--strict-mcp-config`.
 - Con connettori scelti nel profilo (`mcpServers`): `--permission-mode default`. I server non scelti finiscono in `--disallowedTools`, quelli senza conferma in `--allowedTools`. Le altre chiamate passano dall'hook `PermissionRequest` → `easyisland-hook.exe PermissionRequest --chat` → card Consenti/Nega nell'isola.

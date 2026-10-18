@@ -23,10 +23,10 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 
 - **Claude Code in the island**: watch sessions work, answer permissions with
   **Deny / Allow / Always** and questions, see **file changes** live, jump back to
-  the session's app with one click; also **Codex**, **opencode**, **Gemini CLI**
+  the session's app with one click; also **Codex**, **opencode**, Google's **Antigravity**, **Gemini CLI**
   and Claude Code in **Cursor**'s terminal; a **weekly recap** of the agents and
   the Pro/Max **plan limits** ([Claude Code](#claude-code)).
-- **Chat** from the island with Claude (subscription or API key), **OpenRouter**,
+- **Chat** from the island with Claude (subscription or API key), **opencode**, **Antigravity**, **OpenRouter**,
   **OpenAI**, **Gemini** or local models with **Ollama** and **LM Studio**; attach
   text, files, copied images or a **screen area**; formatted answers (lists,
   tables, code with **Copy**); a calculator in the field; a **history** of
@@ -57,6 +57,11 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 </p>
 
 ## What's new
+
+**0.9.0** — Google's **Antigravity** like Claude Code and opencode: its sessions (the
+`agy` CLI, IDE and app) in the island with steps, diffs and **Allow / Deny** on commands
+and MCP tools, and as a **chat engine** with its own tools, from Telegram too; the
+setup steps are in the settings.
 
 **0.8.9** — **Mini Notion** in the Notion tab: your chosen pages, shown as tiles, open
 in the island looking as in Notion (headings, lists, checkboxes, toggles, callouts, code,
@@ -102,7 +107,8 @@ the browser's. **Overview** with large, faded logos in the corner of each tile.
 
 | Version | Date | What's new |
 |---|---|---|
-| **0.8.9** | 18 Oct 2026 | Mini Notion in the tab (pages and databases viewed and edited in the island), Telegram voice messages, Telegram "Automatica", settings from the agents, "Permissions and calls" |
+| **0.9.0** | 18 Oct 2026 | Google's Antigravity: sessions in the island with Allow / Deny and a chat engine, with setup steps |
+| 0.8.9 | 18 Oct 2026 | Mini Notion in the tab (pages and databases viewed and edited in the island), Telegram voice messages, Telegram "Automatica", settings from the agents, "Permissions and calls" |
 | 0.8.8 | 17 Oct 2026 | Telegram (chat, engine and model from there, Allow / Deny, files both ways), work folder in "Files and screen", the chat and Telegram, EasyIsland's tools for opencode too |
 | 0.8.7 | 17 Oct 2026 | Record (conversation, screen or one window), Search with Google, Teams and RDM logos, glow in every tab, search closing on tab click, ⚡ Automatic with connector tools, English documentation |
 | 0.8.6 | 16 Oct 2026 | Microsoft Teams (meetings, controls, Join), Microsoft account with the APIs for Outlook and Teams (to be tested), customisable app bar with Keys actions |
@@ -437,9 +443,12 @@ in time, Claude Code asks in the terminal as usual.
 commands, permissions: counts only, never commands or content) and **plan limits**
 (Pro and Max: 5 hours, week and Opus week, with an alert from 80 %).
 
-**Codex, opencode and Gemini CLI** are installed from the same page with the same
-rules (diff, dated backup, confirmation). Codex and opencode permission requests
+**Codex, opencode, Antigravity and Gemini CLI** are installed from the same page with the same
+rules (diff, dated backup, confirmation). Codex, opencode and Antigravity permission requests
 arrive in the island with **Allow / Deny**; Gemini only shows that it is waiting.
+Google's **Antigravity** is also a **chat engine**: install its CLI with
+`irm https://antigravity.google/cli/install.ps1 | iex`, run `agy` to sign in with Google,
+and install its hooks for Allow / Deny on the chat's commands.
 Any other tool can appear in **Agents** by sending events to
 `easyisland-hook <Event>` with an `easyisland_agent` field.
 
