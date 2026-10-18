@@ -146,7 +146,10 @@ const DATA_SOURCES: &str = "$list = @(Get-RDMDataSource | ForEach-Object { [pscu
 
 /// The connections of the workspace chosen ($env:EASYISLAND_RDM_DS, else
 /// RDM's current one): only names, folders, hosts, types and ids.
-const SESSIONS: &str = "if ($env:EASYISLAND_RDM_DS) { Set-RDMCurrentDataSource -ID $env:EASYISLAND_RDM_DS }\n$ds = Get-RDMCurrentDataSource\n$list = @(Get-RDMSession | ForEach-Object {\n  $h = if ($_.Host) { \"$($_.Host)\" } elseif ($_.Url) { \"$($_.Url)\" } else { '' }\n  [pscustomobject]@{ id = \"$($_.ID)\"; name = \"$($_.Name)\"; group = \"$($_.Group)\"; host = $h; kind = \"$($_.ConnectionType)\" }\n})\nConvertTo-Json -InputObject ([pscustomobject]@{ dataSource = [pscustomobject]@{ id = \"$($ds.ID)\"; name = \"$($ds.Name)\" }; entries = $list }) -Compress -Depth 4";
+/// Devolutions Server and Hub keep the entries in vaults (repositories) and
+/// Get-RDMSession reads only the current one, often an empty personal vault:
+/// every vault is read, its name before the folder.
+const SESSIONS: &str = "if ($env:EASYISLAND_RDM_DS) { Set-RDMCurrentDataSource -ID $env:EASYISLAND_RDM_DS }\n$ds = Get-RDMCurrentDataSource\n$repos = @()\nif (Get-Command Get-RDMRepository -ErrorAction SilentlyContinue) { try { $repos = @(Get-RDMRepository) } catch { $repos = @() } }\nif ($repos.Count -eq 0) { $repos = @($null) }\n$list = @(foreach ($r in $repos) {\n  $rid = ''; $rname = ''\n  if ($r) { try { Set-RDMCurrentRepository -Repository $r -ErrorAction Stop } catch { continue }; $rid = \"$($r.ID)\"; $rname = \"$($r.Name)\" }\n  try { $items = @(Get-RDMSession -ErrorAction Stop) } catch { $items = @() }\n  foreach ($e in $items) {\n    $h = if ($e.Host) { \"$($e.Host)\" } elseif ($e.Url) { \"$($e.Url)\" } else { '' }\n    $g = \"$($e.Group)\"; if ($repos.Count -gt 1 -and $rname) { $g = if ($g) { ($rname + [char]92 + $g) } else { $rname } }\n    [pscustomobject]@{ id = \"$($e.ID)\"; name = \"$($e.Name)\"; group = $g; host = $h; kind = \"$($e.ConnectionType)\"; repository = $rid }\n  }\n})\nConvertTo-Json -InputObject ([pscustomobject]@{ dataSource = [pscustomobject]@{ id = \"$($ds.ID)\"; name = \"$($ds.Name)\" }; entries = $list }) -Compress -Depth 4";
 
 // ── The list of connections ───────────────────────────────────────────────────
 
@@ -164,6 +167,9 @@ pub struct Entry {
     /// RDM's connection type ("RDPConfigured", "SSHShell", "WebBrowser"…).
     #[serde(default)]
     pub kind: String,
+    /// The vault (Devolutions Server / Hub), empty for a local data source.
+    #[serde(default)]
+    pub repository: String,
 }
 
 #[derive(Default)]
@@ -381,8 +387,8 @@ fn data_source_id() -> Option<String> {
 /// What to ask RDM (pure, tested): the exe's arguments and the same as an rdm:// link.
 #[derive(Debug, PartialEq)]
 pub enum Ask {
-    Open { data_source: Option<String>, session: String },
-    Edit { data_source: Option<String>, session: String },
+    Open { data_source: Option<String>, repository: Option<String>, session: String },
+    Edit { data_source: Option<String>, repository: Option<String>, session: String },
     Filter(String),
     Quick { kind: String, host: String },
 }
@@ -391,7 +397,9 @@ impl Ask {
     fn args(&self) -> Vec<String> {
         let ds = |d: &Option<String>| d.as_ref().map(|d| format!("/DataSource:{d}"));
         match self {
-            Ask::Open { data_source, session } => ds(data_source).into_iter().chain([format!("/Session:{session}")]).collect(),
+            // An entry in a vault goes through the link, which names the vault.
+            Ask::Open { repository: Some(_), .. } => Vec::new(),
+            Ask::Open { data_source, session, .. } => ds(data_source).into_iter().chain([format!("/Session:{session}")]).collect(),
             // The exe has no "edit": that goes through the link.
             Ask::Edit { .. } => Vec::new(),
             Ask::Filter(text) => vec![format!("/Filter:{text}")],
@@ -401,10 +409,13 @@ impl Ask {
 
     fn link(&self) -> String {
         let enc = |s: &str| s.bytes().map(|b| if b.is_ascii_alphanumeric() || b"-_.~:[]".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") }).collect::<String>();
-        let ds = |d: &Option<String>| d.as_ref().map(|d| format!("DataSource={}&", enc(d))).unwrap_or_default();
+        let ds = |d: &Option<String>, r: &Option<String>| {
+            d.as_ref().map(|d| format!("DataSource={}&", enc(d))).unwrap_or_default()
+                + &r.as_ref().map(|r| format!("Repository={}&", enc(r))).unwrap_or_default()
+        };
         match self {
-            Ask::Open { data_source, session } => format!("rdm://open?{}Session={}", ds(data_source), enc(session)),
-            Ask::Edit { data_source, session } => format!("rdm://edit?{}Session={}", ds(data_source), enc(session)),
+            Ask::Open { data_source, repository, session } => format!("rdm://open?{}Session={}", ds(data_source, repository), enc(session)),
+            Ask::Edit { data_source, repository, session } => format!("rdm://edit?{}Session={}", ds(data_source, repository), enc(session)),
             Ask::Filter(text) => format!("rdm://open?Filter={}", enc(text)),
             Ask::Quick { kind, host } => format!("rdm://open?Template={}&Host={}", enc(kind), enc(host)),
         }
@@ -437,14 +448,20 @@ pub fn open(session: &str) -> Result<(), String> {
     if !guid(session) {
         return Err(t("Connessione di RDM non valida").into());
     }
-    ask(&Ask::Open { data_source: data_source_id(), session: session.to_string() })
+    ask(&Ask::Open { data_source: data_source_id(), repository: repository_of(session), session: session.to_string() })
 }
 
 pub fn edit(session: &str) -> Result<(), String> {
     if !guid(session) {
         return Err(t("Connessione di RDM non valida").into());
     }
-    ask(&Ask::Edit { data_source: data_source_id(), session: session.to_string() })
+    ask(&Ask::Edit { data_source: data_source_id(), repository: repository_of(session), session: session.to_string() })
+}
+
+/// The vault an entry was read from, if any.
+fn repository_of(session: &str) -> Option<String> {
+    let g = INDEX.lock().ok()?;
+    g.as_ref()?.entries.iter().find(|e| e.id == session).map(|e| e.repository.clone()).filter(|r| guid(r))
 }
 
 /// RDM opened with its search filled in.
@@ -547,7 +564,7 @@ mod tests {
 
     #[test]
     fn search_by_name_folder_and_host() {
-        let e = |name: &str, group: &str, host: &str| Entry { id: B.into(), name: name.into(), group: group.into(), host: host.into(), kind: "RDPConfigured".into() };
+        let e = |name: &str, group: &str, host: &str| Entry { id: B.into(), name: name.into(), group: group.into(), host: host.into(), kind: "RDPConfigured".into(), repository: String::new() };
         let nas = e("NAS", "Clienti\\Rossi Srl", "192.168.1.10");
         let srv = e("Server Rossi", "Clienti\\Rossi Srl", "srv01.rossi.local");
         let other = e("NAS", "Clienti\\Bianchi", "10.0.0.2");
@@ -565,10 +582,13 @@ mod tests {
 
     #[test]
     fn requests_to_rdm() {
-        let open = Ask::Open { data_source: Some(A.into()), session: B.into() };
+        let vault = Ask::Open { data_source: Some(A.into()), repository: Some(A.into()), session: B.into() };
+        assert!(vault.args().is_empty());
+        assert_eq!(vault.link(), format!("rdm://open?DataSource={A}&Repository={A}&Session={B}"));
+        let open = Ask::Open { data_source: Some(A.into()), repository: None, session: B.into() };
         assert_eq!(open.args(), vec![format!("/DataSource:{A}"), format!("/Session:{B}")]);
         assert_eq!(open.link(), format!("rdm://open?DataSource={A}&Session={B}"));
-        let edit = Ask::Edit { data_source: None, session: B.into() };
+        let edit = Ask::Edit { data_source: None, repository: None, session: B.into() };
         assert!(edit.args().is_empty());
         assert_eq!(edit.link(), format!("rdm://edit?Session={B}"));
         assert_eq!(Ask::Filter("rossi nas".into()).link(), "rdm://open?Filter=rossi%20nas");

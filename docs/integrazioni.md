@@ -167,6 +167,7 @@ Preparata il 15 ottobre 2026, senza RDM su questo PC: da provare dove c'è (`doc
   - **Ticket Zammad «Da assegnare»:** pulsante «RDM» con l'organizzazione o il cliente, che `zammad.rs` mette dopo « — ».
   - **Testo selezionato** (`Win+Alt+A`): «Cerca in Remote Desktop Manager», e su un IP o un nome host anche «Connetti con RDP/SSH».
 - Una lettura con 0 connessioni è un errore con la spiegazione (origine sbagliata, accesso non salvato, RDM dello Store), non «non ancora letto»: il modulo legge la configurazione di RDM per conto suo, senza finestre di accesso.
+- Devolutions Server e Hub: le voci stanno nei vault e `Get-RDMSession` legge solo quello corrente; lo script li passa tutti (`Get-RDMRepository` / `Set-RDMCurrentRepository`), con il nome del vault davanti alla cartella, e apre con il link `rdm://open?…&Repository=…` (`repository_of`). Non provato dal vivo.
 - **Ricerca** (`score`): ogni parola nel nome, nella cartella o nell'host; senza risultati, basta una parola di almeno 3 lettere (`loose_score`). Così «Mario Rossi» trova la cartella «Rossi Srl».
 - **Impostazioni:** stato di RDM, PowerShell 7, modulo ed elenco, con i comandi da copiare (mai eseguiti da EasyIsland); scelta dell'origine dati (`rdmDataSource`, caricata a richiesta perché avvia PowerShell).
 - **Prove:** test `rdm::tests` e `cargo test --lib rdm::tests::live -- --ignored --nocapture` dove c'è RDM. Scena `rdm&activeIntegrations=integration_rdm` (`&nolist` per il caso senza modulo).
