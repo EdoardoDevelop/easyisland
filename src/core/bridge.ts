@@ -356,6 +356,14 @@ export const Bridge = {
   notionForgetSchemas: () => call<void>("notion_forget_schemas"),
   /** A Notion page's title and text, for the chat. */
   notionPageText: (id: string) => callOrThrow<[string, string]>("notion_page_text", { id }),
+  /** Get the blocks (with children) of a Notion page for rendering/editing. */
+  notionPageBlocks: (id: string) => callOrThrow<any>("notion_page_blocks", { id }),
+  /** Update the text content of a Notion block. */
+  notionUpdateBlockText: (block_id: string, text: string) => callOrThrow<void>("notion_update_block_text", { block_id, text }),
+  /** Delete a Notion block. */
+  notionDeleteBlock: (block_id: string) => callOrThrow<void>("notion_delete_block", { block_id }),
+  /** Create blocks under a parent block or page. */
+  notionCreateBlocks: (parent_id: string, blocks: any[]) => callOrThrow<void>("notion_create_blocks", { parent_id, blocks }),
   /** A picture of the tray on the clipboard. */
   inboxCopy: (name: string) => callOrThrow<void>("inbox_copy", { name }),
   /** A file anywhere (a finished download): open it as Explorer would, or select it there. */

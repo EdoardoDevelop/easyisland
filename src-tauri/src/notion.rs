@@ -194,6 +194,123 @@ pub async fn page_text(id: &str) -> Result<(String, String), String> {
     Ok((title, text))
 }
 
+/// A page's blocks (top-level and nested) for rendering and editing.
+/// Returns the raw block structure from the Notion API, limited to a reasonable depth.
+pub async fn page_blocks(id: &str) -> Result<Value, String> {
+    if id.is_empty() || !id.chars().all(|c| c.is_ascii_hexdigit() || c == '-') {
+        return Err(t("Pagina di Notion non valida").into());
+    }
+    // Fetch the page to verify it exists and get its type (optional)
+    let _page = call(client().get(format!("{API}/pages/{id}"))).await?;
+    // Fetch blocks recursively up to a depth of 2 (top-level and immediate children)
+    // We'll collect blocks in a flat list with a reference to parent id for simplicity.
+    // For editing, we need the full hierarchy, so we'll return a tree.
+    // We'll implement a simple recursive fetch with a depth limit.
+    const MAX_DEPTH: usize = 2;
+    fn fetch_blocks_recursive(
+        client: &reqwest::Client,
+        block_id: &str,
+        depth: usize,
+    ) -> impl std::future::Future<Output = Result<Vec<Value>, String>> + Send {
+        async move {
+            if depth > MAX_DEPTH {
+                return Ok(vec![]);
+            }
+            let url = format!("{API}/blocks/{block_id}/children?page_size=100");
+            let resp = call(client.get(&url)).await?;
+            let mut blocks = Vec::new();
+            if let Some(arr) = resp.get("results").and_then(Value::as_array) {
+                for b in arr {
+                    let mut block = b.clone();
+                    // Fetch children if has_children and not a child_page/child_database (to avoid infinite loops)
+                    let has_children = b.get("has_children").and_then(Value::as_bool).unwrap_or(false);
+                    let block_type = b.get("type").and_then(Value::as_str).unwrap_or("");
+                    if has_children
+                        && block_type != "child_page"
+                        && block_type != "child_database"
+                    {
+                        if let Some(child_id) = b.get("id").and_then(Value::as_str) {
+                            match fetch_blocks_recursive(client, child_id, depth + 1).await {
+                                Ok(children) => {
+                                    block["children"] = Value::Array(children);
+                                }
+                                Err(e) => return Err(e),
+                            }
+                        }
+                    }
+                    blocks.push(block);
+                }
+            }
+            Ok(blocks)
+        }
+    }
+    let blocks = fetch_blocks_recursive(&client(), id, 0).await?;
+    Ok(Value::Array(blocks))
+}
+
+/// Update the text content of a block that supports rich_text.
+pub async fn update_block_text(block_id: &str, text: &str) -> Result<(), String> {
+    check_id(block_id)?;
+    let block = call(client().get(format!("{API}/blocks/{block_id}"))).await?;
+    let block_type = block.get("type").and_then(Value::as_str).unwrap_or("");
+    // Only update if the block has a rich_text field (we'll check for a few types that we know)
+    // We'll try to update the rich_text for the block type if it exists.
+    let mut payload = serde_json::Map::new();
+    match block_type {
+        "paragraph" | "heading_1" | "heading_2" | "heading_3" | "bulleted_list_item" | "numbered_list_item" | "quote" | "callout" | "to_do" => {
+            let rich_text = rich(text);
+            payload.insert(block_type.to_string(), json!({ "rich_text": rich_text }));
+        }
+        _ => {
+            return Err(t("Tipo di blocco non supportato per la modifica del testo").into());
+        }
+    }
+    call(client().patch(format!("{API}/blocks/{block_id}")).json(&payload)).await?;
+    Ok(())
+}
+
+/// Delete a block.
+pub async fn delete_block(block_id: &str) -> Result<(), String> {
+    check_id(block_id)?;
+    call(client().delete(format!("{API}/blocks/{block_id}"))).await?;
+    Ok(())
+}
+
+/// Create a list of blocks as children of a parent block or page.
+pub async fn create_blocks(parent_id: &str, blocks: Vec<Value>) -> Result<(), String> {
+    check_id(parent_id)?;
+    // Notion API expects { "children": [ ... ] }
+    let payload = json!({ "children": blocks });
+    call(client().patch(format!("{API}/blocks/{parent_id}/children")).json(&payload)).await?;
+    Ok(())
+}
+
+/// Tauri command: get the blocks of a Notion page.
+#[tauri::command]
+pub async fn notion_page_blocks(id: String) -> Result<Value, String> {
+    page_blocks(&id).await
+}
+
+/// Tauri command: update the text of a Notion block.
+#[tauri::command]
+pub async fn notion_update_block_text(block_id: String, text: String) -> Result<(), String> {
+    update_block_text(&block_id, &text).await
+}
+
+/// Tauri command: delete a Notion block.
+#[tauri::command]
+pub async fn notion_delete_block(block_id: String) -> Result<(), String> {
+    delete_block(&block_id).await
+}
+
+/// Tauri command: create blocks under a parent block or page.
+#[tauri::command]
+pub async fn notion_create_blocks(parent_id: String, blocks: Value) -> Result<(), String> {
+    // Expect blocks to be an array of block objects
+    let blocks_vec = blocks.as_array().ok_or_else(|| t("Expected an array of blocks").to_string())?;
+    create_blocks(&parent_id, blocks_vec.clone()).await
+}
+
 // ── Tasks ─────────────────────────────────────────────────────────────────────
 
 /// How "done" is written in a tasks database.
