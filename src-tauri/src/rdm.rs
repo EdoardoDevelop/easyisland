@@ -205,6 +205,24 @@ fn parse_sessions(json: &str) -> Result<(Option<(String, String)>, Vec<Entry>), 
     Ok((ds, entries))
 }
 
+/// How many items the module returned before folders and credentials were dropped.
+fn raw_count(json: &str) -> usize {
+    match serde_json::from_str::<Value>(json.trim()).ok().and_then(|v| v.get("entries").cloned()) {
+        Some(Value::Array(a)) => a.len(),
+        Some(Value::Object(_)) => 1,
+        _ => 0,
+    }
+}
+
+/// Why a read found no connections, with what to try.
+fn empty_read(ds: Option<&str>, raw: usize) -> String {
+    let ds = ds.filter(|d| !d.trim().is_empty()).unwrap_or("?");
+    if raw > 0 {
+        return tf("Nessuna connessione in «{ds}»: il modulo ha letto {n} voci, ma sono solo cartelle o credenziali.", &[("ds", &ds), ("n", &raw)]);
+    }
+    tf("Nessuna connessione letta da «{ds}». Il modulo di PowerShell vede questa origine dati vuota: scegli l'origine giusta in «Origine dati» (Carica le origini). Se chiede l'accesso (Devolutions Server o Hub), in RDM salva le credenziali dell'origine con «Ricorda»; se RDM è la versione del Microsoft Store, il modulo non vede le sue origini: usa l'installer dal sito di Devolutions.", &[("ds", &ds)])
+}
+
 /// Reads the list again (every 30 minutes, "Aggiorna", a workspace chosen).
 pub async fn refresh(app: &AppHandle) {
     let chosen = app
@@ -213,7 +231,15 @@ pub async fn refresh(app: &AppHandle) {
         .unwrap_or_default();
     let chosen = if guid(&chosen) { chosen } else { String::new() };
     let script = format!("{PRELUDE}{SESSIONS}");
-    let result = run(&script, &[("EASYISLAND_RDM_DS", chosen.as_str())], READ_TIMEOUT).await.and_then(|out| parse_sessions(&out));
+    let result = run(&script, &[("EASYISLAND_RDM_DS", chosen.as_str())], READ_TIMEOUT).await.and_then(|out| {
+        let (ds, entries) = parse_sessions(&out)?;
+        if entries.is_empty() {
+            // An empty read is not "nothing to show": the module answered for a
+            // workspace with nothing in it (another one, or one that asks to sign in).
+            return Err(empty_read(ds.as_ref().map(|d| d.1.as_str()), raw_count(&out)));
+        }
+        Ok((ds, entries))
+    });
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
     if let Ok(mut g) = INDEX.lock() {
         let index = g.get_or_insert_with(Index::default);
