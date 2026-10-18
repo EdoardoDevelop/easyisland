@@ -562,6 +562,8 @@ export interface IntegrationConfig {
   telegramName?: string;
   /** Telegram "Automatica": in Modalità terminale only deleting is asked (telegram.rs). */
   telegramAuto?: boolean;
+  /** Telegram «Vocali»: who transcribes voice messages (transcribe.rs); "" = nobody. */
+  telegramVoice?: string;
 }
 
 /** A connection of Remote Desktop Manager (settings.rs RdmRef, rdm.rs Entry). */

@@ -295,7 +295,22 @@ async fn handle(app: &AppHandle, token: &str, u: &Value, started: i64) -> Option
     // A file: in the Vassoio, then with the caption or the next question.
     let mut context = None;
     let mut query = text;
-    if let Some(file) = file_of(m) {
+    // A voice message (and, with «Vocali» on, an audio file): its words are the question.
+    let voice = m.get("voice").or_else(|| if voice_service(app).is_empty() { None } else { m.get("audio") });
+    if let Some(v) = voice {
+        match hear(app, token, v).await {
+            Ok(words) => {
+                let _ = send(token, chat, &format!("🎙 «{words}»"), None).await;
+                query = if query.is_empty() { words } else { format!("{query}
+
+{words}") };
+            }
+            Err(e) => {
+                let _ = send(token, chat, &format!("⚠️ {e}"), None).await;
+                return None;
+            }
+        }
+    } else if let Some(file) = file_of(m) {
         match download(app, token, &file).await {
             Ok((name, path)) => {
                 if query.is_empty() {
@@ -317,8 +332,8 @@ async fn handle(app: &AppHandle, token: &str, u: &Value, started: i64) -> Option
                 return None;
             }
         }
-    } else if m.get("voice").is_some() || m.get("sticker").is_some() || m.get("location").is_some() {
-        let _ = send(token, chat, t("Per ora leggo testo, foto e file."), None).await;
+    } else if m.get("sticker").is_some() || m.get("location").is_some() {
+        let _ = send(token, chat, t("Per ora leggo testo, foto, file e vocali."), None).await;
         return None;
     }
     if query.is_empty() {
@@ -1021,8 +1036,33 @@ fn file_of(m: &Value) -> Option<TgFile> {
     None
 }
 
-/// The file in the Vassoio: its name and path there.
-async fn download(app: &AppHandle, token: &str, f: &TgFile) -> Result<(String, String), String> {
+/// «Vocali» in the settings: who transcribes ("" = nobody).
+fn voice_service(app: &AppHandle) -> String {
+    app.try_state::<crate::Shared>().map(|s| s.settings.lock().unwrap().integration_config.telegram_voice.clone()).unwrap_or_default()
+}
+
+/// The words of a voice message or audio file (transcribe.rs); the audio is not kept.
+async fn hear(app: &AppHandle, token: &str, v: &Value) -> Result<String, String> {
+    let service = voice_service(app);
+    if service.is_empty() {
+        return Err(t("Per i vocali scegli chi li trascrive in Impostazioni → Telegram → Vocali.").into());
+    }
+    let f = TgFile {
+        id: v.get("file_id").and_then(Value::as_str).ok_or(t("Telegram non ha dato il file."))?.to_string(),
+        name: String::new(),
+        size: v.get("file_size").and_then(Value::as_u64).unwrap_or(0),
+    };
+    let bytes = fetch(token, &f).await?;
+    let mime = v.get("mime_type").and_then(Value::as_str).unwrap_or("audio/ogg");
+    let words = crate::transcribe::transcribe(&service, &bytes, mime).await?;
+    if words.is_empty() {
+        return Err(t("Nel vocale non ho sentito parole.").into());
+    }
+    Ok(words)
+}
+
+/// A file's bytes from Telegram (at most 20 MB, the Bot API's limit).
+async fn fetch(token: &str, f: &TgFile) -> Result<Vec<u8>, String> {
     if f.size > MAX_FILE {
         return Err(t("Il file supera 20 MB, il limite di Telegram per i bot.").into());
     }
@@ -1037,7 +1077,12 @@ async fn download(app: &AppHandle, token: &str, f: &TgFile) -> Result<(String, S
     if !resp.status().is_success() {
         return Err(tf("Telegram: file non scaricato (HTTP {s}).", &[("s", &resp.status().as_u16())]));
     }
-    let bytes = resp.bytes().await.map_err(|e| net_error(&e))?;
+    resp.bytes().await.map(|b| b.to_vec()).map_err(|e| net_error(&e))
+}
+
+/// The file in the Vassoio: its name and path there.
+async fn download(app: &AppHandle, token: &str, f: &TgFile) -> Result<(String, String), String> {
+    let bytes = fetch(token, f).await?;
     // A name of the sender's, made safe for Windows.
     let name: String = f.name.chars().map(|c| if r#"<>:"/\|?*"#.contains(c) || c.is_control() { '_' } else { c }).collect();
     let name = if name.trim().is_empty() { "Telegram".to_string() } else { name };

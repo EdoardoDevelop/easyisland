@@ -128,6 +128,10 @@ pub struct IntegrationConfig {
     /// terminale nothing is asked there but deleting (telegram.rs `asks_anyway`).
     #[serde(default)]
     pub telegram_auto: bool,
+    /// Telegram «Vocali»: who turns voice messages into text (transcribe.rs
+    /// SERVICES: "gemini", "openai", "openrouter"); "" = they are not read.
+    #[serde(default)]
+    pub telegram_voice: String,
 }
 
 /// A connection of Remote Desktop Manager kept in the settings (rdm.rs Entry).
@@ -239,6 +243,7 @@ impl Default for IntegrationConfig {
             telegram_chat_id: 0,
             telegram_name: String::new(),
             telegram_auto: false,
+            telegram_voice: String::new(),
         }
     }
 }

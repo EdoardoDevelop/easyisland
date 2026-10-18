@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 17 ottobre 2026 — Documentazione in inglese, versione 0.8.7
+- Versione **0.8.7** con le voci del 16–17 ottobre (Registra, Cerca con Google, loghi, alone, ⚡ Automatica con i connettori).
+- Su richiesta di Edoardo, documentazione in inglese accanto a quella italiana: `README.en.md`, `CONTRIBUTING.en.md`, `docs/en/` (architettura, sviluppo, agenti e chat), con i collegamenti tra le lingue. I file italiani restano il riferimento; regola in `docs/sviluppo.md`.
+
 ### 17 ottobre 2026 — «Automatica» con opencode e i connettori
 - Segnalato da Edoardo: in «Automatica» opencode chiedeva sempre per aggiungere in Notion. Non era un guasto: gli strumenti MCP restavano tutti sulla card. Su sua scelta ora passano da soli, tranne quelli che cancellano o inviano (`mcp_delicate` in `opencode.rs`, `docs/chat.md`).
 - **Prove:** turno vero con opencode 2.0.25 (gli eventi hanno `action` = `<server>_<strumento>`), `cargo test --lib opencode::`.

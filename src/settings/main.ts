@@ -887,7 +887,7 @@ const INTEGRATIONS: IntegrationDef[] = [
   { id: "integration_telegram", name: "Telegram", color: "#29A9EB", noMenu: true,
     fields: [{ key: "telegram-bot-token", label: t("Token del bot"), placeholder: "123456789:AA…", secret: true }],
     extra: () => telegramRows(),
-    hint: t("La chat di EasyIsland dentro Telegram, con il tuo bot. In Telegram scrivi a @BotFather, manda /newbot, scegli nome e username e copia qui il token che ti dà. Poi «Collega»: il bot risponde solo alla chat collegata. Conversazione separata da quella dell'isola, con il motore e il modello scelti in Telegram (/motore, /modello); con la modalità terminale, Consenti / Nega arrivano come pulsanti in Telegram. Foto e file mandati al bot finiscono nel Vassoio. Funziona solo con il PC acceso e EasyIsland aperto: i messaggi arrivati nel frattempo vengono scartati.") },
+    hint: t("La chat di EasyIsland dentro Telegram, con il tuo bot. In Telegram scrivi a @BotFather, manda /newbot, scegli nome e username e copia qui il token che ti dà. Poi «Collega»: il bot risponde solo alla chat collegata. Conversazione separata da quella dell'isola, con il motore e il modello scelti in Telegram (/motore, /modello); con la modalità terminale, Consenti / Nega arrivano come pulsanti in Telegram. Foto e file mandati al bot finiscono nel Vassoio; i vocali si trascrivono con il servizio scelto in «Vocali». Funziona solo con il PC acceso e EasyIsland aperto: i messaggi arrivati nel frattempo vengono scartati.") },
   { id: "integration_recorder", name: t("Registra"), color: "#F4505E", fields: [],
     options: [
       { label: t("Cartella"), type: "text", placeholder: t("vuoto = Video\\EasyIsland"), get: (c) => c.recordFolder ?? "", set: (c, v) => { c.recordFolder = v.trim(); } },
@@ -1229,7 +1229,26 @@ function telegramRows(): HTMLElement {
     h("label", { text: t("Automatica") }),
     toggle(settings.integrationConfig.telegramAuto === true, (v) => { settings.integrationConfig.telegramAuto = v; void save(); }),
     h("span", { class: "hint note", text: t("in modalità terminale comandi e modifiche vanno senza chiedere; le cancellazioni chiedono ancora (anche /automatica nel bot)") }));
-  box.append(h("div", { class: "row" }, h("b", { text: t("Chat collegata") }), state), h("div", { class: "row" }, link, unlink), auto, note);
+  // «Vocali» (transcribe.rs): who turns voice messages into text, with the key of that chat engine.
+  const voiceNote = h("span", { class: "hint note" });
+  const voiceKeys: Record<string, [string, string]> = {
+    gemini: ["gemini-api-key", "Google AI"], openai: ["openai-api-key", "OpenAI"], openrouter: ["openrouter-api-key", "OpenRouter"],
+  };
+  const voiceHint = async () => {
+    const v = settings.integrationConfig.telegramVoice ?? "";
+    if (!v) { voiceNote.textContent = t("i vocali non si leggono; Claude Code e opencode non sentono l'audio"); return; }
+    const [key, name] = voiceKeys[v];
+    voiceNote.textContent = (await Bridge.secretPresent(key))
+      ? t("il vocale diventa testo e va alla chat come un messaggio scritto")
+      : t("manca la chiave di {name}: mettila in Impostazioni → Chat", { name });
+  };
+  const voice = h("div", { class: "row" },
+    h("label", { text: t("Vocali") }),
+    select<string>([["", t("Spenti")], ["gemini", "Google AI (Gemini)"], ["openai", "OpenAI"], ["openrouter", "OpenRouter"]],
+      settings.integrationConfig.telegramVoice ?? "", (v) => { settings.integrationConfig.telegramVoice = v; void save(); void voiceHint(); }),
+    voiceNote);
+  void voiceHint();
+  box.append(h("div", { class: "row" }, h("b", { text: t("Chat collegata") }), state), h("div", { class: "row" }, link, unlink), auto, voice, note);
   void refresh();
   // The bot may take a few seconds to start after the token is saved or the switch turned on.
   const timer = window.setInterval(() => { if (!box.isConnected) window.clearInterval(timer); else void refresh(); }, 4000);
