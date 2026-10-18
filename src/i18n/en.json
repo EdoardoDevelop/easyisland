@@ -2360,5 +2360,6 @@
   "Antigravity ha restituito un errore.": "Antigravity returned an error.",
   "Antigravity non ha finito entro 30 minuti: interrotto.": "Antigravity did not finish within 30 minutes: stopped.",
   "Per la chat con Antigravity serve la sua CLI (agy) installata su questo PC e con il login fatto: Impostazioni → Chat e motori AI spiega come.": "Chatting with Antigravity needs its CLI (agy) installed on this PC and signed in: Settings → Chat and AI engines explains how.",
-  "Antigravity si è interrotto.": "Antigravity stopped."
+  "Antigravity si è interrotto.": "Antigravity stopped.",
+  "Antigravity ha saltato dei comandi perché non poteva chiederti il permesso: installa i suoi hook in Impostazioni → Agenti di codice → Antigravity, così chiede Consenti / Nega nell'isola.": "Antigravity skipped some commands because it could not ask your permission: install its hooks in Settings → Coding agents → Antigravity, so it asks Allow / Deny in the island."
 }

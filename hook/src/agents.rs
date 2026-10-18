@@ -222,7 +222,7 @@ fn antigravity(map: &mut Map<String, Value>) {
             }
         }
         "Stop" => {
-            let failed = map.get("terminationReason").and_then(Value::as_str) == Some("error");
+            let failed = map.get("terminationReason").and_then(Value::as_str).is_some_and(|r| r.eq_ignore_ascii_case("error"));
             set_event(map, if failed { "StopFailure" } else { "Stop" });
         }
         _ => {}

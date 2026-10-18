@@ -91,13 +91,17 @@ struct Progress {
 }
 
 impl Progress {
-    /// One line of `stream-json`; true when what is shown changed.
+    /// One line of `stream-json`; true when what is shown changed. agy 1.4
+    /// nests each event's fields under its name: `{"event":"step_update",
+    /// "step_update":{…}}` (the top level is read too, as the docs show it).
     fn feed(&mut self, line: &str) -> bool {
-        let Ok(v) = serde_json::from_str::<Value>(line) else { return false };
-        if let Some(id) = v.get("conversation_id").and_then(Value::as_str) {
+        let Ok(top) = serde_json::from_str::<Value>(line) else { return false };
+        let event = top.get("event").and_then(Value::as_str).unwrap_or("").to_string();
+        let v = top.get(&event).filter(|x| x.is_object()).cloned().unwrap_or(top.clone());
+        if let Some(id) = v.get("conversation_id").or_else(|| top.get("conversation_id")).and_then(Value::as_str) {
             self.conversation = Some(id.to_string());
         }
-        match v.get("event").and_then(Value::as_str) {
+        match Some(event.as_str()) {
             Some("step_update") => {
                 let kind = v.get("step_type").and_then(Value::as_str).unwrap_or("");
                 if kind == "agent_response" {
@@ -106,10 +110,15 @@ impl Progress {
                         self.answer.push_str(d);
                         return true;
                     }
-                } else if kind == "tool" && v.get("state").and_then(Value::as_str) == Some("DONE") {
+                } else if kind == "tool" && matches!(v.get("state").and_then(Value::as_str), Some("DONE") | Some("ERROR")) {
                     let info = v.get("tool_info").cloned().unwrap_or(Value::Null);
                     let name = info.get("name").or_else(|| v.get("tool_name")).and_then(Value::as_str).unwrap_or("tool");
-                    let line = tool_line(name, info.get("parameters").unwrap_or(&Value::Null));
+                    let mut line = tool_line(name, info.get("parameters").unwrap_or(&Value::Null));
+                    // Denied (by the island, or skipped without hooks) or failed.
+                    if v.get("state").and_then(Value::as_str) == Some("ERROR") {
+                        let msg = info.pointer("/error/message").and_then(Value::as_str).unwrap_or("");
+                        line.push_str(if msg.contains("permission") { " — negato" } else { " — non riuscito" });
+                    }
                     if !self.shown.is_empty() && !self.shown.ends_with('\n') {
                         self.shown.push('\n');
                     }
@@ -179,13 +188,16 @@ pub async fn send(
         .or_else(|| std::env::var_os("USERPROFILE").map(PathBuf::from))
         .unwrap_or_else(|| PathBuf::from("."));
     let mut cmd = command(&exe);
-    cmd.current_dir(&dir).arg("-p").arg(&prompt).arg("--output-format").arg("stream-json");
+    cmd.current_dir(&dir).arg("--output-format").arg("stream-json");
     if !model.trim().is_empty() {
         cmd.arg("--model").arg(model.trim());
     }
     if let Some(id) = &session {
         cmd.arg("--conversation").arg(id);
     }
+    // The prompt attached to the flag, last: `-p <text>` would take a text
+    // starting with "-" for an option, and agy stops at the first argument.
+    cmd.arg(format!("--print={prompt}"));
     // Its hooks know this turn is the chat's: permissions as the chat's, no session.
     cmd.env("EASYISLAND_AGY_CHAT", "1");
     if telegram {
@@ -238,7 +250,12 @@ pub async fn send(
     if let Some(id) = result.get("conversation_id").and_then(Value::as_str).map(String::from).or(progress.conversation) {
         chat.set_cli_session(Some(id));
     }
-    let final_text = result.get("response").and_then(Value::as_str).unwrap_or("").to_string();
+    let mut final_text = result.get("response").and_then(Value::as_str).unwrap_or("").to_string();
+    // What headless mode skipped because nobody could be asked (no hooks).
+    let denied = result.get("denied_actions").and_then(Value::as_array).map(Vec::len).unwrap_or(0);
+    if denied > 0 && !crate::hooks::status_for(crate::hooks::Target::Antigravity).installed {
+        final_text.push_str(&format!("\n\n> {}", t("Antigravity ha saltato dei comandi perché non poteva chiederti il permesso: installa i suoi hook in Impostazioni → Agenti di codice → Antigravity, così chiede Consenti / Nega nell'isola.")));
+    }
     // The steps stay above the answer, as they were shown.
     let text = if progress.shown.trim().is_empty() { final_text } else if progress.answer.trim().is_empty() && !final_text.is_empty() {
         format!("{}{final_text}", progress.shown)
@@ -267,6 +284,19 @@ mod tests {
         assert_eq!(p.answer, "Fatto");
         assert_eq!(p.conversation.as_deref(), Some("c1"));
         assert!(!p.feed("non json"));
+    }
+
+    #[test]
+    fn agy_nests_each_event_under_its_name() {
+        let mut p = Progress::default();
+        p.feed(r#"{"event":"init","conversation_id":"c2","init":{"cwd":"C:\\x"}}"#);
+        assert!(p.feed(r#"{"event":"step_update","step_update":{"conversation_id":"c2","step_index":2,"state":"ERROR","step_type":"tool","tool_name":"run_command","tool_info":{"name":"run_command","parameters":{"CommandLine":"echo fatto"},"error":{"type":"TOOL_ERROR","message":"permission check failed"}}}}"#));
+        assert!(p.feed(r#"{"event":"step_update","step_update":{"conversation_id":"c2","step_index":3,"state":"ACTIVE","step_type":"agent_response","text_delta":"ciao"}}"#));
+        p.feed(r#"{"event":"result","result":{"conversation_id":"c2","status":"SUCCESS","response":"ciao\n"}}"#);
+        assert!(p.shown.contains("echo fatto") && p.shown.contains("negato"));
+        assert_eq!(p.answer, "ciao");
+        assert_eq!(p.result.as_ref().unwrap()["status"], "SUCCESS");
+        assert_eq!(p.conversation.as_deref(), Some("c2"));
     }
 
     #[test]
