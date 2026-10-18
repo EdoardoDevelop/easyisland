@@ -202,50 +202,27 @@ pub async fn page_blocks(id: &str) -> Result<Value, String> {
     }
     // Fetch the page to verify it exists and get its type (optional)
     let _page = call(client().get(format!("{API}/pages/{id}"))).await?;
-    // Fetch blocks recursively up to a depth of 2 (top-level and immediate children)
-    // We'll collect blocks in a flat list with a reference to parent id for simplicity.
-    // For editing, we need the full hierarchy, so we'll return a tree.
-    // We'll implement a simple recursive fetch with a depth limit.
-    const MAX_DEPTH: usize = 2;
-    fn fetch_blocks_recursive(
-        client: &reqwest::Client,
-        block_id: &str,
-        depth: usize,
-    ) -> impl std::future::Future<Output = Result<Vec<Value>, String>> + Send {
-        async move {
-            if depth > MAX_DEPTH {
-                return Ok(vec![]);
-            }
-            let url = format!("{API}/blocks/{block_id}/children?page_size=100");
-            let resp = call(client.get(&url)).await?;
-            let mut blocks = Vec::new();
-            if let Some(arr) = resp.get("results").and_then(Value::as_array) {
-                for b in arr {
-                    let mut block = b.clone();
-                    // Fetch children if has_children and not a child_page/child_database (to avoid infinite loops)
-                    let has_children = b.get("has_children").and_then(Value::as_bool).unwrap_or(false);
-                    let block_type = b.get("type").and_then(Value::as_str).unwrap_or("");
-                    if has_children
-                        && block_type != "child_page"
-                        && block_type != "child_database"
-                    {
-                        if let Some(child_id) = b.get("id").and_then(Value::as_str) {
-                            match fetch_blocks_recursive(client, child_id, depth + 1).await {
-                                Ok(children) => {
-                                    block["children"] = Value::Array(children);
-                                }
-                                Err(e) => return Err(e),
-                            }
-                        }
+    // Fetch top-level blocks (depth 0)
+    let mut top_blocks = Vec::new();
+    let top_resp = call(client().get(format!("{API}/blocks/{id}/children?page_size=100"))).await?;
+    if let Some(arr) = top_resp.get("results").and_then(Value::as_array) {
+        for b in arr {
+            let mut block = b.clone();
+            let has_children = b.get("has_children").and_then(Value::as_bool).unwrap_or(false);
+            let block_type = b.get("type").and_then(Value::as_str).unwrap_or("");
+            if has_children && block_type != "child_page" && block_type != "child_database" {
+                if let Some(child_id) = b.get("id").and_then(Value::as_str) {
+                    // Fetch children (depth 1)
+                    let child_resp = call(client().get(format!("{API}/blocks/{child_id}/children?page_size=100"))).await?;
+                    if let Some(child_arr) = child_resp.get("results").and_then(Value::as_array) {
+                        block["children"] = Value::Array(child_arr.clone());
                     }
-                    blocks.push(block);
                 }
             }
-            Ok(blocks)
+            top_blocks.push(block);
         }
     }
-    let blocks = fetch_blocks_recursive(&client(), id, 0).await?;
-    Ok(Value::Array(blocks))
+    Ok(Value::Array(top_blocks))
 }
 
 /// Update the text content of a block that supports rich_text.
