@@ -2,6 +2,12 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 17 ottobre 2026 — Cartella di lavoro, strumenti di EasyIsland per opencode, versione 0.8.8
+- Versione **0.8.8** con questa voce e Telegram; README, README.en.md e homepage aggiornati.
+- Su richiesta di Edoardo, cartella di lavoro (`workdir.rs`, `src/views/workdir.ts`, `docs/strumenti.md`): è `chatFolder`, scelta con la finestra di Windows; in «File e schermo» sotto il Vassoio con sottocartelle, Rinomina, Sposta, Nel Vassoio, Cestino, trascinamento; dal Vassoio si sposta lì; strumenti `list_work_folder` e `move_to_work_folder`; `/cartella` in Telegram.
+- opencode (e gli altri motori in modalità terminale) ha ora gli strumenti di EasyIsland come Claude Code (`with_agent`, `docs/chat.md`).
+- **Prove:** `cargo test --workspace`, `npm run build`, scena `files` (cartella d'esempio, navigazione e «⋯»). Da provare dal vivo (`docs/prove-dal-vivo.md`).
+
 ### 17 ottobre 2026 — Telegram
 - Su richiesta di Edoardo, integrazione «Telegram» (`telegram.rs`, `docs/integrazioni.md`): la chat di EasyIsland nel suo bot (BotFather), solo long polling, una chat collegata con un codice. Conversazione separata con motore e modello scelti da Telegram (`/motore`, `/modello`), Consenti / Nega come pulsanti in Telegram nella modalità terminale, foto e file nel Vassoio, messaggi a app chiusa scartati. Poi, segnalato da Edoardo: i file che il turno mette nel Vassoio arrivano in Telegram (anche `/vassoio`), e il bot resta acceso con qualsiasi profilo.
 - Il turno della chat è ora `chat_turn` in `lib.rs`, con il testo verso una funzione: prima i motori lo mandavano sempre all'isola (anche «Sostituisci», senza effetto).

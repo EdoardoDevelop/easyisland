@@ -1368,23 +1368,25 @@ function rdmRows(): HTMLElement {
     clear(state);
     if (!s) { state.append(h("div", { class: "hint", text: t("Disponibile nell'app installata.") })); return; }
     state.append(
-      line(!!s.exe || s.protocol, "Remote Desktop Manager", s.exe ?? (s.protocol ? t("solo i link rdm://") : t("non trovato su questo PC"))),
+      line(!!s.exe || s.protocol, "Remote Desktop Manager", (s.exe ?? (s.protocol ? t("solo i link rdm://") : t("non trovato su questo PC"))) + " · " + (s.running ? t("avviato") : t("non avviato"))),
       line(!!s.pwsh, t("PowerShell 7"), s.pwsh ?? t("manca: serve per leggere l'elenco"), s.pwsh ? undefined : "winget install Microsoft.PowerShell"),
       line(!!s.module, t("Modulo di Devolutions"), s.module ? `Devolutions.PowerShell ${s.module}` : t("manca: da installare in PowerShell 7, della stessa versione di RDM"),
         s.module || !s.pwsh ? undefined : "Install-Module Devolutions.PowerShell -Scope CurrentUser"),
       line(s.count > 0 ? true : s.listError ? false : null, t("Elenco"),
-        s.count > 0 ? t("{n} connessioni da «{ds}»", { n: s.count, ds: s.dataSource ?? "RDM" }) : s.listError ?? t("non ancora letto")),
+        s.count > 0
+          ? t("{n} connessioni da «{ds}»", { n: s.count, ds: s.dataSource ?? "RDM" }) + (s.at ? " · " + t("sincronizzato il {d}", { d: new Date(s.at * 1000).toLocaleString() }) : "") + (s.listError ? " · " + s.listError : "")
+          : s.listError ?? t("non ancora sincronizzato")),
     );
   };
 
-  const reread = h("button", { text: t("Rileggi l'elenco") }) as HTMLButtonElement;
+  const reread = h("button", { text: t("Sincronizza") }) as HTMLButtonElement;
   reread.addEventListener("click", async () => {
     reread.disabled = true;
-    reread.textContent = t("Leggo…");
+    reread.textContent = t("Sincronizzo…");
     await Bridge.refreshIntegration("integration_rdm");
     await check();
     reread.disabled = false;
-    reread.textContent = t("Rileggi l'elenco");
+    reread.textContent = t("Sincronizza");
   });
 
   // The workspace: RDM's current one, or one chosen (loaded on request: it starts PowerShell).
@@ -1416,7 +1418,7 @@ function rdmRows(): HTMLElement {
 
   box.append(
     state,
-    h("div", { class: "row" }, reread, h("span", { class: "hint note", text: t("si rilegge da solo ogni 30 minuti") })),
+    h("div", { class: "row" }, reread, h("span", { class: "hint note", text: t("l'elenco resta su questo PC, cifrato per il tuo utente Windows: si aggiorna solo quando premi Sincronizza") })),
     h("div", { class: "row" }, h("label", { style: "min-width:104px", text: t("Origine dati") }), source, load, sourceNote),
     h("div", { class: "hint", text: t("Con più origini (il tuo file, il server dei colleghi…) scegli quale leggere. Ognuno legge con i propri permessi di RDM: un collega vede solo ciò che vede in RDM. Se l'origine chiede un accesso o un secondo fattore, aprila prima in RDM e salva le credenziali.") }),
   );

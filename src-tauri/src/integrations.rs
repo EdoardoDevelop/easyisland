@@ -71,7 +71,7 @@ pub fn start(app: AppHandle) {
     spawn(app.clone(), "integration_calcom", 8, 300, poll_calcom);
     spawn(app.clone(), "integration_notion", 9, 300, poll_notion);
     // Remote Desktop Manager: its list read again every 30 minutes (rdm.rs).
-    spawn(app, crate::rdm::ID, 12, 1800, crate::rdm::poll);
+    spawn(app, crate::rdm::ID, 12, 60, crate::rdm::poll);
 }
 
 /// True when the user has this integration switched on in settings.

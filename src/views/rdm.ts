@@ -181,7 +181,19 @@ export function rdmCard(openSettings: () => void): HTMLElement {
   const sub = canList
     ? t("{n} connessioni", { n: count }) + (typeof data.dataSource === "string" && data.dataSource ? ` · ${data.dataSource}` : "")
     : data.exe || data.protocol ? t("Ricerca in RDM") : t("RDM non trovato");
+  // The list is the one saved at the last sync: it changes only on request.
+  const running = data.running === true;
+  const sync = h("button", { class: "link-btn", style: "color:#8e939c", text: t("Sincronizza"), title: running ? t("RDM è avviato") : t("RDM non è avviato: la sincronizzazione legge comunque l'origine dati") }) as HTMLButtonElement;
+  sync.addEventListener("click", async () => {
+    sync.disabled = true;
+    sync.textContent = t("Sincronizzo…");
+    await Bridge.refreshIntegration("integration_rdm");
+    sync.disabled = false;
+    sync.textContent = t("Sincronizza");
+  });
   const head = h("div", { class: "int-head" }, brandOrDot(RDM, COLOR, 7), h("b", { text: "Remote Desktop Manager" }), h("span", { text: sub }),
+    h("span", { class: "rdm-state", style: `color:${running ? "#22c55e" : "#8e939c"}`, title: running ? t("RDM è avviato") : t("RDM non è avviato"), text: "●" }),
+    sync,
     h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: openSettings }));
   if (rdm.query) window.setTimeout(() => { if (search.isConnected) search.focus(); }, 0);
   return h("div", { class: "int-card notion-card" }, head, search, body, msg);

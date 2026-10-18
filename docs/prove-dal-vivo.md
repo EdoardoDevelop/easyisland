@@ -73,7 +73,7 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
 - [ ] **Impostazioni → Integrazioni:** gruppi, stato «Manca: chiave», apertura di una sola alla volta, ricerca, «Solo attive», 3CX con i campi che cambiano secondo il tipo di accesso.
 - [ ] **Remote Desktop Manager** (predisposto il 15 ottobre 2026), sul PC con RDM:
   1. **Diagnosi:** `cargo test --lib rdm::tests::live -- --ignored --nocapture` dice exe, `rdm://`, pwsh, versione del modulo, origini, numero di connessioni e i tipi trovati. Se un tipo da tenere fuori (credenziali, cartelle) compare con un altro nome, va aggiunto a `is_connection`.
-  2. **Impostazioni → Integrazioni → Remote Desktop Manager:** i quattro stati. Senza PowerShell 7 o senza modulo, i comandi da copiare; installarli e premere «Rileggi l'elenco».
+  2. **Impostazioni → Integrazioni → Remote Desktop Manager:** i quattro stati. Senza PowerShell 7 o senza modulo, i comandi da copiare; installarli e premere «Sincronizza». Con l'Hub: le 883 voci del vault utente; chiusa e riaperta l'app, l'elenco c'è ancora senza RDM avviato; il pallino segue RDM aperto o chiuso. Aprire una voce di prova (non un cliente) dal vault utente.
   3. **Origine dati:**
      - «Carica le origini» elenca quelle di RDM; sceglierne un'altra rilegge.
      - Con Devolutions Server o Hub che chiede l'accesso: dopo 120 s il messaggio «non ha risposto in tempo», l'app non si blocca.
