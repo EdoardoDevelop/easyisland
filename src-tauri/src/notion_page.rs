@@ -15,7 +15,7 @@ const MAX_TOP: usize = 300;
 /// Requests for nested blocks (toggles, lists, columns) on one page.
 const MAX_NESTED: usize = 40;
 /// Rows read from one database.
-const MAX_ROWS: usize = 100;
+const MAX_ROWS: usize = 200;
 /// A picture brought into the card.
 const MAX_IMAGE: usize = 6 * 1024 * 1024;
 
@@ -261,11 +261,64 @@ pub async fn page(id: &str) -> Result<Value, String> {
     } else {
         Vec::new()
     };
-    let blocks = blocks(id).await?;
+    let mut blocks = blocks(id).await?;
+    let relations = match &in_db {
+        Some(db) => relations(&p, db).await,
+        None => Vec::new(),
+    };
+    mark_linked(&mut blocks).await;
     Ok(json!({
         "kind": "page", "id": id, "title": title, "icon": icon(&p), "cover": file_url(p.get("cover")),
-        "url": s(&p, "url"), "database": in_db, "props": props, "blocks": blocks,
+        "url": s(&p, "url"), "database": in_db, "props": props, "blocks": blocks, "relations": relations,
     }))
+}
+
+/// A row's relations that point somewhere: {name, db, count, back}, where
+/// `back` is the property of the other database that points here (to filter
+/// it on this page), when the relation goes both ways.
+async fn relations(p: &Value, parent_db: &str) -> Vec<Value> {
+    let Ok(schema) = call(client().get(format!("{API}/databases/{parent_db}"))).await else { return Vec::new() };
+    let mut out = Vec::new();
+    for (name, v) in p.get("properties").and_then(Value::as_object).into_iter().flatten() {
+        if v.get("type").and_then(Value::as_str) != Some("relation") {
+            continue;
+        }
+        let count = v.get("relation").and_then(Value::as_array).map(Vec::len).unwrap_or(0);
+        let rel = schema.pointer(&format!("/properties/{}/relation", name.replace('~', "~0").replace('/', "~1")));
+        let Some(target) = rel.and_then(|r| r.get("database_id")).and_then(Value::as_str) else { continue };
+        if count == 0 || check_id(target).is_err() {
+            continue;
+        }
+        // The other side's property, from the relation itself or by looking for it.
+        let mut back = rel.and_then(|r| r.pointer("/dual_property/synced_property_name")).and_then(Value::as_str).map(String::from);
+        if back.is_none() {
+            if let Ok(other) = call(client().get(format!("{API}/databases/{target}"))).await {
+                back = other.get("properties").and_then(Value::as_object).into_iter().flatten()
+                    .find(|(_, x)| x.pointer("/relation/database_id").and_then(Value::as_str).map(|d| d.replace('-', "")) == Some(parent_db.replace('-', "")))
+                    .map(|(n, _)| n.clone());
+            }
+        }
+        out.push(json!({ "name": name, "db": target, "count": count, "back": back }));
+    }
+    out.sort_by_key(|r| -(r["count"].as_u64().unwrap_or(0) as i64));
+    out
+}
+
+/// A database shown inside a page can be a linked view of one kept elsewhere:
+/// the API does not open those (404, no title). They are marked `linked`,
+/// and the card shows the page's relation in their place.
+async fn mark_linked(blocks: &mut [Value]) {
+    for b in blocks.iter_mut() {
+        if s(b, "type") == "child_database" {
+            let id = s(b, "id");
+            if call(client().get(format!("{API}/databases/{id}"))).await.is_err() {
+                b["linked"] = json!(true);
+            }
+        }
+        if let Some(kids) = b.get_mut("children").and_then(Value::as_array_mut) {
+            Box::pin(mark_linked(kids)).await;
+        }
+    }
 }
 
 /// A property's value as the card shows it: {kind, text, color, checked,
@@ -341,8 +394,12 @@ fn cell(p: &Value) -> Value {
 
 /// A database to draw: its columns (title first, options of select and
 /// status) and its rows, as Notion sorts them by default.
-pub async fn database(id: &str) -> Result<Value, String> {
+/// `only`: (property, page) — just the rows whose relation `property` contains `page`.
+pub async fn database(id: &str, only: Option<(&str, &str)>) -> Result<Value, String> {
     check_id(id)?;
+    if let Some((_, page)) = only {
+        check_id(page)?;
+    }
     let d = call(client().get(format!("{API}/databases/{id}"))).await?;
     let title = plain_of(d.get("title"));
     let mut cols: Vec<Value> = Vec::new();
@@ -360,6 +417,9 @@ pub async fn database(id: &str) -> Result<Value, String> {
     let mut cursor: Option<String> = None;
     loop {
         let mut body = json!({ "page_size": 100 });
+        if let Some((prop, page)) = only {
+            body["filter"] = json!({ "property": prop, "relation": { "contains": page } });
+        }
         if let Some(c) = &cursor {
             body["start_cursor"] = json!(c);
         }
@@ -562,8 +622,12 @@ pub async fn notion_open_page(id: String) -> Result<Value, String> {
 }
 
 #[tauri::command]
-pub async fn notion_open_database(id: String) -> Result<Value, String> {
-    database(&id).await
+pub async fn notion_open_database(id: String, prop: Option<String>, page: Option<String>) -> Result<Value, String> {
+    let only = match (&prop, &page) {
+        (Some(p), Some(g)) => Some((p.as_str(), g.as_str())),
+        _ => None,
+    };
+    database(&id, only).await
 }
 
 #[tauri::command]
@@ -666,6 +730,20 @@ mod tests {
         assert_eq!(cell(&json!({ "type": "checkbox", "checkbox": true }))["checked"], true);
         assert_eq!(cell(&json!({ "type": "multi_select", "multi_select": [{ "name": "A", "color": "red" }] }))["text"], "A");
         assert_eq!(cell(&json!({ "type": "weird" }))["text"], "");
+    }
+
+    /// The real EasyIsland project page (read only): `cargo test -p easyisland --lib live_linked -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn live_linked() {
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let p = rt.block_on(page("3f984c09bb6781249dcce61da73a1942")).unwrap();
+        let linked: Vec<_> = p["blocks"].as_array().unwrap().iter().filter(|b| b["linked"] == true).collect();
+        println!("linked {}, relations {}", linked.len(), p["relations"]);
+        let r = p["relations"].as_array().unwrap().iter().find(|r| r["name"] == "Attività").unwrap().clone();
+        let d = rt.block_on(database(r["db"].as_str().unwrap(), Some((r["back"].as_str().unwrap(), "3f984c09bb6781249dcce61da73a1942")))).unwrap();
+        println!("{} righe in «{}»", d["rows"].as_array().unwrap().len(), d["title"]);
+        assert!(!linked.is_empty() && !d["rows"].as_array().unwrap().is_empty());
     }
 
     #[test]

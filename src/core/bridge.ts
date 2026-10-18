@@ -358,7 +358,8 @@ export const Bridge = {
   notionPageText: (id: string) => callOrThrow<[string, string]>("notion_page_text", { id }),
   /** The mini Notion of the card (notion_page.rs, views/notionpage.ts): a page or a database to draw. */
   notionOpenPage: (id: string) => callOrThrow<unknown>("notion_open_page", { id }),
-  notionOpenDatabase: (id: string) => callOrThrow<unknown>("notion_open_database", { id }),
+  /** `prop`/`page`: only the rows whose relation `prop` contains `page`. */
+  notionOpenDatabase: (id: string, prop?: string, page?: string) => callOrThrow<unknown>("notion_open_database", { id, prop, page }),
   notionBlockText: (id: string, kind: string, spans: unknown[]) => callOrThrow<void>("notion_block_text", { id, kind, spans }),
   notionBlockCheck: (id: string, checked: boolean) => callOrThrow<void>("notion_block_check", { id, checked }),
   notionBlockAdd: (parent: string, after: string | null, kind: string, spans: unknown[]) =>

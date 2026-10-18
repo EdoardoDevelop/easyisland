@@ -12,19 +12,26 @@ import { locale, t } from "../core/i18n";
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
 
-export interface NotionRefLite { id: string; title: string; emoji?: string | null; url: string; database?: boolean }
+export interface NotionRefLite {
+  id: string; title: string; emoji?: string | null; url: string; database?: boolean;
+  /** A database opened from a relation: only the rows related to this page. */
+  only?: { prop: string; page: string };
+}
 
 interface Span { t: string; b?: boolean; i?: boolean; s?: boolean; u?: boolean; c?: boolean; href?: string; color?: string; mention?: boolean }
 interface Block {
   id: string; type: string; hasChildren?: boolean; children?: Block[];
   spans?: Span[]; checked?: boolean; color?: string; emoji?: string; lang?: string; toggle?: boolean;
   url?: string; caption?: string; title?: string; cells?: Span[][]; header?: boolean; target?: string; database?: boolean;
+  /** A linked view of a database kept elsewhere: the API cannot open it (notion_page.rs mark_linked). */
+  linked?: boolean;
 }
 interface Icon { emoji?: string; url?: string }
 interface Cell { kind: string; text: string; color?: string; checked?: boolean; items?: [string, string][]; date?: string }
 interface Column { name: string; kind: string; options: [string, string][] }
 interface Row { id: string; url: string; icon: Icon | null; cover: string; cells: Record<string, Cell> }
-interface PageDoc { kind: "page"; id: string; title: string; icon: Icon | null; cover: string; url: string; database: string | null; props: { name: string; cell: Cell }[]; blocks: Block[] }
+interface Relation { name: string; db: string; count: number; back: string | null }
+interface PageDoc { kind: "page"; id: string; title: string; icon: Icon | null; cover: string; url: string; database: string | null; props: { name: string; cell: Cell }[]; blocks: Block[]; relations?: Relation[] }
 interface DbDoc { kind: "database"; id: string; title: string; icon: Icon | null; cover: string; url: string; columns: Column[]; rows: Row[] }
 type Doc = PageDoc | DbDoc;
 type DbView = "table" | "board" | "list" | "gallery";
@@ -134,12 +141,12 @@ async function load() {
   np.doc = null;
   draw();
   try {
-    const doc = (ref.database ? await Bridge.notionOpenDatabase(ref.id) : await Bridge.notionOpenPage(ref.id)) as Doc;
+    const doc = (ref.database ? await Bridge.notionOpenDatabase(ref.id, ref.only?.prop, ref.only?.page) : await Bridge.notionOpenPage(ref.id)) as Doc;
     if (np.stack[np.stack.length - 1] !== ref) return;
     np.doc = doc;
     if (doc.kind === "database") np.columns.set(norm(doc.id), doc.columns);
     // The crumb takes the real title and emoji.
-    ref.title = doc.title || ref.title;
+    if (!ref.only) ref.title = doc.title || ref.title;
     if (doc.icon?.emoji) ref.emoji = doc.icon.emoji;
     if (doc.url) ref.url = doc.url;
   } catch (e) {
@@ -497,6 +504,10 @@ function blockEl(b: Block, parent: string, depth: number, number: number): HTMLE
       break;
     case "child_page":
     case "child_database":
+      if (b.linked) {
+        body.append(linkedEl());
+        break;
+      }
       body.append(h("button", { class: "np-subpage", onclick: () => go({ id: b.id, title: b.title ?? "", url: "", database: b.type === "child_database" }) },
         svg(b.type === "child_database" ? ICONS.stack : ICONS.doc, 13), h("span", { text: b.title || t("Senza titolo") })));
       break;
@@ -541,6 +552,27 @@ function blockEl(b: Block, parent: string, depth: number, number: number): HTMLE
       onclick: () => void addBlock(b.id, null, "paragraph", []) })));
   }
   return wrap;
+}
+
+/** A relation of the open page as a database: its rows related to this page. */
+function relationRef(r: Relation): NotionRefLite | null {
+  const doc = np.doc;
+  if (!doc || doc.kind !== "page" || !r.back) return null;
+  return { id: r.db, title: `${r.name} · ${doc.title || t("Senza titolo")}`, url: "", database: true, only: { prop: r.back, page: doc.id } };
+}
+
+/** In place of a linked view: the page's relations (the biggest first), which show the same rows. */
+function linkedEl(): HTMLElement {
+  const doc = np.doc as PageDoc | null;
+  const rels = (doc?.relations ?? []).filter((r) => r.back);
+  if (!rels.length) {
+    return h("button", { class: "np-unsupported", onclick: () => openHere() },
+      h("span", { text: t("Vista collegata di un database: Notion non la dà alle integrazioni, aprila in Notion") }));
+  }
+  return h("div", { class: "np-linked" }, ...rels.slice(0, 3).map((r) => h("button", {
+    class: "np-subpage", title: t("Vista collegata: mostro le righe collegate a questa pagina"),
+    onclick: () => { const ref = relationRef(r); if (ref) go(ref); },
+  }, svg(ICONS.stack, 13), h("span", { text: `${r.name} (${r.count >= 25 ? "25+" : r.count})` }))));
 }
 
 function openHere() {
@@ -827,6 +859,13 @@ function propsEl(doc: PageDoc): HTMLElement {
   const cols = doc.database ? np.columns.get(norm(doc.database)) ?? [] : [];
   const grid = h("div", { class: "np-props" });
   for (const p of doc.props) {
+    const rel = p.cell.kind === "relation" ? (doc.relations ?? []).find((r) => r.name === p.name && r.back) : null;
+    if (rel) {
+      grid.append(h("span", { class: "np-prop-name", text: p.name }),
+        h("button", { class: "np-cell pick", title: t("Apri le righe collegate"), onclick: () => { const ref = relationRef(rel); if (ref) go(ref); } },
+          h("span", { class: "np-rel", text: `↗ ${rel.count >= 25 ? "25+" : rel.count}` })));
+      continue;
+    }
     const col = cols.find((c) => c.name === p.name) ?? { name: p.name, kind: p.cell.kind, options: [] };
     grid.append(h("span", { class: "np-prop-name", text: p.name }),
       cellEl(doc.id, col, p.cell, (row) => {
