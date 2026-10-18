@@ -83,6 +83,10 @@ pub struct HookPreview {
 /// opencode has no command hooks: it gets a plugin of EasyIsland's own,
 /// `~/.config/opencode/plugins/easyisland.js` (see `opencode_*` below).
 ///
+/// Antigravity keeps its hooks in `~/.gemini/config/hooks.json` (CLI, IDE and
+/// app alike), as named groups: EasyIsland's is the `"easyisland"` key, and
+/// nothing else in the file is touched (`antigravity_*` below).
+///
 /// Cursor and Copilot get observation hooks only: on their permission hooks a
 /// reply they cannot parse (Cursor) or an error (Copilot) blocks the tool, and
 /// the island must never be able to block an agent.
@@ -94,6 +98,7 @@ pub enum Target {
     Cursor,
     Copilot,
     OpenCode,
+    Antigravity,
 }
 
 impl Target {
@@ -104,6 +109,7 @@ impl Target {
             Some("cursor") => Target::Cursor,
             Some("copilot") => Target::Copilot,
             Some("opencode") => Target::OpenCode,
+            Some("antigravity") => Target::Antigravity,
             _ => Target::Claude,
         }
     }
@@ -117,6 +123,7 @@ impl Target {
             Target::Copilot => home().join(".copilot").join("hooks").join("easyisland.json"),
             // opencode reads ~/.config on Windows too.
             Target::OpenCode => home().join(".config").join("opencode").join("plugins").join("easyisland.js"),
+            Target::Antigravity => home().join(".gemini").join("config").join("hooks.json"),
         }
     }
 
@@ -172,6 +179,14 @@ impl Target {
             ],
             // A plugin, not a list of hooks: the plugin picks its events.
             Target::OpenCode => &[],
+            // Seconds. PreToolUse waits for the island (the relay gives up at 108 s);
+            // Antigravity's default would be 30.
+            Target::Antigravity => &[
+                ("SessionStart", 10),
+                ("PreToolUse", 115),
+                ("PostToolUse", 10),
+                ("Stop", 10),
+            ],
         }
     }
 
@@ -193,6 +208,7 @@ impl Target {
             Target::Cursor => format!("{exe} {event} --agent cursor"),
             Target::Copilot => format!("{exe} {event} --agent copilot"),
             Target::OpenCode => format!("{exe} {event} --agent opencode"),
+            Target::Antigravity => format!("{exe} {event} --agent antigravity"),
         }
     }
 
@@ -356,6 +372,9 @@ fn merged(existing: &Value) -> Value {
 /// The file with EasyIsland's hooks for `target` added; everything else is
 /// left untouched.
 fn merged_for(existing: &Value, target: Target) -> Value {
+    if target == Target::Antigravity {
+        return antigravity_merged(existing);
+    }
     let mut root = existing.as_object().cloned().unwrap_or_default();
     let mut hooks = root
         .get("hooks")
@@ -410,6 +429,58 @@ fn without_ours(existing: &Value) -> Value {
     Value::Object(root)
 }
 
+/// `without_ours`, or for Antigravity its own group removed.
+fn without_ours_for(existing: &Value, target: Target) -> Value {
+    if target == Target::Antigravity {
+        let mut root = existing.as_object().cloned().unwrap_or_default();
+        root.remove(ANTIGRAVITY_GROUP);
+        return Value::Object(root);
+    }
+    without_ours(existing)
+}
+
+// ── Antigravity: a named group of its own in ~/.gemini/config/hooks.json ─────
+
+const ANTIGRAVITY_GROUP: &str = "easyisland";
+
+/// The file with EasyIsland's group (re)written and every other group kept.
+/// Tool events take `matcher` + `hooks`, the others a list of handlers.
+fn antigravity_merged(existing: &Value) -> Value {
+    let mut root = existing.as_object().cloned().unwrap_or_default();
+    let mut group = Map::new();
+    for (event, timeout) in Target::Antigravity.events() {
+        let handler = json!({ "type": "command", "command": Target::Antigravity.command(event), "timeout": timeout });
+        let value = if *event == "PreToolUse" || *event == "PostToolUse" {
+            json!([{ "matcher": "*", "hooks": [handler] }])
+        } else {
+            json!([handler])
+        };
+        group.insert((*event).to_string(), value);
+    }
+    root.insert(ANTIGRAVITY_GROUP.into(), Value::Object(group));
+    Value::Object(root)
+}
+
+fn antigravity_status(current: &Value) -> HookStatus {
+    let group = current.get(ANTIGRAVITY_GROUP);
+    let has = |event: &str| {
+        group.and_then(|g| g.get(event)).and_then(Value::as_array).is_some_and(|list| {
+            list.iter().any(|e| entry_has(e, MARKER) || e.get("command").and_then(Value::as_str).is_some_and(|c| c.contains(MARKER)))
+        })
+    };
+    let installed = Target::Antigravity.events().iter().any(|(e, _)| has(e));
+    let missing = Target::Antigravity.events().iter().any(|(e, _)| !has(e));
+    let hook_path = settings::hook_exe_path();
+    HookStatus {
+        installed,
+        outdated: installed && missing,
+        legacy: false,
+        settings_path: Target::Antigravity.file().to_string_lossy().to_string(),
+        hook_ready: hook_path.exists(),
+        hook_path: hook_path.to_string_lossy().to_string(),
+    }
+}
+
 fn pretty(v: &Value) -> String {
     serde_json::to_string_pretty(v).unwrap_or_default()
 }
@@ -462,6 +533,9 @@ pub fn status_for(target: Target) -> HookStatus {
     }
     // Read-only and never loud: an unreadable file just reads as "not installed".
     let current = read_settings_at(target).unwrap_or_else(|_| json!({}));
+    if target == Target::Antigravity {
+        return antigravity_status(&current);
+    }
     let entries = all_entries(&current);
     let hook_path = settings::hook_exe_path();
     let installed = entries.iter().any(|e| entry_has(e, MARKER));
@@ -492,7 +566,7 @@ pub fn preview_for(install: bool, target: Target) -> Result<HookPreview, String>
         return opencode_preview(install);
     }
     let current = read_settings_at(target)?;
-    let next = if install { merged_for(&current, target) } else { without_ours(&current) };
+    let next = if install { merged_for(&current, target) } else { without_ours_for(&current, target) };
     let next = with_statusline(next, install, target, previous_statusline());
     Ok(HookPreview {
         diff: unified_diff(&pretty(&current), &pretty(&next)),
@@ -547,7 +621,7 @@ pub fn write_for(install: bool, fingerprint: &str, target: Target) -> Result<Str
         }
     }
     let previous = previous_statusline();
-    let next = if install { merged_for(&current, target) } else { without_ours(&current) };
+    let next = if install { merged_for(&current, target) } else { without_ours_for(&current, target) };
     let next = with_statusline(next, install, target, previous);
     let mut text = pretty(&next);
     text.push('\n');
@@ -916,6 +990,25 @@ mod tests {
         assert_eq!(Target::parse(Some("gemini")), Target::Gemini);
         assert_eq!(Target::parse(Some("qualcosa")), Target::Claude);
         assert!(Target::Codex.file().ends_with(Path::new(".codex").join("hooks.json")));
+    }
+
+    #[test]
+    fn antigravity_gets_a_group_of_its_own() {
+        let existing = json!({ "mine": { "Stop": [{ "command": "notify.cmd" }] } });
+        let next = merged_for(&existing, Target::Antigravity);
+        assert_eq!(next["mine"], existing["mine"], "the user's own group stays");
+        let pre = &next["easyisland"]["PreToolUse"][0];
+        assert_eq!(pre["matcher"], "*");
+        assert_eq!(pre["hooks"][0]["timeout"], 115);
+        assert!(pre["hooks"][0]["command"].as_str().unwrap().ends_with("PreToolUse --agent antigravity"));
+        assert!(next["easyisland"]["Stop"][0]["command"].as_str().unwrap().contains("Stop --agent antigravity"));
+        let status = antigravity_status(&next);
+        assert!(status.installed && !status.outdated);
+        let back = without_ours_for(&next, Target::Antigravity);
+        assert_eq!(back, existing);
+        assert!(!antigravity_status(&back).installed);
+        assert_eq!(Target::parse(Some("antigravity")), Target::Antigravity);
+        assert!(Target::Antigravity.file().ends_with(Path::new(".gemini").join("config").join("hooks.json")));
     }
 
     #[test]

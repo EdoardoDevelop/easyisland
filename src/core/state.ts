@@ -92,7 +92,7 @@ export function reactionKey(t: AgentTask): string | null {
   return t.state === "error" || t.state === "ratelimit" || t.state === "finished" ? t.id : null;
 }
 
-export type ChatEngine = "subscription" | "api" | "opencode" | "openrouter" | "openai" | "gemini" | "ollama" | "lmstudio";
+export type ChatEngine = "subscription" | "api" | "opencode" | "antigravity" | "openrouter" | "openai" | "gemini" | "ollama" | "lmstudio";
 
 /** The chat engines: name, Credential Manager key (if any), default address (local ones). */
 export const CHAT_ENGINES: { id: ChatEngine; name: string; key?: string; url?: string; hint: string }[] = [
@@ -100,6 +100,7 @@ export const CHAT_ENGINES: { id: ChatEngine; name: string; key?: string; url?: s
   { id: "api", name: t("Claude (chiave API)"), key: "anthropic-api-key",
  hint: t("API di Anthropic, a consumo") },
   { id: "opencode", name: "opencode", hint: t("modelli gratuiti o locali con strumenti (comandi, file, web), con i permessi nell'isola; serve opencode 2 sul PC") },
+  { id: "antigravity", name: "Antigravity", hint: t("l'agente di Google con strumenti (comandi, file, web, server MCP) e i permessi nell'isola; serve la sua CLI (agy) con il login Google") },
   { id: "openrouter", name: "OpenRouter", key: "openrouter-api-key", hint: t("una chiave per centinaia di modelli (openrouter.ai)") },
   { id: "openai", name: "OpenAI", key: "openai-api-key", hint: t("API di OpenAI (platform.openai.com)") },
   { id: "gemini", name: "Gemini", key: "gemini-api-key", hint: t("Google AI Studio (aistudio.google.com)") },

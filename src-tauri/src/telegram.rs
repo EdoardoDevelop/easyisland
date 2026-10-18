@@ -581,6 +581,7 @@ fn engines(app: &AppHandle) -> Vec<(&'static str, String, bool)> {
         ("subscription", t("Claude (abbonamento)").to_string(), crate::claude_cli::find_claude().is_some()),
         ("api", t("Claude (chiave API)").to_string(), crate::secrets::get("anthropic-api-key").is_some()),
         ("opencode", "opencode".to_string(), crate::opencode::find_exe().is_some() && has_model("opencode")),
+        ("antigravity", "Antigravity".to_string(), crate::antigravity::find_exe().is_some()),
     ];
     for e in crate::openai::ENGINES {
         if let Some(p) = crate::openai::provider(e) {
@@ -618,6 +619,7 @@ async fn models(app: &AppHandle, engine: &str) -> Vec<String> {
         "subscription" => return ["opus", "sonnet", "haiku"].map(String::from).to_vec(),
         "api" => return [crate::claude::DEFAULT_MODEL, "claude-sonnet-5-5", "claude-haiku-5-5"].map(String::from).to_vec(),
         "opencode" => crate::opencode::models().await,
+        "antigravity" => crate::antigravity::models().await,
         e => crate::openai::models(e, url.as_deref()).await,
     };
     list.map(|l| l.into_iter().map(|m| m.id).take(12).collect()).unwrap_or_default()

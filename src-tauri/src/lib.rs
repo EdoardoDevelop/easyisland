@@ -1,6 +1,7 @@
 // EasyIsland for Windows — app wiring and the commands the island calls.
 
 mod actions;
+mod antigravity;
 mod agent;
 mod agent_settings;
 mod automations;
@@ -1027,6 +1028,11 @@ pub(crate) async fn chat_turn(
                 Err(e) => Err(e),
             }
         }
+        // Antigravity always works with its own tools: in the terminal mode's folder, else the work folder.
+        (_, "antigravity") => {
+            let dir = terminal.clone().or_else(|| work.clone());
+            antigravity::send(chat, &other_model, query, context, dir.as_deref(), on_text, telegram).await
+        }
         (Some(folder), _) => claude_cli::send(chat, &cli_model, &mcp, agent, query, context, Some(folder), auto, on_text, telegram, None).await,
         (None, "api") => claude::send(chat, &model, query, context).await,
         (None, "opencode") => {
@@ -1103,6 +1109,8 @@ async fn rewrite_text(app: AppHandle, shared: State<'_, Shared>, prompt: String,
     let context = Some(ChatContext::Text { label: t("Testo selezionato").into(), text: sent });
     let reply = if engine == "api" {
         claude::send(&chat, &model, query, context).await
+    } else if engine == "antigravity" {
+        antigravity::send(&chat, &other_model, query, context, None, &|_| {}, false).await
     } else if engine == "opencode" {
         let r = opencode::send(&app, &chat, &other_model, query, context, &opencode::Options::default(), &|_| {}).await;
         opencode::forget(chat.cli_session());
@@ -1206,7 +1214,16 @@ async fn chat_models(engine: String, url: Option<String>) -> Result<Vec<openai::
     if engine == "opencode" {
         return opencode::models().await;
     }
+    if engine == "antigravity" {
+        return antigravity::models().await;
+    }
     openai::models(&engine, url.as_deref()).await
+}
+
+/// Impostazioni → Chat → Antigravity: is its CLI (`agy`) on this PC?
+#[tauri::command]
+fn antigravity_status() -> antigravity::AgyStatus {
+    antigravity::status()
 }
 
 /// Impostazioni -> Telegram -> «Vocali»: the models of a service that take audio, cheapest first.
@@ -2197,6 +2214,7 @@ pub fn run() {
             notion_search,
             notion_page_text,
             voice_models,
+            antigravity_status,
             notion_page::notion_open_page,
             notion_page::notion_open_database,
             notion_page::notion_block_text,

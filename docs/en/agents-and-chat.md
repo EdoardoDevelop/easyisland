@@ -21,7 +21,7 @@ disagree, the Italian files are the reference.
   results) is computed in the relay first (`hook/src/diff.rs`, `testrun.rs`).
 
 ## Other agents
-- `easyisland-hook <Event> --agent codex|gemini|cursor|copilot|opencode`
+- `easyisland-hook <Event> --agent codex|gemini|cursor|copilot|opencode|antigravity`
   (`hook/src/agents.rs`) translates their events into Claude Code's shape.
 - Hooks are installed by `src-tauri/src/hooks.rs`, always with a dated backup, a diff
   and the user's confirmation, into each agent's own file (`~/.claude/settings.json`,
@@ -130,3 +130,15 @@ chooses.
 - **Never** add to this server a tool that runs arbitrary commands, sends email or
   deletes. The only way to run something is `run_quick_action`, i.e. an action the
   user created. Real commands are run only by terminal mode, with Allow / Deny.
+
+## Antigravity (Google)
+
+- **Agent:** hooks in `~/.gemini/config/hooks.json` (an `"easyisland"` group of its own;
+  CLI, IDE and app share it). `hook/src/agents.rs` turns its camelCase payloads into
+  Claude Code's; `run_command`, `call_mcp_tool` and `ask_permission` ask Allow / Deny in
+  the island. The relay always prints an answer Antigravity accepts: with no answer it
+  is `allow`, so Antigravity's own policy decides and the agent never waits on us.
+- **Chat engine** (`antigravity.rs`): `agy -p … --output-format stream-json`, the
+  conversation resumed with `--conversation`. Permissions come through the same hooks
+  (`EASYISLAND_AGY_CHAT`). Install: `irm https://antigravity.google/cli/install.ps1 | iex`,
+  then `agy` to sign in with Google.

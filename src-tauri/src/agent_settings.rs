@@ -28,7 +28,7 @@ struct Entry {
     kind: Kind,
 }
 
-const ENGINES: &[&str] = &["subscription", "api", "opencode", "openrouter", "openai", "gemini", "ollama", "lmstudio"];
+const ENGINES: &[&str] = &["subscription", "api", "opencode", "antigravity", "openrouter", "openai", "gemini", "ollama", "lmstudio"];
 const CHARACTERS: &[&str] = &["drop", "slime", "cube", "gecko", "flame", "magma", "stone", "rock", "leaf"];
 /// Mirrors TOGGLEABLE_INTEGRATION_IDS in src/core/state.ts.
 const INTEGRATIONS: &[&str] = &[
