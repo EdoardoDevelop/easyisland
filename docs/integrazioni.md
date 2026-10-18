@@ -153,7 +153,8 @@ Preparata il 15 ottobre 2026, senza RDM su questo PC: da provare dove c'è (`doc
 - **L'elenco** viene dal modulo ufficiale `Devolutions.PowerShell` (serve PowerShell 7.2 o più, `pwsh`). Il modulo apre la stessa origine dati di RDM con i permessi dell'utente, quindi vale per qualsiasi origine: SQLite o XML locale, Devolutions Server, Hub, SQL.
   - `SESSIONS` prende id, nome, cartella, host (o URL) e tipo; cartelle e credenziali restano fuori.
   - Lo script parte nascosto (`-NoProfile -NonInteractive -EncodedCommand`, limite 120 s). L'origine scelta arriva come variabile d'ambiente, mai sulla riga di comando.
-  - L'elenco sta solo in memoria (`INDEX`) e si rilegge ogni 30 minuti (`integrations.rs`) o con «Rileggi l'elenco». Se una lettura fallisce resta quello di prima.
+  - **Si sincronizza solo a richiesta** («Sincronizza» nella card o nelle Impostazioni, o cambiando origine), come ha chiesto Edoardo: RDM non va avviato quando non serve. Ogni lettura riuscita finisce in `rdm-cache.bin` nella cartella delle impostazioni, cifrata con DPAPI (solo il suo utente Windows, su quel PC, la legge), e all'avvio l'elenco viene da lì. Se una lettura fallisce resta quello di prima, con l'errore accanto.
+  - Il poller (ogni 60 s) non avvia PowerShell: guarda solo se RDM è aperto (`running`, pallino nella card e riga nelle Impostazioni).
   - Alla card va solo il conteggio; le ricerche passano da `rdm_search`.
   - Nota di Devolutions: il modulo va tenuto della stessa versione di RDM, e su alcune installazioni legge la configurazione sbagliata (`Set-RDMPowerShellOverride`).
 - **Aprire:** `RemoteDesktopManager.exe /DataSource:<id> /Session:<id>`, con l'exe trovato in App Paths o nelle cartelle di Devolutions (anche Free). Senza exe, gli stessi parametri con `rdm://open?…`. «Modifica in RDM» usa solo `rdm://edit?…`, perché l'exe non ha un'opzione per modificare.
@@ -166,6 +167,10 @@ Preparata il 15 ottobre 2026, senza RDM su questo PC: da provare dove c'è (`doc
   - **Chiamata 3CX:** pulsante «Connessioni in RDM» con il nome di chi chiama.
   - **Ticket Zammad «Da assegnare»:** pulsante «RDM» con l'organizzazione o il cliente, che `zammad.rs` mette dopo « — ».
   - **Testo selezionato** (`Win+Alt+A`): «Cerca in Remote Desktop Manager», e su un IP o un nome host anche «Connetti con RDP/SSH».
+- **Devolutions Server e Hub (provato il 18 ottobre 2026 con l'Hub di Edoardo, modulo 2026.3):** le voci stanno nei vault e `Get-RDMSession` legge solo quello corrente. Lo script passa i vault condivisi (`Get-RDMRepository` / `Set-RDMCurrentRepository`, nome del vault davanti alla cartella) e poi il **vault utente** con `Get-RDMPrivateSession`: sull'Hub di Edoardo non c'è nessun vault condiviso («Nessuno», id tutto `f`) e tutte le 883 voci stanno lì. L'id del vault viene dal `RepositoryID` di ogni voce (`repository`, "user" se manca).
+  - Aprire una voce in un vault: `/DataSource:<id> /Vault:<id> /Session:<id>`, la forma del «Copia link» di RDM. Senza `/Vault` RDM viene in primo piano ma non apre niente (provato).
+  - Il server MCP di RDM (Strumenti → Server MCP, pipe `RDM.MCP`) è stato provato e scartato: senza indicare il vault vede solo il segnaposto «Nessuno», non elenca il vault utente, e vuole RDM aperto.
+- Una lettura con 0 connessioni è un errore con la spiegazione (`empty_read`, `hub_read`), non «non ancora letto».
 - **Ricerca** (`score`): ogni parola nel nome, nella cartella o nell'host; senza risultati, basta una parola di almeno 3 lettere (`loose_score`). Così «Mario Rossi» trova la cartella «Rossi Srl».
 - **Impostazioni:** stato di RDM, PowerShell 7, modulo ed elenco, con i comandi da copiare (mai eseguiti da EasyIsland); scelta dell'origine dati (`rdmDataSource`, caricata a richiesta perché avvia PowerShell).
 - **Prove:** test `rdm::tests` e `cargo test --lib rdm::tests::live -- --ignored --nocapture` dove c'è RDM. Scena `rdm&activeIntegrations=integration_rdm` (`&nolist` per il caso senza modulo).

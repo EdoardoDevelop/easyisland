@@ -146,7 +146,12 @@ const DATA_SOURCES: &str = "$list = @(Get-RDMDataSource | ForEach-Object { [pscu
 
 /// The connections of the workspace chosen ($env:EASYISLAND_RDM_DS, else
 /// RDM's current one): only names, folders, hosts, types and ids.
-const SESSIONS: &str = "if ($env:EASYISLAND_RDM_DS) { Set-RDMCurrentDataSource -ID $env:EASYISLAND_RDM_DS }\n$ds = Get-RDMCurrentDataSource\n$list = @(Get-RDMSession | ForEach-Object {\n  $h = if ($_.Host) { \"$($_.Host)\" } elseif ($_.Url) { \"$($_.Url)\" } else { '' }\n  [pscustomobject]@{ id = \"$($_.ID)\"; name = \"$($_.Name)\"; group = \"$($_.Group)\"; host = $h; kind = \"$($_.ConnectionType)\" }\n})\nConvertTo-Json -InputObject ([pscustomobject]@{ dataSource = [pscustomobject]@{ id = \"$($ds.ID)\"; name = \"$($ds.Name)\" }; entries = $list }) -Compress -Depth 4";
+/// Devolutions Server and Hub keep the entries in vaults (repositories) and
+/// Get-RDMSession reads only the current one: every shared vault is read, its
+/// name before the folder, and then the user vault (Get-RDMPrivateSession),
+/// where a Hub may keep everything with no shared vault at all (its id from
+/// each entry's RepositoryID, "user" when it has none).
+const SESSIONS: &str = "if ($env:EASYISLAND_RDM_DS) { Set-RDMCurrentDataSource -ID $env:EASYISLAND_RDM_DS }\n$ds = Get-RDMCurrentDataSource\n$repos = @()\nif (Get-Command Get-RDMRepository -ErrorAction SilentlyContinue) { try { $repos = @(Get-RDMRepository) } catch { $repos = @() } }\nif ($repos.Count -eq 0) { $repos = @($null) }\n$list = @(foreach ($r in $repos) {\n  $rid = ''; $rname = ''\n  if ($r) { try { Set-RDMCurrentRepository -Repository $r -ErrorAction Stop } catch { continue }; $rid = \"$($r.ID)\"; $rname = \"$($r.Name)\" }\n  try { $items = @(Get-RDMSession -ErrorAction Stop) } catch { $items = @() }\n  foreach ($e in $items) {\n    $h = if ($e.Host) { \"$($e.Host)\" } elseif ($e.Url) { \"$($e.Url)\" } else { '' }\n    $g = \"$($e.Group)\"; if ($repos.Count -gt 1 -and $rname) { $g = if ($g) { ($rname + [char]92 + $g) } else { $rname } }\n    [pscustomobject]@{ id = \"$($e.ID)\"; name = \"$($e.Name)\"; group = $g; host = $h; kind = \"$($e.ConnectionType)\"; repository = $rid }\n  }\n})\n$seen = @{}; foreach ($x in $list) { $seen[$x.id] = 1 }\n$priv = @(); if (Get-Command Get-RDMPrivateSession -ErrorAction SilentlyContinue) { try { $priv = @(Get-RDMPrivateSession -ErrorAction Stop) } catch { $priv = @() } }\n$list += @(foreach ($e in $priv) {\n  if ($seen.ContainsKey(\"$($e.ID)\")) { continue }\n  $h = if ($e.Host) { \"$($e.Host)\" } elseif ($e.Url) { \"$($e.Url)\" } else { '' }\n  [pscustomobject]@{ id = \"$($e.ID)\"; name = \"$($e.Name)\"; group = \"$($e.Group)\"; host = $h; kind = \"$($e.ConnectionType)\"; repository = $(if (\"$($e.RepositoryID)\" -match '^[0-9a-fA-F-]{36}$' -and \"$($e.RepositoryID)\" -notmatch '^[fF-]+$') { \"$($e.RepositoryID)\" } else { 'user' }) }\n})\nConvertTo-Json -InputObject ([pscustomobject]@{ dataSource = [pscustomobject]@{ id = \"$($ds.ID)\"; name = \"$($ds.Name)\"; kind = \"$($ds.Type)\" }; entries = $list }) -Compress -Depth 4";
 
 // ── The list of connections ───────────────────────────────────────────────────
 
@@ -164,6 +169,10 @@ pub struct Entry {
     /// RDM's connection type ("RDPConfigured", "SSHShell", "WebBrowser"…).
     #[serde(default)]
     pub kind: String,
+    /// The vault (Devolutions Server / Hub): its id, "user" for the user
+    /// vault, empty for a local data source.
+    #[serde(default)]
+    pub repository: String,
 }
 
 #[derive(Default)]
@@ -205,7 +214,39 @@ fn parse_sessions(json: &str) -> Result<(Option<(String, String)>, Vec<Entry>), 
     Ok((ds, entries))
 }
 
-/// Reads the list again (every 30 minutes, "Aggiorna", a workspace chosen).
+/// How many items the module returned before folders and credentials were dropped.
+fn raw_count(json: &str) -> usize {
+    match serde_json::from_str::<Value>(json.trim()).ok().and_then(|v| v.get("entries").cloned()) {
+        Some(Value::Array(a)) => a.len(),
+        Some(Value::Object(_)) => 1,
+        _ => 0,
+    }
+}
+
+/// Devolutions Hub: the module has its own session and cannot do the browser
+/// sign-in RDM did, so without an application user it sees no vault.
+fn is_hub(json: &str) -> bool {
+    serde_json::from_str::<Value>(json.trim()).ok()
+        .and_then(|v| v.pointer("/dataSource/kind").and_then(Value::as_str).map(|k| k.to_ascii_lowercase().contains("hub")))
+        .unwrap_or(false)
+}
+
+fn hub_read(ds: Option<&str>) -> String {
+    let ds = ds.filter(|d| !d.trim().is_empty()).unwrap_or("Hub");
+    tf("«{ds}» è un Devolutions Hub e il modulo non vi ha trovato connessioni, né nei vault condivisi né nel tuo vault utente. Apri l'Hub in RDM fino a vedere le connessioni e premi Sincronizza; intanto la ricerca della card apre RDM con la ricerca già scritta.", &[("ds", &ds)])
+}
+
+/// Why a read found no connections, with what to try.
+fn empty_read(ds: Option<&str>, raw: usize) -> String {
+    let ds = ds.filter(|d| !d.trim().is_empty()).unwrap_or("?");
+    if raw > 0 {
+        return tf("Nessuna connessione in «{ds}»: il modulo ha letto {n} voci, ma sono solo cartelle o credenziali.", &[("ds", &ds), ("n", &raw)]);
+    }
+    tf("Nessuna connessione letta da «{ds}». Il modulo di PowerShell vede questa origine dati vuota: scegli l'origine giusta in «Origine dati» (Carica le origini). Se chiede l'accesso (Devolutions Server o Hub), in RDM salva le credenziali dell'origine con «Ricorda»; se RDM è la versione del Microsoft Store, il modulo non vede le sue origini: usa l'installer dal sito di Devolutions.", &[("ds", &ds)])
+}
+
+/// Reads the list again ("Sincronizza" in the card or the settings, a
+/// workspace chosen) and keeps it encrypted on this PC.
 pub async fn refresh(app: &AppHandle) {
     let chosen = app
         .try_state::<crate::Shared>()
@@ -213,7 +254,18 @@ pub async fn refresh(app: &AppHandle) {
         .unwrap_or_default();
     let chosen = if guid(&chosen) { chosen } else { String::new() };
     let script = format!("{PRELUDE}{SESSIONS}");
-    let result = run(&script, &[("EASYISLAND_RDM_DS", chosen.as_str())], READ_TIMEOUT).await.and_then(|out| parse_sessions(&out));
+    let result = run(&script, &[("EASYISLAND_RDM_DS", chosen.as_str())], READ_TIMEOUT).await.and_then(|out| {
+        let (ds, entries) = parse_sessions(&out)?;
+        if entries.is_empty() {
+            // An empty read is not "nothing to show": the module answered for a
+            // workspace with nothing in it (another one, or one that asks to sign in).
+            if is_hub(&out) {
+                return Err(hub_read(ds.as_ref().map(|d| d.1.as_str())));
+            }
+            return Err(empty_read(ds.as_ref().map(|d| d.1.as_str()), raw_count(&out)));
+        }
+        Ok((ds, entries))
+    });
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
     if let Ok(mut g) = INDEX.lock() {
         let index = g.get_or_insert_with(Index::default);
@@ -224,6 +276,7 @@ pub async fn refresh(app: &AppHandle) {
                 index.entries = entries;
                 index.at = now;
                 index.error = None;
+                save_cache(index);
             }
             // The list read before stays: better old names than none.
             Err(e) => {
@@ -235,8 +288,76 @@ pub async fn refresh(app: &AppHandle) {
     emit(app);
 }
 
+// ── The list kept on this PC, encrypted (DPAPI) ───────────────────────────────
+
+/// Names, folders, hosts, types and ids of the last sync, readable only by
+/// this Windows user on this PC: the list is there with RDM closed, and it
+/// changes only with "Sincronizza".
+fn cache_path() -> PathBuf {
+    crate::settings::config_dir().join("rdm-cache.bin")
+}
+
+#[derive(Serialize, Deserialize)]
+struct Cache {
+    data_source: Option<(String, String)>,
+    entries: Vec<Entry>,
+    at: i64,
+}
+
+fn dpapi(data: &[u8], protect: bool) -> Option<Vec<u8>> {
+    use windows::Win32::Foundation::{LocalFree, HLOCAL};
+    use windows::Win32::Security::Cryptography::{CryptProtectData, CryptUnprotectData, CRYPTPROTECT_UI_FORBIDDEN, CRYPT_INTEGER_BLOB};
+    let input = CRYPT_INTEGER_BLOB { cbData: u32::try_from(data.len()).ok()?, pbData: data.as_ptr() as *mut u8 };
+    let mut out = CRYPT_INTEGER_BLOB::default();
+    unsafe {
+        let ok = if protect {
+            CryptProtectData(&input, windows::core::PCWSTR::null(), None, None, None, CRYPTPROTECT_UI_FORBIDDEN, &mut out)
+        } else {
+            CryptUnprotectData(&input, None, None, None, None, CRYPTPROTECT_UI_FORBIDDEN, &mut out)
+        };
+        if ok.is_err() || out.pbData.is_null() {
+            return None;
+        }
+        let bytes = std::slice::from_raw_parts(out.pbData, out.cbData as usize).to_vec();
+        let _ = LocalFree(Some(HLOCAL(out.pbData as *mut _)));
+        Some(bytes)
+    }
+}
+
+fn save_cache(index: &Index) {
+    let cache = Cache { data_source: index.data_source.clone(), entries: index.entries.clone(), at: index.at };
+    let Ok(json) = serde_json::to_vec(&cache) else { return };
+    match dpapi(&json, true) {
+        Some(sealed) => {
+            if let Err(e) = crate::settings::write_atomic(&cache_path(), &sealed) {
+                crate::log::line(format!("rdm: elenco non salvato ({e})"));
+            }
+        }
+        None => crate::log::line("rdm: elenco non cifrato, non salvato"),
+    }
+}
+
+/// The saved list into the index, once (nothing read yet in this run).
+fn load_cache() {
+    let Ok(mut g) = INDEX.lock() else { return };
+    if g.as_ref().is_some_and(|i| i.at > 0) {
+        return;
+    }
+    let Some(cache) = std::fs::read(cache_path()).ok().and_then(|b| dpapi(&b, false)).and_then(|j| serde_json::from_slice::<Cache>(&j).ok()) else { return };
+    let index = g.get_or_insert_with(Index::default);
+    index.data_source = cache.data_source;
+    index.entries = cache.entries;
+    index.at = cache.at;
+}
+
+/// Is Remote Desktop Manager open right now?
+fn running() -> bool {
+    !crate::apps::pids_of(&["remotedesktopmanager.exe", "remotedesktopmanager64.exe"]).is_empty()
+}
+
 /// The card's numbers (never the list: it is asked for by search).
 fn summary() -> Value {
+    load_cache();
     let g = INDEX.lock().ok();
     let index = g.as_ref().and_then(|g| g.as_ref());
     json!({
@@ -246,6 +367,7 @@ fn summary() -> Value {
         "listError": index.and_then(|i| i.error.clone()),
         "exe": exe().is_some(),
         "protocol": protocol(),
+        "running": running(),
     })
 }
 
@@ -253,14 +375,11 @@ fn emit(app: &AppHandle) {
     crate::integrations::emit(app, crate::integrations::IntegrationUpdate { id: ID, data: summary(), error: None, event: None });
 }
 
-/// The poller (integrations.rs): the list only with PowerShell 7 at hand;
-/// without it, the card still searches and opens in RDM.
+/// The poller (integrations.rs): only the saved list and whether RDM is
+/// open. The module is asked only by "Sincronizza" (refresh), as Edoardo
+/// asked: RDM need not be started when it is not needed.
 pub async fn poll(app: AppHandle) {
-    if pwsh().is_some() {
-        refresh(&app).await;
-    } else {
-        emit(&app);
-    }
+    emit(&app);
 }
 
 // ── Search ────────────────────────────────────────────────────────────────────
@@ -355,8 +474,8 @@ fn data_source_id() -> Option<String> {
 /// What to ask RDM (pure, tested): the exe's arguments and the same as an rdm:// link.
 #[derive(Debug, PartialEq)]
 pub enum Ask {
-    Open { data_source: Option<String>, session: String },
-    Edit { data_source: Option<String>, session: String },
+    Open { data_source: Option<String>, repository: Option<String>, session: String },
+    Edit { data_source: Option<String>, repository: Option<String>, session: String },
     Filter(String),
     Quick { kind: String, host: String },
 }
@@ -365,7 +484,12 @@ impl Ask {
     fn args(&self) -> Vec<String> {
         let ds = |d: &Option<String>| d.as_ref().map(|d| format!("/DataSource:{d}"));
         match self {
-            Ask::Open { data_source, session } => ds(data_source).into_iter().chain([format!("/Session:{session}")]).collect(),
+            // In a vault (Hub, Server): RDM's own form, /DataSource /Vault /Session.
+            Ask::Open { data_source, repository, session } => ds(data_source)
+                .into_iter()
+                .chain(repository.as_ref().map(|r| format!("/Vault:{r}")))
+                .chain([format!("/Session:{session}")])
+                .collect(),
             // The exe has no "edit": that goes through the link.
             Ask::Edit { .. } => Vec::new(),
             Ask::Filter(text) => vec![format!("/Filter:{text}")],
@@ -375,10 +499,13 @@ impl Ask {
 
     fn link(&self) -> String {
         let enc = |s: &str| s.bytes().map(|b| if b.is_ascii_alphanumeric() || b"-_.~:[]".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") }).collect::<String>();
-        let ds = |d: &Option<String>| d.as_ref().map(|d| format!("DataSource={}&", enc(d))).unwrap_or_default();
+        let ds = |d: &Option<String>, r: &Option<String>| {
+            d.as_ref().map(|d| format!("DataSource={}&", enc(d))).unwrap_or_default()
+                + &r.as_ref().map(|r| format!("Repository={}&", enc(r))).unwrap_or_default()
+        };
         match self {
-            Ask::Open { data_source, session } => format!("rdm://open?{}Session={}", ds(data_source), enc(session)),
-            Ask::Edit { data_source, session } => format!("rdm://edit?{}Session={}", ds(data_source), enc(session)),
+            Ask::Open { data_source, repository, session } => format!("rdm://open?{}Session={}", ds(data_source, repository), enc(session)),
+            Ask::Edit { data_source, repository, session } => format!("rdm://edit?{}Session={}", ds(data_source, repository), enc(session)),
             Ask::Filter(text) => format!("rdm://open?Filter={}", enc(text)),
             Ask::Quick { kind, host } => format!("rdm://open?Template={}&Host={}", enc(kind), enc(host)),
         }
@@ -411,14 +538,20 @@ pub fn open(session: &str) -> Result<(), String> {
     if !guid(session) {
         return Err(t("Connessione di RDM non valida").into());
     }
-    ask(&Ask::Open { data_source: data_source_id(), session: session.to_string() })
+    ask(&Ask::Open { data_source: data_source_id(), repository: repository_of(session), session: session.to_string() })
 }
 
 pub fn edit(session: &str) -> Result<(), String> {
     if !guid(session) {
         return Err(t("Connessione di RDM non valida").into());
     }
-    ask(&Ask::Edit { data_source: data_source_id(), session: session.to_string() })
+    ask(&Ask::Edit { data_source: data_source_id(), repository: repository_of(session), session: session.to_string() })
+}
+
+/// The vault an entry was read from, if any.
+fn repository_of(session: &str) -> Option<String> {
+    let g = INDEX.lock().ok()?;
+    g.as_ref()?.entries.iter().find(|e| e.id == session).map(|e| e.repository.clone()).filter(|r| guid(r))
 }
 
 /// RDM opened with its search filled in.
@@ -461,10 +594,14 @@ pub struct Status {
     count: usize,
     data_source: Option<String>,
     list_error: Option<String>,
+    running: bool,
+    /// Seconds since 1970 of the last sync (0: never).
+    at: i64,
 }
 
 pub async fn status() -> Status {
     let module = if pwsh().is_some() { module_version().await } else { None };
+    load_cache();
     let g = INDEX.lock().ok();
     let index = g.as_ref().and_then(|g| g.as_ref());
     Status {
@@ -475,6 +612,8 @@ pub async fn status() -> Status {
         count: index.map(|i| i.entries.len()).unwrap_or(0),
         data_source: index.and_then(|i| i.data_source.as_ref().map(|d| d.1.clone())),
         list_error: index.and_then(|i| i.error.clone()),
+        running: running(),
+        at: index.map(|i| i.at).unwrap_or(0),
     }
 }
 
@@ -517,11 +656,13 @@ mod tests {
         assert_eq!(ds, None);
         assert_eq!(e[0].host, "");
         assert!(parse_sessions("Import-Module: …").is_err());
+        assert!(is_hub(r#"{"dataSource":{"id":"x","name":"EasyTech","kind":"Hub"},"entries":[]}"#));
+        assert!(!is_hub(r#"{"dataSource":{"id":"x","name":"Locale","kind":"SQLite"},"entries":[]}"#));
     }
 
     #[test]
     fn search_by_name_folder_and_host() {
-        let e = |name: &str, group: &str, host: &str| Entry { id: B.into(), name: name.into(), group: group.into(), host: host.into(), kind: "RDPConfigured".into() };
+        let e = |name: &str, group: &str, host: &str| Entry { id: B.into(), name: name.into(), group: group.into(), host: host.into(), kind: "RDPConfigured".into(), repository: String::new() };
         let nas = e("NAS", "Clienti\\Rossi Srl", "192.168.1.10");
         let srv = e("Server Rossi", "Clienti\\Rossi Srl", "srv01.rossi.local");
         let other = e("NAS", "Clienti\\Bianchi", "10.0.0.2");
@@ -539,10 +680,13 @@ mod tests {
 
     #[test]
     fn requests_to_rdm() {
-        let open = Ask::Open { data_source: Some(A.into()), session: B.into() };
+        let vault = Ask::Open { data_source: Some(A.into()), repository: Some(A.into()), session: B.into() };
+        assert_eq!(vault.args(), vec![format!("/DataSource:{A}"), format!("/Vault:{A}"), format!("/Session:{B}")]);
+        assert_eq!(vault.link(), format!("rdm://open?DataSource={A}&Repository={A}&Session={B}"));
+        let open = Ask::Open { data_source: Some(A.into()), repository: None, session: B.into() };
         assert_eq!(open.args(), vec![format!("/DataSource:{A}"), format!("/Session:{B}")]);
         assert_eq!(open.link(), format!("rdm://open?DataSource={A}&Session={B}"));
-        let edit = Ask::Edit { data_source: None, session: B.into() };
+        let edit = Ask::Edit { data_source: None, repository: None, session: B.into() };
         assert!(edit.args().is_empty());
         assert_eq!(edit.link(), format!("rdm://edit?Session={B}"));
         assert_eq!(Ask::Filter("rossi nas".into()).link(), "rdm://open?Filter=rossi%20nas");

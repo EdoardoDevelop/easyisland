@@ -59,6 +59,11 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.9.1** — **Remote Desktop Manager con Devolutions Hub**: l'elenco legge anche il
+vault utente (prima restava vuoto) e apre la connessione nel suo vault. L'elenco resta
+su questo PC, cifrato per il tuo utente Windows, e si aggiorna solo con **Sincronizza**:
+RDM non va avviato quando non serve; un pallino dice se è aperto.
+
 **0.9.0** — **Antigravity** di Google come Claude Code e opencode: le sue sessioni
 (CLI `agy`, IDE e app) nell'isola con passi, diff e **Consenti / Nega** su comandi e
 strumenti MCP, e come **motore della chat** con i suoi strumenti, anche da Telegram;
@@ -279,7 +284,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.9.0** | 18 ott 2026 | Antigravity di Google: sessioni nell'isola con Consenti / Nega e motore della chat, con le istruzioni di installazione |
+| **0.9.1** | 18 ott 2026 | Remote Desktop Manager con l'Hub: vault utente, elenco offline cifrato, Sincronizza |
+| 0.9.0 | 18 ott 2026 | Antigravity di Google: sessioni nell'isola con Consenti / Nega e motore della chat, con le istruzioni di installazione |
 | 0.8.9 | 18 ott 2026 | Mini Notion nella scheda (pagine e database visti e modificati nell'isola), vocali da Telegram, «Automatica» in Telegram, impostazioni dagli agenti, «Permessi e chiamate» |
 | 0.8.8 | 17 ott 2026 | Telegram (chat, motore e modello da lì, Consenti / Nega, file nei due sensi), cartella di lavoro in «File e schermo», nella chat e in Telegram, strumenti di EasyIsland anche per opencode |
 | 0.8.7 | 17 ott 2026 | Registra (conversazione, schermo o una finestra), Cerca con Google, loghi di Teams e RDM, alone in tutte le schede, ricerca che si chiude al cambio di scheda, ⚡ Automatica con gli strumenti dei connettori, documentazione in inglese |

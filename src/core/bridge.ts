@@ -641,6 +641,8 @@ export interface RdmStatus {
   count: number;
   dataSource: string | null;
   listError: string | null;
+  running: boolean;
+  at: number;
 }
 
 export interface ThreecxCall {

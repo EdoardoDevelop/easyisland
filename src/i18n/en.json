@@ -2361,5 +2361,18 @@
   "Antigravity non ha finito entro 30 minuti: interrotto.": "Antigravity did not finish within 30 minutes: stopped.",
   "Per la chat con Antigravity serve la sua CLI (agy) installata su questo PC e con il login fatto: Impostazioni → Chat e motori AI spiega come.": "Chatting with Antigravity needs its CLI (agy) installed on this PC and signed in: Settings → Chat and AI engines explains how.",
   "Antigravity si è interrotto.": "Antigravity stopped.",
-  "Antigravity ha saltato dei comandi perché non poteva chiederti il permesso: installa i suoi hook in Impostazioni → Agenti di codice → Antigravity, così chiede Consenti / Nega nell'isola.": "Antigravity skipped some commands because it could not ask your permission: install its hooks in Settings → Coding agents → Antigravity, so it asks Allow / Deny in the island."
+  "Antigravity ha saltato dei comandi perché non poteva chiederti il permesso: installa i suoi hook in Impostazioni → Agenti di codice → Antigravity, così chiede Consenti / Nega nell'isola.": "Antigravity skipped some commands because it could not ask your permission: install its hooks in Settings → Coding agents → Antigravity, so it asks Allow / Deny in the island.",
+  "Nessuna connessione in «{ds}»: il modulo ha letto {n} voci, ma sono solo cartelle o credenziali.": "No connections in “{ds}”: the module read {n} items, but they are only folders or credentials.",
+  "Nessuna connessione letta da «{ds}». Il modulo di PowerShell vede questa origine dati vuota: scegli l'origine giusta in «Origine dati» (Carica le origini). Se chiede l'accesso (Devolutions Server o Hub), in RDM salva le credenziali dell'origine con «Ricorda»; se RDM è la versione del Microsoft Store, il modulo non vede le sue origini: usa l'installer dal sito di Devolutions.": "No connections read from “{ds}”. The PowerShell module sees this data source as empty: pick the right one in “Data source” (Load data sources). If it asks to sign in (Devolutions Server or Hub), save the data source's credentials in RDM with “Remember”; if RDM is the Microsoft Store version, the module cannot see its data sources: use the installer from Devolutions' site.",
+  "avviato": "running",
+  "non avviato": "not running",
+  "sincronizzato il {d}": "synced on {d}",
+  "non ancora sincronizzato": "not synced yet",
+  "Sincronizza": "Sync",
+  "Sincronizzo…": "Syncing…",
+  "l'elenco resta su questo PC, cifrato per il tuo utente Windows: si aggiorna solo quando premi Sincronizza": "the list stays on this PC, encrypted for your Windows user: it updates only when you press Sync",
+  "RDM è avviato": "RDM is running",
+  "RDM non è avviato": "RDM is not running",
+  "RDM non è avviato: la sincronizzazione legge comunque l'origine dati": "RDM is not running: syncing still reads the data source",
+  "«{ds}» è un Devolutions Hub e il modulo non vi ha trovato connessioni, né nei vault condivisi né nel tuo vault utente. Apri l'Hub in RDM fino a vedere le connessioni e premi Sincronizza; intanto la ricerca della card apre RDM con la ricerca già scritta.": "“{ds}” is a Devolutions Hub and the module found no connections in it, neither in the shared vaults nor in your user vault. Open the Hub in RDM until you see the connections and press Sync; meanwhile the card's search opens RDM with the search already typed."
 }
