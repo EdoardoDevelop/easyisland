@@ -147,9 +147,11 @@ const DATA_SOURCES: &str = "$list = @(Get-RDMDataSource | ForEach-Object { [pscu
 /// The connections of the workspace chosen ($env:EASYISLAND_RDM_DS, else
 /// RDM's current one): only names, folders, hosts, types and ids.
 /// Devolutions Server and Hub keep the entries in vaults (repositories) and
-/// Get-RDMSession reads only the current one, often an empty personal vault:
-/// every vault is read, its name before the folder.
-const SESSIONS: &str = "if ($env:EASYISLAND_RDM_DS) { Set-RDMCurrentDataSource -ID $env:EASYISLAND_RDM_DS }\n$ds = Get-RDMCurrentDataSource\n$repos = @()\nif (Get-Command Get-RDMRepository -ErrorAction SilentlyContinue) { try { $repos = @(Get-RDMRepository) } catch { $repos = @() } }\nif ($repos.Count -eq 0) { $repos = @($null) }\n$list = @(foreach ($r in $repos) {\n  $rid = ''; $rname = ''\n  if ($r) { try { Set-RDMCurrentRepository -Repository $r -ErrorAction Stop } catch { continue }; $rid = \"$($r.ID)\"; $rname = \"$($r.Name)\" }\n  try { $items = @(Get-RDMSession -ErrorAction Stop) } catch { $items = @() }\n  foreach ($e in $items) {\n    $h = if ($e.Host) { \"$($e.Host)\" } elseif ($e.Url) { \"$($e.Url)\" } else { '' }\n    $g = \"$($e.Group)\"; if ($repos.Count -gt 1 -and $rname) { $g = if ($g) { ($rname + [char]92 + $g) } else { $rname } }\n    [pscustomobject]@{ id = \"$($e.ID)\"; name = \"$($e.Name)\"; group = $g; host = $h; kind = \"$($e.ConnectionType)\"; repository = $rid }\n  }\n})\nConvertTo-Json -InputObject ([pscustomobject]@{ dataSource = [pscustomobject]@{ id = \"$($ds.ID)\"; name = \"$($ds.Name)\"; kind = \"$($ds.Type)\" }; entries = $list }) -Compress -Depth 4";
+/// Get-RDMSession reads only the current one: every shared vault is read, its
+/// name before the folder, and then the user vault (Get-RDMPrivateSession),
+/// where a Hub may keep everything with no shared vault at all
+/// (repository "user").
+const SESSIONS: &str = "if ($env:EASYISLAND_RDM_DS) { Set-RDMCurrentDataSource -ID $env:EASYISLAND_RDM_DS }\n$ds = Get-RDMCurrentDataSource\n$repos = @()\nif (Get-Command Get-RDMRepository -ErrorAction SilentlyContinue) { try { $repos = @(Get-RDMRepository) } catch { $repos = @() } }\nif ($repos.Count -eq 0) { $repos = @($null) }\n$list = @(foreach ($r in $repos) {\n  $rid = ''; $rname = ''\n  if ($r) { try { Set-RDMCurrentRepository -Repository $r -ErrorAction Stop } catch { continue }; $rid = \"$($r.ID)\"; $rname = \"$($r.Name)\" }\n  try { $items = @(Get-RDMSession -ErrorAction Stop) } catch { $items = @() }\n  foreach ($e in $items) {\n    $h = if ($e.Host) { \"$($e.Host)\" } elseif ($e.Url) { \"$($e.Url)\" } else { '' }\n    $g = \"$($e.Group)\"; if ($repos.Count -gt 1 -and $rname) { $g = if ($g) { ($rname + [char]92 + $g) } else { $rname } }\n    [pscustomobject]@{ id = \"$($e.ID)\"; name = \"$($e.Name)\"; group = $g; host = $h; kind = \"$($e.ConnectionType)\"; repository = $rid }\n  }\n})\n$seen = @{}; foreach ($x in $list) { $seen[$x.id] = 1 }\n$priv = @(); if (Get-Command Get-RDMPrivateSession -ErrorAction SilentlyContinue) { try { $priv = @(Get-RDMPrivateSession -ErrorAction Stop) } catch { $priv = @() } }\n$list += @(foreach ($e in $priv) {\n  if ($seen.ContainsKey(\"$($e.ID)\")) { continue }\n  $h = if ($e.Host) { \"$($e.Host)\" } elseif ($e.Url) { \"$($e.Url)\" } else { '' }\n  [pscustomobject]@{ id = \"$($e.ID)\"; name = \"$($e.Name)\"; group = \"$($e.Group)\"; host = $h; kind = \"$($e.ConnectionType)\"; repository = 'user' }\n})\nConvertTo-Json -InputObject ([pscustomobject]@{ dataSource = [pscustomobject]@{ id = \"$($ds.ID)\"; name = \"$($ds.Name)\"; kind = \"$($ds.Type)\" }; entries = $list }) -Compress -Depth 4";
 
 // ── The list of connections ───────────────────────────────────────────────────
 
@@ -167,7 +169,8 @@ pub struct Entry {
     /// RDM's connection type ("RDPConfigured", "SSHShell", "WebBrowser"…).
     #[serde(default)]
     pub kind: String,
-    /// The vault (Devolutions Server / Hub), empty for a local data source.
+    /// The vault (Devolutions Server / Hub): its id, "user" for the user
+    /// vault, empty for a local data source.
     #[serde(default)]
     pub repository: String,
 }
