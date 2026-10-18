@@ -33,6 +33,7 @@ mod msgraph;
 mod moments;
 mod netconfig;
 mod notion;
+mod notion_page;
 mod rdm;
 mod openai;
 mod opencode;
@@ -2188,10 +2189,18 @@ pub fn run() {
             inbox_copy,
             notion_search,
             notion_page_text,
-            notion_page_blocks,
-            notion_update_block_text,
-            notion_delete_block,
-            notion_create_blocks,
+            notion_page::notion_open_page,
+            notion_page::notion_open_database,
+            notion_page::notion_block_text,
+            notion_page::notion_block_check,
+            notion_page::notion_block_add,
+            notion_page::notion_block_retype,
+            notion_page::notion_block_delete,
+            notion_page::notion_page_title,
+            notion_page::notion_row_set,
+            notion_page::notion_row_add,
+            notion_page::notion_page_delete,
+            notion_page::notion_image,
             notion_task_done,
             notion_properties,
             notion_add_task,

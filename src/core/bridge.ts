@@ -356,14 +356,25 @@ export const Bridge = {
   notionForgetSchemas: () => call<void>("notion_forget_schemas"),
   /** A Notion page's title and text, for the chat. */
   notionPageText: (id: string) => callOrThrow<[string, string]>("notion_page_text", { id }),
-  /** Get the blocks (with children) of a Notion page for rendering/editing. */
-  notionPageBlocks: (id: string) => callOrThrow<any>("notion_page_blocks", { id }),
-  /** Update the text content of a Notion block. */
-  notionUpdateBlockText: (block_id: string, text: string) => callOrThrow<void>("notion_update_block_text", { block_id, text }),
-  /** Delete a Notion block. */
-  notionDeleteBlock: (block_id: string) => callOrThrow<void>("notion_delete_block", { block_id }),
-  /** Create blocks under a parent block or page. */
-  notionCreateBlocks: (parent_id: string, blocks: any[]) => callOrThrow<void>("notion_create_blocks", { parent_id, blocks }),
+  /** The mini Notion of the card (notion_page.rs, views/notionpage.ts): a page or a database to draw. */
+  notionOpenPage: (id: string) => callOrThrow<unknown>("notion_open_page", { id }),
+  notionOpenDatabase: (id: string) => callOrThrow<unknown>("notion_open_database", { id }),
+  notionBlockText: (id: string, kind: string, spans: unknown[]) => callOrThrow<void>("notion_block_text", { id, kind, spans }),
+  notionBlockCheck: (id: string, checked: boolean) => callOrThrow<void>("notion_block_check", { id, checked }),
+  notionBlockAdd: (parent: string, after: string | null, kind: string, spans: unknown[]) =>
+    callOrThrow<unknown>("notion_block_add", { parent, after, kind, spans }),
+  notionBlockRetype: (parent: string, id: string, kind: string, spans: unknown[]) =>
+    callOrThrow<unknown>("notion_block_retype", { parent, id, kind, spans }),
+  /** To Notion's trash. */
+  notionBlockDelete: (id: string) => callOrThrow<void>("notion_block_delete", { id }),
+  notionPageTitle: (id: string, title: string) => callOrThrow<void>("notion_page_title", { id, title }),
+  notionRowSet: (page: string, name: string, kind: string, value: unknown) => callOrThrow<unknown>("notion_row_set", { page, name, kind, value }),
+  notionRowAdd: (db: string, title: string, name?: string, kind?: string, value?: unknown) =>
+    callOrThrow<unknown>("notion_row_add", { db, title, name, kind, value }),
+  /** A row (a page) to Notion's trash. */
+  notionPageDelete: (id: string) => callOrThrow<void>("notion_page_delete", { id }),
+  /** A picture of a page from Notion's own files, as a data URL. */
+  notionImage: (url: string) => callOrThrow<string>("notion_image", { url }),
   /** A picture of the tray on the clipboard. */
   inboxCopy: (name: string) => callOrThrow<void>("inbox_copy", { name }),
   /** A file anywhere (a finished download): open it as Explorer would, or select it there. */

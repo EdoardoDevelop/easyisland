@@ -24,7 +24,7 @@ use crate::i18n::t;
 use crate::probes::reg;
 use crate::secrets;
 
-const API: &str = "https://api.notion.com/v1";
+pub(crate) const API: &str = "https://api.notion.com/v1";
 const VERSION: &str = "2022-06-28";
 /// A page's text for the chat: enough for a summary, never a whole wiki.
 const MAX_CHARS: usize = 30_000;
@@ -55,7 +55,7 @@ pub fn link_for(url: &str) -> Option<String> {
     app_link(url).filter(|_| app_installed())
 }
 
-fn client() -> reqwest::Client {
+pub(crate) fn client() -> reqwest::Client {
     reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(12))
         .build()
@@ -66,7 +66,7 @@ fn token() -> Result<String, String> {
     secrets::get("notion-api-key").ok_or_else(|| t("Notion non è configurato").to_string())
 }
 
-async fn call(req: reqwest::RequestBuilder) -> Result<Value, String> {
+pub(crate) async fn call(req: reqwest::RequestBuilder) -> Result<Value, String> {
     let r = req
         .header("Authorization", format!("Bearer {}", token()?))
         .header("Notion-Version", VERSION)
@@ -192,100 +192,6 @@ pub async fn page_text(id: &str) -> Result<(String, String), String> {
         return Err(t("La pagina di Notion è vuota").into());
     }
     Ok((title, text))
-}
-
-/// A page's blocks (top-level and nested) for rendering and editing.
-/// Returns the raw block structure from the Notion API, limited to a reasonable depth.
-pub async fn page_blocks(id: &str) -> Result<Value, String> {
-    if id.is_empty() || !id.chars().all(|c| c.is_ascii_hexdigit() || c == '-') {
-        return Err(t("Pagina di Notion non valida").into());
-    }
-    // Fetch the page to verify it exists and get its type (optional)
-    let _page = call(client().get(format!("{API}/pages/{id}"))).await?;
-    // Fetch top-level blocks (depth 0)
-    let mut top_blocks = Vec::new();
-    let top_resp = call(client().get(format!("{API}/blocks/{id}/children?page_size=100"))).await?;
-    if let Some(arr) = top_resp.get("results").and_then(Value::as_array) {
-        for b in arr {
-            let mut block = b.clone();
-            let has_children = b.get("has_children").and_then(Value::as_bool).unwrap_or(false);
-            let block_type = b.get("type").and_then(Value::as_str).unwrap_or("");
-            if has_children && block_type != "child_page" && block_type != "child_database" {
-                if let Some(child_id) = b.get("id").and_then(Value::as_str) {
-                    // Fetch children (depth 1)
-                    let child_resp = call(client().get(format!("{API}/blocks/{child_id}/children?page_size=100"))).await?;
-                    if let Some(child_arr) = child_resp.get("results").and_then(Value::as_array) {
-                        block["children"] = Value::Array(child_arr.clone());
-                    }
-                }
-            }
-            top_blocks.push(block);
-        }
-    }
-    Ok(Value::Array(top_blocks))
-}
-
-/// Update the text content of a block that supports rich_text.
-pub async fn update_block_text(block_id: &str, text: &str) -> Result<(), String> {
-    check_id(block_id)?;
-    let block = call(client().get(format!("{API}/blocks/{block_id}"))).await?;
-    let block_type = block.get("type").and_then(Value::as_str).unwrap_or("");
-    // Only update if the block has a rich_text field (we'll check for a few types that we know)
-    // We'll try to update the rich_text for the block type if it exists.
-    let mut payload = serde_json::Map::new();
-    match block_type {
-        "paragraph" | "heading_1" | "heading_2" | "heading_3" | "bulleted_list_item" | "numbered_list_item" | "quote" | "callout" | "to_do" => {
-            let rich_text = rich(text);
-            payload.insert(block_type.to_string(), json!({ "rich_text": rich_text }));
-        }
-        _ => {
-            return Err(t("Tipo di blocco non supportato per la modifica del testo").into());
-        }
-    }
-    call(client().patch(format!("{API}/blocks/{block_id}")).json(&payload)).await?;
-    Ok(())
-}
-
-/// Delete a block.
-pub async fn delete_block(block_id: &str) -> Result<(), String> {
-    check_id(block_id)?;
-    call(client().delete(format!("{API}/blocks/{block_id}"))).await?;
-    Ok(())
-}
-
-/// Create a list of blocks as children of a parent block or page.
-pub async fn create_blocks(parent_id: &str, blocks: Vec<Value>) -> Result<(), String> {
-    check_id(parent_id)?;
-    // Notion API expects { "children": [ ... ] }
-    let payload = json!({ "children": blocks });
-    call(client().patch(format!("{API}/blocks/{parent_id}/children")).json(&payload)).await?;
-    Ok(())
-}
-
-/// Tauri command: get the blocks of a Notion page.
-#[tauri::command]
-pub async fn notion_page_blocks(id: String) -> Result<Value, String> {
-    page_blocks(&id).await
-}
-
-/// Tauri command: update the text of a Notion block.
-#[tauri::command]
-pub async fn notion_update_block_text(block_id: String, text: String) -> Result<(), String> {
-    update_block_text(&block_id, &text).await
-}
-
-/// Tauri command: delete a Notion block.
-#[tauri::command]
-pub async fn notion_delete_block(block_id: String) -> Result<(), String> {
-    delete_block(&block_id).await
-}
-
-/// Tauri command: create blocks under a parent block or page.
-#[tauri::command]
-pub async fn notion_create_blocks(parent_id: String, blocks: Value) -> Result<(), String> {
-    // Expect blocks to be an array of block objects
-    let blocks_vec = blocks.as_array().ok_or_else(|| t("Expected an array of blocks").to_string())?;
-    create_blocks(&parent_id, blocks_vec.clone()).await
 }
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────
@@ -618,13 +524,13 @@ pub async fn set_done(db: &str, page: &str) -> Result<(), String> {
 }
 
 /// `{ key: value }` with a key known only at run time.
-fn one(key: &str, value: Value) -> Value {
+pub(crate) fn one(key: &str, value: Value) -> Value {
     let mut m = serde_json::Map::new();
     m.insert(key.to_string(), value);
     Value::Object(m)
 }
 
-fn check_id(id: &str) -> Result<(), String> {
+pub(crate) fn check_id(id: &str) -> Result<(), String> {
     if id.is_empty() || !id.chars().all(|c| c.is_ascii_hexdigit() || c == '-') {
         return Err(t("Pagina di Notion non valida").into());
     }
@@ -634,7 +540,7 @@ fn check_id(id: &str) -> Result<(), String> {
 // ── Notes ─────────────────────────────────────────────────────────────────────
 
 /// Text as rich_text pieces of at most 2000 characters (Notion's limit).
-fn rich(text: &str) -> Vec<Value> {
+pub(crate) fn rich(text: &str) -> Vec<Value> {
     let chars: Vec<char> = text.chars().collect();
     chars
         .chunks(2000)

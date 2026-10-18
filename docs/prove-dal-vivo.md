@@ -60,6 +60,7 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
     - Con Claude Code, «crea prova.txt e mostrami git status» va senza card; «cancella la cartella build» si ferma o chiede.
     - Con opencode, `npm run build` va da solo; `Remove-Item` e `git push` mostrano la card.
     - «Nuova chat» lo spegne.
+- [ ] **Mini Notion (18 ottobre 2026):** con una pagina vera scelta nelle Impostazioni: il riquadro la apre nell'isola con titoli, elenchi, toggle, callout e immagini; scrivere, Invio, «/» → Titolo 2, `- ` all'inizio, Ctrl+B; casella; «Elimina» → «Sicuro?» e il blocco è nel cestino di Notion; ricaricando (↻) tutto è come in Notion. Un database: Bacheca per stato, trascinare una scheda, «+ Nuovo» in una colonna, Tabella con stato e data cambiati, una riga aperta come pagina. Una pagina con un'immagine caricata e con una menzione (sola lettura).
 - [ ] **Viste delle attività di Notion (15 ottobre 2026):** in Impostazioni → Notion «+ Oggi», «+ Settimana» e una vista con Contesto «Ufficio» e Priorità «Alta». Nella card i pulsanti cambiano l'elenco subito; la vista scelta resta dopo un riavvio; il pallino ha il colore della priorità; rinominando la vista scelta resta scelta; un filtro su Progetto (relazione) funziona; togliendo tutte le viste tornano tutte le non fatte.
 - [ ] **Notion: avvisi e uso semplice (15 ottobre 2026):**
   - Un'attività con orario fra 15 minuti: l'avviso arriva 10 minuti prima (o come scelto), una volta sola, e il clic apre Notion.

@@ -13,6 +13,7 @@ import { RDM, rdmActive, rdmLookFor, rdmCard } from "./rdm";
 import { TEAMS, teamsCard } from "./teams";
 import { RECORDER, recorderCard } from "./recorder";
 import { weatherCard } from "./weather";
+import { notionPageActive, notionPageCard, openNotionPage, type NotionRefLite } from "./notionpage";
 import { netConfigCard, pingRow, resetNetConfig } from "./netconfig";
 import { locale, t } from "../core/i18n";
 import { Sound } from "../core/sound";
@@ -289,8 +290,9 @@ function stripeCard(): HTMLElement {
  * Notion (notion.rs): the user's tasks from the database chosen in the
  * settings (soonest first, ticked off with a click), "Nuova nota" into the
  * page or database chosen there, the pages the user keeps in the card, and a
- * search. A page opens in the Notion app when it is installed (lib.rs
- * open_url_now); the bubble sends its text to the chat. What is being typed
+ * search. A page opens inside the card (notionpage.ts: drawn and edited as
+ * in Notion), ↗ in the Notion app (lib.rs open_url_now); the bubble sends its
+ * text to the chat. What is being typed
  * lives outside the card, which is rebuilt at every update.
  */
 const notion = {
@@ -313,13 +315,6 @@ const notion = {
   taskDue: "today" as "none" | "today" | "tomorrow" | "monday",
   taskState: "" as "" | "saving" | "error",
   taskMsg: "",
-  /** Page view for editing a Notion page inside EasyIsland. */
-  pageView: null as { 
-    id: string; 
-    title: string; 
-    blocks: any[]; 
-    editing: string | null; // blockId being edited
-  } | null,
   redraw: null as (() => void) | null,
 };
 
@@ -398,6 +393,7 @@ export function dueLabel(due: string | null, now = new Date()): { text: string; 
 }
 
 function notionCard(hooks: IntegrationCardHooks): HTMLElement {
+  if (hooks.detailOpen && notionPageActive()) return notionPageCard();
   const cfg = State.settings.integrationConfig;
   const data = get("integration_notion");
   // The views saved in the settings (notion.rs polls each one): chips to switch.
@@ -432,7 +428,7 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
         notionSearchSoon();
       } else if (k.key === "Enter") {
         const first = (notion.found ?? [])[0];
-        if (first) void Bridge.openUrl(first.url);
+        if (first) openPage(first);
       }
     },
   }) as HTMLInputElement);
@@ -449,17 +445,35 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
     }
   };
 
-  const pageRow = (p: { id: string; title: string; emoji?: string | null; url: string; database?: boolean; lastEditedAt?: string }, onClick?: () => void) => {
+  // A page opens here, in the card; ↗ in Notion.
+  const openPage = (p: NotionRefLite) => {
+    openNotionPage({ id: p.id, title: p.title, emoji: p.emoji, url: p.url, database: p.database }, () => hooks.closeDetail());
+    hooks.openDetail();
+  };
+  const inNotion = (url: string) => iconButton(ICONS.arrowUpRight, t("Apri in Notion"), "#E8E8E8", () => { if (url) void Bridge.openUrl(url); });
+
+  const pageRow = (p: { id: string; title: string; emoji?: string | null; url: string; database?: boolean; lastEditedAt?: string }) => {
     const askBtn: HTMLElement | null = p.database ? null
       : iconButton(ICONS.bubble, t("Chiedi alla chat su questa pagina"), "#A78BFA", () => void ask(p, askBtn!));
-    return h("div", { class: "int-page", role: "button", title: t("Apri in Notion"),
-      onclick: onClick ? onClick : () => { if (p.url) void Bridge.openUrl(p.url); } },
+    return h("div", { class: "int-page", role: "button", title: t("Apri qui"),
+      onclick: () => openPage(p) },
     p.emoji
       ? h("span", { class: "int-emoji", text: String(p.emoji) })
       : h("i", { class: "int-emoji" }, svg(p.database ? ICONS.stack : ICONS.doc, 11)),
     h("span", { class: "int-name", text: String(p.title || t("Senza titolo")) }),
     p.lastEditedAt ? h("span", { class: "int-ago", text: timeAgo(p.lastEditedAt) }) : null,
-    askBtn ? h("span", { class: "notion-tools" }, askBtn) : null);
+    h("span", { class: "notion-tools" }, askBtn, inNotion(p.url)));
+  };
+
+  // The pages chosen in the settings, as tiles: a click opens them here.
+  const tile = (p: NotionRefLite) => {
+    const askBtn: HTMLElement | null = p.database ? null
+      : iconButton(ICONS.bubble, t("Chiedi alla chat su questa pagina"), "#A78BFA", () => void ask(p, askBtn!));
+    return h("div", { class: `notion-tile${p.database ? " db" : ""}`, role: "button", title: p.title, onclick: () => openPage(p) },
+      h("span", { class: "notion-tile-icon" }, p.emoji ? h("span", { text: String(p.emoji) }) : svg(p.database ? ICONS.stack : ICONS.doc, 15)),
+      h("span", { class: "notion-tile-t", text: p.title || t("Senza titolo") }),
+      h("span", { class: "notion-tile-k", text: p.database ? t("Database") : t("Pagina") }),
+      h("span", { class: "notion-tools notion-tile-tools" }, askBtn, inNotion(p.url)));
   };
 
   const taskRow = (x: NotionTask) => {
@@ -593,15 +607,10 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
   const draw = () => {
     clear(body);
     say("");
-    // If we are viewing a page for editing, show the page view
-    if (notion.pageView) {
-      renderPageView();
-      return;
-    }
     const searching = notion.query.trim().length >= 2;
     if (searching) {
       const list = notion.found ?? [];
-      for (const p of list) body.append(pageRow(p, () => openPageForEditing(p)));
+      for (const p of list) body.append(pageRow(p));
       say(notion.note
         || (notion.busy ? t("Cerco…") : "")
         || (list.length === 0 ? t("Nessuna pagina trovata: l'integrazione vede solo le pagine condivise con lei.") : ""));
@@ -614,13 +623,11 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
     const shown = current().filter((x) => !notion.ticking.has(x.id));
     if (data.tasksSet) {
       const more = shown.length > 5 ? h("button", { class: "link-btn", text: t("tutte ({n})", { n: shown.length }),
-        onclick: () => { if (cfg.notionTasks?.url) void Bridge.openUrl(cfg.notionTasks.url); } }) : null;
+        onclick: () => { if (cfg.notionTasks) openPage({ ...cfg.notionTasks, database: true }); } }) : null;
       const addBtn = h("button", { class: "link-btn", text: `+ ${t("Attività")}`, title: t("Nuova attività in «{p}»", { p: cfg.notionTasks?.title ?? "Notion" }),
         onclick: (e: Event) => { e.stopPropagation(); notion.taskOpen = !notion.taskOpen; notion.taskState = ""; notion.redraw?.(); } });
       body.append(section(views.length === 1 ? views[0].name : t("Da fare"), h("span", { class: "notion-section-tools" }, more, addBtn)));
       if (notion.taskOpen) body.append(taskBox());
-      // Show the list of tasks (up to 5)
-      for (const x of shown.slice(0, 5)) body.append(taskRow(x));
       if (views.length > 1) {
         const active = activeView();
         body.append(h("div", { class: "notion-views" }, ...views.map((v) => h("button", {
@@ -635,9 +642,15 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
         }))));
       }
       if (typeof data.tasksError === "string" && data.tasksError) body.append(h("div", { class: "notion-note bad", text: data.tasksError }));
-      else if (shown.length === 0) body.append(h("div", { class: "notion-note", text: t("Nessuna attività da mostrare") }));
-    } else if (!data.tasksSet) {
-      body.append(h("div", { class: "notion-note", text: t("Imposta un database attività nelle impostazioni") }));
+      else if (shown.length === 0) body.append(h("div", { class: "notion-note", text: t("Niente da fare ✓") }));
+      for (const x of shown.slice(0, 5)) body.append(taskRow(x));
+    }
+    if (cfg.notionPins.length) {
+      body.append(section(t("Pagine")), h("div", { class: "notion-tiles" }, ...cfg.notionPins.slice(0, 8).map(tile)));
+    }
+    if (!data.tasksSet && !cfg.notionPins.length && !cfg.notionInbox) {
+      body.append(h("div", { class: "notion-note", text: t("Scegli nelle Impostazioni il database delle tue attività, le pagine da tenere qui e dove salvare le note.") }),
+        h("button", { class: "btn secondary notion-setup", onclick: () => hooks.openSettings() }, h("span", { text: t("Impostazioni di Notion") })));
     }
   };
   notion.redraw = () => {
@@ -645,113 +658,6 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
     draw();
     kind.textContent = sub();
   };
-
-  // Helper functions for page view
-  async function openPageForEditing(p: NotionPage): Promise<void> {
-    notion.pageView = { id: p.id, title: p.title, blocks: [], editing: null };
-    notion.redraw?.();
-    try {
-      const blocks = await Bridge.notionPageBlocks(p.id);
-      notion.pageView!.blocks = blocks;
-      notion.redraw?.();
-    } catch (e) {
-      notion.pageView = null;
-      notion.redraw?.();
-      say(String(e).replace(/^Error:\s*/, ""));
-    }
-  }
-
-  function renderPageView() {
-    if (!notion.pageView) return;
-    const { id, title, blocks, editing } = notion.pageView;
-    const header = h("div", { class: "int-card" },
-      h("button", { class: "int-back", onclick: () => { notion.pageView = null; notion.redraw?.(); } }, svg(ICONS.chevronLeft, 13, { stroke: 2.4 })),
-      h("b", { text: title }),
-      h("span", { class: "int-badge", style: `color:#6B7079;background:#6B707924`, text: t("Modifica pagina") })
-    );
-    const bodyEl = h("div", { class: "int-detail-body" });
-    // Render blocks
-    const blocksContainer = h("div", { class: "notion-page-blocks" });
-    blocks.forEach((block, index) => {
-      const blockEl = renderBlock(block, index, editing);
-      blocksContainer.append(blockEl);
-    });
-    // Add block button
-    const addBlockBtn = h("button", {
-      class: "btn secondary",
-      onclick: async () => {
-        try {
-          await Bridge.notionCreateBlocks(id, [{ object: "block", type: "paragraph", paragraph: { rich_text: [] } }]);
-          // Refetch blocks to update the view
-          const newBlocks = await Bridge.notionPageBlocks(id);
-          notion.pageView!.blocks = newBlocks;
-          notion.redraw?.();
-        } catch (e) {
-          say(String(e).replace(/^Error:\s*/, ""));
-        }
-      },
-      text: t("+ Paragrafo")
-    });
-    bodyEl.append(blocksContainer, addBlockBtn);
-    return h("div", {}, header, bodyEl);
-  }
-
-  function renderBlock(block: any, index: number, editing: string | null) {
-    const type = block.type;
-    const richText = block[type]?.rich_text ?? [];
-    const plain = richText.map((rich: { plain_text: string | undefined }) => rich.plain_text ?? "").join("");
-    // For now, we make the block's text editable in a textarea.
-    // In a real implementation, we would use contenteditable and handle each block type.
-    const textarea = h("textarea", {
-      class: `notion-block-text${editing === block.id ? " editing" : ""}`,
-      rows: Math.max(1, plain.split("\n").length),
-      spellcheck: "true",
-      value: plain,
-      onkeydown: (e: Event) => {
-        const k = e as KeyboardEvent;
-        if (k.key === "Enter" && (k.ctrlKey || k.metaKey)) {
-          k.preventDefault();
-          saveBlockEdit(block.id, (e.target as HTMLTextAreaElement).value);
-        }
-        if (k.key === "Escape") {
-          notion.pageView!.editing = null;
-          notion.redraw?.();
-        }
-      }
-    });
-    const deleteBtn = h("button", {
-      class: "link-btn",
-      style: "color:#F4505E",
-      text: t("Elimina"),
-      onclick: async () => {
-        try {
-          await Bridge.notionDeleteBlock(block.id);
-          // Remove the block from our list and redraw
-          notion.pageView!.blocks = notion.pageView!.blocks.filter((_, i) => i !== index);
-          notion.redraw?.();
-        } catch (e) {
-          say(String(e).replace(/^Error:\s*/, ""));
-        }
-      }
-    });
-    return h("div", { class: "notion-block" }, textarea, deleteBtn);
-  }
-
-  async function saveBlockEdit(blockId: string, text: string) {
-    notion.pageView!.editing = null;
-    notion.redraw?.();
-    try {
-      await Bridge.notionUpdateBlockText(blockId, text);
-      // Refetch the blocks to update the view
-      const newBlocks = await Bridge.notionPageBlocks(notion.pageView!.id);
-      notion.pageView!.blocks = newBlocks;
-      notion.redraw?.();
-    } catch (e) {
-      notion.pageView!.editing = blockId;
-      notion.redraw?.();
-      say(String(e).replace(/^Error:\s*/, ""));
-    }
-  }
 
   const sub = () => (notion.query.trim().length >= 2 ? t("Risultati")
     : data.tasksSet ? (dueCount() ? t("{n} da fare oggi", { n: dueCount() }) : t("In ordine")) : t("Le tue pagine"));

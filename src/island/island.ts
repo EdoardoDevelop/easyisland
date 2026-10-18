@@ -450,7 +450,9 @@ export class Island {
   private wireFsm() {
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
     // A pending request, or results of the search bar being looked through.
-    this.fsm.waiting = () => State.pendingApproval != null || this.search.open || State.windowPick != null || this.windowPress != null;
+    this.fsm.waiting = () => State.pendingApproval != null || this.search.open || State.windowPick != null || this.windowPress != null
+      // Typing in a Notion page of the card (notionpage.ts): it does not close under the caret.
+      || !!(document.activeElement as HTMLElement | null)?.closest?.(".np-card [contenteditable='true'], .np-card input");
     this.fsm.held = () => this.strip.item?.urgent === true;
     this.fsm.onTransition = (from, to) => {
       switch (to) {

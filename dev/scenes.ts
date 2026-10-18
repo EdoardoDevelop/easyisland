@@ -466,7 +466,94 @@ export async function runScene(island: Island, scene: string) {
         notionPostpone: async () => { await wait(400); },
         notionAddNote: async () => { await wait(500); return "Inbox"; },
       });
-      State.settings.integrationConfig.notionPins = pages.filter((p) => ["a1", "a3", "a4"].includes(p.id))
+      // The mini Notion (notionpage.ts): a page and a database, edits answered at once.
+      let n = 0;
+      const sp = (t: string, a: Record<string, unknown> = {}) => ({ t, ...a });
+      const blk = (type: string, spans: unknown[] = [], more: Record<string, unknown> = {}) => ({ id: `b${++n}`, type, spans, hasChildren: false, ...more });
+      const page = {
+        kind: "page", id: "a1", title: "Piano di lancio Q4", icon: { emoji: "🚀" }, cover: "", url: "https://www.notion.so/a1", database: null, props: [],
+        blocks: [
+          blk("callout", [sp("Obiettivo: "), sp("500 utenti", { b: true }), sp(" entro dicembre.")], { emoji: "🎯", color: "blue_background" }),
+          blk("heading_1", [sp("Obiettivi")]),
+          blk("bulleted_list_item", [sp("Homepage nuova con le "), sp("schermate", { i: true })], { hasChildren: true, children: [blk("bulleted_list_item", [sp("versione inglese")])] }),
+          blk("bulleted_list_item", [sp("Post su LinkedIn e "), sp("newsletter", { u: true })]),
+          blk("heading_2", [sp("Da fare")]),
+          blk("to_do", [sp("Preparare il video demo")], { checked: true }),
+          blk("to_do", [sp("Scrivere le note di rilascio")], { checked: false }),
+          blk("to_do", [sp("Contattare 10 clienti per la beta")], { checked: false }),
+          blk("toggle", [sp("Dettagli tecnici")], { hasChildren: true, children: [blk("paragraph", [sp("Build firmata, aggiornamento da GitHub.")]), blk("code", [sp("npm run pack")], { lang: "shell" })] }),
+          blk("quote", [sp("Semplice prima di tutto.")]),
+          blk("divider"),
+          blk("numbered_list_item", [sp("Beta chiusa")]),
+          blk("numbered_list_item", [sp("Beta aperta")]),
+          blk("numbered_list_item", [sp("Lancio")]),
+          blk("child_page", [], { title: "Comunicato stampa" }),
+          blk("bookmark", [], { url: "https://github.com/EdoardoDevelop", caption: "Repository" }),
+          blk("paragraph", [sp("Ultimo aggiornamento con "), sp("Marco", { mention: true })]),
+        ],
+      };
+      const status: [string, string][] = [["Da fare", "gray"], ["In corso", "blue"], ["Fatto", "green"]];
+      const prioOpts: [string, string][] = [["Alta", "red"], ["Media", "yellow"], ["Bassa", "green"]];
+      const cells = (title: string, st: string, pr: string, due: string, ok: boolean) => ({
+        Nome: { kind: "title", text: title },
+        Stato: { kind: "status", text: st, color: status.find((s) => s[0] === st)?.[1] },
+        Priorità: { kind: "select", text: pr, color: prioOpts.find((s) => s[0] === pr)?.[1] },
+        Scadenza: { kind: "date", text: due, date: due },
+        Cliente: { kind: "rich_text", text: ["Rossi Srl", "Bianchi", "Verdi & C."][title.length % 3] },
+        Fatturato: { kind: "checkbox", text: "", checked: ok },
+      });
+      const db = {
+        kind: "database", id: "a3", title: "Ticket aperti", icon: { emoji: "🎫" }, cover: "", url: "https://www.notion.so/a3",
+        columns: [
+          { name: "Nome", kind: "title", options: [] }, { name: "Stato", kind: "status", options: status },
+          { name: "Priorità", kind: "select", options: prioOpts }, { name: "Scadenza", kind: "date", options: [] },
+          { name: "Cliente", kind: "rich_text", options: [] }, { name: "Fatturato", kind: "checkbox", options: [] },
+        ],
+        rows: [
+          ["Stampante ufficio non stampa", "Da fare", "Alta", day(0), false],
+          ["VPN lenta da casa", "In corso", "Media", day(1), false],
+          ["Nuovo PC per Giulia", "In corso", "Bassa", day(4), false],
+          ["Rinnovo licenze Office", "Da fare", "Media", day(9), false],
+          ["Backup NAS fallito", "Fatto", "Alta", day(-1), true],
+        ].map(([a, b, c, d, e], i) => ({ id: `r${i}`, url: `https://www.notion.so/r${i}`, icon: null, cover: "", cells: cells(a as string, b as string, c as string, d as string, e as boolean) })),
+      };
+      const rowOf = (id: string) => db.rows.find((r) => r.id === id)!;
+      Object.assign(Bridge, {
+        notionOpenPage: async (id: string) => {
+          await wait(500);
+          const r = db.rows.find((x) => x.id === id);
+          if (r) {
+            return { kind: "page", id, title: r.cells.Nome.text, icon: null, cover: "", url: r.url, database: "a3",
+              props: Object.entries(r.cells).filter(([k]) => k !== "Nome").map(([name, cell]) => ({ name, cell })),
+              blocks: [blk("paragraph", [sp("Segnalato al telefono, da richiamare.")]), blk("to_do", [sp("Controllare i driver")])] };
+          }
+          return id === "a1" ? page : { ...page, id, title: pages.find((p) => p.id === id)?.title ?? "Pagina", icon: { emoji: "📄" }, blocks: page.blocks.slice(1, 6) };
+        },
+        notionOpenDatabase: async () => { await wait(500); return db; },
+        notionBlockText: async () => { await wait(250); },
+        notionBlockCheck: async () => { await wait(250); },
+        notionBlockAdd: async (_p: string, _a: string | null, kind: string, spans: unknown[]) => { await wait(250); return blk(kind, spans, kind === "to_do" ? { checked: false } : {}); },
+        notionBlockRetype: async (_p: string, _id: string, kind: string, spans: unknown[]) => { await wait(250); return blk(kind, spans); },
+        notionBlockDelete: async () => { await wait(250); },
+        notionPageTitle: async () => { await wait(250); },
+        notionRowSet: async (id: string, name: string, kind: string, value: unknown) => {
+          await wait(250);
+          const r = rowOf(id) as { cells: Record<string, Record<string, unknown>> };
+          const c = r.cells[name];
+          if (kind === "checkbox") c.checked = value;
+          else { c.text = String(value); if (kind === "date") c.date = String(value); c.color = [...status, ...prioOpts].find((s) => s[0] === value)?.[1]; }
+          return r;
+        },
+        notionRowAdd: async (_db: string, title: string, name?: string, _k?: string, value?: string) => {
+          await wait(300);
+          const r = { id: `r${++n}`, url: "", icon: null, cover: "", cells: cells(title, name === "Stato" ? value ?? "Da fare" : "Da fare", "Bassa", "", false) };
+          db.rows.push(r);
+          return r;
+        },
+        notionPageDelete: async () => { await wait(250); },
+        notionImage: async () => { throw new Error("no"); },
+      });
+      State.settings.integrationConfig.notionPins = pages.filter((p) => ["a1", "a3", "a4", "a2"].includes(p.id))
         .map((p) => ({ id: p.id, title: p.title, emoji: p.emoji, url: p.url, database: !!p.database }));
       State.settings.integrationConfig.notionTasks = { id: "db", title: "Attività", emoji: "✅", url: "https://www.notion.so/db", database: true };
       State.settings.integrationConfig.notionInbox = new URLSearchParams(location.search).has("noinbox") ? null

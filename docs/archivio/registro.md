@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 17 ottobre 2026 — «Automatica» con opencode e i connettori
+- Segnalato da Edoardo: in «Automatica» opencode chiedeva sempre per aggiungere in Notion. Non era un guasto: gli strumenti MCP restavano tutti sulla card. Su sua scelta ora passano da soli, tranne quelli che cancellano o inviano (`mcp_delicate` in `opencode.rs`, `docs/chat.md`).
+- **Prove:** turno vero con opencode 2.0.25 (gli eventi hanno `action` = `<server>_<strumento>`), `cargo test --lib opencode::`.
+
 ### 17 ottobre 2026 — Loghi Teams e RDM, alone in tutte le schede, ricerca che si chiude
 - Su richiesta di Edoardo: loghi di Teams e Remote Desktop Manager da `brand/` (`scripts/gen-brands.mjs`, RDM senza la piastrella chiara). Alone colorato in basso come nella chat anche in Panoramica e integrazioni (colore della scheda), Azioni (ambra) e File e schermo (verde). Un clic su una scheda mentre si scrive nella barra di ricerca la chiude e la svuota.
 - **Prove:** `npm run build`, scena `media&long&summary`, `npm run smoke`.
