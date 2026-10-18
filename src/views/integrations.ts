@@ -13,6 +13,7 @@ import { RDM, rdmActive, rdmLookFor, rdmCard } from "./rdm";
 import { TEAMS, teamsCard } from "./teams";
 import { RECORDER, recorderCard } from "./recorder";
 import { weatherCard } from "./weather";
+import { notionPageActive, notionPageCard, openNotionPage, type NotionRefLite } from "./notionpage";
 import { netConfigCard, pingRow, resetNetConfig } from "./netconfig";
 import { locale, t } from "../core/i18n";
 import { Sound } from "../core/sound";
@@ -289,8 +290,9 @@ function stripeCard(): HTMLElement {
  * Notion (notion.rs): the user's tasks from the database chosen in the
  * settings (soonest first, ticked off with a click), "Nuova nota" into the
  * page or database chosen there, the pages the user keeps in the card, and a
- * search. A page opens in the Notion app when it is installed (lib.rs
- * open_url_now); the bubble sends its text to the chat. What is being typed
+ * search. A page opens inside the card (notionpage.ts: drawn and edited as
+ * in Notion), ↗ in the Notion app (lib.rs open_url_now); the bubble sends its
+ * text to the chat. What is being typed
  * lives outside the card, which is rebuilt at every update.
  */
 const notion = {
@@ -391,6 +393,7 @@ export function dueLabel(due: string | null, now = new Date()): { text: string; 
 }
 
 function notionCard(hooks: IntegrationCardHooks): HTMLElement {
+  if (hooks.detailOpen && notionPageActive()) return notionPageCard();
   const cfg = State.settings.integrationConfig;
   const data = get("integration_notion");
   // The views saved in the settings (notion.rs polls each one): chips to switch.
@@ -425,7 +428,7 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
         notionSearchSoon();
       } else if (k.key === "Enter") {
         const first = (notion.found ?? [])[0];
-        if (first) void Bridge.openUrl(first.url);
+        if (first) openPage(first);
       }
     },
   }) as HTMLInputElement);
@@ -442,17 +445,35 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
     }
   };
 
+  // A page opens here, in the card; ↗ in Notion.
+  const openPage = (p: NotionRefLite) => {
+    openNotionPage({ id: p.id, title: p.title, emoji: p.emoji, url: p.url, database: p.database }, () => hooks.closeDetail());
+    hooks.openDetail();
+  };
+  const inNotion = (url: string) => iconButton(ICONS.arrowUpRight, t("Apri in Notion"), "#E8E8E8", () => { if (url) void Bridge.openUrl(url); });
+
   const pageRow = (p: { id: string; title: string; emoji?: string | null; url: string; database?: boolean; lastEditedAt?: string }) => {
     const askBtn: HTMLElement | null = p.database ? null
       : iconButton(ICONS.bubble, t("Chiedi alla chat su questa pagina"), "#A78BFA", () => void ask(p, askBtn!));
-    return h("div", { class: "int-page", role: "button", title: t("Apri in Notion"),
-      onclick: () => { if (p.url) void Bridge.openUrl(p.url); } },
+    return h("div", { class: "int-page", role: "button", title: t("Apri qui"),
+      onclick: () => openPage(p) },
     p.emoji
       ? h("span", { class: "int-emoji", text: String(p.emoji) })
       : h("i", { class: "int-emoji" }, svg(p.database ? ICONS.stack : ICONS.doc, 11)),
     h("span", { class: "int-name", text: String(p.title || t("Senza titolo")) }),
     p.lastEditedAt ? h("span", { class: "int-ago", text: timeAgo(p.lastEditedAt) }) : null,
-    askBtn ? h("span", { class: "notion-tools" }, askBtn) : null);
+    h("span", { class: "notion-tools" }, askBtn, inNotion(p.url)));
+  };
+
+  // The pages chosen in the settings, as tiles: a click opens them here.
+  const tile = (p: NotionRefLite) => {
+    const askBtn: HTMLElement | null = p.database ? null
+      : iconButton(ICONS.bubble, t("Chiedi alla chat su questa pagina"), "#A78BFA", () => void ask(p, askBtn!));
+    return h("div", { class: `notion-tile${p.database ? " db" : ""}`, role: "button", title: p.title, onclick: () => openPage(p) },
+      h("span", { class: "notion-tile-icon" }, p.emoji ? h("span", { text: String(p.emoji) }) : svg(p.database ? ICONS.stack : ICONS.doc, 15)),
+      h("span", { class: "notion-tile-t", text: p.title || t("Senza titolo") }),
+      h("span", { class: "notion-tile-k", text: p.database ? t("Database") : t("Pagina") }),
+      h("span", { class: "notion-tools notion-tile-tools" }, askBtn, inNotion(p.url)));
   };
 
   const taskRow = (x: NotionTask) => {
@@ -602,7 +623,7 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
     const shown = current().filter((x) => !notion.ticking.has(x.id));
     if (data.tasksSet) {
       const more = shown.length > 5 ? h("button", { class: "link-btn", text: t("tutte ({n})", { n: shown.length }),
-        onclick: () => { if (cfg.notionTasks?.url) void Bridge.openUrl(cfg.notionTasks.url); } }) : null;
+        onclick: () => { if (cfg.notionTasks) openPage({ ...cfg.notionTasks, database: true }); } }) : null;
       const addBtn = h("button", { class: "link-btn", text: `+ ${t("Attività")}`, title: t("Nuova attività in «{p}»", { p: cfg.notionTasks?.title ?? "Notion" }),
         onclick: (e: Event) => { e.stopPropagation(); notion.taskOpen = !notion.taskOpen; notion.taskState = ""; notion.redraw?.(); } });
       body.append(section(views.length === 1 ? views[0].name : t("Da fare"), h("span", { class: "notion-section-tools" }, more, addBtn)));
@@ -625,8 +646,7 @@ function notionCard(hooks: IntegrationCardHooks): HTMLElement {
       for (const x of shown.slice(0, 5)) body.append(taskRow(x));
     }
     if (cfg.notionPins.length) {
-      body.append(section(t("Pagine")));
-      for (const p of cfg.notionPins.slice(0, 6)) body.append(pageRow(p));
+      body.append(section(t("Pagine")), h("div", { class: "notion-tiles" }, ...cfg.notionPins.slice(0, 8).map(tile)));
     }
     if (!data.tasksSet && !cfg.notionPins.length && !cfg.notionInbox) {
       body.append(h("div", { class: "notion-note", text: t("Scegli nelle Impostazioni il database delle tue attività, le pagine da tenere qui e dove salvare le note.") }),

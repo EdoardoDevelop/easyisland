@@ -58,6 +58,14 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 
 ## What's new
 
+**0.8.9** — **Mini Notion** in the Notion tab: your chosen pages, shown as tiles, open
+in the island looking as in Notion (headings, lists, checkboxes, toggles, callouts, code,
+images) and are edited there, with "/" for block types; databases as Table, Board (drag
+the cards), List and Gallery, linked views included. **Telegram voice messages**
+transcribed with Gemini, OpenAI or OpenRouter, with their own audio model.
+**Telegram "Automatica"** (asks only before deleting), **settings the agents can change**,
+**"Permissions and calls"** that can leave the island closed, clearer chat and agent settings.
+
 **0.8.8** — **Telegram**: EasyIsland's chat in your own bot (made with @BotFather),
 linked once with a code and to your chat only. Pick engine and model from there
 (`/motore`, `/modello`); in terminal mode Allow / Deny arrive as buttons; photos and
@@ -94,7 +102,8 @@ the browser's. **Overview** with large, faded logos in the corner of each tile.
 
 | Version | Date | What's new |
 |---|---|---|
-| **0.8.8** | 17 Oct 2026 | Telegram (chat, engine and model from there, Allow / Deny, files both ways), work folder in "Files and screen", the chat and Telegram, EasyIsland's tools for opencode too |
+| **0.8.9** | 18 Oct 2026 | Mini Notion in the tab (pages and databases viewed and edited in the island), Telegram voice messages, Telegram "Automatica", settings from the agents, "Permissions and calls" |
+| 0.8.8 | 17 Oct 2026 | Telegram (chat, engine and model from there, Allow / Deny, files both ways), work folder in "Files and screen", the chat and Telegram, EasyIsland's tools for opencode too |
 | 0.8.7 | 17 Oct 2026 | Record (conversation, screen or one window), Search with Google, Teams and RDM logos, glow in every tab, search closing on tab click, ⚡ Automatic with connector tools, English documentation |
 | 0.8.6 | 16 Oct 2026 | Microsoft Teams (meetings, controls, Join), Microsoft account with the APIs for Outlook and Teams (to be tested), customisable app bar with Keys actions |
 | 0.8.5 | 16 Oct 2026 | App bar next to the closed character, right-click menu in the island, Overview with large logos |

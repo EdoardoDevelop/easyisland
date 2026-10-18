@@ -60,6 +60,7 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
     - Con Claude Code, «crea prova.txt e mostrami git status» va senza card; «cancella la cartella build» si ferma o chiede.
     - Con opencode, `npm run build` va da solo; `Remove-Item` e `git push` mostrano la card.
     - «Nuova chat» lo spegne.
+- [ ] **Mini Notion (18 ottobre 2026):** con una pagina vera scelta nelle Impostazioni: il riquadro la apre nell'isola con titoli, elenchi, toggle, callout e immagini; scrivere, Invio, «/» → Titolo 2, `- ` all'inizio, Ctrl+B; casella; «Elimina» → «Sicuro?» e il blocco è nel cestino di Notion; ricaricando (↻) tutto è come in Notion. Un database: Bacheca per stato, trascinare una scheda, «+ Nuovo» in una colonna, Tabella con stato e data cambiati, una riga aperta come pagina. Una pagina con un'immagine caricata e con una menzione (sola lettura).
 - [ ] **Viste delle attività di Notion (15 ottobre 2026):** in Impostazioni → Notion «+ Oggi», «+ Settimana» e una vista con Contesto «Ufficio» e Priorità «Alta». Nella card i pulsanti cambiano l'elenco subito; la vista scelta resta dopo un riavvio; il pallino ha il colore della priorità; rinominando la vista scelta resta scelta; un filtro su Progetto (relazione) funziona; togliendo tutte le viste tornano tutte le non fatte.
 - [ ] **Notion: avvisi e uso semplice (15 ottobre 2026):**
   - Un'attività con orario fra 15 minuti: l'avviso arriva 10 minuti prima (o come scelto), una volta sola, e il clic apre Notion.
@@ -94,4 +95,8 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
   8. «Mandami lo screenshot / il file X»: arriva in Telegram (foto, documento, video); `/vassoio` e un pulsante.
   9. Con un profilo automatico attivo che non ha Telegram acceso, il bot risponde lo stesso.
   10. `/cartella`: aprire una sottocartella, «Su», farsi mandare un file; un file ricevuto spostato nella cartella di lavoro.
+  12. Vocali (18 ottobre 2026): con «Vocali» su Gemini o OpenRouter e la chiave messa, un vocale in italiano torna come «🎙 …» e la chat risponde; un vocale muto; un file mp3; senza chiave il messaggio lo dice.
+  11. `/automatica` in modalità terminale: un comando normale e una modifica vanno senza messaggi; `rm`/`Remove-Item` di un file di prova chiede Consenti / Nega; `/stato` lo dice; `/automatica off` torna a chiedere tutto.
+- [ ] **Impostazioni dagli agenti** (17 ottobre 2026): nella chat «usa opencode come motore predefinito», «metti il Geco», «spegni il Meteo»: card Consenti / Nega, poi le Impostazioni aperte cambiano subito; «accendi la modalità terminale» viene rifiutato.
+- [ ] **Permessi e chiamate spento** (17 ottobre 2026): un permesso di Claude Code e una chiamata 3CX con l'isola chiusa non la aprono; striscia o pallino, scorciatoia «Vai alla richiesta in attesa».
 - [ ] **Cartella di lavoro** (17 ottobre 2026): «Scegli…» in «File e schermo» e nelle Impostazioni; doppio clic su cartelle e file; Rinomina, Sposta… e «Sposta qui», Nel Vassoio, Copia percorso, Cestino (il file è nel Cestino di Windows); trascinare un file e una cartella in Esplora file; dal Vassoio l'icona verde. Chat con Claude e con opencode: «cosa c'è nella cartella di lavoro?», «leggi il file X», «sposta nella cartella di lavoro il file del Vassoio».

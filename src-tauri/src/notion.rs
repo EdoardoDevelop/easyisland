@@ -24,7 +24,7 @@ use crate::i18n::t;
 use crate::probes::reg;
 use crate::secrets;
 
-const API: &str = "https://api.notion.com/v1";
+pub(crate) const API: &str = "https://api.notion.com/v1";
 const VERSION: &str = "2022-06-28";
 /// A page's text for the chat: enough for a summary, never a whole wiki.
 const MAX_CHARS: usize = 30_000;
@@ -55,7 +55,7 @@ pub fn link_for(url: &str) -> Option<String> {
     app_link(url).filter(|_| app_installed())
 }
 
-fn client() -> reqwest::Client {
+pub(crate) fn client() -> reqwest::Client {
     reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(12))
         .build()
@@ -66,7 +66,7 @@ fn token() -> Result<String, String> {
     secrets::get("notion-api-key").ok_or_else(|| t("Notion non è configurato").to_string())
 }
 
-async fn call(req: reqwest::RequestBuilder) -> Result<Value, String> {
+pub(crate) async fn call(req: reqwest::RequestBuilder) -> Result<Value, String> {
     let r = req
         .header("Authorization", format!("Bearer {}", token()?))
         .header("Notion-Version", VERSION)
@@ -524,13 +524,13 @@ pub async fn set_done(db: &str, page: &str) -> Result<(), String> {
 }
 
 /// `{ key: value }` with a key known only at run time.
-fn one(key: &str, value: Value) -> Value {
+pub(crate) fn one(key: &str, value: Value) -> Value {
     let mut m = serde_json::Map::new();
     m.insert(key.to_string(), value);
     Value::Object(m)
 }
 
-fn check_id(id: &str) -> Result<(), String> {
+pub(crate) fn check_id(id: &str) -> Result<(), String> {
     if id.is_empty() || !id.chars().all(|c| c.is_ascii_hexdigit() || c == '-') {
         return Err(t("Pagina di Notion non valida").into());
     }
@@ -540,7 +540,7 @@ fn check_id(id: &str) -> Result<(), String> {
 // ── Notes ─────────────────────────────────────────────────────────────────────
 
 /// Text as rich_text pieces of at most 2000 characters (Notion's limit).
-fn rich(text: &str) -> Vec<Value> {
+pub(crate) fn rich(text: &str) -> Vec<Value> {
     let chars: Vec<char> = text.chars().collect();
     chars
         .chunks(2000)

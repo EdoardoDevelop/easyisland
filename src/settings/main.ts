@@ -98,7 +98,7 @@ function agentsSection(claudeStatus: HookStatus): HTMLElement {
   const paintRelay = (s: HookStatus) => {
     clear(relay);
     clear(relayWarn);
-    relay.append(h("label", { text: t("Relay") }), h("span", { class: "path", text: s.hookPath || "…" }), statusDot(s.hookReady));
+    relay.append(h("label", { text: t("Programma ponte (relay)") }), h("span", { class: "path", text: s.hookPath || "…" }), statusDot(s.hookReady));
     if (!s.hookReady) {
       relayWarn.append(h("div", {
         class: "notice warn",
@@ -110,7 +110,7 @@ function agentsSection(claudeStatus: HookStatus): HTMLElement {
   const rows = h("div", { class: "agents" });
   for (const tool of AGENT_ORDER) rows.append(agentRow(tool, tool === "claude" ? claudeStatus : null));
   return h("section", {},
-    h("h2", {}, h("span", { text: t("Collegati all'isola") })),
+    h("h2", {}, h("span", { text: t("Collegamento degli agenti all'isola") })),
     h("div", { class: "hint", text: t("Ogni agente ha la sua sessione nella voce Agenti dell'isola. «Installa» mostra prima cosa cambia nel suo file, ne fa una copia e scrive solo dopo la tua conferma; i tuoi hook restano.") }),
     relay,
     relayWarn,
@@ -231,7 +231,7 @@ function recapSection(): HTMLElement {
     done.textContent = t("Cronologia cancellata.");
   } });
   return h("section", {},
-    h("h2", {}, h("span", { text: t("Riepilogo settimanale") })),
+    h("h2", {}, h("span", { text: t("Riepilogo settimanale degli agenti") })),
     h("div", { class: "hint", text: t("Il lunedì dalle 8 l'isola mostra la settimana prima: tempo, sessioni, file e righe cambiate, comandi, permessi. Si contano solo i numeri e il nome della cartella del progetto, mai comandi, file o richieste; restano su questo PC (12 settimane).") }),
     h("div", { class: "row" },
       h("label", { text: t("Riepilogo") }),
@@ -254,7 +254,7 @@ function dailySection(): HTMLElement {
     void save();
   });
   return h("section", {},
-    h("h2", {}, h("span", { text: t("Riepilogo del giorno") })),
+    h("h2", {}, h("span", { text: t("Riepilogo giornaliero degli agenti") })),
     h("div", { class: "hint", text: t("Al mattino (dalle 8) il tempo degli agenti di ieri, a fine giornata quello di oggi; in tutti e due i repository con modifiche non salvate e le pull request in attesa (con gh o il token di GitHub). Si apre una volta, solo se c'è qualcosa da dire. I repository sono quelli dove hanno lavorato gli agenti: se ne tiene solo il percorso, su questo PC.") }),
     h("div", { class: "row" },
       h("label", { text: t("Riepilogo") }),
@@ -339,7 +339,7 @@ function agentsTabSection(): HTMLElement {
   place.addEventListener("change", () => { apply(); void save(); });
   emoji.addEventListener("change", () => { apply(); void save(); });
   return h("section", {},
-    h("h2", {}, h("span", { text: t("Nel menu dell'isola") })),
+    h("h2", {}, h("span", { text: t("Voce «Agenti» nel menu dell'isola") })),
     h("div", { class: "row" },
       h("label", { text: t("Icona") }), place, emoji,
       h("span", { class: "hint note", text: t("la voce Agenti, con le sessioni degli agenti") })));
@@ -426,7 +426,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
       }),
     ),
     h("div", { class: "row" },
-      h("label", { text: t("Può usare il PC") }),
+      h("label", { text: t("Azioni sul PC") }),
       toggle(settings.agentTools !== false, (v) => { settings.agentTools = v; void save(); }),
       h("span", { class: "hint note", text: t("programmi, cartelle, link, le tue azioni rapide, lo stato di PC, rete, posta e ticket. Ogni azione che cambia qualcosa chiede Consenti / Nega nell'isola") })),
     connectorsBlock(),
@@ -549,14 +549,16 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
   return h(
     "section",
     {},
-    h("h2", {}, dot, h("span", { text: t("Motore della chat") })),
-    h("div", { class: "row" }, h("label", { text: t("Predefinito") }), engine,
+    h("h2", {}, dot, h("span", { text: t("Motore e modello") })),
+    h("div", { class: "row" }, h("label", { text: t("Motore predefinito") }), engine,
       h("span", { class: "hint note", text: t("nella chat, dal nome del motore in alto, ne scegli un altro solo per quella conversazione") })),
     engineHint,
     cliBlock,
     apiBlock,
     other.el,
+    h("h2", {}, h("span", { text: t("Comandi e file (modalità terminale)") })),
     terminalRow(),
+    h("h2", {}, h("span", { text: t("Conversazioni salvate") })),
     historyRow(),
   );
 }
@@ -887,7 +889,7 @@ const INTEGRATIONS: IntegrationDef[] = [
   { id: "integration_telegram", name: "Telegram", color: "#29A9EB", noMenu: true,
     fields: [{ key: "telegram-bot-token", label: t("Token del bot"), placeholder: "123456789:AA…", secret: true }],
     extra: () => telegramRows(),
-    hint: t("La chat di EasyIsland dentro Telegram, con il tuo bot. In Telegram scrivi a @BotFather, manda /newbot, scegli nome e username e copia qui il token che ti dà. Poi «Collega»: il bot risponde solo alla chat collegata. Conversazione separata da quella dell'isola, con il motore e il modello scelti in Telegram (/motore, /modello); con la modalità terminale, Consenti / Nega arrivano come pulsanti in Telegram. Foto e file mandati al bot finiscono nel Vassoio. Funziona solo con il PC acceso e EasyIsland aperto: i messaggi arrivati nel frattempo vengono scartati.") },
+    hint: t("La chat di EasyIsland dentro Telegram, con il tuo bot. In Telegram scrivi a @BotFather, manda /newbot, scegli nome e username e copia qui il token che ti dà. Poi «Collega»: il bot risponde solo alla chat collegata. Conversazione separata da quella dell'isola, con il motore e il modello scelti in Telegram (/motore, /modello); con la modalità terminale, Consenti / Nega arrivano come pulsanti in Telegram. Foto e file mandati al bot finiscono nel Vassoio; i vocali si trascrivono con il servizio scelto in «Vocali». Funziona solo con il PC acceso e EasyIsland aperto: i messaggi arrivati nel frattempo vengono scartati.") },
   { id: "integration_recorder", name: t("Registra"), color: "#F4505E", fields: [],
     options: [
       { label: t("Cartella"), type: "text", placeholder: t("vuoto = Video\\EasyIsland"), get: (c) => c.recordFolder ?? "", set: (c, v) => { c.recordFolder = v.trim(); } },
@@ -1224,7 +1226,66 @@ function telegramRows(): HTMLElement {
     try { await Bridge.telegramUnlink(); note.textContent = ""; } catch (e) { note.textContent = String(e).replace(/^Error:\s*/, ""); }
     await refresh();
   });
-  box.append(h("div", { class: "row" }, h("b", { text: t("Chat collegata") }), state), h("div", { class: "row" }, link, unlink), note);
+  // "Automatica" (telegram.rs `asks_anyway`): in Modalità terminale only deleting asks. Also /automatica in the bot.
+  const auto = h("div", { class: "row" },
+    h("label", { text: t("Automatica") }),
+    toggle(settings.integrationConfig.telegramAuto === true, (v) => { settings.integrationConfig.telegramAuto = v; void save(); }),
+    h("span", { class: "hint note", text: t("in modalità terminale comandi e modifiche vanno senza chiedere; le cancellazioni chiedono ancora (anche /automatica nel bot)") }));
+  // «Vocali» (transcribe.rs): who turns voice messages into text, with the key of that chat engine.
+  const voiceNote = h("span", { class: "hint note" });
+  const voiceKeys: Record<string, [string, string]> = {
+    gemini: ["gemini-api-key", "Google AI"], openai: ["openai-api-key", "OpenAI"], openrouter: ["openrouter-api-key", "OpenRouter"],
+  };
+  const voiceHint = async () => {
+    const v = settings.integrationConfig.telegramVoice ?? "";
+    if (!v) { voiceNote.textContent = t("i vocali non si leggono; Claude Code e opencode non sentono l'audio"); return; }
+    const [key, name] = voiceKeys[v];
+    voiceNote.textContent = (await Bridge.secretPresent(key))
+      ? t("il vocale diventa testo e va alla chat come un messaggio scritto")
+      : t("manca la chiave di {name}: mettila in Impostazioni → Chat", { name });
+  };
+  // The model: only those of the service that take audio, cheapest first (transcribe.rs `models`).
+  const voiceModel = h("select", {}) as HTMLSelectElement;
+  const voiceModelRow = h("div", { class: "row" }, h("label", { text: t("Modello per l'audio") }), voiceModel);
+  voiceModel.addEventListener("change", () => { settings.integrationConfig.telegramVoiceModel = voiceModel.value; void save(); });
+  const loadVoiceModels = async () => {
+    const v = settings.integrationConfig.telegramVoice ?? "";
+    voiceModelRow.style.display = v ? "" : "none";
+    if (!v) return;
+    const chosen = settings.integrationConfig.telegramVoiceModel ?? "";
+    clear(voiceModel);
+    voiceModel.append(h("option", { value: chosen, text: chosen || t("Predefinito del servizio") }));
+    voiceModel.value = chosen;
+    try {
+      const list = await Bridge.voiceModels(v);
+      if ((settings.integrationConfig.telegramVoice ?? "") !== v) return;
+      clear(voiceModel);
+      voiceModel.append(h("option", { value: "", text: t("Predefinito del servizio") }));
+      for (const m of list) {
+        const price = priceLabel(m);
+        voiceModel.append(h("option", { value: m.id, text: price ? `${m.id} — ${price}` : m.id }));
+      }
+      if (chosen && !list.some((m) => m.id === chosen)) voiceModel.append(h("option", { value: chosen, text: chosen }));
+      voiceModel.value = chosen;
+    } catch {
+      // No key yet, or the service is unreachable: the hint says what is missing.
+    }
+  };
+  const voice = h("div", { class: "row" },
+    h("label", { text: t("Vocali") }),
+    select<string>([["", t("Spenti")], ["gemini", "Google AI (Gemini)"], ["openai", "OpenAI"], ["openrouter", "OpenRouter"]],
+      settings.integrationConfig.telegramVoice ?? "", (v) => {
+        settings.integrationConfig.telegramVoice = v;
+        // Another service: its own models.
+        settings.integrationConfig.telegramVoiceModel = "";
+        void save();
+        void voiceHint();
+        void loadVoiceModels();
+      }),
+    voiceNote);
+  void voiceHint();
+  void loadVoiceModels();
+  box.append(h("div", { class: "row" }, h("b", { text: t("Chat collegata") }), state), h("div", { class: "row" }, link, unlink), auto, voice, voiceModelRow, note);
   void refresh();
   // The bot may take a few seconds to start after the token is saved or the switch turned on.
   const timer = window.setInterval(() => { if (!box.isConnected) window.clearInterval(timer); else void refresh(); }, 4000);
@@ -1997,6 +2058,11 @@ function placementSection(): HTMLElement {
       h("label", { text: t("Schermo intero") }),
       toggle(settings.quietFullscreen, (v) => { settings.quietFullscreen = v; commit(); }),
       h("span", { class: "hint note", text: t("nascondi durante video, giochi e presentazioni (i permessi compaiono comunque)") }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Permessi e chiamate") }),
+      toggle(settings.alertsOpen !== false, (v) => { settings.alertsOpen = v; commit(); }),
+      h("span", { class: "hint note", text: t("aprono l'isola da soli; spento, aspettano accanto al personaggio o con un pallino (li apre la scorciatoia «Vai alla richiesta in attesa»)") }),
     ),
   );
 }
@@ -3250,7 +3316,7 @@ function connectorsBlock(): HTMLElement {
   return h(
     "div",
     { class: "sub-block" },
-    h("h3", {}, h("span", { text: t("Connettori") }), profileChip()),
+    h("h3", {}, h("span", { text: t("Connettori (server MCP)") }), profileChip()),
     h("div", {
       class: "hint",
       text: t("I server MCP che hai configurato in Claude Code (calendario, documenti, ticketing…), anche quelli dei plugin di Claude Code. Con la conferma accesa ogni operazione chiede Consenti / Nega nell'isola: spegnila solo per connettori di sola lettura. Quelli di claude.ai qui non ci sono."),
@@ -3982,13 +4048,13 @@ function pages(b: NonNullable<typeof boot>): Page[] {
       sections: () => [notifySection(), momentsSection(), reactionsSection(), presenceSection(), scriptsSection(b.status.hookPath)],
     },
     {
-      id: "chat", label: t("Chat"), icon: "chat", color: "#A78BFA", title: t("Chat"),
-      intro: t("Con quale intelligenza artificiale parla il personaggio quando gli scrivi."),
+      id: "chat", label: t("Chat e motori AI"), icon: "chat", color: "#A78BFA", title: t("Chat dell'isola e motori AI"),
+      intro: t("Il motore che risponde quando scrivi nell'isola o al bot di Telegram, cosa può fare sul PC, la cartella di lavoro e le conversazioni salvate."),
       sections: () => [claudeChatSection(b.hasKey)],
     },
     {
-      id: "claude", label: t("Agenti"), icon: "terminal", color: "#E07A5F", title: t("Agenti di programmazione"),
-      intro: t("Le sessioni di Claude Code, Codex, opencode e degli altri agenti nell'isola, con i loro permessi."),
+      id: "claude", label: t("Agenti di codice"), icon: "terminal", color: "#E07A5F", title: t("Agenti di codice nel terminale"),
+      intro: t("Claude Code, Codex, opencode e gli altri agenti che lavori da terminale o editor: collegarli all'isola per vederne sessioni e permessi, i riepiloghi del loro lavoro e gli strumenti di EasyIsland che possono usare."),
       sections: () => [agentsSection(b.status), agentsTabSection(), recapSection(), dailySection(), mcpSection()],
     },
     {

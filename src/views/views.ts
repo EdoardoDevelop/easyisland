@@ -437,7 +437,8 @@ function buildOverview(actions: ViewActions): ViewHost {
         const key = [
           task.id, detailOpen, task.state, task.steps.join("|"),
           info?.loaded, info?.error, info?.configured,
-          JSON.stringify(info?.data ?? {}),
+          // A Notion page open in the card redraws itself (notionpage.ts): not rebuilt while typing.
+          task.id === "integration_notion" && detailOpen ? "page" : JSON.stringify(info?.data ?? {}),
           JSON.stringify(State.widgetStatus[task.id.replace(/^widget:/, "")] ?? null),
           task.id === THREECX ? softphoneVersion() : 0,
           // The header's bell and speaker change only a setting.

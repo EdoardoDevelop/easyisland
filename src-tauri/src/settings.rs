@@ -124,6 +124,17 @@ pub struct IntegrationConfig {
     pub telegram_chat_id: i64,
     #[serde(default)]
     pub telegram_name: String,
+    /// Telegram "Automatica" (/automatica, or the settings): in Modalità
+    /// terminale nothing is asked there but deleting (telegram.rs `asks_anyway`).
+    #[serde(default)]
+    pub telegram_auto: bool,
+    /// Telegram «Vocali»: who turns voice messages into text (transcribe.rs
+    /// SERVICES: "gemini", "openai", "openrouter"); "" = they are not read.
+    #[serde(default)]
+    pub telegram_voice: String,
+    /// The model of «Vocali» (transcribe.rs `models`); "" = the service's default.
+    #[serde(default)]
+    pub telegram_voice_model: String,
 }
 
 /// A connection of Remote Desktop Manager kept in the settings (rdm.rs Entry).
@@ -234,6 +245,9 @@ impl Default for IntegrationConfig {
             rdm_recent: Vec::new(),
             telegram_chat_id: 0,
             telegram_name: String::new(),
+            telegram_auto: false,
+            telegram_voice: String::new(),
+            telegram_voice_model: String::new(),
         }
     }
 }
@@ -606,6 +620,11 @@ pub struct Settings {
     /// Stay out of the way while a full-screen app runs (permission requests excepted).
     #[serde(default = "default_true")]
     pub quiet_fullscreen: bool,
+    /// A permission, a question of an agent or a ringing call opens the island
+    /// by itself; off = they wait in the strip beside the character, or as a
+    /// badge (the "pending" shortcut opens them). Belongs to the PC.
+    #[serde(default = "default_true")]
+    pub alerts_open: bool,
     #[serde(default)]
     pub theme: Theme,
     /// What may surface the island: "all" | "alerts" (no routine activity) |
@@ -876,6 +895,7 @@ impl Default for Settings {
             open_delay: default_open_delay(),
             reveal_duration: default_reveal_duration(),
             quiet_fullscreen: true,
+            alerts_open: true,
             theme: Theme::default(),
             notify: default_notify(),
             reactions: Map::new(),

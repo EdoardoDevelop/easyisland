@@ -203,6 +203,21 @@ fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
         (
+            "get_settings",
+            "Le impostazioni di EasyIsland che si possono cambiare con set_setting, divise per sezione (Chat, Integrazioni, Isola e aspetto, Riepiloghi…): chiave, valore attuale, a cosa serve e valori ammessi. Le altre (chiavi, connettori, modalità terminale) si cambiano solo in Impostazioni.",
+            none.clone(),
+            true,
+        ),
+        (
+            "set_setting",
+            "Cambia un'impostazione di EasyIsland, con effetto immediato (vale per il profilo attivo se è un'impostazione del profilo). key: una chiave di get_settings (es. chatEngine, cliModel, engineModels.opencode, theme.character, language, notify, integrations.integration_weather); value: il nuovo valore (true/false, un numero o un testo tra quelli ammessi). L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "key": { "type": "string" },
+                "value": {}
+            }, "required": ["key", "value"] }),
+            false,
+        ),
+        (
             "switch_profile",
             "Attiva un profilo di EasyIsland per id (vedi list_profiles).",
             json!({ "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"] }),
@@ -395,5 +410,7 @@ mod tests {
         assert!(!ro.contains(&"open_app"));
         assert!(!ro.contains(&"run_quick_action"));
         assert!(!ro.contains(&"read_clipboard"));
+        assert!(ro.contains(&"get_settings"));
+        assert!(!ro.contains(&"set_setting"));
     }
 }

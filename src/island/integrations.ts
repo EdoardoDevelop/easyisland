@@ -147,6 +147,11 @@ function incomingCall(island: Island, _c: ThreecxCall) {
     State.notify();
     return;
   }
+  // «Permessi e chiamate» off: only the badged pill, the island stays closed.
+  if (!island.alertsOpen()) {
+    island.peek();
+    return;
+  }
   State.setFocus(THREECX);
   heldByCall = true;
   island.setPinned(true);

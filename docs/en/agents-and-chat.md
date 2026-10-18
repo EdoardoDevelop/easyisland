@@ -71,6 +71,12 @@ disagree, the Italian files are the reference.
   conversation only. In terminal mode every permission is an Allow / Deny message with
   buttons in Telegram (`EASYISLAND_CHANNEL=telegram` for Claude Code's hook,
   `Options::telegram` for opencode). Messages sent while the app was closed are dropped.
+  Telegram's own "Automatica" (`/automatica` or the settings, `telegramAuto`) answers
+  every permission yes at once, except deleting (`asks_anyway` in `telegram.rs`).
+- **Settings from the agents** (`agent_settings.rs`): `get_settings` (read-only) and
+  `set_setting` (Allow / Deny) cover only the entries in `ENTRIES`: chat engine and models,
+  integrations on/off, the island's look and behaviour, recaps. Never secrets, tools,
+  terminal mode, connectors or Telegram's "Automatica".
 - **EasyIsland's tools for opencode too**: with `agentTools` on, the private opencode
   server gets `easyisland-hook mcp` as a local MCP server through
   `OPENCODE_CONFIG_CONTENT` (opencode 2 shape: `mcp.servers.<name>` =

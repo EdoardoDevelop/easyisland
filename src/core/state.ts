@@ -445,6 +445,8 @@ export interface Settings {
   revealDuration: number;
   /** Stay out of the way while a full-screen app runs. */
   quietFullscreen: boolean;
+  /** Permissions, agents' questions and ringing calls open the island by themselves. */
+  alertsOpen?: boolean;
   schemaVersion: number;
   theme: Theme;
   /** What may surface the island: everything, alerts only, or permissions only. */
@@ -558,6 +560,12 @@ export interface IntegrationConfig {
   /** Telegram (telegram.rs): the linked chat (0 = none) and its name. */
   telegramChatId?: number;
   telegramName?: string;
+  /** Telegram "Automatica": in Modalità terminale only deleting is asked (telegram.rs). */
+  telegramAuto?: boolean;
+  /** Telegram «Vocali»: who transcribes voice messages (transcribe.rs); "" = nobody. */
+  telegramVoice?: string;
+  /** The model of «Vocali»; "" = the service's default (transcribe.rs). */
+  telegramVoiceModel?: string;
 }
 
 /** A connection of Remote Desktop Manager (settings.rs RdmRef, rdm.rs Entry). */

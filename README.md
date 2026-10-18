@@ -59,6 +59,15 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.8.9** — **Mini Notion** nella scheda Notion: le pagine scelte come riquadri si
+aprono nell'isola e si vedono come in Notion (titoli, elenchi, caselle, toggle, callout,
+codice, immagini) e si modificano lì, con «/» per i tipi di blocco; i database in
+Tabella, Bacheca (trascini le schede), Elenco e Galleria, anche le viste collegate.
+**Vocali da Telegram** trascritti con Gemini, OpenAI o OpenRouter, con il modello per
+l'audio scelto a parte. **«Automatica» in Telegram** (chiede solo per le cancellazioni),
+**impostazioni cambiabili dagli agenti**, **«Permessi e chiamate»** che possono non aprire
+l'isola, voci delle Impostazioni di chat e agenti più chiare.
+
 **0.8.8** — **Telegram**: la chat di EasyIsland nel tuo bot (creato con @BotFather),
 collegato una volta con un codice e solo alla tua chat. Scegli motore e modello da lì
 (`/motore`, `/modello`), con la modalità terminale Consenti / Nega arrivano come
@@ -264,7 +273,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.8.8** | 17 ott 2026 | Telegram (chat, motore e modello da lì, Consenti / Nega, file nei due sensi), cartella di lavoro in «File e schermo», nella chat e in Telegram, strumenti di EasyIsland anche per opencode |
+| **0.8.9** | 18 ott 2026 | Mini Notion nella scheda (pagine e database visti e modificati nell'isola), vocali da Telegram, «Automatica» in Telegram, impostazioni dagli agenti, «Permessi e chiamate» |
+| 0.8.8 | 17 ott 2026 | Telegram (chat, motore e modello da lì, Consenti / Nega, file nei due sensi), cartella di lavoro in «File e schermo», nella chat e in Telegram, strumenti di EasyIsland anche per opencode |
 | 0.8.7 | 17 ott 2026 | Registra (conversazione, schermo o una finestra), Cerca con Google, loghi di Teams e RDM, alone in tutte le schede, ricerca che si chiude al cambio di scheda, ⚡ Automatica con gli strumenti dei connettori, documentazione in inglese |
 | 0.8.6 | 16 ott 2026 | Microsoft Teams (riunioni, comandi, Partecipa), Account Microsoft con le API per Outlook e Teams (da provare), barra dell'app in uso personalizzabile con azioni Tasti |
 | 0.8.5 | 16 ott 2026 | Barra dell'app in uso accanto al personaggio chiuso, menu col clic destro nell'isola con le Impostazioni aperte sulla voce, Panoramica con i loghi grandi |

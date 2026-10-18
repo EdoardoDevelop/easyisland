@@ -450,7 +450,9 @@ export class Island {
   private wireFsm() {
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
     // A pending request, or results of the search bar being looked through.
-    this.fsm.waiting = () => State.pendingApproval != null || this.search.open || State.windowPick != null || this.windowPress != null;
+    this.fsm.waiting = () => State.pendingApproval != null || this.search.open || State.windowPick != null || this.windowPress != null
+      // Typing in a Notion page of the card (notionpage.ts): it does not close under the caret.
+      || !!(document.activeElement as HTMLElement | null)?.closest?.(".np-card [contenteditable='true'], .np-card input");
     this.fsm.held = () => this.strip.item?.urgent === true;
     this.fsm.onTransition = (from, to) => {
       switch (to) {
@@ -1996,6 +1998,20 @@ ${note}` : text };
    * there (the compact island comes up and stays) instead of opening. False
    * when the island should open as before: strip off, island open, greeting.
    */
+  /** Impostazioni → Isola, «Permessi e chiamate»: they open the island by themselves. */
+  alertsOpen(): boolean {
+    return State.settings.alertsOpen !== false;
+  }
+
+  /**
+   * «Permessi e chiamate» off: the request waits with the island closed. The
+   * compact island peeks so the badge is seen; nothing opens.
+   */
+  peek() {
+    if (!State.quiet && this.fsm.state === "hidden") this.fsm.reveal();
+    State.notify();
+  }
+
   showInStrip(): boolean {
     if ((State.settings.compactStrip ?? "right") === "off" || State.mode === "expanded" || this.fsm.state === "greeting") return false;
     if (this.fsm.state === "hidden") {

@@ -2,6 +2,7 @@
 
 mod actions;
 mod agent;
+mod agent_settings;
 mod automations;
 mod apps;
 mod calendar;
@@ -32,6 +33,7 @@ mod msgraph;
 mod moments;
 mod netconfig;
 mod notion;
+mod notion_page;
 mod rdm;
 mod openai;
 mod opencode;
@@ -66,6 +68,7 @@ mod renew;
 mod richtext;
 mod start_apps;
 mod threecx;
+mod transcribe;
 mod tray;
 mod updates;
 mod usage;
@@ -133,7 +136,15 @@ fn boot(app: AppHandle, shared: State<Shared>) -> BootInfo {
 }
 
 #[tauri::command]
-fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
+fn save_settings(app: AppHandle, settings: Settings) {
+    apply_settings(&app, settings);
+}
+
+/// A save from the settings window, or a change by an agent (agent_settings.rs):
+/// on disk, to both windows, and whatever follows from it (language, start
+/// with Windows, the island's place, shortcuts).
+pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
+    let Some(shared) = app.try_state::<Shared>() else { return };
     // Whatever was edited belongs to the active profile.
     let mut settings = settings.migrated();
     settings.commit_active();
@@ -196,7 +207,7 @@ pub(crate) fn activate_profile(app: &AppHandle, id: &str, why: &str) {
         habits::note("profile", id);
     }
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
-    island::apply_geometry(app, &shared.gate, &settings, collapsed);
+    island::apply_geometry(&app, &shared.gate, &settings, collapsed);
     crate::threecx::settings_saved(&settings);
     let _ = app.emit("settings-changed", settings);
     tray::refresh(app);
@@ -1198,6 +1209,12 @@ async fn chat_models(engine: String, url: Option<String>) -> Result<Vec<openai::
     openai::models(&engine, url.as_deref()).await
 }
 
+/// Impostazioni -> Telegram -> «Vocali»: the models of a service that take audio, cheapest first.
+#[tauri::command]
+async fn voice_models(service: String) -> Result<Vec<openai::ModelOption>, String> {
+    transcribe::models(&service).await
+}
+
 /// Settings window: MCP servers configured for the user in Claude Code (names only).
 #[tauri::command]
 async fn mcp_servers_configured() -> Vec<String> {
@@ -2179,6 +2196,19 @@ pub fn run() {
             inbox_copy,
             notion_search,
             notion_page_text,
+            voice_models,
+            notion_page::notion_open_page,
+            notion_page::notion_open_database,
+            notion_page::notion_block_text,
+            notion_page::notion_block_check,
+            notion_page::notion_block_add,
+            notion_page::notion_block_retype,
+            notion_page::notion_block_delete,
+            notion_page::notion_page_title,
+            notion_page::notion_row_set,
+            notion_page::notion_row_add,
+            notion_page::notion_page_delete,
+            notion_page::notion_image,
             notion_task_done,
             notion_properties,
             notion_add_task,
