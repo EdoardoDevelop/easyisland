@@ -59,6 +59,12 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.9.3** — **Notion per tutti i motori**: la chat legge e aggiunge righe con il collegamento
+di EasyIsland, che controlla i valori prima di scrivere (niente più pagine vuote). Gli
+**strumenti di EasyIsland** arrivano anche ad **Antigravity** e a **Claude con chiave API**.
+**⇄ Seconda opinione**: un altro motore rivede l'ultima risposta, nell'isola e su Telegram.
+**/oggi** e **/domani** su Telegram: il punto della giornata.
+
 **0.9.2** — **Ferma** nella chat e su Telegram (■ al posto di Invia, ⏹ Ferma e /stop): la
 risposta si interrompe e il motore si chiude. **Mappa di Notion per la chat**: la struttura del
 tuo Notion resta sul PC, cifrata, e la chat non deve più cercarla a ogni conversazione.
@@ -288,7 +294,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.9.2** | 19 ott 2026 | Ferma nella chat e su Telegram, mappa di Notion per la chat |
+| **0.9.3** | 19 ott 2026 | Notion per tutti i motori, strumenti in Antigravity e Claude API, Seconda opinione, /oggi e /domani |
+| 0.9.2 | 19 ott 2026 | Ferma nella chat e su Telegram, mappa di Notion per la chat |
 | 0.9.1 | 18 ott 2026 | Remote Desktop Manager con l'Hub: vault utente, elenco offline cifrato, Sincronizza |
 | 0.9.0 | 18 ott 2026 | Antigravity di Google: sessioni nell'isola con Consenti / Nega e motore della chat, con le istruzioni di installazione |
 | 0.8.9 | 18 ott 2026 | Mini Notion nella scheda (pagine e database visti e modificati nell'isola), vocali da Telegram, «Automatica» in Telegram, impostazioni dagli agenti, «Permessi e chiamate» |

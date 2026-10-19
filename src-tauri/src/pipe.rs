@@ -179,6 +179,11 @@ async fn handle(app: AppHandle, mut pipe: NamedPipeServer) {
         let reply = crate::agent::call(&app, &tool, &args).await;
         let _ = pipe.write_all(format!("{reply}\n").as_bytes()).await;
         let _ = pipe.flush().await;
+        // Disconnecting throws away what the relay has not read yet: a long
+        // answer (50 rows of Notion) arrived cut and was "not valid" (19
+        // October 2026). The relay closes its end once it has the whole line.
+        let mut rest = [0u8; 64];
+        let _ = tokio::time::timeout(Duration::from_secs(10), pipe.read(&mut rest)).await;
         let _ = pipe.disconnect();
         return;
     }

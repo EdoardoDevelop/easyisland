@@ -58,6 +58,12 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 
 ## What's new
 
+**0.9.3** — **Notion for every engine**: the chat reads and adds rows through EasyIsland's own
+connection, which checks the values before writing (no more empty pages). **EasyIsland's tools**
+reach **Antigravity** and **Claude with an API key** too. **⇄ Second opinion**: another engine
+reviews the last answer, in the island and on Telegram. **/oggi** and **/domani** on Telegram:
+the day at a glance.
+
 **0.9.2** — **Stop** in the chat and on Telegram (■ instead of Send, ⏹ Stop and /stop): the
 answer stops and the engine is closed. **Notion map for the chat**: your Notion's structure stays
 on the PC, encrypted, so the chat no longer searches for it in every conversation.
@@ -116,7 +122,8 @@ the browser's. **Overview** with large, faded logos in the corner of each tile.
 
 | Version | Date | What's new |
 |---|---|---|
-| **0.9.2** | 19 Oct 2026 | Stop in the chat and on Telegram, Notion map for the chat |
+| **0.9.3** | 19 Oct 2026 | Notion for every engine, tools in Antigravity and Claude API, Second opinion, /oggi and /domani |
+| 0.9.2 | 19 Oct 2026 | Stop in the chat and on Telegram, Notion map for the chat |
 | 0.9.1 | 18 Oct 2026 | Remote Desktop Manager with the Hub: user vault, encrypted offline list, Sync |
 | 0.9.0 | 18 Oct 2026 | Google's Antigravity: sessions in the island with Allow / Deny and a chat engine, with setup steps |
 | 0.8.9 | 18 Oct 2026 | Mini Notion in the tab (pages and databases viewed and edited in the island), Telegram voice messages, Telegram "Automatica", settings from the agents, "Permissions and calls" |

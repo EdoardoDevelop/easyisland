@@ -1016,7 +1016,8 @@ async fn turn(app: &AppHandle, token: &str, chat: i64, query: String, context: O
     };
     let asked = query.clone();
     // How a file reaches the user here: through the Vassoio (said once, at the start).
-    let query = if CHAT.is_empty() && second.is_none() {
+    // opencode and the CLIs keep the conversation themselves: their session says it has begun.
+    let query = if CHAT.is_empty() && CHAT.cli_session().is_none() && second.is_none() {
         let dir = crate::files::inbox_dir();
         let note = tf("[Questa conversazione è su Telegram. Per mandare un file all'utente mettilo nel Vassoio di EasyIsland: con lo strumento add_to_tray, se c'è, oppure copiandolo nella cartella {dir}. Ogni file nuovo del Vassoio gli arriva su Telegram alla fine della risposta.]", &[("dir", &dir.display())]);
         format!("{note}\n\n{query}")

@@ -273,7 +273,11 @@ pub async fn read(page: &str) -> Result<String, String> {
         return Err("Serve l'id o il link della pagina (notion_search).".into());
     }
     let row = call(client().get(format!("{API}/pages/{id}"))).await?;
-    let (title, text) = crate::notion::page_text(&id).await?;
+    // A row with no text inside is still worth its properties.
+    let (title, text) = match crate::notion::page_text(&id).await {
+        Ok(found) => found,
+        Err(_) => (row.get("properties").and_then(|p| p.as_object()).and_then(|p| p.values().find(|x| x.get("type").and_then(Value::as_str) == Some("title"))).map(value_text).unwrap_or_default(), String::new()),
+    };
     let mut out = format!("# {title}\n{}", row_text(&row));
     if !text.trim().is_empty() {
         out.push_str("\n\n");
