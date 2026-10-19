@@ -8,6 +8,8 @@
 - `src-tauri/src/openai.rs`: OpenRouter, OpenAI, Gemini, Ollama e LM Studio con un client compatibile OpenAI in streaming. Usa l'evento `chat-stream`, nasconde il ragionamento e non ha strumenti.
 - Le risposte sono markdown, disegnate da `src/core/markdown.ts`.
 - Il turno sta in `chat_turn` (`lib.rs`): `chat_send` lo usa per l'isola, `telegram.rs` per la sua conversazione. Il testo che arriva va a una funzione (`on_text`) e non direttamente all'isola, così un turno di Telegram non compare nella chat dell'isola; con `telegram` i permessi vanno in Telegram (`docs/integrazioni.md` → Telegram).
+- **Mappa di Notion** davanti alla prima domanda di una conversazione, solo con i motori che hanno strumenti (`notion_map::index`, `docs/integrazioni.md` → Notion).
+- **Ferma** (19 ottobre 2026, chiesto da Edoardo): mentre la risposta arriva, il pulsante Invia diventa ■ e chiama `chat_stop`. `chat_turn` corre il turno contro `STOP` (un `Notify` per l'isola e uno per Telegram): il turno viene lasciato cadere, e con lui il processo del motore (`kill_on_drop`) e un permesso in attesa; il turno finisce con l'errore `stopped_text()`. La chat tiene il testo arrivato fin lì con «⏹ Fermato.». Non vale per «Chiedi a questa sessione».
 
 ## Cronologia (`src-tauri/src/chat_log.rs`, `src/views/chat.ts`)
 - Ogni turno riuscito finisce in `chats.json` in `%LOCALAPPDATA%\EasyIsland` (al massimo 100 conversazioni, scritto intero e poi rinominato). Si tiene ciò che la chat mostra e, per i motori che rimandano tutta la conversazione (API, OpenRouter, OpenAI, Gemini, Ollama, LM Studio), i messaggi del modello senza i byte dei file allegati (`without_files`).

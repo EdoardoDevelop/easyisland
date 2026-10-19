@@ -87,3 +87,26 @@ mod tests {
         assert!(!is_widget_key("widget:../x"));
     }
 }
+
+/// Encrypts (or decrypts) bytes for this Windows user on this PC (DPAPI):
+/// lists kept on disk that are not secrets but should not be in clear text
+/// (rdm.rs, notion_map.rs).
+pub(crate) fn dpapi(data: &[u8], protect: bool) -> Option<Vec<u8>> {
+    use windows::Win32::Foundation::{LocalFree, HLOCAL};
+    use windows::Win32::Security::Cryptography::{CryptProtectData, CryptUnprotectData, CRYPTPROTECT_UI_FORBIDDEN, CRYPT_INTEGER_BLOB};
+    let input = CRYPT_INTEGER_BLOB { cbData: u32::try_from(data.len()).ok()?, pbData: data.as_ptr() as *mut u8 };
+    let mut out = CRYPT_INTEGER_BLOB::default();
+    unsafe {
+        let ok = if protect {
+            CryptProtectData(&input, windows::core::PCWSTR::null(), None, None, None, CRYPTPROTECT_UI_FORBIDDEN, &mut out)
+        } else {
+            CryptUnprotectData(&input, None, None, None, None, CRYPTPROTECT_UI_FORBIDDEN, &mut out)
+        };
+        if ok.is_err() || out.pbData.is_null() {
+            return None;
+        }
+        let bytes = std::slice::from_raw_parts(out.pbData, out.cbData as usize).to_vec();
+        let _ = LocalFree(Some(HLOCAL(out.pbData as *mut _)));
+        Some(bytes)
+    }
+}

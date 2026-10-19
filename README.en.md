@@ -58,6 +58,10 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 
 ## What's new
 
+**0.9.2** — **Stop** in the chat and on Telegram (■ instead of Send, ⏹ Stop and /stop): the
+answer stops and the engine is closed. **Notion map for the chat**: your Notion's structure stays
+on the PC, encrypted, so the chat no longer searches for it in every conversation.
+
 **0.9.1** — **Remote Desktop Manager with Devolutions Hub**: the list also reads the user
 vault (it used to stay empty) and opens the connection in its vault. The list stays on this
 PC, encrypted for your Windows user, and updates only with **Sync**: RDM need not run when
@@ -112,7 +116,8 @@ the browser's. **Overview** with large, faded logos in the corner of each tile.
 
 | Version | Date | What's new |
 |---|---|---|
-| **0.9.1** | 18 Oct 2026 | Remote Desktop Manager with the Hub: user vault, encrypted offline list, Sync |
+| **0.9.2** | 19 Oct 2026 | Stop in the chat and on Telegram, Notion map for the chat |
+| 0.9.1 | 18 Oct 2026 | Remote Desktop Manager with the Hub: user vault, encrypted offline list, Sync |
 | 0.9.0 | 18 Oct 2026 | Google's Antigravity: sessions in the island with Allow / Deny and a chat engine, with setup steps |
 | 0.8.9 | 18 Oct 2026 | Mini Notion in the tab (pages and databases viewed and edited in the island), Telegram voice messages, Telegram "Automatica", settings from the agents, "Permissions and calls" |
 | 0.8.8 | 17 Oct 2026 | Telegram (chat, engine and model from there, Allow / Deny, files both ways), work folder in "Files and screen", the chat and Telegram, EasyIsland's tools for opencode too |

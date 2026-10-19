@@ -5,7 +5,7 @@
 import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
-import { Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage } from "../core/bridge";
+import { Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
 import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationCondition, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
@@ -1516,10 +1516,41 @@ function notionRows(): HTMLElement {
         h("div", { class: "row" },
           toggle(c.notionMorning !== false, (v) => { c.notionMorning = v; void save(); }),
           h("span", { text: t("Le attività di oggi nel riepilogo del mattino") }))),
+      block(t("Mappa per la chat"), t("La struttura del tuo Notion (database, proprietà, opzioni, relazioni e pagine che l'integrazione vede) resta su questo PC, cifrata per il tuo utente Windows. La chat la riceve all'inizio di ogni conversazione e non deve cercare com'è fatto il tuo Notion. Il contenuto delle pagine non c'è."),
+        notionMapRow(c)),
     );
   }
   draw();
   return box;
+}
+
+/** Notion → "Mappa per la chat": what is kept, "Sincronizza" and how often by itself. */
+function notionMapRow(c: IntegrationConfig): HTMLElement {
+  const line = h("span", { class: "hint note", style: "flex:1 1 auto;min-width:0" });
+  const error = h("div", { class: "notice warn", style: "display:none" });
+  const show = (s: NotionMapStatus | null) => {
+    line.textContent = !s || !s.at
+      ? t("non ancora sincronizzata")
+      : t("{db} database, {p} pagine · sincronizzata il {d}", { db: s.databases, p: s.pages, d: new Date(s.at * 1000).toLocaleString() });
+  };
+  void Bridge.notionMapStatus().then(show);
+  const sync = h("button", { text: t("Sincronizza") }) as HTMLButtonElement;
+  sync.addEventListener("click", async () => {
+    sync.disabled = true;
+    sync.textContent = t("Sincronizzo…");
+    error.style.display = "none";
+    try {
+      show(await Bridge.notionMapSync());
+    } catch (e) {
+      error.textContent = String(e).replace(/^Error:\s*/, "");
+      error.style.display = "";
+    }
+    sync.disabled = false;
+    sync.textContent = t("Sincronizza");
+  });
+  const every = select<string>([["0", t("solo a mano")], ["1", t("ogni ora")], ["3", t("ogni 3 ore")], ["6", t("ogni 6 ore")], ["12", t("ogni 12 ore")], ["24", t("una volta al giorno")]],
+    String(c.notionMapHours ?? 6), (v) => { c.notionMapHours = Number(v); void save(); });
+  return h("div", {}, h("div", { class: "row" }, line, sync), h("div", { class: "row" }, h("span", { text: t("Da sola") }), every), error);
 }
 
 /** 3CX: the ringtone of "Questo PC", the built-in one or a file of the user's. */

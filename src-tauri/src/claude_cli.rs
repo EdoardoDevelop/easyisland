@@ -66,6 +66,7 @@ pub(crate) const AGENT_READ_ONLY: &[&str] = &[
     "list_profiles",
     "list_automations",
     "get_settings",
+    "notion_map",
 ];
 
 pub(crate) const AGENT_PROMPT: &str = " You also have the easyisland tools, which act on the user's own PC: \

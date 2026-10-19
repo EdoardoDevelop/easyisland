@@ -34,6 +34,7 @@ mod msgraph;
 mod moments;
 mod netconfig;
 mod notion;
+mod notion_map;
 mod notion_page;
 mod rdm;
 mod openai;
@@ -642,6 +643,19 @@ pub(crate) fn open_url_now(url: &str) {
         .spawn();
 }
 
+/// Impostazioni → Notion → «Mappa per la chat»: how many and when (notion_map.rs).
+#[tauri::command]
+fn notion_map_status() -> serde_json::Value {
+    notion_map::status()
+}
+
+/// «Sincronizza»: the structure of Notion read again, for the chat.
+#[tauri::command]
+async fn notion_map_sync() -> Result<serde_json::Value, String> {
+    notion_map::sync().await?;
+    Ok(notion_map::status())
+}
+
 /// Notion pages and databases matching `query` (card and search bar).
 #[tauri::command]
 async fn notion_search(query: String, limit: Option<usize>, kind: Option<String>) -> Result<Vec<serde_json::Value>, String> {
@@ -950,6 +964,28 @@ async fn chat_send(
     chat_turn(&app, &chat, query, context, engine, None, auto.unwrap_or(false), false, &on_text).await
 }
 
+/// "Ferma": the turn in progress in the island's chat ([0]) or on Telegram
+/// ([1]). The turn's future is dropped, and with it the engine's process
+/// (kill_on_drop) and any permission it was waiting for.
+static STOP: [std::sync::LazyLock<tokio::sync::Notify>; 2] =
+    [std::sync::LazyLock::new(tokio::sync::Notify::new), std::sync::LazyLock::new(tokio::sync::Notify::new)];
+
+/// What a stopped turn answers (telegram.rs and the chat recognise it).
+pub(crate) fn stopped_text() -> String {
+    t("Interrotta.").to_string()
+}
+
+pub(crate) fn stop_turn(telegram: bool) {
+    log::line(if telegram { "chat: turno di Telegram fermato" } else { "chat: turno fermato" });
+    STOP[usize::from(telegram)].notify_waiters();
+}
+
+/// The island's "Ferma".
+#[tauri::command]
+fn chat_stop() {
+    stop_turn(false);
+}
+
 /// A chat turn on `chat`: the island's conversation (`chat_send`) or
 /// Telegram's (telegram.rs, `telegram` true: permissions asked there, and
 /// its own mark in the history). `on_text` gets the text so far; `model`
@@ -995,6 +1031,10 @@ pub(crate) async fn chat_turn(
     if before.is_some() && chat.cli_session().is_none() {
         opencode::forget(before);
     }
+    // A new conversation with an engine that has tools: the map of Notion
+    // (notion_map.rs) in front, so it does not search for the structure.
+    let has_tools = terminal.is_some() || !(engine == "api" || openai::ENGINES.contains(&engine.as_str()));
+    let notion = if has_tools && chat.is_empty() && chat.cli_session().is_none() { notion_map::index(agent) } else { None };
     // A reopened conversation the engine cannot resume: it rides in front of the question.
     let preamble = chat.take_preamble();
     let asked = query.clone();
@@ -1002,12 +1042,16 @@ pub(crate) async fn chat_turn(
         Some(p) => format!("{p}{query}"),
         None => query,
     };
+    let query = match notion {
+        Some(n) => format!("{n}{query}"),
+        None => query,
+    };
     // "Automatica" (the chat's switch): only with Modalità terminale.
     let auto = auto && terminal.is_some();
     if auto {
         log::line(format!("chat: turno in automatica ({engine})"));
     }
-    let reply = match (&terminal, engine.as_str()) {
+    let work_turn = async { match (&terminal, engine.as_str()) {
         (Some(folder), "opencode") => {
             let o = opencode::Options { folder: Some(folder.clone()), auto, telegram, agent, work: work.clone(), ..Default::default() };
             opencode::send(app, chat, &other_model, query, context, &o, on_text).await
@@ -1041,7 +1085,17 @@ pub(crate) async fn chat_turn(
         }
         (None, e) if openai::ENGINES.contains(&e) => openai::send(chat, &engine, &other_model, url.as_deref(), query, context, on_text).await,
         (None, _) => claude_cli::send(chat, &cli_model, &mcp, agent, query, context, None, false, on_text, telegram, work.as_deref()).await,
-    };
+    } };
+    // Whichever comes first: the reply or "Ferma".
+    let mut work_turn = std::pin::pin!(work_turn);
+    let mut stop = std::pin::pin!(STOP[usize::from(telegram)].notified());
+    let reply = std::future::poll_fn(|cx| {
+        if let std::task::Poll::Ready(r) = std::future::Future::poll(work_turn.as_mut(), cx) {
+            return std::task::Poll::Ready(r);
+        }
+        std::future::Future::poll(stop.as_mut(), cx).map(|()| Err(stopped_text()))
+    })
+    .await;
     match &reply {
         Ok(r) if shared.settings.lock().unwrap().chat_history => {
             chat_log::record(chat, &engine, &asked, &r.text, if telegram { "Telegram · " } else { "" })
@@ -2119,6 +2173,9 @@ pub fn run() {
             approval_decline,
             log_line,
             chat_send,
+            chat_stop,
+            notion_map_status,
+            notion_map_sync,
             chat_reset,
             chat_history_list,
             chat_history_open,

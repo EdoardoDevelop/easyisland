@@ -545,6 +545,8 @@ export interface IntegrationConfig {
   notionAlertComments?: boolean;
   /** Notion: today's tasks in the morning recap. */
   notionMorning?: boolean;
+  /** Notion: the structure for the chat (notion_map.rs) read again every so many hours (0 = only by hand). */
+  notionMapHours?: number;
   /** Remote Desktop Manager: the workspace read (its id; "" = RDM's current one). */
   /** "Registra" (record.rs): folder ("" = Videos\EasyIsland), sound sources, screen fps. */
   recordFolder?: string;
@@ -950,7 +952,7 @@ export const DEFAULT_SETTINGS: Settings = {
     threecxMode: "user", threecxExtension: "", threecxDevice: "",
     threecxRing: true, threecxAlert: true, threecxRingtone: "",
     notionPins: [], notionTasks: null, notionInbox: null, notionViews: [], notionView: "",
-    notionAlertDue: true, notionAlertLead: 10, notionAlertComments: true, notionMorning: true,
+    notionAlertDue: true, notionAlertLead: 10, notionAlertComments: true, notionMorning: true, notionMapHours: 6,
     rdmDataSource: "", rdmPins: [], rdmRecent: [],
   },
 };
