@@ -2,6 +2,17 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 18 ottobre 2026 — Remote Desktop Manager con l'Hub, versione 0.9.1
+- Segnalato da Edoardo: con il suo Devolutions Hub l'elenco restava «non ancora letto». Causa: tutte le voci stanno nel vault utente, che `Get-RDMSession` non legge. Ora `rdm.rs` legge i vault condivisi e il vault utente (`Get-RDMPrivateSession`) e apre con `/Vault:` (`docs/integrazioni.md`).
+- Chiesto da Edoardo: elenco salvato su questo PC e cifrato (DPAPI, `rdm-cache.bin`), sincronizzazione solo con «Sincronizza», pallino «RDM avviato». Il server MCP di RDM è stato provato e scartato (non elenca il vault utente e vuole RDM aperto).
+- **Prove:** sul suo PC i comandi del modulo (883 voci) e il formato di apertura dal «Copia link»; `cargo test --workspace`, `npm run build`, `npm run smoke`. Da provare: la sincronizzazione e l'apertura dall'app (`docs/prove-dal-vivo.md`).
+
+### 18 ottobre 2026 — Antigravity (Google), versione 0.9.0
+- Versione **0.9.0** con Antigravity; README, README.en.md e homepage aggiornati.
+- Chiesto da Edoardo: Antigravity come Claude Code e opencode. Agente con i suoi hook (`~/.gemini/config/hooks.json`, gruppo `easyisland`, `hooks.rs`; traduzione in `hook/src/agents.rs`): sessioni, passi, diff, Consenti / Nega per comandi e strumenti MCP, con `allow` (la sua politica) quando l'isola non risponde. Motore della chat `antigravity.rs` (`agy -p` in `stream-json`), anche da Telegram; istruzioni di installazione in Impostazioni → Chat e motori AI (`docs/agenti.md`, `docs/chat.md`).
+- Segnalato da Edoardo dopo l'installazione: la chat non funzionava (agy 1.4.2 annida i campi di ogni evento e vuole la domanda come `--print=`). Corretto e provato con agy vero, anche un hook di prova con `auto_approve`.
+- **Prove:** `cargo test --workspace` (traduzione, risposte, gruppo nel file, stream), il relay compilato con payload finti risponde sempre in un formato valido, `npm run build`, `npm run smoke`. Non provato con agy vero: non è installato su questo PC (`docs/prove-dal-vivo.md`).
+
 ### 18 ottobre 2026 — Vocali da Telegram (versione 0.8.9)
 - Versione **0.8.9** con le voci del 17–18 ottobre (impostazioni dagli agenti, «Automatica» in Telegram, «Permessi e chiamate», mini Notion, vocali); README, README.en.md e homepage aggiornati.
 - Richiesto da Edoardo: i vocali mandati al bot si trascrivono e vanno alla chat come testo (`transcribe.rs`, `docs/integrazioni.md`). Il servizio si sceglie in Impostazioni → Telegram → «Vocali» (Gemini, OpenAI, OpenRouter, con le chiavi dei motori della chat): Claude Code e opencode non sentono l'audio.

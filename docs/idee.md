@@ -74,6 +74,13 @@ Fatti il 15 ottobre 2026 i punti 1, 2 e 3 (`integrazioni.md` → Automazioni), t
 7. **Impara dall'uso:** le abitudini (`habits.rs`) propongono anche dai nuovi eventi (es. ogni PDF scaricato viene aperto subito); un'automazione annullata o ignorata spesso propone di spegnersi o cambiare orario; nel registro, quante volte è partita e quante annullata. «Prova ora» per vedere cosa farebbe senza aspettare il «quando».
 Proposta di partenza: 1 + 2 + 3 (più utili, nessun modello coinvolto), poi 5, poi 6.
 
+## Strumenti di EasyIsland per i motori via API (valutato il 19 ottobre 2026)
+Edoardo vuole che ogni motore usi le integrazioni di EasyIsland. Claude Code, opencode e Antigravity le hanno (server MCP `easyisland-hook mcp`); i motori via API no: Anthropic con chiave (`claude.rs`, solo la ricerca web del server) e quelli compatibili con OpenAI (`openai.rs`: OpenRouter, OpenAI, Gemini, Ollama, LM Studio, nessuno strumento). Oggi li hanno solo con la Modalità terminale, che li fa passare da opencode.
+- **Come:** l'elenco degli strumenti (oggi in `hook/src/mcp.rs`) condiviso con l'app (un file incluso da entrambe le parti), dato al modello come `tools`; un ciclo che esegue le chiamate con `agent::call` e rimanda i risultati. Quelli che cambiano qualcosa chiedono Consenti / Nega con la stessa card della chat (come fa `opencode.rs` per i suoi permessi) o in Telegram.
+- **Anthropic:** il ciclo c'è quasi (storia con i blocchi, `pause_turn`): va aggiunto `tool_use` → `tool_result`. Lavoro medio.
+- **OpenAI e compatibili:** le chiamate arrivano a pezzi nello stream (`tool_calls`), da ricomporre. Molti modelli locali o gratuiti non hanno gli strumenti o li usano male: serve il ripiego senza strumenti quando il modello rifiuta (errore 400) e un'opzione per spegnerli. Lavoro più grande.
+- **Da decidere:** se farlo, e se prima per il solo motore Anthropic.
+
 ## Altro
 - **Scheda esatta di Windows Terminal** per «Apri»: il relay legge il titolo della console e l'app seleziona la scheda con UI Automation. Da sperimentare con una sessione vera. Tolta dal Da fare il 9 ottobre: per ora non serve.
 - **Clic destro sui file in Esplora file** (prossimo passo, deciso l'11 ottobre 2026): una voce nel registro di Windows (`HKCU\Software\Classes\*\shell`) che passa il percorso all'app, scritta solo dopo la conferma di Edoardo. In Windows 11 finisce sotto «Mostra altre opzioni» (il menu nuovo vuole un pacchetto MSIX con `IExplorerCommand`). Per il testo selezionato c'è già il menu di `Win+Alt+A`.
