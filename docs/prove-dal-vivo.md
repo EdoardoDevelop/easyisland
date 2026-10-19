@@ -95,6 +95,7 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
   7. App chiusa, messaggio, app riaperta: una sola risposta «Ero spento».
   8. «Mandami lo screenshot / il file X»: arriva in Telegram (foto, documento, video); `/vassoio` e un pulsante.
   9. Con un profilo automatico attivo che non ha Telegram acceso, il bot risponde lo stesso.
+  13. Ferma (19 ottobre 2026): durante una risposta lunga in modalità terminale, «⏹ Ferma» e poi `/stop`: il messaggio dice «Fermato.», il processo del motore sparisce, la domanda dopo va. Nella chat dell'isola il pulsante ■ fa lo stesso.
   10. `/cartella`: aprire una sottocartella, «Su», farsi mandare un file; un file ricevuto spostato nella cartella di lavoro.
   12. Vocali (18 ottobre 2026): con «Vocali» su Gemini o OpenRouter e la chiave messa, un vocale in italiano torna come «🎙 …» e la chat risponde; un vocale muto; un file mp3; senza chiave il messaggio lo dice.
   11. `/automatica` in modalità terminale: un comando normale e una modifica vanno senza messaggi; `rm`/`Remove-Item` di un file di prova chiede Consenti / Nega; `/stato` lo dice; `/automatica off` torna a chiedere tutto.

@@ -2143,7 +2143,6 @@
   "Cosa posso fare": "What I can do",
   "«{name}» è nel Vassoio. Scrivimi cosa vuoi farne.": "“{name}” is in the Tray. Tell me what to do with it.",
   "Per ora leggo testo, foto e file.": "For now I read text, photos and files.",
-  "Sto ancora rispondendo alla domanda di prima: aspetta la risposta.": "I'm still answering the previous question: wait for the reply.",
   "File allegato: {name}\nPercorso: {path}": "Attached file: {name}\nPath: {path}",
   "Codice non valido o scaduto. Prendine uno nuovo in EasyIsland: Impostazioni → Integrazioni → Telegram.": "Invalid or expired code. Get a new one in EasyIsland: Settings → Integrations → Telegram.",
   "Collegato a EasyIsland.": "Linked to EasyIsland.",
@@ -2374,5 +2373,14 @@
   "RDM è avviato": "RDM is running",
   "RDM non è avviato": "RDM is not running",
   "RDM non è avviato: la sincronizzazione legge comunque l'origine dati": "RDM is not running: syncing still reads the data source",
-  "«{ds}» è un Devolutions Hub e il modulo non vi ha trovato connessioni, né nei vault condivisi né nel tuo vault utente. Apri l'Hub in RDM fino a vedere le connessioni e premi Sincronizza; intanto la ricerca della card apre RDM con la ricerca già scritta.": "“{ds}” is a Devolutions Hub and the module found no connections in it, neither in the shared vaults nor in your user vault. Open the Hub in RDM until you see the connections and press Sync; meanwhile the card's search opens RDM with the search already typed."
+  "«{ds}» è un Devolutions Hub e il modulo non vi ha trovato connessioni, né nei vault condivisi né nel tuo vault utente. Apri l'Hub in RDM fino a vedere le connessioni e premi Sincronizza; intanto la ricerca della card apre RDM con la ricerca già scritta.": "“{ds}” is a Devolutions Hub and the module found no connections in it, neither in the shared vaults nor in your user vault. Open the Hub in RDM until you see the connections and press Sync; meanwhile the card's search opens RDM with the search already typed.",
+  "Interrotta.": "Stopped.",
+  "Ferma": "Stop",
+  "Fermato.": "Stopped.",
+  "Sto ancora rispondendo alla domanda di prima: aspetta la risposta o fermala con ⏹ Ferma (o /stop).": "I'm still answering the previous question: wait for the answer or stop it with ⏹ Stop (or /stop).",
+  "/stop — ferma la risposta in corso (anche ⏹ Ferma sotto la risposta)": "/stop — stop the answer in progress (also ⏹ Stop under the answer)",
+  "Non sto facendo niente da fermare.": "I'm not doing anything to stop.",
+  "Fermo…": "Stopping…",
+  "Già finita": "Already finished",
+  "Ferma la risposta in corso": "Stop the answer in progress"
 }

@@ -2,6 +2,12 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 17 ottobre 2026 — Impostazioni dagli agenti, «Automatica» in Telegram, «Permessi e chiamate»
+- Dalle attività di Notion, su richiesta di Edoardo. Strumenti `get_settings` / `set_setting` (`agent_settings.rs`, `docs/chat.md`): motore e modelli della chat, integrazioni, aspetto, riepiloghi, con Consenti / Nega; il salvataggio delle Impostazioni è ora `apply_settings` in `lib.rs`.
+- Telegram: `/automatica` e interruttore nelle Impostazioni; in modalità terminale chiede solo per le cancellazioni (`asks_anyway`, `docs/integrazioni.md`; eccezione scritta in `CLAUDE.md` e `docs/decisioni.md`).
+- Impostazioni → Isola, «Permessi e chiamate» (`alertsOpen`): spento non aprono l'isola, restano nella striscia o come pallino (`docs/architettura.md`). Corretto anche un test di `workdir.rs` che falliva in parallelo.
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`. Da provare dal vivo (`docs/prove-dal-vivo.md`).
+
 ### 17 ottobre 2026 — Cartella di lavoro, strumenti di EasyIsland per opencode, versione 0.8.8
 - Versione **0.8.8** con questa voce e Telegram; README, README.en.md e homepage aggiornati.
 - Su richiesta di Edoardo, cartella di lavoro (`workdir.rs`, `src/views/workdir.ts`, `docs/strumenti.md`): è `chatFolder`, scelta con la finestra di Windows; in «File e schermo» sotto il Vassoio con sottocartelle, Rinomina, Sposta, Nel Vassoio, Cestino, trascinamento; dal Vassoio si sposta lì; strumenti `list_work_folder` e `move_to_work_folder`; `/cartella` in Telegram.

@@ -26,6 +26,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 19 ottobre 2026 — Ferma nella chat e su Telegram
+- Chiesto da Edoardo: fermare una risposta che sta facendo lavoro inutile. `chat_turn` (`lib.rs`) corre contro `STOP`: ■ al posto di Invia nell'isola, «⏹ Ferma» e `/stop` su Telegram; il motore viene chiuso con il turno (`docs/chat.md`).
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`. Da provare con un motore vero (`docs/prove-dal-vivo.md`, Telegram 13).
+
 ### 18 ottobre 2026 — Remote Desktop Manager con l'Hub, versione 0.9.1
 - Segnalato da Edoardo: con il suo Devolutions Hub l'elenco restava «non ancora letto». Causa: tutte le voci stanno nel vault utente, che `Get-RDMSession` non legge. Ora `rdm.rs` legge i vault condivisi e il vault utente (`Get-RDMPrivateSession`) e apre con `/Vault:` (`docs/integrazioni.md`).
 - Chiesto da Edoardo: elenco salvato su questo PC e cifrato (DPAPI, `rdm-cache.bin`), sincronizzazione solo con «Sincronizza», pallino «RDM avviato». Il server MCP di RDM è stato provato e scartato (non elenca il vault utente e vuole RDM aperto).
@@ -47,9 +51,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Richiesto da Edoardo; il ramo `notion` aveva solo un abbozzo che non si compilava (comandi non registrati, vista mai mostrata, pagine scelte tolte): rifatto. `notion_page.rs` legge pagine e database e fa le modifiche, `src/views/notionpage.ts` li disegna come Notion nell'isola: blocchi modificabili sul posto con «/», ⋮⋮ e scorciatoie; database in Tabella, Bacheca (trascinamento), Elenco, Galleria; pagine scelte come riquadri. Eliminare con due clic, nel cestino di Notion (`docs/integrazioni.md`, `docs/decisioni.md`).
 - Segnalato da Edoardo: le viste collegate (le attività dentro il progetto) erano «senza titolo» con 404; ora la card apre il database vero filtrato sulla relazione (`mark_linked`, `relations`), provato sul progetto vero.
 - **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, scena `notion` con pagina e database finti (scrivere, Invio, «/», casella, eliminare, toggle, trascinare, viste, riga aperta). Da provare con Notion vero (`docs/prove-dal-vivo.md`).
-
-### 17 ottobre 2026 — Impostazioni dagli agenti, «Automatica» in Telegram, «Permessi e chiamate»
-- Dalle attività di Notion, su richiesta di Edoardo. Strumenti `get_settings` / `set_setting` (`agent_settings.rs`, `docs/chat.md`): motore e modelli della chat, integrazioni, aspetto, riepiloghi, con Consenti / Nega; il salvataggio delle Impostazioni è ora `apply_settings` in `lib.rs`.
-- Telegram: `/automatica` e interruttore nelle Impostazioni; in modalità terminale chiede solo per le cancellazioni (`asks_anyway`, `docs/integrazioni.md`; eccezione scritta in `CLAUDE.md` e `docs/decisioni.md`).
-- Impostazioni → Isola, «Permessi e chiamate» (`alertsOpen`): spento non aprono l'isola, restano nella striscia o come pallino (`docs/architettura.md`). Corretto anche un test di `workdir.rs` che falliva in parallelo.
-- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`. Da provare dal vivo (`docs/prove-dal-vivo.md`).

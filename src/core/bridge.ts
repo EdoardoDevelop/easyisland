@@ -208,6 +208,8 @@ export const Bridge = {
   antigravityStatus: () => call<{ found: boolean; path: string }>("antigravity_status"),
   /** Impostazioni → Telegram → «Vocali»: the models of a service that take audio, cheapest first (transcribe.rs). */
   voiceModels: (service: string) => callOrThrow<ModelOption[]>("voice_models", { service }),
+  /** "Ferma": ends the island's turn in progress (lib.rs chat_stop); chatSend then fails with "Interrotta.". */
+  chatStop: () => call<void>("chat_stop"),
   chatReset: () => call<void>("chat_reset"),
   /** "Continua": the next message for a session (session_reply.rs). "sent" or "prefilled". */
   sessionReply: (mode: string, text: string, pid: number | null, session: string | null, scheme: string | null) =>

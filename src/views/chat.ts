@@ -132,6 +132,8 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
   (el.querySelector(".card") as HTMLElement).style.setProperty("--wash", "rgba(99,102,241,0.5)");
 
   let sending = false;
+  // "Ferma" pressed: the reply so far stays, without the error note.
+  let stopping = false;
   let renderedCount = -1;
   let drafted = false;
 
@@ -143,6 +145,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       updateCalc();
     }
     sending = true;
+    stopping = false;
     if (historyMenu.style.display !== "none") showHistory(false);
     Sound.play("send");
 
@@ -181,11 +184,18 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       Sound.play("finish");
     } catch (err) {
       State.stateOverride = null;
+      if (stopping) {
+        const soFar = streamed.trim();
+        State.chatHistory.push({ id: nextId++, role: "assistant", content: `${soFar ? soFar + "\n\n" : ""}⏹ ${t("Fermato.")}` });
+        Sound.play("blip");
+        return;
+      }
       State.noteMessage = String(err).replace(/^Error:\s*/, "");
       State.view = "note";
       Sound.play("error");
     } finally {
       sending = false;
+      stopping = false;
       streamed = "";
       streamEl = null;
       renderedCount = -1;
@@ -364,7 +374,17 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
 
   externalSend = (q) => void submit(q);
   fresh.addEventListener("click", startOver);
-  send.addEventListener("click", () => void submit());
+  send.addEventListener("click", () => {
+    // While a reply is written the button is "Ferma" (not for "Chiedi a questa sessione").
+    if (sending) {
+      if (!State.chatSession && !stopping) {
+        stopping = true;
+        void Bridge.chatStop();
+      }
+      return;
+    }
+    void submit();
+  });
   input.addEventListener("input", () => {
     updateCalc();
     onHeightChange();
@@ -468,6 +488,12 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
         : State.chatHistory.length === 0 ? t("Chiedimi qualsiasi cosa… o fai un calcolo") : t("Continua…");
 
       input.disabled = sending;
+      const stopMode = sending && !asked;
+      if (send.dataset.mode !== (stopMode ? "stop" : "send")) {
+        send.dataset.mode = stopMode ? "stop" : "send";
+        send.replaceChildren(svg(stopMode ? ICONS.stop : ICONS.arrowUp, stopMode ? 12 : 14));
+        send.title = stopMode ? t("Ferma") : t("Invia");
+      }
       // Only when there is something to forget.
       fresh.style.display = State.chatHistory.length > 0 || file || text || win || asked ? "" : "none";
       (fresh as HTMLButtonElement).disabled = sending;

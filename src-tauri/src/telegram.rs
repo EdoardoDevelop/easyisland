@@ -245,6 +245,7 @@ async fn hello(token: &str) -> Result<String, String> {
         { "command": "motore", "description": t("Scegli il motore della chat") },
         { "command": "modello", "description": t("Scegli il modello del motore") },
         { "command": "nuova", "description": t("Nuova conversazione") },
+        { "command": "stop", "description": t("Ferma la risposta in corso") },
         { "command": "stato", "description": t("Motore, modello e modalità") },
         { "command": "vassoio", "description": t("I file del Vassoio") },
         { "command": "cartella", "description": t("La cartella di lavoro") },
@@ -340,7 +341,7 @@ async fn handle(app: &AppHandle, token: &str, u: &Value, started: i64) -> Option
         return None;
     }
     if BUSY.load(Ordering::SeqCst) {
-        let _ = send(token, chat, t("Sto ancora rispondendo alla domanda di prima: aspetta la risposta."), None).await;
+        let _ = send(token, chat, t("Sto ancora rispondendo alla domanda di prima: aspetta la risposta o fermala con ⏹ Ferma (o /stop)."), None).await;
         return None;
     }
     let context = context.or_else(|| NEXT_FILE.lock().unwrap().take()).map(|(name, path)| {
@@ -411,6 +412,7 @@ fn help() -> String {
         t("/motore — scegli il motore (solo per questa conversazione)"),
         t("/modello — scegli il modello"),
         t("/nuova — nuova conversazione"),
+        t("/stop — ferma la risposta in corso (anche ⏹ Ferma sotto la risposta)"),
         t("/stato — motore, modello e modalità"),
         t("/automatica — niente permessi da confermare, tranne le cancellazioni"),
         t("/vassoio — i file del Vassoio, da farti mandare qui"),
@@ -436,6 +438,13 @@ async fn command(app: &AppHandle, token: &str, chat: i64, cmd: &str) {
             }
             reset_conversation();
             let _ = send(token, chat, t("Nuova conversazione."), None).await;
+        }
+        "stop" | "ferma" => {
+            if BUSY.load(Ordering::SeqCst) {
+                crate::stop_turn(true);
+            } else {
+                let _ = send(token, chat, t("Non sto facendo niente da fermare."), None).await;
+            }
         }
         "cartella" | "folder" => {
             show_folder(app, token, chat, arg, None).await;
@@ -660,7 +669,15 @@ async fn on_button(app: &AppHandle, token: &str, q: &Value) {
     let chat = from.unwrap_or_default();
     let mut note = String::new();
 
-    if let Some(rest) = data.strip_prefix("p:") {
+    if data == "s" {
+        // ⏹ Ferma: the turn ends; turn() writes "Fermato." in this message.
+        note = if BUSY.load(Ordering::SeqCst) {
+            crate::stop_turn(true);
+            t("Fermo…").into()
+        } else {
+            t("Già finita").into()
+        };
+    } else if let Some(rest) = data.strip_prefix("p:") {
         // Consenti / Nega: "p:<id>:1" or "p:<id>:0".
         let (rid, yes) = rest.rsplit_once(':').map_or((rest, false), |(r, y)| (r, y == "1"));
         let tx = PENDING.lock().unwrap().remove(rid);
@@ -872,7 +889,9 @@ fn permission_text(payload: &Value) -> String {
 
 async fn turn(app: &AppHandle, token: &str, chat: i64, query: String, context: Option<ChatContext>) {
     let _ = call(token, "sendChatAction", json!({ "chat_id": chat, "action": "typing" }), 10).await;
-    let Ok(placeholder) = send(token, chat, "…", None).await else { return };
+    // "⏹ Ferma" under the reply while it is written (the finished reply drops it).
+    let stop_kb = json!({ "inline_keyboard": [[{ "text": format!("⏹ {}", t("Ferma")), "callback_data": "s" }]] });
+    let Ok(placeholder) = send(token, chat, "…", Some(stop_kb.clone())).await else { return };
     let (engine, model) = {
         let p = PICK.lock().unwrap();
         (p.engine.clone(), p.model.clone())
@@ -882,7 +901,7 @@ async fn turn(app: &AppHandle, token: &str, chat: i64, query: String, context: O
     let latest = Arc::new(Mutex::new(String::new()));
     let done = Arc::new(AtomicBool::new(false));
     {
-        let (latest, done, token) = (latest.clone(), done.clone(), token.to_string());
+        let (latest, done, token, stop_kb) = (latest.clone(), done.clone(), token.to_string(), stop_kb.clone());
         tauri::async_runtime::spawn(async move {
             let mut shown = String::new();
             let mut typing = Instant::now();
@@ -893,7 +912,8 @@ async fn turn(app: &AppHandle, token: &str, chat: i64, query: String, context: O
                 }
                 let now = latest.lock().unwrap().clone();
                 if !now.trim().is_empty() && now != shown {
-                    let _ = edit(&token, chat, placeholder, &tail(&now, CHUNK), false).await;
+                    let body = json!({ "chat_id": chat, "message_id": placeholder, "text": tail(&now, CHUNK), "reply_markup": stop_kb });
+                    let _ = call(&token, "editMessageText", body, 20).await;
                     shown = now;
                 }
                 if typing.elapsed() > Duration::from_secs(5) {
@@ -919,6 +939,13 @@ async fn turn(app: &AppHandle, token: &str, chat: i64, query: String, context: O
     done.store(true, Ordering::SeqCst);
     match reply {
         Ok(r) => deliver(token, chat, placeholder, &r.text).await,
+        // Stopped: what was written so far stays, marked.
+        Err(e) if e == crate::stopped_text() => {
+            let so_far = latest.lock().unwrap().trim().to_string();
+            let mark = format!("⏹ {}", t("Fermato."));
+            let text = if so_far.is_empty() { mark } else { format!("{}\n\n{mark}", tail(&so_far, CHUNK - 40)) };
+            let _ = edit(token, chat, placeholder, &text, false).await;
+        }
         Err(e) => {
             let _ = edit(token, chat, placeholder, &format!("⚠️ {e}"), false).await;
         }
