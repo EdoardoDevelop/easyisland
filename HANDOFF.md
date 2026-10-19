@@ -26,6 +26,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 19 ottobre 2026 — Relay aggiornato davvero, righe di Notion create bene
+- Segnalato da Edoardo: da Telegram un'aggiunta in Notion ha richiesto 10 minuti e creato 8 pagine vuote. Cause: `bin\easyisland-hook.exe` fermo al 14 ottobre (copia in uso, errore taciuto: niente `notion_map`), e il modello (opencode, gratuito) che metteva `parent` dentro ogni pagina. Ora la copia in uso si mette da parte (`docs/agenti.md`) e l'indice della mappa dice come creare le righe (`docs/integrazioni.md`).
+- **Prove:** `cargo test --workspace`; sessione di opencode letta dal suo database. Da provare: la stessa richiesta da Telegram dopo l'aggiornamento.
+
 ### 19 ottobre 2026 — Mappa di Notion per la chat, versione 0.9.2
 - Chiesto da Edoardo: la chat cercava ogni volta com'è fatto il suo Notion. `notion_map.rs` tiene sul PC, cifrata, la struttura vista dal token (database, proprietà, opzioni, relazioni, data source, pagine); la chat riceve un indice all'inizio e i dettagli con lo strumento `notion_map`. Sincronizza a mano e ogni N ore (`docs/integrazioni.md`).
 - **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`; lettura vera in sola lettura (`notion_map::tests::live`: 11 database, 2 pagine) e data source confrontata con il connettore di Notion. Da provare in chat (`docs/prove-dal-vivo.md`).
@@ -44,9 +48,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Chiesto da Edoardo: Antigravity come Claude Code e opencode. Agente con i suoi hook (`~/.gemini/config/hooks.json`, gruppo `easyisland`, `hooks.rs`; traduzione in `hook/src/agents.rs`): sessioni, passi, diff, Consenti / Nega per comandi e strumenti MCP, con `allow` (la sua politica) quando l'isola non risponde. Motore della chat `antigravity.rs` (`agy -p` in `stream-json`), anche da Telegram; istruzioni di installazione in Impostazioni → Chat e motori AI (`docs/agenti.md`, `docs/chat.md`).
 - Segnalato da Edoardo dopo l'installazione: la chat non funzionava (agy 1.4.2 annida i campi di ogni evento e vuole la domanda come `--print=`). Corretto e provato con agy vero, anche un hook di prova con `auto_approve`.
 - **Prove:** `cargo test --workspace` (traduzione, risposte, gruppo nel file, stream), il relay compilato con payload finti risponde sempre in un formato valido, `npm run build`, `npm run smoke`. Non provato con agy vero: non è installato su questo PC (`docs/prove-dal-vivo.md`).
-
-### 18 ottobre 2026 — Vocali da Telegram (versione 0.8.9)
-- Versione **0.8.9** con le voci del 17–18 ottobre (impostazioni dagli agenti, «Automatica» in Telegram, «Permessi e chiamate», mini Notion, vocali); README, README.en.md e homepage aggiornati.
-- Richiesto da Edoardo: i vocali mandati al bot si trascrivono e vanno alla chat come testo (`transcribe.rs`, `docs/integrazioni.md`). Il servizio si sceglie in Impostazioni → Telegram → «Vocali» (Gemini, OpenAI, OpenRouter, con le chiavi dei motori della chat): Claude Code e opencode non sentono l'audio.
-- Poi, su richiesta di Edoardo: «Modello per l'audio» con i soli modelli che accettano audio, dal più economico. Rinominate le voci di Impostazioni: «Chat e motori AI» (sezioni Motore e modello, Comandi e file, Conversazioni salvate; «Azioni sul PC», «Connettori (server MCP)») e «Agenti di codice» (titoli delle sezioni più chiari). Nei documenti «Impostazioni → Chat» e «→ Agenti» indicano queste pagine.
-- **Prove:** `cargo test --workspace`, `npm run build`, riga nelle Impostazioni nell'anteprima. Non provato con un vocale vero: sul PC non c'è ancora nessuna di quelle chiavi (`docs/prove-dal-vivo.md`).

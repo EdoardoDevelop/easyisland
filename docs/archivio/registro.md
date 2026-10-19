@@ -2,6 +2,12 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 18 ottobre 2026 — Vocali da Telegram (versione 0.8.9)
+- Versione **0.8.9** con le voci del 17–18 ottobre (impostazioni dagli agenti, «Automatica» in Telegram, «Permessi e chiamate», mini Notion, vocali); README, README.en.md e homepage aggiornati.
+- Richiesto da Edoardo: i vocali mandati al bot si trascrivono e vanno alla chat come testo (`transcribe.rs`, `docs/integrazioni.md`). Il servizio si sceglie in Impostazioni → Telegram → «Vocali» (Gemini, OpenAI, OpenRouter, con le chiavi dei motori della chat): Claude Code e opencode non sentono l'audio.
+- Poi, su richiesta di Edoardo: «Modello per l'audio» con i soli modelli che accettano audio, dal più economico. Rinominate le voci di Impostazioni: «Chat e motori AI» (sezioni Motore e modello, Comandi e file, Conversazioni salvate; «Azioni sul PC», «Connettori (server MCP)») e «Agenti di codice» (titoli delle sezioni più chiari). Nei documenti «Impostazioni → Chat» e «→ Agenti» indicano queste pagine.
+- **Prove:** `cargo test --workspace`, `npm run build`, riga nelle Impostazioni nell'anteprima. Non provato con un vocale vero: sul PC non c'è ancora nessuna di quelle chiavi (`docs/prove-dal-vivo.md`).
+
 ### 18 ottobre 2026 — Mini Notion nella card
 - Richiesto da Edoardo; il ramo `notion` aveva solo un abbozzo che non si compilava (comandi non registrati, vista mai mostrata, pagine scelte tolte): rifatto. `notion_page.rs` legge pagine e database e fa le modifiche, `src/views/notionpage.ts` li disegna come Notion nell'isola: blocchi modificabili sul posto con «/», ⋮⋮ e scorciatoie; database in Tabella, Bacheca (trascinamento), Elenco, Galleria; pagine scelte come riquadri. Eliminare con due clic, nel cestino di Notion (`docs/integrazioni.md`, `docs/decisioni.md`).
 - Segnalato da Edoardo: le viste collegate (le attività dentro il progetto) erano «senza titolo» con 404; ora la card apre il database vero filtrato sulla relazione (`mark_linked`, `relations`), provato sul progetto vero.

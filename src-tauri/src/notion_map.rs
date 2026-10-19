@@ -289,7 +289,7 @@ pub fn index(tool: bool) -> Option<String> {
         s.push_str(&names.join(" · "));
     }
     if tool {
-        s.push_str("\nProprietà, opzioni di stati e selezioni e relazioni di ogni database: strumento notion_map di easyisland (database = nome o id), senza chiamate a Notion.");
+        s.push_str("\nProprietà, opzioni di stati e selezioni e relazioni di ogni database: strumento notion_map di easyisland (database = nome o id), senza chiamate a Notion; se lo strumento non c'è, un solo fetch della data source.");
     } else {
         // Without the tool, the properties come along.
         for d in m.databases.iter().take(INDEX_DBS) {
@@ -297,6 +297,9 @@ pub fn index(tool: bool) -> Option<String> {
             s.push_str(&describe(d, &m));
         }
     }
+    // Learnt from a turn on 19 October 2026: a model put `parent` inside each
+    // page, and Notion made eight empty private pages before it found out.
+    s.push_str("\nPer aggiungere righe con notion-create-pages: \"parent\": {\"data_source_id\": \"…\"} va al livello principale della chiamata, accanto a \"pages\", mai dentro una pagina; le proprietà con i nomi esatti della mappa (date come date:Nome:start). Se la risposta torna con le proprietà vuote, la pagina è finita fuori dal database: correggi la chiamata, non creare pagine di prova.");
     s.push_str("]\n\n");
     Some(s)
 }

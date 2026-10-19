@@ -764,6 +764,16 @@ pub fn ensure_hook_exe(app: &AppHandle) {
         return;
     };
 
+    // Copies set aside by an earlier launch (below), now free.
+    if let Ok(list) = std::fs::read_dir(dir) {
+        for e in list.flatten() {
+            let name = e.file_name().to_string_lossy().to_lowercase();
+            if name.starts_with("easyisland-hook.old-") && name.ends_with(".exe") {
+                let _ = std::fs::remove_file(e.path());
+            }
+        }
+    }
+
     let same = match (std::fs::metadata(&src), std::fs::metadata(&dest)) {
         (Ok(a), Ok(b)) => a.len() == b.len() && a.modified().ok() == b.modified().ok(),
         _ => false,
@@ -771,10 +781,24 @@ pub fn ensure_hook_exe(app: &AppHandle) {
     if same {
         return;
     }
-    // A hook may be running right now and hold the file open; keeping the old
-    // copy is fine, it is the same relay.
-    if let Err(err) = std::fs::copy(&src, &dest) {
-        if !dest.exists() {
+    // A relay may be running right now and hold the file: the MCP servers
+    // (`easyisland-hook mcp`) of Claude Code and opencode stay up for hours.
+    // Keeping the old copy is not fine (it stayed at 14 October 2026 for five
+    // versions, without the newer tools): a running exe can be renamed, so
+    // it is set aside and the new one copied; the old one goes next launch.
+    if std::fs::copy(&src, &dest).is_ok() {
+        return;
+    }
+    let aside = dir.join(format!("easyisland-hook.old-{}.exe", std::process::id()));
+    if let Err(err) = std::fs::rename(&dest, &aside) {
+        crate::log::line(format!("could not install easyisland-hook.exe: {err}"));
+        return;
+    }
+    match std::fs::copy(&src, &dest) {
+        Ok(_) => crate::log::line("easyisland-hook.exe aggiornato (la copia in uso è stata messa da parte)"),
+        Err(err) => {
+            // Never without a relay: the old one back.
+            let _ = std::fs::rename(&aside, &dest);
             crate::log::line(format!("could not install easyisland-hook.exe: {err}"));
         }
     }
