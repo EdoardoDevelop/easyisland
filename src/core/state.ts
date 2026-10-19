@@ -224,6 +224,10 @@ export interface ChatMessage {
   id: number;
   role: "user" | "assistant";
   content: string;
+  /** The engine that wrote an answer (for «Seconda opinione»). */
+  engine?: string;
+  /** A second opinion: the name of the engine that gave it. */
+  reviewer?: string;
 }
 
 export type PromptContext =

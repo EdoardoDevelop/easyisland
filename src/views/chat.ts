@@ -36,6 +36,12 @@ function bubble(message: ChatMessage): HTMLElement {
     );
   }
   // Claude answers in markdown: rendered as DOM, never as HTML (core/markdown.ts).
+  if (message.reviewer) {
+    return h("div", { class: "chat-row" },
+      h("div", { class: "reply md second" },
+        h("div", { class: "second-head", text: `⇄ ${t("Seconda opinione · {e}", { e: message.reviewer })}` }),
+        ...renderMarkdown(message.content, MD_HOOKS)));
+  }
   return h("div", { class: "chat-row" },
     h("div", { class: "reply md" }, ...renderMarkdown(message.content, MD_HOOKS)));
 }
@@ -179,7 +185,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
           return r;
         })
         : await Bridge.chatSend(query, context, State.chatEngine, State.chatAuto && State.settings.chatTerminal === true);
-      State.chatHistory.push({ id: nextId++, role: "assistant", content: reply.text });
+      State.chatHistory.push({ id: nextId++, role: "assistant", content: reply.text, engine: asked ? undefined : State.chatEngine });
       State.stateOverride = null;
       Sound.play("finish");
     } catch (err) {
@@ -203,6 +209,89 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       onHeightChange();
       input.focus();
     }
+  }
+
+  /**
+   * The answer a second opinion is about: the last one not written by a
+   * reviewer, with its question and engine (none for a session's copy or a
+   * stopped answer).
+   */
+  function reviewable(): { question: string; answer: string; engine: string } | null {
+    const list = State.chatHistory;
+    const i = list.map((m) => m.role === "assistant" && !m.reviewer).lastIndexOf(true);
+    const a = list[i];
+    if (!a?.engine || a.content.endsWith(`⏹ ${t("Fermato.")}`)) return null;
+    const q = list.slice(0, i).reverse().find((m) => m.role === "user");
+    return q ? { question: q.content, answer: a.content, engine: a.engine } : null;
+  }
+
+  /** «⇄ Seconda opinione»: another engine reviews the last answer (second.rs). */
+  async function secondOpinion(engine: ChatEngine) {
+    const target = reviewable();
+    if (!target || sending) return;
+    const name = CHAT_ENGINES.find((e) => e.id === engine)?.name ?? engine;
+    sending = true;
+    stopping = false;
+    Sound.play("send");
+    State.stateOverride = "thinking";
+    State.notify();
+    onHeightChange();
+    streamed = "";
+    try {
+      const text = await Bridge.chatSecond(engine, target.engine, target.question, target.answer);
+      State.chatHistory.push({ id: nextId++, role: "assistant", content: text, reviewer: name });
+      State.stateOverride = null;
+      Sound.play("finish");
+    } catch (err) {
+      State.stateOverride = null;
+      if (stopping) {
+        const soFar = streamed.trim();
+        State.chatHistory.push({ id: nextId++, role: "assistant", content: `${soFar ? soFar + "\n\n" : ""}⏹ ${t("Fermato.")}`, reviewer: name });
+        Sound.play("blip");
+        return;
+      }
+      State.noteMessage = String(err).replace(/^Error:\s*/, "");
+      State.view = "note";
+      Sound.play("error");
+    } finally {
+      sending = false;
+      stopping = false;
+      streamed = "";
+      streamEl = null;
+      renderedCount = -1;
+      State.notify();
+      onHeightChange();
+      input.focus();
+    }
+  }
+
+  /** The button under the last answer, and its menu of the other engines. */
+  function secondRow(): HTMLElement {
+    const menu = h("div", { class: "second-menu" });
+    menu.style.display = "none";
+    const btn = h("button", { class: "second-btn", title: t("Un altro motore controlla quest'ultima risposta"), text: `⇄ ${t("Seconda opinione")}` }) as HTMLButtonElement;
+    btn.addEventListener("click", async () => {
+      if (menu.style.display !== "none") {
+        menu.style.display = "none";
+        onHeightChange();
+        return;
+      }
+      const first = reviewable()?.engine;
+      const list = (await readyEngines()).filter((e) => e.id !== first);
+      clear(menu);
+      for (const e of list) {
+        menu.append(h("button", {
+          class: "engine-item", title: e.hint,
+          text: engineLabel({ ...State.settings, chatEngine: e.id }),
+          onclick: () => void secondOpinion(e.id),
+        }));
+      }
+      if (!list.length) menu.append(h("div", { class: "engine-note", text: t("Nessun altro motore pronto: Impostazioni → Chat") }));
+      menu.style.display = "";
+      log.scrollTop = log.scrollHeight;
+      onHeightChange();
+    });
+    return h("div", { class: "chat-row second-row" }, btn, menu);
   }
 
   /** Forgets the conversation and whatever it was about (file, copied text). */
@@ -457,6 +546,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
         clear(log);
         streamEl = null;
         for (const m of State.chatHistory) log.append(bubble(m));
+        if (!thinking && !sending && !asked && reviewable()) log.append(secondRow());
         if (thinking && streamed) {
           streamEl = h("div", { class: "chat-row" });
           log.append(streamEl);

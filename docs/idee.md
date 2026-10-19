@@ -74,6 +74,14 @@ Fatti il 15 ottobre 2026 i punti 1, 2 e 3 (`integrazioni.md` → Automazioni), t
 7. **Impara dall'uso:** le abitudini (`habits.rs`) propongono anche dai nuovi eventi (es. ogni PDF scaricato viene aperto subito); un'automazione annullata o ignorata spesso propone di spegnersi o cambiare orario; nel registro, quante volte è partita e quante annullata. «Prova ora» per vedere cosa farebbe senza aspettare il «quando».
 Proposta di partenza: 1 + 2 + 3 (più utili, nessun modello coinvolto), poi 5, poi 6.
 
+## La giornata di oggi e domani (chiesta da Edoardo il 18 ottobre 2026, priorità alta)
+Un riassunto amichevole, fatto dall'IA, di tutte le integrazioni (Notion, Outlook, ticket, meteo…) per oggi o per domani: da solo al mattino e alla sera agli orari scelti nelle Impostazioni, e a richiesta dalla chat, dalla barra di ricerca, da Telegram e dalle azioni rapide.
+- **Fatto (19 ottobre 2026):** `/oggi` e `/domani` su Telegram (`docs/integrazioni.md`). Dalla chat e dalle azioni rapide va già una domanda a parole («com'è la mia giornata?») con un motore che ha gli strumenti.
+- **Da fare:** la stessa domanda dalla barra di ricerca e come voce delle azioni rapide; il riepilogo del giorno che c'è (`daily.rs`: repository, PR, tempo degli agenti, alle ore di `dailyRecap`) con in più il testo dell'IA sulle integrazioni, quando un motore con strumenti è pronto; la stessa cosa mandata su Telegram all'ora scelta. Attenzione al costo: un turno con strumenti a ogni riepilogo.
+
+## Strumenti di EasyIsland per gli altri motori via API (valutato il 19 ottobre 2026)
+Fatto per Anthropic con chiave (`docs/chat.md`); opencode li aveva già. Restano senza strumenti OpenRouter, OpenAI, Gemini, Ollama e LM Studio (`openai.rs`), salvo la Modalità terminale che li fa passare da opencode. Per farlo: stesso elenco (`hook/src/tool_list.rs`) come `tools`, le chiamate ricomposte dallo stream (`tool_calls`), il ciclo come in `claude.rs`; molti modelli locali o gratuiti non usano bene gli strumenti, quindi ripiego senza quando il modello li rifiuta (400) e un'opzione per spegnerli. Edoardo ha scelto il 19 ottobre 2026 di non farlo per ora.
+
 ## Altro
 - **Scheda esatta di Windows Terminal** per «Apri»: il relay legge il titolo della console e l'app seleziona la scheda con UI Automation. Da sperimentare con una sessione vera. Tolta dal Da fare il 9 ottobre: per ora non serve.
 - **Clic destro sui file in Esplora file** (prossimo passo, deciso l'11 ottobre 2026): una voce nel registro di Windows (`HKCU\Software\Classes\*\shell`) che passa il percorso all'app, scritta solo dopo la conferma di Edoardo. In Windows 11 finisce sotto «Mostra altre opzioni» (il menu nuovo vuole un pacchetto MSIX con `IExplorerCommand`). Per il testo selezionato c'è già il menu di `Win+Alt+A`.
@@ -85,7 +93,7 @@ Proposta di partenza: 1 + 2 + 3 (più utili, nessun modello coinvolto), poi 5, p
   - firma del codice (Authenticode o Azure Trusted Signing)
   - tag `windows-latest` sul repo, creato per sbaglio
   - funzioni del Mac mai portate (invio di un file per email, personaggio trascinato su una finestra per allegarla)
-- **Idee da valutare:** libreria di comandi PowerShell/cmd con conferma; casa (promemoria, Home Assistant); integrazioni proposte il 2 ottobre (Windows Update, stampanti bloccate, Teams, Docker, Git locali, WSL, IMAP, DNS/blacklist, pagine di stato, CISA KEV, RSS, ntfy (Telegram fatto: `docs/integrazioni.md`), Uptime Kuma, Proxmox, Synology/TrueNAS, UniFi, Pi-hole, GLPI).
+- **Idee da valutare:** TeamViewer come integrazione (annotata il 16 ottobre 2026, senza dettagli: da chiarire con Edoardo cosa serve); libreria di comandi PowerShell/cmd con conferma; casa (promemoria, Home Assistant); integrazioni proposte il 2 ottobre (Windows Update, stampanti bloccate, Teams, Docker, Git locali, WSL, IMAP, DNS/blacklist, pagine di stato, CISA KEV, RSS, ntfy (Telegram fatto: `docs/integrazioni.md`), Uptime Kuma, Proxmox, Synology/TrueNAS, UniFi, Pi-hole, GLPI).
 
 ## Pulizia del codice (solo quando si tocca quel file)
 - `mmss` è duplicato in `src/views/integrations.ts` (secondi) e `src/views/threecx.ts` (millisecondi); anche il «Copiato ✓» temporaneo è ripetuto in più viste.

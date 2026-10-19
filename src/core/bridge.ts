@@ -210,6 +210,8 @@ export const Bridge = {
   voiceModels: (service: string) => callOrThrow<ModelOption[]>("voice_models", { service }),
   /** "Ferma": ends the island's turn in progress (lib.rs chat_stop); chatSend then fails with "Interrotta.". */
   chatStop: () => call<void>("chat_stop"),
+  chatSecond: (engine: string, first: string, question: string, answer: string) =>
+    callOrThrow<string>("chat_second", { engine, first, question, answer }),
   chatReset: () => call<void>("chat_reset"),
   /** "Continua": the next message for a session (session_reply.rs). "sent" or "prefilled". */
   sessionReply: (mode: string, text: string, pid: number | null, session: string | null, scheme: string | null) =>
@@ -436,6 +438,8 @@ export const Bridge = {
   /** EasyIsland's tools in Claude Code's user configuration (mcp_setup.rs). */
   mcpClaudeStatus: () => call<{ cli: boolean; installed: boolean; current: boolean; entry: string }>("mcp_claude_status"),
   mcpClaudeApply: (install: boolean) => callOrThrow<string>("mcp_claude_apply", { install }),
+  mcpAgyStatus: () => call<{ cli: boolean; installed: boolean; current: boolean; entry: string }>("mcp_agy_status"),
+  mcpAgyApply: (install: boolean) => callOrThrow<string>("mcp_agy_apply", { install }),
   recapClear: () => call<void>("recap_clear"),
   /** From the settings window: the island opens the recap. */
   recapShow: () => call<void>("recap_show"),

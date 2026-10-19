@@ -142,3 +142,25 @@ chooses.
   conversation resumed with `--conversation`. Permissions come through the same hooks
   (`EASYISLAND_AGY_CHAT`). Install: `irm https://antigravity.google/cli/install.ps1 | iex`,
   then `agy` to sign in with Google.
+- **EasyIsland's tools in Antigravity:** Settings → Chat → Antigravity adds the
+  `easyisland` MCP server with `agy mcp add` (a dated copy of
+  `~/.gemini/config/mcp_config.json` first, then a click on Confirm). Read-only tools are
+  approved by the relay without asking.
+
+## Notion for every engine
+
+`notion_tools.rs` gives every engine with tools EasyIsland's own Notion connection:
+`notion_search`, `notion_read`, `notion_query`, `notion_add_row`, `notion_update_row`.
+The database is found in the local map (`notion_map.rs`) and every value is checked
+against its properties before writing, so a row cannot end up outside its database.
+Reading runs freely; adding and changing ask Allow / Deny; nothing deletes.
+The Anthropic API engine (`claude.rs`) gets the same tools too: the list lives in
+`hook/src/tool_list.rs`, shared by the relay and the app, and the app runs the
+`tool_use` loop itself. The OpenAI-compatible engines still have no tools.
+
+## Second opinion (`second.rs`)
+
+Under the last answer, in the island and on Telegram, "⇄ Second opinion" lets another
+engine review the last question and answer: one turn of its own, without EasyIsland's
+tools, stoppable. Its text is shown as its own message and goes in front of the next
+question to the main engine. No automatic dialogue between engines.

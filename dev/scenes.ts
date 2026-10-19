@@ -158,6 +158,14 @@ export async function runScene(island: Island, scene: string) {
         ];
         State.notify();
       }
+      // ?second: an answer, its «Seconda opinione» and the button under the last one.
+      if (new URLSearchParams(location.search).has("second")) {
+        State.chatHistory = [
+          { id: 1, role: "user", content: "Quanti giorni di preavviso servono per disdire il contratto?" },
+          { id: 2, role: "assistant", content: "Di solito **30 giorni**, con raccomandata o PEC.", engine: "subscription" },
+          { id: 3, role: "assistant", content: "Manca un punto: molti contratti chiedono **60 giorni** prima della scadenza annuale. Va controllato l'articolo sulla disdetta.", reviewer: "Gemini" },
+        ];
+      }
       // ?long: a pasted path with no spaces in the history.
       if (new URLSearchParams(location.search).has("long")) {
         State.chatHistory = [

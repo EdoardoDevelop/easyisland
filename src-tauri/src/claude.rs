@@ -1,5 +1,10 @@
 // Claude API client — the same integration as ClaudeService.swift: multi-turn
-// chat with web search, and files sent as document/image/text blocks.
+// chat with web search, and files sent as document/image/text blocks. With
+// «Strumenti di EasyIsland» on, also EasyIsland's own tools (the list the
+// relay's MCP server offers, `hook/src/tool_list.rs`), run here through
+// agent.rs: the read-only ones at once, the others after Consenti / Nega in
+// the island or on Telegram (asked by Edoardo on 19 October 2026: every
+// engine should reach EasyIsland's integrations).
 //
 // Everything happens here rather than in the island: the API key never leaves
 // the Credential Manager, and file bytes never cross the IPC boundary.
@@ -11,6 +16,79 @@ use serde_json::{json, Value};
 
 use crate::secrets;
 use crate::i18n::{t, tf};
+
+#[path = "../../hook/src/tool_list.rs"]
+mod tool_list;
+
+/// Rounds of tool calls in one turn at most.
+const MAX_TOOL_ROUNDS: usize = 15;
+
+/// EasyIsland's tools for a turn: who asks Consenti / Nega (the island, or Telegram).
+pub struct Tools<'a> {
+    pub app: &'a tauri::AppHandle,
+    pub telegram: bool,
+}
+
+/// The tools as the API wants them; `show_card` would cover the chat itself.
+fn agent_tools() -> Vec<Value> {
+    tool_list::tools()
+        .into_iter()
+        .filter(|t| t.0 != "show_card")
+        .map(|(name, description, schema, _)| json!({ "name": name, "description": description, "input_schema": schema }))
+        .collect()
+}
+
+/// One tool_use block → its tool_result block, after the user's click when it changes something.
+async fn run_tool(tools: &Tools<'_>, block: &Value) -> Value {
+    let id = block.get("id").cloned().unwrap_or(Value::Null);
+    let name = block.get("name").and_then(Value::as_str).unwrap_or_default();
+    let input = block.get("input").cloned().unwrap_or_else(|| json!({}));
+    let known = name != "show_card" && tool_list::tools().iter().any(|t| t.0 == name);
+    let (text, ok) = if !known {
+        (format!("Strumento sconosciuto: {name}"), false)
+    } else if crate::claude_cli::AGENT_READ_ONLY.contains(&name) || allowed(tools, name, &input).await {
+        let v = crate::agent::call(tools.app, name, &input).await;
+        (v.get("text").and_then(Value::as_str).unwrap_or_default().to_string(), v.get("ok").and_then(Value::as_bool) == Some(true))
+    } else {
+        ("L'utente ha negato questa azione: non riprovarla.".to_string(), false)
+    };
+    json!({ "type": "tool_result", "tool_use_id": id, "content": text, "is_error": !ok })
+}
+
+/// Consenti / Nega for a tool that changes something, as for the other engines.
+async fn allowed(tools: &Tools<'_>, name: &str, input: &Value) -> bool {
+    let payload = json!({
+        "hook_event_name": "PermissionRequest",
+        "easyisland_chat": true,
+        "easyisland_engine": "api",
+        "tool_name": format!("mcp__easyisland__{name}"),
+        "tool_input": input,
+    });
+    let decision = if tools.telegram {
+        crate::telegram::request_decision(tools.app, payload).await
+    } else {
+        crate::pipe::request_decision(tools.app, payload).await
+    };
+    matches!(decision.as_deref(), Some("allow" | "always"))
+}
+
+/// A turn stopped while tools ran leaves calls without results, which the API
+/// refuses: the unfinished turn is dropped, back to the last complete answer.
+fn drop_unfinished(chat: &Chat) {
+    let open = |m: &Value| {
+        m.get("role").and_then(Value::as_str) != Some("assistant")
+            || m.get("content").and_then(Value::as_array).is_some_and(|c| c.iter().any(|b| b.get("type").and_then(Value::as_str) == Some("tool_use")))
+    };
+    let history = chat.snapshot();
+    let has_tools = history.iter().any(|m| m.get("content").and_then(Value::as_array).is_some_and(|c| c.iter().any(|b| b.get("type").and_then(Value::as_str) == Some("tool_use"))));
+    if !has_tools {
+        return;
+    }
+    let keep = history.iter().rposition(|m| !open(m)).map_or(0, |i| i + 1);
+    for _ in keep..history.len() {
+        chat.pop();
+    }
+}
 
 const ENDPOINT: &str = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION: &str = "2023-06-01";
@@ -169,12 +247,18 @@ fn supports_default_fallback(model: &str) -> bool {
     )
 }
 
-fn request_body(model: &str, messages: Vec<Value>) -> Value {
+fn request_body(model: &str, messages: Vec<Value>, agent: bool) -> Value {
+    let mut tools = vec![web_search_tool(model)];
+    let mut system = crate::i18n::prompt(SYSTEM_PROMPT);
+    if agent {
+        tools.extend(agent_tools());
+        system.push_str(crate::claude_cli::AGENT_PROMPT);
+    }
     let mut body = json!({
         "model": model,
         "max_tokens": MAX_TOKENS,
-        "system": crate::i18n::prompt(SYSTEM_PROMPT),
-        "tools": [web_search_tool(model)],
+        "system": system,
+        "tools": tools,
         "messages": messages,
     });
     if supports_default_fallback(model) {
@@ -191,12 +275,19 @@ pub struct ChatReply {
 
 /// One chat turn. Returns the assistant's text, or a message the island shows
 /// in the note view.
-pub async fn send(
+pub async fn send(chat: &Chat, model: &str, query: String, context: Option<ChatContext>) -> Result<ChatReply, String> {
+    send_with(chat, model, query, context, None).await
+}
+
+/// `send`, with EasyIsland's tools when `tools` is given (lib.rs chat_turn).
+pub async fn send_with(
     chat: &Chat,
     model: &str,
     query: String,
     context: Option<ChatContext>,
+    tools: Option<Tools<'_>>,
 ) -> Result<ChatReply, String> {
+    drop_unfinished(chat);
     let key = secrets::get("anthropic-api-key")
         .ok_or_else(|| t("Manca la chiave API. Apri le impostazioni.").to_string())?;
 
@@ -233,9 +324,12 @@ pub async fn send(
     let mut pushed = 1;
     let mut blocks_all: Vec<Value> = Vec::new();
     let mut truncated = false;
+    // What the tools did, as the other engines show it ("> ⚙ …" above the answer).
+    let mut steps: Vec<String> = Vec::new();
+    let (mut continuations, mut rounds) = (0, 0);
 
-    for attempt in 0..=MAX_CONTINUATIONS {
-        let body = request_body(model, chat.snapshot());
+    loop {
+        let body = request_body(model, chat.snapshot(), tools.is_some());
         let response = match call(&key, &body, supports_default_fallback(model)).await {
             Ok(v) => v,
             Err(err) => {
@@ -272,12 +366,40 @@ pub async fn send(
         // included — so the next turn has the right context.
         chat.push(json!({ "role": "assistant", "content": blocks.clone() }));
         pushed += 1;
+        let calls: Vec<Value> = blocks.iter().filter(|b| b.get("type").and_then(Value::as_str) == Some("tool_use")).cloned().collect();
         blocks_all.extend(blocks);
 
+        // EasyIsland's tools: their results go back and the model goes on.
+        if stop == "tool_use" && !calls.is_empty() {
+            if let Some(tl) = &tools {
+                let mut results = Vec::new();
+                for c in &calls {
+                    let name = c.get("name").and_then(Value::as_str).unwrap_or("?");
+                    let result = if rounds < MAX_TOOL_ROUNDS {
+                        run_tool(tl, c).await
+                    } else {
+                        json!({ "type": "tool_result", "tool_use_id": c.get("id"), "content": "Troppi passi in questa risposta: fermati e riassumi.", "is_error": true })
+                    };
+                    let mark = if result.get("is_error").and_then(Value::as_bool) == Some(true) { " — ⚠" } else { "" };
+                    steps.push(format!("> ⚙ {name}{mark}"));
+                    results.push(result);
+                }
+                chat.push(json!({ "role": "user", "content": results }));
+                pushed += 1;
+                rounds += 1;
+                // Past the limit the model gets one more call, to sum up.
+                if rounds <= MAX_TOOL_ROUNDS + 1 {
+                    continue;
+                }
+            }
+        }
         match stop {
             // The server paused a long search turn: send the history back as-is
             // and the model picks up where it stopped.
-            "pause_turn" if attempt < MAX_CONTINUATIONS => continue,
+            "pause_turn" if continuations < MAX_CONTINUATIONS => {
+                continuations += 1;
+                continue;
+            }
             "max_tokens" => truncated = true,
             _ => {}
         }
@@ -292,6 +414,10 @@ pub async fn send(
         .join("\n")
         .trim()
         .to_string();
+
+    if !steps.is_empty() && !text.is_empty() {
+        text = format!("{}\n\n{text}", steps.join("\n\n"));
+    }
 
     if truncated && !text.is_empty() {
         text.push_str(t("\n\n[Risposta interrotta: troppo lunga.]"));
@@ -398,7 +524,34 @@ fn base64(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{request_body, supports_default_fallback, web_search_tool};
+    use super::{agent_tools, drop_unfinished, request_body, supports_default_fallback, web_search_tool, Chat};
+    use serde_json::json;
+
+    #[test]
+    fn easyisland_tools_ride_along_only_when_on() {
+        assert_eq!(request_body("claude-opus-5-5", vec![], false)["tools"].as_array().unwrap().len(), 1);
+        let on = request_body("claude-opus-5-5", vec![], true);
+        let names: Vec<&str> = on["tools"].as_array().unwrap().iter().filter_map(|t| t["name"].as_str()).collect();
+        assert!(names.contains(&"notion_add_row") && names.contains(&"list_status") && names.contains(&"web_search"));
+        assert!(!names.contains(&"show_card"));
+        assert!(on["system"].as_str().unwrap().contains("easyisland tools"));
+        assert!(agent_tools().iter().all(|t| t["input_schema"]["type"] == "object"));
+    }
+
+    #[test]
+    fn a_stopped_tool_turn_is_dropped() {
+        let chat = Chat::default();
+        chat.push(json!({ "role": "user", "content": "ciao" }));
+        chat.push(json!({ "role": "assistant", "content": [{ "type": "text", "text": "ciao!" }] }));
+        chat.push(json!({ "role": "user", "content": "aggiungi in Notion" }));
+        chat.push(json!({ "role": "assistant", "content": [{ "type": "tool_use", "id": "t1", "name": "notion_add_row", "input": {} }] }));
+        drop_unfinished(&chat);
+        assert_eq!(chat.snapshot().len(), 2);
+        // A history without tools is left as it is.
+        chat.push(json!({ "role": "user", "content": "e poi?" }));
+        drop_unfinished(&chat);
+        assert_eq!(chat.snapshot().len(), 3);
+    }
 
     #[test]
     fn web_search_variant_follows_the_model() {
@@ -414,8 +567,8 @@ mod tests {
         assert!(supports_default_fallback("claude-sonnet-5-5"));
         assert!(!supports_default_fallback("claude-sonnet-5"));
         assert!(!supports_default_fallback("claude-haiku-4-5"));
-        assert_eq!(request_body("claude-opus-5-5", vec![])["fallbacks"], "default");
-        assert!(request_body("claude-haiku-4-5", vec![]).get("fallbacks").is_none());
+        assert_eq!(request_body("claude-opus-5-5", vec![], false)["fallbacks"], "default");
+        assert!(request_body("claude-haiku-4-5", vec![], false).get("fallbacks").is_none());
     }
 
     use super::base64;

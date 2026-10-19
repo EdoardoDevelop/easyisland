@@ -131,7 +131,7 @@ fn parent_page(obj: &Value) -> Option<String> {
     }
 }
 
-fn props_of(db: &Value) -> Vec<Prop> {
+pub(crate) fn props_of(db: &Value) -> Vec<Prop> {
     let Some(props) = db.get("properties").and_then(Value::as_object) else { return Vec::new() };
     let mut list: Vec<Prop> = props
         .iter()
@@ -256,6 +256,11 @@ pub async fn sync_if_old(hours: u32) {
 }
 
 /// The settings' line: how many, and when.
+/// The databases of the map (empty when it has not been read).
+pub(crate) fn databases() -> Vec<Db> {
+    current().map(|m| m.databases).unwrap_or_default()
+}
+
 pub fn status() -> Value {
     match current() {
         Some(m) => json!({ "databases": m.databases.len(), "pages": m.pages.len(), "at": m.at }),
@@ -289,7 +294,7 @@ pub fn index(tool: bool) -> Option<String> {
         s.push_str(&names.join(" · "));
     }
     if tool {
-        s.push_str("\nProprietà, opzioni di stati e selezioni e relazioni di ogni database: strumento notion_map di easyisland (database = nome o id), senza chiamate a Notion.");
+        s.push_str("\nProprietà, opzioni di stati e selezioni e relazioni di ogni database: strumento notion_map di easyisland (database = nome o id), senza chiamate a Notion. Per leggere e scrivere usa prima gli strumenti di easyisland: notion_query (righe), notion_add_row e notion_update_row (database per nome, proprietà con i nomi della mappa; controllano i valori prima di scrivere), notion_search, notion_read. Se non ci sono, un solo fetch della data source e gli strumenti di Notion.");
     } else {
         // Without the tool, the properties come along.
         for d in m.databases.iter().take(INDEX_DBS) {
@@ -297,6 +302,9 @@ pub fn index(tool: bool) -> Option<String> {
             s.push_str(&describe(d, &m));
         }
     }
+    // Learnt from a turn on 19 October 2026: a model put `parent` inside each
+    // page, and Notion made eight empty private pages before it found out.
+    s.push_str("\nPer aggiungere righe con notion-create-pages: \"parent\": {\"data_source_id\": \"…\"} va al livello principale della chiamata, accanto a \"pages\", mai dentro una pagina; le proprietà con i nomi esatti della mappa (date come date:Nome:start). Se la risposta torna con le proprietà vuote, la pagina è finita fuori dal database: correggi la chiamata, non creare pagine di prova.");
     s.push_str("]\n\n");
     Some(s)
 }
@@ -341,7 +349,7 @@ fn describe(d: &Db, m: &Map) -> String {
     s
 }
 
-fn same_id(a: &str, b: &str) -> bool {
+pub(crate) fn same_id(a: &str, b: &str) -> bool {
     a.replace('-', "").eq_ignore_ascii_case(&b.replace('-', ""))
 }
 

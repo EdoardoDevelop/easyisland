@@ -35,6 +35,8 @@ mod moments;
 mod netconfig;
 mod notion;
 mod notion_map;
+mod notion_tools;
+mod second;
 mod notion_page;
 mod rdm;
 mod openai;
@@ -980,6 +982,29 @@ pub(crate) fn stop_turn(telegram: bool) {
     STOP[usize::from(telegram)].notify_waiters();
 }
 
+/// Whichever comes first: the turn or "Ferma" (then the turn is dropped).
+pub(crate) async fn until_stopped<T>(telegram: bool, turn: impl std::future::Future<Output = Result<T, String>>) -> Result<T, String> {
+    let mut turn = std::pin::pin!(turn);
+    let mut stop = std::pin::pin!(STOP[usize::from(telegram)].notified());
+    std::future::poll_fn(|cx| {
+        if let std::task::Poll::Ready(r) = std::future::Future::poll(turn.as_mut(), cx) {
+            return std::task::Poll::Ready(r);
+        }
+        std::future::Future::poll(stop.as_mut(), cx).map(|()| Err(stopped_text()))
+    })
+    .await
+}
+
+/// «⇄ Seconda opinione» in the island's chat: another engine reviews the last
+/// answer (second.rs); what it says rides in front of the next question.
+#[tauri::command]
+async fn chat_second(app: AppHandle, chat: State<'_, Chat>, engine: String, first: String, question: String, answer: String) -> Result<String, String> {
+    let on_text = |text: &str| {
+        let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "text": text }));
+    };
+    second::run(&app, &chat, &engine, &first, &question, &answer, false, &on_text).await
+}
+
 /// The island's "Ferma".
 #[tauri::command]
 fn chat_stop() {
@@ -1078,7 +1103,10 @@ pub(crate) async fn chat_turn(
             antigravity::send(chat, &other_model, query, context, dir.as_deref(), on_text, telegram).await
         }
         (Some(folder), _) => claude_cli::send(chat, &cli_model, &mcp, agent, query, context, Some(folder), auto, on_text, telegram, None).await,
-        (None, "api") => claude::send(chat, &model, query, context).await,
+        (None, "api") => {
+            let tools = agent.then_some(claude::Tools { app, telegram });
+            claude::send_with(chat, &model, query, context, tools).await
+        }
         (None, "opencode") => {
             let o = opencode::Options { telegram, agent, work: work.clone(), ..Default::default() };
             opencode::send(app, chat, &other_model, query, context, &o, on_text).await
@@ -1086,16 +1114,7 @@ pub(crate) async fn chat_turn(
         (None, e) if openai::ENGINES.contains(&e) => openai::send(chat, &engine, &other_model, url.as_deref(), query, context, on_text).await,
         (None, _) => claude_cli::send(chat, &cli_model, &mcp, agent, query, context, None, false, on_text, telegram, work.as_deref()).await,
     } };
-    // Whichever comes first: the reply or "Ferma".
-    let mut work_turn = std::pin::pin!(work_turn);
-    let mut stop = std::pin::pin!(STOP[usize::from(telegram)].notified());
-    let reply = std::future::poll_fn(|cx| {
-        if let std::task::Poll::Ready(r) = std::future::Future::poll(work_turn.as_mut(), cx) {
-            return std::task::Poll::Ready(r);
-        }
-        std::future::Future::poll(stop.as_mut(), cx).map(|()| Err(stopped_text()))
-    })
-    .await;
+    let reply = until_stopped(telegram, work_turn).await;
     match &reply {
         Ok(r) if shared.settings.lock().unwrap().chat_history => {
             chat_log::record(chat, &engine, &asked, &r.text, if telegram { "Telegram · " } else { "" })
@@ -2263,6 +2282,9 @@ pub fn run() {
             moments::moment_card_answer,
             mcp_setup::mcp_claude_status,
             mcp_setup::mcp_claude_apply,
+            chat_second,
+            mcp_setup::mcp_agy_status,
+            mcp_setup::mcp_agy_apply,
             recap_show,
             daily_show,
             restart_app,
