@@ -6,6 +6,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 
 ## Da fare
 - [ ] **Prove dal vivo:** della 0.6.3 interfaccia in inglese, limiti del piano, card «finito» da un altro programma e riepilogo settimanale; della 0.6.4 cronologia delle chat; della 0.6.5 il personaggio lasciato su un'icona del desktop; della 0.6.6 saluto al centro, Claude Code assente sul notebook e standby con la Rete; della 0.6.7 «Continua», «Chiedi», «Sempre» di sessione e 📌 come finestra; della 0.6.8 menu con `Win+Alt+A`, «Sostituisci» e reazioni del personaggio; della 0.6.9 e 0.7.0 i nuovi personaggi e la Fiamma animata; della 0.7.1 team e chat di 3CX e il cielo grande; della 0.7.2 il personaggio della chat lasciato su una finestra; della 0.7.3 il piano letto da Anthropic, il tempo rimasto sui permessi e gli appunti rimessi per intero; della 0.7.4 l'isola che non si chiude trascinando il personaggio della chat; della 0.7.5 «Questo PC» di 3CX con audio e suoneria e l'avvio dopo un aggiornamento su un altro PC; della 0.7.7 «Cerchia e chiedi» e il personaggio durante una chiamata 3CX; della 0.7.8 il nuovo impianto, le risposte rapide, la card del Meteo e il personaggio che torna al suo colore; della 0.7.9 le proposte al momento giusto, il riepilogo del giorno e gli strumenti in Claude Code; della 0.8.0 il rinnovo dell'accesso di Claude Code, il ping e le impostazioni di rete, la Rubrica di 3CX; della 0.8.2 «Sostituisci» con la formattazione in Word, Outlook e Gmail; della 0.8.3 la «Modalità terminale» e ⚡ «Automatica» della chat, Notion con l'account vero; della 0.8.4 le automazioni con contesto e le Impostazioni sopra l'isola; della 0.8.5 la barra dell'app in uso e il menu contestuale; della 0.8.6 le azioni Tasti, Teams e l'account Microsoft; della 0.8.7 Registra e ⚡ «Automatica» con i connettori di opencode; della 0.8.8 Telegram, la cartella di lavoro e gli strumenti di EasyIsland con opencode; della 0.8.9 «Automatica» in Telegram, impostazioni dagli agenti, «Permessi e chiamate», il mini Notion e i vocali da Telegram; della 0.9.0 Antigravity come agente e come motore; della 0.9.1 Remote Desktop Manager con l'Hub (vault utente, elenco offline, Sincronizza); della 0.9.2 Ferma nella chat e su Telegram e la mappa di Notion per la chat; dopo la 0.9.2 gli strumenti di Notion, Antigravity con gli strumenti di EasyIsland e la Seconda opinione. Tutte in `docs/prove-dal-vivo.md`.
+- [ ] **La giornata di oggi e domani** (priorità alta): riassunto delle integrazioni fatto dall'IA, da solo agli orari scelti e a richiesta da chat, ricerca, Telegram e azioni rapide. Fatti `/oggi` e `/domani` su Telegram; il resto in `docs/idee.md`.
 - [ ] **3CX team e chat:** fatti nel codice, da provare sul centralino vero (`docs/prove-dal-vivo.md`). Se qualcosa non arriva, il log dice quali tipi di messaggio manda il centralino (`3cx: event type …`).
 - [ ] **3CX «Questo PC»:** telefono WebRTC nell'isola, suoneria e scheda da telefono fatti nel codice e nell'anteprima; audio vero da provare sul centralino (`docs/prove-dal-vivo.md`).
 - [ ] **3CX + Zammad:** ticket del cliente sulla chiamata in arrivo (`docs/idee.md`).
@@ -19,12 +20,18 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Da decidere con Edoardo:** firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
 
 ## Problemi noti
+- **Occhi troppo grandi** nello stato felice per alcuni personaggi (segnalato il 14 ottobre 2026, quali personaggi è da capire).
 - **Sopra la barra:** cliccando la barra o aprendo Start il personaggio va dietro. Torna davanti a ogni cambio di finestra in primo piano. Va verificato con Start aperto.
 - **Limiti del piano da Anthropic:** l'indirizzo (`/api/oauth/usage`) non è documentato e può cambiare; se smette di rispondere il log scrive «limiti del piano da Anthropic: HTTP …» e restano i numeri della status line.
 - **Rinnovo dell'accesso di Claude Code** (`renew.rs`): provato qui che Claude Code parte invisibile, apre `/usage` e si chiude senza lasciare processi; il rinnovo vero di un accesso scaduto va visto alla prossima scadenza (`docs/prove-dal-vivo.md`). Chiudendolo, Claude Code al lancio dopo può dire che il suo renderer a schermo intero «non ha finito di partire» e usare quello classico una volta.
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 19 ottobre 2026 — Allineamento con le segnalazioni, /oggi e /domani
+- Riletto l'elenco delle segnalazioni dalla prova e allineato con questo file e `docs/`: aggiunti il bug degli occhi nello stato felice (Problemi noti), la giornata di oggi e domani (Da fare, priorità alta, `docs/idee.md`) e TeamViewer tra le idee.
+- Primo passo della giornata: `/oggi` e `/domani` su Telegram, un turno con gli strumenti di EasyIsland (`docs/integrazioni.md`).
+- **Prove:** `cargo build`, `npm run check:i18n`. Da provare con il bot (`docs/prove-dal-vivo.md`).
 
 ### 19 ottobre 2026 — Seconda opinione nella chat e su Telegram
 - Chiesto da Edoardo, dopo aver ragionato su una «chat tra le IA»: si tiene solo la revisione chiesta a mano (`docs/decisioni.md`). «⇄ Seconda opinione» sotto l'ultima risposta: si sceglie ogni volta il motore, che rivede l'ultima domanda e risposta in un turno a parte, senza strumenti nostri, con Ferma. Il suo testo va davanti alla domanda dopo al motore principale (`second.rs`, `docs/chat.md`).
@@ -43,6 +50,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Chiesto da Edoardo: la chat cercava ogni volta com'è fatto il suo Notion. `notion_map.rs` tiene sul PC, cifrata, la struttura vista dal token (database, proprietà, opzioni, relazioni, data source, pagine); la chat riceve un indice all'inizio e i dettagli con lo strumento `notion_map`. Sincronizza a mano e ogni N ore (`docs/integrazioni.md`).
 - **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`; lettura vera in sola lettura (`notion_map::tests::live`: 11 database, 2 pagine) e data source confrontata con il connettore di Notion. Da provare in chat (`docs/prove-dal-vivo.md`).
 
-### 19 ottobre 2026 — Ferma nella chat e su Telegram
-- Chiesto da Edoardo: fermare una risposta che sta facendo lavoro inutile. `chat_turn` (`lib.rs`) corre contro `STOP`: ■ al posto di Invia nell'isola, «⏹ Ferma» e `/stop` su Telegram; il motore viene chiuso con il turno (`docs/chat.md`).
-- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`. Da provare con un motore vero (`docs/prove-dal-vivo.md`, Telegram 13).

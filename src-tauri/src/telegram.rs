@@ -257,6 +257,8 @@ async fn hello(token: &str) -> Result<String, String> {
         { "command": "modello", "description": t("Scegli il modello del motore") },
         { "command": "nuova", "description": t("Nuova conversazione") },
         { "command": "stop", "description": t("Ferma la risposta in corso") },
+        { "command": "oggi", "description": t("La tua giornata di oggi") },
+        { "command": "domani", "description": t("La tua giornata di domani") },
         { "command": "stato", "description": t("Motore, modello e modalità") },
         { "command": "vassoio", "description": t("I file del Vassoio") },
         { "command": "cartella", "description": t("La cartella di lavoro") },
@@ -424,6 +426,7 @@ fn help() -> String {
         t("/modello — scegli il modello"),
         t("/nuova — nuova conversazione"),
         t("/stop — ferma la risposta in corso (anche ⏹ Ferma sotto la risposta)"),
+        t("/oggi e /domani — la giornata: appuntamenti, posta, ticket, attività di Notion, meteo"),
         t("/stato — motore, modello e modalità"),
         t("/automatica — niente permessi da confermare, tranne le cancellazioni"),
         t("/vassoio — i file del Vassoio, da farti mandare qui"),
@@ -431,6 +434,16 @@ fn help() -> String {
         t("Foto e file finiscono nel Vassoio e vanno con la domanda."),
     ]
     .join("\n")
+}
+
+/// /oggi and /domani (asked by Edoardo: the day, from the integrations, in a
+/// friendly way). The engine gathers it with the easyisland tools.
+fn day_prompt(tomorrow: bool) -> String {
+    let when = if tomorrow { t("domani") } else { t("oggi") };
+    tf(
+        "Fammi il punto della mia giornata di {when}, in modo amichevole e breve. Usa gli strumenti di easyisland: list_status (appuntamenti e posta di Outlook, ticket, meteo, PC) e, se c'è Notion, notion_query sui database di attività per quelle con scadenza {when} e quelle scadute non ancora fatte. Prima le cose da fare, con l'ora se c'è, poi il resto in poche righe. Se uno strumento non c'è o non risponde, salta quella parte senza dirlo a lungo. Non cambiare niente.",
+        &[("when", &when)],
+    )
 }
 
 async fn command(app: &AppHandle, token: &str, chat: i64, cmd: &str) {
@@ -449,6 +462,20 @@ async fn command(app: &AppHandle, token: &str, chat: i64, cmd: &str) {
             }
             reset_conversation();
             let _ = send(token, chat, t("Nuova conversazione."), None).await;
+        }
+        // The day at a glance, written by the chat's engine with EasyIsland's tools.
+        "oggi" | "today" | "domani" | "tomorrow" => {
+            if BUSY.load(Ordering::SeqCst) {
+                let _ = send(token, chat, t("Aspetta la fine della risposta in corso."), None).await;
+                return;
+            }
+            let query = day_prompt(matches!(name.as_str(), "domani" | "tomorrow"));
+            BUSY.store(true, Ordering::SeqCst);
+            let (app, token) = (app.clone(), token.to_string());
+            tauri::async_runtime::spawn(async move {
+                turn(&app, &token, chat, query, None, None).await;
+                BUSY.store(false, Ordering::SeqCst);
+            });
         }
         "stop" | "ferma" => {
             if BUSY.load(Ordering::SeqCst) {

@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 19 ottobre 2026 — Ferma nella chat e su Telegram
+- Chiesto da Edoardo: fermare una risposta che sta facendo lavoro inutile. `chat_turn` (`lib.rs`) corre contro `STOP`: ■ al posto di Invia nell'isola, «⏹ Ferma» e `/stop` su Telegram; il motore viene chiuso con il turno (`docs/chat.md`).
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`. Da provare con un motore vero (`docs/prove-dal-vivo.md`, Telegram 13).
+
 ### 18 ottobre 2026 — Remote Desktop Manager con l'Hub, versione 0.9.1
 - Segnalato da Edoardo: con il suo Devolutions Hub l'elenco restava «non ancora letto». Causa: tutte le voci stanno nel vault utente, che `Get-RDMSession` non legge. Ora `rdm.rs` legge i vault condivisi e il vault utente (`Get-RDMPrivateSession`) e apre con `/Vault:` (`docs/integrazioni.md`).
 - Chiesto da Edoardo: elenco salvato su questo PC e cifrato (DPAPI, `rdm-cache.bin`), sincronizzazione solo con «Sincronizza», pallino «RDM avviato». Il server MCP di RDM è stato provato e scartato (non elenca il vault utente e vuole RDM aperto).

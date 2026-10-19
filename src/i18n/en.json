@@ -2410,5 +2410,9 @@
   "Non c'è una risposta da rivedere.": "There is no answer to review.",
   "Nessun altro motore pronto.": "No other engine ready.",
   "Chi dà la seconda opinione?": "Who gives the second opinion?",
-  "Seconda opinione: {e}.": "Second opinion: {e}."
+  "Seconda opinione: {e}.": "Second opinion: {e}.",
+  "La tua giornata di oggi": "Your day today",
+  "La tua giornata di domani": "Your day tomorrow",
+  "/oggi e /domani — la giornata: appuntamenti, posta, ticket, attività di Notion, meteo": "/oggi and /domani — the day: appointments, mail, tickets, Notion tasks, weather",
+  "Fammi il punto della mia giornata di {when}, in modo amichevole e breve. Usa gli strumenti di easyisland: list_status (appuntamenti e posta di Outlook, ticket, meteo, PC) e, se c'è Notion, notion_query sui database di attività per quelle con scadenza {when} e quelle scadute non ancora fatte. Prima le cose da fare, con l'ora se c'è, poi il resto in poche righe. Se uno strumento non c'è o non risponde, salta quella parte senza dirlo a lungo. Non cambiare niente.": "Give me a short, friendly rundown of my day ({when}). Use the easyisland tools: list_status (Outlook appointments and mail, tickets, weather, PC) and, if Notion is there, notion_query on the task databases for those due {when} and the overdue ones not done yet. First what there is to do, with the time if any, then the rest in a few lines. If a tool is missing or does not answer, skip that part without dwelling on it. Do not change anything."
 }
