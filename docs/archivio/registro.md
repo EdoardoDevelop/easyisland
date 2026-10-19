@@ -2,6 +2,11 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 18 ottobre 2026 — Mini Notion nella card
+- Richiesto da Edoardo; il ramo `notion` aveva solo un abbozzo che non si compilava (comandi non registrati, vista mai mostrata, pagine scelte tolte): rifatto. `notion_page.rs` legge pagine e database e fa le modifiche, `src/views/notionpage.ts` li disegna come Notion nell'isola: blocchi modificabili sul posto con «/», ⋮⋮ e scorciatoie; database in Tabella, Bacheca (trascinamento), Elenco, Galleria; pagine scelte come riquadri. Eliminare con due clic, nel cestino di Notion (`docs/integrazioni.md`, `docs/decisioni.md`).
+- Segnalato da Edoardo: le viste collegate (le attività dentro il progetto) erano «senza titolo» con 404; ora la card apre il database vero filtrato sulla relazione (`mark_linked`, `relations`), provato sul progetto vero.
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, scena `notion` con pagina e database finti (scrivere, Invio, «/», casella, eliminare, toggle, trascinare, viste, riga aperta). Da provare con Notion vero (`docs/prove-dal-vivo.md`).
+
 ### 17 ottobre 2026 — Impostazioni dagli agenti, «Automatica» in Telegram, «Permessi e chiamate»
 - Dalle attività di Notion, su richiesta di Edoardo. Strumenti `get_settings` / `set_setting` (`agent_settings.rs`, `docs/chat.md`): motore e modelli della chat, integrazioni, aspetto, riepiloghi, con Consenti / Nega; il salvataggio delle Impostazioni è ora `apply_settings` in `lib.rs`.
 - Telegram: `/automatica` e interruttore nelle Impostazioni; in modalità terminale chiede solo per le cancellazioni (`asks_anyway`, `docs/integrazioni.md`; eccezione scritta in `CLAUDE.md` e `docs/decisioni.md`).

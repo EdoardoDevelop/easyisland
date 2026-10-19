@@ -93,6 +93,10 @@ pub struct IntegrationConfig {
     /// Notion: today's tasks in the morning recap (src/island/daily.ts).
     #[serde(default = "yes")]
     pub notion_morning: bool,
+    /// Notion: the structure for the chat (notion_map.rs) is read again
+    /// every so many hours (0 = only with "Sincronizza").
+    #[serde(default = "six_hours")]
+    pub notion_map_hours: u32,
     /// "Registra" (record.rs): the recordings' folder ("" = Videos\EasyIsland).
     #[serde(default)]
     pub record_folder: String,
@@ -153,6 +157,10 @@ pub struct RdmRef {
 
 fn ten_minutes() -> u32 {
     10
+}
+
+fn six_hours() -> u32 {
+    6
 }
 
 /// A view of the tasks: which ones the card shows (notion.rs → view_filter).
@@ -234,6 +242,7 @@ impl Default for IntegrationConfig {
             notion_alert_lead: 10,
             notion_alert_comments: true,
             notion_morning: true,
+            notion_map_hours: 6,
             record_folder: String::new(),
             record_mic: true,
             record_system: true,

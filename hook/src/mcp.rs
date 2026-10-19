@@ -136,6 +136,12 @@ fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             true,
         ),
         (
+            "notion_map",
+            "La struttura del Notion dell'utente, salvata da EasyIsland (nessuna chiamata a Notion): database con id, link, proprietà e tipo, opzioni di stati e selezioni, relazioni; senza database anche le pagine. Usala prima degli strumenti di Notion invece di cercare come è fatto. database: nome (anche una parte) o id, vuoto = tutti.",
+            json!({ "type": "object", "properties": { "database": { "type": "string" } } }),
+            true,
+        ),
+        (
             "list_profiles",
             "I profili di EasyIsland (es. Lavoro, Casa) e quello attivo.",
             none.clone(),

@@ -67,9 +67,15 @@ fn token() -> Result<String, String> {
 }
 
 pub(crate) async fn call(req: reqwest::RequestBuilder) -> Result<Value, String> {
+    call_version(req, VERSION).await
+}
+
+/// `call` with another version of the API (notion_map.rs needs the data
+/// sources of 2025-09-03, which the rest of the code does not use).
+pub(crate) async fn call_version(req: reqwest::RequestBuilder, version: &str) -> Result<Value, String> {
     let r = req
         .header("Authorization", format!("Bearer {}", token()?))
-        .header("Notion-Version", VERSION)
+        .header("Notion-Version", version)
         .send()
         .await
         .map_err(|_| t("Notion non risponde").to_string())?;
@@ -657,6 +663,8 @@ pub async fn poll(app: AppHandle) {
         watch.extend(today_list.iter().take(10).map(|x| (x.id.clone(), x.title.clone(), x.url.clone())));
         comment_alerts(&app, &watch).await;
     }
+    // The structure for the chat (notion_map.rs), when it is old.
+    crate::notion_map::sync_if_old(cfg.notion_map_hours).await;
 }
 
 // ── Notices ───────────────────────────────────────────────────────────────────
@@ -702,7 +710,7 @@ fn now_utc() -> i64 {
 }
 
 /// The PC's offset from UTC, in seconds (to the quarter hour).
-fn local_offset() -> i64 {
+pub(crate) fn local_offset() -> i64 {
     let t = unsafe { windows::Win32::System::SystemInformation::GetLocalTime() };
     let local = crate::widgets::days_from_civil(t.wYear as i64, t.wMonth as i64, t.wDay as i64) * 86_400
         + t.wHour as i64 * 3600 + t.wMinute as i64 * 60 + t.wSecond as i64;

@@ -74,6 +74,8 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             Ok(pretty(&json!({ "exe": fg.exe, "title": fg.title })))
         }
 
+        "notion_map" => crate::notion_map::tool(arg(args, "database")),
+
         "list_status" => {
             let s = settings(app)?;
             let list: Vec<Value> = crate::widgets::all_widgets(&s)

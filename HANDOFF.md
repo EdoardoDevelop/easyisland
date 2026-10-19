@@ -26,6 +26,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 19 ottobre 2026 — Mappa di Notion per la chat
+- Chiesto da Edoardo: la chat cercava ogni volta com'è fatto il suo Notion. `notion_map.rs` tiene sul PC, cifrata, la struttura vista dal token (database, proprietà, opzioni, relazioni, data source, pagine); la chat riceve un indice all'inizio e i dettagli con lo strumento `notion_map`. Sincronizza a mano e ogni N ore (`docs/integrazioni.md`).
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`; lettura vera in sola lettura (`notion_map::tests::live`: 11 database, 2 pagine) e data source confrontata con il connettore di Notion. Da provare in chat (`docs/prove-dal-vivo.md`).
+
 ### 19 ottobre 2026 — Ferma nella chat e su Telegram
 - Chiesto da Edoardo: fermare una risposta che sta facendo lavoro inutile. `chat_turn` (`lib.rs`) corre contro `STOP`: ■ al posto di Invia nell'isola, «⏹ Ferma» e `/stop` su Telegram; il motore viene chiuso con il turno (`docs/chat.md`).
 - **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`. Da provare con un motore vero (`docs/prove-dal-vivo.md`, Telegram 13).
@@ -46,8 +50,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Richiesto da Edoardo: i vocali mandati al bot si trascrivono e vanno alla chat come testo (`transcribe.rs`, `docs/integrazioni.md`). Il servizio si sceglie in Impostazioni → Telegram → «Vocali» (Gemini, OpenAI, OpenRouter, con le chiavi dei motori della chat): Claude Code e opencode non sentono l'audio.
 - Poi, su richiesta di Edoardo: «Modello per l'audio» con i soli modelli che accettano audio, dal più economico. Rinominate le voci di Impostazioni: «Chat e motori AI» (sezioni Motore e modello, Comandi e file, Conversazioni salvate; «Azioni sul PC», «Connettori (server MCP)») e «Agenti di codice» (titoli delle sezioni più chiari). Nei documenti «Impostazioni → Chat» e «→ Agenti» indicano queste pagine.
 - **Prove:** `cargo test --workspace`, `npm run build`, riga nelle Impostazioni nell'anteprima. Non provato con un vocale vero: sul PC non c'è ancora nessuna di quelle chiavi (`docs/prove-dal-vivo.md`).
-
-### 18 ottobre 2026 — Mini Notion nella card
-- Richiesto da Edoardo; il ramo `notion` aveva solo un abbozzo che non si compilava (comandi non registrati, vista mai mostrata, pagine scelte tolte): rifatto. `notion_page.rs` legge pagine e database e fa le modifiche, `src/views/notionpage.ts` li disegna come Notion nell'isola: blocchi modificabili sul posto con «/», ⋮⋮ e scorciatoie; database in Tabella, Bacheca (trascinamento), Elenco, Galleria; pagine scelte come riquadri. Eliminare con due clic, nel cestino di Notion (`docs/integrazioni.md`, `docs/decisioni.md`).
-- Segnalato da Edoardo: le viste collegate (le attività dentro il progetto) erano «senza titolo» con 404; ora la card apre il database vero filtrato sulla relazione (`mark_linked`, `relations`), provato sul progetto vero.
-- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, scena `notion` con pagina e database finti (scrivere, Invio, «/», casella, eliminare, toggle, trascinare, viste, riga aperta). Da provare con Notion vero (`docs/prove-dal-vivo.md`).

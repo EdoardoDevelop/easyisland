@@ -34,6 +34,7 @@ mod msgraph;
 mod moments;
 mod netconfig;
 mod notion;
+mod notion_map;
 mod notion_page;
 mod rdm;
 mod openai;
@@ -642,6 +643,19 @@ pub(crate) fn open_url_now(url: &str) {
         .spawn();
 }
 
+/// Impostazioni → Notion → «Mappa per la chat»: how many and when (notion_map.rs).
+#[tauri::command]
+fn notion_map_status() -> serde_json::Value {
+    notion_map::status()
+}
+
+/// «Sincronizza»: the structure of Notion read again, for the chat.
+#[tauri::command]
+async fn notion_map_sync() -> Result<serde_json::Value, String> {
+    notion_map::sync().await?;
+    Ok(notion_map::status())
+}
+
 /// Notion pages and databases matching `query` (card and search bar).
 #[tauri::command]
 async fn notion_search(query: String, limit: Option<usize>, kind: Option<String>) -> Result<Vec<serde_json::Value>, String> {
@@ -1017,11 +1031,19 @@ pub(crate) async fn chat_turn(
     if before.is_some() && chat.cli_session().is_none() {
         opencode::forget(before);
     }
+    // A new conversation with an engine that has tools: the map of Notion
+    // (notion_map.rs) in front, so it does not search for the structure.
+    let has_tools = terminal.is_some() || !(engine == "api" || openai::ENGINES.contains(&engine.as_str()));
+    let notion = if has_tools && chat.is_empty() && chat.cli_session().is_none() { notion_map::index(agent) } else { None };
     // A reopened conversation the engine cannot resume: it rides in front of the question.
     let preamble = chat.take_preamble();
     let asked = query.clone();
     let query = match &preamble {
         Some(p) => format!("{p}{query}"),
+        None => query,
+    };
+    let query = match notion {
+        Some(n) => format!("{n}{query}"),
         None => query,
     };
     // "Automatica" (the chat's switch): only with Modalità terminale.
@@ -2152,6 +2174,8 @@ pub fn run() {
             log_line,
             chat_send,
             chat_stop,
+            notion_map_status,
+            notion_map_sync,
             chat_reset,
             chat_history_list,
             chat_history_open,
