@@ -142,6 +142,46 @@ fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             true,
         ),
         (
+            "notion_search",
+            "Cerca pagine e database nel Notion dell'utente per titolo, con il collegamento di EasyIsland. query: parole del titolo.",
+            json!({ "type": "object", "properties": { "query": { "type": "string" } }, "required": ["query"] }),
+            true,
+        ),
+        (
+            "notion_read",
+            "Legge una pagina o una riga di Notion: proprietà e testo. page: id o link.",
+            json!({ "type": "object", "properties": { "page": { "type": "string" } }, "required": ["page"] }),
+            true,
+        ),
+        (
+            "notion_query",
+            "Le righe di un database di Notion, le più recenti prima, con id e proprietà. database: nome (anche una parte) o id; text: solo le righe col titolo che lo contiene; limit: quante (predefinito 20, massimo 50).",
+            json!({ "type": "object", "properties": {
+                "database": { "type": "string" },
+                "text": { "type": "string" },
+                "limit": { "type": "integer", "minimum": 1, "maximum": 50 }
+            }, "required": ["database"] }),
+            true,
+        ),
+        (
+            "notion_add_row",
+            "Aggiunge una riga a un database di Notion. database: nome o id (vedi notion_map). properties: { \"Nome proprietà\": valore } con i nomi esatti; testo per titolo e testo, numero (anche \"6,40\"), nome dell'opzione per selezione e stato, elenco per selezione multipla, \"AAAA-MM-GG\" o {start, end} per le date, true/false per le caselle, id o titoli per le relazioni. I valori sono controllati prima di scrivere: se qualcosa non va, torna l'errore con le proprietà e le opzioni giuste.",
+            json!({ "type": "object", "properties": {
+                "database": { "type": "string" },
+                "properties": { "type": "object" }
+            }, "required": ["database", "properties"] }),
+            false,
+        ),
+        (
+            "notion_update_row",
+            "Cambia le proprietà di una riga di un database di Notion (vedi notion_query per l'id). page: id o link della riga; properties: come notion_add_row, solo quelle da cambiare.",
+            json!({ "type": "object", "properties": {
+                "page": { "type": "string" },
+                "properties": { "type": "object" }
+            }, "required": ["page", "properties"] }),
+            false,
+        ),
+        (
             "list_profiles",
             "I profili di EasyIsland (es. Lavoro, Casa) e quello attivo.",
             none.clone(),
@@ -236,7 +276,15 @@ fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
 /// EASYISLAND_INTERNAL): the chat is already in the island, a card would
 /// cover it, so `show_card` is only for Claude Code elsewhere.
 fn in_chat() -> bool {
-    std::env::var_os("EASYISLAND_INTERNAL").is_some()
+    std::env::var_os("EASYISLAND_INTERNAL").is_some() || std::env::var_os("EASYISLAND_AGY_CHAT").is_some()
+}
+
+/// A tool Antigravity may use without asking (`mcp__easyisland__<name>`):
+/// the read-only ones but `show_card`, which waits for a click.
+pub fn allowed_without_asking(tool_name: &str) -> bool {
+    tool_name
+        .strip_prefix("mcp__easyisland__")
+        .is_some_and(|name| name != "show_card" && tools().iter().any(|t| t.0 == name && t.3))
 }
 
 /// The tools offered here.
@@ -321,7 +369,7 @@ pub fn handle(msg: &Value) -> Option<Value> {
                 "protocolVersion": version,
                 "capabilities": { "tools": {} },
                 "serverInfo": { "name": "easyisland", "version": env!("CARGO_PKG_VERSION") },
-                "instructions": "Strumenti di EasyIsland sul PC dell'utente: avvisi e card nell'isola (show_notice, show_card con pulsanti), il Vassoio dei file (add_to_tray, list_uploaded_files), la cartella di lavoro (list_work_folder, move_to_work_folder), aprire programmi e link, eseguire le sue azioni rapide, leggere lo stato di PC, rete, meteo, posta e ticket, gestire appunti e musica. Le azioni che cambiano qualcosa chiedono conferma all'utente."
+                "instructions": "Strumenti di EasyIsland sul PC dell'utente: avvisi e card nell'isola (show_notice, show_card con pulsanti), il Vassoio dei file (add_to_tray, list_uploaded_files), la cartella di lavoro (list_work_folder, move_to_work_folder), aprire programmi e link, eseguire le sue azioni rapide, leggere lo stato di PC, rete, meteo, posta e ticket, gestire appunti e musica, leggere e scrivere nel Notion dell'utente con il collegamento di EasyIsland (notion_map, notion_search, notion_read, notion_query, notion_add_row, notion_update_row). Le azioni che cambiano qualcosa chiedono conferma all'utente."
             }))
         }
         "ping" => result(id, json!({})),
@@ -418,5 +466,18 @@ mod tests {
         assert!(!ro.contains(&"read_clipboard"));
         assert!(ro.contains(&"get_settings"));
         assert!(!ro.contains(&"set_setting"));
+        assert!(ro.contains(&"notion_query"));
+        assert!(!ro.contains(&"notion_add_row"));
+        assert!(!ro.contains(&"notion_update_row"));
+    }
+
+    #[test]
+    fn antigravity_asks_only_for_what_changes() {
+        assert!(allowed_without_asking("mcp__easyisland__notion_query"));
+        assert!(allowed_without_asking("mcp__easyisland__list_status"));
+        assert!(!allowed_without_asking("mcp__easyisland__notion_add_row"));
+        assert!(!allowed_without_asking("mcp__easyisland__show_card"));
+        assert!(!allowed_without_asking("mcp__notion__notion_query"));
+        assert!(!allowed_without_asking("run_command"));
     }
 }

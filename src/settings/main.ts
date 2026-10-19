@@ -274,29 +274,38 @@ function dailySection(): HTMLElement {
 
 /** EasyIsland's tools in Claude Code everywhere (mcp_setup.rs). */
 function mcpSection(): HTMLElement {
-  const body = h("div", {});
-  const el = h("section", {},
+  return h("section", {},
     h("h2", {}, h("span", { text: t("Strumenti di EasyIsland in Claude Code") })),
     h("div", { class: "hint", text: t("Claude Code, nel terminale o in VS Code, può mostrare card con pulsanti nell'isola (per esempio «ho finito» o una domanda rapida), avvisi, e mettere file nel Vassoio. La chat dell'isola li ha già. Claude Code chiede il permesso prima di usare uno strumento.") }),
-    body);
+    mcpStatus(false));
+}
+
+/** Status, «Aggiungi…» / «Togli…» and the confirmation, for Claude Code or Antigravity (mcp_setup.rs). */
+function mcpStatus(agy: boolean): HTMLElement {
+  const body = h("div", {});
   const draw = async () => {
-    const s = await Bridge.mcpClaudeStatus();
+    const s = agy ? await Bridge.mcpAgyStatus() : await Bridge.mcpClaudeStatus();
     clear(body);
     if (!s) return;
-    const state = !s.cli ? t("Claude Code non è installato") : s.current ? t("Aggiunti") : s.installed ? t("Aggiunti, ma con un percorso vecchio") : t("Non aggiunti");
+    const state = !s.cli ? (agy ? t("Antigravity (agy) non è installato su questo PC.") : t("Claude Code non è installato")) : s.current ? t("Aggiunti") : s.installed ? t("Aggiunti, ma con un percorso vecchio") : t("Non aggiunti");
     const detail = h("div", {});
     const ask = (install: boolean) => {
       clear(detail);
-      const what = install
-        ? t("Claude Code aggiunge questa voce ai suoi server MCP (~/.claude.json, per tutti i progetti), dopo una copia del file:")
-        : t("Claude Code toglie la voce «easyisland» dai suoi server MCP, dopo una copia del file.");
+      const what = agy
+        ? install
+          ? t("Antigravity aggiunge questa voce ai suoi server MCP (~/.gemini/config/mcp_config.json, per la CLI, l'IDE e l'app), dopo una copia del file:")
+          : t("Antigravity toglie la voce «easyisland» dai suoi server MCP, dopo una copia del file.")
+        : install
+          ? t("Claude Code aggiunge questa voce ai suoi server MCP (~/.claude.json, per tutti i progetti), dopo una copia del file:")
+          : t("Claude Code toglie la voce «easyisland» dai suoi server MCP, dopo una copia del file.");
       const confirm = h("button", { class: "primary", text: t("Conferma") }) as HTMLButtonElement;
       confirm.addEventListener("click", async () => {
         confirm.disabled = true;
         try {
-          const backup = await Bridge.mcpClaudeApply(install);
+          const backup = agy ? await Bridge.mcpAgyApply(install) : await Bridge.mcpClaudeApply(install);
           clear(detail);
-          detail.append(h("div", { class: "notice ok", text: `${backup ? t("Fatto. Copia di prima in {path}.", { path: backup }) : t("Fatto.")} ${install ? t("Vale dalla prossima sessione di Claude Code.") : ""}` }));
+          const next = !install ? "" : agy ? t("Vale dalla prossima domanda ad Antigravity.") : t("Vale dalla prossima sessione di Claude Code.");
+          detail.append(h("div", { class: "notice ok", text: `${backup ? t("Fatto. Copia di prima in {path}.", { path: backup }) : t("Fatto.")} ${next}` }));
           window.setTimeout(() => void draw(), 6000);
         } catch (err) {
           confirm.disabled = false;
@@ -316,7 +325,7 @@ function mcpSection(): HTMLElement {
       detail);
   };
   void draw();
-  return el;
+  return body;
 }
 
 function agentsTabSection(): HTMLElement {
@@ -671,7 +680,10 @@ async function antigravityHowTo(): Promise<HTMLElement> {
   return h("div", { style: "display:flex;flex-direction:column;gap:8px" },
     h("div", { class: "row" }, dot, state, recheck),
     howTo,
-    h("div", { class: "hint", text: t("Lavora con i suoi strumenti nella cartella della modalità terminale o, se non c'è, nella cartella di lavoro. Comandi e strumenti MCP chiedono Consenti / Nega nell'isola tramite i suoi hook; senza hook li salta. Il modello vuoto = quello predefinito del tuo account.") }));
+    h("div", { class: "hint", text: t("Lavora con i suoi strumenti nella cartella della modalità terminale o, se non c'è, nella cartella di lavoro. Comandi e strumenti MCP chiedono Consenti / Nega nell'isola tramite i suoi hook; senza hook li salta. Il modello vuoto = quello predefinito del tuo account.") }),
+    h("b", { text: t("Strumenti di EasyIsland in Antigravity") }),
+    h("div", { class: "hint", text: t("Con questi Antigravity usa le integrazioni di EasyIsland come gli altri motori: Notion (leggere e aggiungere righe), Vassoio, azioni rapide, stato del PC, appunti, musica. Quelli che leggono vanno da soli, gli altri chiedono Consenti / Nega.") }),
+    mcpStatus(true));
 }
 
 /** What each engine is, in one line under the picker. */

@@ -2395,5 +2395,10 @@
   "Da sola": "By itself",
   "Sincronizzazione già in corso": "Sync already in progress",
   "Mappa di Notion del {d}.": "Notion map of {d}.",
-  "[Notion dell'utente, mappa di EasyIsland del {d}. Usa questi id con gli strumenti di Notion invece di cercarli (per aggiungere o cercare righe la data source); se qualcosa non c'è o non torna, cerca come al solito.": "[The user's Notion, EasyIsland's map of {d}. Use these ids with the Notion tools instead of searching for them (the data source to add or query rows); if something is missing or doesn't match, search as usual."
+  "[Notion dell'utente, mappa di EasyIsland del {d}. Usa questi id con gli strumenti di Notion invece di cercarli (per aggiungere o cercare righe la data source); se qualcosa non c'è o non torna, cerca come al solito.": "[The user's Notion, EasyIsland's map of {d}. Use these ids with the Notion tools instead of searching for them (the data source to add or query rows); if something is missing or doesn't match, search as usual.",
+  "Antigravity aggiunge questa voce ai suoi server MCP (~/.gemini/config/mcp_config.json, per la CLI, l'IDE e l'app), dopo una copia del file:": "Antigravity adds this entry to its MCP servers (~/.gemini/config/mcp_config.json, for the CLI, the IDE and the app), after a copy of the file:",
+  "Antigravity toglie la voce «easyisland» dai suoi server MCP, dopo una copia del file.": "Antigravity removes the “easyisland” entry from its MCP servers, after a copy of the file.",
+  "Vale dalla prossima domanda ad Antigravity.": "It applies from the next question to Antigravity.",
+  "Strumenti di EasyIsland in Antigravity": "EasyIsland tools in Antigravity",
+  "Con questi Antigravity usa le integrazioni di EasyIsland come gli altri motori: Notion (leggere e aggiungere righe), Vassoio, azioni rapide, stato del PC, appunti, musica. Quelli che leggono vanno da soli, gli altri chiedono Consenti / Nega.": "With these Antigravity uses EasyIsland's integrations like the other engines: Notion (reading and adding rows), Tray, quick actions, PC status, clipboard, music. The ones that only read run by themselves, the others ask Allow / Deny."
 }

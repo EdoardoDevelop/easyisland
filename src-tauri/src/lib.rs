@@ -35,6 +35,7 @@ mod moments;
 mod netconfig;
 mod notion;
 mod notion_map;
+mod notion_tools;
 mod notion_page;
 mod rdm;
 mod openai;
@@ -2263,6 +2264,8 @@ pub fn run() {
             moments::moment_card_answer,
             mcp_setup::mcp_claude_status,
             mcp_setup::mcp_claude_apply,
+            mcp_setup::mcp_agy_status,
+            mcp_setup::mcp_agy_apply,
             recap_show,
             daily_show,
             restart_app,

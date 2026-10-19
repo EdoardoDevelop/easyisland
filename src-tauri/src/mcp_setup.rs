@@ -112,6 +112,72 @@ pub async fn mcp_claude_apply(install: bool) -> Result<String, String> {
     Ok(backup)
 }
 
+// ── Antigravity ──────────────────────────────────────────────────────────────
+// The same server for Antigravity (asked by Edoardo on 19 October 2026: every
+// engine of the chat should reach EasyIsland's integrations). `agy` has no
+// option for one run only, so the entry goes in its own configuration
+// (~/.gemini/config/mcp_config.json) with its own `agy mcp add` / `remove`,
+// after a dated copy of the file and only on «Conferma», like Claude Code's.
+
+fn agy_config() -> Option<PathBuf> {
+    std::env::var_os("USERPROFILE").map(|h| PathBuf::from(h).join(".gemini").join("config").join("mcp_config.json"))
+}
+
+async fn agy(args: &[&str]) -> Result<String, String> {
+    let exe = crate::antigravity::find_exe().ok_or_else(|| crate::i18n::t("Antigravity (agy) non è installato su questo PC.").to_string())?;
+    let mut cmd = crate::antigravity::command(&exe);
+    cmd.args(args);
+    let out = tokio::time::timeout(TIMEOUT, cmd.output())
+        .await
+        .map_err(|_| crate::i18n::t("Antigravity non ha risposto in tempo.").to_string())?
+        .map_err(|e| e.to_string())?;
+    let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    if out.status.success() {
+        Ok(text)
+    } else {
+        Err(text.trim().chars().take(300).collect())
+    }
+}
+
+/// (installed, points at this PC's hook) from what `agy mcp list` prints.
+fn agy_listed(list: &str) -> (bool, bool) {
+    let norm = |s: &str| s.replace('/', "\\").to_lowercase();
+    let list = norm(list);
+    let installed = list.lines().any(|l| l.contains(NAME));
+    (installed, installed && list.contains(&norm(&hook())))
+}
+
+#[tauri::command]
+pub async fn mcp_agy_status() -> McpStatus {
+    let cli = crate::antigravity::find_exe().is_some();
+    let (installed, current) = if cli { agy(&["mcp", "list"]).await.map(|l| agy_listed(&l)).unwrap_or((false, false)) } else { (false, false) };
+    let wanted = serde_json::json!({ NAME: { "command": hook(), "args": ["mcp"] } });
+    McpStatus { cli, installed, current, entry: serde_json::to_string_pretty(&wanted).unwrap_or_default() }
+}
+
+/// «Conferma»: `agy mcp add` (or `remove`) after a dated copy of its
+/// mcp_config.json. Returns the copy's path ("" when there was nothing to copy).
+#[tauri::command]
+pub async fn mcp_agy_apply(install: bool) -> Result<String, String> {
+    let backup = match agy_config().filter(|p| std::fs::metadata(p).is_ok_and(|m| m.len() > 0)) {
+        Some(p) => {
+            let copy = p.with_file_name(format!("mcp_config.json.bak-{}", crate::hooks::stamp()));
+            std::fs::copy(&p, &copy).map_err(|e| crate::i18n::tf("Copia di sicurezza non riuscita: {e}", &[("e", &e)]))?;
+            copy.to_string_lossy().into_owned()
+        }
+        None => String::new(),
+    };
+    if mcp_agy_status().await.installed {
+        agy(&["mcp", "remove", NAME]).await?;
+    }
+    if install {
+        let exe = hook();
+        agy(&["mcp", "add", NAME, &exe, "mcp"]).await?;
+    }
+    crate::log::line(format!("server MCP in Antigravity: {}", if install { "aggiunto" } else { "tolto" }));
+    Ok(backup)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -125,5 +191,7 @@ mod tests {
         assert!(entry_in(&json!({})).is_none());
         assert!(entry_in(&json!({ "mcpServers": [] })).is_none());
         assert!(!same_program("a.exe", "b.exe"));
+        assert_eq!(agy_listed("No MCP servers configured."), (false, false));
+        assert!(agy_listed("easyisland  stdio  C:/somewhere/else.exe mcp").0);
     }
 }

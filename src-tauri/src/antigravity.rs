@@ -36,7 +36,7 @@ pub fn find_exe() -> Option<PathBuf> {
     crate::find_on_path("agy").filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("exe")))
 }
 
-fn command(exe: &Path) -> tokio::process::Command {
+pub(crate) fn command(exe: &Path) -> tokio::process::Command {
     let mut cmd = tokio::process::Command::new(exe);
     cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
     #[cfg(windows)]

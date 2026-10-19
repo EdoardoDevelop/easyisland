@@ -130,6 +130,15 @@ fn main() {
     if agy && std::env::var_os("EASYISLAND_AGY_CHAT").is_some() && event != "PermissionRequest" {
         quiet_exit(&event);
     }
+    // EasyIsland's own read-only tools need no Consenti / Nega (as in the chat
+    // with Claude Code and opencode, claude_cli.rs AGENT_READ_ONLY).
+    if agy && event == "PermissionRequest" {
+        let tool = serde_json::from_str::<serde_json::Value>(&payload).ok().and_then(|v| v.get("tool_name")?.as_str().map(String::from));
+        if tool.is_some_and(|t| mcp::allowed_without_asking(&t)) {
+            println!("{}", agents::antigravity_output(&event, Some("allow")));
+            std::process::exit(0);
+        }
+    }
 
     let waits_for_answer = event == "PermissionRequest";
     let budget = if waits_for_answer { DECISION_BUDGET } else { FIRE_AND_FORGET_BUDGET };

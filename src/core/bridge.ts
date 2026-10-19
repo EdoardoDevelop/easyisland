@@ -436,6 +436,8 @@ export const Bridge = {
   /** EasyIsland's tools in Claude Code's user configuration (mcp_setup.rs). */
   mcpClaudeStatus: () => call<{ cli: boolean; installed: boolean; current: boolean; entry: string }>("mcp_claude_status"),
   mcpClaudeApply: (install: boolean) => callOrThrow<string>("mcp_claude_apply", { install }),
+  mcpAgyStatus: () => call<{ cli: boolean; installed: boolean; current: boolean; entry: string }>("mcp_agy_status"),
+  mcpAgyApply: (install: boolean) => callOrThrow<string>("mcp_agy_apply", { install }),
   recapClear: () => call<void>("recap_clear"),
   /** From the settings window: the island opens the recap. */
   recapShow: () => call<void>("recap_show"),
