@@ -77,7 +77,7 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "notion_map" => crate::notion_map::tool(arg(args, "database")),
         "notion_search" => crate::notion_tools::search(arg(args, "query")).await,
         "notion_read" => crate::notion_tools::read(arg(args, "page")).await,
-        "notion_query" => crate::notion_tools::query(arg(args, "database"), arg(args, "text"), args.get("limit").and_then(Value::as_u64)).await,
+        "notion_query" => crate::notion_tools::query(arg(args, "database"), arg(args, "text"), args.get("filter"), args.get("sorts"), args.get("limit").and_then(Value::as_u64)).await,
         "notion_add_row" => crate::notion_tools::add_row(arg(args, "database"), args.get("properties").unwrap_or(&Value::Null)).await,
         "notion_update_row" => crate::notion_tools::update_row(arg(args, "page"), args.get("properties").unwrap_or(&Value::Null)).await,
 

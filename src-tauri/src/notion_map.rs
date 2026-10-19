@@ -294,7 +294,7 @@ pub fn index(tool: bool) -> Option<String> {
         s.push_str(&names.join(" · "));
     }
     if tool {
-        s.push_str("\nProprietà, opzioni di stati e selezioni e relazioni di ogni database: strumento notion_map di easyisland (database = nome o id), senza chiamate a Notion. Per leggere e scrivere usa prima gli strumenti di easyisland: notion_query (righe), notion_add_row e notion_update_row (database per nome, proprietà con i nomi della mappa; controllano i valori prima di scrivere), notion_search, notion_read. Se non ci sono, un solo fetch della data source e gli strumenti di Notion.");
+        s.push_str("\nProprietà, opzioni di stati e selezioni e relazioni di ogni database: strumento notion_map di easyisland (database = nome o id), senza chiamate a Notion. Per leggere e scrivere usa prima gli strumenti di easyisland: notion_query (righe), notion_add_row e notion_update_row (database per nome, proprietà con i nomi della mappa; controllano i valori prima di scrivere), notion_search, notion_read. Se non ci sono, un solo fetch della data source e gli strumenti di Notion. Per una risposta usa un solo modo (questi strumenti o quelli di Notion), non mescolarli; per somme e conti filtra per data o categoria invece di leggere le righe più recenti, e niente script per fare i conti.");
     } else {
         // Without the tool, the properties come along.
         for d in m.databases.iter().take(INDEX_DBS) {

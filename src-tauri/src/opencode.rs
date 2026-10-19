@@ -783,6 +783,7 @@ async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&Chat
 
     let mut out = String::new(); // steps and text, as shown
     let mut block = String::new(); // the text block being written
+    let mut thinking = String::new(); // the reasoning being written, shown only while it lasts
     let mut names: std::collections::HashMap<String, String> = std::collections::HashMap::new();
     let mut pending = Vec::<u8>::new();
     let mut last_emit = Instant::now();
@@ -814,8 +815,13 @@ async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&Chat
             last_event = Instant::now();
             match kind.as_str() {
                 "session.text.delta" => {
+                    thinking.clear();
                     block.push_str(data.get("delta").and_then(Value::as_str).unwrap_or_default());
                 }
+                "session.reasoning.delta" => {
+                    thinking.push_str(data.get("delta").and_then(Value::as_str).unwrap_or_default());
+                }
+                "session.reasoning.ended" => thinking.clear(),
                 "session.text.ended" => {
                     let text = data.get("text").and_then(Value::as_str).map(str::to_string).unwrap_or_else(|| block.clone());
                     out = shown(&out, &text);
@@ -831,6 +837,7 @@ async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&Chat
                     let name = names.get(id).cloned().unwrap_or_else(|| "strumento".into());
                     let line = step_line(&name, data.get("input").unwrap_or(&Value::Null));
                     out = shown(&out, &line);
+                    thinking.clear();
                 }
                 // A refused call says so once, at the end, in Italian.
                 "session.tool.failed" | "session.tool.error" if refused.load(std::sync::atomic::Ordering::SeqCst) => {}
@@ -891,10 +898,23 @@ _Permesso negato: opencode si è fermato._", block.trim())) });
             }
             if last_emit.elapsed().as_millis() >= STREAM_EVERY_MS {
                 last_emit = Instant::now();
-                on_text(&shown(&out, &block));
+                on_text(&with_thinking(shown(&out, &block), &thinking));
             }
         }
     }
+}
+
+/// The reply so far with the last words of the reasoning under it, in one line.
+fn with_thinking(shown: String, thinking: &str) -> String {
+    let flat = thinking.split_whitespace().collect::<Vec<_>>().join(" ");
+    if flat.is_empty() {
+        return shown;
+    }
+    let n = flat.chars().count();
+    let tail: String = flat.chars().skip(n.saturating_sub(240)).collect();
+    let dots = if n > 240 { "…" } else { "" };
+    let line = format!("> 💭 _{dots}{tail}_");
+    if shown.is_empty() { line } else { format!("{shown}\n\n{line}") }
 }
 
 fn error_text(v: &Value) -> String {

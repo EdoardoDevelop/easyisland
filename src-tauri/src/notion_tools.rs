@@ -14,7 +14,7 @@ use serde_json::{json, Map as JsonMap, Value};
 use crate::notion::{call, client, API};
 use crate::notion_map::{Db, Prop};
 
-const MAX_ROWS: usize = 50;
+const MAX_ROWS: usize = 200;
 
 fn need_key() -> Result<(), String> {
     crate::secrets::get("notion-api-key")
@@ -286,25 +286,48 @@ pub async fn read(page: &str) -> Result<String, String> {
     Ok(out)
 }
 
-/// Rows of a database: the most recently edited first, optionally only those
-/// whose title contains `text`.
-pub async fn query(which: &str, text: &str, limit: Option<u64>) -> Result<String, String> {
+/// Rows of a database: the most recently edited first, or as `sorts` says;
+/// only those whose title contains `text` and that pass `filter` (Notion's own
+/// filter object). Up to MAX_ROWS, a page of 100 at a time.
+pub async fn query(which: &str, text: &str, filter: Option<&Value>, sorts: Option<&Value>, limit: Option<u64>) -> Result<String, String> {
     need_key()?;
     let db = database(which).await?;
     let limit = limit.map_or(20, |n| (n as usize).clamp(1, MAX_ROWS));
-    let mut body = json!({ "page_size": limit, "sorts": [{ "timestamp": "last_edited_time", "direction": "descending" }] });
-    if !text.trim().is_empty() {
-        if let Some(t) = db.properties.iter().find(|p| p.kind == "title") {
-            body["filter"] = json!({ "property": t.name, "title": { "contains": text.trim() } });
+    let by_title = (!text.trim().is_empty())
+        .then(|| db.properties.iter().find(|p| p.kind == "title"))
+        .flatten()
+        .map(|t| json!({ "property": t.name, "title": { "contains": text.trim() } }));
+    let given = filter.filter(|f| f.as_object().is_some_and(|o| !o.is_empty())).cloned();
+    let filter = match (by_title, given) {
+        (Some(a), Some(b)) => Some(json!({ "and": [a, b] })),
+        (a, b) => a.or(b),
+    };
+    let sorts = sorts.filter(|s| s.as_array().is_some_and(|a| !a.is_empty())).cloned()
+        .unwrap_or_else(|| json!([{ "timestamp": "last_edited_time", "direction": "descending" }]));
+    let mut rows: Vec<String> = Vec::new();
+    let mut cursor: Option<String> = None;
+    let mut more = false;
+    while rows.len() < limit {
+        let mut body = json!({ "page_size": (limit - rows.len()).min(100), "sorts": sorts });
+        if let Some(f) = &filter {
+            body["filter"] = f.clone();
+        }
+        if let Some(c) = &cursor {
+            body["start_cursor"] = json!(c);
+        }
+        let v = call(client().post(format!("{API}/databases/{}/query", db.id)).json(&body)).await?;
+        rows.extend(v.get("results").and_then(Value::as_array).into_iter().flatten().map(row_text));
+        more = v.get("has_more").and_then(Value::as_bool) == Some(true);
+        cursor = v.get("next_cursor").and_then(Value::as_str).map(str::to_string);
+        if !more || cursor.is_none() {
+            break;
         }
     }
-    let v = call(client().post(format!("{API}/databases/{}/query", db.id)).json(&body)).await?;
-    let rows: Vec<String> = v.get("results").and_then(Value::as_array).into_iter().flatten().map(row_text).collect();
     if rows.is_empty() {
         return Ok(format!("«{}»: nessuna riga.", db.title));
     }
-    let more = if v.get("has_more").and_then(Value::as_bool) == Some(true) { " (ce ne sono altre)" } else { "" };
-    Ok(format!("«{}», {} righe{more}, le più recenti prima:\n{}", db.title, rows.len(), rows.join("\n")))
+    let more = if more { " (ce ne sono altre: per totali e conti restringi con filter o alza limit)" } else { " (sono tutte)" };
+    Ok(format!("«{}», {} righe{more}:\n{}", db.title, rows.len(), rows.join("\n")))
 }
 
 pub async fn add_row(which: &str, given: &Value) -> Result<String, String> {
@@ -389,8 +412,15 @@ mod tests {
     fn live() {
         let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
         let first = crate::notion_map::databases().into_iter().next().expect("mappa vuota");
-        println!("{}", rt.block_on(query(&first.title, "", Some(3))).unwrap());
+        println!("{}", rt.block_on(query(&first.title, "", None, None, Some(3))).unwrap());
         println!("{}", rt.block_on(search(&first.title)).unwrap());
+        // Notion's own filter, more than one page of rows.
+        if let Some(d) = crate::notion_map::databases().into_iter().find(|d| d.properties.iter().any(|p| p.kind == "date")) {
+            let date = d.properties.iter().find(|p| p.kind == "date").unwrap().name.clone();
+            let filter = json!({ "property": date, "date": { "on_or_after": "2026-01-01" } });
+            let out = rt.block_on(query(&d.title, "", Some(&filter), None, Some(150))).unwrap();
+            println!("{}", out.lines().next().unwrap_or_default());
+        }
         assert!(rt.block_on(properties(&first, &json!({ "NonEsiste": 1 }))).is_err());
     }
 
