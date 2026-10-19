@@ -2400,5 +2400,15 @@
   "Antigravity toglie la voce «easyisland» dai suoi server MCP, dopo una copia del file.": "Antigravity removes the “easyisland” entry from its MCP servers, after a copy of the file.",
   "Vale dalla prossima domanda ad Antigravity.": "It applies from the next question to Antigravity.",
   "Strumenti di EasyIsland in Antigravity": "EasyIsland tools in Antigravity",
-  "Con questi Antigravity usa le integrazioni di EasyIsland come gli altri motori: Notion (leggere e aggiungere righe), Vassoio, azioni rapide, stato del PC, appunti, musica. Quelli che leggono vanno da soli, gli altri chiedono Consenti / Nega.": "With these Antigravity uses EasyIsland's integrations like the other engines: Notion (reading and adding rows), Tray, quick actions, PC status, clipboard, music. The ones that only read run by themselves, the others ask Allow / Deny."
+  "Con questi Antigravity usa le integrazioni di EasyIsland come gli altri motori: Notion (leggere e aggiungere righe), Vassoio, azioni rapide, stato del PC, appunti, musica. Quelli che leggono vanno da soli, gli altri chiedono Consenti / Nega.": "With these Antigravity uses EasyIsland's integrations like the other engines: Notion (reading and adding rows), Tray, quick actions, PC status, clipboard, music. The ones that only read run by themselves, the others ask Allow / Deny.",
+  "Seconda opinione · {e}": "Second opinion · {e}",
+  "Un altro motore controlla quest'ultima risposta": "Another engine checks this last answer",
+  "Seconda opinione": "Second opinion",
+  "Nessun altro motore pronto: Impostazioni → Chat": "No other engine ready: Settings → Chat",
+  "Un altro assistente ({first}) ha risposto alla domanda dell'utente qui sotto. Fai da revisore: cerca errori, imprecisioni, cose mancanti o rischiose. Rispondi in modo breve, nella lingua dell'utente: solo i punti da correggere o aggiungere, ognuno con il motivo. Se la risposta va bene, dillo in una riga. Non riscriverla da capo.\n\nDomanda dell'utente:\n{q}\n\nRisposta di {first}:\n{a}": "Another assistant ({first}) answered the user's question below. Act as a reviewer: look for mistakes, inaccuracies, missing or risky points. Answer briefly, in the user's language: only the points to fix or add, each with the reason. If the answer is fine, say so in one line. Do not rewrite it from scratch.\n\nThe user's question:\n{q}\n\n{first}'s answer:\n{a}",
+  "[Seconda opinione di {r} sulla tua ultima risposta, chiesta e letta dall'utente:": "[Second opinion of {r} on your last answer, asked for and read by the user:",
+  "Non c'è una risposta da rivedere.": "There is no answer to review.",
+  "Nessun altro motore pronto.": "No other engine ready.",
+  "Chi dà la seconda opinione?": "Who gives the second opinion?",
+  "Seconda opinione: {e}.": "Second opinion: {e}."
 }

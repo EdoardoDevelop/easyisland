@@ -1328,6 +1328,49 @@ input[type="range"]::-webkit-slider-thumb {
   user-select: text;
 }
 
+/* «⇄ Seconda opinione»: the button under the last answer, and the review itself. */
+.second-row {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.second-btn {
+  padding: 2px 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  font: 500 11px var(--font);
+  color: var(--ink-2);
+  background: transparent;
+}
+
+.second-btn:hover {
+  color: #c4b5fd;
+  background: rgba(167, 139, 250, 0.14);
+}
+
+.second-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #1c1d22;
+  border: 1px solid var(--hairline);
+}
+
+.reply.md.second {
+  padding: 6px 10px;
+  border-left: 2px solid rgba(167, 139, 250, 0.6);
+  border-radius: 4px;
+  background: rgba(167, 139, 250, 0.06);
+}
+
+.second-head {
+  font: 600 11px var(--font);
+  color: #c4b5fd;
+}
+
 /* Markdown in Claude's replies (src/core/markdown.ts). */
 .reply.md {
   white-space: normal;

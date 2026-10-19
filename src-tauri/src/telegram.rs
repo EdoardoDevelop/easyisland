@@ -55,6 +55,9 @@ const LINK_VALID: Duration = Duration::from_secs(600);
 /// Telegram's own conversation, and what was picked for it.
 static CHAT: LazyLock<Chat> = LazyLock::new(Chat::default);
 static PICK: Mutex<Pick> = Mutex::new(Pick { engine: None, model: None });
+/// The last answer, for «⇄ Seconda opinione» (second.rs): who wrote it, the
+/// question, the text and the message that has the button.
+static LAST: Mutex<Option<Last>> = Mutex::new(None);
 /// A file sent without a caption: it goes with the next question.
 static NEXT_FILE: Mutex<Option<(String, String)>> = Mutex::new(None);
 /// A turn is running (one at a time).
@@ -79,6 +82,14 @@ static POLL: Mutex<Option<tokio::task::AbortHandle>> = Mutex::new(None);
 struct Pick {
     engine: Option<String>,
     model: Option<String>,
+}
+
+#[derive(Clone)]
+struct Last {
+    engine: String,
+    question: String,
+    answer: String,
+    message: i64,
 }
 
 #[derive(Clone)]
@@ -355,7 +366,7 @@ async fn handle(app: &AppHandle, token: &str, u: &Value, started: i64) -> Option
     BUSY.store(true, Ordering::SeqCst);
     let (app, token) = (app.clone(), token.to_string());
     tauri::async_runtime::spawn(async move {
-        turn(&app, &token, chat, query, context).await;
+        turn(&app, &token, chat, query, context, None).await;
         BUSY.store(false, Ordering::SeqCst);
     });
     None
@@ -570,6 +581,7 @@ fn reset_conversation() {
     let before = CHAT.cli_session();
     CHAT.reset();
     crate::opencode::forget(before);
+    *LAST.lock().unwrap() = None;
     *NEXT_FILE.lock().unwrap() = None;
 }
 
@@ -580,7 +592,7 @@ fn set_model(model: Option<String>) {
 
 /// The engines of the chat (ids as in CHAT_ENGINES, src/core/state.ts), with
 /// whether each one can answer now.
-fn engines(app: &AppHandle) -> Vec<(&'static str, String, bool)> {
+pub(crate) fn engines(app: &AppHandle) -> Vec<(&'static str, String, bool)> {
     let models = app
         .try_state::<crate::Shared>()
         .map(|s| s.settings.lock().unwrap().engine_models.clone())
@@ -691,6 +703,44 @@ async fn on_button(app: &AppHandle, token: &str, q: &Value) {
         if let Some(mid) = message {
             let mark = if note == t("Consentito") { "✅" } else { "⛔" };
             let _ = edit(token, chat, mid, &format!("{original}\n\n{mark} {note}"), false).await;
+        }
+    } else if data == "o" {
+        // ⇄ Seconda opinione: which engine (the one that answered is left out).
+        let answered = LAST.lock().unwrap().as_ref().map(|l| l.engine.clone());
+        match answered {
+            None => note = t("Richiesta scaduta").into(),
+            Some(_) if BUSY.load(Ordering::SeqCst) => note = t("Aspetta la fine della risposta in corso.").into(),
+            Some(answered) => {
+                let rows: Vec<Value> = engines(app)
+                    .into_iter()
+                    .filter(|(e, _, ready)| *ready && *e != answered)
+                    .map(|(e, name, _)| json!([{ "text": name, "callback_data": format!("o:{e}") }]))
+                    .collect();
+                if rows.is_empty() {
+                    note = t("Nessun altro motore pronto.").into();
+                } else {
+                    let _ = send(token, chat, t("Chi dà la seconda opinione?"), Some(json!({ "inline_keyboard": rows }))).await;
+                }
+            }
+        }
+    } else if let Some(engine) = data.strip_prefix("o:") {
+        let known = engines(app).into_iter().find(|(e, _, ready)| *e == engine && *ready);
+        if BUSY.load(Ordering::SeqCst) {
+            note = t("Aspetta la fine della risposta in corso.").into();
+        } else if LAST.lock().unwrap().is_none() {
+            note = t("Richiesta scaduta").into();
+        } else if let Some((e, name, _)) = known {
+            if let Some(mid) = message {
+                let msg = tf("Seconda opinione: {e}.", &[("e", &name)]);
+                let _ = edit(token, chat, mid, &msg, false).await;
+            }
+            BUSY.store(true, Ordering::SeqCst);
+            let (app, token, e) = (app.clone(), token.to_string(), e.to_string());
+            tauri::async_runtime::spawn(async move {
+                turn(&app, &token, chat, String::new(), None, Some(e)).await;
+                BUSY.store(false, Ordering::SeqCst);
+            });
+            note = name;
         }
     } else if let Some(engine) = data.strip_prefix("e:") {
         let known = engines(app).into_iter().find(|(e, _, ready)| *e == engine && *ready);
@@ -887,7 +937,18 @@ fn permission_text(payload: &Value) -> String {
 
 // ── A turn ────────────────────────────────────────────────────────────────────
 
-async fn turn(app: &AppHandle, token: &str, chat: i64, query: String, context: Option<ChatContext>) {
+/// A turn of the conversation, or with `second` (an engine's id) the second
+/// opinion of that engine on the last answer.
+async fn turn(app: &AppHandle, token: &str, chat: i64, query: String, context: Option<ChatContext>, second: Option<String>) {
+    // «⇄ Seconda opinione» stays only under the newest answer.
+    let previous = LAST.lock().unwrap().as_ref().map(|l| l.message);
+    if let Some(mid) = previous {
+        let _ = call(token, "editMessageReplyMarkup", json!({ "chat_id": chat, "message_id": mid, "reply_markup": { "inline_keyboard": [] } }), 10).await;
+    }
+    let header = second
+        .as_deref()
+        .map(|e| format!("⇄ {}\n\n", tf("Seconda opinione · {e}", &[("e", &crate::second::engine_name(app, e))])))
+        .unwrap_or_default();
     let _ = call(token, "sendChatAction", json!({ "chat_id": chat, "action": "typing" }), 10).await;
     // "⏹ Ferma" under the reply while it is written (the finished reply drops it).
     let stop_kb = json!({ "inline_keyboard": [[{ "text": format!("⏹ {}", t("Ferma")), "callback_data": "s" }]] });
@@ -924,10 +985,11 @@ async fn turn(app: &AppHandle, token: &str, chat: i64, query: String, context: O
         });
     }
     let on_text = |text: &str| {
-        *latest.lock().unwrap() = text.to_string();
+        *latest.lock().unwrap() = format!("{header}{text}");
     };
+    let asked = query.clone();
     // How a file reaches the user here: through the Vassoio (said once, at the start).
-    let query = if CHAT.is_empty() {
+    let query = if CHAT.is_empty() && second.is_none() {
         let dir = crate::files::inbox_dir();
         let note = tf("[Questa conversazione è su Telegram. Per mandare un file all'utente mettilo nel Vassoio di EasyIsland: con lo strumento add_to_tray, se c'è, oppure copiandolo nella cartella {dir}. Ogni file nuovo del Vassoio gli arriva su Telegram alla fine della risposta.]", &[("dir", &dir.display())]);
         format!("{note}\n\n{query}")
@@ -935,10 +997,25 @@ async fn turn(app: &AppHandle, token: &str, chat: i64, query: String, context: O
         query
     };
     let before = tray_names();
-    let reply = crate::chat_turn(app, &CHAT, query, context, engine, model, false, true, &on_text).await;
+    let last = LAST.lock().unwrap().clone();
+    let reply = match (&second, &last) {
+        (None, _) => crate::chat_turn(app, &CHAT, query, context, engine, model, false, true, &on_text).await.map(|r| r.text),
+        (Some(e), Some(l)) => crate::second::run(app, &CHAT, e, &l.engine, &l.question, &l.answer, true, &on_text).await,
+        (Some(_), None) => Err(t("Non c'è una risposta da rivedere.").to_string()),
+    };
     done.store(true, Ordering::SeqCst);
     match reply {
-        Ok(r) => deliver(token, chat, placeholder, &r.text).await,
+        Ok(text) => {
+            let mid = deliver(token, chat, placeholder, &format!("{header}{text}")).await;
+            // The button under it: the answer (or the one just reviewed) can be reviewed again.
+            let next = match last.filter(|_| second.is_some()) {
+                Some(l) => Last { message: mid, ..l },
+                None => Last { engine: current_engine(app), question: asked, answer: text, message: mid },
+            };
+            *LAST.lock().unwrap() = Some(next);
+            let kb = json!({ "inline_keyboard": [[{ "text": format!("⇄ {}", t("Seconda opinione")), "callback_data": "o" }]] });
+            let _ = call(token, "editMessageReplyMarkup", json!({ "chat_id": chat, "message_id": mid, "reply_markup": kb }), 10).await;
+        }
         // Stopped: what was written so far stays, marked.
         Err(e) if e == crate::stopped_text() => {
             let so_far = latest.lock().unwrap().trim().to_string();
@@ -1020,17 +1097,23 @@ async fn send_file(token: &str, chat: i64, path: &std::path::Path) -> Result<(),
 }
 
 /// The finished reply: the first piece in place of "…", the rest after it.
-async fn deliver(token: &str, chat: i64, placeholder: i64, text: &str) {
+/// The reply in the placeholder and, if long, in more messages: the last one's id.
+async fn deliver(token: &str, chat: i64, placeholder: i64, text: &str) -> i64 {
+    let mut last = placeholder;
     for (i, piece) in chunks(text, CHUNK).iter().enumerate() {
         let html = to_html(piece);
         if i == 0 {
             if edit(token, chat, placeholder, &html, true).await.is_err() {
                 let _ = edit(token, chat, placeholder, piece, false).await;
             }
-        } else if send_html(token, chat, &html).await.is_err() {
-            let _ = send(token, chat, piece, None).await;
+        } else {
+            match send_html(token, chat, &html).await {
+                Ok(id) => last = id,
+                Err(_) => last = send(token, chat, piece, None).await.unwrap_or(last),
+            }
         }
     }
+    last
 }
 
 // ── Files ─────────────────────────────────────────────────────────────────────
