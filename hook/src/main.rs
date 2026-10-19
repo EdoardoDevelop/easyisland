@@ -52,6 +52,7 @@ mod diff;
 mod mcp;
 mod statusline;
 mod testrun;
+mod tool_list;
 mod win;
 
 /// `\\.\pipe\easyisland-<sid>`. The SID keeps two accounts on the same machine from

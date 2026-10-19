@@ -154,6 +154,9 @@ chooses.
 The database is found in the local map (`notion_map.rs`) and every value is checked
 against its properties before writing, so a row cannot end up outside its database.
 Reading runs freely; adding and changing ask Allow / Deny; nothing deletes.
+The Anthropic API engine (`claude.rs`) gets the same tools too: the list lives in
+`hook/src/tool_list.rs`, shared by the relay and the app, and the app runs the
+`tool_use` loop itself. The OpenAI-compatible engines still have no tools.
 
 ## Second opinion (`second.rs`)
 

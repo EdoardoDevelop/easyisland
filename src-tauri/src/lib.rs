@@ -1103,7 +1103,10 @@ pub(crate) async fn chat_turn(
             antigravity::send(chat, &other_model, query, context, dir.as_deref(), on_text, telegram).await
         }
         (Some(folder), _) => claude_cli::send(chat, &cli_model, &mcp, agent, query, context, Some(folder), auto, on_text, telegram, None).await,
-        (None, "api") => claude::send(chat, &model, query, context).await,
+        (None, "api") => {
+            let tools = agent.then_some(claude::Tools { app, telegram });
+            claude::send_with(chat, &model, query, context, tools).await
+        }
         (None, "opencode") => {
             let o = opencode::Options { telegram, agent, work: work.clone(), ..Default::default() };
             opencode::send(app, chat, &other_model, query, context, &o, on_text).await

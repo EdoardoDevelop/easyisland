@@ -13,7 +13,6 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Account Microsoft (API):** predisposto (accesso, Outlook e Teams con Graph); da provare registrando l'app in Entra (`docs/prove-dal-vivo.md`), poi avvisi di mail nuove, chat, automazioni (`docs/integrazioni.md`).
 - [ ] **Remote Desktop Manager:** predisposto; prova la settimana prossima sul PC con RDM (`docs/prove-dal-vivo.md`), poi i passi in `docs/idee.md`.
 - [ ] **Clic destro in Esplora file:** voci di EasyIsland sui file («Manda a EasyIsland», azioni sui file), deciso con Edoardo l'11 ottobre come passo successivo al menu sulla selezione (`docs/idee.md`).
-- [ ] **Strumenti di EasyIsland per i motori via API** (Anthropic con chiave, OpenRouter, OpenAI, Gemini, Ollama, LM Studio): valutato il 19 ottobre 2026, da decidere con Edoardo (`docs/idee.md`).
 - [ ] **opencode:** card per lo strumento `question` anche nella chat (per l'agente c'è), controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
 - [ ] **Spunti da Coucou:** Amp/Hermes, limiti di Codex, riepilogo condivisibile come immagine, GitHub (`docs/idee.md`).
 - [ ] **Prova dal vivo dei nuovi personaggi** (`docs/prove-dal-vivo.md`).
@@ -33,8 +32,8 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 19 ottobre 2026 — Notion per tutti i motori, strumenti di EasyIsland in Antigravity
 - Chiesto da Edoardo: ogni motore deve usare le integrazioni di EasyIsland, e Antigravity non arrivava a Notion. Nuovi strumenti di easyisland `notion_search`, `notion_read`, `notion_query`, `notion_add_row` e `notion_update_row` (`notion_tools.rs`), con il collegamento di EasyIsland: i valori si controllano sulla mappa prima di scrivere, quindi niente più righe fuori dal database. Antigravity riceve il server con `agy mcp add`, da Impostazioni → Chat → Antigravity (copia e conferma); i suoi strumenti di sola lettura non chiedono Consenti / Nega (`docs/chat.md`, `docs/agenti.md`).
-- I motori via API restano senza strumenti: valutato, da decidere con Edoardo (`docs/idee.md`).
-- **Prove:** `cargo test --workspace`, lettura vera (`notion_tools::tests::live`), `npm run build`, `npm run smoke`. Da provare: scritture e Antigravity (`docs/prove-dal-vivo.md`).
+- Poi, scelto da Edoardo: gli stessi strumenti anche al motore Anthropic con chiave (`claude.rs`, ciclo `tool_use`, elenco unico in `hook/src/tool_list.rs`); opencode li aveva già. Gli altri motori via API per ora no (`docs/idee.md`).
+- **Prove:** `cargo test --workspace`, lettura vera (`notion_tools::tests::live`), `npm run build`, `npm run smoke`. Da provare: scritture, Antigravity e il motore Anthropic (su questo PC non c'è la chiave) (`docs/prove-dal-vivo.md`).
 
 ### 19 ottobre 2026 — Relay aggiornato davvero, righe di Notion create bene
 - Segnalato da Edoardo: da Telegram un'aggiunta in Notion ha richiesto 10 minuti e creato 8 pagine vuote. Cause: `bin\easyisland-hook.exe` fermo al 14 ottobre (copia in uso, errore taciuto: niente `notion_map`), e il modello (opencode, gratuito) che metteva `parent` dentro ogni pagina. Ora la copia in uso si mette da parte (`docs/agenti.md`) e l'indice della mappa dice come creare le righe (`docs/integrazioni.md`).
