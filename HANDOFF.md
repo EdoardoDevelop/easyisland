@@ -28,6 +28,11 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 20 ottobre 2026 — Velocità: misure, Claude Code acceso, Notion compatto, ricette
+- Segnalato da Edoardo: lentezza di tutti i motori. Misure di ogni turno, strumento e token nel log; Claude Code resta acceso tra i messaggi della stessa conversazione (~6 s → ~3 s di avvio); `notion_query` risponde con una tabella compatta, le categorie per nome e i totali già fatti; indice di Notion corto; ricette imparate con l'uso (`recipes.rs`, Impostazioni → Chat → «Ricette»). Tutto in `docs/chat.md` → Velocità e ricette.
+- «Quanto ho speso a ottobre» con Claude: 28,7 s → 11,2 s, risposta giusta (1.679,45 €, ricontata dalle righe).
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`; dal vivo `live_speed`, `live_kept` (messaggi di fila, processo morto, Ferma, uscita, con e senza strumenti, nessun processo rimasto) e `notion_tools::tests::live`. Da provare dall'isola e da Telegram (`docs/prove-dal-vivo.md`).
+
 ### 19 ottobre 2026 — Conti di Notion uguali tra i motori, ragionamento di opencode su Telegram
 - Segnalato da Edoardo: con opencode la risposta non arrivava (fermata dopo 2 minuti), e Claude e opencode davano dati diversi. `notion_query` dava solo le 50 righe più recenti, senza filtri: ora accetta `filter` e `sorts` di Notion, legge fino a 200 righe e dice se sono tutte; l'indice della mappa chiede un solo modo per risposta e niente script per i conti.
 - Su Telegram opencode in «modalità codice» mostrava solo «Esegue uno script»: ora sotto la risposta in corso c'è la coda del suo ragionamento (💭), che sparisce quando scrive o usa uno strumento (`opencode.rs`). Lo stesso per Claude Code (`claude_cli.rs`): ogni turno ora arriva man mano (`stream-json`), anche fuori dalla Modalità terminale, con il ragionamento quando Claude Code lo manda. Verificato il 20 ottobre: Claude e opencode danno lo stesso totale di ottobre (1.679,45 €, ricontato dalle righe di Notion).
@@ -48,9 +53,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Chiesto da Edoardo: ogni motore deve usare le integrazioni di EasyIsland, e Antigravity non arrivava a Notion. Nuovi strumenti di easyisland `notion_search`, `notion_read`, `notion_query`, `notion_add_row` e `notion_update_row` (`notion_tools.rs`), con il collegamento di EasyIsland: i valori si controllano sulla mappa prima di scrivere, quindi niente più righe fuori dal database. Antigravity riceve il server con `agy mcp add`, da Impostazioni → Chat → Antigravity (copia e conferma); i suoi strumenti di sola lettura non chiedono Consenti / Nega (`docs/chat.md`, `docs/agenti.md`).
 - Poi, scelto da Edoardo: gli stessi strumenti anche al motore Anthropic con chiave (`claude.rs`, ciclo `tool_use`, elenco unico in `hook/src/tool_list.rs`); opencode li aveva già. Gli altri motori via API per ora no (`docs/idee.md`).
 - **Prove:** `cargo test --workspace`, lettura vera (`notion_tools::tests::live`), `npm run build`, `npm run smoke`. Da provare: scritture, Antigravity e il motore Anthropic (su questo PC non c'è la chiave) (`docs/prove-dal-vivo.md`).
-
-### 19 ottobre 2026 — Relay aggiornato davvero, righe di Notion create bene
-- Segnalato da Edoardo: da Telegram un'aggiunta in Notion ha richiesto 10 minuti e creato 8 pagine vuote. Cause: `bin\easyisland-hook.exe` fermo al 14 ottobre (copia in uso, errore taciuto: niente `notion_map`), e il modello (opencode, gratuito) che metteva `parent` dentro ogni pagina. Ora la copia in uso si mette da parte (`docs/agenti.md`) e l'indice della mappa dice come creare le righe (`docs/integrazioni.md`).
-- **Prove:** `cargo test --workspace`; sessione di opencode letta dal suo database. Da provare: la stessa richiesta da Telegram dopo l'aggiornamento.
-
-

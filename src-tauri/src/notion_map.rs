@@ -14,7 +14,7 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::i18n::tf;
+use crate::i18n::{t, tf};
 
 /// Search pages of 100: at most this many for databases, and for pages.
 const DB_PAGES: usize = 5;
@@ -273,6 +273,9 @@ pub fn status() -> Value {
 pub fn index(tool: bool) -> Option<String> {
     crate::secrets::get("notion-api-key")?;
     let m = current().filter(|m| !m.databases.is_empty() || !m.pages.is_empty())?;
+    if tool {
+        return Some(short_index(&m));
+    }
     let date = chrono_like(m.at);
     let mut s = tf("[Notion dell'utente, mappa di EasyIsland del {d}. Usa questi id con gli strumenti di Notion invece di cercarli (per aggiungere o cercare righe la data source); se qualcosa non c'è o non torna, cerca come al solito.", &[("d", &date)]);
     if !m.databases.is_empty() {
@@ -293,20 +296,33 @@ pub fn index(tool: bool) -> Option<String> {
         let names: Vec<String> = m.pages.iter().take(INDEX_PAGES).map(|p| format!("{} ({})", p.title, p.id)).collect();
         s.push_str(&names.join(" · "));
     }
-    if tool {
-        s.push_str("\nProprietà, opzioni di stati e selezioni e relazioni di ogni database: strumento notion_map di easyisland (database = nome o id), senza chiamate a Notion. Per leggere e scrivere usa prima gli strumenti di easyisland: notion_query (righe), notion_add_row e notion_update_row (database per nome, proprietà con i nomi della mappa; controllano i valori prima di scrivere), notion_search, notion_read. Se non ci sono, un solo fetch della data source e gli strumenti di Notion. Per una risposta usa un solo modo (questi strumenti o quelli di Notion), non mescolarli; per somme e conti filtra per data o categoria invece di leggere le righe più recenti, e niente script per fare i conti.");
-    } else {
-        // Without the tool, the properties come along.
-        for d in m.databases.iter().take(INDEX_DBS) {
-            s.push('\n');
-            s.push_str(&describe(d, &m));
-        }
+    // Without the tool, the properties come along.
+    for d in m.databases.iter().take(INDEX_DBS) {
+        s.push('\n');
+        s.push_str(&describe(d, &m));
     }
     // Learnt from a turn on 19 October 2026: a model put `parent` inside each
     // page, and Notion made eight empty private pages before it found out.
     s.push_str("\nPer aggiungere righe con notion-create-pages: \"parent\": {\"data_source_id\": \"…\"} va al livello principale della chiamata, accanto a \"pages\", mai dentro una pagina; le proprietà con i nomi esatti della mappa (date come date:Nome:start). Se la risposta torna con le proprietà vuote, la pagina è finita fuori dal database: correggi la chiamata, non creare pagine di prova.");
     s.push_str("]\n\n");
     Some(s)
+}
+
+/// With EasyIsland's tools the databases go by name, so only the names ride
+/// in front of a new conversation; ids, properties and options come from
+/// notion_map when needed. The whole index with ids was ~2,000 tokens in
+/// front of every conversation (20 October 2026).
+fn short_index(m: &Map) -> String {
+    let mut s = t("[Notion dell'utente, con gli strumenti di easyisland (database per nome):").to_string();
+    if !m.databases.is_empty() {
+        s.push(' ');
+        let names: Vec<&str> = m.databases.iter().take(INDEX_DBS).map(|d| d.title.as_str()).collect();
+        s.push_str(&names.join(" · "));
+    }
+    s.push('.');
+    s.push_str(t(" Righe, somme e conti: notion_query con filter (per data, categoria…) e i totali che restituisce, niente script. Aggiungere o cambiare: notion_add_row, notion_update_row. Proprietà e opzioni: notion_map, solo se servono. Pagine: notion_search, notion_read. Usa questi e non altri strumenti di Notion."));
+    s.push_str("]\n\n");
+    s
 }
 
 /// "19/10/2026 08:30", local time, without a date crate.

@@ -16,8 +16,12 @@ static RUNS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1)
 
 /// One-line JSON answer for the pipe: {"ok": bool, "text": "…"}.
 pub async fn call(app: &AppHandle, tool: &str, args: &Value) -> Value {
-    crate::log::line(format!("agent {tool}"));
-    match run(app, tool, args).await {
+    let start = std::time::Instant::now();
+    let out = run(app, tool, args).await;
+    let size = out.as_ref().map_or_else(|e| e.chars().count(), |t| t.chars().count());
+    crate::log::line(format!("agent {tool} {} ms, {size} caratteri{}", start.elapsed().as_millis(), if out.is_err() { ", errore" } else { "" }));
+    crate::recipes::saw(tool, args, out.is_ok());
+    match out {
         Ok(text) => json!({ "ok": true, "text": text }),
         Err(text) => json!({ "ok": false, "text": text }),
     }

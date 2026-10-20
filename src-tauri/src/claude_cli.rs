@@ -579,8 +579,47 @@ fn step_line(tool: &str, input: &Value) -> String {
     crate::opencode::step_line(as_opencode, input)
 }
 
-/// "Modalità terminale": reads the turn as it streams, the steps to `on_text`.
-/// Back: the last JSON line (the result), what was shown, stderr, and the exit.
+type OutLines = tokio::io::Lines<tokio::io::BufReader<tokio::process::ChildStdout>>;
+
+/// Reads the turn as it streams, the steps (and the text and the reasoning) to
+/// `on_text`. Back: the last JSON line, what was shown, and whether the
+/// turn's `result` came. `until_result`: a kept process (`Live`) goes on after it.
+async fn read_lines(
+    lines: &mut OutLines,
+    on_text: &(dyn Fn(&str) + Sync),
+    limit: Duration,
+    late: &str,
+    until_result: bool,
+) -> Result<(String, String, bool), String> {
+    let mut progress = Progress::default();
+    let mut last = String::new();
+    let mut emitted = std::time::Instant::now();
+    let deadline = tokio::time::Instant::now() + limit;
+    loop {
+        match tokio::time::timeout_at(deadline, lines.next_line()).await {
+            Err(_) => return Err(late.to_string()),
+            Ok(Err(e)) => return Err(tf("Claude Code si è interrotto: {e}", &[("e", &e)])),
+            Ok(Ok(None)) => return Ok((last, progress.shown, false)),
+            Ok(Ok(Some(line))) => {
+                if !line.trim_start().starts_with('{') {
+                    continue;
+                }
+                if progress.feed(&line) && emitted.elapsed() >= STREAM_EVERY {
+                    emitted = std::time::Instant::now();
+                    on_text(&progress.view());
+                }
+                let result = line.contains("\"type\":\"result\"") && serde_json::from_str::<Value>(&line).ok().and_then(|v| v.get("type").and_then(Value::as_str).map(|t| t == "result")) == Some(true);
+                last = line;
+                if result && until_result {
+                    return Ok((last, progress.shown, true));
+                }
+            }
+        }
+    }
+}
+
+/// One process, one turn: the output to its end. Back: the last JSON line
+/// (the result), what was shown, stderr, and the exit.
 async fn read_stream(
     child: &mut tokio::process::Child,
     on_text: &(dyn Fn(&str) + Sync),
@@ -598,33 +637,138 @@ async fn read_stream(
         s
     });
     let mut lines = tokio::io::BufReader::new(stdout).lines();
-    let mut progress = Progress::default();
-    let mut last = String::new();
-    let mut emitted = std::time::Instant::now();
-    let deadline = tokio::time::Instant::now() + limit;
-    loop {
-        match tokio::time::timeout_at(deadline, lines.next_line()).await {
-            Err(_) => {
-                let _ = child.start_kill();
-                return Err(late.to_string());
-            }
-            Ok(Err(e)) => return Err(tf("Claude Code si è interrotto: {e}", &[("e", &e)])),
-            Ok(Ok(None)) => break,
-            Ok(Ok(Some(line))) => {
-                if !line.trim_start().starts_with('{') {
-                    continue;
-                }
-                if progress.feed(&line) && emitted.elapsed() >= STREAM_EVERY {
-                    emitted = std::time::Instant::now();
-                    on_text(&progress.view());
-                }
-                last = line;
-            }
+    let (last, shown, _) = match read_lines(&mut lines, on_text, limit, late, false).await {
+        Ok(r) => r,
+        Err(e) => {
+            let _ = child.start_kill();
+            return Err(e);
         }
-    }
+    };
     let ok = matches!(child.wait().await, Ok(s) if s.success());
     let stderr = err.await.unwrap_or_default();
-    Ok((last, progress.shown, stderr, ok))
+    Ok((last, shown, stderr, ok))
+}
+
+// ── Kept processes ────────────────────────────────────────────────────────────
+// A new `claude -p` for every message took ~6 s before the model even
+// started (Node, settings, MCP servers); one left running between the
+// messages of a conversation answers in ~3 s (measured on 20 October 2026).
+// The chat's conversations (island and Telegram) keep theirs: messages go in
+// as stream-json lines on stdin, each turn ends at its `result`. Anything that
+// changes how it was started (model, connectors, folders, the prompt and
+// settings files, Telegram) or a new conversation starts another; a kept
+// process that died is replaced with `--resume`, so nothing is lost. Ferma
+// drops the turn, and with it the process (kill_on_drop).
+
+struct Live {
+    child: tokio::process::Child,
+    stdin: tokio::process::ChildStdin,
+    lines: OutLines,
+    stderr: std::sync::Arc<std::sync::Mutex<String>>,
+    /// The conversation (the `Chat`'s address) and how the process was started.
+    chat: usize,
+    print: String,
+    session: String,
+    used: std::time::Instant,
+}
+
+static LIVE: std::sync::Mutex<Vec<Live>> = std::sync::Mutex::new(Vec::new());
+/// A conversation left alone this long lets its process go.
+const LIVE_IDLE: Duration = Duration::from_secs(20 * 60);
+
+/// How the process is started, without the session it resumes.
+fn fingerprint(cmd: &Command, dir: &Path) -> String {
+    let std = cmd.as_std();
+    let mut parts: Vec<String> = Vec::new();
+    let mut skip = false;
+    for a in std.get_args() {
+        let a = a.to_string_lossy().into_owned();
+        if skip {
+            skip = false;
+            continue;
+        }
+        if a == "--resume" {
+            skip = true;
+            continue;
+        }
+        parts.push(a);
+    }
+    parts.push(format!("cwd={:?}", std.get_current_dir()));
+    for (k, v) in std.get_envs() {
+        parts.push(format!("{}={:?}", k.to_string_lossy(), v));
+    }
+    // The files it read when it started.
+    for f in ["chat-prompt.txt", "chat-settings.json", "chat-mcp.json"] {
+        parts.push(std::fs::read_to_string(dir.join(f)).unwrap_or_default());
+    }
+    parts.join("\u{1}")
+}
+
+/// The kept process of this conversation, if it fits; the others of the same
+/// conversation and those left alone too long go.
+fn take_live(chat: usize, print: &str, session: Option<&str>) -> Option<Live> {
+    let mut all = LIVE.lock().unwrap();
+    let pos = all.iter().position(|l| l.chat == chat && l.print == print && Some(l.session.as_str()) == session);
+    let found = pos.map(|i| all.remove(i));
+    all.retain(|l| l.chat != chat && l.used.elapsed() < LIVE_IDLE);
+    found
+}
+
+fn put_live(live: Live) {
+    LIVE.lock().unwrap().push(live);
+}
+
+/// At the app's exit (lib.rs): the kept processes go with it.
+pub fn shutdown() {
+    let mut all = LIVE.lock().unwrap();
+    for l in all.iter_mut() {
+        let _ = l.child.start_kill();
+    }
+    all.clear();
+}
+
+fn spawn_live(mut cmd: Command, chat: usize, print: String) -> Result<Live, String> {
+    cmd.args(["--input-format", "stream-json"]);
+    let mut child = cmd.spawn().map_err(|e| tf("Claude Code non si avvia: {e}", &[("e", &e)]))?;
+    let stdin = child.stdin.take().ok_or(t("Claude Code si è interrotto."))?;
+    let stdout = child.stdout.take().ok_or(t("Claude Code si è interrotto."))?;
+    let stderr = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
+    if let Some(e) = child.stderr.take() {
+        let keep = stderr.clone();
+        // Read alongside, or a full stderr pipe would stall Claude Code.
+        tauri::async_runtime::spawn(async move {
+            let mut lines = tokio::io::BufReader::new(e).lines();
+            while let Ok(Some(line)) = lines.next_line().await {
+                let mut k = keep.lock().unwrap();
+                k.push_str(&line);
+                k.push('\n');
+                let n = k.chars().count();
+                if n > 4000 {
+                    *k = k.chars().skip(n - 4000).collect();
+                }
+            }
+        });
+    }
+    Ok(Live { child, stdin, lines: tokio::io::BufReader::new(stdout).lines(), stderr, chat, print, session: String::new(), used: std::time::Instant::now() })
+}
+
+/// One message to a kept process. Err(None): the process was gone (start another).
+async fn live_turn(
+    live: &mut Live,
+    prompt: &str,
+    on_text: &(dyn Fn(&str) + Sync),
+    limit: Duration,
+    late: &str,
+) -> Result<(String, String), Option<String>> {
+    let line = serde_json::json!({ "type": "user", "message": { "role": "user", "content": prompt } }).to_string();
+    if live.stdin.write_all(format!("{line}\n").as_bytes()).await.is_err() || live.stdin.flush().await.is_err() {
+        return Err(None);
+    }
+    match read_lines(&mut live.lines, on_text, limit, late, true).await {
+        Ok((last, shown, true)) => Ok((last, shown)),
+        Ok((_, _, false)) => Err(None),
+        Err(e) => Err(Some(e)),
+    }
 }
 
 /// What `claude -p --output-format json` printed. Claude Code reports a failed
@@ -658,6 +802,30 @@ fn parse_output(stdout: &str) -> Option<Outcome> {
     })
 }
 
+/// The `result` line's numbers in the log: where the time and the tokens went.
+fn log_usage(stdout: &str) {
+    let Some(v) = stdout.lines().rev().map(str::trim).find(|l| l.starts_with('{')).and_then(|l| serde_json::from_str::<Value>(l).ok()) else { return };
+    if let Some(line) = usage_line(&v) {
+        crate::log::line(line);
+    }
+}
+
+fn usage_line(v: &Value) -> Option<String> {
+    let u = v.get("usage")?;
+    let n = |k: &str| u.get(k).and_then(Value::as_u64).unwrap_or(0);
+    Some(format!(
+        "claude: {} passi, {:.1} s (modello {:.1} s), token: {} nuovi, {} in cache, {} scritti in cache, {} in uscita, {:.3} $",
+        v.get("num_turns").and_then(Value::as_u64).unwrap_or(0),
+        v.get("duration_ms").and_then(Value::as_f64).unwrap_or(0.0) / 1000.0,
+        v.get("duration_api_ms").and_then(Value::as_f64).unwrap_or(0.0) / 1000.0,
+        n("input_tokens"),
+        n("cache_read_input_tokens"),
+        n("cache_creation_input_tokens"),
+        n("output_tokens"),
+        v.get("total_cost_usd").and_then(Value::as_f64).unwrap_or(0.0),
+    ))
+}
+
 /// One chat turn through Claude Code. Multi-turn works by resuming the session
 /// Claude Code reported last time.
 pub async fn send(
@@ -672,6 +840,42 @@ pub async fn send(
     on_text: &(dyn Fn(&str) + Sync),
     telegram: bool,
     work: Option<&Path>,
+) -> Result<ChatReply, String> {
+    send_mode(chat, model, mcp, agent, query, context, terminal, auto, on_text, telegram, work, false).await
+}
+
+/// `send` for the chat's own conversations (lib.rs chat_turn): the process
+/// stays on between the messages (`Live`).
+pub async fn send_kept(
+    chat: &Chat,
+    model: &str,
+    mcp: &[McpChoice],
+    agent: bool,
+    query: String,
+    context: Option<ChatContext>,
+    terminal: Option<&Path>,
+    auto: bool,
+    on_text: &(dyn Fn(&str) + Sync),
+    telegram: bool,
+    work: Option<&Path>,
+) -> Result<ChatReply, String> {
+    send_mode(chat, model, mcp, agent, query, context, terminal, auto, on_text, telegram, work, true).await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn send_mode(
+    chat: &Chat,
+    model: &str,
+    mcp: &[McpChoice],
+    agent: bool,
+    query: String,
+    context: Option<ChatContext>,
+    terminal: Option<&Path>,
+    auto: bool,
+    on_text: &(dyn Fn(&str) + Sync),
+    telegram: bool,
+    work: Option<&Path>,
+    keep: bool,
 ) -> Result<ChatReply, String> {
     let exe = find_claude().ok_or_else(|| {
         t("Per la chat con l'abbonamento serve Claude Code da riga di comando (la CLI), installato su questo PC e con il login fatto: quello dentro l'app desktop di Claude non si può usare da altri programmi. Impostazioni → Chat spiega come installarlo; oppure lì scegli un altro motore.")
@@ -707,40 +911,85 @@ pub async fn send(
     }
     prompt.push_str(&query);
 
-    let mut cmd = command(&exe);
-    match terminal {
-        Some(folder) => cmd.current_dir(folder).args(terminal_args(&dir, model, session.as_deref(), extra_dir.as_deref(), &connectors, auto)),
-        None => cmd.current_dir(&dir).args(args(&dir, model, session.as_deref(), extra_dir.as_deref(), &connectors)),
+    let make = |resume: Option<&str>| {
+        let mut cmd = command(&exe);
+        match terminal {
+            Some(folder) => cmd.current_dir(folder).args(terminal_args(&dir, model, resume, extra_dir.as_deref(), &connectors, auto)),
+            None => cmd.current_dir(&dir).args(args(&dir, model, resume, extra_dir.as_deref(), &connectors)),
+        };
+        // The work folder (workdir.rs): readable with Read outside terminal mode too.
+        if let (None, Some(w)) = (terminal, work) {
+            cmd.arg("--add-dir").arg(w);
+        }
+        // A turn from Telegram: easyisland-hook passes this on, and pipe.rs asks
+        // Consenti / Nega in Telegram instead of on the island (telegram.rs).
+        if telegram {
+            cmd.env("EASYISLAND_CHANNEL", "telegram");
+        }
+        cmd
     };
-    // The work folder (workdir.rs): readable with Read outside terminal mode too.
-    if let (None, Some(w)) = (terminal, work) {
-        cmd.arg("--add-dir").arg(w);
-    }
-    // A turn from Telegram: easyisland-hook passes this on, and pipe.rs asks
-    // Consenti / Nega in Telegram instead of on the island (telegram.rs).
-    if telegram {
-        cmd.env("EASYISLAND_CHANNEL", "telegram");
-    }
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| tf("Claude Code non si avvia: {e}", &[("e", &e)]))?;
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(prompt.as_bytes())
-            .await
-            .map_err(|e| e.to_string())?;
-        // Dropping stdin closes it: that is what tells `claude -p` the prompt is complete.
-    }
-
-    let (stdout, shown, stderr, success) = if terminal.is_some() {
-        read_stream(&mut child, on_text, TIMEOUT_TERMINAL, t("Claude Code non ha finito entro 30 minuti: interrotto.")).await?
+    let (limit, late) = if terminal.is_some() {
+        (TIMEOUT_TERMINAL, t("Claude Code non ha finito entro 30 minuti: interrotto."))
+    } else if connectors.uses_mcp() {
+        (TIMEOUT_WITH_CONNECTORS, t("Claude Code non ha risposto in tempo."))
     } else {
-        let limit = if connectors.uses_mcp() { TIMEOUT_WITH_CONNECTORS } else { TIMEOUT };
-        let (last, _, stderr, ok) = read_stream(&mut child, on_text, limit, t("Claude Code non ha risposto in tempo.")).await?;
-        // Outside the terminal the answer is the text alone, as before.
-        (last, String::new(), stderr, ok)
+        (TIMEOUT, t("Claude Code non ha risposto in tempo."))
     };
 
+    let (stdout, shown, stderr, success) = if keep {
+        let print = fingerprint(&make(None), &dir);
+        let id = chat as *const Chat as usize;
+        let mut kept = take_live(id, &print, session.as_deref());
+        let mut answer = None;
+        // A kept process that is gone is replaced once, resuming the conversation.
+        for _ in 0..2 {
+            let mut live = match kept.take() {
+                Some(l) => l,
+                None => spawn_live(make(session.as_deref()), id, print.clone())?,
+            };
+            match live_turn(&mut live, &prompt, on_text, limit, late).await {
+                Ok((last, shown)) => {
+                    answer = Some((last, shown, live));
+                    break;
+                }
+                Err(Some(e)) => return Err(e),
+                Err(None) => {
+                    let detail = live.stderr.lock().unwrap().clone();
+                    crate::log::line(format!("claude: processo tenuto chiuso, ne parte un altro{}", if detail.trim().is_empty() { String::new() } else { format!(" ({})", detail.trim().chars().take(200).collect::<String>()) }));
+                    if needs_login(&detail) {
+                        return Err(LOGIN_HELP.into());
+                    }
+                }
+            }
+        }
+        let Some((last, shown, mut live)) = answer else {
+            return Err(t("Claude Code si è interrotto.").into());
+        };
+        let stderr = live.stderr.lock().unwrap().clone();
+        let outcome_ok = parse_output(&last).is_some_and(|o| !o.is_error);
+        if let (true, Some(sid)) = (outcome_ok, parse_output(&last).and_then(|o| o.session_id)) {
+            live.session = sid;
+            live.used = std::time::Instant::now();
+            put_live(live);
+        }
+        // Outside the terminal the answer is the text alone, as before.
+        (last, if terminal.is_some() { shown } else { String::new() }, stderr, true)
+    } else {
+        let mut child = make(session.as_deref())
+            .spawn()
+            .map_err(|e| tf("Claude Code non si avvia: {e}", &[("e", &e)]))?;
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin
+                .write_all(prompt.as_bytes())
+                .await
+                .map_err(|e| e.to_string())?;
+            // Dropping stdin closes it: that is what tells `claude -p` the prompt is complete.
+        }
+        let (last, shown, stderr, ok) = read_stream(&mut child, on_text, limit, late).await?;
+        (last, if terminal.is_some() { shown } else { String::new() }, stderr, ok)
+    };
+
+    log_usage(&stdout);
     let Some(outcome) = parse_output(&stdout) else {
         let detail: String = stderr.trim().chars().take(300).collect();
         // A broken session id would fail every later turn the same way.
@@ -989,6 +1238,88 @@ mod tests {
                 chat.reset();
             }
         });
+    }
+
+    /// A real question with EasyIsland's tools (the app must be running), timed:
+    /// `cargo test --lib claude_cli::tests::live_speed -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn live_speed() {
+        tauri::async_runtime::block_on(async {
+            let chat = crate::claude::Chat::default();
+            let q = std::env::var("SPEED_Q").unwrap_or_else(|_| "Quanto ho speso in totale a ottobre 2026 secondo Notion? Solo il numero.".into());
+            let mut index = crate::notion_map::index(true).unwrap_or_default();
+            // `SPEED_RECIPE=1`: as if a recipe had been learnt (recipes.rs).
+            if std::env::var("SPEED_RECIPE").is_ok() {
+                index.push_str(&crate::recipes::sample_hint());
+            }
+            for (i, q) in [format!("{index}{q}"), "E a settembre? Solo il numero.".to_string()].into_iter().enumerate() {
+                let start = std::time::Instant::now();
+                let first = std::sync::Mutex::new(None::<f32>);
+                let r = super::send(&chat, "", &[], true, q, None, None, false, &|_| { first.lock().unwrap().get_or_insert(start.elapsed().as_secs_f32()); }, false, None).await;
+                println!("turno {i}: {:.1} s (primo testo {:?}) → {:?}", start.elapsed().as_secs_f32(), first.lock().unwrap(), r.map(|x| x.text));
+            }
+        });
+    }
+
+    /// Kept processes on this PC: messages in a row, a process that died, a
+    /// stopped turn, the app's exit.
+    /// `cargo test --lib claude_cli::tests::live_kept -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn live_kept() {
+        tauri::async_runtime::block_on(async {
+            let chat = crate::claude::Chat::default();
+            let agent = std::env::var("KEPT_AGENT").is_ok();
+            let ask = |q: &str| super::send_kept(&chat, "", &[], agent, q.to_string(), None, None, false, &|_| {}, false, None);
+            let alive = || super::LIVE.lock().unwrap().len();
+            let mut times = Vec::new();
+            for q in ["Ricorda la parola: ananas. Rispondi solo: ok", "Rispondi solo: ok", "Quale parola ti ho chiesto di ricordare? Solo quella."] {
+                let t = std::time::Instant::now();
+                let r = ask(q).await.expect("turn");
+                times.push(t.elapsed().as_secs_f32());
+                println!("{:.1} s → {}", t.elapsed().as_secs_f32(), r.text);
+                assert_eq!(alive(), 1, "one process for the conversation");
+                if q.starts_with("Quale") {
+                    assert!(r.text.to_lowercase().contains("ananas"), "{}", r.text);
+                }
+            }
+            let session = chat.cli_session().expect("session");
+            // The process dies: the next message starts another on the same conversation.
+            {
+                let mut all = super::LIVE.lock().unwrap();
+                let _ = all[0].child.start_kill();
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            let r = ask("Quale parola ti ho chiesto di ricordare? Solo quella.").await.expect("after a death");
+            println!("dopo la chiusura → {}", r.text);
+            assert!(r.text.to_lowercase().contains("ananas"), "{}", r.text);
+            assert_eq!(chat.cli_session().as_deref(), Some(session.as_str()), "same conversation");
+            // Ferma: the turn is dropped, and its process with it.
+            let stopped = tokio::time::timeout(std::time::Duration::from_millis(1500), ask("Scrivi una poesia di 40 righe sul mare.")).await;
+            assert!(stopped.is_err());
+            assert_eq!(alive(), 0, "a stopped turn takes its process");
+            let r = ask("Quale parola ti ho chiesto di ricordare? Solo quella.").await.expect("after a stop");
+            println!("dopo Ferma → {}", r.text);
+            assert!(r.text.to_lowercase().contains("ananas"), "{}", r.text);
+            // A new conversation: another process, the old one goes.
+            chat.reset();
+            ask("Rispondi solo: ok").await.expect("new conversation");
+            assert_eq!(alive(), 1);
+            assert_ne!(chat.cli_session().as_deref(), Some(session.as_str()));
+            super::shutdown();
+            assert_eq!(alive(), 0);
+            println!("tempi: {times:?}");
+            assert!(times[1] < times[0], "the second message is faster than the first");
+        });
+    }
+
+    #[test]
+    fn usage_in_the_log() {
+        let v = serde_json::json!({ "type": "result", "num_turns": 3, "duration_ms": 28700, "duration_api_ms": 21000, "total_cost_usd": 0.0412,
+            "usage": { "input_tokens": 6, "cache_read_input_tokens": 26285, "cache_creation_input_tokens": 590, "output_tokens": 113 } });
+        assert_eq!(super::usage_line(&v).unwrap(), "claude: 3 passi, 28.7 s (modello 21.0 s), token: 6 nuovi, 26285 in cache, 590 scritti in cache, 113 in uscita, 0.041 $");
+        assert!(super::usage_line(&serde_json::json!({ "type": "result" })).is_none());
     }
 
     #[test]

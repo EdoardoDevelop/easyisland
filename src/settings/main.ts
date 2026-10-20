@@ -443,6 +443,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
       h("label", { text: t("Azioni sul PC") }),
       toggle(settings.agentTools !== false, (v) => { settings.agentTools = v; void save(); }),
       h("span", { class: "hint note", text: t("programmi, cartelle, link, le tue azioni rapide, lo stato di PC, rete, posta e ticket. Ogni azione che cambia qualcosa chiede Consenti / Nega nell'isola") })),
+    recipesRow(),
     connectorsBlock(),
   );
 
@@ -1534,6 +1535,22 @@ function notionRows(): HTMLElement {
   }
   draw();
   return box;
+}
+
+/** Chat → "Ricette": how a kind of question was answered, learnt by use (recipes.rs). */
+function recipesRow(): HTMLElement {
+  const line = h("span", { class: "hint note", style: "flex:1 1 auto;min-width:0" });
+  const show = (n: number | null) => {
+    line.textContent = t("{n} imparate con l'uso: alle domande simili la chat va dritta agli strumenti giusti, più veloce e con meno token", { n: n ?? 0 });
+    forget.disabled = !n;
+  };
+  const forget = h("button", { text: t("Dimentica") }) as HTMLButtonElement;
+  forget.addEventListener("click", async () => {
+    await Bridge.recipesForget();
+    show(await Bridge.recipesCount());
+  });
+  void Bridge.recipesCount().then(show);
+  return h("div", { class: "row" }, h("label", { text: t("Ricette") }), line, forget);
 }
 
 /** Notion → "Mappa per la chat": what is kept, "Sincronizza" and how often by itself. */
