@@ -2,6 +2,11 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 19 ottobre 2026 — Notion per tutti i motori, strumenti di EasyIsland in Antigravity
+- Chiesto da Edoardo: ogni motore deve usare le integrazioni di EasyIsland, e Antigravity non arrivava a Notion. Nuovi strumenti di easyisland `notion_search`, `notion_read`, `notion_query`, `notion_add_row` e `notion_update_row` (`notion_tools.rs`), con il collegamento di EasyIsland: i valori si controllano sulla mappa prima di scrivere, quindi niente più righe fuori dal database. Antigravity riceve il server con `agy mcp add`, da Impostazioni → Chat → Antigravity (copia e conferma); i suoi strumenti di sola lettura non chiedono Consenti / Nega (`docs/chat.md`, `docs/agenti.md`).
+- Poi, scelto da Edoardo: gli stessi strumenti anche al motore Anthropic con chiave (`claude.rs`, ciclo `tool_use`, elenco unico in `hook/src/tool_list.rs`); opencode li aveva già. Gli altri motori via API per ora no (`docs/idee.md`).
+- **Prove:** `cargo test --workspace`, lettura vera (`notion_tools::tests::live`), `npm run build`, `npm run smoke`. Da provare: scritture, Antigravity e il motore Anthropic (su questo PC non c'è la chiave) (`docs/prove-dal-vivo.md`).
+
 ### 19 ottobre 2026 — Relay aggiornato davvero, righe di Notion create bene
 - Segnalato da Edoardo: da Telegram un'aggiunta in Notion ha richiesto 10 minuti e creato 8 pagine vuote. Cause: `bin\easyisland-hook.exe` fermo al 14 ottobre (copia in uso, errore taciuto: niente `notion_map`), e il modello (opencode, gratuito) che metteva `parent` dentro ogni pagina. Ora la copia in uso si mette da parte (`docs/agenti.md`) e l'indice della mappa dice come creare le righe (`docs/integrazioni.md`).
 - **Prove:** `cargo test --workspace`; sessione di opencode letta dal suo database. Da provare: la stessa richiesta da Telegram dopo l'aggiornamento.

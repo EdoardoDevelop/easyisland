@@ -195,12 +195,12 @@ impl Target {
         matches!(self, Target::Cursor | Target::Copilot)
     }
 
-    /// The relay's command line. Claude Code runs hooks through Git Bash (quoted
-    /// path in forward slashes); Codex and Gemini may use cmd or PowerShell, where
-    /// a quoted path is only a string, so it is quoted only when it has a space.
+    /// The relay's command line, for every shell: Claude Code runs hooks
+    /// through Git Bash, or PowerShell when Git Bash is missing; Codex and Gemini
+    /// may use cmd or PowerShell. In PowerShell a quoted path followed by a word
+    /// is a syntax error, so the path is never quoted (`shell_safe_exe`).
     fn command(self, event: &str) -> String {
-        let exe = settings::hook_exe_path().to_string_lossy().replace('\\', "/");
-        let exe = if self == Target::Claude || exe.contains(' ') { format!("\"{exe}\"") } else { exe };
+        let exe = shell_safe_exe();
         match self {
             Target::Claude => format!("{exe} {event}"),
             Target::Codex => format!("{exe} {event} --agent codex"),
@@ -318,8 +318,59 @@ fn entry_is_ours(entry: &Value) -> bool {
 // PREVIOUS_STATUSLINE next to the relay, never lost, and comes back on uninstall.
 
 fn statusline_entry() -> Value {
-    let exe = settings::hook_exe_path().to_string_lossy().replace('\\', "/");
-    json!({ "type": "command", "command": format!("\"{exe}\" statusline") })
+    json!({ "type": "command", "command": format!("{} statusline", shell_safe_exe()) })
+}
+
+/// The relay's path as a command any shell runs: forward slashes, no quotes.
+/// Claude Code's hooks used to be `"C:/…/easyisland-hook.exe" PreToolUse`,
+/// fine in Git Bash but a syntax error in PowerShell, which Claude Code uses
+/// when Git Bash is missing: every hook failed and an agent stopped at its
+/// first tool (20 October 2026). A path with spaces (a user name with a space)
+/// takes the folder's short 8.3 name; only if Windows has none it is quoted.
+fn shell_safe_exe() -> String {
+    let path = settings::hook_exe_path();
+    let plain = path.to_string_lossy().replace('\\', "/");
+    if !plain.contains(' ') {
+        return plain;
+    }
+    let short = path.parent().and_then(short_path).map(|dir| {
+        let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        format!("{}/{name}", dir.replace('\\', "/"))
+    });
+    match short {
+        Some(s) if !s.contains(' ') => s,
+        _ => format!("\"{plain}\""),
+    }
+}
+
+/// Windows' short name of a folder that exists ("C:/Users/MARIOR~1/…").
+fn short_path(dir: &Path) -> Option<String> {
+    use windows::core::HSTRING;
+    use windows::Win32::Storage::FileSystem::GetShortPathNameW;
+    let wide = HSTRING::from(dir.as_os_str());
+    let mut buf = vec![0u16; 1024];
+    let n = unsafe { GetShortPathNameW(&wide, Some(&mut buf)) } as usize;
+    (n > 0 && n < buf.len()).then(|| String::from_utf16_lossy(&buf[..n]))
+}
+
+/// Our commands in the file, by event, that are not what we would write now
+/// (the old quoted form): the hooks are then "da aggiornare", and the update
+/// goes through the usual diff and confirmation.
+fn commands_changed(current: &Value, target: Target) -> bool {
+    let differs = |list: &Value, want: &str| {
+        list.as_array().into_iter().flatten().filter(|e| entry_has(e, MARKER)).any(|e| {
+            e.get("hooks").and_then(Value::as_array).into_iter().flatten()
+                .filter_map(|h| h.get("command").and_then(Value::as_str))
+                .filter(|c| c.contains(MARKER))
+                .any(|c| c != want)
+        })
+    };
+    let hooks = target.events().iter().any(|(event, _)| {
+        current.get("hooks").and_then(|h| h.get(*event)).is_some_and(|list| differs(list, &target.command(event)))
+    });
+    let status = target == Target::Claude
+        && current.pointer("/statusLine/command").and_then(Value::as_str).is_some_and(|c| c.contains(MARKER) && Some(c) != statusline_entry()["command"].as_str());
+    hooks || status
 }
 
 fn statusline_is_ours(settings: &Value) -> bool {
@@ -546,9 +597,10 @@ pub fn status_for(target: Target) -> HookStatus {
             .and_then(Value::as_array)
             .is_some_and(|list| list.iter().any(|e| entry_has(e, MARKER)))
     }) || (target == Target::Claude && !statusline_is_ours(&current));
+    let changed = matches!(target, Target::Claude | Target::Codex | Target::Gemini) && commands_changed(&current, target);
     HookStatus {
         installed,
-        outdated: installed && missing,
+        outdated: installed && (missing || changed),
         legacy: entries.iter().any(|e| entry_has(e, LEGACY_MARKER)),
         settings_path: target.file().to_string_lossy().to_string(),
         hook_ready: hook_path.exists(),
@@ -884,6 +936,32 @@ fn unified_diff(before: &str, after: &str) -> String {
 mod tests {
     use super::*;
 
+    #[test]
+    fn commands_run_in_every_shell() {
+        let c = Target::Claude.command("PreToolUse");
+        assert!(!c.contains('"'), "{c}");
+        assert!(c.ends_with("easyisland-hook.exe PreToolUse"), "{c}");
+        assert!(!statusline_entry()["command"].as_str().unwrap().contains('"'));
+        // The old quoted form makes the hooks "da aggiornare".
+        let exe = settings::hook_exe_path().to_string_lossy().replace('\\', "/");
+        let old = json!({ "hooks": { "PreToolUse": [{ "matcher": "", "hooks": [{ "type": "command", "command": format!("\"{exe}\" PreToolUse") }] }] } });
+        assert!(commands_changed(&old, Target::Claude));
+        let new = json!({ "hooks": { "PreToolUse": [{ "matcher": "", "hooks": [{ "type": "command", "command": Target::Claude.command("PreToolUse") }] }] } });
+        assert!(!commands_changed(&new, Target::Claude));
+    }
+
+    #[test]
+    fn short_names_have_no_spaces() {
+        let dir = std::env::temp_dir().join("easyisland prova spazi");
+        std::fs::create_dir_all(&dir).unwrap();
+        let short = short_path(&dir);
+        let _ = std::fs::remove_dir(&dir);
+        // 8.3 names can be off on a drive: then there is none, and the path is quoted.
+        if let Some(s) = short {
+            assert!(!s.contains(' '), "{s}");
+        }
+    }
+
     const WHERE: &str = "settings.json";
 
     #[test]
@@ -955,7 +1033,7 @@ mod tests {
         let current = json!({ "theme": "dark", "statusLine": own.clone() });
         let installed = with_statusline(merged(&current), true, Target::Claude, None);
         assert!(statusline_is_ours(&installed));
-        assert!(installed["statusLine"]["command"].as_str().unwrap().ends_with("\" statusline"));
+        assert!(installed["statusLine"]["command"].as_str().unwrap().ends_with("easyisland-hook.exe statusline"));
         assert_eq!(installed["theme"], "dark");
         // Uninstalling puts the saved one back, or removes ours when there was none.
         let back = with_statusline(without_ours(&installed), false, Target::Claude, Some(own.clone()));
