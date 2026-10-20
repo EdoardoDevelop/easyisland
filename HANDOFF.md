@@ -29,6 +29,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
 ### 20 ottobre 2026 — Microsoft To Do da Outlook classico
+- Segnalato da Edoardo: l'isola aperta non si poteva portare sullo schermo secondario. Ora sì, e ci resta; anche il personaggio lasciato sulla parte lontana di uno schermo stretto tornava sul principale (si guardava il centro della finestra, ora il cursore). Provato qui con trascinamenti simulati sui due schermi (`docs/architettura.md` → Schermi secondari).
 - Chiesto da Edoardo: gestire To Do (leggere, aggiungere, cambiare). Strumenti di easyisland `todo_list`, `todo_add`, `todo_update` attraverso Outlook classico via COM (`todo.rs`, `docs/integrazioni.md`): nessun accesso nuovo, niente eliminazioni.
 - **Prove:** `cargo test --workspace`, sintassi dello script e sue funzioni su un'attività finta. Su questo PC Outlook non c'è: la prova vera è da fare sul PC con Outlook (`docs/prove-dal-vivo.md`).
 

@@ -518,6 +518,26 @@ fn end_drag(app: AppHandle, shared: State<Shared>) -> DragEnd {
         // The open island moved: it stays there while it is open, nothing is
         // saved, and closing it takes the character back to its place. The
         // front end gets the offset back to round the corners off the edges.
+        // Dropped on another display (where the cursor let go): the island goes
+        // there for good, open where it was left; on the same display it was
+        // kept inside it, so it could never leave the screen it was on
+        // (Edoardo, 20 October 2026).
+        let moved = island::cursor_physical().and_then(|(x, y)| {
+            let mut s = shared.settings.lock().unwrap();
+            let screen = island::screen_for_drop(&app, &s, x, y);
+            (screen != s.screen).then(|| {
+                log::line(format!("open island moved to screen {screen}"));
+                s.screen = screen;
+                s.commit_active();
+                s.clone()
+            })
+        });
+        if let Some(saved) = &moved {
+            if let Err(err) = settings::save(saved) {
+                eprintln!("[easyisland] could not save settings: {err}");
+            }
+            let _ = app.emit("settings-changed", saved.clone());
+        }
         let s = shared.settings.lock().unwrap().clone();
         let offset = island::panel_offset_from_drop(&app, &shared.gate, &s, (pos.x, pos.y), (size.width, size.height));
         if let Some(offset) = offset {
@@ -538,8 +558,13 @@ fn end_drag(app: AppHandle, shared: State<Shared>) -> DragEnd {
     }
     let settings = {
         let mut s = shared.settings.lock().unwrap();
-        // Dropped on another display: the island moves there for good.
-        let centre = (pos.x as f64 + size.width as f64 / 2.0, pos.y as f64 + size.height as f64 / 2.0);
+        // Dropped on another display: the island moves there for good. Where
+        // the cursor let go, not the window's centre: the window is much wider
+        // than the character, and on a narrow display (Edoardo's, 1080 px
+        // upright) its centre fell past the edge, on no display at all, and the
+        // island went back to the primary one (20 October 2026).
+        let centre = island::cursor_physical()
+            .unwrap_or((pos.x as f64 + size.width as f64 / 2.0, pos.y as f64 + size.height as f64 / 2.0));
         let screen = island::screen_for_drop(&app, &s, centre.0, centre.1);
         if screen != s.screen {
             log::line(format!("island moved to screen {screen}"));
