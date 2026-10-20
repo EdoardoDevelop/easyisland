@@ -59,6 +59,12 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.9.5** — **Hook in ogni shell**: senza Git Bash, Claude Code esegue gli hook con
+PowerShell e il comando di prima lo fermava a ogni strumento; ora va in Git Bash, PowerShell e cmd
+(Impostazioni → Agenti → Aggiorna). **Microsoft To Do** dalla chat, tramite Outlook classico:
+leggere, aggiungere, cambiare e segnare fatte le attività. L'**isola aperta** si porta su un altro
+schermo e ci resta.
+
 **0.9.4** — **Chat più veloce**: Claude Code resta acceso tra i messaggi della stessa
 conversazione; le righe di Notion arrivano in una tabella compatta con le categorie per nome e i
 totali già fatti; la chat impara **ricette** con l'uso e alle domande simili va dritta agli
@@ -300,7 +306,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.9.4** | 20 ott 2026 | Chat più veloce: Claude Code acceso, Notion compatto con i totali, ricette, ragionamento visibile |
+| **0.9.5** | 20 ott 2026 | Hook in ogni shell (senza Git Bash), Microsoft To Do, isola aperta su un altro schermo |
+| 0.9.4 | 20 ott 2026 | Chat più veloce: Claude Code acceso, Notion compatto con i totali, ricette, ragionamento visibile |
 | 0.9.3 | 19 ott 2026 | Notion per tutti i motori, strumenti in Antigravity e Claude API, Seconda opinione, /oggi e /domani |
 | 0.9.2 | 19 ott 2026 | Ferma nella chat e su Telegram, mappa di Notion per la chat |
 | 0.9.1 | 18 ott 2026 | Remote Desktop Manager con l'Hub: vault utente, elenco offline cifrato, Sincronizza |
