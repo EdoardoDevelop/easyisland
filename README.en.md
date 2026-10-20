@@ -58,6 +58,12 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 
 ## What's new
 
+**0.9.4** — **Faster chat**: Claude Code stays on between the messages of a conversation;
+Notion rows come as a compact table with categories by name and totals already worked out; the
+chat learns **recipes** as it is used and goes straight to the right tools on similar questions
+(Settings → Chat → Recipes). While it works it also shows its reasoning, in the island and on
+Telegram. "How much did I spend in October": from 29 to 12 seconds.
+
 **0.9.3** — **Notion for every engine**: the chat reads and adds rows through EasyIsland's own
 connection, which checks the values before writing (no more empty pages). **EasyIsland's tools**
 reach **Antigravity** and **Claude with an API key** too. **⇄ Second opinion**: another engine
@@ -122,7 +128,8 @@ the browser's. **Overview** with large, faded logos in the corner of each tile.
 
 | Version | Date | What's new |
 |---|---|---|
-| **0.9.3** | 19 Oct 2026 | Notion for every engine, tools in Antigravity and Claude API, Second opinion, /oggi and /domani |
+| **0.9.4** | 20 Oct 2026 | Faster chat: Claude Code kept on, compact Notion with totals, recipes, visible reasoning |
+| 0.9.3 | 19 Oct 2026 | Notion for every engine, tools in Antigravity and Claude API, Second opinion, /oggi and /domani |
 | 0.9.2 | 19 Oct 2026 | Stop in the chat and on Telegram, Notion map for the chat |
 | 0.9.1 | 18 Oct 2026 | Remote Desktop Manager with the Hub: user vault, encrypted offline list, Sync |
 | 0.9.0 | 18 Oct 2026 | Google's Antigravity: sessions in the island with Allow / Deny and a chat engine, with setup steps |
