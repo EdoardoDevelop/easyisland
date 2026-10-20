@@ -36,6 +36,7 @@ mod netconfig;
 mod notion;
 mod notion_map;
 mod notion_tools;
+mod recipes;
 mod second;
 mod notion_page;
 mod rdm;
@@ -651,6 +652,17 @@ fn notion_map_status() -> serde_json::Value {
     notion_map::status()
 }
 
+/// Impostazioni → Chat → «Ricette»: how many the chat has learnt (recipes.rs).
+#[tauri::command]
+fn recipes_count() -> usize {
+    recipes::count()
+}
+
+#[tauri::command]
+fn recipes_forget() {
+    recipes::forget();
+}
+
 /// «Sincronizza»: the structure of Notion read again, for the chat.
 #[tauri::command]
 async fn notion_map_sync() -> Result<serde_json::Value, String> {
@@ -1063,6 +1075,12 @@ pub(crate) async fn chat_turn(
     // A reopened conversation the engine cannot resume: it rides in front of the question.
     let preamble = chat.take_preamble();
     let asked = query.clone();
+    // Recipes (recipes.rs): how a similar question was answered, right before it.
+    let recipe_hint = if agent && (has_tools || engine == "api") { recipes::hint(&asked) } else { None };
+    let query = match &recipe_hint {
+        Some(h) => format!("{h}{query}"),
+        None => query,
+    };
     let query = match &preamble {
         Some(p) => format!("{p}{query}"),
         None => query,
@@ -1076,6 +1094,16 @@ pub(crate) async fn chat_turn(
     if auto {
         log::line(format!("chat: turno in automatica ({engine})"));
     }
+    // Measured (20 October 2026, "lentezza disumana"): when the first words
+    // came and how long the whole turn took, in the log.
+    let started = std::time::Instant::now();
+    let first_text: std::sync::Mutex<Option<u128>> = std::sync::Mutex::new(None);
+    let timed = |text: &str| {
+        first_text.lock().unwrap().get_or_insert_with(|| started.elapsed().as_millis());
+        on_text(text);
+    };
+    let on_text: &(dyn Fn(&str) + Sync) = &timed;
+    let recipe_mark = recipes::begin();
     let work_turn = async { match (&terminal, engine.as_str()) {
         (Some(folder), "opencode") => {
             let o = opencode::Options { folder: Some(folder.clone()), auto, telegram, agent, work: work.clone(), ..Default::default() };
@@ -1102,7 +1130,7 @@ pub(crate) async fn chat_turn(
             let dir = terminal.clone().or_else(|| work.clone());
             antigravity::send(chat, &other_model, query, context, dir.as_deref(), on_text, telegram).await
         }
-        (Some(folder), _) => claude_cli::send(chat, &cli_model, &mcp, agent, query, context, Some(folder), auto, on_text, telegram, None).await,
+        (Some(folder), _) => claude_cli::send_kept(chat, &cli_model, &mcp, agent, query, context, Some(folder), auto, on_text, telegram, None).await,
         (None, "api") => {
             let tools = agent.then_some(claude::Tools { app, telegram });
             claude::send_with(chat, &model, query, context, tools).await
@@ -1112,9 +1140,18 @@ pub(crate) async fn chat_turn(
             opencode::send(app, chat, &other_model, query, context, &o, on_text).await
         }
         (None, e) if openai::ENGINES.contains(&e) => openai::send(chat, &engine, &other_model, url.as_deref(), query, context, on_text).await,
-        (None, _) => claude_cli::send(chat, &cli_model, &mcp, agent, query, context, None, false, on_text, telegram, work.as_deref()).await,
+        (None, _) => claude_cli::send_kept(chat, &cli_model, &mcp, agent, query, context, None, false, on_text, telegram, work.as_deref()).await,
     } };
     let reply = until_stopped(telegram, work_turn).await;
+    let first = first_text.lock().unwrap().map_or_else(|| "-".to_string(), |ms| format!("{:.1} s", ms as f64 / 1000.0));
+    log::line(format!(
+        "chat: turno {engine}{} in {:.1} s (primo testo {first}){}{}",
+        if telegram { " da Telegram" } else { "" },
+        started.elapsed().as_secs_f64(),
+        if reply.is_err() { ", non riuscito" } else { "" },
+        recipe_hint.as_ref().map_or("", |_| ", con ricetta"),
+    ));
+    recipes::end(recipe_mark, &asked, reply.is_ok());
     match &reply {
         Ok(r) if shared.settings.lock().unwrap().chat_history => {
             chat_log::record(chat, &engine, &asked, &r.text, if telegram { "Telegram · " } else { "" })
@@ -2194,6 +2231,8 @@ pub fn run() {
             chat_send,
             chat_stop,
             notion_map_status,
+            recipes_count,
+            recipes_forget,
             notion_map_sync,
             chat_reset,
             chat_history_list,
@@ -2431,6 +2470,7 @@ pub fn run() {
             // The chat's private opencode server goes with the app.
             if let tauri::RunEvent::Exit = event {
                 opencode::shutdown();
+                claude_cli::shutdown();
             }
         });
 }

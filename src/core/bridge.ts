@@ -349,6 +349,9 @@ export const Bridge = {
   /** Notion's structure kept for the chat (notion_map.rs): how many, and when (s since 1970, 0 = never). */
   notionMapStatus: () => call<NotionMapStatus>("notion_map_status"),
   notionMapSync: () => callOrThrow<NotionMapStatus>("notion_map_sync"),
+  /** What the chat learnt by use (recipes.rs): how many, and forgetting them. */
+  recipesCount: () => call<number>("recipes_count"),
+  recipesForget: () => call<void>("recipes_forget"),
   /** Telegram (telegram.rs): the bot, the linked chat, the last error. */
   telegramInfo: () => call<TelegramInfo>("telegram_info"),
   telegramLinkCode: () => callOrThrow<string>("telegram_link_code"),

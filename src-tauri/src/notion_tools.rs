@@ -14,7 +14,7 @@ use serde_json::{json, Map as JsonMap, Value};
 use crate::notion::{call, client, API};
 use crate::notion_map::{Db, Prop};
 
-const MAX_ROWS: usize = 50;
+const MAX_ROWS: usize = 200;
 
 fn need_key() -> Result<(), String> {
     crate::secrets::get("notion-api-key")
@@ -77,6 +77,11 @@ async fn database(which: &str) -> Result<Db, String> {
 
 /// One property of a row as text.
 fn value_text(p: &Value) -> String {
+    value_text_with(p, &std::collections::HashMap::new())
+}
+
+/// The value as text; relations by title when `titles` knows them.
+fn value_text_with(p: &Value, titles: &std::collections::HashMap<String, String>) -> String {
     let kind = p.get("type").and_then(Value::as_str).unwrap_or_default();
     let v = p.get(kind).unwrap_or(&Value::Null);
     let name = |x: &Value| x.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
@@ -92,7 +97,7 @@ fn value_text(p: &Value) -> String {
         },
         "checkbox" => if v.as_bool() == Some(true) { "sì".into() } else { "no".into() },
         "url" | "email" | "phone_number" | "created_time" | "last_edited_time" => v.as_str().unwrap_or_default().to_string(),
-        "relation" => v.as_array().map(|a| a.iter().filter_map(|r| r.get("id").and_then(Value::as_str)).collect::<Vec<_>>().join(", ")).unwrap_or_default(),
+        "relation" => v.as_array().map(|a| a.iter().filter_map(|r| r.get("id").and_then(Value::as_str)).map(|id| titles.get(id).cloned().unwrap_or_else(|| id.to_string())).collect::<Vec<_>>().join(", ")).unwrap_or_default(),
         "people" => v.as_array().map(|a| a.iter().filter_map(|u| u.get("name").and_then(Value::as_str)).collect::<Vec<_>>().join(", ")).unwrap_or_default(),
         "formula" => {
             let t = v.get("type").and_then(Value::as_str).unwrap_or_default();
@@ -104,7 +109,12 @@ fn value_text(p: &Value) -> String {
                 _ => String::new(),
             }
         }
-        "rollup" => v.get("number").and_then(Value::as_f64).map(|n| n.to_string()).unwrap_or_default(),
+        // "Tipo" (Uscita / Entrata) is a rollup of a select: an array of values.
+        "rollup" => match v.get("type").and_then(Value::as_str) {
+            Some("array") => v.get("array").and_then(Value::as_array).map(|a| a.iter().map(|x| value_text_with(x, titles)).filter(|s| !s.is_empty()).collect::<Vec<_>>().join(", ")).unwrap_or_default(),
+            Some("date") => v.pointer("/date/start").and_then(Value::as_str).unwrap_or_default().to_string(),
+            _ => v.get("number").and_then(Value::as_f64).map(|n| n.to_string()).unwrap_or_default(),
+        },
         _ => String::new(),
     }
 }
@@ -133,6 +143,180 @@ fn row_text(row: &Value) -> String {
         s.push_str(&rest.join(" · "));
     }
     s
+}
+
+/// Rows as one compact table: the column names once, a line per row, and
+/// the totals of the number columns. The rows of a month as "- title — id —
+/// link" plus every property's name were 11,500 tokens for 38 rows, and the
+/// model then took 13 s adding them up (20 October 2026).
+fn rows_table(rows: &[Value], titles: &std::collections::HashMap<String, String>) -> String {
+    let props = |r: &Value| r.get("properties").and_then(Value::as_object).cloned().unwrap_or_default();
+    let mut title_col = String::new();
+    let mut cols: Vec<String> = Vec::new();
+    let mut numeric: std::collections::HashMap<String, bool> = std::collections::HashMap::new();
+    for r in rows {
+        for (name, p) in props(r) {
+            if p.get("type").and_then(Value::as_str) == Some("title") {
+                title_col = name;
+                continue;
+            }
+            let text = value_text_with(&p, titles);
+            if text.is_empty() {
+                continue;
+            }
+            let is_num = text.parse::<f64>().is_ok() && !matches!(p.get("type").and_then(Value::as_str), Some("rich_text" | "title" | "select" | "status"));
+            let e = numeric.entry(name.clone()).or_insert(true);
+            *e &= is_num;
+            if !cols.contains(&name) {
+                cols.push(name);
+            }
+        }
+    }
+    cols.sort_by_key(|n| n.to_lowercase());
+    let cell = |s: String| s.replace(['|', '\n', '\r'], " ").trim().to_string();
+    let title_name = if title_col.is_empty() { "Titolo".to_string() } else { title_col.clone() };
+    let mut out = format!("id | {title_name} | {}", cols.join(" | "));
+    let mut sums: Vec<f64> = vec![0.0; cols.len()];
+    for r in rows {
+        let p = props(r);
+        let id = r.get("id").and_then(Value::as_str).unwrap_or_default().replace('-', "");
+        let title = p.get(&title_col).map(|v| value_text_with(v, titles)).unwrap_or_default();
+        let mut line = format!("{id} | {}", cell(if title.trim().is_empty() { "(senza titolo)".into() } else { title }));
+        for (i, c) in cols.iter().enumerate() {
+            let v = p.get(c).map(|v| value_text_with(v, titles)).unwrap_or_default();
+            if let Ok(n) = v.parse::<f64>() {
+                sums[i] += n;
+            }
+            line.push_str(" | ");
+            line.push_str(&cell(v));
+        }
+        out.push('\n');
+        out.push_str(&line);
+    }
+    let totals: Vec<String> = cols.iter().zip(&sums)
+        .filter(|(c, _)| numeric.get(*c) == Some(&true))
+        .map(|(c, s)| format!("{c} = {}", (s * 100.0).round() / 100.0))
+        .collect();
+    if !totals.is_empty() {
+        out.push_str(&format!("\nTotali di queste righe: {}", totals.join(" · ")));
+    }
+    out.push_str(&group_totals(rows, titles));
+    out
+}
+
+/// Sums split by the few-valued choices (a select, a status, a rollup of one):
+/// "Per Tipo: Uscita 1679.45 · Entrata 1830", and the first two together.
+/// A model took 1,830 € of income out of a total by itself and got it wrong
+/// by 2 € (20 October 2026); with these it only reads.
+fn group_totals(rows: &[Value], titles: &std::collections::HashMap<String, String>) -> String {
+    let kind = |p: &Value| p.get("type").and_then(Value::as_str).unwrap_or_default().to_string();
+    let first = rows.first().and_then(|r| r.get("properties")).and_then(Value::as_object).cloned().unwrap_or_default();
+    // The amounts: the number properties (formulas only when there are none).
+    let mut amounts: Vec<String> = first.iter().filter(|(_, p)| kind(p) == "number").map(|(n, _)| n.clone()).collect();
+    if amounts.is_empty() {
+        return String::new();
+    }
+    amounts.sort();
+    let value = |r: &Value, name: &str| r.pointer(&format!("/properties/{}", name.replace('~', "~0").replace('/', "~1"))).map(|p| value_text_with(p, titles)).unwrap_or_default();
+    // A row without the choice still counts: every split adds up to the total.
+    let choice_of = |r: &Value, name: &str| {
+        let v = value(r, name);
+        if v.is_empty() { "(vuoto)".to_string() } else { v }
+    };
+    let mut groups: Vec<(String, Vec<String>)> = Vec::new();
+    for (name, p) in &first {
+        let k = kind(p);
+        let choice = matches!(k.as_str(), "select" | "status") || (k == "rollup" && p.pointer("/rollup/type").and_then(Value::as_str) == Some("array"));
+        if !choice {
+            continue;
+        }
+        let mut values: Vec<String> = Vec::new();
+        for r in rows {
+            let v = choice_of(r, name);
+            if !values.contains(&v) {
+                values.push(v);
+            }
+        }
+        if (2..=6).contains(&values.len()) {
+            groups.push((name.clone(), values));
+        }
+    }
+    groups.sort_by(|a, b| a.1.len().cmp(&b.1.len()).then(a.0.cmp(&b.0)));
+    let sum = |keep: &dyn Fn(&Value) -> bool, amount: &str| -> f64 {
+        rows.iter().filter(|r| keep(r)).filter_map(|r| value(r, amount).parse::<f64>().ok()).sum()
+    };
+    let money = |x: f64| ((x * 100.0).round() / 100.0).to_string();
+    let mut out = String::new();
+    for amount in &amounts {
+        for (name, values) in &groups {
+            let parts: Vec<String> = values.iter().map(|v| format!("{v} {}", money(sum(&|r| choice_of(r, name) == *v, amount)))).collect();
+            out.push_str(&format!("\n{amount} per {name}: {}", parts.join(" · ")));
+        }
+        if let [(a, va), (b, vb), ..] = groups.as_slice() {
+            let mut parts = Vec::new();
+            for x in va {
+                for y in vb {
+                    let n = rows.iter().filter(|r| choice_of(r, a) == *x && choice_of(r, b) == *y).count();
+                    if n > 0 {
+                        parts.push(format!("{x}/{y} {} ({n})", money(sum(&|r| choice_of(r, a) == *x && choice_of(r, b) == *y, amount))));
+                    }
+                }
+            }
+            out.push_str(&format!("\n{amount} per {a} e {b}: {}", parts.join(" · ")));
+        }
+    }
+    out
+}
+
+/// Titles of related pages, kept for the app's life (categories do not change often).
+static TITLES: std::sync::Mutex<Option<std::collections::HashMap<String, String>>> = std::sync::Mutex::new(None);
+
+async fn relation_titles(rows: &[Value]) -> std::collections::HashMap<String, String> {
+    let mut known = TITLES.lock().unwrap().clone().unwrap_or_default();
+    let mut missing: Vec<String> = Vec::new();
+    for r in rows {
+        for p in r.get("properties").and_then(Value::as_object).into_iter().flat_map(|o| o.values()) {
+            if p.get("type").and_then(Value::as_str) != Some("relation") {
+                continue;
+            }
+            for id in p.get("relation").and_then(Value::as_array).into_iter().flatten().filter_map(|x| x.get("id").and_then(Value::as_str)) {
+                if !known.contains_key(id) && !missing.iter().any(|m| m == id) {
+                    missing.push(id.to_string());
+                }
+            }
+        }
+    }
+    // At most 40 at a time, side by side: a month of rows has a dozen categories.
+    let mut set = tokio::task::JoinSet::new();
+    for id in missing.into_iter().take(40) {
+        set.spawn(async move {
+            let page = call(client().get(format!("{API}/pages/{id}"))).await.ok()?;
+            let title = page.get("properties").and_then(Value::as_object)?.values()
+                .find(|p| p.get("type").and_then(Value::as_str) == Some("title"))
+                .map(value_text)?;
+            Some((id, title))
+        });
+    }
+    let mut fresh = false;
+    while let Some(done) = set.join_next().await {
+        if let Ok(Some((id, title))) = done {
+            known.insert(id, title);
+            fresh = true;
+        }
+    }
+    if fresh {
+        *TITLES.lock().unwrap() = Some(known.clone());
+    }
+    known
+}
+
+/// Answers of notion_query for two minutes: two questions in a row do not
+/// read the same rows again. A write empties it.
+static ANSWERS: std::sync::Mutex<Vec<(String, std::time::Instant, String)>> = std::sync::Mutex::new(Vec::new());
+const ANSWER_TTL: std::time::Duration = std::time::Duration::from_secs(120);
+
+fn forget_answers() {
+    ANSWERS.lock().unwrap().clear();
 }
 
 fn as_list(v: &Value) -> Vec<String> {
@@ -286,25 +470,59 @@ pub async fn read(page: &str) -> Result<String, String> {
     Ok(out)
 }
 
-/// Rows of a database: the most recently edited first, optionally only those
-/// whose title contains `text`.
-pub async fn query(which: &str, text: &str, limit: Option<u64>) -> Result<String, String> {
+/// Rows of a database: the most recently edited first, or as `sorts` says;
+/// only those whose title contains `text` and that pass `filter` (Notion's own
+/// filter object). Up to MAX_ROWS, a page of 100 at a time.
+pub async fn query(which: &str, text: &str, filter: Option<&Value>, sorts: Option<&Value>, limit: Option<u64>) -> Result<String, String> {
     need_key()?;
     let db = database(which).await?;
     let limit = limit.map_or(20, |n| (n as usize).clamp(1, MAX_ROWS));
-    let mut body = json!({ "page_size": limit, "sorts": [{ "timestamp": "last_edited_time", "direction": "descending" }] });
-    if !text.trim().is_empty() {
-        if let Some(t) = db.properties.iter().find(|p| p.kind == "title") {
-            body["filter"] = json!({ "property": t.name, "title": { "contains": text.trim() } });
+    let by_title = (!text.trim().is_empty())
+        .then(|| db.properties.iter().find(|p| p.kind == "title"))
+        .flatten()
+        .map(|t| json!({ "property": t.name, "title": { "contains": text.trim() } }));
+    let given = filter.filter(|f| f.as_object().is_some_and(|o| !o.is_empty())).cloned();
+    let filter = match (by_title, given) {
+        (Some(a), Some(b)) => Some(json!({ "and": [a, b] })),
+        (a, b) => a.or(b),
+    };
+    let sorts = sorts.filter(|s| s.as_array().is_some_and(|a| !a.is_empty())).cloned()
+        .unwrap_or_else(|| json!([{ "timestamp": "last_edited_time", "direction": "descending" }]));
+    let key = format!("{}|{}|{}|{limit}", db.id, filter.as_ref().map(Value::to_string).unwrap_or_default(), sorts);
+    {
+        let mut a = ANSWERS.lock().unwrap();
+        a.retain(|(_, at, _)| at.elapsed() < ANSWER_TTL);
+        if let Some((_, _, text)) = a.iter().find(|(k, _, _)| *k == key) {
+            return Ok(text.clone());
         }
     }
-    let v = call(client().post(format!("{API}/databases/{}/query", db.id)).json(&body)).await?;
-    let rows: Vec<String> = v.get("results").and_then(Value::as_array).into_iter().flatten().map(row_text).collect();
+    let mut rows: Vec<Value> = Vec::new();
+    let mut cursor: Option<String> = None;
+    let mut more = false;
+    while rows.len() < limit {
+        let mut body = json!({ "page_size": (limit - rows.len()).min(100), "sorts": sorts });
+        if let Some(f) = &filter {
+            body["filter"] = f.clone();
+        }
+        if let Some(c) = &cursor {
+            body["start_cursor"] = json!(c);
+        }
+        let v = call(client().post(format!("{API}/databases/{}/query", db.id)).json(&body)).await?;
+        rows.extend(v.get("results").and_then(Value::as_array).into_iter().flatten().cloned());
+        more = v.get("has_more").and_then(Value::as_bool) == Some(true);
+        cursor = v.get("next_cursor").and_then(Value::as_str).map(str::to_string);
+        if !more || cursor.is_none() {
+            break;
+        }
+    }
     if rows.is_empty() {
         return Ok(format!("«{}»: nessuna riga.", db.title));
     }
-    let more = if v.get("has_more").and_then(Value::as_bool) == Some(true) { " (ce ne sono altre)" } else { "" };
-    Ok(format!("«{}», {} righe{more}, le più recenti prima:\n{}", db.title, rows.len(), rows.join("\n")))
+    let more = if more { " (ce ne sono altre: per totali e conti restringi con filter o alza limit)" } else { " (sono tutte)" };
+    let titles = relation_titles(&rows).await;
+    let text = format!("«{}», {} righe{more}:\n{}", db.title, rows.len(), rows_table(&rows, &titles));
+    ANSWERS.lock().unwrap().push((key, std::time::Instant::now(), text.clone()));
+    Ok(text)
 }
 
 pub async fn add_row(which: &str, given: &Value) -> Result<String, String> {
@@ -313,6 +531,7 @@ pub async fn add_row(which: &str, given: &Value) -> Result<String, String> {
     let props = properties(&db, given).await?;
     let body = json!({ "parent": { "database_id": db.id }, "properties": props });
     let row = call(client().post(format!("{API}/pages")).json(&body)).await?;
+    forget_answers();
     crate::log::line(format!("notion: riga aggiunta in «{}»", db.title));
     Ok(format!("Riga aggiunta in «{}»:\n{}", db.title, row_text(&row)))
 }
@@ -330,6 +549,7 @@ pub async fn update_row(page: &str, given: &Value) -> Result<String, String> {
     let db = database(db_id).await?;
     let props = properties(&db, given).await?;
     let row = call(client().patch(format!("{API}/pages/{id}")).json(&json!({ "properties": props }))).await?;
+    forget_answers();
     crate::log::line(format!("notion: riga cambiata in «{}»", db.title));
     Ok(format!("Riga aggiornata in «{}»:\n{}", db.title, row_text(&row)))
 }
@@ -389,9 +609,52 @@ mod tests {
     fn live() {
         let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
         let first = crate::notion_map::databases().into_iter().next().expect("mappa vuota");
-        println!("{}", rt.block_on(query(&first.title, "", Some(3))).unwrap());
+        println!("{}", rt.block_on(query(&first.title, "", None, None, Some(3))).unwrap());
         println!("{}", rt.block_on(search(&first.title)).unwrap());
+        // Notion's own filter, more than one page of rows.
+        if let Some(d) = crate::notion_map::databases().into_iter().find(|d| d.properties.iter().any(|p| p.kind == "date")) {
+            let date = d.properties.iter().find(|p| p.kind == "date").unwrap().name.clone();
+            let filter = json!({ "property": date, "date": { "on_or_after": "2026-01-01" } });
+            let out = rt.block_on(query(&d.title, "", Some(&filter), None, Some(150))).unwrap();
+            println!("{}", out.lines().next().unwrap_or_default());
+        }
+        // `LIVE_DB=Movimenti`: the whole answer, its size and the cache.
+        if let Ok(db) = std::env::var("LIVE_DB") {
+            let filter = json!({ "property": "Data", "date": { "on_or_after": "2026-10-01" } });
+            let t = std::time::Instant::now();
+            let out = rt.block_on(query(&db, "", Some(&filter), None, Some(200))).unwrap();
+            let first = t.elapsed();
+            let t = std::time::Instant::now();
+            assert_eq!(rt.block_on(query(&db, "", Some(&filter), None, Some(200))).unwrap(), out);
+            println!("{out}\n— {} caratteri, {:?} la prima volta, {:?} dalla cache", out.chars().count(), first, t.elapsed());
+        }
         assert!(rt.block_on(properties(&first, &json!({ "NonEsiste": 1 }))).is_err());
+    }
+
+    #[test]
+    fn rows_as_a_table_with_totals() {
+        let row = |id: &str, name: &str, n: f64, cat: &str| json!({ "id": id, "url": "https://notion.so/x", "properties": {
+            "Stato": { "type": "select", "select": { "name": if n > 10.0 { "Previsto" } else { "Pagato" } } },
+            "Descrizione": { "type": "title", "title": [{ "plain_text": name }] },
+            "Importo": { "type": "number", "number": n },
+            "Note": { "type": "rich_text", "rich_text": [{ "plain_text": "a|b" }] },
+            "Categoria": { "type": "relation", "relation": [{ "id": cat }] },
+            "Tipo": { "type": "rollup", "rollup": { "type": "array", "array": [{ "type": "select", "select": { "name": "Uscita" } }] } },
+            "Vuota": { "type": "rich_text", "rich_text": [] }
+        }});
+        let rows = vec![row("aa-bb", "Pranzo", 6.4, "c1"), row("cc-dd", "Gasolio", 30.0, "c2")];
+        let titles = std::collections::HashMap::from([("c1".to_string(), "Pranzi".to_string())]);
+        let t = rows_table(&rows, &titles);
+        assert_eq!(t.lines().next().unwrap(), "id | Descrizione | Categoria | Importo | Note | Stato | Tipo");
+        assert!(t.contains("aabb | Pranzo | Pranzi | 6.4 | a b | Pagato | Uscita"), "{t}");
+        assert!(t.contains("ccdd | Gasolio | c2 | 30 |"), "{t}");
+        assert!(t.contains("
+Totali di queste righe: Importo = 36.4
+"), "{t}");
+        // One value only (Tipo) is no split; Stato is.
+        assert!(t.ends_with("
+Importo per Stato: Pagato 6.4 · Previsto 30"), "{t}");
+        assert!(!t.contains("notion.so"));
     }
 
     #[test]

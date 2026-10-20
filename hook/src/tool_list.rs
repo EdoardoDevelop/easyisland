@@ -140,11 +140,13 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "notion_query",
-            "Le righe di un database di Notion, le più recenti prima, con id e proprietà. database: nome (anche una parte) o id; text: solo le righe col titolo che lo contiene; limit: quante (predefinito 20, massimo 50).",
+            "Le righe di un database di Notion con id e proprietà, le più recenti prima. database: nome (anche una parte) o id; text: solo le righe col titolo che lo contiene; filter: filtro nel formato dell'API di Notion con i nomi della mappa (es. {\"and\": [{\"property\": \"Data\", \"date\": {\"on_or_after\": \"2026-10-01\"}}, {\"property\": \"Categoria\", \"select\": {\"equals\": \"Casa\"}}]}); sorts: ordine nel formato dell'API; limit: quante (predefinito 20, massimo 200). Per totali e conti usa filter e controlla che la risposta dica «sono tutte».",
             json!({ "type": "object", "properties": {
                 "database": { "type": "string" },
                 "text": { "type": "string" },
-                "limit": { "type": "integer", "minimum": 1, "maximum": 50 }
+                "filter": { "type": "object" },
+                "sorts": { "type": "array", "items": { "type": "object" } },
+                "limit": { "type": "integer", "minimum": 1, "maximum": 200 }
             }, "required": ["database"] }),
             true,
         ),

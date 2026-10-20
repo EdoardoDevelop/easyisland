@@ -59,6 +59,12 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.9.4** — **Chat più veloce**: Claude Code resta acceso tra i messaggi della stessa
+conversazione; le righe di Notion arrivano in una tabella compatta con le categorie per nome e i
+totali già fatti; la chat impara **ricette** con l'uso e alle domande simili va dritta agli
+strumenti giusti (Impostazioni → Chat → Ricette). Mentre lavora mostra anche il suo ragionamento,
+nell'isola e su Telegram. «Quanto ho speso a ottobre»: da 29 a 12 secondi.
+
 **0.9.3** — **Notion per tutti i motori**: la chat legge e aggiunge righe con il collegamento
 di EasyIsland, che controlla i valori prima di scrivere (niente più pagine vuote). Gli
 **strumenti di EasyIsland** arrivano anche ad **Antigravity** e a **Claude con chiave API**.
@@ -294,7 +300,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.9.3** | 19 ott 2026 | Notion per tutti i motori, strumenti in Antigravity e Claude API, Seconda opinione, /oggi e /domani |
+| **0.9.4** | 20 ott 2026 | Chat più veloce: Claude Code acceso, Notion compatto con i totali, ricette, ragionamento visibile |
+| 0.9.3 | 19 ott 2026 | Notion per tutti i motori, strumenti in Antigravity e Claude API, Seconda opinione, /oggi e /domani |
 | 0.9.2 | 19 ott 2026 | Ferma nella chat e su Telegram, mappa di Notion per la chat |
 | 0.9.1 | 18 ott 2026 | Remote Desktop Manager con l'Hub: vault utente, elenco offline cifrato, Sincronizza |
 | 0.9.0 | 18 ott 2026 | Antigravity di Google: sessioni nell'isola con Consenti / Nega e motore della chat, con le istruzioni di installazione |
