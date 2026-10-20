@@ -84,6 +84,9 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "notion_query" => crate::notion_tools::query(arg(args, "database"), arg(args, "text"), args.get("filter"), args.get("sorts"), args.get("limit").and_then(Value::as_u64)).await,
         "notion_add_row" => crate::notion_tools::add_row(arg(args, "database"), args.get("properties").unwrap_or(&Value::Null)).await,
         "notion_update_row" => crate::notion_tools::update_row(arg(args, "page"), args.get("properties").unwrap_or(&Value::Null)).await,
+        "todo_list" => crate::todo::list(args).await,
+        "todo_add" => crate::todo::add(args).await,
+        "todo_update" => crate::todo::update(args).await,
 
         "list_status" => {
             let s = settings(app)?;

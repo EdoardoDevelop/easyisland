@@ -169,6 +169,43 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
         (
+            "todo_list",
+            "Le attività di Microsoft To Do (da Outlook classico, che deve essere aperto), con id breve, scadenza, importanza, promemoria e nota, e i nomi delle liste. list: nome della lista (vuoto = tutte); done: true per vedere anche quelle fatte; limit: quante (predefinito 50).",
+            json!({ "type": "object", "properties": {
+                "list": { "type": "string" },
+                "done": { "type": "boolean" },
+                "limit": { "type": "integer", "minimum": 1, "maximum": 200 }
+            } }),
+            true,
+        ),
+        (
+            "todo_add",
+            "Aggiunge un'attività a Microsoft To Do (tramite Outlook classico). title obbligatorio; list: nome della lista (vuoto = Attività); due: \"AAAA-MM-GG\"; reminder: \"AAAA-MM-GG HH:MM\"; importance: low, normal o high; note: testo.",
+            json!({ "type": "object", "properties": {
+                "title": { "type": "string" },
+                "list": { "type": "string" },
+                "due": { "type": "string" },
+                "reminder": { "type": "string" },
+                "importance": { "type": "string", "enum": ["low", "normal", "high"] },
+                "note": { "type": "string" }
+            }, "required": ["title"] }),
+            false,
+        ),
+        (
+            "todo_update",
+            "Cambia un'attività di Microsoft To Do: id da todo_list; solo i campi da cambiare tra title, due (\"\" la toglie), reminder (\"\" lo toglie), importance, note (sostituisce la nota), done (true = fatta, false = da fare). Non elimina.",
+            json!({ "type": "object", "properties": {
+                "id": { "type": "string" },
+                "title": { "type": "string" },
+                "due": { "type": "string" },
+                "reminder": { "type": "string" },
+                "importance": { "type": "string", "enum": ["low", "normal", "high"] },
+                "note": { "type": "string" },
+                "done": { "type": "boolean" }
+            }, "required": ["id"] }),
+            false,
+        ),
+        (
             "list_profiles",
             "I profili di EasyIsland (es. Lavoro, Casa) e quello attivo.",
             none.clone(),

@@ -441,7 +441,7 @@ fn help() -> String {
 fn day_prompt(tomorrow: bool) -> String {
     let when = if tomorrow { t("domani") } else { t("oggi") };
     tf(
-        "Fammi il punto della mia giornata di {when}, in modo amichevole e breve. Usa gli strumenti di easyisland: list_status (appuntamenti e posta di Outlook, ticket, meteo, PC) e, se c'è Notion, notion_query sui database di attività per quelle con scadenza {when} e quelle scadute non ancora fatte. Prima le cose da fare, con l'ora se c'è, poi il resto in poche righe. Se uno strumento non c'è o non risponde, salta quella parte senza dirlo a lungo. Non cambiare niente.",
+        "Fammi il punto della mia giornata di {when}, in modo amichevole e breve. Usa gli strumenti di easyisland: list_status (appuntamenti e posta di Outlook, ticket, meteo, PC) e, se c'è Notion, notion_query sui database di attività per quelle con scadenza {when} e quelle scadute non ancora fatte, e todo_list per le attività di To Do. Prima le cose da fare, con l'ora se c'è, poi il resto in poche righe. Se uno strumento non c'è o non risponde, salta quella parte senza dirlo a lungo. Non cambiare niente.",
         &[("when", &when)],
     )
 }

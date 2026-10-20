@@ -28,6 +28,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 20 ottobre 2026 — Microsoft To Do da Outlook classico
+- Chiesto da Edoardo: gestire To Do (leggere, aggiungere, cambiare). Strumenti di easyisland `todo_list`, `todo_add`, `todo_update` attraverso Outlook classico via COM (`todo.rs`, `docs/integrazioni.md`): nessun accesso nuovo, niente eliminazioni.
+- **Prove:** `cargo test --workspace`, sintassi dello script e sue funzioni su un'attività finta. Su questo PC Outlook non c'è: la prova vera è da fare sul PC con Outlook (`docs/prove-dal-vivo.md`).
+
 ### 20 ottobre 2026 — Velocità: misure, Claude Code acceso, Notion compatto, ricette, versione 0.9.4
 - Versione **0.9.4** con queste voci, i totali di Notion uguali tra i motori e il ragionamento visibile; README, README.en.md e homepage aggiornati.
 - Segnalato da Edoardo: lentezza di tutti i motori. Misure di ogni turno, strumento e token nel log; Claude Code resta acceso tra i messaggi della stessa conversazione (~6 s → ~3 s di avvio); `notion_query` risponde con una tabella compatta, le categorie per nome e i totali già fatti; indice di Notion corto; ricette imparate con l'uso (`recipes.rs`, Impostazioni → Chat → «Ricette»). Tutto in `docs/chat.md` → Velocità e ricette.
@@ -50,7 +54,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Chiesto da Edoardo, dopo aver ragionato su una «chat tra le IA»: si tiene solo la revisione chiesta a mano (`docs/decisioni.md`). «⇄ Seconda opinione» sotto l'ultima risposta: si sceglie ogni volta il motore, che rivede l'ultima domanda e risposta in un turno a parte, senza strumenti nostri, con Ferma. Il suo testo va davanti alla domanda dopo al motore principale (`second.rs`, `docs/chat.md`).
 - **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, scena `?scene=chat&second`. Da provare con motori veri (`docs/prove-dal-vivo.md`).
 
-### 19 ottobre 2026 — Notion per tutti i motori, strumenti di EasyIsland in Antigravity
-- Chiesto da Edoardo: ogni motore deve usare le integrazioni di EasyIsland, e Antigravity non arrivava a Notion. Nuovi strumenti di easyisland `notion_search`, `notion_read`, `notion_query`, `notion_add_row` e `notion_update_row` (`notion_tools.rs`), con il collegamento di EasyIsland: i valori si controllano sulla mappa prima di scrivere, quindi niente più righe fuori dal database. Antigravity riceve il server con `agy mcp add`, da Impostazioni → Chat → Antigravity (copia e conferma); i suoi strumenti di sola lettura non chiedono Consenti / Nega (`docs/chat.md`, `docs/agenti.md`).
-- Poi, scelto da Edoardo: gli stessi strumenti anche al motore Anthropic con chiave (`claude.rs`, ciclo `tool_use`, elenco unico in `hook/src/tool_list.rs`); opencode li aveva già. Gli altri motori via API per ora no (`docs/idee.md`).
-- **Prove:** `cargo test --workspace`, lettura vera (`notion_tools::tests::live`), `npm run build`, `npm run smoke`. Da provare: scritture, Antigravity e il motore Anthropic (su questo PC non c'è la chiave) (`docs/prove-dal-vivo.md`).
