@@ -384,7 +384,8 @@ fn args(
     let mut a: Vec<String> = vec![
         "-p".into(),
         "--output-format".into(),
-        "json".into(),
+        "stream-json".into(),
+        "--verbose".into(),
         "--settings".into(),
         dir.join("chat-settings.json")
             .to_string_lossy()
@@ -499,6 +500,8 @@ fn terminal_args(
 #[derive(Default)]
 struct Progress {
     shown: String,
+    /// The reasoning being written, shown under the rest only while it lasts.
+    thinking: String,
 }
 
 impl Progress {
@@ -514,6 +517,14 @@ impl Progress {
         }
         let mut changed = false;
         for block in v.pointer("/message/content").and_then(Value::as_array).into_iter().flatten() {
+            if block.get("type").and_then(Value::as_str) == Some("thinking") {
+                let t = block.get("thinking").and_then(Value::as_str).unwrap_or_default().trim();
+                if !t.is_empty() {
+                    self.thinking = t.to_string();
+                    changed = true;
+                }
+                continue;
+            }
             let piece = match block.get("type").and_then(Value::as_str) {
                 Some("text") => block.get("text").and_then(Value::as_str).map(|t| t.trim().to_string()),
                 Some("tool_use") => Some(step_line(
@@ -527,10 +538,18 @@ impl Progress {
                     self.shown.push_str("\n\n");
                 }
                 self.shown.push_str(&p);
+                self.thinking.clear();
                 changed = true;
             }
         }
         changed
+    }
+}
+
+impl Progress {
+    /// What is shown while the turn goes on.
+    fn view(&self) -> String {
+        crate::opencode::with_thinking(self.shown.clone(), &self.thinking)
     }
 }
 
@@ -565,6 +584,8 @@ fn step_line(tool: &str, input: &Value) -> String {
 async fn read_stream(
     child: &mut tokio::process::Child,
     on_text: &(dyn Fn(&str) + Sync),
+    limit: Duration,
+    late: &str,
 ) -> Result<(String, String, String, bool), String> {
     let stdout = child.stdout.take().ok_or(t("Claude Code si è interrotto."))?;
     let stderr = child.stderr.take();
@@ -580,12 +601,12 @@ async fn read_stream(
     let mut progress = Progress::default();
     let mut last = String::new();
     let mut emitted = std::time::Instant::now();
-    let deadline = tokio::time::Instant::now() + TIMEOUT_TERMINAL;
+    let deadline = tokio::time::Instant::now() + limit;
     loop {
         match tokio::time::timeout_at(deadline, lines.next_line()).await {
             Err(_) => {
                 let _ = child.start_kill();
-                return Err(t("Claude Code non ha finito entro 30 minuti: interrotto.").into());
+                return Err(late.to_string());
             }
             Ok(Err(e)) => return Err(tf("Claude Code si è interrotto: {e}", &[("e", &e)])),
             Ok(Ok(None)) => break,
@@ -595,7 +616,7 @@ async fn read_stream(
                 }
                 if progress.feed(&line) && emitted.elapsed() >= STREAM_EVERY {
                     emitted = std::time::Instant::now();
-                    on_text(&progress.shown);
+                    on_text(&progress.view());
                 }
                 last = line;
             }
@@ -712,20 +733,12 @@ pub async fn send(
     }
 
     let (stdout, shown, stderr, success) = if terminal.is_some() {
-        read_stream(&mut child, on_text).await?
+        read_stream(&mut child, on_text, TIMEOUT_TERMINAL, t("Claude Code non ha finito entro 30 minuti: interrotto.")).await?
     } else {
         let limit = if connectors.uses_mcp() { TIMEOUT_WITH_CONNECTORS } else { TIMEOUT };
-        let output = match tokio::time::timeout(limit, child.wait_with_output()).await {
-            Ok(Ok(o)) => o,
-            Ok(Err(e)) => return Err(tf("Claude Code si è interrotto: {e}", &[("e", &e)])),
-            Err(_) => return Err(t("Claude Code non ha risposto in tempo.").into()),
-        };
-        (
-            String::from_utf8_lossy(&output.stdout).into_owned(),
-            String::new(),
-            String::from_utf8_lossy(&output.stderr).into_owned(),
-            output.status.success(),
-        )
+        let (last, _, stderr, ok) = read_stream(&mut child, on_text, limit, t("Claude Code non ha risposto in tempo.")).await?;
+        // Outside the terminal the answer is the text alone, as before.
+        (last, String::new(), stderr, ok)
     };
 
     let Some(outcome) = parse_output(&stdout) else {
@@ -1035,6 +1048,11 @@ mod tests {
         assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"mcp__plugin_Notion_notion__notion-search","input":{}}]}}"#));
         assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"text","text":"Fatto."}]}}"#));
         assert_eq!(p.shown, "Controllo.\n\n> ⚙ Esegue · `git status`\n\n> ⚙ notion-search · Notion notion\n\nFatto.");
+        // The reasoning shows under the rest until the next text or step.
+        assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"Sommo le  spese\ndi ottobre"}]}}"#));
+        assert!(p.view().ends_with("> 💭 _Sommo le spese di ottobre_"));
+        assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"text","text":"Totale."}]}}"#));
+        assert!(!p.view().contains("💭"));
         assert_eq!(step_line("Edit", &serde_json::json!({ "file_path": "C:/a.txt" })), "> ⚙ Modifica · `C:/a.txt`");
     }
 

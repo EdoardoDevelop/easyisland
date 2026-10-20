@@ -905,7 +905,7 @@ _Permesso negato: opencode si è fermato._", block.trim())) });
 }
 
 /// The reply so far with the last words of the reasoning under it, in one line.
-fn with_thinking(shown: String, thinking: &str) -> String {
+pub(crate) fn with_thinking(shown: String, thinking: &str) -> String {
     let flat = thinking.split_whitespace().collect::<Vec<_>>().join(" ");
     if flat.is_empty() {
         return shown;
