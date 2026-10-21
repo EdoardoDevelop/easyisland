@@ -158,6 +158,12 @@ export async function runScene(island: Island, scene: string) {
         ];
         State.notify();
       }
+      // ?remote: a remote connection open, the 🔌 in the head (&linked: on).
+      if (new URLSearchParams(location.search).has("remote")) {
+        State.integrations.integration_remote = { loaded: true, configured: true, error: null,
+          data: { connected: true, kind: "ssh", host: "10.0.0.5", os: "linux", name: "srv-gestionale", linked: new URLSearchParams(location.search).has("linked") } };
+        State.notify();
+      }
       // ?second: an answer, its «Seconda opinione» and the button under the last one.
       if (new URLSearchParams(location.search).has("second")) {
         State.chatHistory = [
@@ -282,6 +288,27 @@ export async function runScene(island: Island, scene: string) {
       State.summary = false;
       island.alert("overview");
       await wait(1500);
+      break;
+    }
+    case "remote": {
+      // ?activeIntegrations=integration_remote — the form (&guide: with the guide open);
+      // &live: connected to a made-up PC (&linked: linked to the chat). The chat's 🔌: ?scene=chat&remote.
+      await wait(300);
+      const q = new URLSearchParams(location.search);
+      State.integrations.integration_remote = {
+        loaded: true, configured: true, error: null,
+        data: q.has("live")
+          ? { connected: true, kind: "winrm", host: "192.168.1.20", user: "PC-RECEPTION\\admin", os: "windows", name: "PC-RECEPTION",
+            system: "Microsoft Windows 11 Pro 10.0.22631", since: Date.now() - 120_000, trustedAdded: true, linked: q.has("linked") }
+          : { connected: false },
+      };
+      State.setFocus("integration_remote");
+      State.summary = false;
+      island.alert("overview");
+      island.setPinned(true);
+      await wait(400);
+      if (q.has("guide")) document.querySelector<HTMLButtonElement>(".rm-foot .link-btn")?.click();
+      await wait(1100);
       break;
     }
     case "teams": {

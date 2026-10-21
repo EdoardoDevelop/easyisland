@@ -40,6 +40,8 @@ export interface ViewActions extends ActionHandlers, RewriteHandlers, MomentActi
   askAboutPicture(f: { name: string; path: string }): void;
   /** Text from an integration (a Notion page) attached to a new chat, waiting for the question. */
   askAboutText(label: string, text: string): void;
+  /** A fresh chat, nothing in it (Accesso remoto's "Apri la chat"). */
+  openChat(): void;
   /** "Estrai…" on a dropped ZIP: "beside" | "downloads" | "desktop". */
   extractZip(place: string): void;
   /** 📌: keep the island open (no auto-close). */
@@ -327,6 +329,7 @@ function buildOverview(actions: ViewActions): ViewHost {
     openSettings: () => actions.openSettingsWindow(),
     askAboutPicture: (f) => actions.askAboutPicture(f),
     askAboutText: (label, text) => actions.askAboutText(label, text),
+    openChat: () => actions.openChat(),
   };
 
   return {

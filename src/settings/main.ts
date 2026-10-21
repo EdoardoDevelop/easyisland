@@ -955,6 +955,8 @@ const INTEGRATIONS: IntegrationDef[] = [
     fields: [{ key: "telegram-bot-token", label: t("Token del bot"), placeholder: "123456789:AA…", secret: true }],
     extra: () => telegramRows(),
     hint: t("La chat di EasyIsland dentro Telegram, con il tuo bot. In Telegram scrivi a @BotFather, manda /newbot, scegli nome e username e copia qui il token che ti dà. Poi «Collega»: il bot risponde solo alla chat collegata. Conversazione separata da quella dell'isola, con il motore e il modello scelti in Telegram (/motore, /modello); con la modalità terminale, Consenti / Nega arrivano come pulsanti in Telegram. Foto e file mandati al bot finiscono nel Vassoio; i vocali si trascrivono con il servizio scelto in «Vocali». Funziona solo con il PC acceso e EasyIsland aperto: i messaggi arrivati nel frattempo vengono scartati.") },
+  { id: "integration_remote", name: t("Accesso remoto"), color: "#14B8A6", fields: [],
+    hint: t("Un controllo al volo sul PC di un cliente raggiungibile in rete o in VPN: nella scheda Accesso remoto scegli WinRM o SSH (Windows o Linux), scrivi indirizzo, utente e password e «Avvia connessione». Poi «Collega alla chat» (o 🔌 nella chat) e chiedi all'IA cosa fare: ogni comando sul PC remoto chiede Consenti / Nega. Niente viene salvato, né su disco né in Gestione credenziali: «Chiudi connessione» dimentica la password e rimette a posto TrustedHosts. La scheda ha la guida passo passo per preparare il PC e cosa fare se non va. Servono gli strumenti di EasyIsland accesi (Impostazioni → Chat).") },
   { id: "integration_recorder", name: t("Registra"), color: "#F4505E", fields: [],
     options: [
       { label: t("Cartella"), type: "text", placeholder: t("vuoto = Video\\EasyIsland"), get: (c) => c.recordFolder ?? "", set: (c, v) => { c.recordFolder = v.trim(); } },
@@ -1621,7 +1623,7 @@ function ringtoneRow(): HTMLElement {
 
 /** Impostazioni → Integrazioni: the groups, in this order; anything else goes last. */
 const INTEGRATION_GROUPS: [string, string[]][] = [
-  [t("Lavoro e clienti"), ["integration_3cx", "integration_teams", "integration_zammad", "integration_rdm", "integration_outlook", "integration_calcom", "integration_notion", "integration_telegram"]],
+  [t("Lavoro e clienti"), ["integration_3cx", "integration_teams", "integration_zammad", "integration_rdm", "integration_remote", "integration_outlook", "integration_calcom", "integration_notion", "integration_telegram"]],
   [t("Sviluppo e servizi"), ["integration_github", "integration_vercel", "integration_n8n", "integration_stripe", "integration_resend"]],
   [t("Questo PC"), ["integration_recorder", "integration_system", "integration_security", "integration_network", "integration_weather", "integration_claude_usage", "integration_clipboard", "integration_media"]],
 ];
@@ -3720,7 +3722,7 @@ function notifySection(): HTMLElement {
 // ── Reazioni del personaggio ──────────────────────────────────────────────────
 
 /** Pills that never complain (or have their own way to show up, like a 3CX call). */
-const NO_REACTION = new Set(["integration_claude", "integration_clipboard", "integration_media", "integration_weather", "integration_3cx", "integration_rdm", "integration_teams", "integration_recorder"]);
+const NO_REACTION = new Set(["integration_claude", "integration_clipboard", "integration_media", "integration_weather", "integration_3cx", "integration_rdm", "integration_teams", "integration_recorder", "integration_remote"]);
 
 /**
  * What the character does in each situation: show itself and sound, change

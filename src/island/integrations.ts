@@ -6,6 +6,7 @@ import { onEvent, Bridge, type IntegrationUpdate, type ThreecxCall, type Threecx
 import { THREECX, ringing, chatMessage, chatTyping, openChat } from "../views/threecx";
 import { TEAMS, teamsLine } from "../views/teams";
 import { RECORDER, recorderLine } from "../views/recorder";
+import { REMOTE, remoteLine } from "../views/remote";
 import { Sound } from "../core/sound";
 import { startSoftphone, onSoftphone } from "../core/softphone";
 import { State, type WidgetStatus } from "../core/state";
@@ -211,6 +212,16 @@ export function handleIntegration(island: Island, update: IntegrationUpdate) {
       task.state = update.data.recording ? "working" : "idle";
     }
     if (update.data.recording) island.showInStrip();
+  }
+
+  // Accesso remoto: its line, "working" while a connection is open.
+  if (update.id === REMOTE && !update.error) {
+    const task = State.tasks.find((t) => t.id === REMOTE);
+    if (task) {
+      task.steps = [remoteLine()];
+      task.stepIndex = 0;
+      task.state = update.data.connected ? "working" : "idle";
+    }
   }
 
   // Teams: its line in the Panoramica, and "working" while in a meeting.

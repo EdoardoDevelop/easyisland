@@ -9,6 +9,7 @@ import { CHAT_ENGINES, State, engineLabel, type ChatEngine, type ChatMessage } f
 import { calculate, formatResult, plainResult } from "../core/calc";
 import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
+import { remoteData, toggleRemoteLink } from "./remote";
 import { locale, t, tn } from "../core/i18n";
 
 let nextId = 1;
@@ -88,7 +89,9 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
   // "Automatica" (Modalità terminale): this conversation goes on without
   // Consenti / Nega — Claude Code's auto mode, everything for opencode.
   const autoBtn = h("button", { class: "auto-btn" }, svg(ICONS.bolt, 12), h("span", { text: t("Automatica") })) as HTMLButtonElement;
-  const head = h("div", { class: "chat-head" }, chipRow, engineBtn, autoBtn, historyBtn, engineMenu);
+  // Accesso remoto (remote.ts): with a connection open, 🔌 links this chat to that PC.
+  const remoteBtn = h("button", { class: "auto-btn remote-btn" }, h("span", { text: "🔌" }), h("span", { class: "remote-name" })) as HTMLButtonElement;
+  const head = h("div", { class: "chat-head" }, chipRow, engineBtn, remoteBtn, autoBtn, historyBtn, engineMenu);
   const log = h("div", { class: "chat-log" });
   // A reply arriving (OpenAI-compatible engines stream it, openai.rs).
   let streamEl: HTMLElement | null = null;
@@ -445,6 +448,16 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     void toggleEngineMenu();
   });
   historyBtn.addEventListener("click", () => void toggleHistory());
+  remoteBtn.addEventListener("click", async () => {
+    const problem = await toggleRemoteLink();
+    if (problem) {
+      const before = input.placeholder;
+      input.placeholder = problem;
+      remoteBtn.title = problem;
+      window.setTimeout(() => { if (input.placeholder === problem) input.placeholder = before; }, 6000);
+    }
+    input.focus();
+  });
   autoBtn.addEventListener("click", () => {
     State.chatAuto = !State.chatAuto;
     Sound.play("blip");
@@ -528,6 +541,15 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       engineBtn.textContent = `${engineLabel({ ...State.settings, chatEngine: State.chatEngine })} ▾`;
       // Asking a session: Claude Code answers, whatever the chat's engine.
       engineBtn.style.display = asked ? "none" : "";
+      // 🔌: only while a remote connection is open, never on a session copy.
+      const remote = remoteData();
+      remoteBtn.style.display = remote.connected && !asked ? "" : "none";
+      remoteBtn.classList.toggle("on", !!remote.linked);
+      remoteBtn.querySelector<HTMLElement>(".remote-name")!.textContent = remote.name || remote.host || "";
+      remoteBtn.title = remote.linked
+        ? t("La chat lavora su {n}: ogni comando lì chiede Consenti / Nega. Clic per scollegarla", { n: remote.name || remote.host || "" })
+        : t("Collega la chat a {n}, il PC aperto in Accesso remoto", { n: remote.name || remote.host || "" });
+      el.querySelector(".chat-card")?.classList.toggle("remote", !!remote.linked && !asked);
       // "Automatica": only with Modalità terminale, never on a session copy.
       const terminal = State.settings.chatTerminal === true && !asked;
       const auto = terminal && State.chatAuto;

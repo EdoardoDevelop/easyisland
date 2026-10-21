@@ -181,7 +181,7 @@ pub async fn network_apply(config: NetConfig) -> Result<(), String> {
     let _ = std::fs::remove_file(&log);
     let result = tauri::async_runtime::spawn_blocking({
         let log = log.clone();
-        move || run_elevated(&lines, &log)
+        move || run_elevated(&lines, &log, "netsh")
     })
     .await
     .map_err(|e| e.to_string())?;
@@ -193,7 +193,7 @@ pub async fn network_apply(config: NetConfig) -> Result<(), String> {
 }
 
 #[cfg(windows)]
-fn run_elevated(lines: &[String], log: &std::path::Path) -> Result<(), String> {
+pub(crate) fn run_elevated(lines: &[String], log: &std::path::Path, what: &str) -> Result<(), String> {
     use windows::core::{HSTRING, PCWSTR};
     use windows::Win32::Foundation::{CloseHandle, WAIT_OBJECT_0};
     use windows::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject};
@@ -231,7 +231,7 @@ fn run_elevated(lines: &[String], log: &std::path::Path) -> Result<(), String> {
         let _ = CloseHandle(info.hProcess);
     }
     if waited != WAIT_OBJECT_0 {
-        return Err(t("netsh non ha risposto entro un minuto").into());
+        return Err(tf("{w} non ha risposto entro un minuto", &[("w", &what)]));
     }
     if code == 0 {
         return Ok(());
@@ -239,11 +239,11 @@ fn run_elevated(lines: &[String], log: &std::path::Path) -> Result<(), String> {
     // netsh writes in the console's code page: accents may come out wrong.
     let out = std::fs::read(log).map(|b| String::from_utf8_lossy(&b).into_owned()).unwrap_or_default();
     let reason = out.lines().map(str::trim).filter(|l| !l.is_empty()).last().unwrap_or("").to_string();
-    Err(if reason.is_empty() { tf("netsh è uscito con il codice {c}", &[("c", &code)]) } else { reason })
+    Err(if reason.is_empty() { tf("{w} è uscito con il codice {c}", &[("w", &what), ("c", &code)]) } else { reason })
 }
 
 #[cfg(not(windows))]
-fn run_elevated(_: &[String], _: &std::path::Path) -> Result<(), String> {
+pub(crate) fn run_elevated(_: &[String], _: &std::path::Path, _: &str) -> Result<(), String> {
     Err("Windows only".into())
 }
 

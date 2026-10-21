@@ -1146,6 +1146,12 @@ input[type="range"]::-webkit-slider-thumb {
   box-shadow: inset 0 0 0 1.5px rgba(245, 176, 65, 0.75);
 }
 
+/* Accesso remoto's 🔌 (remote.ts): teal when the chat works on the remote PC. */
+.remote-btn .remote-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+.remote-btn.on { color: #042f2e; background: #14b8a6; }
+.chat-card.remote { box-shadow: inset 0 0 0 1.5px rgba(20, 184, 166, 0.75); }
+.chat-card.remote.auto { box-shadow: inset 0 0 0 1.5px rgba(245, 176, 65, 0.75), inset 0 0 0 3px rgba(20, 184, 166, 0.6); }
+
 .history-menu {
   flex: 1 1 auto;
   min-height: 0;
@@ -5506,3 +5512,25 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 .np-gadd { align-items: center; justify-content: center; gap: 6px; flex-direction: row; min-height: 120px; border: 1px dashed rgba(255, 255, 255, 0.14); background: transparent; color: var(--dim-2); font: 400 11.5px var(--font); }
 .np-linked { display: flex; flex-direction: column; }
 .np-rel { color: #d4d4d4; text-decoration: underline; text-decoration-color: rgba(255, 255, 255, 0.3); text-underline-offset: 2px; }
+
+/* "Accesso remoto" (src/views/remote.ts). */
+.rm-form { display: flex; flex-direction: column; gap: 6px; }
+.rm-form .nc-row > .nc-label:first-child { flex: 0 0 64px; }
+.rm-host { flex: 1 1 140px; min-width: 0; }
+.rm-port { width: 64px; }
+.rm-user { flex: 1 1 120px; min-width: 0; }
+.rm-check { display: inline-flex; align-items: center; gap: 5px; font: 400 11.5px var(--font); color: var(--dim); }
+.rm-foot { padding-top: 2px; }
+.rm-start:disabled { opacity: 0.5; }
+.rm-live { display: flex; flex-direction: column; gap: 10px; }
+.rm-who { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12.5px; }
+.rm-who b { flex: 0 0 auto; white-space: nowrap; }
+.rm-who .teams-dot.on { background: #14b8a6; }
+.rm-dim { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.rm-guide { display: flex; flex-direction: column; gap: 5px; max-height: calc(260px + var(--extra-h, 0px)); overflow-y: auto; }
+.rm-guide:empty { display: none; }
+.rm-guide-title { font: 600 11.5px var(--font); color: var(--ink); padding-top: 6px; }
+.rm-step { font: 400 11px/1.4 var(--font); color: var(--dim); }
+.rm-code { display: flex; align-items: flex-start; gap: 6px; padding: 5px 8px; border-radius: 7px; background: rgba(255, 255, 255, 0.05); }
+.rm-code pre { flex: 1 1 auto; min-width: 0; margin: 0; font: 400 10.5px/1.45 var(--mono); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.rm-card .teams-btn.light { background: #14b8a6; color: #042f2e; }
