@@ -150,7 +150,7 @@ chooses.
 ## Notion for every engine
 
 `notion_tools.rs` gives every engine with tools EasyIsland's own Notion connection:
-`notion_search`, `notion_read`, `notion_query`, `notion_add_row`, `notion_update_row`.
+`notion_search`, `notion_read`, `notion_query`, `notion_add_row`, `notion_update_row`, `notion_delete_row` (moves the row to Notion's trash, only after the user says yes in the chat).
 The database is found in the local map (`notion_map.rs`) and every value is checked
 against its properties before writing, so a row cannot end up outside its database.
 Reading runs freely; adding and changing ask Allow / Deny; nothing deletes.

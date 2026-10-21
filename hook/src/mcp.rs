@@ -119,7 +119,7 @@ pub fn handle(msg: &Value) -> Option<Value> {
                 "protocolVersion": version,
                 "capabilities": { "tools": {} },
                 "serverInfo": { "name": "easyisland", "version": env!("CARGO_PKG_VERSION") },
-                "instructions": "Strumenti di EasyIsland sul PC dell'utente: avvisi e card nell'isola (show_notice, show_card con pulsanti), il Vassoio dei file (add_to_tray, list_uploaded_files), la cartella di lavoro (list_work_folder, move_to_work_folder), aprire programmi e link, eseguire le sue azioni rapide, leggere lo stato di PC, rete, meteo, posta e ticket, gestire appunti e musica, leggere e scrivere nel Notion dell'utente con il collegamento di EasyIsland (notion_map, notion_search, notion_read, notion_query, notion_add_row, notion_update_row), le attività di Microsoft To Do da Outlook classico (todo_list, todo_add, todo_update). Le azioni che cambiano qualcosa chiedono conferma all'utente."
+                "instructions": "Strumenti di EasyIsland sul PC dell'utente: avvisi e card nell'isola (show_notice, show_card con pulsanti), il Vassoio dei file (add_to_tray, list_uploaded_files), la cartella di lavoro (list_work_folder, move_to_work_folder), aprire programmi e link, eseguire le sue azioni rapide, leggere lo stato di PC, rete, meteo, posta e ticket, gestire appunti e musica, leggere e scrivere nel Notion dell'utente con il collegamento di EasyIsland (notion_map, notion_search, notion_read, notion_query, notion_add_row, notion_update_row, notion_delete_row), le attività di Microsoft To Do da Outlook classico (todo_list, todo_add, todo_update). Le azioni che cambiano qualcosa chiedono conferma all'utente."
             }))
         }
         "ping" => result(id, json!({})),
@@ -219,6 +219,7 @@ mod tests {
         assert!(ro.contains(&"notion_query"));
         assert!(!ro.contains(&"notion_add_row"));
         assert!(!ro.contains(&"notion_update_row"));
+        assert!(!ro.contains(&"notion_delete_row"));
     }
 
     #[test]

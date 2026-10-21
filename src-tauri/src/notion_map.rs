@@ -320,7 +320,7 @@ fn short_index(m: &Map) -> String {
         s.push_str(&names.join(" · "));
     }
     s.push('.');
-    s.push_str(t(" Righe, somme e conti: notion_query con filter (per data, categoria…) e i totali che restituisce, niente script. Aggiungere o cambiare: notion_add_row, notion_update_row. Proprietà e opzioni: notion_map, solo se servono. Pagine: notion_search, notion_read. Usa questi e non altri strumenti di Notion."));
+    s.push_str(t(" Righe, somme e conti: notion_query con filter (per data, categoria…) e i totali che restituisce, niente script. Aggiungere o cambiare: notion_add_row, notion_update_row. Eliminare: notion_delete_row, solo dopo il sì dell'utente in chat. Proprietà e opzioni: notion_map, solo se servono. Pagine: notion_search, notion_read. Usa questi e non altri strumenti di Notion."));
     s.push_str("]\n\n");
     s
 }
