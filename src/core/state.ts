@@ -280,6 +280,7 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_github", "GitHub", "#F4505E", "n8n"),
   task("integration_notion", "Notion", "#8C8C8C", "n8n"),
   task("integration_rdm", "RDM", "#E8542A", "n8n"),
+  task("integration_remote", t("Accesso remoto"), "#14B8A6", "n8n"),
   task("integration_calcom", "Cal.com", "#C9956A", "n8n"),
   task("integration_stripe", "Stripe", "#0570DE", "n8n"),
   task("integration_system", "PC", "#38BDF8", "n8n"),
@@ -326,7 +327,7 @@ export const TOGGLEABLE_INTEGRATION_IDS = [
   "integration_notion", "integration_calcom", "integration_stripe",
   ...Object.keys(PROBE_INTEGRATIONS),
   "integration_clipboard", "integration_media", "integration_3cx", "integration_rdm", "integration_teams", "integration_recorder",
-  "integration_telegram",
+  "integration_remote", "integration_telegram",
 ];
 
 /** What an integration poller last reported. */

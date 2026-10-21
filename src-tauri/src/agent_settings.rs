@@ -35,7 +35,7 @@ const INTEGRATIONS: &[&str] = &[
     "integration_resend", "integration_n8n", "integration_vercel", "integration_github", "integration_notion",
     "integration_calcom", "integration_stripe", "integration_system", "integration_security", "integration_network",
     "integration_weather", "integration_outlook", "integration_zammad", "integration_claude_usage", "integration_clipboard",
-    "integration_media", "integration_3cx", "integration_rdm", "integration_teams", "integration_recorder", "integration_telegram",
+    "integration_media", "integration_3cx", "integration_rdm", "integration_teams", "integration_recorder", "integration_remote", "integration_telegram",
 ];
 
 const CHAT: &str = "Chat";

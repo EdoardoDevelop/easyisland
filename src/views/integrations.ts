@@ -12,6 +12,7 @@ import { THREECX, threecxCard } from "./threecx";
 import { RDM, rdmActive, rdmLookFor, rdmCard } from "./rdm";
 import { TEAMS, teamsCard } from "./teams";
 import { RECORDER, recorderCard } from "./recorder";
+import { REMOTE, remoteCard } from "./remote";
 import { weatherCard } from "./weather";
 import { notionPageActive, notionPageCard, openNotionPage, type NotionRefLite } from "./notionpage";
 import { netConfigCard, pingRow, resetNetConfig } from "./netconfig";
@@ -943,6 +944,8 @@ export interface IntegrationCardHooks {
   askAboutPicture(f: { name: string; path: string }): void;
   /** Notion: open the chat with a page's text attached, waiting for the question. */
   askAboutText(label: string, text: string): void;
+  /** Accesso remoto: open the chat. */
+  openChat(): void;
 }
 
 /** True when this integration has data worth showing instead of the idle card. */
@@ -1063,6 +1066,10 @@ export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHoo
   if (task.id === "integration_clipboard") return clipboardCard(task, hooks);
   if (task.id === "integration_media") return mediaCard(task);
   if (task.id === THREECX) return threecxCard(task, hooks.openSettings);
+  if (task.id === REMOTE) {
+    ensureLoaded(REMOTE);
+    return remoteCard(hooks.openSettings, hooks.openChat);
+  }
   if (task.id === "integration_weather") {
     const card = weatherCard(task, hooks.openSettings);
     if (card) return card;

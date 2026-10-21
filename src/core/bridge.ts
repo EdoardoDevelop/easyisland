@@ -292,6 +292,11 @@ export const Bridge = {
   /** "Foto nel Vassoio": the window as a PNG in the inbox. */
   windowShot: (id: number) => callOrThrow<DroppedFile>("window_shot", { id }),
   recordStop: () => call<void>("record_stop"),
+  /** Accesso remoto (remote.rs): throws with why it could not connect. */
+  remoteConnect: (request: { kind: "winrm" | "ssh"; host: string; port: number | null; user: string; password: string; https: boolean; trust: boolean }) =>
+    callOrThrow<void>("remote_connect", { request }),
+  remoteDisconnect: () => callOrThrow<void>("remote_disconnect"),
+  remoteLink: (on: boolean) => callOrThrow<void>("remote_link", { on }),
   /** Microsoft account (msgraph.rs). */
   msStatus: () => call<{ configured: boolean; signedIn: boolean; account: string | null; error: string | null; redirect: string; scopes: string }>("ms_status"),
   msLogin: () => callOrThrow<string>("ms_login"),

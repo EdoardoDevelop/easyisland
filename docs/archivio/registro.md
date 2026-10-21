@@ -2,6 +2,17 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 19 ottobre 2026 — Allineamento con le segnalazioni, /oggi e /domani, versione 0.9.3
+- Versione **0.9.3** con le voci del 19 ottobre dopo la 0.9.2; README, README.en.md e homepage aggiornati.
+- Riletto l'elenco delle segnalazioni dalla prova e allineato con questo file e `docs/`: aggiunti il bug degli occhi nello stato felice (Problemi noti), la giornata di oggi e domani (Da fare, priorità alta, `docs/idee.md`) e TeamViewer tra le idee.
+- Segnalato da Edoardo: Antigravity da Telegram non riusciva ad aggiungere in Notion. Due cause: una risposta lunga di uno strumento (50 righe di un database) arrivava tagliata, perché l'app chiudeva la pipe prima che il relay finisse di leggere (`pipe.rs`, ora aspetta che il relay chiuda); `notion_read` dava errore su una pagina senza testo invece delle proprietà. Riprovato con la 0.9.3 installata: riga aggiunta con categoria. Con opencode la nota «Questa conversazione è su Telegram» non si ripete più a ogni messaggio.
+- Primo passo della giornata: `/oggi` e `/domani` su Telegram, un turno con gli strumenti di EasyIsland (`docs/integrazioni.md`).
+- **Prove:** `cargo build`, `npm run check:i18n`. Da provare con il bot (`docs/prove-dal-vivo.md`).
+
+### 19 ottobre 2026 — Seconda opinione nella chat e su Telegram
+- Chiesto da Edoardo, dopo aver ragionato su una «chat tra le IA»: si tiene solo la revisione chiesta a mano (`docs/decisioni.md`). «⇄ Seconda opinione» sotto l'ultima risposta: si sceglie ogni volta il motore, che rivede l'ultima domanda e risposta in un turno a parte, senza strumenti nostri, con Ferma. Il suo testo va davanti alla domanda dopo al motore principale (`second.rs`, `docs/chat.md`).
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, scena `?scene=chat&second`. Da provare con motori veri (`docs/prove-dal-vivo.md`).
+
 ### 19 ottobre 2026 — Notion per tutti i motori, strumenti di EasyIsland in Antigravity
 - Chiesto da Edoardo: ogni motore deve usare le integrazioni di EasyIsland, e Antigravity non arrivava a Notion. Nuovi strumenti di easyisland `notion_search`, `notion_read`, `notion_query`, `notion_add_row` e `notion_update_row` (`notion_tools.rs`), con il collegamento di EasyIsland: i valori si controllano sulla mappa prima di scrivere, quindi niente più righe fuori dal database. Antigravity riceve il server con `agy mcp add`, da Impostazioni → Chat → Antigravity (copia e conferma); i suoi strumenti di sola lettura non chiedono Consenti / Nega (`docs/chat.md`, `docs/agenti.md`).
 - Poi, scelto da Edoardo: gli stessi strumenti anche al motore Anthropic con chiave (`claude.rs`, ciclo `tool_use`, elenco unico in `hook/src/tool_list.rs`); opencode li aveva già. Gli altri motori via API per ora no (`docs/idee.md`).

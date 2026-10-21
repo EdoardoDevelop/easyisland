@@ -554,6 +554,30 @@ pub async fn update_row(page: &str, given: &Value) -> Result<String, String> {
     Ok(format!("Riga aggiornata in «{}»:\n{}", db.title, row_text(&row)))
 }
 
+/// Moves a row to Notion's trash (recoverable there). The engine must have
+/// asked the user in the chat first and pass confirmed: true.
+pub async fn delete_row(page: &str, confirmed: bool) -> Result<String, String> {
+    need_key()?;
+    let id = id_of(page);
+    if !is_id(&id) {
+        return Err("Serve l'id o il link della riga (notion_query).".into());
+    }
+    let row = call(client().get(format!("{API}/pages/{id}"))).await?;
+    let Some(db_id) = row.pointer("/parent/database_id").and_then(Value::as_str) else {
+        return Err("Questa pagina non è una riga di un database: da qui si eliminano solo le righe.".into());
+    };
+    if !confirmed {
+        return Err(format!("Non eliminata. Prima chiedi conferma all'utente in chat mostrando la riga, poi richiama con confirmed: true.
+{}", row_text(&row)));
+    }
+    let db = database(db_id).await?;
+    call(client().patch(format!("{API}/pages/{id}")).json(&json!({ "archived": true }))).await?;
+    forget_answers();
+    crate::log::line(format!("notion: riga eliminata in «{}»", db.title));
+    Ok(format!("Riga spostata nel cestino di Notion da «{}» (si può ripristinare da lì):
+{}", db.title, row_text(&row)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

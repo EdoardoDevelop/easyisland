@@ -88,6 +88,12 @@ fn connect() -> Option<std::fs::File> {
 }
 
 fn main() {
+    // ssh.exe asking for the password of an "Accesso remoto" connection
+    // (SSH_ASKPASS, src-tauri/src/remote.rs): it is in this process's environment.
+    if let Some(p) = std::env::var_os("EASYISLAND_ASKPASS") {
+        println!("{}", p.to_string_lossy());
+        std::process::exit(0);
+    }
     // Before anything reads stdin: from a console that would wait forever.
     if std::env::args().nth(1).as_deref() == Some("notify") {
         std::process::exit(notify(std::env::args().skip(2).collect()));

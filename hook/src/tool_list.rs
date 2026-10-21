@@ -169,6 +169,30 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
         (
+            "notion_delete_row",
+            "Sposta una riga di un database di Notion nel cestino di Notion (si può ripristinare da lì). page: id o link della riga (notion_query). Prima chiedi conferma all'utente in chat dicendo quale riga elimini, e aspetta il suo sì; poi chiama con confirmed: true. Senza conferma non elimina nulla.",
+            json!({ "type": "object", "properties": {
+                "page": { "type": "string" },
+                "confirmed": { "type": "boolean" }
+            }, "required": ["page", "confirmed"] }),
+            false,
+        ),
+        (
+            "remote_status",
+            "Il PC remoto a cui la chat è collegata (scheda «Accesso remoto» dell'isola, pulsante 🔌 nella chat): nome, indirizzo, sistema, WinRM o SSH. Errore se non c'è una connessione o la chat non è collegata.",
+            json!({ "type": "object", "properties": {} }),
+            true,
+        ),
+        (
+            "remote_run",
+            "Esegue un comando sul PC remoto collegato alla chat e ne restituisce l'uscita: PowerShell se è Windows, sh se è Linux (remote_status lo dice). Ogni chiamata è una sessione nuova: cartella e variabili non restano, quindi metti tutto in un comando. Preferisci comandi che leggono; prima di cambiare o cancellare qualcosa dillo all'utente. command: il comando; timeout: secondi (predefinito 120, massimo 300).",
+            json!({ "type": "object", "properties": {
+                "command": { "type": "string" },
+                "timeout": { "type": "integer", "minimum": 5, "maximum": 300 }
+            }, "required": ["command"] }),
+            false,
+        ),
+        (
             "todo_list",
             "Le attività di Microsoft To Do (da Outlook classico, che deve essere aperto), con id breve, scadenza, importanza, promemoria e nota, e i nomi delle liste. list: nome della lista (vuoto = tutte); done: true per vedere anche quelle fatte; limit: quante (predefinito 50).",
             json!({ "type": "object", "properties": {

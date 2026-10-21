@@ -127,9 +127,13 @@ chooses.
   tools; each call goes to the app over the named pipe and is run by
   `src-tauri/src/agent.rs`. Only read-only tools are pre-allowed; everything else asks
   Allow / Deny.
-- **Never** add to this server a tool that runs arbitrary commands, sends email or
-  deletes. The only way to run something is `run_quick_action`, i.e. an action the
-  user created. Real commands are run only by terminal mode, with Allow / Deny.
+- **Never** add to this server a tool that runs arbitrary commands on this PC, sends
+  email or deletes. Exceptions chosen by the maintainer: `notion_delete_row` (after a
+  yes in the chat) and `remote_run`, which runs commands only on the remote PC opened in
+  "Accesso remoto" (WinRM or SSH, nothing remembered) and linked to the chat, each one
+  with Allow / Deny. The only way to run something on this PC is `run_quick_action`,
+  i.e. an action the user created. Real commands are run only by terminal mode, with
+  Allow / Deny.
 
 ## Antigravity (Google)
 
@@ -150,7 +154,7 @@ chooses.
 ## Notion for every engine
 
 `notion_tools.rs` gives every engine with tools EasyIsland's own Notion connection:
-`notion_search`, `notion_read`, `notion_query`, `notion_add_row`, `notion_update_row`.
+`notion_search`, `notion_read`, `notion_query`, `notion_add_row`, `notion_update_row`, `notion_delete_row` (moves the row to Notion's trash, only after the user says yes in the chat).
 The database is found in the local map (`notion_map.rs`) and every value is checked
 against its properties before writing, so a row cannot end up outside its database.
 Reading runs freely; adding and changing ask Allow / Deny; nothing deletes.

@@ -70,6 +70,7 @@ mod i18n;
 mod webview_profile;
 mod recap;
 mod record;
+mod remote;
 mod renew;
 mod richtext;
 mod start_apps;
@@ -1115,6 +1116,11 @@ pub(crate) async fn chat_turn(
         Some(n) => format!("{n}{query}"),
         None => query,
     };
+    // Accesso remoto: the chat linked to a connection is told which PC (remote.rs).
+    let query = match remote::hint().filter(|_| !telegram && agent) {
+        Some(r) => format!("{r}{query}"),
+        None => query,
+    };
     // "Automatica" (the chat's switch): only with Modalità terminale.
     let auto = auto && terminal.is_some();
     if auto {
@@ -1581,8 +1587,27 @@ async fn refresh_integration(app: AppHandle, id: String) {
         media::ID => media::refresh(),
         teams::ID => teams::refresh(&app),
         record::ID => record::publish(&app),
+        remote::ID => remote::publish(&app),
         _ => integrations::poll_once(app, &id).await,
     }
+}
+
+// ── Accesso remoto (remote.rs) ───────────────────────────────────────────────
+
+#[tauri::command]
+async fn remote_connect(app: AppHandle, request: remote::Request) -> Result<(), String> {
+    remote::connect(&app, request).await
+}
+
+#[tauri::command]
+async fn remote_disconnect(app: AppHandle) -> Result<(), String> {
+    remote::disconnect(&app).await
+}
+
+/// The chat's 🔌: the chat works on the open connection, or stops.
+#[tauri::command]
+fn remote_link(app: AppHandle, on: bool) -> Result<(), String> {
+    remote::link(&app, on)
 }
 
 /// Appunti: put an entry back on the clipboard (transformed), and paste it.
@@ -2404,6 +2429,9 @@ pub fn run() {
             action_send_keys,
             teams_action,
             record_start,
+            remote_connect,
+            remote_disconnect,
+            remote_link,
             record_stop,
             record_windows,
             window_pick_drop,
@@ -2497,6 +2525,7 @@ pub fn run() {
             if let tauri::RunEvent::Exit = event {
                 opencode::shutdown();
                 claude_cli::shutdown();
+                remote::shutdown();
             }
         });
 }

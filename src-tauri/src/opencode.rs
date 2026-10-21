@@ -549,6 +549,10 @@ pub fn auto_ok(data: &Value) -> bool {
 /// A connector's tool that deletes, or sends something in the user's name
 /// (never without a click, CLAUDE.md): with "Automatica" it still asks.
 fn mcp_delicate(tool: &str) -> bool {
+    // A command on the remote PC (remote.rs) is never run without a click here.
+    if tool.ends_with("remote_run") {
+        return true;
+    }
     const WORDS: &[&str] = &["delete", "remove", "trash", "archive", "destroy", "drop", "purge", "erase", "clear",
         "send", "mail", "email", "reply", "forward", "publish", "post", "message", "invite", "share", "cancel"];
     let t = tool.to_ascii_lowercase();
