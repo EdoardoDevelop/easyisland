@@ -300,7 +300,9 @@ export async function runScene(island: Island, scene: string) {
         data: q.has("live")
           ? { connected: true, kind: "winrm", host: "192.168.1.20", user: "PC-RECEPTION\\admin", os: "windows", name: "PC-RECEPTION",
             system: "Microsoft Windows 11 Pro 10.0.22631", since: Date.now() - 120_000, trustedAdded: true, linked: q.has("linked") }
-          : { connected: false },
+          : q.has("error")
+            ? { connected: false, error: "Collegamento a 192.168.1.20 non riuscito: accesso negato. Controlla utente (NOMEPC\\utente) e password; con un amministratore locale diverso da Administrator serve LocalAccountTokenFilterPolicy (guida)." }
+            : { connected: false },
       };
       State.setFocus("integration_remote");
       State.summary = false;

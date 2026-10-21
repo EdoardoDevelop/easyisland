@@ -63,7 +63,41 @@ export async function toggleRemoteLink(): Promise<string | null> {
   }
 }
 
-interface Step { text: string; code?: string }
+/** `fix`: which failure it solves, shown under that error (problemOf). */
+interface Step { text: string; code?: string; fix?: Problem }
+type Problem = "trusted" | "denied" | "silent" | "refused" | "oldssh" | "name";
+
+/** What went wrong, from the error the card shows (remote.rs, in either language). */
+function problemOf(error: string): Problem | null {
+  const e = error.toLowerCase();
+  if (e.includes("trustedhosts")) return "trusted";
+  if (e.includes("accesso negato") || e.includes("access denied") || e.includes("permission denied")) return "denied";
+  if (e.includes("rifiuta") || e.includes("refuses")) return "refused";
+  if (e.includes("troppo vecchio") || e.includes("too old")) return "oldssh";
+  if (e.includes("sconosciuto") || e.includes("unknown pc name")) return "name";
+  if (e.includes("non risponde") || e.includes("does not answer") || e.includes("nessuna risposta") || e.includes("no answer")) return "silent";
+  return null;
+}
+
+/** Connecting from here, in order. */
+function howTo(kind: "winrm" | "ssh"): { title: string; steps: Step[] } {
+  const port = kind === "ssh" ? 22 : 5985;
+  return { title: t("Come collegarsi, passo passo"), steps: kind === "winrm" ? [
+    { text: t("Il PC del cliente deve essere raggiungibile da qui: stessa rete, o la VPN del cliente accesa. Controlla che risponda sulla porta di WinRM (metti il suo IP):"), code: `Test-NetConnection 192.168.1.20 -Port ${port}` },
+    { text: t("Se non risponde, sul PC del cliente WinRM non è acceso: preparalo come nella sezione qui sotto (con TeamViewer, RDP o facendolo fare al cliente). Basta una volta.") },
+    { text: t("Qui: «WinRM», l'indirizzo IP del PC, l'utente come NOMEPC\\utente (DOMINIO\\utente se è in un dominio) e la password. La porta lasciala vuota.") },
+    { text: t("Se il PC non è nel tuo dominio lascia spuntato «Aggiungi a TrustedHosts». Premi «Avvia connessione» e rispondi Sì alla richiesta di amministratore di Windows.") },
+    { text: t("Quando la scheda dice «Connesso» con il nome del PC, premi «Collega alla chat» (o 🔌 nella chat) e chiedi cosa fare, per esempio «controlla spazio su disco, servizi fermi ed errori di oggi». Ogni comando sul PC remoto ti chiede Consenti / Nega.") },
+    { text: t("Finito: «Chiudi connessione». Windows chiede di nuovo l'amministratore per togliere l'indirizzo da TrustedHosts.") },
+  ] : [
+    { text: t("Il PC del cliente deve essere raggiungibile da qui: stessa rete, o la VPN del cliente accesa. Controlla che risponda sulla porta SSH (metti il suo IP):"), code: `Test-NetConnection 192.168.1.20 -Port ${port}` },
+    { text: t("Se non risponde, sul PC del cliente il server SSH non è acceso: preparalo come nelle sezioni qui sotto (Windows o Linux). Basta una volta.") },
+    { text: t("Qui: «SSH», l'indirizzo IP del PC, l'utente e la password (vuota se usi una chiave). La porta solo se non è 22.") },
+    { text: t("Premi «Avvia connessione»: EasyIsland riconosce da solo se è Windows o Linux.") },
+    { text: t("Quando la scheda dice «Connesso» con il nome del PC, premi «Collega alla chat» (o 🔌 nella chat) e chiedi cosa fare, per esempio «controlla spazio su disco, servizi fermi ed errori di oggi». Ogni comando sul PC remoto ti chiede Consenti / Nega.") },
+    { text: t("Finito: «Chiudi connessione».") },
+  ] };
+}
 
 /** Prepare the remote PC, and what each failure means. Commands stay as they are. */
 function guide(kind: "winrm" | "ssh"): { title: string; steps: Step[] }[] {
@@ -82,10 +116,12 @@ function guide(kind: "winrm" | "ssh"): { title: string; steps: Step[] }[] {
           code: "$c = New-SelfSignedCertificate -DnsName $env:COMPUTERNAME -CertStoreLocation Cert:\\LocalMachine\\My\nNew-Item -Path WSMan:\\localhost\\Listener -Transport HTTPS -Address * -CertificateThumbPrint $c.Thumbprint -Force\nNew-NetFirewallRule -Name WINRM-HTTPS -DisplayName \"WinRM HTTPS\" -Protocol TCP -LocalPort 5986 -Action Allow" },
       ] },
       { title: t("Se non va"), steps: [
-        { text: t("«TrustedHosts»: spunta «Aggiungi a TrustedHosts» o usa HTTPS.") },
-        { text: t("«Accesso negato»: utente come NOMEPC\\utente, password, LocalAccountTokenFilterPolicy (sopra).") },
-        { text: t("Il PC non risponde: è acceso e raggiungibile (VPN)? Prova la porta da qui:"), code: "Test-NetConnection 192.168.1.20 -Port 5985" },
-        { text: t("Sul PC del cliente controlla il servizio e il listener:"), code: "Get-Service WinRM\nwinrm enumerate winrm/config/listener" },
+        { text: t("«TrustedHosts»: spunta «Aggiungi a TrustedHosts» o usa HTTPS."), fix: "trusted" },
+        { text: t("«Accesso negato»: controlla l'utente (NOMEPC\\utente) e la password. Se è un amministratore locale diverso da «Administrator», sul PC del cliente (PowerShell come amministratore):"),
+          code: "New-ItemProperty -Path HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System -Name LocalAccountTokenFilterPolicy -Value 1 -PropertyType DWord -Force", fix: "denied" },
+        { text: t("Il PC non risponde: è acceso e raggiungibile (VPN)? Prova la porta da qui:"), code: "Test-NetConnection 192.168.1.20 -Port 5985", fix: "silent" },
+        { text: t("Nome del PC sconosciuto: scrivi l'indirizzo IP al posto del nome."), fix: "name" },
+        { text: t("Sul PC del cliente controlla il servizio e il listener:"), code: "Get-Service WinRM\nwinrm enumerate winrm/config/listener", fix: "silent" },
       ] },
       { title: t("Alla fine, sul PC del cliente (se era solo per oggi)"), steps: [
         { text: "", code: "Disable-PSRemoting -Force\nStop-Service WinRM\nSet-Service WinRM -StartupType Disabled" },
@@ -104,10 +140,11 @@ function guide(kind: "winrm" | "ssh"): { title: string; steps: Step[] }[] {
       { text: t("Facoltativo: lascia entrare solo la tua rete."), code: "sudo ufw allow from 192.168.1.0/24 to any port 22" },
     ] },
     { title: t("Se non va"), steps: [
-      { text: t("«Accesso negato»: utente e password; sul PC deve essere permesso l'accesso con password:"), code: "PasswordAuthentication yes   # in /etc/ssh/sshd_config o C:\\ProgramData\\ssh\\sshd_config" },
-      { text: t("«Rifiutata»: il server SSH non è acceso, o ascolta su un'altra porta (scrivila nel campo Porta).") },
-      { text: t("Il PC non risponde: è acceso e raggiungibile (VPN)? Il firewall lascia passare la 22?"), code: "Test-NetConnection 192.168.1.20 -Port 22" },
-      { text: t("La password non viene chiesta (Windows 10 vecchi): aggiorna OpenSSH di questo PC, o usa una chiave."), code: "winget install Microsoft.OpenSSH.Preview" },
+      { text: t("«Accesso negato»: utente e password; sul PC deve essere permesso l'accesso con password:"), code: "PasswordAuthentication yes   # in /etc/ssh/sshd_config o C:\\ProgramData\\ssh\\sshd_config", fix: "denied" },
+      { text: t("«Rifiutata»: il server SSH non è acceso, o ascolta su un'altra porta (scrivila nel campo Porta)."), fix: "refused" },
+      { text: t("Il PC non risponde: è acceso e raggiungibile (VPN)? Il firewall lascia passare la 22?"), code: "Test-NetConnection 192.168.1.20 -Port 22", fix: "silent" },
+      { text: t("La password non viene chiesta (Windows 10 vecchi): aggiorna OpenSSH di questo PC, o usa una chiave."), code: "winget install Microsoft.OpenSSH.Preview", fix: "oldssh" },
+      { text: t("Nome del PC sconosciuto: scrivi l'indirizzo IP al posto del nome."), fix: "name" },
       { text: t("Le chiavi dei PC visti valgono solo per questa connessione e si cancellano alla chiusura: nessun avviso di «chiave cambiata» da un cliente all'altro.") },
     ] },
     { title: t("Alla fine, sul PC del cliente (se era solo per oggi)"), steps: [
@@ -117,7 +154,16 @@ function guide(kind: "winrm" | "ssh"): { title: string; steps: Step[] }[] {
   ];
 }
 
-const form = { kind: "winrm" as "winrm" | "ssh", host: "", port: "", user: "", https: false, trust: true, guide: false };
+/** The steps that solve this error; all of «Se non va» when it is not one of the known ones. */
+function fixesFor(kind: "winrm" | "ssh", error: string): Step[] {
+  const problem = problemOf(error);
+  const all = guide(kind).flatMap((p) => p.steps).filter((s) => s.fix);
+  if (!problem) return all;
+  const these = all.filter((s) => s.fix === problem);
+  return these.length ? these : all;
+}
+
+const form = { kind: "winrm" as "winrm" | "ssh", host: "", port: "", user: "", https: false, trust: true, guide: true };
 let panel: HTMLElement | null = null;
 let sync: (() => void) | null = null;
 let openChatFn: (() => void) | null = null;
@@ -165,6 +211,9 @@ export function remoteCard(openSettings: () => void, openChat: () => void): HTML
     h("div", { class: "nc-row" }, h("span", { class: "nc-label", text: t("Utente") }), user, pass),
     winrmOpts,
     h("div", { class: "nc-row rm-foot" }, startBtn, guideBtn),
+);
+  // Under the form, after the error and how to fix it: the note and the guide.
+  const guideArea = h("div", { class: "rm-form" },
     h("div", { class: "hint rec-hint", text: t("Niente viene salvato: indirizzo, utente e password restano in memoria finché chiudi la connessione.") }),
     guideBox);
 
@@ -206,14 +255,26 @@ export function remoteCard(openSettings: () => void, openChat: () => void): HTML
   const status = h("span");
   const head = h("div", { class: "int-head" }, brandOrDot(REMOTE, COLOR, 7), h("b", { text: t("Accesso remoto") }), status,
     h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: openSettings }));
-  const body = h("div", { class: "rec-body" }, formBox, liveBox, note);
+  // Under an error: how to solve that one (the matching steps of «Se non va»).
+  const fixBox = h("div", { class: "rm-fix" });
+  const body = h("div", { class: "rec-body" }, formBox, liveBox, note, fixBox, guideArea);
   panel = h("div", { class: "int-card notion-card rm-card" }, head, body);
 
+  const copyBtn = (code: string) => h("button", { class: "link-btn", style: `color:${COLOR}`, text: t("Copia"),
+    onclick: () => void navigator.clipboard.writeText(code).then(() => say(t("Copiato negli appunti ✓"), false), () => say(t("Copia non riuscita"))) });
+  const drawSteps = (box: HTMLElement, steps: Step[]) => {
+    steps.forEach((s, i) => {
+      if (s.text) box.append(h("div", { class: "rm-step" }, h("b", { class: "rm-num", text: `${i + 1}.` }), h("span", { text: s.text })));
+      if (s.code) box.append(h("div", { class: "rm-code" }, h("pre", { text: s.code }), copyBtn(s.code)));
+    });
+  };
   let guideKey = "";
+  let fixKey = "";
   sync = () => {
     const d = remoteData();
     const on = !!d.connected;
     formBox.style.display = on ? "none" : "";
+    guideArea.style.display = on ? "none" : "";
     liveBox.style.display = on ? "" : "none";
     status.textContent = d.busy ? t("Connessione in corso…") : on ? (d.linked ? t("Collegato alla chat") : t("Connesso")) : t("Nessuna connessione");
     kindA.classList.toggle("on", form.kind === "winrm");
@@ -232,16 +293,9 @@ export function remoteCard(openSettings: () => void, openChat: () => void): HTML
       guideKey = key;
       clear(guideBox);
       if (form.guide) {
-        for (const part of guide(form.kind)) {
+        for (const part of [howTo(form.kind), ...guide(form.kind)]) {
           guideBox.append(h("div", { class: "rm-guide-title", text: part.title }));
-          for (const s of part.steps) {
-            if (s.text) guideBox.append(h("div", { class: "rm-step", text: s.text }));
-            if (s.code) {
-              const code = s.code;
-              guideBox.append(h("div", { class: "rm-code" }, h("pre", { text: code }),
-                h("button", { class: "link-btn", style: `color:${COLOR}`, text: t("Copia"), onclick: () => void navigator.clipboard.writeText(code).then(() => say(t("Copiato negli appunti ✓"), false), () => say(t("Copia non riuscita"))) })));
-            }
-          }
+          drawSteps(guideBox, part.steps);
         }
       }
     }
@@ -260,6 +314,17 @@ export function remoteCard(openSettings: () => void, openChat: () => void): HTML
     note.textContent = shown;
     note.style.display = shown ? "" : "none";
     note.classList.toggle("bad", bad || (!message && !!d.error));
+    const failure = !on && !d.busy ? d.error ?? "" : "";
+    const fixes = failure ? fixesFor(form.kind, failure) : [];
+    const fk = fixes.length ? `${form.kind}:${failure}` : "";
+    if (fk !== fixKey) {
+      fixKey = fk;
+      clear(fixBox);
+      if (fixes.length) {
+        fixBox.append(h("div", { class: "rm-guide-title", text: t("Come risolvere") }));
+        drawSteps(fixBox, fixes);
+      }
+    }
   };
   sync();
   return panel;
