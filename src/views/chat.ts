@@ -96,12 +96,18 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
   // A reply arriving (OpenAI-compatible engines stream it, openai.rs).
   let streamEl: HTMLElement | null = null;
   let streamed = "";
-  const input = h("input", {
-    type: "text",
+  // Grows with the text up to a few lines, then scrolls (fit()).
+  // Enter sends, Shift+Enter starts a new line.
+  const input = h("textarea", {
     class: "chat-input",
+    rows: "1",
     placeholder: t("Chiedimi qualsiasi cosa…"),
     spellcheck: "false",
-  }) as HTMLInputElement;
+  }) as HTMLTextAreaElement;
+  function fit() {
+    input.style.height = "auto";
+    input.style.height = `${Math.min(input.scrollHeight, 160)}px`;
+  }
   const send = h("button", { class: "send-btn", title: t("Invia") }, svg(ICONS.arrowUp, 14));
   const fresh = h("button", { class: "new-chat-btn", title: t("Nuova chat (Ctrl+N)") }, svg(ICONS.plus, 12), h("span", { text: t("Nuova chat") }));
   const bar = h("div", { class: "chat-bar" }, fresh, input, send);
@@ -151,6 +157,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     if (!query || sending) return;
     if (override == null) {
       input.value = "";
+      fit();
       updateCalc();
     }
     sending = true;
@@ -315,6 +322,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     State.notify();
     onHeightChange();
     input.value = "";
+    fit();
     input.focus();
   }
 
@@ -489,11 +497,12 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
   });
   input.addEventListener("input", () => {
     updateCalc();
+    fit();
     onHeightChange();
   });
   input.addEventListener("keydown", (e) => {
     const k = e as KeyboardEvent;
-    if (k.key === "Enter") {
+    if (k.key === "Enter" && !k.shiftKey && !k.isComposing) {
       e.preventDefault();
       // A calculation: Enter copies the result, Ctrl+Enter still asks Claude.
       if (calcResult != null && !k.ctrlKey) void copyCalc();
@@ -584,6 +593,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
 
       if (State.chatDraft != null) {
         input.value = State.chatDraft;
+        fit();
         State.chatDraft = null;
         drafted = true;
         updateCalc();
@@ -591,6 +601,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       if (State.chatInsert != null) {
         const before = input.value.trimEnd();
         input.value = `${before}${before ? " " : ""}${State.chatInsert} `;
+        fit();
         State.chatInsert = null;
         drafted = true;
         updateCalc();
