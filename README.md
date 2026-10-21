@@ -59,6 +59,11 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.9.6** — **Accesso remoto**: un collegamento al volo al PC di un cliente con WinRM o SSH
+(Windows e Linux), senza salvare niente; con 🔌 la chat ci lavora, ogni comando con Consenti /
+Nega; guida passo passo per preparare il PC e pulizia alla chiusura. Le righe di **Notion** si
+eliminano anche dalla chat, dopo il tuo sì (finiscono nel cestino di Notion).
+
 **0.9.5** — **Hook in ogni shell**: senza Git Bash, Claude Code esegue gli hook con
 PowerShell e il comando di prima lo fermava a ogni strumento; ora va in Git Bash, PowerShell e cmd
 (Impostazioni → Agenti → Aggiorna). **Microsoft To Do** dalla chat, tramite Outlook classico:
@@ -306,7 +311,8 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
-| **0.9.5** | 20 ott 2026 | Hook in ogni shell (senza Git Bash), Microsoft To Do, isola aperta su un altro schermo |
+| **0.9.6** | 21 ott 2026 | Accesso remoto con WinRM e SSH per l'assistenza, righe di Notion eliminabili dalla chat |
+| 0.9.5 | 20 ott 2026 | Hook in ogni shell (senza Git Bash), Microsoft To Do, isola aperta su un altro schermo |
 | 0.9.4 | 20 ott 2026 | Chat più veloce: Claude Code acceso, Notion compatto con i totali, ricette, ragionamento visibile |
 | 0.9.3 | 19 ott 2026 | Notion per tutti i motori, strumenti in Antigravity e Claude API, Seconda opinione, /oggi e /domani |
 | 0.9.2 | 19 ott 2026 | Ferma nella chat e su Telegram, mappa di Notion per la chat |
@@ -689,6 +695,7 @@ Integrazioni c'è **Blocca lo spostamento**, per non spostarle per sbaglio, e
 | **Zammad** | ticket assegnati a te, non assegnati e in escalation; avvisa quando arriva un nuovo ticket da assegnare. Indirizzo e token di accesso (Profilo → Token di accesso, permesso `ticket.agent`) |
 | **Telegram** | la chat di EasyIsland nel tuo bot di Telegram (token da @BotFather, collegamento con un codice valido 10 minuti, poi per sempre e solo con la tua chat). Conversazione separata con motore e modello scelti da lì (`/motore`, `/modello`, `/nuova`, `/stato`); Consenti / Nega come pulsanti; foto e file nel Vassoio; i file della chat ti arrivano lì; `/vassoio` e `/cartella`. Solo con il PC acceso: i messaggi arrivati a EasyIsland chiuso si scartano |
 | **Outlook** | mail non lette e appuntamenti di oggi e domani da Outlook classico già aperto (non lo avvia mai); avvisa qualche minuto prima di una riunione. Il nuovo Outlook non è supportato |
+| **Accesso remoto** | un collegamento temporaneo al PC di un cliente con WinRM o SSH (Windows e Linux): indirizzo, utente e password solo in memoria, guida passo passo per prepararlo; con 🔌 la chat ci esegue i comandi, ognuno con Consenti / Nega. «Chiudi connessione» rimette a posto TrustedHosts |
 | **Stato del PC** | spazio sul disco di sistema (arancione sotto la soglia, 10 %, rosso sotto il 5 %), memoria, batteria, da quanto è acceso, riavvio richiesto da Windows. Pulsante **Copia info PC**: nome, utente, Windows, modello, numero di serie, IP e MAC negli appunti, pronti per un ticket |
 | **Sicurezza** | antivirus (Defender o un altro, dal Centro sicurezza di Windows), età delle firme, ultima scansione, firewall, minacce rilevate |
 | **Rete** | Wi-Fi o cavo, IP locale e pubblico (api.ipify.org, al massimo ogni 15 minuti), gateway e DNS, le altre schede di rete con i loro IP, VPN attive, latenza verso 1.1.1.1; avvisa se internet non risponde o è lento |

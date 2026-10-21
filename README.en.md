@@ -58,6 +58,11 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 
 ## What's new
 
+**0.9.6** — **Remote access**: a quick connection to a customer's PC with WinRM or SSH
+(Windows and Linux), nothing saved; with 🔌 the chat works on it, every command with Allow /
+Deny; a step-by-step guide to prepare the PC and a cleanup at the close. **Notion** rows can be
+deleted from the chat too, after your yes (they go to Notion's trash).
+
 **0.9.5** — **Hooks in every shell**: without Git Bash, Claude Code runs hooks through
 PowerShell and the previous command stopped it at every tool; now it works in Git Bash, PowerShell
 and cmd (Settings → Agents → Update). **Microsoft To Do** from the chat, through classic Outlook:
@@ -134,7 +139,8 @@ the browser's. **Overview** with large, faded logos in the corner of each tile.
 
 | Version | Date | What's new |
 |---|---|---|
-| **0.9.5** | 20 Oct 2026 | Hooks in every shell (no Git Bash needed), Microsoft To Do, open island on another screen |
+| **0.9.6** | 21 Oct 2026 | Remote access with WinRM and SSH for IT support, Notion rows deletable from the chat |
+| 0.9.5 | 20 Oct 2026 | Hooks in every shell (no Git Bash needed), Microsoft To Do, open island on another screen |
 | 0.9.4 | 20 Oct 2026 | Faster chat: Claude Code kept on, compact Notion with totals, recipes, visible reasoning |
 | 0.9.3 | 19 Oct 2026 | Notion for every engine, tools in Antigravity and Claude API, Second opinion, /oggi and /domani |
 | 0.9.2 | 19 Oct 2026 | Stop in the chat and on Telegram, Notion map for the chat |
@@ -404,6 +410,7 @@ Windows Credential Manager.
 | **Outlook** | unread mail and today's and tomorrow's appointments from classic Outlook; with a Microsoft account, from Microsoft 365 too |
 | **Microsoft Teams** | a meeting in progress, with microphone, video, raise hand, share and leave; presence and meetings with a Microsoft account |
 | **Remote Desktop Manager** | your connections, searchable from the island's search bar |
+| **Remote access** | a temporary connection to a customer's PC with WinRM or SSH (Windows and Linux): address, user and password in memory only, a step-by-step guide to prepare it; with 🔌 the chat runs commands there, each with Allow / Deny. "Close connection" puts TrustedHosts back |
 | **PC status** | disk space, memory, battery, uptime, pending restart; **Copy PC info** for a ticket |
 | **Security** | antivirus, signature age, last scan, firewall, threats |
 | **Network** | Wi-Fi or cable, local and public IP, gateways and DNS, every adapter, VPNs, latency, a continuous ping and **Edit network…** |
