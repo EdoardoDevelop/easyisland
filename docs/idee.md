@@ -82,6 +82,14 @@ Un riassunto amichevole, fatto dall'IA, di tutte le integrazioni (Notion, Outloo
 ## Strumenti di EasyIsland per gli altri motori via API (valutato il 19 ottobre 2026)
 Fatto per Anthropic con chiave (`docs/chat.md`); opencode li aveva già. Restano senza strumenti OpenRouter, OpenAI, Gemini, Ollama e LM Studio (`openai.rs`), salvo la Modalità terminale che li fa passare da opencode. Per farlo: stesso elenco (`hook/src/tool_list.rs`) come `tools`, le chiamate ricomposte dallo stream (`tool_calls`), il ciclo come in `claude.rs`; molti modelli locali o gratuiti non usano bene gli strumenti, quindi ripiego senza quando il modello li rifiuta (400) e un'opzione per spegnerli. Edoardo ha scelto il 19 ottobre 2026 di non farlo per ora.
 
+## Resoconti e preventivi con carta intestata (annotata il 21 ottobre 2026)
+- **Carta intestata = un Word dell'utente:** in Impostazioni uno o più `.docx`/`.dotx` (es. «Preventivo», «Resoconto intervento»), copiati in AppData e mai modificati. Si possono mettere segnaposto: `{cliente}`, `{data}`, `{numero}`, `{corpo}`.
+- **Strumento `create_document`:** l'IA passa il modello, il titolo, il cliente e le sezioni. L'app copia il modello senza toccare intestazione e piè di pagina e riempie il corpo o i segnaposto. Il risultato va nella cartella di lavoro e nel Vassoio, con Consenti / Nega.
+- **Il docx si fa senza nuove dipendenze:** è uno ZIP di XML, come per lo strumento ZIP.
+- **Preventivi:** l'IA passa solo le righe (descrizione, quantità, prezzo, IVA). Totali e IVA li calcola l'app, così l'IA non sbaglia i conti. Il numero progressivo lo tiene l'app.
+- **PDF:** con Word installato, conversione automatica senza aprirlo. Senza Word resta il `.docx`.
+- **Esclusi:** un editor di documenti nell'app e un generatore PDF fatto in casa.
+
 ## Altro
 - **Scheda esatta di Windows Terminal** per «Apri»: il relay legge il titolo della console e l'app seleziona la scheda con UI Automation. Da sperimentare con una sessione vera. Tolta dal Da fare il 9 ottobre: per ora non serve.
 - **Clic destro sui file in Esplora file** (prossimo passo, deciso l'11 ottobre 2026): una voce nel registro di Windows (`HKCU\Software\Classes\*\shell`) che passa il percorso all'app, scritta solo dopo la conferma di Edoardo. In Windows 11 finisce sotto «Mostra altre opzioni» (il menu nuovo vuole un pacchetto MSIX con `IExplorerCommand`). Per il testo selezionato c'è già il menu di `Win+Alt+A`.
