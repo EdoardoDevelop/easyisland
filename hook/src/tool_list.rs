@@ -193,6 +193,23 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
         (
+            "memory_search",
+            "Cerca nella memoria della chat: le note salvate e il diario delle domande passate (una riga per domanda, con data, motore, domanda e inizio della risposta), dalle più recenti. query: parole da trovare (tutte); month: \"AAAA-MM\" per un mese solo. Usalo quando l'utente si riferisce a qualcosa di una volta precedente.",
+            json!({ "type": "object", "properties": {
+                "query": { "type": "string" },
+                "month": { "type": "string" }
+            }, "required": ["query"] }),
+            true,
+        ),
+        (
+            "memory_note",
+            "Salva una nota nella memoria della chat (MEMORIA.md), che arriva all'inizio di ogni conversazione: una riga breve su ciò che vale anche le prossime volte (preferenze, clienti, persone, come si fa una cosa). Non salvare password, chiavi o dati sensibili. text: la nota.",
+            json!({ "type": "object", "properties": {
+                "text": { "type": "string" }
+            }, "required": ["text"] }),
+            true,
+        ),
+        (
             "todo_list",
             "Le attività di Microsoft To Do (da Outlook classico, che deve essere aperto), con id breve, scadenza, importanza, promemoria e nota, e i nomi delle liste. list: nome della lista (vuoto = tutte); done: true per vedere anche quelle fatte; limit: quante (predefinito 50).",
             json!({ "type": "object", "properties": {

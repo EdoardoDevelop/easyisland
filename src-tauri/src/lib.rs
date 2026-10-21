@@ -13,6 +13,7 @@ mod chat_log;
 mod claude_cli;
 mod clipboard;
 mod clipimage;
+mod memory;
 mod context;
 mod daily;
 mod devservers;
@@ -979,6 +980,19 @@ fn chat_key(engine: &str, model: &str, terminal: bool) -> String {
     if terminal { format!("{engine}:{model}:terminal") } else { format!("{engine}:{model}") }
 }
 
+/// The key `chat_turn` will use for `engine` with its default model (Telegram's /riprendi).
+pub(crate) fn chat_key_for(app: &AppHandle, engine: &str) -> String {
+    let shared = app.state::<Shared>();
+    let s = shared.settings.lock().unwrap();
+    chat_key(engine, &s.engine_models.get(engine).cloned().unwrap_or_default(), s.chat_terminal)
+}
+
+/// «/oggi» and «/domani» in the island's chat: the same question as on Telegram.
+#[tauri::command]
+fn chat_day_prompt(tomorrow: bool) -> String {
+    telegram::day_prompt(tomorrow)
+}
+
 /// "Modalità terminale": the folder the chat works in — the user's, if it
 /// exists, else their home.
 fn chat_folder(chosen: &str) -> std::path::PathBuf {
@@ -1098,7 +1112,16 @@ pub(crate) async fn chat_turn(
     // A new conversation with an engine that has tools: the map of Notion
     // (notion_map.rs) in front, so it does not search for the structure.
     let has_tools = terminal.is_some() || !(engine == "api" || openai::ENGINES.contains(&engine.as_str()));
-    let notion = if has_tools && chat.is_empty() && chat.cli_session().is_none() { notion_map::index(agent) } else { None };
+    let fresh = chat.is_empty() && chat.cli_session().is_none();
+    let notion = if has_tools && fresh { notion_map::index(agent) } else { None };
+    // The memory (memory.rs): its notes in front of a new conversation, with
+    // how to look further (memory_search) when the engine has the tools.
+    let (remember, instructions) = {
+        let s = shared.settings.lock().unwrap();
+        (s.chat_history, s.chat_instructions.trim().to_string())
+    };
+    let memory_tools = agent && (has_tools || engine == "api");
+    let memory = if remember && fresh { memory::preface(memory_tools) } else { None };
     // A reopened conversation the engine cannot resume: it rides in front of the question.
     let preamble = chat.take_preamble();
     let asked = query.clone();
@@ -1115,6 +1138,16 @@ pub(crate) async fn chat_turn(
     let query = match notion {
         Some(n) => format!("{n}{query}"),
         None => query,
+    };
+    let query = match &memory {
+        Some(m) => format!("{m}{query}"),
+        None => query,
+    };
+    // Impostazioni → Chat → Istruzioni (of the active profile), first of all.
+    let query = if fresh && !instructions.is_empty() {
+        format!("{}\n\n{query}", tf("[Istruzioni dell'utente per questa chat:\n{text}]", &[("text", &instructions)]))
+    } else {
+        query
     };
     // Accesso remoto: the chat linked to a connection is told which PC (remote.rs).
     let query = match remote::hint().filter(|_| !telegram && agent) {
@@ -1186,7 +1219,8 @@ pub(crate) async fn chat_turn(
     recipes::end(recipe_mark, &asked, reply.is_ok());
     match &reply {
         Ok(r) if shared.settings.lock().unwrap().chat_history => {
-            chat_log::record(chat, &engine, &asked, &r.text, if telegram { "Telegram · " } else { "" })
+            chat_log::record(chat, &engine, &asked, &r.text, if telegram { "Telegram · " } else { "" });
+            memory::diary(&engine, &asked, &r.text, telegram);
         }
         Ok(_) => {}
         Err(_) => {
@@ -1340,6 +1374,57 @@ fn chat_history_open(shared: State<'_, Shared>, chat: State<'_, Chat>, id: Strin
     Ok(opened)
 }
 
+/// Impostazioni → Chat → Memoria: how many notes and days.
+#[tauri::command]
+fn memory_info() -> memory::Info {
+    memory::info()
+}
+
+/// «/ricorda …» in the chat: a note for MEMORIA.md, without asking a model.
+#[tauri::command]
+fn memory_note(text: String) -> Result<String, String> {
+    memory::note(&text)
+}
+
+/// «/memoria», Impostazioni → «Apri»: MEMORIA.md in its editor (or the folder).
+#[tauri::command]
+fn memory_open(folder: bool) -> Result<(), String> {
+    let path = if folder { std::fs::create_dir_all(memory::dir()).map(|()| memory::dir()).map_err(|e| e.to_string())? } else { memory::ensure_main()? };
+    Command::new("explorer").arg(&path).spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
+/// The history list filtered by words (title and text).
+#[tauri::command]
+fn chat_history_search(query: String) -> Vec<chat_log::Summary> {
+    chat_log::search(&query)
+}
+
+#[tauri::command]
+fn chat_history_pin(id: String, pinned: bool) {
+    chat_log::set_pinned(&id, pinned);
+}
+
+/// «Modifica» / «Rigenera»: the conversation goes back to its first lines.
+#[tauri::command]
+fn chat_rewind(chat: State<'_, Chat>, keep: Vec<chat_log::Line>) {
+    let before = chat.cli_session();
+    chat_log::rewind(&chat, keep);
+    opencode::forget(before);
+}
+
+/// «Esporta»: the conversation as a Markdown file in the Vassoio.
+#[tauri::command]
+fn chat_export(title: String, lines: Vec<chat_log::Line>) -> Result<DroppedFile, String> {
+    let mut text = format!("# {}\n\n", title.trim());
+    for l in &lines {
+        let who = if l.role == "user" { t("Tu") } else { t("Assistente") };
+        text.push_str(&format!("**{who}:**\n\n{}\n\n---\n\n", l.content.trim()));
+    }
+    let safe: String = title.chars().filter(|c| !r#"\/:*?"<>|"#.contains(*c)).take(60).collect();
+    let name = format!("{} - {}.md", t("Chat"), safe.trim());
+    files::save_new(&name, text.as_bytes())
+}
+
 #[tauri::command]
 fn chat_history_delete(id: String) {
     chat_log::delete(&id);
@@ -1391,6 +1476,27 @@ async fn claude_cli_status() -> claude_cli::CliStatus {
 /// Copies a dropped file into the inbox and reports its name back. Off the
 /// main thread: a sync command runs there, and copying a file of a few GB
 /// froze the whole island ("not responding") until it was done.
+/// Ctrl+V in the chat's field: the files copied in Explorer (the first one
+/// that is a file), else the picture on the clipboard as a PNG in the inbox.
+/// None when the clipboard has neither (then the text is pasted as usual).
+#[tauri::command]
+async fn chat_paste() -> Result<Option<DroppedFile>, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        if let Some(path) = clipimage::files().into_iter().find(|p| std::path::Path::new(p).is_file()) {
+            return files::ingest(&path).map(Some);
+        }
+        if !clipimage::has_image() {
+            return Ok(None);
+        }
+        let Some(img) = clipimage::read() else { return Ok(None) };
+        let png = clipimage::encode_png(&img)?;
+        let name = format!("{}.png", t("Immagine incollata"));
+        files::save_new(&name, &png).map(Some)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 async fn ingest_file(path: String) -> Result<DroppedFile, String> {
     tauri::async_runtime::spawn_blocking(move || files::ingest(&path)).await.map_err(|e| e.to_string())?
@@ -2306,6 +2412,15 @@ pub fn run() {
             widget_refresh,
             widget_results,
             ingest_file,
+            chat_paste,
+            chat_day_prompt,
+            memory_info,
+            memory_note,
+            memory_open,
+            chat_history_search,
+            chat_history_pin,
+            chat_rewind,
+            chat_export,
             capture_begin,
             capture_frame,
             capture_show,

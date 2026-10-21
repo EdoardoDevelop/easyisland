@@ -1805,6 +1805,23 @@ ${note}` : text };
           return;
         }
         void Bridge.isFolder(path).then((folder) => {
+          // Into a conversation going on: the file joins it (sent with the
+          // next question) instead of starting a new one.
+          const before = this.beforeDrop;
+          if (!folder && before?.view === "prompt" && before.mode === "expanded" && State.chatHistory.length > 0 && !State.chatSession) {
+            this.restoreAfterDrag();
+            void Bridge.ingestFile(path)
+              .then((f) => {
+                State.chatAttach = { name: f.name, path: f.path };
+                Sound.play("approve");
+                State.notify();
+              })
+              .catch((err) => {
+                State.noteMessage = String(err).replace(/^Error:\s*/, "");
+                this.setView("note");
+              });
+            return;
+          }
           if (!folder) {
             this.beforeDrop = null;
             this.swallow(path);

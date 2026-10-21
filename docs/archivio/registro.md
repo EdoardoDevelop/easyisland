@@ -2,6 +2,11 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 19 ottobre 2026 — Conti di Notion uguali tra i motori, ragionamento di opencode su Telegram
+- Segnalato da Edoardo: con opencode la risposta non arrivava (fermata dopo 2 minuti), e Claude e opencode davano dati diversi. `notion_query` dava solo le 50 righe più recenti, senza filtri: ora accetta `filter` e `sorts` di Notion, legge fino a 200 righe e dice se sono tutte; l'indice della mappa chiede un solo modo per risposta e niente script per i conti.
+- Su Telegram opencode in «modalità codice» mostrava solo «Esegue uno script»: ora sotto la risposta in corso c'è la coda del suo ragionamento (💭), che sparisce quando scrive o usa uno strumento (`opencode.rs`). Lo stesso per Claude Code (`claude_cli.rs`): ogni turno ora arriva man mano (`stream-json`), anche fuori dalla Modalità terminale, con il ragionamento quando Claude Code lo manda. Verificato il 20 ottobre: Claude e opencode danno lo stesso totale di ottobre (1.679,45 €, ricontato dalle righe di Notion).
+- **Prove:** `cargo test --workspace`, prova dal vivo di `notion_query` con un filtro per data. Da riprovare la stessa domanda con Claude e opencode.
+
 ### 19 ottobre 2026 — Allineamento con le segnalazioni, /oggi e /domani, versione 0.9.3
 - Versione **0.9.3** con le voci del 19 ottobre dopo la 0.9.2; README, README.en.md e homepage aggiornati.
 - Riletto l'elenco delle segnalazioni dalla prova e allineato con questo file e `docs/`: aggiunti il bug degli occhi nello stato felice (Problemi noti), la giornata di oggi e domani (Da fare, priorità alta, `docs/idee.md`) e TeamViewer tra le idee.

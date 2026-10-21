@@ -1218,6 +1218,115 @@ input[type="range"]::-webkit-slider-thumb {
   background: rgba(244, 80, 94, 0.14);
 }
 
+/* History: search on top, 📌 to keep a conversation first. */
+.history-search {
+  flex: 0 0 auto;
+  margin: 2px 6px 6px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  font: 400 12px var(--font);
+  outline: none;
+}
+.history-rows { display: flex; flex-direction: column; gap: 1px; }
+.history-pin {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: var(--dim-2);
+  background: transparent;
+  opacity: 0;
+}
+.history-item:hover .history-pin, .history-pin.on { opacity: 1; }
+.history-pin.on { color: #fbbf24; }
+.history-pin:hover { background: rgba(255, 255, 255, 0.1); }
+
+/* Under a message: Copia, Modifica, Rigenera (on hover; always under the last). */
+.chat-row.with-actions { flex-direction: column; }
+.chat-row.user.with-actions { align-items: flex-end; }
+.msg-actions {
+  display: flex;
+  gap: 2px;
+  height: 18px;
+  margin-top: 1px;
+  opacity: 0;
+  transition: opacity 0.12s ease-out;
+}
+.chat-row:hover .msg-actions, .msg-actions.last { opacity: 1; }
+.msg-act {
+  padding: 0 7px;
+  border: 0;
+  border-radius: 6px;
+  font: 500 10.5px var(--font);
+  color: var(--dim-2);
+  background: transparent;
+}
+.msg-act:hover { color: var(--ink); background: rgba(255, 255, 255, 0.1); }
+.bubble-file { font: 500 11px var(--font); color: #a5b4fc; margin-bottom: 2px; }
+
+/* Scrolled up while text arrives: ↓ goes back down. */
+.chat-jump {
+  position: absolute;
+  right: 20px;
+  bottom: 58px;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  font: 600 13px var(--font);
+  color: var(--ink);
+  background: rgba(40, 42, 50, 0.95);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), inset 0 0 0 1px var(--hairline);
+}
+
+/* "/" in the field: the commands, over it. */
+.slash-menu {
+  position: absolute;
+  z-index: 3;
+  left: max(16px, calc(84px * var(--bot-room, 1)));
+  right: 16px;
+  bottom: 58px;
+  max-height: 60%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px;
+  border-radius: 10px;
+  background: rgba(30, 32, 38, 0.98);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), inset 0 0 0 1px var(--hairline);
+}
+.slash-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 7px;
+  text-align: left;
+  background: transparent;
+  font: 400 11.5px var(--font);
+  color: var(--dim-2);
+}
+.slash-item b { font-weight: 600; color: var(--ink); }
+.slash-item.on, .slash-item:hover { background: rgba(129, 140, 248, 0.2); }
+
+/* A line over the field: editing a question, a note saved, an error. */
+.chat-hint {
+  padding: 3px 10px;
+  font: 400 11px var(--font);
+  color: #c7d2fe;
+}
+
 .engine-note {
   padding: 5px 10px 3px;
   font: 400 10.5px var(--font);
@@ -1600,6 +1709,8 @@ input[type="range"]::-webkit-slider-thumb {
   cursor: default;
   transition: transform 0.08s ease-out;
 }
+
+.send-btn.stop { background: #f4505e; color: #fff; }
 
 .send-btn:active {
   transform: scale(0.94);

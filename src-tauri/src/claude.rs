@@ -146,6 +146,11 @@ impl Chat {
         *self.preamble.lock().unwrap() = preamble;
     }
 
+    /// What `use_engine` was last given (engine, model, terminal mode).
+    pub(crate) fn engine_key(&self) -> String {
+        self.engine.lock().unwrap().clone()
+    }
+
     pub(crate) fn log_id(&self) -> Option<String> {
         self.log_id.lock().unwrap().clone()
     }
@@ -293,9 +298,9 @@ pub async fn send_with(
 
     let mut content: Vec<Value> = Vec::new();
 
-    // File / window context rides along with the first message only, exactly
-    // like ClaudeService.chat().
-    if chat.is_empty() {
+    // File / window context: with the first message, or a file added later
+    // (pasted in the chat, sent on Telegram) — the front end decides.
+    {
         match &context {
             Some(ChatContext::File { name, path }) => {
                 if let Some(block) = file_block(path) {

@@ -308,6 +308,7 @@ pub const PROFILE_KEYS: &[&str] = &[
     "hoverSize",
     "compactStrip",
     "appBar",
+    "chatInstructions",
     "appBarLook",
     "appBarMax",
     "appBarName",
@@ -702,6 +703,10 @@ pub struct Settings {
     /// Its working folder; "" = the user's home.
     #[serde(default)]
     pub chat_folder: String,
+    /// Impostazioni → Chat → Istruzioni: in front of every new conversation.
+    /// Of the profile (PROFILE_KEYS): "Cliente Rossi" can carry its own.
+    #[serde(default)]
+    pub chat_instructions: String,
     /// opencode 2's sessions in the island, read from its background service
     /// (opencode_agent.rs). Belongs to the PC; off by default.
     #[serde(default)]
@@ -927,6 +932,7 @@ impl Default for Settings {
             agent_tools: true,
             chat_terminal: false,
             chat_folder: String::new(),
+            chat_instructions: String::new(),
             opencode_watch: false,
             automations: Vec::new(),
             habits_enabled: false,

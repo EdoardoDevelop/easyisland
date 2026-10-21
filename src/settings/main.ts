@@ -5,7 +5,7 @@
 import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
-import { Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
+import { type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
 import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationCondition, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
@@ -443,7 +443,9 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
       h("label", { text: t("Azioni sul PC") }),
       toggle(settings.agentTools !== false, (v) => { settings.agentTools = v; void save(); }),
       h("span", { class: "hint note", text: t("programmi, cartelle, link, le tue azioni rapide, lo stato di PC, rete, posta e ticket. Ogni azione che cambia qualcosa chiede Consenti / Nega nell'isola") })),
+    instructionsRow(),
     recipesRow(),
+    memoryRow(),
     connectorsBlock(),
   );
 
@@ -1539,6 +1541,45 @@ function notionRows(): HTMLElement {
   return box;
 }
 
+/** Chat → "Istruzioni": what every new conversation is told first; of the active profile. */
+function instructionsRow(): HTMLElement {
+  const area = h("textarea", {
+    class: "instructions",
+    rows: "3",
+    placeholder: t("Es. Rispondi breve. Sono un tecnico informatico, i miei clienti sono piccoli uffici. Per i preventivi usa l'IVA al 22%."),
+  }) as HTMLTextAreaElement;
+  area.value = settings.chatInstructions ?? "";
+  let timer = 0;
+  area.addEventListener("input", () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      settings.chatInstructions = area.value;
+      void save();
+    }, 400);
+  });
+  return h("div", { style: "display:flex;flex-direction:column;gap:4px" },
+    h("div", { class: "row" },
+      h("label", { text: t("Istruzioni") }),
+      h("span", { class: "hint note", text: t("dette alla chat all'inizio di ogni conversazione. Valgono per il profilo attivo: ogni profilo (es. un cliente) può avere le sue") })),
+    area);
+}
+
+/** Chat → "Memoria" (memory.rs): the notes every conversation gets, the diary, and opening them. */
+function memoryRow(): HTMLElement {
+  const line = h("span", { class: "hint note", style: "flex:1 1 auto;min-width:0" });
+  const show = (m: MemoryInfo | null) => {
+    line.textContent = settings.chatHistory === false
+      ? t("spenta insieme alla cronologia")
+      : t("{n} note che la chat ricorda in ogni conversazione, {d} giorni nel diario. File .md su questo PC: puoi modificarli", { n: m?.notes ?? 0, d: m?.days ?? 0 });
+  };
+  const open = h("button", { text: t("Apri MEMORIA.md") }) as HTMLButtonElement;
+  open.addEventListener("click", () => void Bridge.memoryOpen(false));
+  const folder = h("button", { text: t("Cartella") }) as HTMLButtonElement;
+  folder.addEventListener("click", () => void Bridge.memoryOpen(true));
+  void Bridge.memoryInfo().then(show);
+  return h("div", { class: "row" }, h("label", { text: t("Memoria") }), line, open, folder);
+}
+
 /** Chat → "Ricette": how a kind of question was answered, learnt by use (recipes.rs). */
 function recipesRow(): HTMLElement {
   const line = h("span", { class: "hint note", style: "flex:1 1 auto;min-width:0" });
@@ -2246,7 +2287,7 @@ function profileChip(): HTMLElement {
 const PROFILE_KEYS = [
   "activeIntegrations", "anchorV", "anchorH", "offsetX", "offsetY", "glueEdges", "overTaskbar",
   "closeButton", "followCursorCompact", "presenceMeeting", "presenceRemote", "presenceApps", "presenceMode", "iconStyle", "iconSize", "hoverStyle",
-  "hoverSize", "compactStrip", "appBar", "appBarLook", "appBarMax", "appBarName", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
+  "hoverSize", "compactStrip", "appBar", "chatInstructions", "appBarLook", "appBarMax", "appBarName", "openDelay", "revealDuration", "quietFullscreen", "soundEnabled",
   "soundVolume", "autoCloseInterval", "theme", "notify", "reactions", "actions", "widgets", "mcpServers",
 ] as const;
 

@@ -256,6 +256,7 @@ async fn hello(token: &str) -> Result<String, String> {
         { "command": "motore", "description": t("Scegli il motore della chat") },
         { "command": "modello", "description": t("Scegli il modello del motore") },
         { "command": "nuova", "description": t("Nuova conversazione") },
+        { "command": "riprendi", "description": t("Continua qui l'ultima chat dell'isola") },
         { "command": "stop", "description": t("Ferma la risposta in corso") },
         { "command": "oggi", "description": t("La tua giornata di oggi") },
         { "command": "domani", "description": t("La tua giornata di domani") },
@@ -425,6 +426,7 @@ fn help() -> String {
         t("/motore — scegli il motore (solo per questa conversazione)"),
         t("/modello — scegli il modello"),
         t("/nuova — nuova conversazione"),
+        t("/riprendi — continua qui l'ultima conversazione della chat dell'isola"),
         t("/stop — ferma la risposta in corso (anche ⏹ Ferma sotto la risposta)"),
         t("/oggi e /domani — la giornata: appuntamenti, posta, ticket, attività di Notion, meteo"),
         t("/stato — motore, modello e modalità"),
@@ -438,7 +440,7 @@ fn help() -> String {
 
 /// /oggi and /domani (asked by Edoardo: the day, from the integrations, in a
 /// friendly way). The engine gathers it with the easyisland tools.
-fn day_prompt(tomorrow: bool) -> String {
+pub(crate) fn day_prompt(tomorrow: bool) -> String {
     let when = if tomorrow { t("domani") } else { t("oggi") };
     tf(
         "Fammi il punto della mia giornata di {when}, in modo amichevole e breve. Usa gli strumenti di easyisland: list_status (appuntamenti e posta di Outlook, ticket, meteo, PC) e, se c'è Notion, notion_query sui database di attività per quelle con scadenza {when} e quelle scadute non ancora fatte, e todo_list per le attività di To Do. Prima le cose da fare, con l'ora se c'è, poi il resto in poche righe. Se uno strumento non c'è o non risponde, salta quella parte senza dirlo a lungo. Non cambiare niente.",
@@ -454,6 +456,33 @@ async fn command(app: &AppHandle, token: &str, chat: i64, cmd: &str) {
     match name.as_str() {
         "start" | "aiuto" | "help" => {
             let _ = send(token, chat, &help(), None).await;
+        }
+        // The island's last conversation, carried on here (asked on 21 October 2026).
+        "riprendi" | "resume" => {
+            if BUSY.load(Ordering::SeqCst) {
+                let _ = send(token, chat, t("Aspetta la fine della risposta in corso."), None).await;
+                return;
+            }
+            let Some(last) = crate::chat_log::list().into_iter().max_by_key(|c| c.updated) else {
+                let _ = send(token, chat, t("Non c'è nessuna conversazione da riprendere."), None).await;
+                return;
+            };
+            reset_conversation();
+            let key = crate::chat_key_for(app, &last.engine);
+            match crate::chat_log::open(&CHAT, &last.id, &key) {
+                Ok(opened) => {
+                    *PICK.lock().unwrap() = Pick { engine: Some(opened.engine.clone()), model: None };
+                    let answer = opened.lines.iter().rev().find(|l| l.role == "assistant").map(|l| l.content.clone()).unwrap_or_default();
+                    let text = tf(
+                        "Ripresa «{title}» ({n} domande). L'ultima risposta:\n\n{answer}\n\nContinua da qui.",
+                        &[("title", &last.title), ("n", &last.turns), ("answer", &tail(&answer, 1500))],
+                    );
+                    let _ = send(token, chat, &text, None).await;
+                }
+                Err(e) => {
+                    let _ = send(token, chat, &e, None).await;
+                }
+            }
         }
         "nuova" | "new" => {
             if BUSY.load(Ordering::SeqCst) {

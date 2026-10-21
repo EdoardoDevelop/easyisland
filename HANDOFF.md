@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 21 ottobre 2026. Versione **0.9.6** in `main` con il tag `v0.9.6` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 21 ottobre 2026. Versione **0.9.6** in `main` con il tag `v0.9.6` (la CI pubblica l'installer). Su `claude/sviluppo`, non ancora in una versione: chat più comoda e memoria. Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -12,6 +12,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **3CX + Zammad:** ticket del cliente sulla chiamata in arrivo (`docs/idee.md`).
 - [ ] **Notion, seconda parte:** «Manda a Notion», scheda cliente su 3CX/Zammad, avviso delle scadenze (`docs/idee.md`).
 - [ ] **Account Microsoft (API):** predisposto (accesso, Outlook e Teams con Graph); da provare registrando l'app in Entra (`docs/prove-dal-vivo.md`), poi avvisi di mail nuove, chat, automazioni (`docs/integrazioni.md`).
+- [ ] **Chat nuova e memoria:** fatte nel codice; da provare con i motori veri e da guardare dopo qualche giorno d'uso (`docs/prove-dal-vivo.md`).
 - [ ] **Accesso remoto:** fatto nel codice; collegamento vero con WinRM e SSH (Windows e Linux) da provare su un PC di un cliente (`docs/prove-dal-vivo.md`).
 - [ ] **Remote Desktop Manager:** predisposto; prova la settimana prossima sul PC con RDM (`docs/prove-dal-vivo.md`), poi i passi in `docs/idee.md`.
 - [ ] **Clic destro in Esplora file:** voci di EasyIsland sui file («Manda a EasyIsland», azioni sui file), deciso con Edoardo l'11 ottobre come passo successivo al menu sulla selezione (`docs/idee.md`).
@@ -28,6 +29,16 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 21 ottobre 2026 — Chat più comoda e memoria in timeline
+- Chiesto da Edoardo: rendere la chat più comoda di Claude Code da terminale.
+  - Campo su più righe, con la bozza che resta. ↑ riprende l'ultima domanda.
+  - Ctrl+V e trascinamento di file a conversazione avviata.
+  - Copia, Modifica e ↻ Rigenera sotto i messaggi.
+  - Comandi con `/`, comprese le azioni rapide.
+  - Cronologia con ricerca e 📌, Esporta in Markdown, Istruzioni per profilo, `/riprendi` su Telegram.
+- Memoria (`memory.rs`): `MEMORIA.md` davanti a ogni conversazione, diario mensile scritto dall'app senza token, `memory_search` e `memory_note`. Dettagli in `docs/chat.md`.
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, scene `chat` e `chat&history` nell'anteprima. Da provare dal vivo con i motori veri (`docs/prove-dal-vivo.md`).
 
 ### 21 ottobre 2026 — Accesso remoto (WinRM e SSH) per l'assistenza, versione 0.9.6
 - Versione **0.9.6** con questa voce e la precedente; README, README.en.md e homepage aggiornati.
@@ -51,7 +62,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - «Quanto ho speso a ottobre» con Claude: 28,7 s → 11,2 s, risposta giusta (1.679,45 €, ricontata dalle righe).
 - **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`; dal vivo `live_speed`, `live_kept` (messaggi di fila, processo morto, Ferma, uscita, con e senza strumenti, nessun processo rimasto) e `notion_tools::tests::live`. Da provare dall'isola e da Telegram (`docs/prove-dal-vivo.md`).
 
-### 19 ottobre 2026 — Conti di Notion uguali tra i motori, ragionamento di opencode su Telegram
-- Segnalato da Edoardo: con opencode la risposta non arrivava (fermata dopo 2 minuti), e Claude e opencode davano dati diversi. `notion_query` dava solo le 50 righe più recenti, senza filtri: ora accetta `filter` e `sorts` di Notion, legge fino a 200 righe e dice se sono tutte; l'indice della mappa chiede un solo modo per risposta e niente script per i conti.
-- Su Telegram opencode in «modalità codice» mostrava solo «Esegue uno script»: ora sotto la risposta in corso c'è la coda del suo ragionamento (💭), che sparisce quando scrive o usa uno strumento (`opencode.rs`). Lo stesso per Claude Code (`claude_cli.rs`): ogni turno ora arriva man mano (`stream-json`), anche fuori dalla Modalità terminale, con il ragionamento quando Claude Code lo manda. Verificato il 20 ottobre: Claude e opencode danno lo stesso totale di ottobre (1.679,45 €, ricontato dalle righe di Notion).
-- **Prove:** `cargo test --workspace`, prova dal vivo di `notion_query` con un filtro per data. Da riprovare la stessa domanda con Claude e opencode.

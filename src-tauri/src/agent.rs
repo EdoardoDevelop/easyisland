@@ -87,6 +87,8 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "notion_delete_row" => crate::notion_tools::delete_row(arg(args, "page"), args.get("confirmed").and_then(Value::as_bool) == Some(true)).await,
         "remote_status" => crate::remote::status(),
         "remote_run" => crate::remote::run(arg(args, "command"), args.get("timeout").and_then(Value::as_u64)).await,
+        "memory_search" => crate::memory::search(arg(args, "query"), arg(args, "month")),
+        "memory_note" => crate::memory::note(arg(args, "text")),
         "todo_list" => crate::todo::list(args).await,
         "todo_add" => crate::todo::add(args).await,
         "todo_update" => crate::todo::update(args).await,

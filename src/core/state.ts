@@ -228,6 +228,8 @@ export interface ChatMessage {
   engine?: string;
   /** A second opinion: the name of the engine that gave it. */
   reviewer?: string;
+  /** A file added to this question (pasted or dropped during the conversation). */
+  file?: string;
 }
 
 export type PromptContext =
@@ -493,6 +495,8 @@ export interface Settings {
   chatTerminal?: boolean;
   /** Its working folder; "" = the user's home. */
   chatFolder?: string;
+  /** In front of every new conversation; of the profile (PROFILE_KEYS). */
+  chatInstructions?: string;
   /** opencode 2's sessions in the island, from its background service (opencode_agent.rs). Of the PC. */
   opencodeWatch?: boolean;
   /** "Quando… allora…" rules, run by src-tauri/src/automations.rs. */
@@ -945,6 +949,7 @@ export const DEFAULT_SETTINGS: Settings = {
   agentTools: true,
   chatTerminal: false,
   chatFolder: "",
+  chatInstructions: "",
   opencodeWatch: false,
   automations: [],
   habitsEnabled: false,
@@ -1034,6 +1039,8 @@ class AppState {
   windowPick: { over: string } | null = null;
   /** Put in the chat field once, not sent (an action with no selection: the text goes after it). */
   chatDraft: string | null = null;
+  /** A file added to a conversation going on (dropped or pasted): sent with the next question. */
+  chatAttach: { name: string; path: string } | null = null;
   /** Added once to the chat field, after what is there (a folder the character was dropped on). */
   chatInsert: string | null = null;
   /**

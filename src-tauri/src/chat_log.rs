@@ -41,6 +41,8 @@ struct Conversation {
     id: String,
     title: String,
     engine: String,
+    /// 📌 in the list: kept on top and never dropped by the cap.
+    pinned: bool,
     /// Unix milliseconds.
     created: i64,
     updated: i64,
@@ -58,6 +60,7 @@ pub struct Summary {
     pub engine: String,
     pub updated: i64,
     pub turns: usize,
+    pub pinned: bool,
 }
 
 /// A conversation reopened: the island shows `lines` and keeps using `engine`.
@@ -119,10 +122,15 @@ impl Store {
         c.lines.push(Line { role: "user".into(), content: query.into() });
         c.lines.push(Line { role: "assistant".into(), content: reply.into() });
         c.messages = messages;
-        // Most recent first; the oldest beyond the cap go.
+        // Most recent first; the oldest beyond the cap go, never a pinned one.
         let c = self.list.remove(pos);
         self.list.insert(0, c);
-        self.list.truncate(MAX_CONVERSATIONS);
+        while self.list.len() > MAX_CONVERSATIONS {
+            match self.list.iter().rposition(|c| !c.pinned) {
+                Some(i) => { self.list.remove(i); }
+                None => break,
+            }
+        }
     }
 }
 
@@ -195,13 +203,76 @@ pub fn record(chat: &Chat, engine: &str, query: &str, reply: &str, prefix: &str)
     });
 }
 
+fn summary(c: &Conversation) -> Summary {
+    Summary { id: c.id.clone(), title: c.title.clone(), engine: c.engine.clone(), updated: c.updated, turns: c.lines.len() / 2, pinned: c.pinned }
+}
+
+/// Pinned first, then most recent first.
 pub fn list() -> Vec<Summary> {
     with_store(|s| {
-        s.list
-            .iter()
-            .map(|c| Summary { id: c.id.clone(), title: c.title.clone(), engine: c.engine.clone(), updated: c.updated, turns: c.lines.len() / 2 })
-            .collect()
+        let mut out: Vec<Summary> = s.list.iter().map(summary).collect();
+        out.sort_by_key(|c| !c.pinned);
+        out
     })
+}
+
+/// The conversations whose title or text has every word of `query` (no case).
+pub fn search(query: &str) -> Vec<Summary> {
+    let words: Vec<String> = query.split_whitespace().map(str::to_lowercase).collect();
+    if words.is_empty() {
+        return list();
+    }
+    with_store(|s| {
+        let mut out: Vec<Summary> = s
+            .list
+            .iter()
+            .filter(|c| {
+                let mut text = c.title.to_lowercase();
+                for l in &c.lines {
+                    text.push('\n');
+                    text.push_str(&l.content.to_lowercase());
+                }
+                words.iter().all(|w| text.contains(w.as_str()))
+            })
+            .map(summary)
+            .collect();
+        out.sort_by_key(|c| !c.pinned);
+        out
+    })
+}
+
+pub fn set_pinned(id: &str, pinned: bool) {
+    with_store(|s| {
+        if let Some(c) = s.list.iter_mut().find(|c| c.id == id) {
+            c.pinned = pinned;
+            s.save();
+        }
+    });
+}
+
+/// «Modifica» or «Rigenera» in the chat: the conversation goes back to its
+/// first `keep` lines (in the history too) and the engine starts a new
+/// conversation with them as text in front of the next question.
+pub fn rewind(chat: &Chat, keep: Vec<Line>) {
+    let key = chat.engine_key();
+    let mut id = chat.log_id();
+    if let Some(i) = id.clone() {
+        let n = keep.len();
+        with_store(|s| {
+            if n == 0 {
+                s.list.retain(|c| c.id != i);
+            } else if let Some(c) = s.list.iter_mut().find(|c| c.id == i) {
+                c.lines.truncate(n);
+                c.messages.clear();
+            }
+            s.save();
+        });
+        if n == 0 {
+            id = None;
+        }
+    }
+    let preamble = (!keep.is_empty()).then(|| preamble(&keep));
+    chat.restore(&key, Vec::new(), id, preamble);
 }
 
 /// Puts the conversation back in `chat`, ready for the next question.
@@ -270,6 +341,18 @@ mod tests {
         assert_eq!(s.list[0].lines.len(), 4);
         assert_eq!(s.list[0].messages.len(), 1);
         assert_eq!(s.list[1].id, "b");
+    }
+
+    #[test]
+    fn pinned_survive_the_cap() {
+        let mut s = store();
+        s.record("keep", "api", "q", "r", vec![], 0);
+        s.list[0].pinned = true;
+        for i in 0..MAX_CONVERSATIONS + 5 {
+            s.record(&i.to_string(), "api", "q", "r", vec![], i as i64 + 1);
+        }
+        assert_eq!(s.list.len(), MAX_CONVERSATIONS);
+        assert!(s.list.iter().any(|c| c.id == "keep"));
     }
 
     #[test]

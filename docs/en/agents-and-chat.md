@@ -168,3 +168,7 @@ Under the last answer, in the island and on Telegram, "⇄ Second opinion" lets 
 engine review the last question and answer: one turn of its own, without EasyIsland's
 tools, stoppable. Its text is shown as its own message and goes in front of the next
 question to the main engine. No automatic dialogue between engines.
+
+## Chat comfort and memory (`memory.rs`, 21 October 2026)
+- Multi-line field (Enter sends, Shift+Enter new line, the draft survives a restart), ↑ recalls the last question, Ctrl+V or a drop adds a file to a conversation going on, Copy / Edit / ↻ Regenerate under the messages (`chat_rewind`), `/` commands (also every quick action), history search and 📌, Markdown export to the Tray, per-profile Instructions, `/riprendi` on Telegram.
+- Memory in `%APPDATA%\EasyIsland\memoria`: `MEMORIA.md` (short notes, in front of each new conversation, at most 4,000 characters) and `diario/YYYY-MM.md` (one line per answered question, written by the app with no tokens). The chat reads more with `memory_search` and saves with `memory_note`; `/ricorda` saves without a model. Off together with the history.

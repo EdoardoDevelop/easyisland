@@ -774,7 +774,7 @@ async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&Chat
 
     // The stream first, so no event of this turn is missed.
     let mut events = auth(stream.get(format!("{url}/api/event"))).send().await.map_err(|e| e.to_string())?;
-    let r = auth(client.post(format!("{url}/api/session/{session}/prompt")).json(&prompt_body(first, &with_preface(first, query, o), context)))
+    let r = auth(client.post(format!("{url}/api/session/{session}/prompt")).json(&prompt_body(true, &with_preface(first, query, o), context)))
         .send().await.map_err(|e| e.to_string())?;
     if r.status() == reqwest::StatusCode::NOT_FOUND && !first {
         return Err(SESSION_GONE.into());
@@ -1174,6 +1174,6 @@ mod tests {
         let b = prompt_body(true, "riassumi", Some(&ctx));
         assert_eq!(b["files"][0]["uri"], "file:///C:/x/a.pdf");
         assert_eq!(b["text"], "riassumi");
-        assert!(prompt_body(false, "e poi?", Some(&ctx)).get("files").is_none());
+        assert!(prompt_body(true, "e poi?", None).get("files").is_none());
     }
 }
