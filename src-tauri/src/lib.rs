@@ -1118,7 +1118,15 @@ pub(crate) async fn chat_turn(
     // how to look further (memory_search) when the engine has the tools.
     let (remember, instructions) = {
         let s = shared.settings.lock().unwrap();
-        (s.chat_history, s.chat_instructions.trim().to_string())
+        // The profile's instructions, then the assistant picked for this conversation.
+        let mut text = s.chat_instructions.trim().to_string();
+        if let Some(p) = chat.persona().filter(|_| !telegram) {
+            if !text.is_empty() {
+                text.push_str("\n\n");
+            }
+            text.push_str(p.trim());
+        }
+        (s.chat_history, text)
     };
     let memory_tools = agent && (has_tools || engine == "api");
     let memory = if remember && fresh { memory::preface(memory_tools) } else { None };
@@ -1350,6 +1358,7 @@ fn selection_menu(app: AppHandle, entries: Vec<tray::MenuEntry>) {
 fn chat_reset(chat: State<Chat>) {
     let before = chat.cli_session();
     chat.reset();
+    chat.set_persona(None);
     opencode::forget(before);
 }
 
@@ -1410,6 +1419,48 @@ fn chat_rewind(chat: State<'_, Chat>, keep: Vec<chat_log::Line>) {
     let before = chat.cli_session();
     chat_log::rewind(&chat, keep);
     opencode::forget(before);
+}
+
+/// «⑂ Dirama da qui»: a new conversation from the first lines of this one.
+#[tauri::command]
+fn chat_fork(chat: State<'_, Chat>, keep: Vec<chat_log::Line>) {
+    let before = chat.cli_session();
+    chat_log::fork(&chat, keep);
+    opencode::forget(before);
+}
+
+/// An assistant (Impostazioni → Chat → Assistenti) for the conversation that
+/// starts: its instructions go in front of the first question. None = none.
+#[tauri::command]
+fn chat_persona(chat: State<'_, Chat>, instructions: Option<String>) {
+    chat.set_persona(instructions);
+}
+
+/// 🎤 in the chat: what was said, through the service of Telegram's «Vocali»
+/// (transcribe.rs). The audio is not kept.
+#[tauri::command]
+async fn chat_transcribe(shared: State<'_, Shared>, audio: Vec<u8>, mime: String) -> Result<String, String> {
+    let (service, model) = {
+        let s = shared.settings.lock().unwrap();
+        (s.integration_config.telegram_voice.clone(), s.integration_config.telegram_voice_model.clone())
+    };
+    if service.is_empty() {
+        return Err(t("Scegli chi trascrive in Impostazioni → Telegram → Vocali, oppure usa la dettatura di Windows.").into());
+    }
+    transcribe::transcribe(&service, &model, &audio, &mime).await
+}
+
+/// 🎤 without a transcription service: Windows' own dictation (Win+H) in the
+/// chat's field, which has the keyboard focus.
+#[tauri::command]
+async fn chat_dictate_windows() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let steps = keys::parse("Win+H")?;
+        keys::play(&steps);
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// «Esporta»: the conversation as a Markdown file in the Vassoio.
@@ -2413,6 +2464,10 @@ pub fn run() {
             widget_results,
             ingest_file,
             chat_paste,
+            chat_fork,
+            chat_persona,
+            chat_transcribe,
+            chat_dictate_windows,
             chat_day_prompt,
             memory_info,
             memory_note,

@@ -30,6 +30,18 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 22 ottobre 2026 — Idee dalle altre app di chat
+- Chiesto da Edoardo: prendere spunto dalle alternative (Raycast AI, LibreChat, TypingMind, Open WebUI, Msty, ChatGPT, Claude).
+- Fatti:
+  - menu `@` (appunti, finestra, Vassoio);
+  - modelli con `{{campi}}` e Tab;
+  - ⑂ Dirama da qui;
+  - Assistenti con motore e istruzioni, scelti con `/`;
+  - 🎤 dettatura, con il servizio dei Vocali o con quella di Windows.
+- Spostate «Istruzioni e memoria» fuori dal blocco di Claude Code: prima si vedevano solo con quel motore.
+- Dettagli e cosa non è stato preso in `docs/chat.md`.
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, anteprima della scena `chat`. Dal vivo in `docs/prove-dal-vivo.md`.
+
 ### 21 ottobre 2026 — Chat più comoda e memoria in timeline
 - Chiesto da Edoardo: rendere la chat più comoda di Claude Code da terminale.
   - Campo su più righe, con la bozza che resta. ↑ riprende l'ultima domanda.
@@ -55,10 +67,4 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Segnalato da Edoardo: l'isola aperta non si poteva portare sullo schermo secondario. Ora sì, e ci resta; anche il personaggio lasciato sulla parte lontana di uno schermo stretto tornava sul principale (si guardava il centro della finestra, ora il cursore). Provato qui con trascinamenti simulati sui due schermi (`docs/architettura.md` → Schermi secondari).
 - Chiesto da Edoardo: gestire To Do (leggere, aggiungere, cambiare). Strumenti di easyisland `todo_list`, `todo_add`, `todo_update` attraverso Outlook classico via COM (`todo.rs`, `docs/integrazioni.md`): nessun accesso nuovo, niente eliminazioni.
 - **Prove:** `cargo test --workspace`, sintassi dello script e sue funzioni su un'attività finta. Su questo PC Outlook non c'è: la prova vera è da fare sul PC con Outlook (`docs/prove-dal-vivo.md`).
-
-### 20 ottobre 2026 — Velocità: misure, Claude Code acceso, Notion compatto, ricette, versione 0.9.4
-- Versione **0.9.4** con queste voci, i totali di Notion uguali tra i motori e il ragionamento visibile; README, README.en.md e homepage aggiornati.
-- Segnalato da Edoardo: lentezza di tutti i motori. Misure di ogni turno, strumento e token nel log; Claude Code resta acceso tra i messaggi della stessa conversazione (~6 s → ~3 s di avvio); `notion_query` risponde con una tabella compatta, le categorie per nome e i totali già fatti; indice di Notion corto; ricette imparate con l'uso (`recipes.rs`, Impostazioni → Chat → «Ricette»). Tutto in `docs/chat.md` → Velocità e ricette.
-- «Quanto ho speso a ottobre» con Claude: 28,7 s → 11,2 s, risposta giusta (1.679,45 €, ricontata dalle righe).
-- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`; dal vivo `live_speed`, `live_kept` (messaggi di fila, processo morto, Ferma, uscita, con e senza strumenti, nessun processo rimasto) e `notion_tools::tests::live`. Da provare dall'isola e da Telegram (`docs/prove-dal-vivo.md`).
 

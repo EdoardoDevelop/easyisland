@@ -5,7 +5,7 @@ import { h, svg, clear } from "./dom";
 import { ICONS } from "./icons";
 import { Bridge, onEvent, type ChatContext, type ChatSummary } from "../core/bridge";
 import { Sound } from "../core/sound";
-import { CHAT_ENGINES, State, engineLabel, type ChatEngine, type ChatMessage, type QuickAction } from "../core/state";
+import { CHAT_ENGINES, State, engineLabel, type ChatAssistant, type ChatEngine, type ChatMessage, type QuickAction } from "../core/state";
 import { calculate, formatResult, plainResult } from "../core/calc";
 import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
@@ -101,6 +101,21 @@ interface Slash {
   run(arg: string): void;
 }
 
+/** "{{cliente}}" in a saved prompt: a field to fill, Tab goes to the next one. */
+const PLACEHOLDER = /\{\{[^{}\n]{1,40}\}\}/;
+
+/** Selects the next {{…}} after the cursor (or the first). False when there is none. */
+function selectPlaceholder(input: HTMLTextAreaElement, from = input.selectionEnd): boolean {
+  const re = new RegExp(PLACEHOLDER.source, "g");
+  const all = [...input.value.matchAll(re)];
+  if (!all.length) return false;
+  const next = all.find((m) => (m.index ?? 0) >= from) ?? all[0];
+  const start = next.index ?? 0;
+  input.focus();
+  input.setSelectionRange(start, start + next[0].length);
+  return true;
+}
+
 /** "Backup giornaliero" → "backup-giornaliero": a quick action as a command. */
 function slug(name: string): string {
   return name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -147,7 +162,9 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
   }
   const send = h("button", { class: "send-btn", title: t("Invia") }, svg(ICONS.arrowUp, 14));
   const fresh = h("button", { class: "new-chat-btn", title: t("Nuova chat (Ctrl+N)") }, svg(ICONS.plus, 12), h("span", { text: t("Nuova chat") }));
-  const bar = h("div", { class: "chat-bar" }, fresh, input, send);
+  // 🎤: dictation — the service of Telegram's «Vocali» if one is chosen, else Windows' own (Win+H).
+  const mic = h("button", { class: "mic-btn", title: t("Detta (clic per iniziare e per finire)"), text: "🎤" }) as HTMLButtonElement;
+  const bar = h("div", { class: "chat-bar" }, fresh, input, mic, send);
   // "/" in the field: the commands, over the field.
   const slashMenu = h("div", { class: "slash-menu" });
   slashMenu.style.display = "none";
@@ -199,6 +216,12 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
   let drafted = input.value !== "";
   // «Modifica» on a question: its place in the conversation, until it is sent again.
   let editing: number | null = null;
+  // «@appunti»: copied text added to the next question (any turn, any engine).
+  let textAttach: { label: string; text: string } | null = null;
+  // The assistant of this conversation ("/" → an assistant), shown as a chip.
+  let assistant: ChatAssistant | null = null;
+  // A second level of the menu ("@finestra" → the windows), until the field changes.
+  let subMenu: Slash[] | null = null;
 
   /** A line over the field for a few seconds (or until replaced; `keep`: until cleared). */
   function flash(text: string, keep = false) {
@@ -269,6 +292,10 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
     let asked = query;
     if (attach && !base) context = { kind: "file", name: attach.name, path: attach.path };
     else if (attach) asked = `${t("File allegato: {name}\nPercorso: {path}", { name: attach.name, path: attach.path })}\n\n${query}`;
+    if (textAttach) {
+      asked = `${textAttach.label}:\n${textAttach.text}\n\n${asked}`;
+      textAttach = null;
+    }
 
     streamed = "";
     try {
@@ -321,6 +348,177 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
     await submit(question);
   }
 
+  /** «⑂ Dirama da qui» (as LibreChat and TypingMind fork a chat): a new conversation up to this answer. */
+  async function fork(index: number) {
+    if (sending) return;
+    const keep = State.chatHistory.slice(0, index + 1);
+    State.chatHistory = keep;
+    renderedCount = -1;
+    await Bridge.chatFork(lines(keep));
+    flash(`⑂ ${t("Nuova conversazione da qui: quella di prima resta nella cronologia")}`);
+    Sound.play("blip");
+    State.notify();
+    input.focus();
+  }
+
+  /** "/" → an assistant: a new conversation with its engine and instructions. */
+  async function useAssistant(a: ChatAssistant) {
+    if (sending) return;
+    startOver();
+    await Bridge.chatReset();
+    assistant = a;
+    if (a.engine && CHAT_ENGINES.some((e) => e.id === a.engine)) {
+      State.chatEngineOverride = a.engine === State.settings.chatEngine ? null : (a.engine as ChatEngine);
+    }
+    await Bridge.chatPersona(a.instructions);
+    chipRow.dataset.label = "";
+    flash(`${a.icon || "🤖"} ${t("Assistente {n}: scrivi la domanda", { n: a.name })}`);
+    State.notify();
+    input.focus();
+  }
+
+  function dropAssistant() {
+    assistant = null;
+    void Bridge.chatPersona(null);
+    chipRow.dataset.label = "";
+    State.notify();
+  }
+
+  // ── 🎤 dictation ──
+  let recorder: MediaRecorder | null = null;
+  let chunks: Blob[] = [];
+  async function dictate() {
+    if (recorder) {
+      recorder.stop();
+      return;
+    }
+    const service = (State.settings.integrationConfig as { telegramVoice?: string }).telegramVoice;
+    if (!service) {
+      // No service: Windows' dictation writes in the field itself.
+      input.focus();
+      try {
+        await Bridge.chatDictateWindows();
+      } catch (err) {
+        flash(String(err).replace(/^Error:\s*/, ""));
+      }
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunks = [];
+      const rec = new MediaRecorder(stream);
+      recorder = rec;
+      rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      rec.onstop = async () => {
+        stream.getTracks().forEach((tr) => tr.stop());
+        recorder = null;
+        mic.classList.remove("on");
+        mic.textContent = "🎤";
+        const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+        if (!blob.size) return;
+        flash(t("Trascrivo…"), true);
+        try {
+          const bytes = Array.from(new Uint8Array(await blob.arrayBuffer()));
+          const words = (await Bridge.chatTranscribe(bytes, (rec.mimeType || "audio/webm").split(";")[0])).trim();
+          flash("");
+          if (words) {
+            const before = input.value.trimEnd();
+            setInput(`${before}${before ? " " : ""}${words}`);
+            input.focus();
+          } else flash(t("Non ho sentito parole."));
+        } catch (err) {
+          flash(String(err).replace(/^Error:\s*/, ""));
+        }
+      };
+      rec.start();
+      mic.classList.add("on");
+      mic.textContent = "■";
+      flash(`🎤 ${t("Parla… clic su ■ per finire")}`, true);
+    } catch (err) {
+      recorder = null;
+      flash(t("Microfono non disponibile: {e}", { e: String(err).replace(/^\w*Error:\s*/, "") }));
+    }
+  }
+
+  /** «@» in the field (Raycast's @ menu): what to add to the question. */
+  function mentions(word: string): Slash[] {
+    const top: Slash[] = [
+      { name: "appunti", hint: t("Il testo o l'immagine copiati"), run: () => void mentionClipboard() },
+      { name: "finestra", hint: t("La foto di una finestra aperta"), run: () => void mentionWindows() },
+      { name: "vassoio", hint: t("Un file del Vassoio"), run: () => void mentionTray() },
+    ];
+    return top.filter((c) => c.name.startsWith(word.toLowerCase()));
+  }
+
+  /** The "@word" being typed at the end of the field is replaced by nothing. */
+  function dropMention() {
+    setInput(input.value.replace(/(^|\s)@\S*$/, "$1"));
+  }
+
+  async function mentionClipboard() {
+    dropMention();
+    const pic = await Bridge.clipboardPicture().catch(() => null);
+    if (pic) {
+      State.chatAttach = { name: pic.name, path: pic.path };
+      Sound.play("approve");
+      State.notify();
+      return;
+    }
+    const text = (await Bridge.clipboardText().catch(() => null))?.trim();
+    if (!text) {
+      flash(t("Negli appunti non c'è niente da allegare."));
+      return;
+    }
+    textAttach = { label: t("Testo copiato"), text };
+    chipRow.dataset.label = "";
+    Sound.play("approve");
+    State.notify();
+  }
+
+  async function mentionWindows() {
+    const list = (await Bridge.recordWindows()).slice(0, 8);
+    if (!list.length) {
+      dropMention();
+      flash(t("Nessuna finestra da fotografare."));
+      return;
+    }
+    subMenu = list.map((w) => ({
+      name: (w.appName || t("Finestra")).toLowerCase(),
+      hint: w.title,
+      run: () => {
+        dropMention();
+        void Bridge.windowShot(w.id)
+          .then((f) => {
+            State.chatAttach = { name: f.name, path: f.path };
+            Sound.play("approve");
+            State.notify();
+          })
+          .catch((err) => flash(String(err).replace(/^Error:\s*/, "")));
+      },
+    }));
+    renderMenu();
+  }
+
+  async function mentionTray() {
+    const files = ((await Bridge.inboxList()) ?? []).sort((a, b) => b.at - a.at).slice(0, 8);
+    if (!files.length) {
+      dropMention();
+      flash(t("Il Vassoio è vuoto."));
+      return;
+    }
+    subMenu = files.map((f) => ({
+      name: f.name,
+      hint: "",
+      run: () => {
+        dropMention();
+        State.chatAttach = { name: f.name, path: f.path };
+        Sound.play("approve");
+        State.notify();
+      },
+    }));
+    renderMenu();
+  }
+
   /** «Modifica»: the question back in the field; sending it starts over from there. */
   function edit(index: number) {
     if (sending) return;
@@ -359,6 +557,9 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
     }
     if (own && last && m.role === "assistant" && !m.reviewer) {
       bar.append(h("button", { class: "msg-act", text: `↻ ${t("Rigenera")}`, onclick: () => void regenerate() }));
+    }
+    if (own && m.role === "assistant" && !last) {
+      bar.append(h("button", { class: "msg-act", title: t("Una conversazione nuova che parte da qui; questa resta nella cronologia"), text: `⑂ ${t("Dirama da qui")}`, onclick: () => void fork(index) }));
     }
     row.classList.add("with-actions");
     row.append(bar);
@@ -464,6 +665,8 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
     State.chatEngineOverride = null;
     State.chatAuto = false;
     editing = null;
+    textAttach = null;
+    assistant = null;
     flash("");
     void Bridge.chatReset();
     Sound.play("blip");
@@ -537,10 +740,26 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
       { name: "domani", hint: t("Il punto della mia giornata di domani"), run: () => void day(true) },
     ];
     const taken = new Set(list.map((c) => c.name));
+    for (const a of State.settings.chatAssistants ?? []) {
+      const name = slug(a.name);
+      if (!name || taken.has(name)) continue;
+      taken.add(name);
+      list.push({ name, hint: `${a.icon || "🤖"} ${t("Assistente: {n}", { n: a.name })}`, run: () => void useAssistant(a) });
+    }
     for (const a of State.settings.actions ?? []) {
       const name = slug(a.name);
       if (!name || taken.has(name)) continue;
       taken.add(name);
+      // A saved prompt with {{fields}} (a prompt library with variables): in
+      // the field to fill, Tab from one field to the next.
+      if (a.kind === "prompt" && PLACEHOLDER.test(a.prompt)) {
+        list.push({ name, hint: `${a.icon} ${t("Modello da completare: {n}", { n: a.name })}`, run: () => {
+          setInput(a.prompt);
+          selectPlaceholder(input, 0);
+          flash(t("Completa i campi {{…}}: Tab passa al successivo"));
+        } });
+        continue;
+      }
       list.push({ name, hint: `${a.icon} ${t("Azione rapida: {n}", { n: a.name })}`, run: () => actions.runAction(a) });
     }
     return list;
@@ -557,15 +776,30 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
     return true;
   }
 
-  /** The menu over the field while a command is being typed. */
+  /** The menu over the field while a command ("/") or an "@" is being typed. */
   function updateSlash() {
+    subMenu = null;
     const m = /^\/(\S*)$/.exec(input.value);
-    slashItems = m && !State.chatSession ? commands().filter((c) => c.name.startsWith(m[1].toLowerCase())).slice(0, 8) : [];
+    const at = /(?:^|\s)@(\S*)$/.exec(input.value);
+    slashItems = State.chatSession ? []
+      : m ? commands().filter((c) => c.name.startsWith(m[1].toLowerCase())).slice(0, 10)
+        : at ? mentions(at[1])
+          : [];
+    menuPrefix = m ? "/" : "@";
+    renderMenu();
+  }
+
+  let menuPrefix = "/";
+  function renderMenu() {
+    if (subMenu) {
+      slashItems = subMenu;
+      menuPrefix = "";
+    }
     slashSel = Math.min(slashSel, Math.max(0, slashItems.length - 1));
     clear(slashMenu);
     slashItems.forEach((c, i) => {
       const row = h("button", { class: `slash-item${i === slashSel ? " on" : ""}` },
-        h("b", { text: `/${c.name}` }), h("span", { text: c.hint }));
+        h("b", { text: `${menuPrefix}${c.name}` }), h("span", { text: c.hint }));
       row.addEventListener("mousedown", (e) => {
         e.preventDefault();
         pickSlash(i);
@@ -582,6 +816,14 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
   function pickSlash(i: number) {
     const c = slashItems[i];
     if (!c) return;
+    if (menuPrefix !== "/") {
+      // "@…" and the second level run on their own; the field keeps the rest.
+      subMenu = null;
+      slashItems = [];
+      renderMenu();
+      c.run("");
+      return;
+    }
     if (c.arg) {
       setInput(`/${c.name} `);
       input.focus();
@@ -760,6 +1002,8 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
       State.chatEngineOverride = c.engine === State.settings.chatEngine ? null : (c.engine as ChatEngine);
       State.chatAuto = false;
       editing = null;
+      textAttach = null;
+      if (assistant) dropAssistant();
       flash("");
       renderedCount = -1;
       stick = true;
@@ -822,6 +1066,7 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
     else jumpBtn.style.display = "";
   }
 
+  mic.addEventListener("click", () => void dictate());
   externalSend = (q) => void submit(q);
   fresh.addEventListener("click", startOver);
   send.addEventListener("click", () => {
@@ -866,9 +1111,19 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
         return;
       }
       if (k.key === "Escape") {
-        setInput("");
+        if (menuPrefix === "/") setInput("");
+        else {
+          subMenu = null;
+          slashItems = [];
+          renderMenu();
+        }
         return;
       }
+    }
+    if (k.key === "Tab" && !k.shiftKey && PLACEHOLDER.test(input.value)) {
+      e.preventDefault();
+      selectPlaceholder(input);
+      return;
     }
     if (k.key === "Escape" && editing != null) {
       cancelEdit();
@@ -909,7 +1164,7 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
         : win
         ? windowLabel(win)
         : file?.name ?? "";
-      const chipKey = `${pick ? "pick" : ""}${wantChip}${win && !pick ? win.path : ""}|${attach?.path ?? ""}`;
+      const chipKey = `${pick ? "pick" : ""}${wantChip}${win && !pick ? win.path : ""}|${attach?.path ?? ""}|${assistant?.id ?? ""}|${textAttach?.text.length ?? ""}`;
       if (chipRow.dataset.label !== chipKey) {
         chipRow.dataset.label = chipKey;
         clear(chipRow);
@@ -925,6 +1180,19 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
           const chip = contextChip(wantChip, !pick && !asked && !text && win ? win.thumb : undefined, removable ? removeWin : undefined);
           if (pick) chip.classList.add("pick");
           chipRow.append(chip);
+        }
+        if (assistant && !pick) {
+          // The assistant can be taken away until the first question goes.
+          const removable = State.chatHistory.length === 0;
+          chipRow.append(contextChip(`${assistant.icon || "🤖"} ${assistant.name}`, undefined, removable ? () => { dropAssistant(); input.focus(); } : undefined, t("Togli l'assistente")));
+        }
+        if (textAttach && !pick) {
+          chipRow.append(contextChip(`📋 ${textAttach.label} · ${t("{n} caratteri", { n: textAttach.text.length.toLocaleString(locale()) })}`, undefined, () => {
+            textAttach = null;
+            chipRow.dataset.label = "";
+            State.notify();
+            input.focus();
+          }, t("Togli il testo")));
         }
         if (attach && !pick) {
           chipRow.append(contextChip(`📎 ${attach.name}`, undefined, () => {
@@ -995,7 +1263,7 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
       }
       input.placeholder = asked
         ? t("Chiedi alla sessione {name}…", { name: asked.name })
-        : State.chatHistory.length === 0 ? t("Chiedimi qualsiasi cosa… / per i comandi") : t("Continua…");
+        : State.chatHistory.length === 0 ? t("Chiedimi qualsiasi cosa… / comandi · @ allegati") : t("Continua…");
 
       input.disabled = sending;
       const stopMode = sending && !asked;
@@ -1006,7 +1274,8 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
         send.classList.toggle("stop", stopMode);
       }
       // Only when there is something to forget.
-      fresh.style.display = State.chatHistory.length > 0 || file || text || win || asked || attach ? "" : "none";
+      fresh.style.display = State.chatHistory.length > 0 || file || text || win || asked || attach || assistant || textAttach ? "" : "none";
+      mic.disabled = sending;
       (fresh as HTMLButtonElement).disabled = sending;
     },
     // The open history list makes the island as tall as it needs (up to its maximum).

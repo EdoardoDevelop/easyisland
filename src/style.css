@@ -1712,6 +1712,21 @@ input[type="range"]::-webkit-slider-thumb {
 
 .send-btn.stop { background: #f4505e; color: #fff; }
 
+/* 🎤: dictation; red while it records. */
+.mic-btn {
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  font-size: 13px;
+  background: transparent;
+  opacity: 0.7;
+}
+.mic-btn:hover { opacity: 1; background: rgba(255, 255, 255, 0.1); }
+.mic-btn.on { opacity: 1; color: #fff; background: #f4505e; font-size: 10px; }
+
 .send-btn:active {
   transform: scale(0.94);
 }

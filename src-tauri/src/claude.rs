@@ -127,6 +127,10 @@ pub struct Chat {
     /// A reopened conversation the engine cannot resume on its own: it goes
     /// in front of the next question (chat_log.rs).
     preamble: Mutex<Option<String>>,
+    /// The assistant picked for this conversation (Impostazioni → Chat →
+    /// Assistenti): its instructions go in front of the first question. Not
+    /// cleared by `reset` (an engine change resets too): `chat_reset` does it.
+    persona: Mutex<Option<String>>,
 }
 
 impl Chat {
@@ -157,6 +161,14 @@ impl Chat {
 
     pub(crate) fn set_log_id(&self, id: Option<String>) {
         *self.log_id.lock().unwrap() = id;
+    }
+
+    pub(crate) fn set_persona(&self, text: Option<String>) {
+        *self.persona.lock().unwrap() = text.filter(|t| !t.trim().is_empty());
+    }
+
+    pub(crate) fn persona(&self) -> Option<String> {
+        self.persona.lock().unwrap().clone()
     }
 
     pub(crate) fn take_preamble(&self) -> Option<String> {

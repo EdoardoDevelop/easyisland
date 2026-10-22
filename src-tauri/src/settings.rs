@@ -707,6 +707,11 @@ pub struct Settings {
     /// Of the profile (PROFILE_KEYS): "Cliente Rossi" can carry its own.
     #[serde(default)]
     pub chat_instructions: String,
+    /// Impostazioni → Chat → Assistenti: named sets of engine and instructions
+    /// for a conversation ({id, name, icon, engine, instructions}); the island
+    /// reads them, the backend only keeps them.
+    #[serde(default)]
+    pub chat_assistants: Vec<Value>,
     /// opencode 2's sessions in the island, read from its background service
     /// (opencode_agent.rs). Belongs to the PC; off by default.
     #[serde(default)]
@@ -933,6 +938,7 @@ impl Default for Settings {
             chat_terminal: false,
             chat_folder: String::new(),
             chat_instructions: String::new(),
+            chat_assistants: Vec::new(),
             opencode_watch: false,
             automations: Vec::new(),
             habits_enabled: false,

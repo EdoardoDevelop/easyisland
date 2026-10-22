@@ -366,6 +366,14 @@ export const Bridge = {
   chatExport: (title: string, lines: { role: "user" | "assistant"; content: string }[]) => callOrThrow<DroppedFile>("chat_export", { title, lines }),
   /** «/oggi», «/domani»: the question that gathers the day with the tools (telegram.rs day_prompt). */
   chatDayPrompt: (tomorrow: boolean) => call<string>("chat_day_prompt", { tomorrow }),
+  /** «⑂ Dirama da qui»: a new conversation from these lines; the old one stays in the history. */
+  chatFork: (keep: { role: "user" | "assistant"; content: string }[]) => call<void>("chat_fork", { keep }),
+  /** The assistant of the conversation that starts (its instructions); null = none. */
+  chatPersona: (instructions: string | null) => call<void>("chat_persona", { instructions }),
+  /** 🎤: the recorded audio to text (Telegram's «Vocali» service). */
+  chatTranscribe: (audio: number[], mime: string) => callOrThrow<string>("chat_transcribe", { audio, mime }),
+  /** 🎤 with no service: Windows' dictation (Win+H) in the focused field. */
+  chatDictateWindows: () => callOrThrow<void>("chat_dictate_windows"),
   chatHistorySearch: (query: string) => call<ChatSummary[]>("chat_history_search", { query }),
   chatHistoryPin: (id: string, pinned: boolean) => call<void>("chat_history_pin", { id, pinned }),
   /** What the chat learnt by use (recipes.rs): how many, and forgetting them. */

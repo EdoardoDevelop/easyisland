@@ -36,6 +36,23 @@ Chiesto da Edoardo per invogliarlo a usare la chat al posto di Claude Code da te
 - **Istruzioni** (Impostazioni → Chat, `chatInstructions`): un testo detto alla chat all'inizio di ogni conversazione. Fa parte del profilo (`PROFILE_KEYS`), così un profilo «Cliente Rossi» ha le sue.
 - **Telegram `/riprendi`:** continua su Telegram l'ultima conversazione della chat dell'isola, sul suo motore (`chat_log::open` sulla chat di Telegram).
 
+## Idee prese dalle altre app di chat (22 ottobre 2026)
+Chiesto da Edoardo: prendere spunto dalle alternative. Guardate Raycast AI, LibreChat, TypingMind, Open WebUI, Msty, ChatGPT e Claude. Prese quelle utili a un tecnico, senza dipendenze nuove:
+- **Menu @** (dal menu @ e da «Screen Awareness» di Raycast). Scrivendo `@` nel campo puoi allegare:
+  - `@appunti`: il testo copiato, che va davanti alla prossima domanda a qualsiasi turno, oppure l'immagine copiata come file;
+  - `@finestra`: la foto di una finestra aperta (`record_windows`, `window_shot`);
+  - `@vassoio`: un file del Vassoio.
+- **Modelli con campi** (dalle librerie di prompt con variabili di TypingMind e LibreChat): un'azione rapida «prompt» con `{{cliente}}` nel testo, scelta da `/`, va nel campo invece di partire. Tab salta da un campo `{{…}}` al successivo.
+- **⑂ Dirama da qui** (dal «fork» di LibreChat e TypingMind): sotto una risposta che non è l'ultima. Apre una conversazione nuova che parte da lì (`chat_fork`, `chat_log::fork`); quella di prima resta intera nella cronologia.
+- **Assistenti** (dagli «Agents», prima «Presets», di Raycast e dai preset di LibreChat):
+  - In Impostazioni → Chat → Istruzioni e memoria (`chatAssistants`) ognuno ha nome, emoji, motore e istruzioni.
+  - Nella chat si scelgono con `/nome`: conversazione nuova sul loro motore, con il chip 🤖.
+  - Le istruzioni stanno in `Chat::persona`, che `reset` non tocca (cambiare motore resetta) e che `chat_reset` toglie. Vanno davanti alla prima domanda dopo quelle del profilo. Non valgono su Telegram.
+- **🎤 Dettatura** (dalla voce di ChatGPT): clic per iniziare e per finire.
+  - Con un servizio scelto in Impostazioni → Telegram → Vocali, registra dal microfono della finestra (`MediaRecorder`) e trascrive con quel servizio (`chat_transcribe`, `transcribe.rs`). L'audio non resta.
+  - Senza servizio apre la dettatura di Windows (Win+H, `chat_dictate_windows`), locale e gratuita.
+- **Non prese:** il confronto di più motori affiancati di Msty (c'è già «Seconda opinione»); i titoli scritti dall'IA e i suggerimenti di domande dopo la risposta, perché costano un turno di modello ogni volta; le «Projects» di ChatGPT e Claude (le coprono i profili con le loro Istruzioni e la cartella di lavoro).
+
 ## Memoria della chat (`memory.rs`, 21 ottobre 2026)
 Chiesta da Edoardo: una memoria in timeline, in file .md, che renda la chat più intelligente col tempo senza consumare troppi token. Spunti presi dai sistemi di memoria a file degli agenti: un indice corto sempre caricato e il resto letto solo quando serve.
 - **Dove:** `%APPDATA%\EasyIsland\memoria`, file leggibili e modificabili. Impostazioni → Chat → Memoria li conta e li apre.

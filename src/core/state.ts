@@ -497,6 +497,8 @@ export interface Settings {
   chatFolder?: string;
   /** In front of every new conversation; of the profile (PROFILE_KEYS). */
   chatInstructions?: string;
+  /** Impostazioni → Chat → Assistenti: an engine and instructions for a conversation, picked with "/". */
+  chatAssistants?: ChatAssistant[];
   /** opencode 2's sessions in the island, from its background service (opencode_agent.rs). Of the PC. */
   opencodeWatch?: boolean;
   /** "Quando… allora…" rules, run by src-tauri/src/automations.rs. */
@@ -610,6 +612,16 @@ export interface NotionRef {
   emoji: string | null;
   url: string;
   database: boolean;
+}
+
+/** An assistant of the chat (Raycast's "Agents", LibreChat's presets): a name, an engine, instructions. */
+export interface ChatAssistant {
+  id: string;
+  name: string;
+  icon: string;
+  /** "" = the chat's default engine. */
+  engine: string;
+  instructions: string;
 }
 
 /** A user-defined button in the Azioni tab. */
@@ -950,6 +962,7 @@ export const DEFAULT_SETTINGS: Settings = {
   chatTerminal: false,
   chatFolder: "",
   chatInstructions: "",
+  chatAssistants: [],
   opencodeWatch: false,
   automations: [],
   habitsEnabled: false,

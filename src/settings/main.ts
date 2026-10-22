@@ -6,7 +6,7 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
-import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationCondition, type AutomationStep, type AutomationTrigger, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type WidgetDef } from "../core/state";
+import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationCondition, type AutomationStep, type AutomationTrigger, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
@@ -575,6 +575,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
     terminalRow(),
     h("h2", {}, h("span", { text: t("Istruzioni e memoria") })),
     instructionsRow(),
+    assistantsBlock(),
     memoryRow(),
     h("h2", {}, h("span", { text: t("Conversazioni salvate") })),
     historyRow(),
@@ -1540,6 +1541,59 @@ function notionRows(): HTMLElement {
   }
   draw();
   return box;
+}
+
+/**
+ * Chat → "Assistenti" (Raycast's Agents, LibreChat's presets): a name, an
+ * engine and instructions, picked in the chat with "/name" for one conversation.
+ */
+function assistantsBlock(): HTMLElement {
+  const list = h("div", { style: "display:flex;flex-direction:column;gap:8px" });
+  let timer = 0;
+  const persist = () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => void save(), 400);
+  };
+  const paint = () => {
+    clear(list);
+    const all = settings.chatAssistants ?? [];
+    for (const a of all) {
+      const icon = h("input", { type: "text", value: a.icon, maxlength: "4", style: "width:44px;text-align:center", title: t("Emoji") }) as HTMLInputElement;
+      icon.addEventListener("input", () => { a.icon = icon.value.trim(); persist(); });
+      const name = h("input", { type: "text", value: a.name, placeholder: t("Nome (es. Preventivi)"), style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
+      name.addEventListener("input", () => { a.name = name.value; persist(); });
+      const engine = h("select", {}) as HTMLSelectElement;
+      engine.append(h("option", { value: "", text: t("Motore predefinito") }));
+      for (const e of CHAT_ENGINES) engine.append(h("option", { value: e.id, text: e.name }));
+      engine.value = a.engine;
+      engine.addEventListener("change", () => { a.engine = engine.value; void save(); });
+      const del = h("button", { text: t("Elimina") }) as HTMLButtonElement;
+      del.addEventListener("click", () => {
+        settings.chatAssistants = (settings.chatAssistants ?? []).filter((x) => x.id !== a.id);
+        void save();
+        paint();
+      });
+      const text = h("textarea", { class: "instructions", rows: "2", placeholder: t("Cosa deve sapere e come deve rispondere") }) as HTMLTextAreaElement;
+      text.value = a.instructions;
+      text.addEventListener("input", () => { a.instructions = text.value; persist(); });
+      list.append(h("div", { class: "engine-block", style: "display:flex;flex-direction:column;gap:6px" },
+        h("div", { class: "row" }, icon, name, engine, del), text));
+    }
+  };
+  const add = h("button", { text: t("+ Aggiungi assistente") }) as HTMLButtonElement;
+  add.addEventListener("click", () => {
+    const a: ChatAssistant = { id: `a${Date.now().toString(36)}`, name: t("Nuovo assistente"), icon: "🤖", engine: "", instructions: "" };
+    settings.chatAssistants = [...(settings.chatAssistants ?? []), a];
+    void save();
+    paint();
+  });
+  paint();
+  return h("div", { style: "display:flex;flex-direction:column;gap:6px" },
+    h("div", { class: "row" },
+      h("label", { text: t("Assistenti") }),
+      h("span", { class: "hint note", style: "flex:1 1 auto;min-width:0", text: t("un motore e delle istruzioni per un tipo di lavoro. Nella chat li scegli con / e il loro nome: valgono per quella conversazione") }),
+      add),
+    list);
 }
 
 /** Chat → "Istruzioni": what every new conversation is told first; of the active profile. */

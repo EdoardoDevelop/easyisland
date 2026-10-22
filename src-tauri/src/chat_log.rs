@@ -250,6 +250,14 @@ pub fn set_pinned(id: &str, pinned: bool) {
     });
 }
 
+/// «⑂ Dirama da qui»: a new conversation that starts with the first `keep`
+/// lines of this one; this one stays in the history as it was.
+pub fn fork(chat: &Chat, keep: Vec<Line>) {
+    let key = chat.engine_key();
+    let preamble = (!keep.is_empty()).then(|| preamble(&keep));
+    chat.restore(&key, Vec::new(), None, preamble);
+}
+
 /// «Modifica» or «Rigenera» in the chat: the conversation goes back to its
 /// first `keep` lines (in the history too) and the engine starts a new
 /// conversation with them as text in front of the next question.

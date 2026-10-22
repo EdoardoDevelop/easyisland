@@ -9,7 +9,13 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
   4. `/oggi`, `/ricorda …`, `/esporta`, un'azione rapida da `/`.
   5. «Istruzioni» diverse in due profili.
   6. `/riprendi` su Telegram.
-  7. Dopo qualche giorno: `diario/` con le righe, note salvate da sole con `memory_note`, e una domanda «come avevamo fatto con…» che usa `memory_search`.
+  7. Del 22 ottobre:
+     - 🎤 con e senza servizio dei Vocali: il microfono nella finestra di WebView2 può chiedere il permesso;
+     - `@appunti`, `@finestra`, `@vassoio`;
+     - un'azione «prompt» con `{{campi}}`;
+     - ⑂ Dirama da qui;
+     - un assistente con un motore diverso.
+  8. Dopo qualche giorno: `diario/` con le righe, note salvate da sole con `memory_note`, e una domanda «come avevamo fatto con…» che usa `memory_search`.
 
 - [ ] **Proposte al momento giusto (0.7.9):** provati qui dal vivo il 14 ottobre, dal log e con le card di MCP sullo schermo: download (rinomina da `.crdownload`), server Python sulla porta 8765, traceback copiato, chiave `ghp_` tolta dopo 30 s, `show_card` con e senza pulsanti, `add_to_tray`. Da provare: download veri da Edge, Chrome e Firefox (anche grandi), «Spiega e correggi» fino alla risposta, «Apri nel browser» su `npm run dev`, una password da un gestore di password; riepilogo del mattino dalle 8 e di fine giornata dalle 18 con pull request vere; Impostazioni → Agenti → «Strumenti di EasyIsland in Claude Code» → Aggiungi, poi `show_card` da una sessione nel terminale.
 - [ ] **Rinnovo dell'accesso di Claude Code (14 ottobre 2026):** alla scadenza di `.credentials.json` (ogni ~8 ore) con la card Consumo accesa, il log deve dire «limiti del piano: accesso di Claude Code rinnovato» e poi «limiti del piano da Anthropic: ok», senza finestre e senza processi `claude` rimasti; «Aggiorna» con l'accesso scaduto deve rinnovare subito.
