@@ -14,6 +14,7 @@ mod claude_cli;
 mod clipboard;
 mod clipimage;
 mod memory;
+mod webview_memory;
 mod context;
 mod daily;
 mod devservers;
@@ -2333,6 +2334,8 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
                     api.prevent_close();
                     island::keep_settings_above(&handle, false);
                     let _ = hidden.hide();
+                    // Hidden, its page sleeps (webview_memory.rs).
+                    webview_memory::set_asleep(&hidden, true);
                 }
                 // Above the island while in use (island::keep_settings_above).
                 tauri::WindowEvent::Focused(active) => island::keep_settings_above(&handle, *active),
@@ -2341,6 +2344,16 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
         }
         Err(err) => log::line(format!("settings window failed: {err}")),
     }
+    // Once its page has loaded, the hidden settings window sleeps until it is opened.
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(10));
+        if let Some(win) = handle.get_webview_window("settings") {
+            if !win.is_visible().unwrap_or(true) {
+                webview_memory::set_asleep(&win, true);
+            }
+        }
+    });
 }
 
 pub fn show_settings_window(app: &AppHandle) {
@@ -2348,9 +2361,18 @@ pub fn show_settings_window(app: &AppHandle) {
         log::line("settings window missing");
         return;
     };
+    webview_memory::set_asleep(&win, false);
     let _ = win.unminimize();
     let _ = win.show();
     let _ = win.set_focus();
+}
+
+/// The island compact (low) or open (normal): WebView2's memory target (webview_memory.rs).
+#[tauri::command]
+fn webview_memory_low(app: AppHandle, low: bool) {
+    if let Some(win) = island::window(&app) {
+        webview_memory::set_low(&win, low);
+    }
 }
 
 #[tauri::command]
@@ -2470,6 +2492,7 @@ pub fn run() {
             widget_results,
             ingest_file,
             chat_paste,
+            webview_memory_low,
             chat_fork,
             chat_persona,
             chat_transcribe,

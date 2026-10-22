@@ -372,6 +372,8 @@ export const Bridge = {
   chatPersona: (instructions: string | null) => call<void>("chat_persona", { instructions }),
   /** 🎤: the recorded audio to text (Telegram's «Vocali» service). */
   chatTranscribe: (audio: number[], mime: string) => callOrThrow<string>("chat_transcribe", { audio, mime }),
+  /** The island compact (true) or open: WebView2 keeps less memory (webview_memory.rs). */
+  webviewMemoryLow: (low: boolean) => call<void>("webview_memory_low", { low }),
   /** 🎤 records or stopped: the microphone in use is not a meeting (presence.rs). */
   chatDictation: (on: boolean) => call<void>("chat_dictation", { on }),
   /** 🎤 with no service: Windows' dictation (Win+H) in the focused field. */

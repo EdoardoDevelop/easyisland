@@ -39,6 +39,8 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
   - Assistenti con motore e istruzioni, scelti con `/`;
   - 🎤 dettatura, con il servizio dei Vocali o con quella di Windows.
 - Spostate «Istruzioni e memoria» fuori dal blocco di Claude Code: prima si vedevano solo con quel motore.
+- Il 🎤 nascondeva l'isola: «davanti al cliente» vedeva il microfono di WebView2 come una chiamata (`presence.rs`, `chat_dictation`).
+- RAM di WebView2 da 557 a 104 MB con l'isola ritirata: Impostazioni nascoste sospese e memoria bassa con l'isola ritirata (`webview_memory.rs`, `docs/architettura.md`).
 - Dettagli e cosa non è stato preso in `docs/chat.md`.
 - **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, anteprima della scena `chat`. Dal vivo in `docs/prove-dal-vivo.md`.
 
