@@ -127,6 +127,10 @@ pub struct Chat {
     /// A reopened conversation the engine cannot resume on its own: it goes
     /// in front of the next question (chat_log.rs).
     preamble: Mutex<Option<String>>,
+    /// The assistant picked for this conversation (Impostazioni → Chat →
+    /// Assistenti): its instructions go in front of the first question. Not
+    /// cleared by `reset` (an engine change resets too): `chat_reset` does it.
+    persona: Mutex<Option<String>>,
 }
 
 impl Chat {
@@ -146,12 +150,25 @@ impl Chat {
         *self.preamble.lock().unwrap() = preamble;
     }
 
+    /// What `use_engine` was last given (engine, model, terminal mode).
+    pub(crate) fn engine_key(&self) -> String {
+        self.engine.lock().unwrap().clone()
+    }
+
     pub(crate) fn log_id(&self) -> Option<String> {
         self.log_id.lock().unwrap().clone()
     }
 
     pub(crate) fn set_log_id(&self, id: Option<String>) {
         *self.log_id.lock().unwrap() = id;
+    }
+
+    pub(crate) fn set_persona(&self, text: Option<String>) {
+        *self.persona.lock().unwrap() = text.filter(|t| !t.trim().is_empty());
+    }
+
+    pub(crate) fn persona(&self) -> Option<String> {
+        self.persona.lock().unwrap().clone()
     }
 
     pub(crate) fn take_preamble(&self) -> Option<String> {
@@ -293,9 +310,9 @@ pub async fn send_with(
 
     let mut content: Vec<Value> = Vec::new();
 
-    // File / window context rides along with the first message only, exactly
-    // like ClaudeService.chat().
-    if chat.is_empty() {
+    // File / window context: with the first message, or a file added later
+    // (pasted in the chat, sent on Telegram) — the front end decides.
+    {
         match &context {
             Some(ChatContext::File { name, path }) => {
                 if let Some(block) = file_block(path) {

@@ -170,7 +170,8 @@ pub async fn send(
     let exe = find_exe().ok_or_else(|| t("Per la chat con Antigravity serve la sua CLI (agy) installata su questo PC e con il login fatto: Impostazioni → Chat e motori AI spiega come.").to_string())?;
     let session = chat.cli_session();
     let mut prompt = String::new();
-    if session.is_none() {
+    // A context comes with the first question or with a file added later.
+    {
         match &context {
             Some(ChatContext::File { name, path }) => {
                 prompt.push_str(&tf("File allegato: {name}\nPercorso: {path}\nLeggilo prima di rispondere.\n\n", &[("name", name), ("path", path)]));

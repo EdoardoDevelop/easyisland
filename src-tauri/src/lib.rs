@@ -13,6 +13,8 @@ mod chat_log;
 mod claude_cli;
 mod clipboard;
 mod clipimage;
+mod memory;
+mod webview_memory;
 mod context;
 mod daily;
 mod devservers;
@@ -979,6 +981,19 @@ fn chat_key(engine: &str, model: &str, terminal: bool) -> String {
     if terminal { format!("{engine}:{model}:terminal") } else { format!("{engine}:{model}") }
 }
 
+/// The key `chat_turn` will use for `engine` with its default model (Telegram's /riprendi).
+pub(crate) fn chat_key_for(app: &AppHandle, engine: &str) -> String {
+    let shared = app.state::<Shared>();
+    let s = shared.settings.lock().unwrap();
+    chat_key(engine, &s.engine_models.get(engine).cloned().unwrap_or_default(), s.chat_terminal)
+}
+
+/// «/oggi» and «/domani» in the island's chat: the same question as on Telegram.
+#[tauri::command]
+fn chat_day_prompt(tomorrow: bool) -> String {
+    telegram::day_prompt(tomorrow)
+}
+
 /// "Modalità terminale": the folder the chat works in — the user's, if it
 /// exists, else their home.
 fn chat_folder(chosen: &str) -> std::path::PathBuf {
@@ -1098,7 +1113,24 @@ pub(crate) async fn chat_turn(
     // A new conversation with an engine that has tools: the map of Notion
     // (notion_map.rs) in front, so it does not search for the structure.
     let has_tools = terminal.is_some() || !(engine == "api" || openai::ENGINES.contains(&engine.as_str()));
-    let notion = if has_tools && chat.is_empty() && chat.cli_session().is_none() { notion_map::index(agent) } else { None };
+    let fresh = chat.is_empty() && chat.cli_session().is_none();
+    let notion = if has_tools && fresh { notion_map::index(agent) } else { None };
+    // The memory (memory.rs): its notes in front of a new conversation, with
+    // how to look further (memory_search) when the engine has the tools.
+    let (remember, instructions) = {
+        let s = shared.settings.lock().unwrap();
+        // The profile's instructions, then the assistant picked for this conversation.
+        let mut text = s.chat_instructions.trim().to_string();
+        if let Some(p) = chat.persona().filter(|_| !telegram) {
+            if !text.is_empty() {
+                text.push_str("\n\n");
+            }
+            text.push_str(p.trim());
+        }
+        (s.chat_history, text)
+    };
+    let memory_tools = agent && (has_tools || engine == "api");
+    let memory = if remember && fresh { memory::preface(memory_tools) } else { None };
     // A reopened conversation the engine cannot resume: it rides in front of the question.
     let preamble = chat.take_preamble();
     let asked = query.clone();
@@ -1115,6 +1147,16 @@ pub(crate) async fn chat_turn(
     let query = match notion {
         Some(n) => format!("{n}{query}"),
         None => query,
+    };
+    let query = match &memory {
+        Some(m) => format!("{m}{query}"),
+        None => query,
+    };
+    // Impostazioni → Chat → Istruzioni (of the active profile), first of all.
+    let query = if fresh && !instructions.is_empty() {
+        format!("{}\n\n{query}", tf("[Istruzioni dell'utente per questa chat:\n{text}]", &[("text", &instructions)]))
+    } else {
+        query
     };
     // Accesso remoto: the chat linked to a connection is told which PC (remote.rs).
     let query = match remote::hint().filter(|_| !telegram && agent) {
@@ -1186,7 +1228,8 @@ pub(crate) async fn chat_turn(
     recipes::end(recipe_mark, &asked, reply.is_ok());
     match &reply {
         Ok(r) if shared.settings.lock().unwrap().chat_history => {
-            chat_log::record(chat, &engine, &asked, &r.text, if telegram { "Telegram · " } else { "" })
+            chat_log::record(chat, &engine, &asked, &r.text, if telegram { "Telegram · " } else { "" });
+            memory::diary(&engine, &asked, &r.text, telegram);
         }
         Ok(_) => {}
         Err(_) => {
@@ -1316,6 +1359,7 @@ fn selection_menu(app: AppHandle, entries: Vec<tray::MenuEntry>) {
 fn chat_reset(chat: State<Chat>) {
     let before = chat.cli_session();
     chat.reset();
+    chat.set_persona(None);
     opencode::forget(before);
 }
 
@@ -1338,6 +1382,105 @@ fn chat_history_open(shared: State<'_, Shared>, chat: State<'_, Chat>, id: Strin
     let opened = chat_log::open(&chat, &id, &chat_key(&engine, &model, terminal))?;
     opencode::forget(before);
     Ok(opened)
+}
+
+/// Impostazioni → Chat → Memoria: how many notes and days.
+#[tauri::command]
+fn memory_info() -> memory::Info {
+    memory::info()
+}
+
+/// «/ricorda …» in the chat: a note for MEMORIA.md, without asking a model.
+#[tauri::command]
+fn memory_note(text: String) -> Result<String, String> {
+    memory::note(&text)
+}
+
+/// «/memoria», Impostazioni → «Apri»: MEMORIA.md in its editor (or the folder).
+#[tauri::command]
+fn memory_open(folder: bool) -> Result<(), String> {
+    let path = if folder { std::fs::create_dir_all(memory::dir()).map(|()| memory::dir()).map_err(|e| e.to_string())? } else { memory::ensure_main()? };
+    Command::new("explorer").arg(&path).spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
+/// The history list filtered by words (title and text).
+#[tauri::command]
+fn chat_history_search(query: String) -> Vec<chat_log::Summary> {
+    chat_log::search(&query)
+}
+
+#[tauri::command]
+fn chat_history_pin(id: String, pinned: bool) {
+    chat_log::set_pinned(&id, pinned);
+}
+
+/// «Modifica» / «Rigenera»: the conversation goes back to its first lines.
+#[tauri::command]
+fn chat_rewind(chat: State<'_, Chat>, keep: Vec<chat_log::Line>) {
+    let before = chat.cli_session();
+    chat_log::rewind(&chat, keep);
+    opencode::forget(before);
+}
+
+/// «⑂ Dirama da qui»: a new conversation from the first lines of this one.
+#[tauri::command]
+fn chat_fork(chat: State<'_, Chat>, keep: Vec<chat_log::Line>) {
+    let before = chat.cli_session();
+    chat_log::fork(&chat, keep);
+    opencode::forget(before);
+}
+
+/// An assistant (Impostazioni → Chat → Assistenti) for the conversation that
+/// starts: its instructions go in front of the first question. None = none.
+#[tauri::command]
+fn chat_persona(chat: State<'_, Chat>, instructions: Option<String>) {
+    chat.set_persona(instructions);
+}
+
+/// 🎤 in the chat: what was said, through the service of Telegram's «Vocali»
+/// (transcribe.rs). The audio is not kept.
+#[tauri::command]
+async fn chat_transcribe(shared: State<'_, Shared>, audio: Vec<u8>, mime: String) -> Result<String, String> {
+    let (service, model) = {
+        let s = shared.settings.lock().unwrap();
+        (s.integration_config.telegram_voice.clone(), s.integration_config.telegram_voice_model.clone())
+    };
+    if service.is_empty() {
+        return Err(t("Scegli chi trascrive in Impostazioni → Telegram → Vocali, oppure usa la dettatura di Windows.").into());
+    }
+    transcribe::transcribe(&service, &model, &audio, &mime).await
+}
+
+/// 🎤 records (true) or stopped: the microphone in use is ours, not a meeting (presence.rs).
+#[tauri::command]
+fn chat_dictation(on: bool) {
+    presence::set_dictation(on);
+}
+
+/// 🎤 without a transcription service: Windows' own dictation (Win+H) in the
+/// chat's field, which has the keyboard focus.
+#[tauri::command]
+async fn chat_dictate_windows() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let steps = keys::parse("Win+H")?;
+        keys::play(&steps);
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// «Esporta»: the conversation as a Markdown file in the Vassoio.
+#[tauri::command]
+fn chat_export(title: String, lines: Vec<chat_log::Line>) -> Result<DroppedFile, String> {
+    let mut text = format!("# {}\n\n", title.trim());
+    for l in &lines {
+        let who = if l.role == "user" { t("Tu") } else { t("Assistente") };
+        text.push_str(&format!("**{who}:**\n\n{}\n\n---\n\n", l.content.trim()));
+    }
+    let safe: String = title.chars().filter(|c| !r#"\/:*?"<>|"#.contains(*c)).take(60).collect();
+    let name = format!("{} - {}.md", t("Chat"), safe.trim());
+    files::save_new(&name, text.as_bytes())
 }
 
 #[tauri::command]
@@ -1391,6 +1534,27 @@ async fn claude_cli_status() -> claude_cli::CliStatus {
 /// Copies a dropped file into the inbox and reports its name back. Off the
 /// main thread: a sync command runs there, and copying a file of a few GB
 /// froze the whole island ("not responding") until it was done.
+/// Ctrl+V in the chat's field: the files copied in Explorer (the first one
+/// that is a file), else the picture on the clipboard as a PNG in the inbox.
+/// None when the clipboard has neither (then the text is pasted as usual).
+#[tauri::command]
+async fn chat_paste() -> Result<Option<DroppedFile>, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        if let Some(path) = clipimage::files().into_iter().find(|p| std::path::Path::new(p).is_file()) {
+            return files::ingest(&path).map(Some);
+        }
+        if !clipimage::has_image() {
+            return Ok(None);
+        }
+        let Some(img) = clipimage::read() else { return Ok(None) };
+        let png = clipimage::encode_png(&img)?;
+        let name = format!("{}.png", t("Immagine incollata"));
+        files::save_new(&name, &png).map(Some)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 async fn ingest_file(path: String) -> Result<DroppedFile, String> {
     tauri::async_runtime::spawn_blocking(move || files::ingest(&path)).await.map_err(|e| e.to_string())?
@@ -2170,6 +2334,8 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
                     api.prevent_close();
                     island::keep_settings_above(&handle, false);
                     let _ = hidden.hide();
+                    // Hidden, its page sleeps (webview_memory.rs).
+                    webview_memory::set_asleep(&hidden, true);
                 }
                 // Above the island while in use (island::keep_settings_above).
                 tauri::WindowEvent::Focused(active) => island::keep_settings_above(&handle, *active),
@@ -2178,6 +2344,16 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
         }
         Err(err) => log::line(format!("settings window failed: {err}")),
     }
+    // Once its page has loaded, the hidden settings window sleeps until it is opened.
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(10));
+        if let Some(win) = handle.get_webview_window("settings") {
+            if !win.is_visible().unwrap_or(true) {
+                webview_memory::set_asleep(&win, true);
+            }
+        }
+    });
 }
 
 pub fn show_settings_window(app: &AppHandle) {
@@ -2185,9 +2361,18 @@ pub fn show_settings_window(app: &AppHandle) {
         log::line("settings window missing");
         return;
     };
+    webview_memory::set_asleep(&win, false);
     let _ = win.unminimize();
     let _ = win.show();
     let _ = win.set_focus();
+}
+
+/// The island compact (low) or open (normal): WebView2's memory target (webview_memory.rs).
+#[tauri::command]
+fn webview_memory_low(app: AppHandle, low: bool) {
+    if let Some(win) = island::window(&app) {
+        webview_memory::set_low(&win, low);
+    }
 }
 
 #[tauri::command]
@@ -2306,6 +2491,21 @@ pub fn run() {
             widget_refresh,
             widget_results,
             ingest_file,
+            chat_paste,
+            webview_memory_low,
+            chat_fork,
+            chat_persona,
+            chat_transcribe,
+            chat_dictate_windows,
+            chat_dictation,
+            chat_day_prompt,
+            memory_info,
+            memory_note,
+            memory_open,
+            chat_history_search,
+            chat_history_pin,
+            chat_rewind,
+            chat_export,
             capture_begin,
             capture_frame,
             capture_show,

@@ -16,6 +16,56 @@
 - Si riapre dall'orologio in alto nella chat: la lista prende il posto della conversazione e l'isola si allunga (`fitHeight`). Riaprire sostituisce la conversazione in corso e torna al suo motore (`chatEngineOverride`).
 - Claude Code (`claude -p`) e opencode tengono la conversazione in una sessione loro, che non sopravvive in modo affidabile: riaperte, ricevono la conversazione di prima come testo davanti alla prima domanda (`Chat::take_preamble`, ultimi 24.000 caratteri). Se il turno fallisce, il testo resta per il tentativo dopo.
 - Impostazioni → Chat → Cronologia (`chatHistory`) la spegne e la cancella; «Cancella la cronologia» la svuota. Niente esce dal PC.
+- In cima alla lista c'è la ricerca (`chat_history_search`): trova le parole nel titolo e nel testo. 📌 fissa una conversazione in cima (`pinned`) e il limite delle 100 non la toglie mai.
+
+## Campo e azioni della chat (21 ottobre 2026)
+Chiesto da Edoardo per invogliarlo a usare la chat al posto di Claude Code da terminale. Tutto in `src/views/chat.ts`.
+- **Campo su più righe** (`textarea`): cresce fino a 160 px, poi scorre. Invio invia, Maiusc+Invio va a capo. Quello che stai scrivendo resta anche se riavvii (`localStorage`, solo su questo PC). ↑ nel campo vuoto riprende l'ultima domanda.
+- **Allegati durante la conversazione:**
+  - Ctrl+V nel campo con file copiati in Esplora file o con un'immagine (`chat_paste`, `clipimage::files`) li mette nel Vassoio e li allega alla prossima domanda (`State.chatAttach`, chip 📎).
+  - Un file trascinato sull'isola mentre la chat ha già una conversazione fa lo stesso, senza ricominciarla (`island.ts`).
+  - I motori ora accettano un allegato a ogni turno, non solo al primo. Il front end lo manda solo con la prima domanda o con un file aggiunto, e così anche i file mandati su Telegram a conversazione avviata arrivano al motore.
+- **Sotto ogni messaggio** (al passaggio del mouse, sempre sotto l'ultimo):
+  - **Copia**;
+  - **Modifica** sulle domande: il testo torna nel campo e inviarlo riparte da lì;
+  - **↻ Rigenera** sull'ultima risposta.
+  - Modifica e Rigenera usano `chat_rewind` (`chat_log::rewind`): la cronologia si accorcia e il motore riparte con la conversazione tenuta come testo davanti (lo stesso preambolo della cronologia riaperta). Costa una conversazione nuova per il motore, ma funziona uguale con tutti.
+- **Comandi con /** (menu sopra il campo, frecce e Tab o Invio): `/nuova`, `/cronologia`, `/cerca`, `/ricorda`, `/memoria`, `/esporta`, `/motore`, `/oggi`, `/domani` (la stessa domanda di Telegram, `chat_day_prompt`) e ogni azione rapida col suo nome (`/backup-giornaliero`). Un `/qualcosa` che non è un comando va al motore come testo, così un percorso Linux non si perde.
+- **Scorrimento:** se sali a leggere, il testo che arriva non ti riporta giù; compare ↓ per tornare in fondo.
+- **Esporta** (⤓ nella testata, `/esporta`): la conversazione in Markdown nel Vassoio (`chat_export`).
+- **Istruzioni** (Impostazioni → Chat, `chatInstructions`): un testo detto alla chat all'inizio di ogni conversazione. Fa parte del profilo (`PROFILE_KEYS`), così un profilo «Cliente Rossi» ha le sue.
+- **Telegram `/riprendi`:** continua su Telegram l'ultima conversazione della chat dell'isola, sul suo motore (`chat_log::open` sulla chat di Telegram).
+
+## Idee prese dalle altre app di chat (22 ottobre 2026)
+Chiesto da Edoardo: prendere spunto dalle alternative. Guardate Raycast AI, LibreChat, TypingMind, Open WebUI, Msty, ChatGPT e Claude. Prese quelle utili a un tecnico, senza dipendenze nuove:
+- **Menu @** (dal menu @ e da «Screen Awareness» di Raycast). Scrivendo `@` nel campo puoi allegare:
+  - `@appunti`: il testo copiato, che va davanti alla prossima domanda a qualsiasi turno, oppure l'immagine copiata come file;
+  - `@finestra`: la foto di una finestra aperta (`record_windows`, `window_shot`);
+  - `@vassoio`: un file del Vassoio.
+- **Modelli con campi** (dalle librerie di prompt con variabili di TypingMind e LibreChat): un'azione rapida «prompt» con `{{cliente}}` nel testo, scelta da `/`, va nel campo invece di partire. Tab salta da un campo `{{…}}` al successivo.
+- **⑂ Dirama da qui** (dal «fork» di LibreChat e TypingMind): sotto una risposta che non è l'ultima. Apre una conversazione nuova che parte da lì (`chat_fork`, `chat_log::fork`); quella di prima resta intera nella cronologia.
+- **Assistenti** (dagli «Agents», prima «Presets», di Raycast e dai preset di LibreChat):
+  - In Impostazioni → Chat → Istruzioni e memoria (`chatAssistants`) ognuno ha nome, emoji, motore e istruzioni.
+  - Nella chat si scelgono con `/nome`: conversazione nuova sul loro motore, con il chip 🤖.
+  - Le istruzioni stanno in `Chat::persona`, che `reset` non tocca (cambiare motore resetta) e che `chat_reset` toglie. Vanno davanti alla prima domanda dopo quelle del profilo. Non valgono su Telegram.
+- **🎤 Dettatura** (dalla voce di ChatGPT): clic per iniziare e per finire.
+  - Con un servizio scelto in Impostazioni → Telegram → Vocali, registra dal microfono della finestra (`MediaRecorder`) e trascrive con quel servizio (`chat_transcribe`, `transcribe.rs`). L'audio non resta.
+  - Senza servizio apre la dettatura di Windows (Win+H, `chat_dictate_windows`), locale e gratuita.
+- **Non prese:** il confronto di più motori affiancati di Msty (c'è già «Seconda opinione»); i titoli scritti dall'IA e i suggerimenti di domande dopo la risposta, perché costano un turno di modello ogni volta; le «Projects» di ChatGPT e Claude (le coprono i profili con le loro Istruzioni e la cartella di lavoro).
+
+## Memoria della chat (`memory.rs`, 21 ottobre 2026)
+Chiesta da Edoardo: una memoria in timeline, in file .md, che renda la chat più intelligente col tempo senza consumare troppi token. Spunti presi dai sistemi di memoria a file degli agenti: un indice corto sempre caricato e il resto letto solo quando serve.
+- **Dove:** `%APPDATA%\EasyIsland\memoria`, file leggibili e modificabili. Impostazioni → Chat → Memoria li conta e li apre.
+- **`MEMORIA.md`:** le note da ricordare sempre, una per riga con la data. Vanno davanti alla prima domanda di ogni conversazione, al massimo 4.000 caratteri e le più recenti prima (costo: qualche centinaio di token una volta per conversazione). Oltre 60 note, le più vecchie passano in `archivio.md`, che resta cercabile.
+- **`diario/AAAA-MM.md`:** la timeline. Una riga per ogni domanda con risposta: ora, motore, domanda e inizio della risposta, tagliate a 160 caratteri. La scrive l'app, senza chiedere a nessun modello, quindi costa zero token.
+- **Strumenti** (solo nella chat, mai in Claude Code fuori dall'app):
+  - `memory_search` cerca nelle note, nell'archivio e nel diario (tutte le parole, al massimo 20 righe);
+  - `memory_note` salva una nota.
+  - Tutti e due senza Consenti / Nega: scrivono solo la memoria dell'app, che l'utente vede e corregge.
+  - Il testo davanti alla conversazione dice al motore di salvare da solo le preferenze e i fatti stabili e di non salvare password o chiavi.
+- **«/ricorda …»** salva una nota senza passare dal modello.
+- Si spegne con la Cronologia (`chatHistory` spenta: niente diario e niente memoria davanti).
+- Insieme alle **Ricette** (`recipes.rs`, come sono state fatte le cose) è il modo in cui la chat impara con l'uso: le ricette sanno quali strumenti usare, la memoria sa chi è l'utente e cosa è successo.
 
 ## opencode come motore (`src-tauri/src/opencode.rs`, opencode 2)
 - Server privato `opencode serve`: porta libera, password casuale, `EASYISLAND_INTERNAL`. `find_exe` cerca l'exe vero dietro gli shim di npm. Il server si spegne dopo 10 minuti senza messaggi e all'uscita (`opencode::shutdown`, `actions::kill_tree` con tutto l'albero dei processi). `generation` evita che il timer di un server vecchio spenga quello nuovo.

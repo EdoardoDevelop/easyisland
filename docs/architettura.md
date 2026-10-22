@@ -72,6 +72,13 @@ In release Rust ha `panic = "abort"`: un panic in qualsiasi thread chiude l'app.
 - **Fotogramma dell'isola:** ogni parte (`syncDom`, ogni vista, menu, barra, striscia, personaggio) passa da `guard` in `island.ts`. Un'eccezione va nel log una volta e il ciclo continua: prima fermava `requestAnimationFrame` per sempre. Una card che non si disegna lascia il posto a una di ripiego (`safeCard` in `views.ts`). `State.notify` isola gli iscritti tra loro. Gli errori non gestiti della pagina vanno nel log (`logPageErrors` in `main.ts`).
 - **Dati in ingresso:** gli eventi degli agenti passano da `sanitize` (`hooks.ts`), che toglie i campi del tipo sbagliato. Un errore dentro un `PermissionRequest` rimanda la domanda al terminale (l'agente non resta ad aspettare). `handleIntegration` / `handleWidget` accettano aggiornamenti senza dati. I dati di 3CX (`data()` in `threecx.ts`) e del Meteo (`readForecast`) vengono normalizzati prima di disegnarli. Una card nuova legge i suoi dati allo stesso modo.
 
+## Memoria di WebView2 (`webview_memory.rs`, 22 ottobre 2026)
+- Misurata prima: circa 560 MB in 8 processi, 176 MB la pagina dell'isola e 66 MB quella delle Impostazioni nascoste.
+- **Impostazioni nascoste:** la finestra esiste nascosta dall'avvio, perché una creata dopo resta bianca. Dieci secondi dopo l'avvio e a ogni chiusura la sua pagina viene sospesa (`TrySuspend` e `SetIsVisible(false)`). `show_settings_window` la risveglia.
+- **Isola ritirata:** chiede a WebView2 la memoria bassa (`SetMemoryUsageTargetLevel` Low); quando si apre torna normale (`island.ts` `setMode`, `webview_memory_low`). All'avvio la memoria bassa arriva dopo il saluto, a 15 secondi.
+- **Risultato** misurato con l'isola ritirata: memoria effettiva (working set) da 557 a 104 MB. La memoria riservata cambia poco (da 331 a 314 MB), perché Windows la rende solo se serve ad altri.
+- Il processo grafico (`gpu-process`) resta: la finestra trasparente e il Canvas ne hanno bisogno, e senza costerebbe CPU.
+
 ## Impostazioni
 - Le pagine sono in `pages()` di `src/settings/main.ts`. «Chat» = motore e connettori (`claudeChatSection`). «Agenti» = una riga per agente (`agentsSection`, `agentRow`; l'id di pagina è ancora `claude`). Altre sezioni: `automationsSection` e `actionsSection`.
 - `commit()` salva soltanto; `render()` ricostruisce la pagina intera e si chiama solo quando cambia la struttura (non mentre si scrive).

@@ -58,6 +58,14 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 
 ## What's new
 
+**0.9.7** — **A handier chat**: a multi-line field that keeps the draft, files pasted or dropped
+into a conversation going on, Copy / Edit / ↻ Regenerate / ⑂ Branch under the messages, `/`
+commands (your quick actions too), an `@` menu to attach the clipboard, a window or a Tray file,
+templates with `{{fields}}`, **Assistants** with engine and instructions, 🎤 dictation, history
+search and 📌, Markdown export, per-profile instructions and `/riprendi` on Telegram. **Memory** in
+.md files: notes the chat remembers in every conversation and a day-by-day diary, at no token cost.
+WebView2 uses far less RAM with the island compact.
+
 **0.9.6** — **Remote access**: a quick connection to a customer's PC with WinRM or SSH
 (Windows and Linux), nothing saved; with 🔌 the chat works on it, every command with Allow /
 Deny; a step-by-step guide to prepare the PC and a cleanup at the close. **Notion** rows can be
@@ -139,6 +147,7 @@ the browser's. **Overview** with large, faded logos in the corner of each tile.
 
 | Version | Date | What's new |
 |---|---|---|
+| **0.9.7** | 22 Oct 2026 | Handier chat (Edit, Regenerate, Branch, / commands, @ menu, Assistants, dictation) and memory in .md, less RAM |
 | **0.9.6** | 21 Oct 2026 | Remote access with WinRM and SSH for IT support, Notion rows deletable from the chat |
 | 0.9.5 | 20 Oct 2026 | Hooks in every shell (no Git Bash needed), Microsoft To Do, open island on another screen |
 | 0.9.4 | 20 Oct 2026 | Faster chat: Claude Code kept on, compact Notion with totals, recipes, visible reasoning |

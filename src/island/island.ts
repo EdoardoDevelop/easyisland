@@ -223,6 +223,8 @@ export class Island {
     this.engine.onDizzy = () => this.handleDizzy();
     this.greeting.onComplete = () => this.fsm.greetComplete();
     this.greeting.bare = true;
+    // After the start-up greeting the island is compact: WebView2 may keep less memory.
+    window.setTimeout(() => { if (State.mode !== "expanded") void Bridge.webviewMemoryLow(true); }, 15000);
     State.subscribe(() => {
       this.dirty = true;
       this.ensureRunning();
@@ -501,6 +503,8 @@ export class Island {
     // the character's place, so it shrinks there and the next opening starts there.
     if (mode === "expanded" && prev !== "expanded") this.openAway();
     else if (prev === "expanded" && mode !== "expanded") this.closeAway();
+    // Compact: WebView2 trims its memory; open: back to normal.
+    if ((mode === "expanded") !== (prev === "expanded")) void Bridge.webviewMemoryLow(mode !== "expanded");
     if (mode === "expanded") {
       Sound.play("open");
       void this.refreshForeground();
@@ -1805,6 +1809,23 @@ ${note}` : text };
           return;
         }
         void Bridge.isFolder(path).then((folder) => {
+          // Into a conversation going on: the file joins it (sent with the
+          // next question) instead of starting a new one.
+          const before = this.beforeDrop;
+          if (!folder && before?.view === "prompt" && before.mode === "expanded" && State.chatHistory.length > 0 && !State.chatSession) {
+            this.restoreAfterDrag();
+            void Bridge.ingestFile(path)
+              .then((f) => {
+                State.chatAttach = { name: f.name, path: f.path };
+                Sound.play("approve");
+                State.notify();
+              })
+              .catch((err) => {
+                State.noteMessage = String(err).replace(/^Error:\s*/, "");
+                this.setView("note");
+              });
+            return;
+          }
           if (!folder) {
             this.beforeDrop = null;
             this.swallow(path);

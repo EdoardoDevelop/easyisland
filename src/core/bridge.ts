@@ -354,6 +354,32 @@ export const Bridge = {
   /** Notion's structure kept for the chat (notion_map.rs): how many, and when (s since 1970, 0 = never). */
   notionMapStatus: () => call<NotionMapStatus>("notion_map_status"),
   notionMapSync: () => callOrThrow<NotionMapStatus>("notion_map_sync"),
+  /** The chat's memory (memory.rs): counts, a note («/ricorda»), opening MEMORIA.md or its folder. */
+  memoryInfo: () => call<MemoryInfo>("memory_info"),
+  memoryNote: (text: string) => callOrThrow<string>("memory_note", { text }),
+  memoryOpen: (folder: boolean) => callOrThrow<void>("memory_open", { folder }),
+  /** Ctrl+V in the chat: files copied in Explorer or a picture, into the inbox (null: plain text). */
+  chatPaste: () => callOrThrow<DroppedFile | null>("chat_paste"),
+  /** «Modifica» / «Rigenera»: the conversation goes back to these lines. */
+  chatRewind: (keep: { role: "user" | "assistant"; content: string }[]) => call<void>("chat_rewind", { keep }),
+  /** «Esporta»: the conversation as Markdown in the Vassoio. */
+  chatExport: (title: string, lines: { role: "user" | "assistant"; content: string }[]) => callOrThrow<DroppedFile>("chat_export", { title, lines }),
+  /** «/oggi», «/domani»: the question that gathers the day with the tools (telegram.rs day_prompt). */
+  chatDayPrompt: (tomorrow: boolean) => call<string>("chat_day_prompt", { tomorrow }),
+  /** «⑂ Dirama da qui»: a new conversation from these lines; the old one stays in the history. */
+  chatFork: (keep: { role: "user" | "assistant"; content: string }[]) => call<void>("chat_fork", { keep }),
+  /** The assistant of the conversation that starts (its instructions); null = none. */
+  chatPersona: (instructions: string | null) => call<void>("chat_persona", { instructions }),
+  /** 🎤: the recorded audio to text (Telegram's «Vocali» service). */
+  chatTranscribe: (audio: number[], mime: string) => callOrThrow<string>("chat_transcribe", { audio, mime }),
+  /** The island compact (true) or open: WebView2 keeps less memory (webview_memory.rs). */
+  webviewMemoryLow: (low: boolean) => call<void>("webview_memory_low", { low }),
+  /** 🎤 records or stopped: the microphone in use is not a meeting (presence.rs). */
+  chatDictation: (on: boolean) => call<void>("chat_dictation", { on }),
+  /** 🎤 with no service: Windows' dictation (Win+H) in the focused field. */
+  chatDictateWindows: () => callOrThrow<void>("chat_dictate_windows"),
+  chatHistorySearch: (query: string) => call<ChatSummary[]>("chat_history_search", { query }),
+  chatHistoryPin: (id: string, pinned: boolean) => call<void>("chat_history_pin", { id, pinned }),
   /** What the chat learnt by use (recipes.rs): how many, and forgetting them. */
   recipesCount: () => call<number>("recipes_count"),
   recipesForget: () => call<void>("recipes_forget"),
@@ -548,6 +574,13 @@ export interface IntegrationUpdate {
   event: { success: boolean; label: string; detail: string | null } | null;
 }
 
+/** Impostazioni → Chat → Memoria (memory.rs `Info`). */
+export interface MemoryInfo {
+  notes: number;
+  days: number;
+  folder: string;
+}
+
 /** One conversation in the chat history (chat_log.rs `Summary`); `updated` in ms. */
 export interface ChatSummary {
   id: string;
@@ -555,6 +588,8 @@ export interface ChatSummary {
   engine: string;
   updated: number;
   turns: number;
+  /** 📌: on top, never dropped. */
+  pinned?: boolean;
 }
 
 export type ChatContext =

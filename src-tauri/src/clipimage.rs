@@ -67,6 +67,32 @@ pub(crate) unsafe fn read_format(format: u32) -> Option<Vec<u8>> {
     Some(bytes)
 }
 
+/// The files copied in Explorer (CF_HDROP), if any: their paths.
+pub fn files() -> Vec<String> {
+    use windows::Win32::System::Ole::CF_HDROP;
+    use windows::Win32::UI::Shell::{DragQueryFileW, HDROP};
+    unsafe {
+        if IsClipboardFormatAvailable(CF_HDROP.0 as u32).is_err() || !open() {
+            return Vec::new();
+        }
+        let mut out = Vec::new();
+        if let Ok(handle) = GetClipboardData(CF_HDROP.0 as u32) {
+            let drop = HDROP(handle.0);
+            let count = DragQueryFileW(drop, u32::MAX, None);
+            for i in 0..count.min(20) {
+                let len = DragQueryFileW(drop, i, None) as usize;
+                let mut buf = vec![0u16; len + 1];
+                let got = DragQueryFileW(drop, i, Some(&mut buf)) as usize;
+                if let Some(chars) = buf.get(..got) {
+                    out.push(String::from_utf16_lossy(chars));
+                }
+            }
+        }
+        let _ = CloseClipboard();
+        out
+    }
+}
+
 /// The picture on the clipboard, if any.
 pub fn read() -> Option<Rgba> {
     unsafe {

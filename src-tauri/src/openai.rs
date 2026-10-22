@@ -219,7 +219,9 @@ pub async fn send(
     }
     let base = base_url(engine, custom_url)?;
 
-    chat.push(user_message(chat.is_empty(), &query, context.as_ref()));
+    // The front end sends a context only with the first question or a file
+    // added later (pasted in the chat, sent on Telegram): it always goes.
+    chat.push(user_message(true, &query, context.as_ref()));
     let mut messages = vec![json!({ "role": "system", "content": crate::i18n::prompt(SYSTEM_PROMPT) })];
 
     messages.extend(chat.snapshot());
@@ -418,7 +420,7 @@ mod tests {
         let first = user_message(true, "Cos'è?", Some(&ctx));
         assert_eq!(first["content"][0]["text"], "Testo copiato:\nerrore 0x80070005");
         assert_eq!(first["content"][1]["text"], "Cos'è?");
-        let later = user_message(false, "E poi?", Some(&ctx));
+        let later = user_message(true, "E poi?", None);
         assert_eq!(later["content"], "E poi?");
     }
 

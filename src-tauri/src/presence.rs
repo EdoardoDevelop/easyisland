@@ -55,15 +55,35 @@ fn in_use(k: &Key) -> bool {
     k.qword("LastUsedTimeStop") == Some(0) && k.qword("LastUsedTimeStart").unwrap_or(0) > 0
 }
 
+/// The chat's 🎤 is recording (unix seconds when it started, 0 = not):
+/// Windows sees it as "msedgewebview2" — any app's web view — so while it is
+/// on, a web view on the microphone is ours, not a meeting. It expires after
+/// 10 minutes in case the island never says it stopped.
+static DICTATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+pub(crate) fn set_dictation(on: bool) {
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    DICTATION.store(if on { now } else { 0 }, std::sync::atomic::Ordering::SeqCst);
+}
+
+fn dictating() -> bool {
+    let since = DICTATION.load(std::sync::atomic::Ordering::SeqCst);
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    since > 0 && now.saturating_sub(since) < 600
+}
+
 /// The first app using the microphone or the webcam right now.
 pub(crate) fn device_in_use(device: &str) -> Option<String> {
     let root = Key::open(HKEY_CURRENT_USER, &format!(r"{CONSENT}\{device}"))?;
+    let ours = device == "microphone" && dictating();
     for name in root.subkeys() {
         let Some(k) = root.child(&name) else { continue };
         if name.eq_ignore_ascii_case("NonPackaged") {
             for exe in k.subkeys() {
-                // EasyIsland's own recording (record.rs) is not a meeting.
-                if exe.to_lowercase().contains("easyisland") {
+                // EasyIsland's own recording (record.rs) is not a meeting,
+                // nor is the chat's dictation (its web view).
+                let low = exe.to_lowercase();
+                if low.contains("easyisland") || (ours && low.contains("msedgewebview2")) {
                     continue;
                 }
                 if k.child(&exe).is_some_and(|c| in_use(&c)) {
