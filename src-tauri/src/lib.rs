@@ -1450,6 +1450,12 @@ async fn chat_transcribe(shared: State<'_, Shared>, audio: Vec<u8>, mime: String
     transcribe::transcribe(&service, &model, &audio, &mime).await
 }
 
+/// 🎤 records (true) or stopped: the microphone in use is ours, not a meeting (presence.rs).
+#[tauri::command]
+fn chat_dictation(on: bool) {
+    presence::set_dictation(on);
+}
+
 /// 🎤 without a transcription service: Windows' own dictation (Win+H) in the
 /// chat's field, which has the keyboard focus.
 #[tauri::command]
@@ -2468,6 +2474,7 @@ pub fn run() {
             chat_persona,
             chat_transcribe,
             chat_dictate_windows,
+            chat_dictation,
             chat_day_prompt,
             memory_info,
             memory_note,

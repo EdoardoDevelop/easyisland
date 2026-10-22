@@ -404,6 +404,8 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
       return;
     }
     try {
+      // Said before the microphone turns on, so "davanti al cliente" does not hide the island.
+      await Bridge.chatDictation(true);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       chunks = [];
       const rec = new MediaRecorder(stream);
@@ -411,6 +413,8 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
       rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
       rec.onstop = async () => {
         stream.getTracks().forEach((tr) => tr.stop());
+        // Windows marks the microphone free a moment after the tracks stop.
+        window.setTimeout(() => void Bridge.chatDictation(false), 3000);
         recorder = null;
         mic.classList.remove("on");
         mic.textContent = "🎤";
@@ -436,6 +440,7 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
       flash(`🎤 ${t("Parla… clic su ■ per finire")}`, true);
     } catch (err) {
       recorder = null;
+      void Bridge.chatDictation(false);
       flash(t("Microfono non disponibile: {e}", { e: String(err).replace(/^\w*Error:\s*/, "") }));
     }
   }
