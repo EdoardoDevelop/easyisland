@@ -59,6 +59,14 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.9.7** — **Chat più comoda**: campo su più righe che non perde la bozza, file incollati o
+trascinati a conversazione avviata, Copia / Modifica / ↻ Rigenera / ⑂ Dirama sotto i messaggi,
+comandi con `/` (anche le tue azioni rapide), menu `@` per allegare appunti, una finestra o un file
+del Vassoio, modelli con `{{campi}}`, **Assistenti** con motore e istruzioni, 🎤 dettatura, cronologia
+con ricerca e 📌, Esporta in Markdown, Istruzioni per profilo e `/riprendi` su Telegram. **Memoria**
+in file .md: note che la chat ricorda in ogni conversazione e diario giorno per giorno, senza
+consumare token. WebView2 usa molto meno RAM con l'isola ritirata.
+
 **0.9.6** — **Accesso remoto**: un collegamento al volo al PC di un cliente con WinRM o SSH
 (Windows e Linux), senza salvare niente; con 🔌 la chat ci lavora, ogni comando con Consenti /
 Nega; guida passo passo per preparare il PC e pulizia alla chiusura. Le righe di **Notion** si
@@ -311,6 +319,7 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
+| **0.9.7** | 22 ott 2026 | Chat più comoda (Modifica, Rigenera, Dirama, comandi /, menu @, Assistenti, dettatura) e memoria in .md, meno RAM |
 | **0.9.6** | 21 ott 2026 | Accesso remoto con WinRM e SSH per l'assistenza, righe di Notion eliminabili dalla chat |
 | 0.9.5 | 20 ott 2026 | Hook in ogni shell (senza Git Bash), Microsoft To Do, isola aperta su un altro schermo |
 | 0.9.4 | 20 ott 2026 | Chat più veloce: Claude Code acceso, Notion compatto con i totali, ricette, ragionamento visibile |
