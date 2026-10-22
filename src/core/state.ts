@@ -849,6 +849,8 @@ export interface Theme {
   volumeEmotes: number;
   /** The island's colour behind the character while it is closed; off = the character alone. */
   compactBackground: boolean;
+  /** The look of the island and the settings: "windows" (Windows 11, the default) or "classic". */
+  style: "windows" | "classic";
 }
 
 export interface ProfileRules {
@@ -875,6 +877,7 @@ export const DEFAULT_THEME: Theme = {
   volumeUi: 1,
   volumeEmotes: 1,
   compactBackground: true,
+  style: "windows",
 };
 
 export const DEFAULT_SETTINGS: Settings = {

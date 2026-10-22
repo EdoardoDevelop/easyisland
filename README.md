@@ -49,7 +49,7 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
   **davanti al cliente**, messaggi da qualsiasi script, backup delle impostazioni.
 - **Nove personaggi** (Goccia, la predefinita, Slime, Geco, Fiamma, Magma,
   Pietra, Roccia e Foglia), posizione libera,
-  isola grande fino ai bordi dello schermo e aperta dove vuoi, tema, suoni
+  isola grande fino ai bordi dello schermo e aperta dove vuoi, stile Windows 11 o Classico, tema, suoni
   generati nel codice, interfaccia in **italiano o inglese**; leggera a batteria,
   nessuna telemetria.
 
@@ -58,6 +58,12 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 </p>
 
 ## Novità
+
+**0.9.8** — **Aspetto Windows 11**, ora predefinito: isola e Impostazioni grigie come le finestre
+di Windows, con il colore d'accento che hai scelto in Windows, interruttori, campi e pulsanti
+come quelli del sistema, icone a linea al posto delle emoji e ogni impostazione su una riga con la
+spiegazione sotto. I loghi grandi nei riquadri della Panoramica e i colori delle integrazioni
+restano. L'aspetto di prima c'è ancora: Impostazioni → Aspetto → Tema → Stile → Classico.
 
 **0.9.7** — **Chat più comoda**: campo su più righe che non perde la bozza, file incollati o
 trascinati a conversazione avviata, Copia / Modifica / ↻ Rigenera / ⑂ Dirama sotto i messaggi,
@@ -319,6 +325,7 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
+| **0.9.8** | 22 ott 2026 | Aspetto Windows 11 predefinito (grigio, colore d'accento di Windows, icone a linea), il Classico resta come stile |
 | **0.9.7** | 22 ott 2026 | Chat più comoda (Modifica, Rigenera, Dirama, comandi /, menu @, Assistenti, dettatura) e memoria in .md, meno RAM |
 | **0.9.6** | 21 ott 2026 | Accesso remoto con WinRM e SSH per l'assistenza, righe di Notion eliminabili dalla chat |
 | 0.9.5 | 20 ott 2026 | Hook in ogni shell (senza Git Bash), Microsoft To Do, isola aperta su un altro schermo |

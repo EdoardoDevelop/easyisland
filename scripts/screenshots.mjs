@@ -18,6 +18,10 @@ import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const BASE = process.env.PREVIEW_URL ?? "http://127.0.0.1:1420";
 const PORT = 9333;
+// SHOT_DIR=… saves elsewhere (trying a change without touching the README's
+// images); SHOT_QUERY=ui=classic adds to every page's query.
+const OUT = process.env.SHOT_DIR ?? join(ROOT, "screenshots");
+const QUERY = process.env.SHOT_QUERY ?? "";
 
 // The integrations a typical setup shows as pills next to the card.
 const PILLS = "integration_network,integration_weather,integration_zammad,integration_media,integration_clipboard,integration_3cx";
@@ -98,7 +102,8 @@ const evaluate = async (expression) =>
 async function shoot(name, s) {
   const page = s.page ?? { w: 760, h: 600 };
   await send("Emulation.setDeviceMetricsOverride", { width: page.w, height: page.h, deviceScaleFactor: 2, mobile: false });
-  await send("Page.navigate", { url: BASE + s.url });
+  const url = QUERY ? BASE + s.url + (s.url.includes("?") ? "&" : "?") + QUERY : BASE + s.url;
+  await send("Page.navigate", { url });
   let clip = { x: 0, y: 0, width: page.w, height: page.h, scale: 1 };
   if (!s.page) {
     let rect = null;
@@ -115,7 +120,7 @@ async function shoot(name, s) {
     await sleep(1500);
   }
   const shot = await send("Page.captureScreenshot", { format: "png", clip, captureBeyondViewport: true });
-  writeFileSync(join(ROOT, "screenshots", `${name}.png`), Buffer.from(shot.data, "base64"));
+  writeFileSync(join(OUT, `${name}.png`), Buffer.from(shot.data, "base64"));
   console.log(`${name}.png ${Math.round(clip.width)}×${Math.round(clip.height)}`);
 }
 

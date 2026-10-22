@@ -1,0 +1,228 @@
+/* Windows 11 look of the island (theme.style = "windows", the default; src/core/uistyle.ts).
+   Every rule is scoped to html[data-ui="windows"], so "Classico" keeps style.css as it was.
+   What stays from the classic look on purpose: the characters, the integrations' colours
+   (dots, the faint logo in the Panoramica tiles, hover borders), the weather sky. */
+
+html[data-ui="windows"] {
+  --font: "Segoe UI Variable Text", "Segoe UI", system-ui, "Segoe UI Emoji", sans-serif;
+  /* Windows' accent (read from the registry by system_accent), its default blue otherwise. */
+  --accent: var(--win-accent, #4cc2ff);
+  --on-accent: #000;
+  --ink: #ffffff;
+  --ink-2: #f3f3f3;
+  --dim: #c5c5c5;
+  --dim-2: #a8a8a8;
+  --dim-3: #9a9a9a;
+  --dim-4: #8a8a8a;
+  --dim-5: #6f6f6f;
+  /* Layers of Windows' dark theme: the island (#1c1c1c, island.ts), the content
+     layer on it, cards on that. */
+  --layer: #242424;
+  --card: #2b2b2b;
+  --card-flat: #2b2b2b;
+  --tab-on: rgba(255, 255, 255, 0.06);
+  --hairline: rgba(255, 255, 255, 0.07);
+  --stroke: rgba(255, 255, 255, 0.08);
+}
+
+/* A thin border, as every Windows 11 surface has. */
+html[data-ui="windows"] #island:not(.bare) {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* ── Cards and buttons ──────────────────────────────────────────────────── */
+
+html[data-ui="windows"] .card {
+  border-radius: 8px;
+  background: var(--layer);
+  border-color: var(--stroke);
+}
+
+html[data-ui="windows"] .btn {
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-weight: 400;
+}
+html[data-ui="windows"] .btn:active { transform: none; opacity: 0.8; }
+html[data-ui="windows"] .btn.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+html[data-ui="windows"] .btn.primary:hover { filter: brightness(0.92); }
+html[data-ui="windows"] .btn.secondary {
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px var(--stroke);
+  color: var(--ink);
+}
+html[data-ui="windows"] .btn.secondary:hover { background: rgba(255, 255, 255, 0.09); }
+
+html[data-ui="windows"] .icon-btn {
+  border-radius: 4px;
+  color: var(--dim);
+  background: rgba(255, 255, 255, 0.06);
+}
+html[data-ui="windows"] .icon-btn:hover { background: rgba(255, 255, 255, 0.1); color: var(--ink); }
+
+html[data-ui="windows"] .strip-btn { border-radius: 4px; font-weight: 400; }
+html[data-ui="windows"] .strip-btn.plain { background: rgba(255, 255, 255, 0.08); color: var(--ink); }
+html[data-ui="windows"] .strip-btn.light { background: var(--accent); color: var(--on-accent); }
+
+/* ── Top bar: bubble, field, buttons ────────────────────────────────────── */
+
+html[data-ui="windows"] #header .say {
+  border-radius: 6px;
+  background: var(--card);
+  border-color: var(--stroke);
+}
+html[data-ui="windows"] #header .say-1 { font-weight: 500; }
+
+html[data-ui="windows"] .search-bar {
+  border-radius: 4px;
+  border-color: var(--stroke);
+  border-bottom-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--dim-2);
+}
+html[data-ui="windows"] .search-bar:focus-within {
+  border-color: var(--stroke);
+  border-bottom: 2px solid var(--accent);
+  background: #1f1f1f;
+}
+html[data-ui="windows"] .search-results {
+  border-radius: 8px;
+  background: #2c2c2c;
+  border: 1px solid var(--stroke);
+}
+
+/* Plain glyphs, a soft square on hover; only Chiudi turns red. */
+html[data-ui="windows"] .header-actions button {
+  border-radius: 4px;
+  color: var(--dim);
+  background: transparent;
+  opacity: 1;
+}
+html[data-ui="windows"] .header-actions button:hover,
+html[data-ui="windows"] .header-actions button.on {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.07);
+}
+html[data-ui="windows"] .header-actions button.pinned { color: var(--accent); }
+html[data-ui="windows"] .header-actions button:last-child:hover { background: #c42b1c; color: #fff; }
+
+/* ── Menu on the left ───────────────────────────────────────────────────── */
+
+html[data-ui="windows"] #rail {
+  border-radius: 8px;
+  background: transparent;
+}
+html[data-ui="windows"] .rail-item {
+  position: relative;
+  border-radius: 4px;
+  color: var(--ink-2);
+  font-weight: 400;
+}
+html[data-ui="windows"] .rail-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--ink); }
+html[data-ui="windows"] .rail-item.on {
+  background: rgba(255, 255, 255, 0.07);
+  font-weight: 400;
+}
+/* The accent pill on the selected row, as in Windows' navigation. */
+html[data-ui="windows"] .rail-item.on::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 16px;
+  margin-top: -8px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+/* The sections' glyphs in one colour; logos and dots keep theirs. */
+html[data-ui="windows"] .rail-fixed .rail-icon { color: var(--dim); }
+html[data-ui="windows"] .rail-item.on .rail-icon { color: var(--ink); }
+html[data-ui="windows"] .rail-label-head {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--dim-3);
+}
+html[data-ui="windows"] .rail-meta.count {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+/* ── Panoramica ─────────────────────────────────────────────────────────── */
+
+html[data-ui="windows"] .today-title { font-size: 16px; font-weight: 600; }
+html[data-ui="windows"] .today-date { color: var(--dim-2); }
+html[data-ui="windows"] .summary { gap: 6px; }
+html[data-ui="windows"] .summary-row {
+  border-radius: 6px;
+  border-color: var(--stroke);
+  background: var(--card-flat);
+}
+html[data-ui="windows"] .summary-row:hover { background: #323232; }
+/* The logo, larger and tinted, still faint in the corner: a little colour on grey. */
+html[data-ui="windows"] .summary-mark { opacity: 0.2; color: var(--c, var(--dim)); }
+html[data-ui="windows"] .summary-row:hover .summary-mark { opacity: 0.32; }
+html[data-ui="windows"] .summary-name { font-weight: 500; }
+html[data-ui="windows"] .summary-status { color: var(--dim-2); }
+
+/* ── Chat: the accent where the classic look has violet ─────────────────── */
+
+html[data-ui="windows"] .chat-bar {
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px var(--stroke);
+}
+html[data-ui="windows"] .chat-bar:focus-within { box-shadow: inset 0 0 0 1px var(--stroke), inset 0 -2px 0 var(--accent); }
+html[data-ui="windows"] .send-btn {
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: none;
+}
+html[data-ui="windows"] .send-btn.stop { background: #c42b1c; color: #fff; }
+html[data-ui="windows"] .bubble { border-radius: 8px; background: rgba(255, 255, 255, 0.09); }
+html[data-ui="windows"] .reply { color: #d6d6d6; }
+html[data-ui="windows"] .engine-pick,
+html[data-ui="windows"] .engine-item.on,
+html[data-ui="windows"] .history-btn.on,
+html[data-ui="windows"] .second-btn:hover,
+html[data-ui="windows"] .md-copy {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+}
+html[data-ui="windows"] .engine-pick,
+html[data-ui="windows"] .md-copy { border-radius: 4px; }
+html[data-ui="windows"] .md-copy:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+html[data-ui="windows"] .second-head,
+html[data-ui="windows"] .clip-btn.on { color: var(--accent); }
+html[data-ui="windows"] .chip { border-radius: 4px; }
+
+/* ── Quick actions: each keeps its own colour, on Windows' square-ish button ── */
+
+html[data-ui="windows"] .qa { border-radius: 6px; font-weight: 400; }
+html[data-ui="windows"] .qa-chip { border-radius: 6px; }
+
+/* Line glyphs of the integrations (LINE_ICONS) take the integration's colour, softened. */
+html[data-ui="windows"] svg.brand.line-mark { color: inherit; }
+html[data-ui="windows"] .rail-list .rail-icon { color: color-mix(in srgb, var(--c, #fff) 70%, #fff); }
+html[data-ui="windows"] .summary-mark:has(.line-mark) { opacity: 0.32; }
+html[data-ui="windows"] .summary-row:hover .summary-mark:has(.line-mark) { opacity: 0.45; }
+
+/* Windows writes labels as they are, never in capitals. */
+html[data-ui="windows"] .rw-label,
+html[data-ui="windows"] .files-head b,
+html[data-ui="windows"] .notion-section,
+html[data-ui="windows"] .rail-label-head,
+html[data-ui="windows"] .wx-chip-l,
+html[data-ui="windows"] .wx-label,
+html[data-ui="windows"] .notion-tile-k,
+html[data-ui="windows"] .np-menu-title {
+  text-transform: none;
+  letter-spacing: 0;
+}

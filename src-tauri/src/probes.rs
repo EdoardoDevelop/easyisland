@@ -117,6 +117,18 @@ pub mod reg {
             Some(String::from_utf16_lossy(s.get(..end).unwrap_or(&[])))
         }
 
+        /// A REG_BINARY value (up to 256 bytes); `None` when missing.
+        pub fn binary(&self, name: &str) -> Option<Vec<u8>> {
+            let mut buf = vec![0u8; 256];
+            let mut len = buf.len() as u32;
+            let r = unsafe { RegQueryValueExW(self.0, &HSTRING::from(name), None, None, Some(buf.as_mut_ptr()), Some(&mut len)) };
+            if r != ERROR_SUCCESS {
+                return None;
+            }
+            buf.truncate((len as usize).min(256));
+            Some(buf)
+        }
+
         pub fn subkeys(&self) -> Vec<String> {
             let mut out = Vec::new();
             for i in 0..4096u32 {

@@ -6,7 +6,8 @@
 // What shows and how is chosen in Impostazioni, never in the island.
 
 import { h, svg, dot, brandIcon, markIcon } from "./dom";
-import { ICONS } from "./icons";
+import { ICONS, LINE_SECTIONS } from "./icons";
+import { windowsLook } from "../core/uistyle";
 import { isSorting, sortable } from "./sortable";
 import { State, CLAUDE_TASK, isSessionTask, type AgentTask } from "../core/state";
 import { RAIL_BOT, railHead, type IslandViewName } from "../core/layout";
@@ -58,6 +59,11 @@ function taskIcon(task: AgentTask): Element {
   return mark;
 }
 
+/** A section's glyph: filled in the classic look, a line in the Windows 11 one. */
+function glyph(name: keyof typeof LINE_SECTIONS): SVGSVGElement {
+  return windowsLook() ? svg(LINE_SECTIONS[name], 16, { stroke: 1.6 }) : svg(ICONS[name], 15);
+}
+
 /** The width of an icon in the menu: an emoji's at 13 px. */
 const ICON_W = 16;
 
@@ -66,7 +72,7 @@ function agentsIcon(): Element {
   const look = State.settings.integrationTabIcons?.[CLAUDE_TASK]?.trim() ?? "";
   if (look === "@logo") return brandIcon(CLAUDE_TASK, 15) ?? svg(ICONS.terminal, 15);
   if (look && look !== "@name") return h("span", { class: "rail-emoji", text: look });
-  return svg(ICONS.terminal, 15);
+  return glyph("terminal");
 }
 
 export function buildRail(actions: ViewActions): ViewHost {
@@ -80,7 +86,7 @@ export function buildRail(actions: ViewActions): ViewHost {
       h("span", { class: "rail-icon" }, icon), h("span", { class: "rail-label", text: label }), h("span", { class: "rail-meta" }));
 
   const sections: Record<Section, HTMLElement> = {
-    oggi: row("oggi", svg(ICONS.house, 15), t("Panoramica"), () => {
+    oggi: row("oggi", glyph("house"), t("Panoramica"), () => {
       State.summary = true;
       actions.setView("overview");
     }),
@@ -90,9 +96,9 @@ export function buildRail(actions: ViewActions): ViewHost {
       if (agent) actions.setFocus(agent.id);
       actions.setView("overview");
     }),
-    chat: row("chat", svg(ICONS.bubble, 15), t("Chat"), () => actions.setView("prompt")),
-    azioni: row("azioni", svg(ICONS.bolt, 15), t("Azioni"), () => actions.setView("actions")),
-    file: row("file", svg(ICONS.stack, 15), t("File e schermo"), () => actions.openFiles()),
+    chat: row("chat", glyph("bubble"), t("Chat"), () => actions.setView("prompt")),
+    azioni: row("azioni", glyph("bolt"), t("Azioni"), () => actions.setView("actions")),
+    file: row("file", glyph("stack"), t("File e schermo"), () => actions.openFiles()),
   };
   const fixed = h("div", { class: "rail-fixed" }, ...Object.values(sections));
   const label = h("div", { class: "rail-label-head", text: t("Integrazioni") });
@@ -103,6 +109,7 @@ export function buildRail(actions: ViewActions): ViewHost {
 
   let listKey = "";
   let agentsLook: string | null = null;
+  let uiSeen = document.documentElement.dataset.ui;
   // The Agenti count once that row was opened: it comes back only when more start.
   let agentsSeen = 0;
 
@@ -110,6 +117,13 @@ export function buildRail(actions: ViewActions): ViewHost {
     el,
     sync() {
       head.style.height = `${railHead(railBotSize())}px`;
+      // The look changed in Impostazioni: the sections' glyphs follow.
+      if (document.documentElement.dataset.ui !== uiSeen) {
+        uiSeen = document.documentElement.dataset.ui;
+        const glyphs: [Section, keyof typeof LINE_SECTIONS][] = [["oggi", "house"], ["chat", "bubble"], ["azioni", "bolt"], ["file", "stack"]];
+        for (const [id, name] of glyphs) sections[id].querySelector(".rail-icon")!.replaceChildren(glyph(name));
+        agentsLook = null;
+      }
       const look = State.settings.integrationTabIcons?.[CLAUDE_TASK] ?? "";
       if (look !== agentsLook) {
         agentsLook = look;
@@ -128,7 +142,8 @@ export function buildRail(actions: ViewActions): ViewHost {
       // Registra lives in File e schermo, not in the menu.
       const tasks = State.tasks.filter((x) => !isSessionTask(x) && x.id !== "integration_recorder");
       const icons = State.settings.integrationTabIcons ?? {};
-      const key = tasks.map((x) => `${x.id}:${x.name}:${x.color}:${icons[x.id] ?? ""}`).join("|");
+      // The look too: the Windows 11 one draws line glyphs where the classic has emojis.
+      const key = `${document.documentElement.dataset.ui}|` + tasks.map((x) => `${x.id}:${x.name}:${x.color}:${icons[x.id] ?? ""}`).join("|");
       if (key !== listKey && !isSorting(list)) {
         listKey = key;
         list.replaceChildren(...tasks.map((x) => {

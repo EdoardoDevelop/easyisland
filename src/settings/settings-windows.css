@@ -1,0 +1,218 @@
+/* Windows 11 look of the settings window (theme.style = "windows", the default;
+   src/core/uistyle.ts): the layers, controls and accent of Windows' own Settings.
+   Every rule is scoped to html[data-ui="windows"], so "Classico" keeps settings.css. */
+
+html[data-ui="windows"] {
+  --font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --accent: var(--win-accent, #4cc2ff);
+  --on-accent: #000;
+  --ink: #ffffff;
+  --dim: #c5c5c5;
+  --dim-2: #9d9d9d;
+  --bg: #202020;
+  --card: #2b2b2b;
+  --hairline: rgba(255, 255, 255, 0.07);
+  --stroke: rgba(255, 255, 255, 0.08);
+}
+
+html[data-ui="windows"] body.settings-window { font-size: 14px; }
+
+/* ── Navigation ─────────────────────────────────────────────────────────── */
+
+html[data-ui="windows"] .nav {
+  background: var(--bg);
+  border-right: 0;
+  padding: 16px 8px;
+}
+html[data-ui="windows"] .nav .brand { font-weight: 600; font-size: 14px; padding: 2px 12px 18px; }
+html[data-ui="windows"] .nav-item {
+  position: relative;
+  padding: 8px 12px;
+  border-radius: 4px;
+  color: var(--ink);
+  font-weight: 400;
+  font-size: 13.5px;
+  background: transparent;
+}
+html[data-ui="windows"] .nav-item:hover:not(:disabled) { background: rgba(255, 255, 255, 0.05); }
+html[data-ui="windows"] .nav-item.on { background: rgba(255, 255, 255, 0.07); }
+/* The accent pill on the selected page, as in Windows' Settings. */
+html[data-ui="windows"] .nav-item.on::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 16px;
+  margin-top: -8px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+/* One-colour glyphs, no coloured tiles. */
+html[data-ui="windows"] .nav-icon,
+html[data-ui="windows"] .nav-item.on .nav-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+}
+html[data-ui="windows"] .nav-foot { color: var(--dim-2); }
+
+/* ── Page and cards ─────────────────────────────────────────────────────── */
+
+html[data-ui="windows"] .page {
+  background: #272727;
+  border-top-left-radius: 8px;
+  border-top: 1px solid var(--stroke);
+  border-left: 1px solid var(--stroke);
+  padding: 24px 32px 48px;
+}
+html[data-ui="windows"] h1 { font-size: 28px; font-weight: 600; letter-spacing: 0; }
+html[data-ui="windows"] .page-head .hint { font-size: 13px; color: var(--dim); }
+html[data-ui="windows"] .page-inner { gap: 16px; }
+
+html[data-ui="windows"] section {
+  background: var(--card);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  padding: 14px 16px;
+}
+html[data-ui="windows"] section > h2 { font-size: 14px; font-weight: 600; }
+
+/* Each setting on a line of its own: name on the left, control on the right,
+   the explanation under it in small grey (Windows' title and description). */
+html[data-ui="windows"] section > .row + .row {
+  border-top: 1px solid var(--hairline);
+  padding-top: 12px;
+}
+html[data-ui="windows"] .row > label {
+  flex: 1 1 200px;
+  color: var(--ink);
+  font-size: 13.5px;
+}
+html[data-ui="windows"] .row > label ~ .note {
+  order: 99;
+  flex: 1 1 100%;
+  margin-top: -6px;
+  font-size: 12px;
+  color: var(--dim-2);
+}
+html[data-ui="windows"] .hint { font-size: 12.5px; color: var(--dim-2); }
+
+/* ── Controls ───────────────────────────────────────────────────────────── */
+
+html[data-ui="windows"] button {
+  border-radius: 4px;
+  font-weight: 400;
+  font-size: 13px;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px var(--stroke);
+}
+html[data-ui="windows"] button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.09); }
+html[data-ui="windows"] button:active:not(:disabled) { transform: none; opacity: 0.8; }
+html[data-ui="windows"] button.primary { background: var(--accent); color: var(--on-accent); box-shadow: none; }
+html[data-ui="windows"] button.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(0.92); }
+html[data-ui="windows"] button.danger { box-shadow: none; }
+/* Rows and toggles are buttons too, without the button's frame. */
+html[data-ui="windows"] .nav-item,
+html[data-ui="windows"] .switch,
+html[data-ui="windows"] .int-row-head,
+html[data-ui="windows"] .hotkey-clear,
+html[data-ui="windows"] button.icon { box-shadow: none; }
+
+/* Windows' toggle: an outlined pill off, the accent on. */
+html[data-ui="windows"] .switch {
+  width: 40px;
+  height: 20px;
+  flex: 0 0 40px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+html[data-ui="windows"] .switch:hover:not(:disabled) { background: rgba(255, 255, 255, 0.04); }
+html[data-ui="windows"] .switch::after {
+  top: 4px;
+  left: 4px;
+  width: 12px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.8);
+}
+html[data-ui="windows"] .switch.on,
+html[data-ui="windows"] .switch.on:hover:not(:disabled) { background: var(--accent); box-shadow: none; }
+html[data-ui="windows"] .switch.on::after { transform: translateX(20px); background: var(--on-accent); }
+
+html[data-ui="windows"] input[type="number"],
+html[data-ui="windows"] input[type="text"],
+html[data-ui="windows"] input[type="password"],
+html[data-ui="windows"] input[type="time"],
+html[data-ui="windows"] input[type="color"],
+html[data-ui="windows"] select,
+html[data-ui="windows"] textarea {
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--stroke);
+  border-bottom-color: rgba(255, 255, 255, 0.45);
+  font-size: 13px;
+}
+html[data-ui="windows"] input:focus,
+html[data-ui="windows"] select:focus,
+html[data-ui="windows"] textarea:focus {
+  background: #1f1f1f;
+  border-color: var(--stroke);
+  border-bottom: 2px solid var(--accent);
+}
+html[data-ui="windows"] select option { background-color: #2c2c2c; }
+
+html[data-ui="windows"] input[type="range"] { height: 4px; background: rgba(255, 255, 255, 0.5); }
+html[data-ui="windows"] input[type="range"]::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  background: var(--accent);
+  border: 4px solid #454545;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* The accent where the classic look has violet. */
+html[data-ui="windows"] .chip {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 4px;
+}
+html[data-ui="windows"] .days .day { border-radius: 4px; }
+html[data-ui="windows"] .days .day.on { background: var(--accent); color: var(--on-accent); }
+html[data-ui="windows"] .hotkey-field .hotkey-hint,
+html[data-ui="windows"] input.hotkey-input.listening::placeholder { color: var(--accent); }
+html[data-ui="windows"] input.hotkey-input.listening {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+html[data-ui="windows"] .icon-pop button.on { outline-color: var(--accent); }
+html[data-ui="windows"] .icon-pop { border-radius: 8px; background: #2c2c2c; }
+html[data-ui="windows"] .notice { border-radius: 4px; }
+html[data-ui="windows"] .qa-edit { border-radius: 6px; background: rgba(255, 255, 255, 0.03); }
+html[data-ui="windows"] .diff { border-radius: 4px; background: #1c1c1c; }
+
+/* Integrations, agents: rows of a list, Windows' expanders. */
+html[data-ui="windows"] .int-row,
+html[data-ui="windows"] .agent { border-radius: 4px; }
+html[data-ui="windows"] .int-state { border-radius: 4px; }
+html[data-ui="windows"] button.chip-opt { border-radius: 4px; }
+html[data-ui="windows"] button.chip-opt.on {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+html[data-ui="windows"] ::-webkit-scrollbar { width: 6px; }
+html[data-ui="windows"] ::-webkit-scrollbar-thumb { border-radius: 3px; background: rgba(255, 255, 255, 0.25); }
+
+/* Windows writes group titles as they are, not in capitals. */
+html[data-ui="windows"] .int-group-head,
+html[data-ui="windows"] .sub-block > h3,
+html[data-ui="windows"] h3.int-sub {
+  text-transform: none;
+  letter-spacing: 0;
+}

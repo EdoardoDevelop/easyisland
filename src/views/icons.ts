@@ -78,3 +78,29 @@ export const ICONS = {
   // delete.left — the keypad's backspace (drawn with a stroke)
   backspace: "M9 5.5h10.5v13H9L3.5 12 9 5.5zM12 9.5l5 5M17 9.5l-5 5",
 } as const;
+
+/** Line glyphs (draw with a 1.6 stroke) for the integrations with no brand logo,
+ *  in the Windows 11 look where the classic one shows their emoji (markIcon in dom.ts). */
+export const LINE_ICONS: Record<string, string> = {
+  integration_network: "M2.5 9a14 14 0 0 1 19 0M5.5 12.3a9.5 9.5 0 0 1 13 0M8.6 15.5a5 5 0 0 1 6.8 0M12 19h.01",
+  integration_weather: "M8 2.8v1.5M3.3 7.5H1.8M4.7 4.2l1 1M11.3 4.2l-1 1M5 10.8A3.4 3.4 0 1 1 11.4 6.6M7 20h10a3.8 3.8 0 0 0 .4-7.6 5 5 0 0 0-9.6 1.4A3.1 3.1 0 0 0 7 20z",
+  integration_clipboard: "M9 3.5h6v3H9zM9 5H6.5A1.5 1.5 0 0 0 5 6.5v13A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 17.5 5H15M8.5 11h7M8.5 14.5h5",
+  integration_media: "M9 18V5.5l10-2V16M9 18a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0zM19 16a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z",
+  integration_claude_usage: "M4 20h16M7 16.5V11M12 16.5V5.5M17 16.5V13",
+  integration_rdm: "M3.5 4.5h17v11h-17zM9 20h6M12 15.5V20",
+  integration_teams: "M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3.5 19.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5M16 11a2.5 2.5 0 1 0 0-5M17.5 14.6c1.8.5 3 2.1 3 4.4",
+  integration_recorder: "M12 20.5a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
+  integration_system: "M7 7h10v10H7zM10 10h4v4h-4zM9.5 3.5V7M14.5 3.5V7M9.5 17v3.5M14.5 17v3.5M3.5 9.5H7M3.5 14.5H7M17 9.5h3.5M17 14.5h3.5",
+  integration_security: "M12 3l7.5 3v5.5c0 4.5-3.2 8-7.5 9.5-4.3-1.5-7.5-5-7.5-9.5V6L12 3zM9 12l2.2 2.2L15.5 10",
+  integration_telegram: "M21 4 3 11l6.5 2.5L18 7l-6.5 7.5 6 5.5L21 4z",
+  integration_remote: "M3.5 4.5h17v11h-17zM9 20h6M12 15.5V20M9.5 10h5M12.5 8l2 2-2 2",
+};
+
+/** The menu's sections drawn as lines (1.6 stroke) for the Windows 11 look (rail.ts). */
+export const LINE_SECTIONS = {
+  house: "M4 10.5 12 4l8 6.5V20h-5.5v-5.5h-5V20H4z",
+  bubble: "M5 5h14a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 17h-8l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 5 5z",
+  bolt: "M13.5 2.5 5 13.5h6l-1 8 8.5-11h-6z",
+  stack: "M8 3.5h6.5l4 4V17H8zM14.5 3.5v4h4M5 7v13.5h10",
+  terminal: "M4.5 4.5h15a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1zM7.5 9.5l3 2.5-3 2.5M12.5 15h4",
+};
