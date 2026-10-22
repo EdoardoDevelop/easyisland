@@ -443,9 +443,7 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
       h("label", { text: t("Azioni sul PC") }),
       toggle(settings.agentTools !== false, (v) => { settings.agentTools = v; void save(); }),
       h("span", { class: "hint note", text: t("programmi, cartelle, link, le tue azioni rapide, lo stato di PC, rete, posta e ticket. Ogni azione che cambia qualcosa chiede Consenti / Nega nell'isola") })),
-    instructionsRow(),
     recipesRow(),
-    memoryRow(),
     connectorsBlock(),
   );
 
@@ -575,6 +573,9 @@ function claudeChatSection(hasKey: boolean): HTMLElement {
     other.el,
     h("h2", {}, h("span", { text: t("Comandi e file (modalità terminale)") })),
     terminalRow(),
+    h("h2", {}, h("span", { text: t("Istruzioni e memoria") })),
+    instructionsRow(),
+    memoryRow(),
     h("h2", {}, h("span", { text: t("Conversazioni salvate") })),
     historyRow(),
   );
@@ -1573,9 +1574,10 @@ function memoryRow(): HTMLElement {
       : t("{n} note che la chat ricorda in ogni conversazione, {d} giorni nel diario. File .md su questo PC: puoi modificarli", { n: m?.notes ?? 0, d: m?.days ?? 0 });
   };
   const open = h("button", { text: t("Apri MEMORIA.md") }) as HTMLButtonElement;
-  open.addEventListener("click", () => void Bridge.memoryOpen(false));
+  const fail = (e: unknown) => { line.textContent = String(e).replace(/^Error:\s*/, ""); };
+  open.addEventListener("click", () => void Bridge.memoryOpen(false).catch(fail));
   const folder = h("button", { text: t("Cartella") }) as HTMLButtonElement;
-  folder.addEventListener("click", () => void Bridge.memoryOpen(true));
+  folder.addEventListener("click", () => void Bridge.memoryOpen(true).catch(fail));
   void Bridge.memoryInfo().then(show);
   return h("div", { class: "row" }, h("label", { text: t("Memoria") }), line, open, folder);
 }

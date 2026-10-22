@@ -2555,5 +2555,6 @@
   "Continua qui l'ultima chat dell'isola": "Continue the island's last chat here",
   "/riprendi — continua qui l'ultima conversazione della chat dell'isola": "/riprendi — continue here the last conversation of the island's chat",
   "Non c'è nessuna conversazione da riprendere.": "There is no conversation to resume.",
-  "Ripresa «{title}» ({n} domande). L'ultima risposta:\n\n{answer}\n\nContinua da qui.": "Resumed «{title}» ({n} questions). The last answer:\n\n{answer}\n\nCarry on from here."
+  "Ripresa «{title}» ({n} domande). L'ultima risposta:\n\n{answer}\n\nContinua da qui.": "Resumed «{title}» ({n} questions). The last answer:\n\n{answer}\n\nCarry on from here.",
+  "Istruzioni e memoria": "Instructions and memory"
 }
