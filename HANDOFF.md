@@ -31,6 +31,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 23 ottobre 2026 — Compiti anche su Telegram, riordino della memoria
+- Chiesto da Edoardo: fare «cosa resta» del confronto con gli altri agenti. Permessi e domande dei compiti anche su Telegram (prima risposta vince, mai «Automatica»), `/rispondi`, abilità come comandi su Telegram, Riordino della memoria serale con conferma (`docs/chat.md`).
+- **Prove:** `cargo test --workspace` (test nuovo sulla prima risposta), clippy, `npm run build`, `npm run smoke`. Le prove con Telegram e con la memoria vera servono un tuo tocco: `docs/prove-dal-vivo.md`.
+
 ### 23 ottobre 2026 — Battito, ripetizioni, confronto con gli altri agenti
 - Chiesto da Edoardo: tutti i test possibili e studiare i concorrenti. Provati dal vivo compiti, abilità e aiutanti (un compito ha letto un'abilità e affidato un calcolo a un aiutante); prove tolte dopo con `release/pulisci-prove.cmd`.
 - Dallo studio (`docs/idee.md` → Confronto): Battito con `BATTITO.md` e `quiet`, `every:N` e `weekly:G:HH:MM`, procedure salvate come abilità a fine compito.
@@ -51,18 +55,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Regole solo in `src/style-windows.css` e `src/settings/settings-windows.css` (`html[data-ui="windows"]`), accento da `system_accent` (`lib.rs`), icone in `LINE_ICONS`. Dettagli e vincoli in `docs/architettura.md` → Stili.
 - Versione **0.9.8**; README, README.en.md, homepage e schermate rifatte nel nuovo stile. `scripts/screenshots.mjs` accetta `SHOT_DIR` e `SHOT_QUERY`.
 - **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, schermate dei due stili; installata su questo PC, con il log senza errori.
-
-### 22 ottobre 2026 — Idee dalle altre app di chat, versione 0.9.7
-- Versione **0.9.7** con questa voce e la precedente; README, README.en.md e homepage aggiornati.
-- Chiesto da Edoardo: prendere spunto dalle alternative (Raycast AI, LibreChat, TypingMind, Open WebUI, Msty, ChatGPT, Claude).
-- Fatti:
-  - menu `@` (appunti, finestra, Vassoio);
-  - modelli con `{{campi}}` e Tab;
-  - ⑂ Dirama da qui;
-  - Assistenti con motore e istruzioni, scelti con `/`;
-  - 🎤 dettatura, con il servizio dei Vocali o con quella di Windows.
-- Spostate «Istruzioni e memoria» fuori dal blocco di Claude Code: prima si vedevano solo con quel motore.
-- Il 🎤 nascondeva l'isola: «davanti al cliente» vedeva il microfono di WebView2 come una chiamata (`presence.rs`, `chat_dictation`).
-- RAM di WebView2 da 557 a 104 MB con l'isola ritirata: Impostazioni nascoste sospese e memoria bassa con l'isola ritirata (`webview_memory.rs`, `docs/architettura.md`).
-- Dettagli e cosa non è stato preso in `docs/chat.md`.
-- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, anteprima della scena `chat`. Dal vivo in `docs/prove-dal-vivo.md`.

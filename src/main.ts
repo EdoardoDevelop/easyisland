@@ -145,6 +145,11 @@ async function main() {
   });
   // An automation's "Chiedi alla chat" step, with the trigger's data filled in.
   await onEvent<string>("automation-ask", (prompt) => island.askChat(prompt));
+  // A task's permission answered on Telegram (tasks.rs decide): its card goes.
+  await onEvent<string>("approval-cancel", (id) => {
+    const req = State.pendingApproval;
+    if (req && req.requestId === id) island.settleApproval(req);
+  });
   await onEvent<UpdateInfo>("update-available", (u) => island.showUpdate(u.version, u.current));
 
   // The settings window writes preferences; apply them here without a restart.

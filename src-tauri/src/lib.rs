@@ -2509,6 +2509,12 @@ fn heartbeat_set(app: AppHandle, minutes: u32) -> Result<(), String> {
     tasks::set_heartbeat(&app, minutes).map(|_| ())
 }
 
+/// Impostazioni → Chat → Memoria: the evening digest (tasks.rs).
+#[tauri::command]
+fn digest_set(app: AppHandle, on: bool) -> Result<(), String> {
+    tasks::set_digest(&app, on)
+}
+
 /// BATTITO.md in its editor (made the first time).
 #[tauri::command]
 fn heartbeat_open() -> Result<(), String> {
@@ -2591,6 +2597,7 @@ pub fn run() {
             task_set_engines,
             heartbeat_set,
             heartbeat_open,
+            digest_set,
             skills_list,
             skill_save,
             skill_delete,

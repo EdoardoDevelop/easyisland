@@ -1420,6 +1420,8 @@ export interface AgentTaskItem {
   quiet: boolean;
   /** The heartbeat (Battito): BATTITO.md at every run. */
   heartbeat: boolean;
+  /** The evening digest of the memory. */
+  digest: boolean;
   created: string;
   updated: string;
 }

@@ -4165,6 +4165,12 @@ function paintTasks() {
   const beat = taskItems.find((x) => x.heartbeat);
   const every = document.getElementById("heartbeat-every") as HTMLSelectElement | null;
   if (every && document.activeElement !== every) every.value = beat?.when.startsWith("every:") ? beat.when.slice(6) : "0";
+  const digest = document.getElementById("digest-toggle");
+  if (digest) {
+    const on = taskItems.some((x) => x.digest);
+    digest.classList.toggle("on", on);
+    digest.setAttribute("aria-pressed", String(on));
+  }
   const list = document.getElementById("tasks-list");
   if (!list) return;
   clear(list);
@@ -4393,10 +4399,22 @@ function heartbeatSection(): HTMLElement {
   every.id = "heartbeat-every";
   const list = h("button", { text: t("Cosa tenere d'occhio…") }) as HTMLButtonElement;
   list.addEventListener("click", () => void Bridge.heartbeatOpen().catch((e) => feedback.replaceChildren(h("div", { class: "notice err", text: String(e) }))));
+  const digest = toggle(taskItems.some((x) => x.digest), async (on) => {
+    clear(feedback);
+    try {
+      await Bridge.digestSet(on);
+      await refreshTasks();
+    } catch (e) {
+      feedback.append(h("div", { class: "notice err", text: String(e).replace(/^Error:\s*/, "") }));
+    }
+  });
+  digest.id = "digest-toggle";
   return h("section", {},
     h("h2", {}, h("span", { text: t("Battito") })),
     h("div", { class: "row" }, h("label", { text: t("Controllo periodico") }), every, list,
       h("span", { class: "hint note", text: t("a ogni battito l'agente guarda le cose elencate in BATTITO.md (ticket, mail, scadenze…) e ti avvisa solo se c'è qualcosa; senza righe nell'elenco non parte e non costa niente") })),
+    h("div", { class: "row" }, h("label", { text: t("Riordino della memoria") }), digest,
+      h("span", { class: "hint note", text: t("ogni sera alle 22:30 l'agente rilegge il diario della chat e ti propone le cose da ricordare; salva solo quelle che approvi. Senza conversazioni nella giornata non parte") })),
     feedback);
 }
 

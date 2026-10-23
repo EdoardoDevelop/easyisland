@@ -115,6 +115,10 @@ pub struct Task {
     /// with nothing in it the run is skipped without asking any engine.
     #[serde(default)]
     pub heartbeat: bool,
+    /// The evening digest of the memory: today's diary goes into its goal, and
+    /// with an empty diary the run is skipped.
+    #[serde(default)]
+    pub digest: bool,
     pub created: String,
     pub updated: String,
 }
@@ -243,6 +247,11 @@ static HALT: Mutex<Option<bool>> = Mutex::new(None);
 /// A task_* tool was called in the current turn.
 static TOOLED: AtomicBool = AtomicBool::new(false);
 static APP: Mutex<Option<AppHandle>> = Mutex::new(None);
+/// A task's turn (or its helper's) is running: its permissions also go to Telegram.
+static IN_TURN: AtomicBool = AtomicBool::new(false);
+/// The question on screen of the running task (task_ask): an answer from
+/// Telegram arrives here while the island's card is still up.
+static ASK_WAIT: Mutex<Option<(String, tokio::sync::oneshot::Sender<String>)>> = Mutex::new(None);
 
 fn save(task: &Task) {
     let _ = std::fs::create_dir_all(dir());
@@ -363,6 +372,7 @@ pub fn create(app: &AppHandle, title: &str, goal: &str, when: &str, engine: &str
         runs: 0,
         quiet: false,
         heartbeat: false,
+        digest: false,
         created: now.clone(),
         updated: now,
     };
@@ -526,6 +536,20 @@ pub fn set_heartbeat(app: &AppHandle, minutes: u32) -> Result<Option<Task>, Stri
     Ok(task)
 }
 
+/// Impostazioni → Chat → Memoria: the evening digest on (every day at 22:30) or off.
+pub fn set_digest(app: &AppHandle, on: bool) -> Result<(), String> {
+    let existing = TASKS.lock().unwrap().iter().find(|t| t.digest).map(|t| t.id.clone());
+    match (on, existing) {
+        (false, Some(id)) => control(app, &id, "delete"),
+        (false, None) | (true, Some(_)) => Ok(()),
+        (true, None) => {
+            let task = create(app, t("Riordino della memoria"), t("Rileggi il diario di oggi e proponi all'utente le cose da ricordare."), "daily:22:30", "")?;
+            update(app, &task.id, |t| t.digest = true);
+            Ok(())
+        }
+    }
+}
+
 /// The chat's engines (CHAT_ENGINES in src/core/state.ts).
 const KNOWN_ENGINES: &[&str] = &["subscription", "api", "opencode", "antigravity", "openrouter", "openai", "gemini", "ollama", "lmstudio"];
 
@@ -620,7 +644,8 @@ async fn runner(app: AppHandle) {
         };
         for id in &fired {
             // A heartbeat with nothing to watch costs nothing: skipped.
-            if get(id).is_some_and(|t| t.heartbeat) && heartbeat_items().is_empty() {
+            let empty_digest = get(id).is_some_and(|t| t.digest) && crate::memory::diary_today(1).is_empty();
+            if empty_digest || (get(id).is_some_and(|t| t.heartbeat) && heartbeat_items().is_empty()) {
                 update(&app, id, |t| t.last_fired = now.clone());
                 continue;
             }
@@ -676,6 +701,13 @@ fn prompt_with(task: &Task, first: bool, helpers: &[(String, String)]) -> String
         text.push_str(&format!("\n\n{}", tf(
             "[Battito: è un controllo periodico. Ecco cosa l'utente vuole che tu tenga d'occhio (BATTITO.md):\n{list}\nGuarda ognuna con gli strumenti. Se non c'è niente da segnalare chiudi con task_done e quiet true, senza altro testo; altrimenti chiudi con quello che serve sapere o che hai preparato.]",
             &[("list", &heartbeat_items().join("\n"))],
+        )));
+    }
+    if task.digest {
+        let notes = crate::memory::notes();
+        text.push_str(&format!("\n\n{}", tf(
+            "[Riordino della memoria. Il diario di oggi:\n{diary}\n\nNote già in memoria: {n}.\nScegli al massimo 5 cose che valgono anche nei prossimi giorni (preferenze dell'utente, clienti, persone, come si fanno le cose) e che non sono già in memoria; niente password o dati sensibili. Se non ce n'è nessuna chiudi con task_done e quiet true. Altrimenti mostrale con task_ask, una per riga, con le opzioni «Salva tutte» e «Nessuna» (l'utente può anche scrivere quali); poi salva quelle approvate con memory_note, una per volta, e chiudi con task_done.]",
+            &[("diary", &crate::memory::diary_today(80).join("\n")), ("n", &notes.len().to_string())],
         )));
     }
     if !helpers.is_empty() {
@@ -752,7 +784,9 @@ async fn run(app: &AppHandle, id: &str) {
         });
         let engine_opt = (!engine.is_empty()).then(|| engine.clone());
         let model_opt = (!engine.is_empty() && !task.model.is_empty()).then(|| task.model.clone());
+        IN_TURN.store(true, Ordering::SeqCst);
         let reply = crate::chat_turn(app, &chat, text, None, engine_opt, model_opt, false, crate::Channel::Task, &|_| {}).await;
+        IN_TURN.store(false, Ordering::SeqCst);
         let halt = HALT.lock().unwrap().take();
         if let Some(pause) = halt {
             break if pause { (TaskState::Paused, t("In pausa").into()) } else { (TaskState::Stopped, t("Fermato").into()) };
@@ -925,13 +959,40 @@ pub async fn tool_ask(app: &AppHandle, args: &Value) -> Result<String, String> {
         a.iter().filter_map(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).take(6).map(|s| json!({ "label": s, "description": "" })).collect()
     }).unwrap_or_default();
     note(&id, &tf("Domanda: {q}", &[("q", &question.to_string())]));
-    update(&app, &id, |t| t.question = question.to_string());
+    let task = update(&app, &id, |t| t.question = question.to_string());
+    let input = json!({ "questions": [{ "question": question, "header": t("Compito"), "options": options, "multiSelect": false }] });
     let mut p = payload("PermissionRequest", &id);
     p.insert("tool_name".into(), json!("AskUserQuestion"));
-    p.insert("tool_input".into(), json!({ "questions": [{ "question": question, "header": t("Compito"), "options": options, "multiSelect": false }] }));
-    let decision = crate::pipe::request_decision(&app, Value::Object(p)).await;
-    let answered = decision.as_deref().and_then(|d| d.strip_prefix("answer ")).and_then(|j| serde_json::from_str::<Map<String, Value>>(j).ok())
-        .and_then(|m| m.values().find_map(|v| v.as_str().map(str::to_string)));
+    p.insert("tool_input".into(), input.clone());
+    // On Telegram too: a button per option, or /rispondi.
+    let (tx, rx) = tokio::sync::oneshot::channel::<String>();
+    *ASK_WAIT.lock().unwrap() = Some((id.clone(), tx));
+    if crate::telegram::linked(&app) {
+        let labels: Vec<String> = options.iter().filter_map(|o| o.get("label").and_then(Value::as_str).map(str::to_string)).collect();
+        let title = task.map(|t| t.title).unwrap_or_default();
+        crate::telegram::ask_task(&app, &id, &title, question, &labels).await;
+    }
+    let request = crate::pipe::new_request_id();
+    let island = async {
+        let decision = crate::pipe::request_decision_as(&app, &request, Value::Object(p)).await;
+        decision.as_deref().and_then(|d| d.strip_prefix("answer ")).and_then(|j| serde_json::from_str::<Map<String, Value>>(j).ok())
+            .and_then(|m| m.values().find_map(|v| v.as_str().map(str::to_string)))
+    };
+    let telegram = async { rx.await.ok() };
+    let (answered, from_telegram) = match first_some(island, telegram).await {
+        Some((a, 1)) => (Some(a), true),
+        Some((a, _)) => (Some(a), false),
+        None => (None, false),
+    };
+    ASK_WAIT.lock().unwrap().take();
+    if from_telegram {
+        // The island's card goes away: answered elsewhere.
+        crate::pipe::decline(&app, &request);
+        let mut done = payload("PostToolUse", &id);
+        done.insert("tool_name".into(), json!("AskUserQuestion"));
+        done.insert("tool_input".into(), input);
+        hook(&app, done);
+    }
     match answered {
         Some(a) => {
             note(&id, &tf("Risposta dell'utente: {a}", &[("a", &a)]));
@@ -980,6 +1041,87 @@ pub async fn tool_delegate(app: &AppHandle, args: &Value) -> Result<String, Stri
     note(&id, &tf("Risposta di {e}: {t}", &[("e", &name), ("t", &clean.chars().take(600).collect::<String>())]));
     show_step(&app, &id, &tf("{e} ha risposto", &[("e", &name)]));
     Ok(clean.chars().take(12_000).collect())
+}
+
+/// The first of two answers that is Some, with which one it was (0 or 1);
+/// None when both end with None.
+async fn first_some<A, B>(a: A, b: B) -> Option<(String, u8)>
+where
+    A: std::future::Future<Output = Option<String>>,
+    B: std::future::Future<Output = Option<String>>,
+{
+    let mut a = Some(Box::pin(a));
+    let mut b = Some(Box::pin(b));
+    std::future::poll_fn(move |cx| {
+        if let Some(f) = a.as_mut() {
+            if let std::task::Poll::Ready(r) = f.as_mut().poll(cx) {
+                a = None;
+                if let Some(v) = r {
+                    return std::task::Poll::Ready(Some((v, 0)));
+                }
+            }
+        }
+        if let Some(f) = b.as_mut() {
+            if let std::task::Poll::Ready(r) = f.as_mut().poll(cx) {
+                b = None;
+                if let Some(v) = r {
+                    return std::task::Poll::Ready(Some((v, 1)));
+                }
+            }
+        }
+        if a.is_none() && b.is_none() { std::task::Poll::Ready(None) } else { std::task::Poll::Pending }
+    })
+    .await
+}
+
+pub fn in_turn() -> bool {
+    IN_TURN.load(Ordering::SeqCst)
+}
+
+/// A permission of a task's turn (pipe::request_decision): the island's card
+/// and, when linked, Telegram's buttons; the first answer wins, the other goes.
+pub async fn decide(app: &AppHandle, payload: Value) -> Option<String> {
+    let request = crate::pipe::new_request_id();
+    if !crate::telegram::linked(app) {
+        return crate::pipe::request_decision_as(app, &request, payload).await;
+    }
+    let island = crate::pipe::request_decision_as(app, &request, payload.clone());
+    let telegram = crate::telegram::ask_permission(app, payload);
+    let decision = first_some(island, telegram).await;
+    if let Some((_, 1)) = &decision {
+        crate::pipe::decline(app, &request);
+        let _ = app.emit_to(WINDOW_LABEL, "approval-cancel", request.clone());
+    }
+    decision.map(|(d, _)| d)
+}
+
+/// An answer to a task's question from outside the island (Telegram): to the
+/// card still waiting, or to the task waiting in «Attende te».
+pub fn answer_from_outside(app: &AppHandle, id: &str, text: &str) -> Result<String, String> {
+    let waiting = ASK_WAIT.lock().unwrap().take();
+    match waiting {
+        Some((task, tx)) if task == id => {
+            let _ = tx.send(text.to_string());
+            Ok(get(id).map(|t| t.title).unwrap_or_default())
+        }
+        other => {
+            *ASK_WAIT.lock().unwrap() = other;
+            answer(app, id, text)?;
+            Ok(get(id).map(|t| t.title).unwrap_or_default())
+        }
+    }
+}
+
+/// /rispondi on Telegram: the question on screen, else the task waiting longest.
+pub fn answer_latest(app: &AppHandle, text: &str) -> Result<String, String> {
+    if text.trim().is_empty() {
+        return Err(t("Scrivi la risposta dopo /rispondi.").into());
+    }
+    let on_screen = ASK_WAIT.lock().unwrap().as_ref().map(|(id, _)| id.clone());
+    let id = on_screen
+        .or_else(|| TASKS.lock().unwrap().iter().filter(|t| t.state == TaskState::Asking).min_by(|a, b| a.updated.cmp(&b.updated)).map(|t| t.id.clone()))
+        .ok_or(t("Nessun compito sta aspettando una risposta."))?;
+    answer_from_outside(app, &id, text)
 }
 
 /// task_create from the chat (Consenti / Nega on the island first: not read-only).
@@ -1052,6 +1194,14 @@ mod tests {
     }
 
     #[test]
+    fn the_first_answer_wins_and_a_none_waits_for_the_other() {
+        use tauri::async_runtime::block_on;
+        assert_eq!(block_on(first_some(async { None }, async { Some("sì".to_string()) })), Some(("sì".to_string(), 1)));
+        assert_eq!(block_on(first_some(async { Some("allow".to_string()) }, std::future::pending())), Some(("allow".to_string(), 0)));
+        assert_eq!(block_on(first_some(async { None }, async { None })), None);
+    }
+
+    #[test]
     fn every_and_weekly() {
         assert!(check_when("every:30").is_ok() && check_when("weekly:1:09:00").is_ok());
         assert!(check_when("every:5").is_err() && check_when("weekly:8:09:00").is_err());
@@ -1078,7 +1228,7 @@ mod tests {
             id: "1".into(), title: "Resoconto".into(), goal: "Prepara il resoconto di Rossi".into(), engine: String::new(), model: String::new(), helpers: Vec::new(),
             state: TaskState::Running, plan: vec![Step { text: "Leggi i ticket".into(), done: true }, Step { text: "Scrivi la bozza".into(), done: false }],
             when: String::new(), last_fired: String::new(), question: "Che mese?".into(), answer: "Settembre".into(),
-            result: String::new(), last: String::new(), turns: 0, runs: 0, quiet: false, heartbeat: false, created: String::new(), updated: String::new(),
+            result: String::new(), last: String::new(), turns: 0, runs: 0, quiet: false, heartbeat: false, digest: false, created: String::new(), updated: String::new(),
         };
         let first = prompt(&task, true);
         assert!(first.contains("Prepara il resoconto di Rossi") && first.contains("task_plan"));

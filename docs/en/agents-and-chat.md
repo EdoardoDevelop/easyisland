@@ -186,3 +186,7 @@ question to the main engine. No automatic dialogue between engines.
 ## Heartbeat
 - One task with `heartbeat: true` runs every N minutes (Settings → Tasks → Heartbeat). Its goal gets the "- " lines of `%APPDATA%\EasyIsland\BATTITO.md`; with no lines it is skipped without calling any engine. With nothing to report the engine closes it with `task_done` and `quiet: true`: no card, no message.
 - Tasks also repeat every N minutes (`every:N`, from 15) or every week (`weekly:D:HH:MM`), and at the end of a task the engine may offer to save the procedure as a skill (`skill_save`, with Allow / Deny).
+
+## Tasks on Telegram, memory digest
+- While a task works, its permissions are asked on the island and, when Telegram is linked, also there (never "Automatica"); the first answer wins and the other request goes away. A task's question goes to Telegram too, with a button per option or `/rispondi …`. Skills work as `/name …` commands on Telegram.
+- Memory digest (Settings → Tasks): every evening at 22:30 a task rereads today's chat diary and suggests at most 5 things to remember; only the approved ones go into `MEMORIA.md`. With an empty diary it does not run.

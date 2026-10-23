@@ -230,6 +230,10 @@ async fn handle(app: AppHandle, mut pipe: NamedPipeServer) {
 /// nobody could answer (paused island, another card up, timeout). Also used by
 /// opencode.rs, whose permissions come from opencode's server, not the relay.
 pub async fn request_decision(app: &AppHandle, payload: Value) -> Option<String> {
+    // A permission asked during a task's turn: the island and Telegram, first answer wins (tasks.rs).
+    if crate::tasks::in_turn() && payload.get("easyisland_chat").and_then(Value::as_bool) == Some(true) {
+        return crate::tasks::decide(app, payload).await;
+    }
     request_decision_as(app, &new_request_id(), payload).await
 }
 
