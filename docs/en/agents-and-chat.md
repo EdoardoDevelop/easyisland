@@ -190,3 +190,6 @@ question to the main engine. No automatic dialogue between engines.
 ## Tasks on Telegram, memory digest
 - While a task works, its permissions are asked on the island and, when Telegram is linked, also there (never "Automatica"); the first answer wins and the other request goes away. A task's question goes to Telegram too, with a button per option or `/rispondi …`. Skills work as `/name …` commands on Telegram.
 - Memory digest (Settings → Tasks): every evening at 22:30 a task rereads today's chat diary and suggests at most 5 things to remember; only the approved ones go into `MEMORIA.md`. With an empty diary it does not run.
+
+## Personal integrations (`custom.rs`)
+- Ask the chat "create an integration for quotes…": it writes a description, never code — fields (text, numbers, money, dates, check boxes, choices, table rows, computed values), a Markdown document template and actions (save, document, copy, ask the chat, link, quick action, Notion). The island draws it with its form and saved records. `custom_create` / `custom_update` ask Allow / Deny with the description as the preview. Settings → Integrations → Made by you.

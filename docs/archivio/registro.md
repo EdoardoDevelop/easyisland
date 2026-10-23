@@ -2,6 +2,12 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 22 ottobre 2026 — Stile Windows 11, versione 0.9.8
+- Segnalato da Edoardo: usandola «non dà l'idea di un programma». Nuovo stile **Windows 11**, predefinito: isola e Impostazioni grigie, colore d'accento di Windows, controlli come quelli del sistema, icone a linea, spiegazioni sotto ogni impostazione. Il **Classico** resta in Impostazioni → Aspetto → Tema → Stile.
+- Regole solo in `src/style-windows.css` e `src/settings/settings-windows.css` (`html[data-ui="windows"]`), accento da `system_accent` (`lib.rs`), icone in `LINE_ICONS`. Dettagli e vincoli in `docs/architettura.md` → Stili.
+- Versione **0.9.8**; README, README.en.md, homepage e schermate rifatte nel nuovo stile. `scripts/screenshots.mjs` accetta `SHOT_DIR` e `SHOT_QUERY`.
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, schermate dei due stili; installata su questo PC, con il log senza errori.
+
 ### 22 ottobre 2026 — Idee dalle altre app di chat, versione 0.9.7
 - Versione **0.9.7** con questa voce e la precedente; README, README.en.md e homepage aggiornati.
 - Chiesto da Edoardo: prendere spunto dalle alternative (Raycast AI, LibreChat, TypingMind, Open WebUI, Msty, ChatGPT, Claude).

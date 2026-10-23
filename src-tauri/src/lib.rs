@@ -67,6 +67,7 @@ mod session_reply;
 mod secrets;
 mod settings;
 mod teams;
+mod custom;
 mod skills;
 mod tasks;
 mod telegram;
@@ -2461,6 +2462,56 @@ fn task_answer(app: AppHandle, id: String, text: String) -> Result<(), String> {
     tasks::answer(&app, &id, &text)
 }
 
+/// Integrazioni personali (custom.rs): every description.
+#[tauri::command]
+fn customs_list() -> Vec<custom::Custom> {
+    custom::list()
+}
+
+/// Impostazioni: a description changed by hand (its JSON) or switched on/off.
+#[tauri::command]
+fn custom_save(app: AppHandle, definition: custom::Custom) -> Result<custom::Custom, String> {
+    custom::save(&app, definition, false)
+}
+
+#[tauri::command]
+fn custom_delete(app: AppHandle, id: String) -> Result<(), String> {
+    custom::delete(&app, &id)
+}
+
+#[tauri::command]
+fn custom_records(id: String) -> Vec<custom::Record> {
+    custom::records(&id)
+}
+
+#[tauri::command]
+fn custom_record_save(app: AppHandle, id: String, record: String, values: serde_json::Map<String, serde_json::Value>) -> Result<custom::Record, String> {
+    custom::save_record(&app, &id, &record, values)
+}
+
+#[tauri::command]
+fn custom_record_delete(app: AppHandle, id: String, record: String) -> Result<(), String> {
+    custom::delete_record(&app, &id, &record)
+}
+
+/// A record's document (filled by the island) into the Vassoio.
+#[tauri::command]
+async fn custom_document(name: String, ext: String, text: String) -> Result<files::DroppedFile, String> {
+    tauri::async_runtime::spawn_blocking(move || custom::document(&name, &ext, &text)).await.map_err(|e| e.to_string())?
+}
+
+/// "Copia" of a record: its document as text on the clipboard.
+#[tauri::command]
+async fn custom_copy(text: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || actions::set_clipboard_text(&text)).await.map_err(|e| e.to_string())?.map(|_| ())
+}
+
+/// "Aggiungi a Notion": the record as a row, its fields' labels as the properties.
+#[tauri::command]
+async fn custom_to_notion(database: String, properties: serde_json::Value) -> Result<String, String> {
+    notion_tools::add_row(&database, &properties).await
+}
+
 /// Abilità (skills.rs): the list, for Impostazioni and the chat's «/commands».
 #[tauri::command]
 fn skills_list() -> Vec<skills::Skill> {
@@ -2599,6 +2650,15 @@ pub fn run() {
             heartbeat_open,
             digest_set,
             skills_list,
+            customs_list,
+            custom_save,
+            custom_delete,
+            custom_records,
+            custom_record_save,
+            custom_record_delete,
+            custom_document,
+            custom_copy,
+            custom_to_notion,
             skill_save,
             skill_delete,
             skills_open,

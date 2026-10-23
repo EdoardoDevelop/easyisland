@@ -35,6 +35,7 @@ const SHOTS = {
   "chat-history": { url: "/?scene=chat&history" },
   agenti: { url: "/?scene=agenti" },
   compiti: { url: "/?scene=compiti" },
+  custom: { url: "/?scene=custom" },
   "compiti-ask": { url: "/?scene=compiti&ask" },
   recap: { url: "/?scene=recap" },
   drop: { url: "/?scene=drop" },

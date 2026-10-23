@@ -4,9 +4,10 @@
 // When the scene has settled the page turns transparent and its title says
 // "scene ready"; scripts/screenshots.mjs then captures just the island.
 
+import { fillTemplate } from "../src/views/custom";
 import { rdmLookFor } from "../src/views/rdm";
 import type { Island } from "../src/island/island";
-import { State } from "../src/core/state";
+import { State, type CustomField } from "../src/core/state";
 import { Bridge } from "../src/core/bridge";
 import { handleHook } from "../src/island/hooks";
 import { handleIntegration, handleWidget } from "../src/island/integrations";
@@ -858,6 +859,42 @@ export async function runScene(island: Island, scene: string) {
         easyisland_agent: opencode, easyisland_host: "opencode" });
       // ?claude: the chip of Claude Code selected instead of opencode's.
       State.setFocus(new URLSearchParams(location.search).has("claude") ? CLAUDE : "agent:opencode");
+      State.isPinned = true;
+      island.alert("overview");
+      await wait(1500);
+      break;
+    }
+    case "custom": {
+      // An integration made from the chat (custom.rs): «Preventivi», with rows and totals.
+      await wait(300);
+      const field = (o: Partial<CustomField>): CustomField =>
+        ({ id: "", label: "", kind: "text", options: [], required: false, default: "", help: "", columns: [], formula: "", ...o });
+      State.customs = [{
+        id: "preventivi", name: "Preventivi", icon: "🧾", color: "#22C55E", description: "Preventivi per i clienti", enabled: true, titleField: "cliente",
+        fields: [
+          field({ id: "cliente", label: "Cliente", required: true }),
+          field({ id: "data", label: "Data", kind: "date", default: "oggi" }),
+          field({ id: "voci", label: "Voci", kind: "rows", columns: [
+            { id: "descrizione", label: "Descrizione", kind: "text", options: [] },
+            { id: "quantita", label: "Quantità", kind: "number", options: [] },
+            { id: "prezzo", label: "Prezzo", kind: "money", options: [] }] }),
+          field({ id: "imponibile", label: "Imponibile", kind: "computed", formula: "sum(quantita*prezzo)" }),
+          field({ id: "iva", label: "IVA 22%", kind: "computed", formula: "imponibile*0,22" }),
+          field({ id: "totale", label: "Totale", kind: "computed", formula: "imponibile+iva" }),
+          field({ id: "pagamento", label: "Pagamento", kind: "select", options: ["Bonifico 30 gg", "Rimessa diretta"] }),
+          field({ id: "urgente", label: "Urgente", kind: "checkbox" }),
+        ],
+        template: "# Preventivo per {{cliente}}\n\n| Voce | Q.tà | Prezzo |\n|---|---|---|\n{{#voci}}| {{descrizione}} | {{quantita}} | {{prezzo}} |\n{{/voci}}\n\n**Totale: {{totale}}**",
+        actions: [
+          { label: "Salva", kind: "save", prompt: "", url: "", quick: "", database: "", format: "" },
+          { label: "Crea il documento", kind: "document", prompt: "", url: "", quick: "", database: "", format: "html" },
+          { label: "Chiedi un testo d'accompagnamento", kind: "ai", prompt: "Scrivi una mail breve per mandare il preventivo a {{cliente}} (totale {{totale}}).", url: "", quick: "", database: "", format: "" },
+        ],
+      }];
+      // For the checks of scripts/ (fillTemplate on the scene's integration).
+      (window as unknown as { customKit: unknown }).customKit = { fillTemplate, custom: State.customs[0] };
+      State.loadIntegrationTasks();
+      State.setFocus("custom:preventivi");
       State.isPinned = true;
       island.alert("overview");
       await wait(1500);

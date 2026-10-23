@@ -99,6 +99,13 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "task_list" => Ok(crate::tasks::tool_list()),
         // Boxed: the other engine's turn may call these tools again (a cycle of futures).
         "task_delegate" => Box::pin(crate::tasks::tool_delegate(app, args)).await,
+        // Integrazioni personali (custom.rs): create and update ask Consenti / Nega (the preview).
+        "custom_create" => crate::custom::tool_create(app, args),
+        "custom_update" => crate::custom::tool_update(app, args),
+        "custom_list" => Ok(crate::custom::tool_list()),
+        "custom_get" => crate::custom::tool_get(arg(args, "id")),
+        "custom_records" => crate::custom::tool_records(arg(args, "id"), arg(args, "query"), args.get("limit").and_then(Value::as_u64).unwrap_or(30) as usize),
+        "custom_add_record" => crate::custom::tool_add_record(app, args),
         // Abilità (skills.rs): read, list; save asks Consenti / Nega first.
         "skill_read" => crate::skills::tool_read(arg(args, "name")),
         "skill_list" => Ok(crate::skills::tool_list()),

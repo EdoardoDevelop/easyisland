@@ -1079,6 +1079,10 @@ class AppState {
   noteMessage: string | null = null;
   searchResult: SearchResult | null = null;
   chatHistory: ChatMessage[] = [];
+  /** The user's own integrations (custom.rs). */
+  customs: Custom[] = [];
+  /** Bumped when one of them or its records changed elsewhere: its card is redrawn. */
+  customVersion = 0;
   /** The engine picked in the chat's menu for the conversation in progress; null = the default (settings.chatEngine). Never saved. */
   chatEngineOverride: ChatEngine | null = null;
   /** "Automatica" (chat head, Modalità terminale only): no Consenti / Nega for this conversation. Never saved. */
@@ -1314,6 +1318,18 @@ class AppState {
       if (shouldLoad && idx >= 0) this.tasks[idx].color = color;
       if (!shouldLoad && idx >= 0) this.tasks.splice(idx, 1);
     }
+    // The user's own integrations (custom.rs), switched on in Impostazioni.
+    this.tasks = this.tasks.filter((t) => !t.id.startsWith("custom:") || this.customs.some((c) => c.enabled && `custom:${c.id}` === t.id));
+    for (const c of this.customs.filter((x) => x.enabled)) {
+      const id = `custom:${c.id}`;
+      const existing = this.tasks.find((t) => t.id === id);
+      if (existing) {
+        existing.name = c.name;
+        existing.color = c.color;
+      } else {
+        this.tasks.push(task(id, c.name, c.color, "n8n"));
+      }
+    }
     // Widgets follow the integrations, in the order they were defined.
     const widgets = this.settings.widgets ?? [];
     this.tasks = this.tasks.filter(
@@ -1435,3 +1451,31 @@ export interface Skill {
   tools: string[];
   body: string;
 }
+
+/** An integration made by the user from the chat (custom.rs): a description, never code. */
+export interface CustomColumn { id: string; label: string; kind: string; options: string[] }
+export interface CustomField {
+  id: string;
+  label: string;
+  kind: string;
+  options: string[];
+  required: boolean;
+  default: string;
+  help: string;
+  columns: CustomColumn[];
+  formula: string;
+}
+export interface CustomAction { label: string; kind: string; prompt: string; url: string; quick: string; database: string; format: string }
+export interface Custom {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  description: string;
+  enabled: boolean;
+  fields: CustomField[];
+  template: string;
+  actions: CustomAction[];
+  titleField: string;
+}
+export interface CustomRecord { id: string; created: string; updated: string; values: Record<string, unknown> }

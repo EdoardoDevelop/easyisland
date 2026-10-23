@@ -4,7 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill } from "./state";
+import type { Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill, Custom, CustomRecord } from "./state";
 import type { RecapHistory } from "../island/recap";
 
 export const IS_TAURI =
@@ -370,6 +370,16 @@ export const Bridge = {
   taskSetEngines: (id: string, engine: string, model: string, helpers: string[]) => callOrThrow<void>("task_set_engines", { id, engine, model, helpers }),
   /** The chat's engines: [id, name, ready now]. */
   enginesReady: () => call<[string, string, boolean][]>("engines_ready"),
+  /** Integrazioni personali (custom.rs). */
+  customsList: () => call<Custom[]>("customs_list"),
+  customSave: (definition: Custom) => callOrThrow<Custom>("custom_save", { definition }),
+  customDelete: (id: string) => callOrThrow<void>("custom_delete", { id }),
+  customRecords: (id: string) => call<CustomRecord[]>("custom_records", { id }),
+  customRecordSave: (id: string, record: string, values: Record<string, unknown>) => callOrThrow<CustomRecord>("custom_record_save", { id, record, values }),
+  customRecordDelete: (id: string, record: string) => callOrThrow<void>("custom_record_delete", { id, record }),
+  customDocument: (name: string, ext: string, text: string) => callOrThrow<{ name: string; path: string }>("custom_document", { name, ext, text }),
+  customCopy: (text: string) => callOrThrow<void>("custom_copy", { text }),
+  customToNotion: (database: string, properties: Record<string, unknown>) => callOrThrow<string>("custom_to_notion", { database, properties }),
   /** Abilità (skills.rs). */
   skillsList: () => call<Skill[]>("skills_list"),
   skillSave: (s: { name: string; description: string; engine: string; tools: string[]; body: string }, old: string) =>

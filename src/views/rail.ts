@@ -47,6 +47,9 @@ function current(): string {
 function taskIcon(task: AgentTask): Element {
   const own = State.settings.integrationTabIcons?.[task.id]?.trim() ?? "";
   if (own && !own.startsWith("@")) return h("span", { class: "rail-emoji", text: own });
+  // An integration of the user's: the icon the chat gave it.
+  const custom = task.id.startsWith("custom:") ? State.customs.find((c) => `custom:${c.id}` === task.id)?.icon : "";
+  if (custom) return h("span", { class: "rail-emoji", text: custom });
   const mark = markIcon(task.id, 15);
   if (!mark) return dot(task.color, 8);
   // A wide logo (3CX, n8n, Stripe) shrinks to the emojis' width instead of

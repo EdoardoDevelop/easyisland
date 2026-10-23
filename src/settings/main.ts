@@ -6,7 +6,7 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
-import { type AgentTaskItem, type Skill, type TaskState, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationCondition, type AutomationStep, type AutomationTrigger, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type WidgetDef } from "../core/state";
+import { type AgentTaskItem, type Custom, type Skill, type TaskState, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationCondition, type AutomationStep, type AutomationTrigger, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
@@ -4375,6 +4375,101 @@ function enginesLine(task: AgentTaskItem): string {
   return task.helpers.length ? `${main} · ${t("aiutanti: {list}", { list: task.helpers.map(engineName).join(", ") })}` : main;
 }
 
+// ── Integrazioni personali (custom.rs) ────────────────────────────────────────
+
+let customItems: Custom[] = [];
+/** The integration whose description is open as JSON. */
+let customEditing = "";
+
+/** The integrations made from the chat: on or off in the menu, their JSON, delete. */
+function customsSection(): HTMLElement {
+  const list = h("div", { class: "tasks", id: "customs-list" });
+  void Bridge.customsList().then((l) => {
+    customItems = l ?? [];
+    paintCustoms();
+  });
+  return h("section", {},
+    h("h2", {}, h("span", { text: t("Create da te") })),
+    h("span", { class: "hint", text: t("Integrazioni fatte a parole nella chat: «crea un'integrazione per i preventivi, con cliente, voci con quantità e prezzo, IVA e totale, e un pulsante che crea il PDF». Hanno campi, caselle, scelte, tabelle, calcoli, un modello del documento e pulsanti per salvare, creare il documento, copiarlo, chiedere alla chat, aprire un link, eseguire un'azione rapida o aggiungerle a Notion. Per cambiarne una chiedilo alla chat, oppure modifica qui la sua descrizione.") }),
+    list);
+}
+
+function paintCustoms() {
+  const list = document.getElementById("customs-list");
+  if (!list) return;
+  clear(list);
+  if (!customItems.length) {
+    list.append(h("span", { class: "hint", text: t("Ancora nessuna: chiedila alla chat.") }));
+    return;
+  }
+  for (const c of customItems) list.append(customRow(c));
+}
+
+function customRow(c: Custom): HTMLElement {
+  const feedback = h("div", {});
+  const save = async (next: Custom) => {
+    clear(feedback);
+    try {
+      const saved = await Bridge.customSave(next);
+      customItems = customItems.map((x) => (x.id === saved.id ? saved : x));
+      return true;
+    } catch (e) {
+      feedback.append(h("div", { class: "notice err", text: String(e).replace(/^Error:\s*/, "") }));
+      return false;
+    }
+  };
+  const shown = toggle(c.enabled, (on) => void save({ ...c, enabled: on }));
+  const json = h("button", { text: customEditing === c.id ? t("Chiudi") : t("Modifica la descrizione") }) as HTMLButtonElement;
+  json.addEventListener("click", () => {
+    customEditing = customEditing === c.id ? "" : c.id;
+    paintCustoms();
+  });
+  const del = h("button", { class: "danger", text: t("Elimina") }) as HTMLButtonElement;
+  del.addEventListener("click", async () => {
+    if (!del.classList.contains("confirm")) {
+      del.classList.add("confirm");
+      del.textContent = t("Sicuro? Elimina anche le schede");
+      return;
+    }
+    try {
+      await Bridge.customDelete(c.id);
+      customItems = customItems.filter((x) => x.id !== c.id);
+      paintCustoms();
+    } catch (e) {
+      feedback.append(h("div", { class: "notice err", text: String(e) }));
+    }
+  });
+  const body = h("div", { class: "task-body" },
+    h("div", { class: "hint", text: c.description }),
+    h("div", { class: "hint", text: t("{n} campi · {a} azioni · id {id}", { n: c.fields.length, a: c.actions.length, id: c.id }) }),
+    h("div", { class: "row" }, h("label", { text: t("Nel menu dell'isola") }), shown, json, h("span", { class: "spacer" }), del),
+    feedback);
+  if (customEditing === c.id) {
+    const area = h("textarea", { class: "mono" }) as HTMLTextAreaElement;
+    area.value = JSON.stringify(c, null, 2);
+    area.style.minHeight = "260px";
+    const ok = h("button", { class: "primary", text: t("Salva la descrizione") }) as HTMLButtonElement;
+    ok.addEventListener("click", async () => {
+      let next: Custom;
+      try {
+        next = JSON.parse(area.value) as Custom;
+      } catch (e) {
+        feedback.replaceChildren(h("div", { class: "notice err", text: t("Non è JSON valido: {e}", { e: String(e) }) }));
+        return;
+      }
+      next.id = c.id;
+      if (await save(next)) {
+        customEditing = "";
+        paintCustoms();
+      }
+    });
+    body.append(area, h("div", { class: "row" }, ok));
+  }
+  return h("div", { class: "task", "data-item": `custom-${c.id}` },
+    h("div", { class: "task-head" }, h("span", { text: c.icon || "✦" }), h("span", { class: "task-title", text: c.name })),
+    body);
+}
+
 // ── Battito (tasks.rs) ──────────────────────────────────────────────────────────
 
 /** The heartbeat: a check every N minutes of what BATTITO.md lists, quiet when there is nothing. */
@@ -4785,7 +4880,7 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     {
       id: "integrazioni", label: t("Integrazioni"), icon: "network", color: "#38BDF8", title: t("Integrazioni"),
       intro: t("Servizi e programmi, uno per tipo: GitHub, Vercel, n8n, Stripe, Zammad, Outlook, stato del PC, sicurezza, rete, meteo…"),
-      sections: () => [integrationsSection(b.present)],
+      sections: () => [integrationsSection(b.present), customsSection()],
     },
     {
       id: "widget", label: t("Widget"), icon: "chart", color: "#22C55E", title: t("Widget"),

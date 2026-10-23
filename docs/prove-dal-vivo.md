@@ -2,6 +2,13 @@
 
 Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli una voce quando è provata, e annota in `HANDOFF.md` ciò che non va.
 
+- [ ] **Integrazioni personali (23 ottobre 2026):** provati nell'anteprima modulo, righe, calcoli e modello compilato. Restano con l'app vera:
+  1. in chat «crea un'integrazione per i preventivi…»: la card di Consenti con la descrizione, poi la voce nel menu;
+  2. Salva, poi la scheda in «Salvate», Duplica, Elimina;
+  3. «Crea il documento»: l'HTML nel Vassoio, aperto e stampato in PDF;
+  4. un'azione «chiedi alla chat», una Notion e una con un'azione rapida;
+  5. in chat «aggiungi un campo …» (custom_update) e «quanti preventivi ho fatto a ottobre?» (custom_records).
+
 - [ ] **Compiti (23 ottobre 2026):** provato qui un compito da cima a fondo con l'abbonamento (piano, strumenti, passi, risultato). Restano:
   1. una domanda (`task_ask`) con la card vera: risposta a un pulsante, risposta scritta, e nessuna risposta (il compito va in «Attende te», poi Rispondi in Impostazioni → Compiti);
   2. un permesso (es. `notion_add_row`) chiesto da un compito con l'isola chiusa;

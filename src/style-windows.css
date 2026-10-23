@@ -226,3 +226,10 @@ html[data-ui="windows"] .np-menu-title {
   text-transform: none;
   letter-spacing: 0;
 }
+
+/* Integrazioni personali: Windows' fields and chips. */
+html[data-ui="windows"] .custom-input { border-radius: 4px; border-color: var(--stroke); border-bottom-color: rgba(255, 255, 255, 0.35); background: rgba(255, 255, 255, 0.05); }
+html[data-ui="windows"] .custom-input:focus { border-bottom: 2px solid var(--accent); background: #1f1f1f; }
+html[data-ui="windows"] .chip-btn { border-radius: 4px; }
+html[data-ui="windows"] .chip-btn.on { background: color-mix(in srgb, var(--accent) 18%, transparent); border-color: var(--accent); }
+html[data-ui="windows"] .custom-record { border-radius: 4px; }

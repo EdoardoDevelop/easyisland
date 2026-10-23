@@ -401,6 +401,53 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
         (
+            "custom_create",
+            "Crea un'integrazione personale di EasyIsland, programmata con una descrizione (mai codice): compare nel menu dell'isola con un modulo, l'elenco delle schede salvate e i pulsanti delle azioni. Usalo quando l'utente chiede di creare un'integrazione, un modulo, uno strumento o una funzione per fare qualcosa (preventivi, interventi, ordini, rapportini…). Chiedi prima cosa gli serve se non è chiaro. definition: { name, icon (emoji), color (#rrggbb), description, title_field (id del campo che dà il nome alla scheda), fields: [{ id, label, kind, options, required, default, help, columns, formula }], template, actions: [{ label, kind, prompt, url, quick, database, format }] }. kind dei campi: text, textarea, number, money, date (default \"oggi\"), checkbox, select e multiselect (con options), email, phone, url, rows (una tabella: columns [{ id, label, kind: text|number|money|checkbox|select|date, options }]), computed (formula). Le formule usano gli id dei campi, numeri, + - * / ( ) e sum(colonna) o sum(colA*colB) sulle righe di una tabella; es. imponibile = sum(quantita*prezzo), iva = imponibile*0,22, totale = imponibile+iva. template: il documento in Markdown con {{id_campo}}, e {{#id_tabella}} … {{id_colonna}} … {{/id_tabella}} che si ripete per ogni riga (usa una tabella Markdown per le righe). Importi e date sono già formattati. actions kind: save (salva la scheda), document (crea il documento dal template, format html stampabile o md, nel Vassoio), copy (copia il documento), ai (prompt per la chat con {{campi}}), url (link con {{campi}}), quick (id di un'azione rapida, vedi list_quick_actions), notion (database: aggiunge una riga con le proprietà uguali alle label). L'utente vede l'anteprima e conferma.",
+            json!({ "type": "object", "properties": { "definition": { "type": "object" } }, "required": ["definition"] }),
+            false,
+        ),
+        (
+            "custom_update",
+            "Cambia un'integrazione personale (vedi custom_get per la descrizione attuale): id e la definition intera, come in custom_create. Le schede salvate restano. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "id": { "type": "string" },
+                "definition": { "type": "object" }
+            }, "required": ["id", "definition"] }),
+            false,
+        ),
+        (
+            "custom_list",
+            "Le integrazioni personali dell'utente: nome, id, descrizione, quanti campi e quante schede.",
+            none.clone(),
+            true,
+        ),
+        (
+            "custom_get",
+            "La descrizione completa di un'integrazione personale (campi, template, azioni), da cambiare con custom_update.",
+            json!({ "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"] }),
+            true,
+        ),
+        (
+            "custom_records",
+            "Le schede salvate di un'integrazione personale, dalle più recenti. id; query: parole da cercare (facoltativa); limit (predefinito 30).",
+            json!({ "type": "object", "properties": {
+                "id": { "type": "string" },
+                "query": { "type": "string" },
+                "limit": { "type": "integer", "minimum": 1, "maximum": 200 }
+            }, "required": ["id"] }),
+            true,
+        ),
+        (
+            "custom_add_record",
+            "Salva una scheda in un'integrazione personale: id; values: { id_campo: valore } (le righe di una tabella come elenco di oggetti); record: l'id di una scheda da cambiare (vuoto = nuova). L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "id": { "type": "string" },
+                "record": { "type": "string" },
+                "values": { "type": "object" }
+            }, "required": ["id", "values"] }),
+            false,
+        ),
+        (
             "task_create",
             "Crea un compito di EasyIsland: un obiettivo che l'agente porta avanti da solo, a turni, con un piano, finché è fatto o gli serve l'utente. Usalo quando l'utente chiede di fare qualcosa più tardi, a un orario, ogni giorno, o un lavoro lungo. title: breve; goal: cosa fare, con tutti i dettagli che servono; when: vuoto = subito, \"at:AAAA-MM-GG HH:MM\", \"daily:HH:MM\", \"weekdays:HH:MM\", \"weekly:G:HH:MM\" (G 1 = lunedì) o \"every:N\" (ogni N minuti, da 15); engine e model: il motore che lo guida (vuoto = quello dei compiti: subscription, api, opencode, antigravity, openrouter, openai, gemini, ollama, lmstudio); helpers: i motori a cui può affidare pezzi del lavoro. L'utente conferma.",
             json!({ "type": "object", "properties": {

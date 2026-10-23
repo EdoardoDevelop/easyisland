@@ -5,7 +5,8 @@ import "./style-windows.css";
 import "./character/roster";
 import { Bridge, IS_TAURI, onEvent, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
-import { State, type Settings } from "./core/state";
+import { State, type Custom, type Settings } from "./core/state";
+import { forgetRecords } from "./views/custom";
 import { Island } from "./island/island";
 import { installTooltips } from "./core/tooltip";
 import { registerHookHandlers } from "./island/hooks";
@@ -78,6 +79,8 @@ async function main() {
     if (bg) document.documentElement.style.setProperty("--preview-bg", bg === "dark" ? "#1e1f22" : bg);
   }
   island.applySettings();
+  // The user's own integrations (custom.rs), before the menu is built.
+  State.customs = (await Bridge.customsList()) ?? State.customs;
   State.loadIntegrationTasks();
 
   await onEvent<{ x: number; y: number }>("cursor", ({ x, y }) => island.onCursor(x, y));
@@ -145,6 +148,18 @@ async function main() {
   });
   // An automation's "Chiedi alla chat" step, with the trigger's data filled in.
   await onEvent<string>("automation-ask", (prompt) => island.askChat(prompt));
+  // An integration of the user's made or changed (the chat's custom_create), or its records.
+  await onEvent<Custom[]>("customs-changed", (list) => {
+    State.customs = list;
+    State.customVersion += 1;
+    State.loadIntegrationTasks();
+    State.notify();
+  });
+  await onEvent<{ id: string }>("custom-records", ({ id }) => {
+    forgetRecords(id);
+    State.customVersion += 1;
+    State.notify();
+  });
   // A task's permission answered on Telegram (tasks.rs decide): its card goes.
   await onEvent<string>("approval-cancel", (id) => {
     const req = State.pendingApproval;
