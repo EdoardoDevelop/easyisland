@@ -4,7 +4,8 @@
 // When the scene has settled the page turns transparent and its title says
 // "scene ready"; scripts/screenshots.mjs then captures just the island.
 
-import { fillTemplate, toCsv } from "../src/views/custom";
+import { fillTemplate, receiveSource, toCsv } from "../src/views/custom";
+import { run, scopeOf } from "../src/core/expr";
 import { rdmLookFor } from "../src/views/rdm";
 import type { Island } from "../src/island/island";
 import { State, type CustomField } from "../src/core/state";
@@ -896,10 +897,22 @@ export async function runScene(island: Island, scene: string) {
           { label: "Chiedi un testo d'accompagnamento", kind: "ai", prompt: "Scrivi una mail breve per mandare il preventivo a {{cliente}} (totale {{totale}}).", url: "", quick: "", database: "", format: "" },
         ],
       }];
-      // For the checks of scripts/ (fillTemplate on the scene's integration).
-      (window as unknown as { customKit: unknown }).customKit = { fillTemplate, toCsv, custom: State.customs[0] };
+      // ?dati: a dashboard of data from a service, with an alert (sources in custom.rs).
+      State.customs.push({
+        id: "server", name: "Server dei clienti", icon: "🖥️", color: "#0EA5E9", description: "Stato e spazio libero", enabled: true, titleField: "",
+        fields: [], template: "", actions: [], secrets: ["token"],
+        sources: [{ id: "stato", label: "Stato", url: "https://status.esempio.it/api", every: 5, items: "servers", title: "name", subtitle: "client",
+          value: "disk", values: { "In linea": "summary.online", "Spenti": "summary.offline" }, alert: "disk > 90 o non online", alertText: "{{name}} ({{client}}): disco {{disk}}%" }],
+      });
+      const notices: unknown[] = [];
+      receiveSource(State.customs[1], "stato", { at: "10:30", data: { summary: { online: 2, offline: 1 }, servers: [
+        { name: "SRV-01", client: "Rossi Srl", disk: 71, online: true },
+        { name: "SRV-02", client: "Bianchi Spa", disk: 94, online: true },
+        { name: "NAS", client: "Studio Verdi", disk: 40, online: false }] } }, (n) => notices.push(n));
+      // For the checks of scripts/ (fillTemplate, toCsv, formulas, the alerts said).
+      (window as unknown as { customKit: unknown }).customKit = { fillTemplate, toCsv, run, scopeOf, notices, custom: State.customs[0] };
       State.loadIntegrationTasks();
-      State.setFocus("custom:preventivi");
+      State.setFocus(new URLSearchParams(location.search).has("dati") ? "custom:server" : "custom:preventivi");
       State.isPinned = true;
       island.alert("overview");
       await wait(1500);

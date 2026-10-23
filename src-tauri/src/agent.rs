@@ -106,6 +106,8 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "custom_get" => crate::custom::tool_get(arg(args, "id")),
         "custom_records" => crate::custom::tool_records(arg(args, "id"), arg(args, "query"), args.get("limit").and_then(Value::as_u64).unwrap_or(30) as usize),
         "custom_add_record" => crate::custom::tool_add_record(app, args),
+        "custom_fetch" => crate::custom::tool_fetch(arg(args, "id"), arg(args, "source")).await,
+        "custom_call" => crate::custom::tool_call(args).await,
         // Abilità (skills.rs): read, list; save asks Consenti / Nega first.
         "skill_read" => crate::skills::tool_read(arg(args, "name")),
         "skill_list" => Ok(crate::skills::tool_list()),

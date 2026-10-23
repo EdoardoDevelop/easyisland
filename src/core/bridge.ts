@@ -379,6 +379,10 @@ export const Bridge = {
   customRecordDelete: (id: string, record: string) => callOrThrow<void>("custom_record_delete", { id, record }),
   customDocument: (name: string, ext: string, text: string) => callOrThrow<{ name: string; path: string }>("custom_document", { name, ext, text }),
   customCopy: (text: string) => callOrThrow<void>("custom_copy", { text }),
+  /** An integration's call to a service (keys put in by Rust) and a source read now. */
+  customHttp: (id: string, method: string, url: string, headers: Record<string, string>, body: string) =>
+    callOrThrow<{ status: number; ok: boolean; data: unknown }>("custom_http", { id, method, url, headers, body }),
+  customFetch: (id: string, source: string) => callOrThrow<{ status: number; ok: boolean; data: unknown }>("custom_fetch", { id, source }),
   /** «Compila con l'IA»: the fields read from a pasted text. */
   customFill: (id: string, text: string) => callOrThrow<Record<string, unknown>>("custom_fill", { id, text }),
   customToNotion: (database: string, properties: Record<string, unknown>) => callOrThrow<string>("custom_to_notion", { database, properties }),

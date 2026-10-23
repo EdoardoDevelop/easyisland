@@ -36,6 +36,7 @@ const SHOTS = {
   agenti: { url: "/?scene=agenti" },
   compiti: { url: "/?scene=compiti" },
   custom: { url: "/?scene=custom" },
+  "custom-dati": { url: "/?scene=custom&dati" },
   "compiti-ask": { url: "/?scene=compiti&ask" },
   recap: { url: "/?scene=recap" },
   drop: { url: "/?scene=drop" },

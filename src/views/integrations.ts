@@ -1,3 +1,4 @@
+import type { Notice } from "../core/state";
 // Integration cards shown in the overview's left card — DOM ports of
 // IntegrationCardView and friends from IslandViewContent.swift.
 //
@@ -951,6 +952,7 @@ export interface IntegrationCardHooks {
   askChat(question: string): void;
   runQuick(id: string): void;
   holdOpen(on: boolean): void;
+  showNotice(n: Notice): void;
 }
 
 /** True when this integration has data worth showing instead of the idle card. */

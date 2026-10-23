@@ -1453,7 +1453,7 @@ export interface Skill {
 }
 
 /** An integration made by the user from the chat (custom.rs): a description, never code. */
-export interface CustomColumn { id: string; label: string; kind: string; options: string[]; formula?: string }
+export interface CustomColumn { id: string; label: string; kind: string; options: string[]; formula?: string; format?: string }
 export interface CustomField {
   id: string;
   label: string;
@@ -1473,8 +1473,41 @@ export interface CustomField {
   source?: string;
   /** Summed or counted in the list of the saved records. */
   summary?: boolean;
+  /** computed: money (default), number, percent, text, date, yesno. */
+  format?: string;
 }
-export interface CustomAction { label: string; kind: string; prompt: string; url: string; quick: string; database: string; format: string }
+export interface CustomAction {
+  label: string;
+  kind: string;
+  prompt: string;
+  url: string;
+  quick: string;
+  database: string;
+  format: string;
+  method?: string;
+  headers?: Record<string, unknown>;
+  body?: string;
+  store?: Record<string, unknown>;
+  message?: string;
+  steps?: string[];
+}
+/** Data read from a service (custom.rs Source). */
+export interface CustomSource {
+  id: string;
+  label: string;
+  method?: string;
+  url: string;
+  headers?: Record<string, unknown>;
+  body?: string;
+  every?: number;
+  items?: string;
+  title?: string;
+  subtitle?: string;
+  value?: string;
+  values?: Record<string, unknown>;
+  alert?: string;
+  alertText?: string;
+}
 export interface Custom {
   id: string;
   name: string;
@@ -1486,5 +1519,7 @@ export interface Custom {
   template: string;
   actions: CustomAction[];
   titleField: string;
+  sources?: CustomSource[];
+  secrets?: string[];
 }
 export interface CustomRecord { id: string; created: string; updated: string; values: Record<string, unknown> }

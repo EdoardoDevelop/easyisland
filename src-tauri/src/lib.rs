@@ -2500,6 +2500,18 @@ async fn custom_document(name: String, ext: String, text: String) -> Result<file
     tauri::async_runtime::spawn_blocking(move || custom::document(&name, &ext, &text)).await.map_err(|e| e.to_string())?
 }
 
+/// An integration's "http" action: its call, {{campi}} filled by the island, keys put in here.
+#[tauri::command]
+async fn custom_http(id: String, method: String, url: String, headers: serde_json::Map<String, serde_json::Value>, body: String) -> Result<custom::Reply, String> {
+    custom::http(&id, &method, &url, &headers, &body).await
+}
+
+/// A source read now ("Aggiorna" in the card).
+#[tauri::command]
+async fn custom_fetch(id: String, source: String) -> Result<custom::Reply, String> {
+    custom::fetch(&id, &source).await
+}
+
 /// «Compila con l'IA»: the fields read from a pasted text.
 #[tauri::command]
 async fn custom_fill(app: AppHandle, id: String, text: String) -> Result<serde_json::Map<String, serde_json::Value>, String> {
@@ -2665,6 +2677,8 @@ pub fn run() {
             custom_document,
             custom_copy,
             custom_fill,
+            custom_http,
+            custom_fetch,
             custom_to_notion,
             skill_save,
             skill_delete,
@@ -2941,6 +2955,7 @@ pub fn run() {
             teams::spawn(handle.clone());
             telegram::spawn(handle.clone());
             tasks::init(&handle);
+            custom::spawn(handle.clone());
             msgraph::spawn(handle.clone());
             automations::spawn(handle.clone());
             habits::spawn(handle.clone());

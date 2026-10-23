@@ -4441,9 +4441,27 @@ function customRow(c: Custom): HTMLElement {
   });
   const body = h("div", { class: "task-body" },
     h("div", { class: "hint", text: c.description }),
-    h("div", { class: "hint", text: t("{n} campi · {a} azioni · id {id}", { n: c.fields.length, a: c.actions.length, id: c.id }) }),
+    h("div", { class: "hint", text: t("{n} campi · {a} azioni · {s} fonti di dati · id {id}", { n: c.fields.length, a: c.actions.length, s: (c.sources ?? []).length, id: c.id }) }),
     h("div", { class: "row" }, h("label", { text: t("Nel menu dell'isola") }), shown, json, h("span", { class: "spacer" }), del),
     feedback);
+  // Its keys ({{secret:nome}}): written into the Credential Manager, never shown again.
+  for (const name of c.secrets ?? []) {
+    const key = `custom:${c.id}:${name}`;
+    const field = h("input", { type: "password", placeholder: "…", style: "flex:1 1 220px" }) as HTMLInputElement;
+    const state = h("span", { class: "hint note" });
+    void Bridge.secretPresent(key).then((ok) => (state.textContent = ok ? t("salvata in Gestione credenziali") : t("da inserire")));
+    const set = h("button", { text: t("Salva") }) as HTMLButtonElement;
+    set.addEventListener("click", async () => {
+      try {
+        await Bridge.secretSet(key, field.value);
+        field.value = "";
+        state.textContent = t("salvata in Gestione credenziali");
+      } catch (e) {
+        state.textContent = String(e);
+      }
+    });
+    body.insertBefore(h("div", { class: "row" }, h("label", { text: t("Chiave «{n}»", { n: name }) }), field, set, state), feedback);
+  }
   if (customEditing === c.id) {
     const area = h("textarea", { class: "mono" }) as HTMLTextAreaElement;
     area.value = JSON.stringify(c, null, 2);

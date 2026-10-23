@@ -2,6 +2,11 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 23 ottobre 2026 — Battito, ripetizioni, confronto con gli altri agenti
+- Chiesto da Edoardo: tutti i test possibili e studiare i concorrenti. Provati dal vivo compiti, abilità e aiutanti (un compito ha letto un'abilità e affidato un calcolo a un aiutante); prove tolte dopo con `release/pulisci-prove.cmd`.
+- Dallo studio (`docs/idee.md` → Confronto): Battito con `BATTITO.md` e `quiet`, `every:N` e `weekly:G:HH:MM`, procedure salvate come abilità a fine compito.
+- **Prove:** `cargo test --workspace`, clippy senza avvisi nei moduli nuovi, `npm run build`, `npm run smoke`, prova dal vivo del Battito.
+
 ### 23 ottobre 2026 — Compiti: EasyIsland lavora da solo su un obiettivo
 - Chiesto da Edoardo, primo passo verso la 1.0.0 (agente personale). Nuovo `tasks.rs`: un obiettivo diventa piano e turni del motore della chat (`Channel::Task` in `chat_turn`), con strumenti `task_*`, limiti di turni e minuti, orari (una volta, ogni giorno, feriali), registro .md.
 - Nell'isola è una sessione dell'agente «Compiti» in Agenti; domande con la card «Domanda». Impostazioni → Compiti, `/compito` in chat e su Telegram, passo «Avvia un compito» nelle automazioni, avvisi su Telegram.

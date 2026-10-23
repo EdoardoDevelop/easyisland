@@ -1,3 +1,4 @@
+import type { Notice } from "../core/state";
 // Island views — DOM ports of IslandViewContent.swift. Paddings, font sizes,
 // colours and wording are copied from the Swift views so both platforms read
 // identically.
@@ -44,6 +45,8 @@ export interface ViewActions extends ActionHandlers, RewriteHandlers, MomentActi
   openChat(): void;
   /** A new chat with this question sent (an integration's "chiedi alla chat"). */
   askChat(question: string): void;
+  /** A notice on the island (an integration's alert or action). */
+  showNotice(n: Notice): void;
   /** "Estrai…" on a dropped ZIP: "beside" | "downloads" | "desktop". */
   extractZip(place: string): void;
   /** 📌: keep the island open (no auto-close). */
@@ -338,6 +341,7 @@ function buildOverview(actions: ViewActions): ViewHost {
       if (a) actions.runAction(a);
     },
     holdOpen: (on) => actions.holdOpen(on),
+    showNotice: (n) => actions.showNotice(n),
   };
 
   return {

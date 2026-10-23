@@ -9,7 +9,8 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
   4. un'azione «chiedi alla chat», una Notion e una con un'azione rapida;
   5. in chat «aggiungi un campo …» (custom_update) e «quanti preventivi ho fatto a ottobre?» (custom_records);
   6. numerazione: due preventivi salvati di fila (001, 002), poi un duplicato che prende il numero nuovo;
-  7. «Compila con l'IA» da una mail vera di un cliente; «Esporta CSV» aperto in Excel; un campo `link` verso un'integrazione «Clienti».
+  7. «Compila con l'IA» da una mail vera di un cliente; «Esporta CSV» aperto in Excel; un campo `link` verso un'integrazione «Clienti»;
+  8. provato qui il 23 ottobre: una fonte letta da sola dal ciclo in Rust (API pubblica di GitHub, HTTP 200). Restano: un'integrazione con chiave (`{{secret:token}}` inserito nelle Impostazioni) verso un servizio vero, un'azione `http` POST con `store`, un avviso di una fonte, `custom_call` dalla chat.
 
 - [ ] **Compiti (23 ottobre 2026):** provato qui un compito da cima a fondo con l'abbonamento (piano, strumenti, passi, risultato). Restano:
   1. una domanda (`task_ask`) con la card vera: risposta a un pulsante, risposta scritta, e nessuna risposta (il compito va in «Attende te», poi Rispondi in Impostazioni → Compiti);

@@ -6,7 +6,7 @@ import "./character/roster";
 import { Bridge, IS_TAURI, onEvent, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
 import { State, type Custom, type Settings } from "./core/state";
-import { forgetRecords } from "./views/custom";
+import { forgetRecords, receiveSource } from "./views/custom";
 import { Island } from "./island/island";
 import { installTooltips } from "./core/tooltip";
 import { registerHookHandlers } from "./island/hooks";
@@ -153,6 +153,14 @@ async function main() {
     State.customs = list;
     State.customVersion += 1;
     State.loadIntegrationTasks();
+    State.notify();
+  });
+  // A source of an integration read by Rust (custom.rs spawn): data, line, alerts.
+  await onEvent<{ id: string; source: string; at: string; reply?: { data: unknown; status: number }; error?: string }>("custom-source", (e) => {
+    const c = State.customs.find((x) => x.id === e.id);
+    if (!c) return;
+    receiveSource(c, e.source, { at: e.at, data: (e.reply?.data ?? null) as never, status: e.reply?.status, error: e.error }, (n) => island.showNotice(n));
+    State.customVersion += 1;
     State.notify();
   });
   await onEvent<{ id: string }>("custom-records", ({ id }) => {

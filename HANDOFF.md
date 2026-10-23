@@ -32,6 +32,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 23 ottobre 2026 — Integrazioni personali universali
+- Chiesto da Edoardo: niente più «preventivi», capire i limiti e toglierli. Tolti: chiamate a servizi (`http`, solo agli host della descrizione), fonti di dati lette ogni N minuti con avvisi, chiavi in Gestione credenziali, formule vere (`src/core/expr.ts`), azioni compito / avviso / sequenza, campo file, `custom_fetch` e `custom_call` per chat e compiti (`docs/integrazioni.md`).
+- **Prove:** `cargo test --workspace` (5 test nuovi), clippy, `npm run build`, `npm run smoke` (scena `custom&dati`), 42 formule con Edge, dal vivo una fonte vera letta dall'app (GitHub, HTTP 200), poi tolta.
+
 ### 23 ottobre 2026 — Integrazioni personali potenziate
 - Chiesto da Edoardo: studiare come potenziare le integrazioni personali e farlo. Aggiunti numerazione automatica, colonne calcolate nelle righe, campi condizionali, collegamento a un'altra integrazione, totali nell'elenco, «Compila con l'IA» da un testo incollato, esportazione CSV, modello automatico (`docs/integrazioni.md`).
 - **Prove:** `cargo test --workspace` (3 test nuovi), clippy, `npm run build`, `npm run smoke`; con Edge nell'anteprima: totali di riga, campo condizionale, riquadro «Compila», CSV.
@@ -45,11 +49,6 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Versione **0.9.9** con le voci del 23 ottobre; README, README.en.md e homepage aggiornati.
 - Chiesto da Edoardo: fare «cosa resta» del confronto con gli altri agenti. Permessi e domande dei compiti anche su Telegram (prima risposta vince, mai «Automatica»), `/rispondi`, abilità come comandi su Telegram, Riordino della memoria serale con conferma (`docs/chat.md`).
 - **Prove:** `cargo test --workspace` (test nuovo sulla prima risposta), clippy, `npm run build`, `npm run smoke`. Le prove con Telegram e con la memoria vera servono un tuo tocco: `docs/prove-dal-vivo.md`.
-
-### 23 ottobre 2026 — Battito, ripetizioni, confronto con gli altri agenti
-- Chiesto da Edoardo: tutti i test possibili e studiare i concorrenti. Provati dal vivo compiti, abilità e aiutanti (un compito ha letto un'abilità e affidato un calcolo a un aiutante); prove tolte dopo con `release/pulisci-prove.cmd`.
-- Dallo studio (`docs/idee.md` → Confronto): Battito con `BATTITO.md` e `quiet`, `every:N` e `weekly:G:HH:MM`, procedure salvate come abilità a fine compito.
-- **Prove:** `cargo test --workspace`, clippy senza avvisi nei moduli nuovi, `npm run build`, `npm run smoke`, prova dal vivo del Battito.
 
 ### 23 ottobre 2026 — Abilità, motore per compito e motori aiutanti
 - Chiesto da Edoardo: agente programmabile, un motore per ogni compito e più motori in un compito. Nuovo `skills.rs` (procedure .md con nome, descrizione, motore preferito, strumenti; elenco davanti alla conversazione, `skill_read`, `skill_save`, comandi `/id` nella chat).

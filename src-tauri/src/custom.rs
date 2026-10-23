@@ -24,10 +24,10 @@ const MAX_TEMPLATE: usize = 40_000;
 
 pub const FIELD_KINDS: &[&str] = &[
     "text", "textarea", "number", "money", "date", "checkbox", "select", "multiselect", "email", "phone", "url", "rows", "computed",
-    "counter", "link",
+    "counter", "link", "file",
 ];
 pub const COLUMN_KINDS: &[&str] = &["text", "number", "money", "checkbox", "select", "date", "computed"];
-pub const ACTION_KINDS: &[&str] = &["save", "document", "copy", "ai", "url", "quick", "notion", "fill", "export"];
+pub const ACTION_KINDS: &[&str] = &["save", "document", "copy", "ai", "url", "quick", "notion", "fill", "export", "http", "task", "notice", "steps"];
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
@@ -38,6 +38,8 @@ pub struct Column {
     pub options: Vec<String>,
     /// computed: over the row's columns, "quantita*prezzo".
     pub formula: String,
+    /// computed: money (default), number, percent, text, date, yesno.
+    pub format: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -67,6 +69,8 @@ pub struct Field {
     pub source: String,
     /// In the list of the saved records: summed (numbers) or counted (choices).
     pub summary: bool,
+    /// computed: money (default), number, percent, text, date, yesno.
+    pub format: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -84,6 +88,44 @@ pub struct Action {
     pub database: String,
     /// document: "html" (printable, the default) or "md".
     pub format: String,
+    /// http: GET, POST, PUT, PATCH or DELETE (url above).
+    pub method: String,
+    /// http: headers, with {{campi}} and {{secret:nome}}.
+    pub headers: Map<String, Value>,
+    /// http: the body, with {{campi}} (JSON or text).
+    pub body: String,
+    /// http: what of the answer goes into the fields: { id_campo: "percorso.nella.risposta" }.
+    pub store: Map<String, Value>,
+    /// http, task, notice: the text, with {{campi}} and {{risposta.percorso}}.
+    pub message: String,
+    /// Several actions in a row, by their labels (the first that fails stops).
+    pub steps: Vec<String>,
+}
+
+/// Data that comes from a service: read every `every` minutes (0 = when asked)
+/// and shown in the card as values or a list; `alert` warns on the island.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Source {
+    pub id: String,
+    pub label: String,
+    pub method: String,
+    pub url: String,
+    pub headers: Map<String, Value>,
+    pub body: String,
+    pub every: u32,
+    /// The path of the list in the answer ("" = the answer itself, when it is a list).
+    pub items: String,
+    /// For each item of the list: its title, its line under it, a value on the right (paths).
+    pub title: String,
+    pub subtitle: String,
+    pub value: String,
+    /// Single values out of the answer: { "Etichetta": "percorso" }.
+    pub values: Map<String, Value>,
+    /// A formula over the answer (or each item): true = an alert on the island.
+    pub alert: String,
+    /// The alert's text, with {{percorso}}.
+    pub alert_text: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -103,6 +145,10 @@ pub struct Custom {
     pub actions: Vec<Action>,
     /// The field that names a record in the list (the first text field when empty).
     pub title_field: String,
+    /// Data read from services (lists, values, alerts).
+    pub sources: Vec<Source>,
+    /// The names of its keys ({{secret:nome}}), kept in Windows' Credential Manager.
+    pub secrets: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -156,8 +202,8 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
         c.color = "#0EA5E9".into();
     }
     c.icon = c.icon.trim().chars().take(4).collect();
-    if c.fields.is_empty() {
-        return Err(t("fields: almeno un campo.").into());
+    if c.fields.is_empty() && c.sources.is_empty() {
+        return Err(t("fields o sources: almeno un campo o una fonte di dati.").into());
     }
     if c.fields.len() > MAX_FIELDS {
         return Err(tf("fields: al massimo {n} campi.", &[("n", &MAX_FIELDS.to_string())]));
@@ -237,9 +283,16 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
         }
         match a.kind.as_str() {
             "ai" if a.prompt.trim().is_empty() => return Err(tf("Azione «{l}»: prompt, la domanda per la chat.", &[("l", &a.label)])),
-            "url" if !(a.url.starts_with("https://") || a.url.starts_with("http://")) => {
+            "url" | "http" if !(a.url.starts_with("https://") || a.url.starts_with("http://")) => {
                 return Err(tf("Azione «{l}»: url deve iniziare con https:// o http://.", &[("l", &a.label)]));
             }
+            "http" if host_of(&a.url).is_none() => {
+                return Err(tf("Azione «{l}»: l'indirizzo del servizio va scritto per intero, senza {{campi}} prima del primo /.", &[("l", &a.label)]));
+            }
+            "task" | "notice" if a.message.trim().is_empty() => {
+                return Err(tf("Azione «{l}»: message, il testo.", &[("l", &a.label)]));
+            }
+            "steps" if a.steps.is_empty() => return Err(tf("Azione «{l}»: steps, le etichette delle azioni da fare in fila.", &[("l", &a.label)])),
             "quick" if a.quick.trim().is_empty() => return Err(tf("Azione «{l}»: quick, l'id dell'azione rapida.", &[("l", &a.label)])),
             "notion" if a.database.trim().is_empty() => return Err(tf("Azione «{l}»: database di Notion.", &[("l", &a.label)])),
             _ => {}
@@ -247,7 +300,37 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
         if a.kind == "document" && a.format != "md" {
             a.format = "html".into();
         }
+        if a.kind == "http" {
+            a.method = method_of(&a.method)?;
+        }
     }
+    let labels: Vec<String> = c.actions.iter().map(|a| a.label.clone()).collect();
+    for a in c.actions.iter().filter(|a| a.kind == "steps") {
+        if let Some(missing) = a.steps.iter().find(|s| !labels.contains(s) || *s == &a.label) {
+            return Err(tf("Azione «{l}»: in steps «{m}» non è l'etichetta di un'altra azione.", &[("l", &a.label), ("m", missing)]));
+        }
+    }
+    let mut ids = std::collections::HashSet::new();
+    for s in &mut c.sources {
+        if s.id.trim().is_empty() {
+            s.id = key_of(if s.label.is_empty() { "dati" } else { &s.label });
+        }
+        if s.label.trim().is_empty() {
+            s.label = s.id.clone();
+        }
+        if !key_ok(&s.id) || !ids.insert(s.id.clone()) {
+            return Err(tf("Fonte «{l}»: id unico con sole lettere, cifre e _.", &[("l", &s.label)]));
+        }
+        if !(s.url.starts_with("https://") || s.url.starts_with("http://")) || host_of(&s.url).is_none() {
+            return Err(tf("Fonte «{l}»: url completo, https://servizio/…", &[("l", &s.label)]));
+        }
+        s.method = method_of(&s.method)?;
+        // At most every minute; 0 = only when asked.
+        if s.every > 0 {
+            s.every = s.every.clamp(1, 1440);
+        }
+    }
+    c.secrets = c.secrets.iter().map(|x| x.trim().to_string()).filter(|x| key_ok(x)).take(10).collect();
     // No template: one with every field, so a document can always be made.
     if c.template.trim().is_empty() {
         c.template = default_template(&c);
@@ -256,6 +339,26 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
         c.title_field = String::new();
     }
     Ok(c)
+}
+
+/// "https://api.esempio.it/v1/x?{{a}}" → "https://api.esempio.it": scheme and
+/// host, written out (no {{…}} in them). Calls go only to these (`http`).
+fn host_of(url: &str) -> Option<String> {
+    let rest = url.strip_prefix("https://").map(|r| ("https://", r)).or_else(|| url.strip_prefix("http://").map(|r| ("http://", r)))?;
+    let host = rest.1.split(['/', '?', '#']).next().unwrap_or_default();
+    if host.is_empty() || host.contains("{{") || host.contains('@') {
+        return None;
+    }
+    Some(format!("{}{}", rest.0, host.to_lowercase()))
+}
+
+fn method_of(m: &str) -> Result<String, String> {
+    let m = if m.trim().is_empty() { "GET".to_string() } else { m.trim().to_uppercase() };
+    if ["GET", "POST", "PUT", "PATCH", "DELETE"].contains(&m.as_str()) {
+        Ok(m)
+    } else {
+        Err(tf("method: GET, POST, PUT, PATCH o DELETE, non {m}.", &[("m", &m)]))
+    }
 }
 
 /// A document with every field: a title, a line per field, a table per table.
@@ -474,6 +577,117 @@ pub async fn fill(app: &AppHandle, id: &str, text: &str) -> Result<Map<String, V
     Ok(found.into_iter().filter(|(k, _)| c.fields.iter().any(|f| &f.id == k && !matches!(f.kind.as_str(), "computed" | "counter"))).collect())
 }
 
+// ── Services (http actions and sources) ─────────────────────────────────────
+
+/// What a service answered.
+#[derive(Clone, Debug, Serialize)]
+pub struct Reply {
+    pub status: u16,
+    pub ok: bool,
+    /// The answer read as JSON when it is, else as text (cut at 200 KB).
+    pub data: Value,
+}
+
+const MAX_ANSWER: usize = 200 * 1024;
+
+/// {{secret:nome}} → the key kept for this integration; an error naming the missing one.
+fn with_secrets(id: &str, text: &str) -> Result<String, String> {
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(start) = rest.find("{{secret:") {
+        out.push_str(rest.get(..start).unwrap_or_default());
+        let after = rest.get(start + 9..).unwrap_or_default();
+        let Some(end) = after.find("}}") else { break };
+        let name = after.get(..end).unwrap_or_default().trim();
+        let value = crate::secrets::get(&format!("custom:{id}:{name}"))
+            .ok_or_else(|| tf("Manca la chiave «{n}»: inseriscila in Impostazioni → Integrazioni → Create da te.", &[("n", &name.to_string())]))?;
+        out.push_str(&value);
+        rest = after.get(end + 2..).unwrap_or_default();
+    }
+    out.push_str(rest);
+    Ok(out)
+}
+
+/// A call to a service of an integration, its {{campi}} already filled by the
+/// island. Only to the hosts written in its approved description; the keys
+/// are put in here and never leave Rust.
+pub async fn http(id: &str, method: &str, url: &str, headers: &Map<String, Value>, body: &str) -> Result<Reply, String> {
+    let c = get(id).ok_or(t("Integrazione non trovata."))?;
+    let allowed: Vec<String> = c.actions.iter().filter(|a| a.kind == "http").map(|a| a.url.as_str())
+        .chain(c.sources.iter().map(|s| s.url.as_str()))
+        .filter_map(host_of).collect();
+    let host = host_of(url).ok_or(t("Indirizzo non valido."))?;
+    if !allowed.contains(&host) {
+        return Err(tf("{h} non è tra i servizi di questa integrazione.", &[("h", &host)]));
+    }
+    let url = with_secrets(&c.id, url)?;
+    let method = reqwest::Method::from_bytes(method_of(method)?.as_bytes()).map_err(|e| e.to_string())?;
+    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(20)).build().map_err(|e| e.to_string())?;
+    let mut req = client.request(method, &url).header("User-Agent", "EasyIsland");
+    for (k, v) in headers {
+        let v = v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string());
+        req = req.header(k.as_str(), with_secrets(&c.id, &v)?);
+    }
+    if !body.trim().is_empty() {
+        let b = with_secrets(&c.id, body)?;
+        let json = serde_json::from_str::<Value>(&b).is_ok();
+        if json && !headers.keys().any(|k| k.eq_ignore_ascii_case("content-type")) {
+            req = req.header("Content-Type", "application/json");
+        }
+        req = req.body(b);
+    }
+    let resp = req.send().await.map_err(|e| tf("Il servizio non risponde: {e}", &[("e", &e.without_url().to_string())]))?;
+    let status = resp.status();
+    let bytes = resp.bytes().await.map_err(|e| e.without_url().to_string())?;
+    let cut = bytes.get(..bytes.len().min(MAX_ANSWER)).unwrap_or_default();
+    let text = String::from_utf8_lossy(cut).to_string();
+    let data = serde_json::from_str::<Value>(&text).unwrap_or(Value::String(text));
+    Ok(Reply { status: status.as_u16(), ok: status.is_success(), data })
+}
+
+/// A source read now.
+pub async fn fetch(id: &str, source: &str) -> Result<Reply, String> {
+    let c = get(id).ok_or(t("Integrazione non trovata."))?;
+    let s = c.sources.iter().find(|s| s.id == source).ok_or(t("Fonte non trovata."))?;
+    http(&c.id, &s.method, &s.url, &s.headers, &s.body).await
+}
+
+/// Reads the sources with `every` when their time comes and tells the island
+/// ("custom-source"). Asleep otherwise: one look every 30 s at the clock.
+pub fn spawn(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        let mut last: std::collections::HashMap<String, std::time::Instant> = std::collections::HashMap::new();
+        // In the log: the first answer of each source, and every error.
+        let mut logged: std::collections::HashSet<String> = std::collections::HashSet::new();
+        loop {
+            for c in list().into_iter().filter(|c| c.enabled) {
+                for s in c.sources.iter().filter(|s| s.every > 0) {
+                    let key = format!("{}/{}", c.id, s.id);
+                    let due = last.get(&key).is_none_or(|t| t.elapsed() >= std::time::Duration::from_secs(s.every as u64 * 60));
+                    if !due {
+                        continue;
+                    }
+                    last.insert(key, std::time::Instant::now());
+                    let out = http(&c.id, &s.method, &s.url, &s.headers, &s.body).await;
+                    match &out {
+                        Ok(r) if logged.insert(format!("{}/{}", c.id, s.id)) => {
+                            crate::log::line(format!("integrazioni personali: {}/{} HTTP {}", c.id, s.id, r.status));
+                        }
+                        Err(e) => crate::log::line(format!("integrazioni personali: {}/{} non letta: {e}", c.id, s.id)),
+                        _ => {}
+                    }
+                    let payload = match out {
+                        Ok(r) => json!({ "id": c.id, "source": s.id, "reply": r, "at": now() }),
+                        Err(e) => json!({ "id": c.id, "source": s.id, "error": e, "at": now() }),
+                    };
+                    let _ = app.emit("custom-source", payload);
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+        }
+    });
+}
+
 // ── Tools (agent.rs) ─────────────────────────────────────────────────────────
 
 fn parse_def(args: &Value) -> Result<Custom, String> {
@@ -527,6 +741,68 @@ pub fn tool_records(id: &str, query: &str, limit: usize) -> Result<String, Strin
         .map(|r| json!({ "id": r.id, "updated": r.updated, "values": r.values }))
         .collect();
     serde_json::to_string_pretty(&rows).map_err(|e| e.to_string())
+}
+
+/// custom_fetch: what a source of an integration says now (its approved address).
+pub async fn tool_fetch(id: &str, source: &str) -> Result<String, String> {
+    let r = fetch(id, source).await?;
+    let text = serde_json::to_string_pretty(&r.data).unwrap_or_default();
+    let cut: String = text.chars().take(20_000).collect();
+    Ok(format!("HTTP {}\n{cut}", r.status))
+}
+
+/// {{campo}} in a text from plain values (custom_call): text as it is, the rest as JSON;
+/// `encode` for a URL. {{secret:…}} stays for `http`.
+fn fill_values(text: &str, values: &Map<String, Value>, encode: bool, json_body: bool) -> String {
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(start) = rest.find("{{") {
+        out.push_str(rest.get(..start).unwrap_or_default());
+        let after = rest.get(start + 2..).unwrap_or_default();
+        let Some(end) = after.find("}}") else {
+            out.push_str(rest.get(start..).unwrap_or_default());
+            return out;
+        };
+        let key = after.get(..end).unwrap_or_default().trim();
+        let whole = rest.get(start..start + 2 + end + 2).unwrap_or_default();
+        match values.get(key) {
+            _ if key.starts_with("secret:") => out.push_str(whole),
+            Some(Value::String(s)) if encode => out.push_str(&url_encode(s)),
+            Some(Value::String(s)) if json_body => out.push_str(&s.replace('\\', "\\\\").replace('"', "\\\"")),
+            Some(Value::String(s)) => out.push_str(s),
+            Some(v) if encode => out.push_str(&url_encode(&v.to_string())),
+            Some(v) => out.push_str(&v.to_string()),
+            None => out.push_str(if json_body { "null" } else { "" }),
+        }
+        rest = after.get(end + 2..).unwrap_or_default();
+    }
+    out.push_str(rest);
+    out
+}
+
+fn url_encode(s: &str) -> String {
+    s.bytes().map(|b| match b {
+        b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => (b as char).to_string(),
+        _ => format!("%{b:02X}"),
+    }).collect()
+}
+
+/// custom_call: an "http" action of an integration from the chat, a task or the
+/// heartbeat, with the values given. Consenti / Nega first (not read-only).
+pub async fn tool_call(args: &Value) -> Result<String, String> {
+    let id = args.get("id").and_then(Value::as_str).unwrap_or_default();
+    let label = args.get("action").and_then(Value::as_str).unwrap_or_default();
+    let values = args.get("values").and_then(Value::as_object).cloned().unwrap_or_default();
+    let c = get(id).ok_or(t("Integrazione non trovata."))?;
+    let a = c.actions.iter().find(|a| a.kind == "http" && a.label.eq_ignore_ascii_case(label.trim()))
+        .ok_or_else(|| tf("Nessuna azione http «{l}». Quelle che ci sono: {all}", &[("l", &label.to_string()), ("all", &c.actions.iter().filter(|a| a.kind == "http").map(|a| a.label.clone()).collect::<Vec<_>>().join(", "))]))?;
+    let mut headers = Map::new();
+    for (k, v) in &a.headers {
+        headers.insert(k.clone(), json!(fill_values(v.as_str().unwrap_or_default(), &values, false, false)));
+    }
+    let r = http(&c.id, &a.method, &fill_values(&a.url, &values, true, false), &headers, &fill_values(&a.body, &values, false, true)).await?;
+    let text = serde_json::to_string_pretty(&r.data).unwrap_or_default();
+    Ok(format!("HTTP {}\n{}", r.status, text.chars().take(20_000).collect::<String>()))
 }
 
 pub fn tool_add_record(app: &AppHandle, args: &Value) -> Result<String, String> {
@@ -615,6 +891,52 @@ mod tests {
         let mut c = quote();
         c.fields.push(Field { label: "Numero".into(), kind: "counter".into(), ..Default::default() });
         assert_eq!(normalize(c).unwrap().fields.last().unwrap().digits, 3);
+    }
+
+    #[test]
+    fn services_only_where_the_description_says() {
+        assert_eq!(host_of("https://API.esempio.it/v1/x?{{a}}"), Some("https://api.esempio.it".into()));
+        assert_eq!(host_of("https://{{dominio}}/x"), None);
+        assert_eq!(host_of("https://utente:pw@esempio.it/"), None);
+        assert_eq!(host_of("ftp://x"), None);
+        let mut c = quote();
+        c.actions.push(Action { label: "Invia".into(), kind: "http".into(), url: "https://{{server}}/api".into(), ..Default::default() });
+        assert!(normalize(c).unwrap_err().contains("per intero"));
+        let mut c = quote();
+        c.actions.push(Action { label: "Invia".into(), kind: "http".into(), url: "https://hook.esempio.it/x".into(), method: "TRACE".into(), ..Default::default() });
+        assert!(normalize(c).unwrap_err().contains("method"));
+    }
+
+    #[test]
+    fn a_dashboard_needs_no_fields() {
+        let c: Custom = serde_json::from_value(json!({
+            "name": "Server", "sources": [{ "label": "Stato", "url": "https://status.esempio.it/api", "every": 0 }]
+        })).unwrap();
+        let c = normalize(c).unwrap();
+        assert_eq!((c.sources[0].id.as_str(), c.sources[0].method.as_str()), ("stato", "GET"));
+        let empty: Custom = serde_json::from_value(json!({ "name": "Vuota" })).unwrap();
+        assert!(normalize(empty).is_err());
+    }
+
+    #[test]
+    fn steps_name_other_actions() {
+        let mut c = quote();
+        c.actions.push(Action { label: "Tutto".into(), kind: "steps".into(), steps: vec!["Crea il documento".into(), "Manca".into()], ..Default::default() });
+        assert!(normalize(c).unwrap_err().contains("Manca"));
+    }
+
+    #[test]
+    fn keys_are_put_in_and_a_missing_one_is_named() {
+        assert_eq!(with_secrets("x", "senza chiavi").unwrap(), "senza chiavi");
+        assert!(with_secrets("x-prova-inesistente", "Bearer {{secret:token}}").unwrap_err().contains("token"));
+    }
+
+    #[test]
+    fn values_fill_urls_bodies_and_leave_keys() {
+        let v: Map<String, Value> = serde_json::from_value(json!({ "q": "a b/c", "n": 3, "nome": "Ro\"ssi" })).unwrap();
+        assert_eq!(fill_values("https://x.it/s?q={{q}}&n={{n}}", &v, true, false), "https://x.it/s?q=a%20b%2Fc&n=3");
+        assert_eq!(fill_values(r#"{"nome":"{{nome}}","n":{{n}},"x":{{manca}}}"#, &v, false, true), r#"{"nome":"Ro\"ssi","n":3,"x":null}"#);
+        assert_eq!(fill_values("Bearer {{secret:token}}", &v, false, false), "Bearer {{secret:token}}");
     }
 
     #[test]
