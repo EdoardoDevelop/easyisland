@@ -6,7 +6,7 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
-import { type AgentTaskItem, type TaskState, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationCondition, type AutomationStep, type AutomationTrigger, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type WidgetDef } from "../core/state";
+import { type AgentTaskItem, type Skill, type TaskState, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationCondition, type AutomationStep, type AutomationTrigger, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
@@ -4058,6 +4058,8 @@ function themeSection(): HTMLElement {
 let taskItems: AgentTaskItem[] = [];
 /** The task whose log is open. */
 let taskLogOpen = "";
+/** The task whose engines are being changed. */
+let taskEnginesOpen = "";
 
 const TASK_STATE: Record<TaskState, [string, string]> = {
   scheduled: [t("Programmato"), "off"],
@@ -4100,14 +4102,23 @@ function tasksSection(): HTMLElement {
     time.style.display = kind.value === "now" ? "none" : "";
   };
   paintWhen();
+  const engines = h("div", {});
+  let picker = enginePicker("", "", []);
+  engines.append(picker.el);
+  // The engines that are ready mark the others "non pronto".
+  void loadReadyEngines().then(() => {
+    picker = enginePicker("", "", []);
+    engines.replaceChildren(picker.el);
+  });
   const add = h("button", { class: "primary", text: t("Crea compito") }) as HTMLButtonElement;
   add.addEventListener("click", async () => {
     clear(feedback);
     let when = "";
     if (kind.value === "at") when = `at:${date.value} ${time.value}`;
     else if (kind.value !== "now") when = `${kind.value}:${time.value}`;
+    const e = picker.value();
     try {
-      await Bridge.taskNew(title.value, goal.value, when, "");
+      await Bridge.taskNew(title.value, goal.value, when, e.engine, e.model, e.helpers);
       title.value = "";
       goal.value = "";
       await refreshTasks();
@@ -4120,6 +4131,7 @@ function tasksSection(): HTMLElement {
     h("h2", {}, h("span", { text: t("Nuovo compito") })),
     h("div", { class: "row" }, title),
     goal,
+    engines,
     h("div", { class: "row" }, h("label", { text: t("Quando") }), kind, date, time, h("span", { class: "spacer" }), add),
     feedback,
     h("span", { class: "hint", text: t("Puoi crearli anche dalla chat («/compito …», oppure a parole) e da Telegram. Mentre lavora lo vedi nella scheda Agenti dell'isola: permessi e domande arrivano lì.") }),
@@ -4187,10 +4199,19 @@ function taskRow(task: AgentTaskItem): HTMLElement {
     taskLogOpen = taskLogOpen === task.id ? "" : task.id;
     paintTasks();
   });
-  buttons.append(log, h("span", { class: "spacer" }));
+  buttons.append(log);
+  if (task.state !== "running") {
+    const motors = h("button", { text: taskEnginesOpen === task.id ? t("Chiudi motori") : t("Motori") });
+    motors.addEventListener("click", () => {
+      taskEnginesOpen = taskEnginesOpen === task.id ? "" : task.id;
+      paintTasks();
+    });
+    buttons.append(motors);
+  }
+  buttons.append(h("span", { class: "spacer" }));
   btn(t("Elimina"), "delete", "danger");
 
-  const meta = [whenLabel(task.when), task.plan.length ? t("{done} di {n} passi", { done, n: task.plan.length }) : "", task.updated].filter(Boolean).join(" · ");
+  const meta = [whenLabel(task.when), enginesLine(task), task.plan.length ? t("{done} di {n} passi", { done, n: task.plan.length }) : "", task.updated].filter(Boolean).join(" · ");
   const body = h("div", { class: "task-body" }, h("div", { class: "hint", text: task.goal }), h("div", { class: "hint", text: meta }));
   if (task.plan.length) {
     body.append(h("ol", { class: "task-plan" }, ...task.plan.map((s) => h("li", { class: s.done ? "done" : "", text: s.text }))));
@@ -4216,6 +4237,22 @@ function taskRow(task: AgentTaskItem): HTMLElement {
     body.append(h("div", { class: "notice warn", text: task.question }), h("div", { class: "row" }, reply, send));
   }
   body.append(buttons);
+  if (taskEnginesOpen === task.id && task.state !== "running") {
+    const picker = enginePicker(task.engine, task.model, task.helpers);
+    const feedback = h("div", {});
+    const save = h("button", { class: "primary", text: t("Salva i motori") }) as HTMLButtonElement;
+    save.addEventListener("click", async () => {
+      const e = picker.value();
+      try {
+        await Bridge.taskSetEngines(task.id, e.engine, e.model, e.helpers);
+        taskEnginesOpen = "";
+        await refreshTasks();
+      } catch (err) {
+        feedback.replaceChildren(h("div", { class: "notice err", text: String(err).replace(/^Error:\s*/, "") }));
+      }
+    });
+    body.append(h("div", { class: "qa-edit" }, picker.el, feedback, h("div", { class: "row" }, save)));
+  }
   if (taskLogOpen === task.id) {
     const pre = h("div", { class: "diff task-log", text: "…" });
     void Bridge.taskLog(task.id).then((text) => {
@@ -4257,6 +4294,164 @@ function tasksSettingsSection(): HTMLElement {
       })),
     h("span", { class: "hint", text: t("Un compito alla volta, gli altri in coda. Ha gli stessi strumenti e permessi della chat: inviare, eliminare o approvare resta sempre un tuo clic.") }),
   );
+}
+
+/** The engines that can answer now (engines_ready); in the browser preview, all of them. */
+let readyEngines: Set<string> | null = null;
+
+async function loadReadyEngines() {
+  const list = await Bridge.enginesReady();
+  readyEngines = list ? new Set(list.filter(([, , ok]) => ok).map(([id]) => id)) : new Set(CHAT_ENGINES.map((e) => e.id));
+}
+
+function engineName(id: string): string {
+  return CHAT_ENGINES.find((e) => e.id === id)?.name ?? id;
+}
+
+/**
+ * A task's engines: the one that leads it (and its model), and the helpers it
+ * may hand a piece of work to (task_delegate in tasks.rs).
+ */
+function enginePicker(engine: string, model: string, helpers: string[]): { el: HTMLElement; value(): { engine: string; model: string; helpers: string[] } } {
+  const ready = (id: string) => !readyEngines || readyEngines.has(id);
+  const main = h("select", {}) as HTMLSelectElement;
+  main.append(h("option", { value: "", text: t("Quello dei compiti (qui sotto)") }));
+  for (const e of CHAT_ENGINES) main.append(h("option", { value: e.id, text: ready(e.id) ? e.name : `${e.name} · ${t("non pronto")}` }));
+  main.value = engine;
+  const modelField = h("input", { type: "text", value: model, placeholder: t("modello (vuoto = quello del motore)"), style: "flex:1 1 200px" }) as HTMLInputElement;
+  const paintModel = () => {
+    modelField.style.display = main.value ? "" : "none";
+  };
+  main.addEventListener("change", paintModel);
+  paintModel();
+  const chosen = new Set(helpers);
+  const chips = h("div", { class: "chip-opts" });
+  for (const e of CHAT_ENGINES) {
+    const b = h("button", { class: chosen.has(e.id) ? "chip-opt on" : "chip-opt", text: e.name,
+      title: ready(e.id) ? t("Può affidargli un pezzo del lavoro") : t("Non pronto: configuralo in Impostazioni → Chat") }) as HTMLButtonElement;
+    b.addEventListener("click", () => {
+      if (chosen.has(e.id)) chosen.delete(e.id);
+      else chosen.add(e.id);
+      b.classList.toggle("on", chosen.has(e.id));
+    });
+    chips.append(b);
+  }
+  const el = h("div", { class: "engine-picker" },
+    h("div", { class: "row" }, h("label", { text: t("Motore") }), main, modelField),
+    h("div", { class: "row" }, h("label", { text: t("Motori aiutanti") }), chips),
+    h("span", { class: "hint", text: t("Il motore guida il compito; agli aiutanti può affidare un pezzo del lavoro (una ricerca, una revisione, un testo), ognuno con i suoi punti di forza.") }));
+  return { el, value: () => ({ engine: main.value, model: main.value ? modelField.value.trim() : "", helpers: [...chosen] }) };
+}
+
+/** "Claude (abbonamento) · aiutanti: opencode, Gemini". */
+function enginesLine(task: AgentTaskItem): string {
+  const main = task.engine ? `${engineName(task.engine)}${task.model ? ` (${task.model})` : ""}` : t("motore dei compiti");
+  return task.helpers.length ? `${main} · ${t("aiutanti: {list}", { list: task.helpers.map(engineName).join(", ") })}` : main;
+}
+
+// ── Abilità (skills.rs) ────────────────────────────────────────────────────────
+
+let skillItems: Skill[] = [];
+/** The skill being edited: its id, "" for a new one, null for none. */
+let skillEditing: string | null = null;
+
+function skillsSection(): HTMLElement {
+  const list = h("div", { class: "tasks", id: "skills-list" });
+  const add = h("button", { class: "primary", text: t("Nuova abilità") }) as HTMLButtonElement;
+  add.addEventListener("click", () => {
+    skillEditing = "";
+    paintSkills();
+  });
+  const folder = h("button", { text: t("Apri la cartella") }) as HTMLButtonElement;
+  folder.addEventListener("click", () => void Bridge.skillsOpen());
+  void refreshSkills();
+  return h("section", {},
+    h("h2", {}, h("span", { text: t("Abilità") })),
+    h("span", { class: "hint", text: t("Procedure scritte una volta, che la chat e i compiti seguono quando servono: per esempio «resoconto mensile di un cliente» o «controllo dei backup». Ognuna è un file .md che puoi modificare, ha un motore preferito se vuoi, ed è anche il comando /nome nella chat. Si creano anche dalla chat: «ricordati come si fa…».") }),
+    h("div", { class: "row" }, add, folder),
+    list);
+}
+
+async function refreshSkills() {
+  skillItems = (await Bridge.skillsList()) ?? [];
+  paintSkills();
+}
+
+function paintSkills() {
+  const list = document.getElementById("skills-list");
+  if (!list) return;
+  clear(list);
+  if (skillEditing === "") list.append(skillEditor(null));
+  if (!skillItems.length && skillEditing !== "") list.append(h("span", { class: "hint", text: t("Ancora nessuna abilità.") }));
+  for (const s of skillItems) list.append(skillEditing === s.id ? skillEditor(s) : skillRow(s));
+}
+
+function skillRow(s: Skill): HTMLElement {
+  const edit = h("button", { text: t("Modifica") }) as HTMLButtonElement;
+  edit.addEventListener("click", () => {
+    skillEditing = s.id;
+    paintSkills();
+  });
+  const del = h("button", { class: "danger", text: t("Elimina") }) as HTMLButtonElement;
+  del.addEventListener("click", async () => {
+    if (!del.classList.contains("confirm")) {
+      del.classList.add("confirm");
+      del.textContent = t("Sicuro? Elimina");
+      return;
+    }
+    try {
+      await Bridge.skillDelete(s.id);
+    } catch (e) {
+      console.warn(e);
+    }
+    await refreshSkills();
+  });
+  const meta = [`/${s.id}`, s.engine ? t("motore: {e}", { e: engineName(s.engine) }) : "", s.tools.length ? s.tools.join(", ") : ""].filter(Boolean).join(" · ");
+  return h("div", { class: "task", "data-item": `skill-${s.id}` },
+    h("div", { class: "task-head" }, h("span", { class: "task-title", text: s.name })),
+    h("div", { class: "task-body" },
+      h("div", { class: "hint", text: s.description }),
+      h("div", { class: "hint", text: meta }),
+      h("div", { class: "row" }, edit, h("span", { class: "spacer" }), del)));
+}
+
+function skillEditor(s: Skill | null): HTMLElement {
+  const name = h("input", { type: "text", value: s?.name ?? "", placeholder: t("Nome, es. Resoconto cliente"), style: "flex:1 1 220px" }) as HTMLInputElement;
+  const description = h("input", { type: "text", value: s?.description ?? "", placeholder: t("Quando usarla, es. quando chiedo il resoconto mensile di un cliente"), style: "flex:1 1 320px" }) as HTMLInputElement;
+  const engine = h("select", {}) as HTMLSelectElement;
+  engine.append(h("option", { value: "", text: t("Qualsiasi motore") }));
+  for (const e of CHAT_ENGINES) engine.append(h("option", { value: e.id, text: e.name }));
+  engine.value = s?.engine ?? "";
+  const tools = h("input", { type: "text", value: (s?.tools ?? []).join(", "), placeholder: t("strumenti, es. notion_query, list_status (facoltativi)"), style: "flex:1 1 260px" }) as HTMLInputElement;
+  const body = h("textarea", { class: "mono", placeholder: t("Le istruzioni, passo per passo. Es.:\n1. Cerca in Zammad i ticket del cliente del mese scorso\n2. Somma le ore\n3. Scrivi la bozza del resoconto in Notion e dimmi dov'è") }) as HTMLTextAreaElement;
+  body.value = s?.body ?? "";
+  body.style.minHeight = "160px";
+  const feedback = h("div", {});
+  const save = h("button", { class: "primary", text: t("Salva") }) as HTMLButtonElement;
+  save.addEventListener("click", async () => {
+    clear(feedback);
+    try {
+      await Bridge.skillSave({
+        name: name.value, description: description.value, engine: engine.value,
+        tools: tools.value.split(",").map((x) => x.trim()).filter(Boolean), body: body.value,
+      }, s?.id ?? "");
+      skillEditing = null;
+      await refreshSkills();
+    } catch (e) {
+      feedback.append(h("div", { class: "notice err", text: String(e).replace(/^Error:\s*/, "") }));
+    }
+  });
+  const cancel = h("button", { text: t("Annulla") }) as HTMLButtonElement;
+  cancel.addEventListener("click", () => {
+    skillEditing = null;
+    paintSkills();
+  });
+  return h("div", { class: "task qa-edit" },
+    h("div", { class: "row" }, name),
+    h("div", { class: "row" }, description),
+    h("div", { class: "row" }, h("label", { text: t("Motore preferito") }), engine, tools),
+    body, feedback,
+    h("div", { class: "row" }, save, cancel));
 }
 
 // ── Backup ────────────────────────────────────────────────────────────────────
@@ -4511,7 +4706,7 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     {
       id: "compiti", label: t("Compiti"), icon: "check", color: "#0EA5E9", title: t("Compiti"),
       intro: t("Obiettivi che EasyIsland porta avanti da solo: fa un piano, lo segue con gli strumenti della chat, ti chiede quando serve e ti dice com'è andata."),
-      sections: () => [tasksSection(), tasksSettingsSection()],
+      sections: () => [tasksSection(), skillsSection(), tasksSettingsSection()],
     },
     {
       id: "automazioni", label: t("Automazioni"), icon: "rocket", color: "#22D3EE", title: t("Automazioni"),

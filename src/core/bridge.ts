@@ -4,7 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { Settings, WidgetStatus, PickedWindow, AgentTaskItem } from "./state";
+import type { Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill } from "./state";
 import type { RecapHistory } from "../island/recap";
 
 export const IS_TAURI =
@@ -360,7 +360,18 @@ export const Bridge = {
   memoryInfo: () => call<MemoryInfo>("memory_info"),
   /** Compiti (tasks.rs). */
   tasksList: () => call<AgentTaskItem[]>("tasks_list"),
-  taskNew: (title: string, goal: string, when: string, engine: string) => callOrThrow<AgentTaskItem>("task_new", { title, goal, when, engine }),
+  taskNew: (title: string, goal: string, when: string, engine: string, model = "", helpers: string[] = []) =>
+    callOrThrow<AgentTaskItem>("task_new", { title, goal, when, engine, model, helpers }),
+  taskSetEngines: (id: string, engine: string, model: string, helpers: string[]) => callOrThrow<void>("task_set_engines", { id, engine, model, helpers }),
+  /** The chat's engines: [id, name, ready now]. */
+  enginesReady: () => call<[string, string, boolean][]>("engines_ready"),
+  /** Abilità (skills.rs). */
+  skillsList: () => call<Skill[]>("skills_list"),
+  skillSave: (s: { name: string; description: string; engine: string; tools: string[]; body: string }, old: string) =>
+    callOrThrow<Skill>("skill_save", { ...s, old }),
+  skillDelete: (id: string) => callOrThrow<void>("skill_delete", { id }),
+  skillsOpen: () => call<void>("skills_open"),
+  skillPrompt: (id: string, arg: string) => callOrThrow<string>("skill_prompt", { id, arg }),
   taskControl: (id: string, action: "start" | "pause" | "resume" | "stop" | "delete") => callOrThrow<void>("task_control", { id, action }),
   taskAnswer: (id: string, text: string) => callOrThrow<void>("task_answer", { id, text }),
   taskLog: (id: string) => call<string>("task_log", { id }),

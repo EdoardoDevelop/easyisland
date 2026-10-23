@@ -1401,6 +1401,10 @@ export interface AgentTaskItem {
   title: string;
   goal: string;
   engine: string;
+  /** "" = the engine's model in Impostazioni → Chat. */
+  model: string;
+  /** Engines it may hand a piece of work to (task_delegate). */
+  helpers: string[];
   state: TaskState;
   plan: { text: string; done: boolean }[];
   /** "" = now; "at:AAAA-MM-GG HH:MM"; "daily:HH:MM"; "weekdays:HH:MM". */
@@ -1414,4 +1418,14 @@ export interface AgentTaskItem {
   runs: number;
   created: string;
   updated: string;
+}
+
+/** A skill of the user (skills.rs): a procedure the chat and the tasks follow. */
+export interface Skill {
+  id: string;
+  name: string;
+  description: string;
+  engine: string;
+  tools: string[];
+  body: string;
 }

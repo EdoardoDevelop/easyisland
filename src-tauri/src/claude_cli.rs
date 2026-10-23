@@ -80,6 +80,9 @@ pub(crate) const AGENT_READ_ONLY: &[&str] = &[
     "task_done",
     "task_ask",
     "task_list",
+    "task_delegate",
+    "skill_read",
+    "skill_list",
 ];
 
 pub(crate) const AGENT_PROMPT: &str = " You also have the easyisland tools, which act on the user's own PC: \

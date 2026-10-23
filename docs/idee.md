@@ -21,7 +21,7 @@ Un compito è un obiettivo («prepara il resoconto mensile per Rossi entro vener
 - **Prove:** test Rust su stati, limiti, orari e `validate`; scena `compiti` in `dev/scenes.ts` e `npm run smoke`; dal vivo un compito vero con Notion e Outlook.
 
 ### Dopo i Compiti, verso la 1.0.0
-- **Abilità programmabili:** file .md in `%APPDATA%\EasyIslandbilita` (nome, quando usarla, istruzioni, strumenti ammessi) che l'agente carica quando servono, scritte a mano o dalla chat. Con i connettori MCP che già ci sono, l'agente si programma come gli altri agenti.
+- **Abilità programmabili:** fatte il 23 ottobre 2026 (`docs/chat.md` → Abilità), insieme al motore per compito e ai motori aiutanti (`task_delegate`). **Resta:** abilità come comandi anche su Telegram; un'abilità che limita davvero gli strumenti (oggi `strumenti` è un'indicazione).
 - **Si muove per primo:** su ticket nuovo, fine chiamata 3CX, mail importante, scadenza di Notion prepara bozze e note da confermare con un clic (`docs/idee.md` → Proposte al momento giusto, Automazioni più intelligenti).
 - **Permessi per livelli:** letture libere; scritture reversibili (bozze, note, attività) consentite una volta per strumento; invio, approvazioni, cancellazioni e comandi sempre con un clic. Registro «Cosa ho fatto» con Annulla dove si può.
 - **Memoria per cliente e per progetto**, oltre a quella della chat (`memory.rs`).

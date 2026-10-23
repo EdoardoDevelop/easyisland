@@ -77,6 +77,12 @@ pub struct Task {
     /// The engine for this task; "" = Impostazioni → Compiti, else the chat's.
     #[serde(default)]
     pub engine: String,
+    /// Its model ("" = the engine's in Impostazioni → Chat).
+    #[serde(default)]
+    pub model: String,
+    /// Engines it may hand a piece of work to (task_delegate); empty = none.
+    #[serde(default)]
+    pub helpers: Vec<String>,
     pub state: TaskState,
     #[serde(default)]
     pub plan: Vec<Step>,
@@ -303,6 +309,8 @@ pub fn create(app: &AppHandle, title: &str, goal: &str, when: &str, engine: &str
         title: title.chars().take(80).collect(),
         goal: goal.chars().take(4000).collect(),
         engine: engine.trim().to_string(),
+        model: String::new(),
+        helpers: Vec::new(),
         state: if when.is_empty() { TaskState::Queued } else { TaskState::Scheduled },
         plan: Vec::new(),
         when: when.to_string(),
@@ -393,6 +401,33 @@ pub fn control(app: &AppHandle, id: &str, action: &str) -> Result<(), String> {
     }
     Ok(())
 }
+
+/// Impostazioni → Compiti: the engine, model and helpers of a task. Not while
+/// it runs (its conversation is on one engine); a new engine starts a new one.
+pub fn set_engines(app: &AppHandle, id: &str, engine: &str, model: &str, helpers: &[String]) -> Result<(), String> {
+    if running().as_deref() == Some(id) {
+        return Err(t("Mettilo in pausa prima di cambiare motore.").into());
+    }
+    let known: Vec<&str> = KNOWN_ENGINES.to_vec();
+    let engine = engine.trim();
+    if !engine.is_empty() && !known.contains(&engine) {
+        return Err(tf("Motore sconosciuto: {e}", &[("e", &engine.to_string())]));
+    }
+    let helpers: Vec<String> = helpers.iter().map(|h| h.trim().to_string()).filter(|h| known.contains(&h.as_str())).take(8).collect();
+    let before = get(id).ok_or(t("Compito non trovato."))?;
+    if before.engine != engine || before.model != model.trim() {
+        CHATS.lock().unwrap().remove(id);
+    }
+    update(app, id, |t| {
+        t.engine = engine.to_string();
+        t.model = model.trim().chars().take(120).collect();
+        t.helpers = helpers.clone();
+    });
+    Ok(())
+}
+
+/// The chat's engines (CHAT_ENGINES in src/core/state.ts).
+const KNOWN_ENGINES: &[&str] = &["subscription", "api", "opencode", "antigravity", "openrouter", "openai", "gemini", "ollama", "lmstudio"];
 
 /// The user answers the question of a task that is waiting: it goes back in the queue.
 pub fn answer(app: &AppHandle, id: &str, text: &str) -> Result<(), String> {
@@ -492,7 +527,7 @@ async fn runner(app: AppHandle) {
                 t.last = crate::i18n::t("È il suo orario: in coda").into();
             });
             CHATS.lock().unwrap().remove(id);
-            note(id, &t("Partito al suo orario"));
+            note(id, t("Partito al suo orario"));
         }
         let next = TASKS.lock().unwrap().iter().find(|t| t.state == TaskState::Queued).map(|t| t.id.clone());
         if let Some(id) = next {
@@ -516,7 +551,13 @@ fn plan_text(plan: &[Step]) -> String {
 }
 
 /// What the agent is told at each turn.
+#[cfg(test)]
 fn prompt(task: &Task, first: bool) -> String {
+    prompt_with(task, first, &[])
+}
+
+/// `helpers`: (id, name) of the engines it may hand work to, ready now.
+fn prompt_with(task: &Task, first: bool, helpers: &[(String, String)]) -> String {
     let rules = t("Lavori da solo, senza l'utente davanti: usa gli strumenti per fare davvero le cose. Scrivi subito il piano con task_plan (pochi passi concreti) e segna ogni passo fatto con task_step. Se ti serve una decisione o un dato che ha solo l'utente, chiedilo con task_ask. Quando hai finito chiama task_done con il risultato, breve e utile. Non inviare email, non eliminare e non approvare nulla da solo: prepara bozze e lascia a lui l'ultimo clic.");
     let mut text = if first {
         tf("[Compito di EasyIsland «{title}». {rules}]\n\nObiettivo: {goal}", &[("title", &task.title), ("rules", &rules), ("goal", &task.goal)])
@@ -526,10 +567,28 @@ fn prompt(task: &Task, first: bool) -> String {
             &[("title", &task.title), ("rules", &rules), ("goal", &task.goal), ("plan", &plan_text(&task.plan))],
         )
     };
+    if !helpers.is_empty() {
+        let list = helpers.iter().map(|(id, name)| format!("{id} ({name})")).collect::<Vec<_>>().join(", ");
+        text.push_str(&format!("\n\n{}", tf(
+            "[Motori aiutanti: {list}. Puoi affidare a uno di loro un pezzo del lavoro con task_delegate (engine, prompt), per esempio una ricerca, una revisione, un testo, o un passo per cui un'abilità indica il suo motore: lavora in una conversazione sua e ti restituisce il risultato. Dagli tutto il contesto che serve, non vede questa conversazione.]",
+            &[("list", &list)],
+        )));
+    }
     if !task.answer.is_empty() {
         text.push_str(&format!("\n\n{}", tf("Risposta dell'utente alla tua domanda «{q}»: {a}", &[("q", &task.question), ("a", &task.answer)])));
     }
     text
+}
+
+/// The task's helpers that can answer now, with their names.
+fn ready_helpers(app: &AppHandle, task: &Task) -> Vec<(String, String)> {
+    if task.helpers.is_empty() {
+        return Vec::new();
+    }
+    crate::telegram::engines(app).into_iter()
+        .filter(|(id, _, ok)| *ok && task.helpers.iter().any(|h| h == id))
+        .map(|(id, name, _)| (id.to_string(), name))
+        .collect()
 }
 
 fn limits(app: &AppHandle) -> (String, u32, u32) {
@@ -553,7 +612,7 @@ async fn run(app: &AppHandle, id: &str) {
         t.last = crate::i18n::t("Al lavoro").into();
     });
     crate::log::line(format!("compiti: avviato {id}"));
-    note(id, &t("Avviato"));
+    note(id, t("Avviato"));
     hook(app, payload("SessionStart", id));
     let mut prompt_hook = payload("UserPromptSubmit", id);
     prompt_hook.insert("prompt".into(), json!(task.title));
@@ -572,7 +631,7 @@ async fn run(app: &AppHandle, id: &str) {
         if started.elapsed() >= Duration::from_secs(max_minutes as u64 * 60) {
             break (TaskState::Paused, tf("In pausa: passati i {n} minuti concessi. «Riprendi» per continuare.", &[("n", &max_minutes.to_string())]));
         }
-        let text = prompt(&task, first);
+        let text = prompt_with(&task, first, &ready_helpers(app, &task));
         first = false;
         TOOLED.store(false, Ordering::SeqCst);
         update(app, id, |t| {
@@ -580,7 +639,8 @@ async fn run(app: &AppHandle, id: &str) {
             t.answer.clear();
         });
         let engine_opt = (!engine.is_empty()).then(|| engine.clone());
-        let reply = crate::chat_turn(app, &chat, text, None, engine_opt, None, false, crate::Channel::Task, &|_| {}).await;
+        let model_opt = (!engine.is_empty() && !task.model.is_empty()).then(|| task.model.clone());
+        let reply = crate::chat_turn(app, &chat, text, None, engine_opt, model_opt, false, crate::Channel::Task, &|_| {}).await;
         let halt = HALT.lock().unwrap().take();
         if let Some(pause) = halt {
             break if pause { (TaskState::Paused, t("In pausa").into()) } else { (TaskState::Stopped, t("Fermato").into()) };
@@ -649,7 +709,7 @@ async fn run(app: &AppHandle, id: &str) {
     // A recurring task waits for its next hour.
     if matches!(state, TaskState::Done | TaskState::Failed) {
         if let Some(task) = get(id).filter(Task::recurring) {
-            note(&task.id, &t("Di nuovo al prossimo orario"));
+            note(&task.id, t("Di nuovo al prossimo orario"));
         }
     }
 }
@@ -767,9 +827,52 @@ pub async fn tool_ask(app: &AppHandle, args: &Value) -> Result<String, String> {
     }
 }
 
+/// task_delegate: a piece of the work to another engine, in a conversation of
+/// its own (Channel::Helper: same tools and permissions, not in the history).
+/// Only the task's helpers; the answer goes back to the engine that asked.
+pub async fn tool_delegate(app: &AppHandle, args: &Value) -> Result<String, String> {
+    let (app, id) = current(app)?;
+    let task = get(&id).ok_or(t("Compito non trovato."))?;
+    let engine = str_arg(args, "engine").to_string();
+    let ask = str_arg(args, "prompt").to_string();
+    if ask.is_empty() {
+        return Err(t("prompt: cosa deve fare l'altro motore, con il contesto che serve.").into());
+    }
+    let helpers = ready_helpers(&app, &task);
+    let Some((_, name)) = helpers.iter().find(|(h, _)| *h == engine) else {
+        let list = helpers.iter().map(|(h, _)| h.clone()).collect::<Vec<_>>().join(", ");
+        return Err(if list.is_empty() {
+            t("Questo compito non ha motori aiutanti pronti: fai tu il lavoro.").into()
+        } else {
+            tf("engine: uno dei motori aiutanti di questo compito ({list}).", &[("list", &list)])
+        });
+    };
+    let name = name.clone();
+    TOOLED.store(true, Ordering::SeqCst);
+    note(&id, &tf("Affidato a {e}: {p}", &[("e", &name), ("p", &ask.chars().take(300).collect::<String>())]));
+    show_step(&app, &id, &tf("Chiede a {e}", &[("e", &name)]));
+    let chat = Chat::default();
+    let reply = crate::chat_turn(&app, &chat, ask, None, Some(engine.clone()), None, false, crate::Channel::Helper, &|_| {}).await;
+    if engine == "opencode" {
+        crate::opencode::forget(chat.cli_session());
+    }
+    let text = reply?.text;
+    let clean = text.lines().filter(|l| !l.trim_start().starts_with("> ⚙")).collect::<Vec<_>>().join("\n");
+    let clean = clean.trim();
+    note(&id, &tf("Risposta di {e}: {t}", &[("e", &name), ("t", &clean.chars().take(600).collect::<String>())]));
+    show_step(&app, &id, &tf("{e} ha risposto", &[("e", &name)]));
+    Ok(clean.chars().take(12_000).collect())
+}
+
 /// task_create from the chat (Consenti / Nega on the island first: not read-only).
 pub fn tool_create(app: &AppHandle, args: &Value) -> Result<String, String> {
     let task = create(app, str_arg(args, "title"), str_arg(args, "goal"), str_arg(args, "when"), "")?;
+    // The engine that leads it and its helpers, when the user said which.
+    let helpers: Vec<String> = args.get("helpers").and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect()).unwrap_or_default();
+    if !str_arg(args, "engine").is_empty() || !helpers.is_empty() {
+        set_engines(app, &task.id, str_arg(args, "engine"), str_arg(args, "model"), &helpers)?;
+    }
     Ok(match task.state {
         TaskState::Scheduled => tf("Compito «{title}» creato: parte da solo ({when}). Lo vedi in Impostazioni → Compiti.", &[("title", &task.title), ("when", &task.when)]),
         _ => tf("Compito «{title}» creato e in coda: lo vedi nella scheda Agenti dell'isola.", &[("title", &task.title)]),
@@ -841,7 +944,7 @@ mod tests {
     #[test]
     fn the_prompt_carries_goal_plan_and_answer() {
         let mut task = Task {
-            id: "1".into(), title: "Resoconto".into(), goal: "Prepara il resoconto di Rossi".into(), engine: String::new(),
+            id: "1".into(), title: "Resoconto".into(), goal: "Prepara il resoconto di Rossi".into(), engine: String::new(), model: String::new(), helpers: Vec::new(),
             state: TaskState::Running, plan: vec![Step { text: "Leggi i ticket".into(), done: true }, Step { text: "Scrivi la bozza".into(), done: false }],
             when: String::new(), last_fired: String::new(), question: "Che mese?".into(), answer: "Settembre".into(),
             result: String::new(), last: String::new(), turns: 0, runs: 0, created: String::new(), updated: String::new(),
@@ -853,5 +956,8 @@ mod tests {
         assert!(next.contains("Settembre"));
         task.answer.clear();
         assert!(!prompt(&task, false).contains("Settembre"));
+        assert!(!next.contains("task_delegate"), "no helpers, no delegation");
+        let with = prompt_with(&task, false, &[("opencode".into(), "opencode".into())]);
+        assert!(with.contains("task_delegate") && with.contains("opencode (opencode)"));
     }
 }

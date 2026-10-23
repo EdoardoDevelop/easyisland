@@ -368,12 +368,48 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             true,
         ),
         (
+            "task_delegate",
+            "Solo dentro un compito: affida un pezzo del lavoro a un altro motore (uno dei motori aiutanti del compito, elencati all'inizio) e ne restituisce la risposta. Lavora in una conversazione sua, con gli stessi strumenti e permessi: dagli tutto il contesto. engine: l'id del motore (es. opencode, api, gemini); prompt: cosa deve fare.",
+            json!({ "type": "object", "properties": {
+                "engine": { "type": "string" },
+                "prompt": { "type": "string" }
+            }, "required": ["engine", "prompt"] }),
+            true,
+        ),
+        (
+            "skill_list",
+            "Le abilità dell'utente: procedure scritte da lui (nome, id, quando usarle).",
+            none.clone(),
+            true,
+        ),
+        (
+            "skill_read",
+            "Legge un'abilità dell'utente (per nome o id): quando usarla, il motore preferito, gli strumenti e le istruzioni da seguire.",
+            json!({ "type": "object", "properties": { "name": { "type": "string" } }, "required": ["name"] }),
+            true,
+        ),
+        (
+            "skill_save",
+            "Crea o aggiorna un'abilità dell'utente (una procedura da riusare, diventa anche il comando /nome nella chat). Usalo quando l'utente chiede di ricordare come si fa una cosa passo per passo. name; description: quando usarla; engine: il motore preferito (vuoto = qualsiasi); tools: gli strumenti che usa; body: le istruzioni in Markdown. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "name": { "type": "string" },
+                "description": { "type": "string" },
+                "engine": { "type": "string" },
+                "tools": { "type": "array", "items": { "type": "string" } },
+                "body": { "type": "string" }
+            }, "required": ["name", "body"] }),
+            false,
+        ),
+        (
             "task_create",
-            "Crea un compito di EasyIsland: un obiettivo che l'agente porta avanti da solo, a turni, con un piano, finché è fatto o gli serve l'utente. Usalo quando l'utente chiede di fare qualcosa più tardi, a un orario, ogni giorno, o un lavoro lungo. title: breve; goal: cosa fare, con tutti i dettagli che servono; when: vuoto = subito, \"at:AAAA-MM-GG HH:MM\", \"daily:HH:MM\" o \"weekdays:HH:MM\". L'utente conferma.",
+            "Crea un compito di EasyIsland: un obiettivo che l'agente porta avanti da solo, a turni, con un piano, finché è fatto o gli serve l'utente. Usalo quando l'utente chiede di fare qualcosa più tardi, a un orario, ogni giorno, o un lavoro lungo. title: breve; goal: cosa fare, con tutti i dettagli che servono; when: vuoto = subito, \"at:AAAA-MM-GG HH:MM\", \"daily:HH:MM\" o \"weekdays:HH:MM\"; engine e model: il motore che lo guida (vuoto = quello dei compiti: subscription, api, opencode, antigravity, openrouter, openai, gemini, ollama, lmstudio); helpers: i motori a cui può affidare pezzi del lavoro. L'utente conferma.",
             json!({ "type": "object", "properties": {
                 "title": { "type": "string" },
                 "goal": { "type": "string" },
-                "when": { "type": "string" }
+                "when": { "type": "string" },
+                "engine": { "type": "string" },
+                "model": { "type": "string" },
+                "helpers": { "type": "array", "items": { "type": "string" } }
             }, "required": ["goal"] }),
             false,
         ),

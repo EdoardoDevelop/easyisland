@@ -97,6 +97,12 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "task_ask" => crate::tasks::tool_ask(app, args).await,
         "task_create" => crate::tasks::tool_create(app, args),
         "task_list" => Ok(crate::tasks::tool_list()),
+        // Boxed: the other engine's turn may call these tools again (a cycle of futures).
+        "task_delegate" => Box::pin(crate::tasks::tool_delegate(app, args)).await,
+        // Abilità (skills.rs): read, list; save asks Consenti / Nega first.
+        "skill_read" => crate::skills::tool_read(arg(args, "name")),
+        "skill_list" => Ok(crate::skills::tool_list()),
+        "skill_save" => crate::skills::tool_save(args),
         "todo_list" => crate::todo::list(args).await,
         "todo_add" => crate::todo::add(args).await,
         "todo_update" => crate::todo::update(args).await,

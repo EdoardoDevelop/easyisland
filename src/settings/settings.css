@@ -975,3 +975,9 @@ h3.int-sub {
   white-space: pre-wrap;
   user-select: text;
 }
+
+.engine-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

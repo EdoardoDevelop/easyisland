@@ -67,6 +67,7 @@ mod session_reply;
 mod secrets;
 mod settings;
 mod teams;
+mod skills;
 mod tasks;
 mod telegram;
 mod i18n;
@@ -1037,6 +1038,9 @@ pub(crate) enum Channel {
     Island,
     Telegram,
     Task,
+    /// Another engine a task hands one piece of work to (tasks.rs task_delegate):
+    /// like a task, but not in the history.
+    Helper,
 }
 
 impl Channel {
@@ -1044,7 +1048,7 @@ impl Channel {
         match self {
             Channel::Island => 0,
             Channel::Telegram => 1,
-            Channel::Task => 2,
+            Channel::Task | Channel::Helper => 2,
         }
     }
 }
@@ -1165,6 +1169,8 @@ pub(crate) async fn chat_turn(
     };
     let memory_tools = agent && (has_tools || engine == "api");
     let memory = if remember && fresh { memory::preface(memory_tools) } else { None };
+    // The user's skills (skills.rs): their names in front, read with skill_read when they fit.
+    let skills = if fresh && memory_tools { skills::index() } else { None };
     // A reopened conversation the engine cannot resume: it rides in front of the question.
     let preamble = chat.take_preamble();
     let asked = query.clone();
@@ -1184,6 +1190,10 @@ pub(crate) async fn chat_turn(
     };
     let query = match &memory {
         Some(m) => format!("{m}{query}"),
+        None => query,
+    };
+    let query = match &skills {
+        Some(s) => format!("{s}{query}"),
         None => query,
     };
     // Impostazioni → Chat → Istruzioni (of the active profile), first of all.
@@ -1254,15 +1264,15 @@ pub(crate) async fn chat_turn(
     let first = first_text.lock().unwrap().map_or_else(|| "-".to_string(), |ms| format!("{:.1} s", ms as f64 / 1000.0));
     log::line(format!(
         "chat: turno {engine}{} in {:.1} s (primo testo {first}){}{}",
-        match channel { Channel::Telegram => " da Telegram", Channel::Task => " di un compito", Channel::Island => "" },
+        match channel { Channel::Telegram => " da Telegram", Channel::Task => " di un compito", Channel::Helper => " di un aiutante", Channel::Island => "" },
         started.elapsed().as_secs_f64(),
         if reply.is_err() { ", non riuscito" } else { "" },
         recipe_hint.as_ref().map_or("", |_| ", con ricetta"),
     ));
     recipes::end(recipe_mark, &asked, reply.is_ok());
     match &reply {
-        Ok(r) if shared.settings.lock().unwrap().chat_history => {
-            chat_log::record(chat, &engine, &asked, &r.text, match channel { Channel::Telegram => "Telegram · ", Channel::Task => "Compito · ", Channel::Island => "" });
+        Ok(r) if channel != Channel::Helper && shared.settings.lock().unwrap().chat_history => {
+            chat_log::record(chat, &engine, &asked, &r.text, match channel { Channel::Telegram => "Telegram · ", Channel::Task => "Compito · ", _ => "" });
             memory::diary(&engine, &asked, &r.text, telegram);
         }
         Ok(_) => {}
@@ -2431,8 +2441,12 @@ fn tasks_list() -> Vec<tasks::Task> {
 
 /// A new task from the settings or the chat's «/compito».
 #[tauri::command]
-fn task_new(app: AppHandle, title: String, goal: String, when: Option<String>, engine: Option<String>) -> Result<tasks::Task, String> {
-    tasks::create(&app, &title, &goal, when.as_deref().unwrap_or_default(), engine.as_deref().unwrap_or_default())
+fn task_new(app: AppHandle, title: String, goal: String, when: Option<String>, engine: Option<String>, model: Option<String>, helpers: Option<Vec<String>>) -> Result<tasks::Task, String> {
+    let task = tasks::create(&app, &title, &goal, when.as_deref().unwrap_or_default(), engine.as_deref().unwrap_or_default())?;
+    if model.is_some() || helpers.is_some() {
+        tasks::set_engines(&app, &task.id, &task.engine, model.as_deref().unwrap_or_default(), &helpers.unwrap_or_default())?;
+    }
+    Ok(tasks::get(&task.id).unwrap_or(task))
 }
 
 /// Avvia, Pausa, Riprendi, Ferma, Elimina.
@@ -2445,6 +2459,48 @@ fn task_control(app: AppHandle, id: String, action: String) -> Result<(), String
 #[tauri::command]
 fn task_answer(app: AppHandle, id: String, text: String) -> Result<(), String> {
     tasks::answer(&app, &id, &text)
+}
+
+/// Abilità (skills.rs): the list, for Impostazioni and the chat's «/commands».
+#[tauri::command]
+fn skills_list() -> Vec<skills::Skill> {
+    skills::list()
+}
+
+/// Saves a skill from Impostazioni; `old` = the id it had.
+#[tauri::command]
+fn skill_save(name: String, description: String, engine: String, tools: Vec<String>, body: String, old: String) -> Result<skills::Skill, String> {
+    skills::save(&skills::Skill { id: String::new(), name, description, engine, tools, body }, &old)
+}
+
+#[tauri::command]
+fn skill_delete(id: String) -> Result<(), String> {
+    skills::delete(&id)
+}
+
+/// The skills' folder in Explorer.
+#[tauri::command]
+fn skills_open() -> Result<(), String> {
+    std::fs::create_dir_all(skills::dir()).map_err(|e| e.to_string())?;
+    Command::new("explorer").arg(skills::dir()).spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
+/// What a skill's «/command» sends to the chat.
+#[tauri::command]
+fn skill_prompt(id: String, arg: String) -> Result<String, String> {
+    skills::find(&id).map(|s| skills::as_prompt(&s, &arg)).ok_or_else(|| t("Abilità non trovata.").into())
+}
+
+/// The engines and whether each can answer now (Impostazioni → Compiti).
+#[tauri::command]
+fn engines_ready(app: AppHandle) -> Vec<(String, String, bool)> {
+    telegram::engines(&app).into_iter().map(|(id, name, ok)| (id.to_string(), name, ok)).collect()
+}
+
+/// Engine, model and helpers of a task that is not running.
+#[tauri::command]
+fn task_set_engines(app: AppHandle, id: String, engine: String, model: String, helpers: Vec<String>) -> Result<(), String> {
+    tasks::set_engines(&app, &id, &engine, &model, &helpers)
 }
 
 /// The task's log (its .md).
@@ -2519,6 +2575,13 @@ pub fn run() {
             task_control,
             task_answer,
             task_log,
+            task_set_engines,
+            skills_list,
+            skill_save,
+            skill_delete,
+            skills_open,
+            skill_prompt,
+            engines_ready,
             set_collapsed,
             drag_island,
             copy_pc_info,

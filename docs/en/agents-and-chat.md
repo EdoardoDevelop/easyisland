@@ -178,3 +178,7 @@ question to the main engine. No automatic dialogue between engines.
 - A task is a goal EasyIsland carries on by itself: the chat's engine makes a plan (`task_plan`), marks its steps (`task_step`), asks the user when it needs to (`task_ask`, the island's question card) and closes it with a result (`task_done`). One at a time, in turns of `chat_turn` with `Channel::Task`, within the turns and minutes allowed in Settings → Tasks.
 - Files in `%APPDATA%\EasyIsland\compiti` (`<id>.json` and a readable `<id>.md` log). They start now, at a time, every day or on weekdays; from Settings → Tasks, `/compito` in the chat and on Telegram, `task_create` from the chat, or the automations' "Start a task" step.
 - On the island a task is a session of the "Compiti" agent in the Agents tab. Same tools and permissions as the chat: sending, deleting and approving always need a click.
+- Each task has its own engine and model, and helper engines: the leading engine can hand a piece of the work to one of them with `task_delegate` (a separate turn, same tools and permissions).
+
+## Skills (`skills.rs`)
+- Procedures the user writes once, as .md files in `%APPDATA%\EasyIsland\abilita` (header: name, description, preferred engine, tools; then the instructions). Their names and descriptions go in front of a new conversation; the engine reads one with `skill_read` when it fits. `skill_save` creates one from the chat (with Allow / Deny). Each skill is also a `/command` in the chat. Settings → Tasks → Skills.
