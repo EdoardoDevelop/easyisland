@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 22 ottobre 2026. Versione **0.9.8** su `claude/sviluppo` (installata su questo PC, non ancora unita in `main` né pubblicata: in `main` c'è la 0.9.7 con il tag `v0.9.7`). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 23 ottobre 2026. Versione **0.9.8** in `main` con il tag `v0.9.8` (la CI pubblica l'installer). Si lavora su `claude/sviluppo` verso la **1.0.0**: EasyIsland agente personale, primo passo i Compiti (`docs/idee.md`). Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -34,7 +34,7 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Segnalato da Edoardo: usandola «non dà l'idea di un programma». Nuovo stile **Windows 11**, predefinito: isola e Impostazioni grigie, colore d'accento di Windows, controlli come quelli del sistema, icone a linea, spiegazioni sotto ogni impostazione. Il **Classico** resta in Impostazioni → Aspetto → Tema → Stile.
 - Regole solo in `src/style-windows.css` e `src/settings/settings-windows.css` (`html[data-ui="windows"]`), accento da `system_accent` (`lib.rs`), icone in `LINE_ICONS`. Dettagli e vincoli in `docs/architettura.md` → Stili.
 - Versione **0.9.8**; README, README.en.md, homepage e schermate rifatte nel nuovo stile. `scripts/screenshots.mjs` accetta `SHOT_DIR` e `SHOT_QUERY`.
-- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, schermate dei due stili; installata e provata su questo PC.
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, schermate dei due stili; installata su questo PC, con il log senza errori.
 
 ### 22 ottobre 2026 — Idee dalle altre app di chat, versione 0.9.7
 - Versione **0.9.7** con questa voce e la precedente; README, README.en.md e homepage aggiornati.
