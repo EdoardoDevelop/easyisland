@@ -34,6 +34,8 @@ const SHOTS = {
   chat: { url: "/?scene=chat" },
   "chat-history": { url: "/?scene=chat&history" },
   agenti: { url: "/?scene=agenti" },
+  compiti: { url: "/?scene=compiti" },
+  "compiti-ask": { url: "/?scene=compiti&ask" },
   recap: { url: "/?scene=recap" },
   drop: { url: "/?scene=drop" },
   actions: { url: "/?scene=actions&activeIntegrations=" },
@@ -57,6 +59,7 @@ const SHOTS = {
   settings: { url: "/settings.html?page=aspetto", page: { w: 980, h: 720 } },
   "settings-integrations": { url: "/settings.html?page=integrazioni", page: { w: 980, h: 720 } },
   "settings-automations": { url: "/settings.html?page=automazioni", page: { w: 980, h: 720 } },
+  "settings-compiti": { url: "/settings.html?page=compiti", page: { w: 980, h: 720 } },
 };
 
 const EDGE = [

@@ -162,6 +162,22 @@ pub fn diary(engine: &str, question: &str, answer: &str, telegram: bool) {
     );
 }
 
+/// Today's lines of the diary (the evening digest, tasks.rs), at most `max`.
+pub fn diary_today(max: usize) -> Vec<String> {
+    let now = stamp();
+    let (Some(month), Some(day)) = (now.get(..7), now.get(..10)) else { return Vec::new() };
+    let text = std::fs::read_to_string(dir().join("diario").join(format!("{month}.md"))).unwrap_or_default();
+    let prefix = format!("- {day}");
+    let lines: Vec<String> = text.lines().filter(|l| l.starts_with(&prefix)).map(str::to_string).collect();
+    let skip = lines.len().saturating_sub(max);
+    lines.into_iter().skip(skip).collect()
+}
+
+/// The notes in MEMORIA.md now (the digest must not repeat them).
+pub fn notes() -> Vec<String> {
+    notes_of(&read_main())
+}
+
 /// memory_search: the lines of the memory and of the diary that have every
 /// word of `query` (no case), newest first. `month` ("2026-10") limits the diary.
 pub fn search(query: &str, month: &str) -> Result<String, String> {

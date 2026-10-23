@@ -216,3 +216,6 @@ html[data-ui="windows"] h3.int-sub {
   text-transform: none;
   letter-spacing: 0;
 }
+
+html[data-ui="windows"] .task { border-radius: 6px; background: rgba(255, 255, 255, 0.03); }
+html[data-ui="windows"] .task-title { font-weight: 600; font-size: 13.5px; }

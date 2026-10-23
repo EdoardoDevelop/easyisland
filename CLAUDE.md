@@ -9,7 +9,7 @@ App desktop per Windows 10/11: un personaggio animato (Goccia, Slime, EasyTech, 
 ## Dove leggere (solo ciò che serve al compito)
 - `HANDOFF.md`: stato, cose da fare, problemi aperti. Leggilo a inizio lavoro.
 - `docs/architettura.md`: mappa delle cartelle, interfaccia, personaggi, layout, suoni, impostazioni.
-- `docs/chat.md`: motori della chat, opencode come motore, connettori MCP, agente che usa il PC.
+- `docs/chat.md`: motori della chat, opencode come motore, connettori MCP, agente che usa il PC, Compiti (obiettivi che l'agente porta avanti da solo, con motori aiutanti), Abilità (procedure .md dell'utente).
 - `docs/agenti.md`: hook e relay, Claude Code, Codex/Gemini/Cursor/Copilot, opencode come agente, scheda Agenti.
 - `docs/integrazioni.md`: integrazioni, widget, 3CX, consumo, profili, azioni rapide, automazioni e abitudini.
 - `docs/strumenti.md`: file rilasciati, Vassoio, appunti, musica, contesto ⚡, ZIP, cattura, calcolatrice.

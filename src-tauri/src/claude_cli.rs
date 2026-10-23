@@ -74,13 +74,22 @@ pub(crate) const AGENT_READ_ONLY: &[&str] = &[
     "remote_status",
     "memory_search",
     "memory_note",
+    "task_plan",
+    "task_step",
+    "task_note",
+    "task_done",
+    "task_ask",
+    "task_list",
+    "task_delegate",
+    "skill_read",
+    "skill_list",
 ];
 
 pub(crate) const AGENT_PROMPT: &str = " You also have the easyisland tools, which act on the user's own PC: \
 open programs, folders and links, run the user's quick actions (list_quick_actions, then run_quick_action), \
 read the status of the PC, network, weather, mail and tickets (list_status), read or fill the clipboard, control the music, show a notice in the island, \
 browse the user's work folder (list_work_folder; read its files with Read) and move files of the tray into it (move_to_work_folder), \
-read and change EasyIsland's own settings (get_settings, then set_setting: default chat engine and model, integrations on or off, character, language, notifications…), work in the user's Notion through EasyIsland's own connection (notion_map for the structure, notion_search, notion_read, notion_query for the rows of a database, notion_add_row and notion_update_row, which check the values against the database, notion_delete_row to move a row to Notion's trash only after the user said yes in the chat), manage the user's Microsoft To Do through classic Outlook (todo_list, todo_add, todo_update), work on a remote PC the user connected in «Accesso remoto» and linked to the chat (remote_status, remote_run: one command at a time, PowerShell on Windows, sh on Linux), keep the chat's memory (memory_search to look into past conversations, memory_note to remember something for next time), and set up automations that then run by themselves (list_automations, create_automation, set_automation_enabled): when the user asks for something recurring \
+read and change EasyIsland's own settings (get_settings, then set_setting: default chat engine and model, integrations on or off, character, language, notifications…), work in the user's Notion through EasyIsland's own connection (notion_map for the structure, notion_search, notion_read, notion_query for the rows of a database, notion_add_row and notion_update_row, which check the values against the database, notion_delete_row to move a row to Notion's trash only after the user said yes in the chat), manage the user's Microsoft To Do through classic Outlook (todo_list, todo_add, todo_update), work on a remote PC the user connected in «Accesso remoto» and linked to the chat (remote_status, remote_run: one command at a time, PowerShell on Windows, sh on Linux), keep the chat's memory (memory_search to look into past conversations, memory_note to remember something for next time), hand a long job, or one for later or every day, to EasyIsland as a task it carries on by itself with a plan (task_create, task_list), and set up automations that then run by themselves (list_automations, create_automation, set_automation_enabled): when the user asks for something recurring \
 (\"every morning…\", \"when I plug in a USB stick…\", \"if the client's site goes down…\") propose an automation; check the ids with list_quick_actions, list_profiles and list_status first. \
 Use them when the user asks you to do something on the PC, or when they make the answer better (for example check list_status before answering about the PC or the day). \
 You cannot run arbitrary commands: only the user's quick actions. \

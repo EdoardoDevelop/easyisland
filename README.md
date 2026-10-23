@@ -59,6 +59,14 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**0.9.9** — **EasyIsland diventa un agente**. **Compiti**: gli dai un obiettivo e lo porta avanti
+da solo con un piano, i passi e il risultato, subito, a un'ora, ogni giorno, ogni settimana o ogni
+N minuti; lo vedi lavorare nella scheda Agenti e ti chiede quando serve. Ogni compito ha il suo
+motore e può farsi aiutare da altri motori. **Abilità**: procedure tue in file .md che la chat e i
+compiti seguono quando servono, anche come comandi `/nome`. **Battito**: un controllo periodico di
+ciò che scrivi in `BATTITO.md`, che ti avvisa solo se c'è qualcosa. **Riordino della memoria** ogni
+sera, con le note che approvi tu. Permessi e domande dei compiti anche su Telegram.
+
 **0.9.8** — **Aspetto Windows 11**, ora predefinito: isola e Impostazioni grigie come le finestre
 di Windows, con il colore d'accento che hai scelto in Windows, interruttori, campi e pulsanti
 come quelli del sistema, icone a linea al posto delle emoji e ogni impostazione su una riga con la
@@ -325,6 +333,7 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
+| **0.9.9** | 23 ott 2026 | EasyIsland agente: Compiti con piano e più motori, Abilità, Battito, riordino della memoria, compiti su Telegram |
 | **0.9.8** | 22 ott 2026 | Aspetto Windows 11 predefinito (grigio, colore d'accento di Windows, icone a linea), il Classico resta come stile |
 | **0.9.7** | 22 ott 2026 | Chat più comoda (Modifica, Rigenera, Dirama, comandi /, menu @, Assistenti, dettatura) e memoria in .md, meno RAM |
 | **0.9.6** | 21 ott 2026 | Accesso remoto con WinRM e SSH per l'assistenza, righe di Notion eliminabili dalla chat |

@@ -752,7 +752,9 @@ function buildAsk(actions: ViewActions): ViewHost {
       options.append(other);
       // opencode asks in its own window too (opencode_agent.rs): the link brings it back.
       const inOpencode = State.focusTask?.sessionHost === "opencode";
-      foot.append(h("button", { class: "link-btn", text: inOpencode ? t("Rispondi in opencode") : t("Rispondi nel terminale"), onclick: () => {
+      // A task of EasyIsland waits for the answer: later, from Impostazioni → Compiti.
+      const inTask = State.focusTask?.sessionHost === "compiti";
+      foot.append(h("button", { class: "link-btn", text: inTask ? t("Rispondi più tardi") : inOpencode ? t("Rispondi in opencode") : t("Rispondi nel terminale"), onclick: () => {
         if (inOpencode) actions.openTarget();
         actions.handToTerminal();
       } }));

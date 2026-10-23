@@ -1,10 +1,11 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 23 ottobre 2026. Versione **0.9.8** in `main` con il tag `v0.9.8` (la CI pubblica l'installer). Si lavora su `claude/sviluppo` verso la **1.0.0**: EasyIsland agente personale, primo passo i Compiti (`docs/idee.md`). Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 23 ottobre 2026. Versione **0.9.9** in `main` con il tag `v0.9.9` (la CI pubblica l'installer). Si lavora su `claude/sviluppo` verso la **1.0.0**: EasyIsland agente personale (`docs/idee.md`). Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
+- [ ] **EasyIsland agente personale, 1.0.0** (priorità alta, chiesto da Edoardo il 23 ottobre 2026): fatti i **Compiti** con motore per compito, motori aiutanti e **Battito**, e le **Abilità** (`docs/chat.md`; da provare dal vivo domande e permessi, `docs/prove-dal-vivo.md`). Prossimi: proattività su ticket e chiamate, permessi per livelli, memoria per cliente. Piano in `docs/idee.md`.
 - [ ] **Prove dal vivo:** della 0.6.3 interfaccia in inglese, limiti del piano, card «finito» da un altro programma e riepilogo settimanale; della 0.6.4 cronologia delle chat; della 0.6.5 il personaggio lasciato su un'icona del desktop; della 0.6.6 saluto al centro, Claude Code assente sul notebook e standby con la Rete; della 0.6.7 «Continua», «Chiedi», «Sempre» di sessione e 📌 come finestra; della 0.6.8 menu con `Win+Alt+A`, «Sostituisci» e reazioni del personaggio; della 0.6.9 e 0.7.0 i nuovi personaggi e la Fiamma animata; della 0.7.1 team e chat di 3CX e il cielo grande; della 0.7.2 il personaggio della chat lasciato su una finestra; della 0.7.3 il piano letto da Anthropic, il tempo rimasto sui permessi e gli appunti rimessi per intero; della 0.7.4 l'isola che non si chiude trascinando il personaggio della chat; della 0.7.5 «Questo PC» di 3CX con audio e suoneria e l'avvio dopo un aggiornamento su un altro PC; della 0.7.7 «Cerchia e chiedi» e il personaggio durante una chiamata 3CX; della 0.7.8 il nuovo impianto, le risposte rapide, la card del Meteo e il personaggio che torna al suo colore; della 0.7.9 le proposte al momento giusto, il riepilogo del giorno e gli strumenti in Claude Code; della 0.8.0 il rinnovo dell'accesso di Claude Code, il ping e le impostazioni di rete, la Rubrica di 3CX; della 0.8.2 «Sostituisci» con la formattazione in Word, Outlook e Gmail; della 0.8.3 la «Modalità terminale» e ⚡ «Automatica» della chat, Notion con l'account vero; della 0.8.4 le automazioni con contesto e le Impostazioni sopra l'isola; della 0.8.5 la barra dell'app in uso e il menu contestuale; della 0.8.6 le azioni Tasti, Teams e l'account Microsoft; della 0.8.7 Registra e ⚡ «Automatica» con i connettori di opencode; della 0.8.8 Telegram, la cartella di lavoro e gli strumenti di EasyIsland con opencode; della 0.8.9 «Automatica» in Telegram, impostazioni dagli agenti, «Permessi e chiamate», il mini Notion e i vocali da Telegram; della 0.9.0 Antigravity come agente e come motore; della 0.9.1 Remote Desktop Manager con l'Hub (vault utente, elenco offline, Sincronizza); della 0.9.2 Ferma nella chat e su Telegram e la mappa di Notion per la chat; della 0.9.3 gli strumenti di Notion, Antigravity e Claude API con gli strumenti di EasyIsland, la Seconda opinione, /oggi e /domani; della 0.9.4 velocità e ricette della chat; della 0.9.5 Microsoft To Do (sul PC con Outlook) e gli hook senza Git Bash; della 0.9.6 Accesso remoto ed eliminazione di righe di Notion dalla chat; della 0.9.7 la chat nuova, la memoria e la RAM di WebView2. Tutte in `docs/prove-dal-vivo.md`.
 - [ ] **La giornata di oggi e domani** (priorità alta): riassunto delle integrazioni fatto dall'IA, da solo agli orari scelti e a richiesta da chat, ricerca, Telegram e azioni rapide. Fatti `/oggi` e `/domani` su Telegram; il resto in `docs/idee.md`.
 - [ ] **3CX team e chat:** fatti nel codice, da provare sul centralino vero (`docs/prove-dal-vivo.md`). Se qualcosa non arriva, il log dice quali tipi di messaggio manda il centralino (`3cx: event type …`).
@@ -30,42 +31,28 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 23 ottobre 2026 — Compiti anche su Telegram, riordino della memoria, versione 0.9.9
+- Versione **0.9.9** con le voci del 23 ottobre; README, README.en.md e homepage aggiornati.
+- Chiesto da Edoardo: fare «cosa resta» del confronto con gli altri agenti. Permessi e domande dei compiti anche su Telegram (prima risposta vince, mai «Automatica»), `/rispondi`, abilità come comandi su Telegram, Riordino della memoria serale con conferma (`docs/chat.md`).
+- **Prove:** `cargo test --workspace` (test nuovo sulla prima risposta), clippy, `npm run build`, `npm run smoke`. Le prove con Telegram e con la memoria vera servono un tuo tocco: `docs/prove-dal-vivo.md`.
+
+### 23 ottobre 2026 — Battito, ripetizioni, confronto con gli altri agenti
+- Chiesto da Edoardo: tutti i test possibili e studiare i concorrenti. Provati dal vivo compiti, abilità e aiutanti (un compito ha letto un'abilità e affidato un calcolo a un aiutante); prove tolte dopo con `release/pulisci-prove.cmd`.
+- Dallo studio (`docs/idee.md` → Confronto): Battito con `BATTITO.md` e `quiet`, `every:N` e `weekly:G:HH:MM`, procedure salvate come abilità a fine compito.
+- **Prove:** `cargo test --workspace`, clippy senza avvisi nei moduli nuovi, `npm run build`, `npm run smoke`, prova dal vivo del Battito.
+
+### 23 ottobre 2026 — Abilità, motore per compito e motori aiutanti
+- Chiesto da Edoardo: agente programmabile, un motore per ogni compito e più motori in un compito. Nuovo `skills.rs` (procedure .md con nome, descrizione, motore preferito, strumenti; elenco davanti alla conversazione, `skill_read`, `skill_save`, comandi `/id` nella chat).
+- Ogni compito ha motore, modello e aiutanti; `task_delegate` affida un pezzo del lavoro a un aiutante (`Channel::Helper`). Rivista la decisione sui più motori insieme (`docs/decisioni.md`).
+- **Prove:** `cargo test --workspace` (test nuovi su abilità e aiutanti), `npm run build`, `npm run smoke`; dal vivo vedi la voce del Registro sopra o `docs/prove-dal-vivo.md`.
+
+### 23 ottobre 2026 — Compiti: EasyIsland lavora da solo su un obiettivo
+- Chiesto da Edoardo, primo passo verso la 1.0.0 (agente personale). Nuovo `tasks.rs`: un obiettivo diventa piano e turni del motore della chat (`Channel::Task` in `chat_turn`), con strumenti `task_*`, limiti di turni e minuti, orari (una volta, ogni giorno, feriali), registro .md.
+- Nell'isola è una sessione dell'agente «Compiti» in Agenti; domande con la card «Domanda». Impostazioni → Compiti, `/compito` in chat e su Telegram, passo «Avvia un compito» nelle automazioni, avvisi su Telegram.
+- **Prove:** `cargo test --workspace` (5 test nuovi su orari, id e prompt), `npm run build`, `npm run smoke` (scene `compiti` e `compiti&ask`, pagina Compiti); dal vivo un compito completo con l'abbonamento in 12 s. Il resto in `docs/prove-dal-vivo.md`.
+
 ### 22 ottobre 2026 — Stile Windows 11, versione 0.9.8
 - Segnalato da Edoardo: usandola «non dà l'idea di un programma». Nuovo stile **Windows 11**, predefinito: isola e Impostazioni grigie, colore d'accento di Windows, controlli come quelli del sistema, icone a linea, spiegazioni sotto ogni impostazione. Il **Classico** resta in Impostazioni → Aspetto → Tema → Stile.
 - Regole solo in `src/style-windows.css` e `src/settings/settings-windows.css` (`html[data-ui="windows"]`), accento da `system_accent` (`lib.rs`), icone in `LINE_ICONS`. Dettagli e vincoli in `docs/architettura.md` → Stili.
 - Versione **0.9.8**; README, README.en.md, homepage e schermate rifatte nel nuovo stile. `scripts/screenshots.mjs` accetta `SHOT_DIR` e `SHOT_QUERY`.
 - **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, schermate dei due stili; installata su questo PC, con il log senza errori.
-
-### 22 ottobre 2026 — Idee dalle altre app di chat, versione 0.9.7
-- Versione **0.9.7** con questa voce e la precedente; README, README.en.md e homepage aggiornati.
-- Chiesto da Edoardo: prendere spunto dalle alternative (Raycast AI, LibreChat, TypingMind, Open WebUI, Msty, ChatGPT, Claude).
-- Fatti:
-  - menu `@` (appunti, finestra, Vassoio);
-  - modelli con `{{campi}}` e Tab;
-  - ⑂ Dirama da qui;
-  - Assistenti con motore e istruzioni, scelti con `/`;
-  - 🎤 dettatura, con il servizio dei Vocali o con quella di Windows.
-- Spostate «Istruzioni e memoria» fuori dal blocco di Claude Code: prima si vedevano solo con quel motore.
-- Il 🎤 nascondeva l'isola: «davanti al cliente» vedeva il microfono di WebView2 come una chiamata (`presence.rs`, `chat_dictation`).
-- RAM di WebView2 da 557 a 104 MB con l'isola ritirata: Impostazioni nascoste sospese e memoria bassa con l'isola ritirata (`webview_memory.rs`, `docs/architettura.md`).
-- Dettagli e cosa non è stato preso in `docs/chat.md`.
-- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, anteprima della scena `chat`. Dal vivo in `docs/prove-dal-vivo.md`.
-
-### 21 ottobre 2026 — Chat più comoda e memoria in timeline
-- Chiesto da Edoardo: rendere la chat più comoda di Claude Code da terminale.
-  - Campo su più righe, con la bozza che resta. ↑ riprende l'ultima domanda.
-  - Ctrl+V e trascinamento di file a conversazione avviata.
-  - Copia, Modifica e ↻ Rigenera sotto i messaggi.
-  - Comandi con `/`, comprese le azioni rapide.
-  - Cronologia con ricerca e 📌, Esporta in Markdown, Istruzioni per profilo, `/riprendi` su Telegram.
-- Memoria (`memory.rs`): `MEMORIA.md` davanti a ogni conversazione, diario mensile scritto dall'app senza token, `memory_search` e `memory_note`. Dettagli in `docs/chat.md`.
-- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, scene `chat` e `chat&history` nell'anteprima. Da provare dal vivo con i motori veri (`docs/prove-dal-vivo.md`).
-
-### 21 ottobre 2026 — Accesso remoto (WinRM e SSH) per l'assistenza, versione 0.9.6
-- Versione **0.9.6** con questa voce e la precedente; README, README.en.md e homepage aggiornati.
-- Chiesto da Edoardo: nuova integrazione «Accesso remoto» (`remote.rs`, `src/views/remote.ts`). Collegamento temporaneo a un PC con WinRM o SSH (Windows e Linux), niente salvato: la password resta solo in memoria. La scheda ha la guida passo passo già aperta (collegarsi, preparare il PC, se non va) e sotto un errore «Come risolvere» con i passi per quel caso. Con 🔌 nella chat l'IA lavora su quel PC con `remote_run`, sempre con Consenti / Nega. «Chiudi connessione» toglie TrustedHosts e cancella `known_hosts`.
-- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, scene `remote` e `chat&remote`. Errori di WinRM e SSH provati dal vivo verso questo PC. Un collegamento riuscito è da provare su un PC vero (`docs/prove-dal-vivo.md`).
-
-### 21 ottobre 2026 — Eliminare righe di Notion dalla chat
-- Chiesto da Edoardo: tolta la regola «gli strumenti di EasyIsland non eliminano» per Notion. Nuovo `notion_delete_row` (`notion_tools.rs`, `hook/src/tool_list.rs`): sposta la riga nel cestino di Notion solo con `confirmed: true`, dopo il sì dell'utente in chat; senza, torna la riga da mostrare. In Telegram «Automatica» chiede comunque (nome con «delete»).
-- **Prove:** `cargo test` in `hook/`, `cargo check`, `npm run check:i18n`. Da provare dal vivo con una riga vera (`docs/prove-dal-vivo.md`).

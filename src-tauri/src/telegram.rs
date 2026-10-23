@@ -260,6 +260,8 @@ async fn hello(token: &str) -> Result<String, String> {
         { "command": "stop", "description": t("Ferma la risposta in corso") },
         { "command": "oggi", "description": t("La tua giornata di oggi") },
         { "command": "domani", "description": t("La tua giornata di domani") },
+        { "command": "compito", "description": t("Un obiettivo che EasyIsland porta avanti da solo") },
+        { "command": "rispondi", "description": t("Rispondi alla domanda di un compito") },
         { "command": "stato", "description": t("Motore, modello e modalità") },
         { "command": "vassoio", "description": t("I file del Vassoio") },
         { "command": "cartella", "description": t("La cartella di lavoro") },
@@ -429,6 +431,9 @@ fn help() -> String {
         t("/riprendi — continua qui l'ultima conversazione della chat dell'isola"),
         t("/stop — ferma la risposta in corso (anche ⏹ Ferma sotto la risposta)"),
         t("/oggi e /domani — la giornata: appuntamenti, posta, ticket, attività di Notion, meteo"),
+        t("/compito … — un obiettivo che EasyIsland porta avanti da solo; /compito da solo elenca i compiti"),
+        t("/rispondi … — la risposta alla domanda di un compito che aspetta"),
+        t("/nome-abilità … — usa una delle tue abilità"),
         t("/stato — motore, modello e modalità"),
         t("/automatica — niente permessi da confermare, tranne le cancellazioni"),
         t("/vassoio — i file del Vassoio, da farti mandare qui"),
@@ -505,6 +510,26 @@ async fn command(app: &AppHandle, token: &str, chat: i64, cmd: &str) {
                 turn(&app, &token, chat, query, None, None).await;
                 BUSY.store(false, Ordering::SeqCst);
             });
+        }
+        // The answer to a task's question (tasks.rs task_ask).
+        "rispondi" | "answer" => {
+            let text = match crate::tasks::answer_latest(app, arg) {
+                Ok(title) => tf("Risposta data a «{title}».", &[("title", &title)]),
+                Err(e) => e,
+            };
+            let _ = send(token, chat, &text, None).await;
+        }
+        // Compiti (tasks.rs): a new one, or the list.
+        "compito" | "compiti" | "task" => {
+            let text = if arg.trim().is_empty() {
+                crate::tasks::tool_list()
+            } else {
+                match crate::tasks::create(app, "", arg, "", "") {
+                    Ok(task) => tf("Compito «{title}» in coda. Ti scrivo qui quando ha finito o se mi serve qualcosa.", &[("title", &task.title)]),
+                    Err(e) => e,
+                }
+            };
+            let _ = send(token, chat, &text, None).await;
         }
         "stop" | "ferma" => {
             if BUSY.load(Ordering::SeqCst) {
@@ -589,8 +614,23 @@ async fn command(app: &AppHandle, token: &str, chat: i64, cmd: &str) {
             );
             let _ = send(token, chat, &text, Some(json!({ "inline_keyboard": rows }))).await;
         }
-        _ => {
-            let _ = send(token, chat, &help(), None).await;
+        // A skill of the user (skills.rs): its instructions, then the words after it.
+        other => {
+            let Some(skill) = crate::skills::find(other) else {
+                let _ = send(token, chat, &help(), None).await;
+                return;
+            };
+            if BUSY.load(Ordering::SeqCst) {
+                let _ = send(token, chat, t("Aspetta la fine della risposta in corso."), None).await;
+                return;
+            }
+            let query = crate::skills::as_prompt(&skill, arg);
+            BUSY.store(true, Ordering::SeqCst);
+            let (app, token) = (app.clone(), token.to_string());
+            tauri::async_runtime::spawn(async move {
+                turn(&app, &token, chat, query, None, None).await;
+                BUSY.store(false, Ordering::SeqCst);
+            });
         }
     }
 }
@@ -745,6 +785,22 @@ async fn on_button(app: &AppHandle, token: &str, q: &Value) {
         } else {
             t("Già finita").into()
         };
+    } else if let Some(n) = data.strip_prefix("q:") {
+        // A button under a task's question (ask_task).
+        let picked = TASK_ASK.lock().unwrap().clone()
+            .and_then(|(task, options)| n.parse::<usize>().ok().and_then(|i| options.get(i).cloned()).map(|o| (task, o)));
+        note = match picked {
+            Some((task, answer)) => match crate::tasks::answer_from_outside(app, &task, &answer) {
+                Ok(_) => {
+                    if let Some(mid) = message {
+                        let _ = edit(token, chat, mid, &format!("{original}\n\n✅ {answer}"), false).await;
+                    }
+                    t("Risposta data").into()
+                }
+                Err(e) => e,
+            },
+            None => t("Richiesta scaduta").into(),
+        };
     } else if let Some(rest) = data.strip_prefix("p:") {
         // Consenti / Nega: "p:<id>:1" or "p:<id>:0".
         let (rid, yes) = rest.rsplit_once(':').map_or((rest, false), |(r, y)| (r, y == "1"));
@@ -889,10 +945,48 @@ async fn on_button(app: &AppHandle, token: &str, q: &Value) {
 /// A permission of a chat turn from Telegram (Claude Code's hook payload, or
 /// opencode's in the same shape): Consenti / Nega as buttons. `allow` or
 /// `deny`; None when Telegram is not linked. No answer in time is a no.
+/// A message to the linked chat, when there is one (a task that finished or
+/// waits for the user, tasks.rs). Nothing when Telegram is off or not linked.
+pub async fn tell(app: &AppHandle, text: &str) {
+    let Some(token) = crate::secrets::get(SECRET) else { return };
+    let Some((chat, _)) = linked_chat(app) else { return };
+    let _ = send(&token, chat, text, None).await;
+}
+
 pub async fn request_decision(app: &AppHandle, payload: Value) -> Option<String> {
+    decide(app, payload, true).await
+}
+
+/// Consenti / Nega here for a task's permission (tasks.rs): never "Automatica",
+/// which belongs to the turns written on Telegram.
+pub async fn ask_permission(app: &AppHandle, payload: Value) -> Option<String> {
+    decide(app, payload, false).await
+}
+
+/// Telegram is set up and linked to a chat.
+pub fn linked(app: &AppHandle) -> bool {
+    linked_chat(app).is_some() && crate::secrets::get(SECRET).is_some()
+}
+
+/// The options of the task question last sent here (tasks.rs task_ask): its id and the answers.
+static TASK_ASK: Mutex<Option<(String, Vec<String>)>> = Mutex::new(None);
+
+/// A task's question as a message with a button per option; any other answer with /rispondi.
+pub async fn ask_task(app: &AppHandle, task_id: &str, title: &str, question: &str, options: &[String]) {
+    let Some(token) = crate::secrets::get(SECRET) else { return };
+    let Some((chat, _)) = linked_chat(app) else { return };
+    *TASK_ASK.lock().unwrap() = Some((task_id.to_string(), options.to_vec()));
+    let rows: Vec<Value> = options.iter().enumerate().take(6)
+        .map(|(i, o)| json!([{ "text": o, "callback_data": format!("q:{i}") }])).collect();
+    let text = format!("❓ {}\n\n{question}\n\n{}", tf("Compito «{title}»", &[("title", &title.to_string())]), t("Rispondi con un pulsante oppure con /rispondi seguito dalla risposta."));
+    let keyboard = (!rows.is_empty()).then(|| json!({ "inline_keyboard": rows }));
+    let _ = send(&token, chat, &text, keyboard).await;
+}
+
+async fn decide(app: &AppHandle, payload: Value, allow_auto: bool) -> Option<String> {
     let token = crate::secrets::get(SECRET)?;
     let (chat, _) = linked_chat(app)?;
-    if auto_on(app) && !asks_anyway(&payload) {
+    if allow_auto && auto_on(app) && !asks_anyway(&payload) {
         log::line(format!("telegram: automatica, consentito {}", payload.get("tool_name").and_then(Value::as_str).unwrap_or("?")));
         return Some("allow".into());
     }
@@ -1056,7 +1150,7 @@ async fn turn(app: &AppHandle, token: &str, chat: i64, query: String, context: O
     let before = tray_names();
     let last = LAST.lock().unwrap().clone();
     let reply = match (&second, &last) {
-        (None, _) => crate::chat_turn(app, &CHAT, query, context, engine, model, false, true, &on_text).await.map(|r| r.text),
+        (None, _) => crate::chat_turn(app, &CHAT, query, context, engine, model, false, crate::Channel::Telegram, &on_text).await.map(|r| r.text),
         (Some(e), Some(l)) => crate::second::run(app, &CHAT, e, &l.engine, &l.question, &l.answer, true, &on_text).await,
         (Some(_), None) => Err(t("Non c'è una risposta da rivedere.").to_string()),
     };

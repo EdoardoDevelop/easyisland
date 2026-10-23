@@ -5,7 +5,7 @@ import { h, svg, clear } from "./dom";
 import { ICONS } from "./icons";
 import { Bridge, onEvent, type ChatContext, type ChatSummary } from "../core/bridge";
 import { Sound } from "../core/sound";
-import { CHAT_ENGINES, State, engineLabel, type ChatAssistant, type ChatEngine, type ChatMessage, type QuickAction } from "../core/state";
+import { CHAT_ENGINES, State, engineLabel, type ChatAssistant, type ChatEngine, type ChatMessage, type QuickAction, type Skill } from "../core/state";
 import { calculate, formatResult, plainResult } from "../core/calc";
 import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
@@ -91,6 +91,10 @@ export function windowLabel(w: { appName: string; title: string }): string {
   if (!w.appName) return title || t("Finestra");
   return title && title !== w.appName ? `${w.appName} — ${title}` : w.appName;
 }
+
+/** The user's skills (skills.rs), for the «/commands»; read again at most every 5 s. */
+let skillCache: Skill[] = [];
+let skillsRead = 0;
 
 /** A command typed after "/" in the field (the menu over it lists them). */
 interface Slash {
@@ -701,6 +705,30 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
     }
   }
 
+  /** A skill's «/command»: its instructions, then the words after it, to the engine. */
+  async function useSkill(sk: Skill, arg: string) {
+    try {
+      await submit(await Bridge.skillPrompt(sk.id, arg));
+    } catch (err) {
+      flash(String(err).replace(/^Error:\s*/, ""));
+    }
+  }
+
+  /** «/compito …»: a task (tasks.rs) that starts now; it shows up in Agenti. */
+  async function newTask(goal: string) {
+    if (!goal.trim()) {
+      flash(t("Scrivi l'obiettivo dopo /compito"));
+      return;
+    }
+    try {
+      const task = await Bridge.taskNew("", goal, "", "");
+      flash(`✓ ${t("Compito «{title}» in coda: lo segui in Agenti", { title: task.title })}`);
+      Sound.play("finish");
+    } catch (err) {
+      flash(String(err).replace(/^Error:\s*/, ""));
+    }
+  }
+
   /** «Esporta»: the conversation as Markdown in the Vassoio. */
   async function exportChat() {
     if (!State.chatHistory.length) {
@@ -733,11 +761,19 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
   }
 
   function commands(): Slash[] {
+    // Read again in the background (at most every 5 s): a skill saved meanwhile shows up the next time.
+    if (Date.now() - skillsRead > 5000) {
+      skillsRead = Date.now();
+      void Bridge.skillsList().then((l) => {
+        if (l) skillCache = l;
+      });
+    }
     const list: Slash[] = [
       { name: "nuova", hint: t("Nuova chat"), run: () => startOver() },
       { name: "cronologia", hint: t("Le conversazioni di prima"), run: () => void toggleHistory() },
       { name: "cerca", hint: t("Cerca nelle conversazioni di prima"), arg: true, run: (a) => void toggleHistory(a) },
       { name: "ricorda", hint: t("Salva una nota nella memoria della chat"), arg: true, run: (a) => void remember(a) },
+      { name: "compito", hint: t("Un obiettivo che EasyIsland porta avanti da solo"), arg: true, run: (a) => void newTask(a) },
       { name: "memoria", hint: t("Apri la memoria della chat (MEMORIA.md)"), run: () => void Bridge.memoryOpen(false).catch((e) => flash(String(e))) },
       { name: "esporta", hint: t("La conversazione in Markdown, nel Vassoio"), run: () => void exportChat() },
       { name: "motore", hint: t("Cambia motore per questa chat"), run: () => void toggleEngineMenu() },
@@ -745,6 +781,12 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
       { name: "domani", hint: t("Il punto della mia giornata di domani"), run: () => void day(true) },
     ];
     const taken = new Set(list.map((c) => c.name));
+    // The user's skills (skills.rs): «/resoconto-cliente Rossi» sends its instructions with the words.
+    for (const sk of skillCache) {
+      if (taken.has(sk.id)) continue;
+      taken.add(sk.id);
+      list.push({ name: sk.id, arg: true, hint: `📘 ${t("Abilità: {n}", { n: sk.name })}`, run: (a) => void useSkill(sk, a) });
+    }
     for (const a of State.settings.chatAssistants ?? []) {
       const name = slug(a.name);
       if (!name || taken.has(name)) continue;

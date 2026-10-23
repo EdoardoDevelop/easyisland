@@ -2,6 +2,40 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 22 ottobre 2026 — Idee dalle altre app di chat, versione 0.9.7
+- Versione **0.9.7** con questa voce e la precedente; README, README.en.md e homepage aggiornati.
+- Chiesto da Edoardo: prendere spunto dalle alternative (Raycast AI, LibreChat, TypingMind, Open WebUI, Msty, ChatGPT, Claude).
+- Fatti:
+  - menu `@` (appunti, finestra, Vassoio);
+  - modelli con `{{campi}}` e Tab;
+  - ⑂ Dirama da qui;
+  - Assistenti con motore e istruzioni, scelti con `/`;
+  - 🎤 dettatura, con il servizio dei Vocali o con quella di Windows.
+- Spostate «Istruzioni e memoria» fuori dal blocco di Claude Code: prima si vedevano solo con quel motore.
+- Il 🎤 nascondeva l'isola: «davanti al cliente» vedeva il microfono di WebView2 come una chiamata (`presence.rs`, `chat_dictation`).
+- RAM di WebView2 da 557 a 104 MB con l'isola ritirata: Impostazioni nascoste sospese e memoria bassa con l'isola ritirata (`webview_memory.rs`, `docs/architettura.md`).
+- Dettagli e cosa non è stato preso in `docs/chat.md`.
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, anteprima della scena `chat`. Dal vivo in `docs/prove-dal-vivo.md`.
+
+### 21 ottobre 2026 — Accesso remoto (WinRM e SSH) per l'assistenza, versione 0.9.6
+- Versione **0.9.6** con questa voce e la precedente; README, README.en.md e homepage aggiornati.
+- Chiesto da Edoardo: nuova integrazione «Accesso remoto» (`remote.rs`, `src/views/remote.ts`). Collegamento temporaneo a un PC con WinRM o SSH (Windows e Linux), niente salvato: la password resta solo in memoria. La scheda ha la guida passo passo già aperta (collegarsi, preparare il PC, se non va) e sotto un errore «Come risolvere» con i passi per quel caso. Con 🔌 nella chat l'IA lavora su quel PC con `remote_run`, sempre con Consenti / Nega. «Chiudi connessione» toglie TrustedHosts e cancella `known_hosts`.
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, scene `remote` e `chat&remote`. Errori di WinRM e SSH provati dal vivo verso questo PC. Un collegamento riuscito è da provare su un PC vero (`docs/prove-dal-vivo.md`).
+
+### 21 ottobre 2026 — Chat più comoda e memoria in timeline
+- Chiesto da Edoardo: rendere la chat più comoda di Claude Code da terminale.
+  - Campo su più righe, con la bozza che resta. ↑ riprende l'ultima domanda.
+  - Ctrl+V e trascinamento di file a conversazione avviata.
+  - Copia, Modifica e ↻ Rigenera sotto i messaggi.
+  - Comandi con `/`, comprese le azioni rapide.
+  - Cronologia con ricerca e 📌, Esporta in Markdown, Istruzioni per profilo, `/riprendi` su Telegram.
+- Memoria (`memory.rs`): `MEMORIA.md` davanti a ogni conversazione, diario mensile scritto dall'app senza token, `memory_search` e `memory_note`. Dettagli in `docs/chat.md`.
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, scene `chat` e `chat&history` nell'anteprima. Da provare dal vivo con i motori veri (`docs/prove-dal-vivo.md`).
+
+### 21 ottobre 2026 — Eliminare righe di Notion dalla chat
+- Chiesto da Edoardo: tolta la regola «gli strumenti di EasyIsland non eliminano» per Notion. Nuovo `notion_delete_row` (`notion_tools.rs`, `hook/src/tool_list.rs`): sposta la riga nel cestino di Notion solo con `confirmed: true`, dopo il sì dell'utente in chat; senza, torna la riga da mostrare. In Telegram «Automatica» chiede comunque (nome con «delete»).
+- **Prove:** `cargo test` in `hook/`, `cargo check`, `npm run check:i18n`. Da provare dal vivo con una riga vera (`docs/prove-dal-vivo.md`).
+
 ### 20 ottobre 2026 — Microsoft To Do, hook in ogni shell, isola su un altro schermo, versione 0.9.5
 - Versione **0.9.5** con queste voci; README, README.en.md e homepage aggiornati.
 - Segnalato da Edoardo: su un PC senza Git Bash l'hook di EasyIsland fermava Claude Code a ogni strumento. Il comando era tra virgolette, un errore di sintassi in PowerShell: ora è senza virgolette e va in ogni shell (provato in PowerShell, cmd e Git Bash); gli hook vecchi risultano «da aggiornare» (`docs/agenti.md`).

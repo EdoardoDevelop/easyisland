@@ -89,6 +89,20 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "remote_run" => crate::remote::run(arg(args, "command"), args.get("timeout").and_then(Value::as_u64)).await,
         "memory_search" => crate::memory::search(arg(args, "query"), arg(args, "month")),
         "memory_note" => crate::memory::note(arg(args, "text")),
+        // Compiti (tasks.rs): the running task's own state; create and list from the chat.
+        "task_plan" => crate::tasks::tool_plan(app, args),
+        "task_step" => crate::tasks::tool_step(app, args),
+        "task_note" => crate::tasks::tool_note(app, args),
+        "task_done" => crate::tasks::tool_done(app, args),
+        "task_ask" => crate::tasks::tool_ask(app, args).await,
+        "task_create" => crate::tasks::tool_create(app, args),
+        "task_list" => Ok(crate::tasks::tool_list()),
+        // Boxed: the other engine's turn may call these tools again (a cycle of futures).
+        "task_delegate" => Box::pin(crate::tasks::tool_delegate(app, args)).await,
+        // Abilità (skills.rs): read, list; save asks Consenti / Nega first.
+        "skill_read" => crate::skills::tool_read(arg(args, "name")),
+        "skill_list" => Ok(crate::skills::tool_list()),
+        "skill_save" => crate::skills::tool_save(args),
         "todo_list" => crate::todo::list(args).await,
         "todo_add" => crate::todo::add(args).await,
         "todo_update" => crate::todo::update(args).await,

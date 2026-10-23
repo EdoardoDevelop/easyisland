@@ -67,6 +67,8 @@ mod session_reply;
 mod secrets;
 mod settings;
 mod teams;
+mod skills;
+mod tasks;
 mod telegram;
 mod i18n;
 mod webview_profile;
@@ -1017,14 +1019,44 @@ async fn chat_send(
     let on_text = |text: &str| {
         let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "text": text }));
     };
-    chat_turn(&app, &chat, query, context, engine, None, auto.unwrap_or(false), false, &on_text).await
+    chat_turn(&app, &chat, query, context, engine, None, auto.unwrap_or(false), Channel::Island, &on_text).await
 }
 
 /// "Ferma": the turn in progress in the island's chat ([0]) or on Telegram
 /// ([1]). The turn's future is dropped, and with it the engine's process
 /// (kill_on_drop) and any permission it was waiting for.
-static STOP: [std::sync::LazyLock<tokio::sync::Notify>; 2] =
-    [std::sync::LazyLock::new(tokio::sync::Notify::new), std::sync::LazyLock::new(tokio::sync::Notify::new)];
+static STOP: [std::sync::LazyLock<tokio::sync::Notify>; 3] = [
+    std::sync::LazyLock::new(tokio::sync::Notify::new),
+    std::sync::LazyLock::new(tokio::sync::Notify::new),
+    std::sync::LazyLock::new(tokio::sync::Notify::new),
+];
+
+/// Where a chat turn comes from: the island's chat, Telegram (permissions
+/// asked there) or a task (tasks.rs: permissions on the island, its own Ferma).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Channel {
+    Island,
+    Telegram,
+    Task,
+    /// Another engine a task hands one piece of work to (tasks.rs task_delegate):
+    /// like a task, but not in the history.
+    Helper,
+}
+
+impl Channel {
+    fn slot(self) -> usize {
+        match self {
+            Channel::Island => 0,
+            Channel::Telegram => 1,
+            Channel::Task | Channel::Helper => 2,
+        }
+    }
+}
+
+/// Stops the turn of the running task (tasks.rs).
+pub(crate) fn stop_task_turn() {
+    STOP[Channel::Task.slot()].notify_waiters();
+}
 
 /// What a stopped turn answers (telegram.rs and the chat recognise it).
 pub(crate) fn stopped_text() -> String {
@@ -1038,8 +1070,12 @@ pub(crate) fn stop_turn(telegram: bool) {
 
 /// Whichever comes first: the turn or "Ferma" (then the turn is dropped).
 pub(crate) async fn until_stopped<T>(telegram: bool, turn: impl std::future::Future<Output = Result<T, String>>) -> Result<T, String> {
+    until_stopped_at(if telegram { Channel::Telegram } else { Channel::Island }, turn).await
+}
+
+async fn until_stopped_at<T>(channel: Channel, turn: impl std::future::Future<Output = Result<T, String>>) -> Result<T, String> {
     let mut turn = std::pin::pin!(turn);
-    let mut stop = std::pin::pin!(STOP[usize::from(telegram)].notified());
+    let mut stop = std::pin::pin!(STOP[channel.slot()].notified());
     std::future::poll_fn(|cx| {
         if let std::task::Poll::Ready(r) = std::future::Future::poll(turn.as_mut(), cx) {
             return std::task::Poll::Ready(r);
@@ -1078,9 +1114,11 @@ pub(crate) async fn chat_turn(
     engine: Option<String>,
     model: Option<String>,
     auto: bool,
-    telegram: bool,
+    channel: Channel,
     on_text: &(dyn Fn(&str) + Sync),
 ) -> Result<ChatReply, String> {
+    // Permissions go to Telegram only for its turns; a task asks on the island.
+    let telegram = channel == Channel::Telegram;
     let shared = app.state::<Shared>();
     let picked = model.filter(|m| !m.trim().is_empty());
     let (engine, model, cli_model, mcp, agent, other_model, url, terminal) = {
@@ -1121,7 +1159,7 @@ pub(crate) async fn chat_turn(
         let s = shared.settings.lock().unwrap();
         // The profile's instructions, then the assistant picked for this conversation.
         let mut text = s.chat_instructions.trim().to_string();
-        if let Some(p) = chat.persona().filter(|_| !telegram) {
+        if let Some(p) = chat.persona().filter(|_| channel == Channel::Island) {
             if !text.is_empty() {
                 text.push_str("\n\n");
             }
@@ -1131,6 +1169,8 @@ pub(crate) async fn chat_turn(
     };
     let memory_tools = agent && (has_tools || engine == "api");
     let memory = if remember && fresh { memory::preface(memory_tools) } else { None };
+    // The user's skills (skills.rs): their names in front, read with skill_read when they fit.
+    let skills = if fresh && memory_tools { skills::index() } else { None };
     // A reopened conversation the engine cannot resume: it rides in front of the question.
     let preamble = chat.take_preamble();
     let asked = query.clone();
@@ -1152,6 +1192,10 @@ pub(crate) async fn chat_turn(
         Some(m) => format!("{m}{query}"),
         None => query,
     };
+    let query = match &skills {
+        Some(s) => format!("{s}{query}"),
+        None => query,
+    };
     // Impostazioni → Chat → Istruzioni (of the active profile), first of all.
     let query = if fresh && !instructions.is_empty() {
         format!("{}\n\n{query}", tf("[Istruzioni dell'utente per questa chat:\n{text}]", &[("text", &instructions)]))
@@ -1159,7 +1203,7 @@ pub(crate) async fn chat_turn(
         query
     };
     // Accesso remoto: the chat linked to a connection is told which PC (remote.rs).
-    let query = match remote::hint().filter(|_| !telegram && agent) {
+    let query = match remote::hint().filter(|_| channel == Channel::Island && agent) {
         Some(r) => format!("{r}{query}"),
         None => query,
     };
@@ -1216,19 +1260,19 @@ pub(crate) async fn chat_turn(
         (None, e) if openai::ENGINES.contains(&e) => openai::send(chat, &engine, &other_model, url.as_deref(), query, context, on_text).await,
         (None, _) => claude_cli::send_kept(chat, &cli_model, &mcp, agent, query, context, None, false, on_text, telegram, work.as_deref()).await,
     } };
-    let reply = until_stopped(telegram, work_turn).await;
+    let reply = until_stopped_at(channel, work_turn).await;
     let first = first_text.lock().unwrap().map_or_else(|| "-".to_string(), |ms| format!("{:.1} s", ms as f64 / 1000.0));
     log::line(format!(
         "chat: turno {engine}{} in {:.1} s (primo testo {first}){}{}",
-        if telegram { " da Telegram" } else { "" },
+        match channel { Channel::Telegram => " da Telegram", Channel::Task => " di un compito", Channel::Helper => " di un aiutante", Channel::Island => "" },
         started.elapsed().as_secs_f64(),
         if reply.is_err() { ", non riuscito" } else { "" },
         recipe_hint.as_ref().map_or("", |_| ", con ricetta"),
     ));
     recipes::end(recipe_mark, &asked, reply.is_ok());
     match &reply {
-        Ok(r) if shared.settings.lock().unwrap().chat_history => {
-            chat_log::record(chat, &engine, &asked, &r.text, if telegram { "Telegram · " } else { "" });
+        Ok(r) if channel != Channel::Helper && shared.settings.lock().unwrap().chat_history => {
+            chat_log::record(chat, &engine, &asked, &r.text, match channel { Channel::Telegram => "Telegram · ", Channel::Task => "Compito · ", _ => "" });
             memory::diary(&engine, &asked, &r.text, telegram);
         }
         Ok(_) => {}
@@ -2389,6 +2433,101 @@ fn system_accent() -> Option<String> {
     Some(hex(v as u8, (v >> 8) as u8, (v >> 16) as u8))
 }
 
+/// Impostazioni → Compiti and the island: every task (tasks.rs).
+#[tauri::command]
+fn tasks_list() -> Vec<tasks::Task> {
+    tasks::list()
+}
+
+/// A new task from the settings or the chat's «/compito».
+#[tauri::command]
+fn task_new(app: AppHandle, title: String, goal: String, when: Option<String>, engine: Option<String>, model: Option<String>, helpers: Option<Vec<String>>) -> Result<tasks::Task, String> {
+    let task = tasks::create(&app, &title, &goal, when.as_deref().unwrap_or_default(), engine.as_deref().unwrap_or_default())?;
+    if model.is_some() || helpers.is_some() {
+        tasks::set_engines(&app, &task.id, &task.engine, model.as_deref().unwrap_or_default(), &helpers.unwrap_or_default())?;
+    }
+    Ok(tasks::get(&task.id).unwrap_or(task))
+}
+
+/// Avvia, Pausa, Riprendi, Ferma, Elimina.
+#[tauri::command]
+fn task_control(app: AppHandle, id: String, action: String) -> Result<(), String> {
+    tasks::control(&app, &id, &action)
+}
+
+/// The answer to a task's question, given later than its card.
+#[tauri::command]
+fn task_answer(app: AppHandle, id: String, text: String) -> Result<(), String> {
+    tasks::answer(&app, &id, &text)
+}
+
+/// Abilità (skills.rs): the list, for Impostazioni and the chat's «/commands».
+#[tauri::command]
+fn skills_list() -> Vec<skills::Skill> {
+    skills::list()
+}
+
+/// Saves a skill from Impostazioni; `old` = the id it had.
+#[tauri::command]
+fn skill_save(name: String, description: String, engine: String, tools: Vec<String>, body: String, old: String) -> Result<skills::Skill, String> {
+    skills::save(&skills::Skill { id: String::new(), name, description, engine, tools, body }, &old)
+}
+
+#[tauri::command]
+fn skill_delete(id: String) -> Result<(), String> {
+    skills::delete(&id)
+}
+
+/// The skills' folder in Explorer.
+#[tauri::command]
+fn skills_open() -> Result<(), String> {
+    std::fs::create_dir_all(skills::dir()).map_err(|e| e.to_string())?;
+    Command::new("explorer").arg(skills::dir()).spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
+/// What a skill's «/command» sends to the chat.
+#[tauri::command]
+fn skill_prompt(id: String, arg: String) -> Result<String, String> {
+    skills::find(&id).map(|s| skills::as_prompt(&s, &arg)).ok_or_else(|| t("Abilità non trovata.").into())
+}
+
+/// The engines and whether each can answer now (Impostazioni → Compiti).
+#[tauri::command]
+fn engines_ready(app: AppHandle) -> Vec<(String, String, bool)> {
+    telegram::engines(&app).into_iter().map(|(id, name, ok)| (id.to_string(), name, ok)).collect()
+}
+
+/// Engine, model and helpers of a task that is not running.
+#[tauri::command]
+fn task_set_engines(app: AppHandle, id: String, engine: String, model: String, helpers: Vec<String>) -> Result<(), String> {
+    tasks::set_engines(&app, &id, &engine, &model, &helpers)
+}
+
+/// Impostazioni → Compiti → Battito: every `minutes` (0 = off).
+#[tauri::command]
+fn heartbeat_set(app: AppHandle, minutes: u32) -> Result<(), String> {
+    tasks::set_heartbeat(&app, minutes).map(|_| ())
+}
+
+/// Impostazioni → Chat → Memoria: the evening digest (tasks.rs).
+#[tauri::command]
+fn digest_set(app: AppHandle, on: bool) -> Result<(), String> {
+    tasks::set_digest(&app, on)
+}
+
+/// BATTITO.md in its editor (made the first time).
+#[tauri::command]
+fn heartbeat_open() -> Result<(), String> {
+    let path = tasks::ensure_heartbeat_file()?;
+    Command::new("explorer").arg(&path).spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
+/// The task's log (its .md).
+#[tauri::command]
+fn task_log(id: String) -> String {
+    tasks::log_text(&id)
+}
+
 /// The island compact (low) or open (normal): WebView2's memory target (webview_memory.rs).
 #[tauri::command]
 fn webview_memory_low(app: AppHandle, low: bool) {
@@ -2450,6 +2589,21 @@ pub fn run() {
             boot,
             save_settings,
             system_accent,
+            tasks_list,
+            task_new,
+            task_control,
+            task_answer,
+            task_log,
+            task_set_engines,
+            heartbeat_set,
+            heartbeat_open,
+            digest_set,
+            skills_list,
+            skill_save,
+            skill_delete,
+            skills_open,
+            skill_prompt,
+            engines_ready,
             set_collapsed,
             drag_island,
             copy_pc_info,
@@ -2719,6 +2873,7 @@ pub fn run() {
             threecx::spawn(handle.clone());
             teams::spawn(handle.clone());
             telegram::spawn(handle.clone());
+            tasks::init(&handle);
             msgraph::spawn(handle.clone());
             automations::spawn(handle.clone());
             habits::spawn(handle.clone());
@@ -2746,6 +2901,7 @@ pub fn run() {
         .run(|_, event| {
             // The chat's private opencode server goes with the app.
             if let tauri::RunEvent::Exit = event {
+                tasks::on_exit();
                 opencode::shutdown();
                 claude_cli::shutdown();
                 remote::shutdown();

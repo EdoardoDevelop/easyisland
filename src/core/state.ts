@@ -136,7 +136,7 @@ export const MAX_DIFFS = 50;
 export const DIFF_TTL_MS = 60 * 60 * 1000;
 
 /** The Claude desktop app, VS Code, Cursor, Windows Terminal, or any other console. */
-export type SessionHost = "desktop" | "vscode" | "cursor" | "wt" | "terminal" | "opencode";
+export type SessionHost = "desktop" | "vscode" | "cursor" | "wt" | "terminal" | "opencode" | "compiti";
 
 /** A message card in the island: from a script (`easyisland-hook notify`) or an update. */
 export interface Notice {
@@ -380,6 +380,10 @@ export interface Settings {
   clearSecrets: boolean;
   /** The chat history (chat_log.rs), on this PC. */
   chatHistory: boolean;
+  /** Compiti (tasks.rs): their engine ("" = the chat's) and how long one run may go on. */
+  tasksEngine: string;
+  tasksMaxTurns: number;
+  tasksMaxMinutes: number;
   /** "primary", "cursor", or "monitor:<name>" (the display the character was dragged to). */
   screen: string;
   autostart: boolean;
@@ -719,7 +723,7 @@ export interface AutomationCondition {
 
 /** One thing an automation does. */
 export interface AutomationStep {
-  kind: "quick" | "notice" | "profile" | "app" | "url" | "chat";
+  kind: "quick" | "notice" | "profile" | "app" | "url" | "chat" | "task";
   /** quick: action id · profile: profile id. */
   id: string;
   title: string;
@@ -905,6 +909,9 @@ export const DEFAULT_SETTINGS: Settings = {
   momentServers: true,
   clearSecrets: true,
   chatHistory: true,
+  tasksEngine: "",
+  tasksMaxTurns: 12,
+  tasksMaxMinutes: 30,
   language: "",
   screen: "primary",
   autostart: false,
@@ -1385,3 +1392,46 @@ class AppState {
 }
 
 export const State = new AppState();
+
+/** A task of EasyIsland (tasks.rs): a goal the agent carries on by itself. */
+export type TaskState = "scheduled" | "queued" | "running" | "asking" | "paused" | "done" | "failed" | "stopped";
+
+export interface AgentTaskItem {
+  id: string;
+  title: string;
+  goal: string;
+  engine: string;
+  /** "" = the engine's model in Impostazioni → Chat. */
+  model: string;
+  /** Engines it may hand a piece of work to (task_delegate). */
+  helpers: string[];
+  state: TaskState;
+  plan: { text: string; done: boolean }[];
+  /** "" = now; "at:AAAA-MM-GG HH:MM"; "daily:HH:MM"; "weekdays:HH:MM". */
+  when: string;
+  lastFired: string;
+  question: string;
+  answer: string;
+  result: string;
+  last: string;
+  turns: number;
+  runs: number;
+  /** The last run had nothing to report. */
+  quiet: boolean;
+  /** The heartbeat (Battito): BATTITO.md at every run. */
+  heartbeat: boolean;
+  /** The evening digest of the memory. */
+  digest: boolean;
+  created: string;
+  updated: string;
+}
+
+/** A skill of the user (skills.rs): a procedure the chat and the tasks follow. */
+export interface Skill {
+  id: string;
+  name: string;
+  description: string;
+  engine: string;
+  tools: string[];
+  body: string;
+}

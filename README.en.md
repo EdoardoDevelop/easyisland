@@ -58,6 +58,14 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 
 ## What's new
 
+**0.9.9** — **EasyIsland becomes an agent**. **Tasks**: give it a goal and it carries it on by
+itself with a plan, steps and a result, now, at a time, every day, every week or every N minutes;
+you see it work in the Agents tab and it asks you when it needs to. Each task has its own engine and
+can get help from other engines. **Skills**: your procedures in .md files that the chat and the
+tasks follow when they fit, also as `/name` commands. **Heartbeat**: a periodic check of what you
+write in `BATTITO.md`, telling you only when there is something. **Memory digest** every evening,
+keeping only the notes you approve. Tasks' permissions and questions on Telegram too.
+
 **0.9.8** — **Windows 11 look**, now the default: the island and the settings are grey like
 Windows' own windows, with the accent colour you picked in Windows, switches, fields and buttons
 like the system's, line icons instead of emojis and every setting on one line with its explanation
@@ -153,6 +161,7 @@ the browser's. **Overview** with large, faded logos in the corner of each tile.
 
 | Version | Date | What's new |
 |---|---|---|
+| **0.9.9** | 23 Oct 2026 | EasyIsland as an agent: Tasks with a plan and several engines, Skills, Heartbeat, memory digest, tasks on Telegram |
 | **0.9.8** | 22 Oct 2026 | Windows 11 look by default (grey, Windows' accent colour, line icons), Classic kept as a style |
 | **0.9.7** | 22 Oct 2026 | Handier chat (Edit, Regenerate, Branch, / commands, @ menu, Assistants, dictation) and memory in .md, less RAM |
 | **0.9.6** | 21 Oct 2026 | Remote access with WinRM and SSH for IT support, Notion rows deletable from the chat |

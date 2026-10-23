@@ -2,6 +2,40 @@
 
 I dettagli che `HANDOFF.md` riassume in una riga. Le idee più vecchie e l'analisi di 3CX sono in `archivio/HANDOFF-fino-al-6-ottobre.md`, sezione 7.
 
+## EasyIsland agente personale — versione 1.0.0 (chiesto da Edoardo il 23 ottobre 2026)
+Obiettivo di Edoardo: EasyIsland diventa il suo agente personale, programmabile come qualsiasi agente IA, e non meno degli altri ma di più. Oggi ha già i pezzi (chat con gli strumenti, memoria, ricette, automazioni, Telegram, Modalità terminale, connettori MCP); manca un agente che riceve un obiettivo, lavora da solo nel tempo e si muove per primo.
+
+**Vincoli che restano** (`CLAUDE.md`): mai inviare email, approvare permessi o eliminare senza un clic (salvo «Automatica» accesa dall'utente); comandi solo con la Modalità terminale; CPU ~0 % a isola ritirata, quindi il lavoro dell'agente sta in Rust, svegliato da orari ed eventi, mai da un ciclo continuo. Nessun server in mezzo: gira sul PC, si raggiunge dall'isola e da Telegram.
+
+### Passo 1 — Compiti (`tasks.rs`)
+- **Fatto il 23 ottobre 2026** (come funziona: `docs/chat.md` → Compiti). Rispetto al piano qui sotto: niente vista nuova (il compito è una sessione della scheda Agenti); i permessi di un compito vanno solo nell'isola, Telegram riceve gli avvisi; niente riquadro nella Panoramica (c'è la sessione di Agenti). **Resta:** permessi e domande dei compiti anche come pulsanti in Telegram, costo stimato nella card, più compiti insieme.
+Un compito è un obiettivo («prepara il resoconto mensile per Rossi entro venerdì», «segui il ticket 482 e avvisami se il cliente risponde») che l'agente scompone in passi e porta avanti da solo, anche a isola chiusa, finché è fatto, ha bisogno di te o finisce il tempo concesso.
+- **Dati:** un file per compito in `%APPDATA%\EasyIsland\compiti\<id>.json` (scrittura con `settings::write_atomic`) e il suo registro leggibile `<id>.md`. Campi: titolo, obiettivo, motore e modello, stato, piano (passi con stato), quando (subito, a un'ora, ricorrente, a un evento), scadenza, limiti (turni, minuti, token), cartella di lavoro, sessione del motore per riprendere, risultato, registro delle azioni.
+- **Stati:** da pianificare → in corso → attende te → in pausa → fatto / non riuscito / fermato. Un riavvio di EasyIsland mette in pausa quelli in corso, con «Riprendi».
+- **Esecuzione:** un turno del compito è un `chat_turn` (`lib.rs`) con una `Chat` sua e il testo che va al registro, come fa Telegram. Il canale dei permessi oggi è isola o Telegram (`telegram: bool`): diventa un canale con tre valori (isola, Telegram, compito), e i permessi di un compito vanno nella card dell'isola (striscia a isola chiusa) e, se collegato, anche in Telegram. Dopo ogni turno, se il compito non ha detto «fatto» o «chiedo», ne parte un altro con «continua dal piano», fino ai limiti. Un compito alla volta all'inizio (coda), poi al massimo due.
+- **Strumenti nuovi** (relay `hook/src/mcp.rs` e `tool_list.rs`, esecuzione in `agent.rs`): `task_plan` (scrive o corregge il piano), `task_step` (segna un passo), `task_ask` (domanda all'utente: card nell'isola e Telegram, il compito passa ad «attende te»), `task_done` (risultato e riassunto), `task_note` (nel registro). Per creare e vedere compiti dalla chat: `task_create` (con anteprima e conferma nella card, come `create_automation`) e `task_list`.
+- **Come si avvia:** dalla chat (`/compito …`), dal campo in alto, da Telegram (`/compito`), da un'automazione (passo nuovo «Avvia un compito», con i dati dell'evento come `{file}` o `{chiamante}`), a un'ora o ricorrente (timer in Rust che dorme fino all'ora giusta).
+- **Isola:** i compiti sono sessioni della scheda Agenti, con il personaggio che reagisce come per Claude Code (lavora, attende, ha finito, errore). La card mostra obiettivo, piano con le spunte, ultimo passo, tempo e costo usati, e Ferma / Riprendi / Rispondi / Registro. Nella Panoramica un riquadro «Compiti».
+- **Impostazioni → Compiti:** motore e modello predefiniti (consigliato l'abbonamento via Claude Code), limiti per compito e al giorno, avvisi su Telegram, elenco dei compiti con il loro registro.
+- **Costi:** nessun turno senza un compito o un evento; tetto di turni e minuti per compito e di compiti al giorno; il costo stimato nella card.
+- **Prove:** test Rust su stati, limiti, orari e `validate`; scena `compiti` in `dev/scenes.ts` e `npm run smoke`; dal vivo un compito vero con Notion e Outlook.
+
+### Confronto con gli altri agenti personali (23 ottobre 2026)
+Studiati gli agenti personali più usati: quelli locali e open source con controllo periodico, abilità in Markdown e memoria a file; quelli che imparano dall'uso salvando procedure; i compiti programmati delle app di chat (ogni giorno, settimana, mese, a richiesta), dove ogni esecuzione è una sessione con connettori e abilità.
+- **Già alla pari:** memoria a file (`MEMORIA.md` e diario mensile), abilità .md con intestazione e lettura a richiesta, compiti programmati con registro, connettori MCP, un canale di messaggi (Telegram), permessi con un clic.
+- **Fatto il 23 ottobre:** Battito con `BATTITO.md` e «niente da segnalare»; ripetizioni ogni N minuti e ogni settimana; salvataggio delle procedure come abilità a fine compito.
+- **In più rispetto a loro:** l'isola con il personaggio e i permessi a colpo d'occhio, più motori nello stesso compito (`task_delegate`), integrazioni locali (3CX, Zammad, Outlook, RDM, accesso remoto), nessun server in mezzo.
+- **Fatto dopo, lo stesso giorno:** domande e permessi dei compiti anche su Telegram, riordino serale della memoria con conferma, abilità come comandi su Telegram (`docs/chat.md`).
+- **Ancora da fare:** esecuzione con il PC spento (escluso per ora: servirebbe un server); un'abilità che limita davvero gli strumenti.
+
+### Dopo i Compiti, verso la 1.0.0
+- **Abilità programmabili:** fatte il 23 ottobre 2026 (`docs/chat.md` → Abilità), insieme al motore per compito e ai motori aiutanti (`task_delegate`). **Resta:** abilità come comandi anche su Telegram; un'abilità che limita davvero gli strumenti (oggi `strumenti` è un'indicazione).
+- **Si muove per primo:** su ticket nuovo, fine chiamata 3CX, mail importante, scadenza di Notion prepara bozze e note da confermare con un clic (`docs/idee.md` → Proposte al momento giusto, Automazioni più intelligenti).
+- **Permessi per livelli:** letture libere; scritture reversibili (bozze, note, attività) consentite una volta per strumento; invio, approvazioni, cancellazioni e comandi sempre con un clic. Registro «Cosa ho fatto» con Annulla dove si può.
+- **Memoria per cliente e per progetto**, oltre a quella della chat (`memory.rs`).
+- **Più compiti insieme e sotto-agenti:** da valutare, perché `docs/decisioni.md` esclude per ora la squadra di agenti autonoma per tempi e costi.
+- **Riepilogo della giornata** fatto dall'agente (la voce «La giornata di oggi e domani» qui sotto diventa un compito ricorrente).
+
 ## 3CX + Zammad: ticket del cliente sulla chiamata in arrivo
 - Quando squilla, sotto il chiamante compaiono i suoi ticket Zammad aperti (titolo, stato, da quanto). Un clic apre il ticket.
 - Dal numero normalizzato (`+39`, spazi, zeri) si cerca il cliente in Zammad, poi i ticket non chiusi suoi o della sua organizzazione.

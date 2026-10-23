@@ -173,3 +173,20 @@ question to the main engine. No automatic dialogue between engines.
 - Multi-line field (Enter sends, Shift+Enter new line, the draft survives a restart), ↑ recalls the last question, Ctrl+V or a drop adds a file to a conversation going on, Copy / Edit / ↻ Regenerate under the messages (`chat_rewind`), `/` commands (also every quick action), history search and 📌, Markdown export to the Tray, per-profile Instructions, `/riprendi` on Telegram.
 - Memory in `%APPDATA%\EasyIsland\memoria`: `MEMORIA.md` (short notes, in front of each new conversation, at most 4,000 characters) and `diario/YYYY-MM.md` (one line per answered question, written by the app with no tokens). The chat reads more with `memory_search` and saves with `memory_note`; `/ricorda` saves without a model. Off together with the history.
 - Ideas from other chat apps (22 October 2026): an `@` menu (clipboard, a window's picture, a Tray file), saved prompts with `{{fields}}` (Tab goes to the next), ⑂ branch from an answer, Assistants (engine + instructions, picked with `/name`), 🎤 dictation (Telegram's voice service, or Windows' Win+H).
+
+## Tasks (`tasks.rs`)
+- A task is a goal EasyIsland carries on by itself: the chat's engine makes a plan (`task_plan`), marks its steps (`task_step`), asks the user when it needs to (`task_ask`, the island's question card) and closes it with a result (`task_done`). One at a time, in turns of `chat_turn` with `Channel::Task`, within the turns and minutes allowed in Settings → Tasks.
+- Files in `%APPDATA%\EasyIsland\compiti` (`<id>.json` and a readable `<id>.md` log). They start now, at a time, every day or on weekdays; from Settings → Tasks, `/compito` in the chat and on Telegram, `task_create` from the chat, or the automations' "Start a task" step.
+- On the island a task is a session of the "Compiti" agent in the Agents tab. Same tools and permissions as the chat: sending, deleting and approving always need a click.
+- Each task has its own engine and model, and helper engines: the leading engine can hand a piece of the work to one of them with `task_delegate` (a separate turn, same tools and permissions).
+
+## Skills (`skills.rs`)
+- Procedures the user writes once, as .md files in `%APPDATA%\EasyIsland\abilita` (header: name, description, preferred engine, tools; then the instructions). Their names and descriptions go in front of a new conversation; the engine reads one with `skill_read` when it fits. `skill_save` creates one from the chat (with Allow / Deny). Each skill is also a `/command` in the chat. Settings → Tasks → Skills.
+
+## Heartbeat
+- One task with `heartbeat: true` runs every N minutes (Settings → Tasks → Heartbeat). Its goal gets the "- " lines of `%APPDATA%\EasyIsland\BATTITO.md`; with no lines it is skipped without calling any engine. With nothing to report the engine closes it with `task_done` and `quiet: true`: no card, no message.
+- Tasks also repeat every N minutes (`every:N`, from 15) or every week (`weekly:D:HH:MM`), and at the end of a task the engine may offer to save the procedure as a skill (`skill_save`, with Allow / Deny).
+
+## Tasks on Telegram, memory digest
+- While a task works, its permissions are asked on the island and, when Telegram is linked, also there (never "Automatica"); the first answer wins and the other request goes away. A task's question goes to Telegram too, with a button per option or `/rispondi …`. Skills work as `/name …` commands on Telegram.
+- Memory digest (Settings → Tasks): every evening at 22:30 a task rereads today's chat diary and suggests at most 5 things to remember; only the approved ones go into `MEMORIA.md`. With an empty diary it does not run.

@@ -125,6 +125,8 @@ function taskFor(p: HookPayload): string {
 
 function sessionHost(p: HookPayload): SessionHost {
   if (p.easyisland_host === "opencode") return "opencode";
+  // A task of EasyIsland (tasks.rs): "Apri" goes to Impostazioni → Compiti.
+  if (p.easyisland_host === "compiti") return "compiti";
   // CLAUDE_CODE_ENTRYPOINT describes Claude Code; another agent may only have
   // inherited it from a terminal the Claude app opened.
   if (p.entrypoint === "claude-desktop" && !p.easyisland_agent) return "desktop";
@@ -425,6 +427,9 @@ function firstLine(text: string, n: number): string {
 function stepLabel(tool: string, input: Record<string, unknown>): string {
   const label = TOOL_LABELS[tool] ?? tool;
   const str = (k: string) => (typeof input[k] === "string" ? (input[k] as string) : null);
+  // A step of an EasyIsland task (tasks.rs): its own words.
+  const step = str("step");
+  if (tool === "Compito" && step) return step.slice(0, 70);
   const cmd = str("command");
   if (cmd) return `${label} · ${cmd.slice(0, 40)}`;
   const path = str("path");
@@ -597,6 +602,8 @@ const HOST_APPS: Record<SessionHost, string[]> = {
     "wezterm-gui.exe", "alacritty.exe", "mintty.exe"],
   // opencode Desktop, or its TUI in a terminal.
   opencode: ["opencode.exe", "windowsterminal.exe", "conhost.exe", "openconsole.exe", "pwsh.exe", "powershell.exe", "cmd.exe"],
+  // A task of EasyIsland runs in no app: the user never "watches" it elsewhere.
+  compiti: [],
 };
 
 /** True when the session's own app is in front: the user is already looking at it. */
