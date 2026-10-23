@@ -7,7 +7,9 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
   2. un permesso (es. `notion_add_row`) chiesto da un compito con l'isola chiusa;
   3. Pausa, Ferma e Riprendi mentre lavora; un compito a orario e uno ogni giorno;
   4. `/compito` dalla chat e da Telegram, l'avviso su Telegram alla fine; il passo «Avvia un compito» di un'automazione;
-  5. un compito con opencode e uno con la chiave API.
+  5. un compito con opencode e uno con la chiave API;
+  6. il Battito acceso dalle Impostazioni con un elenco vero in BATTITO.md (ticket, mail): una volta con qualcosa da segnalare, una senza;
+  7. un compito che a fine lavoro propone una nuova abilità (Consenti / Nega di `skill_save`).
 
 - [ ] **Chat nuova e memoria (21 ottobre 2026):**
   1. Ctrl+V di un'immagine e di un file copiato in Esplora file a conversazione avviata (chip 📎, il motore lo legge).

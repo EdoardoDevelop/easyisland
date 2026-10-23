@@ -20,6 +20,13 @@ Un compito è un obiettivo («prepara il resoconto mensile per Rossi entro vener
 - **Costi:** nessun turno senza un compito o un evento; tetto di turni e minuti per compito e di compiti al giorno; il costo stimato nella card.
 - **Prove:** test Rust su stati, limiti, orari e `validate`; scena `compiti` in `dev/scenes.ts` e `npm run smoke`; dal vivo un compito vero con Notion e Outlook.
 
+### Confronto con gli altri agenti personali (23 ottobre 2026)
+Studiati gli agenti personali più usati: quelli locali e open source con controllo periodico, abilità in Markdown e memoria a file; quelli che imparano dall'uso salvando procedure; i compiti programmati delle app di chat (ogni giorno, settimana, mese, a richiesta), dove ogni esecuzione è una sessione con connettori e abilità.
+- **Già alla pari:** memoria a file (`MEMORIA.md` e diario mensile), abilità .md con intestazione e lettura a richiesta, compiti programmati con registro, connettori MCP, un canale di messaggi (Telegram), permessi con un clic.
+- **Fatto il 23 ottobre:** Battito con `BATTITO.md` e «niente da segnalare»; ripetizioni ogni N minuti e ogni settimana; salvataggio delle procedure come abilità a fine compito.
+- **In più rispetto a loro:** l'isola con il personaggio e i permessi a colpo d'occhio, più motori nello stesso compito (`task_delegate`), integrazioni locali (3CX, Zammad, Outlook, RDM, accesso remoto), nessun server in mezzo.
+- **Ancora da fare** (in ordine di utilità): domande e permessi dei compiti come pulsanti anche su Telegram; riassunto notturno della memoria (le note del diario che contano passano in `MEMORIA.md`, con conferma); abilità come comandi su Telegram; esecuzione con il PC spento (escluso per ora: servirebbe un server).
+
 ### Dopo i Compiti, verso la 1.0.0
 - **Abilità programmabili:** fatte il 23 ottobre 2026 (`docs/chat.md` → Abilità), insieme al motore per compito e ai motori aiutanti (`task_delegate`). **Resta:** abilità come comandi anche su Telegram; un'abilità che limita davvero gli strumenti (oggi `strumenti` è un'indicazione).
 - **Si muove per primo:** su ticket nuovo, fine chiamata 3CX, mail importante, scadenza di Notion prepara bozze e note da confermare con un clic (`docs/idee.md` → Proposte al momento giusto, Automazioni più intelligenti).

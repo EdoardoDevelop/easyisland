@@ -182,3 +182,7 @@ question to the main engine. No automatic dialogue between engines.
 
 ## Skills (`skills.rs`)
 - Procedures the user writes once, as .md files in `%APPDATA%\EasyIsland\abilita` (header: name, description, preferred engine, tools; then the instructions). Their names and descriptions go in front of a new conversation; the engine reads one with `skill_read` when it fits. `skill_save` creates one from the chat (with Allow / Deny). Each skill is also a `/command` in the chat. Settings → Tasks → Skills.
+
+## Heartbeat
+- One task with `heartbeat: true` runs every N minutes (Settings → Tasks → Heartbeat). Its goal gets the "- " lines of `%APPDATA%\EasyIsland\BATTITO.md`; with no lines it is skipped without calling any engine. With nothing to report the engine closes it with `task_done` and `quiet: true`: no card, no message.
+- Tasks also repeat every N minutes (`every:N`, from 15) or every week (`weekly:D:HH:MM`), and at the end of a task the engine may offer to save the procedure as a skill (`skill_save`, with Allow / Deny).

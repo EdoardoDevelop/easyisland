@@ -1416,6 +1416,10 @@ export interface AgentTaskItem {
   last: string;
   turns: number;
   runs: number;
+  /** The last run had nothing to report. */
+  quiet: boolean;
+  /** The heartbeat (Battito): BATTITO.md at every run. */
+  heartbeat: boolean;
   created: string;
   updated: string;
 }

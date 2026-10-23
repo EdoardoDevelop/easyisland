@@ -2,6 +2,11 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 21 ottobre 2026 — Accesso remoto (WinRM e SSH) per l'assistenza, versione 0.9.6
+- Versione **0.9.6** con questa voce e la precedente; README, README.en.md e homepage aggiornati.
+- Chiesto da Edoardo: nuova integrazione «Accesso remoto» (`remote.rs`, `src/views/remote.ts`). Collegamento temporaneo a un PC con WinRM o SSH (Windows e Linux), niente salvato: la password resta solo in memoria. La scheda ha la guida passo passo già aperta (collegarsi, preparare il PC, se non va) e sotto un errore «Come risolvere» con i passi per quel caso. Con 🔌 nella chat l'IA lavora su quel PC con `remote_run`, sempre con Consenti / Nega. «Chiudi connessione» toglie TrustedHosts e cancella `known_hosts`.
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, scene `remote` e `chat&remote`. Errori di WinRM e SSH provati dal vivo verso questo PC. Un collegamento riuscito è da provare su un PC vero (`docs/prove-dal-vivo.md`).
+
 ### 21 ottobre 2026 — Chat più comoda e memoria in timeline
 - Chiesto da Edoardo: rendere la chat più comoda di Claude Code da terminale.
   - Campo su più righe, con la bozza che resta. ↑ riprende l'ultima domanda.

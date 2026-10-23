@@ -362,6 +362,9 @@ export const Bridge = {
   tasksList: () => call<AgentTaskItem[]>("tasks_list"),
   taskNew: (title: string, goal: string, when: string, engine: string, model = "", helpers: string[] = []) =>
     callOrThrow<AgentTaskItem>("task_new", { title, goal, when, engine, model, helpers }),
+  /** Battito (tasks.rs): every `minutes`, 0 = off; its list in BATTITO.md. */
+  heartbeatSet: (minutes: number) => callOrThrow<void>("heartbeat_set", { minutes }),
+  heartbeatOpen: () => callOrThrow<void>("heartbeat_open"),
   taskSetEngines: (id: string, engine: string, model: string, helpers: string[]) => callOrThrow<void>("task_set_engines", { id, engine, model, helpers }),
   /** The chat's engines: [id, name, ready now]. */
   enginesReady: () => call<[string, string, boolean][]>("engines_ready"),

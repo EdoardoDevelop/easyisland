@@ -363,8 +363,8 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "task_done",
-            "Solo dentro un compito: lo chiude come fatto. result: il risultato per l'utente, breve e utile (cosa è stato fatto, dove trovarlo, cosa resta a lui).",
-            json!({ "type": "object", "properties": { "result": { "type": "string" } }, "required": ["result"] }),
+            "Solo dentro un compito: lo chiude come fatto. result: il risultato per l'utente, breve e utile (cosa è stato fatto, dove trovarlo, cosa resta a lui); quiet: true quando non c'è niente da segnalare (un controllo periodico senza novità): nessun avviso all'utente.",
+            json!({ "type": "object", "properties": { "result": { "type": "string" }, "quiet": { "type": "boolean" } }, "required": ["result"] }),
             true,
         ),
         (
@@ -402,7 +402,7 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "task_create",
-            "Crea un compito di EasyIsland: un obiettivo che l'agente porta avanti da solo, a turni, con un piano, finché è fatto o gli serve l'utente. Usalo quando l'utente chiede di fare qualcosa più tardi, a un orario, ogni giorno, o un lavoro lungo. title: breve; goal: cosa fare, con tutti i dettagli che servono; when: vuoto = subito, \"at:AAAA-MM-GG HH:MM\", \"daily:HH:MM\" o \"weekdays:HH:MM\"; engine e model: il motore che lo guida (vuoto = quello dei compiti: subscription, api, opencode, antigravity, openrouter, openai, gemini, ollama, lmstudio); helpers: i motori a cui può affidare pezzi del lavoro. L'utente conferma.",
+            "Crea un compito di EasyIsland: un obiettivo che l'agente porta avanti da solo, a turni, con un piano, finché è fatto o gli serve l'utente. Usalo quando l'utente chiede di fare qualcosa più tardi, a un orario, ogni giorno, o un lavoro lungo. title: breve; goal: cosa fare, con tutti i dettagli che servono; when: vuoto = subito, \"at:AAAA-MM-GG HH:MM\", \"daily:HH:MM\", \"weekdays:HH:MM\", \"weekly:G:HH:MM\" (G 1 = lunedì) o \"every:N\" (ogni N minuti, da 15); engine e model: il motore che lo guida (vuoto = quello dei compiti: subscription, api, opencode, antigravity, openrouter, openai, gemini, ollama, lmstudio); helpers: i motori a cui può affidare pezzi del lavoro. L'utente conferma.",
             json!({ "type": "object", "properties": {
                 "title": { "type": "string" },
                 "goal": { "type": "string" },

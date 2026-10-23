@@ -2503,6 +2503,19 @@ fn task_set_engines(app: AppHandle, id: String, engine: String, model: String, h
     tasks::set_engines(&app, &id, &engine, &model, &helpers)
 }
 
+/// Impostazioni → Compiti → Battito: every `minutes` (0 = off).
+#[tauri::command]
+fn heartbeat_set(app: AppHandle, minutes: u32) -> Result<(), String> {
+    tasks::set_heartbeat(&app, minutes).map(|_| ())
+}
+
+/// BATTITO.md in its editor (made the first time).
+#[tauri::command]
+fn heartbeat_open() -> Result<(), String> {
+    let path = tasks::ensure_heartbeat_file()?;
+    Command::new("explorer").arg(&path).spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
 /// The task's log (its .md).
 #[tauri::command]
 fn task_log(id: String) -> String {
@@ -2576,6 +2589,8 @@ pub fn run() {
             task_answer,
             task_log,
             task_set_engines,
+            heartbeat_set,
+            heartbeat_open,
             skills_list,
             skill_save,
             skill_delete,

@@ -4072,6 +4072,8 @@ const TASK_STATE: Record<TaskState, [string, string]> = {
   stopped: [t("Fermato"), "off"],
 };
 
+const WEEKDAYS = [t("lunedì"), t("martedì"), t("mercoledì"), t("giovedì"), t("venerdì"), t("sabato"), t("domenica")];
+
 /** "daily:09:00" → "ogni giorno alle 09:00". */
 function whenLabel(when: string): string {
   if (!when) return t("subito");
@@ -4081,6 +4083,12 @@ function whenLabel(when: string): string {
   if (kind === "at") return t("il {when}", { when: rest });
   if (kind === "daily") return t("ogni giorno alle {time}", { time: rest });
   if (kind === "weekdays") return t("dal lunedì al venerdì alle {time}", { time: rest });
+  if (kind === "every") return t("ogni {n} minuti", { n: rest });
+  if (kind === "weekly") {
+    const [d, ...hm] = rest.split(":");
+    const day = WEEKDAYS[Number(d) - 1] ?? d;
+    return t("ogni settimana, {day} alle {time}", { day, time: hm.join(":") });
+  }
   return when;
 }
 
@@ -4092,14 +4100,19 @@ function tasksSection(): HTMLElement {
   const goal = h("textarea", { placeholder: t("Cosa deve fare, con i dettagli che servono. Es.: guarda i ticket nuovi di Zammad e le mail dei clienti e preparami un riepilogo con le priorità in una pagina di Notion.") }) as HTMLTextAreaElement;
   const date = h("input", { type: "date" }) as HTMLInputElement;
   const time = h("input", { type: "time", value: "09:00" }) as HTMLInputElement;
-  const kind = select<"now" | "at" | "daily" | "weekdays">(
-    [["now", t("Subito")], ["at", t("A un'ora")], ["daily", t("Ogni giorno")], ["weekdays", t("Dal lunedì al venerdì")]],
+  const weekday = select<string>(WEEKDAYS.map((l, i): [string, string] => [String(i + 1), l]), "1", () => {});
+  const every = select<string>([["15", "15 min"], ["30", "30 min"], ["60", t("1 ora")], ["120", t("2 ore")], ["240", t("4 ore")]], "60", () => {});
+  const kind = select<"now" | "at" | "daily" | "weekdays" | "weekly" | "every">(
+    [["now", t("Subito")], ["at", t("A un'ora")], ["daily", t("Ogni giorno")], ["weekdays", t("Dal lunedì al venerdì")],
+      ["weekly", t("Ogni settimana")], ["every", t("Ogni tanto")]],
     "now",
     () => paintWhen(),
   );
   const paintWhen = () => {
     date.style.display = kind.value === "at" ? "" : "none";
-    time.style.display = kind.value === "now" ? "none" : "";
+    weekday.style.display = kind.value === "weekly" ? "" : "none";
+    every.style.display = kind.value === "every" ? "" : "none";
+    time.style.display = kind.value === "now" || kind.value === "every" ? "none" : "";
   };
   paintWhen();
   const engines = h("div", {});
@@ -4115,6 +4128,8 @@ function tasksSection(): HTMLElement {
     clear(feedback);
     let when = "";
     if (kind.value === "at") when = `at:${date.value} ${time.value}`;
+    else if (kind.value === "weekly") when = `weekly:${weekday.value}:${time.value}`;
+    else if (kind.value === "every") when = `every:${every.value}`;
     else if (kind.value !== "now") when = `${kind.value}:${time.value}`;
     const e = picker.value();
     try {
@@ -4132,7 +4147,7 @@ function tasksSection(): HTMLElement {
     h("div", { class: "row" }, title),
     goal,
     engines,
-    h("div", { class: "row" }, h("label", { text: t("Quando") }), kind, date, time, h("span", { class: "spacer" }), add),
+    h("div", { class: "row" }, h("label", { text: t("Quando") }), kind, date, weekday, every, time, h("span", { class: "spacer" }), add),
     feedback,
     h("span", { class: "hint", text: t("Puoi crearli anche dalla chat («/compito …», oppure a parole) e da Telegram. Mentre lavora lo vedi nella scheda Agenti dell'isola: permessi e domande arrivano lì.") }),
     h("h2", {}, h("span", { text: t("I tuoi compiti") })),
@@ -4146,6 +4161,10 @@ async function refreshTasks() {
 }
 
 function paintTasks() {
+  // The heartbeat's choice follows the tasks (they arrive after the page is drawn).
+  const beat = taskItems.find((x) => x.heartbeat);
+  const every = document.getElementById("heartbeat-every") as HTMLSelectElement | null;
+  if (every && document.activeElement !== every) every.value = beat?.when.startsWith("every:") ? beat.when.slice(6) : "0";
   const list = document.getElementById("tasks-list");
   if (!list) return;
   clear(list);
@@ -4216,7 +4235,8 @@ function taskRow(task: AgentTaskItem): HTMLElement {
   if (task.plan.length) {
     body.append(h("ol", { class: "task-plan" }, ...task.plan.map((s) => h("li", { class: s.done ? "done" : "", text: s.text }))));
   }
-  if (task.result) body.append(h("div", { class: "notice ok task-result", text: task.result }));
+  if (task.quiet && task.state === "done") body.append(h("div", { class: "hint", text: t("Ultimo controllo: niente da segnalare.") }));
+  else if (task.result) body.append(h("div", { class: "notice ok task-result", text: task.result }));
   else if (task.last) body.append(h("div", { class: "hint", text: task.last }));
   if (task.state === "asking") {
     const reply = h("input", { type: "text", placeholder: t("La tua risposta"), style: "flex:1 1 260px" }) as HTMLInputElement;
@@ -4347,6 +4367,37 @@ function enginePicker(engine: string, model: string, helpers: string[]): { el: H
 function enginesLine(task: AgentTaskItem): string {
   const main = task.engine ? `${engineName(task.engine)}${task.model ? ` (${task.model})` : ""}` : t("motore dei compiti");
   return task.helpers.length ? `${main} · ${t("aiutanti: {list}", { list: task.helpers.map(engineName).join(", ") })}` : main;
+}
+
+// ── Battito (tasks.rs) ──────────────────────────────────────────────────────────
+
+/** The heartbeat: a check every N minutes of what BATTITO.md lists, quiet when there is nothing. */
+function heartbeatSection(): HTMLElement {
+  const beat = taskItems.find((x) => x.heartbeat);
+  const minutes = beat?.when.startsWith("every:") ? beat.when.slice(6) : "0";
+  const feedback = h("div", {});
+  const every = select<string>(
+    [["0", t("Spento")], ["15", t("ogni 15 minuti")], ["30", t("ogni 30 minuti")], ["60", t("ogni ora")], ["120", t("ogni 2 ore")], ["240", t("ogni 4 ore")]],
+    minutes,
+    async (v) => {
+      clear(feedback);
+      try {
+        await Bridge.heartbeatSet(Number(v));
+        await refreshTasks();
+        render();
+      } catch (e) {
+        feedback.append(h("div", { class: "notice err", text: String(e).replace(/^Error:\s*/, "") }));
+      }
+    },
+  );
+  every.id = "heartbeat-every";
+  const list = h("button", { text: t("Cosa tenere d'occhio…") }) as HTMLButtonElement;
+  list.addEventListener("click", () => void Bridge.heartbeatOpen().catch((e) => feedback.replaceChildren(h("div", { class: "notice err", text: String(e) }))));
+  return h("section", {},
+    h("h2", {}, h("span", { text: t("Battito") })),
+    h("div", { class: "row" }, h("label", { text: t("Controllo periodico") }), every, list,
+      h("span", { class: "hint note", text: t("a ogni battito l'agente guarda le cose elencate in BATTITO.md (ticket, mail, scadenze…) e ti avvisa solo se c'è qualcosa; senza righe nell'elenco non parte e non costa niente") })),
+    feedback);
 }
 
 // ── Abilità (skills.rs) ────────────────────────────────────────────────────────
@@ -4706,7 +4757,7 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     {
       id: "compiti", label: t("Compiti"), icon: "check", color: "#0EA5E9", title: t("Compiti"),
       intro: t("Obiettivi che EasyIsland porta avanti da solo: fa un piano, lo segue con gli strumenti della chat, ti chiede quando serve e ti dice com'è andata."),
-      sections: () => [tasksSection(), skillsSection(), tasksSettingsSection()],
+      sections: () => [tasksSection(), heartbeatSection(), skillsSection(), tasksSettingsSection()],
     },
     {
       id: "automazioni", label: t("Automazioni"), icon: "rocket", color: "#22D3EE", title: t("Automazioni"),

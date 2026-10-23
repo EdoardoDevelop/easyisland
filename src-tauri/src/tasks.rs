@@ -108,13 +108,20 @@ pub struct Task {
     pub turns: u32,
     #[serde(default)]
     pub runs: u32,
+    /// The last run had nothing to report (task_done with quiet): no card, no message.
+    #[serde(default)]
+    pub quiet: bool,
+    /// The heartbeat (Battito): BATTITO.md goes into its goal at every run, and
+    /// with nothing in it the run is skipped without asking any engine.
+    #[serde(default)]
+    pub heartbeat: bool,
     pub created: String,
     pub updated: String,
 }
 
 impl Task {
     fn recurring(&self) -> bool {
-        self.when.starts_with("daily:") || self.when.starts_with("weekdays:")
+        ["daily:", "weekdays:", "weekly:", "every:"].iter().any(|p| self.when.starts_with(p))
     }
 }
 
@@ -154,9 +161,11 @@ pub fn check_when(when: &str) -> Result<(), String> {
     let ok = match w.split_once(':') {
         Some(("at", s)) => stamp_ok(s.trim()),
         Some(("daily" | "weekdays", s)) => hhmm_ok(s.trim()),
+        Some(("every", n)) => n.trim().parse::<u32>().is_ok_and(|n| (MIN_EVERY..=1440).contains(&n)),
+        Some(("weekly", rest)) => rest.split_once(':').is_some_and(|(d, hm)| d.parse::<u8>().is_ok_and(|d| (1..=7).contains(&d)) && hhmm_ok(hm)),
         _ => false,
     };
-    if ok { Ok(()) } else { Err(t("Quando non valido: vuoto (subito), «at:AAAA-MM-GG HH:MM», «daily:HH:MM» o «weekdays:HH:MM».").into()) }
+    if ok { Ok(()) } else { Err(t("Quando non valido: vuoto (subito), «at:AAAA-MM-GG HH:MM», «daily:HH:MM», «weekdays:HH:MM», «weekly:G:HH:MM» (G 1 = lunedì) o «every:N» (ogni N minuti, da 15).").into()) }
 }
 
 /// Should a task with this `when` start now? `now` is "AAAA-MM-GG HH:MM",
@@ -169,8 +178,39 @@ fn due(when: &str, now: &str, day: u8, last: &str) -> bool {
         Some(("at", at)) => last.is_empty() && now >= at.trim(),
         Some(("daily", hm)) => time >= hm.trim() && last.get(..10) != Some(today),
         Some(("weekdays", hm)) => day <= 5 && time >= hm.trim() && last.get(..10) != Some(today),
+        Some(("weekly", rest)) => rest.split_once(':').is_some_and(|(d, hm)| {
+            d.parse::<u8>().ok() == Some(day) && time >= hm && last.get(..10) != Some(today)
+        }),
+        Some(("every", n)) => {
+            let n = n.trim().parse::<i64>().unwrap_or(60).max(MIN_EVERY as i64);
+            match (minutes(now), minutes(last)) {
+                (Some(a), Some(b)) => a - b >= n,
+                _ => true,
+            }
+        }
         _ => false,
     }
+}
+
+/// The shortest «every N minutes».
+const MIN_EVERY: u32 = 15;
+
+/// "AAAA-MM-GG HH:MM" → minutes since 1970 (calendar days, no time zone: both
+/// sides are local time). None when it is not written that way.
+fn minutes(stamp: &str) -> Option<i64> {
+    if !stamp_ok(stamp) {
+        return None;
+    }
+    let n = |a: usize, b: usize| stamp.get(a..b).and_then(|x| x.parse::<i64>().ok());
+    let (y, m, d, hh, mm) = (n(0, 4)?, n(5, 7)?, n(8, 10)?, n(11, 13)?, n(14, 16)?);
+    // Days from the civil date (Howard Hinnant's algorithm).
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * (m + if m > 2 { -3 } else { 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    Some(days * 1440 + hh * 60 + mm)
 }
 
 // ── Storage ──────────────────────────────────────────────────────────────────
@@ -321,6 +361,8 @@ pub fn create(app: &AppHandle, title: &str, goal: &str, when: &str, engine: &str
         last: if when.is_empty() { t("In coda").into() } else { t("In attesa del suo orario").into() },
         turns: 0,
         runs: 0,
+        quiet: false,
+        heartbeat: false,
         created: now.clone(),
         updated: now,
     };
@@ -426,6 +468,64 @@ pub fn set_engines(app: &AppHandle, id: &str, engine: &str, model: &str, helpers
     Ok(())
 }
 
+// ── Battito (heartbeat) ──────────────────────────────────────────────────────
+
+pub fn heartbeat_file() -> PathBuf {
+    crate::settings::config_dir().join("BATTITO.md")
+}
+
+/// The things to watch: the "- " lines of BATTITO.md.
+fn heartbeat_items() -> Vec<String> {
+    std::fs::read_to_string(heartbeat_file()).unwrap_or_default().lines()
+        .map(str::trim).filter(|l| l.starts_with("- ") && l.len() > 2).take(40).map(str::to_string).collect()
+}
+
+/// BATTITO.md, made with an explanation the first time.
+pub fn ensure_heartbeat_file() -> Result<PathBuf, String> {
+    let path = heartbeat_file();
+    if !path.exists() {
+        let text = format!(
+            "# {}\n\n{}\n",
+            t("Battito di EasyIsland"),
+            t("Cosa deve tenere d'occhio l'agente a ogni battito, una riga per cosa che inizia con «- ». Senza righe il battito non parte e non costa niente. Esempi (togli il # davanti per usarli):\n# - ticket di Zammad nuovi o con priorità alta: preparami una bozza di risposta\n# - mail di clienti senza risposta da più di un giorno\n# - attività di Notion che scadono oggi"),
+        );
+        let _ = std::fs::create_dir_all(crate::settings::config_dir());
+        crate::settings::write_atomic(&path, text.as_bytes()).map_err(|e| e.to_string())?;
+    }
+    Ok(path)
+}
+
+/// Impostazioni → Compiti → Battito: on every `minutes` (0 = off). There is one heartbeat task.
+pub fn set_heartbeat(app: &AppHandle, minutes: u32) -> Result<Option<Task>, String> {
+    let existing = TASKS.lock().unwrap().iter().find(|t| t.heartbeat).map(|t| t.id.clone());
+    if minutes == 0 {
+        if let Some(id) = existing {
+            control(app, &id, "delete")?;
+        }
+        return Ok(None);
+    }
+    let when = format!("every:{}", minutes.clamp(MIN_EVERY, 1440));
+    ensure_heartbeat_file()?;
+    let id = match existing {
+        Some(id) => id,
+        None => {
+            let task = create(app, t("Battito"), t("Controlla le cose dell'elenco del battito e segnala solo ciò che serve."), &when, "")?;
+            task.id
+        }
+    };
+    let task = update(app, &id, |t| {
+        t.heartbeat = true;
+        t.when = when.clone();
+        if t.state == TaskState::Queued && t.runs == 0 {
+            // The first beat waits for its turn like the others.
+            t.state = TaskState::Scheduled;
+            t.last_fired = now_key().0;
+        }
+    });
+    WAKE.notify_one();
+    Ok(task)
+}
+
 /// The chat's engines (CHAT_ENGINES in src/core/state.ts).
 const KNOWN_ENGINES: &[&str] = &["subscription", "api", "opencode", "antigravity", "openrouter", "openai", "gemini", "ollama", "lmstudio"];
 
@@ -519,6 +619,11 @@ async fn runner(app: AppHandle) {
                 .collect()
         };
         for id in &fired {
+            // A heartbeat with nothing to watch costs nothing: skipped.
+            if get(id).is_some_and(|t| t.heartbeat) && heartbeat_items().is_empty() {
+                update(&app, id, |t| t.last_fired = now.clone());
+                continue;
+            }
             update(&app, id, |t| {
                 t.last_fired = now.clone();
                 t.state = TaskState::Queued;
@@ -558,7 +663,7 @@ fn prompt(task: &Task, first: bool) -> String {
 
 /// `helpers`: (id, name) of the engines it may hand work to, ready now.
 fn prompt_with(task: &Task, first: bool, helpers: &[(String, String)]) -> String {
-    let rules = t("Lavori da solo, senza l'utente davanti: usa gli strumenti per fare davvero le cose. Scrivi subito il piano con task_plan (pochi passi concreti) e segna ogni passo fatto con task_step. Se ti serve una decisione o un dato che ha solo l'utente, chiedilo con task_ask. Quando hai finito chiama task_done con il risultato, breve e utile. Non inviare email, non eliminare e non approvare nulla da solo: prepara bozze e lascia a lui l'ultimo clic.");
+    let rules = t("Lavori da solo, senza l'utente davanti: usa gli strumenti per fare davvero le cose. Scrivi subito il piano con task_plan (pochi passi concreti) e segna ogni passo fatto con task_step. Se ti serve una decisione o un dato che ha solo l'utente, chiedilo con task_ask. Quando hai finito chiama task_done con il risultato, breve e utile. Non inviare email, non eliminare e non approvare nulla da solo: prepara bozze e lascia a lui l'ultimo clic. Se il procedimento potrà servire di nuovo e non c'è già un'abilità che lo descrive, alla fine salvalo con skill_save (l'utente conferma).");
     let mut text = if first {
         tf("[Compito di EasyIsland «{title}». {rules}]\n\nObiettivo: {goal}", &[("title", &task.title), ("rules", &rules), ("goal", &task.goal)])
     } else {
@@ -567,6 +672,12 @@ fn prompt_with(task: &Task, first: bool, helpers: &[(String, String)]) -> String
             &[("title", &task.title), ("rules", &rules), ("goal", &task.goal), ("plan", &plan_text(&task.plan))],
         )
     };
+    if task.heartbeat {
+        text.push_str(&format!("\n\n{}", tf(
+            "[Battito: è un controllo periodico. Ecco cosa l'utente vuole che tu tenga d'occhio (BATTITO.md):\n{list}\nGuarda ognuna con gli strumenti. Se non c'è niente da segnalare chiudi con task_done e quiet true, senza altro testo; altrimenti chiudi con quello che serve sapere o che hai preparato.]",
+            &[("list", &heartbeat_items().join("\n"))],
+        )));
+    }
     if !helpers.is_empty() {
         let list = helpers.iter().map(|(id, name)| format!("{id} ({name})")).collect::<Vec<_>>().join(", ");
         text.push_str(&format!("\n\n{}", tf(
@@ -609,6 +720,7 @@ async fn run(app: &AppHandle, id: &str) {
         t.state = TaskState::Running;
         t.turns = 0;
         t.runs += 1;
+        t.quiet = false;
         t.last = crate::i18n::t("Al lavoro").into();
     });
     crate::log::line(format!("compiti: avviato {id}"));
@@ -682,9 +794,13 @@ async fn run(app: &AppHandle, id: &str) {
         TaskState::Asking => task.as_ref().map(|t| tf("Attende te: {q}", &[("q", &t.question)])).unwrap_or_default(),
         _ => why.clone(),
     };
-    note(id, &summary);
-    crate::log::line(format!("compiti: {id} finito come {state:?}"));
-    if state == TaskState::Asking {
+    let quiet = state == TaskState::Done && task.as_ref().is_some_and(|t| t.quiet);
+    note(id, if quiet { t("Niente da segnalare") } else { &summary });
+    crate::log::line(format!("compiti: {id} finito come {state:?}{}", if quiet { ", niente da segnalare" } else { "" }));
+    if quiet {
+        // Nothing to say: the session goes away, no card, no message.
+        session_end(app, id);
+    } else if state == TaskState::Asking {
         let mut n = payload("Notification", id);
         n.insert("message".into(), json!(summary));
         n.insert("easyisland_waiting".into(), json!(true));
@@ -695,7 +811,7 @@ async fn run(app: &AppHandle, id: &str) {
         hook(app, stop);
     }
     // On Telegram too, when it is linked: done, failed, waiting for you.
-    if matches!(state, TaskState::Done | TaskState::Failed | TaskState::Asking | TaskState::Paused) {
+    if !quiet && matches!(state, TaskState::Done | TaskState::Failed | TaskState::Asking | TaskState::Paused) {
         let title = task.as_ref().map(|t| t.title.clone()).unwrap_or_default();
         let head = match state {
             TaskState::Done => "✅",
@@ -786,10 +902,12 @@ pub fn tool_note(app: &AppHandle, args: &Value) -> Result<String, String> {
 pub fn tool_done(app: &AppHandle, args: &Value) -> Result<String, String> {
     let (app, id) = current(app)?;
     let result = str_arg(args, "result");
+    let quiet = args.get("quiet").and_then(Value::as_bool).unwrap_or(false);
     TOOLED.store(true, Ordering::SeqCst);
     update(&app, &id, |t| {
         t.result = result.chars().take(4000).collect();
         t.state = TaskState::Done;
+        t.quiet = quiet;
     }).ok_or(t("Compito non trovato."))?;
     Ok(t("Compito chiuso. Non serve altro in questo turno.").into())
 }
@@ -934,6 +1052,19 @@ mod tests {
     }
 
     #[test]
+    fn every_and_weekly() {
+        assert!(check_when("every:30").is_ok() && check_when("weekly:1:09:00").is_ok());
+        assert!(check_when("every:5").is_err() && check_when("weekly:8:09:00").is_err());
+        assert!(due("every:30", "2026-10-23 10:30", 5, "2026-10-23 10:00"));
+        assert!(!due("every:30", "2026-10-23 10:29", 5, "2026-10-23 10:00"));
+        assert!(due("every:60", "2026-11-01 00:10", 7, "2026-10-31 23:05"), "across a month");
+        assert!(due("every:60", "2026-10-23 10:00", 5, ""), "never ran: now");
+        assert!(due("weekly:5:09:00", "2026-10-23 09:00", 5, "2026-10-16 09:00"));
+        assert!(!due("weekly:5:09:00", "2026-10-22 09:00", 4, ""), "not its day");
+        assert_eq!(minutes("1970-01-02 00:01"), Some(1441));
+    }
+
+    #[test]
     fn ids_name_files_safely() {
         assert!(valid_id("20261023101500-a1b2c3"));
         for bad in ["", "../x", "a b", "a\\b", "x.json"] {
@@ -947,7 +1078,7 @@ mod tests {
             id: "1".into(), title: "Resoconto".into(), goal: "Prepara il resoconto di Rossi".into(), engine: String::new(), model: String::new(), helpers: Vec::new(),
             state: TaskState::Running, plan: vec![Step { text: "Leggi i ticket".into(), done: true }, Step { text: "Scrivi la bozza".into(), done: false }],
             when: String::new(), last_fired: String::new(), question: "Che mese?".into(), answer: "Settembre".into(),
-            result: String::new(), last: String::new(), turns: 0, runs: 0, created: String::new(), updated: String::new(),
+            result: String::new(), last: String::new(), turns: 0, runs: 0, quiet: false, heartbeat: false, created: String::new(), updated: String::new(),
         };
         let first = prompt(&task, true);
         assert!(first.contains("Prepara il resoconto di Rossi") && first.contains("task_plan"));
