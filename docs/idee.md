@@ -7,7 +7,8 @@ Obiettivo di Edoardo: EasyIsland diventa il suo agente personale, programmabile 
 
 **Vincoli che restano** (`CLAUDE.md`): mai inviare email, approvare permessi o eliminare senza un clic (salvo «Automatica» accesa dall'utente); comandi solo con la Modalità terminale; CPU ~0 % a isola ritirata, quindi il lavoro dell'agente sta in Rust, svegliato da orari ed eventi, mai da un ciclo continuo. Nessun server in mezzo: gira sul PC, si raggiunge dall'isola e da Telegram.
 
-### Passo 1 — Compiti (`tasks.rs`, `src/views/tasks.ts`)
+### Passo 1 — Compiti (`tasks.rs`)
+- **Fatto il 23 ottobre 2026** (come funziona: `docs/chat.md` → Compiti). Rispetto al piano qui sotto: niente vista nuova (il compito è una sessione della scheda Agenti); i permessi di un compito vanno solo nell'isola, Telegram riceve gli avvisi; niente riquadro nella Panoramica (c'è la sessione di Agenti). **Resta:** permessi e domande dei compiti anche come pulsanti in Telegram, costo stimato nella card, più compiti insieme.
 Un compito è un obiettivo («prepara il resoconto mensile per Rossi entro venerdì», «segui il ticket 482 e avvisami se il cliente risponde») che l'agente scompone in passi e porta avanti da solo, anche a isola chiusa, finché è fatto, ha bisogno di te o finisce il tempo concesso.
 - **Dati:** un file per compito in `%APPDATA%\EasyIsland\compiti\<id>.json` (scrittura con `settings::write_atomic`) e il suo registro leggibile `<id>.md`. Campi: titolo, obiettivo, motore e modello, stato, piano (passi con stato), quando (subito, a un'ora, ricorrente, a un evento), scadenza, limiti (turni, minuti, token), cartella di lavoro, sessione del motore per riprendere, risultato, registro delle azioni.
 - **Stati:** da pianificare → in corso → attende te → in pausa → fatto / non riuscito / fermato. Un riavvio di EasyIsland mette in pausa quelli in corso, con «Riprendi».

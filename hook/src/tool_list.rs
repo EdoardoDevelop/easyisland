@@ -260,7 +260,7 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "create_automation",
-            "Crea un'automazione \"quando… se… allora…\" che poi gira da sola. L'utente vede l'anteprima e conferma. Prima usa list_quick_actions, list_profiles e list_status per gli id. trigger.kind: time (time \"HH:MM\", days 1=lun…7=dom, vuoto = ogni giorno) | startup (delay secondi dopo l'avvio di EasyIsland, con il PC) | unlock (sblocco del PC) | wifi (ssid) | app (exe che parte, es. teams.exe) | foreground (exe che passa in primo piano) | drive (chiavetta o disco collegato) | folder (folder: nuovo file nella cartella) | download (download finito) | integration (source: id di un'integrazione-controllo o widget da list_status; when: problem | event | any) | call (chiamata 3CX in arrivo) | agent (when: stop = un agente ha finito | permission = aspetta un permesso | any) | server (parte un server di sviluppo) | back (rientro dopo almeno minutes minuti senza tastiera e mouse) | teams (when: start = inizia una riunione Teams | end = finisce). trigger.filter per folder, download, integration, call, agent, server: parole separate da virgola, \".pdf\" = estensione, altrimenti contenuta nel nome del file, chiamante, progetto. profile: id di un profilo o vuoto. conditions (tutte vere, not = la negazione): hours (from, to \"HH:MM\", days) | wifi (ssid) | app (exe aperto) | foreground (exe in primo piano) | battery (percent 0 = a batteria, altrimenti sotto il percent %) | idle (minutes senza tastiera e mouse) | meeting (microfono o webcam in uso) | client (davanti al cliente). repeat: \"\" ogni volta | every (al massimo ogni every minuti) | day (una volta al giorno). steps in ordine, kind: quick (id azione rapida) | notice (title, text, level info/ok/warn/error) | profile (id) | app (target, args) | url (url) | chat (text: la domanda da mandare alla chat). In notice, url, app e chat si possono usare i dati del quando: {file} {percorso} {cartella} (folder, download, agent), {rete}, {programma}, {unità}, {testo} {fonte} (integration), {chiamante} {numero} (call), {agente} {progetto} (agent), {porta} {link} (server), {minuti} (back), sempre {ora} e {data}. notify: avvisa ogni volta che gira.",
+            "Crea un'automazione \"quando… se… allora…\" che poi gira da sola. L'utente vede l'anteprima e conferma. Prima usa list_quick_actions, list_profiles e list_status per gli id. trigger.kind: time (time \"HH:MM\", days 1=lun…7=dom, vuoto = ogni giorno) | startup (delay secondi dopo l'avvio di EasyIsland, con il PC) | unlock (sblocco del PC) | wifi (ssid) | app (exe che parte, es. teams.exe) | foreground (exe che passa in primo piano) | drive (chiavetta o disco collegato) | folder (folder: nuovo file nella cartella) | download (download finito) | integration (source: id di un'integrazione-controllo o widget da list_status; when: problem | event | any) | call (chiamata 3CX in arrivo) | agent (when: stop = un agente ha finito | permission = aspetta un permesso | any) | server (parte un server di sviluppo) | back (rientro dopo almeno minutes minuti senza tastiera e mouse) | teams (when: start = inizia una riunione Teams | end = finisce). trigger.filter per folder, download, integration, call, agent, server: parole separate da virgola, \".pdf\" = estensione, altrimenti contenuta nel nome del file, chiamante, progetto. profile: id di un profilo o vuoto. conditions (tutte vere, not = la negazione): hours (from, to \"HH:MM\", days) | wifi (ssid) | app (exe aperto) | foreground (exe in primo piano) | battery (percent 0 = a batteria, altrimenti sotto il percent %) | idle (minutes senza tastiera e mouse) | meeting (microfono o webcam in uso) | client (davanti al cliente). repeat: \"\" ogni volta | every (al massimo ogni every minuti) | day (una volta al giorno). steps in ordine, kind: quick (id azione rapida) | notice (title, text, level info/ok/warn/error) | profile (id) | app (target, args) | url (url) | chat (text: la domanda da mandare alla chat) | task (title, text: l'obiettivo di un compito che EasyIsland porta avanti da solo). In notice, url, app, chat e task si possono usare i dati del quando: {file} {percorso} {cartella} (folder, download, agent), {rete}, {programma}, {unità}, {testo} {fonte} (integration), {chiamante} {numero} (call), {agente} {progetto} (agent), {porta} {link} (server), {minuti} (back), sempre {ora} e {data}. notify: avvisa ogni volta che gira.",
             json!({ "type": "object", "properties": {
                 "name": { "type": "string" },
                 "trigger": { "type": "object", "properties": {
@@ -291,7 +291,7 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
                 "repeat": { "type": "string", "enum": ["", "every", "day"] },
                 "every": { "type": "integer" },
                 "steps": { "type": "array", "items": { "type": "object", "properties": {
-                    "kind": { "type": "string", "enum": ["quick", "notice", "profile", "app", "url", "chat"] },
+                    "kind": { "type": "string", "enum": ["quick", "notice", "profile", "app", "url", "chat", "task"] },
                     "id": { "type": "string" },
                     "title": { "type": "string" },
                     "text": { "type": "string" },
@@ -327,6 +327,61 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
                 "value": {}
             }, "required": ["key", "value"] }),
             false,
+        ),
+        (
+            "task_plan",
+            "Solo dentro un compito di EasyIsland: scrive o corregge il piano del compito. steps: i passi, brevi e concreti, nell'ordine (al massimo 20). I passi già fatti con le stesse parole restano fatti.",
+            json!({ "type": "object", "properties": {
+                "steps": { "type": "array", "items": { "type": "string" } }
+            }, "required": ["steps"] }),
+            true,
+        ),
+        (
+            "task_step",
+            "Solo dentro un compito: segna un passo del piano. index: il numero del passo (da 1); done: true se fatto (predefinito), false se va rifatto; note: cosa è stato fatto, in breve.",
+            json!({ "type": "object", "properties": {
+                "index": { "type": "integer", "minimum": 1 },
+                "done": { "type": "boolean" },
+                "note": { "type": "string" }
+            }, "required": ["index"] }),
+            true,
+        ),
+        (
+            "task_note",
+            "Solo dentro un compito: una riga nel registro del compito (cosa hai trovato, cosa hai deciso).",
+            json!({ "type": "object", "properties": { "text": { "type": "string" } }, "required": ["text"] }),
+            true,
+        ),
+        (
+            "task_ask",
+            "Solo dentro un compito: fa una domanda all'utente con una card nell'isola (pulsanti per options, più un campo per una risposta libera). Restituisce la risposta; se non risponde subito il compito aspetta e devi chiudere il turno. question: la domanda; options: fino a 6 risposte possibili.",
+            json!({ "type": "object", "properties": {
+                "question": { "type": "string" },
+                "options": { "type": "array", "items": { "type": "string" } }
+            }, "required": ["question"] }),
+            true,
+        ),
+        (
+            "task_done",
+            "Solo dentro un compito: lo chiude come fatto. result: il risultato per l'utente, breve e utile (cosa è stato fatto, dove trovarlo, cosa resta a lui).",
+            json!({ "type": "object", "properties": { "result": { "type": "string" } }, "required": ["result"] }),
+            true,
+        ),
+        (
+            "task_create",
+            "Crea un compito di EasyIsland: un obiettivo che l'agente porta avanti da solo, a turni, con un piano, finché è fatto o gli serve l'utente. Usalo quando l'utente chiede di fare qualcosa più tardi, a un orario, ogni giorno, o un lavoro lungo. title: breve; goal: cosa fare, con tutti i dettagli che servono; when: vuoto = subito, \"at:AAAA-MM-GG HH:MM\", \"daily:HH:MM\" o \"weekdays:HH:MM\". L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "title": { "type": "string" },
+                "goal": { "type": "string" },
+                "when": { "type": "string" }
+            }, "required": ["goal"] }),
+            false,
+        ),
+        (
+            "task_list",
+            "I compiti di EasyIsland: id, titolo, stato (scheduled, queued, running, asking, paused, done, failed, stopped), passi fatti e ultima riga.",
+            none.clone(),
+            true,
         ),
         (
             "switch_profile",

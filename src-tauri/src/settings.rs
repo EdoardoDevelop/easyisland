@@ -370,6 +370,12 @@ impl Default for Theme {
     }
 }
 
+fn default_task_turns() -> u32 {
+    crate::tasks::DEFAULT_TURNS
+}
+fn default_task_minutes() -> u32 {
+    crate::tasks::DEFAULT_MINUTES
+}
 fn default_style() -> String {
     "windows".into()
 }
@@ -526,6 +532,13 @@ pub struct Settings {
     /// The chat history (chat_log.rs): conversations kept on this PC to reopen.
     #[serde(default = "default_true")]
     pub chat_history: bool,
+    /// Compiti (tasks.rs): their engine ("" = the chat's) and how long one run may go on.
+    #[serde(default)]
+    pub tasks_engine: String,
+    #[serde(default = "default_task_turns")]
+    pub tasks_max_turns: u32,
+    #[serde(default = "default_task_minutes")]
+    pub tasks_max_minutes: u32,
     /// "primary" = the main display, "cursor" = whichever display the mouse is on.
     pub screen: String,
     pub autostart: bool,
@@ -883,6 +896,9 @@ impl Default for Settings {
             moment_servers: true,
             clear_secrets: true,
             chat_history: true,
+            tasks_engine: String::new(),
+            tasks_max_turns: default_task_turns(),
+            tasks_max_minutes: default_task_minutes(),
             language: String::new(),
             screen: "primary".into(),
             autostart: false,

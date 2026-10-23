@@ -472,6 +472,13 @@ async fn run_step(app: &AppHandle, step: &Step, actions: &[Value], ctx: &Ctx) ->
             let _ = app.emit_to(WINDOW_LABEL, "automation-ask", prompt);
             Ok(t("domanda mandata alla chat").into())
         }
+        // A task (tasks.rs) with the trigger's data in its goal: the agent works on it by itself.
+        "task" => {
+            let goal = fill(step.text.trim(), ctx, &plain);
+            let title = fill(step.title.trim(), ctx, &plain);
+            let task = crate::tasks::create(app, &title, &goal, "", "")?;
+            Ok(tf("compito «{title}» in coda", &[("title", &task.title)]))
+        }
         other => Err(tf("passo sconosciuto: {other}", &[("other", &other)])),
     }
 }
@@ -526,7 +533,7 @@ const TRIGGER_KINDS: &[&str] = &[
     "time", "startup", "unlock", "wifi", "app", "foreground", "drive", "folder", "download", "integration", "call", "agent",
     "server", "back", "teams",
 ];
-const STEP_KINDS: &[&str] = &["quick", "notice", "profile", "app", "url", "chat"];
+const STEP_KINDS: &[&str] = &["quick", "notice", "profile", "app", "url", "chat", "task"];
 const CONDITION_KINDS: &[&str] = &["hours", "wifi", "app", "foreground", "battery", "idle", "meeting", "client"];
 
 /// "HH:MM" → minutes since midnight.
@@ -656,6 +663,7 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
                 return Err("steps[].url deve iniziare con http:// o https:// (o con {link}).".into());
             }
             "chat" if st.text.trim().is_empty() => return Err("steps[].text: la domanda per la chat.".into()),
+            "task" if st.text.trim().is_empty() => return Err("steps[].text: l'obiettivo del compito.".into()),
             _ => {}
         }
         if st.level.is_empty() {
@@ -745,6 +753,7 @@ pub fn describe(a: &Automation, s: &crate::settings::Settings) -> String {
             "app" => format!("apri {}", st.target),
             "url" => format!("apri {}", st.url),
             "chat" => format!("chiedi alla chat «{}»", st.text),
+            "task" => format!("avvia il compito «{}»", if st.title.is_empty() { &st.text } else { &st.title }),
             k => k.to_string(),
         })
         .collect();

@@ -41,7 +41,12 @@ pub fn allowed_without_asking(tool_name: &str) -> bool {
 fn offered() -> Vec<(&'static str, &'static str, Value, bool)> {
     let chat = in_chat();
     // The remote PC (remote_*) is the chat's only: never Claude Code elsewhere.
-    tools().into_iter().filter(|t| if chat { t.0 != "show_card" } else { !t.0.starts_with("remote_") && !t.0.starts_with("memory_") }).collect()
+    tools().into_iter().filter(|t| if chat { t.0 != "show_card" } else { !t.0.starts_with("remote_") && !t.0.starts_with("memory_") && !inside_task(t.0) }).collect()
+}
+
+/// The tools a task uses on itself (tasks.rs): only in the app's own turns.
+fn inside_task(name: &str) -> bool {
+    matches!(name, "task_plan" | "task_step" | "task_note" | "task_ask" | "task_done")
 }
 
 /// Names of the tools that change nothing (or nothing that matters). The app
@@ -120,7 +125,7 @@ pub fn handle(msg: &Value) -> Option<Value> {
                 "protocolVersion": version,
                 "capabilities": { "tools": {} },
                 "serverInfo": { "name": "easyisland", "version": env!("CARGO_PKG_VERSION") },
-                "instructions": "Strumenti di EasyIsland sul PC dell'utente: avvisi e card nell'isola (show_notice, show_card con pulsanti), il Vassoio dei file (add_to_tray, list_uploaded_files), la cartella di lavoro (list_work_folder, move_to_work_folder), aprire programmi e link, eseguire le sue azioni rapide, leggere lo stato di PC, rete, meteo, posta e ticket, gestire appunti e musica, leggere e scrivere nel Notion dell'utente con il collegamento di EasyIsland (notion_map, notion_search, notion_read, notion_query, notion_add_row, notion_update_row, notion_delete_row), le attività di Microsoft To Do da Outlook classico (todo_list, todo_add, todo_update), nella chat il PC remoto collegato in «Accesso remoto» (remote_status, remote_run) e la memoria della chat (memory_search, memory_note). Le azioni che cambiano qualcosa chiedono conferma all'utente."
+                "instructions": "Strumenti di EasyIsland sul PC dell'utente: avvisi e card nell'isola (show_notice, show_card con pulsanti), il Vassoio dei file (add_to_tray, list_uploaded_files), la cartella di lavoro (list_work_folder, move_to_work_folder), aprire programmi e link, eseguire le sue azioni rapide, leggere lo stato di PC, rete, meteo, posta e ticket, gestire appunti e musica, leggere e scrivere nel Notion dell'utente con il collegamento di EasyIsland (notion_map, notion_search, notion_read, notion_query, notion_add_row, notion_update_row, notion_delete_row), le attività di Microsoft To Do da Outlook classico (todo_list, todo_add, todo_update), nella chat il PC remoto collegato in «Accesso remoto» (remote_status, remote_run) e la memoria della chat (memory_search, memory_note) e i compiti, obiettivi che EasyIsland porta avanti da solo nel tempo (task_create, task_list). Le azioni che cambiano qualcosa chiedono conferma all'utente."
             }))
         }
         "ping" => result(id, json!({})),

@@ -6,7 +6,7 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
-import { folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationCondition, type AutomationStep, type AutomationTrigger, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type WidgetDef } from "../core/state";
+import { type AgentTaskItem, type TaskState, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationCondition, type AutomationStep, type AutomationTrigger, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
@@ -3032,6 +3032,7 @@ const STEP_KINDS: [AutomationStep["kind"], string][] = [
   ["quick", t("Esegui un'azione rapida")],
   ["notice", t("Mostra un avviso nell'isola")],
   ["chat", t("Chiedi alla chat")],
+  ["task", t("Avvia un compito")],
   ["profile", t("Passa a un profilo")],
   ["app", t("Apri un programma o una cartella")],
   ["url", t("Apri un link")],
@@ -3342,6 +3343,11 @@ function automationsSection(): HTMLElement {
             break;
           case "chat":
             row.append(field(s.text, t("la domanda, es. Riassumi {percorso}"), (v) => { s.text = v; }));
+            break;
+          case "task":
+            row.append(
+              field(s.title, t("Titolo"), (v) => { s.title = v; }, "width:160px"),
+              field(s.text, t("l'obiettivo, es. Leggi {percorso} e preparami un riassunto in Notion"), (v) => { s.text = v; }));
             break;
           case "profile": {
             if (!s.id && settings.profiles[0]) s.id = settings.profiles[0].id;
@@ -4047,6 +4053,212 @@ function themeSection(): HTMLElement {
   );
 }
 
+// ── Compiti (tasks.rs) ─────────────────────────────────────────────────────────
+
+let taskItems: AgentTaskItem[] = [];
+/** The task whose log is open. */
+let taskLogOpen = "";
+
+const TASK_STATE: Record<TaskState, [string, string]> = {
+  scheduled: [t("Programmato"), "off"],
+  queued: [t("In coda"), "off"],
+  running: [t("Al lavoro"), "ok"],
+  asking: [t("Attende te"), "warn"],
+  paused: [t("In pausa"), "warn"],
+  done: [t("Fatto"), "ok"],
+  failed: [t("Non riuscito"), "warn"],
+  stopped: [t("Fermato"), "off"],
+};
+
+/** "daily:09:00" → "ogni giorno alle 09:00". */
+function whenLabel(when: string): string {
+  if (!when) return t("subito");
+  const cut = when.indexOf(":");
+  const kind = when.slice(0, cut);
+  const rest = when.slice(cut + 1);
+  if (kind === "at") return t("il {when}", { when: rest });
+  if (kind === "daily") return t("ogni giorno alle {time}", { time: rest });
+  if (kind === "weekdays") return t("dal lunedì al venerdì alle {time}", { time: rest });
+  return when;
+}
+
+/** The form for a new task and the list of all of them. */
+function tasksSection(): HTMLElement {
+  const list = h("div", { class: "tasks", id: "tasks-list" });
+  const feedback = h("div", {});
+  const title = h("input", { type: "text", placeholder: t("Titolo (facoltativo)"), style: "flex:1 1 220px" }) as HTMLInputElement;
+  const goal = h("textarea", { placeholder: t("Cosa deve fare, con i dettagli che servono. Es.: guarda i ticket nuovi di Zammad e le mail dei clienti e preparami un riepilogo con le priorità in una pagina di Notion.") }) as HTMLTextAreaElement;
+  const date = h("input", { type: "date" }) as HTMLInputElement;
+  const time = h("input", { type: "time", value: "09:00" }) as HTMLInputElement;
+  const kind = select<"now" | "at" | "daily" | "weekdays">(
+    [["now", t("Subito")], ["at", t("A un'ora")], ["daily", t("Ogni giorno")], ["weekdays", t("Dal lunedì al venerdì")]],
+    "now",
+    () => paintWhen(),
+  );
+  const paintWhen = () => {
+    date.style.display = kind.value === "at" ? "" : "none";
+    time.style.display = kind.value === "now" ? "none" : "";
+  };
+  paintWhen();
+  const add = h("button", { class: "primary", text: t("Crea compito") }) as HTMLButtonElement;
+  add.addEventListener("click", async () => {
+    clear(feedback);
+    let when = "";
+    if (kind.value === "at") when = `at:${date.value} ${time.value}`;
+    else if (kind.value !== "now") when = `${kind.value}:${time.value}`;
+    try {
+      await Bridge.taskNew(title.value, goal.value, when, "");
+      title.value = "";
+      goal.value = "";
+      await refreshTasks();
+    } catch (e) {
+      feedback.append(h("div", { class: "notice err", text: String(e) }));
+    }
+  });
+  void refreshTasks();
+  return h("section", {},
+    h("h2", {}, h("span", { text: t("Nuovo compito") })),
+    h("div", { class: "row" }, title),
+    goal,
+    h("div", { class: "row" }, h("label", { text: t("Quando") }), kind, date, time, h("span", { class: "spacer" }), add),
+    feedback,
+    h("span", { class: "hint", text: t("Puoi crearli anche dalla chat («/compito …», oppure a parole) e da Telegram. Mentre lavora lo vedi nella scheda Agenti dell'isola: permessi e domande arrivano lì.") }),
+    h("h2", {}, h("span", { text: t("I tuoi compiti") })),
+    list,
+  );
+}
+
+async function refreshTasks() {
+  taskItems = (await Bridge.tasksList()) ?? [];
+  paintTasks();
+}
+
+function paintTasks() {
+  const list = document.getElementById("tasks-list");
+  if (!list) return;
+  clear(list);
+  if (!taskItems.length) {
+    list.append(h("span", { class: "hint", text: t("Ancora nessun compito.") }));
+    return;
+  }
+  for (const task of [...taskItems].reverse()) list.append(taskRow(task));
+}
+
+type TaskAction = "start" | "pause" | "resume" | "stop" | "delete";
+
+function taskRow(task: AgentTaskItem): HTMLElement {
+  const [label, tone] = TASK_STATE[task.state] ?? [task.state, "off"];
+  const done = task.plan.filter((s) => s.done).length;
+  const buttons = h("div", { class: "row" });
+  const btn = (text: string, action: TaskAction, cls = "") => {
+    const b = h("button", { class: cls, text }) as HTMLButtonElement;
+    b.addEventListener("click", async () => {
+      b.disabled = true;
+      try {
+        await Bridge.taskControl(task.id, action);
+      } catch (e) {
+        console.warn(e);
+      }
+      await refreshTasks();
+    });
+    buttons.append(b);
+  };
+  switch (task.state) {
+    case "running":
+      btn(t("Pausa"), "pause");
+      btn(t("Ferma"), "stop");
+      break;
+    case "paused":
+      btn(t("Riprendi"), "resume", "primary");
+      btn(t("Ferma"), "stop");
+      break;
+    case "queued":
+    case "asking":
+      btn(t("Ferma"), "stop");
+      break;
+    case "scheduled":
+      btn(t("Avvia ora"), "start");
+      break;
+    default:
+      btn(t("Rifai"), "start");
+  }
+  const log = h("button", { text: taskLogOpen === task.id ? t("Chiudi registro") : t("Registro") });
+  log.addEventListener("click", () => {
+    taskLogOpen = taskLogOpen === task.id ? "" : task.id;
+    paintTasks();
+  });
+  buttons.append(log, h("span", { class: "spacer" }));
+  btn(t("Elimina"), "delete", "danger");
+
+  const meta = [whenLabel(task.when), task.plan.length ? t("{done} di {n} passi", { done, n: task.plan.length }) : "", task.updated].filter(Boolean).join(" · ");
+  const body = h("div", { class: "task-body" }, h("div", { class: "hint", text: task.goal }), h("div", { class: "hint", text: meta }));
+  if (task.plan.length) {
+    body.append(h("ol", { class: "task-plan" }, ...task.plan.map((s) => h("li", { class: s.done ? "done" : "", text: s.text }))));
+  }
+  if (task.result) body.append(h("div", { class: "notice ok task-result", text: task.result }));
+  else if (task.last) body.append(h("div", { class: "hint", text: task.last }));
+  if (task.state === "asking") {
+    const reply = h("input", { type: "text", placeholder: t("La tua risposta"), style: "flex:1 1 260px" }) as HTMLInputElement;
+    const send = h("button", { class: "primary", text: t("Rispondi") }) as HTMLButtonElement;
+    const go = async () => {
+      if (!reply.value.trim()) return;
+      try {
+        await Bridge.taskAnswer(task.id, reply.value);
+      } catch (e) {
+        console.warn(e);
+      }
+      await refreshTasks();
+    };
+    send.addEventListener("click", () => void go());
+    reply.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") void go();
+    });
+    body.append(h("div", { class: "notice warn", text: task.question }), h("div", { class: "row" }, reply, send));
+  }
+  body.append(buttons);
+  if (taskLogOpen === task.id) {
+    const pre = h("div", { class: "diff task-log", text: "…" });
+    void Bridge.taskLog(task.id).then((text) => {
+      pre.textContent = text || t("Registro vuoto.");
+    });
+    body.append(pre);
+  }
+  return h("div", { class: "task", "data-item": task.id },
+    h("div", { class: "task-head" },
+      h("span", { class: "task-title", text: task.title }),
+      h("span", { class: `int-state ${tone}`, text: label })),
+    body);
+}
+
+/** Engine and limits of the tasks. */
+function tasksSettingsSection(): HTMLElement {
+  const engine = h("select", {}) as HTMLSelectElement;
+  engine.append(h("option", { value: "", text: t("Quello della chat") }));
+  for (const e of CHAT_ENGINES) engine.append(h("option", { value: e.id, text: e.name }));
+  engine.value = settings.tasksEngine ?? "";
+  engine.addEventListener("change", () => {
+    settings.tasksEngine = engine.value;
+    void save();
+  });
+  return h("section", {},
+    h("h2", {}, h("span", { text: t("Come lavorano") })),
+    h("div", { class: "row" }, h("label", { text: t("Motore") }), engine,
+      h("span", { class: "hint note", text: t("serve un motore con gli strumenti: Claude con l'abbonamento (consigliato), Claude con la chiave API, opencode o Antigravity; gli altri rispondono soltanto") })),
+    h("div", { class: "row" }, h("label", { text: t("Turni per volta") }),
+      slider(1, 50, 1, settings.tasksMaxTurns ?? 12, "", (v) => {
+        settings.tasksMaxTurns = v;
+        void save();
+      }),
+      h("span", { class: "hint note", text: t("poi il compito va in pausa e lo riprendi tu: così tempo e costi restano sotto controllo") })),
+    h("div", { class: "row" }, h("label", { text: t("Minuti per volta") }),
+      slider(5, 240, 5, settings.tasksMaxMinutes ?? 30, " min", (v) => {
+        settings.tasksMaxMinutes = v;
+        void save();
+      })),
+    h("span", { class: "hint", text: t("Un compito alla volta, gli altri in coda. Ha gli stessi strumenti e permessi della chat: inviare, eliminare o approvare resta sempre un tuo clic.") }),
+  );
+}
+
 // ── Backup ────────────────────────────────────────────────────────────────────
 
 /** Impostazioni → Generale → Aggiornamenti: the version, the daily check, "Controlla ora". */
@@ -4193,6 +4405,12 @@ async function main() {
   boot = { status, hasKey, present };
   render();
 
+  // Compiti: the list follows the tasks while they work (tasks.rs).
+  void onEvent<AgentTaskItem[]>("tasks-changed", (list) => {
+    taskItems = list;
+    paintTasks();
+  });
+
   // The island's context menu: "Impostazioni «Zammad»" lands on its row, open.
   void onEvent<{ page: string; item: string }>("settings-goto", ({ page, item }) => {
     try {
@@ -4289,6 +4507,11 @@ function pages(b: NonNullable<typeof boot>): Page[] {
       id: "azioni", label: t("Azioni rapide"), icon: "bolt", color: "#FACC15", title: t("Azioni rapide"),
       intro: t("Pulsanti della scheda ⚡ e scorciatoie da tastiera."),
       sections: () => [actionsSection()],
+    },
+    {
+      id: "compiti", label: t("Compiti"), icon: "check", color: "#0EA5E9", title: t("Compiti"),
+      intro: t("Obiettivi che EasyIsland porta avanti da solo: fa un piano, lo segue con gli strumenti della chat, ti chiede quando serve e ti dice com'è andata."),
+      sections: () => [tasksSection(), tasksSettingsSection()],
     },
     {
       id: "automazioni", label: t("Automazioni"), icon: "rocket", color: "#22D3EE", title: t("Automazioni"),

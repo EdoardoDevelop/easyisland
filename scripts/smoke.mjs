@@ -19,7 +19,7 @@ const PORT = 9334;
 const ALL = "integration_network,integration_weather,integration_zammad,integration_media,integration_clipboard,integration_3cx,integration_system,integration_security,integration_claude_usage,integration_github,integration_n8n";
 
 const SCENES = [
-  "greeting", "compact", "overview", "approval", "permission", "chat", "chat&history", "agenti", "agents", "recap", "drop",
+  "greeting", "compact", "overview", "approval", "permission", "chat", "chat&history", "agenti", "compiti", "compiti&ask", "agents", "recap", "drop",
   "files", "actions", "threecx", "clipboard", "media", "network", "usage", "meteo", "meteo&sky=storm&night", "suggestion",
   "rewrite", "diff", "finished", "stop", "capture", "strip&strip=approval", "strip&strip=call", "strip&strip=live",
   "strip&strip=work&compactStrip=left",
@@ -30,7 +30,7 @@ const SCENES = [
 ];
 
 // The settings window, page by page: every select, switch and field changed.
-const SETTINGS = ["generale", "aspetto", "notifiche", "chat", "claude", "azioni", "automazioni", "integrazioni", "widget", "backup"];
+const SETTINGS = ["generale", "aspetto", "notifiche", "chat", "claude", "azioni", "compiti", "automazioni", "integrazioni", "widget", "backup"];
 
 const EDGE = [
   join(process.env["ProgramFiles(x86)"] ?? "", "Microsoft/Edge/Application/msedge.exe"),

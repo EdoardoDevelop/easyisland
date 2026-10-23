@@ -2,6 +2,13 @@
 
 Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli una voce quando è provata, e annota in `HANDOFF.md` ciò che non va.
 
+- [ ] **Compiti (23 ottobre 2026):** provato qui un compito da cima a fondo con l'abbonamento (piano, strumenti, passi, risultato). Restano:
+  1. una domanda (`task_ask`) con la card vera: risposta a un pulsante, risposta scritta, e nessuna risposta (il compito va in «Attende te», poi Rispondi in Impostazioni → Compiti);
+  2. un permesso (es. `notion_add_row`) chiesto da un compito con l'isola chiusa;
+  3. Pausa, Ferma e Riprendi mentre lavora; un compito a orario e uno ogni giorno;
+  4. `/compito` dalla chat e da Telegram, l'avviso su Telegram alla fine; il passo «Avvia un compito» di un'automazione;
+  5. un compito con opencode e uno con la chiave API.
+
 - [ ] **Chat nuova e memoria (21 ottobre 2026):**
   1. Ctrl+V di un'immagine e di un file copiato in Esplora file a conversazione avviata (chip 📎, il motore lo legge).
   2. Un file trascinato sull'isola durante una conversazione non la ricomincia.

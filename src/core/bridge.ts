@@ -4,7 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { Settings, WidgetStatus, PickedWindow } from "./state";
+import type { Settings, WidgetStatus, PickedWindow, AgentTaskItem } from "./state";
 import type { RecapHistory } from "../island/recap";
 
 export const IS_TAURI =
@@ -163,7 +163,9 @@ export const Bridge = {
   /** Downloads, verifies and runs the new installer; the app closes and restarts. */
   updateInstall: () => callOrThrow<void>("update_install"),
   /** Brings back the app a Claude Code session runs in (Claude, VS Code, a terminal). */
-  openSession: (host: string | null, path: string | null) => call<string>("open_session", { host, path }),
+  /** Back to where a session runs; a task of EasyIsland (tasks.rs) opens Impostazioni → Compiti. */
+  openSession: (host: string | null, path: string | null) =>
+    host === "compiti" ? call<string>("open_settings_at", { page: "compiti", item: "" }) : call<string>("open_session", { host, path }),
 
   quit: () => call<void>("quit_app"),
 
@@ -356,6 +358,12 @@ export const Bridge = {
   notionMapSync: () => callOrThrow<NotionMapStatus>("notion_map_sync"),
   /** The chat's memory (memory.rs): counts, a note («/ricorda»), opening MEMORIA.md or its folder. */
   memoryInfo: () => call<MemoryInfo>("memory_info"),
+  /** Compiti (tasks.rs). */
+  tasksList: () => call<AgentTaskItem[]>("tasks_list"),
+  taskNew: (title: string, goal: string, when: string, engine: string) => callOrThrow<AgentTaskItem>("task_new", { title, goal, when, engine }),
+  taskControl: (id: string, action: "start" | "pause" | "resume" | "stop" | "delete") => callOrThrow<void>("task_control", { id, action }),
+  taskAnswer: (id: string, text: string) => callOrThrow<void>("task_answer", { id, text }),
+  taskLog: (id: string) => call<string>("task_log", { id }),
   memoryNote: (text: string) => callOrThrow<string>("memory_note", { text }),
   memoryOpen: (folder: boolean) => callOrThrow<void>("memory_open", { folder }),
   /** Ctrl+V in the chat: files copied in Explorer or a picture, into the inbox (null: plain text). */

@@ -863,6 +863,31 @@ export async function runScene(island: Island, scene: string) {
       await wait(1500);
       break;
     }
+    case "compiti": {
+      // A task of EasyIsland at work (tasks.rs), as its hook payloads reach the
+      // island: the plan's steps in the Agenti tab. ?ask: its question card.
+      await wait(300);
+      (window as unknown as { island: Island }).island = island;
+      const task = { easyisland_agent: { id: "compiti", name: "Compiti", color: "#0EA5E9" }, easyisland_host: "compiti",
+        session_id: "task-1", cwd: "Resoconto mensile Rossi" };
+      handleHook(island, { hook_event_name: "SessionStart", ...task });
+      handleHook(island, { hook_event_name: "UserPromptSubmit", prompt: "Resoconto mensile Rossi", ...task });
+      for (const step of ["Piano: 4 passi", "Letti i 12 ticket di settembre", "Bozza del resoconto in Notion"]) {
+        handleHook(island, { hook_event_name: "PreToolUse", tool_name: "Compito", tool_input: { step }, ...task });
+        handleHook(island, { hook_event_name: "PostToolUse", tool_name: "Compito", tool_input: { step }, ...task });
+      }
+      if (new URLSearchParams(location.search).has("ask")) {
+        handleHook(island, { hook_event_name: "PermissionRequest", request_id: "ask-1", tool_name: "AskUserQuestion", ...task,
+          tool_input: { questions: [{ question: "Includo anche le ore di ottobre fatturate a parte?", header: "Compito",
+            options: [{ label: "Sì", description: "" }, { label: "No", description: "" }], multiSelect: false }] } });
+      } else {
+        State.setFocus("agent:compiti");
+        State.isPinned = true;
+        island.alert("overview");
+      }
+      await wait(1500);
+      break;
+    }
     case "moment": {
       // A proposal at the right moment (src/island/moments.ts), through the real
       // handler: ?moment=download (default), error, port, server, card, tray, recording.

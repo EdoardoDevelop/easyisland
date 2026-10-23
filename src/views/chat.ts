@@ -701,6 +701,21 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
     }
   }
 
+  /** «/compito …»: a task (tasks.rs) that starts now; it shows up in Agenti. */
+  async function newTask(goal: string) {
+    if (!goal.trim()) {
+      flash(t("Scrivi l'obiettivo dopo /compito"));
+      return;
+    }
+    try {
+      const task = await Bridge.taskNew("", goal, "", "");
+      flash(`✓ ${t("Compito «{title}» in coda: lo segui in Agenti", { title: task.title })}`);
+      Sound.play("finish");
+    } catch (err) {
+      flash(String(err).replace(/^Error:\s*/, ""));
+    }
+  }
+
   /** «Esporta»: the conversation as Markdown in the Vassoio. */
   async function exportChat() {
     if (!State.chatHistory.length) {
@@ -738,6 +753,7 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
       { name: "cronologia", hint: t("Le conversazioni di prima"), run: () => void toggleHistory() },
       { name: "cerca", hint: t("Cerca nelle conversazioni di prima"), arg: true, run: (a) => void toggleHistory(a) },
       { name: "ricorda", hint: t("Salva una nota nella memoria della chat"), arg: true, run: (a) => void remember(a) },
+      { name: "compito", hint: t("Un obiettivo che EasyIsland porta avanti da solo"), arg: true, run: (a) => void newTask(a) },
       { name: "memoria", hint: t("Apri la memoria della chat (MEMORIA.md)"), run: () => void Bridge.memoryOpen(false).catch((e) => flash(String(e))) },
       { name: "esporta", hint: t("La conversazione in Markdown, nel Vassoio"), run: () => void exportChat() },
       { name: "motore", hint: t("Cambia motore per questa chat"), run: () => void toggleEngineMenu() },

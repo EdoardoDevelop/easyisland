@@ -918,3 +918,60 @@ h3.int-sub {
   border-radius: 12px;
   transition: outline-color 0.6s;
 }
+
+/* Compiti (tasksSection). */
+.tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.task-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.task-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 600 13px var(--font);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-plan {
+  margin: 0 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12.5px;
+}
+
+.task-plan li.done {
+  color: var(--dim);
+  text-decoration: line-through;
+}
+
+.task-result,
+.task-log {
+  white-space: pre-wrap;
+  user-select: text;
+}
