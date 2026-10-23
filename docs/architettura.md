@@ -95,3 +95,14 @@ In release Rust ha `panic = "abort"`: un panic in qualsiasi thread chiude l'app.
 
 ## Coerenza visiva
 Animazioni, tempi e viste vengono dal prototipo originale di Coucou (storia git). Sono specifici di EasyIsland l'aspetto dei personaggi, l'icona dell'app e le opzioni di posizione elencate sopra.
+
+## Stili: Windows 11 e Classico (22 ottobre 2026)
+Chiesto da Edoardo: l'app «non sembrava un programma». Due stili per isola e Impostazioni, scelti in Impostazioni → Aspetto → Tema → Stile (`theme.style`, nei profili come il resto del tema): **Windows 11** (predefinito) e **Classico** (l'aspetto di prima, isola nera).
+- **Come funziona:** la pagina porta `<html data-ui="windows|classic">` (`src/core/uistyle.ts`, `applyUiStyle`, chiamata da `applyTheme` in `island.ts` e dalle Impostazioni all'avvio e a ogni cambio). Le regole del Windows 11 stanno solo in `src/style-windows.css` e `src/settings/settings-windows.css`, tutte sotto `html[data-ui="windows"]`: `style.css` e `settings.css` restano il Classico e non vanno toccati per il Windows 11.
+- **Colore d'accento:** `system_accent` (`lib.rs`) legge dal registro la tinta che Windows usa sugli sfondi scuri (`AccentPalette`, voce «light 2»; altrimenti `DWM\AccentColor`); la pagina la mette in `--win-accent`, letta al massimo una volta al minuto. Senza, l'azzurro predefinito di Windows (`#4cc2ff`).
+- **Isola:** il nero predefinito diventa `#1c1c1c` (`WINDOWS_ISLAND`); un colore scelto dall'utente resta il suo. Angoli a 10 px aperta e chiusa (`targetSize`); pillola e badge restano rotondi.
+- **Icone:** con il Windows 11 le integrazioni senza logo hanno un'icona a linea nel loro colore (`LINE_ICONS` in `icons.ts`, da `markIcon` in `dom.ts`) invece dell'emoji o del pallino; le voci fisse del menu sono a linea (`LINE_SECTIONS`, `rail.ts`). I loghi dei marchi e le emoji scelte dall'utente restano. Il menu ridisegna le icone quando cambia lo stile.
+- **Cosa resta del Classico** (scelto con Edoardo): i loghi grandi e sbiaditi nei riquadri della Panoramica, i colori delle integrazioni e delle azioni rapide, l'alone colorato in fondo alle schede, i personaggi e le animazioni.
+- **Impostazioni:** ogni riga con nome a sinistra, controllo a destra e la spiegazione (`.note`) sotto in piccolo; interruttori, campi, cursori e pulsanti come quelli di Windows; barra del titolo scura (`.theme(Dark)` in `create_settings_window`).
+- **Non fatto:** il tema chiaro. Isola e Impostazioni restano scure anche con Windows chiaro: lo stile Windows 11 è quello del tema scuro di Windows. Mica vero non c'è: chiederebbe una finestra trasparente per le Impostazioni (finestra creata nascosta all'avvio, vedi Memoria di WebView2); il grigio lo imita.
+- **Anteprima:** `?ui=classic` nell'isola e in `settings.html` mostra il Classico; `SHOT_QUERY=ui=classic SHOT_DIR=… node scripts/screenshots.mjs` fa le schermate in un'altra cartella. Le schermate del README sono nello stile Windows 11.

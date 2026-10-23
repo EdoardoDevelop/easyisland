@@ -31,8 +31,11 @@ import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state"
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
 import { locale, t } from "../core/i18n";
+import { applyUiStyle, uiStyle, windowsLook } from "../core/uistyle";
 
 const BOT_OVERHANG = 40;
+/** The island's background in the Windows 11 look when the user kept the default black. */
+const WINDOWS_ISLAND = "#1c1c1c";
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
 const HIT_MARGIN = 14;
 /** Around the island, a dragged file is still taken; same as DROP_MARGIN in island.rs. */
@@ -2074,7 +2077,8 @@ ${note}` : text };
     if (this.away && State.mode !== "expanded") h = 0;
     this.islandEl.style.setProperty("--extra-h", `${extra}px`);
     this.islandEl.style.setProperty("--extra-w", `${State.mode === "expanded" ? Math.max(0, w - EXPANDED_W) : 0}px`);
-    let r = State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
+    // Windows 11 look: close to a window's corner, open or closed (pill and badge stay round).
+    let r = windowsLook() ? 10 : State.mode === "expanded" ? EXPANDED_CORNER : ROUNDED_CORNER;
     // The hover badge is a circle; a floating bar is a pill.
     if (State.mode !== "expanded" && this.placement.hoverStyle === "icon") r = Math.min(compact.w, compact.h) / 2;
     else if (State.mode !== "expanded" && !isGlued(this.placement)) r = compact.h / 2;
@@ -2405,7 +2409,10 @@ ${note}` : text };
   private applyTheme() {
     const t = State.settings.theme;
     setCharacter(t.character);
-    const hex = /^#[0-9a-f]{6}$/i.test(t.islandColor) ? t.islandColor : "#000000";
+    applyUiStyle(t.style);
+    let hex = /^#[0-9a-f]{6}$/i.test(t.islandColor) ? t.islandColor : "#000000";
+    // Windows 11 look: the untouched black becomes the grey of Windows' dark surfaces.
+    if (uiStyle(t.style) === "windows" && hex === "#000000") hex = WINDOWS_ISLAND;
     const n = parseInt(hex.slice(1), 16);
     const a = Math.max(0.5, Math.min(1, t.islandOpacity));
     this.islandEl.style.background = `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;

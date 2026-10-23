@@ -1,6 +1,7 @@
 // Entry point: boot the bridge, wire the island, start the greeting.
 
 import "./style.css";
+import "./style-windows.css";
 import "./character/roster";
 import { Bridge, IS_TAURI, onEvent, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
@@ -62,6 +63,8 @@ async function main() {
     State.settings = { ...State.settings, ...overrides } as Settings;
     const who = params.get("character");
     if (who) State.settings.theme = { ...State.settings.theme, character: who };
+    // ?ui=classic: the original look.
+    if (params.get("ui") === "classic") State.settings.theme = { ...State.settings.theme, style: "classic" };
 
     // Frame the 720×320 "window" in the matching corner of the page.
     document.documentElement.classList.add("browser-preview");

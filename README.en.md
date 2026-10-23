@@ -49,7 +49,7 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
   watching"** mode, messages from any script, settings backup.
 - **Several characters** (Goccia, the default, Slime, Gecko, Flame, Magma, Stone,
   Rock and Leaf), free placement, an island as big as the screen opening where
-  you want, themes, sounds generated in code, interface in **Italian or
+  you want, Windows 11 or Classic style, themes, sounds generated in code, interface in **Italian or
   English**; light on battery, no telemetry.
 
 <p align="center">
@@ -57,6 +57,12 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 </p>
 
 ## What's new
+
+**0.9.8** — **Windows 11 look**, now the default: the island and the settings are grey like
+Windows' own windows, with the accent colour you picked in Windows, switches, fields and buttons
+like the system's, line icons instead of emojis and every setting on one line with its explanation
+below. The large logos in the Overview tiles and the integrations' colours stay. The previous look
+is still there: Settings → Look → Theme → Style → Classic.
 
 **0.9.7** — **A handier chat**: a multi-line field that keeps the draft, files pasted or dropped
 into a conversation going on, Copy / Edit / ↻ Regenerate / ⑂ Branch under the messages, `/`
@@ -147,6 +153,7 @@ the browser's. **Overview** with large, faded logos in the corner of each tile.
 
 | Version | Date | What's new |
 |---|---|---|
+| **0.9.8** | 22 Oct 2026 | Windows 11 look by default (grey, Windows' accent colour, line icons), Classic kept as a style |
 | **0.9.7** | 22 Oct 2026 | Handier chat (Edit, Regenerate, Branch, / commands, @ menu, Assistants, dictation) and memory in .md, less RAM |
 | **0.9.6** | 21 Oct 2026 | Remote access with WinRM and SSH for IT support, Notion rows deletable from the chat |
 | 0.9.5 | 20 Oct 2026 | Hooks in every shell (no Git Bash needed), Microsoft To Do, open island on another screen |

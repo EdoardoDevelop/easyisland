@@ -61,6 +61,7 @@ const ENTRIES: &[Entry] = &[
     Entry { key: "habitsEnabled", section: INTEGR, what: "osservare le abitudini per proporre automazioni", kind: Kind::Bool },
     Entry { key: "language", section: ISLAND, what: "lingua: it, en, o vuoto = quella di Windows", kind: Kind::Choice(&["", "it", "en"]) },
     Entry { key: "theme.character", section: ISLAND, what: "personaggio: drop (Goccia), slime, cube (EasyTech), gecko, flame (Fiamma), magma, stone (Pietra), rock (Roccia), leaf (Foglia)", kind: Kind::Choice(CHARACTERS) },
+    Entry { key: "theme.style", section: ISLAND, what: "stile di isola e impostazioni: windows (Windows 11) o classic (Classico)", kind: Kind::Choice(&["windows", "classic"]) },
     Entry { key: "notify", section: ISLAND, what: "il personaggio si fa vedere per: all = tutto, alerts = solo avvisi, permissions = solo permessi", kind: Kind::Choice(&["all", "alerts", "permissions"]) },
     Entry { key: "alertsOpen", section: ISLAND, what: "permessi e chiamate aprono l'isola da soli", kind: Kind::Bool },
     Entry { key: "soundEnabled", section: ISLAND, what: "suoni", kind: Kind::Bool },

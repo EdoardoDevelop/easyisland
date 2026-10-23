@@ -1,5 +1,7 @@
 // Minimal DOM helpers — no framework, as specified.
 import { BRAND_SVG } from "./brands";
+import { LINE_ICONS } from "./icons";
+import { windowsLook } from "../core/uistyle";
 
 type Attrs = Record<string, string | number | boolean | EventListener | undefined>;
 type Child = Node | string | null | undefined | false;
@@ -91,13 +93,21 @@ const ICON_MARKS = new Set(["integration_weather", "integration_clipboard", "int
 
 /** True when `markIcon` has something for this integration. */
 export function hasMark(id: string): boolean {
-  return id in BRAND_SVG || ICON_MARKS.has(id);
+  return id in BRAND_SVG || ICON_MARKS.has(id) || (windowsLook() && id in LINE_ICONS);
 }
 
 /** The brand logo, or the tab icon for the integrations in ICON_MARKS; null otherwise. */
 export function markIcon(id: string, size = 14): Element | null {
   const logo = brandIcon(id, size);
-  if (logo || !ICON_MARKS.has(id)) return logo;
+  if (logo) return logo;
+  // Windows 11 look: a line glyph in the integration's colour instead of an emoji or a dot.
+  const line = LINE_ICONS[id];
+  if (line && windowsLook()) {
+    const el = svg(line, size, { stroke: size > 30 ? 1.3 : 1.6 });
+    el.classList.add("brand", "line-mark");
+    return el;
+  }
+  if (!ICON_MARKS.has(id)) return null;
   return h("span", { class: "brand mark", text: TAB_ICONS[id], style: `font-size:${Math.round(size * 0.85)}px`, "aria-hidden": "true" });
 }
 

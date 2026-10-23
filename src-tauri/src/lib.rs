@@ -2318,6 +2318,8 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
     match builder
         .additional_browser_args(BROWSER_ARGS)
         .title(i18n::t("Impostazioni — EasyIsland"))
+        // A dark title bar, like the page under it.
+        .theme(Some(tauri::Theme::Dark))
         .inner_size(980.0, 720.0)
         .min_inner_size(760.0, 520.0)
         .resizable(true)
@@ -2365,6 +2367,26 @@ pub fn show_settings_window(app: &AppHandle) {
     let _ = win.unminimize();
     let _ = win.show();
     let _ = win.set_focus();
+}
+
+/// Windows' accent colour for the "windows" style: the shade Windows itself uses
+/// on dark backgrounds (AccentPalette's light 2), else the DWM accent; `None`
+/// when neither can be read (the page keeps its own blue).
+#[tauri::command]
+fn system_accent() -> Option<String> {
+    use probes::reg::{Key, HKEY_CURRENT_USER};
+    let hex = |r: u8, g: u8, b: u8| format!("#{r:02x}{g:02x}{b:02x}");
+    if let Some(p) = Key::open(HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\Accent")
+        .and_then(|k| k.binary("AccentPalette"))
+    {
+        // Eight RGBA entries: light 3, light 2, light 1, base, dark 1…
+        if let Some(&[r, g, b]) = p.get(4..7) {
+            return Some(hex(r, g, b));
+        }
+    }
+    let v = Key::open(HKEY_CURRENT_USER, r"Software\Microsoft\Windows\DWM")?.qword("AccentColor")? as u32;
+    // 0xAABBGGRR.
+    Some(hex(v as u8, (v >> 8) as u8, (v >> 16) as u8))
 }
 
 /// The island compact (low) or open (normal): WebView2's memory target (webview_memory.rs).
@@ -2427,6 +2449,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             boot,
             save_settings,
+            system_accent,
             set_collapsed,
             drag_island,
             copy_pc_info,

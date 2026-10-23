@@ -13,6 +13,8 @@ import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
 import { ISLAND_MIN_W, PANEL_H, PANEL_W, islandMax } from "../core/layout";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 import { language, locale, resolveLanguage, syncLanguage, t } from "../core/i18n";
+import { applyUiStyle, uiStyle } from "../core/uistyle";
+import "./settings-windows.css";
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
 let version = "";
@@ -4000,6 +4002,15 @@ function themeSection(): HTMLElement {
     {},
     h("h2", {}, h("span", { text: t("Tema") }), profileChip()),
     h("div", { class: "row" },
+      h("label", { text: t("Stile") }),
+      select<"windows" | "classic">(
+        [["windows", t("Windows 11")], ["classic", t("Classico")]],
+        uiStyle(th.style),
+        (v) => { th.style = v; applyUiStyle(v); commit(); render(); },
+      ),
+      h("span", { class: "hint note", text: t("l'aspetto dell'isola e di questa finestra: Windows 11 (grigio, colore d'accento di Windows, icone a linea) o Classico (isola nera, colori di EasyIsland)") }),
+    ),
+    h("div", { class: "row" },
       h("label", { text: t("Personaggio") }),
       select<string>(
         characters().map((c) => [c.id, c.name] as [string, string]),
@@ -4010,7 +4021,7 @@ function themeSection(): HTMLElement {
     colorRow,
     h("div", { class: "row" },
       h("label", { text: t("Colore dell'isola") }),
-      colorField(th.islandColor, "#000000", (v) => { th.islandColor = v || "#000000"; commit(); }, t("Nero")),
+      colorField(th.islandColor, "#000000", (v) => { th.islandColor = v || "#000000"; commit(); }, uiStyle(th.style) === "windows" ? t("Grigio di Windows") : t("Nero")),
     ),
     h("div", { class: "row" },
       h("label", { text: t("Opacità dell'isola") }),
@@ -4166,6 +4177,9 @@ async function main() {
     ];
     settings.activeProfile = "lavoro";
   }
+  // Preview: ?ui=classic shows the original look.
+  if (!info && new URLSearchParams(location.search).get("ui") === "classic") settings.theme = { ...settings.theme, style: "classic" };
+  applyUiStyle(settings.theme.style);
   const status = (await Bridge.hooksStatus()) ?? {
     installed: false, legacy: false, settingsPath: "", hookPath: "", hookReady: false,
   };
@@ -4219,6 +4233,7 @@ async function main() {
       mine[k] = v;
       redraw = true; // changed elsewhere: a profile switch, a drag, the island
     }
+    applyUiStyle(settings.theme.style);
     if (redraw) render();
   });
 }

@@ -2584,5 +2584,10 @@
   "Togli l'assistente": "Remove the assistant",
   "Togli il testo": "Remove the text",
   "Chiedimi qualsiasi cosa… / comandi · @ allegati": "Ask me anything… / commands · @ attachments",
-  "Scegli chi trascrive in Impostazioni → Telegram → Vocali, oppure usa la dettatura di Windows.": "Choose who transcribes in Settings → Telegram → Voice messages, or use Windows dictation."
+  "Scegli chi trascrive in Impostazioni → Telegram → Vocali, oppure usa la dettatura di Windows.": "Choose who transcribes in Settings → Telegram → Voice messages, or use Windows dictation.",
+  "Stile": "Style",
+  "Windows 11": "Windows 11",
+  "Classico": "Classic",
+  "l'aspetto dell'isola e di questa finestra: Windows 11 (grigio, colore d'accento di Windows, icone a linea) o Classico (isola nera, colori di EasyIsland)": "the look of the island and of this window: Windows 11 (grey, Windows' accent colour, line icons) or Classic (black island, EasyIsland's colours)",
+  "Grigio di Windows": "Windows grey"
 }

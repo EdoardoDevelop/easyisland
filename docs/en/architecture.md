@@ -149,6 +149,11 @@ defences to keep when adding code:
   `src/core/sound.ts`; listen to them in `dev/sounds-preview.html`. The only
   exception is the 3CX "This PC" ringtone, which can be a file chosen by the user.
 
+## Styles: Windows 11 and Classic
+- Settings → Look → Theme → Style (`theme.style`): **Windows 11** (the default) or **Classic** (the original black island). The page carries `<html data-ui="windows|classic">` (`src/core/uistyle.ts`); every Windows 11 rule lives in `src/style-windows.css` and `src/settings/settings-windows.css`, scoped to `html[data-ui="windows"]`, so `style.css` and `settings.css` stay the Classic look.
+- Windows' accent colour comes from the registry (`system_accent` in `lib.rs`) into `--win-accent`. Integrations without a logo get line icons in their colour (`LINE_ICONS`); brand logos, the faint logos in the Overview tiles and the integrations' colours stay.
+- Dark only: no light theme yet, and no real Mica (grey stands in for it).
+
 ## Performance
 - No animation frames and ~0 % CPU when the island is withdrawn. Pollers run three
   times less often on battery and stop while EasyIsland is paused.

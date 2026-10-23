@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 21 ottobre 2026. Versione **0.9.7** in `main` con il tag `v0.9.7` (la CI pubblica l'installer). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 23 ottobre 2026. Versione **0.9.8** in `main` con il tag `v0.9.8` (la CI pubblica l'installer). Si lavora su `claude/sviluppo` verso la **1.0.0**: EasyIsland agente personale, primo passo i Compiti (`docs/idee.md`). Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -29,6 +29,12 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 22 ottobre 2026 — Stile Windows 11, versione 0.9.8
+- Segnalato da Edoardo: usandola «non dà l'idea di un programma». Nuovo stile **Windows 11**, predefinito: isola e Impostazioni grigie, colore d'accento di Windows, controlli come quelli del sistema, icone a linea, spiegazioni sotto ogni impostazione. Il **Classico** resta in Impostazioni → Aspetto → Tema → Stile.
+- Regole solo in `src/style-windows.css` e `src/settings/settings-windows.css` (`html[data-ui="windows"]`), accento da `system_accent` (`lib.rs`), icone in `LINE_ICONS`. Dettagli e vincoli in `docs/architettura.md` → Stili.
+- Versione **0.9.8**; README, README.en.md, homepage e schermate rifatte nel nuovo stile. `scripts/screenshots.mjs` accetta `SHOT_DIR` e `SHOT_QUERY`.
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`, schermate dei due stili; installata su questo PC, con il log senza errori.
 
 ### 22 ottobre 2026 — Idee dalle altre app di chat, versione 0.9.7
 - Versione **0.9.7** con questa voce e la precedente; README, README.en.md e homepage aggiornati.
@@ -63,11 +69,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 21 ottobre 2026 — Eliminare righe di Notion dalla chat
 - Chiesto da Edoardo: tolta la regola «gli strumenti di EasyIsland non eliminano» per Notion. Nuovo `notion_delete_row` (`notion_tools.rs`, `hook/src/tool_list.rs`): sposta la riga nel cestino di Notion solo con `confirmed: true`, dopo il sì dell'utente in chat; senza, torna la riga da mostrare. In Telegram «Automatica» chiede comunque (nome con «delete»).
 - **Prove:** `cargo test` in `hook/`, `cargo check`, `npm run check:i18n`. Da provare dal vivo con una riga vera (`docs/prove-dal-vivo.md`).
-
-### 20 ottobre 2026 — Microsoft To Do, hook in ogni shell, isola su un altro schermo, versione 0.9.5
-- Versione **0.9.5** con queste voci; README, README.en.md e homepage aggiornati.
-- Segnalato da Edoardo: su un PC senza Git Bash l'hook di EasyIsland fermava Claude Code a ogni strumento. Il comando era tra virgolette, un errore di sintassi in PowerShell: ora è senza virgolette e va in ogni shell (provato in PowerShell, cmd e Git Bash); gli hook vecchi risultano «da aggiornare» (`docs/agenti.md`).
-- Segnalato da Edoardo: l'isola aperta non si poteva portare sullo schermo secondario. Ora sì, e ci resta; anche il personaggio lasciato sulla parte lontana di uno schermo stretto tornava sul principale (si guardava il centro della finestra, ora il cursore). Provato qui con trascinamenti simulati sui due schermi (`docs/architettura.md` → Schermi secondari).
-- Chiesto da Edoardo: gestire To Do (leggere, aggiungere, cambiare). Strumenti di easyisland `todo_list`, `todo_add`, `todo_update` attraverso Outlook classico via COM (`todo.rs`, `docs/integrazioni.md`): nessun accesso nuovo, niente eliminazioni.
-- **Prove:** `cargo test --workspace`, sintassi dello script e sue funzioni su un'attività finta. Su questo PC Outlook non c'è: la prova vera è da fare sul PC con Outlook (`docs/prove-dal-vivo.md`).
-

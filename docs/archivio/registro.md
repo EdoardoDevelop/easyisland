@@ -2,6 +2,13 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 20 ottobre 2026 — Microsoft To Do, hook in ogni shell, isola su un altro schermo, versione 0.9.5
+- Versione **0.9.5** con queste voci; README, README.en.md e homepage aggiornati.
+- Segnalato da Edoardo: su un PC senza Git Bash l'hook di EasyIsland fermava Claude Code a ogni strumento. Il comando era tra virgolette, un errore di sintassi in PowerShell: ora è senza virgolette e va in ogni shell (provato in PowerShell, cmd e Git Bash); gli hook vecchi risultano «da aggiornare» (`docs/agenti.md`).
+- Segnalato da Edoardo: l'isola aperta non si poteva portare sullo schermo secondario. Ora sì, e ci resta; anche il personaggio lasciato sulla parte lontana di uno schermo stretto tornava sul principale (si guardava il centro della finestra, ora il cursore). Provato qui con trascinamenti simulati sui due schermi (`docs/architettura.md` → Schermi secondari).
+- Chiesto da Edoardo: gestire To Do (leggere, aggiungere, cambiare). Strumenti di easyisland `todo_list`, `todo_add`, `todo_update` attraverso Outlook classico via COM (`todo.rs`, `docs/integrazioni.md`): nessun accesso nuovo, niente eliminazioni.
+- **Prove:** `cargo test --workspace`, sintassi dello script e sue funzioni su un'attività finta. Su questo PC Outlook non c'è: la prova vera è da fare sul PC con Outlook (`docs/prove-dal-vivo.md`).
+
 ### 20 ottobre 2026 — Velocità: misure, Claude Code acceso, Notion compatto, ricette, versione 0.9.4
 - Versione **0.9.4** con queste voci, i totali di Notion uguali tra i motori e il ragionamento visibile; README, README.en.md e homepage aggiornati.
 - Segnalato da Edoardo: lentezza di tutti i motori. Misure di ogni turno, strumento e token nel log; Claude Code resta acceso tra i messaggi della stessa conversazione (~6 s → ~3 s di avvio); `notion_query` risponde con una tabella compatta, le categorie per nome e i totali già fatti; indice di Notion corto; ricette imparate con l'uso (`recipes.rs`, Impostazioni → Chat → «Ricette»). Tutto in `docs/chat.md` → Velocità e ricette.

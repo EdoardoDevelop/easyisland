@@ -349,6 +349,9 @@ pub struct Theme {
     /// The island's colour behind the character while it is closed (compact view).
     #[serde(default = "default_true")]
     pub compact_background: bool,
+    /// The look of the island and the settings: "windows" (Windows 11, the default) or "classic".
+    #[serde(default = "default_style")]
+    pub style: String,
 }
 
 impl Default for Theme {
@@ -362,10 +365,14 @@ impl Default for Theme {
             volume_ui: 1.0,
             volume_emotes: 1.0,
             compact_background: true,
+            style: default_style(),
         }
     }
 }
 
+fn default_style() -> String {
+    "windows".into()
+}
 fn default_character() -> String {
     "drop".into()
 }
