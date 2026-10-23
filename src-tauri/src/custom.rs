@@ -24,9 +24,10 @@ const MAX_TEMPLATE: usize = 40_000;
 
 pub const FIELD_KINDS: &[&str] = &[
     "text", "textarea", "number", "money", "date", "checkbox", "select", "multiselect", "email", "phone", "url", "rows", "computed",
+    "counter", "link",
 ];
-pub const COLUMN_KINDS: &[&str] = &["text", "number", "money", "checkbox", "select", "date"];
-pub const ACTION_KINDS: &[&str] = &["save", "document", "copy", "ai", "url", "quick", "notion"];
+pub const COLUMN_KINDS: &[&str] = &["text", "number", "money", "checkbox", "select", "date", "computed"];
+pub const ACTION_KINDS: &[&str] = &["save", "document", "copy", "ai", "url", "quick", "notion", "fill", "export"];
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
@@ -35,10 +36,12 @@ pub struct Column {
     pub label: String,
     pub kind: String,
     pub options: Vec<String>,
+    /// computed: over the row's columns, "quantita*prezzo".
+    pub formula: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
-#[serde(default)]
+#[serde(default, rename_all = "camelCase")]
 pub struct Field {
     pub id: String,
     pub label: String,
@@ -54,6 +57,16 @@ pub struct Field {
     pub columns: Vec<Column>,
     /// computed: "sum(quantita*prezzo)", "imponibile*0,22", "imponibile+iva".
     pub formula: String,
+    /// counter: what goes before the number, "PREV-{anno}-" (the year restarts the count).
+    pub prefix: String,
+    /// counter: digits of the number (3 → 001).
+    pub digits: u32,
+    /// Shown only when: "urgente" (checked or filled) or "pagamento=Bonifico".
+    pub show_if: String,
+    /// link: the id of another integration, its records to pick from.
+    pub source: String,
+    /// In the list of the saved records: summed (numbers) or counted (choices).
+    pub summary: bool,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -190,7 +203,17 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
                 if !COLUMN_KINDS.contains(&col.kind.as_str()) {
                     return Err(tf("Colonna «{l}»: kind deve essere uno di {k}.", &[("l", &col.label), ("k", &COLUMN_KINDS.join(", "))]));
                 }
+                if col.kind == "computed" && col.formula.trim().is_empty() {
+                    return Err(tf("Colonna «{l}»: formula sulle colonne della riga, es. quantita*prezzo.", &[("l", &col.label)]));
+                }
             }
+        }
+        if f.kind == "counter" {
+            f.digits = if f.digits == 0 { 3 } else { f.digits.min(8) };
+            f.prefix = f.prefix.chars().take(30).collect();
+        }
+        if f.kind == "link" && !valid_id(f.source.trim()) {
+            return Err(tf("Campo «{l}»: source, l'id dell'integrazione da cui scegliere (vedi custom_list).", &[("l", &f.label)]));
         }
         if f.kind == "computed" && f.formula.trim().is_empty() {
             return Err(tf("Campo «{l}»: formula, es. sum(quantita*prezzo) oppure imponibile*0,22.", &[("l", &f.label)]));
@@ -219,19 +242,49 @@ pub fn normalize(mut c: Custom) -> Result<Custom, String> {
             }
             "quick" if a.quick.trim().is_empty() => return Err(tf("Azione «{l}»: quick, l'id dell'azione rapida.", &[("l", &a.label)])),
             "notion" if a.database.trim().is_empty() => return Err(tf("Azione «{l}»: database di Notion.", &[("l", &a.label)])),
-            "document" | "copy" if c.template.trim().is_empty() => {
-                return Err(tf("Azione «{l}»: serve template, il modello del documento.", &[("l", &a.label)]));
-            }
             _ => {}
         }
         if a.kind == "document" && a.format != "md" {
             a.format = "html".into();
         }
     }
+    // No template: one with every field, so a document can always be made.
+    if c.template.trim().is_empty() {
+        c.template = default_template(&c);
+    }
     if !c.title_field.is_empty() && !c.fields.iter().any(|f| f.id == c.title_field) {
         c.title_field = String::new();
     }
     Ok(c)
+}
+
+/// A document with every field: a title, a line per field, a table per table.
+pub fn default_template(c: &Custom) -> String {
+    let mut out = format!("# {}\n\n", c.name);
+    for f in &c.fields {
+        if f.kind == "rows" {
+            let head = f.columns.iter().map(|x| x.label.as_str()).collect::<Vec<_>>().join(" | ");
+            let line = f.columns.iter().map(|_| "---").collect::<Vec<_>>().join(" | ");
+            let cells = f.columns.iter().map(|x| format!("{{{{{}}}}}", x.id)).collect::<Vec<_>>().join(" | ");
+            out.push_str(&format!("**{}**\n\n| {head} |\n| {line} |\n{{{{#{id}}}}}| {cells} |\n{{{{/{id}}}}}\n", f.label, id = f.id));
+        } else {
+            out.push_str(&format!("**{}:** {{{{{}}}}}  \n", f.label, f.id));
+        }
+    }
+    out
+}
+
+/// The next number of a counter: the highest saved with the same prefix, plus one.
+fn next_counter(f: &Field, all: &[Record]) -> String {
+    let year = now().get(..4).unwrap_or("2026").to_string();
+    let prefix = f.prefix.replace("{anno}", &year).replace("{year}", &year);
+    let top = all.iter()
+        .filter_map(|r| r.values.get(&f.id).and_then(Value::as_str))
+        .filter_map(|v| v.strip_prefix(prefix.as_str()))
+        .filter_map(|n| n.trim().parse::<u64>().ok())
+        .max()
+        .unwrap_or(0);
+    format!("{prefix}{:0width$}", top + 1, width = f.digits.max(1) as usize)
 }
 
 fn def_file(id: &str) -> PathBuf {
@@ -326,6 +379,13 @@ pub fn save_record(app: &AppHandle, id: &str, record: &str, values: Map<String, 
         }
     }
     let mut all = records(&c.id);
+    // A counter is given here, once, when it is still empty.
+    for f in c.fields.iter().filter(|f| f.kind == "counter") {
+        let empty = kept.get(&f.id).and_then(Value::as_str).is_none_or(|s| s.trim().is_empty());
+        if empty {
+            kept.insert(f.id.clone(), json!(next_counter(f, &all)));
+        }
+    }
     let stamp = now();
     let saved = match all.iter_mut().find(|r| !record.is_empty() && r.id == record) {
         Some(r) => {
@@ -367,7 +427,11 @@ pub fn delete_record(app: &AppHandle, id: &str, record: &str) -> Result<(), Stri
 
 /// A document of a record (the template already filled by the island): into the Vassoio.
 pub fn document(name: &str, ext: &str, text: &str) -> Result<crate::files::DroppedFile, String> {
-    let ext = if ext == "md" { "md" } else { "html" };
+    let ext = match ext {
+        "md" => "md",
+        "csv" => "csv",
+        _ => "html",
+    };
     let base: String = crate::skills::slug(name).chars().take(60).collect();
     let base = if base.is_empty() { "documento".to_string() } else { base };
     let tmp = std::env::temp_dir().join(format!("easyisland-{base}.{ext}"));
@@ -375,6 +439,39 @@ pub fn document(name: &str, ext: &str, text: &str) -> Result<crate::files::Dropp
     let out = crate::files::ingest(&tmp.to_string_lossy());
     let _ = std::fs::remove_file(&tmp);
     out
+}
+
+/// «Compila con l'IA»: the fields read from a text (a mail, notes) by the
+/// chat's engine, in a conversation of its own. Only the fields it has; the
+/// user sees them in the form before saving.
+pub async fn fill(app: &AppHandle, id: &str, text: &str) -> Result<Map<String, Value>, String> {
+    let c = get(id).ok_or(t("Integrazione non trovata."))?;
+    if text.trim().is_empty() {
+        return Err(t("Incolla prima il testo da cui compilare.").into());
+    }
+    let schema: Vec<Value> = c.fields.iter().filter(|f| !matches!(f.kind.as_str(), "computed" | "counter")).map(|f| {
+        let mut v = json!({ "id": f.id, "label": f.label, "kind": f.kind });
+        if !f.options.is_empty() {
+            v["options"] = json!(f.options);
+        }
+        if !f.columns.is_empty() {
+            v["columns"] = json!(f.columns.iter().filter(|x| x.kind != "computed").map(|x| json!({ "id": x.id, "label": x.label, "kind": x.kind })).collect::<Vec<_>>());
+        }
+        v
+    }).collect();
+    let prompt = tf(
+        "Compila i campi del modulo «{name}» con le informazioni del testo qui sotto. Rispondi solo con un oggetto JSON {{ id_campo: valore }}: numeri e importi come numeri, date AAAA-MM-GG, caselle true/false, scelte esattamente tra le options, una tabella come elenco di oggetti con gli id delle colonne. Lascia fuori i campi che il testo non dice; non inventare.\n\nCampi: {schema}\n\nTesto:\n{text}",
+        &[("name", &c.name), ("schema", &serde_json::to_string(&schema).unwrap_or_default()), ("text", &text.chars().take(12_000).collect::<String>())],
+    );
+    let chat = crate::claude::Chat::default();
+    let reply = crate::chat_turn(app, &chat, prompt, None, None, None, false, crate::Channel::Helper, &|_| {}).await?;
+    crate::opencode::forget(chat.cli_session());
+    let raw = reply.text;
+    let start = raw.find('{').ok_or(t("L'IA non ha risposto con i campi: riprova o compila a mano."))?;
+    let end = raw.rfind('}').ok_or(t("L'IA non ha risposto con i campi: riprova o compila a mano."))?;
+    let json_text = raw.get(start..=end).unwrap_or_default();
+    let found: Map<String, Value> = serde_json::from_str(json_text).map_err(|_| t("L'IA non ha risposto con i campi: riprova o compila a mano."))?;
+    Ok(found.into_iter().filter(|(k, _)| c.fields.iter().any(|f| &f.id == k && !matches!(f.kind.as_str(), "computed" | "counter"))).collect())
 }
 
 // ── Tools (agent.rs) ─────────────────────────────────────────────────────────
@@ -482,14 +579,42 @@ mod tests {
         c.fields[0].kind = "colore".into();
         assert!(normalize(c).unwrap_err().contains("kind"));
         let mut c = quote();
-        c.template.clear();
-        assert!(normalize(c).unwrap_err().contains("template"));
-        let mut c = quote();
         c.actions.push(Action { label: "Sito".into(), kind: "url".into(), url: "file:///c:/x".into(), ..Default::default() });
         assert!(normalize(c).unwrap_err().contains("https://"));
         let mut c = quote();
         c.fields[1].id = "cliente".into();
         assert!(normalize(c).unwrap_err().contains("stesso id"));
+    }
+
+    #[test]
+    fn counters_count_per_prefix_and_year() {
+        let f = Field { id: "numero".into(), kind: "counter".into(), prefix: "PREV-{anno}-".into(), digits: 3, ..Default::default() };
+        let year = now().get(..4).unwrap_or_default().to_string();
+        let rec = |v: &str| Record { values: [("numero".to_string(), json!(v))].into_iter().collect(), ..Default::default() };
+        assert_eq!(next_counter(&f, &[]), format!("PREV-{year}-001"));
+        let all = [rec(&format!("PREV-{year}-007")), rec(&format!("PREV-{year}-002")), rec("PREV-1999-950")];
+        assert_eq!(next_counter(&f, &all), format!("PREV-{year}-008"));
+    }
+
+    #[test]
+    fn without_a_template_every_field_goes_in_the_document() {
+        let mut c = quote();
+        c.template.clear();
+        let c = normalize(c).unwrap();
+        assert!(c.template.contains("{{cliente}}") && c.template.contains("{{#voci}}") && c.template.contains("{{prezzo}}"));
+    }
+
+    #[test]
+    fn new_kinds_are_checked() {
+        let mut c = quote();
+        c.fields.push(Field { label: "Totale riga".into(), kind: "rows".into(), columns: vec![Column { label: "Tot".into(), kind: "computed".into(), ..Default::default() }], ..Default::default() });
+        assert!(normalize(c).unwrap_err().contains("formula"));
+        let mut c = quote();
+        c.fields.push(Field { label: "Cliente collegato".into(), kind: "link".into(), ..Default::default() });
+        assert!(normalize(c).unwrap_err().contains("source"));
+        let mut c = quote();
+        c.fields.push(Field { label: "Numero".into(), kind: "counter".into(), ..Default::default() });
+        assert_eq!(normalize(c).unwrap().fields.last().unwrap().digits, 3);
     }
 
     #[test]

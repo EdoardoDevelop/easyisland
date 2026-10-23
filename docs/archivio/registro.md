@@ -2,6 +2,11 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 23 ottobre 2026 — Compiti: EasyIsland lavora da solo su un obiettivo
+- Chiesto da Edoardo, primo passo verso la 1.0.0 (agente personale). Nuovo `tasks.rs`: un obiettivo diventa piano e turni del motore della chat (`Channel::Task` in `chat_turn`), con strumenti `task_*`, limiti di turni e minuti, orari (una volta, ogni giorno, feriali), registro .md.
+- Nell'isola è una sessione dell'agente «Compiti» in Agenti; domande con la card «Domanda». Impostazioni → Compiti, `/compito` in chat e su Telegram, passo «Avvia un compito» nelle automazioni, avvisi su Telegram.
+- **Prove:** `cargo test --workspace` (5 test nuovi su orari, id e prompt), `npm run build`, `npm run smoke` (scene `compiti` e `compiti&ask`, pagina Compiti); dal vivo un compito completo con l'abbonamento in 12 s. Il resto in `docs/prove-dal-vivo.md`.
+
 ### 22 ottobre 2026 — Stile Windows 11, versione 0.9.8
 - Segnalato da Edoardo: usandola «non dà l'idea di un programma». Nuovo stile **Windows 11**, predefinito: isola e Impostazioni grigie, colore d'accento di Windows, controlli come quelli del sistema, icone a linea, spiegazioni sotto ogni impostazione. Il **Classico** resta in Impostazioni → Aspetto → Tema → Stile.
 - Regole solo in `src/style-windows.css` e `src/settings/settings-windows.css` (`html[data-ui="windows"]`), accento da `system_accent` (`lib.rs`), icone in `LINE_ICONS`. Dettagli e vincoli in `docs/architettura.md` → Stili.

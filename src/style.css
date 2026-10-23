@@ -5737,3 +5737,6 @@ textarea.custom-input { resize: vertical; }
   font: 500 11.5px var(--font);
 }
 .chip-btn.on { background: color-mix(in srgb, var(--c, #38bdf8) 22%, transparent); color: var(--ink); border-color: color-mix(in srgb, var(--c, #38bdf8) 55%, transparent); }
+.custom-cell { font: 500 12px var(--font); color: var(--ink); padding: 0 4px; }
+.custom-summary { font: 500 11.5px var(--font); color: var(--dim); }
+.custom-fill { padding-top: 4px; }

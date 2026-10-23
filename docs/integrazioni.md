@@ -208,4 +208,13 @@ Chieste da Edoardo: «scrivo in chat: crea un'integrazione per i preventivi… p
 - **Azioni:** `save` (la scheda), `document` (il modello in HTML stampabile, o `md`, nel Vassoio: da lì si apre e si stampa in PDF), `copy`, `ai` (una domanda alla chat con i campi), `url` (un link con i campi codificati), `quick` (un'azione rapida dell'utente), `notion` (una riga nel database, con le proprietà uguali alle etichette, `notion_tools::add_row`).
 - **Strumenti della chat:** `custom_create` e `custom_update` (Consenti / Nega con la descrizione come anteprima), `custom_add_record` (Consenti / Nega), `custom_list`, `custom_get`, `custom_records` (sola lettura). Eliminare un'integrazione o una scheda solo con un clic (Impostazioni → Integrazioni → Create da te, o «Elimina» due volte nella card).
 - **Nell'isola:** una voce del menu (`custom:<id>`, con la sua icona) e la card con «Nuova» (il modulo) e «Salvate» (cerca, apri, duplica, elimina). La card si ridisegna quando la descrizione o le schede cambiano altrove (`customs-changed`, `custom-records`, `State.customVersion`). Mentre si scrive l'isola resta aperta (`holdOpen`).
-- **Anteprima:** scena `custom` (un'integrazione «Preventivi» d'esempio); espone `window.customKit` per le prove di `fillTemplate`.
+- **Potenziate lo stesso giorno** (confronto con i database a schede e le app su moduli):
+  - `counter`: numerazione assegnata in Rust al salvataggio (`next_counter`), `prefix` con `{anno}` che fa ripartire il conteggio ogni anno, `digits`;
+  - colonne `computed` nelle righe (`formula` sulle colonne della riga, `rowFormula`), sommabili nei calcolati (`sum(totale_riga)`);
+  - `showIf` su ogni campo («urgente» o «pagamento=Bonifico», `visible`): il campo compare solo allora;
+  - `link`: si sceglie tra le schede di un'altra integrazione (`source`), per nome;
+  - `summary`: somme o conteggi nell'elenco «Salvate» (`summaryOf`);
+  - azione `fill` («Compila con l'IA»): il testo incollato va al motore della chat in una conversazione sua (`custom::fill`, `Channel::Helper`), che risponde con il JSON dei campi; restano solo i campi che esistono, e l'utente controlla prima di salvare;
+  - azione `export`: le schede in CSV con il punto e virgola e il BOM (si aprono in Excel), nel Vassoio;
+  - senza `template` il documento si fa comunque, con tutti i campi (`default_template`).
+- **Anteprima:** scena `custom` (un'integrazione «Preventivi» d'esempio con tutte queste cose); espone `window.customKit` (`fillTemplate`, `toCsv`) per le prove con Edge.

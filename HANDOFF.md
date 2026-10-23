@@ -32,6 +32,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 23 ottobre 2026 — Integrazioni personali potenziate
+- Chiesto da Edoardo: studiare come potenziare le integrazioni personali e farlo. Aggiunti numerazione automatica, colonne calcolate nelle righe, campi condizionali, collegamento a un'altra integrazione, totali nell'elenco, «Compila con l'IA» da un testo incollato, esportazione CSV, modello automatico (`docs/integrazioni.md`).
+- **Prove:** `cargo test --workspace` (3 test nuovi), clippy, `npm run build`, `npm run smoke`; con Edge nell'anteprima: totali di riga, campo condizionale, riquadro «Compila», CSV.
+
 ### 23 ottobre 2026 — Integrazioni personali create dalla chat
 - Chiesto da Edoardo: «crea un'integrazione per i preventivi», programmabile al 100%. Nuovi `custom.rs` e `src/views/custom.ts`: la chat scrive una descrizione (campi di ogni tipo, tabelle, formule, modello del documento, azioni), mai codice; EasyIsland la disegna nell'isola con modulo e schede salvate.
 - Strumenti `custom_*` (creare e cambiare con Consenti / Nega), Impostazioni → Integrazioni → Create da te. Decisione in `docs/decisioni.md`.
@@ -51,8 +55,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Chiesto da Edoardo: agente programmabile, un motore per ogni compito e più motori in un compito. Nuovo `skills.rs` (procedure .md con nome, descrizione, motore preferito, strumenti; elenco davanti alla conversazione, `skill_read`, `skill_save`, comandi `/id` nella chat).
 - Ogni compito ha motore, modello e aiutanti; `task_delegate` affida un pezzo del lavoro a un aiutante (`Channel::Helper`). Rivista la decisione sui più motori insieme (`docs/decisioni.md`).
 - **Prove:** `cargo test --workspace` (test nuovi su abilità e aiutanti), `npm run build`, `npm run smoke`; dal vivo vedi la voce del Registro sopra o `docs/prove-dal-vivo.md`.
-
-### 23 ottobre 2026 — Compiti: EasyIsland lavora da solo su un obiettivo
-- Chiesto da Edoardo, primo passo verso la 1.0.0 (agente personale). Nuovo `tasks.rs`: un obiettivo diventa piano e turni del motore della chat (`Channel::Task` in `chat_turn`), con strumenti `task_*`, limiti di turni e minuti, orari (una volta, ogni giorno, feriali), registro .md.
-- Nell'isola è una sessione dell'agente «Compiti» in Agenti; domande con la card «Domanda». Impostazioni → Compiti, `/compito` in chat e su Telegram, passo «Avvia un compito» nelle automazioni, avvisi su Telegram.
-- **Prove:** `cargo test --workspace` (5 test nuovi su orari, id e prompt), `npm run build`, `npm run smoke` (scene `compiti` e `compiti&ask`, pagina Compiti); dal vivo un compito completo con l'abbonamento in 12 s. Il resto in `docs/prove-dal-vivo.md`.

@@ -1453,7 +1453,7 @@ export interface Skill {
 }
 
 /** An integration made by the user from the chat (custom.rs): a description, never code. */
-export interface CustomColumn { id: string; label: string; kind: string; options: string[] }
+export interface CustomColumn { id: string; label: string; kind: string; options: string[]; formula?: string }
 export interface CustomField {
   id: string;
   label: string;
@@ -1464,6 +1464,15 @@ export interface CustomField {
   help: string;
   columns: CustomColumn[];
   formula: string;
+  /** counter: "PREV-{anno}-" and the digits of the number. */
+  prefix?: string;
+  digits?: number;
+  /** Shown only when: "urgente" or "pagamento=Bonifico". */
+  showIf?: string;
+  /** link: the integration whose records are picked from. */
+  source?: string;
+  /** Summed or counted in the list of the saved records. */
+  summary?: boolean;
 }
 export interface CustomAction { label: string; kind: string; prompt: string; url: string; quick: string; database: string; format: string }
 export interface Custom {

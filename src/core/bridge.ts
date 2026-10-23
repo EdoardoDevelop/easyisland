@@ -379,6 +379,8 @@ export const Bridge = {
   customRecordDelete: (id: string, record: string) => callOrThrow<void>("custom_record_delete", { id, record }),
   customDocument: (name: string, ext: string, text: string) => callOrThrow<{ name: string; path: string }>("custom_document", { name, ext, text }),
   customCopy: (text: string) => callOrThrow<void>("custom_copy", { text }),
+  /** «Compila con l'IA»: the fields read from a pasted text. */
+  customFill: (id: string, text: string) => callOrThrow<Record<string, unknown>>("custom_fill", { id, text }),
   customToNotion: (database: string, properties: Record<string, unknown>) => callOrThrow<string>("custom_to_notion", { database, properties }),
   /** Abilità (skills.rs). */
   skillsList: () => call<Skill[]>("skills_list"),

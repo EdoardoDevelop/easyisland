@@ -2500,6 +2500,12 @@ async fn custom_document(name: String, ext: String, text: String) -> Result<file
     tauri::async_runtime::spawn_blocking(move || custom::document(&name, &ext, &text)).await.map_err(|e| e.to_string())?
 }
 
+/// «Compila con l'IA»: the fields read from a pasted text.
+#[tauri::command]
+async fn custom_fill(app: AppHandle, id: String, text: String) -> Result<serde_json::Map<String, serde_json::Value>, String> {
+    custom::fill(&app, &id, &text).await
+}
+
 /// "Copia" of a record: its document as text on the clipboard.
 #[tauri::command]
 async fn custom_copy(text: String) -> Result<(), String> {
@@ -2658,6 +2664,7 @@ pub fn run() {
             custom_record_delete,
             custom_document,
             custom_copy,
+            custom_fill,
             custom_to_notion,
             skill_save,
             skill_delete,

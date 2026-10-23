@@ -2821,5 +2821,18 @@
   "Integrazione «{name}» aggiornata.": "Integration \"{name}\" updated.",
   "Nessuna integrazione personale. Creane una con custom_create.": "No personal integration. Create one with custom_create.",
   "values: { id_campo: valore }.": "values: { field_id: value }.",
-  "Scheda salvata ({id}).": "Record saved ({id})."
+  "Scheda salvata ({id}).": "Record saved ({id}).",
+  "al salvataggio": "when saved",
+  "Incolla qui la mail, il messaggio o gli appunti: l'IA compila i campi, poi controlli e salvi.": "Paste the mail, the message or the notes here: the AI fills in the fields, then you check and save.",
+  "Compila": "Fill in",
+  "Sto compilando…": "Filling in…",
+  "Compilati {n} campi: controllali e salva.": "{n} fields filled in: check them and save.",
+  "Nessuna scheda da esportare.": "No records to export.",
+  "{n} schede in CSV nel Vassoio: {name}": "{n} records as CSV in the Tray: {name}",
+  "{n} schede": "{n} records",
+  "Colonna «{l}»: formula sulle colonne della riga, es. quantita*prezzo.": "Column \"{l}\": a formula over the row's columns, e.g. quantita*prezzo.",
+  "Campo «{l}»: source, l'id dell'integrazione da cui scegliere (vedi custom_list).": "Field \"{l}\": source, the id of the integration to pick from (see custom_list).",
+  "Incolla prima il testo da cui compilare.": "Paste the text to fill in from first.",
+  "Compila i campi del modulo «{name}» con le informazioni del testo qui sotto. Rispondi solo con un oggetto JSON {{ id_campo: valore }}: numeri e importi come numeri, date AAAA-MM-GG, caselle true/false, scelte esattamente tra le options, una tabella come elenco di oggetti con gli id delle colonne. Lascia fuori i campi che il testo non dice; non inventare.\n\nCampi: {schema}\n\nTesto:\n{text}": "Fill in the fields of the form \"{name}\" with the information in the text below. Answer only with a JSON object {{ field_id: value }}: numbers and amounts as numbers, dates YYYY-MM-DD, check boxes true/false, choices exactly among the options, a table as a list of objects with the columns' ids. Leave out the fields the text does not say; do not make anything up.\n\nFields: {schema}\n\nText:\n{text}",
+  "L'IA non ha risposto con i campi: riprova o compila a mano.": "The AI did not answer with the fields: try again or fill them in by hand."
 }

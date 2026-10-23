@@ -7,7 +7,9 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
   2. Salva, poi la scheda in «Salvate», Duplica, Elimina;
   3. «Crea il documento»: l'HTML nel Vassoio, aperto e stampato in PDF;
   4. un'azione «chiedi alla chat», una Notion e una con un'azione rapida;
-  5. in chat «aggiungi un campo …» (custom_update) e «quanti preventivi ho fatto a ottobre?» (custom_records).
+  5. in chat «aggiungi un campo …» (custom_update) e «quanti preventivi ho fatto a ottobre?» (custom_records);
+  6. numerazione: due preventivi salvati di fila (001, 002), poi un duplicato che prende il numero nuovo;
+  7. «Compila con l'IA» da una mail vera di un cliente; «Esporta CSV» aperto in Excel; un campo `link` verso un'integrazione «Clienti».
 
 - [ ] **Compiti (23 ottobre 2026):** provato qui un compito da cima a fondo con l'abbonamento (piano, strumenti, passi, risultato). Restano:
   1. una domanda (`task_ask`) con la card vera: risposta a un pulsante, risposta scritta, e nessuna risposta (il compito va in «Attende te», poi Rispondi in Impostazioni → Compiti);
