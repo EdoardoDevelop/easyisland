@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 23 ottobre 2026. Versione **0.9.8** in `main` con il tag `v0.9.8` (la CI pubblica l'installer). Si lavora su `claude/sviluppo` verso la **1.0.0**: EasyIsland agente personale, primo passo i Compiti (`docs/idee.md`). Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 23 ottobre 2026. Versione **0.9.9** in `main` con il tag `v0.9.9` (la CI pubblica l'installer). Si lavora su `claude/sviluppo` verso la **1.0.0**: EasyIsland agente personale (`docs/idee.md`). Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -31,7 +31,8 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
-### 23 ottobre 2026 — Compiti anche su Telegram, riordino della memoria
+### 23 ottobre 2026 — Compiti anche su Telegram, riordino della memoria, versione 0.9.9
+- Versione **0.9.9** con le voci del 23 ottobre; README, README.en.md e homepage aggiornati.
 - Chiesto da Edoardo: fare «cosa resta» del confronto con gli altri agenti. Permessi e domande dei compiti anche su Telegram (prima risposta vince, mai «Automatica»), `/rispondi`, abilità come comandi su Telegram, Riordino della memoria serale con conferma (`docs/chat.md`).
 - **Prove:** `cargo test --workspace` (test nuovo sulla prima risposta), clippy, `npm run build`, `npm run smoke`. Le prove con Telegram e con la memoria vera servono un tuo tocco: `docs/prove-dal-vivo.md`.
 
