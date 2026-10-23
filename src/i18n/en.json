@@ -2858,5 +2858,6 @@
   "Indirizzo non valido.": "Invalid address.",
   "{h} non è tra i servizi di questa integrazione.": "{h} is not one of this integration's services.",
   "Il servizio non risponde: {e}": "The service does not answer: {e}",
-  "Fonte non trovata.": "Source not found."
+  "Fonte non trovata.": "Source not found.",
+  "Nessuna azione http «{l}». Quelle che ci sono: {all}": "No http action \"{l}\". The ones there are: {all}"
 }
