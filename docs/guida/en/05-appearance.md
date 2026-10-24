@@ -51,6 +51,11 @@ Nine characters drawn in code, all with the same expressions:
 
 The character reacts: it greets you at startup, celebrates when an agent finishes, worries about an error, looks at you when you hover. With the weather on it can have the sky behind it.
 
+## A logo or the weather instead of the character
+In **Theme → In the island** choose what sits in the island: **the character**, **the EasyIsland logo**, **my logo** or **the weather**. Logo and weather are still pictures: no animations, states or start-up greeting, for a more professional look.
+- **My logo**: **Upload PNG…** and pick the image (best with a transparent background). It is shrunk to 512 px, stays on this PC and goes in the [backup](24-settings.md). **Remove** deletes it; with no image the EasyIsland logo shows.
+- **The weather**: the sky and temperature right now, from the **Meteo** integration, which must be active.
+
 ## Theme
 The character's colour, the island's colour and opacity, **background when closed** (off: only the character stays).
 

@@ -996,3 +996,12 @@ h3.int-sub {
 .nav-links a:hover {
   text-decoration: underline;
 }
+
+/* Tema → «Il mio logo»: the picture as the island will show it. */
+.logo-preview {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+}

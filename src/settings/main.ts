@@ -6,7 +6,7 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
-import { type AgentTaskItem, type Custom, type Skill, type TaskState, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationCondition, type AutomationStep, type AutomationTrigger, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type WidgetDef } from "../core/state";
+import { type AgentTaskItem, type Custom, type Skill, type TaskState, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationCondition, type AutomationStep, type AutomationTrigger, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
@@ -4018,6 +4018,31 @@ function colorField(current: string, fallback: string, onCommit: (v: string) => 
   return row;
 }
 
+/** Any picture as a PNG data: URL at most 512 px on its longer side, for logo.rs. */
+function pngForIsland(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const s = Math.min(1, 512 / Math.max(img.naturalWidth, img.naturalHeight, 1));
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(img.naturalWidth * s));
+      c.height = Math.max(1, Math.round(img.naturalHeight * s));
+      const ctx = c.getContext("2d");
+      if (!ctx) return reject(new Error(t("Immagine non valida")));
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL("image/png"));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error(t("Immagine non valida")));
+    };
+    img.src = url;
+  });
+}
+
 /** "#rrggbb" for a 0…1 colour. */
 function rgbHex(c: RGB): string {
   return `#${c.map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("")}`;
@@ -4040,6 +4065,67 @@ function themeSection(): HTMLElement {
     );
   };
   drawColorRow();
+
+  // What sits in the island (character/figure.ts): the character, or a still
+  // picture — the EasyIsland logo, the user's PNG (logo.rs) or the weather.
+  const characterRow = h("div", { class: "row" },
+    h("label", { text: t("Personaggio") }),
+    select<string>(
+      characters().map((c) => [c.id, c.name] as [string, string]),
+      th.character ?? characters()[0].id,
+      (v) => { th.character = v; commit(); drawColorRow(); },
+    ),
+  );
+  const logoRow = h("div", { class: "row" });
+  const drawLogoRow = async () => {
+    const url = await Bridge.logoLoad().catch(() => null);
+    clear(logoRow);
+    const file = h("input", { type: "file", accept: "image/png,image/*", style: "display:none" }) as HTMLInputElement;
+    const status = h("span", { class: "hint" });
+    file.addEventListener("change", () => {
+      const f = file.files?.[0];
+      if (!f) return;
+      status.textContent = t("Carico…");
+      void pngForIsland(f)
+        .then((data) => Bridge.logoSave(data))
+        .then(() => {
+          th.logoStamp = Date.now();
+          commit();
+          void drawLogoRow();
+        })
+        .catch((e) => { status.textContent = String(e).replace(/^Error:\s*/, ""); });
+    });
+    logoRow.append(
+      h("label", { text: t("Il mio logo") }),
+      url ? h("img", { class: "logo-preview", src: url, alt: "" }) : h("span", { class: "hint", text: t("nessuna immagine: intanto c'è il logo di EasyIsland") }),
+      status,
+      file,
+      h("button", { text: url ? t("Cambia…") : t("Carica PNG…"), onclick: () => file.click() }),
+      ...(url ? [h("button", {
+        text: t("Togli"),
+        onclick: () => { void Bridge.logoClear().then(() => { th.logoStamp = Date.now(); commit(); void drawLogoRow(); }); },
+      })] : []),
+      h("span", { class: "hint note", text: t("un PNG con lo sfondo trasparente rende meglio; viene ridotto a 512 px e resta su questo PC (va anche nel backup)") }),
+    );
+  };
+  const showFigure = () => {
+    const f = th.figure ?? "character";
+    characterRow.style.display = f === "character" ? "" : "none";
+    colorRow.style.display = f === "character" ? "" : "none";
+    logoRow.style.display = f === "logo" ? "" : "none";
+    if (f === "logo") void drawLogoRow();
+  };
+  const figureRow = h("div", { class: "row" },
+    h("label", { text: t("Nell'isola") }),
+    select<Theme["figure"]>(
+      [["character", t("Il personaggio")], ["easyisland", t("Il logo di EasyIsland")], ["logo", t("Il mio logo")], ["weather", t("Il meteo")]],
+      th.figure ?? "character",
+      (v) => { th.figure = v; commit(); showFigure(); },
+    ),
+    h("span", { class: "hint note", text: t("logo e meteo sono immagini ferme: niente animazioni, stati e saluto all'avvio, per un aspetto più sobrio. Il meteo viene dall'integrazione Meteo, che dev'essere attiva") }),
+  );
+  showFigure();
+
   return h(
     "section",
     {},
@@ -4053,14 +4139,9 @@ function themeSection(): HTMLElement {
       ),
       h("span", { class: "hint note", text: t("l'aspetto dell'isola e di questa finestra: Windows 11 (grigio, colore d'accento di Windows, icone a linea) o Classico (isola nera, colori di EasyIsland)") }),
     ),
-    h("div", { class: "row" },
-      h("label", { text: t("Personaggio") }),
-      select<string>(
-        characters().map((c) => [c.id, c.name] as [string, string]),
-        th.character ?? characters()[0].id,
-        (v) => { th.character = v; commit(); drawColorRow(); },
-      ),
-    ),
+    figureRow,
+    logoRow,
+    characterRow,
     colorRow,
     h("div", { class: "row" },
       h("label", { text: t("Colore dell'isola") }),

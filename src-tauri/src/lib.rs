@@ -29,6 +29,7 @@ mod hotkeys;
 mod integrations;
 mod backup;
 mod jumplist;
+mod logo;
 mod thumbs;
 mod island;
 mod keys;
@@ -448,6 +449,22 @@ fn focus_window(app: AppHandle, focused: bool) {
 #[tauri::command]
 async fn file_thumb(path: String) -> Option<String> {
     tauri::async_runtime::spawn_blocking(move || thumbs::thumb(&path)).await.ok().flatten()
+}
+
+/// The user's PNG in place of the character (logo.rs).
+#[tauri::command]
+fn logo_save(data: String) -> Result<(), String> {
+    logo::save(&data)
+}
+
+#[tauri::command]
+fn logo_load() -> Option<String> {
+    logo::load()
+}
+
+#[tauri::command]
+fn logo_clear() {
+    logo::clear()
 }
 
 /// — in the header of the island as an app.
@@ -2852,6 +2869,9 @@ pub fn run() {
             set_app_mode,
             minimize_island,
             file_thumb,
+            logo_save,
+            logo_load,
+            logo_clear,
             flash_if_behind,
             claude_cli::session_ask,
             open_file_in_vscode,

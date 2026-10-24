@@ -863,6 +863,10 @@ export interface Theme {
   compactBackground: boolean;
   /** The look of the island and the settings: "windows" (Windows 11, the default) or "classic". */
   style: "windows" | "classic";
+  /** What sits in the island: the character, the EasyIsland logo, the user's PNG or the weather (character/figure.ts). */
+  figure: "character" | "easyisland" | "logo" | "weather";
+  /** Bumped when the user's PNG changes, so the island loads it again (logo.rs). */
+  logoStamp: number;
 }
 
 export interface ProfileRules {
@@ -890,6 +894,8 @@ export const DEFAULT_THEME: Theme = {
   volumeEmotes: 1,
   compactBackground: true,
   style: "windows",
+  figure: "character",
+  logoStamp: 0,
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -1236,6 +1242,14 @@ class AppState {
    * The Meteo sky over the character: on the Meteo pill, and on the idle
    * character when "Sul personaggio" says so. None once the reading is stale.
    */
+  /** Meteo now, for the weather in place of the character: its sky and "18°". */
+  get weatherNow(): { sky: Sky | null; temp: string } {
+    const w = this.widgetStatus[WEATHER];
+    if (!w || Date.now() / 1000 - w.at > 3 * 3600) return { sky: null, temp: "" };
+    const f = w.forecast as { temp?: number } | undefined;
+    return { sky: isSky(w.sky) ? w.sky : null, temp: typeof f?.temp === "number" ? `${Math.round(f.temp)}°` : "" };
+  }
+
   get characterSky(): Sky | null {
     const w = this.widgetStatus[WEATHER];
     if (!w || !isSky(w.sky) || Date.now() / 1000 - w.at > 3 * 3600) return null;

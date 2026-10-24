@@ -3007,5 +3007,16 @@
   "Non riesco a mettere da parte «{name}»: {e}": "Cannot set \"{name}\" aside: {e}",
   "Scrittura non riuscita: {e}": "Write failed: {e}",
   "Importate le impostazioni e {n} file (memoria, abilità, compiti, chat…). Quelli che c'erano sono stati messi da parte. EasyIsland si riavvia tra un attimo; le chiavi API vanno reinserite.": "Imported the settings and {n} files (memory, skills, tasks, chats…). The ones that were there have been set aside. EasyIsland restarts in a moment; API keys must be entered again.",
-  "Prima scrivi il nome della cartella": "Type the folder's name first"
+  "Prima scrivi il nome della cartella": "Type the folder's name first",
+  "Immagine non valida": "Invalid image",
+  "Serve un'immagine PNG di pochi MB": "A PNG image of a few MB is needed",
+  "Il mio logo": "My logo",
+  "nessuna immagine: intanto c'è il logo di EasyIsland": "no image: the EasyIsland logo stands in for now",
+  "Cambia…": "Change…",
+  "Carica PNG…": "Upload PNG…",
+  "un PNG con lo sfondo trasparente rende meglio; viene ridotto a 512 px e resta su questo PC (va anche nel backup)": "a PNG with a transparent background looks best; it is shrunk to 512 px and stays on this PC (it goes in the backup too)",
+  "Nell'isola": "In the island",
+  "Il logo di EasyIsland": "The EasyIsland logo",
+  "Il meteo": "The weather",
+  "logo e meteo sono immagini ferme: niente animazioni, stati e saluto all'avvio, per un aspetto più sobrio. Il meteo viene dall'integrazione Meteo, che dev'essere attiva": "logo and weather are still pictures: no animations, states or start-up greeting, for a more sober look. The weather comes from the Meteo integration, which must be active"
 }

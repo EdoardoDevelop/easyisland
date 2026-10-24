@@ -34,6 +34,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 24 ottobre 2026 — Logo o meteo al posto del personaggio
+- Tema → «Nell'isola»: personaggio, logo di EasyIsland, logo dell'utente (PNG ridotto a 512 px, `logo.rs`, nel backup) o meteo. Logo e meteo sono immagini ferme: niente animazioni, stati né saluto (`character/figure.ts`, aggancio in `BotEngine.draw` e `busy`).
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`; anteprima: logo EasyIsland, PNG e meteo nell'icona a riposo e nell'isola aperta. Da provare dal vivo.
+
 ### 24 ottobre 2026 — Isola come un'app
 - Cartella di lavoro: elenco o griglia, ordine per nome (A→Z, Z→A) o data di modifica (più recenti, meno recenti), cartelle sempre prima; testo di tutta l'isola aperta 1 px più grande (`--fs-up`), chiusa com'era. Come un'app: icona nella barra e Alt+Tab solo da aperta, si apre da EasyIsland aggiunta alla barra; schermo intero a filo dell'area di lavoro. «Resta aperta» non rende l'isola un'app (`keptByItself`). Tasto destro sull'icona nella barra: azioni rapide e attività (`jumplist.rs`, `--do`). Impostazioni: si aprono su Generale e non tornano in alto a ogni clic. Telegram uguale in ogni profilo (`GLOBAL_INTEGRATIONS`). Icone per tipo di file e anteprime delle immagini (`filekind.ts`, `thumbs.rs`). Backup con memoria, abilità, compiti, integrazioni personali, chat e abitudini (`backup.rs`).
 - L'isola dietro una finestra non torna più sopra passandoci col mouse (tao rimetteva `WS_EX_TOPMOST`). Nuove opzioni in Impostazioni → Isola: «Come un'app» (icona sempre nella barra, Alt+Tab, — e ▢ schermo intero) e «Resta aperta» quando la apre l'utente. `island.rs`, `island.ts`, `docs/architettura.md`.
@@ -51,8 +55,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 24 ottobre 2026 — L'isola passa dietro
 - A isola aperta, una finestra che le viene davanti sopra (scelta della cartella di lavoro, programmi aperti dall'isola) non finisce più sotto: l'isola le passa dietro senza chiudersi e torna davanti con un clic, un permesso/chiamata o quando si ritira (`step_aside_for`/`come_forward` in `island.rs`, `docs/architettura.md`). Arriva con la prossima versione.
 - **Prove:** `cargo test --workspace`, clippy, `npm run build`; da provare dal vivo.
-
-### 24 ottobre 2026 — Telegram a PC spento
-- I messaggi scritti al bot mentre EasyIsland era spento non si scartano più: alla ripartenza si elaborano in ordine (`LATE`/`run_late` in `telegram.rs`), con «scritto circa N fa» davanti alla domanda. Limite: Telegram li tiene circa 24 ore. Arriva con la prossima versione.
-- **Prove:** `cargo test --workspace`, clippy, `npm run build`; da provare dal vivo (`docs/prove-dal-vivo.md`).
-

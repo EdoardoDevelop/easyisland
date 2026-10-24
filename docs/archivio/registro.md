@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 24 ottobre 2026 — Telegram a PC spento
+- I messaggi scritti al bot mentre EasyIsland era spento non si scartano più: alla ripartenza si elaborano in ordine (`LATE`/`run_late` in `telegram.rs`), con «scritto circa N fa» davanti alla domanda. Limite: Telegram li tiene circa 24 ore. Arriva con la prossima versione.
+- **Prove:** `cargo test --workspace`, clippy, `npm run build`; da provare dal vivo (`docs/prove-dal-vivo.md`).
+
 ### 24 ottobre 2026 — Versione 1.0.0 e guida
 - Chiesto da Edoardo: ricontrollo e potenziamento delle ultime modifiche, guida completa sul sito divisa in pagine, link nelle Impostazioni, versione 1.0.0. Memoria: finestra che si aggiorna da sola, file trascinati in da-leggere, «Ricorda…». Guida di 28 pagine da `docs/guida/` con `scripts/guida.mjs` (menu, indice, ricerca), link Guida / Sito / GitHub in fondo alle Impostazioni, homepage con le novità.
 - **Prove:** `cargo test --workspace`, clippy, `npm run build`, `npm run smoke`, link e ancore della guida controllati, screenshot della guida e delle viste della memoria.

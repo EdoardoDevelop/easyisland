@@ -125,6 +125,10 @@ export const Bridge = {
   minimizeIsland: () => call<void>("minimize_island"),
   /** Windows' preview of a picture (thumbs.rs); null for other files. */
   fileThumb: (path: string) => call<string | null>("file_thumb", { path }),
+  /** The user's PNG in place of the character (logo.rs): a data: URL in, a data: URL out. */
+  logoSave: (data: string) => call<void>("logo_save", { data }),
+  logoLoad: () => call<string | null>("logo_load"),
+  logoClear: () => call<void>("logo_clear"),
   /** The pinned island behind other windows: flash its taskbar button. */
   flashIfBehind: () => call<void>("flash_if_behind"),
   /** The notification-area menu at the cursor (tray.rs `popup`). */

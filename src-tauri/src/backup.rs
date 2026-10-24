@@ -1,7 +1,7 @@
 // Impostazioni → Backup e trasferimento (asked by Edoardo on 24 Oct 2026: the
 // memory and everything else too, not only the settings). One JSON file: the
 // settings (as before) plus the user's own data — the chat's memory, Abilità,
-// Compiti, personal integrations, the chats and the habits. Keys stay in the
+// Compiti, personal integrations, the chats, the habits and the user's logo. Keys stay in the
 // Credential Manager; files encrypted for this PC (Notion map, recipes) are left
 // out, they are rebuilt. Importing never overwrites: each area that is there
 // already is first moved aside to "<name>.prima-del-ripristino-<date>".
@@ -25,6 +25,7 @@ fn areas() -> Vec<(&'static str, PathBuf, bool)> {
         ("integrazioni", config_dir().join("integrazioni"), true),
         ("chats.json", local_dir().join("chats.json"), false),
         ("habits.jsonl", local_dir().join("habits.jsonl"), false),
+        ("logo.png", config_dir().join("logo.png"), false),
     ]
 }
 
@@ -141,7 +142,7 @@ fn safe_join(base: &Path, rel: &str) -> Option<PathBuf> {
     Some(base.join(rel))
 }
 
-fn base64_decode(s: &str) -> Option<Vec<u8>> {
+pub(crate) fn base64_decode(s: &str) -> Option<Vec<u8>> {
     let val = |c: u8| -> Option<u32> {
         Some(match c {
             b'A'..=b'Z' => c - b'A',

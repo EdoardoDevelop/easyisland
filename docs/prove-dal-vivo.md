@@ -167,3 +167,4 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
 - **Anteprime:** immagini nel Vassoio e nella cartella di lavoro mostrano la miniatura, in elenco e in griglia.
 - **Impostazioni ferme:** in fondo ad Azioni rapide cambia «Chiedi alla chat» in «Tasti nel programma in uso», e in Integrazioni accendi e spegni un interruttore: la pagina resta dov'è.
 - **File sull'isola a riposo:** con la vista compatta tornata a riposo (anche «Nessuna», la striscia invisibile), trascina un file sul bordo dov'è l'isola: si apre il pannello di rilascio.
+- **Logo al posto del personaggio:** Tema → Nell'isola → Il mio logo, Carica PNG…: il logo compare nell'icona a riposo, nella vista compatta e nell'isola aperta, fermo, senza saluto all'avvio; Il meteo mostra cielo e temperatura con Meteo attiva; un backup esportato contiene `logo.png`.
