@@ -58,6 +58,13 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 
 ## What's new
 
+**1.0.1** — **Telegram with the PC off**: messages written to the bot while EasyIsland was off are
+handled when it starts again, in order, knowing when you wrote them. **The island steps behind**
+windows that open over it (like the work folder picker) without closing, and comes back with a click
+or when needed. **More complete automations**: "Wait" and "Ask before going on" steps, stop after an
+error, and from your habits only whole routines (start of the day with profile, programs and the
+day at a glance), never "open one program at a time".
+
 **0.9.9** — **EasyIsland becomes an agent**. **Tasks**: give it a goal and it carries it on by
 itself with a plan, steps and a result, now, at a time, every day, every week or every N minutes;
 you see it work in the Agents tab and it asks you when it needs to. Each task has its own engine and

@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 24 ottobre 2026 — Secondo cervello
+- Chiesto da Edoardo: idee da un plugin «secondo cervello» per la memoria, più una finestra con timeline, grafo, mappa mentale e concettuale. Fatti in `brain.rs` (pagine `[[collegate]]` con versioni, da-leggere → fonti, controllo che archivia e non cancella, ricerca che segue i collegamenti) e nella finestra `src/memory/` (`docs/chat.md`).
+- **Prove:** `cargo test --workspace` (6 test nuovi in `brain.rs`, `forget` in `memory.rs`), clippy, `npm run build`, `npm run smoke`, screenshot delle quattro viste con Edge.
+
 ### 23 ottobre 2026 — Integrazioni personali universali
 - Chiesto da Edoardo: niente più «preventivi», capire i limiti e toglierli. Tolti: chiamate a servizi (`http`, solo agli host della descrizione), fonti di dati lette ogni N minuti con avvisi, chiavi in Gestione credenziali, formule vere (`src/core/expr.ts`), azioni compito / avviso / sequenza, campo file, `custom_fetch` e `custom_call` per chat e compiti (`docs/integrazioni.md`).
 - **Prove:** `cargo test --workspace` (5 test nuovi), clippy, `npm run build`, `npm run smoke` (scena `custom&dati`), 42 formule con Edge, dal vivo una fonte vera letta dall'app (GitHub, HTTP 200), poi tolta.
