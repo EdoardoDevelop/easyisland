@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Files and screen — EasyIsland Guide</title>
+<meta name="description" content="Dropping files, the Tray, the working folder, Circle and ask, Record, ZIP and suggestions at the right moment.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/file-e-schermo.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/file-e-schermo.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html" class="on" aria-current="page">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Getting things done</div>
+<h1>Files and screen</h1>
+<p class="lead">Dropping files, the Tray, the working folder, Circle and ask, Record, ZIP and suggestions at the right moment.</p>
+<p><img src="../../media/en/files.png" alt="Files and screen" loading="lazy"></p>
+<h2 id="dropping-a-file"><a class="anchor" href="#dropping-a-file">#</a>Dropping a file</h2>
+<p>Drag a file onto the island (it opens even when set to "only with a click"): the character becomes a box, swallows it and asks <strong>what to do with it</strong>: ask the chat a question, run a quick action that works on files, or, for a ZIP, <strong>Extract…</strong>. A dropped folder ends up as a path in the chat field.</p>
+<p><img src="../../media/en/drop.png" alt="The character becomes a box" loading="lazy"></p>
+<h2 id="the-tray"><a class="anchor" href="#the-tray">#</a>The Tray</h2>
+<p>Dropped files, screen areas, chat exports, custom integrations' documents, files from Telegram: everything goes through the <strong>Tray</strong>, as a list or a grid.</p>
+<ul><li>Drag a file from the Tray into another app (mail, chat, folder).</li><li><strong>Ask the chat</strong>, <strong>Open</strong>, <strong>Show in folder</strong>, <strong>Copy</strong>.</li><li>📌 <strong>Pin</strong>: pinned files survive a restart; the others are cleared at every start.</li><li>The green icon moves it to the <strong>working folder</strong>.</li></ul>
+<p>They are copies: the originals are never touched.</p>
+<h2 id="working-folder"><a class="anchor" href="#working-folder">#</a>Working folder</h2>
+<p>A folder on the PC chosen by you with <strong>Choose…</strong> (here or in Settings → Chat). Under the Tray you browse it: double-click to enter or open, ".." to go up, <strong>+</strong> new folder, drag to other apps. On every item: <strong>Ask the chat</strong>, <strong>Open</strong>, and in "⋯" <strong>Rename</strong>, <strong>Move…</strong>, <strong>To the Tray</strong>, <strong>Copy path</strong>, <strong>Recycle Bin</strong> (the Windows Recycle Bin: nothing is deleted for good).</p>
+<p>The chat <strong>reads it without asking</strong> and moves Tray files into it (with confirmation); with terminal mode it's the folder it works in. From Telegram: <code>/cartella</code> shows it as buttons and sends you the files. Every path is checked: nothing gets out of the folder.</p>
+<h2 id="circle-and-ask"><a class="anchor" href="#circle-and-ask">#</a>Circle and ask</h2>
+<p><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>, or the <strong>Circle and ask</strong> tile: the screen freezes and dims. Circle or box an area and next to it you get:</p>
+<ul><li><strong>Ask…</strong>: type the question and <kbd>Enter</kbd>, the chat opens with the area;</li><li>your <strong>quick actions</strong>;</li><li><strong>Copy image</strong>;</li><li><strong>Copy text</strong>, recognised by Windows (local OCR);</li><li><strong>To the Tray</strong>.</li></ul>
+<p><kbd>Esc</kbd> or the right button cancel. Handy for getting an error window explained.</p>
+<h2 id="record"><a class="anchor" href="#record">#</a>Record</h2>
+<p>In the Files and screen tab, <strong>Record</strong> captures:</p>
+<ul><li>a <strong>conversation</strong> (microphone and PC audio, the other side of a call too);</li><li>the whole <strong>screen</strong>;</li><li><strong>a single window</strong>, even when covered by others.</li></ul>
+<p>While recording, the red dot, the time and <strong>Stop</strong> stay next to the character, always visible. The file goes to <code>Videos\EasyIsland</code> (or the folder you choose) and to the Tray. No dependencies: it uses Windows' APIs.</p>
+<h2 id="zip"><a class="anchor" href="#zip">#</a>ZIP</h2>
+<p>Dropping a ZIP: <strong>Extract…</strong> shows what it contains and extracts it into a new folder next to the original, in Downloads or on the Desktop.</p>
+<h2 id="suggestions-at-the-right-moment"><a class="anchor" href="#suggestions-at-the-right-moment">#</a>Suggestions at the right moment</h2>
+<p>The island notices what happens on the PC and proposes the next step with one click, never covering what you're doing:</p>
+<ul><li><strong>Download finished</strong>: open, show in folder, to the Tray, ask the chat; for a ZIP, extract.</li><li><strong>Error copied</strong> (with Clipboard on): "Explain it".</li><li><strong>Dev server started</strong> (a new listening port from a development program): open in the browser.</li><li><strong>Password or key copied</strong> from a password manager: clear it from the clipboard after a while.</li></ul>
+<p>They count as alerts: "Permissions only" and "in front of a client" keep them away.</p>
+<h2 id="clipboard"><a class="anchor" href="#clipboard">#</a>Clipboard</h2>
+<p>The <strong>Clipboard</strong> integration keeps the last 30 texts and 10 images copied, plus pinned ones, <strong>in memory only</strong>: click to paste into the foreground app, or copy, transform (UPPERCASE, lowercase, one line, no spaces, JSON, URL), pin, delete; on images <strong>Ask the chat</strong>. What password managers mark as private isn't recorded. <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd> opens it.</p>
+<p><img src="../../media/en/clipboard.png" alt="Clipboard" loading="lazy"></p>
+<div class="pager"><a class="prev" href="automations.html"><small>Previous</small>Automations</a><a class="next" href="integrations.html"><small>Next</small>Integrations</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/15-files-and-screen.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#dropping-a-file">Dropping a file</a></li><li class="l2"><a href="#the-tray">The Tray</a></li><li class="l2"><a href="#working-folder">Working folder</a></li><li class="l2"><a href="#circle-and-ask">Circle and ask</a></li><li class="l2"><a href="#record">Record</a></li><li class="l2"><a href="#zip">ZIP</a></li><li class="l2"><a href="#suggestions-at-the-right-moment">Suggestions at the right moment</a></li><li class="l2"><a href="#clipboard">Clipboard</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

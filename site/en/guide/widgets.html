@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Widgets — EasyIsland Guide</title>
+<meta name="description" content="Repeatable checks without code: sites, certificates, domains, servers, ports, services, calendars, APIs.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/widget.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/widget.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html" class="on" aria-current="page">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Connecting services</div>
+<h1>Widgets</h1>
+<p class="lead">Repeatable checks without code: sites, certificates, domains, servers, ports, services, calendars, APIs.</p>
+<p><strong>Settings → Widgets</strong> adds checks you can repeat as many times as you like (a site per client, a server per office…). Unlike integrations, which are one per service, widgets are <strong>probes</strong>.</p>
+<div class="table"><table><thead><tr><th>Kind</th><th>What it checks</th></tr></thead><tbody><tr><td><strong>Calendar</strong></td><td>Upcoming appointments from an ICS link (Google Calendar, Outlook.com, iCloud), no sign-in; alerts a few minutes before. The link is secret and lives in the Credential Manager</td></tr><tr><td><strong>Domain expiry</strong></td><td>Days until one or more domains expire (RDAP, or WHOIS for registries like <code>.it</code>)</td></tr><tr><td><strong>Website</strong></td><td>That an address answers (2xx/3xx or the status you set) and how fast</td></tr><tr><td><strong>HTTPS certificate</strong></td><td>Days until expiry: orange under 30, red under 7 or expired</td></tr><tr><td><strong>Ping</strong></td><td>That a host answers (no administrator rights)</td></tr><tr><td><strong>TCP port</strong></td><td>That a port is open (e.g. 3389, 22, 443)</td></tr><tr><td><strong>Windows service</strong></td><td>That a local service is running (e.g. <code>Spooler</code>)</td></tr><tr><td><strong>JSON API</strong></td><td>Any API: the fields to show (a path like <code>data.items[0].status</code>) and an alert rule (e.g. <code>open &gt; 10</code>); secret headers in the Credential Manager</td></tr></tbody></table></div>
+<ul><li><strong>▶</strong> tests a widget right away.</li><li>When a check goes from OK to a problem: dot in the menu, sound, island showing up (following the profile's notifications). A new error shows only if it repeats 15 seconds later, and after standby checks wait for the network to come back.</li><li>Rarer on battery, stopped when paused.</li><li>Widgets belong to the profile and can start an <a href="automations.html">automation</a>.</li></ul>
+<div class="callout suggerimento"><p><strong>Tip:</strong> for a single service with more data (an API with lists, alerts and actions) a <a href="custom-integrations.html">custom integration</a> with a data source is better.</p></div>
+<div class="pager"><a class="prev" href="custom-integrations.html"><small>Previous</small>Custom integrations</a><a class="next" href="settings.html"><small>Next</small>Settings, page by page</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/23-widgets.md">Edit this page on GitHub</a></footer>
+</main>
+
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

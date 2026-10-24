@@ -13,7 +13,7 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 ![Rust](https://img.shields.io/badge/Rust-backend-000?logo=rust)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
-[Italiano](README.md) · **English** · **[📖 Full guide (Italian)](https://edoardodevelop.github.io/easyisland/guida/)**
+[Italiano](README.md) · **English** · **[📖 Full guide](https://edoardodevelop.github.io/easyisland/en/guide/)**
 
 </div>
 

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy and security — EasyIsland Guide</title>
+<meta name="description" content="What stays on the PC, what leaves it, where secrets live and what EasyIsland will never do.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/privacy.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/privacy.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html" class="on" aria-current="page">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Reference</div>
+<h1>Privacy and security</h1>
+<p class="lead">What stays on the PC, what leaves it, where secrets live and what EasyIsland will never do.</p>
+<h2 id="what-it-never-does"><a class="anchor" href="#what-it-never-does">#</a>What it never does</h2>
+<ul><li><strong>Send an email</strong> or <strong>approve a permission</strong> without your click. Only exception: Telegram's "Automatic" turned on by you, which still asks about deletions.</li><li><strong>Run arbitrary commands</strong> on this PC from the AI's tools: only your quick actions, or terminal mode with a permission for each command.</li><li><strong>Delete</strong>: tools don't delete, except a Notion row to its trash after your yes in the chat; the working folder uses the Windows Recycle Bin; the memory archives and never deletes.</li><li><strong>Overwrite</strong> agents' configurations: first a dated backup, the diff and your confirmation.</li><li><strong>Block an agent</strong>: if EasyIsland doesn't answer, the agent carries on by itself.</li><li>Accept everything without checks: the mode that skips every permission doesn't exist.</li></ul>
+<h2 id="secrets"><a class="anchor" href="#secrets">#</a>Secrets</h2>
+<p>API keys, tokens, passwords and secret links live in the <strong>Windows Credential Manager</strong>, never on disk, never in the interface, never in git, never in backups. The interface can only ask whether a key exists. Remote access passwords stay only in memory while the connection is open. The Notion and RDM maps on disk are encrypted with Windows data protection (DPAPI).</p>
+<h2 id="network"><a class="anchor" href="#network">#</a>Network</h2>
+<p><strong>No telemetry.</strong> Requests only go:</p>
+<ul><li>to the services you configure (AI engines, integrations, widgets, custom integrations to the hosts written in their description);</li><li>to GitHub for the <strong>update check</strong>, which can be turned off in Settings → General.</li></ul>
+<p>Updates install <strong>only after a click</strong>, with the <strong>signature verified</strong>. No port is opened on the PC (Telegram uses long polling).</p>
+<h2 id="what-stays-on-the-pc"><a class="anchor" href="#what-stays-on-the-pc">#</a>What stays on the PC</h2>
+<div class="table"><table><thead><tr><th>Data</th><th>Where</th><th>Notes</th></tr></thead><tbody><tr><td>Chat history</td><td><code>%LOCALAPPDATA%\EasyIsland\chats.json</code></td><td>Up to 100 conversations; can be cleared or turned off</td></tr><tr><td>Memory, diary, pages</td><td><code>%APPDATA%\EasyIsland\memoria</code></td><td>Readable .md files; off together with the history</td></tr><tr><td>Tasks, skills, custom integrations</td><td><code>%APPDATA%\EasyIsland</code></td><td>Readable files</td></tr><tr><td>Clipboard</td><td>In memory only</td><td>Password managers' private items aren't recorded</td></tr><tr><td>Agents' changes</td><td>In memory only</td><td>50 changes, one hour at most</td></tr><tr><td>Agents' recaps</td><td><code>recap.json</code></td><td>Only numbers and folder names</td></tr><tr><td>Habits (if on)</td><td>On the PC</td><td>Only program names and times, 45 days, erased with one click</td></tr><tr><td>Log</td><td><code>%LOCALAPPDATA%\EasyIsland\easyisland.log</code></td><td>Technical events, no contents</td></tr></tbody></table></div>
+<h2 id="in-front-of-a-client"><a class="anchor" href="#in-front-of-a-client">#</a>In front of a client</h2>
+<p>During calls, meetings and remote support the character hides and no name, title or text appears on screen. See <a href="profiles.html#in-front-of-a-client">Profiles and notifications</a>.</p>
+<h2 id="ai-models"><a class="anchor" href="#ai-models">#</a>AI models</h2>
+<p>What you write in the chat goes to the engine you choose. With free online models data may be used for training: for client data use a paid plan or a local model (Ollama, LM Studio), which doesn't leave the network.</p>
+<div class="pager"><a class="prev" href="settings.html"><small>Previous</small>Settings, page by page</a><a class="next" href="command-line.html"><small>Next</small>Command line and scripts</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/25-privacy.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#what-it-never-does">What it never does</a></li><li class="l2"><a href="#secrets">Secrets</a></li><li class="l2"><a href="#network">Network</a></li><li class="l2"><a href="#what-stays-on-the-pc">What stays on the PC</a></li><li class="l2"><a href="#in-front-of-a-client">In front of a client</a></li><li class="l2"><a href="#ai-models">AI models</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

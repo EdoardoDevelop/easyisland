@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Installation — EasyIsland Guide</title>
+<meta name="description" content="Download, install, update and uninstall EasyIsland.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/installazione.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/installazione.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html" class="on" aria-current="page">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Getting started</div>
+<h1>Installation</h1>
+<p class="lead">Download, install, update and uninstall EasyIsland.</p>
+<h2 id="install"><a class="anchor" href="#install">#</a>Install</h2>
+<ol><li>Open the <a href="https://github.com/EdoardoDevelop/easyisland/releases/latest" target="_blank" rel="noopener">releases on GitHub</a> and download <strong>EasyIsland-Windows-X.Y.Z-setup.exe</strong>.</li><li>Run it. It installs <strong>for the current user only</strong>: no administrator prompt.</li><li>The installer is not yet signed with a certificate, so Windows SmartScreen shows a warning: click <strong>More info → Run anyway</strong>.</li></ol>
+<p>When it's done EasyIsland starts and the character greets you. From then on you'll find it in the Start menu and in the <strong>notification area</strong> (the ^ arrow next to the clock).</p>
+<div class="callout suggerimento"><p><strong>Tip:</strong> if Defender blocks the installer, it's the usual false positive for unsigned programs: use "Run anyway".</p></div>
+<h2 id="where-files-go"><a class="anchor" href="#where-files-go">#</a>Where files go</h2>
+<div class="table"><table><thead><tr><th>What</th><th>Where</th></tr></thead><tbody><tr><td>The program</td><td><code>%LOCALAPPDATA%\EasyIsland</code></td></tr><tr><td>The relay for agents</td><td><code>%LOCALAPPDATA%\EasyIsland\bin\easyisland-hook.exe</code></td></tr><tr><td>The log</td><td><code>%LOCALAPPDATA%\EasyIsland\easyisland.log</code></td></tr><tr><td>Settings, memory, tasks, skills, custom integrations</td><td><code>%APPDATA%\EasyIsland</code></td></tr><tr><td>Keys, tokens, passwords</td><td>Windows Credential Manager (never on disk)</td></tr></tbody></table></div>
+<h2 id="update"><a class="anchor" href="#update">#</a>Update</h2>
+<p>At startup and then once a day EasyIsland checks GitHub for a newer version. If there is one, the island shows an update card with <strong>Install</strong> and <strong>Later</strong>:</p>
+<ul><li>nothing is installed without your click;</li><li>the update is <strong>signed</strong> and the signature is verified before running it;</li><li>while installing, EasyIsland closes and reopens by itself; settings and keys stay.</li></ul>
+<p>In <strong>Settings → General → Updates</strong> you see the version, check by hand with <strong>Check now</strong> or turn the automatic check off.</p>
+<h2 id="uninstall"><a class="anchor" href="#uninstall">#</a>Uninstall</h2>
+<ol><li>First, in <strong>Settings → Coding agents</strong>, click <strong>Uninstall…</strong> on the row of each connected agent: on purpose, the Windows uninstaller doesn't touch the agents' configuration files (for example Claude Code's <code>settings.json</code>).</li><li>Then <strong>Windows Settings → Apps → Installed apps → EasyIsland → Uninstall</strong>.</li></ol>
+<p>The <code>%APPDATA%\EasyIsland</code> folder (memory, tasks, skills) stays: delete it by hand if you no longer need it.</p>
+<h2 id="build-it-yourself"><a class="anchor" href="#build-it-yourself">#</a>Build it yourself</h2>
+<p>If you prefer to start from the source code you need Git, Node.js, Rust and the Visual Studio Build Tools: the steps are in <a href="development.html">For developers</a>. The result is the same installer.</p>
+<div class="pager"><a class="prev" href="index.html"><small>Previous</small>EasyIsland Guide</a><a class="next" href="getting-started.html"><small>Next</small>First steps</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/02-installation.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#install">Install</a></li><li class="l2"><a href="#where-files-go">Where files go</a></li><li class="l2"><a href="#update">Update</a></li><li class="l2"><a href="#uninstall">Uninstall</a></li><li class="l2"><a href="#build-it-yourself">Build it yourself</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

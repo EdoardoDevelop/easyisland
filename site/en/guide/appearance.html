@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Position and look — EasyIsland Guide</title>
+<meta name="description" content="Where the character lives, how it shows itself, styles, characters, themes, sounds and language.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/aspetto.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/aspetto.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html" class="on" aria-current="page">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Make it yours</div>
+<h1>Position and look</h1>
+<p class="lead">Where the character lives, how it shows itself, styles, characters, themes, sounds and language.</p>
+<p>Everything is in <strong>Settings → Look</strong>. Sections with the purple label are saved in the active <a href="profiles.html">profile</a>.</p>
+<p><img src="../../media/en/settings.png" alt="Settings, Look page" loading="lazy"></p>
+<h2 id="style"><a class="anchor" href="#style">#</a>Style</h2>
+<ul><li><strong>Windows 11</strong> (default): island and Settings in grey like system apps, <strong>Windows' accent colour</strong>, line icons.</li><li><strong>Classic</strong>: the original dark look with coloured icons.</li></ul>
+<h2 id="position"><a class="anchor" href="#position">#</a>Position</h2>
+<ul><li><strong>Corner</strong>: top or bottom, left, centre or right. The island grows from there and its content stays aligned to that side.</li><li><strong>Dragging the character</strong>: drop it anywhere; the side the island opens from is chosen automatically. Near an edge or the centre it snaps. Picking a corner again brings it back to the edge.</li><li><strong>Screen</strong>: the main one, the one under the cursor or the one you dragged it to (if unplugged, it goes back to the main one).</li><li><strong>The island opens</strong>: where the character is, or always at the top centre, the centre of the screen or the bottom centre.</li><li><strong>Over the taskbar</strong>: the character may also sit over the taskbar.</li><li><strong>Snap to edges</strong>: near an edge the background sticks to it with square corners.</li></ul>
+<h2 id="sizes"><a class="anchor" href="#sizes">#</a>Sizes</h2>
+<p><strong>Width</strong> and <strong>Minimum height</strong> of the open island, up to the screen edges (also by dragging its bottom corner). <strong>Defaults</strong> go back to 640 px.</p>
+<h2 id="behaviour"><a class="anchor" href="#behaviour">#</a>Behaviour</h2>
+<div class="table"><table><thead><tr><th>Option</th><th>What it does</th></tr></thead><tbody><tr><td><strong>Compact view</strong></td><td>The big animated character, or a compact bar with the integrations as tiny characters, with adjustable size</td></tr><tr><td><strong>Quick replies</strong></td><td>Permissions, calls and meetings next to the closed character, on the right or the left</td></tr><tr><td><strong>Follows the mouse</strong></td><td>In the compact view too the character looks at the cursor (uses a little more)</td></tr><tr><td><strong>Always visible</strong></td><td>The compact view never goes back to the resting icon</td></tr><tr><td><strong>Resting icon</strong></td><td>The still character, a dot in the state's colour, or nothing (an invisible strip on the edge)</td></tr><tr><td><strong>Back to rest after</strong></td><td>After how many seconds to go back to the resting icon</td></tr><tr><td><strong>Open after</strong></td><td>How long to hover before it opens, or <strong>only with a click</strong> (dragging a file always opens it)</td></tr><tr><td><strong>Open panel</strong></td><td>After how many seconds from the mouse leaving it shrinks</td></tr><tr><td><strong>Close button</strong></td><td>The ✕ at the top right</td></tr><tr><td><strong>Full screen</strong></td><td>During videos, games and presentations the character disappears; permissions still show</td></tr><tr><td><strong>Search field</strong></td><td>The field at the top of the island</td></tr></tbody></table></div>
+<h2 id="characters"><a class="anchor" href="#characters">#</a>Characters</h2>
+<p>Nine characters drawn in code, all with the same expressions:</p>
+<p><img src="../../media/en/characters.png" alt="The characters" loading="lazy"></p>
+<ul><li><strong>Goccia</strong> (default): a glossy light-blue water spirit.</li><li><strong>Slime</strong>: green jelly that wobbles.</li><li><strong>EasyTech</strong>: a cube in the logo's colours, eyes on one side.</li><li><strong>Geco</strong>: a gecko's head with amber eyes.</li><li><strong>Fiamma</strong>: a layered little flame that sways.</li><li><strong>Magma</strong>, <strong>Pietra</strong>, <strong>Roccia</strong>: pebbles with big eyes (lava, sprout, moss).</li><li><strong>Foglia</strong>: a glossy leaf with veins.</li></ul>
+<p>The character reacts: it greets you at startup, celebrates when an agent finishes, worries about an error, looks at you when you hover. With the weather on it can have the sky behind it.</p>
+<h2 id="theme"><a class="anchor" href="#theme">#</a>Theme</h2>
+<p>The character's colour, the island's colour and opacity, <strong>background when closed</strong> (off: only the character stays).</p>
+<h2 id="sounds"><a class="anchor" href="#sounds">#</a>Sounds</h2>
+<p>All sounds are <strong>generated in code</strong>, no audio files: three separate volumes for <strong>alerts</strong>, <strong>interface</strong> and the character's <strong>emotions</strong>. Mute them in one go with the "sounds on / off" shortcut.</p>
+<h2 id="language"><a class="anchor" href="#language">#</a>Language</h2>
+<p><strong>Settings → General → Language</strong>: like Windows, Italian or English. It applies after a restart (offered with <strong>Restart now</strong>); the chat also answers in that language, unless you write to it in another one.</p>
+<div class="pager"><a class="prev" href="island.html"><small>Previous</small>The island</a><a class="next" href="profiles.html"><small>Next</small>Profiles and notifications</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/05-appearance.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#style">Style</a></li><li class="l2"><a href="#position">Position</a></li><li class="l2"><a href="#sizes">Sizes</a></li><li class="l2"><a href="#behaviour">Behaviour</a></li><li class="l2"><a href="#characters">Characters</a></li><li class="l2"><a href="#theme">Theme</a></li><li class="l2"><a href="#sounds">Sounds</a></li><li class="l2"><a href="#language">Language</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

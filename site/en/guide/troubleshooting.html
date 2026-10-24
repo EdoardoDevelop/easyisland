@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Troubleshooting — EasyIsland Guide</title>
+<meta name="description" content="The most common questions and problems, with what to do.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/problemi.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/problemi.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html" class="on" aria-current="page">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Reference</div>
+<h1>Troubleshooting</h1>
+<p class="lead">The most common questions and problems, with what to do.</p>
+<h2 id="install-and-startup"><a class="anchor" href="#install-and-startup">#</a>Install and startup</h2>
+<div class="table"><table><thead><tr><th>Problem</th><th>Solution</th></tr></thead><tbody><tr><td>SmartScreen or Defender block the installer</td><td>It's the warning for unsigned programs: <strong>More info → Run anyway</strong></td></tr><tr><td>The character doesn't show</td><td>Look in the notification area (^ next to the clock); check it isn't <strong>Paused</strong>, that full screen isn't hiding it and that "in front of a client" isn't on; read the log</td></tr><tr><td>I can't find Settings</td><td>Notification area icon → Settings…, or <code>easyisland.exe --settings</code></td></tr><tr><td>The character goes behind the taskbar</td><td>Clicking the taskbar or opening Start can cause it: it comes back on the next window change</td></tr></tbody></table></div>
+<h2 id="agents"><a class="anchor" href="#agents">#</a>Agents</h2>
+<div class="table"><table><thead><tr><th>Problem</th><th>Solution</th></tr></thead><tbody><tr><td>Claude Code sessions don't arrive</td><td>Settings → Coding agents → Install…, then open a <strong>new</strong> session</td></tr><tr><td>Codex sends nothing</td><td>After installing, open <code>/hooks</code> in Codex and approve EasyIsland's hooks</td></tr><tr><td>opencode doesn't show</td><td>With opencode 2 turn on <strong>Connect opencode</strong>; with 1.x restart opencode after installing</td></tr><tr><td>The permission doesn't reach the island</td><td>EasyIsland has a time limit: if it doesn't answer, the agent asks in the terminal. Check Pause and the profile's notifications</td></tr></tbody></table></div>
+<h2 id="chat"><a class="anchor" href="#chat">#</a>Chat</h2>
+<div class="table"><table><thead><tr><th>Problem</th><th>Solution</th></tr></thead><tbody><tr><td>"Claude subscription" is red</td><td>You need Claude Code on the command line, signed in: <code>irm https://claude.ai/install.ps1 | iex</code>, then <code>claude</code> and sign in; then <strong>Check again</strong></td></tr><tr><td>"Sign-in expired"</td><td>EasyIsland tries to renew it by itself; otherwise open <code>claude</code> and sign in again</td></tr><tr><td>An MCP connector doesn't show</td><td>It must be configured for the user (<code>--scope user</code>) and chosen in the profile; claude.ai's aren't available</td></tr><tr><td>The chat doesn't use tools</td><td>Settings → Chat → <strong>Can use the PC</strong> on, and an engine with tools (subscription, Anthropic key, opencode, Antigravity)</td></tr><tr><td>Slow answers</td><td>The log writes the seconds of every turn and tool: look there for what weighs</td></tr></tbody></table></div>
+<h2 id="keys-and-integrations"><a class="anchor" href="#keys-and-integrations">#</a>Keys and integrations</h2>
+<div class="table"><table><thead><tr><th>Problem</th><th>Solution</th></tr></thead><tbody><tr><td>A key "won't save"</td><td>The Windows Credential Manager is full (often of other apps' cached tokens): delete unneeded entries from Control Panel → Credential Manager → Generic credentials</td></tr><tr><td>"Missing: key"</td><td>The integration needs a credential: open its row and enter it</td></tr><tr><td>Outlook reads nothing</td><td>You need <strong>classic</strong> Outlook open, or the Microsoft account</td></tr><tr><td>3CX won't connect</td><td>Check address with port, extension and web client password; two-step verification isn't supported</td></tr><tr><td>Notion answers 403</td><td>The Notion integration must be allowed to read, update and insert, and be added to the pages and databases</td></tr><tr><td>Telegram doesn't answer</td><td>It works only with the PC on and the chat linked with <code>/start &lt;code&gt;</code></td></tr></tbody></table></div>
+<h2 id="memory-and-tasks"><a class="anchor" href="#memory-and-tasks">#</a>Memory and tasks</h2>
+<div class="table"><table><thead><tr><th>Problem</th><th>Solution</th></tr></thead><tbody><tr><td>The Memory window is empty</td><td>The memory fills up by using the chat, with <code>/ricorda</code> and with files in <code>da-leggere</code>; history must be on</td></tr><tr><td>A task is paused</td><td>It reached the maximum turns or minutes, or waits for an answer: resume it or answer</td></tr><tr><td>The Heartbeat doesn't run</td><td>With an empty <code>BATTITO.md</code> it doesn't run, on purpose</td></tr></tbody></table></div>
+<h2 id="the-log"><a class="anchor" href="#the-log">#</a>The log</h2>
+<p><code>%LOCALAPPDATA%\EasyIsland\easyisland.log</code> tells what happened: it's the first thing to look at, and to attach to a report on <a href="https://github.com/EdoardoDevelop/easyisland/issues" target="_blank" rel="noopener">GitHub</a>.</p>
+<div class="pager"><a class="prev" href="command-line.html"><small>Previous</small>Command line and scripts</a><a class="next" href="development.html"><small>Next</small>For developers</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/27-troubleshooting.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#install-and-startup">Install and startup</a></li><li class="l2"><a href="#agents">Agents</a></li><li class="l2"><a href="#chat">Chat</a></li><li class="l2"><a href="#keys-and-integrations">Keys and integrations</a></li><li class="l2"><a href="#memory-and-tasks">Memory and tasks</a></li><li class="l2"><a href="#the-log">The log</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

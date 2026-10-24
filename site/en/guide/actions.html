@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quick actions and shortcuts — EasyIsland Guide</title>
+<meta name="description" content="Buttons for links, programs, scripts and AI questions; suggestions for the app in use; the menu on selected text.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/azioni.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/azioni.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html" class="on" aria-current="page">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Getting things done</div>
+<h1>Quick actions and shortcuts</h1>
+<p class="lead">Buttons for links, programs, scripts and AI questions; suggestions for the app in use; the menu on selected text.</p>
+<p><img src="../../media/en/actions.png" alt="The Actions tab" loading="lazy"></p>
+<h2 id="kinds-of-action"><a class="anchor" href="#kinds-of-action">#</a>Kinds of action</h2>
+<p><strong>Settings → Quick actions</strong> creates the buttons of the ⚡ tab:</p>
+<div class="table"><table><thead><tr><th>Kind</th><th>What it does</th></tr></thead><tbody><tr><td><strong>Ask the chat</strong></td><td>Sends a saved prompt, applied to copied text, selected text or the dropped file. With <code>{{fields}}</code> in the text it becomes a <strong>template</strong> to fill in</td></tr><tr><td><strong>Script</strong></td><td>PowerShell or Command Prompt commands, hidden, with the output in the island (with <em>Stop</em>, 5-minute timeout). Runs <strong>only after a click</strong>; with "Ask for confirmation" it shows the commands first</td></tr><tr><td><strong>Program / folder</strong></td><td>Starts a program with its arguments (e.g. <code>mstsc /v:server01</code>) or opens a folder</td></tr><tr><td><strong>Link</strong></td><td>Opens an address in the browser</td></tr><tr><td><strong>Keys</strong></td><td>Presses a key combination in the app in use (for the bar of the app in use)</td></tr></tbody></table></div>
+<p>Each action has an <strong>icon</strong> (about fifty drawn in code), a <strong>colour</strong>, a <strong>folder</strong>, a <strong>shortcut</strong> and can be reordered with ↑ ↓. With more than 8 actions a <strong>Search an action</strong> field appears.</p>
+<p>Actions also run from <code>/name</code> in the chat, from the island's top field, from <a href="automations.html">automations</a>, from the chat itself ("run the backup") and from Telegram. Actions belong to the profile.</p>
+<h2 id="suggestions-for-the-app-in-use"><a class="anchor" href="#suggestions-for-the-app-in-use">#</a>Suggestions for the app in use</h2>
+<p>At the top of the ⚡ tab you get ready-made actions for the app you're using, applied to the selected text:</p>
+<ul><li><strong>Outlook</strong>: Summarise the mail, Write a reply;</li><li><strong>Excel</strong>: Explain this data;</li><li><strong>Word</strong>: Proofread, Make it more formal;</li><li><strong>browser</strong>: Summarise, Translate;</li><li><strong>code editor</strong>: Explain, Find bugs;</li><li><strong>terminal</strong>: Explain the error;</li><li><strong>Teams</strong>, <strong>PDF</strong> and any other app: Summarise, Translate, Proofread.</li></ul>
+<p>EasyIsland copies the selection, opens the chat with the text attached and then puts back on the clipboard what was there.</p>
+<h2 id="menu-on-selected-text"><a class="anchor" href="#menu-on-selected-text">#</a>Menu on selected text</h2>
+<p>Select some text in <strong>any program</strong> and press <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd>: a menu appears at the mouse with <strong>your quick actions</strong> that work on text, with folders as submenus. With Notion on there are also <strong>Note in Notion</strong> and <strong>Task in Notion</strong>.</p>
+<h3 id="replace"><a class="anchor" href="#replace">#</a>Replace</h3>
+<p>When an action rewrites the text (proofread, translate, make formal), the island shows <strong>before and after</strong> with <strong>Replace</strong>, <strong>Regenerate</strong>, <strong>Copy</strong> and <strong>Cancel</strong>. Replace pastes over the selection <strong>only if</strong> the window and the text are still the same, and keeps the <strong>formatting</strong> (bold, lists, Word and Outlook styles).</p>
+<p><img src="../../media/en/rewrite.png" alt="Replace with before and after" loading="lazy"></p>
+<h2 id="global-shortcuts"><a class="anchor" href="#global-shortcuts">#</a>Global shortcuts</h2>
+<div class="table"><table><thead><tr><th>Shortcut</th><th>What it does</th></tr></thead><tbody><tr><td><kbd>Ctrl</kbd>+<kbd>Space</kbd></td><td>Opens the island</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>K</kbd></td><td>Chat with what you copied</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd></td><td>Clipboard history</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></td><td>Circle and ask</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></td><td>Pending request (<kbd>N</kbd>, <kbd>Y</kbd>, <kbd>S</kbd>, <kbd>1</kbd>–<kbd>9</kbd>)</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd></td><td>Session's app to the front</td></tr><tr><td><kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd></td><td>Menu on selected text</td></tr><tr><td>Next integration, sounds on / off</td><td>To be assigned</td></tr><tr><td>Every action</td><td>Its own, if you give it one</td></tr></tbody></table></div>
+<p>To change one: click the field and press the combination (<kbd>Esc</kbd> cancels, <kbd>Del</kbd> removes it). If another app already uses it, Settings tell you.</p>
+<h2 id="the-bar-of-the-app-in-use"><a class="anchor" href="#the-bar-of-the-app-in-use">#</a>The bar of the app in use</h2>
+<p>For each program you can choose actions to show <strong>next to the closed character</strong> when that program is in the foreground: for example in Outlook "Reply with AI" and a Keys action to archive. Set it up in Settings → Quick actions.</p>
+<div class="pager"><a class="prev" href="tasks.html"><small>Previous</small>Tasks, Heartbeat and Skills</a><a class="next" href="automations.html"><small>Next</small>Automations</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/13-actions.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#kinds-of-action">Kinds of action</a></li><li class="l2"><a href="#suggestions-for-the-app-in-use">Suggestions for the app in use</a></li><li class="l2"><a href="#menu-on-selected-text">Menu on selected text</a></li><li class="l3"><a href="#replace">Replace</a></li><li class="l2"><a href="#global-shortcuts">Global shortcuts</a></li><li class="l2"><a href="#the-bar-of-the-app-in-use">The bar of the app in use</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

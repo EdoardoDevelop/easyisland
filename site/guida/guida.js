@@ -39,7 +39,7 @@
     sel = -1;
     box.innerHTML = hits.length
       ? hits.slice(0, 12).map(({ p, head }) => `<a href="${p.s}.html${head ? `#${head[0]}` : ""}">${esc(p.t)}${head ? ` › ${esc(head[1])}` : ""}<small>${snippet(p.x, words)}</small></a>`).join("")
-      : '<div class="none">Niente trovato.</div>';
+      : `<div class="none">${document.documentElement.lang === "en" ? "Nothing found." : "Niente trovato."}</div>`;
     box.classList.add("on");
   }
   q.addEventListener("input", search);

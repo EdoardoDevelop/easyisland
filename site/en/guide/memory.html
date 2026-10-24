@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Memory and second brain — EasyIsland Guide</title>
+<meta name="description" content="What EasyIsland remembers, how it learns from your files and how to explore it as a graph, maps and timeline.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/memoria.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/memoria.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html" class="on" aria-current="page">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Artificial intelligence</div>
+<h1>Memory and second brain</h1>
+<p class="lead">What EasyIsland remembers, how it learns from your files and how to explore it as a graph, maps and timeline.</p>
+<p>EasyIsland's memory is made of <strong>Markdown files</strong> in <code>%APPDATA%\EasyIsland\memoria</code>, which you can read and fix with any editor. It works with <strong>every engine</strong>. It turns off together with the history (Settings → Chat → History). Folder and file names on disk are in Italian (<code>memoria</code>, <code>diario</code>, <code>pagine</code>, <code>da-leggere</code>, <code>fonti</code>, <code>archivio</code>).</p>
+<h2 id="notes-memoria-md"><a class="anchor" href="#notes-memoria-md">#</a>Notes: MEMORIA.md</h2>
+<p>Things to always remember, one per line with the date: preferences, clients, people, how something is done. They go in front of the first question of every conversation (4,000 characters at most, newest first), so they cost few tokens.</p>
+<ul><li>The chat saves them <strong>by itself</strong> when you say something that also holds for next time.</li><li>You save them with <code>/ricorda …</code> in the chat, or from the <strong>Remember…</strong> field of the Memory window.</li><li>Past 60 notes the oldest move to <code>archivio.md</code>, which stays searchable.</li><li>No passwords or keys: the chat is instructed not to save them.</li></ul>
+<h2 id="the-diary"><a class="anchor" href="#the-diary">#</a>The diary</h2>
+<p><code>diario/YYYY-MM.md</code>: one line per answered question (time, engine, question, start of the answer). EasyIsland writes it <strong>without any model</strong>, so it costs nothing. The chat looks into it only when needed ("last time, how did we solve…?").</p>
+<h2 id="linked-pages"><a class="anchor" href="#linked-pages">#</a>Linked pages</h2>
+<p><code>pagine/&lt;name&gt;.md</code>: <strong>one page per subject</strong> (a person, a client, a project, a concept), like a wiki:</p>
+<pre><code># Studio Rossi
+fonte: mail-rossi.eml
+aggiornata: 2026-10-24
+
+Client since 2021, accountants, 8 workstations.
+- uses: [[NAS Synology]]
+- contact: [[Marco Rossi]]
+- contract: [[Annual support]]</code></pre>
+<ul><li><code>[[Title]]</code> links another page; a line <code>- relation: [[Other]]</code> says <strong>how</strong> they are related.</li><li>When the chat searches the memory, it gets the pages found <strong>plus a line from the linked ones</strong>: more context with few words.</li><li>The chat writes them when you ask "make a page about…", and from sources (below).</li><li><strong>Safe writes</strong>: if you edit a page by hand while the agent works on it, its write is refused; it must read it again and start from your version.</li></ul>
+<h2 id="to-read-teaching-with-files"><a class="anchor" href="#to-read-teaching-with-files">#</a>To read: teaching with files</h2>
+<p>Put articles, notes, meeting transcripts, saved mails (<code>.md</code>, <code>.txt</code>, <code>.html</code>, <code>.eml</code>, <code>.csv</code>, <code>.json</code>…) in the <code>da-leggere</code> folder, or <strong>drag them onto the Memory window</strong>. Then:</p>
+<ol><li>the agent reads each file;</li><li>writes or updates the right pages, with the file's name in <code>fonte:</code> and the links;</li><li>moves the file to <code>fonti/</code>, <strong>untouched</strong>.</li></ol>
+<p>It happens in the evening with the <strong>Memory digest</strong> or right away with <strong>Read now</strong>. Files that aren't text (PDF, Word) are passed with their path: Claude Code can open them.</p>
+<h2 id="the-check"><a class="anchor" href="#the-check">#</a>The check</h2>
+<p>EasyIsland finds by itself: similar notes or notes older than six months, links to pages that don't exist, pages that are isolated, old or about the same subject. The agent adds the <strong>contradictions</strong> it notices and proposes the fixes in the island, one per line, with <strong>Do all</strong> / <strong>None</strong> (or write which ones). It applies <strong>only the approved ones</strong> and <strong>never deletes</strong>: at most it moves a note to <code>archivio.md</code> or a page to <code>archivio/pagine</code>.</p>
+<p>It runs on Sunday evening with the digest, if there's something to fix, or right away with <strong>Check</strong>.</p>
+<h2 id="the-evening-digest"><a class="anchor" href="#the-evening-digest">#</a>The evening digest</h2>
+<p><strong>Settings → Tasks → Memory digest</strong>: every evening at 22:30 the agent</p>
+<ul><li>rereads the day's diary and proposes at most 5 things to remember (it saves only those you approve);</li><li>reads the files in <code>da-leggere</code>;</li><li>on Sundays runs the check.</li></ul>
+<p>If there's nothing to do it doesn't run and costs nothing.</p>
+<h2 id="the-memory-window"><a class="anchor" href="#the-memory-window">#</a>The Memory window</h2>
+<p><strong>Settings → Chat and AI engines → Memory → Map</strong> opens a window of its own with the memory drawn four ways.</p>
+<h3 id="graph"><a class="anchor" href="#graph">#</a>Graph</h3>
+<p><img src="../../media/en/memoria-grafo.png" alt="The memory graph" loading="lazy"></p>
+<p>Every page, note, source and chat day is a star, joined to the others by its links. The most linked stars are bigger. Click a star: its links light up, with sparks running along them, and on the right you see its text and the list of links.</p>
+<h3 id="mind-map"><a class="anchor" href="#mind-map">#</a>Mind map</h3>
+<p><img src="../../media/en/memoria-mappa.png" alt="The mind map" loading="lazy"></p>
+<p>One subject in the middle and what grows from it, up to three rings: each branch has its colour and grows from the centre. Click a branch to bring it to the middle.</p>
+<h3 id="concept-map"><a class="anchor" href="#concept-map">#</a>Concept map</h3>
+<p><img src="../../media/en/memoria-concetti.png" alt="The concept map" loading="lazy"></p>
+<p>Pages in layers, top to bottom, with arrows that name the relation ("uses", "contact", "contract"…). Pages mentioned but not yet written are dashed.</p>
+<h3 id="timeline"><a class="anchor" href="#timeline">#</a>Timeline</h3>
+<p><img src="../../media/en/memoria-timeline.png" alt="The memory timeline" loading="lazy"></p>
+<p>The memory over time, in lanes: notes, pages, sources and chat. At the top a wave shows how many questions you asked each day. Mouse wheel to zoom in time (from years to hours), drag to move.</p>
+<h3 id="in-the-window"><a class="anchor" href="#in-the-window">#</a>In the window</h3>
+<ul><li><strong>Search the memory…</strong>: lights up what matches; <kbd>Enter</kbd> goes to the first.</li><li><strong>To read (n)</strong>: opens the folder; <strong>Read now</strong> and <strong>Check</strong> start the tasks right away.</li><li><strong>Drag files</strong> onto the window: they go to <code>da-leggere</code>.</li><li><strong>Remember…</strong>: a new note.</li><li>Panel on the right: statistics, waiting files, check results, or the chosen item with <strong>Open the file</strong>.</li><li>Wheel to zoom, drag to move, double-click to see everything.</li><li>It refreshes by itself when the agent writes to the memory.</li></ul>
+<div class="pager"><a class="prev" href="ai-tools.html"><small>Previous</small>Terminal mode and tools</a><a class="next" href="tasks.html"><small>Next</small>Tasks, Heartbeat and Skills</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/11-memory.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#notes-memoria-md">Notes: MEMORIA.md</a></li><li class="l2"><a href="#the-diary">The diary</a></li><li class="l2"><a href="#linked-pages">Linked pages</a></li><li class="l2"><a href="#to-read-teaching-with-files">To read: teaching with files</a></li><li class="l2"><a href="#the-check">The check</a></li><li class="l2"><a href="#the-evening-digest">The evening digest</a></li><li class="l2"><a href="#the-memory-window">The Memory window</a></li><li class="l3"><a href="#graph">Graph</a></li><li class="l3"><a href="#mind-map">Mind map</a></li><li class="l3"><a href="#concept-map">Concept map</a></li><li class="l3"><a href="#timeline">Timeline</a></li><li class="l3"><a href="#in-the-window">In the window</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

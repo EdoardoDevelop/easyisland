@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3CX — EasyIsland Guide</title>
+<meta name="description" content="The 3CX phone system in the island: phone on the PC, calls, contacts, team, chat and voicemail.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/3cx.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/3cx.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html" class="on" aria-current="page">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Connecting services</div>
+<h1>3CX</h1>
+<p class="lead">The 3CX phone system in the island: phone on the PC, calls, contacts, team, chat and voicemail.</p>
+<p><img src="../../media/en/threecx.png" alt="3CX in the island" loading="lazy"></p>
+<h2 id="connecting"><a class="anchor" href="#connecting">#</a>Connecting</h2>
+<p><strong>Settings → Integrations → 3CX</strong> (a <strong>3CX V20</strong> system). Two ways:</p>
+<ul><li><strong>Extension and password</strong> (recommended): EasyIsland signs in like the 3CX app, with the system's address (e.g. <code>https://company.my3cx.com:5001</code>), your extension or email and the web client password. No extra licence. It's how the 3CX web client works, not a documented interface: an update of the phone system might require an EasyIsland update. Two-step verification is not supported yet.</li><li><strong>API client</strong>: in the Admin Console, <strong>Integrations → API → Add</strong>, tick <em>3CX Call Control API Access</em> (and <em>Configuration API Access</em> for the contacts) and add your extension among the monitored ones. Requires an <strong>8SC or higher</strong> licence. Presence, history, team and chat aren't available this way.</li></ul>
+<h2 id="the-tab-like-a-phone"><a class="anchor" href="#the-tab-like-a-phone">#</a>The tab, like a phone</h2>
+<p>On the left display, keypad, green key and device; on the right ongoing, recent and missed calls.</p>
+<ul><li><strong>Calling</strong>: type a number or search a name, company or colleague in the <strong>contacts</strong> and click the number; <kbd>Enter</kbd> calls the first result.</li><li><strong>Device</strong>: <strong>From …</strong> chooses where the call starts (3CX app for Windows, desk phone, smartphone, <strong>This PC</strong>) or <em>automatic</em>.</li><li><strong>Presence</strong> (Available, Away, Do not disturb…) from the menu next to "3CX".</li><li><strong>Missed</strong> and <strong>Recent</strong> calls.</li></ul>
+<h2 id="this-pc-easyisland-is-the-phone"><a class="anchor" href="#this-pc-easyisland-is-the-phone">#</a>"This PC": EasyIsland is the phone</h2>
+<p>Choosing <strong>This PC</strong> as device, EasyIsland registers as the <strong>WebRTC phone of your extension</strong>:</p>
+<ul><li>call and answer from the PC, with microphone and headset;</li><li><strong>Mute</strong>, keypad tones, <strong>transfer</strong> and <strong>divert</strong>;</li><li><strong>ringtone</strong> synthesised or one of your MP3s, on the audio device you choose.</li></ul>
+<h2 id="incoming-calls"><a class="anchor" href="#incoming-calls">#</a>Incoming calls</h2>
+<p>The island opens on the 3CX tab with a sound and stays open while it rings, with <strong>Answer</strong> and <strong>Decline</strong>. With Quick replies on and the island closed, Answer and Decline appear <strong>next to the character</strong>, and during the call the duration with <strong>Mute</strong> and <strong>Hang up</strong>. With the tab's bell off only the dot stays. With "in front of a client" the caller's name doesn't show.</p>
+<h2 id="team-chat-voicemail-queues"><a class="anchor" href="#team-chat-voicemail-queues">#</a>Team, chat, voicemail, queues</h2>
+<p>With "Extension and password":</p>
+<ul><li><strong>Team</strong> in real time: colleagues' presence and <strong>answer for them</strong>;</li><li><strong>Chat</strong> with colleagues and groups;</li><li><strong>Voicemail</strong> with transcription;</li><li>call <strong>queues</strong>.</li></ul>
+<h2 id="with-automations"><a class="anchor" href="#with-automations">#</a>With automations</h2>
+<p>An incoming call can start an <a href="automations.html">automation</a> (<code>{chiamante}</code>, <code>{numero}</code>), for example opening the client's record.</p>
+<p>EasyIsland stays connected only with the integration on and not paused, and reconnects by itself if the connection drops. Numbers and names stay in memory.</p>
+<div class="pager"><a class="prev" href="integrations.html"><small>Previous</small>Integrations</a><a class="next" href="notion.html"><small>Next</small>Notion</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/17-3cx.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#connecting">Connecting</a></li><li class="l2"><a href="#the-tab-like-a-phone">The tab, like a phone</a></li><li class="l2"><a href="#this-pc-easyisland-is-the-phone">"This PC": EasyIsland is the phone</a></li><li class="l2"><a href="#incoming-calls">Incoming calls</a></li><li class="l2"><a href="#team-chat-voicemail-queues">Team, chat, voicemail, queues</a></li><li class="l2"><a href="#with-automations">With automations</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI engines — EasyIsland Guide</title>
+<meta name="description" content="Which engine to choose, how to set it up and what each one can do.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/motori.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/motori.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html" class="on" aria-current="page">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Artificial intelligence</div>
+<h1>AI engines</h1>
+<p class="lead">Which engine to choose, how to set it up and what each one can do.</p>
+<p>The <strong>default</strong> engine is chosen in <strong>Settings → Chat and AI engines</strong>. From the model name at the top right of the chat you pick another one just for that conversation: the menu shows only the engines that are ready.</p>
+<h2 id="comparison"><a class="anchor" href="#comparison">#</a>Comparison</h2>
+<div class="table"><table><thead><tr><th>Engine</th><th>Cost</th><th>EasyIsland's tools</th><th>Notes</th></tr></thead><tbody><tr><td><strong>Claude subscription</strong> (through Claude Code)</td><td>Your Pro/Max plan</td><td>Yes</td><td>The default. Web search, MCP connectors, terminal mode</td></tr><tr><td><strong>Anthropic API key</strong></td><td>Pay as you go</td><td>Yes</td><td>Web search and EasyIsland's tools</td></tr><tr><td><strong>opencode</strong></td><td>Free (Zen) or the provider's</td><td>Yes</td><td>Free, local or connected providers' models, with commands and files</td></tr><tr><td><strong>Antigravity</strong> (Google)</td><td>Your Google account</td><td>Yes</td><td>With its own tools</td></tr><tr><td><strong>OpenRouter</strong></td><td>Pay as you go</td><td>With terminal mode</td><td>One key for hundreds of models</td></tr><tr><td><strong>OpenAI</strong></td><td>Pay as you go</td><td>With terminal mode</td><td></td></tr><tr><td><strong>Gemini</strong> (Google AI Studio)</td><td>Pay as you go / free</td><td>With terminal mode</td><td></td></tr><tr><td><strong>Ollama</strong>, <strong>LM Studio</strong></td><td>Free, on your PC</td><td>With terminal mode</td><td>Nothing leaves the network</td></tr></tbody></table></div>
+<h2 id="claude-subscription"><a class="anchor" href="#claude-subscription">#</a>Claude subscription</h2>
+<p>EasyIsland uses <strong>Claude Code installed on the PC</strong> (hidden, no windows) with your Pro or Max plan: no key and no extra cost, but questions count towards the plan's limits. Claude Code stays on between messages, so answers start quickly.</p>
+<div class="callout importante"><p><strong>Important:</strong> you need <strong>Claude Code on the command line</strong>, signed in. The Claude desktop app alone is not enough (its Claude Code uses the app's sign-in, which other programs can't use). Once:</p><p>1. in PowerShell: <code>irm https://claude.ai/install.ps1 | iex</code> 2. close and reopen PowerShell, type <code>claude</code> and sign in with your account; 3. in Settings → Chat press <strong>Check again</strong>: the dot turns green.</p></div>
+<p>Without terminal mode, Claude Code works in an empty folder with only web search, reading web pages and reading the files you drop, plus EasyIsland's tools and the connectors you choose.</p>
+<h3 id="mcp-connectors"><a class="anchor" href="#mcp-connectors">#</a>MCP connectors</h3>
+<p><strong>Settings → Chat → Connectors</strong> (subscription only): the chat can use the MCP servers you configured in Claude Code for your user (<code>claude mcp add --scope user …</code>) and those of active Claude Code plugins, choosing which <strong>profile by profile</strong>. With "ask for confirmation" (default) every operation appears in the island with <strong>Allow / Deny</strong>; turn it off only for read-only connectors. EasyIsland reads only the servers' names, never their configuration. claude.ai connectors are not available this way.</p>
+<h2 id="api-keys"><a class="anchor" href="#api-keys">#</a>API keys</h2>
+<p>For Anthropic, OpenRouter, OpenAI and Gemini: the key goes in its field and ends up in the <strong>Windows Credential Manager</strong>. The model is picked from the list with <strong>Load models</strong> (with the price, when the provider gives it). The answer appears as it arrives; the reasoning of models that show it stays hidden.</p>
+<h2 id="opencode"><a class="anchor" href="#opencode">#</a>opencode</h2>
+<p>You need <strong>opencode 2</strong> on the PC. EasyIsland starts a private opencode server only while you chat and stops it after 10 minutes. The model is written as <code>provider/model</code> (<strong>Load models</strong>); provider keys stay in opencode (<code>opencode auth login</code>). The model can run commands, read and modify files and search the web: every command, change or web access asks <strong>Allow / Deny</strong> (<strong>Always</strong> only for read-only commands); no answer means no.</p>
+<div class="callout attenzione"><p><strong>Warning:</strong> with free online models your data may be used to train the model: no client data. For that, use a local model.</p></div>
+<h2 id="antigravity"><a class="anchor" href="#antigravity">#</a>Antigravity</h2>
+<p>Install the CLI with <code>irm https://antigravity.google/cli/install.ps1 | iex</code>, then type <code>agy</code> and sign in with Google. With Antigravity's hooks installed, its commands ask Allow / Deny in the island.</p>
+<h2 id="ollama-and-lm-studio"><a class="anchor" href="#ollama-and-lm-studio">#</a>Ollama and LM Studio</h2>
+<p>Models on your PC or another one on the network: no key, just the address (empty = the default one).</p>
+<h2 id="several-engines-together"><a class="anchor" href="#several-engines-together">#</a>Several engines together</h2>
+<ul><li><strong>Second opinion</strong> under every answer: another engine acts as reviewer.</li><li>In <strong>tasks</strong> you choose an engine per task and <strong>helper engines</strong> to delegate parts of the work to (see <a href="tasks.html">Tasks</a>).</li><li><strong>Skills</strong> can state their preferred engine.</li><li><strong>Telegram</strong> has its own engine and model, chosen with <code>/motore</code> and <code>/modello</code>.</li></ul>
+<div class="pager"><a class="prev" href="chat.html"><small>Previous</small>The chat</a><a class="next" href="ai-tools.html"><small>Next</small>Terminal mode and tools</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/09-engines.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#comparison">Comparison</a></li><li class="l2"><a href="#claude-subscription">Claude subscription</a></li><li class="l3"><a href="#mcp-connectors">MCP connectors</a></li><li class="l2"><a href="#api-keys">API keys</a></li><li class="l2"><a href="#opencode">opencode</a></li><li class="l2"><a href="#antigravity">Antigravity</a></li><li class="l2"><a href="#ollama-and-lm-studio">Ollama and LM Studio</a></li><li class="l2"><a href="#several-engines-together">Several engines together</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

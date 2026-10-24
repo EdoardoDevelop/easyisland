@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>For developers — EasyIsland Guide</title>
+<meta name="description" content="Building EasyIsland, trying the interface in the browser, contributing and publishing a version.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/sviluppo.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/sviluppo.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html" class="on" aria-current="page">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Reference</div>
+<h1>For developers</h1>
+<p class="lead">Building EasyIsland, trying the interface in the browser, contributing and publishing a version.</p>
+<h2 id="tools"><a class="anchor" href="#tools">#</a>Tools</h2>
+<p>In PowerShell, once:</p>
+<pre data-lang="powershell"><code>winget install --id Git.Git -e
+winget install --id OpenJS.NodeJS.LTS -e
+winget install --id Rustlang.Rustup -e
+winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"</code></pre>
+<p>Close and reopen PowerShell, then:</p>
+<pre data-lang="powershell"><code>git clone https://github.com/EdoardoDevelop/easyisland.git
+cd easyisland
+npm install</code></pre>
+<h2 id="commands"><a class="anchor" href="#commands">#</a>Commands</h2>
+<div class="table"><table><thead><tr><th>Command</th><th>What it does</th></tr></thead><tbody><tr><td><code>npm run tauri dev</code></td><td>The real app, with automatic interface reload</td></tr><tr><td><code>npm run ui</code></td><td>Just the interface in the browser, on a fake desktop (no Rust needed)</td></tr><tr><td><code>npm run build</code></td><td>Type check, English strings check and interface build</td></tr><tr><td><code>npm run smoke</code></td><td>Opens every scene and every Settings page and reports errors (with <code>npm run dev</code> running)</td></tr><tr><td><code>npm run pack</code></td><td>The installer in <code>release\</code></td></tr><tr><td><code>cargo test --workspace</code></td><td>Rust tests (in <code>src-tauri</code>)</td></tr><tr><td><code>node scripts/screenshots.mjs</code></td><td>Retakes the screenshots from the preview</td></tr><tr><td><code>node scripts/guida.mjs</code></td><td>Rebuilds this guide from <code>docs/guida/*.md</code> and <code>docs/guida/en/*.md</code></td></tr></tbody></table></div>
+<p>In the browser preview settings change from the address, e.g. <code>?anchorV=bottom&amp;anchorH=left&amp;character=drop</code>; test scenes are in <code>dev/scenes.ts</code> (<code>?scene=chat</code>, <code>?scene=compiti</code>…). The Memory window can be tried at <code>/memoria.html</code> with made-up data.</p>
+<h2 id="structure"><a class="anchor" href="#structure">#</a>Structure</h2>
+<pre><code>src/            interface (TypeScript, no framework, Canvas 2D)
+  character/    the characters
+  island/       the island's state machine, hooks, integrations
+  views/        the island's views
+  settings/     the Settings window
+  memory/       the Memory window (graph, maps, timeline)
+src-tauri/      Rust backend (Tauri 2): windows, named pipe, AI engines, integrations, tasks, memory
+hook/           easyisland-hook.exe: hook relay and MCP server
+scripts/        icons, installer, screenshots, guide
+site/           the homepage and this guide (GitHub Pages)
+docs/           documentation for people working on the code (in Italian); docs/guida/ is this guide</code></pre>
+<h2 id="project-rules"><a class="anchor" href="#project-rules">#</a>Project rules</h2>
+<ul><li>Interface, documentation and commits in <strong>Italian</strong>; identifiers and code comments in English. Every visible text goes through <code>t("…")</code> and has its English in <code>src/i18n/en.json</code>: the build stops if one is missing.</li><li><strong>No new dependencies</strong> unless unavoidable: characters, icons and sounds are drawn or synthesised in code.</li><li>Secrets only in the Credential Manager. No telemetry.</li><li>In Rust no indexing or slicing on external data: a panic in release closes the app.</li><li>Before a release <code>npm run smoke</code> must say "nessun errore".</li></ul>
+<p>The full rules and the code map are in <code>CLAUDE.md</code> and <code>docs/</code> in the repository (English summaries in <code>docs/en/</code>); to contribute read <code>CONTRIBUTING.en.md</code>.</p>
+<h2 id="publishing-a-version"><a class="anchor" href="#publishing-a-version">#</a>Publishing a version</h2>
+<ol><li>Raise the version, the same, in <code>package.json</code>, <code>Cargo.toml</code> and <code>src-tauri/tauri.conf.json</code> (CI checks they match).</li><li>Create and push the tag: <code>git tag vX.Y.Z</code> and <code>git push origin vX.Y.Z</code>.</li><li>The <strong>Build</strong> workflow compiles the installer, signs it for updates and publishes the release with <code>latest.json</code>, which installed apps read to update.</li></ol>
+<p>The repository's <code>TAURI_SIGNING_PRIVATE_KEY</code> secret is needed once. The homepage and the guide publish by themselves on GitHub Pages at every change of <code>site/</code> in <code>main</code>.</p>
+<div class="pager"><a class="prev" href="troubleshooting.html"><small>Previous</small>Troubleshooting</a><span></span></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/28-development.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#tools">Tools</a></li><li class="l2"><a href="#commands">Commands</a></li><li class="l2"><a href="#structure">Structure</a></li><li class="l2"><a href="#project-rules">Project rules</a></li><li class="l2"><a href="#publishing-a-version">Publishing a version</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>
