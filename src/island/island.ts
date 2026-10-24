@@ -778,8 +778,8 @@ export class Island {
     this.fsm.pinned = State.isPinned;
     this.fsm.forceHome();
     this.expand(view);
-    // Pinned as an app it may sit behind other windows: a request flashes its taskbar button.
-    if (this.appMode && (view === "approval" || view === "ask" || view === "question")) void Bridge.flashIfBehind();
+    // Pinned: the taskbar button flashes; stepped back behind a window: it comes forward.
+    if (view === "approval" || view === "ask" || view === "question") void Bridge.flashIfBehind();
   }
 
   // ── Quick actions ─────────────────────────────────────────────────────────

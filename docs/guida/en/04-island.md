@@ -18,6 +18,7 @@ At rest the character sits in the corner you picked (top centre by default). It 
 | Drag the character onto a folder in File Explorer or a desktop icon | The path lands in the chat field |
 | <kbd>Esc</kbd> or ✕ | Closes the island at once |
 | 📌 | **Keep open**: the island won't close by itself until you remove it |
+| A window opens over the island (a picker, a program launched from the island…) | The island goes **behind** it, without closing. It comes forward again when you click it, when a permission or a call arrives, or when it tucks away |
 
 ## The menu on the left
 In the open island, under the character:

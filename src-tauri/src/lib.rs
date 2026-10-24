@@ -396,6 +396,8 @@ fn set_collapsed(
     if let (Some(w), Some(h)) = (width, height) {
         *shared.gate.collapsed_size.lock().unwrap() = (w.max(1.0), h.max(1.0));
     }
+    // Closing or opening again: always back on top.
+    island::come_forward(&app);
     let settings = shared.settings.lock().unwrap().clone();
     shared.gate.collapsed.store(collapsed, Ordering::Relaxed);
     island::apply_geometry(&app, &shared.gate, &settings, collapsed);
@@ -621,6 +623,7 @@ fn set_expanded(app: AppHandle, shared: State<Shared>, expanded: bool, place: Op
         return;
     }
     let settings = shared.settings.lock().unwrap().clone();
+    island::come_forward(&app);
     if expanded {
         island::stop_glide();
         island::apply_geometry(&app, &shared.gate, &settings, false);

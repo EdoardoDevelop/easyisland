@@ -593,8 +593,9 @@ static RAISE_ON_FOREGROUND: std::sync::OnceLock<(AppHandle, Arc<PollGate>)> = st
 /// Start menu, the search or a click on the taskbar bring the taskbar forward
 /// and the resting island would stay behind it until the next two-second
 /// raise. Raise now and again while the Start menu finishes opening or closing.
-pub fn on_foreground_change() {
+pub fn on_foreground_change(fg: HWND) {
     let Some((app, gate)) = RAISE_ON_FOREGROUND.get() else { return };
+    step_aside_for(app, gate, fg);
     let over = app
         .try_state::<crate::Shared>()
         .map(|s| s.settings.lock().unwrap().over_taskbar)
@@ -611,6 +612,101 @@ pub fn on_foreground_change() {
     });
 }
 
+/// The open island stepped back behind a window that came to the front over it
+/// (asked by Edoardo on 24 Oct 2026: the folder dialog of the Vassoio, a program
+/// opened from the island… ended up under it). It is not closed: it waits right
+/// behind that window and comes forward again with `come_forward`.
+static BEHIND: AtomicBool = AtomicBool::new(false);
+
+pub fn is_behind() -> bool {
+    BEHIND.load(Ordering::Relaxed)
+}
+
+/// Another window is in front: when it covers the open island, the island goes
+/// just behind it; when it does not (the user went elsewhere), back on top.
+/// The taskbar, Start, the desktop and the settings window (`keep_settings_above`)
+/// change nothing.
+fn step_aside_for(app: &AppHandle, gate: &PollGate, fg: HWND) {
+    use windows::Win32::UI::WindowsAndMessaging::{GetAncestor, GA_ROOT};
+    if app_mode() || gate.collapsed.load(Ordering::Relaxed) || !gate.expanded.load(Ordering::Relaxed) {
+        return;
+    }
+    let Some(win) = window(app) else { return };
+    let Some(me) = hwnd_of(&win) else { return };
+    let fg = unsafe { GetAncestor(fg, GA_ROOT) };
+    if fg.0.is_null() || fg == me || is_shell(fg) {
+        return;
+    }
+    if app.get_webview_window(crate::SETTINGS_LABEL).and_then(|w| hwnd_of(&w)) == Some(fg) {
+        return;
+    }
+    if covers(&win, gate, fg) {
+        BEHIND.store(true, Ordering::Relaxed);
+        unsafe {
+            let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER;
+            let _ = SetWindowPos(me, Some(HWND_NOTOPMOST), 0, 0, 0, 0, flags);
+            let _ = SetWindowPos(me, Some(fg), 0, 0, 0, 0, flags);
+        }
+        crate::log::line("island behind the window in front");
+    } else {
+        come_forward(app);
+    }
+}
+
+/// Taskbar, Start, search, notification area, desktop: never a reason to step back.
+fn is_shell(hwnd: HWND) -> bool {
+    use windows::Win32::UI::WindowsAndMessaging::GetClassNameW;
+    let mut buf = [0u16; 128];
+    let n = unsafe { GetClassNameW(hwnd, &mut buf) };
+    let class = String::from_utf16_lossy(buf.get(..n.max(0) as usize).unwrap_or_default());
+    matches!(
+        class.as_str(),
+        "Shell_TrayWnd" | "Shell_SecondaryTrayWnd" | "Windows.UI.Core.CoreWindow" | "Progman" | "WorkerW"
+            | "NotifyIconOverflowWindow" | "TopLevelWindowForOverflowXamlIsland" | "XamlExplorerHostIslandWindow"
+    )
+}
+
+/// True when `fg` (its visible frame) overlaps the island's shape on screen.
+fn covers(win: &WebviewWindow, gate: &PollGate, fg: HWND) -> bool {
+    use windows::Win32::Foundation::RECT;
+    use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
+    use windows::Win32::UI::WindowsAndMessaging::{GetWindowRect, IsIconic};
+    let Ok(origin) = win.outer_position() else { return false };
+    let scale = win.scale_factor().unwrap_or(1.0);
+    let r = *gate.rect.lock().unwrap();
+    if r.w <= 0.0 || r.h <= 0.0 {
+        return false;
+    }
+    let (ix, iy) = (origin.x as f64 + r.x * scale, origin.y as f64 + r.y * scale);
+    let (iw, ih) = (r.w * scale, r.h * scale);
+    let mut fr = RECT::default();
+    unsafe {
+        if !IsWindowVisible(fg).as_bool() || IsIconic(fg).as_bool() {
+            return false;
+        }
+        let size = std::mem::size_of::<RECT>() as u32;
+        if DwmGetWindowAttribute(fg, DWMWA_EXTENDED_FRAME_BOUNDS, &mut fr as *mut RECT as *mut _, size).is_err()
+            && GetWindowRect(fg, &mut fr).is_err()
+        {
+            return false;
+        }
+    }
+    (fr.left as f64) < ix + iw && (fr.right as f64) > ix && (fr.top as f64) < iy + ih && (fr.bottom as f64) > iy
+}
+
+/// Back on top after `step_aside_for`: a click on the island, a permission, a
+/// call or a question for it, the island closing or opening again.
+pub fn come_forward(app: &AppHandle) {
+    if !BEHIND.swap(false, Ordering::Relaxed) || app_mode() {
+        return;
+    }
+    let Some(win) = window(app) else { return };
+    let Some(hwnd) = hwnd_of(&win) else { return };
+    unsafe {
+        let _ = SetWindowPos(hwnd, Some(HWND_TOPMOST), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+    }
+}
+
 /// Puts the island back at the top of the topmost band. The taskbar is topmost
 /// too and comes forward whenever it is touched; Tauri's set_always_on_top does
 /// nothing when the flag is already set, so this goes to Win32 directly.
@@ -620,8 +716,8 @@ pub fn on_foreground_change() {
 /// would cover it, and the file would vanish behind the island: then the
 /// island goes just below it instead, still above the taskbar.
 pub fn raise_over_taskbar(app: &AppHandle) {
-    // Pinned as an app, other windows may cover it: nothing pulls it forward.
-    if app_mode() {
+    // Pinned as an app, or stepped back behind a window: nothing pulls it forward.
+    if app_mode() || is_behind() {
         return;
     }
     let Some(win) = window(app) else { return };
@@ -675,6 +771,16 @@ pub fn keep_settings_above(app: &AppHandle, active: bool) {
             0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
         );
+    }
+}
+
+/// The island is the window under the cursor (not covered there).
+fn hit_is(win: &WebviewWindow, cx: f64, cy: f64) -> bool {
+    use windows::Win32::UI::WindowsAndMessaging::{GetAncestor, WindowFromPoint, GA_ROOT};
+    let Some(me) = hwnd_of(win) else { return false };
+    unsafe {
+        let hit = WindowFromPoint(POINT { x: cx as i32, y: cy as i32 });
+        !hit.0.is_null() && GetAncestor(hit, GA_ROOT) == me
     }
 }
 
@@ -772,6 +878,8 @@ pub fn set_app_mode(app: &AppHandle, on: bool) {
 /// Nothing when it is not pinned (it is on top anyway) or already in front.
 pub fn flash_if_behind(app: &AppHandle) {
     if !app_mode() {
+        // Stepped back behind a window: a request comes forward by itself.
+        come_forward(app);
         return;
     }
     let Some(win) = window(app) else { return };
@@ -916,6 +1024,12 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                     if accept && over_taskbar {
                         raise_over_taskbar(&app);
                     }
+                }
+
+                // Behind a window, a click on the part of the island still in view
+                // brings it forward.
+                if is_behind() && on_island && down && hit_is(&win, cx, cy) {
+                    come_forward(&app);
                 }
 
                 let dx = (r.x - x).max(x - (r.x + r.w)).max(0.0);
