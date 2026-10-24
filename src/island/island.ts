@@ -237,7 +237,8 @@ export class Island {
       if (app !== this.appMode) {
         this.appMode = app;
         State.appWindow = app;
-        void Bridge.setAppMode(app);
+        // Over the taskbar or not changes the room it has (island_area).
+        void Bridge.setAppMode(app).then(() => this.refreshLimits());
       }
       if (!app && State.maximized) {
         State.maximized = false;
@@ -2073,7 +2074,7 @@ ${note}` : text };
         w = Math.min(max.w, w + this.railRoom);
         h = Math.max(h, Math.min(max.h, this.railMinH));
       }
-      if (State.maximized) ({ w, h } = max);
+      if (State.maximized) ({ w, h } = { w: Math.max(PANEL_W, this.limits.w), h: Math.max(PANEL_H, this.limits.h) });
     }
     // Height the user added beyond the view's own: lists and text boxes grow by
     // it (CSS max-height: calc(… + var(--extra-h))) instead of keeping their
@@ -2091,6 +2092,7 @@ ${note}` : text };
     // The hover badge is a circle; a floating bar is a pill.
     if (State.mode !== "expanded" && this.placement.hoverStyle === "icon") r = Math.min(compact.w, compact.h) / 2;
     else if (State.mode !== "expanded" && !isGlued(this.placement)) r = compact.h / 2;
+    if (State.maximized && State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view)) r = 0;
     return { w, h, r };
   }
 
@@ -2121,11 +2123,12 @@ ${note}` : text };
   private fitPanel() {
     const s = State.settings;
     const max = islandMax(this.limits);
-    const w = State.maximized ? max.w : Math.min(max.w, this.openWidth(max.w) + RAIL_W + RAIL_GAP);
-    const user = State.maximized ? max.h : s.islandHeight > 0 ? s.islandHeight : 0;
+    const w = Math.min(max.w, this.openWidth(max.w) + RAIL_W + RAIL_GAP);
+    const user = s.islandHeight > 0 ? s.islandHeight : 0;
     const menu = this.railNeed > 0 ? ISLAND_CHROME_H + BODY_GAP + this.railNeed : 0;
     const h = Math.min(max.h, Math.max(user, menu));
-    const next = panelFor(w, Math.min(h, max.h), this.limits);
+    // Full screen: the whole room (work area) is the window.
+    const next = State.maximized ? { w: Math.max(PANEL_W, this.limits.w), h: Math.max(PANEL_H, this.limits.h) } : panelFor(w, Math.min(h, max.h), this.limits);
     if (next.w === this.panel.w && next.h === this.panel.h) return;
     this.panel = next;
     void Bridge.setPanelSize(next.w, next.h);
@@ -2190,7 +2193,7 @@ ${note}` : text };
     const w = this.width.value;
     const hh = this.height.value;
     const r = this.radius.value;
-    const p = this.placement;
+    const p = this.framePlacement;
     const o = anchoredOrigin(p, w, hh, this.panel.w, this.panel.h);
     this.islandEl.style.left = `${o.x}px`;
     this.islandEl.style.top = `${o.y}px`;
@@ -2251,8 +2254,13 @@ ${note}` : text };
   private islandRect(): { x: number; y: number; w: number; h: number } {
     const w = this.width.value;
     const hh = this.height.value;
-    const o = anchoredOrigin(this.placement, w, hh, this.panel.w, this.panel.h);
+    const o = anchoredOrigin(this.framePlacement, w, hh, this.panel.w, this.panel.h);
     return { x: o.x, y: o.y, w, h: hh };
+  }
+
+  /** Full screen (▢): glued to every edge, so it fills the window to the pixel. */
+  private get framePlacement(): Placement {
+    return State.maximized && State.mode === "expanded" ? { ...this.placement, glueX: true, glueY: true } : this.placement;
   }
 
   // ── Rest icon / wake strip ──────────────────────────────────────────────────
@@ -2475,12 +2483,13 @@ ${note}` : text };
     if (State.settings.stayOpenByUser && State.mode === "expanded" && !State.keepOpen) this.toggleKeepOpen();
   }
 
-  /** The taskbar button (or Alt+Tab) of the island as an app, while it is closed. */
+  /** Opened from the tray icon or from EasyIsland pinned to the taskbar (started again). */
   openFromTaskbar() {
-    if (State.mode === "expanded") return;
-    this.openedByUser = true;
-    this.fsm.forceHome();
-    this.openedByUser = false;
+    if (State.mode !== "expanded") {
+      this.openedByUser = true;
+      this.alert(State.defaultView());
+      this.openedByUser = false;
+    }
     this.stayIfAsked();
   }
 
@@ -3084,6 +3093,7 @@ ${note}` : text };
     // kept for the character any more (--bot-room in style.css).
     const railed = this.railShown;
     this.islandEl.classList.toggle("railed", railed);
+    this.islandEl.classList.toggle("open", expanded);
     if (railed) {
       guard("menu", () => this.rail.sync());
       // An integration switched on or off changes the menu's height: the island follows.

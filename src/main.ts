@@ -40,8 +40,6 @@ async function main() {
 
   const island = new Island(root);
   installTooltips();
-  // "Come un'app": the taskbar button (or Alt+Tab) of the closed island opens it.
-  void onEvent("island-taskbar-open", () => island.openFromTaskbar());
 
   const boot = await Bridge.boot();
   if (boot) {
@@ -101,7 +99,8 @@ async function main() {
         break;
       case "open":
         setPaused(false);
-        island.alert(State.defaultView());
+        // Opened by the user (tray icon, EasyIsland started again from the taskbar).
+        island.openFromTaskbar();
         break;
       case "recap":
         setPaused(false);

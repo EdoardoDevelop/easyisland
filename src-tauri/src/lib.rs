@@ -1683,7 +1683,7 @@ fn capture_show(app: AppHandle) -> Result<(), String> {
     // Moving to another display can rescale the window: re-assert the physical size.
     let _ = win.set_position(tauri::PhysicalPosition::new(s.x, s.y));
     let _ = win.set_size(tauri::PhysicalSize::new(s.width, s.height));
-    let _ = win.set_ignore_cursor_events(false);
+    island::ignore_cursor(&win, false);
     island::raise_over_taskbar(&app);
     island::set_activating(&win, true);
     let _ = win.set_focus();
@@ -2754,6 +2754,10 @@ pub fn run() {
             if argv.iter().any(|a| a == "--settings") {
                 show_settings_window(app);
             } else {
+                // Minimized as an app: back on screen first.
+                if let Some(win) = island::window(app) {
+                    let _ = win.unminimize();
+                }
                 let _ = app.emit_to(island::WINDOW_LABEL, "tray", "open".to_string());
             }
         }))
@@ -3057,7 +3061,6 @@ pub fn run() {
                 let _ = win.show();
             }
             island::apply_taskbar(&handle);
-            island::watch_taskbar(&handle, gate.clone());
             gate.collapsed.store(false, Ordering::Relaxed);
             gate.set_active(true);
             island::spawn_cursor_poll(handle.clone(), gate.clone());

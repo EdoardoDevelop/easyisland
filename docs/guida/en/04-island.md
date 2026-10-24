@@ -18,7 +18,7 @@ At rest the character sits in the corner you picked (top centre by default). It 
 | Drag the character onto a folder in File Explorer or a desktop icon | The path lands in the chat field |
 | <kbd>Esc</kbd> or ✕ | Closes the island at once |
 | 📌 | **Keep open**: the island won't close by itself until you remove it |
-| — and ▢ | With **Like an app** on (Settings → Island): minimize and full screen. The island always has its icon on the taskbar (a click opens it) and, open, it shows in Alt+Tab |
+| — and ▢ | With **Like an app** on (Settings → Island): minimize and full screen. Open, it has its icon on the taskbar and shows in Alt+Tab; closed, it does not. To open it from the taskbar, pin EasyIsland to the taskbar: a click on the icon opens the island |
 | Stay open | With **Stay open** on (Settings → Island), when you open it yourself it does not close by itself, as with 📌 |
 | A window opens over the island (a picker, a program launched from the island…) | The island goes **behind** it, without closing. It comes forward again when you click it, when a permission or a call arrives, or when it tucks away |
 

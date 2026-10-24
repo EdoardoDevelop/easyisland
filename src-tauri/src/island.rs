@@ -262,6 +262,7 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
     // Pinned as an app it stays an ordinary window (set_app_mode).
     if !app_mode() && !is_behind() {
         let _ = win.set_always_on_top(true);
+        keep_out_of_alt_tab(&win);
     }
 }
 
@@ -480,7 +481,8 @@ pub fn box_in_window(
 /// Where the island may sit on `m`, physical px: the work area, or the whole
 /// screen when the user wants it over the taskbar too.
 fn island_area(m: &Monitor, settings: &Settings) -> (i32, i32, u32, u32) {
-    if settings.over_taskbar {
+    // Open as an app it is an ordinary window: it stays off the taskbar, also in full screen.
+    if settings.over_taskbar && !app_mode() {
         let (p, s) = (m.position(), m.size());
         (p.x, p.y, s.width, s.height)
     } else {
@@ -646,6 +648,7 @@ fn step_aside_for(app: &AppHandle, gate: &PollGate, fg: HWND) {
         // as the cursor crosses the island) rewrites WS_EX_TOPMOST from it, and the
         // island jumped back over the dialog (1.0.1, seen by Edoardo).
         let _ = win.set_always_on_top(false);
+        keep_out_of_alt_tab(&win);
         unsafe {
             let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER;
             let _ = SetWindowPos(me, Some(HWND_NOTOPMOST), 0, 0, 0, 0, flags);
@@ -706,6 +709,7 @@ pub fn come_forward(app: &AppHandle) {
     }
     let Some(win) = window(app) else { return };
     let _ = win.set_always_on_top(true);
+        keep_out_of_alt_tab(&win);
     let Some(hwnd) = hwnd_of(&win) else { return };
     unsafe {
         let _ = SetWindowPos(hwnd, Some(HWND_TOPMOST), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
@@ -797,6 +801,29 @@ pub fn hwnd_of(win: &WebviewWindow) -> Option<HWND> {
     Some(HWND(raw as *mut _))
 }
 
+/// Tao rewrites the extended style from its own flags at every change of them
+/// (ignore cursor events, always on top) and drops WS_EX_TOOLWINDOW: the closed
+/// island then showed in Alt+Tab. Put back unless it is open as an app.
+pub fn keep_out_of_alt_tab(win: &WebviewWindow) {
+    if app_mode() {
+        return;
+    }
+    let Some(hwnd) = hwnd_of(win) else { return };
+    unsafe {
+        let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        let tool = WS_EX_TOOLWINDOW.0 as isize;
+        if ex & tool == 0 {
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, (ex & !(WS_EX_APPWINDOW.0 as isize)) | tool);
+        }
+    }
+}
+
+/// `set_ignore_cursor_events`, keeping the island out of Alt+Tab.
+pub fn ignore_cursor(win: &WebviewWindow, ignore: bool) {
+    let _ = win.set_ignore_cursor_events(ignore);
+    keep_out_of_alt_tab(win);
+}
+
 /// WS_EX_NOACTIVATE keeps clicks from stealing focus; WS_EX_TOOLWINDOW keeps the
 /// island out of Alt-Tab.
 pub fn make_non_activating(win: &WebviewWindow) {
@@ -870,7 +897,8 @@ pub fn set_app_mode(app: &AppHandle, on: bool) {
     }
     // Tao's own flags follow, so its later calls agree with the window.
     let _ = win.set_always_on_top(!on);
-    let _ = win.set_skip_taskbar(!on && !island_app(app));
+        keep_out_of_alt_tab(&win);
+    let _ = win.set_skip_taskbar(!on);
     if on {
         // Just pinned with a click on it: it is the active window now.
         let _ = win.set_focus();
@@ -878,39 +906,13 @@ pub fn set_app_mode(app: &AppHandle, on: bool) {
     crate::log::line(format!("island as an app: {on}"));
 }
 
-/// Impostazioni → Isola → "Come un'app".
-pub fn island_app(app: &AppHandle) -> bool {
-    app.try_state::<crate::Shared>().map(|s| s.settings.lock().unwrap().island_app).unwrap_or(false)
-}
-
-/// The taskbar button: always there with "Come un'app", else only while pinned.
+/// The taskbar button only while the island is open as an app: closed, nothing
+/// shows as running (asked by Edoardo on 24 Oct 2026). EasyIsland pinned to the
+/// taskbar opens it with a click: a second start lands in the single-instance
+/// handler (lib.rs), which opens the island.
 pub fn apply_taskbar(app: &AppHandle) {
     let Some(win) = window(app) else { return };
-    let _ = win.set_skip_taskbar(!island_app(app) && !app_mode());
-}
-
-/// With "Come un'app", the closed island's taskbar button (or Alt+Tab) opens it:
-/// the window got activated, or Windows minimized it, while it was not open.
-pub fn watch_taskbar(app: &AppHandle, gate: std::sync::Arc<PollGate>) {
-    let Some(win) = window(app) else { return };
-    let handle = app.clone();
-    let w = win.clone();
-    win.on_window_event(move |event| {
-        if gate.expanded.load(Ordering::Relaxed) || !island_app(&handle) {
-            return;
-        }
-        let open = match event {
-            tauri::WindowEvent::Focused(true) => true,
-            tauri::WindowEvent::Resized(_) if w.is_minimized().unwrap_or(false) => {
-                let _ = w.unminimize();
-                true
-            }
-            _ => false,
-        };
-        if open {
-            let _ = handle.emit("island-taskbar-open", ());
-        }
-    });
+    let _ = win.set_skip_taskbar(!app_mode());
 }
 
 /// A permission or a question while the pinned island is behind other windows:
@@ -1059,7 +1061,7 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                     || gate.collapsed.load(Ordering::Relaxed);
                 if gate.ignoring.load(Ordering::Relaxed) == accept {
                     gate.ignoring.store(!accept, Ordering::Relaxed);
-                    let _ = win.set_ignore_cursor_events(!accept);
+                    ignore_cursor(&win, !accept);
                     // Reaching the character over the taskbar: be in front before the click.
                     if accept && over_taskbar {
                         raise_over_taskbar(&app);
@@ -1082,7 +1084,7 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
             // the final say — a resting island takes the mouse.
             if gate.collapsed.load(Ordering::Relaxed) {
                 if let Some(win) = window(&app) {
-                    let _ = win.set_ignore_cursor_events(false);
+                    ignore_cursor(&win, false);
                 }
                 gate.forget_ignore_state();
             }
@@ -1092,7 +1094,7 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
 
 pub fn set_ignore_cursor(app: &AppHandle, ignore: bool) {
     if let Some(win) = window(app) {
-        let _ = win.set_ignore_cursor_events(ignore);
+        ignore_cursor(&win, ignore);
     }
 }
 
