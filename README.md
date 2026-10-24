@@ -59,6 +59,14 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**1.0.2** — **L'isola come un'app** (Impostazioni → Isola): aperta ha l'icona nella barra delle
+applicazioni e in Alt+Tab, con riduci a icona e schermo intero; chiusa sparisce, e si apre dall'icona
+fissata, che col tasto destro offre le azioni rapide. **Resta aperta** quando la apri tu. Testo
+dell'isola aperta più grande. **Cartella di lavoro** in griglia o elenco, per nome o data, con icone per
+tipo di file e **anteprime delle immagini** (anche nel Vassoio). **Backup completo** con memoria, chat,
+compiti e abilità. Telegram uguale in ogni profilo; le Impostazioni si aprono su Generale e non saltano
+in alto. Corretto: l'isola dietro una finestra tornava sopra passandoci col mouse.
+
 **1.0.1** — **Telegram anche a PC spento**: i messaggi scritti al bot mentre EasyIsland era spento
 si elaborano alla riaccensione, in ordine, sapendo quando li hai scritti. **L'isola passa dietro** le
 finestre che le vengono sopra (come la scelta della cartella di lavoro) senza chiudersi, e torna

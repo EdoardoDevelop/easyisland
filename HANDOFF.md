@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 24 ottobre 2026. Versione **1.0.1** in `main` con il tag `v1.0.1` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 24 ottobre 2026. Versione **1.0.2** in `main` con il tag `v1.0.2` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
