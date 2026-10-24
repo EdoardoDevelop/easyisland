@@ -870,12 +870,47 @@ pub fn set_app_mode(app: &AppHandle, on: bool) {
     }
     // Tao's own flags follow, so its later calls agree with the window.
     let _ = win.set_always_on_top(!on);
-    let _ = win.set_skip_taskbar(!on);
+    let _ = win.set_skip_taskbar(!on && !island_app(app));
     if on {
         // Just pinned with a click on it: it is the active window now.
         let _ = win.set_focus();
     }
     crate::log::line(format!("island as an app: {on}"));
+}
+
+/// Impostazioni → Isola → "Come un'app".
+pub fn island_app(app: &AppHandle) -> bool {
+    app.try_state::<crate::Shared>().map(|s| s.settings.lock().unwrap().island_app).unwrap_or(false)
+}
+
+/// The taskbar button: always there with "Come un'app", else only while pinned.
+pub fn apply_taskbar(app: &AppHandle) {
+    let Some(win) = window(app) else { return };
+    let _ = win.set_skip_taskbar(!island_app(app) && !app_mode());
+}
+
+/// With "Come un'app", the closed island's taskbar button (or Alt+Tab) opens it:
+/// the window got activated, or Windows minimized it, while it was not open.
+pub fn watch_taskbar(app: &AppHandle, gate: std::sync::Arc<PollGate>) {
+    let Some(win) = window(app) else { return };
+    let handle = app.clone();
+    let w = win.clone();
+    win.on_window_event(move |event| {
+        if gate.expanded.load(Ordering::Relaxed) || !island_app(&handle) {
+            return;
+        }
+        let open = match event {
+            tauri::WindowEvent::Focused(true) => true,
+            tauri::WindowEvent::Resized(_) if w.is_minimized().unwrap_or(false) => {
+                let _ = w.unminimize();
+                true
+            }
+            _ => false,
+        };
+        if open {
+            let _ = handle.emit("island-taskbar-open", ());
+        }
+    });
 }
 
 /// A permission or a question while the pinned island is behind other windows:

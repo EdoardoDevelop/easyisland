@@ -40,6 +40,8 @@ async function main() {
 
   const island = new Island(root);
   installTooltips();
+  // "Come un'app": the taskbar button (or Alt+Tab) of the closed island opens it.
+  void onEvent("island-taskbar-open", () => island.openFromTaskbar());
 
   const boot = await Bridge.boot();
   if (boot) {

@@ -233,10 +233,15 @@ export class Island {
       this.ensureRunning();
       // 📌 makes the open island an ordinary app window; unpinning, or closing
       // (which drops the pin), gives the usual island back.
-      const app = State.keepOpen && State.mode === "expanded";
+      const app = (State.keepOpen || !!State.settings.islandApp) && State.mode === "expanded";
       if (app !== this.appMode) {
         this.appMode = app;
+        State.appWindow = app;
         void Bridge.setAppMode(app);
+      }
+      if (!app && State.maximized) {
+        State.maximized = false;
+        this.animateGeometry(false);
       }
     });
   }
@@ -310,6 +315,7 @@ export class Island {
       openSettingsWindow: () => void Bridge.openSettingsWindow(),
       blip: () => Sound.play("blip"),
       toggleKeepOpen: () => this.toggleKeepOpen(),
+      toggleMaximized: () => this.toggleMaximized(),
       installUpdate: () => void this.installUpdate(),
       answerSuggestion: (fp, choice) => void this.answerSuggestion(fp, choice),
       runAction: (a) => void this.runAction(a),
@@ -2067,6 +2073,7 @@ ${note}` : text };
         w = Math.min(max.w, w + this.railRoom);
         h = Math.max(h, Math.min(max.h, this.railMinH));
       }
+      if (State.maximized) ({ w, h } = max);
     }
     // Height the user added beyond the view's own: lists and text boxes grow by
     // it (CSS max-height: calc(… + var(--extra-h))) instead of keeping their
@@ -2114,8 +2121,8 @@ ${note}` : text };
   private fitPanel() {
     const s = State.settings;
     const max = islandMax(this.limits);
-    const w = Math.min(max.w, this.openWidth(max.w) + RAIL_W + RAIL_GAP);
-    const user = s.islandHeight > 0 ? s.islandHeight : 0;
+    const w = State.maximized ? max.w : Math.min(max.w, this.openWidth(max.w) + RAIL_W + RAIL_GAP);
+    const user = State.maximized ? max.h : s.islandHeight > 0 ? s.islandHeight : 0;
     const menu = this.railNeed > 0 ? ISLAND_CHROME_H + BODY_GAP + this.railNeed : 0;
     const h = Math.min(max.h, Math.max(user, menu));
     const next = panelFor(w, Math.min(h, max.h), this.limits);
@@ -2460,6 +2467,28 @@ ${note}` : text };
     this.openedByUser = true;
     this.fsm.click();
     this.openedByUser = false;
+    this.stayIfAsked();
+  }
+
+  /** Impostazioni → "Resta aperta quando la apro io": 📌 on by itself. */
+  private stayIfAsked() {
+    if (State.settings.stayOpenByUser && State.mode === "expanded" && !State.keepOpen) this.toggleKeepOpen();
+  }
+
+  /** The taskbar button (or Alt+Tab) of the island as an app, while it is closed. */
+  openFromTaskbar() {
+    if (State.mode === "expanded") return;
+    this.openedByUser = true;
+    this.fsm.forceHome();
+    this.openedByUser = false;
+    this.stayIfAsked();
+  }
+
+  /** ▢: the open island fills the work area; again, back to its own size. */
+  toggleMaximized() {
+    State.maximized = !State.maximized;
+    this.animateGeometry(false);
+    State.notify();
   }
 
   /**

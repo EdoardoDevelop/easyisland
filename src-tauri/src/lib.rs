@@ -193,6 +193,7 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
         let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
         island::apply_geometry(&app, &shared.gate, &settings, collapsed);
     }
+    island::apply_taskbar(&app);
     // Keep the other window in step (island ⇄ settings window).
     crate::threecx::settings_saved(&settings);
     let _ = app.emit("settings-changed", settings);
@@ -424,6 +425,14 @@ fn focus_window(app: AppHandle, focused: bool) {
     island::set_activating(&win, focused);
     if focused {
         let _ = win.set_focus();
+    }
+}
+
+/// — in the header of the island as an app.
+#[tauri::command]
+fn minimize_island(app: AppHandle) {
+    if let Some(win) = island::window(&app) {
+        let _ = win.minimize();
     }
 }
 
@@ -2808,6 +2817,7 @@ pub fn run() {
             open_in_vscode,
             session_reply::session_reply,
             set_app_mode,
+            minimize_island,
             flash_if_behind,
             claude_cli::session_ask,
             open_file_in_vscode,
@@ -3046,6 +3056,8 @@ pub fn run() {
                 island::apply_geometry(&handle, &gate, &loaded, false);
                 let _ = win.show();
             }
+            island::apply_taskbar(&handle);
+            island::watch_taskbar(&handle, gate.clone());
             gate.collapsed.store(false, Ordering::Relaxed);
             gate.set_active(true);
             island::spawn_cursor_poll(handle.clone(), gate.clone());

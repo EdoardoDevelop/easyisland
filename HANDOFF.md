@@ -34,6 +34,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 24 ottobre 2026 — Isola come un'app
+- L'isola dietro una finestra non torna più sopra passandoci col mouse (tao rimetteva `WS_EX_TOPMOST`). Nuove opzioni in Impostazioni → Isola: «Come un'app» (icona sempre nella barra, Alt+Tab, — e ▢ schermo intero) e «Resta aperta» quando la apre l'utente. `island.rs`, `island.ts`, `docs/architettura.md`.
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`; da provare dal vivo.
+
 ### 24 ottobre 2026 — Versione 1.0.1
 - Telegram a PC spento, isola che passa dietro le altre finestre, automazioni più complete, link delle Impostazioni nella lingua dell'app. Novità nei due README e sulla homepage.
 - **Prove:** `cargo test --workspace` (311 + 38), `npm run build`.
@@ -49,8 +53,4 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 24 ottobre 2026 — Telegram a PC spento
 - I messaggi scritti al bot mentre EasyIsland era spento non si scartano più: alla ripartenza si elaborano in ordine (`LATE`/`run_late` in `telegram.rs`), con «scritto circa N fa» davanti alla domanda. Limite: Telegram li tiene circa 24 ore. Arriva con la prossima versione.
 - **Prove:** `cargo test --workspace`, clippy, `npm run build`; da provare dal vivo (`docs/prove-dal-vivo.md`).
-
-### 24 ottobre 2026 — Versione 1.0.0 e guida
-- Chiesto da Edoardo: ricontrollo e potenziamento delle ultime modifiche, guida completa sul sito divisa in pagine, link nelle Impostazioni, versione 1.0.0. Memoria: finestra che si aggiorna da sola, file trascinati in da-leggere, «Ricorda…». Guida di 28 pagine da `docs/guida/` con `scripts/guida.mjs` (menu, indice, ricerca), link Guida / Sito / GitHub in fondo alle Impostazioni, homepage con le novità.
-- **Prove:** `cargo test --workspace`, clippy, `npm run build`, `npm run smoke`, link e ancore della guida controllati, screenshot della guida e delle viste della memoria.
 

@@ -599,6 +599,14 @@ pub struct Settings {
     /// ✕ in the open island's header.
     #[serde(default = "default_true")]
     pub close_button: bool,
+    /// The island as an app (asked by Edoardo on 24 Oct 2026): a button on the
+    /// taskbar always (a click opens it), and the open island is an ordinary
+    /// window in Alt+Tab with — (minimize) and ▢ (full screen) in its header.
+    #[serde(default)]
+    pub island_app: bool,
+    /// Opened by the user (hover, click, shortcut, taskbar): it stays open as with 📌.
+    #[serde(default)]
+    pub stay_open_by_user: bool,
     /// The compact view follows the cursor too (the open island always does).
     #[serde(default)]
     pub follow_cursor_compact: bool,
@@ -920,6 +928,8 @@ impl Default for Settings {
             greeting: true,
             greeting_place: default_greeting_place(),
             close_button: true,
+            island_app: false,
+            stay_open_by_user: false,
             follow_cursor_compact: false,
             presence_meeting: true,
             presence_remote: true,

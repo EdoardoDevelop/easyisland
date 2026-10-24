@@ -83,6 +83,8 @@ const ENTRIES: &[Entry] = &[
     Entry { key: "autoCloseInterval", section: ISLAND, what: "secondi prima che l'isola aperta si riduca", kind: Kind::Number(1.0, 300.0) },
     Entry { key: "quietFullscreen", section: ISLAND, what: "nascondersi con video, giochi e presentazioni a schermo intero", kind: Kind::Bool },
     Entry { key: "closeButton", section: ISLAND, what: "pulsante ✕ nell'isola aperta", kind: Kind::Bool },
+    Entry { key: "islandApp", section: ISLAND, what: "l'isola come un'app: icona nella barra delle applicazioni, Alt+Tab, riduci a icona e schermo intero", kind: Kind::Bool },
+    Entry { key: "stayOpenByUser", section: ISLAND, what: "resta aperta quando la apre l'utente", kind: Kind::Bool },
     Entry { key: "greeting", section: ISLAND, what: "saluto all'avvio", kind: Kind::Bool },
     Entry { key: "dailyRecap", section: MORE, what: "riepilogo del giorno: both, morning, evening, off", kind: Kind::Choice(&["both", "morning", "evening", "off"]) },
     Entry { key: "eveningHour", section: MORE, what: "ora del riepilogo di fine giornata (0–23)", kind: Kind::Number(0.0, 23.0) },
