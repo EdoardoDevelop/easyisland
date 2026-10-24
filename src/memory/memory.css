@@ -372,3 +372,22 @@ body {
   top: auto;
   bottom: 10px;
 }
+
+.mem-drop {
+  position: absolute;
+  inset: 14px;
+  border: 2px dashed rgba(124, 156, 255, 0.7);
+  border-radius: 16px;
+  background: rgba(124, 156, 255, 0.08);
+  display: none;
+  place-items: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: #c7d4ff;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.mem-drop.on {
+  display: grid;
+}

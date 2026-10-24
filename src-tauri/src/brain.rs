@@ -831,6 +831,42 @@ pub fn node_file(id: &str) -> Option<PathBuf> {
     None
 }
 
+/// After a write to the memory: the memory window, if open, draws it again.
+pub fn changed(app: &tauri::AppHandle, result: Result<String, String>) -> Result<String, String> {
+    if result.is_ok() {
+        use tauri::Emitter;
+        let _ = app.emit_to(crate::MEMORY_LABEL, "memory-refresh", ());
+    }
+    result
+}
+
+/// A file dropped on the memory window, into da-leggere (a plain name; the
+/// same name twice gets a number).
+pub fn inbox_add(name: &str, bytes: &[u8]) -> Result<String, String> {
+    const MAX_BYTES: usize = 25 * 1024 * 1024;
+    if bytes.len() > MAX_BYTES {
+        return Err(t("File troppo grande (al massimo 25 MB).").into());
+    }
+    let clean: String = name.chars().map(|c| if c.is_control() || "\\/:*?\"<>|".contains(c) { '_' } else { c }).collect();
+    let clean = clean.trim().trim_start_matches('.').to_string();
+    if clean.is_empty() {
+        return Err(t("Nome del file non valido.").into());
+    }
+    let dir = ensure_inbox()?;
+    let mut dest = dir.join(&clean);
+    let (stem, ext) = match clean.rsplit_once('.') {
+        Some((s, e)) => (s.to_string(), format!(".{e}")),
+        None => (clean.clone(), String::new()),
+    };
+    let mut n = 2;
+    while dest.exists() {
+        dest = dir.join(format!("{stem} ({n}){ext}"));
+        n += 1;
+    }
+    std::fs::write(&dest, bytes).map_err(|e| e.to_string())?;
+    Ok(dest.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or(clean))
+}
+
 /// The inbox folder, made when missing (to drop files in).
 pub fn ensure_inbox() -> Result<PathBuf, String> {
     let dir = inbox_dir();
@@ -939,6 +975,10 @@ mod tests {
         assert!(g.nodes.iter().any(|n| n.id == "p:rossi" && n.weight >= 2));
         assert!(g.edges.iter().any(|e| e.from == "p:rossi" && e.to == "p:bianchi" && e.label == "lavora con"));
         assert!(g.events.iter().any(|e| e.lane == "source" && e.text == "articolo.html"));
+        // A dropped file: into da-leggere, the same name twice numbered, no paths.
+        assert_eq!(inbox_add("nota.txt", b"ciao").unwrap(), "nota.txt");
+        assert_eq!(inbox_add("nota.txt", b"ciao").unwrap(), "nota (2).txt");
+        assert_eq!(inbox_add("..\\x/y.md", b"z").unwrap(), "_x_y.md");
         // Forget: the page goes to the archive.
         tool_forget("", "Bianchi").unwrap();
         assert!(archive_dir().join("pagine").join("bianchi.md").exists());

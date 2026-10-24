@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Motori AI — Guida di EasyIsland</title>
+<meta name="description" content="Quale motore scegliere, come configurarlo e cosa sa fare ognuno.">
+<link rel="icon" href="../media/icon.png">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="guida.css">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guida · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">Guida di EasyIsland</a></li></ul><div class="group">Per iniziare</div><ul><li><a href="installazione.html">Installazione</a></li><li><a href="primi-passi.html">Primi passi</a></li><li><a href="isola.html">L'isola</a></li></ul><div class="group">Personalizzare</div><ul><li><a href="aspetto.html">Posizione e aspetto</a></li><li><a href="profili.html">Profili e notifiche</a></li></ul><div class="group">Agenti di programmazione</div><ul><li><a href="agenti.html">Agenti di codice</a></li></ul><div class="group">Intelligenza artificiale</div><ul><li><a href="chat.html">La chat</a></li><li><a href="motori.html" class="on" aria-current="page">Motori AI</a></li><li><a href="strumenti-ai.html">Modalità terminale e strumenti</a></li><li><a href="memoria.html">Memoria e secondo cervello</a></li><li><a href="compiti.html">Compiti, Battito e Abilità</a></li></ul><div class="group">Fare le cose</div><ul><li><a href="azioni.html">Azioni rapide e scorciatoie</a></li><li><a href="automazioni.html">Automazioni</a></li><li><a href="file-e-schermo.html">File e schermo</a></li></ul><div class="group">Collegare i servizi</div><ul><li><a href="integrazioni.html">Integrazioni</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="assistenza-remota.html">Assistenza remota</a></li><li><a href="integrazioni-personali.html">Integrazioni personali</a></li><li><a href="widget.html">Widget</a></li></ul><div class="group">Riferimento</div><ul><li><a href="impostazioni.html">Impostazioni, pagina per pagina</a></li><li><a href="privacy.html">Privacy e sicurezza</a></li><li><a href="riga-di-comando.html">Riga di comando e script</a></li><li><a href="problemi.html">Problemi e soluzioni</a></li><li><a href="sviluppo.html">Per sviluppatori</a></li></ul></aside>
+<main>
+<div class="crumb">Intelligenza artificiale</div>
+<h1>Motori AI</h1>
+<p class="lead">Quale motore scegliere, come configurarlo e cosa sa fare ognuno.</p>
+<p>Il motore <strong>predefinito</strong> si sceglie in <strong>Impostazioni → Chat e motori AI</strong>. Dal nome del modello in alto a destra nella chat ne scegli un altro solo per quella conversazione: il menu mostra solo i motori pronti.</p>
+<h2 id="confronto"><a class="anchor" href="#confronto">#</a>Confronto</h2>
+<div class="table"><table><thead><tr><th>Motore</th><th>Costo</th><th>Strumenti di EasyIsland</th><th>Note</th></tr></thead><tbody><tr><td><strong>Abbonamento Claude</strong> (tramite Claude Code)</td><td>Il tuo piano Pro/Max</td><td>Sì</td><td>Il predefinito. Ricerca web, connettori MCP, modalità terminale</td></tr><tr><td><strong>Chiave API Anthropic</strong></td><td>A consumo</td><td>Sì</td><td>Ricerca web e strumenti di EasyIsland</td></tr><tr><td><strong>opencode</strong></td><td>Gratuito (Zen) o del fornitore</td><td>Sì</td><td>Modelli gratuiti, locali o dei fornitori collegati, con comandi e file</td></tr><tr><td><strong>Antigravity</strong> (Google)</td><td>Il tuo account Google</td><td>Sì</td><td>Con i suoi strumenti</td></tr><tr><td><strong>OpenRouter</strong></td><td>A consumo</td><td>Con la modalità terminale</td><td>Una chiave per centinaia di modelli</td></tr><tr><td><strong>OpenAI</strong></td><td>A consumo</td><td>Con la modalità terminale</td><td></td></tr><tr><td><strong>Gemini</strong> (Google AI Studio)</td><td>A consumo / gratuito</td><td>Con la modalità terminale</td><td></td></tr><tr><td><strong>Ollama</strong>, <strong>LM Studio</strong></td><td>Gratis, sul tuo PC</td><td>Con la modalità terminale</td><td>Nulla esce dalla rete</td></tr></tbody></table></div>
+<h2 id="abbonamento-claude"><a class="anchor" href="#abbonamento-claude">#</a>Abbonamento Claude</h2>
+<p>EasyIsland usa <strong>Claude Code installato sul PC</strong> (nascosto, senza finestre) con il tuo piano Pro o Max: nessuna chiave e nessun costo extra, ma le domande contano nei limiti del piano. Claude Code resta acceso tra un messaggio e l'altro, così le risposte partono in fretta.</p>
+<div class="callout importante"><p><strong>Importante:</strong> serve <strong>Claude Code da riga di comando</strong> con il login fatto. L'app desktop di Claude da sola non basta (il suo Claude Code usa il login dell'app, che gli altri programmi non possono usare). Una volta sola:</p><p>1. in PowerShell: <code>irm https://claude.ai/install.ps1 | iex</code> 2. chiudi e riapri PowerShell, scrivi <code>claude</code> e accedi con il tuo account; 3. in Impostazioni → Chat premi <strong>Ricontrolla</strong>: il pallino diventa verde.</p></div>
+<p>Senza modalità terminale, Claude Code lavora in una cartella vuota con solo ricerca web, lettura di pagine web e lettura dei file che rilasci, più gli strumenti di EasyIsland e i connettori che scegli.</p>
+<h3 id="connettori-mcp"><a class="anchor" href="#connettori-mcp">#</a>Connettori MCP</h3>
+<p><strong>Impostazioni → Chat → Connettori</strong> (solo con l'abbonamento): la chat può usare i server MCP che hai configurato in Claude Code per l'utente (<code>claude mcp add --scope user …</code>) e quelli dei plugin di Claude Code attivi, scegliendo quali <strong>profilo per profilo</strong>. Con «chiedi conferma» (predefinito) ogni operazione compare nell'isola con <strong>Consenti / Nega</strong>; spegnila solo per i connettori di sola lettura. EasyIsland legge solo i nomi dei server, mai la loro configurazione. I connettori di claude.ai non sono disponibili in questo modo.</p>
+<h2 id="chiavi-api"><a class="anchor" href="#chiavi-api">#</a>Chiavi API</h2>
+<p>Per Anthropic, OpenRouter, OpenAI e Gemini: la chiave va nel suo campo e finisce in <strong>Gestione credenziali di Windows</strong>. Il modello si sceglie dall'elenco con <strong>Carica modelli</strong> (con il prezzo, quando il fornitore lo dice). La risposta compare mentre arriva; il ragionamento dei modelli che lo mostrano resta nascosto.</p>
+<h2 id="opencode"><a class="anchor" href="#opencode">#</a>opencode</h2>
+<p>Serve <strong>opencode 2</strong> sul PC. EasyIsland avvia un server privato di opencode solo mentre chatti e lo spegne dopo 10 minuti. Il modello si scrive come <code>fornitore/modello</code> (<strong>Carica modelli</strong>); le chiavi dei fornitori restano in opencode (<code>opencode auth login</code>). Il modello può eseguire comandi, leggere e modificare file e cercare sul web: ogni comando, modifica o accesso al web chiede <strong>Consenti / Nega</strong> (<strong>Sempre</strong> solo per i comandi che leggono soltanto); se non rispondi è un no.</p>
+<div class="callout attenzione"><p><strong>Attenzione:</strong> con i modelli gratuiti online i dati possono essere usati per addestrare il modello: niente dati dei clienti. Per quelli usa un modello locale.</p></div>
+<h2 id="antigravity"><a class="anchor" href="#antigravity">#</a>Antigravity</h2>
+<p>Installi la CLI con <code>irm https://antigravity.google/cli/install.ps1 | iex</code>, poi scrivi <code>agy</code> e accedi con Google. Con gli hook di Antigravity installati, i suoi comandi chiedono Consenti / Nega nell'isola.</p>
+<h2 id="ollama-e-lm-studio"><a class="anchor" href="#ollama-e-lm-studio">#</a>Ollama e LM Studio</h2>
+<p>Modelli sul tuo PC o su un altro della rete: nessuna chiave, solo l'indirizzo (vuoto = quello predefinito).</p>
+<h2 id="piu-motori-insieme"><a class="anchor" href="#piu-motori-insieme">#</a>Più motori insieme</h2>
+<ul><li><strong>Seconda opinione</strong> sotto ogni risposta: un altro motore fa da revisore.</li><li>Nei <strong>compiti</strong> scegli un motore per compito e dei <strong>motori aiutanti</strong> a cui delegare pezzi del lavoro (vedi <a href="compiti.html">Compiti</a>).</li><li>Le <strong>abilità</strong> possono indicare il motore che preferiscono.</li><li><strong>Telegram</strong> ha il suo motore e il suo modello, scelti con <code>/motore</code> e <code>/modello</code>.</li></ul>
+<div class="pager"><a class="prev" href="chat.html"><small>Precedente</small>La chat</a><a class="next" href="strumenti-ai.html"><small>Successiva</small>Modalità terminale e strumenti</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/09-motori.md">Modifica questa pagina su GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#confronto">Confronto</a></li><li class="l2"><a href="#abbonamento-claude">Abbonamento Claude</a></li><li class="l3"><a href="#connettori-mcp">Connettori MCP</a></li><li class="l2"><a href="#chiavi-api">Chiavi API</a></li><li class="l2"><a href="#opencode">opencode</a></li><li class="l2"><a href="#antigravity">Antigravity</a></li><li class="l2"><a href="#ollama-e-lm-studio">Ollama e LM Studio</a></li><li class="l2"><a href="#piu-motori-insieme">Più motori insieme</a></li></ul></nav>
+</div>
+<script src="guida.js"></script>
+</body>
+</html>

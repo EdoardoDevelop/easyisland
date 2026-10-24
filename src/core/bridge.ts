@@ -403,6 +403,8 @@ export const Bridge = {
   memoryJob: (kind: "inbox" | "check") => callOrThrow<void>("memory_job", { kind }),
   memoryNodeOpen: (id: string) => callOrThrow<void>("memory_node_open", { id }),
   memoryWindowOpen: () => call<void>("memory_window_open"),
+  memoryInboxAdd: (name: string, data: number[]) => callOrThrow<string>("memory_inbox_add", { name, data }),
+  memoryNoteAdd: (text: string) => callOrThrow<string>("memory_note_add", { text }),
   /** Ctrl+V in the chat: files copied in Explorer or a picture, into the inbox (null: plain text). */
   chatPaste: () => callOrThrow<DroppedFile | null>("chat_paste"),
   /** «Modifica» / «Rigenera»: the conversation goes back to these lines. */

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Microsoft: Outlook, Teams, To Do — Guida di EasyIsland</title>
+<meta name="description" content="Posta e calendario, riunioni Teams, attività di To Do e l'account Microsoft.">
+<link rel="icon" href="../media/icon.png">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="guida.css">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guida · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">Guida di EasyIsland</a></li></ul><div class="group">Per iniziare</div><ul><li><a href="installazione.html">Installazione</a></li><li><a href="primi-passi.html">Primi passi</a></li><li><a href="isola.html">L'isola</a></li></ul><div class="group">Personalizzare</div><ul><li><a href="aspetto.html">Posizione e aspetto</a></li><li><a href="profili.html">Profili e notifiche</a></li></ul><div class="group">Agenti di programmazione</div><ul><li><a href="agenti.html">Agenti di codice</a></li></ul><div class="group">Intelligenza artificiale</div><ul><li><a href="chat.html">La chat</a></li><li><a href="motori.html">Motori AI</a></li><li><a href="strumenti-ai.html">Modalità terminale e strumenti</a></li><li><a href="memoria.html">Memoria e secondo cervello</a></li><li><a href="compiti.html">Compiti, Battito e Abilità</a></li></ul><div class="group">Fare le cose</div><ul><li><a href="azioni.html">Azioni rapide e scorciatoie</a></li><li><a href="automazioni.html">Automazioni</a></li><li><a href="file-e-schermo.html">File e schermo</a></li></ul><div class="group">Collegare i servizi</div><ul><li><a href="integrazioni.html">Integrazioni</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html" class="on" aria-current="page">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="assistenza-remota.html">Assistenza remota</a></li><li><a href="integrazioni-personali.html">Integrazioni personali</a></li><li><a href="widget.html">Widget</a></li></ul><div class="group">Riferimento</div><ul><li><a href="impostazioni.html">Impostazioni, pagina per pagina</a></li><li><a href="privacy.html">Privacy e sicurezza</a></li><li><a href="riga-di-comando.html">Riga di comando e script</a></li><li><a href="problemi.html">Problemi e soluzioni</a></li><li><a href="sviluppo.html">Per sviluppatori</a></li></ul></aside>
+<main>
+<div class="crumb">Collegare i servizi</div>
+<h1>Microsoft: Outlook, Teams, To Do</h1>
+<p class="lead">Posta e calendario, riunioni Teams, attività di To Do e l'account Microsoft.</p>
+<h2 id="outlook"><a class="anchor" href="#outlook">#</a>Outlook</h2>
+<p>L'integrazione <strong>Outlook</strong> mostra le <strong>mail non lette</strong> e gli <strong>appuntamenti di oggi e domani</strong>, e avvisa qualche minuto prima di una riunione.</p>
+<ul><li>Di serie legge <strong>Outlook classico già aperto</strong> (non lo avvia mai). Il nuovo Outlook non ha questa possibilità.</li><li>Con l'<strong>account Microsoft</strong> (sotto) usa invece Microsoft Graph, anche senza Outlook aperto, con mittente e oggetto delle ultime mail.</li></ul>
+<h2 id="teams"><a class="anchor" href="#teams">#</a>Teams</h2>
+<p>Senza nessun account:</p>
+<ul><li><strong>Teams aperto</strong> e <strong>in riunione</strong> si capiscono da Windows (microfono o webcam in uso);</li><li>comandi della riunione nella card e <strong>accanto al personaggio chiuso</strong>: <strong>Microfono</strong>, <strong>Video</strong>, <strong>Alza la mano</strong>, <strong>Esci</strong> (le scorciatoie di Teams);</li><li><strong>Partecipa dal link copiato</strong>: copia un link di riunione Teams e un clic ti fa entrare;</li><li><strong>automazioni</strong> quando una riunione inizia o finisce.</li></ul>
+<p>Con l'account Microsoft: il tuo <strong>stato</strong> e le <strong>riunioni online</strong> di oggi e domani con <strong>Partecipa</strong>.</p>
+<h2 id="microsoft-to-do"><a class="anchor" href="#microsoft-to-do">#</a>Microsoft To Do</h2>
+<p>Gli strumenti della chat leggono e scrivono le tue attività di <strong>To Do</strong> attraverso <strong>Outlook classico</strong> (che deve essere aperto): «cosa ho da fare questa settimana?», «aggiungi chiamare Rossi domani alle 10 nella lista Clienti», «segna fatta la fattura di Bianchi». Aggiungere e cambiare chiedono Consenti / Nega. Le modifiche arrivano in To Do con la sincronizzazione di Outlook.</p>
+<h2 id="account-microsoft-api"><a class="anchor" href="#account-microsoft-api">#</a>Account Microsoft (API)</h2>
+<p>Nelle righe di Outlook e Teams, il blocco <strong>Account Microsoft (API)</strong> collega il tuo account di lavoro con <strong>Microsoft Graph</strong>:</p>
+<ol><li>registra un'applicazione in <strong>Microsoft Entra</strong> (ID applicazione pubblico, nessun segreto);</li><li>metti ID applicazione e tenant e clicca <strong>Accedi</strong>: si apre la pagina di accesso di Microsoft.</li></ol>
+<p>Permessi delegati <strong>solo in lettura</strong>: profilo, posta, calendario, presenza. Se la tua azienda richiede l'approvazione dell'amministratore, chiedila al tuo IT. Le chiamate vanno solo a <code>login.microsoftonline.com</code> e <code>graph.microsoft.com</code>, e solo dopo l'accesso.</p>
+<div class="pager"><a class="prev" href="notion.html"><small>Precedente</small>Notion</a><a class="next" href="telegram.html"><small>Successiva</small>Telegram</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/19-microsoft.md">Modifica questa pagina su GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#outlook">Outlook</a></li><li class="l2"><a href="#teams">Teams</a></li><li class="l2"><a href="#microsoft-to-do">Microsoft To Do</a></li><li class="l2"><a href="#account-microsoft-api">Account Microsoft (API)</a></li></ul></nav>
+</div>
+<script src="guida.js"></script>
+</body>
+</html>

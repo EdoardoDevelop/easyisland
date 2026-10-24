@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy e sicurezza — Guida di EasyIsland</title>
+<meta name="description" content="Cosa resta sul PC, cosa esce, dove stanno i segreti e cosa EasyIsland non farà mai.">
+<link rel="icon" href="../media/icon.png">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="guida.css">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guida · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">Guida di EasyIsland</a></li></ul><div class="group">Per iniziare</div><ul><li><a href="installazione.html">Installazione</a></li><li><a href="primi-passi.html">Primi passi</a></li><li><a href="isola.html">L'isola</a></li></ul><div class="group">Personalizzare</div><ul><li><a href="aspetto.html">Posizione e aspetto</a></li><li><a href="profili.html">Profili e notifiche</a></li></ul><div class="group">Agenti di programmazione</div><ul><li><a href="agenti.html">Agenti di codice</a></li></ul><div class="group">Intelligenza artificiale</div><ul><li><a href="chat.html">La chat</a></li><li><a href="motori.html">Motori AI</a></li><li><a href="strumenti-ai.html">Modalità terminale e strumenti</a></li><li><a href="memoria.html">Memoria e secondo cervello</a></li><li><a href="compiti.html">Compiti, Battito e Abilità</a></li></ul><div class="group">Fare le cose</div><ul><li><a href="azioni.html">Azioni rapide e scorciatoie</a></li><li><a href="automazioni.html">Automazioni</a></li><li><a href="file-e-schermo.html">File e schermo</a></li></ul><div class="group">Collegare i servizi</div><ul><li><a href="integrazioni.html">Integrazioni</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="assistenza-remota.html">Assistenza remota</a></li><li><a href="integrazioni-personali.html">Integrazioni personali</a></li><li><a href="widget.html">Widget</a></li></ul><div class="group">Riferimento</div><ul><li><a href="impostazioni.html">Impostazioni, pagina per pagina</a></li><li><a href="privacy.html" class="on" aria-current="page">Privacy e sicurezza</a></li><li><a href="riga-di-comando.html">Riga di comando e script</a></li><li><a href="problemi.html">Problemi e soluzioni</a></li><li><a href="sviluppo.html">Per sviluppatori</a></li></ul></aside>
+<main>
+<div class="crumb">Riferimento</div>
+<h1>Privacy e sicurezza</h1>
+<p class="lead">Cosa resta sul PC, cosa esce, dove stanno i segreti e cosa EasyIsland non farà mai.</p>
+<h2 id="cosa-non-fa-mai"><a class="anchor" href="#cosa-non-fa-mai">#</a>Cosa non fa mai</h2>
+<ul><li><strong>Inviare un'email</strong> o <strong>approvare un permesso</strong> senza il tuo clic. Unica eccezione: l'«Automatica» di Telegram accesa da te, che chiede comunque per le cancellazioni.</li><li><strong>Eseguire comandi qualsiasi</strong> su questo PC dagli strumenti dell'AI: solo le tue azioni rapide, o la modalità terminale con un permesso per ogni comando.</li><li><strong>Eliminare</strong>: gli strumenti non cancellano, tranne una riga di Notion nel suo cestino dopo il tuo sì in chat; la cartella di lavoro usa il Cestino di Windows; la memoria archivia e non cancella.</li><li><strong>Sovrascrivere</strong> le configurazioni degli agenti: prima un backup datato, il diff e la tua conferma.</li><li><strong>Bloccare un agente</strong>: se EasyIsland non risponde, l'agente continua da solo.</li><li>Accettare tutto senza controllo: la modalità che salta ogni permesso non esiste.</li></ul>
+<h2 id="segreti"><a class="anchor" href="#segreti">#</a>Segreti</h2>
+<p>Chiavi API, token, password e link segreti stanno in <strong>Gestione credenziali di Windows</strong>, mai su disco, mai nell'interfaccia, mai in git, mai nei backup. L'interfaccia può solo chiedere se una chiave esiste. Le password dell'Accesso remoto restano solo in memoria finché la connessione è aperta. Le mappe di Notion e di RDM sul disco sono cifrate con la protezione dati di Windows (DPAPI).</p>
+<h2 id="rete"><a class="anchor" href="#rete">#</a>Rete</h2>
+<p><strong>Nessuna telemetria.</strong> Le richieste vanno solo:</p>
+<ul><li>ai servizi che configuri tu (motori AI, integrazioni, widget, integrazioni personali verso gli host scritti nella loro descrizione);</li><li>a GitHub per il <strong>controllo degli aggiornamenti</strong>, spegnibile in Impostazioni → Generale.</li></ul>
+<p>Gli aggiornamenti si installano <strong>solo dopo un clic</strong>, con la <strong>firma verificata</strong>. Nessuna porta viene aperta sul PC (Telegram usa il long polling).</p>
+<h2 id="cosa-resta-sul-pc"><a class="anchor" href="#cosa-resta-sul-pc">#</a>Cosa resta sul PC</h2>
+<div class="table"><table><thead><tr><th>Dato</th><th>Dove</th><th>Note</th></tr></thead><tbody><tr><td>Cronologia della chat</td><td><code>%LOCALAPPDATA%\EasyIsland\chats.json</code></td><td>Fino a 100 conversazioni; si svuota o si spegne</td></tr><tr><td>Memoria, diario, pagine</td><td><code>%APPDATA%\EasyIsland\memoria</code></td><td>File .md leggibili; si spegne con la cronologia</td></tr><tr><td>Compiti, abilità, integrazioni personali</td><td><code>%APPDATA%\EasyIsland</code></td><td>File leggibili</td></tr><tr><td>Appunti</td><td>Solo in memoria</td><td>Gli elementi privati dei gestori di password non vengono registrati</td></tr><tr><td>Modifiche degli agenti</td><td>Solo in memoria</td><td>50 modifiche, un'ora al massimo</td></tr><tr><td>Riepiloghi degli agenti</td><td><code>recap.json</code></td><td>Solo numeri e nomi delle cartelle</td></tr><tr><td>Abitudini (se accese)</td><td>Sul PC</td><td>Solo nomi di programmi e orari, 45 giorni, si cancellano con un clic</td></tr><tr><td>Log</td><td><code>%LOCALAPPDATA%\EasyIsland\easyisland.log</code></td><td>Eventi tecnici, senza contenuti</td></tr></tbody></table></div>
+<h2 id="davanti-al-cliente"><a class="anchor" href="#davanti-al-cliente">#</a>Davanti al cliente</h2>
+<p>Durante chiamate, riunioni e assistenza remota il personaggio si nasconde e nessun nome, titolo o testo compare sullo schermo. Vedi <a href="profili.html#davanti-al-cliente">Profili e notifiche</a>.</p>
+<h2 id="modelli-ai"><a class="anchor" href="#modelli-ai">#</a>Modelli AI</h2>
+<p>Quello che scrivi in chat va al motore che scegli. Con i modelli gratuiti online i dati possono essere usati per l'addestramento: per i dati dei clienti usa un piano a pagamento o un modello locale (Ollama, LM Studio), che non esce dalla rete.</p>
+<div class="pager"><a class="prev" href="impostazioni.html"><small>Precedente</small>Impostazioni, pagina per pagina</a><a class="next" href="riga-di-comando.html"><small>Successiva</small>Riga di comando e script</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/25-privacy.md">Modifica questa pagina su GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#cosa-non-fa-mai">Cosa non fa mai</a></li><li class="l2"><a href="#segreti">Segreti</a></li><li class="l2"><a href="#rete">Rete</a></li><li class="l2"><a href="#cosa-resta-sul-pc">Cosa resta sul PC</a></li><li class="l2"><a href="#davanti-al-cliente">Davanti al cliente</a></li><li class="l2"><a href="#modelli-ai">Modelli AI</a></li></ul></nav>
+</div>
+<script src="guida.js"></script>
+</body>
+</html>

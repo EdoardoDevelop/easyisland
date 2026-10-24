@@ -18,6 +18,7 @@ import "./settings-windows.css";
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
 let version = "";
+const HOMEPAGE = "https://edoardodevelop.github.io/easyisland/";
 
 const root = document.getElementById("settings-root")!;
 
@@ -4953,7 +4954,21 @@ function render() {
     });
     nav.append(item);
   }
-  nav.append(h("div", { class: "nav-foot", text: t("Nessuna telemetria. Le richieste di rete vanno solo ai servizi che configuri tu.") }));
+  // The homepage and its guide on GitHub Pages (site/).
+  const link = (text: string, url: string) => {
+    const a = h("a", { class: "nav-link", href: url, text });
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      void Bridge.openUrl(url);
+    });
+    return a;
+  };
+  nav.append(h("div", { class: "nav-foot" },
+    h("div", { class: "nav-links" },
+      link(t("Guida"), `${HOMEPAGE}guida/`),
+      link(t("Sito"), HOMEPAGE),
+      link("GitHub", "https://github.com/EdoardoDevelop/easyisland")),
+    h("div", { text: t("Nessuna telemetria. Le richieste di rete vanno solo ai servizi che configuri tu.") })));
 
   const body = h("div", { class: "page-inner" },
     h("header", { class: "page-head" }, h("h1", { text: page.title }), h("div", { class: "hint", text: page.intro })),

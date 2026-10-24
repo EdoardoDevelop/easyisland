@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agenti di codice — Guida di EasyIsland</title>
+<meta name="description" content="Claude Code, Codex, opencode, Antigravity, Gemini CLI, Cursor e Copilot nell'isola: sessioni, permessi, modifiche, riepiloghi.">
+<link rel="icon" href="../media/icon.png">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="guida.css">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guida · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">Guida di EasyIsland</a></li></ul><div class="group">Per iniziare</div><ul><li><a href="installazione.html">Installazione</a></li><li><a href="primi-passi.html">Primi passi</a></li><li><a href="isola.html">L'isola</a></li></ul><div class="group">Personalizzare</div><ul><li><a href="aspetto.html">Posizione e aspetto</a></li><li><a href="profili.html">Profili e notifiche</a></li></ul><div class="group">Agenti di programmazione</div><ul><li><a href="agenti.html" class="on" aria-current="page">Agenti di codice</a></li></ul><div class="group">Intelligenza artificiale</div><ul><li><a href="chat.html">La chat</a></li><li><a href="motori.html">Motori AI</a></li><li><a href="strumenti-ai.html">Modalità terminale e strumenti</a></li><li><a href="memoria.html">Memoria e secondo cervello</a></li><li><a href="compiti.html">Compiti, Battito e Abilità</a></li></ul><div class="group">Fare le cose</div><ul><li><a href="azioni.html">Azioni rapide e scorciatoie</a></li><li><a href="automazioni.html">Automazioni</a></li><li><a href="file-e-schermo.html">File e schermo</a></li></ul><div class="group">Collegare i servizi</div><ul><li><a href="integrazioni.html">Integrazioni</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="assistenza-remota.html">Assistenza remota</a></li><li><a href="integrazioni-personali.html">Integrazioni personali</a></li><li><a href="widget.html">Widget</a></li></ul><div class="group">Riferimento</div><ul><li><a href="impostazioni.html">Impostazioni, pagina per pagina</a></li><li><a href="privacy.html">Privacy e sicurezza</a></li><li><a href="riga-di-comando.html">Riga di comando e script</a></li><li><a href="problemi.html">Problemi e soluzioni</a></li><li><a href="sviluppo.html">Per sviluppatori</a></li></ul></aside>
+<main>
+<div class="crumb">Agenti di programmazione</div>
+<h1>Agenti di codice</h1>
+<p class="lead">Claude Code, Codex, opencode, Antigravity, Gemini CLI, Cursor e Copilot nell'isola: sessioni, permessi, modifiche, riepiloghi.</p>
+<p><img src="../media/approval.png" alt="Una richiesta di permesso di Claude Code" loading="lazy"></p>
+<h2 id="collegare-un-agente"><a class="anchor" href="#collegare-un-agente">#</a>Collegare un agente</h2>
+<p><strong>Impostazioni → Agenti di codice</strong>: ogni agente ha la sua riga con <strong>Installa…</strong> e <strong>Disinstalla…</strong>. Prima di scrivere vedi:</p>
+<ul><li>il <strong>diff</strong> esatto di cosa cambierà nel file di configurazione dell'agente;</li><li>il percorso della <strong>copia di backup datata</strong> che verrà creata.</li></ul>
+<p>Niente viene scritto finché non clicchi. I tuoi hook non vengono mai toccati e la disinstallazione toglie solo le voci di EasyIsland.</p>
+<h2 id="come-funziona"><a class="anchor" href="#come-funziona">#</a>Come funziona</h2>
+<p>L'agente chiama un piccolo programma, <code>easyisland-hook.exe</code>, a ogni evento (inizio, strumento, permesso, fine). Il relay ha <strong>300 ms</strong> per raggiungere EasyIsland ed esce in silenzio se l'app è chiusa o lenta: <strong>una sessione non viene mai bloccata né rallentata</strong>. Se nessuno risponde in tempo a un permesso, l'agente lo chiede nel terminale come al solito.</p>
+<h2 id="nella-scheda-agenti"><a class="anchor" href="#nella-scheda-agenti">#</a>Nella scheda Agenti</h2>
+<p><img src="../media/agenti.png" alt="Claude Code e opencode al lavoro" loading="lazy"></p>
+<ul><li><strong>Avanzamento e passi</strong> della sessione, con lo strumento in uso.</li><li><strong>Modifiche in tempo reale</strong>: ogni file modificato con le righe aggiunte (verde) e tolte (rosso). Un clic apre la scheda <strong>Modifiche</strong>: una linguetta per file, 3 righe di contesto, ↗ per aprire il file in VS Code alla riga giusta. Il diff resta solo in memoria (50 modifiche, un'ora al massimo).</li><li><strong>Permessi</strong> con <strong>Nega / Consenti / Sempre</strong>. «Sempre» usa la regola proposta dall'agente (la card dice quale) o una regola di sola sessione. <strong>Più tardi</strong> ripiega la card con il tempo rimasto.</li><li><strong>Domande</strong> dell'agente con le opzioni come pulsanti e risposta libera.</li><li><strong>Card «finito»</strong> con l'ultimo messaggio in markdown e <strong>Continua</strong>: il testo arriva alla sessione (nel terminale parte subito).</li><li><strong>Chiedi a questa sessione</strong>: interroghi una copia in sola lettura della sessione, senza toccare il lavoro vero.</li><li><strong>Apri</strong>: riporta in primo piano il terminale, VS Code, Cursor o l'app di Claude della sessione (<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd>).</li></ul>
+<h2 id="gli-agenti"><a class="anchor" href="#gli-agenti">#</a>Gli agenti</h2>
+<div class="table"><table><thead><tr><th>Agente</th><th>Cosa arriva all'isola</th></tr></thead><tbody><tr><td><strong>Claude Code</strong></td><td>Tutto: sessioni, passi, modifiche, permessi con «Sempre», domande, piani, fine. Anche dall'app desktop di Claude e dal terminale di Cursor</td></tr><tr><td><strong>Codex</strong></td><td>Sessioni e permessi con Consenti / Nega. Dopo l'installazione apri <code>/hooks</code> in Codex e approva gli hook di EasyIsland</td></tr><tr><td><strong>opencode 2</strong></td><td>Accendi <strong>Collega opencode</strong>: EasyIsland segue il suo servizio in background senza installare nulla. Permessi con Consenti / Nega / Sempre, anche rispondendo in opencode</td></tr><tr><td><strong>opencode 1.x</strong></td><td>Un plugin scritto da EasyIsland; dopo l'installazione riavvia opencode</td></tr><tr><td><strong>Antigravity</strong> (Google)</td><td>Sessioni della CLI <code>agy</code>, dell'IDE e dell'app, con passi e diff; comandi e strumenti MCP con Consenti / Nega. Se non rispondi decide Antigravity</td></tr><tr><td><strong>Gemini CLI</strong></td><td>Sessioni e passi. Gemini non accetta risposte ai permessi da fuori: l'isola ti avvisa e ti riporta al terminale</td></tr><tr><td><strong>Cursor</strong> e <strong>GitHub Copilot</strong></td><td>Solo in osservazione (sessioni e passi), mai sui permessi</td></tr><tr><td><strong>Compiti</strong></td><td>I compiti di EasyIsland stessa, come sessioni dell'agente «Compiti» (vedi <a href="compiti.html">Compiti</a>)</td></tr></tbody></table></div>
+<p><strong>Altri strumenti</strong>: qualsiasi programma può comparire in Agenti mandando eventi a <code>easyisland-hook &lt;Evento&gt;</code> con un campo <code>easyisland_agent</code> (vedi <a href="riga-di-comando.html">Riga di comando e script</a>).</p>
+<h2 id="strumenti-di-easyisland-in-claude-code"><a class="anchor" href="#strumenti-di-easyisland-in-claude-code">#</a>Strumenti di EasyIsland in Claude Code</h2>
+<p><strong>Impostazioni → Agenti di codice → Strumenti di EasyIsland in Claude Code</strong> aggiunge il server MCP di EasyIsland a Claude Code per tutti i progetti (dopo una copia datata di <code>.claude.json</code>). Così Claude Code, in qualsiasi progetto, può:</p>
+<ul><li>mostrare una <strong>card con pulsanti</strong> nell'isola e aspettare la tua scelta (<code>show_card</code>);</li><li>mettere un file nel <strong>Vassoio</strong> (<code>add_to_tray</code>);</li><li>usare tutti gli strumenti di EasyIsland descritti in <a href="strumenti-ai.html">Modalità terminale e strumenti</a>.</li></ul>
+<h2 id="riepiloghi"><a class="anchor" href="#riepiloghi">#</a>Riepiloghi</h2>
+<ul><li><strong>Riepilogo del giorno</strong>: al mattino (il tempo degli agenti di ieri) e a fine giornata (dall'ora che scegli, 18 di serie), con i repository che hanno file modificati o commit da inviare e le <strong>pull request</strong> in attesa di revisione (con <code>gh</code> o un token GitHub).</li><li><strong>Riepilogo settimanale</strong>: il lunedì dalle 8, ore al lavoro, sessioni, file e righe cambiati, comandi, permessi. Anche dal menu dell'area di notifica.</li></ul>
+<p>Tengono solo numeri e il nome della cartella del progetto, mai comandi o contenuti.</p>
+<p><img src="../media/recap.png" alt="Il riepilogo settimanale" loading="lazy"></p>
+<h2 id="limiti-del-piano-claude"><a class="anchor" href="#limiti-del-piano-claude">#</a>Limiti del piano Claude</h2>
+<p>Con un piano Pro o Max, la card <strong>Consumo Claude</strong> mostra le percentuali delle <strong>5 ore</strong>, della <strong>settimana</strong> e della <strong>settimana Opus</strong>, con un avviso dall'80 %, e le riporta in alto nell'isola. Le chiede ad Anthropic ogni 5 minuti con l'accesso già fatto in Claude Code (lo stesso dato di <code>/usage</code>, solo letto) e le prende anche dalla status line delle sessioni. La card mostra anche i token consumati, letti dalle trascrizioni di Claude Code (solo i numeri, mai il testo).</p>
+<p>Se l'accesso di Claude Code scade, EasyIsland lo rinnova da solo aprendo Claude Code invisibile per un istante.</p>
+<div class="pager"><a class="prev" href="profili.html"><small>Precedente</small>Profili e notifiche</a><a class="next" href="chat.html"><small>Successiva</small>La chat</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/07-agenti.md">Modifica questa pagina su GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#collegare-un-agente">Collegare un agente</a></li><li class="l2"><a href="#come-funziona">Come funziona</a></li><li class="l2"><a href="#nella-scheda-agenti">Nella scheda Agenti</a></li><li class="l2"><a href="#gli-agenti">Gli agenti</a></li><li class="l2"><a href="#strumenti-di-easyisland-in-claude-code">Strumenti di EasyIsland in Claude Code</a></li><li class="l2"><a href="#riepiloghi">Riepiloghi</a></li><li class="l2"><a href="#limiti-del-piano-claude">Limiti del piano Claude</a></li></ul></nav>
+</div>
+<script src="guida.js"></script>
+</body>
+</html>

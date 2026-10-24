@@ -13,7 +13,7 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 ![Rust](https://img.shields.io/badge/Rust-backend-000?logo=rust)
 ![Licenza: MIT](https://img.shields.io/badge/licenza-MIT-green)
 
-**Italiano** · [English](README.en.md)
+**Italiano** · [English](README.en.md) · **[📖 Guida completa](https://edoardodevelop.github.io/easyisland/guida/)**
 
 </div>
 
@@ -58,6 +58,17 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 </p>
 
 ## Novità
+
+**1.0.0** — **Secondo cervello e guida.** La memoria ha **pagine collegate** su clienti, persone,
+progetti e concetti (`[[Titolo]]`, con le relazioni), una cartella **da-leggere** da cui l'agente
+impara e scrive le pagine con la fonte, un **controllo** che propone come sistemarla (archivia, non
+cancella) e scritture sicure che non toccano ciò che hai cambiato a mano. La **finestra Memoria**
+(Impostazioni → Chat → Memoria → Mappa) la mostra come **grafo**, **mappa mentale**, **mappa
+concettuale** e **timeline**, con ricerca e file trascinabili. Le **integrazioni personali** si
+creano a parole in chat: moduli con formule, documenti, cruscotti di dati letti dai tuoi servizi
+con avvisi, chiamate alle loro API con chiavi in Gestione credenziali. E una **[guida
+completa](https://edoardodevelop.github.io/easyisland/guida/)** sul sito, linkata in fondo al
+menu delle Impostazioni.
 
 **0.9.9** — **EasyIsland diventa un agente**. **Compiti**: gli dai un obiettivo e lo porta avanti
 da solo con un piano, i passi e il risultato, subito, a un'ora, ogni giorno, ogni settimana o ogni

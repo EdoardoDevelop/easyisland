@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Memoria e secondo cervello — Guida di EasyIsland</title>
+<meta name="description" content="Cosa ricorda EasyIsland, come impara dai tuoi file e come esplorarlo in grafo, mappe e timeline.">
+<link rel="icon" href="../media/icon.png">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="guida.css">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guida · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">Guida di EasyIsland</a></li></ul><div class="group">Per iniziare</div><ul><li><a href="installazione.html">Installazione</a></li><li><a href="primi-passi.html">Primi passi</a></li><li><a href="isola.html">L'isola</a></li></ul><div class="group">Personalizzare</div><ul><li><a href="aspetto.html">Posizione e aspetto</a></li><li><a href="profili.html">Profili e notifiche</a></li></ul><div class="group">Agenti di programmazione</div><ul><li><a href="agenti.html">Agenti di codice</a></li></ul><div class="group">Intelligenza artificiale</div><ul><li><a href="chat.html">La chat</a></li><li><a href="motori.html">Motori AI</a></li><li><a href="strumenti-ai.html">Modalità terminale e strumenti</a></li><li><a href="memoria.html" class="on" aria-current="page">Memoria e secondo cervello</a></li><li><a href="compiti.html">Compiti, Battito e Abilità</a></li></ul><div class="group">Fare le cose</div><ul><li><a href="azioni.html">Azioni rapide e scorciatoie</a></li><li><a href="automazioni.html">Automazioni</a></li><li><a href="file-e-schermo.html">File e schermo</a></li></ul><div class="group">Collegare i servizi</div><ul><li><a href="integrazioni.html">Integrazioni</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="assistenza-remota.html">Assistenza remota</a></li><li><a href="integrazioni-personali.html">Integrazioni personali</a></li><li><a href="widget.html">Widget</a></li></ul><div class="group">Riferimento</div><ul><li><a href="impostazioni.html">Impostazioni, pagina per pagina</a></li><li><a href="privacy.html">Privacy e sicurezza</a></li><li><a href="riga-di-comando.html">Riga di comando e script</a></li><li><a href="problemi.html">Problemi e soluzioni</a></li><li><a href="sviluppo.html">Per sviluppatori</a></li></ul></aside>
+<main>
+<div class="crumb">Intelligenza artificiale</div>
+<h1>Memoria e secondo cervello</h1>
+<p class="lead">Cosa ricorda EasyIsland, come impara dai tuoi file e come esplorarlo in grafo, mappe e timeline.</p>
+<p>La memoria di EasyIsland è fatta di <strong>file Markdown</strong> in <code>%APPDATA%\EasyIsland\memoria</code>, che puoi leggere e correggere con qualsiasi editor. Vale per <strong>tutti i motori</strong>. Si spegne insieme alla cronologia (Impostazioni → Chat → Cronologia).</p>
+<h2 id="le-note-memoria-md"><a class="anchor" href="#le-note-memoria-md">#</a>Le note: MEMORIA.md</h2>
+<p>Le cose da ricordare sempre, una per riga con la data: preferenze, clienti, persone, come si fa una cosa. Vanno davanti alla prima domanda di ogni conversazione (al massimo 4.000 caratteri, le più recenti prima), quindi costano pochi token.</p>
+<ul><li>La chat le salva <strong>da sola</strong> quando dici qualcosa che vale anche per le prossime volte.</li><li>Tu le salvi con <code>/ricorda …</code> in chat, o dal campo <strong>Ricorda…</strong> della finestra Memoria.</li><li>Oltre 60 note, le più vecchie passano in <code>archivio.md</code>, che resta cercabile.</li><li>Niente password o chiavi: la chat ha l'istruzione di non salvarle.</li></ul>
+<h2 id="il-diario"><a class="anchor" href="#il-diario">#</a>Il diario</h2>
+<p><code>diario/AAAA-MM.md</code>: una riga per ogni domanda con risposta (ora, motore, domanda, inizio della risposta). Lo scrive EasyIsland <strong>senza nessun modello</strong>, quindi non costa niente. La chat ci guarda solo quando serve («l'altra volta come avevamo risolto…?»).</p>
+<h2 id="le-pagine-collegate"><a class="anchor" href="#le-pagine-collegate">#</a>Le pagine collegate</h2>
+<p><code>pagine/&lt;nome&gt;.md</code>: <strong>una pagina per argomento</strong> (una persona, un cliente, un progetto, un concetto), come in un wiki:</p>
+<pre><code># Studio Rossi
+fonte: mail-rossi.eml
+aggiornata: 2026-10-24
+
+Cliente dal 2021, commercialisti, 8 postazioni.
+- usa: [[NAS Synology]]
+- referente: [[Marco Rossi]]
+- contratto: [[Assistenza annuale]]</code></pre>
+<ul><li><code>[[Titolo]]</code> collega un'altra pagina; una riga <code>- relazione: [[Altra]]</code> dice <strong>come</strong> sono legate.</li><li>Quando la chat cerca nella memoria, riceve le pagine trovate <strong>e una riga di quelle collegate</strong>: più contesto con poche parole.</li><li>La chat le scrive quando le chiedi «fai una pagina su…», e dalle fonti (sotto).</li><li><strong>Scritture sicure</strong>: se modifichi a mano una pagina mentre l'agente ci lavora, la sua scrittura viene rifiutata; deve rileggerla e ripartire dalla tua versione.</li></ul>
+<h2 id="da-leggere-insegnare-con-i-file"><a class="anchor" href="#da-leggere-insegnare-con-i-file">#</a>Da leggere: insegnare con i file</h2>
+<p>Metti nella cartella <code>da-leggere</code> articoli, appunti, trascrizioni di riunioni, mail salvate (<code>.md</code>, <code>.txt</code>, <code>.html</code>, <code>.eml</code>, <code>.csv</code>, <code>.json</code>…), oppure <strong>trascinali sulla finestra Memoria</strong>. Poi:</p>
+<ol><li>l'agente legge ogni file;</li><li>scrive o aggiorna le pagine giuste, con il nome del file in <code>fonte:</code> e i collegamenti;</li><li>sposta il file in <code>fonti/</code>, <strong>intatto</strong>.</li></ol>
+<p>Succede la sera con il <strong>Riordino della memoria</strong> o subito con <strong>Leggi adesso</strong>. I file che non sono testo (PDF, Word) vengono passati con il loro percorso: Claude Code li sa aprire.</p>
+<h2 id="il-controllo"><a class="anchor" href="#il-controllo">#</a>Il controllo</h2>
+<p>EasyIsland trova da sola: note simili o più vecchie di sei mesi, collegamenti a pagine che non esistono, pagine isolate, vecchie o sullo stesso argomento. L'agente aggiunge le <strong>contraddizioni</strong> che nota e ti propone le correzioni nell'isola, una per riga, con <strong>Fai tutto</strong> / <strong>Niente</strong> (o scrivi quali). Fa <strong>solo quelle approvate</strong> e <strong>non cancella mai</strong>: al massimo sposta una nota in <code>archivio.md</code> o una pagina in <code>archivio/pagine</code>.</p>
+<p>Parte la domenica sera con il Riordino, se c'è qualcosa da sistemare, o subito con <strong>Controlla</strong>.</p>
+<h2 id="il-riordino-della-sera"><a class="anchor" href="#il-riordino-della-sera">#</a>Il riordino della sera</h2>
+<p><strong>Impostazioni → Compiti → Riordino della memoria</strong>: ogni sera alle 22:30 l'agente</p>
+<ul><li>rilegge il diario del giorno e ti propone al massimo 5 cose da ricordare (salva solo quelle che approvi);</li><li>legge i file in <code>da-leggere</code>;</li><li>la domenica fa il controllo.</li></ul>
+<p>Se non c'è niente da fare non parte e non costa niente.</p>
+<h2 id="la-finestra-memoria"><a class="anchor" href="#la-finestra-memoria">#</a>La finestra Memoria</h2>
+<p><strong>Impostazioni → Chat → Memoria → Mappa</strong> apre una finestra tutta sua con la memoria disegnata in quattro modi.</p>
+<h3 id="grafo"><a class="anchor" href="#grafo">#</a>Grafo</h3>
+<p><img src="../media/memoria-grafo.png" alt="Il grafo della memoria" loading="lazy"></p>
+<p>Ogni pagina, nota, fonte e giorno di chat è una stella, unita alle altre dai collegamenti. Le stelle più collegate sono più grandi. Clic su una stella: si illuminano i suoi collegamenti, con scintille che li percorrono, e a destra vedi il testo e l'elenco dei collegamenti.</p>
+<h3 id="mappa-mentale"><a class="anchor" href="#mappa-mentale">#</a>Mappa mentale</h3>
+<p><img src="../media/memoria-mappa.png" alt="La mappa mentale" loading="lazy"></p>
+<p>Un argomento al centro e ciò che ne nasce, fino a tre anelli: ogni ramo ha il suo colore e cresce dal centro. Clic su un ramo per portarlo al centro.</p>
+<h3 id="mappa-concettuale"><a class="anchor" href="#mappa-concettuale">#</a>Mappa concettuale</h3>
+<p><img src="../media/memoria-concetti.png" alt="La mappa concettuale" loading="lazy"></p>
+<p>Le pagine a livelli, dall'alto in basso, con frecce che dicono la relazione («usa», «referente», «contratto»…). Le pagine citate ma non ancora scritte sono tratteggiate.</p>
+<h3 id="timeline"><a class="anchor" href="#timeline">#</a>Timeline</h3>
+<p><img src="../media/memoria-timeline.png" alt="La timeline della memoria" loading="lazy"></p>
+<p>La memoria nel tempo, in corsie: note, pagine, fonti e chat. In alto un'onda mostra quante domande hai fatto ogni giorno. Rotellina per lo zoom sul tempo (da anni a ore), trascina per spostarti.</p>
+<h3 id="nella-finestra"><a class="anchor" href="#nella-finestra">#</a>Nella finestra</h3>
+<ul><li><strong>Cerca nella memoria…</strong>: illumina ciò che corrisponde; <kbd>Invio</kbd> va al primo.</li><li><strong>Da leggere (n)</strong>: apre la cartella; <strong>Leggi adesso</strong> e <strong>Controlla</strong> avviano i compiti subito.</li><li><strong>Trascina file</strong> sulla finestra: finiscono in <code>da-leggere</code>.</li><li><strong>Ricorda…</strong>: una nota nuova.</li><li>Pannello a destra: statistiche, file in attesa, risultati del controllo, oppure l'elemento scelto con <strong>Apri il file</strong>.</li><li>Rotellina per lo zoom, trascinare per spostarsi, doppio clic per vedere tutto.</li><li>Si aggiorna da sola quando l'agente scrive nella memoria.</li></ul>
+<div class="pager"><a class="prev" href="strumenti-ai.html"><small>Precedente</small>Modalità terminale e strumenti</a><a class="next" href="compiti.html"><small>Successiva</small>Compiti, Battito e Abilità</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/11-memoria.md">Modifica questa pagina su GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#le-note-memoria-md">Le note: MEMORIA.md</a></li><li class="l2"><a href="#il-diario">Il diario</a></li><li class="l2"><a href="#le-pagine-collegate">Le pagine collegate</a></li><li class="l2"><a href="#da-leggere-insegnare-con-i-file">Da leggere: insegnare con i file</a></li><li class="l2"><a href="#il-controllo">Il controllo</a></li><li class="l2"><a href="#il-riordino-della-sera">Il riordino della sera</a></li><li class="l2"><a href="#la-finestra-memoria">La finestra Memoria</a></li><li class="l3"><a href="#grafo">Grafo</a></li><li class="l3"><a href="#mappa-mentale">Mappa mentale</a></li><li class="l3"><a href="#mappa-concettuale">Mappa concettuale</a></li><li class="l3"><a href="#timeline">Timeline</a></li><li class="l3"><a href="#nella-finestra">Nella finestra</a></li></ul></nav>
+</div>
+<script src="guida.js"></script>
+</body>
+</html>

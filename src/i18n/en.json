@@ -2950,5 +2950,13 @@
   "Controllo della memoria": "Memory check",
   "Controlla la memoria e proponi all'utente come sistemarla.": "Check the memory and propose to the user how to fix it.",
   "C'è già un compito così in corso: lo segui in Agenti.": "A task like this is already running: follow it in Agents.",
-  "niente di evidente": "nothing obvious"
+  "niente di evidente": "nothing obvious",
+  "Ricorda… (Invio per salvare)": "Remember… (Enter to save)",
+  "Nuova nota": "New note",
+  "Rilascia per mettere in da-leggere": "Drop to put in da-leggere",
+  "In da-leggere: {list}. «Leggi adesso» per farli imparare.": "In da-leggere: {list}. \"Read now\" to have them learnt.",
+  "Guida": "Guide",
+  "Sito": "Website",
+  "File troppo grande (al massimo 25 MB).": "File too large (25 MB at most).",
+  "Nome del file non valido.": "Invalid file name."
 }

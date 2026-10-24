@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Integrazioni personali — Guida di EasyIsland</title>
+<meta name="description" content="Chiedi alla chat la funzione che ti serve — un modulo, un cruscotto, un collegamento a un'API — e diventa una voce dell'isola. Senza scrivere codice.">
+<link rel="icon" href="../media/icon.png">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="guida.css">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guida · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">Guida di EasyIsland</a></li></ul><div class="group">Per iniziare</div><ul><li><a href="installazione.html">Installazione</a></li><li><a href="primi-passi.html">Primi passi</a></li><li><a href="isola.html">L'isola</a></li></ul><div class="group">Personalizzare</div><ul><li><a href="aspetto.html">Posizione e aspetto</a></li><li><a href="profili.html">Profili e notifiche</a></li></ul><div class="group">Agenti di programmazione</div><ul><li><a href="agenti.html">Agenti di codice</a></li></ul><div class="group">Intelligenza artificiale</div><ul><li><a href="chat.html">La chat</a></li><li><a href="motori.html">Motori AI</a></li><li><a href="strumenti-ai.html">Modalità terminale e strumenti</a></li><li><a href="memoria.html">Memoria e secondo cervello</a></li><li><a href="compiti.html">Compiti, Battito e Abilità</a></li></ul><div class="group">Fare le cose</div><ul><li><a href="azioni.html">Azioni rapide e scorciatoie</a></li><li><a href="automazioni.html">Automazioni</a></li><li><a href="file-e-schermo.html">File e schermo</a></li></ul><div class="group">Collegare i servizi</div><ul><li><a href="integrazioni.html">Integrazioni</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="assistenza-remota.html">Assistenza remota</a></li><li><a href="integrazioni-personali.html" class="on" aria-current="page">Integrazioni personali</a></li><li><a href="widget.html">Widget</a></li></ul><div class="group">Riferimento</div><ul><li><a href="impostazioni.html">Impostazioni, pagina per pagina</a></li><li><a href="privacy.html">Privacy e sicurezza</a></li><li><a href="riga-di-comando.html">Riga di comando e script</a></li><li><a href="problemi.html">Problemi e soluzioni</a></li><li><a href="sviluppo.html">Per sviluppatori</a></li></ul></aside>
+<main>
+<div class="crumb">Collegare i servizi</div>
+<h1>Integrazioni personali</h1>
+<p class="lead">Chiedi alla chat la funzione che ti serve — un modulo, un cruscotto, un collegamento a un'API — e diventa una voce dell'isola. Senza scrivere codice.</p>
+<h2 id="crearne-una"><a class="anchor" href="#crearne-una">#</a>Crearne una</h2>
+<p>Scrivi in chat quello che ti serve, per esempio:</p>
+<ul><li>«crea un'integrazione per i preventivi, con cliente, righe di prodotti con quantità e prezzo, IVA al 22 % e totale, che faccia il PDF»;</li><li>«voglio un registro degli interventi con cliente, data, ore, tipo e note, e il totale delle ore del mese»;</li><li>«fammi un cruscotto che legge ogni 10 minuti lo stato dei miei server dall'API di Uptime Kuma e mi avvisa se uno è giù»;</li><li>«un pulsante che manda il modulo al mio webhook di n8n».</li></ul>
+<p>La chat propone campi, calcoli e azioni utili, ti chiede quello che non è chiaro e ti mostra <strong>l'anteprima della descrizione</strong> con <strong>Consenti / Nega</strong>. Confermando, l'integrazione compare nel menu dell'isola con la sua icona. Per cambiarla basta chiedere («aggiungi un campo sconto», «fai il totale in grassetto»): stessa anteprima, stessa conferma.</p>
+<div class="callout importante"><p><strong>Importante:</strong> un'integrazione personale è una <strong>descrizione</strong>, mai codice: le sue azioni sono un elenco fisso e sicuro.</p></div>
+<p><img src="../media/custom.png" alt="Un'integrazione personale" loading="lazy"></p>
+<h2 id="cosa-puo-avere"><a class="anchor" href="#cosa-puo-avere">#</a>Cosa può avere</h2>
+<h3 id="campi"><a class="anchor" href="#campi">#</a>Campi</h3>
+<p>Testo, testo lungo, numero, <strong>importo</strong>, data, casella, scelta e scelta multipla, email, telefono, link, <strong>file</strong> (dal Vassoio), <strong>tabella di righe</strong> (con colonne anche calcolate), <strong>calcolato</strong> (una formula), <strong>numerazione</strong> automatica (es. <code>N-2026-0001</code>), <strong>collegamento</strong> a un'altra integrazione (es. il preventivo che sceglie un cliente dalle schede «Clienti»).</p>
+<ul><li><strong>Compare solo se</strong>: un campo visibile solo quando una formula è vera (es. «IBAN» solo se pagamento = Bonifico).</li><li><strong>Totale nell'elenco</strong>: sommato o contato nella lista delle schede.</li></ul>
+<h3 id="formule"><a class="anchor" href="#formule">#</a>Formule</h3>
+<p>Un linguaggio semplice, in italiano o in inglese: <code>+ - * / %</code>, confronti, <code>e</code> / <code>o</code> / <code>non</code>, <code>se(condizione; sì; no)</code>, <code>somma(quantita*prezzo)</code> sulle righe, <code>media</code>, <code>conta</code>, <code>arrotonda</code>, <code>min</code>, <code>max</code>, date (<code>oggi()</code>, <code>giorni(da; a)</code>, <code>piugiorni(data; 30)</code>, <code>anno</code>, <code>mese</code>), testo (<code>maiuscolo</code>, <code>unisci</code>, <code>contiene</code>, <code>lunghezza</code>). Numeri all'italiana (<code>0,22</code>). Mai codice eseguito.</p>
+<h3 id="modello-del-documento"><a class="anchor" href="#modello-del-documento">#</a>Modello del documento</h3>
+<p>Un documento in Markdown con i <code>{{campi}}</code>, le righe ripetute (<code>{{#righe}} … {{/righe}}</code>) e la data. <strong>Documento</strong> lo produce in <strong>HTML stampabile</strong> (da lì «Stampa → PDF») o in Markdown, nel Vassoio.</p>
+<h3 id="azioni-i-pulsanti"><a class="anchor" href="#azioni-i-pulsanti">#</a>Azioni (i pulsanti)</h3>
+<div class="table"><table><thead><tr><th>Azione</th><th>Cosa fa</th></tr></thead><tbody><tr><td><strong>Salva</strong></td><td>Salva la scheda (elenco con ricerca, apri, duplica, elimina)</td></tr><tr><td><strong>Documento</strong></td><td>Il modello compilato, nel Vassoio</td></tr><tr><td><strong>Copia</strong></td><td>Il testo negli appunti</td></tr><tr><td><strong>Chiedi all'AI</strong></td><td>Una domanda alla chat con i campi</td></tr><tr><td><strong>Compila con l'AI</strong></td><td>Incolli una mail o un testo e l'AI riempie i campi</td></tr><tr><td><strong>Link</strong></td><td>Apre un indirizzo con i campi</td></tr><tr><td><strong>Azione rapida</strong></td><td>Esegue una tua azione</td></tr><tr><td><strong>Notion</strong></td><td>Aggiunge la scheda a un database</td></tr><tr><td><strong>Esporta CSV</strong></td><td>Tutte le schede, per Excel</td></tr><tr><td><strong>Chiamata a un servizio</strong></td><td>GET/POST/PUT/PATCH/DELETE all'API di un tuo servizio, con i campi nel corpo; la risposta può riempire i campi e comparire in un messaggio</td></tr><tr><td><strong>Compito</strong></td><td>Avvia un <a href="compiti.html">compito</a> con i campi nell'obiettivo</td></tr><tr><td><strong>Avviso</strong></td><td>Un avviso nell'isola</td></tr><tr><td><strong>Sequenza</strong></td><td>Più azioni in fila (es. salva, poi chiama il servizio, poi fai il documento)</td></tr></tbody></table></div>
+<h3 id="fonti-di-dati-i-cruscotti"><a class="anchor" href="#fonti-di-dati-i-cruscotti">#</a>Fonti di dati: i cruscotti</h3>
+<p>Una <strong>fonte</strong> legge un servizio ogni N minuti (o quando apri la scheda) e mostra <strong>valori</strong> ed <strong>elenchi</strong>. Un <strong>avviso</strong> è una formula su ogni elemento: quando è vera, l'isola ti avvisa, una volta sola per elemento, e la prima riga va nella Panoramica. Un'integrazione può essere anche <strong>solo un cruscotto</strong>, senza modulo.</p>
+<p><img src="../media/custom-dati.png" alt="Un cruscotto" loading="lazy"></p>
+<h3 id="chiavi"><a class="anchor" href="#chiavi">#</a>Chiavi</h3>
+<p>Le chiavi e i token dei servizi si scrivono come <code>{{secret:nome}}</code> e si inseriscono in <strong>Impostazioni → Integrazioni → Create da te</strong>: vanno in Gestione credenziali, le legge solo EasyIsland al momento della chiamata e <strong>né l'isola né la chat le vedono mai</strong>.</p>
+<h2 id="dalla-chat-e-dai-compiti"><a class="anchor" href="#dalla-chat-e-dai-compiti">#</a>Dalla chat e dai compiti</h2>
+<p>La chat e i compiti possono <strong>leggere le schede</strong>, <strong>aggiungerne</strong> (con Consenti / Nega), <strong>leggere le fonti</strong> e <strong>chiamare le azioni</strong> delle tue integrazioni: «quanti preventivi ho fatto a ottobre?», «registra un intervento di 2 ore per Rossi», «controlla i server e dimmi se c'è qualcosa».</p>
+<h2 id="gestirle"><a class="anchor" href="#gestirle">#</a>Gestirle</h2>
+<p><strong>Impostazioni → Integrazioni → Create da te</strong>: accendi o spegni nel menu, modifica la descrizione JSON, inserisci le chiavi, elimina. I file stanno in <code>%APPDATA%\EasyIsland\integrazioni</code> (descrizione e schede, leggibili).</p>
+<h2 id="limiti-di-proposito"><a class="anchor" href="#limiti-di-proposito">#</a>Limiti, di proposito</h2>
+<ul><li><strong>Niente codice</strong>: un'azione fa solo quello che il suo tipo prevede.</li><li>Le chiamate vanno <strong>solo ai servizi scritti nella descrizione</strong> che hai approvato.</li><li><strong>Nessun dato «spinto» dai servizi</strong> (webhook in arrivo), perché servirebbe una porta aperta sul PC: si usa una fonte letta ogni N minuti.</li><li>Funziona con il PC acceso.</li></ul>
+<div class="pager"><a class="prev" href="assistenza-remota.html"><small>Precedente</small>Assistenza remota</a><a class="next" href="widget.html"><small>Successiva</small>Widget</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/22-integrazioni-personali.md">Modifica questa pagina su GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#crearne-una">Crearne una</a></li><li class="l2"><a href="#cosa-puo-avere">Cosa può avere</a></li><li class="l3"><a href="#campi">Campi</a></li><li class="l3"><a href="#formule">Formule</a></li><li class="l3"><a href="#modello-del-documento">Modello del documento</a></li><li class="l3"><a href="#azioni-i-pulsanti">Azioni (i pulsanti)</a></li><li class="l3"><a href="#fonti-di-dati-i-cruscotti">Fonti di dati: i cruscotti</a></li><li class="l3"><a href="#chiavi">Chiavi</a></li><li class="l2"><a href="#dalla-chat-e-dai-compiti">Dalla chat e dai compiti</a></li><li class="l2"><a href="#gestirle">Gestirle</a></li><li class="l2"><a href="#limiti-di-proposito">Limiti, di proposito</a></li></ul></nav>
+</div>
+<script src="guida.js"></script>
+</body>
+</html>

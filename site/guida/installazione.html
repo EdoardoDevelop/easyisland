@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Installazione — Guida di EasyIsland</title>
+<meta name="description" content="Scaricare, installare, aggiornare e disinstallare EasyIsland.">
+<link rel="icon" href="../media/icon.png">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="guida.css">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guida · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">Guida di EasyIsland</a></li></ul><div class="group">Per iniziare</div><ul><li><a href="installazione.html" class="on" aria-current="page">Installazione</a></li><li><a href="primi-passi.html">Primi passi</a></li><li><a href="isola.html">L'isola</a></li></ul><div class="group">Personalizzare</div><ul><li><a href="aspetto.html">Posizione e aspetto</a></li><li><a href="profili.html">Profili e notifiche</a></li></ul><div class="group">Agenti di programmazione</div><ul><li><a href="agenti.html">Agenti di codice</a></li></ul><div class="group">Intelligenza artificiale</div><ul><li><a href="chat.html">La chat</a></li><li><a href="motori.html">Motori AI</a></li><li><a href="strumenti-ai.html">Modalità terminale e strumenti</a></li><li><a href="memoria.html">Memoria e secondo cervello</a></li><li><a href="compiti.html">Compiti, Battito e Abilità</a></li></ul><div class="group">Fare le cose</div><ul><li><a href="azioni.html">Azioni rapide e scorciatoie</a></li><li><a href="automazioni.html">Automazioni</a></li><li><a href="file-e-schermo.html">File e schermo</a></li></ul><div class="group">Collegare i servizi</div><ul><li><a href="integrazioni.html">Integrazioni</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="assistenza-remota.html">Assistenza remota</a></li><li><a href="integrazioni-personali.html">Integrazioni personali</a></li><li><a href="widget.html">Widget</a></li></ul><div class="group">Riferimento</div><ul><li><a href="impostazioni.html">Impostazioni, pagina per pagina</a></li><li><a href="privacy.html">Privacy e sicurezza</a></li><li><a href="riga-di-comando.html">Riga di comando e script</a></li><li><a href="problemi.html">Problemi e soluzioni</a></li><li><a href="sviluppo.html">Per sviluppatori</a></li></ul></aside>
+<main>
+<div class="crumb">Per iniziare</div>
+<h1>Installazione</h1>
+<p class="lead">Scaricare, installare, aggiornare e disinstallare EasyIsland.</p>
+<h2 id="installare"><a class="anchor" href="#installare">#</a>Installare</h2>
+<ol><li>Apri le <a href="https://github.com/EdoardoDevelop/easyisland/releases/latest" target="_blank" rel="noopener">release su GitHub</a> e scarica <strong>EasyIsland-Windows-X.Y.Z-setup.exe</strong>.</li><li>Eseguilo. L'installazione è <strong>solo per l'utente corrente</strong>: nessuna richiesta di amministratore.</li><li>L'installer non è ancora firmato con un certificato, quindi Windows SmartScreen mostra un avviso: clicca <strong>Ulteriori informazioni → Esegui comunque</strong>.</li></ol>
+<p>Al termine EasyIsland si avvia e il personaggio ti saluta. Da quel momento lo trovi nel menu Start e nell'<strong>area di notifica</strong> (la freccia ^ accanto all'orologio).</p>
+<div class="callout suggerimento"><p><strong>Suggerimento:</strong> se Defender blocca l'installer è un falso positivo dei programmi non firmati: usa «Esegui comunque».</p></div>
+<h2 id="dove-finiscono-i-file"><a class="anchor" href="#dove-finiscono-i-file">#</a>Dove finiscono i file</h2>
+<div class="table"><table><thead><tr><th>Cosa</th><th>Dove</th></tr></thead><tbody><tr><td>Il programma</td><td><code>%LOCALAPPDATA%\EasyIsland</code></td></tr><tr><td>Il relay per gli agenti</td><td><code>%LOCALAPPDATA%\EasyIsland\bin\easyisland-hook.exe</code></td></tr><tr><td>Il log</td><td><code>%LOCALAPPDATA%\EasyIsland\easyisland.log</code></td></tr><tr><td>Impostazioni, memoria, compiti, abilità, integrazioni personali</td><td><code>%APPDATA%\EasyIsland</code></td></tr><tr><td>Chiavi, token, password</td><td>Gestione credenziali di Windows (mai su disco)</td></tr></tbody></table></div>
+<h2 id="aggiornare"><a class="anchor" href="#aggiornare">#</a>Aggiornare</h2>
+<p>All'avvio e poi una volta al giorno EasyIsland guarda se su GitHub c'è una versione nuova. Se c'è, l'isola mostra <strong>Aggiornamento disponibile</strong> con <strong>Installa</strong> e <strong>Più tardi</strong>:</p>
+<ul><li>niente si installa senza il tuo clic;</li><li>l'aggiornamento è <strong>firmato</strong> e la firma viene verificata prima di eseguirlo;</li><li>installando, EasyIsland si chiude e si riapre da sola; impostazioni e chiavi restano.</li></ul>
+<p>In <strong>Impostazioni → Generale → Aggiornamenti</strong> vedi la versione, controlli a mano con <strong>Controlla ora</strong> o spegni il controllo automatico.</p>
+<h2 id="disinstallare"><a class="anchor" href="#disinstallare">#</a>Disinstallare</h2>
+<ol><li>Prima, in <strong>Impostazioni → Agenti di codice</strong>, sulla riga di ogni agente collegato clicca <strong>Disinstalla…</strong>: il disinstallatore di Windows di proposito non tocca i file di configurazione degli agenti (per esempio <code>settings.json</code> di Claude Code).</li><li>Poi <strong>Impostazioni di Windows → App → App installate → EasyIsland → Disinstalla</strong>.</li></ol>
+<p>La cartella <code>%APPDATA%\EasyIsland</code> (memoria, compiti, abilità) resta: cancellala a mano se non ti serve più.</p>
+<h2 id="compilarlo-da-te"><a class="anchor" href="#compilarlo-da-te">#</a>Compilarlo da te</h2>
+<p>Se preferisci partire dal codice sorgente, servono Git, Node.js, Rust e i Build Tools di Visual Studio: i passi sono in <a href="sviluppo.html">Per sviluppatori</a>. Il risultato è lo stesso installer.</p>
+<div class="pager"><a class="prev" href="index.html"><small>Precedente</small>Guida di EasyIsland</a><a class="next" href="primi-passi.html"><small>Successiva</small>Primi passi</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/02-installazione.md">Modifica questa pagina su GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#installare">Installare</a></li><li class="l2"><a href="#dove-finiscono-i-file">Dove finiscono i file</a></li><li class="l2"><a href="#aggiornare">Aggiornare</a></li><li class="l2"><a href="#disinstallare">Disinstallare</a></li><li class="l2"><a href="#compilarlo-da-te">Compilarlo da te</a></li></ul></nav>
+</div>
+<script src="guida.js"></script>
+</body>
+</html>

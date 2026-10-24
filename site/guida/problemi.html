@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Problemi e soluzioni — Guida di EasyIsland</title>
+<meta name="description" content="Le domande e i problemi più comuni, con cosa fare.">
+<link rel="icon" href="../media/icon.png">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="guida.css">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guida · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">Guida di EasyIsland</a></li></ul><div class="group">Per iniziare</div><ul><li><a href="installazione.html">Installazione</a></li><li><a href="primi-passi.html">Primi passi</a></li><li><a href="isola.html">L'isola</a></li></ul><div class="group">Personalizzare</div><ul><li><a href="aspetto.html">Posizione e aspetto</a></li><li><a href="profili.html">Profili e notifiche</a></li></ul><div class="group">Agenti di programmazione</div><ul><li><a href="agenti.html">Agenti di codice</a></li></ul><div class="group">Intelligenza artificiale</div><ul><li><a href="chat.html">La chat</a></li><li><a href="motori.html">Motori AI</a></li><li><a href="strumenti-ai.html">Modalità terminale e strumenti</a></li><li><a href="memoria.html">Memoria e secondo cervello</a></li><li><a href="compiti.html">Compiti, Battito e Abilità</a></li></ul><div class="group">Fare le cose</div><ul><li><a href="azioni.html">Azioni rapide e scorciatoie</a></li><li><a href="automazioni.html">Automazioni</a></li><li><a href="file-e-schermo.html">File e schermo</a></li></ul><div class="group">Collegare i servizi</div><ul><li><a href="integrazioni.html">Integrazioni</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="assistenza-remota.html">Assistenza remota</a></li><li><a href="integrazioni-personali.html">Integrazioni personali</a></li><li><a href="widget.html">Widget</a></li></ul><div class="group">Riferimento</div><ul><li><a href="impostazioni.html">Impostazioni, pagina per pagina</a></li><li><a href="privacy.html">Privacy e sicurezza</a></li><li><a href="riga-di-comando.html">Riga di comando e script</a></li><li><a href="problemi.html" class="on" aria-current="page">Problemi e soluzioni</a></li><li><a href="sviluppo.html">Per sviluppatori</a></li></ul></aside>
+<main>
+<div class="crumb">Riferimento</div>
+<h1>Problemi e soluzioni</h1>
+<p class="lead">Le domande e i problemi più comuni, con cosa fare.</p>
+<h2 id="installazione-e-avvio"><a class="anchor" href="#installazione-e-avvio">#</a>Installazione e avvio</h2>
+<div class="table"><table><thead><tr><th>Problema</th><th>Soluzione</th></tr></thead><tbody><tr><td>SmartScreen o Defender bloccano l'installer</td><td>È l'avviso dei programmi non firmati: <strong>Ulteriori informazioni → Esegui comunque</strong></td></tr><tr><td>Il personaggio non compare</td><td>Guarda nell'area di notifica (^ accanto all'orologio); controlla che non sia in <strong>Pausa</strong>, che lo schermo intero non lo nasconda e che «davanti al cliente» non sia attivo; leggi il log</td></tr><tr><td>Non trovo le Impostazioni</td><td>Icona nell'area di notifica → Impostazioni…, oppure <code>easyisland.exe --settings</code></td></tr><tr><td>Il personaggio va dietro la barra</td><td>Cliccando la barra o aprendo Start può succedere: torna davanti al cambio di finestra</td></tr></tbody></table></div>
+<h2 id="agenti"><a class="anchor" href="#agenti">#</a>Agenti</h2>
+<div class="table"><table><thead><tr><th>Problema</th><th>Soluzione</th></tr></thead><tbody><tr><td>Le sessioni di Claude Code non arrivano</td><td>Impostazioni → Agenti di codice → Installa…, poi apri una <strong>nuova</strong> sessione</td></tr><tr><td>Codex non manda niente</td><td>Dopo l'installazione apri <code>/hooks</code> in Codex e approva gli hook di EasyIsland</td></tr><tr><td>opencode non compare</td><td>Con opencode 2 accendi <strong>Collega opencode</strong>; con la 1.x riavvia opencode dopo l'installazione</td></tr><tr><td>Il permesso non arriva all'isola</td><td>EasyIsland ha un tempo limite: se non risponde, l'agente lo chiede nel terminale. Controlla la Pausa e le notifiche del profilo</td></tr></tbody></table></div>
+<h2 id="chat"><a class="anchor" href="#chat">#</a>Chat</h2>
+<div class="table"><table><thead><tr><th>Problema</th><th>Soluzione</th></tr></thead><tbody><tr><td>«Abbonamento Claude» rosso</td><td>Serve Claude Code da riga di comando con il login: <code>irm https://claude.ai/install.ps1 | iex</code>, poi <code>claude</code> e accedi; poi <strong>Ricontrolla</strong></td></tr><tr><td>«Accesso scaduto»</td><td>EasyIsland prova a rinnovarlo da sola; altrimenti apri <code>claude</code> e rifai l'accesso</td></tr><tr><td>Un connettore MCP non si vede</td><td>Deve essere configurato per l'utente (<code>--scope user</code>) e scelto nel profilo; quelli di claude.ai non sono disponibili</td></tr><tr><td>La chat non usa gli strumenti</td><td>Impostazioni → Chat → <strong>Può usare il PC</strong> acceso, e un motore con strumenti (abbonamento, chiave Anthropic, opencode, Antigravity)</td></tr><tr><td>Risposte lente</td><td>Il log scrive i secondi di ogni turno e strumento: guarda lì cosa pesa</td></tr></tbody></table></div>
+<h2 id="chiavi-e-integrazioni"><a class="anchor" href="#chiavi-e-integrazioni">#</a>Chiavi e integrazioni</h2>
+<div class="table"><table><thead><tr><th>Problema</th><th>Soluzione</th></tr></thead><tbody><tr><td>Una chiave «non si salva»</td><td>Gestione credenziali di Windows è piena (spesso di token in cache di altre app): elimina le voci inutili da Pannello di controllo → Gestione credenziali → Credenziali generiche</td></tr><tr><td>«Manca: chiave»</td><td>L'integrazione ha bisogno di una credenziale: apri la sua riga e inseriscila</td></tr><tr><td>Outlook non legge niente</td><td>Serve Outlook <strong>classico</strong> aperto, oppure l'account Microsoft</td></tr><tr><td>3CX non si collega</td><td>Controlla indirizzo con la porta, interno e password del web client; la verifica in due passaggi non è supportata</td></tr><tr><td>Notion risponde 403</td><td>L'integrazione di Notion deve poter leggere, aggiornare e inserire, ed essere aggiunta alle pagine e ai database</td></tr><tr><td>Telegram non risponde</td><td>Funziona solo con il PC acceso e la chat collegata con <code>/start &lt;codice&gt;</code></td></tr></tbody></table></div>
+<h2 id="memoria-e-compiti"><a class="anchor" href="#memoria-e-compiti">#</a>Memoria e compiti</h2>
+<div class="table"><table><thead><tr><th>Problema</th><th>Soluzione</th></tr></thead><tbody><tr><td>La finestra Memoria è vuota</td><td>La memoria si riempie usando la chat, con <code>/ricorda</code> e con i file in <code>da-leggere</code>; la cronologia deve essere accesa</td></tr><tr><td>Un compito è in pausa</td><td>Ha raggiunto i turni o i minuti massimi, o aspetta una risposta: riprendilo o rispondi</td></tr><tr><td>Il Battito non parte</td><td>Con <code>BATTITO.md</code> vuoto non parte di proposito</td></tr></tbody></table></div>
+<h2 id="il-log"><a class="anchor" href="#il-log">#</a>Il log</h2>
+<p><code>%LOCALAPPDATA%\EasyIsland\easyisland.log</code> racconta cosa è successo: è la prima cosa da guardare, e da allegare a una segnalazione su <a href="https://github.com/EdoardoDevelop/easyisland/issues" target="_blank" rel="noopener">GitHub</a>.</p>
+<div class="pager"><a class="prev" href="riga-di-comando.html"><small>Precedente</small>Riga di comando e script</a><a class="next" href="sviluppo.html"><small>Successiva</small>Per sviluppatori</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/27-problemi.md">Modifica questa pagina su GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#installazione-e-avvio">Installazione e avvio</a></li><li class="l2"><a href="#agenti">Agenti</a></li><li class="l2"><a href="#chat">Chat</a></li><li class="l2"><a href="#chiavi-e-integrazioni">Chiavi e integrazioni</a></li><li class="l2"><a href="#memoria-e-compiti">Memoria e compiti</a></li><li class="l2"><a href="#il-log">Il log</a></li></ul></nav>
+</div>
+<script src="guida.js"></script>
+</body>
+</html>

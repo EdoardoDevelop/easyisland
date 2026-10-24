@@ -1472,6 +1472,18 @@ fn memory_node_open(id: String) -> Result<(), String> {
     Command::new("explorer").arg(&path).spawn().map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// Files dropped on the memory window: into da-leggere.
+#[tauri::command]
+fn memory_inbox_add(name: String, data: Vec<u8>) -> Result<String, String> {
+    brain::inbox_add(&name, &data)
+}
+
+/// «Ricorda…» in the memory window: a note, like «/ricorda».
+#[tauri::command]
+fn memory_note_add(app: AppHandle, text: String) -> Result<String, String> {
+    brain::changed(&app, memory::note(&text))
+}
+
 /// Impostazioni → Chat → Memoria → «Mappa»: the memory window.
 #[tauri::command]
 fn memory_window_open(app: AppHandle) {
@@ -2445,6 +2457,8 @@ fn create_memory_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
     match builder
         .additional_browser_args(BROWSER_ARGS)
         .title(i18n::t("Memoria — EasyIsland"))
+        // Dropped files reach the page (src/memory/main.ts), not Tauri.
+        .disable_drag_drop_handler()
         .theme(Some(tauri::Theme::Dark))
         .inner_size(1180.0, 760.0)
         .min_inner_size(720.0, 480.0)
@@ -2849,6 +2863,8 @@ pub fn run() {
             memory_job,
             memory_node_open,
             memory_window_open,
+            memory_inbox_add,
+            memory_note_add,
             chat_history_search,
             chat_history_pin,
             chat_rewind,

@@ -67,6 +67,8 @@ const SHOTS = {
   "memoria-mappa": { url: "/memoria.html?tab=mind&select=p:studio-rossi", page: { w: 1180, h: 760 } },
   "memoria-concetti": { url: "/memoria.html?tab=concept", page: { w: 1180, h: 760 } },
   "memoria-timeline": { url: "/memoria.html?tab=timeline", page: { w: 1180, h: 760 } },
+  // The guide of the homepage (site/guida/, node scripts/guida.mjs).
+  guida: { url: "/site/guida/memoria.html", page: { w: 1280, h: 800 } },
 };
 
 const EDGE = [

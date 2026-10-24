@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Primi passi — Guida di EasyIsland</title>
+<meta name="description" content="I cinque minuti dopo l'installazione: agenti, chat, aspetto e le prime integrazioni.">
+<link rel="icon" href="../media/icon.png">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="guida.css">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guida · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">Guida di EasyIsland</a></li></ul><div class="group">Per iniziare</div><ul><li><a href="installazione.html">Installazione</a></li><li><a href="primi-passi.html" class="on" aria-current="page">Primi passi</a></li><li><a href="isola.html">L'isola</a></li></ul><div class="group">Personalizzare</div><ul><li><a href="aspetto.html">Posizione e aspetto</a></li><li><a href="profili.html">Profili e notifiche</a></li></ul><div class="group">Agenti di programmazione</div><ul><li><a href="agenti.html">Agenti di codice</a></li></ul><div class="group">Intelligenza artificiale</div><ul><li><a href="chat.html">La chat</a></li><li><a href="motori.html">Motori AI</a></li><li><a href="strumenti-ai.html">Modalità terminale e strumenti</a></li><li><a href="memoria.html">Memoria e secondo cervello</a></li><li><a href="compiti.html">Compiti, Battito e Abilità</a></li></ul><div class="group">Fare le cose</div><ul><li><a href="azioni.html">Azioni rapide e scorciatoie</a></li><li><a href="automazioni.html">Automazioni</a></li><li><a href="file-e-schermo.html">File e schermo</a></li></ul><div class="group">Collegare i servizi</div><ul><li><a href="integrazioni.html">Integrazioni</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="assistenza-remota.html">Assistenza remota</a></li><li><a href="integrazioni-personali.html">Integrazioni personali</a></li><li><a href="widget.html">Widget</a></li></ul><div class="group">Riferimento</div><ul><li><a href="impostazioni.html">Impostazioni, pagina per pagina</a></li><li><a href="privacy.html">Privacy e sicurezza</a></li><li><a href="riga-di-comando.html">Riga di comando e script</a></li><li><a href="problemi.html">Problemi e soluzioni</a></li><li><a href="sviluppo.html">Per sviluppatori</a></li></ul></aside>
+<main>
+<div class="crumb">Per iniziare</div>
+<h1>Primi passi</h1>
+<p class="lead">I cinque minuti dopo l'installazione: agenti, chat, aspetto e le prime integrazioni.</p>
+<h2 id="1-apri-le-impostazioni"><a class="anchor" href="#1-apri-le-impostazioni">#</a>1. Apri le Impostazioni</h2>
+<p>Clic destro (o sinistro) sull'icona di EasyIsland nell'area di notifica → <strong>Impostazioni…</strong>. La finestra è divisa in pagine nel menu a sinistra e ricorda l'ultima aperta. In fondo al menu trovi i link a questa guida, al sito e a GitHub.</p>
+<div class="callout suggerimento"><p><strong>Suggerimento:</strong> le Impostazioni si aprono anche da riga di comando: <code>"%LOCALAPPDATA%\EasyIsland\easyisland.exe" --settings</code>.</p></div>
+<h2 id="2-collega-il-tuo-agente-di-programmazione"><a class="anchor" href="#2-collega-il-tuo-agente-di-programmazione">#</a>2. Collega il tuo agente di programmazione</h2>
+<p><strong>Impostazioni → Agenti di codice → Claude Code → Installa…</strong> Vedi il diff esatto di cosa cambierà nel suo file di configurazione e il percorso del backup datato: niente viene scritto finché non confermi. Apri una nuova sessione di Claude Code e la vedrai nell'isola. Lo stesso vale per Codex, opencode, Antigravity, Gemini CLI, Cursor e Copilot: vedi <a href="agenti.html">Agenti di codice</a>.</p>
+<h2 id="3-scegli-il-motore-della-chat"><a class="anchor" href="#3-scegli-il-motore-della-chat">#</a>3. Scegli il motore della chat</h2>
+<p><strong>Impostazioni → Chat e motori AI</strong>: scegli il motore predefinito.</p>
+<ul><li><strong>Abbonamento Claude</strong> usa il tuo piano Pro o Max tramite Claude Code installato sul PC: nessuna chiave, nessun costo in più.</li><li>In alternativa una <strong>chiave API</strong> (Anthropic, OpenRouter, OpenAI, Gemini), <strong>opencode</strong>, <strong>Antigravity</strong> o un modello locale (<strong>Ollama</strong>, <strong>LM Studio</strong>).</li></ul>
+<p>Il pallino diventa verde quando il motore è pronto. Dettagli in <a href="motori.html">Motori AI</a>.</p>
+<h2 id="4-sistema-l-aspetto"><a class="anchor" href="#4-sistema-l-aspetto">#</a>4. Sistema l'aspetto</h2>
+<p><strong>Impostazioni → Aspetto</strong>: angolo dello schermo, personaggio, stile (Windows 11 o Classico), dimensioni, comportamento a isola chiusa. Oppure trascina semplicemente il personaggio dove vuoi. Vedi <a href="aspetto.html">Posizione e aspetto</a>.</p>
+<h2 id="5-accendi-le-integrazioni-che-usi"><a class="anchor" href="#5-accendi-le-integrazioni-che-usi">#</a>5. Accendi le integrazioni che usi</h2>
+<p><strong>Impostazioni → Integrazioni</strong>: accendi quelle che ti servono (Outlook, Rete, Meteo, Appunti, 3CX, Zammad, Notion…). Compaiono nel menu dell'isola e nella Panoramica. Vedi <a href="integrazioni.html">Integrazioni</a>.</p>
+<h2 id="6-prova"><a class="anchor" href="#6-prova">#</a>6. Prova</h2>
+<ul><li>Passa con il mouse sul personaggio: si apre l'isola.</li><li><kbd>Ctrl</kbd>+<kbd>Space</kbd> apre l'isola da qualsiasi app.</li><li>Copia un testo e premi <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>K</kbd>: la chat si apre con il testo allegato.</li><li>Trascina un file sull'isola: il personaggio diventa una scatola e lo inghiotte.</li><li>Scrivi in chat «ogni giorno alle 9 apri Outlook»: nasce un'automazione, dopo il tuo sì.</li></ul>
+<div class="pager"><a class="prev" href="installazione.html"><small>Precedente</small>Installazione</a><a class="next" href="isola.html"><small>Successiva</small>L'isola</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/03-primi-passi.md">Modifica questa pagina su GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#1-apri-le-impostazioni">1. Apri le Impostazioni</a></li><li class="l2"><a href="#2-collega-il-tuo-agente-di-programmazione">2. Collega il tuo agente di programmazione</a></li><li class="l2"><a href="#3-scegli-il-motore-della-chat">3. Scegli il motore della chat</a></li><li class="l2"><a href="#4-sistema-l-aspetto">4. Sistema l'aspetto</a></li><li class="l2"><a href="#5-accendi-le-integrazioni-che-usi">5. Accendi le integrazioni che usi</a></li><li class="l2"><a href="#6-prova">6. Prova</a></li></ul></nav>
+</div>
+<script src="guida.js"></script>
+</body>
+</html>

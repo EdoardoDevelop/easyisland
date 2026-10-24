@@ -211,6 +211,19 @@ function renderOverview() {
   } else {
     panel.append(h("div", { class: "mem-note", text: t("Niente da sistemare.") }));
   }
+  // «Ricorda…»: a note straight into MEMORIA.md.
+  const remember = h("input", { class: "mem-search", style: "max-width:none", placeholder: t("Ricorda… (Invio per salvare)") }) as HTMLInputElement;
+  remember.addEventListener("keydown", async (e) => {
+    if (e.key !== "Enter" || !remember.value.trim()) return;
+    try {
+      feedback.textContent = await Bridge.memoryNoteAdd(remember.value);
+      remember.value = "";
+      void load();
+    } catch (err) {
+      fail(err);
+    }
+  });
+  panel.append(h("h3", { text: t("Nuova nota") }), remember);
   if (g?.folder) {
     const open = h("button", { text: t("Apri la cartella della memoria") }) as HTMLButtonElement;
     open.addEventListener("click", () => void Bridge.memoryOpen(true).catch(fail));
@@ -292,6 +305,48 @@ const job = (kind: "inbox" | "check", btn: HTMLButtonElement) => async () => {
 };
 readBtn.addEventListener("click", job("inbox", readBtn));
 checkBtn.addEventListener("click", job("check", checkBtn));
+
+// Files dropped on the window go to da-leggere (read here, written by Rust:
+// no paths cross over).
+const drop = h("div", { class: "mem-drop", text: t("Rilascia per mettere in da-leggere") });
+stageBox.append(drop);
+let dragDepth = 0;
+const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
+window.addEventListener("dragenter", (e) => {
+  if (!hasFiles(e)) return;
+  e.preventDefault();
+  dragDepth++;
+  drop.classList.add("on");
+});
+window.addEventListener("dragover", (e) => {
+  if (!hasFiles(e)) return;
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+});
+window.addEventListener("dragleave", () => {
+  if (--dragDepth <= 0) {
+    dragDepth = 0;
+    drop.classList.remove("on");
+  }
+});
+window.addEventListener("drop", async (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  drop.classList.remove("on");
+  const files = Array.from(e.dataTransfer?.files ?? []);
+  const added: string[] = [];
+  for (const f of files) {
+    try {
+      added.push(await Bridge.memoryInboxAdd(f.name, Array.from(new Uint8Array(await f.arrayBuffer()))));
+    } catch (err) {
+      fail(err);
+    }
+  }
+  if (added.length) {
+    feedback.textContent = t("In da-leggere: {list}. «Leggi adesso» per farli imparare.", { list: added.join(", ") });
+    await load();
+  }
+});
 
 // Fresh data when the window is opened again or comes back to the front.
 void onEvent("memory-refresh", () => void load());

@@ -1,5 +1,8 @@
 # Sviluppo, prove e rilascio
 
+## Guida sul sito
+La guida per l'utente sta in `docs/guida/NN-slug.md` (NN = ordine nel menu; prima riga `# Titolo`, poi `> sezione: …` e `> in breve: …`). `node scripts/guida.mjs` la trasforma in `site/guida/*.html` con menu, indice della pagina, pagine prima/dopo e ricerca (`search.json`), senza dipendenze; le immagini sono quelle di `site/media/` (copiate da `screenshots/`). La workflow Homepage pubblica `site/` su GitHub Pages a ogni push in `main`. Le Impostazioni linkano la guida in fondo al menu (`HOMEPAGE` in `src/settings/main.ts`). Screenshot della guida: `node scripts/screenshots.mjs guida`.
+
 ## Build e test
 - `npm run build`: typecheck + front end. `cargo test --workspace` in `src-tauri/`. `npm run pack`: installer in `release\`.
 - CI: `.github/workflows/build.yml` (windows-latest). I tag `v*` pubblicano quando `PUBLISH` vale `'true'`.

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Profili e notifiche — Guida di EasyIsland</title>
+<meta name="description" content="Profili che cambiano da soli, regole di notifica, «davanti al cliente» e backup delle impostazioni.">
+<link rel="icon" href="../media/icon.png">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="guida.css">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guida · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">Guida di EasyIsland</a></li></ul><div class="group">Per iniziare</div><ul><li><a href="installazione.html">Installazione</a></li><li><a href="primi-passi.html">Primi passi</a></li><li><a href="isola.html">L'isola</a></li></ul><div class="group">Personalizzare</div><ul><li><a href="aspetto.html">Posizione e aspetto</a></li><li><a href="profili.html" class="on" aria-current="page">Profili e notifiche</a></li></ul><div class="group">Agenti di programmazione</div><ul><li><a href="agenti.html">Agenti di codice</a></li></ul><div class="group">Intelligenza artificiale</div><ul><li><a href="chat.html">La chat</a></li><li><a href="motori.html">Motori AI</a></li><li><a href="strumenti-ai.html">Modalità terminale e strumenti</a></li><li><a href="memoria.html">Memoria e secondo cervello</a></li><li><a href="compiti.html">Compiti, Battito e Abilità</a></li></ul><div class="group">Fare le cose</div><ul><li><a href="azioni.html">Azioni rapide e scorciatoie</a></li><li><a href="automazioni.html">Automazioni</a></li><li><a href="file-e-schermo.html">File e schermo</a></li></ul><div class="group">Collegare i servizi</div><ul><li><a href="integrazioni.html">Integrazioni</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="assistenza-remota.html">Assistenza remota</a></li><li><a href="integrazioni-personali.html">Integrazioni personali</a></li><li><a href="widget.html">Widget</a></li></ul><div class="group">Riferimento</div><ul><li><a href="impostazioni.html">Impostazioni, pagina per pagina</a></li><li><a href="privacy.html">Privacy e sicurezza</a></li><li><a href="riga-di-comando.html">Riga di comando e script</a></li><li><a href="problemi.html">Problemi e soluzioni</a></li><li><a href="sviluppo.html">Per sviluppatori</a></li></ul></aside>
+<main>
+<div class="crumb">Personalizzare</div>
+<h1>Profili e notifiche</h1>
+<p class="lead">Profili che cambiano da soli, regole di notifica, «davanti al cliente» e backup delle impostazioni.</p>
+<h2 id="profili"><a class="anchor" href="#profili">#</a>Profili</h2>
+<p>Ogni profilo ha le sue <strong>integrazioni, widget, azioni rapide, posizione, aspetto, suoni, tema, regole di notifica, istruzioni della chat e connettori</strong>. Si parte con <strong>Lavoro</strong>, <strong>Casa</strong> e <strong>Concentrazione</strong>; puoi crearne altri (per esempio uno per cliente, con le sue istruzioni per la chat).</p>
+<ul><li>Si cambia profilo dalle Impostazioni o dall'icona nell'area di notifica (<strong>Profilo ▸</strong>), e anche dalla chat o da un'automazione.</li><li><strong>Cambio automatico</strong>: ogni profilo può avere regole su <strong>rete Wi-Fi</strong>, <strong>giorni</strong> e <strong>orario</strong> (es. <em>Lavoro</em> sulla Wi-Fi dell'ufficio, lun–ven 8–18). Ogni minuto EasyIsland attiva il primo profilo che corrisponde; una scelta fatta a mano resta finché la situazione non cambia.</li></ul>
+<h2 id="notifiche"><a class="anchor" href="#notifiche">#</a>Notifiche</h2>
+<p><strong>Impostazioni → Notifiche</strong> decide quanto l'isola si fa sentire, per profilo:</p>
+<ul><li><strong>Tutto</strong>, <strong>solo avvisi</strong>, oppure <strong>solo le richieste di permesso</strong> (com'è <em>Concentrazione</em>).</li><li>Quali eventi aprono l'isola, quali suonano, quali restano solo come pallino nel menu.</li></ul>
+<h2 id="davanti-al-cliente"><a class="anchor" href="#davanti-al-cliente">#</a>Davanti al cliente</h2>
+<p>Il personaggio si fa da parte quando qualcuno potrebbe vedere il tuo schermo:</p>
+<ul><li><strong>Durante le chiamate</strong>: microfono o webcam in uso da qualsiasi app (Teams, Zoom, Meet, Webex…). Lo legge da dove Windows annota chi li usa.</li><li><strong>Durante l'assistenza</strong>: qualcuno è collegato a questo PC (Desktop remoto, Assistenza rapida, TeamViewer) o è aperto un programma che aggiungi tu.</li><li><strong>A mano</strong>: icona nell'area di notifica → <strong>Davanti al cliente</strong>.</li></ul>
+<p>Cosa fa: <strong>nasconde il personaggio e silenzia i suoni</strong>, oppure solo silenzio. Le richieste di permesso compaiono comunque; le chiamate 3CX mostrano solo il pallino, senza il nome di chi chiama. Nessun nome, titolo o testo resta sullo schermo.</p>
+<h2 id="backup-e-trasferimento"><a class="anchor" href="#backup-e-trasferimento">#</a>Backup e trasferimento</h2>
+<p><strong>Impostazioni → Backup</strong>:</p>
+<ul><li><strong>Esporta…</strong> salva tutte le impostazioni, profili compresi, in un file JSON nella cartella Documenti.</li><li><strong>Importa…</strong> le carica su un altro PC.</li><li>Le chiavi non sono mai nel file: vanno reinserite.</li></ul>
+<div class="callout nota"><p><strong>Nota:</strong> memoria, compiti, abilità e integrazioni personali sono file in <code>%APPDATA%\EasyIsland</code>: per portarli su un altro PC copia quella cartella.</p></div>
+<div class="pager"><a class="prev" href="aspetto.html"><small>Precedente</small>Posizione e aspetto</a><a class="next" href="agenti.html"><small>Successiva</small>Agenti di codice</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/06-profili.md">Modifica questa pagina su GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#profili">Profili</a></li><li class="l2"><a href="#notifiche">Notifiche</a></li><li class="l2"><a href="#davanti-al-cliente">Davanti al cliente</a></li><li class="l2"><a href="#backup-e-trasferimento">Backup e trasferimento</a></li></ul></nav>
+</div>
+<script src="guida.js"></script>
+</body>
+</html>
