@@ -3002,5 +3002,9 @@
   "Nome Z→A": "Name Z→A",
   "Più recenti": "Newest",
   "Meno recenti": "Oldest",
-  "Ordine: clic per cambiarlo (nome, data di modifica)": "Order: click to change it (name, date modified)"
+  "Ordine: clic per cambiarlo (nome, data di modifica)": "Order: click to change it (name, date modified)",
+  "Esporta in un file JSON nella cartella Documenti le impostazioni (profili compresi), la memoria della chat, le abilità, i compiti, le integrazioni personali, la cronologia delle chat e le abitudini; importalo su un altro PC per ritrovare tutto. Importando, quello che c'era viene messo da parte, non cancellato. Le chiavi API restano in Gestione credenziali e non vengono esportate.": "Exports to a JSON file in Documents the settings (profiles included), the chat's memory, skills, tasks, personal integrations, the chat history and the habits; import it on another PC to find everything again. On import, what was there is set aside, not deleted. API keys stay in Credential Manager and are not exported.",
+  "Non riesco a mettere da parte «{name}»: {e}": "Cannot set \"{name}\" aside: {e}",
+  "Scrittura non riuscita: {e}": "Write failed: {e}",
+  "Importate le impostazioni e {n} file (memoria, abilità, compiti, chat…). Quelli che c'erano sono stati messi da parte. EasyIsland si riavvia tra un attimo; le chiavi API vanno reinserite.": "Imported the settings and {n} files (memory, skills, tasks, chats…). The ones that were there have been set aside. EasyIsland restarts in a moment; API keys must be entered again."
 }

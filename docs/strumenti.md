@@ -21,6 +21,14 @@ Chiesta da Edoardo il 17 ottobre 2026: una cartella del PC con accesso completo,
 - **Chat:** strumenti `list_work_folder` (di sola lettura, consentito senza chiedere) e `move_to_work_folder` (chiede), per Claude Code e per opencode. Claude Code la riceve con `--add-dir` anche fuori dalla modalità terminale, opencode con il permesso `external_directory` su di essa: i file si leggono senza chiedere. **Telegram:** `/cartella` (pulsanti: cartelle che si aprono, file che arrivano), e «Sposta nella cartella di lavoro» sotto un file ricevuto.
 - Anteprima: scena `files` (cartella d'esempio, `Bridge.workList` sostituito). Test: `cargo test --lib workdir::`.
 
+## Icone e anteprime (`src/views/filekind.ts`, `thumbs.rs`)
+- Vassoio e cartella di lavoro mostrano un'icona per tipo di file (estensione → icona e colore in `KINDS`). Le immagini mostrano la loro miniatura: quella di Windows (`IShellItemImageFactory`, la stessa di Esplora file, 128 px, solo `THUMBNAILONLY`), PNG in data: URL, tenuta in memoria per percorso, data e dimensione (al massimo 300). Nessuna libreria di immagini in più.
+- Cartella di lavoro: elenco o griglia (`workLayout`) e ordine per nome o data di modifica (`workSort`), cartelle sempre prima; in `localStorage` della pagina dell'isola.
+
+## Backup (`backup.rs`)
+- Impostazioni → Backup esporta un JSON con le impostazioni (`export_json`) e i file di memoria, abilità, compiti, integrazioni personali, `chats.json` e `habits.jsonl` (testo, o base64 se binari; oltre 20 MB no). Fuori: chiavi (Gestione credenziali) e file cifrati per questo PC (mappa di Notion, ricette), che si rifanno.
+- L'importazione accetta anche i vecchi file di sole impostazioni. Prima di scrivere sposta ogni area presente in `<nome>.prima-del-ripristino-<data>` (mai sovrascrivere), accetta solo percorsi interni all'area (`safe_join`) e poi riavvia l'app, perché chat e memoria stanno anche in memoria.
+
 ## Altri strumenti
 - **Appunti** (`clipboard.rs`, `integration_clipboard`): listener di Windows, cronologia solo in memoria. Le immagini negli appunti stanno in `clipimage.rs`, anche loro solo in memoria.
 - **Media** (`media.rs`, `integration_media`, fino alla 0.8.1 «Musica»: musica, video e podcast): sessioni multimediali di Windows. Nella card la copertina fa da sfondo, chiara in alto e sfumata verso il centro, dove stanno brano, avanzamento e comandi (`.media-backdrop` in `style.css`; senza copertina un alone del colore della scheda).

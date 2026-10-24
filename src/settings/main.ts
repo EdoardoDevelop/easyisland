@@ -4745,13 +4745,13 @@ function backupSection(): HTMLElement {
     if (!f) return;
     clear(feedback);
     try {
-      const next = await Bridge.settingsImport(await f.text());
+      const { settings: next, note } = await Bridge.settingsImport(await f.text());
       settings = { ...settings, ...next };
       render();
       // render() replaced this section; report in the new one.
       document.getElementById("backup-feedback")?.append(h("div", {
         class: "notice ok",
-        text: t("Impostazioni importate. Le chiavi API non sono nel file: reinseriscile qui sopra se servono."),
+        text: note,
       }));
     } catch (err) {
       feedback.append(h("div", { class: "notice err", text: String(err).replace(/^Error:\s*/, "") }));
@@ -4765,7 +4765,7 @@ function backupSection(): HTMLElement {
     h("h2", {}, h("span", { text: t("Backup e trasferimento") })),
     h("div", {
       class: "hint",
-      text: t("Esporta tutte le impostazioni, profili compresi, in un file JSON nella cartella Documenti; importalo su un altro PC per ritrovare la stessa isola. Le chiavi API restano in Gestione credenziali e non vengono esportate."),
+      text: t("Esporta in un file JSON nella cartella Documenti le impostazioni (profili compresi), la memoria della chat, le abilità, i compiti, le integrazioni personali, la cronologia delle chat e le abitudini; importalo su un altro PC per ritrovare tutto. Importando, quello che c'era viene messo da parte, non cancellato. Le chiavi API restano in Gestione credenziali e non vengono esportate."),
     }),
     h("div", { class: "row" }, exportBtn, importBtn, file),
     feedback,
@@ -4814,7 +4814,16 @@ async function main() {
   });
 
   // The island's context menu: "Impostazioni «Zammad»" lands on its row, open.
+  // Every opening starts on the first page (Generale), not the last one seen
+  // (Edoardo, 24 Oct 2026) — unless it was opened on a given page (settings-goto).
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden || Date.now() - gotoAt < 3000) return;
+    try { localStorage.removeItem(PAGE_KEY); } catch { /* no storage */ }
+    render();
+  });
+
   void onEvent<{ page: string; item: string }>("settings-goto", ({ page, item }) => {
+    gotoAt = Date.now();
     try {
       localStorage.setItem(PAGE_KEY, page);
     } catch {
@@ -4939,6 +4948,8 @@ function pages(b: NonNullable<typeof boot>): Page[] {
 }
 
 const PAGE_KEY = "easyisland.settings.page";
+/** When the island last opened the window on a given page (settings-goto). */
+let gotoAt = 0;
 
 function currentPage(list: Page[]): Page {
   // ?page=aspetto opens a given page (handy for screenshots in the browser preview).
@@ -4957,7 +4968,9 @@ function render() {
   const list = pages(boot);
   const page = currentPage(list);
   const scroller = root.querySelector(".page");
-  const scrollTop = scroller?.getAttribute("data-page") === page.id ? scroller.scrollTop : 0;
+  const same = scroller?.getAttribute("data-page") === page.id;
+  const scrollTop = same ? scroller!.scrollTop : 0;
+  const oldHeight = same ? scroller!.scrollHeight : 0;
   clear(root);
 
   const nav = h("nav", { class: "nav" },
@@ -4998,6 +5011,13 @@ function render() {
   );
   const main = h("main", { class: "page", "data-page": page.id }, body);
   root.append(nav, main);
+  // A click (switch, Aggiungi, Elimina…) redraws the page: it stays where it was.
+  // Parts filled in a moment later (keys, lists) made it shorter for a frame,
+  // and the scroll fell back to the top: hold the old height until they are in.
+  if (oldHeight) {
+    body.style.minHeight = `${oldHeight}px`;
+    window.setTimeout(() => { body.style.minHeight = ""; }, 600);
+  }
   main.scrollTop = scrollTop;
 }
 

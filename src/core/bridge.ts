@@ -123,6 +123,8 @@ export const Bridge = {
   /** 📌 on: the open island as an ordinary app window (taskbar, not always on top). island.rs → set_app_mode. */
   setAppMode: (on: boolean) => call<void>("set_app_mode", { on }),
   minimizeIsland: () => call<void>("minimize_island"),
+  /** Windows' preview of a picture (thumbs.rs); null for other files. */
+  fileThumb: (path: string) => call<string | null>("file_thumb", { path }),
   /** The pinned island behind other windows: flash its taskbar button. */
   flashIfBehind: () => call<void>("flash_if_behind"),
   /** The notification-area menu at the cursor (tray.rs `popup`). */
@@ -533,7 +535,7 @@ export const Bridge = {
   /** Profiles, backup. */
   switchProfile: (id: string) => call<void>("switch_profile", { id }),
   settingsExport: () => callOrThrow<string>("settings_export"),
-  settingsImport: (text: string) => callOrThrow<Settings>("settings_import", { text }),
+  settingsImport: (text: string) => callOrThrow<{ settings: Settings; note: string }>("settings_import", { text }),
   currentNetwork: () => call<string | null>("current_network"),
   /** Settings window: MCP servers configured in Claude Code (names only). */
   mcpServersConfigured: () => call<string[]>("mcp_servers_configured"),

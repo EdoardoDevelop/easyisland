@@ -27,7 +27,9 @@ mod habits;
 mod hooks;
 mod hotkeys;
 mod integrations;
+mod backup;
 mod jumplist;
+mod thumbs;
 mod island;
 mod keys;
 mod legacy;
@@ -238,7 +240,8 @@ fn switch_profile(app: AppHandle, id: String) {
 /// Writes the settings (no secrets) to Documents and shows the file in Explorer.
 #[tauri::command]
 fn settings_export(shared: State<Shared>) -> Result<String, String> {
-    let text = shared.settings.lock().unwrap().export_json();
+    // The settings and the user's data (backup.rs).
+    let text = backup::export(&shared.settings.lock().unwrap());
     let home = std::env::var_os("USERPROFILE").map(std::path::PathBuf::from);
     let dir = home
         .as_ref()
@@ -248,7 +251,7 @@ fn settings_export(shared: State<Shared>) -> Result<String, String> {
         .ok_or_else(|| t("Cartella Documenti non trovata.").to_string())?;
     let t = unsafe { windows::Win32::System::SystemInformation::GetLocalTime() };
     let path = dir.join(format!(
-        "EasyIsland-impostazioni-{:04}{:02}{:02}-{:02}{:02}.json",
+        "EasyIsland-backup-{:04}{:02}{:02}-{:02}{:02}.json",
         t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute
     ));
     std::fs::write(&path, text).map_err(|e| tf("Esportazione non riuscita: {e}", &[("e", &e)]))?;
@@ -266,8 +269,11 @@ fn reveal_in_explorer(path: &std::path::Path) -> std::io::Result<std::process::C
 
 /// Replaces the settings with an exported file (keys must be entered again).
 #[tauri::command]
-fn settings_import(app: AppHandle, shared: State<Shared>, text: String) -> Result<Settings, String> {
+fn settings_import(app: AppHandle, shared: State<Shared>, text: String) -> Result<serde_json::Value, String> {
+    // A full backup (backup.rs) or a settings file of an older version.
+    let (text, files) = backup::split(&text).unwrap_or((text, Vec::new()));
     let next = shared.settings.lock().unwrap().import_json(&text)?;
+    let restored = backup::restore(&files)?;
     *shared.settings.lock().unwrap() = next.clone();
     settings::save(&next).map_err(|e| tf("Salvataggio non riuscito: {e}", &[("e", &e)]))?;
     log::line("settings imported".to_string());
@@ -277,7 +283,15 @@ fn settings_import(app: AppHandle, shared: State<Shared>, text: String) -> Resul
     let _ = app.emit("settings-changed", next.clone());
     tray::refresh(&app);
     hotkeys::reload();
-    Ok(next)
+    if restored > 0 {
+        // Chats and memory are held in memory: a restart reads the restored files.
+        let app = app.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_secs(4));
+            app.restart();
+        });
+    }
+    Ok(serde_json::json!({ "settings": next, "note": backup::summary(restored) }))
 }
 
 // ── Quick actions ─────────────────────────────────────────────────────────────
@@ -428,6 +442,12 @@ fn focus_window(app: AppHandle, focused: bool) {
     if focused {
         let _ = win.set_focus();
     }
+}
+
+/// The preview of a picture in the Vassoio or the work folder (thumbs.rs).
+#[tauri::command]
+async fn file_thumb(path: String) -> Option<String> {
+    tauri::async_runtime::spawn_blocking(move || thumbs::thumb(&path)).await.ok().flatten()
 }
 
 /// — in the header of the island as an app.
@@ -2831,6 +2851,7 @@ pub fn run() {
             session_reply::session_reply,
             set_app_mode,
             minimize_island,
+            file_thumb,
             flash_if_behind,
             claude_cli::session_ask,
             open_file_in_vscode,

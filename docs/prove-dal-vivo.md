@@ -163,3 +163,5 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
 - **Automazioni, passi nuovi:** un'automazione con «Chiedi prima di continuare» e «Aspetta 1 minuto»: card con Continua / Annulla, Annulla ferma; un passo che fallisce salta i seguenti.
 - **Isola come un'app:** con «Come un'app» l'icona resta nella barra a isola chiusa e un clic la apre; aperta compare in Alt+Tab; — riduce, ▢ schermo intero e ritorno; con «Resta aperta» non si chiude da sola. Con «Scegli…» del Vassoio la finestra resta sopra anche passando col mouse sull'isola.
 - **Menu della barra:** con EasyIsland aggiunta alla barra, tasto destro sull'icona: azioni rapide e Apri l'isola / Chiedi alla chat / Cerchia e chiedi / Impostazioni funzionano, anche a isola chiusa.
+- **Backup completo:** Esporta, poi Importa lo stesso file: le cartelle attuali finiscono in `.prima-del-ripristino-<data>`, EasyIsland si riavvia e memoria, chat e compiti ci sono.
+- **Anteprime:** immagini nel Vassoio e nella cartella di lavoro mostrano la miniatura, in elenco e in griglia.

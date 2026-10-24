@@ -12,6 +12,7 @@ import { State } from "../core/state";
 import type { ViewActions } from "./views";
 import { t } from "../core/i18n";
 import { size } from "./upload";
+import { fileBadge } from "./filekind";
 
 /** A folder read more than this long ago is read again when the view draws. */
 const STALE_MS = 5000;
@@ -149,8 +150,6 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
 
   function row(e: WorkEntry): HTMLElement {
     const ext = e.dir ? "" : (e.name.match(/\.([^.]{1,5})$/)?.[1] ?? "").toUpperCase();
-    const px = grid ? 30 : 16;
-    const icon = e.dir ? renderActionIcon("i:folder", px) : renderActionIcon("i:file", px);
     const name = renaming === e.rel
       ? nameInput(e.name, (v) => {
         renaming = "";
@@ -165,7 +164,7 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
     const r = h("div", { class: `files-row work-row${e.dir ? " dir" : ""}${moving?.rel === e.rel ? " moving" : ""}`,
       title: e.dir ? t("Doppio clic: apri la cartella") : t("Trascina in un'altra app · doppio clic: apri"),
       ondblclick: () => { if (e.dir) go(e.rel); else void Bridge.workOpen(e.rel, false).catch(fail); } },
-    h("span", { class: "work-icon", style: `color:${e.dir ? "#F5A524" : "#38BDF8"}` }, icon),
+    fileBadge(e.name, full(e), { dir: e.dir, big: grid, stamp: e.at }),
     h("div", { class: "files-info" }, name, h("span", { class: "files-meta", text: meta })),
     h("span", { class: "files-tools" },
       e.dir ? null : iconBtn("chat", t("Chiedi alla chat su questo file"), "#A78BFA", () => actions.askAboutFile({ name: e.name, path: full(e) })),
