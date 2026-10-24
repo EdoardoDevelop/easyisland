@@ -17,6 +17,18 @@ use windows::Win32::UI::Shell::{DestinationList, EnumerableObjectCollection, ICu
 /// System.Title: the text of a jump list entry.
 const PKEY_TITLE: PROPERTYKEY = PROPERTYKEY { fmtid: GUID::from_u128(0xF29F85E0_4FF9_1068_AB91_08002B27B3D9), pid: 2 };
 
+/// The AppUserModelID of the installer's shortcuts (`identifier` in
+/// tauri.conf.json): the window, the pinned icon and this menu must share it,
+/// or Windows refuses the list (0x80070005) and groups them apart.
+const APP_ID: &str = "it.edoardo.easyisland";
+
+/// Declared at start, before any window exists.
+pub fn set_app_id() {
+    unsafe {
+        let _ = windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID(&HSTRING::from(APP_ID));
+    }
+}
+
 /// At most this many quick actions in the menu (Windows shows about ten entries).
 const MAX_ACTIONS: usize = 8;
 
@@ -53,6 +65,7 @@ fn build(actions: &[(String, String)], tasks: &[(String, String)], category: &st
         let init = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
         let result = (|| {
             let list: ICustomDestinationList = CoCreateInstance(&DestinationList, None, CLSCTX_INPROC_SERVER)?;
+            list.SetAppID(&HSTRING::from(APP_ID))?;
             let mut slots = 0u32;
             let _removed: IObjectArray = list.BeginList(&mut slots)?;
             if !actions.is_empty() {
