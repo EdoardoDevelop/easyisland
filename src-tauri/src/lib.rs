@@ -27,6 +27,7 @@ mod habits;
 mod hooks;
 mod hotkeys;
 mod integrations;
+mod jumplist;
 mod island;
 mod keys;
 mod legacy;
@@ -194,6 +195,7 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
         island::apply_geometry(&app, &shared.gate, &settings, collapsed);
     }
     island::apply_taskbar(&app);
+    jumplist::update(&settings);
     // Keep the other window in step (island ⇄ settings window).
     crate::threecx::settings_saved(&settings);
     let _ = app.emit("settings-changed", settings);
@@ -2753,6 +2755,12 @@ pub fn run() {
             // `easyisland.exe --settings` opens the settings window (a shortcut can use it).
             if argv.iter().any(|a| a == "--settings") {
                 show_settings_window(app);
+            } else if let Some(what) = jumplist::requested(&argv).filter(|w| w != "open") {
+                // An entry of the taskbar menu (jumplist.rs): handled like its hotkey.
+                if let Some(win) = island::window(app) {
+                    let _ = win.unminimize();
+                }
+                let _ = app.emit_to(island::WINDOW_LABEL, "hotkey", what);
             } else {
                 // Minimized as an app: back on screen first.
                 if let Some(win) = island::window(app) {
@@ -3061,6 +3069,7 @@ pub fn run() {
                 let _ = win.show();
             }
             island::apply_taskbar(&handle);
+            jumplist::update(&loaded);
             gate.collapsed.store(false, Ordering::Relaxed);
             gate.set_active(true);
             island::spawn_cursor_poll(handle.clone(), gate.clone());
