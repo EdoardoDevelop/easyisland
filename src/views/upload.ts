@@ -6,6 +6,7 @@
 
 import { buildRecorderPanel } from "./recorder";
 import { buildWorkPanel } from "./workdir";
+import { fileBadge } from "./filekind";
 import { h, clear, svg } from "./dom";
 import { ICONS } from "./icons";
 import { State } from "../core/state";
@@ -377,7 +378,7 @@ export function buildFiles(actions: ViewActions): ViewHost {
         const isFresh = f.name === fresh;
         const row = h("div", { class: `files-row${f.kept ? " kept" : ""}${isFresh ? " fresh" : ""}`, title: t("Trascina in un'altra app · doppio clic: apri"),
           ondblclick: () => void Bridge.inboxOpen(f.name, false).catch(fail) },
-        grid ? h("span", { class: "files-ext", text: (f.name.match(/\.([^.]{1,5})$/)?.[1] ?? "file").toUpperCase() }) : null,
+        fileBadge(f.name, f.path, { big: grid, stamp: f.at }),
         h("div", { class: "files-info" },
           h("span", { class: "files-name", text: f.name, title: f.name }),
           h("span", { class: "files-meta" },

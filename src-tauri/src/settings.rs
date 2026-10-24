@@ -281,6 +281,10 @@ pub enum PendingSecret {
 }
 
 /// Fields that belong to a profile rather than to the machine.
+/// Integrations that stay the same in every profile (Edoardo, 24 Oct 2026:
+/// Telegram is one bot for the PC): kept on or off when the profile changes.
+pub const GLOBAL_INTEGRATIONS: &[&str] = &["integration_telegram"];
+
 pub const PROFILE_KEYS: &[&str] = &[
     "activeIntegrations",
     "integrationTabs",
@@ -599,6 +603,14 @@ pub struct Settings {
     /// ✕ in the open island's header.
     #[serde(default = "default_true")]
     pub close_button: bool,
+    /// The island as an app (asked by Edoardo on 24 Oct 2026): a button on the
+    /// taskbar always (a click opens it), and the open island is an ordinary
+    /// window in Alt+Tab with — (minimize) and ▢ (full screen) in its header.
+    #[serde(default)]
+    pub island_app: bool,
+    /// Opened by the user (hover, click, shortcut, taskbar): it stays open as with 📌.
+    #[serde(default)]
+    pub stay_open_by_user: bool,
     /// The compact view follows the cursor too (the open island always does).
     #[serde(default)]
     pub follow_cursor_compact: bool,
@@ -920,6 +932,8 @@ impl Default for Settings {
             greeting: true,
             greeting_place: default_greeting_place(),
             close_button: true,
+            island_app: false,
+            stay_open_by_user: false,
             follow_cursor_compact: false,
             presence_meeting: true,
             presence_remote: true,
@@ -987,10 +1001,16 @@ impl Settings {
     /// values are ignored rather than wiping the settings.
     fn apply_values(&mut self, values: &Map<String, Value>) {
         let Ok(Value::Object(mut all)) = serde_json::to_value(&*self) else { return };
+        let keep: Vec<&str> = GLOBAL_INTEGRATIONS.iter().copied().filter(|id| self.active_integrations.iter().any(|a| a == id)).collect();
         for (k, v) in values {
             if PROFILE_KEYS.contains(&k.as_str()) {
                 all.insert(k.clone(), v.clone());
             }
+        }
+        // Integrations of the PC, not of a profile: on or off whatever the profile says.
+        if let Some(Value::Array(list)) = all.get_mut("activeIntegrations") {
+            list.retain(|v| !v.as_str().is_some_and(|s| GLOBAL_INTEGRATIONS.contains(&s)));
+            list.extend(keep.iter().map(|id| Value::String(id.to_string())));
         }
         if let Ok(next) = serde_json::from_value::<Settings>(Value::Object(all)) {
             *self = next;
@@ -1432,6 +1452,20 @@ mod tests {
         let again = s.clone().migrated();
         assert_eq!(again.active_integrations, s.active_integrations);
         assert!(again.pending_secrets.len() == s.pending_secrets.len());
+    }
+
+    #[test]
+    fn telegram_is_the_same_in_every_profile() {
+        let mut s = Settings::default();
+        s.active_integrations = vec!["integration_weather".into()];
+        s.switch_profile("casa");
+        s.active_integrations.push("integration_telegram".into());
+        s.switch_profile("lavoro");
+        assert!(s.active_integrations.iter().any(|a| a == "integration_telegram"), "still on in lavoro");
+        assert!(s.active_integrations.iter().any(|a| a == "integration_weather"), "lavoro keeps its own");
+        s.active_integrations.retain(|a| a != "integration_telegram");
+        s.switch_profile("casa");
+        assert!(!s.active_integrations.iter().any(|a| a == "integration_telegram"), "turned off everywhere");
     }
 
     #[test]

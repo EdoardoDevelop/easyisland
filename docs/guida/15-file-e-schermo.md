@@ -19,7 +19,7 @@ I file rilasciati, le zone dello schermo, le esportazioni della chat, i document
 Sono copie: gli originali non vengono toccati.
 
 ## Cartella di lavoro
-Una cartella del PC scelta da te con **Scegli…** (qui o in Impostazioni → Chat). Sotto il Vassoio la sfogli: doppio clic per entrare o aprire, «..» per salire, **+** nuova cartella, trascinamento verso altre app. Su ogni voce: **Chiedi alla chat**, **Apri**, e in «⋯» **Rinomina**, **Sposta…**, **Nel Vassoio**, **Copia percorso**, **Cestino** (il Cestino di Windows: niente si cancella per sempre).
+Una cartella del PC scelta da te con **Scegli…** (qui o in Impostazioni → Chat). Sotto il Vassoio la sfogli: doppio clic per entrare o aprire, «..» per salire, **+** nuova cartella, **▦** griglia o elenco, l'ordine (nome A→Z o Z→A, più recenti o meno recenti; le cartelle restano prima), trascinamento verso altre app. Su ogni voce: **Chiedi alla chat**, **Apri**, e in «⋯» **Rinomina**, **Sposta…**, **Nel Vassoio**, **Copia percorso**, **Cestino** (il Cestino di Windows: niente si cancella per sempre).
 
 La chat la **legge senza chiedere** e ci sposta i file del Vassoio (con conferma); con la modalità terminale è la cartella in cui lavora. Da Telegram: `/cartella` la mostra a pulsanti e ti manda i file. Ogni percorso è controllato: niente esce dalla cartella.
 

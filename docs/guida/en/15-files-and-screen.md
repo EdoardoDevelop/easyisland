@@ -19,7 +19,7 @@ Dropped files, screen areas, chat exports, custom integrations' documents, files
 They are copies: the originals are never touched.
 
 ## Working folder
-A folder on the PC chosen by you with **Choose…** (here or in Settings → Chat). Under the Tray you browse it: double-click to enter or open, ".." to go up, **+** new folder, drag to other apps. On every item: **Ask the chat**, **Open**, and in "⋯" **Rename**, **Move…**, **To the Tray**, **Copy path**, **Recycle Bin** (the Windows Recycle Bin: nothing is deleted for good).
+A folder on the PC chosen by you with **Choose…** (here or in Settings → Chat). Under the Tray you browse it: double-click to enter or open, ".." to go up, **+** new folder, **▦** grid or list, the order (name A→Z or Z→A, newest or oldest; folders stay first), drag to other apps. On every item: **Ask the chat**, **Open**, and in "⋯" **Rename**, **Move…**, **To the Tray**, **Copy path**, **Recycle Bin** (the Windows Recycle Bin: nothing is deleted for good).
 
 The chat **reads it without asking** and moves Tray files into it (with confirmation); with terminal mode it's the folder it works in. From Telegram: `/cartella` shows it as buttons and sends you the files. Every path is checked: nothing gets out of the folder.
 

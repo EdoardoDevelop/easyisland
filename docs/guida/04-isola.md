@@ -18,6 +18,8 @@ A riposo il personaggio sta nell'angolo che hai scelto (in alto al centro di ser
 | Trascini il personaggio su una cartella di Esplora file o un'icona del desktop | Il percorso finisce nel campo della chat |
 | <kbd>Esc</kbd> o la ✕ | Chiude subito l'isola |
 | 📌 | **Tieni aperta**: l'isola non si chiude da sola finché non la togli |
+| — e ▢ | Con **Come un'app** acceso (Impostazioni → Isola): riduci a icona e schermo intero. Aperta ha la sua icona nella barra delle applicazioni e compare in Alt+Tab; chiusa no. Per aprirla dalla barra, aggiungi EasyIsland alla barra delle applicazioni: un clic sull'icona apre l'isola. Col tasto destro sull'icona: le tue azioni rapide, **Apri l'isola**, **Chiedi alla chat**, **Cerchia e chiedi**, **Impostazioni…** |
+| Resta aperta | Con **Resta aperta** acceso (Impostazioni → Isola), quando la apri tu non si chiude da sola, come con 📌 |
 | Si apre una finestra sopra l'isola (una finestra di scelta, un programma lanciato dall'isola…) | L'isola le passa **dietro**, senza chiudersi. Torna davanti se la clicchi, se arriva un permesso o una chiamata, o quando si ritira |
 
 ## Il menu a sinistra

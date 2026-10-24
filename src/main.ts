@@ -99,7 +99,8 @@ async function main() {
         break;
       case "open":
         setPaused(false);
-        island.alert(State.defaultView());
+        // Opened by the user (tray icon, EasyIsland started again from the taskbar).
+        island.openFromTaskbar();
         break;
       case "recap":
         setPaused(false);

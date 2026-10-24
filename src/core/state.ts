@@ -423,6 +423,10 @@ export interface Settings {
   greetingPlace: "center" | "character";
   /** ✕ in the open island's header. */
   closeButton: boolean;
+  /** The island as an app: taskbar button always, Alt+Tab, — and ▢ in the header. */
+  islandApp?: boolean;
+  /** Opened by the user: it stays open as with 📌. */
+  stayOpenByUser?: boolean;
   /** The compact view follows the cursor too (the open island always does). */
   followCursorCompact: boolean;
   /** "Davanti al cliente" during a call (microphone or webcam in use). */
@@ -935,6 +939,8 @@ export const DEFAULT_SETTINGS: Settings = {
   greeting: true,
   greetingPlace: "center",
   closeButton: true,
+  islandApp: false,
+  stayOpenByUser: false,
   followCursorCompact: false,
   presenceMeeting: true,
   presenceRemote: true,
@@ -1002,6 +1008,12 @@ class AppState {
 
   /** 📌 in the header: the island stays open until unpinned, Esc or ✕. */
   keepOpen = false;
+  /** 📌 turned on by "Resta aperta", not by the user: it keeps the island open but does not make it an app. */
+  keptByItself = false;
+  /** The open island is an app window right now (📌 or "Come un'app"). */
+  appWindow = false;
+  /** ▢ in the header of the island as an app: it fills the work area until closed. */
+  maximized = false;
 
   /** The app in front when the island last opened (src/island/context.ts). */
   foreground: { exe: string; title: string } | null = null;

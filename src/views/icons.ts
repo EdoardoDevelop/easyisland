@@ -2,6 +2,11 @@
 // Drawn on a 24×24 grid so they read at the same optical size.
 
 export const ICONS = {
+  // minus — minimize the island as an app
+  minimize: "M5 11h14v2H5z",
+  // square / two squares — full screen on and off
+  maximize: "M5 5h14v14H5V5zm2 2v10h10V7H7z",
+  restore: "M8 4h12v12h-3v3H5V8h3V4zm2 2v2h7v7h1V6h-8zM7 10v7h8v-7H7z",
   // house.fill
   house: "M12 3.2 2.8 10.6V21h6.6v-5.4h5.2V21h6.6V10.6L12 3.2z",
   // bubble.left.fill

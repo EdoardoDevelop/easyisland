@@ -58,6 +58,14 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 
 ## What's new
 
+**1.0.2** — **The island as an app** (Settings → Island): open, it has its taskbar icon and shows in
+Alt+Tab, with minimize and full screen; closed, it disappears, and it opens from the pinned icon,
+whose right-click menu offers your quick actions. **Stay open** when you open it yourself. Larger text
+in the open island. **Work folder** as grid or list, by name or date, with icons by file type and
+**picture previews** (in the Tray too). **Full backup** with memory, chats, tasks and skills. Telegram
+is the same in every profile; Settings open on General and no longer jump to the top. Fixed: the
+island behind a window came back over it when the mouse crossed it.
+
 **1.0.1** — **Telegram with the PC off**: messages written to the bot while EasyIsland was off are
 handled when it starts again, in order, knowing when you wrote them. **The island steps behind**
 windows that open over it (like the work folder picker) without closing, and comes back with a click

@@ -51,6 +51,8 @@ export interface ViewActions extends ActionHandlers, RewriteHandlers, MomentActi
   extractZip(place: string): void;
   /** 📌: keep the island open (no auto-close). */
   toggleKeepOpen(): void;
+  /** ▢ of the island as an app: full screen on or off. */
+  toggleMaximized(): void;
   collapse(): void;
   setFocus(id: string): void;
   openTerminal(): void;
@@ -213,6 +215,10 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
   } }, svg(ICONS.sliders, 16));
   const soundBtn = h("button", { title: t("Silenzia"), style: "--c:#22D3EE", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 16));
   const closeBtn = h("button", { title: t("Chiudi"), style: "--c:#F4505E", onclick: () => actions.dismiss() }, svg(ICONS.xmark, 14));
+  // The island as an app: — and ▢ like a window's.
+  const minBtn = h("button", { title: t("Riduci a icona"), style: "--c:#94A3B8", onclick: () => void Bridge.minimizeIsland() }, svg(ICONS.minimize, 14));
+  const maxBtn = h("button", { title: t("Schermo intero"), style: "--c:#94A3B8", onclick: () => actions.toggleMaximized() }, svg(ICONS.maximize, 14));
+  let maxShown: boolean | null = null;
   // Claude's plan (Consumo Claude): "5h 12%  7g 83%", a click opens the card.
   const planBtn = h("button", { class: "plan-gauge", onclick: () => {
     actions.blip();
@@ -233,7 +239,7 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
     { id: "header" },
     talk,
     field,
-    h("div", { class: "header-actions" }, planBtn, pinBtn, gearBtn, soundBtn, closeBtn),
+    h("div", { class: "header-actions" }, planBtn, pinBtn, gearBtn, soundBtn, minBtn, maxBtn, closeBtn),
   );
 
   return {
@@ -255,6 +261,13 @@ ${b}` : a;
       soundBtn.style.setProperty("--c", State.settings.soundEnabled ? "#22D3EE" : "#F4505E");
       el.style.opacity = v === "confused" ? "0" : "1";
       closeBtn.style.display = State.settings.closeButton ? "" : "none";
+      minBtn.style.display = State.appWindow ? "" : "none";
+      maxBtn.style.display = State.appWindow ? "" : "none";
+      if (maxShown !== State.maximized) {
+        maxShown = State.maximized;
+        maxBtn.replaceChildren(svg(State.maximized ? ICONS.restore : ICONS.maximize, 14));
+        maxBtn.title = State.maximized ? t("Esci da schermo intero") : t("Schermo intero");
+      }
       const plan = planGauge();
       planBtn.style.display = plan ? "" : "none";
       if (plan && plan.key !== planKey) {

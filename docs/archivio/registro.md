@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 24 ottobre 2026 — Versione 1.0.0 e guida
+- Chiesto da Edoardo: ricontrollo e potenziamento delle ultime modifiche, guida completa sul sito divisa in pagine, link nelle Impostazioni, versione 1.0.0. Memoria: finestra che si aggiorna da sola, file trascinati in da-leggere, «Ricorda…». Guida di 28 pagine da `docs/guida/` con `scripts/guida.mjs` (menu, indice, ricerca), link Guida / Sito / GitHub in fondo alle Impostazioni, homepage con le novità.
+- **Prove:** `cargo test --workspace`, clippy, `npm run build`, `npm run smoke`, link e ancore della guida controllati, screenshot della guida e delle viste della memoria.
+
 ### 24 ottobre 2026 — Secondo cervello
 - Chiesto da Edoardo: idee da un plugin «secondo cervello» per la memoria, più una finestra con timeline, grafo, mappa mentale e concettuale. Fatti in `brain.rs` (pagine `[[collegate]]` con versioni, da-leggere → fonti, controllo che archivia e non cancella, ricerca che segue i collegamenti) e nella finestra `src/memory/` (`docs/chat.md`).
 - **Prove:** `cargo test --workspace` (6 test nuovi in `brain.rs`, `forget` in `memory.rs`), clippy, `npm run build`, `npm run smoke`, screenshot delle quattro viste con Edge.

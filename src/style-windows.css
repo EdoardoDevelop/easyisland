@@ -144,7 +144,7 @@ html[data-ui="windows"] .rail-item.on .rail-icon { color: var(--ink); }
 html[data-ui="windows"] .rail-label-head {
   text-transform: none;
   letter-spacing: 0;
-  font-size: 11px;
+  font-size: calc(11px + var(--fs-up, 0px));
   font-weight: 500;
   color: var(--dim-3);
 }
@@ -156,7 +156,7 @@ html[data-ui="windows"] .rail-meta.count {
 
 /* ── Panoramica ─────────────────────────────────────────────────────────── */
 
-html[data-ui="windows"] .today-title { font-size: 16px; font-weight: 600; }
+html[data-ui="windows"] .today-title { font-size: calc(16px + var(--fs-up, 0px)); font-weight: 600; }
 html[data-ui="windows"] .today-date { color: var(--dim-2); }
 html[data-ui="windows"] .summary { gap: 6px; }
 html[data-ui="windows"] .summary-row {

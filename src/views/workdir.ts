@@ -12,9 +12,27 @@ import { State } from "../core/state";
 import type { ViewActions } from "./views";
 import { t } from "../core/i18n";
 import { size } from "./upload";
+import { fileBadge } from "./filekind";
 
 /** A folder read more than this long ago is read again when the view draws. */
 const STALE_MS = 5000;
+
+/** The orders a click on the sort button goes through; folders always come first, as in Explorer. */
+const SORTS = ["name", "name-desc", "new", "old"] as const;
+type Sort = (typeof SORTS)[number];
+
+function sorted(entries: WorkEntry[], sort: Sort): WorkEntry[] {
+  const byName = (a: WorkEntry, b: WorkEntry) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+  return [...entries].sort((a, b) => {
+    if (a.dir !== b.dir) return a.dir ? -1 : 1;
+    switch (sort) {
+      case "name-desc": return byName(b, a);
+      case "new": return b.at - a.at || byName(a, b);
+      case "old": return a.at - b.at || byName(a, b);
+      default: return byName(a, b);
+    }
+  });
+}
 
 export interface WorkPanel {
   el: HTMLElement;
@@ -40,6 +58,14 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
   let newFolder = false;
   let note = "";
   let drawn = "";
+  // List or grid, and the order: remembered like the Vassoio's layout.
+  let grid = false;
+  let sort: Sort = "name";
+  try {
+    grid = localStorage.getItem("workLayout") === "grid";
+    const s = localStorage.getItem("workSort") as Sort | null;
+    if (s && SORTS.includes(s)) sort = s;
+  } catch { /* no storage */ }
 
   const crumbs = h("div", { class: "work-crumbs" });
   const list = h("div", { class: "files-list work-list" });
@@ -48,7 +74,10 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
   const pick = h("button", { class: "files-clear work-pick", text: t("Scegli…"), title: t("La cartella in cui la chat e Telegram possono lavorare") }) as HTMLButtonElement;
   const mkdirBtn = h("button", { class: "files-layout", text: "+", title: t("Nuova cartella") }) as HTMLButtonElement;
   const revealBtn = h("button", { class: "files-layout", title: t("Apri in Esplora file") }, renderActionIcon("i:folder", 12)) as HTMLButtonElement;
-  const head = h("div", { class: "files-head" }, h("b", { text: t("Cartella di lavoro") }), mkdirBtn, revealBtn, pick);
+  const layoutBtn = h("button", { class: "files-layout" }) as HTMLButtonElement;
+  const sortBtn = h("button", { class: "files-layout work-sort" }) as HTMLButtonElement;
+  const sortLabel: Record<Sort, string> = { name: t("Nome A→Z"), "name-desc": t("Nome Z→A"), new: t("Più recenti"), old: t("Meno recenti") };
+  const head = h("div", { class: "files-head" }, h("b", { text: t("Cartella di lavoro") }), mkdirBtn, revealBtn, layoutBtn, sortBtn, pick);
   const el = h("div", { class: "work-panel" }, head, crumbs, banner, list, status);
 
   const fail = (e: unknown) => { note = String(e).replace(/^Error:\s*/, ""); drawn = ""; State.notify(); };
@@ -81,6 +110,18 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
   });
   mkdirBtn.addEventListener("click", () => { newFolder = !newFolder; drawn = ""; State.notify(); });
   revealBtn.addEventListener("click", () => void Bridge.workOpen(rel, false).catch(fail));
+  layoutBtn.addEventListener("click", () => {
+    grid = !grid;
+    try { localStorage.setItem("workLayout", grid ? "grid" : "list"); } catch { /* no storage */ }
+    drawn = "";
+    State.notify();
+  });
+  sortBtn.addEventListener("click", () => {
+    sort = SORTS[(SORTS.indexOf(sort) + 1) % SORTS.length];
+    try { localStorage.setItem("workSort", sort); } catch { /* no storage */ }
+    drawn = "";
+    State.notify();
+  });
 
   const iconBtn = (icon: string, title: string, color: string, fn: () => void) =>
     h("button", { class: "clip-btn", title, style: `--c:${color}`,
@@ -109,7 +150,6 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
 
   function row(e: WorkEntry): HTMLElement {
     const ext = e.dir ? "" : (e.name.match(/\.([^.]{1,5})$/)?.[1] ?? "").toUpperCase();
-    const icon = e.dir ? renderActionIcon("i:folder", 14) : renderActionIcon("i:file", 14);
     const name = renaming === e.rel
       ? nameInput(e.name, (v) => {
         renaming = "";
@@ -117,11 +157,14 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
         void Bridge.workRename(e.rel, v).then(() => load()).catch(fail);
       }, () => { renaming = ""; actions.holdOpen(false); drawn = ""; State.notify(); })
       : h("span", { class: "files-name", text: e.name, title: e.name });
-    const meta = e.dir ? t("cartella") : `${ext ? `${ext} · ` : ""}${size(e.size)}`;
+    const when = e.at ? new Date(e.at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
+    const meta = grid
+      ? (e.dir ? t("cartella") : `${ext ? `${ext} · ` : ""}${size(e.size)}`)
+      : [e.dir ? t("cartella") : `${ext ? `${ext} · ` : ""}${size(e.size)}`, when].filter(Boolean).join(" · ");
     const r = h("div", { class: `files-row work-row${e.dir ? " dir" : ""}${moving?.rel === e.rel ? " moving" : ""}`,
       title: e.dir ? t("Doppio clic: apri la cartella") : t("Trascina in un'altra app · doppio clic: apri"),
       ondblclick: () => { if (e.dir) go(e.rel); else void Bridge.workOpen(e.rel, false).catch(fail); } },
-    h("span", { class: "work-icon", style: `color:${e.dir ? "#F5A524" : "#38BDF8"}` }, icon),
+    fileBadge(e.name, full(e), { dir: e.dir, big: grid, stamp: e.at }),
     h("div", { class: "files-info" }, name, h("span", { class: "files-meta", text: meta })),
     h("span", { class: "files-tools" },
       e.dir ? null : iconBtn("chat", t("Chiedi alla chat su questo file"), "#A78BFA", () => actions.askAboutFile({ name: e.name, path: full(e) })),
@@ -168,6 +211,13 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
     const has = !!listing;
     mkdirBtn.style.display = has ? "" : "none";
     revealBtn.style.display = has ? "" : "none";
+    layoutBtn.style.display = has ? "" : "none";
+    sortBtn.style.display = has ? "" : "none";
+    layoutBtn.textContent = grid ? "☰" : "▦";
+    layoutBtn.title = grid ? t("Mostra come elenco") : t("Mostra come griglia");
+    sortBtn.textContent = sortLabel[sort];
+    sortBtn.title = t("Ordine: clic per cambiarlo (nome, data di modifica)");
+    list.classList.toggle("grid", grid);
     if (!listing) {
       list.append(h("div", { class: "files-empty", text: error || t("Scegli una cartella del PC: la chat e Telegram potranno consultarla e lavorarci.") }));
       return;
@@ -205,7 +255,7 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
         h("div", { class: "files-info" }, h("span", { class: "files-name", text: ".." }))));
     }
     if (!listing.entries.length && !newFolder) list.append(h("div", { class: "files-empty", text: t("Cartella vuota.") }));
-    for (const e of listing.entries) list.append(row(e));
+    for (const e of sorted(listing.entries, sort)) list.append(row(e));
     if (listing.more) list.append(h("div", { class: "files-note", text: t("Sono mostrati i primi 500 elementi.") }));
   }
 
@@ -213,7 +263,7 @@ export function buildWorkPanel(actions: ViewActions): WorkPanel {
     el,
     sync() {
       if (!loading && Date.now() - loadedAt > STALE_MS && !renaming && !newFolder) void load();
-      const k = `${loadedAt}|${open}|${renaming}|${trashing}|${moving?.rel ?? ""}|${newFolder}|${note}`;
+      const k = `${loadedAt}|${open}|${renaming}|${trashing}|${moving?.rel ?? ""}|${newFolder}|${note}|${grid}|${sort}`;
       if (k === drawn) return;
       drawn = k;
       draw();

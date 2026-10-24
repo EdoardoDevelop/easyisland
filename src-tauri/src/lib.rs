@@ -27,6 +27,9 @@ mod habits;
 mod hooks;
 mod hotkeys;
 mod integrations;
+mod backup;
+mod jumplist;
+mod thumbs;
 mod island;
 mod keys;
 mod legacy;
@@ -193,6 +196,8 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
         let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
         island::apply_geometry(&app, &shared.gate, &settings, collapsed);
     }
+    island::apply_taskbar(&app);
+    jumplist::update(&settings);
     // Keep the other window in step (island ⇄ settings window).
     crate::threecx::settings_saved(&settings);
     let _ = app.emit("settings-changed", settings);
@@ -235,7 +240,8 @@ fn switch_profile(app: AppHandle, id: String) {
 /// Writes the settings (no secrets) to Documents and shows the file in Explorer.
 #[tauri::command]
 fn settings_export(shared: State<Shared>) -> Result<String, String> {
-    let text = shared.settings.lock().unwrap().export_json();
+    // The settings and the user's data (backup.rs).
+    let text = backup::export(&shared.settings.lock().unwrap());
     let home = std::env::var_os("USERPROFILE").map(std::path::PathBuf::from);
     let dir = home
         .as_ref()
@@ -245,7 +251,7 @@ fn settings_export(shared: State<Shared>) -> Result<String, String> {
         .ok_or_else(|| t("Cartella Documenti non trovata.").to_string())?;
     let t = unsafe { windows::Win32::System::SystemInformation::GetLocalTime() };
     let path = dir.join(format!(
-        "EasyIsland-impostazioni-{:04}{:02}{:02}-{:02}{:02}.json",
+        "EasyIsland-backup-{:04}{:02}{:02}-{:02}{:02}.json",
         t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute
     ));
     std::fs::write(&path, text).map_err(|e| tf("Esportazione non riuscita: {e}", &[("e", &e)]))?;
@@ -263,8 +269,11 @@ fn reveal_in_explorer(path: &std::path::Path) -> std::io::Result<std::process::C
 
 /// Replaces the settings with an exported file (keys must be entered again).
 #[tauri::command]
-fn settings_import(app: AppHandle, shared: State<Shared>, text: String) -> Result<Settings, String> {
+fn settings_import(app: AppHandle, shared: State<Shared>, text: String) -> Result<serde_json::Value, String> {
+    // A full backup (backup.rs) or a settings file of an older version.
+    let (text, files) = backup::split(&text).unwrap_or((text, Vec::new()));
     let next = shared.settings.lock().unwrap().import_json(&text)?;
+    let restored = backup::restore(&files)?;
     *shared.settings.lock().unwrap() = next.clone();
     settings::save(&next).map_err(|e| tf("Salvataggio non riuscito: {e}", &[("e", &e)]))?;
     log::line("settings imported".to_string());
@@ -274,7 +283,15 @@ fn settings_import(app: AppHandle, shared: State<Shared>, text: String) -> Resul
     let _ = app.emit("settings-changed", next.clone());
     tray::refresh(&app);
     hotkeys::reload();
-    Ok(next)
+    if restored > 0 {
+        // Chats and memory are held in memory: a restart reads the restored files.
+        let app = app.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_secs(4));
+            app.restart();
+        });
+    }
+    Ok(serde_json::json!({ "settings": next, "note": backup::summary(restored) }))
 }
 
 // ── Quick actions ─────────────────────────────────────────────────────────────
@@ -424,6 +441,20 @@ fn focus_window(app: AppHandle, focused: bool) {
     island::set_activating(&win, focused);
     if focused {
         let _ = win.set_focus();
+    }
+}
+
+/// The preview of a picture in the Vassoio or the work folder (thumbs.rs).
+#[tauri::command]
+async fn file_thumb(path: String) -> Option<String> {
+    tauri::async_runtime::spawn_blocking(move || thumbs::thumb(&path)).await.ok().flatten()
+}
+
+/// — in the header of the island as an app.
+#[tauri::command]
+fn minimize_island(app: AppHandle) {
+    if let Some(win) = island::window(&app) {
+        let _ = win.minimize();
     }
 }
 
@@ -1674,7 +1705,7 @@ fn capture_show(app: AppHandle) -> Result<(), String> {
     // Moving to another display can rescale the window: re-assert the physical size.
     let _ = win.set_position(tauri::PhysicalPosition::new(s.x, s.y));
     let _ = win.set_size(tauri::PhysicalSize::new(s.width, s.height));
-    let _ = win.set_ignore_cursor_events(false);
+    island::ignore_cursor(&win, false);
     island::raise_over_taskbar(&app);
     island::set_activating(&win, true);
     let _ = win.set_focus();
@@ -2721,6 +2752,7 @@ fn open_settings_at(app: AppHandle, page: String, item: Option<String>) {
 }
 
 pub fn run() {
+    jumplist::set_app_id();
     // The release build aborts on a panic (panic = "abort"): without this the
     // reason is lost and Windows only reports 0xc0000409.
     let default_hook = std::panic::take_hook();
@@ -2744,7 +2776,17 @@ pub fn run() {
             // `easyisland.exe --settings` opens the settings window (a shortcut can use it).
             if argv.iter().any(|a| a == "--settings") {
                 show_settings_window(app);
+            } else if let Some(what) = jumplist::requested(&argv).filter(|w| w != "open") {
+                // An entry of the taskbar menu (jumplist.rs): handled like its hotkey.
+                if let Some(win) = island::window(app) {
+                    let _ = win.unminimize();
+                }
+                let _ = app.emit_to(island::WINDOW_LABEL, "hotkey", what);
             } else {
+                // Minimized as an app: back on screen first.
+                if let Some(win) = island::window(app) {
+                    let _ = win.unminimize();
+                }
                 let _ = app.emit_to(island::WINDOW_LABEL, "tray", "open".to_string());
             }
         }))
@@ -2808,6 +2850,8 @@ pub fn run() {
             open_in_vscode,
             session_reply::session_reply,
             set_app_mode,
+            minimize_island,
+            file_thumb,
             flash_if_behind,
             claude_cli::session_ask,
             open_file_in_vscode,
@@ -3046,6 +3090,8 @@ pub fn run() {
                 island::apply_geometry(&handle, &gate, &loaded, false);
                 let _ = win.show();
             }
+            island::apply_taskbar(&handle);
+            jumplist::update(&loaded);
             gate.collapsed.store(false, Ordering::Relaxed);
             gate.set_active(true);
             island::spawn_cursor_poll(handle.clone(), gate.clone());

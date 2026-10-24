@@ -233,10 +233,16 @@ export class Island {
       this.ensureRunning();
       // 📌 makes the open island an ordinary app window; unpinning, or closing
       // (which drops the pin), gives the usual island back.
-      const app = State.keepOpen && State.mode === "expanded";
+      const app = ((State.keepOpen && !State.keptByItself) || !!State.settings.islandApp) && State.mode === "expanded";
       if (app !== this.appMode) {
         this.appMode = app;
-        void Bridge.setAppMode(app);
+        State.appWindow = app;
+        // Over the taskbar or not changes the room it has (island_area).
+        void Bridge.setAppMode(app).then(() => this.refreshLimits());
+      }
+      if (!app && State.maximized) {
+        State.maximized = false;
+        this.animateGeometry(false);
       }
     });
   }
@@ -310,6 +316,7 @@ export class Island {
       openSettingsWindow: () => void Bridge.openSettingsWindow(),
       blip: () => Sound.play("blip"),
       toggleKeepOpen: () => this.toggleKeepOpen(),
+      toggleMaximized: () => this.toggleMaximized(),
       installUpdate: () => void this.installUpdate(),
       answerSuggestion: (fp, choice) => void this.answerSuggestion(fp, choice),
       runAction: (a) => void this.runAction(a),
@@ -519,6 +526,7 @@ export class Island {
       State.isPinned = false;
       // 📌 lasts for one opening: closing by hand (Esc, ✕) ends it.
       State.keepOpen = false;
+      State.keptByItself = false;
       this.fsm.keepOpen = false;
       this.keyboard = false;
       void Bridge.focusWindow(false);
@@ -1720,6 +1728,7 @@ ${note}` : text };
   }
 
   toggleKeepOpen() {
+    State.keptByItself = false;
     State.keepOpen = !State.keepOpen;
     this.fsm.setKeepOpen(State.keepOpen, this.wasInIsland);
     if (State.keepOpen) this.homeCollapseAt = null;
@@ -2067,6 +2076,7 @@ ${note}` : text };
         w = Math.min(max.w, w + this.railRoom);
         h = Math.max(h, Math.min(max.h, this.railMinH));
       }
+      if (State.maximized) ({ w, h } = { w: Math.max(PANEL_W, this.limits.w), h: Math.max(PANEL_H, this.limits.h) });
     }
     // Height the user added beyond the view's own: lists and text boxes grow by
     // it (CSS max-height: calc(… + var(--extra-h))) instead of keeping their
@@ -2084,6 +2094,7 @@ ${note}` : text };
     // The hover badge is a circle; a floating bar is a pill.
     if (State.mode !== "expanded" && this.placement.hoverStyle === "icon") r = Math.min(compact.w, compact.h) / 2;
     else if (State.mode !== "expanded" && !isGlued(this.placement)) r = compact.h / 2;
+    if (State.maximized && State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view)) r = 0;
     return { w, h, r };
   }
 
@@ -2118,7 +2129,8 @@ ${note}` : text };
     const user = s.islandHeight > 0 ? s.islandHeight : 0;
     const menu = this.railNeed > 0 ? ISLAND_CHROME_H + BODY_GAP + this.railNeed : 0;
     const h = Math.min(max.h, Math.max(user, menu));
-    const next = panelFor(w, Math.min(h, max.h), this.limits);
+    // Full screen: the whole room (work area) is the window.
+    const next = State.maximized ? { w: Math.max(PANEL_W, this.limits.w), h: Math.max(PANEL_H, this.limits.h) } : panelFor(w, Math.min(h, max.h), this.limits);
     if (next.w === this.panel.w && next.h === this.panel.h) return;
     this.panel = next;
     void Bridge.setPanelSize(next.w, next.h);
@@ -2183,7 +2195,7 @@ ${note}` : text };
     const w = this.width.value;
     const hh = this.height.value;
     const r = this.radius.value;
-    const p = this.placement;
+    const p = this.framePlacement;
     const o = anchoredOrigin(p, w, hh, this.panel.w, this.panel.h);
     this.islandEl.style.left = `${o.x}px`;
     this.islandEl.style.top = `${o.y}px`;
@@ -2244,8 +2256,13 @@ ${note}` : text };
   private islandRect(): { x: number; y: number; w: number; h: number } {
     const w = this.width.value;
     const hh = this.height.value;
-    const o = anchoredOrigin(this.placement, w, hh, this.panel.w, this.panel.h);
+    const o = anchoredOrigin(this.framePlacement, w, hh, this.panel.w, this.panel.h);
     return { x: o.x, y: o.y, w, h: hh };
+  }
+
+  /** Full screen (▢): glued to every edge, so it fills the window to the pixel. */
+  private get framePlacement(): Placement {
+    return State.maximized && State.mode === "expanded" ? { ...this.placement, glueX: true, glueY: true } : this.placement;
   }
 
   // ── Rest icon / wake strip ──────────────────────────────────────────────────
@@ -2460,6 +2477,32 @@ ${note}` : text };
     this.openedByUser = true;
     this.fsm.click();
     this.openedByUser = false;
+    this.stayIfAsked();
+  }
+
+  /** Impostazioni → "Resta aperta quando la apro io": 📌 on by itself. */
+  private stayIfAsked() {
+    if (State.settings.stayOpenByUser && State.mode === "expanded" && !State.keepOpen) {
+      this.toggleKeepOpen();
+      State.keptByItself = true;
+    }
+  }
+
+  /** Opened from the tray icon or from EasyIsland pinned to the taskbar (started again). */
+  openFromTaskbar() {
+    if (State.mode !== "expanded") {
+      this.openedByUser = true;
+      this.alert(State.defaultView());
+      this.openedByUser = false;
+    }
+    this.stayIfAsked();
+  }
+
+  /** ▢: the open island fills the work area; again, back to its own size. */
+  toggleMaximized() {
+    State.maximized = !State.maximized;
+    this.animateGeometry(false);
+    State.notify();
   }
 
   /**
@@ -3055,6 +3098,7 @@ ${note}` : text };
     // kept for the character any more (--bot-room in style.css).
     const railed = this.railShown;
     this.islandEl.classList.toggle("railed", railed);
+    this.islandEl.classList.toggle("open", expanded);
     if (railed) {
       guard("menu", () => this.rail.sync());
       // An integration switched on or off changes the menu's height: the island follows.
