@@ -54,11 +54,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Chiesto da Edoardo: niente più «preventivi», capire i limiti e toglierli. Tolti: chiamate a servizi (`http`, solo agli host della descrizione), fonti di dati lette ogni N minuti con avvisi, chiavi in Gestione credenziali, formule vere (`src/core/expr.ts`), azioni compito / avviso / sequenza, campo file, `custom_fetch` e `custom_call` per chat e compiti (`docs/integrazioni.md`).
 - **Prove:** `cargo test --workspace` (5 test nuovi), clippy, `npm run build`, `npm run smoke` (scena `custom&dati`), 42 formule con Edge, dal vivo una fonte vera letta dall'app (GitHub, HTTP 200), poi tolta.
 
-### 23 ottobre 2026 — Integrazioni personali potenziate
-- Chiesto da Edoardo: studiare come potenziare le integrazioni personali e farlo. Aggiunti numerazione automatica, colonne calcolate nelle righe, campi condizionali, collegamento a un'altra integrazione, totali nell'elenco, «Compila con l'IA» da un testo incollato, esportazione CSV, modello automatico (`docs/integrazioni.md`).
-- **Prove:** `cargo test --workspace` (3 test nuovi), clippy, `npm run build`, `npm run smoke`; con Edge nell'anteprima: totali di riga, campo condizionale, riquadro «Compila», CSV.
-
-### 23 ottobre 2026 — Integrazioni personali create dalla chat
-- Chiesto da Edoardo: «crea un'integrazione per i preventivi», programmabile al 100%. Nuovi `custom.rs` e `src/views/custom.ts`: la chat scrive una descrizione (campi di ogni tipo, tabelle, formule, modello del documento, azioni), mai codice; EasyIsland la disegna nell'isola con modulo e schede salvate.
-- Strumenti `custom_*` (creare e cambiare con Consenti / Nega), Impostazioni → Integrazioni → Create da te. Decisione in `docs/decisioni.md`.
-- **Prove:** `cargo test --workspace` (3 test nuovi sulle descrizioni), clippy, `npm run build`, `npm run smoke` (scena `custom`); nell'anteprima con Edge: righe, totali (1.501,00 € + IVA = 1.831,22 €) e modello compilato.
