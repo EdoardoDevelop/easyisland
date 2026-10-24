@@ -11,8 +11,10 @@
 //   * a conversation of its own (`CHAT`), separate from the island's, with its
 //     own engine and model (/motore, /modello), never saved as the default.
 //     It goes in the chat history as "Telegram · …";
-//   * messages sent while the app was not running are dropped, with one line
-//     saying so (decided with Edoardo);
+//   * messages sent while the app was not running (PC off, asleep or app
+//     closed) are handled as soon as it is back, in order, with one line
+//     saying so (asked by Edoardo on 24 Oct 2026: write from the phone, let the
+//     PC do it later). Telegram keeps them about 24 hours, then they are lost;
 //   * "Modalità terminale": every permission is a Consenti / Nega message with
 //     buttons here, never on the island (`request_decision`; Claude Code's hook
 //     carries `easyisland_channel`, opencode asks through `opencode::Options::telegram`).
@@ -62,6 +64,10 @@ static LAST: Mutex<Option<Last>> = Mutex::new(None);
 static NEXT_FILE: Mutex<Option<(String, String)>> = Mutex::new(None);
 /// A turn is running (one at a time).
 static BUSY: AtomicBool = AtomicBool::new(false);
+/// Questions written while EasyIsland was not running, answered one after the
+/// other once it is back (`run_late`).
+static LATE: Mutex<std::collections::VecDeque<(i64, String, Option<ChatContext>)>> = Mutex::new(std::collections::VecDeque::new());
+static LATE_RUNNING: AtomicBool = AtomicBool::new(false);
 /// Consenti / Nega waiting for a tap: short id → the answer's channel.
 static PENDING: LazyLock<Mutex<HashMap<String, tokio::sync::oneshot::Sender<bool>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -225,17 +231,18 @@ pub fn spawn(app: AppHandle) {
             match updates {
                 Ok(list) => {
                     set_status(|s| s.error = None);
-                    let mut offline = None;
+                    let mut offline: Option<(i64, usize)> = None;
                     for u in &list {
                         if let Some(id) = u.get("update_id").and_then(Value::as_i64) {
                             offset = offset.max(id + 1);
                         }
                         if let Some(chat) = handle(&app, &token, u, started).await {
-                            offline = Some(chat);
+                            offline = Some((chat, offline.map_or(1, |(_, n)| n + 1)));
                         }
                     }
-                    if let Some(chat) = offline {
-                        let _ = send(&token, chat, t("Ero spento: i messaggi arrivati mentre EasyIsland era chiuso non li ho letti. Riscrivimi ora."), None).await;
+                    if let Some((chat, n)) = offline {
+                        let text = tf("Ero spento: ora elaboro i messaggi che mi hai scritto nel frattempo ({n}).", &[("n", &n)]);
+                        let _ = send(&token, chat, &text, None).await;
                     }
                 }
                 Err(e) => {
@@ -277,7 +284,8 @@ async fn get_updates(token: String, offset: i64) -> Result<Vec<Value>, String> {
     Ok(v.as_array().cloned().unwrap_or_default())
 }
 
-/// One update. Returns the chat to tell "I was off" when it is an old message.
+/// One update. Returns the chat to tell "I was off" when it is an old message
+/// (handled anyway, after the ones before it).
 async fn handle(app: &AppHandle, token: &str, u: &Value, started: i64) -> Option<i64> {
     if let Some(q) = u.get("callback_query") {
         on_button(app, token, q).await;
@@ -299,9 +307,15 @@ async fn handle(app: &AppHandle, token: &str, u: &Value, started: i64) -> Option
     if owner != Some(chat) || !private {
         return None;
     }
-    if m.get("date").and_then(Value::as_i64).unwrap_or(0) < started {
-        return Some(chat);
-    }
+    let date = m.get("date").and_then(Value::as_i64).unwrap_or(0);
+    let late = date < started;
+    let result = handle_message(app, token, chat, m, text, late.then_some(date)).await;
+    late.then_some(chat).or(result)
+}
+
+/// A message of the linked chat. `late`: when it was written, if EasyIsland
+/// was not running then.
+async fn handle_message(app: &AppHandle, token: &str, chat: i64, m: &Value, text: String, late: Option<i64>) -> Option<i64> {
 
     notify_island(app, &text);
     if let Some(cmd) = text.strip_prefix('/') {
@@ -356,6 +370,24 @@ async fn handle(app: &AppHandle, token: &str, u: &Value, started: i64) -> Option
     if query.is_empty() {
         return None;
     }
+    // Late ones, and new ones while late ones are still being answered, queue up.
+    if late.is_some() || LATE_RUNNING.load(Ordering::SeqCst) {
+        // The engine must know it is not "now": "domani" meant the day it was written.
+        let query = match late {
+            Some(date) => {
+                let minutes = ((unix_now() - date) / 60).max(1);
+                let when = if minutes < 120 { tf("circa {n} minuti fa", &[("n", &minutes)]) } else { tf("circa {n} ore fa", &[("n", &(minutes / 60))]) };
+                format!("{}
+
+{query}", tf("(Messaggio scritto {when}, mentre EasyIsland era spento.)", &[("when", &when)]))
+            }
+            None => query,
+        };
+        let context = context.or_else(|| NEXT_FILE.lock().unwrap().take()).map(|(name, path)| ChatContext::File { name, path });
+        LATE.lock().unwrap().push_back((chat, query, context));
+        run_late(app, token);
+        return None;
+    }
     if BUSY.load(Ordering::SeqCst) {
         let _ = send(token, chat, t("Sto ancora rispondendo alla domanda di prima: aspetta la risposta o fermala con ⏹ Ferma (o /stop)."), None).await;
         return None;
@@ -375,6 +407,29 @@ async fn handle(app: &AppHandle, token: &str, u: &Value, started: i64) -> Option
         BUSY.store(false, Ordering::SeqCst);
     });
     None
+}
+
+/// Answers the late questions one at a time, each when no other turn runs.
+fn run_late(app: &AppHandle, token: &str) {
+    if LATE_RUNNING.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let (app, token) = (app.clone(), token.to_string());
+    tauri::async_runtime::spawn(async move {
+        loop {
+            let Some((chat, query, context)) = LATE.lock().unwrap().pop_front() else { break };
+            while BUSY.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+            turn(&app, &token, chat, query, context, None).await;
+            BUSY.store(false, Ordering::SeqCst);
+        }
+        LATE_RUNNING.store(false, Ordering::SeqCst);
+        // Something added between the last pop and the flag going down.
+        if !LATE.lock().unwrap().is_empty() {
+            run_late(&app, &token);
+        }
+    });
 }
 
 async fn link(app: &AppHandle, token: &str, chat: i64, m: &Value, code: &str) {

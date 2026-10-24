@@ -2135,7 +2135,6 @@
   "Collega un'altra chat": "Link another chat",
   "In Telegram apri @{bot} e manda: /start {code} (vale 10 minuti).": "In Telegram open @{bot} and send: /start {code} (valid for 10 minutes).",
   "Chat collegata": "Linked chat",
-  "Ero spento: i messaggi arrivati mentre EasyIsland era chiuso non li ho letti. Riscrivimi ora.": "I was off: I didn't read the messages that arrived while EasyIsland was closed. Write to me again now.",
   "Scegli il motore della chat": "Choose the chat engine",
   "Scegli il modello del motore": "Choose the engine's model",
   "Nuova conversazione": "New conversation",
@@ -2958,5 +2957,9 @@
   "Guida": "Guide",
   "Sito": "Website",
   "File troppo grande (al massimo 25 MB).": "File too large (25 MB at most).",
-  "Nome del file non valido.": "Invalid file name."
+  "Nome del file non valido.": "Invalid file name.",
+  "Ero spento: ora elaboro i messaggi che mi hai scritto nel frattempo ({n}).": "I was off: I'm now handling the messages you wrote me in the meantime ({n}).",
+  "circa {n} minuti fa": "about {n} minutes ago",
+  "circa {n} ore fa": "about {n} hours ago",
+  "(Messaggio scritto {when}, mentre EasyIsland era spento.)": "(Message written {when}, while EasyIsland was off.)"
 }
