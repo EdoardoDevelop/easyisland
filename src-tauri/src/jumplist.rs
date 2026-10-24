@@ -68,14 +68,22 @@ fn build(actions: &[(String, String)], tasks: &[(String, String)], category: &st
             list.SetAppID(&HSTRING::from(APP_ID))?;
             let mut slots = 0u32;
             let _removed: IObjectArray = list.BeginList(&mut slots)?;
-            if !actions.is_empty() {
+            // A category of its own is refused (0x80070005) when Windows does not
+            // keep recently opened items: the quick actions then go among the tasks.
+            let mut in_tasks = actions.is_empty();
+            if !in_tasks {
                 let col: IObjectCollection = CoCreateInstance(&EnumerableObjectCollection, None, CLSCTX_INPROC_SERVER)?;
                 for (what, title) in actions {
                     col.AddObject(&link(&exe, what, title)?)?;
                 }
-                list.AppendCategory(&HSTRING::from(category), &col.cast::<IObjectArray>()?)?;
+                in_tasks = list.AppendCategory(&HSTRING::from(category), &col.cast::<IObjectArray>()?).is_err();
             }
             let col: IObjectCollection = CoCreateInstance(&EnumerableObjectCollection, None, CLSCTX_INPROC_SERVER)?;
+            if in_tasks {
+                for (what, title) in actions {
+                    col.AddObject(&link(&exe, what, title)?)?;
+                }
+            }
             for (what, title) in tasks {
                 col.AddObject(&link(&exe, what, title)?)?;
             }
