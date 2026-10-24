@@ -233,7 +233,7 @@ export class Island {
       this.ensureRunning();
       // 📌 makes the open island an ordinary app window; unpinning, or closing
       // (which drops the pin), gives the usual island back.
-      const app = (State.keepOpen || !!State.settings.islandApp) && State.mode === "expanded";
+      const app = ((State.keepOpen && !State.keptByItself) || !!State.settings.islandApp) && State.mode === "expanded";
       if (app !== this.appMode) {
         this.appMode = app;
         State.appWindow = app;
@@ -526,6 +526,7 @@ export class Island {
       State.isPinned = false;
       // 📌 lasts for one opening: closing by hand (Esc, ✕) ends it.
       State.keepOpen = false;
+      State.keptByItself = false;
       this.fsm.keepOpen = false;
       this.keyboard = false;
       void Bridge.focusWindow(false);
@@ -1727,6 +1728,7 @@ ${note}` : text };
   }
 
   toggleKeepOpen() {
+    State.keptByItself = false;
     State.keepOpen = !State.keepOpen;
     this.fsm.setKeepOpen(State.keepOpen, this.wasInIsland);
     if (State.keepOpen) this.homeCollapseAt = null;
@@ -2480,7 +2482,10 @@ ${note}` : text };
 
   /** Impostazioni → "Resta aperta quando la apro io": 📌 on by itself. */
   private stayIfAsked() {
-    if (State.settings.stayOpenByUser && State.mode === "expanded" && !State.keepOpen) this.toggleKeepOpen();
+    if (State.settings.stayOpenByUser && State.mode === "expanded" && !State.keepOpen) {
+      this.toggleKeepOpen();
+      State.keptByItself = true;
+    }
   }
 
   /** Opened from the tray icon or from EasyIsland pinned to the taskbar (started again). */

@@ -1008,6 +1008,8 @@ class AppState {
 
   /** 📌 in the header: the island stays open until unpinned, Esc or ✕. */
   keepOpen = false;
+  /** 📌 turned on by "Resta aperta", not by the user: it keeps the island open but does not make it an app. */
+  keptByItself = false;
   /** The open island is an app window right now (📌 or "Come un'app"). */
   appWindow = false;
   /** ▢ in the header of the island as an app: it fills the work area until closed. */
