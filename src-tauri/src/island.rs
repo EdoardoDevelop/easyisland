@@ -260,7 +260,7 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
     // Moving across displays can rescale the window: re-assert the physical size.
     let _ = win.set_size(PhysicalSize::new(pw, ph));
     // Pinned as an app it stays an ordinary window (set_app_mode).
-    if !app_mode() {
+    if !app_mode() && !is_behind() {
         let _ = win.set_always_on_top(true);
     }
 }
@@ -642,6 +642,10 @@ fn step_aside_for(app: &AppHandle, gate: &PollGate, fg: HWND) {
     }
     if covers(&win, gate, fg) {
         BEHIND.store(true, Ordering::Relaxed);
+        // Tao's flag too: any later style change of its (set_ignore_cursor_events,
+        // as the cursor crosses the island) rewrites WS_EX_TOPMOST from it, and the
+        // island jumped back over the dialog (1.0.1, seen by Edoardo).
+        let _ = win.set_always_on_top(false);
         unsafe {
             let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER;
             let _ = SetWindowPos(me, Some(HWND_NOTOPMOST), 0, 0, 0, 0, flags);
@@ -701,6 +705,7 @@ pub fn come_forward(app: &AppHandle) {
         return;
     }
     let Some(win) = window(app) else { return };
+    let _ = win.set_always_on_top(true);
     let Some(hwnd) = hwnd_of(&win) else { return };
     unsafe {
         let _ = SetWindowPos(hwnd, Some(HWND_TOPMOST), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
