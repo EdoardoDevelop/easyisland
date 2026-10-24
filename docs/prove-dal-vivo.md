@@ -24,6 +24,12 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
   9. il Riordino della memoria acceso, una sera con conversazioni: la domanda con le note proposte e le note salvate in MEMORIA.md;
   10. un'abilità usata su Telegram con `/nome …`.
 
+- [ ] **Secondo cervello (24 ottobre 2026):**
+  1. Impostazioni → Chat → Memoria → «Mappa»: la finestra si apre (non bianca), le quattro viste con la memoria vera.
+  2. Un .txt e un .html in `memoria\da-leggere`, «Leggi adesso»: pagine scritte con `fonte:` e `[[collegamenti]]`, file spostati in `fonti`.
+  3. Una pagina modificata a mano mentre l'agente lavora: la sua scrittura rifiutata e ripetuta dopo averla riletta.
+  4. «Controlla»: proposte nell'isola, fatte solo quelle approvate, niente cancellato.
+  5. In chat una domanda su un cliente con una pagina: la risposta usa anche le pagine collegate.
 - [ ] **Chat nuova e memoria (21 ottobre 2026):**
   1. Ctrl+V di un'immagine e di un file copiato in Esplora file a conversazione avviata (chip 📎, il motore lo legge).
   2. Un file trascinato sull'isola durante una conversazione non la ricomincia.

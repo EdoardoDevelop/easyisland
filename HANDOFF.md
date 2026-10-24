@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 23 ottobre 2026. Versione **0.9.9** in `main` con il tag `v0.9.9` (la CI pubblica l'installer). Si lavora su `claude/sviluppo` verso la **1.0.0**: EasyIsland agente personale (`docs/idee.md`). Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 24 ottobre 2026. Versione **0.9.9** in `main` con il tag `v0.9.9` (la CI pubblica l'installer). Si lavora su `claude/sviluppo` verso la **1.0.0**: EasyIsland agente personale (`docs/idee.md`). Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -14,6 +14,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **3CX + Zammad:** ticket del cliente sulla chiamata in arrivo (`docs/idee.md`).
 - [ ] **Notion, seconda parte:** «Manda a Notion», scheda cliente su 3CX/Zammad, avviso delle scadenze (`docs/idee.md`).
 - [ ] **Account Microsoft (API):** predisposto (accesso, Outlook e Teams con Graph); da provare registrando l'app in Entra (`docs/prove-dal-vivo.md`), poi avvisi di mail nuove, chat, automazioni (`docs/integrazioni.md`).
+- [ ] **Secondo cervello:** pagine collegate, da-leggere, controllo e finestra Memoria fatti nel codice e nell'anteprima (`docs/chat.md`); da provare con la memoria vera (`docs/prove-dal-vivo.md`).
 - [ ] **Chat nuova e memoria:** fatte nel codice; da provare con i motori veri e da guardare dopo qualche giorno d'uso (`docs/prove-dal-vivo.md`).
 - [ ] **Accesso remoto:** fatto nel codice; collegamento vero con WinRM e SSH (Windows e Linux) da provare su un PC di un cliente (`docs/prove-dal-vivo.md`).
 - [ ] **Remote Desktop Manager:** predisposto; prova la settimana prossima sul PC con RDM (`docs/prove-dal-vivo.md`), poi i passi in `docs/idee.md`.
@@ -32,6 +33,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 24 ottobre 2026 — Secondo cervello
+- Chiesto da Edoardo: idee da un plugin «secondo cervello» per la memoria, più una finestra con timeline, grafo, mappa mentale e concettuale. Fatti in `brain.rs` (pagine `[[collegate]]` con versioni, da-leggere → fonti, controllo che archivia e non cancella, ricerca che segue i collegamenti) e nella finestra `src/memory/` (`docs/chat.md`).
+- **Prove:** `cargo test --workspace` (6 test nuovi in `brain.rs`, `forget` in `memory.rs`), clippy, `npm run build`, `npm run smoke`, screenshot delle quattro viste con Edge.
+
 ### 23 ottobre 2026 — Integrazioni personali universali
 - Chiesto da Edoardo: niente più «preventivi», capire i limiti e toglierli. Tolti: chiamate a servizi (`http`, solo agli host della descrizione), fonti di dati lette ogni N minuti con avvisi, chiavi in Gestione credenziali, formule vere (`src/core/expr.ts`), azioni compito / avviso / sequenza, campo file, `custom_fetch` e `custom_call` per chat e compiti (`docs/integrazioni.md`).
 - **Prove:** `cargo test --workspace` (5 test nuovi), clippy, `npm run build`, `npm run smoke` (scena `custom&dati`), 42 formule con Edge, dal vivo una fonte vera letta dall'app (GitHub, HTTP 200), poi tolta.
@@ -49,8 +54,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Versione **0.9.9** con le voci del 23 ottobre; README, README.en.md e homepage aggiornati.
 - Chiesto da Edoardo: fare «cosa resta» del confronto con gli altri agenti. Permessi e domande dei compiti anche su Telegram (prima risposta vince, mai «Automatica»), `/rispondi`, abilità come comandi su Telegram, Riordino della memoria serale con conferma (`docs/chat.md`).
 - **Prove:** `cargo test --workspace` (test nuovo sulla prima risposta), clippy, `npm run build`, `npm run smoke`. Le prove con Telegram e con la memoria vera servono un tuo tocco: `docs/prove-dal-vivo.md`.
-
-### 23 ottobre 2026 — Abilità, motore per compito e motori aiutanti
-- Chiesto da Edoardo: agente programmabile, un motore per ogni compito e più motori in un compito. Nuovo `skills.rs` (procedure .md con nome, descrizione, motore preferito, strumenti; elenco davanti alla conversazione, `skill_read`, `skill_save`, comandi `/id` nella chat).
-- Ogni compito ha motore, modello e aiutanti; `task_delegate` affida un pezzo del lavoro a un aiutante (`Channel::Helper`). Rivista la decisione sui più motori insieme (`docs/decisioni.md`).
-- **Prove:** `cargo test --workspace` (test nuovi su abilità e aiutanti), `npm run build`, `npm run smoke`; dal vivo vedi la voce del Registro sopra o `docs/prove-dal-vivo.md`.

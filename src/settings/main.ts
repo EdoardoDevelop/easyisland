@@ -1627,15 +1627,17 @@ function memoryRow(): HTMLElement {
   const show = (m: MemoryInfo | null) => {
     line.textContent = settings.chatHistory === false
       ? t("spenta insieme alla cronologia")
-      : t("{n} note che la chat ricorda in ogni conversazione, {d} giorni nel diario. File .md su questo PC: puoi modificarli", { n: m?.notes ?? 0, d: m?.days ?? 0 });
+      : t("{n} note che la chat ricorda in ogni conversazione, {p} pagine collegate, {d} giorni nel diario, {i} file da leggere. File .md su questo PC: puoi modificarli", { n: m?.notes ?? 0, p: m?.pages ?? 0, d: m?.days ?? 0, i: m?.inbox ?? 0 });
   };
+  const map = h("button", { text: t("Mappa") }) as HTMLButtonElement;
+  map.addEventListener("click", () => void Bridge.memoryWindowOpen());
   const open = h("button", { text: t("Apri MEMORIA.md") }) as HTMLButtonElement;
   const fail = (e: unknown) => { line.textContent = String(e).replace(/^Error:\s*/, ""); };
   open.addEventListener("click", () => void Bridge.memoryOpen(false).catch(fail));
   const folder = h("button", { text: t("Cartella") }) as HTMLButtonElement;
   folder.addEventListener("click", () => void Bridge.memoryOpen(true).catch(fail));
   void Bridge.memoryInfo().then(show);
-  return h("div", { class: "row" }, h("label", { text: t("Memoria") }), line, open, folder);
+  return h("div", { class: "row" }, h("label", { text: t("Memoria") }), line, map, open, folder);
 }
 
 /** Chat → "Ricette": how a kind of question was answered, learnt by use (recipes.rs). */
@@ -4527,7 +4529,7 @@ function heartbeatSection(): HTMLElement {
     h("div", { class: "row" }, h("label", { text: t("Controllo periodico") }), every, list,
       h("span", { class: "hint note", text: t("a ogni battito l'agente guarda le cose elencate in BATTITO.md (ticket, mail, scadenze…) e ti avvisa solo se c'è qualcosa; senza righe nell'elenco non parte e non costa niente") })),
     h("div", { class: "row" }, h("label", { text: t("Riordino della memoria") }), digest,
-      h("span", { class: "hint note", text: t("ogni sera alle 22:30 l'agente rilegge il diario della chat e ti propone le cose da ricordare; salva solo quelle che approvi. Senza conversazioni nella giornata non parte") })),
+      h("span", { class: "hint note", text: t("ogni sera alle 22:30 l'agente rilegge il diario della chat e ti propone le cose da ricordare (salva solo quelle che approvi), legge i file messi in da-leggere della memoria e la domenica propone come sistemarla. Se non c'è niente da fare non parte") })),
     feedback);
 }
 

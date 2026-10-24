@@ -210,6 +210,56 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             true,
         ),
         (
+            "memory_page",
+            "Una pagina della memoria (le pagine su persone, clienti, progetti e concetti, collegate tra loro con [[Titolo]]), con la sua versione e le pagine che la citano. title: il titolo; vuoto = l'elenco delle pagine e dei file che aspettano in da-leggere.",
+            json!({ "type": "object", "properties": {
+                "title": { "type": "string" }
+            } }),
+            true,
+        ),
+        (
+            "memory_page_write",
+            "Scrive una pagina della memoria (Markdown breve) o la sostituisce. Collega le altre pagine con [[Titolo]] e scrivi come sono legate con righe «- relazione: [[Altra pagina]]». title; text: il testo intero; version: per una pagina che esiste, la versione letta con memory_page (se l'utente l'ha cambiata nel frattempo la scrittura è rifiutata: rileggila); source: il file di da-leggere da cui viene. Niente password o dati sensibili.",
+            json!({ "type": "object", "properties": {
+                "title": { "type": "string" },
+                "text": { "type": "string" },
+                "version": { "type": "string" },
+                "source": { "type": "string" }
+            }, "required": ["title", "text"] }),
+            true,
+        ),
+        (
+            "memory_inbox",
+            "Legge un file della cartella da-leggere della memoria (ciò che l'utente vuole far imparare: articoli, appunti, trascrizioni, mail), con l'elenco degli altri. file: il nome; vuoto = il più vecchio.",
+            json!({ "type": "object", "properties": {
+                "file": { "type": "string" }
+            } }),
+            true,
+        ),
+        (
+            "memory_inbox_done",
+            "Sposta un file letto da da-leggere a fonti, senza cambiarlo, dopo averne scritto le pagine. file: il nome.",
+            json!({ "type": "object", "properties": {
+                "file": { "type": "string" }
+            }, "required": ["file"] }),
+            true,
+        ),
+        (
+            "memory_check",
+            "Controlla la memoria: note simili o vecchie, collegamenti a pagine che non esistono, pagine isolate o sullo stesso argomento, file da leggere.",
+            json!({ "type": "object", "properties": {} }),
+            true,
+        ),
+        (
+            "memory_forget",
+            "Sposta nell'archivio della memoria una nota di MEMORIA.md (note: il suo testo) o una pagina (page: il titolo). Non cancella niente. Solo se l'utente l'ha approvato.",
+            json!({ "type": "object", "properties": {
+                "note": { "type": "string" },
+                "page": { "type": "string" }
+            } }),
+            true,
+        ),
+        (
             "todo_list",
             "Le attività di Microsoft To Do (da Outlook classico, che deve essere aperto), con id breve, scadenza, importanza, promemoria e nota, e i nomi delle liste. list: nome della lista (vuoto = tutte); done: true per vedere anche quelle fatte; limit: quante (predefinito 50).",
             json!({ "type": "object", "properties": {

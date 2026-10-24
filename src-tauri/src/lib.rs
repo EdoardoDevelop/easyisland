@@ -13,6 +13,7 @@ mod chat_log;
 mod claude_cli;
 mod clipboard;
 mod clipimage;
+mod brain;
 mod memory;
 mod webview_memory;
 mod context;
@@ -1448,6 +1449,35 @@ fn memory_open(folder: bool) -> Result<(), String> {
     Command::new("explorer").arg(&path).spawn().map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// The memory window (brain.rs): pages, notes, sources, days and their links, the timeline.
+#[tauri::command]
+async fn memory_graph() -> brain::Graph {
+    tauri::async_runtime::spawn_blocking(brain::graph).await.unwrap_or_else(|_| brain::graph())
+}
+
+/// The memory window's «Leggi adesso» and «Controlla»: a task (tasks.rs).
+#[tauri::command]
+fn memory_job(app: AppHandle, kind: String) -> Result<(), String> {
+    tasks::memory_job(&app, &kind)
+}
+
+/// The file behind a node of the memory window, in its editor; "inbox": the da-leggere folder.
+#[tauri::command]
+fn memory_node_open(id: String) -> Result<(), String> {
+    let path = if id == "inbox" {
+        brain::ensure_inbox()?
+    } else {
+        brain::node_file(&id).ok_or(i18n::t("Questo elemento non ha un file."))?
+    };
+    Command::new("explorer").arg(&path).spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
+/// Impostazioni → Chat → Memoria → «Mappa»: the memory window.
+#[tauri::command]
+fn memory_window_open(app: AppHandle) {
+    show_memory_window(&app);
+}
+
 /// The history list filtered by words (title and text).
 #[tauri::command]
 fn chat_history_search(query: String) -> Vec<chat_log::Summary> {
@@ -2340,14 +2370,14 @@ const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreen
 
 /// In a dev build the pages are served by Vite, so the second window needs the
 /// absolute dev URL; a bundled build resolves it inside the app bundle.
-fn settings_page_url(app: &AppHandle) -> WebviewUrl {
+fn page_url(app: &AppHandle, page: &str) -> WebviewUrl {
     #[cfg(dev)]
     if let Some(mut base) = app.config().build.dev_url.clone() {
-        base.set_path("/settings.html");
+        base.set_path(&format!("/{page}"));
         return WebviewUrl::External(base);
     }
     let _ = app;
-    WebviewUrl::App("settings.html".into())
+    WebviewUrl::App(page.into())
 }
 
 /// The settings window is created hidden at launch and only ever shown and
@@ -2355,7 +2385,7 @@ fn settings_page_url(app: &AppHandle) -> WebviewUrl {
 /// not — silently comes up blank in this app, so the window that works is the
 /// one that exists before the island's webview does.
 fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
-    let url = settings_page_url(app);
+    let url = page_url(app, "settings.html");
     let mut builder = WebviewWindowBuilder::new(app, "settings", url);
     if let Some(dir) = data_dir {
         builder = builder.data_directory(dir.to_path_buf());
@@ -2401,6 +2431,61 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
             }
         }
     });
+}
+
+pub const MEMORY_LABEL: &str = "memoria";
+
+/// The memory window (src/memory/), made hidden at launch for the same reason
+/// as the settings one, asleep until it is opened; closing it hides it.
+fn create_memory_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
+    let mut builder = WebviewWindowBuilder::new(app, MEMORY_LABEL, page_url(app, "memoria.html"));
+    if let Some(dir) = data_dir {
+        builder = builder.data_directory(dir.to_path_buf());
+    }
+    match builder
+        .additional_browser_args(BROWSER_ARGS)
+        .title(i18n::t("Memoria — EasyIsland"))
+        .theme(Some(tauri::Theme::Dark))
+        .inner_size(1180.0, 760.0)
+        .min_inner_size(720.0, 480.0)
+        .resizable(true)
+        .visible(false)
+        .center()
+        .build()
+    {
+        Ok(win) => {
+            let hidden = win.clone();
+            win.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = hidden.hide();
+                    webview_memory::set_asleep(&hidden, true);
+                }
+            });
+        }
+        Err(err) => log::line(format!("memory window failed: {err}")),
+    }
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(10));
+        if let Some(win) = handle.get_webview_window(MEMORY_LABEL) {
+            if !win.is_visible().unwrap_or(true) {
+                webview_memory::set_asleep(&win, true);
+            }
+        }
+    });
+}
+
+pub fn show_memory_window(app: &AppHandle) {
+    let Some(win) = app.get_webview_window(MEMORY_LABEL) else {
+        log::line("memory window missing");
+        return;
+    };
+    webview_memory::set_asleep(&win, false);
+    let _ = win.unminimize();
+    let _ = win.show();
+    let _ = win.set_focus();
+    let _ = win.emit("memory-refresh", ());
 }
 
 pub fn show_settings_window(app: &AppHandle) {
@@ -2760,6 +2845,10 @@ pub fn run() {
             memory_info,
             memory_note,
             memory_open,
+            memory_graph,
+            memory_job,
+            memory_node_open,
+            memory_window_open,
             chat_history_search,
             chat_history_pin,
             chat_rewind,
@@ -2931,6 +3020,7 @@ pub fn run() {
             }
             // Before the island's webview is ready: see create_settings_window.
             create_settings_window(&handle, webview_dir.as_deref());
+            create_memory_window(&handle, webview_dir.as_deref());
 
             if let Some(win) = island::window(&handle) {
                 island::make_non_activating(&win);

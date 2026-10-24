@@ -2,6 +2,11 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 23 ottobre 2026 — Abilità, motore per compito e motori aiutanti
+- Chiesto da Edoardo: agente programmabile, un motore per ogni compito e più motori in un compito. Nuovo `skills.rs` (procedure .md con nome, descrizione, motore preferito, strumenti; elenco davanti alla conversazione, `skill_read`, `skill_save`, comandi `/id` nella chat).
+- Ogni compito ha motore, modello e aiutanti; `task_delegate` affida un pezzo del lavoro a un aiutante (`Channel::Helper`). Rivista la decisione sui più motori insieme (`docs/decisioni.md`).
+- **Prove:** `cargo test --workspace` (test nuovi su abilità e aiutanti), `npm run build`, `npm run smoke`; dal vivo vedi la voce del Registro sopra o `docs/prove-dal-vivo.md`.
+
 ### 23 ottobre 2026 — Battito, ripetizioni, confronto con gli altri agenti
 - Chiesto da Edoardo: tutti i test possibili e studiare i concorrenti. Provati dal vivo compiti, abilità e aiutanti (un compito ha letto un'abilità e affidato un calcolo a un aiutante); prove tolte dopo con `release/pulisci-prove.cmd`.
 - Dallo studio (`docs/idee.md` → Confronto): Battito con `BATTITO.md` e `quiet`, `every:N` e `weekly:G:HH:MM`, procedure salvate come abilità a fine compito.

@@ -32,7 +32,7 @@ Studiati gli agenti personali più usati: quelli locali e open source con contro
 - **Abilità programmabili:** fatte il 23 ottobre 2026 (`docs/chat.md` → Abilità), insieme al motore per compito e ai motori aiutanti (`task_delegate`). **Resta:** abilità come comandi anche su Telegram; un'abilità che limita davvero gli strumenti (oggi `strumenti` è un'indicazione).
 - **Si muove per primo:** su ticket nuovo, fine chiamata 3CX, mail importante, scadenza di Notion prepara bozze e note da confermare con un clic (`docs/idee.md` → Proposte al momento giusto, Automazioni più intelligenti).
 - **Permessi per livelli:** letture libere; scritture reversibili (bozze, note, attività) consentite una volta per strumento; invio, approvazioni, cancellazioni e comandi sempre con un clic. Registro «Cosa ho fatto» con Annulla dove si può.
-- **Memoria per cliente e per progetto**, oltre a quella della chat (`memory.rs`).
+- **Memoria per cliente e per progetto**, oltre a quella della chat (`memory.rs`): in parte fatta con le pagine collegate (`brain.rs`, 24 ottobre 2026). Resta: cartella della memoria a scelta (per aprirla anche in un editor di note a grafo), testo dai PDF senza dipendenze.
 - **Più compiti insieme e sotto-agenti:** da valutare, perché `docs/decisioni.md` esclude per ora la squadra di agenti autonoma per tempi e costi.
 - **Riepilogo della giornata** fatto dall'agente (la voce «La giornata di oggi e domani» qui sotto diventa un compito ricorrente).
 

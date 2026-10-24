@@ -119,6 +119,10 @@ pub struct Task {
     /// with an empty diary the run is skipped.
     #[serde(default)]
     pub digest: bool,
+    /// A job on the memory (brain.rs) started from its window: "inbox" reads
+    /// da-leggere, "check" proposes the fixes the check found.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub memory: String,
     pub created: String,
     pub updated: String,
 }
@@ -342,6 +346,11 @@ fn new_id() -> String {
 
 /// A new task: queued now, or waiting for its hour.
 pub fn create(app: &AppHandle, title: &str, goal: &str, when: &str, engine: &str) -> Result<Task, String> {
+    create_with(app, title, goal, when, engine, |_| {})
+}
+
+/// `create`, with `set` applied before the queue can see it.
+fn create_with(app: &AppHandle, title: &str, goal: &str, when: &str, engine: &str, set: impl FnOnce(&mut Task)) -> Result<Task, String> {
     let goal = goal.trim();
     if goal.is_empty() {
         return Err(t("Scrivi l'obiettivo del compito.").into());
@@ -373,9 +382,12 @@ pub fn create(app: &AppHandle, title: &str, goal: &str, when: &str, engine: &str
         quiet: false,
         heartbeat: false,
         digest: false,
+        memory: String::new(),
         created: now.clone(),
         updated: now,
     };
+    let mut task = task;
+    set(&mut task);
     {
         let mut all = TASKS.lock().unwrap();
         all.push(task.clone());
@@ -550,6 +562,52 @@ pub fn set_digest(app: &AppHandle, on: bool) -> Result<(), String> {
     }
 }
 
+/// The memory window's «Leggi adesso» ("inbox") and «Controlla» ("check"):
+/// a task in the queue now, one of each at a time.
+pub fn memory_job(app: &AppHandle, kind: &str) -> Result<(), String> {
+    let (title, goal) = match kind {
+        "inbox" => {
+            if crate::brain::inbox_files().is_empty() {
+                return Err(t("La cartella da-leggere è vuota: mettici i file da far imparare.").into());
+            }
+            (t("Lettura delle fonti"), t("Leggi i file di da-leggere e scrivi quello che insegnano nelle pagine della memoria."))
+        }
+        "check" => (t("Controllo della memoria"), t("Controlla la memoria e proponi all'utente come sistemarla.")),
+        _ => return Err("kind".into()),
+    };
+    let busy = TASKS.lock().unwrap().iter().any(|t| t.memory == kind && matches!(t.state, TaskState::Queued | TaskState::Running | TaskState::Asking));
+    if busy {
+        return Err(t("C'è già un compito così in corso: lo segui in Agenti.").into());
+    }
+    create_with(app, title, goal, "", "", |t| t.memory = kind.to_string()).map(|_| ())
+}
+
+/// The part of the goal about da-leggere (the digest and «Leggi adesso»).
+fn inbox_section() -> Option<String> {
+    let files = crate::brain::inbox_files();
+    if files.is_empty() {
+        return None;
+    }
+    let list = files.iter().map(|f| f.name.clone()).collect::<Vec<_>>().join(", ");
+    Some(tf(
+        "[Fonti da leggere (la cartella da-leggere della memoria): {list}.
+Per ognuna: leggila con memory_inbox (file); poi scrivi o aggiorna le pagine della memoria con memory_page_write, una per argomento (una persona, un cliente, un progetto, un concetto), con il nome del file in source. Testo breve in Markdown, con [[Titolo]] verso le altre pagine e righe «- relazione: [[Altra pagina]]» per dire come sono legate (lavora con, cliente di, parte di, usa…). Prima guarda con memory_page (senza titolo: l'elenco) se la pagina o una simile esiste già, e aggiorna quella partendo dal suo testo e con la sua versione. Niente password o dati sensibili. Poi sposta la fonte con memory_inbox_done. Alla fine riassumi in task_done cosa hai imparato e quali pagine hai scritto.]",
+        &[("list", &list)],
+    ))
+}
+
+/// The part of the goal about the check (Sunday's digest and «Controlla»).
+fn check_section(found: &[String]) -> String {
+    let report = if found.is_empty() { t("niente di evidente").to_string() } else { found.join("
+") };
+    tf(
+        "[Controllo della memoria. Ecco cosa ha trovato EasyIsland:
+{report}
+Guarda anche se note e pagine si contraddicono o sono superate (memory_page, memory_search). Proponi le correzioni all'utente con task_ask, una per riga (unire due pagine, correggere o completare una pagina, archiviare una nota vecchia, creare una pagina che manca), con le opzioni «Fai tutto» e «Niente» (può anche scrivere quali). Poi fai solo quelle approvate: memory_page_write per scrivere (con la versione letta), memory_forget per archiviare (non si cancella niente), memory_note per una nota nuova. Se non c'è niente da proporre chiudi con task_done e quiet true; altrimenti con task_done e cosa hai sistemato.]",
+        &[("report", &report)],
+    )
+}
+
 /// The chat's engines (CHAT_ENGINES in src/core/state.ts).
 const KNOWN_ENGINES: &[&str] = &["subscription", "api", "opencode", "antigravity", "openrouter", "openai", "gemini", "ollama", "lmstudio"];
 
@@ -644,7 +702,7 @@ async fn runner(app: AppHandle) {
         };
         for id in &fired {
             // A heartbeat with nothing to watch costs nothing: skipped.
-            let empty_digest = get(id).is_some_and(|t| t.digest) && crate::memory::diary_today(1).is_empty();
+            let empty_digest = get(id).is_some_and(|t| t.digest) && crate::memory::diary_today(1).is_empty() && crate::brain::inbox_files().is_empty() && (day != 7 || crate::brain::check().is_empty());
             if empty_digest || (get(id).is_some_and(|t| t.heartbeat) && heartbeat_items().is_empty()) {
                 update(&app, id, |t| t.last_fired = now.clone());
                 continue;
@@ -703,12 +761,26 @@ fn prompt_with(task: &Task, first: bool, helpers: &[(String, String)]) -> String
             &[("list", &heartbeat_items().join("\n"))],
         )));
     }
-    if task.digest {
+    if task.digest && !crate::memory::diary_today(1).is_empty() {
         let notes = crate::memory::notes();
         text.push_str(&format!("\n\n{}", tf(
             "[Riordino della memoria. Il diario di oggi:\n{diary}\n\nNote già in memoria: {n}.\nScegli al massimo 5 cose che valgono anche nei prossimi giorni (preferenze dell'utente, clienti, persone, come si fanno le cose) e che non sono già in memoria; niente password o dati sensibili. Se non ce n'è nessuna chiudi con task_done e quiet true. Altrimenti mostrale con task_ask, una per riga, con le opzioni «Salva tutte» e «Nessuna» (l'utente può anche scrivere quali); poi salva quelle approvate con memory_note, una per volta, e chiudi con task_done.]",
             &[("diary", &crate::memory::diary_today(80).join("\n")), ("n", &notes.len().to_string())],
         )));
+    }
+    if task.digest || task.memory == "inbox" {
+        if let Some(inbox) = inbox_section() {
+            text.push_str(&format!("
+
+{inbox}"));
+        }
+    }
+    // The digest checks the memory on Sundays, when there is something to fix.
+    let sunday = now_key().1 == 7;
+    if task.memory == "check" || (task.digest && sunday && !crate::brain::check().is_empty()) {
+        text.push_str(&format!("
+
+{}", check_section(&crate::brain::check())));
     }
     if !helpers.is_empty() {
         let list = helpers.iter().map(|(id, name)| format!("{id} ({name})")).collect::<Vec<_>>().join(", ");
@@ -1228,7 +1300,7 @@ mod tests {
             id: "1".into(), title: "Resoconto".into(), goal: "Prepara il resoconto di Rossi".into(), engine: String::new(), model: String::new(), helpers: Vec::new(),
             state: TaskState::Running, plan: vec![Step { text: "Leggi i ticket".into(), done: true }, Step { text: "Scrivi la bozza".into(), done: false }],
             when: String::new(), last_fired: String::new(), question: "Che mese?".into(), answer: "Settembre".into(),
-            result: String::new(), last: String::new(), turns: 0, runs: 0, quiet: false, heartbeat: false, digest: false, created: String::new(), updated: String::new(),
+            result: String::new(), last: String::new(), turns: 0, runs: 0, quiet: false, heartbeat: false, digest: false, memory: String::new(), created: String::new(), updated: String::new(),
         };
         let first = prompt(&task, true);
         assert!(first.contains("Prepara il resoconto di Rossi") && first.contains("task_plan"));

@@ -398,6 +398,11 @@ export const Bridge = {
   taskLog: (id: string) => call<string>("task_log", { id }),
   memoryNote: (text: string) => callOrThrow<string>("memory_note", { text }),
   memoryOpen: (folder: boolean) => callOrThrow<void>("memory_open", { folder }),
+  /** The memory window (brain.rs): the graph, its jobs, a node's file, opening it. */
+  memoryGraph: () => call<import("../memory/data").MemGraph>("memory_graph"),
+  memoryJob: (kind: "inbox" | "check") => callOrThrow<void>("memory_job", { kind }),
+  memoryNodeOpen: (id: string) => callOrThrow<void>("memory_node_open", { id }),
+  memoryWindowOpen: () => call<void>("memory_window_open"),
   /** Ctrl+V in the chat: files copied in Explorer or a picture, into the inbox (null: plain text). */
   chatPaste: () => callOrThrow<DroppedFile | null>("chat_paste"),
   /** «Modifica» / «Rigenera»: the conversation goes back to these lines. */
@@ -620,6 +625,8 @@ export interface IntegrationUpdate {
 export interface MemoryInfo {
   notes: number;
   days: number;
+  pages: number;
+  inbox: number;
   folder: string;
 }
 
