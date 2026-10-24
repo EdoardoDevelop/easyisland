@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Profiles and notifications — EasyIsland Guide</title>
+<meta name="description" content="Profiles that switch by themselves, notification rules, "in front of a client" and settings backup.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/profili.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/profili.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html" class="on" aria-current="page">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Make it yours</div>
+<h1>Profiles and notifications</h1>
+<p class="lead">Profiles that switch by themselves, notification rules, "in front of a client" and settings backup.</p>
+<h2 id="profiles"><a class="anchor" href="#profiles">#</a>Profiles</h2>
+<p>Each profile has its own <strong>integrations, widgets, quick actions, position, look, sounds, theme, notification rules, chat instructions and connectors</strong>. You start with <strong>Work</strong>, <strong>Home</strong> and <strong>Focus</strong>; you can create more (for example one per client, with its own instructions for the chat).</p>
+<ul><li>Switch profile from Settings or from the notification area icon (<strong>Profile ▸</strong>), and also from the chat or an automation.</li><li><strong>Automatic switch</strong>: each profile can have rules on <strong>Wi-Fi network</strong>, <strong>days</strong> and <strong>time</strong> (e.g. <em>Work</em> on the office Wi-Fi, Mon–Fri 8–18). Every minute EasyIsland activates the first profile that matches; a choice made by hand stays until the situation changes.</li></ul>
+<h2 id="notifications"><a class="anchor" href="#notifications">#</a>Notifications</h2>
+<p><strong>Settings → Notifications</strong> decides how much the island makes itself heard, per profile:</p>
+<ul><li><strong>Everything</strong>, <strong>alerts only</strong>, or <strong>permission requests only</strong> (as <em>Focus</em> is).</li><li>Which events open the island, which play a sound, which stay as a dot in the menu.</li></ul>
+<h2 id="in-front-of-a-client"><a class="anchor" href="#in-front-of-a-client">#</a>In front of a client</h2>
+<p>The character steps aside when someone might see your screen:</p>
+<ul><li><strong>During calls</strong>: microphone or webcam in use by any app (Teams, Zoom, Meet, Webex…). It reads this from where Windows records who uses them.</li><li><strong>During remote support</strong>: someone is connected to this PC (Remote Desktop, Quick Assist, TeamViewer) or a program you add is open.</li><li><strong>By hand</strong>: notification area icon → <strong>In front of a client</strong>.</li></ul>
+<p>What it does: <strong>hides the character and mutes sounds</strong>, or just mutes. Permission requests still appear; 3CX calls show only the dot, without the caller's name. No name, title or text stays on screen.</p>
+<h2 id="backup-and-transfer"><a class="anchor" href="#backup-and-transfer">#</a>Backup and transfer</h2>
+<p><strong>Settings → Backup</strong>:</p>
+<ul><li><strong>Export…</strong> saves every setting, profiles included, to a JSON file in the Documents folder.</li><li><strong>Import…</strong> loads them on another PC.</li><li>Keys are never in the file: they must be entered again.</li></ul>
+<div class="callout nota"><p><strong>Note:</strong> memory, tasks, skills and custom integrations are files in <code>%APPDATA%\EasyIsland</code>: to bring them to another PC, copy that folder.</p></div>
+<div class="pager"><a class="prev" href="appearance.html"><small>Previous</small>Position and look</a><a class="next" href="agents.html"><small>Next</small>Coding agents</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/06-profiles.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#profiles">Profiles</a></li><li class="l2"><a href="#notifications">Notifications</a></li><li class="l2"><a href="#in-front-of-a-client">In front of a client</a></li><li class="l2"><a href="#backup-and-transfer">Backup and transfer</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

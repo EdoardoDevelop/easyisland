@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>First steps — EasyIsland Guide</title>
+<meta name="description" content="The five minutes after installing: agents, chat, look and the first integrations.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/primi-passi.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/primi-passi.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html" class="on" aria-current="page">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Getting started</div>
+<h1>First steps</h1>
+<p class="lead">The five minutes after installing: agents, chat, look and the first integrations.</p>
+<h2 id="1-open-settings"><a class="anchor" href="#1-open-settings">#</a>1. Open Settings</h2>
+<p>Right-click (or left-click) the EasyIsland icon in the notification area → <strong>Settings…</strong>. The window is split into pages in the menu on the left and remembers the last one you opened. At the bottom of the menu you'll find links to this guide, the website and GitHub.</p>
+<div class="callout suggerimento"><p><strong>Tip:</strong> Settings also open from the command line: <code>"%LOCALAPPDATA%\EasyIsland\easyisland.exe" --settings</code>.</p></div>
+<h2 id="2-connect-your-coding-agent"><a class="anchor" href="#2-connect-your-coding-agent">#</a>2. Connect your coding agent</h2>
+<p><strong>Settings → Coding agents → Claude Code → Install…</strong> You see the exact diff of what will change in its configuration file and the path of the dated backup: nothing is written until you confirm. Open a new Claude Code session and you'll see it in the island. The same goes for Codex, opencode, Antigravity, Gemini CLI, Cursor and Copilot: see <a href="agents.html">Coding agents</a>.</p>
+<h2 id="3-pick-the-chat-engine"><a class="anchor" href="#3-pick-the-chat-engine">#</a>3. Pick the chat engine</h2>
+<p><strong>Settings → Chat and AI engines</strong>: choose the default engine.</p>
+<ul><li><strong>Claude subscription</strong> uses your Pro or Max plan through Claude Code installed on the PC: no key, no extra cost.</li><li>Or an <strong>API key</strong> (Anthropic, OpenRouter, OpenAI, Gemini), <strong>opencode</strong>, <strong>Antigravity</strong> or a local model (<strong>Ollama</strong>, <strong>LM Studio</strong>).</li></ul>
+<p>The dot turns green when the engine is ready. Details in <a href="engines.html">AI engines</a>.</p>
+<h2 id="4-set-up-the-look"><a class="anchor" href="#4-set-up-the-look">#</a>4. Set up the look</h2>
+<p><strong>Settings → Look</strong>: screen corner, character, style (Windows 11 or Classic), sizes, behaviour when closed. Or simply drag the character where you want it. See <a href="appearance.html">Position and look</a>.</p>
+<h2 id="5-turn-on-the-integrations-you-use"><a class="anchor" href="#5-turn-on-the-integrations-you-use">#</a>5. Turn on the integrations you use</h2>
+<p><strong>Settings → Integrations</strong>: turn on what you need (Outlook, Network, Weather, Clipboard, 3CX, Zammad, Notion…). They appear in the island's menu and in the Overview. See <a href="integrations.html">Integrations</a>.</p>
+<h2 id="6-try-it"><a class="anchor" href="#6-try-it">#</a>6. Try it</h2>
+<ul><li>Hover over the character: the island opens.</li><li><kbd>Ctrl</kbd>+<kbd>Space</kbd> opens the island from any app.</li><li>Copy some text and press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>K</kbd>: the chat opens with the text attached.</li><li>Drag a file onto the island: the character turns into a box and swallows it.</li><li>Write in the chat "every day at 9 open Outlook": an automation is born, after your yes.</li></ul>
+<div class="pager"><a class="prev" href="installation.html"><small>Previous</small>Installation</a><a class="next" href="island.html"><small>Next</small>The island</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/03-getting-started.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#1-open-settings">1. Open Settings</a></li><li class="l2"><a href="#2-connect-your-coding-agent">2. Connect your coding agent</a></li><li class="l2"><a href="#3-pick-the-chat-engine">3. Pick the chat engine</a></li><li class="l2"><a href="#4-set-up-the-look">4. Set up the look</a></li><li class="l2"><a href="#5-turn-on-the-integrations-you-use">5. Turn on the integrations you use</a></li><li class="l2"><a href="#6-try-it">6. Try it</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

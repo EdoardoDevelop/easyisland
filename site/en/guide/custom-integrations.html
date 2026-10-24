@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Custom integrations — EasyIsland Guide</title>
+<meta name="description" content="Ask the chat for the feature you need — a form, a dashboard, a link to an API — and it becomes an entry in the island. No code to write.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/integrazioni-personali.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/integrazioni-personali.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html" class="on" aria-current="page">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Connecting services</div>
+<h1>Custom integrations</h1>
+<p class="lead">Ask the chat for the feature you need — a form, a dashboard, a link to an API — and it becomes an entry in the island. No code to write.</p>
+<h2 id="creating-one"><a class="anchor" href="#creating-one">#</a>Creating one</h2>
+<p>Write in the chat what you need, for example:</p>
+<ul><li>"create an integration for quotes, with client, product rows with quantity and price, 22 % VAT and total, that makes the PDF";</li><li>"I want an interventions log with client, date, hours, type and notes, and the month's total hours";</li><li>"make me a dashboard that reads my servers' status from the Uptime Kuma API every 10 minutes and alerts me if one is down";</li><li>"a button that sends the form to my n8n webhook".</li></ul>
+<p>The chat proposes useful fields, formulas and actions, asks what isn't clear and shows you <strong>the preview of the description</strong> with <strong>Allow / Deny</strong>. Confirming, the integration appears in the island's menu with its icon. To change it just ask ("add a discount field", "make the total bold"): same preview, same confirmation.</p>
+<div class="callout importante"><p><strong>Important:</strong> a custom integration is a <strong>description</strong>, never code: its actions are a fixed, safe list.</p></div>
+<p><img src="../../media/en/custom.png" alt="A custom integration" loading="lazy"></p>
+<h2 id="what-it-can-have"><a class="anchor" href="#what-it-can-have">#</a>What it can have</h2>
+<h3 id="fields"><a class="anchor" href="#fields">#</a>Fields</h3>
+<p>Text, long text, number, <strong>amount</strong>, date, checkbox, choice and multiple choice, email, phone, link, <strong>file</strong> (from the Tray), <strong>table of rows</strong> (with computed columns too), <strong>computed</strong> (a formula), automatic <strong>numbering</strong> (e.g. <code>N-2026-0001</code>), <strong>link</strong> to another integration (e.g. the quote picking a client from the "Clients" records).</p>
+<ul><li><strong>Shown only if</strong>: a field visible only when a formula is true (e.g. "IBAN" only if payment = Bank transfer).</li><li><strong>Total in the list</strong>: summed or counted in the records list.</li></ul>
+<h3 id="formulas"><a class="anchor" href="#formulas">#</a>Formulas</h3>
+<p>A simple language, in Italian or English: <code>+ - * / %</code>, comparisons, <code>and</code> / <code>or</code> / <code>not</code>, <code>if(condition; yes; no)</code>, <code>sum(quantity*price)</code> over rows, <code>avg</code>, <code>count</code>, <code>round</code>, <code>min</code>, <code>max</code>, dates (<code>today()</code>, <code>days(from; to)</code>, <code>adddays(date; 30)</code>, year, month), text (<code>upper</code>, <code>concat</code>, <code>contains</code>, <code>len</code>). Never code executed.</p>
+<h3 id="document-template"><a class="anchor" href="#document-template">#</a>Document template</h3>
+<p>A Markdown document with <code>{{fields}}</code>, repeated rows (<code>{{#rows}} … {{/rows}}</code>) and the date. <strong>Document</strong> produces it as <strong>printable HTML</strong> (from there "Print → PDF") or Markdown, in the Tray.</p>
+<h3 id="actions-the-buttons"><a class="anchor" href="#actions-the-buttons">#</a>Actions (the buttons)</h3>
+<div class="table"><table><thead><tr><th>Action</th><th>What it does</th></tr></thead><tbody><tr><td><strong>Save</strong></td><td>Saves the record (list with search, open, duplicate, delete)</td></tr><tr><td><strong>Document</strong></td><td>The filled template, in the Tray</td></tr><tr><td><strong>Copy</strong></td><td>The text to the clipboard</td></tr><tr><td><strong>Ask the AI</strong></td><td>A question to the chat with the fields</td></tr><tr><td><strong>Fill with AI</strong></td><td>Paste a mail or a text and the AI fills the fields</td></tr><tr><td><strong>Link</strong></td><td>Opens an address with the fields</td></tr><tr><td><strong>Quick action</strong></td><td>Runs one of your actions</td></tr><tr><td><strong>Notion</strong></td><td>Adds the record to a database</td></tr><tr><td><strong>Export CSV</strong></td><td>All records, for Excel</td></tr><tr><td><strong>Call a service</strong></td><td>GET/POST/PUT/PATCH/DELETE to one of your services' API, with the fields in the body; the response can fill fields and show in a message</td></tr><tr><td><strong>Task</strong></td><td>Starts a <a href="tasks.html">task</a> with the fields in the goal</td></tr><tr><td><strong>Notice</strong></td><td>A notice in the island</td></tr><tr><td><strong>Sequence</strong></td><td>Several actions in a row (e.g. save, then call the service, then make the document)</td></tr></tbody></table></div>
+<h3 id="data-sources-dashboards"><a class="anchor" href="#data-sources-dashboards">#</a>Data sources: dashboards</h3>
+<p>A <strong>source</strong> reads a service every N minutes (or when you open the tab) and shows <strong>values</strong> and <strong>lists</strong>. An <strong>alert</strong> is a formula on each item: when true, the island alerts you, once per item, and the first line goes to the Overview. An integration can also be <strong>just a dashboard</strong>, with no form.</p>
+<p><img src="../../media/en/custom-dati.png" alt="A dashboard" loading="lazy"></p>
+<h3 id="keys"><a class="anchor" href="#keys">#</a>Keys</h3>
+<p>Services' keys and tokens are written as <code>{{secret:name}}</code> and entered in <strong>Settings → Integrations → Made by you</strong>: they go into the Credential Manager, only EasyIsland reads them at call time and <strong>neither the island nor the chat ever sees them</strong>.</p>
+<h2 id="from-the-chat-and-tasks"><a class="anchor" href="#from-the-chat-and-tasks">#</a>From the chat and tasks</h2>
+<p>The chat and tasks can <strong>read records</strong>, <strong>add them</strong> (with Allow / Deny), <strong>read sources</strong> and <strong>call the actions</strong> of your integrations: "how many quotes did I make in October?", "log a 2-hour intervention for Rossi", "check the servers and tell me if anything's wrong".</p>
+<h2 id="managing-them"><a class="anchor" href="#managing-them">#</a>Managing them</h2>
+<p><strong>Settings → Integrations → Made by you</strong>: show or hide in the menu, edit the JSON description, enter keys, delete. Files live in <code>%APPDATA%\EasyIsland\integrazioni</code> (description and records, readable).</p>
+<h2 id="limits-on-purpose"><a class="anchor" href="#limits-on-purpose">#</a>Limits, on purpose</h2>
+<ul><li><strong>No code</strong>: an action does only what its kind provides.</li><li>Calls go <strong>only to the services written in the description</strong> you approved.</li><li><strong>No data "pushed" by services</strong> (incoming webhooks), because that would need an open port on the PC: a source read every N minutes is used instead.</li><li>It works with the PC on.</li></ul>
+<div class="pager"><a class="prev" href="remote-support.html"><small>Previous</small>Remote support</a><a class="next" href="widgets.html"><small>Next</small>Widgets</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/22-custom-integrations.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#creating-one">Creating one</a></li><li class="l2"><a href="#what-it-can-have">What it can have</a></li><li class="l3"><a href="#fields">Fields</a></li><li class="l3"><a href="#formulas">Formulas</a></li><li class="l3"><a href="#document-template">Document template</a></li><li class="l3"><a href="#actions-the-buttons">Actions (the buttons)</a></li><li class="l3"><a href="#data-sources-dashboards">Data sources: dashboards</a></li><li class="l3"><a href="#keys">Keys</a></li><li class="l2"><a href="#from-the-chat-and-tasks">From the chat and tasks</a></li><li class="l2"><a href="#managing-them">Managing them</a></li><li class="l2"><a href="#limits-on-purpose">Limits, on purpose</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

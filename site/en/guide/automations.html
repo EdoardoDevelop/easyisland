@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automations — EasyIsland Guide</title>
+<meta name="description" content=""When… if… then…" rules, created in Settings, in plain words in the chat or suggested from your habits.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/automazioni.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/automazioni.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html" class="on" aria-current="page">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Getting things done</div>
+<h1>Automations</h1>
+<p class="lead">"When… if… then…" rules, created in Settings, in plain words in the chat or suggested from your habits.</p>
+<p><img src="../../media/en/settings-automations.png" alt="Settings, Automations page" loading="lazy"></p>
+<h2 id="when"><a class="anchor" href="#when">#</a>When</h2>
+<div class="table"><table><thead><tr><th>Event</th><th>Example</th></tr></thead><tbody><tr><td>At a time, on chosen days</td><td>at 9 on weekdays open Outlook and the management software</td></tr><tr><td>At PC startup</td><td>after 30 seconds switch to the Work profile</td></tr><tr><td>On unlocking the PC</td><td>a notice with the day's reminder</td></tr><tr><td>Back after N minutes without keyboard and mouse</td><td>reopen the work apps</td></tr><tr><td>Connecting to a Wi-Fi network</td><td>at the office open the shared folder</td></tr><tr><td>When a program starts</td><td>when you open Teams run "Mute"</td></tr><tr><td>A program comes to the foreground</td><td>in Excel show the shortcuts notice</td></tr><tr><td>Plugging in a USB stick or a disk</td><td>run the backup script</td></tr><tr><td>A file arrives in a folder</td><td>tell me about new scans</td></tr><tr><td>A download finishes</td><td>open the folder of downloaded PDFs</td></tr><tr><td>An integration or widget reports a problem or news</td><td>if the client's site goes down run the check script</td></tr><tr><td>An incoming 3CX call</td><td>open the client's record</td></tr><tr><td>A Teams meeting starts or ends</td><td>Focus profile during the meeting</td></tr><tr><td>An agent finished or waits for a permission</td><td>notice when Claude Code finishes</td></tr><tr><td>A dev server starts</td><td>open the address in the browser</td></tr></tbody></table></div>
+<p><strong>Only if</strong> (filter): for folders, downloads, integrations, calls and agents, words or extensions (<code>.pdf</code>) the event must contain.</p>
+<h2 id="if"><a class="anchor" href="#if">#</a>If</h2>
+<p>Conditions, all true (each can become "if not"): time window and days (also across midnight), Wi-Fi network, program open or in the foreground, on battery or under a percentage, away for N minutes, in a meeting (microphone or webcam in use), in front of a client.</p>
+<p><strong>Repeat</strong>: every time, at most every N minutes, or once a day.</p>
+<h2 id="then"><a class="anchor" href="#then">#</a>Then</h2>
+<p>A sequence of steps:</p>
+<ul><li>run a <strong>quick action</strong>;</li><li>show a <strong>notice</strong> in the island;</li><li><strong>switch profile</strong>;</li><li>open a <strong>program</strong>, a <strong>folder</strong> or a <strong>link</strong>;</li><li><strong>ask the chat</strong> (it opens in the island with the answer);</li><li>start a <strong>task</strong>.</li></ul>
+<p>In the steps you can use the event's data: <code>{file}</code>, <code>{percorso}</code>, <code>{cartella}</code>, <code>{rete}</code>, <code>{programma}</code>, <code>{unità}</code>, <code>{testo}</code>, <code>{fonte}</code>, <code>{chiamante}</code>, <code>{numero}</code>, <code>{agente}</code>, <code>{progetto}</code>, <code>{porta}</code>, <code>{link}</code>, <code>{minuti}</code>, and always <code>{ora}</code> and <code>{data}</code>. The editor lists the ones available for the chosen event. For safety they are encoded in links, a single argument in a program's arguments, and never enter scripts.</p>
+<p>Each automation can be limited to a profile and tested right away with <strong>Try now</strong>. The <strong>Log</strong> shows the latest runs. Automations start without asking, because you created them, except scripts with "Ask for confirmation" and questions to the chat. With EasyIsland paused nothing starts.</p>
+<h2 id="in-plain-words-in-the-chat"><a class="anchor" href="#in-plain-words-in-the-chat">#</a>In plain words, in the chat</h2>
+<p>"Every weekday at 9 open Outlook and the management software", "when I plug in a USB stick run the backup", "if the client's site goes down tell me": the chat prepares the automation and the island shows it to you (When… / Then…) with <strong>Allow / Deny</strong>. Confirming creates and turns it on.</p>
+<h2 id="suggestions-from-your-habits"><a class="anchor" href="#suggestions-from-your-habits">#</a>Suggestions from your habits</h2>
+<p>If you turn it on (<strong>Automations → Suggest automations</strong>, off by default), EasyIsland notes when you open programs (only the name, never titles or contents), when you start or unlock the PC, the Wi-Fi, USB sticks, quick actions and profiles chosen by hand. Everything stays on this PC, 45 days at most, and is erased with one click.</p>
+<p>After a few weeks it suggests, at most once a day:</p>
+<ul><li><em>"Shall I open Outlook at 8:50?"</em>, because you always open it at that time on weekdays;</li><li>sequences: <em>"When you open the management software, shall I open Excel too?"</em>;</li><li>turning off an automation you no longer use.</li></ul>
+<p>Answer <strong>Create</strong>, <strong>Not now</strong> (it asks again in a month) or <strong>No, never</strong> (you'll find it among the <em>Rejected suggestions</em>). In <strong>Programs not to watch</strong> you list the ones to ignore.</p>
+<p><img src="../../media/en/suggestion.png" alt="A suggestion from your habits" loading="lazy"></p>
+<div class="pager"><a class="prev" href="actions.html"><small>Previous</small>Quick actions and shortcuts</a><a class="next" href="files-and-screen.html"><small>Next</small>Files and screen</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/14-automations.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#when">When</a></li><li class="l2"><a href="#if">If</a></li><li class="l2"><a href="#then">Then</a></li><li class="l2"><a href="#in-plain-words-in-the-chat">In plain words, in the chat</a></li><li class="l2"><a href="#suggestions-from-your-habits">Suggestions from your habits</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terminal mode and tools — EasyIsland Guide</title>
+<meta name="description" content="What the AI can do on your PC, with which permissions, and how to work like in a terminal.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/strumenti-ai.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/strumenti-ai.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html" class="on" aria-current="page">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Artificial intelligence</div>
+<h1>Terminal mode and tools</h1>
+<p class="lead">What the AI can do on your PC, with which permissions, and how to work like in a terminal.</p>
+<h2 id="easyisland-s-tools"><a class="anchor" href="#easyisland-s-tools">#</a>EasyIsland's tools</h2>
+<p>With <strong>Settings → Chat → Can use the PC</strong> on (default), engines with tools (Claude subscription, Anthropic API key, opencode, Antigravity, and the others with terminal mode) can act on the PC <strong>through EasyIsland</strong>:</p>
+<div class="table"><table><thead><tr><th>Area</th><th>What it can do</th><th>Asks first?</th></tr></thead><tbody><tr><td>PC and apps</td><td>Open programs, folders and links; know the foreground app</td><td>Yes</td></tr><tr><td>Quick actions</td><td>List and run them (scripts too, reading their output)</td><td>Yes, to run</td></tr><tr><td>Status</td><td>Read PC, network, weather, mail, tickets, integrations</td><td>No</td></tr><tr><td>Clipboard</td><td>Read and fill the clipboard</td><td>Reading no, writing yes</td></tr><tr><td>Music</td><td>Player status and controls</td><td>Controls yes</td></tr><tr><td>Island</td><td>Show a notice</td><td>No</td></tr><tr><td>Files</td><td>The Tray, the working folder (read), moving files into it</td><td>Moving yes</td></tr><tr><td>Profiles and settings</td><td>Read settings, change one, switch profile</td><td>Changing yes</td></tr><tr><td>Automations</td><td>List, create, turn on and off</td><td>Creating and changing yes</td></tr><tr><td>Notion</td><td>Map, search, reading, database rows; add, change, delete rows</td><td>Writing yes; deleting only after your yes in chat</td></tr><tr><td>Microsoft To Do</td><td>List, add and update tasks (classic Outlook)</td><td>Writing yes</td></tr><tr><td>Remote access</td><td>Commands on the client's PC linked to the chat</td><td>Always, one by one</td></tr><tr><td>Memory</td><td>Search, save notes, write pages, read sources, check</td><td>No (writes only to the memory, never deletes)</td></tr><tr><td>Tasks and skills</td><td>Create tasks, list them; read and save skills</td><td>Saving a skill yes</td></tr><tr><td>Custom integrations</td><td>Create, edit, read records and sources, add records, call their actions</td><td>Creating, writing and calling yes</td></tr></tbody></table></div>
+<p>Anything that opens, runs or changes something asks <strong>Allow / Deny</strong> in the island, with a clear description. Rules that never change:</p>
+<ul><li>no tool runs <strong>arbitrary commands on this PC</strong> (that's what terminal mode is for, with a permission for each command);</li><li>no tool <strong>sends email</strong>;</li><li>no tool <strong>deletes</strong>, except a Notion row to its trash after your yes in chat.</li></ul>
+<p>You can ask in plain words: "open Outlook and the suppliers' portal", "how is the PC doing?", "run the backup", "add to To Do: call Rossi tomorrow", "how much did I spend in October?" (from Notion).</p>
+<h2 id="recipes-it-learns-by-use"><a class="anchor" href="#recipes-it-learns-by-use">#</a>Recipes: it learns by use</h2>
+<p>After a successful answer, EasyIsland remembers <strong>which tools</strong> were needed for that kind of question. On a similar question the chat goes straight to the right tools: faster and with fewer tokens. In <strong>Settings → Chat → Recipes</strong> you see how many there are and forget them with one click.</p>
+<h2 id="terminal-mode"><a class="anchor" href="#terminal-mode">#</a>Terminal mode</h2>
+<p><strong>Settings → Chat → Terminal mode</strong>, together with the <strong>working folder</strong>: the chat works like Claude Code or opencode in a terminal.</p>
+<ul><li><strong>Claude Code</strong> uses your tools, MCP servers, plugins, <code>CLAUDE.md</code>, skills, permission rules and hooks, in the chosen folder. Every permission question reaches the island.</li><li><strong>opencode</strong> works in the chosen folder; "Always" applies to the commands and changes it proposes a rule for.</li><li><strong>The other engines</strong> (Anthropic API, OpenAI, OpenRouter, Gemini, Ollama, LM Studio) go through opencode with the same provider and model.</li></ul>
+<p>Every command appears <strong>in full</strong> on the card before it runs.</p>
+<h3 id="automatic"><a class="anchor" href="#automatic">#</a>⚡ Automatic</h3>
+<p>The ⚡ button in the chat header (terminal mode only) applies <strong>to the current conversation</strong> and turns off with "New chat". When on, the chat has an amber border.</p>
+<ul><li><strong>Claude Code</strong>: its automatic mode approves normal actions and blocks risky ones.</li><li><strong>opencode and the others</strong>: file changes, web and non-sensitive commands go through by themselves. Sensitive commands stay on the card (deleting, <code>git push</code> and <code>reset --hard</code>, installing, registry, services, network, processes, downloaded code), as do folders outside the working one and connector tools that delete.</li></ul>
+<p>The mode that accepts everything without any check <strong>doesn't exist</strong> in EasyIsland, on purpose.</p>
+<h2 id="the-working-folder"><a class="anchor" href="#the-working-folder">#</a>The working folder</h2>
+<p>A folder on the PC chosen by you (in <strong>Files and screen</strong> or Settings → Chat) that the chat <strong>reads without asking</strong> and into which it can move files from the Tray. With terminal mode it's the folder it works in. From Telegram: <code>/cartella</code>. Details in <a href="files-and-screen.html#working-folder">Files and screen</a>.</p>
+<h2 id="settings-changed-from-the-chat"><a class="anchor" href="#settings-changed-from-the-chat">#</a>Settings changed from the chat</h2>
+<p>"Put the character at the bottom right", "turn off the weather", "use opencode as the engine": the chat reads the settings and changes one at a time, with Allow / Deny, saving like the Settings window does.</p>
+<div class="pager"><a class="prev" href="engines.html"><small>Previous</small>AI engines</a><a class="next" href="memory.html"><small>Next</small>Memory and second brain</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/10-ai-tools.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#easyisland-s-tools">EasyIsland's tools</a></li><li class="l2"><a href="#recipes-it-learns-by-use">Recipes: it learns by use</a></li><li class="l2"><a href="#terminal-mode">Terminal mode</a></li><li class="l3"><a href="#automatic">⚡ Automatic</a></li><li class="l2"><a href="#the-working-folder">The working folder</a></li><li class="l2"><a href="#settings-changed-from-the-chat">Settings changed from the chat</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

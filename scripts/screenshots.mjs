@@ -69,6 +69,8 @@ const SHOTS = {
   "memoria-timeline": { url: "/memoria.html?tab=timeline", page: { w: 1180, h: 760 } },
   // The guide of the homepage (site/guida/, node scripts/guida.mjs).
   guida: { url: "/site/guida/memoria.html", page: { w: 1280, h: 800 } },
+  "guide-en": { url: "/site/en/guide/tasks.html", page: { w: 1280, h: 800 } },
+  "home-en": { url: "/site/en/index.html", page: { w: 1280, h: 800 } },
 };
 
 const EDGE = [

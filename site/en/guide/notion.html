@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notion — EasyIsland Guide</title>
+<meta name="description" content="Notion tasks, notes and pages in the island, an editable mini Notion and the chat reading and writing your databases.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/notion.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/notion.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html" class="on" aria-current="page">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Connecting services</div>
+<h1>Notion</h1>
+<p class="lead">Notion tasks, notes and pages in the island, an editable mini Notion and the chat reading and writing your databases.</p>
+<h2 id="connecting"><a class="anchor" href="#connecting">#</a>Connecting</h2>
+<ol><li>On notion.so → <strong>Settings → Connections → Develop your own integrations</strong> create an <strong>internal integration</strong> allowed to read, update and insert content.</li><li>Copy the token into <strong>Settings → Integrations → Notion</strong>.</li><li>In Notion, on the pages and databases you want to use, <strong>Connections → add</strong> your integration.</li></ol>
+<p>Settings suggest suitable databases by themselves: for <strong>tasks</strong> those with a date and a "done", for <strong>notes</strong> those named like notes, inbox, ideas or journal. Choosing the tasks database creates the Today, Week and All views.</p>
+<h2 id="tasks"><a class="anchor" href="#tasks">#</a>Tasks</h2>
+<p>The card shows tasks not done, overdue and today's first. The circle marks them done.</p>
+<ul><li><strong>Views</strong> (up to 6): a period (all, overdue and today, until Sunday, until month end, the next N days), the wanted values for selects, statuses and relations, sorting by due date or priority. Switch with one click.</li><li><strong>+ Task</strong>: title and due date (Today, Tomorrow, Monday or none), with the values of the view in use.</li><li><strong>Postpone to tomorrow</strong>, on hover.</li><li><strong>Alerts</strong>: a few minutes before a task with a time and for <strong>new comments</strong> on pinned pages and today's tasks. A click opens the Notion app.</li><li><strong>Morning recap</strong>: today's tasks in the morning card.</li></ul>
+<h2 id="notes-and-pages"><a class="anchor" href="#notes-and-pages">#</a>Notes and pages</h2>
+<ul><li><strong>+ Note</strong>: on a page it adds a paragraph with date and time; in a database a row.</li><li>From selected text in any app (<kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd>): <strong>Note in Notion</strong> and <strong>Task in Notion</strong>.</li><li><strong>Pages</strong> pinned as tiles.</li><li><strong>Search</strong> in the card and in the island's top field; <strong>Ask the chat</strong> attaches title and text.</li></ul>
+<h2 id="mini-notion-in-the-island"><a class="anchor" href="#mini-notion-in-the-island">#</a>Mini Notion in the island</h2>
+<p>A tile, a search result or "all" tasks open <strong>inside the island</strong>:</p>
+<ul><li><strong>pages</strong> are drawn like in Notion (headings, lists, checkboxes, toggles, callouts, quotes, code, tables, columns, sub-pages) and <strong>edited in place</strong>: bold, italic, underline, strikethrough, code; <kbd>Enter</kbd> creates the block below, <code>/</code> and <strong>+</strong> pick the kind;</li><li><strong>databases</strong> have <strong>Table</strong>, <strong>Board</strong> (drag cards between columns), <strong>List</strong> and <strong>Gallery</strong>; statuses, selects, dates, checkboxes and texts can be changed;</li><li><strong>Delete</strong> wants a second click on "Sure?" and sends to <strong>Notion's trash</strong>, where it can be recovered;</li><li>↗ opens in the Notion app.</li></ul>
+<h2 id="notion-in-the-chat"><a class="anchor" href="#notion-in-the-chat">#</a>Notion in the chat</h2>
+<p>Every engine with tools works on your Notion through EasyIsland's connection:</p>
+<ul><li>a <strong>map</strong> of the databases (properties, options, relations) encrypted on the PC, refreshed every 6 hours or with <strong>Sync</strong>, so the chat doesn't waste time figuring out the structure;</li><li><strong>search, read, query</strong> databases (with totals already computed, also split by category);</li><li><strong>add and change rows</strong>, with values checked against the properties (never new options from a typo), with Allow / Deny;</li><li><strong>delete a row</strong> to the trash, only after your yes in the chat.</li></ul>
+<p>Examples: "how much did I spend on fuel in October?", "add a 2-hour intervention for Rossi today", "which tasks are due this week?".</p>
+<div class="pager"><a class="prev" href="3cx.html"><small>Previous</small>3CX</a><a class="next" href="microsoft.html"><small>Next</small>Microsoft: Outlook, Teams, To Do</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/18-notion.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#connecting">Connecting</a></li><li class="l2"><a href="#tasks">Tasks</a></li><li class="l2"><a href="#notes-and-pages">Notes and pages</a></li><li class="l2"><a href="#mini-notion-in-the-island">Mini Notion in the island</a></li><li class="l2"><a href="#notion-in-the-chat">Notion in the chat</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

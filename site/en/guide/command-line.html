@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Command line and scripts — EasyIsland Guide</title>
+<meta name="description" content="Messages on the island from any script, the hook relay and the other tools that connect.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/riga-di-comando.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/riga-di-comando.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html" class="on" aria-current="page">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Reference</div>
+<h1>Command line and scripts</h1>
+<p class="lead">Messages on the island from any script, the hook relay and the other tools that connect.</p>
+<h2 id="messages-from-scripts"><a class="anchor" href="#messages-from-scripts">#</a>Messages from scripts</h2>
+<p>Any script, scheduled task, n8n flow or program can show a message on the island:</p>
+<pre data-lang="powershell"><code>&amp; "$env:LOCALAPPDATA\EasyIsland\bin\easyisland-hook.exe" notify "Backup" "Done in 4 minutes" --stato ok</code></pre>
+<div class="table"><table><thead><tr><th>Option</th><th>Meaning</th></tr></thead><tbody><tr><td><code>--stato</code></td><td><code>ok</code>, <code>avviso</code> (warning), <code>errore</code> (error) or <code>info</code> (colour and sound)</td></tr><tr><td><code>--apri https://…</code></td><td>Adds a button with a link</td></tr><tr><td><code>--help</code></td><td>The help</td></tr></tbody></table></div>
+<p>It exits with <strong>0</strong> if the message arrived and <strong>2</strong> if EasyIsland isn't running, so a script never hangs. The profile's notification rules apply. In <strong>Settings → Notifications</strong> there's the ready-to-copy command and <strong>Try</strong>.</p>
+<h2 id="opening-settings"><a class="anchor" href="#opening-settings">#</a>Opening Settings</h2>
+<pre data-lang="powershell"><code>&amp; "$env:LOCALAPPDATA\EasyIsland\easyisland.exe" --settings</code></pre>
+<h2 id="the-agents-relay"><a class="anchor" href="#the-agents-relay">#</a>The agents' relay</h2>
+<p><code>easyisland-hook.exe</code> is the bridge between agents and the app. Agents call it with the event name and the event JSON on standard input (<code>SessionStart</code>, <code>UserPromptSubmit</code>, <code>PreToolUse</code>, <code>PostToolUse</code>, <code>PermissionRequest</code>, <code>Notification</code>, <code>Stop</code>, <code>SessionEnd</code>…). It has 300 ms to reach the app and exits with 0 if it can't.</p>
+<h3 id="your-own-tool-in-agents"><a class="anchor" href="#your-own-tool-in-agents">#</a>Your own tool in Agents</h3>
+<p>Any program can appear in the Agents tab by sending the same events as Claude Code's hooks with an extra field:</p>
+<pre data-lang="json"><code>{
+  "hook_event_name": "SessionStart",
+  "session_id": "bot-42",
+  "cwd": "C:\\projects\\report",
+  "easyisland_agent": { "id": "my-bot", "name": "My bot", "color": "#22C55E" }
+}</code></pre>
+<pre data-lang="powershell"><code>$json | &amp; "$env:LOCALAPPDATA\EasyIsland\bin\easyisland-hook.exe" SessionStart</code></pre>
+<h2 id="easyisland-s-mcp-server"><a class="anchor" href="#easyisland-s-mcp-server">#</a>EasyIsland's MCP server</h2>
+<p><code>easyisland-hook.exe mcp</code> is an MCP server (stdio) with EasyIsland's tools. The chat uses it by itself; for Claude Code outside the app add it from <strong>Settings → Coding agents → EasyIsland's tools in Claude Code</strong> (equivalent to <code>claude mcp add --scope user easyisland -- …\easyisland-hook.exe mcp</code>). Outside the app it also has <code>show_card</code> (a card with buttons that waits for your choice) and <code>add_to_tray</code>.</p>
+<h2 id="the-log"><a class="anchor" href="#the-log">#</a>The log</h2>
+<p><code>%LOCALAPPDATA%\EasyIsland\easyisland.log</code>: startup, hook events, permission decisions, chat turn and tool timings, check problems. It stays on your PC.</p>
+<div class="pager"><a class="prev" href="privacy.html"><small>Previous</small>Privacy and security</a><a class="next" href="troubleshooting.html"><small>Next</small>Troubleshooting</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/26-command-line.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#messages-from-scripts">Messages from scripts</a></li><li class="l2"><a href="#opening-settings">Opening Settings</a></li><li class="l2"><a href="#the-agents-relay">The agents' relay</a></li><li class="l3"><a href="#your-own-tool-in-agents">Your own tool in Agents</a></li><li class="l2"><a href="#easyisland-s-mcp-server">EasyIsland's MCP server</a></li><li class="l2"><a href="#the-log">The log</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>
