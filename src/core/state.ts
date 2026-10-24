@@ -723,7 +723,7 @@ export interface AutomationCondition {
 
 /** One thing an automation does. */
 export interface AutomationStep {
-  kind: "quick" | "notice" | "profile" | "app" | "url" | "chat" | "task";
+  kind: "quick" | "notice" | "profile" | "app" | "url" | "chat" | "task" | "wait" | "confirm";
   /** quick: action id · profile: profile id. */
   id: string;
   title: string;
@@ -732,6 +732,8 @@ export interface AutomationStep {
   target: string;
   args: string;
   url: string;
+  /** wait: minutes. */
+  minutes?: number;
 }
 
 /** A window chosen in File e schermo (window_drop.rs): its HWND as a number. */
@@ -765,6 +767,8 @@ export interface Automation {
   steps: AutomationStep[];
   /** A notice every time it runs (errors always show). */
   notify: boolean;
+  /** Go on after a step that failed (off: the rest is skipped). */
+  keepGoing?: boolean;
 }
 
 export interface WidgetDef {
