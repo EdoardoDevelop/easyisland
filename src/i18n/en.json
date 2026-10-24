@@ -2997,5 +2997,10 @@
   "Come un'app": "Like an app",
   "icona nella barra delle applicazioni (un clic apre l'isola), Alt+Tab, riduci a icona e schermo intero": "icon on the taskbar (a click opens the island), Alt+Tab, minimize and full screen",
   "Resta aperta": "Stay open",
-  "quando la apri tu non si chiude da sola: come con 📌, finché non la chiudi": "when you open it, it does not close by itself: like 📌, until you close it"
+  "quando la apri tu non si chiude da sola: come con 📌, finché non la chiudi": "when you open it, it does not close by itself: like 📌, until you close it",
+  "Nome A→Z": "Name A→Z",
+  "Nome Z→A": "Name Z→A",
+  "Più recenti": "Newest",
+  "Meno recenti": "Oldest",
+  "Ordine: clic per cambiarlo (nome, data di modifica)": "Order: click to change it (name, date modified)"
 }

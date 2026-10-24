@@ -35,6 +35,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
 ### 24 ottobre 2026 — Isola come un'app
+- Cartella di lavoro: elenco o griglia, ordine per nome (A→Z, Z→A) o data di modifica (più recenti, meno recenti), cartelle sempre prima; testo dei file più grande (13 px) anche nel Vassoio, da app.
 - L'isola dietro una finestra non torna più sopra passandoci col mouse (tao rimetteva `WS_EX_TOPMOST`). Nuove opzioni in Impostazioni → Isola: «Come un'app» (icona sempre nella barra, Alt+Tab, — e ▢ schermo intero) e «Resta aperta» quando la apre l'utente. `island.rs`, `island.ts`, `docs/architettura.md`.
 - **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`; da provare dal vivo.
 
