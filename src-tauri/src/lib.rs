@@ -13,6 +13,7 @@ mod chat_log;
 mod claude_cli;
 mod clipboard;
 mod clipimage;
+mod brain;
 mod memory;
 mod webview_memory;
 mod context;
@@ -67,6 +68,7 @@ mod session_reply;
 mod secrets;
 mod settings;
 mod teams;
+mod custom;
 mod skills;
 mod tasks;
 mod telegram;
@@ -1447,6 +1449,47 @@ fn memory_open(folder: bool) -> Result<(), String> {
     Command::new("explorer").arg(&path).spawn().map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// The memory window (brain.rs): pages, notes, sources, days and their links, the timeline.
+#[tauri::command]
+async fn memory_graph() -> brain::Graph {
+    tauri::async_runtime::spawn_blocking(brain::graph).await.unwrap_or_else(|_| brain::graph())
+}
+
+/// The memory window's «Leggi adesso» and «Controlla»: a task (tasks.rs).
+#[tauri::command]
+fn memory_job(app: AppHandle, kind: String) -> Result<(), String> {
+    tasks::memory_job(&app, &kind)
+}
+
+/// The file behind a node of the memory window, in its editor; "inbox": the da-leggere folder.
+#[tauri::command]
+fn memory_node_open(id: String) -> Result<(), String> {
+    let path = if id == "inbox" {
+        brain::ensure_inbox()?
+    } else {
+        brain::node_file(&id).ok_or(i18n::t("Questo elemento non ha un file."))?
+    };
+    Command::new("explorer").arg(&path).spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
+/// Files dropped on the memory window: into da-leggere.
+#[tauri::command]
+fn memory_inbox_add(name: String, data: Vec<u8>) -> Result<String, String> {
+    brain::inbox_add(&name, &data)
+}
+
+/// «Ricorda…» in the memory window: a note, like «/ricorda».
+#[tauri::command]
+fn memory_note_add(app: AppHandle, text: String) -> Result<String, String> {
+    brain::changed(&app, memory::note(&text))
+}
+
+/// Impostazioni → Chat → Memoria → «Mappa»: the memory window.
+#[tauri::command]
+fn memory_window_open(app: AppHandle) {
+    show_memory_window(&app);
+}
+
 /// The history list filtered by words (title and text).
 #[tauri::command]
 fn chat_history_search(query: String) -> Vec<chat_log::Summary> {
@@ -2339,14 +2382,14 @@ const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreen
 
 /// In a dev build the pages are served by Vite, so the second window needs the
 /// absolute dev URL; a bundled build resolves it inside the app bundle.
-fn settings_page_url(app: &AppHandle) -> WebviewUrl {
+fn page_url(app: &AppHandle, page: &str) -> WebviewUrl {
     #[cfg(dev)]
     if let Some(mut base) = app.config().build.dev_url.clone() {
-        base.set_path("/settings.html");
+        base.set_path(&format!("/{page}"));
         return WebviewUrl::External(base);
     }
     let _ = app;
-    WebviewUrl::App("settings.html".into())
+    WebviewUrl::App(page.into())
 }
 
 /// The settings window is created hidden at launch and only ever shown and
@@ -2354,7 +2397,7 @@ fn settings_page_url(app: &AppHandle) -> WebviewUrl {
 /// not — silently comes up blank in this app, so the window that works is the
 /// one that exists before the island's webview does.
 fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
-    let url = settings_page_url(app);
+    let url = page_url(app, "settings.html");
     let mut builder = WebviewWindowBuilder::new(app, "settings", url);
     if let Some(dir) = data_dir {
         builder = builder.data_directory(dir.to_path_buf());
@@ -2400,6 +2443,63 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
             }
         }
     });
+}
+
+pub const MEMORY_LABEL: &str = "memoria";
+
+/// The memory window (src/memory/), made hidden at launch for the same reason
+/// as the settings one, asleep until it is opened; closing it hides it.
+fn create_memory_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
+    let mut builder = WebviewWindowBuilder::new(app, MEMORY_LABEL, page_url(app, "memoria.html"));
+    if let Some(dir) = data_dir {
+        builder = builder.data_directory(dir.to_path_buf());
+    }
+    match builder
+        .additional_browser_args(BROWSER_ARGS)
+        .title(i18n::t("Memoria — EasyIsland"))
+        // Dropped files reach the page (src/memory/main.ts), not Tauri.
+        .disable_drag_drop_handler()
+        .theme(Some(tauri::Theme::Dark))
+        .inner_size(1180.0, 760.0)
+        .min_inner_size(720.0, 480.0)
+        .resizable(true)
+        .visible(false)
+        .center()
+        .build()
+    {
+        Ok(win) => {
+            let hidden = win.clone();
+            win.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = hidden.hide();
+                    webview_memory::set_asleep(&hidden, true);
+                }
+            });
+        }
+        Err(err) => log::line(format!("memory window failed: {err}")),
+    }
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(10));
+        if let Some(win) = handle.get_webview_window(MEMORY_LABEL) {
+            if !win.is_visible().unwrap_or(true) {
+                webview_memory::set_asleep(&win, true);
+            }
+        }
+    });
+}
+
+pub fn show_memory_window(app: &AppHandle) {
+    let Some(win) = app.get_webview_window(MEMORY_LABEL) else {
+        log::line("memory window missing");
+        return;
+    };
+    webview_memory::set_asleep(&win, false);
+    let _ = win.unminimize();
+    let _ = win.show();
+    let _ = win.set_focus();
+    let _ = win.emit("memory-refresh", ());
 }
 
 pub fn show_settings_window(app: &AppHandle) {
@@ -2459,6 +2559,74 @@ fn task_control(app: AppHandle, id: String, action: String) -> Result<(), String
 #[tauri::command]
 fn task_answer(app: AppHandle, id: String, text: String) -> Result<(), String> {
     tasks::answer(&app, &id, &text)
+}
+
+/// Integrazioni personali (custom.rs): every description.
+#[tauri::command]
+fn customs_list() -> Vec<custom::Custom> {
+    custom::list()
+}
+
+/// Impostazioni: a description changed by hand (its JSON) or switched on/off.
+#[tauri::command]
+fn custom_save(app: AppHandle, definition: custom::Custom) -> Result<custom::Custom, String> {
+    custom::save(&app, definition, false)
+}
+
+#[tauri::command]
+fn custom_delete(app: AppHandle, id: String) -> Result<(), String> {
+    custom::delete(&app, &id)
+}
+
+#[tauri::command]
+fn custom_records(id: String) -> Vec<custom::Record> {
+    custom::records(&id)
+}
+
+#[tauri::command]
+fn custom_record_save(app: AppHandle, id: String, record: String, values: serde_json::Map<String, serde_json::Value>) -> Result<custom::Record, String> {
+    custom::save_record(&app, &id, &record, values)
+}
+
+#[tauri::command]
+fn custom_record_delete(app: AppHandle, id: String, record: String) -> Result<(), String> {
+    custom::delete_record(&app, &id, &record)
+}
+
+/// A record's document (filled by the island) into the Vassoio.
+#[tauri::command]
+async fn custom_document(name: String, ext: String, text: String) -> Result<files::DroppedFile, String> {
+    tauri::async_runtime::spawn_blocking(move || custom::document(&name, &ext, &text)).await.map_err(|e| e.to_string())?
+}
+
+/// An integration's "http" action: its call, {{campi}} filled by the island, keys put in here.
+#[tauri::command]
+async fn custom_http(id: String, method: String, url: String, headers: serde_json::Map<String, serde_json::Value>, body: String) -> Result<custom::Reply, String> {
+    custom::http(&id, &method, &url, &headers, &body).await
+}
+
+/// A source read now ("Aggiorna" in the card).
+#[tauri::command]
+async fn custom_fetch(id: String, source: String) -> Result<custom::Reply, String> {
+    custom::fetch(&id, &source).await
+}
+
+/// «Compila con l'IA»: the fields read from a pasted text.
+#[tauri::command]
+async fn custom_fill(app: AppHandle, id: String, text: String) -> Result<serde_json::Map<String, serde_json::Value>, String> {
+    custom::fill(&app, &id, &text).await
+}
+
+/// "Copia" of a record: its document as text on the clipboard.
+#[tauri::command]
+async fn custom_copy(text: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || actions::set_clipboard_text(&text)).await.map_err(|e| e.to_string())?.map(|_| ())
+}
+
+/// "Aggiungi a Notion": the record as a row, its fields' labels as the properties.
+#[tauri::command]
+async fn custom_to_notion(database: String, properties: serde_json::Value) -> Result<String, String> {
+    notion_tools::add_row(&database, &properties).await
 }
 
 /// Abilità (skills.rs): the list, for Impostazioni and the chat's «/commands».
@@ -2599,6 +2767,18 @@ pub fn run() {
             heartbeat_open,
             digest_set,
             skills_list,
+            customs_list,
+            custom_save,
+            custom_delete,
+            custom_records,
+            custom_record_save,
+            custom_record_delete,
+            custom_document,
+            custom_copy,
+            custom_fill,
+            custom_http,
+            custom_fetch,
+            custom_to_notion,
             skill_save,
             skill_delete,
             skills_open,
@@ -2679,6 +2859,12 @@ pub fn run() {
             memory_info,
             memory_note,
             memory_open,
+            memory_graph,
+            memory_job,
+            memory_node_open,
+            memory_window_open,
+            memory_inbox_add,
+            memory_note_add,
             chat_history_search,
             chat_history_pin,
             chat_rewind,
@@ -2850,6 +3036,7 @@ pub fn run() {
             }
             // Before the island's webview is ready: see create_settings_window.
             create_settings_window(&handle, webview_dir.as_deref());
+            create_memory_window(&handle, webview_dir.as_deref());
 
             if let Some(win) = island::window(&handle) {
                 island::make_non_activating(&win);
@@ -2874,6 +3061,7 @@ pub fn run() {
             teams::spawn(handle.clone());
             telegram::spawn(handle.clone());
             tasks::init(&handle);
+            custom::spawn(handle.clone());
             msgraph::spawn(handle.clone());
             automations::spawn(handle.clone());
             habits::spawn(handle.clone());

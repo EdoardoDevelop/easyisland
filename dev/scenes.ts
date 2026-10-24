@@ -4,9 +4,11 @@
 // When the scene has settled the page turns transparent and its title says
 // "scene ready"; scripts/screenshots.mjs then captures just the island.
 
+import { fillTemplate, receiveSource, toCsv } from "../src/views/custom";
+import { run, scopeOf } from "../src/core/expr";
 import { rdmLookFor } from "../src/views/rdm";
 import type { Island } from "../src/island/island";
-import { State } from "../src/core/state";
+import { State, type CustomField } from "../src/core/state";
 import { Bridge } from "../src/core/bridge";
 import { handleHook } from "../src/island/hooks";
 import { handleIntegration, handleWidget } from "../src/island/integrations";
@@ -858,6 +860,59 @@ export async function runScene(island: Island, scene: string) {
         easyisland_agent: opencode, easyisland_host: "opencode" });
       // ?claude: the chip of Claude Code selected instead of opencode's.
       State.setFocus(new URLSearchParams(location.search).has("claude") ? CLAUDE : "agent:opencode");
+      State.isPinned = true;
+      island.alert("overview");
+      await wait(1500);
+      break;
+    }
+    case "custom": {
+      // An integration made from the chat (custom.rs): «Preventivi», with rows and totals.
+      await wait(300);
+      const field = (o: Partial<CustomField>): CustomField =>
+        ({ id: "", label: "", kind: "text", options: [], required: false, default: "", help: "", columns: [], formula: "", ...o });
+      State.customs = [{
+        id: "preventivi", name: "Preventivi", icon: "🧾", color: "#22C55E", description: "Preventivi per i clienti", enabled: true, titleField: "cliente",
+        fields: [
+          field({ id: "numero", label: "Numero", kind: "counter", prefix: "PREV-{anno}-", digits: 3 }),
+          field({ id: "cliente", label: "Cliente", required: true }),
+          field({ id: "data", label: "Data", kind: "date", default: "oggi" }),
+          field({ id: "voci", label: "Voci", kind: "rows", columns: [
+            { id: "descrizione", label: "Descrizione", kind: "text", options: [] },
+            { id: "quantita", label: "Quantità", kind: "number", options: [] },
+            { id: "prezzo", label: "Prezzo", kind: "money", options: [] },
+            { id: "totale_riga", label: "Totale", kind: "computed", options: [], formula: "quantita*prezzo" }] }),
+          field({ id: "imponibile", label: "Imponibile", kind: "computed", formula: "sum(totale_riga)" }),
+          field({ id: "iva", label: "IVA 22%", kind: "computed", formula: "imponibile*0,22" }),
+          field({ id: "totale", label: "Totale", kind: "computed", formula: "imponibile+iva", summary: true }),
+          field({ id: "pagamento", label: "Pagamento", kind: "select", options: ["Bonifico 30 gg", "Rimessa diretta"] }),
+          field({ id: "urgente", label: "Urgente", kind: "checkbox" }),
+          field({ id: "motivo", label: "Motivo dell'urgenza", showIf: "urgente" }),
+        ],
+        template: "# Preventivo per {{cliente}}\n\n| Voce | Q.tà | Prezzo |\n|---|---|---|\n{{#voci}}| {{descrizione}} | {{quantita}} | {{prezzo}} |\n{{/voci}}\n\n**Totale: {{totale}}**",
+        actions: [
+          { label: "Salva", kind: "save", prompt: "", url: "", quick: "", database: "", format: "" },
+          { label: "Crea il documento", kind: "document", prompt: "", url: "", quick: "", database: "", format: "html" },
+          { label: "Compila da una mail", kind: "fill", prompt: "", url: "", quick: "", database: "", format: "" },
+          { label: "Esporta CSV", kind: "export", prompt: "", url: "", quick: "", database: "", format: "" },
+          { label: "Chiedi un testo d'accompagnamento", kind: "ai", prompt: "Scrivi una mail breve per mandare il preventivo a {{cliente}} (totale {{totale}}).", url: "", quick: "", database: "", format: "" },
+        ],
+      }];
+      // ?dati: a dashboard of data from a service, with an alert (sources in custom.rs).
+      State.customs.push({
+        id: "server", name: "Server dei clienti", icon: "🖥️", color: "#0EA5E9", description: "Stato e spazio libero", enabled: true, titleField: "",
+        fields: [], template: "", actions: [], secrets: ["token"],
+        sources: [{ id: "stato", label: "Stato", url: "https://status.esempio.it/api", every: 5, items: "servers", title: "name", subtitle: "client",
+          value: "disk", values: { "In linea": "summary.online", "Spenti": "summary.offline" }, alert: "disk > 90 o non online", alertText: "{{name}} ({{client}}): disco {{disk}}%" }],
+      });
+      const notices: unknown[] = [];
+      receiveSource(State.customs[1], "stato", { at: "10:30", data: { summary: { online: 2, offline: 1 }, servers: [
+        { name: "SRV-01", client: "Rossi Srl", disk: 71, online: true },
+        { name: "SRV-02", client: "Bianchi Spa", disk: 94, online: true },
+        { name: "NAS", client: "Studio Verdi", disk: 40, online: false }] } }, (n) => notices.push(n));
+      // For the checks of scripts/ (fillTemplate, toCsv, formulas, the alerts said).
+      (window as unknown as { customKit: unknown }).customKit = { fillTemplate, toCsv, run, scopeOf, notices, custom: State.customs[0] };
+      State.loadIntegrationTasks();
+      State.setFocus(new URLSearchParams(location.search).has("dati") ? "custom:server" : "custom:preventivi");
       State.isPinned = true;
       island.alert("overview");
       await wait(1500);

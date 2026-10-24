@@ -47,7 +47,7 @@ fn header() -> String {
 }
 
 /// "2026-10-21 14:30", local time.
-fn stamp() -> String {
+pub(crate) fn stamp() -> String {
     let t = unsafe { windows::Win32::System::SystemInformation::GetLocalTime() };
     format!("{:04}-{:02}-{:02} {:02}:{:02}", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute)
 }
@@ -87,7 +87,7 @@ pub fn preface(tools: bool) -> Option<String> {
         body.push('\n');
     }
     let how = if tools {
-        t("Se serve qualcosa di una conversazione passata, cercalo con memory_search (il diario delle domande, per data). Quando l'utente dice qualcosa che vale per le prossime volte (una preferenza, un cliente, come si fa una cosa), salvalo con memory_note in una riga, senza chiedere e senza dirlo a lungo.")
+        t("Se serve qualcosa di una conversazione passata o di un argomento (persone, clienti, progetti), cercalo con memory_search (note, pagine collegate e diario delle domande); memory_page apre una pagina intera. Quando l'utente dice qualcosa che vale per le prossime volte (una preferenza, un cliente, come si fa una cosa), salvalo con memory_note in una riga, senza chiedere e senza dirlo a lungo.")
     } else {
         ""
     };
@@ -131,7 +131,7 @@ pub fn note(text: &str) -> Result<String, String> {
     Ok(t("Salvato in memoria.").into())
 }
 
-fn write_whole(path: &std::path::Path, text: &str) -> Result<(), String> {
+pub(crate) fn write_whole(path: &std::path::Path, text: &str) -> Result<(), String> {
     let temp = path.with_extension(format!("md.tmp-{}", std::process::id()));
     std::fs::write(&temp, text).and_then(|()| std::fs::rename(&temp, path)).map_err(|e| {
         let _ = std::fs::remove_file(&temp);
@@ -191,6 +191,10 @@ pub fn search(query: &str, month: &str) -> Result<String, String> {
     let month = month.trim();
     files.extend(months.into_iter().filter(|p| month.is_empty() || p.file_stem().is_some_and(|s| s.to_string_lossy() == month)));
     let mut found = Vec::new();
+    // The pages first (brain.rs), with the pages they link to.
+    for line in crate::brain::search(&words, MAX_FOUND / 2) {
+        found.push(line);
+    }
     for path in files {
         let Ok(text) = std::fs::read_to_string(&path) else { continue };
         let mut lines: Vec<&str> = text.lines().filter(|l| l.starts_with("- ")).collect();
@@ -199,12 +203,12 @@ pub fn search(query: &str, month: &str) -> Result<String, String> {
             let low = l.to_lowercase();
             if words.iter().all(|w| low.contains(w.as_str())) {
                 found.push(l.to_string());
-                if found.len() >= MAX_FOUND {
+                if found.len() >= MAX_FOUND * 2 {
                     break;
                 }
             }
         }
-        if found.len() >= MAX_FOUND {
+        if found.len() >= MAX_FOUND * 2 {
             break;
         }
     }
@@ -220,6 +224,8 @@ pub fn search(query: &str, month: &str) -> Result<String, String> {
 pub struct Info {
     pub notes: usize,
     pub days: usize,
+    pub pages: usize,
+    pub inbox: usize,
     pub folder: String,
 }
 
@@ -237,8 +243,37 @@ pub fn info() -> Info {
             }
         }
     }
-    Info { notes, days: days.len(), folder: dir().to_string_lossy().into_owned() }
+    Info { notes, days: days.len(), pages: crate::brain::pages().len(), inbox: crate::brain::inbox_files().len(), folder: dir().to_string_lossy().into_owned() }
 }
+
+/// memory_forget for a note: the one line of MEMORIA.md with this text moves
+/// to archivio.md (never deleted).
+pub fn forget(text: &str) -> Result<String, String> {
+    let key = short(text, 300).to_lowercase();
+    if key.is_empty() {
+        return Err(t("note: il testo della nota, o page: il titolo della pagina.").into());
+    }
+    let current = read_main();
+    let notes = notes_of(&current);
+    let matching: Vec<&String> = notes.iter().filter(|n| n.to_lowercase().contains(&key)).collect();
+    let line = match matching.as_slice() {
+        [one] => (*one).clone(),
+        [] => return Err(t("Nessuna nota con questo testo.").into()),
+        _ => return Err(tf("Più note con questo testo ({n}): scrivine di più.", &[("n", &matching.len().to_string())])),
+    };
+    let mut f = std::fs::OpenOptions::new().create(true).append(true).open(dir().join("archivio.md")).map_err(|e| e.to_string())?;
+    let _ = writeln!(f, "{line}");
+    let kept: Vec<&String> = notes.iter().filter(|n| **n != line).collect();
+    let out = format!("{}{}
+", header(), kept.iter().map(|s| s.as_str()).collect::<Vec<_>>().join("
+"));
+    write_whole(&main_file(), &out)?;
+    Ok(t("Nota spostata in archivio.md.").into())
+}
+
+/// The tests that move %APPDATA% run one at a time.
+#[cfg(test)]
+pub(crate) static TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// MEMORIA.md, created with its header when missing (to open it in an editor).
 pub fn ensure_main() -> Result<PathBuf, String> {
@@ -266,6 +301,7 @@ mod tests {
     /// what goes in front of a conversation.
     #[test]
     fn note_diary_search_and_preface() {
+        let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let temp = std::env::temp_dir().join(format!("easyisland-memory-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp);
         std::env::set_var("APPDATA", &temp);
@@ -285,6 +321,10 @@ mod tests {
         }
         assert_eq!(notes_of(&read_main()).len(), MAX_LINES);
         assert!(std::fs::read_to_string(dir().join("archivio.md")).unwrap().contains("Rossi"));
+        assert!(forget("nota numero").is_err());
+        assert_eq!(forget("nota numero 7").unwrap(), t("Nota spostata in archivio.md."));
+        assert_eq!(notes_of(&read_main()).len(), MAX_LINES - 1);
+        note("nota numero 99").unwrap();
         let info = info();
         assert_eq!((info.notes, info.days), (MAX_LINES, 1));
         let _ = std::fs::remove_dir_all(&temp);

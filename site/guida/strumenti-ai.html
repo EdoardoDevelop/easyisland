@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modalità terminale e strumenti — Guida di EasyIsland</title>
+<meta name="description" content="Cosa può fare l'AI sul tuo PC, con quali permessi, e come lavorare come da terminale.">
+<link rel="icon" href="../media/icon.png">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="guida.css">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guida · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">Guida di EasyIsland</a></li></ul><div class="group">Per iniziare</div><ul><li><a href="installazione.html">Installazione</a></li><li><a href="primi-passi.html">Primi passi</a></li><li><a href="isola.html">L'isola</a></li></ul><div class="group">Personalizzare</div><ul><li><a href="aspetto.html">Posizione e aspetto</a></li><li><a href="profili.html">Profili e notifiche</a></li></ul><div class="group">Agenti di programmazione</div><ul><li><a href="agenti.html">Agenti di codice</a></li></ul><div class="group">Intelligenza artificiale</div><ul><li><a href="chat.html">La chat</a></li><li><a href="motori.html">Motori AI</a></li><li><a href="strumenti-ai.html" class="on" aria-current="page">Modalità terminale e strumenti</a></li><li><a href="memoria.html">Memoria e secondo cervello</a></li><li><a href="compiti.html">Compiti, Battito e Abilità</a></li></ul><div class="group">Fare le cose</div><ul><li><a href="azioni.html">Azioni rapide e scorciatoie</a></li><li><a href="automazioni.html">Automazioni</a></li><li><a href="file-e-schermo.html">File e schermo</a></li></ul><div class="group">Collegare i servizi</div><ul><li><a href="integrazioni.html">Integrazioni</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="assistenza-remota.html">Assistenza remota</a></li><li><a href="integrazioni-personali.html">Integrazioni personali</a></li><li><a href="widget.html">Widget</a></li></ul><div class="group">Riferimento</div><ul><li><a href="impostazioni.html">Impostazioni, pagina per pagina</a></li><li><a href="privacy.html">Privacy e sicurezza</a></li><li><a href="riga-di-comando.html">Riga di comando e script</a></li><li><a href="problemi.html">Problemi e soluzioni</a></li><li><a href="sviluppo.html">Per sviluppatori</a></li></ul></aside>
+<main>
+<div class="crumb">Intelligenza artificiale</div>
+<h1>Modalità terminale e strumenti</h1>
+<p class="lead">Cosa può fare l'AI sul tuo PC, con quali permessi, e come lavorare come da terminale.</p>
+<h2 id="gli-strumenti-di-easyisland"><a class="anchor" href="#gli-strumenti-di-easyisland">#</a>Gli strumenti di EasyIsland</h2>
+<p>Con <strong>Impostazioni → Chat → Può usare il PC</strong> acceso (predefinito), i motori con strumenti (abbonamento Claude, chiave API Anthropic, opencode, Antigravity, e gli altri con la modalità terminale) possono agire sul PC <strong>attraverso EasyIsland</strong>:</p>
+<div class="table"><table><thead><tr><th>Area</th><th>Cosa può fare</th><th>Chiede conferma?</th></tr></thead><tbody><tr><td>PC e app</td><td>Aprire programmi, cartelle e link; sapere l'app in primo piano</td><td>Sì</td></tr><tr><td>Azioni rapide</td><td>Elencarle ed eseguirle (anche gli script, di cui legge l'output)</td><td>Sì, per eseguire</td></tr><tr><td>Stato</td><td>Leggere PC, rete, meteo, posta, ticket, integrazioni</td><td>No</td></tr><tr><td>Appunti</td><td>Leggere e riempire gli appunti</td><td>Leggere no, scrivere sì</td></tr><tr><td>Musica</td><td>Stato e comandi del lettore</td><td>Comandi sì</td></tr><tr><td>Isola</td><td>Mostrare un avviso</td><td>No</td></tr><tr><td>File</td><td>Il Vassoio, la cartella di lavoro (leggere), spostare file nella cartella</td><td>Spostare sì</td></tr><tr><td>Profili e impostazioni</td><td>Leggere le impostazioni, cambiarne una, cambiare profilo</td><td>Cambiare sì</td></tr><tr><td>Automazioni</td><td>Elencarle, crearle, accenderle e spegnerle</td><td>Creare e cambiare sì</td></tr><tr><td>Notion</td><td>Mappa, ricerca, lettura, righe di database; aggiungere, cambiare, eliminare righe</td><td>Scrivere sì; eliminare solo dopo il sì in chat</td></tr><tr><td>Microsoft To Do</td><td>Elencare, aggiungere e aggiornare attività (Outlook classico)</td><td>Scrivere sì</td></tr><tr><td>Accesso remoto</td><td>Comandi sul PC del cliente collegato alla chat</td><td>Sempre, uno per uno</td></tr><tr><td>Memoria</td><td>Cercare, salvare note, scrivere pagine, leggere le fonti, controllare</td><td>No (scrive solo nella memoria, non cancella)</td></tr><tr><td>Compiti e abilità</td><td>Creare compiti, elencarli; leggere e salvare abilità</td><td>Salvare un'abilità sì</td></tr><tr><td>Integrazioni personali</td><td>Crearle, modificarle, leggere schede e fonti, aggiungere schede, chiamare le loro azioni</td><td>Creare, scrivere e chiamare sì</td></tr></tbody></table></div>
+<p>Tutto ciò che apre, esegue o cambia qualcosa chiede <strong>Consenti / Nega</strong> nell'isola, con una descrizione chiara. Le regole che non cambiano mai:</p>
+<ul><li>nessuno strumento esegue <strong>comandi qualsiasi su questo PC</strong> (per quello c'è la modalità terminale, con un permesso per ogni comando);</li><li>nessuno strumento <strong>invia email</strong>;</li><li>nessuno strumento <strong>elimina</strong>, tranne una riga di Notion nel cestino dopo il tuo sì in chat.</li></ul>
+<p>Puoi chiedere a parole: «apri Outlook e il portale fornitori», «com'è messo il PC?», «lancia il backup», «aggiungi a To Do: chiamare Rossi domani», «quanto ho speso a ottobre?» (da Notion).</p>
+<h2 id="ricette-impara-con-l-uso"><a class="anchor" href="#ricette-impara-con-l-uso">#</a>Ricette: impara con l'uso</h2>
+<p>Dopo una risposta riuscita, EasyIsland ricorda <strong>quali strumenti</strong> sono serviti per quel tipo di domanda. Alla domanda simile la chat va dritta agli strumenti giusti: più veloce e con meno token. In <strong>Impostazioni → Chat → Ricette</strong> vedi quante sono e le dimentichi con un clic.</p>
+<h2 id="modalita-terminale"><a class="anchor" href="#modalita-terminale">#</a>Modalità terminale</h2>
+<p><strong>Impostazioni → Chat → Modalità terminale</strong>, insieme alla <strong>cartella di lavoro</strong>: la chat lavora come Claude Code o opencode da terminale.</p>
+<ul><li><strong>Claude Code</strong> usa i tuoi strumenti, server MCP, plugin, <code>CLAUDE.md</code>, skill, regole di permesso e hook, nella cartella scelta. Ogni domanda di permesso arriva all'isola.</li><li><strong>opencode</strong> lavora nella cartella scelta; «Sempre» vale per i comandi e le modifiche di cui propone la regola.</li><li><strong>Gli altri motori</strong> (API di Anthropic, OpenAI, OpenRouter, Gemini, Ollama, LM Studio) passano da opencode con lo stesso fornitore e modello.</li></ul>
+<p>Ogni comando compare <strong>per intero</strong> sulla card prima di partire.</p>
+<h3 id="automatica"><a class="anchor" href="#automatica">#</a>⚡ Automatica</h3>
+<p>Il pulsante ⚡ nella testata della chat (solo con la modalità terminale) vale <strong>per la conversazione in corso</strong> e si spegne con «Nuova chat». Da acceso la chat ha il bordo ambra.</p>
+<ul><li><strong>Claude Code</strong>: la sua modalità automatica approva le azioni normali e blocca quelle rischiose.</li><li><strong>opencode e gli altri</strong>: passano da soli modifiche ai file, web e comandi non delicati. Restano sulla card i comandi delicati (cancellare, <code>git push</code> e <code>reset --hard</code>, installare, registro, servizi, rete, processi, codice scaricato), le cartelle fuori da quella di lavoro e gli strumenti dei connettori che cancellano.</li></ul>
+<p>La modalità che accetta tutto senza nessun controllo <strong>non esiste</strong> in EasyIsland, di proposito.</p>
+<h2 id="la-cartella-di-lavoro"><a class="anchor" href="#la-cartella-di-lavoro">#</a>La cartella di lavoro</h2>
+<p>Una cartella del PC scelta da te (in <strong>File e schermo</strong> o in Impostazioni → Chat) che la chat <strong>legge senza chiedere</strong> e in cui può spostare i file del Vassoio. Con la modalità terminale è la cartella in cui lavora. Da Telegram: <code>/cartella</code>. Dettagli in <a href="file-e-schermo.html#cartella-di-lavoro">File e schermo</a>.</p>
+<h2 id="impostazioni-cambiate-dalla-chat"><a class="anchor" href="#impostazioni-cambiate-dalla-chat">#</a>Impostazioni cambiate dalla chat</h2>
+<p>«Metti il personaggio in basso a destra», «spegni il meteo», «usa opencode come motore»: la chat legge le impostazioni e ne cambia una alla volta, con Consenti / Nega, salvando come la finestra delle Impostazioni.</p>
+<div class="pager"><a class="prev" href="motori.html"><small>Precedente</small>Motori AI</a><a class="next" href="memoria.html"><small>Successiva</small>Memoria e secondo cervello</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/10-strumenti-ai.md">Modifica questa pagina su GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#gli-strumenti-di-easyisland">Gli strumenti di EasyIsland</a></li><li class="l2"><a href="#ricette-impara-con-l-uso">Ricette: impara con l'uso</a></li><li class="l2"><a href="#modalita-terminale">Modalità terminale</a></li><li class="l3"><a href="#automatica">⚡ Automatica</a></li><li class="l2"><a href="#la-cartella-di-lavoro">La cartella di lavoro</a></li><li class="l2"><a href="#impostazioni-cambiate-dalla-chat">Impostazioni cambiate dalla chat</a></li></ul></nav>
+</div>
+<script src="guida.js"></script>
+</body>
+</html>

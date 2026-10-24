@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Telegram — Guida di EasyIsland</title>
+<meta name="description" content="La chat di EasyIsland nel tuo bot Telegram, con permessi a pulsanti, file nei due sensi, vocali, compiti e la giornata.">
+<link rel="icon" href="../media/icon.png">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="guida.css">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guida · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">Guida di EasyIsland</a></li></ul><div class="group">Per iniziare</div><ul><li><a href="installazione.html">Installazione</a></li><li><a href="primi-passi.html">Primi passi</a></li><li><a href="isola.html">L'isola</a></li></ul><div class="group">Personalizzare</div><ul><li><a href="aspetto.html">Posizione e aspetto</a></li><li><a href="profili.html">Profili e notifiche</a></li></ul><div class="group">Agenti di programmazione</div><ul><li><a href="agenti.html">Agenti di codice</a></li></ul><div class="group">Intelligenza artificiale</div><ul><li><a href="chat.html">La chat</a></li><li><a href="motori.html">Motori AI</a></li><li><a href="strumenti-ai.html">Modalità terminale e strumenti</a></li><li><a href="memoria.html">Memoria e secondo cervello</a></li><li><a href="compiti.html">Compiti, Battito e Abilità</a></li></ul><div class="group">Fare le cose</div><ul><li><a href="azioni.html">Azioni rapide e scorciatoie</a></li><li><a href="automazioni.html">Automazioni</a></li><li><a href="file-e-schermo.html">File e schermo</a></li></ul><div class="group">Collegare i servizi</div><ul><li><a href="integrazioni.html">Integrazioni</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html" class="on" aria-current="page">Telegram</a></li><li><a href="assistenza-remota.html">Assistenza remota</a></li><li><a href="integrazioni-personali.html">Integrazioni personali</a></li><li><a href="widget.html">Widget</a></li></ul><div class="group">Riferimento</div><ul><li><a href="impostazioni.html">Impostazioni, pagina per pagina</a></li><li><a href="privacy.html">Privacy e sicurezza</a></li><li><a href="riga-di-comando.html">Riga di comando e script</a></li><li><a href="problemi.html">Problemi e soluzioni</a></li><li><a href="sviluppo.html">Per sviluppatori</a></li></ul></aside>
+<main>
+<div class="crumb">Collegare i servizi</div>
+<h1>Telegram</h1>
+<p class="lead">La chat di EasyIsland nel tuo bot Telegram, con permessi a pulsanti, file nei due sensi, vocali, compiti e la giornata.</p>
+<h2 id="collegare-il-bot"><a class="anchor" href="#collegare-il-bot">#</a>Collegare il bot</h2>
+<ol><li>Su Telegram scrivi a <strong>@BotFather</strong>, <code>/newbot</code>, e copia il <strong>token</strong>.</li><li><strong>Impostazioni → Integrazioni → Telegram</strong>: incolla il token (va in Gestione credenziali).</li><li><strong>Collega</strong>: ricevi un codice di 6 cifre valido 10 minuti. Scrivi al tuo bot <code>/start &lt;codice&gt;</code> da una chat privata.</li></ol>
+<p>Da quel momento il bot risponde <strong>solo alla tua chat</strong>. EasyIsland legge Telegram con il long polling: nessuna porta aperta, nessun server in mezzo, solo <code>api.telegram.org</code>. Funziona <strong>solo con il PC acceso</strong>: i messaggi arrivati con EasyIsland chiuso si scartano, con una sola risposta che lo dice.</p>
+<h2 id="la-chat-su-telegram"><a class="anchor" href="#la-chat-su-telegram">#</a>La chat su Telegram</h2>
+<p>Una conversazione <strong>tutta sua</strong>, distinta da quella dell'isola, con motore e modello scelti da lì. La risposta arriva mentre si scrive, con <strong>⏹ Ferma</strong>.</p>
+<div class="table"><table><thead><tr><th>Comando</th><th>Cosa fa</th></tr></thead><tbody><tr><td><code>/nuova</code></td><td>Nuova conversazione</td></tr><tr><td><code>/motore</code>, <code>/modello</code></td><td>Sceglie motore e modello di Telegram</td></tr><tr><td><code>/stato</code></td><td>Motore, modello, conversazione</td></tr><tr><td><code>/riprendi</code></td><td>Continua qui l'ultima conversazione dell'isola</td></tr><tr><td><code>/oggi</code>, <code>/domani</code></td><td>La giornata: attività, appuntamenti, ticket, meteo</td></tr><tr><td><code>/vassoio</code></td><td>I file del Vassoio</td></tr><tr><td><code>/cartella</code></td><td>La cartella di lavoro a pulsanti, con i file</td></tr><tr><td><code>/automatica</code></td><td>Accende o spegne l'Automatica di Telegram</td></tr><tr><td><code>/compito …</code></td><td>Crea un compito; da solo li elenca</td></tr><tr><td><code>/rispondi …</code></td><td>Risponde alla domanda di un compito</td></tr><tr><td><code>/&lt;abilità&gt;</code></td><td>Usa un'abilità</td></tr></tbody></table></div>
+<h2 id="permessi"><a class="anchor" href="#permessi">#</a>Permessi</h2>
+<p>Ogni permesso è un messaggio <strong>🔐 Permesso richiesto</strong> con <strong>✅ Consenti</strong> e <strong>❌ Nega</strong>. Con la modalità terminale vale come nell'isola.</p>
+<p><strong>Automatica di Telegram</strong> (<code>/automatica</code> o l'interruttore in Impostazioni): quando non sei al PC, approva da sola i permessi della chat di Telegram, <strong>tranne le cancellazioni</strong>, che chiede comunque. È l'unica eccezione alla regola «mai senza un clic», e la accendi solo tu. Non vale mai per i compiti.</p>
+<h2 id="file"><a class="anchor" href="#file">#</a>File</h2>
+<ul><li>Foto, documenti, video e audio fino a 20 MB vanno nel <strong>Vassoio</strong> e con la domanda arrivano al motore.</li><li>Ogni file che entra nel Vassoio durante una risposta di Telegram (un'esportazione, un documento, un PDF) <strong>ti arriva</strong> su Telegram.</li></ul>
+<h2 id="vocali"><a class="anchor" href="#vocali">#</a>Vocali</h2>
+<p>Con un servizio di trascrizione scelto in <strong>Impostazioni → Telegram → Vocali</strong>, i messaggi vocali diventano testo e la chat risponde. L'audio non resta.</p>
+<h2 id="compiti-e-avvisi"><a class="anchor" href="#compiti-e-avvisi">#</a>Compiti e avvisi</h2>
+<p>Con Telegram collegato ricevi un messaggio quando un compito finisce, non riesce, va in pausa o ti fa una domanda, e puoi rispondere con i pulsanti. Telegram resta in ascolto anche se il profilo attivo lo ha spento, se è acceso in un profilo qualsiasi.</p>
+<div class="pager"><a class="prev" href="microsoft.html"><small>Precedente</small>Microsoft: Outlook, Teams, To Do</a><a class="next" href="assistenza-remota.html"><small>Successiva</small>Assistenza remota</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/20-telegram.md">Modifica questa pagina su GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#collegare-il-bot">Collegare il bot</a></li><li class="l2"><a href="#la-chat-su-telegram">La chat su Telegram</a></li><li class="l2"><a href="#permessi">Permessi</a></li><li class="l2"><a href="#file">File</a></li><li class="l2"><a href="#vocali">Vocali</a></li><li class="l2"><a href="#compiti-e-avvisi">Compiti e avvisi</a></li></ul></nav>
+</div>
+<script src="guida.js"></script>
+</body>
+</html>

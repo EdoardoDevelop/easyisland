@@ -41,8 +41,17 @@ pub fn is_widget_key(key: &str) -> bool {
         })
 }
 
+/// The keys of the user's own integrations (custom.rs): "custom:<id>:<name>".
+pub fn is_custom_key(key: &str) -> bool {
+    key.len() <= 120
+        && key.strip_prefix("custom:").is_some_and(|rest| {
+            rest.split_once(':').is_some_and(|(id, name)| !id.is_empty() && !name.is_empty())
+                && rest.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, ':' | '-' | '_'))
+        })
+}
+
 fn entry(key: &str) -> Option<Entry> {
-    if !KNOWN_KEYS.contains(&key) && !is_widget_key(key) {
+    if !KNOWN_KEYS.contains(&key) && !is_widget_key(key) && !is_custom_key(key) {
         return None;
     }
     Entry::new(SERVICE, key).ok()

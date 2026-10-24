@@ -88,7 +88,13 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "remote_status" => crate::remote::status(),
         "remote_run" => crate::remote::run(arg(args, "command"), args.get("timeout").and_then(Value::as_u64)).await,
         "memory_search" => crate::memory::search(arg(args, "query"), arg(args, "month")),
-        "memory_note" => crate::memory::note(arg(args, "text")),
+        "memory_note" => crate::brain::changed(app, crate::memory::note(arg(args, "text"))),
+        "memory_page" => crate::brain::tool_read(arg(args, "title")),
+        "memory_page_write" => crate::brain::changed(app, crate::brain::tool_write(arg(args, "title"), arg(args, "text"), arg(args, "version"), arg(args, "source"))),
+        "memory_inbox" => crate::brain::tool_inbox(arg(args, "file")),
+        "memory_inbox_done" => crate::brain::changed(app, crate::brain::tool_inbox_done(arg(args, "file"))),
+        "memory_check" => Ok(crate::brain::tool_check()),
+        "memory_forget" => crate::brain::changed(app, crate::brain::tool_forget(arg(args, "note"), arg(args, "page"))),
         // Compiti (tasks.rs): the running task's own state; create and list from the chat.
         "task_plan" => crate::tasks::tool_plan(app, args),
         "task_step" => crate::tasks::tool_step(app, args),
@@ -99,6 +105,15 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "task_list" => Ok(crate::tasks::tool_list()),
         // Boxed: the other engine's turn may call these tools again (a cycle of futures).
         "task_delegate" => Box::pin(crate::tasks::tool_delegate(app, args)).await,
+        // Integrazioni personali (custom.rs): create and update ask Consenti / Nega (the preview).
+        "custom_create" => crate::custom::tool_create(app, args),
+        "custom_update" => crate::custom::tool_update(app, args),
+        "custom_list" => Ok(crate::custom::tool_list()),
+        "custom_get" => crate::custom::tool_get(arg(args, "id")),
+        "custom_records" => crate::custom::tool_records(arg(args, "id"), arg(args, "query"), args.get("limit").and_then(Value::as_u64).unwrap_or(30) as usize),
+        "custom_add_record" => crate::custom::tool_add_record(app, args),
+        "custom_fetch" => crate::custom::tool_fetch(arg(args, "id"), arg(args, "source")).await,
+        "custom_call" => crate::custom::tool_call(args).await,
         // Abilità (skills.rs): read, list; save asks Consenti / Nega first.
         "skill_read" => crate::skills::tool_read(arg(args, "name")),
         "skill_list" => Ok(crate::skills::tool_list()),

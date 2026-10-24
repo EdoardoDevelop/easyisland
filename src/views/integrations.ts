@@ -1,9 +1,11 @@
+import type { Notice } from "../core/state";
 // Integration cards shown in the overview's left card — DOM ports of
 // IntegrationCardView and friends from IslandViewContent.swift.
 //
 // Cal.com is the one simplification: macOS shows a three-level calendar
 // (month → day → booking); here it is the list of upcoming bookings.
 
+import { customCard } from "./custom";
 import { h, svg, clear, dot, brandOrDot } from "./dom";
 import { ICONS } from "./icons";
 import { State, PROBE_INTEGRATIONS, sessionOpenLabel, type AgentTask } from "../core/state";
@@ -946,6 +948,11 @@ export interface IntegrationCardHooks {
   askAboutText(label: string, text: string): void;
   /** Accesso remoto: open the chat. */
   openChat(): void;
+  /** Integrazioni personali (custom.ts): a question to the chat, a quick action, keep the island open while typing. */
+  askChat(question: string): void;
+  runQuick(id: string): void;
+  holdOpen(on: boolean): void;
+  showNotice(n: Notice): void;
 }
 
 /** True when this integration has data worth showing instead of the idle card. */
@@ -1063,6 +1070,7 @@ function agentIdleCard(task: AgentTask): HTMLElement {
 
 export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHooks): HTMLElement {
   if (task.id.startsWith("agent:")) return agentIdleCard(task);
+  if (task.id.startsWith("custom:")) return customCard(task, hooks);
   if (task.id === "integration_clipboard") return clipboardCard(task, hooks);
   if (task.id === "integration_media") return mediaCard(task);
   if (task.id === THREECX) return threecxCard(task, hooks.openSettings);

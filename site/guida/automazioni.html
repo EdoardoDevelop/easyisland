@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automazioni — Guida di EasyIsland</title>
+<meta name="description" content="Regole «quando… se… allora…», create dalle Impostazioni, a parole in chat o proposte dalle tue abitudini.">
+<link rel="icon" href="../media/icon.png">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="guida.css">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guida · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">Guida di EasyIsland</a></li></ul><div class="group">Per iniziare</div><ul><li><a href="installazione.html">Installazione</a></li><li><a href="primi-passi.html">Primi passi</a></li><li><a href="isola.html">L'isola</a></li></ul><div class="group">Personalizzare</div><ul><li><a href="aspetto.html">Posizione e aspetto</a></li><li><a href="profili.html">Profili e notifiche</a></li></ul><div class="group">Agenti di programmazione</div><ul><li><a href="agenti.html">Agenti di codice</a></li></ul><div class="group">Intelligenza artificiale</div><ul><li><a href="chat.html">La chat</a></li><li><a href="motori.html">Motori AI</a></li><li><a href="strumenti-ai.html">Modalità terminale e strumenti</a></li><li><a href="memoria.html">Memoria e secondo cervello</a></li><li><a href="compiti.html">Compiti, Battito e Abilità</a></li></ul><div class="group">Fare le cose</div><ul><li><a href="azioni.html">Azioni rapide e scorciatoie</a></li><li><a href="automazioni.html" class="on" aria-current="page">Automazioni</a></li><li><a href="file-e-schermo.html">File e schermo</a></li></ul><div class="group">Collegare i servizi</div><ul><li><a href="integrazioni.html">Integrazioni</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="assistenza-remota.html">Assistenza remota</a></li><li><a href="integrazioni-personali.html">Integrazioni personali</a></li><li><a href="widget.html">Widget</a></li></ul><div class="group">Riferimento</div><ul><li><a href="impostazioni.html">Impostazioni, pagina per pagina</a></li><li><a href="privacy.html">Privacy e sicurezza</a></li><li><a href="riga-di-comando.html">Riga di comando e script</a></li><li><a href="problemi.html">Problemi e soluzioni</a></li><li><a href="sviluppo.html">Per sviluppatori</a></li></ul></aside>
+<main>
+<div class="crumb">Fare le cose</div>
+<h1>Automazioni</h1>
+<p class="lead">Regole «quando… se… allora…», create dalle Impostazioni, a parole in chat o proposte dalle tue abitudini.</p>
+<p><img src="../media/settings-automations.png" alt="Impostazioni, pagina Automazioni" loading="lazy"></p>
+<h2 id="quando"><a class="anchor" href="#quando">#</a>Quando</h2>
+<div class="table"><table><thead><tr><th>Evento</th><th>Esempio</th></tr></thead><tbody><tr><td>A un orario, nei giorni scelti</td><td>alle 9 dei giorni feriali apri Outlook e il gestionale</td></tr><tr><td>All'avvio del PC</td><td>dopo 30 secondi passa al profilo Lavoro</td></tr><tr><td>Allo sblocco del PC</td><td>un avviso con il promemoria del giorno</td></tr><tr><td>Al rientro dopo N minuti senza tastiera e mouse</td><td>riapri le app di lavoro</td></tr><tr><td>Collegandoti a una rete Wi-Fi</td><td>in ufficio apri la cartella condivisa</td></tr><tr><td>All'avvio di un programma</td><td>quando apri Teams esegui «Silenzia»</td></tr><tr><td>Un programma passa in primo piano</td><td>in Excel mostra l'avviso con le scorciatoie</td></tr><tr><td>Collegando una chiavetta o un disco</td><td>esegui lo script di backup</td></tr><tr><td>Un file arriva in una cartella</td><td>avvisami delle nuove scansioni</td></tr><tr><td>Un download finisce</td><td>apri la cartella dei PDF scaricati</td></tr><tr><td>Un'integrazione o un widget segnala un problema o una novità</td><td>se il sito del cliente va giù esegui lo script di controllo</td></tr><tr><td>Una chiamata 3CX in arrivo</td><td>apri la scheda del cliente</td></tr><tr><td>Una riunione Teams inizia o finisce</td><td>profilo Concentrazione durante la riunione</td></tr><tr><td>Un agente ha finito o aspetta un permesso</td><td>avviso quando Claude Code finisce</td></tr><tr><td>Un server di sviluppo parte</td><td>apri l'indirizzo nel browser</td></tr></tbody></table></div>
+<p><strong>Solo se</strong> (filtro): per cartelle, download, integrazioni, chiamate e agenti, parole o estensioni (<code>.pdf</code>) che l'evento deve contenere.</p>
+<h2 id="se"><a class="anchor" href="#se">#</a>Se</h2>
+<p>Condizioni, tutte vere (ognuna può diventare «se non»): fascia oraria e giorni (anche a cavallo della mezzanotte), rete Wi-Fi, programma aperto o in primo piano, a batteria o sotto una percentuale, assente da N minuti, in riunione (microfono o webcam in uso), davanti al cliente.</p>
+<p><strong>Ripeti</strong>: ogni volta, al massimo ogni N minuti, oppure una volta al giorno.</p>
+<h2 id="allora"><a class="anchor" href="#allora">#</a>Allora</h2>
+<p>Una sequenza di passi:</p>
+<ul><li>eseguire un'<strong>azione rapida</strong>;</li><li>mostrare un <strong>avviso</strong> nell'isola;</li><li><strong>cambiare profilo</strong>;</li><li>aprire un <strong>programma</strong>, una <strong>cartella</strong> o un <strong>link</strong>;</li><li><strong>chiedere alla chat</strong> (si apre nell'isola con la risposta);</li><li>avviare un <strong>compito</strong>.</li></ul>
+<p>Nei passi puoi usare i dati dell'evento: <code>{file}</code>, <code>{percorso}</code>, <code>{cartella}</code>, <code>{rete}</code>, <code>{programma}</code>, <code>{unità}</code>, <code>{testo}</code>, <code>{fonte}</code>, <code>{chiamante}</code>, <code>{numero}</code>, <code>{agente}</code>, <code>{progetto}</code>, <code>{porta}</code>, <code>{link}</code>, <code>{minuti}</code>, e sempre <code>{ora}</code> e <code>{data}</code>. L'editor elenca quelli disponibili per l'evento scelto. Per sicurezza nei link sono codificati, negli argomenti di un programma sono un argomento solo, e negli script non entrano mai.</p>
+<p>Ogni automazione si può limitare a un profilo e provare subito con <strong>Prova ora</strong>. Il <strong>Registro</strong> mostra le ultime esecuzioni. Le automazioni partono senza chiedere, perché le hai create tu, tranne gli script con «Chiedi conferma» e le domande alla chat. Con EasyIsland in pausa non parte niente.</p>
+<h2 id="a-parole-in-chat"><a class="anchor" href="#a-parole-in-chat">#</a>A parole, in chat</h2>
+<p>«Ogni giorno feriale alle 9 apri Outlook e il gestionale», «quando colleghi una chiavetta lancia il backup», «se il sito del cliente va giù avvisami»: la chat prepara l'automazione e l'isola te la mostra (Quando… / Allora…) con <strong>Consenti / Nega</strong>. Confermando, viene creata e accesa.</p>
+<h2 id="proposte-dalle-tue-abitudini"><a class="anchor" href="#proposte-dalle-tue-abitudini">#</a>Proposte dalle tue abitudini</h2>
+<p>Se lo accendi (<strong>Automazioni → Proponimi automazioni</strong>, spento di serie), EasyIsland annota quando apri i programmi (solo il nome, mai titoli o contenuti), quando accendi o sblocchi il PC, la Wi-Fi, le chiavette, le azioni rapide e i profili scelti a mano. Tutto resta su questo PC, al massimo 45 giorni, e si cancella con un clic.</p>
+<p>Dopo qualche settimana propone, al massimo una volta al giorno:</p>
+<ul><li><em>«Apro Outlook alle 8:50?»</em>, perché lo apri sempre a quell'ora nei feriali;</li><li>sequenze: <em>«Quando apri il gestionale, apro anche Excel?»</em>;</li><li>di spegnere un'automazione che non usi più.</li></ul>
+<p>Rispondi <strong>Crea</strong>, <strong>Non ora</strong> (te la ripropone tra un mese) o <strong>No, mai</strong> (la ritrovi tra le <em>Proposte rifiutate</em>). In <strong>Programmi da non osservare</strong> indichi quelli da ignorare.</p>
+<p><img src="../media/suggestion.png" alt="Una proposta dalle abitudini" loading="lazy"></p>
+<div class="pager"><a class="prev" href="azioni.html"><small>Precedente</small>Azioni rapide e scorciatoie</a><a class="next" href="file-e-schermo.html"><small>Successiva</small>File e schermo</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/14-automazioni.md">Modifica questa pagina su GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#quando">Quando</a></li><li class="l2"><a href="#se">Se</a></li><li class="l2"><a href="#allora">Allora</a></li><li class="l2"><a href="#a-parole-in-chat">A parole, in chat</a></li><li class="l2"><a href="#proposte-dalle-tue-abitudini">Proposte dalle tue abitudini</a></li></ul></nav>
+</div>
+<script src="guida.js"></script>
+</body>
+</html>

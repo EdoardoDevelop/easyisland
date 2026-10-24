@@ -210,6 +210,56 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             true,
         ),
         (
+            "memory_page",
+            "Una pagina della memoria (le pagine su persone, clienti, progetti e concetti, collegate tra loro con [[Titolo]]), con la sua versione e le pagine che la citano. title: il titolo; vuoto = l'elenco delle pagine e dei file che aspettano in da-leggere.",
+            json!({ "type": "object", "properties": {
+                "title": { "type": "string" }
+            } }),
+            true,
+        ),
+        (
+            "memory_page_write",
+            "Scrive una pagina della memoria (Markdown breve) o la sostituisce. Collega le altre pagine con [[Titolo]] e scrivi come sono legate con righe «- relazione: [[Altra pagina]]». title; text: il testo intero; version: per una pagina che esiste, la versione letta con memory_page (se l'utente l'ha cambiata nel frattempo la scrittura è rifiutata: rileggila); source: il file di da-leggere da cui viene. Niente password o dati sensibili.",
+            json!({ "type": "object", "properties": {
+                "title": { "type": "string" },
+                "text": { "type": "string" },
+                "version": { "type": "string" },
+                "source": { "type": "string" }
+            }, "required": ["title", "text"] }),
+            true,
+        ),
+        (
+            "memory_inbox",
+            "Legge un file della cartella da-leggere della memoria (ciò che l'utente vuole far imparare: articoli, appunti, trascrizioni, mail), con l'elenco degli altri. file: il nome; vuoto = il più vecchio.",
+            json!({ "type": "object", "properties": {
+                "file": { "type": "string" }
+            } }),
+            true,
+        ),
+        (
+            "memory_inbox_done",
+            "Sposta un file letto da da-leggere a fonti, senza cambiarlo, dopo averne scritto le pagine. file: il nome.",
+            json!({ "type": "object", "properties": {
+                "file": { "type": "string" }
+            }, "required": ["file"] }),
+            true,
+        ),
+        (
+            "memory_check",
+            "Controlla la memoria: note simili o vecchie, collegamenti a pagine che non esistono, pagine isolate o sullo stesso argomento, file da leggere.",
+            json!({ "type": "object", "properties": {} }),
+            true,
+        ),
+        (
+            "memory_forget",
+            "Sposta nell'archivio della memoria una nota di MEMORIA.md (note: il suo testo) o una pagina (page: il titolo). Non cancella niente. Solo se l'utente l'ha approvato.",
+            json!({ "type": "object", "properties": {
+                "note": { "type": "string" },
+                "page": { "type": "string" }
+            } }),
+            true,
+        ),
+        (
             "todo_list",
             "Le attività di Microsoft To Do (da Outlook classico, che deve essere aperto), con id breve, scadenza, importanza, promemoria e nota, e i nomi delle liste. list: nome della lista (vuoto = tutte); done: true per vedere anche quelle fatte; limit: quante (predefinito 50).",
             json!({ "type": "object", "properties": {
@@ -398,6 +448,72 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
                 "tools": { "type": "array", "items": { "type": "string" } },
                 "body": { "type": "string" }
             }, "required": ["name", "body"] }),
+            false,
+        ),
+        (
+            "custom_create",
+            "Crea un'integrazione personale di EasyIsland, programmata con una descrizione (mai codice): compare nel menu dell'isola. Può essere un modulo con schede salvate, un cruscotto di dati letti da un servizio, un collegamento a un'API, o tutto insieme. Usalo quando l'utente chiede di creare un'integrazione, uno strumento, una funzione, un modulo, un controllo o un collegamento a un servizio. Se non è chiaro cosa gli serve chiediglielo prima; proponi tu campi, calcoli e azioni utili. definition: { name, icon (emoji), color (#rrggbb), description, titleField, fields, template, actions, sources, secrets }. fields: [{ id, label, kind, options, required, default, help, columns, formula, format, prefix, digits, showIf, source, summary }]; kind: text, textarea, number, money, date (default \"oggi\"), checkbox, select e multiselect (con options), email, phone, url, file (un file del Vassoio), rows (una tabella: columns [{ id, label, kind: text|number|money|checkbox|select|date|computed, options, formula, format }]), computed (formula; format: money predefinito, number, percent, text, date, yesno), counter (numerazione al salvataggio: prefix come \"N-{anno}-\", digits), link (source: id di un'altra integrazione personale, si sceglie tra le sue schede). showIf: una formula, il campo compare solo se è vera. summary: true = sommato o contato nell'elenco delle schede. Formule (computed, showIf, alert): id dei campi (e percorsi a.b nei dati), numeri (0,22 o 0.22), \"testi\", + - * / %, = != < <= > >=, e o non (anche && || !), e le funzioni (argomenti separati da ; o da virgola e spazio): se(c; a; b), somma(espressione sulle colonne di una tabella), media, conta, arrotonda(x; n), min, max, abs, oggi(), giorni(da; a), piugiorni(data; n), anno, mese, maiuscolo, minuscolo, lunghezza, unisci, contiene, vuoto, numero, testo (anche in inglese: if, sum, avg, count, round, today, days, adddays, upper, lower, len, concat, contains, empty). template: documento in Markdown con {{id_campo}}, {{#id_tabella}} … {{id_colonna}} … {{/id_tabella}} ripetuto per ogni riga, {{oggi}}, {{risposta.percorso}} (l'ultima risposta di un'azione http); vuoto = uno con tutti i campi. actions: [{ label, kind, … }]; kind: save; document (format html stampabile o md, nel Vassoio); copy (il template, o message); ai (prompt per la chat con {{campi}}); url; quick (id di un'azione rapida); notion (database); fill (compila i campi con l'IA da un testo incollato); export (le schede in CSV); http (method GET/POST/PUT/PATCH/DELETE, url con l'host scritto per intero, headers, body JSON o testo con {{campi}}, store: { id_campo: \"percorso.nella.risposta\" } per mettere la risposta nei campi, message con {{risposta.x}}); task (message: l'obiettivo di un compito di EasyIsland); notice (message: un avviso nell'isola); steps (le label di altre azioni da fare in fila, es. salva, poi http, poi document). sources: [{ id, label, method, url, headers, body, every (minuti, 0 = quando si apre), items (percorso della lista nella risposta), title, subtitle, value (percorsi per ogni elemento), values ({ \"Etichetta\": \"percorso\" }), alert (formula su ogni elemento: vera = avviso nell'isola, una volta), alertText (con {{percorso}}) }]. secrets: i nomi delle chiavi usate come {{secret:nome}} in url, headers e body: l'utente le inserisce in Impostazioni, tu non le vedi mai e non chiederle in chat. Le chiamate vanno solo agli host scritti nella descrizione. L'utente vede l'anteprima e conferma.",
+            json!({ "type": "object", "properties": { "definition": { "type": "object" } }, "required": ["definition"] }),
+            false,
+        ),
+        (
+            "custom_update",
+            "Cambia un'integrazione personale (vedi custom_get per la descrizione attuale): id e la definition intera, come in custom_create. Le schede salvate restano. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "id": { "type": "string" },
+                "definition": { "type": "object" }
+            }, "required": ["id", "definition"] }),
+            false,
+        ),
+        (
+            "custom_list",
+            "Le integrazioni personali dell'utente: nome, id, descrizione, quanti campi e quante schede.",
+            none.clone(),
+            true,
+        ),
+        (
+            "custom_get",
+            "La descrizione completa di un'integrazione personale (campi, template, azioni), da cambiare con custom_update.",
+            json!({ "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"] }),
+            true,
+        ),
+        (
+            "custom_records",
+            "Le schede salvate di un'integrazione personale, dalle più recenti. id; query: parole da cercare (facoltativa); limit (predefinito 30).",
+            json!({ "type": "object", "properties": {
+                "id": { "type": "string" },
+                "query": { "type": "string" },
+                "limit": { "type": "integer", "minimum": 1, "maximum": 200 }
+            }, "required": ["id"] }),
+            true,
+        ),
+        (
+            "custom_fetch",
+            "Legge adesso una fonte di dati di un'integrazione personale (il servizio scritto nella sua descrizione) e restituisce la risposta. id; source: l'id della fonte.",
+            json!({ "type": "object", "properties": {
+                "id": { "type": "string" },
+                "source": { "type": "string" }
+            }, "required": ["id", "source"] }),
+            true,
+        ),
+        (
+            "custom_call",
+            "Esegue un'azione http di un'integrazione personale (una chiamata all'API del servizio scritto nella sua descrizione, con le chiavi che l'utente ha salvato) e restituisce la risposta. id; action: la label dell'azione; values: { id_campo: valore } per i {{campi}} di url, headers e body. L'utente conferma ogni chiamata.",
+            json!({ "type": "object", "properties": {
+                "id": { "type": "string" },
+                "action": { "type": "string" },
+                "values": { "type": "object" }
+            }, "required": ["id", "action"] }),
+            false,
+        ),
+        (
+            "custom_add_record",
+            "Salva una scheda in un'integrazione personale: id; values: { id_campo: valore } (le righe di una tabella come elenco di oggetti); record: l'id di una scheda da cambiare (vuoto = nuova). L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "id": { "type": "string" },
+                "record": { "type": "string" },
+                "values": { "type": "object" }
+            }, "required": ["id", "values"] }),
             false,
         ),
         (

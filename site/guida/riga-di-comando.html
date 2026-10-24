@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Riga di comando e script — Guida di EasyIsland</title>
+<meta name="description" content="Messaggi sull'isola da qualsiasi script, il relay degli hook e gli altri strumenti che si collegano.">
+<link rel="icon" href="../media/icon.png">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="guida.css">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guida · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">Guida di EasyIsland</a></li></ul><div class="group">Per iniziare</div><ul><li><a href="installazione.html">Installazione</a></li><li><a href="primi-passi.html">Primi passi</a></li><li><a href="isola.html">L'isola</a></li></ul><div class="group">Personalizzare</div><ul><li><a href="aspetto.html">Posizione e aspetto</a></li><li><a href="profili.html">Profili e notifiche</a></li></ul><div class="group">Agenti di programmazione</div><ul><li><a href="agenti.html">Agenti di codice</a></li></ul><div class="group">Intelligenza artificiale</div><ul><li><a href="chat.html">La chat</a></li><li><a href="motori.html">Motori AI</a></li><li><a href="strumenti-ai.html">Modalità terminale e strumenti</a></li><li><a href="memoria.html">Memoria e secondo cervello</a></li><li><a href="compiti.html">Compiti, Battito e Abilità</a></li></ul><div class="group">Fare le cose</div><ul><li><a href="azioni.html">Azioni rapide e scorciatoie</a></li><li><a href="automazioni.html">Automazioni</a></li><li><a href="file-e-schermo.html">File e schermo</a></li></ul><div class="group">Collegare i servizi</div><ul><li><a href="integrazioni.html">Integrazioni</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="assistenza-remota.html">Assistenza remota</a></li><li><a href="integrazioni-personali.html">Integrazioni personali</a></li><li><a href="widget.html">Widget</a></li></ul><div class="group">Riferimento</div><ul><li><a href="impostazioni.html">Impostazioni, pagina per pagina</a></li><li><a href="privacy.html">Privacy e sicurezza</a></li><li><a href="riga-di-comando.html" class="on" aria-current="page">Riga di comando e script</a></li><li><a href="problemi.html">Problemi e soluzioni</a></li><li><a href="sviluppo.html">Per sviluppatori</a></li></ul></aside>
+<main>
+<div class="crumb">Riferimento</div>
+<h1>Riga di comando e script</h1>
+<p class="lead">Messaggi sull'isola da qualsiasi script, il relay degli hook e gli altri strumenti che si collegano.</p>
+<h2 id="messaggi-dagli-script"><a class="anchor" href="#messaggi-dagli-script">#</a>Messaggi dagli script</h2>
+<p>Qualsiasi script, attività pianificata, flusso n8n o programma può mostrare un messaggio sull'isola:</p>
+<pre data-lang="powershell"><code>&amp; "$env:LOCALAPPDATA\EasyIsland\bin\easyisland-hook.exe" notify "Backup" "Completato in 4 minuti" --stato ok</code></pre>
+<div class="table"><table><thead><tr><th>Opzione</th><th>Significato</th></tr></thead><tbody><tr><td><code>--stato</code></td><td><code>ok</code>, <code>avviso</code>, <code>errore</code> o <code>info</code> (colore e suono)</td></tr><tr><td><code>--apri https://…</code></td><td>Aggiunge un pulsante con un link</td></tr><tr><td><code>--help</code></td><td>L'aiuto</td></tr></tbody></table></div>
+<p>Esce con <strong>0</strong> se il messaggio è arrivato e con <strong>2</strong> se EasyIsland non è in esecuzione, quindi uno script non resta mai bloccato. Valgono le regole di notifica del profilo. In <strong>Impostazioni → Notifiche</strong> c'è il comando pronto da copiare e <strong>Prova</strong>.</p>
+<h2 id="aprire-le-impostazioni"><a class="anchor" href="#aprire-le-impostazioni">#</a>Aprire le Impostazioni</h2>
+<pre data-lang="powershell"><code>&amp; "$env:LOCALAPPDATA\EasyIsland\easyisland.exe" --settings</code></pre>
+<h2 id="il-relay-degli-agenti"><a class="anchor" href="#il-relay-degli-agenti">#</a>Il relay degli agenti</h2>
+<p><code>easyisland-hook.exe</code> è il ponte tra gli agenti e l'app. Gli agenti lo chiamano con il nome dell'evento e il JSON dell'evento sull'input standard (<code>SessionStart</code>, <code>UserPromptSubmit</code>, <code>PreToolUse</code>, <code>PostToolUse</code>, <code>PermissionRequest</code>, <code>Notification</code>, <code>Stop</code>, <code>SessionEnd</code>…). Ha 300 ms per raggiungere l'app ed esce con 0 se non ci riesce.</p>
+<h3 id="un-tuo-strumento-in-agenti"><a class="anchor" href="#un-tuo-strumento-in-agenti">#</a>Un tuo strumento in Agenti</h3>
+<p>Qualsiasi programma può comparire nella scheda Agenti mandando gli stessi eventi degli hook di Claude Code con un campo in più:</p>
+<pre data-lang="json"><code>{
+  "hook_event_name": "SessionStart",
+  "session_id": "bot-42",
+  "cwd": "C:\\progetti\\report",
+  "easyisland_agent": { "id": "mio-bot", "name": "Il mio bot", "color": "#22C55E" }
+}</code></pre>
+<pre data-lang="powershell"><code>$json | &amp; "$env:LOCALAPPDATA\EasyIsland\bin\easyisland-hook.exe" SessionStart</code></pre>
+<h2 id="il-server-mcp-di-easyisland"><a class="anchor" href="#il-server-mcp-di-easyisland">#</a>Il server MCP di EasyIsland</h2>
+<p><code>easyisland-hook.exe mcp</code> è un server MCP (stdio) con gli strumenti di EasyIsland. La chat lo usa da sola; per Claude Code fuori dall'app si aggiunge da <strong>Impostazioni → Agenti di codice → Strumenti di EasyIsland in Claude Code</strong> (equivale a <code>claude mcp add --scope user easyisland -- …\easyisland-hook.exe mcp</code>). Fuori dall'app ha in più <code>show_card</code> (una card con pulsanti che aspetta la tua scelta) e <code>add_to_tray</code>.</p>
+<h2 id="il-log"><a class="anchor" href="#il-log">#</a>Il log</h2>
+<p><code>%LOCALAPPDATA%\EasyIsland\easyisland.log</code>: avvio, eventi degli hook, decisioni sui permessi, tempi dei turni della chat e degli strumenti, problemi dei controlli. Resta sul tuo PC.</p>
+<div class="pager"><a class="prev" href="privacy.html"><small>Precedente</small>Privacy e sicurezza</a><a class="next" href="problemi.html"><small>Successiva</small>Problemi e soluzioni</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/26-riga-di-comando.md">Modifica questa pagina su GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#messaggi-dagli-script">Messaggi dagli script</a></li><li class="l2"><a href="#aprire-le-impostazioni">Aprire le Impostazioni</a></li><li class="l2"><a href="#il-relay-degli-agenti">Il relay degli agenti</a></li><li class="l3"><a href="#un-tuo-strumento-in-agenti">Un tuo strumento in Agenti</a></li><li class="l2"><a href="#il-server-mcp-di-easyisland">Il server MCP di EasyIsland</a></li><li class="l2"><a href="#il-log">Il log</a></li></ul></nav>
+</div>
+<script src="guida.js"></script>
+</body>
+</html>

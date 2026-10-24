@@ -79,6 +79,9 @@ In release Rust ha `panic = "abort"`: un panic in qualsiasi thread chiude l'app.
 - **Risultato** misurato con l'isola ritirata: memoria effettiva (working set) da 557 a 104 MB. La memoria riservata cambia poco (da 331 a 314 MB), perché Windows la rende solo se serve ad altri.
 - Il processo grafico (`gpu-process`) resta: la finestra trasparente e il Canvas ne hanno bisogno, e senza costerebbe CPU.
 
+## Finestra Memoria
+Terza finestra (`memoria`, `memoria.html`, `src/memory/`), creata nascosta all'avvio come le Impostazioni e addormentata finché non si apre; chiuderla la nasconde. Descritta in `docs/chat.md` → Secondo cervello.
+
 ## Impostazioni
 - Le pagine sono in `pages()` di `src/settings/main.ts`. «Chat» = motore e connettori (`claudeChatSection`). «Agenti» = una riga per agente (`agentsSection`, `agentRow`; l'id di pagina è ancora `claude`). Altre sezioni: `automationsSection` e `actionsSection`.
 - `commit()` salva soltanto; `render()` ricostruisce la pagina intera e si chiama solo quando cambia la struttura (non mentre si scrive).

@@ -1,3 +1,4 @@
+import type { Notice } from "../core/state";
 // Island views — DOM ports of IslandViewContent.swift. Paddings, font sizes,
 // colours and wording are copied from the Swift views so both platforms read
 // identically.
@@ -42,6 +43,10 @@ export interface ViewActions extends ActionHandlers, RewriteHandlers, MomentActi
   askAboutText(label: string, text: string): void;
   /** A fresh chat, nothing in it (Accesso remoto's "Apri la chat"). */
   openChat(): void;
+  /** A new chat with this question sent (an integration's "chiedi alla chat"). */
+  askChat(question: string): void;
+  /** A notice on the island (an integration's alert or action). */
+  showNotice(n: Notice): void;
   /** "Estrai…" on a dropped ZIP: "beside" | "downloads" | "desktop". */
   extractZip(place: string): void;
   /** 📌: keep the island open (no auto-close). */
@@ -330,6 +335,13 @@ function buildOverview(actions: ViewActions): ViewHost {
     askAboutPicture: (f) => actions.askAboutPicture(f),
     askAboutText: (label, text) => actions.askAboutText(label, text),
     openChat: () => actions.openChat(),
+    askChat: (q) => actions.askChat(q),
+    runQuick: (id) => {
+      const a = (State.settings.actions ?? []).find((x) => x.id === id);
+      if (a) actions.runAction(a);
+    },
+    holdOpen: (on) => actions.holdOpen(on),
+    showNotice: (n) => actions.showNotice(n),
   };
 
   return {
@@ -444,6 +456,8 @@ function buildOverview(actions: ViewActions): ViewHost {
           task.id === "integration_notion" && detailOpen ? "page" : JSON.stringify(info?.data ?? {}),
           JSON.stringify(State.widgetStatus[task.id.replace(/^widget:/, "")] ?? null),
           task.id === THREECX ? softphoneVersion() : 0,
+          // An integration of the user's: redrawn when it or its records change elsewhere.
+          task.id.startsWith("custom:") ? State.customVersion : 0,
           // The header's bell and speaker change only a setting.
           task.id === THREECX ? `${State.settings.integrationConfig?.threecxAlert}${State.settings.integrationConfig?.threecxRing}` : "",
         ].join("~");

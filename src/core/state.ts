@@ -1079,6 +1079,10 @@ class AppState {
   noteMessage: string | null = null;
   searchResult: SearchResult | null = null;
   chatHistory: ChatMessage[] = [];
+  /** The user's own integrations (custom.rs). */
+  customs: Custom[] = [];
+  /** Bumped when one of them or its records changed elsewhere: its card is redrawn. */
+  customVersion = 0;
   /** The engine picked in the chat's menu for the conversation in progress; null = the default (settings.chatEngine). Never saved. */
   chatEngineOverride: ChatEngine | null = null;
   /** "Automatica" (chat head, Modalità terminale only): no Consenti / Nega for this conversation. Never saved. */
@@ -1314,6 +1318,18 @@ class AppState {
       if (shouldLoad && idx >= 0) this.tasks[idx].color = color;
       if (!shouldLoad && idx >= 0) this.tasks.splice(idx, 1);
     }
+    // The user's own integrations (custom.rs), switched on in Impostazioni.
+    this.tasks = this.tasks.filter((t) => !t.id.startsWith("custom:") || this.customs.some((c) => c.enabled && `custom:${c.id}` === t.id));
+    for (const c of this.customs.filter((x) => x.enabled)) {
+      const id = `custom:${c.id}`;
+      const existing = this.tasks.find((t) => t.id === id);
+      if (existing) {
+        existing.name = c.name;
+        existing.color = c.color;
+      } else {
+        this.tasks.push(task(id, c.name, c.color, "n8n"));
+      }
+    }
     // Widgets follow the integrations, in the order they were defined.
     const widgets = this.settings.widgets ?? [];
     this.tasks = this.tasks.filter(
@@ -1435,3 +1451,75 @@ export interface Skill {
   tools: string[];
   body: string;
 }
+
+/** An integration made by the user from the chat (custom.rs): a description, never code. */
+export interface CustomColumn { id: string; label: string; kind: string; options: string[]; formula?: string; format?: string }
+export interface CustomField {
+  id: string;
+  label: string;
+  kind: string;
+  options: string[];
+  required: boolean;
+  default: string;
+  help: string;
+  columns: CustomColumn[];
+  formula: string;
+  /** counter: "PREV-{anno}-" and the digits of the number. */
+  prefix?: string;
+  digits?: number;
+  /** Shown only when: "urgente" or "pagamento=Bonifico". */
+  showIf?: string;
+  /** link: the integration whose records are picked from. */
+  source?: string;
+  /** Summed or counted in the list of the saved records. */
+  summary?: boolean;
+  /** computed: money (default), number, percent, text, date, yesno. */
+  format?: string;
+}
+export interface CustomAction {
+  label: string;
+  kind: string;
+  prompt: string;
+  url: string;
+  quick: string;
+  database: string;
+  format: string;
+  method?: string;
+  headers?: Record<string, unknown>;
+  body?: string;
+  store?: Record<string, unknown>;
+  message?: string;
+  steps?: string[];
+}
+/** Data read from a service (custom.rs Source). */
+export interface CustomSource {
+  id: string;
+  label: string;
+  method?: string;
+  url: string;
+  headers?: Record<string, unknown>;
+  body?: string;
+  every?: number;
+  items?: string;
+  title?: string;
+  subtitle?: string;
+  value?: string;
+  values?: Record<string, unknown>;
+  alert?: string;
+  alertText?: string;
+}
+export interface Custom {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  description: string;
+  enabled: boolean;
+  fields: CustomField[];
+  template: string;
+  actions: CustomAction[];
+  titleField: string;
+  sources?: CustomSource[];
+  secrets?: string[];
+}
+export interface CustomRecord { id: string; created: string; updated: string; values: Record<string, unknown> }

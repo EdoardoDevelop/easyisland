@@ -4,7 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill } from "./state";
+import type { Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill, Custom, CustomRecord } from "./state";
 import type { RecapHistory } from "../island/recap";
 
 export const IS_TAURI =
@@ -370,6 +370,22 @@ export const Bridge = {
   taskSetEngines: (id: string, engine: string, model: string, helpers: string[]) => callOrThrow<void>("task_set_engines", { id, engine, model, helpers }),
   /** The chat's engines: [id, name, ready now]. */
   enginesReady: () => call<[string, string, boolean][]>("engines_ready"),
+  /** Integrazioni personali (custom.rs). */
+  customsList: () => call<Custom[]>("customs_list"),
+  customSave: (definition: Custom) => callOrThrow<Custom>("custom_save", { definition }),
+  customDelete: (id: string) => callOrThrow<void>("custom_delete", { id }),
+  customRecords: (id: string) => call<CustomRecord[]>("custom_records", { id }),
+  customRecordSave: (id: string, record: string, values: Record<string, unknown>) => callOrThrow<CustomRecord>("custom_record_save", { id, record, values }),
+  customRecordDelete: (id: string, record: string) => callOrThrow<void>("custom_record_delete", { id, record }),
+  customDocument: (name: string, ext: string, text: string) => callOrThrow<{ name: string; path: string }>("custom_document", { name, ext, text }),
+  customCopy: (text: string) => callOrThrow<void>("custom_copy", { text }),
+  /** An integration's call to a service (keys put in by Rust) and a source read now. */
+  customHttp: (id: string, method: string, url: string, headers: Record<string, string>, body: string) =>
+    callOrThrow<{ status: number; ok: boolean; data: unknown }>("custom_http", { id, method, url, headers, body }),
+  customFetch: (id: string, source: string) => callOrThrow<{ status: number; ok: boolean; data: unknown }>("custom_fetch", { id, source }),
+  /** «Compila con l'IA»: the fields read from a pasted text. */
+  customFill: (id: string, text: string) => callOrThrow<Record<string, unknown>>("custom_fill", { id, text }),
+  customToNotion: (database: string, properties: Record<string, unknown>) => callOrThrow<string>("custom_to_notion", { database, properties }),
   /** Abilità (skills.rs). */
   skillsList: () => call<Skill[]>("skills_list"),
   skillSave: (s: { name: string; description: string; engine: string; tools: string[]; body: string }, old: string) =>
@@ -382,6 +398,13 @@ export const Bridge = {
   taskLog: (id: string) => call<string>("task_log", { id }),
   memoryNote: (text: string) => callOrThrow<string>("memory_note", { text }),
   memoryOpen: (folder: boolean) => callOrThrow<void>("memory_open", { folder }),
+  /** The memory window (brain.rs): the graph, its jobs, a node's file, opening it. */
+  memoryGraph: () => call<import("../memory/data").MemGraph>("memory_graph"),
+  memoryJob: (kind: "inbox" | "check") => callOrThrow<void>("memory_job", { kind }),
+  memoryNodeOpen: (id: string) => callOrThrow<void>("memory_node_open", { id }),
+  memoryWindowOpen: () => call<void>("memory_window_open"),
+  memoryInboxAdd: (name: string, data: number[]) => callOrThrow<string>("memory_inbox_add", { name, data }),
+  memoryNoteAdd: (text: string) => callOrThrow<string>("memory_note_add", { text }),
   /** Ctrl+V in the chat: files copied in Explorer or a picture, into the inbox (null: plain text). */
   chatPaste: () => callOrThrow<DroppedFile | null>("chat_paste"),
   /** «Modifica» / «Rigenera»: the conversation goes back to these lines. */
@@ -604,6 +627,8 @@ export interface IntegrationUpdate {
 export interface MemoryInfo {
   notes: number;
   days: number;
+  pages: number;
+  inbox: number;
   folder: string;
 }
 

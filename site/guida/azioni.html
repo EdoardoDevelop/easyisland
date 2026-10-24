@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Azioni rapide e scorciatoie — Guida di EasyIsland</title>
+<meta name="description" content="Pulsanti per link, programmi, script e domande all'AI; suggerimenti per l'app in uso; il menu sul testo selezionato.">
+<link rel="icon" href="../media/icon.png">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="guida.css">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guida · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">Guida di EasyIsland</a></li></ul><div class="group">Per iniziare</div><ul><li><a href="installazione.html">Installazione</a></li><li><a href="primi-passi.html">Primi passi</a></li><li><a href="isola.html">L'isola</a></li></ul><div class="group">Personalizzare</div><ul><li><a href="aspetto.html">Posizione e aspetto</a></li><li><a href="profili.html">Profili e notifiche</a></li></ul><div class="group">Agenti di programmazione</div><ul><li><a href="agenti.html">Agenti di codice</a></li></ul><div class="group">Intelligenza artificiale</div><ul><li><a href="chat.html">La chat</a></li><li><a href="motori.html">Motori AI</a></li><li><a href="strumenti-ai.html">Modalità terminale e strumenti</a></li><li><a href="memoria.html">Memoria e secondo cervello</a></li><li><a href="compiti.html">Compiti, Battito e Abilità</a></li></ul><div class="group">Fare le cose</div><ul><li><a href="azioni.html" class="on" aria-current="page">Azioni rapide e scorciatoie</a></li><li><a href="automazioni.html">Automazioni</a></li><li><a href="file-e-schermo.html">File e schermo</a></li></ul><div class="group">Collegare i servizi</div><ul><li><a href="integrazioni.html">Integrazioni</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="assistenza-remota.html">Assistenza remota</a></li><li><a href="integrazioni-personali.html">Integrazioni personali</a></li><li><a href="widget.html">Widget</a></li></ul><div class="group">Riferimento</div><ul><li><a href="impostazioni.html">Impostazioni, pagina per pagina</a></li><li><a href="privacy.html">Privacy e sicurezza</a></li><li><a href="riga-di-comando.html">Riga di comando e script</a></li><li><a href="problemi.html">Problemi e soluzioni</a></li><li><a href="sviluppo.html">Per sviluppatori</a></li></ul></aside>
+<main>
+<div class="crumb">Fare le cose</div>
+<h1>Azioni rapide e scorciatoie</h1>
+<p class="lead">Pulsanti per link, programmi, script e domande all'AI; suggerimenti per l'app in uso; il menu sul testo selezionato.</p>
+<p><img src="../media/actions.png" alt="La scheda Azioni" loading="lazy"></p>
+<h2 id="tipi-di-azione"><a class="anchor" href="#tipi-di-azione">#</a>Tipi di azione</h2>
+<p><strong>Impostazioni → Azioni rapide</strong> crea i pulsanti della scheda ⚡:</p>
+<div class="table"><table><thead><tr><th>Tipo</th><th>Cosa fa</th></tr></thead><tbody><tr><td><strong>Chiedi alla chat</strong></td><td>Manda un prompt salvato, applicato al testo copiato, al testo selezionato o al file rilasciato. Con <code>{{campi}}</code> nel testo diventa un <strong>modello</strong> da completare</td></tr><tr><td><strong>Script</strong></td><td>Comandi PowerShell o del Prompt dei comandi, nascosti, con l'output nell'isola (con <em>Interrompi</em>, timeout 5 minuti). Parte <strong>solo dopo un clic</strong>; con «Chiedi conferma» mostra prima i comandi</td></tr><tr><td><strong>Programma / cartella</strong></td><td>Avvia un programma con i suoi argomenti (es. <code>mstsc /v:server01</code>) o apre una cartella</td></tr><tr><td><strong>Link</strong></td><td>Apre un indirizzo nel browser</td></tr><tr><td><strong>Tasti</strong></td><td>Preme una combinazione di tasti nell'app in uso (per la barra dell'app in uso)</td></tr></tbody></table></div>
+<p>Ogni azione ha <strong>icona</strong> (una cinquantina disegnate nel codice), <strong>colore</strong>, <strong>cartella</strong>, <strong>scorciatoia</strong> e si riordina con ↑ ↓. Con più di 8 azioni compare <strong>Cerca un'azione</strong>.</p>
+<p>Le azioni si eseguono anche da <code>/nome</code> in chat, dal campo in alto dell'isola, dalle <a href="automazioni.html">automazioni</a>, dalla chat stessa («lancia il backup») e da Telegram. Le azioni appartengono al profilo.</p>
+<h2 id="suggerimenti-per-l-app-in-uso"><a class="anchor" href="#suggerimenti-per-l-app-in-uso">#</a>Suggerimenti per l'app in uso</h2>
+<p>In cima alla scheda ⚡ compaiono azioni pronte per l'app che stai usando, applicate al testo selezionato:</p>
+<ul><li><strong>Outlook</strong>: Riassumi la mail, Scrivi una risposta;</li><li><strong>Excel</strong>: Spiega questi dati;</li><li><strong>Word</strong>: Correggi, Rendi più formale;</li><li><strong>browser</strong>: Riassumi, Traduci;</li><li><strong>editor di codice</strong>: Spiega, Trova bug;</li><li><strong>terminale</strong>: Spiega l'errore;</li><li><strong>Teams</strong>, <strong>PDF</strong> e qualsiasi altra app: Riassumi, Traduci, Correggi.</li></ul>
+<p>EasyIsland copia la selezione, apre la chat con il testo allegato e poi rimette negli appunti quello che c'era.</p>
+<h2 id="menu-sul-testo-selezionato"><a class="anchor" href="#menu-sul-testo-selezionato">#</a>Menu sul testo selezionato</h2>
+<p>Seleziona un testo in <strong>qualunque programma</strong> e premi <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd>: compare un menu al mouse con <strong>le tue azioni rapide</strong> che lavorano sul testo, con le cartelle come sottomenu. Con Notion attivo ci sono anche <strong>Nota in Notion</strong> e <strong>Attività in Notion</strong>.</p>
+<h3 id="sostituisci"><a class="anchor" href="#sostituisci">#</a>Sostituisci</h3>
+<p>Quando un'azione riscrive il testo (correggi, traduci, rendi formale), l'isola mostra <strong>prima e dopo</strong> con <strong>Sostituisci</strong>, <strong>Rigenera</strong>, <strong>Copia</strong> e <strong>Annulla</strong>. Sostituisci incolla al posto della selezione <strong>solo se</strong> la finestra e il testo sono ancora gli stessi, e mantiene la <strong>formattazione</strong> (grassetti, elenchi, stili di Word e Outlook).</p>
+<p><img src="../media/rewrite.png" alt="Sostituisci con prima e dopo" loading="lazy"></p>
+<h2 id="scorciatoie-globali"><a class="anchor" href="#scorciatoie-globali">#</a>Scorciatoie globali</h2>
+<div class="table"><table><thead><tr><th>Scorciatoia</th><th>Cosa fa</th></tr></thead><tbody><tr><td><kbd>Ctrl</kbd>+<kbd>Space</kbd></td><td>Apre l'isola</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>K</kbd></td><td>Chat con quello che hai copiato</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd></td><td>Cronologia degli Appunti</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></td><td>Cerchia e chiedi</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></td><td>Richiesta in attesa (<kbd>N</kbd>, <kbd>Y</kbd>, <kbd>S</kbd>, <kbd>1</kbd>–<kbd>9</kbd>)</td></tr><tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd></td><td>App della sessione in primo piano</td></tr><tr><td><kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd></td><td>Menu sul testo selezionato</td></tr><tr><td>Integrazione successiva, suoni sì / no</td><td>Da assegnare</td></tr><tr><td>Ogni azione</td><td>La sua, se gliela dai</td></tr></tbody></table></div>
+<p>Per cambiarne una: clic sul campo e premi la combinazione (<kbd>Esc</kbd> annulla, <kbd>Canc</kbd> la toglie). Se è già usata da un'altra app, le Impostazioni lo segnalano.</p>
+<h2 id="la-barra-dell-app-in-uso"><a class="anchor" href="#la-barra-dell-app-in-uso">#</a>La barra dell'app in uso</h2>
+<p>Per ogni programma puoi scegliere le azioni da mostrare <strong>accanto al personaggio chiuso</strong> quando quel programma è in primo piano: per esempio in Outlook «Rispondi con l'AI» e un'azione Tasti per archiviare. Si configura in Impostazioni → Azioni rapide.</p>
+<div class="pager"><a class="prev" href="compiti.html"><small>Precedente</small>Compiti, Battito e Abilità</a><a class="next" href="automazioni.html"><small>Successiva</small>Automazioni</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/13-azioni.md">Modifica questa pagina su GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#tipi-di-azione">Tipi di azione</a></li><li class="l2"><a href="#suggerimenti-per-l-app-in-uso">Suggerimenti per l'app in uso</a></li><li class="l2"><a href="#menu-sul-testo-selezionato">Menu sul testo selezionato</a></li><li class="l3"><a href="#sostituisci">Sostituisci</a></li><li class="l2"><a href="#scorciatoie-globali">Scorciatoie globali</a></li><li class="l2"><a href="#la-barra-dell-app-in-uso">La barra dell'app in uso</a></li></ul></nav>
+</div>
+<script src="guida.js"></script>
+</body>
+</html>

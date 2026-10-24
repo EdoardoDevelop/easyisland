@@ -11,12 +11,13 @@ App desktop per Windows 10/11: un personaggio animato (Goccia, Slime, EasyTech, 
 - `docs/architettura.md`: mappa delle cartelle, interfaccia, personaggi, layout, suoni, impostazioni.
 - `docs/chat.md`: motori della chat, opencode come motore, connettori MCP, agente che usa il PC, Compiti (obiettivi che l'agente porta avanti da solo, con motori aiutanti), Abilità (procedure .md dell'utente).
 - `docs/agenti.md`: hook e relay, Claude Code, Codex/Gemini/Cursor/Copilot, opencode come agente, scheda Agenti.
-- `docs/integrazioni.md`: integrazioni, widget, 3CX, consumo, profili, azioni rapide, automazioni e abitudini.
+- `docs/integrazioni.md`: integrazioni, widget, 3CX, consumo, profili, azioni rapide, automazioni e abitudini, integrazioni personali create dalla chat.
 - `docs/strumenti.md`: file rilasciati, Vassoio, appunti, musica, contesto ⚡, ZIP, cattura, calcolatrice.
 - `docs/sviluppo.md`: build, anteprime, test, installazione su questo PC, pubblicazione di una release.
 - `docs/decisioni.md`: decisioni prese ed esclusioni. Controllalo prima di proporre una funzione.
 - `docs/idee.md`: idee e progetti non ancora fatti, con i dettagli.
 - `docs/prove-dal-vivo.md`: elenco di ciò che va ancora provato con i servizi veri.
+- `docs/guida/`: la **guida per l'utente** (una pagina .md per argomento), pubblicata sul sito come `site/guida/` con `node scripts/guida.mjs`. Quando cambia una funzione visibile, aggiorna la sua pagina e rigenera.
 - `docs/en/`, `README.en.md`, `CONTRIBUTING.en.md`: versioni inglesi per chi arriva da fuori; da aggiornare quando cambia ciò che descrivono.
 - `docs/archivio/`: storia vecchia (roadmap 6.1–6.6 citata nei commenti come "HANDOFF 6.6, point …", registro passato). **Non leggerla** se il compito non lo richiede.
 
@@ -36,7 +37,7 @@ La parte Rust si compila solo su Windows (MSVC). Test Rust: `cargo test --worksp
 - Nessuna telemetria. Chiamate di rete solo verso i servizi configurati dall'utente, più il controllo degli aggiornamenti su GitHub (`updates.rs`), disattivabile. Gli aggiornamenti si installano solo dopo un clic, con la firma verificata. La chiave privata non entra mai nel repo.
 - Non bloccare mai Claude Code né un altro agente: se l'app non risponde entro il timeout, l'hook esce subito con 0.
 - Non sovrascrivere mai `%USERPROFILE%\.claude\settings.json` né i file di configurazione degli altri agenti: backup datato, unione, diff, scrittura solo dopo la conferma dell'utente.
-- Mai inviare un'email o approvare un permesso senza un clic esplicito (unica eccezione: l'«Automatica» di Telegram accesa dall'utente, che chiede comunque per le cancellazioni, `docs/integrazioni.md`). Gli strumenti di EasyIsland (`agent.rs`) non eseguono comandi arbitrari, non inviano email e non eliminano, tranne `notion_delete_row` (la riga va nel cestino di Notion solo dopo che l'utente ha detto sì in chat) e `remote_run` (comandi solo sul PC remoto di «Accesso remoto» collegato alla chat, ognuno con Consenti / Nega; password solo in memoria, `docs/integrazioni.md`). `memory_note` scrive senza chiedere solo nella memoria della chat (`memory.rs`, file .md che l'utente vede e corregge, `docs/chat.md`). Comandi e modifiche ai file li fa solo la «Modalità terminale» della chat, con gli strumenti di Claude Code o opencode e Consenti / Nega nell'isola (`docs/chat.md`).
+- Mai inviare un'email o approvare un permesso senza un clic esplicito (unica eccezione: l'«Automatica» di Telegram accesa dall'utente, che chiede comunque per le cancellazioni, `docs/integrazioni.md`). Gli strumenti di EasyIsland (`agent.rs`) non eseguono comandi arbitrari, non inviano email e non eliminano, tranne `notion_delete_row` (la riga va nel cestino di Notion solo dopo che l'utente ha detto sì in chat) e `remote_run` (comandi solo sul PC remoto di «Accesso remoto» collegato alla chat, ognuno con Consenti / Nega; password solo in memoria, `docs/integrazioni.md`). Le integrazioni personali (`custom.rs`) sono descrizioni, mai codice: le loro azioni sono un elenco fisso. `memory_note` scrive senza chiedere solo nella memoria della chat (`memory.rs`, file .md che l'utente vede e corregge, `docs/chat.md`). Comandi e modifiche ai file li fa solo la «Modalità terminale» della chat, con gli strumenti di Claude Code o opencode e Consenti / Nega nell'isola (`docs/chat.md`).
 - Prestazioni: nessun frame di animazione e CPU ~0 % quando l'isola è ritirata.
 - La versione sta in `package.json`, `Cargo.toml` e `src-tauri/tauri.conf.json` e deve coincidere (la CI lo controlla sui tag).
 - Non cambiare `identifier` in `tauri.conf.json`: sposterebbe i dati dell'app e le voci in Gestione credenziali.

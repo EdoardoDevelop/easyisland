@@ -981,3 +981,18 @@ h3.int-sub {
   flex-direction: column;
   gap: 8px;
 }
+
+.nav-links {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.nav-links a {
+  color: #9db2ff;
+  text-decoration: none;
+}
+
+.nav-links a:hover {
+  text-decoration: underline;
+}

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compiti, Battito e Abilità — Guida di EasyIsland</title>
+<meta name="description" content="L'agente personale: obiettivi che EasyIsland porta avanti da sola, controlli periodici e procedure tue.">
+<link rel="icon" href="../media/icon.png">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="guida.css">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guida · 1.0.0</span>
+<div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">Guida di EasyIsland</a></li></ul><div class="group">Per iniziare</div><ul><li><a href="installazione.html">Installazione</a></li><li><a href="primi-passi.html">Primi passi</a></li><li><a href="isola.html">L'isola</a></li></ul><div class="group">Personalizzare</div><ul><li><a href="aspetto.html">Posizione e aspetto</a></li><li><a href="profili.html">Profili e notifiche</a></li></ul><div class="group">Agenti di programmazione</div><ul><li><a href="agenti.html">Agenti di codice</a></li></ul><div class="group">Intelligenza artificiale</div><ul><li><a href="chat.html">La chat</a></li><li><a href="motori.html">Motori AI</a></li><li><a href="strumenti-ai.html">Modalità terminale e strumenti</a></li><li><a href="memoria.html">Memoria e secondo cervello</a></li><li><a href="compiti.html" class="on" aria-current="page">Compiti, Battito e Abilità</a></li></ul><div class="group">Fare le cose</div><ul><li><a href="azioni.html">Azioni rapide e scorciatoie</a></li><li><a href="automazioni.html">Automazioni</a></li><li><a href="file-e-schermo.html">File e schermo</a></li></ul><div class="group">Collegare i servizi</div><ul><li><a href="integrazioni.html">Integrazioni</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="assistenza-remota.html">Assistenza remota</a></li><li><a href="integrazioni-personali.html">Integrazioni personali</a></li><li><a href="widget.html">Widget</a></li></ul><div class="group">Riferimento</div><ul><li><a href="impostazioni.html">Impostazioni, pagina per pagina</a></li><li><a href="privacy.html">Privacy e sicurezza</a></li><li><a href="riga-di-comando.html">Riga di comando e script</a></li><li><a href="problemi.html">Problemi e soluzioni</a></li><li><a href="sviluppo.html">Per sviluppatori</a></li></ul></aside>
+<main>
+<div class="crumb">Intelligenza artificiale</div>
+<h1>Compiti, Battito e Abilità</h1>
+<p class="lead">L'agente personale: obiettivi che EasyIsland porta avanti da sola, controlli periodici e procedure tue.</p>
+<h2 id="compiti"><a class="anchor" href="#compiti">#</a>Compiti</h2>
+<p>Un <strong>compito</strong> è un obiettivo che affidi a EasyIsland e che lei porta avanti <strong>da sola</strong>, anche mentre fai altro: scrive un piano, lo esegue con gli strumenti, ti chiede quello che solo tu sai e alla fine ti dà il risultato.</p>
+<p>Esempi: «controlla i ticket aperti da più di 3 giorni e prepara un riepilogo», «ogni lunedì alle 8 fammi il punto delle scadenze di Notion», «cerca tre fornitori di NAS e confronta i prezzi».</p>
+<h3 id="come-si-crea"><a class="anchor" href="#come-si-crea">#</a>Come si crea</h3>
+<ul><li><strong>In chat</strong>: <code>/compito …</code>, oppure chiedi «fallo come compito», «ogni giorno alle 9…»: la chat propone il compito e lo crei con Consenti.</li><li><strong>Impostazioni → Compiti → Nuovo compito</strong>: titolo, obiettivo, quando, motore.</li><li><strong>Da Telegram</strong>: <code>/compito …</code>.</li><li><strong>Da un'automazione</strong>: il passo «Compito».</li><li><strong>Da un'integrazione personale</strong>: un pulsante di tipo «compito».</li></ul>
+<h3 id="quando"><a class="anchor" href="#quando">#</a>Quando</h3>
+<div class="table"><table><thead><tr><th>Scelta</th><th>Esempio</th></tr></thead><tbody><tr><td>Subito</td><td>Parte appena c'è posto in coda</td></tr><tr><td>Una volta, a un'ora</td><td>24/10 alle 15:00</td></tr><tr><td>Ogni giorno</td><td>alle 9:00</td></tr><tr><td>Nei giorni feriali</td><td>alle 8:30</td></tr><tr><td>Ogni settimana</td><td>il lunedì alle 8:00</td></tr><tr><td>Ogni N minuti</td><td>ogni 60 minuti (almeno 15)</td></tr></tbody></table></div>
+<h3 id="come-lavora"><a class="anchor" href="#come-lavora">#</a>Come lavora</h3>
+<ol><li>Scrive il <strong>piano</strong> (pochi passi concreti) e segna ogni passo fatto.</li><li>Usa gli <a href="strumenti-ai.html">strumenti di EasyIsland</a> e del motore, con i soliti <strong>Consenti / Nega</strong> per ciò che cambia qualcosa.</li><li>Se gli serve una decisione o un dato, ti fa una <strong>domanda</strong>: una card nell'isola con le opzioni e la risposta libera, e anche su <strong>Telegram</strong> se è collegato. La prima risposta vince.</li><li>Chiude con il <strong>risultato</strong>, breve e utile. Se è un controllo senza niente da dire, chiude <strong>in silenzio</strong>.</li><li>Se il procedimento potrà servire di nuovo, propone di salvarlo come <strong>abilità</strong>.</li></ol>
+<p>Non invia email, non elimina e non approva niente da solo: prepara bozze e lascia a te l'ultimo clic.</p>
+<p>Nell'isola ogni compito è una sessione dell'agente <strong>Compiti</strong> nella scheda Agenti, con piano, passi, domande e permessi come per Claude Code. Un compito alla volta; gli altri aspettano in coda.</p>
+<h3 id="stati-e-comandi"><a class="anchor" href="#stati-e-comandi">#</a>Stati e comandi</h3>
+<p>In attesa del suo orario, In coda, Al lavoro, Aspetta una risposta, In pausa, Fatto, Non riuscito, Fermato. Dalle Impostazioni (e dall'isola) puoi <strong>avviare ora</strong>, <strong>mettere in pausa</strong>, <strong>riprendere</strong>, <strong>fermare</strong>, <strong>rispondere</strong>, <strong>eliminare</strong> e leggere il <strong>registro</strong> del compito (un file <code>.md</code>).</p>
+<p><strong>Limiti</strong> (Impostazioni → Compiti): turni e minuti massimi per esecuzione (12 turni e 30 minuti di serie), poi il compito va in pausa e ti avvisa.</p>
+<h3 id="un-motore-per-compito-e-motori-aiutanti"><a class="anchor" href="#un-motore-per-compito-e-motori-aiutanti">#</a>Un motore per compito, e motori aiutanti</h3>
+<ul><li>Ogni compito può avere il <strong>suo motore e modello</strong> (per esempio opencode gratuito per i controlli, Claude per i testi).</li><li>Puoi dargli dei <strong>motori aiutanti</strong>: il motore che guida può affidare a uno di loro un pezzo del lavoro (una ricerca, una revisione, una bozza) e riceverne il risultato, come fanno gli agenti con i sotto-agenti.</li></ul>
+<h3 id="su-telegram"><a class="anchor" href="#su-telegram">#</a>Su Telegram</h3>
+<p>Con Telegram collegato ricevi un messaggio quando un compito finisce, non riesce, va in pausa o aspetta una risposta. Rispondi con i pulsanti o con <code>/rispondi …</code>. Anche i permessi dei compiti arrivano lì (mai approvati da soli, nemmeno con «Automatica»).</p>
+<h2 id="battito"><a class="anchor" href="#battito">#</a>Battito</h2>
+<p>Un <strong>controllo periodico</strong>: ogni N minuti l'agente guarda le cose che hai scritto in <code>BATTITO.md</code> e ti avvisa <strong>solo se c'è qualcosa</strong>.</p>
+<pre><code>- ticket urgenti non assegnati in Zammad
+- mail da clienti senza risposta da più di un giorno
+- scadenze di oggi in Notion
+- spazio disco sotto il 10 %</code></pre>
+<p><strong>Impostazioni → Compiti → Battito</strong>: scegli ogni quanto e apri l'elenco con <strong>Cosa tenere d'occhio…</strong>. Con l'elenco vuoto non parte e non costa niente.</p>
+<h2 id="riordino-della-memoria"><a class="anchor" href="#riordino-della-memoria">#</a>Riordino della memoria</h2>
+<p>Ogni sera alle 22:30 rilegge la giornata, ti propone cosa ricordare, impara dai file in <code>da-leggere</code> e la domenica controlla la memoria. Si accende in <strong>Impostazioni → Compiti</strong>; dettagli in <a href="memoria.html#il-riordino-della-sera">Memoria</a>.</p>
+<h2 id="abilita"><a class="anchor" href="#abilita">#</a>Abilità</h2>
+<p>Un'<strong>abilità</strong> è una procedura tua scritta in un file <code>.md</code>: come fai un preventivo, come chiudi un ticket, come prepari il report del mese. L'AI la legge <strong>solo quando serve</strong>, quindi puoi averne tante senza costi.</p>
+<pre><code>---
+nome: Chiusura ticket
+descrizione: Come chiudere un ticket Zammad con il riepilogo per il cliente
+motore: subscription
+strumenti: list_status, notion_add_row
+---
+1. Rileggi il ticket e le note interne.
+2. Scrivi il riepilogo in tre righe, senza gergo.
+3. Aggiungi la riga nel database «Interventi» di Notion.
+4. Lascia a me l'invio della risposta.</code></pre>
+<ul><li><strong>Dove</strong>: <code>%APPDATA%\EasyIsland\abilita\</code>. In <strong>Impostazioni → Compiti → Abilità</strong> le crei, modifichi, elimini e apri la cartella.</li><li><strong>Come si usano</strong>: la chat e i compiti vedono l'elenco (nome e descrizione) e leggono quella giusta quando serve. Ogni abilità è anche un <strong>comando</strong>: <code>/chiusura-ticket</code> in chat e su Telegram.</li><li><strong>Motore</strong>: un'abilità può indicare il motore preferito; un compito lo usa delegandogli quel passo.</li><li><strong>Si migliorano da sole</strong>: alla fine di un compito l'agente può proporti di salvare il procedimento come abilità nuova (con Consenti / Nega).</li></ul>
+<div class="pager"><a class="prev" href="memoria.html"><small>Precedente</small>Memoria e secondo cervello</a><a class="next" href="azioni.html"><small>Successiva</small>Azioni rapide e scorciatoie</a></div>
+<footer>EasyIsland 1.0.0 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/12-compiti.md">Modifica questa pagina su GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#compiti">Compiti</a></li><li class="l3"><a href="#come-si-crea">Come si crea</a></li><li class="l3"><a href="#quando">Quando</a></li><li class="l3"><a href="#come-lavora">Come lavora</a></li><li class="l3"><a href="#stati-e-comandi">Stati e comandi</a></li><li class="l3"><a href="#un-motore-per-compito-e-motori-aiutanti">Un motore per compito, e motori aiutanti</a></li><li class="l3"><a href="#su-telegram">Su Telegram</a></li><li class="l2"><a href="#battito">Battito</a></li><li class="l2"><a href="#riordino-della-memoria">Riordino della memoria</a></li><li class="l2"><a href="#abilita">Abilità</a></li></ul></nav>
+</div>
+<script src="guida.js"></script>
+</body>
+</html>

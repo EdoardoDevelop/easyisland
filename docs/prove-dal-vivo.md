@@ -2,6 +2,16 @@
 
 Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli una voce quando è provata, e annota in `HANDOFF.md` ciò che non va.
 
+- [ ] **Integrazioni personali (23 ottobre 2026):** provati nell'anteprima modulo, righe, calcoli e modello compilato. Restano con l'app vera:
+  1. in chat «crea un'integrazione per i preventivi…»: la card di Consenti con la descrizione, poi la voce nel menu;
+  2. Salva, poi la scheda in «Salvate», Duplica, Elimina;
+  3. «Crea il documento»: l'HTML nel Vassoio, aperto e stampato in PDF;
+  4. un'azione «chiedi alla chat», una Notion e una con un'azione rapida;
+  5. in chat «aggiungi un campo …» (custom_update) e «quanti preventivi ho fatto a ottobre?» (custom_records);
+  6. numerazione: due preventivi salvati di fila (001, 002), poi un duplicato che prende il numero nuovo;
+  7. «Compila con l'IA» da una mail vera di un cliente; «Esporta CSV» aperto in Excel; un campo `link` verso un'integrazione «Clienti»;
+  8. provato qui il 23 ottobre: una fonte letta da sola dal ciclo in Rust (API pubblica di GitHub, HTTP 200). Restano: un'integrazione con chiave (`{{secret:token}}` inserito nelle Impostazioni) verso un servizio vero, un'azione `http` POST con `store`, un avviso di una fonte, `custom_call` dalla chat.
+
 - [ ] **Compiti (23 ottobre 2026):** provato qui un compito da cima a fondo con l'abbonamento (piano, strumenti, passi, risultato). Restano:
   1. una domanda (`task_ask`) con la card vera: risposta a un pulsante, risposta scritta, e nessuna risposta (il compito va in «Attende te», poi Rispondi in Impostazioni → Compiti);
   2. un permesso (es. `notion_add_row`) chiesto da un compito con l'isola chiusa;
@@ -14,6 +24,12 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
   9. il Riordino della memoria acceso, una sera con conversazioni: la domanda con le note proposte e le note salvate in MEMORIA.md;
   10. un'abilità usata su Telegram con `/nome …`.
 
+- [ ] **Secondo cervello (24 ottobre 2026):**
+  1. Impostazioni → Chat → Memoria → «Mappa»: la finestra si apre (non bianca), le quattro viste con la memoria vera.
+  2. Un .txt e un .html in `memoria\da-leggere`, «Leggi adesso»: pagine scritte con `fonte:` e `[[collegamenti]]`, file spostati in `fonti`.
+  3. Una pagina modificata a mano mentre l'agente lavora: la sua scrittura rifiutata e ripetuta dopo averla riletta.
+  4. «Controlla»: proposte nell'isola, fatte solo quelle approvate, niente cancellato.
+  5. In chat una domanda su un cliente con una pagina: la risposta usa anche le pagine collegate.
 - [ ] **Chat nuova e memoria (21 ottobre 2026):**
   1. Ctrl+V di un'immagine e di un file copiato in Esplora file a conversazione avviata (chip 📎, il motore lo legge).
   2. Un file trascinato sull'isola durante una conversazione non la ricomincia.
