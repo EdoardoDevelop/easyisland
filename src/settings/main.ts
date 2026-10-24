@@ -22,7 +22,11 @@ const HOMEPAGE = "https://edoardodevelop.github.io/easyisland/";
 
 const root = document.getElementById("settings-root")!;
 
+/** When this window last saved: what comes back right after is its own echo. */
+let savedAt = 0;
+
 async function save() {
+  savedAt = Date.now();
   await Bridge.saveSettings(settings);
 }
 
@@ -2923,10 +2927,18 @@ function actionsSection(): HTMLElement {
         folderField.setAttribute("list", "qa-folders");
         folderField.addEventListener("change", () => draw());
         // The folder's icon belongs to the whole folder: saved at once for every action in it.
+        // The name as typed now (it is only taken on "change"); with none yet, the
+        // field asks for one instead of the click doing nothing.
         const folderIcon = iconPicker(look.icon, "#94a3b8", (v) => {
-          if (!look.name) return;
-          for (const x of [...actions, ...drafts.values()]) if (folderLook(x.folder).name === look.name) x.folder = folderValue(v, look.name);
-          commit();
+          const name = folderField.value.trim();
+          if (!name) {
+            folderField.placeholder = t("Prima scrivi il nome della cartella");
+            folderField.focus();
+            return;
+          }
+          a.folder = folderValue(v, name);
+          for (const x of [...actions, ...drafts.values()]) if (folderLook(x.folder).name === name) x.folder = folderValue(v, name);
+          if (!isNew) commit();
           draw();
         });
         card.append(h("div", { class: "row" }, h("label", { text: t("Cartella") }), folderIcon, folderField,
@@ -4863,7 +4875,9 @@ async function main() {
       redraw = true; // changed elsewhere: a profile switch, a drag, the island
     }
     applyUiStyle(settings.theme.style);
-    if (redraw) render();
+    // The echo of a save made here (Rust may tidy a value) is taken without
+    // redrawing: a redraw closed the open integration and the page jumped up.
+    if (redraw && Date.now() - savedAt > 2000) render();
   });
 }
 
@@ -5011,14 +5025,38 @@ function render() {
   );
   const main = h("main", { class: "page", "data-page": page.id }, body);
   root.append(nav, main);
-  // A click (switch, Aggiungi, Elimina…) redraws the page: it stays where it was.
-  // Parts filled in a moment later (keys, lists) made it shorter for a frame,
-  // and the scroll fell back to the top: hold the old height until they are in.
-  if (oldHeight) {
-    body.style.minHeight = `${oldHeight}px`;
-    window.setTimeout(() => { body.style.minHeight = ""; }, 600);
-  }
+  // A redraw stays where it was; parts filled in a moment later (keys, lists)
+  // must not let it fall back to the top meanwhile.
+  if (oldHeight) body.style.minHeight = `${oldHeight}px`;
   main.scrollTop = scrollTop;
+  holdScroll(main, body);
+}
+
+/**
+ * A list redrawn in place (an action's type, a switch, Aggiungi, Elimina) left
+ * the page shorter for a moment and the scroll fell back up (Edoardo, 24 Oct
+ * 2026): while parts change, the page keeps at least the height that was in view.
+ */
+function holdScroll(main: HTMLElement, body: HTMLElement) {
+  // The position before the change: reading scrollTop after it may already be the fallen one.
+  let top = main.scrollTop;
+  main.addEventListener("scroll", () => { top = main.scrollTop; }, { passive: true });
+  let release = 0;
+  const later = () => {
+    window.clearTimeout(release);
+    release = window.setTimeout(() => {
+      const at = main.scrollTop;
+      body.style.minHeight = "";
+      main.scrollTop = at;
+    }, 2000);
+  };
+  if (body.style.minHeight) later();
+  new MutationObserver(() => {
+    const need = top + main.clientHeight;
+    body.style.minHeight = `${Math.max(need, parseFloat(body.style.minHeight) || 0)}px`;
+    main.scrollTop = top;
+    later();
+  }).observe(body, { childList: true, subtree: true });
 }
 
 void main();

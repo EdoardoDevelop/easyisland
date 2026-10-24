@@ -165,3 +165,5 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
 - **Menu della barra:** con EasyIsland aggiunta alla barra, tasto destro sull'icona: azioni rapide e Apri l'isola / Chiedi alla chat / Cerchia e chiedi / Impostazioni funzionano, anche a isola chiusa.
 - **Backup completo:** Esporta, poi Importa lo stesso file: le cartelle attuali finiscono in `.prima-del-ripristino-<data>`, EasyIsland si riavvia e memoria, chat e compiti ci sono.
 - **Anteprime:** immagini nel Vassoio e nella cartella di lavoro mostrano la miniatura, in elenco e in griglia.
+- **Impostazioni ferme:** in fondo ad Azioni rapide cambia «Chiedi alla chat» in «Tasti nel programma in uso», e in Integrazioni accendi e spegni un interruttore: la pagina resta dov'è.
+- **File sull'isola a riposo:** con la vista compatta tornata a riposo (anche «Nessuna», la striscia invisibile), trascina un file sul bordo dov'è l'isola: si apre il pannello di rilascio.

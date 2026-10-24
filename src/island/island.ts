@@ -2763,7 +2763,10 @@ ${note}` : text };
     });
 
     // A file of the tray being dragged out is never taken back.
-    void onDragDrop((e) => this.onDragDrop(e), (x, y) => !State.draggingOut && this.nearIsland(x, y));
+    // Resting, the window is only the icon or the wake strip on the edge: a file
+    // that touches it opens the island (Edoardo, 24 Oct 2026). The island's
+    // shape is not there yet to measure against, so the whole window counts.
+    void onDragDrop((e) => this.onDragDrop(e), (x, y) => !State.draggingOut && (this.collapsed || this.nearIsland(x, y)));
 
     // Outside Tauri (plain browser) drive the cursor from DOM events so the
     // island can be inspected with `npm run dev`.
