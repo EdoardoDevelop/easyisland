@@ -37,7 +37,11 @@ A sequence of steps:
 - **switch profile**;
 - open a **program**, a **folder** or a **link**;
 - **ask the chat** (it opens in the island with the answer);
-- start a **task**.
+- start a **task**;
+- **wait** N minutes before the next step;
+- **ask before going on**: a card in the island with *Continue* / *Cancel* listing the steps that follow; with no answer in 3 minutes the automation stops.
+
+If a step fails, the next ones are skipped; with **Go on after an error** they run anyway.
 
 In the steps you can use the event's data: `{file}`, `{percorso}`, `{cartella}`, `{rete}`, `{programma}`, `{unità}`, `{testo}`, `{fonte}`, `{chiamante}`, `{numero}`, `{agente}`, `{progetto}`, `{porta}`, `{link}`, `{minuti}`, and always `{ora}` and `{data}`. The editor lists the ones available for the chosen event. For safety they are encoded in links, a single argument in a program's arguments, and never enter scripts.
 
@@ -49,9 +53,11 @@ Each automation can be limited to a profile and tested right away with **Try now
 ## Suggestions from your habits
 If you turn it on (**Automations → Suggest automations**, off by default), EasyIsland notes when you open programs (only the name, never titles or contents), when you start or unlock the PC, the Wi-Fi, USB sticks, quick actions and profiles chosen by hand. Everything stays on this PC, 45 days at most, and is erased with one click.
 
-After a few weeks it suggests, at most once a day:
-- *"Shall I open Outlook at 8:50?"*, because you always open it at that time on weekdays;
-- sequences: *"When you open the management software, shall I open Excel too?"*;
+After a few weeks it suggests, at most once a day, only **complete routines**, never "open one program at a time":
+- *"Shall I set up your Start of the day?"*: the first time you start or unlock the PC in the usual slot, it switches to the profile you usually pick, opens together the programs you always open at that time and, in the morning, gives you the day at a glance (appointments, mail, tickets, to-dos). Once a day;
+- on a place's network: that place's profile and the programs you open as soon as you arrive;
+- groups: *"When you open the management software, shall I get Excel and Word ready too?"* (only with at least two);
+- a quick action when you plug in a USB stick;
 - turning off an automation you no longer use.
 
 Answer **Create**, **Not now** (it asks again in a month) or **No, never** (you'll find it among the *Rejected suggestions*). In **Programs not to watch** you list the ones to ignore.

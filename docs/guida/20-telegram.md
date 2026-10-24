@@ -7,7 +7,7 @@
 2. **Impostazioni → Integrazioni → Telegram**: incolla il token (va in Gestione credenziali).
 3. **Collega**: ricevi un codice di 6 cifre valido 10 minuti. Scrivi al tuo bot `/start <codice>` da una chat privata.
 
-Da quel momento il bot risponde **solo alla tua chat**. EasyIsland legge Telegram con il long polling: nessuna porta aperta, nessun server in mezzo, solo `api.telegram.org`. Funziona **solo con il PC acceso**: i messaggi arrivati con EasyIsland chiuso si scartano, con una sola risposta che lo dice.
+Da quel momento il bot risponde **solo alla tua chat**. EasyIsland legge Telegram con il long polling: nessuna porta aperta, nessun server in mezzo, solo `api.telegram.org`. Puoi scrivere anche **a PC spento**: i messaggi aspettano su Telegram e EasyIsland li elabora in ordine appena riparte, dicendoti che lo sta facendo. Comodo per un «ricordati che…» quando sei in giro. Telegram li tiene circa **24 ore**: quelli più vecchi si perdono.
 
 ## La chat su Telegram
 Una conversazione **tutta sua**, distinta da quella dell'isola, con motore e modello scelti da lì. La risposta arriva mentre si scrive, con **⏹ Ferma**.

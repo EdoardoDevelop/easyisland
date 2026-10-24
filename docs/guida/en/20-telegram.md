@@ -7,7 +7,7 @@
 2. **Settings → Integrations → Telegram**: paste the token (it goes into the Credential Manager).
 3. **Link**: you get a 6-digit code valid for 10 minutes. Send your bot `/start <code>` from a private chat.
 
-From then on the bot answers **only your chat**. EasyIsland reads Telegram with long polling: no open port, no server in between, only `api.telegram.org`. It works **only with the PC on**: messages that arrived while EasyIsland was closed are discarded, with a single reply saying so.
+From then on the bot answers **only your chat**. EasyIsland reads Telegram with long polling: no open port, no server in between, only `api.telegram.org`. You can write **with the PC off** too: messages wait on Telegram and EasyIsland handles them in order as soon as it's back, telling you it's doing so. Handy for a "remember that…" while you're out. Telegram keeps them about **24 hours**: older ones are lost.
 
 ## The chat on Telegram
 A conversation **of its own**, separate from the island's, with engine and model chosen from there. The answer arrives as it's written, with **⏹ Stop**.

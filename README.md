@@ -59,6 +59,13 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**1.0.1** — **Telegram anche a PC spento**: i messaggi scritti al bot mentre EasyIsland era spento
+si elaborano alla riaccensione, in ordine, sapendo quando li hai scritti. **L'isola passa dietro** le
+finestre che le vengono sopra (come la scelta della cartella di lavoro) senza chiudersi, e torna
+davanti con un clic o quando serve. **Automazioni più complete**: passi «Aspetta» e «Chiedi prima di
+continuare», stop dopo un errore, e dalle abitudini solo routine intere (inizio giornata con profilo,
+programmi e punto della giornata), mai «apro un programma a un'ora».
+
 **1.0.0** — **Secondo cervello e guida.** La memoria ha **pagine collegate** su clienti, persone,
 progetti e concetti (`[[Titolo]]`, con le relazioni), una cartella **da-leggere** da cui l'agente
 impara e scrive le pagine con la fonte, un **controllo** che propone come sistemarla (archivia, non

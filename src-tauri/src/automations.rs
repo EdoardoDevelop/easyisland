@@ -13,7 +13,9 @@
 // battery or below N %, away for N minutes, microphone or webcam in use, "davanti
 // al cliente". Plus how often: every time, at most every N minutes, once a day.
 // Actions, in order: a quick action of the user's, a notice in the island, a
-// profile switch, opening a program/folder or a link, a question to the chat.
+// profile switch, opening a program/folder or a link, a question to the chat,
+// a task, waiting N minutes, asking first (a card: Continua / Annulla). After a
+// step that failed the rest is skipped, unless "keepGoing".
 // The trigger's data ({file}, {chiamante}, {progetto}…) fill notices, links,
 // arguments and questions (`fill`), never a script: see `run_step` for the rules.
 //
@@ -97,7 +99,8 @@ pub struct Condition {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Step {
-    /// quick | notice | profile | app | url | chat (`text` is the question)
+    /// quick | notice | profile | app | url | chat (`text` is the question) | task
+    /// | wait (`minutes`) | confirm (a card with `title` / `text`: Continua or Annulla)
     pub kind: String,
     /// quick: action id · profile: profile id.
     pub id: String,
@@ -107,6 +110,8 @@ pub struct Step {
     pub target: String,
     pub args: String,
     pub url: String,
+    /// wait: how long.
+    pub minutes: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -126,6 +131,8 @@ pub struct Automation {
     pub steps: Vec<Step>,
     /// A notice in the island every time it runs (errors always show).
     pub notify: bool,
+    /// Go on with the next steps after one that failed (off: they are skipped).
+    pub keep_going: bool,
     /// Fingerprint of the habit proposal it came from (habits.rs), "" otherwise.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub origin: String,
@@ -496,12 +503,42 @@ pub async fn run(app: AppHandle, auto: Automation, cause: String, actions: Vec<V
     ctx.push(("ora".into(), key.get(11..).unwrap_or("").to_string()));
     let mut done = Vec::new();
     let mut ok = true;
-    for step in &auto.steps {
+    let name = if auto.name.trim().is_empty() { t("Automazione").to_string() } else { auto.name.clone() };
+    for (i, step) in auto.steps.iter().enumerate() {
+        match step.kind.as_str() {
+            "wait" => {
+                let minutes = step.minutes.clamp(1, 240);
+                tokio::time::sleep(Duration::from_secs(minutes * 60)).await;
+                done.push(tf("atteso {n} minuti", &[("n", &minutes)]));
+                continue;
+            }
+            "confirm" => {
+                let plain = |v: &str, _| v.to_string();
+                let title = fill(step.title.trim(), &ctx, &plain);
+                let title = if title.is_empty() { tf("Automazione «{name}»", &[("name", &name)]) } else { title };
+                let rest: Vec<String> = auto.steps.iter().skip(i + 1).map(step_words).collect();
+                let text = fill(step.text.trim(), &ctx, &plain);
+                let text = if text.is_empty() { tf("Continuo? Poi: {rest}.", &[("rest", &rest.join(", "))]) } else { text };
+                let go = t("Continua").to_string();
+                let answer = crate::moments::ask_card(&app, &title, &text, "info", vec![go.clone(), t("Annulla").into()], CONFIRM_WAIT).await;
+                if answer != Some(crate::moments::CardAnswer::Chose(go)) {
+                    done.push(t("fermata: non confermata").into());
+                    break;
+                }
+                done.push(t("confermata").into());
+                continue;
+            }
+            _ => {}
+        }
         match run_step(&app, step, &actions, &ctx).await {
             Ok(t) => done.push(t),
             Err(e) => {
                 ok = false;
                 done.push(tf("errore: {e}", &[("e", &e)]));
+                if !auto.keep_going && i + 1 < auto.steps.len() {
+                    done.push(t("passi seguenti saltati").into());
+                    break;
+                }
             }
         }
     }
@@ -509,12 +546,29 @@ pub async fn run(app: AppHandle, auto: Automation, cause: String, actions: Vec<V
         done.push(t("nessun passo da eseguire").into());
     }
     let detail = done.join(" · ");
-    let name = if auto.name.trim().is_empty() { t("Automazione").to_string() } else { auto.name.clone() };
     if auto.notify || !ok {
         notice(&app, &tf("Automazione «{name}»", &[("name", &name)]), &detail, if ok { "ok" } else { "error" });
     }
     push_log(LogEntry { at: now_ms(), name, cause, ok, detail });
     let _ = app.emit_to(crate::SETTINGS_LABEL, "automations-log", ());
+}
+
+/// A "chiedi prima" card waits this long, then the automation stops.
+const CONFIRM_WAIT: Duration = Duration::from_secs(180);
+
+/// A step in a few words, for the "chiedi prima" card.
+fn step_words(st: &Step) -> String {
+    match st.kind.as_str() {
+        "quick" => t("un'azione rapida").to_string(),
+        "notice" => tf("avviso «{t}»", &[("t", &st.title)]),
+        "profile" => t("cambio di profilo").to_string(),
+        "app" => tf("apro {x}", &[("x", &st.target)]),
+        "url" => tf("apro {x}", &[("x", &st.url)]),
+        "chat" => t("domanda alla chat").to_string(),
+        "task" => tf("compito «{x}»", &[("x", &if st.title.is_empty() { st.text.clone() } else { st.title.clone() })]),
+        "wait" => tf("attendo {n} minuti", &[("n", &st.minutes)]),
+        _ => st.kind.clone(),
+    }
 }
 
 /// Settings → "Prova ora".
@@ -533,7 +587,7 @@ const TRIGGER_KINDS: &[&str] = &[
     "time", "startup", "unlock", "wifi", "app", "foreground", "drive", "folder", "download", "integration", "call", "agent",
     "server", "back", "teams",
 ];
-const STEP_KINDS: &[&str] = &["quick", "notice", "profile", "app", "url", "chat", "task"];
+const STEP_KINDS: &[&str] = &["quick", "notice", "profile", "app", "url", "chat", "task", "wait", "confirm"];
 const CONDITION_KINDS: &[&str] = &["hours", "wifi", "app", "foreground", "battery", "idle", "meeting", "client"];
 
 /// "HH:MM" → minutes since midnight.
@@ -664,6 +718,7 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
             }
             "chat" if st.text.trim().is_empty() => return Err("steps[].text: la domanda per la chat.".into()),
             "task" if st.text.trim().is_empty() => return Err("steps[].text: l'obiettivo del compito.".into()),
+            "wait" => st.minutes = if st.minutes == 0 { 5 } else { st.minutes.clamp(1, 240) },
             _ => {}
         }
         if st.level.is_empty() {
@@ -754,6 +809,8 @@ pub fn describe(a: &Automation, s: &crate::settings::Settings) -> String {
             "url" => format!("apri {}", st.url),
             "chat" => format!("chiedi alla chat «{}»", st.text),
             "task" => format!("avvia il compito «{}»", if st.title.is_empty() { &st.text } else { &st.title }),
+            "wait" => format!("aspetta {} minuti", st.minutes),
+            "confirm" => "chiedi prima di continuare".into(),
             k => k.to_string(),
         })
         .collect();

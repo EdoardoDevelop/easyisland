@@ -3039,6 +3039,8 @@ const STEP_KINDS: [AutomationStep["kind"], string][] = [
   ["profile", t("Passa a un profilo")],
   ["app", t("Apri un programma o una cartella")],
   ["url", t("Apri un link")],
+  ["wait", t("Aspetta")],
+  ["confirm", t("Chiedi prima di continuare")],
 ];
 
 const CONDITION_KINDS: [AutomationCondition["kind"], string][] = [
@@ -3366,6 +3368,14 @@ function automationsSection(): HTMLElement {
           case "url":
             row.append(field(s.url, "https://…", (v) => { s.url = v.trim(); }));
             break;
+          case "wait":
+            row.append(numberInput(s.minutes || 5, 1, 240, (n) => { s.minutes = n; }), h("span", { class: "hint", text: t("minuti") }));
+            break;
+          case "confirm":
+            row.append(
+              field(s.title, t("Titolo (facoltativo)"), (v) => { s.title = v; }, "width:160px"),
+              field(s.text, t("Testo (facoltativo): di serie elenca i passi che seguono"), (v) => { s.text = v; }));
+            break;
         }
         row.append(remove);
         card.append(row);
@@ -3379,6 +3389,8 @@ function automationsSection(): HTMLElement {
       card.append(h("div", { class: "row" }, h("label", { text: "" }), addStep,
         h("span", { class: "hint", text: t("Avvisami ogni volta") }),
         toggle(a.notify, (v) => { a.notify = v; commit(); }),
+        h("span", { class: "hint", text: t("Continua dopo un errore") }),
+        toggle(a.keepGoing ?? false, (v) => { a.keepGoing = v; commit(); }),
         tested));
       list.append(card);
     });
