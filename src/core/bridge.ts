@@ -124,6 +124,11 @@ export const Bridge = {
   setAppMode: (on: boolean) => call<void>("set_app_mode", { on }),
   minimizeIsland: () => call<void>("minimize_island"),
   /** Windows' preview of a picture (thumbs.rs); null for other files. */
+  /** La Raccolta (collect.rs): the collection as JSON, "" for none. */
+  collectLoad: () => call<string>("collect_load"),
+  collectSave: (json: string) => call<void>("collect_save", { json }),
+  /** Where the selection just read came from: app, title and, from a browser, the page. */
+  collectSource: (text: string) => call<{ exe: string; title: string; url: string }>("collect_source", { text }),
   fileThumb: (path: string) => call<string | null>("file_thumb", { path }),
   /** A quick action's automatic icon (thumbs.rs): the program's, or the site's favicon. */
   programIcon: (target: string) => call<string | null>("program_icon", { target }),

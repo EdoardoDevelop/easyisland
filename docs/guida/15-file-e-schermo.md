@@ -33,6 +33,17 @@ La chat la **legge senza chiedere** e ci sposta i file del Vassoio (con conferma
 
 <kbd>Esc</kbd> o il tasto destro annullano. Utile per farsi spiegare una finestra d'errore.
 
+## Raccolta
+
+Per mettere da parte pezzi presi da più app e poi farli elaborare tutti insieme alla chat: un preventivo con prodotti e prezzi da più fornitori, un confronto, una ricerca.
+
+- Seleziona del testo in qualsiasi app (sul sito del fornitore la riga con nome e prezzo) e premi <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>. L'isola dice «Nella raccolta: 3» e puoi continuare. Ogni voce tiene la sua fonte: il programma, il titolo della finestra e, se copi da Chrome o Edge, l'indirizzo della pagina.
+- Da **Riquadra e chiedi**, **Nella raccolta** aggiunge una zona dello schermo: il testo letto da Windows più l'immagine.
+- In **File e schermo** la Raccolta ha un **nome** e, se vuoi, i **campi da ricavare** (per esempio «Prodotto, Prezzo, Fornitore»). La ✕ toglie una voce, **Svuota** le toglie tutte.
+- **Chiedi alla chat** allega tutta la raccolta. Con i campi, la chat li ricava per ogni voce e li mostra in una tabella, poi aspetta la tua domanda («fammi il preventivo con ricarico del 20 %»).
+
+C'è una raccolta alla volta e resta anche dopo il riavvio, finché non la svuoti. La scorciatoia si cambia in Impostazioni → Azioni rapide.
+
 ## Registra
 Nella scheda File e schermo, **Registra** cattura:
 - una **conversazione** (microfono e audio del PC, anche l'altra parte di una chiamata);

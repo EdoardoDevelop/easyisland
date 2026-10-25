@@ -3102,5 +3102,21 @@
   "Mappa della memoria": "Memory map",
   "Leggo la memoria…": "Reading the memory…",
   "Non riesco a leggere la memoria": "Can't read the memory",
-  "Errore nel leggere la memoria: {e}": "Error reading the memory: {e}"
+  "Errore nel leggere la memoria: {e}": "Error reading the memory: {e}",
+  "Nella raccolta": "Into the collection",
+  "Nella raccolta: {n}": "In the collection: {n}",
+  "Aggiungi alla Raccolta": "Add to the Collection",
+  "il testo selezionato, con la sua fonte, nella Raccolta di «File e schermo», da passare poi alla chat": "the selected text, with its source, into the Collection in \"Files and screen\", to hand to the chat later",
+  "Raccolta": "Collection",
+  "Raccolta «{name}»: {n} voci messe da parte dall'utente, ognuna con la sua fonte.": "Collection \"{name}\": {n} items set aside by the user, each with its source.",
+  "Per ogni voce ricava questi campi: {fields}. Mostrali in una tabella (lascia vuoto ciò che non c'è, non inventare), poi aspetta la mia domanda.": "For every item work out these fields: {fields}. Show them in a table (leave empty what is not there, do not make anything up), then wait for my question.",
+  "Raccolta «{name}» ({n})": "Collection \"{name}\" ({n})",
+  "Nome, es. Preventivo Rossi": "Name, e.g. Quote for Rossi",
+  "Campi da ricavare (facoltativi): Prodotto, Prezzo, Fornitore": "Fields to work out (optional): Product, Price, Supplier",
+  "la scorciatoia della Raccolta": "the Collection's shortcut",
+  "Seleziona del testo in qualsiasi app, anche un nome e un prezzo su un sito, e premi {key}: finisce qui con la sua fonte. Da «Riquadra e chiedi» anche una zona dello schermo. Poi «Chiedi alla chat».": "Select some text in any app, even a name and a price on a website, and press {key}: it lands here with its source. From \"Box and ask\" a zone of the screen too. Then \"Ask the chat\".",
+  "Zona dello schermo": "Zone of the screen",
+  "Togli dalla raccolta": "Remove from the collection",
+  "(nessun testo)": "(no text)",
+  "La raccolta è troppo grande: passala alla chat e svuotala.": "The collection is too big: hand it to the chat and empty it."
 }

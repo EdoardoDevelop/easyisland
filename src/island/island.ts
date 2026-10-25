@@ -28,6 +28,7 @@ import { buildStrip, type Strip } from "../views/strip";
 import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
 import { sendToChat, windowLabel } from "../views/chat";
 import { capturing, startCapture } from "./capture";
+import { addToCollection } from "../views/collect";
 import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state";
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
@@ -888,6 +889,36 @@ ${note}` : text };
     }, 3200);
   }
 
+  /** La Raccolta's shortcut: the selected text and where it came from, then a short "Nella raccolta: n". */
+  private async collectSelection() {
+    const r = await Bridge.captureSelection();
+    if (!("text" in r)) {
+      this.flashNote(this.selectionProblem(r.error));
+      return;
+    }
+    const src = (await Bridge.collectSource(r.text).catch(() => null)) ?? { exe: "", title: "", url: "" };
+    try {
+      const n = await addToCollection({ text: r.text, app: src.exe, title: src.title, url: src.url });
+      this.collectedNote(t("Nella raccolta: {n}", { n }));
+    } catch (e) {
+      this.flashNote(String(e).replace(/^Error:\s*/, ""));
+    }
+  }
+
+  /** "Nella raccolta: n" for a moment; an island opened only for it closes again. */
+  collectedNote(message: string) {
+    Sound.play("blip");
+    if (State.mode === "expanded" && State.view !== "note") {
+      State.notify();
+      return;
+    }
+    State.noteMessage = message;
+    this.setView("note");
+    window.setTimeout(() => {
+      if (State.view === "note" && State.noteMessage === message) this.collapse();
+    }, 1400);
+  }
+
   /** The selection shortcut: copy the selected text, then the menu at the mouse. */
   private async openSelectionMenu() {
     const r = await Bridge.captureSelection();
@@ -1496,6 +1527,9 @@ ${note}` : text };
       this.cycleFocus(1);
     } else if (name === "selectionMenu") {
       await this.openSelectionMenu();
+      return;
+    } else if (name === "collect") {
+      await this.collectSelection();
       return;
     } else if (name === "mute") {
       State.settings.soundEnabled = !State.settings.soundEnabled;

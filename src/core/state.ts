@@ -495,6 +495,8 @@ export interface Settings {
   hotkeyMute: string;
   /** The menu by the mouse on the selected text (src/island/selection-menu.ts). */
   hotkeySelectionMenu: string;
+  /** The selected text into the Raccolta (src/views/collect.ts). */
+  hotkeyCollect: string;
   /** ⚡ tab: actions suggested for the app in front. */
   contextActions: boolean;
   /** The chat (Claude Code engine) may use EasyIsland's tools: open programs, quick actions… */
@@ -983,6 +985,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hotkeyNextPill: "",
   hotkeyMute: "",
   hotkeySelectionMenu: "Win+Alt+A",
+  hotkeyCollect: "Ctrl+Alt+Shift+R",
   contextActions: true,
   agentTools: true,
   chatTerminal: false,

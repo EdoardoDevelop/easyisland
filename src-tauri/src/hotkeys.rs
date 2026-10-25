@@ -80,6 +80,7 @@ fn wanted(app: &AppHandle) -> Vec<(String, String)> {
         ("nextPill".to_string(), s.hotkey_next_pill.clone()),
         ("mute".to_string(), s.hotkey_mute.clone()),
         ("selectionMenu".to_string(), s.hotkey_selection_menu.clone()),
+        ("collect".to_string(), s.hotkey_collect.clone()),
     ];
     for a in &s.actions {
         let id = a.get("id").and_then(|v| v.as_str()).unwrap_or_default();

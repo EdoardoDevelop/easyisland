@@ -732,6 +732,9 @@ pub struct Settings {
     /// Global shortcut: the menu by the mouse with what can be done on the selected text.
     #[serde(default = "default_hotkey_selection_menu")]
     pub hotkey_selection_menu: String,
+    /// Global shortcut: the selected text into the Raccolta (collect.rs).
+    #[serde(default = "default_hotkey_collect")]
+    pub hotkey_collect: String,
     /// ⚡ tab: actions suggested for the app in front (Outlook, Excel, the browser…).
     #[serde(default = "default_true")]
     pub context_actions: bool,
@@ -815,6 +818,10 @@ fn default_hotkey_session() -> String {
 
 fn default_hotkey_selection_menu() -> String {
     "Win+Alt+A".into()
+}
+
+fn default_hotkey_collect() -> String {
+    "Ctrl+Alt+Shift+R".into()
 }
 
 fn default_presence_mode() -> String {
@@ -981,6 +988,7 @@ impl Default for Settings {
             hotkey_next_pill: String::new(),
             hotkey_mute: String::new(),
             hotkey_selection_menu: default_hotkey_selection_menu(),
+            hotkey_collect: default_hotkey_collect(),
             context_actions: true,
             agent_tools: true,
             chat_terminal: false,

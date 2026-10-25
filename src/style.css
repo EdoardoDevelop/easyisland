@@ -5788,3 +5788,60 @@ textarea.custom-input { resize: vertical; }
 .custom-item-sub { font-size: calc(11px + var(--fs-up, 0px)); color: var(--dim-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .custom-item.warn { box-shadow: inset 3px 0 0 var(--amber); background: rgba(245, 165, 36, 0.08); }
 .custom-raw { margin: 0; padding: 8px; border-radius: 6px; background: rgba(0, 0, 0, 0.25); font: 400 11px var(--mono); color: var(--dim); white-space: pre-wrap; user-select: text; max-height: 220px; overflow: auto; }
+
+/* ── La Raccolta (src/views/collect.ts) ──────────────────────────────────── */
+.col-panel { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.col-meta { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 6px; }
+.col-meta input {
+  min-width: 0;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  font: 400 calc(12px + var(--fs-up, 0px)) var(--font);
+}
+.col-meta input:focus { outline: none; border-color: color-mix(in srgb, #22c55e 60%, transparent); }
+.col-list { display: flex; flex-direction: column; gap: 6px; }
+.col-item {
+  padding: 7px 9px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--hairline);
+}
+.col-text {
+  font: 400 calc(12px + var(--fs-up, 0px))/1.4 var(--font);
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.col-foot { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.col-src {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font);
+  color: var(--dim-2);
+  text-decoration: none;
+}
+a.col-src:hover { color: #67e8f9; text-decoration: underline; }
+.col-row { display: flex; justify-content: flex-end; }
+.col-ask {
+  height: 28px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 14px;
+  background: #22c55e;
+  color: #04130a;
+  font: 600 calc(12px + var(--fs-up, 0px)) var(--font);
+}
+.col-ask:disabled { opacity: 0.4; }
+html[data-ui="windows"] .col-ask { border-radius: 4px; background: var(--accent); color: var(--on-accent); }
+html[data-ui="windows"] .col-meta input, html[data-ui="windows"] .col-item { border-radius: 4px; }

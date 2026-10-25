@@ -1,6 +1,7 @@
 // EasyIsland for Windows — app wiring and the commands the island calls.
 
 mod actions;
+mod collect;
 mod antigravity;
 mod agent;
 mod agent_settings;
@@ -1960,6 +1961,23 @@ fn clipboard_clear(app: AppHandle) {
     clipboard::clear(&app);
 }
 
+/// La Raccolta (collect.rs): the collection as saved, "" for none.
+#[tauri::command]
+fn collect_load() -> String {
+    collect::load()
+}
+
+#[tauri::command]
+fn collect_save(json: String) -> Result<(), String> {
+    collect::save(&json)
+}
+
+/// Where the selection just read came from: app, title and, from a browser, the page.
+#[tauri::command]
+fn collect_source(text: String) -> collect::Source {
+    collect::source(&text)
+}
+
 /// The app in front, for the suggested actions in the ⚡ tab.
 #[tauri::command]
 fn foreground_app() -> Option<context::Foreground> {
@@ -2882,6 +2900,9 @@ pub fn run() {
             set_app_mode,
             minimize_island,
             file_thumb,
+            collect_load,
+            collect_save,
+            collect_source,
             program_icon,
             site_icon,
             logo_save,
