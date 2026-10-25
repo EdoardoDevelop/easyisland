@@ -112,7 +112,9 @@ export class ConceptView implements View {
       return { id, label, kind: n.kind as "page" | "missing", layer: l, x: 0, y: l * GAP_Y, w, h: BOX_H };
     };
     let widest = 0;
-    const laid: Box[][] = rows.map((row, l) => (row ?? []).map((id) => make(id, l)));
+    // Array.from, not map: `rows` can have holes (a level with no page), and map
+    // keeps them, so `row` came out undefined ("reading 'reduce'").
+    const laid: Box[][] = Array.from(rows, (row, l) => (row ?? []).map((id) => make(id, l)));
     for (const row of laid) widest = Math.max(widest, row.reduce((s, b) => s + b.w + GAP_X, -GAP_X));
     for (const row of laid) {
       const total = row.reduce((s, b) => s + b.w + GAP_X, -GAP_X);

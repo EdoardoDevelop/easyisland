@@ -882,6 +882,16 @@ pub fn ensure_inbox() -> Result<PathBuf, String> {
 mod tests {
     use super::*;
 
+    /// The map of a memory copied from another PC: `APPDATA=<folder with EasyIsland\memoria>`
+    /// `cargo test -p easyisland --lib brain::tests::live_graph -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn live_graph() {
+        let g = graph();
+        let json = serde_json::to_string(&g).unwrap();
+        println!("{} nodes, {} events, inbox {:?}, {} bytes", g.nodes.len(), g.events.len(), g.inbox, json.len());
+    }
+
     #[test]
     fn slugs_and_versions() {
         assert_eq!(slug("Cliente Rossi S.r.l."), "cliente-rossi-s-r-l");
