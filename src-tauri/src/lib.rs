@@ -2561,6 +2561,104 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
 }
 
 pub const MEMORY_LABEL: &str = "memoria";
+pub const FLOWS_LABEL: &str = "flussi";
+
+/// The WebView2 profile folder the windows share (webview_profile.rs), for the
+/// windows made later, on demand.
+static WEBVIEW_DIR: std::sync::OnceLock<Option<std::path::PathBuf>> = std::sync::OnceLock::new();
+
+/// The flows window (src/flows/, docs/flussi.md): made the first time it is
+/// opened, then hidden on close like the others. `id` = the flow to show.
+#[tauri::command]
+async fn open_flows_window(app: AppHandle, id: Option<String>) -> Result<(), String> {
+    let id = id.unwrap_or_default();
+    if let Some(win) = app.get_webview_window(FLOWS_LABEL) {
+        webview_memory::set_asleep(&win, false);
+        let _ = win.unminimize();
+        let _ = win.show();
+        let _ = win.set_focus();
+        let _ = win.emit("flows-open", id);
+        return Ok(());
+    }
+    // The page asks for it once loaded (flow_pending): a query in the URL does
+    // not survive the app:// scheme of the release build.
+    *PENDING_FLOW.lock().unwrap() = id;
+    let url = page_url(&app, "flussi.html");
+    let mut builder = WebviewWindowBuilder::new(&app, FLOWS_LABEL, url);
+    if let Some(Some(dir)) = WEBVIEW_DIR.get() {
+        builder = builder.data_directory(dir.clone());
+    }
+    let win = builder
+        .additional_browser_args(BROWSER_ARGS)
+        .title(i18n::t("Flussi — EasyIsland"))
+        // Blocks are dragged inside the page: Tauri must not take the drag.
+        .disable_drag_drop_handler()
+        .theme(Some(tauri::Theme::Dark))
+        .inner_size(1240.0, 800.0)
+        .min_inner_size(900.0, 560.0)
+        .resizable(true)
+        .center()
+        .build()
+        .map_err(|e| e.to_string())?;
+    let hidden = win.clone();
+    win.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = hidden.hide();
+            webview_memory::set_asleep(&hidden, true);
+        }
+    });
+    Ok(())
+}
+
+static PENDING_FLOW: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+
+/// The flow the window was opened for, once.
+#[tauri::command]
+fn flow_pending() -> String {
+    std::mem::take(&mut *PENDING_FLOW.lock().unwrap())
+}
+
+/// The flows window saves one flow at a time (never the whole settings, so it
+/// cannot undo what another window changed). Returns what is still missing for
+/// it to run, "" when it is complete.
+#[tauri::command]
+fn flow_save(app: AppHandle, flow: serde_json::Value) -> Result<String, String> {
+    let auto: automations::Automation = serde_json::from_value(flow).map_err(|e| e.to_string())?;
+    if auto.id.trim().is_empty() || auto.id.len() > 40 {
+        return Err(i18n::t("Flusso senza id.").into());
+    }
+    let value = serde_json::to_value(&auto).map_err(|e| e.to_string())?;
+    let missing = {
+        let shared = app.state::<Shared>();
+        let s = shared.settings.lock().unwrap();
+        automations::validate(&value, &s).err().unwrap_or_default()
+    };
+    agent::update_settings(&app, |s| {
+        match s.automations.iter_mut().find(|a| a.get("id").and_then(serde_json::Value::as_str) == Some(auto.id.as_str())) {
+            Some(slot) => *slot = value.clone(),
+            None => s.automations.push(value.clone()),
+        }
+    })?;
+    Ok(missing)
+}
+
+#[tauri::command]
+fn flow_delete(app: AppHandle, id: String) -> Result<(), String> {
+    agent::update_settings(&app, |s| s.automations.retain(|a| a.get("id").and_then(serde_json::Value::as_str) != Some(id.as_str())))
+}
+
+/// "Descrivilo a parole": the request goes to the island's chat, which builds
+/// the flow with create_automation (preview, Consenti / Nega).
+#[tauri::command]
+fn flow_ask_chat(app: AppHandle, text: String) {
+    let text: String = text.trim().chars().take(2000).collect();
+    if text.is_empty() {
+        return;
+    }
+    let prompt = i18n::tf("Crea un flusso di EasyIsland (create_automation) per questo: {text}", &[("text", &text)]);
+    let _ = app.emit_to(island::WINDOW_LABEL, "automation-ask", prompt);
+}
 
 /// The memory window (src/memory/), made hidden at launch for the same reason
 /// as the settings one, asleep until it is opened; closing it hides it.
@@ -3075,6 +3173,11 @@ pub fn run() {
             flow_run,
             flow_rerun,
             flow_try_from,
+            open_flows_window,
+            flow_save,
+            flow_delete,
+            flow_ask_chat,
+            flow_pending,
             habits_stats,
             habits_suggestions,
             habit_answer,
@@ -3197,6 +3300,7 @@ pub fn run() {
             // Before the island's webview is ready: see create_settings_window.
             create_settings_window(&handle, webview_dir.as_deref());
             create_memory_window(&handle, webview_dir.as_deref());
+            let _ = WEBVIEW_DIR.set(webview_dir.clone());
 
             if let Some(win) = island::window(&handle) {
                 // "Chiudi finestra" from the taskbar (the island as an app) must not

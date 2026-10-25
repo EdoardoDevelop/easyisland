@@ -422,7 +422,7 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             let text = crate::automations::describe(&auto, &s);
             let value = serde_json::to_value(&auto).map_err(|e| e.to_string())?;
             update_settings(app, |s| s.automations.push(value))?;
-            Ok(format!("Creata e accesa: {text}. Si modifica in Impostazioni → Flussi."))
+            Ok(format!("Creata e accesa: {text}. Si vede e si modifica nella finestra Flussi (Impostazioni → Flussi → Modifica)."))
         }
 
         "set_automation_enabled" => {

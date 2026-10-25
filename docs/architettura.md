@@ -86,6 +86,8 @@ In release Rust ha `panic = "abort"`: un panic in qualsiasi thread chiude l'app.
 ## Finestra Memoria
 Terza finestra (`memoria`, `memoria.html`, `src/memory/`), creata nascosta all'avvio come le Impostazioni e addormentata finché non si apre; chiuderla la nasconde. Descritta in `docs/chat.md` → Secondo cervello.
 
+Quarta finestra (`flussi`, `flussi.html`, `src/flows/`): l'editor dei flussi, creata solo alla prima apertura (`open_flows_window`, async) e poi nascosta alla chiusura; usa i CSS delle Impostazioni più `flows.css` (anche questo con la copia chiara di `scripts/light-css.mjs`). Descritta in `docs/flussi.md`.
+
 ## Impostazioni
 - Le pagine sono in `pages()` di `src/settings/main.ts`. «Chat» = motore e connettori (`claudeChatSection`). «Agenti» = una riga per agente (`agentsSection`, `agentRow`; l'id di pagina è ancora `claude`). Altre sezioni: `automationsSection` e `actionsSection`.
 - **Pagina Aspetto** (riordinata il 25 ottobre 2026, Edoardo: «molto incasinata e poco intuitiva»): una sola funzione, `appearanceSections()`, in cinque sezioni — Tema (stile, modalità, colore, opacità, sfondo chiuso), Personaggio (cosa sta nell'isola, personaggio, colore, saluto, segue il mouse, fumetto, menu), Posizione, Isola chiusa, Isola aperta. I volumi sono in Generale accanto a Suono. Una riga nuova va nella sezione di quando agisce (chiusa o aperta), non in fondo.

@@ -1033,112 +1033,25 @@ h3.int-sub {
   background: rgba(255, 255, 255, 0.06);
 }
 
-/* Flows (flows.ts): the drawing of a linked automation and its runs. */
-.flow-wrap {
-  overflow-x: auto;
-  margin: 4px 0 8px 0;
-}
-
-.flow-svg {
-  display: block;
-}
-
-.flow-box {
-  fill: rgba(255, 255, 255, 0.05);
-  stroke: rgba(255, 255, 255, 0.14);
-}
-
-.flow-node.ran .flow-box {
-  stroke: #22c55e;
-}
-
-.flow-name {
-  fill: var(--ink);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.flow-text,
-.flow-label {
-  fill: var(--dim);
-  font-size: 11px;
-}
-
-.flow-edge {
-  stroke: rgba(255, 255, 255, 0.35);
-  stroke-width: 1.4;
-  fill: none;
-}
-
-.flow-edge.jump {
-  stroke-dasharray: 4 3;
-}
-
-.flow-arrowhead {
-  fill: rgba(255, 255, 255, 0.5);
-}
-
-.flow-end {
-  fill: none;
-  stroke: rgba(255, 255, 255, 0.45);
-  stroke-width: 2;
-}
-
-.flow-run-row {
-  cursor: pointer;
-}
-
-.flow-run {
+/* Impostazioni → Flussi: the list (the editor is the flows window). */
+.flow-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 6px 8px 10px 22px;
+  gap: 6px;
 }
 
-.flow-trace {
+.flow-row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 12px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
 }
 
-.flow-trace button {
-  margin-left: auto;
-  font-size: 11px;
-}
-
-.flow-out {
-  flex-basis: 100%;
-  color: var(--dim);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  max-height: 160px;
-  overflow-y: auto;
-  padding: 4px 8px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.flow-node.pickable {
-  cursor: pointer;
-}
-
-.flow-node.pickable:hover .flow-box {
-  fill: rgba(255, 255, 255, 0.08);
-}
-
-.flow-node.picked .flow-box {
-  stroke: var(--accent, #4cc2ff);
-  stroke-width: 2;
-}
-
-.flow-panel {
-  border-left: 2px solid var(--accent, #4cc2ff);
-  padding-left: 8px;
-  margin: 4px 0 8px 0;
-}
-
-.flow-edge.jump.error {
-  stroke: rgba(244, 80, 94, 0.7);
+.flow-row-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }

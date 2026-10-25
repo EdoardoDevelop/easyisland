@@ -51,7 +51,27 @@ Ricerca sugli strumenti a nodi e sull'esecuzione durevole degli agenti. Cosa fan
 - [x] «Prova da qui» nell'editor (`flow_try_from`, `flows::try_from`).
 - [x] Chat (descrizione di `create_automation`), anteprima, editor, guida, test.
 
+## Tappa 6: rifatta l'esperienza (Edoardo, 25 ottobre 2026: «un bel casino… non è intuitivo»)
+Cosa non andava: due modi per la stessa cosa (lista di passi e «Apri come flusso»), l'editor stretto dentro le Impostazioni, il disegno separato dai moduli, nessun trascinamento, nessun punto di partenza.
+Cosa fanno i migliori (ricerca del 25 ottobre): Zapier disegna dall'alto in basso partendo dall'innesco, si aggiunge con il «+» fra due passi o trascinando un blocco da una barra, i rami sono «percorsi» dentro un blocco; n8n tiene i parametri del nodo in un pannello accanto al disegno («focus panel»), con i dati in ingresso visibili per collegarli; OpenAI ha un nodo di partenza, anteprima che mostra ogni nodo mentre gira, modelli da cui partire, e sta spostando la creazione verso il linguaggio naturale (Agent Builder chiude il 30 novembre 2026 a favore degli agenti creati a parole).
+Scelte:
+- **Una cosa sola: il flusso.** Niente più «automazione» contro «flusso»: ogni automazione è un flusso, la vecchia lista di passi sparisce. Nei testi resta «automazione» solo dove serve a spiegare.
+- **Finestra «Flussi»** (`flussi.html`, `src/flows/`, creata alla prima apertura, poi nascosta come le altre): a sinistra l'elenco dei flussi con «+ Nuovo flusso»; al centro il disegno dall'alto in basso, con la scheda **Quando** in cima, le schede dei passi, un «+» fra ogni coppia e «Fine»; in basso la barra dei blocchi da **trascinare** nel disegno (o cliccare: va in fondo); a destra il **pannello** del blocco scelto, con i moduli e i **dati disponibili** come pastiglie da cliccare per inserirli nel campo.
+- **Trascinamento**: blocchi dalla barra a un punto del disegno; schede trascinate per cambiare ordine.
+- **Rami leggibili**: Scelta e Per ogni elemento mostrano dentro la scheda le loro strade con la destinazione; i salti e «se non riesce» sono etichette sulla scheda, non fili che si incrociano.
+- **Partire facile**: a flusso vuoto, «Descrivilo a parole» (lo crea la chat) e tre modelli pronti.
+- **Prova e Esecuzioni nella finestra**: «Prova» in alto, le esecuzioni del flusso a destra, con le schede segnate verde/rosso.
+- **Salvataggio automatico** di un flusso alla volta (`flow_save`, non tutte le impostazioni: niente sovrascritture fra finestre), con «Da completare: …» quando manca qualcosa.
+- **Impostazioni → Flussi**: solo l'elenco (acceso/spento, Modifica, che apre la finestra), le proposte dalle abitudini e i compiti.
+
+- [x] Rust: finestra `flussi` (`open_flows_window`), `flow_save`, `flow_delete`, `flow_ask_chat`, permessi della finestra.
+- [x] Finestra: elenco, disegno con schede, «+», barra dei blocchi con trascinamento, riordino trascinando, pannello con moduli e dati disponibili.
+- [x] Prova, esecuzioni del flusso con le schede segnate, modelli pronti, «Descrivilo a parole».
+- [x] Impostazioni → Flussi ridotte all'elenco; via la vecchia lista di passi e l'editor in pagina.
+- [x] Traduzioni, guida, documentazione, collaudo.
+
 ## Registro
+- 25 ottobre 2026: tappa 6 scritta. La finestra `flussi` (`src/flows/main.ts`, `catalog.ts`, `flows.css`) sostituisce l'editor in pagina e la vecchia lista di passi (via `src/settings/flows.ts`). Provato nel browser: modello «Ticket urgenti», trascinamento di un blocco in un punto, riordino trascinando una scheda. Le schede segnano «da completare» quello che manca (`catalog::missing`). La finestra nasce alla prima apertura (`open_flows_window`, comando async: costruire una finestra dal thread principale la bloccherebbe) e chiede il flusso da mostrare con `flow_pending` (una query nell'indirizzo non passa lo schema dell'app in release).
 - 25 ottobre 2026: tappa 5 scritta (affidabilità: tentativi, strada d'errore, niente doppioni dopo un riavvio, tempo massimo e campi degli agenti, tetto ai motori, «Prova da qui»). Note: un errore gestito con «Se non riesce» non segna il giro come fallito; «finisci senza errore» chiude il giro come riuscito. Un passo «decide» con regole non si riprova (non può fallire), uno del modello sì.
 - 25 ottobre 2026: tappa 4 scritta; tutte le tappe fatte sul branch. Da provare dal vivo: un flusso vero con agente, foreach, scelta del modello e domanda su Telegram; poi unione in main con la voce in HANDOFF.
 - 25 ottobre 2026: tappa 3 scritta. Provato nel browser: apri come flusso, aggiungi passi, Scelta con due rami. Da provare dal vivo nell'app.

@@ -1,6 +1,6 @@
 # Automazioni
 > sezione: Fare le cose
-> in breve: Regole «quando… se… allora…» e flussi con rami, domande e agenti, nella pagina Flussi: create dalle Impostazioni, a parole in chat o proposte dalle tue abitudini.
+> in breve: Flussi «quando… allora…» con rami, domande e agenti, costruiti trascinando i blocchi nella finestra Flussi, a parole in chat o proposti dalle tue abitudini.
 
 ![Impostazioni, pagina Automazioni](../media/settings-automations.png)
 
@@ -47,22 +47,22 @@ Nei passi puoi usare i dati dell'evento: `{file}`, `{percorso}`, `{cartella}`, `
 
 Ogni automazione si può limitare a un profilo e provare subito con **Prova ora**. Il **Registro** mostra le ultime esecuzioni. Le automazioni partono senza chiedere, perché le hai create tu, tranne gli script con «Chiedi conferma» e le domande alla chat. Con EasyIsland in pausa non parte niente.
 
-## Flussi: rami, domande e agenti
-Un'automazione può diventare un **flusso**: invece di una fila di passi, un disegno in cui i passi si collegano. Si apre con **Apri come flusso**, oppure da sola quando un passo ha un ramo o un agente.
-- **Clic su un passo** del disegno per cambiarlo nel pannello sotto: tipo, nome, campi e **Poi** (il passo seguente, un altro passo o la fine). **+ Passo dopo**, **↑ ↓** e **Togli** sistemano l'ordine.
-- **Fai lavorare un agente**: un agente con gli strumenti di EasyIsland fa un lavoro che richiede giudizio (leggere, riassumere, classificare) con il motore che scegli; il flusso aspetta che finisca.
-- **Scegli la strada**: rami del tipo «se {leggi} contiene URGENTE vai all'avviso, altrimenti alla domanda». Vince il primo che vale.
-- **Lascia scegliere al modello**: invece delle regole, descrivi le strade a parole («chiede un preventivo», «ha un problema») e un motore sceglie quella giusta.
-- **Per ogni elemento**: ripete un gruppo di passi per ogni riga di un elenco (per esempio i clienti trovati da un agente), con la voce in `{elemento}`.
-- **Chiedimi qualcosa**: una card con fino a tre risposte; la tua scelta decide i passi dopo. Con Telegram collegato la domanda arriva anche lì, dove puoi rispondere anche a parole con /rispondi.
-- **Se non riesce**: un passo può riprovare fino a tre volte (dopo 10, 30 e 90 secondi) e poi fermare il flusso, finirlo senza errore o andare a un altro passo, con il motivo in `{errore}`. Se un flusso non riesce e Telegram è collegato, ti arriva anche lì.
-- **Campi** di un agente: chiedigli per esempio `urgenza, cliente` e li ritrovi come `{leggi.urgenza}` e `{leggi.cliente}`, comodi nelle scelte. Un agente ha anche un tempo massimo (60 minuti di serie).
-- **Prova da qui** fa partire il flusso dal passo scelto, con i dati dell'ultima esecuzione.
-- Se EasyIsland si chiude mentre un passo apre un programma o manda un avviso, al riavvio quel passo non viene ripetuto, per non farlo due volte.
-- Ogni passo lascia il suo esito tra graffe con il suo nome (`{leggi}`) e in `{risultato}`, da usare nei passi dopo.
-- **Esecuzioni**: le ultime 50, con cosa ha fatto ogni passo; **Riprendi da qui** riparte da un passo con i dati di allora. Se EasyIsland si chiude a metà, al riavvio il flusso riprende da dove era.
+## La finestra Flussi
+Ogni automazione è un **flusso** e si costruisce nella finestra **Flussi** (Impostazioni → Flussi → **Modifica** o **Apri la finestra Flussi**).
+- **A sinistra** i tuoi flussi, **+ Nuovo flusso** e **Descrivilo a parole**: scrivi cosa vuoi e la chat lo prepara (lo confermi nell'isola).
+- **Al centro** il flusso dall'alto in basso: in cima la scheda **Quando**, poi i passi. Per aggiungere un passo **trascina un blocco** dalla barra in basso nel punto che vuoi, oppure premi il **+** fra due schede. Trascina una scheda per cambiarle posto. A flusso vuoto puoi partire da un modello: *Inizio giornata*, *File in arrivo*, *Ticket urgenti*.
+- **A destra** il pannello della scheda scelta: i suoi campi e, in fondo, i **dati da usare** (`{file}`, `{leggi}`, `{leggi.urgente}`…): un clic e finiscono nel campo dove stavi scrivendo.
+- Le schede dicono cosa manca (*da completare*) e dove vanno le strade; in alto **▶ Prova** lo fa partire subito e **Acceso** lo attiva. Si salva da solo.
 
-Per esempio, in chat: *«ogni mattina alle 9 leggi i ticket Zammad nuovi; se ce n'è uno urgente avvisami, altrimenti chiedimi se creare l'attività su To Do»*.
+**I blocchi**
+- *Fai*: Avviso, Apri (programma, cartella, file), Link, Azione rapida, Profilo.
+- *Intelligenza*: **Agente** (fa un lavoro con gli strumenti di EasyIsland e il motore che scegli; il flusso aspetta il risultato), Chat, Compito.
+- *Decidi*: **Scelta** (strade secondo una regola, per esempio «se {leggi.urgente} contiene sì», oppure descritte a parole e scelte dal modello) e **Per ogni** (ripete dei passi per ogni riga di un elenco, con la voce in `{elemento}`).
+- *Con te*: **Domanda** (fino a tre risposte; con Telegram collegato arriva anche lì, dove puoi rispondere a parole con /rispondi), Conferma, Attesa.
+
+**Se un passo non riesce** può riprovare fino a tre volte (dopo 10, 30 e 90 secondi) e poi fermare il flusso, finirlo senza errore o andare a un altro passo, con il motivo in `{errore}`. Se un flusso non riesce e Telegram è collegato, ti arriva anche lì. Un **Agente** può darti delle risposte da usare dopo (per esempio `urgente, cliente` → `{leggi.urgente}`) e ha un tempo massimo (60 minuti di serie).
+
+**Esecuzioni** (a destra, accanto a Modifica): le ultime volte che il flusso è partito, con cosa ha fatto ogni passo; le schede si colorano di verde o rosso. **Riprendi da qui** riparte da un passo con i dati di allora, **Prova da qui** (nel pannello del passo) con quelli dell'ultima volta. Se EasyIsland si chiude a metà, al riavvio il flusso riprende da dove era, senza rifare un passo che aveva già aperto un programma o mandato un avviso.
 
 ## A parole, in chat
 «Ogni giorno feriale alle 9 apri Outlook e il gestionale», «quando colleghi una chiavetta lancia il backup», «se il sito del cliente va giù avvisami»: la chat prepara l'automazione e l'isola te la mostra (Quando… / Allora…) con **Consenti / Nega**. Confermando, viene creata e accesa.

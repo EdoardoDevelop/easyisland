@@ -47,20 +47,18 @@ In the steps you can use the event's data: `{file}`, `{percorso}`, `{cartella}`,
 
 Each automation can be limited to a profile and tested right away with **Try now**. The **Log** shows the latest runs. Automations start without asking, because you created them, except scripts with "Ask for confirmation" and questions to the chat. With EasyIsland paused nothing starts.
 
-## Flows: branches, questions and agents
-An automation can become a **flow**: instead of a row of steps, a drawing where steps link up. Open it with **Open as a flow**, or it opens by itself when a step has a branch or an agent.
-- **Click a step** in the drawing to change it in the panel below: kind, name, fields and **Then** (the next step, another step or the end). **+ Step after**, **↑ ↓** and **Remove** sort the order.
-- **Have an agent work**: an agent with EasyIsland's tools does a job that needs judgement (reading, summarising, sorting) with the engine you choose; the flow waits until it is done.
-- **Pick the way**: branches like "if {read} contains URGENT go to the notice, otherwise to the question". The first that holds wins.
-- **Let the model choose**: instead of rules, describe the ways in words ("asks for a quote", "has a problem") and an engine picks the right one.
-- **For each item**: repeats a group of steps for each line of a list (say, the customers an agent found), with the item in `{elemento}`.
-- **Ask me something**: a card with up to three answers; your choice decides the steps after. With Telegram linked the question goes there too, where you can also answer in words with /rispondi.
-- **If it fails**: a step can try again up to three times (after 10, 30 and 90 seconds) and then stop the flow, end it without error or go to another step, with the reason in `{errore}`. If a flow fails and Telegram is linked, you hear it there too.
-- An agent's **Fields**: ask it for, say, `urgency, customer` and find them as `{read.urgency}` and `{read.customer}`, handy in choices. An agent also has a time limit (60 minutes by default).
-- **Try from here** starts the flow from the chosen step, with the data of the last run.
-- If EasyIsland closes while a step opens a program or sends a notice, at the next start that step is not repeated, so it is not done twice.
-- Each step leaves its outcome in braces with its name (`{read}`) and in `{risultato}`, for the steps after.
-- **Runs**: the last 50, with what each step did; **Resume from here** starts again from a step with the data of then. If EasyIsland closes halfway, at the next start the flow goes on from where it was.
+## The Flows window
+Every automation is a **flow** and is built in the **Flows** window (Settings → Flows → **Edit** or **Open the Flows window**).
+- **On the left** your flows, **+ New flow** and **Describe it in words**: write what you want and the chat prepares it (you confirm in the island).
+- **In the middle** the flow from top to bottom: the **When** card first, then the steps. To add a step **drag a block** from the bar below to where you want it, or press the **+** between two cards. Drag a card to move it. An empty flow can start from a template: *Daily briefing*, *Incoming file*, *Urgent tickets*.
+- **On the right** the panel of the chosen card: its fields and, at the bottom, the **data to use** (`{file}`, `{leggi}`, `{leggi.urgente}`…): one click and it goes into the field you were typing in.
+- Cards say what is missing (*to complete*) and where the ways go; at the top **▶ Try** starts it now and **On** turns it on. It saves by itself.
+
+**Blocks**: *Do* (Notice, Open, Link, Quick action, Profile), *Intelligence* (**Agent**: does a job with EasyIsland's tools and the engine you choose, the flow waits for the result; Chat; Task), *Decide* (**Choice** by a rule or described in words and picked by the model; **For each** item of a list, in `{elemento}`), *With you* (**Question**, also on Telegram; Confirm; Wait).
+
+**If a step fails** it can try again up to three times and then stop the flow, end it without error or go to another step, with the reason in `{errore}`; with Telegram linked a failed flow is reported there too. An **Agent** can give answers to use later (`urgent, customer` → `{read.urgent}`) and has a time limit (60 minutes by default).
+
+**Runs** (on the right, next to Edit): the last times the flow ran, with what each step did; cards turn green or red. **Resume from here** starts again from a step with the data of then, **Try from here** with the latest. If EasyIsland closes halfway, the flow goes on at the next start, without redoing a step that had already opened a program or sent a notice.
 
 ## In plain words, in the chat
 "Every weekday at 9 open Outlook and the management software", "when I plug in a USB stick run the backup", "if the client's site goes down tell me": the chat prepares the automation and the island shows it to you (When… / Then…) with **Allow / Deny**. Confirming creates and turns it on.

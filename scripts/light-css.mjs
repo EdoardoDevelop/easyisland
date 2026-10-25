@@ -17,7 +17,7 @@ const COLOR_PROPS = /^(color|background(-color|-image)?|border(-(top|right|botto
 /** Files that get a light copy: the island's and the settings' own styles. */
 export function wantsLight(id) {
   const f = id.replace(/\\/g, "/").split("?")[0];
-  return /\/src\/(style|style-windows|settings\/settings|settings\/settings-windows)\.css$/.test(f);
+  return /\/src\/(style|style-windows|settings\/settings|settings\/settings-windows|flows\/flows)\.css$/.test(f);
 }
 
 // ── Colours ───────────────────────────────────────────────────────────────────

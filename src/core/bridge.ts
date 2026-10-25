@@ -346,6 +346,13 @@ export const Bridge = {
   flowRun: (id: string) => call<FlowRun>("flow_run", { id }),
   flowRerun: (id: string, node: string) => callOrThrow<void>("flow_rerun", { id, node }),
   flowTryFrom: (id: string, node: string) => callOrThrow<void>("flow_try_from", { id, node }),
+  /** The flows window (src/flows/): opened on `id`, made the first time. */
+  openFlowsWindow: (id = "") => call<void>("open_flows_window", { id }),
+  /** Saves one flow; what it still needs to run comes back ("" = complete). */
+  flowSave: (flow: import("./state").Automation) => callOrThrow<string>("flow_save", { flow }),
+  flowDelete: (id: string) => callOrThrow<void>("flow_delete", { id }),
+  flowAskChat: (text: string) => call<void>("flow_ask_chat", { text }),
+  flowPending: () => call<string>("flow_pending"),
   automationRunNow: (id: string) => callOrThrow<void>("automation_run_now", { id }),
   /** The tray ("Vassoio"): the copies of dropped files, kept until EasyIsland restarts. */
   inboxList: () => call<{ name: string; path: string; size: number; at: number; kept?: boolean }[]>("inbox_list"),

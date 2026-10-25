@@ -1,0 +1,684 @@
+/* The flows window (src/flows/main.ts): list | drawing + blocks | panel. */
+
+#flows-root.fl-root {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr) 380px;
+  height: 100vh;
+}
+
+/* ── List ── */
+.fl-side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #0f1013;
+  border-right: 1px solid var(--hairline);
+}
+
+.fl-side-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 14px 10px;
+}
+
+.fl-side-head h2 {
+  font-size: 18px;
+}
+
+.fl-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 4px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fl-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+}
+
+.fl-item .dot {
+  margin-top: 5px;
+  flex: 0 0 auto;
+}
+
+.fl-item span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.fl-item b {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fl-item small {
+  color: var(--dim);
+  font-size: 11px;
+}
+
+.fl-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.fl-item.on {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.fl-describe {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 16px;
+  border-top: 1px solid var(--hairline);
+}
+
+.fl-describe textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+/* ── Main ── */
+.fl-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.fl-main.empty {
+  align-items: center;
+  justify-content: center;
+}
+
+.fl-empty {
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--dim);
+  text-align: center;
+}
+
+.fl-empty h2 {
+  color: var(--ink);
+}
+
+.fl-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.fl-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 16px !important;
+  font-weight: 600;
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+.fl-name:hover,
+.fl-name:focus {
+  border-color: var(--hairline) !important;
+}
+
+.fl-on {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+.fl-status {
+  color: var(--dim);
+  font-size: 12px;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fl-status.warn {
+  color: #f59e0b;
+}
+
+/* ── Drawing ── */
+.fl-canvas {
+  flex: 1 1 auto;
+  overflow: auto;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.fl-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 20px 40px;
+  min-height: 100%;
+}
+
+.fl-card {
+  width: min(420px, 100%);
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #1e1f23;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  position: relative;
+}
+
+.fl-card:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.fl-card.picked {
+  border-color: var(--accent, #4cc2ff);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #4cc2ff) 35%, transparent);
+}
+
+.fl-card.trigger {
+  border-style: solid;
+  border-width: 1px 1px 1px 4px;
+  border-left-color: #4cc2ff;
+}
+
+.fl-card.ran-ok {
+  border-left: 4px solid #22c55e;
+}
+
+.fl-card.ran-bad {
+  border-left: 4px solid #f4505e;
+}
+
+.fl-card.dragging {
+  opacity: 0.4;
+}
+
+.fl-card[draggable="true"] {
+  cursor: grab;
+}
+
+.fl-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fl-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  font-size: 13px;
+  flex: 0 0 auto;
+}
+
+.fl-ico.big {
+  width: 36px;
+  height: 36px;
+  font-size: 19px;
+  border-radius: 10px;
+}
+
+.fl-kind {
+  font-weight: 600;
+}
+
+.fl-node {
+  color: var(--dim);
+  font-size: 11px;
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.fl-del {
+  margin-left: auto;
+  opacity: 0;
+  background: transparent !important;
+  border: 0 !important;
+  color: var(--dim);
+  padding: 2px 6px !important;
+}
+
+.fl-card:hover .fl-del {
+  opacity: 1;
+}
+
+.fl-sum {
+  margin: 6px 0 0 32px;
+  color: var(--dim);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.fl-ways {
+  margin: 8px 0 0 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fl-way {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.fl-way span {
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fl-way b {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.fl-tags {
+  margin: 8px 0 0 32px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.fl-tag {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--dim);
+}
+
+.fl-tag.jump {
+  color: #4cc2ff;
+}
+
+.fl-tag.err {
+  color: #f4505e;
+}
+
+.fl-tag.warn {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+/* The "+" between two cards, also where blocks are dropped. */
+.fl-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2px 0;
+  width: min(420px, 100%);
+  border-radius: 10px;
+}
+
+.fl-wire {
+  width: 2px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.fl-plus {
+  width: 24px;
+  height: 24px;
+  border-radius: 50% !important;
+  padding: 0 !important;
+  line-height: 1;
+  font-size: 15px;
+  opacity: 0.55;
+}
+
+.fl-slot:hover .fl-plus,
+.is-dragging .fl-plus {
+  opacity: 1;
+}
+
+.is-dragging .fl-slot {
+  outline: 1px dashed rgba(255, 255, 255, 0.18);
+}
+
+.fl-slot.over {
+  background: color-mix(in srgb, var(--accent, #4cc2ff) 18%, transparent);
+  outline: 2px dashed var(--accent, #4cc2ff) !important;
+}
+
+.fl-end {
+  margin-top: 2px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.fl-starter {
+  width: min(520px, 100%);
+  margin: 10px 0 14px;
+  padding: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  text-align: center;
+}
+
+.fl-templates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* ── Blocks bar ── */
+.fl-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--hairline);
+  background: #131417;
+}
+
+.fl-pal-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.fl-pal-name {
+  color: var(--dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: 2px;
+}
+
+.fl-pal-block {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px 4px 5px !important;
+  cursor: grab;
+}
+
+/* ── "+" menu ── */
+.fl-menu {
+  position: fixed;
+  z-index: 50;
+  width: 300px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 12px;
+  background: #222327;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.fl-menu-group {
+  padding: 8px 8px 4px;
+  color: var(--dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fl-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 8px;
+}
+
+.fl-menu-item:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+
+.fl-menu-item span:last-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.fl-menu-item small {
+  color: var(--dim);
+}
+
+/* ── Panel ── */
+.fl-right {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--hairline);
+  background: #131417;
+}
+
+.fl-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 12px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.fl-tabs button {
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  padding: 6px 10px !important;
+  color: var(--dim);
+}
+
+.fl-tabs button.on {
+  color: var(--ink);
+  border-bottom-color: var(--accent, #4cc2ff) !important;
+}
+
+.fl-panel {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 14px 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fl-panel h3 {
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.fl-panel-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.fl-panel-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.fl-line {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fl-line > label {
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.fl-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.fl-controls > input[type="text"],
+.fl-controls > textarea,
+.fl-controls > select {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.fl-panel textarea {
+  resize: vertical;
+}
+
+.fl-panel input.num {
+  width: 80px;
+}
+
+.fl-note {
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.fl-cond {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.fl-cond > input[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.fl-cond-more {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding-left: 12px;
+}
+
+.fl-branch {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.fl-branch-title {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fl-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--hairline);
+}
+
+.fl-chips .fl-note {
+  flex-basis: 100%;
+}
+
+.fl-chip {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  padding: 2px 7px !important;
+  border-radius: 999px !important;
+}
+
+.fl-panel-foot {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.fl-run {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding: 6px 8px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 0 !important;
+  border-radius: 8px;
+}
+
+.fl-run.on {
+  background: rgba(255, 255, 255, 0.09) !important;
+}
+
+.fl-run small {
+  color: var(--dim);
+  margin-left: auto;
+}
+
+.fl-trace {
+  margin-left: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fl-trace-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fl-trace-head button {
+  margin-left: auto;
+}
+
+.fl-out {
+  color: var(--dim);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 140px;
+  overflow-y: auto;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+}
