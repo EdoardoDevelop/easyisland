@@ -15,6 +15,7 @@ import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../vi
 import { language, locale, resolveLanguage, syncLanguage, t } from "../core/i18n";
 import { applyUiStyle, uiStyle } from "../core/uistyle";
 import "./settings-windows.css";
+import "./settings-light.css";
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
 let version = "";
@@ -1642,7 +1643,19 @@ function memoryRow(): HTMLElement {
   const folder = h("button", { text: t("Cartella") }) as HTMLButtonElement;
   folder.addEventListener("click", () => void Bridge.memoryOpen(true).catch(fail));
   void Bridge.memoryInfo().then(show);
-  return h("div", { class: "row" }, h("label", { text: t("Memoria") }), line, map, open, folder);
+  // «Motore per la memoria» (memory_ai.rs): any engine, a free or local one too.
+  const engine = h("select", {}) as HTMLSelectElement;
+  engine.append(h("option", { value: "", text: t("Nessuno (collegamenti automatici)") }));
+  for (const e of CHAT_ENGINES) engine.append(h("option", { value: e.id, text: e.name }));
+  engine.value = settings.memoryEngine ?? "";
+  engine.addEventListener("change", () => {
+    settings.memoryEngine = engine.value;
+    void save();
+  });
+  return h("div", { style: "display:contents" },
+    h("div", { class: "row" }, h("label", { text: t("Memoria") }), line, map, open, folder),
+    h("div", { class: "row" }, h("label", { text: t("Motore per la memoria") }), engine,
+      h("span", { class: "hint note", text: t("collega la memoria scrivendolo nei file: pagine per gli argomenti che tornano (un cliente, un progetto) e relazioni tra pagine. Solo aggiunte, mai cancellazioni; dopo il riordino della sera e con «Collega con l'IA» nella mappa. Va bene anche un motore gratuito; con uno in cloud le note escono dal PC, con Ollama o LM Studio restano qui") })));
 }
 
 /** Chat → "Ricette": how a kind of question was answered, learnt by use (recipes.rs). */
@@ -2020,8 +2033,84 @@ function slider(
   return h("div", { style: "display:flex;align-items:center;gap:10px" }, input, label);
 }
 
-function placementSection(): HTMLElement {
+function appearanceSections(): HTMLElement[] {
   const commit = () => void save();
+  const th = settings.theme;
+  const pct = (v: number) => Math.round(v * 100);
+  // The colour row follows the character: its own colour is the default (for
+  // the cube, the logo's colours).
+  const colorRow = h("div", { class: "row" });
+  const drawColorRow = () => {
+    clear(colorRow);
+    const c = characters().find((x) => x.id === th.character) ?? characters()[0];
+    colorRow.append(
+      h("label", { text: t("Colore di {name}", { name: c.name }) }),
+      colorField(th.slimeColor, rgbHex(c.color), (v) => { th.slimeColor = v; commit(); }, t("Il suo")),
+      h("span", { class: "hint note", text: t("negli altri stati {name} prende il colore dello stato", { name: c.name }) }),
+    );
+  };
+  drawColorRow();
+
+  // What sits in the island (character/figure.ts): the character, or a still
+  // picture — the EasyIsland logo, the user's PNG (logo.rs) or the weather.
+  const characterRow = h("div", { class: "row" },
+    h("label", { text: t("Personaggio") }),
+    select<string>(
+      characters().map((c) => [c.id, c.name] as [string, string]),
+      th.character ?? characters()[0].id,
+      (v) => { th.character = v; commit(); drawColorRow(); },
+    ),
+  );
+  const logoRow = h("div", { class: "row" });
+  const drawLogoRow = async () => {
+    const url = await Bridge.logoLoad().catch(() => null);
+    clear(logoRow);
+    const file = h("input", { type: "file", accept: "image/png,image/*", style: "display:none" }) as HTMLInputElement;
+    const status = h("span", { class: "hint" });
+    file.addEventListener("change", () => {
+      const f = file.files?.[0];
+      if (!f) return;
+      status.textContent = t("Carico…");
+      void pngForIsland(f)
+        .then((data) => Bridge.logoSave(data))
+        .then(() => {
+          th.logoStamp = Date.now();
+          commit();
+          void drawLogoRow();
+        })
+        .catch((e) => { status.textContent = String(e).replace(/^Error:\s*/, ""); });
+    });
+    logoRow.append(
+      h("label", { text: t("Il mio logo") }),
+      url ? h("img", { class: "logo-preview", src: url, alt: "" }) : h("span", { class: "hint", text: t("nessuna immagine: intanto c'è il logo di EasyIsland") }),
+      status,
+      file,
+      h("button", { text: url ? t("Cambia…") : t("Carica PNG…"), onclick: () => file.click() }),
+      ...(url ? [h("button", {
+        text: t("Togli"),
+        onclick: () => { void Bridge.logoClear().then(() => { th.logoStamp = Date.now(); commit(); void drawLogoRow(); }); },
+      })] : []),
+      h("span", { class: "hint note", text: t("un PNG con lo sfondo trasparente rende meglio; viene ridotto a 512 px e resta su questo PC (va anche nel backup)") }),
+    );
+  };
+  const showFigure = () => {
+    const f = th.figure ?? "character";
+    characterRow.style.display = f === "character" ? "" : "none";
+    colorRow.style.display = f === "character" ? "" : "none";
+    logoRow.style.display = f === "logo" ? "" : "none";
+    if (f === "logo") void drawLogoRow();
+  };
+  const figureRow = h("div", { class: "row" },
+    h("label", { text: t("Nell'isola") }),
+    select<Theme["figure"]>(
+      [["character", t("Il personaggio")], ["easyisland", t("Il logo di EasyIsland")], ["logo", t("Il mio logo")], ["weather", t("Il meteo")]],
+      th.figure ?? "character",
+      (v) => { th.figure = v; commit(); showFigure(); },
+    ),
+    h("span", { class: "hint note", text: t("logo e meteo sono immagini ferme: niente animazioni, stati e saluto all'avvio, per un aspetto più sobrio. Il meteo viene dall'integrazione Meteo, che dev'essere attiva") }),
+  );
+  showFigure();
+
 
   const screens: [string, string][] = [["primary", t("Schermo principale")], ["cursor", t("Schermo sotto il cursore")]];
   // Dragging the character to another display picks that one.
@@ -2164,21 +2253,52 @@ function placementSection(): HTMLElement {
     commit();
   });
 
-  return h(
+  return [
+  h(
     "section",
     {},
-    h("h2", {}, h("span", { text: t("Posizione e aspetto") }), profileChip()),
-    h("div", {
-      class: "hint",
-      text: t("Dove vive il personaggio. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. In basso sta sopra la barra delle applicazioni. Puoi anche trascinare il personaggio con il mouse: la posizione resta salvata; sceglierne una qui la riporta al bordo."),
-    }),
-    h("div", { class: "row" }, h("label", { text: t("Schermo") }), screen),
-    h("div", { class: "row" }, h("label", { text: t("Posizione") }), vertical, horizontal),
+    h("h2", {}, h("span", { text: t("Tema") }), profileChip()),
     h("div", { class: "row" },
-      h("label", { text: t("L'isola si apre") }),
-      place,
-      h("span", { class: "hint note", text: t("vicino al personaggio, oppure sempre nello stesso punto dello schermo; il personaggio resta dov'è") }),
+      h("label", { text: t("Stile") }),
+      select<"windows" | "classic">(
+        [["windows", t("Windows 11")], ["classic", t("Classico")]],
+        uiStyle(th.style),
+        (v) => { th.style = v; applyUiStyle(v, th.scheme); commit(); render(); },
+      ),
+      h("span", { class: "hint note", text: t("l'aspetto dell'isola e di questa finestra: Windows 11 (colore d'accento di Windows, icone a linea) o Classico (colori di EasyIsland)") }),
     ),
+    h("div", { class: "row" },
+      h("label", { text: t("Modalità") }),
+      select<Theme["scheme"]>(
+        [["dark", t("Scura")], ["light", t("Chiara")], ["auto", t("Automatica (come Windows)")]],
+        th.scheme ?? "dark",
+        (v) => { th.scheme = v; applyUiStyle(th.style, v); commit(); },
+      ),
+      h("span", { class: "hint note", text: t("vale per entrambi gli stili; Automatica segue la modalità delle app di Windows (Impostazioni di Windows → Personalizzazione → Colori)") }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Colore dell'isola") }),
+      colorField(th.islandColor, "#000000", (v) => { th.islandColor = v || "#000000"; commit(); }, t("Quello del tema")),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Opacità dell'isola") }),
+      slider(50, 100, 5, pct(th.islandOpacity), "%", (v) => { th.islandOpacity = v / 100; commit(); }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Sfondo a isola chiusa") }),
+      toggle(th.compactBackground ?? true, (v) => { th.compactBackground = v; commit(); }),
+      h("span", { class: "hint note", text: t("spento, a isola chiusa resta solo il personaggio, senza il cerchio o la barra dell'isola; aprendola lo sfondo torna. Con la barra al passaggio del mouse i mini personaggi restano senza sfondo") }),
+    ),
+  ),
+  h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: t("Personaggio") }), profileChip()),
+    h("div", { class: "hint", text: t("Chi sta nell'isola e come si comporta.") }),
+    figureRow,
+    logoRow,
+    characterRow,
+    colorRow,
     h("div", { class: "row" },
       h("label", { text: t("Saluto all'avvio") }),
       greeting,
@@ -2186,20 +2306,14 @@ function placementSection(): HTMLElement {
       h("span", { class: "hint note", text: t("l'animazione del personaggio quando parte l'app; spento, compare subito al suo posto") }),
     ),
     h("div", { class: "row" },
-      h("label", { text: t("Larghezza") }),
-      widthSlider,
-      h("span", { class: "hint note", text: t("delle schede, il menu a sinistra si aggiunge") }),
+      h("label", { text: t("Segue il mouse") }),
+      toggle(settings.followCursorCompact, (v) => { settings.followCursorCompact = v; commit(); }),
+      h("span", { class: "hint note", text: t("anche nella vista compatta. Spento: si guarda intorno da solo, sbatte le palpebre e fa qualche smorfia (consuma meno). A isola aperta segue sempre il mouse.") }),
     ),
     h("div", { class: "row" },
-      h("label", { text: t("Altezza minima") }),
-      heightSlider,
-      h("button", { text: t("Predefinite"), onclick: () => { settings.islandWidth = 640; settings.islandHeight = 0; commit(); render(); } }),
-      h("span", { class: "hint note", text: t("0 = l'altezza di ogni vista; fino alla grandezza dello schermo, anche trascinando l'angolo dell'isola aperta") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Campo in alto") }),
-      toggle(settings.searchBar !== false, (v) => { settings.searchBar = v; commit(); }),
-      h("span", { class: "hint note", text: t("nella barra dell'isola aperta: cerca integrazioni, azioni e programmi installati") }),
+      h("label", { text: t("Fumetto") }),
+      toggle(settings.characterBubble !== false, (v) => { settings.characterBubble = v; commit(); }),
+      h("span", { class: "hint note", text: t("in alto il personaggio dice cosa succede: la richiesta in attesa, la sessione al lavoro, la scheda aperta") }),
     ),
     h("div", { class: "row" },
       h("label", { text: t("Personaggio nel menu") }),
@@ -2207,11 +2321,14 @@ function placementSection(): HTMLElement {
         (v) => { settings.menuCharacter = v as Settings["menuCharacter"]; commit(); }),
       h("span", { class: "hint note", text: t("in cima al menu a sinistra dell'isola aperta") }),
     ),
-    h("div", { class: "row" },
-      h("label", { text: t("Fumetto") }),
-      toggle(settings.characterBubble !== false, (v) => { settings.characterBubble = v; commit(); }),
-      h("span", { class: "hint note", text: t("in alto il personaggio dice cosa succede: la richiesta in attesa, la sessione al lavoro, la scheda aperta") }),
-    ),
+  ),
+  h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: t("Posizione") }), profileChip()),
+    h("div", { class: "hint", text: t("Dove vive il personaggio. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. In basso sta sopra la barra delle applicazioni. Puoi anche trascinare il personaggio con il mouse: la posizione resta salvata; sceglierne una qui la riporta al bordo.") }),
+    h("div", { class: "row" }, h("label", { text: t("Schermo") }), screen),
+    h("div", { class: "row" }, h("label", { text: t("Posizione") }), vertical, horizontal),
     h("div", { class: "row" },
       h("label", { text: t("Sopra la barra") }),
       toggle(settings.overTaskbar, (v) => { settings.overTaskbar = v; commit(); }),
@@ -2222,8 +2339,25 @@ function placementSection(): HTMLElement {
       toggle(settings.glueEdges, (v) => { settings.glueEdges = v; commit(); }),
       h("span", { class: "hint note", text: t("lasciato a pochi pixel da un bordo, lo sfondo si attacca al bordo; altrimenti resta solo intorno all'icona") }),
     ),
+    h("div", { class: "row" },
+      h("label", { text: t("Schermo intero") }),
+      toggle(settings.quietFullscreen, (v) => { settings.quietFullscreen = v; commit(); }),
+      h("span", { class: "hint note", text: t("nascondi durante video, giochi e presentazioni (i permessi compaiono comunque)") }),
+    ),
+  ),
+  h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: t("Isola chiusa") }), profileChip()),
+    h("div", { class: "hint", text: t("Quando l'isola non è aperta: cosa resta sullo schermo e cosa compare accanto al personaggio.") }),
     h("div", { class: "row" }, h("label", { text: t("Vista compatta") }), hoverStyle),
     hoverSize,
+    h("div", { class: "row" },
+      h("label", { text: t("Sempre visibile") }),
+      always,
+      h("span", { class: "hint note", text: t("la vista compatta resta sullo schermo e non torna mai all'icona a riposo") }),
+    ),
+    restRows,
     h("div", { class: "row" },
       h("label", { text: t("Risposte rapide") }),
       select([["right", t("A destra del personaggio")], ["left", t("A sinistra del personaggio")], ["off", t("Spente")]],
@@ -2251,16 +2385,21 @@ function placementSection(): HTMLElement {
       toggle(settings.appBarName !== false, (v) => { settings.appBarName = v; commit(); }),
     ),
     h("div", { class: "row" },
-      h("label", { text: t("Segue il mouse") }),
-      toggle(settings.followCursorCompact, (v) => { settings.followCursorCompact = v; commit(); }),
-      h("span", { class: "hint note", text: t("anche nella vista compatta. Spento: si guarda intorno da solo, sbatte le palpebre e fa qualche smorfia (consuma meno). A isola aperta segue sempre il mouse.") }),
+      h("label", { text: t("Permessi e chiamate") }),
+      toggle(settings.alertsOpen !== false, (v) => { settings.alertsOpen = v; commit(); }),
+      h("span", { class: "hint note", text: t("aprono l'isola da soli; spento, aspettano accanto al personaggio o con un pallino (li apre la scorciatoia «Vai alla richiesta in attesa»)") }),
     ),
+  ),
+  h(
+    "section",
+    {},
+    h("h2", {}, h("span", { text: t("Isola aperta") }), profileChip()),
+    h("div", { class: "hint", text: t("Quando e dove si apre, quanto è grande e quando si richiude.") }),
     h("div", { class: "row" },
-      h("label", { text: t("Sempre visibile") }),
-      always,
-      h("span", { class: "hint note", text: t("la vista compatta resta sullo schermo e non torna mai all'icona a riposo") }),
+      h("label", { text: t("L'isola si apre") }),
+      place,
+      h("span", { class: "hint note", text: t("vicino al personaggio, oppure sempre nello stesso punto dello schermo; il personaggio resta dov'è") }),
     ),
-    restRows,
     h("div", { class: "row" },
       h("label", { text: t("Apri dopo") }),
       openDelay,
@@ -2272,31 +2411,38 @@ function placementSection(): HTMLElement {
       h("span", { class: "hint note", text: t("secondi dopo che sposti via il mouse, poi si riduce alla vista compatta") }),
     ),
     h("div", { class: "row" },
+      h("label", { text: t("Resta aperta") }),
+      toggle(settings.stayOpenByUser ?? false, (v) => { settings.stayOpenByUser = v; commit(); }),
+      h("span", { class: "hint note", text: t("quando la apri tu non si chiude da sola: come con 📌, finché non la chiudi") }),
+    ),
+    h("div", { class: "row" },
       h("label", { text: t("Pulsante chiudi") }),
       toggle(settings.closeButton, (v) => { settings.closeButton = v; commit(); }),
       h("span", { class: "hint note", text: t("✕ in alto a destra per chiudere subito il pannello (anche Esc)") }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Larghezza") }),
+      widthSlider,
+      h("span", { class: "hint note", text: t("delle schede, il menu a sinistra si aggiunge") }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Altezza minima") }),
+      heightSlider,
+      h("button", { text: t("Predefinite"), onclick: () => { settings.islandWidth = 640; settings.islandHeight = 0; commit(); render(); } }),
+      h("span", { class: "hint note", text: t("0 = l'altezza di ogni vista; fino alla grandezza dello schermo, anche trascinando l'angolo dell'isola aperta") }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Campo in alto") }),
+      toggle(settings.searchBar !== false, (v) => { settings.searchBar = v; commit(); }),
+      h("span", { class: "hint note", text: t("nella barra dell'isola aperta: cerca integrazioni, azioni e programmi installati") }),
     ),
     h("div", { class: "row" },
       h("label", { text: t("Come un'app") }),
       toggle(settings.islandApp ?? false, (v) => { settings.islandApp = v; commit(); }),
       h("span", { class: "hint note", text: t("icona nella barra delle applicazioni (un clic apre l'isola), Alt+Tab, riduci a icona e schermo intero") }),
     ),
-    h("div", { class: "row" },
-      h("label", { text: t("Resta aperta") }),
-      toggle(settings.stayOpenByUser ?? false, (v) => { settings.stayOpenByUser = v; commit(); }),
-      h("span", { class: "hint note", text: t("quando la apri tu non si chiude da sola: come con 📌, finché non la chiudi") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Schermo intero") }),
-      toggle(settings.quietFullscreen, (v) => { settings.quietFullscreen = v; commit(); }),
-      h("span", { class: "hint note", text: t("nascondi durante video, giochi e presentazioni (i permessi compaiono comunque)") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Permessi e chiamate") }),
-      toggle(settings.alertsOpen !== false, (v) => { settings.alertsOpen = v; commit(); }),
-      h("span", { class: "hint note", text: t("aprono l'isola da soli; spento, aspettano accanto al personaggio o con un pallino (li apre la scorciatoia «Vai alla richiesta in attesa»)") }),
-    ),
-  );
+  ),
+  ];
 }
 
 // ── General section ───────────────────────────────────────────────────────────
@@ -2315,11 +2461,23 @@ function generalSection(): HTMLElement {
     "section",
     {},
     h("h2", {}, h("span", { text: t("Generale") })),
-    h("div", { class: "hint", text: t("Il suono vale per il profilo attivo, l'avvio con Windows per questo PC. I tempi di chiusura sono in Posizione e aspetto.") }),
+    h("div", { class: "hint", text: t("Il suono vale per il profilo attivo, l'avvio con Windows per questo PC. I tempi di chiusura sono in Aspetto → Isola aperta.") }),
     h("div", { class: "row" },
       h("label", { text: t("Suono") }),
       toggle(settings.soundEnabled, (v) => { settings.soundEnabled = v; void save(); }),
       volume,
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Volume avvisi") }),
+      slider(0, 100, 10, Math.round(settings.theme.volumeAlerts * 100), "%", (v) => { settings.theme.volumeAlerts = v / 100; void save(); }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Volume interfaccia") }),
+      slider(0, 100, 10, Math.round(settings.theme.volumeUi * 100), "%", (v) => { settings.theme.volumeUi = v / 100; void save(); }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Volume emozioni") }),
+      slider(0, 100, 10, Math.round(settings.theme.volumeEmotes * 100), "%", (v) => { settings.theme.volumeEmotes = v / 100; void save(); }),
     ),
     h("div", { class: "row" },
       h("label", { text: t("Avvia con Windows") }),
@@ -4117,129 +4275,6 @@ function rgbHex(c: RGB): string {
   return `#${c.map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("")}`;
 }
 
-function themeSection(): HTMLElement {
-  const th = settings.theme;
-  const commit = () => void save();
-  const pct = (v: number) => Math.round(v * 100);
-  // The colour row follows the character: its own colour is the default (for
-  // the cube, the logo's colours).
-  const colorRow = h("div", { class: "row" });
-  const drawColorRow = () => {
-    clear(colorRow);
-    const c = characters().find((x) => x.id === th.character) ?? characters()[0];
-    colorRow.append(
-      h("label", { text: t("Colore di {name}", { name: c.name }) }),
-      colorField(th.slimeColor, rgbHex(c.color), (v) => { th.slimeColor = v; commit(); }, t("Il suo")),
-      h("span", { class: "hint note", text: t("negli altri stati {name} prende il colore dello stato", { name: c.name }) }),
-    );
-  };
-  drawColorRow();
-
-  // What sits in the island (character/figure.ts): the character, or a still
-  // picture — the EasyIsland logo, the user's PNG (logo.rs) or the weather.
-  const characterRow = h("div", { class: "row" },
-    h("label", { text: t("Personaggio") }),
-    select<string>(
-      characters().map((c) => [c.id, c.name] as [string, string]),
-      th.character ?? characters()[0].id,
-      (v) => { th.character = v; commit(); drawColorRow(); },
-    ),
-  );
-  const logoRow = h("div", { class: "row" });
-  const drawLogoRow = async () => {
-    const url = await Bridge.logoLoad().catch(() => null);
-    clear(logoRow);
-    const file = h("input", { type: "file", accept: "image/png,image/*", style: "display:none" }) as HTMLInputElement;
-    const status = h("span", { class: "hint" });
-    file.addEventListener("change", () => {
-      const f = file.files?.[0];
-      if (!f) return;
-      status.textContent = t("Carico…");
-      void pngForIsland(f)
-        .then((data) => Bridge.logoSave(data))
-        .then(() => {
-          th.logoStamp = Date.now();
-          commit();
-          void drawLogoRow();
-        })
-        .catch((e) => { status.textContent = String(e).replace(/^Error:\s*/, ""); });
-    });
-    logoRow.append(
-      h("label", { text: t("Il mio logo") }),
-      url ? h("img", { class: "logo-preview", src: url, alt: "" }) : h("span", { class: "hint", text: t("nessuna immagine: intanto c'è il logo di EasyIsland") }),
-      status,
-      file,
-      h("button", { text: url ? t("Cambia…") : t("Carica PNG…"), onclick: () => file.click() }),
-      ...(url ? [h("button", {
-        text: t("Togli"),
-        onclick: () => { void Bridge.logoClear().then(() => { th.logoStamp = Date.now(); commit(); void drawLogoRow(); }); },
-      })] : []),
-      h("span", { class: "hint note", text: t("un PNG con lo sfondo trasparente rende meglio; viene ridotto a 512 px e resta su questo PC (va anche nel backup)") }),
-    );
-  };
-  const showFigure = () => {
-    const f = th.figure ?? "character";
-    characterRow.style.display = f === "character" ? "" : "none";
-    colorRow.style.display = f === "character" ? "" : "none";
-    logoRow.style.display = f === "logo" ? "" : "none";
-    if (f === "logo") void drawLogoRow();
-  };
-  const figureRow = h("div", { class: "row" },
-    h("label", { text: t("Nell'isola") }),
-    select<Theme["figure"]>(
-      [["character", t("Il personaggio")], ["easyisland", t("Il logo di EasyIsland")], ["logo", t("Il mio logo")], ["weather", t("Il meteo")]],
-      th.figure ?? "character",
-      (v) => { th.figure = v; commit(); showFigure(); },
-    ),
-    h("span", { class: "hint note", text: t("logo e meteo sono immagini ferme: niente animazioni, stati e saluto all'avvio, per un aspetto più sobrio. Il meteo viene dall'integrazione Meteo, che dev'essere attiva") }),
-  );
-  showFigure();
-
-  return h(
-    "section",
-    {},
-    h("h2", {}, h("span", { text: t("Tema") }), profileChip()),
-    h("div", { class: "row" },
-      h("label", { text: t("Stile") }),
-      select<"windows" | "classic">(
-        [["windows", t("Windows 11")], ["classic", t("Classico")]],
-        uiStyle(th.style),
-        (v) => { th.style = v; applyUiStyle(v); commit(); render(); },
-      ),
-      h("span", { class: "hint note", text: t("l'aspetto dell'isola e di questa finestra: Windows 11 (grigio, colore d'accento di Windows, icone a linea) o Classico (isola nera, colori di EasyIsland)") }),
-    ),
-    figureRow,
-    logoRow,
-    characterRow,
-    colorRow,
-    h("div", { class: "row" },
-      h("label", { text: t("Colore dell'isola") }),
-      colorField(th.islandColor, "#000000", (v) => { th.islandColor = v || "#000000"; commit(); }, uiStyle(th.style) === "windows" ? t("Grigio di Windows") : t("Nero")),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Opacità dell'isola") }),
-      slider(50, 100, 5, pct(th.islandOpacity), "%", (v) => { th.islandOpacity = v / 100; commit(); }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Sfondo a isola chiusa") }),
-      toggle(th.compactBackground ?? true, (v) => { th.compactBackground = v; commit(); }),
-      h("span", { class: "hint note", text: t("spento, a isola chiusa resta solo il personaggio, senza il cerchio o la barra dell'isola; aprendola lo sfondo torna. Con la barra al passaggio del mouse i mini personaggi restano senza sfondo") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Volume avvisi") }),
-      slider(0, 100, 10, pct(th.volumeAlerts), "%", (v) => { th.volumeAlerts = v / 100; commit(); }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Volume interfaccia") }),
-      slider(0, 100, 10, pct(th.volumeUi), "%", (v) => { th.volumeUi = v / 100; commit(); }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Volume emozioni") }),
-      slider(0, 100, 10, pct(th.volumeEmotes), "%", (v) => { th.volumeEmotes = v / 100; commit(); }),
-    ),
-  );
-}
-
 // ── Compiti (tasks.rs) ─────────────────────────────────────────────────────────
 
 let taskItems: AgentTaskItem[] = [];
@@ -4955,7 +4990,12 @@ async function main() {
   }
   // Preview: ?ui=classic shows the original look.
   if (!info && new URLSearchParams(location.search).get("ui") === "classic") settings.theme = { ...settings.theme, style: "classic" };
-  applyUiStyle(settings.theme.style);
+  // ?scheme=light: the light mode.
+  const askedScheme = new URLSearchParams(location.search).get("scheme");
+  if (!info && (askedScheme === "light" || askedScheme === "auto")) settings.theme = { ...settings.theme, scheme: askedScheme };
+  applyUiStyle(settings.theme.style, settings.theme.scheme);
+  // settings.html paints the body dark inline (no white flash while loading): the styles take over now.
+  document.body.removeAttribute("style");
   const status = (await Bridge.hooksStatus()) ?? {
     installed: false, legacy: false, settingsPath: "", hookPath: "", hookReady: false,
   };
@@ -5024,7 +5064,7 @@ async function main() {
       mine[k] = v;
       redraw = true; // changed elsewhere: a profile switch, a drag, the island
     }
-    applyUiStyle(settings.theme.style);
+    applyUiStyle(settings.theme.style, settings.theme.scheme);
     // The echo of a save made here (Rust may tidy a value) is taken without
     // redrawing: a redraw closed the open integration and the page jumped up.
     if (redraw && Date.now() - savedAt > 2000) render();
@@ -5060,8 +5100,8 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     },
     {
       id: "aspetto", label: t("Aspetto"), icon: "image", color: "#F472B6", title: t("Aspetto"),
-      intro: t("Dove sta l'isola, come si mostra, il personaggio e i colori."),
-      sections: () => [placementSection(), themeSection()],
+      intro: t("Tema e colori, il personaggio, dove sta l'isola e come si comporta chiusa e aperta."),
+      sections: () => appearanceSections(),
     },
     {
       id: "notifiche", label: t("Notifiche"), icon: "alert", color: "#F5A524", title: t("Notifiche"),

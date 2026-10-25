@@ -124,6 +124,18 @@ Fatto per Anthropic con chiave (`docs/chat.md`); opencode li aveva già. Restano
 - **PDF:** con Word installato, conversione automatica senza aprirlo. Senza Word resta il `.docx`.
 - **Esclusi:** un editor di documenti nell'app e un generatore PDF fatto in casa.
 
+## Recapiti tra due EasyIsland (ragionata con Edoardo il 25 ottobre 2026, da valutare)
+Edoardo usa due PC: casa (sempre acceso) e notebook di lavoro (acceso in ufficio e dai clienti), con **due account Claude diversi**. Vuole che uno lavori per l'altro senza mischiare le memorie. Esempio: di notte il PC di casa raccoglie schede tecniche e guide dei prodotti UniFi, e il risultato finisce nel notebook, non nella memoria di casa.
+- **Idea:** un compito con «consegna a: l'altro PC». Chi lo esegue non scrive nella propria memoria ma in una cartella a parte, che diventa un **pacco** (pagine .md, PDF, riassunto). L'altro PC, appena raggiungibile, lo ritira nella sua `da-leggere`: lo impara il suo motore con il suo account («Leggi adesso» o di notte). Mai memoria, chat o chiavi condivise: solo documenti, come se li avesse trascinati l'utente. Avviso nell'isola: «Pacco da casa: UniFi, 143 documenti».
+- **Bidirezionale** (scelta di Edoardo): ognuno dei due può chiedere un compito all'altro e riceverne il pacco. Il collegamento sa fare solo due cose: consegnare documenti in `da-leggere` e chiedere di avviare un compito (che l'altro PC mostra e, se non è tra quelli consentiti, chiede di approvare). Mai comandi, mai lettura dei dati dell'altro.
+- **Vincoli di Edoardo:** **niente VPN e niente cloud.** Da ragionare come si raggiungono i due PC:
+  - *Inoltro di una porta sul router di casa* (anche automatico con UPnP, se il router lo permette): casa fa da piccolo server con TLS e chiave dell'abbinamento; il notebook ritira da ovunque. Il notebook non è raggiungibile da fuori, quindi «casa → notebook» funziona come ritiro (il notebook chiede), «notebook → casa» come invio diretto. Serve un nome o l'IP pubblico di casa (DNS dinamico se cambia). Rischio: una porta aperta su internet, da tenere al minimo (solo i due endpoint, chiave obbligatoria, limiti di frequenza).
+  - *Telegram come postino* (già configurato da Edoardo): segnali e pacchi piccoli attraverso il suo bot; passa da un servizio di terzi, e i file grandi vanno spezzati (limite 50 MB per file del bot). Da capire se per Edoardo conta come «cloud».
+  - *Stessa rete*: quando il notebook è a casa, consegna diretta in LAN (scoperta automatica, nessuna configurazione). Copre i casi in cui il notebook torna a casa la sera.
+  - Il «buco» nel NAT (hole punching) senza server non è affidabile: serve sempre un punto d'incontro, quindi escluso.
+- **Sicurezza:** abbinamento una volta sola con un codice mostrato su un PC e scritto sull'altro; chiave in Gestione credenziali; pacchi firmati e cifrati; un pacco non può contenere eseguibili né finire fuori da `da-leggere`.
+- **Costi e account:** il lavoro pesante lo paga l'account che lo esegue. Compiti lunghi (un catalogo intero) a passi e con un limite di pagine, meglio di notte e con un motore gratuito o locale.
+
 ## Altro
 - **Scheda esatta di Windows Terminal** per «Apri»: il relay legge il titolo della console e l'app seleziona la scheda con UI Automation. Da sperimentare con una sessione vera. Tolta dal Da fare il 9 ottobre: per ora non serve.
 - **Clic destro sui file in Esplora file** (prossimo passo, deciso l'11 ottobre 2026): una voce nel registro di Windows (`HKCU\Software\Classes\*\shell`) che passa il percorso all'app, scritta solo dopo la conferma di Edoardo. In Windows 11 finisce sotto «Mostra altre opzioni» (il menu nuovo vuole un pacchetto MSIX con `IExplorerCommand`). Per il testo selezionato c'è già il menu di `Win+Alt+A`.

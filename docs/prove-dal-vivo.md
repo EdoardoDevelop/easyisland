@@ -2,6 +2,7 @@
 
 Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli una voce quando è provata, e annota in `HANDOFF.md` ciò che non va.
 
+- Motore per la memoria: scegliere un motore gratuito (OpenRouter) e uno locale (Ollama), «Collega con l'IA» nella mappa, controllare le pagine-argomento create e che nessuna nota sia cambiata.
 - [ ] **Integrazioni personali (23 ottobre 2026):** provati nell'anteprima modulo, righe, calcoli e modello compilato. Restano con l'app vera:
   1. in chat «crea un'integrazione per i preventivi…»: la card di Consenti con la descrizione, poi la voce nel menu;
   2. Salva, poi la scheda in «Salvate», Duplica, Elimina;

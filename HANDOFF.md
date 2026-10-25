@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 25 ottobre 2026. Versione **1.0.5** in `main` con il tag `v1.0.5` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 25 ottobre 2026. Versione **1.0.6** in `main` con il tag `v1.0.6` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -23,6 +23,8 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **opencode:** card per lo strumento `question` anche nella chat (per l'agente c'è), controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
 - [ ] **Spunti da Coucou:** Amp/Hermes, limiti di Codex, riepilogo condivisibile come immagine, GitHub (`docs/idee.md`).
 - [ ] **Prova dal vivo dei nuovi personaggi** (`docs/prove-dal-vivo.md`).
+- [ ] **Modalità chiara:** guardare tutte le schede dell'isola e le pagine delle Impostazioni in chiaro con l'app vera e correggere in `src/style-light.css` / `settings-light.css` ciò che il plugin sbaglia (colori in linea nel codice TypeScript non cambiano).
+- [ ] **Recapiti tra due EasyIsland** (casa ↔ notebook, memorie separate, senza VPN né cloud): da valutare (`docs/idee.md`).
 - [ ] **Da decidere con Edoardo:** firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
 
 ## Problemi noti
@@ -34,28 +36,25 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 25 ottobre 2026 — Versione 1.0.6: modalità chiara, Jarvis Plasma, Aspetto riordinato
+- Modalità **Scura / Chiara / Automatica** per entrambi gli stili (`theme.scheme`). Le regole chiare le genera il plugin di Vite `scripts/light-css.mjs` sotto `:where([data-scheme="light"])`; correzioni a mano in `src/style-light.css` e `settings-light.css`; Automatica dal registro (`system_light`). Dettagli in `docs/architettura.md`.
+- **Jarvis Plasma** (`jarvis.ts`), da un'immagine: gabbia di filamenti, rete interna, nodo luminoso, niente bordo netto. Jarvis Sfera con colori più accesi.
+- Pagina **Aspetto** in cinque sezioni (`appearanceSections`); volumi spostati in Generale.
+- `smoke.mjs` e `screenshots.mjs` lasciavano in %TEMP% il profilo di Edge (bloccato dai processi figli): ~30 GB accumulati, disco pieno. Ora riprovano a cancellarlo e all'avvio spazzano quelli più vecchi di un'ora.
+
+### 25 ottobre 2026 — Grafo 3D della memoria
+- Nuova scheda «Grafo 3D» nella finestra Memoria (`src/memory/graph3d.ts`): forze in 3D, prospettiva su Canvas 2D senza librerie, trascina per girare, clic per portare la stella davanti. Fotogrammi solo mentre si muove.
+
+### 25 ottobre 2026 — Motore per la memoria
+- `memory_ai.rs`: un motore scelto in Impostazioni → Chat → Memoria (anche gratuito, senza strumenti) riceve note e pagine e risponde in JSON; EasyIsland scrive solo aggiunte (pagine-argomento con le note, relazioni). «Collega con l'IA» nella mappa e dopo il riordino della sera se la memoria è cambiata.
+- **Prove:** `cargo test` (lettura del JSON, intestazione delle pagine), `npm run build`, `npm run smoke`. Da provare dal vivo con un motore vero.
+
+### 25 ottobre 2026 — Grafo della memoria più collegato
+- Le note si collegano alle pagine anche con `[[…]]` e con due parole chiave in comune, e alle due note più simili, più le voci che condividono una parola rara (un cliente, un server); le archiviate isolate escono dal grafo (restano nella timeline). Con la memoria del notebook: nessun punto isolato (`brain.rs`, `key_words`, `wiki_links`).
+- **Prove:** `cargo test` (nuovo test e `live_graph` sui dati del notebook).
+
 ### 25 ottobre 2026 — Jarvis
 - Nuovo personaggio **Jarvis** (`jarvis.ts`, tipo `hud`): nucleo e anelli sempre in movimento, ritmo e colori per stato, satelliti per gli agenti al lavoro, avvio con anelli che si compongono, secondi sull'anello esterno, parallasse verso il mouse. Senza occhi, mani né gelatina.
 - **Jarvis Sfera**: seconda versione, sfera di punti che ondeggia, dall'immagine di Edoardo (senza satelliti né scintille). Il cubo non si nomina più in README, guida, sito e documentazione.
 - Con Jarvis il meteo è un segno piccolo nell'angolo, mai dietro gli anelli. Corretto: «Chiudi finestra» dall'anteprima nella barra delle applicazioni distruggeva la finestra dell'isola (EasyIsland restava acceso senza isola); ora la richiude come la sua ✕ (`CloseRequested` in `lib.rs`, evento `tray` «close»).
 - **Prove:** `npm run build`, `npm run smoke`; anteprima degli stati. Da vedere dal vivo nell'isola e nel saluto.
-
-### 25 ottobre 2026 — Raccolta, mappa della memoria
-- **Raccolta** (`collect.rs`, `src/views/collect.ts`): testo selezionato in qualsiasi app con `Ctrl+Alt+Shift+R` o una zona da Riquadra e chiedi, con app, titolo e pagina (SourceURL degli appunti), in «File e schermo»; nome e campi facoltativi, «Chiedi alla chat» allega tutto e la chat ricava i campi. Una alla volta, nel backup.
-- Mappa della memoria: pulsante nell'isola, errore mostrato invece di «vuota», Mappa concettuale che si fermava con un livello vuoto («reading 'reduce'», visto sul notebook).
-- **Prove:** `cargo test`, `npm run build`, `npm run smoke`; anteprima del pannello e del testo per la chat. Da provare dal vivo: scorciatoia, URL da Chrome/Edge.
-
-### 25 ottobre 2026 — Icone delle azioni, Riquadra e chiedi
-- Oltre 150 icone per le azioni rapide; «Automatica» nel selettore: favicon del sito (letta solo da quel sito) o icona del programma, salvata nell'azione come PNG 64 px (`thumbs.rs` `favicon`/`program_icon`, `autoIcon` in `settings/main.ts`). Un link o programma nuovo la prende da solo finché resta il fulmine. Meteo nell'isola più grande.
-- «Cerchia e chiedi» diventa «Riquadra e chiedi»: si trascina un riquadro da un angolo all'altro (`capture.ts`).
-- **Prove:** `cargo test` (con `thumbs::tests::live_icons` dal vivo: Blocco note e GitHub), `npm run build`, `npm run smoke`.
-
-### 24 ottobre 2026 — Logo o meteo al posto del personaggio
-- Tema → «Nell'isola»: personaggio, logo di EasyIsland, logo dell'utente (PNG ridotto a 512 px, `logo.rs`, nel backup) o meteo. Logo e meteo sono immagini ferme: niente animazioni, stati né saluto (`character/figure.ts`, aggancio in `BotEngine.draw` e `busy`).
-- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`; anteprima: logo EasyIsland, PNG e meteo nell'icona a riposo e nell'isola aperta. Da provare dal vivo.
-
-### 24 ottobre 2026 — Isola come un'app
-- Cartella di lavoro: elenco o griglia, ordine per nome (A→Z, Z→A) o data di modifica (più recenti, meno recenti), cartelle sempre prima; testo di tutta l'isola aperta 1 px più grande (`--fs-up`), chiusa com'era. Come un'app: icona nella barra e Alt+Tab solo da aperta, si apre da EasyIsland aggiunta alla barra; schermo intero a filo dell'area di lavoro. «Resta aperta» non rende l'isola un'app (`keptByItself`). Tasto destro sull'icona nella barra: azioni rapide e attività (`jumplist.rs`, `--do`). Impostazioni: si aprono su Generale e non tornano in alto a ogni clic. Telegram uguale in ogni profilo (`GLOBAL_INTEGRATIONS`). Icone per tipo di file e anteprime delle immagini (`filekind.ts`, `thumbs.rs`). Backup con memoria, abilità, compiti, integrazioni personali, chat e abitudini (`backup.rs`).
-- L'isola dietro una finestra non torna più sopra passandoci col mouse (tao rimetteva `WS_EX_TOPMOST`). Nuove opzioni in Impostazioni → Isola: «Come un'app» (icona sempre nella barra, Alt+Tab, — e ▢ schermo intero) e «Resta aperta» quando la apre l'utente. `island.rs`, `island.ts`, `docs/architettura.md`.
-- Dopo la 1.0.2: Impostazioni ferme anche cambiando una select o un interruttore (l'eco del proprio salvataggio non ridisegna più, `holdScroll` tiene l'altezza); icona della cartella delle azioni cliccabile anche prima di confermare il nome; tema Windows 11 con separatori anche nei blocchi annidati. Un file trascinato sull'isola a riposo (icona o striscia) la apre.
-- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`; da provare dal vivo.

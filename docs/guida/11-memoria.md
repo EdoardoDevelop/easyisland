@@ -54,13 +54,19 @@ Parte la domenica sera con il Riordino, se c'è qualcosa da sistemare, o subito 
 
 Se non c'è niente da fare non parte e non costa niente.
 
+## Motore per la memoria
+In **Impostazioni → Chat → Memoria → Motore per la memoria** puoi scegliere un motore, anche gratuito, che collega la memoria scrivendolo nei file: crea una pagina per ogni argomento che torna in più note (un cliente, un progetto, una persona), con i rimandi alle note, e aggiunge le relazioni tra pagine («cliente di», «lavora con»…). Lavora da solo dopo il riordino della sera e quando premi **Collega con l'IA** nella mappa. Aggiunge soltanto: non cancella e non riscrive le tue note. Con un motore in cloud le note vengono mandate a quel servizio; con Ollama o LM Studio restano sul PC. Con **Nessuno** la mappa collega le voci da sola, dalle parole in comune.
+
 ## La finestra Memoria
-Il pulsante con i tre nodi in alto nell'isola (o **Impostazioni → Chat → Memoria → Mappa**) apre una finestra tutta sua con la memoria disegnata in quattro modi.
+Il pulsante con i tre nodi in alto nell'isola (o **Impostazioni → Chat → Memoria → Mappa**) apre una finestra tutta sua con la memoria disegnata in quattro modi. Una nota si collega alle pagine di cui parla (anche senza citarne il titolo intero, dalle parole in comune) e alle note simili; le note archiviate che non c'entrano con niente non affollano il grafo.
 
 ### Grafo
 ![Il grafo della memoria](../media/memoria-grafo.png)
 
 Ogni pagina, nota, fonte e giorno di chat è una stella, unita alle altre dai collegamenti. Le stelle più collegate sono più grandi. Clic su una stella: si illuminano i suoi collegamenti, con scintille che li percorrono, e a destra vedi il testo e l'elenco dei collegamenti.
+
+### Grafo 3D
+Lo stesso grafo nello spazio, come un globo di stelle. Trascina per girarlo (continua a ruotare un poco quando lasci), rotellina per avvicinarti, doppio clic per vedere tutto. Le stelle lontane sono più tenui; cliccandone una il globo si gira per portarla davanti a te.
 
 ### Mappa mentale
 ![La mappa mentale](../media/memoria-mappa.png)

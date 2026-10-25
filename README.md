@@ -55,9 +55,9 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 - **Profili** (lavoro, casa, concentrazione) che cambiano da soli, modalità
   **davanti al cliente**, messaggi da qualsiasi script, backup delle impostazioni.
 - **Dieci personaggi** (Goccia, la predefinita, Slime, Geco, Fiamma, Magma,
-  Pietra, Roccia, Foglia, **Jarvis** e **Jarvis Sfera**), oppure al loro posto il
+  Pietra, Roccia, Foglia, **Jarvis**, **Jarvis Sfera** e **Jarvis Plasma**), oppure al loro posto il
   **logo di EasyIsland, il tuo logo PNG o il meteo**; posizione libera,
-  isola grande fino ai bordi dello schermo e aperta dove vuoi, stile Windows 11 o Classico, tema, suoni
+  isola grande fino ai bordi dello schermo e aperta dove vuoi, stile Windows 11 o Classico in modalità **chiara, scura o automatica**, suoni
   generati nel codice, interfaccia in **italiano o inglese**; leggera a batteria,
   nessuna telemetria.
 
@@ -66,6 +66,14 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 </p>
 
 ## Novità
+
+**1.0.6** — **Modalità chiara, scura o automatica** per entrambi gli stili (Impostazioni → Aspetto →
+Tema), anche per la finestra delle Impostazioni; Automatica segue Windows. Pagina **Aspetto** riordinata
+in cinque sezioni (Tema, Personaggio, Posizione, Isola chiusa, Isola aperta). **Jarvis Plasma**: un globo
+al plasma blu e viola, con filamenti che cambiano di continuo; Jarvis Sfera con colori più accesi.
+**Memoria**: un **motore per la memoria** a scelta, anche gratuito, crea da solo le pagine degli
+argomenti e le relazioni (solo aggiunte, pulsante «Collega con l'IA» e dopo il riordino serale), un
+grafo più collegato e il **Grafo 3D** da girare col mouse.
 
 **1.0.5** — **Jarvis**: nuovo personaggio, l'interfaccia di un assistente con un nucleo luminoso e
 anelli sempre in movimento, ritmo e colori per ogni stato, un satellite per ogni agente al lavoro e i
@@ -386,6 +394,7 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
+| **1.0.6** | 25 ott 2026 | Modalità chiara/scura/automatica, Aspetto riordinato, Jarvis Plasma, motore per la memoria, Grafo 3D |
 | **1.0.5** | 25 ott 2026 | Personaggi Jarvis e Jarvis Sfera, isola che non sparisce chiudendola dalla barra delle applicazioni |
 | **1.0.4** | 25 ott 2026 | Raccolta (testo e zone con la loro fonte, da passare alla chat), mappa della memoria dall'isola |
 | **1.0.3** | 25 ott 2026 | Logo o meteo al posto del personaggio, oltre 150 icone e icona automatica per le azioni, Riquadra e chiedi |
@@ -921,7 +930,7 @@ attivo.
 - **Notifiche**: tutto, solo avvisi, oppure solo le richieste di permesso
   (com'è *Concentrazione* all'inizio).
 - **Tema**: il personaggio (**Goccia**, la predefinita, **Slime**, **Geco**,
-  **Fiamma**, **Magma**, **Pietra**, **Roccia**, **Foglia**, **Jarvis** o **Jarvis Sfera**), il suo
+  **Fiamma**, **Magma**, **Pietra**, **Roccia**, **Foglia**, **Jarvis**, **Jarvis Sfera** o **Jarvis Plasma**), il suo
   colore, colore e opacità dell'isola, **sfondo a isola chiusa** (spento, a
   isola chiusa resta solo il personaggio, senza il cerchio o la barra), volume
   separato per avvisi, interfaccia ed emozioni. Slime è uno slime di gelatina verde che ondeggia quando si

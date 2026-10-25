@@ -54,13 +54,19 @@ It runs on Sunday evening with the digest, if there's something to fix, or right
 
 If there's nothing to do it doesn't run and costs nothing.
 
+## Memory engine
+In **Settings → Chat and AI engines → Memory → Memory engine** you can pick an engine, a free one too, that links the memory by writing it into the files: it creates a page for every subject that comes back in several notes (a customer, a project, a person), with references to the notes, and adds relations between pages ("customer of", "works with"…). It works by itself after the evening digest and when you press **Link with AI** in the map. It only adds: it never deletes or rewrites your notes. With a cloud engine the notes are sent to that service; with Ollama or LM Studio they stay on the PC. With **None** the map links the items by itself, from the words in common.
+
 ## The Memory window
-The button with three nodes at the top of the island (or **Settings → Chat and AI engines → Memory → Map**) opens a window of its own with the memory drawn four ways.
+The button with three nodes at the top of the island (or **Settings → Chat and AI engines → Memory → Map**) opens a window of its own with the memory drawn four ways. A note links to the pages it talks about (even without their full title, from the words in common) and to similar notes; archived notes tied to nothing do not crowd the graph.
 
 ### Graph
 ![The memory graph](../media/memoria-grafo.png)
 
 Every page, note, source and chat day is a star, joined to the others by its links. The most linked stars are bigger. Click a star: its links light up, with sparks running along them, and on the right you see its text and the list of links.
+
+### 3D graph
+The same graph in space, like a globe of stars. Drag to turn it (it keeps spinning a little when you let go), wheel to come closer, double click to see everything. Far stars are fainter; click one and the globe turns to bring it in front of you.
 
 ### Mind map
 ![The mind map](../media/memoria-mappa.png)

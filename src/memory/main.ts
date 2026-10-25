@@ -10,14 +10,16 @@ import { h, clear } from "../views/dom";
 import { KIND_COLOR, Model, kindName, type MemGraph, type NodeKind } from "./data";
 import { Stage, type View } from "./stage";
 import { GraphView } from "./graph";
+import { Graph3DView } from "./graph3d";
 import { MindMapView } from "./mindmap";
 import { ConceptView } from "./concept";
 import { TimelineView } from "./timeline";
 
-type Tab = "timeline" | "graph" | "mind" | "concept";
+type Tab = "timeline" | "graph" | "graph3d" | "mind" | "concept";
 
 const TABS: { id: Tab; name: string; hint: string }[] = [
   { id: "graph", name: t("Grafo"), hint: t("Ogni pagina, nota, fonte e giorno di chat, uniti dai collegamenti. Clic per vedere, rotellina per lo zoom, doppio clic per vedere tutto.") },
+  { id: "graph3d", name: t("Grafo 3D"), hint: t("Lo stesso grafo nello spazio. Trascina per girarlo, rotellina per lo zoom, clic per vedere, doppio clic per vedere tutto.") },
   { id: "mind", name: t("Mappa mentale"), hint: t("Un argomento al centro e ciò che ne nasce. Clic su un ramo per portarlo al centro.") },
   { id: "concept", name: t("Mappa concettuale"), hint: t("Le pagine a livelli, con le frecce che dicono come sono legate («- relazione: [[Pagina]]»).") },
   { id: "timeline", name: t("Timeline"), hint: t("La memoria nel tempo. Rotellina per lo zoom sul tempo, trascina per spostarti.") },
@@ -26,6 +28,7 @@ const TABS: { id: Tab; name: string; hint: string }[] = [
 const views: Record<Tab, View> = {
   timeline: new TimelineView(),
   graph: new GraphView(),
+  graph3d: new Graph3DView(),
   mind: new MindMapView(),
   concept: new ConceptView(),
 };
@@ -47,11 +50,12 @@ for (const tb of TABS) {
 const search = h("input", { class: "mem-search", type: "search", placeholder: t("Cerca nella memoria…") }) as HTMLInputElement;
 const inboxBtn = h("button", { text: t("Da leggere"), title: t("Apri la cartella dei file da far imparare") }) as HTMLButtonElement;
 const readBtn = h("button", { text: t("Leggi adesso"), title: t("Un compito legge i file di da-leggere e scrive le pagine") }) as HTMLButtonElement;
+const linkBtn = h("button", { text: t("Collega con l'IA"), title: t("Il motore per la memoria crea le pagine degli argomenti e le relazioni tra pagine (solo aggiunte)") }) as HTMLButtonElement;
 const checkBtn = h("button", { text: t("Controlla"), title: t("Un compito controlla la memoria e ti propone come sistemarla") }) as HTMLButtonElement;
 const reloadBtn = h("button", { text: "↻", title: t("Aggiorna") }) as HTMLButtonElement;
 const bar = h("div", { class: "mem-bar" },
   h("div", { class: "mem-title" }, h("i"), h("span", { text: t("Memoria") })),
-  tabsBox, search, h("span", { class: "mem-spacer" }), inboxBtn, readBtn, checkBtn, reloadBtn);
+  tabsBox, search, h("span", { class: "mem-spacer" }), inboxBtn, readBtn, linkBtn, checkBtn, reloadBtn);
 
 const stageBox = h("div", { class: "mem-stage" });
 const tip = h("div", { class: "mem-tip" });
@@ -87,10 +91,10 @@ stageBox.append(legend, hint, empty, tip);
 function remembered(): Tab {
   // ?tab=… (screenshots, smoke) wins.
   const asked = new URLSearchParams(location.search).get("tab");
-  if (asked === "timeline" || asked === "graph" || asked === "mind" || asked === "concept") return asked;
+  if (asked === "timeline" || asked === "graph" || asked === "graph3d" || asked === "mind" || asked === "concept") return asked;
   try {
     const v = localStorage.getItem("easyisland.memory.tab");
-    if (v === "timeline" || v === "graph" || v === "mind" || v === "concept") return v;
+    if (v === "timeline" || v === "graph" || v === "graph3d" || v === "mind" || v === "concept") return v;
   } catch {
     /* no storage */
   }
@@ -333,6 +337,19 @@ const job = (kind: "inbox" | "check", btn: HTMLButtonElement) => async () => {
   }
 };
 readBtn.addEventListener("click", job("inbox", readBtn));
+linkBtn.addEventListener("click", async () => {
+  linkBtn.disabled = true;
+  feedback.textContent = t("Il motore sta collegando la memoria…");
+  if (!selected) renderPanel();
+  try {
+    feedback.textContent = await Bridge.memoryLink();
+    await load();
+  } catch (e) {
+    fail(e);
+  } finally {
+    linkBtn.disabled = false;
+  }
+});
 checkBtn.addEventListener("click", job("check", checkBtn));
 
 // Files dropped on the window go to da-leggere (read here, written by Rust:

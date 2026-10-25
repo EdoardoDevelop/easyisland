@@ -2,6 +2,7 @@
 
 mod actions;
 mod collect;
+mod memory_ai;
 mod antigravity;
 mod agent;
 mod agent_settings;
@@ -1520,6 +1521,12 @@ async fn memory_graph() -> Result<brain::Graph, String> {
     tauri::async_runtime::spawn_blocking(brain::graph).await.map_err(|e| tf("Errore nel leggere la memoria: {e}", &[("e", &e)]))
 }
 
+/// «Collega con l'IA» (memory_ai.rs): the chosen engine ties the memory together; what was done.
+#[tauri::command]
+async fn memory_link(app: AppHandle) -> Result<String, String> {
+    memory_ai::run(&app).await
+}
+
 /// The memory window's «Leggi adesso» and «Controlla»: a task (tasks.rs).
 #[tauri::command]
 fn memory_job(app: AppHandle, kind: String) -> Result<(), String> {
@@ -2615,6 +2622,23 @@ fn system_accent() -> Option<String> {
     Some(hex(v as u8, (v >> 8) as u8, (v >> 16) as u8))
 }
 
+/// Windows' app mode for «Modalità: automatica» (Impostazioni → Aspetto): true when
+/// apps are set to light. Read from the registry because the settings window is
+/// created dark, so its prefers-color-scheme always says dark.
+#[tauri::command]
+fn system_light() -> bool {
+    use probes::reg::{Key, HKEY_CURRENT_USER};
+    Key::open(HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+        .and_then(|k| k.qword("AppsUseLightTheme"))
+        .is_some_and(|v| v != 0)
+}
+
+/// The calling window's title bar, light or dark, with the page's scheme.
+#[tauri::command]
+fn set_window_light(window: tauri::WebviewWindow, light: bool) {
+    let _ = window.set_theme(Some(if light { tauri::Theme::Light } else { tauri::Theme::Dark }));
+}
+
 /// Impostazioni → Compiti and the island: every task (tasks.rs).
 #[tauri::command]
 fn tasks_list() -> Vec<tasks::Task> {
@@ -2850,6 +2874,8 @@ pub fn run() {
             boot,
             save_settings,
             system_accent,
+            system_light,
+            set_window_light,
             tasks_list,
             task_new,
             task_control,
@@ -2901,6 +2927,7 @@ pub fn run() {
             minimize_island,
             file_thumb,
             collect_load,
+            memory_link,
             collect_save,
             collect_source,
             program_icon,

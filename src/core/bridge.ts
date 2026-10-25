@@ -415,6 +415,8 @@ export const Bridge = {
   memoryOpen: (folder: boolean) => callOrThrow<void>("memory_open", { folder }),
   /** The memory window (brain.rs): the graph, its jobs, a node's file, opening it. */
   memoryGraph: () => call<import("../memory/data").MemGraph>("memory_graph"),
+  /** «Collega con l'IA» (memory_ai.rs): what the engine added. */
+  memoryLink: () => callOrThrow<string>("memory_link"),
   memoryJob: (kind: "inbox" | "check") => callOrThrow<void>("memory_job", { kind }),
   memoryNodeOpen: (id: string) => callOrThrow<void>("memory_node_open", { id }),
   memoryWindowOpen: () => call<void>("memory_window_open"),
@@ -438,6 +440,8 @@ export const Bridge = {
   webviewMemoryLow: (low: boolean) => call<void>("webview_memory_low", { low }),
   /** Windows' accent colour ("#rrggbb", the shade for dark backgrounds), or null. */
   systemAccent: () => call<string | null>("system_accent"),
+  systemLight: () => call<boolean>("system_light"),
+  setWindowLight: (light: boolean) => call<void>("set_window_light", { light }),
   /** 🎤 records or stopped: the microphone in use is not a meeting (presence.rs). */
   chatDictation: (on: boolean) => call<void>("chat_dictation", { on }),
   /** 🎤 with no service: Windows' dictation (Win+H) in the focused field. */

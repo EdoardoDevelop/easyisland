@@ -222,6 +222,37 @@ fn words(text: &str) -> BTreeSet<String> {
         .collect()
 }
 
+/// Words that say nothing about the subject (Italian and English).
+const STOP: &[&str] = &[
+    "che", "chi", "con", "per", "dei", "del", "della", "delle", "degli", "dal", "dalla", "nel", "nella", "nei", "sul", "sulla", "una", "uno",
+    "gli", "le", "lo", "non", "sono", "come", "anche", "più", "solo", "quando", "dove", "questo", "questa", "quello", "quella", "sempre",
+    "mai", "già", "poi", "fare", "fatto", "essere", "stato", "ogni", "tutto", "tutti", "alla", "alle", "agli", "suo", "sua", "loro", "the",
+    "and", "for", "with", "that", "this", "from", "are", "was", "not", "you", "your", "all", "has", "have", "regola", "nota", "memoria",
+];
+
+/// The words of `text` that can tie it to a subject: no stop words, no numbers or dates.
+fn key_words(text: &str) -> BTreeSet<String> {
+    words(text).into_iter().filter(|w| !STOP.contains(&w.as_str()) && !w.chars().all(|c| c.is_ascii_digit())).collect()
+}
+
+/// The targets of `[[…]]` in a text.
+fn wiki_links(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut rest = text;
+    while let Some(i) = rest.find("[[") {
+        let Some(after) = rest.get(i + 2..) else { break };
+        let Some(j) = after.find("]]") else { break };
+        if let Some(t) = after.get(..j) {
+            let t = t.split('|').next().unwrap_or(t).trim();
+            if !t.is_empty() {
+                out.push(t.to_string());
+            }
+        }
+        rest = after.get(j + 2..).unwrap_or_default();
+    }
+    out
+}
+
 fn similarity(a: &BTreeSet<String>, b: &BTreeSet<String>) -> f32 {
     if a.is_empty() || b.is_empty() {
         return 0.0;
@@ -711,24 +742,121 @@ pub fn graph() -> Graph {
             }
         }
     }
-    // Notes: those in MEMORIA.md and the archived ones, linked to the pages they name.
+    // Notes: those in MEMORIA.md and the archived ones, linked to the pages they
+    // name — by the whole title, by [[link]] or by shared key words — and to the
+    // notes that say much the same. Before 25 Oct 2026 only the whole title
+    // counted, and most notes floated alone (Edoardo, on the notebook).
     let archived: Vec<String> = std::fs::read_to_string(crate::memory::dir().join("archivio.md"))
         .map(|t| t.lines().filter(|l| l.starts_with("- ")).map(str::to_string).collect())
         .unwrap_or_default();
     let current = crate::memory::notes();
+    let page_words: Vec<(String, BTreeSet<String>)> = all
+        .iter()
+        .map(|p| (p.slug.clone(), key_words(&format!("{} {} {}", p.title, p.title, cut(&p.body, 600)))))
+        .collect();
+    let page_bodies: Vec<(String, String)> = all.iter().map(|p| (p.slug.clone(), p.body.to_lowercase().split_whitespace().collect::<Vec<_>>().join(" "))).collect();
+    struct NoteRow { id: String, kind: &'static str, date: String, text: String, words: BTreeSet<String>, linked: bool }
+    let mut notes: Vec<NoteRow> = Vec::new();
     for (i, (line, kind)) in current.iter().map(|l| (l, "note")).chain(archived.iter().rev().take(300).map(|l| (l, "old"))).enumerate() {
         let (date, text) = note_parts(line);
         let id = format!("n:{i}");
         let low = text.to_lowercase();
+        let words = key_words(&text);
+        let mut linked = false;
         for (slug, title) in &titles {
             if low.contains(title.as_str()) {
                 add_edge(&mut edges, &mut seen, &mut degree, id.clone(), format!("p:{slug}"), String::new());
+                linked = true;
             }
         }
-        if !date.is_empty() {
-            events.push(Event { date: date.clone(), lane: "note", text: cut(&text, 160), node: id.clone() });
+        // A topic page of the memory engine quotes the note ("- nota: …", memory_ai.rs).
+        let head: String = low.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(60).collect();
+        if head.chars().count() >= 12 {
+            for (slug, body) in &page_bodies {
+                if body.contains(&head) {
+                    add_edge(&mut edges, &mut seen, &mut degree, id.clone(), format!("p:{slug}"), String::new());
+                    linked = true;
+                }
+            }
         }
-        nodes.push(Node { id, kind, label: cut(&text, 60), date, text: text.clone(), weight: 0 });
+        for target in wiki_links(&text) {
+            let to = format!("p:{}", slug(&target));
+            if page_ids.contains(&to) {
+                add_edge(&mut edges, &mut seen, &mut degree, id.clone(), to, String::new());
+                linked = true;
+            }
+        }
+        // Key words in common with a page: the best three, at least two words.
+        let mut near: Vec<(usize, &String)> = page_words
+            .iter()
+            .map(|(slug, pw)| (words.intersection(pw).count(), slug))
+            .filter(|(n, _)| *n >= 2)
+            .collect();
+        near.sort_by(|a, b| b.0.cmp(&a.0));
+        for (_, slug) in near.into_iter().take(3) {
+            add_edge(&mut edges, &mut seen, &mut degree, id.clone(), format!("p:{slug}"), String::new());
+            linked = true;
+        }
+        notes.push(NoteRow { id, kind, date, text, words, linked });
+    }
+    // Notes that say much the same: each to its two closest.
+    for i in 0..notes.len() {
+        let mut best: Vec<(f32, usize)> = (0..notes.len())
+            .filter(|&j| j != i)
+            .map(|j| (similarity(&notes[i].words, &notes[j].words), j))
+            .filter(|(s, _)| *s >= 0.3)
+            .collect();
+        best.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        for (_, j) in best.into_iter().take(2) {
+            let (from, to) = (notes[i].id.clone(), notes[j].id.clone());
+            add_edge(&mut edges, &mut seen, &mut degree, from, to, String::new());
+            notes[i].linked = true;
+            notes[j].linked = true;
+        }
+    }
+    // Rare words in common: a name that shows up in only a few notes and pages
+    // (a customer, a server, a product) ties them even when nothing else does —
+    // a customer's name in two short notes was below every threshold.
+    {
+        let docs: Vec<(String, &BTreeSet<String>)> = notes
+            .iter()
+            .map(|n| (n.id.clone(), &n.words))
+            .chain(page_words.iter().map(|(slug, w)| (format!("p:{slug}"), w)))
+            .collect();
+        let mut df: HashMap<&str, Vec<usize>> = HashMap::new();
+        for (i, (_, w)) in docs.iter().enumerate() {
+            for word in w.iter().filter(|w| w.chars().count() >= 4) {
+                df.entry(word.as_str()).or_default().push(i);
+            }
+        }
+        let rare_max = (docs.len() / 6).max(4);
+        let mut tied: Vec<bool> = vec![false; docs.len()];
+        for holders in df.values().filter(|h| h.len() >= 2 && h.len() <= rare_max) {
+            // Chain them (each to the next) rather than all to all: few lines, all connected.
+            for pair in holders.windows(2) {
+                let (Some(a), Some(b)) = (pair.first(), pair.get(1)) else { continue };
+                let (Some((from, _)), Some((to, _))) = (docs.get(*a), docs.get(*b)) else { continue };
+                add_edge(&mut edges, &mut seen, &mut degree, from.clone(), to.clone(), String::new());
+                for k in [*a, *b] {
+                    if let Some(t) = tied.get_mut(k) {
+                        *t = true;
+                    }
+                }
+            }
+        }
+        for (n, t) in notes.iter_mut().zip(tied) {
+            n.linked |= t;
+        }
+    }
+    for n in notes {
+        // An archived note tied to nothing is only noise on the map (it stays in the timeline).
+        if !n.date.is_empty() {
+            events.push(Event { date: n.date.clone(), lane: "note", text: cut(&n.text, 160), node: if n.kind == "old" && !n.linked { String::new() } else { n.id.clone() } });
+        }
+        if n.kind == "old" && !n.linked {
+            continue;
+        }
+        nodes.push(Node { id: n.id, kind: n.kind, label: cut(&n.text, 60), date: n.date, text: n.text, weight: 0 });
     }
     // The diary: one event per line; one node per day of the last 60 that
     // names a page.
@@ -885,11 +1013,21 @@ mod tests {
     /// The map of a memory copied from another PC: `APPDATA=<folder with EasyIsland\memoria>`
     /// `cargo test -p easyisland --lib brain::tests::live_graph -- --ignored --nocapture`
     #[test]
+    fn notes_tie_by_links_and_key_words() {
+        assert_eq!(wiki_links("vedi [[Clienti Easytech]] e [[Listino|prezzi]]"), vec!["Clienti Easytech".to_string(), "Listino".to_string()]);
+        assert!(wiki_links("[[aperto").is_empty());
+        let k = key_words("Il cliente Rossi: il dominio Active Directory è rossi.locale, 2026");
+        assert!(k.contains("rossi") && k.contains("dominio") && !k.contains("2026") && !k.contains("che"));
+    }
+
+    #[test]
     #[ignore]
     fn live_graph() {
         let g = graph();
         let json = serde_json::to_string(&g).unwrap();
         println!("{} nodes, {} events, inbox {:?}, {} bytes", g.nodes.len(), g.events.len(), g.inbox, json.len());
+        let alone: Vec<&str> = g.nodes.iter().filter(|n| n.weight == 0).map(|n| n.label.as_str()).collect();
+        println!("{} edges, {} alone: {alone:?}", g.edges.len(), alone.len());
     }
 
     #[test]

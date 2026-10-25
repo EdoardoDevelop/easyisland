@@ -18,10 +18,62 @@ export function windowsLook(): boolean {
 
 let accentRead = 0;
 
-/** Puts the style on the page; with "windows" also Windows' accent colour, read at most once a minute. */
-export function applyUiStyle(style: string | undefined): void {
+export type Scheme = "dark" | "light";
+
+const systemQuery = window.matchMedia("(prefers-color-scheme: light)");
+/** Windows' app mode, from the registry (system_light); the media query until it answers. */
+let systemLight = systemQuery.matches;
+let schemeSetting = "dark";
+let lastApplied = "";
+/** Called again when the scheme changes (the island repaints its own background). */
+let onScheme: (() => void) | null = null;
+
+/** Light or dark right now: "auto" follows Windows' app mode (WebView2 reports it as prefers-color-scheme). */
+export function scheme(): Scheme {
+  if (schemeSetting === "light") return "light";
+  if (schemeSetting === "auto") return systemLight ? "light" : "dark";
+  return "dark";
+}
+
+function applyScheme() {
+  const now = scheme();
+  document.documentElement.dataset.scheme = now;
+  if (now !== lastApplied) {
+    lastApplied = now;
+    void Bridge.setWindowLight(now === "light").catch(() => {});
+  }
+  onScheme?.();
+}
+
+/** Asks Windows again (auto only): when the page comes back in view, and on the media query's change. */
+function recheck() {
+  if (schemeSetting !== "auto") return;
+  void Bridge.systemLight().then((light) => {
+    if (typeof light !== "boolean" || light === systemLight) return;
+    systemLight = light;
+    applyScheme();
+  }).catch(() => {});
+}
+systemQuery.addEventListener("change", () => {
+  systemLight = systemQuery.matches;
+  if (schemeSetting === "auto") applyScheme();
+  recheck();
+});
+document.addEventListener("visibilitychange", () => { if (!document.hidden) recheck(); });
+window.addEventListener("focus", recheck);
+
+/**
+ * Puts the style and the light/dark scheme on the page (<html data-ui data-scheme>;
+ * the light rules are made at build time by scripts/light-css.mjs); with
+ * "windows" also Windows' accent colour, read at most once a minute.
+ */
+export function applyUiStyle(style: string | undefined, schemeName?: string, changed?: () => void): void {
   const ui = uiStyle(style);
   document.documentElement.dataset.ui = ui;
+  schemeSetting = schemeName === "light" || schemeName === "auto" ? schemeName : "dark";
+  if (changed) onScheme = changed;
+  applyScheme();
+  recheck();
   if (ui !== "windows" || Date.now() - accentRead < 60_000) return;
   accentRead = Date.now();
   void Bridge.systemAccent().then((c) => {

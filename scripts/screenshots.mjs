@@ -10,10 +10,25 @@
 // on a transparent background, at 2× for sharp images.
 
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+
+/**
+ * Edge's profile folder. Edge's child processes outlive edge.kill() for a
+ * moment and keep it locked: retry, and sweep the ones earlier runs left
+ * behind (they piled up to tens of GB in %TEMP%).
+ */
+function removeProfile(dir) {
+  try { rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 }); } catch { /* the next run sweeps it */ }
+}
+for (const name of (() => { try { return readdirSync(tmpdir()); } catch { return []; } })()) {
+  if (!name.startsWith("easyisland-shot-")) continue;
+  const dir = join(tmpdir(), name);
+  try { if (Date.now() - statSync(dir).mtimeMs > 3600_000) removeProfile(dir); } catch { /* gone already */ }
+}
+
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const BASE = process.env.PREVIEW_URL ?? "http://127.0.0.1:1420";
@@ -164,5 +179,5 @@ try {
   ws?.close();
   edge.kill();
   await sleep(500);
-  rmSync(profile, { recursive: true, force: true });
+  removeProfile(profile);
 }
