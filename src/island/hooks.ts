@@ -125,7 +125,7 @@ function taskFor(p: HookPayload): string {
 
 function sessionHost(p: HookPayload): SessionHost {
   if (p.easyisland_host === "opencode") return "opencode";
-  // A task of EasyIsland (tasks.rs): "Apri" goes to Impostazioni → Compiti.
+  // A task of EasyIsland (tasks.rs): "Apri" goes to Impostazioni → Flussi.
   if (p.easyisland_host === "compiti") return "compiti";
   // CLAUDE_CODE_ENTRYPOINT describes Claude Code; another agent may only have
   // inherited it from a terminal the Claude app opened.
@@ -196,15 +196,38 @@ function describeAutomation(input: Record<string, unknown>): string {
       case "app": return t("apre {target}", { target: `${str(st, "target")}${str(st, "args") ? ` ${str(st, "args")}` : ""}` });
       case "url": return t("apre {target}", { target: str(st, "url") });
       case "chat": return t("chiede alla chat «{text}»", { text: str(st, "text") });
+      case "task": return t("avvia il compito «{text}»", { text: str(st, "title") || str(st, "text") });
+      case "wait": return t("aspetta {n} minuti", { n: Number(st.minutes ?? 5) || 5 });
+      case "confirm": return t("chiede prima di continuare");
+      case "agent": return t("fa lavorare l'agente su «{text}»", { text: str(st, "title") || str(st, "text") });
+      case "ask": return t("ti chiede «{text}»", { text: str(st, "title") || str(st, "text") });
+      case "decide": return t("sceglie la strada");
       default: return str(st, "kind");
     }
   });
+  // A flow with links (flows.rs): one numbered line per step, with where it goes.
+  const linked = steps.some((st) => str(st, "next") || str(st, "kind") === "decide");
+  if (linked) {
+    const nameOf = (st: Record<string, unknown>, i: number) => str(st, "node") || `s${i + 1}`;
+    const label = (to: string) => (to === "end" ? t("fine") : to || t("il passo seguente"));
+    const ops: Record<string, string> = { contains: t("contiene"), equals: t("è"), empty: t("è vuoto"), filled: t("non è vuoto"), else: t("altrimenti") };
+    what.forEach((w, i) => {
+      const st = steps[i];
+      const branches = (Array.isArray(st.branches) ? st.branches : []) as Record<string, unknown>[];
+      const ways = branches.map((b) => str(b, "op") === "else"
+        ? `${ops.else} → ${label(str(b, "to"))}`
+        : `${str(b, "value")} ${ops[str(b, "op")] ?? str(b, "op")} ${str(b, "toMatch")}`.trim() + ` → ${label(str(b, "to"))}`);
+      const next = str(st, "next");
+      what[i] = `
+  ${i + 1}. [${nameOf(st, i)}] ${w}` + (ways.length ? ` (${ways.join("; ")})` : next ? ` → ${label(next)}` : "");
+    });
+  }
   const profile = profiles.find((p) => p.id === str(input, "profile"))?.name;
   return [
     t("Creare l'automazione «{name}»", { name: str(input, "name") }),
     t("Quando: {when}", { when: (when[str(trig, "kind")] ?? str(trig, "kind")) + (filter ? t(" (solo «{filter}»)", { filter }) : "") + (profile ? t(" (solo nel profilo {profile})", { profile }) : "") }),
     ...(ifs.length ? [t("Se: {ifs}", { ifs: ifs.join(t(" e ")) })] : []),
-    t("Allora: {what}", { what: what.join(t(", poi ")) || t("niente") }),
+    t("Allora: {what}", { what: (linked ? what.join("") : what.join(t(", poi "))) || t("niente") }),
   ].join("\n");
 }
 

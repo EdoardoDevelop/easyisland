@@ -2103,10 +2103,27 @@ async fn capture_window_text() -> Result<String, String> {
     }
 }
 
-/// Impostazioni → Automazioni: the last runs, newest first.
+/// Impostazioni → Flussi: the last runs, newest first.
 #[tauri::command]
 fn automations_log() -> Vec<automations::LogEntry> {
     automations::log()
+}
+
+/// Impostazioni → Flussi → Esecuzioni (flows.rs).
+#[tauri::command]
+fn flows_runs() -> Vec<flows::RunInfo> {
+    flows::runs()
+}
+
+#[tauri::command]
+fn flow_run(id: String) -> Result<flows::Run, String> {
+    flows::run_detail(&id)
+}
+
+/// "Riprendi da qui".
+#[tauri::command]
+fn flow_rerun(app: AppHandle, id: String, node: String) -> Result<(), String> {
+    flows::rerun(&app, &id, &node, automations::list(&app).2)
 }
 
 /// Proposte dalle abitudini: how much was recorded.
@@ -2138,7 +2155,7 @@ fn habit_note_quick(id: String) {
     habits::note("quick", &id);
 }
 
-/// Impostazioni → Automazioni → "Prova ora".
+/// Impostazioni → Flussi → "Prova ora".
 #[tauri::command]
 fn automation_run_now(app: AppHandle, id: String) -> Result<(), String> {
     automations::run_now(&app, &id)
@@ -2640,7 +2657,7 @@ fn set_window_light(window: tauri::WebviewWindow, light: bool) {
     let _ = window.set_theme(Some(if light { tauri::Theme::Light } else { tauri::Theme::Dark }));
 }
 
-/// Impostazioni → Compiti and the island: every task (tasks.rs).
+/// Impostazioni → Flussi and the island: every task (tasks.rs).
 #[tauri::command]
 fn tasks_list() -> Vec<tasks::Task> {
     tasks::list()
@@ -2766,7 +2783,7 @@ fn skill_prompt(id: String, arg: String) -> Result<String, String> {
     skills::find(&id).map(|s| skills::as_prompt(&s, &arg)).ok_or_else(|| t("Abilità non trovata.").into())
 }
 
-/// The engines and whether each can answer now (Impostazioni → Compiti).
+/// The engines and whether each can answer now (Impostazioni → Flussi).
 #[tauri::command]
 fn engines_ready(app: AppHandle) -> Vec<(String, String, bool)> {
     telegram::engines(&app).into_iter().map(|(id, name, ok)| (id.to_string(), name, ok)).collect()
@@ -2778,7 +2795,7 @@ fn task_set_engines(app: AppHandle, id: String, engine: String, model: String, h
     tasks::set_engines(&app, &id, &engine, &model, &helpers)
 }
 
-/// Impostazioni → Compiti → Battito: every `minutes` (0 = off).
+/// Impostazioni → Flussi → Battito: every `minutes` (0 = off).
 #[tauri::command]
 fn heartbeat_set(app: AppHandle, minutes: u32) -> Result<(), String> {
     tasks::set_heartbeat(&app, minutes).map(|_| ())
@@ -3046,6 +3063,9 @@ pub fn run() {
             threecx_voicemail_heard,
             zip_list,
             automations_log,
+            flows_runs,
+            flow_run,
+            flow_rerun,
             habits_stats,
             habits_suggestions,
             habit_answer,

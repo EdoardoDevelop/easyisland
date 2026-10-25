@@ -731,7 +731,7 @@ export interface AutomationCondition {
 
 /** One thing an automation does. */
 export interface AutomationStep {
-  kind: "quick" | "notice" | "profile" | "app" | "url" | "chat" | "task" | "wait" | "confirm";
+  kind: "quick" | "notice" | "profile" | "app" | "url" | "chat" | "task" | "wait" | "confirm" | "agent" | "decide" | "ask";
   /** quick: action id · profile: profile id. */
   id: string;
   title: string;
@@ -742,6 +742,17 @@ export interface AutomationStep {
   url: string;
   /** wait: minutes. */
   minutes?: number;
+  /** Flows (flows.rs): the step's name for links and its result ("" = s1, s2…). */
+  node?: string;
+  /** Where to go after: a step's node, "end", or "" = the next one. */
+  next?: string;
+  /** decide: the first branch that holds. */
+  branches?: { value: string; op: "contains" | "equals" | "empty" | "filled" | "else"; toMatch: string; to: string }[];
+  /** agent: engine and model of its task. */
+  engine?: string;
+  model?: string;
+  /** ask: the card's buttons. */
+  options?: string[];
 }
 
 /** A window chosen in File e schermo (window_drop.rs): its HWND as a number. */
@@ -760,7 +771,7 @@ export interface MsTeams {
   error?: string | null;
 }
 
-/** "Quando… (se…) allora…" — Impostazioni → Automazioni. Belongs to the PC. */
+/** "Quando… (se…) allora…" — Impostazioni → Flussi. Belongs to the PC. */
 export interface Automation {
   id: string;
   name: string;

@@ -14,6 +14,7 @@ import { ISLAND_MIN_W, PANEL_H, PANEL_W, islandMax } from "../core/layout";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 import { language, locale, resolveLanguage, syncLanguage, t } from "../core/i18n";
 import { applyUiStyle, uiStyle } from "../core/uistyle";
+import { flowEditor, isLinked, runsBox } from "./flows";
 import "./settings-windows.css";
 import "./settings-light.css";
 
@@ -3290,6 +3291,9 @@ const STEP_KINDS: [AutomationStep["kind"], string][] = [
   ["url", t("Apri un link")],
   ["wait", t("Aspetta")],
   ["confirm", t("Chiedi prima di continuare")],
+  ["agent", t("Fai lavorare un agente")],
+  ["ask", t("Chiedimi qualcosa")],
+  ["decide", t("Scegli la strada")],
 ];
 
 const CONDITION_KINDS: [AutomationCondition["kind"], string][] = [
@@ -3402,6 +3406,79 @@ function automationsSection(): HTMLElement {
     return el;
   }
 
+  const field = (value: string, placeholder: string, apply: (v: string) => void, style = "flex:1 1 auto;min-width:0") => {
+    const el = h("input", { type: "text", value, placeholder, style, spellcheck: "false" }) as HTMLInputElement;
+    el.addEventListener("change", () => { apply(el.value); commit(); });
+    return el;
+  };
+
+  /** Automations opened as a flow with "Apri come flusso" (this window only). */
+  const asFlow = new Set<string>();
+  /** The fields of one step, after its kind (also the flow editor's panel, flows.ts). */
+  function stepFields(s: AutomationStep, row: HTMLElement) {
+    switch (s.kind) {
+      case "quick": {
+        const opts = quickActions();
+        if (!s.id && opts[0]) s.id = opts[0][0];
+        row.append(opts.length
+          ? select<string>(opts, s.id, (v) => { s.id = v; commit(); })
+          : h("span", { class: "hint", text: t("Crea prima un'azione rapida.") }));
+        break;
+      }
+      case "notice":
+        row.append(
+          field(s.title, t("Titolo"), (v) => { s.title = v; }, "width:160px"),
+          field(s.text, t("Testo"), (v) => { s.text = v; }),
+          select<string>([["info", t("Info")], ["ok", t("Ok")], ["warn", t("Avviso")], ["error", t("Errore")]], s.level || "info",
+            (v) => { s.level = v; commit(); }));
+        break;
+      case "chat":
+        row.append(field(s.text, t("la domanda, es. Riassumi {percorso}"), (v) => { s.text = v; }));
+        break;
+      case "task":
+        row.append(
+          field(s.title, t("Titolo"), (v) => { s.title = v; }, "width:160px"),
+          field(s.text, t("l'obiettivo, es. Leggi {percorso} e preparami un riassunto in Notion"), (v) => { s.text = v; }));
+        break;
+      case "profile": {
+        if (!s.id && settings.profiles[0]) s.id = settings.profiles[0].id;
+        row.append(select<string>(settings.profiles.map((p): [string, string] => [p.id, p.name]), s.id,
+          (v) => { s.id = v; commit(); }));
+        break;
+      }
+      case "app":
+        row.append(
+          field(s.target, t("es. outlook, C:\\Clienti, mstsc"), (v) => { s.target = v.trim(); }),
+          field(s.args, t("argomenti (facoltativi)"), (v) => { s.args = v; }, "width:160px"));
+        break;
+      case "url":
+        row.append(field(s.url, "https://…", (v) => { s.url = v.trim(); }));
+        break;
+      case "wait":
+        row.append(numberInput(s.minutes || 5, 1, 240, (n) => { s.minutes = n; }), h("span", { class: "hint", text: t("minuti") }));
+        break;
+      case "confirm":
+        row.append(
+          field(s.title, t("Titolo (facoltativo)"), (v) => { s.title = v; }, "width:160px"),
+          field(s.text, t("Testo (facoltativo): di serie elenca i passi che seguono"), (v) => { s.text = v; }));
+        break;
+      case "agent":
+        row.append(
+          field(s.title, t("Titolo"), (v) => { s.title = v; }, "width:160px"),
+          field(s.text, t("cosa deve fare, es. Leggi i ticket nuovi e rispondi URGENTE o NORMALE"), (v) => { s.text = v; }),
+          select<string>([["", t("Motore dei Compiti")], ...CHAT_ENGINES.map((e): [string, string] => [e.id, e.name])], s.engine ?? "",
+            (v) => { s.engine = v; s.model = ""; commit(); }));
+        break;
+      case "ask":
+        row.append(
+          field(s.title, t("Domanda"), (v) => { s.title = v; }, "width:200px"),
+          field((s.options ?? []).join(", "), t("fino a 3 risposte separate da virgola (vuoto = Sì, No)"), (v) => {
+            s.options = v.split(",").map((x) => x.trim()).filter(Boolean).slice(0, 3);
+          }));
+        break;
+    }
+  }
+
   function draw() {
     clear(list);
     if (settings.automations.length === 0) {
@@ -3410,11 +3487,6 @@ function automationsSection(): HTMLElement {
     settings.automations.forEach((a, idx) => {
       const trg = a.trigger;
       const conditions = (a.conditions ??= []);
-      const field = (value: string, placeholder: string, apply: (v: string) => void, style = "flex:1 1 auto;min-width:0") => {
-        const el = h("input", { type: "text", value, placeholder, style, spellcheck: "false" }) as HTMLInputElement;
-        el.addEventListener("change", () => { apply(el.value); commit(); });
-        return el;
-      };
       const filterRow = (placeholder: string) =>
         h("div", { class: "row" }, h("label", { text: t("Solo se") }),
           field(trg.filter ?? "", placeholder, (v) => { trg.filter = v.trim(); }),
@@ -3574,58 +3646,28 @@ function automationsSection(): HTMLElement {
       card.append(repeatRow);
 
       // ── Allora ──
+      // A flow (flows.rs): steps with links, branches or agents, or one the
+      // user opened as a flow, get the drawing editor (flows.ts); simple ones
+      // keep the step list.
+      if (isLinked(a) || asFlow.has(a.id)) {
+        card.append(h("div", { class: "row" }, h("label", { text: t("Allora") }),
+          h("span", { class: "hint note", text: t("il flusso: i passi in ordine, i salti e i rami a destra") })));
+        card.append(flowEditor(a, { commit, redraw: draw, stepFields, kinds: STEP_KINDS, blank: blankStep, select }));
+        card.append(h("div", { class: "row" }, h("label", { text: "" }),
+          h("span", { class: "hint", text: t("Avvisami ogni volta") }),
+          toggle(a.notify, (v) => { a.notify = v; commit(); }),
+          h("span", { class: "hint", text: t("Continua dopo un errore") }),
+          toggle(a.keepGoing ?? false, (v) => { a.keepGoing = v; commit(); }),
+          tested));
+        list.append(card);
+        return;
+      }
       a.steps.forEach((s, si) => {
         const remove = h("button", { class: "danger icon", text: "✕", title: t("Togli questo passo"),
           onclick: () => { a.steps.splice(si, 1); commit(); draw(); } });
         const row = h("div", { class: "row" }, h("label", { text: si === 0 ? t("Allora") : t("poi") }),
           select<AutomationStep["kind"]>(STEP_KINDS, s.kind, (v) => { a.steps[si] = { ...blankStep(v) }; commit(); draw(); }));
-        switch (s.kind) {
-          case "quick": {
-            const opts = quickActions();
-            if (!s.id && opts[0]) s.id = opts[0][0];
-            row.append(opts.length
-              ? select<string>(opts, s.id, (v) => { s.id = v; commit(); })
-              : h("span", { class: "hint", text: t("Crea prima un'azione rapida.") }));
-            break;
-          }
-          case "notice":
-            row.append(
-              field(s.title, t("Titolo"), (v) => { s.title = v; }, "width:160px"),
-              field(s.text, t("Testo"), (v) => { s.text = v; }),
-              select<string>([["info", t("Info")], ["ok", t("Ok")], ["warn", t("Avviso")], ["error", t("Errore")]], s.level || "info",
-                (v) => { s.level = v; commit(); }));
-            break;
-          case "chat":
-            row.append(field(s.text, t("la domanda, es. Riassumi {percorso}"), (v) => { s.text = v; }));
-            break;
-          case "task":
-            row.append(
-              field(s.title, t("Titolo"), (v) => { s.title = v; }, "width:160px"),
-              field(s.text, t("l'obiettivo, es. Leggi {percorso} e preparami un riassunto in Notion"), (v) => { s.text = v; }));
-            break;
-          case "profile": {
-            if (!s.id && settings.profiles[0]) s.id = settings.profiles[0].id;
-            row.append(select<string>(settings.profiles.map((p): [string, string] => [p.id, p.name]), s.id,
-              (v) => { s.id = v; commit(); }));
-            break;
-          }
-          case "app":
-            row.append(
-              field(s.target, t("es. outlook, C:\\Clienti, mstsc"), (v) => { s.target = v.trim(); }),
-              field(s.args, t("argomenti (facoltativi)"), (v) => { s.args = v; }, "width:160px"));
-            break;
-          case "url":
-            row.append(field(s.url, "https://…", (v) => { s.url = v.trim(); }));
-            break;
-          case "wait":
-            row.append(numberInput(s.minutes || 5, 1, 240, (n) => { s.minutes = n; }), h("span", { class: "hint", text: t("minuti") }));
-            break;
-          case "confirm":
-            row.append(
-              field(s.title, t("Titolo (facoltativo)"), (v) => { s.title = v; }, "width:160px"),
-              field(s.text, t("Testo (facoltativo): di serie elenca i passi che seguono"), (v) => { s.text = v; }));
-            break;
-        }
+        stepFields(s, row);
         row.append(remove);
         card.append(row);
       });
@@ -3635,7 +3677,9 @@ function automationsSection(): HTMLElement {
         h("span", { class: "hint note", text: t("Nei passi puoi usare: {list}. Negli script no: lì non entrano mai.", { list: names.map((n) => `{${n}}`).join(" ") }) })));
       const addStep = h("button", { text: t("+ Aggiungi un passo"),
         onclick: () => { a.steps.push(blankStep("quick")); commit(); draw(); } });
-      card.append(h("div", { class: "row" }, h("label", { text: "" }), addStep,
+      const openFlow = h("button", { text: t("Apri come flusso"), title: t("Rami, salti, agenti e domande, nel disegno"),
+        onclick: () => { asFlow.add(a.id); draw(); } });
+      card.append(h("div", { class: "row" }, h("label", { text: "" }), addStep, openFlow,
         h("span", { class: "hint", text: t("Avvisami ogni volta") }),
         toggle(a.notify, (v) => { a.notify = v; commit(); }),
         h("span", { class: "hint", text: t("Continua dopo un errore") }),
@@ -3648,29 +3692,11 @@ function automationsSection(): HTMLElement {
   const add = h("button", { class: "primary", text: t("Aggiungi automazione") });
   add.addEventListener("click", () => { settings.automations.push(blankAutomation()); commit(); draw(); });
 
-  // ── Registro ──
-  const logBox = h("div", { class: "auto-log" });
-  async function drawLog() {
-    const entries = (await Bridge.automationsLog()) ?? [];
-    clear(logBox);
-    if (entries.length === 0) {
-      logBox.append(h("div", { class: "hint", text: t("Ancora nessuna esecuzione da quando EasyIsland è partito.") }));
-      return;
-    }
-    for (const e of entries.slice(0, 30)) {
-      const when = new Date(e.at).toLocaleString(locale(), { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-      logBox.append(h("div", { class: "auto-log-row" },
-        statusDot(e.ok),
-        h("span", { class: "auto-log-when", text: when }),
-        h("b", { text: e.name }),
-        h("span", { class: "hint", text: e.cause }),
-        h("span", { class: "auto-log-detail", text: e.detail })));
-    }
-  }
-  void onEvent<null>("automations-log", () => void drawLog());
+  // ── Esecuzioni (flows.rs, kept on disk) ──
+  const runs = runsBox();
+  void runs.refresh();
 
   draw();
-  void drawLog();
 
   // ── Proposals from the habits ──
   const habitsBox = h("div", { style: "display:flex;flex-direction:column;gap:8px" });
@@ -3745,10 +3771,10 @@ function automationsSection(): HTMLElement {
         return el;
       })()),
     habitsBox,
-    h("h3", { text: t("Registro") }),
-    h("div", { class: "row" }, h("button", { text: t("Aggiorna"), onclick: () => void drawLog() }),
-      h("span", { class: "hint note", text: t("le ultime esecuzioni, solo in memoria") })),
-    logBox,
+    h("h3", { text: t("Esecuzioni") }),
+    h("div", { class: "row" }, h("button", { text: t("Aggiorna"), onclick: () => void runs.refresh() }),
+      h("span", { class: "hint note", text: t("le ultime 50, con cosa ha fatto ogni passo; clic per aprirne una") })),
+    runs.el,
   );
 }
 
@@ -5124,14 +5150,11 @@ function pages(b: NonNullable<typeof boot>): Page[] {
       sections: () => [actionsSection()],
     },
     {
-      id: "compiti", label: t("Compiti"), icon: "check", color: "#0EA5E9", title: t("Compiti"),
-      intro: t("Obiettivi che EasyIsland porta avanti da solo: fa un piano, lo segue con gli strumenti della chat, ti chiede quando serve e ti dice com'è andata."),
-      sections: () => [tasksSection(), heartbeatSection(), skillsSection(), tasksSettingsSection()],
-    },
-    {
-      id: "automazioni", label: t("Automazioni"), icon: "rocket", color: "#22D3EE", title: t("Automazioni"),
-      intro: t("Quando succede qualcosa (un orario, l'avvio, una rete, un programma, una chiavetta, un file, un avviso), EasyIsland fa qualcosa per te."),
-      sections: () => [automationsSection()],
+      // Automations and tasks in one page (docs/flussi.md, stage 3); the id stays
+      // "compiti" because the island opens it from a task ("Apri").
+      id: "compiti", label: t("Flussi"), icon: "rocket", color: "#22D3EE", title: t("Flussi"),
+      intro: t("Quando succede qualcosa EasyIsland fa qualcosa per te: passi fissi, rami, domande e agenti che lavorano da soli. I compiti sono obiettivi che un agente porta avanti con un piano."),
+      sections: () => [automationsSection(), tasksSection(), heartbeatSection(), skillsSection(), tasksSettingsSection()],
     },
     {
       id: "integrazioni", label: t("Integrazioni"), icon: "network", color: "#38BDF8", title: t("Integrazioni"),

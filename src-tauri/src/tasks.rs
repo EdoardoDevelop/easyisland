@@ -74,7 +74,7 @@ pub struct Task {
     pub id: String,
     pub title: String,
     pub goal: String,
-    /// The engine for this task; "" = Impostazioni → Compiti, else the chat's.
+    /// The engine for this task; "" = Impostazioni → Flussi, else the chat's.
     #[serde(default)]
     pub engine: String,
     /// Its model ("" = the engine's in Impostazioni → Chat).
@@ -466,7 +466,7 @@ pub fn control(app: &AppHandle, id: &str, action: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Impostazioni → Compiti: the engine, model and helpers of a task. Not while
+/// Impostazioni → Flussi: the engine, model and helpers of a task. Not while
 /// it runs (its conversation is on one engine); a new engine starts a new one.
 pub fn set_engines(app: &AppHandle, id: &str, engine: &str, model: &str, helpers: &[String]) -> Result<(), String> {
     if running().as_deref() == Some(id) {
@@ -517,7 +517,7 @@ pub fn ensure_heartbeat_file() -> Result<PathBuf, String> {
     Ok(path)
 }
 
-/// Impostazioni → Compiti → Battito: on every `minutes` (0 = off). There is one heartbeat task.
+/// Impostazioni → Flussi → Battito: on every `minutes` (0 = off). There is one heartbeat task.
 pub fn set_heartbeat(app: &AppHandle, minutes: u32) -> Result<Option<Task>, String> {
     let existing = TASKS.lock().unwrap().iter().find(|t| t.heartbeat).map(|t| t.id.clone());
     if minutes == 0 {
@@ -1210,7 +1210,7 @@ pub fn tool_create(app: &AppHandle, args: &Value) -> Result<String, String> {
         set_engines(app, &task.id, str_arg(args, "engine"), str_arg(args, "model"), &helpers)?;
     }
     Ok(match task.state {
-        TaskState::Scheduled => tf("Compito «{title}» creato: parte da solo ({when}). Lo vedi in Impostazioni → Compiti.", &[("title", &task.title), ("when", &task.when)]),
+        TaskState::Scheduled => tf("Compito «{title}» creato: parte da solo ({when}). Lo vedi in Impostazioni → Flussi.", &[("title", &task.title), ("when", &task.when)]),
         _ => tf("Compito «{title}» creato e in coda: lo vedi nella scheda Agenti dell'isola.", &[("title", &task.title)]),
     })
 }

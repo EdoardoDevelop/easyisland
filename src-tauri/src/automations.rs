@@ -1,4 +1,4 @@
-// Automations: "quando… (se…) allora…", set up in Impostazioni → Automazioni.
+// Automations: "quando… (se…) allora…", set up in Impostazioni → Flussi.
 //
 // Triggers: a time of day on chosen days, EasyIsland starting (with the PC),
 // the PC being unlocked, joining a Wi-Fi network, a program starting or coming
@@ -119,7 +119,7 @@ pub struct Step {
     pub next: String,
     /// decide: the first branch that holds sets where to go.
     pub branches: Vec<Branch>,
-    /// agent: engine and model of the task ("" = Impostazioni → Compiti).
+    /// agent: engine and model of the task ("" = Impostazioni → Flussi).
     pub engine: String,
     pub model: String,
     /// ask: the buttons of the card (1–3; empty = Sì / No).
@@ -376,7 +376,7 @@ pub fn on_widget(id: &str, prev: Option<&str>, level: &str, summary: &str, event
     q.truncate(50);
 }
 
-fn list(app: &AppHandle) -> (Vec<Automation>, String, Vec<Value>) {
+pub(crate) fn list(app: &AppHandle) -> (Vec<Automation>, String, Vec<Value>) {
     let Some(shared) = app.try_state::<crate::Shared>() else { return (Vec::new(), String::new(), Vec::new()) };
     let s = shared.settings.lock().unwrap();
     let autos = s
@@ -775,6 +775,7 @@ pub fn describe(a: &Automation, s: &crate::settings::Settings) -> String {
         "day" => ifs.push("una volta al giorno".into()),
         _ => {}
     }
+    let linked = a.steps.iter().any(|s| !s.next.is_empty() || s.kind == "decide");
     let steps: Vec<String> = a
         .steps
         .iter()
@@ -788,7 +789,23 @@ pub fn describe(a: &Automation, s: &crate::settings::Settings) -> String {
             "task" => format!("avvia il compito «{}»", if st.title.is_empty() { &st.text } else { &st.title }),
             "wait" => format!("aspetta {} minuti", st.minutes),
             "confirm" => "chiedi prima di continuare".into(),
+            "agent" => format!("agente «{}»", if st.title.is_empty() { &st.text } else { &st.title }),
+            "ask" => format!("domanda «{}»", if st.title.is_empty() { &st.text } else { &st.title }),
+            "decide" => format!(
+                "scelta ({})",
+                st.branches.iter().map(|b| format!("{} {} {} → {}", b.value, b.op, b.to_match, b.to)).collect::<Vec<_>>().join("; ")
+            ),
             k => k.to_string(),
+        })
+        .zip(a.steps.iter())
+        .map(|(text, st)| {
+            if !linked {
+                text
+            } else if st.next.is_empty() {
+                format!("[{}] {text}", st.node)
+            } else {
+                format!("[{}] {text} → {}", st.node, st.next)
+            }
         })
         .collect();
     format!(

@@ -47,7 +47,7 @@ EasyIsland trova da sola: note simili o più vecchie di sei mesi, collegamenti a
 Parte la domenica sera con il Riordino, se c'è qualcosa da sistemare, o subito con **Controlla**.
 
 ## Il riordino della sera
-**Impostazioni → Compiti → Riordino della memoria**: ogni sera alle 22:30 l'agente
+**Impostazioni → Flussi → Riordino della memoria**: ogni sera alle 22:30 l'agente
 - rilegge il diario del giorno e ti propone al massimo 5 cose da ricordare (salva solo quelle che approvi);
 - legge i file in `da-leggere`;
 - la domenica fa il controllo.

@@ -178,7 +178,7 @@ export const Bridge = {
   /** Downloads, verifies and runs the new installer; the app closes and restarts. */
   updateInstall: () => callOrThrow<void>("update_install"),
   /** Brings back the app a Claude Code session runs in (Claude, VS Code, a terminal). */
-  /** Back to where a session runs; a task of EasyIsland (tasks.rs) opens Impostazioni → Compiti. */
+  /** Back to where a session runs; a task of EasyIsland (tasks.rs) opens Impostazioni → Flussi. */
   openSession: (host: string | null, path: string | null) =>
     host === "compiti" ? call<string>("open_settings_at", { page: "compiti", item: "" }) : call<string>("open_session", { host, path }),
 
@@ -340,8 +340,11 @@ export const Bridge = {
     callOrThrow<string>("habit_answer", { fp, choice }),
   habitsClear: () => call<void>("habits_clear"),
   habitNoteQuick: (id: string) => call<void>("habit_note_quick", { id }),
-  /** Impostazioni → Automazioni: the last runs and "Prova ora". */
+  /** Impostazioni → Flussi: the last runs and "Prova ora". */
   automationsLog: () => call<{ at: number; name: string; cause: string; ok: boolean; detail: string }[]>("automations_log"),
+  flowsRuns: () => call<FlowRunInfo[]>("flows_runs"),
+  flowRun: (id: string) => call<FlowRun>("flow_run", { id }),
+  flowRerun: (id: string, node: string) => callOrThrow<void>("flow_rerun", { id, node }),
   automationRunNow: (id: string) => callOrThrow<void>("automation_run_now", { id }),
   /** The tray ("Vassoio"): the copies of dropped files, kept until EasyIsland restarts. */
   inboxList: () => call<{ name: string; path: string; size: number; at: number; kept?: boolean }[]>("inbox_list"),
@@ -947,4 +950,26 @@ export interface NotionMapStatus {
   databases: number;
   pages: number;
   at: number;
+}
+
+/** A run of a flow (flows.rs), as Impostazioni → Esecuzioni lists it. */
+export interface FlowRunInfo {
+  id: string;
+  flowId: string;
+  name: string;
+  cause: string;
+  status: "running" | "done" | "failed" | "stopped";
+  started: number;
+  ended: number;
+  steps: number;
+}
+
+export interface FlowRun {
+  id: string;
+  flow: import("./state").Automation;
+  cause: string;
+  status: FlowRunInfo["status"];
+  started: number;
+  ended: number;
+  trace: { node: string; kind: string; what: string; ok: boolean; out: string; at: number }[];
 }

@@ -230,7 +230,7 @@ pub fn tool_read(name: &str) -> Result<String, String> {
 pub fn tool_list() -> String {
     let all = list();
     if all.is_empty() {
-        return t("Nessuna abilità. Si creano in Impostazioni → Compiti → Abilità, o con skill_save.").into();
+        return t("Nessuna abilità. Si creano in Impostazioni → Flussi → Abilità, o con skill_save.").into();
     }
     all.iter().map(|s| format!("- {} ({}): {}", s.name, s.id, s.description)).collect::<Vec<_>>().join("\n")
 }

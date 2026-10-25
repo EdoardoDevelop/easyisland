@@ -1,6 +1,6 @@
 # Automazioni
 > sezione: Fare le cose
-> in breve: Regole «quando… se… allora…», create dalle Impostazioni, a parole in chat o proposte dalle tue abitudini.
+> in breve: Regole «quando… se… allora…» e flussi con rami, domande e agenti, nella pagina Flussi: create dalle Impostazioni, a parole in chat o proposte dalle tue abitudini.
 
 ![Impostazioni, pagina Automazioni](../media/settings-automations.png)
 
@@ -46,6 +46,17 @@ Se un passo non riesce, i seguenti si saltano; con **Continua dopo un errore** v
 Nei passi puoi usare i dati dell'evento: `{file}`, `{percorso}`, `{cartella}`, `{rete}`, `{programma}`, `{unità}`, `{testo}`, `{fonte}`, `{chiamante}`, `{numero}`, `{agente}`, `{progetto}`, `{porta}`, `{link}`, `{minuti}`, e sempre `{ora}` e `{data}`. L'editor elenca quelli disponibili per l'evento scelto. Per sicurezza nei link sono codificati, negli argomenti di un programma sono un argomento solo, e negli script non entrano mai.
 
 Ogni automazione si può limitare a un profilo e provare subito con **Prova ora**. Il **Registro** mostra le ultime esecuzioni. Le automazioni partono senza chiedere, perché le hai create tu, tranne gli script con «Chiedi conferma» e le domande alla chat. Con EasyIsland in pausa non parte niente.
+
+## Flussi: rami, domande e agenti
+Un'automazione può diventare un **flusso**: invece di una fila di passi, un disegno in cui i passi si collegano. Si apre con **Apri come flusso**, oppure da sola quando un passo ha un ramo o un agente.
+- **Clic su un passo** del disegno per cambiarlo nel pannello sotto: tipo, nome, campi e **Poi** (il passo seguente, un altro passo o la fine). **+ Passo dopo**, **↑ ↓** e **Togli** sistemano l'ordine.
+- **Fai lavorare un agente**: un agente con gli strumenti di EasyIsland fa un lavoro che richiede giudizio (leggere, riassumere, classificare) con il motore che scegli; il flusso aspetta che finisca.
+- **Scegli la strada**: rami del tipo «se {leggi} contiene URGENTE vai all'avviso, altrimenti alla domanda». Vince il primo che vale.
+- **Chiedimi qualcosa**: una card con fino a tre risposte; la tua scelta decide i passi dopo.
+- Ogni passo lascia il suo esito tra graffe con il suo nome (`{leggi}`) e in `{risultato}`, da usare nei passi dopo.
+- **Esecuzioni**: le ultime 50, con cosa ha fatto ogni passo; **Riprendi da qui** riparte da un passo con i dati di allora. Se EasyIsland si chiude a metà, al riavvio il flusso riprende da dove era.
+
+Per esempio, in chat: *«ogni mattina alle 9 leggi i ticket Zammad nuovi; se ce n'è uno urgente avvisami, altrimenti chiedimi se creare l'attività su To Do»*.
 
 ## A parole, in chat
 «Ogni giorno feriale alle 9 apri Outlook e il gestionale», «quando colleghi una chiavetta lancia il backup», «se il sito del cliente va giù avvisami»: la chat prepara l'automazione e l'isola te la mostra (Quando… / Allora…) con **Consenti / Nega**. Confermando, viene creata e accesa.

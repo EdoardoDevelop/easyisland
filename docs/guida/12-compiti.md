@@ -1,6 +1,6 @@
 # Compiti, Battito e Abilità
 > sezione: Intelligenza artificiale
-> in breve: L'agente personale: obiettivi che EasyIsland porta avanti da sola, controlli periodici e procedure tue.
+> in breve: Nella pagina Flussi, insieme alle automazioni. L'agente personale: obiettivi che EasyIsland porta avanti da sola, controlli periodici e procedure tue.
 
 ## Compiti
 Un **compito** è un obiettivo che affidi a EasyIsland e che lei porta avanti **da sola**, anche mentre fai altro: scrive un piano, lo esegue con gli strumenti, ti chiede quello che solo tu sai e alla fine ti dà il risultato.
@@ -9,7 +9,7 @@ Esempi: «controlla i ticket aperti da più di 3 giorni e prepara un riepilogo»
 
 ### Come si crea
 - **In chat**: `/compito …`, oppure chiedi «fallo come compito», «ogni giorno alle 9…»: la chat propone il compito e lo crei con Consenti.
-- **Impostazioni → Compiti → Nuovo compito**: titolo, obiettivo, quando, motore.
+- **Impostazioni → Flussi → Nuovo compito**: titolo, obiettivo, quando, motore.
 - **Da Telegram**: `/compito …`.
 - **Da un'automazione**: il passo «Compito».
 - **Da un'integrazione personale**: un pulsante di tipo «compito».
@@ -38,7 +38,7 @@ Nell'isola ogni compito è una sessione dell'agente **Compiti** nella scheda Age
 ### Stati e comandi
 In attesa del suo orario, In coda, Al lavoro, Aspetta una risposta, In pausa, Fatto, Non riuscito, Fermato. Dalle Impostazioni (e dall'isola) puoi **avviare ora**, **mettere in pausa**, **riprendere**, **fermare**, **rispondere**, **eliminare** e leggere il **registro** del compito (un file `.md`).
 
-**Limiti** (Impostazioni → Compiti): turni e minuti massimi per esecuzione (12 turni e 30 minuti di serie), poi il compito va in pausa e ti avvisa.
+**Limiti** (Impostazioni → Flussi): turni e minuti massimi per esecuzione (12 turni e 30 minuti di serie), poi il compito va in pausa e ti avvisa.
 
 ### Un motore per compito, e motori aiutanti
 - Ogni compito può avere il **suo motore e modello** (per esempio opencode gratuito per i controlli, Claude per i testi).
@@ -57,10 +57,10 @@ Un **controllo periodico**: ogni N minuti l'agente guarda le cose che hai scritt
 - spazio disco sotto il 10 %
 ```
 
-**Impostazioni → Compiti → Battito**: scegli ogni quanto e apri l'elenco con **Cosa tenere d'occhio…**. Con l'elenco vuoto non parte e non costa niente.
+**Impostazioni → Flussi → Battito**: scegli ogni quanto e apri l'elenco con **Cosa tenere d'occhio…**. Con l'elenco vuoto non parte e non costa niente.
 
 ## Riordino della memoria
-Ogni sera alle 22:30 rilegge la giornata, ti propone cosa ricordare, impara dai file in `da-leggere` e la domenica controlla la memoria. Si accende in **Impostazioni → Compiti**; dettagli in [Memoria](11-memoria.md#il-riordino-della-sera).
+Ogni sera alle 22:30 rilegge la giornata, ti propone cosa ricordare, impara dai file in `da-leggere` e la domenica controlla la memoria. Si accende in **Impostazioni → Flussi**; dettagli in [Memoria](11-memoria.md#il-riordino-della-sera).
 
 ## Abilità
 Un'**abilità** è una procedura tua scritta in un file `.md`: come fai un preventivo, come chiudi un ticket, come prepari il report del mese. L'AI la legge **solo quando serve**, quindi puoi averne tante senza costi.
@@ -78,7 +78,7 @@ strumenti: list_status, notion_add_row
 4. Lascia a me l'invio della risposta.
 ```
 
-- **Dove**: `%APPDATA%\EasyIsland\abilita\`. In **Impostazioni → Compiti → Abilità** le crei, modifichi, elimini e apri la cartella.
+- **Dove**: `%APPDATA%\EasyIsland\abilita\`. In **Impostazioni → Flussi → Abilità** le crei, modifichi, elimini e apri la cartella.
 - **Come si usano**: la chat e i compiti vedono l'elenco (nome e descrizione) e leggono quella giusta quando serve. Ogni abilità è anche un **comando**: `/chiusura-ticket` in chat e su Telegram.
 - **Motore**: un'abilità può indicare il motore preferito; un compito lo usa delegandogli quel passo.
 - **Si migliorano da sole**: alla fine di un compito l'agente può proporti di salvare il procedimento come abilità nuova (con Consenti / Nega).

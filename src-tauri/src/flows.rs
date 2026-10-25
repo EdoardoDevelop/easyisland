@@ -11,9 +11,12 @@
 // outcome in the run's data as `{node}` and `{risultato}`, for the steps after.
 //
 // A run is saved after every step in %APPDATA%\EasyIsland\flussi\<run>.json
-// and removed when it ends; when EasyIsland starts again a run left halfway
-// goes on from the step it was at (a wait with the time left, an agent with
-// its own task). Steps per run are capped, so a loop cannot run forever.
+// with what each step did (`trace`), and kept when it ends (the last
+// KEEP_RUNS) for Impostazioni → Flussi → Esecuzioni, where "Riprendi da
+// qui" starts a new run from a step with the data the old one had. When
+// EasyIsland starts again a run left halfway goes on from the step it was at
+// (a wait with the time left, an agent with its own task). Steps per run are
+// capped, so a loop cannot run forever.
 // Nothing new runs code: steps are the same fixed list, agents have the
 // chat's tools and permissions.
 
@@ -31,6 +34,8 @@ use crate::i18n::{t, tf};
 pub const MAX_STEPS_PER_RUN: u32 = 60;
 /// An "ask" card waits this long; without an answer the flow stops.
 const ASK_WAIT: Duration = Duration::from_secs(600);
+/// Finished runs kept on disk.
+const KEEP_RUNS: usize = 50;
 /// How often an agent step looks at its task.
 const AGENT_POLL: Duration = Duration::from_secs(3);
 
@@ -50,6 +55,39 @@ pub struct Run {
     pub wait_until: u64,
     /// agent: the task it is waiting for.
     pub task: String,
+    /// running | done | failed | stopped
+    pub status: String,
+    pub started: u64,
+    pub ended: u64,
+    /// What each step did, in the order they ran.
+    pub trace: Vec<Trace>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Trace {
+    pub node: String,
+    pub kind: String,
+    /// The step in words ("agente «Leggi i ticket»").
+    pub what: String,
+    pub ok: bool,
+    /// Its outcome: the result, the choice, the error.
+    pub out: String,
+    pub at: u64,
+}
+
+/// One line of Impostazioni → Esecuzioni.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunInfo {
+    pub id: String,
+    pub flow_id: String,
+    pub name: String,
+    pub cause: String,
+    pub status: String,
+    pub started: u64,
+    pub ended: u64,
+    pub steps: usize,
 }
 
 fn now_ms() -> u64 {
@@ -162,7 +200,7 @@ pub async fn start(app: AppHandle, mut flow: Automation, cause: String, actions:
     put(&mut ctx, "data", &format!("{}/{}/{}", part(8, 10), part(5, 7), part(0, 4)));
     put(&mut ctx, "ora", key.get(11..).unwrap_or(""));
     name_steps(&mut flow.steps);
-    let run = Run { id: format!("r{}", now_ms()), flow, cause, ctx, ok: true, ..Default::default() };
+    let run = Run { id: format!("r{}", now_ms()), flow, cause, ctx, ok: true, status: "running".into(), started: now_ms(), ..Default::default() };
     go(app, run, actions).await;
 }
 
@@ -178,6 +216,9 @@ pub fn resume(app: &AppHandle, actions: Vec<Value>) {
             let _ = std::fs::remove_file(&path);
             continue;
         };
+        if run.status != "running" && !run.status.is_empty() {
+            continue;
+        }
         crate::log::line(format!("flusso ripreso: {} al passo {}", run.flow.name, run.at + 1));
         tauri::async_runtime::spawn(go(app.clone(), run, actions.clone()));
     }
@@ -220,6 +261,8 @@ async fn go(app: AppHandle, mut run: Run, actions: Vec<Value>) {
                 let answer = crate::moments::ask_card(&app, &title, &text, "info", vec![go_on.clone(), t("Annulla").into()], crate::automations::CONFIRM_WAIT).await;
                 if answer != Some(crate::moments::CardAnswer::Chose(go_on)) {
                     run.done.push(t("fermata: non confermata").into());
+                    run.status = "stopped".into();
+                    run.trace.push(Trace { node: step.node.clone(), kind: step.kind.clone(), what: crate::automations::step_words(&step), ok: true, out: t("non confermata").into(), at: now_ms() });
                     break;
                 }
                 Ok(t("confermata").into())
@@ -236,6 +279,14 @@ async fn go(app: AppHandle, mut run: Run, actions: Vec<Value>) {
             _ => crate::automations::run_step(&app, &step, &actions, &run.ctx).await,
         };
         run.taken += 1;
+        run.trace.push(Trace {
+            node: step.node.clone(),
+            kind: step.kind.clone(),
+            what: crate::automations::step_words(&step),
+            ok: outcome.is_ok(),
+            out: match &outcome { Ok(x) | Err(x) => x.chars().take(4000).collect() },
+            at: now_ms(),
+        });
         match outcome {
             Ok(text) => {
                 put(&mut run.ctx, &step.node, &text);
@@ -258,7 +309,12 @@ async fn go(app: AppHandle, mut run: Run, actions: Vec<Value>) {
             None => break,
         }
     }
-    let _ = std::fs::remove_file(file(&run.id));
+    if run.status == "running" || run.status.is_empty() {
+        run.status = if run.ok { "done".into() } else { "failed".into() };
+    }
+    run.ended = now_ms();
+    save(&run);
+    prune();
     let detail = run.done.join(" · ");
     let ok = run.ok;
     if run.flow.notify || !ok {
@@ -266,6 +322,78 @@ async fn go(app: AppHandle, mut run: Run, actions: Vec<Value>) {
     }
     crate::automations::push_log(LogEntry { at: now_ms(), name, cause: run.cause, ok, detail });
     let _ = app.emit_to(crate::SETTINGS_LABEL, "automations-log", ());
+}
+
+/// Only the last KEEP_RUNS finished runs stay.
+fn prune() {
+    let mut done: Vec<Run> = all().into_iter().filter(|r| r.status != "running").collect();
+    done.sort_by(|a, b| b.started.cmp(&a.started));
+    for r in done.iter().skip(KEEP_RUNS) {
+        let _ = std::fs::remove_file(file(&r.id));
+    }
+}
+
+fn all() -> Vec<Run> {
+    let Ok(entries) = std::fs::read_dir(dir()) else { return Vec::new() };
+    entries
+        .flatten()
+        .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("json"))
+        .filter_map(|e| std::fs::read(e.path()).ok().and_then(|b| serde_json::from_slice::<Run>(&b).ok()))
+        .collect()
+}
+
+/// A safe run id: it names a file.
+fn valid_id(id: &str) -> bool {
+    !id.is_empty() && id.len() <= 40 && id.chars().all(|c| c.is_ascii_alphanumeric())
+}
+
+/// Impostazioni → Esecuzioni: newest first.
+pub fn runs() -> Vec<RunInfo> {
+    let mut list: Vec<RunInfo> = all()
+        .into_iter()
+        .map(|r| RunInfo {
+            id: r.id,
+            flow_id: r.flow.id,
+            name: r.flow.name,
+            cause: r.cause,
+            status: if r.status.is_empty() { "running".into() } else { r.status },
+            started: r.started,
+            ended: r.ended,
+            steps: r.trace.len(),
+        })
+        .collect();
+    list.sort_by(|a, b| b.started.cmp(&a.started));
+    list
+}
+
+pub fn run_detail(id: &str) -> Result<Run, String> {
+    if !valid_id(id) {
+        return Err(t("Esecuzione non trovata.").into());
+    }
+    std::fs::read(file(id)).ok().and_then(|b| serde_json::from_slice(&b).ok()).ok_or_else(|| t("Esecuzione non trovata.").into())
+}
+
+/// "Riprendi da qui": a new run of the same flow from step `node`, with the
+/// data the old run had (each step's outcome included).
+pub fn rerun(app: &AppHandle, id: &str, node: &str, actions: Vec<Value>) -> Result<(), String> {
+    let old = run_detail(id)?;
+    if old.status == "running" {
+        return Err(t("Questa esecuzione sta ancora lavorando.").into());
+    }
+    let at = old.flow.steps.iter().position(|s| s.node == node).ok_or(t("Passo non trovato."))?;
+    let run = Run {
+        id: format!("r{}", now_ms()),
+        cause: tf("ripreso da «{node}»", &[("node", &node)]),
+        ctx: old.ctx,
+        at,
+        ok: true,
+        status: "running".into(),
+        started: now_ms(),
+        flow: old.flow,
+        ..Default::default()
+    };
+    tauri::async_runtime::spawn(go(app.clone(), run, actions));
+    Ok(())
 }
 
 /// "ask": a card with the user's choices; the one clicked is the result.
@@ -286,7 +414,7 @@ async fn ask(app: &AppHandle, step: &Step, ctx: &Ctx, name: &str) -> Result<Stri
 
 /// "agent": a task with the step's goal (and the data filled in), waited for
 /// until it is over. Asking the user or a pause keep it waiting: the task's
-/// own buttons in Impostazioni → Compiti take it on.
+/// own buttons in Impostazioni → Flussi take it on.
 async fn agent(app: &AppHandle, step: &Step, run: &mut Run) -> Result<String, String> {
     let existing = (!run.task.is_empty()).then(|| crate::tasks::get(&run.task)).flatten();
     let id = match existing {
