@@ -16,7 +16,8 @@ A riposo il personaggio sta nell'angolo che hai scelto (in alto al centro di ser
 | Lasci il puntatore sopra due secondi | Cuori |
 | Trascini un file sull'isola | Diventa una scatola, lo inghiotte e chiede cosa farne |
 | Trascini il personaggio su una cartella di Esplora file o un'icona del desktop | Il percorso finisce nel campo della chat |
-| <kbd>Esc</kbd> o la ✕ | Chiude subito l'isola |
+| <kbd>Esc</kbd> o la ✕ | Chiude subito l'isola (anche **Chiudi finestra** dall'anteprima nella barra delle applicazioni: l'isola si richiude, non sparisce) |
+| Il pulsante con i tre nodi, in alto | Apre la [mappa della memoria](11-memoria.md) |
 | 📌 | **Tieni aperta**: l'isola non si chiude da sola finché non la togli |
 | — e ▢ | Con **Come un'app** acceso (Impostazioni → Isola): riduci a icona e schermo intero. Aperta ha la sua icona nella barra delle applicazioni e compare in Alt+Tab; chiusa no. Per aprirla dalla barra, aggiungi EasyIsland alla barra delle applicazioni: un clic sull'icona apre l'isola. Col tasto destro sull'icona: le tue azioni rapide, **Apri l'isola**, **Chiedi alla chat**, **Riquadra e chiedi**, **Impostazioni…** |
 | Resta aperta | Con **Resta aperta** acceso (Impostazioni → Isola), quando la apri tu non si chiude da sola, come con 📌 |
@@ -63,6 +64,7 @@ L'isola si apre da sola quando serve, rispettando le regole di notifica del prof
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>K</kbd> | Chat con il testo o l'immagine copiati già allegati |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd> | Cronologia degli Appunti |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> | Riquadra e chiedi |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> | Testo selezionato nella Raccolta, con la sua fonte |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> | Va alla richiesta in attesa: <kbd>N</kbd> nega, <kbd>Y</kbd> consente, <kbd>S</kbd> sempre, <kbd>1</kbd>–<kbd>9</kbd> sceglie |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> | Porta avanti l'app della sessione |
 | <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd> | Menu delle azioni sul testo selezionato, in qualsiasi app |

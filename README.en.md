@@ -31,8 +31,9 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
   text, files, copied images or a **screen area**; formatted answers (lists,
   tables, code with **Copy**); a calculator in the field; a **history** of
   conversations to reopen ([Chat with Claude](#chat-with-claude)).
-- **Quick actions** (links, programs, scripts, questions to Claude) with global
-  shortcuts, and suggestions for the app you are using
+- **Quick actions** (links, programs, scripts, keys, questions to Claude) with global
+  shortcuts, over 150 icons or the **automatic** one (the site's favicon, the
+  program's icon), and suggestions for the app you are using
   ([Quick actions](#quick-actions-and-shortcuts)).
 - **Integrations** in the island's menu: 3CX (calls, phone book, incoming calls),
   Microsoft Teams, Zammad, Outlook, PC status, security, network, weather,
@@ -43,12 +44,18 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 - **Automations** "when… then…", created in Settings or in plain words in the
   chat, and suggested from your habits; Claude can also use the PC for you, with
   your consent ([Automations](#automations)).
-- **Dropped files**: questions about a file, ZIP extraction, a tray of uploaded
-  files.
+- **Files and screen**: questions about a file, ZIP extraction, the **Tray** of
+  dropped files, the **working folder** as a grid with previews, **Box and ask** on
+  an area of the screen and the **Collection**: with `Ctrl+Alt+Shift+R` you set
+  aside text from any app (even a name and price from a supplier's site) with its
+  source, then hand it all to the chat at once ([How to use it](#how-to-use-it)).
+- The chat's **memory** in .md files with a **map** (graph, mind map, concept map,
+  timeline) one click away in the island.
 - **Profiles** (work, home, focus) that switch by themselves, a **"customer is
   watching"** mode, messages from any script, settings backup.
-- **Several characters** (Goccia, the default, Slime, Gecko, Flame, Magma, Stone,
-  Rock, Leaf, and Jarvis as rings or as a rippling sphere of points), free placement, an island as big as the screen opening where
+- **Ten characters** (Goccia, the default, Slime, Gecko, Flame, Magma, Stone,
+  Rock, Leaf, **Jarvis** and **Jarvis Sfera**), or in their place the **EasyIsland
+  logo, your own PNG logo or the weather**; free placement, an island as big as the screen opening where
   you want, Windows 11 or Classic style, themes, sounds generated in code, interface in **Italian or
   English**; light on battery, no telemetry.
 
@@ -195,6 +202,12 @@ the browser's. **Overview** with large, faded logos in the corner of each tile.
 
 | Version | Date | What's new |
 |---|---|---|
+| **1.0.5** | 25 Oct 2026 | Jarvis and Jarvis Sfera characters, the island no longer disappears when closed from the taskbar |
+| **1.0.4** | 25 Oct 2026 | Collection (text and areas with their source, for the chat), memory map from the island |
+| **1.0.3** | 25 Oct 2026 | Logo or weather instead of the character, over 150 icons and an automatic icon for actions, Box and ask |
+| **1.0.2** | 24 Oct 2026 | The island as an app, Stay open, working folder as a grid with previews, full backup |
+| **1.0.1** | 24 Oct 2026 | Telegram even with the PC off, the island stepping behind windows, automations with Wait and Ask |
+| **1.0.0** | 24 Oct 2026 | Second brain and Memory window, personal integrations made from the chat, full guide on the site |
 | **0.9.9** | 23 Oct 2026 | EasyIsland as an agent: Tasks with a plan and several engines, Skills, Heartbeat, memory digest, tasks on Telegram |
 | **0.9.8** | 22 Oct 2026 | Windows 11 look by default (grey, Windows' accent colour, line icons), Classic kept as a style |
 | **0.9.7** | 22 Oct 2026 | Handier chat (Edit, Regenerate, Branch, / commands, @ menu, Assistants, dictation) and memory in .md, less RAM |
@@ -375,13 +388,15 @@ _Screenshots are generated from the preview with `node scripts/screenshots.mjs` 
 | **Overview** | Every integration and agent as a tile with its status; a click opens one, dragging reorders them |
 | **Agents** | The coding agent's session (Claude Code, Codex…): progress, changes, permissions |
 | In the chat, drag the character onto another app's window | That window becomes the chat's context: an image of it, with the app's name and title, goes with your question |
-| Drag a file onto the island | The character becomes a box, swallows it and offers to answer questions about the file |
+| Drag a file onto the island, even onto the resting icon or the edge | The character becomes a box, swallows it and offers to answer questions about the file |
 | The clock at the top of the chat | The **history**: earlier conversations, with date and engine; a click reopens one |
-| `Esc`, or the ✕ at the top right | Closes the island at once |
+| `Esc`, the ✕ at the top right or **Close window** from the taskbar preview | Closes the island at once |
 | 📌 at the top right | **Keep open**: the island no longer closes by itself, and becomes a normal window with a taskbar icon |
 | Type a calculation in the chat, e.g. `840 + 22%` | The result appears at once; **Enter** copies it, **Ctrl+Enter** asks the chat anyway. Calculated locally |
 | Drop a ZIP | Besides "Ask a question" there is **Extract…** |
 | **Files and screen** → **Box and ask** (or `Ctrl+Alt+Shift+S`) | The screen freezes: box an area and ask about it, run your quick actions, copy the image or its **text** (recognised by Windows), or keep it in the tray |
+| Select text in any app and press `Ctrl+Alt+Shift+R` (or **Into the collection** in Box and ask) | It lands in the **Collection** in **Files and screen** with its source: program, window title and, from Chrome or Edge, the page address. Give it a name and the fields to work out (e.g. "Product, Price, Supplier"); **Ask the chat** hands it all over and the chat fills the fields in a table |
+| The button with three nodes at the top of the island | Opens the **memory map**: graph, mind map, concept map and timeline |
 | **Files and screen** → **Record** | Records a conversation (microphone and PC audio), the screen or a single window, with Windows only |
 | Type in the **field at the top** of the open island | Finds integrations, agent sessions, ⚡ actions and installed programs; at the bottom **Ask the chat** and **Search with Google**. Arrows to choose, **Enter** to open, **Ctrl+Enter** to ask the chat, **Alt+Enter** to search the web, **Esc** to clear |
 | Notification area icon | Open, Settings…, Pause, Quit |
@@ -415,6 +430,11 @@ it shows:
   **Always visible**, **Resting icon**, **Open after**, **Close button**,
   **Full screen** (hides during videos, games and presentations; permission
   requests still show).
+- **In the island** (Settings → Appearance → Theme): the character, the
+  **EasyIsland logo**, **your own logo** (a PNG, best with a transparent
+  background, kept on this PC and in the backup) or the **weather** (sky and
+  temperature from the Weather integration). Logo and weather are still pictures,
+  with no animation or states: more professional, and the CPU stays at zero.
 
 To try combinations without building the app (Node only, no Rust):
 
@@ -438,7 +458,9 @@ The browser opens on a fake desktop; settings go in the address, e.g.
 | **Link** | opens an address in the browser |
 | **Keys** | sends shortcuts or text to the program in use |
 
-Actions can be grouped in **folders**, reordered and given an icon drawn in code.
+Actions can be grouped in **folders**, reordered and given one of over 150 icons
+drawn in code, or the **automatic** one: a link's site favicon or a program's own
+icon, taken once and kept in the action.
 **Suggestions for the app in use** appear at the top of the ⚡ tab (summarise a mail,
 explain data in Excel, fix text in Word, translate a web page…).
 
@@ -448,6 +470,7 @@ explain data in Excel, fix text in Word, translate a web page…).
 - `Ctrl+Alt+K` opens the chat with the copied text (or image) attached;
 - `Ctrl+Alt+H` opens the **Clipboard** history;
 - `Ctrl+Alt+Shift+S` **box and ask**;
+- `Ctrl+Alt+Shift+R` puts the **selected text** in the **Collection**, with its source;
 - `Ctrl+Alt+Shift+P` goes to the **pending request**: `N` denies, `Y` allows,
   `S` always, `1`–`9` picks an answer;
 - `Ctrl+Alt+Shift+T` brings the **session's app** forward;
