@@ -48,7 +48,7 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 - **Profiles** (work, home, focus) that switch by themselves, a **"customer is
   watching"** mode, messages from any script, settings backup.
 - **Several characters** (Goccia, the default, Slime, Gecko, Flame, Magma, Stone,
-  Rock and Leaf), free placement, an island as big as the screen opening where
+  Rock, Leaf, and Jarvis as rings or as a rippling sphere of points), free placement, an island as big as the screen opening where
   you want, Windows 11 or Classic style, themes, sounds generated in code, interface in **Italian or
   English**; light on battery, no telemetry.
 
@@ -57,6 +57,12 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 </p>
 
 ## What's new
+
+**1.0.5** — **Jarvis**: a new character, an assistant's interface with a glowing core and rings that
+never stop, rhythm and colour for every state, a satellite for every agent at work and the seconds on
+the outer ring. **Jarvis Sfera**: the same idea as a sphere of points rippling like sound. With Jarvis
+the weather is a small sign in the corner. Fixed: closing the island from its taskbar preview made it
+disappear until EasyIsland was restarted.
 
 **1.0.4** — **Collection**: select some text in any app (even a name and price on a supplier's site)
 and `Ctrl+Alt+Shift+R` puts it in "Files and screen" with its source, page included from Chrome and

@@ -32,8 +32,9 @@ export const JARVIS: HudCharacter = {
 /**
  * Jarvis Sfera (asked by Edoardo on 25 Oct 2026, from a picture): the same
  * assistant as a sphere of points whose surface ripples like sound — cool at
- * the top, warm at the bottom, brighter at the rim. Same rhythm per state,
- * satellites and parallax as the rings.
+ * the top, warm at the bottom, brighter at the rim. Same rhythm per state and
+ * parallax as the rings; no satellites or sparks (white dots over the points
+ * meant nothing, Edoardo on 25 Oct 2026).
  */
 export const JARVIS_SPHERE: HudCharacter = {
   kind: "hud",
@@ -179,27 +180,6 @@ function drawSphere(x: CanvasRenderingContext2D, cx: number, cy: number, R: numb
     x.fillStyle = rgba(col, Math.min(1, a));
     const s = dot * (0.7 + 0.6 * front);
     x.fillRect(sx - s / 2, sy - s / 2, s, s);
-  }
-  // A few bright sparks scattered on the surface.
-  if (!look.simple) {
-    for (let i = 0; i < 12; i++) {
-      const j = ((i * 97 + Math.floor(t * 0.7) * 13) % n) * 3;
-      const x1 = pts[j] * cyaw - pts[j + 2] * syaw;
-      const z1 = pts[j] * syaw + pts[j + 2] * cyaw;
-      const y2 = pts[j + 1] * cp - z1 * sp;
-      x.fillStyle = rgba([1, 1, 1], 0.8 * alpha);
-      x.fillRect(x1 * R * boot - 1, y2 * R * boot - 1, 2, 2);
-    }
-  }
-  // Satellites: one per agent at work.
-  if (agents > 0 && !look.simple) {
-    for (let i = 0; i < agents; i++) {
-      const a = t * 0.9 + (i / agents) * Math.PI * 2;
-      x.beginPath();
-      x.arc(Math.cos(a) * R * 1.15, Math.sin(a) * R * 0.35, Math.max(2, R * 0.05), 0, Math.PI * 2);
-      x.fillStyle = rgba(mix(top, [1, 1, 1], 0.5), 0.95 * alpha);
-      x.fill();
-    }
   }
   x.restore();
 }

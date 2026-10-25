@@ -31,8 +31,8 @@ Italian file is the reference.
 
 ## Characters
 - Goccia (`drop.ts`, the default since 0.6.4) and Slime (`slime.ts`) are "soft"
-  characters: outline, shading and eyes, everything else shared. EasyTech is the 3D
-  cube (`cube.ts`).
+  characters: outline, shading and eyes, everything else shared. The 3D cube (`cube.ts`)
+  and Jarvis (`jarvis.ts`, rings or a sphere of points) are kinds of their own.
 - `engine.ts`, `greeting.ts` and `src/upload/canvas.ts` draw by asking for
   `character()`, never a character by name.
 - **New soft character:** one file exporting a `SoftCharacter` and one line in

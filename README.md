@@ -59,6 +59,12 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**1.0.5** — **Jarvis**: nuovo personaggio, l'interfaccia di un assistente con un nucleo luminoso e
+anelli sempre in movimento, ritmo e colori per ogni stato, un satellite per ogni agente al lavoro e i
+secondi sull'anello esterno. **Jarvis Sfera**: la stessa idea come sfera di punti che ondeggia come un
+suono. Con Jarvis il meteo è un segno piccolo nell'angolo. Corretto: chiudere l'isola dall'anteprima
+nella barra delle applicazioni la faceva sparire finché non si riavviava EasyIsland.
+
 **1.0.4** — **Raccolta**: selezioni del testo in qualsiasi app (anche nome e prezzo sul sito di un
 fornitore) e con `Ctrl+Alt+Shift+R` finisce in «File e schermo» con la sua fonte, pagina compresa da
 Chrome ed Edge; anche una zona dello schermo da Riquadra e chiedi. Le dai un nome e i campi da ricavare,
@@ -888,19 +894,20 @@ attivo.
 - **Notifiche**: tutto, solo avvisi, oppure solo le richieste di permesso
   (com'è *Concentrazione* all'inizio).
 - **Tema**: il personaggio (**Goccia**, la predefinita, **Slime**, **Geco**,
-  **Fiamma**, **Magma**, **Pietra**, **Roccia** o **Foglia**), il suo
+  **Fiamma**, **Magma**, **Pietra**, **Roccia**, **Foglia**, **Jarvis** o **Jarvis Sfera**), il suo
   colore, colore e opacità dell'isola, **sfondo a isola chiusa** (spento, a
   isola chiusa resta solo il personaggio, senza il cerchio o la barra), volume
   separato per avvisi, interfaccia ed emozioni. Slime è uno slime di gelatina verde che ondeggia quando si
   muove; Goccia è un piccolo spirito d'acqua azzurro, lucido, a forma di goccia;
-  Ezzy è un cubo, a riposo con i colori del logo da cui è disegnato (o con il
-  colore del tema, se lo scegli); Geco è una testa di geco con gli occhi ambrati che
+  Geco è una testa di geco con gli occhi ambrati che
   sbattono le palpebre, Fiamma una fiammella a strati che ondeggia, Magma, Pietra e Roccia
-  tre sassolini con grandi occhi neri (Roccia col muschio, Magma con la lava, Pietra col germoglio) e Foglia una foglia lucida con le venature. Negli
+  tre sassolini con grandi occhi neri (Roccia col muschio, Magma con la lava, Pietra col germoglio) e Foglia una foglia lucida con le venature.
+  Jarvis è l'interfaccia di un assistente: un nucleo luminoso dentro anelli sempre in movimento, con un
+  satellite per ogni agente al lavoro e i secondi sull'anello esterno; Jarvis Sfera è una sfera di
+  punti che ondeggia come un suono, fredda in alto e calda in basso. Negli
   altri stati tutti prendono il colore dello stato (blu mentre lavora, ambra per
-  un permesso, rosso per un errore…). Ezzy ha gli occhi su un lato, con le
-  stesse espressioni, e segue il mouse come gli altri. Anteprima senza
-  compilare: `npm run ui`, poi aggiungi `?character=drop` o `?character=cube`
+  un permesso, rosso per un errore…); i due Jarvis cambiano anche ritmo. Anteprima senza
+  compilare: `npm run ui`, poi aggiungi `?character=drop` o `?character=jarvis`
   all'indirizzo.
 - **Backup e trasferimento**: *Esporta…* salva tutte le impostazioni (profili
   compresi) in un file JSON nella cartella Documenti; *Importa…* le carica su un
@@ -1198,7 +1205,7 @@ mano. Tienine una copia al sicuro.
 ```
 ./
   src/                 front end dell'isola (TypeScript, nessun framework)
-    character/         i personaggi (Goccia, Slime, EasyTech, Geco, Fiamma, gelatine) e il saluto, in Canvas 2D
+    character/         i personaggi (Goccia, Slime, Geco, Fiamma, gelatine, Jarvis) e il saluto, in Canvas 2D
     island/            macchina a stati, hook, integrazioni
     views/             tutte le viste dell'isola
     settings/          la finestra delle impostazioni

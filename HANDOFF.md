@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 25 ottobre 2026. Versione **1.0.4** in `main` con il tag `v1.0.4` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 25 ottobre 2026. Versione **1.0.5** in `main` con il tag `v1.0.5` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -36,7 +36,7 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 25 ottobre 2026 — Jarvis
 - Nuovo personaggio **Jarvis** (`jarvis.ts`, tipo `hud`): nucleo e anelli sempre in movimento, ritmo e colori per stato, satelliti per gli agenti al lavoro, avvio con anelli che si compongono, secondi sull'anello esterno, parallasse verso il mouse. Senza occhi, mani né gelatina.
-- **Jarvis Sfera**: seconda versione, sfera di punti che ondeggia, dall'immagine di Edoardo.
+- **Jarvis Sfera**: seconda versione, sfera di punti che ondeggia, dall'immagine di Edoardo (senza satelliti né scintille). Il cubo non si nomina più in README, guida, sito e documentazione.
 - Con Jarvis il meteo è un segno piccolo nell'angolo, mai dietro gli anelli. Corretto: «Chiudi finestra» dall'anteprima nella barra delle applicazioni distruggeva la finestra dell'isola (EasyIsland restava acceso senza isola); ora la richiude come la sua ✕ (`CloseRequested` in `lib.rs`, evento `tray` «close»).
 - **Prove:** `npm run build`, `npm run smoke`; anteprima degli stati. Da vedere dal vivo nell'isola e nel saluto.
 
