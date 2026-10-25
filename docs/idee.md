@@ -136,6 +136,16 @@ Edoardo usa due PC: casa (sempre acceso) e notebook di lavoro (acceso in ufficio
 - **Sicurezza:** abbinamento una volta sola con un codice mostrato su un PC e scritto sull'altro; chiave in Gestione credenziali; pacchi firmati e cifrati; un pacco non può contenere eseguibili né finire fuori da `da-leggere`.
 - **Costi e account:** il lavoro pesante lo paga l'account che lo esegue. Compiti lunghi (un catalogo intero) a passi e con un limite di pagine, meglio di notte e con un motore gratuito o locale.
 
+## Flussi: automazioni e compiti in un solo sistema a nodi (decisa con Edoardo il 25 ottobre 2026, da fare)
+Spunto dagli strumenti a nodi e dai costruttori di agenti a grafo: passi fissi dove bastano, il modello solo nei nodi dove serve giudizio. Edoardo ha scelto di **unire** automazioni e compiti e di avere un **editor visivo modificabile**.
+- **Nodi:** Innesco (i «Quando» di oggi, Telegram, orario, a mano), Azione (l'elenco fisso di oggi: programmi, azioni rapide, tasti, integrazioni, Notion, To Do, card), Agente (un compito: obiettivo, motore, strumenti, limiti; il risultato va nello stato), Decisione (condizione, oppure il modello sceglie fra rami con un nome: riapre l'esclusione del passo «valuta» del 24 ottobre), Chiedi a me (card o Telegram, si riprende anche dopo un riavvio), Aspetta, Per ogni elemento.
+- **Stato condiviso** fra i nodi con segnaposto (`{{agente1.risultato}}`), salvato a ogni nodo per riprendere; registro di ogni esecuzione con entrate e uscite di ogni nodo e «Riprendi da qui», in `%APPDATA%\EasyIslandlussi\`.
+- **Creazione:** a parole in chat (`flow_create`, anteprima = conferma) e nell'editor visivo in Impostazioni, disegnato in Canvas senza librerie.
+- **Sicurezza invariata:** niente nodi con codice; i nodi Agente hanno gli strumenti e i permessi della chat.
+- **Migrazione:** automazioni e compiti esistenti diventano flussi automaticamente; niente si perde.
+- **Ordine:** 1) motore in Rust (grafo, stato, ripresa) con la conversione; 2) creazione dalla chat e vista con le esecuzioni; 3) editor modificabile; 4) Decisione col modello e Per ogni elemento.
+- **Rischi da tenere d'occhio:** le proposte dalle abitudini e i compiti «semplici» devono restare semplici (un flusso di un nodo non deve sembrare un diagramma); l'editor su schermi piccoli; non rompere le automazioni di chi aggiorna.
+
 ## Altro
 - **Scheda esatta di Windows Terminal** per «Apri»: il relay legge il titolo della console e l'app seleziona la scheda con UI Automation. Da sperimentare con una sessione vera. Tolta dal Da fare il 9 ottobre: per ora non serve.
 - **Clic destro sui file in Esplora file** (prossimo passo, deciso l'11 ottobre 2026): una voce nel registro di Windows (`HKCU\Software\Classes\*\shell`) che passa il percorso all'app, scritta solo dopo la conferma di Edoardo. In Windows 11 finisce sotto «Mostra altre opzioni» (il menu nuovo vuole un pacchetto MSIX con `IExplorerCommand`). Per il testo selezionato c'è già il menu di `Win+Alt+A`.
