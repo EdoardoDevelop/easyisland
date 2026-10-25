@@ -9,6 +9,7 @@ import {
 import { CUBE_EYE_X, CUBE_EYE_Y, CUBE_TIP, CUBE_TURN, cubeHandStops, drawCube, onRightFace } from "./cube";
 import { hexToRGB } from "./engine";
 import { SLIME } from "./slime";
+import { drawJarvis } from "./jarvis";
 
 // ── Timing (mirrors greeting-v2.html `T`) ─────────────────────────────────────
 
@@ -276,12 +277,12 @@ function whiteFill(
 /** The soft body's own colours, or the cube's. */
 function handStops(p: Pose): [string, string] {
   const c = character();
-  return c.kind === "cube" ? cubeHandStops() : softHandStops(greetPalette(c, p.tint));
+  return c.kind === "soft" ? softHandStops(greetPalette(c, p.tint)) : cubeHandStops();
 }
 
 function handEdge(p: Pose): string {
   const c = character();
-  return c.kind === "cube" ? "rgba(0,0,0,0.08)" : rgba(greetPalette(c, p.tint).edge);
+  return c.kind === "soft" ? rgba(greetPalette(c, p.tint).edge) : "rgba(0,0,0,0.08)";
 }
 function drawHandL(x: CanvasRenderingContext2D, hw: number, hh: number, p: Pose) {
   const k = p.handL;
@@ -361,8 +362,11 @@ function drawCharacter(x: CanvasRenderingContext2D, p: Pose) {
   x.rotate(p.tilt);
   x.scale(p.sx, p.sy);
 
-  drawHandL(x, hw, hh, p);
-  drawHandR(x, hw, hh, p);
+  // Jarvis has no hands.
+  if (c.kind !== "hud") {
+    drawHandL(x, hw, hh, p);
+    drawHandR(x, hw, hh, p);
+  }
 
   if (c.kind === "cube") {
     const cs = hh * 1.05;
@@ -374,6 +378,8 @@ function drawCharacter(x: CanvasRenderingContext2D, p: Pose) {
       greetEyes(x, p, p.hb * 0.06, side * 0.18, p.lookX * side * CUBE_EYE_X * 0.8,
         p.lookY * side * CUBE_EYE_Y * 0.8 - side * 0.04 + p.eyeRoll * side * 0.45, true);
     }, look);
+  } else if (c.kind === "hud") {
+    drawJarvis(x, 0, 0, hh * 1.1, { base: c.color, col: c.color, tint: 0, state: "idle", gazeX: p.lookX, gazeY: -p.lookY });
   } else {
     drawCharacterBody(x, p, c, hw, hh);
   }

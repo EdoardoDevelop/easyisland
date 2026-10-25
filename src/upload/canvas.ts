@@ -8,6 +8,7 @@
 import { State, type QuickAction } from "../core/state";
 import { fileActions } from "../views/actions";
 import { character, type SoftCharacter } from "../character/character";
+import { drawJarvis } from "../character/jarvis";
 import { CUBE_EYE_X, CUBE_EYE_Y, CUBE_TIP, CUBE_TURN, drawCube, onRightFace } from "../character/cube";
 import { hexToRGB } from "../character/engine";
 import { t } from "../core/i18n";
@@ -49,7 +50,7 @@ function bodyPath(c: SoftCharacter, m: number, R: number): { path: Path2D; rx: n
 }
 
 /** The theme's body colour, or the character's own. */
-function themeBase(c: SoftCharacter) {
+function themeBase(c: { color: SoftCharacter["color"] }) {
   const hex = State.settings.theme?.slimeColor;
   return hex && /^#[0-9a-f]{6}$/i.test(hex) ? hexToRGB(hex) : c.color;
 }
@@ -479,6 +480,15 @@ export class UploadCanvas {
       return;
     }
 
+    if (c.kind === "hud") {
+      // Jarvis takes the file into its core: the rings close in as it swallows.
+      ctx.restore();
+      ctx.save();
+      ctx.translate(f.x, f.y + f.hop);
+      drawJarvis(ctx, 0, 0, R * (1 - 0.25 * mc), { base: themeBase(c), col: c.color, tint: 0, state: mc > 0.3 ? "working" : "idle", gazeX: f.lookX, gazeY: -f.lookY });
+      ctx.restore();
+      return;
+    }
     const { path: body, rx, ry } = bodyPath(c, f.morph, R);
     const look = { palette: c.palette(themeBase(c)), gloss: 1 - mc * 0.6 };
     c.drawBody(ctx, body, rx, ry, look);

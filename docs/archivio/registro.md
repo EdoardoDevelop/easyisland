@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 24 ottobre 2026 — Versione 1.0.1
+- Telegram a PC spento, isola che passa dietro le altre finestre, automazioni più complete, link delle Impostazioni nella lingua dell'app. Novità nei due README e sulla homepage.
+- **Prove:** `cargo test --workspace` (311 + 38), `npm run build`.
+
 ### 24 ottobre 2026 — Automazioni più complete
 - Passi «Aspetta» e «Chiedi prima di continuare» (card Continua / Annulla), «Continua dopo un errore» (di serie si ferma). Le proposte dalle abitudini sono solo routine (inizio giornata con profilo, programmi e punto della giornata; rete con profilo e programmi; gruppi), mai un programma solo a un'ora. `automations.rs`, `habits.rs`, `docs/integrazioni.md`.
 - **Prove:** `cargo test --workspace` (test delle abitudini riscritti), `npm run build`; da provare dal vivo.

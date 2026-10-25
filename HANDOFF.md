@@ -34,6 +34,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 25 ottobre 2026 — Jarvis
+- Nuovo personaggio **Jarvis** (`jarvis.ts`, tipo `hud`): nucleo e anelli sempre in movimento, ritmo e colori per stato, satelliti per gli agenti al lavoro, avvio con anelli che si compongono, secondi sull'anello esterno, parallasse verso il mouse. Senza occhi, mani né gelatina.
+- **Prove:** `npm run build`, `npm run smoke`; anteprima degli stati. Da vedere dal vivo nell'isola e nel saluto.
+
 ### 25 ottobre 2026 — Raccolta, mappa della memoria
 - **Raccolta** (`collect.rs`, `src/views/collect.ts`): testo selezionato in qualsiasi app con `Ctrl+Alt+Shift+R` o una zona da Riquadra e chiedi, con app, titolo e pagina (SourceURL degli appunti), in «File e schermo»; nome e campi facoltativi, «Chiedi alla chat» allega tutto e la chat ricava i campi. Una alla volta, nel backup.
 - Mappa della memoria: pulsante nell'isola, errore mostrato invece di «vuota», Mappa concettuale che si fermava con un livello vuoto («reading 'reduce'», visto sul notebook).
@@ -53,7 +57,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - L'isola dietro una finestra non torna più sopra passandoci col mouse (tao rimetteva `WS_EX_TOPMOST`). Nuove opzioni in Impostazioni → Isola: «Come un'app» (icona sempre nella barra, Alt+Tab, — e ▢ schermo intero) e «Resta aperta» quando la apre l'utente. `island.rs`, `island.ts`, `docs/architettura.md`.
 - Dopo la 1.0.2: Impostazioni ferme anche cambiando una select o un interruttore (l'eco del proprio salvataggio non ridisegna più, `holdScroll` tiene l'altezza); icona della cartella delle azioni cliccabile anche prima di confermare il nome; tema Windows 11 con separatori anche nei blocchi annidati. Un file trascinato sull'isola a riposo (icona o striscia) la apre.
 - **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`; da provare dal vivo.
-
-### 24 ottobre 2026 — Versione 1.0.1
-- Telegram a PC spento, isola che passa dietro le altre finestre, automazioni più complete, link delle Impostazioni nella lingua dell'app. Novità nei due README e sulla homepage.
-- **Prove:** `cargo test --workspace` (311 + 38), `npm run build`.

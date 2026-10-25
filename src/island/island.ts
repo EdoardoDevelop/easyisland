@@ -16,6 +16,7 @@ import { OPENED_BY_APP, OPEN_URLS, State, canAskSession, isSessionTask } from ".
 import { BotEngine, hexToRGB } from "../character/engine";
 import { character, setCharacter } from "../character/character";
 import { Greeting } from "../character/greeting";
+import { setJarvisAgents } from "../character/jarvis";
 import { figureKey, onFigureChange, setFigure, setFigureLogo, setFigureWeather, staticFigure } from "../character/figure";
 import { createMiniBot, pruneMiniBots, syncMiniBotStates, tickMiniBots } from "../character/minibots";
 import { UploadCanvas } from "../upload/canvas";
@@ -3224,6 +3225,8 @@ ${note}` : text };
     this.engine.sky = State.characterSky;
     const wx = State.weatherNow;
     setFigureWeather(wx.sky, wx.temp);
+    // Jarvis: one satellite per agent at work.
+    setJarvisAgents(State.sessionTasks.filter((x) => x.state === "working" || x.state === "thinking" || x.state === "searching").length);
 
     // The rest icon shows only while the island is hidden — and not over a
     // full-screen app.
