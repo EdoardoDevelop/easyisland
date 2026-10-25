@@ -1121,7 +1121,7 @@ pub async fn tool_delegate(app: &AppHandle, args: &Value) -> Result<String, Stri
 
 /// The first of two answers that is Some, with which one it was (0 or 1);
 /// None when both end with None.
-async fn first_some<A, B>(a: A, b: B) -> Option<(String, u8)>
+pub(crate) async fn first_some<A, B>(a: A, b: B) -> Option<(String, u8)>
 where
     A: std::future::Future<Output = Option<String>>,
     B: std::future::Future<Output = Option<String>>,

@@ -124,6 +124,8 @@ pub struct Step {
     pub model: String,
     /// ask: the buttons of the card (1–3; empty = Sì / No).
     pub options: Vec<String>,
+    /// foreach: the step each item starts from (`node`); `next` comes after the last one.
+    pub body: String,
 }
 
 /// One way out of a "decide" step.
@@ -132,9 +134,11 @@ pub struct Step {
 pub struct Branch {
     /// The value looked at, with placeholders: "{agente}", "{chiamante}".
     pub value: String,
-    /// contains | equals | empty | filled | else
+    /// contains | equals | empty | filled | else, or "model": the engine picks
+    /// one of the branches by their `to_match`, the way described.
     pub op: String,
-    /// What `contains` / `equals` compare with (case does not matter).
+    /// What `contains` / `equals` compare with (case does not matter); for
+    /// "model", what the branch means ("il cliente chiede un preventivo").
     pub to_match: String,
     /// The step to go to (`node`) or "end".
     pub to: String,
@@ -539,6 +543,7 @@ pub(crate) fn step_words(st: &Step) -> String {
         "agent" => tf("agente «{x}»", &[("x", &if st.title.is_empty() { st.text.clone() } else { st.title.clone() })]),
         "ask" => tf("domanda «{x}»", &[("x", &if st.title.is_empty() { st.text.clone() } else { st.title.clone() })]),
         "decide" => t("una scelta").to_string(),
+        "foreach" => t("per ogni elemento").to_string(),
         _ => st.kind.clone(),
     }
 }
@@ -559,7 +564,7 @@ const TRIGGER_KINDS: &[&str] = &[
     "time", "startup", "unlock", "wifi", "app", "foreground", "drive", "folder", "download", "integration", "call", "agent",
     "server", "back", "teams",
 ];
-const STEP_KINDS: &[&str] = &["quick", "notice", "profile", "app", "url", "chat", "task", "wait", "confirm", "agent", "decide", "ask"];
+const STEP_KINDS: &[&str] = &["quick", "notice", "profile", "app", "url", "chat", "task", "wait", "confirm", "agent", "decide", "ask", "foreach"];
 const CONDITION_KINDS: &[&str] = &["hours", "wifi", "app", "foreground", "battery", "idle", "meeting", "client"];
 
 /// "HH:MM" → minutes since midnight.
@@ -694,6 +699,12 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
             "agent" if st.text.trim().is_empty() => return Err("steps[].text: l'obiettivo dell'agente.".into()),
             "decide" if st.branches.is_empty() => return Err("steps[].branches: almeno un ramo per una scelta.".into()),
             "ask" if st.options.len() > 3 => return Err("steps[].options: al massimo 3 scelte.".into()),
+            "decide" if st.branches.iter().any(|b| b.op == "model") && st.branches.len() < 2 => {
+                return Err("steps[].branches: per una scelta del modello servono almeno due rami.".into());
+            }
+            "foreach" if st.text.trim().is_empty() || st.body.trim().is_empty() => {
+                return Err("steps[]: un foreach ha bisogno di text (l'elenco, una voce per riga) e body (il passo da cui parte ogni voce).".into());
+            }
             _ => {}
         }
         if st.level.is_empty() {

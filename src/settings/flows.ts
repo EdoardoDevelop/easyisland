@@ -5,13 +5,15 @@
 // plain SVG made here: no library.
 
 import { Bridge, onEvent, type FlowRun, type FlowRunInfo } from "../core/bridge";
-import type { Automation, AutomationStep } from "../core/state";
+import { CHAT_ENGINES, type Automation, type AutomationStep } from "../core/state";
+
+const ENGINES = () => CHAT_ENGINES.map((e): [string, string] => [e.id, e.name]);
 import { h, clear } from "../views/dom";
 import { locale, t } from "../core/i18n";
 
 /** Steps with links or with kinds the step list cannot edit: shown as a drawing. */
 export function isLinked(a: Automation): boolean {
-  return a.steps.some((s) => !!s.next || (s.branches?.length ?? 0) > 0 || ["agent", "decide", "ask"].includes(s.kind));
+  return a.steps.some((s) => !!s.next || (s.branches?.length ?? 0) > 0 || ["agent", "decide", "ask", "foreach"].includes(s.kind));
 }
 
 const nodeName = (s: AutomationStep, i: number) => s.node?.trim() || `s${i + 1}`;
@@ -20,7 +22,8 @@ function stepWords(s: AutomationStep): string {
   const what = s.title?.trim() || s.text?.trim() || "";
   switch (s.kind) {
     case "agent": return t("Agente: {x}", { x: what });
-    case "decide": return t("Scelta");
+    case "decide": return s.branches?.some((b) => b.op === "model") ? t("Scelta del modello") : t("Scelta");
+    case "foreach": return t("Per ogni voce di {x}", { x: s.text });
     case "ask": return t("Domanda: {x}", { x: what });
     case "quick": return t("Azione rapida");
     case "notice": return t("Avviso: {x}", { x: what });
@@ -35,7 +38,7 @@ function stepWords(s: AutomationStep): string {
   }
 }
 
-const KIND_COLOR: Record<string, string> = { agent: "#a78bfa", decide: "#f59e0b", ask: "#38bdf8", wait: "#8e939c", confirm: "#38bdf8" };
+const KIND_COLOR: Record<string, string> = { agent: "#a78bfa", decide: "#f59e0b", ask: "#38bdf8", wait: "#8e939c", confirm: "#38bdf8", foreach: "#22c55e" };
 
 const SVG = "http://www.w3.org/2000/svg";
 function el(name: string, attrs: Record<string, string | number>, text?: string): SVGElement {
@@ -66,12 +69,16 @@ export function flowDiagram(a: Automation, highlight?: Set<string>, pick?: { sel
     if (s.kind === "decide" && branches.length) {
       for (const b of branches) {
         const to = b.to === "end" ? steps.length : b.to ? index.get(b.to) ?? -1 : i + 1;
-        const label = b.op === "else" ? t("altrimenti")
+        const label = b.op === "model" ? b.toMatch : b.op === "else" ? t("altrimenti")
           : b.op === "empty" ? t("vuoto") : b.op === "filled" ? t("non vuoto") : `${b.op === "equals" ? "=" : "∋"} ${b.toMatch ?? ""}`;
         if (to >= 0) jumps.push({ from: i, to, label });
       }
       falls.push(false);
       return;
+    }
+    if (s.kind === "foreach" && s.body) {
+      const to = index.get(s.body) ?? -1;
+      if (to >= 0) jumps.push({ from: i, to, label: t("ogni voce") });
     }
     const next = s.next?.trim() ?? "";
     if (!next) {
@@ -322,8 +329,37 @@ export function flowEditor(a: Automation, hooks: EditorHooks): HTMLElement {
     const row = h("div", { class: "row" }, h("label", { text: "" }));
     stepFields(step, row);
     if (row.childElementCount > 1) panel.append(row);
-    panel.append(h("div", { class: "row" }, h("label", { text: t("Poi") }),
+    if (step.kind === "foreach") {
+      const body: [string, string][] = names.filter((_, i) => i !== sel).map((n): [string, string] => [n, n]);
+      if (!step.body && body[0]) step.body = body[0][0];
+      panel.append(h("div", { class: "row" }, h("label", { text: t("Ogni voce va a") }),
+        body.length ? select<string>(body, step.body ?? "", (v) => { step.body = v; changed(); }) : h("span", { class: "hint", text: t("aggiungi prima i passi del giro") }),
+        h("span", { class: "hint note", text: t("l'ultimo passo del giro torna qui con «Poi»") })));
+    }
+    panel.append(h("div", { class: "row" }, h("label", { text: step.kind === "foreach" ? t("Poi, finite le voci") : t("Poi") }),
       select<string>(targets(sel), step.next ?? "", (v) => { step.next = v; changed(); })));
+  } else if (step.branches?.some((b) => b.op === "model")) {
+    // The engine picks: one line per way out, described in words.
+    const branches = step.branches;
+    const what = h("input", { type: "text", value: step.text ?? "", placeholder: t("cosa deve guardare, es. {leggi}"), spellcheck: "false", style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
+    what.addEventListener("change", () => { step.text = what.value; commit(); });
+    panel.append(h("div", { class: "row" }, h("label", { text: t("Guarda") }), what,
+      select<string>([["", t("Motore della chat")], ...ENGINES()], step.engine ?? "", (v) => { step.engine = v; step.model = ""; changed(); })));
+    branches.forEach((b, bi) => {
+      const desc = h("input", { type: "text", value: b.toMatch, placeholder: t("quando, es. chiede un preventivo"), spellcheck: "false", style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
+      desc.addEventListener("change", () => { b.toMatch = desc.value; commit(); });
+      panel.append(h("div", { class: "row" }, h("label", { text: t("Strada {n}", { n: bi + 1 }) }), desc,
+        h("span", { class: "hint", text: "→" }),
+        select<string>(targets(sel), b.to, (v) => { b.to = v; changed(); }),
+        h("button", { class: "danger icon", text: "✕", title: t("Togli questo ramo"), disabled: branches.length <= 2, onclick: () => { branches.splice(bi, 1); changed(); } })));
+    });
+    panel.append(h("div", { class: "row" }, h("label", { text: "" }),
+      h("button", { text: t("+ Aggiungi una strada"), onclick: () => { branches.push({ value: "", op: "model", toMatch: "", to: "" }); changed(); } }),
+      h("button", { text: t("Decido io con delle regole"), onclick: () => {
+        step.branches = [{ value: "{risultato}", op: "contains", toMatch: "", to: "" }, { value: "", op: "else", toMatch: "", to: "" }];
+        changed();
+      } }),
+      h("span", { class: "hint note", text: t("il motore legge e sceglie la strada descritta meglio") })));
   } else {
     const branches = (step.branches ??= []);
     const ops: [string, string][] = [["contains", t("contiene")], ["equals", t("è")], ["empty", t("è vuoto")], ["filled", t("non è vuoto")], ["else", t("altrimenti")]];
@@ -343,6 +379,11 @@ export function flowEditor(a: Automation, hooks: EditorHooks): HTMLElement {
     });
     panel.append(h("div", { class: "row" }, h("label", { text: "" }),
       h("button", { text: t("+ Aggiungi un ramo"), onclick: () => { branches.push({ value: "{risultato}", op: "contains", toMatch: "", to: "" }); changed(); } }),
+      h("button", { text: t("Lascia scegliere al modello"), onclick: () => {
+        step.branches = [{ value: "", op: "model", toMatch: "", to: "" }, { value: "", op: "model", toMatch: "", to: "" }];
+        step.text ||= "{risultato}";
+        changed();
+      } }),
       h("span", { class: "hint note", text: t("vince il primo che vale; senza nessuno si va al passo seguente") })));
   }
   wrap.append(panel);

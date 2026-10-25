@@ -52,7 +52,9 @@ An automation can become a **flow**: instead of a row of steps, a drawing where 
 - **Click a step** in the drawing to change it in the panel below: kind, name, fields and **Then** (the next step, another step or the end). **+ Step after**, **↑ ↓** and **Remove** sort the order.
 - **Have an agent work**: an agent with EasyIsland's tools does a job that needs judgement (reading, summarising, sorting) with the engine you choose; the flow waits until it is done.
 - **Pick the way**: branches like "if {read} contains URGENT go to the notice, otherwise to the question". The first that holds wins.
-- **Ask me something**: a card with up to three answers; your choice decides the steps after.
+- **Let the model choose**: instead of rules, describe the ways in words ("asks for a quote", "has a problem") and an engine picks the right one.
+- **For each item**: repeats a group of steps for each line of a list (say, the customers an agent found), with the item in `{elemento}`.
+- **Ask me something**: a card with up to three answers; your choice decides the steps after. With Telegram linked the question goes there too, where you can also answer in words with /rispondi.
 - Each step leaves its outcome in braces with its name (`{read}`) and in `{risultato}`, for the steps after.
 - **Runs**: the last 50, with what each step did; **Resume from here** starts again from a step with the data of then. If EasyIsland closes halfway, at the next start the flow goes on from where it was.
 

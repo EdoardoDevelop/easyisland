@@ -28,11 +28,31 @@ Automazioni e compiti diventano un solo sistema a nodi, con un editor visivo mod
 - [x] Automazioni e compiti in una sola pagina «Flussi» (id `compiti`, che l'isola apre da un compito); i testi «Impostazioni → Compiti / Automazioni» ora dicono «Impostazioni → Flussi». Guida: 14-automazioni (sezione Flussi) e 12-compiti.
 
 ## Tappa 4
-- [ ] Decisione presa dal modello fra rami con un nome.
-- [ ] «Per ogni elemento».
-- [ ] Chiedi a me anche su Telegram.
+- [x] Decisione presa dal modello: rami con `op: "model"`, `toMatch` = cosa significa la strada; il motore (quello del passo o della chat, `Channel::Helper`, senza strumenti) legge `text` e risponde col numero (`by_model`, `first_number`). Nell'editor: «Lascia scegliere al modello» / «Decido io con delle regole».
+- [x] «Per ogni elemento» (`foreach`): `text` diviso in righe (al massimo 30, i trattini tolti), ogni voce in `{elemento}` va a `body`; i passi del giro tornano al foreach con `next`; dopo l'ultima si segue il `next` del foreach. Lo stato del giro è in `Run.loops`, quindi sopravvive a un riavvio. Il limite per giro è salito a 200 passi.
+- [x] Chiedi a me anche su Telegram: con Telegram collegato la domanda va anche lì con i pulsanti (`telegram::ask_flow`, chiave `flow-<giro>`), vale la prima risposta (`tasks::first_some`) e la card dell'isola sparisce (`moments::expire_card`); su Telegram si può rispondere anche a parole con /rispondi (`flows::answer_latest`, prima dei compiti).
+
+## Tappa 5: affidabilità e costruzione (dalle ricerche del 25 ottobre 2026)
+Ricerca sugli strumenti a nodi e sull'esecuzione durevole degli agenti. Cosa fanno i migliori e cosa prendiamo:
+- **Riprovare un passo** con attese crescenti e un massimo (n8n «Retry On Fail»: tentativi e attesa per nodo; Temporal/Diagrid: backoff esponenziale con tetto). → `retries` per passo (0–3; attese 10 s, 30 s, 90 s), mai per domande e conferme.
+- **Strada d'errore** invece di fermarsi (n8n: uscita d'errore del nodo e «error workflow»). → `onError`: il passo a cui andare se questo non riesce, con il motivo in `{errore}`. Se il giro fallisce del tutto e Telegram è collegato, arriva anche lì un messaggio.
+- **Niente azioni ripetute dopo un riavvio** (esecuzione durevole: si riprova solo ciò che è idempotente, il resto ha bisogno di una ricevuta). → il giro segna il passo «in corso»; al riavvio un passo con effetti (programmi, link, azioni rapide, avvisi, chat, compiti) rimasto a metà non si ripete: va nella strada d'errore come «interrotto dal riavvio». Attese, agenti (ritrovano il loro compito), domande, scelte e giri si riprendono.
+- **Tempo massimo** per ogni attività e per le pause umane (Diagrid). → un agente ha un limite (`minutes`, predefinito 60): oltre, il compito si ferma e il passo non riesce. Le domande hanno già 10 minuti.
+- **Uscita strutturata dagli agenti** quando guida le scelte (OpenAI Agent Builder: uscita JSON con schema; Foundry: conta soprattutto per instradare). → `fields` su un agente: l'agente chiude con un oggetto JSON con quei campi, che diventano `{nome.campo}`; se manca il JSON il passo non riesce (e può riprovare o andare in `onError`).
+- **Limiti di spesa per giro** (tetto di passi e di chiamate ai modelli). → oltre ai 200 passi, al massimo 20 passi con un motore (agenti e scelte del modello) per giro.
+- **Provare da un passo** (n8n: eseguire un nodo da solo e ripetere un'esecuzione). → nell'editor «Prova da qui» parte dal passo scelto, con i dati dell'ultima esecuzione se c'è.
+
+- [ ] `retries` con attese crescenti.
+- [ ] `onError` e `{errore}`; avviso su Telegram se il giro fallisce.
+- [ ] Passi con effetti non ripetuti dopo un riavvio (`inflight`).
+- [ ] Tempo massimo degli agenti (`minutes`).
+- [ ] `fields`: uscita JSON degli agenti in `{nome.campo}`.
+- [ ] Tetto di 20 passi con un motore per giro.
+- [ ] «Prova da qui» nell'editor (`automation_run_from`).
+- [ ] Chat (descrizione di `create_automation`), anteprima, editor, guida, test.
 
 ## Registro
+- 25 ottobre 2026: tappa 4 scritta; tutte le tappe fatte sul branch. Da provare dal vivo: un flusso vero con agente, foreach, scelta del modello e domanda su Telegram; poi unione in main con la voce in HANDOFF.
 - 25 ottobre 2026: tappa 3 scritta. Provato nel browser: apri come flusso, aggiungi passi, Scelta con due rami. Da provare dal vivo nell'app.
 - 25 ottobre 2026: tappa 2 scritta. Provato nel browser il disegno di un flusso con agente, scelta, avviso e domanda; da provare dal vivo: un flusso creato dalla chat e «Riprendi da qui».
 - 25 ottobre 2026: tappa 1 scritta (`flows.rs`, campi nuovi in `automations::Step`, test). Da provare dal vivo con un flusso vero; l'editor delle automazioni in Impostazioni non conosce ancora i collegamenti (tappa 3): modificare lì un flusso con rami può perderli.

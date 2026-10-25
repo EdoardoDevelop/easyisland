@@ -52,7 +52,9 @@ Un'automazione può diventare un **flusso**: invece di una fila di passi, un dis
 - **Clic su un passo** del disegno per cambiarlo nel pannello sotto: tipo, nome, campi e **Poi** (il passo seguente, un altro passo o la fine). **+ Passo dopo**, **↑ ↓** e **Togli** sistemano l'ordine.
 - **Fai lavorare un agente**: un agente con gli strumenti di EasyIsland fa un lavoro che richiede giudizio (leggere, riassumere, classificare) con il motore che scegli; il flusso aspetta che finisca.
 - **Scegli la strada**: rami del tipo «se {leggi} contiene URGENTE vai all'avviso, altrimenti alla domanda». Vince il primo che vale.
-- **Chiedimi qualcosa**: una card con fino a tre risposte; la tua scelta decide i passi dopo.
+- **Lascia scegliere al modello**: invece delle regole, descrivi le strade a parole («chiede un preventivo», «ha un problema») e un motore sceglie quella giusta.
+- **Per ogni elemento**: ripete un gruppo di passi per ogni riga di un elenco (per esempio i clienti trovati da un agente), con la voce in `{elemento}`.
+- **Chiedimi qualcosa**: una card con fino a tre risposte; la tua scelta decide i passi dopo. Con Telegram collegato la domanda arriva anche lì, dove puoi rispondere anche a parole con /rispondi.
 - Ogni passo lascia il suo esito tra graffe con il suo nome (`{leggi}`) e in `{risultato}`, da usare nei passi dopo.
 - **Esecuzioni**: le ultime 50, con cosa ha fatto ogni passo; **Riprendi da qui** riparte da un passo con i dati di allora. Se EasyIsland si chiude a metà, al riavvio il flusso riprende da dove era.
 

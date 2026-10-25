@@ -731,7 +731,7 @@ export interface AutomationCondition {
 
 /** One thing an automation does. */
 export interface AutomationStep {
-  kind: "quick" | "notice" | "profile" | "app" | "url" | "chat" | "task" | "wait" | "confirm" | "agent" | "decide" | "ask";
+  kind: "quick" | "notice" | "profile" | "app" | "url" | "chat" | "task" | "wait" | "confirm" | "agent" | "decide" | "ask" | "foreach";
   /** quick: action id · profile: profile id. */
   id: string;
   title: string;
@@ -747,7 +747,9 @@ export interface AutomationStep {
   /** Where to go after: a step's node, "end", or "" = the next one. */
   next?: string;
   /** decide: the first branch that holds. */
-  branches?: { value: string; op: "contains" | "equals" | "empty" | "filled" | "else"; toMatch: string; to: string }[];
+  branches?: { value: string; op: "contains" | "equals" | "empty" | "filled" | "else" | "model"; toMatch: string; to: string }[];
+  /** foreach: the step each item starts from. */
+  body?: string;
   /** agent: engine and model of its task. */
   engine?: string;
   model?: string;

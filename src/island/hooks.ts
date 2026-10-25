@@ -202,15 +202,16 @@ function describeAutomation(input: Record<string, unknown>): string {
       case "agent": return t("fa lavorare l'agente su «{text}»", { text: str(st, "title") || str(st, "text") });
       case "ask": return t("ti chiede «{text}»", { text: str(st, "title") || str(st, "text") });
       case "decide": return t("sceglie la strada");
+      case "foreach": return t("ripete per ogni voce di «{text}»", { text: str(st, "text") });
       default: return str(st, "kind");
     }
   });
   // A flow with links (flows.rs): one numbered line per step, with where it goes.
-  const linked = steps.some((st) => str(st, "next") || str(st, "kind") === "decide");
+  const linked = steps.some((st) => str(st, "next") || str(st, "kind") === "decide" || str(st, "kind") === "foreach");
   if (linked) {
     const nameOf = (st: Record<string, unknown>, i: number) => str(st, "node") || `s${i + 1}`;
     const label = (to: string) => (to === "end" ? t("fine") : to || t("il passo seguente"));
-    const ops: Record<string, string> = { contains: t("contiene"), equals: t("è"), empty: t("è vuoto"), filled: t("non è vuoto"), else: t("altrimenti") };
+    const ops: Record<string, string> = { contains: t("contiene"), equals: t("è"), empty: t("è vuoto"), filled: t("non è vuoto"), else: t("altrimenti"), model: t("secondo il modello:") };
     what.forEach((w, i) => {
       const st = steps[i];
       const branches = (Array.isArray(st.branches) ? st.branches : []) as Record<string, unknown>[];
@@ -218,6 +219,7 @@ function describeAutomation(input: Record<string, unknown>): string {
         ? `${ops.else} → ${label(str(b, "to"))}`
         : `${str(b, "value")} ${ops[str(b, "op")] ?? str(b, "op")} ${str(b, "toMatch")}`.trim() + ` → ${label(str(b, "to"))}`);
       const next = str(st, "next");
+      if (str(st, "kind") === "foreach") ways.push(`${t("ogni voce")} → ${label(str(st, "body"))}`);
       what[i] = `
   ${i + 1}. [${nameOf(st, i)}] ${w}` + (ways.length ? ` (${ways.join("; ")})` : next ? ` → ${label(next)}` : "");
     });

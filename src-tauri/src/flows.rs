@@ -7,7 +7,11 @@
 //
 // Kinds on top of automations.rs: `agent` (a task of tasks.rs, waited for
 // until it is over; its result goes in the data), `decide` (branches on a
-// value), `ask` (a card with the user's choices). Every step writes its
+// value, or "model" branches an engine picks by what they mean), `ask` (a card
+// with the user's choices, and the same question on Telegram when linked: the
+// first answer wins, there also a free one with /rispondi), `foreach` (one
+// item per line of a value: each goes as `{elemento}` through the steps from
+// `body`, which lead back to it; `next` after the last). Every step writes its
 // outcome in the run's data as `{node}` and `{risultato}`, for the steps after.
 //
 // A run is saved after every step in %APPDATA%\EasyIsland\flussi\<run>.json
@@ -20,7 +24,9 @@
 // Nothing new runs code: steps are the same fixed list, agents have the
 // chat's tools and permissions.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
@@ -31,7 +37,9 @@ use crate::automations::{fill, Automation, Ctx, LogEntry, Step};
 use crate::i18n::{t, tf};
 
 /// Steps one run may take, loops included.
-pub const MAX_STEPS_PER_RUN: u32 = 60;
+pub const MAX_STEPS_PER_RUN: u32 = 200;
+/// Items one foreach goes through.
+const MAX_ITEMS: usize = 30;
 /// An "ask" card waits this long; without an answer the flow stops.
 const ASK_WAIT: Duration = Duration::from_secs(600);
 /// Finished runs kept on disk.
@@ -61,6 +69,8 @@ pub struct Run {
     pub ended: u64,
     /// What each step did, in the order they ran.
     pub trace: Vec<Trace>,
+    /// foreach steps under way: their items and how many went through.
+    pub loops: HashMap<String, (Vec<String>, usize)>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -172,6 +182,9 @@ pub fn check_links(steps: &[Step]) -> Result<(), String> {
     }
     let known = |l: &str| matches!(l.trim(), "" | "end") || seen.contains(l.trim());
     for st in steps {
+        if st.kind == "foreach" && (st.body.trim().is_empty() || st.body.trim() == "end" || !known(&st.body)) {
+            return Err(tf("Il passo «{n}» ripete i passi da «{to}», che non esiste.", &[("n", &st.node), ("to", &st.body)]));
+        }
         if !known(&st.next) {
             return Err(tf("Il passo «{n}» va a «{to}», che non esiste.", &[("n", &st.node), ("to", &st.next)]));
         }
@@ -179,8 +192,8 @@ pub fn check_links(steps: &[Step]) -> Result<(), String> {
             if !known(&b.to) {
                 return Err(tf("Un ramo di «{n}» va a «{to}», che non esiste.", &[("n", &st.node), ("to", &b.to)]));
             }
-            if !["contains", "equals", "empty", "filled", "else"].contains(&b.op.as_str()) {
-                return Err("branches[].op deve essere uno di: contains, equals, empty, filled, else.".into());
+            if !["contains", "equals", "empty", "filled", "else", "model"].contains(&b.op.as_str()) {
+                return Err("branches[].op deve essere uno di: contains, equals, empty, filled, else, model.".into());
             }
         }
     }
@@ -267,7 +280,31 @@ async fn go(app: AppHandle, mut run: Run, actions: Vec<Value>) {
                 }
                 Ok(t("confermata").into())
             }
-            "ask" => ask(&app, &step, &run.ctx, &name).await,
+            "ask" => ask(&app, &step, &run.ctx, &name, &run.id).await,
+            "decide" if step.branches.iter().any(|b| b.op == "model") => match by_model(&app, &step, &run.ctx).await {
+                Ok((to, label)) => {
+                    link = to;
+                    Ok(label)
+                }
+                Err(e) => Err(e),
+            },
+            "foreach" => {
+                let (items, done) = run.loops.entry(step.node.clone()).or_insert_with(|| (items_of(&step, &run.ctx), 0)).clone();
+                match items.get(done) {
+                    Some(item) => {
+                        put(&mut run.ctx, "elemento", item);
+                        if let Some(l) = run.loops.get_mut(&step.node) {
+                            l.1 += 1;
+                        }
+                        link = step.body.clone();
+                        Ok(tf("elemento {n} di {tot}: {x}", &[("n", &(done + 1)), ("tot", &items.len()), ("x", item)]))
+                    }
+                    None => {
+                        run.loops.remove(&step.node);
+                        Ok(tf("finiti {n} elementi", &[("n", &items.len())]))
+                    }
+                }
+            }
             "decide" => match pick(&step.branches, &run.ctx) {
                 Some(to) => {
                     link = to.to_string();
@@ -290,7 +327,9 @@ async fn go(app: AppHandle, mut run: Run, actions: Vec<Value>) {
         match outcome {
             Ok(text) => {
                 put(&mut run.ctx, &step.node, &text);
-                put(&mut run.ctx, "risultato", &text);
+                if step.kind != "foreach" {
+                    put(&mut run.ctx, "risultato", &text);
+                }
                 run.done.push(text);
             }
             Err(e) => {
@@ -396,8 +435,30 @@ pub fn rerun(app: &AppHandle, id: &str, node: &str, actions: Vec<Value>) -> Resu
     Ok(())
 }
 
+/// Flow questions waiting on Telegram: "flow-<run>" → where the answer goes.
+static ASKS: Mutex<Vec<(String, tokio::sync::oneshot::Sender<String>)>> = Mutex::new(Vec::new());
+
+/// A button or /rispondi on Telegram for a flow's question (telegram.rs).
+pub fn answer(key: &str, text: &str) -> Result<String, String> {
+    let mut asks = ASKS.lock().unwrap();
+    let i = asks.iter().position(|(k, _)| k == key).ok_or(t("Domanda già chiusa."))?;
+    let (_, tx) = asks.remove(i);
+    let _ = tx.send(text.chars().take(2000).collect());
+    Ok(t("flusso").to_string())
+}
+
+/// /rispondi: the latest flow question, if any is waiting.
+pub fn answer_latest(text: &str) -> Option<String> {
+    if text.trim().is_empty() {
+        return None;
+    }
+    let key = ASKS.lock().unwrap().last().map(|(k, _)| k.clone())?;
+    answer(&key, text).ok()
+}
+
 /// "ask": a card with the user's choices; the one clicked is the result.
-async fn ask(app: &AppHandle, step: &Step, ctx: &Ctx, name: &str) -> Result<String, String> {
+/// With Telegram linked the same question goes there too, first answer wins.
+async fn ask(app: &AppHandle, step: &Step, ctx: &Ctx, name: &str, run_id: &str) -> Result<String, String> {
     let plain = |v: &str, _| v.to_string();
     let mut options: Vec<String> = step.options.iter().map(|o| fill(o.trim(), ctx, &plain)).filter(|o| !o.is_empty()).take(3).collect();
     if options.is_empty() {
@@ -406,10 +467,80 @@ async fn ask(app: &AppHandle, step: &Step, ctx: &Ctx, name: &str) -> Result<Stri
     let title = fill(step.title.trim(), ctx, &plain);
     let title = if title.is_empty() { tf("Automazione «{name}»", &[("name", &name)]) } else { title };
     let text = fill(step.text.trim(), ctx, &plain);
-    match crate::moments::ask_card(app, &title, &text, "info", options, ASK_WAIT).await {
-        Some(crate::moments::CardAnswer::Chose(c)) => Ok(c),
-        _ => Err(t("nessuna risposta").into()),
+    if !crate::telegram::linked(app) {
+        return match crate::moments::ask_card(app, &title, &text, "info", options, ASK_WAIT).await {
+            Some(crate::moments::CardAnswer::Chose(c)) => Ok(c),
+            _ => Err(t("nessuna risposta").into()),
+        };
     }
+    let key = format!("flow-{run_id}");
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    ASKS.lock().unwrap().push((key.clone(), tx));
+    let question = if text.is_empty() { title.clone() } else { format!("{title}\n{text}") };
+    crate::telegram::ask_flow(app, &key, name, &question, &options).await;
+    let card_id = crate::moments::new_card_id();
+    let island = async {
+        match crate::moments::ask_card_as(app, &card_id, &title, &text, "info", options.clone(), ASK_WAIT).await {
+            Some(crate::moments::CardAnswer::Chose(c)) => Some(c),
+            // Closed or not shown: Telegram may still answer.
+            _ => std::future::pending::<Option<String>>().await,
+        }
+    };
+    let telegram = async { tokio::time::timeout(ASK_WAIT, rx).await.ok().and_then(Result::ok) };
+    let answer = crate::tasks::first_some(island, telegram).await;
+    ASKS.lock().unwrap().retain(|(k, _)| k != &key);
+    match answer {
+        Some((a, 1)) => {
+            crate::moments::expire_card(app, &card_id);
+            Ok(a)
+        }
+        Some((a, _)) => Ok(a),
+        None => Err(t("nessuna risposta").into()),
+    }
+}
+
+/// foreach: the non-empty lines of its value, at most MAX_ITEMS ("- " bullets dropped).
+fn items_of(step: &Step, ctx: &Ctx) -> Vec<String> {
+    let plain = |v: &str, _| v.to_string();
+    fill(&step.text, ctx, &plain)
+        .lines()
+        .map(|l| l.trim().trim_start_matches(['-', '*', '•']).trim().to_string())
+        .filter(|l| !l.is_empty())
+        .take(MAX_ITEMS)
+        .collect()
+}
+
+/// "decide" with "model" branches: the engine reads the step's text (with the
+/// data filled in) and answers with the number of the branch that fits.
+async fn by_model(app: &AppHandle, step: &Step, ctx: &Ctx) -> Result<(String, String), String> {
+    let plain = |v: &str, _| v.to_string();
+    let branches: Vec<&crate::automations::Branch> = step.branches.iter().filter(|b| b.op == "model").collect();
+    let mut list = String::new();
+    for (i, b) in branches.iter().enumerate() {
+        list.push_str(&format!("{}. {}\n", i + 1, fill(&b.to_match, ctx, &plain)));
+    }
+    let what = fill(step.text.trim(), ctx, &plain);
+    let prompt = tf(
+        "Devi scegliere una sola strada per un flusso di EasyIsland. Non usare strumenti.\n\nSituazione:\n{what}\n\nStrade:\n{list}\nRispondi solo con il numero della strada giusta.",
+        &[("what", &what), ("list", &list)],
+    );
+    let chat = crate::Chat::default();
+    let engine = (!step.engine.trim().is_empty()).then(|| step.engine.trim().to_string());
+    let model = (!step.model.trim().is_empty()).then(|| step.model.trim().to_string());
+    let used = engine.clone().unwrap_or_default();
+    let reply = crate::chat_turn(app, &chat, prompt, None, engine, model, false, crate::Channel::Helper, &|_| {}).await;
+    if used == "opencode" {
+        crate::opencode::forget(chat.cli_session());
+    }
+    let text = reply?.text;
+    let n = first_number(&text).ok_or_else(|| tf("il motore non ha scelto una strada: {x}", &[("x", &text.chars().take(120).collect::<String>())]))?;
+    let b = n.checked_sub(1).and_then(|i| branches.get(i)).ok_or_else(|| tf("il motore ha scelto una strada che non c'è: {n}", &[("n", &n)]))?;
+    Ok((b.to.clone(), tf("scelta del modello: {x}", &[("x", &b.to_match)])))
+}
+
+fn first_number(text: &str) -> Option<usize> {
+    let digits: String = text.chars().skip_while(|c| !c.is_ascii_digit()).take_while(char::is_ascii_digit).collect();
+    digits.parse().ok()
 }
 
 /// "agent": a task with the step's goal (and the data filled in), waited for
@@ -488,6 +619,21 @@ mod tests {
         assert!(check_links(&steps).is_err());
         let steps = vec![step("end", "")];
         assert!(check_links(&steps).is_err());
+    }
+
+    #[test]
+    fn foreach_items_and_numbers() {
+        let st = Step { kind: "foreach".into(), text: "{lista}".into(), ..Default::default() };
+        let mut ctx: Ctx = Vec::new();
+        put(&mut ctx, "lista", "- Rossi\n\n* Bianchi \n• Verdi");
+        assert_eq!(items_of(&st, &ctx), vec!["Rossi", "Bianchi", "Verdi"]);
+        assert_eq!(first_number("La strada è la 2."), Some(2));
+        assert_eq!(first_number("nessuna"), None);
+        let mut steps = vec![Step { kind: "foreach".into(), node: "giro".into(), body: "manca".into(), ..Default::default() }];
+        name_steps(&mut steps);
+        assert!(check_links(&steps).is_err());
+        steps[0].body = "giro".into();
+        assert!(check_links(&steps).is_ok());
     }
 
     #[test]

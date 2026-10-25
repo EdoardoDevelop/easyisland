@@ -3294,6 +3294,7 @@ const STEP_KINDS: [AutomationStep["kind"], string][] = [
   ["agent", t("Fai lavorare un agente")],
   ["ask", t("Chiedimi qualcosa")],
   ["decide", t("Scegli la strada")],
+  ["foreach", t("Per ogni elemento")],
 ];
 
 const CONDITION_KINDS: [AutomationCondition["kind"], string][] = [
@@ -3468,6 +3469,9 @@ function automationsSection(): HTMLElement {
           field(s.text, t("cosa deve fare, es. Leggi i ticket nuovi e rispondi URGENTE o NORMALE"), (v) => { s.text = v; }),
           select<string>([["", t("Motore dei Compiti")], ...CHAT_ENGINES.map((e): [string, string] => [e.id, e.name])], s.engine ?? "",
             (v) => { s.engine = v; s.model = ""; commit(); }));
+        break;
+      case "foreach":
+        row.append(field(s.text, t("l'elenco, una voce per riga, es. {leggi}; nel giro la voce è {elemento}"), (v) => { s.text = v; }));
         break;
       case "ask":
         row.append(

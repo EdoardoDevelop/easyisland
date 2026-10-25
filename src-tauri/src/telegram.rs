@@ -568,7 +568,7 @@ async fn command(app: &AppHandle, token: &str, chat: i64, cmd: &str) {
         }
         // The answer to a task's question (tasks.rs task_ask).
         "rispondi" | "answer" => {
-            let text = match crate::tasks::answer_latest(app, arg) {
+            let text = match crate::flows::answer_latest(arg).map_or_else(|| crate::tasks::answer_latest(app, arg), Ok) {
                 Ok(title) => tf("Risposta data a «{title}».", &[("title", &title)]),
                 Err(e) => e,
             };
@@ -845,7 +845,7 @@ async fn on_button(app: &AppHandle, token: &str, q: &Value) {
         let picked = TASK_ASK.lock().unwrap().clone()
             .and_then(|(task, options)| n.parse::<usize>().ok().and_then(|i| options.get(i).cloned()).map(|o| (task, o)));
         note = match picked {
-            Some((task, answer)) => match crate::tasks::answer_from_outside(app, &task, &answer) {
+            Some((task, answer)) => match if task.starts_with("flow-") { crate::flows::answer(&task, &answer) } else { crate::tasks::answer_from_outside(app, &task, &answer) } {
                 Ok(_) => {
                     if let Some(mid) = message {
                         let _ = edit(token, chat, mid, &format!("{original}\n\n✅ {answer}"), false).await;
@@ -1028,12 +1028,23 @@ static TASK_ASK: Mutex<Option<(String, Vec<String>)>> = Mutex::new(None);
 
 /// A task's question as a message with a button per option; any other answer with /rispondi.
 pub async fn ask_task(app: &AppHandle, task_id: &str, title: &str, question: &str, options: &[String]) {
+    let header = tf("Compito «{title}»", &[("title", &title.to_string())]);
+    ask_buttons(app, task_id, &header, question, options).await;
+}
+
+/// A flow's "ask" step (flows.rs): `key` starts with "flow-", the answer goes back to the flow.
+pub async fn ask_flow(app: &AppHandle, key: &str, name: &str, question: &str, options: &[String]) {
+    let header = tf("Flusso «{name}»", &[("name", &name.to_string())]);
+    ask_buttons(app, key, &header, question, options).await;
+}
+
+async fn ask_buttons(app: &AppHandle, key: &str, header: &str, question: &str, options: &[String]) {
     let Some(token) = crate::secrets::get(SECRET) else { return };
     let Some((chat, _)) = linked_chat(app) else { return };
-    *TASK_ASK.lock().unwrap() = Some((task_id.to_string(), options.to_vec()));
+    *TASK_ASK.lock().unwrap() = Some((key.to_string(), options.to_vec()));
     let rows: Vec<Value> = options.iter().enumerate().take(6)
         .map(|(i, o)| json!([{ "text": o, "callback_data": format!("q:{i}") }])).collect();
-    let text = format!("❓ {}\n\n{question}\n\n{}", tf("Compito «{title}»", &[("title", &title.to_string())]), t("Rispondi con un pulsante oppure con /rispondi seguito dalla risposta."));
+    let text = format!("❓ {header}\n\n{question}\n\n{}", t("Rispondi con un pulsante oppure con /rispondi seguito dalla risposta."));
     let keyboard = (!rows.is_empty()).then(|| json!({ "inline_keyboard": rows }));
     let _ = send(&token, chat, &text, keyboard).await;
 }
