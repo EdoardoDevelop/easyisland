@@ -54,6 +54,9 @@ It runs on Sunday evening with the digest, if there's something to fix, or right
 
 If there's nothing to do it doesn't run and costs nothing.
 
+## Memory engine
+In **Settings → Chat and AI engines → Memory → Memory engine** you can pick an engine, a free one too, that links the memory by writing it into the files: it creates a page for every subject that comes back in several notes (a customer, a project, a person), with references to the notes, and adds relations between pages ("customer of", "works with"…). It works by itself after the evening digest and when you press **Link with AI** in the map. It only adds: it never deletes or rewrites your notes. With a cloud engine the notes are sent to that service; with Ollama or LM Studio they stay on the PC. With **None** the map links the items by itself, from the words in common.
+
 ## The Memory window
 The button with three nodes at the top of the island (or **Settings → Chat and AI engines → Memory → Map**) opens a window of its own with the memory drawn four ways. A note links to the pages it talks about (even without their full title, from the words in common) and to similar notes; archived notes tied to nothing do not crowd the graph.
 

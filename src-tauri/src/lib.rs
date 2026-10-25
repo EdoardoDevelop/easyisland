@@ -2,6 +2,7 @@
 
 mod actions;
 mod collect;
+mod memory_ai;
 mod antigravity;
 mod agent;
 mod agent_settings;
@@ -1520,6 +1521,12 @@ async fn memory_graph() -> Result<brain::Graph, String> {
     tauri::async_runtime::spawn_blocking(brain::graph).await.map_err(|e| tf("Errore nel leggere la memoria: {e}", &[("e", &e)]))
 }
 
+/// «Collega con l'IA» (memory_ai.rs): the chosen engine ties the memory together; what was done.
+#[tauri::command]
+async fn memory_link(app: AppHandle) -> Result<String, String> {
+    memory_ai::run(&app).await
+}
+
 /// The memory window's «Leggi adesso» and «Controlla»: a task (tasks.rs).
 #[tauri::command]
 fn memory_job(app: AppHandle, kind: String) -> Result<(), String> {
@@ -2901,6 +2908,7 @@ pub fn run() {
             minimize_island,
             file_thumb,
             collect_load,
+            memory_link,
             collect_save,
             collect_source,
             program_icon,

@@ -1642,7 +1642,19 @@ function memoryRow(): HTMLElement {
   const folder = h("button", { text: t("Cartella") }) as HTMLButtonElement;
   folder.addEventListener("click", () => void Bridge.memoryOpen(true).catch(fail));
   void Bridge.memoryInfo().then(show);
-  return h("div", { class: "row" }, h("label", { text: t("Memoria") }), line, map, open, folder);
+  // «Motore per la memoria» (memory_ai.rs): any engine, a free or local one too.
+  const engine = h("select", {}) as HTMLSelectElement;
+  engine.append(h("option", { value: "", text: t("Nessuno (collegamenti automatici)") }));
+  for (const e of CHAT_ENGINES) engine.append(h("option", { value: e.id, text: e.name }));
+  engine.value = settings.memoryEngine ?? "";
+  engine.addEventListener("change", () => {
+    settings.memoryEngine = engine.value;
+    void save();
+  });
+  return h("div", { style: "display:contents" },
+    h("div", { class: "row" }, h("label", { text: t("Memoria") }), line, map, open, folder),
+    h("div", { class: "row" }, h("label", { text: t("Motore per la memoria") }), engine,
+      h("span", { class: "hint note", text: t("collega la memoria scrivendolo nei file: pagine per gli argomenti che tornano (un cliente, un progetto) e relazioni tra pagine. Solo aggiunte, mai cancellazioni; dopo il riordino della sera e con «Collega con l'IA» nella mappa. Va bene anche un motore gratuito; con uno in cloud le note escono dal PC, con Ollama o LM Studio restano qui") })));
 }
 
 /** Chat → "Ricette": how a kind of question was answered, learnt by use (recipes.rs). */

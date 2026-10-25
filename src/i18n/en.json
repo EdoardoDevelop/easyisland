@@ -3118,5 +3118,22 @@
   "Zona dello schermo": "Zone of the screen",
   "Togli dalla raccolta": "Remove from the collection",
   "(nessun testo)": "(no text)",
-  "La raccolta è troppo grande: passala alla chat e svuotala.": "The collection is too big: hand it to the chat and empty it."
+  "La raccolta è troppo grande: passala alla chat e svuotala.": "The collection is too big: hand it to the chat and empty it.",
+  "Collega con l'IA": "Link with AI",
+  "Il motore per la memoria crea le pagine degli argomenti e le relazioni tra pagine (solo aggiunte)": "The memory engine creates the topic pages and the relations between pages (additions only)",
+  "Il motore sta collegando la memoria…": "The engine is linking the memory…",
+  "Nessuno (collegamenti automatici)": "None (automatic links)",
+  "Motore per la memoria": "Memory engine",
+  "collega la memoria scrivendolo nei file: pagine per gli argomenti che tornano (un cliente, un progetto) e relazioni tra pagine. Solo aggiunte, mai cancellazioni; dopo il riordino della sera e con «Collega con l'IA» nella mappa. Va bene anche un motore gratuito; con uno in cloud le note escono dal PC, con Ollama o LM Studio restano qui": "links the memory by writing it into the files: pages for the subjects that come back (a customer, a project) and relations between pages. Additions only, never deletions; after the evening digest and with \"Link with AI\" in the map. A free engine is fine too; with a cloud one the notes leave the PC, with Ollama or LM Studio they stay here",
+  "Scegli il motore per la memoria in Impostazioni → Chat → Memoria.": "Choose the memory engine in Settings → Chat → Memory.",
+  "Sto già collegando la memoria: un attimo.": "Already linking the memory: one moment.",
+  "La memoria è ancora vuota: non c'è niente da collegare.": "The memory is still empty: nothing to link.",
+  "Il motore non ha risposto nel formato chiesto: riprova, o scegli un altro motore.": "The engine did not answer in the format asked: try again, or choose another engine.",
+  "(nessuna)": "(none)",
+  "Argomento che ricorre nelle note su {t}.": "A subject that comes back in the notes about {t}.",
+  "Niente di nuovo da collegare: la memoria è già in ordine.": "Nothing new to link: the memory is already in order.",
+  "pagine nuove: {list}": "new pages: {list}",
+  "rimandi alle note in: {list}": "note references in: {list}",
+  "{n} relazioni tra pagine": "{n} relations between pages",
+  "Memoria collegata — {what}.": "Memory linked — {what}."
 }

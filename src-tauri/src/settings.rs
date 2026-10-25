@@ -550,6 +550,9 @@ pub struct Settings {
     /// Compiti (tasks.rs): their engine ("" = the chat's) and how long one run may go on.
     #[serde(default)]
     pub tasks_engine: String,
+    /// «Motore per la memoria» (memory_ai.rs): the engine that ties the memory together; "" = none.
+    #[serde(default)]
+    pub memory_engine: String,
     #[serde(default = "default_task_turns")]
     pub tasks_max_turns: u32,
     #[serde(default = "default_task_minutes")]
@@ -927,6 +930,7 @@ impl Default for Settings {
             clear_secrets: true,
             chat_history: true,
             tasks_engine: String::new(),
+            memory_engine: String::new(),
             tasks_max_turns: default_task_turns(),
             tasks_max_minutes: default_task_minutes(),
             language: String::new(),

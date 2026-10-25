@@ -754,6 +754,7 @@ pub fn graph() -> Graph {
         .iter()
         .map(|p| (p.slug.clone(), key_words(&format!("{} {} {}", p.title, p.title, cut(&p.body, 600)))))
         .collect();
+    let page_bodies: Vec<(String, String)> = all.iter().map(|p| (p.slug.clone(), p.body.to_lowercase().split_whitespace().collect::<Vec<_>>().join(" "))).collect();
     struct NoteRow { id: String, kind: &'static str, date: String, text: String, words: BTreeSet<String>, linked: bool }
     let mut notes: Vec<NoteRow> = Vec::new();
     for (i, (line, kind)) in current.iter().map(|l| (l, "note")).chain(archived.iter().rev().take(300).map(|l| (l, "old"))).enumerate() {
@@ -766,6 +767,16 @@ pub fn graph() -> Graph {
             if low.contains(title.as_str()) {
                 add_edge(&mut edges, &mut seen, &mut degree, id.clone(), format!("p:{slug}"), String::new());
                 linked = true;
+            }
+        }
+        // A topic page of the memory engine quotes the note ("- nota: …", memory_ai.rs).
+        let head: String = low.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(60).collect();
+        if head.chars().count() >= 12 {
+            for (slug, body) in &page_bodies {
+                if body.contains(&head) {
+                    add_edge(&mut edges, &mut seen, &mut degree, id.clone(), format!("p:{slug}"), String::new());
+                    linked = true;
+                }
             }
         }
         for target in wiki_links(&text) {

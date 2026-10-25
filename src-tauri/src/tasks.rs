@@ -700,6 +700,10 @@ async fn runner(app: AppHandle) {
                 .map(|t| t.id.clone())
                 .collect()
         };
+        // The evening digest also lets the memory engine tie the memory (memory_ai.rs).
+        if fired.iter().any(|id| get(id).is_some_and(|t| t.digest)) {
+            crate::memory_ai::after_digest(&app);
+        }
         for id in &fired {
             // A heartbeat with nothing to watch costs nothing: skipped.
             let empty_digest = get(id).is_some_and(|t| t.digest) && crate::memory::diary_today(1).is_empty() && crate::brain::inbox_files().is_empty() && (day != 7 || crate::brain::check().is_empty());

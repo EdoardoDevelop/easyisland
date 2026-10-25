@@ -382,6 +382,8 @@ export interface Settings {
   chatHistory: boolean;
   /** Compiti (tasks.rs): their engine ("" = the chat's) and how long one run may go on. */
   tasksEngine: string;
+  /** «Motore per la memoria» (memory_ai.rs): "" = none, the map guesses the links by itself. */
+  memoryEngine: string;
   tasksMaxTurns: number;
   tasksMaxMinutes: number;
   /** "primary", "cursor", or "monitor:<name>" (the display the character was dragged to). */
@@ -926,6 +928,7 @@ export const DEFAULT_SETTINGS: Settings = {
   clearSecrets: true,
   chatHistory: true,
   tasksEngine: "",
+  memoryEngine: "",
   tasksMaxTurns: 12,
   tasksMaxMinutes: 30,
   language: "",

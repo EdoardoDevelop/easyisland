@@ -47,11 +47,12 @@ for (const tb of TABS) {
 const search = h("input", { class: "mem-search", type: "search", placeholder: t("Cerca nella memoria…") }) as HTMLInputElement;
 const inboxBtn = h("button", { text: t("Da leggere"), title: t("Apri la cartella dei file da far imparare") }) as HTMLButtonElement;
 const readBtn = h("button", { text: t("Leggi adesso"), title: t("Un compito legge i file di da-leggere e scrive le pagine") }) as HTMLButtonElement;
+const linkBtn = h("button", { text: t("Collega con l'IA"), title: t("Il motore per la memoria crea le pagine degli argomenti e le relazioni tra pagine (solo aggiunte)") }) as HTMLButtonElement;
 const checkBtn = h("button", { text: t("Controlla"), title: t("Un compito controlla la memoria e ti propone come sistemarla") }) as HTMLButtonElement;
 const reloadBtn = h("button", { text: "↻", title: t("Aggiorna") }) as HTMLButtonElement;
 const bar = h("div", { class: "mem-bar" },
   h("div", { class: "mem-title" }, h("i"), h("span", { text: t("Memoria") })),
-  tabsBox, search, h("span", { class: "mem-spacer" }), inboxBtn, readBtn, checkBtn, reloadBtn);
+  tabsBox, search, h("span", { class: "mem-spacer" }), inboxBtn, readBtn, linkBtn, checkBtn, reloadBtn);
 
 const stageBox = h("div", { class: "mem-stage" });
 const tip = h("div", { class: "mem-tip" });
@@ -333,6 +334,19 @@ const job = (kind: "inbox" | "check", btn: HTMLButtonElement) => async () => {
   }
 };
 readBtn.addEventListener("click", job("inbox", readBtn));
+linkBtn.addEventListener("click", async () => {
+  linkBtn.disabled = true;
+  feedback.textContent = t("Il motore sta collegando la memoria…");
+  if (!selected) renderPanel();
+  try {
+    feedback.textContent = await Bridge.memoryLink();
+    await load();
+  } catch (e) {
+    fail(e);
+  } finally {
+    linkBtn.disabled = false;
+  }
+});
 checkBtn.addEventListener("click", job("check", checkBtn));
 
 // Files dropped on the window go to da-leggere (read here, written by Rust:

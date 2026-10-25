@@ -415,6 +415,8 @@ export const Bridge = {
   memoryOpen: (folder: boolean) => callOrThrow<void>("memory_open", { folder }),
   /** The memory window (brain.rs): the graph, its jobs, a node's file, opening it. */
   memoryGraph: () => call<import("../memory/data").MemGraph>("memory_graph"),
+  /** «Collega con l'IA» (memory_ai.rs): what the engine added. */
+  memoryLink: () => callOrThrow<string>("memory_link"),
   memoryJob: (kind: "inbox" | "check") => callOrThrow<void>("memory_job", { kind }),
   memoryNodeOpen: (id: string) => callOrThrow<void>("memory_node_open", { id }),
   memoryWindowOpen: () => call<void>("memory_window_open"),
