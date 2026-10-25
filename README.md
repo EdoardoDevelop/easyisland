@@ -209,7 +209,7 @@ che si aprono nell'app. I server MCP dei plugin di Claude Code sono tra i connet
 
 **0.8.2** — **Sostituisci** tiene grassetti, link e paragrafi del testo originale (Word,
 Outlook, Gmail), con il pulsante «Senza formattazione» per incollare il solo testo.
-**Cerchia e chiedi → Nel Vassoio** apre l'isola sul Vassoio, con la zona appena aggiunta
+**Riquadra e chiedi → Nel Vassoio** apre l'isola sul Vassoio, con la zona appena aggiunta
 evidenziata e «Chiedi» e «Copia» a portata di clic. **Musica** diventa **Media**: musica,
 video e podcast.
 
@@ -262,8 +262,8 @@ torna al suo colore anche se interrompi l'agente, e l'angolo dell'isola non fa p
 <img src="screenshots/overview.png" width="640" alt="La Panoramica: menu a sinistra con il personaggio, integrazioni a riquadri con il loro stato">
 </p>
 
-**0.7.7** — **Cerchia e chiedi** al posto di «Cattura una zona»: con `Ctrl+Alt+Shift+S`
-lo schermo si ferma, cerchi o riquadri una zona e accanto scrivi la domanda per la chat,
+**0.7.7** — **Riquadra e chiedi** al posto di «Cattura una zona»: con `Ctrl+Alt+Shift+S`
+lo schermo si ferma, riquadri una zona e accanto scrivi la domanda per la chat,
 oppure usi le tue azioni rapide, ne copi l'immagine o il **testo** (riconosciuto da
 Windows) o la tieni nel Vassoio. Con **3CX** il personaggio **non sparisce più durante
 una chiamata** e la suoneria predefinita suona davvero; ogni integrazione ha il suo
@@ -376,12 +376,12 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 | 0.8.5 | 16 ott 2026 | Barra dell'app in uso accanto al personaggio chiuso, menu col clic destro nell'isola con le Impostazioni aperte sulla voce, Panoramica con i loghi grandi |
 | 0.8.4 | 15 ott 2026 | Automazioni con nuovi eventi, filtri, più condizioni, ripetizioni e dati dell'evento nei passi; Impostazioni sopra l'isola; Notion con viste e avvisi; Remote Desktop Manager in prova; Integrazioni a gruppi |
 | 0.8.3 | 15 ott 2026 | Modalità terminale della chat per tutti i motori, ⚡ Automatica, Notion con attività, note e pagine scelte che si aprono nell'app, connettori dai plugin di Claude Code |
-| 0.8.2 | 14 ott 2026 | Sostituisci con la formattazione dell'originale o senza, Vassoio dopo Cerchia e chiedi con la zona nuova evidenziata, Media al posto di Musica |
+| 0.8.2 | 14 ott 2026 | Sostituisci con la formattazione dell'originale o senza, Vassoio dopo Riquadra e chiedi con la zona nuova evidenziata, Media al posto di Musica |
 | 0.8.1 | 14 ott 2026 | Rete: scelta della scheda con pulsanti, un ping per il gateway di ogni scheda |
 | 0.8.0 | 14 ott 2026 | Logo nuovo, Rete con tutte le schede, ping continuo e impostazioni della scheda, copertina della Musica, schede centrate, Impostazioni in finestra, Rubrica di 3CX, rinnovo dell'accesso di Claude Code per i limiti del piano |
 | 0.7.9 | 14 ott 2026 | Proposte al momento giusto (download, errore copiato, server di sviluppo, chiavi tolte dagli appunti), riepilogo del giorno, strumenti di EasyIsland in Claude Code, isola e impostazioni più stabili |
 | 0.7.8 | 13 ott 2026 | Isola nuova con menu a sinistra e Panoramica, risposte rapide a isola chiusa, card del Meteo animata, personaggio che torna al suo colore, angolo senza scatti |
-| 0.7.7 | 13 ott 2026 | Cerchia e chiedi con OCR, personaggio visibile durante le chiamate 3CX, suoneria predefinita, colore delle integrazioni |
+| 0.7.7 | 13 ott 2026 | Riquadra e chiedi con OCR, personaggio visibile durante le chiamate 3CX, suoneria predefinita, colore delle integrazioni |
 | 0.7.6 | 13 ott 2026 | Limiti del piano vecchi in grigio con il motivo, «Aggiorna» del Consumo che chiede subito |
 | 0.7.5 | 12 ott 2026 | 3CX «Questo PC» con suoneria e scheda da telefono, avvio corretto dopo aggiornamenti e riavvii |
 | 0.7.4 | 12 ott 2026 | Personaggio col suo colore a isola chiusa, isola aperta durante il trascinamento nella chat, schede che allargano l'isola |
@@ -555,7 +555,7 @@ disinstallatore volutamente non tocca il `settings.json` di Claude Code. Poi
 <img src="screenshots/approval.png" width="640" alt="Una richiesta di permesso di Claude Code, con Nega e Consenti">
 <img src="screenshots/agenti.png" width="640" alt="Agenti: Claude Code e opencode al lavoro">
 <img src="screenshots/chat.png" width="640" alt="Chat con Claude dall'isola">
-<img src="screenshots/files.png" width="640" alt="File e schermo: rilascia un file, Cerchia e chiedi e il Vassoio">
+<img src="screenshots/files.png" width="640" alt="File e schermo: rilascia un file, Riquadra e chiedi e il Vassoio">
 <img src="screenshots/drop.png" width="640" alt="Il personaggio trasformato in una scatola, in attesa di un file">
 
 _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `npm run dev` acceso), con dati di prova delle scene in `dev/scenes.ts`._
@@ -580,7 +580,7 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 | 📌 in alto a destra | **Tieni aperta**: l'isola non si chiude più da sola finché non la togli (Esc e ✕ la chiudono comunque) |
 | Scrivi un calcolo nella chat, es. `840 + 22%` o `15% di 840` | Compare subito il risultato; **Invio** lo copia negli appunti, **Ctrl+Invio** chiede comunque alla chat. Il calcolo è fatto in locale, senza Claude |
 | Rilasci uno ZIP | Oltre a "Fai una domanda" c'è **Estrai…**: vedi cosa contiene e lo estrai in una cartella nuova accanto all'originale, in Download o sul Desktop |
-| **File e schermo** → **Cerchia e chiedi** (o `Ctrl+Alt+Shift+S`) | Lo schermo si ferma e si scurisce: cerchia o riquadra una zona e accanto compare **Chiedi…** (Invio: la chat si apre con la zona e la domanda), le tue azioni rapide, **Copia immagine**, **Copia testo** (riconosciuto da Windows) e **Nel Vassoio**. Esc o il tasto destro annullano |
+| **File e schermo** → **Riquadra e chiedi** (o `Ctrl+Alt+Shift+S`) | Lo schermo si ferma e si scurisce: riquadra una zona e accanto compare **Chiedi…** (Invio: la chat si apre con la zona e la domanda), le tue azioni rapide, **Copia immagine**, **Copia testo** (riconosciuto da Windows) e **Nel Vassoio**. Esc o il tasto destro annullano |
 | **File e schermo** (o il pulsante **Vassoio** dopo aver rilasciato un file) | I file rilasciati sull'isola, in elenco o a griglia, tenuti finché EasyIsland non si riavvia, tranne quelli fissati con la puntina: trascinali in un'altra app (mail, chat, cartella), chiedi alla chat, apri, mostra nella cartella, fissa, togli uno o tutti. Sono copie: gli originali non vengono toccati |
 | Scrivi nel **campo in alto** dell'isola aperta | Trova integrazioni, sessioni degli agenti, azioni ⚡ e programmi installati (anche quelli dello Store), e in fondo **Chiedi alla chat** con quello che hai scritto; frecce per scegliere, **Invio** per aprire, **Ctrl+Invio** per chiedere alla chat, **Esc** per svuotare. Si spegne in Impostazioni → Posizione e aspetto |
 | Icona nell'area di notifica | Apri, Impostazioni…, Pausa, Esci |
@@ -706,10 +706,10 @@ calendario, posta…); prende il colore dell'azione.
 - `Ctrl+Space` apre l'isola sulle azioni (o sulla chat se non ce ne sono);
 - `Ctrl+Alt+K` apre la chat con il testo (o l'immagine) copiato già allegato: scrivi la domanda;
 - `Ctrl+Alt+H` apre la cronologia degli **Appunti** (se l'integrazione è accesa);
-- `Ctrl+Alt+Shift+S` **cerchia e chiedi**: lo schermo si ferma, cerchi la zona
+- `Ctrl+Alt+Shift+S` **riquadra e chiedi**: lo schermo si ferma, riquadri la zona
   e accanto scrivi la domanda (per esempio per farti spiegare una finestra
   d'errore), oppure ne copi l'immagine o il testo, o la tieni nel Vassoio.
-  Si può fare anche da **File e schermo** nel menu dell'isola, con **Cerchia e chiedi**;
+  Si può fare anche da **File e schermo** nel menu dell'isola, con **Riquadra e chiedi**;
 - `Ctrl+Alt+Shift+P` va alla **richiesta in attesa** (permesso o domanda) e dà la
   tastiera all'isola: `N` nega, `Y` consente, `S` sempre, `1`–`9` sceglie una risposta;
 - `Ctrl+Alt+Shift+T` porta avanti l'**app della sessione** (terminale, VS Code,

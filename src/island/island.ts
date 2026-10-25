@@ -717,7 +717,7 @@ export class Island {
   /**
    * Closes the island. A permission request waiting for an answer is never
    * closed this way (only ✕ hands it to the terminal): the island goes back to
-   * its card instead. `force` is for stepping aside on purpose (Cerchia e chiedi).
+   * its card instead. `force` is for stepping aside on purpose (Riquadra e chiedi).
    */
   collapse(force = false) {
     closeMenu();
@@ -1260,7 +1260,7 @@ ${note}` : text };
   }
 
   /**
-   * "Cerchia e chiedi" (scheda + or its shortcut, src/island/capture.ts): the
+   * "Riquadra e chiedi" (scheda + or its shortcut, src/island/capture.ts): the
    * island steps aside, the screen freezes under the island's own window, and the
    * zone circled goes to the chat, a quick action, the clipboard or the tray.
    */

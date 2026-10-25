@@ -451,6 +451,18 @@ async fn file_thumb(path: String) -> Option<String> {
     tauri::async_runtime::spawn_blocking(move || thumbs::thumb(&path)).await.ok().flatten()
 }
 
+/// A quick action's automatic icon: the program's (thumbs.rs).
+#[tauri::command]
+async fn program_icon(target: String) -> Option<String> {
+    tauri::async_runtime::spawn_blocking(move || thumbs::program_icon(&target)).await.ok().flatten()
+}
+
+/// A quick action's automatic icon: the site's favicon, fetched from that site only (thumbs.rs).
+#[tauri::command]
+async fn site_icon(url: String) -> Option<String> {
+    thumbs::favicon(&url).await
+}
+
 /// The user's PNG in place of the character (logo.rs).
 #[tauri::command]
 fn logo_save(data: String) -> Result<(), String> {
@@ -1698,7 +1710,7 @@ async fn ingest_file(path: String) -> Result<DroppedFile, String> {
     tauri::async_runtime::spawn_blocking(move || files::ingest(&path)).await.map_err(|e| e.to_string())?
 }
 
-/// "Cerchia e chiedi" (screenshot.rs): freezes the screen under the mouse.
+/// "Riquadra e chiedi" (screenshot.rs): freezes the screen under the mouse.
 #[tauri::command]
 async fn capture_begin() -> Result<screenshot::Screen, String> {
     tauri::async_runtime::spawn_blocking(screenshot::freeze).await.map_err(|e| e.to_string())?
@@ -2869,6 +2881,8 @@ pub fn run() {
             set_app_mode,
             minimize_island,
             file_thumb,
+            program_icon,
+            site_icon,
             logo_save,
             logo_load,
             logo_clear,

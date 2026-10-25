@@ -125,6 +125,9 @@ export const Bridge = {
   minimizeIsland: () => call<void>("minimize_island"),
   /** Windows' preview of a picture (thumbs.rs); null for other files. */
   fileThumb: (path: string) => call<string | null>("file_thumb", { path }),
+  /** A quick action's automatic icon (thumbs.rs): the program's, or the site's favicon. */
+  programIcon: (target: string) => call<string | null>("program_icon", { target }),
+  siteIcon: (url: string) => call<string | null>("site_icon", { url }),
   /** The user's PNG in place of the character (logo.rs): a data: URL in, a data: URL out. */
   logoSave: (data: string) => call<void>("logo_save", { data }),
   logoLoad: () => call<string | null>("logo_load"),
@@ -547,7 +550,7 @@ export const Bridge = {
   claudeCliStatus: () => call<ClaudeCliStatus>("claude_cli_status"),
   /** Copies a dropped file into the inbox. */
   ingestFile: (path: string) => callOrThrow<DroppedFile>("ingest_file", { path }),
-  /** "Cerchia e chiedi" (screenshot.rs): freezes the screen under the mouse; where it is, in physical px. */
+  /** "Riquadra e chiedi" (screenshot.rs): freezes the screen under the mouse; where it is, in physical px. */
   captureBegin: () => callOrThrow<CaptureScreen>("capture_begin"),
   /** The frozen screen's pixels, RGBA, raw. */
   captureFrame: () => callOrThrow<ArrayBuffer>("capture_frame"),
@@ -910,7 +913,7 @@ export interface NotionPage {
   url: string;
 }
 
-/** The frozen screen of "Cerchia e chiedi", physical px. */
+/** The frozen screen of "Riquadra e chiedi", physical px. */
 export interface CaptureScreen {
   x: number;
   y: number;

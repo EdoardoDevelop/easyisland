@@ -60,6 +60,33 @@
   color: var(--ink);
 }
 
+.icon-pop button.icon-auto {
+  grid-column: 1 / -1;
+  width: auto;
+  height: 30px;
+  font-size: 12px;
+}
+
+.icon-pop button.icon-auto.working {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.icon-pop button.icon-auto.failed {
+  color: #f87171;
+}
+
+.icon-pick-btn img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.icon-pop {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
 .icon-pop button.on {
   outline: 2px solid #8b5cf6;
   outline-offset: -2px;

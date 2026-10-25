@@ -1068,7 +1068,7 @@ class AppState {
   droppedFile: { name: string; path: string; source?: string } | null = null;
   /** The tray ("Vassoio"): the inbox, as last listed. */
   inbox: { name: string; path: string; size: number; at: number; kept?: boolean }[] | null = null;
-  /** The zone just put in the tray by "Cerchia e chiedi": lit, with Chiedi and Copia at hand. */
+  /** The zone just put in the tray by "Riquadra e chiedi": lit, with Chiedi and Copia at hand. */
   trayFresh: { name: string; until: number } | null = null;
   /** "Estrai…" on a dropped ZIP: what is inside, and how the extraction went. */
   unzip: {

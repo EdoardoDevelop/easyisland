@@ -2518,9 +2518,27 @@ function blankAction(kind: QuickAction["kind"] = "prompt"): QuickAction {
  * The action's icon as a button; clicking it opens a grid of the icons drawn in
  * code (no emoji to type on Windows). An old emoji icon is kept until replaced.
  */
-function iconPicker(value: string, color: string, onPick: (v: string) => void): HTMLElement {
+function iconPicker(value: string, color: string, onPick: (v: string) => void, auto?: () => Promise<string | null>): HTMLElement {
   const current = actionIcon(value)?.name;
   const pop = h("div", { class: "icon-pop", role: "listbox" });
+  if (auto) {
+    // The program's own icon or the site's favicon, taken now and kept in the action.
+    const b = h("button", { class: `icon-auto${value.startsWith("data:") ? " on" : ""}`, title: t("L'icona del programma o del sito") },
+      h("span", { text: t("Automatica") }));
+    b.addEventListener("click", async () => {
+      b.classList.add("working");
+      const v = await auto();
+      b.classList.remove("working");
+      if (!v) {
+        b.title = t("Icona non trovata: controlla il link o il programma");
+        b.classList.add("failed");
+        return;
+      }
+      pop.classList.remove("open");
+      onPick(v);
+    });
+    pop.append(b);
+  }
   for (const ic of ACTION_ICONS) {
     const b = h("button", { class: ic.name === current ? "on" : "", title: ic.label }, actionIconSvg(ic, 18));
     b.addEventListener("click", () => {
@@ -2537,6 +2555,41 @@ function iconPicker(value: string, color: string, onPick: (v: string) => void): 
     pop.classList.toggle("open", open);
   });
   return h("div", { class: "icon-pick" }, button, pop);
+}
+
+/** The automatic icon of a link or program action as a small PNG data: URL, or null. */
+async function autoIcon(a: QuickAction): Promise<string | null> {
+  const target = a.target.trim();
+  if (!target) return null;
+  const raw = a.kind === "url" ? await Bridge.siteIcon(/^[a-z][\w+.-]*:/i.test(target) ? target : `https://${target}`).catch(() => null)
+    : a.kind === "app" ? await Bridge.programIcon(target).catch(() => null) : null;
+  return raw ? pngIcon(raw) : null;
+}
+
+/** Any picture (ico, svg, png…) redrawn as a 64 px PNG, so every view shows it the same way. */
+function pngIcon(url: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const side = 64;
+      const c = document.createElement("canvas");
+      c.width = c.height = side;
+      const g = c.getContext("2d");
+      const w = img.naturalWidth || side;
+      const hh = img.naturalHeight || side;
+      if (!g) return resolve(null);
+      const k = Math.min(side / w, side / hh);
+      g.imageSmoothingQuality = "high";
+      g.drawImage(img, (side - w * k) / 2, (side - hh * k) / 2, w * k, hh * k);
+      try {
+        resolve(c.toDataURL("image/png"));
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
 }
 
 // A click anywhere else closes an open icon grid.
@@ -2785,9 +2838,22 @@ function actionsSection(): HTMLElement {
         },
       });
 
+      // A new link or program: its icon follows it while the user has not picked one.
+      let autoTimer = 0;
+      const refreshAuto = () => {
+        if (a.icon !== "i:bolt" && !a.icon.startsWith("data:")) return;
+        window.clearTimeout(autoTimer);
+        autoTimer = window.setTimeout(async () => {
+          const v = await autoIcon(a);
+          if (!v || (a.icon !== "i:bolt" && !a.icon.startsWith("data:"))) return;
+          a.icon = v;
+          touch();
+          card.querySelector(".icon-pick-btn")?.replaceChildren(renderActionIcon(v, 18));
+        }, 900);
+      };
       const card = h("div", { class: "qa-edit", "data-item": a.id },
         h("div", { class: "row head" },
-          iconPicker(a.icon, a.color, (v) => { a.icon = v; touch(); draw(); }),
+          iconPicker(a.icon, a.color, (v) => { a.icon = v; touch(); draw(); }, a.kind === "url" || a.kind === "app" ? () => autoIcon(a) : undefined),
           field(a.name, t("Nome"), (v) => { a.name = v.trim(); }),
           color, kind, up, down, del,
         ),
@@ -2796,7 +2862,7 @@ function actionsSection(): HTMLElement {
       switch (a.kind) {
         case "url":
           card.append(h("div", { class: "row" }, h("label", { text: t("Link") }),
-            field(a.target, "https://…", (v) => { a.target = v.trim(); })));
+            field(a.target, "https://…", (v) => { a.target = v.trim(); refreshAuto(); })));
           break;
         case "keys": {
           // The sequence as text, plus a recorder that appends the combination pressed.
@@ -2836,7 +2902,7 @@ function actionsSection(): HTMLElement {
         case "app":
           card.append(
             h("div", { class: "row" }, h("label", { text: t("Programma o cartella") }),
-              field(a.target, t("es. mstsc, chrome, regedit, %ProgramFiles%\\App\\app.exe, C:\\Clienti"), (v) => { a.target = v.trim(); })),
+              field(a.target, t("es. mstsc, chrome, regedit, %ProgramFiles%\\App\\app.exe, C:\\Clienti"), (v) => { a.target = v.trim(); refreshAuto(); })),
             h("div", { class: "row" }, h("label", { text: t("Argomenti") }),
               field(a.args, t("es. /v:server01 — le virgolette raggruppano"), (v) => { a.args = v; })),
           );
@@ -3009,7 +3075,7 @@ function actionsSection(): HTMLElement {
     starters,
     h("div", { class: "row" }, h("label", { text: t("Cronologia appunti") }),
       hotkeyField(settings.hotkeyClipboard, (v) => { settings.hotkeyClipboard = v; })),
-    h("div", { class: "row" }, h("label", { text: t("Cerchia e chiedi") }),
+    h("div", { class: "row" }, h("label", { text: t("Riquadra e chiedi") }),
       hotkeyField(settings.hotkeyScreenshot, (v) => { settings.hotkeyScreenshot = v; }),
       h("span", { class: "hint note", text: t("scorciatoie di questo PC, valgono in ogni app") })),
     h("div", { class: "row" }, h("label", { text: t("Vai alla richiesta in attesa") }),

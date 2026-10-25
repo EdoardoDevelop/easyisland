@@ -47,7 +47,7 @@ pub fn update(settings: &Settings) {
     let tasks: Vec<(String, String)> = vec![
         ("open".into(), t("Apri l'isola").into()),
         ("ask".into(), t("Chiedi alla chat").into()),
-        ("screenshot".into(), t("Cerchia e chiedi").into()),
+        ("screenshot".into(), t("Riquadra e chiedi").into()),
         ("--settings".into(), t("Impostazioni…").into()),
     ];
     let category = t("Azioni rapide").to_string();

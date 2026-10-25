@@ -28,7 +28,7 @@
 | `@finestra` | La foto di una finestra aperta |
 | `@vassoio` | Un file del Vassoio |
 | Trascinare il **personaggio della chat** su una finestra | Quella finestra come contesto (immagine, nome dell'app, titolo). <kbd>Esc</kbd> annulla |
-| **Cerchia e chiedi** | Una zona dello schermo (vedi [File e schermo](15-file-e-schermo.md)) |
+| **Riquadra e chiedi** | Una zona dello schermo (vedi [File e schermo](15-file-e-schermo.md)) |
 | **Chiedi alla chat** negli Appunti, nel Vassoio, in Notion | L'elemento scelto |
 
 Le immagini vanno ai modelli che le leggono, i file di testo nel messaggio, i PDF a Claude.

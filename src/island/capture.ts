@@ -1,7 +1,7 @@
-// "Cerchia e chiedi": the screen under the mouse freezes (src-tauri/src/screenshot.rs),
+// "Riquadra e chiedi": the screen under the mouse freezes (src-tauri/src/screenshot.rs),
 // the island's own window covers it with the frozen picture, dimmed, and the
-// user circles or boxes a zone (the zone is the box around the stroke, so a
-// circle and a drag from corner to corner both work). Next to the zone: a
+// user drags a box from corner to corner (a box, not a circle: asked by Edoardo
+// on 25 Oct 2026). Next to the zone: a
 // question for the chat, the user's own quick actions (nothing built in), and
 // Copia immagine / Copia testo (Windows' OCR) / Nel Vassoio. Esc or the right
 // button cancel at once. Coordinates sent to Rust are physical px of the frozen screen.
@@ -26,8 +26,8 @@ export interface CaptureHandlers {
 
 /** Below this (physical px) a stroke is a click, not a zone. */
 const MIN_ZONE = 12;
-/** Room left around the stroke, physical px. */
-const PAD = 4;
+/** Room left around the box, physical px. */
+const PAD = 0;
 
 let open = false;
 
@@ -74,7 +74,7 @@ export async function startCapture(handlers: CaptureHandlers): Promise<void> {
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d")!;
-  const hint = h("div", { class: "cap-hint", text: t("Cerchia o riquadra una zona · Esc per annullare") });
+  const hint = h("div", { class: "cap-hint", text: t("Trascina per riquadrare una zona · Esc per annullare") });
   const panel = h("div", { class: "cap-panel", style: "display:none" });
   const root = h("div", { id: "capture", tabindex: "-1" }, canvas, hint, panel);
   document.body.append(root);
@@ -98,20 +98,6 @@ export async function startCapture(handlers: CaptureHandlers): Promise<void> {
       ctx.lineWidth = 2 * k();
       ctx.strokeStyle = "rgba(255,255,255,0.9)";
       ctx.strokeRect(box.x, box.y, box.width, box.height);
-    }
-    if (drawing && path.length > 1) {
-      ctx.save();
-      ctx.lineWidth = 4 * k();
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.strokeStyle = "#22d3ee";
-      ctx.shadowColor = "rgba(34,211,238,0.8)";
-      ctx.shadowBlur = 10 * k();
-      ctx.beginPath();
-      ctx.moveTo(path[0][0], path[0][1]);
-      for (const [x, y] of path.slice(1)) ctx.lineTo(x, y);
-      ctx.stroke();
-      ctx.restore();
     }
   };
 
@@ -168,7 +154,7 @@ export async function startCapture(handlers: CaptureHandlers): Promise<void> {
   });
   canvas.addEventListener("pointermove", (e) => {
     if (!drawing) return;
-    path.push(at(e));
+    path = [path[0], at(e)];
     render();
   });
   canvas.addEventListener("pointerup", (e) => {

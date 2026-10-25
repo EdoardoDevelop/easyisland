@@ -102,7 +102,7 @@ export async function runScene(island: Island, scene: string) {
       await wait(2500);
       break;
     case "files": {
-      // File e schermo: drop tile, Cerchia e chiedi, the Tray, the work folder.
+      // File e schermo: drop tile, Riquadra e chiedi, the Tray, the work folder.
       // A work folder of example (the browser preview has no disk).
       const day = Date.now() - 86_400_000;
       const sample: Record<string, { name: string; dir: boolean; size: number }[]> = {
@@ -129,7 +129,7 @@ export async function runScene(island: Island, scene: string) {
         { name: "schermata.png", path: "C:\inbox\schermata.png", size: 412_000, at: Date.now() - 120_000 },
         { name: "log-server.zip", path: "C:\inbox\log-server.zip", size: 1_800_000, at: Date.now() - 60_000 },
       ];
-      // &fresh: a zone just put there by Cerchia e chiedi.
+      // &fresh: a zone just put there by Riquadra e chiedi.
       if (new URLSearchParams(location.search).has("fresh")) {
         State.inbox.unshift({ name: "Schermata 14-10 16.02.png", path: "C:\inbox\Schermata.png", size: 186_000, at: Date.now() - 4_000 });
         State.trayFresh = { name: "Schermata 14-10 16.02.png", until: Date.now() + 300_000 };
@@ -399,7 +399,7 @@ export async function runScene(island: Island, scene: string) {
       break;
     }
     case "capture": {
-      // "Cerchia e chiedi" over a pretend desktop: Bridge's capture calls answer
+      // "Riquadra e chiedi" over a pretend desktop: Bridge's capture calls answer
       // from here. `window.capture` tells what the overlay asked for.
       await wait(300);
       const dpr = window.devicePixelRatio || 1;
