@@ -75,6 +75,15 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## What's new
 
+**1.0.7** — **Flows**: automations become flows, built in their own window (Settings → Flows → Edit):
+the flow from top to bottom, blocks to **drag** in or add with "+", a panel with the data to insert in one
+click, ready-made templates and "Describe it in words" (the chat prepares it). New blocks: **Agent** (works
+with EasyIsland's tools and the flow waits for its result, with answers in fields too), **Choice** by rules
+or by the model, **For each** item of a list, **Question** on Telegram too. Each step can **try again** and
+have a way out on errors; a restart halfway does not redo actions already done; **Runs** with each step's
+outcome and "Resume from here". One **Flows** page with the tasks. Memory and Flows opened from Settings
+now come to the front. README and site present EasyIsland as a personal agent.
+
 **1.0.6** — **Light, dark or automatic mode** for both styles (Settings → Appearance → Theme), the
 Settings window too; Automatic follows Windows. The **Appearance** page reorganised in five sections
 (Theme, Character, Position, Closed island, Open island). **Jarvis Plasma**: a blue and violet plasma
@@ -220,6 +229,7 @@ the browser's. **Overview** with large, faded logos in the corner of each tile.
 
 | Version | Date | What's new |
 |---|---|---|
+| **1.0.7** | 26 Oct 2026 | Flows: window with blocks to drag, agents, choices, for-each, Telegram questions, runs |
 | **1.0.6** | 25 Oct 2026 | Light/dark/automatic mode, Appearance reorganised, Jarvis Plasma, memory engine, 3D graph |
 | **1.0.5** | 25 Oct 2026 | Jarvis and Jarvis Sfera characters, the island no longer disappears when closed from the taskbar |
 | **1.0.4** | 25 Oct 2026 | Collection (text and areas with their source, for the chat), memory map from the island |

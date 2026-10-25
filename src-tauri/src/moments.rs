@@ -247,7 +247,25 @@ pub enum CardAnswer {
 
 /// Shows a card with up to three buttons and waits for the click, at most `wait`.
 pub async fn ask_card(app: &AppHandle, title: &str, text: &str, level: &str, buttons: Vec<String>, wait: Duration) -> Option<CardAnswer> {
-    let id = format!("card{}", CARD_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
+    ask_card_as(app, &new_card_id(), title, text, level, buttons, wait).await
+}
+
+/// A fresh id for `ask_card_as`.
+pub fn new_card_id() -> String {
+    format!("card{}", CARD_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+}
+
+/// The card answered elsewhere (Telegram): it goes away and its wait ends.
+pub fn expire_card(app: &AppHandle, id: &str) {
+    if let Some(map) = CARDS.lock().unwrap().as_mut() {
+        map.remove(id);
+    }
+    emit(app, json!({ "kind": "card-expired", "id": id }));
+}
+
+/// `ask_card` with the caller's id, so it can `expire_card` it.
+pub async fn ask_card_as(app: &AppHandle, id: &str, title: &str, text: &str, level: &str, buttons: Vec<String>, wait: Duration) -> Option<CardAnswer> {
+    let id = id.to_string();
     let (tx, rx) = tokio::sync::oneshot::channel();
     CARDS.lock().unwrap().get_or_insert_with(Default::default).insert(id.clone(), tx);
     emit(app, json!({ "kind": "card", "id": id, "title": title, "text": text, "level": level, "buttons": buttons }));

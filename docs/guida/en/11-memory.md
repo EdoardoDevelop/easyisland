@@ -47,7 +47,7 @@ EasyIsland finds by itself: similar notes or notes older than six months, links 
 It runs on Sunday evening with the digest, if there's something to fix, or right away with **Check**.
 
 ## The evening digest
-**Settings → Tasks → Memory digest**: every evening at 22:30 the agent
+**Settings → Flows → Memory digest**: every evening at 22:30 the agent
 - rereads the day's diary and proposes at most 5 things to remember (it saves only those you approve);
 - reads the files in `da-leggere`;
 - on Sundays runs the check.

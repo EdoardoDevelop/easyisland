@@ -77,6 +77,16 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Novità
 
+**1.0.7** — **Flussi**: le automazioni diventano flussi e si costruiscono in una finestra dedicata
+(Impostazioni → Flussi → Modifica): il flusso dall'alto in basso, blocchi da **trascinare** o da aggiungere
+con il «+», un pannello con i dati da inserire con un clic, modelli pronti e «Descrivilo a parole» (lo
+prepara la chat). Blocchi nuovi: **Agente** (lavora con gli strumenti di EasyIsland e il flusso ne aspetta
+il risultato, anche con risposte in campi), **Scelta** con regole o decisa dal modello, **Per ogni**
+elemento di un elenco, **Domanda** anche su Telegram. Ogni passo può **riprovare** e avere una strada in
+caso di errore; un riavvio a metà non rifà le azioni già fatte; **Esecuzioni** con l'esito di ogni passo e
+«Riprendi da qui». Pagina unica **Flussi** con i compiti. La Memoria e i Flussi aperti dalle Impostazioni
+ora vengono davanti. README e sito presentano EasyIsland come agente personale.
+
 **1.0.6** — **Modalità chiara, scura o automatica** per entrambi gli stili (Impostazioni → Aspetto →
 Tema), anche per la finestra delle Impostazioni; Automatica segue Windows. Pagina **Aspetto** riordinata
 in cinque sezioni (Tema, Personaggio, Posizione, Isola chiusa, Isola aperta). **Jarvis Plasma**: un globo
@@ -404,6 +414,7 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
+| **1.0.7** | 26 ott 2026 | Flussi: finestra con blocchi da trascinare, agenti, scelte, «per ogni», domande su Telegram, esecuzioni |
 | **1.0.6** | 25 ott 2026 | Modalità chiara/scura/automatica, Aspetto riordinato, Jarvis Plasma, motore per la memoria, Grafo 3D |
 | **1.0.5** | 25 ott 2026 | Personaggi Jarvis e Jarvis Sfera, isola che non sparisce chiudendola dalla barra delle applicazioni |
 | **1.0.4** | 25 ott 2026 | Raccolta (testo e zone con la loro fonte, da passare alla chat), mappa della memoria dall'isola |

@@ -45,7 +45,7 @@ const SCENES = [
 ];
 
 // The settings window, page by page: every select, switch and field changed.
-const SETTINGS = ["generale", "aspetto", "notifiche", "chat", "claude", "azioni", "compiti", "automazioni", "integrazioni", "widget", "backup"];
+const SETTINGS = ["generale", "aspetto", "notifiche", "chat", "claude", "azioni", "compiti", "integrazioni", "widget", "backup"];
 
 const EDGE = [
   join(process.env["ProgramFiles(x86)"] ?? "", "Microsoft/Edge/Application/msedge.exe"),

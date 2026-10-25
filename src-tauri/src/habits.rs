@@ -1,5 +1,5 @@
 // Habits → proposed automations. Off until the user switches it on
-// (Impostazioni → Automazioni → "Proponimi automazioni dalle mie abitudini").
+// (Impostazioni → Flussi → "Proponimi automazioni dalle mie abitudini").
 //
 // What is recorded, locally only, in %LOCALAPPDATA%\EasyIsland\habits.jsonl:
 // a program coming to the front for the first time in two hours (name and
@@ -641,7 +641,7 @@ pub fn answer(app: &AppHandle, fp: &str, choice: &str) -> Result<String, String>
                     }
                 }
             })?;
-            Ok(t("Automazione spenta: la riaccendi quando vuoi in Impostazioni → Automazioni.").into())
+            Ok(t("Automazione spenta: la riaccendi quando vuoi in Impostazioni → Flussi.").into())
         }
         "create" => {
             // A refused proposal can be created later from the settings.

@@ -7,6 +7,7 @@ mod antigravity;
 mod agent;
 mod agent_settings;
 mod automations;
+mod flows;
 mod apps;
 mod calendar;
 mod carry;
@@ -2102,10 +2103,35 @@ async fn capture_window_text() -> Result<String, String> {
     }
 }
 
-/// Impostazioni → Automazioni: the last runs, newest first.
+/// Impostazioni → Flussi: the last runs, newest first.
 #[tauri::command]
 fn automations_log() -> Vec<automations::LogEntry> {
     automations::log()
+}
+
+/// Impostazioni → Flussi → Esecuzioni (flows.rs).
+#[tauri::command]
+fn flows_runs() -> Vec<flows::RunInfo> {
+    flows::runs()
+}
+
+#[tauri::command]
+fn flow_run(id: String) -> Result<flows::Run, String> {
+    flows::run_detail(&id)
+}
+
+/// The flow editor's "Prova da qui": a run from that step.
+#[tauri::command]
+fn flow_try_from(app: AppHandle, id: String, node: String) -> Result<(), String> {
+    let (autos, _, actions) = automations::list(&app);
+    let flow = autos.into_iter().find(|a| a.id == id).ok_or_else(|| i18n::t("Automazione non trovata (salvata?)").to_string())?;
+    flows::try_from(&app, flow, &node, actions)
+}
+
+/// "Riprendi da qui".
+#[tauri::command]
+fn flow_rerun(app: AppHandle, id: String, node: String) -> Result<(), String> {
+    flows::rerun(&app, &id, &node, automations::list(&app).2)
 }
 
 /// Proposte dalle abitudini: how much was recorded.
@@ -2137,7 +2163,7 @@ fn habit_note_quick(id: String) {
     habits::note("quick", &id);
 }
 
-/// Impostazioni → Automazioni → "Prova ora".
+/// Impostazioni → Flussi → "Prova ora".
 #[tauri::command]
 fn automation_run_now(app: AppHandle, id: String) -> Result<(), String> {
     automations::run_now(&app, &id)
@@ -2535,6 +2561,107 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
 }
 
 pub const MEMORY_LABEL: &str = "memoria";
+pub const FLOWS_LABEL: &str = "flussi";
+
+/// The WebView2 profile folder the windows share (webview_profile.rs), for the
+/// windows made later, on demand.
+static WEBVIEW_DIR: std::sync::OnceLock<Option<std::path::PathBuf>> = std::sync::OnceLock::new();
+
+/// The flows window (src/flows/, docs/flussi.md): made the first time it is
+/// opened, then hidden on close like the others. `id` = the flow to show.
+#[tauri::command]
+async fn open_flows_window(app: AppHandle, id: Option<String>) -> Result<(), String> {
+    let id = id.unwrap_or_default();
+    if let Some(win) = app.get_webview_window(FLOWS_LABEL) {
+        webview_memory::set_asleep(&win, false);
+        // In front of Impostazioni, which is topmost while focused.
+        island::keep_settings_above(&app, false);
+        let _ = win.unminimize();
+        let _ = win.show();
+        let _ = win.set_focus();
+        let _ = win.emit("flows-open", id);
+        return Ok(());
+    }
+    // The page asks for it once loaded (flow_pending): a query in the URL does
+    // not survive the app:// scheme of the release build.
+    *PENDING_FLOW.lock().unwrap() = id;
+    let url = page_url(&app, "flussi.html");
+    island::keep_settings_above(&app, false);
+    let mut builder = WebviewWindowBuilder::new(&app, FLOWS_LABEL, url);
+    if let Some(Some(dir)) = WEBVIEW_DIR.get() {
+        builder = builder.data_directory(dir.clone());
+    }
+    let win = builder
+        .additional_browser_args(BROWSER_ARGS)
+        .title(i18n::t("Flussi — EasyIsland"))
+        // Blocks are dragged inside the page: Tauri must not take the drag.
+        .disable_drag_drop_handler()
+        .theme(Some(tauri::Theme::Dark))
+        .inner_size(1240.0, 800.0)
+        .min_inner_size(900.0, 560.0)
+        .resizable(true)
+        .center()
+        .build()
+        .map_err(|e| e.to_string())?;
+    let hidden = win.clone();
+    win.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = hidden.hide();
+            webview_memory::set_asleep(&hidden, true);
+        }
+    });
+    Ok(())
+}
+
+static PENDING_FLOW: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+
+/// The flow the window was opened for, once.
+#[tauri::command]
+fn flow_pending() -> String {
+    std::mem::take(&mut *PENDING_FLOW.lock().unwrap())
+}
+
+/// The flows window saves one flow at a time (never the whole settings, so it
+/// cannot undo what another window changed). Returns what is still missing for
+/// it to run, "" when it is complete.
+#[tauri::command]
+fn flow_save(app: AppHandle, flow: serde_json::Value) -> Result<String, String> {
+    let auto: automations::Automation = serde_json::from_value(flow).map_err(|e| e.to_string())?;
+    if auto.id.trim().is_empty() || auto.id.len() > 40 {
+        return Err(i18n::t("Flusso senza id.").into());
+    }
+    let value = serde_json::to_value(&auto).map_err(|e| e.to_string())?;
+    let missing = {
+        let shared = app.state::<Shared>();
+        let s = shared.settings.lock().unwrap();
+        automations::validate(&value, &s).err().unwrap_or_default()
+    };
+    agent::update_settings(&app, |s| {
+        match s.automations.iter_mut().find(|a| a.get("id").and_then(serde_json::Value::as_str) == Some(auto.id.as_str())) {
+            Some(slot) => *slot = value.clone(),
+            None => s.automations.push(value.clone()),
+        }
+    })?;
+    Ok(missing)
+}
+
+#[tauri::command]
+fn flow_delete(app: AppHandle, id: String) -> Result<(), String> {
+    agent::update_settings(&app, |s| s.automations.retain(|a| a.get("id").and_then(serde_json::Value::as_str) != Some(id.as_str())))
+}
+
+/// "Descrivilo a parole": the request goes to the island's chat, which builds
+/// the flow with create_automation (preview, Consenti / Nega).
+#[tauri::command]
+fn flow_ask_chat(app: AppHandle, text: String) {
+    let text: String = text.trim().chars().take(2000).collect();
+    if text.is_empty() {
+        return;
+    }
+    let prompt = i18n::tf("Crea un flusso di EasyIsland (create_automation) per questo: {text}", &[("text", &text)]);
+    let _ = app.emit_to(island::WINDOW_LABEL, "automation-ask", prompt);
+}
 
 /// The memory window (src/memory/), made hidden at launch for the same reason
 /// as the settings one, asleep until it is opened; closing it hides it.
@@ -2585,6 +2712,9 @@ pub fn show_memory_window(app: &AppHandle) {
         return;
     };
     webview_memory::set_asleep(&win, false);
+    // Opened from Impostazioni: that window is topmost while it has the focus
+    // (island::keep_settings_above) and would stay in front of this one.
+    island::keep_settings_above(app, false);
     let _ = win.unminimize();
     let _ = win.show();
     let _ = win.set_focus();
@@ -2639,7 +2769,7 @@ fn set_window_light(window: tauri::WebviewWindow, light: bool) {
     let _ = window.set_theme(Some(if light { tauri::Theme::Light } else { tauri::Theme::Dark }));
 }
 
-/// Impostazioni → Compiti and the island: every task (tasks.rs).
+/// Impostazioni → Flussi and the island: every task (tasks.rs).
 #[tauri::command]
 fn tasks_list() -> Vec<tasks::Task> {
     tasks::list()
@@ -2765,7 +2895,7 @@ fn skill_prompt(id: String, arg: String) -> Result<String, String> {
     skills::find(&id).map(|s| skills::as_prompt(&s, &arg)).ok_or_else(|| t("Abilità non trovata.").into())
 }
 
-/// The engines and whether each can answer now (Impostazioni → Compiti).
+/// The engines and whether each can answer now (Impostazioni → Flussi).
 #[tauri::command]
 fn engines_ready(app: AppHandle) -> Vec<(String, String, bool)> {
     telegram::engines(&app).into_iter().map(|(id, name, ok)| (id.to_string(), name, ok)).collect()
@@ -2777,7 +2907,7 @@ fn task_set_engines(app: AppHandle, id: String, engine: String, model: String, h
     tasks::set_engines(&app, &id, &engine, &model, &helpers)
 }
 
-/// Impostazioni → Compiti → Battito: every `minutes` (0 = off).
+/// Impostazioni → Flussi → Battito: every `minutes` (0 = off).
 #[tauri::command]
 fn heartbeat_set(app: AppHandle, minutes: u32) -> Result<(), String> {
     tasks::set_heartbeat(&app, minutes).map(|_| ())
@@ -3045,6 +3175,15 @@ pub fn run() {
             threecx_voicemail_heard,
             zip_list,
             automations_log,
+            flows_runs,
+            flow_run,
+            flow_rerun,
+            flow_try_from,
+            open_flows_window,
+            flow_save,
+            flow_delete,
+            flow_ask_chat,
+            flow_pending,
             habits_stats,
             habits_suggestions,
             habit_answer,
@@ -3167,6 +3306,7 @@ pub fn run() {
             // Before the island's webview is ready: see create_settings_window.
             create_settings_window(&handle, webview_dir.as_deref());
             create_memory_window(&handle, webview_dir.as_deref());
+            let _ = WEBVIEW_DIR.set(webview_dir.clone());
 
             if let Some(win) = island::window(&handle) {
                 // "Chiudi finestra" from the taskbar (the island as an app) must not

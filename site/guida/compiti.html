@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Compiti, Battito e Abilità — Guida di EasyIsland</title>
-<meta name="description" content="L'agente personale: obiettivi che EasyIsland porta avanti da sola, controlli periodici e procedure tue.">
+<meta name="description" content="Nella pagina Flussi, insieme alle automazioni. L'agente personale: obiettivi che EasyIsland porta avanti da sola, controlli periodici e procedure tue.">
 <link rel="icon" href="../media/icon.png">
 <link rel="stylesheet" href="../site.css">
 <link rel="stylesheet" href="../guida/guida.css">
@@ -14,7 +14,7 @@
 <header class="top">
 <button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
 <a href="../index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
-<span class="badge">Guida · 1.0.5</span>
+<span class="badge">Guida · 1.0.6</span>
 <div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
 <nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../en/guide/tasks.html" hreflang="en">English</a></nav>
 </header>
@@ -23,12 +23,12 @@
 <main>
 <div class="crumb">Intelligenza artificiale</div>
 <h1>Compiti, Battito e Abilità</h1>
-<p class="lead">L'agente personale: obiettivi che EasyIsland porta avanti da sola, controlli periodici e procedure tue.</p>
+<p class="lead">Nella pagina Flussi, insieme alle automazioni. L'agente personale: obiettivi che EasyIsland porta avanti da sola, controlli periodici e procedure tue.</p>
 <h2 id="compiti"><a class="anchor" href="#compiti">#</a>Compiti</h2>
 <p>Un <strong>compito</strong> è un obiettivo che affidi a EasyIsland e che lei porta avanti <strong>da sola</strong>, anche mentre fai altro: scrive un piano, lo esegue con gli strumenti, ti chiede quello che solo tu sai e alla fine ti dà il risultato.</p>
 <p>Esempi: «controlla i ticket aperti da più di 3 giorni e prepara un riepilogo», «ogni lunedì alle 8 fammi il punto delle scadenze di Notion», «cerca tre fornitori di NAS e confronta i prezzi».</p>
 <h3 id="come-si-crea"><a class="anchor" href="#come-si-crea">#</a>Come si crea</h3>
-<ul><li><strong>In chat</strong>: <code>/compito …</code>, oppure chiedi «fallo come compito», «ogni giorno alle 9…»: la chat propone il compito e lo crei con Consenti.</li><li><strong>Impostazioni → Compiti → Nuovo compito</strong>: titolo, obiettivo, quando, motore.</li><li><strong>Da Telegram</strong>: <code>/compito …</code>.</li><li><strong>Da un'automazione</strong>: il passo «Compito».</li><li><strong>Da un'integrazione personale</strong>: un pulsante di tipo «compito».</li></ul>
+<ul><li><strong>In chat</strong>: <code>/compito …</code>, oppure chiedi «fallo come compito», «ogni giorno alle 9…»: la chat propone il compito e lo crei con Consenti.</li><li><strong>Impostazioni → Flussi → Nuovo compito</strong>: titolo, obiettivo, quando, motore.</li><li><strong>Da Telegram</strong>: <code>/compito …</code>.</li><li><strong>Da un'automazione</strong>: il passo «Compito».</li><li><strong>Da un'integrazione personale</strong>: un pulsante di tipo «compito».</li></ul>
 <h3 id="quando"><a class="anchor" href="#quando">#</a>Quando</h3>
 <div class="table"><table><thead><tr><th>Scelta</th><th>Esempio</th></tr></thead><tbody><tr><td>Subito</td><td>Parte appena c'è posto in coda</td></tr><tr><td>Una volta, a un'ora</td><td>24/10 alle 15:00</td></tr><tr><td>Ogni giorno</td><td>alle 9:00</td></tr><tr><td>Nei giorni feriali</td><td>alle 8:30</td></tr><tr><td>Ogni settimana</td><td>il lunedì alle 8:00</td></tr><tr><td>Ogni N minuti</td><td>ogni 60 minuti (almeno 15)</td></tr></tbody></table></div>
 <h3 id="come-lavora"><a class="anchor" href="#come-lavora">#</a>Come lavora</h3>
@@ -37,7 +37,7 @@
 <p>Nell'isola ogni compito è una sessione dell'agente <strong>Compiti</strong> nella scheda Agenti, con piano, passi, domande e permessi come per Claude Code. Un compito alla volta; gli altri aspettano in coda.</p>
 <h3 id="stati-e-comandi"><a class="anchor" href="#stati-e-comandi">#</a>Stati e comandi</h3>
 <p>In attesa del suo orario, In coda, Al lavoro, Aspetta una risposta, In pausa, Fatto, Non riuscito, Fermato. Dalle Impostazioni (e dall'isola) puoi <strong>avviare ora</strong>, <strong>mettere in pausa</strong>, <strong>riprendere</strong>, <strong>fermare</strong>, <strong>rispondere</strong>, <strong>eliminare</strong> e leggere il <strong>registro</strong> del compito (un file <code>.md</code>).</p>
-<p><strong>Limiti</strong> (Impostazioni → Compiti): turni e minuti massimi per esecuzione (12 turni e 30 minuti di serie), poi il compito va in pausa e ti avvisa.</p>
+<p><strong>Limiti</strong> (Impostazioni → Flussi): turni e minuti massimi per esecuzione (12 turni e 30 minuti di serie), poi il compito va in pausa e ti avvisa.</p>
 <h3 id="un-motore-per-compito-e-motori-aiutanti"><a class="anchor" href="#un-motore-per-compito-e-motori-aiutanti">#</a>Un motore per compito, e motori aiutanti</h3>
 <ul><li>Ogni compito può avere il <strong>suo motore e modello</strong> (per esempio opencode gratuito per i controlli, Claude per i testi).</li><li>Puoi dargli dei <strong>motori aiutanti</strong>: il motore che guida può affidare a uno di loro un pezzo del lavoro (una ricerca, una revisione, una bozza) e riceverne il risultato, come fanno gli agenti con i sotto-agenti.</li></ul>
 <h3 id="su-telegram"><a class="anchor" href="#su-telegram">#</a>Su Telegram</h3>
@@ -48,9 +48,9 @@
 - mail da clienti senza risposta da più di un giorno
 - scadenze di oggi in Notion
 - spazio disco sotto il 10 %</code></pre>
-<p><strong>Impostazioni → Compiti → Battito</strong>: scegli ogni quanto e apri l'elenco con <strong>Cosa tenere d'occhio…</strong>. Con l'elenco vuoto non parte e non costa niente.</p>
+<p><strong>Impostazioni → Flussi → Battito</strong>: scegli ogni quanto e apri l'elenco con <strong>Cosa tenere d'occhio…</strong>. Con l'elenco vuoto non parte e non costa niente.</p>
 <h2 id="riordino-della-memoria"><a class="anchor" href="#riordino-della-memoria">#</a>Riordino della memoria</h2>
-<p>Ogni sera alle 22:30 rilegge la giornata, ti propone cosa ricordare, impara dai file in <code>da-leggere</code> e la domenica controlla la memoria. Si accende in <strong>Impostazioni → Compiti</strong>; dettagli in <a href="memoria.html#il-riordino-della-sera">Memoria</a>.</p>
+<p>Ogni sera alle 22:30 rilegge la giornata, ti propone cosa ricordare, impara dai file in <code>da-leggere</code> e la domenica controlla la memoria. Si accende in <strong>Impostazioni → Flussi</strong>; dettagli in <a href="memoria.html#il-riordino-della-sera">Memoria</a>.</p>
 <h2 id="abilita"><a class="anchor" href="#abilita">#</a>Abilità</h2>
 <p>Un'<strong>abilità</strong> è una procedura tua scritta in un file <code>.md</code>: come fai un preventivo, come chiudi un ticket, come prepari il report del mese. L'AI la legge <strong>solo quando serve</strong>, quindi puoi averne tante senza costi.</p>
 <pre><code>---
@@ -63,9 +63,9 @@ strumenti: list_status, notion_add_row
 2. Scrivi il riepilogo in tre righe, senza gergo.
 3. Aggiungi la riga nel database «Interventi» di Notion.
 4. Lascia a me l'invio della risposta.</code></pre>
-<ul><li><strong>Dove</strong>: <code>%APPDATA%\EasyIsland\abilita\</code>. In <strong>Impostazioni → Compiti → Abilità</strong> le crei, modifichi, elimini e apri la cartella.</li><li><strong>Come si usano</strong>: la chat e i compiti vedono l'elenco (nome e descrizione) e leggono quella giusta quando serve. Ogni abilità è anche un <strong>comando</strong>: <code>/chiusura-ticket</code> in chat e su Telegram.</li><li><strong>Motore</strong>: un'abilità può indicare il motore preferito; un compito lo usa delegandogli quel passo.</li><li><strong>Si migliorano da sole</strong>: alla fine di un compito l'agente può proporti di salvare il procedimento come abilità nuova (con Consenti / Nega).</li></ul>
+<ul><li><strong>Dove</strong>: <code>%APPDATA%\EasyIsland\abilita\</code>. In <strong>Impostazioni → Flussi → Abilità</strong> le crei, modifichi, elimini e apri la cartella.</li><li><strong>Come si usano</strong>: la chat e i compiti vedono l'elenco (nome e descrizione) e leggono quella giusta quando serve. Ogni abilità è anche un <strong>comando</strong>: <code>/chiusura-ticket</code> in chat e su Telegram.</li><li><strong>Motore</strong>: un'abilità può indicare il motore preferito; un compito lo usa delegandogli quel passo.</li><li><strong>Si migliorano da sole</strong>: alla fine di un compito l'agente può proporti di salvare il procedimento come abilità nuova (con Consenti / Nega).</li></ul>
 <div class="pager"><a class="prev" href="memoria.html"><small>Precedente</small>Memoria e secondo cervello</a><a class="next" href="azioni.html"><small>Successiva</small>Azioni rapide e scorciatoie</a></div>
-<footer>EasyIsland 1.0.5 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/12-compiti.md">Modifica questa pagina su GitHub</a></footer>
+<footer>EasyIsland 1.0.6 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/12-compiti.md">Modifica questa pagina su GitHub</a></footer>
 </main>
 <nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#compiti">Compiti</a></li><li class="l3"><a href="#come-si-crea">Come si crea</a></li><li class="l3"><a href="#quando">Quando</a></li><li class="l3"><a href="#come-lavora">Come lavora</a></li><li class="l3"><a href="#stati-e-comandi">Stati e comandi</a></li><li class="l3"><a href="#un-motore-per-compito-e-motori-aiutanti">Un motore per compito, e motori aiutanti</a></li><li class="l3"><a href="#su-telegram">Su Telegram</a></li><li class="l2"><a href="#battito">Battito</a></li><li class="l2"><a href="#riordino-della-memoria">Riordino della memoria</a></li><li class="l2"><a href="#abilita">Abilità</a></li></ul></nav>
 </div>

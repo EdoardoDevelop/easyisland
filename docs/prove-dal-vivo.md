@@ -14,7 +14,7 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
   8. provato qui il 23 ottobre: una fonte letta da sola dal ciclo in Rust (API pubblica di GitHub, HTTP 200). Restano: un'integrazione con chiave (`{{secret:token}}` inserito nelle Impostazioni) verso un servizio vero, un'azione `http` POST con `store`, un avviso di una fonte, `custom_call` dalla chat.
 
 - [ ] **Compiti (23 ottobre 2026):** provato qui un compito da cima a fondo con l'abbonamento (piano, strumenti, passi, risultato). Restano:
-  1. una domanda (`task_ask`) con la card vera: risposta a un pulsante, risposta scritta, e nessuna risposta (il compito va in «Attende te», poi Rispondi in Impostazioni → Compiti);
+  1. una domanda (`task_ask`) con la card vera: risposta a un pulsante, risposta scritta, e nessuna risposta (il compito va in «Attende te», poi Rispondi in Impostazioni → Flussi);
   2. un permesso (es. `notion_add_row`) chiesto da un compito con l'isola chiusa;
   3. Pausa, Ferma e Riprendi mentre lavora; un compito a orario e uno ogni giorno;
   4. `/compito` dalla chat e da Telegram, l'avviso su Telegram alla fine; il passo «Avvia un compito» di un'automazione;

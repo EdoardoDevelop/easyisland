@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tasks, Heartbeat and Skills — EasyIsland Guide</title>
-<meta name="description" content="The personal agent: goals EasyIsland carries forward on its own, periodic checks and your own procedures.">
+<meta name="description" content="In the Flows page, together with automations. The personal agent: goals EasyIsland carries forward on its own, periodic checks and your own procedures.">
 <link rel="icon" href="../../media/icon.png">
 <link rel="stylesheet" href="../../site.css">
 <link rel="stylesheet" href="../../guida/guida.css">
@@ -14,7 +14,7 @@
 <header class="top">
 <button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
 <a href="../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
-<span class="badge">Guide · 1.0.5</span>
+<span class="badge">Guide · 1.0.6</span>
 <div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
 <nav class="links"><a href="../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/compiti.html" hreflang="it">Italiano</a></nav>
 </header>
@@ -23,12 +23,12 @@
 <main>
 <div class="crumb">Artificial intelligence</div>
 <h1>Tasks, Heartbeat and Skills</h1>
-<p class="lead">The personal agent: goals EasyIsland carries forward on its own, periodic checks and your own procedures.</p>
+<p class="lead">In the Flows page, together with automations. The personal agent: goals EasyIsland carries forward on its own, periodic checks and your own procedures.</p>
 <h2 id="tasks"><a class="anchor" href="#tasks">#</a>Tasks</h2>
 <p>A <strong>task</strong> is a goal you hand to EasyIsland and that it carries forward <strong>on its own</strong>, even while you do something else: it writes a plan, carries it out with the tools, asks you what only you know and finally gives you the result.</p>
 <p>Examples: "check tickets open for more than 3 days and prepare a summary", "every Monday at 8 give me the state of the Notion deadlines", "find three NAS suppliers and compare prices".</p>
 <h3 id="creating-one"><a class="anchor" href="#creating-one">#</a>Creating one</h3>
-<ul><li><strong>In the chat</strong>: <code>/compito …</code>, or ask "do it as a task", "every day at 9…": the chat proposes the task and you create it with Allow.</li><li><strong>Settings → Tasks → New task</strong>: title, goal, when, engine.</li><li><strong>From Telegram</strong>: <code>/compito …</code>.</li><li><strong>From an automation</strong>: the "Task" step.</li><li><strong>From a custom integration</strong>: a button of type "task".</li></ul>
+<ul><li><strong>In the chat</strong>: <code>/compito …</code>, or ask "do it as a task", "every day at 9…": the chat proposes the task and you create it with Allow.</li><li><strong>Settings → Flows → New task</strong>: title, goal, when, engine.</li><li><strong>From Telegram</strong>: <code>/compito …</code>.</li><li><strong>From an automation</strong>: the "Task" step.</li><li><strong>From a custom integration</strong>: a button of type "task".</li></ul>
 <h3 id="when"><a class="anchor" href="#when">#</a>When</h3>
 <div class="table"><table><thead><tr><th>Choice</th><th>Example</th></tr></thead><tbody><tr><td>Now</td><td>Starts as soon as there's room in the queue</td></tr><tr><td>Once, at a time</td><td>24/10 at 15:00</td></tr><tr><td>Every day</td><td>at 9:00</td></tr><tr><td>On weekdays</td><td>at 8:30</td></tr><tr><td>Every week</td><td>Monday at 8:00</td></tr><tr><td>Every N minutes</td><td>every 60 minutes (at least 15)</td></tr></tbody></table></div>
 <h3 id="how-it-works"><a class="anchor" href="#how-it-works">#</a>How it works</h3>
@@ -37,7 +37,7 @@
 <p>In the island each task is a session of the <strong>Tasks</strong> agent in the Agents tab, with plan, steps, questions and permissions like Claude Code. One task at a time; the others wait in the queue.</p>
 <h3 id="states-and-commands"><a class="anchor" href="#states-and-commands">#</a>States and commands</h3>
 <p>Waiting for its time, Queued, Working, Waiting for an answer, Paused, Done, Failed, Stopped. From Settings (and the island) you can <strong>run now</strong>, <strong>pause</strong>, <strong>resume</strong>, <strong>stop</strong>, <strong>answer</strong>, <strong>delete</strong> and read the task's <strong>log</strong> (a <code>.md</code> file).</p>
-<p><strong>Limits</strong> (Settings → Tasks): maximum turns and minutes per run (12 turns and 30 minutes by default), then the task pauses and tells you.</p>
+<p><strong>Limits</strong> (Settings → Flows): maximum turns and minutes per run (12 turns and 30 minutes by default), then the task pauses and tells you.</p>
 <h3 id="one-engine-per-task-and-helper-engines"><a class="anchor" href="#one-engine-per-task-and-helper-engines">#</a>One engine per task, and helper engines</h3>
 <ul><li>Each task can have <strong>its own engine and model</strong> (for example free opencode for checks, Claude for writing).</li><li>You can give it <strong>helper engines</strong>: the leading engine can hand one of them part of the work (a search, a review, a draft) and get the result back, like agents do with sub-agents.</li></ul>
 <h3 id="on-telegram"><a class="anchor" href="#on-telegram">#</a>On Telegram</h3>
@@ -48,9 +48,9 @@
 - client mails unanswered for more than a day
 - today's deadlines in Notion
 - disk space under 10 %</code></pre>
-<p><strong>Settings → Tasks → Heartbeat</strong>: choose how often and open the list with <strong>What to keep an eye on…</strong>. With an empty list it doesn't run and costs nothing.</p>
+<p><strong>Settings → Flows → Heartbeat</strong>: choose how often and open the list with <strong>What to keep an eye on…</strong>. With an empty list it doesn't run and costs nothing.</p>
 <h2 id="memory-digest"><a class="anchor" href="#memory-digest">#</a>Memory digest</h2>
-<p>Every evening at 22:30 it rereads the day, proposes what to remember, learns from the files in <code>da-leggere</code> and on Sundays checks the memory. Turn it on in <strong>Settings → Tasks</strong>; details in <a href="memory.html#the-evening-digest">Memory</a>.</p>
+<p>Every evening at 22:30 it rereads the day, proposes what to remember, learns from the files in <code>da-leggere</code> and on Sundays checks the memory. Turn it on in <strong>Settings → Flows</strong>; details in <a href="memory.html#the-evening-digest">Memory</a>.</p>
 <h2 id="skills"><a class="anchor" href="#skills">#</a>Skills</h2>
 <p>A <strong>skill</strong> is a procedure of yours written in a <code>.md</code> file: how you make a quote, how you close a ticket, how you prepare the monthly report. The AI reads it <strong>only when needed</strong>, so you can have many at no cost.</p>
 <pre><code>---
@@ -63,9 +63,9 @@ strumenti: list_status, notion_add_row
 2. Write the summary in three lines, no jargon.
 3. Add the row to the "Interventions" database in Notion.
 4. Leave sending the reply to me.</code></pre>
-<ul><li><strong>Where</strong>: <code>%APPDATA%\EasyIsland\abilita\</code>. In <strong>Settings → Tasks → Skills</strong> you create, edit, delete them and open the folder. The header keys are in Italian (<code>nome</code>, <code>descrizione</code>, <code>motore</code>, <code>strumenti</code>).</li><li><strong>How they're used</strong>: the chat and tasks see the list (name and description) and read the right one when needed. Each skill is also a <strong>command</strong>: <code>/ticket-closing</code> in the chat and on Telegram.</li><li><strong>Engine</strong>: a skill can state the preferred engine; a task uses it by delegating that step.</li><li><strong>They improve by themselves</strong>: at the end of a task the agent may propose saving the procedure as a new skill (with Allow / Deny).</li></ul>
+<ul><li><strong>Where</strong>: <code>%APPDATA%\EasyIsland\abilita\</code>. In <strong>Settings → Flows → Skills</strong> you create, edit, delete them and open the folder. The header keys are in Italian (<code>nome</code>, <code>descrizione</code>, <code>motore</code>, <code>strumenti</code>).</li><li><strong>How they're used</strong>: the chat and tasks see the list (name and description) and read the right one when needed. Each skill is also a <strong>command</strong>: <code>/ticket-closing</code> in the chat and on Telegram.</li><li><strong>Engine</strong>: a skill can state the preferred engine; a task uses it by delegating that step.</li><li><strong>They improve by themselves</strong>: at the end of a task the agent may propose saving the procedure as a new skill (with Allow / Deny).</li></ul>
 <div class="pager"><a class="prev" href="memory.html"><small>Previous</small>Memory and second brain</a><a class="next" href="actions.html"><small>Next</small>Quick actions and shortcuts</a></div>
-<footer>EasyIsland 1.0.5 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/12-tasks.md">Edit this page on GitHub</a></footer>
+<footer>EasyIsland 1.0.6 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/12-tasks.md">Edit this page on GitHub</a></footer>
 </main>
 <nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#tasks">Tasks</a></li><li class="l3"><a href="#creating-one">Creating one</a></li><li class="l3"><a href="#when">When</a></li><li class="l3"><a href="#how-it-works">How it works</a></li><li class="l3"><a href="#states-and-commands">States and commands</a></li><li class="l3"><a href="#one-engine-per-task-and-helper-engines">One engine per task, and helper engines</a></li><li class="l3"><a href="#on-telegram">On Telegram</a></li><li class="l2"><a href="#heartbeat">Heartbeat</a></li><li class="l2"><a href="#memory-digest">Memory digest</a></li><li class="l2"><a href="#skills">Skills</a></li></ul></nav>
 </div>

@@ -1,4 +1,4 @@
-// Automations: "quando… (se…) allora…", set up in Impostazioni → Automazioni.
+// Automations: "quando… (se…) allora…", set up in Impostazioni → Flussi.
 //
 // Triggers: a time of day on chosen days, EasyIsland starting (with the PC),
 // the PC being unlocked, joining a Wi-Fi network, a program starting or coming
@@ -112,6 +112,42 @@ pub struct Step {
     pub url: String,
     /// wait: how long.
     pub minutes: u64,
+    /// Flows (flows.rs): this step's name for links and for its result in the
+    /// data ("{id}"); "" = "s1", "s2"… by position.
+    pub node: String,
+    /// Where to go after this step: another step's `node`, "end", or "" = the next one.
+    pub next: String,
+    /// decide: the first branch that holds sets where to go.
+    pub branches: Vec<Branch>,
+    /// agent: engine and model of the task ("" = Impostazioni → Flussi).
+    pub engine: String,
+    pub model: String,
+    /// ask: the buttons of the card (1–3; empty = Sì / No).
+    pub options: Vec<String>,
+    /// foreach: the step each item starts from (`node`); `next` comes after the last one.
+    pub body: String,
+    /// Flows: tries again this many times (0–3) after a failure, waiting longer each time.
+    pub retries: u8,
+    /// Flows: the step to go to when this one fails (`node`), with the reason in {errore}.
+    pub on_error: String,
+    /// agent: the fields its answer must end with, as JSON; each becomes {node.field}.
+    pub fields: Vec<String>,
+}
+
+/// One way out of a "decide" step.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Branch {
+    /// The value looked at, with placeholders: "{agente}", "{chiamante}".
+    pub value: String,
+    /// contains | equals | empty | filled | else, or "model": the engine picks
+    /// one of the branches by their `to_match`, the way described.
+    pub op: String,
+    /// What `contains` / `equals` compare with (case does not matter); for
+    /// "model", what the branch means ("il cliente chiede un preventivo").
+    pub to_match: String,
+    /// The step to go to (`node`) or "end".
+    pub to: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -332,7 +368,7 @@ pub fn log() -> Vec<LogEntry> {
     LOG.lock().unwrap().iter().cloned().collect()
 }
 
-fn push_log(entry: LogEntry) {
+pub(crate) fn push_log(entry: LogEntry) {
     let mut log = LOG.lock().unwrap();
     log.push_front(entry);
     log.truncate(LOG_KEEP);
@@ -350,7 +386,7 @@ pub fn on_widget(id: &str, prev: Option<&str>, level: &str, summary: &str, event
     q.truncate(50);
 }
 
-fn list(app: &AppHandle) -> (Vec<Automation>, String, Vec<Value>) {
+pub(crate) fn list(app: &AppHandle) -> (Vec<Automation>, String, Vec<Value>) {
     let Some(shared) = app.try_state::<crate::Shared>() else { return (Vec::new(), String::new(), Vec::new()) };
     let s = shared.settings.lock().unwrap();
     let autos = s
@@ -368,7 +404,7 @@ fn list(app: &AppHandle) -> (Vec<Automation>, String, Vec<Value>) {
     (autos, s.active_profile.clone(), actions)
 }
 
-fn notice(app: &AppHandle, title: &str, text: &str, level: &str) {
+pub(crate) fn notice(app: &AppHandle, title: &str, text: &str, level: &str) {
     let cut = |s: &str, n: usize| s.chars().take(n).collect::<String>();
     let _ = app.emit_to(WINDOW_LABEL, "hook", json!({
         "hook_event_name": "EasyIslandNotify",
@@ -379,7 +415,7 @@ fn notice(app: &AppHandle, title: &str, text: &str, level: &str) {
     }));
 }
 
-async fn run_step(app: &AppHandle, step: &Step, actions: &[Value], ctx: &Ctx) -> Result<String, String> {
+pub(crate) async fn run_step(app: &AppHandle, step: &Step, actions: &[Value], ctx: &Ctx) -> Result<String, String> {
     let plain = |v: &str, _: bool| v.to_string();
     match step.kind.as_str() {
         // The user's own action, as it is: a script never gets the trigger's data.
@@ -490,74 +526,17 @@ async fn run_step(app: &AppHandle, step: &Step, actions: &[Value], ctx: &Ctx) ->
     }
 }
 
-/// Runs every step, in order, logs the outcome and tells the island when
-/// asked to (or when something failed).
-pub async fn run(app: AppHandle, auto: Automation, cause: String, actions: Vec<Value>, mut ctx: Ctx) {
-    crate::log::line(format!("automation {} ({cause})", auto.name));
-    if cause != t("Prova") {
-        crate::habits::note("auto", &auto.id);
-    }
-    let (_, key) = minute_key();
-    let part = |a: usize, b: usize| key.get(a..b).unwrap_or("");
-    ctx.push(("data".into(), format!("{}/{}/{}", part(8, 10), part(5, 7), part(0, 4))));
-    ctx.push(("ora".into(), key.get(11..).unwrap_or("").to_string()));
-    let mut done = Vec::new();
-    let mut ok = true;
-    let name = if auto.name.trim().is_empty() { t("Automazione").to_string() } else { auto.name.clone() };
-    for (i, step) in auto.steps.iter().enumerate() {
-        match step.kind.as_str() {
-            "wait" => {
-                let minutes = step.minutes.clamp(1, 240);
-                tokio::time::sleep(Duration::from_secs(minutes * 60)).await;
-                done.push(tf("atteso {n} minuti", &[("n", &minutes)]));
-                continue;
-            }
-            "confirm" => {
-                let plain = |v: &str, _| v.to_string();
-                let title = fill(step.title.trim(), &ctx, &plain);
-                let title = if title.is_empty() { tf("Automazione «{name}»", &[("name", &name)]) } else { title };
-                let rest: Vec<String> = auto.steps.iter().skip(i + 1).map(step_words).collect();
-                let text = fill(step.text.trim(), &ctx, &plain);
-                let text = if text.is_empty() { tf("Continuo? Poi: {rest}.", &[("rest", &rest.join(", "))]) } else { text };
-                let go = t("Continua").to_string();
-                let answer = crate::moments::ask_card(&app, &title, &text, "info", vec![go.clone(), t("Annulla").into()], CONFIRM_WAIT).await;
-                if answer != Some(crate::moments::CardAnswer::Chose(go)) {
-                    done.push(t("fermata: non confermata").into());
-                    break;
-                }
-                done.push(t("confermata").into());
-                continue;
-            }
-            _ => {}
-        }
-        match run_step(&app, step, &actions, &ctx).await {
-            Ok(t) => done.push(t),
-            Err(e) => {
-                ok = false;
-                done.push(tf("errore: {e}", &[("e", &e)]));
-                if !auto.keep_going && i + 1 < auto.steps.len() {
-                    done.push(t("passi seguenti saltati").into());
-                    break;
-                }
-            }
-        }
-    }
-    if auto.steps.is_empty() {
-        done.push(t("nessun passo da eseguire").into());
-    }
-    let detail = done.join(" · ");
-    if auto.notify || !ok {
-        notice(&app, &tf("Automazione «{name}»", &[("name", &name)]), &detail, if ok { "ok" } else { "error" });
-    }
-    push_log(LogEntry { at: now_ms(), name, cause, ok, detail });
-    let _ = app.emit_to(crate::SETTINGS_LABEL, "automations-log", ());
+/// Runs the flow (flows.rs: steps in order or along their links), logs the
+/// outcome and tells the island when asked to (or when something failed).
+pub async fn run(app: AppHandle, auto: Automation, cause: String, actions: Vec<Value>, ctx: Ctx) {
+    crate::flows::start(app, auto, cause, actions, ctx).await;
 }
 
 /// A "chiedi prima" card waits this long, then the automation stops.
-const CONFIRM_WAIT: Duration = Duration::from_secs(180);
+pub(crate) const CONFIRM_WAIT: Duration = Duration::from_secs(180);
 
 /// A step in a few words, for the "chiedi prima" card.
-fn step_words(st: &Step) -> String {
+pub(crate) fn step_words(st: &Step) -> String {
     match st.kind.as_str() {
         "quick" => t("un'azione rapida").to_string(),
         "notice" => tf("avviso «{t}»", &[("t", &st.title)]),
@@ -567,6 +546,10 @@ fn step_words(st: &Step) -> String {
         "chat" => t("domanda alla chat").to_string(),
         "task" => tf("compito «{x}»", &[("x", &if st.title.is_empty() { st.text.clone() } else { st.title.clone() })]),
         "wait" => tf("attendo {n} minuti", &[("n", &st.minutes)]),
+        "agent" => tf("agente «{x}»", &[("x", &if st.title.is_empty() { st.text.clone() } else { st.title.clone() })]),
+        "ask" => tf("domanda «{x}»", &[("x", &if st.title.is_empty() { st.text.clone() } else { st.title.clone() })]),
+        "decide" => t("una scelta").to_string(),
+        "foreach" => t("per ogni elemento").to_string(),
         _ => st.kind.clone(),
     }
 }
@@ -587,7 +570,7 @@ const TRIGGER_KINDS: &[&str] = &[
     "time", "startup", "unlock", "wifi", "app", "foreground", "drive", "folder", "download", "integration", "call", "agent",
     "server", "back", "teams",
 ];
-const STEP_KINDS: &[&str] = &["quick", "notice", "profile", "app", "url", "chat", "task", "wait", "confirm"];
+const STEP_KINDS: &[&str] = &["quick", "notice", "profile", "app", "url", "chat", "task", "wait", "confirm", "agent", "decide", "ask", "foreach"];
 const CONDITION_KINDS: &[&str] = &["hours", "wifi", "app", "foreground", "battery", "idle", "meeting", "client"];
 
 /// "HH:MM" → minutes since midnight.
@@ -689,8 +672,8 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
     if a.steps.is_empty() {
         return Err("Serve almeno un passo in steps.".into());
     }
-    if a.steps.len() > 10 {
-        return Err("Al massimo 10 passi.".into());
+    if a.steps.len() > 30 {
+        return Err("Al massimo 30 passi.".into());
     }
     let mut actions = s.actions.clone();
     for p in &s.profiles {
@@ -719,12 +702,29 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
             "chat" if st.text.trim().is_empty() => return Err("steps[].text: la domanda per la chat.".into()),
             "task" if st.text.trim().is_empty() => return Err("steps[].text: l'obiettivo del compito.".into()),
             "wait" => st.minutes = if st.minutes == 0 { 5 } else { st.minutes.clamp(1, 240) },
+            "agent" if st.text.trim().is_empty() => return Err("steps[].text: l'obiettivo dell'agente.".into()),
+            "agent" => {
+                st.minutes = if st.minutes == 0 { 60 } else { st.minutes.clamp(1, 720) };
+                st.fields.retain(|f| !f.is_empty() && f.len() <= 30 && f.chars().all(|c| c.is_alphanumeric() || c == '_'));
+                st.fields.truncate(8);
+            }
+            "decide" if st.branches.is_empty() => return Err("steps[].branches: almeno un ramo per una scelta.".into()),
+            "ask" if st.options.len() > 3 => return Err("steps[].options: al massimo 3 scelte.".into()),
+            "decide" if st.branches.iter().any(|b| b.op == "model") && st.branches.len() < 2 => {
+                return Err("steps[].branches: per una scelta del modello servono almeno due rami.".into());
+            }
+            "foreach" if st.text.trim().is_empty() || st.body.trim().is_empty() => {
+                return Err("steps[]: un foreach ha bisogno di text (l'elenco, una voce per riga) e body (il passo da cui parte ogni voce).".into());
+            }
             _ => {}
         }
         if st.level.is_empty() {
             st.level = "info".into();
         }
+        st.retries = st.retries.min(3);
     }
+    crate::flows::name_steps(&mut a.steps);
+    crate::flows::check_links(&a.steps)?;
     a.id = format!("a{}", now_ms());
     a.enabled = true;
     a.origin.clear();
@@ -798,6 +798,7 @@ pub fn describe(a: &Automation, s: &crate::settings::Settings) -> String {
         "day" => ifs.push("una volta al giorno".into()),
         _ => {}
     }
+    let linked = a.steps.iter().any(|s| !s.next.is_empty() || s.kind == "decide");
     let steps: Vec<String> = a
         .steps
         .iter()
@@ -811,7 +812,23 @@ pub fn describe(a: &Automation, s: &crate::settings::Settings) -> String {
             "task" => format!("avvia il compito «{}»", if st.title.is_empty() { &st.text } else { &st.title }),
             "wait" => format!("aspetta {} minuti", st.minutes),
             "confirm" => "chiedi prima di continuare".into(),
+            "agent" => format!("agente «{}»", if st.title.is_empty() { &st.text } else { &st.title }),
+            "ask" => format!("domanda «{}»", if st.title.is_empty() { &st.text } else { &st.title }),
+            "decide" => format!(
+                "scelta ({})",
+                st.branches.iter().map(|b| format!("{} {} {} → {}", b.value, b.op, b.to_match, b.to)).collect::<Vec<_>>().join("; ")
+            ),
             k => k.to_string(),
+        })
+        .zip(a.steps.iter())
+        .map(|(text, st)| {
+            if !linked {
+                text
+            } else if st.next.is_empty() {
+                format!("[{}] {text}", st.node)
+            } else {
+                format!("[{}] {text} → {}", st.node, st.next)
+            }
         })
         .collect();
     format!(
@@ -939,7 +956,7 @@ fn folder_names(path: &str) -> Option<HashSet<String>> {
 }
 
 /// Date + minute key, so a "time" automation fires once per minute it matches.
-fn minute_key() -> (u8, String) {
+pub(crate) fn minute_key() -> (u8, String) {
     let t = unsafe { windows::Win32::System::SystemInformation::GetLocalTime() };
     let day = if t.wDayOfWeek == 0 { 7 } else { t.wDayOfWeek as u8 };
     (day, format!("{:04}-{:02}-{:02} {:02}:{:02}", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute))
@@ -992,6 +1009,7 @@ fn spawn_unlock_watch() {
 
 pub fn spawn(app: AppHandle) {
     spawn_unlock_watch();
+    crate::flows::resume(&app, list(&app).2);
     std::thread::spawn(move || {
         let started = Instant::now();
         let mut fired_startup: HashSet<String> = HashSet::new();

@@ -1,6 +1,6 @@
 # Tasks, Heartbeat and Skills
 > section: Artificial intelligence
-> summary: The personal agent: goals EasyIsland carries forward on its own, periodic checks and your own procedures.
+> summary: In the Flows page, together with automations. The personal agent: goals EasyIsland carries forward on its own, periodic checks and your own procedures.
 
 ## Tasks
 A **task** is a goal you hand to EasyIsland and that it carries forward **on its own**, even while you do something else: it writes a plan, carries it out with the tools, asks you what only you know and finally gives you the result.
@@ -9,7 +9,7 @@ Examples: "check tickets open for more than 3 days and prepare a summary", "ever
 
 ### Creating one
 - **In the chat**: `/compito …`, or ask "do it as a task", "every day at 9…": the chat proposes the task and you create it with Allow.
-- **Settings → Tasks → New task**: title, goal, when, engine.
+- **Settings → Flows → New task**: title, goal, when, engine.
 - **From Telegram**: `/compito …`.
 - **From an automation**: the "Task" step.
 - **From a custom integration**: a button of type "task".
@@ -38,7 +38,7 @@ In the island each task is a session of the **Tasks** agent in the Agents tab, w
 ### States and commands
 Waiting for its time, Queued, Working, Waiting for an answer, Paused, Done, Failed, Stopped. From Settings (and the island) you can **run now**, **pause**, **resume**, **stop**, **answer**, **delete** and read the task's **log** (a `.md` file).
 
-**Limits** (Settings → Tasks): maximum turns and minutes per run (12 turns and 30 minutes by default), then the task pauses and tells you.
+**Limits** (Settings → Flows): maximum turns and minutes per run (12 turns and 30 minutes by default), then the task pauses and tells you.
 
 ### One engine per task, and helper engines
 - Each task can have **its own engine and model** (for example free opencode for checks, Claude for writing).
@@ -57,10 +57,10 @@ A **periodic check**: every N minutes the agent looks at the things you wrote in
 - disk space under 10 %
 ```
 
-**Settings → Tasks → Heartbeat**: choose how often and open the list with **What to keep an eye on…**. With an empty list it doesn't run and costs nothing.
+**Settings → Flows → Heartbeat**: choose how often and open the list with **What to keep an eye on…**. With an empty list it doesn't run and costs nothing.
 
 ## Memory digest
-Every evening at 22:30 it rereads the day, proposes what to remember, learns from the files in `da-leggere` and on Sundays checks the memory. Turn it on in **Settings → Tasks**; details in [Memory](11-memory.md#the-evening-digest).
+Every evening at 22:30 it rereads the day, proposes what to remember, learns from the files in `da-leggere` and on Sundays checks the memory. Turn it on in **Settings → Flows**; details in [Memory](11-memory.md#the-evening-digest).
 
 ## Skills
 A **skill** is a procedure of yours written in a `.md` file: how you make a quote, how you close a ticket, how you prepare the monthly report. The AI reads it **only when needed**, so you can have many at no cost.
@@ -78,7 +78,7 @@ strumenti: list_status, notion_add_row
 4. Leave sending the reply to me.
 ```
 
-- **Where**: `%APPDATA%\EasyIsland\abilita\`. In **Settings → Tasks → Skills** you create, edit, delete them and open the folder. The header keys are in Italian (`nome`, `descrizione`, `motore`, `strumenti`).
+- **Where**: `%APPDATA%\EasyIsland\abilita\`. In **Settings → Flows → Skills** you create, edit, delete them and open the folder. The header keys are in Italian (`nome`, `descrizione`, `motore`, `strumenti`).
 - **How they're used**: the chat and tasks see the list (name and description) and read the right one when needed. Each skill is also a **command**: `/ticket-closing` in the chat and on Telegram.
 - **Engine**: a skill can state the preferred engine; a task uses it by delegating that step.
 - **They improve by themselves**: at the end of a task the agent may propose saving the procedure as a new skill (with Allow / Deny).

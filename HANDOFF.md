@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 25 ottobre 2026. Versione **1.0.6** in `main` con il tag `v1.0.6` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 26 ottobre 2026. Versione **1.0.7** in `main` con il tag `v1.0.7` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -24,6 +24,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Spunti da Coucou:** Amp/Hermes, limiti di Codex, riepilogo condivisibile come immagine, GitHub (`docs/idee.md`).
 - [ ] **Prova dal vivo dei nuovi personaggi** (`docs/prove-dal-vivo.md`).
 - [ ] **Modalità chiara:** guardare tutte le schede dell'isola e le pagine delle Impostazioni in chiaro con l'app vera e correggere in `src/style-light.css` / `settings-light.css` ciò che il plugin sbaglia (colori in linea nel codice TypeScript non cambiano).
+- [ ] **Flussi:** fatti nel codice (finestra Flussi, agenti, scelte, per ogni, domande su Telegram, tentativi, esecuzioni; piano e scelte in `docs/flussi.md`); da provare con flussi veri, soprattutto un agente con i campi, la scelta del modello e la ripresa dopo un riavvio.
 - [ ] **Recapiti tra due EasyIsland** (casa ↔ notebook, memorie separate, senza VPN né cloud): da valutare (`docs/idee.md`).
 - [ ] **Da decidere con Edoardo:** firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
 
@@ -35,6 +36,12 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 26 ottobre 2026 — Versione 1.0.7: Flussi
+- Automazioni e compiti uniti nei **Flussi** (`flows.rs`, `src/flows/`, piano e scelte in `docs/flussi.md`): passi con nome e collegamenti (nessuna conversione dei dati), nodi Agente, Scelta (regole o modello), Per ogni, Domanda anche su Telegram; tentativi, strada d'errore, niente doppioni dopo un riavvio, tempo massimo e campi JSON degli agenti; giri salvati in `%APPDATA%\EasyIsland\flussi\`.
+- Finestra **Flussi** (creata alla prima apertura): disegno dall'alto in basso, blocchi da trascinare, pannello con i dati, modelli, «Descrivilo a parole», Prova ed Esecuzioni. Impostazioni → Flussi è solo l'elenco.
+- Memoria e Flussi aperti dalle Impostazioni non restano più dietro (le Impostazioni lasciano il primo piano prima, `keep_settings_above`). README e sito: EasyIsland come agente personale.
+- **Prove:** `cargo test`, `npm run build`, `npm run smoke`; editor provato nell'anteprima. Da provare dal vivo con flussi veri.
 
 ### 25 ottobre 2026 — Versione 1.0.6: modalità chiara, Jarvis Plasma, Aspetto riordinato
 - Modalità **Scura / Chiara / Automatica** per entrambi gli stili (`theme.scheme`). Le regole chiare le genera il plugin di Vite `scripts/light-css.mjs` sotto `:where([data-scheme="light"])`; correzioni a mano in `src/style-light.css` e `settings-light.css`; Automatica dal registro (`system_light`). Dettagli in `docs/architettura.md`.
@@ -53,8 +60,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Le note si collegano alle pagine anche con `[[…]]` e con due parole chiave in comune, e alle due note più simili, più le voci che condividono una parola rara (un cliente, un server); le archiviate isolate escono dal grafo (restano nella timeline). Con la memoria del notebook: nessun punto isolato (`brain.rs`, `key_words`, `wiki_links`).
 - **Prove:** `cargo test` (nuovo test e `live_graph` sui dati del notebook).
 
-### 25 ottobre 2026 — Jarvis
-- Nuovo personaggio **Jarvis** (`jarvis.ts`, tipo `hud`): nucleo e anelli sempre in movimento, ritmo e colori per stato, satelliti per gli agenti al lavoro, avvio con anelli che si compongono, secondi sull'anello esterno, parallasse verso il mouse. Senza occhi, mani né gelatina.
-- **Jarvis Sfera**: seconda versione, sfera di punti che ondeggia, dall'immagine di Edoardo (senza satelliti né scintille). Il cubo non si nomina più in README, guida, sito e documentazione.
-- Con Jarvis il meteo è un segno piccolo nell'angolo, mai dietro gli anelli. Corretto: «Chiudi finestra» dall'anteprima nella barra delle applicazioni distruggeva la finestra dell'isola (EasyIsland restava acceso senza isola); ora la richiude come la sua ✕ (`CloseRequested` in `lib.rs`, evento `tray` «close»).
-- **Prove:** `npm run build`, `npm run smoke`; anteprima degli stati. Da vedere dal vivo nell'isola e nel saluto.
