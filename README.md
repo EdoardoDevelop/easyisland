@@ -4,9 +4,9 @@
 
 # EasyIsland
 
-**Un'isola sempre a portata di mano sullo schermo di Windows, con un piccolo personaggio animato che ti tiene d'occhio Claude Code, i tuoi servizi e il tuo PC.**
+**Il tuo agente personale su Windows, in un'isola sempre a portata di mano.**
 
-Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file, chatta con Claude, tieni d'occhio i tuoi servizi: tutto senza interrompere quello che stai facendo.
+Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI), porta avanti da solo i compiti che gli affidi, ricorda clienti, persone e progetti in un secondo cervello che puoi esplorare, lavora con i tuoi servizi e i tuoi strumenti, e ti raggiunge anche su Telegram. Con il motore AI che scegli tu, anche gratuito o locale, e senza interrompere quello che stai facendo.
 
 ![Windows 10/11](https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows)
 ![Tauri 2](https://img.shields.io/badge/Tauri-2-FFC131?logo=tauri&logoColor=black)
@@ -21,6 +21,12 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Cosa fa
 
+- **Un agente che lavora per te**: gli affidi un **compito** e lo porta avanti da solo,
+  con un piano, i tuoi strumenti e un motore a scelta per ogni compito, chiedendoti
+  solo quello che sai solo tu (anche su **Telegram**); un **Battito** controlla ogni
+  tanto quello che gli dici e parla solo se serve; le **Abilità** sono le tue
+  procedure in file .md; la **Modalità terminale** gli fa usare comandi e file con il
+  tuo Consenti / Nega ([Chat con Claude](#chat-con-claude)).
 - **Claude Code nell'isola**: vedi le sessioni lavorare, rispondi ai permessi
   con **Nega / Consenti / Sempre** e alle domande, guarda le **modifiche ai file**
   in tempo reale, torna all'app della sessione con un clic; anche **Codex**,
@@ -50,11 +56,15 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
   metti da parte testo da qualsiasi app (anche nome e prezzo dal sito di un
   fornitore) con la sua fonte, e poi lo passi tutto insieme alla chat
   ([Come si usa](#come-si-usa)).
-- **Memoria** della chat in file .md con una **mappa** (grafo, mappa mentale, mappa
-  concettuale, timeline) che si apre con un clic dall'isola.
+- **Un secondo cervello**: la memoria della chat in file .md che vedi e correggi,
+  con pagine collegate su clienti, persone e progetti, file da far imparare, un
+  motore che la riordina e una finestra per esplorarla (**grafo** anche in 3D, mappa
+  mentale, mappa concettuale, timeline).
+- **Integrazioni personali**: chiedi alla chat la funzione che ti manca e diventa
+  un modulo, un cruscotto o un collegamento alle API di un tuo servizio.
 - **Profili** (lavoro, casa, concentrazione) che cambiano da soli, modalità
   **davanti al cliente**, messaggi da qualsiasi script, backup delle impostazioni.
-- **Dieci personaggi** (Goccia, la predefinita, Slime, Geco, Fiamma, Magma,
+- **Undici personaggi** (Goccia, la predefinita, Slime, Geco, Fiamma, Magma,
   Pietra, Roccia, Foglia, **Jarvis**, **Jarvis Sfera** e **Jarvis Plasma**), oppure al loro posto il
   **logo di EasyIsland, il tuo logo PNG o il meteo**; posizione libera,
   isola grande fino ai bordi dello schermo e aperta dove vuoi, stile Windows 11 o Classico in modalità **chiara, scura o automatica**, suoni

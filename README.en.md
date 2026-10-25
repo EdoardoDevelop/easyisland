@@ -4,9 +4,9 @@
 
 # EasyIsland
 
-**An island always within reach on your Windows screen, with a small animated character keeping an eye on Claude Code, your services and your PC.**
+**Your personal agent on Windows, in an island always within reach.**
 
-Approve Claude Code's permissions, watch the session work, drop a file, chat with Claude, keep an eye on your services: all without interrupting what you are doing.
+It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries out on its own the tasks you hand it, remembers customers, people and projects in a second brain you can explore, works with your services and tools, and reaches you on Telegram too. With the AI engine you choose, free or local included, and without interrupting what you are doing.
 
 ![Windows 10/11](https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows)
 ![Tauri 2](https://img.shields.io/badge/Tauri-2-FFC131?logo=tauri&logoColor=black)
@@ -21,6 +21,12 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 
 ## What it does
 
+- **An agent that works for you**: hand it a **task** and it carries it out on its
+  own, with a plan, your tools and an engine of your choice for each task, asking
+  you only what only you know (on **Telegram** too); a **Heartbeat** checks now and
+  then what you tell it and speaks only when needed; **Skills** are your own
+  procedures in .md files; **Terminal mode** lets it use commands and files with
+  your Allow / Deny ([Chat with Claude](#chat-with-claude)).
 - **Claude Code in the island**: watch sessions work, answer permissions with
   **Deny / Allow / Always** and questions, see **file changes** live, jump back to
   the session's app with one click; also **Codex**, **opencode**, Google's **Antigravity**, **Gemini CLI**
@@ -49,11 +55,15 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
   an area of the screen and the **Collection**: with `Ctrl+Alt+Shift+R` you set
   aside text from any app (even a name and price from a supplier's site) with its
   source, then hand it all to the chat at once ([How to use it](#how-to-use-it)).
-- The chat's **memory** in .md files with a **map** (graph, mind map, concept map,
-  timeline) one click away in the island.
+- **A second brain**: the chat's memory in .md files you can see and fix, with
+  linked pages about customers, people and projects, files to learn from, an
+  engine that tidies it up and a window to explore it (**graph**, also in 3D, mind
+  map, concept map, timeline).
+- **Personal integrations**: ask the chat for the feature you are missing and it
+  becomes a form, a dashboard or a link to one of your services' APIs.
 - **Profiles** (work, home, focus) that switch by themselves, a **"customer is
   watching"** mode, messages from any script, settings backup.
-- **Ten characters** (Goccia, the default, Slime, Gecko, Flame, Magma, Stone,
+- **Eleven characters** (Goccia, the default, Slime, Gecko, Flame, Magma, Stone,
   Rock, Leaf, **Jarvis**, **Jarvis Sfera** and **Jarvis Plasma**), or in their place the **EasyIsland
   logo, your own PNG logo or the weather**; free placement, an island as big as the screen opening where
   you want, Windows 11 or Classic style in **light, dark or automatic** mode, themes, sounds generated in code, interface in **Italian or
