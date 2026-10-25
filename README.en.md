@@ -58,6 +58,12 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 
 ## What's new
 
+**1.0.4** — **Collection**: select some text in any app (even a name and price on a supplier's site)
+and `Ctrl+Alt+Shift+R` puts it in "Files and screen" with its source, page included from Chrome and
+Edge; a zone of the screen too, from Box and ask. Give it a name and the fields to work out, and "Ask
+the chat" hands it all over at once. **Memory map** one click away in the island. Fixed: the map said
+"memory empty" and the Concept map stopped with some pages.
+
 **1.0.3** — **Logo or weather instead of the character** (Settings → Appearance → "In the island"):
 the EasyIsland logo, your own PNG or the weather, as still pictures with no animation. **Over 150
 icons** for quick actions and an **automatic icon**: a link's site favicon, a program's own icon.
