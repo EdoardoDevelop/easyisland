@@ -10,9 +10,24 @@
 // PREVIEW_URL when the dev server answers only on localhost.
 
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
+/**
+ * Edge's profile folder. Edge's child processes outlive edge.kill() for a
+ * moment and keep it locked: retry, and sweep the ones earlier runs left
+ * behind (they piled up to tens of GB in %TEMP%).
+ */
+function removeProfile(dir) {
+  try { rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 }); } catch { /* the next run sweeps it */ }
+}
+for (const name of (() => { try { return readdirSync(tmpdir()); } catch { return []; } })()) {
+  if (!name.startsWith("easyisland-smoke-")) continue;
+  const dir = join(tmpdir(), name);
+  try { if (Date.now() - statSync(dir).mtimeMs > 3600_000) removeProfile(dir); } catch { /* gone already */ }
+}
+
 
 const BASE = process.env.PREVIEW_URL ?? "http://127.0.0.1:1420";
 const PORT = 9334;
@@ -195,7 +210,7 @@ try {
   ws?.close();
   edge.kill();
   await sleep(500);
-  try { rmSync(profile, { recursive: true, force: true }); } catch { /* Edge still holds it */ }
+  removeProfile(profile);
 }
 console.log(failed ? `\n${failed} scene con errori` : "\nnessun errore");
 process.exit(failed);

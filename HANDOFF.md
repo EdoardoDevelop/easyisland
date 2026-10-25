@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 25 ottobre 2026. Versione **1.0.5** in `main` con il tag `v1.0.5` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 25 ottobre 2026. Versione **1.0.6** in `main` con il tag `v1.0.6` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -24,6 +24,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Spunti da Coucou:** Amp/Hermes, limiti di Codex, riepilogo condivisibile come immagine, GitHub (`docs/idee.md`).
 - [ ] **Prova dal vivo dei nuovi personaggi** (`docs/prove-dal-vivo.md`).
 - [ ] **Modalità chiara:** guardare tutte le schede dell'isola e le pagine delle Impostazioni in chiaro con l'app vera e correggere in `src/style-light.css` / `settings-light.css` ciò che il plugin sbaglia (colori in linea nel codice TypeScript non cambiano).
+- [ ] **Recapiti tra due EasyIsland** (casa ↔ notebook, memorie separate, senza VPN né cloud): da valutare (`docs/idee.md`).
 - [ ] **Da decidere con Edoardo:** firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
 
 ## Problemi noti
@@ -35,10 +36,11 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
-### 25 ottobre 2026 — Modalità chiara, Jarvis Plasma, Aspetto riordinato
+### 25 ottobre 2026 — Versione 1.0.6: modalità chiara, Jarvis Plasma, Aspetto riordinato
 - Modalità **Scura / Chiara / Automatica** per entrambi gli stili (`theme.scheme`). Le regole chiare le genera il plugin di Vite `scripts/light-css.mjs` sotto `:where([data-scheme="light"])`; correzioni a mano in `src/style-light.css` e `settings-light.css`; Automatica dal registro (`system_light`). Dettagli in `docs/architettura.md`.
 - **Jarvis Plasma** (`jarvis.ts`), da un'immagine: gabbia di filamenti, rete interna, nodo luminoso, niente bordo netto. Jarvis Sfera con colori più accesi.
 - Pagina **Aspetto** in cinque sezioni (`appearanceSections`); volumi spostati in Generale.
+- `smoke.mjs` e `screenshots.mjs` lasciavano in %TEMP% il profilo di Edge (bloccato dai processi figli): ~30 GB accumulati, disco pieno. Ora riprovano a cancellarlo e all'avvio spazzano quelli più vecchi di un'ora.
 
 ### 25 ottobre 2026 — Grafo 3D della memoria
 - Nuova scheda «Grafo 3D» nella finestra Memoria (`src/memory/graph3d.ts`): forze in 3D, prospettiva su Canvas 2D senza librerie, trascina per girare, clic per portare la stella davanti. Fotogrammi solo mentre si muove.

@@ -65,9 +65,17 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 
 ## What's new
 
+**1.0.6** — **Light, dark or automatic mode** for both styles (Settings → Appearance → Theme), the
+Settings window too; Automatic follows Windows. The **Appearance** page reorganised in five sections
+(Theme, Character, Position, Closed island, Open island). **Jarvis Plasma**: a blue and violet plasma
+globe with ever-changing filaments; Jarvis Sfera in brighter colours. **Memory**: a **memory engine** of
+your choice, free ones too, writes topic pages and relations by itself (additions only, the «Link with
+AI» button and after the evening digest), a better linked graph and the **3D graph** to turn with the
+mouse.
+
 **1.0.5** — **Jarvis**: a new character, an assistant's interface with a glowing core and rings that
 never stop, rhythm and colour for every state, a satellite for every agent at work and the seconds on
-the outer ring. **Jarvis Plasma**: a blue and violet plasma globe with ever-changing filaments. **Jarvis Sfera**: the same idea as a sphere of points rippling like sound. With Jarvis
+the outer ring. **Jarvis Sfera**: the same idea as a sphere of points rippling like sound. With Jarvis
 the weather is a small sign in the corner. Fixed: closing the island from its taskbar preview made it
 disappear until EasyIsland was restarted.
 
@@ -202,6 +210,7 @@ the browser's. **Overview** with large, faded logos in the corner of each tile.
 
 | Version | Date | What's new |
 |---|---|---|
+| **1.0.6** | 25 Oct 2026 | Light/dark/automatic mode, Appearance reorganised, Jarvis Plasma, memory engine, 3D graph |
 | **1.0.5** | 25 Oct 2026 | Jarvis and Jarvis Sfera characters, the island no longer disappears when closed from the taskbar |
 | **1.0.4** | 25 Oct 2026 | Collection (text and areas with their source, for the chat), memory map from the island |
 | **1.0.3** | 25 Oct 2026 | Logo or weather instead of the character, over 150 icons and an automatic icon for actions, Box and ask |

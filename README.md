@@ -67,9 +67,17 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**1.0.6** — **Modalità chiara, scura o automatica** per entrambi gli stili (Impostazioni → Aspetto →
+Tema), anche per la finestra delle Impostazioni; Automatica segue Windows. Pagina **Aspetto** riordinata
+in cinque sezioni (Tema, Personaggio, Posizione, Isola chiusa, Isola aperta). **Jarvis Plasma**: un globo
+al plasma blu e viola, con filamenti che cambiano di continuo; Jarvis Sfera con colori più accesi.
+**Memoria**: un **motore per la memoria** a scelta, anche gratuito, crea da solo le pagine degli
+argomenti e le relazioni (solo aggiunte, pulsante «Collega con l'IA» e dopo il riordino serale), un
+grafo più collegato e il **Grafo 3D** da girare col mouse.
+
 **1.0.5** — **Jarvis**: nuovo personaggio, l'interfaccia di un assistente con un nucleo luminoso e
 anelli sempre in movimento, ritmo e colori per ogni stato, un satellite per ogni agente al lavoro e i
-secondi sull'anello esterno. **Jarvis Plasma**: un globo al plasma blu e viola, con filamenti che cambiano di continuo. **Jarvis Sfera**: la stessa idea come sfera di punti che ondeggia come un
+secondi sull'anello esterno. **Jarvis Sfera**: la stessa idea come sfera di punti che ondeggia come un
 suono. Con Jarvis il meteo è un segno piccolo nell'angolo. Corretto: chiudere l'isola dall'anteprima
 nella barra delle applicazioni la faceva sparire finché non si riavviava EasyIsland.
 
@@ -386,6 +394,7 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
+| **1.0.6** | 25 ott 2026 | Modalità chiara/scura/automatica, Aspetto riordinato, Jarvis Plasma, motore per la memoria, Grafo 3D |
 | **1.0.5** | 25 ott 2026 | Personaggi Jarvis e Jarvis Sfera, isola che non sparisce chiudendola dalla barra delle applicazioni |
 | **1.0.4** | 25 ott 2026 | Raccolta (testo e zone con la loro fonte, da passare alla chat), mappa della memoria dall'isola |
 | **1.0.3** | 25 ott 2026 | Logo o meteo al posto del personaggio, oltre 150 icone e icona automatica per le azioni, Riquadra e chiedi |
