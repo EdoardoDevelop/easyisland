@@ -17,13 +17,29 @@
 
 import type { BotStateName } from "../core/layout";
 import type { HudCharacter, RGB } from "./character";
-import { mix, rgba } from "./character";
+import { character, mix, rgba } from "./character";
 
 export const JARVIS: HudCharacter = {
   kind: "hud",
   id: "jarvis",
   name: "Jarvis",
   color: [0.28, 0.82, 1],
+  aspect: 1,
+  wearsIntegrationColor: true,
+  animated: true,
+};
+
+/**
+ * Jarvis Sfera (asked by Edoardo on 25 Oct 2026, from a picture): the same
+ * assistant as a sphere of points whose surface ripples like sound — cool at
+ * the top, warm at the bottom, brighter at the rim. Same rhythm per state,
+ * satellites and parallax as the rings.
+ */
+export const JARVIS_SPHERE: HudCharacter = {
+  kind: "hud",
+  id: "jarvis-sfera",
+  name: "Jarvis Sfera",
+  color: [0.35, 0.6, 1],
   aspect: 1,
   wearsIntegrationColor: true,
   animated: true,
@@ -69,8 +85,126 @@ function rhythm(state: BotStateName): { spin: number; pulse: number; glow: numbe
 const TAU = Math.PI * 2;
 const ease = (v: number) => 1 - Math.pow(1 - Math.max(0, Math.min(1, v)), 3);
 
-/** Draws Jarvis centred on (cx, cy), `R` the radius of its outer ring. */
+/** Draws the Jarvis in use (rings or sphere) centred on (cx, cy), `R` its outer radius. */
 export function drawJarvis(x: CanvasRenderingContext2D, cx: number, cy: number, R: number, look: HudLook, nowMs = performance.now()) {
+  if (character().id === JARVIS_SPHERE.id) drawSphere(x, cx, cy, R, look, nowMs);
+  else drawRings(x, cx, cy, R, look, nowMs);
+}
+
+/** Points on a sphere, evenly spread (Fibonacci), by count. */
+const spheres = new Map<number, Float32Array>();
+function spherePoints(n: number): Float32Array {
+  let p = spheres.get(n);
+  if (p) return p;
+  p = new Float32Array(n * 3);
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < n; i++) {
+    const y = 1 - (i / (n - 1)) * 2;
+    const r = Math.sqrt(1 - y * y);
+    const a = i * golden;
+    p[i * 3] = Math.cos(a) * r;
+    p[i * 3 + 1] = y;
+    p[i * 3 + 2] = Math.sin(a) * r;
+  }
+  spheres.set(n, p);
+  return p;
+}
+
+const WARM: RGB = [1, 0.45, 0.22];
+/** A fixed pseudo-random value per point (no Math.random: the same every frame). */
+const HASH = Float32Array.from({ length: 997 }, (_, i) => {
+  const v = Math.sin(i * 12.9898) * 43758.5453;
+  return v - Math.floor(v);
+});
+
+function drawSphere(x: CanvasRenderingContext2D, cx: number, cy: number, R: number, look: HudLook, nowMs: number) {
+  const t = nowMs / 1000;
+  const r = rhythm(look.state);
+  const boot = look.simple ? 1 : ease((nowMs - bootAt) / 1400);
+  // Cool on top: the theme's colour; warm below, leaning to the state's colour.
+  const top = look.base;
+  const bottom = mix(WARM, look.col, Math.min(1, look.tint * 1.1));
+  // Through violet and pink, as in the picture.
+  const mid = mix(mix(top, bottom, 0.5), [0.75, 0.3, 0.75], 0.5);
+  let alpha = r.glow;
+  if (look.state === "error") alpha *= 0.7 + 0.3 * Math.sign(Math.sin(t * 23) + Math.sin(t * 7.3));
+  if (look.state === "sleeping") alpha *= 0.65 + 0.35 * Math.sin(t * 1.2);
+  // How rough the surface is: calm at rest, a voice while working, a beat waiting.
+  const busy = look.state === "working" || look.state === "thinking" || look.state === "searching";
+  let rough = busy ? 0.09 : look.state === "sleeping" ? 0.025 : 0.05;
+  if (look.state === "approval" || look.state === "question") rough += 0.08 * Math.pow(Math.max(0, Math.sin(t * r.pulse)), 4);
+  const n = look.simple ? 140 : R > 50 ? 1400 : 700;
+  const pts = spherePoints(n);
+  const yaw = t * 0.25 * r.spin + look.gazeX * 0.5;
+  const pitch = 0.35 + look.gazeY * 0.35;
+  const cyaw = Math.cos(yaw), syaw = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const dot = Math.max(0.7, R * (look.simple ? 0.05 : 0.022));
+
+  x.save();
+  x.translate(cx, cy);
+  // A faint dark core and halo, so the points read as a hollow globe.
+  const halo = x.createRadialGradient(0, 0, R * 0.3, 0, 0, R * 1.25);
+  halo.addColorStop(0, rgba(mix(top, bottom, 0.5), 0.1 * alpha));
+  halo.addColorStop(1, rgba(top, 0));
+  x.fillStyle = halo;
+  x.beginPath();
+  x.arc(0, 0, R * 1.25, 0, Math.PI * 2);
+  x.fill();
+
+  const ripple = look.state === "finished" ? (t % 1.5) / 1.5 : -1;
+  for (let i = 0; i < n; i++) {
+    const px = pts[i * 3], py = pts[i * 3 + 1], pz = pts[i * 3 + 2];
+    // The surface waves: a few travelling sines over the sphere, like sound.
+    let k = 1 + rough * (Math.sin(px * 5 + t * 2.1) * Math.cos(py * 4 - t * 1.7) + 0.6 * Math.sin(pz * 7 + py * 3 + t * 3.1)
+      + 0.45 * Math.sin(px * 13 - pz * 11 + t * 4.3));
+    // Each point a little off the surface, more so at the rim: a frayed, dusty edge.
+    const jit = HASH[i % HASH.length];
+    k += (jit - 0.5) * (0.05 + rough * 0.6) + (jit > 0.93 ? (jit - 0.93) * 2.2 : 0);
+    if (ripple >= 0) k += 0.12 * Math.max(0, 1 - Math.abs(py + 1 - ripple * 2) * 3);
+    k *= boot;
+    // Turn: around the vertical axis, then tip towards the viewer.
+    const x1 = px * cyaw - pz * syaw;
+    const z1 = px * syaw + pz * cyaw;
+    const y2 = py * cp - z1 * sp;
+    const z2 = py * sp + z1 * cp;
+    const sx = x1 * k * R;
+    const sy = y2 * k * R;
+    // Brighter on the rim and in front; the back fades.
+    const rim = Math.sqrt(Math.min(1, x1 * x1 + y2 * y2));
+    const front = (z2 + 1) / 2;
+    const a = alpha * (0.18 + 0.55 * rim * rim + 0.25 * front);
+    // Colour by height on screen: cool at the top, warm at the bottom.
+    const h = (y2 + 1) / 2;
+    const col = h < 0.5 ? mix(top, mid, h * 2) : mix(mid, bottom, (h - 0.5) * 2);
+    x.fillStyle = rgba(col, Math.min(1, a));
+    const s = dot * (0.7 + 0.6 * front);
+    x.fillRect(sx - s / 2, sy - s / 2, s, s);
+  }
+  // A few bright sparks scattered on the surface.
+  if (!look.simple) {
+    for (let i = 0; i < 12; i++) {
+      const j = ((i * 97 + Math.floor(t * 0.7) * 13) % n) * 3;
+      const x1 = pts[j] * cyaw - pts[j + 2] * syaw;
+      const z1 = pts[j] * syaw + pts[j + 2] * cyaw;
+      const y2 = pts[j + 1] * cp - z1 * sp;
+      x.fillStyle = rgba([1, 1, 1], 0.8 * alpha);
+      x.fillRect(x1 * R * boot - 1, y2 * R * boot - 1, 2, 2);
+    }
+  }
+  // Satellites: one per agent at work.
+  if (agents > 0 && !look.simple) {
+    for (let i = 0; i < agents; i++) {
+      const a = t * 0.9 + (i / agents) * Math.PI * 2;
+      x.beginPath();
+      x.arc(Math.cos(a) * R * 1.15, Math.sin(a) * R * 0.35, Math.max(2, R * 0.05), 0, Math.PI * 2);
+      x.fillStyle = rgba(mix(top, [1, 1, 1], 0.5), 0.95 * alpha);
+      x.fill();
+    }
+  }
+  x.restore();
+}
+
+function drawRings(x: CanvasRenderingContext2D, cx: number, cy: number, R: number, look: HudLook, nowMs: number) {
   const t = nowMs / 1000;
   const r = rhythm(look.state);
   const c = mix(look.base, look.col, Math.min(1, look.tint * 1.1));
