@@ -65,6 +65,9 @@ Il pulsante con i tre nodi in alto nell'isola (o **Impostazioni → Chat → Mem
 
 Ogni pagina, nota, fonte e giorno di chat è una stella, unita alle altre dai collegamenti. Le stelle più collegate sono più grandi. Clic su una stella: si illuminano i suoi collegamenti, con scintille che li percorrono, e a destra vedi il testo e l'elenco dei collegamenti.
 
+### Grafo 3D
+Lo stesso grafo nello spazio, come un globo di stelle. Trascina per girarlo (continua a ruotare un poco quando lasci), rotellina per avvicinarti, doppio clic per vedere tutto. Le stelle lontane sono più tenui; cliccandone una il globo si gira per portarla davanti a te.
+
 ### Mappa mentale
 ![La mappa mentale](../media/memoria-mappa.png)
 

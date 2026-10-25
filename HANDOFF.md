@@ -34,6 +34,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 25 ottobre 2026 — Grafo 3D della memoria
+- Nuova scheda «Grafo 3D» nella finestra Memoria (`src/memory/graph3d.ts`): forze in 3D, prospettiva su Canvas 2D senza librerie, trascina per girare, clic per portare la stella davanti. Fotogrammi solo mentre si muove.
+
 ### 25 ottobre 2026 — Motore per la memoria
 - `memory_ai.rs`: un motore scelto in Impostazioni → Chat → Memoria (anche gratuito, senza strumenti) riceve note e pagine e risponde in JSON; EasyIsland scrive solo aggiunte (pagine-argomento con le note, relazioni). «Collega con l'IA» nella mappa e dopo il riordino della sera se la memoria è cambiata.
 - **Prove:** `cargo test` (lettura del JSON, intestazione delle pagine), `npm run build`, `npm run smoke`. Da provare dal vivo con un motore vero.
@@ -53,7 +56,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Mappa della memoria: pulsante nell'isola, errore mostrato invece di «vuota», Mappa concettuale che si fermava con un livello vuoto («reading 'reduce'», visto sul notebook).
 - **Prove:** `cargo test`, `npm run build`, `npm run smoke`; anteprima del pannello e del testo per la chat. Da provare dal vivo: scorciatoia, URL da Chrome/Edge.
 
-### 25 ottobre 2026 — Icone delle azioni, Riquadra e chiedi
-- Oltre 150 icone per le azioni rapide; «Automatica» nel selettore: favicon del sito (letta solo da quel sito) o icona del programma, salvata nell'azione come PNG 64 px (`thumbs.rs` `favicon`/`program_icon`, `autoIcon` in `settings/main.ts`). Un link o programma nuovo la prende da solo finché resta il fulmine. Meteo nell'isola più grande.
-- «Cerchia e chiedi» diventa «Riquadra e chiedi»: si trascina un riquadro da un angolo all'altro (`capture.ts`).
-- **Prove:** `cargo test` (con `thumbs::tests::live_icons` dal vivo: Blocco note e GitHub), `npm run build`, `npm run smoke`.

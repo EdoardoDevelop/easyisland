@@ -65,6 +65,9 @@ The button with three nodes at the top of the island (or **Settings → Chat and
 
 Every page, note, source and chat day is a star, joined to the others by its links. The most linked stars are bigger. Click a star: its links light up, with sparks running along them, and on the right you see its text and the list of links.
 
+### 3D graph
+The same graph in space, like a globe of stars. Drag to turn it (it keeps spinning a little when you let go), wheel to come closer, double click to see everything. Far stars are fainter; click one and the globe turns to bring it in front of you.
+
 ### Mind map
 ![The mind map](../media/memoria-mappa.png)
 

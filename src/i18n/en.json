@@ -3135,5 +3135,7 @@
   "pagine nuove: {list}": "new pages: {list}",
   "rimandi alle note in: {list}": "note references in: {list}",
   "{n} relazioni tra pagine": "{n} relations between pages",
-  "Memoria collegata — {what}.": "Memory linked — {what}."
+  "Memoria collegata — {what}.": "Memory linked — {what}.",
+  "Grafo 3D": "3D graph",
+  "Lo stesso grafo nello spazio. Trascina per girarlo, rotellina per lo zoom, clic per vedere, doppio clic per vedere tutto.": "The same graph in space. Drag to turn it, wheel to zoom, click to see, double click to see everything."
 }

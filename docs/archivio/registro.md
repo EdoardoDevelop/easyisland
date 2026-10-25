@@ -2,6 +2,11 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 25 ottobre 2026 — Icone delle azioni, Riquadra e chiedi
+- Oltre 150 icone per le azioni rapide; «Automatica» nel selettore: favicon del sito (letta solo da quel sito) o icona del programma, salvata nell'azione come PNG 64 px (`thumbs.rs` `favicon`/`program_icon`, `autoIcon` in `settings/main.ts`). Un link o programma nuovo la prende da solo finché resta il fulmine. Meteo nell'isola più grande.
+- «Cerchia e chiedi» diventa «Riquadra e chiedi»: si trascina un riquadro da un angolo all'altro (`capture.ts`).
+- **Prove:** `cargo test` (con `thumbs::tests::live_icons` dal vivo: Blocco note e GitHub), `npm run build`, `npm run smoke`.
+
 ### 24 ottobre 2026 — Logo o meteo al posto del personaggio
 - Tema → «Nell'isola»: personaggio, logo di EasyIsland, logo dell'utente (PNG ridotto a 512 px, `logo.rs`, nel backup) o meteo. Logo e meteo sono immagini ferme: niente animazioni, stati né saluto (`character/figure.ts`, aggancio in `BotEngine.draw` e `busy`).
 - **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`; anteprima: logo EasyIsland, PNG e meteo nell'icona a riposo e nell'isola aperta. Da provare dal vivo.
