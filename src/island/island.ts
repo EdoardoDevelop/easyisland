@@ -34,11 +34,14 @@ import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state"
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
 import { locale, t } from "../core/i18n";
-import { applyUiStyle, uiStyle, windowsLook } from "../core/uistyle";
+import { applyUiStyle, scheme, uiStyle, windowsLook } from "../core/uistyle";
 
 const BOT_OVERHANG = 40;
 /** The island's background in the Windows 11 look when the user kept the default black. */
 const WINDOWS_ISLAND = "#1c1c1c";
+/** Light mode: Windows' light surface, and a near-white for the classic look. */
+const WINDOWS_ISLAND_LIGHT = "#f3f3f3";
+const CLASSIC_ISLAND_LIGHT = "#fbfbfc";
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
 const HIT_MARGIN = 14;
 /** Around the island, a dragged file is still taken; same as DROP_MARGIN in island.rs. */
@@ -2487,15 +2490,24 @@ ${note}` : text };
     setCharacter(t.character);
     setFigure(t.figure);
     this.loadLogo(t.figure === "logo" ? t.logoStamp ?? 0 : -1);
-    applyUiStyle(t.style);
+    applyUiStyle(t.style, t.scheme, () => this.paintIsland());
+    this.paintIsland();
+    this.applyBare();
+    Sound.setFamilyGains({ alerts: t.volumeAlerts, ui: t.volumeUi, emotes: t.volumeEmotes });
+  }
+
+  /** The island's own colour: the user's, or the style's default for dark or light. */
+  private paintIsland() {
+    const t = State.settings.theme;
     let hex = /^#[0-9a-f]{6}$/i.test(t.islandColor) ? t.islandColor : "#000000";
-    // Windows 11 look: the untouched black becomes the grey of Windows' dark surfaces.
-    if (uiStyle(t.style) === "windows" && hex === "#000000") hex = WINDOWS_ISLAND;
+    // The untouched black becomes the grey of Windows' dark surfaces, or the light ones in light mode.
+    if (hex === "#000000") {
+      if (scheme() === "light") hex = uiStyle(t.style) === "windows" ? WINDOWS_ISLAND_LIGHT : CLASSIC_ISLAND_LIGHT;
+      else if (uiStyle(t.style) === "windows") hex = WINDOWS_ISLAND;
+    }
     const n = parseInt(hex.slice(1), 16);
     const a = Math.max(0.5, Math.min(1, t.islandOpacity));
     this.islandEl.style.background = `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
-    this.applyBare();
-    Sound.setFamilyGains({ alerts: t.volumeAlerts, ui: t.volumeUi, emotes: t.volumeEmotes });
   }
 
   /** Re-reads placement settings: icon, anchors and the window box. */

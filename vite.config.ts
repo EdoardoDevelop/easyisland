@@ -1,10 +1,14 @@
 import { defineConfig } from "vite";
 import { resolve } from "node:path";
+// @ts-expect-error plain JS helper
+import { lightTheme } from "./scripts/light-css.mjs";
 
 // The sounds are synthesised in code (src/core/synth.ts): there are no audio files to serve.
 
 export default defineConfig({
   clearScreen: false,
+  // The light theme: a light copy of the island's and settings' CSS (scripts/light-css.mjs).
+  plugins: [lightTheme()],
   server: {
     port: 1420,
     strictPort: true,

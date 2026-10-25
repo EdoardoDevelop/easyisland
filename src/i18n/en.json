@@ -3137,5 +3137,19 @@
   "{n} relazioni tra pagine": "{n} relations between pages",
   "Memoria collegata — {what}.": "Memory linked — {what}.",
   "Grafo 3D": "3D graph",
-  "Lo stesso grafo nello spazio. Trascina per girarlo, rotellina per lo zoom, clic per vedere, doppio clic per vedere tutto.": "The same graph in space. Drag to turn it, wheel to zoom, click to see, double click to see everything."
+  "Lo stesso grafo nello spazio. Trascina per girarlo, rotellina per lo zoom, clic per vedere, doppio clic per vedere tutto.": "The same graph in space. Drag to turn it, wheel to zoom, click to see, double click to see everything.",
+  "l'aspetto dell'isola e di questa finestra: Windows 11 (colore d'accento di Windows, icone a linea) o Classico (colori di EasyIsland)": "the look of the island and of this window: Windows 11 (Windows' accent colour, line icons) or Classic (EasyIsland's colours)",
+  "Modalità": "Mode",
+  "Scura": "Dark",
+  "Chiara": "Light",
+  "Automatica (come Windows)": "Automatic (like Windows)",
+  "vale per entrambi gli stili; Automatica segue la modalità delle app di Windows (Impostazioni di Windows → Personalizzazione → Colori)": "applies to both styles; Automatic follows Windows' app mode (Windows Settings → Personalization → Colors)",
+  "Quello del tema": "The theme's",
+  "Chi sta nell'isola e come si comporta.": "Who lives in the island and how it behaves.",
+  "Isola chiusa": "Closed island",
+  "Quando l'isola non è aperta: cosa resta sullo schermo e cosa compare accanto al personaggio.": "When the island is not open: what stays on screen and what shows next to the character.",
+  "Isola aperta": "Open island",
+  "Quando e dove si apre, quanto è grande e quando si richiude.": "When and where it opens, how big it is and when it closes again.",
+  "Il suono vale per il profilo attivo, l'avvio con Windows per questo PC. I tempi di chiusura sono in Aspetto → Isola aperta.": "Sound applies to the active profile, starting with Windows to this PC. Closing times are in Appearance → Open island.",
+  "Tema e colori, il personaggio, dove sta l'isola e come si comporta chiusa e aperta.": "Theme and colours, the character, where the island sits and how it behaves closed and open."
 }

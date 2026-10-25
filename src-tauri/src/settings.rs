@@ -356,6 +356,9 @@ pub struct Theme {
     /// The look of the island and the settings: "windows" (Windows 11, the default) or "classic".
     #[serde(default = "default_style")]
     pub style: String,
+    /// Light or dark: "dark" (the default, as before), "light", or "auto" (follows Windows' app mode).
+    #[serde(default = "default_scheme")]
+    pub scheme: String,
     /// What sits in the island: "character", "easyisland" (the app's logo), "logo" (the user's PNG, logo.rs) or "weather".
     #[serde(default = "default_figure")]
     pub figure: String,
@@ -376,6 +379,7 @@ impl Default for Theme {
             volume_emotes: 1.0,
             compact_background: true,
             style: default_style(),
+            scheme: default_scheme(),
             figure: default_figure(),
             logo_stamp: 0,
         }
@@ -390,6 +394,9 @@ fn default_task_minutes() -> u32 {
 }
 fn default_style() -> String {
     "windows".into()
+}
+fn default_scheme() -> String {
+    "dark".into()
 }
 fn default_figure() -> String {
     "character".into()

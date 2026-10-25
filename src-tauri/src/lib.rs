@@ -2622,6 +2622,23 @@ fn system_accent() -> Option<String> {
     Some(hex(v as u8, (v >> 8) as u8, (v >> 16) as u8))
 }
 
+/// Windows' app mode for «Modalità: automatica» (Impostazioni → Aspetto): true when
+/// apps are set to light. Read from the registry because the settings window is
+/// created dark, so its prefers-color-scheme always says dark.
+#[tauri::command]
+fn system_light() -> bool {
+    use probes::reg::{Key, HKEY_CURRENT_USER};
+    Key::open(HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+        .and_then(|k| k.qword("AppsUseLightTheme"))
+        .is_some_and(|v| v != 0)
+}
+
+/// The calling window's title bar, light or dark, with the page's scheme.
+#[tauri::command]
+fn set_window_light(window: tauri::WebviewWindow, light: bool) {
+    let _ = window.set_theme(Some(if light { tauri::Theme::Light } else { tauri::Theme::Dark }));
+}
+
 /// Impostazioni → Compiti and the island: every task (tasks.rs).
 #[tauri::command]
 fn tasks_list() -> Vec<tasks::Task> {
@@ -2857,6 +2874,8 @@ pub fn run() {
             boot,
             save_settings,
             system_accent,
+            system_light,
+            set_window_light,
             tasks_list,
             task_new,
             task_control,

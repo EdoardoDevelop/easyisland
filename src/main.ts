@@ -2,6 +2,7 @@
 
 import "./style.css";
 import "./style-windows.css";
+import "./style-light.css";
 import "./character/roster";
 import { Bridge, IS_TAURI, onEvent, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
@@ -66,6 +67,9 @@ async function main() {
     if (who) State.settings.theme = { ...State.settings.theme, character: who };
     // ?ui=classic: the original look.
     if (params.get("ui") === "classic") State.settings.theme = { ...State.settings.theme, style: "classic" };
+    // ?scheme=light: the light mode.
+    const sch = params.get("scheme");
+    if (sch === "light" || sch === "auto") State.settings.theme = { ...State.settings.theme, scheme: sch };
 
     // Frame the 720×320 "window" in the matching corner of the page.
     document.documentElement.classList.add("browser-preview");

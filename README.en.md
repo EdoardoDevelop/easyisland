@@ -54,9 +54,9 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 - **Profiles** (work, home, focus) that switch by themselves, a **"customer is
   watching"** mode, messages from any script, settings backup.
 - **Ten characters** (Goccia, the default, Slime, Gecko, Flame, Magma, Stone,
-  Rock, Leaf, **Jarvis** and **Jarvis Sfera**), or in their place the **EasyIsland
+  Rock, Leaf, **Jarvis**, **Jarvis Sfera** and **Jarvis Plasma**), or in their place the **EasyIsland
   logo, your own PNG logo or the weather**; free placement, an island as big as the screen opening where
-  you want, Windows 11 or Classic style, themes, sounds generated in code, interface in **Italian or
+  you want, Windows 11 or Classic style in **light, dark or automatic** mode, themes, sounds generated in code, interface in **Italian or
   English**; light on battery, no telemetry.
 
 <p align="center">
@@ -67,7 +67,7 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 
 **1.0.5** — **Jarvis**: a new character, an assistant's interface with a glowing core and rings that
 never stop, rhythm and colour for every state, a satellite for every agent at work and the seconds on
-the outer ring. **Jarvis Sfera**: the same idea as a sphere of points rippling like sound. With Jarvis
+the outer ring. **Jarvis Plasma**: a blue and violet plasma globe with ever-changing filaments. **Jarvis Sfera**: the same idea as a sphere of points rippling like sound. With Jarvis
 the weather is a small sign in the corner. Fixed: closing the island from its taskbar preview made it
 disappear until EasyIsland was restarted.
 

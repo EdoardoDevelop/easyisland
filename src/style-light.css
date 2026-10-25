@@ -1,0 +1,21 @@
+/* Light mode of the island: the few rules the generated copy (scripts/light-css.mjs) gets wrong. */
+
+/* The browser preview's fake desktop keeps its own colour. */
+html.browser-preview[data-scheme="light"] body { background: var(--preview-bg, #dfe3e8); }
+
+/* Windows 11, light: the layers of Windows' light theme (island #f3f3f3 in island.ts,
+   content #fbfbfb on it, white cards), and the darker accent Windows uses on light. */
+html[data-ui="windows"][data-scheme="light"] {
+  --layer: #fbfbfb;
+  --card: #ffffff;
+  --card-flat: #ffffff;
+  --tab-on: rgba(0, 0, 0, 0.05);
+  --hairline: rgba(0, 0, 0, 0.07);
+  --stroke: rgba(0, 0, 0, 0.09);
+  --accent: color-mix(in srgb, var(--win-accent, #4cc2ff) 62%, #000);
+  --on-accent: #ffffff;
+}
+html[data-ui="windows"][data-scheme="light"] #island:not(.bare) { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1); }
+
+/* Classic, light: white cards on the near-white island. */
+html[data-scheme="light"]:not([data-ui="windows"]) { --card: #ffffff; --card-flat: #f6f7f9; --tab-on: rgba(0, 0, 0, 0.06); }

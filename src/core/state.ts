@@ -867,6 +867,8 @@ export interface Theme {
   compactBackground: boolean;
   /** The look of the island and the settings: "windows" (Windows 11, the default) or "classic". */
   style: "windows" | "classic";
+  /** Light or dark: "dark" (the default), "light", or "auto" (follows Windows' app mode). */
+  scheme: "dark" | "light" | "auto";
   /** What sits in the island: the character, the EasyIsland logo, the user's PNG or the weather (character/figure.ts). */
   figure: "character" | "easyisland" | "logo" | "weather";
   /** Bumped when the user's PNG changes, so the island loads it again (logo.rs). */
@@ -898,6 +900,7 @@ export const DEFAULT_THEME: Theme = {
   volumeEmotes: 1,
   compactBackground: true,
   style: "windows",
+  scheme: "dark",
   figure: "character",
   logoStamp: 0,
 };
