@@ -2,6 +2,12 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 25 ottobre 2026 — Jarvis
+- Nuovo personaggio **Jarvis** (`jarvis.ts`, tipo `hud`): nucleo e anelli sempre in movimento, ritmo e colori per stato, satelliti per gli agenti al lavoro, avvio con anelli che si compongono, secondi sull'anello esterno, parallasse verso il mouse. Senza occhi, mani né gelatina.
+- **Jarvis Sfera**: seconda versione, sfera di punti che ondeggia, dall'immagine di Edoardo (senza satelliti né scintille). Il cubo non si nomina più in README, guida, sito e documentazione.
+- Con Jarvis il meteo è un segno piccolo nell'angolo, mai dietro gli anelli. Corretto: «Chiudi finestra» dall'anteprima nella barra delle applicazioni distruggeva la finestra dell'isola (EasyIsland restava acceso senza isola); ora la richiude come la sua ✕ (`CloseRequested` in `lib.rs`, evento `tray` «close»).
+- **Prove:** `npm run build`, `npm run smoke`; anteprima degli stati. Da vedere dal vivo nell'isola e nel saluto.
+
 ### 25 ottobre 2026 — Raccolta, mappa della memoria
 - **Raccolta** (`collect.rs`, `src/views/collect.ts`): testo selezionato in qualsiasi app con `Ctrl+Alt+Shift+R` o una zona da Riquadra e chiedi, con app, titolo e pagina (SourceURL degli appunti), in «File e schermo»; nome e campi facoltativi, «Chiedi alla chat» allega tutto e la chat ricava i campi. Una alla volta, nel backup.
 - Mappa della memoria: pulsante nell'isola, errore mostrato invece di «vuota», Mappa concettuale che si fermava con un livello vuoto («reading 'reduce'», visto sul notebook).

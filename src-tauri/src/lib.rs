@@ -2574,6 +2574,8 @@ async fn open_flows_window(app: AppHandle, id: Option<String>) -> Result<(), Str
     let id = id.unwrap_or_default();
     if let Some(win) = app.get_webview_window(FLOWS_LABEL) {
         webview_memory::set_asleep(&win, false);
+        // In front of Impostazioni, which is topmost while focused.
+        island::keep_settings_above(&app, false);
         let _ = win.unminimize();
         let _ = win.show();
         let _ = win.set_focus();
@@ -2584,6 +2586,7 @@ async fn open_flows_window(app: AppHandle, id: Option<String>) -> Result<(), Str
     // not survive the app:// scheme of the release build.
     *PENDING_FLOW.lock().unwrap() = id;
     let url = page_url(&app, "flussi.html");
+    island::keep_settings_above(&app, false);
     let mut builder = WebviewWindowBuilder::new(&app, FLOWS_LABEL, url);
     if let Some(Some(dir)) = WEBVIEW_DIR.get() {
         builder = builder.data_directory(dir.clone());
@@ -2709,6 +2712,9 @@ pub fn show_memory_window(app: &AppHandle) {
         return;
     };
     webview_memory::set_asleep(&win, false);
+    // Opened from Impostazioni: that window is topmost while it has the focus
+    // (island::keep_settings_above) and would stay in front of this one.
+    island::keep_settings_above(app, false);
     let _ = win.unminimize();
     let _ = win.show();
     let _ = win.set_focus();
