@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 25 ottobre 2026. Versione **1.0.3** in `main` con il tag `v1.0.3` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 25 ottobre 2026. Versione **1.0.4** in `main` con il tag `v1.0.4` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -34,6 +34,11 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 25 ottobre 2026 — Raccolta, mappa della memoria
+- **Raccolta** (`collect.rs`, `src/views/collect.ts`): testo selezionato in qualsiasi app con `Ctrl+Alt+Shift+R` o una zona da Riquadra e chiedi, con app, titolo e pagina (SourceURL degli appunti), in «File e schermo»; nome e campi facoltativi, «Chiedi alla chat» allega tutto e la chat ricava i campi. Una alla volta, nel backup.
+- Mappa della memoria: pulsante nell'isola, errore mostrato invece di «vuota», Mappa concettuale che si fermava con un livello vuoto («reading 'reduce'», visto sul notebook).
+- **Prove:** `cargo test`, `npm run build`, `npm run smoke`; anteprima del pannello e del testo per la chat. Da provare dal vivo: scorciatoia, URL da Chrome/Edge.
+
 ### 25 ottobre 2026 — Icone delle azioni, Riquadra e chiedi
 - Oltre 150 icone per le azioni rapide; «Automatica» nel selettore: favicon del sito (letta solo da quel sito) o icona del programma, salvata nell'azione come PNG 64 px (`thumbs.rs` `favicon`/`program_icon`, `autoIcon` in `settings/main.ts`). Un link o programma nuovo la prende da solo finché resta il fulmine. Meteo nell'isola più grande.
 - «Cerchia e chiedi» diventa «Riquadra e chiedi»: si trascina un riquadro da un angolo all'altro (`capture.ts`).
@@ -52,7 +57,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 24 ottobre 2026 — Versione 1.0.1
 - Telegram a PC spento, isola che passa dietro le altre finestre, automazioni più complete, link delle Impostazioni nella lingua dell'app. Novità nei due README e sulla homepage.
 - **Prove:** `cargo test --workspace` (311 + 38), `npm run build`.
-
-### 24 ottobre 2026 — Automazioni più complete
-- Passi «Aspetta» e «Chiedi prima di continuare» (card Continua / Annulla), «Continua dopo un errore» (di serie si ferma). Le proposte dalle abitudini sono solo routine (inizio giornata con profilo, programmi e punto della giornata; rete con profilo e programmi; gruppi), mai un programma solo a un'ora. `automations.rs`, `habits.rs`, `docs/integrazioni.md`.
-- **Prove:** `cargo test --workspace` (test delle abitudini riscritti), `npm run build`; da provare dal vivo.

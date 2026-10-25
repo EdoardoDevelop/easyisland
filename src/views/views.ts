@@ -213,6 +213,11 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
     actions.blip();
     actions.openSettingsWindow();
   } }, svg(ICONS.sliders, 16));
+  // The memory map (src/memory), a click away instead of Impostazioni → Chat → Memoria.
+  const memBtn = h("button", { title: t("Mappa della memoria"), style: "--c:#34D399", onclick: () => {
+    actions.blip();
+    void Bridge.memoryWindowOpen();
+  } }, svg(ICONS.memory, 16, { stroke: 1.8 }));
   const soundBtn = h("button", { title: t("Silenzia"), style: "--c:#22D3EE", onclick: () => actions.toggleSound() }, svg(ICONS.speakerOn, 16));
   const closeBtn = h("button", { title: t("Chiudi"), style: "--c:#F4505E", onclick: () => actions.dismiss() }, svg(ICONS.xmark, 14));
   // The island as an app: — and ▢ like a window's.
@@ -239,7 +244,7 @@ export function buildHeader(actions: ViewActions): ViewHost & { field: HTMLEleme
     { id: "header" },
     talk,
     field,
-    h("div", { class: "header-actions" }, planBtn, pinBtn, gearBtn, soundBtn, minBtn, maxBtn, closeBtn),
+    h("div", { class: "header-actions" }, planBtn, pinBtn, memBtn, gearBtn, soundBtn, minBtn, maxBtn, closeBtn),
   );
 
   return {

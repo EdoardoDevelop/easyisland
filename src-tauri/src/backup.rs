@@ -26,6 +26,7 @@ fn areas() -> Vec<(&'static str, PathBuf, bool)> {
         ("chats.json", local_dir().join("chats.json"), false),
         ("habits.jsonl", local_dir().join("habits.jsonl"), false),
         ("logo.png", config_dir().join("logo.png"), false),
+        ("raccolta.json", config_dir().join("raccolta.json"), false),
     ]
 }
 

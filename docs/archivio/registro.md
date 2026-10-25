@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 24 ottobre 2026 — Automazioni più complete
+- Passi «Aspetta» e «Chiedi prima di continuare» (card Continua / Annulla), «Continua dopo un errore» (di serie si ferma). Le proposte dalle abitudini sono solo routine (inizio giornata con profilo, programmi e punto della giornata; rete con profilo e programmi; gruppi), mai un programma solo a un'ora. `automations.rs`, `habits.rs`, `docs/integrazioni.md`.
+- **Prove:** `cargo test --workspace` (test delle abitudini riscritti), `npm run build`; da provare dal vivo.
+
 ### 24 ottobre 2026 — L'isola passa dietro
 - A isola aperta, una finestra che le viene davanti sopra (scelta della cartella di lavoro, programmi aperti dall'isola) non finisce più sotto: l'isola le passa dietro senza chiudersi e torna davanti con un clic, un permesso/chiamata o quando si ritira (`step_aside_for`/`come_forward` in `island.rs`, `docs/architettura.md`). Arriva con la prossima versione.
 - **Prove:** `cargo test --workspace`, clippy, `npm run build`; da provare dal vivo.

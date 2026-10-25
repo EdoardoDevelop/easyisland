@@ -33,6 +33,17 @@ The chat **reads it without asking** and moves Tray files into it (with confirma
 
 <kbd>Esc</kbd> or the right button cancel. Handy for getting an error window explained.
 
+## Collection
+
+To set aside bits taken from several apps and then have the chat work on them all together: a quote with products and prices from several suppliers, a comparison, a search.
+
+- Select some text in any app (on a supplier's site, the line with name and price) and press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>. The island says "In the collection: 3" and you carry on. Every item keeps its source: the program, the window title and, when you copy from Chrome or Edge, the page address.
+- From **Box and ask**, **Into the collection** adds a zone of the screen: the text Windows reads plus the picture.
+- In **Files and screen** the Collection has a **name** and, if you want, the **fields to work out** (for example "Product, Price, Supplier"). The ✕ removes an item, **Empty** removes them all.
+- **Ask the chat** attaches the whole collection. With fields, the chat works them out for every item and shows them in a table, then waits for your question ("make me the quote with a 20 % markup").
+
+There is one collection at a time, and it stays after a restart until you empty it. The shortcut is changed in Settings → Quick actions.
+
 ## Record
 In the Files and screen tab, **Record** captures:
 - a **conversation** (microphone and PC audio, the other side of a call too);

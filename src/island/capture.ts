@@ -12,6 +12,7 @@ import { State, type QuickAction } from "../core/state";
 import { h, svg } from "../views/dom";
 import { ICONS } from "../views/icons";
 import { renderActionIcon } from "../views/action-icons";
+import { addToCollection } from "../views/collect";
 
 export interface CaptureHandlers {
   /** The zone (saved in the inbox) to the chat; `question` "" = attached, waiting for one. */
@@ -227,6 +228,14 @@ export async function startCapture(handlers: CaptureHandlers): Promise<void> {
       finish();
       const lines = text.split("\n").filter((l) => l.trim()).length;
       handlers.done(lines === 1 ? t("Testo copiato: 1 riga") : t("Testo copiato: {n} righe", { n: lines }));
+    }),
+    // La Raccolta: the zone's text (Windows' OCR) with its picture, for the chat later.
+    tool(ICONS.plus, t("Nella raccolta"), async (z) => {
+      const text = await Bridge.captureText(z).catch(() => "");
+      const file = await Bridge.captureSave(z);
+      const n = await addToCollection({ text, app: "", title: "", url: "", image: file.path });
+      finish();
+      handlers.done(t("Nella raccolta: {n}", { n }));
     }),
     tool(ICONS.stack, t("Nel Vassoio"), async (z) => {
       const file = await Bridge.captureSave(z);

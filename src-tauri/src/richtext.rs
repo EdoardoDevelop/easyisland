@@ -24,6 +24,8 @@ pub struct Clip {
     head: String,
     pub fragment: String,
     tail: String,
+    /// The page it was copied from ("SourceURL:" in the header; browsers write it).
+    pub source: String,
 }
 
 fn html_format() -> u32 {
@@ -70,6 +72,13 @@ pub fn parse(raw: &str) -> Option<Clip> {
         head: raw.get(html_start..frag_start)?.to_string(),
         fragment: raw.get(frag_start..frag_end)?.to_string(),
         tail: raw.get(frag_end..html_end.min(raw.len()))?.to_string(),
+        source: raw
+            .lines()
+            .take(12)
+            .find_map(|l| l.strip_prefix("SourceURL:"))
+            .map(|u| u.trim().to_string())
+            .filter(|u| u.starts_with("http://") || u.starts_with("https://"))
+            .unwrap_or_default(),
     })
 }
 
@@ -472,6 +481,7 @@ mod tests {
             head: "<html><head><style>p{font-family:Aptos}</style></head><body><!--StartFragment-->".into(),
             fragment: String::new(),
             tail: "<!--EndFragment--></body></html>".into(),
+            source: String::new(),
         };
         clip.with_fragment(fragment)
     }

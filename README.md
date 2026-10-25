@@ -59,6 +59,12 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**1.0.4** — **Raccolta**: selezioni del testo in qualsiasi app (anche nome e prezzo sul sito di un
+fornitore) e con `Ctrl+Alt+Shift+R` finisce in «File e schermo» con la sua fonte, pagina compresa da
+Chrome ed Edge; anche una zona dello schermo da Riquadra e chiedi. Le dai un nome e i campi da ricavare,
+e «Chiedi alla chat» passa tutto insieme. **Mappa della memoria** a un clic dall'isola. Corretto: la
+mappa diceva «memoria vuota» e la Mappa concettuale si fermava con certe pagine.
+
 **1.0.3** — **Logo o meteo al posto del personaggio** (Impostazioni → Aspetto → «Nell'isola»): il
 logo di EasyIsland, il tuo PNG o il meteo, come immagini ferme senza animazioni. **Oltre 150 icone**
 per le azioni rapide e **icona automatica**: la favicon del sito per un link, l'icona del programma

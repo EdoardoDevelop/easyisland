@@ -45,7 +45,7 @@ for (const tb of TABS) {
   tabsBox.append(b);
 }
 const search = h("input", { class: "mem-search", type: "search", placeholder: t("Cerca nella memoria…") }) as HTMLInputElement;
-const inboxBtn = h("button", { title: t("Apri la cartella dei file da far imparare") }) as HTMLButtonElement;
+const inboxBtn = h("button", { text: t("Da leggere"), title: t("Apri la cartella dei file da far imparare") }) as HTMLButtonElement;
 const readBtn = h("button", { text: t("Leggi adesso"), title: t("Un compito legge i file di da-leggere e scrive le pagine") }) as HTMLButtonElement;
 const checkBtn = h("button", { text: t("Controlla"), title: t("Un compito controlla la memoria e ti propone come sistemarla") }) as HTMLButtonElement;
 const reloadBtn = h("button", { text: "↻", title: t("Aggiorna") }) as HTMLButtonElement;
@@ -114,8 +114,22 @@ function show(next: Tab) {
   showEmpty();
 }
 
+/** Why the memory could not be read, shown instead of «vuota» (which would not be true). */
+let loadError = "";
+
 function showEmpty() {
   clear(empty);
+  if (!model && !loadError && !loadedAt) {
+    // Still reading: a big memory takes a moment, and it is not empty.
+    empty.style.display = "grid";
+    empty.append(h("div", {}, h("b", { text: t("Leggo la memoria…") })));
+    return;
+  }
+  if (loadError && !model) {
+    empty.style.display = "grid";
+    empty.append(h("div", {}, h("b", { text: t("Non riesco a leggere la memoria") }), h("div", { text: loadError })));
+    return;
+  }
   const g = model?.g;
   const nothing = !g || (!g.nodes.length && !g.events.length);
   const noPages = tab === "concept" && !(g?.nodes.some((n) => n.kind === "page"));
@@ -249,7 +263,16 @@ async function load() {
   if (loading) return;
   loading = true;
   try {
-    let g: MemGraph | null = await Bridge.memoryGraph();
+    let g: MemGraph | null = null;
+    try {
+      g = await Bridge.memoryGraph();
+      loadError = "";
+    } catch (e) {
+      loadError = String(e).replace(/^Error:\s*/, "") || t("errore sconosciuto");
+      console.warn("memory_graph", e);
+      showEmpty();
+      return;
+    }
     if (!g && !IS_TAURI) g = (await import("./demo")).demoGraph();
     if (!g) return;
     model = new Model(g);
@@ -266,6 +289,12 @@ async function load() {
     loadedAt = Date.now();
     if (selected) select(selected);
     document.documentElement.dataset.ready = "1";
+  } catch (e) {
+    // A drawing error must not pass for an empty memory.
+    loadError = String(e).replace(/^Error:\s*/, "");
+    model = null;
+    showEmpty();
+    feedback.textContent = loadError;
   } finally {
     loading = false;
   }

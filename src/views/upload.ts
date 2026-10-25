@@ -6,6 +6,7 @@
 
 import { buildRecorderPanel } from "./recorder";
 import { buildWorkPanel } from "./workdir";
+import { buildCollectPanel } from "./collect";
 import { fileBadge } from "./filekind";
 import { h, clear, svg } from "./dom";
 import { ICONS } from "./icons";
@@ -303,9 +304,12 @@ export function buildFiles(actions: ViewActions): ViewHost {
   const recorder = buildRecorderPanel(actions);
   // The work folder (src/views/workdir.ts), separate from the tray.
   const work = buildWorkPanel(actions);
+  // La Raccolta: bits from any app, with their source, for the chat (src/views/collect.ts).
+  const collect = buildCollectPanel(actions);
   const body = h("div", { class: "files-body" },
     h("h1", { class: "files-title", text: t("File e schermo") }),
     h("div", { class: "files-tiles" }, dropTile, captureTile),
+    collect.el,
     recorder.el,
     head, list, note, work.el);
   const card = h("div", { class: "card wash files-card" }, body);
@@ -353,6 +357,7 @@ export function buildFiles(actions: ViewActions): ViewHost {
     el,
     sync() {
       recorder.sync();
+      collect.sync();
       work.sync();
       // The tray's «Sposta nella cartella di lavoro» appears with a work folder.
       const workHere = work.current();
