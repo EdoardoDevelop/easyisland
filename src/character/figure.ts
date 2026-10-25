@@ -103,19 +103,19 @@ function drawWeather(x: CanvasRenderingContext2D, W: number, side: number, cy: n
   const temp = weather.temp || "—";
   // drawSky's small sign sits right of and above the point it is given: undo that
   // so the sky is centred over the temperature. Still picture: time stays at 0.
-  const unit = side * 0.34;
-  const skyY = cy - side * 0.12;
+  const unit = side * 0.5;
+  const skyY = cy - side * 0.2;
   x.save();
   if (!weather.sky) x.globalAlpha = 0.5;
   drawSky(x, sky, unit, W / 2 - unit * 0.32, skyY + unit * 0.36, 0, false);
   x.restore();
   x.save();
-  x.font = `600 ${Math.round(side * 0.27)}px "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif`;
+  x.font = `600 ${Math.round(side * 0.36)}px "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif`;
   x.textAlign = "center";
   x.textBaseline = "middle";
   x.fillStyle = "#ffffff";
   x.shadowColor = "rgba(0,0,0,0.45)";
   x.shadowBlur = side * 0.04;
-  x.fillText(temp, W / 2, cy + side * 0.3);
+  x.fillText(temp, W / 2, cy + side * 0.28);
   x.restore();
 }
