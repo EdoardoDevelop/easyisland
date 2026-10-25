@@ -3098,5 +3098,9 @@
   "Componente": "Component",
   "Robot": "Robot",
   "Repository": "Repository",
-  "API": "API"
+  "API": "API",
+  "Mappa della memoria": "Memory map",
+  "Leggo la memoria…": "Reading the memory…",
+  "Non riesco a leggere la memoria": "Can't read the memory",
+  "Errore nel leggere la memoria: {e}": "Error reading the memory: {e}"
 }

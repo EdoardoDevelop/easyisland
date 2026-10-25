@@ -1514,8 +1514,9 @@ fn memory_open(folder: bool) -> Result<(), String> {
 
 /// The memory window (brain.rs): pages, notes, sources, days and their links, the timeline.
 #[tauri::command]
-async fn memory_graph() -> brain::Graph {
-    tauri::async_runtime::spawn_blocking(brain::graph).await.unwrap_or_else(|_| brain::graph())
+async fn memory_graph() -> Result<brain::Graph, String> {
+    // A failure says so: the window must not show "la memoria è vuota" instead.
+    tauri::async_runtime::spawn_blocking(brain::graph).await.map_err(|e| tf("Errore nel leggere la memoria: {e}", &[("e", &e)]))
 }
 
 /// The memory window's «Leggi adesso» and «Controlla»: a task (tasks.rs).

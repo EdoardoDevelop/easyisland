@@ -20,7 +20,7 @@
 //
 // `graph` gives the memory window (src/memory/) its nodes, links and timeline.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 
 use serde::Serialize;
@@ -526,11 +526,13 @@ fn check_at(today: i64, notes: &[String], all: &[Page]) -> Vec<String> {
         }
     }
     // Pages about the same thing.
+    // Words taken once per page: with many pages, once per pair made the map hang.
     let titles: Vec<BTreeSet<String>> = all.iter().map(|p| words(&p.title)).collect();
+    let bodies: Vec<BTreeSet<String>> = all.iter().map(|p| words(&p.body)).collect();
     for i in 0..all.len() {
         for j in i + 1..all.len() {
             let same_title = similarity(&titles[i], &titles[j]) >= 0.67;
-            let same_body = all[i].body.len() > 80 && similarity(&words(&all[i].body), &words(&all[j].body)) >= 0.75;
+            let same_body = all[i].body.len() > 80 && similarity(&bodies[i], &bodies[j]) >= 0.75;
             if same_title || same_body {
                 out.push(tf("Pagine forse sullo stesso argomento: «{a}» e «{b}»", &[("a", &all[i].title), ("b", &all[j].title)]));
             }
@@ -666,9 +668,11 @@ pub fn graph() -> Graph {
     let mut events: Vec<Event> = Vec::new();
     let mut ids: BTreeSet<String> = BTreeSet::new();
     let mut degree: HashMap<String, u32> = HashMap::new();
+    let mut seen: HashSet<(String, String)> = HashSet::new();
 
     // Pages, their links and sources.
     let titles: Vec<(String, String)> = all.iter().map(|p| (p.slug.clone(), p.title.to_lowercase())).filter(|(_, t)| t.chars().count() >= 3).collect();
+    let page_ids: BTreeSet<String> = all.iter().map(|q| format!("p:{}", q.slug)).collect();
     for p in &all {
         let id = format!("p:{}", p.slug);
         ids.insert(id.clone());
@@ -678,17 +682,17 @@ pub fn graph() -> Graph {
         }
         for l in &p.links {
             let to = format!("p:{}", slug(&l.target));
-            if !all.iter().any(|q| format!("p:{}", q.slug) == to) && ids.insert(to.clone()) {
+            if !page_ids.contains(&to) && ids.insert(to.clone()) {
                 nodes.push(Node { id: to.clone(), kind: "missing", label: l.target.clone(), date: String::new(), text: String::new(), weight: 0 });
             }
-            add_edge(&mut edges, &mut degree, id.clone(), to, l.rel.clone());
+            add_edge(&mut edges, &mut seen, &mut degree, id.clone(), to, l.rel.clone());
         }
         for s in p.source.split(", ").map(str::trim).filter(|s| !s.is_empty()) {
             let sid = format!("s:{}", s.to_lowercase());
             if ids.insert(sid.clone()) {
                 nodes.push(Node { id: sid.clone(), kind: "source", label: s.to_string(), date: String::new(), text: String::new(), weight: 0 });
             }
-            add_edge(&mut edges, &mut degree, id.clone(), sid, t("fonte").into());
+            add_edge(&mut edges, &mut seen, &mut degree, id.clone(), sid, t("fonte").into());
         }
     }
     // The sources read, with when they were moved.
@@ -718,7 +722,7 @@ pub fn graph() -> Graph {
         let low = text.to_lowercase();
         for (slug, title) in &titles {
             if low.contains(title.as_str()) {
-                add_edge(&mut edges, &mut degree, id.clone(), format!("p:{slug}"), String::new());
+                add_edge(&mut edges, &mut seen, &mut degree, id.clone(), format!("p:{slug}"), String::new());
             }
         }
         if !date.is_empty() {
@@ -769,7 +773,7 @@ pub fn graph() -> Graph {
         }
         let id = format!("d:{day}");
         for s in named {
-            add_edge(&mut edges, &mut degree, id.clone(), format!("p:{s}"), String::new());
+            add_edge(&mut edges, &mut seen, &mut degree, id.clone(), format!("p:{s}"), String::new());
         }
         nodes.push(Node { id, kind: "day", label: day.clone(), date: day, text: tf("{n} domande alla chat", &[("n", &count.to_string())]), weight: 0 });
     }
@@ -787,8 +791,8 @@ pub fn graph() -> Graph {
     }
 }
 
-fn add_edge(edges: &mut Vec<Edge>, degree: &mut HashMap<String, u32>, from: String, to: String, label: String) {
-    if from == to || edges.iter().any(|e| e.from == from && e.to == to) {
+fn add_edge(edges: &mut Vec<Edge>, seen: &mut HashSet<(String, String)>, degree: &mut HashMap<String, u32>, from: String, to: String, label: String) {
+    if from == to || !seen.insert((from.clone(), to.clone())) {
         return;
     }
     *degree.entry(from.clone()).or_default() += 1;
