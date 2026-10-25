@@ -58,6 +58,13 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 
 ## What's new
 
+**1.0.3** — **Logo or weather instead of the character** (Settings → Appearance → "In the island"):
+the EasyIsland logo, your own PNG or the weather, as still pictures with no animation. **Over 150
+icons** for quick actions and an **automatic icon**: a link's site favicon, a program's own icon.
+**Box and ask** replaces Circle and ask: you drag a box. A file dragged onto the resting island opens
+it. Fixed: Settings jumped to the top when changing a select or a switch; the coloured halo at the
+bottom was hard to see with the Windows 11 theme.
+
 **1.0.2** — **The island as an app** (Settings → Island): open, it has its taskbar icon and shows in
 Alt+Tab, with minimize and full screen; closed, it disappears, and it opens from the pinned icon,
 whose right-click menu offers your quick actions. **Stay open** when you open it yourself. Larger text

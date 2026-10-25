@@ -59,6 +59,13 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 
 ## Novità
 
+**1.0.3** — **Logo o meteo al posto del personaggio** (Impostazioni → Aspetto → «Nell'isola»): il
+logo di EasyIsland, il tuo PNG o il meteo, come immagini ferme senza animazioni. **Oltre 150 icone**
+per le azioni rapide e **icona automatica**: la favicon del sito per un link, l'icona del programma
+per un programma. **Riquadra e chiedi** al posto di Cerchia e chiedi: si trascina un riquadro. Un file
+trascinato sull'isola a riposo la apre. Corretto: le Impostazioni saltavano in alto cambiando una
+select o un interruttore; l'alone colorato in basso non si vedeva con il tema Windows 11.
+
 **1.0.2** — **L'isola come un'app** (Impostazioni → Isola): aperta ha l'icona nella barra delle
 applicazioni e in Alt+Tab, con riduci a icona e schermo intero; chiusa sparisce, e si apre dall'icona
 fissata, che col tasto destro offre le azioni rapide. **Resta aperta** quando la apri tu. Testo
