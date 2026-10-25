@@ -38,6 +38,12 @@ html[data-ui="windows"] .card {
   border-color: var(--stroke);
 }
 
+/* The coloured halo at the bottom of each view (.card.wash): on Windows' lighter
+   layer and the bigger open island the classic 280 px one hardly showed. */
+html[data-ui="windows"] .card.wash::after {
+  background: radial-gradient(55% 230px at 50% 112%, var(--wash) 0%, rgba(0, 0, 0, 0) 72%);
+}
+
 html[data-ui="windows"] .btn {
   border-radius: 4px;
   padding: 6px 12px;
