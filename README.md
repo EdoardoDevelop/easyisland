@@ -32,8 +32,9 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
   testo, file, immagini copiate o una **zona dello schermo**; risposte formattate
   (elenchi, tabelle, codice con **Copia**); calcolatrice nel campo;
   **cronologia** delle conversazioni da riaprire ([Chat con Claude](#chat-con-claude)).
-- **Azioni rapide** (link, programmi, script, domande a Claude) con scorciatoie
-  globali, e suggerimenti per l'app che stai usando
+- **Azioni rapide** (link, programmi, script, tasti, domande a Claude) con scorciatoie
+  globali, oltre 150 icone o quella **automatica** (la favicon del sito, l'icona del
+  programma), e suggerimenti per l'app che stai usando
   ([Azioni rapide](#azioni-rapide-e-scorciatoie)).
 - **Integrazioni** nel menu dell'isola: 3CX (chiamate, rubrica, chiamate in
   arrivo), Zammad, Outlook, stato del PC, sicurezza, rete, meteo, appunti con
@@ -43,18 +44,25 @@ Approva i permessi di Claude Code, guarda la sessione lavorare, rilascia un file
 - **Automazioni** "quando… allora…", create dalle Impostazioni o a parole in
   chat, e proposte dalle tue abitudini; Claude può anche usare il PC per te, con
   il tuo consenso ([Automazioni](#automazioni)).
-- **File rilasciati**: domande su un file, estrazione degli ZIP, cronologia dei
-  file caricati.
+- **File e schermo**: domande su un file, estrazione degli ZIP, il **Vassoio** dei
+  file rilasciati, la **cartella di lavoro** in griglia con le anteprime, **Riquadra
+  e chiedi** su una zona dello schermo e la **Raccolta**: con `Ctrl+Alt+Shift+R`
+  metti da parte testo da qualsiasi app (anche nome e prezzo dal sito di un
+  fornitore) con la sua fonte, e poi lo passi tutto insieme alla chat
+  ([Come si usa](#come-si-usa)).
+- **Memoria** della chat in file .md con una **mappa** (grafo, mappa mentale, mappa
+  concettuale, timeline) che si apre con un clic dall'isola.
 - **Profili** (lavoro, casa, concentrazione) che cambiano da soli, modalità
   **davanti al cliente**, messaggi da qualsiasi script, backup delle impostazioni.
-- **Nove personaggi** (Goccia, la predefinita, Slime, Geco, Fiamma, Magma,
-  Pietra, Roccia e Foglia), posizione libera,
+- **Dieci personaggi** (Goccia, la predefinita, Slime, Geco, Fiamma, Magma,
+  Pietra, Roccia, Foglia, **Jarvis** e **Jarvis Sfera**), oppure al loro posto il
+  **logo di EasyIsland, il tuo logo PNG o il meteo**; posizione libera,
   isola grande fino ai bordi dello schermo e aperta dove vuoi, stile Windows 11 o Classico, tema, suoni
   generati nel codice, interfaccia in **italiano o inglese**; leggera a batteria,
   nessuna telemetria.
 
 <p align="center">
-<img src="screenshots/characters.png" width="640" alt="I personaggi: Goccia, Slime, Geco, Fiamma, Magma, Pietra, Roccia e Foglia">
+<img src="screenshots/characters.png" width="640" alt="I personaggi disegnati nel codice: Goccia, Slime, Geco, Fiamma, Magma, Pietra, Roccia e Foglia">
 </p>
 
 ## Novità
@@ -378,6 +386,12 @@ personaggio oppure in alto, al centro o in basso; gli ultimi testi tradotti in i
 
 | Versione | Data | Novità |
 |---|---|---|
+| **1.0.5** | 25 ott 2026 | Personaggi Jarvis e Jarvis Sfera, isola che non sparisce chiudendola dalla barra delle applicazioni |
+| **1.0.4** | 25 ott 2026 | Raccolta (testo e zone con la loro fonte, da passare alla chat), mappa della memoria dall'isola |
+| **1.0.3** | 25 ott 2026 | Logo o meteo al posto del personaggio, oltre 150 icone e icona automatica per le azioni, Riquadra e chiedi |
+| **1.0.2** | 24 ott 2026 | L'isola come un'app, Resta aperta, cartella di lavoro in griglia con anteprime, backup completo |
+| **1.0.1** | 24 ott 2026 | Telegram anche a PC spento, l'isola che passa dietro le finestre, automazioni con Aspetta e Chiedi |
+| **1.0.0** | 24 ott 2026 | Secondo cervello e finestra Memoria, integrazioni personali create dalla chat, guida completa sul sito |
 | **0.9.9** | 23 ott 2026 | EasyIsland agente: Compiti con piano e più motori, Abilità, Battito, riordino della memoria, compiti su Telegram |
 | **0.9.8** | 22 ott 2026 | Aspetto Windows 11 predefinito (grigio, colore d'accento di Windows, icone a linea), il Classico resta come stile |
 | **0.9.7** | 22 ott 2026 | Chat più comoda (Modifica, Rigenera, Dirama, comandi /, menu @, Assistenti, dettatura) e memoria in .md, meno RAM |
@@ -593,13 +607,15 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 | Clicchi sul personaggio | Si infastidisce. Tre volte di fila e gli gira la testa |
 | Lasci il puntatore sul personaggio per due secondi | Cuori |
 | Nella chat, trascini il personaggio su una finestra di un'altra app | La finestra diventa il contesto della chat: ne prende un'immagine, con il nome dell'app e il titolo, e la tua domanda parte insieme a lei. La ✕ sul chip la toglie, Esc annulla mentre lo trascini |
-| Trascini un file sull'isola | Si apre anche se è impostata "solo con un clic": il personaggio diventa una scatola, lo inghiotte e poi si offre di rispondere a domande sul file |
+| Trascini un file sull'isola, anche sull'icona a riposo o sul bordo | Si apre anche se è impostata "solo con un clic": il personaggio diventa una scatola, lo inghiotte e poi si offre di rispondere a domande sul file |
 | Clicchi l'orologio in alto nella chat | La **cronologia**: le conversazioni di prima, con data e motore; un clic ne riapre una e la continui da lì |
-| `Esc`, o la ✕ in alto a destra | Chiude subito l'isola, senza aspettare i secondi della chiusura automatica |
+| `Esc`, la ✕ in alto a destra o **Chiudi finestra** dall'anteprima nella barra delle applicazioni | Chiude subito l'isola, senza aspettare i secondi della chiusura automatica |
 | 📌 in alto a destra | **Tieni aperta**: l'isola non si chiude più da sola finché non la togli (Esc e ✕ la chiudono comunque) |
 | Scrivi un calcolo nella chat, es. `840 + 22%` o `15% di 840` | Compare subito il risultato; **Invio** lo copia negli appunti, **Ctrl+Invio** chiede comunque alla chat. Il calcolo è fatto in locale, senza Claude |
 | Rilasci uno ZIP | Oltre a "Fai una domanda" c'è **Estrai…**: vedi cosa contiene e lo estrai in una cartella nuova accanto all'originale, in Download o sul Desktop |
 | **File e schermo** → **Riquadra e chiedi** (o `Ctrl+Alt+Shift+S`) | Lo schermo si ferma e si scurisce: riquadra una zona e accanto compare **Chiedi…** (Invio: la chat si apre con la zona e la domanda), le tue azioni rapide, **Copia immagine**, **Copia testo** (riconosciuto da Windows) e **Nel Vassoio**. Esc o il tasto destro annullano |
+| Selezioni del testo in qualsiasi app e premi `Ctrl+Alt+Shift+R` (o **Nella raccolta** in Riquadra e chiedi) | Finisce nella **Raccolta** di **File e schermo** con la sua fonte: programma, titolo della finestra e, da Chrome o Edge, l'indirizzo della pagina. Le dai un nome e i campi da ricavare (es. «Prodotto, Prezzo, Fornitore»); **Chiedi alla chat** passa tutto insieme e la chat ricava i campi in una tabella |
+| Il pulsante con i tre nodi in alto nell'isola | Apre la **mappa della memoria**: grafo, mappa mentale, mappa concettuale e timeline |
 | **File e schermo** (o il pulsante **Vassoio** dopo aver rilasciato un file) | I file rilasciati sull'isola, in elenco o a griglia, tenuti finché EasyIsland non si riavvia, tranne quelli fissati con la puntina: trascinali in un'altra app (mail, chat, cartella), chiedi alla chat, apri, mostra nella cartella, fissa, togli uno o tutti. Sono copie: gli originali non vengono toccati |
 | Scrivi nel **campo in alto** dell'isola aperta | Trova integrazioni, sessioni degli agenti, azioni ⚡ e programmi installati (anche quelli dello Store), e in fondo **Chiedi alla chat** con quello che hai scritto; frecce per scegliere, **Invio** per aprire, **Ctrl+Invio** per chiedere alla chat, **Esc** per svuotare. Si spegne in Impostazioni → Posizione e aspetto |
 | Icona nell'area di notifica | Apri, Impostazioni…, Pausa, Esci |
@@ -675,6 +691,11 @@ modifiche al massimo, un'ora al massimo, cancellate a fine sessione). Oltre
 - **Pulsante chiudi**: la ✕ in alto a destra del pannello per chiuderlo subito.
 - **Schermo intero**: durante video, giochi e presentazioni il personaggio sparisce; le
   richieste di permesso compaiono comunque.
+- **Nell'isola** (Impostazioni → Aspetto → Tema): il personaggio, il **logo di
+  EasyIsland**, il **tuo logo** (un PNG, meglio con lo sfondo trasparente, che resta su
+  questo PC ed entra nel backup) o il **meteo** (cielo e temperatura dell'integrazione
+  Meteo). Logo e meteo sono immagini ferme, senza animazioni né stati: più
+  professionale, e la CPU resta a zero.
 
 Per provare le combinazioni senza compilare l'app (basta Node, niente Rust):
 
@@ -699,12 +720,17 @@ di EasyIsland. Le impostazioni si cambiano nell'indirizzo, per esempio
 | **Script** | esegue comandi PowerShell o del Prompt dei comandi, nascosti, e mostra l'output nell'isola (con *Interrompi*, timeout di 5 minuti). Parte **solo dopo un clic**; con "Chiedi conferma" mostra prima i comandi |
 | **Programma / cartella** | avvia un programma con i suoi argomenti (es. `mstsc /v:server01`) o apre una cartella |
 | **Link** | apre un indirizzo nel browser |
+| **Tasti** | manda scorciatoie o testo al programma in uso (es. `Ctrl+Shift+V`) |
 
 **Cartelle**: ogni azione può stare in una cartella (campo *Cartella*, con
 un'icona scelta dalla griglia). Nella scheda ⚡ le cartelle compaiono prima delle
 altre azioni, con il numero di azioni dentro; un clic le apre, **‹** torna
 indietro. Con più di 8 azioni compare **Cerca un'azione**: cerca anche dentro le
 cartelle, Invio esegue la prima trovata.
+
+**Icone**: oltre 150 disegnate nel codice, oppure **Automatica**: per un link la favicon
+del sito, per un programma la sua icona (presa una volta e salvata nell'azione; un
+link o un programma nuovo la prende da solo finché non ne scegli un'altra).
 
 **Suggerimenti per l'app in uso**: in cima alla scheda ⚡ compaiono azioni pronte
 per l'app che stai usando, applicate al testo che hai selezionato: per Outlook
@@ -729,6 +755,7 @@ calendario, posta…); prende il colore dell'azione.
   e accanto scrivi la domanda (per esempio per farti spiegare una finestra
   d'errore), oppure ne copi l'immagine o il testo, o la tieni nel Vassoio.
   Si può fare anche da **File e schermo** nel menu dell'isola, con **Riquadra e chiedi**;
+- `Ctrl+Alt+Shift+R` mette il **testo selezionato** nella **Raccolta**, con la sua fonte;
 - `Ctrl+Alt+Shift+P` va alla **richiesta in attesa** (permesso o domanda) e dà la
   tastiera all'isola: `N` nega, `Y` consente, `S` sempre, `1`–`9` sceglie una risposta;
 - `Ctrl+Alt+Shift+T` porta avanti l'**app della sessione** (terminale, VS Code,

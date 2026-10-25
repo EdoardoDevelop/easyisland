@@ -55,7 +55,7 @@ It runs on Sunday evening with the digest, if there's something to fix, or right
 If there's nothing to do it doesn't run and costs nothing.
 
 ## The Memory window
-**Settings → Chat and AI engines → Memory → Map** opens a window of its own with the memory drawn four ways.
+The button with three nodes at the top of the island (or **Settings → Chat and AI engines → Memory → Map**) opens a window of its own with the memory drawn four ways.
 
 ### Graph
 ![The memory graph](../media/memoria-grafo.png)

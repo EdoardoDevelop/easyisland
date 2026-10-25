@@ -17,6 +17,7 @@ At rest the character sits in the corner you picked (top centre by default). It 
 | Drag a file onto the island | It becomes a box, swallows it and asks what to do |
 | Drag the character onto a folder in File Explorer or a desktop icon | The path lands in the chat field |
 | <kbd>Esc</kbd> or ✕ | Closes the island at once |
+| The button with three nodes, at the top | Opens the [memory map](11-memory.md) |
 | 📌 | **Keep open**: the island won't close by itself until you remove it |
 | — and ▢ | With **Like an app** on (Settings → Island): minimize and full screen. Open, it has its icon on the taskbar and shows in Alt+Tab; closed, it does not. To open it from the taskbar, pin EasyIsland to the taskbar: a click on the icon opens the island. Right-click the icon: your quick actions, **Open the island**, **Ask the chat**, **Box and ask**, **Settings…** |
 | Stay open | With **Stay open** on (Settings → Island), when you open it yourself it does not close by itself, as with 📌 |
@@ -63,6 +64,7 @@ The island opens on its own when needed, following the profile's notification ru
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>K</kbd> | Chat with the copied text or image already attached |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd> | Clipboard history |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> | Box and ask |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> | Selected text into the Collection, with its source |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> | Goes to the pending request: <kbd>N</kbd> deny, <kbd>Y</kbd> allow, <kbd>S</kbd> always, <kbd>1</kbd>–<kbd>9</kbd> pick |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> | Brings the session's app to the front |
 | <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd> | Menu of actions on the selected text, in any app |

@@ -46,6 +46,7 @@ Quando un'azione riscrive il testo (correggi, traduci, rendi formale), l'isola m
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>K</kbd> | Chat con quello che hai copiato |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd> | Cronologia degli Appunti |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> | Riquadra e chiedi |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> | Testo selezionato nella Raccolta, con la sua fonte |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> | Richiesta in attesa (<kbd>N</kbd>, <kbd>Y</kbd>, <kbd>S</kbd>, <kbd>1</kbd>–<kbd>9</kbd>) |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> | App della sessione in primo piano |
 | <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd> | Menu sul testo selezionato |
