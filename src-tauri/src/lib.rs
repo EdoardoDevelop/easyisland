@@ -7,6 +7,7 @@ mod antigravity;
 mod agent;
 mod agent_settings;
 mod automations;
+mod flows;
 mod apps;
 mod calendar;
 mod carry;

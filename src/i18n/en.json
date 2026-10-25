@@ -3151,5 +3151,18 @@
   "Isola aperta": "Open island",
   "Quando e dove si apre, quanto è grande e quando si richiude.": "When and where it opens, how big it is and when it closes again.",
   "Il suono vale per il profilo attivo, l'avvio con Windows per questo PC. I tempi di chiusura sono in Aspetto → Isola aperta.": "Sound applies to the active profile, starting with Windows to this PC. Closing times are in Appearance → Open island.",
-  "Tema e colori, il personaggio, dove sta l'isola e come si comporta chiusa e aperta.": "Theme and colours, the character, where the island sits and how it behaves closed and open."
+  "Tema e colori, il personaggio, dove sta l'isola e come si comporta chiusa e aperta.": "Theme and colours, the character, where the island sits and how it behaves closed and open.",
+  "agente «{x}»": "agent “{x}”",
+  "domanda «{x}»": "question “{x}”",
+  "una scelta": "a choice",
+  "Nome di passo non valido: «{n}» (niente spazi né graffe, «end» è riservato).": "Invalid step name: “{n}” (no spaces or braces, “end” is reserved).",
+  "Due passi si chiamano «{n}».": "Two steps are called “{n}”.",
+  "Il passo «{n}» va a «{to}», che non esiste.": "Step “{n}” goes to “{to}”, which does not exist.",
+  "Un ramo di «{n}» va a «{to}», che non esiste.": "A branch of “{n}” goes to “{to}”, which does not exist.",
+  "fermato dopo {n} passi: forse un giro senza fine": "stopped after {n} steps: maybe an endless loop",
+  "scelto: {to}": "chosen: {to}",
+  "il passo seguente": "the next step",
+  "nessun ramo: si va avanti": "no branch: going on",
+  "il compito è stato eliminato": "the task was deleted",
+  "compito «{t}»: {last}": "task “{t}”: {last}"
 }
