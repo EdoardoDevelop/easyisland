@@ -82,10 +82,18 @@ html[data-ui="windows"] section > h2 { font-size: 14px; font-weight: 600; }
 
 /* Each setting on a line of its own: name on the left, control on the right,
    the explanation under it in small grey (Windows' title and description). */
-html[data-ui="windows"] section > .row + .row {
+html[data-ui="windows"] section > .row + .row,
+html[data-ui="windows"] section > .row + div[style*="contents"] > .row,
+html[data-ui="windows"] section > div[style*="contents"] > .row + .row,
+html[data-ui="windows"] .engine-block > .row + .row,
+html[data-ui="windows"] .sub-block > .row + .row,
+html[data-ui="windows"] .engine-picker > .row + .row {
   border-top: 1px solid var(--hairline);
   padding-top: 12px;
 }
+/* A row without a name (more controls of the setting above) keeps them on one
+   line at the right instead of wrapping the last one under. */
+html[data-ui="windows"] .row > label:empty { flex: 1 1 0; min-width: 0; }
 html[data-ui="windows"] .row > label {
   flex: 1 1 200px;
   color: var(--ink);

@@ -15,7 +15,7 @@
 | **Link** | Apre un indirizzo nel browser |
 | **Tasti** | Preme una combinazione di tasti nell'app in uso (per la barra dell'app in uso) |
 
-Ogni azione ha **icona** (una cinquantina disegnate nel codice), **colore**, **cartella**, **scorciatoia** e si riordina con ↑ ↓. Con più di 8 azioni compare **Cerca un'azione**.
+Ogni azione ha **icona** (oltre 150 disegnate nel codice, oppure **Automatica**: per un link la favicon del sito, per un programma la sua icona; un link o un programma nuovo la prende da solo finché non ne scegli un'altra), **colore**, **cartella**, **scorciatoia** e si riordina con ↑ ↓. Con più di 8 azioni compare **Cerca un'azione**.
 
 Le azioni si eseguono anche da `/nome` in chat, dal campo in alto dell'isola, dalle [automazioni](14-automazioni.md), dalla chat stessa («lancia il backup») e da Telegram. Le azioni appartengono al profilo.
 
@@ -45,7 +45,7 @@ Quando un'azione riscrive il testo (correggi, traduci, rendi formale), l'isola m
 | <kbd>Ctrl</kbd>+<kbd>Space</kbd> | Apre l'isola |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>K</kbd> | Chat con quello che hai copiato |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd> | Cronologia degli Appunti |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> | Cerchia e chiedi |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> | Riquadra e chiedi |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> | Richiesta in attesa (<kbd>N</kbd>, <kbd>Y</kbd>, <kbd>S</kbd>, <kbd>1</kbd>–<kbd>9</kbd>) |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> | App della sessione in primo piano |
 | <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd> | Menu sul testo selezionato |

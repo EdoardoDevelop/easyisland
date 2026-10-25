@@ -51,6 +51,11 @@ Nove personaggi disegnati nel codice, tutti con le stesse espressioni:
 
 Il personaggio reagisce: saluta all'avvio, festeggia quando un agente finisce, si preoccupa per un errore, ti guarda quando passi con il mouse. Durante il meteo può avere il cielo dietro.
 
+## Logo o meteo al posto del personaggio
+In **Tema → Nell'isola** scegli cosa sta nell'isola: **il personaggio**, **il logo di EasyIsland**, **il mio logo** o **il meteo**. Logo e meteo sono immagini ferme: niente animazioni, stati e saluto all'avvio, per un aspetto più professionale.
+- **Il mio logo**: **Carica PNG…** e scegli l'immagine (meglio con lo sfondo trasparente). Viene ridotta a 512 px, resta su questo PC ed entra nel [backup](24-impostazioni.md). **Togli** la cancella; senza immagine compare il logo di EasyIsland.
+- **Il meteo**: il cielo e la temperatura di adesso, dall'integrazione **Meteo**, che dev'essere attiva.
+
 ## Tema
 Colore del personaggio, colore e opacità dell'isola, **sfondo a isola chiusa** (spento: resta solo il personaggio).
 

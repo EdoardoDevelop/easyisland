@@ -1,4 +1,4 @@
-// "Cerchia e chiedi": the shortcut (or + → Cattura) freezes the screen under the
+// "Riquadra e chiedi": the shortcut (or + → Cattura) freezes the screen under the
 // mouse, the island's own window covers that screen and shows the frozen picture
 // (src/island/capture.ts), the user circles or boxes a zone, and the zone goes to
 // the chat, a quick action, the clipboard, the tray or the OCR. No second

@@ -6,7 +6,7 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
-import { type AgentTaskItem, type Custom, type Skill, type TaskState, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationCondition, type AutomationStep, type AutomationTrigger, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type WidgetDef } from "../core/state";
+import { type AgentTaskItem, type Custom, type Skill, type TaskState, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Reaction, type Automation, type AutomationCondition, type AutomationStep, type AutomationTrigger, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef } from "../core/state";
 
 const PROBE_INTEGRATION_IDS = Object.keys(PROBE_INTEGRATIONS);
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
@@ -22,7 +22,11 @@ const HOMEPAGE = "https://edoardodevelop.github.io/easyisland/";
 
 const root = document.getElementById("settings-root")!;
 
+/** When this window last saved: what comes back right after is its own echo. */
+let savedAt = 0;
+
 async function save() {
+  savedAt = Date.now();
   await Bridge.saveSettings(settings);
 }
 
@@ -2514,9 +2518,27 @@ function blankAction(kind: QuickAction["kind"] = "prompt"): QuickAction {
  * The action's icon as a button; clicking it opens a grid of the icons drawn in
  * code (no emoji to type on Windows). An old emoji icon is kept until replaced.
  */
-function iconPicker(value: string, color: string, onPick: (v: string) => void): HTMLElement {
+function iconPicker(value: string, color: string, onPick: (v: string) => void, auto?: () => Promise<string | null>): HTMLElement {
   const current = actionIcon(value)?.name;
   const pop = h("div", { class: "icon-pop", role: "listbox" });
+  if (auto) {
+    // The program's own icon or the site's favicon, taken now and kept in the action.
+    const b = h("button", { class: `icon-auto${value.startsWith("data:") ? " on" : ""}`, title: t("L'icona del programma o del sito") },
+      h("span", { text: t("Automatica") }));
+    b.addEventListener("click", async () => {
+      b.classList.add("working");
+      const v = await auto();
+      b.classList.remove("working");
+      if (!v) {
+        b.title = t("Icona non trovata: controlla il link o il programma");
+        b.classList.add("failed");
+        return;
+      }
+      pop.classList.remove("open");
+      onPick(v);
+    });
+    pop.append(b);
+  }
   for (const ic of ACTION_ICONS) {
     const b = h("button", { class: ic.name === current ? "on" : "", title: ic.label }, actionIconSvg(ic, 18));
     b.addEventListener("click", () => {
@@ -2533,6 +2555,41 @@ function iconPicker(value: string, color: string, onPick: (v: string) => void): 
     pop.classList.toggle("open", open);
   });
   return h("div", { class: "icon-pick" }, button, pop);
+}
+
+/** The automatic icon of a link or program action as a small PNG data: URL, or null. */
+async function autoIcon(a: QuickAction): Promise<string | null> {
+  const target = a.target.trim();
+  if (!target) return null;
+  const raw = a.kind === "url" ? await Bridge.siteIcon(/^[a-z][\w+.-]*:/i.test(target) ? target : `https://${target}`).catch(() => null)
+    : a.kind === "app" ? await Bridge.programIcon(target).catch(() => null) : null;
+  return raw ? pngIcon(raw) : null;
+}
+
+/** Any picture (ico, svg, png…) redrawn as a 64 px PNG, so every view shows it the same way. */
+function pngIcon(url: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const side = 64;
+      const c = document.createElement("canvas");
+      c.width = c.height = side;
+      const g = c.getContext("2d");
+      const w = img.naturalWidth || side;
+      const hh = img.naturalHeight || side;
+      if (!g) return resolve(null);
+      const k = Math.min(side / w, side / hh);
+      g.imageSmoothingQuality = "high";
+      g.drawImage(img, (side - w * k) / 2, (side - hh * k) / 2, w * k, hh * k);
+      try {
+        resolve(c.toDataURL("image/png"));
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
 }
 
 // A click anywhere else closes an open icon grid.
@@ -2781,9 +2838,22 @@ function actionsSection(): HTMLElement {
         },
       });
 
+      // A new link or program: its icon follows it while the user has not picked one.
+      let autoTimer = 0;
+      const refreshAuto = () => {
+        if (a.icon !== "i:bolt" && !a.icon.startsWith("data:")) return;
+        window.clearTimeout(autoTimer);
+        autoTimer = window.setTimeout(async () => {
+          const v = await autoIcon(a);
+          if (!v || (a.icon !== "i:bolt" && !a.icon.startsWith("data:"))) return;
+          a.icon = v;
+          touch();
+          card.querySelector(".icon-pick-btn")?.replaceChildren(renderActionIcon(v, 18));
+        }, 900);
+      };
       const card = h("div", { class: "qa-edit", "data-item": a.id },
         h("div", { class: "row head" },
-          iconPicker(a.icon, a.color, (v) => { a.icon = v; touch(); draw(); }),
+          iconPicker(a.icon, a.color, (v) => { a.icon = v; touch(); draw(); }, a.kind === "url" || a.kind === "app" ? () => autoIcon(a) : undefined),
           field(a.name, t("Nome"), (v) => { a.name = v.trim(); }),
           color, kind, up, down, del,
         ),
@@ -2792,7 +2862,7 @@ function actionsSection(): HTMLElement {
       switch (a.kind) {
         case "url":
           card.append(h("div", { class: "row" }, h("label", { text: t("Link") }),
-            field(a.target, "https://…", (v) => { a.target = v.trim(); })));
+            field(a.target, "https://…", (v) => { a.target = v.trim(); refreshAuto(); })));
           break;
         case "keys": {
           // The sequence as text, plus a recorder that appends the combination pressed.
@@ -2832,7 +2902,7 @@ function actionsSection(): HTMLElement {
         case "app":
           card.append(
             h("div", { class: "row" }, h("label", { text: t("Programma o cartella") }),
-              field(a.target, t("es. mstsc, chrome, regedit, %ProgramFiles%\\App\\app.exe, C:\\Clienti"), (v) => { a.target = v.trim(); })),
+              field(a.target, t("es. mstsc, chrome, regedit, %ProgramFiles%\\App\\app.exe, C:\\Clienti"), (v) => { a.target = v.trim(); refreshAuto(); })),
             h("div", { class: "row" }, h("label", { text: t("Argomenti") }),
               field(a.args, t("es. /v:server01 — le virgolette raggruppano"), (v) => { a.args = v; })),
           );
@@ -2923,10 +2993,18 @@ function actionsSection(): HTMLElement {
         folderField.setAttribute("list", "qa-folders");
         folderField.addEventListener("change", () => draw());
         // The folder's icon belongs to the whole folder: saved at once for every action in it.
+        // The name as typed now (it is only taken on "change"); with none yet, the
+        // field asks for one instead of the click doing nothing.
         const folderIcon = iconPicker(look.icon, "#94a3b8", (v) => {
-          if (!look.name) return;
-          for (const x of [...actions, ...drafts.values()]) if (folderLook(x.folder).name === look.name) x.folder = folderValue(v, look.name);
-          commit();
+          const name = folderField.value.trim();
+          if (!name) {
+            folderField.placeholder = t("Prima scrivi il nome della cartella");
+            folderField.focus();
+            return;
+          }
+          a.folder = folderValue(v, name);
+          for (const x of [...actions, ...drafts.values()]) if (folderLook(x.folder).name === name) x.folder = folderValue(v, name);
+          if (!isNew) commit();
           draw();
         });
         card.append(h("div", { class: "row" }, h("label", { text: t("Cartella") }), folderIcon, folderField,
@@ -2997,7 +3075,7 @@ function actionsSection(): HTMLElement {
     starters,
     h("div", { class: "row" }, h("label", { text: t("Cronologia appunti") }),
       hotkeyField(settings.hotkeyClipboard, (v) => { settings.hotkeyClipboard = v; })),
-    h("div", { class: "row" }, h("label", { text: t("Cerchia e chiedi") }),
+    h("div", { class: "row" }, h("label", { text: t("Riquadra e chiedi") }),
       hotkeyField(settings.hotkeyScreenshot, (v) => { settings.hotkeyScreenshot = v; }),
       h("span", { class: "hint note", text: t("scorciatoie di questo PC, valgono in ogni app") })),
     h("div", { class: "row" }, h("label", { text: t("Vai alla richiesta in attesa") }),
@@ -4006,6 +4084,31 @@ function colorField(current: string, fallback: string, onCommit: (v: string) => 
   return row;
 }
 
+/** Any picture as a PNG data: URL at most 512 px on its longer side, for logo.rs. */
+function pngForIsland(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const s = Math.min(1, 512 / Math.max(img.naturalWidth, img.naturalHeight, 1));
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(img.naturalWidth * s));
+      c.height = Math.max(1, Math.round(img.naturalHeight * s));
+      const ctx = c.getContext("2d");
+      if (!ctx) return reject(new Error(t("Immagine non valida")));
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL("image/png"));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error(t("Immagine non valida")));
+    };
+    img.src = url;
+  });
+}
+
 /** "#rrggbb" for a 0…1 colour. */
 function rgbHex(c: RGB): string {
   return `#${c.map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("")}`;
@@ -4028,6 +4131,67 @@ function themeSection(): HTMLElement {
     );
   };
   drawColorRow();
+
+  // What sits in the island (character/figure.ts): the character, or a still
+  // picture — the EasyIsland logo, the user's PNG (logo.rs) or the weather.
+  const characterRow = h("div", { class: "row" },
+    h("label", { text: t("Personaggio") }),
+    select<string>(
+      characters().map((c) => [c.id, c.name] as [string, string]),
+      th.character ?? characters()[0].id,
+      (v) => { th.character = v; commit(); drawColorRow(); },
+    ),
+  );
+  const logoRow = h("div", { class: "row" });
+  const drawLogoRow = async () => {
+    const url = await Bridge.logoLoad().catch(() => null);
+    clear(logoRow);
+    const file = h("input", { type: "file", accept: "image/png,image/*", style: "display:none" }) as HTMLInputElement;
+    const status = h("span", { class: "hint" });
+    file.addEventListener("change", () => {
+      const f = file.files?.[0];
+      if (!f) return;
+      status.textContent = t("Carico…");
+      void pngForIsland(f)
+        .then((data) => Bridge.logoSave(data))
+        .then(() => {
+          th.logoStamp = Date.now();
+          commit();
+          void drawLogoRow();
+        })
+        .catch((e) => { status.textContent = String(e).replace(/^Error:\s*/, ""); });
+    });
+    logoRow.append(
+      h("label", { text: t("Il mio logo") }),
+      url ? h("img", { class: "logo-preview", src: url, alt: "" }) : h("span", { class: "hint", text: t("nessuna immagine: intanto c'è il logo di EasyIsland") }),
+      status,
+      file,
+      h("button", { text: url ? t("Cambia…") : t("Carica PNG…"), onclick: () => file.click() }),
+      ...(url ? [h("button", {
+        text: t("Togli"),
+        onclick: () => { void Bridge.logoClear().then(() => { th.logoStamp = Date.now(); commit(); void drawLogoRow(); }); },
+      })] : []),
+      h("span", { class: "hint note", text: t("un PNG con lo sfondo trasparente rende meglio; viene ridotto a 512 px e resta su questo PC (va anche nel backup)") }),
+    );
+  };
+  const showFigure = () => {
+    const f = th.figure ?? "character";
+    characterRow.style.display = f === "character" ? "" : "none";
+    colorRow.style.display = f === "character" ? "" : "none";
+    logoRow.style.display = f === "logo" ? "" : "none";
+    if (f === "logo") void drawLogoRow();
+  };
+  const figureRow = h("div", { class: "row" },
+    h("label", { text: t("Nell'isola") }),
+    select<Theme["figure"]>(
+      [["character", t("Il personaggio")], ["easyisland", t("Il logo di EasyIsland")], ["logo", t("Il mio logo")], ["weather", t("Il meteo")]],
+      th.figure ?? "character",
+      (v) => { th.figure = v; commit(); showFigure(); },
+    ),
+    h("span", { class: "hint note", text: t("logo e meteo sono immagini ferme: niente animazioni, stati e saluto all'avvio, per un aspetto più sobrio. Il meteo viene dall'integrazione Meteo, che dev'essere attiva") }),
+  );
+  showFigure();
+
   return h(
     "section",
     {},
@@ -4041,14 +4205,9 @@ function themeSection(): HTMLElement {
       ),
       h("span", { class: "hint note", text: t("l'aspetto dell'isola e di questa finestra: Windows 11 (grigio, colore d'accento di Windows, icone a linea) o Classico (isola nera, colori di EasyIsland)") }),
     ),
-    h("div", { class: "row" },
-      h("label", { text: t("Personaggio") }),
-      select<string>(
-        characters().map((c) => [c.id, c.name] as [string, string]),
-        th.character ?? characters()[0].id,
-        (v) => { th.character = v; commit(); drawColorRow(); },
-      ),
-    ),
+    figureRow,
+    logoRow,
+    characterRow,
     colorRow,
     h("div", { class: "row" },
       h("label", { text: t("Colore dell'isola") }),
@@ -4863,7 +5022,9 @@ async function main() {
       redraw = true; // changed elsewhere: a profile switch, a drag, the island
     }
     applyUiStyle(settings.theme.style);
-    if (redraw) render();
+    // The echo of a save made here (Rust may tidy a value) is taken without
+    // redrawing: a redraw closed the open integration and the page jumped up.
+    if (redraw && Date.now() - savedAt > 2000) render();
   });
 }
 
@@ -5011,14 +5172,38 @@ function render() {
   );
   const main = h("main", { class: "page", "data-page": page.id }, body);
   root.append(nav, main);
-  // A click (switch, Aggiungi, Elimina…) redraws the page: it stays where it was.
-  // Parts filled in a moment later (keys, lists) made it shorter for a frame,
-  // and the scroll fell back to the top: hold the old height until they are in.
-  if (oldHeight) {
-    body.style.minHeight = `${oldHeight}px`;
-    window.setTimeout(() => { body.style.minHeight = ""; }, 600);
-  }
+  // A redraw stays where it was; parts filled in a moment later (keys, lists)
+  // must not let it fall back to the top meanwhile.
+  if (oldHeight) body.style.minHeight = `${oldHeight}px`;
   main.scrollTop = scrollTop;
+  holdScroll(main, body);
+}
+
+/**
+ * A list redrawn in place (an action's type, a switch, Aggiungi, Elimina) left
+ * the page shorter for a moment and the scroll fell back up (Edoardo, 24 Oct
+ * 2026): while parts change, the page keeps at least the height that was in view.
+ */
+function holdScroll(main: HTMLElement, body: HTMLElement) {
+  // The position before the change: reading scrollTop after it may already be the fallen one.
+  let top = main.scrollTop;
+  main.addEventListener("scroll", () => { top = main.scrollTop; }, { passive: true });
+  let release = 0;
+  const later = () => {
+    window.clearTimeout(release);
+    release = window.setTimeout(() => {
+      const at = main.scrollTop;
+      body.style.minHeight = "";
+      main.scrollTop = at;
+    }, 2000);
+  };
+  if (body.style.minHeight) later();
+  new MutationObserver(() => {
+    const need = top + main.clientHeight;
+    body.style.minHeight = `${Math.max(need, parseFloat(body.style.minHeight) || 0)}px`;
+    main.scrollTop = top;
+    later();
+  }).observe(body, { childList: true, subtree: true });
 }
 
 void main();

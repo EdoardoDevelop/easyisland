@@ -219,7 +219,7 @@ pub fn screen_info(app: &AppHandle, pref: &str) -> ScreenInfo {
     }
 }
 
-/// "Cerchia e chiedi" (screenshot.rs, capture.ts): the window covers a whole
+/// "Riquadra e chiedi" (screenshot.rs, capture.ts): the window covers a whole
 /// screen with the frozen picture; geometry and the full-screen watch keep off it.
 pub static CAPTURING: AtomicBool = AtomicBool::new(false);
 

@@ -49,11 +49,11 @@ export function buildUpload(actions: ViewActions): ViewHost {
     class: "drop-history", title: t("I file rilasciati sull'isola: da trascinare in un'altra app, aprire o chiedere alla chat"),
     onclick: () => actions.openFiles(),
   }, h("span", { text: t("Vassoio") }), h("span", { class: "arrow", text: "›" }));
-  // A zone of the screen instead of a file: "Cerchia e chiedi" (src/island/capture.ts).
+  // A zone of the screen instead of a file: "Riquadra e chiedi" (src/island/capture.ts).
   const capture = h("button", {
-    class: "drop-history drop-capture", title: t("Cerchia una zona dello schermo: chiedi alla chat, copia il testo o tienila nel Vassoio"),
+    class: "drop-history drop-capture", title: t("Riquadra una zona dello schermo: chiedi alla chat, copia il testo o tienila nel Vassoio"),
     onclick: () => actions.captureScreen(),
-  }, renderActionIcon("i:camera", 13), h("span", { text: t("Cerchia e chiedi") }));
+  }, renderActionIcon("i:camera", 13), h("span", { text: t("Riquadra e chiedi") }));
   const links = h("div", { class: "drop-links" }, capture, history);
   const card = h(
     "div",
@@ -258,7 +258,7 @@ function ago(ms: number): string {
 }
 
 /**
- * "File e schermo" in the menu: two tiles (where to drop a file, and "Cerchia e
+ * "File e schermo" in the menu: two tiles (where to drop a file, and "Riquadra e
  * chiedi" for a zone of the screen), then the tray ("Vassoio"): the copies of
  * the files dropped on the island (the inbox), emptied every time EasyIsland
  * starts except the pinned ones. Drag one out into another app, open it, show
@@ -290,9 +290,9 @@ export function buildFiles(actions: ViewActions): ViewHost {
     h("span", { text: t("PDF, immagini, codice, ZIP") }));
   const hotkey = h("span");
   const captureTile = h("button", { class: "files-tile capture",
-    title: t("Cerchia una zona dello schermo: chiedi alla chat, copia il testo o tienila nel Vassoio"),
+    title: t("Riquadra una zona dello schermo: chiedi alla chat, copia il testo o tienila nel Vassoio"),
     onclick: () => actions.captureScreen() },
-  h("strong", {}, renderActionIcon("i:camera", 14), h("span", { text: t("Cerchia e chiedi") })), hotkey);
+  h("strong", {}, renderActionIcon("i:camera", 14), h("span", { text: t("Riquadra e chiedi") })), hotkey);
   const head = h("div", { class: "files-head" },
     h("b", { text: t("Vassoio") }), count, layoutBtn, clearAll);
   const list = h("div", { class: "files-list" });

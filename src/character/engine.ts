@@ -3,6 +3,7 @@
 // The body is whichever character is chosen (./character.ts); the eye arcs follow the
 // original Coucou prototype (in this repository's git history).
 
+import { drawFigure, staticFigure } from "./figure";
 import { Ease, lerp, type EaseFn } from "../core/anim";
 import { Sound } from "../core/sound";
 import type { BotEmoteName, BotStateName } from "../core/layout";
@@ -503,6 +504,8 @@ export class BotEngine {
 
   /** True while anything is still moving — lets the island stop its RAF loop. */
   get busy(): boolean {
+    // A logo or the weather in place of the character: a still picture.
+    if (!this.isMini && staticFigure()) return false;
     return (
       this.busyBeyondLook ||
       character().animated === true ||
@@ -513,6 +516,7 @@ export class BotEngine {
 
   /** Busy with anything but turning towards the cursor (which can run at a lower rate). */
   get busyBeyondLook(): boolean {
+    if (!this.isMini && staticFigure()) return false;
     return (
       this.tweens.size > 0 ||
       now() < this.waveUntil ||
@@ -741,6 +745,10 @@ export class BotEngine {
    * `w`×`h` CSS pixels (the caller has already applied the DPR transform).
    */
   draw(x: CanvasRenderingContext2D, W: number, H: number) {
+    if (!this.isMini && staticFigure()) {
+      drawFigure(x, W, H - this.particleOverhang, H / 2 + this.particleOverhang / 2);
+      return;
+    }
     const c = character();
     if (c.kind === "cube") {
       this.drawAsCube(x, W, H);

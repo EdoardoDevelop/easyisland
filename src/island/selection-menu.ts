@@ -12,7 +12,7 @@
 import { t } from "../core/i18n";
 import { looksLikeHost } from "../views/rdm";
 import { State, folderLook, type QuickAction } from "../core/state";
-import { actionIcon } from "../views/action-icons";
+import { actionIcon, isPictureIcon } from "../views/action-icons";
 
 /** A small picture for a menu line, as Rust wants it (tray.rs `MenuIcon`). */
 export interface MenuIcon {
@@ -33,6 +33,7 @@ export interface MenuEntry {
 
 /** Windows draws menu icons 16 px wide at 100 % scale. */
 const ICON_PX = 16;
+const pictures = new Map<string, HTMLImageElement>();
 
 /** The icon an action or a folder stores ("i:<name>" or an emoji), as pixels. */
 export function menuIcon(value: string | undefined, color: string): MenuIcon | undefined {
@@ -41,6 +42,14 @@ export function menuIcon(value: string | undefined, color: string): MenuIcon | u
   canvas.width = canvas.height = size;
   const g = canvas.getContext("2d", { willReadFrequently: true });
   if (!g) return undefined;
+  if (isPictureIcon(value)) {
+    // A program's or site's picture: drawn once it is decoded, nothing until then.
+    const img = pictures.get(value) ?? Object.assign(new Image(), { src: value });
+    pictures.set(value, img);
+    if (!img.complete || !img.naturalWidth) return undefined;
+    g.drawImage(img, 0, 0, size, size);
+    return { rgba: Array.from(g.getImageData(0, 0, size, size).data), width: size, height: size };
+  }
   const icon = actionIcon(value);
   if (icon) {
     g.scale(size / 24, size / 24);

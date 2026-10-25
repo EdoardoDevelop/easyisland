@@ -18,7 +18,7 @@ At rest the character sits in the corner you picked (top centre by default). It 
 | Drag the character onto a folder in File Explorer or a desktop icon | The path lands in the chat field |
 | <kbd>Esc</kbd> or ✕ | Closes the island at once |
 | 📌 | **Keep open**: the island won't close by itself until you remove it |
-| — and ▢ | With **Like an app** on (Settings → Island): minimize and full screen. Open, it has its icon on the taskbar and shows in Alt+Tab; closed, it does not. To open it from the taskbar, pin EasyIsland to the taskbar: a click on the icon opens the island. Right-click the icon: your quick actions, **Open the island**, **Ask the chat**, **Circle and ask**, **Settings…** |
+| — and ▢ | With **Like an app** on (Settings → Island): minimize and full screen. Open, it has its icon on the taskbar and shows in Alt+Tab; closed, it does not. To open it from the taskbar, pin EasyIsland to the taskbar: a click on the icon opens the island. Right-click the icon: your quick actions, **Open the island**, **Ask the chat**, **Box and ask**, **Settings…** |
 | Stay open | With **Stay open** on (Settings → Island), when you open it yourself it does not close by itself, as with 📌 |
 | A window opens over the island (a picker, a program launched from the island…) | The island goes **behind** it, without closing. It comes forward again when you click it, when a permission or a call arrives, or when it tucks away |
 
@@ -28,7 +28,7 @@ In the open island, under the character:
 - **Agents**: coding agent sessions and tasks (see [Coding agents](07-agents.md) and [Tasks](12-tasks.md)), with how many are working.
 - **Chat**: the [chat](08-chat.md) with the AI engine.
 - **Actions**: your [quick actions](13-actions.md) and suggestions for the app in use.
-- **Files and screen**: file drop, Tray, working folder, Circle and ask, Record (see [Files and screen](15-files-and-screen.md)).
+- **Files and screen**: file drop, Tray, working folder, Box and ask, Record (see [Files and screen](15-files-and-screen.md)).
 - **Your integrations**, each with its logo or an emoji and a dot when there's news; [custom integrations](22-custom-integrations.md) too.
 
 At the top the character tells you what's going on in a speech bubble. **Right-clicking** inside the island opens a menu with the tab's and EasyIsland's actions.
@@ -62,7 +62,7 @@ The island opens on its own when needed, following the profile's notification ru
 | <kbd>Ctrl</kbd>+<kbd>Space</kbd> | Opens the island (Overview, actions or chat) |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>K</kbd> | Chat with the copied text or image already attached |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd> | Clipboard history |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> | Circle and ask |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> | Box and ask |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> | Goes to the pending request: <kbd>N</kbd> deny, <kbd>Y</kbd> allow, <kbd>S</kbd> always, <kbd>1</kbd>–<kbd>9</kbd> pick |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> | Brings the session's app to the front |
 | <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd> | Menu of actions on the selected text, in any app |

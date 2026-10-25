@@ -16,6 +16,7 @@ import { OPENED_BY_APP, OPEN_URLS, State, canAskSession, isSessionTask } from ".
 import { BotEngine, hexToRGB } from "../character/engine";
 import { character, setCharacter } from "../character/character";
 import { Greeting } from "../character/greeting";
+import { figureKey, onFigureChange, setFigure, setFigureLogo, setFigureWeather, staticFigure } from "../character/figure";
 import { createMiniBot, pruneMiniBots, syncMiniBotStates, tickMiniBots } from "../character/minibots";
 import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
@@ -226,6 +227,13 @@ export class Island {
     this.engine.onDizzy = () => this.handleDizzy();
     this.greeting.onComplete = () => this.fsm.greetComplete();
     this.greeting.bare = true;
+    // The user's logo finished loading, or the weather changed: one redraw.
+    onFigureChange(() => {
+      this.restKey = "";
+      this.drawRestIcon();
+      this.dirty = true;
+      this.ensureRunning();
+    });
     // After the start-up greeting the island is compact: WebView2 may keep less memory.
     window.setTimeout(() => { if (State.mode !== "expanded") void Bridge.webviewMemoryLow(true); }, 15000);
     State.subscribe(() => {
@@ -497,7 +505,8 @@ export class Island {
   }
 
   launch() {
-    if (State.settings.greeting === false) {
+    // A logo or the weather has no greeting: it is simply there.
+    if (State.settings.greeting === false || staticFigure()) {
       this.quietLaunch = true;
       this.fsm.launchQuiet();
     } else {
@@ -708,7 +717,7 @@ export class Island {
   /**
    * Closes the island. A permission request waiting for an answer is never
    * closed this way (only ✕ hands it to the terminal): the island goes back to
-   * its card instead. `force` is for stepping aside on purpose (Cerchia e chiedi).
+   * its card instead. `force` is for stepping aside on purpose (Riquadra e chiedi).
    */
   collapse(force = false) {
     closeMenu();
@@ -1251,7 +1260,7 @@ ${note}` : text };
   }
 
   /**
-   * "Cerchia e chiedi" (scheda + or its shortcut, src/island/capture.ts): the
+   * "Riquadra e chiedi" (scheda + or its shortcut, src/island/capture.ts): the
    * island steps aside, the screen freezes under the island's own window, and the
    * zone circled goes to the chat, a quick action, the clipboard or the tray.
    */
@@ -2297,7 +2306,7 @@ ${note}` : text };
   private drawRestIcon() {
     const p = this.homePlacement;
     const state = State.effectiveState;
-    const key = `${window.devicePixelRatio}|${p.iconStyle}|${p.iconSize}|${state}|${State.paused}|${State.settings.theme.slimeColor}|${character().id}`;
+    const key = `${window.devicePixelRatio}|${p.iconStyle}|${p.iconSize}|${state}|${State.paused}|${State.settings.theme.slimeColor}|${character().id}|${figureKey()}`;
     if (key === this.restKey) return;
     this.restKey = key;
 
@@ -2424,10 +2433,20 @@ ${note}` : text };
     this.islandEl.classList.toggle("greeting", greeting);
   }
 
+  private logoLoaded = -1;
+  /** The user's PNG (logo.rs), read again only when its stamp changes; -1 = not needed. */
+  private loadLogo(stamp: number) {
+    if (stamp < 0 || stamp === this.logoLoaded) return;
+    this.logoLoaded = stamp;
+    void Bridge.logoLoad().then((url) => setFigureLogo(url ?? "")).catch(() => setFigureLogo(""));
+  }
+
   /** Island colour/opacity and per-family volumes from the theme. */
   private applyTheme() {
     const t = State.settings.theme;
     setCharacter(t.character);
+    setFigure(t.figure);
+    this.loadLogo(t.figure === "logo" ? t.logoStamp ?? 0 : -1);
     applyUiStyle(t.style);
     let hex = /^#[0-9a-f]{6}$/i.test(t.islandColor) ? t.islandColor : "#000000";
     // Windows 11 look: the untouched black becomes the grey of Windows' dark surfaces.
@@ -2763,7 +2782,10 @@ ${note}` : text };
     });
 
     // A file of the tray being dragged out is never taken back.
-    void onDragDrop((e) => this.onDragDrop(e), (x, y) => !State.draggingOut && this.nearIsland(x, y));
+    // Resting, the window is only the icon or the wake strip on the edge: a file
+    // that touches it opens the island (Edoardo, 24 Oct 2026). The island's
+    // shape is not there yet to measure against, so the whole window counts.
+    void onDragDrop((e) => this.onDragDrop(e), (x, y) => !State.draggingOut && (this.collapsed || this.nearIsland(x, y)));
 
     // Outside Tauri (plain browser) drive the cursor from DOM events so the
     // island can be inspected with `npm run dev`.
@@ -3166,6 +3188,8 @@ ${note}` : text };
     syncMiniBotStates(State.tasks);
     this.engine.setState(State.effectiveState);
     this.engine.sky = State.characterSky;
+    const wx = State.weatherNow;
+    setFigureWeather(wx.sky, wx.temp);
 
     // The rest icon shows only while the island is hidden — and not over a
     // full-screen app.

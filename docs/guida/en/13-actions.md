@@ -15,7 +15,7 @@
 | **Link** | Opens an address in the browser |
 | **Keys** | Presses a key combination in the app in use (for the bar of the app in use) |
 
-Each action has an **icon** (about fifty drawn in code), a **colour**, a **folder**, a **shortcut** and can be reordered with ↑ ↓. With more than 8 actions a **Search an action** field appears.
+Each action has an **icon** (over 150 drawn in code, or **Automatic**: a link's site favicon, a program's own icon; a new link or program takes it by itself until you pick another), a **colour**, a **folder**, a **shortcut** and can be reordered with ↑ ↓. With more than 8 actions a **Search an action** field appears.
 
 Actions also run from `/name` in the chat, from the island's top field, from [automations](14-automations.md), from the chat itself ("run the backup") and from Telegram. Actions belong to the profile.
 
@@ -45,7 +45,7 @@ When an action rewrites the text (proofread, translate, make formal), the island
 | <kbd>Ctrl</kbd>+<kbd>Space</kbd> | Opens the island |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>K</kbd> | Chat with what you copied |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd> | Clipboard history |
-| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> | Circle and ask |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> | Box and ask |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> | Pending request (<kbd>N</kbd>, <kbd>Y</kbd>, <kbd>S</kbd>, <kbd>1</kbd>–<kbd>9</kbd>) |
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> | Session's app to the front |
 | <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd> | Menu on selected text |

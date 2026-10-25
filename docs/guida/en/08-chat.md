@@ -28,7 +28,7 @@
 | `@finestra` | A picture of an open window |
 | `@vassoio` | A file from the Tray |
 | Dragging the **chat character** onto a window | That window as context (image, app name, title). <kbd>Esc</kbd> cancels |
-| **Circle and ask** | An area of the screen (see [Files and screen](15-files-and-screen.md)) |
+| **Box and ask** | An area of the screen (see [Files and screen](15-files-and-screen.md)) |
 | **Ask the chat** in Clipboard, Tray, Notion | The chosen item |
 
 Images go to models that can read them, text files into the message, PDFs to Claude.

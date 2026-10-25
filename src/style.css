@@ -3409,7 +3409,7 @@ input[type="range"]::-webkit-slider-thumb {
   flex: 0 0 auto;
 }
 
-/* The zone just put in the tray by Cerchia e chiedi: lit, Chiedi and Copia in sight. */
+/* The zone just put in the tray by Riquadra e chiedi: lit, Chiedi and Copia in sight. */
 .files-row.fresh {
   flex-wrap: wrap;
   background: rgba(103, 232, 249, 0.09);
@@ -4855,7 +4855,7 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   z-index: 1000;
 }
 
-/* ── "Cerchia e chiedi" (src/island/capture.ts): the frozen screen over everything ── */
+/* ── "Riquadra e chiedi" (src/island/capture.ts): the frozen screen over everything ── */
 #capture {
   position: fixed;
   inset: 0;

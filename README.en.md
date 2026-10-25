@@ -58,6 +58,13 @@ Approve Claude Code's permissions, watch the session work, drop a file, chat wit
 
 ## What's new
 
+**1.0.3** — **Logo or weather instead of the character** (Settings → Appearance → "In the island"):
+the EasyIsland logo, your own PNG or the weather, as still pictures with no animation. **Over 150
+icons** for quick actions and an **automatic icon**: a link's site favicon, a program's own icon.
+**Box and ask** replaces Circle and ask: you drag a box. A file dragged onto the resting island opens
+it. Fixed: Settings jumped to the top when changing a select or a switch; the coloured halo at the
+bottom was hard to see with the Windows 11 theme.
+
 **1.0.2** — **The island as an app** (Settings → Island): open, it has its taskbar icon and shows in
 Alt+Tab, with minimize and full screen; closed, it disappears, and it opens from the pinned icon,
 whose right-click menu offers your quick actions. **Stay open** when you open it yourself. Larger text
@@ -193,12 +200,12 @@ the browser's. **Overview** with large, faded logos in the corner of each tile.
 | 0.8.5 | 16 Oct 2026 | App bar next to the closed character, right-click menu in the island, Overview with large logos |
 | 0.8.4 | 15 Oct 2026 | Automations with new events, filters, more conditions, repeats and event data in the steps; Settings above the island; Notion with views and alerts; Remote Desktop Manager (beta); grouped Integrations |
 | 0.8.3 | 15 Oct 2026 | Terminal mode in the chat for every engine, ⚡ Automatic, Notion with tasks, notes and pinned pages, connectors from Claude Code plugins |
-| 0.8.2 | 14 Oct 2026 | Replace keeping the original formatting (or not), tray after Circle and ask, Media instead of Music |
+| 0.8.2 | 14 Oct 2026 | Replace keeping the original formatting (or not), tray after Box and ask, Media instead of Music |
 | 0.8.1 | 14 Oct 2026 | Network: adapter chosen with buttons, a ping for each adapter's gateway |
 | 0.8.0 | 14 Oct 2026 | New logo, Network with every adapter, continuous ping and adapter settings, album art in Music, Settings in a window, 3CX phone book, Claude Code sign-in renewal for plan limits |
 | 0.7.9 | 14 Oct 2026 | Suggestions at the right moment (downloads, copied errors, dev servers, secrets removed from the clipboard), daily recap, EasyIsland tools in Claude Code |
 | 0.7.8 | 13 Oct 2026 | New island with a menu on the left and an Overview, quick answers with the island closed, animated weather card |
-| 0.7.7 | 13 Oct 2026 | Circle and ask with OCR, character visible during 3CX calls, default ringtone, integration colours |
+| 0.7.7 | 13 Oct 2026 | Box and ask with OCR, character visible during 3CX calls, default ringtone, integration colours |
 | 0.7.0–0.7.6 | 11–13 Oct 2026 | New and redrawn characters, 3CX softphone, team, chat and voicemail, a window as chat context, plan limits from Anthropic |
 | 0.6.x | 8–11 Oct 2026 | Selected-text menu with preview, chat history, opencode 2, English interface, `Ctrl+Space`, weekly recap |
 | 0.5.x | 4–7 Oct 2026 | 3CX, tray, more chat engines and agents, live file changes, habit-based automation suggestions |
@@ -342,7 +349,7 @@ uninstaller deliberately does not touch Claude Code's `settings.json`. Then
 <img src="screenshots/approval.png" width="640" alt="A Claude Code permission request, with Deny and Allow">
 <img src="screenshots/agenti.png" width="640" alt="Agents: Claude Code and opencode at work">
 <img src="screenshots/chat.png" width="640" alt="Chat with Claude from the island">
-<img src="screenshots/files.png" width="640" alt="Files and screen: drop a file, Circle and ask, and the tray">
+<img src="screenshots/files.png" width="640" alt="Files and screen: drop a file, Box and ask, and the tray">
 
 _Screenshots are generated from the preview with `node scripts/screenshots.mjs` (with `npm run dev` running), using the test data of the scenes in `dev/scenes.ts`. They show the Italian interface._
 
@@ -362,7 +369,7 @@ _Screenshots are generated from the preview with `node scripts/screenshots.mjs` 
 | 📌 at the top right | **Keep open**: the island no longer closes by itself, and becomes a normal window with a taskbar icon |
 | Type a calculation in the chat, e.g. `840 + 22%` | The result appears at once; **Enter** copies it, **Ctrl+Enter** asks the chat anyway. Calculated locally |
 | Drop a ZIP | Besides "Ask a question" there is **Extract…** |
-| **Files and screen** → **Circle and ask** (or `Ctrl+Alt+Shift+S`) | The screen freezes: circle an area and ask about it, run your quick actions, copy the image or its **text** (recognised by Windows), or keep it in the tray |
+| **Files and screen** → **Box and ask** (or `Ctrl+Alt+Shift+S`) | The screen freezes: box an area and ask about it, run your quick actions, copy the image or its **text** (recognised by Windows), or keep it in the tray |
 | **Files and screen** → **Record** | Records a conversation (microphone and PC audio), the screen or a single window, with Windows only |
 | Type in the **field at the top** of the open island | Finds integrations, agent sessions, ⚡ actions and installed programs; at the bottom **Ask the chat** and **Search with Google**. Arrows to choose, **Enter** to open, **Ctrl+Enter** to ask the chat, **Alt+Enter** to search the web, **Esc** to clear |
 | Notification area icon | Open, Settings…, Pause, Quit |
@@ -428,7 +435,7 @@ explain data in Excel, fix text in Word, translate a web page…).
 - `Ctrl+Space` opens the island on the actions (or the chat);
 - `Ctrl+Alt+K` opens the chat with the copied text (or image) attached;
 - `Ctrl+Alt+H` opens the **Clipboard** history;
-- `Ctrl+Alt+Shift+S` **circle and ask**;
+- `Ctrl+Alt+Shift+S` **box and ask**;
 - `Ctrl+Alt+Shift+P` goes to the **pending request**: `N` denies, `Y` allows,
   `S` always, `1`–`9` picks an answer;
 - `Ctrl+Alt+Shift+T` brings the **session's app** forward;

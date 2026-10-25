@@ -1,6 +1,6 @@
 # Files and screen
 > section: Getting things done
-> summary: Dropping files, the Tray, the working folder, Circle and ask, Record, ZIP and suggestions at the right moment.
+> summary: Dropping files, the Tray, the working folder, Box and ask, Record, ZIP and suggestions at the right moment.
 
 ![Files and screen](../media/files.png)
 
@@ -23,8 +23,8 @@ A folder on the PC chosen by you with **Choose…** (here or in Settings → Cha
 
 The chat **reads it without asking** and moves Tray files into it (with confirmation); with terminal mode it's the folder it works in. From Telegram: `/cartella` shows it as buttons and sends you the files. Every path is checked: nothing gets out of the folder.
 
-## Circle and ask
-<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>, or the **Circle and ask** tile: the screen freezes and dims. Circle or box an area and next to it you get:
+## Box and ask
+<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>, or the **Box and ask** tile: the screen freezes and dims. Drag from one corner to the other to box an area and next to it you get:
 - **Ask…**: type the question and <kbd>Enter</kbd>, the chat opens with the area;
 - your **quick actions**;
 - **Copy image**;

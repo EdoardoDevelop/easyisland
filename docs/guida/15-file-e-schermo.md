@@ -1,6 +1,6 @@
 # File e schermo
 > sezione: Fare le cose
-> in breve: Rilasciare file, il Vassoio, la cartella di lavoro, Cerchia e chiedi, Registra, ZIP e le proposte al momento giusto.
+> in breve: Rilasciare file, il Vassoio, la cartella di lavoro, Riquadra e chiedi, Registra, ZIP e le proposte al momento giusto.
 
 ![File e schermo](../media/files.png)
 
@@ -23,8 +23,8 @@ Una cartella del PC scelta da te con **Scegli…** (qui o in Impostazioni → Ch
 
 La chat la **legge senza chiedere** e ci sposta i file del Vassoio (con conferma); con la modalità terminale è la cartella in cui lavora. Da Telegram: `/cartella` la mostra a pulsanti e ti manda i file. Ogni percorso è controllato: niente esce dalla cartella.
 
-## Cerchia e chiedi
-<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>, o il riquadro **Cerchia e chiedi**: lo schermo si ferma e si scurisce. Cerchia o riquadra una zona e accanto compaiono:
+## Riquadra e chiedi
+<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>, o il riquadro **Riquadra e chiedi**: lo schermo si ferma e si scurisce. Trascina da un angolo all'altro per riquadrare una zona e accanto compaiono:
 - **Chiedi…**: scrivi la domanda e <kbd>Invio</kbd>, la chat si apre con la zona;
 - le tue **azioni rapide**;
 - **Copia immagine**;

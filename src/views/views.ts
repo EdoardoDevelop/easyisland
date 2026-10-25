@@ -35,7 +35,7 @@ export interface ViewActions extends ActionHandlers, RewriteHandlers, MomentActi
   cancelDrop(): void;
   refreshFiles(): void;
   askAboutFile(f: { name: string; path: string }): void;
-  /** "Cerchia e chiedi": circle a zone of the screen and ask about it (capture.ts). */
+  /** "Riquadra e chiedi": circle a zone of the screen and ask about it (capture.ts). */
   captureScreen(): void;
   /** A picture saved in the inbox (screenshot, clipboard): open the chat with it attached. */
   askAboutPicture(f: { name: string; path: string }): void;
@@ -186,7 +186,7 @@ function bubble(): [string, string] {
   switch (State.view) {
     case "prompt": return [t("Chiedimi pure."), `Chat · ${engineLabel(State.settings)}`];
     case "actions": case "run": case "rewrite": return [t("Le tue azioni."), t("anche sul testo selezionato nell'app in primo piano")];
-    case "files": case "unzip": return [t("File e schermo."), t("Rilascia un file sull'isola o cerchia una zona")];
+    case "files": case "unzip": return [t("File e schermo."), t("Rilascia un file sull'isola o riquadra una zona")];
     case "upload": case "choose": return [t("Rilascia qui un file."), t("Ti chiedo cosa farne")];
   }
   if (State.showsSummary) {
