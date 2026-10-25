@@ -2,6 +2,12 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 24 ottobre 2026 — Isola come un'app
+- Cartella di lavoro: elenco o griglia, ordine per nome (A→Z, Z→A) o data di modifica (più recenti, meno recenti), cartelle sempre prima; testo di tutta l'isola aperta 1 px più grande (`--fs-up`), chiusa com'era. Come un'app: icona nella barra e Alt+Tab solo da aperta, si apre da EasyIsland aggiunta alla barra; schermo intero a filo dell'area di lavoro. «Resta aperta» non rende l'isola un'app (`keptByItself`). Tasto destro sull'icona nella barra: azioni rapide e attività (`jumplist.rs`, `--do`). Impostazioni: si aprono su Generale e non tornano in alto a ogni clic. Telegram uguale in ogni profilo (`GLOBAL_INTEGRATIONS`). Icone per tipo di file e anteprime delle immagini (`filekind.ts`, `thumbs.rs`). Backup con memoria, abilità, compiti, integrazioni personali, chat e abitudini (`backup.rs`).
+- L'isola dietro una finestra non torna più sopra passandoci col mouse (tao rimetteva `WS_EX_TOPMOST`). Nuove opzioni in Impostazioni → Isola: «Come un'app» (icona sempre nella barra, Alt+Tab, — e ▢ schermo intero) e «Resta aperta» quando la apre l'utente. `island.rs`, `island.ts`, `docs/architettura.md`.
+- Dopo la 1.0.2: Impostazioni ferme anche cambiando una select o un interruttore (l'eco del proprio salvataggio non ridisegna più, `holdScroll` tiene l'altezza); icona della cartella delle azioni cliccabile anche prima di confermare il nome; tema Windows 11 con separatori anche nei blocchi annidati. Un file trascinato sull'isola a riposo (icona o striscia) la apre.
+- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`; da provare dal vivo.
+
 ### 24 ottobre 2026 — Versione 1.0.1
 - Telegram a PC spento, isola che passa dietro le altre finestre, automazioni più complete, link delle Impostazioni nella lingua dell'app. Novità nei due README e sulla homepage.
 - **Prove:** `cargo test --workspace` (311 + 38), `npm run build`.

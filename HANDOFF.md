@@ -34,6 +34,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 25 ottobre 2026 — Grafo della memoria più collegato
+- Le note si collegano alle pagine anche con `[[…]]` e con due parole chiave in comune, e alle due note più simili, più le voci che condividono una parola rara (un cliente, un server); le archiviate isolate escono dal grafo (restano nella timeline). Con la memoria del notebook: nessun punto isolato (`brain.rs`, `key_words`, `wiki_links`).
+- **Prove:** `cargo test` (nuovo test e `live_graph` sui dati del notebook).
+
 ### 25 ottobre 2026 — Jarvis
 - Nuovo personaggio **Jarvis** (`jarvis.ts`, tipo `hud`): nucleo e anelli sempre in movimento, ritmo e colori per stato, satelliti per gli agenti al lavoro, avvio con anelli che si compongono, secondi sull'anello esterno, parallasse verso il mouse. Senza occhi, mani né gelatina.
 - **Jarvis Sfera**: seconda versione, sfera di punti che ondeggia, dall'immagine di Edoardo (senza satelliti né scintille). Il cubo non si nomina più in README, guida, sito e documentazione.
@@ -53,9 +57,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 24 ottobre 2026 — Logo o meteo al posto del personaggio
 - Tema → «Nell'isola»: personaggio, logo di EasyIsland, logo dell'utente (PNG ridotto a 512 px, `logo.rs`, nel backup) o meteo. Logo e meteo sono immagini ferme: niente animazioni, stati né saluto (`character/figure.ts`, aggancio in `BotEngine.draw` e `busy`).
 - **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`; anteprima: logo EasyIsland, PNG e meteo nell'icona a riposo e nell'isola aperta. Da provare dal vivo.
-
-### 24 ottobre 2026 — Isola come un'app
-- Cartella di lavoro: elenco o griglia, ordine per nome (A→Z, Z→A) o data di modifica (più recenti, meno recenti), cartelle sempre prima; testo di tutta l'isola aperta 1 px più grande (`--fs-up`), chiusa com'era. Come un'app: icona nella barra e Alt+Tab solo da aperta, si apre da EasyIsland aggiunta alla barra; schermo intero a filo dell'area di lavoro. «Resta aperta» non rende l'isola un'app (`keptByItself`). Tasto destro sull'icona nella barra: azioni rapide e attività (`jumplist.rs`, `--do`). Impostazioni: si aprono su Generale e non tornano in alto a ogni clic. Telegram uguale in ogni profilo (`GLOBAL_INTEGRATIONS`). Icone per tipo di file e anteprime delle immagini (`filekind.ts`, `thumbs.rs`). Backup con memoria, abilità, compiti, integrazioni personali, chat e abitudini (`backup.rs`).
-- L'isola dietro una finestra non torna più sopra passandoci col mouse (tao rimetteva `WS_EX_TOPMOST`). Nuove opzioni in Impostazioni → Isola: «Come un'app» (icona sempre nella barra, Alt+Tab, — e ▢ schermo intero) e «Resta aperta» quando la apre l'utente. `island.rs`, `island.ts`, `docs/architettura.md`.
-- Dopo la 1.0.2: Impostazioni ferme anche cambiando una select o un interruttore (l'eco del proprio salvataggio non ridisegna più, `holdScroll` tiene l'altezza); icona della cartella delle azioni cliccabile anche prima di confermare il nome; tema Windows 11 con separatori anche nei blocchi annidati. Un file trascinato sull'isola a riposo (icona o striscia) la apre.
-- **Prove:** `cargo test --workspace`, `npm run build`, `npm run smoke`; da provare dal vivo.
