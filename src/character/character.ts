@@ -94,7 +94,12 @@ export interface CubeCharacter extends CharacterBase {
   kind: "cube";
 }
 
-export type Character = SoftCharacter | CubeCharacter;
+/** A HUD instead of a creature (Jarvis, jarvis.ts): no face, hands or body, drawn by its own routine. */
+export interface HudCharacter extends CharacterBase {
+  kind: "hud";
+}
+
+export type Character = SoftCharacter | CubeCharacter | HudCharacter;
 
 // ── Registry ──────────────────────────────────────────────────────────────────
 

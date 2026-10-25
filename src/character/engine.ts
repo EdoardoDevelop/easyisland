@@ -4,6 +4,7 @@
 // original Coucou prototype (in this repository's git history).
 
 import { drawFigure, staticFigure } from "./figure";
+import { drawJarvis } from "./jarvis";
 import { Ease, lerp, type EaseFn } from "../core/anim";
 import { Sound } from "../core/sound";
 import type { BotEmoteName, BotStateName } from "../core/layout";
@@ -754,6 +755,10 @@ export class BotEngine {
       this.drawAsCube(x, W, H);
       return;
     }
+    if (c.kind === "hud") {
+      this.drawAsHud(x, W, H);
+      return;
+    }
     const R = W * 0.3;
     const rx = R * c.size.hw;
     const ry = R * c.size.hh;
@@ -894,6 +899,26 @@ export class BotEngine {
       this.drawBadge(x, this.badge, R, cx, cy);
     }
     if (this.sky && !this.bigSky) drawSky(x, this.sky, R, cx, cy - s * this.sy, now(), false);
+    this.drawParticles(x, R, cx, cy);
+  }
+
+  /** Jarvis (jarvis.ts): the HUD, with the state's badge and the particles over it. */
+  private drawAsHud(x: CanvasRenderingContext2D, W: number, H: number) {
+    const R = W * 0.3;
+    const cx = W / 2 + this.ox * R;
+    const cy = H / 2 + this.particleOverhang / 2 + this.oy * R + R * 0.06;
+    drawJarvis(x, cx, cy, R * 1.05, {
+      base: this.bodyColor ?? character().color,
+      col: this.col,
+      tint: this.tint,
+      state: this.state,
+      gazeX: Math.max(-1, Math.min(1, this.yaw / 0.62)),
+      gazeY: Math.max(-1, Math.min(1, -this.pitch / 0.5)),
+      simple: this.isMini || W < 40,
+    });
+    if (this.badge && this.badgeS > 0.01) this.drawBadge(x, this.badge, R, cx, cy);
+    // The weather never goes behind the rings (it looked messy): a small sign in the corner.
+    if (this.sky) drawSky(x, this.sky, R * 0.55, cx + R * 0.62, cy - R * 0.55, now(), false);
     this.drawParticles(x, R, cx, cy);
   }
 
@@ -1127,7 +1152,8 @@ export class BotEngine {
     x: CanvasRenderingContext2D,
     R: number, rx: number, ry: number, cx: number, cy: number, pal?: Palette,
   ) {
-    if (this.hands <= 0.01 || this.isMini) return;
+    // Jarvis has no hands.
+    if (this.hands <= 0.01 || this.isMini || character().kind === "hud") return;
     // Too small to read at compact/peek sizes, except for the hover hello's
     // raised hand, which is the whole point of it there.
     if (R <= 14 && !(this.waveCalm && R > 4)) return;
@@ -1180,6 +1206,7 @@ export class BotEngine {
       if (handRot !== 0) x.rotate(handRot);
       const g = x.createLinearGradient(hew * 0.7, -heh * 0.85, -hew * 0.8, heh * 0.9);
       const c = character();
+      if (c.kind === "hud") return;
       if (c.kind === "cube") {
         // The cube's hands wear its faces' colour, state tint included.
         const [light, dark] = cubeHandStops({ col: this.col, tint: this.tint * (1 - this.morph), base: this.bodyColor });

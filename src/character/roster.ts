@@ -8,7 +8,8 @@ import { CUBE } from "./cube";
 import { DROP } from "./drop";
 import { FLAME } from "./flame";
 import { GECKO } from "./gecko";
+import { JARVIS, JARVIS_SPHERE } from "./jarvis";
 import { FOGLIA } from "./leaf";
 import { SLIME } from "./slime";
 
-registerCharacters(DROP, SLIME, CUBE, GECKO, FLAME, MAGMA, PIETRA, ROCCIA, FOGLIA);
+registerCharacters(DROP, SLIME, CUBE, GECKO, FLAME, MAGMA, PIETRA, ROCCIA, FOGLIA, JARVIS, JARVIS_SPHERE);

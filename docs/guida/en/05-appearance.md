@@ -43,8 +43,9 @@ Nine characters drawn in code, all with the same expressions:
 
 - **Goccia** (default): a glossy light-blue water spirit.
 - **Slime**: green jelly that wobbles.
-- **EasyTech**: a cube in the logo's colours, eyes on one side.
 - **Geco**: a gecko's head with amber eyes.
+- **Jarvis**: a glowing core inside rings that never stop turning, like an assistant's interface. No eyes or hands: it speaks through rhythm and colour. At work the rings speed up and a wave appears round the core, searching a beam sweeps round, waiting for you it beats, on an error it flickers, when done it sends out a ripple. Every agent at work is a satellite in orbit, the outer ring marks the seconds and the rings lean towards the mouse. It takes the theme's colour or the open integration's.
+- **Jarvis Sfera**: the same assistant as a sphere of points whose surface ripples like sound, cool at the top and warm at the bottom. Same rhythms per state, satellites and lean towards the mouse.
 - **Fiamma**: a layered little flame that sways.
 - **Magma**, **Pietra**, **Roccia**: pebbles with big eyes (lava, sprout, moss).
 - **Foglia**: a glossy leaf with veins.

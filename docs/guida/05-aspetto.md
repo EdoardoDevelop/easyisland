@@ -43,8 +43,9 @@ Nove personaggi disegnati nel codice, tutti con le stesse espressioni:
 
 - **Goccia** (predefinita): uno spirito d'acqua azzurro e lucido.
 - **Slime**: gelatina verde che ondeggia.
-- **EasyTech**: un cubo con i colori del logo, gli occhi su un lato.
 - **Geco**: una testa di geco con gli occhi ambrati.
+- **Jarvis**: un nucleo luminoso dentro anelli che girano sempre, come l'interfaccia di un assistente. Niente occhi né mani: parla con ritmo e colori. Al lavoro gli anelli accelerano e intorno al nucleo compare un'onda, in ricerca passa un fascio che scansiona, quando aspetta te pulsa, con un errore tremola, a lavoro finito manda un'onda. Ogni agente al lavoro è un satellite in orbita, l'anello esterno segna i secondi e gli anelli si inclinano verso il mouse. Prende il colore del tema o dell'integrazione aperta.
+- **Jarvis Sfera**: lo stesso assistente come una sfera di punti la cui superficie ondeggia come un suono, fredda in alto e calda in basso. Stessi ritmi per stato, satelliti e inclinazione verso il mouse.
 - **Fiamma**: una fiammella a strati che ondeggia.
 - **Magma**, **Pietra**, **Roccia**: sassolini con grandi occhi (lava, germoglio, muschio).
 - **Foglia**: una foglia lucida con le venature.
