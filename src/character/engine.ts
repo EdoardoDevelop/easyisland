@@ -907,7 +907,6 @@ export class BotEngine {
     const R = W * 0.3;
     const cx = W / 2 + this.ox * R;
     const cy = H / 2 + this.particleOverhang / 2 + this.oy * R + R * 0.06;
-    if (this.sky && this.bigSky) drawSky(x, this.sky, R, cx, cy - R, now());
     drawJarvis(x, cx, cy, R * 1.05, {
       base: this.bodyColor ?? character().color,
       col: this.col,
@@ -918,7 +917,8 @@ export class BotEngine {
       simple: this.isMini || W < 40,
     });
     if (this.badge && this.badgeS > 0.01) this.drawBadge(x, this.badge, R, cx, cy);
-    if (this.sky && !this.bigSky) drawSky(x, this.sky, R, cx, cy - R, now(), false);
+    // The weather never goes behind the rings (it looked messy): a small sign in the corner.
+    if (this.sky) drawSky(x, this.sky, R * 0.55, cx + R * 0.62, cy - R * 0.55, now(), false);
     this.drawParticles(x, R, cx, cy);
   }
 

@@ -102,6 +102,10 @@ async function main() {
         // Opened by the user (tray icon, EasyIsland started again from the taskbar).
         island.openFromTaskbar();
         break;
+      case "close":
+        // "Chiudi finestra" from the taskbar: as the island's own ✕.
+        island.closeFromTaskbar();
+        break;
       case "recap":
         setPaused(false);
         void Recap.open(island);

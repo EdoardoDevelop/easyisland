@@ -197,12 +197,14 @@ export function drawJarvis(x: CanvasRenderingContext2D, cx: number, cy: number, 
       const a = t * 0.9 + (i / agents) * TAU;
       const rr = R * 1.1;
       x.beginPath();
-      x.arc(Math.cos(a) * rr * sx, Math.sin(a) * rr * sy, Math.max(1.6, R * 0.05), 0, TAU);
-      x.fillStyle = rgba(light, 0.95 * alpha);
-      x.shadowColor = rgba(c, 0.9);
-      x.shadowBlur = R * 0.15;
+      x.arc(Math.cos(a) * rr * sx, Math.sin(a) * rr * sy, Math.max(2.4, R * 0.075), 0, TAU);
+      // A soft glow drawn as a second disc: shadowBlur costs too much every frame.
+      x.fillStyle = rgba(c, 0.3 * alpha);
       x.fill();
-      x.shadowBlur = 0;
+      x.beginPath();
+      x.arc(Math.cos(a) * rr * sx, Math.sin(a) * rr * sy, Math.max(1, R * 0.03), 0, TAU);
+      x.fillStyle = rgba(light, 0.95 * alpha);
+      x.fill();
     }
   }
 

@@ -721,6 +721,11 @@ export class Island {
    * closed this way (only ✕ hands it to the terminal): the island goes back to
    * its card instead. `force` is for stepping aside on purpose (Riquadra e chiedi).
    */
+  /** "Chiudi finestra" on the taskbar: the window stays and the island closes; a waiting request keeps waiting. */
+  closeFromTaskbar() {
+    this.collapse(true);
+  }
+
   collapse(force = false) {
     closeMenu();
     const card = State.pendingCard();

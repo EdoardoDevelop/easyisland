@@ -3142,6 +3142,16 @@ pub fn run() {
             create_memory_window(&handle, webview_dir.as_deref());
 
             if let Some(win) = island::window(&handle) {
+                // "Chiudi finestra" from the taskbar (the island as an app) must not
+                // destroy it: EasyIsland would go on running with nothing to show.
+                // It closes the island instead, like its own ✕.
+                let closing = handle.clone();
+                win.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = closing.emit_to(island::WINDOW_LABEL, "tray", "close");
+                    }
+                });
                 island::make_non_activating(&win);
                 island::apply_geometry(&handle, &gate, &loaded, false);
                 let _ = win.show();
