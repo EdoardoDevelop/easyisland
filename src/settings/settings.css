@@ -1138,3 +1138,7 @@ h3.int-sub {
   padding-left: 8px;
   margin: 4px 0 8px 0;
 }
+
+.flow-edge.jump.error {
+  stroke: rgba(244, 80, 94, 0.7);
+}

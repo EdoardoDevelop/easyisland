@@ -750,6 +750,12 @@ export interface AutomationStep {
   branches?: { value: string; op: "contains" | "equals" | "empty" | "filled" | "else" | "model"; toMatch: string; to: string }[];
   /** foreach: the step each item starts from. */
   body?: string;
+  /** Tries again this many times (0–3) after a failure. */
+  retries?: number;
+  /** The step to go to when this one fails ({errore} has the reason). */
+  onError?: string;
+  /** agent: fields its answer ends with as JSON, each one {node.field}. */
+  fields?: string[];
   /** agent: engine and model of its task. */
   engine?: string;
   model?: string;

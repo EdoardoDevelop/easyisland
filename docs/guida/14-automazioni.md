@@ -55,6 +55,10 @@ Un'automazione può diventare un **flusso**: invece di una fila di passi, un dis
 - **Lascia scegliere al modello**: invece delle regole, descrivi le strade a parole («chiede un preventivo», «ha un problema») e un motore sceglie quella giusta.
 - **Per ogni elemento**: ripete un gruppo di passi per ogni riga di un elenco (per esempio i clienti trovati da un agente), con la voce in `{elemento}`.
 - **Chiedimi qualcosa**: una card con fino a tre risposte; la tua scelta decide i passi dopo. Con Telegram collegato la domanda arriva anche lì, dove puoi rispondere anche a parole con /rispondi.
+- **Se non riesce**: un passo può riprovare fino a tre volte (dopo 10, 30 e 90 secondi) e poi fermare il flusso, finirlo senza errore o andare a un altro passo, con il motivo in `{errore}`. Se un flusso non riesce e Telegram è collegato, ti arriva anche lì.
+- **Campi** di un agente: chiedigli per esempio `urgenza, cliente` e li ritrovi come `{leggi.urgenza}` e `{leggi.cliente}`, comodi nelle scelte. Un agente ha anche un tempo massimo (60 minuti di serie).
+- **Prova da qui** fa partire il flusso dal passo scelto, con i dati dell'ultima esecuzione.
+- Se EasyIsland si chiude mentre un passo apre un programma o manda un avviso, al riavvio quel passo non viene ripetuto, per non farlo due volte.
 - Ogni passo lascia il suo esito tra graffe con il suo nome (`{leggi}`) e in `{risultato}`, da usare nei passi dopo.
 - **Esecuzioni**: le ultime 50, con cosa ha fatto ogni passo; **Riprendi da qui** riparte da un passo con i dati di allora. Se EasyIsland si chiude a metà, al riavvio il flusso riprende da dove era.
 

@@ -2120,6 +2120,14 @@ fn flow_run(id: String) -> Result<flows::Run, String> {
     flows::run_detail(&id)
 }
 
+/// The flow editor's "Prova da qui": a run from that step.
+#[tauri::command]
+fn flow_try_from(app: AppHandle, id: String, node: String) -> Result<(), String> {
+    let (autos, _, actions) = automations::list(&app);
+    let flow = autos.into_iter().find(|a| a.id == id).ok_or_else(|| i18n::t("Automazione non trovata (salvata?)").to_string())?;
+    flows::try_from(&app, flow, &node, actions)
+}
+
 /// "Riprendi da qui".
 #[tauri::command]
 fn flow_rerun(app: AppHandle, id: String, node: String) -> Result<(), String> {
@@ -3066,6 +3074,7 @@ pub fn run() {
             flows_runs,
             flow_run,
             flow_rerun,
+            flow_try_from,
             habits_stats,
             habits_suggestions,
             habit_answer,

@@ -13,7 +13,7 @@ import { locale, t } from "../core/i18n";
 
 /** Steps with links or with kinds the step list cannot edit: shown as a drawing. */
 export function isLinked(a: Automation): boolean {
-  return a.steps.some((s) => !!s.next || (s.branches?.length ?? 0) > 0 || ["agent", "decide", "ask", "foreach"].includes(s.kind));
+  return a.steps.some((s) => !!s.next || !!s.onError || (s.retries ?? 0) > 0 || (s.branches?.length ?? 0) > 0 || ["agent", "decide", "ask", "foreach"].includes(s.kind));
 }
 
 const nodeName = (s: AutomationStep, i: number) => s.node?.trim() || `s${i + 1}`;
@@ -61,7 +61,7 @@ export function flowDiagram(a: Automation, highlight?: Set<string>, pick?: { sel
   const index = new Map(steps.map((s, i) => [nodeName(s, i), i]));
   const top = (i: number) => 12 + i * (BOX_H + GAP);
   const endY = top(steps.length);
-  type Jump = { from: number; to: number; label: string };
+  type Jump = { from: number; to: number; label: string; error?: boolean };
   const jumps: Jump[] = [];
   const falls: boolean[] = [];
   steps.forEach((s, i) => {
@@ -75,6 +75,10 @@ export function flowDiagram(a: Automation, highlight?: Set<string>, pick?: { sel
       }
       falls.push(false);
       return;
+    }
+    if (s.onError) {
+      const to = s.onError === "end" ? steps.length : index.get(s.onError) ?? -1;
+      if (to >= 0) jumps.push({ from: i, to, label: t("se non riesce"), error: true });
     }
     if (s.kind === "foreach" && s.body) {
       const to = index.get(s.body) ?? -1;
@@ -118,7 +122,7 @@ export function flowDiagram(a: Automation, highlight?: Set<string>, pick?: { sel
     const y2 = j.to >= steps.length ? endY + 9 : top(j.to) + BOX_H / 2;
     const x = X + W, out = X + W + 18 + k * 22;
     const x2 = j.to >= steps.length ? X + W / 2 + 34 : x;
-    svg.append(el("path", { d: `M${x},${y1} C${out},${y1} ${out},${y2} ${x2 + 2},${y2}`, class: "flow-edge jump", "marker-end": "url(#flow-arrow)" }));
+    svg.append(el("path", { d: `M${x},${y1} C${out},${y1} ${out},${y2} ${x2 + 2},${y2}`, class: `flow-edge jump${j.error ? " error" : ""}`, "marker-end": "url(#flow-arrow)" }));
     if (j.label) svg.append(el("text", { x: x + 6, y: y1 - 3, class: "flow-label" }, cut(j.label, 16)));
   });
   // Boxes.
@@ -285,11 +289,22 @@ export function flowEditor(a: Automation, hooks: EditorHooks): HTMLElement {
     picked.set(a.id, Math.max(0, sel - 1));
     changed();
   };
+  const tryBtn = btn(t("Prova da qui"), t("Fa partire il flusso da questo passo, con i dati dell'ultima esecuzione"), () => {
+    commit();
+    const node = a.steps[sel]?.node ?? "";
+    // Settings are saved a moment later: give them that time.
+    window.setTimeout(() => {
+      Bridge.flowTryFrom(a.id, node)
+        .then(() => { tryBtn.textContent = t("Partito: vedi Esecuzioni"); })
+        .catch((e: unknown) => { tryBtn.textContent = String(e); });
+    }, 600);
+  });
   wrap.append(h("div", { class: "row flow-tools" },
     btn(t("+ Passo dopo"), t("Aggiunge un passo dopo quello scelto"), add, a.steps.length >= 30),
     btn("↑", t("Sposta in su"), () => move(-1), sel <= 0),
     btn("↓", t("Sposta in giù"), () => move(1), sel >= a.steps.length - 1),
     btn(t("Togli"), t("Toglie il passo scelto"), remove, a.steps.length <= 1),
+    tryBtn,
     h("span", { class: "hint note", text: t("clic su un passo per cambiarlo") })));
 
   const step = a.steps[sel];
@@ -336,9 +351,26 @@ export function flowEditor(a: Automation, hooks: EditorHooks): HTMLElement {
         body.length ? select<string>(body, step.body ?? "", (v) => { step.body = v; changed(); }) : h("span", { class: "hint", text: t("aggiungi prima i passi del giro") }),
         h("span", { class: "hint note", text: t("l'ultimo passo del giro torna qui con «Poi»") })));
     }
+    if (step.kind === "agent") {
+      const fieldsIn = h("input", { type: "text", value: (step.fields ?? []).join(", "), placeholder: t("es. urgenza, cliente"), spellcheck: "false", style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
+      fieldsIn.addEventListener("change", () => {
+        step.fields = fieldsIn.value.split(",").map((x) => x.trim().replace(/[^\p{L}\p{N}_]/gu, "")).filter(Boolean).slice(0, 8);
+        changed();
+      });
+      const mins = h("input", { type: "number", min: "1", max: "720", value: String(step.minutes || 60), style: "width:70px" }) as HTMLInputElement;
+      mins.addEventListener("change", () => { step.minutes = Math.max(1, Math.min(720, Number(mins.value) || 60)); commit(); });
+      panel.append(h("div", { class: "row" }, h("label", { text: t("Campi") }), fieldsIn,
+        h("span", { class: "hint", text: t("al massimo") }), mins, h("span", { class: "hint", text: t("minuti") })));
+      if (step.fields?.length) {
+        panel.append(h("div", { class: "row" }, h("label", { text: "" }),
+          h("span", { class: "hint note", text: t("poi usali come {x}", { x: step.fields.map((f) => `{${step.node}.${f}}`).join(" ") }) })));
+      }
+    }
     panel.append(h("div", { class: "row" }, h("label", { text: step.kind === "foreach" ? t("Poi, finite le voci") : t("Poi") }),
       select<string>(targets(sel), step.next ?? "", (v) => { step.next = v; changed(); })));
+    if (!["wait", "confirm", "ask", "foreach"].includes(step.kind)) panel.append(failureRow(step));
   } else if (step.branches?.some((b) => b.op === "model")) {
+    panel.append(failureRow(step));
     // The engine picks: one line per way out, described in words.
     const branches = step.branches;
     const what = h("input", { type: "text", value: step.text ?? "", placeholder: t("cosa deve guardare, es. {leggi}"), spellcheck: "false", style: "flex:1 1 auto;min-width:0" }) as HTMLInputElement;
@@ -388,4 +420,14 @@ export function flowEditor(a: Automation, hooks: EditorHooks): HTMLElement {
   }
   wrap.append(panel);
   return wrap;
+
+  /** "Se non riesce": how many times to try again, then where to go. */
+  function failureRow(st: AutomationStep): HTMLElement {
+    return h("div", { class: "row" }, h("label", { text: t("Se non riesce") }),
+      select<string>([["0", t("non riprovare")], ["1", t("riprova 1 volta")], ["2", t("riprova 2 volte")], ["3", t("riprova 3 volte")]],
+        String(st.retries ?? 0), (v) => { st.retries = Number(v); changed(); }),
+      select<string>([["", t("ferma il flusso")], ["end", t("finisci senza errore")], ...names.filter((_, i) => i !== sel).map((n): [string, string] => [n, t("vai a {x}", { x: n })])],
+        st.onError ?? "", (v) => { st.onError = v; changed(); }),
+      h("span", { class: "hint note", text: t("il motivo è in {errore}") }));
+  }
 }

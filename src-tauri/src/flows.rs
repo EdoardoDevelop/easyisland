@@ -14,6 +14,14 @@
 // `body`, which lead back to it; `next` after the last). Every step writes its
 // outcome in the run's data as `{node}` and `{risultato}`, for the steps after.
 //
+// Reliability (docs/flussi.md, stage 5, from what durable-execution engines
+// and node-based tools do): a step can try again (`retries`, waits 10 s, 30 s,
+// 90 s) and can have a way out when it fails (`on_error`, reason in {errore});
+// a step with effects left halfway by a restart is not done twice (`inflight`);
+// an agent has a time limit and can be asked for fields (`fields`, JSON at the
+// end of its answer → {node.field}); a run has at most MAX_ENGINE_STEPS steps
+// that call an engine. When a run fails and Telegram is linked, it says so there.
+//
 // A run is saved after every step in %APPDATA%\EasyIsland\flussi\<run>.json
 // with what each step did (`trace`), and kept when it ends (the last
 // KEEP_RUNS) for Impostazioni → Flussi → Esecuzioni, where "Riprendi da
@@ -40,6 +48,12 @@ use crate::i18n::{t, tf};
 pub const MAX_STEPS_PER_RUN: u32 = 200;
 /// Items one foreach goes through.
 const MAX_ITEMS: usize = 30;
+/// Steps that call an engine (agents, the model's choices) in one run.
+const MAX_ENGINE_STEPS: u32 = 20;
+/// Steps that change something: never done again after a restart caught them halfway.
+const EFFECTS: &[&str] = &["quick", "notice", "profile", "app", "url", "chat", "task"];
+/// Steps that wait for the user or only look at the data: no point in trying again.
+const NO_RETRY: &[&str] = &["wait", "confirm", "ask", "foreach"];
 /// An "ask" card waits this long; without an answer the flow stops.
 const ASK_WAIT: Duration = Duration::from_secs(600);
 /// Finished runs kept on disk.
@@ -71,6 +85,12 @@ pub struct Run {
     pub trace: Vec<Trace>,
     /// foreach steps under way: their items and how many went through.
     pub loops: HashMap<String, (Vec<String>, usize)>,
+    /// The step at `at` started and did not finish yet (a restart finds it so).
+    pub inflight: bool,
+    /// Steps that called an engine so far.
+    pub engine_steps: u32,
+    /// agent: until when it may work (ms since 1970).
+    pub agent_until: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -185,6 +205,9 @@ pub fn check_links(steps: &[Step]) -> Result<(), String> {
         if st.kind == "foreach" && (st.body.trim().is_empty() || st.body.trim() == "end" || !known(&st.body)) {
             return Err(tf("Il passo «{n}» ripete i passi da «{to}», che non esiste.", &[("n", &st.node), ("to", &st.body)]));
         }
+        if !known(&st.on_error) {
+            return Err(tf("Se «{n}» non riesce va a «{to}», che non esiste.", &[("n", &st.node), ("to", &st.on_error)]));
+        }
         if !known(&st.next) {
             return Err(tf("Il passo «{n}» va a «{to}», che non esiste.", &[("n", &st.node), ("to", &st.next)]));
         }
@@ -242,7 +265,7 @@ async fn go(app: AppHandle, mut run: Run, actions: Vec<Value>) {
     if run.flow.steps.is_empty() {
         run.done.push(t("nessun passo da eseguire").into());
     }
-    while let Some(step) = run.flow.steps.get(run.at).cloned() {
+    'steps: while let Some(step) = run.flow.steps.get(run.at).cloned() {
         if run.taken >= MAX_STEPS_PER_RUN {
             run.ok = false;
             run.done.push(tf("fermato dopo {n} passi: forse un giro senza fine", &[("n", &MAX_STEPS_PER_RUN)]));
@@ -251,7 +274,22 @@ async fn go(app: AppHandle, mut run: Run, actions: Vec<Value>) {
         save(&run);
         let i = run.at;
         let mut link = step.next.clone();
-        let outcome: Result<String, String> = match step.kind.as_str() {
+        let model_choice = step.kind == "decide" && step.branches.iter().any(|b| b.op == "model");
+        let uses_engine = step.kind == "agent" || model_choice;
+        let mut attempt: u8 = 0;
+        let outcome: Result<String, String> = loop {
+        let interrupted = run.inflight && EFFECTS.contains(&step.kind.as_str());
+        let result: Result<String, String> = if interrupted {
+            Err(t("interrotto da un riavvio a metà: non lo ripeto, per non farlo due volte").into())
+        } else if uses_engine && run.engine_steps >= MAX_ENGINE_STEPS {
+            Err(tf("troppi passi con un motore in questo giro (al massimo {n})", &[("n", &MAX_ENGINE_STEPS)]))
+        } else {
+        if uses_engine {
+            run.engine_steps += 1;
+        }
+        run.inflight = true;
+        save(&run);
+        match step.kind.as_str() {
             "wait" => {
                 let minutes = step.minutes.clamp(1, 240);
                 if run.wait_until == 0 {
@@ -275,13 +313,14 @@ async fn go(app: AppHandle, mut run: Run, actions: Vec<Value>) {
                 if answer != Some(crate::moments::CardAnswer::Chose(go_on)) {
                     run.done.push(t("fermata: non confermata").into());
                     run.status = "stopped".into();
+                    run.inflight = false;
                     run.trace.push(Trace { node: step.node.clone(), kind: step.kind.clone(), what: crate::automations::step_words(&step), ok: true, out: t("non confermata").into(), at: now_ms() });
-                    break;
+                    break 'steps;
                 }
                 Ok(t("confermata").into())
             }
             "ask" => ask(&app, &step, &run.ctx, &name, &run.id).await,
-            "decide" if step.branches.iter().any(|b| b.op == "model") => match by_model(&app, &step, &run.ctx).await {
+            "decide" if model_choice => match by_model(&app, &step, &run.ctx).await {
                 Ok((to, label)) => {
                     link = to;
                     Ok(label)
@@ -314,6 +353,25 @@ async fn go(app: AppHandle, mut run: Run, actions: Vec<Value>) {
             },
             "agent" => agent(&app, &step, &mut run).await,
             _ => crate::automations::run_step(&app, &step, &actions, &run.ctx).await,
+        }
+        };
+        run.inflight = false;
+        match result {
+            Err(e) if !interrupted && attempt < step.retries.min(3) && !NO_RETRY.contains(&step.kind.as_str()) && !(step.kind == "decide" && !model_choice) => {
+                attempt += 1;
+                run.trace.push(Trace {
+                    node: step.node.clone(),
+                    kind: step.kind.clone(),
+                    what: crate::automations::step_words(&step),
+                    ok: false,
+                    out: tf("{e} · riprovo ({n} di {tot})", &[("e", &e), ("n", &attempt), ("tot", &step.retries.min(3))]),
+                    at: now_ms(),
+                });
+                save(&run);
+                tokio::time::sleep(Duration::from_secs(10 * 3u64.pow(u32::from(attempt) - 1))).await;
+            }
+            other => break other,
+        }
         };
         run.taken += 1;
         run.trace.push(Trace {
@@ -331,6 +389,13 @@ async fn go(app: AppHandle, mut run: Run, actions: Vec<Value>) {
                     put(&mut run.ctx, "risultato", &text);
                 }
                 run.done.push(text);
+            }
+            Err(e) if !step.on_error.trim().is_empty() => {
+                // A way out for this failure: the flow goes on there.
+                put(&mut run.ctx, "errore", &e);
+                put(&mut run.ctx, &step.node, &e);
+                run.done.push(tf("errore gestito: {e}", &[("e", &e)]));
+                link = step.on_error.clone();
             }
             Err(e) => {
                 run.ok = false;
@@ -358,6 +423,10 @@ async fn go(app: AppHandle, mut run: Run, actions: Vec<Value>) {
     let ok = run.ok;
     if run.flow.notify || !ok {
         crate::automations::notice(&app, &tf("Automazione «{name}»", &[("name", &name)]), &detail, if ok { "ok" } else { "error" });
+    }
+    if !ok && crate::telegram::linked(&app) {
+        let text = format!("⚠️ {}\n{}", tf("Flusso «{name}» non riuscito", &[("name", &name)]), detail.chars().take(1500).collect::<String>());
+        crate::telegram::tell(&app, &text).await;
     }
     crate::automations::push_log(LogEntry { at: now_ms(), name, cause: run.cause, ok, detail });
     let _ = app.emit_to(crate::SETTINGS_LABEL, "automations-log", ());
@@ -410,6 +479,27 @@ pub fn run_detail(id: &str) -> Result<Run, String> {
         return Err(t("Esecuzione non trovata.").into());
     }
     std::fs::read(file(id)).ok().and_then(|b| serde_json::from_slice(&b).ok()).ok_or_else(|| t("Esecuzione non trovata.").into())
+}
+
+/// The editor's "Prova da qui": a run of `flow` from step `node`, with the
+/// data of its last run when there is one (so `{leggi}` has something in it).
+pub fn try_from(app: &AppHandle, mut flow: Automation, node: &str, actions: Vec<Value>) -> Result<(), String> {
+    name_steps(&mut flow.steps);
+    let at = flow.steps.iter().position(|s| s.node == node).ok_or(t("Passo non trovato."))?;
+    let ctx = all().into_iter().filter(|r| r.flow.id == flow.id).max_by_key(|r| r.started).map(|r| r.ctx).unwrap_or_default();
+    let run = Run {
+        id: format!("r{}", now_ms()),
+        cause: tf("prova da «{node}»", &[("node", &node)]),
+        ctx,
+        at,
+        ok: true,
+        status: "running".into(),
+        started: now_ms(),
+        flow,
+        ..Default::default()
+    };
+    tauri::async_runtime::spawn(go(app.clone(), run, actions));
+    Ok(())
 }
 
 /// "Riprendi da qui": a new run of the same flow from step `node`, with the
@@ -538,6 +628,39 @@ async fn by_model(app: &AppHandle, step: &Step, ctx: &Ctx) -> Result<(String, St
     Ok((b.to.clone(), tf("scelta del modello: {x}", &[("x", &b.to_match)])))
 }
 
+/// An agent's time limit: 60 minutes unless the step says otherwise.
+fn agent_minutes(step: &Step) -> u64 {
+    if step.minutes == 0 { 60 } else { step.minutes.clamp(1, 720) }
+}
+
+/// The last JSON object in `text` with every one of `fields`, as text values.
+fn json_fields(text: &str, fields: &[String]) -> Option<Vec<(String, String)>> {
+    let mut end = text.len();
+    while let Some(close) = text.get(..end)?.rfind('}') {
+        let head = text.get(..close)?;
+        let mut start = head.len();
+        while let Some(open) = text.get(..start)?.rfind('{') {
+            if let Some(Value::Object(map)) = text.get(open..=close).and_then(|s| serde_json::from_str::<Value>(s).ok()) {
+                let got: Vec<(String, String)> = fields
+                    .iter()
+                    .filter_map(|f| {
+                        map.get(f).map(|v| (f.clone(), match v {
+                            Value::String(s) => s.clone(),
+                            other => other.to_string(),
+                        }))
+                    })
+                    .collect();
+                if got.len() == fields.len() {
+                    return Some(got);
+                }
+            }
+            start = open;
+        }
+        end = close;
+    }
+    None
+}
+
 fn first_number(text: &str) -> Option<usize> {
     let digits: String = text.chars().skip_while(|c| !c.is_ascii_digit()).take_while(char::is_ascii_digit).collect();
     digits.parse().ok()
@@ -558,18 +681,31 @@ async fn agent(app: &AppHandle, step: &Step, run: &mut Run) -> Result<String, St
         }
         None => {
             let plain = |v: &str, _| v.to_string();
-            let goal = fill(step.text.trim(), &run.ctx, &plain);
+            let mut goal = fill(step.text.trim(), &run.ctx, &plain);
+            if !step.fields.is_empty() {
+                goal.push_str(&tf(
+                    "\n\nAlla fine del risultato (task_done) metti un oggetto JSON su una riga con questi campi, valori in testo: {fields}.",
+                    &[("fields", &step.fields.join(", "))],
+                ));
+            }
             let title = fill(step.title.trim(), &run.ctx, &plain);
             let task = crate::tasks::create(app, &title, &goal, "", step.engine.trim())?;
             if !step.model.trim().is_empty() {
                 let _ = crate::tasks::set_engines(app, &task.id, step.engine.trim(), step.model.trim(), &[]);
             }
             run.task = task.id.clone();
+            run.agent_until = now_ms() + agent_minutes(step) * 60_000;
             save(run);
             task.id
         }
     };
     loop {
+        if run.agent_until > 0 && now_ms() > run.agent_until {
+            let _ = crate::tasks::control(app, &id, "stop");
+            run.task.clear();
+            run.agent_until = 0;
+            return Err(tf("l'agente non ha finito entro {n} minuti", &[("n", &agent_minutes(step))]));
+        }
         let Some(task) = crate::tasks::get(&id) else {
             run.task.clear();
             return Err(t("il compito è stato eliminato").into());
@@ -577,10 +713,21 @@ async fn agent(app: &AppHandle, step: &Step, run: &mut Run) -> Result<String, St
         match task.state {
             crate::tasks::TaskState::Done => {
                 run.task.clear();
-                return Ok(if task.result.trim().is_empty() { t("Fatto.").to_string() } else { task.result });
+                run.agent_until = 0;
+                let result = if task.result.trim().is_empty() { t("Fatto.").to_string() } else { task.result };
+                if !step.fields.is_empty() {
+                    let got = json_fields(&result, &step.fields).ok_or_else(|| {
+                        tf("l'agente non ha dato i campi chiesti ({f})", &[("f", &step.fields.join(", "))])
+                    })?;
+                    for (k, v) in got {
+                        put(&mut run.ctx, &format!("{}.{k}", step.node), &v);
+                    }
+                }
+                return Ok(result);
             }
             crate::tasks::TaskState::Failed | crate::tasks::TaskState::Stopped => {
                 run.task.clear();
+                run.agent_until = 0;
                 return Err(tf("compito «{t}»: {last}", &[("t", &task.title), ("last", &task.last)]));
             }
             _ => tokio::time::sleep(AGENT_POLL).await,
@@ -619,6 +766,19 @@ mod tests {
         assert!(check_links(&steps).is_err());
         let steps = vec![step("end", "")];
         assert!(check_links(&steps).is_err());
+    }
+
+    #[test]
+    fn agent_fields_from_json() {
+        let f = vec!["urgenza".to_string(), "cliente".to_string()];
+        let text = "Letto tutto.\n{\"urgenza\": \"alta\", \"cliente\": \"Rossi\", \"n\": 3}";
+        assert_eq!(json_fields(text, &f), Some(vec![("urgenza".into(), "alta".into()), ("cliente".into(), "Rossi".into())]));
+        assert_eq!(json_fields("{\"urgenza\": 2} e niente altro", &f), None);
+        assert_eq!(json_fields("{\"a\": {\"urgenza\": 1, \"cliente\": true}}", &f), Some(vec![("urgenza".into(), "1".into()), ("cliente".into(), "true".into())]));
+        let mut steps = vec![Step { kind: "notice".into(), node: "a".into(), on_error: "manca".into(), ..Default::default() }];
+        assert!(check_links(&steps).is_err());
+        steps[0].on_error = "end".into();
+        assert!(check_links(&steps).is_ok());
     }
 
     #[test]

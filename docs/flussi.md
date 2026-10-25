@@ -42,16 +42,17 @@ Ricerca sugli strumenti a nodi e sull'esecuzione durevole degli agenti. Cosa fan
 - **Limiti di spesa per giro** (tetto di passi e di chiamate ai modelli). → oltre ai 200 passi, al massimo 20 passi con un motore (agenti e scelte del modello) per giro.
 - **Provare da un passo** (n8n: eseguire un nodo da solo e ripetere un'esecuzione). → nell'editor «Prova da qui» parte dal passo scelto, con i dati dell'ultima esecuzione se c'è.
 
-- [ ] `retries` con attese crescenti.
-- [ ] `onError` e `{errore}`; avviso su Telegram se il giro fallisce.
-- [ ] Passi con effetti non ripetuti dopo un riavvio (`inflight`).
-- [ ] Tempo massimo degli agenti (`minutes`).
-- [ ] `fields`: uscita JSON degli agenti in `{nome.campo}`.
-- [ ] Tetto di 20 passi con un motore per giro.
-- [ ] «Prova da qui» nell'editor (`automation_run_from`).
-- [ ] Chat (descrizione di `create_automation`), anteprima, editor, guida, test.
+- [x] `retries` con attese crescenti.
+- [x] `onError` e `{errore}`; avviso su Telegram se il giro fallisce.
+- [x] Passi con effetti non ripetuti dopo un riavvio (`inflight`).
+- [x] Tempo massimo degli agenti (`minutes`).
+- [x] `fields`: uscita JSON degli agenti in `{nome.campo}`.
+- [x] Tetto di 20 passi con un motore per giro.
+- [x] «Prova da qui» nell'editor (`flow_try_from`, `flows::try_from`).
+- [x] Chat (descrizione di `create_automation`), anteprima, editor, guida, test.
 
 ## Registro
+- 25 ottobre 2026: tappa 5 scritta (affidabilità: tentativi, strada d'errore, niente doppioni dopo un riavvio, tempo massimo e campi degli agenti, tetto ai motori, «Prova da qui»). Note: un errore gestito con «Se non riesce» non segna il giro come fallito; «finisci senza errore» chiude il giro come riuscito. Un passo «decide» con regole non si riprova (non può fallire), uno del modello sì.
 - 25 ottobre 2026: tappa 4 scritta; tutte le tappe fatte sul branch. Da provare dal vivo: un flusso vero con agente, foreach, scelta del modello e domanda su Telegram; poi unione in main con la voce in HANDOFF.
 - 25 ottobre 2026: tappa 3 scritta. Provato nel browser: apri come flusso, aggiungi passi, Scelta con due rami. Da provare dal vivo nell'app.
 - 25 ottobre 2026: tappa 2 scritta. Provato nel browser il disegno di un flusso con agente, scelta, avviso e domanda; da provare dal vivo: un flusso creato dalla chat e «Riprendi da qui».

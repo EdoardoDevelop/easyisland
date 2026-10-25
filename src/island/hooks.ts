@@ -207,7 +207,7 @@ function describeAutomation(input: Record<string, unknown>): string {
     }
   });
   // A flow with links (flows.rs): one numbered line per step, with where it goes.
-  const linked = steps.some((st) => str(st, "next") || str(st, "kind") === "decide" || str(st, "kind") === "foreach");
+  const linked = steps.some((st) => str(st, "next") || str(st, "onError") || str(st, "kind") === "decide" || str(st, "kind") === "foreach");
   if (linked) {
     const nameOf = (st: Record<string, unknown>, i: number) => str(st, "node") || `s${i + 1}`;
     const label = (to: string) => (to === "end" ? t("fine") : to || t("il passo seguente"));
@@ -219,6 +219,8 @@ function describeAutomation(input: Record<string, unknown>): string {
         ? `${ops.else} → ${label(str(b, "to"))}`
         : `${str(b, "value")} ${ops[str(b, "op")] ?? str(b, "op")} ${str(b, "toMatch")}`.trim() + ` → ${label(str(b, "to"))}`);
       const next = str(st, "next");
+      if (str(st, "onError")) ways.push(`${t("se non riesce")} → ${label(str(st, "onError"))}`);
+      if (Number(st.retries ?? 0) > 0) ways.push(t("riprova {n} volte", { n: Number(st.retries) }));
       if (str(st, "kind") === "foreach") ways.push(`${t("ogni voce")} → ${label(str(st, "body"))}`);
       what[i] = `
   ${i + 1}. [${nameOf(st, i)}] ${w}` + (ways.length ? ` (${ways.join("; ")})` : next ? ` → ${label(next)}` : "");

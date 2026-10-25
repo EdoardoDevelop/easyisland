@@ -345,6 +345,7 @@ export const Bridge = {
   flowsRuns: () => call<FlowRunInfo[]>("flows_runs"),
   flowRun: (id: string) => call<FlowRun>("flow_run", { id }),
   flowRerun: (id: string, node: string) => callOrThrow<void>("flow_rerun", { id, node }),
+  flowTryFrom: (id: string, node: string) => callOrThrow<void>("flow_try_from", { id, node }),
   automationRunNow: (id: string) => callOrThrow<void>("automation_run_now", { id }),
   /** The tray ("Vassoio"): the copies of dropped files, kept until EasyIsland restarts. */
   inboxList: () => call<{ name: string; path: string; size: number; at: number; kept?: boolean }[]>("inbox_list"),

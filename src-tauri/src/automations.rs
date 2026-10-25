@@ -126,6 +126,12 @@ pub struct Step {
     pub options: Vec<String>,
     /// foreach: the step each item starts from (`node`); `next` comes after the last one.
     pub body: String,
+    /// Flows: tries again this many times (0–3) after a failure, waiting longer each time.
+    pub retries: u8,
+    /// Flows: the step to go to when this one fails (`node`), with the reason in {errore}.
+    pub on_error: String,
+    /// agent: the fields its answer must end with, as JSON; each becomes {node.field}.
+    pub fields: Vec<String>,
 }
 
 /// One way out of a "decide" step.
@@ -697,6 +703,11 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
             "task" if st.text.trim().is_empty() => return Err("steps[].text: l'obiettivo del compito.".into()),
             "wait" => st.minutes = if st.minutes == 0 { 5 } else { st.minutes.clamp(1, 240) },
             "agent" if st.text.trim().is_empty() => return Err("steps[].text: l'obiettivo dell'agente.".into()),
+            "agent" => {
+                st.minutes = if st.minutes == 0 { 60 } else { st.minutes.clamp(1, 720) };
+                st.fields.retain(|f| !f.is_empty() && f.len() <= 30 && f.chars().all(|c| c.is_alphanumeric() || c == '_'));
+                st.fields.truncate(8);
+            }
             "decide" if st.branches.is_empty() => return Err("steps[].branches: almeno un ramo per una scelta.".into()),
             "ask" if st.options.len() > 3 => return Err("steps[].options: al massimo 3 scelte.".into()),
             "decide" if st.branches.iter().any(|b| b.op == "model") && st.branches.len() < 2 => {
@@ -710,6 +721,7 @@ pub fn validate(v: &Value, s: &crate::settings::Settings) -> Result<Automation, 
         if st.level.is_empty() {
             st.level = "info".into();
         }
+        st.retries = st.retries.min(3);
     }
     crate::flows::name_steps(&mut a.steps);
     crate::flows::check_links(&a.steps)?;

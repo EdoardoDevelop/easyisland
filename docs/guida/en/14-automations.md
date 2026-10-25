@@ -55,6 +55,10 @@ An automation can become a **flow**: instead of a row of steps, a drawing where 
 - **Let the model choose**: instead of rules, describe the ways in words ("asks for a quote", "has a problem") and an engine picks the right one.
 - **For each item**: repeats a group of steps for each line of a list (say, the customers an agent found), with the item in `{elemento}`.
 - **Ask me something**: a card with up to three answers; your choice decides the steps after. With Telegram linked the question goes there too, where you can also answer in words with /rispondi.
+- **If it fails**: a step can try again up to three times (after 10, 30 and 90 seconds) and then stop the flow, end it without error or go to another step, with the reason in `{errore}`. If a flow fails and Telegram is linked, you hear it there too.
+- An agent's **Fields**: ask it for, say, `urgency, customer` and find them as `{read.urgency}` and `{read.customer}`, handy in choices. An agent also has a time limit (60 minutes by default).
+- **Try from here** starts the flow from the chosen step, with the data of the last run.
+- If EasyIsland closes while a step opens a program or sends a notice, at the next start that step is not repeated, so it is not done twice.
 - Each step leaves its outcome in braces with its name (`{read}`) and in `{risultato}`, for the steps after.
 - **Runs**: the last 50, with what each step did; **Resume from here** starts again from a step with the data of then. If EasyIsland closes halfway, at the next start the flow goes on from where it was.
 
