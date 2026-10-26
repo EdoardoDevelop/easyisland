@@ -436,6 +436,7 @@ export const Bridge = {
   /** «Anteprima» (preview.rs, src/preview/): files and web pages in their window. */
   previewOpen: (target: string, newTab = false) => callOrThrow<number>("preview_open", { target, newTab }),
   previewShow: () => call<void>("preview_show"),
+  previewHide: () => call<void>("preview_hide"),
   previewState: () => call<import("../preview/types").PreviewState>("preview_state"),
   previewSelect: (id: number) => call<void>("preview_select", { id }),
   previewClose: (id: number) => call<void>("preview_close", { id }),

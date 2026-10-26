@@ -175,6 +175,11 @@ button {
   cursor: pointer;
 }
 
+.pv-hide {
+  margin-left: auto;
+  font-size: 13px;
+}
+
 .pv-plus:hover {
   background: rgba(255, 255, 255, 0.07);
   color: var(--ink);

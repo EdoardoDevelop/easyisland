@@ -137,7 +137,7 @@ fn web_label(id: u32) -> String {
 }
 
 fn emit_tabs(app: &AppHandle) {
-    let _ = app.emit_to(UI, "preview-tabs", snapshot());
+    let _ = app.emit_to(UI, "preview-tabs", snapshot(app));
 }
 
 #[derive(Serialize, Clone)]
@@ -146,11 +146,21 @@ pub struct Snapshot {
     pub tabs: Vec<Tab>,
     pub active: u32,
     pub view: View,
+    /// The window is stuck to the island (no frame: the page shows its own ✕).
+    pub docked: bool,
 }
 
-pub fn snapshot() -> Snapshot {
+pub fn snapshot(app: &AppHandle) -> Snapshot {
+    let docked = app.get_window(LABEL).is_some_and(|w| !w.is_decorated().unwrap_or(true));
     let s = state();
-    Snapshot { tabs: s.tabs.clone(), active: s.active, view: s.view.clone() }
+    Snapshot { tabs: s.tabs.clone(), active: s.active, view: s.view.clone(), docked }
+}
+
+/// The page's ✕ (docked: there is no frame). As closing a framed window.
+pub fn close_window(app: &AppHandle) {
+    if let Some(w) = app.get_window(LABEL) {
+        let _ = w.destroy();
+    }
 }
 
 // ── What a target is ─────────────────────────────────────────────────────────
@@ -298,25 +308,39 @@ pub fn open(app: &AppHandle, target: &str, place: Place, focus: bool) -> Result<
 
 /// The window: made the first time (or again after it was closed), then shown.
 pub fn show(app: &AppHandle, focus: bool) -> Result<(), String> {
+    let docked = app.try_state::<crate::Shared>().map(|sh| sh.settings.lock().unwrap().preview_docked).unwrap_or(false);
     if let Some(win) = app.get_window(LABEL) {
-        let _ = win.unminimize();
-        let _ = win.show();
-        if focus {
-            let _ = win.set_focus();
+        // The other kind was chosen meanwhile: made again (the tabs stay in STATE).
+        if win.is_decorated().unwrap_or(true) == docked {
+            let _ = win.destroy();
+        } else {
+            if docked {
+                dock(app, focus);
+            } else {
+                let _ = win.unminimize();
+                let _ = win.show();
+            }
+            if focus && win.is_visible().unwrap_or(false) {
+                let _ = win.set_focus();
+            }
+            return Ok(());
         }
-        return Ok(());
     }
     crate::island::keep_settings_above(app, false);
-    let win = tauri::window::WindowBuilder::new(app, LABEL)
+    let mut builder = tauri::window::WindowBuilder::new(app, LABEL)
         .title(t("Anteprima — EasyIsland"))
         .theme(Some(tauri::Theme::Dark))
         .inner_size(1180.0, 820.0)
         .min_inner_size(560.0, 420.0)
         .resizable(true)
-        .focused(focus)
-        .center()
-        .build()
-        .map_err(|e| e.to_string())?;
+        .focused(focus);
+    builder = if docked {
+        // A panel of the island: no frame, no taskbar button, above like the island.
+        builder.decorations(false).skip_taskbar(true).always_on_top(true).visible(false).min_inner_size(320.0, 240.0)
+    } else {
+        builder.center()
+    };
+    let win = builder.build().map_err(|e| e.to_string())?;
     let size = win.inner_size().map_err(|e| e.to_string())?.to_logical::<f64>(win.scale_factor().unwrap_or(1.0));
     let mut ui = WebviewBuilder::new(UI, crate::page_url(app, "anteprima.html"))
         .additional_browser_args(crate::BROWSER_ARGS)
@@ -331,7 +355,83 @@ pub fn show(app: &AppHandle, focus: bool) -> Result<(), String> {
     crate::drop::install_on(app, &page, UI);
     // Closing destroys the window and its browsers; the tabs stay in STATE for next time.
     watch(app.clone());
+    if docked {
+        follow_island(app);
+        dock(app, focus);
+    }
     Ok(())
+}
+
+/// Docked: the island's moves and resizes (opening, closing, dragging) move
+/// the preview too. Events, not a timer: nothing runs while nothing moves.
+fn follow_island(app: &AppHandle) {
+    static HOOKED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    let Some(island) = crate::island::window(app) else { return };
+    if HOOKED.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        return;
+    }
+    let handle = app.clone();
+    island.on_window_event(move |event| {
+        if matches!(event, tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_)) {
+            dock(&handle, false);
+        }
+    });
+}
+
+/// Where the docked preview goes: beside the open island (right, else left,
+/// as tall as it), else below it; hidden while the island is closed.
+fn dock(app: &AppHandle, focus: bool) {
+    let Some(win) = app.get_window(LABEL) else { return };
+    if win.is_decorated().unwrap_or(true) {
+        return;
+    }
+    let open = app.try_state::<crate::Shared>().map(|sh| !sh.gate.collapsed.load(std::sync::atomic::Ordering::Relaxed) && sh.gate.expanded.load(std::sync::atomic::Ordering::Relaxed)).unwrap_or(false);
+    let island = crate::island::window(app);
+    let rect = island.as_ref().filter(|_| open).and_then(|w| {
+        let p = w.outer_position().ok()?;
+        let s = w.outer_size().ok()?;
+        let m = w.current_monitor().ok()??;
+        let a = m.work_area();
+        Some(((p.x, p.y, s.width as i32, s.height as i32), (a.position.x, a.position.y, a.size.width as i32, a.size.height as i32), m.scale_factor()))
+    });
+    let Some((isl, area, scale)) = rect else {
+        let _ = win.hide();
+        return;
+    };
+    let (x, y, w, h) = dock_rect(isl, area, scale);
+    let _ = win.set_size(tauri::PhysicalSize::new(w.max(1) as u32, h.max(1) as u32));
+    let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
+    if !win.is_visible().unwrap_or(false) {
+        let _ = win.show();
+        if focus {
+            let _ = win.set_focus();
+        }
+    }
+}
+
+/// The docked rectangle (physical px) from the island's and the work area's
+/// (x, y, w, h). A gap of 8 logical px; at most 1100 px wide.
+fn dock_rect(isl: (i32, i32, i32, i32), area: (i32, i32, i32, i32), scale: f64) -> (i32, i32, i32, i32) {
+    let px = |v: f64| (v * scale).round() as i32;
+    let (gap, min_w, max_w, min_h) = (px(8.0), px(480.0), px(1100.0), px(320.0));
+    let (ix, iy, iw, ih) = isl;
+    let (ax, ay, aw, ah) = area;
+    let right = (ax + aw) - (ix + iw) - 2 * gap;
+    let left = ix - ax - 2 * gap;
+    let h = ih.max(min_h).min(ah - 2 * gap);
+    let top = iy.clamp(ay + gap, (ay + ah - gap - h).max(ay + gap));
+    if right >= min_w || (right >= left && right >= px(320.0)) {
+        return (ix + iw + gap, top, right.min(max_w), h);
+    }
+    if left >= min_w || left >= px(320.0) {
+        let w = left.min(max_w);
+        return (ix - gap - w, top, w, h);
+    }
+    // No room beside it: below, as wide as the island, down to the bottom.
+    let below = (ay + ah) - (iy + ih) - 2 * gap;
+    let w = iw.max(min_w).min(aw - 2 * gap);
+    let x = ix.clamp(ax + gap, (ax + aw - gap - w).max(ax + gap));
+    (x, iy + ih + gap, w, below.max(min_h))
 }
 
 pub fn select(app: &AppHandle, id: u32) {
@@ -1002,7 +1102,7 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                     return Ok(t("Fatto.").into());
                 }
                 "" => {
-                    let snap = snapshot();
+                    let snap = snapshot(app);
                     if snap.tabs.is_empty() {
                         return Ok(t("L'anteprima non ha schede aperte.").into());
                     }
@@ -1144,6 +1244,19 @@ fn cut(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn docks_beside_or_below() {
+        // Island 720×560 centred on a 1920×1040 area: room on the right.
+        let (x, _, w, h) = super::dock_rect((600, 0, 720, 560), (0, 0, 1920, 1040), 1.0);
+        assert_eq!((x, w, h), (1328, 584, 560));
+        // Island at the right edge: on the left.
+        let (x, _, w, _) = super::dock_rect((1200, 0, 720, 560), (0, 0, 1920, 1040), 1.0);
+        assert_eq!(x + w + 8, 1200);
+        // Island almost as wide as the screen: below it.
+        let (_, y, _, h) = super::dock_rect((100, 0, 1720, 400), (0, 0, 1920, 1040), 1.0);
+        assert_eq!((y, h), (408, 624));
+    }
+
     use super::*;
 
     #[test]

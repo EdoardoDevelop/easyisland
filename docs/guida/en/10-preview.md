@@ -14,7 +14,10 @@ The **Preview** is a window with tabs, like a small browser, next to the chat. I
 - **A development server that just started**: the card in the island has a **Preview** button. **+** in the Preview also lists the servers listening on this PC.
 - **Dropping a file** on the window, or typing an address or a path in the bar.
 
-It is turned off in **Settings → Chat → Preview**: links and files go back to the browser and their programs.
+In **Settings → Chat → Preview** you choose how to have it:
+- **Attached to the island**: it shows next to the open island (right, left or below, wherever there is room), follows it when you move it and hides when the island closes. The **✕** at the top right closes it.
+- **Separate window**: a normal window you move wherever you like, even to another screen.
+- **Off**: links and files go back to the browser and their programs.
 
 ## Files
 | Type | What you see |

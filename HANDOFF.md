@@ -39,6 +39,7 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 26 ottobre 2026 — Anteprima di file e pagine web (su `claude/sviluppo`)
 - Finestra **Anteprima** (`preview.rs`, `src/preview/`), come quella di Claude desktop: schede di file (codice colorato, Markdown, CSV, immagini, «Modifiche» rispetto a prima della chat) e pagine web in un browser vero dentro la finestra, con misure da telefono/tablet, chiaro/scuro, console, Strumenti per sviluppatori. Si apre da link e percorsi della chat, da sola sui file della Modalità terminale, dal server di sviluppo. Strumenti `preview_*` per la chat (clic e scrittura con Consenti / Nega). Dettagli in `docs/chat.md`, guida `10-anteprima`.
+- **Attaccata all'isola** o finestra separata, a scelta in Impostazioni → Chat → Anteprima (`dock_rect`, eventi della finestra dell'isola). Comandi che creano finestre ora `async` (prima bloccavano tutta l'app).
 - Tauri con `unstable` (più webview per finestra); `build.rs` incorpora il manifest perché i test partano (`docs/decisioni.md`).
 - **Prove:** `cargo test` (331), `npm run build`, `check:i18n`, la pagina con i dati finti in Edge. **Da provare dal vivo** tutta la parte con l'app (`docs/prove-dal-vivo.md`).
 

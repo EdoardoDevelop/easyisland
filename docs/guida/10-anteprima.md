@@ -14,7 +14,10 @@ L'**Anteprima** è una finestra con le schede, come un piccolo browser, che sta 
 - **Un server di sviluppo appena partito**: la card nell'isola ha il pulsante **Anteprima**. Anche **+** nell'Anteprima elenca i server in ascolto su questo PC.
 - **Trascinando un file** sulla finestra, o scrivendo un indirizzo o un percorso nella barra.
 
-Si spegne in **Impostazioni → Chat → Anteprima**: link e file tornano ad aprirsi nel browser e nei loro programmi.
+In **Impostazioni → Chat → Anteprima** scegli come averla:
+- **Attaccata all'isola**: compare accanto all'isola aperta (a destra, a sinistra o sotto, dove c'è posto), la segue quando la sposti e si nasconde quando l'isola si chiude. Si chiude con la **✕** in alto a destra.
+- **Finestra separata**: una finestra normale, da spostare dove vuoi, anche su un altro schermo.
+- **Spenta**: link e file tornano ad aprirsi nel browser e nei loro programmi.
 
 ## I file
 | Tipo | Cosa vedi |

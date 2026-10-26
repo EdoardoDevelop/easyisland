@@ -24,6 +24,8 @@ export interface PreviewState {
   tabs: PreviewTab[];
   active: number;
   view: PreviewView;
+  /** Stuck to the island: no frame, so the page has its own ✕. */
+  docked?: boolean;
 }
 
 export interface FileView {

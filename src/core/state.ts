@@ -509,6 +509,8 @@ export interface Settings {
   chatFolder?: string;
   /** «Anteprima» (src/preview/): the chat's links and the files terminal mode edits open in the preview window. */
   chatPreview?: boolean;
+  /** The preview stuck to the open island instead of a window of its own. */
+  previewDocked?: boolean;
   /** In front of every new conversation; of the profile (PROFILE_KEYS). */
   chatInstructions?: string;
   /** Impostazioni → Chat → Assistenti: an engine and instructions for a conversation, picked with "/". */
@@ -1018,6 +1020,7 @@ export const DEFAULT_SETTINGS: Settings = {
   chatTerminal: false,
   chatFolder: "",
   chatPreview: true,
+  previewDocked: false,
   chatInstructions: "",
   chatAssistants: [],
   opencodeWatch: false,

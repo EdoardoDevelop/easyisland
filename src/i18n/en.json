@@ -3500,7 +3500,6 @@
   "Contatti": "Contacts",
   "Assistenza informatica per il tuo studio": "IT support for your office",
   "Richiedi un preventivo": "Ask for a quote",
-  "i link e i file citati dalla chat si aprono nella finestra Anteprima, con le pagine web in un browser vero, e i file che la modalità terminale modifica compaiono lì con le modifiche evidenziate. Ctrl+clic su un link apre il browser": "the links and files the chat mentions open in the Preview window, with web pages in a real browser, and the files terminal mode changes show up there with the changes highlighted. Ctrl+click on a link opens the browser",
   "Anteprima: file e pagine web accanto alla chat": "Preview: files and web pages next to the chat",
   "Non riesco ad aprire «{p}».": "I can't open \"{p}\".",
   "Scrivi un indirizzo o il percorso di un file.": "Type an address or a file path.",
@@ -3527,5 +3526,9 @@
   "Vista: {p} {w}×{h}, colori {s}.": "View: {p} {w}×{h}, colours {s}.",
   "della pagina": "the page's own",
   "Fatto su «{what}».": "Done on \"{what}\".",
-  "(tagliato)": "(cut)"
+  "(tagliato)": "(cut)",
+  "i link e i file citati dalla chat si aprono nell'Anteprima, con le pagine web in un browser vero, e i file che la modalità terminale modifica compaiono lì con le modifiche evidenziate. Attaccata all'isola, la segue e si nasconde con lei; separata, è una finestra che sposti dove vuoi. Ctrl+clic su un link apre il browser": "the links and files the chat mentions open in the Preview, with web pages in a real browser, and the files terminal mode changes show up there with the changes highlighted. Attached to the island, it follows it and hides with it; separate, it is a window you move wherever you like. Ctrl+click on a link opens the browser",
+  "Attaccata all'isola": "Attached to the island",
+  "Finestra separata": "Separate window",
+  "Chiudi l'Anteprima": "Close the Preview"
 }

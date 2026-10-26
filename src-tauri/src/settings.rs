@@ -763,6 +763,10 @@ pub struct Settings {
     /// terminale» edits open in the preview window.
     #[serde(default = "default_true")]
     pub chat_preview: bool,
+    /// The preview stuck to the open island (follows it, hides with it)
+    /// instead of a window of its own.
+    #[serde(default)]
+    pub preview_docked: bool,
     /// Impostazioni → Chat → Istruzioni: in front of every new conversation.
     /// Of the profile (PROFILE_KEYS): "Cliente Rossi" can carry its own.
     #[serde(default)]
@@ -1009,6 +1013,7 @@ impl Default for Settings {
             chat_terminal: false,
             chat_folder: String::new(),
             chat_preview: true,
+            preview_docked: false,
             chat_instructions: String::new(),
             chat_assistants: Vec::new(),
             opencode_watch: false,

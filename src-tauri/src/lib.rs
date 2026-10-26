@@ -2589,8 +2589,13 @@ async fn preview_show(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn preview_state() -> preview::Snapshot {
-    preview::snapshot()
+fn preview_state(app: AppHandle) -> preview::Snapshot {
+    preview::snapshot(&app)
+}
+
+#[tauri::command]
+async fn preview_hide(app: AppHandle) {
+    preview::close_window(&app);
 }
 
 #[tauri::command]
@@ -3273,6 +3278,7 @@ pub fn run() {
             open_flows_window,
             preview_open,
             preview_show,
+            preview_hide,
             preview_state,
             preview_select,
             preview_close,
