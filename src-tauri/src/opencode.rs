@@ -475,6 +475,10 @@ fn tool_name(action: &str) -> String {
 
 /// A step line under the reply: "Esegue · echo ciao".
 pub fn step_line(tool: &str, input: &Value) -> String {
+    // MCP tools come as "<server>_<tool>": EasyIsland's in words (steps.rs).
+    if let Some(rest) = tool.strip_prefix("easyisland_") {
+        return crate::steps::mcp("easyisland", rest, input);
+    }
     let s = |k: &str| input.get(k).and_then(Value::as_str).map(str::to_string);
     let what = s("command").or_else(|| s("filePath")).or_else(|| s("file_path")).or_else(|| s("path")).or_else(|| s("pattern"))
         .or_else(|| s("url")).or_else(|| s("query")).unwrap_or_default();

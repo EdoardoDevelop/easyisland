@@ -151,7 +151,7 @@ fn tool_line(name: &str, p: &Value) -> String {
         "view_file" => format!("> ⚙ {} · `{}`", t("Legge"), file(get(&["AbsolutePath", "absolutePath"]))),
         "search_web" => format!("> ⚙ {} · `{}`", t("Cerca sul web"), short(get(&["query", "Query"]))),
         "read_url_content" => format!("> ⚙ {} · `{}`", t("Apre"), short(get(&["Url", "url"]))),
-        "call_mcp_tool" => format!("> ⚙ {} · {}", get(&["ToolName", "toolName"]), get(&["ServerName", "serverName"])),
+        "call_mcp_tool" => crate::steps::mcp(&get(&["ServerName", "serverName"]), &get(&["ToolName", "toolName"]), p.get("Arguments").or_else(|| p.get("arguments")).unwrap_or(&Value::Null)),
         other => format!("> ⚙ {other}"),
     }
 }

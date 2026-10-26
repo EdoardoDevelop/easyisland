@@ -111,7 +111,9 @@ read and change EasyIsland's own settings (get_settings, then set_setting: defau
 (\"every morning…\", \"when I plug in a USB stick…\", \"if the client's site goes down…\") propose an automation; check the ids with list_quick_actions, list_profiles and list_status first. \
 Use them when the user asks you to do something on the PC, or when they make the answer better (for example check list_status before answering about the PC or the day). \
 You cannot run arbitrary commands: only the user's quick actions. \
-Before a tool that opens, runs or changes something, say in one short sentence what you are about to do: \
+While you work, before each group of tool calls write one short plain sentence in the user's language that says what you are doing and why \
+(\"Cerco nella memoria le fatture di Rossi, poi preparo il piano.\"): the user follows your work by these sentences, in the island and on Telegram, \
+between lines that only name the tools. Before a tool that opens, runs or changes something, always say it: \
 the user confirms or refuses it with a click, and a refusal is final for that request.";
 /// The sentence of AGENT_PROMPT that "Modalità terminale" leaves out.
 pub(crate) const NO_COMMANDS: &str = "You cannot run arbitrary commands: only the user's quick actions. ";
@@ -592,7 +594,10 @@ fn step_line(tool: &str, input: &Value) -> String {
         // mcp__<server>__<tool>
         let (server, name) = rest.split_once("__").unwrap_or(("", rest));
         let server = server.trim_start_matches("plugin_").replace('_', " ");
-        return if server.is_empty() { format!("> ⚙ {name}") } else { format!("> ⚙ {name} · {server}") };
+        return crate::steps::mcp(&server, name, input);
+    }
+    if tool == "ToolSearch" {
+        return crate::steps::loading_tools();
     }
     let as_opencode = match tool {
         "Bash" | "PowerShell" => "bash",
@@ -1412,7 +1417,7 @@ mod tests {
         assert!(!p.feed(r#"{"type":"assistant","parent_tool_use_id":"t1","message":{"content":[{"type":"text","text":"dentro"}]}}"#));
         assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"mcp__plugin_Notion_notion__notion-search","input":{}}]}}"#));
         assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"text","text":"Fatto."}]}}"#));
-        assert_eq!(p.shown, "Controllo.\n\n> ⚙ Esegue · `git status`\n\n> ⚙ notion-search · Notion notion\n\nFatto.");
+        assert_eq!(p.shown, "Controllo.\n\n> ⚙ Esegue · `git status`\n\n> ⚙ notion search (Notion notion)\n\nFatto.");
         // The reasoning shows under the rest until the next text or step.
         assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"Sommo le  spese\ndi ottobre"}]}}"#));
         assert!(p.view().ends_with("> 💭 _Sommo le spese di ottobre_"));

@@ -1,6 +1,7 @@
 // EasyIsland for Windows — app wiring and the commands the island calls.
 
 mod actions;
+mod steps;
 mod collect;
 mod memory_ai;
 mod preview;

@@ -398,7 +398,7 @@ pub async fn send_with(
                         json!({ "type": "tool_result", "tool_use_id": c.get("id"), "content": "Troppi passi in questa risposta: fermati e riassumi.", "is_error": true })
                     };
                     let mark = if result.get("is_error").and_then(Value::as_bool) == Some(true) { " — ⚠" } else { "" };
-                    steps.push(format!("> ⚙ {name}{mark}"));
+                    steps.push(format!("{}{mark}", crate::steps::mcp("", name, c.get("input").unwrap_or(&Value::Null))));
                     results.push(result);
                 }
                 chat.push(json!({ "role": "user", "content": results }));
