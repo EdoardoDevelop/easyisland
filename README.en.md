@@ -73,7 +73,7 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
-- **1.0.8** — New logo (the island that opens, with a sparkle); **Jarvis Sfera** default character; README with contents and new screenshots.
+- **1.0.8** — New logo (a speech bubble with a rainbow stroke and two eyes); **Jarvis Sfera** default character; README with contents and new screenshots.
 - **1.0.7** — **Flows**: their own window with blocks to drag, agents, choices, for-each, questions on Telegram too, retries and runs with "Resume from here".
 - **1.0.6** — **Light, dark or automatic** mode, tidier Appearance, Jarvis Plasma, an engine just for the memory, 3D Graph.
 - **1.0.5** — **Jarvis** and **Jarvis Sfera** characters.

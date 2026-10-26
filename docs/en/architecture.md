@@ -20,8 +20,7 @@ Italian file is the reference.
   [agents-and-chat.md](agents-and-chat.md)).
 - `dev/`: browser previews (`scenes.ts`, `*-preview.html`).
 - `scripts/`:
-  - `gen-icons.mjs`: the app icon, drawn in code (the island that opens: a pill melting
-    into a round body, night blue with a cyan edge and a sparkle, two flat colours); also copies it to `site/media/icon.png`.
+  - `gen-icons.mjs`: the app icon, drawn in code (the speech bubble of `src/character/mark.ts`: a rainbow stroke, dark inside, two white eyes); also copies it to `site/media/icon.png`.
   - `gen-brands.mjs`: brand logos from `brand/` into `src/views/brands.ts`.
   - `pack.mjs`: copies the installer to `release/`.
   - `screenshots.mjs`: regenerates the README screenshots.

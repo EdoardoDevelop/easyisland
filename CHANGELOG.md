@@ -2,8 +2,8 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.md#ultime-versioni).
 
-**1.0.8** — **Logo nuovo**: l'isola che si apre, blu notte con bordo ciano e la scintilla di un
-assistente, due colori piatti che si leggono anche a 16 px. **Jarvis Sfera** è il personaggio predefinito
+**1.0.8** — **Logo nuovo**: un fumetto con il bordo ad arcobaleno, l'interno scuro e due occhi
+bianchi, leggibile anche a 16 px; lo stesso disegno fa da logo nell'isola. **Jarvis Sfera** è il personaggio predefinito
 di una nuova installazione. README con indice e schermate nuove; la storia delle versioni sta in
 [CHANGELOG.md](CHANGELOG.md).
 

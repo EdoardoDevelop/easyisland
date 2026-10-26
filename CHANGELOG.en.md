@@ -2,8 +2,8 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.en.md#latest-versions).
 
-**1.0.8** — **New logo**: the island that opens, night blue with a cyan edge and an assistant's sparkle,
-two flat colours that read even at 16 px. **Jarvis Sfera** is the default character of a new install.
+**1.0.8** — **New logo**: a speech bubble with a rainbow stroke, dark inside, with two white eyes,
+readable even at 16 px; the same drawing is the logo in the island. **Jarvis Sfera** is the default character of a new install.
 README with a table of contents and new screenshots; the version history is in
 [CHANGELOG.en.md](CHANGELOG.en.md).
 

@@ -38,7 +38,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
 ### 26 ottobre 2026 — Versione 1.0.8: logo nuovo, Jarvis Sfera predefinito
-- **Logo** (`scripts/gen-icons.mjs`, anche `figure.ts` per il logo nell'isola): l'isola che si apre, blu notte con bordo ciano e la scintilla, due colori piatti; fino a 32 px più alta, bordo a pixel interi, senza scintilla sotto i 32. Scelto da Edoardo dopo varie prove (sfera a punti, sfumature: scartate).
+- **Logo** (`src/character/mark.ts`, usato da `scripts/gen-icons.mjs` e da `figure.ts` per il logo nell'isola): fumetto con bordo arcobaleno, interno scuro, due occhi bianchi e coda in basso a sinistra, da un'immagine di Edoardo; fino a 32 px bordo più spesso e occhi più grandi. Provate e scartate: sfera a punti, isola che si apre. La 1.0.8 è stata ripubblicata con questo logo (tag spostato).
 - **Jarvis Sfera** predefinito per le nuove installazioni (`default_character`, `DEFAULT_SETTINGS`); chi ha già scelto tiene il suo. Gli id dei Jarvis ora si possono impostare anche dalla chat (`agent_settings.rs`).
 - **README**: schermata in cima, indice dei capitoli, «Ultime versioni» in quattro righe; la storia completa in `CHANGELOG.md` / `CHANGELOG.en.md`. Schermate tutte rifatte (`screenshots.mjs` ora in italiano di serie, la finestra Flussi al posto della vecchia pagina Automazioni).
 - **Prove:** `cargo test`, `npm run build`, `npm run smoke`.
