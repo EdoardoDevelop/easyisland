@@ -2599,6 +2599,12 @@ fn preview_state(app: AppHandle) -> preview::Snapshot {
     preview::snapshot(&app)
 }
 
+/// Where the island draws the Anteprima's panel (island.ts); 0 wide = hidden.
+#[tauri::command]
+async fn preview_pane(app: AppHandle, x: f64, y: f64, w: f64, h: f64) {
+    preview::pane(&app, x, y, w, h);
+}
+
 #[tauri::command]
 async fn preview_hide(app: AppHandle) {
     preview::close_window(&app);
@@ -3285,6 +3291,7 @@ pub fn run() {
             preview_open,
             preview_show,
             preview_hide,
+            preview_pane,
             preview_state,
             preview_select,
             preview_close,

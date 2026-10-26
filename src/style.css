@@ -4975,6 +4975,29 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   gap: 10px;
 }
 #body > #views { flex: 1 1 auto; min-width: 0; }
+
+/* The Anteprima docked in the island (island.ts placePane): the preview's page
+   is a webview laid over this box, so it only draws the frame and the grip. */
+#preview-pane {
+  display: none;
+  position: relative;
+  flex: none;
+  margin-bottom: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+}
+#island.paned #preview-pane { display: block; }
+.preview-pane-grip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -9px;
+  width: 8px;
+  cursor: col-resize;
+  border-radius: 4px;
+}
+.preview-pane-grip:hover { background: rgba(255, 255, 255, 0.12); }
 /* A little room under the top bar (BODY_GAP in layout.ts). */
 #island.railed #body { margin-top: 8px; }
 

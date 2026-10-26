@@ -635,10 +635,10 @@ function terminalRow(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: t("Anteprima") }),
       // One choice: off, its own window, or stuck to the island (preview.rs).
-      select([["docked", t("Attaccata all'isola")], ["window", t("Finestra separata")], ["off", t("Spenta")]],
+      select([["docked", t("Nell'isola, a destra")], ["window", t("Finestra separata")], ["off", t("Spenta")]],
         settings.chatPreview === false ? "off" : settings.previewDocked ? "docked" : "window",
         (v) => { settings.chatPreview = v !== "off"; settings.previewDocked = v === "docked"; void save(); }),
-      h("span", { class: "hint note", text: t("i link e i file citati dalla chat si aprono nell'Anteprima, con le pagine web in un browser vero, e i file che la modalità terminale modifica compaiono lì con le modifiche evidenziate. Attaccata all'isola, la segue e si nasconde con lei; separata, è una finestra che sposti dove vuoi. Ctrl+clic su un link apre il browser") })));
+      h("span", { class: "hint note", text: t("i link e i file citati dalla chat si aprono nell'Anteprima, con le pagine web in un browser vero, e i file che la modalità terminale modifica compaiono lì con le modifiche evidenziate. Nell'isola è un pannello a destra, che allarghi trascinandone il bordo; separata, è una finestra che sposti dove vuoi. Ctrl+clic su un link apre il browser") })));
 }
 
 /** Impostazioni → Chat → Cronologia: on, off (which empties it), or emptied now. */

@@ -3527,8 +3527,6 @@
   "della pagina": "the page's own",
   "Fatto su «{what}».": "Done on \"{what}\".",
   "(tagliato)": "(cut)",
-  "i link e i file citati dalla chat si aprono nell'Anteprima, con le pagine web in un browser vero, e i file che la modalità terminale modifica compaiono lì con le modifiche evidenziate. Attaccata all'isola, la segue e si nasconde con lei; separata, è una finestra che sposti dove vuoi. Ctrl+clic su un link apre il browser": "the links and files the chat mentions open in the Preview, with web pages in a real browser, and the files terminal mode changes show up there with the changes highlighted. Attached to the island, it follows it and hides with it; separate, it is a window you move wherever you like. Ctrl+click on a link opens the browser",
-  "Attaccata all'isola": "Attached to the island",
   "Finestra separata": "Separate window",
   "Chiudi l'Anteprima": "Close the Preview",
   "[Anteprima aperta accanto alla chat: {n} schede; attiva la {id} ({kind}) «{title}» — {target}; {e} errori in console, {f} richieste fallite. La puoi usare con gli strumenti preview_* (preview_snapshot per vedere la pagina).]\n\n": "[Preview open next to the chat: {n} tabs; active is {id} ({kind}) «{title}» — {target}; {e} console errors, {f} failed requests. You can use it with the preview_* tools (preview_snapshot to see the page).]\n\n",
@@ -3606,5 +3604,9 @@
   "Cambia le misure dell'Anteprima": "Changes the Preview's size",
   "Clicca nella pagina": "Clicks in the page",
   "Scrive nella pagina": "Types in the page",
-  "Prepara gli strumenti": "Gets the tools ready"
+  "Prepara gli strumenti": "Gets the tools ready",
+  "i link e i file citati dalla chat si aprono nell'Anteprima, con le pagine web in un browser vero, e i file che la modalità terminale modifica compaiono lì con le modifiche evidenziate. Nell'isola è un pannello a destra, che allarghi trascinandone il bordo; separata, è una finestra che sposti dove vuoi. Ctrl+clic su un link apre il browser": "the links and files the chat mentions open in the Preview, with web pages in a real browser, and the files terminal mode changes show up there with the changes highlighted. In the island it is a panel on the right, which you widen by dragging its edge; separate, it is a window you move wherever you like. Ctrl+click on a link opens the browser",
+  "Nell'isola, a destra": "In the island, on the right",
+  "Trascina per allargare l'Anteprima · doppio clic: larghezza predefinita": "Drag to widen the Preview · double click: default width",
+  "L'isola non c'è.": "The island is not there."
 }

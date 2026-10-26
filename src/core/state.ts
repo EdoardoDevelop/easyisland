@@ -511,6 +511,8 @@ export interface Settings {
   chatPreview?: boolean;
   /** The preview stuck to the open island instead of a window of its own. */
   previewDocked?: boolean;
+  /** The panel's width in the island, logical px (dragged by its edge); 0 = the usual. */
+  previewWidth?: number;
   /** In front of every new conversation; of the profile (PROFILE_KEYS). */
   chatInstructions?: string;
   /** Impostazioni → Chat → Assistenti: an engine and instructions for a conversation, picked with "/". */
@@ -1021,6 +1023,7 @@ export const DEFAULT_SETTINGS: Settings = {
   chatFolder: "",
   chatPreview: true,
   previewDocked: false,
+  previewWidth: 0,
   chatInstructions: "",
   chatAssistants: [],
   opencodeWatch: false,

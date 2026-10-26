@@ -2,7 +2,7 @@
 // Mirrors IslandRootView.swift + IslandWindowController.swift.
 
 import { Tracked, Spring, clamp } from "../core/anim";
-import { Bridge, IS_TAURI, onDragDrop, type WindowShot } from "../core/bridge";
+import { Bridge, IS_TAURI, onDragDrop, onEvent, type WindowShot } from "../core/bridge";
 import {
   BODY_GAP, EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_CHROME_H, ISLAND_MIN_W, NOTCH_W, PANEL_H, PANEL_W,
   RAIL_GAP, RAIL_W, ROUNDED_CORNER, STRIP_H, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
@@ -85,6 +85,11 @@ const HEADER_MIN = 420;
 /** The three views the drop sequence owns; leaving them stops the engine. */
 /** Views drawn at a fixed size: the user's width and height do not apply. */
 const FIXED_SIZE_VIEWS: ReadonlySet<IslandViewName> = new Set(["greeting", "upload", "uploading", "choose"]);
+/** The Anteprima's panel on the right of the open island (preview.rs `pane`): usual and least width. */
+const PANE_W = 560;
+const PANE_MIN_W = 360;
+/** The open island is at least this tall with the panel, for a page to be usable. */
+const PANE_MIN_H = 520;
 const UPLOAD_VIEWS: ReadonlySet<IslandViewName> = new Set(["upload", "uploading", "choose"]);
 
 /**
@@ -123,6 +128,12 @@ export class Island {
   /** What stays on screen while the island is hidden (the character or a dot). */
   private restIcon!: HTMLElement;
   /** Corner of the open island that sets its width and height. */
+  // The Anteprima docked in the island: the panel holds no DOM of its own, the
+  // preview's page (a webview of this window) is laid over it by preview.rs.
+  private paneOpen = false;
+  private paneGrip = h("div", { class: "preview-pane-grip", title: t("Trascina per allargare l'Anteprima · doppio clic: larghezza predefinita") });
+  private paneEl = h("div", { id: "preview-pane" }, this.paneGrip);
+  private paneSent = { x: 0, y: 0, w: 0, h: 0 };
   private resizeGrip = h("div", { id: "island-resize", title: t("Trascina per cambiare larghezza e altezza · doppio clic: predefinite") });
   private restCanvas!: HTMLCanvasElement;
   private restDot!: HTMLElement;
@@ -406,7 +417,7 @@ export class Island {
       runAction: (a) => void this.runAction(a),
       runSuggestion: (s) => void this.runSuggestion(s, ""),
     });
-    this.contentEl = h("div", { id: "content" }, this.header.el, h("div", { id: "body" }, this.rail.el, this.viewsEl));
+    this.contentEl = h("div", { id: "content" }, this.header.el, h("div", { id: "body" }, this.rail.el, this.viewsEl, this.paneEl));
 
     // The drop sequence draws the card, the bar and its own the character. It sits under
     // the header, which stays visible on top of it exactly as on macOS.
@@ -642,6 +653,20 @@ export class Island {
    */
   private get railShown(): boolean {
     return State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view) && !this.uploadActive;
+  }
+
+  /** The Anteprima's panel is in the open island (not on the greeting and the drop views). */
+  private get paneShown(): boolean {
+    return this.paneOpen && State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view) && !this.uploadActive;
+  }
+
+  private get paneWidth(): number {
+    return Math.round(Math.max(PANE_MIN_W, State.settings.previewWidth || PANE_W));
+  }
+
+  /** What the panel adds to the island's width (its gap is #body's 10 px). */
+  private get paneRoom(): number {
+    return this.paneShown ? this.paneWidth + 10 : 0;
   }
 
   /** What the menu adds to the island's width. */
@@ -2128,6 +2153,10 @@ ${note}` : text };
         w = Math.min(max.w, w + this.railRoom);
         h = Math.max(h, Math.min(max.h, this.railMinH));
       }
+      if (this.paneShown) {
+        w = Math.min(max.w, w + this.paneRoom);
+        h = Math.max(h, Math.min(max.h, PANE_MIN_H));
+      }
       if (State.maximized) ({ w, h } = { w: Math.max(PANEL_W, this.limits.w), h: Math.max(PANEL_H, this.limits.h) });
     }
     // Height the user added beyond the view's own: lists and text boxes grow by
@@ -2177,10 +2206,10 @@ ${note}` : text };
   private fitPanel() {
     const s = State.settings;
     const max = islandMax(this.limits);
-    const w = Math.min(max.w, this.openWidth(max.w) + RAIL_W + RAIL_GAP);
+    const w = Math.min(max.w, this.openWidth(max.w) + RAIL_W + RAIL_GAP + this.paneRoom);
     const user = s.islandHeight > 0 ? s.islandHeight : 0;
     const menu = this.railNeed > 0 ? ISLAND_CHROME_H + BODY_GAP + this.railNeed : 0;
-    const h = Math.min(max.h, Math.max(user, menu));
+    const h = Math.min(max.h, Math.max(user, menu, this.paneShown ? PANE_MIN_H : 0));
     // Full screen: the whole room (work area) is the window.
     const next = State.maximized ? { w: Math.max(PANEL_W, this.limits.w), h: Math.max(PANEL_H, this.limits.h) } : panelFor(w, Math.min(h, max.h), this.limits);
     if (next.w === this.panel.w && next.h === this.panel.h) return;
@@ -2228,7 +2257,7 @@ ${note}` : text };
     // the measured content height (fitHeight) while the island grew, and the
     // island chased it in jerks. Closing keeps the last width while it fades.
     if (State.mode === "expanded") {
-      this.viewsEl.style.setProperty("--view-w", `${Math.round(w - 20 - this.railRoom)}px`);
+      this.viewsEl.style.setProperty("--view-w", `${Math.round(w - 20 - this.railRoom - this.paneRoom)}px`);
       this.viewsEl.dataset.anchor = this.placement.h;
     }
     if (shrinking) {
@@ -2280,6 +2309,7 @@ ${note}` : text };
     this.greetingCanvas.style.left = `${(w - EXPANDED_W) / 2}px`;
     this.uploadCanvas.el.style.left = `${(w - EXPANDED_W) / 2}px`;
 
+    this.placePane();
     const rect = { x: o.x, y: o.y, w, h: hh };
     const pr = this.pushedRect;
     if (
@@ -2390,6 +2420,67 @@ ${note}` : text };
    * a minimum height, saved in the settings on release. A centred island grows
    * on both sides, so the width moves twice as fast as the pointer.
    */
+  /** Tells preview.rs where the panel is (window = page coordinates), or 0 to hide it. */
+  private placePane() {
+    const shown = this.paneShown;
+    this.islandEl.classList.toggle("paned", shown);
+    this.paneEl.style.width = `${this.paneWidth}px`;
+    let next = { x: 0, y: 0, w: 0, h: 0 };
+    if (shown) {
+      const r = this.paneEl.getBoundingClientRect();
+      // Inside its 1 px border; clipped to the island while it grows.
+      const right = Math.min(r.right, this.islandEl.getBoundingClientRect().right - 10);
+      if (r.width > 40 && right - r.left > 40) next = { x: Math.round(r.left + 1), y: Math.round(r.top + 1), w: Math.round(right - r.left - 2), h: Math.round(r.height - 2) };
+    }
+    const p = this.paneSent;
+    if (p.x === next.x && p.y === next.y && p.w === next.w && p.h === next.h) return;
+    this.paneSent = next;
+    void Bridge.previewPane(next.x, next.y, next.w, next.h);
+  }
+
+  /** The panel's left edge widens it (the island grows with it); double click: the usual width. */
+  private wirePane() {
+    void onEvent<boolean>("preview-docked", (on) => {
+      this.paneOpen = on;
+      this.animateGeometry(false);
+    });
+    void Bridge.previewState().then((s) => {
+      if (s?.docked) {
+        this.paneOpen = true;
+        this.animateGeometry(false);
+      }
+    }).catch(() => undefined);
+    const g = this.paneGrip;
+    let start: { x: number; w: number } | null = null;
+    g.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      e.preventDefault();
+      start = { x: e.screenX, w: this.paneWidth };
+      g.setPointerCapture(e.pointerId);
+    });
+    g.addEventListener("pointermove", (e) => {
+      if (!start) return;
+      const most = Math.max(PANE_MIN_W, islandMax(this.limits).w - ISLAND_MIN_W - this.railRoom - 30);
+      State.settings.previewWidth = Math.round(Math.min(most, Math.max(PANE_MIN_W, start.w + (start.x - e.screenX))));
+      State.lastActivity = performance.now();
+      this.animateGeometry(false);
+    });
+    const end = () => {
+      if (!start) return;
+      start = null;
+      void Bridge.saveSettings(State.settings);
+    };
+    g.addEventListener("pointerup", end);
+    g.addEventListener("pointercancel", end);
+    g.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      State.settings.previewWidth = 0;
+      this.animateGeometry(false);
+      void Bridge.saveSettings(State.settings);
+    });
+  }
+
   private wireResize() {
     const g = this.resizeGrip;
     let start: { x: number; y: number; w: number; h: number } | null = null;
@@ -2808,6 +2899,7 @@ ${note}` : text };
     });
     this.islandEl.addEventListener("pointermove", movePress);
     this.wireResize();
+    this.wirePane();
     const openFromCompact = () => {
       if (State.mode !== "expanded") this.openByUser();
     };
