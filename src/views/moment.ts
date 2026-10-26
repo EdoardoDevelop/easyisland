@@ -105,7 +105,8 @@ export function buildMoment(actions: ViewActions & MomentActions): ViewHost {
           title: t("In ascolto su localhost:{port}", { port: m.port }),
           text: m.process,
           row: [
-            btn(t("Apri nel browser"), "primary", () => { actions.openUrl(m.url); done(); }),
+            btn(t("Anteprima"), "primary", () => { void Bridge.previewOpen(m.url).catch(() => actions.openUrl(m.url)); done(); }),
+            btn(t("Apri nel browser"), "secondary", () => { actions.openUrl(m.url); done(); }),
             btn(t("Copia indirizzo"), "secondary", () => { void navigator.clipboard?.writeText(m.url).catch(() => undefined); done(); }),
           ],
         };

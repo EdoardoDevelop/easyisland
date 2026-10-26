@@ -507,6 +507,8 @@ export interface Settings {
   chatTerminal?: boolean;
   /** Its working folder; "" = the user's home. */
   chatFolder?: string;
+  /** «Anteprima» (src/preview/): the chat's links and the files terminal mode edits open in the preview window. */
+  chatPreview?: boolean;
   /** In front of every new conversation; of the profile (PROFILE_KEYS). */
   chatInstructions?: string;
   /** Impostazioni → Chat → Assistenti: an engine and instructions for a conversation, picked with "/". */
@@ -1015,6 +1017,7 @@ export const DEFAULT_SETTINGS: Settings = {
   agentTools: true,
   chatTerminal: false,
   chatFolder: "",
+  chatPreview: true,
   chatInstructions: "",
   chatAssistants: [],
   opencodeWatch: false,

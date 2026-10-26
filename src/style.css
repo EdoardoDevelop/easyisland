@@ -1569,6 +1569,17 @@ input[type="range"]::-webkit-slider-thumb {
   overflow-wrap: anywhere;
 }
 
+/* A file path in a reply: a click opens it in the preview (src/preview/). */
+.md-path {
+  cursor: pointer;
+  text-decoration: underline dotted rgba(125, 211, 252, 0.6);
+  text-underline-offset: 2px;
+}
+
+.md-path:hover {
+  color: #7dd3fc;
+}
+
 .md-link {
   color: #7dd3fc;
   text-decoration: none;

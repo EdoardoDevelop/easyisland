@@ -63,7 +63,15 @@ function bubble(message: ChatMessage): HTMLElement {
     h("div", { class: "reply md" }, ...renderMarkdown(message.content, MD_HOOKS)));
 }
 
-const MD_HOOKS = { openUrl: (url: string) => void Bridge.openUrl(url) };
+// Links and file paths of a reply open in the preview (src/preview/), or in
+// the browser with Ctrl+clic or with Impostazioni → Chat → Anteprima off.
+const MD_HOOKS = {
+  openUrl: (url: string, e?: MouseEvent) => {
+    if (State.settings.chatPreview === false || e?.ctrlKey) void Bridge.openUrl(url);
+    else void Bridge.previewOpen(url).catch(() => void Bridge.openUrl(url));
+  },
+  openPath: (path: string) => void Bridge.previewOpen(path).catch(() => undefined),
+};
 
 function typingDots(): HTMLElement {
   return h(
@@ -142,7 +150,10 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
   const autoBtn = h("button", { class: "auto-btn" }, svg(ICONS.bolt, 12), h("span", { text: t("Automatica") })) as HTMLButtonElement;
   // Accesso remoto (remote.ts): with a connection open, 🔌 links this chat to that PC.
   const remoteBtn = h("button", { class: "auto-btn remote-btn" }, h("span", { text: "🔌" }), h("span", { class: "remote-name" })) as HTMLButtonElement;
-  const head = h("div", { class: "chat-head" }, chipRow, engineBtn, remoteBtn, autoBtn, historyBtn, exportBtn, engineMenu);
+  // «Anteprima» (src/preview/): files and pages of the chat's work, in their window.
+  const previewBtn = h("button", { class: "history-btn", title: t("Anteprima: file e pagine web accanto alla chat") }, svg(ICONS.preview, 13, { stroke: 1.8 })) as HTMLButtonElement;
+  previewBtn.addEventListener("click", () => void Bridge.previewShow());
+  const head = h("div", { class: "chat-head" }, chipRow, engineBtn, remoteBtn, autoBtn, previewBtn, historyBtn, exportBtn, engineMenu);
   const log = h("div", { class: "chat-log" });
   // Scrolled up to read: new text does not pull the view down; ↓ goes back.
   let stick = true;
@@ -1268,6 +1279,7 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
       const terminal = State.settings.chatTerminal === true && !asked;
       const auto = terminal && State.chatAuto;
       autoBtn.style.display = terminal ? "" : "none";
+      previewBtn.style.display = terminal && State.settings.chatPreview !== false ? "" : "none";
       autoBtn.classList.toggle("on", auto);
       el.querySelector(".chat-card")?.classList.toggle("auto", auto);
       autoBtn.title = State.chatEngine === "subscription"

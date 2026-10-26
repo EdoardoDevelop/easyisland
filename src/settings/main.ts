@@ -631,7 +631,11 @@ function terminalRow(): HTMLElement {
       h("label", { text: t("Modalità terminale") }),
       toggle(settings.chatTerminal === true, (v) => { settings.chatTerminal = v; void save(); }),
       h("span", { class: "hint note", text: t("la chat lavora come Claude Code o opencode da terminale: esegue comandi, modifica file e usa tutti i tuoi server MCP, plugin e skill. Ogni comando o modifica chiede Consenti / Nega nell'isola, con «Sempre» per non ripetere la domanda. Gli altri motori passano da opencode, che deve essere installato") })),
-    folderRow);
+    folderRow,
+    h("div", { class: "row" },
+      h("label", { text: t("Anteprima") }),
+      toggle(settings.chatPreview !== false, (v) => { settings.chatPreview = v; void save(); }),
+      h("span", { class: "hint note", text: t("i link e i file citati dalla chat si aprono nella finestra Anteprima, con le pagine web in un browser vero, e i file che la modalità terminale modifica compaiono lì con le modifiche evidenziate. Ctrl+clic su un link apre il browser") })));
 }
 
 /** Impostazioni → Chat → Cronologia: on, off (which empties it), or emptied now. */

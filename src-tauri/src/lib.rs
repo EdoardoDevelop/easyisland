@@ -3,6 +3,7 @@
 mod actions;
 mod collect;
 mod memory_ai;
+mod preview;
 mod antigravity;
 mod agent;
 mod agent_settings;
@@ -267,7 +268,7 @@ fn settings_export(shared: State<Shared>) -> Result<String, String> {
 /// Explorer wants `/select,"C: b\c.txt"`: given as one ordinary argument,
 /// a path with spaces gets quoted whole (`"/select,C: b\c.txt"`), which
 /// Explorer does not understand, and it opens Documents instead.
-fn reveal_in_explorer(path: &std::path::Path) -> std::io::Result<std::process::Child> {
+pub(crate) fn reveal_in_explorer(path: &std::path::Path) -> std::io::Result<std::process::Child> {
     Command::new("explorer").raw_arg(format!("/select,\"{}\"", path.display())).spawn()
 }
 
@@ -2493,11 +2494,11 @@ fn log_line(message: String) {
 /// for the *same* arguments as the island (see `additionalBrowserArgs` in
 /// tauri.conf.json) — a mismatch makes the second window come up blank, with no
 /// error anywhere.
-const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required";
+pub(crate) const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required";
 
 /// In a dev build the pages are served by Vite, so the second window needs the
 /// absolute dev URL; a bundled build resolves it inside the app bundle.
-fn page_url(app: &AppHandle, page: &str) -> WebviewUrl {
+pub(crate) fn page_url(app: &AppHandle, page: &str) -> WebviewUrl {
     #[cfg(dev)]
     if let Some(mut base) = app.config().build.dev_url.clone() {
         base.set_path(&format!("/{page}"));
@@ -2566,6 +2567,94 @@ pub const FLOWS_LABEL: &str = "flussi";
 /// The WebView2 profile folder the windows share (webview_profile.rs), for the
 /// windows made later, on demand.
 static WEBVIEW_DIR: std::sync::OnceLock<Option<std::path::PathBuf>> = std::sync::OnceLock::new();
+
+/// That folder, for the webviews made later (preview.rs).
+pub(crate) fn webview_dir() -> Option<std::path::PathBuf> {
+    WEBVIEW_DIR.get().cloned().flatten()
+}
+
+// «Anteprima» (preview.rs, src/preview/): the page's commands.
+
+#[tauri::command]
+fn preview_open(app: AppHandle, target: String, new_tab: Option<bool>) -> Result<u32, String> {
+    let place = if new_tab.unwrap_or(false) { preview::Place::NewTab } else { preview::Place::Reuse };
+    preview::open(&app, &target, place, true)
+}
+
+#[tauri::command]
+fn preview_show(app: AppHandle) -> Result<(), String> {
+    preview::show(&app, true)
+}
+
+#[tauri::command]
+fn preview_state() -> preview::Snapshot {
+    preview::snapshot()
+}
+
+#[tauri::command]
+fn preview_select(app: AppHandle, id: u32) {
+    preview::select(&app, id);
+}
+
+#[tauri::command]
+fn preview_close(app: AppHandle, id: u32) {
+    preview::close_tab(&app, id);
+}
+
+#[tauri::command]
+fn preview_layout(app: AppHandle, x: f64, y: f64, w: f64, h: f64, covered: bool) {
+    preview::layout(&app, x, y, w, h, covered);
+}
+
+#[tauri::command]
+fn preview_nav(app: AppHandle, id: u32, action: String) -> Result<(), String> {
+    preview::nav(&app, id, &action)
+}
+
+#[tauri::command]
+fn preview_view(app: AppHandle, preset: String, width: Option<u32>, height: Option<u32>, scheme: String) {
+    preview::set_view(&app, &preset, width.unwrap_or(0), height.unwrap_or(0), &scheme);
+}
+
+#[tauri::command]
+async fn preview_file(path: String) -> preview::FileView {
+    tauri::async_runtime::spawn_blocking(move || preview::read_file(&path)).await.unwrap_or_default()
+}
+
+#[tauri::command]
+fn preview_console(id: u32) -> Vec<preview::ConsoleLine> {
+    preview::console(id)
+}
+
+#[tauri::command]
+fn preview_console_clear(app: AppHandle, id: u32) {
+    preview::clear_console(&app, id);
+}
+
+#[tauri::command]
+fn preview_devtools(app: AppHandle, id: u32) -> Result<(), String> {
+    preview::devtools(&app, id)
+}
+
+#[tauri::command]
+async fn preview_servers() -> Vec<preview::Server> {
+    tauri::async_runtime::spawn_blocking(preview::servers).await.unwrap_or_default()
+}
+
+/// «Apri fuori»: an address in the default browser, a file in its program.
+#[tauri::command]
+fn preview_external(path_or_url: String, reveal: bool) -> Result<(), String> {
+    if path_or_url.starts_with("http://") || path_or_url.starts_with("https://") {
+        open_url_now(&path_or_url);
+        return Ok(());
+    }
+    let p = std::path::PathBuf::from(&path_or_url);
+    if reveal {
+        reveal_in_explorer(&p).map(|_| ()).map_err(|e| e.to_string())
+    } else {
+        actions::shell_open(&path_or_url).map_err(|_| i18n::tf("Non riesco ad aprire «{p}».", &[("p", &path_or_url)]))
+    }
+}
 
 /// The flows window (src/flows/, docs/flussi.md): made the first time it is
 /// opened, then hidden on close like the others. `id` = the flow to show.
@@ -3180,6 +3269,20 @@ pub fn run() {
             flow_rerun,
             flow_try_from,
             open_flows_window,
+            preview_open,
+            preview_show,
+            preview_state,
+            preview_select,
+            preview_close,
+            preview_layout,
+            preview_nav,
+            preview_view,
+            preview_file,
+            preview_console,
+            preview_console_clear,
+            preview_devtools,
+            preview_servers,
+            preview_external,
             flow_save,
             flow_delete,
             flow_ask_chat,
@@ -3307,6 +3410,7 @@ pub fn run() {
             create_settings_window(&handle, webview_dir.as_deref());
             create_memory_window(&handle, webview_dir.as_deref());
             let _ = WEBVIEW_DIR.set(webview_dir.clone());
+            preview::init(&handle);
 
             if let Some(win) = island::window(&handle) {
                 // "Chiudi finestra" from the taskbar (the island as an app) must not

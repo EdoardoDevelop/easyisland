@@ -553,6 +553,70 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             true,
         ),
         (
+            "preview_open",
+            "Apre nella finestra Anteprima di EasyIsland, accanto alla chat, un indirizzo web (anche \"localhost:5173\") o un file (percorso assoluto o relativo alla cartella della chat): Markdown, codice, immagini, CSV, HTML e PDF. Senza new_tab la scheda web attiva va al nuovo indirizzo. target \"back\", \"forward\" o \"reload\" agisce sulla scheda (tab: il suo numero; vuoto = quella attiva); target vuoto elenca le schede. Un file modificato si ridisegna da solo.",
+            json!({ "type": "object", "properties": {
+                "target": { "type": "string" },
+                "new_tab": { "type": "boolean" },
+                "tab": { "type": "string" }
+            } }),
+            true,
+        ),
+        (
+            "preview_read",
+            "Il testo della scheda dell'Anteprima (tab: numero; vuoto = quella attiva): per una pagina web titolo, indirizzo, testo visibile, link e campi; per un file il suo testo.",
+            json!({ "type": "object", "properties": { "tab": { "type": "string" } } }),
+            true,
+        ),
+        (
+            "preview_screenshot",
+            "Fotografa la scheda dell'Anteprima (tab: numero; vuoto = quella attiva) e la salva come PNG: torna il percorso, da leggere come immagine.",
+            json!({ "type": "object", "properties": { "tab": { "type": "string" } } }),
+            true,
+        ),
+        (
+            "preview_console",
+            "I messaggi della console e gli errori della pagina web nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva), gli ultimi 300. errors_only: solo errori e avvisi.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "errors_only": { "type": "boolean" }
+            } }),
+            true,
+        ),
+        (
+            "preview_resize",
+            "Cambia la vista delle pagine web dell'Anteprima: preset fit (tutta la finestra), desktop (1280×800), tablet (768×1024) o mobile (375×812, con il tocco), oppure width e height; color_scheme light, dark o auto (quello della pagina).",
+            json!({ "type": "object", "properties": {
+                "preset": { "type": "string", "enum": ["fit", "desktop", "tablet", "mobile"] },
+                "width": { "type": "integer" },
+                "height": { "type": "integer" },
+                "color_scheme": { "type": "string", "enum": ["light", "dark", "auto"] }
+            } }),
+            true,
+        ),
+        (
+            "preview_click",
+            "Clicca un elemento della pagina web nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva): selector (CSS) oppure text_match (il testo, l'etichetta o il segnaposto di un pulsante, link o campo). L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "selector": { "type": "string" },
+                "text_match": { "type": "string" }
+            } }),
+            false,
+        ),
+        (
+            "preview_type",
+            "Scrive text in un campo della pagina web nella scheda dell'Anteprima, trovato con selector (CSS) o text_match (etichetta, segnaposto, nome); submit: invia il modulo. Mai password o dati di pagamento. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "selector": { "type": "string" },
+                "text_match": { "type": "string" },
+                "text": { "type": "string" },
+                "submit": { "type": "boolean" }
+            }, "required": ["text"] }),
+            false,
+        ),
+        (
             "switch_profile",
             "Attiva un profilo di EasyIsland per id (vedi list_profiles).",
             json!({ "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"] }),

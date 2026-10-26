@@ -2,6 +2,8 @@
 // Drawn on a 24×24 grid so they read at the same optical size.
 
 export const ICONS = {
+  // preview — a window with a page in it (the chat's «Anteprima»)
+  preview: "M3.5 5.5A1.5 1.5 0 0 1 5 4h14a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 19 20H5a1.5 1.5 0 0 1-1.5-1.5v-13zM3.5 8.5h17M6.5 6.2h.01M8.6 6.2h.01M8 12h8M8 15.5h5",
   // minus — minimize the island as an app
   minimize: "M5 11h14v2H5z",
   // square / two squares — full screen on and off

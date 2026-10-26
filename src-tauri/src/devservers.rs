@@ -123,7 +123,7 @@ pub fn port_owner(port: u16) -> Option<(String, u32)> {
 }
 
 /// "node.exe" → is it a development program?
-fn is_dev_program(name: &str) -> bool {
+pub(crate) fn is_dev_program(name: &str) -> bool {
     let lower = name.to_lowercase();
     let stem = lower.strip_suffix(".exe").unwrap_or(&lower);
     DEV_PROGRAMS.contains(&stem)

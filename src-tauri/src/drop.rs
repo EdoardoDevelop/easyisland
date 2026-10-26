@@ -20,8 +20,17 @@ use crate::island::{self, WINDOW_LABEL};
 /// Listens for dropped files on the island and emits `file-drop` with their paths.
 pub fn install(app: &AppHandle) {
     let Some(win) = island::window(app) else { return };
+    let _ = win.with_webview(listener(app, WINDOW_LABEL));
+}
+
+/// The same for another page (the preview's, preview.rs): `file-drop` to `label`.
+pub fn install_on(app: &AppHandle, webview: &tauri::Webview, label: &'static str) {
+    let _ = webview.with_webview(listener(app, label));
+}
+
+fn listener(app: &AppHandle, label: &'static str) -> impl FnOnce(tauri::webview::PlatformWebview) + Send + 'static {
     let handle = app.clone();
-    let _ = win.with_webview(move |webview| unsafe {
+    move |webview| unsafe {
         let Ok(core) = webview.controller().CoreWebView2() else {
             crate::log::line("drop: no CoreWebView2".to_string());
             return;
@@ -29,7 +38,7 @@ pub fn install(app: &AppHandle) {
         let handler = WebMessageReceivedEventHandler::create(Box::new(move |_, args| {
             let paths = args.map(|a| dropped_paths(&a)).unwrap_or_default();
             if !paths.is_empty() {
-                let _ = handle.emit_to(WINDOW_LABEL, "file-drop", paths);
+                let _ = handle.emit_to(label, "file-drop", paths);
             }
             Ok(())
         }));
@@ -37,7 +46,7 @@ pub fn install(app: &AppHandle) {
         if let Err(err) = core.add_WebMessageReceived(&handler, &mut token) {
             crate::log::line(format!("drop: could not listen for files: {err}"));
         }
-    });
+    }
 }
 
 /// Paths of the files attached to a web message; empty for any other message

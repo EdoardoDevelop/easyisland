@@ -37,6 +37,11 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 26 ottobre 2026 — Anteprima di file e pagine web (su `claude/sviluppo`)
+- Finestra **Anteprima** (`preview.rs`, `src/preview/`), come quella di Claude desktop: schede di file (codice colorato, Markdown, CSV, immagini, «Modifiche» rispetto a prima della chat) e pagine web in un browser vero dentro la finestra, con misure da telefono/tablet, chiaro/scuro, console, Strumenti per sviluppatori. Si apre da link e percorsi della chat, da sola sui file della Modalità terminale, dal server di sviluppo. Strumenti `preview_*` per la chat (clic e scrittura con Consenti / Nega). Dettagli in `docs/chat.md`, guida `10-anteprima`.
+- Tauri con `unstable` (più webview per finestra); `build.rs` incorpora il manifest perché i test partano (`docs/decisioni.md`).
+- **Prove:** `cargo test` (331), `npm run build`, `check:i18n`, la pagina con i dati finti in Edge. **Da provare dal vivo** tutta la parte con l'app (`docs/prove-dal-vivo.md`).
+
 ### 26 ottobre 2026 — Memoria: riassunti, alias e secondo passo (su `claude/sviluppo`)
 - Intestazione delle pagine con `riassunto:` e `alias:` facoltativi (`brain.rs`): la ricerca della chat dà il riassunto delle pagine collegate e trova una pagina anche dai suoi alias; un `[[Alias]]` porta alla pagina (`target_of`). `memory_page_write` li prende dalle prime righe del testo, senza li conserva.
 - Secondo passo della ricerca solo sui legami forti (relazione con nome o indicata da due pagine, al massimo 4). Pulizia proposta e ricerca per significato in `docs/idee.md`.
@@ -60,7 +65,4 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - **Jarvis Plasma** (`jarvis.ts`), da un'immagine: gabbia di filamenti, rete interna, nodo luminoso, niente bordo netto. Jarvis Sfera con colori più accesi.
 - Pagina **Aspetto** in cinque sezioni (`appearanceSections`); volumi spostati in Generale.
 - `smoke.mjs` e `screenshots.mjs` lasciavano in %TEMP% il profilo di Edge (bloccato dai processi figli): ~30 GB accumulati, disco pieno. Ora riprovano a cancellarlo e all'avvio spazzano quelli più vecchi di un'ora.
-
-### 25 ottobre 2026 — Grafo 3D della memoria
-- Nuova scheda «Grafo 3D» nella finestra Memoria (`src/memory/graph3d.ts`): forze in 3D, prospettiva su Canvas 2D senza librerie, trascina per girare, clic per portare la stella davanti. Fotogrammi solo mentre si muove.
 

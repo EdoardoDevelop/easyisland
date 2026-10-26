@@ -5,8 +5,9 @@ import { t } from "./i18n";
 // innerHTML, so nothing in a reply can become markup or script. What it knows:
 // headings, paragraphs, bullet and numbered lists, quotes, tables, rules,
 // fenced code (with a "Copia" button), and inline **bold**, *italic*,
-// ~~strike~~, `code` and [links](https://…). Links open in the browser only
-// when they are http(s); anything else stays text.
+// ~~strike~~, `code`, [links](https://…) and bare http(s) addresses. Links
+// open only when they are http(s); anything else stays text. With `openPath`,
+// a `code` span that is a file path opens too (the chat: in the preview).
 
 /**
  * Claude's markdown read as plain text, for a card or a ticker row: no code
@@ -29,7 +30,30 @@ export function plainText(md: string): string {
 
 /** What the renderer needs from the outside (the island passes Bridge.openUrl). */
 export interface MarkdownHooks {
-  openUrl(url: string): void;
+  /** `e`: the click, for Ctrl+clic. */
+  openUrl(url: string, e?: MouseEvent): void;
+  /** A file path in `code` (absolute, or relative with an extension). */
+  openPath?(path: string): void;
+}
+
+/** "C:\a\b.ts", "src/app.ts", "./x.md", "~/n.txt": a path, not a word or a command. */
+export function looksLikePath(s: string): boolean {
+  if (s.length < 3 || s.length > 260 || /[\n<>|"*?]/.test(s) || /^\s|\s$/.test(s)) return false;
+  if (/^[A-Za-z]:[\\/]/.test(s) || /^\\\\[^\\]/.test(s) || /^~[\\/]/.test(s)) return true;
+  if (/\s/.test(s) || /^[a-z]+:\/\//i.test(s)) return false;
+  return /^(\.{1,2}[\\/])?[\w@.()+-]+([\\/][\w@.()+-]+)*\.[A-Za-z][A-Za-z0-9]{0,7}$/.test(s) && /[\\/]|\.(md|txt|ts|tsx|js|jsx|mjs|json|html?|css|scss|rs|py|cs|go|java|toml|ya?ml|csv|xml|svg|png|jpe?g|gif|pdf|ps1|bat|cmd|sh|sql|vue|svelte|php|rb|ini|env|log|lock)$/i.test(s);
+}
+
+function link(url: string, label: Node[], hooks: MarkdownHooks): HTMLElement {
+  const a = el("a", "md-link");
+  a.href = url;
+  a.title = url;
+  a.append(...label);
+  a.addEventListener("click", (e) => {
+    e.preventDefault();
+    hooks.openUrl(url, e);
+  });
+  return a;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -43,22 +67,31 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
 
 /** Earliest-match inline rules; `code` first so nothing inside it is parsed. */
 const INLINE: { re: RegExp; make: (m: RegExpExecArray, hooks: MarkdownHooks) => Node }[] = [
-  { re: /`([^`\n]+)`/, make: (m) => el("code", "md-code", m[1]) },
+  {
+    re: /`([^`\n]+)`/,
+    make: (m, hooks) => {
+      const code = el("code", "md-code", m[1]);
+      const text = m[1].trim();
+      if (/^https?:\/\/\S+$/i.test(text)) return link(text, [code], hooks);
+      if (!hooks.openPath || !looksLikePath(text)) return code;
+      code.classList.add("md-path");
+      code.title = text;
+      code.addEventListener("click", () => hooks.openPath?.(text));
+      return code;
+    },
+  },
   {
     re: /\[([^\]\n]+)\]\(([^)\s]+)\)/,
     make: (m, hooks) => {
       const url = m[2];
       if (!/^https?:\/\//i.test(url)) return document.createTextNode(m[1]);
-      const a = el("a", "md-link");
-      a.href = url;
-      a.title = url;
-      a.append(...inline(m[1], hooks));
-      a.addEventListener("click", (e) => {
-        e.preventDefault();
-        hooks.openUrl(url);
-      });
-      return a;
+      return link(url, inline(m[1], hooks), hooks);
     },
+  },
+  // A bare address; the punctuation after it stays text.
+  {
+    re: /\bhttps?:\/\/[^\s<>()\]]+[^\s<>()\].,;:!?'"»]/i,
+    make: (m, hooks) => link(m[0], [document.createTextNode(m[0])], hooks),
   },
   { re: /\*\*([^*\n]+?)\*\*|__([^_\n]+?)__/, make: (m, hooks) => wrap("strong", m[1] ?? m[2], hooks) },
   { re: /~~([^~\n]+?)~~/, make: (m, hooks) => wrap("s", m[1], hooks) },

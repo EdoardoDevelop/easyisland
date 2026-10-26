@@ -29,6 +29,7 @@ export default defineConfig({
         settings: resolve(__dirname, "settings.html"),
         memoria: resolve(__dirname, "memoria.html"),
         flussi: resolve(__dirname, "flussi.html"),
+        anteprima: resolve(__dirname, "anteprima.html"),
       },
     },
   },

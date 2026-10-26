@@ -839,6 +839,7 @@ async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&Chat
                 "session.tool.called" => {
                     let id = data.get("id").and_then(Value::as_str).unwrap_or_default();
                     let name = names.get(id).cloned().unwrap_or_else(|| "strumento".into());
+                    crate::preview::touched_by(&name, data.get("input").unwrap_or(&Value::Null));
                     let line = step_line(&name, data.get("input").unwrap_or(&Value::Null));
                     out = shown(&out, &line);
                     thinking.clear();
