@@ -90,6 +90,10 @@ const PANE_W = 560;
 const PANE_MIN_W = 360;
 /** The open island is at least this tall with the panel, for a page to be usable. */
 const PANE_MIN_H = 520;
+/** The chat's views: the panel is beside them only (another tab hides it). */
+const PANE_VIEWS: ReadonlySet<IslandViewName> = new Set(["prompt", "searching", "result", "approval", "ask", "question"]);
+/** The least the chat keeps beside the panel. */
+const PANE_VIEWS_MIN_W = 360;
 const UPLOAD_VIEWS: ReadonlySet<IslandViewName> = new Set(["upload", "uploading", "choose"]);
 
 /**
@@ -657,7 +661,21 @@ export class Island {
 
   /** The Anteprima's panel is in the open island (not on the greeting and the drop views). */
   private get paneShown(): boolean {
-    return this.paneOpen && State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view) && !this.uploadActive;
+    return this.paneOpen && State.mode === "expanded" && PANE_VIEWS.has(State.view) && !this.uploadActive;
+  }
+
+  /**
+   * The views' and the panel's widths in an open island of at most `maxW`
+   * (the menu apart): the panel takes its width, the chat what is left, never
+   * less than PANE_VIEWS_MIN_W. Before, an island the user had made wide got
+   * the panel on top and went off the screen with its buttons.
+   */
+  private paneSplit(maxW: number): { views: number; pane: number } {
+    const views = this.openWidth(maxW);
+    if (!this.paneShown) return { views, pane: 0 };
+    const room = maxW - this.railRoom - 10;
+    const pane = Math.round(Math.max(200, Math.min(this.paneWidth, room - PANE_VIEWS_MIN_W)));
+    return { views: Math.round(Math.max(200, Math.min(views, room - pane))), pane };
   }
 
   private get paneWidth(): number {
@@ -666,7 +684,7 @@ export class Island {
 
   /** What the panel adds to the island's width (its gap is #body's 10 px). */
   private get paneRoom(): number {
-    return this.paneShown ? this.paneWidth + 10 : 0;
+    return this.paneShown ? this.paneSplit(islandMax(this.limits).w).pane + 10 : 0;
   }
 
   /** What the menu adds to the island's width. */
@@ -2154,7 +2172,7 @@ ${note}` : text };
         h = Math.max(h, Math.min(max.h, this.railMinH));
       }
       if (this.paneShown) {
-        w = Math.min(max.w, w + this.paneRoom);
+        w = Math.min(max.w, this.paneSplit(max.w).views + this.railRoom + this.paneRoom);
         h = Math.max(h, Math.min(max.h, PANE_MIN_H));
       }
       if (State.maximized) ({ w, h } = { w: Math.max(PANEL_W, this.limits.w), h: Math.max(PANEL_H, this.limits.h) });
@@ -2206,7 +2224,7 @@ ${note}` : text };
   private fitPanel() {
     const s = State.settings;
     const max = islandMax(this.limits);
-    const w = Math.min(max.w, this.openWidth(max.w) + RAIL_W + RAIL_GAP + this.paneRoom);
+    const w = Math.min(max.w, this.paneSplit(max.w).views + RAIL_W + RAIL_GAP + this.paneRoom);
     const user = s.islandHeight > 0 ? s.islandHeight : 0;
     const menu = this.railNeed > 0 ? ISLAND_CHROME_H + BODY_GAP + this.railNeed : 0;
     const h = Math.min(max.h, Math.max(user, menu, this.paneShown ? PANE_MIN_H : 0));
@@ -2420,17 +2438,27 @@ ${note}` : text };
    * a minimum height, saved in the settings on release. A centred island grows
    * on both sides, so the width moves twice as fast as the pointer.
    */
+  /** The docked Anteprima opened or closed (preview.rs; the chat's button reads State.previewOpen). */
+  setPaneOpen(on: boolean) {
+    this.paneOpen = on;
+    State.previewOpen = on;
+    State.notify();
+    this.animateGeometry(false);
+  }
+
   /** Tells preview.rs where the panel is (window = page coordinates), or 0 to hide it. */
   private placePane() {
     const shown = this.paneShown;
     this.islandEl.classList.toggle("paned", shown);
-    this.paneEl.style.width = `${this.paneWidth}px`;
+    this.paneEl.style.width = `${Math.max(0, this.paneRoom - 10)}px`;
     let next = { x: 0, y: 0, w: 0, h: 0 };
     if (shown) {
       const r = this.paneEl.getBoundingClientRect();
       // Inside its 1 px border; clipped to the island while it grows.
-      const right = Math.min(r.right, this.islandEl.getBoundingClientRect().right - 10);
-      if (r.width > 40 && right - r.left > 40) next = { x: Math.round(r.left + 1), y: Math.round(r.top + 1), w: Math.round(right - r.left - 2), h: Math.round(r.height - 2) };
+      // Never out of the island nor of the window (a webview there is cut by the screen).
+      const right = Math.min(r.right, this.islandEl.getBoundingClientRect().right - 10, window.innerWidth);
+      const bottom = Math.min(r.bottom, window.innerHeight);
+      if (r.width > 40 && right - r.left > 40) next = { x: Math.round(r.left + 1), y: Math.round(r.top + 1), w: Math.round(right - r.left - 2), h: Math.round(bottom - r.top - 2) };
     }
     const p = this.paneSent;
     if (p.x === next.x && p.y === next.y && p.w === next.w && p.h === next.h) return;
@@ -2440,15 +2468,9 @@ ${note}` : text };
 
   /** The panel's left edge widens it (the island grows with it); double click: the usual width. */
   private wirePane() {
-    void onEvent<boolean>("preview-docked", (on) => {
-      this.paneOpen = on;
-      this.animateGeometry(false);
-    });
+    void onEvent<boolean>("preview-docked", (on) => this.setPaneOpen(on));
     void Bridge.previewState().then((s) => {
-      if (s?.docked) {
-        this.paneOpen = true;
-        this.animateGeometry(false);
-      }
+      if (s?.docked) this.setPaneOpen(true);
     }).catch(() => undefined);
     const g = this.paneGrip;
     let start: { x: number; w: number } | null = null;
@@ -2497,7 +2519,7 @@ ${note}` : text };
       // not counted, or the island jumped by the menu's width on the first move.
       start = {
         x: e.screenX, y: e.screenY,
-        w: this.width.value - this.railRoom, h: this.height.value,
+        w: this.width.value - this.railRoom - this.paneRoom, h: this.height.value,
       };
       g.setPointerCapture(e.pointerId);
     });

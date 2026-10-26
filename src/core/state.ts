@@ -1146,6 +1146,8 @@ class AppState {
   chatEngineOverride: ChatEngine | null = null;
   /** "Automatica" (chat head, Modalità terminale only): no Consenti / Nega for this conversation. Never saved. */
   chatAuto = false;
+  /** The Anteprima is open as the island's panel (island.ts setPaneOpen). */
+  previewOpen = false;
   /** The engine the chat uses right now. */
   get chatEngine(): ChatEngine {
     return this.chatEngineOverride ?? this.settings.chatEngine;

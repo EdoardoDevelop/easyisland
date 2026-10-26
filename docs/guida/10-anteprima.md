@@ -15,7 +15,7 @@ L'**Anteprima** è una finestra con le schede, come un piccolo browser, che sta 
 - **Trascinando un file** sulla finestra, o scrivendo un indirizzo o un percorso nella barra.
 
 In **Impostazioni → Chat → Anteprima** scegli come averla:
-- **Nell'isola, a destra**: un pannello dentro l'isola aperta, a destra della chat. Trascina il suo bordo sinistro per allargarlo (doppio clic: larghezza di partenza); si nasconde quando l'isola si chiude e torna quando la riapri. Si chiude con la **✕** in alto a destra.
+- **Nell'isola, a destra**: un pannello dentro l'isola aperta, a destra della chat. Trascina il suo bordo sinistro per allargarlo (doppio clic: larghezza di partenza); si nasconde quando l'isola si chiude e torna quando la riapri. C'è solo con la chat: passando a un'altra scheda dell'isola sparisce. Si chiude con la **✕** in alto a destra o con il pulsante dell'Anteprima nella chat, che la apre e la chiude.
 - **Finestra separata**: una finestra normale, da spostare dove vuoi, anche su un altro schermo.
 - **Spenta**: link e file tornano ad aprirsi nel browser e nei loro programmi.
 
@@ -33,7 +33,8 @@ Quando la chat ha cambiato un file compare **Modifiche +7 −5**: le righe tolte
 ## Le pagine web
 Le pagine sono in un **browser vero** (lo stesso motore di Edge), non in un'immagine.
 - **← → ↻** e la barra dell'indirizzo, come in un browser; `localhost:5173` basta, senza `http://`.
-- **Adatta, Desktop, Tablet, Telefono**: la pagina alle misure di quel dispositivo, con il tocco per il telefono.
+- **Pannello, Desktop, Tablet, Telefono**: la pagina larga quanto l'Anteprima o alle misure di quel dispositivo, con il tocco per il telefono.
+- **Adatta, 100%, Originale**: la pagina rimpicciolita finché ci sta (senza un dispositivo scelto, come su un PC), a grandezza normale, oppure un pixel della pagina per ogni pixel dello schermo.
 - **Auto, ☀, ☾**: la pagina in modalità chiara o scura, per provare i due temi del tuo sito.
 - **Console**: messaggi ed errori della pagina; il numero rosso sulla scheda dice quanti errori ci sono.
 - **⋯**: apri nel browser o nel programma del file, mostra nella cartella, copia l'indirizzo, **Strumenti per sviluppatori** (quelli di Edge).

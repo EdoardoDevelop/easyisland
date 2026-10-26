@@ -46,9 +46,10 @@ const address = h("input", {
 const modesBox = h("div", { class: "pv-seg pv-modes" });
 const deviceBox = h("div", { class: "pv-seg pv-devices" });
 const schemeBox = h("div", { class: "pv-seg pv-schemes" });
+const zoomBox = h("div", { class: "pv-seg pv-zooms" });
 const consoleBtn = h("button", { class: "pv-btn pv-console-btn", title: t("Console della pagina") }) as HTMLButtonElement;
 const moreBtn = iconBtn("⋯", t("Altro"));
-const bar = h("div", { class: "pv-bar" }, backBtn, fwdBtn, reloadBtn, address, modesBox, deviceBox, schemeBox, consoleBtn, moreBtn);
+const bar = h("div", { class: "pv-bar" }, backBtn, fwdBtn, reloadBtn, address, modesBox, deviceBox, zoomBox, schemeBox, consoleBtn, moreBtn);
 
 const stage = h("div", { class: "pv-stage" });
 const content = h("div", { class: "pv-content" });
@@ -64,10 +65,15 @@ function iconBtn(text: string, title: string): HTMLButtonElement {
 }
 
 const DEVICES: { id: PreviewView["preset"]; name: string; hint: string }[] = [
-  { id: "fit", name: t("Adatta"), hint: t("Tutta la finestra") },
+  { id: "fit", name: t("Pannello"), hint: t("Larga quanto l'Anteprima") },
   { id: "desktop", name: "Desktop", hint: "1280 × 800" },
   { id: "tablet", name: "Tablet", hint: "768 × 1024" },
   { id: "mobile", name: t("Telefono"), hint: "375 × 812" },
+];
+const ZOOMS: { id: NonNullable<PreviewView["zoom"]>; name: string; hint: string }[] = [
+  { id: "fit", name: t("Adatta"), hint: t("Rimpicciolita finché ci sta: alle misure del dispositivo scelto, o come su un PC largo 1280 px") },
+  { id: "100", name: "100%", hint: t("A grandezza normale, larga quanto l'Anteprima o il dispositivo") },
+  { id: "orig", name: t("Originale"), hint: t("Un pixel della pagina per ogni pixel dello schermo") },
 ];
 const SCHEMES: { id: PreviewView["scheme"]; name: string; hint: string }[] = [
   { id: "", name: t("Auto"), hint: t("I colori scelti dalla pagina") },
@@ -181,7 +187,8 @@ function drawBar(): void {
   }
   // Device and colours: for what the browser shows.
   const showWeb = web && browserShown();
-  deviceBox.style.display = schemeBox.style.display = showWeb ? "" : "none";
+  deviceBox.style.display = schemeBox.style.display = zoomBox.style.display = showWeb ? "" : "none";
+  segment(zoomBox, ZOOMS, state.view.zoom ?? "fit", (id) => void Bridge.previewView(state.view.preset, state.view.scheme, state.view.width, state.view.height, id));
   segment(deviceBox, DEVICES, state.view.preset, (id) => void Bridge.previewView(id, state.view.scheme));
   segment(schemeBox, SCHEMES, state.view.scheme, (id) => void Bridge.previewView(state.view.preset, id, state.view.width, state.view.height));
   consoleBtn.style.display = tab?.browser ? "" : "none";

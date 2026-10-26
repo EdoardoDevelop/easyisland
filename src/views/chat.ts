@@ -152,7 +152,8 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
   const remoteBtn = h("button", { class: "auto-btn remote-btn" }, h("span", { text: "🔌" }), h("span", { class: "remote-name" })) as HTMLButtonElement;
   // «Anteprima» (src/preview/): files and pages of the chat's work, in their window.
   const previewBtn = h("button", { class: "history-btn", title: t("Anteprima: file e pagine web accanto alla chat") }, svg(ICONS.preview, 13, { stroke: 1.8 })) as HTMLButtonElement;
-  previewBtn.addEventListener("click", () => void Bridge.previewShow());
+  // Opens the Anteprima, and closes it when it is open in the island.
+  previewBtn.addEventListener("click", () => void (State.previewOpen ? Bridge.previewHide() : Bridge.previewShow()));
   const head = h("div", { class: "chat-head" }, chipRow, engineBtn, remoteBtn, autoBtn, previewBtn, historyBtn, exportBtn, engineMenu);
   const log = h("div", { class: "chat-log" });
   // Scrolled up to read: new text does not pull the view down; ↓ goes back.
@@ -1280,6 +1281,8 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
       const auto = terminal && State.chatAuto;
       autoBtn.style.display = terminal ? "" : "none";
       previewBtn.style.display = terminal && State.settings.chatPreview !== false ? "" : "none";
+      previewBtn.classList.toggle("on", State.previewOpen);
+      previewBtn.title = State.previewOpen ? t("Chiudi l'Anteprima") : t("Anteprima: file e pagine web accanto alla chat");
       autoBtn.classList.toggle("on", auto);
       el.querySelector(".chat-card")?.classList.toggle("auto", auto);
       autoBtn.title = State.chatEngine === "subscription"

@@ -98,11 +98,42 @@ pub struct View {
     pub height: u32,
     /// "" (the page's own), "light" or "dark".
     pub scheme: String,
+    /// "fit" (shrunk until it fits: the device's size, or a desktop's 1280 px
+    /// without one), "100" (normal size) or "orig" (one page pixel per screen pixel).
+    pub zoom: String,
 }
 
 impl Default for View {
     fn default() -> Self {
-        View { preset: "fit".into(), width: 0, height: 0, scheme: String::new() }
+        View { preset: "fit".into(), width: 0, height: 0, scheme: String::new(), zoom: "fit".into() }
+    }
+}
+
+/// A desktop's width, for «Adatta» without a device: a narrow panel shows the
+/// page as on a PC, shrunk, instead of its phone layout.
+const DESKTOP_W: f64 = 1280.0;
+
+/// The browser's box in the content area and its zoom, for the view and the
+/// screen's scale. The zoom makes the page's own width the device's.
+fn frame(r: Rect, v: &View, scale: f64) -> (f64, f64, f64, f64, f64) {
+    let device = v.width > 0 && v.height > 0;
+    match v.zoom.as_str() {
+        "100" | "orig" => {
+            let z = if v.zoom == "orig" { 1.0 / scale.max(0.5) } else { 1.0 };
+            if !device {
+                return (r.x, r.y, r.w, r.h, z);
+            }
+            // The device at that size, centred, cut by the area when bigger.
+            let (w, h) = ((v.width as f64 * z).min(r.w), (v.height as f64 * z).min(r.h));
+            (r.x + (r.w - w) / 2.0, r.y + (r.h - h) / 2.0, w, h, z)
+        }
+        _ => {
+            if device {
+                let (x, y, w, h) = fit(r, v);
+                return (x, y, w, h, w / v.width as f64);
+            }
+            (r.x, r.y, r.w, r.h, (r.w / DESKTOP_W).min(1.0).max(0.25))
+        }
     }
 }
 
@@ -429,6 +460,30 @@ pub fn show(app: &AppHandle, focus: bool) -> Result<(), String> {
     Ok(())
 }
 
+/// Impostazioni → Chat → Anteprima changed while it is open: turned off it
+/// closes, moved (island / window) it opens again the new way, same tabs.
+/// Off the main thread: a save runs there, and making a webview there hangs.
+pub fn settings_changed(app: &AppHandle, settings: &crate::settings::Settings) {
+    if !is_open(app) {
+        return;
+    }
+    let (on, docked) = (settings.chat_preview, settings.preview_docked);
+    if on && docked_now(app) == docked {
+        return;
+    }
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        close_window(&app);
+        if on {
+            if let Err(e) = show(&app, false) {
+                crate::log::line(format!("anteprima: {e}"));
+            }
+            sync(&app);
+            emit_tabs(&app);
+        }
+    });
+}
+
 /// Docked: where the island draws the panel (logical px of its window); a
 /// zero width hides the page and its browsers (island closed, other view).
 pub fn pane(app: &AppHandle, x: f64, y: f64, w: f64, h: f64) {
@@ -536,9 +591,12 @@ fn navigate_web(app: &AppHandle, id: u32, url: &str) {
     }
 }
 
-pub fn set_view(app: &AppHandle, preset: &str, width: u32, height: u32, scheme: &str) {
+pub fn set_view(app: &AppHandle, preset: &str, width: u32, height: u32, scheme: &str, zoom: &str) {
     {
         let mut s = state();
+        if matches!(zoom, "fit" | "100" | "orig") {
+            s.view.zoom = zoom.to_string();
+        }
         let (w, h) = match preset {
             "desktop" => (1280, 800),
             "tablet" => (768, 1024),
@@ -584,7 +642,7 @@ fn sync(app: &AppHandle) {
             }
             continue;
         }
-        let (x, y, w, h) = fit(rect, &view);
+        let (x, y, w, h, zoom) = frame(rect, &view, win.scale_factor().unwrap_or(1.0));
         let webview = match existing {
             Some(w) => w,
             None => match make_web(app, &win, tb, (x, y, w, h)) {
@@ -596,6 +654,7 @@ fn sync(app: &AppHandle) {
             },
         };
         let _ = webview.set_bounds(tauri::Rect { position: tauri::LogicalPosition::new(x, y).into(), size: tauri::LogicalSize::new(w, h).into() });
+        let _ = webview.set_zoom(zoom);
         if covered {
             let _ = webview.hide();
         } else {
@@ -931,12 +990,13 @@ pub fn clear_console(app: &AppHandle, id: u32) {
 fn emulate(w: &Webview) {
     let view = state().view.clone();
     let _ = with_core(w, move |core| {
-        if view.width > 0 {
-            let mobile = view.preset == "mobile";
+        // The page's width comes from the box and the zoom (frame); the phone
+        // keeps touch and the mobile flag.
+        if view.preset == "mobile" {
             cdp(&core, "Emulation.setDeviceMetricsOverride", &json!({
-                "width": view.width, "height": view.height, "deviceScaleFactor": 0, "mobile": mobile,
+                "width": 0, "height": 0, "deviceScaleFactor": 0, "mobile": true,
             }), |_| {});
-            cdp(&core, "Emulation.setTouchEmulationEnabled", &json!({ "enabled": mobile }), |_| {});
+            cdp(&core, "Emulation.setTouchEmulationEnabled", &json!({ "enabled": true }), |_| {});
         } else {
             cdp(&core, "Emulation.clearDeviceMetricsOverride", &json!({}), |_| {});
             cdp(&core, "Emulation.setTouchEmulationEnabled", &json!({ "enabled": false }), |_| {});
@@ -1285,7 +1345,7 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
             };
             let preset = if preset.is_empty() { state().view.preset.clone() } else { preset };
             let (width, height) = if preset == "custom" && (width == 0 || height == 0) { (state().view.width, state().view.height) } else { (width, height) };
-            set_view(app, &preset, width, height, &scheme);
+            set_view(app, &preset, width, height, &scheme, &s("zoom"));
             let v = state().view.clone();
             Ok(tf("Vista: {p} {w}×{h}, colori {s}.", &[
                 ("p", &v.preset),
@@ -1560,10 +1620,25 @@ mod tests {
     fn device_sizes_fit_the_area() {
         let r = Rect { x: 0.0, y: 40.0, w: 1000.0, h: 700.0 };
         assert_eq!(fit(r, &View::default()), (0.0, 40.0, 1000.0, 700.0));
-        let phone = View { preset: "mobile".into(), width: 375, height: 812, scheme: String::new() };
+        let phone = View { preset: "mobile".into(), width: 375, height: 812, scheme: String::new(), zoom: "fit".into() };
         let (x, y, w, h) = fit(r, &phone);
         assert!(h <= 700.0 - 24.0 + 0.01 && (w / h - 375.0 / 812.0).abs() < 0.01, "{w}×{h}");
         assert!(x > 0.0 && y >= 40.0);
+    }
+
+    #[test]
+    fn zoom_makes_the_page_width() {
+        let r = Rect { x: 0.0, y: 0.0, w: 640.0, h: 700.0 };
+        // Adatta without a device: a desktop page, shrunk.
+        let (_, _, w, _, z) = frame(r, &View::default(), 1.0);
+        assert!((w / z - DESKTOP_W).abs() < 0.5);
+        // 100%: the panel's width; Originale on a 150 % screen: smaller.
+        assert_eq!(frame(r, &View { zoom: "100".into(), ..View::default() }, 1.5).4, 1.0);
+        assert!((frame(r, &View { zoom: "orig".into(), ..View::default() }, 1.5).4 - 2.0 / 3.0).abs() < 1e-9);
+        // A phone fitted: its own width inside the box.
+        let phone = View { preset: "mobile".into(), width: 375, height: 812, scheme: String::new(), zoom: "fit".into() };
+        let (_, _, w, _, z) = frame(r, &phone, 1.0);
+        assert!((w / z - 375.0).abs() < 0.5);
     }
 
     #[test]

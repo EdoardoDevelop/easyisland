@@ -18,6 +18,8 @@ export interface PreviewView {
   height: number;
   /** "" = the page's own. */
   scheme: "" | "light" | "dark";
+  /** fit (shrunk to fit), 100 (normal size), orig (one page pixel per screen pixel). */
+  zoom?: "fit" | "100" | "orig";
 }
 
 export interface PreviewState {

@@ -62,7 +62,7 @@ export const DEMO: PreviewState = {
     { id: 4, kind: "file", target: "C:\\Progetti\\sito\\clienti.csv", title: "clienti.csv", browser: false, loading: false, errors: 0 },
   ],
   active: Number(new URLSearchParams(location.search).get("tab") ?? 2),
-  view: { preset: "fit", width: 0, height: 0, scheme: "" },
+  view: { preset: "fit", width: 0, height: 0, scheme: "", zoom: "fit" },
 };
 
 export function demoFile(path: string): FileView {

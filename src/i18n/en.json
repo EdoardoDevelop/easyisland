@@ -3608,5 +3608,11 @@
   "i link e i file citati dalla chat si aprono nell'Anteprima, con le pagine web in un browser vero, e i file che la modalità terminale modifica compaiono lì con le modifiche evidenziate. Nell'isola è un pannello a destra, che allarghi trascinandone il bordo; separata, è una finestra che sposti dove vuoi. Ctrl+clic su un link apre il browser": "the links and files the chat mentions open in the Preview, with web pages in a real browser, and the files terminal mode changes show up there with the changes highlighted. In the island it is a panel on the right, which you widen by dragging its edge; separate, it is a window you move wherever you like. Ctrl+click on a link opens the browser",
   "Nell'isola, a destra": "In the island, on the right",
   "Trascina per allargare l'Anteprima · doppio clic: larghezza predefinita": "Drag to widen the Preview · double click: default width",
-  "L'isola non c'è.": "The island is not there."
+  "L'isola non c'è.": "The island is not there.",
+  "Pannello": "Panel",
+  "Larga quanto l'Anteprima": "As wide as the Preview",
+  "Rimpicciolita finché ci sta: alle misure del dispositivo scelto, o come su un PC largo 1280 px": "Shrunk until it fits: at the chosen device's size, or as on a 1280 px wide PC",
+  "A grandezza normale, larga quanto l'Anteprima o il dispositivo": "At normal size, as wide as the Preview or the device",
+  "Originale": "Original",
+  "Un pixel della pagina per ogni pixel dello schermo": "One page pixel for each screen pixel"
 }

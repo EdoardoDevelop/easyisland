@@ -191,6 +191,7 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
     }
     habits::apply(&settings);
     opencode_agent::apply(&settings);
+    preview::settings_changed(app, &settings);
     if autostart_changed {
         let manager = app.autolaunch();
         let result = if settings.autostart { manager.enable() } else { manager.disable() };
@@ -2631,8 +2632,8 @@ async fn preview_nav(app: AppHandle, id: u32, action: String) -> Result<(), Stri
 }
 
 #[tauri::command]
-async fn preview_view(app: AppHandle, preset: String, width: Option<u32>, height: Option<u32>, scheme: String) {
-    preview::set_view(&app, &preset, width.unwrap_or(0), height.unwrap_or(0), &scheme);
+async fn preview_view(app: AppHandle, preset: String, width: Option<u32>, height: Option<u32>, scheme: String, zoom: Option<String>) {
+    preview::set_view(&app, &preset, width.unwrap_or(0), height.unwrap_or(0), &scheme, zoom.as_deref().unwrap_or(""));
 }
 
 #[tauri::command]

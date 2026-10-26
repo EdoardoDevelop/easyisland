@@ -612,11 +612,12 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "preview_resize",
-            "Cambia la vista delle pagine web dell'Anteprima: preset fit (tutta la finestra), desktop (1280×800), tablet (768×1024) o mobile (375×812, con il tocco), oppure width e height; color_scheme light, dark o auto (quello della pagina).",
+            "Cambia la vista delle pagine web dell'Anteprima: preset fit (larga quanto il pannello), desktop (1280×800), tablet (768×1024) o mobile (375×812, con il tocco), oppure width e height; zoom fit (rimpicciolita finché ci sta), 100 o orig (pixel reali); color_scheme light, dark o auto (quello della pagina).",
             json!({ "type": "object", "properties": {
                 "preset": { "type": "string", "enum": ["fit", "desktop", "tablet", "mobile"] },
                 "width": { "type": "integer" },
                 "height": { "type": "integer" },
+                "zoom": { "type": "string", "enum": ["fit", "100", "orig"] },
                 "color_scheme": { "type": "string", "enum": ["light", "dark", "auto"] }
             } }),
             true,

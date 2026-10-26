@@ -189,6 +189,8 @@ button {
 
 .pv-bar {
   display: flex;
+  /* In the island's panel the bar is narrow: the buttons go on a second row. */
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   padding: 7px 10px;

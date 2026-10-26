@@ -15,7 +15,7 @@ The **Preview** is a window with tabs, like a small browser, next to the chat. I
 - **Dropping a file** on the window, or typing an address or a path in the bar.
 
 In **Settings → Chat → Preview** you choose how to have it:
-- **In the island, on the right**: a panel inside the open island, to the right of the chat. Drag its left edge to widen it (double click: starting width); it hides when the island closes and comes back when you reopen it. The **✕** at the top right closes it.
+- **In the island, on the right**: a panel inside the open island, to the right of the chat. Drag its left edge to widen it (double click: starting width); it hides when the island closes and comes back when you reopen it. It is there only with the chat: switching to another tab of the island hides it. The **✕** at the top right closes it, and so does the chat's Preview button, which opens and closes it.
 - **Separate window**: a normal window you move wherever you like, even to another screen.
 - **Off**: links and files go back to the browser and their programs.
 
@@ -33,7 +33,8 @@ When the chat changed a file, **Changes +7 −5** appears: removed lines in red,
 ## Web pages
 Pages are in a **real browser** (Edge's engine), not a picture.
 - **← → ↻** and the address bar, as in a browser; `localhost:5173` is enough, without `http://`.
-- **Fit, Desktop, Tablet, Phone**: the page at that device's size, with touch for the phone.
+- **Panel, Desktop, Tablet, Phone**: the page as wide as the Preview or at that device's size, with touch for the phone.
+- **Fit, 100%, Original**: the page shrunk until it fits (with no device chosen, as on a PC), at normal size, or one page pixel for each screen pixel.
 - **Auto, ☀, ☾**: the page in light or dark mode, to try both themes of your site.
 - **Console**: the page's messages and errors; the red number on the tab says how many errors there are.
 - **⋯**: open in the browser or in the file's program, show in the folder, copy the address, **Developer tools** (Edge's).
