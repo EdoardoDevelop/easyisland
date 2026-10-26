@@ -75,7 +75,7 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Ultime versioni
 
-- **1.0.8** — Logo nuovo (l'isola che si apre, con la scintilla); **Jarvis Sfera** personaggio predefinito; README con indice e schermate nuove.
+- **1.0.8** — Logo nuovo (un fumetto con il bordo ad arcobaleno e due occhi); **Jarvis Sfera** personaggio predefinito; README con indice e schermate nuove.
 - **1.0.7** — **Flussi**: finestra dedicata con blocchi da trascinare, agenti, scelte, «per ogni», domande anche su Telegram, tentativi ed esecuzioni con «Riprendi da qui».
 - **1.0.6** — Modalità **chiara, scura o automatica**, Aspetto riordinato, Jarvis Plasma, un motore apposta per la memoria, Grafo 3D.
 - **1.0.5** — Personaggi **Jarvis** e **Jarvis Sfera**.
