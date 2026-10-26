@@ -2,11 +2,9 @@
 // icons are rasterised here and encoded with node:zlib, so the icon stays
 // "drawn in code" like the character.
 //
-// The icon is the island that opens: a pill (the island) melting into a round
-// body below it, night blue with a cyan edge, and the four-point sparkle of an
-// assistant in the body. Two flat colours, no gradients, so it reads at 16 px
-// on a light or dark taskbar (chosen by Edoardo on 26 October 2026, in place
-// of the three pills).
+// The icon is the speech bubble of src/character/mark.ts (a rainbow stroke,
+// dark inside, two white eyes; chosen by Edoardo on 26 October 2026). Node
+// runs that TypeScript file as is, and figure.ts draws the same one in the island.
 //
 //   node scripts/gen-icons.mjs
 
@@ -14,49 +12,13 @@ import { deflateSync } from "node:zlib";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { markAt } from "../src/character/mark.ts";
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "src-tauri", "icons");
 
-// ── The island that opens ─────────────────────────────────────────────────────
-
-const NIGHT = [15, 20, 41]; // #0F1429
-const CYAN = [51, 217, 255]; // #33D9FF
+// ── Raster ────────────────────────────────────────────────────────────────────
 
 const SS = 6; // supersampling factor
-
-function capsule(x, y, a, r) {
-  const cx = Math.max(-(a - r), Math.min(a - r, x));
-  return Math.hypot(x - cx, y) - r;
-}
-
-/** Smooth union: the pill and the body melt into one shape. */
-function smin(a, b, k) {
-  const h = Math.max(0, Math.min(1, 0.5 + (0.5 * (b - a)) / k));
-  return b + (a - b) * h - k * h * (1 - h);
-}
-
-/**
- * Colour at (x, y) in −1…1 for an icon `size` px wide, or null outside.
- * Up to 32 px the drawing is taller, to fill the square, the edge is whole
- * pixels (1 px at 16, 2 px at 32) and below 32 px there is no sparkle: it
- * would only be a blot.
- */
-function shade(x, y, size) {
-  const tiny = size <= 32;
-  const small = size <= 48;
-  const top = tiny ? capsule(x, y + 0.5, 0.96, 0.34) : capsule(x, y + 0.42, 0.9, small ? 0.3 : 0.24);
-  const body = tiny ? Math.hypot(x, y - 0.38) - 0.52 : Math.hypot(x, y - 0.3) - (small ? 0.4 : 0.36);
-  const d = smin(top, body, 0.35);
-  // The edge fills the narrow neck: the two dark parts stay apart, joined in cyan.
-  if (d > 0) return null;
-  const edge = tiny ? (size <= 16 ? 1 : size <= 24 ? 1.5 : 2) / (size / 2) : 0.04 * (small ? 1.8 : 1);
-  if (d > -edge) return CYAN;
-  // The four-point sparkle (an astroid) in the body.
-  const r = tiny ? 0.42 : small ? 0.34 : 0.25;
-  const cy = tiny ? 0.38 : 0.3;
-  if (size >= 32 && Math.sqrt(Math.abs(x)) + Math.sqrt(Math.abs(y - cy)) <= Math.sqrt(r)) return CYAN;
-  return NIGHT;
-}
 
 function renderIcon(size) {
   const px = new Uint8Array(size * size * 4);
@@ -66,12 +28,10 @@ function renderIcon(size) {
       let n = 0;
       for (let sy = 0; sy < SS; sy++) {
         for (let sx = 0; sx < SS; sx++) {
-          const u = ((x + (sx + 0.5) / SS) / size) * 2 - 1;
-          const v = ((y + (sy + 0.5) / SS) / size) * 2 - 1;
-          const c = shade(u, v, size);
+          const c = markAt(((x + (sx + 0.5) / SS) / size) * 2 - 1, ((y + (sy + 0.5) / SS) / size) * 2 - 1, size);
           if (!c) continue;
           n++;
-          c.forEach((k, j) => { col[j] += k; });
+          for (let j = 0; j < 3; j++) col[j] += c[j];
         }
       }
       if (!n) continue;
