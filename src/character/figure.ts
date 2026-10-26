@@ -76,26 +76,66 @@ export function drawFigure(x: CanvasRenderingContext2D, W: number, H: number, cy
     drawWeather(x, W, side, cy);
     return;
   }
-  drawPills(x, W / 2, cy, side * 0.62);
+  drawMark(x, W / 2, cy, side * 0.8);
 }
 
 /**
- * The app's icon (scripts/gen-icons.mjs): three pills, the island's own shape,
- * stacked into an "E" from indigo to cyan, `size` wide.
+ * The app's icon (scripts/gen-icons.mjs, same maths): the island that opens,
+ * night blue with a cyan edge and a sparkle. A still picture, so it is
+ * rasterised once per size and kept.
  */
-function drawPills(x: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
-  const pills: [string, number][] = [["#6366F1", 1], ["#3F9BF3", 0.69], ["#22D3EE", 1]];
-  const bar = size * 0.25;
-  const gap = size * 0.125;
-  const top = cy - (bar * 3 + gap * 2) / 2;
-  const left = cx - size / 2;
-  pills.forEach(([color, len], i) => {
-    const y = top + i * (bar + gap);
-    x.beginPath();
-    x.roundRect(left, y, size * len, bar, bar / 2);
-    x.fillStyle = color;
-    x.fill();
-  });
+const marks = new Map<number, HTMLCanvasElement>();
+function mark(px: number): HTMLCanvasElement {
+  const hit = marks.get(px);
+  if (hit) return hit;
+  const c = document.createElement("canvas");
+  c.width = c.height = px;
+  const ctx = c.getContext("2d");
+  if (!ctx) return c;
+  const img = ctx.createImageData(px, px);
+  // Same sizes as gen-icons.mjs: up to 32 px taller, whole-pixel edge, no sparkle below 32.
+  const tiny = px <= 32;
+  const small = px <= 48;
+  const capsule = (u: number, v: number, a: number, r: number) => Math.hypot(u - Math.max(-(a - r), Math.min(a - r, u)), v) - r;
+  const smin = (a: number, b: number, k: number) => {
+    const h = Math.max(0, Math.min(1, 0.5 + (0.5 * (b - a)) / k));
+    return b + (a - b) * h - k * h * (1 - h);
+  };
+  const cy = tiny ? 0.38 : 0.3;
+  const f = (u: number, v: number) => smin(tiny ? capsule(u, v + 0.5, 0.96, 0.34) : capsule(u, v + 0.42, 0.9, small ? 0.3 : 0.24),
+    Math.hypot(u, v - cy) - (tiny ? 0.52 : small ? 0.4 : 0.36), 0.35);
+  const edge = tiny ? (px <= 16 ? 1 : px <= 24 ? 1.5 : 2) / (px / 2) : 0.04 * (small ? 1.8 : 1);
+  const rs = tiny ? 0.42 : small ? 0.34 : 0.25;
+  const SS = 3;
+  for (let y = 0; y < px; y++) {
+    for (let x = 0; x < px; x++) {
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let j = 0; j < SS; j++) {
+        for (let i = 0; i < SS; i++) {
+          const u = ((x + (i + 0.5) / SS) / px) * 2 - 1;
+          const v = ((y + (j + 0.5) / SS) / px) * 2 - 1;
+          const d = f(u, v);
+          if (d > 0) continue;
+          const cyan = d > -edge || (px >= 32 && Math.sqrt(Math.abs(u)) + Math.sqrt(Math.abs(v - cy)) <= Math.sqrt(rs));
+          r += cyan ? 51 : 15; g += cyan ? 217 : 20; b += cyan ? 255 : 41; n++;
+        }
+      }
+      if (!n) continue;
+      const o = (y * px + x) * 4;
+      img.data[o] = r / n; img.data[o + 1] = g / n; img.data[o + 2] = b / n;
+      img.data[o + 3] = (n / (SS * SS)) * 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  marks.set(px, c);
+  return c;
+}
+
+function drawMark(x: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
+  const scale = x.getTransform().a || 1;
+  const px = Math.max(8, Math.round(size * scale));
+  x.imageSmoothingQuality = "high";
+  x.drawImage(mark(px), cx - size / 2, cy - size / 2, size, size);
 }
 
 function drawWeather(x: CanvasRenderingContext2D, W: number, side: number, cy: number) {

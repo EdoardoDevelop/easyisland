@@ -2,9 +2,11 @@
 // icons are rasterised here and encoded with node:zlib, so the icon stays
 // "drawn in code" like the character.
 //
-// The icon is three pills, the island's own shape, stacked into an "E" from
-// indigo to cyan (chosen by Edoardo on 14 October 2026, proposal 10): not the
-// character, which the user can change.
+// The icon is the island that opens: a pill (the island) melting into a round
+// body below it, night blue with a cyan edge, and the four-point sparkle of an
+// assistant in the body. Two flat colours, no gradients, so it reads at 16 px
+// on a light or dark taskbar (chosen by Edoardo on 26 October 2026, in place
+// of the three pills).
 //
 //   node scripts/gen-icons.mjs
 
@@ -15,73 +17,74 @@ import { fileURLToPath } from "node:url";
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "src-tauri", "icons");
 
-// ── Three pills ───────────────────────────────────────────────────────────────
+// ── The island that opens ─────────────────────────────────────────────────────
 
-const PILLS = [
-  { color: [99, 102, 241], length: 1 }, // #6366F1
-  { color: [63, 155, 243], length: 0.69 }, // #3F9BF3, shorter: the "E"
-  { color: [34, 211, 238], length: 1 }, // #22D3EE
-];
+const NIGHT = [15, 20, 41]; // #0F1429
+const CYAN = [51, 217, 255]; // #33D9FF
 
-const SS = 4; // supersampling factor
+const SS = 6; // supersampling factor
 
-/** Signed distance to a horizontal capsule centred on the origin. */
 function capsule(x, y, a, r) {
   const cx = Math.max(-(a - r), Math.min(a - r, x));
   return Math.hypot(x - cx, y) - r;
 }
 
+/** Smooth union: the pill and the body melt into one shape. */
+function smin(a, b, k) {
+  const h = Math.max(0, Math.min(1, 0.5 + (0.5 * (b - a)) / k));
+  return b + (a - b) * h - k * h * (1 - h);
+}
+
 /**
- * Bar height and gap. Up to 32 px they are whole pixels, with thicker bars
- * and thinner gaps, so the three stay apart and sharp in the notification
- * area; larger, the proportions of the drawing (16 : 10).
+ * Colour at (x, y) in −1…1 for an icon `size` px wide, or null outside.
+ * Up to 32 px the drawing is taller, to fill the square, the edge is whole
+ * pixels (1 px at 16, 2 px at 32) and below 32 px there is no sparkle: it
+ * would only be a blot.
  */
-function metrics(size) {
-  if (size <= 32) {
-    const h = Math.max(4, Math.round(size * 0.25));
-    const g = Math.max(1, Math.round(size * 0.07));
-    return { h, g, w: Math.round(size * 0.86) };
-  }
-  const total = size * 0.74;
-  const unit = total / 68;
-  return { h: 16 * unit, g: 10 * unit, w: 64 * unit };
+function shade(x, y, size) {
+  const tiny = size <= 32;
+  const small = size <= 48;
+  const top = tiny ? capsule(x, y + 0.5, 0.96, 0.34) : capsule(x, y + 0.42, 0.9, small ? 0.3 : 0.24);
+  const body = tiny ? Math.hypot(x, y - 0.38) - 0.52 : Math.hypot(x, y - 0.3) - (small ? 0.4 : 0.36);
+  const d = smin(top, body, 0.35);
+  // The edge fills the narrow neck: the two dark parts stay apart, joined in cyan.
+  if (d > 0) return null;
+  const edge = tiny ? (size <= 16 ? 1 : size <= 24 ? 1.5 : 2) / (size / 2) : 0.04 * (small ? 1.8 : 1);
+  if (d > -edge) return CYAN;
+  // The four-point sparkle (an astroid) in the body.
+  const r = tiny ? 0.42 : small ? 0.34 : 0.25;
+  const cy = tiny ? 0.38 : 0.3;
+  if (size >= 32 && Math.sqrt(Math.abs(x)) + Math.sqrt(Math.abs(y - cy)) <= Math.sqrt(r)) return CYAN;
+  return NIGHT;
 }
 
 function renderIcon(size) {
   const px = new Uint8Array(size * size * 4);
-  const { h, g, w } = metrics(size);
-  const total = 3 * h + 2 * g;
-  const top = Math.round((size - total) / 2);
-  const left = Math.round((size - w) / 2);
-  const bars = PILLS.map((p, i) => {
-    const len = Math.round(w * p.length);
-    return { ...p, cx: left + len / 2, cy: top + i * (h + g) + h / 2, a: len / 2, r: h / 2 };
-  });
-
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const hits = bars.map(() => 0);
+      const col = [0, 0, 0];
+      let n = 0;
       for (let sy = 0; sy < SS; sy++) {
         for (let sx = 0; sx < SS; sx++) {
-          const u = x + (sx + 0.5) / SS;
-          const v = y + (sy + 0.5) / SS;
-          const i = bars.findIndex((b) => capsule(u - b.cx, v - b.cy, b.a, b.r) <= 0);
-          if (i >= 0) hits[i]++;
+          const u = ((x + (sx + 0.5) / SS) / size) * 2 - 1;
+          const v = ((y + (sy + 0.5) / SS) / size) * 2 - 1;
+          const c = shade(u, v, size);
+          if (!c) continue;
+          n++;
+          c.forEach((k, j) => { col[j] += k; });
         }
       }
-      const n = hits.reduce((s, k) => s + k, 0);
-      if (n === 0) continue;
-      const col = [0, 0, 0];
-      hits.forEach((k, i) => bars[i].color.forEach((c, j) => { col[j] += (c * k) / n; }));
+      if (!n) continue;
       const o = (y * size + x) * 4;
-      px[o] = Math.round(col[0]);
-      px[o + 1] = Math.round(col[1]);
-      px[o + 2] = Math.round(col[2]);
+      px[o] = Math.round(col[0] / n);
+      px[o + 1] = Math.round(col[1] / n);
+      px[o + 2] = Math.round(col[2] / n);
       px[o + 3] = Math.round((n / (SS * SS)) * 255);
     }
   }
   return px;
 }
+
 // ── PNG ───────────────────────────────────────────────────────────────────────
 
 const CRC_TABLE = (() => {

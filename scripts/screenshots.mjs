@@ -36,7 +36,8 @@ const PORT = 9333;
 // SHOT_DIR=… saves elsewhere (trying a change without touching the README's
 // images); SHOT_QUERY=ui=classic adds to every page's query.
 const OUT = process.env.SHOT_DIR ?? join(ROOT, "screenshots");
-const QUERY = process.env.SHOT_QUERY ?? "";
+// Italian unless asked: headless Edge reports English, and the page follows it.
+const QUERY = process.env.SHOT_QUERY ?? "lang=it";
 
 // The integrations a typical setup shows as pills next to the card.
 const PILLS = "integration_network,integration_weather,integration_zammad,integration_media,integration_clipboard,integration_3cx";
@@ -75,7 +76,11 @@ const SHOTS = {
   // Whole windows, not an island.
   settings: { url: "/settings.html?page=aspetto", page: { w: 980, h: 720 } },
   "settings-integrations": { url: "/settings.html?page=integrazioni", page: { w: 980, h: 720 } },
-  "settings-automations": { url: "/settings.html?page=automazioni", page: { w: 980, h: 720 } },
+  // The flows window (src/flows/), on a ready-made template.
+  "settings-automations": { url: "/flussi.html", page: { w: 1180, h: 760 },
+    then: `document.querySelector(".fl-side button.primary, button.primary")?.click();
+      await new Promise((r) => setTimeout(r, 400));
+      document.querySelectorAll(".fl-template")[2]?.click();` },
   "settings-compiti": { url: "/settings.html?page=compiti", page: { w: 980, h: 720 } },
   // The memory window (src/memory/), on its made-up memory.
   "memoria-grafo": { url: "/memoria.html?tab=graph&select=p:studio-rossi", page: { w: 1180, h: 760 } },
@@ -147,6 +152,11 @@ async function shoot(name, s) {
     clip = { ...rect, scale: 1 };
   } else {
     await sleep(1500);
+    // `then`: script run on the page before the shot (a click, a template).
+    if (s.then) {
+      await evaluate(`(async () => { ${s.then} })()`);
+      await sleep(800);
+    }
   }
   const shot = await send("Page.captureScreenshot", { format: "png", clip, captureBeyondViewport: true });
   writeFileSync(join(OUT, `${name}.png`), Buffer.from(shot.data, "base64"));

@@ -333,7 +333,7 @@ pub const PROFILE_KEYS: &[&str] = &[
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Theme {
-    /// Who lives in the island: "drop" (Goccia, the default), "slime", "cube" (EasyTech), "gecko", "flame", "magma", "stone", "rock" or "leaf".
+    /// Who lives in the island: "jarvis-sfera" (the default for a new install, 26 Oct 2026), "drop" (Goccia), "slime", "cube" (EasyTech), "gecko", "flame", "magma", "stone", "rock" or "leaf".
     #[serde(default = "default_character")]
     pub character: String,
     /// The slime's body colour, "#rrggbb"; empty = its green.
@@ -402,7 +402,7 @@ fn default_figure() -> String {
     "character".into()
 }
 fn default_character() -> String {
-    "drop".into()
+    "jarvis-sfera".into()
 }
 fn default_island_color() -> String {
     "#000000".into()

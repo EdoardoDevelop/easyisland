@@ -56,11 +56,11 @@ Personaggi disegnati nel codice, tutti con le stesse espressioni:
 
 ![I personaggi](../media/characters.png)
 
-- **Goccia** (predefinita): uno spirito d'acqua azzurro e lucido.
+- **Goccia**: uno spirito d'acqua azzurro e lucido.
 - **Slime**: gelatina verde che ondeggia.
 - **Geco**: una testa di geco con gli occhi ambrati.
 - **Jarvis**: un nucleo luminoso dentro anelli che girano sempre, come l'interfaccia di un assistente. Niente occhi né mani: parla con ritmo e colori. Al lavoro gli anelli accelerano e intorno al nucleo compare un'onda, in ricerca passa un fascio che scansiona, quando aspetta te pulsa, con un errore tremola, a lavoro finito manda un'onda. Ogni agente al lavoro è un satellite in orbita, l'anello esterno segna i secondi e gli anelli si inclinano verso il mouse. Prende il colore del tema o dell'integrazione aperta.
-- **Jarvis Sfera**: lo stesso assistente come una sfera di punti la cui superficie ondeggia come un suono, fredda in alto e calda in basso. Stessi ritmi per stato, satelliti e inclinazione verso il mouse.
+- **Jarvis Sfera** (predefinito): lo stesso assistente come una sfera di punti la cui superficie ondeggia come un suono, fredda in alto e calda in basso. Stessi ritmi per stato, satelliti e inclinazione verso il mouse.
 - **Jarvis Plasma**: un globo al plasma blu e viola, senza bordo netto: una gabbia di filamenti sottili e ondulati, una rete di filamenti all'interno che cambia di continuo, un nodo luminoso al centro e archi morbidi blu e magenta. Al lavoro i filamenti si moltiplicano e corrono, quando aspetta te il nodo pulsa. Si vede bene anche sull'isola chiara.
 - **Fiamma**: una fiammella a strati che ondeggia.
 - **Magma**, **Pietra**, **Roccia**: sassolini con grandi occhi (lava, germoglio, muschio).
