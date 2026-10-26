@@ -386,7 +386,11 @@ pub fn panel_offset_from_drop(app: &AppHandle, gate: &PollGate, settings: &Setti
 /// The largest the window may be on the island's screen, logical px (the work
 /// area, or the whole screen over the taskbar).
 pub fn panel_limits(app: &AppHandle, settings: &Settings) -> (f64, f64) {
-    match target_monitor(app, &settings.screen) {
+    // The screen the island is on now: with "cursor", or a display that went,
+    // the chosen one can be another, wider one, and the open island (with the
+    // Anteprima's panel) then went past the screen with its buttons.
+    let here = window(app).and_then(|w| w.current_monitor().ok().flatten());
+    match here.or_else(|| target_monitor(app, &settings.screen)) {
         Some(m) => {
             let (_, _, w, h) = island_area(&m, settings);
             let scale = m.scale_factor();

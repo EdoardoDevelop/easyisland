@@ -135,6 +135,8 @@ export class Island {
   // The Anteprima docked in the island: the panel holds no DOM of its own, the
   // preview's page (a webview of this window) is laid over it by preview.rs.
   private paneOpen = false;
+  /** The widest window Windows gave the open island (resize listener); Infinity = what it asked. */
+  private windowCap = Infinity;
   private paneGrip = h("div", { class: "preview-pane-grip", title: t("Trascina per allargare l'Anteprima · doppio clic: larghezza predefinita") });
   private paneEl = h("div", { id: "preview-pane" }, this.paneGrip);
   private paneSent = { x: 0, y: 0, w: 0, h: 0 };
@@ -2257,11 +2259,13 @@ ${note}` : text };
     if (State.mode === "expanded") this.animateGeometry(false);
   }
 
-  /** The work area of the island's screen, asked again when screen or settings change. */
+  /** The work area of the island's screen, asked again when screen or settings change,
+   *  and when the window changes size (it opened, or moved to another screen). */
   async refreshLimits() {
     const l = await Bridge.panelLimits();
     if (!l) return;
-    const [w, h] = l;
+    const w = Math.min(l[0], this.windowCap);
+    const h = l[1];
     if (Math.abs(w - this.limits.w) < 1 && Math.abs(h - this.limits.h) < 1) return;
     this.limits = { w, h };
     this.animateGeometry(false);
@@ -2922,6 +2926,18 @@ ${note}` : text };
     this.islandEl.addEventListener("pointermove", movePress);
     this.wireResize();
     this.wirePane();
+    window.addEventListener("resize", () => {
+      if (State.mode !== "expanded" || !IS_TAURI) return;
+      // A window narrower than asked: that is the screen's room, whatever the limits said.
+      if (window.innerWidth >= PANEL_W && window.innerWidth < this.panel.w - 2) {
+        this.windowCap = window.innerWidth;
+        this.limits = { ...this.limits, w: window.innerWidth };
+        this.animateGeometry(false);
+      } else if (window.innerWidth >= this.panel.w - 2) {
+        this.windowCap = Infinity;
+      }
+      void this.refreshLimits();
+    });
     const openFromCompact = () => {
       if (State.mode !== "expanded") this.openByUser();
     };
