@@ -41,12 +41,9 @@ function smin(a, b, k) {
  */
 function shade(x, y, small) {
   const f = (u, v) => smin(capsule(u, v + 0.42, 0.9, small ? 0.3 : 0.24), Math.hypot(u, v - 0.3) - (small ? 0.4 : 0.36), 0.35);
-  const raw = f(x, y);
-  if (raw > 0) return null;
-  // The melt stretches distances near the neck: divide by the slope, so the
-  // edge is equally thick all round.
-  const e = 1e-3;
-  const d = raw / (Math.hypot(f(x + e, y) - f(x - e, y), f(x, y + e) - f(x, y - e)) / (2 * e) || 1);
+  const d = f(x, y);
+  // The edge fills the narrow neck: the two dark parts stay apart, joined in cyan.
+  if (d > 0) return null;
   // The four-point sparkle (an astroid) in the body.
   const r = small ? 0.34 : 0.25;
   if (Math.sqrt(Math.abs(x)) + Math.sqrt(Math.abs(y - 0.3)) <= Math.sqrt(r)) return CYAN;

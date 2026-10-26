@@ -101,7 +101,6 @@ function mark(px: number): HTMLCanvasElement {
   };
   const f = (u: number, v: number) => smin(capsule(u, v + 0.42, 0.9, small ? 0.3 : 0.24), Math.hypot(u, v - 0.3) - (small ? 0.4 : 0.36), 0.35);
   const SS = 3;
-  const e = 1e-3;
   for (let y = 0; y < px; y++) {
     for (let x = 0; x < px; x++) {
       let r = 0, g = 0, b = 0, n = 0;
@@ -109,9 +108,8 @@ function mark(px: number): HTMLCanvasElement {
         for (let i = 0; i < SS; i++) {
           const u = ((x + (i + 0.5) / SS) / px) * 2 - 1;
           const v = ((y + (j + 0.5) / SS) / px) * 2 - 1;
-          const raw = f(u, v);
-          if (raw > 0) continue;
-          const d = raw / (Math.hypot(f(u + e, v) - f(u - e, v), f(u, v + e) - f(u, v - e)) / (2 * e) || 1);
+          const d = f(u, v);
+          if (d > 0) continue;
           const rs = small ? 0.34 : 0.25;
           const cyan = Math.sqrt(Math.abs(u)) + Math.sqrt(Math.abs(v - 0.3)) <= Math.sqrt(rs) || d > -0.04 * (small ? 1.8 : 1);
           r += cyan ? 51 : 15; g += cyan ? 217 : 20; b += cyan ? 255 : 41; n++;

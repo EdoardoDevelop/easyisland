@@ -11,7 +11,7 @@
 - `hook/`: `easyisland-hook.exe`, il relay degli hook (vedi `agenti.md`).
 - `dev/`: anteprime nel browser (`scenes.ts`, `*-preview.html`).
 - `scripts/`:
-  - `gen-icons.mjs`: icona dell'app disegnata nel codice: l'isola che si apre (una pillola che si fonde in un corpo tondo), blu notte con bordo ciano e la scintilla a quattro punte di un assistente, due colori piatti senza sfumature perché si legga a 16 px su barre chiare e scure (scelta da Edoardo il 26 ottobre 2026, prima erano tre pillole a «E»); fino a 48 px pillola, bordo e scintilla più spessi; il bordo è diviso per la pendenza della distanza, così resta uguale anche nel collo. Rigenera anche `site/media/icon.png` copiando `icon.png`.
+  - `gen-icons.mjs`: icona dell'app disegnata nel codice: l'isola che si apre (una pillola che si fonde in un corpo tondo), blu notte con bordo ciano e la scintilla a quattro punte di un assistente, due colori piatti senza sfumature perché si legga a 16 px su barre chiare e scure (scelta da Edoardo il 26 ottobre 2026, prima erano tre pillole a «E»); fino a 48 px pillola, bordo e scintilla più spessi; il ciano del bordo riempie il collo stretto, così pillola e corpo scuri restano separati (voluto). Rigenera anche `site/media/icon.png` copiando `icon.png`.
   - `gen-brands.mjs`: loghi dei marchi.
   - `pack.mjs`: copia l'installer in `release/`.
   - `screenshots.mjs`: rifà le schermate del README.
