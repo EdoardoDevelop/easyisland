@@ -2573,16 +2573,18 @@ pub(crate) fn webview_dir() -> Option<std::path::PathBuf> {
     WEBVIEW_DIR.get().cloned().flatten()
 }
 
-// «Anteprima» (preview.rs, src/preview/): the page's commands.
+// «Anteprima» (preview.rs, src/preview/): the page's commands. Async on purpose:
+// a sync command runs on the main thread, and making the window or a webview
+// there waits for that same thread (the whole app froze, 26 Oct 2026).
 
 #[tauri::command]
-fn preview_open(app: AppHandle, target: String, new_tab: Option<bool>) -> Result<u32, String> {
+async fn preview_open(app: AppHandle, target: String, new_tab: Option<bool>) -> Result<u32, String> {
     let place = if new_tab.unwrap_or(false) { preview::Place::NewTab } else { preview::Place::Reuse };
     preview::open(&app, &target, place, true)
 }
 
 #[tauri::command]
-fn preview_show(app: AppHandle) -> Result<(), String> {
+async fn preview_show(app: AppHandle) -> Result<(), String> {
     preview::show(&app, true)
 }
 
@@ -2592,27 +2594,27 @@ fn preview_state() -> preview::Snapshot {
 }
 
 #[tauri::command]
-fn preview_select(app: AppHandle, id: u32) {
+async fn preview_select(app: AppHandle, id: u32) {
     preview::select(&app, id);
 }
 
 #[tauri::command]
-fn preview_close(app: AppHandle, id: u32) {
+async fn preview_close(app: AppHandle, id: u32) {
     preview::close_tab(&app, id);
 }
 
 #[tauri::command]
-fn preview_layout(app: AppHandle, x: f64, y: f64, w: f64, h: f64, covered: bool) {
+async fn preview_layout(app: AppHandle, x: f64, y: f64, w: f64, h: f64, covered: bool) {
     preview::layout(&app, x, y, w, h, covered);
 }
 
 #[tauri::command]
-fn preview_nav(app: AppHandle, id: u32, action: String) -> Result<(), String> {
+async fn preview_nav(app: AppHandle, id: u32, action: String) -> Result<(), String> {
     preview::nav(&app, id, &action)
 }
 
 #[tauri::command]
-fn preview_view(app: AppHandle, preset: String, width: Option<u32>, height: Option<u32>, scheme: String) {
+async fn preview_view(app: AppHandle, preset: String, width: Option<u32>, height: Option<u32>, scheme: String) {
     preview::set_view(&app, &preset, width.unwrap_or(0), height.unwrap_or(0), &scheme);
 }
 
@@ -2627,12 +2629,12 @@ fn preview_console(id: u32) -> Vec<preview::ConsoleLine> {
 }
 
 #[tauri::command]
-fn preview_console_clear(app: AppHandle, id: u32) {
+async fn preview_console_clear(app: AppHandle, id: u32) {
     preview::clear_console(&app, id);
 }
 
 #[tauri::command]
-fn preview_devtools(app: AppHandle, id: u32) -> Result<(), String> {
+async fn preview_devtools(app: AppHandle, id: u32) -> Result<(), String> {
     preview::devtools(&app, id)
 }
 
