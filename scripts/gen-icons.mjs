@@ -40,8 +40,7 @@ function smin(a, b, k) {
  * thicker pill, edge and sparkle, so the shape still reads at 16 px.
  */
 function shade(x, y, small) {
-  // A generous melt, so the neck stays wider than the edge and keeps some night.
-  const f = (u, v) => smin(capsule(u, v + 0.42, 0.9, small ? 0.3 : 0.24), Math.hypot(u, v - 0.3) - (small ? 0.4 : 0.36), 0.5);
+  const f = (u, v) => smin(capsule(u, v + 0.42, 0.9, small ? 0.3 : 0.24), Math.hypot(u, v - 0.3) - (small ? 0.4 : 0.36), 0.35);
   const raw = f(x, y);
   if (raw > 0) return null;
   // The melt stretches distances near the neck: divide by the slope, so the

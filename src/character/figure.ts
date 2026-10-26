@@ -99,7 +99,7 @@ function mark(px: number): HTMLCanvasElement {
     const h = Math.max(0, Math.min(1, 0.5 + (0.5 * (b - a)) / k));
     return b + (a - b) * h - k * h * (1 - h);
   };
-  const f = (u: number, v: number) => smin(capsule(u, v + 0.42, 0.9, small ? 0.3 : 0.24), Math.hypot(u, v - 0.3) - (small ? 0.4 : 0.36), 0.5);
+  const f = (u: number, v: number) => smin(capsule(u, v + 0.42, 0.9, small ? 0.3 : 0.24), Math.hypot(u, v - 0.3) - (small ? 0.4 : 0.36), 0.35);
   const SS = 3;
   const e = 1e-3;
   for (let y = 0; y < px; y++) {
