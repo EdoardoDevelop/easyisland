@@ -38,6 +38,8 @@ const MAX_SOURCE: usize = 30_000;
 const READABLE: &[&str] = &["md", "txt", "csv", "json", "html", "htm", "eml", "log", "xml", "yaml", "yml", "ini"];
 /// Notes or pages untouched for longer are "old" in the check.
 const OLD_DAYS: i64 = 180;
+/// Pages two links away the search adds, at most.
+const MAX_SECOND_HOP: usize = 4;
 /// Lines of the diary the window gets, newest.
 const MAX_DIARY_EVENTS: usize = 3_000;
 
@@ -687,6 +689,7 @@ pub fn search(words: &[String], max: usize) -> Vec<String> {
     }
     let mut seen: BTreeSet<String> = hit_pages.iter().map(|p| p.slug.clone()).collect();
     let mut related = Vec::new();
+    let mut first_hop: Vec<&Page> = Vec::new();
     for p in &hit_pages {
         for l in &p.links {
             let s = target_of(&all, &l.target);
@@ -696,10 +699,42 @@ pub fn search(words: &[String], max: usize) -> Vec<String> {
             if let Some(q) = all.iter().find(|q| q.slug == s) {
                 let rel = if l.rel.is_empty() { String::new() } else { format!(" ({})", l.rel) };
                 related.push(format!("↳ [[{}]]{rel} {}", q.title, q.gist()));
+                first_hop.push(q);
             }
         }
     }
     found.extend(related.into_iter().take(max));
+    // One step further, only along strong links: a page the linked pages reach
+    // with a named relation, or that two of the pages found or linked point at.
+    // "↳ [[A]] → [[B]] (relazione) riassunto", a few at most.
+    let mut votes: BTreeMap<String, (u32, bool, String, String)> = BTreeMap::new();
+    for p in hit_pages.iter().copied().chain(first_hop.iter().copied()) {
+        let mut counted = BTreeSet::new();
+        for l in &p.links {
+            let s = target_of(&all, &l.target);
+            if seen.contains(&s) || !counted.insert(s.clone()) {
+                continue;
+            }
+            let from_first = first_hop.iter().any(|q| q.slug == p.slug);
+            let v = votes.entry(s).or_insert((0, false, String::new(), String::new()));
+            v.0 += 1;
+            if from_first && !l.rel.is_empty() && !v.1 {
+                v.1 = true;
+                v.2 = p.title.clone();
+                v.3 = l.rel.clone();
+            } else if v.2.is_empty() {
+                v.2 = p.title.clone();
+            }
+        }
+    }
+    let mut strong: Vec<(String, (u32, bool, String, String))> = votes.into_iter().filter(|(_, v)| v.0 >= 2 || v.1).collect();
+    strong.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then(b.1 .1.cmp(&a.1 .1)));
+    for (s, (_, _, via, rel)) in strong.into_iter().take(MAX_SECOND_HOP) {
+        if let Some(r) = all.iter().find(|r| r.slug == s) {
+            let rel = if rel.is_empty() { String::new() } else { format!(" ({rel})") };
+            found.push(format!("↳ [[{via}]] → [[{}]]{rel} {}", r.title, r.gist()));
+        }
+    }
     found
 }
 
@@ -1194,6 +1229,14 @@ mod tests {
         tool_write("Verdi", "- cliente di: [[Studio Bianchi]]", "", "").unwrap();
         assert!(tool_read("Bianchi").unwrap().contains("collegata da: Rossi, Verdi"));
         assert!(!check().iter().any(|c| c.contains("Studio Bianchi")), "{:?}", check());
+        // Two links away: Rossi → Bianchi → Torino (named relation), not → Varie (plain link).
+        let vb = tool_read("Bianchi").unwrap().lines().find_map(|l| l.strip_prefix("versione: ")).unwrap().to_string();
+        tool_write("Bianchi", "Commercialista.\n- sede: [[Torino]]\n[[Varie]]", &vb, "").unwrap();
+        tool_write("Torino", "riassunto: La città.\nCittà.", "", "").unwrap();
+        tool_write("Varie", "Altro.", "", "").unwrap();
+        let hits = search(&["giorni".to_string()], 10);
+        assert!(hits.iter().any(|h| h == "↳ [[Bianchi]] → [[Torino]] (sede) La città."), "{hits:?}");
+        assert!(!hits.iter().any(|h| h.contains("[[Varie]]")), "{hits:?}");
         // The inbox: read, then moved to fonti.
         let inbox = ensure_inbox().unwrap();
         std::fs::write(inbox.join("articolo.html"), "<p>Il nuovo server</p>").unwrap();

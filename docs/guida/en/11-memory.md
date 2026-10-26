@@ -32,7 +32,7 @@ Client since 2021, accountants, 8 workstations.
 
 - `[[Title]]` links another page; a line `- relation: [[Other]]` says **how** they are related.
 - `riassunto:` (summary) is one sentence on who or what it is; `alias:` the other names you call it by (acronyms, product names). They are optional: the memory engine or the chat writes them, and you can fix them by hand.
-- When the chat searches the memory, it gets the pages found **plus the summary of the linked ones**: more context with few words. It searches the aliases too: asking about "UDM" finds the page "Dream Machine", and a `[[UDM]]` leads to that page.
+- When the chat searches the memory, it gets the pages found **plus the summary of the linked ones**: more context with few words. It also goes one step further, only along strong links: if "Studio Rossi" has "Marco Rossi" as contact, and his page says "- sede: [[Torino]]", it reaches Torino too. It searches the aliases too: asking about "UDM" finds the page "Dream Machine", and a `[[UDM]]` leads to that page.
 - The chat writes them when you ask "make a page about…", and from sources (below).
 - **Safe writes**: if you edit a page by hand while the agent works on it, its write is refused; it must read it again and start from your version.
 

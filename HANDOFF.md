@@ -37,8 +37,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
-### 26 ottobre 2026 — Memoria: riassunti e alias delle pagine (su `claude/sviluppo`)
+### 26 ottobre 2026 — Memoria: riassunti, alias e secondo passo (su `claude/sviluppo`)
 - Intestazione delle pagine con `riassunto:` e `alias:` facoltativi (`brain.rs`): la ricerca della chat dà il riassunto delle pagine collegate e trova una pagina anche dai suoi alias; un `[[Alias]]` porta alla pagina (`target_of`). `memory_page_write` li prende dalle prime righe del testo, senza li conserva.
+- Secondo passo della ricerca solo sui legami forti (relazione con nome o indicata da due pagine, al massimo 4). Pulizia proposta e ricerca per significato in `docs/idee.md`.
 - Il motore per la memoria (`memory_ai.rs`) scrive anche `summaries`: riscrive solo il riassunto, agli alias aggiunge. Guida e `docs/chat.md` aggiornate.
 - **Prove:** `cargo test` (328), `npm run build`, `check:i18n`. Da provare dal vivo «Collega con l'IA» con un motore vero.
 
