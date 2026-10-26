@@ -8,7 +8,10 @@
 // Any engine works, tools or not: EasyIsland sends the notes and pages and asks
 // for a JSON answer, then writes it itself. Only additions, written without
 // asking (the user's choice): new pages, lines appended to existing ones. It
-// never deletes or rewrites what is there, and never touches MEMORIA.md.
+// never deletes or rewrites what is there, and never touches MEMORIA.md. The
+// one exception is the header's "riassunto:" line, which it keeps up to date
+// (it sums up the page, so the chat reads it for a linked page), and "alias:",
+// to which it only adds names.
 // Runs from «Collega con l'IA» in the memory window and after the evening
 // digest, when the memory changed since the last time.
 
@@ -28,6 +31,18 @@ struct Answer {
     pages: Vec<TopicPage>,
     #[serde(default)]
     links: Vec<Relation>,
+    #[serde(default)]
+    summaries: Vec<Summary>,
+}
+
+/// One sentence and the other names of an existing page.
+#[derive(Deserialize)]
+struct Summary {
+    title: String,
+    #[serde(default)]
+    summary: String,
+    #[serde(default)]
+    aliases: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -135,7 +150,9 @@ fn prompt(notes: &[String], pages: &[Page]) -> String {
     let mut ps = String::new();
     for p in pages {
         let body: String = p.body.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(500).collect();
-        ps.push_str(&format!("- «{}»: {}\n", p.title, body));
+        let summary = if p.summary.is_empty() { String::new() } else { format!(" [riassunto: {}]", p.summary) };
+        let aliases = if p.aliases.is_empty() { String::new() } else { format!(" [alias: {}]", p.aliases.join(", ")) };
+        ps.push_str(&format!("- «{}»{summary}{aliases}: {}\n", p.title, body));
     }
     tf(
         "Sei l'archivista della memoria di EasyIsland. Collega le informazioni, non inventarne.
@@ -145,12 +162,13 @@ NOTE (numerate):
 PAGINE ESISTENTI:
 {pages}
 Rispondi SOLO con un oggetto JSON, senza altro testo, così:
-{\"pages\":[{\"title\":\"Nome dell'argomento\",\"text\":\"due o tre righe su cosa sappiamo, prese dalle note\",\"notes\":[1,3]}],\"links\":[{\"from\":\"Pagina A\",\"to\":\"Pagina B\",\"relation\":\"cliente di\"}]}
+{\"pages\":[{\"title\":\"Nome dell'argomento\",\"text\":\"due o tre righe su cosa sappiamo, prese dalle note\",\"notes\":[1,3]}],\"links\":[{\"from\":\"Pagina A\",\"to\":\"Pagina B\",\"relation\":\"cliente di\"}],\"summaries\":[{\"title\":\"Pagina A\",\"summary\":\"Una frase su chi o cosa è.\",\"aliases\":[\"altro nome\",\"sigla\"]}]}
 
 Regole:
 - \"pages\": un argomento che compare in almeno due note o in una nota e una pagina (un cliente, una persona, un progetto, un prodotto, un luogo) e che non ha ancora una pagina. Titolo breve, come lo si chiama (es. il nome del cliente). Se la pagina esiste già usa lo stesso titolo: aggiungerò solo i rimandi alle note.
 - \"links\": relazioni vere tra pagine, esistenti o nuove, con una parola o due (cliente di, lavora con, parte di, usa, sede di).
-- Niente password, codici o dati sensibili. Se non c'è niente da collegare rispondi {\"pages\":[],\"links\":[]}.",
+- \"summaries\": per le pagine, esistenti o nuove, senza riassunto o con un riassunto superato dal testo: una frase sola su chi o cosa è (es. «Cliente di Torino, studio di commercialisti, referente Anna»); \"aliases\": gli altri nomi con cui l'utente potrebbe chiamarlo (sigle, nomi di prodotto, soprannomi, nomi in inglese), solo se servono. Le pagine con un riassunto ancora giusto lasciale fuori.
+- Niente password, codici o dati sensibili. Se non c'è niente da collegare rispondi {\"pages\":[],\"links\":[],\"summaries\":[]}.",
         &[("notes", &list), ("pages", &if ps.is_empty() { t("(nessuna)").to_string() } else { ps })],
     )
 }
@@ -217,7 +235,37 @@ fn apply(a: &Answer, notes: &[String]) -> String {
             relations += 1;
         }
     }
-    if created.is_empty() && grown.is_empty() && relations == 0 {
+    let mut summed = 0;
+    for s in a.summaries.iter().take(40) {
+        let title = clean_title(&s.title);
+        let summary = one_line(&s.summary, 300);
+        let Some((text, version)) = current(&title) else { continue };
+        let page = brain::parse(&brain::slug(&title), &text);
+        // Only adds names: the ones the user wrote stay.
+        let mut aliases = page.aliases.clone();
+        for a in &s.aliases {
+            let a = clean_title(a);
+            if !a.is_empty() && a.to_lowercase() != page.title.to_lowercase() && !aliases.iter().any(|o| o.to_lowercase() == a.to_lowercase()) {
+                aliases.push(a);
+            }
+        }
+        let summary = if summary.is_empty() { page.summary.clone() } else { summary };
+        if summary == page.summary && aliases == page.aliases {
+            continue;
+        }
+        let mut body = String::new();
+        if !summary.is_empty() {
+            body.push_str(&format!("riassunto: {summary}\n"));
+        }
+        if !aliases.is_empty() {
+            body.push_str(&format!("alias: {}\n", aliases.join(", ")));
+        }
+        body.push_str(&body_of(&text));
+        if brain::tool_write(&title, &body, &version, "").is_ok() {
+            summed += 1;
+        }
+    }
+    if created.is_empty() && grown.is_empty() && relations == 0 && summed == 0 {
         return t("Niente di nuovo da collegare: la memoria è già in ordine.").into();
     }
     let mut parts = Vec::new();
@@ -229,6 +277,9 @@ fn apply(a: &Answer, notes: &[String]) -> String {
     }
     if relations > 0 {
         parts.push(tf("{n} relazioni tra pagine", &[("n", &relations.to_string())]));
+    }
+    if summed > 0 {
+        parts.push(tf("{n} riassunti", &[("n", &summed.to_string())]));
     }
     tf("Memoria collegata — {what}.", &[("what", &parts.join("; "))])
 }
@@ -247,7 +298,7 @@ fn body_of(file: &str) -> String {
     let mut out = Vec::new();
     let mut in_head = true;
     while let Some(l) = lines.next() {
-        if in_head && (l.starts_with("# ") || l.starts_with("fonte:") || l.starts_with("aggiornata:") || l.trim().is_empty()) {
+        if in_head && (l.starts_with("# ") || l.starts_with("fonte:") || l.starts_with("aggiornata:") || l.starts_with("riassunto:") || l.starts_with("alias:") || l.trim().is_empty()) {
             continue;
         }
         in_head = false;
@@ -279,6 +330,8 @@ mod tests {
 
     #[test]
     fn the_header_is_not_part_of_the_body() {
-        assert_eq!(body_of("# Rossi\nfonte: a.eml\naggiornata: 2026-10-25\n\nPaga a 60 giorni.\n- nota: x"), "Paga a 60 giorni.\n- nota: x");
+        assert_eq!(body_of("# Rossi\nfonte: a.eml\naggiornata: 2026-10-25\nriassunto: Cliente.\nalias: R\n\nPaga a 60 giorni.\n- nota: x"), "Paga a 60 giorni.\n- nota: x");
+        let a = parse("{\"summaries\":[{\"title\":\"Rossi\",\"summary\":\"Cliente di Torino.\",\"aliases\":[\"Studio Rossi\"]}]}").unwrap();
+        assert_eq!(a.summaries[0].aliases, vec!["Studio Rossi"]);
     }
 }

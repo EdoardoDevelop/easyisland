@@ -21,6 +21,8 @@ Le cose da ricordare sempre, una per riga con la data: preferenze, clienti, pers
 # Studio Rossi
 fonte: mail-rossi.eml
 aggiornata: 2026-10-24
+riassunto: Cliente di Torino, studio di commercialisti, referente Marco Rossi.
+alias: Rossi, Studio Rossi & C.
 
 Cliente dal 2021, commercialisti, 8 postazioni.
 - usa: [[NAS Synology]]
@@ -29,7 +31,8 @@ Cliente dal 2021, commercialisti, 8 postazioni.
 ```
 
 - `[[Titolo]]` collega un'altra pagina; una riga `- relazione: [[Altra]]` dice **come** sono legate.
-- Quando la chat cerca nella memoria, riceve le pagine trovate **e una riga di quelle collegate**: più contesto con poche parole.
+- `riassunto:` è una frase su chi o cosa è; `alias:` gli altri nomi con cui lo chiami (sigle, nomi di prodotto). Sono facoltativi: li scrive il motore per la memoria o la chat, e puoi correggerli a mano.
+- Quando la chat cerca nella memoria, riceve le pagine trovate **e il riassunto di quelle collegate**: più contesto con poche parole. Cerca anche negli alias: chiedendo di «UDM» trova la pagina «Dream Machine», e un `[[UDM]]` porta a quella pagina.
 - La chat le scrive quando le chiedi «fai una pagina su…», e dalle fonti (sotto).
 - **Scritture sicure**: se modifichi a mano una pagina mentre l'agente ci lavora, la sua scrittura viene rifiutata; deve rileggerla e ripartire dalla tua versione.
 
@@ -55,7 +58,7 @@ Parte la domenica sera con il Riordino, se c'è qualcosa da sistemare, o subito 
 Se non c'è niente da fare non parte e non costa niente.
 
 ## Motore per la memoria
-In **Impostazioni → Chat → Memoria → Motore per la memoria** puoi scegliere un motore, anche gratuito, che collega la memoria scrivendolo nei file: crea una pagina per ogni argomento che torna in più note (un cliente, un progetto, una persona), con i rimandi alle note, e aggiunge le relazioni tra pagine («cliente di», «lavora con»…). Lavora da solo dopo il riordino della sera e quando premi **Collega con l'IA** nella mappa. Aggiunge soltanto: non cancella e non riscrive le tue note. Con un motore in cloud le note vengono mandate a quel servizio; con Ollama o LM Studio restano sul PC. Con **Nessuno** la mappa collega le voci da sola, dalle parole in comune.
+In **Impostazioni → Chat → Memoria → Motore per la memoria** puoi scegliere un motore, anche gratuito, che collega la memoria scrivendolo nei file: crea una pagina per ogni argomento che torna in più note (un cliente, un progetto, una persona), con i rimandi alle note, aggiunge le relazioni tra pagine («cliente di», «lavora con»…) e tiene aggiornato il riassunto di ogni pagina con gli altri nomi. Lavora da solo dopo il riordino della sera e quando premi **Collega con l'IA** nella mappa. Aggiunge soltanto: non cancella e non riscrive le tue note. Con un motore in cloud le note vengono mandate a quel servizio; con Ollama o LM Studio restano sul PC. Con **Nessuno** la mappa collega le voci da sola, dalle parole in comune.
 
 ## La finestra Memoria
 Il pulsante con i tre nodi in alto nell'isola (o **Impostazioni → Chat → Memoria → Mappa**) apre una finestra tutta sua con la memoria disegnata in quattro modi. Una nota si collega alle pagine di cui parla (anche senza citarne il titolo intero, dalle parole in comune) e alle note simili; le note archiviate che non c'entrano con niente non affollano il grafo.

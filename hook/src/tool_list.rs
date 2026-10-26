@@ -219,7 +219,7 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "memory_page_write",
-            "Scrive una pagina della memoria (Markdown breve) o la sostituisce. Collega le altre pagine con [[Titolo]] e scrivi come sono legate con righe «- relazione: [[Altra pagina]]». title; text: il testo intero; version: per una pagina che esiste, la versione letta con memory_page (se l'utente l'ha cambiata nel frattempo la scrittura è rifiutata: rileggila); source: il file di da-leggere da cui viene. Niente password o dati sensibili.",
+            "Scrive una pagina della memoria (Markdown breve) o la sostituisce. Collega le altre pagine con [[Titolo]] e scrivi come sono legate con righe «- relazione: [[Altra pagina]]». Il testo può cominciare con «riassunto: …» (una frase su chi o cosa è: la chat la legge per le pagine collegate) e «alias: …» (altri nomi, separati da virgole: sigle, nomi di prodotto); senza queste righe la pagina tiene i suoi. title; text: il testo intero; version: per una pagina che esiste, la versione letta con memory_page (se l'utente l'ha cambiata nel frattempo la scrittura è rifiutata: rileggila); source: il file di da-leggere da cui viene. Niente password o dati sensibili.",
             json!({ "type": "object", "properties": {
                 "title": { "type": "string" },
                 "text": { "type": "string" },

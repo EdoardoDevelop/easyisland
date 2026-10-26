@@ -1655,7 +1655,7 @@ function memoryRow(): HTMLElement {
   return h("div", { style: "display:contents" },
     h("div", { class: "row" }, h("label", { text: t("Memoria") }), line, map, open, folder),
     h("div", { class: "row" }, h("label", { text: t("Motore per la memoria") }), engine,
-      h("span", { class: "hint note", text: t("collega la memoria scrivendolo nei file: pagine per gli argomenti che tornano (un cliente, un progetto) e relazioni tra pagine. Solo aggiunte, mai cancellazioni; dopo il riordino della sera e con «Collega con l'IA» nella mappa. Va bene anche un motore gratuito; con uno in cloud le note escono dal PC, con Ollama o LM Studio restano qui") })));
+      h("span", { class: "hint note", text: t("collega la memoria scrivendolo nei file: pagine per gli argomenti che tornano (un cliente, un progetto), relazioni tra pagine e per ogni pagina un riassunto con gli altri nomi, che la chat usa per trovarla. Solo aggiunte, mai cancellazioni; dopo il riordino della sera e con «Collega con l'IA» nella mappa. Va bene anche un motore gratuito; con uno in cloud le note escono dal PC, con Ollama o LM Studio restano qui") })));
 }
 
 /** Chat → "Ricette": how a kind of question was answered, learnt by use (recipes.rs). */
