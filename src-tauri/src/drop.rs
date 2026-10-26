@@ -19,8 +19,8 @@ use crate::island::{self, WINDOW_LABEL};
 
 /// Listens for dropped files on the island and emits `file-drop` with their paths.
 pub fn install(app: &AppHandle) {
-    let Some(win) = island::window(app) else { return };
-    let _ = win.with_webview(listener(app, WINDOW_LABEL));
+    let Some(page) = island::page(app) else { return };
+    let _ = page.with_webview(listener(app, WINDOW_LABEL));
 }
 
 /// The same for another page (the preview's, preview.rs): `file-drop` to `label`.

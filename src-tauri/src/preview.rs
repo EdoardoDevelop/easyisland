@@ -386,7 +386,7 @@ fn host(app: &AppHandle) -> Option<tauri::Window> {
     if let Some(w) = app.get_window(LABEL) {
         return Some(w);
     }
-    is_open(app).then(|| crate::island::window(app).map(|w| w.as_ref().window())).flatten()
+    is_open(app).then(|| crate::island::window(app)).flatten()
 }
 
 fn docked_setting(app: &AppHandle) -> bool {
@@ -424,7 +424,7 @@ pub fn show(app: &AppHandle, focus: bool) -> Result<(), String> {
         // A panel of the island (island.ts places it): its window holds the page
         // and the browsers, shown where the island says, hidden while it is closed.
         let island = crate::island::window(app).ok_or_else(|| t("L'isola non c'è.").to_string())?;
-        let win = island.as_ref().window();
+        let win = island;
         {
             let mut s = state();
             s.origin = (0.0, 0.0);

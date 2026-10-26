@@ -961,8 +961,8 @@ pub fn allow_microphone(app: &AppHandle) {
     use webview2_com::Microsoft::Web::WebView2::Win32::{
         COREWEBVIEW2_PERMISSION_KIND, COREWEBVIEW2_PERMISSION_KIND_MICROPHONE, COREWEBVIEW2_PERMISSION_STATE_ALLOW,
     };
-    let Some(win) = crate::island::window(app) else { return };
-    let _ = win.with_webview(|webview| unsafe {
+    let Some(page) = crate::island::page(app) else { return };
+    let _ = page.with_webview(|webview| unsafe {
         let Ok(core) = webview.controller().CoreWebView2() else { return };
         let handler = webview2_com::PermissionRequestedEventHandler::create(Box::new(|_, args| {
             let Some(args) = args else { return Ok(()) };

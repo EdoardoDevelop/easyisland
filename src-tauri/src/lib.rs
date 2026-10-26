@@ -3044,8 +3044,8 @@ fn task_log(id: String) -> String {
 /// The island compact (low) or open (normal): WebView2's memory target (webview_memory.rs).
 #[tauri::command]
 fn webview_memory_low(app: AppHandle, low: bool) {
-    if let Some(win) = island::window(&app) {
-        webview_memory::set_low(&win, low);
+    if let Some(page) = island::page(&app) {
+        webview_memory::set_low(&page, low);
     }
 }
 

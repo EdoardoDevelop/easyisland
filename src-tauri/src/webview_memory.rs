@@ -20,8 +20,8 @@ use webview2_com::TrySuspendCompletedHandler;
 use windows_core_wv2::Interface;
 
 /// The low (compact island) or normal memory target of `win`'s page.
-pub fn set_low(win: &WebviewWindow, low: bool) {
-    let _ = win.with_webview(move |webview| unsafe {
+pub fn set_low(page: &tauri::Webview, low: bool) {
+    let _ = page.with_webview(move |webview| unsafe {
         let Ok(core) = webview.controller().CoreWebView2() else { return };
         let Ok(core) = core.cast::<ICoreWebView2_19>() else { return };
         let level = if low { COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW } else { COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL };
