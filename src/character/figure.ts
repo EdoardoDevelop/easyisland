@@ -93,13 +93,19 @@ function mark(px: number): HTMLCanvasElement {
   const ctx = c.getContext("2d");
   if (!ctx) return c;
   const img = ctx.createImageData(px, px);
+  // Same sizes as gen-icons.mjs: up to 32 px taller, whole-pixel edge, no sparkle below 32.
+  const tiny = px <= 32;
   const small = px <= 48;
   const capsule = (u: number, v: number, a: number, r: number) => Math.hypot(u - Math.max(-(a - r), Math.min(a - r, u)), v) - r;
   const smin = (a: number, b: number, k: number) => {
     const h = Math.max(0, Math.min(1, 0.5 + (0.5 * (b - a)) / k));
     return b + (a - b) * h - k * h * (1 - h);
   };
-  const f = (u: number, v: number) => smin(capsule(u, v + 0.42, 0.9, small ? 0.3 : 0.24), Math.hypot(u, v - 0.3) - (small ? 0.4 : 0.36), 0.35);
+  const cy = tiny ? 0.38 : 0.3;
+  const f = (u: number, v: number) => smin(tiny ? capsule(u, v + 0.5, 0.96, 0.34) : capsule(u, v + 0.42, 0.9, small ? 0.3 : 0.24),
+    Math.hypot(u, v - cy) - (tiny ? 0.52 : small ? 0.4 : 0.36), 0.35);
+  const edge = tiny ? (px <= 16 ? 1 : px <= 24 ? 1.5 : 2) / (px / 2) : 0.04 * (small ? 1.8 : 1);
+  const rs = tiny ? 0.42 : small ? 0.34 : 0.25;
   const SS = 3;
   for (let y = 0; y < px; y++) {
     for (let x = 0; x < px; x++) {
@@ -110,8 +116,7 @@ function mark(px: number): HTMLCanvasElement {
           const v = ((y + (j + 0.5) / SS) / px) * 2 - 1;
           const d = f(u, v);
           if (d > 0) continue;
-          const rs = small ? 0.34 : 0.25;
-          const cyan = Math.sqrt(Math.abs(u)) + Math.sqrt(Math.abs(v - 0.3)) <= Math.sqrt(rs) || d > -0.04 * (small ? 1.8 : 1);
+          const cyan = d > -edge || (px >= 32 && Math.sqrt(Math.abs(u)) + Math.sqrt(Math.abs(v - cy)) <= Math.sqrt(rs));
           r += cyan ? 51 : 15; g += cyan ? 217 : 20; b += cyan ? 255 : 41; n++;
         }
       }

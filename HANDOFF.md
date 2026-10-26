@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 26 ottobre 2026. Versione **1.0.7** in `main` con il tag `v1.0.7` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 26 ottobre 2026. Versione **1.0.8** in `main` con il tag `v1.0.8` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -37,6 +37,12 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 26 ottobre 2026 — Versione 1.0.8: logo nuovo, Jarvis Sfera predefinito
+- **Logo** (`scripts/gen-icons.mjs`, anche `figure.ts` per il logo nell'isola): l'isola che si apre, blu notte con bordo ciano e la scintilla, due colori piatti; fino a 32 px più alta, bordo a pixel interi, senza scintilla sotto i 32. Scelto da Edoardo dopo varie prove (sfera a punti, sfumature: scartate).
+- **Jarvis Sfera** predefinito per le nuove installazioni (`default_character`, `DEFAULT_SETTINGS`); chi ha già scelto tiene il suo. Gli id dei Jarvis ora si possono impostare anche dalla chat (`agent_settings.rs`).
+- **README**: schermata in cima, indice dei capitoli, «Ultime versioni» in quattro righe; la storia completa in `CHANGELOG.md` / `CHANGELOG.en.md`. Schermate tutte rifatte (`screenshots.mjs` ora in italiano di serie, la finestra Flussi al posto della vecchia pagina Automazioni).
+- **Prove:** `cargo test`, `npm run build`, `npm run smoke`.
+
 ### 26 ottobre 2026 — Versione 1.0.7: Flussi
 - Automazioni e compiti uniti nei **Flussi** (`flows.rs`, `src/flows/`, piano e scelte in `docs/flussi.md`): passi con nome e collegamenti (nessuna conversione dei dati), nodi Agente, Scelta (regole o modello), Per ogni, Domanda anche su Telegram; tentativi, strada d'errore, niente doppioni dopo un riavvio, tempo massimo e campi JSON degli agenti; giri salvati in `%APPDATA%\EasyIsland\flussi\`.
 - Finestra **Flussi** (creata alla prima apertura): disegno dall'alto in basso, blocchi da trascinare, pannello con i dati, modelli, «Descrivilo a parole», Prova ed Esecuzioni. Impostazioni → Flussi è solo l'elenco.
@@ -55,8 +61,4 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 25 ottobre 2026 — Motore per la memoria
 - `memory_ai.rs`: un motore scelto in Impostazioni → Chat → Memoria (anche gratuito, senza strumenti) riceve note e pagine e risponde in JSON; EasyIsland scrive solo aggiunte (pagine-argomento con le note, relazioni). «Collega con l'IA» nella mappa e dopo il riordino della sera se la memoria è cambiata.
 - **Prove:** `cargo test` (lettura del JSON, intestazione delle pagine), `npm run build`, `npm run smoke`. Da provare dal vivo con un motore vero.
-
-### 25 ottobre 2026 — Grafo della memoria più collegato
-- Le note si collegano alle pagine anche con `[[…]]` e con due parole chiave in comune, e alle due note più simili, più le voci che condividono una parola rara (un cliente, un server); le archiviate isolate escono dal grafo (restano nella timeline). Con la memoria del notebook: nessun punto isolato (`brain.rs`, `key_words`, `wiki_links`).
-- **Prove:** `cargo test` (nuovo test e `live_graph` sui dati del notebook).
 

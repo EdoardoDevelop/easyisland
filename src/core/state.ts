@@ -910,7 +910,7 @@ export interface Profile {
 }
 
 export const DEFAULT_THEME: Theme = {
-  character: "drop",
+  character: "jarvis-sfera",
   slimeColor: "",
   islandColor: "#000000",
   islandOpacity: 1,

@@ -19,7 +19,7 @@
 - `brand/`: SVG sorgente dei loghi. L'app non lo legge mai.
 
 ## Personaggi
-- Goccia (`drop.ts`, il personaggio predefinito dalla 0.6.4: `default_character` in `settings.rs`, `DEFAULT_SETTINGS` in `state.ts` e primo in `roster.ts`) e Slime (`slime.ts`) sono personaggi "soft": contorno, ombreggiatura e occhio. Tutto il resto è comune. Il cubo 3D (`cube.ts`) è un tipo a parte; non si nomina in README, guida e sito. Chi aveva già scelto un personaggio lo tiene.
+- Il personaggio predefinito di una nuova installazione è Jarvis Sfera (dalla 1.0.8: `default_character` in `settings.rs`, `DEFAULT_SETTINGS` in `state.ts`; il primo di `roster.ts`, Goccia, vale solo per un id sconosciuto). Goccia (`drop.ts`) e Slime (`slime.ts`) sono personaggi "soft": contorno, ombreggiatura e occhio. Tutto il resto è comune. Il cubo 3D (`cube.ts`) è un tipo a parte; non si nomina in README, guida e sito. Chi aveva già scelto un personaggio lo tiene.
 - `engine.ts`, `greeting.ts` e `src/upload/canvas.ts` disegnano chiedendo `character()`, mai un personaggio per nome.
 - **Figura al posto del personaggio** (`figure.ts`, `theme.figure`): logo di EasyIsland (lo stesso disegno di `gen-icons.mjs`, rasterizzato una volta per misura in `figure.ts`), PNG dell'utente (`logo.rs`, `logo.png` accanto alle impostazioni, nel backup) o meteo (cielo + temperatura da `State.weatherNow`). È un'immagine ferma: `BotEngine.draw` la disegna al posto del corpo (mai sui mini personaggi), `busy` resta falso, niente saluto. Il PNG si ricarica quando cambia `theme.logoStamp`.
 - **Nuovo personaggio soft:** un file che esporta un `SoftCharacter` e una riga in `roster.ts`. Si prova con `dev/character-preview.html?character=<id>` e `dev/upload-preview.html?character=<id>`.

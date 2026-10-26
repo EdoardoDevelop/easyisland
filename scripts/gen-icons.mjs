@@ -36,23 +36,30 @@ function smin(a, b, k) {
 }
 
 /**
- * Colour at (x, y) in −1…1, or null outside. Small icons (≤ 48 px) get a
- * thicker pill, edge and sparkle, so the shape still reads at 16 px.
+ * Colour at (x, y) in −1…1 for an icon `size` px wide, or null outside.
+ * Up to 32 px the drawing is taller, to fill the square, the edge is whole
+ * pixels (1 px at 16, 2 px at 32) and below 32 px there is no sparkle: it
+ * would only be a blot.
  */
-function shade(x, y, small) {
-  const f = (u, v) => smin(capsule(u, v + 0.42, 0.9, small ? 0.3 : 0.24), Math.hypot(u, v - 0.3) - (small ? 0.4 : 0.36), 0.35);
-  const d = f(x, y);
+function shade(x, y, size) {
+  const tiny = size <= 32;
+  const small = size <= 48;
+  const top = tiny ? capsule(x, y + 0.5, 0.96, 0.34) : capsule(x, y + 0.42, 0.9, small ? 0.3 : 0.24);
+  const body = tiny ? Math.hypot(x, y - 0.38) - 0.52 : Math.hypot(x, y - 0.3) - (small ? 0.4 : 0.36);
+  const d = smin(top, body, 0.35);
   // The edge fills the narrow neck: the two dark parts stay apart, joined in cyan.
   if (d > 0) return null;
+  const edge = tiny ? (size <= 16 ? 1 : size <= 24 ? 1.5 : 2) / (size / 2) : 0.04 * (small ? 1.8 : 1);
+  if (d > -edge) return CYAN;
   // The four-point sparkle (an astroid) in the body.
-  const r = small ? 0.34 : 0.25;
-  if (Math.sqrt(Math.abs(x)) + Math.sqrt(Math.abs(y - 0.3)) <= Math.sqrt(r)) return CYAN;
-  return d > -0.04 * (small ? 1.8 : 1) ? CYAN : NIGHT;
+  const r = tiny ? 0.42 : small ? 0.34 : 0.25;
+  const cy = tiny ? 0.38 : 0.3;
+  if (size >= 32 && Math.sqrt(Math.abs(x)) + Math.sqrt(Math.abs(y - cy)) <= Math.sqrt(r)) return CYAN;
+  return NIGHT;
 }
 
 function renderIcon(size) {
   const px = new Uint8Array(size * size * 4);
-  const small = size <= 48;
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const col = [0, 0, 0];
@@ -61,7 +68,7 @@ function renderIcon(size) {
         for (let sx = 0; sx < SS; sx++) {
           const u = ((x + (sx + 0.5) / SS) / size) * 2 - 1;
           const v = ((y + (sy + 0.5) / SS) / size) * 2 - 1;
-          const c = shade(u, v, small);
+          const c = shade(u, v, size);
           if (!c) continue;
           n++;
           c.forEach((k, j) => { col[j] += k; });
