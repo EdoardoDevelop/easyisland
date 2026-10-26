@@ -1276,6 +1276,11 @@ pub(crate) async fn chat_turn(
         Some(r) => format!("{r}{query}"),
         None => query,
     };
+    // Anteprima: what is open in it, when that changed (preview.rs).
+    let query = match preview::hint().filter(|_| channel == Channel::Island && agent && (has_tools || engine == "api")) {
+        Some(p) => format!("{p}{query}"),
+        None => query,
+    };
     // "Automatica" (the chat's switch): only with Modalità terminale.
     let auto = auto && terminal.is_some();
     if auto {

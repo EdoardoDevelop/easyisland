@@ -569,6 +569,33 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             true,
         ),
         (
+            "preview_snapshot",
+            "La pagina web della scheda dell'Anteprima (tab: numero; vuoto = quella attiva) come la leggono i lettori di schermo: titoli, testi, link, pulsanti e campi in righe rientrate, ognuno con un riferimento [ref=e5] da passare a preview_click e preview_type. Il modo migliore per capire e usare una pagina; con una finestra in primo piano si vede solo quella. I riferimenti restano validi finché l'elemento è nella pagina.",
+            json!({ "type": "object", "properties": { "tab": { "type": "string" } } }),
+            true,
+        ),
+        (
+            "preview_wait",
+            "Aspetta (timeout: secondi, al massimo 30, di solito 10) che nella pagina dell'Anteprima compaia text, sparisca text_gone o ci sia selector (CSS), poi torna la pagina come preview_snapshot. Da usare dopo un'azione che carica qualcosa.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "text": { "type": "string" },
+                "text_gone": { "type": "string" },
+                "selector": { "type": "string" },
+                "timeout": { "type": "integer" }
+            } }),
+            true,
+        ),
+        (
+            "preview_network",
+            "Le richieste di rete della pagina nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva), le ultime 300 dall'ultimo caricamento: metodo, stato (o l'errore), indirizzo, tipo. failed_only: solo quelle fallite o con stato 400 e oltre.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "failed_only": { "type": "boolean" }
+            } }),
+            true,
+        ),
+        (
             "preview_screenshot",
             "Fotografa la scheda dell'Anteprima (tab: numero; vuoto = quella attiva) e la salva come PNG: torna il percorso, da leggere come immagine.",
             json!({ "type": "object", "properties": { "tab": { "type": "string" } } }),
@@ -596,9 +623,10 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "preview_click",
-            "Clicca un elemento della pagina web nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva): selector (CSS) oppure text_match (il testo, l'etichetta o il segnaposto di un pulsante, link o campo). L'utente conferma.",
+            "Clicca un elemento della pagina web nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva): ref (da preview_snapshot, il modo più sicuro), oppure selector (CSS) o text_match (il testo, l'etichetta o il segnaposto di un pulsante, link o campo). Torna la pagina dopo il clic. L'utente conferma.",
             json!({ "type": "object", "properties": {
                 "tab": { "type": "string" },
+                "ref": { "type": "string" },
                 "selector": { "type": "string" },
                 "text_match": { "type": "string" }
             } }),
@@ -606,9 +634,10 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "preview_type",
-            "Scrive text in un campo della pagina web nella scheda dell'Anteprima, trovato con selector (CSS) o text_match (etichetta, segnaposto, nome); submit: invia il modulo. Mai password o dati di pagamento. L'utente conferma.",
+            "Scrive text in un campo della pagina web nella scheda dell'Anteprima, trovato con ref (da preview_snapshot), selector (CSS) o text_match (etichetta, segnaposto, nome); submit: invia il modulo. Torna la pagina dopo. Mai password o dati di pagamento. L'utente conferma.",
             json!({ "type": "object", "properties": {
                 "tab": { "type": "string" },
+                "ref": { "type": "string" },
                 "selector": { "type": "string" },
                 "text_match": { "type": "string" },
                 "text": { "type": "string" },

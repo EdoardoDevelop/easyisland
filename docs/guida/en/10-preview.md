@@ -43,6 +43,8 @@ Pages are in a **real browser** (Edge's engine), not a picture.
 ## The chat uses the Preview
 With EasyIsland's tools on, the chat can open a page or a file in the Preview, read its text, take a screenshot, read the console errors and try it at phone size or in dark mode. So after changing your site it checks by itself that it works before telling you.
 
+The chat sees the page the way screen readers read it: headings, texts, buttons and fields, each with its own reference. So it clicks exactly the right element, even when two buttons have the same text, it can wait for a page to finish loading and it sees the failed network requests. When the Preview is open, the chat knows by itself what is in it: you do not need to tell it.
+
 It can also **click** and **type** in a page's fields, but every time it asks **Allow / Deny** in the island. It never types passwords or payment details.
 
 ## Shortcuts

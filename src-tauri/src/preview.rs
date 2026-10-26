@@ -116,10 +116,29 @@ struct State {
     covered: bool,
     view: View,
     console: HashMap<u32, Vec<ConsoleLine>>,
+    /// The page's requests (DevTools Network), for preview_network.
+    net: HashMap<u32, Vec<Request>>,
     /// A file's text before the chat changed it (for «Modifiche»), by path.
     before: HashMap<String, String>,
     /// Files' last change, for the watcher.
     seen: HashMap<String, SystemTime>,
+}
+
+/// One request of a page: failed ones say why (`failed`) or carry a status >= 400.
+#[derive(Clone, Default)]
+struct Request {
+    id: String,
+    method: String,
+    url: String,
+    kind: String,
+    status: u16,
+    failed: String,
+}
+
+impl Request {
+    fn bad(&self) -> bool {
+        !self.failed.is_empty() || self.status >= 400
+    }
 }
 
 static STATE: LazyLock<Mutex<State>> = LazyLock::new(|| Mutex::new(State { next: 1, ..Default::default() }));
@@ -293,6 +312,7 @@ pub fn open(app: &AppHandle, target: &str, place: Place, focus: bool) -> Result<
                     if let Some(pos) = s.tabs.iter().position(|tb| tb.id != id) {
                         let gone = s.tabs.remove(pos);
                         s.console.remove(&gone.id);
+                        s.net.remove(&gone.id);
                         close_web(app, gone.id);
                     }
                 }
@@ -451,6 +471,7 @@ pub fn close_tab(app: &AppHandle, id: u32) {
         let Some(pos) = s.tabs.iter().position(|tb| tb.id == id) else { return };
         s.tabs.remove(pos);
         s.console.remove(&id);
+        s.net.remove(&id);
         if s.active == id {
             s.active = s.tabs.get(pos.min(s.tabs.len().saturating_sub(1))).map(|tb| tb.id).unwrap_or(0);
         }
@@ -616,6 +637,7 @@ fn make_web(app: &AppHandle, win: &tauri::Window, tab: &Tab, bounds: (f64, f64, 
                 let mut s = state();
                 if loading {
                     s.console.entry(id).or_default().clear();
+                    s.net.entry(id).or_default().clear();
                 }
                 if let Some(tb) = s.tabs.iter_mut().find(|tb| tb.id == id) {
                     tb.loading = loading;
@@ -708,14 +730,18 @@ fn devtools_and_console(w: &Webview, id: u32) {
         }
         cdp(&core, "Runtime.enable", &json!({}), |_| {});
         cdp(&core, "Log.enable", &json!({}), |_| {});
-        for event in ["Runtime.consoleAPICalled", "Runtime.exceptionThrown", "Log.entryAdded"] {
+        // Only the headers' events: no bodies are kept (preview_network).
+        cdp(&core, "Network.enable", &json!({ "maxTotalBufferSize": 0, "maxResourceBufferSize": 0 }), |_| {});
+        for event in ["Runtime.consoleAPICalled", "Runtime.exceptionThrown", "Log.entryAdded", "Network.requestWillBeSent", "Network.responseReceived", "Network.loadingFailed"] {
             let Ok(receiver) = core.GetDevToolsProtocolEventReceiver(&HSTRING::from(event)) else { continue };
             let handler = DevToolsProtocolEventReceivedEventHandler::create(Box::new(move |_, args| {
                 let Some(args) = args else { return Ok(()) };
                 let mut raw = windows_core_wv2::PWSTR::null();
                 if args.ParameterObjectAsJson(&mut raw).is_ok() {
                     let json = webview2_com::take_pwstr(raw);
-                    if let Some(line) = console_line(event, &json) {
+                    if event.starts_with("Network.") {
+                        net_event(id, event, &json);
+                    } else if let Some(line) = console_line(event, &json) {
                         push_console(id, line);
                     }
                 }
@@ -725,6 +751,81 @@ fn devtools_and_console(w: &Webview, id: u32) {
             let _ = receiver.add_DevToolsProtocolEventReceived(&handler, &mut token);
         }
     });
+}
+
+/// A request seen, answered or failed; the last MAX_CONSOLE per tab, no data: URLs.
+fn net_event(id: u32, event: &str, json: &str) {
+    let Ok(v) = serde_json::from_str::<Value>(json) else { return };
+    let str_of = |v: &Value, k: &str| v.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+    let rid = str_of(&v, "requestId");
+    let mut s = state();
+    let list = s.net.entry(id).or_default();
+    match event {
+        "Network.requestWillBeSent" => {
+            let req = v.get("request").cloned().unwrap_or(Value::Null);
+            let url = str_of(&req, "url");
+            if url.starts_with("data:") || url.starts_with("blob:") {
+                return;
+            }
+            // A redirect reuses the id: the new address replaces the old one.
+            list.retain(|r| r.id != rid);
+            list.push(Request { id: rid, method: str_of(&req, "method"), url: url.chars().take(500).collect(), kind: str_of(&v, "type"), ..Default::default() });
+            if list.len() > MAX_CONSOLE {
+                let extra = list.len() - MAX_CONSOLE;
+                list.drain(..extra);
+            }
+        }
+        "Network.responseReceived" => {
+            if let Some(r) = list.iter_mut().find(|r| r.id == rid) {
+                r.status = v.get("response").and_then(|x| x.get("status")).and_then(Value::as_u64).unwrap_or(0).min(999) as u16;
+            }
+        }
+        _ => {
+            if v.get("canceled").and_then(Value::as_bool).unwrap_or(false) {
+                return;
+            }
+            if let Some(r) = list.iter_mut().find(|r| r.id == rid) {
+                r.failed = str_of(&v, "errorText");
+                if r.failed.is_empty() {
+                    r.failed = "failed".into();
+                }
+            }
+        }
+    }
+}
+
+/// What the chat is told about the preview in front of a message, when it
+/// changed since the last time: the open tabs, the active one, errors.
+pub fn hint() -> Option<String> {
+    static LAST: Mutex<String> = Mutex::new(String::new());
+    let app = APP.get()?;
+    let open = app.get_window(LABEL).is_some_and(|w| w.is_visible().unwrap_or(false));
+    let text = if open {
+        let s = state();
+        match s.tabs.iter().find(|tb| tb.id == s.active) {
+            Some(active) => {
+                let failed = s.net.get(&active.id).map(|l| l.iter().filter(|r| r.bad()).count()).unwrap_or(0);
+                tf("[Anteprima aperta accanto alla chat: {n} schede; attiva la {id} ({kind}) «{title}» — {target}; {e} errori in console, {f} richieste fallite. La puoi usare con gli strumenti preview_* (preview_snapshot per vedere la pagina).]\n\n", &[
+                    ("n", &s.tabs.len().to_string()),
+                    ("id", &active.id.to_string()),
+                    ("kind", &active.kind),
+                    ("title", &active.title),
+                    ("target", &active.target),
+                    ("e", &active.errors.to_string()),
+                    ("f", &failed.to_string()),
+                ])
+            }
+            None => String::new(),
+        }
+    } else {
+        String::new()
+    };
+    let mut last = LAST.lock().unwrap();
+    if *last == text {
+        return None;
+    }
+    *last = text.clone();
+    (!text.is_empty()).then_some(text)
 }
 
 /// A console message, an uncaught error or a browser log entry as one line.
@@ -1192,34 +1293,228 @@ pub async fn tool(app: &AppHandle, name: &str, args: &Value) -> Result<String, S
                 ("s", &if v.scheme.is_empty() { t("della pagina").to_string() } else { v.scheme.clone() }),
             ]))
         }
+        "preview_snapshot" => {
+            let tb = tab_for(&s("tab"))?;
+            if tb.kind == "file" && !tb.browser {
+                return Err(t("È un file, non una pagina web: usa preview_read.").into());
+            }
+            page_snapshot(app, tb.id).await
+        }
+        "preview_wait" => {
+            let tb = tab_for(&s("tab"))?;
+            let secs = args.get("timeout").and_then(Value::as_u64).unwrap_or(10).clamp(1, 30);
+            let q = json!({ "text": s("text"), "gone": s("text_gone"), "selector": s("selector") });
+            let script = format!("({WAIT})({q})");
+            let until = std::time::Instant::now() + Duration::from_secs(secs);
+            loop {
+                // During a navigation the page does not answer: tried again.
+                if let Ok(raw) = eval(app, tb.id, &script).await {
+                    if raw.trim() == "true" {
+                        break;
+                    }
+                }
+                if std::time::Instant::now() >= until {
+                    return Err(tf("Non è successo entro {s} secondi.", &[("s", &secs.to_string())]));
+                }
+                tokio::time::sleep(Duration::from_millis(300)).await;
+            }
+            page_snapshot(app, tb.id).await
+        }
+        "preview_network" => {
+            let tb = tab_for(&s("tab"))?;
+            let only_failed = args.get("failed_only").and_then(Value::as_bool).unwrap_or(false);
+            let lines: Vec<String> = state()
+                .net
+                .get(&tb.id)
+                .map(|l| {
+                    l.iter()
+                        .filter(|r| !only_failed || r.bad())
+                        .map(|r| {
+                            let how = if !r.failed.is_empty() { r.failed.clone() } else if r.status == 0 { "…".into() } else { r.status.to_string() };
+                            format!("{} {how} {} ({})", r.method, r.url, r.kind)
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            if lines.is_empty() {
+                return Ok(t("Nessuna richiesta.").into());
+            }
+            Ok(cut(&lines.join("\n")))
+        }
         "preview_click" | "preview_type" => {
             let tb = tab_for(&s("tab"))?;
-            let target = json!({ "selector": s("selector"), "text": s("text_match") });
+            let target = json!({ "ref": s("ref"), "selector": s("selector"), "text": s("text_match") });
             let script = if name == "preview_click" {
                 format!("({FIND})({target}, (el) => {{ el.scrollIntoView({{block: 'center'}}); el.click(); return 'ok'; }})")
             } else {
                 let value = json!(s("text"));
                 let submit = args.get("submit").and_then(Value::as_bool).unwrap_or(false);
                 format!(
-                    "({FIND})({target}, (el) => {{ el.focus(); const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; const set = Object.getOwnPropertyDescriptor(proto, 'value'); if (set && set.set && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) set.set.call(el, {value}); else el.textContent = {value}; el.dispatchEvent(new Event('input', {{bubbles: true}})); el.dispatchEvent(new Event('change', {{bubbles: true}})); if ({submit}) {{ const f = el.form; if (f && f.requestSubmit) f.requestSubmit(); else el.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', bubbles: true}})); }} return 'ok'; }})"
+                    "({FIND})({target}, (el) => {{ el.focus(); const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; const set = Object.getOwnPropertyDescriptor(proto, 'value'); if (set && set.set && (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) set.set.call(el, {value}); else el.textContent = {value}; el.dispatchEvent(new Event('input', {{bubbles: true}})); el.dispatchEvent(new Event('change', {{bubbles: true}})); if ({submit}) {{ const f = el.form; if (f && f.requestSubmit) f.requestSubmit(); else el.dispatchEvent(new KeyboardEvent('keydown', {{key: 'Enter', bubbles: true}})); }} return 'ok'; }}, true)"
                 )
             };
             let raw = eval(app, tb.id, &script).await?;
             let v: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
-            match v.get("error").and_then(Value::as_str) {
-                Some(e) => Err(e.to_string()),
-                None => Ok(tf("Fatto su «{what}».", &[("what", &v.get("what").and_then(Value::as_str).unwrap_or_default())])),
+            if let Some(e) = v.get("error").and_then(Value::as_str) {
+                return Err(e.to_string());
+            }
+            let done = tf("Fatto su «{what}».", &[("what", &v.get("what").and_then(Value::as_str).unwrap_or_default())]);
+            // The page as it is now, so the chat sees what the action did.
+            settle(app, tb.id).await;
+            match page_snapshot(app, tb.id).await {
+                Ok(snap) => Ok(format!("{done}\n\n{snap}")),
+                Err(_) => Ok(done),
             }
         }
         _ => Err(format!("unknown tool {name}")),
     }
 }
 
-/// Finds the element of preview_click / preview_type: a CSS selector, or the
-/// visible text (or label, placeholder, value) of a button, link or field.
-const FIND: &str = r#"(q, act) => {
+/// The page as the chat reads it: roles, names and a ref for each control.
+async fn page_snapshot(app: &AppHandle, id: u32) -> Result<String, String> {
+    let raw = eval(app, id, &format!("({SNAPSHOT})()")).await?;
+    let v: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
+    let mut out = format!(
+        "{}\n{}\n",
+        v.get("title").and_then(Value::as_str).unwrap_or_default(),
+        v.get("url").and_then(Value::as_str).unwrap_or_default()
+    );
+    if v.get("modal").and_then(Value::as_bool).unwrap_or(false) {
+        out.push_str(&t("(È aperta una finestra in primo piano: si vede solo quella.)"));
+        out.push('\n');
+    }
+    out.push('\n');
+    out.push_str(v.get("tree").and_then(Value::as_str).unwrap_or_default());
+    Ok(cut(&out))
+}
+
+/// After a click or typing: a moment for the page to react, then until it has
+/// loaded (a navigation), at most 3 seconds.
+async fn settle(app: &AppHandle, id: u32) {
+    tokio::time::sleep(Duration::from_millis(350)).await;
+    for _ in 0..10 {
+        let loading = state().tabs.iter().find(|tb| tb.id == id).is_some_and(|tb| tb.loading);
+        if !loading && eval(app, id, "document.readyState").await.is_ok_and(|r| r.contains("complete")) {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(300)).await;
+    }
+}
+
+/// The page's tree, as screen readers see it: one line per landmark, heading,
+/// control or text, indented. Controls get a ref (e1, e2…) that stays the same
+/// for the same element while the page lives, so an old ref never points at
+/// another element. With a modal open only the modal is read. A password
+/// field never shows its value.
+const SNAPSHOT: &str = r#"() => {
+  if (!window.__eiRefs) Object.defineProperty(window, "__eiRefs", { value: { byEl: new WeakMap(), byRef: new Map(), n: 0 }, enumerable: false });
+  const R = window.__eiRefs;
+  const refOf = (el) => { let r = R.byEl.get(el); if (!r) { r = "e" + (++R.n); R.byEl.set(el, r); R.byRef.set(r, new WeakRef(el)); } return r; };
+  const shown = (el) => {
+    if (el.getAttribute("aria-hidden") === "true" || el.hidden) return false;
+    const s = getComputedStyle(el);
+    if (s.display === "none" || s.visibility === "hidden" || s.opacity === "0") return false;
+    return el.getClientRects().length > 0 || s.display === "contents";
+  };
+  const clip = (t, n) => { t = (t || "").replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n) + "…" : t; };
+  const roleOf = (el) => {
+    const r = el.getAttribute("role"); if (r) return r;
+    const tag = el.tagName.toLowerCase();
+    if (tag === "a") return el.hasAttribute("href") ? "link" : "";
+    if (tag === "button" || tag === "summary") return "button";
+    if (tag === "input") {
+      const ty = (el.type || "text").toLowerCase();
+      if (ty === "hidden") return "";
+      if (["button", "submit", "reset", "image"].includes(ty)) return "button";
+      if (ty === "checkbox" || ty === "radio") return ty;
+      if (ty === "range") return "slider";
+      if (ty === "search") return "searchbox";
+      return "textbox";
+    }
+    if (tag === "textarea") return "textbox";
+    if (tag === "select") return el.multiple ? "listbox" : "combobox";
+    if (/^h[1-6]$/.test(tag)) return "heading";
+    if (tag === "img") return el.getAttribute("alt") ? "img" : "";
+    if (el.getAttribute("contenteditable") === "true" || el.getAttribute("contenteditable") === "") return "textbox";
+    return { nav: "navigation", main: "main", header: "banner", footer: "contentinfo", form: "form", dialog: "dialog", aside: "complementary", table: "table", iframe: "iframe" }[tag] || "";
+  };
+  const CONTROL = new Set(["link", "button", "textbox", "searchbox", "checkbox", "radio", "slider", "combobox", "listbox", "tab", "menuitem", "switch", "option", "menuitemcheckbox", "menuitemradio", "spinbutton", "treeitem"]);
+  const nameOf = (el) => {
+    const by = el.getAttribute("aria-labelledby");
+    if (by) { const t = by.split(/\s+/).map((i) => document.getElementById(i)).filter(Boolean).map((e) => e.innerText).join(" "); if (t.trim()) return clip(t, 80); }
+    const direct = el.getAttribute("aria-label") || (el.labels && el.labels[0] && el.labels[0].innerText) || el.getAttribute("alt") || "";
+    if (direct.trim()) return clip(direct, 80);
+    const tag = el.tagName;
+    if (tag === "INPUT" && ["button", "submit", "reset"].includes(el.type)) return clip(el.value, 80);
+    if (tag !== "INPUT" && tag !== "TEXTAREA" && tag !== "SELECT") { const t = clip(el.innerText, 80); if (t) return t; }
+    return clip(el.getAttribute("placeholder") || el.getAttribute("title") || el.getAttribute("name") || "", 80);
+  };
+  const lines = [];
+  const MAX = 800;
+  const walk = (node, depth) => {
+    for (const child of node.childNodes) {
+      if (lines.length >= MAX) return;
+      if (child.nodeType === 3) {
+        const t = clip(child.textContent, 200);
+        if (t) lines.push("  ".repeat(depth) + "- text: " + JSON.stringify(t));
+        continue;
+      }
+      if (child.nodeType !== 1) continue;
+      const el = child;
+      const tag = el.tagName;
+      if (tag === "SCRIPT" || tag === "STYLE" || tag === "NOSCRIPT" || tag === "TEMPLATE") continue;
+      if (tag.toLowerCase() === "svg" && !el.getAttribute("aria-label")) continue;
+      if (!shown(el)) continue;
+      const role = roleOf(el);
+      const pad = "  ".repeat(depth);
+      if (CONTROL.has(role)) {
+        let line = pad + "- " + role + " " + JSON.stringify(nameOf(el)) + " [ref=" + refOf(el) + "]";
+        if (tag === "INPUT" && el.type === "password") line += " [password]";
+        else if ((tag === "INPUT" || tag === "TEXTAREA") && !["checkbox", "radio", "button", "submit", "reset"].includes(el.type) && el.value) line += ": " + JSON.stringify(clip(el.value, 120));
+        if (tag === "SELECT") line += ": " + JSON.stringify(clip(el.selectedOptions[0] ? el.selectedOptions[0].text : "", 80)) + " (" + Array.from(el.options).slice(0, 12).map((o) => clip(o.text, 30)).join(" | ") + ")";
+        if (el.checked || el.getAttribute("aria-checked") === "true") line += " [checked]";
+        if (el.disabled || el.getAttribute("aria-disabled") === "true") line += " [disabled]";
+        const ex = el.getAttribute("aria-expanded"); if (ex) line += " [expanded=" + ex + "]";
+        if (el.getAttribute("aria-selected") === "true") line += " [selected]";
+        if (role === "link" && el.href) line += " -> " + clip(el.href, 120);
+        lines.push(line);
+        continue;
+      }
+      if (role === "heading") { lines.push(pad + "- heading " + JSON.stringify(clip(el.innerText, 120)) + " [level=" + (el.getAttribute("aria-level") || tag.slice(1)) + "]"); continue; }
+      if (role === "img") { lines.push(pad + "- img " + JSON.stringify(nameOf(el))); continue; }
+      if (role === "iframe") { lines.push(pad + "- iframe " + JSON.stringify(clip(el.getAttribute("title") || el.src, 80)) + " (contenuto non letto)"); continue; }
+      let inner = depth;
+      if (role) { lines.push(pad + "- " + role + (el.getAttribute("aria-label") ? " " + JSON.stringify(clip(el.getAttribute("aria-label"), 60)) : "") + ":"); inner = depth + 1; }
+      walk(el.shadowRoot || el, inner);
+    }
+  };
+  const modals = Array.from(document.querySelectorAll("dialog[open], [aria-modal=true]")).filter(shown);
+  const root = modals.length ? modals[modals.length - 1] : document.body;
+  if (root) walk(root, 0);
+  if (lines.length >= MAX) lines.push("… (pagina lunga: tagliata)");
+  return { title: document.title, url: location.href, modal: modals.length > 0, tree: lines.join("\n") };
+}"#;
+
+/// preview_wait: true when the text is there, the gone text is not, the selector matches.
+const WAIT: &str = r#"(q) => {
+  const body = document.body ? document.body.innerText : "";
+  if (q.text && !body.includes(q.text)) return false;
+  if (q.gone && body.includes(q.gone)) return false;
+  try { if (q.selector && !document.querySelector(q.selector)) return false; } catch (e) { return false; }
+  return document.readyState !== "loading";
+}"#;
+
+/// Finds the element of preview_click / preview_type: a ref of preview_snapshot,
+/// a CSS selector, or the visible text (or label, placeholder, value) of a
+/// button, link or field. Typing never goes in a password or payment field.
+const FIND: &str = r#"(q, act, typing) => {
   let el = null;
-  try { if (q.selector) el = document.querySelector(q.selector); } catch (e) { return { error: "Selettore non valido: " + q.selector }; }
+  if (q.ref) {
+    const w = window.__eiRefs && window.__eiRefs.byRef.get(q.ref);
+    el = w && w.deref();
+    if (!el || !el.isConnected) return { error: "Il riferimento " + q.ref + " non è più nella pagina: rifai preview_snapshot." };
+  }
+  try { if (!el && q.selector) el = document.querySelector(q.selector); } catch (e) { return { error: "Selettore non valido: " + q.selector }; }
   if (!el && q.text) {
     const want = q.text.trim().toLowerCase();
     const all = Array.from(document.querySelectorAll("a, button, input, textarea, select, label, summary, [role=button], [role=link], [role=tab], [role=menuitem], [onclick], [contenteditable=true]"));
@@ -1228,6 +1523,7 @@ const FIND: &str = r#"(q, act) => {
     if (el && el.tagName === "LABEL" && el.control) el = el.control;
   }
   if (!el) return { error: "Elemento non trovato nella pagina." };
+  if (typing && (el.type === "password" || /cc-|card|cvc|iban/i.test(el.getAttribute("autocomplete") || "") || /card|cvc|cvv|iban/i.test(el.name || ""))) return { error: "Password e dati di pagamento li scrive l'utente." };
   const what = ((el.innerText || el.value || el.getAttribute("aria-label") || el.getAttribute("placeholder") || el.tagName) + "").trim().slice(0, 60);
   act(el);
   return { what };

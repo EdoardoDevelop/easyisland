@@ -43,6 +43,8 @@ Le pagine sono in un **browser vero** (lo stesso motore di Edge), non in un'imma
 ## La chat usa l'Anteprima
 Con gli strumenti di EasyIsland accesi, la chat può aprire una pagina o un file nell'Anteprima, leggerne il testo, fotografarla, leggere gli errori della console e provarla alle misure del telefono o in modalità scura. Così, dopo aver cambiato il tuo sito, controlla da sola che funzioni prima di dirtelo.
 
+La chat vede la pagina come la leggono i programmi per non vedenti: titoli, testi, pulsanti e campi, ognuno con un suo riferimento. Così clicca proprio l'elemento giusto, anche quando due pulsanti hanno lo stesso testo, sa aspettare che una pagina finisca di caricare e vede le richieste di rete fallite. Quando l'Anteprima è aperta, la chat sa da sola cosa c'è dentro: non serve dirglielo.
+
 Può anche **cliccare** e **scrivere** nei campi di una pagina, ma ogni volta chiede **Consenti / Nega** nell'isola. Non scrive mai password né dati di pagamento.
 
 ## Scorciatoie
