@@ -15,7 +15,7 @@ The **Preview** is a window with tabs, like a small browser, next to the chat. I
 - **Dropping a file** on the window, or typing an address or a path in the bar.
 
 In **Settings → Chat → Preview** you choose how to have it:
-- **In the island, on the right**: a panel inside the open island, to the right of the chat. Drag its left edge to widen it (double click: starting width); it hides when the island closes and comes back when you reopen it. It is there only with the chat: switching to another tab of the island hides it. The **✕** at the top right closes it, and so does the chat's Preview button, which opens and closes it.
+- **In the island, on the right**: a panel inside the open island, to the right of the chat. Drag the edge between chat and Preview to give more room to one or the other, without the island changing size (double click: starting width); it hides when the island closes and comes back when you reopen it. It is there only with the chat: switching to another tab of the island hides it. The **✕** at the top right closes it, and so does the chat's Preview button, which opens and closes it.
 - **Separate window**: a normal window you move wherever you like, even to another screen.
 - **Off**: links and files go back to the browser and their programs.
 

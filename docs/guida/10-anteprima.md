@@ -15,7 +15,7 @@ L'**Anteprima** è una finestra con le schede, come un piccolo browser, che sta 
 - **Trascinando un file** sulla finestra, o scrivendo un indirizzo o un percorso nella barra.
 
 In **Impostazioni → Chat → Anteprima** scegli come averla:
-- **Nell'isola, a destra**: un pannello dentro l'isola aperta, a destra della chat. Trascina il suo bordo sinistro per allargarlo (doppio clic: larghezza di partenza); si nasconde quando l'isola si chiude e torna quando la riapri. C'è solo con la chat: passando a un'altra scheda dell'isola sparisce. Si chiude con la **✕** in alto a destra o con il pulsante dell'Anteprima nella chat, che la apre e la chiude.
+- **Nell'isola, a destra**: un pannello dentro l'isola aperta, a destra della chat. Trascina il bordo fra chat e Anteprima per dare più spazio all'una o all'altra, senza che l'isola cambi misura (doppio clic: larghezza di partenza); si nasconde quando l'isola si chiude e torna quando la riapri. C'è solo con la chat: passando a un'altra scheda dell'isola sparisce. Si chiude con la **✕** in alto a destra o con il pulsante dell'Anteprima nella chat, che la apre e la chiude.
 - **Finestra separata**: una finestra normale, da spostare dove vuoi, anche su un altro schermo.
 - **Spenta**: link e file tornano ad aprirsi nel browser e nei loro programmi.
 

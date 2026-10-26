@@ -135,8 +135,6 @@ export class Island {
   // The Anteprima docked in the island: the panel holds no DOM of its own, the
   // preview's page (a webview of this window) is laid over it by preview.rs.
   private paneOpen = false;
-  /** The widest window Windows gave the open island (resize listener); Infinity = what it asked. */
-  private windowCap = Infinity;
   private paneGrip = h("div", { class: "preview-pane-grip", title: t("Trascina per allargare l'Anteprima · doppio clic: larghezza predefinita") });
   private paneEl = h("div", { id: "preview-pane" }, this.paneGrip);
   private paneSent = { x: 0, y: 0, w: 0, h: 0 };
@@ -673,11 +671,14 @@ export class Island {
    * the panel on top and went off the screen with its buttons.
    */
   private paneSplit(maxW: number): { views: number; pane: number } {
-    const views = this.openWidth(maxW);
-    if (!this.paneShown) return { views, pane: 0 };
+    if (!this.paneShown) return { views: this.openWidth(maxW), pane: 0 };
+    // Views and panel share what the menu leaves (less #body's 10 px gap).
     const room = maxW - this.railRoom - 10;
-    const pane = Math.round(Math.max(200, Math.min(this.paneWidth, room - PANE_VIEWS_MIN_W)));
-    return { views: Math.round(Math.max(200, Math.min(views, room - pane))), pane };
+    const pane = Math.round(clamp(this.paneWidth, PANE_MIN_W, Math.max(PANE_MIN_W, room - PANE_VIEWS_MIN_W)));
+    // The header runs over both: together they are at least as wide as it needs.
+    const least = Math.max(PANE_VIEWS_MIN_W, this.headerNeed - pane - 10);
+    const views = Math.round(clamp(State.settings.islandWidth || EXPANDED_W, least, Math.max(least, room - pane)));
+    return { views, pane };
   }
 
   private get paneWidth(): number {
@@ -2259,13 +2260,11 @@ ${note}` : text };
     if (State.mode === "expanded") this.animateGeometry(false);
   }
 
-  /** The work area of the island's screen, asked again when screen or settings change,
-   *  and when the window changes size (it opened, or moved to another screen). */
+  /** The work area of the island's screen, asked again when screen or settings change. */
   async refreshLimits() {
     const l = await Bridge.panelLimits();
     if (!l) return;
-    const w = Math.min(l[0], this.windowCap);
-    const h = l[1];
+    const [w, h] = l;
     if (Math.abs(w - this.limits.w) < 1 && Math.abs(h - this.limits.h) < 1) return;
     this.limits = { w, h };
     this.animateGeometry(false);
@@ -2476,21 +2475,28 @@ ${note}` : text };
     void Bridge.previewState().then((s) => {
       if (s?.docked) this.setPaneOpen(true);
     }).catch(() => undefined);
+    // The divider between chat and panel: what one gains the other loses, so
+    // the island keeps its width and stays where it is (before, the panel
+    // grew the island, which re-centred under the pointer at every move).
     const g = this.paneGrip;
-    let start: { x: number; w: number } | null = null;
+    let start: { x: number; pane: number; views: number } | null = null;
+    const split = (pane: number, total: number) => {
+      const p = Math.round(clamp(pane, PANE_MIN_W, Math.max(PANE_MIN_W, total - PANE_VIEWS_MIN_W)));
+      State.settings.previewWidth = p;
+      State.settings.islandWidth = total - p;
+      State.lastActivity = performance.now();
+      this.animateGeometry(false);
+    };
     g.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return;
       e.stopPropagation();
       e.preventDefault();
-      start = { x: e.screenX, w: this.paneWidth };
+      start = { x: e.screenX, ...this.paneSplit(islandMax(this.limits).w) };
       g.setPointerCapture(e.pointerId);
     });
     g.addEventListener("pointermove", (e) => {
       if (!start) return;
-      const most = Math.max(PANE_MIN_W, islandMax(this.limits).w - ISLAND_MIN_W - this.railRoom - 30);
-      State.settings.previewWidth = Math.round(Math.min(most, Math.max(PANE_MIN_W, start.w + (start.x - e.screenX))));
-      State.lastActivity = performance.now();
-      this.animateGeometry(false);
+      split(start.pane + (start.x - e.screenX), start.pane + start.views);
     });
     const end = () => {
       if (!start) return;
@@ -2501,8 +2507,8 @@ ${note}` : text };
     g.addEventListener("pointercancel", end);
     g.addEventListener("dblclick", (e) => {
       e.stopPropagation();
-      State.settings.previewWidth = 0;
-      this.animateGeometry(false);
+      const now = this.paneSplit(islandMax(this.limits).w);
+      split(PANE_W, now.pane + now.views);
       void Bridge.saveSettings(State.settings);
     });
   }
@@ -2519,11 +2525,13 @@ ${note}` : text };
       e.stopPropagation();
       e.preventDefault();
       this.cancelHoverOpen();
-      // The width the user sets is the views' own: the menu beside them is
-      // not counted, or the island jumped by the menu's width on the first move.
+      // The width the user sets is the views' own: the menu (and the
+      // Anteprima's panel) beside them is not counted, or the island jumped by
+      // its width on the first move. The width the island is going to, not the
+      // animated one: caught mid-animation the corner jumped.
       start = {
         x: e.screenX, y: e.screenY,
-        w: this.width.value - this.railRoom - this.paneRoom, h: this.height.value,
+        w: this.paneSplit(islandMax(this.limits).w).views, h: this.height.value,
       };
       g.setPointerCapture(e.pointerId);
     });
@@ -2532,7 +2540,14 @@ ${note}` : text };
       const { fx, fy } = dirs();
       const s = State.settings;
       const max = islandMax(this.limits);
-      s.islandWidth = Math.round(Math.min(max.w, Math.max(ISLAND_MIN_W, this.headerNeed, start.w + (e.screenX - start.x) * fx)));
+      // At most what the island can show beside the menu and the panel, at
+      // least what it needs: a number past either went on with the pointer
+      // while the island had stopped, and on the way back the corner stood
+      // still for that stretch (the corner "not under the mouse").
+      const pane = this.paneShown ? this.paneSplit(max.w).pane + 10 : 0;
+      const least = this.paneShown ? Math.max(PANE_VIEWS_MIN_W, this.headerNeed - pane) : Math.max(ISLAND_MIN_W, this.headerNeed);
+      const most = Math.max(least, max.w - this.railRoom - pane);
+      s.islandWidth = Math.round(clamp(start.w + (e.screenX - start.x) * fx, least, most));
       // Not below what the view needs: a height under it was saved as it was
       // (the island stopped, the number went on with the pointer), so the
       // corner no longer followed the pointer on the way back, and the island
@@ -2926,18 +2941,6 @@ ${note}` : text };
     this.islandEl.addEventListener("pointermove", movePress);
     this.wireResize();
     this.wirePane();
-    window.addEventListener("resize", () => {
-      if (State.mode !== "expanded" || !IS_TAURI) return;
-      // A window narrower than asked: that is the screen's room, whatever the limits said.
-      if (window.innerWidth >= PANEL_W && window.innerWidth < this.panel.w - 2) {
-        this.windowCap = window.innerWidth;
-        this.limits = { ...this.limits, w: window.innerWidth };
-        this.animateGeometry(false);
-      } else if (window.innerWidth >= this.panel.w - 2) {
-        this.windowCap = Infinity;
-      }
-      void this.refreshLimits();
-    });
     const openFromCompact = () => {
       if (State.mode !== "expanded") this.openByUser();
     };
