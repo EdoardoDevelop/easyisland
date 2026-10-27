@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 26 ottobre 2026. Versione **1.0.8** in `main` con il tag `v1.0.8` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 27 ottobre 2026. Versione **1.0.9** in `main` con il tag `v1.0.9` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -28,11 +28,11 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Recapiti tra due EasyIsland** (casa ↔ notebook, memorie separate, senza VPN né cloud): da valutare (`docs/idee.md`).
 - [ ] **Pulizia strutturale** (dal controllo del 27 ottobre 2026):
   - guida: due capitoli `10-` (`10-anteprima` e `10-strumenti-ai`, idem in inglese) e `guida.mjs` che abbina italiano e inglese solo dal numero, così il pulsante della lingua porta alla pagina sbagliata: rinumerare e abbinare dal nome;
-  - `README.md`: il link `#dopo-linstallazione` non porta più a nessun titolo;
   - immagini della guida rotte su GitHub (`../media/` da `docs/guida/` cerca `docs/media`): percorso vero verso `site/media/`, corretto da `guida.mjs` per il sito; niente collegamenti simbolici;
   - `island.rs` `on_foreground_change`: un thread nuovo a ogni cambio di finestra (isola ritirata sopra la barra); un contatore che fa uscire i thread vecchi basta;
   - test del front end con `node --test` (zero dipendenze), per primi `expr.ts`, `markdown.ts`, `calc.ts`;
   - i 170 testi inglesi «inutilizzati» di `check:i18n`: guardarli uno per uno, alcuni sono composti al momento.
+- [ ] **Inglese lingua principale anche nell'app** (chiesto da Edoardo il 27 ottobre 2026; README e homepage lo sono dalla 1.0.9): oggi i testi nascono in italiano (`t("testo italiano")`, chiave = italiano, inglese in `src/i18n/en.json`) e l'interfaccia parte in italiano. Da decidere come: solo la lingua predefinita di una nuova installazione, oppure anche le chiavi in inglese.
 - [ ] **Da decidere con Edoardo:** firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
 
 ## Problemi noti
@@ -43,6 +43,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 27 ottobre 2026 — Versione 1.0.9: Anteprima nell'isola, inglese prima
+- Anteprima di file e pagine web (nell'isola o in finestra), passi della chat a parole, permessi dentro la chat, memoria con riassunti e alias: tutto in `CHANGELOG.md`.
+- README e homepage prima in inglese: `README.md` inglese e `README.it.md`; `site/index.html` inglese, `site/it/index.html` italiana, `site/en/index.html` rimanda alla radice; «Sito» nelle Impostazioni apre `/it/` con l'interfaccia in italiano; la guida tiene i suoi indirizzi.
 
 ### 27 ottobre 2026 — Permessi della chat dentro la chat (su `claude/sviluppo`)
 - Un permesso chiesto dalla chat compare in fondo alla conversazione con Nega / Sempre / Consenti (`chat.ts`), non più su una card che toglie la chat; `State.pendingCard()` per la chat è `prompt`.
@@ -63,9 +67,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Secondo passo della ricerca solo sui legami forti (relazione con nome o indicata da due pagine, al massimo 4). Pulizia proposta e ricerca per significato in `docs/idee.md`.
 - Il motore per la memoria (`memory_ai.rs`) scrive anche `summaries`: riscrive solo il riassunto, agli alias aggiunge. Guida e `docs/chat.md` aggiornate.
 - **Prove:** `cargo test` (328), `npm run build`, `check:i18n`. Da provare dal vivo «Collega con l'IA» con un motore vero.
-
-### 26 ottobre 2026 — Versione 1.0.8: logo nuovo, Jarvis Sfera predefinito
-- **Logo** (`src/character/mark.ts`, usato da `scripts/gen-icons.mjs` e da `figure.ts` per il logo nell'isola): fumetto con bordo arcobaleno, interno scuro, due occhi bianchi e coda in basso a sinistra, da un'immagine di Edoardo; fino a 32 px bordo più spesso e occhi più grandi. Provate e scartate: sfera a punti, isola che si apre. La 1.0.8 è stata ripubblicata con questo logo (tag spostato).
-- **Jarvis Sfera** predefinito per le nuove installazioni (`default_character`, `DEFAULT_SETTINGS`); chi ha già scelto tiene il suo. Gli id dei Jarvis ora si possono impostare anche dalla chat (`agent_settings.rs`).
-- **README**: schermata in cima, indice dei capitoli, «Ultime versioni» in quattro righe; la storia completa in `CHANGELOG.md` / `CHANGELOG.en.md`. Schermate tutte rifatte (`screenshots.mjs` ora in italiano di serie, la finestra Flussi al posto della vecchia pagina Automazioni).
-- **Prove:** `cargo test`, `npm run build`, `npm run smoke`.

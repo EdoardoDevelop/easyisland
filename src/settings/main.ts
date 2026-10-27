@@ -4818,7 +4818,7 @@ function render() {
   nav.append(h("div", { class: "nav-foot" },
     h("div", { class: "nav-links" },
       link(t("Guida"), language() === "en" ? `${HOMEPAGE}en/guide/` : `${HOMEPAGE}guida/`),
-      link(t("Sito"), language() === "en" ? `${HOMEPAGE}en/` : HOMEPAGE),
+      link(t("Sito"), language() === "en" ? HOMEPAGE : `${HOMEPAGE}it/`),
       link("GitHub", "https://github.com/EdoardoDevelop/easyisland")),
     h("div", { text: t("Nessuna telemetria. Le richieste di rete vanno solo ai servizi che configuri tu.") })));
 

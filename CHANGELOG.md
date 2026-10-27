@@ -1,6 +1,17 @@
 # Versioni di EasyIsland
 
-Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.md#ultime-versioni).
+Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
+
+**1.0.9** — **Anteprima**: file e pagine web in un browser vero, **dentro l'isola** in un pannello a
+destra della chat (largo quanto trascini il bordo, chiuso e riaperto dal pulsante della chat) o in una
+finestra separata, a scelta in Impostazioni → Chat; zoom **Adatta / 100% / Originale**, misure da
+telefono e tablet, chiaro e scuro, console e modifiche dei file evidenziate. La chat **vede la pagina**
+(elementi con un riferimento), clicca e scrive con Consenti / Nega, aspetta che la pagina sia pronta e
+legge le richieste fallite. I **passi della chat** dicono a parole cosa sta facendo, anche su Telegram.
+I **permessi della chat** compaiono dentro la conversazione con Nega / Sempre / Consenti, anche con
+«Permessi e chiamate» spento. Memoria: riassunti e alias delle pagine e una ricerca che segue i legami
+forti. Il README e la homepage sono prima in inglese (italiano in `README.it.md` e `/it/`). Corretto:
+con l'Anteprima aperta l'isola non si ridimensionava più e l'angolo non seguiva il mouse.
 
 **1.0.8** — **Logo nuovo**: un fumetto con il bordo ad arcobaleno, l'interno scuro e due occhi
 bianchi, leggibile anche a 16 px; lo stesso disegno fa da logo nell'isola. **Jarvis Sfera** è il personaggio predefinito
@@ -157,7 +168,7 @@ Loghi di **Teams** e **Remote Desktop Manager**, alone colorato in basso in tutt
 schede, un clic su una scheda mentre scrivi nella ricerca la chiude e la svuota. Con
 **⚡ Automatica** nella chat opencode usa gli strumenti dei connettori (Notion e gli
 altri) senza chiedere, tranne quelli che cancellano o inviano. Documentazione in
-inglese: [README.en.md](README.en.md) e [docs/en/](docs/en/).
+inglese: [README.md](README.md) e [docs/en/](docs/en/).
 
 **0.8.6** — **Microsoft Teams**: riunione in corso riconosciuta da microfono e webcam, Microfono,
 Video, Alza la mano, Condividi ed Esci nella card e accanto al personaggio chiuso, «Partecipa

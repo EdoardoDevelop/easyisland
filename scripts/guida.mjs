@@ -144,12 +144,12 @@ function render(md) {
 
 const LANGS = {
   it: {
-    src: join(ROOT, "docs", "guida"), out: join(ROOT, "site", "guida"), up: "../", home: "../index.html",
+    src: join(ROOT, "docs", "guida"), out: join(ROOT, "site", "guida"), up: "../", home: "../it/index.html",
     edit: "docs/guida", section: "sezione", lead: "in breve",
     t: { guide: "Guida", of: "Guida di EasyIsland", search: "Cerca nella guida…", onPage: "In questa pagina", prev: "Precedente", next: "Successiva", editLink: "Modifica questa pagina su GitHub", other: "English" },
   },
   en: {
-    src: join(ROOT, "docs", "guida", "en"), out: join(ROOT, "site", "en", "guide"), up: "../../", home: "../index.html",
+    src: join(ROOT, "docs", "guida", "en"), out: join(ROOT, "site", "en", "guide"), up: "../../", home: "../../index.html",
     edit: "docs/guida/en", section: "section", lead: "summary",
     t: { guide: "Guide", of: "EasyIsland Guide", search: "Search the guide…", onPage: "On this page", prev: "Previous", next: "Next", editLink: "Edit this page on GitHub", other: "Italiano" },
   },
