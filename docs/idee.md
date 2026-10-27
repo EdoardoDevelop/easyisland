@@ -165,14 +165,21 @@ Un'impostazione che fa dell'isola una **barra fissa** sul bordo alto o basso del
 
 **Deciso con Edoardo (27 ottobre 2026):**
 - **Solo in alto o in basso.** A destra e a sinistra la modalità fissa non c'è.
-- **Personaggio non più trascinabile.** L'isola sta in una delle tre aree della barra (inizio, centro, fine), scelta in Impostazioni, e anche il monitor si sceglie lì.
-- **Tre aree personalizzabili: sinistra, centro, destra.** In ognuna l'utente mette le **sue** integrazioni e azioni rapide, come in una barra dei menu. Niente voci predefinite: si sceglie in Impostazioni, mai con una modalità di modifica nell'isola.
-- **Sfondo della barra a scelta** in Impostazioni: trasparente (si vede il desktop; predefinito) o pieno con il colore dell'isola.
-- **Spessore:** quello della vista compatta, che segue le dimensioni scelte oggi; nessuna impostazione in più.
-- **Aspetto:** quello attuale dell'isola, configurabile come oggi.
+- **Il comportamento dell'isola non cambia:** si apre, si chiude, cresce e mostra le viste come oggi. Il personaggio non si trascina più.
+- **Impostazioni in più, solo con la barra fissa accesa** (Impostazioni → Aspetto), per una personalizzazione completa:
+  - **Tre aree della barra:** inizio (sinistra), centro e fine (destra). Il **personaggio**, cioè l'isola, si mette in una delle tre.
+  - **Cosa si può mettere:** in ognuna delle tre aree l'utente sceglie cosa mettere e in che ordine: le **sue** integrazioni, azioni rapide, widget e la **striscia** (risposte rapide a permessi e chiamate, barra dell'app in uso). La striscia non è per forza accanto al personaggio: va dove la mette l'utente.
+  - Niente voci predefinite e nessuna modalità di modifica nell'isola: tutto si sceglie in Impostazioni.
+  - Anche il monitor della barra si sceglie lì.
+- **Sfondo della barra:** di serie è quello dell'isola (barra piena); si può cambiare, per esempio in trasparente o in un altro colore.
+- **Spessore:** quello della vista compatta, che segue le dimensioni scelte oggi.
+- **Elementi nella barra:**
+  - **integrazioni:** icona, valore breve («☁ 18°», «✉ 3») o entrambi, a scelta per ognuna; al clic aprono la loro card nell'isola, come dal menu;
+  - **azioni rapide:** come i pulsanti della barra dell'app in uso (`barLook`: icona, testo o entrambi);
+  - **widget:** sì, anche loro, con lo stesso clic che apre la card.
 
 **Come funziona (proposta):**
-- La vista compatta dell'isola è sempre visibile nella sua area. Aperta (chat, card), l'isola cresce dalla barra sopra le finestre, senza riservare altro spazio.
+- La vista compatta dell'isola è sempre visibile nella sua area. Aperta (chat, card), l'isola cresce dalla barra sopra le finestre, senza riservare altro spazio. Le aree si dispongono intorno all'isola senza sovrapporsi; se gli elementi non ci stanno, quelli in eccesso finiscono in un menu «…».
 - Impostazioni che non valgono più con la barra fissa (nascoste o spente):
   - trascinamento e `offsetX` / `offsetY`;
   - «lascia su una finestra o su un'icona del desktop»;
@@ -190,11 +197,7 @@ Un'impostazione che fa dell'isola una **barra fissa** sul bordo alto o basso del
 - **Finestre:** oggi l'isola è una finestra trasparente di almeno 720×560 attorno all'isola. La barra è larga quanto lo schermo, quindi le aree laterali vogliono probabilmente una finestra sottile a tutta larghezza (trasparente ai clic fuori dagli elementi), registrata come barra di Windows. L'isola resta la sua finestra di sempre, sopra. Da verificare con una prova.
 - **Costo a riposo nullo:** Windows avvisa la barra solo quando cambia qualcosa. Gli elementi delle aree si aggiornano con gli eventi che le integrazioni mandano già, mai con un ciclo proprio.
 
-**Da decidere con Edoardo prima di cominciare:**
-- Cosa mostra un'**integrazione** nella barra: icona e un valore breve («☁ 18°», «✉ 3», l'icona colorata del Ping), solo icona, o icona e testo a scelta. E al clic: apre la sua card nell'isola, come dal menu?
-- Le **azioni rapide**: come i pulsanti della barra dell'app in uso (icona, testo o entrambi, `barLook`), anche quelle legate a un programma?
-- I **widget** si possono mettere nella barra o no?
-- La **barra dell'app in uso** e le risposte rapide (permessi, chiamate) restano nella striscia accanto al personaggio, come oggi?
+**Primo passo:** una prova della finestra a tutta larghezza registrata come barra di Windows (spazio riservato, finestre massimizzate sotto, schermo intero, uscita), prima di scrivere le Impostazioni.
 
 ## Altro
 - **Scheda esatta di Windows Terminal** per «Apri»: il relay legge il titolo della console e l'app seleziona la scheda con UI Automation. Da sperimentare con una sessione vera. Tolta dal Da fare il 9 ottobre: per ora non serve.
