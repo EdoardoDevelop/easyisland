@@ -27,7 +27,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Flussi:** fatti nel codice (finestra Flussi, agenti, scelte, per ogni, domande su Telegram, tentativi, esecuzioni; piano e scelte in `docs/flussi.md`); da provare con flussi veri, soprattutto un agente con i campi, la scelta del modello e la ripresa dopo un riavvio.
 - [ ] **Isola fissa con spazio riservato** su un bordo (alto, basso, destra, sinistra), personaggio non più trascinabile: da studiare con Edoardo (`docs/idee.md`).
 - [ ] **Rinominare le conversazioni** nella cronologia della chat (✎ accanto a 📌, `chat_rename`; `docs/idee.md`).
-- [ ] **Modello integrato:** un modello locale senza Ollama né LM Studio, con `llama-server.exe` nascosto nell'installer e i modelli scaricati con un clic (`docs/idee.md`).
+- [ ] **Modello integrato** (accantonato il 27 ottobre 2026): fatto nel branch `claude/modello-integrato`, non unito, manca la prova dal vivo (`docs/idee.md`).
 - [ ] **Recapiti tra due EasyIsland** (casa ↔ notebook, memorie separate, senza VPN né cloud): da valutare (`docs/idee.md`).
 - [ ] **Pulizia strutturale** (dal controllo del 27 ottobre 2026):
   - guida: due capitoli `10-` (`10-anteprima` e `10-strumenti-ai`, idem in inglese) e `guida.mjs` che abbina italiano e inglese solo dal numero, così il pulsante della lingua porta alla pagina sbagliata: rinumerare e abbinare dal nome;
