@@ -160,6 +160,8 @@ export async function runScene(island: Island, scene: string) {
         ];
         State.notify();
       }
+      // ?pane: the Anteprima docked in the island (its page is not there: only the frame).
+      if (new URLSearchParams(location.search).has("pane")) island.setPaneOpen(true);
       // ?remote: a remote connection open, the 🔌 in the head (&linked: on).
       if (new URLSearchParams(location.search).has("remote")) {
         State.integrations.integration_remote = { loaded: true, configured: true, error: null,

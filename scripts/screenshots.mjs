@@ -87,10 +87,15 @@ const SHOTS = {
   "memoria-mappa": { url: "/memoria.html?tab=mind&select=p:studio-rossi", page: { w: 1180, h: 760 }, wait: 5000 },
   "memoria-concetti": { url: "/memoria.html?tab=concept", page: { w: 1180, h: 760 } },
   "memoria-timeline": { url: "/memoria.html?tab=timeline", page: { w: 1180, h: 760 } },
+  // The preview window (src/preview/), on its made-up tabs (demo.ts).
+  "anteprima-modifiche": { url: "/anteprima.html?tab=2", page: { w: 1180, h: 720 } },
+  "anteprima-web": { url: "/anteprima.html?tab=1", page: { w: 1180, h: 720 } },
+  "anteprima-markdown": { url: "/anteprima.html?tab=3", page: { w: 1180, h: 720 } },
+  "anteprima-csv": { url: "/anteprima.html?tab=4", page: { w: 1180, h: 720 } },
   // The guide of the homepage (site/guida/, node scripts/guida.mjs).
   guida: { url: "/site/guida/memoria.html", page: { w: 1280, h: 800 } },
   "guide-en": { url: "/site/en/guide/tasks.html", page: { w: 1280, h: 800 } },
-  "home-en": { url: "/site/en/index.html", page: { w: 1280, h: 800 } },
+  "home-en": { url: "/site/index.html", page: { w: 1280, h: 800 } },
 };
 
 const EDGE = [

@@ -12,7 +12,7 @@ In the **Remote access** tab: **WinRM** or **SSH**, address, port, user, passwor
 - **WinRM** uses Windows PowerShell; **SSH** Windows' `ssh.exe` (OpenSSH).
 
 ### With the chat
-With a connection open, **🔌** and the PC's name appear in the chat header (also **Link to the chat** in the tab). From there the chat runs **commands on the client's PC**, one at a time (PowerShell on Windows, sh on Linux), **each with Allow / Deny** and the full command on the card. Examples: "why won't the spooler start?", "how much space is on the disks?", "check the latest errors in the event log".
+With a connection open, **🔌** and the PC's name appear in the chat header (also **Link to the chat** in the tab). From there the chat runs **commands on the client's PC**, one at a time (PowerShell on Windows, sh on Linux), **each with Allow / Deny** and the full command in the chat. Examples: "why won't the spooler start?", "how much space is on the disks?", "check the latest errors in the event log".
 
 ### Closing
 **Close connection**: the chat is unlinked, the password forgotten, the address removed from TrustedHosts (with Windows' confirmation), WinRM turned off again if it was.

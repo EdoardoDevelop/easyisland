@@ -507,6 +507,12 @@ export interface Settings {
   chatTerminal?: boolean;
   /** Its working folder; "" = the user's home. */
   chatFolder?: string;
+  /** «Anteprima» (src/preview/): the chat's links and the files terminal mode edits open in the preview window. */
+  chatPreview?: boolean;
+  /** The preview stuck to the open island instead of a window of its own. */
+  previewDocked?: boolean;
+  /** The panel's width in the island, logical px (dragged by its edge); 0 = the usual. */
+  previewWidth?: number;
   /** In front of every new conversation; of the profile (PROFILE_KEYS). */
   chatInstructions?: string;
   /** Impostazioni → Chat → Assistenti: an engine and instructions for a conversation, picked with "/". */
@@ -1015,6 +1021,9 @@ export const DEFAULT_SETTINGS: Settings = {
   agentTools: true,
   chatTerminal: false,
   chatFolder: "",
+  chatPreview: true,
+  previewDocked: false,
+  previewWidth: 0,
   chatInstructions: "",
   chatAssistants: [],
   opencodeWatch: false,
@@ -1137,6 +1146,8 @@ class AppState {
   chatEngineOverride: ChatEngine | null = null;
   /** "Automatica" (chat head, Modalità terminale only): no Consenti / Nega for this conversation. Never saved. */
   chatAuto = false;
+  /** The Anteprima is open as the island's panel (island.ts setPaneOpen). */
+  previewOpen = false;
   /** The engine the chat uses right now. */
   get chatEngine(): ChatEngine {
     return this.chatEngineOverride ?? this.settings.chatEngine;
@@ -1456,7 +1467,8 @@ class AppState {
   /** The card a pending permission request waits on, if there is one. */
   pendingCard(): IslandViewName | null {
     const p = this.pendingApproval;
-    return p ? (p.questions ? "ask" : "approval") : null;
+    // The chat's own requests wait inside the chat (chat.ts), not on a card.
+    return p ? (p.source === "chat" ? "prompt" : p.questions ? "ask" : "approval") : null;
   }
 
   /** Where the island opens: a request waiting for an answer comes first. */

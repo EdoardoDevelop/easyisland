@@ -475,6 +475,10 @@ fn tool_name(action: &str) -> String {
 
 /// A step line under the reply: "Esegue · echo ciao".
 pub fn step_line(tool: &str, input: &Value) -> String {
+    // MCP tools come as "<server>_<tool>": EasyIsland's in words (steps.rs).
+    if let Some(rest) = tool.strip_prefix("easyisland_") {
+        return crate::steps::mcp("easyisland", rest, input);
+    }
     let s = |k: &str| input.get(k).and_then(Value::as_str).map(str::to_string);
     let what = s("command").or_else(|| s("filePath")).or_else(|| s("file_path")).or_else(|| s("path")).or_else(|| s("pattern"))
         .or_else(|| s("url")).or_else(|| s("query")).unwrap_or_default();
@@ -839,6 +843,7 @@ async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&Chat
                 "session.tool.called" => {
                     let id = data.get("id").and_then(Value::as_str).unwrap_or_default();
                     let name = names.get(id).cloned().unwrap_or_else(|| "strumento".into());
+                    crate::preview::touched_by(&name, data.get("input").unwrap_or(&Value::Null));
                     let line = step_line(&name, data.get("input").unwrap_or(&Value::Null));
                     out = shown(&out, &line);
                     thinking.clear();

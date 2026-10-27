@@ -10,4 +10,4 @@ disagree, the Italian notes are the reference.
 | [development.md](development.md) | build, tests, browser previews, installing a build, publishing a release | [sviluppo.md](../sviluppo.md) |
 | [agents-and-chat.md](agents-and-chat.md) | hooks and relay, Claude Code and the other agents, chat engines, terminal mode, ⚡ Automatic, permissions | [agenti.md](../agenti.md), [chat.md](../chat.md) |
 
-For users, start from the [English README](../../README.en.md).
+For users, start from the [English README](../../README.md).

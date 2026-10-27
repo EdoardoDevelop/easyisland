@@ -2,7 +2,7 @@
 
 Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli una voce quando è provata, e annota in `HANDOFF.md` ciò che non va.
 
-- Motore per la memoria: scegliere un motore gratuito (OpenRouter) e uno locale (Ollama), «Collega con l'IA» nella mappa, controllare le pagine-argomento create e che nessuna nota sia cambiata.
+- Motore per la memoria: scegliere un motore gratuito (OpenRouter) e uno locale (Ollama), «Collega con l'IA» nella mappa, controllare le pagine-argomento create e che nessuna nota sia cambiata; che scriva `riassunto:` e `alias:` sensati e che la chat trovi una pagina dal suo alias.
 - [ ] **Integrazioni personali (23 ottobre 2026):** provati nell'anteprima modulo, righe, calcoli e modello compilato. Restano con l'app vera:
   1. in chat «crea un'integrazione per i preventivi…»: la card di Consenti con la descrizione, poi la voce nel menu;
   2. Salva, poi la scheda in «Salvate», Duplica, Elimina;
@@ -169,3 +169,5 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
 - **Impostazioni ferme:** in fondo ad Azioni rapide cambia «Chiedi alla chat» in «Tasti nel programma in uso», e in Integrazioni accendi e spegni un interruttore: la pagina resta dov'è.
 - **File sull'isola a riposo:** con la vista compatta tornata a riposo (anche «Nessuna», la striscia invisibile), trascina un file sul bordo dov'è l'isola: si apre il pannello di rilascio.
 - **Logo al posto del personaggio:** Tema → Nell'isola → Il mio logo, Carica PNG…: il logo compare nell'icona a riposo, nella vista compatta e nell'isola aperta, fermo, senza saluto all'avvio; Il meteo mostra cielo e temperatura con Meteo attiva; un backup esportato contiene `logo.png`.
+- Anteprima (26 ottobre 2026): aprire un link e un file dalla chat, un server di sviluppo dalla card e da «+»; pagina web con Desktop/Tablet/Telefono, ☀/☾, console con un errore, Strumenti per sviluppatori; HTML e PDF nel browser; un file modificato dalla Modalità terminale che si apre da solo con «Modifiche»; trascinare un file sulla finestra; chiudere e riaprire (schede uguali, niente processi rimasti); dalla chat `preview_read`, `preview_screenshot`, `preview_console`, `preview_click` con Consenti / Nega.
+- Anteprima nell'isola (26 ottobre 2026; pannello, bordo, angolo, icone, ✕, chiusura e riapertura, isola a destra provati il 27): pagine web cliccabili e scrivibili dentro il pannello. Dalla chat: preview_snapshot su un sito vero, clic per ref, preview_wait, preview_network con una 404, riga di contesto quando l'Anteprima è aperta.

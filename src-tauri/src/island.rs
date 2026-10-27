@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use crate::settings::Settings;
-use tauri::{AppHandle, Emitter, Manager, Monitor, PhysicalPosition, PhysicalSize, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, Monitor, PhysicalPosition, PhysicalSize};
 
 use windows::Win32::Foundation::{HWND, POINT};
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
@@ -153,8 +153,18 @@ impl PollGate {
     }
 }
 
-pub fn window(app: &AppHandle) -> Option<WebviewWindow> {
-    app.get_webview_window(WINDOW_LABEL)
+/// The island's window. Taken as a window, not as a webview window: once the
+/// Anteprima's page is a second webview in it (preview.rs, docked), Tauri no
+/// longer counts it as a webview window and `get_webview_window` gives None,
+/// so every move, resize and click-through of the island stopped silently
+/// (26 Oct 2026). Its own page is `page(app)`.
+pub fn window(app: &AppHandle) -> Option<tauri::Window> {
+    app.get_window(WINDOW_LABEL)
+}
+
+/// The island's own page (the webview with the window's label).
+pub fn page(app: &AppHandle) -> Option<tauri::Webview> {
+    app.get_webview(WINDOW_LABEL)
 }
 
 pub fn cursor_physical() -> Option<(f64, f64)> {
@@ -639,7 +649,7 @@ fn step_aside_for(app: &AppHandle, gate: &PollGate, fg: HWND) {
     if fg.0.is_null() || fg == me || is_shell(fg) {
         return;
     }
-    if app.get_webview_window(crate::SETTINGS_LABEL).and_then(|w| hwnd_of(&w)) == Some(fg) {
+    if app.get_window(crate::SETTINGS_LABEL).and_then(|w| hwnd_of(&w)) == Some(fg) {
         return;
     }
     if covers(&win, gate, fg) {
@@ -674,7 +684,7 @@ fn is_shell(hwnd: HWND) -> bool {
 }
 
 /// True when `fg` (its visible frame) overlaps the island's shape on screen.
-fn covers(win: &WebviewWindow, gate: &PollGate, fg: HWND) -> bool {
+fn covers(win: &tauri::Window, gate: &PollGate, fg: HWND) -> bool {
     use windows::Win32::Foundation::RECT;
     use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
     use windows::Win32::UI::WindowsAndMessaging::{GetWindowRect, IsIconic};
@@ -756,7 +766,7 @@ fn settings_in_front(app: &AppHandle) -> Option<HWND> {
     if !SETTINGS_FRONT.load(Ordering::Relaxed) {
         return None;
     }
-    let win = app.get_webview_window(crate::SETTINGS_LABEL)?;
+    let win = app.get_window(crate::SETTINGS_LABEL)?;
     let hwnd = hwnd_of(&win)?;
     unsafe { IsWindowVisible(hwnd).as_bool() }.then_some(hwnd)
 }
@@ -768,7 +778,7 @@ fn settings_in_front(app: &AppHandle) -> Option<HWND> {
 /// so it never covers other programs.
 pub fn keep_settings_above(app: &AppHandle, active: bool) {
     SETTINGS_FRONT.store(active, Ordering::Relaxed);
-    let Some(win) = app.get_webview_window(crate::SETTINGS_LABEL) else { return };
+    let Some(win) = app.get_window(crate::SETTINGS_LABEL) else { return };
     let Some(hwnd) = hwnd_of(&win) else { return };
     unsafe {
         let _ = SetWindowPos(
@@ -784,7 +794,7 @@ pub fn keep_settings_above(app: &AppHandle, active: bool) {
 }
 
 /// The island is the window under the cursor (not covered there).
-fn hit_is(win: &WebviewWindow, cx: f64, cy: f64) -> bool {
+fn hit_is(win: &tauri::Window, cx: f64, cy: f64) -> bool {
     use windows::Win32::UI::WindowsAndMessaging::{GetAncestor, WindowFromPoint, GA_ROOT};
     let Some(me) = hwnd_of(win) else { return false };
     unsafe {
@@ -793,7 +803,7 @@ fn hit_is(win: &WebviewWindow, cx: f64, cy: f64) -> bool {
     }
 }
 
-pub fn hwnd_of(win: &WebviewWindow) -> Option<HWND> {
+pub fn hwnd_of(win: &tauri::Window) -> Option<HWND> {
     let raw = win.hwnd().ok()?.0 as isize;
     if raw == 0 {
         return None;
@@ -804,7 +814,7 @@ pub fn hwnd_of(win: &WebviewWindow) -> Option<HWND> {
 /// Tao rewrites the extended style from its own flags at every change of them
 /// (ignore cursor events, always on top) and drops WS_EX_TOOLWINDOW: the closed
 /// island then showed in Alt+Tab. Put back unless it is open as an app.
-pub fn keep_out_of_alt_tab(win: &WebviewWindow) {
+pub fn keep_out_of_alt_tab(win: &tauri::Window) {
     if app_mode() {
         return;
     }
@@ -819,14 +829,14 @@ pub fn keep_out_of_alt_tab(win: &WebviewWindow) {
 }
 
 /// `set_ignore_cursor_events`, keeping the island out of Alt+Tab.
-pub fn ignore_cursor(win: &WebviewWindow, ignore: bool) {
+pub fn ignore_cursor(win: &tauri::Window, ignore: bool) {
     let _ = win.set_ignore_cursor_events(ignore);
     keep_out_of_alt_tab(win);
 }
 
 /// WS_EX_NOACTIVATE keeps clicks from stealing focus; WS_EX_TOOLWINDOW keeps the
 /// island out of Alt-Tab.
-pub fn make_non_activating(win: &WebviewWindow) {
+pub fn make_non_activating(win: &tauri::Window) {
     let Some(hwnd) = hwnd_of(win) else { return };
     unsafe {
         let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
@@ -837,7 +847,7 @@ pub fn make_non_activating(win: &WebviewWindow) {
 
 /// Temporarily allow activation so a text field inside the island can be typed in.
 /// Pinned as an app the window is always activatable, like any other.
-pub fn set_activating(win: &WebviewWindow, activating: bool) {
+pub fn set_activating(win: &tauri::Window, activating: bool) {
     if !activating && app_mode() {
         return;
     }

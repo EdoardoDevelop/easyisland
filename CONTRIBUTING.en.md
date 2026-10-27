@@ -8,7 +8,7 @@ proposals are welcome.
 ## Getting started
 
 You need Windows 10/11 with Node.js and Rust (MSVC toolchain): the steps are in the
-**Installation** section of the [README](README.en.md).
+**Installation** section of the [README](README.md).
 
 ```powershell
 npm install
@@ -23,7 +23,7 @@ npm run pack        # the installer in release\
   documentation and commit messages; identifiers and code comments are in English.
   Every string the user sees goes through `t("Italian text")` and has its English
   translation in `src/i18n/en.json` (`npm run build` fails if one is missing).
-  English versions of the main documents live next to them (`README.en.md`,
+  English versions of the main documents live next to them (`README.it.md`,
   `docs/en/`).
 - TypeScript + Rust (Tauri 2). **No new dependencies** unless truly unavoidable.
   Characters, icons and sounds are drawn or synthesised in code.

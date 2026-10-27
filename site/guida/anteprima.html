@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anteprima — Guida di EasyIsland</title>
+<meta name="description" content="File e pagine web accanto alla chat, in un browser vero: modifiche evidenziate, dimensioni da telefono, console e strumenti per la chat.">
+<link rel="icon" href="../media/icon.png">
+<link rel="stylesheet" href="../site.css">
+<link rel="stylesheet" href="../guida/guida.css">
+<link rel="alternate" hreflang="en" href="../en/guide/ai-tools.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../it/index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guida · 1.0.8</span>
+<div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../it/index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../en/guide/ai-tools.html" hreflang="en">English</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">Guida di EasyIsland</a></li></ul><div class="group">Per iniziare</div><ul><li><a href="installazione.html">Installazione</a></li><li><a href="primi-passi.html">Primi passi</a></li><li><a href="isola.html">L'isola</a></li></ul><div class="group">Personalizzare</div><ul><li><a href="aspetto.html">Posizione e aspetto</a></li><li><a href="profili.html">Profili e notifiche</a></li></ul><div class="group">Agenti di programmazione</div><ul><li><a href="agenti.html">Agenti di codice</a></li></ul><div class="group">Intelligenza artificiale</div><ul><li><a href="chat.html">La chat</a></li><li><a href="motori.html">Motori AI</a></li><li><a href="anteprima.html" class="on" aria-current="page">Anteprima</a></li><li><a href="strumenti-ai.html">Modalità terminale e strumenti</a></li><li><a href="memoria.html">Memoria e secondo cervello</a></li><li><a href="compiti.html">Compiti, Battito e Abilità</a></li></ul><div class="group">Fare le cose</div><ul><li><a href="azioni.html">Azioni rapide e scorciatoie</a></li><li><a href="automazioni.html">Automazioni</a></li><li><a href="file-e-schermo.html">File e schermo</a></li></ul><div class="group">Collegare i servizi</div><ul><li><a href="integrazioni.html">Integrazioni</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="assistenza-remota.html">Assistenza remota</a></li><li><a href="integrazioni-personali.html">Integrazioni personali</a></li><li><a href="widget.html">Widget</a></li></ul><div class="group">Riferimento</div><ul><li><a href="impostazioni.html">Impostazioni, pagina per pagina</a></li><li><a href="privacy.html">Privacy e sicurezza</a></li><li><a href="riga-di-comando.html">Riga di comando e script</a></li><li><a href="problemi.html">Problemi e soluzioni</a></li><li><a href="sviluppo.html">Per sviluppatori</a></li></ul></aside>
+<main>
+<div class="crumb">Intelligenza artificiale</div>
+<h1>Anteprima</h1>
+<p class="lead">File e pagine web accanto alla chat, in un browser vero: modifiche evidenziate, dimensioni da telefono, console e strumenti per la chat.</p>
+<p>L'<strong>Anteprima</strong> è una finestra con le schede, come un piccolo browser, che sta accanto alla chat. Ci vedi i file su cui la chat lavora e le pagine web: il sito che stai sviluppando su <code>localhost</code>, una pagina che la chat ha appena costruito, un PDF, un CSV.</p>
+<p><img src="../media/anteprima-modifiche.png" alt="Le modifiche di un file nell'Anteprima" loading="lazy"></p>
+<h2 id="come-si-apre"><a class="anchor" href="#come-si-apre">#</a>Come si apre</h2>
+<ul><li><strong>Un link in un messaggio della chat</strong>: si apre nell'Anteprima. Con <strong>Ctrl+clic</strong> va invece nel browser di Windows.</li><li><strong>Un file citato dalla chat</strong> (per esempio <code>src/app.ts</code> o <code>C:\Progetti\sito\README.md</code>): è sottolineato a puntini, un clic lo apre. I percorsi relativi partono dalla cartella della chat (Impostazioni → Chat → Cartella di lavoro).</li><li><strong>Da sola, con la Modalità terminale</strong>: quando la chat modifica un file, il file compare nell'Anteprima con le modifiche evidenziate, senza rubarti la finestra.</li><li><strong>Il pulsante con la finestra</strong> nella testata della chat (con la Modalità terminale accesa).</li><li><strong>Un server di sviluppo appena partito</strong>: la card nell'isola ha il pulsante <strong>Anteprima</strong>. Anche <strong>+</strong> nell'Anteprima elenca i server in ascolto su questo PC.</li><li><strong>Trascinando un file</strong> sulla finestra, o scrivendo un indirizzo o un percorso nella barra.</li></ul>
+<p>In <strong>Impostazioni → Chat → Anteprima</strong> scegli come averla:</p>
+<ul><li><strong>Nell'isola, a destra</strong>: un pannello dentro l'isola aperta, a destra della chat. Trascina il bordo fra chat e Anteprima per dare più spazio all'una o all'altra, senza che l'isola cambi misura (doppio clic: larghezza di partenza); si nasconde quando l'isola si chiude e torna quando la riapri. C'è solo con la chat: passando a un'altra scheda dell'isola sparisce. Si chiude con la <strong>✕</strong> in alto a destra o con il pulsante dell'Anteprima nella chat, che la apre e la chiude.</li><li><strong>Finestra separata</strong>: una finestra normale, da spostare dove vuoi, anche su un altro schermo.</li><li><strong>Spenta</strong>: link e file tornano ad aprirsi nel browser e nei loro programmi.</li></ul>
+<h2 id="i-file"><a class="anchor" href="#i-file">#</a>I file</h2>
+<div class="table"><table><thead><tr><th>Tipo</th><th>Cosa vedi</th></tr></thead><tbody><tr><td>Codice (ts, js, rs, py, cs, ps1, json…)</td><td>Righe numerate e colorate</td></tr><tr><td>Markdown</td><td><strong>Anteprima</strong> impaginata o <strong>Codice</strong></td></tr><tr><td>CSV</td><td>Una <strong>tabella</strong> (prime 1000 righe) o il testo</td></tr><tr><td>HTML, SVG, PDF</td><td>Nel browser, oppure il codice</td></tr><tr><td>Immagini</td><td>L'immagine; un clic per vederla a grandezza reale</td></tr></tbody></table></div>
+<p>Quando la chat ha cambiato un file compare <strong>Modifiche +7 −5</strong>: le righe tolte in rosso, quelle aggiunte in verde, rispetto a com'era prima che la chat lo toccasse. Il file si ridisegna da solo quando cambia, anche se lo modifichi tu.</p>
+<h2 id="le-pagine-web"><a class="anchor" href="#le-pagine-web">#</a>Le pagine web</h2>
+<p>Le pagine sono in un <strong>browser vero</strong> (lo stesso motore di Edge), non in un'immagine.</p>
+<ul><li><strong>← → ↻</strong> e la barra dell'indirizzo, come in un browser; <code>localhost:5173</code> basta, senza <code>http://</code>.</li><li><strong>Pannello, Desktop, Tablet, Telefono</strong>: la pagina larga quanto l'Anteprima o alle misure di quel dispositivo, con il tocco per il telefono.</li><li><strong>Adatta, 100%, Originale</strong>: la pagina rimpicciolita finché ci sta (senza un dispositivo scelto, come su un PC), a grandezza normale, oppure un pixel della pagina per ogni pixel dello schermo.</li><li><strong>Auto, ☀, ☾</strong>: la pagina in modalità chiara o scura, per provare i due temi del tuo sito.</li><li><strong>Console</strong>: messaggi ed errori della pagina; il numero rosso sulla scheda dice quanti errori ci sono.</li><li><strong>⋯</strong>: apri nel browser o nel programma del file, mostra nella cartella, copia l'indirizzo, <strong>Strumenti per sviluppatori</strong> (quelli di Edge).</li></ul>
+<p><img src="../media/anteprima-web.png" alt="Una pagina web nell'Anteprima" loading="lazy"></p>
+<h2 id="la-chat-usa-l-anteprima"><a class="anchor" href="#la-chat-usa-l-anteprima">#</a>La chat usa l'Anteprima</h2>
+<p>Con gli strumenti di EasyIsland accesi, la chat può aprire una pagina o un file nell'Anteprima, leggerne il testo, fotografarla, leggere gli errori della console e provarla alle misure del telefono o in modalità scura. Così, dopo aver cambiato il tuo sito, controlla da sola che funzioni prima di dirtelo.</p>
+<p>La chat vede la pagina come la leggono i programmi per non vedenti: titoli, testi, pulsanti e campi, ognuno con un suo riferimento. Così clicca proprio l'elemento giusto, anche quando due pulsanti hanno lo stesso testo, sa aspettare che una pagina finisca di caricare e vede le richieste di rete fallite. Quando l'Anteprima è aperta, la chat sa da sola cosa c'è dentro: non serve dirglielo.</p>
+<p>Può anche <strong>cliccare</strong> e <strong>scrivere</strong> nei campi di una pagina, ma ogni volta chiede <strong>Consenti / Nega</strong> nell'isola. Non scrive mai password né dati di pagamento.</p>
+<h2 id="scorciatoie"><a class="anchor" href="#scorciatoie">#</a>Scorciatoie</h2>
+<div class="table"><table><thead><tr><th>Tasti</th><th>Cosa fa</th></tr></thead><tbody><tr><td>Ctrl+L</td><td>Va alla barra dell'indirizzo</td></tr><tr><td>Ctrl+R o F5</td><td>Ricarica</td></tr><tr><td>Ctrl+T</td><td>Nuova scheda</td></tr><tr><td>Ctrl+W</td><td>Chiude la scheda</td></tr><tr><td>Ctrl+Tab</td><td>Scheda successiva</td></tr><tr><td>Alt+← / Alt+→</td><td>Indietro / avanti</td></tr></tbody></table></div>
+<p>Chiusa la finestra non resta niente in esecuzione; le schede si riaprono uguali la volta dopo.</p>
+<div class="pager"><a class="prev" href="motori.html"><small>Precedente</small>Motori AI</a><a class="next" href="strumenti-ai.html"><small>Successiva</small>Modalità terminale e strumenti</a></div>
+<footer>EasyIsland 1.0.8 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/10-anteprima.md">Modifica questa pagina su GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#come-si-apre">Come si apre</a></li><li class="l2"><a href="#i-file">I file</a></li><li class="l2"><a href="#le-pagine-web">Le pagine web</a></li><li class="l2"><a href="#la-chat-usa-l-anteprima">La chat usa l'Anteprima</a></li><li class="l2"><a href="#scorciatoie">Scorciatoie</a></li></ul></nav>
+</div>
+<script src="../guida/guida.js"></script>
+</body>
+</html>

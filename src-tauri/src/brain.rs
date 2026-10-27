@@ -5,6 +5,9 @@
 // - `pagine/<nome>.md`: one page per subject (a person, a customer, a project,
 //   a concept), linked to the others with [[Titolo]]; a line
 //   "- relazione: [[Altra]]" names how two pages are related (the concept map).
+//   Optional header lines "riassunto:" (one sentence on who or what it is) and
+//   "alias:" (other names, comma separated): the search finds a page by its
+//   aliases, [[Alias]] links reach it, and a linked page shows its summary.
 //   The agent writes them (memory_page_write) without asking, like
 //   memory_note, but never over a page that changed after it read it: every
 //   read gives the page's version (a hash) and a write with an old one fails.
@@ -35,6 +38,8 @@ const MAX_SOURCE: usize = 30_000;
 const READABLE: &[&str] = &["md", "txt", "csv", "json", "html", "htm", "eml", "log", "xml", "yaml", "yml", "ini"];
 /// Notes or pages untouched for longer are "old" in the check.
 const OLD_DAYS: i64 = 180;
+/// Pages two links away the search adds, at most.
+const MAX_SECOND_HOP: usize = 4;
 /// Lines of the diary the window gets, newest.
 const MAX_DIARY_EVENTS: usize = 3_000;
 
@@ -91,6 +96,10 @@ pub struct Page {
     pub title: String,
     pub source: String,
     pub updated: String,
+    /// "riassunto:" in the header, "" if none.
+    pub summary: String,
+    /// "alias:" in the header: other names of the subject.
+    pub aliases: Vec<String>,
     /// The text under the header.
     pub body: String,
     pub links: Vec<Link>,
@@ -136,6 +145,8 @@ pub fn parse(slug: &str, text: &str) -> Page {
     let mut title = String::new();
     let mut source = String::new();
     let mut updated = String::new();
+    let mut summary = String::new();
+    let mut aliases = Vec::new();
     let mut lines = text.lines().peekable();
     let mut body_start = 0usize;
     let mut offset = 0usize;
@@ -159,6 +170,10 @@ pub fn parse(slug: &str, text: &str) -> Page {
             source = v.trim().to_string();
         } else if let Some(v) = trimmed.strip_prefix("aggiornata:") {
             updated = v.trim().to_string();
+        } else if let Some(v) = trimmed.strip_prefix("riassunto:") {
+            summary = v.trim().to_string();
+        } else if let Some(v) = trimmed.strip_prefix("alias:") {
+            aliases = alias_list(v);
         } else if !trimmed.is_empty() {
             break;
         }
@@ -170,7 +185,40 @@ pub fn parse(slug: &str, text: &str) -> Page {
         title = slug.replace('-', " ");
     }
     let links = links_in(&body);
-    Page { slug: slug.to_string(), title, source, updated, body, links }
+    Page { slug: slug.to_string(), title, source, updated, summary, aliases, links, body }
+}
+
+/// "UDM, Dream Machine" → the names, without blanks or doubles.
+fn alias_list(text: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for a in text.split([',', ';']) {
+        let a = a.split_whitespace().collect::<Vec<_>>().join(" ");
+        let a: String = a.chars().filter(|c| !matches!(c, '[' | ']')).take(60).collect();
+        if !a.is_empty() && !out.iter().any(|o| o.to_lowercase() == a.to_lowercase()) {
+            out.push(a);
+        }
+    }
+    out.truncate(12);
+    out
+}
+
+impl Page {
+    /// Whether a [[link]] (by its slug) means this page: its title or one of its aliases.
+    pub fn answers_to(&self, key: &str) -> bool {
+        self.slug == key || self.aliases.iter().any(|a| slug(a) == key)
+    }
+
+    /// One line on the page for a link to it: the summary, else its first line.
+    fn gist(&self) -> String {
+        let line = if self.summary.is_empty() { self.body.lines().find(|l| !l.trim().is_empty()).unwrap_or_default().trim() } else { self.summary.as_str() };
+        line.chars().take(200).collect()
+    }
+}
+
+/// The slug a [[link]] reaches: the page with that title or alias, else its own.
+fn target_of(all: &[Page], target: &str) -> String {
+    let s = slug(target);
+    all.iter().find(|p| p.answers_to(&s)).map(|p| p.slug.clone()).unwrap_or(s)
 }
 
 fn page_file(slug: &str) -> PathBuf {
@@ -203,15 +251,15 @@ fn find(title: &str) -> Option<(Page, String)> {
     if let Ok(text) = std::fs::read_to_string(page_file(&key)) {
         return Some((parse(&key, &text), text));
     }
-    let page = pages().into_iter().find(|p| p.title.to_lowercase() == low)?;
+    let page = pages().into_iter().find(|p| p.title.to_lowercase() == low || p.answers_to(&key))?;
     let text = std::fs::read_to_string(page_file(&page.slug)).ok()?;
     Some((page, text))
 }
 
 /// Pages that link to `title`.
 fn backlinks(title: &str, all: &[Page]) -> Vec<String> {
-    let key = slug(title);
-    all.iter().filter(|p| p.links.iter().any(|l| slug(&l.target) == key)).map(|p| p.title.clone()).collect()
+    let key = target_of(all, title);
+    all.iter().filter(|p| p.links.iter().any(|l| target_of(all, &l.target) == key)).map(|p| p.title.clone()).collect()
 }
 
 /// Words of a text for comparing two notes or titles.
@@ -312,11 +360,30 @@ pub fn tool_write(title: &str, text: &str, expected: &str, source: &str) -> Resu
     if let Some(rest) = body.strip_prefix("# ") {
         body = rest.split_once('\n').map(|(_, b)| b.trim()).unwrap_or_default();
     }
+    // "riassunto:" and "alias:" first lines go to the header; without them the page keeps its own.
+    let mut new_summary = None;
+    let mut new_aliases = None;
+    loop {
+        let (first, rest) = body.split_once('\n').unwrap_or((body, ""));
+        let first = first.trim();
+        if let Some(v) = first.strip_prefix("riassunto:") {
+            new_summary = Some(v.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(300).collect::<String>());
+        } else if let Some(v) = first.strip_prefix("alias:") {
+            new_aliases = Some(alias_list(v));
+        } else if !(first.starts_with("fonte:") || first.starts_with("aggiornata:")) {
+            break;
+        }
+        body = rest.trim();
+    }
     if body.is_empty() {
         return Err(t("text: il testo della pagina.").into());
     }
     let body: String = body.chars().take(MAX_PAGE).collect();
     let existing = find(&title);
+    let (summary, aliases) = match &existing {
+        Some((page, _)) => (new_summary.unwrap_or_else(|| page.summary.clone()), new_aliases.unwrap_or_else(|| page.aliases.clone())),
+        None => (new_summary.unwrap_or_default(), new_aliases.unwrap_or_default()),
+    };
     let (name, mut kept_source, title) = match &existing {
         Some((page, current)) => {
             let expected = expected.trim();
@@ -339,11 +406,18 @@ pub fn tool_write(title: &str, text: &str, expected: &str, source: &str) -> Resu
     if !kept_source.is_empty() {
         out.push_str(&format!("fonte: {kept_source}\n"));
     }
-    out.push_str(&format!("aggiornata: {day}\n\n{body}\n"));
+    out.push_str(&format!("aggiornata: {day}\n"));
+    if !summary.is_empty() {
+        out.push_str(&format!("riassunto: {summary}\n"));
+    }
+    if !aliases.is_empty() {
+        out.push_str(&format!("alias: {}\n", aliases.join(", ")));
+    }
+    out.push_str(&format!("\n{body}\n"));
     std::fs::create_dir_all(pages_dir()).map_err(|e| e.to_string())?;
     crate::memory::write_whole(&page_file(&name), &out)?;
     let all = pages();
-    let missing: Vec<String> = links_in(&body).into_iter().map(|l| l.target).filter(|t| !all.iter().any(|p| p.slug == slug(t))).collect();
+    let missing: Vec<String> = links_in(&body).into_iter().map(|l| l.target).filter(|t| !all.iter().any(|p| p.answers_to(&slug(t)))).collect();
     let mut reply = tf("Pagina «{t}» salvata. versione: {v}", &[("t", &title), ("v", &version(&out))]);
     if !missing.is_empty() {
         reply.push_str(&format!("\n{}", tf("Collegamenti a pagine che non esistono ancora: {list}", &[("list", &missing.join(", "))])));
@@ -538,7 +612,7 @@ fn check_at(today: i64, notes: &[String], all: &[Page]) -> Vec<String> {
     let mut linked: BTreeSet<String> = BTreeSet::new();
     for p in all {
         for l in &p.links {
-            let s = slug(&l.target);
+            let s = target_of(all, &l.target);
             if known.contains_key(&s) {
                 linked.insert(s);
             } else {
@@ -592,10 +666,12 @@ pub fn search(words: &[String], max: usize) -> Vec<String> {
     let mut found = Vec::new();
     let mut hit_pages: Vec<&Page> = Vec::new();
     for p in &all {
-        let title_low = p.title.to_lowercase();
+        // The title and the aliases count as part of every line: "UDM" finds the page "Dream Machine".
+        let names = std::iter::once(p.title.as_str()).chain(p.aliases.iter().map(String::as_str)).collect::<Vec<_>>().join(" ").to_lowercase();
         let mut hit = false;
-        for line in p.body.lines().filter(|l| !l.trim().is_empty()) {
-            let low = format!("{title_low} {}", line.to_lowercase());
+        let summary = (!p.summary.is_empty()).then(|| format!("{}: {}", t("riassunto"), p.summary));
+        for line in summary.iter().map(String::as_str).chain(p.body.lines().filter(|l| !l.trim().is_empty())) {
+            let low = format!("{names} {}", line.to_lowercase());
             if words.iter().all(|w| low.contains(w.as_str())) {
                 found.push(format!("[[{}]] {}", p.title, line.trim()));
                 hit = true;
@@ -613,20 +689,52 @@ pub fn search(words: &[String], max: usize) -> Vec<String> {
     }
     let mut seen: BTreeSet<String> = hit_pages.iter().map(|p| p.slug.clone()).collect();
     let mut related = Vec::new();
+    let mut first_hop: Vec<&Page> = Vec::new();
     for p in &hit_pages {
         for l in &p.links {
-            let s = slug(&l.target);
+            let s = target_of(&all, &l.target);
             if !seen.insert(s.clone()) {
                 continue;
             }
             if let Some(q) = all.iter().find(|q| q.slug == s) {
-                let first = q.body.lines().find(|l| !l.trim().is_empty()).unwrap_or_default().trim();
                 let rel = if l.rel.is_empty() { String::new() } else { format!(" ({})", l.rel) };
-                related.push(format!("↳ [[{}]]{rel} {}", q.title, first.chars().take(200).collect::<String>()));
+                related.push(format!("↳ [[{}]]{rel} {}", q.title, q.gist()));
+                first_hop.push(q);
             }
         }
     }
     found.extend(related.into_iter().take(max));
+    // One step further, only along strong links: a page the linked pages reach
+    // with a named relation, or that two of the pages found or linked point at.
+    // "↳ [[A]] → [[B]] (relazione) riassunto", a few at most.
+    let mut votes: BTreeMap<String, (u32, bool, String, String)> = BTreeMap::new();
+    for p in hit_pages.iter().copied().chain(first_hop.iter().copied()) {
+        let mut counted = BTreeSet::new();
+        for l in &p.links {
+            let s = target_of(&all, &l.target);
+            if seen.contains(&s) || !counted.insert(s.clone()) {
+                continue;
+            }
+            let from_first = first_hop.iter().any(|q| q.slug == p.slug);
+            let v = votes.entry(s).or_insert((0, false, String::new(), String::new()));
+            v.0 += 1;
+            if from_first && !l.rel.is_empty() && !v.1 {
+                v.1 = true;
+                v.2 = p.title.clone();
+                v.3 = l.rel.clone();
+            } else if v.2.is_empty() {
+                v.2 = p.title.clone();
+            }
+        }
+    }
+    let mut strong: Vec<(String, (u32, bool, String, String))> = votes.into_iter().filter(|(_, v)| v.0 >= 2 || v.1).collect();
+    strong.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then(b.1 .1.cmp(&a.1 .1)));
+    for (s, (_, _, via, rel)) in strong.into_iter().take(MAX_SECOND_HOP) {
+        if let Some(r) = all.iter().find(|r| r.slug == s) {
+            let rel = if rel.is_empty() { String::new() } else { format!(" ({rel})") };
+            found.push(format!("↳ [[{via}]] → [[{}]]{rel} {}", r.title, r.gist()));
+        }
+    }
     found
 }
 
@@ -712,7 +820,7 @@ pub fn graph() -> Graph {
             events.push(Event { date: p.updated.clone(), lane: "page", text: p.title.clone(), node: id.clone() });
         }
         for l in &p.links {
-            let to = format!("p:{}", slug(&l.target));
+            let to = format!("p:{}", target_of(&all, &l.target));
             if !page_ids.contains(&to) && ids.insert(to.clone()) {
                 nodes.push(Node { id: to.clone(), kind: "missing", label: l.target.clone(), date: String::new(), text: String::new(), weight: 0 });
             }
@@ -1104,13 +1212,31 @@ mod tests {
         assert!(tool_write("Rossi", "Paga a 30 giorni.", &v, "").unwrap_err().contains("cambiata"));
         let v2 = tool_read("Rossi").unwrap().lines().find_map(|l| l.strip_prefix("versione: ")).unwrap().to_string();
         tool_write("Rossi", "Paga a 30 giorni.\n- lavora con: [[Bianchi]]\nNota a mano.", &v2, "telefonata.txt").unwrap();
-        tool_write("Bianchi", "Commercialista.", "", "").unwrap();
+        tool_write("Bianchi", "riassunto: Il commercialista di Rossi.\nalias: Studio Bianchi, Dott. Bianchi\nCommercialista.", "", "").unwrap();
         assert!(tool_read("Rossi").unwrap().contains("fonte: mail.eml, telefonata.txt"));
         assert!(tool_read("Bianchi").unwrap().contains("collegata da: Rossi"));
         let words = vec!["giorni".to_string()];
         let hits = search(&words, 10);
         assert!(hits[0].contains("[[Rossi]]"), "{hits:?}");
-        assert!(hits.iter().any(|h| h.starts_with("↳ [[Bianchi]] (lavora con) Commercialista")), "{hits:?}");
+        assert!(hits.iter().any(|h| h.starts_with("↳ [[Bianchi]] (lavora con) Il commercialista di Rossi.")), "{hits:?}");
+        // By an alias, summary first; a rewrite without the lines keeps them; a link to an alias reaches the page.
+        let hits = search(&["dott.".to_string()], 10);
+        assert!(hits[0].starts_with("[[Bianchi]] riassunto: Il commercialista"), "{hits:?}");
+        let vb = tool_read("Bianchi").unwrap().lines().find_map(|l| l.strip_prefix("versione: ")).unwrap().to_string();
+        tool_write("Bianchi", "Commercialista, a Torino.", &vb, "").unwrap();
+        let b = tool_read("Studio Bianchi").unwrap();
+        assert!(b.contains("riassunto: Il commercialista di Rossi.\nalias: Studio Bianchi, Dott. Bianchi\n\nCommercialista, a Torino."), "{b}");
+        tool_write("Verdi", "- cliente di: [[Studio Bianchi]]", "", "").unwrap();
+        assert!(tool_read("Bianchi").unwrap().contains("collegata da: Rossi, Verdi"));
+        assert!(!check().iter().any(|c| c.contains("Studio Bianchi")), "{:?}", check());
+        // Two links away: Rossi → Bianchi → Torino (named relation), not → Varie (plain link).
+        let vb = tool_read("Bianchi").unwrap().lines().find_map(|l| l.strip_prefix("versione: ")).unwrap().to_string();
+        tool_write("Bianchi", "Commercialista.\n- sede: [[Torino]]\n[[Varie]]", &vb, "").unwrap();
+        tool_write("Torino", "riassunto: La città.\nCittà.", "", "").unwrap();
+        tool_write("Varie", "Altro.", "", "").unwrap();
+        let hits = search(&["giorni".to_string()], 10);
+        assert!(hits.iter().any(|h| h == "↳ [[Bianchi]] → [[Torino]] (sede) La città."), "{hits:?}");
+        assert!(!hits.iter().any(|h| h.contains("[[Varie]]")), "{hits:?}");
         // The inbox: read, then moved to fonti.
         let inbox = ensure_inbox().unwrap();
         std::fs::write(inbox.join("articolo.html"), "<p>Il nuovo server</p>").unwrap();

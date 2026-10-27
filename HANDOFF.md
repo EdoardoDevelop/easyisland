@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 26 ottobre 2026. Versione **1.0.8** in `main` con il tag `v1.0.8` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 27 ottobre 2026. Versione **1.0.9** in `main` con il tag `v1.0.9` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -26,6 +26,13 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Modalità chiara:** guardare tutte le schede dell'isola e le pagine delle Impostazioni in chiaro con l'app vera e correggere in `src/style-light.css` / `settings-light.css` ciò che il plugin sbaglia (colori in linea nel codice TypeScript non cambiano).
 - [ ] **Flussi:** fatti nel codice (finestra Flussi, agenti, scelte, per ogni, domande su Telegram, tentativi, esecuzioni; piano e scelte in `docs/flussi.md`); da provare con flussi veri, soprattutto un agente con i campi, la scelta del modello e la ripresa dopo un riavvio.
 - [ ] **Recapiti tra due EasyIsland** (casa ↔ notebook, memorie separate, senza VPN né cloud): da valutare (`docs/idee.md`).
+- [ ] **Pulizia strutturale** (dal controllo del 27 ottobre 2026):
+  - guida: due capitoli `10-` (`10-anteprima` e `10-strumenti-ai`, idem in inglese) e `guida.mjs` che abbina italiano e inglese solo dal numero, così il pulsante della lingua porta alla pagina sbagliata: rinumerare e abbinare dal nome;
+  - immagini della guida rotte su GitHub (`../media/` da `docs/guida/` cerca `docs/media`): percorso vero verso `site/media/`, corretto da `guida.mjs` per il sito; niente collegamenti simbolici;
+  - `island.rs` `on_foreground_change`: un thread nuovo a ogni cambio di finestra (isola ritirata sopra la barra); un contatore che fa uscire i thread vecchi basta;
+  - test del front end con `node --test` (zero dipendenze), per primi `expr.ts`, `markdown.ts`, `calc.ts`;
+  - i 170 testi inglesi «inutilizzati» di `check:i18n`: guardarli uno per uno, alcuni sono composti al momento.
+- [ ] **Inglese lingua principale anche nell'app** (chiesto da Edoardo il 27 ottobre 2026; README e homepage lo sono dalla 1.0.9): oggi i testi nascono in italiano (`t("testo italiano")`, chiave = italiano, inglese in `src/i18n/en.json`) e l'interfaccia parte in italiano. Da decidere come: solo la lingua predefinita di una nuova installazione, oppure anche le chiavi in inglese.
 - [ ] **Da decidere con Edoardo:** firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
 
 ## Problemi noti
@@ -37,28 +44,26 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
-### 26 ottobre 2026 — Versione 1.0.8: logo nuovo, Jarvis Sfera predefinito
-- **Logo** (`src/character/mark.ts`, usato da `scripts/gen-icons.mjs` e da `figure.ts` per il logo nell'isola): fumetto con bordo arcobaleno, interno scuro, due occhi bianchi e coda in basso a sinistra, da un'immagine di Edoardo; fino a 32 px bordo più spesso e occhi più grandi. Provate e scartate: sfera a punti, isola che si apre. La 1.0.8 è stata ripubblicata con questo logo (tag spostato).
-- **Jarvis Sfera** predefinito per le nuove installazioni (`default_character`, `DEFAULT_SETTINGS`); chi ha già scelto tiene il suo. Gli id dei Jarvis ora si possono impostare anche dalla chat (`agent_settings.rs`).
-- **README**: schermata in cima, indice dei capitoli, «Ultime versioni» in quattro righe; la storia completa in `CHANGELOG.md` / `CHANGELOG.en.md`. Schermate tutte rifatte (`screenshots.mjs` ora in italiano di serie, la finestra Flussi al posto della vecchia pagina Automazioni).
-- **Prove:** `cargo test`, `npm run build`, `npm run smoke`.
+### 27 ottobre 2026 — Versione 1.0.9: Anteprima nell'isola, inglese prima
+- Anteprima di file e pagine web (nell'isola o in finestra), passi della chat a parole, permessi dentro la chat, memoria con riassunti e alias: tutto in `CHANGELOG.md`.
+- README e homepage prima in inglese: `README.md` inglese e `README.it.md`; `site/index.html` inglese, `site/it/index.html` italiana, `site/en/index.html` rimanda alla radice; «Sito» nelle Impostazioni apre `/it/` con l'interfaccia in italiano; la guida tiene i suoi indirizzi.
 
-### 26 ottobre 2026 — Versione 1.0.7: Flussi
-- Automazioni e compiti uniti nei **Flussi** (`flows.rs`, `src/flows/`, piano e scelte in `docs/flussi.md`): passi con nome e collegamenti (nessuna conversione dei dati), nodi Agente, Scelta (regole o modello), Per ogni, Domanda anche su Telegram; tentativi, strada d'errore, niente doppioni dopo un riavvio, tempo massimo e campi JSON degli agenti; giri salvati in `%APPDATA%\EasyIsland\flussi\`.
-- Finestra **Flussi** (creata alla prima apertura): disegno dall'alto in basso, blocchi da trascinare, pannello con i dati, modelli, «Descrivilo a parole», Prova ed Esecuzioni. Impostazioni → Flussi è solo l'elenco.
-- Memoria e Flussi aperti dalle Impostazioni non restano più dietro (le Impostazioni lasciano il primo piano prima, `keep_settings_above`). README e sito: EasyIsland come agente personale.
-- **Prove:** `cargo test`, `npm run build`, `npm run smoke`; editor provato nell'anteprima. Da provare dal vivo con flussi veri.
+### 27 ottobre 2026 — Permessi della chat dentro la chat (su `claude/sviluppo`)
+- Un permesso chiesto dalla chat compare in fondo alla conversazione con Nega / Sempre / Consenti (`chat.ts`), non più su una card che toglie la chat; `State.pendingCard()` per la chat è `prompt`.
+- Con l'isola aperta porta sempre alla chat: con «Permessi e chiamate» spento prima restava solo il fumetto in alto e la chat sembrava ferma (`hooks.ts` `handleChatPermission`).
 
-### 25 ottobre 2026 — Versione 1.0.6: modalità chiara, Jarvis Plasma, Aspetto riordinato
-- Modalità **Scura / Chiara / Automatica** per entrambi gli stili (`theme.scheme`). Le regole chiare le genera il plugin di Vite `scripts/light-css.mjs` sotto `:where([data-scheme="light"])`; correzioni a mano in `src/style-light.css` e `settings-light.css`; Automatica dal registro (`system_light`). Dettagli in `docs/architettura.md`.
-- **Jarvis Plasma** (`jarvis.ts`), da un'immagine: gabbia di filamenti, rete interna, nodo luminoso, niente bordo netto. Jarvis Sfera con colori più accesi.
-- Pagina **Aspetto** in cinque sezioni (`appearanceSections`); volumi spostati in Generale.
-- `smoke.mjs` e `screenshots.mjs` lasciavano in %TEMP% il profilo di Edge (bloccato dai processi figli): ~30 GB accumulati, disco pieno. Ora riprovano a cancellarlo e all'avvio spazzano quelli più vecchi di un'ora.
+### 26 ottobre 2026 — Passi della chat leggibili (su `claude/sviluppo`)
+- Le righe «⚙» della chat (isola e Telegram) dicono a parole cosa fa, con l'argomento («Prepara il piano del compito», «Cerca nella memoria · `…`»), invece di «task_plan · easyisland» (`steps.rs`, `docs/chat.md`). Il motore scrive anche una frase breve prima di ogni gruppo di strumenti (`AGENT_PROMPT`).
 
-### 25 ottobre 2026 — Grafo 3D della memoria
-- Nuova scheda «Grafo 3D» nella finestra Memoria (`src/memory/graph3d.ts`): forze in 3D, prospettiva su Canvas 2D senza librerie, trascina per girare, clic per portare la stella davanti. Fotogrammi solo mentre si muove.
+### 26 ottobre 2026 — Anteprima di file e pagine web (su `claude/sviluppo`)
+- Finestra **Anteprima** (`preview.rs`, `src/preview/`), come quella di Claude desktop: schede di file (codice colorato, Markdown, CSV, immagini, «Modifiche» rispetto a prima della chat) e pagine web in un browser vero dentro la finestra, con misure da telefono/tablet, chiaro/scuro, console, Strumenti per sviluppatori. Si apre da link e percorsi della chat, da sola sui file della Modalità terminale, dal server di sviluppo. Strumenti `preview_*` per la chat (clic e scrittura con Consenti / Nega). Dettagli in `docs/chat.md`, guida `10-anteprima`.
+- **Nell'isola** (pannello a destra dentro la finestra dell'isola, largo quanto lo trascini) o finestra separata, a scelta in Impostazioni → Chat → Anteprima (`preview::pane`, island.ts `placePane`). Comandi che creano finestre ora `async` (prima bloccavano tutta l'app).
+- La chat vede la pagina come albero di accessibilità con riferimenti (`preview_snapshot`), clicca e scrive per riferimento e riceve la pagina dopo, aspetta (`preview_wait`), legge le richieste fallite (`preview_network`) e sa da sola cosa c'è nell'Anteprima aperta (`preview::hint`).
+- Tauri con `unstable` (più webview per finestra); `build.rs` incorpora il manifest perché i test partano (`docs/decisioni.md`).
+- **Prove:** `cargo test` (331), `npm run build`, `check:i18n`, la pagina con i dati finti in Edge. **Da provare dal vivo** tutta la parte con l'app (`docs/prove-dal-vivo.md`).
 
-### 25 ottobre 2026 — Motore per la memoria
-- `memory_ai.rs`: un motore scelto in Impostazioni → Chat → Memoria (anche gratuito, senza strumenti) riceve note e pagine e risponde in JSON; EasyIsland scrive solo aggiunte (pagine-argomento con le note, relazioni). «Collega con l'IA» nella mappa e dopo il riordino della sera se la memoria è cambiata.
-- **Prove:** `cargo test` (lettura del JSON, intestazione delle pagine), `npm run build`, `npm run smoke`. Da provare dal vivo con un motore vero.
-
+### 26 ottobre 2026 — Memoria: riassunti, alias e secondo passo (su `claude/sviluppo`)
+- Intestazione delle pagine con `riassunto:` e `alias:` facoltativi (`brain.rs`): la ricerca della chat dà il riassunto delle pagine collegate e trova una pagina anche dai suoi alias; un `[[Alias]]` porta alla pagina (`target_of`). `memory_page_write` li prende dalle prime righe del testo, senza li conserva.
+- Secondo passo della ricerca solo sui legami forti (relazione con nome o indicata da due pagine, al massimo 4). Pulizia proposta e ricerca per significato in `docs/idee.md`.
+- Il motore per la memoria (`memory_ai.rs`) scrive anche `summaries`: riscrive solo il riassunto, agli alias aggiunge. Guida e `docs/chat.md` aggiornate.
+- **Prove:** `cargo test` (328), `npm run build`, `check:i18n`. Da provare dal vivo «Collega con l'IA» con un motore vero.

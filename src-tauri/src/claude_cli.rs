@@ -93,17 +93,27 @@ pub(crate) const AGENT_READ_ONLY: &[&str] = &[
     "custom_get",
     "custom_records",
     "custom_fetch",
+    "preview_open",
+    "preview_read",
+    "preview_screenshot",
+    "preview_console",
+    "preview_resize",
+    "preview_snapshot",
+    "preview_wait",
+    "preview_network",
 ];
 
 pub(crate) const AGENT_PROMPT: &str = " You also have the easyisland tools, which act on the user's own PC: \
 open programs, folders and links, run the user's quick actions (list_quick_actions, then run_quick_action), \
 read the status of the PC, network, weather, mail and tickets (list_status), read or fill the clipboard, control the music, show a notice in the island, \
 browse the user's work folder (list_work_folder; read its files with Read) and move files of the tray into it (move_to_work_folder), \
-read and change EasyIsland's own settings (get_settings, then set_setting: default chat engine and model, integrations on or off, character, language, notifications…), work in the user's Notion through EasyIsland's own connection (notion_map for the structure, notion_search, notion_read, notion_query for the rows of a database, notion_add_row and notion_update_row, which check the values against the database, notion_delete_row to move a row to Notion's trash only after the user said yes in the chat), manage the user's Microsoft To Do through classic Outlook (todo_list, todo_add, todo_update), work on a remote PC the user connected in «Accesso remoto» and linked to the chat (remote_status, remote_run: one command at a time, PowerShell on Windows, sh on Linux), keep the chat's memory (memory_search to look into notes, linked pages and past conversations, memory_note to remember something for next time, memory_page and memory_page_write for the pages about people, customers, projects and concepts, linked with [[Title]]), build the user's own integrations — forms with fields, tables and formulas, dashboards of data read from their services, calls to their APIs with keys they keep in Windows, documents and actions — when they ask for one (custom_create, custom_update, custom_get, custom_records, custom_add_record), hand a long job, or one for later or every day, to EasyIsland as a task it carries on by itself with a plan (task_create, task_list), and set up automations that then run by themselves (list_automations, create_automation, set_automation_enabled): when the user asks for something recurring \
+read and change EasyIsland's own settings (get_settings, then set_setting: default chat engine and model, integrations on or off, character, language, notifications…), work in the user's Notion through EasyIsland's own connection (notion_map for the structure, notion_search, notion_read, notion_query for the rows of a database, notion_add_row and notion_update_row, which check the values against the database, notion_delete_row to move a row to Notion's trash only after the user said yes in the chat), manage the user's Microsoft To Do through classic Outlook (todo_list, todo_add, todo_update), work on a remote PC the user connected in «Accesso remoto» and linked to the chat (remote_status, remote_run: one command at a time, PowerShell on Windows, sh on Linux), show files and web pages in EasyIsland's preview window next to the chat — the user's local dev server, a page you built, a file you changed — and check them: open a tab (preview_open: a URL, localhost:port or a file path; back, forward, reload), see the page as a tree of headings, texts and controls with refs (preview_snapshot: the best way to understand and use a page), read its text (preview_read), wait for something to appear (preview_wait), read failed requests (preview_network), take a screenshot (preview_screenshot, then read the PNG), read the console errors (preview_console), try it at phone or tablet size or in dark mode (preview_resize), and click or type in it by ref (preview_click, preview_type, which the user confirms); after changing a web page, open or reload it in the preview and check it before saying it works, keep the chat's memory (memory_search to look into notes, linked pages and past conversations, memory_note to remember something for next time, memory_page and memory_page_write for the pages about people, customers, projects and concepts, linked with [[Title]]), build the user's own integrations — forms with fields, tables and formulas, dashboards of data read from their services, calls to their APIs with keys they keep in Windows, documents and actions — when they ask for one (custom_create, custom_update, custom_get, custom_records, custom_add_record), hand a long job, or one for later or every day, to EasyIsland as a task it carries on by itself with a plan (task_create, task_list), and set up automations that then run by themselves (list_automations, create_automation, set_automation_enabled): when the user asks for something recurring \
 (\"every morning…\", \"when I plug in a USB stick…\", \"if the client's site goes down…\") propose an automation; check the ids with list_quick_actions, list_profiles and list_status first. \
 Use them when the user asks you to do something on the PC, or when they make the answer better (for example check list_status before answering about the PC or the day). \
 You cannot run arbitrary commands: only the user's quick actions. \
-Before a tool that opens, runs or changes something, say in one short sentence what you are about to do: \
+While you work, before each group of tool calls write one short plain sentence in the user's language that says what you are doing and why \
+(\"Cerco nella memoria le fatture di Rossi, poi preparo il piano.\"): the user follows your work by these sentences, in the island and on Telegram, \
+between lines that only name the tools. Before a tool that opens, runs or changes something, always say it: \
 the user confirms or refuses it with a click, and a refusal is final for that request.";
 /// The sentence of AGENT_PROMPT that "Modalità terminale" leaves out.
 pub(crate) const NO_COMMANDS: &str = "You cannot run arbitrary commands: only the user's quick actions. ";
@@ -550,10 +560,12 @@ impl Progress {
             }
             let piece = match block.get("type").and_then(Value::as_str) {
                 Some("text") => block.get("text").and_then(Value::as_str).map(|t| t.trim().to_string()),
-                Some("tool_use") => Some(step_line(
-                    block.get("name").and_then(Value::as_str).unwrap_or_default(),
-                    block.get("input").unwrap_or(&Value::Null),
-                )),
+                Some("tool_use") => {
+                    let (name, input) = (block.get("name").and_then(Value::as_str).unwrap_or_default(), block.get("input").unwrap_or(&Value::Null));
+                    // A file about to change: «Modifiche» and the preview (preview.rs).
+                    crate::preview::touched_by(name, input);
+                    Some(step_line(name, input))
+                }
                 _ => None,
             };
             if let Some(p) = piece.filter(|p| !p.is_empty()) {
@@ -582,7 +594,10 @@ fn step_line(tool: &str, input: &Value) -> String {
         // mcp__<server>__<tool>
         let (server, name) = rest.split_once("__").unwrap_or(("", rest));
         let server = server.trim_start_matches("plugin_").replace('_', " ");
-        return if server.is_empty() { format!("> ⚙ {name}") } else { format!("> ⚙ {name} · {server}") };
+        return crate::steps::mcp(&server, name, input);
+    }
+    if tool == "ToolSearch" {
+        return crate::steps::loading_tools();
     }
     let as_opencode = match tool {
         "Bash" | "PowerShell" => "bash",
@@ -1402,7 +1417,7 @@ mod tests {
         assert!(!p.feed(r#"{"type":"assistant","parent_tool_use_id":"t1","message":{"content":[{"type":"text","text":"dentro"}]}}"#));
         assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"mcp__plugin_Notion_notion__notion-search","input":{}}]}}"#));
         assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"text","text":"Fatto."}]}}"#));
-        assert_eq!(p.shown, "Controllo.\n\n> ⚙ Esegue · `git status`\n\n> ⚙ notion-search · Notion notion\n\nFatto.");
+        assert_eq!(p.shown, "Controllo.\n\n> ⚙ Esegue · `git status`\n\n> ⚙ notion search (Notion notion)\n\nFatto.");
         // The reasoning shows under the rest until the next text or step.
         assert!(p.feed(r#"{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"Sommo le  spese\ndi ottobre"}]}}"#));
         assert!(p.view().ends_with("> 💭 _Sommo le spese di ottobre_"));

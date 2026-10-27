@@ -18,7 +18,7 @@ App desktop per Windows 10/11: un personaggio animato (Goccia, Slime, Geco, Fiam
 - `docs/idee.md`: idee e progetti non ancora fatti, con i dettagli.
 - `docs/prove-dal-vivo.md`: elenco di ciò che va ancora provato con i servizi veri.
 - `docs/guida/` (e `docs/guida/en/` in inglese): la **guida per l'utente** (una pagina .md per argomento), pubblicata sul sito come `site/guida/` con `node scripts/guida.mjs`. Quando cambia una funzione visibile, aggiorna la sua pagina e rigenera.
-- `docs/en/`, `README.en.md`, `CONTRIBUTING.en.md`: versioni inglesi per chi arriva da fuori; da aggiornare quando cambia ciò che descrivono.
+- `README.md` (inglese, la pagina principale del repo) e `README.it.md`; homepage inglese in `site/index.html`, italiana in `site/it/index.html`. `docs/en/` e `CONTRIBUTING.en.md`: versioni inglesi per chi arriva da fuori. Da aggiornare insieme quando cambia ciò che descrivono.
 - `docs/archivio/`: storia vecchia (roadmap 6.1–6.6 citata nei commenti come "HANDOFF 6.6, point …", registro passato). **Non leggerla** se il compito non lo richiede.
 
 ## Build

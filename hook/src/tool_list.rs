@@ -219,7 +219,7 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "memory_page_write",
-            "Scrive una pagina della memoria (Markdown breve) o la sostituisce. Collega le altre pagine con [[Titolo]] e scrivi come sono legate con righe «- relazione: [[Altra pagina]]». title; text: il testo intero; version: per una pagina che esiste, la versione letta con memory_page (se l'utente l'ha cambiata nel frattempo la scrittura è rifiutata: rileggila); source: il file di da-leggere da cui viene. Niente password o dati sensibili.",
+            "Scrive una pagina della memoria (Markdown breve) o la sostituisce. Collega le altre pagine con [[Titolo]] e scrivi come sono legate con righe «- relazione: [[Altra pagina]]». Il testo può cominciare con «riassunto: …» (una frase su chi o cosa è: la chat la legge per le pagine collegate) e «alias: …» (altri nomi, separati da virgole: sigle, nomi di prodotto); senza queste righe la pagina tiene i suoi. title; text: il testo intero; version: per una pagina che esiste, la versione letta con memory_page (se l'utente l'ha cambiata nel frattempo la scrittura è rifiutata: rileggila); source: il file di da-leggere da cui viene. Niente password o dati sensibili.",
             json!({ "type": "object", "properties": {
                 "title": { "type": "string" },
                 "text": { "type": "string" },
@@ -551,6 +551,100 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             "I compiti di EasyIsland: id, titolo, stato (scheduled, queued, running, asking, paused, done, failed, stopped), passi fatti e ultima riga.",
             none.clone(),
             true,
+        ),
+        (
+            "preview_open",
+            "Apre nella finestra Anteprima di EasyIsland, accanto alla chat, un indirizzo web (anche \"localhost:5173\") o un file (percorso assoluto o relativo alla cartella della chat): Markdown, codice, immagini, CSV, HTML e PDF. Senza new_tab la scheda web attiva va al nuovo indirizzo. target \"back\", \"forward\" o \"reload\" agisce sulla scheda (tab: il suo numero; vuoto = quella attiva); target vuoto elenca le schede. Un file modificato si ridisegna da solo.",
+            json!({ "type": "object", "properties": {
+                "target": { "type": "string" },
+                "new_tab": { "type": "boolean" },
+                "tab": { "type": "string" }
+            } }),
+            true,
+        ),
+        (
+            "preview_read",
+            "Il testo della scheda dell'Anteprima (tab: numero; vuoto = quella attiva): per una pagina web titolo, indirizzo, testo visibile, link e campi; per un file il suo testo.",
+            json!({ "type": "object", "properties": { "tab": { "type": "string" } } }),
+            true,
+        ),
+        (
+            "preview_snapshot",
+            "La pagina web della scheda dell'Anteprima (tab: numero; vuoto = quella attiva) come la leggono i lettori di schermo: titoli, testi, link, pulsanti e campi in righe rientrate, ognuno con un riferimento [ref=e5] da passare a preview_click e preview_type. Il modo migliore per capire e usare una pagina; con una finestra in primo piano si vede solo quella. I riferimenti restano validi finché l'elemento è nella pagina.",
+            json!({ "type": "object", "properties": { "tab": { "type": "string" } } }),
+            true,
+        ),
+        (
+            "preview_wait",
+            "Aspetta (timeout: secondi, al massimo 30, di solito 10) che nella pagina dell'Anteprima compaia text, sparisca text_gone o ci sia selector (CSS), poi torna la pagina come preview_snapshot. Da usare dopo un'azione che carica qualcosa.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "text": { "type": "string" },
+                "text_gone": { "type": "string" },
+                "selector": { "type": "string" },
+                "timeout": { "type": "integer" }
+            } }),
+            true,
+        ),
+        (
+            "preview_network",
+            "Le richieste di rete della pagina nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva), le ultime 300 dall'ultimo caricamento: metodo, stato (o l'errore), indirizzo, tipo. failed_only: solo quelle fallite o con stato 400 e oltre.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "failed_only": { "type": "boolean" }
+            } }),
+            true,
+        ),
+        (
+            "preview_screenshot",
+            "Fotografa la scheda dell'Anteprima (tab: numero; vuoto = quella attiva) e la salva come PNG: torna il percorso, da leggere come immagine.",
+            json!({ "type": "object", "properties": { "tab": { "type": "string" } } }),
+            true,
+        ),
+        (
+            "preview_console",
+            "I messaggi della console e gli errori della pagina web nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva), gli ultimi 300. errors_only: solo errori e avvisi.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "errors_only": { "type": "boolean" }
+            } }),
+            true,
+        ),
+        (
+            "preview_resize",
+            "Cambia la vista delle pagine web dell'Anteprima: preset fit (larga quanto il pannello), desktop (1280×800), tablet (768×1024) o mobile (375×812, con il tocco), oppure width e height; zoom fit (rimpicciolita finché ci sta), 100 o orig (pixel reali); color_scheme light, dark o auto (quello della pagina).",
+            json!({ "type": "object", "properties": {
+                "preset": { "type": "string", "enum": ["fit", "desktop", "tablet", "mobile"] },
+                "width": { "type": "integer" },
+                "height": { "type": "integer" },
+                "zoom": { "type": "string", "enum": ["fit", "100", "orig"] },
+                "color_scheme": { "type": "string", "enum": ["light", "dark", "auto"] }
+            } }),
+            true,
+        ),
+        (
+            "preview_click",
+            "Clicca un elemento della pagina web nella scheda dell'Anteprima (tab: numero; vuoto = quella attiva): ref (da preview_snapshot, il modo più sicuro), oppure selector (CSS) o text_match (il testo, l'etichetta o il segnaposto di un pulsante, link o campo). Torna la pagina dopo il clic. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "ref": { "type": "string" },
+                "selector": { "type": "string" },
+                "text_match": { "type": "string" }
+            } }),
+            false,
+        ),
+        (
+            "preview_type",
+            "Scrive text in un campo della pagina web nella scheda dell'Anteprima, trovato con ref (da preview_snapshot), selector (CSS) o text_match (etichetta, segnaposto, nome); submit: invia il modulo. Torna la pagina dopo. Mai password o dati di pagamento. L'utente conferma.",
+            json!({ "type": "object", "properties": {
+                "tab": { "type": "string" },
+                "ref": { "type": "string" },
+                "selector": { "type": "string" },
+                "text_match": { "type": "string" },
+                "text": { "type": "string" },
+                "submit": { "type": "boolean" }
+            }, "required": ["text"] }),
+            false,
         ),
         (
             "switch_profile",

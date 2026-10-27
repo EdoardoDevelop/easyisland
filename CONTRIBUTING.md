@@ -8,7 +8,7 @@ proposte sono benvenute.
 ## Per iniziare
 
 Serve Windows 10/11 con Node.js e Rust (toolchain MSVC): i passi sono nella
-sezione **Installazione** del [README](README.md).
+sezione **Installazione** del [README](README.it.md).
 
 ```powershell
 npm install

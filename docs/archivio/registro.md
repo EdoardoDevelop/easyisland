@@ -2,6 +2,31 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 26 ottobre 2026 — Versione 1.0.8: logo nuovo, Jarvis Sfera predefinito
+- **Logo** (`src/character/mark.ts`, usato da `scripts/gen-icons.mjs` e da `figure.ts` per il logo nell'isola): fumetto con bordo arcobaleno, interno scuro, due occhi bianchi e coda in basso a sinistra, da un'immagine di Edoardo; fino a 32 px bordo più spesso e occhi più grandi. Provate e scartate: sfera a punti, isola che si apre. La 1.0.8 è stata ripubblicata con questo logo (tag spostato).
+- **Jarvis Sfera** predefinito per le nuove installazioni (`default_character`, `DEFAULT_SETTINGS`); chi ha già scelto tiene il suo. Gli id dei Jarvis ora si possono impostare anche dalla chat (`agent_settings.rs`).
+- **README**: schermata in cima, indice dei capitoli, «Ultime versioni» in quattro righe; la storia completa in `CHANGELOG.md` / `CHANGELOG.en.md`. Schermate tutte rifatte (`screenshots.mjs` ora in italiano di serie, la finestra Flussi al posto della vecchia pagina Automazioni).
+- **Prove:** `cargo test`, `npm run build`, `npm run smoke`.
+
+### 26 ottobre 2026 — Versione 1.0.7: Flussi
+- Automazioni e compiti uniti nei **Flussi** (`flows.rs`, `src/flows/`, piano e scelte in `docs/flussi.md`): passi con nome e collegamenti (nessuna conversione dei dati), nodi Agente, Scelta (regole o modello), Per ogni, Domanda anche su Telegram; tentativi, strada d'errore, niente doppioni dopo un riavvio, tempo massimo e campi JSON degli agenti; giri salvati in `%APPDATA%\EasyIsland\flussi\`.
+- Finestra **Flussi** (creata alla prima apertura): disegno dall'alto in basso, blocchi da trascinare, pannello con i dati, modelli, «Descrivilo a parole», Prova ed Esecuzioni. Impostazioni → Flussi è solo l'elenco.
+- Memoria e Flussi aperti dalle Impostazioni non restano più dietro (le Impostazioni lasciano il primo piano prima, `keep_settings_above`). README e sito: EasyIsland come agente personale.
+- **Prove:** `cargo test`, `npm run build`, `npm run smoke`; editor provato nell'anteprima. Da provare dal vivo con flussi veri.
+
+### 25 ottobre 2026 — Versione 1.0.6: modalità chiara, Jarvis Plasma, Aspetto riordinato
+- Modalità **Scura / Chiara / Automatica** per entrambi gli stili (`theme.scheme`). Le regole chiare le genera il plugin di Vite `scripts/light-css.mjs` sotto `:where([data-scheme="light"])`; correzioni a mano in `src/style-light.css` e `settings-light.css`; Automatica dal registro (`system_light`). Dettagli in `docs/architettura.md`.
+- **Jarvis Plasma** (`jarvis.ts`), da un'immagine: gabbia di filamenti, rete interna, nodo luminoso, niente bordo netto. Jarvis Sfera con colori più accesi.
+- Pagina **Aspetto** in cinque sezioni (`appearanceSections`); volumi spostati in Generale.
+- `smoke.mjs` e `screenshots.mjs` lasciavano in %TEMP% il profilo di Edge (bloccato dai processi figli): ~30 GB accumulati, disco pieno. Ora riprovano a cancellarlo e all'avvio spazzano quelli più vecchi di un'ora.
+
+### 25 ottobre 2026 — Grafo 3D della memoria
+- Nuova scheda «Grafo 3D» nella finestra Memoria (`src/memory/graph3d.ts`): forze in 3D, prospettiva su Canvas 2D senza librerie, trascina per girare, clic per portare la stella davanti. Fotogrammi solo mentre si muove.
+
+### 25 ottobre 2026 — Motore per la memoria
+- `memory_ai.rs`: un motore scelto in Impostazioni → Chat → Memoria (anche gratuito, senza strumenti) riceve note e pagine e risponde in JSON; EasyIsland scrive solo aggiunte (pagine-argomento con le note, relazioni). «Collega con l'IA» nella mappa e dopo il riordino della sera se la memoria è cambiata.
+- **Prove:** `cargo test` (lettura del JSON, intestazione delle pagine), `npm run build`, `npm run smoke`. Da provare dal vivo con un motore vero.
+
 ### 25 ottobre 2026 — Grafo della memoria più collegato
 - Le note si collegano alle pagine anche con `[[…]]` e con due parole chiave in comune, e alle due note più simili, più le voci che condividono una parola rara (un cliente, un server); le archiviate isolate escono dal grafo (restano nella timeline). Con la memoria del notebook: nessun punto isolato (`brain.rs`, `key_words`, `wiki_links`).
 - **Prove:** `cargo test` (nuovo test e `live_graph` sui dati del notebook).

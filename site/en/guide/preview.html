@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preview — EasyIsland Guide</title>
+<meta name="description" content="Files and web pages next to the chat, in a real browser: highlighted changes, phone sizes, console and tools for the chat.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/anteprima.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.8</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/anteprima.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="preview.html" class="on" aria-current="page">Preview</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Artificial intelligence</div>
+<h1>Preview</h1>
+<p class="lead">Files and web pages next to the chat, in a real browser: highlighted changes, phone sizes, console and tools for the chat.</p>
+<p>The <strong>Preview</strong> is a window with tabs, like a small browser, next to the chat. It shows the files the chat works on and web pages: the site you are building on <code>localhost</code>, a page the chat has just made, a PDF, a CSV.</p>
+<p><img src="../../media/en/anteprima-modifiche.png" alt="A file's changes in the Preview" loading="lazy"></p>
+<h2 id="how-it-opens"><a class="anchor" href="#how-it-opens">#</a>How it opens</h2>
+<ul><li><strong>A link in a chat message</strong>: it opens in the Preview. <strong>Ctrl+click</strong> sends it to the Windows browser instead.</li><li><strong>A file the chat mentions</strong> (for example <code>src/app.ts</code> or <code>C:\Projects\site\README.md</code>): it is underlined with dots, a click opens it. Relative paths start from the chat's folder (Settings → Chat → Work folder).</li><li><strong>By itself, with terminal mode</strong>: when the chat changes a file, the file shows up in the Preview with the changes highlighted, without stealing your window.</li><li><strong>The window button</strong> in the chat's header (with terminal mode on).</li><li><strong>A development server that just started</strong>: the card in the island has a <strong>Preview</strong> button. <strong>+</strong> in the Preview also lists the servers listening on this PC.</li><li><strong>Dropping a file</strong> on the window, or typing an address or a path in the bar.</li></ul>
+<p>In <strong>Settings → Chat → Preview</strong> you choose how to have it:</p>
+<ul><li><strong>In the island, on the right</strong>: a panel inside the open island, to the right of the chat. Drag the edge between chat and Preview to give more room to one or the other, without the island changing size (double click: starting width); it hides when the island closes and comes back when you reopen it. It is there only with the chat: switching to another tab of the island hides it. The <strong>✕</strong> at the top right closes it, and so does the chat's Preview button, which opens and closes it.</li><li><strong>Separate window</strong>: a normal window you move wherever you like, even to another screen.</li><li><strong>Off</strong>: links and files go back to the browser and their programs.</li></ul>
+<h2 id="files"><a class="anchor" href="#files">#</a>Files</h2>
+<div class="table"><table><thead><tr><th>Type</th><th>What you see</th></tr></thead><tbody><tr><td>Code (ts, js, rs, py, cs, ps1, json…)</td><td>Numbered, coloured lines</td></tr><tr><td>Markdown</td><td>Laid-out <strong>Preview</strong> or <strong>Code</strong></td></tr><tr><td>CSV</td><td>A <strong>table</strong> (first 1000 rows) or the text</td></tr><tr><td>HTML, SVG, PDF</td><td>In the browser, or the code</td></tr><tr><td>Images</td><td>The image; a click shows it at full size</td></tr></tbody></table></div>
+<p>When the chat changed a file, <strong>Changes +7 −5</strong> appears: removed lines in red, added ones in green, compared with the file before the chat touched it. The file is drawn again by itself when it changes, even when you edit it.</p>
+<h2 id="web-pages"><a class="anchor" href="#web-pages">#</a>Web pages</h2>
+<p>Pages are in a <strong>real browser</strong> (Edge's engine), not a picture.</p>
+<ul><li><strong>← → ↻</strong> and the address bar, as in a browser; <code>localhost:5173</code> is enough, without <code>http://</code>.</li><li><strong>Panel, Desktop, Tablet, Phone</strong>: the page as wide as the Preview or at that device's size, with touch for the phone.</li><li><strong>Fit, 100%, Original</strong>: the page shrunk until it fits (with no device chosen, as on a PC), at normal size, or one page pixel for each screen pixel.</li><li><strong>Auto, ☀, ☾</strong>: the page in light or dark mode, to try both themes of your site.</li><li><strong>Console</strong>: the page's messages and errors; the red number on the tab says how many errors there are.</li><li><strong>⋯</strong>: open in the browser or in the file's program, show in the folder, copy the address, <strong>Developer tools</strong> (Edge's).</li></ul>
+<p><img src="../../media/en/anteprima-web.png" alt="A web page in the Preview" loading="lazy"></p>
+<h2 id="the-chat-uses-the-preview"><a class="anchor" href="#the-chat-uses-the-preview">#</a>The chat uses the Preview</h2>
+<p>With EasyIsland's tools on, the chat can open a page or a file in the Preview, read its text, take a screenshot, read the console errors and try it at phone size or in dark mode. So after changing your site it checks by itself that it works before telling you.</p>
+<p>The chat sees the page the way screen readers read it: headings, texts, buttons and fields, each with its own reference. So it clicks exactly the right element, even when two buttons have the same text, it can wait for a page to finish loading and it sees the failed network requests. When the Preview is open, the chat knows by itself what is in it: you do not need to tell it.</p>
+<p>It can also <strong>click</strong> and <strong>type</strong> in a page's fields, but every time it asks <strong>Allow / Deny</strong> in the island. It never types passwords or payment details.</p>
+<h2 id="shortcuts"><a class="anchor" href="#shortcuts">#</a>Shortcuts</h2>
+<div class="table"><table><thead><tr><th>Keys</th><th>What it does</th></tr></thead><tbody><tr><td>Ctrl+L</td><td>Goes to the address bar</td></tr><tr><td>Ctrl+R or F5</td><td>Reload</td></tr><tr><td>Ctrl+T</td><td>New tab</td></tr><tr><td>Ctrl+W</td><td>Closes the tab</td></tr><tr><td>Ctrl+Tab</td><td>Next tab</td></tr><tr><td>Alt+← / Alt+→</td><td>Back / forward</td></tr></tbody></table></div>
+<p>Once the window is closed nothing keeps running; the tabs come back the same the next time.</p>
+<div class="pager"><a class="prev" href="ai-tools.html"><small>Previous</small>Terminal mode and tools</a><a class="next" href="memory.html"><small>Next</small>Memory and second brain</a></div>
+<footer>EasyIsland 1.0.8 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/10-preview.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#how-it-opens">How it opens</a></li><li class="l2"><a href="#files">Files</a></li><li class="l2"><a href="#web-pages">Web pages</a></li><li class="l2"><a href="#the-chat-uses-the-preview">The chat uses the Preview</a></li><li class="l2"><a href="#shortcuts">Shortcuts</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

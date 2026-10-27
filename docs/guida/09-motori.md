@@ -28,7 +28,7 @@ EasyIsland usa **Claude Code installato sul PC** (nascosto, senza finestre) con 
 Senza modalità terminale, Claude Code lavora in una cartella vuota con solo ricerca web, lettura di pagine web e lettura dei file che rilasci, più gli strumenti di EasyIsland e i connettori che scegli.
 
 ### Connettori MCP
-**Impostazioni → Chat → Connettori** (solo con l'abbonamento): la chat può usare i server MCP che hai configurato in Claude Code per l'utente (`claude mcp add --scope user …`) e quelli dei plugin di Claude Code attivi, scegliendo quali **profilo per profilo**. Con «chiedi conferma» (predefinito) ogni operazione compare nell'isola con **Consenti / Nega**; spegnila solo per i connettori di sola lettura. EasyIsland legge solo i nomi dei server, mai la loro configurazione. I connettori di claude.ai non sono disponibili in questo modo.
+**Impostazioni → Chat → Connettori** (solo con l'abbonamento): la chat può usare i server MCP che hai configurato in Claude Code per l'utente (`claude mcp add --scope user …`) e quelli dei plugin di Claude Code attivi, scegliendo quali **profilo per profilo**. Con «chiedi conferma» (predefinito) ogni operazione compare nella chat, sotto l'ultimo passo, con **Consenti / Nega**; spegnila solo per i connettori di sola lettura. EasyIsland legge solo i nomi dei server, mai la loro configurazione. I connettori di claude.ai non sono disponibili in questo modo.
 
 ## Chiavi API
 Per Anthropic, OpenRouter, OpenAI e Gemini: la chiave va nel suo campo e finisce in **Gestione credenziali di Windows**. Il modello si sceglie dall'elenco con **Carica modelli** (con il prezzo, quando il fornitore lo dice). La risposta compare mentre arriva; il ragionamento dei modelli che lo mostrano resta nascosto.

@@ -1424,6 +1424,44 @@ input[type="range"]::-webkit-slider-thumb {
   display: flex;
 }
 
+/* A permission the chat waits for, at the end of the conversation (chat.ts). */
+.chat-ask {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0;
+  padding: 9px 11px;
+  border-radius: 12px;
+  border: 1px solid rgba(245, 165, 36, 0.45);
+  background: rgba(245, 165, 36, 0.09);
+}
+
+.chat-ask-title {
+  font: 600 calc(12px + var(--fs-up, 0px)) var(--font);
+  color: var(--amber);
+}
+
+.chat-ask-what {
+  font: 500 calc(11.5px + var(--fs-up, 0px))/1.4 var(--mono, monospace);
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.chat-ask-always {
+  font: 400 calc(11px + var(--fs-up, 0px)) var(--font);
+  color: var(--ink-3, var(--ink-2));
+}
+
+.chat-ask-row {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
 .chat-row.user {
   justify-content: flex-end;
   padding-left: 32px;
@@ -1567,6 +1605,17 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 5px;
   padding: 1px 5px;
   overflow-wrap: anywhere;
+}
+
+/* A file path in a reply: a click opens it in the preview (src/preview/). */
+.md-path {
+  cursor: pointer;
+  text-decoration: underline dotted rgba(125, 211, 252, 0.6);
+  text-underline-offset: 2px;
+}
+
+.md-path:hover {
+  color: #7dd3fc;
 }
 
 .md-link {
@@ -4964,6 +5013,29 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
   gap: 10px;
 }
 #body > #views { flex: 1 1 auto; min-width: 0; }
+
+/* The Anteprima docked in the island (island.ts placePane): the preview's page
+   is a webview laid over this box, so it only draws the frame and the grip. */
+#preview-pane {
+  display: none;
+  position: relative;
+  flex: none;
+  margin-bottom: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+}
+#island.paned #preview-pane { display: block; }
+.preview-pane-grip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -9px;
+  width: 8px;
+  cursor: col-resize;
+  border-radius: 4px;
+}
+.preview-pane-grip:hover { background: rgba(255, 255, 255, 0.12); }
 /* A little room under the top bar (BODY_GAP in layout.ts). */
 #island.railed #body { margin-top: 8px; }
 

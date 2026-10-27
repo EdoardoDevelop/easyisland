@@ -12,7 +12,7 @@ Nella scheda **Accesso remoto**: **WinRM** o **SSH**, indirizzo, porta, utente, 
 - **WinRM** usa Windows PowerShell; **SSH** l'`ssh.exe` di Windows (OpenSSH).
 
 ### Con la chat
-Con una connessione aperta, nella testata della chat compaiono **🔌** e il nome del PC (anche **Collega alla chat** nella scheda). Da lì la chat esegue **comandi sul PC del cliente**, uno alla volta (PowerShell su Windows, sh su Linux), **ognuno con Consenti / Nega** e il comando intero sulla card. Esempi: «perché lo spooler non parte?», «quanto spazio c'è sui dischi?», «controlla gli ultimi errori nel registro eventi».
+Con una connessione aperta, nella testata della chat compaiono **🔌** e il nome del PC (anche **Collega alla chat** nella scheda). Da lì la chat esegue **comandi sul PC del cliente**, uno alla volta (PowerShell su Windows, sh su Linux), **ognuno con Consenti / Nega** e il comando intero nella chat. Esempi: «perché lo spooler non parte?», «quanto spazio c'è sui dischi?», «controlla gli ultimi errori nel registro eventi».
 
 ### Chiudere
 **Chiudi connessione**: la chat si scollega, la password viene dimenticata, l'indirizzo esce da TrustedHosts (con la conferma di Windows), WinRM torna spento se lo era.

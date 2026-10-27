@@ -1,6 +1,17 @@
 # EasyIsland versions
 
-What changed in each version, newest first. The latest ones are summed up in the [README](README.en.md#latest-versions).
+What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
+
+**1.0.9** — **Preview**: files and web pages in a real browser, **inside the island** in a panel to the
+right of the chat (as wide as you drag its edge, closed and reopened from the chat's button) or in a
+separate window, your choice in Settings → Chat; **Fit / 100% / Original** zoom, phone and tablet sizes,
+light and dark, console and highlighted file changes. The chat **sees the page** (elements with a
+reference), clicks and types with Allow / Deny, waits for the page to be ready and reads failed
+requests. The **chat's steps** say in plain words what it is doing, on Telegram too. The **chat's
+permissions** appear inside the conversation with Deny / Always / Allow, even with "Permissions and
+calls" off. Memory: page summaries and aliases and a search that follows strong links. README and
+homepage are English first (Italian in `README.it.md` and `/it/`). Fixed: with the Preview open the
+island no longer resized and its corner did not follow the mouse.
 
 **1.0.8** — **New logo**: a speech bubble with a rainbow stroke, dark inside, with two white eyes,
 readable even at 16 px; the same drawing is the logo in the island. **Jarvis Sfera** is the default character of a new install.

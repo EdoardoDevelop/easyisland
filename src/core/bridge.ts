@@ -433,6 +433,23 @@ export const Bridge = {
   memoryWindowOpen: () => call<void>("memory_window_open"),
   memoryInboxAdd: (name: string, data: number[]) => callOrThrow<string>("memory_inbox_add", { name, data }),
   memoryNoteAdd: (text: string) => callOrThrow<string>("memory_note_add", { text }),
+  /** «Anteprima» (preview.rs, src/preview/): files and web pages in their window. */
+  previewOpen: (target: string, newTab = false) => callOrThrow<number>("preview_open", { target, newTab }),
+  previewShow: () => call<void>("preview_show"),
+  previewHide: () => call<void>("preview_hide"),
+  previewPane: (x: number, y: number, w: number, h: number) => call<void>("preview_pane", { x, y, w, h }),
+  previewState: () => call<import("../preview/types").PreviewState>("preview_state"),
+  previewSelect: (id: number) => call<void>("preview_select", { id }),
+  previewClose: (id: number) => call<void>("preview_close", { id }),
+  previewLayout: (x: number, y: number, w: number, h: number, covered: boolean) => call<void>("preview_layout", { x, y, w, h, covered }),
+  previewNav: (id: number, action: string) => callOrThrow<void>("preview_nav", { id, action }),
+  previewView: (preset: string, scheme: string, width?: number, height?: number, zoom?: string) => call<void>("preview_view", { preset, scheme, width, height, zoom }),
+  previewFile: (path: string) => call<import("../preview/types").FileView>("preview_file", { path }),
+  previewConsole: (id: number) => call<import("../preview/types").ConsoleLine[]>("preview_console", { id }),
+  previewConsoleClear: (id: number) => call<void>("preview_console_clear", { id }),
+  previewDevtools: (id: number) => callOrThrow<void>("preview_devtools", { id }),
+  previewServers: () => call<import("../preview/types").DevServer[]>("preview_servers"),
+  previewExternal: (pathOrUrl: string, reveal: boolean) => callOrThrow<void>("preview_external", { pathOrUrl, reveal }),
   /** Ctrl+V in the chat: files copied in Explorer or a picture, into the inbox (null: plain text). */
   chatPaste: () => callOrThrow<DroppedFile | null>("chat_paste"),
   /** «Modifica» / «Rigenera»: the conversation goes back to these lines. */

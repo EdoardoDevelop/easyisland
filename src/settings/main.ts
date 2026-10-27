@@ -631,7 +631,14 @@ function terminalRow(): HTMLElement {
       h("label", { text: t("Modalità terminale") }),
       toggle(settings.chatTerminal === true, (v) => { settings.chatTerminal = v; void save(); }),
       h("span", { class: "hint note", text: t("la chat lavora come Claude Code o opencode da terminale: esegue comandi, modifica file e usa tutti i tuoi server MCP, plugin e skill. Ogni comando o modifica chiede Consenti / Nega nell'isola, con «Sempre» per non ripetere la domanda. Gli altri motori passano da opencode, che deve essere installato") })),
-    folderRow);
+    folderRow,
+    h("div", { class: "row" },
+      h("label", { text: t("Anteprima") }),
+      // One choice: off, its own window, or stuck to the island (preview.rs).
+      select([["docked", t("Nell'isola, a destra")], ["window", t("Finestra separata")], ["off", t("Spenta")]],
+        settings.chatPreview === false ? "off" : settings.previewDocked ? "docked" : "window",
+        (v) => { settings.chatPreview = v !== "off"; settings.previewDocked = v === "docked"; void save(); }),
+      h("span", { class: "hint note", text: t("i link e i file citati dalla chat si aprono nell'Anteprima, con le pagine web in un browser vero, e i file che la modalità terminale modifica compaiono lì con le modifiche evidenziate. Nell'isola è un pannello a destra, che allarghi trascinandone il bordo; separata, è una finestra che sposti dove vuoi. Ctrl+clic su un link apre il browser") })));
 }
 
 /** Impostazioni → Chat → Cronologia: on, off (which empties it), or emptied now. */
@@ -1655,7 +1662,7 @@ function memoryRow(): HTMLElement {
   return h("div", { style: "display:contents" },
     h("div", { class: "row" }, h("label", { text: t("Memoria") }), line, map, open, folder),
     h("div", { class: "row" }, h("label", { text: t("Motore per la memoria") }), engine,
-      h("span", { class: "hint note", text: t("collega la memoria scrivendolo nei file: pagine per gli argomenti che tornano (un cliente, un progetto) e relazioni tra pagine. Solo aggiunte, mai cancellazioni; dopo il riordino della sera e con «Collega con l'IA» nella mappa. Va bene anche un motore gratuito; con uno in cloud le note escono dal PC, con Ollama o LM Studio restano qui") })));
+      h("span", { class: "hint note", text: t("collega la memoria scrivendolo nei file: pagine per gli argomenti che tornano (un cliente, un progetto), relazioni tra pagine e per ogni pagina un riassunto con gli altri nomi, che la chat usa per trovarla. Solo aggiunte, mai cancellazioni; dopo il riordino della sera e con «Collega con l'IA» nella mappa. Va bene anche un motore gratuito; con uno in cloud le note escono dal PC, con Ollama o LM Studio restano qui") })));
 }
 
 /** Chat → "Ricette": how a kind of question was answered, learnt by use (recipes.rs). */
@@ -4811,7 +4818,7 @@ function render() {
   nav.append(h("div", { class: "nav-foot" },
     h("div", { class: "nav-links" },
       link(t("Guida"), language() === "en" ? `${HOMEPAGE}en/guide/` : `${HOMEPAGE}guida/`),
-      link(t("Sito"), language() === "en" ? `${HOMEPAGE}en/` : HOMEPAGE),
+      link(t("Sito"), language() === "en" ? HOMEPAGE : `${HOMEPAGE}it/`),
       link("GitHub", "https://github.com/EdoardoDevelop/easyisland")),
     h("div", { text: t("Nessuna telemetria. Le richieste di rete vanno solo ai servizi che configuri tu.") })));
 

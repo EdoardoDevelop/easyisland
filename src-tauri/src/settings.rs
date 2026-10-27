@@ -759,6 +759,17 @@ pub struct Settings {
     /// Its working folder; "" = the user's home.
     #[serde(default)]
     pub chat_folder: String,
+    /// «Anteprima» (preview.rs): the chat's links and the files «Modalità
+    /// terminale» edits open in the preview window.
+    #[serde(default = "default_true")]
+    pub chat_preview: bool,
+    /// The preview as a panel on the right of the open island (resizable by
+    /// its edge) instead of a window of its own.
+    #[serde(default)]
+    pub preview_docked: bool,
+    /// The panel's width in the island (logical px, dragged by its edge); 0 = the usual.
+    #[serde(default)]
+    pub preview_width: f64,
     /// Impostazioni → Chat → Istruzioni: in front of every new conversation.
     /// Of the profile (PROFILE_KEYS): "Cliente Rossi" can carry its own.
     #[serde(default)]
@@ -1004,6 +1015,9 @@ impl Default for Settings {
             agent_tools: true,
             chat_terminal: false,
             chat_folder: String::new(),
+            chat_preview: true,
+            preview_docked: false,
+            preview_width: 0.0,
             chat_instructions: String::new(),
             chat_assistants: Vec::new(),
             opencode_watch: false,

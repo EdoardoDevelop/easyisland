@@ -146,6 +146,11 @@ Spunto dagli strumenti a nodi e dai costruttori di agenti a grafo: passi fissi d
 - **Ordine:** 1) motore in Rust (grafo, stato, ripresa) con la conversione; 2) creazione dalla chat e vista con le esecuzioni; 3) editor modificabile; 4) Decisione col modello e Per ogni elemento.
 - **Rischi da tenere d'occhio:** le proposte dalle abitudini e i compiti «semplici» devono restare semplici (un flusso di un nodo non deve sembrare un diagramma); l'editor su schermi piccoli; non rompere le automazioni di chi aggiorna.
 
+## Memoria: dopo riassunti, alias e secondo passo (26 ottobre 2026)
+Fatti riassunto e alias delle pagine e il secondo passo sui legami forti (`docs/chat.md` → Ricerca che segue i collegamenti). Restano:
+- **Pulizia proposta:** il controllo (`brain::check`) segnala anche le pagine doppie (stessi alias, titoli simili, molte parole in comune) e le relazioni ripetute con nomi diversi («usa UniFi» e «usa Ubiquiti»); il compito di controllo propone «unisci» con `task_ask` e fa solo ciò che l'utente approva (la pagina unita resta in archivio). Utile quando la memoria cresce.
+- **Ricerca per significato:** embedding delle pagine e delle note, per trovare ciò che non ha parole in comune con la domanda. Vuole un modello locale (una dipendenza) o un servizio (costo, note fuori dal PC): solo se la memoria diventa grande (molti PDF), e con la scelta in Impostazioni come il motore per la memoria.
+
 ## Altro
 - **Scheda esatta di Windows Terminal** per «Apri»: il relay legge il titolo della console e l'app seleziona la scheda con UI Automation. Da sperimentare con una sessione vera. Tolta dal Da fare il 9 ottobre: per ora non serve.
 - **Clic destro sui file in Esplora file** (prossimo passo, deciso l'11 ottobre 2026): una voce nel registro di Windows (`HKCU\Software\Classes\*\shell`) che passa il percorso all'app, scritta solo dopo la conferma di Edoardo. In Windows 11 finisce sotto «Mostra altre opzioni» (il menu nuovo vuole un pacchetto MSIX con `IExplorerCommand`). Per il testo selezionato c'è già il menu di `Win+Alt+A`.
