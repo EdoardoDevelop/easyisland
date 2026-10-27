@@ -159,6 +159,24 @@ Un motore della chat «Modello integrato» che fa girare un modello sul PC senza
 - **Vincoli:** CPU ~0 % a isola ritirata (processo spento quando non serve); su CPU 5–15 parole al secondo, molto meglio con una scheda video; i modelli piccoli sbagliano spesso con gli strumenti e la Modalità terminale, quindi va presentato per chat e privacy («nulla esce dal PC»), non per l'agente. Il processo figlio si chiude con l'app (job object di Windows) anche se l'app cade.
 - **Utile anche per:** il motore per la memoria e, in futuro, gli embedding della ricerca per significato (sezione Memoria qui sopra).
 
+## Isola fissa con spazio riservato sul bordo (chiesto da Edoardo il 27 ottobre 2026, da studiare insieme)
+Un'impostazione che fa dell'isola una barra fissa su un bordo dello schermo: Windows riserva quella fascia (come per la barra delle applicazioni) e le finestre massimizzate o agganciate si fermano al suo bordo.
+- **Richieste di Edoardo:**
+  - la fascia resta configurabile come l'isola oggi (aspetto, stile, dimensioni scelte in Impostazioni: niente aspetto nuovo imposto);
+  - con l'impostazione accesa il personaggio **non si trascina più**: è fisso in alto, in basso, a destra o a sinistra, a scelta.
+- **Come (da verificare):**
+  - registrazione come barra di Windows con `SHAppBarMessage` (`ABM_NEW`, `ABM_QUERYPOS` / `ABM_SETPOS` sul lato scelto), in `island.rs`;
+  - fascia spessa quanto l'isola chiusa, sul monitor dell'isola; aperta (chat, card) l'isola si allarga sopra le finestre come oggi, senza riservare altro spazio;
+  - l'isola si posiziona sul bordo vero del monitor, non sull'area di lavoro (che con la fascia comincia dopo di essa): da rivedere `place_origin`, `open_origin` e il calcolo dell'area in `island.rs`.
+- **Da gestire:**
+  - programmi a schermo intero: `ABN_FULLSCREENAPP` libera la fascia e la rimette dopo (legarlo a `quietFullscreen`);
+  - `ABM_REMOVE` all'uscita, e la prova di cosa succede alla fascia se l'app cade;
+  - cambio di monitor, risoluzione o DPI (`ABN_POSCHANGED`);
+  - barra delle applicazioni sullo stesso bordo (Windows le mette una accanto all'altra);
+  - a destra o a sinistra la fascia è verticale: va deciso come si dispone la striscia chiusa (personaggio, icone, barra dell'app in uso);
+  - con l'impostazione accesa vanno tolti il trascinamento del personaggio, il «lascia su una finestra / icona del desktop» e lo spostamento dell'isola aperta.
+- Nessun costo a riposo: Windows avvisa la barra solo quando cambia qualcosa.
+
 ## Rinominare le conversazioni della cronologia (chiesto da Edoardo il 27 ottobre 2026, da fare)
 Oggi il titolo è la prima domanda (`chat_log::title`), con il prefisso «Telegram · » o «Compito · », e non si cambia.
 - Nella lista della cronologia, accanto a 📌, un ✎ (anche il doppio clic sul titolo) trasforma il titolo in un campo: Invio salva, Esc annulla, vuoto torna al titolo automatico.
