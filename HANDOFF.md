@@ -25,7 +25,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Prova dal vivo dei nuovi personaggi** (`docs/prove-dal-vivo.md`).
 - [ ] **Modalità chiara:** guardare tutte le schede dell'isola e le pagine delle Impostazioni in chiaro con l'app vera e correggere in `src/style-light.css` / `settings-light.css` ciò che il plugin sbaglia (colori in linea nel codice TypeScript non cambiano).
 - [ ] **Flussi:** fatti nel codice (finestra Flussi, agenti, scelte, per ogni, domande su Telegram, tentativi, esecuzioni; piano e scelte in `docs/flussi.md`); da provare con flussi veri, soprattutto un agente con i campi, la scelta del modello e la ripresa dopo un riavvio.
-- [ ] **Isola fissa con spazio riservato** su un bordo (alto, basso, destra, sinistra), personaggio non più trascinabile: da studiare con Edoardo (`docs/idee.md`).
+- [ ] **Isola fissa: barra riservata** in alto o in basso, con tre aree (sinistra, centro, destra) di integrazioni e azioni scelte dall'utente, personaggio non più trascinabile: decisioni prese, restano quattro domande prima di cominciare (`docs/idee.md`).
 - [ ] **Modello integrato** (accantonato il 27 ottobre 2026): fatto nel branch `claude/modello-integrato`, non unito, manca la prova dal vivo (`docs/idee.md`).
 - [ ] **Recapiti tra due EasyIsland** (casa ↔ notebook, memorie separate, senza VPN né cloud): da valutare (`docs/idee.md`).
 - [ ] **Pulizia strutturale** (dal controllo del 27 ottobre 2026):

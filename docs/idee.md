@@ -160,23 +160,41 @@ Un motore della chat «Modello integrato» che fa girare un modello sul PC senza
 - **Vincoli:** CPU ~0 % a isola ritirata (processo spento quando non serve); su CPU 5–15 parole al secondo, molto meglio con una scheda video; i modelli piccoli sbagliano spesso con gli strumenti e la Modalità terminale, quindi va presentato per chat e privacy («nulla esce dal PC»), non per l'agente. Il processo figlio si chiude con l'app (job object di Windows) anche se l'app cade.
 - **Utile anche per:** il motore per la memoria e, in futuro, gli embedding della ricerca per significato (sezione Memoria qui sopra).
 
-## Isola fissa con spazio riservato sul bordo (chiesto da Edoardo il 27 ottobre 2026, da studiare insieme)
-Un'impostazione che fa dell'isola una barra fissa su un bordo dello schermo: Windows riserva quella fascia (come per la barra delle applicazioni) e le finestre massimizzate o agganciate si fermano al suo bordo.
-- **Richieste di Edoardo:**
-  - la fascia resta configurabile come l'isola oggi (aspetto, stile, dimensioni scelte in Impostazioni: niente aspetto nuovo imposto);
-  - con l'impostazione accesa il personaggio **non si trascina più**: è fisso in alto, in basso, a destra o a sinistra, a scelta.
-- **Come (da verificare):**
-  - registrazione come barra di Windows con `SHAppBarMessage` (`ABM_NEW`, `ABM_QUERYPOS` / `ABM_SETPOS` sul lato scelto), in `island.rs`;
-  - fascia spessa quanto l'isola chiusa, sul monitor dell'isola; aperta (chat, card) l'isola si allarga sopra le finestre come oggi, senza riservare altro spazio;
-  - l'isola si posiziona sul bordo vero del monitor, non sull'area di lavoro (che con la fascia comincia dopo di essa): da rivedere `place_origin`, `open_origin` e il calcolo dell'area in `island.rs`.
-- **Da gestire:**
-  - programmi a schermo intero: `ABN_FULLSCREENAPP` libera la fascia e la rimette dopo (legarlo a `quietFullscreen`);
-  - `ABM_REMOVE` all'uscita, e la prova di cosa succede alla fascia se l'app cade;
-  - cambio di monitor, risoluzione o DPI (`ABN_POSCHANGED`);
-  - barra delle applicazioni sullo stesso bordo (Windows le mette una accanto all'altra);
-  - a destra o a sinistra la fascia è verticale: va deciso come si dispone la striscia chiusa (personaggio, icone, barra dell'app in uso);
-  - con l'impostazione accesa vanno tolti il trascinamento del personaggio, il «lascia su una finestra / icona del desktop» e lo spostamento dell'isola aperta.
-- Nessun costo a riposo: Windows avvisa la barra solo quando cambia qualcosa.
+## Isola fissa: barra riservata in alto o in basso (chiesta da Edoardo il 27 ottobre 2026, ragionata lo stesso giorno, da fare)
+Un'impostazione che fa dell'isola una **barra fissa** sul bordo alto o basso dello schermo. Windows riserva quella fascia, come per la barra delle applicazioni, e le finestre massimizzate o agganciate si fermano al suo bordo.
+
+**Deciso con Edoardo (27 ottobre 2026):**
+- **Solo in alto o in basso.** A destra e a sinistra la modalità fissa non c'è.
+- **Personaggio non più trascinabile.** L'isola sta in una delle tre aree della barra (inizio, centro, fine), scelta in Impostazioni, e anche il monitor si sceglie lì.
+- **Tre aree personalizzabili: sinistra, centro, destra.** In ognuna l'utente mette le **sue** integrazioni e azioni rapide, come in una barra dei menu. Niente voci predefinite: si sceglie in Impostazioni, mai con una modalità di modifica nell'isola.
+- **Sfondo della barra a scelta** in Impostazioni: trasparente (si vede il desktop; predefinito) o pieno con il colore dell'isola.
+- **Spessore:** quello della vista compatta, che segue le dimensioni scelte oggi; nessuna impostazione in più.
+- **Aspetto:** quello attuale dell'isola, configurabile come oggi.
+
+**Come funziona (proposta):**
+- La vista compatta dell'isola è sempre visibile nella sua area. Aperta (chat, card), l'isola cresce dalla barra sopra le finestre, senza riservare altro spazio.
+- Impostazioni che non valgono più con la barra fissa (nascoste o spente):
+  - trascinamento e `offsetX` / `offsetY`;
+  - «lascia su una finestra o su un'icona del desktop»;
+  - spostamento dell'isola aperta;
+  - `glueEdges` (sempre attaccata);
+  - `revealDuration` (sempre visibile);
+  - `overTaskbar`;
+  - `islandPlace` (si apre dalla barra).
+- Windows: registrazione con `SHAppBarMessage` (`ABM_NEW`, `ABM_QUERYPOS` / `ABM_SETPOS`, `ABE_TOP` / `ABE_BOTTOM`) in Rust.
+  - `ABN_FULLSCREENAPP`: a schermo intero la barra si libera e torna dopo (legato a `quietFullscreen`).
+  - `ABN_POSCHANGED`: cambio di risoluzione, DPI o monitor.
+  - `ABM_REMOVE` all'uscita; da provare cosa succede se l'app cade.
+  - Con la barra delle applicazioni sullo stesso bordo, Windows le mette una accanto all'altra.
+  - L'isola si posiziona sul bordo vero del monitor, non sull'area di lavoro, che con la barra comincia dopo di essa.
+- **Finestre:** oggi l'isola è una finestra trasparente di almeno 720×560 attorno all'isola. La barra è larga quanto lo schermo, quindi le aree laterali vogliono probabilmente una finestra sottile a tutta larghezza (trasparente ai clic fuori dagli elementi), registrata come barra di Windows. L'isola resta la sua finestra di sempre, sopra. Da verificare con una prova.
+- **Costo a riposo nullo:** Windows avvisa la barra solo quando cambia qualcosa. Gli elementi delle aree si aggiornano con gli eventi che le integrazioni mandano già, mai con un ciclo proprio.
+
+**Da decidere con Edoardo prima di cominciare:**
+- Cosa mostra un'**integrazione** nella barra: icona e un valore breve («☁ 18°», «✉ 3», l'icona colorata del Ping), solo icona, o icona e testo a scelta. E al clic: apre la sua card nell'isola, come dal menu?
+- Le **azioni rapide**: come i pulsanti della barra dell'app in uso (icona, testo o entrambi, `barLook`), anche quelle legate a un programma?
+- I **widget** si possono mettere nella barra o no?
+- La **barra dell'app in uso** e le risposte rapide (permessi, chiamate) restano nella striscia accanto al personaggio, come oggi?
 
 ## Altro
 - **Scheda esatta di Windows Terminal** per «Apri»: il relay legge il titolo della console e l'app seleziona la scheda con UI Automation. Da sperimentare con una sessione vera. Tolta dal Da fare il 9 ottobre: per ora non serve.
