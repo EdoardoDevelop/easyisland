@@ -5,6 +5,7 @@ Da controllare prima di proporre o fare una funzione. Una richiesta che va contr
 - **Integrazione o widget:** un servizio o programma che c'è una volta sola è un'integrazione. I widget sono solo controlli ripetibili.
 - **Cursor e Copilot CLI solo in osservazione:** sui loro hook di permesso una risposta illeggibile o un errore bloccano lo strumento. L'isola non deve mai poter bloccare un agente.
 - **Ricette della chat salvate da sole (20 ottobre 2026):** scelta di Edoardo. Sono poche righe mirate scelte da EasyIsland (`recipes.rs`, `docs/chat.md` → Velocità e ricette), non una memoria libera che il motore scrive come vuole: crescerebbe e costerebbe token a ogni messaggio. Si contano e si cancellano in Impostazioni → Chat.
+- **Riorganizzazioni del codice (27 ottobre 2026):** i file grandi (`lib.rs`, `island.ts`, `settings/main.ts`, `style.css`) si dividono un pezzo alla volta quando si tocca quell'area per un'altra ragione, mai tutti insieme né durante una funzione nuova. Esclusi: `parking_lot` o un `safe_lock` contro il poisoning (in release `panic = "abort"` chiude l'app al primo panic, il rischio è il panic stesso), Vitest (si usa `node --test`), spostare le variabili globali nello stato gestito di Tauri (molte righe toccate senza vantaggio per l'utente).
 - **Vassoio temporaneo:** si svuota a ogni avvio, di proposito. Restano solo i file che l'utente fissa con la puntina (deciso il 9 ottobre 2026).
 - **Esclusi per ora:**
   - widget "Oggi"

@@ -26,6 +26,13 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Modalità chiara:** guardare tutte le schede dell'isola e le pagine delle Impostazioni in chiaro con l'app vera e correggere in `src/style-light.css` / `settings-light.css` ciò che il plugin sbaglia (colori in linea nel codice TypeScript non cambiano).
 - [ ] **Flussi:** fatti nel codice (finestra Flussi, agenti, scelte, per ogni, domande su Telegram, tentativi, esecuzioni; piano e scelte in `docs/flussi.md`); da provare con flussi veri, soprattutto un agente con i campi, la scelta del modello e la ripresa dopo un riavvio.
 - [ ] **Recapiti tra due EasyIsland** (casa ↔ notebook, memorie separate, senza VPN né cloud): da valutare (`docs/idee.md`).
+- [ ] **Pulizia strutturale** (dal controllo del 27 ottobre 2026):
+  - guida: due capitoli `10-` (`10-anteprima` e `10-strumenti-ai`, idem in inglese) e `guida.mjs` che abbina italiano e inglese solo dal numero, così il pulsante della lingua porta alla pagina sbagliata: rinumerare e abbinare dal nome;
+  - `README.md`: il link `#dopo-linstallazione` non porta più a nessun titolo;
+  - immagini della guida rotte su GitHub (`../media/` da `docs/guida/` cerca `docs/media`): percorso vero verso `site/media/`, corretto da `guida.mjs` per il sito; niente collegamenti simbolici;
+  - `island.rs` `on_foreground_change`: un thread nuovo a ogni cambio di finestra (isola ritirata sopra la barra); un contatore che fa uscire i thread vecchi basta;
+  - test del front end con `node --test` (zero dipendenze), per primi `expr.ts`, `markdown.ts`, `calc.ts`;
+  - i 170 testi inglesi «inutilizzati» di `check:i18n`: guardarli uno per uno, alcuni sono composti al momento.
 - [ ] **Da decidere con Edoardo:** firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
 
 ## Problemi noti
