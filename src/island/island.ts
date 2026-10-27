@@ -753,8 +753,11 @@ export class Island {
     State.isPinned = false;
     this.fsm.pinned = false;
     if (req.source === "chat") {
-      // Back to the conversation, which is still waiting for its answer.
+      // Back to the conversation, which is still waiting for its answer. Redrawn
+      // now: the request sits inside the chat (chat.ts), and without this it
+      // stayed there after the click until the next step came in (27 Oct 2026).
       if (onCard) this.setView("prompt");
+      else State.notify();
       return;
     }
     const tid = req.taskId ?? "integration_claude";
