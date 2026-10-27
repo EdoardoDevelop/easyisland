@@ -1424,6 +1424,44 @@ input[type="range"]::-webkit-slider-thumb {
   display: flex;
 }
 
+/* A permission the chat waits for, at the end of the conversation (chat.ts). */
+.chat-ask {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0;
+  padding: 9px 11px;
+  border-radius: 12px;
+  border: 1px solid rgba(245, 165, 36, 0.45);
+  background: rgba(245, 165, 36, 0.09);
+}
+
+.chat-ask-title {
+  font: 600 calc(12px + var(--fs-up, 0px)) var(--font);
+  color: var(--amber);
+}
+
+.chat-ask-what {
+  font: 500 calc(11.5px + var(--fs-up, 0px))/1.4 var(--mono, monospace);
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.chat-ask-always {
+  font: 400 calc(11px + var(--fs-up, 0px)) var(--font);
+  color: var(--ink-3, var(--ink-2));
+}
+
+.chat-ask-row {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
 .chat-row.user {
   justify-content: flex-end;
   padding-left: 32px;

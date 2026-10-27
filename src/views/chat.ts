@@ -133,7 +133,10 @@ function slug(name: string): string {
   return name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: QuickAction): void }): ViewHost {
+export function buildPrompt(
+  onHeightChange: () => void,
+  actions: { runAction(a: QuickAction): void; decide(d: "allow" | "deny" | "always"): void },
+): ViewHost {
   const chipRow = h("div", { class: "chip-row" });
   // The engine and model, above the chat: a click picks another one.
   const engineBtn = h("button", { class: "engine-pick", title: t("Cambia motore della chat") }) as HTMLButtonElement;
@@ -156,6 +159,33 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
   previewBtn.addEventListener("click", () => void (State.previewOpen ? Bridge.previewHide() : Bridge.previewShow()));
   const head = h("div", { class: "chat-head" }, chipRow, engineBtn, remoteBtn, autoBtn, previewBtn, historyBtn, exportBtn, engineMenu);
   const log = h("div", { class: "chat-log" });
+  // A permission this chat asks for (hooks.ts handleChatPermission): right in the
+  // conversation, under its last step, instead of a card taking the island away
+  // from the chat (asked by Edoardo on 27 Oct 2026).
+  const askWhat = h("code", { class: "chat-ask-what" });
+  const askRisk = h("div", { class: "risk-hint" });
+  const askAlways = h("div", { class: "chat-ask-always" });
+  const askRow = h("div", { class: "chat-ask-row" });
+  const askEl = h("div", { class: "chat-ask" },
+    h("div", { class: "chat-ask-title", text: t("La chat chiede il permesso") }), askWhat, askRisk, askAlways, askRow);
+  let askKey = "";
+  function fillAsk(req: NonNullable<typeof State.pendingApproval>) {
+    askWhat.textContent = req.command || req.tool || "…";
+    const risks = req.risks ?? [];
+    askRisk.textContent = risks.map((r) => `⚠ ${r}`).join("\n");
+    askRisk.style.display = risks.length ? "" : "none";
+    askAlways.textContent = req.always ? t("Sempre: {rule}", { rule: req.always }) : "";
+    askAlways.style.display = req.always ? "" : "none";
+    const b = (label: string, kind: string, d: "allow" | "deny" | "always") =>
+      h("button", { class: `btn ${kind}`, onclick: () => actions.decide(d) }, h("span", { text: label }));
+    askRow.replaceChildren(b(t("Nega"), "secondary", "deny"));
+    if (req.always) {
+      const always = b(t("Sempre"), "secondary", "always");
+      always.title = t("Consenti e non chiedere più per quanto scritto sopra");
+      askRow.append(always);
+    }
+    askRow.append(b(t("Consenti"), "primary", "allow"));
+  }
   // Scrolled up to read: new text does not pull the view down; ↓ goes back.
   let stick = true;
   const jumpBtn = h("button", { class: "chat-jump", title: t("Vai in fondo"), text: "↓" }) as HTMLButtonElement;
@@ -1310,6 +1340,22 @@ export function buildPrompt(onHeightChange: () => void, actions: { runAction(a: 
         streamEl.dataset.len = String(streamed.length);
         streamEl.replaceChildren(bubble({ id: 0, role: "assistant", content: streamed }).firstChild!);
         toBottom();
+      }
+      // The waiting permission, always the last thing in the conversation.
+      const req = State.pendingApproval?.source === "chat" ? State.pendingApproval : null;
+      if (req) {
+        const key = `${req.requestId}|${req.command}|${req.always ?? ""}`;
+        if (askKey !== key) {
+          askKey = key;
+          fillAsk(req);
+        }
+        if (log.lastChild !== askEl) {
+          log.append(askEl);
+          toBottom();
+        }
+      } else if (askKey) {
+        askKey = "";
+        askEl.remove();
       }
 
       if (State.chatDraft != null) {

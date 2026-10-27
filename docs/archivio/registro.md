@@ -2,6 +2,12 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 26 ottobre 2026 — Versione 1.0.7: Flussi
+- Automazioni e compiti uniti nei **Flussi** (`flows.rs`, `src/flows/`, piano e scelte in `docs/flussi.md`): passi con nome e collegamenti (nessuna conversione dei dati), nodi Agente, Scelta (regole o modello), Per ogni, Domanda anche su Telegram; tentativi, strada d'errore, niente doppioni dopo un riavvio, tempo massimo e campi JSON degli agenti; giri salvati in `%APPDATA%\EasyIsland\flussi\`.
+- Finestra **Flussi** (creata alla prima apertura): disegno dall'alto in basso, blocchi da trascinare, pannello con i dati, modelli, «Descrivilo a parole», Prova ed Esecuzioni. Impostazioni → Flussi è solo l'elenco.
+- Memoria e Flussi aperti dalle Impostazioni non restano più dietro (le Impostazioni lasciano il primo piano prima, `keep_settings_above`). README e sito: EasyIsland come agente personale.
+- **Prove:** `cargo test`, `npm run build`, `npm run smoke`; editor provato nell'anteprima. Da provare dal vivo con flussi veri.
+
 ### 25 ottobre 2026 — Versione 1.0.6: modalità chiara, Jarvis Plasma, Aspetto riordinato
 - Modalità **Scura / Chiara / Automatica** per entrambi gli stili (`theme.scheme`). Le regole chiare le genera il plugin di Vite `scripts/light-css.mjs` sotto `:where([data-scheme="light"])`; correzioni a mano in `src/style-light.css` e `settings-light.css`; Automatica dal registro (`system_light`). Dettagli in `docs/architettura.md`.
 - **Jarvis Plasma** (`jarvis.ts`), da un'immagine: gabbia di filamenti, rete interna, nodo luminoso, niente bordo netto. Jarvis Sfera con colori più accesi.

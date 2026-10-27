@@ -1467,7 +1467,8 @@ class AppState {
   /** The card a pending permission request waits on, if there is one. */
   pendingCard(): IslandViewName | null {
     const p = this.pendingApproval;
-    return p ? (p.questions ? "ask" : "approval") : null;
+    // The chat's own requests wait inside the chat (chat.ts), not on a card.
+    return p ? (p.source === "chat" ? "prompt" : p.questions ? "ask" : "approval") : null;
   }
 
   /** Where the island opens: a request waiting for an answer comes first. */

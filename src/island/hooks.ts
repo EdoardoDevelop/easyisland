@@ -324,8 +324,14 @@ function handleChatPermission(island: Island, payload: HookPayload) {
   if (requestId) void Bridge.approvalAck(requestId);
   State.isPinned = true;
   Sound.play("approval");
-  if (!(quickApproval(State.pendingApproval) && island.showInStrip())) {
-    if (island.alertsOpen()) island.alert("approval");
+  // The request shows inside the chat, under its last step (chat.ts). With the
+  // island open it goes to the chat whatever «Permessi e chiamate» says: before,
+  // with that off, peek() did nothing on an open island and the request waited
+  // unseen, only in the top bubble (27 Oct 2026).
+  if (State.mode === "expanded") {
+    if (State.view !== "prompt") island.setView("prompt");
+  } else if (!(quickApproval(State.pendingApproval) && island.showInStrip())) {
+    if (island.alertsOpen()) island.alert("prompt");
     else island.peek();
   }
   State.notify();
