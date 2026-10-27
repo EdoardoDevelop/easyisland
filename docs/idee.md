@@ -178,12 +178,6 @@ Un'impostazione che fa dell'isola una barra fissa su un bordo dello schermo: Win
   - con l'impostazione accesa vanno tolti il trascinamento del personaggio, il «lascia su una finestra / icona del desktop» e lo spostamento dell'isola aperta.
 - Nessun costo a riposo: Windows avvisa la barra solo quando cambia qualcosa.
 
-## Rinominare le conversazioni della cronologia (chiesto da Edoardo il 27 ottobre 2026, da fare)
-Oggi il titolo è la prima domanda (`chat_log::title`), con il prefisso «Telegram · » o «Compito · », e non si cambia.
-- Nella lista della cronologia, accanto a 📌, un ✎ (anche il doppio clic sul titolo) trasforma il titolo in un campo: Invio salva, Esc annulla, vuoto torna al titolo automatico.
-- Rust: un comando `chat_rename` (id, titolo) in `chat_log.rs` che cambia `title`, tagliato a una lunghezza massima come quello automatico, e scrive `chats.json` come gli altri (file temporaneo e rinomina). Un titolo scelto a mano resta tale: «Dirama da qui» lo copia, la ricerca lo trova già (`chat_history_search` guarda il titolo).
-- Volendo anche `/rinomina <titolo>` tra i comandi con / per la conversazione aperta. Testi nuovi con `t()` ed `en.json`; aggiornare `docs/chat.md` → Cronologia e la pagina della chat nella guida.
-
 ## Altro
 - **Scheda esatta di Windows Terminal** per «Apri»: il relay legge il titolo della console e l'app seleziona la scheda con UI Automation. Da sperimentare con una sessione vera. Tolta dal Da fare il 9 ottobre: per ora non serve.
 - **Clic destro sui file in Esplora file** (prossimo passo, deciso l'11 ottobre 2026): una voce nel registro di Windows (`HKCU\Software\Classes\*\shell`) che passa il percorso all'app, scritta solo dopo la conferma di Edoardo. In Windows 11 finisce sotto «Mostra altre opzioni» (il menu nuovo vuole un pacchetto MSIX con `IExplorerCommand`). Per il testo selezionato c'è già il menu di `Win+Alt+A`.

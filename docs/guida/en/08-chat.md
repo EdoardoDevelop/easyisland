@@ -64,7 +64,7 @@ In **Settings → Chat and AI engines → Instructions and memory** you create a
 🎤 in the field: click to start and to finish. With a transcription service chosen in Settings → Telegram → Voice messages, it records and transcribes with it; without one, it opens Windows dictation (<kbd>Win</kbd>+<kbd>H</kbd>), local and free.
 
 ## History
-The clock at the top of the chat shows previous conversations (up to 100, only on this PC), with date, engine and search. A click reopens one on its engine and you continue it. With API engines it resumes exactly where it was; with the subscription and opencode the conversation is passed along as text. Settings → Chat → **History** clears or turns it off (turning off the memory diary too).
+The clock at the top of the chat shows previous conversations (up to 100, only on this PC), with date, engine and search. **✎** (or a double click on the title) renames it: Enter saves, Esc cancels, an empty title goes back to the first question. 📌 keeps it on top. A click reopens one on its engine and you continue it. With API engines it resumes exactly where it was; with the subscription and opencode the conversation is passed along as text. Settings → Chat → **History** clears or turns it off (turning off the memory diary too).
 
 ![The conversation history](../media/chat-history.png)
 

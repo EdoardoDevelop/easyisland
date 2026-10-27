@@ -1034,11 +1034,53 @@ export function buildPrompt(
         if (demo) demo.pinned = c.pinned;
         void refreshHistory();
       });
+      const titleEl = h("span", { class: "history-title", text: `${c.pinned ? "📌 " : ""}${c.title}` });
+      // ✎ or a double click on the title: a field in its place. Enter or
+      // leaving it saves, Esc keeps the old one, empty = the first question.
+      const rename = () => {
+        if (row.querySelector(".history-rename")) return;
+        const field = h("input", { class: "history-rename", type: "text", value: c.title, spellcheck: "false", maxlength: "80" }) as HTMLInputElement;
+        let done = false;
+        const finish = (keep: boolean) => {
+          if (done) return;
+          done = true;
+          const next = field.value.trim();
+          if (keep && next !== c.title) {
+            void Bridge.chatHistoryRename(c.id, next);
+            const demo = historyDemo.find((x) => x.id === c.id);
+            if (demo && next) demo.title = next;
+            void refreshHistory();
+          } else {
+            field.replaceWith(titleEl);
+          }
+        };
+        field.addEventListener("click", (e) => e.stopPropagation());
+        field.addEventListener("dblclick", (e) => e.stopPropagation());
+        field.addEventListener("keydown", (e) => {
+          e.stopPropagation();
+          const key = (e as KeyboardEvent).key;
+          if (key === "Enter") finish(true);
+          else if (key === "Escape") finish(false);
+        });
+        field.addEventListener("blur", () => finish(true));
+        titleEl.replaceWith(field);
+        field.focus();
+        field.select();
+      };
+      const edit = h("button", { class: "history-edit", title: t("Rinomina") }, svg(ICONS.pencil, 11));
+      edit.addEventListener("click", (e) => {
+        e.stopPropagation();
+        rename();
+      });
+      titleEl.addEventListener("dblclick", (e) => {
+        e.stopPropagation();
+        rename();
+      });
       const row = h("div", { class: "history-item", title: c.title, onclick: () => void reopen(c.id) },
         h("div", { class: "history-text" },
-          h("span", { class: "history-title", text: `${c.pinned ? "📌 " : ""}${c.title}` }),
+          titleEl,
           h("span", { class: "history-meta", text: `${when(c.updated)} · ${engine} · ${tn("{n} domanda", "{n} domande", c.turns)}` })),
-        pin, del);
+        edit, pin, del);
       historyRows.append(row);
     }
     onHeightChange();

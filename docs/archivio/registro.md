@@ -2,6 +2,12 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 26 ottobre 2026 — Memoria: riassunti, alias e secondo passo (su `claude/sviluppo`)
+- Intestazione delle pagine con `riassunto:` e `alias:` facoltativi (`brain.rs`): la ricerca della chat dà il riassunto delle pagine collegate e trova una pagina anche dai suoi alias; un `[[Alias]]` porta alla pagina (`target_of`). `memory_page_write` li prende dalle prime righe del testo, senza li conserva.
+- Secondo passo della ricerca solo sui legami forti (relazione con nome o indicata da due pagine, al massimo 4). Pulizia proposta e ricerca per significato in `docs/idee.md`.
+- Il motore per la memoria (`memory_ai.rs`) scrive anche `summaries`: riscrive solo il riassunto, agli alias aggiunge. Guida e `docs/chat.md` aggiornate.
+- **Prove:** `cargo test` (328), `npm run build`, `check:i18n`. Da provare dal vivo «Collega con l'IA» con un motore vero.
+
 ### 26 ottobre 2026 — Versione 1.0.8: logo nuovo, Jarvis Sfera predefinito
 - **Logo** (`src/character/mark.ts`, usato da `scripts/gen-icons.mjs` e da `figure.ts` per il logo nell'isola): fumetto con bordo arcobaleno, interno scuro, due occhi bianchi e coda in basso a sinistra, da un'immagine di Edoardo; fino a 32 px bordo più spesso e occhi più grandi. Provate e scartate: sfera a punti, isola che si apre. La 1.0.8 è stata ripubblicata con questo logo (tag spostato).
 - **Jarvis Sfera** predefinito per le nuove installazioni (`default_character`, `DEFAULT_SETTINGS`); chi ha già scelto tiene il suo. Gli id dei Jarvis ora si possono impostare anche dalla chat (`agent_settings.rs`).
