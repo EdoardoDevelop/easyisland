@@ -2,6 +2,10 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.10** — **Rinominare le conversazioni** della cronologia della chat: ✎ accanto a 📌, o doppio clic
+sul titolo; Invio salva, Esc annulla, un titolo vuoto torna alla prima domanda. La ricerca nella
+cronologia trova anche il titolo nuovo.
+
 **1.0.9** — **Anteprima**: file e pagine web in un browser vero, **dentro l'isola** in un pannello a
 destra della chat (largo quanto trascini il bordo, chiuso e riaperto dal pulsante della chat) o in una
 finestra separata, a scelta in Impostazioni → Chat; zoom **Adatta / 100% / Originale**, misure da

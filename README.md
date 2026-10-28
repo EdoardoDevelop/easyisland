@@ -73,10 +73,10 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.10** — **Rename** conversations in the chat history (✎ or a double click on the title).
 - **1.0.9** — **Preview** of files and web pages inside the island beside the chat, which can read and use the page; the chat's steps in plain words; permissions inside the chat; README and site in English first.
 - **1.0.8** — New logo (a speech bubble with a rainbow stroke and two eyes); **Jarvis Sfera** default character; README with contents and new screenshots.
 - **1.0.7** — **Flows**: their own window with blocks to drag, agents, choices, for-each, questions on Telegram too, retries and runs with "Resume from here".
-- **1.0.6** — **Light, dark or automatic** mode, tidier Appearance, Jarvis Plasma, an engine just for the memory, 3D Graph.
 
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).
 
