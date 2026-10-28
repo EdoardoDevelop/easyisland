@@ -684,8 +684,10 @@ fn set_expanded(app: AppHandle, shared: State<Shared>, expanded: bool, place: Op
     if shared.gate.expanded.swap(expanded, Ordering::Relaxed) == expanded {
         return;
     }
-    // A drag of the open island lasts for that opening only.
-    let dragged = std::mem::take(&mut *shared.gate.panel_offset.lock().unwrap()) != (0.0, 0.0);
+    // A drag of the open island lasts for that opening only. Opened beside the
+    // character it is away from the edge too: either way it glides back as it shrinks.
+    let dragged = std::mem::take(&mut *shared.gate.panel_offset.lock().unwrap()) != (0.0, 0.0)
+        || *island::OPEN_CLEARANCE.lock().unwrap() != (0.0, 0.0);
     if shared.gate.collapsed.load(Ordering::Relaxed) {
         return;
     }
@@ -2675,14 +2677,10 @@ fn sync_character(app: &AppHandle) {
             return Some((win.inner_position().ok()?, win.inner_size().ok()?));
         }
         let ([x, y, w, h], _) = spot?;
-        // Beside the open island: where the compact one sits with the window at
-        // home, whatever the island does or wherever it is dragged.
-        let (pos, scale) = if open {
-            let settings = shared.settings.lock().unwrap().clone();
-            island::home_panel_origin(app, &shared.gate, &settings)?
-        } else {
-            (win.inner_position().ok()?, win.scale_factor().ok()?)
-        };
+        // Compact or beside the open island: from the window at home, whatever
+        // the island does, wherever it is dragged or while it glides back.
+        let settings = shared.settings.lock().unwrap().clone();
+        let (pos, scale) = island::home_panel_origin(app, &shared.gate, &settings)?;
         Some((
             tauri::PhysicalPosition::new(pos.x + (x * scale).round() as i32, pos.y + (y * scale).round() as i32),
             tauri::PhysicalSize::new((w * scale).round() as u32, (h * scale).round() as u32),

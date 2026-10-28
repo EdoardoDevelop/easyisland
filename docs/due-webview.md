@@ -116,4 +116,9 @@ Oggi personaggio, vista compatta e isola aperta stanno in una sola finestra. Una
   - l'isola che va dietro anche con un clic altrove, quando non è coperta;
   - nasconderla da chiusa;
   - verificare dal vivo bordi in basso e laterali.
+- **Correzioni dopo la prova di Edoardo (28 ottobre 2026):**
+  - **Scatto alla chiusura:** la finestra tornava al bordo prima che l'isola si chiudesse. Ora, se è stata spostata dal personaggio, scivola a casa mentre si chiude (`glide_home` in `set_expanded`, come per l'isola trascinata).
+  - **Posizione del personaggio:** sia compatto sia ad isola aperta si calcola dalla finestra a casa (`home_panel_origin`), quindi non segue la scivolata.
+  - **Animazione a riposo e accanto all'isola aperta:** non più battiti di ciglia e occhiate a intermittenza (non piacevano a Edoardo). Ora il personaggio fluttua e «respira» per sempre con un'animazione CSS di solo `transform` (`personaggio.html`, classe `alive`): un disegno fermo mosso dal compositore, senza ridisegni.
+- **Misura a riposo** con «Icona a riposo: nessuna» (finestra del personaggio nascosta): 356 MB, CPU 0,24 %. Il costo dell'animazione CSS con l'icona a riposo «personaggio» è ancora da misurare.
 

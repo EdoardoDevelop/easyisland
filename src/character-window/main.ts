@@ -14,14 +14,11 @@ import { linkChannel, MIRRORED_CALLS, type CharacterMode, type CharacterToIsland
 /** Only following a gaze: 30 fps, as in the island. */
 const LOOK_FRAME_MS = 33;
 /**
- * At rest the character is a still picture, like today's rest icon: after a
- * change it moves for this long, then the loop stops even for the characters
- * that move on their own (flame, Jarvis) or a state that loops (breathing).
+ * At rest the character is a still picture floating by CSS (personaggio.html):
+ * after a change it moves for this long, then the loop stops even for the
+ * characters that move on their own (flame, Jarvis) or a state that loops.
  */
 const MOVE_MS = 2500;
-/** Between two small gestures at rest (blink, glance, a moment of its own motion). */
-const GESTURE_MIN_MS = 4000;
-const GESTURE_MAX_MS = 8000;
 /** Room above the compact body for hearts and sparks, as the island's canvas (BOT_OVERHANG). */
 const OVERHANG = 40;
 
@@ -94,6 +91,8 @@ function applyLook(m: Extract<IslandToCharacter, { kind: "look" }>) {
   canvas.style.opacity = mode === "rest" ? (paused ? "0.4" : "0.9") : "1";
   canvas.style.filter = mode === "compact" ? "" : "drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45))";
   canvas.style.cursor = mode === "open" ? "pointer" : "";
+  // Floating and breathing for ever by CSS, except compact (the island moves it).
+  document.body.classList.toggle("alive", mode === "rest" || mode === "open");
   // Compact: the island's look; otherwise straight ahead.
   if (mode !== "compact") {
     engine.lookX = 0;
@@ -128,31 +127,6 @@ const send = linkChannel<IslandToCharacter, CharacterToIsland>((m) => {
   }
 });
 
-/**
- * At rest: alive at almost no cost, still most of the time and every few
- * seconds one gesture of under a second. Compact: the island sends its own
- * gestures. One timer, no frames in between.
- */
-function gesture() {
-  if (mode === "rest" || mode === "open") {
-    const pick = Math.random();
-    if (pick < 0.45) {
-      engine.blink();
-      wake(400);
-    } else if (pick < 0.8) {
-      // A glance aside, then back at the next gesture or two.
-      const away = engine.lookX === 0 && engine.lookY === 0;
-      engine.lookX = away ? (Math.random() * 2 - 1) * 0.6 : 0;
-      engine.lookY = away ? (Math.random() * 2 - 1) * 0.3 : 0;
-      wake(900);
-    } else {
-      // The characters that move on their own (flame, Jarvis) show it for a moment.
-      wake(1200);
-    }
-  }
-  window.setTimeout(gesture, GESTURE_MIN_MS + Math.random() * (GESTURE_MAX_MS - GESTURE_MIN_MS));
-}
-
 // Beside the open island (the only time the window takes the mouse): a click closes it.
 canvas.addEventListener("click", () => {
   if (mode !== "open") return;
@@ -165,4 +139,3 @@ canvas.addEventListener("click", () => {
 window.addEventListener("resize", () => wake(400));
 
 send({ kind: "hello" });
-window.setTimeout(gesture, GESTURE_MIN_MS);
