@@ -249,7 +249,8 @@ function linkCharacterWindow(island: Island) {
       sentKey = "";
       push();
     } else if (m.kind === "open") {
-      island.openFromTaskbar();
+      if (State.mode === "expanded") island.collapse();
+      else island.openFromTaskbar();
     } else if (m.kind === "ping") {
       send({ kind: "pong", sent: m.sent });
     }

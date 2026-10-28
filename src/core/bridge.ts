@@ -193,7 +193,9 @@ export const Bridge = {
   /** The resting character shown by its own window (docs/due-webview.md), or not. */
   characterRest: (on: boolean) => call<void>("character_rest", { on }),
   /** The compact character's window over the badge: [x, y, w, h] in the island window's px, or null. */
-  characterSpot: (spot: [number, number, number, number] | null) => call<void>("character_spot", { spot }),
+  characterSpot: (spot: [number, number, number, number] | null, open = false) => call<void>("character_spot", { spot, open }),
+  /** How far the open island moves away from the character (logical px), so it opens beside it. */
+  characterClearance: (dx: number, dy: number) => call<void>("character_clearance", { dx, dy }),
 
   // ── Claude Code hooks ─────────────────────────────────────────────────────
   /** `agent`: "codex" or "gemini" for their hooks; absent = Claude Code. */

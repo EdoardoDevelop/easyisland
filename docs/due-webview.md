@@ -26,7 +26,7 @@ Oggi personaggio, vista compatta e isola aperta stanno in una sola finestra. Una
 - **Isola chiusa:** finestra nascosta (`hide`), ma la pagina deve continuare a ricevere gli eventi (agenti, chiamate) senza consumare: nessun `requestAnimationFrame` da nascosta. Va verificato che riaprirla non mostri un lampo bianco.
 
 ## Passi
-- [~] **0. Prova:** (fatto tranne la prova dal vivo di nascondere e mostrare, vedi Note)
+- [x] **0. Prova:** (vedi Note)
   - finestra «personaggio» creata all'avvio (trasparente, in primo piano, non attivabile), con il personaggio animato e lo stato preso dall'isola tramite il canale;
   - misurare memoria e CPU a riposo;
   - provare `BroadcastChannel` e il nascondere e mostrare la finestra dell'isola.
@@ -96,4 +96,24 @@ Oggi personaggio, vista compatta e isola aperta stanno in una sola finestra. Una
 - **La finestra del personaggio è posseduta da quella dell'isola** (`island::own_by_island`): Windows la tiene sempre sopra l'isola anche quando l'isola si rialza. `set_always_on_top` di Tauri non rialza una finestra che ha già il flag.
   - Al passo 3, quando l'isola potrà andare dietro alle altre app, il possesso va tolto o cambiato.
 - **Il motore dell'isola continua a girare** sul canvas nascosto: costo doppio solo mentre si muove. Il codice compatto dell'isola si toglie al passo 6.
+
+### Passo 3: l'isola si apre accanto al personaggio (28 ottobre 2026)
+- **Il personaggio resta fermo** nella sua finestra, dove stava la vista compatta (`openSpot`: lo stesso punto, anche accanto alla striscia). Aperta dall'icona a riposo o da una scorciatoia, sta al posto del distintivo (`compactSpot`).
+  - Rust lo posa rispetto alla finestra dell'isola **a casa** (`island::home_panel_origin`), quindi non segue l'isola quando la si trascina.
+  - Qui la finestra prende il mouse: un clic chiude l'isola. Sopra il distintivo o l'icona continua a lasciar passare i clic.
+- **L'isola si apre accanto:** `character_clearance` sposta la finestra aperta dal bordo (`island::OPEN_CLEARANCE`, applicato in `apply_geometry` solo quando l'isola si apre al posto del personaggio):
+  - in alto va sotto il personaggio, in basso sopra, sui lati di fianco;
+  - di quanto: l'altezza della vista compatta, almeno quella della striscia, più 6 px.
+- **Apertura:**
+  - il personaggio fa un saltello con scintille;
+  - un'onda di luce (`#open-wave`, `openWave`) attraversa l'isola dal lato del personaggio;
+  - il clone nel menu non vola più ma compare lì crescendo da zero con un saluto (`cloneEnter`).
+  - Esclusi il saluto all'avvio e l'isola a tutto schermo (▢): lì la finestra del personaggio si nasconde.
+- **Il personaggio resta sempre davanti:** il possesso della finestra (passo 2) è tolto. Dopo ogni rialzo dell'isola (`come_forward`, `raise_over_taskbar`) Rust rialza il personaggio con `island::raise_character`.
+  - Quando l'isola si fa da parte dietro una finestra che la copre (`step_aside_for`, già esistente), il personaggio resta davanti.
+- **Gesti condivisi a isola aperta:** solo le emozioni (`triggerEmote`, `setPermanentEmote`). Il clone ha il suo sguardo e i suoi scossoni.
+- **Ancora da fare:**
+  - l'isola che va dietro anche con un clic altrove, quando non è coperta;
+  - nasconderla da chiusa;
+  - verificare dal vivo bordi in basso e laterali.
 

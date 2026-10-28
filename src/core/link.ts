@@ -5,8 +5,8 @@
 import type { Sky } from "../character/weather";
 import type { BotStateName } from "./layout";
 
-/** What the character's window shows: nothing, the rest icon, or the compact character. */
-export type CharacterMode = "off" | "rest" | "compact";
+/** What the character's window shows: nothing, the rest icon, the compact character, or the one beside the open island. */
+export type CharacterMode = "off" | "rest" | "compact" | "open";
 
 export type IslandToCharacter =
   | {
@@ -32,12 +32,13 @@ export type IslandToCharacter =
 
 export type CharacterToIsland =
   | { kind: "hello" }
+  /** A click on the character beside the open island: closes it (or opens it). */
   | { kind: "open" }
   | { kind: "ping"; sent: number };
 
 /** BotEngine methods the island forwards while the compact character is in its own window. */
 export const MIRRORED_CALLS = [
-  "hello", "greet", "triggerEmote", "setPermanentEmote", "blink", "squash", "jiggle", "gulp", "slap", "doRoll",
+  "hello", "greet", "triggerEmote", "setPermanentEmote", "blink", "squash", "jiggle", "gulp", "slap", "doRoll", "emit",
 ] as const;
 
 const NAME = "easyisland-link";

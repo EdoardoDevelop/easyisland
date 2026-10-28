@@ -1,7 +1,7 @@
-// The character's own window (docs/due-webview.md): the resting character and
-// the compact one, drawn from what the island's page sends over the link. Rust
-// lays the window over the island's rest icon or compact badge and lets every
-// click through to it: hover, click, drag and menu stay the island's.
+// The character's own window (docs/due-webview.md): the resting character, the
+// compact one and the one beside the open island, drawn from what the island's
+// page sends over the link. Over the rest icon or the compact badge, Rust lets
+// every click through to the island; beside the open island a click closes it.
 
 import "../character/roster";
 import { setCharacter } from "../character/character";
@@ -38,7 +38,7 @@ let paused = false;
 
 /** The canvas: a square around the rest icon, or the whole window (the compact canvas). */
 function box(): { w: number; h: number } {
-  if (mode === "compact") return { w: window.innerWidth, h: window.innerHeight };
+  if (mode === "compact" || mode === "open") return { w: window.innerWidth, h: window.innerHeight };
   const w = Math.round(size * 1.3);
   return { w, h: w };
 }
@@ -54,7 +54,7 @@ function frame(t: number) {
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
   }
-  engine.particleOverhang = mode === "compact" ? OVERHANG : 0;
+  engine.particleOverhang = mode === "rest" ? 0 : OVERHANG;
   engine.update(dt);
   const ctx = canvas.getContext("2d");
   if (ctx) {
@@ -89,10 +89,12 @@ function applyLook(m: Extract<IslandToCharacter, { kind: "look" }>) {
   engine.setState(m.state, was !== mode);
   size = m.size;
   paused = m.paused;
-  // As the island's rest icon (dimmed when paused); the compact character at full strength.
-  canvas.style.opacity = mode === "compact" ? "1" : paused ? "0.4" : "0.9";
+  // As the island's rest icon (dimmed when paused); the compact character at full
+  // strength. Beside the open island it has no badge under it: the rest icon's shadow.
+  canvas.style.opacity = mode === "rest" ? (paused ? "0.4" : "0.9") : "1";
   canvas.style.filter = mode === "compact" ? "" : "drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45))";
-  // Compact: the island's look; at rest, straight ahead.
+  canvas.style.cursor = mode === "open" ? "pointer" : "";
+  // Compact: the island's look; otherwise straight ahead.
   if (mode !== "compact") {
     engine.lookX = 0;
     engine.lookY = 0;
@@ -132,7 +134,7 @@ const send = linkChannel<IslandToCharacter, CharacterToIsland>((m) => {
  * gestures. One timer, no frames in between.
  */
 function gesture() {
-  if (mode === "rest") {
+  if (mode === "rest" || mode === "open") {
     const pick = Math.random();
     if (pick < 0.45) {
       engine.blink();
@@ -150,6 +152,14 @@ function gesture() {
   }
   window.setTimeout(gesture, GESTURE_MIN_MS + Math.random() * (GESTURE_MAX_MS - GESTURE_MIN_MS));
 }
+
+// Beside the open island (the only time the window takes the mouse): a click closes it.
+canvas.addEventListener("click", () => {
+  if (mode !== "open") return;
+  engine.squash();
+  wake(600);
+  send({ kind: "open" });
+});
 
 // Resized by Rust (rest icon ↔ compact badge): redraw at the new size.
 window.addEventListener("resize", () => wake(400));

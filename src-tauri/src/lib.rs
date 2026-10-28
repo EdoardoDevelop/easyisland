@@ -2584,8 +2584,11 @@ pub const CHARACTER_LABEL: &str = "personaggio";
 
 /// The island's page wants the resting character shown (character_rest).
 static CHARACTER_REST: AtomicBool = AtomicBool::new(false);
-/// The compact character's place in the island's window, logical px (character_spot).
-static CHARACTER_SPOT: Mutex<Option<[f64; 4]>> = Mutex::new(None);
+/// The compact character's place in the island's window, logical px, and
+/// whether it is beside the open island (character_spot).
+static CHARACTER_SPOT: Mutex<Option<([f64; 4], bool)>> = Mutex::new(None);
+/// The window lets the mouse through (over the island) or takes it (beside the open island).
+static CHARACTER_CLICKS_THROUGH: AtomicBool = AtomicBool::new(true);
 
 /// Created at launch with the other windows (see create_settings_window),
 /// hidden until the island rests.
@@ -2614,7 +2617,6 @@ fn create_character_window(app: &AppHandle, data_dir: Option<&std::path::Path>) 
     {
         Ok(win) => {
             island::make_non_activating(&win.as_ref().window());
-            island::own_by_island(app, &win.as_ref().window());
             // Always "compact": the low memory target of WebView2 (webview_memory.rs).
             webview_memory::set_low(win.as_ref(), true);
             let _ = win.set_ignore_cursor_events(true);
@@ -2632,11 +2634,27 @@ fn character_rest(app: AppHandle, on: bool) {
 }
 
 /// The compact character's place, [x, y, w, h] in the island's window
-/// (logical px), or None when the island draws it itself.
+/// (logical px), or None when the island draws it itself. `open`: beside the
+/// open island, at the compact place of the window at home.
 #[tauri::command]
-fn character_spot(app: AppHandle, spot: Option<[f64; 4]>) {
-    *CHARACTER_SPOT.lock().unwrap() = spot.filter(|s| s.iter().all(|v| v.is_finite()) && s[2] >= 1.0 && s[3] >= 1.0);
+fn character_spot(app: AppHandle, spot: Option<[f64; 4]>, open: bool) {
+    let spot = spot.filter(|s| s.iter().all(|v| v.is_finite()) && s[2] >= 1.0 && s[3] >= 1.0);
+    *CHARACTER_SPOT.lock().unwrap() = spot.map(|s| (s, open));
     sync_character(&app);
+}
+
+/// How far the open island moves away from its edge so it opens beside the
+/// character (logical px); applied at once to an island already open.
+#[tauri::command]
+fn character_clearance(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) {
+    let clear = if dx.is_finite() && dy.is_finite() { (dx, dy) } else { (0.0, 0.0) };
+    if std::mem::replace(&mut *island::OPEN_CLEARANCE.lock().unwrap(), clear) == clear {
+        return;
+    }
+    if shared.gate.expanded.load(Ordering::Relaxed) && !shared.gate.collapsed.load(Ordering::Relaxed) {
+        let settings = shared.settings.lock().unwrap().clone();
+        island::apply_geometry(&app, &shared.gate, &settings, false);
+    }
 }
 
 /// Lays the character's window exactly over the island's collapsed window (the
@@ -2644,19 +2662,27 @@ fn character_spot(app: AppHandle, spot: Option<[f64; 4]>) {
 /// character; hides it otherwise.
 fn sync_character(app: &AppHandle) {
     let Some(ch) = app.get_webview_window(CHARACTER_LABEL) else { return };
-    let collapsed = app.state::<Shared>().gate.collapsed.load(Ordering::Relaxed);
+    let shared = app.state::<Shared>();
+    let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
     let island = island::window(app).filter(|w| w.is_visible().unwrap_or(false));
     let spot = *CHARACTER_SPOT.lock().unwrap();
+    let open = !collapsed && spot.is_some_and(|(_, open)| open);
     let place = island.and_then(|win| {
-        let pos = win.inner_position().ok()?;
         if collapsed {
             if !CHARACTER_REST.load(Ordering::Relaxed) {
                 return None;
             }
-            return Some((pos, win.inner_size().ok()?));
+            return Some((win.inner_position().ok()?, win.inner_size().ok()?));
         }
-        let [x, y, w, h] = spot?;
-        let scale = win.scale_factor().ok()?;
+        let ([x, y, w, h], _) = spot?;
+        // Beside the open island: where the compact one sits with the window at
+        // home, whatever the island does or wherever it is dragged.
+        let (pos, scale) = if open {
+            let settings = shared.settings.lock().unwrap().clone();
+            island::home_panel_origin(app, &shared.gate, &settings)?
+        } else {
+            (win.inner_position().ok()?, win.scale_factor().ok()?)
+        };
         Some((
             tauri::PhysicalPosition::new(pos.x + (x * scale).round() as i32, pos.y + (y * scale).round() as i32),
             tauri::PhysicalSize::new((w * scale).round() as u32, (h * scale).round() as u32),
@@ -2670,10 +2696,14 @@ fn sync_character(app: &AppHandle) {
     };
     let _ = ch.set_size(size);
     let _ = ch.set_position(pos);
-    // Above the island's window: it is owned by it (island::own_by_island).
+    // Beside the open island it takes the mouse (a click closes it); over the island it lets it through.
+    if CHARACTER_CLICKS_THROUGH.swap(!open, Ordering::Relaxed) != !open {
+        let _ = ch.set_ignore_cursor_events(!open);
+    }
     if !ch.is_visible().unwrap_or(false) {
         let _ = ch.show();
     }
+    island::raise_character(app);
 }
 
 pub const MEMORY_LABEL: &str = "memoria";
@@ -3526,6 +3556,7 @@ pub fn run() {
             work_pick,
             character_rest,
             character_spot,
+            character_clearance,
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
