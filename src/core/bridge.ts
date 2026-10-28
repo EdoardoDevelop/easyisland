@@ -476,6 +476,8 @@ export const Bridge = {
   chatDictateWindows: () => callOrThrow<void>("chat_dictate_windows"),
   chatHistorySearch: (query: string) => call<ChatSummary[]>("chat_history_search", { query }),
   chatHistoryPin: (id: string, pinned: boolean) => call<void>("chat_history_pin", { id, pinned }),
+  /** ✎ in the history list; an empty title goes back to the first question. */
+  chatHistoryRename: (id: string, title: string) => call<void>("chat_history_rename", { id, title }),
   /** What the chat learnt by use (recipes.rs): how many, and forgetting them. */
   recipesCount: () => call<number>("recipes_count"),
   recipesForget: () => call<void>("recipes_forget"),

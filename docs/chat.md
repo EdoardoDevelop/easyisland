@@ -17,6 +17,7 @@
 - Claude Code (`claude -p`) e opencode tengono la conversazione in una sessione loro, che non sopravvive in modo affidabile: riaperte, ricevono la conversazione di prima come testo davanti alla prima domanda (`Chat::take_preamble`, ultimi 24.000 caratteri). Se il turno fallisce, il testo resta per il tentativo dopo.
 - Impostazioni → Chat → Cronologia (`chatHistory`) la spegne e la cancella; «Cancella la cronologia» la svuota. Niente esce dal PC.
 - In cima alla lista c'è la ricerca (`chat_history_search`): trova le parole nel titolo e nel testo. 📌 fissa una conversazione in cima (`pinned`) e il limite delle 100 non la toglie mai.
+- ✎ (o doppio clic sul titolo) rinomina una conversazione (`chat_history_rename`, `chat_log::rename`; chiesto da Edoardo il 27 ottobre 2026): il titolo diventa un campo al suo posto, Invio o uscire dal campo salva, Esc lascia com'era. Il titolo resta su una riga e al massimo di 80 caratteri come quello automatico (la prima domanda); vuoto torna alla prima domanda. La ricerca lo trova già, perché guarda il titolo.
 
 ## Campo e azioni della chat (21 ottobre 2026)
 Chiesto da Edoardo per invogliarlo a usare la chat al posto di Claude Code da terminale. Tutto in `src/views/chat.ts`.

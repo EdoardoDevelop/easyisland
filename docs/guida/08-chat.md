@@ -64,7 +64,7 @@ In **Impostazioni → Chat → Istruzioni e memoria** crei assistenti con **nome
 🎤 nel campo: clic per iniziare e per finire. Con un servizio di trascrizione scelto in Impostazioni → Telegram → Vocali, registra e trascrive con quello; senza, apre la dettatura di Windows (<kbd>Win</kbd>+<kbd>H</kbd>), locale e gratuita.
 
 ## Cronologia
-L'orologio in alto nella chat mostra le conversazioni di prima (fino a 100, solo su questo PC), con data, motore e ricerca. Un clic ne riapre una sul suo motore e la continui. Con i motori via API riprende esattamente da dove era; con l'abbonamento e con opencode la conversazione viene passata come testo. Impostazioni → Chat → **Cronologia** la svuota o la spegne (spegnendo anche il diario della memoria).
+L'orologio in alto nella chat mostra le conversazioni di prima (fino a 100, solo su questo PC), con data, motore e ricerca. **✎** (o un doppio clic sul titolo) la rinomina: Invio salva, Esc annulla, un titolo vuoto torna alla prima domanda. 📌 la tiene in cima. Un clic ne riapre una sul suo motore e la continui. Con i motori via API riprende esattamente da dove era; con l'abbonamento e con opencode la conversazione viene passata come testo. Impostazioni → Chat → **Cronologia** la svuota o la spegne (spegnendo anche il diario della memoria).
 
 ![La cronologia delle conversazioni](../media/chat-history.png)
 

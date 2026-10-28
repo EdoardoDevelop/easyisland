@@ -1582,6 +1582,12 @@ fn chat_history_pin(id: String, pinned: bool) {
     chat_log::set_pinned(&id, pinned);
 }
 
+/// ✎ in the history list: the conversation's title.
+#[tauri::command]
+fn chat_history_rename(id: String, title: String) {
+    chat_log::rename(&id, &title);
+}
+
 /// «Modifica» / «Rigenera»: the conversation goes back to its first lines.
 #[tauri::command]
 fn chat_rewind(chat: State<'_, Chat>, keep: Vec<chat_log::Line>) {
@@ -3236,6 +3242,7 @@ pub fn run() {
             memory_note_add,
             chat_history_search,
             chat_history_pin,
+            chat_history_rename,
             chat_rewind,
             chat_export,
             capture_begin,

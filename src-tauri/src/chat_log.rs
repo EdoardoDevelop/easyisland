@@ -108,6 +108,14 @@ impl Store {
     }
 
     /// A finished turn joins the conversation `id` (a new one when it is not there).
+    /// ✎ in the list: the user's title, on one line; empty = the first question again.
+    fn rename(&mut self, id: &str, new_title: &str) -> bool {
+        let Some(c) = self.list.iter_mut().find(|c| c.id == id) else { return false };
+        let first = c.lines.iter().find(|l| l.role == "user").map(|l| l.content.as_str()).unwrap_or_default();
+        c.title = title(if new_title.trim().is_empty() { first } else { new_title });
+        true
+    }
+
     fn record(&mut self, id: &str, engine: &str, query: &str, reply: &str, messages: Vec<Value>, now: i64) {
         let pos = match self.list.iter().position(|c| c.id == id) {
             Some(p) => p,
@@ -245,6 +253,15 @@ pub fn set_pinned(id: &str, pinned: bool) {
     with_store(|s| {
         if let Some(c) = s.list.iter_mut().find(|c| c.id == id) {
             c.pinned = pinned;
+            s.save();
+        }
+    });
+}
+
+/// ✎ in the history list (asked by Edoardo on 27 Oct 2026).
+pub fn rename(id: &str, new_title: &str) {
+    with_store(|s| {
+        if s.rename(id, new_title) {
             s.save();
         }
     });
@@ -390,6 +407,19 @@ mod tests {
         let out = serde_json::to_string(&without_files(m)).unwrap();
         assert!(!out.contains("QUJD"));
         assert!(out.contains("ciao"));
+    }
+
+    #[test]
+    fn a_renamed_title_is_one_line_and_empty_goes_back_to_the_question() {
+        let mut s = store();
+        s.record("a", "api", "Prima domanda", "uno", vec![], 1);
+        assert!(s.rename("a", "  Preventivo\n Rossi  "));
+        assert_eq!(s.list[0].title, "Preventivo Rossi");
+        assert!(s.rename("a", &"x".repeat(200)));
+        assert_eq!(s.list[0].title.chars().count(), MAX_TITLE_CHARS);
+        assert!(s.rename("a", "   "));
+        assert_eq!(s.list[0].title, "Prima domanda");
+        assert!(!s.rename("nope", "x"));
     }
 
     #[test]

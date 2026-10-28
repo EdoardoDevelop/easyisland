@@ -14,7 +14,7 @@
 <header class="top">
 <button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
 <a href="../it/index.html" class="brand"><img src="../media/icon.png" alt=""><span>EasyIsland</span></a>
-<span class="badge">Guida · 1.0.8</span>
+<span class="badge">Guida · 1.0.10</span>
 <div class="search"><input id="q" type="search" placeholder="Cerca nella guida…" autocomplete="off"><div id="results"></div></div>
 <nav class="links"><a href="../it/index.html">Home</a><a href="index.html" class="on">Guida</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../en/guide/development.html" hreflang="en">English</a></nav>
 </header>
@@ -56,7 +56,7 @@ docs/           documentazione per chi lavora sul codice; docs/guida/ è questa 
 <ol><li>Alza la versione, uguale, in <code>package.json</code>, <code>Cargo.toml</code> e <code>src-tauri/tauri.conf.json</code> (la CI controlla che coincidano).</li><li>Crea e invia il tag: <code>git tag vX.Y.Z</code> e <code>git push origin vX.Y.Z</code>.</li><li>La workflow <strong>Build</strong> compila l'installer, lo firma per l'aggiornamento e pubblica la release con <code>latest.json</code>, che le app installate leggono per aggiornarsi.</li></ol>
 <p>Serve una volta il secret <code>TAURI_SIGNING_PRIVATE_KEY</code> del repository. La homepage e la guida si pubblicano da sole su GitHub Pages a ogni modifica di <code>site/</code> in <code>main</code>.</p>
 <div class="pager"><a class="prev" href="problemi.html"><small>Precedente</small>Problemi e soluzioni</a><span></span></div>
-<footer>EasyIsland 1.0.8 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/28-sviluppo.md">Modifica questa pagina su GitHub</a></footer>
+<footer>EasyIsland 1.0.10 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/28-sviluppo.md">Modifica questa pagina su GitHub</a></footer>
 </main>
 <nav class="toc" aria-label="In questa pagina"><div class="group">In questa pagina</div><ul><li class="l2"><a href="#strumenti">Strumenti</a></li><li class="l2"><a href="#comandi">Comandi</a></li><li class="l2"><a href="#struttura">Struttura</a></li><li class="l2"><a href="#regole-del-progetto">Regole del progetto</a></li><li class="l2"><a href="#pubblicare-una-versione">Pubblicare una versione</a></li></ul></nav>
 </div>
