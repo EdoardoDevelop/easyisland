@@ -2,6 +2,10 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.10** — **Rename conversations** in the chat history: ✎ next to 📌, or a double click on the
+title; Enter saves, Esc cancels, an empty title goes back to the first question. The history search
+finds the new title too.
+
 **1.0.9** — **Preview**: files and web pages in a real browser, **inside the island** in a panel to the
 right of the chat (as wide as you drag its edge, closed and reopened from the chat's button) or in a
 separate window, your choice in Settings → Chat; **Fit / 100% / Original** zoom, phone and tablet sizes,

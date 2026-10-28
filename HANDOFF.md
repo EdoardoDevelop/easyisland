@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 27 ottobre 2026. Versione **1.0.9** in `main` con il tag `v1.0.9` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 28 ottobre 2026. Versione **1.0.10** in `main` con il tag `v1.0.10` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`; in corso `claude/due-webview` (personaggio e isola in due finestre, `docs/due-webview.md` in quel branch), in attesa `claude/barra-fissa` e `claude/modello-integrato`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -46,6 +46,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 28 ottobre 2026 — Versione 1.0.10: rinominare le conversazioni
+- Contiene la rinomina delle conversazioni nella cronologia della chat e le idee annotate dopo la 1.0.9 (modello integrato, barra fissa). Barra fissa e modello integrato restano nei loro branch, non nella versione.
+
 ### 27 ottobre 2026 — Rinominare le conversazioni (su `claude/sviluppo`)
 - Nella cronologia della chat ✎ (o doppio clic sul titolo) rinomina una conversazione; vuoto torna alla prima domanda (`chat_log::rename`, `chat.ts`, `docs/chat.md`).
 - Modello integrato accantonato nel branch `claude/modello-integrato`; annotata l'idea dell'isola fissa su un bordo con lo spazio riservato (`docs/idee.md`).
@@ -60,10 +63,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 26 ottobre 2026 — Passi della chat leggibili (su `claude/sviluppo`)
 - Le righe «⚙» della chat (isola e Telegram) dicono a parole cosa fa, con l'argomento («Prepara il piano del compito», «Cerca nella memoria · `…`»), invece di «task_plan · easyisland» (`steps.rs`, `docs/chat.md`). Il motore scrive anche una frase breve prima di ogni gruppo di strumenti (`AGENT_PROMPT`).
-
-### 26 ottobre 2026 — Anteprima di file e pagine web (su `claude/sviluppo`)
-- Finestra **Anteprima** (`preview.rs`, `src/preview/`), come quella di Claude desktop: schede di file (codice colorato, Markdown, CSV, immagini, «Modifiche» rispetto a prima della chat) e pagine web in un browser vero dentro la finestra, con misure da telefono/tablet, chiaro/scuro, console, Strumenti per sviluppatori. Si apre da link e percorsi della chat, da sola sui file della Modalità terminale, dal server di sviluppo. Strumenti `preview_*` per la chat (clic e scrittura con Consenti / Nega). Dettagli in `docs/chat.md`, guida `10-anteprima`.
-- **Nell'isola** (pannello a destra dentro la finestra dell'isola, largo quanto lo trascini) o finestra separata, a scelta in Impostazioni → Chat → Anteprima (`preview::pane`, island.ts `placePane`). Comandi che creano finestre ora `async` (prima bloccavano tutta l'app).
-- La chat vede la pagina come albero di accessibilità con riferimenti (`preview_snapshot`), clicca e scrive per riferimento e riceve la pagina dopo, aspetta (`preview_wait`), legge le richieste fallite (`preview_network`) e sa da sola cosa c'è nell'Anteprima aperta (`preview::hint`).
-- Tauri con `unstable` (più webview per finestra); `build.rs` incorpora il manifest perché i test partano (`docs/decisioni.md`).
-- **Prove:** `cargo test` (331), `npm run build`, `check:i18n`, la pagina con i dati finti in Edge. **Da provare dal vivo** tutta la parte con l'app (`docs/prove-dal-vivo.md`).
