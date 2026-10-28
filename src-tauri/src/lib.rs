@@ -104,7 +104,7 @@ mod zammad;
 
 use std::os::windows::process::CommandExt;
 use std::process::Command;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
@@ -434,6 +434,7 @@ fn set_collapsed(
     island::set_ignore_cursor(&app, false);
     shared.gate.forget_ignore_state();
     shared.gate.set_active(!collapsed);
+    sync_character(&app);
 }
 
 /// The front end pushes the island shape; Rust decides click-through from it.
@@ -2574,33 +2575,27 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
     });
 }
 
-/// The character's own window (docs/due-webview.md, step 0: a trial). Small,
-/// always on top, never activated, taking the whole mouse: no cursor poll. Its
-/// page gets what it shows from the island's page over a BroadcastChannel.
+/// The character's own window (docs/due-webview.md). Small, always on top,
+/// never activated. Its page gets what it shows from the island's page over a
+/// BroadcastChannel. For now (step 2, first part) it only draws the resting
+/// character over the island's collapsed window, which it lets every click
+/// through to: hover, click, drag and menu stay the island's rest icon's.
 pub const CHARACTER_LABEL: &str = "personaggio";
-const CHARACTER_SIZE: f64 = 64.0;
 
-/// Created at launch with the other windows (see create_settings_window), for
-/// now beside the top centre of the main screen.
+/// The island's page wants the resting character shown (character_rest).
+static CHARACTER_REST: AtomicBool = AtomicBool::new(false);
+
+/// Created at launch with the other windows (see create_settings_window),
+/// hidden until the island rests.
 fn create_character_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
     let mut builder = WebviewWindowBuilder::new(app, CHARACTER_LABEL, page_url(app, "personaggio.html"));
     if let Some(dir) = data_dir {
         builder = builder.data_directory(dir.to_path_buf());
     }
-    let (x, y) = match app.primary_monitor() {
-        Ok(Some(m)) => {
-            let scale = m.scale_factor();
-            let size = m.size().to_logical::<f64>(scale);
-            let pos = m.position().to_logical::<f64>(scale);
-            (pos.x + size.width / 2.0 + 180.0, pos.y + 4.0)
-        }
-        _ => (200.0, 4.0),
-    };
     match builder
         .additional_browser_args(BROWSER_ARGS)
         .title("EasyIsland")
-        .inner_size(CHARACTER_SIZE, CHARACTER_SIZE)
-        .position(x, y)
+        .inner_size(40.0, 40.0)
         .resizable(false)
         .decorations(false)
         .transparent(true)
@@ -2619,20 +2614,45 @@ fn create_character_window(app: &AppHandle, data_dir: Option<&std::path::Path>) 
             island::make_non_activating(&win.as_ref().window());
             // Always "compact": the low memory target of WebView2 (webview_memory.rs).
             webview_memory::set_low(win.as_ref(), true);
-            let _ = win.show();
+            let _ = win.set_ignore_cursor_events(true);
         }
         Err(err) => log::line(format!("character window failed: {err}")),
     }
 }
 
-/// Step 0 trial: hides or shows the island's window, to see that its page goes
-/// on working while hidden and that showing it again has no white flash.
+/// The resting character wanted (true) or not by the island's page: shown
+/// when the island is also collapsed and on screen.
 #[tauri::command]
-fn island_window_toggle(app: AppHandle) {
-    let Some(win) = island::window(&app) else { return };
-    let shown = win.is_visible().unwrap_or(true);
-    let _ = if shown { win.hide() } else { win.show() };
-    log::line(format!("prova due webview: isola {}", if shown { "nascosta" } else { "mostrata" }));
+fn character_rest(app: AppHandle, on: bool) {
+    CHARACTER_REST.store(on, Ordering::Relaxed);
+    sync_character(&app);
+}
+
+/// Lays the character's window exactly over the island's collapsed window (the
+/// rest icon's box) and shows it while the island rests; hides it otherwise.
+fn sync_character(app: &AppHandle) {
+    let Some(ch) = app.get_webview_window(CHARACTER_LABEL) else { return };
+    let collapsed = app.state::<Shared>().gate.collapsed.load(Ordering::Relaxed);
+    let island = island::window(app);
+    let resting = CHARACTER_REST.load(Ordering::Relaxed)
+        && collapsed
+        && island.as_ref().is_some_and(|w| w.is_visible().unwrap_or(false));
+    if !resting {
+        if ch.is_visible().unwrap_or(false) {
+            let _ = ch.hide();
+        }
+        return;
+    }
+    let Some(win) = island else { return };
+    if let (Ok(pos), Ok(size)) = (win.outer_position(), win.outer_size()) {
+        let _ = ch.set_size(size);
+        let _ = ch.set_position(pos);
+    }
+    if !ch.is_visible().unwrap_or(false) {
+        let _ = ch.show();
+        // Above the island's window, which it covers exactly.
+        let _ = ch.set_always_on_top(true);
+    }
 }
 
 pub const MEMORY_LABEL: &str = "memoria";
@@ -3483,7 +3503,7 @@ pub fn run() {
             inbox_to_work,
             work_drag,
             work_pick,
-            island_window_toggle,
+            character_rest,
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -3509,11 +3529,14 @@ pub fn run() {
                 // destroy it: EasyIsland would go on running with nothing to show.
                 // It closes the island instead, like its own ✕.
                 let closing = handle.clone();
-                win.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                win.on_window_event(move |event| match event {
+                    tauri::WindowEvent::CloseRequested { api, .. } => {
                         api.prevent_close();
                         let _ = closing.emit_to(island::WINDOW_LABEL, "tray", "close");
                     }
+                    // Dragged, moved to another screen or resized: the resting character follows.
+                    tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) => sync_character(&closing),
+                    _ => {}
                 });
                 island::make_non_activating(&win);
                 island::apply_geometry(&handle, &gate, &loaded, false);

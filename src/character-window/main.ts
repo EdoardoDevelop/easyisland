@@ -1,6 +1,6 @@
-// The character's own window (docs/due-webview.md, step 0): the character drawn
-// from what the island's page sends over the link. A click opens the island;
-// a right click hides or shows the island's window (the trial of step 0).
+// The character's own window (docs/due-webview.md): the resting character,
+// drawn from what the island's page sends over the link. Rust lays the window
+// over the island's rest icon and lets every click through to it.
 
 import "../character/roster";
 import { setCharacter } from "../character/character";
@@ -9,7 +9,8 @@ import { setFigure } from "../character/figure";
 import { Bridge } from "../core/bridge";
 import { linkChannel, type CharacterToIsland, type IslandToCharacter } from "../core/link";
 
-const SIZE = 64;
+/** The rest icon's size; the body fills ~90 % of it, as in the island (drawRestIcon). */
+let size = 24;
 /** Only following a gaze: 30 fps, as in the island. */
 const LOOK_FRAME_MS = 33;
 /**
@@ -28,21 +29,25 @@ let running = false;
 let last = performance.now();
 let heard = false;
 let moveUntil = 0;
+let resting = false;
 
 function frame(t: number) {
   const dt = Math.min(0.05, (t - last) / 1000);
   last = t;
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  if (canvas.width !== Math.round(SIZE * dpr)) {
-    canvas.width = Math.round(SIZE * dpr);
-    canvas.height = Math.round(SIZE * dpr);
+  const w = Math.round(size * 1.3);
+  if (canvas.width !== Math.round(w * dpr)) {
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(w * dpr);
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${w}px`;
   }
   engine.update(dt);
   const ctx = canvas.getContext("2d");
   if (ctx) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, SIZE, SIZE);
-    engine.draw(ctx, SIZE, SIZE);
+    ctx.clearRect(0, 0, w, w);
+    engine.draw(ctx, w, w);
   }
   // No frames once nothing moves, or once the change has played out.
   if (!engine.busy || t > moveUntil) running = false;
@@ -51,6 +56,7 @@ function frame(t: number) {
 }
 
 function wake(ms = MOVE_MS) {
+  if (!resting) return;
   moveUntil = Math.max(moveUntil, performance.now() + ms);
   if (running) return;
   running = true;
@@ -68,23 +74,15 @@ const send = linkChannel<IslandToCharacter, CharacterToIsland>((m) => {
     setFigure(m.figure);
     engine.bodyColor = m.color ? hexToRGB(m.color) : null;
     engine.setState(m.state, true);
+    size = m.size;
+    resting = m.resting;
+    canvas.style.opacity = m.paused ? "0.4" : "0.9";
     wake();
   } else if (m.kind === "pong") {
     void Bridge.log(`prova due webview: risposta dell'isola in ${Math.round(performance.now() - m.sent)} ms`).catch(() => {});
   }
 });
 
-canvas.addEventListener("click", () => {
-  engine.triggerEmote("happy");
-  wake();
-  send({ kind: "open" });
-});
-canvas.addEventListener("contextmenu", (e) => {
-  e.preventDefault();
-  void Bridge.islandWindowToggle();
-  // Does the island's page still answer once its window is hidden?
-  window.setTimeout(() => send({ kind: "ping", sent: performance.now() }), 1500);
-});
 
 /**
  * Alive at almost no cost: still most of the time, and every few seconds one

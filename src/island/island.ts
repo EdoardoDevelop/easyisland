@@ -3388,6 +3388,30 @@ ${note}` : text };
       !State.quiet;
     this.restIcon.classList.toggle("on", showRest);
     if (showRest) this.drawRestIcon();
+    // The resting character is drawn by its own window, laid over the rest icon
+    // (docs/due-webview.md); the icon here keeps hover, click, drag and menu.
+    const own = IS_TAURI && p.iconStyle === "character";
+    this.restCanvas.style.visibility = own ? "hidden" : "";
+    const rest = showRest && own;
+    if (rest !== this.characterRest) {
+      this.characterRest = rest;
+      void Bridge.characterRest(rest);
+      this.onRestChange?.();
+    }
+  }
+
+  private characterRest = false;
+  /** Told when the resting character moves to or from its own window (main.ts, the link). */
+  onRestChange: (() => void) | null = null;
+
+  /** The character's own window is showing the resting character. */
+  get restingInWindow(): boolean {
+    return this.characterRest;
+  }
+
+  /** The rest icon's size, for the character's own window. */
+  get restIconSize(): number {
+    return this.homePlacement.iconSize;
   }
 
   /**

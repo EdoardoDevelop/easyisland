@@ -236,6 +236,9 @@ function linkCharacterWindow(island: Island) {
       character: t?.character ?? "",
       figure: t?.figure ?? "",
       color: c && /^#[0-9a-f]{6}$/i.test(c) ? c : null,
+      size: island.restIconSize,
+      paused: State.paused,
+      resting: island.restingInWindow,
     };
   };
   const send = linkChannel<CharacterToIsland, IslandToCharacter>((m) => {
@@ -256,6 +259,7 @@ function linkCharacterWindow(island: Island) {
     send(m);
   };
   State.subscribe(push);
+  island.onRestChange = push;
   push();
 }
 

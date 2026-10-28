@@ -190,8 +190,8 @@ export const Bridge = {
 
   /** Writes to %LOCALAPPDATA%\EasyIsland\easyisland.log, next to the Rust lines. */
   log: (message: string) => call<void>("log_line", { message }),
-  /** Two-webview trial (docs/due-webview.md, step 0): hides or shows the island's window. */
-  islandWindowToggle: () => call<void>("island_window_toggle"),
+  /** The resting character shown by its own window (docs/due-webview.md), or not. */
+  characterRest: (on: boolean) => call<void>("character_rest", { on }),
 
   // ── Claude Code hooks ─────────────────────────────────────────────────────
   /** `agent`: "codex" or "gemini" for their hooks; absent = Claude Code. */

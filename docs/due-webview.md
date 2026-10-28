@@ -76,3 +76,10 @@ Oggi personaggio, vista compatta e isola aperta stanno in una sola finestra. Una
   - ogni 4–8 s fa un gesto breve (battito di ciglia, occhiata, un attimo del suo movimento) e torna fermo: un solo timer, nessun fotogramma in mezzo;
   - la finestra ha l'obiettivo di memoria basso di WebView2 (`webview_memory::set_low`).
 - **Da provare dal vivo:** nascondere e mostrare l'isola (lampo bianco? la risposta arriva da nascosta? nel registro «risposta dell'isola in N ms»).
+
+### Passo 2, prima parte (28 ottobre 2026)
+- **La prova del passo 0 lasciava l'isola bloccata:** il clic destro nascondeva la finestra dell'isola e nulla la rimostrava. Tolta; la risposta dell'isola da nascosta (0–2 ms) era comunque già misurata.
+- **Il personaggio a riposo è disegnato dalla sua finestra.** Rust (`sync_character` in `lib.rs`) la posa esattamente sopra la finestra ritirata dell'isola, che ha la stessa misura del riquadro dell'icona a riposo. La mostra solo mentre l'isola è ritirata, è visibile e la pagina dell'isola la chiede (`character_rest`). La finestra segue l'isola quando si sposta o cambia misura.
+- **La finestra lascia passare ogni clic** (`set_ignore_cursor_events`): passaggio del mouse, clic, trascinamento e menu restano dell'icona a riposo dell'isola, che disegna niente (`restCanvas` nascosto). Il comportamento resta quello di oggi.
+- **Senza disegno o gesti quando è nascosta:** il messaggio `look` porta `resting`.
+- **Con «Icona a riposo: nessuna» o «punto»** la finestra resta nascosta: oggi a riposo non c'è un personaggio da spostare.

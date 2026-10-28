@@ -6,7 +6,18 @@
 import type { BotStateName } from "./layout";
 
 export type IslandToCharacter =
-  | { kind: "look"; state: BotStateName; character: string; figure: string; color: string | null }
+  | {
+      kind: "look";
+      state: BotStateName;
+      character: string;
+      figure: string;
+      color: string | null;
+      /** The rest icon's size (px) and whether EasyIsland is paused (dimmed). */
+      size: number;
+      paused: boolean;
+      /** Shown at rest: hidden, it draws nothing and makes no gestures. */
+      resting: boolean;
+    }
   | { kind: "pong"; sent: number };
 
 export type CharacterToIsland =
