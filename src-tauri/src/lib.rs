@@ -2574,6 +2574,67 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
     });
 }
 
+/// The character's own window (docs/due-webview.md, step 0: a trial). Small,
+/// always on top, never activated, taking the whole mouse: no cursor poll. Its
+/// page gets what it shows from the island's page over a BroadcastChannel.
+pub const CHARACTER_LABEL: &str = "personaggio";
+const CHARACTER_SIZE: f64 = 64.0;
+
+/// Created at launch with the other windows (see create_settings_window), for
+/// now beside the top centre of the main screen.
+fn create_character_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
+    let mut builder = WebviewWindowBuilder::new(app, CHARACTER_LABEL, page_url(app, "personaggio.html"));
+    if let Some(dir) = data_dir {
+        builder = builder.data_directory(dir.to_path_buf());
+    }
+    let (x, y) = match app.primary_monitor() {
+        Ok(Some(m)) => {
+            let scale = m.scale_factor();
+            let size = m.size().to_logical::<f64>(scale);
+            let pos = m.position().to_logical::<f64>(scale);
+            (pos.x + size.width / 2.0 + 180.0, pos.y + 4.0)
+        }
+        _ => (200.0, 4.0),
+    };
+    match builder
+        .additional_browser_args(BROWSER_ARGS)
+        .title("EasyIsland")
+        .inner_size(CHARACTER_SIZE, CHARACTER_SIZE)
+        .position(x, y)
+        .resizable(false)
+        .decorations(false)
+        .transparent(true)
+        .shadow(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .focused(false)
+        .maximizable(false)
+        .minimizable(false)
+        .closable(false)
+        .drag_and_drop(false)
+        .visible(false)
+        .build()
+    {
+        Ok(win) => {
+            island::make_non_activating(&win.as_ref().window());
+            // Always "compact": the low memory target of WebView2 (webview_memory.rs).
+            webview_memory::set_low(win.as_ref(), true);
+            let _ = win.show();
+        }
+        Err(err) => log::line(format!("character window failed: {err}")),
+    }
+}
+
+/// Step 0 trial: hides or shows the island's window, to see that its page goes
+/// on working while hidden and that showing it again has no white flash.
+#[tauri::command]
+fn island_window_toggle(app: AppHandle) {
+    let Some(win) = island::window(&app) else { return };
+    let shown = win.is_visible().unwrap_or(true);
+    let _ = if shown { win.hide() } else { win.show() };
+    log::line(format!("prova due webview: isola {}", if shown { "nascosta" } else { "mostrata" }));
+}
+
 pub const MEMORY_LABEL: &str = "memoria";
 pub const FLOWS_LABEL: &str = "flussi";
 
@@ -3422,6 +3483,7 @@ pub fn run() {
             inbox_to_work,
             work_drag,
             work_pick,
+            island_window_toggle,
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -3437,6 +3499,7 @@ pub fn run() {
             }
             // Before the island's webview is ready: see create_settings_window.
             create_settings_window(&handle, webview_dir.as_deref());
+            create_character_window(&handle, webview_dir.as_deref());
             create_memory_window(&handle, webview_dir.as_deref());
             let _ = WEBVIEW_DIR.set(webview_dir.clone());
             preview::init(&handle);

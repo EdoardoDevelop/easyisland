@@ -26,7 +26,7 @@ Oggi personaggio, vista compatta e isola aperta stanno in una sola finestra. Una
 - **Isola chiusa:** finestra nascosta (`hide`), ma la pagina deve continuare a ricevere gli eventi (agenti, chiamate) senza consumare: nessun `requestAnimationFrame` da nascosta. Va verificato che riaprirla non mostri un lampo bianco.
 
 ## Passi
-- [ ] **0. Prova:**
+- [~] **0. Prova:** (fatto tranne la prova dal vivo di nascondere e mostrare, vedi Note)
   - finestra «personaggio» creata all'avvio (trasparente, in primo piano, non attivabile), con il personaggio animato e lo stato preso dall'isola tramite il canale;
   - misurare memoria e CPU a riposo;
   - provare `BroadcastChannel` e il nascondere e mostrare la finestra dell'isola.
@@ -57,3 +57,22 @@ Oggi personaggio, vista compatta e isola aperta stanno in una sola finestra. Una
 - Mai bloccare gli agenti: i permessi devono arrivare anche se una delle due pagine non risponde. La pagina dell'isola resta quella che risponde, come oggi.
 
 ## Note durante il lavoro
+
+### Passo 0 (28 ottobre 2026)
+- **Cosa c'è:**
+  - `personaggio.html` con `src/character-window/main.ts`: il personaggio in una finestra di 64 px;
+  - `src/core/link.ts`: il canale;
+  - in Rust `create_character_window` in `lib.rs`. Per ora la finestra sta a destra del centro in alto, mentre l'isola resta com'è (due personaggi finché non si fa il passo 2).
+  - Clic: apre l'isola. Clic destro: nasconde o mostra la finestra dell'isola (`island_window_toggle`) e dopo 1,5 s chiede una risposta all'isola.
+- **Canale:** `BroadcastChannel` funziona tra le due WebView (stessa origine e profilo); nel registro compare «il personaggio riceve dall'isola». Non serve passare da Rust.
+- **Creazione:** creata subito dopo la finestra dell'isola, insieme alle impostazioni, non resta bianca.
+- **Memoria e CPU a riposo**, totale dei processi di EasyIsland e WebView2:
+  - prima: 377 MB, CPU 0,27 %;
+  - con la finestra del personaggio: 399 MB (+22 MB), CPU 0,18 %;
+  - misurata 2 minuti dopo l'avvio, mentre la versione di prima girava da ore.
+- **Animazione a riposo:**
+  - la prima versione ridisegnava di continuo: con i personaggi che si muovono da soli (Jarvis, Fiamma) dava 551 MB e 1,87 % di CPU;
+  - ora, dopo un cambio di stato, si muove per 2,5 s e poi resta fermo;
+  - ogni 4–8 s fa un gesto breve (battito di ciglia, occhiata, un attimo del suo movimento) e torna fermo: un solo timer, nessun fotogramma in mezzo;
+  - la finestra ha l'obiettivo di memoria basso di WebView2 (`webview_memory::set_low`).
+- **Da provare dal vivo:** nascondere e mostrare l'isola (lampo bianco? la risposta arriva da nascosta? nel registro «risposta dell'isola in N ms»).
