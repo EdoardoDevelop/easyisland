@@ -4,7 +4,7 @@
 // every click through to the island; beside the open island a click closes it.
 
 import "../character/roster";
-import { setCharacter } from "../character/character";
+import { character, setCharacter } from "../character/character";
 import { BotEngine, hexToRGB } from "../character/engine";
 import { setFigure, setFigureWeather } from "../character/figure";
 import { setJarvisAgents } from "../character/jarvis";
@@ -19,6 +19,11 @@ const LOOK_FRAME_MS = 33;
  * characters that move on their own (flame, Jarvis) or a state that loops.
  */
 const MOVE_MS = 2500;
+/**
+ * The characters that move on their own (Jarvis's particles, the flame) keep
+ * moving at rest and beside the open island, at this rate: half the island's.
+ */
+const AMBIENT_FRAME_MS = 66;
 /** Room above the compact body for hearts and sparks, as the island's canvas (BOT_OVERHANG). */
 const OVERHANG = 40;
 
@@ -59,8 +64,11 @@ function frame(t: number) {
     ctx.clearRect(0, 0, w, h);
     engine.draw(ctx, w, h);
   }
-  // No frames once nothing moves, or once the change has played out.
-  if (!engine.busy || t > moveUntil) running = false;
+  // Their own motion, for ever but slowly; otherwise no frames once nothing
+  // moves, or once the change has played out.
+  const ambient = (mode === "rest" || mode === "open") && character().animated === true;
+  if (ambient && t > moveUntil) window.setTimeout(() => requestAnimationFrame(frame), AMBIENT_FRAME_MS);
+  else if (!engine.busy || t > moveUntil) running = false;
   else if (!engine.busyBeyondLook) window.setTimeout(() => requestAnimationFrame(frame), LOOK_FRAME_MS);
   else requestAnimationFrame(frame);
 }
@@ -91,8 +99,10 @@ function applyLook(m: Extract<IslandToCharacter, { kind: "look" }>) {
   canvas.style.opacity = mode === "rest" ? (paused ? "0.4" : "0.9") : "1";
   canvas.style.filter = mode === "compact" ? "" : "drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45))";
   canvas.style.cursor = mode === "open" ? "pointer" : "";
-  // Floating and breathing for ever by CSS, except compact (the island moves it).
+  // Alive for ever by CSS, except compact (the island moves it); the halo in its colour.
   document.body.classList.toggle("alive", mode === "rest" || mode === "open");
+  const [r, g, b] = m.color ? hexToRGB(m.color) : character().color;
+  document.body.style.setProperty("--halo", `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, 0.9)`);
   // Compact: the island's look; otherwise straight ahead.
   if (mode !== "compact") {
     engine.lookX = 0;
