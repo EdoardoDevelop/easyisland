@@ -238,7 +238,10 @@ function linkCharacterWindow(island: Island) {
       color: c && /^#[0-9a-f]{6}$/i.test(c) ? c : null,
       size: island.restIconSize,
       paused: State.paused,
-      resting: island.restingInWindow,
+      mode: island.characterMode,
+      sky: State.characterSky,
+      weather: State.weatherNow,
+      agents: State.sessionTasks.filter((x) => x.state === "working" || x.state === "thinking" || x.state === "searching").length,
     };
   };
   const send = linkChannel<CharacterToIsland, IslandToCharacter>((m) => {
@@ -260,6 +263,7 @@ function linkCharacterWindow(island: Island) {
   };
   State.subscribe(push);
   island.onRestChange = push;
+  island.mirror = send;
   push();
 }
 

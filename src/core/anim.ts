@@ -112,6 +112,11 @@ export class Tracked {
     return this.mode !== "idle";
   }
 
+  /** Where it is heading (the value once settled). */
+  get target(): number {
+    return this.spring.target;
+  }
+
   jump(v: number) {
     this.spring.set(v);
     this.mode = "idle";

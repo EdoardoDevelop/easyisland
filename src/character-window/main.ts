@@ -1,16 +1,16 @@
-// The character's own window (docs/due-webview.md): the resting character,
-// drawn from what the island's page sends over the link. Rust lays the window
-// over the island's rest icon and lets every click through to it.
+// The character's own window (docs/due-webview.md): the resting character and
+// the compact one, drawn from what the island's page sends over the link. Rust
+// lays the window over the island's rest icon or compact badge and lets every
+// click through to it: hover, click, drag and menu stay the island's.
 
 import "../character/roster";
 import { setCharacter } from "../character/character";
 import { BotEngine, hexToRGB } from "../character/engine";
-import { setFigure } from "../character/figure";
+import { setFigure, setFigureWeather } from "../character/figure";
+import { setJarvisAgents } from "../character/jarvis";
 import { Bridge } from "../core/bridge";
-import { linkChannel, type CharacterToIsland, type IslandToCharacter } from "../core/link";
+import { linkChannel, MIRRORED_CALLS, type CharacterMode, type CharacterToIsland, type IslandToCharacter } from "../core/link";
 
-/** The rest icon's size; the body fills ~90 % of it, as in the island (drawRestIcon). */
-let size = 24;
 /** Only following a gaze: 30 fps, as in the island. */
 const LOOK_FRAME_MS = 33;
 /**
@@ -22,6 +22,8 @@ const MOVE_MS = 2500;
 /** Between two small gestures at rest (blink, glance, a moment of its own motion). */
 const GESTURE_MIN_MS = 4000;
 const GESTURE_MAX_MS = 8000;
+/** Room above the compact body for hearts and sparks, as the island's canvas (BOT_OVERHANG). */
+const OVERHANG = 40;
 
 const canvas = document.getElementById("bot") as HTMLCanvasElement;
 const engine = new BotEngine();
@@ -29,25 +31,36 @@ let running = false;
 let last = performance.now();
 let heard = false;
 let moveUntil = 0;
-let resting = false;
+let mode: CharacterMode = "off";
+/** The rest icon's size; the body fills ~90 % of it, as in the island (drawRestIcon). */
+let size = 24;
+let paused = false;
+
+/** The canvas: a square around the rest icon, or the whole window (the compact canvas). */
+function box(): { w: number; h: number } {
+  if (mode === "compact") return { w: window.innerWidth, h: window.innerHeight };
+  const w = Math.round(size * 1.3);
+  return { w, h: w };
+}
 
 function frame(t: number) {
   const dt = Math.min(0.05, (t - last) / 1000);
   last = t;
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const w = Math.round(size * 1.3);
-  if (canvas.width !== Math.round(w * dpr)) {
+  const { w, h } = box();
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
     canvas.width = Math.round(w * dpr);
-    canvas.height = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
     canvas.style.width = `${w}px`;
-    canvas.style.height = `${w}px`;
+    canvas.style.height = `${h}px`;
   }
+  engine.particleOverhang = mode === "compact" ? OVERHANG : 0;
   engine.update(dt);
   const ctx = canvas.getContext("2d");
   if (ctx) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, w, w);
-    engine.draw(ctx, w, w);
+    ctx.clearRect(0, 0, w, h);
+    engine.draw(ctx, w, h);
   }
   // No frames once nothing moves, or once the change has played out.
   if (!engine.busy || t > moveUntil) running = false;
@@ -56,7 +69,7 @@ function frame(t: number) {
 }
 
 function wake(ms = MOVE_MS) {
-  if (!resting) return;
+  if (mode === "off") return;
   moveUntil = Math.max(moveUntil, performance.now() + ms);
   if (running) return;
   running = true;
@@ -64,49 +77,82 @@ function wake(ms = MOVE_MS) {
   requestAnimationFrame(frame);
 }
 
+function applyLook(m: Extract<IslandToCharacter, { kind: "look" }>) {
+  const was = mode;
+  mode = m.mode;
+  setCharacter(m.character);
+  setFigure(m.figure);
+  setFigureWeather(m.weather.sky, m.weather.temp);
+  setJarvisAgents(m.agents);
+  engine.bodyColor = m.color ? hexToRGB(m.color) : null;
+  engine.sky = m.sky;
+  engine.setState(m.state, was !== mode);
+  size = m.size;
+  paused = m.paused;
+  // As the island's rest icon (dimmed when paused); the compact character at full strength.
+  canvas.style.opacity = mode === "compact" ? "1" : paused ? "0.4" : "0.9";
+  canvas.style.filter = mode === "compact" ? "" : "drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45))";
+  // Compact: the island's look; at rest, straight ahead.
+  if (mode !== "compact") {
+    engine.lookX = 0;
+    engine.lookY = 0;
+  }
+  wake();
+}
+
 const send = linkChannel<IslandToCharacter, CharacterToIsland>((m) => {
   if (!heard) {
     heard = true;
-    void Bridge.log("prova due webview: il personaggio riceve dall'isola").catch(() => {});
+    void Bridge.log("due webview: il personaggio riceve dall'isola").catch(() => {});
   }
-  if (m.kind === "look") {
-    setCharacter(m.character);
-    setFigure(m.figure);
-    engine.bodyColor = m.color ? hexToRGB(m.color) : null;
-    engine.setState(m.state, true);
-    size = m.size;
-    resting = m.resting;
-    canvas.style.opacity = m.paused ? "0.4" : "0.9";
-    wake();
-  } else if (m.kind === "pong") {
-    void Bridge.log(`prova due webview: risposta dell'isola in ${Math.round(performance.now() - m.sent)} ms`).catch(() => {});
+  switch (m.kind) {
+    case "look":
+      applyLook(m);
+      break;
+    case "gaze":
+      engine.lookX = m.x;
+      engine.lookY = m.y;
+      wake(900);
+      break;
+    case "call": {
+      if (!(MIRRORED_CALLS as readonly string[]).includes(m.name)) break;
+      const fn = (engine as unknown as Record<string, (...a: unknown[]) => unknown>)[m.name];
+      fn?.apply(engine, m.args);
+      wake();
+      break;
+    }
+    case "pong":
+      break;
   }
 });
 
-
 /**
- * Alive at almost no cost: still most of the time, and every few seconds one
- * gesture of under a second (docs/due-webview.md, step 0). One timer, no frames
- * in between.
+ * At rest: alive at almost no cost, still most of the time and every few
+ * seconds one gesture of under a second. Compact: the island sends its own
+ * gestures. One timer, no frames in between.
  */
 function gesture() {
-  const pick = Math.random();
-  if (pick < 0.45) {
-    engine.blink();
-    wake(400);
-  } else if (pick < 0.8) {
-    // A glance aside, then back at the next gesture or two.
-    const away = engine.lookX === 0 && engine.lookY === 0;
-    engine.lookX = away ? (Math.random() * 2 - 1) * 0.6 : 0;
-    engine.lookY = away ? (Math.random() * 2 - 1) * 0.3 : 0;
-    wake(900);
-  } else {
-    // The characters that move on their own (flame, Jarvis) show it for a moment.
-    wake(1200);
+  if (mode === "rest") {
+    const pick = Math.random();
+    if (pick < 0.45) {
+      engine.blink();
+      wake(400);
+    } else if (pick < 0.8) {
+      // A glance aside, then back at the next gesture or two.
+      const away = engine.lookX === 0 && engine.lookY === 0;
+      engine.lookX = away ? (Math.random() * 2 - 1) * 0.6 : 0;
+      engine.lookY = away ? (Math.random() * 2 - 1) * 0.3 : 0;
+      wake(900);
+    } else {
+      // The characters that move on their own (flame, Jarvis) show it for a moment.
+      wake(1200);
+    }
   }
   window.setTimeout(gesture, GESTURE_MIN_MS + Math.random() * (GESTURE_MAX_MS - GESTURE_MIN_MS));
 }
 
+// Resized by Rust (rest icon ↔ compact badge): redraw at the new size.
+window.addEventListener("resize", () => wake(400));
+
 send({ kind: "hello" });
-wake();
 window.setTimeout(gesture, GESTURE_MIN_MS);

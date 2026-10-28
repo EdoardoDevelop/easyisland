@@ -3,6 +3,7 @@
 
 import { Tracked, Spring, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop, onEvent, type WindowShot } from "../core/bridge";
+import { MIRRORED_CALLS, type CharacterMode, type IslandToCharacter } from "../core/link";
 import {
   BODY_GAP, EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_CHROME_H, ISLAND_MIN_W, NOTCH_W, PANEL_H, PANEL_W,
   RAIL_GAP, RAIL_W, ROUNDED_CORNER, STRIP_H, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
@@ -245,6 +246,7 @@ export class Island {
     this.wireFsm();
     this.wireInput();
     this.engine.onDizzy = () => this.handleDizzy();
+    this.forwardEngine();
     this.greeting.onComplete = () => this.fsm.greetComplete();
     this.greeting.bare = true;
     // The user's logo finished loading, or the weather changed: one redraw.
@@ -3265,6 +3267,64 @@ ${note}` : text };
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, hCss);
     this.engine.draw(ctx, w, hCss);
+    this.mirrorCompact();
+  }
+
+  // ── The character's own window (docs/due-webview.md) ────────────────────────
+
+  /** Where the compact character's window sits now (window px), or null. */
+  private spotKey = "";
+  private sentLook = { x: NaN, y: NaN };
+  /** The link to the character's window (main.ts); null in a plain browser. */
+  mirror: ((m: IslandToCharacter) => void) | null = null;
+
+  /** The compact character is drawn by its own window, over the badge. */
+  get compactInWindow(): boolean {
+    return IS_TAURI && this.mirror != null && State.mode === "compact" &&
+      !this.uploadActive && !State.windowPick && !State.quiet;
+  }
+
+  /**
+   * Compact: the character's window takes the place of this canvas, at the
+   * spot the springs are heading for (so it does not chase them), and gets
+   * the gaze. Interaction stays with the badge here; the window lets clicks through.
+   */
+  private mirrorCompact() {
+    const on = this.compactInWindow;
+    this.botCanvas.style.visibility = on ? "hidden" : "";
+    let key = "";
+    let spot: [number, number, number, number] | null = null;
+    if (on) {
+      const o = anchoredOrigin(this.framePlacement, this.width.target, this.height.target, this.panel.w, this.panel.h);
+      const w = Math.max(1, Math.round(this.botSize.target));
+      const hCss = w + BOT_OVERHANG;
+      const x = Math.round(o.x + this.botCx.target - w / 2);
+      const y = Math.round(o.y + this.botCy.target - BOT_OVERHANG / 2 - hCss / 2);
+      spot = [x, y, w, hCss];
+      key = spot.join(",");
+    }
+    if (key !== this.spotKey) {
+      this.spotKey = key;
+      void Bridge.characterSpot(spot);
+      this.onRestChange?.();
+    }
+    if (on && (Math.abs(this.engine.lookX - this.sentLook.x) > 0.005 || Math.abs(this.engine.lookY - this.sentLook.y) > 0.005)) {
+      this.sentLook = { x: this.engine.lookX, y: this.engine.lookY };
+      this.mirror?.({ kind: "gaze", x: this.engine.lookX, y: this.engine.lookY });
+    }
+  }
+
+  /** The engine's gestures (hello, emotes, blinks, a carried jiggle) replayed by the character's window. */
+  private forwardEngine() {
+    const e = this.engine as unknown as Record<string, (...a: unknown[]) => unknown>;
+    for (const name of MIRRORED_CALLS) {
+      const own = e[name].bind(this.engine);
+      e[name] = (...args: unknown[]) => {
+        const r = own(...args);
+        if (this.compactInWindow) this.mirror?.({ kind: "call", name, args });
+        return r;
+      };
+    }
   }
 
   /** BotCanvasView.lookX / lookY — tanh of the distance to the bot. */
@@ -3404,9 +3464,9 @@ ${note}` : text };
   /** Told when the resting character moves to or from its own window (main.ts, the link). */
   onRestChange: (() => void) | null = null;
 
-  /** The character's own window is showing the resting character. */
-  get restingInWindow(): boolean {
-    return this.characterRest;
+  /** What the character's own window shows now. */
+  get characterMode(): CharacterMode {
+    return this.characterRest ? "rest" : this.spotKey ? "compact" : "off";
   }
 
   /** The rest icon's size, for the character's own window. */

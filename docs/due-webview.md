@@ -83,3 +83,17 @@ Oggi personaggio, vista compatta e isola aperta stanno in una sola finestra. Una
 - **La finestra lascia passare ogni clic** (`set_ignore_cursor_events`): passaggio del mouse, clic, trascinamento e menu restano dell'icona a riposo dell'isola, che disegna niente (`restCanvas` nascosto). Il comportamento resta quello di oggi.
 - **Senza disegno o gesti quando è nascosta:** il messaggio `look` porta `resting`.
 - **Con «Icona a riposo: nessuna» o «punto»** la finestra resta nascosta: oggi a riposo non c'è un personaggio da spostare.
+
+### Passo 2, seconda parte: vista compatta (28 ottobre 2026)
+- **Il personaggio compatto è disegnato dalla finestra del personaggio, sopra il distintivo.**
+  - L'isola (`mirrorCompact` in `island.ts`) calcola dove andrà il suo personaggio quando le molle si fermano e lo manda a Rust (`character_spot`, px della finestra dell'isola). Così la finestra non insegue le molle.
+  - L'isola nasconde il suo `bot-canvas`.
+- **Cosa resta all'isola:** fondo del distintivo, striscia, passaggio del mouse e clic.
+- **Cosa riceve la finestra dal canale:**
+  - lo sguardo (`gaze`);
+  - i gesti del motore (`call`: saluto, emozioni, battiti di ciglia, scossa quando è trascinato; elenco in `MIRRORED_CALLS`);
+  - nel `look`: cielo, meteo della figura e satelliti di Jarvis.
+- **La finestra del personaggio è posseduta da quella dell'isola** (`island::own_by_island`): Windows la tiene sempre sopra l'isola anche quando l'isola si rialza. `set_always_on_top` di Tauri non rialza una finestra che ha già il flag.
+  - Al passo 3, quando l'isola potrà andare dietro alle altre app, il possesso va tolto o cambiato.
+- **Il motore dell'isola continua a girare** sul canvas nascosto: costo doppio solo mentre si muove. Il codice compatto dell'isola si toglie al passo 6.
+

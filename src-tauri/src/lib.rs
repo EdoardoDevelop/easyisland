@@ -2577,13 +2577,15 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
 
 /// The character's own window (docs/due-webview.md). Small, always on top,
 /// never activated. Its page gets what it shows from the island's page over a
-/// BroadcastChannel. For now (step 2, first part) it only draws the resting
-/// character over the island's collapsed window, which it lets every click
-/// through to: hover, click, drag and menu stay the island's rest icon's.
+/// BroadcastChannel. For now (step 2) it draws the resting character over the
+/// island's collapsed window, and the compact one over the badge, letting
+/// every click through: hover, click, drag and menu stay the island's.
 pub const CHARACTER_LABEL: &str = "personaggio";
 
 /// The island's page wants the resting character shown (character_rest).
 static CHARACTER_REST: AtomicBool = AtomicBool::new(false);
+/// The compact character's place in the island's window, logical px (character_spot).
+static CHARACTER_SPOT: Mutex<Option<[f64; 4]>> = Mutex::new(None);
 
 /// Created at launch with the other windows (see create_settings_window),
 /// hidden until the island rests.
@@ -2612,6 +2614,7 @@ fn create_character_window(app: &AppHandle, data_dir: Option<&std::path::Path>) 
     {
         Ok(win) => {
             island::make_non_activating(&win.as_ref().window());
+            island::own_by_island(app, &win.as_ref().window());
             // Always "compact": the low memory target of WebView2 (webview_memory.rs).
             webview_memory::set_low(win.as_ref(), true);
             let _ = win.set_ignore_cursor_events(true);
@@ -2628,30 +2631,48 @@ fn character_rest(app: AppHandle, on: bool) {
     sync_character(&app);
 }
 
+/// The compact character's place, [x, y, w, h] in the island's window
+/// (logical px), or None when the island draws it itself.
+#[tauri::command]
+fn character_spot(app: AppHandle, spot: Option<[f64; 4]>) {
+    *CHARACTER_SPOT.lock().unwrap() = spot.filter(|s| s.iter().all(|v| v.is_finite()) && s[2] >= 1.0 && s[3] >= 1.0);
+    sync_character(&app);
+}
+
 /// Lays the character's window exactly over the island's collapsed window (the
-/// rest icon's box) and shows it while the island rests; hides it otherwise.
+/// rest icon's box) while the island rests, or over the compact badge's
+/// character; hides it otherwise.
 fn sync_character(app: &AppHandle) {
     let Some(ch) = app.get_webview_window(CHARACTER_LABEL) else { return };
     let collapsed = app.state::<Shared>().gate.collapsed.load(Ordering::Relaxed);
-    let island = island::window(app);
-    let resting = CHARACTER_REST.load(Ordering::Relaxed)
-        && collapsed
-        && island.as_ref().is_some_and(|w| w.is_visible().unwrap_or(false));
-    if !resting {
+    let island = island::window(app).filter(|w| w.is_visible().unwrap_or(false));
+    let spot = *CHARACTER_SPOT.lock().unwrap();
+    let place = island.and_then(|win| {
+        let pos = win.inner_position().ok()?;
+        if collapsed {
+            if !CHARACTER_REST.load(Ordering::Relaxed) {
+                return None;
+            }
+            return Some((pos, win.inner_size().ok()?));
+        }
+        let [x, y, w, h] = spot?;
+        let scale = win.scale_factor().ok()?;
+        Some((
+            tauri::PhysicalPosition::new(pos.x + (x * scale).round() as i32, pos.y + (y * scale).round() as i32),
+            tauri::PhysicalSize::new((w * scale).round() as u32, (h * scale).round() as u32),
+        ))
+    });
+    let Some((pos, size)) = place else {
         if ch.is_visible().unwrap_or(false) {
             let _ = ch.hide();
         }
         return;
-    }
-    let Some(win) = island else { return };
-    if let (Ok(pos), Ok(size)) = (win.outer_position(), win.outer_size()) {
-        let _ = ch.set_size(size);
-        let _ = ch.set_position(pos);
-    }
+    };
+    let _ = ch.set_size(size);
+    let _ = ch.set_position(pos);
+    // Above the island's window: it is owned by it (island::own_by_island).
     if !ch.is_visible().unwrap_or(false) {
         let _ = ch.show();
-        // Above the island's window, which it covers exactly.
-        let _ = ch.set_always_on_top(true);
     }
 }
 
@@ -3504,6 +3525,7 @@ pub fn run() {
             work_drag,
             work_pick,
             character_rest,
+            character_spot,
         ])
         .setup(move |app| {
             let handle = app.handle().clone();

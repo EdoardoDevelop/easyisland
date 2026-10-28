@@ -845,6 +845,16 @@ pub fn make_non_activating(win: &tauri::Window) {
     }
 }
 
+/// Makes `win` owned by the island's window: Windows keeps an owned window above
+/// its owner whenever the owner is raised, with no raising of its own. Used by
+/// the character's window, which lies over the island (docs/due-webview.md).
+pub fn own_by_island(app: &AppHandle, win: &tauri::Window) {
+    let (Some(island), Some(own)) = (window(app).and_then(|w| hwnd_of(&w)), hwnd_of(win)) else { return };
+    unsafe {
+        SetWindowLongPtrW(own, windows::Win32::UI::WindowsAndMessaging::GWLP_HWNDPARENT, island.0 as isize);
+    }
+}
+
 /// Temporarily allow activation so a text field inside the island can be typed in.
 /// Pinned as an app the window is always activatable, like any other.
 pub fn set_activating(win: &tauri::Window, activating: bool) {
