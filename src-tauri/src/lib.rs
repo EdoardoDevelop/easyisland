@@ -537,6 +537,12 @@ fn show_island_menu(app: AppHandle) {
     tray::popup(&app);
 }
 
+/// «…» of the fixed bar: the elements that do not fit, as [key, label] pairs.
+#[tauri::command]
+fn bar_overflow_menu(app: AppHandle, entries: Vec<(String, String)>) {
+    tray::popup_bar_menu(&app, &entries);
+}
+
 /// "Copia info PC": everything a ticket asks for, put on the clipboard.
 #[tauri::command]
 async fn copy_pc_info() -> Result<String, String> {
@@ -3595,6 +3601,7 @@ pub fn run() {
             character_rest,
             character_spot,
             character_clearance,
+            bar_overflow_menu,
         ])
         .setup(move |app| {
             let handle = app.handle().clone();

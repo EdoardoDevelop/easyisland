@@ -9,7 +9,7 @@ import { BotEngine, hexToRGB } from "../character/engine";
 import { setFigure, setFigureWeather } from "../character/figure";
 import { setJarvisAgents } from "../character/jarvis";
 import { invoke } from "@tauri-apps/api/core";
-import { linkChannel, MIRRORED_CALLS, type BarLook, type CharacterMode, type CharacterToIsland, type IslandToCharacter } from "../core/link";
+import { linkChannel, MIRRORED_CALLS, type BarLook, type BarPiece, type CharacterMode, type CharacterToIsland, type IslandToCharacter } from "../core/link";
 
 /** Only following a gaze: 30 fps, as in the island. */
 const LOOK_FRAME_MS = 33;
@@ -187,6 +187,7 @@ function layAreas(b: BarLook) {
   const key = JSON.stringify(b.items);
   if (key === laidItems) return;
   laidItems = key;
+  shown = b.items;
   for (const el of Object.values(areas)) el?.replaceChildren();
   for (const p of b.items) {
     // Not a <button>: the strip holds buttons of its own.
@@ -199,15 +200,79 @@ function layAreas(b: BarLook) {
     btn.innerHTML = p.html;
     areas[p.area]?.append(btn);
   }
+  fitAreas();
 }
 
 let laidItems = "";
+/** The elements as last laid out, for the «…» menu's labels. */
+let shown: BarPiece[] = [];
+
+/**
+ * What does not fit goes into «…» at the end of the bar: while two areas (or
+ * an area and the character) overlap, or one runs off the window, the last
+ * element of the wider one moves out, the strip last of all. The menu is
+ * Windows' own (bar_overflow_menu): the band is too short for one of ours.
+ */
+function fitAreas() {
+  const areas = ["a-start", "a-center", "a-end"].map((id) => document.getElementById(id)).filter((x): x is HTMLElement => !!x);
+  const float = document.getElementById("float");
+  document.querySelector(".bar-more")?.remove();
+  const out: string[] = [];
+  const more = document.createElement("div");
+  more.className = "bar-btn bar-more";
+  more.setAttribute("role", "button");
+  more.textContent = "…";
+  const W = window.innerWidth;
+  for (let guard = 0; guard < 60; guard++) {
+    const boxes = [...areas.filter((a) => a.childElementCount), ...(float ? [float] : [])]
+      .map((el) => ({ el, r: el.getBoundingClientRect() }))
+      .filter((b) => b.r.width > 0)
+      .sort((a, b) => a.r.left - b.r.left);
+    let clash: HTMLElement[] = [];
+    for (let i = 0; i < boxes.length - 1 && !clash.length; i++) {
+      // A little air between areas; the character's own area starts 6 px after it.
+      if (boxes[i].r.right + 4 > boxes[i + 1].r.left) clash = [boxes[i].el, boxes[i + 1].el];
+    }
+    if (!clash.length) {
+      const off = boxes.filter((b) => b.r.left < 2 || b.r.right > W - 2).map((b) => b.el);
+      clash = off;
+    }
+    // The character's area keeps its elements longest; elsewhere the wider area gives first.
+    const own = bar ? `a-${bar.slot}` : "";
+    const removable = (el: HTMLElement) => el !== float && !!el.querySelector(".bar-btn:not(.bar-more):not([data-key='strip'])");
+    const victim = clash
+      .filter(removable)
+      .sort((a, b) => Number(a.id === own) - Number(b.id === own) || b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0]
+      ?? clash.filter((el) => el !== float && el.querySelector(".bar-btn:not(.bar-more)"))[0];
+    if (!victim) break;
+    const kids = [...victim.querySelectorAll<HTMLElement>(".bar-btn:not(.bar-more)")];
+    const kid = [...kids].reverse().find((k) => k.dataset.key !== "strip") ?? kids[kids.length - 1];
+    if (!kid?.dataset.key) break;
+    out.unshift(kid.dataset.key);
+    kid.remove();
+    if (!more.isConnected) document.getElementById("a-end")?.append(more);
+  }
+  more.title = `+${out.length}`;
+  more.dataset.keys = JSON.stringify(out);
+}
+
+window.addEventListener("resize", () => {
+  if (!bar) return;
+  laidItems = "";
+  layBar();
+});
 
 // An element of the bar: the island opens its card or runs the action; a
 // button of the strip answers (strip:btn:<i>).
 document.addEventListener("click", (e) => {
   const target = e.target as HTMLElement | null;
   const btn = target?.closest?.(".bar-btn") as HTMLElement | null;
+  if (btn?.classList.contains("bar-more")) {
+    const keys: string[] = JSON.parse(btn.dataset.keys ?? "[]");
+    const entries = keys.map((k) => [k, shown.find((p) => p.key === k)?.title ?? k]);
+    void invoke("bar_overflow_menu", { entries }).catch(() => {});
+    return;
+  }
   if (!btn?.dataset.key) return;
   const sub = target?.closest?.("[data-btn]") as HTMLElement | null;
   send({ kind: "bar", key: sub ? `${btn.dataset.key}:btn:${sub.dataset.btn}` : btn.dataset.key });

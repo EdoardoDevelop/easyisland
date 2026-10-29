@@ -30,7 +30,7 @@ Branch `claude/barra-fissa-2`, ripartito il 29 ottobre 2026 da `claude/sviluppo`
   - la finestra del personaggio diventa la fascia, con lo sfondo dell'isola e il personaggio nella sua area;
   - l'isola chiusa nascosta; aperta contro la fascia;
   - Impostazioni → Posizione: «Barra fissa» e «Personaggio nella barra», con le righe che non valgono nascoste.
-- [~] **2. Elementi delle aree:** (integrazioni, widget, azioni e striscia fatti il 29 ottobre; «…» da fare)
+- [x] **2. Elementi delle aree:** (fatto il 29 ottobre; il menu «…» nativo non ancora visto dal vivo)
   - integrazioni e widget (icona, valore o entrambi; il clic apre la card);
   - azioni rapide (come la barra dell'app in uso);
   - striscia dove la mette l'utente;
@@ -65,4 +65,13 @@ Branch `claude/barra-fissa-2`, ripartito il 29 ottobre 2026 da `claude/sviluppo`
   - **Niente vista compatta con la barra:** `showInStrip` e `peek` non la fanno comparire.
   - **Prova dal vivo:** un permesso finto mandato al relay (`PermissionRequest`) è comparso nella barra in giallo con Nega / Consenti. Il clic su Nega ha restituito al relay `deny` («Negato da EasyIsland»), senza vista compatta. La sessione finta è stata chiusa con `SessionEnd`.
   - **Smoke test:** «47 scene con errori» era il server di sviluppo fermo: riavviato, «nessun errore».
+- **29 ottobre, «…» per ciò che non ci sta.**
+  - **Calcolo** (`fitAreas` in `src/character-window/main.ts`): dopo ogni disposizione si misurano le aree e il personaggio. Finché due si sovrappongono (meno di 4 px tra loro) o una esce dalla finestra, l'ultimo elemento esce e va nel «…», messo in fondo all'area finale.
+    - L'area del personaggio tiene i suoi elementi più a lungo; altrove cede prima l'area più larga.
+    - La striscia esce per ultima.
+  - **Menu:** il «…» apre un menu nativo di Windows (`bar_overflow_menu` → `tray::popup_bar_menu`): la fascia è troppo bassa per un menu della pagina. La scelta torna come evento `tray` `bar:<key>` → `barClick`. Dopo il menu la finestra torna non attivabile (`make_non_activating`).
+  - **Prova:**
+    - nel browser, barra di 900 px con otto elementi: restano la striscia e gli elementi accanto al personaggio; il centro e l'ultima azione vanno nel «…».
+    - Dal vivo (2560 px al 125 %) la barra non trabocca nemmeno con sei integrazioni al centro e il personaggio al centro, quindi il menu nativo non è ancora stato visto. Impostazioni rimesse com'erano (copia `settings.json.bak-barra-20261029-122639`).
+  - **Telegram** non compare come elemento: non è un'integrazione con una scheda (`State.tasks`), quindi l'elemento si salta. Da togliere dall'elenco delle Impostazioni, o da dare una scheda.
 

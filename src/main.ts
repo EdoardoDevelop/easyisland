@@ -128,6 +128,8 @@ async function main() {
       default:
         // The menu on the selected text (src/island/selection-menu.ts).
         if (what.startsWith("sel:")) island.pickSelectionMenu(what.slice(4));
+        // «…» of the fixed bar: a click on an element that did not fit (src/character-window/main.ts).
+        else if (what.startsWith("bar:")) island.barClick(what.slice(4));
         break;
     }
   });
