@@ -53,3 +53,9 @@ Branch `claude/barra-fissa-2`, ripartito il 29 ottobre 2026 da `claude/sviluppo`
   - **Impostazione `fixedBarItems`:** `{ id: "task:…" | "action:…", area, show }`, del PC (in Rust `Vec<Value>`).
   - **Impostazioni → Posizione → «Elementi nella barra»** (`barItemsEditor`): aggiungi da un elenco (integrazioni attive, widget, azioni), area, «Icona e valore» / «Solo icona» / «Solo valore», ↑ ↓ ✕.
   - **Da fare:** la striscia nella barra (permessi, chiamate, agente al lavoro, barra dell'app in uso); il menu «…» quando gli elementi non ci stanno.
+- **29 ottobre, prova dal vivo del passo 1 e della prima parte del passo 2** (fatta da Claude con foto dello schermo e clic simulati, Edoardo lontano dal PC).
+  - **Configurazione:** barra in alto, personaggio all'inizio; elementi: Meteo all'inizio, Media al centro, «Traduci», Rete (solo icona) e Consumo alla fine. Copia di prima: `settings.json.bak-barra-20261029-105234`.
+  - **Barra:** larga quanto lo schermo, con lo sfondo dell'isola; le finestre si fermano sotto. Il Consumo con l'avviso è giallo e tagliato con i puntini.
+  - **Clic:** sul Meteo l'isola si apre attaccata sotto la barra, sulla card del Meteo, con il clone nel menu; secondo clic: si chiude. Clic sul personaggio: si apre e si chiude.
+  - **Scala:** lo schermo è 2560×1440 al 125 %: i programmi che non dichiarano i DPI vedono la barra larga 2048.
+
