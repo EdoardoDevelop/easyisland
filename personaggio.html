@@ -59,6 +59,25 @@
       .bar-btn.warn .bar-text { color: #F5A524; }
       .bar-btn.error .bar-text { color: #F4505E; }
       .bar-action { border-left: 2px solid var(--action, transparent); padding-left: 6px; }
+      /* The strip in the bar (src/island/bar.ts stripPiece), coloured by what it holds. */
+      .bar-btn:has(.bar-strip) { max-width: 560px; }
+      .bar-strip { display: flex; align-items: center; gap: 6px; min-width: 0; }
+      .bar-strip-text { display: flex; align-items: baseline; gap: 6px; min-width: 0; overflow: hidden; }
+      .bar-strip-text strong { font-weight: 600; white-space: nowrap; }
+      .bar-strip-sub { opacity: 0.7; overflow: hidden; text-overflow: ellipsis; }
+      .bar-strip[data-tone="approval"] strong { color: #F5A524; }
+      .bar-strip[data-tone="call"] strong { color: #22C55E; }
+      .bar-strip[data-tone="live"] strong { color: #F4505E; }
+      .bar-strip[data-tone="work"] strong { color: #4EA8FF; }
+      .bar-strip-btn {
+        display: flex; align-items: center; gap: 4px; flex: none; padding: 2px 9px; border-radius: 999px;
+        background: color-mix(in srgb, var(--ink, #fff) 14%, transparent);
+        border-left: 2px solid var(--action, transparent);
+      }
+      .bar-strip-btn:hover { background: color-mix(in srgb, var(--ink, #fff) 24%, transparent); }
+      .bar-strip-btn.light { background: var(--ink, #fff); color: #111; }
+      .bar-strip-btn.green { background: #22C55E; color: #fff; }
+      .bar-strip-btn.red { background: #F4505E; color: #fff; }
     </style>
   </head>
   <body>

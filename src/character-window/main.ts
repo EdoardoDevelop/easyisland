@@ -189,7 +189,9 @@ function layAreas(b: BarLook) {
   laidItems = key;
   for (const el of Object.values(areas)) el?.replaceChildren();
   for (const p of b.items) {
-    const btn = document.createElement("button");
+    // Not a <button>: the strip holds buttons of its own.
+    const btn = document.createElement("div");
+    btn.setAttribute("role", "button");
     btn.className = `bar-btn${p.tone === "warn" || p.tone === "error" ? ` ${p.tone}` : ""}`;
     btn.dataset.key = p.key;
     btn.title = p.title;
@@ -201,10 +203,14 @@ function layAreas(b: BarLook) {
 
 let laidItems = "";
 
-// An element of the bar: the island opens its card or runs the action.
+// An element of the bar: the island opens its card or runs the action; a
+// button of the strip answers (strip:btn:<i>).
 document.addEventListener("click", (e) => {
-  const btn = (e.target as HTMLElement | null)?.closest?.(".bar-btn") as HTMLElement | null;
-  if (btn?.dataset.key) send({ kind: "bar", key: btn.dataset.key });
+  const target = e.target as HTMLElement | null;
+  const btn = target?.closest?.(".bar-btn") as HTMLElement | null;
+  if (!btn?.dataset.key) return;
+  const sub = target?.closest?.("[data-btn]") as HTMLElement | null;
+  send({ kind: "bar", key: sub ? `${btn.dataset.key}:btn:${sub.dataset.btn}` : btn.dataset.key });
 });
 
 // Beside the open island or in the fixed bar (the times the window takes the mouse):

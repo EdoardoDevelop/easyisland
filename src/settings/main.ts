@@ -2539,6 +2539,7 @@ function languageRow(): HTMLElement {
 function barItemsEditor(commit: () => void): HTMLElement {
   const list = h("div", { class: "bar-items" });
   const choices = (): [string, string][] => [
+    ["strip", t("Striscia: permessi, chiamate, agente al lavoro, app in uso")],
     ...settings.activeIntegrations.map((id) => [`task:${id}`, INTEGRATIONS.find((i) => i.id === id)?.name ?? id] as [string, string]),
     ...(settings.widgets ?? []).map((w) => [`task:widget:${w.id}`, `${t("Widget")} · ${w.name}`] as [string, string]),
     ...(settings.actions ?? []).map((a) => [`action:${a.id}`, `${t("Azione")} · ${a.icon ? `${a.icon} ` : ""}${a.name}`] as [string, string]),

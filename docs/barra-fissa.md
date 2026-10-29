@@ -30,7 +30,7 @@ Branch `claude/barra-fissa-2`, ripartito il 29 ottobre 2026 da `claude/sviluppo`
   - la finestra del personaggio diventa la fascia, con lo sfondo dell'isola e il personaggio nella sua area;
   - l'isola chiusa nascosta; aperta contro la fascia;
   - Impostazioni → Posizione: «Barra fissa» e «Personaggio nella barra», con le righe che non valgono nascoste.
-- [~] **2. Elementi delle aree:** (integrazioni, widget e azioni fatti il 29 ottobre; striscia e «…» da fare)
+- [~] **2. Elementi delle aree:** (integrazioni, widget, azioni e striscia fatti il 29 ottobre; «…» da fare)
   - integrazioni e widget (icona, valore o entrambi; il clic apre la card);
   - azioni rapide (come la barra dell'app in uso);
   - striscia dove la mette l'utente;
@@ -58,4 +58,11 @@ Branch `claude/barra-fissa-2`, ripartito il 29 ottobre 2026 da `claude/sviluppo`
   - **Barra:** larga quanto lo schermo, con lo sfondo dell'isola; le finestre si fermano sotto. Il Consumo con l'avviso è giallo e tagliato con i puntini.
   - **Clic:** sul Meteo l'isola si apre attaccata sotto la barra, sulla card del Meteo, con il clone nel menu; secondo clic: si chiude. Clic sul personaggio: si apre e si chiude.
   - **Scala:** lo schermo è 2560×1440 al 125 %: i programmi che non dichiarano i DPI vedono la barra larga 2048.
+- **29 ottobre, la striscia nella barra.**
+  - **Cosa mostra:** quello di accanto al personaggio compatto (`stripItem` di `strip.ts`: permesso, chiamata, registrazione, riunione di Teams, richiesta da aprire, barra dell'app in uso, agente al lavoro), come un elemento della barra (`stripPiece` in `bar.ts`, colore dal tipo).
+  - **Dove:** di serie accanto al personaggio; con «Striscia» in «Elementi nella barra» va dove la mette l'utente.
+  - **Clic:** un pulsante torna come `strip:btn:<i>` e fa ciò che fa nella striscia (`barClick`). Il testo apre l'isola, o la chiude se è aperta.
+  - **Niente vista compatta con la barra:** `showInStrip` e `peek` non la fanno comparire.
+  - **Prova dal vivo:** un permesso finto mandato al relay (`PermissionRequest`) è comparso nella barra in giallo con Nega / Consenti. Il clic su Nega ha restituito al relay `deny` («Negato da EasyIsland»), senza vista compatta. La sessione finta è stata chiusa con `SessionEnd`.
+  - **Smoke test:** «47 scene con errori» era il server di sviluppo fermo: riavviato, «nessun errore».
 

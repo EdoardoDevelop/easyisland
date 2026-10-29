@@ -249,7 +249,7 @@ function linkCharacterWindow(island: Island) {
           background: island.islandBackground,
           thickness: barThickness(State.settings),
           ink: island.islandInk,
-          items: barPieces(),
+          items: barPieces(island.barStrip()),
         }
         : null,
     };

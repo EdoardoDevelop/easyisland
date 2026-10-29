@@ -26,7 +26,7 @@ import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../vie
 import { buildSearch, type SearchHost } from "../views/search";
 import { rdmLookFor } from "../views/rdm";
 import { buildRail, railBotSize } from "../views/rail";
-import { buildStrip, type Strip } from "../views/strip";
+import { buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
 import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
 import { sendToChat, windowLabel } from "../views/chat";
 import { capturing, startCapture } from "./capture";
@@ -420,11 +420,12 @@ export class Island {
     this.rail = buildRail(actions);
     // A tab chosen while typing: the search ends, its words go.
     this.rail.el.addEventListener("click", () => this.search.close(), true);
-    this.strip = buildStrip({
+    this.stripActions = {
       decide: (d) => actions.decide(d),
       runAction: (a) => void this.runAction(a),
       runSuggestion: (s) => void this.runSuggestion(s, ""),
-    });
+    };
+    this.strip = buildStrip(this.stripActions);
     this.contentEl = h("div", { id: "content" }, this.header.el, h("div", { id: "body" }, this.rail.el, this.viewsEl, this.paneEl));
 
     // The drop sequence draws the card, the bar and its own the character. It sits under
@@ -2178,12 +2179,18 @@ ${note}` : text };
    * compact island peeks so the badge is seen; nothing opens.
    */
   peek() {
-    if (!State.quiet && this.fsm.state === "hidden") this.fsm.reveal();
+    // With the fixed bar there is no compact view: the bar shows the news.
+    if (!State.quiet && this.fsm.state === "hidden" && !barEdge(State.settings)) this.fsm.reveal();
     State.notify();
   }
 
   showInStrip(): boolean {
     if ((State.settings.compactStrip ?? "right") === "off" || State.mode === "expanded" || this.fsm.state === "greeting") return false;
+    // With the fixed bar the strip is in the bar: no compact view under it.
+    if (barEdge(State.settings)) {
+      State.notify();
+      return true;
+    }
     if (this.fsm.state === "hidden") {
       this.quietLaunch = true; // the request's own sound, not the peek
       this.fsm.reveal();
@@ -2667,6 +2674,14 @@ ${note}` : text };
   /** The island's background as painted (paintIsland): the fixed bar wears it too. */
   islandBackground = "rgba(0,0,0,1)";
 
+  /** What the strip's buttons do (here, and in the fixed bar). */
+  private stripActions!: StripActions;
+
+  /** What the strip shows now, for the fixed bar (src/island/bar.ts). */
+  barStrip(): StripItem | null {
+    return stripItem(this.stripActions);
+  }
+
   /** The island's text colour, for the fixed bar's elements. */
   get islandInk(): string {
     return getComputedStyle(this.islandEl).color || "#f5f6f8";
@@ -2678,6 +2693,16 @@ ${note}` : text };
    * action runs.
    */
   barClick(key: string) {
+    if (key.startsWith("strip")) {
+      // A button of the strip does what it does beside the compact character;
+      // its line opens the island (on the request, when one waits).
+      const i = key.startsWith("strip:btn:") ? Number(key.slice(10)) : -1;
+      const b = i >= 0 ? this.barStrip()?.buttons[i] : undefined;
+      if (b) b.run();
+      else if (State.mode === "expanded") this.collapse();
+      else this.openByUser();
+      return;
+    }
     if (key.startsWith("task:")) {
       const id = key.slice(5);
       if (State.mode === "expanded" && State.focusTask?.id === id && !State.summary) {
