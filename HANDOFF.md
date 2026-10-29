@@ -1,13 +1,13 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 29 ottobre 2026. Versione **1.0.10** in `main` con il tag `v1.0.10`. Si lavora su `claude/sviluppo`, che contiene le due finestre (personaggio e isola) e la **barra fissa** (`docs/architettura.md` → Barra fissa); su `claude/impostazioni-aspetto` la pagina Aspetto a schede con le immagini, da unire in `claude/sviluppo`. In attesa `claude/modello-integrato`; `claude/barra-fissa` è il primo tentativo, solo archivio. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 29 ottobre 2026. Versione **1.0.10** in `main` con il tag `v1.0.10`. Si lavora su `claude/sviluppo`, che contiene le due finestre (personaggio e isola) la **barra fissa** (`docs/architettura.md` → Barra fissa) e la pagina Aspetto a schede con le immagini. In attesa `claude/modello-integrato`; `claude/barra-fissa` è il primo tentativo, solo archivio. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
 - [ ] **Personaggio e isola in due finestre** (unite in `claude/sviluppo`; misure in `docs/due-webview.md`, come funziona in `docs/architettura.md`): da provare ai lati e su un secondo schermo (in basso e i file rilasciati sul personaggio funzionano, provati da Edoardo il 29 ottobre 2026).
 - [ ] **Barra fissa** (unita in `claude/sviluppo`, `docs/architettura.md` → Barra fissa): fatta e provata in alto. Da provare in basso, sul secondo monitor e con il menu «…».
-- [ ] **Aspetto a schede con le immagini** (`claude/impostazioni-aspetto`, `docs/architettura.md` → Impostazioni): sei schede, una miniatura disegnata accanto a ogni voce. Da far vedere a Edoardo nell'app vera e unire in `claude/sviluppo`.
+- [ ] **Aspetto a schede con le immagini** (unita in `claude/sviluppo`, `docs/architettura.md` → Impostazioni): sei schede, una miniatura disegnata accanto a ogni voce. Modalità chiara non ancora guardata.
 - [ ] **Integrazioni personali:** fatte nel codice e nell'anteprima (`docs/integrazioni.md`); da provare con l'app vera (`docs/prove-dal-vivo.md`).
 - [ ] **Guida sul sito**, italiano e inglese (`docs/guida/`, `docs/guida/en/` → `site/guida/`, `site/en/guide/`; homepage inglese `site/en/index.html`, schermate inglesi in `site/media/en/`): da tenere allineate a ogni funzione nuova (`node scripts/guida.mjs`). Il link delle Impostazioni nella lingua dell'app arriva con la prossima versione.
 - [ ] **EasyIsland agente personale** (dopo la 1.0.0) (priorità alta, chiesto da Edoardo il 23 ottobre 2026): fatti i **Compiti** con motore per compito, motori aiutanti e **Battito**, e le **Abilità** (`docs/chat.md`; da provare dal vivo domande e permessi, `docs/prove-dal-vivo.md`). Prossimi: proattività su ticket e chiamate, permessi per livelli, memoria per cliente. Piano in `docs/idee.md`.
@@ -50,7 +50,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
-### 29 ottobre 2026 — Aspetto a schede con le immagini (su `claude/impostazioni-aspetto`)
+### 29 ottobre 2026 — Aspetto a schede con le immagini (unita in `claude/sviluppo`)
 - Impostazioni → Aspetto divisa in sei schede (Tema, Personaggio, Posizione, Barra fissa, Isola chiusa, Isola aperta); accanto a ogni voce uno schermo in miniatura in SVG (`src/settings/pictures.ts`) che si ridisegna al cambio del valore, alcune animate in CSS solo mentre sono in vista; in Personaggio il personaggio vero si muove. Angolo scelto anche con un clic sulla miniatura.
 - Smoke esteso a ogni scheda («nessun errore»); schermata `settings.png` e guida aggiornate.
 
