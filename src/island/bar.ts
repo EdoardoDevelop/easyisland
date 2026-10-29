@@ -1,4 +1,4 @@
-// The elements of the fixed bar (docs/barra-fissa.md, step 2): the user's
+// The elements of the fixed bar (docs/architettura.md → «Barra fissa»): the user's
 // integrations, widgets and quick actions in the bar's three areas, and the
 // strip (permission, call, recording, meeting, agent at work, the bar of the
 // app in use), beside the character unless the user put it elsewhere. The island

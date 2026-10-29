@@ -107,7 +107,7 @@ pub fn popup(app: &AppHandle) {
     crate::island::set_activating(&win, false);
 }
 
-/// «…» of the fixed bar (docs/barra-fissa.md): the elements that do not fit,
+/// «…» of the fixed bar (docs/architettura.md → «Barra fissa»): the elements that do not fit,
 /// as a menu at the mouse over the bar. A click comes back as the "tray" event
 /// "bar:<key>" (the tray's handler sends on every id it does not know), which
 /// the island handles as a click on that element.

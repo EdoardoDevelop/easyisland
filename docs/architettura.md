@@ -75,6 +75,48 @@ Il personaggio fuori dall'isola vive in una finestra sua (`personaggio`, `person
 - **Memoria.** Obiettivo basso di WebView2 (`webview_memory::set_low`), ripetuto dopo il caricamento.
 - **Senza Tauri** (anteprime con `npm run dev`, smoke) la finestra non c'è: l'isola disegna il suo personaggio come prima. Per questo il suo codice compatto resta.
 
+## Barra fissa (ottobre 2026)
+Chiesta da Edoardo il 27 ottobre 2026, fatta il 29 nel branch `claude/barra-fissa-2` sopra la finestra del personaggio (il primo tentativo, con la finestra dell'isola come barra, resta nel branch `claude/barra-fissa`). Impostazioni → Posizione → «Barra fissa»: Windows riserva una fascia in alto o in basso, come per la barra delle applicazioni, e le finestre si fermano al suo bordo.
+- **La barra è la finestra del personaggio.**
+  - Registrata con `SHAppBarMessage` (`appbar.rs`: `ABM_NEW`, `ABM_QUERYPOS` / `ABM_SETPOS`, `ABM_REMOVE` quando si spegne e all'uscita).
+  - È larga quanto lo schermo dell'isola (`screen`), alta quanto la vista compatta (`Settings::bar_thickness`, almeno 44 px con la striscia), sempre davanti, e prende tutto il mouse.
+  - Rust la posa sulla fascia (`sync_character`, ramo `appbar::band()`).
+  - **Messaggi della shell** tramite sottoclasse della finestra, senza alcun ciclo:
+    - `ABN_POSCHANGED`, `WM_DISPLAYCHANGE`, `WM_DPICHANGED`: si ricalcola la posizione;
+    - `ABN_FULLSCREENAPP`: a schermo intero la barra si nasconde e torna dopo.
+  - **Blocco da evitare:** in `apply` lo stato si copia fuori prima di `run_on_main_thread`, che sul thread principale esegue subito. Prima l'app si bloccava cambiando lato.
+- **Impostazioni** (del PC, non del profilo):
+  - `fixedBar` (`""`, `top`, `bottom`), `fixedBarSlot` (`start`, `center`, `end`);
+  - `fixedBarItems` (`{ id: "task:…" | "action:…" | "strip", area, show }`);
+  - `fixedBarBackground` (`""` come l'isola, `transparent`, `#rrggbb`).
+  - Con la barra accesa le righe che non valgono si nascondono (`body.fixed-bar`, `.free-row` / `.bar-row`). «Schermo» elenca ogni schermo per nome (`monitor_list`), perché il personaggio non si trascina.
+- **L'isola** è la sua finestra di sempre:
+  - chiusa è nascosta (`set_collapsed`: `quiet`);
+  - aperta sta contro la fascia, perché l'area di lavoro di Windows finisce lì e la casa è all'area del personaggio (`Settings::home_anchor`, `homePlacement`, senza spostamento);
+  - `islandPlace`, `overTaskbar` e la vista compatta sempre visibile non valgono, e la vista compatta non compare: `showInStrip` e `peek` non la fanno comparire, `petitToHiddenDelay` 0,3 s;
+  - va dietro alle altre finestre come una finestra; la barra resta davanti.
+- **Gli elementi** li prepara l'isola, che tiene i dati (`src/island/bar.ts`), e arrivano alla barra nel `look` del canale (`bar.items`, `BarPiece`, HTML costruito con il DOM: icone e testo con `textContent`):
+  - integrazioni e widget con una scheda (`INTEGRATION_AGENTS`; Telegram no): icona come nel menu (`taskIcon`), valore = `widgetStatus.summary` o l'ultimo passo, giallo o rosso per avviso ed errore;
+  - azioni rapide (`renderActionIcon`);
+  - la **striscia** (`stripItem` di `strip.ts`: permesso, chiamata, registrazione, riunione, richiesta da aprire, app in uso, agente al lavoro), di serie accanto al personaggio.
+- **La pagina della barra** (`src/character-window/main.ts`, modalità `bar`):
+  - dispone gli elementi nelle tre aree (`layAreas`; nell'area del personaggio subito dopo di lui);
+  - sposta in «…» ciò che non ci sta (`fitAreas`: tolto prima lontano dal personaggio, la striscia per ultima);
+  - lo sfondo e il colore del testo vengono da `barPaint` in `main.ts`: un colore chiaro vuole il testo scuro; trasparente, il testo ha un'ombra.
+- **Clic:** tornano all'isola (`{ kind: "bar", key }` → `barClick`).
+  - Un'integrazione apre la sua card, o la chiude se è già quella aperta.
+  - Un'azione si esegue.
+  - Un pulsante della striscia (`strip:btn:<i>`) fa ciò che fa nella striscia; il resto della striscia apre l'isola.
+  - Il personaggio apre o chiude l'isola.
+  - Il «…» apre un menu nativo di Windows (`bar_overflow_menu` → `tray::popup_bar_menu`; la scelta torna come evento `tray` `bar:<key>`), perché la fascia è troppo bassa per un menu della pagina.
+- **Provato dal vivo il 29 ottobre 2026** (2560×1440 al 125 %, barra in alto):
+  - fascia e finestre sotto;
+  - integrazioni, azioni e valori;
+  - clic che apre e chiude l'isola sulla card;
+  - permesso finto nella striscia con Nega → `deny` al relay;
+  - sfondo trasparente e chiaro.
+  - **Da provare:** barra in basso, secondo monitor, menu «…» (qui la barra non trabocca), cosa resta della fascia se l'app cade.
+
 ## Viste, menu e barra in alto
 - **Impianto dell'isola aperta** (dal 13 ottobre 2026, deciso con Edoardo): barra in alto (`buildHeader` in `views.ts`) con il fumetto del personaggio, il campo unico e i pulsanti; a sinistra il **menu** (`src/views/rail.ts`, `#rail`), con il personaggio in cima e sotto Panoramica, Agenti, Chat, Azioni, File e schermo e le integrazioni attive; a destra le viste. Prende il posto delle schede in alto e delle pillole accanto alle card. Niente modalità «modifica» nell'isola: cosa si vede e come si sceglie solo in Impostazioni.
   - Il personaggio è lo stesso di sempre, con stati, reazioni e animazioni: `botPosition` (layout.ts) lo mette in cima al menu quando `railShown` (isola aperta, tranne saluto e sequenza del file, che restano come prima senza menu); misura da `menuCharacter` (`RAIL_BOT`), spazio in `railHead`.

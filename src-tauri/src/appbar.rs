@@ -1,8 +1,8 @@
-// «Barra fissa» (asked by Edoardo on 27 Oct 2026, docs/barra-fissa.md): a band
+// «Barra fissa» (asked by Edoardo on 27 Oct 2026, docs/architettura.md → «Barra fissa»): a band
 // at the top or bottom of the screen that Windows keeps free, like the taskbar,
 // so maximised and snapped windows stop at its edge.
 //
-// The character's own window is the bar (docs/barra-fissa.md, on top of the
+// The character's own window is the bar (on top of the
 // two windows of docs/architettura.md → «Finestra del personaggio»):
 // registered with SHAppBarMessage, as wide as the monitor and as tall as the
 // band, always in front, taking the whole mouse. The island is a window of its

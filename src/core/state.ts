@@ -109,7 +109,7 @@ export const CHAT_ENGINES: { id: ChatEngine; name: string; key?: string; url?: s
 ];
 
 /**
- * One element of the fixed bar (docs/barra-fissa.md): `task:<id>` an
+ * One element of the fixed bar (docs/architettura.md → «Barra fissa»): `task:<id>` an
  * integration or a widget, `action:<id>` a quick action; in which area, and
  * with its icon, its value (or name) or both.
  */
