@@ -51,6 +51,10 @@ Oggi personaggio, vista compatta e isola aperta stanno in una sola finestra. Una
   - documentazione e guida;
   - prova dal vivo.
 
+## Risparmi da fare (deciso con Edoardo il 29 ottobre 2026)
+- **Particelle in vista compatta a 15 fps** invece di 30, come a riposo e accanto all'isola aperta (`AMBIENT_FRAME_MS` in `src/character-window/main.ts`). Stima circa 0,1 % di CPU in meno con Jarvis o Fiamma.
+- **Pagina del personaggio più leggera:** oggi circa 75 MB di memoria privata. Importa `bridge.ts` solo per scrivere nel registro e tutto `roster.ts`. Basta un `invoke` diretto per il registro e caricare solo il personaggio scelto; poi misurare di nuovo.
+
 ## Vincoli che restano (`CLAUDE.md`)
 - Personaggi, animazioni e impostazioni di oggi restano. Cambia solo che il personaggio non vola più nel menu: al suo posto c'è il clone.
 - CPU circa 0 % a riposo: la finestra del personaggio non fa cicli quando è ferma, e l'isola chiusa non disegna.
