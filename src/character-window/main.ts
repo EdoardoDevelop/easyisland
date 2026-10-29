@@ -107,6 +107,16 @@ function applyLook(m: Extract<IslandToCharacter, { kind: "look" }>) {
   layBar();
   // As the island's rest icon (dimmed when paused); the compact character at full
   // strength. Beside the open island it has no badge under it: the rest icon's shadow.
+  // Coming to rest it fades in as the island finishes retracting (420 ms,
+  // island.ts → updateWindowCollapsed), instead of appearing all at once.
+  if (mode === "rest" && was !== "rest") {
+    canvas.style.transition = "none";
+    canvas.style.opacity = "0";
+    void canvas.offsetWidth;
+    canvas.style.transition = "opacity 0.3s ease 0.38s";
+  } else if (mode !== "rest") {
+    canvas.style.transition = "";
+  }
   canvas.style.opacity = mode === "rest" ? (paused ? "0.4" : "0.9") : mode === "bar" && paused ? "0.5" : "1";
   canvas.style.filter = mode === "compact" || mode === "bar" ? "" : "drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45))";
   canvas.style.cursor = mode === "open" || mode === "bar" ? "pointer" : "";

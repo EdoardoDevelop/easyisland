@@ -26,13 +26,17 @@
       body.alive #breathe { animation: breathe 2.6s ease-in-out infinite; }
       body.alive #halo { animation: halo 3.4s ease-in-out infinite; }
       body.alive #float, body.alive #sway, body.alive #breathe, body.alive #halo { will-change: transform, opacity; }
+      /* Every motion starts from the still pose: starting tilted or shifted
+         made the resting character jump as it appeared (Edoardo, 29 Oct 2026). */
       @keyframes float {
-        0%, 100% { transform: translateY(1.5px); }
-        50% { transform: translateY(-3.5px); }
+        0%, 100% { transform: translateY(0); }
+        25% { transform: translateY(-3.5px); }
+        75% { transform: translateY(1.5px); }
       }
       @keyframes sway {
-        0%, 100% { transform: rotate(-5deg); }
-        50% { transform: rotate(5deg); }
+        0%, 100% { transform: rotate(0deg); }
+        25% { transform: rotate(5deg); }
+        75% { transform: rotate(-5deg); }
       }
       @keyframes breathe {
         0%, 100% { transform: scale(1, 1); }
