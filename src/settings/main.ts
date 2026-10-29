@@ -6,13 +6,14 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
-import { type AgentTaskItem, type Custom, type Skill, type TaskState, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef } from "../core/state";
+import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef } from "../core/state";
 
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
 import { ISLAND_MIN_W, PANEL_H, PANEL_W, islandMax } from "../core/layout";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 import { language, locale, resolveLanguage, syncLanguage, t } from "../core/i18n";
 import { applyUiStyle, uiStyle } from "../core/uistyle";
+import { type PicKind, liveCharacter, pictureBox, refreshPictures } from "./pictures";
 import { missing as flowMissing, triggerWords } from "../flows/catalog";
 import "./settings-windows.css";
 import "./settings-light.css";
@@ -2041,7 +2042,11 @@ function slider(
 }
 
 function appearanceSections(): HTMLElement[] {
-  const commit = () => void save();
+  const commit = () => {
+    void save();
+    refreshPictures(settings);
+  };
+  paintFixedBar();
   const th = settings.theme;
   const pct = (v: number) => Math.round(v * 100);
   // The colour row follows the character: its own colour is the default (for
@@ -2127,6 +2132,14 @@ function appearanceSections(): HTMLElement[] {
     settings.screen,
     (v) => { settings.screen = v; commit(); },
   );
+  // Every screen by name: with the fixed bar the character cannot be dragged to one.
+  void Bridge.monitorList().then((list) => {
+    for (const [value, label] of list ?? []) {
+      if ([...screen.options].some((o) => o.value === value)) continue;
+      screen.append(h("option", { value, text: label }));
+    }
+    screen.value = settings.screen;
+  }).catch(() => {});
 
   const vertical = select<Settings["anchorV"]>(
     [["top", t("In alto")], ["bottom", t("In basso")]],
@@ -2236,18 +2249,21 @@ function appearanceSections(): HTMLElement[] {
     reveal,
     h("span", { class: "hint note", text: t("secondi dopo un evento o dopo che sposti via il mouse") }),
   );
-  const restRows = h("div", { style: "display:contents" },
-    h("div", { class: "row" }, h("label", { text: t("Icona a riposo") }), iconStyle),
+  const restBlock = pictured("rest",
+    h("div", { class: "row" }, h("label", { text: t("Icona a riposo") }), iconStyle,
+      h("span", { class: "hint note", text: t("cosa resta sullo schermo quando non succede nulla") })),
     iconSize,
-    revealRow,
   );
-  const alwaysOn = (on: boolean) => { restRows.style.display = on ? "none" : "contents"; };
-  alwaysOn(settings.revealDuration <= 0);
+  const alwaysOn = (on: boolean) => {
+    restBlock.style.display = on ? "none" : "";
+    revealRow.style.display = on ? "none" : "";
+  };
   const always = toggle(settings.revealDuration <= 0, (v) => {
     settings.revealDuration = v ? 0 : Math.max(2, Number(reveal.value) || 8);
     alwaysOn(v);
     commit();
   });
+  alwaysOn(settings.revealDuration <= 0);
 
   const autoClose = h("input", {
     type: "number", min: "5", max: "120", step: "1",
@@ -2260,196 +2276,340 @@ function appearanceSections(): HTMLElement[] {
     commit();
   });
 
-  return [
-  h(
-    "section",
-    {},
-    h("h2", {}, h("span", { text: t("Tema") }), profileChip()),
-    h("div", { class: "row" },
-      h("label", { text: t("Stile") }),
-      select<"windows" | "classic">(
-        [["windows", t("Windows 11")], ["classic", t("Classico")]],
-        uiStyle(th.style),
-        (v) => { th.style = v; applyUiStyle(v, th.scheme); commit(); render(); },
+  const tab = lookTab();
+  const tabs = h("div", { class: "subtabs", role: "tablist" });
+  for (const [id, label] of LOOK_TABS()) {
+    const b = h("button", { class: id === tab ? "subtab on" : "subtab", role: "tab", "aria-selected": id === tab, text: label });
+    b.addEventListener("click", () => {
+      try {
+        localStorage.setItem(LOOK_TAB_KEY, id);
+      } catch {
+        // Not remembered, that is all.
+      }
+      lookTabNow = id;
+      render();
+    });
+    tabs.append(b);
+  }
+  const intro = (text: string) => h("div", { class: "hint tab-intro", text });
+  // With the fixed bar on, what no longer applies says so (settings.css → .bar-note).
+  const barNote = (text: string) => h("div", { class: "hint bar-note", text });
+
+  const anchorPic = pictureBox("anchor", settings, (target) => {
+    const v = target.getAttribute("data-v");
+    const hz = target.getAttribute("data-h");
+    if ((v !== "top" && v !== "bottom") || (hz !== "left" && hz !== "center" && hz !== "right")) return;
+    settings.anchorV = v;
+    settings.anchorH = hz;
+    settings.offsetX = 0;
+    settings.offsetY = 0;
+    vertical.value = v;
+    horizontal.value = hz;
+    commit();
+  });
+
+  const sections: Record<LookTab, () => HTMLElement[]> = {
+    tema: () => [
+      intro(t("I colori dell'isola e di questa finestra.")),
+      h("section", {},
+        h("h2", {}, h("span", { text: t("Tema") }), profileChip()),
+        pictured(pictureBox("look", settings, undefined, true),
+          h("div", { class: "row" },
+            h("label", { text: t("Stile") }),
+            select<"windows" | "classic">(
+              [["windows", t("Windows 11")], ["classic", t("Classico")]],
+              uiStyle(th.style),
+              (v) => { th.style = v; applyUiStyle(v, th.scheme); commit(); render(); },
+            ),
+            h("span", { class: "hint note", text: t("l'aspetto dell'isola e di questa finestra: Windows 11 (colore d'accento di Windows, icone a linea) o Classico (colori di EasyIsland)") }),
+          ),
+          h("div", { class: "row" },
+            h("label", { text: t("Modalità") }),
+            select<Theme["scheme"]>(
+              [["dark", t("Scura")], ["light", t("Chiara")], ["auto", t("Automatica (come Windows)")]],
+              th.scheme ?? "dark",
+              (v) => { th.scheme = v; applyUiStyle(th.style, v); commit(); },
+            ),
+            h("span", { class: "hint note", text: t("vale per entrambi gli stili; Automatica segue la modalità delle app di Windows (Impostazioni di Windows → Personalizzazione → Colori)") }),
+          ),
+          h("div", { class: "row" },
+            h("label", { text: t("Colore dell'isola") }),
+            colorField(th.islandColor, "#000000", (v) => { th.islandColor = v || "#000000"; commit(); }, t("Quello del tema")),
+          ),
+          h("div", { class: "row" },
+            h("label", { text: t("Opacità dell'isola") }),
+            slider(50, 100, 5, pct(th.islandOpacity), "%", (v) => { th.islandOpacity = v / 100; commit(); }),
+            h("span", { class: "hint note", text: t("sotto l'isola si intravede quello che c'è dietro") }),
+          ),
+        ),
+        pictured("compactBg", h("div", { class: "row" },
+          h("label", { text: t("Sfondo a isola chiusa") }),
+          toggle(th.compactBackground ?? true, (v) => { th.compactBackground = v; commit(); }),
+          h("span", { class: "hint note", text: t("spento, a isola chiusa resta solo il personaggio, senza il cerchio o la barra dell'isola; aprendola lo sfondo torna. Con la barra al passaggio del mouse i mini personaggi restano senza sfondo") }),
+        )),
       ),
-      h("span", { class: "hint note", text: t("l'aspetto dell'isola e di questa finestra: Windows 11 (colore d'accento di Windows, icone a linea) o Classico (colori di EasyIsland)") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Modalità") }),
-      select<Theme["scheme"]>(
-        [["dark", t("Scura")], ["light", t("Chiara")], ["auto", t("Automatica (come Windows)")]],
-        th.scheme ?? "dark",
-        (v) => { th.scheme = v; applyUiStyle(th.style, v); commit(); },
+    ],
+    personaggio: () => [
+      intro(t("Chi sta nell'isola e come si comporta.")),
+      h("section", {},
+        h("h2", {}, h("span", { text: t("Chi c'è nell'isola") }), profileChip()),
+        pictured(liveCharacter(settings, () => Bridge.logoLoad()), figureRow, logoRow, characterRow, colorRow),
       ),
-      h("span", { class: "hint note", text: t("vale per entrambi gli stili; Automatica segue la modalità delle app di Windows (Impostazioni di Windows → Personalizzazione → Colori)") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Colore dell'isola") }),
-      colorField(th.islandColor, "#000000", (v) => { th.islandColor = v || "#000000"; commit(); }, t("Quello del tema")),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Opacità dell'isola") }),
-      slider(50, 100, 5, pct(th.islandOpacity), "%", (v) => { th.islandOpacity = v / 100; commit(); }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Sfondo a isola chiusa") }),
-      toggle(th.compactBackground ?? true, (v) => { th.compactBackground = v; commit(); }),
-      h("span", { class: "hint note", text: t("spento, a isola chiusa resta solo il personaggio, senza il cerchio o la barra dell'isola; aprendola lo sfondo torna. Con la barra al passaggio del mouse i mini personaggi restano senza sfondo") }),
-    ),
-  ),
-  h(
-    "section",
-    {},
-    h("h2", {}, h("span", { text: t("Personaggio") }), profileChip()),
-    h("div", { class: "hint", text: t("Chi sta nell'isola e come si comporta.") }),
-    figureRow,
-    logoRow,
-    characterRow,
-    colorRow,
-    h("div", { class: "row" },
-      h("label", { text: t("Saluto all'avvio") }),
-      greeting,
-      greetingPlace,
-      h("span", { class: "hint note", text: t("l'animazione del personaggio quando parte l'app; spento, compare subito al suo posto") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Segue il mouse") }),
-      toggle(settings.followCursorCompact, (v) => { settings.followCursorCompact = v; commit(); }),
-      h("span", { class: "hint note", text: t("anche nella vista compatta. Spento: si guarda intorno da solo, sbatte le palpebre e fa qualche smorfia (consuma meno). A isola aperta segue sempre il mouse.") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Fumetto") }),
-      toggle(settings.characterBubble !== false, (v) => { settings.characterBubble = v; commit(); }),
-      h("span", { class: "hint note", text: t("in alto il personaggio dice cosa succede: la richiesta in attesa, la sessione al lavoro, la scheda aperta") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Personaggio nel menu") }),
-      select([["large", t("Grande")], ["medium", t("Medio")], ["small", t("Piccolo")]], settings.menuCharacter ?? "large",
-        (v) => { settings.menuCharacter = v as Settings["menuCharacter"]; commit(); }),
-      h("span", { class: "hint note", text: t("in cima al menu a sinistra dell'isola aperta") }),
-    ),
-  ),
-  h(
-    "section",
-    {},
-    h("h2", {}, h("span", { text: t("Posizione") }), profileChip()),
-    h("div", { class: "hint", text: t("Dove vive il personaggio. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. In basso sta sopra la barra delle applicazioni. Puoi anche trascinare il personaggio con il mouse: la posizione resta salvata; sceglierne una qui la riporta al bordo.") }),
-    h("div", { class: "row" }, h("label", { text: t("Schermo") }), screen),
-    h("div", { class: "row" }, h("label", { text: t("Posizione") }), vertical, horizontal),
-    h("div", { class: "row" },
-      h("label", { text: t("Sopra la barra") }),
-      toggle(settings.overTaskbar, (v) => { settings.overTaskbar = v; commit(); }),
-      h("span", { class: "hint note", text: t("il personaggio può stare anche sopra la barra delle applicazioni") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Aggancia ai bordi") }),
-      toggle(settings.glueEdges, (v) => { settings.glueEdges = v; commit(); }),
-      h("span", { class: "hint note", text: t("lasciato a pochi pixel da un bordo, lo sfondo si attacca al bordo; altrimenti resta solo intorno all'icona") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Schermo intero") }),
-      toggle(settings.quietFullscreen, (v) => { settings.quietFullscreen = v; commit(); }),
-      h("span", { class: "hint note", text: t("nascondi durante video, giochi e presentazioni (i permessi compaiono comunque)") }),
-    ),
-  ),
-  h(
-    "section",
-    {},
-    h("h2", {}, h("span", { text: t("Isola chiusa") }), profileChip()),
-    h("div", { class: "hint", text: t("Quando l'isola non è aperta: cosa resta sullo schermo e cosa compare accanto al personaggio.") }),
-    h("div", { class: "row" }, h("label", { text: t("Vista compatta") }), hoverStyle),
-    hoverSize,
-    h("div", { class: "row" },
-      h("label", { text: t("Sempre visibile") }),
-      always,
-      h("span", { class: "hint note", text: t("la vista compatta resta sullo schermo e non torna mai all'icona a riposo") }),
-    ),
-    restRows,
-    h("div", { class: "row" },
-      h("label", { text: t("Risposte rapide") }),
-      select([["right", t("A destra del personaggio")], ["left", t("A sinistra del personaggio")], ["off", t("Spente")]],
-        settings.compactStrip ?? "right",
-        (v) => { settings.compactStrip = v as Settings["compactStrip"]; commit(); }),
-      h("span", { class: "hint note", text: t("a isola chiusa, accanto al personaggio: chi lavora e cosa fa, Nega / Consenti sui permessi, Rispondi / Rifiuta e Riaggancia sulle chiamate 3CX, senza aprire l'isola. Spente: i permessi e le chiamate aprono l'isola come prima.") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Barra dell'app in uso") }),
-      toggle(settings.appBar !== false, (v) => { settings.appBar = v; commit(); }),
-      h("span", { class: "hint note", text: t("accanto al personaggio chiuso, le tue azioni rapide del programma che stai usando (Azioni rapide → «Nella barra con»). Nulla di predefinito: senza azioni per quel programma non compare. Ha la precedenza sulla riga dell'agente al lavoro, non su permessi e chiamate.") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: "" }),
-      h("span", { class: "hint", text: t("Pulsanti") }),
-      select<Settings["appBarLook"]>([["both", t("Icona e testo")], ["icon", t("Solo icona")], ["text", t("Solo testo")]],
-        settings.appBarLook ?? "both", (v) => { settings.appBarLook = v; commit(); }),
-      h("span", { class: "hint", text: t("al massimo") }),
-      (() => {
-        const n = h("input", { type: "number", min: "1", max: "12", value: String(settings.appBarMax || 6), style: "width:64px" }) as HTMLInputElement;
-        n.addEventListener("change", () => { settings.appBarMax = Math.min(12, Math.max(1, Math.round(Number(n.value)) || 6)); n.value = String(settings.appBarMax); commit(); });
-        return n;
-      })(),
-      h("span", { class: "hint", text: t("Nome del programma") }),
-      toggle(settings.appBarName !== false, (v) => { settings.appBarName = v; commit(); }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Permessi e chiamate") }),
-      toggle(settings.alertsOpen !== false, (v) => { settings.alertsOpen = v; commit(); }),
-      h("span", { class: "hint note", text: t("aprono l'isola da soli; spento, aspettano accanto al personaggio o con un pallino (li apre la scorciatoia «Vai alla richiesta in attesa»)") }),
-    ),
-  ),
-  h(
-    "section",
-    {},
-    h("h2", {}, h("span", { text: t("Isola aperta") }), profileChip()),
-    h("div", { class: "hint", text: t("Quando e dove si apre, quanto è grande e quando si richiude.") }),
-    h("div", { class: "row" },
-      h("label", { text: t("L'isola si apre") }),
-      place,
-      h("span", { class: "hint note", text: t("vicino al personaggio, oppure sempre nello stesso punto dello schermo; il personaggio resta dov'è") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Apri dopo") }),
-      openDelay,
-      h("span", { class: "hint note", text: t("trascinare un file sopra il personaggio lo apre sempre") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Pannello aperto") }),
-      autoClose,
-      h("span", { class: "hint note", text: t("secondi dopo che sposti via il mouse, poi si riduce alla vista compatta") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Resta aperta") }),
-      toggle(settings.stayOpenByUser ?? false, (v) => { settings.stayOpenByUser = v; commit(); }),
-      h("span", { class: "hint note", text: t("quando la apri tu non si chiude da sola: come con 📌, finché non la chiudi") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Pulsante chiudi") }),
-      toggle(settings.closeButton, (v) => { settings.closeButton = v; commit(); }),
-      h("span", { class: "hint note", text: t("✕ in alto a destra per chiudere subito il pannello (anche Esc)") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Larghezza") }),
-      widthSlider,
-      h("span", { class: "hint note", text: t("delle schede, il menu a sinistra si aggiunge") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Altezza minima") }),
-      heightSlider,
-      h("button", { text: t("Predefinite"), onclick: () => { settings.islandWidth = 640; settings.islandHeight = 0; commit(); render(); } }),
-      h("span", { class: "hint note", text: t("0 = l'altezza di ogni vista; fino alla grandezza dello schermo, anche trascinando l'angolo dell'isola aperta") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Campo in alto") }),
-      toggle(settings.searchBar !== false, (v) => { settings.searchBar = v; commit(); }),
-      h("span", { class: "hint note", text: t("nella barra dell'isola aperta: cerca integrazioni, azioni e programmi installati") }),
-    ),
-    h("div", { class: "row" },
-      h("label", { text: t("Come un'app") }),
-      toggle(settings.islandApp ?? false, (v) => { settings.islandApp = v; commit(); }),
-      h("span", { class: "hint note", text: t("icona nella barra delle applicazioni (un clic apre l'isola), Alt+Tab, riduci a icona e schermo intero") }),
-    ),
-  ),
-  ];
+      h("section", {},
+        h("h2", {}, h("span", { text: t("Come si comporta") }), profileChip()),
+        pictured("greeting", h("div", { class: "row" },
+          h("label", { text: t("Saluto all'avvio") }),
+          greeting,
+          greetingPlace,
+          h("span", { class: "hint note", text: t("l'animazione del personaggio quando parte l'app; spento, compare subito al suo posto") }),
+        )),
+        pictured("follow", h("div", { class: "row" },
+          h("label", { text: t("Segue il mouse") }),
+          toggle(settings.followCursorCompact, (v) => { settings.followCursorCompact = v; commit(); }),
+          h("span", { class: "hint note", text: t("anche nella vista compatta. Spento: si guarda intorno da solo, sbatte le palpebre e fa qualche smorfia (consuma meno). A isola aperta segue sempre il mouse.") }),
+        )),
+        pictured("bubble", h("div", { class: "row" },
+          h("label", { text: t("Fumetto") }),
+          toggle(settings.characterBubble !== false, (v) => { settings.characterBubble = v; commit(); }),
+          h("span", { class: "hint note", text: t("in alto il personaggio dice cosa succede: la richiesta in attesa, la sessione al lavoro, la scheda aperta") }),
+        )),
+        pictured("menuChar", h("div", { class: "row" },
+          h("label", { text: t("Personaggio nel menu") }),
+          select([["large", t("Grande")], ["medium", t("Medio")], ["small", t("Piccolo")]], settings.menuCharacter ?? "large",
+            (v) => { settings.menuCharacter = v as Settings["menuCharacter"]; commit(); }),
+          h("span", { class: "hint note", text: t("in cima al menu a sinistra dell'isola aperta") }),
+        )),
+      ),
+    ],
+    posizione: () => [
+      intro(t("Dove vive il personaggio. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. Puoi anche trascinare il personaggio con il mouse: la posizione resta salvata; sceglierne una qui la riporta al bordo.")),
+      barNote(t("Con la barra fissa accesa il personaggio sta nella barra: l'angolo e le voci che lo riguardano tornano quando la spegni (scheda Barra fissa).")),
+      h("section", {},
+        h("h2", {}, h("span", { text: t("Posizione") }), profileChip()),
+        pictured("screen", h("div", { class: "row" },
+          h("label", { text: t("Schermo") }),
+          screen,
+          h("span", { class: "hint note", text: t("su quale schermo sta l'isola, se ne hai più di uno") }),
+        )),
+        pictured(anchorPic, h("div", { class: "row free-row" },
+          h("label", { text: t("Angolo dello schermo") }),
+          vertical,
+          horizontal,
+          h("span", { class: "hint note", text: t("anche con un clic su un punto dello schermo in miniatura") }),
+        )),
+        pictured("overTaskbar", h("div", { class: "row free-row" },
+          h("label", { text: t("Sopra la barra") }),
+          toggle(settings.overTaskbar, (v) => { settings.overTaskbar = v; commit(); }),
+          h("span", { class: "hint note", text: t("in basso, il personaggio può stare anche sopra la barra delle applicazioni") }),
+        )),
+        pictured("glue", h("div", { class: "row free-row" },
+          h("label", { text: t("Aggancia ai bordi") }),
+          toggle(settings.glueEdges, (v) => { settings.glueEdges = v; commit(); }),
+          h("span", { class: "hint note", text: t("lasciato a pochi pixel da un bordo, lo sfondo si attacca al bordo; altrimenti resta solo intorno all'icona") }),
+        )),
+        pictured("fullscreen", h("div", { class: "row" },
+          h("label", { text: t("Schermo intero") }),
+          toggle(settings.quietFullscreen, (v) => { settings.quietFullscreen = v; commit(); }),
+          h("span", { class: "hint note", text: t("nascondi durante video, giochi e presentazioni (i permessi compaiono comunque)") }),
+        )),
+      ),
+    ],
+    barra: () => [
+      intro(t("Una fascia sul bordo dello schermo, come la barra delle applicazioni: il personaggio sta lì con le integrazioni, i widget e le azioni che scegli, e l'isola si apre sotto.")),
+      h("section", {},
+        h("h2", {}, h("span", { text: t("Barra fissa") }), profileChip()),
+        pictured("bar", h("div", { class: "row" },
+          h("label", { text: t("Barra fissa") }),
+          select([["", t("Spenta")], ["top", t("In alto")], ["bottom", t("In basso")]], settings.fixedBar ?? "",
+            (v) => { settings.fixedBar = v as Settings["fixedBar"]; paintFixedBar(); commit(); }),
+          h("span", { class: "hint note", text: t("Windows tiene libera una fascia sul bordo, come per la barra delle applicazioni: le finestre si fermano lì") }),
+        )),
+        pictured("barSlot", h("div", { class: "row bar-row" },
+          h("label", { text: t("Personaggio nella barra") }),
+          select([["start", t("All'inizio")], ["center", t("Al centro")], ["end", t("Alla fine")]], settings.fixedBarSlot ?? "center",
+            (v) => { settings.fixedBarSlot = v as Settings["fixedBarSlot"]; commit(); }),
+          h("span", { class: "hint note", text: t("con la barra fissa il personaggio sta lì e non si trascina; l'isola si apre sotto la barra (sopra, se è in basso) e da chiusa non c'è") }),
+        ), h("div", { class: "row bar-row" },
+          h("label", { text: t("Altezza della barra") }),
+          slider(24, 96, 2, Math.round(barThickness(settings)), "px", (v) => { settings.fixedBarHeight = v; commit(); render(); }),
+          h("button", {
+            text: t("Automatica"),
+            disabled: !(settings.fixedBarHeight ?? 0),
+            onclick: () => { settings.fixedBarHeight = 0; commit(); render(); },
+          }),
+          h("span", { class: "hint note", text: (settings.fixedBarHeight ?? 0) > 0
+            ? t("il personaggio, le icone e i testi si adattano all'altezza")
+            : t("automatica: alta quanto la vista compatta; il personaggio, le icone e i testi si adattano all'altezza") }),
+        )),
+        pictured("barBg", h("div", { class: "row bar-row" },
+          h("label", { text: t("Sfondo della barra") }),
+          barBackground(commit),
+        )),
+      ),
+      h("section", { class: "bar-row-block" },
+        h("h2", {}, h("span", { text: t("Elementi nella barra") }), profileChip()),
+        barItemsEditor(commit),
+      ),
+    ],
+    chiusa: () => [
+      intro(t("Quando l'isola non è aperta: cosa resta sullo schermo e cosa compare accanto al personaggio.")),
+      barNote(t("Con la barra fissa accesa l'isola chiusa non c'è: la striscia con i suoi pulsanti sta nella barra. Queste voci valgono quando la spegni.")),
+      h("section", {},
+        h("h2", {}, h("span", { text: t("A riposo") }), profileChip()),
+        pictured("always", h("div", { class: "row" },
+          h("label", { text: t("Sempre visibile") }),
+          always,
+          h("span", { class: "hint note", text: t("la vista compatta resta sullo schermo e non torna mai all'icona a riposo") }),
+        ), revealRow),
+        restBlock,
+        pictured("hover", h("div", { class: "row" },
+          h("label", { text: t("Vista compatta") }),
+          hoverStyle,
+          h("span", { class: "hint note", text: t("cosa compare quando passi con il mouse sul personaggio") }),
+        ), hoverSize),
+      ),
+      h("section", {},
+        h("h2", {}, h("span", { text: t("Accanto al personaggio") }), profileChip()),
+        pictured("strip", h("div", { class: "row" },
+          h("label", { text: t("Risposte rapide") }),
+          select([["right", t("A destra del personaggio")], ["left", t("A sinistra del personaggio")], ["off", t("Spente")]],
+            settings.compactStrip ?? "right",
+            (v) => { settings.compactStrip = v as Settings["compactStrip"]; commit(); }),
+          h("span", { class: "hint note", text: t("a isola chiusa, accanto al personaggio: chi lavora e cosa fa, Nega / Consenti sui permessi, Rispondi / Rifiuta e Riaggancia sulle chiamate 3CX, senza aprire l'isola. Spente: i permessi e le chiamate aprono l'isola come prima.") }),
+        )),
+        pictured("appBar",
+          h("div", { class: "row" },
+            h("label", { text: t("Barra dell'app in uso") }),
+            toggle(settings.appBar !== false, (v) => { settings.appBar = v; commit(); }),
+            h("span", { class: "hint note", text: t("accanto al personaggio chiuso, le tue azioni rapide del programma che stai usando (Azioni rapide → «Nella barra con»). Nulla di predefinito: senza azioni per quel programma non compare. Ha la precedenza sulla riga dell'agente al lavoro, non su permessi e chiamate.") }),
+          ),
+          h("div", { class: "row" },
+            h("label", { text: t("Pulsanti") }),
+            select<Settings["appBarLook"]>([["both", t("Icona e testo")], ["icon", t("Solo icona")], ["text", t("Solo testo")]],
+              settings.appBarLook ?? "both", (v) => { settings.appBarLook = v; commit(); }),
+            h("span", { class: "hint", text: t("al massimo") }),
+            (() => {
+              const n = h("input", { type: "number", min: "1", max: "12", value: String(settings.appBarMax || 6), style: "width:64px" }) as HTMLInputElement;
+              n.addEventListener("change", () => { settings.appBarMax = Math.min(12, Math.max(1, Math.round(Number(n.value)) || 6)); n.value = String(settings.appBarMax); commit(); });
+              return n;
+            })(),
+          ),
+          h("div", { class: "row" },
+            h("label", { text: t("Nome del programma") }),
+            toggle(settings.appBarName !== false, (v) => { settings.appBarName = v; commit(); }),
+          ),
+        ),
+        pictured("alerts", h("div", { class: "row" },
+          h("label", { text: t("Permessi e chiamate") }),
+          toggle(settings.alertsOpen !== false, (v) => { settings.alertsOpen = v; commit(); }),
+          h("span", { class: "hint note", text: t("aprono l'isola da soli; spento, aspettano accanto al personaggio o con un pallino (li apre la scorciatoia «Vai alla richiesta in attesa»)") }),
+        )),
+      ),
+    ],
+    aperta: () => [
+      intro(t("Quando e dove si apre, quanto è grande e quando si richiude.")),
+      h("section", {},
+        h("h2", {}, h("span", { text: t("Quando si apre") }), profileChip()),
+        pictured("place", h("div", { class: "row free-row" },
+          h("label", { text: t("L'isola si apre") }),
+          place,
+          h("span", { class: "hint note", text: t("vicino al personaggio, oppure sempre nello stesso punto dello schermo; il personaggio resta dov'è") }),
+        )),
+        pictured("openDelay", h("div", { class: "row" },
+          h("label", { text: t("Apri dopo") }),
+          openDelay,
+          h("span", { class: "hint note", text: t("quanto tenere il mouse sul personaggio prima che si apra; trascinare un file sopra il personaggio lo apre sempre") }),
+        )),
+      ),
+      h("section", {},
+        h("h2", {}, h("span", { text: t("Quando si richiude") }), profileChip()),
+        pictured("autoClose",
+          h("div", { class: "row" },
+            h("label", { text: t("Pannello aperto") }),
+            autoClose,
+            h("span", { class: "hint note", text: t("secondi dopo che sposti via il mouse, poi si riduce alla vista compatta") }),
+          ),
+          h("div", { class: "row" },
+            h("label", { text: t("Resta aperta") }),
+            toggle(settings.stayOpenByUser ?? false, (v) => { settings.stayOpenByUser = v; commit(); }),
+            h("span", { class: "hint note", text: t("quando la apri tu non si chiude da sola: come con 📌, finché non la chiudi") }),
+          ),
+        ),
+        pictured("closeBtn", h("div", { class: "row" },
+          h("label", { text: t("Pulsante chiudi") }),
+          toggle(settings.closeButton, (v) => { settings.closeButton = v; commit(); }),
+          h("span", { class: "hint note", text: t("✕ in alto a destra per chiudere subito il pannello (anche Esc)") }),
+        )),
+      ),
+      h("section", {},
+        h("h2", {}, h("span", { text: t("Grandezza e comandi") }), profileChip()),
+        pictured("size",
+          h("div", { class: "row" },
+            h("label", { text: t("Larghezza") }),
+            widthSlider,
+            h("span", { class: "hint note", text: t("delle schede, il menu a sinistra si aggiunge") }),
+          ),
+          h("div", { class: "row" },
+            h("label", { text: t("Altezza minima") }),
+            heightSlider,
+            h("button", { text: t("Predefinite"), onclick: () => { settings.islandWidth = 640; settings.islandHeight = 0; commit(); render(); } }),
+            h("span", { class: "hint note", text: t("0 = l'altezza di ogni vista; fino alla grandezza dello schermo, anche trascinando l'angolo dell'isola aperta") }),
+          ),
+        ),
+        pictured("search", h("div", { class: "row" },
+          h("label", { text: t("Campo in alto") }),
+          toggle(settings.searchBar !== false, (v) => { settings.searchBar = v; commit(); }),
+          h("span", { class: "hint note", text: t("nella barra dell'isola aperta: cerca integrazioni, azioni e programmi installati") }),
+        )),
+        pictured("app", h("div", { class: "row" },
+          h("label", { text: t("Come un'app") }),
+          toggle(settings.islandApp ?? false, (v) => { settings.islandApp = v; commit(); }),
+          h("span", { class: "hint note", text: t("icona nella barra delle applicazioni (un clic apre l'isola), Alt+Tab, riduci a icona e schermo intero") }),
+        )),
+      ),
+    ],
+  };
+  return [tabs, ...sections[tab]()];
+}
+
+/** The tabs of Aspetto, in order. */
+type LookTab = "tema" | "personaggio" | "posizione" | "barra" | "chiusa" | "aperta";
+const LOOK_TABS = (): [LookTab, string][] => [
+  ["tema", t("Tema")],
+  ["personaggio", t("Personaggio")],
+  ["posizione", t("Posizione")],
+  ["barra", t("Barra fissa")],
+  ["chiusa", t("Isola chiusa")],
+  ["aperta", t("Isola aperta")],
+];
+const LOOK_TAB_KEY = "easyisland.settings.aspetto";
+let lookTabNow: LookTab | null = null;
+
+/** The tab of Aspetto in view: ?tab= (screenshots, smoke), the last one used, or Tema. */
+function lookTab(): LookTab {
+  if (lookTabNow) return lookTabNow;
+  const want = (v: string | null) => LOOK_TABS().find(([id]) => id === v)?.[0];
+  let saved: string | null = null;
+  try {
+    saved = localStorage.getItem(LOOK_TAB_KEY);
+  } catch {
+    // Storage can be unavailable: the first tab then.
+  }
+  lookTabNow = want(new URLSearchParams(location.search).get("tab")) ?? want(saved) ?? "tema";
+  return lookTabNow;
+}
+
+/** Rows of one setting with its picture (pictures.ts) on the left. */
+function pictured(pic: PicKind | HTMLElement, ...rows: HTMLElement[]): HTMLElement {
+  const box = typeof pic === "string" ? pictureBox(pic, settings) : pic;
+  const outer = h("div", { class: "pictured" }, box, h("div", { class: "pic-body" }, ...rows));
+  // Shown or hidden with the fixed bar as a whole (settings.css → .free-row, .bar-row).
+  for (const c of ["free-row", "bar-row"]) {
+    if (!rows.some((r) => r.classList.contains(c))) continue;
+    outer.classList.add(c);
+    for (const r of rows) r.classList.remove(c);
+  }
+  return outer;
 }
 
 // ── General section ───────────────────────────────────────────────────────────
@@ -2516,6 +2676,85 @@ function languageRow(): HTMLElement {
 }
 
 // ── Profiles ──────────────────────────────────────────────────────────────────
+
+/** «Sfondo della barra»: the island's, none, or a colour of the user's. */
+function barBackground(commit: () => void): HTMLElement {
+  const current = settings.fixedBarBackground ?? "";
+  const custom = /^#[0-9a-f]{6}$/i.test(current);
+  const picker = colorField(custom ? current : "", "#1f2937", (v) => { settings.fixedBarBackground = v; commit(); });
+  picker.style.display = custom ? "flex" : "none";
+  const choice = select([["", t("Come l'isola")], ["transparent", t("Trasparente")], ["color", t("Un colore")]],
+    custom ? "color" : current === "transparent" ? "transparent" : "",
+    (v) => {
+      picker.style.display = v === "color" ? "flex" : "none";
+      settings.fixedBarBackground = v === "color" ? (custom ? current : "#1f2937") : v;
+      commit();
+    });
+  return h("span", { style: "display:flex;align-items:center;gap:10px" }, choice, picker);
+}
+
+/**
+ * «Elementi nella barra»: integrations, widgets and quick actions in the fixed
+ * bar's areas (src/island/bar.ts), each with its area and how it shows, in
+ * order. Added from one list, moved with ↑ ↓, removed with ✕.
+ */
+function barItemsEditor(commit: () => void): HTMLElement {
+  const list = h("div", { class: "bar-items" });
+  const choices = (): [string, string][] => [
+    ["strip", t("Striscia: permessi, chiamate, agente al lavoro, app in uso")],
+    // Only integrations with a tab in the island: the bar shows those (Telegram has none, and stays out).
+    ...settings.activeIntegrations
+      .filter((id) => INTEGRATION_AGENTS.some((x) => x.id === id))
+      .map((id) => [`task:${id}`, INTEGRATIONS.find((i) => i.id === id)?.name ?? id] as [string, string]),
+    ...(settings.widgets ?? []).map((w) => [`task:widget:${w.id}`, `${t("Widget")} · ${w.name}`] as [string, string]),
+    ...(settings.actions ?? []).map((a) => [`action:${a.id}`, `${t("Azione")} · ${a.icon ? `${a.icon} ` : ""}${a.name}`] as [string, string]),
+  ];
+  const render = () => {
+    const items = settings.fixedBarItems ?? [];
+    const names = new Map(choices());
+    list.replaceChildren();
+    items.forEach((it, i) => {
+      const save = () => { settings.fixedBarItems = [...items]; commit(); render(); };
+      const move = (d: number) => {
+        const j = i + d;
+        if (j < 0 || j >= items.length) return;
+        [items[i], items[j]] = [items[j], items[i]];
+        save();
+      };
+      list.append(h("div", { class: "row bar-item-row" },
+        h("label", { text: names.get(it.id) ?? it.id }),
+        select([["start", t("All'inizio")], ["center", t("Al centro")], ["end", t("Alla fine")]], it.area,
+          (v) => { it.area = v; save(); }),
+        select([["both", t("Icona e valore")], ["icon", t("Solo icona")], ["value", t("Solo valore")]], it.show ?? "both",
+          (v) => { it.show = v; save(); }),
+        h("button", { text: "↑", title: t("Su"), onclick: () => move(-1) }),
+        h("button", { text: "↓", title: t("Giù"), onclick: () => move(1) }),
+        h("button", { class: "danger", text: "✕", title: t("Togli"), onclick: () => { items.splice(i, 1); save(); } }),
+      ));
+    });
+    const used = new Set(items.map((x) => x.id));
+    const free = choices().filter(([id]) => !used.has(id));
+    if (free.length) {
+      const add = select([["", t("Aggiungi alla barra…")], ...free], "", (v) => {
+        if (!v) return;
+        settings.fixedBarItems = [...items, { id: v, area: settings.fixedBarSlot ?? "center", show: "both" }];
+        commit();
+        render();
+      });
+      list.append(h("div", { class: "row" }, h("label", { text: items.length ? "" : t("Elementi nella barra") }), add));
+    }
+  };
+  render();
+  return h("div", { class: "bar-row-block" },
+    h("div", { class: "hint", text: t("Integrazioni, widget e azioni rapide nella barra fissa: ognuno nella sua area, con l'icona, il valore o entrambi. Un clic apre la sua card o esegue l'azione.") }),
+    list,
+  );
+}
+
+/** «Barra fissa» on: its own rows show, those that no longer apply hide (settings.css). */
+function paintFixedBar() {
+  document.body.classList.toggle("fixed-bar", !!settings.fixedBar);
+}
 
 /** Chip shown on sections whose values belong to the active profile. */
 function profileChip(): HTMLElement {

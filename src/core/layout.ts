@@ -138,21 +138,20 @@ export const WAKE_STRIP_H = 6;
 export const EDGE_MARGIN = 8;
 
 /**
- * Which screen edges the island touches. Top centre is the notch spot and
- * always hangs from the top edge; with `glueEdges` any anchored side left at
- * the edge (no offset after a drag, or a few px from it) does too. Everywhere
- * else the island floats a few pixels off the edges, fully rounded.
+ * Which screen edges the island touches: with `glueEdges` any anchored side
+ * left at the edge (no offset after a drag, or a few px from it). Off, the
+ * island floats a few pixels off every edge, fully rounded — top centre too:
+ * it used to hang from the top edge there anyway, and the switch seemed to do
+ * nothing (Edoardo, 29 Oct 2026).
  */
 export function glueFor(
   h: AnchorH,
-  v: AnchorV,
   offsetX: number,
   offsetY: number,
   glueEdges: boolean,
 ): { glueX: boolean; glueY: boolean } {
-  const atY = offsetY === 0;
-  if (!glueEdges) return { glueX: false, glueY: atY && h === "center" && v === "top" };
-  return { glueX: h !== "center" && offsetX === 0, glueY: atY };
+  if (!glueEdges) return { glueX: false, glueY: false };
+  return { glueX: h !== "center" && offsetX === 0, glueY: offsetY === 0 };
 }
 
 export function isGlued(p: Placement): boolean {

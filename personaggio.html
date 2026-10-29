@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EasyIsland</title>
+    <style>
+      body { margin: 0; background: transparent; overflow: hidden; }
+      #bot { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+      /*
+       * At rest and beside the open island the character is alive for ever by
+       * CSS: a still picture moved by the compositor, so its page draws nothing
+       * (src/character-window/main.ts). Three motions of different lengths add
+       * up (float, sway, breath) so it never repeats the same way, with a halo
+       * of its colour pulsing behind it. Only transform and opacity: no repaint.
+       * Compact, the island moves it and this is off.
+       */
+      #float, #sway, #breathe { position: absolute; inset: 0; }
+      #halo {
+        position: absolute; left: 50%; top: 50%; width: 46%; aspect-ratio: 1;
+        transform: translate(-50%, -50%); border-radius: 50%; opacity: 0;
+        background: radial-gradient(circle, var(--halo, rgba(127, 211, 255, 0.9)) 0%, transparent 70%);
+      }
+      body.alive #float { animation: float 3.4s ease-in-out infinite; }
+      body.alive #sway { animation: sway 5.3s ease-in-out infinite; }
+      body.alive #breathe { animation: breathe 2.6s ease-in-out infinite; }
+      body.alive #halo { animation: halo 3.4s ease-in-out infinite; }
+      body.alive #float, body.alive #sway, body.alive #breathe, body.alive #halo { will-change: transform, opacity; }
+      /* Every motion starts from the still pose: starting tilted or shifted
+         made the resting character jump as it appeared (Edoardo, 29 Oct 2026). */
+      @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        25% { transform: translateY(-3.5px); }
+        75% { transform: translateY(1.5px); }
+      }
+      @keyframes sway {
+        0%, 100% { transform: rotate(0deg); }
+        25% { transform: rotate(5deg); }
+        75% { transform: rotate(-5deg); }
+      }
+      @keyframes breathe {
+        0%, 100% { transform: scale(1, 1); }
+        40% { transform: scale(1.07, 0.95); }
+        70% { transform: scale(0.97, 1.04); }
+      }
+      @keyframes halo {
+        0%, 100% { opacity: 0.15; transform: translate(-50%, -50%) scale(0.85); }
+        50% { opacity: 0.55; transform: translate(-50%, -50%) scale(1.25); }
+      }
+      /* The fixed bar's areas and elements (src/island/bar.ts prepares them).
+         --s grows and shrinks them with the bar's height (main.ts → layBar). */
+      .area { position: absolute; top: 0; height: 100%; display: none; align-items: center; gap: 4px; }
+      body.bar .area { display: flex; }
+      .bar-btn {
+        all: unset; display: flex; align-items: center; min-width: 0; max-width: calc(240px * var(--s, 1));
+        padding: calc(3px * var(--s, 1)) calc(8px * var(--s, 1)); border-radius: calc(8px * var(--s, 1)); cursor: pointer; white-space: nowrap;
+        font: calc(12px * var(--s, 1)) "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; color: var(--ink, #f5f6f8);
+      }
+      .bar-btn:hover { background: color-mix(in srgb, var(--ink, #fff) 12%, transparent); }
+      .bar-item { display: flex; align-items: center; gap: 6px; min-width: 0; }
+      .bar-icon { display: grid; place-items: center; flex: none; }
+      .bar-icon svg, .bar-icon img { width: calc(15px * var(--s, 1)); height: calc(15px * var(--s, 1)); }
+      .bar-text { overflow: hidden; text-overflow: ellipsis; }
+      .bar-btn.warn .bar-text { color: #F5A524; }
+      .bar-btn.error .bar-text { color: #F4505E; }
+      /* Transparent bar: over the wallpaper the text needs a shadow to be read. */
+      body.see-through .bar-btn { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75), 0 0 6px rgba(0, 0, 0, 0.45); }
+      .bar-more { font-size: calc(16px * var(--s, 1)); letter-spacing: 1px; padding: 0 10px; }
+      .bar-action { border-left: 2px solid var(--action, transparent); padding-left: 6px; }
+      /* The strip in the bar (src/island/bar.ts stripPiece), coloured by what it holds. */
+      .bar-btn:has(.bar-strip) { max-width: calc(560px * var(--s, 1)); }
+      .bar-strip { display: flex; align-items: center; gap: 6px; min-width: 0; }
+      .bar-strip-text { display: flex; align-items: baseline; gap: 6px; min-width: 0; overflow: hidden; }
+      .bar-strip-text strong { font-weight: 600; white-space: nowrap; }
+      .bar-strip-sub { opacity: 0.7; overflow: hidden; text-overflow: ellipsis; }
+      .bar-strip[data-tone="approval"] strong { color: #F5A524; }
+      .bar-strip[data-tone="call"] strong { color: #22C55E; }
+      .bar-strip[data-tone="live"] strong { color: #F4505E; }
+      .bar-strip[data-tone="work"] strong { color: #4EA8FF; }
+      .bar-strip-btn {
+        display: flex; align-items: center; gap: 4px; flex: none; padding: 2px 9px; border-radius: 999px;
+        background: color-mix(in srgb, var(--ink, #fff) 14%, transparent);
+        border-left: 2px solid var(--action, transparent);
+      }
+      .bar-strip-btn:hover { background: color-mix(in srgb, var(--ink, #fff) 24%, transparent); }
+      .bar-strip-btn.light { background: var(--ink, #fff); color: #111; }
+      .bar-strip-btn.green { background: #22C55E; color: #fff; }
+      .bar-strip-btn.red { background: #F4505E; color: #fff; }
+    </style>
+  </head>
+  <body>
+    <div id="a-start" class="area"></div>
+    <div id="a-center" class="area"></div>
+    <div id="a-end" class="area"></div>
+    <div id="float">
+      <div id="halo"></div>
+      <div id="sway"><div id="breathe"><canvas id="bot"></canvas></div></div>
+    </div>
+    <script type="module" src="/src/character-window/main.ts"></script>
+  </body>
+</html>

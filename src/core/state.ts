@@ -108,6 +108,31 @@ export const CHAT_ENGINES: { id: ChatEngine; name: string; key?: string; url?: s
   { id: "lmstudio", name: "LM Studio", url: "http://localhost:1234", hint: t("modelli locali, nessuna chiave") },
 ];
 
+/**
+ * One element of the fixed bar (docs/architettura.md → «Barra fissa»): `task:<id>` an
+ * integration or a widget, `action:<id>` a quick action; in which area, and
+ * with its icon, its value (or name) or both.
+ */
+export interface BarItem {
+  id: string;
+  area: "start" | "center" | "end";
+  show?: "icon" | "value" | "both";
+}
+
+/** «Barra fissa» on: its edge (src-tauri/src/appbar.rs); null when off. */
+export function barEdge(s: { fixedBar?: string }): "top" | "bottom" | null {
+  return s.fixedBar === "top" || s.fixedBar === "bottom" ? s.fixedBar : null;
+}
+
+/** The fixed bar's thickness, logical px: the user's height, or the compact view's
+ *  and the strip's when it is on (mirrors Settings::bar_thickness in settings.rs). */
+export function barThickness(s: { hoverStyle: string; hoverSize: number; compactStrip?: string; fixedBarHeight?: number }): number {
+  if ((s.fixedBarHeight ?? 0) > 0) return Math.min(96, Math.max(24, s.fixedBarHeight ?? 0));
+  const compact = s.hoverStyle === "bar" ? 32 : s.hoverSize;
+  const withStrip = (s.compactStrip ?? "right") === "off" ? compact : Math.max(compact, 44);
+  return Math.min(96, Math.max(24, withStrip));
+}
+
 /** "Gemini · gemini-2.5-flash": the engine and its model, for the chat. */
 export function engineLabel(s: { chatEngine: ChatEngine; engineModels?: Record<string, string>; cliModel?: string; model?: string }): string {
   const e = CHAT_ENGINES.find((x) => x.id === s.chatEngine) ?? CHAT_ENGINES[0];
@@ -409,10 +434,20 @@ export interface Settings {
   /** Where the character was dragged: logical px from the anchored home position. */
   offsetX: number;
   offsetY: number;
-  /** Touch the screen edge (square corners) when left at it, not only top centre. */
+  /** Touch the screen edge (square corners) when left at it; off, it floats off every edge. */
   glueEdges: boolean;
   /** Use the whole screen, taskbar included, instead of the work area. */
   overTaskbar: boolean;
+  /** «Barra fissa» (appbar.rs): "" off, or the band Windows keeps free at the top / bottom. Of the PC, not of a profile. */
+  fixedBar?: "" | "top" | "bottom";
+  /** Where the character sits in the fixed bar. */
+  fixedBarSlot?: "start" | "center" | "end";
+  /** What else the fixed bar shows, in order (BarItem). */
+  fixedBarItems?: BarItem[];
+  /** The fixed bar's background: "" the island's, "transparent", or "#rrggbb". */
+  fixedBarBackground?: string;
+  /** The fixed bar's height, px; 0 = automatic (barThickness). */
+  fixedBarHeight?: number;
   /** Width of the open island, px (dragged with its corner, or Impostazioni → Posizione). */
   islandWidth: number;
   /** Minimum height of the open island, px; 0 = each view's own height. */
@@ -972,6 +1007,11 @@ export const DEFAULT_SETTINGS: Settings = {
   offsetY: 0,
   glueEdges: true,
   overTaskbar: false,
+  fixedBar: "",
+  fixedBarSlot: "center",
+  fixedBarItems: [],
+  fixedBarBackground: "",
+  fixedBarHeight: 0,
   islandWidth: 640,
   islandHeight: 0,
   islandPlace: "character",

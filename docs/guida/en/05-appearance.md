@@ -6,7 +6,7 @@ Everything is in **Settings → Look**. Sections with the purple label are saved
 
 ![Settings, Look page](../media/settings.png)
 
-The page has five sections: **Theme**, **Character**, **Position**, **Closed island** and **Open island**. Sound volumes are in **General**, next to Sound.
+The page has six tabs at the top: **Theme**, **Character**, **Position**, **Fixed bar**, **Closed island** and **Open island**; the window remembers the last one open. Next to each setting a **small picture** shows what it changes: a tiny screen with the island, the character or the bar, redrawn as soon as you change the value (some are animated, for example the mouse arriving and the island opening). In **Character** the chosen character moves as it does in the island; in **Position** a click on a spot of the tiny screen picks the corner. Sound volumes are in **General**, next to Sound.
 
 ## Theme
 - **Style**: **Windows 11** (default: like system apps, with **Windows' accent colour** and line icons) or **Classic** (the original look with coloured icons).
@@ -24,10 +24,21 @@ The page has five sections: **Theme**, **Character**, **Position**, **Closed isl
 
 ## Position
 - **Screen**: the main one, the one under the cursor or the one you dragged it to (if unplugged, it goes back to the main one).
-- **Position**: top or bottom, left, centre or right. The island grows from there and its content stays aligned to that side. You can also **drag the character** anywhere; picking a corner again brings it back to the edge.
+- **Screen corner**: top or bottom, left, centre or right. The island grows from there and its content stays aligned to that side. You can also **drag the character** anywhere; picking a corner again brings it back to the edge.
 - **Over the taskbar**: the character may also sit over the taskbar.
-- **Snap to edges**: near an edge the background sticks to it with square corners.
+- **Snap to edges**: near an edge the background sticks to it with square corners; off, the island stays off every edge, top centre included.
 - **Full screen**: during videos, games and presentations the character disappears; permissions still show.
+
+## Fixed bar
+With **Fixed bar** at the top or the bottom, Windows keeps a band free at the edge of the screen, as for the taskbar, and windows stop there.
+- **Character in the bar:** at the start, in the centre or at the end. It cannot be dragged; a click opens the island right below the bar (above it, if the bar is at the bottom) and another closes it. When closed, the island is not there: the bar is.
+- **Bar height:** automatic (as tall as the compact view) or your own; the character, icons and text adapt.
+- **Bar background:** like the island, transparent (the desktop shows) or a colour of your choice; the text turns light or dark by itself.
+- **Items in the bar:** add your integrations, widgets and quick actions. For each, pick the area (start, centre, end) and what it shows (icon and value, icon only, value only); ↑ ↓ change the order, ✕ removes it. A click on an integration opens its card, on an action runs it.
+- **The strip** (permissions, calls, agent at work, app in use) sits in the bar next to the character, with its buttons; adding «Strip» to the items puts it where you want.
+- What does not fit goes into **«…»** at the end of the bar: a click opens the list.
+- **Screen** (Position tab) picks the bar's monitor. In full screen (videos, games) the bar hides and comes back after.
+- With the bar on, a note in the Position and Closed island tabs says which settings do not apply while it stays on.
 
 ## Closed island
 | Option | What it does |

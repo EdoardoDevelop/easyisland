@@ -3,6 +3,7 @@
 
 import { Tracked, Spring, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop, onEvent, type WindowShot } from "../core/bridge";
+import { MIRRORED_CALLS, type CharacterMode, type IslandToCharacter } from "../core/link";
 import {
   BODY_GAP, EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_CHROME_H, ISLAND_MIN_W, NOTCH_W, PANEL_H, PANEL_W,
   RAIL_GAP, RAIL_W, ROUNDED_CORNER, STRIP_H, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
@@ -12,7 +13,7 @@ import {
 import type { Suggestion } from "./context";
 import { buildSelectionMenu, type SelectionMenu } from "./selection-menu";
 import { Sound } from "../core/sound";
-import { OPENED_BY_APP, OPEN_URLS, State, canAskSession, isSessionTask } from "../core/state";
+import { OPENED_BY_APP, OPEN_URLS, State, barEdge, canAskSession, isSessionTask } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
 import { character, setCharacter } from "../character/character";
 import { Greeting } from "../character/greeting";
@@ -25,7 +26,7 @@ import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../vie
 import { buildSearch, type SearchHost } from "../views/search";
 import { rdmLookFor } from "../views/rdm";
 import { buildRail, railBotSize } from "../views/rail";
-import { buildStrip, type Strip } from "../views/strip";
+import { buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
 import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
 import { sendToChat, windowLabel } from "../views/chat";
 import { capturing, startCapture } from "./capture";
@@ -34,14 +35,9 @@ import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state"
 import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
 import { locale, t } from "../core/i18n";
-import { applyUiStyle, scheme, uiStyle, windowsLook } from "../core/uistyle";
+import { applyUiStyle, islandHex, windowsLook } from "../core/uistyle";
 
 const BOT_OVERHANG = 40;
-/** The island's background in the Windows 11 look when the user kept the default black. */
-const WINDOWS_ISLAND = "#1c1c1c";
-/** Light mode: Windows' light surface, and a near-white for the classic look. */
-const WINDOWS_ISLAND_LIGHT = "#f3f3f3";
-const CLASSIC_ISLAND_LIGHT = "#fbfbfc";
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
 const HIT_MARGIN = 14;
 /** Around the island, a dragged file is still taken; same as DROP_MARGIN in island.rs. */
@@ -125,6 +121,8 @@ export class Island {
   private stripHeld = false;
   private botCanvas!: HTMLCanvasElement;
   private botGlow!: HTMLElement;
+  /** The light wave of an opening (openWave), inside the island's clip. */
+  private waveEl!: HTMLElement;
   private greetingCanvas!: HTMLCanvasElement;
   private miniGrid!: HTMLElement;
   private countdown!: HTMLElement;
@@ -245,6 +243,7 @@ export class Island {
     this.wireFsm();
     this.wireInput();
     this.engine.onDizzy = () => this.handleDizzy();
+    this.forwardEngine();
     this.greeting.onComplete = () => this.fsm.greetComplete();
     this.greeting.bare = true;
     // The user's logo finished loading, or the weather changed: one redraw.
@@ -416,11 +415,12 @@ export class Island {
     this.rail = buildRail(actions);
     // A tab chosen while typing: the search ends, its words go.
     this.rail.el.addEventListener("click", () => this.search.close(), true);
-    this.strip = buildStrip({
+    this.stripActions = {
       decide: (d) => actions.decide(d),
       runAction: (a) => void this.runAction(a),
       runSuggestion: (s) => void this.runSuggestion(s, ""),
-    });
+    };
+    this.strip = buildStrip(this.stripActions);
     this.contentEl = h("div", { id: "content" }, this.header.el, h("div", { id: "body" }, this.rail.el, this.viewsEl, this.paneEl));
 
     // The drop sequence draws the card, the bar and its own the character. It sits under
@@ -461,6 +461,10 @@ export class Island {
     this.greetingCanvas.height = Math.round(150 * dpr);
     this.greetingCanvas.style.width = `${EXPANDED_W}px`;
     this.greetingCanvas.style.height = "150px";
+
+    this.waveEl = h("div", { id: "open-wave" });
+    this.waveEl.addEventListener("animationend", () => this.waveEl.classList.remove("on"));
+    this.clipEl.append(this.waveEl);
 
     this.root.append(this.wakeStrip, this.restIcon, this.islandEl);
     this.applyGeometry();
@@ -503,6 +507,13 @@ export class Island {
           this.setMode("hidden");
           break;
         case "petit":
+          // With the fixed bar there is no compact view to go back to: closing
+          // goes straight to hidden, or a small character showed for a moment.
+          if (from === "home" && barEdge(State.settings) && !this.fsm.held()) {
+            this.setMode("hidden");
+            queueMicrotask(() => this.fsm.forceHidden());
+            break;
+          }
           if (from === "greeting") this.greeting.interrupt();
           else if (from === "hidden" && !this.quietLaunch) Sound.play("peek");
           this.quietLaunch = false;
@@ -549,6 +560,14 @@ export class Island {
     if (mode === "expanded") {
       Sound.play("open");
       void this.refreshForeground();
+      // The character stays in its window: the clone pops up in the menu instead
+      // of flying there, the character hops with a spark, a wave runs through the island.
+      if (IS_TAURI && this.mirror && State.view !== "greeting" && !State.maximized) {
+        this.cloneEnter = true;
+        this.mirror({ kind: "call", name: "squash", args: [] });
+        this.mirror({ kind: "call", name: "emit", args: ["spark", 8] });
+        this.openWave();
+      }
     }
     if (prev === "expanded") {
       Sound.play("close");
@@ -567,6 +586,9 @@ export class Island {
       // nothing while hidden.
       UploadSeq.deactivate();
     }
+    // With the fixed bar the closing island fades as it shrinks: nothing is
+    // left of it once it is shut (the bar holds the character).
+    this.islandEl.classList.toggle("bar-away", mode === "hidden" && barEdge(State.settings) != null);
     this.applyBare();
     this.updateWindowCollapsed();
     this.animateGeometry(modeOrder(mode) < modeOrder(prev));
@@ -2079,7 +2101,9 @@ ${note}` : text };
     }
     // The greeting plays at its own place (Impostazioni → Posizione e aspetto).
     const greeting = State.view === "greeting";
-    this.awayPlace = greeting ? (State.settings.greetingPlace ?? "center") : (State.settings.islandPlace ?? "character");
+    // With the fixed bar it always opens against the band, at the character.
+    this.awayPlace = greeting ? (State.settings.greetingPlace ?? "center")
+      : barEdge(State.settings) ? "character" : (State.settings.islandPlace ?? "character");
     this.away = this.awayPlace !== "character";
     void Bridge.setExpanded(true, greeting ? this.awayPlace : null);
   }
@@ -2103,6 +2127,22 @@ ${note}` : text };
   /** The character's place: settings, in the shape the layout helpers take. */
   private get homePlacement(): Placement {
     const s = State.settings;
+    // With the fixed bar the island lives against the band, at the character's
+    // slot (Settings::home_anchor in settings.rs), never dragged away.
+    const edge = barEdge(s);
+    if (edge) {
+      const h = s.fixedBarSlot === "start" ? "left" : s.fixedBarSlot === "end" ? "right" : "center";
+      return {
+        h,
+        v: edge,
+        iconStyle: s.iconStyle,
+        iconSize: s.iconSize,
+        hoverStyle: s.hoverStyle,
+        hoverSize: s.hoverSize,
+        // Always against the band, whatever «Aggancia ai bordi» says.
+        ...glueFor(h, 0, 0, true),
+      };
+    }
     return {
       h: s.anchorH,
       v: s.anchorV,
@@ -2110,7 +2150,7 @@ ${note}` : text };
       iconSize: s.iconSize,
       hoverStyle: s.hoverStyle,
       hoverSize: s.hoverSize,
-      ...glueFor(s.anchorH, s.anchorV, s.offsetX ?? 0, s.offsetY ?? 0, s.glueEdges ?? true),
+      ...glueFor(s.anchorH, s.offsetX ?? 0, s.offsetY ?? 0, s.glueEdges ?? true),
     };
   }
 
@@ -2145,12 +2185,18 @@ ${note}` : text };
    * compact island peeks so the badge is seen; nothing opens.
    */
   peek() {
-    if (!State.quiet && this.fsm.state === "hidden") this.fsm.reveal();
+    // With the fixed bar there is no compact view: the bar shows the news.
+    if (!State.quiet && this.fsm.state === "hidden" && !barEdge(State.settings)) this.fsm.reveal();
     State.notify();
   }
 
   showInStrip(): boolean {
     if ((State.settings.compactStrip ?? "right") === "off" || State.mode === "expanded" || this.fsm.state === "greeting") return false;
+    // With the fixed bar the strip is in the bar: no compact view under it.
+    if (barEdge(State.settings)) {
+      State.notify();
+      return true;
+    }
     if (this.fsm.state === "hidden") {
       this.quietLaunch = true; // the request's own sound, not the peek
       this.fsm.reveal();
@@ -2631,18 +2677,62 @@ ${note}` : text };
     Sound.setFamilyGains({ alerts: t.volumeAlerts, ui: t.volumeUi, emotes: t.volumeEmotes });
   }
 
+  /** The island's background as painted (paintIsland): the fixed bar wears it too. */
+  islandBackground = "rgba(0,0,0,1)";
+
+  /** What the strip's buttons do (here, and in the fixed bar). */
+  private stripActions!: StripActions;
+
+  /** What the strip shows now, for the fixed bar (src/island/bar.ts). */
+  barStrip(): StripItem | null {
+    return stripItem(this.stripActions);
+  }
+
+  /** The island's text colour, for the fixed bar's elements. */
+  get islandInk(): string {
+    return getComputedStyle(this.islandEl).color || "#f5f6f8";
+  }
+
+  /**
+   * A click on an element of the fixed bar (src/island/bar.ts): an integration
+   * or a widget opens its card (closes it, if it is already the one open), an
+   * action runs.
+   */
+  barClick(key: string) {
+    if (key.startsWith("strip")) {
+      // A button of the strip does what it does beside the compact character;
+      // its line opens the island (on the request, when one waits).
+      const i = key.startsWith("strip:btn:") ? Number(key.slice(10)) : -1;
+      const b = i >= 0 ? this.barStrip()?.buttons[i] : undefined;
+      if (b) b.run();
+      else if (State.mode === "expanded") this.collapse();
+      else this.openFromBar();
+      return;
+    }
+    if (key.startsWith("task:")) {
+      const id = key.slice(5);
+      if (State.mode === "expanded" && State.focusTask?.id === id && !State.summary) {
+        this.collapse();
+        return;
+      }
+      State.summary = false;
+      State.setFocus(id);
+      this.openFromBar("overview");
+    } else if (key.startsWith("action:")) {
+      const a = (State.settings.actions ?? []).find((x) => x.id === key.slice(7));
+      if (a) void this.runAction(a);
+    }
+  }
+
   /** The island's own colour: the user's, or the style's default for dark or light. */
   private paintIsland() {
     const t = State.settings.theme;
-    let hex = /^#[0-9a-f]{6}$/i.test(t.islandColor) ? t.islandColor : "#000000";
-    // The untouched black becomes the grey of Windows' dark surfaces, or the light ones in light mode.
-    if (hex === "#000000") {
-      if (scheme() === "light") hex = uiStyle(t.style) === "windows" ? WINDOWS_ISLAND_LIGHT : CLASSIC_ISLAND_LIGHT;
-      else if (uiStyle(t.style) === "windows") hex = WINDOWS_ISLAND;
-    }
+    const hex = islandHex(t.islandColor, t.style);
     const n = parseInt(hex.slice(1), 16);
     const a = Math.max(0.5, Math.min(1, t.islandOpacity));
-    this.islandEl.style.background = `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+    this.islandBackground = `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+    this.islandEl.style.background = this.islandBackground;
+    this.onRestChange?.();
   }
 
   /** Re-reads placement settings: icon, anchors and the window box. */
@@ -2676,6 +2766,21 @@ ${note}` : text };
         y >= r.y - HIT_MARGIN && y <= r.y + r.h + HIT_MARGIN;
       if (inside) this.openByUser();
     }, delay * 1000);
+  }
+
+  /**
+   * Opened from the fixed bar. Through the state machine, like any opening:
+   * expanding straight away left it "hidden", and the mouse moving onto the
+   * island made it compact again (Edoardo, 29 Oct 2026).
+   */
+  private openFromBar(view?: IslandViewName) {
+    if (State.mode !== "expanded") {
+      this.openedByUser = true;
+      this.fsm.forceHome();
+      this.openedByUser = false;
+    }
+    if (view) this.setView(view);
+    this.stayIfAsked();
   }
 
   /** Opened by the user (hover, click): the search bar takes the keyboard. */
@@ -3140,6 +3245,8 @@ ${note}` : text };
       if (State.windowPick) guard("pick", () => this.refreshPickCursor(nowMs));
     }
 
+    guard("character window", () => this.mirrorCharacter());
+
     const uploadActive = this.uploadActive;
     if (uploadActive) guard("drop", () => this.uploadCanvas.draw(UploadSeq.frame(), nowMs / 1000));
     this.uploadCanvas.el.classList.toggle("on", uploadActive);
@@ -3158,11 +3265,14 @@ ${note}` : text };
     // spends most of its life in. Geometry still has to finish retracting.
     const settling =
       this.width.animating || this.height.animating || this.radius.animating;
+    // Compact in the character's own window, this canvas is hidden: its own
+    // motion (Jarvis, the flame) and a looping state are drawn there, not here.
+    const engineBusy = this.compactInWindow ? this.engine.busyBeyondLook : this.engine.busy;
     const busy = State.mode === "hidden"
       ? settling
       : settling ||
         !this.botCx.settled || !this.botCy.settled || !this.botSize.settled ||
-        greetingActive || this.engine.busy || UploadSeq.isActive || !!State.windowPick;
+        greetingActive || engineBusy || UploadSeq.isActive || !!State.windowPick;
 
     // Only following the cursor: 30 fps is plenty for a gaze and halves the cost.
     // Tweens, geometry, particles, the greeting and the drop keep the full rate.
@@ -3179,6 +3289,20 @@ ${note}` : text };
       Sound.idle();
     }
   };
+
+  /** The next frame puts the clone straight in the menu, growing from nothing (setMode). */
+  private cloneEnter = false;
+
+  /** A light wave across the opening island, from the character's side. */
+  private openWave() {
+    const p = this.placement;
+    const el = this.waveEl;
+    el.style.setProperty("--wave-x", p.v === "middle" && p.h === "left" ? "0%" : p.v === "middle" && p.h === "right" ? "100%" : "50%");
+    el.style.setProperty("--wave-y", p.v === "bottom" ? "100%" : p.v === "middle" && p.h !== "center" ? "50%" : "0%");
+    el.classList.remove("on");
+    void el.offsetWidth;
+    el.classList.add("on");
+  }
 
   private updateBotTargets() {
     // Centred on the views, not on the search bar under them.
@@ -3197,6 +3321,14 @@ ${note}` : text };
     this.botCx.target = p.cx;
     this.botCy.target = p.cy;
     this.botSize.target = p.diameter / 0.6;
+    if (this.cloneEnter && State.mode === "expanded") {
+      this.cloneEnter = false;
+      this.botCx.set(p.cx);
+      this.botCy.set(p.cy);
+      this.botSize.set(0);
+      this.botSize.target = p.diameter / 0.6;
+      this.engine.hello();
+    }
 
     const greetingActive = State.mode === "expanded" && State.view === "greeting";
     // The drop canvas draws its own the character; two of them would overlap.
@@ -3262,9 +3394,122 @@ ${note}` : text };
       }
     }
     this.engine.update(dt);
+    // Hidden under the character's own window: nothing to draw.
+    if (this.compactInWindow) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, hCss);
     this.engine.draw(ctx, w, hCss);
+  }
+
+  // ── The character's own window (docs/due-webview.md) ────────────────────────
+
+  /** Where the compact character's window sits now (window px), or null. */
+  private spotKey = "";
+  private sentLook = { x: NaN, y: NaN };
+  /** The link to the character's window (main.ts); null in a plain browser. */
+  mirror: ((m: IslandToCharacter) => void) | null = null;
+
+  /** The compact character is drawn by its own window, over the badge. */
+  get compactInWindow(): boolean {
+    return IS_TAURI && this.mirror != null && State.mode === "compact" && !barEdge(State.settings) &&
+      !this.uploadActive && !State.windowPick && !State.quiet;
+  }
+
+  /**
+   * Open, the character used to stay in its own window and the island opened
+   * beside it (docs/due-webview.md, step 3). Edoardo (29 Oct 2026): without the
+   * fixed bar the character outside the island goes away while it is open, and
+   * only the one in the menu is left; with the bar it stays in the bar.
+   */
+  get openInWindow(): boolean {
+    return false;
+  }
+
+  /**
+   * Where the compact character sits, in the window at its home place: the
+   * badge alone (no strip), whatever the island is doing now.
+   */
+  private compactSpot(): [number, number, number, number] {
+    const c = compactSize(this.placement);
+    const o = anchoredOrigin(this.placement, c.w, c.h, this.panel.w, this.panel.h);
+    const p = botPosition("compact", State.view, c.h, 0, c, 0);
+    const w = Math.max(1, Math.round(p.diameter / 0.6));
+    const hCss = w + BOT_OVERHANG;
+    return [Math.round(o.x + p.cx - w / 2), Math.round(o.y + p.cy - BOT_OVERHANG / 2 - hCss / 2), w, hCss];
+  }
+
+  /**
+   * How far the open island moves away from the edge to hang beside the
+   * character: nowhere now, the character is not outside it while it is open.
+   */
+  private openClearance(): [number, number] {
+    // No character outside the open island (openInWindow): it opens in place.
+    // With the fixed bar the work area already ends at the band.
+    return [0, 0];
+  }
+
+  private clearKey = "";
+  /** The compact character's last spot, and the one kept beside the open island. */
+  private lastCompactSpot: [number, number, number, number] | null = null;
+  private openSpot: [number, number, number, number] | null = null;
+
+  /**
+   * The character's window: over the compact badge (at the spot the springs
+   * are heading for, so it does not chase them), or beside the open island at
+   * the compact place. Compact, it gets the gaze and this canvas hides;
+   * interaction stays with the badge here, the window lets clicks through.
+   */
+  private mirrorCharacter() {
+    const on = this.compactInWindow;
+    const open = this.openInWindow;
+    this.botCanvas.style.visibility = on ? "hidden" : "";
+    const clear = this.openClearance();
+    const ck = clear.join(",");
+    if (ck !== this.clearKey) {
+      this.clearKey = ck;
+      void Bridge.characterClearance(clear[0], clear[1]);
+    }
+    let key = "";
+    let spot: [number, number, number, number] | null = null;
+    if (on) {
+      const o = anchoredOrigin(this.framePlacement, this.width.target, this.height.target, this.panel.w, this.panel.h);
+      const w = Math.max(1, Math.round(this.botSize.target));
+      const hCss = w + BOT_OVERHANG;
+      const x = Math.round(o.x + this.botCx.target - w / 2);
+      const y = Math.round(o.y + this.botCy.target - BOT_OVERHANG / 2 - hCss / 2);
+      spot = [x, y, w, hCss];
+      this.lastCompactSpot = spot;
+    } else if (open) {
+      // Opening: the character stays exactly where it was (the compact one may
+      // sit beside the strip); opened from rest or a shortcut, at the badge's place.
+      if (!this.spotKey.startsWith("open")) this.openSpot = this.spotKey ? this.lastCompactSpot : null;
+      spot = this.openSpot ?? this.compactSpot();
+    }
+    if (spot) key = `${open ? "open" : "compact"}:${spot.join(",")}`;
+    if (key !== this.spotKey) {
+      this.spotKey = key;
+      void Bridge.characterSpot(spot, open);
+      this.onRestChange?.();
+    }
+    if (on && (Math.abs(this.engine.lookX - this.sentLook.x) > 0.005 || Math.abs(this.engine.lookY - this.sentLook.y) > 0.005)) {
+      this.sentLook = { x: this.engine.lookX, y: this.engine.lookY };
+      this.mirror?.({ kind: "gaze", x: this.engine.lookX, y: this.engine.lookY });
+    }
+  }
+
+  /** The engine's gestures (hello, emotes, blinks, a carried jiggle) replayed by the character's window. */
+  private forwardEngine() {
+    const e = this.engine as unknown as Record<string, (...a: unknown[]) => unknown>;
+    for (const name of MIRRORED_CALLS) {
+      const own = e[name].bind(this.engine);
+      e[name] = (...args: unknown[]) => {
+        const r = own(...args);
+        // Open, the clone in the menu has its own gaze and jolts: only feelings are shared.
+        const shared = this.compactInWindow || (this.openInWindow && (name === "triggerEmote" || name === "setPermanentEmote"));
+        if (shared) this.mirror?.({ kind: "call", name, args });
+        return r;
+      };
+    }
   }
 
   /** BotCanvasView.lookX / lookY — tanh of the distance to the bot. */
@@ -3385,9 +3630,36 @@ ${note}` : text };
     // full-screen app.
     const p = this.placement;
     const showRest = State.mode === "hidden" && p.iconStyle !== "none" &&
-      !State.quiet;
+      !State.quiet && !barEdge(State.settings);
     this.restIcon.classList.toggle("on", showRest);
     if (showRest) this.drawRestIcon();
+    // The resting character is drawn by its own window, laid over the rest icon
+    // (docs/due-webview.md); the icon here keeps hover, click, drag and menu.
+    const own = IS_TAURI && p.iconStyle === "character";
+    this.restCanvas.style.visibility = own ? "hidden" : "";
+    const rest = showRest && own;
+    if (rest !== this.characterRest) {
+      this.characterRest = rest;
+      void Bridge.characterRest(rest);
+      this.onRestChange?.();
+    }
+  }
+
+  private characterRest = false;
+  /** Told when the resting character moves to or from its own window (main.ts, the link). */
+  onRestChange: (() => void) | null = null;
+
+  /** What the character's own window shows now. */
+  get characterMode(): CharacterMode {
+    if (IS_TAURI && barEdge(State.settings)) return "bar";
+    if (this.characterRest) return "rest";
+    if (this.spotKey.startsWith("open")) return "open";
+    return this.spotKey ? "compact" : "off";
+  }
+
+  /** The rest icon's size, for the character's own window. */
+  get restIconSize(): number {
+    return this.homePlacement.iconSize;
   }
 
   /**
@@ -3421,7 +3693,8 @@ ${note}` : text };
 
   /** "Sempre visibile": a resting island comes straight back as the compact view. */
   private keepCompactUp() {
-    if (State.settings.revealDuration > 0 || this.fsm.state !== "hidden") return;
+    // With the fixed bar the bar stands for the compact view: never kept up.
+    if (State.settings.revealDuration > 0 || this.fsm.state !== "hidden" || barEdge(State.settings)) return;
     // Paused from the tray, or quiet over a full-screen app: stay out of the way.
     if (State.paused || State.quiet) return;
     this.fsm.reveal();
@@ -3432,7 +3705,11 @@ ${note}` : text };
     Sound.setEnabled(State.settings.soundEnabled);
     Sound.setVolume(State.settings.soundVolume);
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
-    this.fsm.petitToHiddenDelay = State.settings.revealDuration;
+    // With the fixed bar the compact view only shows for what needs an answer
+    // (the strip holds it), and goes as soon as it is done.
+    const bar = barEdge(State.settings) != null;
+    this.fsm.petitToHiddenDelay = bar ? 0.3 : State.settings.revealDuration;
+    if (bar && this.fsm.state === "petit" && !this.fsm.held()) this.fsm.forceHidden();
     this.applyTheme();
     this.applyPlacement();
     void this.refreshLimits();

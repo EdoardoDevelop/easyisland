@@ -2,6 +2,17 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.11** — **Barra fissa** (Impostazioni → Aspetto → Barra fissa): una fascia in alto o in basso che
+Windows tiene libera come la barra delle applicazioni, con il personaggio all'inizio, al centro o alla
+fine, le integrazioni, i widget, le azioni rapide e la striscia dei permessi scelti da te, «…» per ciò
+che non ci sta, sfondo come l'isola, trasparente o a colore e **altezza** a scelta (personaggio, icone e
+testi si adattano); un clic apre l'isola subito sotto. Il **personaggio vive in una finestra sua**: a
+riposo si muove sempre con animazioni leggere e compare con una dissolvenza; a isola aperta resta solo
+quello nel menu. La pagina **Aspetto** è divisa in sei **schede** (Tema, Personaggio, Posizione, Barra
+fissa, Isola chiusa, Isola aperta) e accanto a ogni voce c'è una **miniatura** dell'isola che mostra cosa
+cambia; in Personaggio il personaggio scelto si muove, in Posizione l'angolo si sceglie anche con un clic.
+Corretto: «Aggancia ai bordi» spento non aveva effetto in alto al centro.
+
 **1.0.10** — **Rinominare le conversazioni** della cronologia della chat: ✎ accanto a 📌, o doppio clic
 sul titolo; Invio salva, Esc annulla, un titolo vuoto torna alla prima domanda. La ricerca nella
 cronologia trova anche il titolo nuovo.

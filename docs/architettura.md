@@ -54,6 +54,69 @@
 - **Liste a scorrimento nuove:** `max-height: calc(Npx + var(--extra-h, 0px))`, così si allungano con l'isola. `fitHeight` di una vista si misura sempre con `--extra-h` a 0 (`measureFit` in `island.ts`): misurata con lo spazio extra, l'altezza cresciuta tornava nel calcolo dell'isola e questa saltava tra due altezze a ogni aggiornamento (l'11 ottobre 2026, scrivendo in «Continua»). `--extra-w` allarga la card sinistra della Panoramica.
 - Griglie con `minmax(0, 1fr)` e testo troncato con i puntini. Nelle bolle della chat si usa `overflow-wrap: anywhere`.
 
+## Finestra del personaggio (due WebView, ottobre 2026)
+Il personaggio fuori dall'isola vive in una finestra sua (`personaggio`, `personaggio.html`, `src/character-window/main.ts`), piccola, sempre in primo piano e mai attiva. Lavoro in corso nel branch `claude/due-webview`; passi, misure e cosa manca in `docs/due-webview.md`.
+- **Il «cervello» resta nell'isola.** La pagina del personaggio riceve tutto su un `BroadcastChannel` (`src/core/link.ts`):
+  - `look`: stato, personaggio, colore, cielo, satelliti di Jarvis e modalità (`off`, `rest`, `compact`, `open`);
+  - `gaze` e `call`: lo sguardo e i gesti del motore (`MIRRORED_CALLS`).
+  - Indietro manda solo `open`: un clic sul personaggio accanto all'isola aperta la chiude.
+- **Dove sta.** La posa Rust (`sync_character` in `lib.rs`):
+  - a riposo, esattamente sopra la finestra ritirata dell'isola, solo con l'icona a riposo «personaggio» (`character_rest`);
+  - compatto, sopra il personaggio del distintivo (`character_spot`, calcolato da `mirrorCharacter` in `island.ts` dove le molle si fermano);
+  - aperta l'isola, fermo dov'era, misurato dalla finestra a casa (`island::home_panel_origin`).
+- **Chi riceve il mouse.** Sopra l'isola la finestra lascia passare i clic (`set_ignore_cursor_events`): passaggio del mouse, clic, trascinamento, menu e file restano dell'isola, che a riposo e compatta non disegna il suo personaggio. Accanto all'isola aperta prende il mouse.
+- **A isola aperta il personaggio fuori sparisce** (Edoardo, 29 ottobre 2026): senza barra fissa resta solo quello nel menu e l'isola si apre al suo posto (`openInWindow` falso, `openClearance` 0). Il meccanismo per aprirla accanto (`character_clearance` / `island::OPEN_CLEARANCE`, `glide_home`) resta in Rust ma riceve sempre 0. Con la barra fissa il personaggio resta nella barra.
+  - Apertura: saltello con scintille, onda di luce `#open-wave` dal lato del personaggio, clone nel menu che cresce da zero (`cloneEnter`).
+  - Non per il saluto all'avvio né per l'isola a tutto schermo.
+- **In primo piano.** Dopo ogni rialzo dell'isola Rust rialza anche il personaggio (`island::raise_character`). L'isola aperta va dietro a qualunque finestra che si attiva, tranne quelle di EasyIsland e della shell (`step_aside_for`), e torna davanti con un clic. Il personaggio resta davanti.
+- **Animazione.**
+  - A riposo e accanto all'isola aperta: CSS di solo `transform` e `opacity` (galleggia, oscilla, respira, alone del suo colore). I personaggi che si muovono da soli (`animated`) ridisegnano a 15 fps.
+  - Compatto: disegna finché il motore si muove, a 30 fps mentre segue lo sguardo, altrimenti a 15.
+- **Memoria.** Obiettivo basso di WebView2 (`webview_memory::set_low`), ripetuto dopo il caricamento.
+- **Senza Tauri** (anteprime con `npm run dev`, smoke) la finestra non c'è: l'isola disegna il suo personaggio come prima. Per questo il suo codice compatto resta.
+
+## Barra fissa (ottobre 2026)
+Chiesta da Edoardo il 27 ottobre 2026, fatta il 29 nel branch `claude/barra-fissa-2` sopra la finestra del personaggio (il primo tentativo, con la finestra dell'isola come barra, resta nel branch `claude/barra-fissa`). Impostazioni → Posizione → «Barra fissa»: Windows riserva una fascia in alto o in basso, come per la barra delle applicazioni, e le finestre si fermano al suo bordo.
+- **La barra è la finestra del personaggio.**
+  - Registrata con `SHAppBarMessage` (`appbar.rs`: `ABM_NEW`, `ABM_QUERYPOS` / `ABM_SETPOS`, `ABM_REMOVE` quando si spegne e all'uscita).
+  - È larga quanto lo schermo dell'isola (`screen`), alta quanto la vista compatta (`Settings::bar_thickness`, almeno 44 px con la striscia), sempre davanti, e prende tutto il mouse.
+  - Rust la posa sulla fascia (`sync_character`, ramo `appbar::band()`).
+  - **Messaggi della shell** tramite sottoclasse della finestra, senza alcun ciclo:
+    - `ABN_POSCHANGED`, `WM_DISPLAYCHANGE`, `WM_DPICHANGED`: si ricalcola la posizione;
+    - `ABN_FULLSCREENAPP`: a schermo intero la barra si nasconde e torna dopo.
+  - **Blocco da evitare:** in `apply` lo stato si copia fuori prima di `run_on_main_thread`, che sul thread principale esegue subito. Prima l'app si bloccava cambiando lato.
+- **Impostazioni** (del PC, non del profilo):
+  - `fixedBar` (`""`, `top`, `bottom`), `fixedBarSlot` (`start`, `center`, `end`);
+  - `fixedBarItems` (`{ id: "task:…" | "action:…" | "strip", area, show }`);
+  - `fixedBarBackground` (`""` come l'isola, `transparent`, `#rrggbb`).
+  - Con la barra accesa le righe che non valgono si nascondono (`body.fixed-bar`, `.free-row` / `.bar-row`). «Schermo» elenca ogni schermo per nome (`monitor_list`), perché il personaggio non si trascina.
+- **L'isola** è la sua finestra di sempre:
+  - chiusa è nascosta (`set_collapsed`: `quiet`);
+  - aperta sta contro la fascia, perché l'area di lavoro di Windows finisce lì e la casa è all'area del personaggio (`Settings::home_anchor`, `homePlacement`, senza spostamento);
+  - `islandPlace`, `overTaskbar` e la vista compatta sempre visibile non valgono, e la vista compatta non compare: `showInStrip` e `peek` non la fanno comparire, `petitToHiddenDelay` 0,3 s;
+  - va dietro alle altre finestre come una finestra; la barra resta davanti.
+- **Gli elementi** li prepara l'isola, che tiene i dati (`src/island/bar.ts`), e arrivano alla barra nel `look` del canale (`bar.items`, `BarPiece`, HTML costruito con il DOM: icone e testo con `textContent`):
+  - integrazioni e widget con una scheda (`INTEGRATION_AGENTS`; Telegram no): icona come nel menu (`taskIcon`), valore = `widgetStatus.summary` o l'ultimo passo, giallo o rosso per avviso ed errore;
+  - azioni rapide (`renderActionIcon`);
+  - la **striscia** (`stripItem` di `strip.ts`: permesso, chiamata, registrazione, riunione, richiesta da aprire, app in uso, agente al lavoro), di serie accanto al personaggio.
+- **La pagina della barra** (`src/character-window/main.ts`, modalità `bar`):
+  - dispone gli elementi nelle tre aree (`layAreas`; nell'area del personaggio subito dopo di lui);
+  - sposta in «…» ciò che non ci sta (`fitAreas`: tolto prima lontano dal personaggio, la striscia per ultima);
+  - lo sfondo e il colore del testo vengono da `barPaint` in `main.ts`: un colore chiaro vuole il testo scuro; trasparente, il testo ha un'ombra.
+- **Clic:** tornano all'isola (`{ kind: "bar", key }` → `barClick`).
+  - Un'integrazione apre la sua card, o la chiude se è già quella aperta.
+  - Un'azione si esegue.
+  - Un pulsante della striscia (`strip:btn:<i>`) fa ciò che fa nella striscia; il resto della striscia apre l'isola.
+  - Il personaggio apre o chiude l'isola.
+  - Il «…» apre un menu nativo di Windows (`bar_overflow_menu` → `tray::popup_bar_menu`; la scelta torna come evento `tray` `bar:<key>`), perché la fascia è troppo bassa per un menu della pagina.
+- **Provato dal vivo il 29 ottobre 2026** (2560×1440 al 125 %, barra in alto):
+  - fascia e finestre sotto;
+  - integrazioni, azioni e valori;
+  - clic che apre e chiude l'isola sulla card;
+  - permesso finto nella striscia con Nega → `deny` al relay;
+  - sfondo trasparente e chiaro.
+  - **Da provare:** barra in basso, secondo monitor, menu «…» (qui la barra non trabocca), cosa resta della fascia se l'app cade.
+
 ## Viste, menu e barra in alto
 - **Impianto dell'isola aperta** (dal 13 ottobre 2026, deciso con Edoardo): barra in alto (`buildHeader` in `views.ts`) con il fumetto del personaggio, il campo unico e i pulsanti; a sinistra il **menu** (`src/views/rail.ts`, `#rail`), con il personaggio in cima e sotto Panoramica, Agenti, Chat, Azioni, File e schermo e le integrazioni attive; a destra le viste. Prende il posto delle schede in alto e delle pillole accanto alle card. Niente modalità «modifica» nell'isola: cosa si vede e come si sceglie solo in Impostazioni.
   - Il personaggio è lo stesso di sempre, con stati, reazioni e animazioni: `botPosition` (layout.ts) lo mette in cima al menu quando `railShown` (isola aperta, tranne saluto e sequenza del file, che restano come prima senza menu); misura da `menuCharacter` (`RAIL_BOT`), spazio in `railHead`.
@@ -89,6 +152,7 @@ Terza finestra (`memoria`, `memoria.html`, `src/memory/`), creata nascosta all'a
 Quarta finestra (`flussi`, `flussi.html`, `src/flows/`): l'editor dei flussi, creata solo alla prima apertura (`open_flows_window`, async) e poi nascosta alla chiusura; usa i CSS delle Impostazioni più `flows.css` (anche questo con la copia chiara di `scripts/light-css.mjs`). Descritta in `docs/flussi.md`.
 
 ## Impostazioni
+- **Aspetto a schede, con le immagini** (chiesto da Edoardo il 29 ottobre 2026: «c'è un gran casino e si capisce poco»): `appearanceSections` mostra una scheda alla volta (`LOOK_TABS`: Tema, Personaggio, Posizione, Barra fissa, Isola chiusa, Isola aperta; l'ultima in `localStorage`, `?tab=` per anteprime e smoke, che le prova tutte). Ogni voce è un `pictured(kind, …righe)`: a sinistra un'immagine di `src/settings/pictures.ts`, uno schermo in miniatura in SVG disegnato dai valori attuali e ridisegnato a ogni `commit` (`refreshPictures`). Niente file di immagini o GIF (regola del progetto): le animazioni sono CSS (`settings.css` → `.pic`, `pic-*`), ferme fuori vista (`IntersectionObserver` → `.run`). In Personaggio il riquadro grande è il vero `BotEngine` (`liveCharacter`, 30 fps, solo mentre è in vista). Nell'SVG fatto a stringa entrano solo numeri, parole di un elenco fisso e colori controllati `#rrggbb`. Il colore dell'isola viene da `islandHex` (`src/core/uistyle.ts`), lo stesso dell'isola. Le miniature copiano l'app vera (Edoardo: prima «non corrispondono all'effettivo funzionamento»): isola aperta con il fumetto «Tutto tranquillo», il campo e ✕ in alto, il menu con il personaggio a sinistra e le card (`panel`); isola chiusa come tacca appesa al bordo (`notch`); Jarvis come sfera di punti. Una parte evidenziata (`mark`) indica cosa cambia la voce. Con la barra fissa accesa, le voci che non valgono si nascondono (`.free-row`) e una nota (`.bar-note`) lo dice.
 - Le pagine sono in `pages()` di `src/settings/main.ts`. «Chat» = motore e connettori (`claudeChatSection`). «Agenti» = una riga per agente (`agentsSection`, `agentRow`; l'id di pagina è ancora `claude`). Altre sezioni: `automationsSection` e `actionsSection`.
 - **Pagina Aspetto** (riordinata il 25 ottobre 2026, Edoardo: «molto incasinata e poco intuitiva»): una sola funzione, `appearanceSections()`, in cinque sezioni — Tema (stile, modalità, colore, opacità, sfondo chiuso), Personaggio (cosa sta nell'isola, personaggio, colore, saluto, segue il mouse, fumetto, menu), Posizione, Isola chiusa, Isola aperta. I volumi sono in Generale accanto a Suono. Una riga nuova va nella sezione di quando agisce (chiusa o aperta), non in fondo.
 - `commit()` salva soltanto; `render()` ricostruisce la pagina intera e si chiama solo quando cambia la struttura (non mentre si scrive).

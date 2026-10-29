@@ -2,6 +2,16 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.11** — **Fixed bar** (Settings → Look → Fixed bar): a band at the top or the bottom that Windows
+keeps free like the taskbar, with the character at the start, centre or end, the integrations, widgets,
+quick actions and permission strip you choose, «…» for what does not fit, a background like the island,
+transparent or a colour, and a **height** of your choice (character, icons and text adapt); a click opens
+the island right below. The **character lives in a window of its own**: at rest it always moves with
+light animations and fades in; with the island open only the one in the menu is left. The **Look** page
+has six **tabs** (Theme, Character, Position, Fixed bar, Closed island, Open island) and next to each
+setting a **small picture** of the island shows what it changes; in Character the chosen character moves,
+in Position the corner can be picked with a click. Fixed: «Snap to edges» off did nothing at the top centre.
+
 **1.0.10** — **Rename conversations** in the chat history: ✎ next to 📌, or a double click on the
 title; Enter saves, Esc cancels, an empty title goes back to the first question. The history search
 finds the new title too.

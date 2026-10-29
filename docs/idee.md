@@ -54,6 +54,25 @@ Studiati gli agenti personali più usati: quelli locali e open source con contro
   3. Link ICS pubblicato da Outlook web nel widget Calendario (c'è già); alcune aziende bloccano anche questo, e non copre le mail.
 - Domande aperte per Edoardo: Outlook classico o nuovo; chi amministra il Microsoft 365 aziendale.
 
+## Exchange in sede: posta, calendario e attività senza Entra ID (annotata il 29 ottobre 2026, ragionata con Edoardo in un'altra sessione)
+Con un Exchange in sede la registrazione su Entra ID non serve, e non funzionerebbe nemmeno: Graph lavora solo sul cloud. Si fa come i programmi di posta: email e password una volta, poi l'app si configura da sola.
+- **Primo accesso:**
+  1. **Autodiscover:** dall'indirizzo (es. nome@cliente.it) l'app trova l'URL del server, del tipo `https://mail.cliente.it/EWS/Exchange.asmx`.
+  2. **Login:** utente e password con NTLM o Negotiate/Kerberos, i metodi standard di Exchange in sede.
+  3. **Salvataggio:** le credenziali vanno in Gestione credenziali di Windows (`keyring`, già usato da EasyIsland). Dalla volta dopo l'accesso parte da solo.
+  4. **PC nel dominio:** con Kerberos si può usare l'utente Windows già collegato, senza alcun login.
+- **Protocollo: EWS.** In sede è ancora pienamente supportato (la dismissione riguarda solo Exchange Online) e un solo indirizzo copre tutto:
+  - posta: `FindItem` / `GetItem` sulla Posta in arrivo;
+  - calendario: `FindItem` con `CalendarView` (intervallo di date);
+  - attività: la cartella Tasks, le stesse di Outlook classico.
+- **In Rust:**
+  - HTTP con richieste SOAP fisse. Un crate EWS maturo non esiste, ma bastano poche richieste; la lettura dell'XML con `quick-xml`, che sarebbe una dipendenza nuova, da valutare contro una lettura a mano dei pochi campi che servono.
+  - NTLM / Kerberos: `reqwest` non li gestisce da solo. Due strade:
+    - il crate `sspi` (NTLM, Kerberos e Negotiate in puro Rust);
+    - oppure **WinHTTP** tramite il crate `windows`, che gestisce anche il login con l'utente Windows. È già tra le dipendenze (`Win32_Networking_WinHttp`): da preferire.
+  - Lato Tauri: tre comandi (`get_mail`, `get_calendar`, `get_tasks`) che restituiscono JSON al front end, come le integrazioni Microsoft di oggi (`integrazioni.md` → Account Microsoft).
+- **Sconsigliati:** ActiveSync (il protocollo dei telefoni: complicato e soggetto a licenza) e IMAP (solo posta: niente calendario né attività).
+
 ## Notion, seconda parte (annotata il 14 ottobre 2026)
 Edoardo usa Notion per attività, note, documentazione e clienti. Fatti: attività, nota veloce, pagine fissate, ricerca, chat sulla pagina. Restano:
 - **«Manda a Notion»** da una voce degli Appunti e dalla risposta della chat. Dal testo selezionato c'è dal 15 ottobre 2026.
@@ -159,45 +178,6 @@ Un motore della chat «Modello integrato» che fa girare un modello sul PC senza
 - **Modelli:** non nell'installer (1–5 GB, GGUF). In Impostazioni → Chat un elenco breve di modelli consigliati (3–8 miliardi di parametri, italiano compreso) con dimensione e «Scarica»: il download parte solo dopo il clic (regola sulle chiamate di rete), in `%LOCALAPPDATA%\EasyIsland\models`, con verifica dello SHA-256 e possibilità di eliminarlo. Anche un GGUF già sul disco scelto dall'utente.
 - **Vincoli:** CPU ~0 % a isola ritirata (processo spento quando non serve); su CPU 5–15 parole al secondo, molto meglio con una scheda video; i modelli piccoli sbagliano spesso con gli strumenti e la Modalità terminale, quindi va presentato per chat e privacy («nulla esce dal PC»), non per l'agente. Il processo figlio si chiude con l'app (job object di Windows) anche se l'app cade.
 - **Utile anche per:** il motore per la memoria e, in futuro, gli embedding della ricerca per significato (sezione Memoria qui sopra).
-
-## Isola fissa: barra riservata in alto o in basso (chiesta da Edoardo il 27 ottobre 2026, ragionata lo stesso giorno, da fare)
-Un'impostazione che fa dell'isola una **barra fissa** sul bordo alto o basso dello schermo. Windows riserva quella fascia, come per la barra delle applicazioni, e le finestre massimizzate o agganciate si fermano al suo bordo.
-
-**Deciso con Edoardo (27 ottobre 2026):**
-- **Solo in alto o in basso.** A destra e a sinistra la modalità fissa non c'è.
-- **Il comportamento dell'isola non cambia:** si apre, si chiude, cresce e mostra le viste come oggi. Il personaggio non si trascina più.
-- **Impostazioni in più, solo con la barra fissa accesa** (Impostazioni → Aspetto), per una personalizzazione completa:
-  - **Tre aree della barra:** inizio (sinistra), centro e fine (destra). Il **personaggio**, cioè l'isola, si mette in una delle tre.
-  - **Cosa si può mettere:** in ognuna delle tre aree l'utente sceglie cosa mettere e in che ordine: le **sue** integrazioni, azioni rapide, widget e la **striscia** (risposte rapide a permessi e chiamate, barra dell'app in uso). La striscia non è per forza accanto al personaggio: va dove la mette l'utente.
-  - Niente voci predefinite e nessuna modalità di modifica nell'isola: tutto si sceglie in Impostazioni.
-  - Anche il monitor della barra si sceglie lì.
-- **Sfondo della barra:** di serie è quello dell'isola (barra piena); si può cambiare, per esempio in trasparente o in un altro colore.
-- **Spessore:** quello della vista compatta, che segue le dimensioni scelte oggi.
-- **Elementi nella barra:**
-  - **integrazioni:** icona, valore breve («☁ 18°», «✉ 3») o entrambi, a scelta per ognuna; al clic aprono la loro card nell'isola, come dal menu;
-  - **azioni rapide:** come i pulsanti della barra dell'app in uso (`barLook`: icona, testo o entrambi);
-  - **widget:** sì, anche loro, con lo stesso clic che apre la card.
-
-**Come funziona (proposta):**
-- La vista compatta dell'isola è sempre visibile nella sua area. Aperta (chat, card), l'isola cresce dalla barra sopra le finestre, senza riservare altro spazio. Le aree si dispongono intorno all'isola senza sovrapporsi; se gli elementi non ci stanno, quelli in eccesso finiscono in un menu «…».
-- Impostazioni che non valgono più con la barra fissa (nascoste o spente):
-  - trascinamento e `offsetX` / `offsetY`;
-  - «lascia su una finestra o su un'icona del desktop»;
-  - spostamento dell'isola aperta;
-  - `glueEdges` (sempre attaccata);
-  - `revealDuration` (sempre visibile);
-  - `overTaskbar`;
-  - `islandPlace` (si apre dalla barra).
-- Windows: registrazione con `SHAppBarMessage` (`ABM_NEW`, `ABM_QUERYPOS` / `ABM_SETPOS`, `ABE_TOP` / `ABE_BOTTOM`) in Rust.
-  - `ABN_FULLSCREENAPP`: a schermo intero la barra si libera e torna dopo (legato a `quietFullscreen`).
-  - `ABN_POSCHANGED`: cambio di risoluzione, DPI o monitor.
-  - `ABM_REMOVE` all'uscita; da provare cosa succede se l'app cade.
-  - Con la barra delle applicazioni sullo stesso bordo, Windows le mette una accanto all'altra.
-  - L'isola si posiziona sul bordo vero del monitor, non sull'area di lavoro, che con la barra comincia dopo di essa.
-- **Finestre:** oggi l'isola è una finestra trasparente di almeno 720×560 attorno all'isola. La barra è larga quanto lo schermo, quindi le aree laterali vogliono probabilmente una finestra sottile a tutta larghezza (trasparente ai clic fuori dagli elementi), registrata come barra di Windows. L'isola resta la sua finestra di sempre, sopra. Da verificare con una prova.
-- **Costo a riposo nullo:** Windows avvisa la barra solo quando cambia qualcosa. Gli elementi delle aree si aggiornano con gli eventi che le integrazioni mandano già, mai con un ciclo proprio.
-
-**Primo passo:** una prova della finestra a tutta larghezza registrata come barra di Windows (spazio riservato, finestre massimizzate sotto, schermo intero, uscita), prima di scrivere le Impostazioni.
 
 ## Altro
 - **Scheda esatta di Windows Terminal** per «Apri»: il relay legge il titolo della console e l'app seleziona la scheda con UI Automation. Da sperimentare con una sessione vera. Tolta dal Da fare il 9 ottobre: per ora non serve.

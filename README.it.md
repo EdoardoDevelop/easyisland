@@ -75,10 +75,10 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Ultime versioni
 
+- **1.0.11** — **Barra fissa** in alto o in basso sullo schermo con il personaggio, le integrazioni, i widget e le azioni, altezza a scelta; il personaggio in una finestra sua; impostazioni di **Aspetto** a schede con una miniatura accanto a ogni voce.
 - **1.0.10** — **Rinominare** le conversazioni della cronologia della chat (✎ o doppio clic sul titolo).
 - **1.0.9** — **Anteprima** di file e pagine web dentro l'isola accanto alla chat, che legge e usa la pagina; i passi della chat a parole; i permessi dentro la chat; README e sito prima in inglese.
 - **1.0.8** — Logo nuovo (un fumetto con il bordo ad arcobaleno e due occhi); **Jarvis Sfera** personaggio predefinito; README con indice e schermate nuove.
-- **1.0.7** — **Flussi**: finestra dedicata con blocchi da trascinare, agenti, scelte, «per ogni», domande anche su Telegram, tentativi ed esecuzioni con «Riprendi da qui».
 
 Tutte le versioni, con i dettagli: [CHANGELOG.md](CHANGELOG.md).
 

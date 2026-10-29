@@ -6,7 +6,7 @@ import "./style-light.css";
 import "./character/roster";
 import { Bridge, IS_TAURI, onEvent, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
-import { State, type Custom, type Settings } from "./core/state";
+import { State, barEdge, barThickness, type Custom, type Settings } from "./core/state";
 import { forgetRecords, receiveSource } from "./views/custom";
 import { Island } from "./island/island";
 import { installTooltips } from "./core/tooltip";
@@ -16,6 +16,8 @@ import { Daily } from "./island/daily";
 import { registerMoments } from "./island/moments";
 import { syncLanguage } from "./core/i18n";
 import { registerIntegrationHandlers, refreshConfigured } from "./island/integrations";
+import { linkChannel, type CharacterToIsland, type IslandToCharacter } from "./core/link";
+import { barPieces } from "./island/bar";
 
 /**
  * Uncaught errors of the page go to easyisland.log (the WebView's console is
@@ -126,6 +128,8 @@ async function main() {
       default:
         // The menu on the selected text (src/island/selection-menu.ts).
         if (what.startsWith("sel:")) island.pickSelectionMenu(what.slice(4));
+        // «…» of the fixed bar: a click on an element that did not fit (src/character-window/main.ts).
+        else if (what.startsWith("bar:")) island.barClick(what.slice(4));
         break;
     }
   });
@@ -200,6 +204,7 @@ async function main() {
     holdOpen: (on) => island.setPinned(on),
   });
 
+  linkCharacterWindow(island);
   island.launch();
   // Monday from 8:00: last week's recap, once the greeting is over.
   window.setTimeout(() => void Recap.check(island), 12_000);
@@ -217,6 +222,78 @@ async function main() {
       void import("../dev/scenes").then((m) => m.runScene(island, scene));
     }
   }
+}
+
+/**
+ * The character's own window (docs/due-webview.md, step 0): it gets the
+ * character's look from here and asks back to open the island.
+ */
+function linkCharacterWindow(island: Island) {
+  let sentKey = "";
+  const look = (): IslandToCharacter => {
+    const t = State.settings.theme;
+    const c = t?.slimeColor;
+    return {
+      kind: "look",
+      state: State.effectiveState,
+      character: t?.character ?? "",
+      figure: t?.figure ?? "",
+      color: c && /^#[0-9a-f]{6}$/i.test(c) ? c : null,
+      size: island.restIconSize,
+      paused: State.paused,
+      mode: island.characterMode,
+      sky: State.characterSky,
+      weather: State.weatherNow,
+      agents: State.sessionTasks.filter((x) => x.state === "working" || x.state === "thinking" || x.state === "searching").length,
+      bar: barEdge(State.settings)
+        ? {
+          slot: State.settings.fixedBarSlot ?? "center",
+          ...barPaint(State.settings.fixedBarBackground ?? "", island.islandBackground, island.islandInk),
+          thickness: barThickness(State.settings),
+          items: barPieces(island.barStrip()),
+        }
+        : null,
+    };
+  };
+  const send = linkChannel<CharacterToIsland, IslandToCharacter>((m) => {
+    if (m.kind === "hello") {
+      sentKey = "";
+      push();
+    } else if (m.kind === "bar") {
+      island.barClick(m.key);
+    } else if (m.kind === "open") {
+      if (State.mode === "expanded") island.collapse();
+      else island.openFromTaskbar();
+    } else if (m.kind === "ping") {
+      send({ kind: "pong", sent: m.sent });
+    }
+  });
+  const push = () => {
+    const m = look();
+    const key = JSON.stringify(m);
+    if (key === sentKey) return;
+    sentKey = key;
+    send(m);
+  };
+  State.subscribe(push);
+  island.onRestChange = push;
+  island.mirror = send;
+  push();
+}
+
+/**
+ * The fixed bar's background and text colour: the island's (""), none
+ * ("transparent": the wallpaper shows, the island's text colour), or the
+ * user's colour with dark or light text, whichever reads better on it.
+ */
+function barPaint(choice: string, islandBg: string, islandInk: string): { background: string; ink: string } {
+  if (choice === "transparent") return { background: "transparent", ink: islandInk };
+  const m = /^#([0-9a-f]{6})$/i.exec(choice);
+  if (!m) return { background: islandBg, ink: islandInk };
+  const n = parseInt(m[1], 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const light = 0.2126 * r + 0.7152 * g + 0.0722 * b > 150;
+  return { background: choice, ink: light ? "#16181d" : "#f5f6f8" };
 }
 
 void main();

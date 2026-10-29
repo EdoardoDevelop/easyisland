@@ -3,12 +3,13 @@
 > in breve: Come si apre, cosa contiene e come si usa con il mouse e con la tastiera.
 
 ## Il personaggio e i suoi stati
-A riposo il personaggio sta nell'angolo che hai scelto (in alto al centro di serie). Cambia colore con lo stato più urgente: **blu** mentre un agente lavora, **ambra** per un permesso in attesa, **rosso** per un errore, **verde** quando qualcosa è finito bene. Quando una scheda è aperta indossa il colore di quell'integrazione.
+A riposo il personaggio sta nell'angolo che hai scelto (in alto al centro di serie) e si muove piano, come se galleggiasse. Cambia colore con lo stato più urgente: **blu** mentre un agente lavora, **ambra** per un permesso in attesa, **rosso** per un errore, **verde** quando qualcosa è finito bene. Quando una scheda è aperta indossa il colore di quell'integrazione.
 
 | Cosa fai | Cosa succede |
 |---|---|
 | Porti il mouse sul personaggio | Si ingrandisce, fa un balzo, ti guarda e alza una mano |
-| Clicchi, o resti sopra per un attimo | Si apre l'isola, allineata a quel lato |
+| Clicchi, o resti sopra per un attimo | Il personaggio fa un saltello e resta al suo posto; l'isola si apre accanto a lui (sotto, se sta in alto) con un'onda di luce, e nel menu compare una sua copia |
+| Clicchi il personaggio con l'isola aperta | L'isola si chiude |
 | Trascini il personaggio | Si sposta dove lo lasci, anche su un altro schermo; la posizione resta nel profilo |
 | Trascini l'angolo in basso dell'isola aperta | Cambia larghezza e altezza fino ai bordi dello schermo. Doppio clic: misure predefinite |
 | Trascini l'isola aperta dalla barra in alto | Resta lì finché è aperta, poi torna al personaggio |
@@ -21,7 +22,7 @@ A riposo il personaggio sta nell'angolo che hai scelto (in alto al centro di ser
 | 📌 | **Tieni aperta**: l'isola non si chiude da sola finché non la togli |
 | — e ▢ | Con **Come un'app** acceso (Impostazioni → Isola): riduci a icona e schermo intero. Aperta ha la sua icona nella barra delle applicazioni e compare in Alt+Tab; chiusa no. Per aprirla dalla barra, aggiungi EasyIsland alla barra delle applicazioni: un clic sull'icona apre l'isola. Col tasto destro sull'icona: le tue azioni rapide, **Apri l'isola**, **Chiedi alla chat**, **Riquadra e chiedi**, **Impostazioni…** |
 | Resta aperta | Con **Resta aperta** acceso (Impostazioni → Isola), quando la apri tu non si chiude da sola, come con 📌 |
-| Si apre una finestra sopra l'isola (una finestra di scelta, un programma lanciato dall'isola…) | L'isola le passa **dietro**, senza chiudersi. Torna davanti se la clicchi, se arriva un permesso o una chiamata, o quando si ritira |
+| Clicchi un'altra finestra, o se ne apre una (una finestra di scelta, un programma lanciato dall'isola…) | L'isola aperta le passa **dietro**, come una finestra qualunque, senza chiudersi; il personaggio resta davanti. Torna davanti se la clicchi, se arriva un permesso o una chiamata, o quando si ritira |
 
 ## Il menu a sinistra
 Nell'isola aperta, sotto il personaggio:

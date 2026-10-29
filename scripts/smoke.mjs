@@ -45,7 +45,8 @@ const SCENES = [
 ];
 
 // The settings window, page by page: every select, switch and field changed.
-const SETTINGS = ["generale", "aspetto", "notifiche", "chat", "claude", "azioni", "compiti", "integrazioni", "widget", "backup"];
+// Aspetto one tab at a time (src/settings/main.ts → LOOK_TABS).
+const SETTINGS = ["generale", ...["tema", "personaggio", "posizione", "barra", "chiusa", "aperta"].map((x) => `aspetto&tab=${x}`), "notifiche", "chat", "claude", "azioni", "compiti", "integrazioni", "widget", "backup"];
 
 const EDGE = [
   join(process.env["ProgramFiles(x86)"] ?? "", "Microsoft/Edge/Application/msedge.exe"),

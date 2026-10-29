@@ -2,6 +2,21 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 27 ottobre 2026 — Rinominare le conversazioni (su `claude/sviluppo`)
+- Nella cronologia della chat ✎ (o doppio clic sul titolo) rinomina una conversazione; vuoto torna alla prima domanda (`chat_log::rename`, `chat.ts`, `docs/chat.md`).
+- Modello integrato accantonato nel branch `claude/modello-integrato`; annotata l'idea dell'isola fissa su un bordo con lo spazio riservato (`docs/idee.md`).
+
+### 27 ottobre 2026 — Versione 1.0.9: Anteprima nell'isola, inglese prima
+- Anteprima di file e pagine web (nell'isola o in finestra), passi della chat a parole, permessi dentro la chat, memoria con riassunti e alias: tutto in `CHANGELOG.md`.
+- README e homepage prima in inglese: `README.md` inglese e `README.it.md`; `site/index.html` inglese, `site/it/index.html` italiana, `site/en/index.html` rimanda alla radice; «Sito» nelle Impostazioni apre `/it/` con l'interfaccia in italiano; la guida tiene i suoi indirizzi.
+
+### 27 ottobre 2026 — Permessi della chat dentro la chat (su `claude/sviluppo`)
+- Un permesso chiesto dalla chat compare in fondo alla conversazione con Nega / Sempre / Consenti (`chat.ts`), non più su una card che toglie la chat; `State.pendingCard()` per la chat è `prompt`.
+- Con l'isola aperta porta sempre alla chat: con «Permessi e chiamate» spento prima restava solo il fumetto in alto e la chat sembrava ferma (`hooks.ts` `handleChatPermission`).
+
+### 26 ottobre 2026 — Passi della chat leggibili (su `claude/sviluppo`)
+- Le righe «⚙» della chat (isola e Telegram) dicono a parole cosa fa, con l'argomento («Prepara il piano del compito», «Cerca nella memoria · `…`»), invece di «task_plan · easyisland» (`steps.rs`, `docs/chat.md`). Il motore scrive anche una frase breve prima di ogni gruppo di strumenti (`AGENT_PROMPT`).
+
 ### 26 ottobre 2026 — Anteprima di file e pagine web (su `claude/sviluppo`)
 - Finestra **Anteprima** (`preview.rs`, `src/preview/`), come quella di Claude desktop: schede di file (codice colorato, Markdown, CSV, immagini, «Modifiche» rispetto a prima della chat) e pagine web in un browser vero dentro la finestra, con misure da telefono/tablet, chiaro/scuro, console, Strumenti per sviluppatori. Si apre da link e percorsi della chat, da sola sui file della Modalità terminale, dal server di sviluppo. Strumenti `preview_*` per la chat (clic e scrittura con Consenti / Nega). Dettagli in `docs/chat.md`, guida `10-anteprima`.
 - **Nell'isola** (pannello a destra dentro la finestra dell'isola, largo quanto lo trascini) o finestra separata, a scelta in Impostazioni → Chat → Anteprima (`preview::pane`, island.ts `placePane`). Comandi che creano finestre ora `async` (prima bloccavano tutta l'app).

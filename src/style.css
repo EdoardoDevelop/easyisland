@@ -235,6 +235,28 @@ html.browser-preview #root {
   transition: opacity 0.4s ease-in-out, background 0.4s ease-in-out;
 }
 
+/* The opening of an island beside the character's own window (island.ts openWave):
+   one wave of light from the character's side, then gone. */
+#open-wave {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 5;
+  background: radial-gradient(circle at var(--wave-x, 50%) var(--wave-y, 0%),
+    transparent 0, rgba(255, 255, 255, 0.22) 40px, transparent 90px);
+  background-size: 100% 100%;
+}
+
+#open-wave.on {
+  animation: open-wave 0.7s ease-out;
+}
+
+@keyframes open-wave {
+  0% { opacity: 1; background-size: 30% 30%; background-position: var(--wave-x, 50%) var(--wave-y, 0%); background-repeat: no-repeat; }
+  100% { opacity: 0; background-size: 400% 400%; background-position: var(--wave-x, 50%) var(--wave-y, 0%); background-repeat: no-repeat; }
+}
+
 #countdown {
   position: absolute;
   bottom: 0;
@@ -5944,3 +5966,6 @@ a.col-src:hover { color: #67e8f9; text-decoration: underline; }
 .col-ask:disabled { opacity: 0.4; }
 html[data-ui="windows"] .col-ask { border-radius: 4px; background: var(--accent); color: var(--on-accent); }
 html[data-ui="windows"] .col-meta input, html[data-ui="windows"] .col-item { border-radius: 4px; }
+
+/* Fixed bar: the island fades as it shrinks on closing (island.ts → setMode). */
+#island.bar-away { opacity: 0; transition: opacity 0.3s ease; }
