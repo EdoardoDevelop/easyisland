@@ -3416,14 +3416,13 @@ ${note}` : text };
   }
 
   /**
-   * Open: the character stays in its own window where the compact one sits
-   * (docs/due-webview.md, step 3) and the island opens beside it, with a clone
-   * of it in the menu. Not for the launch greeting (a character of its own) or
-   * an island filling the screen.
+   * Open, the character used to stay in its own window and the island opened
+   * beside it (docs/due-webview.md, step 3). Edoardo (29 Oct 2026): without the
+   * fixed bar the character outside the island goes away while it is open, and
+   * only the one in the menu is left; with the bar it stays in the bar.
    */
   get openInWindow(): boolean {
-    return IS_TAURI && this.mirror != null && State.mode === "expanded" && !barEdge(State.settings) &&
-      State.view !== "greeting" && !State.maximized && !State.quiet;
+    return false;
   }
 
   /**
@@ -3440,23 +3439,13 @@ ${note}` : text };
   }
 
   /**
-   * How far the open island moves away from the edge so it hangs beside the
-   * character instead of over it: below it at the top, above it at the bottom,
-   * aside on the left or right edge.
+   * How far the open island moves away from the edge to hang beside the
+   * character: nowhere now, the character is not outside it while it is open.
    */
   private openClearance(): [number, number] {
+    // No character outside the open island (openInWindow): it opens in place.
     // With the fixed bar the work area already ends at the band.
-    if (!IS_TAURI || this.mirror == null || barEdge(State.settings)) return [0, 0];
-    const p = this.placement;
-    const c = compactSize(p);
-    // As tall as the compact island can be: with the strip, at least the strip.
-    const ch = Math.max(c.h, STRIP_H);
-    const gap = 6;
-    if (p.v === "top") return [0, ch + gap];
-    if (p.v === "bottom") return [0, -(ch + gap)];
-    if (p.h === "left") return [c.w + gap, 0];
-    if (p.h === "right") return [-(c.w + gap), 0];
-    return [0, ch + gap];
+    return [0, 0];
   }
 
   private clearKey = "";

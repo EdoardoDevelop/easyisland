@@ -65,7 +65,7 @@ Il personaggio fuori dall'isola vive in una finestra sua (`personaggio`, `person
   - compatto, sopra il personaggio del distintivo (`character_spot`, calcolato da `mirrorCharacter` in `island.ts` dove le molle si fermano);
   - aperta l'isola, fermo dov'era, misurato dalla finestra a casa (`island::home_panel_origin`).
 - **Chi riceve il mouse.** Sopra l'isola la finestra lascia passare i clic (`set_ignore_cursor_events`): passaggio del mouse, clic, trascinamento, menu e file restano dell'isola, che a riposo e compatta non disegna il suo personaggio. Accanto all'isola aperta prende il mouse.
-- **L'isola aperta accanto al personaggio.** `character_clearance` / `island::OPEN_CLEARANCE` la spostano dal bordo della vista compatta, almeno la striscia, più 6 px: in alto sotto il personaggio, in basso sopra, sui lati di fianco. Chiudendo scivola a casa (`glide_home`).
+- **A isola aperta il personaggio fuori sparisce** (Edoardo, 29 ottobre 2026): senza barra fissa resta solo quello nel menu e l'isola si apre al suo posto (`openInWindow` falso, `openClearance` 0). Il meccanismo per aprirla accanto (`character_clearance` / `island::OPEN_CLEARANCE`, `glide_home`) resta in Rust ma riceve sempre 0. Con la barra fissa il personaggio resta nella barra.
   - Apertura: saltello con scintille, onda di luce `#open-wave` dal lato del personaggio, clone nel menu che cresce da zero (`cloneEnter`).
   - Non per il saluto all'avvio né per l'isola a tutto schermo.
 - **In primo piano.** Dopo ogni rialzo dell'isola Rust rialza anche il personaggio (`island::raise_character`). L'isola aperta va dietro a qualunque finestra che si attiva, tranne quelle di EasyIsland e della shell (`step_aside_for`), e torna davanti con un clic. Il personaggio resta davanti.
