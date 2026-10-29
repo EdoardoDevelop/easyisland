@@ -6,7 +6,7 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
-import { type AgentTaskItem, type Custom, type Skill, type TaskState, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef } from "../core/state";
+import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef } from "../core/state";
 
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
 import { ISLAND_MIN_W, PANEL_H, PANEL_W, islandMax } from "../core/layout";
@@ -2429,6 +2429,17 @@ function appearanceSections(): HTMLElement[] {
           select([["start", t("All'inizio")], ["center", t("Al centro")], ["end", t("Alla fine")]], settings.fixedBarSlot ?? "center",
             (v) => { settings.fixedBarSlot = v as Settings["fixedBarSlot"]; commit(); }),
           h("span", { class: "hint note", text: t("con la barra fissa il personaggio sta lì e non si trascina; l'isola si apre sotto la barra (sopra, se è in basso) e da chiusa non c'è") }),
+        ), h("div", { class: "row bar-row" },
+          h("label", { text: t("Altezza della barra") }),
+          slider(24, 96, 2, Math.round(barThickness(settings)), "px", (v) => { settings.fixedBarHeight = v; commit(); render(); }),
+          h("button", {
+            text: t("Automatica"),
+            disabled: !(settings.fixedBarHeight ?? 0),
+            onclick: () => { settings.fixedBarHeight = 0; commit(); render(); },
+          }),
+          h("span", { class: "hint note", text: (settings.fixedBarHeight ?? 0) > 0
+            ? t("il personaggio, le icone e i testi si adattano all'altezza")
+            : t("automatica: alta quanto la vista compatta; il personaggio, le icone e i testi si adattano all'altezza") }),
         )),
         pictured("barBg", h("div", { class: "row bar-row" },
           h("label", { text: t("Sfondo della barra") }),

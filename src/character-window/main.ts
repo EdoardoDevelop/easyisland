@@ -165,6 +165,8 @@ function layBar() {
     return;
   }
   const t = bar.thickness;
+  // Text and icons follow the bar's height (Impostazioni → Barra fissa → Altezza).
+  document.body.style.setProperty("--s", String(Math.min(1.6, Math.max(0.8, t / 40))));
   const left = bar.slot === "start" ? "8px" : bar.slot === "end" ? `calc(100% - ${t + 8}px)` : `calc(50% - ${t / 2}px)`;
   float.style.cssText = `inset: auto; top: 0; left: ${left}; width: ${t}px; height: 100%;`;
   document.body.style.setProperty("--ink", bar.ink);

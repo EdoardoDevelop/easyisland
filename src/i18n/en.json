@@ -3652,5 +3652,8 @@
   "Quando si apre": "When it opens",
   "quanto tenere il mouse sul personaggio prima che si apra; trascinare un file sopra il personaggio lo apre sempre": "how long to hold the mouse on the character before it opens; dragging a file over the character always opens it",
   "Quando si richiude": "When it closes",
-  "Grandezza e comandi": "Size and controls"
+  "Grandezza e comandi": "Size and controls",
+  "Altezza della barra": "Bar height",
+  "il personaggio, le icone e i testi si adattano all'altezza": "the character, icons and text adapt to the height",
+  "automatica: alta quanto la vista compatta; il personaggio, le icone e i testi si adattano all'altezza": "automatic: as tall as the compact view; the character, icons and text adapt to the height"
 }

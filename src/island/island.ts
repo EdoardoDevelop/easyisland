@@ -507,6 +507,13 @@ export class Island {
           this.setMode("hidden");
           break;
         case "petit":
+          // With the fixed bar there is no compact view to go back to: closing
+          // goes straight to hidden, or a small character showed for a moment.
+          if (from === "home" && barEdge(State.settings) && !this.fsm.held()) {
+            this.setMode("hidden");
+            queueMicrotask(() => this.fsm.forceHidden());
+            break;
+          }
           if (from === "greeting") this.greeting.interrupt();
           else if (from === "hidden" && !this.quietLaunch) Sound.play("peek");
           this.quietLaunch = false;
@@ -579,6 +586,9 @@ export class Island {
       // nothing while hidden.
       UploadSeq.deactivate();
     }
+    // With the fixed bar the closing island fades as it shrinks: nothing is
+    // left of it once it is shut (the bar holds the character).
+    this.islandEl.classList.toggle("bar-away", mode === "hidden" && barEdge(State.settings) != null);
     this.applyBare();
     this.updateWindowCollapsed();
     this.animateGeometry(modeOrder(mode) < modeOrder(prev));
@@ -3631,7 +3641,7 @@ ${note}` : text };
     // full-screen app.
     const p = this.placement;
     const showRest = State.mode === "hidden" && p.iconStyle !== "none" &&
-      !State.quiet;
+      !State.quiet && !barEdge(State.settings);
     this.restIcon.classList.toggle("on", showRest);
     if (showRest) this.drawRestIcon();
     // The resting character is drawn by its own window, laid over the rest icon

@@ -1141,6 +1141,7 @@ h3.int-sub {
 .p-star { fill: #facc15; }
 .p-edge { stroke: #f472b6; stroke-width: 1.4; stroke-dasharray: 3 2; }
 .p-accent { fill: var(--accent, #4cc2ff); }
+.p-mark { fill: none; stroke: var(--accent, #4cc2ff); stroke-width: 0.8; }
 .p-label { font: 600 9px var(--font); fill: #ffffff; fill-opacity: 0.85; }
 .p-spot {
   fill: rgba(255, 255, 255, 0.08);
@@ -1161,6 +1162,7 @@ h3.int-sub {
 .a-wander { animation-name: pic-wander; }
 .a-sweep { animation-name: pic-sweep; animation-timing-function: ease-in-out; }
 .a-fade { animation-name: pic-fade; }
+.a-fade-out { animation-name: pic-fade-out; }
 .a-pulse { animation-name: pic-pulse; animation-duration: 1.6s; }
 .a-swap-a, .a-hold-a { animation-name: pic-first; }
 .a-swap-b, .a-hold-b { animation-name: pic-second; transform-origin: top; }
@@ -1197,6 +1199,7 @@ h3.int-sub {
   76%, 100% { transform: translate(0, 0); }
 }
 @keyframes pic-fade { 0%, 8% { opacity: 0; } 18%, 82% { opacity: 1; } 92%, 100% { opacity: 0; } }
+@keyframes pic-fade-out { 0%, 8% { opacity: 1; } 18%, 82% { opacity: 0; } 92%, 100% { opacity: 1; } }
 @keyframes pic-pulse { 0%, 100% { opacity: 0.45; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1.15); } }
 @keyframes pic-first { 0%, 42% { opacity: 1; transform: scale(1); } 48%, 92% { opacity: 0; transform: scale(0.6); } 100% { opacity: 1; transform: scale(1); } }
 @keyframes pic-second { 0%, 42% { opacity: 0; transform: scale(0.6); } 50%, 90% { opacity: 1; transform: scale(1); } 96%, 100% { opacity: 0; transform: scale(0.6); } }

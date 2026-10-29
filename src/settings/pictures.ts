@@ -10,7 +10,7 @@
 // The SVG is built as a string: every value put in it is a number, one of a
 // fixed set of words, or a colour checked against #rrggbb.
 
-import type { Settings } from "../core/state";
+import { barThickness, type Settings } from "../core/state";
 import { characters } from "../character/character";
 import { BotEngine, hexToRGB } from "../character/engine";
 import { setCharacter } from "../character/character";
@@ -39,6 +39,10 @@ interface Paint {
   ink: string;
   body: string;
   windows: boolean;
+  /** Jarvis: a sphere of dots rather than a body with eyes. */
+  dots: boolean;
+  /** Jarvis's own colours from the middle out (purple, magenta, orange), unless the user chose one. */
+  rings: [string, string, string] | null;
 }
 
 function paint(s: Settings): Paint {
@@ -52,6 +56,8 @@ function paint(s: Settings): Paint {
     ink: luma(island) > 150 ? "#16181d" : "#f5f6f8",
     body: HEX.test(th.slimeColor ?? "") ? th.slimeColor : own,
     windows: uiStyle(th.style) === "windows",
+    dots: (c?.id ?? "").startsWith("jarvis"),
+    rings: HEX.test(th.slimeColor ?? "") ? null : ["#7C3AED", "#C026D3", "#F97316"],
   };
 }
 
@@ -78,8 +84,24 @@ function island(p: Paint, x: number, y: number, w: number, h: number, r: number,
   return `<rect x="${n1(x)}" y="${n1(y)}" width="${n1(w)}" height="${n1(h)}" rx="${n1(r)}" fill="${p.island}" fill-opacity="${p.alpha}" ${extra}/>`;
 }
 
-/** The character: its body colour with two eyes. `eyes` can carry an animation class. */
+/**
+ * The character. Jarvis is a sphere of dots with a glow, as in the island; the
+ * others a body in their colour with two eyes. `eyes` can carry an animation class.
+ */
 function chr(p: Paint, cx: number, cy: number, r: number, cls = "", eyes = ""): string {
+  if (p.dots) {
+    let dots = "";
+    // A fixed scatter: rings of dots, denser towards the middle.
+    for (const [ring, k, n] of [[0, 0.3, 5], [1, 0.58, 9], [2, 0.85, 13]] as const) {
+      const fill = p.rings ? p.rings[ring] : p.body;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + k * 3;
+        dots += `<circle cx="${n1(cx + Math.cos(a) * r * k)}" cy="${n1(cy + Math.sin(a) * r * k)}" r="${n1(Math.max(0.35, r * 0.07))}" fill="${fill}"/>`;
+      }
+    }
+    return `<g class="${cls}"><circle cx="${n1(cx)}" cy="${n1(cy)}" r="${n1(r * 1.15)}" fill="${p.rings ? p.rings[0] : p.body}" fill-opacity="0.22"/>` +
+      `<g class="${eyes}">${dots}</g></g>`;
+  }
   const ex = r * 0.36;
   const ey = cy - r * 0.08;
   return `<g class="${cls}"><circle cx="${n1(cx)}" cy="${n1(cy)}" r="${n1(r)}" fill="${p.body}"/>` +
@@ -87,15 +109,36 @@ function chr(p: Paint, cx: number, cy: number, r: number, cls = "", eyes = ""): 
     `<ellipse cx="${n1(cx + ex)}" cy="${n1(ey)}" rx="${n1(r * 0.13)}" ry="${n1(r * 0.22)}" fill="#111"/></g></g>`;
 }
 
-/** The closed island, close up (1.6×) with its centre at x, y. */
-function bigCompact(p: Paint, s: Settings, x: number, y: number): string {
-  return `<g transform="translate(${x} ${y}) scale(1.6) translate(-80 -9)">${compact(p, 80, 9, s)}</g>`;
+/**
+ * The closed island's shape centred at cx, cy: at the top with «Aggancia ai
+ * bordi» it hangs from the edge (square top corners, round bottom), as in the
+ * app; elsewhere a pill.
+ */
+function notch(p: Paint, s: Settings, cx: number, cy: number, w: number, h: number): string {
+  if (!(s.theme.compactBackground ?? true)) return "";
+  const hang = s.glueEdges && cy - h / 2 < 6;
+  return hang
+    ? island(p, cx - w / 2, cy - h / 2 - 12, w, h + 12, h / 2)
+    : island(p, cx - w / 2, cy - h / 2, w, h, h / 2);
 }
 
-/** The closed island: the character on its pill (or alone, without the background). */
-function compact(p: Paint, cx: number, cy: number, s: Settings, cls = "", bg = true): string {
-  const back = bg && (s.theme.compactBackground ?? true);
-  return `<g class="${cls}">${back ? island(p, cx - 13, cy - 7, 26, 14, 7) : ""}${chr(p, cx, cy, 5)}</g>`;
+/** The closed island at rest: the character on its notch (or alone, without the background). */
+function compact(p: Paint, cx: number, cy: number, s: Settings, cls = ""): string {
+  return `<g class="${cls}">${notch(p, s, cx, cy, 22, 14)}${chr(p, cx, cy, 5)}</g>`;
+}
+
+/**
+ * The compact view at the top centre (the mouse over the character): the
+ * character bigger, or the bar with the integrations as small characters.
+ */
+function compactView(p: Paint, s: Settings, cls = ""): string {
+  if (s.hoverStyle === "bar") {
+    const minis = ["#A78BFA", "#38BDF8", "#F472B6", "#F5A524"]
+      .map((c, i) => chr({ ...p, body: c, rings: null }, 98 + (i % 2) * 9, 7 + Math.floor(i / 2) * 8, 3.4)).join("");
+    return `<g class="${cls}">${notch(p, s, 80, 11, 76, 20)}${chr(p, 52, 11, 6.5)}${minis}</g>`;
+  }
+  const r = 4 + (clamp(s.hoverSize, 28, 64) - 28) * 0.18;
+  return `<g class="${cls}">${notch(p, s, 80, r + 5, r * 3.2, r * 2 + 6)}${chr(p, 80, r + 5, r)}</g>`;
 }
 
 function cursor(x: number, y: number, cls = ""): string {
@@ -103,36 +146,122 @@ function cursor(x: number, y: number, cls = ""): string {
 }
 
 /** Lines of text in the island's ink. */
-function lines(p: Paint, x: number, y: number, widths: number[], gap = 5): string {
+function lines(p: Paint, x: number, y: number, widths: number[], gap = 5, h = 2.4): string {
   return widths.map((w, i) =>
-    `<rect x="${n1(x)}" y="${n1(y + i * gap)}" width="${n1(w)}" height="2.4" rx="1.2" fill="${p.ink}" fill-opacity="0.45"/>`).join("");
+    `<rect x="${n1(x)}" y="${n1(y + i * gap)}" width="${n1(w)}" height="${h}" rx="${h / 2}" fill="${p.ink}" fill-opacity="0.45"/>`).join("");
 }
 
 function button(x: number, y: number, w: number, fill: string, h = 6): string {
   return `<rect x="${n1(x)}" y="${n1(y)}" width="${n1(w)}" height="${h}" rx="${h / 2}" fill="${fill}"/>`;
 }
 
-/** The open island: menu on the left (character on top), a card and some text. */
-function panel(p: Paint, s: Settings, x: number, y: number, w: number, h: number, cls = "", menuR = 0): string {
-  const r = p.windows ? 5 : 10;
-  const m = Math.min(18, w * 0.22);
-  const cr = menuR || ({ large: 4.5, medium: 3.5, small: 2.6 } as const)[s.menuCharacter ?? "large"] || 4.5;
-  let icons = "";
-  const colors = ["#F472B6", "#F5A524", "#22D3EE", "#22C55E"];
-  for (let i = 0; i < 4; i++) {
-    const iy = y + 8 + cr * 2 + 4 + i * 7;
-    if (iy + 4 > y + h - 3) break;
-    icons += p.windows
-      ? `<rect x="${n1(x + m / 2 - 2)}" y="${n1(iy)}" width="4" height="4" rx="1" fill="none" stroke="${p.ink}" stroke-opacity="0.7" stroke-width="0.8"/>`
-      : `<circle cx="${n1(x + m / 2)}" cy="${n1(iy + 2)}" r="2.2" fill="${colors[i]}"/>`;
+/** An accent frame around a part of a picture: the part the setting changes. */
+function mark(x: number, y: number, w: number, h: number, r = 2): string {
+  return `<rect class="p-mark a-pulse" x="${n1(x - 1.2)}" y="${n1(y - 1.2)}" width="${n1(w + 2.4)}" height="${n1(h + 2.4)}" rx="${n1(r + 1)}"/>`;
+}
+
+type PanelPart = "" | "bubble" | "search" | "close" | "menu";
+
+/**
+ * The open island as the app draws it: along the top the character's bubble
+ * («Tutto tranquillo»), the search field and the buttons ending with ✕; on the
+ * left the menu with the character on top; on the right the cards. `hi` frames
+ * the part a setting is about.
+ */
+function panel(p: Paint, s: Settings, x: number, y: number, w: number, h: number, cls = "", hi: PanelPart = "", card = ""): string {
+  const r = p.windows ? 5 : 9;
+  const hh = Math.max(8, h * 0.14);
+  let out = island(p, x, y, w, h, r);
+  let marks = "";
+  // Header.
+  if (s.characterBubble !== false) {
+    const bw = w * 0.34;
+    out += `<rect x="${n1(x + 3)}" y="${n1(y + 2.5)}" width="${n1(bw)}" height="${n1(hh - 3)}" rx="1.8" fill="${p.ink}" fill-opacity="0.05" stroke="${p.ink}" stroke-opacity="0.18" stroke-width="0.4"/>` +
+      lines(p, x + 5, y + 3.6 + (hh - 3) * 0.12, [bw * 0.45, bw * 0.6], (hh - 3) * 0.38, 1.3);
+    if (hi === "bubble") marks += mark(x + 3, y + 2.5, bw, hh - 3);
   }
-  const cx = x + m + 4;
-  const cw = w - m - 8;
-  return `<g class="${cls}">${island(p, x, y, w, h, r)}${chr(p, x + m / 2, y + 4 + cr, cr)}${icons}` +
-    `<rect x="${n1(cx)}" y="${n1(y + 6)}" width="${n1(cw)}" height="${n1(Math.min(16, h * 0.32))}" rx="3" fill="${p.ink}" fill-opacity="0.08"/>` +
-    lines(p, cx + 3, y + 10, [cw * 0.5, cw * 0.35]) +
-    (h > 34 ? lines(p, cx, y + 6 + Math.min(16, h * 0.32) + 6, [cw * 0.8, cw * 0.6, cw * 0.7].slice(0, Math.max(1, Math.floor((h - 30) / 6)))) : "") +
-    `</g>`;
+  if (s.searchBar !== false) {
+    const sx = x + w * 0.4;
+    const sw = w * 0.3;
+    out += `<rect x="${n1(sx)}" y="${n1(y + 3)}" width="${n1(sw)}" height="${n1(hh - 4)}" rx="1.5" fill="none" stroke="${p.ink}" stroke-opacity="0.3" stroke-width="0.45"/>` +
+      `<circle cx="${n1(sx + 3)}" cy="${n1(y + 1 + hh / 2)}" r="1" fill="none" stroke="${p.ink}" stroke-opacity="0.7" stroke-width="0.4"/>` +
+      lines(p, sx + 5.5, y + hh / 2 + 0.3, [sw * 0.45], 0, 1.2);
+    if (hi === "search") marks += mark(sx, y + 3, sw, hh - 4);
+  }
+  const icons = s.closeButton ? 4 : 3;
+  for (let i = 0; i < icons; i++) {
+    const ix = x + w - 5 - i * 6;
+    const iy = y + 1 + hh / 2;
+    out += i === 0 && s.closeButton
+      ? `<path d="M${n1(ix - 1.2)} ${n1(iy - 1.2)} L${n1(ix + 1.2)} ${n1(iy + 1.2)} M${n1(ix + 1.2)} ${n1(iy - 1.2)} L${n1(ix - 1.2)} ${n1(iy + 1.2)}" stroke="${p.ink}" stroke-opacity="0.8" stroke-width="0.5" stroke-linecap="round"/>`
+      : `<circle cx="${n1(ix)}" cy="${n1(iy)}" r="1" fill="${p.ink}" fill-opacity="0.6"/>`;
+  }
+  if (hi === "close" && s.closeButton) marks += mark(x + w - 8, y + 1 + hh / 2 - 3, 6, 6, 3);
+  // Menu.
+  const rw = w * 0.26;
+  const top = y + hh + 1;
+  const cr = rw * (({ large: 0.24, medium: 0.17, small: 0.11 } as const)[s.menuCharacter ?? "large"] ?? 0.24);
+  out += chr(p, x + 3 + rw / 2, top + 2 + cr * 1.1, cr);
+  if (hi === "menu") marks += mark(x + 3 + rw / 2 - cr * 1.3, top + 2 + cr * 1.1 - cr * 1.3, cr * 2.6, cr * 2.6, cr);
+  const colors = ["#94A3B8", "#A78BFA", "#22D3EE", "#F5A524", "#22C55E"];
+  const step = Math.max(4.2, h * 0.075);
+  for (let i = 0; i < 5; i++) {
+    const iy = top + 4 + cr * 2.4 + i * step;
+    if (iy + 3 > y + h - 2) break;
+    if (i === 0) {
+      out += `<rect x="${n1(x + 3)}" y="${n1(iy - 1)}" width="${n1(rw)}" height="${n1(step - 0.6)}" rx="1.2" fill="${p.ink}" fill-opacity="0.08"/>` +
+        `<rect x="${n1(x + 3)}" y="${n1(iy)}" width="0.8" height="${n1(step - 2.6)}" rx="0.4" class="p-accent"/>`;
+    }
+    out += p.windows
+      ? `<rect x="${n1(x + 6)}" y="${n1(iy)}" width="2.4" height="2.4" rx="0.5" fill="none" stroke="${p.ink}" stroke-opacity="0.7" stroke-width="0.4"/>`
+      : `<circle cx="${n1(x + 7.2)}" cy="${n1(iy + 1.2)}" r="1.3" fill="${colors[i]}"/>`;
+    out += lines(p, x + 10.5, iy + 0.6, [rw * 0.45], 0, 1.2);
+  }
+  // Content: a title and the cards.
+  const cx = x + rw + 6;
+  const cw = w - rw - 9;
+  const ch = h - hh - 4;
+  out += `<rect x="${n1(cx)}" y="${n1(top)}" width="${n1(cw)}" height="${n1(ch)}" rx="${p.windows ? 2.5 : 5}" fill="${p.ink}" fill-opacity="0.03" stroke="${p.ink}" stroke-opacity="0.1" stroke-width="0.4"/>`;
+  if (card) {
+    out += card;
+  } else {
+    out += lines(p, cx + 4, top + ch * 0.22, [cw * 0.3], 0, 1.8);
+    const gw = (cw - 10) / 3;
+    const gh = Math.min(10, (ch * 0.6 - 4) / 2);
+    for (let i = 0; i < 5; i++) {
+      const gx = cx + 4 + (i % 3) * (gw + 1);
+      const gy = top + ch * 0.32 + Math.floor(i / 3) * (gh + 1.5);
+      out += `<rect x="${n1(gx)}" y="${n1(gy)}" width="${n1(gw)}" height="${n1(gh)}" rx="1.2" fill="${p.ink}" fill-opacity="0.05" stroke="${p.ink}" stroke-opacity="0.14" stroke-width="0.35"/>` +
+        lines(p, gx + 1.5, gy + gh * 0.28, [gw * 0.45, gw * 0.65], gh * 0.3, 1);
+    }
+  }
+  return `<g class="${cls}">${out}${marks}</g>`;
+}
+
+/** A permission in the open island's content: who asks, the command, Nega and Consenti. */
+function approvalCard(p: Paint, x: number, y: number, w: number): string {
+  return `<rect x="${n1(x)}" y="${n1(y)}" width="${n1(w)}" height="14" rx="2" fill="#F5A524" fill-opacity="0.14"/>` +
+    `<rect x="${n1(x + 3)}" y="${n1(y + 3)}" width="${n1(w * 0.35)}" height="1.8" rx="0.9" fill="${p.ink}" fill-opacity="0.8"/>` +
+    `<rect x="${n1(x + 3)}" y="${n1(y + 7)}" width="${n1(w * 0.28)}" height="1.6" rx="0.8" fill="#F5A524"/>` +
+    button(x + w - 25, y + 4, 11, `${p.ink}`, 6).replace("/>", ` fill-opacity="0.15"/>`) +
+    `<rect x="${n1(x + w - 13)}" y="${n1(y + 4)}" width="11" height="6" rx="3" class="p-accent"/>`;
+}
+
+/**
+ * The strip in the compact island, as the app draws it: the character, who
+ * asks (amber), the command, Nega and Consenti. `left`: the strip on the
+ * character's left.
+ */
+function stripNotch(p: Paint, s: Settings, left: boolean): string {
+  const w = 104;
+  const x0 = 80 - w / 2;
+  const charX = left ? x0 + w - 10 : x0 + 10;
+  const tx = left ? x0 + 6 : x0 + 20;
+  return notch(p, s, 80, 11, w, 20) + chr(p, charX, 11, 6) +
+    `<rect x="${n1(tx)}" y="6.5" width="30" height="2.4" rx="1.2" fill="${p.ink}" fill-opacity="0.85"/>` +
+    `<rect x="${n1(tx)}" y="12" width="24" height="2.2" rx="1.1" fill="#F5A524"/>` +
+    `<rect x="${n1(tx + 36)}" y="7" width="15" height="8" rx="2" fill="${p.ink}" fill-opacity="0.14"/>` +
+    `<rect x="${n1(tx + 53)}" y="7" width="17" height="8" rx="2" class="p-accent"/>`;
 }
 
 /** Where the character sits on the miniature screen (Posizione). */
@@ -205,7 +334,7 @@ export function picture(kind: PicKind, s: Settings): string {
         panel(p, s, 20, 10, 120, 64) +
         (p.windows ? `<rect x="58" y="70" width="18" height="1.6" rx="0.8" class="p-accent"/>` : ""));
     case "compactBg":
-      return svg(screen() + `<g transform="translate(80 18) scale(2.2) translate(-80 -9)">${top()}</g>`);
+      return svg(screen() + `<g transform="translate(80 12) scale(2.2) translate(-80 -9)">${top()}</g>`);
     case "greeting": {
       const at = spot(s);
       if (s.greeting === false) return svg(screen() + taskbar() + compact(p, at.x, at.y, s));
@@ -217,16 +346,14 @@ export function picture(kind: PicKind, s: Settings): string {
     }
     case "follow": {
       const follow = s.followCursorCompact;
-      return svg(screen() + island(p, 50, 4, 60, 30, 15) + chr(p, 80, 19, 11, "", follow ? "a-look" : "a-wander") +
-        cursor(30, 66, follow ? "a-sweep" : "a-sweep"));
+      return svg(screen() + notch(p, s, 80, 14, 50, 28) + chr(p, 80, 14, 10, "", follow ? "a-look" : "a-wander") +
+        cursor(30, 66, "a-sweep"));
     }
     case "bubble":
-      return svg(screen() + bigCompact(p, s, 46, 22) +
-        (s.characterBubble !== false
-          ? `<g class="a-fade">${island(p, 74, 4, 70, 16, 8)}<path d="M80 18 L70 22 L84 19 Z" fill="${p.island}" fill-opacity="${p.alpha}"/>${lines(p, 81, 8.5, [52, 34], 4.5)}</g>`
-          : ""));
+      // The bubble is the box at the top left of the open island («Tutto tranquillo»).
+      return svg(screen() + panel(p, s, 8, 8, 144, 84, "", "bubble"));
     case "menuChar":
-      return svg(screen() + panel(p, s, 14, 8, 132, 76, "", ({ large: 9, medium: 6.5, small: 4.5 } as const)[s.menuCharacter ?? "large"] ?? 9));
+      return svg(screen() + panel(p, s, 8, 8, 144, 84, "", "menu"));
     case "screen": {
       const cursorScreen = s.screen === "cursor";
       const second = s.screen.startsWith("monitor:");
@@ -287,73 +414,61 @@ export function picture(kind: PicKind, s: Settings): string {
       const wall = kind === "barBg"
         ? `<rect width="160" height="100" rx="7" fill="#0EA5E9"/><path d="M0 60 Q40 30 80 55 T160 45 V93 a7 7 0 0 1 -7 7 H7 a7 7 0 0 1 -7 -7 Z" fill="#22C55E"/><circle cx="128" cy="70" r="16" fill="#FACC15"/>`
         : `<rect class="p-scr" width="160" height="100" rx="7"/>`;
-      return svg(wall + `<rect x="0" y="39" width="160" height="20" ${f.attrs}/>` +
-        barItems(s, 39, 20, f.ink, 1.1) + chr(p, barCharX(s, 1.1, 20), 49, 7));
+      // The band against a 1920 px wide screen, its height as set.
+      const bh = clamp(barThickness(s) * 0.45, 11, 44);
+      const by = 49 - bh / 2;
+      const k = bh / 18;
+      return svg(wall + `<rect x="0" y="${n1(by)}" width="160" height="${n1(bh)}" ${f.attrs}/>` +
+        barItems(s, by, bh, f.ink, k) + chr(p, barCharX(s, k, bh), 49, bh * 0.38));
     }
     case "rest": {
       const size = clamp(s.iconSize, 16, 48);
       const r = 3 + (size - 16) * 0.22;
       const style = s.iconStyle;
       const body = style === "none"
-        ? `<rect x="64" y="0" width="32" height="2.4" rx="1.2" fill="${p.body}"/>`
+        ? `<rect class="a-pulse" x="64" y="0" width="32" height="2.4" rx="1.2" fill="${p.ink}" fill-opacity="0.5"/>`
         : style === "dot"
-          ? `<circle cx="80" cy="${n1(r + 5)}" r="${n1(r * 0.6)}" fill="#22C55E"/>`
-          : ((s.theme.compactBackground ?? true) ? island(p, 80 - r * 1.6, 2, r * 3.2, r * 2 + 6, r + 3) : "") + chr(p, 80, r + 5, r);
+          ? notch(p, s, 80, r + 3, r * 2.6, r * 2 + 4) + `<circle cx="80" cy="${n1(r + 3)}" r="${n1(r * 0.6)}" fill="#22C55E"/>`
+          : notch(p, s, 80, r + 4, r * 3, r * 2 + 6) + chr(p, 80, r + 4, r);
       return svg(screen() + taskbar() + body);
     }
-    case "hover": {
-      const bar = s.hoverStyle === "bar";
-      const big = clamp(s.hoverSize, 28, 64);
-      const r = 4 + (big - 28) * 0.18;
-      const grown = bar
-        ? island(p, 46, 3, 68, 16, 8) + chr(p, 55, 11, 5) +
-          `<circle cx="72" cy="11" r="3" fill="#38BDF8"/><circle cx="84" cy="11" r="3" fill="#F5A524"/><circle cx="96" cy="11" r="3" fill="#22C55E"/><circle cx="106" cy="11" r="3" fill="#F472B6"/>`
-        : island(p, 80 - r * 1.7, 2, r * 3.4, r * 2 + 6, r + 3) + chr(p, 80, r + 5, r);
-      return svg(screen() + `<g class="a-swap-a">${top()}</g><g class="a-swap-b">${grown}</g>` + cursor(40, 70, "a-approach"));
-    }
-    case "always": {
-      const view = island(p, 46, 3, 68, 16, 8) + chr(p, 55, 11, 5) + lines(p, 64, 8.5, [40, 26]);
-      if (s.revealDuration <= 0) return svg(screen() + view);
-      return svg(screen() + `<g class="a-hold-a">${view}</g><g class="a-hold-b">${top()}</g>`);
-    }
+    case "hover":
+      return svg(screen() + `<g class="a-swap-a">${top()}</g>${compactView(p, s, "a-swap-b")}` + cursor(40, 70, "a-approach"));
+    case "always":
+      if (s.revealDuration <= 0) return svg(screen() + compactView(p, s));
+      return svg(screen() + `${compactView(p, s, "a-hold-a")}<g class="a-hold-b">${top()}</g>`);
     case "strip": {
       const where = s.compactStrip ?? "right";
       if (where === "off") {
-        return svg(screen() + panel(p, s, 30, 6, 100, 50) +
-          `<rect x="52" y="40" width="72" height="12" rx="3" fill="#F5A524" fill-opacity="0.18"/>` + button(92, 43, 14, "#F4505E") + button(108, 43, 14, "#22C55E"));
+        return svg(screen() + panel(p, s, 8, 8, 144, 84, "", "", approvalCard(p, 52, 36, 92)));
       }
-      const left = where === "left";
-      const x = left ? 64 : 50;
-      return svg(screen() + bigCompact(p, s, left ? 134 : 26, 14) +
-        island(p, x, 6, 46, 16, 8) +
-        `<rect x="${x + 5}" y="10" width="16" height="2.4" rx="1.2" fill="#F5A524"/>` + lines(p, x + 5, 15, [12]) +
-        button(x + 24, 11, 9, "#F4505E") + button(x + 34, 11, 9, "#22C55E"));
+      return svg(screen() + `<g class="a-fade">${stripNotch(p, s, where === "left")}</g><g class="a-fade-out">${top()}</g>`);
     }
     case "appBar": {
-      if (s.appBar === false) return svg(screen() + bigCompact(p, s, 26, 14));
+      if (s.appBar === false) return svg(screen() + top());
       const look = s.appBarLook ?? "both";
-      const max = clamp(s.appBarMax || 6, 1, 12);
-      const n = Math.min(max, 4);
+      const n = Math.min(clamp(s.appBarMax || 6, 1, 12), 4);
       const bw = look === "icon" ? 8 : look === "text" ? 13 : 17;
       const nameW = s.appBarName !== false ? 16 : 0;
-      const w = 6 + nameW + n * (bw + 3);
+      const w = 22 + nameW + n * (bw + 2.5);
+      const x0 = 80 - w / 2;
       let btns = "";
       const colors = ["#38BDF8", "#F472B6", "#FACC15", "#22C55E"];
       for (let i = 0; i < n; i++) {
-        const bx = 54 + nameW + i * (bw + 3);
-        btns += `<rect x="${bx}" y="9.5" width="${bw}" height="9" rx="2.5" fill="${p.ink}" fill-opacity="0.12"/>`;
-        if (look !== "text") btns += `<rect x="${bx + 2}" y="12" width="4" height="4" rx="1" fill="${colors[i]}"/>`;
-        if (look !== "icon") btns += `<rect x="${bx + (look === "text" ? 2 : 7.5)}" y="13" width="${look === "text" ? 9 : 7.5}" height="2" rx="1" fill="${p.ink}" fill-opacity="0.55"/>`;
+        const bx = x0 + 18 + nameW + i * (bw + 2.5);
+        btns += `<rect x="${n1(bx)}" y="7" width="${bw}" height="8" rx="2" fill="${p.ink}" fill-opacity="0.12"/>`;
+        if (look !== "text") btns += `<rect x="${n1(bx + 2)}" y="9" width="4" height="4" rx="1" fill="${colors[i]}"/>`;
+        if (look !== "icon") btns += `<rect x="${n1(bx + (look === "text" ? 2 : 7.5))}" y="10" width="${look === "text" ? 9 : 7.5}" height="1.8" rx="0.9" fill="${p.ink}" fill-opacity="0.55"/>`;
       }
-      return svg(screen() + bigCompact(p, s, 26, 14) +
-        island(p, 50, 6, w, 16, 8) + (nameW ? lines(p, 55, 12.8, [12]) : "") + btns);
+      return svg(screen() + notch(p, s, 80, 11, w, 20) + chr(p, x0 + 10, 11, 6) +
+        (nameW ? lines(p, x0 + 19, 10, [12], 0, 1.8) : "") + btns);
     }
     case "alerts":
       if (s.alertsOpen !== false) {
-        return svg(screen() + `<g class="a-hold-a">${top()}</g><g class="a-hold-b">${panel(p, s, 30, 4, 100, 52)}` +
-          `<rect x="52" y="38" width="72" height="13" rx="3" fill="#F5A524" fill-opacity="0.2"/>` + button(92, 41.5, 14, "#F4505E") + button(108, 41.5, 14, "#22C55E") + `</g>`);
+        return svg(screen() + `<g class="a-hold-a">${top()}</g>` +
+          panel(p, s, 8, 8, 144, 84, "a-hold-b", "", approvalCard(p, 52, 36, 92)));
       }
-      return svg(screen() + `<g transform="translate(80 18) scale(2) translate(-80 -9)">${top()}<circle class="a-pulse" cx="89" cy="4" r="2.4" fill="#F5A524"/></g>`);
+      return svg(screen() + `<g transform="translate(80 12) scale(2) translate(-80 -9)">${top()}<circle class="a-pulse" cx="76" cy="5" r="1.8" fill="#F5A524"/></g>`);
     case "place": {
       const at = spot(s);
       const w = 70;
@@ -391,23 +506,15 @@ export function picture(kind: PicKind, s: Settings): string {
         `<text class="p-label" x="152" y="92" text-anchor="end">${sec} s</text>`);
     }
     case "closeBtn":
-      return svg(screen() + panel(p, s, 20, 8, 120, 70) +
-        (s.closeButton ? `<circle cx="132" cy="15" r="4.2" fill="${p.ink}" fill-opacity="0.15" class="a-pulse"/><path d="M130.3 13.3 L133.7 16.7 M133.7 13.3 L130.3 16.7" stroke="${p.ink}" stroke-width="0.9" stroke-linecap="round"/>` : ""));
+      return svg(screen() + panel(p, s, 8, 8, 144, 84, "", "close"));
     case "size": {
       // The open island against a 1920×1080 screen.
       const w = clamp(((s.islandWidth ?? 640) + 90) / 1920 * 160, 40, 152);
       const h = clamp(Math.max(s.islandHeight ?? 0, 360) / 1080 * 100, 26, 86);
       return svg(screen() + taskbar() + panel(p, s, 80 - w / 2, 3, w, h));
     }
-    case "search": {
-      const on = s.searchBar !== false;
-      const x = 20;
-      const y = 8;
-      const field = on
-        ? `<rect x="${x + 26}" y="${y + 4}" width="70" height="8" rx="4" fill="${p.ink}" fill-opacity="0.12"/><circle cx="${x + 31}" cy="${y + 8}" r="2" fill="none" stroke="${p.ink}" stroke-opacity="0.7" stroke-width="0.7"/><rect x="${x + 36}" y="${y + 7.2}" width="22" height="1.6" rx="0.8" fill="${p.ink}" fill-opacity="0.4"/>`
-        : "";
-      return svg(screen() + panel(p, s, x, y + (on ? 10 : 0), 120, on ? 60 : 70) + (on ? island(p, x, y, 120, 16, p.windows ? 5 : 8) + field : ""));
-    }
+    case "search":
+      return svg(screen() + panel(p, s, 8, 8, 144, 84, "", "search"));
     case "app": {
       const on = s.islandApp ?? false;
       let icons = "";

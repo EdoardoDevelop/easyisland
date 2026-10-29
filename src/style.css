@@ -5966,3 +5966,6 @@ a.col-src:hover { color: #67e8f9; text-decoration: underline; }
 .col-ask:disabled { opacity: 0.4; }
 html[data-ui="windows"] .col-ask { border-radius: 4px; background: var(--accent); color: var(--on-accent); }
 html[data-ui="windows"] .col-meta input, html[data-ui="windows"] .col-item { border-radius: 4px; }
+
+/* Fixed bar: the island fades as it shrinks on closing (island.ts → setMode). */
+#island.bar-away { opacity: 0; transition: opacity 0.3s ease; }

@@ -617,6 +617,9 @@ pub struct Settings {
     /// The fixed bar's background: "" the island's, "transparent", or "#rrggbb".
     #[serde(default)]
     pub fixed_bar_background: String,
+    /// The fixed bar's height, logical px; 0 = from the compact view (bar_thickness).
+    #[serde(default)]
+    pub fixed_bar_height: f64,
     /// Width of the open island, logical px (the front end clamps it to the window).
     #[serde(default = "default_island_width")]
     pub island_width: f64,
@@ -987,6 +990,7 @@ impl Default for Settings {
             fixed_bar_slot: default_fixed_bar_slot(),
             fixed_bar_items: Vec::new(),
             fixed_bar_background: String::new(),
+            fixed_bar_height: 0.0,
             island_width: default_island_width(),
             island_height: 0.0,
             island_place: default_island_place(),
@@ -1208,9 +1212,12 @@ impl Settings {
         }
     }
 
-    /// Thickness of the fixed bar, logical px: the compact view's height
-    /// (layout.ts compactSize), and the strip's (STRIP_H) when it is on.
+    /// Thickness of the fixed bar, logical px: the user's height, or the
+    /// compact view's (layout.ts compactSize) and the strip's (STRIP_H) when it is on.
     pub fn bar_thickness(&self) -> f64 {
+        if self.fixed_bar_height > 0.0 {
+            return self.fixed_bar_height.clamp(24.0, 96.0);
+        }
         let compact = if self.hover_style == "bar" { 32.0 } else { self.hover_size };
         let with_strip = if self.compact_strip == "off" { compact } else { compact.max(44.0) };
         with_strip.clamp(24.0, 96.0)
@@ -1446,6 +1453,10 @@ mod tests {
         s.hover_style = "bar".into();
         s.compact_strip = "off".into();
         assert_eq!(s.bar_thickness(), 32.0);
+        s.fixed_bar_height = 60.0;
+        assert_eq!(s.bar_thickness(), 60.0);
+        s.fixed_bar_height = 400.0;
+        assert_eq!(s.bar_thickness(), 96.0);
     }
 
     #[test]

@@ -43,27 +43,28 @@
         0%, 100% { opacity: 0.15; transform: translate(-50%, -50%) scale(0.85); }
         50% { opacity: 0.55; transform: translate(-50%, -50%) scale(1.25); }
       }
-      /* The fixed bar's areas and elements (src/island/bar.ts prepares them). */
+      /* The fixed bar's areas and elements (src/island/bar.ts prepares them).
+         --s grows and shrinks them with the bar's height (main.ts → layBar). */
       .area { position: absolute; top: 0; height: 100%; display: none; align-items: center; gap: 4px; }
       body.bar .area { display: flex; }
       .bar-btn {
-        all: unset; display: flex; align-items: center; min-width: 0; max-width: 240px;
-        padding: 3px 8px; border-radius: 8px; cursor: pointer; white-space: nowrap;
-        font: 12px "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; color: var(--ink, #f5f6f8);
+        all: unset; display: flex; align-items: center; min-width: 0; max-width: calc(240px * var(--s, 1));
+        padding: calc(3px * var(--s, 1)) calc(8px * var(--s, 1)); border-radius: calc(8px * var(--s, 1)); cursor: pointer; white-space: nowrap;
+        font: calc(12px * var(--s, 1)) "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; color: var(--ink, #f5f6f8);
       }
       .bar-btn:hover { background: color-mix(in srgb, var(--ink, #fff) 12%, transparent); }
       .bar-item { display: flex; align-items: center; gap: 6px; min-width: 0; }
       .bar-icon { display: grid; place-items: center; flex: none; }
-      .bar-icon svg, .bar-icon img { width: 15px; height: 15px; }
+      .bar-icon svg, .bar-icon img { width: calc(15px * var(--s, 1)); height: calc(15px * var(--s, 1)); }
       .bar-text { overflow: hidden; text-overflow: ellipsis; }
       .bar-btn.warn .bar-text { color: #F5A524; }
       .bar-btn.error .bar-text { color: #F4505E; }
       /* Transparent bar: over the wallpaper the text needs a shadow to be read. */
       body.see-through .bar-btn { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75), 0 0 6px rgba(0, 0, 0, 0.45); }
-      .bar-more { font-size: 16px; letter-spacing: 1px; padding: 0 10px; }
+      .bar-more { font-size: calc(16px * var(--s, 1)); letter-spacing: 1px; padding: 0 10px; }
       .bar-action { border-left: 2px solid var(--action, transparent); padding-left: 6px; }
       /* The strip in the bar (src/island/bar.ts stripPiece), coloured by what it holds. */
-      .bar-btn:has(.bar-strip) { max-width: 560px; }
+      .bar-btn:has(.bar-strip) { max-width: calc(560px * var(--s, 1)); }
       .bar-strip { display: flex; align-items: center; gap: 6px; min-width: 0; }
       .bar-strip-text { display: flex; align-items: baseline; gap: 6px; min-width: 0; overflow: hidden; }
       .bar-strip-text strong { font-weight: 600; white-space: nowrap; }

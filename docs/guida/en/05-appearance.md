@@ -32,6 +32,7 @@ The page has six tabs at the top: **Theme**, **Character**, **Position**, **Fixe
 ## Fixed bar
 With **Fixed bar** at the top or the bottom, Windows keeps a band free at the edge of the screen, as for the taskbar, and windows stop there.
 - **Character in the bar:** at the start, in the centre or at the end. It cannot be dragged; a click opens the island right below the bar (above it, if the bar is at the bottom) and another closes it. When closed, the island is not there: the bar is.
+- **Bar height:** automatic (as tall as the compact view) or your own; the character, icons and text adapt.
 - **Bar background:** like the island, transparent (the desktop shows) or a colour of your choice; the text turns light or dark by itself.
 - **Items in the bar:** add your integrations, widgets and quick actions. For each, pick the area (start, centre, end) and what it shows (icon and value, icon only, value only); ↑ ↓ change the order, ✕ removes it. A click on an integration opens its card, on an action runs it.
 - **The strip** (permissions, calls, agent at work, app in use) sits in the bar next to the character, with its buttons; adding «Strip» to the items puts it where you want.

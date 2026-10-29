@@ -124,9 +124,10 @@ export function barEdge(s: { fixedBar?: string }): "top" | "bottom" | null {
   return s.fixedBar === "top" || s.fixedBar === "bottom" ? s.fixedBar : null;
 }
 
-/** The fixed bar's thickness, logical px: the compact view's height, and the
- *  strip's when it is on (mirrors Settings::bar_thickness in settings.rs). */
-export function barThickness(s: { hoverStyle: string; hoverSize: number; compactStrip?: string }): number {
+/** The fixed bar's thickness, logical px: the user's height, or the compact view's
+ *  and the strip's when it is on (mirrors Settings::bar_thickness in settings.rs). */
+export function barThickness(s: { hoverStyle: string; hoverSize: number; compactStrip?: string; fixedBarHeight?: number }): number {
+  if ((s.fixedBarHeight ?? 0) > 0) return Math.min(96, Math.max(24, s.fixedBarHeight ?? 0));
   const compact = s.hoverStyle === "bar" ? 32 : s.hoverSize;
   const withStrip = (s.compactStrip ?? "right") === "off" ? compact : Math.max(compact, 44);
   return Math.min(96, Math.max(24, withStrip));
@@ -445,6 +446,8 @@ export interface Settings {
   fixedBarItems?: BarItem[];
   /** The fixed bar's background: "" the island's, "transparent", or "#rrggbb". */
   fixedBarBackground?: string;
+  /** The fixed bar's height, px; 0 = automatic (barThickness). */
+  fixedBarHeight?: number;
   /** Width of the open island, px (dragged with its corner, or Impostazioni → Posizione). */
   islandWidth: number;
   /** Minimum height of the open island, px; 0 = each view's own height. */
@@ -1008,6 +1011,7 @@ export const DEFAULT_SETTINGS: Settings = {
   fixedBarSlot: "center",
   fixedBarItems: [],
   fixedBarBackground: "",
+  fixedBarHeight: 0,
   islandWidth: 640,
   islandHeight: 0,
   islandPlace: "character",
