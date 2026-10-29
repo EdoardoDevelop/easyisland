@@ -2042,6 +2042,7 @@ function slider(
 
 function appearanceSections(): HTMLElement[] {
   const commit = () => void save();
+  paintFixedBar();
   const th = settings.theme;
   const pct = (v: number) => Math.round(v * 100);
   // The colour row follows the character: its own colour is the default (for
@@ -2236,7 +2237,7 @@ function appearanceSections(): HTMLElement[] {
     reveal,
     h("span", { class: "hint note", text: t("secondi dopo un evento o dopo che sposti via il mouse") }),
   );
-  const restRows = h("div", { style: "display:contents" },
+  const restRows = h("div", { class: "free-row", style: "display:contents" },
     h("div", { class: "row" }, h("label", { text: t("Icona a riposo") }), iconStyle),
     iconSize,
     revealRow,
@@ -2335,13 +2336,25 @@ function appearanceSections(): HTMLElement[] {
     h("h2", {}, h("span", { text: t("Posizione") }), profileChip()),
     h("div", { class: "hint", text: t("Dove vive il personaggio. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. In basso sta sopra la barra delle applicazioni. Puoi anche trascinare il personaggio con il mouse: la posizione resta salvata; sceglierne una qui la riporta al bordo.") }),
     h("div", { class: "row" }, h("label", { text: t("Schermo") }), screen),
-    h("div", { class: "row" }, h("label", { text: t("Posizione") }), vertical, horizontal),
     h("div", { class: "row" },
+      h("label", { text: t("Barra fissa") }),
+      select([["", t("Spenta")], ["top", t("In alto")], ["bottom", t("In basso")]], settings.fixedBar ?? "",
+        (v) => { settings.fixedBar = v as Settings["fixedBar"]; paintFixedBar(); commit(); }),
+      h("span", { class: "hint note", text: t("Windows tiene libera una fascia sul bordo, come per la barra delle applicazioni: le finestre si fermano lì") }),
+    ),
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Personaggio nella barra") }),
+      select([["start", t("All'inizio")], ["center", t("Al centro")], ["end", t("Alla fine")]], settings.fixedBarSlot ?? "center",
+        (v) => { settings.fixedBarSlot = v as Settings["fixedBarSlot"]; commit(); }),
+      h("span", { class: "hint note", text: t("con la barra fissa il personaggio sta lì e non si trascina; l'isola si apre sotto la barra (sopra, se è in basso) e da chiusa non c'è") }),
+    ),
+    h("div", { class: "row free-row" }, h("label", { text: t("Posizione") }), vertical, horizontal),
+    h("div", { class: "row free-row" },
       h("label", { text: t("Sopra la barra") }),
       toggle(settings.overTaskbar, (v) => { settings.overTaskbar = v; commit(); }),
       h("span", { class: "hint note", text: t("il personaggio può stare anche sopra la barra delle applicazioni") }),
     ),
-    h("div", { class: "row" },
+    h("div", { class: "row free-row" },
       h("label", { text: t("Aggancia ai bordi") }),
       toggle(settings.glueEdges, (v) => { settings.glueEdges = v; commit(); }),
       h("span", { class: "hint note", text: t("lasciato a pochi pixel da un bordo, lo sfondo si attacca al bordo; altrimenti resta solo intorno all'icona") }),
@@ -2359,7 +2372,7 @@ function appearanceSections(): HTMLElement[] {
     h("div", { class: "hint", text: t("Quando l'isola non è aperta: cosa resta sullo schermo e cosa compare accanto al personaggio.") }),
     h("div", { class: "row" }, h("label", { text: t("Vista compatta") }), hoverStyle),
     hoverSize,
-    h("div", { class: "row" },
+    h("div", { class: "row free-row" },
       h("label", { text: t("Sempre visibile") }),
       always,
       h("span", { class: "hint note", text: t("la vista compatta resta sullo schermo e non torna mai all'icona a riposo") }),
@@ -2402,7 +2415,7 @@ function appearanceSections(): HTMLElement[] {
     {},
     h("h2", {}, h("span", { text: t("Isola aperta") }), profileChip()),
     h("div", { class: "hint", text: t("Quando e dove si apre, quanto è grande e quando si richiude.") }),
-    h("div", { class: "row" },
+    h("div", { class: "row free-row" },
       h("label", { text: t("L'isola si apre") }),
       place,
       h("span", { class: "hint note", text: t("vicino al personaggio, oppure sempre nello stesso punto dello schermo; il personaggio resta dov'è") }),
@@ -2516,6 +2529,11 @@ function languageRow(): HTMLElement {
 }
 
 // ── Profiles ──────────────────────────────────────────────────────────────────
+
+/** «Barra fissa» on: its own rows show, those that no longer apply hide (settings.css). */
+function paintFixedBar() {
+  document.body.classList.toggle("fixed-bar", !!settings.fixedBar);
+}
 
 /** Chip shown on sections whose values belong to the active profile. */
 function profileChip(): HTMLElement {

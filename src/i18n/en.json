@@ -3615,5 +3615,11 @@
   "A grandezza normale, larga quanto l'Anteprima o il dispositivo": "At normal size, as wide as the Preview or the device",
   "Originale": "Original",
   "Un pixel della pagina per ogni pixel dello schermo": "One page pixel for each screen pixel",
-  "La chat chiede il permesso": "The chat asks for permission"
+  "La chat chiede il permesso": "The chat asks for permission",
+  "Barra fissa": "Fixed bar",
+  "Windows tiene libera una fascia sul bordo, come per la barra delle applicazioni: le finestre si fermano lì": "Windows keeps a band free at the edge, as for the taskbar: windows stop there",
+  "Personaggio nella barra": "Character in the bar",
+  "All'inizio": "At the start",
+  "Alla fine": "At the end",
+  "con la barra fissa il personaggio sta lì e non si trascina; l'isola si apre sotto la barra (sopra, se è in basso) e da chiusa non c'è": "with the fixed bar the character stays there and cannot be dragged; the island opens below the bar (above it, if the bar is at the bottom) and is not there when closed"
 }

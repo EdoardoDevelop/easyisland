@@ -191,7 +191,7 @@ fn monitor_contains(m: &Monitor, x: f64, y: f64) -> bool {
 /// The display the island lives on: the primary one, the one under the cursor,
 /// or the one the character was dragged to ("monitor:<name>"; back to the
 /// primary one while that display is unplugged).
-fn target_monitor(app: &AppHandle, pref: &str) -> Option<Monitor> {
+pub(crate) fn target_monitor(app: &AppHandle, pref: &str) -> Option<Monitor> {
     let monitors = app.available_monitors().ok()?;
     if let Some(name) = pref.strip_prefix("monitor:") {
         if let Some(m) = monitors.iter().find(|m| m.name().map(|n| n.as_str()) == Some(name)) {
@@ -336,12 +336,14 @@ fn place_origin(work: (i32, i32, u32, u32), size: (u32, u32), place: &str) -> Op
 /// The window's place when the island is not open: the side it is pinned to,
 /// plus where the user dragged the character, kept on screen whatever the display.
 fn home_origin(work: (i32, i32, u32, u32), size: (u32, u32), settings: &Settings, scale: f64) -> (i32, i32) {
-    let (x, y) = anchored_origin(work, size, &settings.anchor_h, &settings.anchor_v);
+    // With the fixed bar: at the character's slot, against the band (the work area ends there).
+    let (h, v, ox, oy) = settings.home_anchor();
+    let (x, y) = anchored_origin(work, size, h, v);
     clamp_to_work(
         work,
         size,
-        x + (settings.offset_x * scale).round() as i32,
-        y + (settings.offset_y * scale).round() as i32,
+        x + (ox * scale).round() as i32,
+        y + (oy * scale).round() as i32,
     )
 }
 
@@ -515,7 +517,8 @@ pub fn box_in_window(
 /// screen when the user wants it over the taskbar too.
 fn island_area(m: &Monitor, settings: &Settings) -> (i32, i32, u32, u32) {
     // Open as an app it is an ordinary window: it stays off the taskbar, also in full screen.
-    if settings.over_taskbar && !app_mode() {
+    // With the fixed bar the work area (without the band) is the island's.
+    if settings.over_taskbar && !app_mode() && settings.bar_edge().is_none() {
         let (p, s) = (m.position(), m.size());
         (p.x, p.y, s.width, s.height)
     } else {

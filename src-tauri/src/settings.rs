@@ -604,6 +604,12 @@ pub struct Settings {
     /// Place the island over the whole screen, taskbar included.
     #[serde(default)]
     pub over_taskbar: bool,
+    /// «Barra fissa» (appbar.rs): "" off, "top" or "bottom". Of the PC, not of a profile.
+    #[serde(default)]
+    pub fixed_bar: String,
+    /// Where the character sits in the fixed bar: "start", "center" or "end".
+    #[serde(default = "default_fixed_bar_slot")]
+    pub fixed_bar_slot: String,
     /// Width of the open island, logical px (the front end clamps it to the window).
     #[serde(default = "default_island_width")]
     pub island_width: f64,
@@ -875,6 +881,10 @@ fn default_icon_style() -> String {
 fn default_icon_size() -> f64 {
     24.0
 }
+fn default_fixed_bar_slot() -> String {
+    "center".into()
+}
+
 fn default_hover_style() -> String {
     "icon".into()
 }
@@ -966,6 +976,8 @@ impl Default for Settings {
             offset_y: 0.0,
             glue_edges: true,
             over_taskbar: false,
+            fixed_bar: String::new(),
+            fixed_bar_slot: default_fixed_bar_slot(),
             island_width: default_island_width(),
             island_height: 0.0,
             island_place: default_island_place(),
@@ -1162,6 +1174,39 @@ impl Settings {
 }
 
 impl Settings {
+    /// «Barra fissa» on: its edge ("top" / "bottom").
+    pub fn bar_edge(&self) -> Option<&'static str> {
+        match self.fixed_bar.as_str() {
+            "top" => Some("top"),
+            "bottom" => Some("bottom"),
+            _ => None,
+        }
+    }
+
+    /// Where the island lives: under (or over) the fixed bar at the character's
+    /// slot, with no offset; otherwise the anchors and the offset of the last drag.
+    pub fn home_anchor(&self) -> (&str, &str, f64, f64) {
+        match self.bar_edge() {
+            Some(v) => {
+                let h = match self.fixed_bar_slot.as_str() {
+                    "start" => "left",
+                    "end" => "right",
+                    _ => "center",
+                };
+                (h, v, 0.0, 0.0)
+            }
+            None => (&self.anchor_h, &self.anchor_v, self.offset_x, self.offset_y),
+        }
+    }
+
+    /// Thickness of the fixed bar, logical px: the compact view's height
+    /// (layout.ts compactSize), and the strip's (STRIP_H) when it is on.
+    pub fn bar_thickness(&self) -> f64 {
+        let compact = if self.hover_style == "bar" { 32.0 } else { self.hover_size };
+        let with_strip = if self.compact_strip == "off" { compact } else { compact.max(44.0) };
+        with_strip.clamp(24.0, 96.0)
+    }
+
     /// The first converted widget of each kind gives the integration its options.
     fn adopt_widget_options(&mut self, moved: &[Value]) {
         let str_of = |w: &Value, k: &str| w.get(k).and_then(Value::as_str).unwrap_or("").trim().to_string();
@@ -1373,6 +1418,26 @@ pub fn save(settings: &Settings) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_fixed_bar_pins_the_island_and_sizes_the_band() {
+        let mut s = Settings { anchor_h: "left".into(), anchor_v: "top".into(), offset_x: 30.0, offset_y: 12.0, ..Default::default() };
+        assert_eq!(s.home_anchor(), ("left", "top", 30.0, 12.0));
+        s.fixed_bar = "bottom".into();
+        s.fixed_bar_slot = "end".into();
+        assert_eq!(s.home_anchor(), ("right", "bottom", 0.0, 0.0));
+        s.fixed_bar_slot = "center".into();
+        assert_eq!(s.home_anchor().0, "center");
+        s.hover_style = "icon".into();
+        s.hover_size = 40.0;
+        s.compact_strip = "off".into();
+        assert_eq!(s.bar_thickness(), 40.0);
+        s.compact_strip = "right".into();
+        assert_eq!(s.bar_thickness(), 44.0);
+        s.hover_style = "bar".into();
+        s.compact_strip = "off".into();
+        assert_eq!(s.bar_thickness(), 32.0);
+    }
 
     #[test]
     fn unreadable_settings_fall_back_to_the_backup_and_are_kept() {

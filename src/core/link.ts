@@ -5,8 +5,21 @@
 import type { Sky } from "../character/weather";
 import type { BotStateName } from "./layout";
 
-/** What the character's window shows: nothing, the rest icon, the compact character, or the one beside the open island. */
-export type CharacterMode = "off" | "rest" | "compact" | "open";
+/**
+ * What the character's window shows: nothing, the rest icon, the compact
+ * character, the one beside the open island, or the fixed bar (appbar.rs).
+ */
+export type CharacterMode = "off" | "rest" | "compact" | "open" | "bar";
+
+/** The fixed bar as the character's window draws it. */
+export interface BarLook {
+  /** Where the character sits along the band. */
+  slot: "start" | "center" | "end";
+  /** The island's own background, the band's too. */
+  background: string;
+  /** The band's height, logical px. */
+  thickness: number;
+}
 
 export type IslandToCharacter =
   | {
@@ -23,6 +36,8 @@ export type IslandToCharacter =
       weather: { sky: Sky | null; temp: string };
       /** Jarvis: one satellite per agent at work. */
       agents: number;
+      /** With the fixed bar on. */
+      bar: BarLook | null;
     }
   /** The compact character's gaze, -1…1 (BotEngine.lookX / lookY). */
   | { kind: "gaze"; x: number; y: number }

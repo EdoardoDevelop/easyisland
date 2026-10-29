@@ -6,7 +6,7 @@ import "./style-light.css";
 import "./character/roster";
 import { Bridge, IS_TAURI, onEvent, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
-import { State, type Custom, type Settings } from "./core/state";
+import { State, barEdge, barThickness, type Custom, type Settings } from "./core/state";
 import { forgetRecords, receiveSource } from "./views/custom";
 import { Island } from "./island/island";
 import { installTooltips } from "./core/tooltip";
@@ -242,6 +242,9 @@ function linkCharacterWindow(island: Island) {
       sky: State.characterSky,
       weather: State.weatherNow,
       agents: State.sessionTasks.filter((x) => x.state === "working" || x.state === "thinking" || x.state === "searching").length,
+      bar: barEdge(State.settings)
+        ? { slot: State.settings.fixedBarSlot ?? "center", background: island.islandBackground, thickness: barThickness(State.settings) }
+        : null,
     };
   };
   const send = linkChannel<CharacterToIsland, IslandToCharacter>((m) => {

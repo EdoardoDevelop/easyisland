@@ -108,6 +108,19 @@ export const CHAT_ENGINES: { id: ChatEngine; name: string; key?: string; url?: s
   { id: "lmstudio", name: "LM Studio", url: "http://localhost:1234", hint: t("modelli locali, nessuna chiave") },
 ];
 
+/** «Barra fissa» on: its edge (src-tauri/src/appbar.rs); null when off. */
+export function barEdge(s: { fixedBar?: string }): "top" | "bottom" | null {
+  return s.fixedBar === "top" || s.fixedBar === "bottom" ? s.fixedBar : null;
+}
+
+/** The fixed bar's thickness, logical px: the compact view's height, and the
+ *  strip's when it is on (mirrors Settings::bar_thickness in settings.rs). */
+export function barThickness(s: { hoverStyle: string; hoverSize: number; compactStrip?: string }): number {
+  const compact = s.hoverStyle === "bar" ? 32 : s.hoverSize;
+  const withStrip = (s.compactStrip ?? "right") === "off" ? compact : Math.max(compact, 44);
+  return Math.min(96, Math.max(24, withStrip));
+}
+
 /** "Gemini · gemini-2.5-flash": the engine and its model, for the chat. */
 export function engineLabel(s: { chatEngine: ChatEngine; engineModels?: Record<string, string>; cliModel?: string; model?: string }): string {
   const e = CHAT_ENGINES.find((x) => x.id === s.chatEngine) ?? CHAT_ENGINES[0];
@@ -413,6 +426,10 @@ export interface Settings {
   glueEdges: boolean;
   /** Use the whole screen, taskbar included, instead of the work area. */
   overTaskbar: boolean;
+  /** «Barra fissa» (appbar.rs): "" off, or the band Windows keeps free at the top / bottom. Of the PC, not of a profile. */
+  fixedBar?: "" | "top" | "bottom";
+  /** Where the character sits in the fixed bar. */
+  fixedBarSlot?: "start" | "center" | "end";
   /** Width of the open island, px (dragged with its corner, or Impostazioni → Posizione). */
   islandWidth: number;
   /** Minimum height of the open island, px; 0 = each view's own height. */
@@ -972,6 +989,8 @@ export const DEFAULT_SETTINGS: Settings = {
   offsetY: 0,
   glueEdges: true,
   overTaskbar: false,
+  fixedBar: "",
+  fixedBarSlot: "center",
   islandWidth: 640,
   islandHeight: 0,
   islandPlace: "character",

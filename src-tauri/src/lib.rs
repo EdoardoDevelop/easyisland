@@ -11,6 +11,7 @@ mod agent_settings;
 mod automations;
 mod flows;
 mod apps;
+mod appbar;
 mod calendar;
 mod carry;
 mod claude;
@@ -171,20 +172,24 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
     let mut settings = settings.migrated();
     settings.commit_active();
     i18n::set(&settings.language);
-    let (screen_changed, autostart_changed) = {
+    let (screen_changed, autostart_changed, bar_changed) = {
         let mut current = shared.settings.lock().unwrap();
         let screen_changed = current.screen != settings.screen
             || current.anchor_h != settings.anchor_h
             || current.anchor_v != settings.anchor_v
             || current.offset_x != settings.offset_x
             || current.offset_y != settings.offset_y
-            || current.over_taskbar != settings.over_taskbar;
+            || current.over_taskbar != settings.over_taskbar
+            || current.fixed_bar_slot != settings.fixed_bar_slot;
+        let bar_changed = current.fixed_bar != settings.fixed_bar
+            || current.screen != settings.screen
+            || current.bar_thickness() != settings.bar_thickness();
         let autostart_changed = current.autostart != settings.autostart;
         // Only boot and hooks_apply know whether the hooks are there; a window
         // opened before an install would send the old value.
         settings.hooks_installed = current.hooks_installed;
         *current = settings.clone();
-        (screen_changed, autostart_changed)
+        (screen_changed, autostart_changed, bar_changed)
     };
     if let Err(err) = settings::save(&settings) {
         eprintln!("[easyisland] could not save settings: {err}");
@@ -202,6 +207,16 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
     if screen_changed {
         let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
         island::apply_geometry(&app, &shared.gate, &settings, collapsed);
+    }
+    if bar_changed {
+        appbar::apply(app);
+        // The closed island: hidden while the bar stands for it, back when it goes.
+        if shared.gate.collapsed.load(Ordering::Relaxed) {
+            if let Some(win) = island::window(app) {
+                let _ = if settings.bar_edge().is_some() { win.hide() } else { win.show() };
+            }
+        }
+        sync_character(app);
     }
     island::apply_taskbar(&app);
     jumplist::update(&settings);
@@ -427,7 +442,10 @@ fn set_collapsed(
     island::apply_geometry(&app, &shared.gate, &settings, collapsed);
     // Hidden behind a full-screen app while resting; always back for anything else.
     if let Some(win) = island::window(&app) {
-        let quiet = collapsed && shared.gate.fullscreen.load(Ordering::Relaxed) && !island::CAPTURING.load(Ordering::Relaxed);
+        // With the fixed bar the closed island is not there at all: the bar is (appbar.rs).
+        let quiet = collapsed
+            && (shared.gate.fullscreen.load(Ordering::Relaxed) || settings.bar_edge().is_some())
+            && !island::CAPTURING.load(Ordering::Relaxed);
         let _ = if quiet { win.hide() } else { win.show() };
     }
     // The wake strip must always take the mouse, and a resize invalidates the flag.
@@ -2666,9 +2684,26 @@ fn character_clearance(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) 
 
 /// Lays the character's window exactly over the island's collapsed window (the
 /// rest icon's box) while the island rests, or over the compact badge's
-/// character; hides it otherwise.
-fn sync_character(app: &AppHandle) {
+/// character; hides it otherwise. With the fixed bar it is the band (appbar.rs).
+pub(crate) fn sync_character(app: &AppHandle) {
     let Some(ch) = app.get_webview_window(CHARACTER_LABEL) else { return };
+    if let Some((x, y, w, h)) = appbar::band() {
+        // The bar: the whole band, always taking the mouse, away over a full-screen app.
+        if appbar::FULLSCREEN.load(Ordering::Relaxed) {
+            let _ = ch.hide();
+            return;
+        }
+        let _ = ch.set_size(tauri::PhysicalSize::new(w, h));
+        let _ = ch.set_position(tauri::PhysicalPosition::new(x, y));
+        if CHARACTER_CLICKS_THROUGH.swap(false, Ordering::Relaxed) {
+            let _ = ch.set_ignore_cursor_events(false);
+        }
+        if !ch.is_visible().unwrap_or(false) {
+            let _ = ch.show();
+        }
+        island::raise_character(app);
+        return;
+    }
     let shared = app.state::<Shared>();
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
     let island = island::window(app).filter(|w| w.is_visible().unwrap_or(false));
@@ -3576,6 +3611,8 @@ pub fn run() {
             // Before the island's webview is ready: see create_settings_window.
             create_settings_window(&handle, webview_dir.as_deref());
             create_character_window(&handle, webview_dir.as_deref());
+            // «Barra fissa», when it is on: the character's window becomes the band (appbar.rs).
+            appbar::apply(&handle);
             create_memory_window(&handle, webview_dir.as_deref());
             let _ = WEBVIEW_DIR.set(webview_dir.clone());
             preview::init(&handle);
@@ -3647,6 +3684,7 @@ pub fn run() {
             // The chat's private opencode server goes with the app.
             if let tauri::RunEvent::Exit = event {
                 tasks::on_exit();
+                appbar::shutdown();
                 opencode::shutdown();
                 claude_cli::shutdown();
                 remote::shutdown();

@@ -13,7 +13,7 @@ import {
 import type { Suggestion } from "./context";
 import { buildSelectionMenu, type SelectionMenu } from "./selection-menu";
 import { Sound } from "../core/sound";
-import { OPENED_BY_APP, OPEN_URLS, State, canAskSession, isSessionTask } from "../core/state";
+import { OPENED_BY_APP, OPEN_URLS, State, barEdge, canAskSession, isSessionTask } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
 import { character, setCharacter } from "../character/character";
 import { Greeting } from "../character/greeting";
@@ -2095,7 +2095,9 @@ ${note}` : text };
     }
     // The greeting plays at its own place (Impostazioni → Posizione e aspetto).
     const greeting = State.view === "greeting";
-    this.awayPlace = greeting ? (State.settings.greetingPlace ?? "center") : (State.settings.islandPlace ?? "character");
+    // With the fixed bar it always opens against the band, at the character.
+    this.awayPlace = greeting ? (State.settings.greetingPlace ?? "center")
+      : barEdge(State.settings) ? "character" : (State.settings.islandPlace ?? "character");
     this.away = this.awayPlace !== "character";
     void Bridge.setExpanded(true, greeting ? this.awayPlace : null);
   }
@@ -2119,6 +2121,21 @@ ${note}` : text };
   /** The character's place: settings, in the shape the layout helpers take. */
   private get homePlacement(): Placement {
     const s = State.settings;
+    // With the fixed bar the island lives against the band, at the character's
+    // slot (Settings::home_anchor in settings.rs), never dragged away.
+    const edge = barEdge(s);
+    if (edge) {
+      const h = s.fixedBarSlot === "start" ? "left" : s.fixedBarSlot === "end" ? "right" : "center";
+      return {
+        h,
+        v: edge,
+        iconStyle: s.iconStyle,
+        iconSize: s.iconSize,
+        hoverStyle: s.hoverStyle,
+        hoverSize: s.hoverSize,
+        ...glueFor(h, edge, 0, 0, s.glueEdges ?? true),
+      };
+    }
     return {
       h: s.anchorH,
       v: s.anchorV,
@@ -2647,6 +2664,9 @@ ${note}` : text };
     Sound.setFamilyGains({ alerts: t.volumeAlerts, ui: t.volumeUi, emotes: t.volumeEmotes });
   }
 
+  /** The island's background as painted (paintIsland): the fixed bar wears it too. */
+  islandBackground = "rgba(0,0,0,1)";
+
   /** The island's own colour: the user's, or the style's default for dark or light. */
   private paintIsland() {
     const t = State.settings.theme;
@@ -2658,7 +2678,9 @@ ${note}` : text };
     }
     const n = parseInt(hex.slice(1), 16);
     const a = Math.max(0.5, Math.min(1, t.islandOpacity));
-    this.islandEl.style.background = `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+    this.islandBackground = `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+    this.islandEl.style.background = this.islandBackground;
+    this.onRestChange?.();
   }
 
   /** Re-reads placement settings: icon, anchors and the window box. */
@@ -3322,7 +3344,7 @@ ${note}` : text };
 
   /** The compact character is drawn by its own window, over the badge. */
   get compactInWindow(): boolean {
-    return IS_TAURI && this.mirror != null && State.mode === "compact" &&
+    return IS_TAURI && this.mirror != null && State.mode === "compact" && !barEdge(State.settings) &&
       !this.uploadActive && !State.windowPick && !State.quiet;
   }
 
@@ -3333,7 +3355,7 @@ ${note}` : text };
    * an island filling the screen.
    */
   get openInWindow(): boolean {
-    return IS_TAURI && this.mirror != null && State.mode === "expanded" &&
+    return IS_TAURI && this.mirror != null && State.mode === "expanded" && !barEdge(State.settings) &&
       State.view !== "greeting" && !State.maximized && !State.quiet;
   }
 
@@ -3356,7 +3378,8 @@ ${note}` : text };
    * aside on the left or right edge.
    */
   private openClearance(): [number, number] {
-    if (!IS_TAURI || this.mirror == null) return [0, 0];
+    // With the fixed bar the work area already ends at the band.
+    if (!IS_TAURI || this.mirror == null || barEdge(State.settings)) return [0, 0];
     const p = this.placement;
     const c = compactSize(p);
     // As tall as the compact island can be: with the strip, at least the strip.
@@ -3572,6 +3595,7 @@ ${note}` : text };
 
   /** What the character's own window shows now. */
   get characterMode(): CharacterMode {
+    if (IS_TAURI && barEdge(State.settings)) return "bar";
     if (this.characterRest) return "rest";
     if (this.spotKey.startsWith("open")) return "open";
     return this.spotKey ? "compact" : "off";

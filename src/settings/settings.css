@@ -224,6 +224,10 @@ section > h2 {
   color: var(--dim);
 }
 
+.fixed-bar .free-row { display: none !important; }
+.bar-row { display: none !important; }
+.fixed-bar .bar-row { display: flex !important; }
+
 .row {
   display: flex;
   align-items: center;

@@ -9,7 +9,7 @@ import { BotEngine, hexToRGB } from "../character/engine";
 import { setFigure, setFigureWeather } from "../character/figure";
 import { setJarvisAgents } from "../character/jarvis";
 import { invoke } from "@tauri-apps/api/core";
-import { linkChannel, MIRRORED_CALLS, type CharacterMode, type CharacterToIsland, type IslandToCharacter } from "../core/link";
+import { linkChannel, MIRRORED_CALLS, type BarLook, type CharacterMode, type CharacterToIsland, type IslandToCharacter } from "../core/link";
 
 /** Only following a gaze: 30 fps, as in the island. */
 const LOOK_FRAME_MS = 33;
@@ -37,13 +37,16 @@ let mode: CharacterMode = "off";
 /** The rest icon's size; the body fills ~90 % of it, as in the island (drawRestIcon). */
 let size = 24;
 let paused = false;
+/** The fixed bar, when the window is the band (appbar.rs). */
+let bar: BarLook | null = null;
 /** The last gaze from the island: following it is worth 30 fps, the rest 15. */
 let gazeAt = 0;
 
 /** The canvas: a square around the rest icon, or the whole window (the compact canvas). */
 function box(): { w: number; h: number } {
   if (mode === "compact" || mode === "open") return { w: window.innerWidth, h: window.innerHeight };
-  const w = Math.round(size * 1.3);
+  // In the bar: the body fills ~85 % of the band's height.
+  const w = Math.round((mode === "bar" && bar ? bar.thickness * 1.15 : size * 1.3));
   return { w, h: w };
 }
 
@@ -58,7 +61,7 @@ function frame(t: number) {
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
   }
-  engine.particleOverhang = mode === "rest" ? 0 : OVERHANG;
+  engine.particleOverhang = mode === "rest" || mode === "bar" ? 0 : OVERHANG;
   engine.update(dt);
   const ctx = canvas.getContext("2d");
   if (ctx) {
@@ -70,7 +73,7 @@ function frame(t: number) {
   // moves, or once the change has played out.
   // Compact it moves as the island's own did: as long as anything moves (its own
   // motion, a looping state, the gaze), with no time limit.
-  const ambient = (mode === "rest" || mode === "open") && character().animated === true;
+  const ambient = (mode === "rest" || mode === "open" || mode === "bar") && character().animated === true;
   if (ambient && t > moveUntil) window.setTimeout(() => requestAnimationFrame(frame), AMBIENT_FRAME_MS);
   else if (!engine.busy || (t > moveUntil && mode !== "compact")) running = false;
   // Only the gaze (30 fps while it moves) or the character's own motion (15).
@@ -99,13 +102,15 @@ function applyLook(m: Extract<IslandToCharacter, { kind: "look" }>) {
   engine.setState(m.state, was !== mode);
   size = m.size;
   paused = m.paused;
+  bar = m.mode === "bar" ? m.bar : null;
+  layBar();
   // As the island's rest icon (dimmed when paused); the compact character at full
   // strength. Beside the open island it has no badge under it: the rest icon's shadow.
-  canvas.style.opacity = mode === "rest" ? (paused ? "0.4" : "0.9") : "1";
-  canvas.style.filter = mode === "compact" ? "" : "drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45))";
-  canvas.style.cursor = mode === "open" ? "pointer" : "";
+  canvas.style.opacity = mode === "rest" ? (paused ? "0.4" : "0.9") : mode === "bar" && paused ? "0.5" : "1";
+  canvas.style.filter = mode === "compact" || mode === "bar" ? "" : "drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45))";
+  canvas.style.cursor = mode === "open" || mode === "bar" ? "pointer" : "";
   // Alive for ever by CSS, except compact (the island moves it); the halo in its colour.
-  document.body.classList.toggle("alive", mode === "rest" || mode === "open");
+  document.body.classList.toggle("alive", mode === "rest" || mode === "open" || mode === "bar");
   const [r, g, b] = m.color ? hexToRGB(m.color) : character().color;
   document.body.style.setProperty("--halo", `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, 0.9)`);
   // Compact: the island's look; otherwise straight ahead.
@@ -144,9 +149,27 @@ const send = linkChannel<IslandToCharacter, CharacterToIsland>((m) => {
   }
 });
 
-// Beside the open island (the only time the window takes the mouse): a click closes it.
+/**
+ * The fixed bar: the band in the island's colour, the character in its area
+ * (start, centre or end) in a square as tall as the band.
+ */
+function layBar() {
+  const float = document.getElementById("float");
+  if (!float) return;
+  document.body.style.background = bar ? bar.background : "transparent";
+  if (!bar) {
+    float.style.cssText = "";
+    return;
+  }
+  const t = bar.thickness;
+  const left = bar.slot === "start" ? "8px" : bar.slot === "end" ? `calc(100% - ${t + 8}px)` : `calc(50% - ${t / 2}px)`;
+  float.style.cssText = `inset: auto; top: 0; left: ${left}; width: ${t}px; height: 100%;`;
+}
+
+// Beside the open island or in the fixed bar (the times the window takes the mouse):
+// a click closes the island, or opens it from the bar.
 canvas.addEventListener("click", () => {
-  if (mode !== "open") return;
+  if (mode !== "open" && mode !== "bar") return;
   engine.squash();
   wake(600);
   send({ kind: "open" });
