@@ -54,6 +54,27 @@
 - **Liste a scorrimento nuove:** `max-height: calc(Npx + var(--extra-h, 0px))`, così si allungano con l'isola. `fitHeight` di una vista si misura sempre con `--extra-h` a 0 (`measureFit` in `island.ts`): misurata con lo spazio extra, l'altezza cresciuta tornava nel calcolo dell'isola e questa saltava tra due altezze a ogni aggiornamento (l'11 ottobre 2026, scrivendo in «Continua»). `--extra-w` allarga la card sinistra della Panoramica.
 - Griglie con `minmax(0, 1fr)` e testo troncato con i puntini. Nelle bolle della chat si usa `overflow-wrap: anywhere`.
 
+## Finestra del personaggio (due WebView, ottobre 2026)
+Il personaggio fuori dall'isola vive in una finestra sua (`personaggio`, `personaggio.html`, `src/character-window/main.ts`), piccola, sempre in primo piano e mai attiva. Lavoro in corso nel branch `claude/due-webview`; passi, misure e cosa manca in `docs/due-webview.md`.
+- **Il «cervello» resta nell'isola.** La pagina del personaggio riceve tutto su un `BroadcastChannel` (`src/core/link.ts`):
+  - `look`: stato, personaggio, colore, cielo, satelliti di Jarvis e modalità (`off`, `rest`, `compact`, `open`);
+  - `gaze` e `call`: lo sguardo e i gesti del motore (`MIRRORED_CALLS`).
+  - Indietro manda solo `open`: un clic sul personaggio accanto all'isola aperta la chiude.
+- **Dove sta.** La posa Rust (`sync_character` in `lib.rs`):
+  - a riposo, esattamente sopra la finestra ritirata dell'isola, solo con l'icona a riposo «personaggio» (`character_rest`);
+  - compatto, sopra il personaggio del distintivo (`character_spot`, calcolato da `mirrorCharacter` in `island.ts` dove le molle si fermano);
+  - aperta l'isola, fermo dov'era, misurato dalla finestra a casa (`island::home_panel_origin`).
+- **Chi riceve il mouse.** Sopra l'isola la finestra lascia passare i clic (`set_ignore_cursor_events`): passaggio del mouse, clic, trascinamento, menu e file restano dell'isola, che a riposo e compatta non disegna il suo personaggio. Accanto all'isola aperta prende il mouse.
+- **L'isola aperta accanto al personaggio.** `character_clearance` / `island::OPEN_CLEARANCE` la spostano dal bordo della vista compatta, almeno la striscia, più 6 px: in alto sotto il personaggio, in basso sopra, sui lati di fianco. Chiudendo scivola a casa (`glide_home`).
+  - Apertura: saltello con scintille, onda di luce `#open-wave` dal lato del personaggio, clone nel menu che cresce da zero (`cloneEnter`).
+  - Non per il saluto all'avvio né per l'isola a tutto schermo.
+- **In primo piano.** Dopo ogni rialzo dell'isola Rust rialza anche il personaggio (`island::raise_character`). L'isola aperta va dietro a qualunque finestra che si attiva, tranne quelle di EasyIsland e della shell (`step_aside_for`), e torna davanti con un clic. Il personaggio resta davanti.
+- **Animazione.**
+  - A riposo e accanto all'isola aperta: CSS di solo `transform` e `opacity` (galleggia, oscilla, respira, alone del suo colore). I personaggi che si muovono da soli (`animated`) ridisegnano a 15 fps.
+  - Compatto: disegna finché il motore si muove, a 30 fps mentre segue lo sguardo, altrimenti a 15.
+- **Memoria.** Obiettivo basso di WebView2 (`webview_memory::set_low`), ripetuto dopo il caricamento.
+- **Senza Tauri** (anteprime con `npm run dev`, smoke) la finestra non c'è: l'isola disegna il suo personaggio come prima. Per questo il suo codice compatto resta.
+
 ## Viste, menu e barra in alto
 - **Impianto dell'isola aperta** (dal 13 ottobre 2026, deciso con Edoardo): barra in alto (`buildHeader` in `views.ts`) con il fumetto del personaggio, il campo unico e i pulsanti; a sinistra il **menu** (`src/views/rail.ts`, `#rail`), con il personaggio in cima e sotto Panoramica, Agenti, Chat, Azioni, File e schermo e le integrazioni attive; a destra le viste. Prende il posto delle schede in alto e delle pillole accanto alle card. Niente modalità «modifica» nell'isola: cosa si vede e come si sceglie solo in Impostazioni.
   - Il personaggio è lo stesso di sempre, con stati, reazioni e animazioni: `botPosition` (layout.ts) lo mette in cima al menu quando `railShown` (isola aperta, tranne saluto e sequenza del file, che restano come prima senza menu); misura da `menuCharacter` (`RAIL_BOT`), spazio in `railHead`.

@@ -8,7 +8,7 @@ import { character, setCharacter } from "../character/character";
 import { BotEngine, hexToRGB } from "../character/engine";
 import { setFigure, setFigureWeather } from "../character/figure";
 import { setJarvisAgents } from "../character/jarvis";
-import { Bridge } from "../core/bridge";
+import { invoke } from "@tauri-apps/api/core";
 import { linkChannel, MIRRORED_CALLS, type CharacterMode, type CharacterToIsland, type IslandToCharacter } from "../core/link";
 
 /** Only following a gaze: 30 fps, as in the island. */
@@ -37,6 +37,8 @@ let mode: CharacterMode = "off";
 /** The rest icon's size; the body fills ~90 % of it, as in the island (drawRestIcon). */
 let size = 24;
 let paused = false;
+/** The last gaze from the island: following it is worth 30 fps, the rest 15. */
+let gazeAt = 0;
 
 /** The canvas: a square around the rest icon, or the whole window (the compact canvas). */
 function box(): { w: number; h: number } {
@@ -71,7 +73,8 @@ function frame(t: number) {
   const ambient = (mode === "rest" || mode === "open") && character().animated === true;
   if (ambient && t > moveUntil) window.setTimeout(() => requestAnimationFrame(frame), AMBIENT_FRAME_MS);
   else if (!engine.busy || (t > moveUntil && mode !== "compact")) running = false;
-  else if (!engine.busyBeyondLook) window.setTimeout(() => requestAnimationFrame(frame), LOOK_FRAME_MS);
+  // Only the gaze (30 fps while it moves) or the character's own motion (15).
+  else if (!engine.busyBeyondLook) window.setTimeout(() => requestAnimationFrame(frame), t - gazeAt < 500 ? LOOK_FRAME_MS : AMBIENT_FRAME_MS);
   else requestAnimationFrame(frame);
 }
 
@@ -116,7 +119,8 @@ function applyLook(m: Extract<IslandToCharacter, { kind: "look" }>) {
 const send = linkChannel<IslandToCharacter, CharacterToIsland>((m) => {
   if (!heard) {
     heard = true;
-    void Bridge.log("due webview: il personaggio riceve dall'isola").catch(() => {});
+    // Straight to the log command: this page needs nothing else of bridge.ts.
+    void invoke("log_line", { message: "due webview: il personaggio riceve dall'isola" }).catch(() => {});
   }
   switch (m.kind) {
     case "look":
@@ -125,6 +129,7 @@ const send = linkChannel<IslandToCharacter, CharacterToIsland>((m) => {
     case "gaze":
       engine.lookX = m.x;
       engine.lookY = m.y;
+      gazeAt = performance.now();
       wake(900);
       break;
     case "call": {

@@ -2622,6 +2622,11 @@ fn create_character_window(app: &AppHandle, data_dir: Option<&std::path::Path>) 
             // Always "compact": the low memory target of WebView2 (webview_memory.rs).
             webview_memory::set_low(win.as_ref(), true);
             let _ = win.set_ignore_cursor_events(true);
+            // Once its page has loaded, the low target again: set before, it may not hold.
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(10));
+                webview_memory::set_low(win.as_ref(), true);
+            });
         }
         Err(err) => log::line(format!("character window failed: {err}")),
     }

@@ -657,10 +657,11 @@ pub fn is_behind() -> bool {
     BEHIND.load(Ordering::Relaxed)
 }
 
-/// Another window is in front: when it covers the open island, the island goes
-/// just behind it; when it does not (the user went elsewhere), back on top.
-/// The taskbar, Start, the desktop and the settings window (`keep_settings_above`)
-/// change nothing.
+/// Another window is in front: the open island goes just behind it, like any
+/// window when another is activated (docs/due-webview.md, step 3), while the
+/// character stays in front in its own window. A click on the island brings it
+/// forward again (the cursor poll). The taskbar, Start, the desktop and
+/// EasyIsland's own windows (settings, preview, memory) change nothing.
 fn step_aside_for(app: &AppHandle, gate: &PollGate, fg: HWND) {
     use windows::Win32::UI::WindowsAndMessaging::{GetAncestor, GA_ROOT};
     if app_mode() || gate.collapsed.load(Ordering::Relaxed) || !gate.expanded.load(Ordering::Relaxed) {
@@ -675,21 +676,24 @@ fn step_aside_for(app: &AppHandle, gate: &PollGate, fg: HWND) {
     if app.get_window(crate::SETTINGS_LABEL).and_then(|w| hwnd_of(&w)) == Some(fg) {
         return;
     }
-    if covers(&win, gate, fg) {
-        BEHIND.store(true, Ordering::Relaxed);
-        // Tao's flag too: any later style change of its (set_ignore_cursor_events,
-        // as the cursor crosses the island) rewrites WS_EX_TOPMOST from it, and the
-        // island jumped back over the dialog (1.0.1, seen by Edoardo).
-        let _ = win.set_always_on_top(false);
-        keep_out_of_alt_tab(&win);
-        unsafe {
-            let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER;
-            let _ = SetWindowPos(me, Some(HWND_NOTOPMOST), 0, 0, 0, 0, flags);
-            let _ = SetWindowPos(me, Some(fg), 0, 0, 0, 0, flags);
-        }
+    let mut pid = 0u32;
+    unsafe { windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId(fg, Some(&mut pid)) };
+    if pid == std::process::id() {
+        return;
+    }
+    let was_behind = BEHIND.swap(true, Ordering::Relaxed);
+    // Tao's flag too: any later style change of its (set_ignore_cursor_events,
+    // as the cursor crosses the island) rewrites WS_EX_TOPMOST from it, and the
+    // island jumped back over the dialog (1.0.1, seen by Edoardo).
+    let _ = win.set_always_on_top(false);
+    keep_out_of_alt_tab(&win);
+    unsafe {
+        let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER;
+        let _ = SetWindowPos(me, Some(HWND_NOTOPMOST), 0, 0, 0, 0, flags);
+        let _ = SetWindowPos(me, Some(fg), 0, 0, 0, 0, flags);
+    }
+    if !was_behind {
         crate::log::line("island behind the window in front");
-    } else {
-        come_forward(app);
     }
 }
 
@@ -704,34 +708,6 @@ fn is_shell(hwnd: HWND) -> bool {
         "Shell_TrayWnd" | "Shell_SecondaryTrayWnd" | "Windows.UI.Core.CoreWindow" | "Progman" | "WorkerW"
             | "NotifyIconOverflowWindow" | "TopLevelWindowForOverflowXamlIsland" | "XamlExplorerHostIslandWindow"
     )
-}
-
-/// True when `fg` (its visible frame) overlaps the island's shape on screen.
-fn covers(win: &tauri::Window, gate: &PollGate, fg: HWND) -> bool {
-    use windows::Win32::Foundation::RECT;
-    use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
-    use windows::Win32::UI::WindowsAndMessaging::{GetWindowRect, IsIconic};
-    let Ok(origin) = win.outer_position() else { return false };
-    let scale = win.scale_factor().unwrap_or(1.0);
-    let r = *gate.rect.lock().unwrap();
-    if r.w <= 0.0 || r.h <= 0.0 {
-        return false;
-    }
-    let (ix, iy) = (origin.x as f64 + r.x * scale, origin.y as f64 + r.y * scale);
-    let (iw, ih) = (r.w * scale, r.h * scale);
-    let mut fr = RECT::default();
-    unsafe {
-        if !IsWindowVisible(fg).as_bool() || IsIconic(fg).as_bool() {
-            return false;
-        }
-        let size = std::mem::size_of::<RECT>() as u32;
-        if DwmGetWindowAttribute(fg, DWMWA_EXTENDED_FRAME_BOUNDS, &mut fr as *mut RECT as *mut _, size).is_err()
-            && GetWindowRect(fg, &mut fr).is_err()
-        {
-            return false;
-        }
-    }
-    (fr.left as f64) < ix + iw && (fr.right as f64) > ix && (fr.top as f64) < iy + ih && (fr.bottom as f64) > iy
 }
 
 /// Back on top after `step_aside_for`: a click on the island, a permission, a

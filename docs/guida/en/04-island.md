@@ -3,12 +3,13 @@
 > summary: How it opens, what it holds and how to use it with the mouse and the keyboard.
 
 ## The character and its states
-At rest the character sits in the corner you picked (top centre by default). It changes colour with the most urgent state: **blue** while an agent works, **amber** for a pending permission, **red** for an error, **green** when something finished well. When a tab is open it wears that integration's colour.
+At rest the character sits in the corner you picked (top centre by default) and moves gently, as if floating. It changes colour with the most urgent state: **blue** while an agent works, **amber** for a pending permission, **red** for an error, **green** when something finished well. When a tab is open it wears that integration's colour.
 
 | What you do | What happens |
 |---|---|
 | Hover over the character | It grows, hops, looks at you and waves |
-| Click, or stay over it for a moment | The island opens, aligned to that side |
+| Click, or stay over it for a moment | The character hops and stays where it is; the island opens beside it (below, if it sits at the top) with a wave of light, and a copy of it appears in the menu |
+| Click the character with the island open | The island closes |
 | Drag the character | It moves where you drop it, even to another screen; the position is saved in the profile |
 | Drag the bottom corner of the open island | Width and height change up to the screen edges. Double-click: default sizes |
 | Drag the open island by its top bar | It stays there while open, then goes back to the character |
@@ -21,7 +22,7 @@ At rest the character sits in the corner you picked (top centre by default). It 
 | 📌 | **Keep open**: the island won't close by itself until you remove it |
 | — and ▢ | With **Like an app** on (Settings → Island): minimize and full screen. Open, it has its icon on the taskbar and shows in Alt+Tab; closed, it does not. To open it from the taskbar, pin EasyIsland to the taskbar: a click on the icon opens the island. Right-click the icon: your quick actions, **Open the island**, **Ask the chat**, **Box and ask**, **Settings…** |
 | Stay open | With **Stay open** on (Settings → Island), when you open it yourself it does not close by itself, as with 📌 |
-| A window opens over the island (a picker, a program launched from the island…) | The island goes **behind** it, without closing. It comes forward again when you click it, when a permission or a call arrives, or when it tucks away |
+| You click another window, or one opens (a picker, a program launched from the island…) | The open island goes **behind** it, like any window, without closing; the character stays in front. It comes forward again when you click it, when a permission or a call arrives, or when it tucks away |
 
 ## The menu on the left
 In the open island, under the character:

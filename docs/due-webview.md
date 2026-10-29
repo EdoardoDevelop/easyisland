@@ -30,20 +30,20 @@ Oggi personaggio, vista compatta e isola aperta stanno in una sola finestra. Una
   - finestra «personaggio» creata all'avvio (trasparente, in primo piano, non attivabile), con il personaggio animato e lo stato preso dall'isola tramite il canale;
   - misurare memoria e CPU a riposo;
   - provare `BroadcastChannel` e il nascondere e mostrare la finestra dell'isola.
-- [ ] **1. Canale tipizzato** (`src/core/link.ts`):
+- [x] **1. Canale tipizzato** (`src/core/link.ts`):
   - **isola → personaggio:** stato del personaggio, emozioni, tema e personaggio scelti, voce della striscia, mini agenti, pausa e silenzio;
   - **personaggio → isola:** apri (con la vista), passaggio del mouse, pulsanti della striscia, file rilasciati.
-- [ ] **2. Icona a riposo e vista compatta nella finestra del personaggio:**
+- [x] **2. Icona a riposo e vista compatta nella finestra del personaggio:** (solo il disegno; interazione all'isola)
   - posizione, trascinamento e lascia su finestra o icona (`island.rs` lavora sulla finestra del personaggio);
   - schermi e scala;
   - schermo intero (`quietFullscreen`).
-- [ ] **3. L'isola come finestra:**
+- [x] **3. L'isola come finestra:** (vedi Note; nascondere da chiusa non serve)
   - si apre accanto al personaggio, dal suo lato;
   - si sposta per l'intestazione;
   - non è più sempre in primo piano;
   - si nasconde da chiusa;
   - clone del personaggio nel menu; effetto di apertura.
-- [ ] **4. Striscia, barra dell'app in uso e mini agenti** nella finestra del personaggio, con le loro azioni.
+- [-] **4. Striscia, barra dell'app in uso e mini agenti** (restano nell'isola, vedi Note) nella finestra del personaggio, con le loro azioni.
 - [ ] **5. File rilasciati sul personaggio** (`drop.rs`, `window_drop.rs`): aprono l'isola come oggi.
 - [ ] **6. Pulizia e verifiche:**
   - togliere dall'isola il codice della vista compatta;
@@ -134,4 +134,17 @@ Oggi personaggio, vista compatta e isola aperta stanno in una sola finestra. Una
   - Correzione: compatto nella finestra del personaggio, l'isola aggiorna il motore ma non lo disegna e non tiene acceso il ciclo per il solo movimento proprio (`engineBusy`).
   - dopo: 414 MB, CPU 0,64 %. Isola 0,13 %, personaggio 0,18 %, GPU 0,19 %, processo principale 0,08 %.
   - La pagina del personaggio pesa circa 75 MB: da alleggerire (oggi importa `bridge.ts` solo per il registro).
+
+### 29 ottobre 2026: isola come finestra, risparmi, documentazione
+- **L'isola aperta va dietro a qualunque finestra che si attiva** (`step_aside_for`): prima solo se la copriva. Escluse la shell e le finestre di EasyIsland (stesso processo). Torna davanti con un clic sull'isola (già esistente). Tolta `covers`.
+- **Nascondere l'isola da chiusa: non serve.** Da chiusa la sua finestra è solo il riquadro dell'icona o la striscia per il passaggio del mouse: non disegna e non consuma. Nasconderla vorrebbe dire spostare tutta l'interazione nella finestra del personaggio.
+- **Striscia, barra dell'app in uso e mini agenti** (passo 4): restano nell'isola, deciso con Edoardo. Con la finestra del personaggio che lascia passare i clic funzionano già. Si riprende se la barra fissa lo chiede.
+- **Risparmi fatti:**
+  - compatto: 15 fps quando il personaggio non segue lo sguardo;
+  - la pagina del personaggio non importa più `bridge.ts`;
+  - obiettivo di memoria basso ripetuto 10 s dopo la creazione.
+- **Codice compatto dell'isola:** resta. Serve senza Tauri (anteprime, smoke) e quando la finestra del personaggio non c'è (saluto, tutto schermo, file in arrivo).
+- **Documentazione:** `docs/architettura.md` (sezione «Finestra del personaggio») e guida «L'isola» in italiano e inglese.
+- **Misura dopo i risparmi** (vista compatta sempre visibile, Jarvis Sfera, 30 s): 420 MB, CPU 0,46 % (prima 414 MB, 0,64 %). La memoria della pagina del personaggio non scende in modo visibile: è quasi tutta WebView2 di base.
+- **Ancora da fare:** file rilasciati sul personaggio a isola aperta; prova dei bordi in basso, ai lati e su un secondo schermo.
 
