@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 29 ottobre 2026. Versione **1.0.10** in `main` con il tag `v1.0.10`. Si lavora su `claude/sviluppo`, che contiene le due finestre (personaggio e isola) la **barra fissa** (`docs/architettura.md` → Barra fissa) e la pagina Aspetto a schede con le immagini. In attesa `claude/modello-integrato`; `claude/barra-fissa` è il primo tentativo, solo archivio. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 29 ottobre 2026. Versione **1.0.11** in `main` con il tag `v1.0.11`: due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo`. In attesa `claude/modello-integrato`; `claude/barra-fissa` è il primo tentativo, solo archivio. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -49,6 +49,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 29 ottobre 2026 — Versione 1.0.11: barra fissa, due finestre, Aspetto a schede
+- Contiene la barra fissa con altezza a scelta, il personaggio in una finestra sua (a isola aperta resta solo quello nel menu), la pagina Aspetto a schede con le miniature e «Aggancia ai bordi» corretto: tutto in `CHANGELOG.md`.
+
 ### 29 ottobre 2026 — Aspetto a schede con le immagini (unita in `claude/sviluppo`)
 - Impostazioni → Aspetto divisa in sei schede (Tema, Personaggio, Posizione, Barra fissa, Isola chiusa, Isola aperta); accanto a ogni voce uno schermo in miniatura in SVG (`src/settings/pictures.ts`) che si ridisegna al cambio del valore, alcune animate in CSS solo mentre sono in vista; in Personaggio il personaggio vero si muove. Angolo scelto anche con un clic sulla miniatura.
 - Smoke esteso a ogni scheda («nessun errore»); schermata `settings.png` e guida aggiornate.
@@ -65,7 +68,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 28 ottobre 2026 — Versione 1.0.10: rinominare le conversazioni
 - Contiene la rinomina delle conversazioni nella cronologia della chat e le idee annotate dopo la 1.0.9 (modello integrato, barra fissa). Barra fissa e modello integrato restano nei loro branch, non nella versione.
-
-### 27 ottobre 2026 — Rinominare le conversazioni (su `claude/sviluppo`)
-- Nella cronologia della chat ✎ (o doppio clic sul titolo) rinomina una conversazione; vuoto torna alla prima domanda (`chat_log::rename`, `chat.ts`, `docs/chat.md`).
-- Modello integrato accantonato nel branch `claude/modello-integrato`; annotata l'idea dell'isola fissa su un bordo con lo spazio riservato (`docs/idee.md`).

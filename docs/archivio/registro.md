@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 27 ottobre 2026 — Rinominare le conversazioni (su `claude/sviluppo`)
+- Nella cronologia della chat ✎ (o doppio clic sul titolo) rinomina una conversazione; vuoto torna alla prima domanda (`chat_log::rename`, `chat.ts`, `docs/chat.md`).
+- Modello integrato accantonato nel branch `claude/modello-integrato`; annotata l'idea dell'isola fissa su un bordo con lo spazio riservato (`docs/idee.md`).
+
 ### 27 ottobre 2026 — Versione 1.0.9: Anteprima nell'isola, inglese prima
 - Anteprima di file e pagine web (nell'isola o in finestra), passi della chat a parole, permessi dentro la chat, memoria con riassunti e alias: tutto in `CHANGELOG.md`.
 - README e homepage prima in inglese: `README.md` inglese e `README.it.md`; `site/index.html` inglese, `site/it/index.html` italiana, `site/en/index.html` rimanda alla radice; «Sito» nelle Impostazioni apre `/it/` con l'interfaccia in italiano; la guida tiene i suoi indirizzi.
