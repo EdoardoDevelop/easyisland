@@ -66,9 +66,11 @@ function frame(t: number) {
   }
   // Their own motion, for ever but slowly; otherwise no frames once nothing
   // moves, or once the change has played out.
+  // Compact it moves as the island's own did: as long as anything moves (its own
+  // motion, a looping state, the gaze), with no time limit.
   const ambient = (mode === "rest" || mode === "open") && character().animated === true;
   if (ambient && t > moveUntil) window.setTimeout(() => requestAnimationFrame(frame), AMBIENT_FRAME_MS);
-  else if (!engine.busy || t > moveUntil) running = false;
+  else if (!engine.busy || (t > moveUntil && mode !== "compact")) running = false;
   else if (!engine.busyBeyondLook) window.setTimeout(() => requestAnimationFrame(frame), LOOK_FRAME_MS);
   else requestAnimationFrame(frame);
 }
