@@ -6,7 +6,7 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
-import { type AgentTaskItem, type Custom, type Skill, type TaskState, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef } from "../core/state";
+import { type AgentTaskItem, type Custom, type Skill, type TaskState, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef } from "../core/state";
 
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
 import { ISLAND_MIN_W, PANEL_H, PANEL_W, islandMax } from "../core/layout";
@@ -2540,7 +2540,10 @@ function barItemsEditor(commit: () => void): HTMLElement {
   const list = h("div", { class: "bar-items" });
   const choices = (): [string, string][] => [
     ["strip", t("Striscia: permessi, chiamate, agente al lavoro, app in uso")],
-    ...settings.activeIntegrations.map((id) => [`task:${id}`, INTEGRATIONS.find((i) => i.id === id)?.name ?? id] as [string, string]),
+    // Only integrations with a tab in the island: the bar shows those (Telegram has none, and stays out).
+    ...settings.activeIntegrations
+      .filter((id) => INTEGRATION_AGENTS.some((x) => x.id === id))
+      .map((id) => [`task:${id}`, INTEGRATIONS.find((i) => i.id === id)?.name ?? id] as [string, string]),
     ...(settings.widgets ?? []).map((w) => [`task:widget:${w.id}`, `${t("Widget")} · ${w.name}`] as [string, string]),
     ...(settings.actions ?? []).map((a) => [`action:${a.id}`, `${t("Azione")} · ${a.icon ? `${a.icon} ` : ""}${a.name}`] as [string, string]),
   ];

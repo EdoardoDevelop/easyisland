@@ -73,5 +73,5 @@ Branch `claude/barra-fissa-2`, ripartito il 29 ottobre 2026 da `claude/sviluppo`
   - **Prova:**
     - nel browser, barra di 900 px con otto elementi: restano la striscia e gli elementi accanto al personaggio; il centro e l'ultima azione vanno nel «…».
     - Dal vivo (2560 px al 125 %) la barra non trabocca nemmeno con sei integrazioni al centro e il personaggio al centro, quindi il menu nativo non è ancora stato visto. Impostazioni rimesse com'erano (copia `settings.json.bak-barra-20261029-122639`).
-  - **Telegram** non compare come elemento: non è un'integrazione con una scheda (`State.tasks`), quindi l'elemento si salta. Da togliere dall'elenco delle Impostazioni, o da dare una scheda.
+  - **Telegram** non va nella barra (deciso da Edoardo): l'elenco delle Impostazioni offre solo le integrazioni con una scheda nell'isola (`INTEGRATION_AGENTS`), le uniche che la barra sa mostrare.
 
