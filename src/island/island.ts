@@ -3637,7 +3637,8 @@ ${note}` : text };
 
   /** "Sempre visibile": a resting island comes straight back as the compact view. */
   private keepCompactUp() {
-    if (State.settings.revealDuration > 0 || this.fsm.state !== "hidden") return;
+    // With the fixed bar the bar stands for the compact view: never kept up.
+    if (State.settings.revealDuration > 0 || this.fsm.state !== "hidden" || barEdge(State.settings)) return;
     // Paused from the tray, or quiet over a full-screen app: stay out of the way.
     if (State.paused || State.quiet) return;
     this.fsm.reveal();
@@ -3648,7 +3649,11 @@ ${note}` : text };
     Sound.setEnabled(State.settings.soundEnabled);
     Sound.setVolume(State.settings.soundVolume);
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
-    this.fsm.petitToHiddenDelay = State.settings.revealDuration;
+    // With the fixed bar the compact view only shows for what needs an answer
+    // (the strip holds it), and goes as soon as it is done.
+    const bar = barEdge(State.settings) != null;
+    this.fsm.petitToHiddenDelay = bar ? 0.3 : State.settings.revealDuration;
+    if (bar && this.fsm.state === "petit" && !this.fsm.held()) this.fsm.forceHidden();
     this.applyTheme();
     this.applyPlacement();
     void this.refreshLimits();

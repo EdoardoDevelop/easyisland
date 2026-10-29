@@ -45,8 +45,9 @@ let gazeAt = 0;
 /** The canvas: a square around the rest icon, or the whole window (the compact canvas). */
 function box(): { w: number; h: number } {
   if (mode === "compact" || mode === "open") return { w: window.innerWidth, h: window.innerHeight };
-  // In the bar: the body fills ~85 % of the band's height.
-  const w = Math.round((mode === "bar" && bar ? bar.thickness * 1.15 : size * 1.3));
+  // In the bar: a canvas a little shorter than the band, so the body (and its
+  // float, a few px up and down) stays inside it with a margin.
+  const w = Math.round((mode === "bar" && bar ? bar.thickness * 0.9 : size * 1.3));
   return { w, h: w };
 }
 
