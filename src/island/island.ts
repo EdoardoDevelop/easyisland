@@ -2667,6 +2667,34 @@ ${note}` : text };
   /** The island's background as painted (paintIsland): the fixed bar wears it too. */
   islandBackground = "rgba(0,0,0,1)";
 
+  /** The island's text colour, for the fixed bar's elements. */
+  get islandInk(): string {
+    return getComputedStyle(this.islandEl).color || "#f5f6f8";
+  }
+
+  /**
+   * A click on an element of the fixed bar (src/island/bar.ts): an integration
+   * or a widget opens its card (closes it, if it is already the one open), an
+   * action runs.
+   */
+  barClick(key: string) {
+    if (key.startsWith("task:")) {
+      const id = key.slice(5);
+      if (State.mode === "expanded" && State.focusTask?.id === id && !State.summary) {
+        this.collapse();
+        return;
+      }
+      State.summary = false;
+      State.setFocus(id);
+      this.openedByUser = true;
+      this.expand("overview");
+      this.openedByUser = false;
+    } else if (key.startsWith("action:")) {
+      const a = (State.settings.actions ?? []).find((x) => x.id === key.slice(7));
+      if (a) void this.runAction(a);
+    }
+  }
+
   /** The island's own colour: the user's, or the style's default for dark or light. */
   private paintIsland() {
     const t = State.settings.theme;

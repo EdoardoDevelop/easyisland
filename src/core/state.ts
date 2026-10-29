@@ -108,6 +108,17 @@ export const CHAT_ENGINES: { id: ChatEngine; name: string; key?: string; url?: s
   { id: "lmstudio", name: "LM Studio", url: "http://localhost:1234", hint: t("modelli locali, nessuna chiave") },
 ];
 
+/**
+ * One element of the fixed bar (docs/barra-fissa.md): `task:<id>` an
+ * integration or a widget, `action:<id>` a quick action; in which area, and
+ * with its icon, its value (or name) or both.
+ */
+export interface BarItem {
+  id: string;
+  area: "start" | "center" | "end";
+  show?: "icon" | "value" | "both";
+}
+
 /** «Barra fissa» on: its edge (src-tauri/src/appbar.rs); null when off. */
 export function barEdge(s: { fixedBar?: string }): "top" | "bottom" | null {
   return s.fixedBar === "top" || s.fixedBar === "bottom" ? s.fixedBar : null;
@@ -430,6 +441,8 @@ export interface Settings {
   fixedBar?: "" | "top" | "bottom";
   /** Where the character sits in the fixed bar. */
   fixedBarSlot?: "start" | "center" | "end";
+  /** What else the fixed bar shows, in order (BarItem). */
+  fixedBarItems?: BarItem[];
   /** Width of the open island, px (dragged with its corner, or Impostazioni → Posizione). */
   islandWidth: number;
   /** Minimum height of the open island, px; 0 = each view's own height. */
@@ -991,6 +1004,7 @@ export const DEFAULT_SETTINGS: Settings = {
   overTaskbar: false,
   fixedBar: "",
   fixedBarSlot: "center",
+  fixedBarItems: [],
   islandWidth: 640,
   islandHeight: 0,
   islandPlace: "character",

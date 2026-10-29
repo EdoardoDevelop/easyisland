@@ -2348,6 +2348,7 @@ function appearanceSections(): HTMLElement[] {
         (v) => { settings.fixedBarSlot = v as Settings["fixedBarSlot"]; commit(); }),
       h("span", { class: "hint note", text: t("con la barra fissa il personaggio sta lì e non si trascina; l'isola si apre sotto la barra (sopra, se è in basso) e da chiusa non c'è") }),
     ),
+    barItemsEditor(commit),
     h("div", { class: "row free-row" }, h("label", { text: t("Posizione") }), vertical, horizontal),
     h("div", { class: "row free-row" },
       h("label", { text: t("Sopra la barra") }),
@@ -2529,6 +2530,60 @@ function languageRow(): HTMLElement {
 }
 
 // ── Profiles ──────────────────────────────────────────────────────────────────
+
+/**
+ * «Elementi nella barra»: integrations, widgets and quick actions in the fixed
+ * bar's areas (src/island/bar.ts), each with its area and how it shows, in
+ * order. Added from one list, moved with ↑ ↓, removed with ✕.
+ */
+function barItemsEditor(commit: () => void): HTMLElement {
+  const list = h("div", { class: "bar-items" });
+  const choices = (): [string, string][] => [
+    ...settings.activeIntegrations.map((id) => [`task:${id}`, INTEGRATIONS.find((i) => i.id === id)?.name ?? id] as [string, string]),
+    ...(settings.widgets ?? []).map((w) => [`task:widget:${w.id}`, `${t("Widget")} · ${w.name}`] as [string, string]),
+    ...(settings.actions ?? []).map((a) => [`action:${a.id}`, `${t("Azione")} · ${a.icon ? `${a.icon} ` : ""}${a.name}`] as [string, string]),
+  ];
+  const render = () => {
+    const items = settings.fixedBarItems ?? [];
+    const names = new Map(choices());
+    list.replaceChildren();
+    items.forEach((it, i) => {
+      const save = () => { settings.fixedBarItems = [...items]; commit(); render(); };
+      const move = (d: number) => {
+        const j = i + d;
+        if (j < 0 || j >= items.length) return;
+        [items[i], items[j]] = [items[j], items[i]];
+        save();
+      };
+      list.append(h("div", { class: "row bar-item-row" },
+        h("label", { text: names.get(it.id) ?? it.id }),
+        select([["start", t("All'inizio")], ["center", t("Al centro")], ["end", t("Alla fine")]], it.area,
+          (v) => { it.area = v; save(); }),
+        select([["both", t("Icona e valore")], ["icon", t("Solo icona")], ["value", t("Solo valore")]], it.show ?? "both",
+          (v) => { it.show = v; save(); }),
+        h("button", { text: "↑", title: t("Su"), onclick: () => move(-1) }),
+        h("button", { text: "↓", title: t("Giù"), onclick: () => move(1) }),
+        h("button", { class: "danger", text: "✕", title: t("Togli"), onclick: () => { items.splice(i, 1); save(); } }),
+      ));
+    });
+    const used = new Set(items.map((x) => x.id));
+    const free = choices().filter(([id]) => !used.has(id));
+    if (free.length) {
+      const add = select([["", t("Aggiungi alla barra…")], ...free], "", (v) => {
+        if (!v) return;
+        settings.fixedBarItems = [...items, { id: v, area: settings.fixedBarSlot ?? "center", show: "both" }];
+        commit();
+        render();
+      });
+      list.append(h("div", { class: "row" }, h("label", { text: items.length ? "" : t("Elementi nella barra") }), add));
+    }
+  };
+  render();
+  return h("div", { class: "bar-row-block" },
+    h("div", { class: "hint", text: t("Integrazioni, widget e azioni rapide nella barra fissa: ognuno nella sua area, con l'icona, il valore o entrambi. Un clic apre la sua card o esegue l'azione.") }),
+    list,
+  );
+}
 
 /** «Barra fissa» on: its own rows show, those that no longer apply hide (settings.css). */
 function paintFixedBar() {

@@ -43,9 +43,28 @@
         0%, 100% { opacity: 0.15; transform: translate(-50%, -50%) scale(0.85); }
         50% { opacity: 0.55; transform: translate(-50%, -50%) scale(1.25); }
       }
+      /* The fixed bar's areas and elements (src/island/bar.ts prepares them). */
+      .area { position: absolute; top: 0; height: 100%; display: none; align-items: center; gap: 4px; }
+      body.bar .area { display: flex; }
+      .bar-btn {
+        all: unset; display: flex; align-items: center; min-width: 0; max-width: 240px;
+        padding: 3px 8px; border-radius: 8px; cursor: pointer; white-space: nowrap;
+        font: 12px "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; color: var(--ink, #f5f6f8);
+      }
+      .bar-btn:hover { background: color-mix(in srgb, var(--ink, #fff) 12%, transparent); }
+      .bar-item { display: flex; align-items: center; gap: 6px; min-width: 0; }
+      .bar-icon { display: grid; place-items: center; flex: none; }
+      .bar-icon svg, .bar-icon img { width: 15px; height: 15px; }
+      .bar-text { overflow: hidden; text-overflow: ellipsis; }
+      .bar-btn.warn .bar-text { color: #F5A524; }
+      .bar-btn.error .bar-text { color: #F4505E; }
+      .bar-action { border-left: 2px solid var(--action, transparent); padding-left: 6px; }
     </style>
   </head>
   <body>
+    <div id="a-start" class="area"></div>
+    <div id="a-center" class="area"></div>
+    <div id="a-end" class="area"></div>
     <div id="float">
       <div id="halo"></div>
       <div id="sway"><div id="breathe"><canvas id="bot"></canvas></div></div>

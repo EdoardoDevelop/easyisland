@@ -3621,5 +3621,11 @@
   "Personaggio nella barra": "Character in the bar",
   "All'inizio": "At the start",
   "Alla fine": "At the end",
-  "con la barra fissa il personaggio sta lì e non si trascina; l'isola si apre sotto la barra (sopra, se è in basso) e da chiusa non c'è": "with the fixed bar the character stays there and cannot be dragged; the island opens below the bar (above it, if the bar is at the bottom) and is not there when closed"
+  "con la barra fissa il personaggio sta lì e non si trascina; l'isola si apre sotto la barra (sopra, se è in basso) e da chiusa non c'è": "with the fixed bar the character stays there and cannot be dragged; the island opens below the bar (above it, if the bar is at the bottom) and is not there when closed",
+  "Icona e valore": "Icon and value",
+  "Solo valore": "Value only",
+  "Giù": "Down",
+  "Aggiungi alla barra…": "Add to the bar…",
+  "Elementi nella barra": "Items in the bar",
+  "Integrazioni, widget e azioni rapide nella barra fissa: ognuno nella sua area, con l'icona, il valore o entrambi. Un clic apre la sua card o esegue l'azione.": "Integrations, widgets and quick actions in the fixed bar: each in its area, with its icon, its value or both. A click opens its card or runs the action."
 }

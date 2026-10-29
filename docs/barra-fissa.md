@@ -30,7 +30,7 @@ Branch `claude/barra-fissa-2`, ripartito il 29 ottobre 2026 da `claude/sviluppo`
   - la finestra del personaggio diventa la fascia, con lo sfondo dell'isola e il personaggio nella sua area;
   - l'isola chiusa nascosta; aperta contro la fascia;
   - Impostazioni → Posizione: «Barra fissa» e «Personaggio nella barra», con le righe che non valgono nascoste.
-- [ ] **2. Elementi delle aree:**
+- [~] **2. Elementi delle aree:** (integrazioni, widget e azioni fatti il 29 ottobre; striscia e «…» da fare)
   - integrazioni e widget (icona, valore o entrambi; il clic apre la card);
   - azioni rapide (come la barra dell'app in uso);
   - striscia dove la mette l'utente;
@@ -45,3 +45,11 @@ Branch `claude/barra-fissa-2`, ripartito il 29 ottobre 2026 da `claude/sviluppo`
 ## Note durante il lavoro
 - **29 ottobre, passo 1 scritto.**
   - **Vista compatta:** con la barra accesa la finestra del personaggio non la disegna. Se l'isola si affaccia compatta per un avviso (`peek`, striscia), compare sotto la barra con il suo personaggio. La striscia andrà nella barra al passo 2.
+  - **Vista compatta sempre visibile:** con la barra accesa non vale. `keepCompactUp` non la tiene su e `petitToHiddenDelay` è 0,3 s, così la vista compatta compare solo per ciò che la striscia trattiene (permesso, chiamata).
+- **29 ottobre, passo 2 (prima parte).**
+  - **Elementi:** integrazioni, widget e azioni rapide nelle tre aree. L'isola li prepara (`src/island/bar.ts`: icona come nel menu, `taskIcon` di `rail.ts`; valore = `widgetStatus.summary` o l'ultimo passo; azioni con `renderActionIcon`). I testi entrano con `textContent`. Arrivano nel `look` del canale (`bar.items`, `BarPiece`).
+  - **Disegno:** la finestra della barra li dispone nelle aree (`layAreas`). Nell'area del personaggio vengono subito dopo di lui; al centro senza personaggio sono centrati.
+  - **Clic:** il clic torna all'isola (`{ kind: "bar", key }` → `barClick`). Un'integrazione o un widget aprono la card, o la chiudono se è già quella aperta; un'azione si esegue.
+  - **Impostazione `fixedBarItems`:** `{ id: "task:…" | "action:…", area, show }`, del PC (in Rust `Vec<Value>`).
+  - **Impostazioni → Posizione → «Elementi nella barra»** (`barItemsEditor`): aggiungi da un elenco (integrazioni attive, widget, azioni), area, «Icona e valore» / «Solo icona» / «Solo valore», ↑ ↓ ✕.
+  - **Da fare:** la striscia nella barra (permessi, chiamate, agente al lavoro, barra dell'app in uso); il menu «…» quando gli elementi non ci stanno.

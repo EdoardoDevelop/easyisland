@@ -17,6 +17,7 @@ import { registerMoments } from "./island/moments";
 import { syncLanguage } from "./core/i18n";
 import { registerIntegrationHandlers, refreshConfigured } from "./island/integrations";
 import { linkChannel, type CharacterToIsland, type IslandToCharacter } from "./core/link";
+import { barPieces } from "./island/bar";
 
 /**
  * Uncaught errors of the page go to easyisland.log (the WebView's console is
@@ -243,7 +244,13 @@ function linkCharacterWindow(island: Island) {
       weather: State.weatherNow,
       agents: State.sessionTasks.filter((x) => x.state === "working" || x.state === "thinking" || x.state === "searching").length,
       bar: barEdge(State.settings)
-        ? { slot: State.settings.fixedBarSlot ?? "center", background: island.islandBackground, thickness: barThickness(State.settings) }
+        ? {
+          slot: State.settings.fixedBarSlot ?? "center",
+          background: island.islandBackground,
+          thickness: barThickness(State.settings),
+          ink: island.islandInk,
+          items: barPieces(),
+        }
         : null,
     };
   };
@@ -251,6 +258,8 @@ function linkCharacterWindow(island: Island) {
     if (m.kind === "hello") {
       sentKey = "";
       push();
+    } else if (m.kind === "bar") {
+      island.barClick(m.key);
     } else if (m.kind === "open") {
       if (State.mode === "expanded") island.collapse();
       else island.openFromTaskbar();

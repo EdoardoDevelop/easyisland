@@ -11,6 +11,16 @@ import type { BotStateName } from "./layout";
  */
 export type CharacterMode = "off" | "rest" | "compact" | "open" | "bar";
 
+/** One element of the fixed bar, prepared by the island (src/island/bar.ts). */
+export interface BarPiece {
+  key: string;
+  area: "start" | "center" | "end";
+  /** Built with the DOM by the island: icons and escaped text. */
+  html: string;
+  title: string;
+  tone?: "ok" | "warn" | "error";
+}
+
 /** The fixed bar as the character's window draws it. */
 export interface BarLook {
   /** Where the character sits along the band. */
@@ -19,6 +29,9 @@ export interface BarLook {
   background: string;
   /** The band's height, logical px. */
   thickness: number;
+  /** The island's text colour, for the elements. */
+  ink: string;
+  items: BarPiece[];
 }
 
 export type IslandToCharacter =
@@ -49,6 +62,8 @@ export type CharacterToIsland =
   | { kind: "hello" }
   /** A click on the character beside the open island: closes it (or opens it). */
   | { kind: "open" }
+  /** A click on an element of the fixed bar (BarPiece.key). */
+  | { kind: "bar"; key: string }
   | { kind: "ping"; sent: number };
 
 /** BotEngine methods the island forwards while the compact character is in its own window. */

@@ -158,6 +158,7 @@ function layBar() {
   const float = document.getElementById("float");
   if (!float) return;
   document.body.style.background = bar ? bar.background : "transparent";
+  document.body.classList.toggle("bar", !!bar);
   if (!bar) {
     float.style.cssText = "";
     return;
@@ -165,7 +166,46 @@ function layBar() {
   const t = bar.thickness;
   const left = bar.slot === "start" ? "8px" : bar.slot === "end" ? `calc(100% - ${t + 8}px)` : `calc(50% - ${t / 2}px)`;
   float.style.cssText = `inset: auto; top: 0; left: ${left}; width: ${t}px; height: 100%;`;
+  document.body.style.setProperty("--ink", bar.ink);
+  layAreas(bar);
 }
+
+/**
+ * The three areas: from the left edge, around the middle, from the right edge.
+ * In the character's area the elements come right after it.
+ */
+function layAreas(b: BarLook) {
+  const beside = b.thickness + 8 + 6;
+  const areas = { start: document.getElementById("a-start"), center: document.getElementById("a-center"), end: document.getElementById("a-end") };
+  if (areas.start) areas.start.style.cssText = `left: ${b.slot === "start" ? beside : 8}px;`;
+  if (areas.end) areas.end.style.cssText = `right: ${b.slot === "end" ? beside : 8}px;`;
+  if (areas.center) {
+    areas.center.style.cssText = b.slot === "center"
+      ? `left: calc(50% + ${b.thickness / 2 + 6}px);`
+      : "left: 50%; transform: translateX(-50%);";
+  }
+  const key = JSON.stringify(b.items);
+  if (key === laidItems) return;
+  laidItems = key;
+  for (const el of Object.values(areas)) el?.replaceChildren();
+  for (const p of b.items) {
+    const btn = document.createElement("button");
+    btn.className = `bar-btn${p.tone === "warn" || p.tone === "error" ? ` ${p.tone}` : ""}`;
+    btn.dataset.key = p.key;
+    btn.title = p.title;
+    // Built by the island with the DOM (src/island/bar.ts): icons and escaped text only.
+    btn.innerHTML = p.html;
+    areas[p.area]?.append(btn);
+  }
+}
+
+let laidItems = "";
+
+// An element of the bar: the island opens its card or runs the action.
+document.addEventListener("click", (e) => {
+  const btn = (e.target as HTMLElement | null)?.closest?.(".bar-btn") as HTMLElement | null;
+  if (btn?.dataset.key) send({ kind: "bar", key: btn.dataset.key });
+});
 
 // Beside the open island or in the fixed bar (the times the window takes the mouse):
 // a click closes the island, or opens it from the bar.
