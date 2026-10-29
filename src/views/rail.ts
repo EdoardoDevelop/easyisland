@@ -43,8 +43,8 @@ function current(): string {
   return task?.id ?? "oggi";
 }
 
-/** Icon of an integration in the menu: the user's emoji, else its logo, else its colour. */
-function taskIcon(task: AgentTask): Element {
+/** Icon of an integration in the menu (and in the fixed bar): the user's emoji, else its logo, else its colour. */
+export function taskIcon(task: AgentTask): Element {
   const own = State.settings.integrationTabIcons?.[task.id]?.trim() ?? "";
   if (own && !own.startsWith("@")) return h("span", { class: "rail-emoji", text: own });
   // An integration of the user's: the icon the chat gave it.

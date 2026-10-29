@@ -6,7 +6,7 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
-import { type AgentTaskItem, type Custom, type Skill, type TaskState, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef } from "../core/state";
+import { type AgentTaskItem, type Custom, type Skill, type TaskState, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef } from "../core/state";
 
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
 import { ISLAND_MIN_W, PANEL_H, PANEL_W, islandMax } from "../core/layout";
@@ -2042,6 +2042,7 @@ function slider(
 
 function appearanceSections(): HTMLElement[] {
   const commit = () => void save();
+  paintFixedBar();
   const th = settings.theme;
   const pct = (v: number) => Math.round(v * 100);
   // The colour row follows the character: its own colour is the default (for
@@ -2127,6 +2128,14 @@ function appearanceSections(): HTMLElement[] {
     settings.screen,
     (v) => { settings.screen = v; commit(); },
   );
+  // Every screen by name: with the fixed bar the character cannot be dragged to one.
+  void Bridge.monitorList().then((list) => {
+    for (const [value, label] of list ?? []) {
+      if ([...screen.options].some((o) => o.value === value)) continue;
+      screen.append(h("option", { value, text: label }));
+    }
+    screen.value = settings.screen;
+  }).catch(() => {});
 
   const vertical = select<Settings["anchorV"]>(
     [["top", t("In alto")], ["bottom", t("In basso")]],
@@ -2236,7 +2245,7 @@ function appearanceSections(): HTMLElement[] {
     reveal,
     h("span", { class: "hint note", text: t("secondi dopo un evento o dopo che sposti via il mouse") }),
   );
-  const restRows = h("div", { style: "display:contents" },
+  const restRows = h("div", { class: "free-row", style: "display:contents" },
     h("div", { class: "row" }, h("label", { text: t("Icona a riposo") }), iconStyle),
     iconSize,
     revealRow,
@@ -2335,13 +2344,30 @@ function appearanceSections(): HTMLElement[] {
     h("h2", {}, h("span", { text: t("Posizione") }), profileChip()),
     h("div", { class: "hint", text: t("Dove vive il personaggio. Quando si apre, l'isola cresce dall'angolo scelto e il contenuto resta allineato a quel lato. In basso sta sopra la barra delle applicazioni. Puoi anche trascinare il personaggio con il mouse: la posizione resta salvata; sceglierne una qui la riporta al bordo.") }),
     h("div", { class: "row" }, h("label", { text: t("Schermo") }), screen),
-    h("div", { class: "row" }, h("label", { text: t("Posizione") }), vertical, horizontal),
     h("div", { class: "row" },
+      h("label", { text: t("Barra fissa") }),
+      select([["", t("Spenta")], ["top", t("In alto")], ["bottom", t("In basso")]], settings.fixedBar ?? "",
+        (v) => { settings.fixedBar = v as Settings["fixedBar"]; paintFixedBar(); commit(); }),
+      h("span", { class: "hint note", text: t("Windows tiene libera una fascia sul bordo, come per la barra delle applicazioni: le finestre si fermano lì") }),
+    ),
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Personaggio nella barra") }),
+      select([["start", t("All'inizio")], ["center", t("Al centro")], ["end", t("Alla fine")]], settings.fixedBarSlot ?? "center",
+        (v) => { settings.fixedBarSlot = v as Settings["fixedBarSlot"]; commit(); }),
+      h("span", { class: "hint note", text: t("con la barra fissa il personaggio sta lì e non si trascina; l'isola si apre sotto la barra (sopra, se è in basso) e da chiusa non c'è") }),
+    ),
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Sfondo della barra") }),
+      barBackground(commit),
+    ),
+    barItemsEditor(commit),
+    h("div", { class: "row free-row" }, h("label", { text: t("Posizione") }), vertical, horizontal),
+    h("div", { class: "row free-row" },
       h("label", { text: t("Sopra la barra") }),
       toggle(settings.overTaskbar, (v) => { settings.overTaskbar = v; commit(); }),
       h("span", { class: "hint note", text: t("il personaggio può stare anche sopra la barra delle applicazioni") }),
     ),
-    h("div", { class: "row" },
+    h("div", { class: "row free-row" },
       h("label", { text: t("Aggancia ai bordi") }),
       toggle(settings.glueEdges, (v) => { settings.glueEdges = v; commit(); }),
       h("span", { class: "hint note", text: t("lasciato a pochi pixel da un bordo, lo sfondo si attacca al bordo; altrimenti resta solo intorno all'icona") }),
@@ -2359,7 +2385,7 @@ function appearanceSections(): HTMLElement[] {
     h("div", { class: "hint", text: t("Quando l'isola non è aperta: cosa resta sullo schermo e cosa compare accanto al personaggio.") }),
     h("div", { class: "row" }, h("label", { text: t("Vista compatta") }), hoverStyle),
     hoverSize,
-    h("div", { class: "row" },
+    h("div", { class: "row free-row" },
       h("label", { text: t("Sempre visibile") }),
       always,
       h("span", { class: "hint note", text: t("la vista compatta resta sullo schermo e non torna mai all'icona a riposo") }),
@@ -2402,7 +2428,7 @@ function appearanceSections(): HTMLElement[] {
     {},
     h("h2", {}, h("span", { text: t("Isola aperta") }), profileChip()),
     h("div", { class: "hint", text: t("Quando e dove si apre, quanto è grande e quando si richiude.") }),
-    h("div", { class: "row" },
+    h("div", { class: "row free-row" },
       h("label", { text: t("L'isola si apre") }),
       place,
       h("span", { class: "hint note", text: t("vicino al personaggio, oppure sempre nello stesso punto dello schermo; il personaggio resta dov'è") }),
@@ -2516,6 +2542,85 @@ function languageRow(): HTMLElement {
 }
 
 // ── Profiles ──────────────────────────────────────────────────────────────────
+
+/** «Sfondo della barra»: the island's, none, or a colour of the user's. */
+function barBackground(commit: () => void): HTMLElement {
+  const current = settings.fixedBarBackground ?? "";
+  const custom = /^#[0-9a-f]{6}$/i.test(current);
+  const picker = colorField(custom ? current : "", "#1f2937", (v) => { settings.fixedBarBackground = v; commit(); });
+  picker.style.display = custom ? "flex" : "none";
+  const choice = select([["", t("Come l'isola")], ["transparent", t("Trasparente")], ["color", t("Un colore")]],
+    custom ? "color" : current === "transparent" ? "transparent" : "",
+    (v) => {
+      picker.style.display = v === "color" ? "flex" : "none";
+      settings.fixedBarBackground = v === "color" ? (custom ? current : "#1f2937") : v;
+      commit();
+    });
+  return h("span", { style: "display:flex;align-items:center;gap:10px" }, choice, picker);
+}
+
+/**
+ * «Elementi nella barra»: integrations, widgets and quick actions in the fixed
+ * bar's areas (src/island/bar.ts), each with its area and how it shows, in
+ * order. Added from one list, moved with ↑ ↓, removed with ✕.
+ */
+function barItemsEditor(commit: () => void): HTMLElement {
+  const list = h("div", { class: "bar-items" });
+  const choices = (): [string, string][] => [
+    ["strip", t("Striscia: permessi, chiamate, agente al lavoro, app in uso")],
+    // Only integrations with a tab in the island: the bar shows those (Telegram has none, and stays out).
+    ...settings.activeIntegrations
+      .filter((id) => INTEGRATION_AGENTS.some((x) => x.id === id))
+      .map((id) => [`task:${id}`, INTEGRATIONS.find((i) => i.id === id)?.name ?? id] as [string, string]),
+    ...(settings.widgets ?? []).map((w) => [`task:widget:${w.id}`, `${t("Widget")} · ${w.name}`] as [string, string]),
+    ...(settings.actions ?? []).map((a) => [`action:${a.id}`, `${t("Azione")} · ${a.icon ? `${a.icon} ` : ""}${a.name}`] as [string, string]),
+  ];
+  const render = () => {
+    const items = settings.fixedBarItems ?? [];
+    const names = new Map(choices());
+    list.replaceChildren();
+    items.forEach((it, i) => {
+      const save = () => { settings.fixedBarItems = [...items]; commit(); render(); };
+      const move = (d: number) => {
+        const j = i + d;
+        if (j < 0 || j >= items.length) return;
+        [items[i], items[j]] = [items[j], items[i]];
+        save();
+      };
+      list.append(h("div", { class: "row bar-item-row" },
+        h("label", { text: names.get(it.id) ?? it.id }),
+        select([["start", t("All'inizio")], ["center", t("Al centro")], ["end", t("Alla fine")]], it.area,
+          (v) => { it.area = v; save(); }),
+        select([["both", t("Icona e valore")], ["icon", t("Solo icona")], ["value", t("Solo valore")]], it.show ?? "both",
+          (v) => { it.show = v; save(); }),
+        h("button", { text: "↑", title: t("Su"), onclick: () => move(-1) }),
+        h("button", { text: "↓", title: t("Giù"), onclick: () => move(1) }),
+        h("button", { class: "danger", text: "✕", title: t("Togli"), onclick: () => { items.splice(i, 1); save(); } }),
+      ));
+    });
+    const used = new Set(items.map((x) => x.id));
+    const free = choices().filter(([id]) => !used.has(id));
+    if (free.length) {
+      const add = select([["", t("Aggiungi alla barra…")], ...free], "", (v) => {
+        if (!v) return;
+        settings.fixedBarItems = [...items, { id: v, area: settings.fixedBarSlot ?? "center", show: "both" }];
+        commit();
+        render();
+      });
+      list.append(h("div", { class: "row" }, h("label", { text: items.length ? "" : t("Elementi nella barra") }), add));
+    }
+  };
+  render();
+  return h("div", { class: "bar-row-block" },
+    h("div", { class: "hint", text: t("Integrazioni, widget e azioni rapide nella barra fissa: ognuno nella sua area, con l'icona, il valore o entrambi. Un clic apre la sua card o esegue l'azione.") }),
+    list,
+  );
+}
+
+/** «Barra fissa» on: its own rows show, those that no longer apply hide (settings.css). */
+function paintFixedBar() {
+  document.body.classList.toggle("fixed-bar", !!settings.fixedBar);
+}
 
 /** Chip shown on sections whose values belong to the active profile. */
 function profileChip(): HTMLElement {

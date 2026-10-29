@@ -5,8 +5,34 @@
 import type { Sky } from "../character/weather";
 import type { BotStateName } from "./layout";
 
-/** What the character's window shows: nothing, the rest icon, the compact character, or the one beside the open island. */
-export type CharacterMode = "off" | "rest" | "compact" | "open";
+/**
+ * What the character's window shows: nothing, the rest icon, the compact
+ * character, the one beside the open island, or the fixed bar (appbar.rs).
+ */
+export type CharacterMode = "off" | "rest" | "compact" | "open" | "bar";
+
+/** One element of the fixed bar, prepared by the island (src/island/bar.ts). */
+export interface BarPiece {
+  key: string;
+  area: "start" | "center" | "end";
+  /** Built with the DOM by the island: icons and escaped text. */
+  html: string;
+  title: string;
+  tone?: "ok" | "warn" | "error";
+}
+
+/** The fixed bar as the character's window draws it. */
+export interface BarLook {
+  /** Where the character sits along the band. */
+  slot: "start" | "center" | "end";
+  /** The island's own background, the band's too. */
+  background: string;
+  /** The band's height, logical px. */
+  thickness: number;
+  /** The island's text colour, for the elements. */
+  ink: string;
+  items: BarPiece[];
+}
 
 export type IslandToCharacter =
   | {
@@ -23,6 +49,8 @@ export type IslandToCharacter =
       weather: { sky: Sky | null; temp: string };
       /** Jarvis: one satellite per agent at work. */
       agents: number;
+      /** With the fixed bar on. */
+      bar: BarLook | null;
     }
   /** The compact character's gaze, -1…1 (BotEngine.lookX / lookY). */
   | { kind: "gaze"; x: number; y: number }
@@ -34,6 +62,8 @@ export type CharacterToIsland =
   | { kind: "hello" }
   /** A click on the character beside the open island: closes it (or opens it). */
   | { kind: "open" }
+  /** A click on an element of the fixed bar (BarPiece.key). */
+  | { kind: "bar"; key: string }
   | { kind: "ping"; sent: number };
 
 /** BotEngine methods the island forwards while the compact character is in its own window. */

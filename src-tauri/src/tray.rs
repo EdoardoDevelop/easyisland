@@ -107,6 +107,29 @@ pub fn popup(app: &AppHandle) {
     crate::island::set_activating(&win, false);
 }
 
+/// «…» of the fixed bar (docs/architettura.md → «Barra fissa»): the elements that do not fit,
+/// as a menu at the mouse over the bar. A click comes back as the "tray" event
+/// "bar:<key>" (the tray's handler sends on every id it does not know), which
+/// the island handles as a click on that element.
+pub fn popup_bar_menu(app: &AppHandle, entries: &[(String, String)]) {
+    let Some(win) = app.get_window(crate::CHARACTER_LABEL) else { return };
+    let built = Menu::new(app).and_then(|menu| {
+        for (key, label) in entries {
+            // "&" underlines the next letter in a Windows menu.
+            menu.append(&MenuItem::with_id(app, format!("bar:{key}"), label.replace('&', "&&"), true, None::<&str>)?)?;
+        }
+        Ok(menu)
+    });
+    let Ok(menu) = built else { return };
+    // As the island's menus: TrackPopupMenu needs a foreground owner to close on an outside click.
+    crate::island::set_activating(&win, true);
+    if let Err(e) = win.popup_menu(&menu) {
+        crate::log::line(format!("bar menu: {e}"));
+    }
+    // Never activated again, also with the island as an app (set_activating keeps that one activatable).
+    crate::island::make_non_activating(&win);
+}
+
 /// One line of the menu on the selected text, built by the island
 /// (src/island/selection-menu.ts). An empty `id` is a separator; a line that
 /// is not `enabled` is a heading (the text that was selected); `items` make a

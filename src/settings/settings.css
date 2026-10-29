@@ -224,6 +224,13 @@ section > h2 {
   color: var(--dim);
 }
 
+.fixed-bar .free-row { display: none !important; }
+.bar-row { display: none !important; }
+.fixed-bar .bar-row { display: flex !important; }
+.bar-row-block { display: none; }
+.fixed-bar .bar-row-block { display: block; }
+.bar-item-row button { min-width: 28px; }
+
 .row {
   display: flex;
   align-items: center;

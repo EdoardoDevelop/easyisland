@@ -29,6 +29,15 @@ La pagina è divisa in cinque sezioni: **Tema**, **Personaggio**, **Posizione**,
 - **Aggancia ai bordi**: vicino a un bordo lo sfondo si attacca con gli angoli squadrati.
 - **Schermo intero**: durante video, giochi e presentazioni il personaggio sparisce; i permessi compaiono comunque.
 
+### Barra fissa
+Con **Barra fissa** in alto o in basso, Windows tiene libera una fascia sul bordo dello schermo, come per la barra delle applicazioni, e le finestre si fermano lì.
+- **Personaggio nella barra:** all'inizio, al centro o alla fine. Non si trascina; un clic apre l'isola subito sotto la barra (sopra, se la barra è in basso) e un altro la chiude. Da chiusa l'isola non c'è: c'è la barra.
+- **Sfondo della barra:** come l'isola, trasparente (si vede il desktop) o un colore a scelta; il testo diventa chiaro o scuro da solo.
+- **Elementi nella barra:** aggiungi le tue integrazioni, i widget e le azioni rapide. Per ognuno scegli l'area (all'inizio, al centro, alla fine) e cosa mostrare (icona e valore, solo icona, solo valore); ↑ ↓ cambiano l'ordine, ✕ lo toglie. Un clic su un'integrazione apre la sua card, su un'azione la esegue.
+- **La striscia** (permessi, chiamate, agente al lavoro, app in uso) sta nella barra accanto al personaggio, con i suoi pulsanti; aggiungendo «Striscia» agli elementi la metti dove vuoi.
+- Quello che non ci sta finisce in **«…»**, alla fine della barra: un clic apre l'elenco.
+- **Schermo** sceglie il monitor della barra. A schermo intero (video, giochi) la barra si nasconde e torna dopo.
+
 ## Isola chiusa
 | Opzione | Cosa fa |
 |---|---|

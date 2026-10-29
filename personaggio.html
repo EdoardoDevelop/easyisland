@@ -43,9 +43,50 @@
         0%, 100% { opacity: 0.15; transform: translate(-50%, -50%) scale(0.85); }
         50% { opacity: 0.55; transform: translate(-50%, -50%) scale(1.25); }
       }
+      /* The fixed bar's areas and elements (src/island/bar.ts prepares them). */
+      .area { position: absolute; top: 0; height: 100%; display: none; align-items: center; gap: 4px; }
+      body.bar .area { display: flex; }
+      .bar-btn {
+        all: unset; display: flex; align-items: center; min-width: 0; max-width: 240px;
+        padding: 3px 8px; border-radius: 8px; cursor: pointer; white-space: nowrap;
+        font: 12px "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; color: var(--ink, #f5f6f8);
+      }
+      .bar-btn:hover { background: color-mix(in srgb, var(--ink, #fff) 12%, transparent); }
+      .bar-item { display: flex; align-items: center; gap: 6px; min-width: 0; }
+      .bar-icon { display: grid; place-items: center; flex: none; }
+      .bar-icon svg, .bar-icon img { width: 15px; height: 15px; }
+      .bar-text { overflow: hidden; text-overflow: ellipsis; }
+      .bar-btn.warn .bar-text { color: #F5A524; }
+      .bar-btn.error .bar-text { color: #F4505E; }
+      /* Transparent bar: over the wallpaper the text needs a shadow to be read. */
+      body.see-through .bar-btn { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75), 0 0 6px rgba(0, 0, 0, 0.45); }
+      .bar-more { font-size: 16px; letter-spacing: 1px; padding: 0 10px; }
+      .bar-action { border-left: 2px solid var(--action, transparent); padding-left: 6px; }
+      /* The strip in the bar (src/island/bar.ts stripPiece), coloured by what it holds. */
+      .bar-btn:has(.bar-strip) { max-width: 560px; }
+      .bar-strip { display: flex; align-items: center; gap: 6px; min-width: 0; }
+      .bar-strip-text { display: flex; align-items: baseline; gap: 6px; min-width: 0; overflow: hidden; }
+      .bar-strip-text strong { font-weight: 600; white-space: nowrap; }
+      .bar-strip-sub { opacity: 0.7; overflow: hidden; text-overflow: ellipsis; }
+      .bar-strip[data-tone="approval"] strong { color: #F5A524; }
+      .bar-strip[data-tone="call"] strong { color: #22C55E; }
+      .bar-strip[data-tone="live"] strong { color: #F4505E; }
+      .bar-strip[data-tone="work"] strong { color: #4EA8FF; }
+      .bar-strip-btn {
+        display: flex; align-items: center; gap: 4px; flex: none; padding: 2px 9px; border-radius: 999px;
+        background: color-mix(in srgb, var(--ink, #fff) 14%, transparent);
+        border-left: 2px solid var(--action, transparent);
+      }
+      .bar-strip-btn:hover { background: color-mix(in srgb, var(--ink, #fff) 24%, transparent); }
+      .bar-strip-btn.light { background: var(--ink, #fff); color: #111; }
+      .bar-strip-btn.green { background: #22C55E; color: #fff; }
+      .bar-strip-btn.red { background: #F4505E; color: #fff; }
     </style>
   </head>
   <body>
+    <div id="a-start" class="area"></div>
+    <div id="a-center" class="area"></div>
+    <div id="a-end" class="area"></div>
     <div id="float">
       <div id="halo"></div>
       <div id="sway"><div id="breathe"><canvas id="bot"></canvas></div></div>

@@ -190,6 +190,8 @@ export const Bridge = {
 
   /** Writes to %LOCALAPPDATA%\EasyIsland\easyisland.log, next to the Rust lines. */
   log: (message: string) => call<void>("log_line", { message }),
+  /** The screens: [setting value ("monitor:<name>"), label], the main one first. */
+  monitorList: () => call<[string, string][]>("monitor_list"),
   /** The resting character shown by its own window (docs/due-webview.md), or not. */
   characterRest: (on: boolean) => call<void>("character_rest", { on }),
   /** The compact character's window over the badge: [x, y, w, h] in the island window's px, or null. */

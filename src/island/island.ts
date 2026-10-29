@@ -13,7 +13,7 @@ import {
 import type { Suggestion } from "./context";
 import { buildSelectionMenu, type SelectionMenu } from "./selection-menu";
 import { Sound } from "../core/sound";
-import { OPENED_BY_APP, OPEN_URLS, State, canAskSession, isSessionTask } from "../core/state";
+import { OPENED_BY_APP, OPEN_URLS, State, barEdge, canAskSession, isSessionTask } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
 import { character, setCharacter } from "../character/character";
 import { Greeting } from "../character/greeting";
@@ -26,7 +26,7 @@ import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../vie
 import { buildSearch, type SearchHost } from "../views/search";
 import { rdmLookFor } from "../views/rdm";
 import { buildRail, railBotSize } from "../views/rail";
-import { buildStrip, type Strip } from "../views/strip";
+import { buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
 import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
 import { sendToChat, windowLabel } from "../views/chat";
 import { capturing, startCapture } from "./capture";
@@ -420,11 +420,12 @@ export class Island {
     this.rail = buildRail(actions);
     // A tab chosen while typing: the search ends, its words go.
     this.rail.el.addEventListener("click", () => this.search.close(), true);
-    this.strip = buildStrip({
+    this.stripActions = {
       decide: (d) => actions.decide(d),
       runAction: (a) => void this.runAction(a),
       runSuggestion: (s) => void this.runSuggestion(s, ""),
-    });
+    };
+    this.strip = buildStrip(this.stripActions);
     this.contentEl = h("div", { id: "content" }, this.header.el, h("div", { id: "body" }, this.rail.el, this.viewsEl, this.paneEl));
 
     // The drop sequence draws the card, the bar and its own the character. It sits under
@@ -2095,7 +2096,9 @@ ${note}` : text };
     }
     // The greeting plays at its own place (Impostazioni → Posizione e aspetto).
     const greeting = State.view === "greeting";
-    this.awayPlace = greeting ? (State.settings.greetingPlace ?? "center") : (State.settings.islandPlace ?? "character");
+    // With the fixed bar it always opens against the band, at the character.
+    this.awayPlace = greeting ? (State.settings.greetingPlace ?? "center")
+      : barEdge(State.settings) ? "character" : (State.settings.islandPlace ?? "character");
     this.away = this.awayPlace !== "character";
     void Bridge.setExpanded(true, greeting ? this.awayPlace : null);
   }
@@ -2119,6 +2122,21 @@ ${note}` : text };
   /** The character's place: settings, in the shape the layout helpers take. */
   private get homePlacement(): Placement {
     const s = State.settings;
+    // With the fixed bar the island lives against the band, at the character's
+    // slot (Settings::home_anchor in settings.rs), never dragged away.
+    const edge = barEdge(s);
+    if (edge) {
+      const h = s.fixedBarSlot === "start" ? "left" : s.fixedBarSlot === "end" ? "right" : "center";
+      return {
+        h,
+        v: edge,
+        iconStyle: s.iconStyle,
+        iconSize: s.iconSize,
+        hoverStyle: s.hoverStyle,
+        hoverSize: s.hoverSize,
+        ...glueFor(h, edge, 0, 0, s.glueEdges ?? true),
+      };
+    }
     return {
       h: s.anchorH,
       v: s.anchorV,
@@ -2161,12 +2179,18 @@ ${note}` : text };
    * compact island peeks so the badge is seen; nothing opens.
    */
   peek() {
-    if (!State.quiet && this.fsm.state === "hidden") this.fsm.reveal();
+    // With the fixed bar there is no compact view: the bar shows the news.
+    if (!State.quiet && this.fsm.state === "hidden" && !barEdge(State.settings)) this.fsm.reveal();
     State.notify();
   }
 
   showInStrip(): boolean {
     if ((State.settings.compactStrip ?? "right") === "off" || State.mode === "expanded" || this.fsm.state === "greeting") return false;
+    // With the fixed bar the strip is in the bar: no compact view under it.
+    if (barEdge(State.settings)) {
+      State.notify();
+      return true;
+    }
     if (this.fsm.state === "hidden") {
       this.quietLaunch = true; // the request's own sound, not the peek
       this.fsm.reveal();
@@ -2647,6 +2671,55 @@ ${note}` : text };
     Sound.setFamilyGains({ alerts: t.volumeAlerts, ui: t.volumeUi, emotes: t.volumeEmotes });
   }
 
+  /** The island's background as painted (paintIsland): the fixed bar wears it too. */
+  islandBackground = "rgba(0,0,0,1)";
+
+  /** What the strip's buttons do (here, and in the fixed bar). */
+  private stripActions!: StripActions;
+
+  /** What the strip shows now, for the fixed bar (src/island/bar.ts). */
+  barStrip(): StripItem | null {
+    return stripItem(this.stripActions);
+  }
+
+  /** The island's text colour, for the fixed bar's elements. */
+  get islandInk(): string {
+    return getComputedStyle(this.islandEl).color || "#f5f6f8";
+  }
+
+  /**
+   * A click on an element of the fixed bar (src/island/bar.ts): an integration
+   * or a widget opens its card (closes it, if it is already the one open), an
+   * action runs.
+   */
+  barClick(key: string) {
+    if (key.startsWith("strip")) {
+      // A button of the strip does what it does beside the compact character;
+      // its line opens the island (on the request, when one waits).
+      const i = key.startsWith("strip:btn:") ? Number(key.slice(10)) : -1;
+      const b = i >= 0 ? this.barStrip()?.buttons[i] : undefined;
+      if (b) b.run();
+      else if (State.mode === "expanded") this.collapse();
+      else this.openByUser();
+      return;
+    }
+    if (key.startsWith("task:")) {
+      const id = key.slice(5);
+      if (State.mode === "expanded" && State.focusTask?.id === id && !State.summary) {
+        this.collapse();
+        return;
+      }
+      State.summary = false;
+      State.setFocus(id);
+      this.openedByUser = true;
+      this.expand("overview");
+      this.openedByUser = false;
+    } else if (key.startsWith("action:")) {
+      const a = (State.settings.actions ?? []).find((x) => x.id === key.slice(7));
+      if (a) void this.runAction(a);
+    }
+  }
+
   /** The island's own colour: the user's, or the style's default for dark or light. */
   private paintIsland() {
     const t = State.settings.theme;
@@ -2658,7 +2731,9 @@ ${note}` : text };
     }
     const n = parseInt(hex.slice(1), 16);
     const a = Math.max(0.5, Math.min(1, t.islandOpacity));
-    this.islandEl.style.background = `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+    this.islandBackground = `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+    this.islandEl.style.background = this.islandBackground;
+    this.onRestChange?.();
   }
 
   /** Re-reads placement settings: icon, anchors and the window box. */
@@ -3322,7 +3397,7 @@ ${note}` : text };
 
   /** The compact character is drawn by its own window, over the badge. */
   get compactInWindow(): boolean {
-    return IS_TAURI && this.mirror != null && State.mode === "compact" &&
+    return IS_TAURI && this.mirror != null && State.mode === "compact" && !barEdge(State.settings) &&
       !this.uploadActive && !State.windowPick && !State.quiet;
   }
 
@@ -3333,7 +3408,7 @@ ${note}` : text };
    * an island filling the screen.
    */
   get openInWindow(): boolean {
-    return IS_TAURI && this.mirror != null && State.mode === "expanded" &&
+    return IS_TAURI && this.mirror != null && State.mode === "expanded" && !barEdge(State.settings) &&
       State.view !== "greeting" && !State.maximized && !State.quiet;
   }
 
@@ -3356,7 +3431,8 @@ ${note}` : text };
    * aside on the left or right edge.
    */
   private openClearance(): [number, number] {
-    if (!IS_TAURI || this.mirror == null) return [0, 0];
+    // With the fixed bar the work area already ends at the band.
+    if (!IS_TAURI || this.mirror == null || barEdge(State.settings)) return [0, 0];
     const p = this.placement;
     const c = compactSize(p);
     // As tall as the compact island can be: with the strip, at least the strip.
@@ -3572,6 +3648,7 @@ ${note}` : text };
 
   /** What the character's own window shows now. */
   get characterMode(): CharacterMode {
+    if (IS_TAURI && barEdge(State.settings)) return "bar";
     if (this.characterRest) return "rest";
     if (this.spotKey.startsWith("open")) return "open";
     return this.spotKey ? "compact" : "off";
@@ -3613,7 +3690,8 @@ ${note}` : text };
 
   /** "Sempre visibile": a resting island comes straight back as the compact view. */
   private keepCompactUp() {
-    if (State.settings.revealDuration > 0 || this.fsm.state !== "hidden") return;
+    // With the fixed bar the bar stands for the compact view: never kept up.
+    if (State.settings.revealDuration > 0 || this.fsm.state !== "hidden" || barEdge(State.settings)) return;
     // Paused from the tray, or quiet over a full-screen app: stay out of the way.
     if (State.paused || State.quiet) return;
     this.fsm.reveal();
@@ -3624,7 +3702,11 @@ ${note}` : text };
     Sound.setEnabled(State.settings.soundEnabled);
     Sound.setVolume(State.settings.soundVolume);
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
-    this.fsm.petitToHiddenDelay = State.settings.revealDuration;
+    // With the fixed bar the compact view only shows for what needs an answer
+    // (the strip holds it), and goes as soon as it is done.
+    const bar = barEdge(State.settings) != null;
+    this.fsm.petitToHiddenDelay = bar ? 0.3 : State.settings.revealDuration;
+    if (bar && this.fsm.state === "petit" && !this.fsm.held()) this.fsm.forceHidden();
     this.applyTheme();
     this.applyPlacement();
     void this.refreshLimits();

@@ -6,7 +6,7 @@ import "./style-light.css";
 import "./character/roster";
 import { Bridge, IS_TAURI, onEvent, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
-import { State, type Custom, type Settings } from "./core/state";
+import { State, barEdge, barThickness, type Custom, type Settings } from "./core/state";
 import { forgetRecords, receiveSource } from "./views/custom";
 import { Island } from "./island/island";
 import { installTooltips } from "./core/tooltip";
@@ -17,6 +17,7 @@ import { registerMoments } from "./island/moments";
 import { syncLanguage } from "./core/i18n";
 import { registerIntegrationHandlers, refreshConfigured } from "./island/integrations";
 import { linkChannel, type CharacterToIsland, type IslandToCharacter } from "./core/link";
+import { barPieces } from "./island/bar";
 
 /**
  * Uncaught errors of the page go to easyisland.log (the WebView's console is
@@ -127,6 +128,8 @@ async function main() {
       default:
         // The menu on the selected text (src/island/selection-menu.ts).
         if (what.startsWith("sel:")) island.pickSelectionMenu(what.slice(4));
+        // «…» of the fixed bar: a click on an element that did not fit (src/character-window/main.ts).
+        else if (what.startsWith("bar:")) island.barClick(what.slice(4));
         break;
     }
   });
@@ -242,12 +245,22 @@ function linkCharacterWindow(island: Island) {
       sky: State.characterSky,
       weather: State.weatherNow,
       agents: State.sessionTasks.filter((x) => x.state === "working" || x.state === "thinking" || x.state === "searching").length,
+      bar: barEdge(State.settings)
+        ? {
+          slot: State.settings.fixedBarSlot ?? "center",
+          ...barPaint(State.settings.fixedBarBackground ?? "", island.islandBackground, island.islandInk),
+          thickness: barThickness(State.settings),
+          items: barPieces(island.barStrip()),
+        }
+        : null,
     };
   };
   const send = linkChannel<CharacterToIsland, IslandToCharacter>((m) => {
     if (m.kind === "hello") {
       sentKey = "";
       push();
+    } else if (m.kind === "bar") {
+      island.barClick(m.key);
     } else if (m.kind === "open") {
       if (State.mode === "expanded") island.collapse();
       else island.openFromTaskbar();
@@ -266,6 +279,21 @@ function linkCharacterWindow(island: Island) {
   island.onRestChange = push;
   island.mirror = send;
   push();
+}
+
+/**
+ * The fixed bar's background and text colour: the island's (""), none
+ * ("transparent": the wallpaper shows, the island's text colour), or the
+ * user's colour with dark or light text, whichever reads better on it.
+ */
+function barPaint(choice: string, islandBg: string, islandInk: string): { background: string; ink: string } {
+  if (choice === "transparent") return { background: "transparent", ink: islandInk };
+  const m = /^#([0-9a-f]{6})$/i.exec(choice);
+  if (!m) return { background: islandBg, ink: islandInk };
+  const n = parseInt(m[1], 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const light = 0.2126 * r + 0.7152 * g + 0.0722 * b > 150;
+  return { background: choice, ink: light ? "#16181d" : "#f5f6f8" };
 }
 
 void main();
