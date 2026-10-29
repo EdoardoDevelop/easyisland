@@ -2696,7 +2696,7 @@ ${note}` : text };
       const b = i >= 0 ? this.barStrip()?.buttons[i] : undefined;
       if (b) b.run();
       else if (State.mode === "expanded") this.collapse();
-      else this.openByUser();
+      else this.openFromBar();
       return;
     }
     if (key.startsWith("task:")) {
@@ -2707,9 +2707,7 @@ ${note}` : text };
       }
       State.summary = false;
       State.setFocus(id);
-      this.openedByUser = true;
-      this.expand("overview");
-      this.openedByUser = false;
+      this.openFromBar("overview");
     } else if (key.startsWith("action:")) {
       const a = (State.settings.actions ?? []).find((x) => x.id === key.slice(7));
       if (a) void this.runAction(a);
@@ -2758,6 +2756,21 @@ ${note}` : text };
         y >= r.y - HIT_MARGIN && y <= r.y + r.h + HIT_MARGIN;
       if (inside) this.openByUser();
     }, delay * 1000);
+  }
+
+  /**
+   * Opened from the fixed bar. Through the state machine, like any opening:
+   * expanding straight away left it "hidden", and the mouse moving onto the
+   * island made it compact again (Edoardo, 29 Oct 2026).
+   */
+  private openFromBar(view?: IslandViewName) {
+    if (State.mode !== "expanded") {
+      this.openedByUser = true;
+      this.fsm.forceHome();
+      this.openedByUser = false;
+    }
+    if (view) this.setView(view);
+    this.stayIfAsked();
   }
 
   /** Opened by the user (hover, click): the search bar takes the keyboard. */
