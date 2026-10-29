@@ -147,5 +147,6 @@ Oggi personaggio, vista compatta e isola aperta stanno in una sola finestra. Una
 - **Documentazione:** `docs/architettura.md` (sezione «Finestra del personaggio») e guida «L'isola» in italiano e inglese.
 - **Misura dopo i risparmi** (vista compatta sempre visibile, Jarvis Sfera, 30 s): 420 MB, CPU 0,46 % (prima 414 MB, 0,64 %). La memoria della pagina del personaggio non scende in modo visibile: è quasi tutta WebView2 di base.
 - **File rilasciati sul personaggio a isola aperta:** funzionano (provato da Edoardo il 29 ottobre 2026).
-- **Ancora da fare:** prova dei bordi in basso, ai lati e su un secondo schermo.
+- **Isola in basso:** funziona (provato da Edoardo il 29 ottobre 2026).
+- **Ancora da fare:** prova ai lati e su un secondo schermo.
 
