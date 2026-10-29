@@ -6,7 +6,7 @@ Tutto in **Impostazioni → Aspetto**. Le sezioni con l'etichetta viola si salva
 
 ![Impostazioni, pagina Aspetto](../media/settings.png)
 
-La pagina è divisa in cinque sezioni: **Tema**, **Personaggio**, **Posizione**, **Isola chiusa** e **Isola aperta**. I volumi dei suoni sono in **Generale**, accanto a Suono.
+La pagina è divisa in sei schede, in alto: **Tema**, **Personaggio**, **Posizione**, **Barra fissa**, **Isola chiusa** e **Isola aperta**; la finestra ricorda l'ultima aperta. Accanto a ogni voce c'è una **piccola immagine** che mostra cosa cambia: uno schermo in miniatura con l'isola, il personaggio o la barra, ridisegnato appena cambi il valore (alcune sono animate, per esempio il mouse che arriva e l'isola che si apre). In **Personaggio** il personaggio scelto si muove come nell'isola; in **Posizione** un clic su un punto dello schermo in miniatura sceglie l'angolo. I volumi dei suoni sono in **Generale**, accanto a Suono.
 
 ## Tema
 - **Stile**: **Windows 11** (predefinito: come le app di sistema, con il **colore d'accento di Windows** e icone a linea) o **Classico** (l'aspetto originale con le icone colorate).
@@ -24,19 +24,20 @@ La pagina è divisa in cinque sezioni: **Tema**, **Personaggio**, **Posizione**,
 
 ## Posizione
 - **Schermo**: principale, quello sotto il cursore o quello su cui l'hai trascinato (se viene scollegato torna sul principale).
-- **Posizione**: in alto o in basso, a sinistra, al centro o a destra. L'isola cresce da lì e il contenuto resta allineato a quel lato. Puoi anche **trascinare il personaggio** dove vuoi; scegliere di nuovo un angolo lo riporta al bordo.
+- **Angolo dello schermo**: in alto o in basso, a sinistra, al centro o a destra. L'isola cresce da lì e il contenuto resta allineato a quel lato. Puoi anche **trascinare il personaggio** dove vuoi; scegliere di nuovo un angolo lo riporta al bordo.
 - **Sopra la barra**: il personaggio può stare anche sopra la barra delle applicazioni.
 - **Aggancia ai bordi**: vicino a un bordo lo sfondo si attacca con gli angoli squadrati.
 - **Schermo intero**: durante video, giochi e presentazioni il personaggio sparisce; i permessi compaiono comunque.
 
-### Barra fissa
+## Barra fissa
 Con **Barra fissa** in alto o in basso, Windows tiene libera una fascia sul bordo dello schermo, come per la barra delle applicazioni, e le finestre si fermano lì.
 - **Personaggio nella barra:** all'inizio, al centro o alla fine. Non si trascina; un clic apre l'isola subito sotto la barra (sopra, se la barra è in basso) e un altro la chiude. Da chiusa l'isola non c'è: c'è la barra.
 - **Sfondo della barra:** come l'isola, trasparente (si vede il desktop) o un colore a scelta; il testo diventa chiaro o scuro da solo.
 - **Elementi nella barra:** aggiungi le tue integrazioni, i widget e le azioni rapide. Per ognuno scegli l'area (all'inizio, al centro, alla fine) e cosa mostrare (icona e valore, solo icona, solo valore); ↑ ↓ cambiano l'ordine, ✕ lo toglie. Un clic su un'integrazione apre la sua card, su un'azione la esegue.
 - **La striscia** (permessi, chiamate, agente al lavoro, app in uso) sta nella barra accanto al personaggio, con i suoi pulsanti; aggiungendo «Striscia» agli elementi la metti dove vuoi.
 - Quello che non ci sta finisce in **«…»**, alla fine della barra: un clic apre l'elenco.
-- **Schermo** sceglie il monitor della barra. A schermo intero (video, giochi) la barra si nasconde e torna dopo.
+- **Schermo** (scheda Posizione) sceglie il monitor della barra. A schermo intero (video, giochi) la barra si nasconde e torna dopo.
+- Con la barra accesa, nelle schede Posizione e Isola chiusa una nota dice quali voci non valgono finché la barra resta accesa.
 
 ## Isola chiusa
 | Opzione | Cosa fa |

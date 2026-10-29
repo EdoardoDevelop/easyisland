@@ -1062,3 +1062,155 @@ h3.int-sub {
   display: flex;
   flex-direction: column;
 }
+
+/* Impostazioni → Aspetto: the tabs, and each setting with its picture on the
+   left (src/settings/pictures.ts). */
+.subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  border-bottom: 1px solid var(--hairline);
+  margin-top: -6px;
+}
+
+.subtab {
+  background: transparent;
+  border-radius: 6px 6px 0 0;
+  padding: 8px 14px;
+  color: var(--dim);
+  font-weight: 500;
+}
+
+.subtab:hover:not(:disabled) { color: var(--ink); background: rgba(255, 255, 255, 0.04); }
+.subtab.on { color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent, #F472B6); }
+
+.tab-intro { margin-top: -4px; }
+.bar-note { display: none; }
+.fixed-bar .bar-note {
+  display: block;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(245, 165, 36, 0.1);
+  color: #f5c46a;
+}
+
+.pictured {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.pic-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pic {
+  flex: 0 0 160px;
+  width: 160px;
+  height: 100px;
+  border-radius: 8px;
+}
+
+.pic.big { flex-basis: 224px; width: 224px; height: 140px; }
+.pic svg { display: block; width: 100%; height: 100%; overflow: hidden; border-radius: 8px; }
+
+.pic-live {
+  flex-basis: 160px;
+  height: 140px;
+  display: grid;
+  place-items: center;
+  border-radius: 28px;
+}
+
+/* Narrow window: the picture goes above its rows. */
+@media (max-width: 760px) {
+  .pictured { flex-direction: column; align-items: stretch; }
+  .pic { align-self: flex-start; }
+}
+
+.p-scr { fill: #2b3445; }
+.p-app { fill: #414b5e; }
+.p-tb { fill: #1a1f29; }
+.p-tbi, .p-stand { fill: #667085; }
+.p-cur { fill: #ffffff; stroke: #111111; stroke-width: 0.7; }
+.p-on { stroke: var(--accent, #4cc2ff); stroke-width: 1.6; }
+.p-star { fill: #facc15; }
+.p-edge { stroke: #f472b6; stroke-width: 1.4; stroke-dasharray: 3 2; }
+.p-accent { fill: var(--accent, #4cc2ff); }
+.p-label { font: 600 9px var(--font); fill: #ffffff; fill-opacity: 0.85; }
+.p-spot {
+  fill: rgba(255, 255, 255, 0.08);
+  stroke: rgba(255, 255, 255, 0.5);
+  stroke-width: 0.8;
+  stroke-dasharray: 1.6 1.6;
+  cursor: pointer;
+}
+.p-spot:hover { fill: var(--accent, #4cc2ff); fill-opacity: 0.5; }
+
+/* The animations loop every 4 s, only while the picture is in view (.run). */
+.pic [class^="a-"] { transform-box: fill-box; transform-origin: center; animation-duration: 4s; animation-iteration-count: infinite; }
+.pic:not(.run) [class^="a-"] { animation-play-state: paused; }
+.a-greet { animation-name: pic-greet; }
+.a-greet-bg { animation-name: pic-after; }
+.a-pop { animation-name: pic-pop; }
+.a-look { animation-name: pic-look; animation-timing-function: ease-in-out; }
+.a-wander { animation-name: pic-wander; }
+.a-sweep { animation-name: pic-sweep; animation-timing-function: ease-in-out; }
+.a-fade { animation-name: pic-fade; }
+.a-pulse { animation-name: pic-pulse; animation-duration: 1.6s; }
+.a-swap-a, .a-hold-a { animation-name: pic-first; }
+.a-swap-b, .a-hold-b { animation-name: pic-second; transform-origin: top; }
+.a-approach { animation-name: pic-approach; animation-timing-function: ease-out; }
+.a-come { animation-name: pic-come; animation-timing-function: ease-out; }
+.a-ring { animation-name: pic-ring; animation-timing-function: linear; }
+.a-click { animation-name: pic-click; }
+.a-hold-c { animation-name: pic-until-open; }
+.a-open { animation-name: pic-open; transform-origin: top; }
+.a-leave { animation-name: pic-leave; animation-timing-function: ease-in-out; }
+.a-timer { animation-name: pic-timer; animation-timing-function: linear; transform-origin: left; }
+.a-close { animation-name: pic-close; transform-origin: top; }
+.a-closed { animation-name: pic-after-close; }
+
+@keyframes pic-greet {
+  0%, 18% { transform: translate(var(--gx), var(--gy)) scale(3.2); opacity: 1; }
+  55% { transform: translate(0, 0) scale(1); opacity: 1; }
+  60%, 100% { transform: translate(0, 0) scale(1); opacity: 0; }
+}
+@keyframes pic-after { 0%, 55% { opacity: 0; } 60%, 100% { opacity: 1; } }
+@keyframes pic-pop {
+  0%, 10% { transform: scale(0); }
+  30% { transform: scale(1.6); }
+  42%, 55% { transform: scale(1); opacity: 1; }
+  60%, 100% { transform: scale(1); opacity: 0; }
+}
+@keyframes pic-look { 0%, 100% { transform: translateX(-2.6px); } 50% { transform: translateX(2.6px); } }
+@keyframes pic-sweep { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(96px); } }
+@keyframes pic-wander {
+  0%, 15% { transform: translate(0, 0); }
+  22%, 40% { transform: translate(-2px, -1px); }
+  44% { transform: translate(-2px, -1px) scaleY(0.1); }
+  48%, 70% { transform: translate(2px, 0.5px); }
+  76%, 100% { transform: translate(0, 0); }
+}
+@keyframes pic-fade { 0%, 8% { opacity: 0; } 18%, 82% { opacity: 1; } 92%, 100% { opacity: 0; } }
+@keyframes pic-pulse { 0%, 100% { opacity: 0.45; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1.15); } }
+@keyframes pic-first { 0%, 42% { opacity: 1; transform: scale(1); } 48%, 92% { opacity: 0; transform: scale(0.6); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes pic-second { 0%, 42% { opacity: 0; transform: scale(0.6); } 50%, 90% { opacity: 1; transform: scale(1); } 96%, 100% { opacity: 0; transform: scale(0.6); } }
+@keyframes pic-approach { 0% { transform: translate(0, 0); } 40%, 90% { transform: translate(44px, -54px); } 100% { transform: translate(0, 0); } }
+@keyframes pic-come { 0% { transform: translate(-56px, 56px); opacity: 0; } 8% { opacity: 1; } 25%, 92% { transform: translate(0, 0); opacity: 1; } 100% { transform: translate(0, 0); opacity: 0; } }
+@keyframes pic-ring { 0%, 25% { stroke-dashoffset: 100; opacity: 1; } 58% { stroke-dashoffset: 0; opacity: 1; } 62%, 100% { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes pic-click { 0%, 25% { transform: scale(0.4); opacity: 0; } 30% { opacity: 1; } 45%, 100% { transform: scale(2.2); opacity: 0; } }
+@keyframes pic-until-open { 0%, 58% { opacity: 1; } 62%, 96% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes pic-open { 0%, 58% { opacity: 0; transform: scale(0.4); } 66%, 92% { opacity: 1; transform: scale(1); } 98%, 100% { opacity: 0; transform: scale(0.4); } }
+@keyframes pic-leave { 0%, 10% { transform: translate(0, 0); } 32%, 92% { transform: translate(70px, 38px); } 100% { transform: translate(0, 0); } }
+@keyframes pic-timer { 0%, 30% { transform: scaleX(1); } 70%, 100% { transform: scaleX(0); } }
+@keyframes pic-close { 0%, 70% { opacity: 1; transform: scale(1); } 78%, 96% { opacity: 0; transform: scale(0.3); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes pic-after-close { 0%, 72% { opacity: 0; } 78%, 96% { opacity: 1; } 100% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pic [class^="a-"] { animation-play-state: paused; }
+}
