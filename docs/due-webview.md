@@ -44,7 +44,7 @@ Oggi personaggio, vista compatta e isola aperta stanno in una sola finestra. Una
   - si nasconde da chiusa;
   - clone del personaggio nel menu; effetto di apertura.
 - [-] **4. Striscia, barra dell'app in uso e mini agenti** (restano nell'isola, vedi Note) nella finestra del personaggio, con le loro azioni.
-- [ ] **5. File rilasciati sul personaggio** (`drop.rs`, `window_drop.rs`): aprono l'isola come oggi.
+- [x] **5. File rilasciati sul personaggio** (`drop.rs`, `window_drop.rs`): aprono l'isola come oggi.
 - [ ] **6. Pulizia e verifiche:**
   - togliere dall'isola il codice della vista compatta;
   - scene di `dev/scenes.ts` e `npm run smoke` per le due pagine;
@@ -146,5 +146,6 @@ Oggi personaggio, vista compatta e isola aperta stanno in una sola finestra. Una
 - **Codice compatto dell'isola:** resta. Serve senza Tauri (anteprime, smoke) e quando la finestra del personaggio non c'è (saluto, tutto schermo, file in arrivo).
 - **Documentazione:** `docs/architettura.md` (sezione «Finestra del personaggio») e guida «L'isola» in italiano e inglese.
 - **Misura dopo i risparmi** (vista compatta sempre visibile, Jarvis Sfera, 30 s): 420 MB, CPU 0,46 % (prima 414 MB, 0,64 %). La memoria della pagina del personaggio non scende in modo visibile: è quasi tutta WebView2 di base.
-- **Ancora da fare:** file rilasciati sul personaggio a isola aperta; prova dei bordi in basso, ai lati e su un secondo schermo.
+- **File rilasciati sul personaggio a isola aperta:** funzionano (provato da Edoardo il 29 ottobre 2026).
+- **Ancora da fare:** prova dei bordi in basso, ai lati e su un secondo schermo.
 
