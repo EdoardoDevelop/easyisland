@@ -3,6 +3,7 @@
 
 import { Tracked, Spring, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop, onEvent, type WindowShot } from "../core/bridge";
+import { MIRRORED_CALLS, type CharacterMode, type IslandToCharacter } from "../core/link";
 import {
   BODY_GAP, EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_CHROME_H, ISLAND_MIN_W, NOTCH_W, PANEL_H, PANEL_W,
   RAIL_GAP, RAIL_W, ROUNDED_CORNER, STRIP_H, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
@@ -125,6 +126,8 @@ export class Island {
   private stripHeld = false;
   private botCanvas!: HTMLCanvasElement;
   private botGlow!: HTMLElement;
+  /** The light wave of an opening (openWave), inside the island's clip. */
+  private waveEl!: HTMLElement;
   private greetingCanvas!: HTMLCanvasElement;
   private miniGrid!: HTMLElement;
   private countdown!: HTMLElement;
@@ -245,6 +248,7 @@ export class Island {
     this.wireFsm();
     this.wireInput();
     this.engine.onDizzy = () => this.handleDizzy();
+    this.forwardEngine();
     this.greeting.onComplete = () => this.fsm.greetComplete();
     this.greeting.bare = true;
     // The user's logo finished loading, or the weather changed: one redraw.
@@ -462,6 +466,10 @@ export class Island {
     this.greetingCanvas.style.width = `${EXPANDED_W}px`;
     this.greetingCanvas.style.height = "150px";
 
+    this.waveEl = h("div", { id: "open-wave" });
+    this.waveEl.addEventListener("animationend", () => this.waveEl.classList.remove("on"));
+    this.clipEl.append(this.waveEl);
+
     this.root.append(this.wakeStrip, this.restIcon, this.islandEl);
     this.applyGeometry();
     this.watchScale();
@@ -549,6 +557,14 @@ export class Island {
     if (mode === "expanded") {
       Sound.play("open");
       void this.refreshForeground();
+      // The character stays in its window: the clone pops up in the menu instead
+      // of flying there, the character hops with a spark, a wave runs through the island.
+      if (IS_TAURI && this.mirror && State.view !== "greeting" && !State.maximized) {
+        this.cloneEnter = true;
+        this.mirror({ kind: "call", name: "squash", args: [] });
+        this.mirror({ kind: "call", name: "emit", args: ["spark", 8] });
+        this.openWave();
+      }
     }
     if (prev === "expanded") {
       Sound.play("close");
@@ -3140,6 +3156,8 @@ ${note}` : text };
       if (State.windowPick) guard("pick", () => this.refreshPickCursor(nowMs));
     }
 
+    guard("character window", () => this.mirrorCharacter());
+
     const uploadActive = this.uploadActive;
     if (uploadActive) guard("drop", () => this.uploadCanvas.draw(UploadSeq.frame(), nowMs / 1000));
     this.uploadCanvas.el.classList.toggle("on", uploadActive);
@@ -3158,11 +3176,14 @@ ${note}` : text };
     // spends most of its life in. Geometry still has to finish retracting.
     const settling =
       this.width.animating || this.height.animating || this.radius.animating;
+    // Compact in the character's own window, this canvas is hidden: its own
+    // motion (Jarvis, the flame) and a looping state are drawn there, not here.
+    const engineBusy = this.compactInWindow ? this.engine.busyBeyondLook : this.engine.busy;
     const busy = State.mode === "hidden"
       ? settling
       : settling ||
         !this.botCx.settled || !this.botCy.settled || !this.botSize.settled ||
-        greetingActive || this.engine.busy || UploadSeq.isActive || !!State.windowPick;
+        greetingActive || engineBusy || UploadSeq.isActive || !!State.windowPick;
 
     // Only following the cursor: 30 fps is plenty for a gaze and halves the cost.
     // Tweens, geometry, particles, the greeting and the drop keep the full rate.
@@ -3179,6 +3200,20 @@ ${note}` : text };
       Sound.idle();
     }
   };
+
+  /** The next frame puts the clone straight in the menu, growing from nothing (setMode). */
+  private cloneEnter = false;
+
+  /** A light wave across the opening island, from the character's side. */
+  private openWave() {
+    const p = this.placement;
+    const el = this.waveEl;
+    el.style.setProperty("--wave-x", p.v === "middle" && p.h === "left" ? "0%" : p.v === "middle" && p.h === "right" ? "100%" : "50%");
+    el.style.setProperty("--wave-y", p.v === "bottom" ? "100%" : p.v === "middle" && p.h !== "center" ? "50%" : "0%");
+    el.classList.remove("on");
+    void el.offsetWidth;
+    el.classList.add("on");
+  }
 
   private updateBotTargets() {
     // Centred on the views, not on the search bar under them.
@@ -3197,6 +3232,14 @@ ${note}` : text };
     this.botCx.target = p.cx;
     this.botCy.target = p.cy;
     this.botSize.target = p.diameter / 0.6;
+    if (this.cloneEnter && State.mode === "expanded") {
+      this.cloneEnter = false;
+      this.botCx.set(p.cx);
+      this.botCy.set(p.cy);
+      this.botSize.set(0);
+      this.botSize.target = p.diameter / 0.6;
+      this.engine.hello();
+    }
 
     const greetingActive = State.mode === "expanded" && State.view === "greeting";
     // The drop canvas draws its own the character; two of them would overlap.
@@ -3262,9 +3305,132 @@ ${note}` : text };
       }
     }
     this.engine.update(dt);
+    // Hidden under the character's own window: nothing to draw.
+    if (this.compactInWindow) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, hCss);
     this.engine.draw(ctx, w, hCss);
+  }
+
+  // ── The character's own window (docs/due-webview.md) ────────────────────────
+
+  /** Where the compact character's window sits now (window px), or null. */
+  private spotKey = "";
+  private sentLook = { x: NaN, y: NaN };
+  /** The link to the character's window (main.ts); null in a plain browser. */
+  mirror: ((m: IslandToCharacter) => void) | null = null;
+
+  /** The compact character is drawn by its own window, over the badge. */
+  get compactInWindow(): boolean {
+    return IS_TAURI && this.mirror != null && State.mode === "compact" &&
+      !this.uploadActive && !State.windowPick && !State.quiet;
+  }
+
+  /**
+   * Open: the character stays in its own window where the compact one sits
+   * (docs/due-webview.md, step 3) and the island opens beside it, with a clone
+   * of it in the menu. Not for the launch greeting (a character of its own) or
+   * an island filling the screen.
+   */
+  get openInWindow(): boolean {
+    return IS_TAURI && this.mirror != null && State.mode === "expanded" &&
+      State.view !== "greeting" && !State.maximized && !State.quiet;
+  }
+
+  /**
+   * Where the compact character sits, in the window at its home place: the
+   * badge alone (no strip), whatever the island is doing now.
+   */
+  private compactSpot(): [number, number, number, number] {
+    const c = compactSize(this.placement);
+    const o = anchoredOrigin(this.placement, c.w, c.h, this.panel.w, this.panel.h);
+    const p = botPosition("compact", State.view, c.h, 0, c, 0);
+    const w = Math.max(1, Math.round(p.diameter / 0.6));
+    const hCss = w + BOT_OVERHANG;
+    return [Math.round(o.x + p.cx - w / 2), Math.round(o.y + p.cy - BOT_OVERHANG / 2 - hCss / 2), w, hCss];
+  }
+
+  /**
+   * How far the open island moves away from the edge so it hangs beside the
+   * character instead of over it: below it at the top, above it at the bottom,
+   * aside on the left or right edge.
+   */
+  private openClearance(): [number, number] {
+    if (!IS_TAURI || this.mirror == null) return [0, 0];
+    const p = this.placement;
+    const c = compactSize(p);
+    // As tall as the compact island can be: with the strip, at least the strip.
+    const ch = Math.max(c.h, STRIP_H);
+    const gap = 6;
+    if (p.v === "top") return [0, ch + gap];
+    if (p.v === "bottom") return [0, -(ch + gap)];
+    if (p.h === "left") return [c.w + gap, 0];
+    if (p.h === "right") return [-(c.w + gap), 0];
+    return [0, ch + gap];
+  }
+
+  private clearKey = "";
+  /** The compact character's last spot, and the one kept beside the open island. */
+  private lastCompactSpot: [number, number, number, number] | null = null;
+  private openSpot: [number, number, number, number] | null = null;
+
+  /**
+   * The character's window: over the compact badge (at the spot the springs
+   * are heading for, so it does not chase them), or beside the open island at
+   * the compact place. Compact, it gets the gaze and this canvas hides;
+   * interaction stays with the badge here, the window lets clicks through.
+   */
+  private mirrorCharacter() {
+    const on = this.compactInWindow;
+    const open = this.openInWindow;
+    this.botCanvas.style.visibility = on ? "hidden" : "";
+    const clear = this.openClearance();
+    const ck = clear.join(",");
+    if (ck !== this.clearKey) {
+      this.clearKey = ck;
+      void Bridge.characterClearance(clear[0], clear[1]);
+    }
+    let key = "";
+    let spot: [number, number, number, number] | null = null;
+    if (on) {
+      const o = anchoredOrigin(this.framePlacement, this.width.target, this.height.target, this.panel.w, this.panel.h);
+      const w = Math.max(1, Math.round(this.botSize.target));
+      const hCss = w + BOT_OVERHANG;
+      const x = Math.round(o.x + this.botCx.target - w / 2);
+      const y = Math.round(o.y + this.botCy.target - BOT_OVERHANG / 2 - hCss / 2);
+      spot = [x, y, w, hCss];
+      this.lastCompactSpot = spot;
+    } else if (open) {
+      // Opening: the character stays exactly where it was (the compact one may
+      // sit beside the strip); opened from rest or a shortcut, at the badge's place.
+      if (!this.spotKey.startsWith("open")) this.openSpot = this.spotKey ? this.lastCompactSpot : null;
+      spot = this.openSpot ?? this.compactSpot();
+    }
+    if (spot) key = `${open ? "open" : "compact"}:${spot.join(",")}`;
+    if (key !== this.spotKey) {
+      this.spotKey = key;
+      void Bridge.characterSpot(spot, open);
+      this.onRestChange?.();
+    }
+    if (on && (Math.abs(this.engine.lookX - this.sentLook.x) > 0.005 || Math.abs(this.engine.lookY - this.sentLook.y) > 0.005)) {
+      this.sentLook = { x: this.engine.lookX, y: this.engine.lookY };
+      this.mirror?.({ kind: "gaze", x: this.engine.lookX, y: this.engine.lookY });
+    }
+  }
+
+  /** The engine's gestures (hello, emotes, blinks, a carried jiggle) replayed by the character's window. */
+  private forwardEngine() {
+    const e = this.engine as unknown as Record<string, (...a: unknown[]) => unknown>;
+    for (const name of MIRRORED_CALLS) {
+      const own = e[name].bind(this.engine);
+      e[name] = (...args: unknown[]) => {
+        const r = own(...args);
+        // Open, the clone in the menu has its own gaze and jolts: only feelings are shared.
+        const shared = this.compactInWindow || (this.openInWindow && (name === "triggerEmote" || name === "setPermanentEmote"));
+        if (shared) this.mirror?.({ kind: "call", name, args });
+        return r;
+      };
+    }
   }
 
   /** BotCanvasView.lookX / lookY — tanh of the distance to the bot. */
@@ -3388,6 +3554,32 @@ ${note}` : text };
       !State.quiet;
     this.restIcon.classList.toggle("on", showRest);
     if (showRest) this.drawRestIcon();
+    // The resting character is drawn by its own window, laid over the rest icon
+    // (docs/due-webview.md); the icon here keeps hover, click, drag and menu.
+    const own = IS_TAURI && p.iconStyle === "character";
+    this.restCanvas.style.visibility = own ? "hidden" : "";
+    const rest = showRest && own;
+    if (rest !== this.characterRest) {
+      this.characterRest = rest;
+      void Bridge.characterRest(rest);
+      this.onRestChange?.();
+    }
+  }
+
+  private characterRest = false;
+  /** Told when the resting character moves to or from its own window (main.ts, the link). */
+  onRestChange: (() => void) | null = null;
+
+  /** What the character's own window shows now. */
+  get characterMode(): CharacterMode {
+    if (this.characterRest) return "rest";
+    if (this.spotKey.startsWith("open")) return "open";
+    return this.spotKey ? "compact" : "off";
+  }
+
+  /** The rest icon's size, for the character's own window. */
+  get restIconSize(): number {
+    return this.homePlacement.iconSize;
   }
 
   /**

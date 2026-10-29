@@ -104,7 +104,7 @@ mod zammad;
 
 use std::os::windows::process::CommandExt;
 use std::process::Command;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
@@ -434,6 +434,7 @@ fn set_collapsed(
     island::set_ignore_cursor(&app, false);
     shared.gate.forget_ignore_state();
     shared.gate.set_active(!collapsed);
+    sync_character(&app);
 }
 
 /// The front end pushes the island shape; Rust decides click-through from it.
@@ -683,8 +684,10 @@ fn set_expanded(app: AppHandle, shared: State<Shared>, expanded: bool, place: Op
     if shared.gate.expanded.swap(expanded, Ordering::Relaxed) == expanded {
         return;
     }
-    // A drag of the open island lasts for that opening only.
-    let dragged = std::mem::take(&mut *shared.gate.panel_offset.lock().unwrap()) != (0.0, 0.0);
+    // A drag of the open island lasts for that opening only. Opened beside the
+    // character it is away from the edge too: either way it glides back as it shrinks.
+    let dragged = std::mem::take(&mut *shared.gate.panel_offset.lock().unwrap()) != (0.0, 0.0)
+        || *island::OPEN_CLEARANCE.lock().unwrap() != (0.0, 0.0);
     if shared.gate.collapsed.load(Ordering::Relaxed) {
         return;
     }
@@ -2574,6 +2577,138 @@ fn create_settings_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
     });
 }
 
+/// The character's own window (docs/due-webview.md). Small, always on top,
+/// never activated. Its page gets what it shows from the island's page over a
+/// BroadcastChannel. For now (step 2) it draws the resting character over the
+/// island's collapsed window, and the compact one over the badge, letting
+/// every click through: hover, click, drag and menu stay the island's.
+pub const CHARACTER_LABEL: &str = "personaggio";
+
+/// The island's page wants the resting character shown (character_rest).
+static CHARACTER_REST: AtomicBool = AtomicBool::new(false);
+/// The compact character's place in the island's window, logical px, and
+/// whether it is beside the open island (character_spot).
+static CHARACTER_SPOT: Mutex<Option<([f64; 4], bool)>> = Mutex::new(None);
+/// The window lets the mouse through (over the island) or takes it (beside the open island).
+static CHARACTER_CLICKS_THROUGH: AtomicBool = AtomicBool::new(true);
+
+/// Created at launch with the other windows (see create_settings_window),
+/// hidden until the island rests.
+fn create_character_window(app: &AppHandle, data_dir: Option<&std::path::Path>) {
+    let mut builder = WebviewWindowBuilder::new(app, CHARACTER_LABEL, page_url(app, "personaggio.html"));
+    if let Some(dir) = data_dir {
+        builder = builder.data_directory(dir.to_path_buf());
+    }
+    match builder
+        .additional_browser_args(BROWSER_ARGS)
+        .title("EasyIsland")
+        .inner_size(40.0, 40.0)
+        .resizable(false)
+        .decorations(false)
+        .transparent(true)
+        .shadow(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .focused(false)
+        .maximizable(false)
+        .minimizable(false)
+        .closable(false)
+        .drag_and_drop(false)
+        .visible(false)
+        .build()
+    {
+        Ok(win) => {
+            island::make_non_activating(&win.as_ref().window());
+            // Always "compact": the low memory target of WebView2 (webview_memory.rs).
+            webview_memory::set_low(win.as_ref(), true);
+            let _ = win.set_ignore_cursor_events(true);
+            // Once its page has loaded, the low target again: set before, it may not hold.
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(10));
+                webview_memory::set_low(win.as_ref(), true);
+            });
+        }
+        Err(err) => log::line(format!("character window failed: {err}")),
+    }
+}
+
+/// The resting character wanted (true) or not by the island's page: shown
+/// when the island is also collapsed and on screen.
+#[tauri::command]
+fn character_rest(app: AppHandle, on: bool) {
+    CHARACTER_REST.store(on, Ordering::Relaxed);
+    sync_character(&app);
+}
+
+/// The compact character's place, [x, y, w, h] in the island's window
+/// (logical px), or None when the island draws it itself. `open`: beside the
+/// open island, at the compact place of the window at home.
+#[tauri::command]
+fn character_spot(app: AppHandle, spot: Option<[f64; 4]>, open: bool) {
+    let spot = spot.filter(|s| s.iter().all(|v| v.is_finite()) && s[2] >= 1.0 && s[3] >= 1.0);
+    *CHARACTER_SPOT.lock().unwrap() = spot.map(|s| (s, open));
+    sync_character(&app);
+}
+
+/// How far the open island moves away from its edge so it opens beside the
+/// character (logical px); applied at once to an island already open.
+#[tauri::command]
+fn character_clearance(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) {
+    let clear = if dx.is_finite() && dy.is_finite() { (dx, dy) } else { (0.0, 0.0) };
+    if std::mem::replace(&mut *island::OPEN_CLEARANCE.lock().unwrap(), clear) == clear {
+        return;
+    }
+    if shared.gate.expanded.load(Ordering::Relaxed) && !shared.gate.collapsed.load(Ordering::Relaxed) {
+        let settings = shared.settings.lock().unwrap().clone();
+        island::apply_geometry(&app, &shared.gate, &settings, false);
+    }
+}
+
+/// Lays the character's window exactly over the island's collapsed window (the
+/// rest icon's box) while the island rests, or over the compact badge's
+/// character; hides it otherwise.
+fn sync_character(app: &AppHandle) {
+    let Some(ch) = app.get_webview_window(CHARACTER_LABEL) else { return };
+    let shared = app.state::<Shared>();
+    let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
+    let island = island::window(app).filter(|w| w.is_visible().unwrap_or(false));
+    let spot = *CHARACTER_SPOT.lock().unwrap();
+    let open = !collapsed && spot.is_some_and(|(_, open)| open);
+    let place = island.and_then(|win| {
+        if collapsed {
+            if !CHARACTER_REST.load(Ordering::Relaxed) {
+                return None;
+            }
+            return Some((win.inner_position().ok()?, win.inner_size().ok()?));
+        }
+        let ([x, y, w, h], _) = spot?;
+        // Compact or beside the open island: from the window at home, whatever
+        // the island does, wherever it is dragged or while it glides back.
+        let settings = shared.settings.lock().unwrap().clone();
+        let (pos, scale) = island::home_panel_origin(app, &shared.gate, &settings)?;
+        Some((
+            tauri::PhysicalPosition::new(pos.x + (x * scale).round() as i32, pos.y + (y * scale).round() as i32),
+            tauri::PhysicalSize::new((w * scale).round() as u32, (h * scale).round() as u32),
+        ))
+    });
+    let Some((pos, size)) = place else {
+        if ch.is_visible().unwrap_or(false) {
+            let _ = ch.hide();
+        }
+        return;
+    };
+    let _ = ch.set_size(size);
+    let _ = ch.set_position(pos);
+    // Beside the open island it takes the mouse (a click closes it); over the island it lets it through.
+    if CHARACTER_CLICKS_THROUGH.swap(!open, Ordering::Relaxed) != !open {
+        let _ = ch.set_ignore_cursor_events(!open);
+    }
+    if !ch.is_visible().unwrap_or(false) {
+        let _ = ch.show();
+    }
+    island::raise_character(app);
+}
+
 pub const MEMORY_LABEL: &str = "memoria";
 pub const FLOWS_LABEL: &str = "flussi";
 
@@ -3422,6 +3557,9 @@ pub fn run() {
             inbox_to_work,
             work_drag,
             work_pick,
+            character_rest,
+            character_spot,
+            character_clearance,
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -3437,6 +3575,7 @@ pub fn run() {
             }
             // Before the island's webview is ready: see create_settings_window.
             create_settings_window(&handle, webview_dir.as_deref());
+            create_character_window(&handle, webview_dir.as_deref());
             create_memory_window(&handle, webview_dir.as_deref());
             let _ = WEBVIEW_DIR.set(webview_dir.clone());
             preview::init(&handle);
@@ -3446,11 +3585,14 @@ pub fn run() {
                 // destroy it: EasyIsland would go on running with nothing to show.
                 // It closes the island instead, like its own ✕.
                 let closing = handle.clone();
-                win.on_window_event(move |event| {
-                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                win.on_window_event(move |event| match event {
+                    tauri::WindowEvent::CloseRequested { api, .. } => {
                         api.prevent_close();
                         let _ = closing.emit_to(island::WINDOW_LABEL, "tray", "close");
                     }
+                    // Dragged, moved to another screen or resized: the resting character follows.
+                    tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) => sync_character(&closing),
+                    _ => {}
                 });
                 island::make_non_activating(&win);
                 island::apply_geometry(&handle, &gate, &loaded, false);

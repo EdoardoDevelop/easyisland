@@ -257,6 +257,14 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
     let open = !collapsed && gate.expanded.load(Ordering::Relaxed);
     let place = gate.open_place.lock().unwrap().clone();
     let (x, y) = open_origin(work, (pw, ph), settings, place.as_deref(), scale, open);
+    // Open at the character's place: beside the character's own window, not over it.
+    let at_home = place_origin(work, (pw, ph), place.as_deref().unwrap_or(&settings.island_place)).is_none();
+    let (x, y) = if open && at_home {
+        let (cx, cy) = *OPEN_CLEARANCE.lock().unwrap();
+        clamp_to_work(work, (pw, ph), x + (cx * scale).round() as i32, y + (cy * scale).round() as i32)
+    } else {
+        (x, y)
+    };
     // The open island stays where it was dragged to; closed, it is back home.
     let (x, y) = if open {
         let (dx, dy) = *gate.panel_offset.lock().unwrap();
@@ -274,6 +282,21 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
         let _ = win.set_always_on_top(true);
         keep_out_of_alt_tab(&win);
     }
+}
+
+/// How far the open island moves away from its edge so it opens beside the
+/// character's own window (logical px, set by the front end).
+pub static OPEN_CLEARANCE: Mutex<(f64, f64)> = Mutex::new((0.0, 0.0));
+
+/// Where the window's corner is when the island is home (compact), physical px,
+/// with the display's scale: the character beside an open island stays there.
+pub fn home_panel_origin(app: &AppHandle, gate: &PollGate, settings: &Settings) -> Option<(PhysicalPosition<i32>, f64)> {
+    let m = target_monitor(app, &settings.screen)?;
+    let scale = m.scale_factor();
+    let work = island_area(&m, settings);
+    let size = panel_physical(gate, work, scale);
+    let (x, y) = home_origin(work, size, settings, scale);
+    Some((PhysicalPosition::new(x, y), scale))
 }
 
 /// The panel in physical px: the size the front end asked for, within the work area.
@@ -634,10 +657,11 @@ pub fn is_behind() -> bool {
     BEHIND.load(Ordering::Relaxed)
 }
 
-/// Another window is in front: when it covers the open island, the island goes
-/// just behind it; when it does not (the user went elsewhere), back on top.
-/// The taskbar, Start, the desktop and the settings window (`keep_settings_above`)
-/// change nothing.
+/// Another window is in front: the open island goes just behind it, like any
+/// window when another is activated (docs/due-webview.md, step 3), while the
+/// character stays in front in its own window. A click on the island brings it
+/// forward again (the cursor poll). The taskbar, Start, the desktop and
+/// EasyIsland's own windows (settings, preview, memory) change nothing.
 fn step_aside_for(app: &AppHandle, gate: &PollGate, fg: HWND) {
     use windows::Win32::UI::WindowsAndMessaging::{GetAncestor, GA_ROOT};
     if app_mode() || gate.collapsed.load(Ordering::Relaxed) || !gate.expanded.load(Ordering::Relaxed) {
@@ -652,21 +676,24 @@ fn step_aside_for(app: &AppHandle, gate: &PollGate, fg: HWND) {
     if app.get_window(crate::SETTINGS_LABEL).and_then(|w| hwnd_of(&w)) == Some(fg) {
         return;
     }
-    if covers(&win, gate, fg) {
-        BEHIND.store(true, Ordering::Relaxed);
-        // Tao's flag too: any later style change of its (set_ignore_cursor_events,
-        // as the cursor crosses the island) rewrites WS_EX_TOPMOST from it, and the
-        // island jumped back over the dialog (1.0.1, seen by Edoardo).
-        let _ = win.set_always_on_top(false);
-        keep_out_of_alt_tab(&win);
-        unsafe {
-            let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER;
-            let _ = SetWindowPos(me, Some(HWND_NOTOPMOST), 0, 0, 0, 0, flags);
-            let _ = SetWindowPos(me, Some(fg), 0, 0, 0, 0, flags);
-        }
+    let mut pid = 0u32;
+    unsafe { windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId(fg, Some(&mut pid)) };
+    if pid == std::process::id() {
+        return;
+    }
+    let was_behind = BEHIND.swap(true, Ordering::Relaxed);
+    // Tao's flag too: any later style change of its (set_ignore_cursor_events,
+    // as the cursor crosses the island) rewrites WS_EX_TOPMOST from it, and the
+    // island jumped back over the dialog (1.0.1, seen by Edoardo).
+    let _ = win.set_always_on_top(false);
+    keep_out_of_alt_tab(&win);
+    unsafe {
+        let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER;
+        let _ = SetWindowPos(me, Some(HWND_NOTOPMOST), 0, 0, 0, 0, flags);
+        let _ = SetWindowPos(me, Some(fg), 0, 0, 0, 0, flags);
+    }
+    if !was_behind {
         crate::log::line("island behind the window in front");
-    } else {
-        come_forward(app);
     }
 }
 
@@ -683,34 +710,6 @@ fn is_shell(hwnd: HWND) -> bool {
     )
 }
 
-/// True when `fg` (its visible frame) overlaps the island's shape on screen.
-fn covers(win: &tauri::Window, gate: &PollGate, fg: HWND) -> bool {
-    use windows::Win32::Foundation::RECT;
-    use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
-    use windows::Win32::UI::WindowsAndMessaging::{GetWindowRect, IsIconic};
-    let Ok(origin) = win.outer_position() else { return false };
-    let scale = win.scale_factor().unwrap_or(1.0);
-    let r = *gate.rect.lock().unwrap();
-    if r.w <= 0.0 || r.h <= 0.0 {
-        return false;
-    }
-    let (ix, iy) = (origin.x as f64 + r.x * scale, origin.y as f64 + r.y * scale);
-    let (iw, ih) = (r.w * scale, r.h * scale);
-    let mut fr = RECT::default();
-    unsafe {
-        if !IsWindowVisible(fg).as_bool() || IsIconic(fg).as_bool() {
-            return false;
-        }
-        let size = std::mem::size_of::<RECT>() as u32;
-        if DwmGetWindowAttribute(fg, DWMWA_EXTENDED_FRAME_BOUNDS, &mut fr as *mut RECT as *mut _, size).is_err()
-            && GetWindowRect(fg, &mut fr).is_err()
-        {
-            return false;
-        }
-    }
-    (fr.left as f64) < ix + iw && (fr.right as f64) > ix && (fr.top as f64) < iy + ih && (fr.bottom as f64) > iy
-}
-
 /// Back on top after `step_aside_for`: a click on the island, a permission, a
 /// call or a question for it, the island closing or opening again.
 pub fn come_forward(app: &AppHandle) {
@@ -724,6 +723,7 @@ pub fn come_forward(app: &AppHandle) {
     unsafe {
         let _ = SetWindowPos(hwnd, Some(HWND_TOPMOST), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
     }
+    raise_character(app);
 }
 
 /// Puts the island back at the top of the topmost band. The taskbar is topmost
@@ -756,6 +756,7 @@ pub fn raise_over_taskbar(app: &AppHandle) {
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_ASYNCWINDOWPOS,
         );
     }
+    raise_character(app);
 }
 
 /// True while the settings window is the active window (`keep_settings_above`).
@@ -842,6 +843,29 @@ pub fn make_non_activating(win: &tauri::Window) {
         let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
         let want = ex | WS_EX_NOACTIVATE.0 as isize | WS_EX_TOOLWINDOW.0 as isize;
         SetWindowLongPtrW(hwnd, GWL_EXSTYLE, want);
+    }
+}
+
+/// The character's own window back at the top of the topmost band, above the
+/// island it lies over (docs/due-webview.md). Called after every raise of the
+/// island; when the island steps behind another window, the character stays
+/// in front. Tauri's set_always_on_top does nothing once the flag is set.
+pub fn raise_character(app: &AppHandle) {
+    let Some(win) = app.get_window(crate::CHARACTER_LABEL) else { return };
+    let Some(hwnd) = hwnd_of(&win) else { return };
+    unsafe {
+        if !IsWindowVisible(hwnd).as_bool() {
+            return;
+        }
+        let _ = SetWindowPos(
+            hwnd,
+            Some(HWND_TOPMOST),
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_ASYNCWINDOWPOS,
+        );
     }
 }
 

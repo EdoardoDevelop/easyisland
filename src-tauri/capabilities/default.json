@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "What EasyIsland's windows are allowed to do. Everything that touches the OS goes through EasyIsland's own commands. The preview's own page is listed by webview label: the browser webviews of its tabs (anteprima-web-*) get nothing.",
-  "windows": ["island", "settings", "memoria", "flussi"],
+  "windows": ["island", "settings", "memoria", "flussi", "personaggio"],
   "webviews": ["anteprima-ui"],
   "permissions": ["core:default", "autostart:default"]
 }

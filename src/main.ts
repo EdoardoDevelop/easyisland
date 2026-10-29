@@ -16,6 +16,7 @@ import { Daily } from "./island/daily";
 import { registerMoments } from "./island/moments";
 import { syncLanguage } from "./core/i18n";
 import { registerIntegrationHandlers, refreshConfigured } from "./island/integrations";
+import { linkChannel, type CharacterToIsland, type IslandToCharacter } from "./core/link";
 
 /**
  * Uncaught errors of the page go to easyisland.log (the WebView's console is
@@ -200,6 +201,7 @@ async function main() {
     holdOpen: (on) => island.setPinned(on),
   });
 
+  linkCharacterWindow(island);
   island.launch();
   // Monday from 8:00: last week's recap, once the greeting is over.
   window.setTimeout(() => void Recap.check(island), 12_000);
@@ -217,6 +219,53 @@ async function main() {
       void import("../dev/scenes").then((m) => m.runScene(island, scene));
     }
   }
+}
+
+/**
+ * The character's own window (docs/due-webview.md, step 0): it gets the
+ * character's look from here and asks back to open the island.
+ */
+function linkCharacterWindow(island: Island) {
+  let sentKey = "";
+  const look = (): IslandToCharacter => {
+    const t = State.settings.theme;
+    const c = t?.slimeColor;
+    return {
+      kind: "look",
+      state: State.effectiveState,
+      character: t?.character ?? "",
+      figure: t?.figure ?? "",
+      color: c && /^#[0-9a-f]{6}$/i.test(c) ? c : null,
+      size: island.restIconSize,
+      paused: State.paused,
+      mode: island.characterMode,
+      sky: State.characterSky,
+      weather: State.weatherNow,
+      agents: State.sessionTasks.filter((x) => x.state === "working" || x.state === "thinking" || x.state === "searching").length,
+    };
+  };
+  const send = linkChannel<CharacterToIsland, IslandToCharacter>((m) => {
+    if (m.kind === "hello") {
+      sentKey = "";
+      push();
+    } else if (m.kind === "open") {
+      if (State.mode === "expanded") island.collapse();
+      else island.openFromTaskbar();
+    } else if (m.kind === "ping") {
+      send({ kind: "pong", sent: m.sent });
+    }
+  });
+  const push = () => {
+    const m = look();
+    const key = JSON.stringify(m);
+    if (key === sentKey) return;
+    sentKey = key;
+    send(m);
+  };
+  State.subscribe(push);
+  island.onRestChange = push;
+  island.mirror = send;
+  push();
 }
 
 void main();

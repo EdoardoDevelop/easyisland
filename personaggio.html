@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EasyIsland</title>
+    <style>
+      body { margin: 0; background: transparent; overflow: hidden; }
+      #bot { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+      /*
+       * At rest and beside the open island the character is alive for ever by
+       * CSS: a still picture moved by the compositor, so its page draws nothing
+       * (src/character-window/main.ts). Three motions of different lengths add
+       * up (float, sway, breath) so it never repeats the same way, with a halo
+       * of its colour pulsing behind it. Only transform and opacity: no repaint.
+       * Compact, the island moves it and this is off.
+       */
+      #float, #sway, #breathe { position: absolute; inset: 0; }
+      #halo {
+        position: absolute; left: 50%; top: 50%; width: 46%; aspect-ratio: 1;
+        transform: translate(-50%, -50%); border-radius: 50%; opacity: 0;
+        background: radial-gradient(circle, var(--halo, rgba(127, 211, 255, 0.9)) 0%, transparent 70%);
+      }
+      body.alive #float { animation: float 3.4s ease-in-out infinite; }
+      body.alive #sway { animation: sway 5.3s ease-in-out infinite; }
+      body.alive #breathe { animation: breathe 2.6s ease-in-out infinite; }
+      body.alive #halo { animation: halo 3.4s ease-in-out infinite; }
+      body.alive #float, body.alive #sway, body.alive #breathe, body.alive #halo { will-change: transform, opacity; }
+      @keyframes float {
+        0%, 100% { transform: translateY(1.5px); }
+        50% { transform: translateY(-3.5px); }
+      }
+      @keyframes sway {
+        0%, 100% { transform: rotate(-5deg); }
+        50% { transform: rotate(5deg); }
+      }
+      @keyframes breathe {
+        0%, 100% { transform: scale(1, 1); }
+        40% { transform: scale(1.07, 0.95); }
+        70% { transform: scale(0.97, 1.04); }
+      }
+      @keyframes halo {
+        0%, 100% { opacity: 0.15; transform: translate(-50%, -50%) scale(0.85); }
+        50% { opacity: 0.55; transform: translate(-50%, -50%) scale(1.25); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="float">
+      <div id="halo"></div>
+      <div id="sway"><div id="breathe"><canvas id="bot"></canvas></div></div>
+    </div>
+    <script type="module" src="/src/character-window/main.ts"></script>
+  </body>
+</html>

@@ -1,10 +1,13 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 28 ottobre 2026. Versione **1.0.10** in `main` con il tag `v1.0.10` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`; in corso `claude/due-webview` (personaggio e isola in due finestre, `docs/due-webview.md` in quel branch), in attesa `claude/barra-fissa` e `claude/modello-integrato`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 29 ottobre 2026. Versione **1.0.10** in `main` con il tag `v1.0.10` (la CI pubblica l'installer, la workflow Homepage pubblica sito e guida). Si lavora su `claude/sviluppo`; in corso `claude/due-webview` (personaggio e isola in due finestre, `docs/due-webview.md` in quel branch), in attesa `claude/barra-fissa` e `claude/modello-integrato`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
+- [ ] **Personaggio e isola in due finestre** (branch `claude/due-webview`, chiesto da Edoardo il 28 ottobre 2026; piano e misure in `docs/due-webview.md`, come funziona in `docs/architettura.md`):
+  - **fatto:** personaggio a riposo e compatto nella sua finestra; isola che si apre accanto con onda, saltello e clone nel menu; isola che va dietro alle altre finestre mentre il personaggio resta davanti; animazione CSS a riposo.
+  - **manca:** prova ai lati e su un secondo schermo (in basso funziona; i file rilasciati sul personaggio a isola aperta funzionano, provato da Edoardo il 29 ottobre 2026); poi unione in `claude/sviluppo` e ripresa della barra fissa (`claude/barra-fissa`) sopra.
 - [ ] **Integrazioni personali:** fatte nel codice e nell'anteprima (`docs/integrazioni.md`); da provare con l'app vera (`docs/prove-dal-vivo.md`).
 - [ ] **Guida sul sito**, italiano e inglese (`docs/guida/`, `docs/guida/en/` → `site/guida/`, `site/en/guide/`; homepage inglese `site/en/index.html`, schermate inglesi in `site/media/en/`): da tenere allineate a ogni funzione nuova (`node scripts/guida.mjs`). Il link delle Impostazioni nella lingua dell'app arriva con la prossima versione.
 - [ ] **EasyIsland agente personale** (dopo la 1.0.0) (priorità alta, chiesto da Edoardo il 23 ottobre 2026): fatti i **Compiti** con motore per compito, motori aiutanti e **Battito**, e le **Abilità** (`docs/chat.md`; da provare dal vivo domande e permessi, `docs/prove-dal-vivo.md`). Prossimi: proattività su ticket e chiamate, permessi per livelli, memoria per cliente. Piano in `docs/idee.md`.
@@ -46,6 +49,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 29 ottobre 2026 — Personaggio e isola in due finestre (su `claude/due-webview`)
+- Il personaggio vive in una finestra sua (`personaggio.html`, canale `BroadcastChannel` in `src/core/link.ts`): a riposo e compatto la posa Rust sopra l'isola, che tiene clic e passaggio del mouse; aperta l'isola resta fermo e l'isola si apre accanto. L'isola aperta va dietro a qualunque finestra attivata, il personaggio resta davanti.
+- Misure: +22 MB per la seconda finestra; con la vista compatta sempre visibile e Jarvis 414 MB, CPU 0,64 %. Dettagli in `docs/due-webview.md`.
+
 ### 28 ottobre 2026 — Versione 1.0.10: rinominare le conversazioni
 - Contiene la rinomina delle conversazioni nella cronologia della chat e le idee annotate dopo la 1.0.9 (modello integrato, barra fissa). Barra fissa e modello integrato restano nei loro branch, non nella versione.
 
@@ -60,6 +67,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 27 ottobre 2026 — Permessi della chat dentro la chat (su `claude/sviluppo`)
 - Un permesso chiesto dalla chat compare in fondo alla conversazione con Nega / Sempre / Consenti (`chat.ts`), non più su una card che toglie la chat; `State.pendingCard()` per la chat è `prompt`.
 - Con l'isola aperta porta sempre alla chat: con «Permessi e chiamate» spento prima restava solo il fumetto in alto e la chat sembrava ferma (`hooks.ts` `handleChatPermission`).
-
-### 26 ottobre 2026 — Passi della chat leggibili (su `claude/sviluppo`)
-- Le righe «⚙» della chat (isola e Telegram) dicono a parole cosa fa, con l'argomento («Prepara il piano del compito», «Cerca nella memoria · `…`»), invece di «task_plan · easyisland» (`steps.rs`, `docs/chat.md`). Il motore scrive anche una frase breve prima di ogni gruppo di strumenti (`AGENT_PROMPT`).
