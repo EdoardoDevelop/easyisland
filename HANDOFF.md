@@ -41,7 +41,6 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Da decidere con Edoardo:** firma del codice, tag `windows-latest` (`docs/idee.md`, `docs/decisioni.md`).
 
 ## Problemi noti
-- **«Aggancia ai bordi» spento non ha effetto:** lo sfondo si attacca comunque al bordo (segnalato da Edoardo il 29 ottobre 2026). Da correggere su `claude/sviluppo`; l'impostazione è `glueEdges`, letta da `glueFor` in `src/core/layout.ts`.
 - **Occhi troppo grandi** nello stato felice per alcuni personaggi (segnalato il 14 ottobre 2026, quali personaggi è da capire).
 - **Sopra la barra:** cliccando la barra o aprendo Start il personaggio va dietro. Torna davanti a ogni cambio di finestra in primo piano. Va verificato con Start aperto.
 - **Limiti del piano da Anthropic:** l'indirizzo (`/api/oauth/usage`) non è documentato e può cambiare; se smette di rispondere il log scrive «limiti del piano da Anthropic: HTTP …» e restano i numeri della status line.
@@ -53,6 +52,7 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 29 ottobre 2026 — Aspetto a schede con le immagini (unita in `claude/sviluppo`)
 - Impostazioni → Aspetto divisa in sei schede (Tema, Personaggio, Posizione, Barra fissa, Isola chiusa, Isola aperta); accanto a ogni voce uno schermo in miniatura in SVG (`src/settings/pictures.ts`) che si ridisegna al cambio del valore, alcune animate in CSS solo mentre sono in vista; in Personaggio il personaggio vero si muove. Angolo scelto anche con un clic sulla miniatura.
 - Smoke esteso a ogni scheda («nessun errore»); schermata `settings.png` e guida aggiornate.
+- «Aggancia ai bordi» spento ora vale anche in alto al centro, dove l'isola restava sempre attaccata al bordo (`glueFor` in `src/core/layout.ts`); con la barra fissa l'isola resta sempre contro la barra.
 
 ### 29 ottobre 2026 — Barra fissa (unita in `claude/sviluppo`)
 - La finestra del personaggio diventa la fascia riservata da Windows in alto o in basso, con il personaggio in una delle tre aree, le integrazioni, i widget, le azioni e la striscia scelti in Impostazioni, «…» per ciò che non ci sta e sfondo come l'isola, trasparente o a colore. L'isola chiusa è nascosta, aperta sta contro la barra.

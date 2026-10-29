@@ -26,7 +26,7 @@ The page has six tabs at the top: **Theme**, **Character**, **Position**, **Fixe
 - **Screen**: the main one, the one under the cursor or the one you dragged it to (if unplugged, it goes back to the main one).
 - **Screen corner**: top or bottom, left, centre or right. The island grows from there and its content stays aligned to that side. You can also **drag the character** anywhere; picking a corner again brings it back to the edge.
 - **Over the taskbar**: the character may also sit over the taskbar.
-- **Snap to edges**: near an edge the background sticks to it with square corners.
+- **Snap to edges**: near an edge the background sticks to it with square corners; off, the island stays off every edge, top centre included.
 - **Full screen**: during videos, games and presentations the character disappears; permissions still show.
 
 ## Fixed bar

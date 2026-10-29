@@ -2129,7 +2129,8 @@ ${note}` : text };
         iconSize: s.iconSize,
         hoverStyle: s.hoverStyle,
         hoverSize: s.hoverSize,
-        ...glueFor(h, edge, 0, 0, s.glueEdges ?? true),
+        // Always against the band, whatever «Aggancia ai bordi» says.
+        ...glueFor(h, 0, 0, true),
       };
     }
     return {
@@ -2139,7 +2140,7 @@ ${note}` : text };
       iconSize: s.iconSize,
       hoverStyle: s.hoverStyle,
       hoverSize: s.hoverSize,
-      ...glueFor(s.anchorH, s.anchorV, s.offsetX ?? 0, s.offsetY ?? 0, s.glueEdges ?? true),
+      ...glueFor(s.anchorH, s.offsetX ?? 0, s.offsetY ?? 0, s.glueEdges ?? true),
     };
   }
 

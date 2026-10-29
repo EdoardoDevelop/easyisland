@@ -433,7 +433,7 @@ export interface Settings {
   /** Where the character was dragged: logical px from the anchored home position. */
   offsetX: number;
   offsetY: number;
-  /** Touch the screen edge (square corners) when left at it, not only top centre. */
+  /** Touch the screen edge (square corners) when left at it; off, it floats off every edge. */
   glueEdges: boolean;
   /** Use the whole screen, taskbar included, instead of the work area. */
   overTaskbar: boolean;

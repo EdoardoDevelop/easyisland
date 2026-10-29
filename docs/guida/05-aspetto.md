@@ -26,7 +26,7 @@ La pagina è divisa in sei schede, in alto: **Tema**, **Personaggio**, **Posizio
 - **Schermo**: principale, quello sotto il cursore o quello su cui l'hai trascinato (se viene scollegato torna sul principale).
 - **Angolo dello schermo**: in alto o in basso, a sinistra, al centro o a destra. L'isola cresce da lì e il contenuto resta allineato a quel lato. Puoi anche **trascinare il personaggio** dove vuoi; scegliere di nuovo un angolo lo riporta al bordo.
 - **Sopra la barra**: il personaggio può stare anche sopra la barra delle applicazioni.
-- **Aggancia ai bordi**: vicino a un bordo lo sfondo si attacca con gli angoli squadrati.
+- **Aggancia ai bordi**: vicino a un bordo lo sfondo si attacca con gli angoli squadrati; spento, l'isola resta staccata da tutti i bordi, anche in alto al centro.
 - **Schermo intero**: durante video, giochi e presentazioni il personaggio sparisce; i permessi compaiono comunque.
 
 ## Barra fissa
