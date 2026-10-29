@@ -16,6 +16,21 @@ export function windowsLook(): boolean {
   return document.documentElement.dataset.ui !== "classic";
 }
 
+const WINDOWS_ISLAND = "#1c1c1c";
+const WINDOWS_ISLAND_LIGHT = "#f3f3f3";
+const CLASSIC_ISLAND_LIGHT = "#fbfbfc";
+
+/**
+ * The island's colour as "#rrggbb": the user's, or for the untouched black the
+ * grey of Windows' dark surfaces, or the light ones in light mode.
+ */
+export function islandHex(islandColor: string | undefined, style: string | undefined): string {
+  const hex = islandColor && /^#[0-9a-f]{6}$/i.test(islandColor) ? islandColor : "#000000";
+  if (hex !== "#000000") return hex;
+  if (scheme() === "light") return uiStyle(style) === "windows" ? WINDOWS_ISLAND_LIGHT : CLASSIC_ISLAND_LIGHT;
+  return uiStyle(style) === "windows" ? WINDOWS_ISLAND : hex;
+}
+
 let accentRead = 0;
 
 export type Scheme = "dark" | "light";

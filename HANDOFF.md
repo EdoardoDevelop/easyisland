@@ -1,12 +1,13 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 29 ottobre 2026. Versione **1.0.10** in `main` con il tag `v1.0.10`. Si lavora su `claude/sviluppo`, che contiene le due finestre (personaggio e isola); finita su `claude/barra-fissa-2` la **barra fissa** (`docs/architettura.md` → Barra fissa), da unire in `claude/sviluppo`. In attesa `claude/modello-integrato`; `claude/barra-fissa` è il primo tentativo, solo archivio. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 29 ottobre 2026. Versione **1.0.10** in `main` con il tag `v1.0.10`. Si lavora su `claude/sviluppo`, che contiene le due finestre (personaggio e isola) e la **barra fissa** (`docs/architettura.md` → Barra fissa); su `claude/impostazioni-aspetto` la pagina Aspetto a schede con le immagini, da unire in `claude/sviluppo`. In attesa `claude/modello-integrato`; `claude/barra-fissa` è il primo tentativo, solo archivio. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
 - [ ] **Personaggio e isola in due finestre** (unite in `claude/sviluppo`; misure in `docs/due-webview.md`, come funziona in `docs/architettura.md`): da provare ai lati e su un secondo schermo (in basso e i file rilasciati sul personaggio funzionano, provati da Edoardo il 29 ottobre 2026).
-- [ ] **Barra fissa** (`claude/barra-fissa-2`, `docs/architettura.md` → Barra fissa): fatta e provata in alto; da unire in `claude/sviluppo`. Da provare in basso, sul secondo monitor e con il menu «…». I miglioramenti delle Impostazioni della barra che Edoardo indicherà vanno in un branch a parte.
+- [ ] **Barra fissa** (unita in `claude/sviluppo`, `docs/architettura.md` → Barra fissa): fatta e provata in alto. Da provare in basso, sul secondo monitor e con il menu «…».
+- [ ] **Aspetto a schede con le immagini** (`claude/impostazioni-aspetto`, `docs/architettura.md` → Impostazioni): sei schede, una miniatura disegnata accanto a ogni voce. Da far vedere a Edoardo nell'app vera e unire in `claude/sviluppo`.
 - [ ] **Integrazioni personali:** fatte nel codice e nell'anteprima (`docs/integrazioni.md`); da provare con l'app vera (`docs/prove-dal-vivo.md`).
 - [ ] **Guida sul sito**, italiano e inglese (`docs/guida/`, `docs/guida/en/` → `site/guida/`, `site/en/guide/`; homepage inglese `site/en/index.html`, schermate inglesi in `site/media/en/`): da tenere allineate a ogni funzione nuova (`node scripts/guida.mjs`). Il link delle Impostazioni nella lingua dell'app arriva con la prossima versione.
 - [ ] **EasyIsland agente personale** (dopo la 1.0.0) (priorità alta, chiesto da Edoardo il 23 ottobre 2026): fatti i **Compiti** con motore per compito, motori aiutanti e **Battito**, e le **Abilità** (`docs/chat.md`; da provare dal vivo domande e permessi, `docs/prove-dal-vivo.md`). Prossimi: proattività su ticket e chiamate, permessi per livelli, memoria per cliente. Piano in `docs/idee.md`.
@@ -49,7 +50,11 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
-### 29 ottobre 2026 — Barra fissa (su `claude/barra-fissa-2`)
+### 29 ottobre 2026 — Aspetto a schede con le immagini (su `claude/impostazioni-aspetto`)
+- Impostazioni → Aspetto divisa in sei schede (Tema, Personaggio, Posizione, Barra fissa, Isola chiusa, Isola aperta); accanto a ogni voce uno schermo in miniatura in SVG (`src/settings/pictures.ts`) che si ridisegna al cambio del valore, alcune animate in CSS solo mentre sono in vista; in Personaggio il personaggio vero si muove. Angolo scelto anche con un clic sulla miniatura.
+- Smoke esteso a ogni scheda («nessun errore»); schermata `settings.png` e guida aggiornate.
+
+### 29 ottobre 2026 — Barra fissa (unita in `claude/sviluppo`)
 - La finestra del personaggio diventa la fascia riservata da Windows in alto o in basso, con il personaggio in una delle tre aree, le integrazioni, i widget, le azioni e la striscia scelti in Impostazioni, «…» per ciò che non ci sta e sfondo come l'isola, trasparente o a colore. L'isola chiusa è nascosta, aperta sta contro la barra.
 - Provata dal vivo da Claude con foto dello schermo e clic simulati (Edoardo lontano dal PC); da provare barra in basso, secondo monitor e «…».
 
@@ -63,7 +68,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 27 ottobre 2026 — Rinominare le conversazioni (su `claude/sviluppo`)
 - Nella cronologia della chat ✎ (o doppio clic sul titolo) rinomina una conversazione; vuoto torna alla prima domanda (`chat_log::rename`, `chat.ts`, `docs/chat.md`).
 - Modello integrato accantonato nel branch `claude/modello-integrato`; annotata l'idea dell'isola fissa su un bordo con lo spazio riservato (`docs/idee.md`).
-
-### 27 ottobre 2026 — Versione 1.0.9: Anteprima nell'isola, inglese prima
-- Anteprima di file e pagine web (nell'isola o in finestra), passi della chat a parole, permessi dentro la chat, memoria con riassunti e alias: tutto in `CHANGELOG.md`.
-- README e homepage prima in inglese: `README.md` inglese e `README.it.md`; `site/index.html` inglese, `site/it/index.html` italiana, `site/en/index.html` rimanda alla radice; «Sito» nelle Impostazioni apre `/it/` con l'interfaccia in italiano; la guida tiene i suoi indirizzi.
