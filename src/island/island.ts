@@ -3176,11 +3176,14 @@ ${note}` : text };
     // spends most of its life in. Geometry still has to finish retracting.
     const settling =
       this.width.animating || this.height.animating || this.radius.animating;
+    // Compact in the character's own window, this canvas is hidden: its own
+    // motion (Jarvis, the flame) and a looping state are drawn there, not here.
+    const engineBusy = this.compactInWindow ? this.engine.busyBeyondLook : this.engine.busy;
     const busy = State.mode === "hidden"
       ? settling
       : settling ||
         !this.botCx.settled || !this.botCy.settled || !this.botSize.settled ||
-        greetingActive || this.engine.busy || UploadSeq.isActive || !!State.windowPick;
+        greetingActive || engineBusy || UploadSeq.isActive || !!State.windowPick;
 
     // Only following the cursor: 30 fps is plenty for a gaze and halves the cost.
     // Tweens, geometry, particles, the greeting and the drop keep the full rate.
@@ -3302,6 +3305,8 @@ ${note}` : text };
       }
     }
     this.engine.update(dt);
+    // Hidden under the character's own window: nothing to draw.
+    if (this.compactInWindow) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, hCss);
     this.engine.draw(ctx, w, hCss);

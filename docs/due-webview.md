@@ -121,4 +121,13 @@ Oggi personaggio, vista compatta e isola aperta stanno in una sola finestra. Una
   - **Posizione del personaggio:** sia compatto sia ad isola aperta si calcola dalla finestra a casa (`home_panel_origin`), quindi non segue la scivolata.
   - **Animazione a riposo e accanto all'isola aperta:** non più battiti di ciglia e occhiate a intermittenza (non piacevano a Edoardo). Ora il personaggio fluttua e «respira» per sempre con un'animazione CSS di solo `transform` (`personaggio.html`, classe `alive`): un disegno fermo mosso dal compositore, senza ridisegni.
 - **Misura a riposo** con «Icona a riposo: nessuna» (finestra del personaggio nascosta): 356 MB, CPU 0,24 %. Il costo dell'animazione CSS con l'icona a riposo «personaggio» è ancora da misurare.
+- **Animazione a riposo, seconda versione:**
+  - tre movimenti CSS di durata diversa (galleggia, oscilla, respira) e un alone del colore del personaggio;
+  - per i personaggi che si muovono da soli (`animated`: Jarvis, Fiamma) il disegno gira a 15 fps a riposo e accanto all'isola aperta.
+  - Compatto, la finestra disegna finché il motore si muove, come faceva l'isola: prima si fermava dopo 2,5 s e ripartiva al gesto successivo.
+- **Consumo con la vista compatta sempre visibile e Jarvis Sfera** (29 ottobre 2026), CPU in media su 20–30 s:
+  - prima della correzione: 459 MB, CPU 0,77 %. L'isola ridisegnava il suo personaggio nascosto (renderer dell'isola 0,30 %).
+  - Correzione: compatto nella finestra del personaggio, l'isola aggiorna il motore ma non lo disegna e non tiene acceso il ciclo per il solo movimento proprio (`engineBusy`).
+  - dopo: 414 MB, CPU 0,64 %. Isola 0,13 %, personaggio 0,18 %, GPU 0,19 %, processo principale 0,08 %.
+  - La pagina del personaggio pesa circa 75 MB: da alleggerire (oggi importa `bridge.ts` solo per il registro).
 
