@@ -443,6 +443,8 @@ export interface Settings {
   fixedBarSlot?: "start" | "center" | "end";
   /** What else the fixed bar shows, in order (BarItem). */
   fixedBarItems?: BarItem[];
+  /** The fixed bar's background: "" the island's, "transparent", or "#rrggbb". */
+  fixedBarBackground?: string;
   /** Width of the open island, px (dragged with its corner, or Impostazioni → Posizione). */
   islandWidth: number;
   /** Minimum height of the open island, px; 0 = each view's own height. */
@@ -1005,6 +1007,7 @@ export const DEFAULT_SETTINGS: Settings = {
   fixedBar: "",
   fixedBarSlot: "center",
   fixedBarItems: [],
+  fixedBarBackground: "",
   islandWidth: 640,
   islandHeight: 0,
   islandPlace: "character",

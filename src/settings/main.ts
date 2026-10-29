@@ -2128,6 +2128,14 @@ function appearanceSections(): HTMLElement[] {
     settings.screen,
     (v) => { settings.screen = v; commit(); },
   );
+  // Every screen by name: with the fixed bar the character cannot be dragged to one.
+  void Bridge.monitorList().then((list) => {
+    for (const [value, label] of list ?? []) {
+      if ([...screen.options].some((o) => o.value === value)) continue;
+      screen.append(h("option", { value, text: label }));
+    }
+    screen.value = settings.screen;
+  }).catch(() => {});
 
   const vertical = select<Settings["anchorV"]>(
     [["top", t("In alto")], ["bottom", t("In basso")]],
@@ -2348,6 +2356,10 @@ function appearanceSections(): HTMLElement[] {
         (v) => { settings.fixedBarSlot = v as Settings["fixedBarSlot"]; commit(); }),
       h("span", { class: "hint note", text: t("con la barra fissa il personaggio sta lì e non si trascina; l'isola si apre sotto la barra (sopra, se è in basso) e da chiusa non c'è") }),
     ),
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Sfondo della barra") }),
+      barBackground(commit),
+    ),
     barItemsEditor(commit),
     h("div", { class: "row free-row" }, h("label", { text: t("Posizione") }), vertical, horizontal),
     h("div", { class: "row free-row" },
@@ -2530,6 +2542,22 @@ function languageRow(): HTMLElement {
 }
 
 // ── Profiles ──────────────────────────────────────────────────────────────────
+
+/** «Sfondo della barra»: the island's, none, or a colour of the user's. */
+function barBackground(commit: () => void): HTMLElement {
+  const current = settings.fixedBarBackground ?? "";
+  const custom = /^#[0-9a-f]{6}$/i.test(current);
+  const picker = colorField(custom ? current : "", "#1f2937", (v) => { settings.fixedBarBackground = v; commit(); });
+  picker.style.display = custom ? "flex" : "none";
+  const choice = select([["", t("Come l'isola")], ["transparent", t("Trasparente")], ["color", t("Un colore")]],
+    custom ? "color" : current === "transparent" ? "transparent" : "",
+    (v) => {
+      picker.style.display = v === "color" ? "flex" : "none";
+      settings.fixedBarBackground = v === "color" ? (custom ? current : "#1f2937") : v;
+      commit();
+    });
+  return h("span", { style: "display:flex;align-items:center;gap:10px" }, choice, picker);
+}
 
 /**
  * «Elementi nella barra»: integrations, widgets and quick actions in the fixed

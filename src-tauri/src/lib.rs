@@ -537,6 +537,29 @@ fn show_island_menu(app: AppHandle) {
     tray::popup(&app);
 }
 
+/// The screens, for Impostazioni → Posizione (with the fixed bar the character
+/// cannot be dragged to one): [setting value, label], the main one first.
+#[tauri::command]
+fn monitor_list(app: AppHandle) -> Vec<(String, String)> {
+    let primary = app.primary_monitor().ok().flatten().map(|m| *m.position());
+    let mut out: Vec<(bool, String, String)> = app
+        .available_monitors()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|m| {
+            let name = m.name()?.clone();
+            let size = m.size();
+            let main = Some(*m.position()) == primary;
+            // "\\.\DISPLAY2" → "DISPLAY2".
+            let short = name.rsplit('\\').next().unwrap_or(&name).to_string();
+            let label = format!("{short} · {}×{}{}", size.width, size.height, if main { " ★" } else { "" });
+            Some((main, format!("monitor:{name}"), label))
+        })
+        .collect();
+    out.sort_by_key(|(main, _, _)| !*main);
+    out.into_iter().map(|(_, v, l)| (v, l)).collect()
+}
+
 /// «…» of the fixed bar: the elements that do not fit, as [key, label] pairs.
 #[tauri::command]
 fn bar_overflow_menu(app: AppHandle, entries: Vec<(String, String)>) {
@@ -3602,6 +3625,7 @@ pub fn run() {
             character_spot,
             character_clearance,
             bar_overflow_menu,
+            monitor_list,
         ])
         .setup(move |app| {
             let handle = app.handle().clone();

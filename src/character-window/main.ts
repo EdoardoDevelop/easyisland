@@ -158,6 +158,7 @@ function layBar() {
   const float = document.getElementById("float");
   if (!float) return;
   document.body.style.background = bar ? bar.background : "transparent";
+  document.body.classList.toggle("see-through", bar?.background === "transparent");
   document.body.classList.toggle("bar", !!bar);
   if (!bar) {
     float.style.cssText = "";

@@ -36,7 +36,7 @@ Branch `claude/barra-fissa-2`, ripartito il 29 ottobre 2026 da `claude/sviluppo`
   - striscia dove la mette l'utente;
   - menu «…» per ciò che non ci sta.
   - Disegnati dalla finestra della barra con i dati che l'isola manda sul canale (`src/core/link.ts`); i clic tornano all'isola.
-- [ ] **3. Impostazioni della barra:**
+- [x] **3. Impostazioni della barra:** (fatto il 29 ottobre)
   - aree e ordine degli elementi;
   - sfondo (di serie quello dell'isola, poi trasparente o un altro colore);
   - monitor.
@@ -74,4 +74,12 @@ Branch `claude/barra-fissa-2`, ripartito il 29 ottobre 2026 da `claude/sviluppo`
     - nel browser, barra di 900 px con otto elementi: restano la striscia e gli elementi accanto al personaggio; il centro e l'ultima azione vanno nel «…».
     - Dal vivo (2560 px al 125 %) la barra non trabocca nemmeno con sei integrazioni al centro e il personaggio al centro, quindi il menu nativo non è ancora stato visto. Impostazioni rimesse com'erano (copia `settings.json.bak-barra-20261029-122639`).
   - **Telegram** non va nella barra (deciso da Edoardo): l'elenco delle Impostazioni offre solo le integrazioni con una scheda nell'isola (`INTEGRATION_AGENTS`), le uniche che la barra sa mostrare.
+- **29 ottobre, passo 3.**
+  - **«Sfondo della barra»** (`fixedBarBackground`):
+    - «Come l'isola» (di serie);
+    - «Trasparente»: si vede il desktop, testo con un'ombra (`see-through`);
+    - «Un colore»: il testo diventa scuro o chiaro secondo la luminosità (`barPaint` in `main.ts`).
+    - Provati dal vivo trasparente e `#e5e7eb` (testo scuro), poi rimesso com'era (copia `settings.json.bak-barra-20261029-135405`).
+  - **Monitor:** la barra sta sullo schermo dell'isola (`screen`); con la barra il personaggio non si trascina. «Schermo» in Impostazioni → Posizione elenca ora ogni schermo per nome (`monitor_list`, il principale con ★). Da provare dal vivo con il secondo monitor.
+  - **Ordine degli elementi:** già con ↑ ↓ in «Elementi nella barra».
 

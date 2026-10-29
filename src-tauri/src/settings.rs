@@ -614,6 +614,9 @@ pub struct Settings {
     /// (src/core/state.ts BarItem). Only the front end reads it.
     #[serde(default)]
     pub fixed_bar_items: Vec<Value>,
+    /// The fixed bar's background: "" the island's, "transparent", or "#rrggbb".
+    #[serde(default)]
+    pub fixed_bar_background: String,
     /// Width of the open island, logical px (the front end clamps it to the window).
     #[serde(default = "default_island_width")]
     pub island_width: f64,
@@ -983,6 +986,7 @@ impl Default for Settings {
             fixed_bar: String::new(),
             fixed_bar_slot: default_fixed_bar_slot(),
             fixed_bar_items: Vec::new(),
+            fixed_bar_background: String::new(),
             island_width: default_island_width(),
             island_height: 0.0,
             island_place: default_island_place(),

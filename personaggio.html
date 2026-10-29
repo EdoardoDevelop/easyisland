@@ -58,6 +58,8 @@
       .bar-text { overflow: hidden; text-overflow: ellipsis; }
       .bar-btn.warn .bar-text { color: #F5A524; }
       .bar-btn.error .bar-text { color: #F4505E; }
+      /* Transparent bar: over the wallpaper the text needs a shadow to be read. */
+      body.see-through .bar-btn { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75), 0 0 6px rgba(0, 0, 0, 0.45); }
       .bar-more { font-size: 16px; letter-spacing: 1px; padding: 0 10px; }
       .bar-action { border-left: 2px solid var(--action, transparent); padding-left: 6px; }
       /* The strip in the bar (src/island/bar.ts stripPiece), coloured by what it holds. */
