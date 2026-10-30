@@ -34,4 +34,4 @@ EasyIsland is built on a few rules that hold everywhere:
 - **Never blocks an agent.** If EasyIsland doesn't answer, agents carry on in the terminal as if it weren't there.
 - **Light.** With the island tucked away nothing is drawn: CPU close to zero.
 
-> **Note:** the interface is available in English and Italian (Settings → General → Language). EasyIsland is open source under the MIT license, born as a Windows-only version of Coucou. The code is on [GitHub](https://github.com/EdoardoDevelop/easyisland).
+> **Note:** the interface is available in English and Italian (Settings → General → Language). EasyIsland is open source under the MIT license. The code is on [GitHub](https://github.com/EdoardoDevelop/easyisland).

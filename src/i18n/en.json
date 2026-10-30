@@ -557,7 +557,7 @@
   "ha {n} domande · {i} di {n}": "has {n} questions · {i} of {n}",
   "Hai già l'ultima versione ({version}).": "You already have the latest version ({version}).",
   "Hook non installati": "Hooks not installed",
-  "Hook vecchi (Coucou)": "Old hooks (Coucou)",
+  "Hook di una versione vecchia": "Hooks from an old version",
   "Host e porta": "Host and port",
   "HTTP non disponibile": "HTTP not available",
   "I comandi da eseguire. Partono solo dopo un clic nell'isola.": "The commands to run. They start only after a click in the island.",

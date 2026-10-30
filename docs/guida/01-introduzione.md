@@ -34,4 +34,4 @@ EasyIsland è costruita su poche regole che valgono ovunque:
 - **Non blocca mai gli agenti.** Se EasyIsland non risponde, gli agenti continuano nel terminale come se non ci fosse.
 - **Leggera.** Con l'isola ritirata non disegna nulla: CPU vicina allo zero.
 
-> **Nota:** EasyIsland è open source con licenza MIT, nata come versione solo per Windows di Coucou. Il codice è su [GitHub](https://github.com/EdoardoDevelop/easyisland).
+> **Nota:** EasyIsland è open source con licenza MIT. Il codice è su [GitHub](https://github.com/EdoardoDevelop/easyisland).
