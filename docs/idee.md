@@ -43,6 +43,31 @@ Studiati gli agenti personali più usati: quelli locali e open source con contro
 - Regole: solo con entrambe le integrazioni accese, tutto in memoria, niente nomi né titoli davanti al cliente, nessuna azione senza un clic.
 - Seguito possibile: «Nuovo ticket» dalla chiamata.
 
+## Soluzioni proposte per i ticket Zammad (chiesta da Edoardo il 30 ottobre 2026)
+Su un ticket nuovo EasyIsland cerca da solo una soluzione e la propone. Sceglie e agisce sempre l'utente. Oggi `zammad.rs` legge solo i conteggi e i titoli delle viste (`ticket_overviews`).
+- **Quando parte:** su un ticket nuovo assegnato all'utente o «Da assegnare» (l'evento c'è già, `new_ticket_event`), oppure a mano con «Cerca una soluzione» nella card del ticket. È un compito (`docs/chat.md` → Compiti) con il motore e i limiti scelti in Impostazioni.
+- **Cosa legge:**
+  - il ticket intero: titolo, articoli, allegati di testo, cliente e organizzazione (`/api/v1/tickets/{id}`, `/api/v1/ticket_articles/by_ticket/{id}`);
+  - i ticket chiusi dello stesso cliente o con parole simili, con la soluzione data allora. La ricerca di Zammad potrebbe volere Elasticsearch: è la stessa domanda aperta della sezione 3CX qui sopra. In ripiego, l'elenco degli ultimi ticket chiusi filtrato in locale;
+  - la knowledge base di Zammad, se c'è;
+  - la memoria: le pagine del cliente, del prodotto e del problema (`brain.rs`) e le abilità dell'utente;
+  - il web con la ricerca del motore: documentazione dei produttori, forum, note di rilascio, avvisi noti;
+  - dove serve, gli strumenti di sola lettura che ci sono già: stato dei server, controlli, RDM per sapere quale macchina è.
+- **Cosa propone**, nella card del ticket e con un avviso nell'isola:
+  - la causa probabile e i passi per risolvere, in ordine, con quanto è sicuro;
+  - le fonti (ticket passati, pagine della memoria, link) per controllare;
+  - una bozza di risposta al cliente e una nota interna.
+  - Con «Utile» o «Non utile» l'utente dice com'è andata, e il compito ne tiene conto.
+- **Mai senza un clic:** nessuna scrittura in Zammad da sola. «Aggiungi come nota interna» e «Usa come risposta» (che apre la bozza nel ticket, mai inviata) solo dopo il clic; stato, assegnatario e priorità non si toccano. I comandi su un PC del cliente restano quelli di «Accesso remoto» con Consenti / Nega.
+- **Impara:** quando un ticket si chiude, EasyIsland propone di salvare problema e soluzione nella pagina del cliente o del prodotto (`memory_page_write`, con conferma). Così i ticket seguenti trovano la risposta in casa, prima di andare sul web.
+- **Riservatezza:** il testo del ticket contiene dati del cliente e va al motore scelto.
+  - Si può scegliere un motore locale.
+  - Oppure togliere email, telefoni, indirizzi e nomi prima di mandarlo.
+  - Le ricerche sul web contengono solo i termini tecnici (errore, prodotto, versione), mai nomi di clienti o persone.
+  - Niente davanti al cliente (`davanti al cliente` nasconde la card).
+- **Costi:** un tetto di ticket al giorno e di turni per ticket. Si salta un ticket già proposto. Si può limitare ad alcune code o gruppi, o solo ai ticket assegnati all'utente.
+- **Ordine proposto:** 1) lettura del ticket intero e «Cerca una soluzione» a mano, con memoria e web; 2) ticket simili chiusi e knowledge base; 3) partenza da sola sui ticket nuovi; 4) «Aggiungi come nota interna» e salvataggio della soluzione nella memoria.
+
 ## Account Microsoft: mail nuove e calendario (annotata il 14 ottobre 2026; predisposizione fatta il 16 ottobre, `integrazioni.md` → Account Microsoft)
 - **Teams, secondo passo** (deciso con Edoardo il 16 ottobre 2026, dopo la parte locale in `integrazioni.md`): con lo stesso accesso, riunioni di oggi con «Partecipa» (`onlineMeeting.joinUrl`), chat non lette (`Chat.Read`), stato Disponibile/Occupato (`Presence.Read`, e `Presence.ReadWrite` per cambiarlo). Serve la registrazione dell'app su Azure; l'azienda può bloccare il consenso.
 - **Via principale, Microsoft Graph:** «Accedi con Microsoft» nelle Impostazioni (browser, permessi di sola lettura `Mail.Read`, `Calendars.Read`, accesso con PKCE e indirizzo locale di ritorno). Vale per account di lavoro (Microsoft 365) e personali (Outlook.com), senza Outlook aperto e anche con il nuovo Outlook. Controllo circa ogni minuto (le notifiche push di Graph vogliono un server pubblico). Card «mail nuova» con mittente e oggetto, Apri e Chiedi alla chat (riassunto o bozza, mai inviata); card prima di un evento con «Partecipa» per Teams (`onlineMeeting.joinUrl`). Poi «quando» per le automazioni (idea 2 sotto).
