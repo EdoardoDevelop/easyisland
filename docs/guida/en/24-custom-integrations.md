@@ -40,7 +40,7 @@ A Markdown document with `{{fields}}`, repeated rows (`{{#rows}} … {{/rows}}`)
 | **Notion** | Adds the record to a database |
 | **Export CSV** | All records, for Excel |
 | **Call a service** | GET/POST/PUT/PATCH/DELETE to one of your services' API, with the fields in the body; the response can fill fields and show in a message |
-| **Task** | Starts a [task](12-tasks.md) with the fields in the goal |
+| **Task** | Starts a [task](14-tasks.md) with the fields in the goal |
 | **Notice** | A notice in the island |
 | **Sequence** | Several actions in a row (e.g. save, then call the service, then make the document) |
 

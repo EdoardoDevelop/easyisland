@@ -1,11 +1,11 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 30 ottobre 2026. Versione **1.0.13** in `main` con il tag `v1.0.13` (Widget della barra): due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa, che dal 1.0.12 si rimette a posto dopo un cambio di schermo) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo`; le **Notizie** su `claude/notizie`. In attesa `claude/modello-integrato`; `claude/barra-fissa` è il primo tentativo, solo archivio. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 30 ottobre 2026. Versione **1.0.14** in `main` con il tag `v1.0.14` (Notizie): due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa, che dal 1.0.12 si rimette a posto dopo un cambio di schermo) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo` (le Notizie, fatte su `claude/notizie`, sono unite). In attesa `claude/modello-integrato`; `claude/barra-fissa` è il primo tentativo, solo archivio. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
-- [ ] **Notizie** (su `claude/notizie`, `docs/chat.md` → Notizie, piano in `docs/idee.md`): fatti il passo 1 (argomenti dalla memoria in Impostazioni → Notizie) e il passo 2 (ricerca su Google News ogni 4 ore, filtro locale, vista «Notizie» nell'isola con Salva nella memoria). Da provare dal vivo; poi «Non mi interessa» / «Di più» e il riquadro nella Panoramica.
+- [ ] **Notizie** (nella 1.0.14, `docs/chat.md` → Notizie, piano in `docs/idee.md`): argomenti dalla memoria, Google News ogni 4 ore con filtro locale, vista nell'isola, «Di più» / «Non mi interessa», riquadro nella Panoramica, Buongiorno, `/notizie` su Telegram ed elemento della barra. Da provare dal vivo; restano i riassunti del motore e la chat che cambia gli argomenti.
 - [ ] **Personaggio e isola in due finestre** (unite in `claude/sviluppo`; misure in `docs/due-webview.md`, come funziona in `docs/architettura.md`): da provare ai lati e su un secondo schermo (in basso e i file rilasciati sul personaggio funzionano, provati da Edoardo il 29 ottobre 2026).
 - [ ] **Barra fissa** (unita in `claude/sviluppo`, `docs/architettura.md` → Barra fissa): fatta e provata in alto. Da provare in basso, sul secondo monitor e con il menu «…».
 - [ ] **Widget della barra** (unita in `claude/sviluppo`, nella 1.0.13, `docs/architettura.md` → Barra fissa → Widget della barra): catalogo «+ Aggiungi», «Opzioni» per elemento, orologio, volume, microfono, luminosità, batteria, rete e menu di spegnimento (`barsys.rs`). Card nell'isola per orologio, volume, microfono, luminosità, batteria e rete (`src/views/barcard.ts`). Da provare dal vivo; poi gli altri elementi (`docs/idee.md`).
@@ -34,7 +34,6 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Modello integrato** (accantonato il 27 ottobre 2026): fatto nel branch `claude/modello-integrato`, non unito, manca la prova dal vivo (`docs/idee.md`).
 - [ ] **Recapiti tra due EasyIsland** (casa ↔ notebook, memorie separate, senza VPN né cloud): da valutare (`docs/idee.md`).
 - [ ] **Pulizia strutturale** (dal controllo del 27 ottobre 2026):
-  - guida: due capitoli `10-` (`10-anteprima` e `10-strumenti-ai`, idem in inglese) e `guida.mjs` che abbina italiano e inglese solo dal numero, così il pulsante della lingua porta alla pagina sbagliata: rinumerare e abbinare dal nome;
   - immagini della guida rotte su GitHub (`../media/` da `docs/guida/` cerca `docs/media`): percorso vero verso `site/media/`, corretto da `guida.mjs` per il sito; niente collegamenti simbolici;
   - `island.rs` `on_foreground_change`: un thread nuovo a ogni cambio di finestra (isola ritirata sopra la barra); un contatore che fa uscire i thread vecchi basta;
   - test del front end con `node --test` (zero dipendenze), per primi `expr.ts`, `markdown.ts`, `calc.ts`;
@@ -51,6 +50,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 30 ottobre 2026 — Versione 1.0.14: Notizie
+- Notizie, passo 3 e parte del 4: «Di più» (più notizie per argomento e subito la stessa storia) e «Non mi interessa» (a −3 propone di smettere di seguirlo), riquadro nella Panoramica, notizie nel Buongiorno, `/notizie` su Telegram, elemento «Notizie» nei Widget della barra. `claude/notizie` e `claude/sviluppo` unite in `main` con il tag `v1.0.14`.
+- Guida: nuova pagina Notizie e capitoli rinumerati da 1 a 30 senza doppioni, così il pulsante della lingua porta alla pagina giusta (gli indirizzi non cambiano).
+
 ### 30 ottobre 2026 — «L'isola si apre» anche con la barra fissa
 - La scelta era nascosta e ignorata con la barra accesa; ora vale anche lì (`openAway` in `island.ts`; Rust la gestiva già in `place_origin`).
 
@@ -62,6 +65,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 30 ottobre 2026 — Versione 1.0.13: Widget della barra
 - Contiene i Widget della barra con le card nell'isola e la pulizia dei riferimenti all'app originale; non ancora provati dal vivo da Edoardo.
-
-### 30 ottobre 2026 — Widget della barra (unita in `claude/sviluppo`)
-- Passi 1 e 2 di `docs/idee.md` → «Elementi da aggiungere alla barra fissa»: catalogo per gruppi, opzioni comuni (formato con segnaposto, secondo testo, suggerimento, clic / clic centrale / clic destro, rotella) e sette elementi di sistema letti da `barsys.rs` solo mentre sono nella barra. Poi le card nell'isola al posto dei pannelli di Windows (calendario, cursori, batteria, rete). Smoke «nessun errore»; non ancora provati dal vivo.

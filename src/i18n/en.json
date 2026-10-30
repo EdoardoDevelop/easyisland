@@ -3760,5 +3760,21 @@
   "Salvata": "Saved",
   "Salva nella memoria (da leggere)": "Save to the memory (to read)",
   "Connessione non disponibile": "Connection not available",
-  "Google News non risponde": "Google News does not answer"
+  "Google News non risponde": "Google News does not answer",
+  "{n} sulla stessa storia": "{n} on the same story",
+  "Niente altro su questa storia": "Nothing else on this story",
+  "Le notizie su «{name}» non ti interessano?": "Not interested in news about “{name}”?",
+  "Tienilo": "Keep it",
+  "Di più": "More",
+  "Più notizie su «{name}», e subito altre su questa storia": "More news about “{name}”, and more on this story right away",
+  "Non mi interessa: meno notizie su «{name}»": "Not interested: fewer news about “{name}”",
+  "Non mi interessa": "Not interested",
+  "Notizia non più disponibile": "This news is no longer available",
+  "Le ultime notizie sui tuoi argomenti": "The latest news on your subjects",
+  "/notizie — le ultime notizie sugli argomenti che segui": "/notizie — the latest news on the subjects you follow",
+  "Nessuna notizia: scegli gli argomenti da seguire in Impostazioni → Notizie.": "No news: choose the subjects to follow in Settings → News.",
+  "notizie nuove": "new news",
+  "ultimo titolo": "latest headline",
+  "Argomenti delle notizie": "News subjects",
+  "Scegli gli argomenti": "Subjects"
 }

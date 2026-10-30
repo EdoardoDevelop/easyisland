@@ -5041,7 +5041,7 @@ function newsSection(): HTMLElement {
 
   void load();
   return h("section", {},
-    h("h2", {}, h("span", { text: t("Argomenti") })),
+    h("h2", {}, h("span", { text: t("Argomenti delle notizie") })),
     h("div", { class: "hint", text: t("EasyIsland ti propone gli argomenti di cui parla la tua memoria: le pagine collegate più citate e quelle nominate nelle note e nelle chat. Le pagine su persone e clienti non vengono mai proposte. Niente viene cercato finché non aggiungi un argomento.") }),
     h("h3", { text: t("Proposti dalla memoria") }),
     proposed,

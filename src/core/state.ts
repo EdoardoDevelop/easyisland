@@ -1260,6 +1260,8 @@ class AppState {
   barSys: BarSys = {};
   /** «Notizie»: the news found for the followed subjects, newest first (news.rs). */
   news: NewsItem[] = [];
+  /** What the user said of each subject's news (news.rs → taste); at −3 the view proposes to stop following it. */
+  newsTaste: Record<string, number> = {};
   /** The system element whose card the island shows (src/views/barcard.ts). */
   barCard: string | null = null;
   noteMessage: string | null = null;

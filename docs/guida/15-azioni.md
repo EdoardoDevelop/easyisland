@@ -17,7 +17,7 @@
 
 Ogni azione ha **icona** (oltre 150 disegnate nel codice, oppure **Automatica**: per un link la favicon del sito, per un programma la sua icona; un link o un programma nuovo la prende da solo finché non ne scegli un'altra), **colore**, **cartella**, **scorciatoia** e si riordina con ↑ ↓. Con più di 8 azioni compare **Cerca un'azione**.
 
-Le azioni si eseguono anche da `/nome` in chat, dal campo in alto dell'isola, dalle [automazioni](14-automazioni.md), dalla chat stessa («lancia il backup») e da Telegram. Le azioni appartengono al profilo.
+Le azioni si eseguono anche da `/nome` in chat, dal campo in alto dell'isola, dalle [automazioni](16-automazioni.md), dalla chat stessa («lancia il backup») e da Telegram. Le azioni appartengono al profilo.
 
 ## Suggerimenti per l'app in uso
 In cima alla scheda ⚡ compaiono azioni pronte per l'app che stai usando, applicate al testo selezionato:

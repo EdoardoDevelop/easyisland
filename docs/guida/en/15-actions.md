@@ -17,7 +17,7 @@
 
 Each action has an **icon** (over 150 drawn in code, or **Automatic**: a link's site favicon, a program's own icon; a new link or program takes it by itself until you pick another), a **colour**, a **folder**, a **shortcut** and can be reordered with ↑ ↓. With more than 8 actions a **Search an action** field appears.
 
-Actions also run from `/name` in the chat, from the island's top field, from [automations](14-automations.md), from the chat itself ("run the backup") and from Telegram. Actions belong to the profile.
+Actions also run from `/name` in the chat, from the island's top field, from [automations](16-automations.md), from the chat itself ("run the backup") and from Telegram. Actions belong to the profile.
 
 ## Suggestions for the app in use
 At the top of the ⚡ tab you get ready-made actions for the app you're using, applied to the selected text:

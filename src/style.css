@@ -6025,3 +6025,30 @@ html[data-ui="windows"] .col-meta input, html[data-ui="windows"] .col-item { bor
 }
 .news-item:hover .news-save, .news-save:disabled { opacity: 1; }
 .news-save:hover { color: var(--ink); background: rgba(255, 255, 255, 0.13); }
+.news-ask {
+  display: flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 9px;
+  background: rgba(245, 165, 36, 0.10); border: 1px solid rgba(245, 165, 36, 0.28);
+  font: 500 calc(11.5px + var(--fs-up, 0px)) var(--font); color: var(--ink);
+}
+.news-ask:empty { display: none; }
+.news-ask .grow { flex: 1 1 auto; min-width: 0; }
+.news-ask .news-save { opacity: 1; }
+
+/* The Panoramica's «Notizie» box (renderSummary in views.ts). */
+.summary-news {
+  display: flex; flex-direction: column; gap: 1px; margin-top: 8px; padding: 7px 9px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; background: #131417;
+}
+.summary-news-head, .summary-news-row {
+  display: flex; align-items: center; gap: 7px; min-width: 0; padding: 3px 4px; border: 0; border-radius: 7px;
+  background: none; color: var(--ink); cursor: pointer; text-align: left; font-family: var(--font);
+}
+.summary-news-head { color: var(--dim-2); }
+.summary-news-head .summary-name { flex: 0 1 auto; color: var(--ink); }
+.summary-news-count { margin-left: auto; font: 600 calc(10.5px + var(--fs-up, 0px)) var(--font); color: #5ccfe6; }
+.summary-news-row:hover, .summary-news-head:hover { background: rgba(255, 255, 255, 0.06); }
+.summary-news-title {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-size: calc(12px + var(--fs-up, 0px));
+}
+.summary-news-src { flex: 0 0 auto; max-width: 35%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: calc(10.5px + var(--fs-up, 0px)); color: var(--dim-2); }

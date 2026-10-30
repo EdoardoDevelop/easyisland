@@ -17,14 +17,14 @@
 ## Lavoro e clienti
 | Integrazione | Cosa fa | Serve |
 |---|---|---|
-| **[3CX](17-3cx.md)** | Telefono nel PC, chiamate, rubrica, team, chat, segreteria | Centralino 3CX V20 |
+| **[3CX](19-3cx.md)** | Telefono nel PC, chiamate, rubrica, team, chat, segreteria | Centralino 3CX V20 |
 | **Zammad** | Ticket assegnati a te, non assegnati e in escalation; avviso per un ticket nuovo da assegnare | Indirizzo e token (permesso `ticket.agent`) |
-| **[Outlook](19-microsoft.md)** | Mail non lette, appuntamenti di oggi e domani, avviso prima di una riunione | Outlook classico aperto, o l'account Microsoft |
-| **[Teams](19-microsoft.md#teams)** | Comandi della riunione, Partecipa dal link copiato, stato | Teams |
-| **[Notion](18-notion.md)** | Attività con viste, note, pagine, mini Notion nell'isola, avvisi | Token di un'integrazione interna |
-| **[Telegram](20-telegram.md)** | La chat nel tuo bot, compiti, permessi, file | Un bot creato con @BotFather |
-| **[Accesso remoto](21-assistenza-remota.md)** | Collegamento temporaneo WinRM o SSH al PC di un cliente | Indirizzo, utente, password (solo in memoria) |
-| **[Remote Desktop Manager](21-assistenza-remota.md#remote-desktop-manager)** | Cerca e apre le connessioni di RDM | RDM installato |
+| **[Outlook](21-microsoft.md)** | Mail non lette, appuntamenti di oggi e domani, avviso prima di una riunione | Outlook classico aperto, o l'account Microsoft |
+| **[Teams](21-microsoft.md#teams)** | Comandi della riunione, Partecipa dal link copiato, stato | Teams |
+| **[Notion](20-notion.md)** | Attività con viste, note, pagine, mini Notion nell'isola, avvisi | Token di un'integrazione interna |
+| **[Telegram](22-telegram.md)** | La chat nel tuo bot, compiti, permessi, file | Un bot creato con @BotFather |
+| **[Accesso remoto](23-assistenza-remota.md)** | Collegamento temporaneo WinRM o SSH al PC di un cliente | Indirizzo, utente, password (solo in memoria) |
+| **[Remote Desktop Manager](23-assistenza-remota.md#remote-desktop-manager)** | Cerca e apre le connessioni di RDM | RDM installato |
 | **Cal.com** | Prenotazioni | Chiave API |
 
 ## Sviluppo e servizi
@@ -44,7 +44,7 @@
 | **Sicurezza** | Antivirus, età delle firme, ultima scansione, firewall, minacce rilevate |
 | **Rete** | Wi-Fi o cavo, IP locale e pubblico, gateway, DNS, tutte le schede, VPN, latenza; avviso se internet non risponde. **Ping continuo** verso gateway o un indirizzo. **Modifica rete…**: DHCP o IP manuale e DNS per scheda (con la conferma di amministratore di Windows) |
 | **Meteo** | Il cielo di adesso animato, umidità, vento, alba e tramonto, 12 ore e 7 giorni, avviso pioggia. Open-Meteo, gratis e senza chiave |
-| **Appunti** | Cronologia di testi e immagini, solo in memoria (vedi [File e schermo](15-file-e-schermo.md#appunti)) |
+| **Appunti** | Cronologia di testi e immagini, solo in memoria (vedi [File e schermo](17-file-e-schermo.md#appunti)) |
 | **Media** | Cosa è in riproduzione in qualsiasi app (Spotify, browser…), con copertina e comandi |
 
 ![Rete](../media/network.png)
@@ -52,4 +52,4 @@
 ![Media](../media/media.png)
 
 ## Le tue integrazioni
-Oltre a queste, puoi crearne di tue **a parole in chat**: moduli, cruscotti, collegamenti alle API dei tuoi servizi. Vedi [Integrazioni personali](22-integrazioni-personali.md). Per controlli ripetuti (un sito per cliente, un server per sede) ci sono i [Widget](23-widget.md).
+Oltre a queste, puoi crearne di tue **a parole in chat**: moduli, cruscotti, collegamenti alle API dei tuoi servizi. Vedi [Integrazioni personali](24-integrazioni-personali.md). Per controlli ripetuti (un sito per cliente, un server per sede) ci sono i [Widget](25-widget.md).

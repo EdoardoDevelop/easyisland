@@ -12,6 +12,7 @@
 // a person («cliente», «collega», «referente»…).
 
 use std::collections::{HashMap, HashSet};
+use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -198,8 +199,15 @@ pub async fn news_proposals(excluded: Vec<String>) -> Result<Vec<Topic>, String>
 
 /// Between two checks.
 const CHECK_EVERY: i64 = 4 * 3600;
-/// News per subject at each check, at most.
-const PER_TOPIC: usize = 5;
+/// News per subject at each check, at most: PER_TOPIC moved by the subject's
+/// taste («Di più» +1, «Non mi interessa» −1, within ±MAX_TASTE), never below
+/// MIN_PER_TOPIC nor above MAX_PER_TOPIC.
+const PER_TOPIC: i32 = 5;
+const MIN_PER_TOPIC: i32 = 2;
+const MAX_PER_TOPIC: i32 = 10;
+const MAX_TASTE: i32 = 5;
+/// «Di più»: news on the same story searched at once, at most.
+const MORE_LIKE: usize = 3;
 /// News kept for the island, newest first.
 const MAX_ITEMS: usize = 80;
 /// Titles and links remembered as seen, and for how long.
@@ -244,6 +252,16 @@ struct Store {
     /// The subjects of the last check: one added or removed is checked at once.
     #[serde(default)]
     checked: Vec<String>,
+    /// What the user said of each subject's news: «Di più» +1, «Non mi interessa» −1.
+    #[serde(default)]
+    taste: HashMap<String, i32>,
+}
+
+/// One load-change-save of notizie.json at a time (the check, a click in the island).
+static LOCK: Mutex<()> = Mutex::new(());
+
+fn per_topic(store: &Store, topic: &str) -> usize {
+    (PER_TOPIC + store.taste.get(topic).copied().unwrap_or(0)).clamp(MIN_PER_TOPIC, MAX_PER_TOPIC) as usize
 }
 
 fn store_path() -> std::path::PathBuf {
@@ -414,12 +432,26 @@ fn id_of(link: &str) -> String {
     format!("{:016x}", link.bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ b as u64).wrapping_mul(0x100_0000_01b3)))
 }
 
-/// Keeps what is new: not seen, not too old, no word to avoid, not the same story again.
-fn take_new(store: &mut Store, f: &Followed, found: Vec<(String, String, String, i64)>, t: i64) -> usize {
+/// «Di più»: the story's own words (the longest of the title), all of them, in the same window.
+fn story_query(title: &str, avoid: &[String]) -> String {
+    let mut words = story_words(title);
+    words.sort_by(|a, b| b.chars().count().cmp(&a.chars().count()));
+    words.truncate(4);
+    let mut q = words.join(" ");
+    for a in avoid.iter().filter(|a| !a.trim().is_empty()) {
+        let a = a.trim().replace('"', "");
+        q.push_str(&if a.contains(' ') { format!(" -\"{a}\"") } else { format!(" -{a}") });
+    }
+    q.push_str(" when:3d");
+    q
+}
+
+/// Keeps what is new, `limit` at most: not seen, not too old, no word to avoid, not the same story again.
+fn take_new(store: &mut Store, f: &Followed, found: Vec<(String, String, String, i64)>, t: i64, limit: usize) -> usize {
     let avoid: Vec<String> = f.avoid.iter().map(|a| a.trim().to_lowercase()).filter(|a| !a.is_empty()).collect();
     let mut added = 0;
     for (title, link, source, at) in found {
-        if added >= PER_TOPIC {
+        if added >= limit {
             break;
         }
         let lower = title.to_lowercase();
@@ -446,29 +478,43 @@ fn trim(store: &mut Store, t: i64) {
     store.items.truncate(MAX_ITEMS);
 }
 
+/// One search on Google News: the feed's items, or None when it does not answer.
+async fn search(client: &reqwest::Client, q: &str) -> Option<Vec<(String, String, String, i64)>> {
+    match client.get(feed_url(q)).send().await {
+        Ok(r) if r.status().is_success() => {
+            let body = r.text().await.unwrap_or_default();
+            Some(parse_feed(body.get(..body.len().min(MAX_FEED_BYTES)).unwrap_or_default()))
+        }
+        _ => None,
+    }
+}
+
 /// One check of every followed subject; the new news count.
 async fn check(app: &AppHandle) -> Result<usize, String> {
     let topics = followed(app);
-    let mut store = load();
     let stamp = now();
-    store.last_check = stamp;
-    // Subjects no longer followed: their news go.
-    let names: HashSet<String> = topics.iter().map(|f| f.name.clone()).collect();
-    store.items.retain(|i| names.contains(&i.topic));
-    store.checked = topics.iter().map(|f| f.name.clone()).collect();
     let Some(client) = crate::widgets::client() else { return Err(t("Connessione non disponibile").to_string()) };
-    let mut added = 0;
+    // The searches first, then the file: a click in the island meanwhile is not lost.
+    let mut results = Vec::new();
     let mut failed = 0;
     for f in &topics {
-        let body = match client.get(feed_url(&query(f))).send().await {
-            Ok(r) if r.status().is_success() => r.text().await.unwrap_or_default(),
-            _ => {
-                failed += 1;
-                continue;
-            }
-        };
-        let body = body.get(..body.len().min(MAX_FEED_BYTES)).unwrap_or_default();
-        added += take_new(&mut store, f, parse_feed(body), stamp);
+        match search(&client, &query(f)).await {
+            Some(found) => results.push((f, found)),
+            None => failed += 1,
+        }
+    }
+    let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut store = load();
+    store.last_check = stamp;
+    // Subjects no longer followed: their news and their taste go.
+    let names: HashSet<String> = topics.iter().map(|f| f.name.clone()).collect();
+    store.items.retain(|i| names.contains(&i.topic));
+    store.taste.retain(|k, _| names.contains(k));
+    store.checked = topics.iter().map(|f| f.name.clone()).collect();
+    let mut added = 0;
+    for (f, found) in results {
+        let limit = per_topic(&store, &f.name);
+        added += take_new(&mut store, f, found, stamp, limit);
     }
     trim(&mut store, stamp);
     save(&store);
@@ -496,6 +542,8 @@ pub fn start(app: AppHandle) {
             }
             if topics.is_empty() && !store.items.is_empty() {
                 // Nothing followed any more: its news go too.
+                let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+                let store = load();
                 save(&Store { seen: store.seen, last_check: store.last_check, ..Default::default() });
                 let _ = app.emit_to(crate::island::WINDOW_LABEL, "news", Vec::<NewsItem>::new());
             }
@@ -504,6 +552,11 @@ pub fn start(app: AppHandle) {
             tokio::time::sleep(Duration::from_secs(due.clamp(60, 300) as u64)).await;
         }
     });
+}
+
+/// The latest `n` news kept (Telegram's /notizie).
+pub fn latest(n: usize) -> Vec<NewsItem> {
+    load().items.into_iter().take(n).collect()
 }
 
 /// The news kept, newest first (the island at start).
@@ -516,6 +569,64 @@ pub fn news_items() -> Vec<NewsItem> {
 #[tauri::command]
 pub async fn news_refresh(app: AppHandle) -> Result<usize, String> {
     check(&app).await
+}
+
+/// What the user said of each subject (the island proposes to stop following
+/// one at −3 or below).
+#[tauri::command]
+pub fn news_taste() -> HashMap<String, i32> {
+    load().taste
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Feedback {
+    topic: String,
+    taste: i32,
+    /// «Di più»: news on the same story found now.
+    added: usize,
+}
+
+/// «Non mi interessa» (`more` false): the news goes and its subject drops a
+/// step. «Di più»: the subject rises a step and the same story is searched now.
+#[tauri::command]
+pub async fn news_feedback(app: AppHandle, id: String, more: bool) -> Result<Feedback, String> {
+    let (item, taste) = {
+        let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let mut store = load();
+        let Some(item) = store.items.iter().find(|i| i.id == id).cloned() else { return Err(t("Notizia non più disponibile").to_string()) };
+        let taste = store.taste.entry(item.topic.clone()).or_insert(0);
+        *taste = (*taste + if more { 1 } else { -1 }).clamp(-MAX_TASTE, MAX_TASTE);
+        let taste = *taste;
+        if !more {
+            store.items.retain(|i| i.id != id);
+        }
+        save(&store);
+        let _ = app.emit_to(crate::island::WINDOW_LABEL, "news", &store.items);
+        (item, taste)
+    };
+    let mut added = 0;
+    if more {
+        let f = followed(&app).into_iter().find(|f| f.name == item.topic).unwrap_or(Followed { name: item.topic.clone(), ..Default::default() });
+        let client = crate::widgets::client().ok_or_else(|| t("Connessione non disponibile").to_string())?;
+        let found = search(&client, &story_query(&item.title, &f.avoid)).await.ok_or_else(|| t("Google News non risponde").to_string())?;
+        let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let mut store = load();
+        added = take_new(&mut store, &f, found, now(), MORE_LIKE);
+        trim(&mut store, now());
+        save(&store);
+        let _ = app.emit_to(crate::island::WINDOW_LABEL, "news", &store.items);
+    }
+    Ok(Feedback { topic: item.topic, taste, added })
+}
+
+/// «Tienilo» on the proposal to stop following a subject: its taste starts again from zero.
+#[tauri::command]
+pub fn news_keep(topic: String) {
+    let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut store = load();
+    store.taste.remove(&topic);
+    save(&store);
 }
 
 /// «Salva nella memoria»: the news goes to da-leggere, for the evening digest.
@@ -610,10 +721,28 @@ mod tests {
             ("Tauri, contenuto sponsor".to_string(), "https://c.it/3".to_string(), "C".to_string(), t0),
             ("Tauri vecchia notizia".to_string(), "https://d.it/4".to_string(), "D".to_string(), t0 - MAX_AGE - 10),
         ];
-        assert_eq!(take_new(&mut store, &f, found.clone(), t0), 1);
+        assert_eq!(take_new(&mut store, &f, found.clone(), t0, 5), 1);
         assert_eq!(store.items[0].source, "A");
         // Seen once: never again.
-        assert_eq!(take_new(&mut store, &f, found, t0 + 60), 0);
+        assert_eq!(take_new(&mut store, &f, found, t0 + 60, 5), 0);
+    }
+
+    #[test]
+    fn taste_moves_how_many_per_subject() {
+        let mut store = Store::default();
+        assert_eq!(per_topic(&store, "UniFi"), 5);
+        store.taste.insert("UniFi".into(), 3);
+        assert_eq!(per_topic(&store, "UniFi"), 8);
+        store.taste.insert("UniFi".into(), -5);
+        assert_eq!(per_topic(&store, "UniFi"), 2, "never below two");
+    }
+
+    #[test]
+    fn more_like_searches_the_story_words() {
+        let q = story_query("Windows 11, Modern Standby ancora più smart: meno consumo di batteria", &["beta".into(), "Insider Preview".into()]);
+        assert!(q.starts_with("standby batteria consumo ancora") || q.contains("standby"), "{q}");
+        assert!(!q.contains(" di "), "short words left out: {q}");
+        assert!(q.ends_with(" -beta -\"Insider Preview\" when:3d"), "{q}");
     }
 
     /// `cargo test live_google_news -- --ignored --nocapture`: one real search.

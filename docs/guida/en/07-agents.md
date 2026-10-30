@@ -35,15 +35,15 @@ The agent calls a small program, `easyisland-hook.exe`, at every event (start, t
 | **Antigravity** (Google) | Sessions of the `agy` CLI, the IDE and the app, with steps and diffs; commands and MCP tools with Allow / Deny. If you don't answer, Antigravity decides |
 | **Gemini CLI** | Sessions and steps. Gemini doesn't accept permission answers from outside: the island tells you and takes you back to the terminal |
 | **Cursor** and **GitHub Copilot** | Observation only (sessions and steps), never permissions |
-| **Tasks** | EasyIsland's own tasks, as sessions of the "Tasks" agent (see [Tasks](12-tasks.md)) |
+| **Tasks** | EasyIsland's own tasks, as sessions of the "Tasks" agent (see [Tasks](14-tasks.md)) |
 
-**Other tools**: any program can show up in Agents by sending events to `easyisland-hook <Event>` with an `easyisland_agent` field (see [Command line and scripts](26-command-line.md)).
+**Other tools**: any program can show up in Agents by sending events to `easyisland-hook <Event>` with an `easyisland_agent` field (see [Command line and scripts](28-command-line.md)).
 
 ## EasyIsland's tools in Claude Code
 **Settings → Coding agents → EasyIsland's tools in Claude Code** adds EasyIsland's MCP server to Claude Code for every project (after a dated copy of `.claude.json`). So Claude Code, in any project, can:
 - show a **card with buttons** in the island and wait for your choice (`show_card`);
 - put a file in the **Tray** (`add_to_tray`);
-- use all of EasyIsland's tools described in [Terminal mode and tools](10-ai-tools.md).
+- use all of EasyIsland's tools described in [Terminal mode and tools](11-ai-tools.md).
 
 ## Recaps
 - **Daily recap**: in the morning (yesterday's agent time) and at the end of the day (from the hour you choose, 18:00 by default), with repositories that have modified files or commits to push and **pull requests** waiting for review (with `gh` or a GitHub token).

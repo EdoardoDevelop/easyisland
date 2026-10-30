@@ -267,6 +267,7 @@ async fn hello(token: &str) -> Result<String, String> {
         { "command": "stop", "description": t("Ferma la risposta in corso") },
         { "command": "oggi", "description": t("La tua giornata di oggi") },
         { "command": "domani", "description": t("La tua giornata di domani") },
+        { "command": "notizie", "description": t("Le ultime notizie sui tuoi argomenti") },
         { "command": "compito", "description": t("Un obiettivo che EasyIsland porta avanti da solo") },
         { "command": "rispondi", "description": t("Rispondi alla domanda di un compito") },
         { "command": "stato", "description": t("Motore, modello e modalità") },
@@ -477,6 +478,9 @@ fn notify_island(app: &AppHandle, text: &str) {
 
 // ── Commands ──────────────────────────────────────────────────────────────────
 
+/// News in /notizie, at most.
+const TELEGRAM_NEWS: usize = 8;
+
 fn help() -> String {
     [
         t("Scrivimi come nella chat dell'isola: rispondo con il motore scelto."),
@@ -486,6 +490,7 @@ fn help() -> String {
         t("/riprendi — continua qui l'ultima conversazione della chat dell'isola"),
         t("/stop — ferma la risposta in corso (anche ⏹ Ferma sotto la risposta)"),
         t("/oggi e /domani — la giornata: appuntamenti, posta, ticket, attività di Notion, meteo"),
+        t("/notizie — le ultime notizie sugli argomenti che segui"),
         t("/compito … — un obiettivo che EasyIsland porta avanti da solo; /compito da solo elenca i compiti"),
         t("/rispondi … — la risposta alla domanda di un compito che aspetta"),
         t("/nome-abilità … — usa una delle tue abilità"),
@@ -595,6 +600,28 @@ async fn command(app: &AppHandle, token: &str, chat: i64, cmd: &str) {
         }
         "cartella" | "folder" => {
             show_folder(app, token, chat, arg, None).await;
+        }
+        // «Notizie» (news.rs): the latest found, a link each; nothing searched here.
+        "notizie" | "news" => {
+            let items = crate::news::latest(TELEGRAM_NEWS);
+            if items.is_empty() {
+                let _ = send(token, chat, t("Nessuna notizia: scegli gli argomenti da seguire in Impostazioni → Notizie."), None).await;
+                return;
+            }
+            let mut html = format!("<b>{}</b>", escape(t("Notizie")));
+            for n in items {
+                html.push_str(&format!(
+                    "\n\n• <a href=\"{}\">{}</a>\n<i>{} · {}</i>",
+                    escape(&n.link).replace('"', "&quot;"),
+                    escape(&n.title),
+                    escape(&n.source),
+                    escape(&n.topic)
+                ));
+            }
+            let body = json!({ "chat_id": chat, "text": html, "parse_mode": "HTML", "link_preview_options": { "is_disabled": true } });
+            if let Err(e) = call(token, "sendMessage", body, 20).await {
+                let _ = send(token, chat, &format!("⚠️ {e}"), None).await;
+            }
         }
         "vassoio" | "tray" => {
             let files: Vec<crate::files::InboxFile> = crate::files::list_inbox().into_iter().take(10).collect();

@@ -28,7 +28,7 @@
 | `@finestra` | La foto di una finestra aperta |
 | `@vassoio` | Un file del Vassoio |
 | Trascinare il **personaggio della chat** su una finestra | Quella finestra come contesto (immagine, nome dell'app, titolo). <kbd>Esc</kbd> annulla |
-| **Riquadra e chiedi** | Una zona dello schermo (vedi [File e schermo](15-file-e-schermo.md)) |
+| **Riquadra e chiedi** | Una zona dello schermo (vedi [File e schermo](17-file-e-schermo.md)) |
 | **Chiedi alla chat** negli Appunti, nel Vassoio, in Notion | L'elemento scelto |
 
 Le immagini vanno ai modelli che le leggono, i file di testo nel messaggio, i PDF a Claude.
@@ -45,9 +45,9 @@ Scrivi `/` e scegli dal menu (frecce, <kbd>Tab</kbd> o <kbd>Invio</kbd>):
 | `/esporta` | La conversazione in Markdown nel Vassoio |
 | `/motore` | Cambia motore per questa conversazione |
 | `/oggi`, `/domani` | La giornata: attività, appuntamenti, ticket |
-| `/compito …` | Affida un obiettivo a un [compito](12-compiti.md) |
+| `/compito …` | Affida un obiettivo a un [compito](14-compiti.md) |
 | `/<azione>` | Esegue un'azione rapida per nome (es. `/backup-giornaliero`) |
-| `/<abilità>` | Usa un'[abilità](12-compiti.md#abilita) |
+| `/<abilità>` | Usa un'[abilità](14-compiti.md#abilita) |
 | `/<assistente>` | Conversazione nuova con un assistente |
 
 Un `/qualcosa` che non è un comando va al motore come testo.
@@ -70,5 +70,5 @@ L'orologio in alto nella chat mostra le conversazioni di prima (fino a 100, solo
 
 ## Chiedere da altri posti
 - Dal **campo in alto** dell'isola con <kbd>Ctrl</kbd>+<kbd>Invio</kbd>.
-- Da **Telegram**, con una conversazione sua (vedi [Telegram](20-telegram.md)); `/riprendi` continua lì l'ultima conversazione dell'isola.
+- Da **Telegram**, con una conversazione sua (vedi [Telegram](22-telegram.md)); `/riprendi` continua lì l'ultima conversazione dell'isola.
 - Da un'**azione rapida** «Chiedi alla chat» o dal menu <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd> sul testo selezionato.

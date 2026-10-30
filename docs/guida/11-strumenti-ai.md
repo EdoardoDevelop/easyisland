@@ -49,7 +49,7 @@ Il pulsante ⚡ nella testata della chat (solo con la modalità terminale) vale 
 La modalità che accetta tutto senza nessun controllo **non esiste** in EasyIsland, di proposito.
 
 ## La cartella di lavoro
-Una cartella del PC scelta da te (in **File e schermo** o in Impostazioni → Chat) che la chat **legge senza chiedere** e in cui può spostare i file del Vassoio. Con la modalità terminale è la cartella in cui lavora. Da Telegram: `/cartella`. Dettagli in [File e schermo](15-file-e-schermo.md#cartella-di-lavoro).
+Una cartella del PC scelta da te (in **File e schermo** o in Impostazioni → Chat) che la chat **legge senza chiedere** e in cui può spostare i file del Vassoio. Con la modalità terminale è la cartella in cui lavora. Da Telegram: `/cartella`. Dettagli in [File e schermo](17-file-e-schermo.md#cartella-di-lavoro).
 
 ## Impostazioni cambiate dalla chat
 «Metti il personaggio in basso a destra», «spegni il meteo», «usa opencode come motore»: la chat legge le impostazioni e ne cambia una alla volta, con Consenti / Nega, salvando come la finestra delle Impostazioni.

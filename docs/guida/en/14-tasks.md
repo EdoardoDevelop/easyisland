@@ -26,7 +26,7 @@ Examples: "check tickets open for more than 3 days and prepare a summary", "ever
 
 ### How it works
 1. It writes the **plan** (a few concrete steps) and marks each step done.
-2. It uses [EasyIsland's tools](10-ai-tools.md) and the engine's, with the usual **Allow / Deny** for anything that changes something.
+2. It uses [EasyIsland's tools](11-ai-tools.md) and the engine's, with the usual **Allow / Deny** for anything that changes something.
 3. If it needs a decision or a piece of information, it asks you a **question**: a card in the island with options and a free answer, and also on **Telegram** if linked. The first answer wins.
 4. It closes with the **result**, short and useful. If it was a check with nothing to say, it closes **quietly**.
 5. If the procedure could be useful again, it proposes saving it as a **skill**.
@@ -60,7 +60,7 @@ A **periodic check**: every N minutes the agent looks at the things you wrote in
 **Settings → Flows → Heartbeat**: choose how often and open the list with **What to keep an eye on…**. With an empty list it doesn't run and costs nothing.
 
 ## Memory digest
-Every evening at 22:30 it rereads the day, proposes what to remember, learns from the files in `da-leggere` and on Sundays checks the memory. Turn it on in **Settings → Flows**; details in [Memory](11-memory.md#the-evening-digest).
+Every evening at 22:30 it rereads the day, proposes what to remember, learns from the files in `da-leggere` and on Sundays checks the memory. Turn it on in **Settings → Flows**; details in [Memory](12-memory.md#the-evening-digest).
 
 ## Skills
 A **skill** is a procedure of yours written in a `.md` file: how you make a quote, how you close a ticket, how you prepare the monthly report. The AI reads it **only when needed**, so you can have many at no cost.

@@ -18,7 +18,7 @@ A riposo il personaggio sta nell'angolo che hai scelto (in alto al centro di ser
 | Trascini un file sull'isola | Diventa una scatola, lo inghiotte e chiede cosa farne |
 | Trascini il personaggio su una cartella di Esplora file o un'icona del desktop | Il percorso finisce nel campo della chat |
 | <kbd>Esc</kbd> o la ✕ | Chiude subito l'isola (anche **Chiudi finestra** dall'anteprima nella barra delle applicazioni: l'isola si richiude, non sparisce) |
-| Il pulsante con i tre nodi, in alto | Apre la [mappa della memoria](11-memoria.md) |
+| Il pulsante con i tre nodi, in alto | Apre la [mappa della memoria](12-memoria.md) |
 | 📌 | **Tieni aperta**: l'isola non si chiude da sola finché non la togli |
 | — e ▢ | Con **Come un'app** acceso (Impostazioni → Isola): riduci a icona e schermo intero. Aperta ha la sua icona nella barra delle applicazioni e compare in Alt+Tab; chiusa no. Per aprirla dalla barra, aggiungi EasyIsland alla barra delle applicazioni: un clic sull'icona apre l'isola. Col tasto destro sull'icona: le tue azioni rapide, **Apri l'isola**, **Chiedi alla chat**, **Riquadra e chiedi**, **Impostazioni…** |
 | Resta aperta | Con **Resta aperta** acceso (Impostazioni → Isola), quando la apri tu non si chiude da sola, come con 📌 |
@@ -27,11 +27,11 @@ A riposo il personaggio sta nell'angolo che hai scelto (in alto al centro di ser
 ## Il menu a sinistra
 Nell'isola aperta, sotto il personaggio:
 - **Panoramica**: tutte le integrazioni e gli agenti a riquadri, ognuno con il suo stato. Un clic apre la scheda, trascinandoli li riordini.
-- **Agenti**: le sessioni degli agenti di programmazione e i compiti (vedi [Agenti di codice](07-agenti.md) e [Compiti](12-compiti.md)), con il numero di quelli al lavoro.
+- **Agenti**: le sessioni degli agenti di programmazione e i compiti (vedi [Agenti di codice](07-agenti.md) e [Compiti](14-compiti.md)), con il numero di quelli al lavoro.
 - **Chat**: la [chat](08-chat.md) con il motore AI.
-- **Azioni**: le tue [azioni rapide](13-azioni.md) e i suggerimenti per l'app in uso.
-- **File e schermo**: rilascio file, Vassoio, cartella di lavoro, Riquadra e chiedi, Registra (vedi [File e schermo](15-file-e-schermo.md)).
-- **Le tue integrazioni**, ognuna con il suo logo o un'emoji e un pallino quando ha novità; anche le [integrazioni personali](22-integrazioni-personali.md).
+- **Azioni**: le tue [azioni rapide](15-azioni.md) e i suggerimenti per l'app in uso.
+- **File e schermo**: rilascio file, Vassoio, cartella di lavoro, Riquadra e chiedi, Registra (vedi [File e schermo](17-file-e-schermo.md)).
+- **Le tue integrazioni**, ognuna con il suo logo o un'emoji e un pallino quando ha novità; anche le [integrazioni personali](24-integrazioni-personali.md).
 
 In alto il personaggio ti dice in un fumetto cosa succede. Il **clic destro** dentro l'isola apre un menu con le azioni della scheda e di EasyIsland.
 
@@ -54,7 +54,7 @@ L'isola si apre da sola quando serve, rispettando le regole di notifica del prof
 - **permessi e domande** degli agenti (restano finché non rispondi; «Più tardi» o <kbd>Esc</kbd> le ripiegano);
 - **sessione finita** con l'ultimo messaggio e **Continua**;
 - **chiamate** in arrivo, **riunioni** in partenza, **avvisi** di integrazioni e widget;
-- **proposte al momento giusto**: download finito, errore copiato, server di sviluppo partito, password copiata da togliere dagli appunti (vedi [File e schermo](15-file-e-schermo.md));
+- **proposte al momento giusto**: download finito, errore copiato, server di sviluppo partito, password copiata da togliere dagli appunti (vedi [File e schermo](17-file-e-schermo.md));
 - **riepiloghi**: del mattino, di fine giornata e settimanale degli agenti;
 - **aggiornamenti** disponibili.
 

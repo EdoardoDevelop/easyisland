@@ -50,6 +50,11 @@ export const BAR_KINDS: Record<string, BarKind> = {
     name: t("Velocità della rete"), icon: "i:network", tokens: [["down", t("in arrivo")], ["up", t("in uscita")]],
     left: "card", middle: "none", right: "none", native: true,
   },
+  news: {
+    // «Notizie» (src/views/news.ts): how many are new; the card is the island's Notizie view.
+    name: t("Notizie"), icon: "i:globe", tokens: [["new", t("notizie nuove")], ["title", t("ultimo titolo")]],
+    left: "card", middle: "none", right: "none",
+  },
   power: {
     name: t("Menu di spegnimento"), icon: "i:power", tokens: [],
     left: "menu", middle: "none", right: "menu",

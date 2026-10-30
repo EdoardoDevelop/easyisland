@@ -13,6 +13,7 @@
 import { h } from "../views/dom";
 import { renderActionIcon } from "../views/action-icons";
 import { taskIcon } from "../views/rail";
+import { unreadNews } from "../views/news";
 import { State, type BarAct, type BarItem } from "../core/state";
 import { BAR_KINDS, barKind } from "../core/barkinds";
 import { locale, t } from "../core/i18n";
@@ -147,6 +148,12 @@ function sysValues(kind: string, it: BarItem): { v: Record<string, string>; icon
       const down = n ? speed(n.down) : "—";
       const up = n ? speed(n.up) : "—";
       return { v: { down, up, value: `↓ ${down} ↑ ${up}` }, icon: n?.wifi ? "i:wifi" : k.icon, tip: `${t("Rete")}: ↓ ${down} · ↑ ${up}` };
+    }
+    case "news": {
+      const n = unreadNews();
+      const title = State.news[0]?.title ?? "";
+      const v = n ? String(n) : "";
+      return { v: { new: v, title, value: v }, icon: k.icon, tip: title ? `${t("Notizie")}: ${title}` : t("Notizie"), dim: !n };
     }
     default:
       return { v: { value: "" }, icon: k?.icon ?? "i:power", tip: k?.name ?? "" };

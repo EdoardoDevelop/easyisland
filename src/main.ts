@@ -145,6 +145,9 @@ async function main() {
     State.news = items ?? [];
     State.notify();
   });
+  void Bridge.newsTaste().then((taste) => {
+    if (taste) State.newsTaste = taste;
+  });
   void Bridge.newsItems().then((items) => {
     if (items) {
       State.news = items;

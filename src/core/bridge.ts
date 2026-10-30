@@ -170,6 +170,12 @@ export const Bridge = {
   newsRefresh: () => callOrThrow<number>("news_refresh"),
   /** «Salva»: the news goes to the memory's da-leggere. */
   newsSave: (title: string, link: string, source: string) => callOrThrow<string>("news_save", { title, link, source }),
+  /** What the user said of each subject: «Di più» +1, «Non mi interessa» −1. */
+  newsTaste: () => call<Record<string, number>>("news_taste"),
+  /** «Non mi interessa» (`more` false) or «Di più» (which also searches the same story now). */
+  newsFeedback: (id: string, more: boolean) => callOrThrow<{ topic: string; taste: number; added: number }>("news_feedback", { id, more }),
+  /** «Tienilo»: the subject's taste starts again from zero. */
+  newsKeep: (topic: string) => call<void>("news_keep", { topic }),
   /** A Windows menu at the bar; a line comes back as the tray's `bar:<key>`. */
   barMenu: (entries: [string, string][]) => call<void>("bar_overflow_menu", { entries }),
   /** "Prova" for messages from scripts. */

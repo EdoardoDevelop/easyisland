@@ -6,6 +6,7 @@ import type { Notice } from "../core/state";
 import { isSorting, sortable } from "./sortable";
 import { h, svg, clear, dot, brandOrDot, markIcon } from "./dom";
 import { ICONS } from "./icons";
+import { actionIcon, actionIconSvg } from "./action-icons";
 import { Ticker } from "./ticker";
 import { State, canAskSession, canOpen, engineLabel, isSessionTask, replyMode, sessionOpenLabel, type AgentTask, type AskQuestion } from "../core/state";
 import { washRGBA, type IslandViewName, type Wash } from "../core/layout";
@@ -16,7 +17,7 @@ import { buildRecap } from "./recap";
 import { buildMoment, type MomentActions } from "./moment";
 import { buildDaily } from "./daily";
 import { buildBarCard } from "./barcard";
-import { buildNews } from "./news";
+import { buildNews, unreadNews } from "./news";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, type ActionHandlers } from "./actions";
 import { buildRewrite, type RewriteHandlers } from "./rewrite";
@@ -458,7 +459,8 @@ function buildOverview(actions: ViewActions): ViewHost {
           files.style.display = list.length ? "" : "none";
         }
       } else if (showsSummary()) {
-        const key = "summary~" + State.tasks.map((t) => `${t.id}:${t.state}:${t.pillBadge ?? ""}:${pillLabel(t).text}:${t.steps.join("|")}`).join("~");
+        const key = "summary~" + State.tasks.map((t) => `${t.id}:${t.state}:${t.pillBadge ?? ""}:${pillLabel(t).text}:${t.steps.join("|")}`).join("~")
+          + `~news:${State.news.slice(0, SUMMARY_NEWS).map((n) => n.id).join(",")}:${unreadNews()}:${(State.settings.news?.topics ?? []).length}`;
         const grid = leftBody.querySelector<HTMLElement>(".summary");
         const sorting = !!grid && isSorting(grid);
         if (key !== cardKey && !sorting) {
@@ -550,7 +552,25 @@ function renderSummary(actions: ViewActions): HTMLElement {
   if (!State.tasks.length) grid.append(h("span", { class: "hint", text: t("Nessuna integrazione attiva") }));
   // Dragged into the order the user wants: the same order as the menu.
   sortable(grid, { enabled: () => !State.settings.lockOrder, onReorder: (ids) => actions.reorder(ids) });
-  return h("div", { class: "today" }, head, grid);
+  return h("div", { class: "today" }, head, grid, summaryNews(actions));
+}
+
+/** Headlines in the Panoramica's «Notizie» box. */
+const SUMMARY_NEWS = 3;
+
+/** «Notizie» under the tiles: the latest headlines; the head opens the view, a row the article. */
+function summaryNews(actions: ViewActions): HTMLElement | null {
+  if (!(State.settings.news?.topics ?? []).length || !State.news.length) return null;
+  const unread = unreadNews();
+  return h("div", { class: "summary-news" },
+    h("button", { class: "summary-news-head", onclick: () => actions.setView("news") },
+      actionIconSvg(actionIcon("i:globe")!, 13),
+      h("span", { class: "summary-name", text: t("Notizie") }),
+      unread ? h("span", { class: "summary-news-count", text: t("{n} nuove", { n: unread }) }) : null),
+    ...State.news.slice(0, SUMMARY_NEWS).map((n) =>
+      h("button", { class: "summary-news-row", title: n.link, onclick: () => actions.openUrl(n.link) },
+        h("span", { class: "summary-news-title", text: n.title }),
+        h("span", { class: "summary-news-src", text: n.source }))));
 }
 
 /** The pill's text: the song for Musica (name and artist in the tooltip), the name otherwise. */
