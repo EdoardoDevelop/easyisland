@@ -7,7 +7,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Da fare
 - [ ] **Personaggio e isola in due finestre** (unite in `claude/sviluppo`; misure in `docs/due-webview.md`, come funziona in `docs/architettura.md`): da provare ai lati e su un secondo schermo (in basso e i file rilasciati sul personaggio funzionano, provati da Edoardo il 29 ottobre 2026).
 - [ ] **Barra fissa** (unita in `claude/sviluppo`, `docs/architettura.md` → Barra fissa): fatta e provata in alto. Da provare in basso, sul secondo monitor e con il menu «…».
-- [ ] **Widget della barra** (su `claude/widgetbar`, `docs/architettura.md` → Barra fissa → Widget della barra): catalogo «+ Aggiungi», «Opzioni» per elemento, orologio, volume, microfono, luminosità, batteria, rete e menu di spegnimento (`barsys.rs`). Da provare dal vivo; poi le card nell'isola al posto dei pannelli di Windows e gli altri elementi (`docs/idee.md`).
+- [ ] **Widget della barra** (su `claude/widgetbar`, `docs/architettura.md` → Barra fissa → Widget della barra): catalogo «+ Aggiungi», «Opzioni» per elemento, orologio, volume, microfono, luminosità, batteria, rete e menu di spegnimento (`barsys.rs`). Card nell'isola per orologio, volume, microfono, luminosità, batteria e rete (`src/views/barcard.ts`). Da provare dal vivo; poi gli altri elementi (`docs/idee.md`).
 - [ ] **Aspetto a schede con le immagini** (unita in `claude/sviluppo`, `docs/architettura.md` → Impostazioni): sei schede, una miniatura disegnata accanto a ogni voce. Modalità chiara non ancora guardata.
 - [ ] **Integrazioni personali:** fatte nel codice e nell'anteprima (`docs/integrazioni.md`); da provare con l'app vera (`docs/prove-dal-vivo.md`).
 - [ ] **Guida sul sito**, italiano e inglese (`docs/guida/`, `docs/guida/en/` → `site/guida/`, `site/en/guide/`; homepage inglese `site/en/index.html`, schermate inglesi in `site/media/en/`): da tenere allineate a ogni funzione nuova (`node scripts/guida.mjs`). Il link delle Impostazioni nella lingua dell'app arriva con la prossima versione.
@@ -51,7 +51,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
 ### 30 ottobre 2026 — Widget della barra (su `claude/widgetbar`)
-- Passi 1 e 2 di `docs/idee.md` → «Elementi da aggiungere alla barra fissa»: catalogo per gruppi, opzioni comuni (formato con segnaposto, secondo testo, suggerimento, clic / clic centrale / clic destro, rotella) e sette elementi di sistema letti da `barsys.rs` solo mentre sono nella barra. Smoke «nessun errore»; non ancora provati dal vivo.
+- Passi 1 e 2 di `docs/idee.md` → «Elementi da aggiungere alla barra fissa»: catalogo per gruppi, opzioni comuni (formato con segnaposto, secondo testo, suggerimento, clic / clic centrale / clic destro, rotella) e sette elementi di sistema letti da `barsys.rs` solo mentre sono nella barra. Poi le card nell'isola al posto dei pannelli di Windows (calendario, cursori, batteria, rete). Smoke «nessun errore»; non ancora provati dal vivo.
 
 ### 30 ottobre 2026 — Versione 1.0.12: barra fissa dopo un cambio di schermo
 - Contiene la correzione qui sotto, provata da Edoardo («ora funziona»).

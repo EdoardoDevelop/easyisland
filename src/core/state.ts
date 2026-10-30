@@ -150,11 +150,12 @@ export interface BarOpts {
 
 /** System values the bar shows, from src-tauri/src/barsys.rs (`bar-sys`). */
 export interface BarSys {
-  volume?: { level: number; muted: boolean } | null;
-  mic?: { level: number; muted: boolean } | null;
+  volume?: { level: number; muted: boolean; device?: string } | null;
+  mic?: { level: number; muted: boolean; device?: string } | null;
   brightness?: number | null;
-  battery?: { percent: number; plugged: boolean; charging: boolean } | null;
-  net?: { down: number; up: number; wifi: boolean } | null;
+  battery?: { percent: number; plugged: boolean; charging: boolean; minutes?: number | null; saver?: boolean } | null;
+  /** `name` and `link` (bit/s) are the busiest adapter's; `ip` the PC's address. */
+  net?: { down: number; up: number; wifi: boolean; name?: string; link?: number; ip?: string } | null;
 }
 
 /** «Barra fissa» on: its edge (src-tauri/src/appbar.rs); null when off. */
@@ -1215,6 +1216,8 @@ class AppState {
   widgetStatus: Record<string, WidgetStatus> = {};
   /** Volume, battery, network… for the fixed bar's system elements (barsys.rs). */
   barSys: BarSys = {};
+  /** The system element whose card the island shows (src/views/barcard.ts). */
+  barCard: string | null = null;
   noteMessage: string | null = null;
   searchResult: SearchResult | null = null;
   chatHistory: ChatMessage[] = [];

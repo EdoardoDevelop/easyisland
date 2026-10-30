@@ -6,8 +6,9 @@
 // reads every 2 s while one is (battery every 30 s, brightness every 15 s,
 // at once after a change of ours). The island hears only what changed.
 //
-// It also does what the elements ask: volume and brightness from the wheel,
-// mute, and the power menu. Sleep, restart and shut down always ask first
+// It also does what the elements and their cards in the island ask (src/views/
+// barcard.ts): volume and brightness from the wheel or a slider, mute, and the
+// power menu. Sleep, restart and shut down always ask first
 // with Windows' own message box; lock does not (nothing is lost).
 
 use std::collections::HashSet;
@@ -51,6 +52,7 @@ pub fn start(app: AppHandle) {
         let mut net: Option<(u64, u64, Instant)> = None;
         let mut battery_at: Option<Instant> = None;
         let mut brightness_at: Option<Instant> = None;
+        let mut ip: (Option<Instant>, String) = (None, String::new());
         loop {
             let cmd = if watch.is_empty() {
                 match rx.recv() {
@@ -90,10 +92,14 @@ pub fn start(app: AppHandle) {
                 continue;
             }
             if watch.contains("volume") {
-                state["volume"] = volume(Flow::Render).map(|(l, m)| json!({ "level": l, "muted": m })).unwrap_or(Value::Null);
+                state["volume"] = volume(Flow::Render)
+                    .map(|(l, m)| json!({ "level": l, "muted": m, "device": device_name(Flow::Render) }))
+                    .unwrap_or(Value::Null);
             }
             if watch.contains("mic") {
-                state["mic"] = volume(Flow::Capture).map(|(l, m)| json!({ "level": l, "muted": m })).unwrap_or(Value::Null);
+                state["mic"] = volume(Flow::Capture)
+                    .map(|(l, m)| json!({ "level": l, "muted": m, "device": device_name(Flow::Capture) }))
+                    .unwrap_or(Value::Null);
             }
             if watch.contains("battery") && battery_at.is_none_or(|t| t.elapsed() >= BATTERY_EVERY) {
                 battery_at = Some(Instant::now());
@@ -104,17 +110,24 @@ pub fn start(app: AppHandle) {
                 state["brightness"] = brightness().map(|b| json!(b)).unwrap_or(Value::Null);
             }
             if watch.contains("net") {
-                if let Some((down, up, wifi)) = octets() {
+                if let Some(o) = octets() {
                     let now = Instant::now();
+                    // The address changes rarely and costs more to read: every 30 s.
+                    if ip.0.is_none_or(|t: Instant| t.elapsed() >= BATTERY_EVERY) {
+                        ip = (Some(now), crate::probes::primary_ipv4().map(|a| a.to_string()).unwrap_or_default());
+                    }
                     if let Some((d0, u0, t0)) = net {
                         let secs = now.duration_since(t0).as_secs_f64().max(0.5);
                         state["net"] = json!({
-                            "down": (down.saturating_sub(d0) as f64 / secs).round(),
-                            "up": (up.saturating_sub(u0) as f64 / secs).round(),
-                            "wifi": wifi,
+                            "down": (o.down.saturating_sub(d0) as f64 / secs).round(),
+                            "up": (o.up.saturating_sub(u0) as f64 / secs).round(),
+                            "wifi": o.wifi,
+                            "name": o.name,
+                            "link": o.link,
+                            "ip": ip.1,
                         });
                     }
-                    net = Some((down, up, now));
+                    net = Some((o.down, o.up, now));
                 } else {
                     state["net"] = Value::Null;
                 }
@@ -133,7 +146,8 @@ pub fn bar_sys_watch(kinds: Vec<String>) {
     send(Cmd::Watch(kinds.into_iter().collect()));
 }
 
-/// An element asks: `volume` / `brightness` by `arg` points, `mute`, `mic-mute`,
+/// An element asks: `volume` / `brightness` by `arg` points, `volume-set` /
+/// `mic-set` / `brightness-set` to `arg` (0–100, a card's slider), `mute`, `mic-mute`,
 /// a Windows panel (`panel:…`), or the power menu's `lock`, `sleep`, `restart`, `shutdown`.
 #[tauri::command]
 pub fn bar_sys_do(what: String, arg: Option<f64>) {
@@ -154,6 +168,9 @@ fn act(what: &str, arg: f64) {
                 set_volume(Flow::Render, Some((l + arg / 100.0).clamp(0.0, 1.0)), None);
             }
         }
+        "volume-set" => set_volume(Flow::Render, Some((arg / 100.0).clamp(0.0, 1.0)), None),
+        "mic-set" => set_volume(Flow::Capture, Some((arg / 100.0).clamp(0.0, 1.0)), None),
+        "brightness-set" => set_brightness(arg.clamp(0.0, 100.0) as u32),
         "mute" => {
             if let Some((_, m)) = volume(Flow::Render) {
                 set_volume(Flow::Render, None, Some(!m));
@@ -195,6 +212,26 @@ fn endpoint(flow: Flow) -> Option<windows::Win32::Media::Audio::Endpoints::IAudi
     }
 }
 
+/// The default device's name as Windows shows it («Altoparlanti (Realtek…)»).
+fn device_name(flow: Flow) -> String {
+    use windows::Win32::Foundation::PROPERTYKEY;
+    use windows::Win32::Media::Audio::{eCapture, eMultimedia, eRender, IMMDeviceEnumerator, MMDeviceEnumerator};
+    use windows::Win32::System::Com::StructuredStorage::PropVariantToStringAlloc;
+    use windows::Win32::System::Com::{CoCreateInstance, CoTaskMemFree, CLSCTX_ALL, STGM_READ};
+    // PKEY_Device_FriendlyName (functiondiscoverykeys_devpkey.h).
+    const FRIENDLY_NAME: PROPERTYKEY = PROPERTYKEY { fmtid: windows::core::GUID::from_u128(0xa45c254e_df1c_4efd_8020_67d146a850e0), pid: 14 };
+    unsafe {
+        let Ok(devices) = CoCreateInstance::<_, IMMDeviceEnumerator>(&MMDeviceEnumerator, None, CLSCTX_ALL) else { return String::new() };
+        let Ok(device) = devices.GetDefaultAudioEndpoint(match flow { Flow::Render => eRender, Flow::Capture => eCapture }, eMultimedia) else { return String::new() };
+        let Ok(store) = device.OpenPropertyStore(STGM_READ) else { return String::new() };
+        let Ok(value) = store.GetValue(&FRIENDLY_NAME) else { return String::new() };
+        let Ok(text) = PropVariantToStringAlloc(&value) else { return String::new() };
+        let name = text.to_string().unwrap_or_default();
+        CoTaskMemFree(Some(text.0 as *const _));
+        name
+    }
+}
+
 /// The default device's level (0–1) and mute; None without one.
 fn volume(flow: Flow) -> Option<(f64, bool)> {
     let ep = endpoint(flow)?;
@@ -231,11 +268,23 @@ fn battery() -> Value {
         "percent": p.BatteryLifePercent,
         "plugged": p.ACLineStatus == 1,
         "charging": p.BatteryFlag & 8 != 0,
+        // Windows' estimate, only on battery (u32::MAX: unknown).
+        "minutes": if p.BatteryLifeTime == u32::MAX { Value::Null } else { json!(p.BatteryLifeTime / 60) },
+        "saver": p.SystemStatusFlag == 1,
     })
 }
 
-/// Bytes received and sent by the physical adapters that are up, and whether one is Wi-Fi.
-fn octets() -> Option<(u64, u64, bool)> {
+/// What the physical adapters that are up have received and sent, and the busiest one.
+struct Octets {
+    down: u64,
+    up: u64,
+    wifi: bool,
+    /// The busiest adapter's name («Wi-Fi», «Ethernet») and its link speed, bit/s.
+    name: String,
+    link: u64,
+}
+
+fn octets() -> Option<Octets> {
     use windows::Win32::NetworkManagement::IpHelper::{FreeMibTable, GetIfTable2, MIB_IF_TABLE2};
     use windows::Win32::NetworkManagement::Ndis::IfOperStatusUp;
     const LOOPBACK: u32 = 24;
@@ -247,17 +296,25 @@ fn octets() -> Option<(u64, u64, bool)> {
         }
         let n = (*table).NumEntries as usize;
         let rows = std::slice::from_raw_parts((*table).Table.as_ptr(), n);
-        let (mut down, mut up, mut wifi) = (0u64, 0u64, false);
+        let mut out = Octets { down: 0, up: 0, wifi: false, name: String::new(), link: 0 };
+        let mut busiest = 0u64;
         for r in rows {
             let hardware = r.InterfaceAndOperStatusFlags._bitfield & 1 != 0;
             if hardware && r.Type != LOOPBACK && r.OperStatus == IfOperStatusUp {
-                down = down.saturating_add(r.InOctets);
-                up = up.saturating_add(r.OutOctets);
-                wifi |= r.Type == WIFI;
+                out.down = out.down.saturating_add(r.InOctets);
+                out.up = out.up.saturating_add(r.OutOctets);
+                let total = r.InOctets.saturating_add(r.OutOctets);
+                if total >= busiest {
+                    busiest = total;
+                    let end = r.Alias.iter().position(|&c| c == 0).unwrap_or(r.Alias.len());
+                    out.name = String::from_utf16_lossy(r.Alias.get(..end).unwrap_or(&[]));
+                    out.link = r.ReceiveLinkSpeed;
+                    out.wifi = r.Type == WIFI;
+                }
             }
         }
         FreeMibTable(table as *const _);
-        Some((down, up, wifi))
+        Some(out)
     }
 }
 
@@ -357,8 +414,16 @@ fn panel(which: &str) {
         "calendar" => &[VK_LWIN, VK_MENU, VIRTUAL_KEY(b'D' as u16)],
         "volume" => &[VK_LWIN, VK_CONTROL, VIRTUAL_KEY(b'V' as u16)],
         "quick" => &[VK_LWIN, VIRTUAL_KEY(b'A' as u16)],
-        "sound" => {
-            let _ = std::process::Command::new("explorer.exe").arg("ms-settings:sound").spawn();
+        // Windows' settings pages, from the cards' buttons.
+        "sound" | "network" | "power" | "display" | "datetime" => {
+            let page = match which {
+                "sound" => "ms-settings:sound",
+                "network" => "ms-settings:network-status",
+                "power" => "ms-settings:powersleep",
+                "display" => "ms-settings:display",
+                _ => "ms-settings:dateandtime",
+            };
+            let _ = std::process::Command::new("explorer.exe").arg(page).spawn();
             return;
         }
         _ => return,

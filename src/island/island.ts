@@ -4,7 +4,7 @@
 import { Tracked, Spring, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop, onEvent, type WindowShot } from "../core/bridge";
 import { MIRRORED_CALLS, type BarButton, type CharacterMode, type IslandToCharacter } from "../core/link";
-import { barAct, barItemOf, barPanel, barWheels, powerMenu, soundMenu, toggleAlt } from "./bar";
+import { barAct, barItemOf, barWheels, powerMenu, soundMenu, toggleAlt } from "./bar";
 import { barKind } from "../core/barkinds";
 import {
   BODY_GAP, EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_CHROME_H, ISLAND_MIN_W, NOTCH_W, PANEL_H, PANEL_W,
@@ -2742,7 +2742,15 @@ ${note}` : text };
       if (a) void this.runAction(a);
     } else if (act === "card") {
       if (kind) {
-        void Bridge.barSysDo(`panel:${barPanel(it.id.slice(4))}`);
+        // Its card in the island, against the bar; a second click closes it.
+        const which = it.id.slice(4);
+        if (which === "power") return;
+        if (State.mode === "expanded" && State.view === "barcard" && State.barCard === which) {
+          this.collapse();
+          return;
+        }
+        State.barCard = which;
+        this.openFromBar("barcard");
       } else if (it.id.startsWith("task:")) {
         const id = it.id.slice(5);
         if (State.mode === "expanded" && State.focusTask?.id === id && !State.summary) {

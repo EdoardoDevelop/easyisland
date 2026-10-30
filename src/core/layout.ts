@@ -49,7 +49,8 @@ export type IslandViewName =
   | "diff"
   | "recap"
   | "moment"
-  | "daily";
+  | "daily"
+  | "barcard";
 
 export type BotStateName =
   | "idle"
@@ -231,6 +232,7 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   recap: { height: 170, botX: 62, botY: null, botDiameter: 56, agentMode: "none" },
   moment: { height: 160, botX: 62, botY: null, botDiameter: 56, agentMode: "none" },
   daily: { height: 200, botX: 62, botY: null, botDiameter: 56, agentMode: "none" },
+  barcard: { height: 200, botX: 62, botY: null, botDiameter: 56, agentMode: "none" },
 };
 
 // The upload views above are only the fallback geometry. Once a file is actually

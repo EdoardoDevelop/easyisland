@@ -270,9 +270,4 @@ export function soundMenu(kind: "volume" | "mic"): [string, string][] {
   ];
 }
 
-/** The Windows panel an element's «card» opens (barsys.rs → panel). */
-export function barPanel(kind: string): string {
-  return kind === "clock" ? "calendar" : kind === "volume" ? "volume" : kind === "mic" ? "sound" : "quick";
-}
-
 export type { BarButton };

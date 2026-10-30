@@ -2765,12 +2765,12 @@ function barItemsEditor(commit: () => void): HTMLElement {
     const what = (b: "left" | "middle" | "right"): [string, string][] => {
       const own = kind ? kind[b] : b === "left" ? (it.id.startsWith("action:") ? "action" : "card") : "none";
       const labels: Record<string, string> = {
-        none: t("Niente"), card: kind ? t("Pannello di Windows") : t("Apri la card"), alt: t("Mostra il secondo testo"),
+        none: t("Niente"), card: t("Apri la card"), alt: t("Mostra il secondo testo"),
         menu: t("Menu"), mute: t("Muto sì / no"), action: t("Esegui l'azione"),
       };
       const label = (a: string) => labels[a] ?? a;
       const out: [string, string][] = [["", `${t("Predefinito")} (${label(own)})`], ["none", label("none")]];
-      if (!it.id.startsWith("action:")) out.push(["card", label("card")]);
+      if (!it.id.startsWith("action:") && it.id !== "sys:power") out.push(["card", label("card")]);
       out.push(["alt", label("alt")]);
       if (it.id === "sys:power" || it.id === "sys:volume" || it.id === "sys:mic") out.push(["menu", label("menu")]);
       if (it.id === "sys:volume" || it.id === "sys:mic") out.push(["mute", label("mute")]);
