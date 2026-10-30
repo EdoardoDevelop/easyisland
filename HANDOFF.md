@@ -50,7 +50,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
 ### 30 ottobre 2026 — Barra fissa dopo un cambio di schermo (su `claude/barra-schermo`)
-- Spegnendo e riaccendendo il monitor o cambiandolo la barra restava della risoluzione vecchia. Ora a ogni cambio di schermo (e al riavvio di Explorer) la barra si toglie e si registra di nuovo, 1,5 s dopo l'ultimo messaggio (`display_changed` in `appbar.rs`). Da provare dal vivo.
+- Spegnendo e riaccendendo il monitor o cambiandolo la barra restava della risoluzione vecchia. Ora a ogni cambio di schermo (e al riavvio di Explorer) la barra si toglie e si registra di nuovo, 1,5 s dopo l'ultimo messaggio (`display_changed` in `appbar.rs`), con una pausa di 0,5 s tra toglierla e registrarla: subito restava staccata dal bordo. Da provare dal vivo.
 
 ### 29 ottobre 2026 — Versione 1.0.11: barra fissa, due finestre, Aspetto a schede
 - Contiene la barra fissa con altezza a scelta, il personaggio in una finestra sua (a isola aperta resta solo quello nel menu), la pagina Aspetto a schede con le miniature e «Aggancia ai bordi» corretto: tutto in `CHANGELOG.md`.

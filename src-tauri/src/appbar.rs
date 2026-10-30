@@ -53,6 +53,11 @@ pub static FULLSCREEN: AtomicBool = AtomicBool::new(false);
 static DISPLAY_GEN: AtomicU32 = AtomicU32::new(0);
 /// A monitor waking up sends several changes in a row and reports its size late.
 const SETTLE: Duration = Duration::from_millis(1500);
+/// The shell frees the old band a moment after ABM_REMOVE: registering at once
+/// put the new band right under the ghost of the old one, off the edge.
+const FREED: Duration = Duration::from_millis(500);
+/// One more look after registering again, once the work area is final.
+const RECHECK: Duration = Duration::from_millis(1500);
 
 /// Sent to every top-level window when Explorer (and so the taskbar) restarts:
 /// the shell has forgotten every bar.
@@ -169,6 +174,11 @@ fn reserve(raw: isize, edge: u32) -> bool {
     }
     unsafe { SHAppBarMessage(ABM_SETPOS, &mut abd) };
     let rc = (abd.rc.left, abd.rc.top, abd.rc.right, abd.rc.bottom);
+    let monitor_edge = if edge == ABE_TOP { p.y } else { p.y + s.height as i32 };
+    let band_edge = if edge == ABE_TOP { rc.1 } else { rc.3 };
+    if band_edge != monitor_edge {
+        crate::log::line(format!("barra fissa: fascia a {} px dal bordo (altre barre?)", (band_edge - monitor_edge).abs()));
+    }
     let mut reg = REGISTERED.lock().unwrap();
     match reg.as_mut() {
         Some(r) if r.hwnd == raw => {
@@ -249,9 +259,13 @@ fn reregister() {
     }
     FULLSCREEN.store(false, Ordering::Relaxed);
     crate::log::line("barra fissa: schermo cambiato, registrata di nuovo".to_string());
-    if let Some(app) = APP.get() {
+    std::thread::spawn(|| {
+        std::thread::sleep(FREED);
+        let Some(app) = APP.get() else { return };
         apply(app);
-    }
+        std::thread::sleep(RECHECK);
+        apply(app);
+    });
 }
 
 /// The bar hides over a full-screen app (video, game, presentation) and comes back after.
