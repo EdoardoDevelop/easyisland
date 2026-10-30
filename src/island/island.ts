@@ -4,7 +4,7 @@
 import { Tracked, Spring, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop, onEvent, type WindowShot } from "../core/bridge";
 import { MIRRORED_CALLS, type BarButton, type CharacterMode, type IslandToCharacter } from "../core/link";
-import { barAct, barItemOf, barWheels, powerMenu, soundMenu, toggleAlt } from "./bar";
+import { barAct, barItemOf, barMenuOf, barWheels, musicButtons, toggleAlt } from "./bar";
 import { barKind } from "../core/barkinds";
 import {
   BODY_GAP, EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_CHROME_H, ISLAND_MIN_W, NOTCH_W, PANEL_H, PANEL_W,
@@ -28,7 +28,7 @@ import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../vie
 import { buildSearch, type SearchHost } from "../views/search";
 import { rdmLookFor } from "../views/rdm";
 import { buildRail, railBotSize } from "../views/rail";
-import { buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
+import { appBarItem, buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
 import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
 import { sendToChat, windowLabel } from "../views/chat";
 import { capturing, startCapture } from "./capture";
@@ -2691,6 +2691,11 @@ ${note}` : text };
     return stripItem(this.stripActions);
   }
 
+  /** The bar of the app in use, for its own element of the fixed bar. */
+  barAppBar(): StripItem | null {
+    return appBarItem(this.stripActions);
+  }
+
   /** The island's text colour, for the fixed bar's elements. */
   get islandInk(): string {
     return getComputedStyle(this.islandEl).color || "#f5f6f8";
@@ -2702,13 +2707,22 @@ ${note}` : text };
    * action runs.
    */
   barClick(key: string, button: BarButton = "left") {
-    // A line of the power menu or of the sound menu (powerMenu, soundMenu in bar.ts).
-    const line = /^sys:(power|volume|mic):([a-z]+)$/.exec(key);
+    // A small button inside an element: music's, or one of the app in use.
+    const inner = /^(sys:(music|appbar)[^:]*):btn:(\d+)$/.exec(key);
+    if (inner) {
+      const i = Number(inner[3]);
+      if (inner[2] === "music") {
+        const b = musicButtons()[i];
+        if (b) void Bridge.mediaCommand(b.cmd);
+      } else {
+        this.barAppBar()?.buttons[i]?.run();
+      }
+      return;
+    }
+    // A line of an element's menu (barMenuOf in bar.ts): sys:<kind>:<what>[:<arg>].
+    const line = /^sys:([a-z]+):([a-z]+)(?::(.+))?$/.exec(key);
     if (line) {
-      const [, kind, what] = line;
-      if (kind === "power") void Bridge.barSysDo(what);
-      else if (what === "mute") void Bridge.barSysDo(kind === "mic" ? "mic-mute" : "mute");
-      else void Bridge.barSysDo("panel:sound");
+      this.barMenuLine(line[1], line[2], line[3] ?? "");
       return;
     }
     if (key.startsWith("strip") && button === "left") {
@@ -2736,8 +2750,8 @@ ${note}` : text };
     } else if (act === "mute") {
       if (kind) void Bridge.barSysDo(it.id === "sys:mic" ? "mic-mute" : "mute");
     } else if (act === "menu") {
-      if (it.id === "sys:power") void Bridge.barMenu(powerMenu());
-      else if (it.id === "sys:volume" || it.id === "sys:mic") void Bridge.barMenu(soundMenu(it.id === "sys:mic" ? "mic" : "volume"));
+      const lines = barMenuOf(it);
+      if (lines.length) void Bridge.barMenu(lines);
     } else if (act.startsWith("action:")) {
       const a = (State.settings.actions ?? []).find((x) => x.id === act.slice(7));
       if (a) void this.runAction(a);
@@ -2745,7 +2759,20 @@ ${note}` : text };
       if (kind) {
         // Its card in the island, against the bar; a second click closes it.
         const which = it.id.slice(4);
-        if (which === "power") return;
+        if (!kind.card) return;
+        // Music and weather: the card of their integration.
+        if (which === "music" || which === "weather") {
+          const id = which === "music" ? "integration_media" : "integration_weather";
+          if (!State.tasks.some((x) => x.id === id)) return;
+          if (State.mode === "expanded" && State.focusTask?.id === id && !State.summary) {
+            this.collapse();
+            return;
+          }
+          State.summary = false;
+          State.setFocus(id);
+          this.openFromBar("overview");
+          return;
+        }
         if (which === "news") {
           if (State.mode === "expanded" && State.view === "news") this.collapse();
           else this.openFromBar("news");
@@ -2773,10 +2800,52 @@ ${note}` : text };
     }
   }
 
+  /**
+   * A line of an element's menu (barMenuOf in bar.ts). Emptying the recycle bin
+   * and updating every program are asked again by Windows' own box (barsys.rs).
+   */
+  private barMenuLine(kind: string, what: string, arg: string) {
+    const panel = (p: string) => void Bridge.barSysDo(`panel:${p}`);
+    switch (kind) {
+      case "power":
+        void Bridge.barSysDo(what);
+        return;
+      case "volume": case "mic":
+        if (what === "mute") void Bridge.barSysDo(kind === "mic" ? "mic-mute" : "mute");
+        else panel("sound");
+        return;
+      case "cpu": case "ram": case "gpu":
+        if (what === "taskmgr") panel("taskmgr");
+        return;
+      case "disk":
+        if (what === "open" && /^[A-Z]$/.test(arg)) void Bridge.barSysDo(`disk-open:${arg}`);
+        else if (what === "storage") panel("storage");
+        return;
+      case "lang":
+        panel(what === "switch" ? "lang" : "language");
+        return;
+      case "recycle":
+        if (what === "open" || what === "empty") void Bridge.barSysDo(`recycle-${what}`);
+        return;
+      case "updates":
+        if (what === "all") void Bridge.barSysDo("updates-all");
+        else if (what === "check") void Bridge.barSysDo("updates-check");
+        else if (what === "windows") panel("update");
+        return;
+      case "vscode": {
+        const p = State.barSys.vscode?.[Number(arg)]?.path;
+        if (what === "open" && p) void Bridge.barSysDo("vscode-open", undefined, p);
+        return;
+      }
+    }
+  }
+
   /** Wheel notches on volume or brightness, gathered for a moment: brightness is slow to set. */
   private wheelSum: Record<string, number> = {};
   private wheelTimer: number | null = null;
   private barWheel(kind: string, dir: 1 | -1) {
+    // On the music, the wheel is the volume.
+    if (kind === "music") kind = "volume";
     this.wheelSum[kind] = (this.wheelSum[kind] ?? 0) + dir * (kind === "brightness" ? 5 : 2);
     if (this.wheelTimer !== null) return;
     this.wheelTimer = window.setTimeout(() => {

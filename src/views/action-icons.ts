@@ -106,6 +106,8 @@ export const ACTION_ICONS: ActionIcon[] = [
   { name: "keyboard", label: t("Tastiera"), d: "M2.5 6h19v12h-19z M6 10h.01 M9.5 10h.01 M13 10h.01 M16.5 10h.01 M7.5 14.5h9" },
   { name: "mouse", label: t("Mouse"), d: "M12 3a6 6 0 0 0-6 6v6a6 6 0 0 0 12 0V9a6 6 0 0 0-6-6z M12 7v3.5" },
   { name: "usb", label: t("USB"), d: "M12 21V5 M9 7.5 12 3l3 4.5 M12 16l-5-3V10 M12 13.5l5-3V8 M6 9h2v2H6z M16 6.5a1 1 0 1 0 2 0 1 1 0 0 0-2 0z" },
+  { name: "memory", label: t("Memoria"), d: "M3 7h18v9H3z M7 16v3 M12 16v3 M17 16v3 M6.5 10v3 M10 10v3 M14 10v3 M17.5 10v3" },
+  { name: "gpu", label: t("Scheda video"), d: "M2.5 6h19v11h-19z M5.5 17v3 M9.5 17v3 M9 11.5a3 3 0 1 0 6 0 3 3 0 0 0-6 0 M17.5 9.5v4" },
   { name: "cpu", label: t("Processore"), d: "M6 6h12v12H6z M9.5 9.5h5v5h-5z M9 2.5V6 M15 2.5V6 M9 18v3.5 M15 18v3.5 M2.5 9H6 M2.5 15H6 M18 9h3.5 M18 15h3.5" },
   { name: "hdd", label: t("Disco"), d: "M3 13h18v6H3z M3 13l3-8h12l3 8 M7 16h.01 M11 16h6" },
   { name: "battery", label: t("Batteria"), d: "M3 7.5h16v9H3z M19 10.5h2v3h-2 M6 10.5v3" },

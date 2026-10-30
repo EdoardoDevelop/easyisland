@@ -9,7 +9,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Allegati della chat** (nella 1.0.15, `docs/chat.md` → Allegati): nel campo, più d'uno, cartelle intere, 📎. Da provare dal vivo con i vari motori.
 - [ ] **Personaggio e isola in due finestre** (unite in `claude/sviluppo`; misure in `docs/due-webview.md`, come funziona in `docs/architettura.md`): da provare ai lati e su un secondo schermo (in basso e i file rilasciati sul personaggio funzionano, provati da Edoardo il 29 ottobre 2026).
 - [ ] **Barra fissa** (unita in `claude/sviluppo`, `docs/architettura.md` → Barra fissa): fatta e provata in alto. Da provare in basso, sul secondo monitor e con il menu «…».
-- [ ] **Widget della barra** (unita in `claude/sviluppo`, nella 1.0.13, `docs/architettura.md` → Barra fissa → Widget della barra): catalogo «+ Aggiungi», «Opzioni» per elemento, orologio, volume, microfono, luminosità, batteria, rete e menu di spegnimento (`barsys.rs`). Card nell'isola per orologio, volume, microfono, luminosità, batteria e rete (`src/views/barcard.ts`). Da provare dal vivo; poi gli altri elementi (`docs/idee.md`).
+- [ ] **Widget della barra** (unita in `claude/sviluppo`, nella 1.0.13, `docs/architettura.md` → Barra fissa → Widget della barra): catalogo «+ Aggiungi», «Opzioni» per elemento, orologio, volume, microfono, luminosità, batteria, rete e menu di spegnimento (`barsys.rs`). Card nell'isola per orologio, volume, microfono, luminosità, batteria e rete (`src/views/barcard.ts`). Dopo la 1.0.15: processore, memoria, disco, scheda video (con grafici), lingua della tastiera, cestino, aggiornamenti con winget, titolo della finestra, barra dell'app in uso, musica, meteo, progetti recenti di VS Code, e l'«Aspetto della barra» (isolette, opacità, sfocatura, margini, testo, spazi, nascondi da sola). Da provare dal vivo, soprattutto «Nascondi da sola», la sfocatura e winget; restano Wi-Fi, Bluetooth e temperature (`docs/idee.md`).
 - [ ] **Aspetto a schede con le immagini** (unita in `claude/sviluppo`, `docs/architettura.md` → Impostazioni): sei schede, una miniatura disegnata accanto a ogni voce. Modalità chiara non ancora guardata.
 - [ ] **Integrazioni personali:** fatte nel codice e nell'anteprima (`docs/integrazioni.md`); da provare con l'app vera (`docs/prove-dal-vivo.md`).
 - [ ] **Guida sul sito**, italiano e inglese (`docs/guida/`, `docs/guida/en/` → `site/guida/`, `site/en/guide/`; homepage inglese `site/en/index.html`, schermate inglesi in `site/media/en/`): da tenere allineate a ogni funzione nuova (`node scripts/guida.mjs`). Il link delle Impostazioni nella lingua dell'app arriva con la prossima versione.
@@ -51,6 +51,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 30 ottobre 2026 — Barra fissa: aspetto ed elementi nuovi (su `claude/sviluppo`)
+- Aspetto della barra, ogni voce a scelta: fascia o isolette, opacità, sfocatura acrilica, margine dai lati, grandezza del testo, spazio tra gli elementi, nascondi da sola (fascia di 0 px e barra fuori dal bordo tranne 3 px, `appbar::window_rect`, `bar_reveal`).
+- Elementi nuovi: processore, memoria, disco, scheda video con grafico dell'ultimo minuto, lingua della tastiera, cestino, aggiornamenti (winget), titolo della finestra, barra dell'app in uso, musica con i pulsanti, meteo, progetti recenti di VS Code; menu per elemento (`barMenuOf`). Smoke «nessun errore», 350 test Rust; provato nell'anteprima, non nell'app vera.
+
 ### 30 ottobre 2026 — Versione 1.0.15: allegati nel campo, cartelle; Notizie in una scheda, argomenti da soli, miniature
 - Chat: gli allegati stanno nel campo sopra il testo, sono più d'uno (fino a 20) e possono essere cartelle (percorso ed elenco dei file al motore); 📎, `@file`, `@cartella`, Ctrl+V e rilascio li aggiungono tutti (`ChatContext::Files`).
 - Notizie: voce sempre nel menu (spegnibile), argomenti scelti una volta al giorno da un motore e seguiti da soli, interruttore per argomento; fonte Google o Bing News (Bing con foto e riassunto), aspetto elenco / miniature / schede, la lista scorre.
@@ -65,5 +69,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 30 ottobre 2026 — Notizie, passo 2 (su `claude/notizie`)
 - Google News (scelto da Edoardo) per ogni argomento seguito, ogni 4 ore o quando cambiano gli argomenti; filtro in locale (parole da evitare, 3 giorni, già viste, stessa storia); voce e vista «Notizie» nell'isola. Una ricerca vera provata con un test; l'app non ancora provata dal vivo.
 
-### 30 ottobre 2026 — Notizie, passo 1 (su `claude/notizie`)
-- `news.rs` propone gli argomenti dalle pagine della memoria (citazioni, note, diario del mese, aggiornamenti recenti), mai persone e clienti; pagina Impostazioni → Notizie con Aggiungi / Escludi / Riammetti e le parole da cercare ed evitare. Niente rete ancora. Smoke «nessun errore».

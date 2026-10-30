@@ -160,44 +160,115 @@ const send = linkChannel<IslandToCharacter, CharacterToIsland>((m) => {
   }
 });
 
+/** «Aspetto della barra» with every choice clamped (src/core/state.ts FixedBarLook). */
+function lookOf(b: BarLook) {
+  const l = b.look ?? {};
+  const num = (v: number | undefined, d: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, typeof v === "number" && Number.isFinite(v) ? v : d));
+  return {
+    islands: l.style === "islands",
+    opacity: num(l.opacity, 100, 10, 100),
+    margin: num(l.margin, 0, 0, 400),
+    text: num(l.text, 100, 80, 150) / 100,
+    gap: num(l.gap, 4, 0, 24),
+    autoHide: !!l.autoHide,
+  };
+}
+
 /**
- * The fixed bar: the band in the island's colour, the character in its area
- * (start, centre or end) in a square as tall as the band.
+ * The fixed bar: the band in the island's colour (or one island per area), the
+ * character in its area (start, centre or end) in a square as tall as the band.
  */
 function layBar() {
   const float = document.getElementById("float");
-  if (!float) return;
-  document.body.style.background = bar ? bar.background : "transparent";
-  document.body.classList.toggle("see-through", bar?.background === "transparent");
+  const band = document.getElementById("band");
+  if (!float || !band) return;
+  document.body.style.background = "transparent";
   document.body.classList.toggle("bar", !!bar);
   if (!bar) {
     float.style.cssText = "";
+    band.style.cssText = "display: none;";
+    document.body.classList.remove("islands", "see-through");
     return;
   }
+  const look = lookOf(bar);
   const t = bar.thickness;
-  // Text and icons follow the bar's height (Impostazioni → Barra fissa → Altezza).
+  const m = look.margin;
+  // The background: the band between the margins, or behind each area (islands).
+  const see = bar.background === "transparent" || look.opacity < 50;
+  const bg = bar.background === "transparent" ? "transparent" : `color-mix(in srgb, ${bar.background} ${look.opacity}%, transparent)`;
+  document.body.style.setProperty("--bar-bg", bg);
+  document.body.classList.toggle("see-through", see);
+  document.body.classList.toggle("islands", look.islands);
+  band.style.cssText = look.islands ? "display: none;" : `left: ${m}px; right: ${m}px;`;
+  // Text and icons follow the bar's height (Impostazioni → Barra fissa → Altezza); the text also its own size.
   document.body.style.setProperty("--s", String(Math.min(1.6, Math.max(0.8, t / 40))));
-  const left = bar.slot === "start" ? "8px" : bar.slot === "end" ? `calc(100% - ${t + 8}px)` : `calc(50% - ${t / 2}px)`;
+  document.body.style.setProperty("--ts", String(look.text));
+  document.body.style.setProperty("--gap", `${look.gap}px`);
+  const left = bar.slot === "start" ? `${m + 8}px` : bar.slot === "end" ? `calc(100% - ${t + 8 + m}px)` : `calc(50% - ${t / 2}px)`;
   float.style.cssText = `inset: auto; top: 0; left: ${left}; width: ${t}px; height: 100%;`;
   document.body.style.setProperty("--ink", bar.ink);
+  autoHide(look.autoHide);
   layAreas(bar);
 }
 
 /**
+ * «Nascondi da sola»: Rust keeps only a thin edge of the bar on screen; the
+ * mouse on it brings the bar out, and it goes back a moment after the mouse leaves.
+ */
+let hiding = false;
+let hideTimer: number | null = null;
+function autoHide(on: boolean) {
+  if (on === hiding) return;
+  hiding = on;
+  if (!on && hideTimer !== null) window.clearTimeout(hideTimer);
+  hideTimer = null;
+}
+document.documentElement.addEventListener("mouseenter", () => {
+  if (!hiding) return;
+  if (hideTimer !== null) window.clearTimeout(hideTimer);
+  hideTimer = null;
+  void invoke("bar_reveal", { on: true }).catch(() => {});
+});
+document.documentElement.addEventListener("mouseleave", () => {
+  if (!hiding) return;
+  if (hideTimer !== null) window.clearTimeout(hideTimer);
+  hideTimer = window.setTimeout(() => {
+    hideTimer = null;
+    void invoke("bar_reveal", { on: false }).catch(() => {});
+  }, 800);
+});
+
+/**
  * The three areas: from the left edge, around the middle, from the right edge.
- * In the character's area the elements come right after it.
+ * In the character's area the elements come right after it; with the islands
+ * style that area's island holds the character too.
  */
 function layAreas(b: BarLook) {
-  const beside = b.thickness + 8 + 6;
+  const look = lookOf(b);
+  const m = look.margin;
+  const beside = b.thickness + 8 + 6 + m;
   const areas = { start: document.getElementById("a-start"), center: document.getElementById("a-center"), end: document.getElementById("a-end") };
-  if (areas.start) areas.start.style.cssText = `left: ${b.slot === "start" ? beside : 8}px;`;
-  if (areas.end) areas.end.style.cssText = `right: ${b.slot === "end" ? beside : 8}px;`;
-  if (areas.center) {
-    areas.center.style.cssText = b.slot === "center"
-      ? `left: calc(50% + ${b.thickness / 2 + 6}px);`
-      : "left: 50%; transform: translateX(-50%);";
+  for (const [slot, el] of Object.entries(areas)) el?.classList.toggle("own", look.islands && slot === b.slot);
+  if (look.islands) {
+    // The character's island starts just before it: padding keeps its elements after it.
+    const pad = b.thickness + 12;
+    if (areas.start) areas.start.style.cssText = b.slot === "start" ? `left: ${m + 2}px; padding-left: ${pad}px;` : `left: ${m + 8}px;`;
+    if (areas.end) areas.end.style.cssText = b.slot === "end" ? `right: ${m + 2}px; padding-right: ${pad}px;` : `right: ${m + 8}px;`;
+    if (areas.center) {
+      areas.center.style.cssText = b.slot === "center"
+        ? `left: calc(50% - ${b.thickness / 2 + 6}px); padding-left: ${pad}px;`
+        : "left: 50%; transform: translateX(-50%);";
+    }
+  } else {
+    if (areas.start) areas.start.style.cssText = `left: ${b.slot === "start" ? beside : m + 8}px;`;
+    if (areas.end) areas.end.style.cssText = `right: ${b.slot === "end" ? beside : m + 8}px;`;
+    if (areas.center) {
+      areas.center.style.cssText = b.slot === "center"
+        ? `left: calc(50% + ${b.thickness / 2 + 6}px);`
+        : "left: 50%; transform: translateX(-50%);";
+    }
   }
-  const key = JSON.stringify(b.items);
+  const key = JSON.stringify([b.items, b.look]);
   if (key === laidItems) return;
   laidItems = key;
   shown = b.items;
@@ -235,9 +306,14 @@ function fitAreas() {
   more.className = "bar-btn bar-more";
   more.setAttribute("role", "button");
   more.textContent = "…";
+  const look = bar ? lookOf(bar) : null;
+  const islands = !!look?.islands;
+  const own = bar ? `a-${bar.slot}` : "";
   const W = window.innerWidth;
+  const m = look?.margin ?? 0;
   for (let guard = 0; guard < 60; guard++) {
-    const boxes = [...areas.filter((a) => a.childElementCount), ...(float ? [float] : [])]
+    // With islands the character is inside its area's island: that area always counts, the character not apart.
+    const boxes = [...areas.filter((a) => a.childElementCount || (islands && a.id === own)), ...(float && !islands ? [float] : [])]
       .map((el) => ({ el, r: el.getBoundingClientRect() }))
       .filter((b) => b.r.width > 0)
       .sort((a, b) => a.r.left - b.r.left);
@@ -247,11 +323,10 @@ function fitAreas() {
       if (boxes[i].r.right + 4 > boxes[i + 1].r.left) clash = [boxes[i].el, boxes[i + 1].el];
     }
     if (!clash.length) {
-      const off = boxes.filter((b) => b.r.left < 2 || b.r.right > W - 2).map((b) => b.el);
+      const off = boxes.filter((b) => b.r.left < m + 2 || b.r.right > W - m - 2).map((b) => b.el);
       clash = off;
     }
     // The character's area keeps its elements longest; elsewhere the wider area gives first.
-    const own = bar ? `a-${bar.slot}` : "";
     const removable = (el: HTMLElement) => el !== float && !!el.querySelector(".bar-btn:not(.bar-more):not([data-key='strip'])");
     const victim = clash
       .filter(removable)

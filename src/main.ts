@@ -17,7 +17,7 @@ import { registerMoments } from "./island/moments";
 import { syncLanguage } from "./core/i18n";
 import { registerIntegrationHandlers, refreshConfigured } from "./island/integrations";
 import { linkChannel, type CharacterToIsland, type IslandToCharacter } from "./core/link";
-import { barClockDelay, barPieces, barSysKinds } from "./island/bar";
+import { barClockDelay, barPieces, barSysKinds, recordBarSys } from "./island/bar";
 
 /**
  * Uncaught errors of the page go to easyisland.log (the WebView's console is
@@ -264,7 +264,8 @@ function linkCharacterWindow(island: Island) {
           slot: State.settings.fixedBarSlot ?? "center",
           ...barPaint(State.settings.fixedBarBackground ?? "", island.islandBackground, island.islandInk),
           thickness: barThickness(State.settings),
-          items: barPieces(island.barStrip()),
+          items: barPieces(island.barStrip(), island.barAppBar()),
+          look: State.settings.fixedBarLook ?? {},
         }
         : null,
     };
@@ -314,6 +315,7 @@ function linkCharacterWindow(island: Island) {
   };
   void onEvent<BarSys>("bar-sys", (v) => {
     State.barSys = v ?? {};
+    recordBarSys(State.barSys);
     push();
   });
   State.subscribe(push);

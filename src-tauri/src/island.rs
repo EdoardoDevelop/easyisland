@@ -523,7 +523,21 @@ fn island_area(m: &Monitor, settings: &Settings) -> (i32, i32, u32, u32) {
         (p.x, p.y, s.width, s.height)
     } else {
         let wa = m.work_area();
-        (wa.position.x, wa.position.y, wa.size.width, wa.size.height)
+        let (x, mut y, w, mut h) = (wa.position.x, wa.position.y, wa.size.width, wa.size.height);
+        // The bar that hides by itself keeps no band, but the island opened
+        // from it must not end up under it.
+        if settings.bar_auto_hide() {
+            let thick = (settings.bar_thickness() * m.scale_factor()).round() as u32;
+            match settings.bar_edge() {
+                Some("top") => {
+                    y += thick as i32;
+                    h = h.saturating_sub(thick);
+                }
+                Some(_) => h = h.saturating_sub(thick),
+                None => {}
+            }
+        }
+        (x, y, w, h)
     }
 }
 

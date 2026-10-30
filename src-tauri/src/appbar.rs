@@ -41,8 +41,18 @@ static APP: OnceLock<AppHandle> = OnceLock::new();
 struct Registered {
     hwnd: isize,
     edge: u32,
+    /// The band kept free: as thick as the bar, or nothing when it hides by itself.
     rect: (i32, i32, i32, i32),
+    /// The bar's own thickness, physical px.
+    thick: i32,
+    /// «Nascondi da sola»: only a thin edge shows until the mouse comes.
+    auto_hide: bool,
 }
+
+/// The bar that hides by itself is out (the mouse is on it).
+pub static REVEALED: AtomicBool = AtomicBool::new(false);
+/// What of a hidden bar stays on screen for the mouse to find, physical px.
+const PEEK: i32 = 3;
 
 static REGISTERED: Mutex<Option<Registered>> = Mutex::new(None);
 /// Inside `place`: the shell's answer to our own move is not a new move.
@@ -92,13 +102,23 @@ fn data(raw: isize, edge: u32) -> APPBARDATA {
     }
 }
 
-/// The reserved band (physical px: x, y, width, height), when the bar is on:
-/// where the character's window goes (sync_character).
-pub fn band() -> Option<(i32, i32, u32, u32)> {
-    REGISTERED.lock().unwrap().map(|r| {
-        let (l, t, rr, b) = r.rect;
-        (l, t, (rr - l).max(0) as u32, (b - t).max(0) as u32)
-    })
+/// Where the bar's window goes (physical px: x, y, width, height), when the bar
+/// is on (sync_character): the band, or, when it hides by itself, the bar's
+/// thickness against the edge, pushed off it but for a thin edge until the mouse comes.
+pub fn window_rect() -> Option<(i32, i32, u32, u32)> {
+    REGISTERED.lock().unwrap().map(|r| rect_of(&r, REVEALED.load(Ordering::Relaxed)))
+}
+
+fn rect_of(r: &Registered, revealed: bool) -> (i32, i32, u32, u32) {
+    let (l, t, rr, b) = r.rect;
+    let w = (rr - l).max(0) as u32;
+    if !r.auto_hide {
+        return (l, t, w, (b - t).max(0) as u32);
+    }
+    let h = r.thick.max(PEEK);
+    let hidden = if revealed { 0 } else { h - PEEK };
+    let y = if r.edge == ABE_TOP { t - hidden } else { b - h + hidden };
+    (l, y, w, h as u32)
 }
 
 /// Follows the setting: registers the character's window as the bar, moves
@@ -131,7 +151,7 @@ fn register(raw: isize, edge: u32) {
     unsafe {
         let _ = SetWindowSubclass(hwnd(raw), Some(subclass), SUBCLASS_ID, 0);
     }
-    *REGISTERED.lock().unwrap() = Some(Registered { hwnd: raw, edge, rect: (0, 0, 0, 0) });
+    *REGISTERED.lock().unwrap() = Some(Registered { hwnd: raw, edge, rect: (0, 0, 0, 0), thick: 0, auto_hide: false });
     crate::log::line(format!("barra fissa: registrata ({})", if edge == ABE_TOP { "in alto" } else { "in basso" }));
     place(raw, edge);
 }
@@ -158,7 +178,8 @@ fn off_band(raw: isize) -> bool {
     if unsafe { GetWindowRect(hwnd(raw), &mut now) }.is_err() {
         return false;
     }
-    (now.left, now.top, now.right, now.bottom) != r.rect
+    let (x, y, w, h) = rect_of(&r, REVEALED.load(Ordering::Relaxed));
+    (now.left, now.top, now.right, now.bottom) != (x, y, x + w as i32, y + h as i32)
 }
 
 /// The window moved off the band behind our back: put back a moment later,
@@ -187,13 +208,16 @@ fn drifted() {
 fn reserve(raw: isize, edge: u32) -> bool {
     let Some(app) = APP.get() else { return false };
     let Some(shared) = app.try_state::<crate::Shared>() else { return false };
-    let (screen, bar_h) = {
+    let (screen, bar_h, auto_hide) = {
         let s = shared.settings.lock().unwrap();
-        (s.screen.clone(), s.bar_thickness())
+        (s.screen.clone(), s.bar_thickness(), s.bar_auto_hide())
     };
     let Some(m) = crate::island::target_monitor(app, &screen) else { return false };
     let (p, s) = (m.position(), m.size());
-    let thick = (bar_h * m.scale_factor()).round() as i32;
+    let bar = (bar_h * m.scale_factor()).round() as i32;
+    // Hiding by itself, the bar keeps no band: the windows use the whole screen
+    // and the bar comes over them. Still registered, for the full-screen notice.
+    let thick = if auto_hide { 0 } else { bar };
     let mut abd = data(raw, edge);
     abd.rc = RECT { left: p.x, top: p.y, right: p.x + s.width as i32, bottom: p.y + s.height as i32 };
     // The shell moves the proposal off the taskbar and other bars; the
@@ -219,9 +243,11 @@ fn reserve(raw: isize, edge: u32) -> bool {
     let mut reg = REGISTERED.lock().unwrap();
     match reg.as_mut() {
         Some(r) if r.hwnd == raw => {
-            let changed = r.rect != rc || r.edge != edge;
+            let changed = r.rect != rc || r.edge != edge || r.thick != bar || r.auto_hide != auto_hide;
             r.edge = edge;
             r.rect = rc;
+            r.thick = bar;
+            r.auto_hide = auto_hide;
             changed
         }
         _ => false,

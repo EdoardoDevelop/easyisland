@@ -115,8 +115,13 @@ pub fn popup_bar_menu(app: &AppHandle, entries: &[(String, String)]) {
     let Some(win) = app.get_window(crate::CHARACTER_LABEL) else { return };
     let built = Menu::new(app).and_then(|menu| {
         for (key, label) in entries {
+            // An empty key is a separator; a key starting with "-" a line that only tells (a package to update).
+            if key.is_empty() {
+                menu.append(&tauri::menu::PredefinedMenuItem::separator(app)?)?;
+                continue;
+            }
             // "&" underlines the next letter in a Windows menu.
-            menu.append(&MenuItem::with_id(app, format!("bar:{key}"), label.replace('&', "&&"), true, None::<&str>)?)?;
+            menu.append(&MenuItem::with_id(app, format!("bar:{key}"), label.replace('&', "&&"), !key.starts_with('-'), None::<&str>)?)?;
         }
         Ok(menu)
     });

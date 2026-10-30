@@ -57,7 +57,7 @@ export function actionForApp(a: QuickAction, exe: string): boolean {
 }
 
 /** The bar of the app in use: only the user's actions for it, in their order. */
-function appBarItem(actions: StripActions): StripItem | null {
+export function appBarItem(actions: StripActions): StripItem | null {
   const s = State.settings;
   if (s.appBar === false) return null;
   const exe = State.foreground?.exe ?? "";
@@ -153,8 +153,10 @@ export function stripItem(actions: StripActions): StripItem | null {
       sub: t("Clic per rispondere"),
     };
   }
-  // The program in use comes before an agent's work line.
-  return appBarItem(actions) ?? workItem();
+  // The program in use comes before an agent's work line; with its own element
+  // in the fixed bar, it stays there and not in the strip.
+  const ownElement = !!State.settings.fixedBar && (State.settings.fixedBarItems ?? []).some((x) => x.id === "sys:appbar");
+  return (ownElement ? null : appBarItem(actions)) ?? workItem();
 }
 
 export interface Strip {

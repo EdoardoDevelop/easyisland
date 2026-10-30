@@ -146,6 +146,34 @@ export interface BarOpts {
   /** Clock: an IANA time zone ("" = the PC's) and whether it shows seconds. */
   tz?: string;
   seconds?: boolean;
+  /** CPU, memory, GPU, network: a small graph of the last minute beside the value. */
+  graph?: boolean;
+  /** Disk: its letter ("" = C). */
+  drive?: string;
+  /** Window title: how many letters at most; VS Code: how many folders in its menu. */
+  max?: number;
+  /** Music: the previous / play / next buttons; false hides them. */
+  buttons?: boolean;
+}
+
+/**
+ * «Aspetto della barra» (Impostazioni → Barra fissa), every choice optional:
+ * one band or an island per area, background opacity, Windows' blur behind it
+ * (band only), room from the sides (a floating bar), text size, room between
+ * elements, and hiding by itself until the mouse comes (appbar.rs).
+ */
+export interface FixedBarLook {
+  style?: "band" | "islands";
+  /** Background opacity, 10–100 %. */
+  opacity?: number;
+  blur?: boolean;
+  /** Room from the left and right edges, px. */
+  margin?: number;
+  /** Text size, 80–150 %. */
+  text?: number;
+  /** Room between elements, px. */
+  gap?: number;
+  autoHide?: boolean;
 }
 
 /** A subject of «Notizie» the user follows (Impostazioni → Notizie, src-tauri/src/news.rs). */
@@ -212,6 +240,20 @@ export interface BarSys {
   battery?: { percent: number; plugged: boolean; charging: boolean; minutes?: number | null; saver?: boolean } | null;
   /** `name` and `link` (bit/s) are the busiest adapter's; `ip` the PC's address. */
   net?: { down: number; up: number; wifi: boolean; name?: string; link?: number; ip?: string } | null;
+  /** Busy, 0–100. */
+  cpu?: number | null;
+  /** Memory in use: percent and bytes. */
+  ram?: { percent: number; used: number; total: number } | null;
+  /** The fixed disks by letter: bytes free and in all. */
+  disks?: Record<string, { free: number; total: number }> | null;
+  gpu?: number | null;
+  /** Keyboard language of the window in front: "IT", "Italiano (Italia)". */
+  lang?: { code: string; name: string } | null;
+  recycle?: { count: number; bytes: number } | null;
+  /** winget's upgrades; `checking` before the first answer. */
+  updates?: { count?: number; names?: string[]; at?: number; checking?: boolean } | null;
+  /** VS Code's recent folders, newest first. */
+  vscode?: { name: string; path: string }[] | null;
 }
 
 /** «Barra fissa» on: its edge (src-tauri/src/appbar.rs); null when off. */
@@ -543,6 +585,8 @@ export interface Settings {
   fixedBarBackground?: string;
   /** The fixed bar's height, px; 0 = automatic (barThickness). */
   fixedBarHeight?: number;
+  /** «Aspetto della barra». */
+  fixedBarLook?: FixedBarLook;
   /** «Notizie» (Impostazioni → Notizie). */
   news?: NewsSettings | null;
   /** Width of the open island, px (dragged with its corner, or Impostazioni → Posizione). */
