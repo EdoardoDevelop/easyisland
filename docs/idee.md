@@ -113,6 +113,25 @@ Spunto da una barra per Windows open source con decine di widget configurabili. 
 - **Esclusi** (Edoardo, 30 ottobre 2026): barra su più schermi, CSS personale, systray, barra delle applicazioni sostitutiva, desktop virtuali, gestori di finestre a riquadri, visualizzatore audio (anima sempre), sfondi del desktop, Pomodoro e notifiche di sistema (già esclusi).
 - **Ordine proposto:** 1) catalogo, opzioni comuni e `opts`; 2) orologio, volume e microfono, luminosità, batteria, rete, menu di spegnimento; 3) gli altri elementi; 4) aspetto della barra.
 
+## Notizie dal web sugli argomenti della memoria (chiesta da Edoardo il 30 ottobre 2026)
+EasyIsland ricava dalla memoria interna gli argomenti che interessano all'utente e propone notizie dal web su quelli. È personalizzabile: si possono escludere o aggiungere argomenti.
+- **Argomenti dalla memoria:** le fonti sono le pagine collegate (`brain.rs`: titolo, `alias:`, `riassunto:`, quanto sono citate e aggiornate di recente), le note di `MEMORIA.md` e del diario, i progetti degli agenti. Ne esce un elenco proposto (es. «UniFi», «Tauri», «sicurezza Windows»), con le parole per la ricerca prese dagli alias.
+- **Personalizzazione** (Impostazioni → Notizie o nella card):
+  - argomenti proposti con «Aggiungi» / «Escludi», più quelli scritti a mano dall'utente;
+  - un argomento escluso non torna più tra le proposte, anche se la memoria continua a parlarne;
+  - per ogni argomento le parole da cercare e quelle da evitare;
+  - fonti e domini da preferire o da escludere, lingua, quante notizie al giorno, a che ora.
+  - Si cambia anche dalla chat («non mostrarmi più notizie su X»), con Consenti / Nega come per le altre impostazioni.
+- **Impara dall'uso:** su ogni notizia «Non mi interessa» (abbassa l'argomento, e dopo qualche volta propone di escluderlo) e «Di più». Gli argomenti proposti si aggiornano quando la memoria cambia (dopo il riordino serale), ma un argomento nuovo entra solo dopo un clic su «Aggiungi».
+- **Da dove arrivano**, nel rispetto della regola sulle chiamate di rete (solo servizi scelti dall'utente):
+  1. feed RSS/Atom scelti dall'utente e una ricerca di notizie per argomento via feed, attivata da lui. Il filtro sugli argomenti lo fa EasyIsland in locale: niente costo di modello;
+  2. facoltativo, un motore della chat con la ricerca web, come compito ricorrente, che sceglie e riassume. Costa un turno con strumenti ogni volta, quindi con un tetto al giorno.
+  - Proposta: 1 di serie, 2 solo se acceso.
+- **Riservatezza:** gli argomenti diventano ricerche inviate a un servizio esterno. Quelli che vengono da pagine di persone e clienti non si propongono mai da soli. Prima di cercare un argomento ricavato dalla memoria, l'utente lo vede e lo approva.
+- **Dove si vedono:** un riquadro «Notizie» nella Panoramica e una card con titolo, fonte, una riga di riassunto e «Apri»; nel riepilogo del mattino; su Telegram con `/notizie`; come elemento della barra fissa (sezione qui sopra). «Salva nella memoria» manda la pagina in `da-leggere`.
+- **Vincoli:** il controllo gira in Rust a orari, mai in un ciclo continuo; notizie già viste non si ripetono (stessa URL o titolo molto simile); niente telemetria; i feed sono letti e tenuti solo sul PC.
+- **Ordine proposto:** 1) argomenti dalla memoria con Aggiungi / Escludi; 2) feed e filtro locale, card e riquadro; 3) «Non mi interessa» / «Di più»; 4) riassunti del motore, Telegram e barra.
+
 ## Estensione per Chrome ed Edge (ragionata con Edoardo il 29 ottobre 2026)
 Un'estensione che parla solo con EasyIsland sul PC (native messaging di Chrome: un canale locale, niente rete). Rivede la decisione dell'11 ottobre «niente estensione del browser» (`decisioni.md`, menu sul testo selezionato).
 - **Prima di tutto (consigliati come inizio):**
