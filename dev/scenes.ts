@@ -975,6 +975,27 @@ export async function runScene(island: Island, scene: string) {
       await Daily.open(island, new URLSearchParams(location.search).has("evening") ? "evening" : "morning");
       await wait(1500);
       break;
+    case "barcard": {
+      // A card of the fixed bar's system elements (?card=clock|volume|mic|brightness|battery|net),
+      // on made-up values as barsys.rs would send them.
+      State.settings.fixedBarItems = [
+        { id: "sys:clock", uid: "a", area: "end", show: "both" },
+        { id: "sys:clock", uid: "b", area: "end", show: "value", opts: { tz: "America/New_York" } },
+      ];
+      State.barSys = {
+        volume: { level: 0.42, muted: false, device: "Altoparlanti (Realtek High Definition Audio)" },
+        mic: { level: 0.8, muted: true, device: "Microfono (Logitech BRIO)" },
+        brightness: 70,
+        battery: { percent: 64, plugged: false, charging: false, minutes: 185, saver: false },
+        net: { down: 1_234_567, up: 45_000, wifi: true, name: "Wi-Fi", link: 866_700_000, ip: "192.168.1.23" },
+      };
+      State.barCard = new URLSearchParams(location.search).get("card") ?? "clock";
+      await wait(300);
+      island.setView("barcard");
+      island.setPinned(true);
+      await wait(1200);
+      break;
+    }
     case "recap":
       // Last week's recap, on the made-up week of src/island/recap.ts.
       await wait(300);

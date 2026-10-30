@@ -88,7 +88,7 @@ Chiesta da Edoardo il 27 ottobre 2026, fatta il 29 nel branch `claude/barra-fiss
   - **Blocco da evitare:** in `apply` lo stato si copia fuori prima di `run_on_main_thread`, che sul thread principale esegue subito. Prima l'app si bloccava cambiando lato.
 - **Impostazioni** (del PC, non del profilo):
   - `fixedBar` (`""`, `top`, `bottom`), `fixedBarSlot` (`start`, `center`, `end`);
-  - `fixedBarItems` (`{ id: "task:…" | "action:…" | "strip", area, show }`);
+  - `fixedBarItems` (`{ id: "task:…" | "action:…" | "strip" | "sys:…", uid, area, show, opts }`); `uid` distingue due copie dello stesso elemento di sistema, `opts` (`BarOpts` in `state.ts`) sono le «Opzioni»;
   - `fixedBarBackground` (`""` come l'isola, `transparent`, `#rrggbb`).
   - Con la barra accesa le righe che non valgono si nascondono (`body.fixed-bar`, `.free-row` / `.bar-row`). «Schermo» elenca ogni schermo per nome (`monitor_list`), perché il personaggio non si trascina.
 - **L'isola** è la sua finestra di sempre:
@@ -99,12 +99,20 @@ Chiesta da Edoardo il 27 ottobre 2026, fatta il 29 nel branch `claude/barra-fiss
 - **Gli elementi** li prepara l'isola, che tiene i dati (`src/island/bar.ts`), e arrivano alla barra nel `look` del canale (`bar.items`, `BarPiece`, HTML costruito con il DOM: icone e testo con `textContent`):
   - integrazioni e widget con una scheda (`INTEGRATION_AGENTS`; Telegram no): icona come nel menu (`taskIcon`), valore = `widgetStatus.summary` o l'ultimo passo, giallo o rosso per avviso ed errore;
   - azioni rapide (`renderActionIcon`);
-  - la **striscia** (`stripItem` di `strip.ts`: permesso, chiamata, registrazione, riunione, richiesta da aprire, app in uso, agente al lavoro), di serie accanto al personaggio.
+  - la **striscia** (`stripItem` di `strip.ts`: permesso, chiamata, registrazione, riunione, richiesta da aprire, app in uso, agente al lavoro), di serie accanto al personaggio;
+  - i **Widget della barra** di sistema (`sys:clock`, `sys:volume`, `sys:mic`, `sys:brightness`, `sys:battery`, `sys:net`, `sys:power`; nome, icona, segnaposto e pulsanti predefiniti in `src/core/barkinds.ts`, che la pagina delle Impostazioni importa senza il codice dell'isola). Si possono aggiungere più volte (due orologi con fusi diversi).
+- **Widget della barra** (chiesti da Edoardo il 30 ottobre 2026, `docs/idee.md` → «Elementi da aggiungere alla barra fissa», passi 1 e 2):
+  - **Catalogo** in Impostazioni → Aspetto → Barra fissa (`barItemsEditor`): «+ Aggiungi» per gruppi (Sistema, Lavoro, Agenti, Le mie azioni); «Opzioni» per elemento.
+  - **Opzioni comuni:** formato con segnaposto (`{icon}`, `{value}` e quelli dell'elemento, come `{time}` o `{down}`), secondo testo che compare con l'azione «alt», suggerimento, cosa fanno clic, clic centrale e clic destro (`BarAct`: niente, card o pannello, secondo testo, menu, muto, una delle azioni rapide), rotella sì / no. Il formato si compone solo con nodi di testo (`compose`): niente HTML da ciò che scrive l'utente.
+  - **Valori di sistema** da `src-tauri/src/barsys.rs`: un thread con gli oggetti COM, fermo sul suo canale finché nessun elemento di sistema è nella barra (`bar_sys_watch` gli dice quali), poi ogni 2 s volume e microfono (Core Audio, dispositivo predefinito), velocità della rete (`GetIfTable2`, solo schede fisiche accese), ogni 30 s la batteria, ogni 15 s la luminosità (DDC/CI sugli schermi esterni che rispondono, altrimenti WMI per il portatile). Manda `bar-sys` all'isola solo quando qualcosa cambia. L'orologio è dell'isola: un timer al cambio del minuto (o del secondo) solo se c'è un orologio (`barClockDelay`).
+  - **Comandi** (`bar_sys_do`): volume e luminosità dalla rotella (sommati per 60 / 250 ms in `barWheel`) o a un valore dai cursori delle card (`volume-set`, `mic-set`, `brightness-set`), muto, le pagine e i pannelli di Windows (`panel:…`), il menu di spegnimento. Sospendi, riavvia e spegni chiedono sempre conferma con il riquadro di Windows; blocca no.
+  - **Menu** (spegnimento, audio): menu di Windows come «…» (`bar_overflow_menu`), le righe tornano come `bar:sys:power:…`.
+  - **Card nell'isola** (`src/views/barcard.ts`, vista `barcard`, `State.barCard` dice quale; chieste da Edoardo il 30 ottobre 2026 al posto dei pannelli di Windows): l'azione «card» apre l'isola contro la barra sulla card dell'elemento, un secondo clic la chiude. Orologio: il mese con oggi evidenziato (‹ ›), gli altri fusi della barra, i prossimi appuntamenti dei widget calendario. Volume e microfono: il dispositivo predefinito, muto e un cursore. Luminosità: un cursore. Batteria: carica, stato, autonomia stimata da Windows, risparmio energia. Rete: velocità, nome della scheda più usata, velocità del collegamento, IP. Ogni card ha un pulsante per la pagina di Windows corrispondente. Un cursore tenuto premuto non viene ridisegnato. Scena di prova: `?scene=barcard&card=…`.
 - **La pagina della barra** (`src/character-window/main.ts`, modalità `bar`):
   - dispone gli elementi nelle tre aree (`layAreas`; nell'area del personaggio subito dopo di lui);
   - sposta in «…» ciò che non ci sta (`fitAreas`: tolto prima lontano dal personaggio, la striscia per ultima);
   - lo sfondo e il colore del testo vengono da `barPaint` in `main.ts`: un colore chiaro vuole il testo scuro; trasparente, il testo ha un'ombra.
-- **Clic:** tornano all'isola (`{ kind: "bar", key }` → `barClick`).
+- **Clic:** tornano all'isola (`{ kind: "bar", key, button }` → `barClick`; `button` è `left`, `middle`, `right`, `up` o `down` per la rotella). Cosa fa un pulsante lo decide `barAct`: la scelta dell'utente, altrimenti quella dell'elemento.
   - Un'integrazione apre la sua card, o la chiude se è già quella aperta.
   - Un'azione si esegue.
   - Un pulsante della striscia (`strip:btn:<i>`) fa ciò che fa nella striscia; il resto della striscia apre l'isola.

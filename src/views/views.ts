@@ -15,6 +15,7 @@ import { buildDiff } from "./diff";
 import { buildRecap } from "./recap";
 import { buildMoment, type MomentActions } from "./moment";
 import { buildDaily } from "./daily";
+import { buildBarCard } from "./barcard";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, type ActionHandlers } from "./actions";
 import { buildRewrite, type RewriteHandlers } from "./rewrite";
@@ -1077,6 +1078,7 @@ export function buildViews(
   map.set("recap", buildRecap(actions));
   map.set("moment", buildMoment(actions));
   map.set("daily", buildDaily(actions));
+  map.set("barcard", buildBarCard(actions));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder(t("L'invio via email non è disponibile in questa versione."), ""));
   map.set("searching", buildPlaceholder(t("Claude sta cercando…"), ""));

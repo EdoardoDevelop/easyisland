@@ -12,6 +12,7 @@ mod automations;
 mod flows;
 mod apps;
 mod appbar;
+mod barsys;
 mod calendar;
 mod carry;
 mod claude;
@@ -3625,6 +3626,8 @@ pub fn run() {
             character_spot,
             character_clearance,
             bar_overflow_menu,
+            barsys::bar_sys_watch,
+            barsys::bar_sys_do,
             monitor_list,
         ])
         .setup(move |app| {
@@ -3671,6 +3674,7 @@ pub fn run() {
             gate.collapsed.store(false, Ordering::Relaxed);
             gate.set_active(true);
             island::spawn_cursor_poll(handle.clone(), gate.clone());
+            barsys::start(handle.clone());
             island::spawn_fullscreen_watch(handle.clone(), gate.clone());
             island::spawn_drag_raise(handle.clone(), gate.clone());
             // The tray is temporary: every start begins with only the pinned files.

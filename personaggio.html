@@ -61,6 +61,9 @@
       .bar-icon { display: grid; place-items: center; flex: none; }
       .bar-icon svg, .bar-icon img { width: calc(15px * var(--s, 1)); height: calc(15px * var(--s, 1)); }
       .bar-text { overflow: hidden; text-overflow: ellipsis; }
+      /* System elements: muted volume or microphone, low battery. */
+      .bar-item.dim { opacity: 0.55; }
+      .bar-sys .bar-text { font-variant-numeric: tabular-nums; }
       .bar-btn.warn .bar-text { color: #F5A524; }
       .bar-btn.error .bar-text { color: #F4505E; }
       /* Transparent bar: over the wallpaper the text needs a shadow to be read. */

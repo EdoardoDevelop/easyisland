@@ -6,7 +6,8 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
-import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef } from "../core/state";
+import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type BarAct, type BarItem } from "../core/state";
+import { BAR_KINDS, barKind } from "../core/barkinds";
 
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
 import { ISLAND_MIN_W, PANEL_H, PANEL_W, islandMax } from "../core/layout";
@@ -2447,7 +2448,7 @@ function appearanceSections(): HTMLElement[] {
         )),
       ),
       h("section", { class: "bar-row-block" },
-        h("h2", {}, h("span", { text: t("Elementi nella barra") }), profileChip()),
+        h("h2", {}, h("span", { text: t("Widget della barra") }), profileChip()),
         barItemsEditor(commit),
       ),
     ],
@@ -2694,24 +2695,120 @@ function barBackground(commit: () => void): HTMLElement {
 }
 
 /**
- * «Elementi nella barra»: integrations, widgets and quick actions in the fixed
- * bar's areas (src/island/bar.ts), each with its area and how it shows, in
- * order. Added from one list, moved with ↑ ↓, removed with ✕.
+ * «Widget della barra»: what the fixed bar shows (src/island/bar.ts), each in
+ * its area and with how it shows, in order. «+ Aggiungi» opens the catalog by
+ * group; the system elements may be added more than once (two clocks with
+ * different zones). «Opzioni» opens an element's format, second text, tooltip,
+ * buttons and wheel. Moved with ↑ ↓, removed with ✕.
  */
 function barItemsEditor(commit: () => void): HTMLElement {
   const list = h("div", { class: "bar-items" });
-  const choices = (): [string, string][] => [
-    ["strip", t("Striscia: permessi, chiamate, agente al lavoro, app in uso")],
+  let adding = false;
+  /** Opened «Opzioni», by uid (or id for elements from before uids). */
+  const open = new Set<string>();
+  const integrations = (): [string, string][] => [
     // Only integrations with a tab in the island: the bar shows those (Telegram has none, and stays out).
     ...settings.activeIntegrations
       .filter((id) => INTEGRATION_AGENTS.some((x) => x.id === id))
       .map((id) => [`task:${id}`, INTEGRATIONS.find((i) => i.id === id)?.name ?? id] as [string, string]),
     ...(settings.widgets ?? []).map((w) => [`task:widget:${w.id}`, `${t("Widget")} · ${w.name}`] as [string, string]),
-    ...(settings.actions ?? []).map((a) => [`action:${a.id}`, `${t("Azione")} · ${a.icon ? `${a.icon} ` : ""}${a.name}`] as [string, string]),
   ];
+  const actions = (): [string, string][] =>
+    (settings.actions ?? []).map((a) => [`action:${a.id}`, `${a.icon && !a.icon.startsWith("i:") ? `${a.icon} ` : ""}${a.name}`] as [string, string]);
+  const nameOf = (id: string): string => {
+    const k = barKind(id);
+    if (k) return k.name;
+    if (id === "strip") return t("Striscia: permessi, chiamate, agente al lavoro, app in uso");
+    const found = [...integrations(), ...actions()].find(([x]) => x === id);
+    return found ? found[1] : id;
+  };
+  const uid = () => Math.random().toString(36).slice(2, 8);
+
+  /** The catalog: «Sistema» always, the others only with what is not in the bar yet. */
+  const catalog = (items: BarItem[]): HTMLElement => {
+    const used = new Set(items.map((x) => x.id));
+    const add = (id: string) => {
+      settings.fixedBarItems = [...items, { id, uid: uid(), area: settings.fixedBarSlot ?? "center", show: "both" }];
+      adding = false;
+      commit();
+      render();
+    };
+    const group = (title: string, entries: [string, string][]) =>
+      entries.length
+        ? h("div", { class: "bar-cat-group" },
+          h("div", { class: "bar-cat-title", text: title }),
+          h("div", { class: "bar-cat-list" }, ...entries.map(([id, label]) => {
+            const kind = barKind(id);
+            return h("button", { class: "bar-cat-item", onclick: () => add(id) },
+              ...(kind ? [renderActionIcon(kind.icon, 15)] : []), h("span", { text: label }));
+          })))
+        : null;
+    const groups = [
+      group(t("Sistema"), Object.keys(BAR_KINDS).map((k) => [`sys:${k}`, BAR_KINDS[k].name] as [string, string])),
+      group(t("Lavoro"), integrations().filter(([id]) => !used.has(id))),
+      group(t("Agenti"), used.has("strip") ? [] : [["strip", nameOf("strip")]]),
+      group(t("Le mie azioni"), actions().filter(([id]) => !used.has(id))),
+    ].filter((x): x is HTMLDivElement => !!x);
+    return h("div", { class: "bar-catalog" }, ...groups);
+  };
+
+  /** An element's «Opzioni». */
+  const options = (it: BarItem, save: () => void): HTMLElement => {
+    const kind = barKind(it.id);
+    const o = (it.opts ??= {});
+    const tokens = ["{icon}", "{value}", ...(kind ? kind.tokens.map(([k]) => `{${k}}`) : it.id === "strip" ? [] : ["{name}"])];
+    const text = (value: string | undefined, placeholder: string, set: (v: string) => void) => {
+      const el = h("input", { type: "text", value: value ?? "", placeholder, spellcheck: "false" }) as HTMLInputElement;
+      el.addEventListener("change", () => { set(el.value.trim()); save(); });
+      return el;
+    };
+    const what = (b: "left" | "middle" | "right"): [string, string][] => {
+      const own = kind ? kind[b] : b === "left" ? (it.id.startsWith("action:") ? "action" : "card") : "none";
+      const labels: Record<string, string> = {
+        none: t("Niente"), card: t("Apri la card"), alt: t("Mostra il secondo testo"),
+        menu: t("Menu"), mute: t("Muto sì / no"), action: t("Esegui l'azione"),
+      };
+      const label = (a: string) => labels[a] ?? a;
+      const out: [string, string][] = [["", `${t("Predefinito")} (${label(own)})`], ["none", label("none")]];
+      if (!it.id.startsWith("action:") && it.id !== "sys:power") out.push(["card", label("card")]);
+      out.push(["alt", label("alt")]);
+      if (it.id === "sys:power" || it.id === "sys:volume" || it.id === "sys:mic") out.push(["menu", label("menu")]);
+      if (it.id === "sys:volume" || it.id === "sys:mic") out.push(["mute", label("mute")]);
+      for (const [id, name] of actions()) out.push([id, `${t("Azione")} · ${name}`]);
+      return out;
+    };
+    const buttons: Record<"left" | "middle" | "right", string> = { left: t("Clic"), middle: t("Clic centrale"), right: t("Clic destro") };
+    const rows: HTMLElement[] = [
+      h("div", { class: "row" }, h("label", { text: t("Formato") }),
+        text(o.format, formatHint(it), (v) => { o.format = v || undefined; })),
+      h("div", { class: "hint bar-tokens", text: `${t("Segnaposto")}: ${tokens.join(" ")}` }),
+      h("div", { class: "row" }, h("label", { text: t("Secondo testo (al clic)") }),
+        text(o.alt, kind?.alt ?? "", (v) => { o.alt = v || undefined; })),
+      h("div", { class: "row" }, h("label", { text: t("Suggerimento") }),
+        text(o.tip, t("Quello dell'elemento"), (v) => { o.tip = v || undefined; })),
+      ...(["left", "middle", "right"] as const).map((b) =>
+        h("div", { class: "row" }, h("label", { text: buttons[b] }),
+          select(what(b), (o[b] ?? "") as string, (v) => { o[b] = (v || undefined) as BarAct | undefined; save(); }))),
+    ];
+    if (kind?.wheel) {
+      rows.push(h("div", { class: "row" }, h("label", { text: it.id === "sys:volume" ? t("Rotella: volume") : t("Rotella: luminosità") }),
+        toggle(o.wheel !== false, (v) => { o.wheel = v ? undefined : false; save(); })));
+    }
+    if (it.id === "sys:clock") {
+      const zones = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : ["Europe/Rome", "Europe/London", "America/New_York", "Asia/Tokyo", "UTC"];
+      rows.push(
+        h("div", { class: "row" }, h("label", { text: t("Fuso orario") }),
+          select([["", t("Quello del PC")], ...zones.map((z) => [z, z.replace(/_/g, " ")] as [string, string])], o.tz ?? "",
+            (v) => { o.tz = v || undefined; save(); })),
+        h("div", { class: "row" }, h("label", { text: t("Con i secondi") }),
+          toggle(!!o.seconds, (v) => { o.seconds = v || undefined; save(); })),
+      );
+    }
+    return h("div", { class: "bar-opts" }, ...rows);
+  };
+
   const render = () => {
     const items = settings.fixedBarItems ?? [];
-    const names = new Map(choices());
     list.replaceChildren();
     items.forEach((it, i) => {
       const save = () => { settings.fixedBarItems = [...items]; commit(); render(); };
@@ -2721,34 +2818,41 @@ function barItemsEditor(commit: () => void): HTMLElement {
         [items[i], items[j]] = [items[j], items[i]];
         save();
       };
+      const id = it.uid ?? it.id;
+      const kind = barKind(it.id);
       list.append(h("div", { class: "row bar-item-row" },
-        h("label", { text: names.get(it.id) ?? it.id }),
+        h("label", {}, ...(kind ? [renderActionIcon(kind.icon, 14)] : []), h("span", { text: nameOf(it.id) })),
         select([["start", t("All'inizio")], ["center", t("Al centro")], ["end", t("Alla fine")]], it.area,
           (v) => { it.area = v; save(); }),
         select([["both", t("Icona e valore")], ["icon", t("Solo icona")], ["value", t("Solo valore")]], it.show ?? "both",
           (v) => { it.show = v; save(); }),
+        h("button", { text: t("Opzioni"), class: open.has(id) ? "on" : "", onclick: () => {
+          if (open.has(id)) open.delete(id);
+          else open.add(id);
+          render();
+        } }),
         h("button", { text: "↑", title: t("Su"), onclick: () => move(-1) }),
         h("button", { text: "↓", title: t("Giù"), onclick: () => move(1) }),
         h("button", { class: "danger", text: "✕", title: t("Togli"), onclick: () => { items.splice(i, 1); save(); } }),
       ));
+      if (open.has(id)) list.append(options(it, save));
     });
-    const used = new Set(items.map((x) => x.id));
-    const free = choices().filter(([id]) => !used.has(id));
-    if (free.length) {
-      const add = select([["", t("Aggiungi alla barra…")], ...free], "", (v) => {
-        if (!v) return;
-        settings.fixedBarItems = [...items, { id: v, area: settings.fixedBarSlot ?? "center", show: "both" }];
-        commit();
-        render();
-      });
-      list.append(h("div", { class: "row" }, h("label", { text: items.length ? "" : t("Elementi nella barra") }), add));
-    }
+    list.append(h("div", { class: "row" },
+      h("label", { text: items.length ? "" : t("Widget della barra") }),
+      h("button", { text: adding ? t("Chiudi") : t("+ Aggiungi"), onclick: () => { adding = !adding; render(); } })));
+    if (adding) list.append(catalog(items));
   };
   render();
   return h("div", { class: "bar-row-block" },
-    h("div", { class: "hint", text: t("Integrazioni, widget e azioni rapide nella barra fissa: ognuno nella sua area, con l'icona, il valore o entrambi. Un clic apre la sua card o esegue l'azione.") }),
+    h("div", { class: "hint", text: t("Widget della barra: orologio, volume, batteria, rete e gli altri elementi del sistema, le integrazioni, i widget e le azioni rapide, ognuno nella sua area. In «Opzioni» scegli cosa mostra e cosa fanno clic, clic destro e rotella.") }),
     list,
   );
+}
+
+/** The format an element uses when the user typed none (src/island/bar.ts → formatOf). */
+function formatHint(it: BarItem): string {
+  const show = it.show ?? "both";
+  return show === "icon" ? "{icon}" : show === "value" ? "{value}" : "{icon} {value}";
 }
 
 /** «Barra fissa» on: its own rows show, those that no longer apply hide (settings.css). */
