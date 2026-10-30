@@ -1326,6 +1326,8 @@ class AppState {
   widgetStatus: Record<string, WidgetStatus> = {};
   /** Volume, battery, network… for the fixed bar's system elements (barsys.rs). */
   barSys: BarSys = {};
+  /** The window in front for the bar's title element (fgwin.rs): the program's own name and icon, the title without the name. */
+  barWindow: { exe?: string; name?: string; title?: string; icon?: string } | null = null;
   /** «Notizie»: the news found for the followed subjects, newest first (news.rs). */
   news: NewsItem[] = [];
   /** What the user said of each subject's news (news.rs → taste); at −3 the view proposes to stop following it. */

@@ -49,6 +49,7 @@ unsafe extern "system" fn on_foreground(
     let exe = path.rsplit('\\').next().unwrap_or(&path).to_lowercase();
     if exe != "easyisland.exe" {
         LAST.store(hwnd.0 as isize, Ordering::Relaxed);
+        crate::fgwin::follow(hwnd);
         crate::habits::note_app(&exe, &path);
         crate::automations::on_foreground(&exe);
         let mut sent = SENT.lock().unwrap();
@@ -62,10 +63,16 @@ unsafe extern "system" fn on_foreground(
     }
 }
 
+/// The app, for the events sent from the hook thread (fgwin.rs).
+pub(crate) fn app() -> Option<&'static tauri::AppHandle> {
+    APP.get()
+}
+
 /// Starts following the foreground window.
 pub fn spawn(app: tauri::AppHandle) {
     let _ = APP.set(app);
     std::thread::spawn(|| unsafe {
+        crate::fgwin::THREAD.store(windows::Win32::System::Threading::GetCurrentThreadId(), Ordering::SeqCst);
         let now = GetForegroundWindow();
         if !now.0.is_null() && !is_ours(now) {
             LAST.store(now.0 as isize, Ordering::Relaxed);
@@ -75,6 +82,17 @@ pub fn spawn(app: tauri::AppHandle) {
         );
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).as_bool() {
+            // The fixed bar's window title came or went (fgwin.rs): its hooks live on this thread.
+            if msg.hwnd.0.is_null() && msg.message == crate::fgwin::WATCH_MSG {
+                if msg.wParam.0 != 0 {
+                    if let Some(h) = target() {
+                        crate::fgwin::follow(h);
+                    }
+                } else {
+                    crate::fgwin::stop();
+                }
+                continue;
+            }
             DispatchMessageW(&msg);
         }
     });

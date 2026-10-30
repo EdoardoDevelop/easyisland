@@ -313,6 +313,10 @@ function linkCharacterWindow(island: Island) {
     sentKey = key;
     send(m);
   };
+  void onEvent<{ exe?: string; name?: string; title?: string; icon?: string }>("bar-window", (v) => {
+    State.barWindow = v ?? null;
+    push();
+  });
   void onEvent<BarSys>("bar-sys", (v) => {
     State.barSys = v ?? {};
     recordBarSys(State.barSys);

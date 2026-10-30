@@ -90,6 +90,7 @@ pub fn start(app: AppHandle) {
                         continue;
                     }
                     watch = w;
+                    crate::fgwin::watch(watch.contains("title"));
                     // Read at once and send everything again: the island may have just started.
                     last = Value::Null;
                     battery_at = None;

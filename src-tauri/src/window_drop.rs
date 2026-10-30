@@ -250,7 +250,7 @@ fn app_name(hwnd: HWND) -> String {
     file.strip_suffix(".exe").or_else(|| file.strip_suffix(".EXE")).unwrap_or(file).to_string()
 }
 
-fn file_description(path: &str) -> Option<String> {
+pub(crate) fn file_description(path: &str) -> Option<String> {
     unsafe {
         let file = HSTRING::from(path);
         let size = GetFileVersionInfoSizeW(&file, None);

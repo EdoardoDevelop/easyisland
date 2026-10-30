@@ -269,12 +269,14 @@ function sysValues(kind: string, it: BarItem): { v: Record<string, string>; icon
       return { v: { count: n ? String(n) : "", value: v }, icon: k.icon, tip, dim: !n };
     }
     case "title": {
-      const f = State.foreground;
+      // The program's own name and icon (fgwin.rs), the title without that name at its end.
+      const w = State.barWindow;
       const max = Math.max(10, Math.min(200, it.opts?.max ?? 60));
-      const full = f?.title ?? "";
+      const full = w?.title ?? "";
       const title = full.length > max ? `${full.slice(0, max - 1)}…` : full;
-      const app = f?.exe ? appName(f.exe) : "";
-      return { v: { title, app, value: title || app }, icon: k.icon, tip: [app, full].filter(Boolean).join(" — ") };
+      const app = w?.name ?? "";
+      const icon = w?.icon?.startsWith("data:image/png;base64,") ? w.icon : k.icon;
+      return { v: { title, app, value: title || app }, icon, tip: [app, full].filter(Boolean).join(" — ") };
     }
     case "weather": {
       const w = State.weatherNow;
@@ -296,7 +298,7 @@ function sysValues(kind: string, it: BarItem): { v: Record<string, string>; icon
     }
     case "appbar": {
       const exe = State.foreground?.exe ?? "";
-      const app = exe ? appName(exe) : "";
+      const app = exe && State.barWindow?.exe === exe && State.barWindow.name ? State.barWindow.name : exe ? appName(exe) : "";
       return { v: { app, value: app }, icon: k.icon, tip: app ? t("Azioni per {app}", { app }) : t("Barra dell'app in uso") };
     }
     case "news": {
@@ -397,7 +399,11 @@ export function barPieces(strip: StripItem | null, appBar: StripItem | null = nu
       if (kind === "appbar" && !appBar?.buttons.length) continue;
       const sv = sysValues(kind, it);
       const el = h("span", { class: `bar-item bar-sys${sv.dim ? " dim" : ""}` });
-      compose(el, formatOf(it, key), () => renderActionIcon(sv.icon, 15), sv.v);
+      // A program's own icon (the window title) is a picture; the others are drawn.
+      const icon = () => sv.icon.startsWith("data:image/png")
+        ? h("img", { class: "bar-app-icon", src: sv.icon, alt: "" })
+        : renderActionIcon(sv.icon, 15);
+      compose(el, formatOf(it, key), icon, sv.v);
       if (it.opts?.graph && BAR_KINDS[kind].graph) {
         const g = graph(kind);
         if (g) el.append(g);
