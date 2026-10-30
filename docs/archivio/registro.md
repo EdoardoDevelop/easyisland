@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 30 ottobre 2026 — Barra fissa dopo un cambio di schermo (unita in `claude/sviluppo`)
+- Spegnendo e riaccendendo il monitor o cambiandolo la barra restava della risoluzione vecchia. Ora a ogni cambio di schermo (e al riavvio di Explorer) la barra si toglie e si registra di nuovo, 1,5 s dopo l'ultimo messaggio (`display_changed` in `appbar.rs`), con una pausa di 0,5 s tra toglierla e registrarla. Restava comunque staccata: la fascia era giusta, ma Windows spostava la finestra appena sotto; ora quando succede la rimette sulla fascia (`drifted`). Provata da Edoardo dal vivo.
+
 ### 29 ottobre 2026 — Versione 1.0.11: barra fissa, due finestre, Aspetto a schede
 - Contiene la barra fissa con altezza a scelta, il personaggio in una finestra sua (a isola aperta resta solo quello nel menu), la pagina Aspetto a schede con le miniature e «Aggancia ai bordi» corretto: tutto in `CHANGELOG.md`.
 

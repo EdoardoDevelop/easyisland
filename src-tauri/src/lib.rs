@@ -3630,6 +3630,9 @@ pub fn run() {
             barsys::bar_sys_watch,
             barsys::bar_sys_do,
             news::news_proposals,
+            news::news_items,
+            news::news_refresh,
+            news::news_save,
             monitor_list,
         ])
         .setup(move |app| {
@@ -3677,6 +3680,7 @@ pub fn run() {
             gate.set_active(true);
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             barsys::start(handle.clone());
+            news::start(handle.clone());
             island::spawn_fullscreen_watch(handle.clone(), gate.clone());
             island::spawn_drag_raise(handle.clone(), gate.clone());
             // The tray is temporary: every start begins with only the pinned files.

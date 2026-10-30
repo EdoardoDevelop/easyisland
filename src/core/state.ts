@@ -165,6 +165,19 @@ export interface NewsSettings {
   excluded: string[];
 }
 
+/** A news found on Google News for a followed subject (news.rs → NewsItem). */
+export interface NewsItem {
+  id: string;
+  title: string;
+  source: string;
+  link: string;
+  /** Published, unix seconds. */
+  at: number;
+  /** Found by EasyIsland, unix seconds. */
+  found: number;
+  topic: string;
+}
+
 /** A subject the memory proposes (news.rs → Topic). */
 export interface NewsProposal {
   name: string;
@@ -1245,6 +1258,8 @@ class AppState {
   widgetStatus: Record<string, WidgetStatus> = {};
   /** Volume, battery, network… for the fixed bar's system elements (barsys.rs). */
   barSys: BarSys = {};
+  /** «Notizie»: the news found for the followed subjects, newest first (news.rs). */
+  news: NewsItem[] = [];
   /** The system element whose card the island shows (src/views/barcard.ts). */
   barCard: string | null = null;
   noteMessage: string | null = null;

@@ -3752,5 +3752,13 @@
   "Esclusi": "Excluded",
   "La memoria non li propone più, anche se continua a parlarne.": "The memory no longer proposes them, even if it keeps talking about them.",
   "Notizie": "News",
-  "Notizie dal web sugli argomenti che ti interessano, ricavati dalla memoria o scelti da te.": "News from the web on the subjects you care about, taken from the memory or chosen by you."
+  "Notizie dal web sugli argomenti che ti interessano, ricavati dalla memoria o scelti da te.": "News from the web on the subjects you care about, taken from the memory or chosen by you.",
+  "{n} nuove": "{n} new",
+  "Niente di nuovo": "Nothing new",
+  "Ancora nessuna notizia: arrivano al prossimo controllo, o con «Aggiorna».": "No news yet: they come with the next check, or with «Refresh».",
+  "Scegli gli argomenti da seguire in Impostazioni → Notizie.": "Choose the subjects to follow in Settings → News.",
+  "Salvata": "Saved",
+  "Salva nella memoria (da leggere)": "Save to the memory (to read)",
+  "Connessione non disponibile": "Connection not available",
+  "Google News non risponde": "Google News does not answer"
 }

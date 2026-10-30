@@ -6002,3 +6002,26 @@ html[data-ui="windows"] .col-meta input, html[data-ui="windows"] .col-item { bor
 
 /* Fixed bar: the island fades as it shrinks on closing (island.ts → setMode). */
 #island.bar-away { opacity: 0; transition: opacity 0.3s ease; }
+
+/* «Notizie» (src/views/news.ts). */
+.news-filters { display: flex; flex-wrap: wrap; gap: 5px; }
+.news-filters:empty { display: none; }
+.news-filter {
+  padding: 3px 9px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05); color: var(--dim-2); cursor: pointer;
+  font: 500 calc(11px + var(--fs-up, 0px)) var(--font);
+}
+.news-filter.on { background: rgba(255, 255, 255, 0.16); color: var(--ink); }
+.news-items { display: flex; flex-direction: column; gap: 2px; }
+.news-item { display: flex; flex-direction: column; gap: 1px; padding: 5px 8px; margin: 0 -8px; border-radius: 8px; cursor: pointer; }
+.news-item:hover { background: rgba(255, 255, 255, 0.07); }
+.news-title { font: 500 calc(12.5px + var(--fs-up, 0px)) var(--font); color: var(--ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.news-item.new .news-title { font-weight: 650; }
+.news-meta { display: flex; align-items: center; gap: 6px; font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); }
+.news-meta .grow { flex: 1 1 auto; }
+.news-save {
+  padding: 1px 8px; border-radius: 7px; border: 0; background: rgba(255, 255, 255, 0.07); color: var(--dim-2);
+  font: 500 calc(10.5px + var(--fs-up, 0px)) var(--font); cursor: pointer; opacity: 0; transition: opacity 0.15s ease;
+}
+.news-item:hover .news-save, .news-save:disabled { opacity: 1; }
+.news-save:hover { color: var(--ink); background: rgba(255, 255, 255, 0.13); }

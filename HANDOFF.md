@@ -5,7 +5,7 @@ _Aggiornato al 30 ottobre 2026. Versione **1.0.13** in `main` con il tag `v1.0.1
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
-- [ ] **Notizie** (su `claude/notizie`, `docs/chat.md` → Notizie, piano in `docs/idee.md`): fatto il passo 1, gli argomenti proposti dalla memoria con Aggiungi / Escludi in Impostazioni → Notizie. Prossimo: feed RSS/Atom e ricerca per argomento, filtro locale, card e riquadro nella Panoramica.
+- [ ] **Notizie** (su `claude/notizie`, `docs/chat.md` → Notizie, piano in `docs/idee.md`): fatti il passo 1 (argomenti dalla memoria in Impostazioni → Notizie) e il passo 2 (ricerca su Google News ogni 4 ore, filtro locale, vista «Notizie» nell'isola con Salva nella memoria). Da provare dal vivo; poi «Non mi interessa» / «Di più» e il riquadro nella Panoramica.
 - [ ] **Personaggio e isola in due finestre** (unite in `claude/sviluppo`; misure in `docs/due-webview.md`, come funziona in `docs/architettura.md`): da provare ai lati e su un secondo schermo (in basso e i file rilasciati sul personaggio funzionano, provati da Edoardo il 29 ottobre 2026).
 - [ ] **Barra fissa** (unita in `claude/sviluppo`, `docs/architettura.md` → Barra fissa): fatta e provata in alto. Da provare in basso, sul secondo monitor e con il menu «…».
 - [ ] **Widget della barra** (unita in `claude/sviluppo`, nella 1.0.13, `docs/architettura.md` → Barra fissa → Widget della barra): catalogo «+ Aggiungi», «Opzioni» per elemento, orologio, volume, microfono, luminosità, batteria, rete e menu di spegnimento (`barsys.rs`). Card nell'isola per orologio, volume, microfono, luminosità, batteria e rete (`src/views/barcard.ts`). Da provare dal vivo; poi gli altri elementi (`docs/idee.md`).
@@ -51,6 +51,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 30 ottobre 2026 — Notizie, passo 2 (su `claude/notizie`)
+- Google News (scelto da Edoardo) per ogni argomento seguito, ogni 4 ore o quando cambiano gli argomenti; filtro in locale (parole da evitare, 3 giorni, già viste, stessa storia); voce e vista «Notizie» nell'isola. Una ricerca vera provata con un test; l'app non ancora provata dal vivo.
+
 ### 30 ottobre 2026 — Notizie, passo 1 (su `claude/notizie`)
 - `news.rs` propone gli argomenti dalle pagine della memoria (citazioni, note, diario del mese, aggiornamenti recenti), mai persone e clienti; pagina Impostazioni → Notizie con Aggiungi / Escludi / Riammetti e le parole da cercare ed evitare. Niente rete ancora. Smoke «nessun errore».
 
@@ -62,6 +65,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 30 ottobre 2026 — Versione 1.0.12: barra fissa dopo un cambio di schermo
 - Contiene la correzione qui sotto, provata da Edoardo («ora funziona»).
-
-### 30 ottobre 2026 — Barra fissa dopo un cambio di schermo (unita in `claude/sviluppo`)
-- Spegnendo e riaccendendo il monitor o cambiandolo la barra restava della risoluzione vecchia. Ora a ogni cambio di schermo (e al riavvio di Explorer) la barra si toglie e si registra di nuovo, 1,5 s dopo l'ultimo messaggio (`display_changed` in `appbar.rs`), con una pausa di 0,5 s tra toglierla e registrarla. Restava comunque staccata: la fascia era giusta, ma Windows spostava la finestra appena sotto; ora quando succede la rimette sulla fascia (`drifted`). Provata da Edoardo dal vivo.

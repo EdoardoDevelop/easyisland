@@ -975,6 +975,22 @@ export async function runScene(island: Island, scene: string) {
       await Daily.open(island, new URLSearchParams(location.search).has("evening") ? "evening" : "morning");
       await wait(1500);
       break;
+    case "news": {
+      // «Notizie» on made-up news, as news.rs would keep them.
+      const now = Math.floor(Date.now() / 1000);
+      State.settings.news = { topics: [{ name: "Windows 11", words: [], avoid: [] }, { name: "UniFi", words: [], avoid: [] }], excluded: [] };
+      State.news = [
+        { id: "1", title: "Windows 11 cambia il menu del tasto destro: ora decidi tu cosa vedere", source: "IlSoftware.it", link: "https://example.com/1", at: now - 1800, found: now - 60, topic: "Windows 11" },
+        { id: "2", title: "UniFi Network 9.5: arrivano le nuove regole del firewall a zone", source: "Ubiquiti Community", link: "https://example.com/2", at: now - 5 * 3600, found: now - 60, topic: "UniFi" },
+        { id: "3", title: "Microsoft Edge si avvia più velocemente su Windows 11", source: "Punto Informatico", link: "https://example.com/3", at: now - 9 * 3600, found: now - 86_400, topic: "Windows 11" },
+        { id: "4", title: "Windows 11, Modern Standby ancora più smart: promette meno consumo di batteria", source: "HDblog.it", link: "https://example.com/4", at: now - 30 * 3600, found: now - 86_400, topic: "Windows 11" },
+      ];
+      await wait(300);
+      island.setView("news");
+      island.setPinned(true);
+      await wait(1200);
+      break;
+    }
     case "barcard": {
       // A card of the fixed bar's system elements (?card=clock|volume|mic|brightness|battery|net),
       // on made-up values as barsys.rs would send them.

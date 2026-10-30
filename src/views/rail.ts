@@ -13,8 +13,10 @@ import { State, CLAUDE_TASK, isSessionTask, type AgentTask } from "../core/state
 import { RAIL_BOT, railHead, type IslandViewName } from "../core/layout";
 import { t } from "../core/i18n";
 import type { ViewActions, ViewHost } from "./views";
+import { actionIcon, actionIconSvg } from "./action-icons";
+import { unreadNews } from "./news";
 
-type Section = "oggi" | "agenti" | "chat" | "azioni" | "file";
+type Section = "oggi" | "agenti" | "chat" | "azioni" | "file" | "notizie";
 
 /** The character's diameter at the head of the menu (Impostazioni → Posizione e aspetto). */
 export function railBotSize(): number {
@@ -29,6 +31,7 @@ function sectionOf(view: IslandViewName): Section | null {
     case "prompt": return "chat";
     case "actions": case "run": case "rewrite": return "azioni";
     case "files": case "unzip": return "file";
+    case "news": return "notizie";
     default: return null;
   }
 }
@@ -102,6 +105,7 @@ export function buildRail(actions: ViewActions): ViewHost {
     chat: row("chat", glyph("bubble"), t("Chat"), () => actions.setView("prompt")),
     azioni: row("azioni", glyph("bolt"), t("Azioni"), () => actions.setView("actions")),
     file: row("file", glyph("stack"), t("File e schermo"), () => actions.openFiles()),
+    notizie: row("notizie", actionIconSvg(actionIcon("i:globe")!, 15), t("Notizie"), () => actions.setView("news")),
   };
   const fixed = h("div", { class: "rail-fixed" }, ...Object.values(sections));
   const label = h("div", { class: "rail-label-head", text: t("Integrazioni") });
@@ -134,6 +138,12 @@ export function buildRail(actions: ViewActions): ViewHost {
       }
       // No agent to show (Claude Code off, nothing followed): no row.
       sections.agenti.style.display = State.latestSessionTask ? "" : "none";
+      // Notizie: only with subjects followed; the count of news not seen yet.
+      sections.notizie.style.display = (State.settings.news?.topics ?? []).length || State.news.length ? "" : "none";
+      const unread = current() === "notizie" ? 0 : unreadNews();
+      const newsMeta = sections.notizie.querySelector<HTMLElement>(".rail-meta")!;
+      newsMeta.textContent = unread ? String(unread) : "";
+      newsMeta.className = unread ? "rail-meta count" : "rail-meta";
       const on = current();
       const busy = State.sessionTasks.filter((x) => x.state !== "idle" && x.state !== "sleeping" && x.state !== "finished").length;
       if (on === "agenti" || busy < agentsSeen) agentsSeen = busy;
