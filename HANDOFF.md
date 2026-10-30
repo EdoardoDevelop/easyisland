@@ -50,6 +50,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 30 ottobre 2026 — «L'isola si apre» anche con la barra fissa
+- La scelta era nascosta e ignorata con la barra accesa; ora vale anche lì (`openAway` in `island.ts`; Rust la gestiva già in `place_origin`).
+
 ### 30 ottobre 2026 — Versione 1.0.13: Widget della barra
 - Contiene i Widget della barra con le card nell'isola e la pulizia dei riferimenti all'app originale; non ancora provati dal vivo da Edoardo.
 

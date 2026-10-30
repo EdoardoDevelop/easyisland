@@ -2511,7 +2511,7 @@ function appearanceSections(): HTMLElement[] {
       intro(t("Quando e dove si apre, quanto è grande e quando si richiude.")),
       h("section", {},
         h("h2", {}, h("span", { text: t("Quando si apre") }), profileChip()),
-        pictured("place", h("div", { class: "row free-row" },
+        pictured("place", h("div", { class: "row" },
           h("label", { text: t("L'isola si apre") }),
           place,
           h("span", { class: "hint note", text: t("vicino al personaggio, oppure sempre nello stesso punto dello schermo; il personaggio resta dov'è") }),
