@@ -80,6 +80,39 @@ Pulsanti o menu che cambiano con il programma in primo piano, da poter mettere n
 - **Copertura:** bene con le app classiche con barra dei menu; in parte con Office (schede della barra multifunzione) e con le app fatte di pagine web, dove dipende da cosa espongono; quasi nulla con le app senza menu (browser). Dove non c'è un menu leggibile restano le azioni rapide per quel programma.
 - **Da fare prima:** una prova che legge i menu dei programmi che Edoardo usa di più, in un branch suo.
 
+## Elementi da aggiungere alla barra fissa (ragionata con Edoardo il 30 ottobre 2026)
+Spunto da una barra per Windows open source con decine di widget configurabili. Edoardo vuole soprattutto **poter aggiungere elementi alla barra** da un catalogo, ognuno con le sue opzioni. Oggi la barra mostra solo integrazioni, widget, azioni rapide e la striscia (`fixedBarItems`, `docs/architettura.md` → Barra fissa).
+- **Catalogo in Impostazioni → Aspetto → Barra fissa:** «+ Aggiungi» apre l'elenco per gruppi (Sistema, Lavoro, Agenti, Le mie azioni). Si sceglie l'area (sinistra, centro, destra), si cambia l'ordine, si apre «Opzioni» per l'elemento. Uno stesso elemento si può aggiungere più volte con opzioni diverse, per esempio due orologi con fusi diversi (`fixedBarItems` riceve `opts`). Tutto dalle Impostazioni, come deciso.
+- **Nome:** «Widget» in EasyIsland vuol dire i controlli ripetibili (`docs/decisioni.md`). Nella barra conviene «Elementi della barra», così non si confondono. Da decidere.
+- **Opzioni comuni a ogni elemento:**
+  - cosa mostra: solo icona, icona e valore, oppure un formato con segnaposto (`{icona} {cpu}%`);
+  - un secondo testo che compare con un clic (l'ora che diventa la data);
+  - azioni per clic sinistro, centrale e destro e per la rotella: apri la card, esegui un'azione rapida, menu, cambia testo;
+  - suggerimento al passaggio del mouse.
+- **Pannelli:** un pannello (calendario, cursore del volume, dispositivi) è una card dell'isola, che si apre già contro la barra. Nessuna finestra in più.
+- **Elementi nuovi di sistema** (a istanza singola, quindi né widget né integrazioni con una scheda):
+  - orologio e data, con la card del calendario (Outlook, ICS);
+  - volume (rotella, muto, dispositivo d'uscita) e microfono muto;
+  - luminosità (rotella; schermi esterni con DDC/CI, dove rispondono);
+  - batteria e piano energetico;
+  - velocità della rete su e giù, Wi-Fi, Bluetooth;
+  - CPU, RAM, disco, GPU e temperature, anche con un piccolo grafico;
+  - lingua della tastiera, Non disturbare, cestino (svuotarlo solo con conferma);
+  - menu di spegnimento (blocca, sospendi, riavvia, spegni, sempre con conferma);
+  - aggiornamenti disponibili (winget, Windows);
+  - consumo di Codex e Copilot accanto a quello di Claude;
+  - progetti recenti di VS Code;
+  - titolo della finestra in primo piano;
+  - la «Barra dell'app in uso» come elemento a sé (sezione qui sopra).
+- **Ci sono già, vanno portati bene nella barra:** meteo, musica, Stato del PC, rete, consumo Claude, GitHub, To Do, i controlli dei server.
+- **Aspetto della barra** (dopo gli elementi): stile a isolette, dove ogni area è un'isoletta con lo sfondo del desktop in mezzo (un quarto valore di `fixedBarBackground`); sfocatura acrilica di Windows 11; angoli e bordo; margini dai lati per una barra sospesa; grandezza del testo e spazio tra gli elementi; nascondi da sola finché non arriva il mouse.
+- **Vincoli:**
+  - la barra è sempre visibile: ogni elemento si aggiorna su evento (volume con Core Audio, batteria e rete con le notifiche di Windows), CPU e rete con un giro lento di 2–5 s, l'orologio ai secondi solo se scelto;
+  - niente dipendenze nuove: le API di Windows con il crate `windows`;
+  - nessuna animazione continua.
+- **Esclusi** (Edoardo, 30 ottobre 2026): barra su più schermi, CSS personale, systray, barra delle applicazioni sostitutiva, desktop virtuali, gestori di finestre a riquadri, visualizzatore audio (anima sempre), sfondi del desktop, Pomodoro e notifiche di sistema (già esclusi).
+- **Ordine proposto:** 1) catalogo, opzioni comuni e `opts`; 2) orologio, volume e microfono, luminosità, batteria, rete, menu di spegnimento; 3) gli altri elementi; 4) aspetto della barra.
+
 ## Estensione per Chrome ed Edge (ragionata con Edoardo il 29 ottobre 2026)
 Un'estensione che parla solo con EasyIsland sul PC (native messaging di Chrome: un canale locale, niente rete). Rivede la decisione dell'11 ottobre «niente estensione del browser» (`decisioni.md`, menu sul testo selezionato).
 - **Prima di tutto (consigliati come inizio):**

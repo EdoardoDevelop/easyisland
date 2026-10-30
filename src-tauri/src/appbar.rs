@@ -27,7 +27,7 @@ use windows::Win32::UI::Shell::{
 };
 use windows::core::w;
 use windows::Win32::UI::WindowsAndMessaging::{
-    RegisterWindowMessageW, WM_ACTIVATE, WM_APP, WM_DISPLAYCHANGE, WM_DPICHANGED, WM_WINDOWPOSCHANGED,
+    GetWindowRect, RegisterWindowMessageW, SWP_NOMOVE, SWP_NOSIZE, WINDOWPOS, WM_ACTIVATE, WM_APP, WM_DISPLAYCHANGE, WM_DPICHANGED, WM_WINDOWPOSCHANGED,
 };
 
 /// The shell's notifications (ABN_*) arrive as this message.
@@ -58,6 +58,10 @@ const SETTLE: Duration = Duration::from_millis(1500);
 const FREED: Duration = Duration::from_millis(500);
 /// One more look after registering again, once the work area is final.
 const RECHECK: Duration = Duration::from_millis(1500);
+/// A correction of the bar's window is on its way (`drifted`).
+static FIXING: AtomicBool = AtomicBool::new(false);
+/// Corrections in a row that did not stick: after a few the bar stops trying.
+static FIXES: AtomicU32 = AtomicU32::new(0);
 
 /// Sent to every top-level window when Explorer (and so the taskbar) restarts:
 /// the shell has forgotten every bar.
@@ -139,11 +143,44 @@ fn place(raw: isize, edge: u32) {
     }
     let moved = reserve(raw, edge);
     PLACING.store(false, Ordering::SeqCst);
-    if moved {
+    if moved || off_band(raw) {
         if let Some(app) = APP.get() {
             island_follows(app);
         }
     }
+}
+
+/// The window is not where the band is: after a display change Windows moves
+/// it into the work area, right under the band it reserved itself.
+fn off_band(raw: isize) -> bool {
+    let Some(r) = REGISTERED.lock().unwrap().filter(|r| r.hwnd == raw) else { return false };
+    let mut now = RECT::default();
+    if unsafe { GetWindowRect(hwnd(raw), &mut now) }.is_err() {
+        return false;
+    }
+    (now.left, now.top, now.right, now.bottom) != r.rect
+}
+
+/// The window moved off the band behind our back: put back a moment later,
+/// outside the move that is still going on (one at a time, so no tug of war).
+fn drifted() {
+    if FIXES.load(Ordering::SeqCst) >= 3 || FIXING.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    FIXES.fetch_add(1, Ordering::SeqCst);
+    std::thread::spawn(|| {
+        std::thread::sleep(Duration::from_millis(150));
+        if let Some(app) = APP.get() {
+            let app2 = app.clone();
+            let _ = app.run_on_main_thread(move || {
+                crate::log::line("barra fissa: finestra spostata da Windows, rimessa sulla fascia".to_string());
+                crate::sync_character(&app2);
+                FIXING.store(false, Ordering::SeqCst);
+            });
+        } else {
+            FIXING.store(false, Ordering::SeqCst);
+        }
+    });
 }
 
 /// The band's rect for the shell; true when it changed.
@@ -225,6 +262,17 @@ unsafe extern "system" fn subclass(h: HWND, msg: u32, wp: WPARAM, lp: LPARAM, _i
             WM_WINDOWPOSCHANGED if !PLACING.load(Ordering::Relaxed) => {
                 let mut abd = data(raw, edge);
                 SHAppBarMessage(ABM_WINDOWPOSCHANGED, &mut abd);
+                let wp = lp.0 as *const WINDOWPOS;
+                if let Some(wp) = wp.as_ref() {
+                    let moved = (wp.flags & SWP_NOMOVE).0 == 0 || (wp.flags & SWP_NOSIZE).0 == 0;
+                    if moved && !FULLSCREEN.load(Ordering::Relaxed) {
+                        if off_band(raw) {
+                            drifted();
+                        } else {
+                            FIXES.store(0, Ordering::SeqCst);
+                        }
+                    }
+                }
             }
             _ => {}
         }
@@ -258,6 +306,7 @@ fn reregister() {
         let _ = RemoveWindowSubclass(hwnd(r.hwnd), Some(subclass), SUBCLASS_ID);
     }
     FULLSCREEN.store(false, Ordering::Relaxed);
+    FIXES.store(0, Ordering::SeqCst);
     crate::log::line("barra fissa: schermo cambiato, registrata di nuovo".to_string());
     std::thread::spawn(|| {
         std::thread::sleep(FREED);
