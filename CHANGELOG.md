@@ -2,6 +2,10 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.12** — La **barra fissa** torna al suo posto da sola quando spegni e riaccendi il monitor, lo cambi
+o cambi risoluzione o scala: prima restava della misura vecchia o staccata dal bordo e bisognava
+spegnerla e riaccenderla. Vale anche quando Explorer si riavvia.
+
 **1.0.11** — **Barra fissa** (Impostazioni → Aspetto → Barra fissa): una fascia in alto o in basso che
 Windows tiene libera come la barra delle applicazioni, con il personaggio all'inizio, al centro o alla
 fine, le integrazioni, i widget, le azioni rapide e la striscia dei permessi scelti da te, «…» per ciò
