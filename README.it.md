@@ -61,7 +61,8 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 - **Un secondo cervello**: la memoria della chat in file .md che vedi e correggi,
   con pagine collegate su clienti, persone e progetti, file da far imparare, un
   motore che la riordina e una finestra per esplorarla (**grafo** anche in 3D, mappa
-  mentale, mappa concettuale, timeline).
+  mentale, mappa concettuale, timeline); **notizie** dal web sugli argomenti di cui
+  parla, solo quelli che scegli tu.
 - **Integrazioni personali**: chiedi alla chat la funzione che ti manca e diventa
   un modulo, un cruscotto o un collegamento alle API di un tuo servizio.
 - **Profili** (lavoro, casa, concentrazione) che cambiano da soli, modalità
@@ -75,10 +76,10 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Ultime versioni
 
+- **1.0.14** — **Notizie** sugli argomenti della tua memoria da Google News, con «Di più» e «Non mi interessa», nell'isola, nella Panoramica, nel Buongiorno, su Telegram e nella barra fissa.
 - **1.0.13** — **Widget della barra**: orologio, volume, microfono, luminosità, batteria, rete e menu di spegnimento nella barra fissa, con le opzioni per ogni elemento e le loro card nell'isola.
 - **1.0.12** — La **barra fissa** torna al suo posto da sola dopo aver spento e riacceso il monitor, averlo cambiato o aver cambiato risoluzione.
 - **1.0.11** — **Barra fissa** in alto o in basso sullo schermo con il personaggio, le integrazioni, i widget e le azioni, altezza a scelta; il personaggio in una finestra sua; impostazioni di **Aspetto** a schede con una miniatura accanto a ogni voce.
-- **1.0.10** — **Rinominare** le conversazioni della cronologia della chat (✎ o doppio clic sul titolo).
 
 Tutte le versioni, con i dettagli: [CHANGELOG.md](CHANGELOG.md).
 
