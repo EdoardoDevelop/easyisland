@@ -228,7 +228,7 @@ ${p.section ? `<div class="crumb">${esc(p.section)}</div>` : ""}
 ${p.lead ? `<p class="lead">${inline(p.lead)}</p>` : ""}
 ${p.html.replace(/src="\.\.\/media\/([^"]+)"/g, (_, f) => `src="${L.up}media/${lang === "en" && existsSync(join(ROOT, "site", "media", "en", f)) ? "en/" : ""}${f}"`)}
 <div class="pager">${prev ? `<a class="prev" href="${prev.slug}.html"><small>${T.prev}</small>${esc(prev.title)}</a>` : "<span></span>"}${next ? `<a class="next" href="${next.slug}.html"><small>${T.next}</small>${esc(next.title)}</a>` : "<span></span>"}</div>
-<footer>EasyIsland ${VERSION} · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/${L.edit}/${p.file}">${T.editLink}</a></footer>
+<footer>© 2026 Edoardo Monti · <a href="mailto:edoardo.develop@gmail.com">edoardo.develop@gmail.com</a> · EasyIsland ${VERSION} · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/${L.edit}/${p.file}">${T.editLink}</a></footer>
 </main>
 ${toc}
 </div>
