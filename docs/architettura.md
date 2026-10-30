@@ -94,7 +94,7 @@ Chiesta da Edoardo il 27 ottobre 2026, fatta il 29 nel branch `claude/barra-fiss
 - **L'isola** è la sua finestra di sempre:
   - chiusa è nascosta (`set_collapsed`: `quiet`);
   - aperta sta contro la fascia, perché l'area di lavoro di Windows finisce lì e la casa è all'area del personaggio (`Settings::home_anchor`, `homePlacement`, senza spostamento);
-  - `islandPlace`, `overTaskbar` e la vista compatta sempre visibile non valgono, e la vista compatta non compare: `showInStrip` e `peek` non la fanno comparire, `petitToHiddenDelay` 0,3 s;
+  - `islandPlace` vale anche con la barra (Edoardo, 30 ottobre 2026): «character» la apre all'area del personaggio, «top» centrata contro la fascia, «center» e «bottom» come senza barra; `overTaskbar` e la vista compatta sempre visibile non valgono, e la vista compatta non compare: `showInStrip` e `peek` non la fanno comparire, `petitToHiddenDelay` 0,3 s;
   - va dietro alle altre finestre come una finestra; la barra resta davanti.
 - **Gli elementi** li prepara l'isola, che tiene i dati (`src/island/bar.ts`), e arrivano alla barra nel `look` del canale (`bar.items`, `BarPiece`, HTML costruito con il DOM: icone e testo con `textContent`):
   - integrazioni e widget con una scheda (`INTEGRATION_AGENTS`; Telegram no): icona come nel menu (`taskIcon`), valore = `widgetStatus.summary` o l'ultimo passo, giallo o rosso per avviso ed errore;

@@ -59,7 +59,7 @@ With **Fixed bar** at the top or the bottom, Windows keeps a band free at the ed
 ## Open island
 | Option | What it does |
 |---|---|
-| **The island opens** | Where the character is, or always at the top centre, the centre of the screen or the bottom centre |
+| **The island opens** | Where the character is, or always at the top centre, the centre of the screen or the bottom centre. It applies with the fixed bar too: «top centre» opens it in the middle, right below the bar |
 | **Open after** | How long to hover before it opens, or **only with a click** (dragging a file always opens it) |
 | **Open panel** | After how many seconds from the mouse leaving it shrinks |
 | **Stay open** | When you open it yourself it does not close by itself |

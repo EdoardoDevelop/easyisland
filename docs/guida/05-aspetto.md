@@ -59,7 +59,7 @@ Con **Barra fissa** in alto o in basso, Windows tiene libera una fascia sul bord
 ## Isola aperta
 | Opzione | Cosa fa |
 |---|---|
-| **L'isola si apre** | Dove sta il personaggio, oppure sempre in alto al centro, al centro dello schermo o in basso al centro |
+| **L'isola si apre** | Dove sta il personaggio, oppure sempre in alto al centro, al centro dello schermo o in basso al centro. Vale anche con la barra fissa: «in alto al centro» la apre al centro, subito sotto la barra |
 | **Apri dopo** | Quanto tenere il mouse sopra prima che si apra, o **solo con un clic** (trascinare un file la apre sempre) |
 | **Pannello aperto** | Dopo quanti secondi dall'uscita del mouse si riduce |
 | **Resta aperta** | Quando la apri tu non si chiude da sola |

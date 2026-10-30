@@ -51,6 +51,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 30 ottobre 2026 — «L'isola si apre» anche con la barra fissa
+- La scelta era nascosta e ignorata con la barra accesa; ora vale anche lì (`openAway` in `island.ts`; Rust la gestiva già in `place_origin`).
+
 ### 30 ottobre 2026 — Notizie, passo 2 (su `claude/notizie`)
 - Google News (scelto da Edoardo) per ogni argomento seguito, ogni 4 ore o quando cambiano gli argomenti; filtro in locale (parole da evitare, 3 giorni, già viste, stessa storia); voce e vista «Notizie» nell'isola. Una ricerca vera provata con un test; l'app non ancora provata dal vivo.
 
@@ -62,6 +65,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 30 ottobre 2026 — Widget della barra (unita in `claude/sviluppo`)
 - Passi 1 e 2 di `docs/idee.md` → «Elementi da aggiungere alla barra fissa»: catalogo per gruppi, opzioni comuni (formato con segnaposto, secondo testo, suggerimento, clic / clic centrale / clic destro, rotella) e sette elementi di sistema letti da `barsys.rs` solo mentre sono nella barra. Poi le card nell'isola al posto dei pannelli di Windows (calendario, cursori, batteria, rete). Smoke «nessun errore»; non ancora provati dal vivo.
-
-### 30 ottobre 2026 — Versione 1.0.12: barra fissa dopo un cambio di schermo
-- Contiene la correzione qui sotto, provata da Edoardo («ora funziona»).

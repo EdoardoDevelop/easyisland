@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 30 ottobre 2026 — Versione 1.0.12: barra fissa dopo un cambio di schermo
+- Contiene la correzione qui sotto, provata da Edoardo («ora funziona»).
+
 ### 30 ottobre 2026 — Barra fissa dopo un cambio di schermo (unita in `claude/sviluppo`)
 - Spegnendo e riaccendendo il monitor o cambiandolo la barra restava della risoluzione vecchia. Ora a ogni cambio di schermo (e al riavvio di Explorer) la barra si toglie e si registra di nuovo, 1,5 s dopo l'ultimo messaggio (`display_changed` in `appbar.rs`), con una pausa di 0,5 s tra toglierla e registrarla. Restava comunque staccata: la fascia era giusta, ma Windows spostava la finestra appena sotto; ora quando succede la rimette sulla fascia (`drifted`). Provata da Edoardo dal vivo.
 
