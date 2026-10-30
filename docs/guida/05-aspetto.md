@@ -35,7 +35,7 @@ Con **Barra fissa** in alto o in basso, Windows tiene libera una fascia sul bord
 - **Altezza della barra:** automatica (alta quanto la vista compatta) o scelta da te; il personaggio, le icone e i testi si adattano.
 - **Sfondo della barra:** come l'isola, trasparente (si vede il desktop) o un colore a scelta; il testo diventa chiaro o scuro da solo.
 - **Widget della barra:** «+ Aggiungi» apre il catalogo.
-  - **Sistema:** orologio e data, volume, microfono, luminosità, batteria, velocità della rete, menu di spegnimento. Questi si possono aggiungere più volte, per esempio due orologi con fusi orari diversi.
+  - **Sistema:** orologio e data, volume, microfono, luminosità, batteria, velocità della rete, notizie (il numero delle nuove), menu di spegnimento. Questi si possono aggiungere più volte, per esempio due orologi con fusi orari diversi.
   - **Lavoro:** le tue integrazioni e i widget. **Agenti:** la striscia. **Le mie azioni:** le azioni rapide.
   - Per ognuno scegli l'area (all'inizio, al centro, alla fine) e cosa mostrare (icona e valore, solo icona, solo valore); ↑ ↓ cambiano l'ordine, ✕ lo toglie.
   - **Opzioni:** il formato con i segnaposto (per esempio `{icon} {time}` o `NY {time}`), un secondo testo che compare con un clic (l'ora che diventa la data), il suggerimento, cosa fanno clic, clic centrale e clic destro (niente, la card o il pannello di Windows, il secondo testo, il menu, muto, una tua azione rapida) e la rotella. L'orologio ha anche il fuso orario e i secondi.
@@ -87,7 +87,7 @@ Il personaggio reagisce: saluta all'avvio, festeggia quando un agente finisce, s
 
 ## Logo o meteo al posto del personaggio
 In **Personaggio → Nell'isola** scegli cosa sta nell'isola: **il personaggio**, **il logo di EasyIsland**, **il mio logo** o **il meteo**. Logo e meteo sono immagini ferme: niente animazioni, stati e saluto all'avvio, per un aspetto più professionale.
-- **Il mio logo**: **Carica PNG…** e scegli l'immagine (meglio con lo sfondo trasparente). Viene ridotta a 512 px, resta su questo PC ed entra nel [backup](24-impostazioni.md). **Togli** la cancella; senza immagine compare il logo di EasyIsland.
+- **Il mio logo**: **Carica PNG…** e scegli l'immagine (meglio con lo sfondo trasparente). Viene ridotta a 512 px, resta su questo PC ed entra nel [backup](26-impostazioni.md). **Togli** la cancella; senza immagine compare il logo di EasyIsland.
 - **Il meteo**: il cielo e la temperatura di adesso, dall'integrazione **Meteo**, che dev'essere attiva.
 
 ## Suoni

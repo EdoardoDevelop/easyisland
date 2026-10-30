@@ -565,7 +565,7 @@ pub fn tool_forget(note: &str, page: &str) -> Result<String, String> {
 // ── The check ────────────────────────────────────────────────────────────────
 
 /// Days since 1970 of "AAAA-MM-GG" (civil calendar).
-fn day_number(date: &str) -> Option<i64> {
+pub(crate) fn day_number(date: &str) -> Option<i64> {
     let y: i64 = date.get(0..4)?.parse().ok()?;
     let m: i64 = date.get(5..7)?.parse().ok()?;
     let d: i64 = date.get(8..10)?.parse().ok()?;

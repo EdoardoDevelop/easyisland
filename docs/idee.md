@@ -157,6 +157,7 @@ EasyIsland ricava dalla memoria interna gli argomenti che interessano all'utente
 - **Dove si vedono:** un riquadro «Notizie» nella Panoramica e una card con titolo, fonte, una riga di riassunto e «Apri»; nel riepilogo del mattino; su Telegram con `/notizie`; come elemento della barra fissa (sezione qui sopra). «Salva nella memoria» manda la pagina in `da-leggere`.
 - **Vincoli:** il controllo gira in Rust a orari, mai in un ciclo continuo; notizie già viste non si ripetono (stessa URL o titolo molto simile); niente telemetria; i feed sono letti e tenuti solo sul PC.
 - **Ordine proposto:** 1) argomenti dalla memoria con Aggiungi / Escludi; 2) feed e filtro locale, card e riquadro; 3) «Non mi interessa» / «Di più»; 4) riassunti del motore, Telegram e barra.
+- **Passi 1, 2 e 3 fatti** il 30 ottobre 2026 (`docs/chat.md` → Notizie): la fonte è la ricerca di Google News (scelta da Edoardo), le notizie stanno in una vista dell'isola con la sua voce nel menu, nel riquadro della Panoramica, nel Buongiorno, su Telegram (`/notizie`) e nella barra. Del passo 4 restano i riassunti del motore. La chat che cambia gli argomenti («non mostrarmi più notizie su X») e i progetti degli agenti come fonte restano da fare.
 
 ## Estensione per Chrome ed Edge (ragionata con Edoardo il 29 ottobre 2026)
 Un'estensione che parla solo con EasyIsland sul PC (native messaging di Chrome: un canale locale, niente rete). Rivede la decisione dell'11 ottobre «niente estensione del browser» (`decisioni.md`, menu sul testo selezionato).

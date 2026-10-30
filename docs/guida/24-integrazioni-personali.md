@@ -40,7 +40,7 @@ Un documento in Markdown con i `{{campi}}`, le righe ripetute (`{{#righe}} … {
 | **Notion** | Aggiunge la scheda a un database |
 | **Esporta CSV** | Tutte le schede, per Excel |
 | **Chiamata a un servizio** | GET/POST/PUT/PATCH/DELETE all'API di un tuo servizio, con i campi nel corpo; la risposta può riempire i campi e comparire in un messaggio |
-| **Compito** | Avvia un [compito](12-compiti.md) con i campi nell'obiettivo |
+| **Compito** | Avvia un [compito](14-compiti.md) con i campi nell'obiettivo |
 | **Avviso** | Un avviso nell'isola |
 | **Sequenza** | Più azioni in fila (es. salva, poi chiama il servizio, poi fai il documento) |
 

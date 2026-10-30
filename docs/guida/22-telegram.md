@@ -19,6 +19,7 @@ Una conversazione **tutta sua**, distinta da quella dell'isola, con motore e mod
 | `/stato` | Motore, modello, conversazione |
 | `/riprendi` | Continua qui l'ultima conversazione dell'isola |
 | `/oggi`, `/domani` | La giornata: attività, appuntamenti, ticket, meteo |
+| `/notizie` | Le ultime notizie sugli argomenti che segui |
 | `/vassoio` | I file del Vassoio |
 | `/cartella` | La cartella di lavoro a pulsanti, con i file |
 | `/automatica` | Accende o spegne l'Automatica di Telegram |

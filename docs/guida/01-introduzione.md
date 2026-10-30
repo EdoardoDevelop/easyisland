@@ -16,10 +16,10 @@ EasyIsland è un'**isola sempre a portata di mano** in cima allo schermo di Wind
 | **Per iniziare** | [Installazione](02-installazione.md), [Primi passi](03-primi-passi.md), [L'isola](04-isola.md) |
 | **Personalizzare** | [Posizione e aspetto](05-aspetto.md), [Profili e notifiche](06-profili.md) |
 | **Agenti di programmazione** | [Agenti di codice](07-agenti.md) |
-| **Intelligenza artificiale** | [La chat](08-chat.md), [Motori AI](09-motori.md), [Modalità terminale e strumenti](10-strumenti-ai.md), [Memoria e secondo cervello](11-memoria.md), [Compiti, Battito e Abilità](12-compiti.md) |
-| **Fare le cose** | [Azioni rapide e scorciatoie](13-azioni.md), [Automazioni](14-automazioni.md), [File e schermo](15-file-e-schermo.md) |
-| **Collegare i servizi** | [Integrazioni](16-integrazioni.md), [3CX](17-3cx.md), [Notion](18-notion.md), [Microsoft: Outlook, Teams, To Do](19-microsoft.md), [Telegram](20-telegram.md), [Assistenza remota](21-assistenza-remota.md), [Integrazioni personali](22-integrazioni-personali.md), [Widget](23-widget.md) |
-| **Riferimento** | [Impostazioni, pagina per pagina](24-impostazioni.md), [Privacy e sicurezza](25-privacy.md), [Riga di comando e script](26-riga-di-comando.md), [Problemi e soluzioni](27-problemi.md), [Per sviluppatori](28-sviluppo.md) |
+| **Intelligenza artificiale** | [La chat](08-chat.md), [Motori AI](09-motori.md), [Modalità terminale e strumenti](11-strumenti-ai.md), [Memoria e secondo cervello](12-memoria.md), [Notizie](13-notizie.md), [Compiti, Battito e Abilità](14-compiti.md) |
+| **Fare le cose** | [Azioni rapide e scorciatoie](15-azioni.md), [Automazioni](16-automazioni.md), [File e schermo](17-file-e-schermo.md) |
+| **Collegare i servizi** | [Integrazioni](18-integrazioni.md), [3CX](19-3cx.md), [Notion](20-notion.md), [Microsoft: Outlook, Teams, To Do](21-microsoft.md), [Telegram](22-telegram.md), [Assistenza remota](23-assistenza-remota.md), [Integrazioni personali](24-integrazioni-personali.md), [Widget](25-widget.md) |
+| **Riferimento** | [Impostazioni, pagina per pagina](26-impostazioni.md), [Privacy e sicurezza](27-privacy.md), [Riga di comando e script](28-riga-di-comando.md), [Problemi e soluzioni](29-problemi.md), [Per sviluppatori](30-sviluppo.md) |
 
 ## Requisiti
 - **Windows 10 o 11** a 64 bit. WebView2, che disegna l'interfaccia, è già incluso in Windows.

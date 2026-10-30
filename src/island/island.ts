@@ -2745,6 +2745,11 @@ ${note}` : text };
         // Its card in the island, against the bar; a second click closes it.
         const which = it.id.slice(4);
         if (which === "power") return;
+        if (which === "news") {
+          if (State.mode === "expanded" && State.view === "news") this.collapse();
+          else this.openFromBar("news");
+          return;
+        }
         if (State.mode === "expanded" && State.view === "barcard" && State.barCard === which) {
           this.collapse();
           return;

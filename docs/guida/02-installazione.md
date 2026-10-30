@@ -35,4 +35,4 @@ In **Impostazioni → Generale → Aggiornamenti** vedi la versione, controlli a
 La cartella `%APPDATA%\EasyIsland` (memoria, compiti, abilità) resta: cancellala a mano se non ti serve più.
 
 ## Compilarlo da te
-Se preferisci partire dal codice sorgente, servono Git, Node.js, Rust e i Build Tools di Visual Studio: i passi sono in [Per sviluppatori](28-sviluppo.md). Il risultato è lo stesso installer.
+Se preferisci partire dal codice sorgente, servono Git, Node.js, Rust e i Build Tools di Visual Studio: i passi sono in [Per sviluppatori](30-sviluppo.md). Il risultato è lo stesso installer.

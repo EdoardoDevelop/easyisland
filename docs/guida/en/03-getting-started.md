@@ -21,7 +21,7 @@ The dot turns green when the engine is ready. Details in [AI engines](09-engines
 **Settings → Look**: screen corner, character, style (Windows 11 or Classic), sizes, behaviour when closed. Or simply drag the character where you want it. See [Position and look](05-appearance.md).
 
 ## 5. Turn on the integrations you use
-**Settings → Integrations**: turn on what you need (Outlook, Network, Weather, Clipboard, 3CX, Zammad, Notion…). They appear in the island's menu and in the Overview. See [Integrations](16-integrations.md).
+**Settings → Integrations**: turn on what you need (Outlook, Network, Weather, Clipboard, 3CX, Zammad, Notion…). They appear in the island's menu and in the Overview. See [Integrations](18-integrations.md).
 
 ## 6. Try it
 - Hover over the character: the island opens.

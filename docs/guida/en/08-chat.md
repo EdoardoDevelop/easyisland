@@ -28,7 +28,7 @@
 | `@finestra` | A picture of an open window |
 | `@vassoio` | A file from the Tray |
 | Dragging the **chat character** onto a window | That window as context (image, app name, title). <kbd>Esc</kbd> cancels |
-| **Box and ask** | An area of the screen (see [Files and screen](15-files-and-screen.md)) |
+| **Box and ask** | An area of the screen (see [Files and screen](17-files-and-screen.md)) |
 | **Ask the chat** in Clipboard, Tray, Notion | The chosen item |
 
 Images go to models that can read them, text files into the message, PDFs to Claude.
@@ -45,9 +45,9 @@ Type `/` and pick from the menu (arrows, <kbd>Tab</kbd> or <kbd>Enter</kbd>):
 | `/esporta` | The conversation as Markdown in the Tray |
 | `/motore` | Changes engine for this conversation |
 | `/oggi`, `/domani` | The day: tasks, appointments, tickets |
-| `/compito …` | Hands a goal to a [task](12-tasks.md) |
+| `/compito …` | Hands a goal to a [task](14-tasks.md) |
 | `/<action>` | Runs a quick action by name (e.g. `/daily-backup`) |
-| `/<skill>` | Uses a [skill](12-tasks.md#skills) |
+| `/<skill>` | Uses a [skill](14-tasks.md#skills) |
 | `/<assistant>` | New conversation with an assistant |
 
 A `/something` that is not a command goes to the engine as text. (Command names are in Italian in both languages.)
@@ -70,5 +70,5 @@ The clock at the top of the chat shows previous conversations (up to 100, only o
 
 ## Asking from elsewhere
 - From the **field at the top** of the island with <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.
-- From **Telegram**, with its own conversation (see [Telegram](20-telegram.md)); `/riprendi` continues there the island's last conversation.
+- From **Telegram**, with its own conversation (see [Telegram](22-telegram.md)); `/riprendi` continues there the island's last conversation.
 - From an "Ask the chat" **quick action** or the <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd> menu on the selected text.

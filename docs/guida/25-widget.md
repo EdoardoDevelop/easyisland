@@ -18,6 +18,6 @@
 - **▶** prova un widget subito.
 - Quando un controllo passa da OK a problema: pallino nel menu, suono, isola che si fa vedere (secondo le notifiche del profilo). Un errore nuovo si mostra solo se si ripete dopo 15 secondi, e dopo uno standby i controlli aspettano che la rete torni.
 - Più radi a batteria, fermi in pausa.
-- I widget appartengono al profilo e possono avviare un'[automazione](14-automazioni.md).
+- I widget appartengono al profilo e possono avviare un'[automazione](16-automazioni.md).
 
-> **Suggerimento:** per un servizio unico con più dati (un'API con elenchi, avvisi e azioni) è meglio un'[integrazione personale](22-integrazioni-personali.md) con una fonte di dati.
+> **Suggerimento:** per un servizio unico con più dati (un'API con elenchi, avvisi e azioni) è meglio un'[integrazione personale](24-integrazioni-personali.md) con una fonte di dati.

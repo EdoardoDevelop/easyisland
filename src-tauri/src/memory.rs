@@ -173,6 +173,13 @@ pub fn diary_today(max: usize) -> Vec<String> {
     lines.into_iter().skip(skip).collect()
 }
 
+/// This month's diary, whole (news.rs counts the subjects in it).
+pub fn diary_month() -> String {
+    let now = stamp();
+    let Some(month) = now.get(..7) else { return String::new() };
+    std::fs::read_to_string(dir().join("diario").join(format!("{month}.md"))).unwrap_or_default()
+}
+
 /// The notes in MEMORIA.md now (the digest must not repeat them).
 pub fn notes() -> Vec<String> {
     notes_of(&read_main())

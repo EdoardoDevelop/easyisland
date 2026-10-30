@@ -35,4 +35,4 @@ In **Settings → General → Updates** you see the version, check by hand with 
 The `%APPDATA%\EasyIsland` folder (memory, tasks, skills) stays: delete it by hand if you no longer need it.
 
 ## Build it yourself
-If you prefer to start from the source code you need Git, Node.js, Rust and the Visual Studio Build Tools: the steps are in [For developers](28-development.md). The result is the same installer.
+If you prefer to start from the source code you need Git, Node.js, Rust and the Visual Studio Build Tools: the steps are in [For developers](30-development.md). The result is the same installer.

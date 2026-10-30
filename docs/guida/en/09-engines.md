@@ -46,6 +46,6 @@ Models on your PC or another one on the network: no key, just the address (empty
 
 ## Several engines together
 - **Second opinion** under every answer: another engine acts as reviewer.
-- In **tasks** you choose an engine per task and **helper engines** to delegate parts of the work to (see [Tasks](12-tasks.md)).
+- In **tasks** you choose an engine per task and **helper engines** to delegate parts of the work to (see [Tasks](14-tasks.md)).
 - **Skills** can state their preferred engine.
 - **Telegram** has its own engine and model, chosen with `/motore` and `/modello`.

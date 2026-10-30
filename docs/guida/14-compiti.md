@@ -26,7 +26,7 @@ Esempi: «controlla i ticket aperti da più di 3 giorni e prepara un riepilogo»
 
 ### Come lavora
 1. Scrive il **piano** (pochi passi concreti) e segna ogni passo fatto.
-2. Usa gli [strumenti di EasyIsland](10-strumenti-ai.md) e del motore, con i soliti **Consenti / Nega** per ciò che cambia qualcosa.
+2. Usa gli [strumenti di EasyIsland](11-strumenti-ai.md) e del motore, con i soliti **Consenti / Nega** per ciò che cambia qualcosa.
 3. Se gli serve una decisione o un dato, ti fa una **domanda**: una card nell'isola con le opzioni e la risposta libera, e anche su **Telegram** se è collegato. La prima risposta vince.
 4. Chiude con il **risultato**, breve e utile. Se è un controllo senza niente da dire, chiude **in silenzio**.
 5. Se il procedimento potrà servire di nuovo, propone di salvarlo come **abilità**.
@@ -60,7 +60,7 @@ Un **controllo periodico**: ogni N minuti l'agente guarda le cose che hai scritt
 **Impostazioni → Flussi → Battito**: scegli ogni quanto e apri l'elenco con **Cosa tenere d'occhio…**. Con l'elenco vuoto non parte e non costa niente.
 
 ## Riordino della memoria
-Ogni sera alle 22:30 rilegge la giornata, ti propone cosa ricordare, impara dai file in `da-leggere` e la domenica controlla la memoria. Si accende in **Impostazioni → Flussi**; dettagli in [Memoria](11-memoria.md#il-riordino-della-sera).
+Ogni sera alle 22:30 rilegge la giornata, ti propone cosa ricordare, impara dai file in `da-leggere` e la domenica controlla la memoria. Si accende in **Impostazioni → Flussi**; dettagli in [Memoria](12-memoria.md#il-riordino-della-sera).
 
 ## Abilità
 Un'**abilità** è una procedura tua scritta in un file `.md`: come fai un preventivo, come chiudi un ticket, come prepari il report del mese. L'AI la legge **solo quando serve**, quindi puoi averne tante senza costi.

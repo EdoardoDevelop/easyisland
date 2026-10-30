@@ -35,15 +35,15 @@ L'agente chiama un piccolo programma, `easyisland-hook.exe`, a ogni evento (iniz
 | **Antigravity** (Google) | Sessioni della CLI `agy`, dell'IDE e dell'app, con passi e diff; comandi e strumenti MCP con Consenti / Nega. Se non rispondi decide Antigravity |
 | **Gemini CLI** | Sessioni e passi. Gemini non accetta risposte ai permessi da fuori: l'isola ti avvisa e ti riporta al terminale |
 | **Cursor** e **GitHub Copilot** | Solo in osservazione (sessioni e passi), mai sui permessi |
-| **Compiti** | I compiti di EasyIsland stessa, come sessioni dell'agente «Compiti» (vedi [Compiti](12-compiti.md)) |
+| **Compiti** | I compiti di EasyIsland stessa, come sessioni dell'agente «Compiti» (vedi [Compiti](14-compiti.md)) |
 
-**Altri strumenti**: qualsiasi programma può comparire in Agenti mandando eventi a `easyisland-hook <Evento>` con un campo `easyisland_agent` (vedi [Riga di comando e script](26-riga-di-comando.md)).
+**Altri strumenti**: qualsiasi programma può comparire in Agenti mandando eventi a `easyisland-hook <Evento>` con un campo `easyisland_agent` (vedi [Riga di comando e script](28-riga-di-comando.md)).
 
 ## Strumenti di EasyIsland in Claude Code
 **Impostazioni → Agenti di codice → Strumenti di EasyIsland in Claude Code** aggiunge il server MCP di EasyIsland a Claude Code per tutti i progetti (dopo una copia datata di `.claude.json`). Così Claude Code, in qualsiasi progetto, può:
 - mostrare una **card con pulsanti** nell'isola e aspettare la tua scelta (`show_card`);
 - mettere un file nel **Vassoio** (`add_to_tray`);
-- usare tutti gli strumenti di EasyIsland descritti in [Modalità terminale e strumenti](10-strumenti-ai.md).
+- usare tutti gli strumenti di EasyIsland descritti in [Modalità terminale e strumenti](11-strumenti-ai.md).
 
 ## Riepiloghi
 - **Riepilogo del giorno**: al mattino (il tempo degli agenti di ieri) e a fine giornata (dall'ora che scegli, 18 di serie), con i repository che hanno file modificati o commit da inviare e le **pull request** in attesa di revisione (con `gh` o un token GitHub).

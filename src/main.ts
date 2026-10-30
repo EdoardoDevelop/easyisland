@@ -6,7 +6,7 @@ import "./style-light.css";
 import "./character/roster";
 import { Bridge, IS_TAURI, onEvent, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
-import { State, barEdge, barThickness, type BarSys, type Custom, type Settings } from "./core/state";
+import { State, barEdge, barThickness, type BarSys, type Custom, type NewsItem, type Settings } from "./core/state";
 import { forgetRecords, receiveSource } from "./views/custom";
 import { Island } from "./island/island";
 import { installTooltips } from "./core/tooltip";
@@ -140,6 +140,20 @@ async function main() {
   });
 
   await onEvent<boolean>("fullscreen", (on) => island.setFullscreen(on));
+  // «Notizie» (news.rs): the news kept, then each check's.
+  await onEvent<NewsItem[]>("news", (items) => {
+    State.news = items ?? [];
+    State.notify();
+  });
+  void Bridge.newsTaste().then((taste) => {
+    if (taste) State.newsTaste = taste;
+  });
+  void Bridge.newsItems().then((items) => {
+    if (items) {
+      State.news = items;
+      State.notify();
+    }
+  });
   await onEvent<{ active: boolean; reason: string }>("presence", (p) => island.setPresence(p.active, p.reason));
   void Bridge.presenceState().then((why) => { if (why) island.setPresence(true, why); });
 

@@ -16,10 +16,10 @@ EasyIsland is an **island always at hand** at the top of your Windows screen, wi
 | **Getting started** | [Installation](02-installation.md), [First steps](03-getting-started.md), [The island](04-island.md) |
 | **Make it yours** | [Position and look](05-appearance.md), [Profiles and notifications](06-profiles.md) |
 | **Coding agents** | [Coding agents](07-agents.md) |
-| **Artificial intelligence** | [The chat](08-chat.md), [AI engines](09-engines.md), [Terminal mode and tools](10-ai-tools.md), [Memory and second brain](11-memory.md), [Tasks, Heartbeat and Skills](12-tasks.md) |
-| **Getting things done** | [Quick actions and shortcuts](13-actions.md), [Automations](14-automations.md), [Files and screen](15-files-and-screen.md) |
-| **Connecting services** | [Integrations](16-integrations.md), [3CX](17-3cx.md), [Notion](18-notion.md), [Microsoft: Outlook, Teams, To Do](19-microsoft.md), [Telegram](20-telegram.md), [Remote support](21-remote-support.md), [Custom integrations](22-custom-integrations.md), [Widgets](23-widgets.md) |
-| **Reference** | [Settings, page by page](24-settings.md), [Privacy and security](25-privacy.md), [Command line and scripts](26-command-line.md), [Troubleshooting](27-troubleshooting.md), [For developers](28-development.md) |
+| **Artificial intelligence** | [The chat](08-chat.md), [AI engines](09-engines.md), [Terminal mode and tools](11-ai-tools.md), [Memory and second brain](12-memory.md), [News](13-news.md), [Tasks, Heartbeat and Skills](14-tasks.md) |
+| **Getting things done** | [Quick actions and shortcuts](15-actions.md), [Automations](16-automations.md), [Files and screen](17-files-and-screen.md) |
+| **Connecting services** | [Integrations](18-integrations.md), [3CX](19-3cx.md), [Notion](20-notion.md), [Microsoft: Outlook, Teams, To Do](21-microsoft.md), [Telegram](22-telegram.md), [Remote support](23-remote-support.md), [Custom integrations](24-custom-integrations.md), [Widgets](25-widgets.md) |
+| **Reference** | [Settings, page by page](26-settings.md), [Privacy and security](27-privacy.md), [Command line and scripts](28-command-line.md), [Troubleshooting](29-troubleshooting.md), [For developers](30-development.md) |
 
 ## Requirements
 - **Windows 10 or 11**, 64-bit. WebView2, which draws the interface, is already part of Windows.
