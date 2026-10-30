@@ -117,6 +117,44 @@ export interface BarItem {
   id: string;
   area: "start" | "center" | "end";
   show?: "icon" | "value" | "both";
+  /** Tells apart two copies of the same element (two clocks); set when added. */
+  uid?: string;
+  opts?: BarOpts;
+}
+
+/**
+ * What a click, the middle button, the right button do on an element of the
+ * bar: "" its own default (BAR_KINDS in src/island/bar.ts), nothing, open its
+ * card, show the second text, its menu, mute (volume, microphone), or one of
+ * the user's quick actions.
+ */
+export type BarAct = "" | "none" | "card" | "alt" | "menu" | "mute" | `action:${string}`;
+
+/** The «Opzioni» of an element of the fixed bar (Impostazioni → Barra fissa). */
+export interface BarOpts {
+  /** What it shows, with placeholders ({icon}, {value}, {time}…); "" = `show`. */
+  format?: string;
+  /** Shown instead of `format` after a click on «alt» (the time becoming the date). */
+  alt?: string;
+  /** Tooltip; "" = the element's own. */
+  tip?: string;
+  left?: BarAct;
+  middle?: BarAct;
+  right?: BarAct;
+  /** false: the wheel does nothing on volume or brightness. */
+  wheel?: boolean;
+  /** Clock: an IANA time zone ("" = the PC's) and whether it shows seconds. */
+  tz?: string;
+  seconds?: boolean;
+}
+
+/** System values the bar shows, from src-tauri/src/barsys.rs (`bar-sys`). */
+export interface BarSys {
+  volume?: { level: number; muted: boolean } | null;
+  mic?: { level: number; muted: boolean } | null;
+  brightness?: number | null;
+  battery?: { percent: number; plugged: boolean; charging: boolean } | null;
+  net?: { down: number; up: number; wifi: boolean } | null;
 }
 
 /** «Barra fissa» on: its edge (src-tauri/src/appbar.rs); null when off. */
@@ -1175,6 +1213,8 @@ class AppState {
   rewrite: Rewrite | null = null;
   /** Latest result per widget id. */
   widgetStatus: Record<string, WidgetStatus> = {};
+  /** Volume, battery, network… for the fixed bar's system elements (barsys.rs). */
+  barSys: BarSys = {};
   noteMessage: string | null = null;
   searchResult: SearchResult | null = null;
   chatHistory: ChatMessage[] = [];

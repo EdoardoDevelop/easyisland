@@ -34,7 +34,12 @@ With **Fixed bar** at the top or the bottom, Windows keeps a band free at the ed
 - **Character in the bar:** at the start, in the centre or at the end. It cannot be dragged; a click opens the island right below the bar (above it, if the bar is at the bottom) and another closes it. When closed, the island is not there: the bar is.
 - **Bar height:** automatic (as tall as the compact view) or your own; the character, icons and text adapt.
 - **Bar background:** like the island, transparent (the desktop shows) or a colour of your choice; the text turns light or dark by itself.
-- **Items in the bar:** add your integrations, widgets and quick actions. For each, pick the area (start, centre, end) and what it shows (icon and value, icon only, value only); ↑ ↓ change the order, ✕ removes it. A click on an integration opens its card, on an action runs it.
+- **Bar widgets:** «+ Add» opens the catalog.
+  - **System:** clock and date, volume, microphone, brightness, battery, network speed, power menu. These can be added more than once, for example two clocks with different time zones.
+  - **Work:** your integrations and widgets. **Agents:** the strip. **My actions:** the quick actions.
+  - For each, pick the area (start, centre, end) and what it shows (icon and value, icon only, value only); ↑ ↓ change the order, ✕ removes it.
+  - **Options:** the format with placeholders (for example `{icon} {time}` or `NY {time}`), a second text shown after a click (the time becoming the date), the tooltip, what click, middle click and right click do (nothing, the card or the Windows panel, the second text, the menu, mute, one of your quick actions) and the wheel. The clock also has its time zone and seconds.
+  - By default: on the clock a click shows the date and a right click opens the Windows calendar; on the volume the wheel turns it up and down and a middle click mutes it; on the microphone a click turns it off and on; on the brightness the wheel changes it (external screens that allow it, or the laptop); the power menu locks, sleeps, restarts or shuts down, and always asks before sleeping, restarting or shutting down.
 - **The strip** (permissions, calls, agent at work, app in use) sits in the bar next to the character, with its buttons; adding «Strip» to the items puts it where you want.
 - What does not fit goes into **«…»** at the end of the bar: a click opens the list.
 - **Screen** (Position tab) picks the bar's monitor. In full screen (videos, games) the bar hides and comes back after.

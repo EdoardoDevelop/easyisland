@@ -291,6 +291,28 @@ document.addEventListener("click", (e) => {
   send({ kind: "bar", key: sub ? `${btn.dataset.key}:btn:${sub.dataset.btn}` : btn.dataset.key });
 });
 
+/** The bar element under an event, without «…» and the strip's own buttons. */
+function barKey(e: Event): string | null {
+  const btn = (e.target as HTMLElement | null)?.closest?.(".bar-btn") as HTMLElement | null;
+  return btn && !btn.classList.contains("bar-more") ? btn.dataset.key ?? null : null;
+}
+
+// The right and middle buttons and the wheel on an element: what the user chose
+// for it in Impostazioni (src/island/bar.ts → barAct); the page's own menu never shows.
+document.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+  const key = barKey(e);
+  if (key) send({ kind: "bar", key, button: "right" });
+});
+document.addEventListener("auxclick", (e) => {
+  const key = e.button === 1 ? barKey(e) : null;
+  if (key) send({ kind: "bar", key, button: "middle" });
+});
+document.addEventListener("wheel", (e) => {
+  const key = barKey(e);
+  if (key && e.deltaY) send({ kind: "bar", key, button: e.deltaY < 0 ? "up" : "down" });
+}, { passive: true });
+
 // Beside the open island or in the fixed bar (the times the window takes the mouse):
 // a click closes the island, or opens it from the bar.
 canvas.addEventListener("click", () => {

@@ -3,7 +3,9 @@
 
 import { Tracked, Spring, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop, onEvent, type WindowShot } from "../core/bridge";
-import { MIRRORED_CALLS, type CharacterMode, type IslandToCharacter } from "../core/link";
+import { MIRRORED_CALLS, type BarButton, type CharacterMode, type IslandToCharacter } from "../core/link";
+import { barAct, barItemOf, barPanel, barWheels, powerMenu, soundMenu, toggleAlt } from "./bar";
+import { barKind } from "../core/barkinds";
 import {
   BODY_GAP, EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_CHROME_H, ISLAND_MIN_W, NOTCH_W, PANEL_H, PANEL_W,
   RAIL_GAP, RAIL_W, ROUNDED_CORNER, STRIP_H, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
@@ -2698,8 +2700,17 @@ ${note}` : text };
    * or a widget opens its card (closes it, if it is already the one open), an
    * action runs.
    */
-  barClick(key: string) {
-    if (key.startsWith("strip")) {
+  barClick(key: string, button: BarButton = "left") {
+    // A line of the power menu or of the sound menu (powerMenu, soundMenu in bar.ts).
+    const line = /^sys:(power|volume|mic):([a-z]+)$/.exec(key);
+    if (line) {
+      const [, kind, what] = line;
+      if (kind === "power") void Bridge.barSysDo(what);
+      else if (what === "mute") void Bridge.barSysDo(kind === "mic" ? "mic-mute" : "mute");
+      else void Bridge.barSysDo("panel:sound");
+      return;
+    }
+    if (key.startsWith("strip") && button === "left") {
       // A button of the strip does what it does beside the compact character;
       // its line opens the island (on the request, when one waits).
       const i = key.startsWith("strip:btn:") ? Number(key.slice(10)) : -1;
@@ -2709,19 +2720,56 @@ ${note}` : text };
       else this.openFromBar();
       return;
     }
-    if (key.startsWith("task:")) {
-      const id = key.slice(5);
-      if (State.mode === "expanded" && State.focusTask?.id === id && !State.summary) {
-        this.collapse();
-        return;
-      }
-      State.summary = false;
-      State.setFocus(id);
-      this.openFromBar("overview");
-    } else if (key.startsWith("action:")) {
-      const a = (State.settings.actions ?? []).find((x) => x.id === key.slice(7));
-      if (a) void this.runAction(a);
+    const it = barItemOf(key);
+    if (!it) return;
+    const kind = barKind(it.id);
+    if (button === "up" || button === "down") {
+      if (kind && barWheels(it)) this.barWheel(it.id.slice(4), button === "up" ? 1 : -1);
+      return;
     }
+    const act = barAct(it, button);
+    if (act === "none" || act === "") return;
+    if (act === "alt") {
+      toggleAlt(key);
+      State.notify();
+    } else if (act === "mute") {
+      if (kind) void Bridge.barSysDo(it.id === "sys:mic" ? "mic-mute" : "mute");
+    } else if (act === "menu") {
+      if (it.id === "sys:power") void Bridge.barMenu(powerMenu());
+      else if (it.id === "sys:volume" || it.id === "sys:mic") void Bridge.barMenu(soundMenu(it.id === "sys:mic" ? "mic" : "volume"));
+    } else if (act.startsWith("action:")) {
+      const a = (State.settings.actions ?? []).find((x) => x.id === act.slice(7));
+      if (a) void this.runAction(a);
+    } else if (act === "card") {
+      if (kind) {
+        void Bridge.barSysDo(`panel:${barPanel(it.id.slice(4))}`);
+      } else if (it.id.startsWith("task:")) {
+        const id = it.id.slice(5);
+        if (State.mode === "expanded" && State.focusTask?.id === id && !State.summary) {
+          this.collapse();
+          return;
+        }
+        State.summary = false;
+        State.setFocus(id);
+        this.openFromBar("overview");
+      } else if (it.id.startsWith("action:")) {
+        const a = (State.settings.actions ?? []).find((x) => x.id === it.id.slice(7));
+        if (a) void this.runAction(a);
+      }
+    }
+  }
+
+  /** Wheel notches on volume or brightness, gathered for a moment: brightness is slow to set. */
+  private wheelSum: Record<string, number> = {};
+  private wheelTimer: number | null = null;
+  private barWheel(kind: string, dir: 1 | -1) {
+    this.wheelSum[kind] = (this.wheelSum[kind] ?? 0) + dir * (kind === "brightness" ? 5 : 2);
+    if (this.wheelTimer !== null) return;
+    this.wheelTimer = window.setTimeout(() => {
+      this.wheelTimer = null;
+      for (const [k, n] of Object.entries(this.wheelSum)) if (n) void Bridge.barSysDo(k, n);
+      this.wheelSum = {};
+    }, kind === "brightness" ? 250 : 60);
   }
 
   /** The island's own colour: the user's, or the style's default for dark or light. */

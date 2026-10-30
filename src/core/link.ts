@@ -58,12 +58,15 @@ export type IslandToCharacter =
   | { kind: "call"; name: string; args: unknown[] }
   | { kind: "pong"; sent: number };
 
+/** How an element of the bar was touched: a button, or the wheel up or down. */
+export type BarButton = "left" | "middle" | "right" | "up" | "down";
+
 export type CharacterToIsland =
   | { kind: "hello" }
   /** A click on the character beside the open island: closes it (or opens it). */
   | { kind: "open" }
-  /** A click on an element of the fixed bar (BarPiece.key). */
-  | { kind: "bar"; key: string }
+  /** A click on an element of the fixed bar (BarPiece.key): which button, or the wheel. */
+  | { kind: "bar"; key: string; button?: BarButton }
   | { kind: "ping"; sent: number };
 
 /** BotEngine methods the island forwards while the compact character is in its own window. */

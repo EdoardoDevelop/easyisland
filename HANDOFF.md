@@ -1,12 +1,13 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 29 ottobre 2026. Versione **1.0.11** in `main` con il tag `v1.0.11`: due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo`. In attesa `claude/modello-integrato`; `claude/barra-fissa` è il primo tentativo, solo archivio. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 30 ottobre 2026. Versione **1.0.12** in `main` con il tag `v1.0.12`: due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa, che dal 1.0.12 si rimette a posto dopo un cambio di schermo) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo`; i **Widget della barra** sono su `claude/widgetbar`. In attesa `claude/modello-integrato`; `claude/barra-fissa` è il primo tentativo, solo archivio. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
 - [ ] **Personaggio e isola in due finestre** (unite in `claude/sviluppo`; misure in `docs/due-webview.md`, come funziona in `docs/architettura.md`): da provare ai lati e su un secondo schermo (in basso e i file rilasciati sul personaggio funzionano, provati da Edoardo il 29 ottobre 2026).
 - [ ] **Barra fissa** (unita in `claude/sviluppo`, `docs/architettura.md` → Barra fissa): fatta e provata in alto. Da provare in basso, sul secondo monitor e con il menu «…».
+- [ ] **Widget della barra** (su `claude/widgetbar`, `docs/architettura.md` → Barra fissa → Widget della barra): catalogo «+ Aggiungi», «Opzioni» per elemento, orologio, volume, microfono, luminosità, batteria, rete e menu di spegnimento (`barsys.rs`). Da provare dal vivo; poi le card nell'isola al posto dei pannelli di Windows e gli altri elementi (`docs/idee.md`).
 - [ ] **Aspetto a schede con le immagini** (unita in `claude/sviluppo`, `docs/architettura.md` → Impostazioni): sei schede, una miniatura disegnata accanto a ogni voce. Modalità chiara non ancora guardata.
 - [ ] **Integrazioni personali:** fatte nel codice e nell'anteprima (`docs/integrazioni.md`); da provare con l'app vera (`docs/prove-dal-vivo.md`).
 - [ ] **Guida sul sito**, italiano e inglese (`docs/guida/`, `docs/guida/en/` → `site/guida/`, `site/en/guide/`; homepage inglese `site/en/index.html`, schermate inglesi in `site/media/en/`): da tenere allineate a ogni funzione nuova (`node scripts/guida.mjs`). Il link delle Impostazioni nella lingua dell'app arriva con la prossima versione.
@@ -49,6 +50,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 30 ottobre 2026 — Widget della barra (su `claude/widgetbar`)
+- Passi 1 e 2 di `docs/idee.md` → «Elementi da aggiungere alla barra fissa»: catalogo per gruppi, opzioni comuni (formato con segnaposto, secondo testo, suggerimento, clic / clic centrale / clic destro, rotella) e sette elementi di sistema letti da `barsys.rs` solo mentre sono nella barra. Smoke «nessun errore»; non ancora provati dal vivo.
+
 ### 30 ottobre 2026 — Versione 1.0.12: barra fissa dopo un cambio di schermo
 - Contiene la correzione qui sotto, provata da Edoardo («ora funziona»).
 
@@ -62,8 +66,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Impostazioni → Aspetto divisa in sei schede (Tema, Personaggio, Posizione, Barra fissa, Isola chiusa, Isola aperta); accanto a ogni voce uno schermo in miniatura in SVG (`src/settings/pictures.ts`) che si ridisegna al cambio del valore, alcune animate in CSS solo mentre sono in vista; in Personaggio il personaggio vero si muove. Angolo scelto anche con un clic sulla miniatura.
 - Smoke esteso a ogni scheda («nessun errore»); schermata `settings.png` e guida aggiornate.
 - «Aggancia ai bordi» spento ora vale anche in alto al centro, dove l'isola restava sempre attaccata al bordo (`glueFor` in `src/core/layout.ts`); con la barra fissa l'isola resta sempre contro la barra.
-
-### 29 ottobre 2026 — Barra fissa (unita in `claude/sviluppo`)
-- La finestra del personaggio diventa la fascia riservata da Windows in alto o in basso, con il personaggio in una delle tre aree, le integrazioni, i widget, le azioni e la striscia scelti in Impostazioni, «…» per ciò che non ci sta e sfondo come l'isola, trasparente o a colore. L'isola chiusa è nascosta, aperta sta contro la barra.
-- Provata dal vivo da Claude con foto dello schermo e clic simulati (Edoardo lontano dal PC); da provare barra in basso, secondo monitor e «…».
-- Corretto dopo l'unione: un elemento cliccato apriva l'isola che si richiudeva appena il mouse ci entrava (`openFromBar` in `island.ts`). Chiudendo l'isola non compare più per un attimo il personaggio piccolo: niente vista compatta, l'isola sfuma mentre si ritira (`bar-away`). Senza barra, a isola aperta il personaggio fuori sparisce (resta quello nel menu). Il personaggio a riposo compare con una dissolvenza e le animazioni CSS partono dalla posa dritta (`personaggio.html`). Nuova «Altezza della barra» (`fixedBarHeight`, 0 = automatica; testi e icone in scala con `--s` in `personaggio.html`).
