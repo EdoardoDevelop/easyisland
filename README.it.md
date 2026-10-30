@@ -19,7 +19,7 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 <img src="screenshots/overview.png" width="700" alt="EasyIsland aperta: Panoramica con agenti, integrazioni e il personaggio Jarvis Sfera">
 
-**Capitoli:** [Cosa fa](#cosa-fa) · [Ultime versioni](#ultime-versioni) · [Installazione](#installazione) · [Come si usa](#come-si-usa) · [Posizione e aspetto](#posizione-e-aspetto) · [Azioni rapide e scorciatoie](#azioni-rapide-e-scorciatoie) · [Integrazioni](#integrazioni) · [Widget](#widget) · [Davanti al cliente](#davanti-al-cliente) · [Messaggi dagli script](#messaggi-dagli-script) · [Profili, tema e backup](#profili-tema-e-backup) · [Claude Code](#claude-code) · [Chat con Claude](#chat-con-claude) · [Automazioni](#automazioni) · [Compilarlo da te](#compilarlo-da-te) · [Origine](#origine)
+**Capitoli:** [Cosa fa](#cosa-fa) · [Ultime versioni](#ultime-versioni) · [Installazione](#installazione) · [Come si usa](#come-si-usa) · [Posizione e aspetto](#posizione-e-aspetto) · [Azioni rapide e scorciatoie](#azioni-rapide-e-scorciatoie) · [Integrazioni](#integrazioni) · [Widget](#widget) · [Davanti al cliente](#davanti-al-cliente) · [Messaggi dagli script](#messaggi-dagli-script) · [Profili, tema e backup](#profili-tema-e-backup) · [Claude Code](#claude-code) · [Chat con Claude](#chat-con-claude) · [Automazioni](#automazioni) · [Compilarlo da te](#compilarlo-da-te) · [Licenza](#licenza)
 
 ## Cosa fa
 
@@ -885,21 +885,7 @@ mano. Tienine una copia al sicuro.
 `%LOCALAPPDATA%\EasyIsland\easyisland.log`: eventi degli hook, decisioni sui permessi,
 problemi dei poller. Resta sul tuo computer.
 
-## Origine
+## Licenza
 
-EasyIsland nasce come fork solo per Windows di
-[Louis-CFM/coucou](https://github.com/Louis-CFM/coucou) (Coucou, con il
-personaggio Mochi), app nativa macOS per il notch. Slime, uno slime,
-ha preso il posto di Mochi. Il codice macOS e il prototipo originale sono stati
-rimossi (restano nella storia git). Alcune funzioni
-esistevano solo sul Mac e non sono presenti qui: invio di un file per email e
-salto alla finestra esatta del terminale. Il trascinamento del personaggio su una
-finestra per allegarla come contesto c'è, dalla scheda Chat. Al suo posto, quando una sessione finisce o va
-in errore, il pulsante **Apri Claude / Apri VS Code / Apri terminale** riporta in
-primo piano l'app in cui gira la sessione (l'app desktop di Claude, VS Code con
-la cartella del progetto, Windows Terminal o la console); se non la trova apre
-la cartella in VS Code, e altrimenti in Esplora file.
-
-Licenza: MIT per il codice. Nomi, personaggi, icone e suoni di EasyIsland sono
-nuovi; quelli dell'originale (non più usati) restano riservati al suo autore: vedi
-`LICENSE-ASSETS.md`.
+MIT per il codice: vedi `LICENSE`. Nomi, personaggi, icone e suoni di EasyIsland sono
+disegnati o sintetizzati nel codice.

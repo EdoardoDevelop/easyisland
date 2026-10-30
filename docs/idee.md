@@ -138,7 +138,7 @@ Preparata il 15 ottobre 2026 (`docs/integrazioni.md`). Da valutare dopo le prove
 - **Associazione esplicita** fra un cliente di 3CX o un'organizzazione di Zammad e una cartella di RDM, se la ricerca per nome non basta.
 - Da non fare: legare RDM a «davanti al cliente»; leggere le password o i campi sensibili.
 
-## Spunti da Coucou (letto l'8 ottobre 2026, `louis-cfm/coucou` Windows/Linux 0.2.0)
+## Spunti dall'app originale (letta l'8 ottobre 2026, versione Windows/Linux 0.2.0)
 1. Lo stesso schema del plugin di opencode vale per **Amp** e **Hermes**.
 2. **Limiti di Codex** (fatti quelli di Claude il 9 ottobre): Coucou chiede `account/rateLimits/read` a `codex app-server` (`codex_plan.rs`).
 3. **Riepilogo settimanale come immagine** da condividere (fatto il riepilogo il 9 ottobre): in Coucou `recap/share.ts`, con «Nascondi i nomi dei progetti».

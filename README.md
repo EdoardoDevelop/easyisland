@@ -19,7 +19,7 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 <img src="site/media/en/overview.png" width="700" alt="EasyIsland open: the Overview with agents, integrations and the Jarvis Sfera character">
 
-**Contents:** [What it does](#what-it-does) · [Latest versions](#latest-versions) · [Installation](#installation) · [How to use it](#how-to-use-it) · [Position and look](#position-and-look) · [Quick actions and shortcuts](#quick-actions-and-shortcuts) · [Integrations](#integrations) · [Widgets](#widgets) · [Customer is watching](#customer-is-watching) · [Messages from scripts](#messages-from-scripts) · [Profiles, theme and backup](#profiles-theme-and-backup) · [Claude Code](#claude-code) · [Chat with Claude](#chat-with-claude) · [Automations](#automations) · [Building it yourself](#building-it-yourself) · [Origin](#origin)
+**Contents:** [What it does](#what-it-does) · [Latest versions](#latest-versions) · [Installation](#installation) · [How to use it](#how-to-use-it) · [Position and look](#position-and-look) · [Quick actions and shortcuts](#quick-actions-and-shortcuts) · [Integrations](#integrations) · [Widgets](#widgets) · [Customer is watching](#customer-is-watching) · [Messages from scripts](#messages-from-scripts) · [Profiles, theme and backup](#profiles-theme-and-backup) · [Claude Code](#claude-code) · [Chat with Claude](#chat-with-claude) · [Automations](#automations) · [Building it yourself](#building-it-yourself) · [License](#license)
 
 ## What it does
 
@@ -518,13 +518,7 @@ the code.
 `%LOCALAPPDATA%\EasyIsland\easyisland.log`: hook events, permission decisions,
 poller problems. It stays on your computer.
 
-## Origin
+## License
 
-EasyIsland started as a Windows-only fork of
-[Louis-CFM/coucou](https://github.com/Louis-CFM/coucou) (Coucou, with the Mochi
-character), a native macOS notch app. Slime took Mochi's place. The macOS code and
-the original prototype were removed (they remain in git history).
-
-License: MIT for the code. EasyIsland's names, characters, icons and sounds are new;
-those of the original (no longer used) remain reserved to its author: see
-`LICENSE-ASSETS.md`.
+MIT for the code: see `LICENSE`. EasyIsland's names, characters, icons and sounds are
+drawn or synthesised in code.

@@ -143,7 +143,7 @@ function agentRow(tool: HookTool, initial: HookStatus | null): HTMLElement {
 
   function badge(): HTMLElement {
     if (!known) return h("span", { class: "agent-state", text: "…" });
-    if (status.legacy) return h("span", { class: "agent-state warn", text: t("Hook vecchi (Coucou)") });
+    if (status.legacy) return h("span", { class: "agent-state warn", text: t("Hook di una versione vecchia") });
     if (status.installed && status.outdated) return h("span", { class: "agent-state warn", text: t("Da aggiornare") });
     if (status.installed) return h("span", { class: "agent-state ok", text: tool === "opencode" ? t("Plugin 1.x installato") : t("Collegato") });
     return h("span", { class: "agent-state", text: tool === "opencode" ? "" : t("Non collegato") });
