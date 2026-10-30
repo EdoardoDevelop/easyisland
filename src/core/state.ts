@@ -171,8 +171,8 @@ export interface NewsSettings {
   tab?: boolean;
   /** The memory's subjects followed by themselves, chosen by an engine; off when false. */
   auto?: boolean;
-  /** Where the news come from: Google News (default) or Bing News (pictures and a summary line). */
-  source?: "google" | "bing";
+  /** Where the news come from: Google News (default), Bing News (pictures and a summary line) or both mixed. */
+  source?: "google" | "bing" | "both";
   /** How the Notizie tab shows them: a list (default), with thumbnails, or as cards. */
   look?: "list" | "thumbs" | "cards";
 }

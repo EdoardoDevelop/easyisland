@@ -3798,6 +3798,8 @@
   "Aspetto della scheda": "Tab look",
   "Con le miniature": "With thumbnails",
   "A schede": "Cards",
-  "Google News: miniatura con il logo del giornale. Bing News: la foto dell'articolo e una riga di riassunto. Vale dal prossimo controllo.": "Google News: thumbnail with the paper's logo. Bing News: the article's picture and a summary line. Applies from the next check.",
+  "Google News: miniatura con il logo del giornale. Bing News: la foto dell'articolo e una riga di riassunto. Insieme: le notizie di tutti e due, mescolate, senza doppioni. Vale dal prossimo controllo.": "Google News: thumbnail with the paper's logo. Bing News: the article's picture and a summary line. Together: news from both, mixed, without duplicates. Applies from the next check.",
+  "Google e Bing insieme": "Google and Bing together",
+  "Google News e Bing News": "Google News and Bing News",
   "{name} non risponde": "{name} is not answering"
 }
