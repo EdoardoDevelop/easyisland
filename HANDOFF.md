@@ -49,8 +49,11 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
-### 30 ottobre 2026 — Barra fissa dopo un cambio di schermo (su `claude/barra-schermo`)
-- Spegnendo e riaccendendo il monitor o cambiandolo la barra restava della risoluzione vecchia. Ora a ogni cambio di schermo (e al riavvio di Explorer) la barra si toglie e si registra di nuovo, 1,5 s dopo l'ultimo messaggio (`display_changed` in `appbar.rs`), con una pausa di 0,5 s tra toglierla e registrarla. Restava comunque staccata: la fascia era giusta, ma Windows spostava la finestra appena sotto; ora quando succede la rimette sulla fascia (`drifted`). Da provare dal vivo.
+### 30 ottobre 2026 — Versione 1.0.12: barra fissa dopo un cambio di schermo
+- Contiene la correzione qui sotto, provata da Edoardo («ora funziona»).
+
+### 30 ottobre 2026 — Barra fissa dopo un cambio di schermo (unita in `claude/sviluppo`)
+- Spegnendo e riaccendendo il monitor o cambiandolo la barra restava della risoluzione vecchia. Ora a ogni cambio di schermo (e al riavvio di Explorer) la barra si toglie e si registra di nuovo, 1,5 s dopo l'ultimo messaggio (`display_changed` in `appbar.rs`), con una pausa di 0,5 s tra toglierla e registrarla. Restava comunque staccata: la fascia era giusta, ma Windows spostava la finestra appena sotto; ora quando succede la rimette sulla fascia (`drifted`). Provata da Edoardo dal vivo.
 
 ### 29 ottobre 2026 — Versione 1.0.11: barra fissa, due finestre, Aspetto a schede
 - Contiene la barra fissa con altezza a scelta, il personaggio in una finestra sua (a isola aperta resta solo quello nel menu), la pagina Aspetto a schede con le miniature e «Aggancia ai bordi» corretto: tutto in `CHANGELOG.md`.
@@ -64,7 +67,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - La finestra del personaggio diventa la fascia riservata da Windows in alto o in basso, con il personaggio in una delle tre aree, le integrazioni, i widget, le azioni e la striscia scelti in Impostazioni, «…» per ciò che non ci sta e sfondo come l'isola, trasparente o a colore. L'isola chiusa è nascosta, aperta sta contro la barra.
 - Provata dal vivo da Claude con foto dello schermo e clic simulati (Edoardo lontano dal PC); da provare barra in basso, secondo monitor e «…».
 - Corretto dopo l'unione: un elemento cliccato apriva l'isola che si richiudeva appena il mouse ci entrava (`openFromBar` in `island.ts`). Chiudendo l'isola non compare più per un attimo il personaggio piccolo: niente vista compatta, l'isola sfuma mentre si ritira (`bar-away`). Senza barra, a isola aperta il personaggio fuori sparisce (resta quello nel menu). Il personaggio a riposo compare con una dissolvenza e le animazioni CSS partono dalla posa dritta (`personaggio.html`). Nuova «Altezza della barra» (`fixedBarHeight`, 0 = automatica; testi e icone in scala con `--s` in `personaggio.html`).
-
-### 29 ottobre 2026 — Personaggio e isola in due finestre (su `claude/due-webview`)
-- Il personaggio vive in una finestra sua (`personaggio.html`, canale `BroadcastChannel` in `src/core/link.ts`): a riposo e compatto la posa Rust sopra l'isola, che tiene clic e passaggio del mouse; aperta l'isola resta fermo e l'isola si apre accanto. L'isola aperta va dietro a qualunque finestra attivata, il personaggio resta davanti.
-- Misure: +22 MB per la seconda finestra; con la vista compatta sempre visibile e Jarvis 414 MB, CPU 0,64 %. Dettagli in `docs/due-webview.md`.

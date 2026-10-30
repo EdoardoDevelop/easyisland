@@ -2,6 +2,10 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.12** — The **fixed bar** goes back in place by itself when you turn the monitor off and on, change
+it or change resolution or scale: before, it kept the old size or came away from the edge and had to be
+turned off and on again. The same when Explorer restarts.
+
 **1.0.11** — **Fixed bar** (Settings → Look → Fixed bar): a band at the top or the bottom that Windows
 keeps free like the taskbar, with the character at the start, centre or end, the integrations, widgets,
 quick actions and permission strip you choose, «…» for what does not fit, a background like the island,
