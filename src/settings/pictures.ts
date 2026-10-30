@@ -289,7 +289,7 @@ function barItems(s: Settings, y: number, h: number, ink: string, scale = 1): st
   const pill = (x: number, it: { id: string; show?: string }) => {
     const ww = w(it);
     const strip = it.id === "strip";
-    const color = strip ? "#F5A524" : it.id.startsWith("action:") ? "#A78BFA" : "#38BDF8";
+    const color = strip ? "#F5A524" : it.id.startsWith("action:") ? "#A78BFA" : it.id.startsWith("sys:") ? "#34D399" : "#38BDF8";
     let m = "";
     if (it.show !== "value") m += `<circle cx="${n1(x + 3 * scale)}" cy="${n1(y + h / 2)}" r="${n1(2.2 * scale)}" fill="${color}"/>`;
     if (it.show !== "icon") m += `<rect x="${n1(x + (it.show === "value" ? 0 : 7 * scale))}" y="${n1(y + h / 2 - 1.2 * scale)}" width="${n1(ww - (it.show === "value" ? 0 : 7 * scale))}" height="${n1(2.4 * scale)}" rx="1" fill="${ink}" fill-opacity="0.6"/>`;

@@ -43,6 +43,31 @@ Studiati gli agenti personali più usati: quelli locali e open source con contro
 - Regole: solo con entrambe le integrazioni accese, tutto in memoria, niente nomi né titoli davanti al cliente, nessuna azione senza un clic.
 - Seguito possibile: «Nuovo ticket» dalla chiamata.
 
+## Soluzioni proposte per i ticket Zammad (chiesta da Edoardo il 30 ottobre 2026)
+Su un ticket nuovo EasyIsland cerca da solo una soluzione e la propone. Sceglie e agisce sempre l'utente. Oggi `zammad.rs` legge solo i conteggi e i titoli delle viste (`ticket_overviews`).
+- **Quando parte:** su un ticket nuovo assegnato all'utente o «Da assegnare» (l'evento c'è già, `new_ticket_event`), oppure a mano con «Cerca una soluzione» nella card del ticket. È un compito (`docs/chat.md` → Compiti) con il motore e i limiti scelti in Impostazioni.
+- **Cosa legge:**
+  - il ticket intero: titolo, articoli, allegati di testo, cliente e organizzazione (`/api/v1/tickets/{id}`, `/api/v1/ticket_articles/by_ticket/{id}`);
+  - i ticket chiusi dello stesso cliente o con parole simili, con la soluzione data allora. La ricerca di Zammad potrebbe volere Elasticsearch: è la stessa domanda aperta della sezione 3CX qui sopra. In ripiego, l'elenco degli ultimi ticket chiusi filtrato in locale;
+  - la knowledge base di Zammad, se c'è;
+  - la memoria: le pagine del cliente, del prodotto e del problema (`brain.rs`) e le abilità dell'utente;
+  - il web con la ricerca del motore: documentazione dei produttori, forum, note di rilascio, avvisi noti;
+  - dove serve, gli strumenti di sola lettura che ci sono già: stato dei server, controlli, RDM per sapere quale macchina è.
+- **Cosa propone**, nella card del ticket e con un avviso nell'isola:
+  - la causa probabile e i passi per risolvere, in ordine, con quanto è sicuro;
+  - le fonti (ticket passati, pagine della memoria, link) per controllare;
+  - una bozza di risposta al cliente e una nota interna.
+  - Con «Utile» o «Non utile» l'utente dice com'è andata, e il compito ne tiene conto.
+- **Mai senza un clic:** nessuna scrittura in Zammad da sola. «Aggiungi come nota interna» e «Usa come risposta» (che apre la bozza nel ticket, mai inviata) solo dopo il clic; stato, assegnatario e priorità non si toccano. I comandi su un PC del cliente restano quelli di «Accesso remoto» con Consenti / Nega.
+- **Impara:** quando un ticket si chiude, EasyIsland propone di salvare problema e soluzione nella pagina del cliente o del prodotto (`memory_page_write`, con conferma). Così i ticket seguenti trovano la risposta in casa, prima di andare sul web.
+- **Riservatezza:** il testo del ticket contiene dati del cliente e va al motore scelto.
+  - Si può scegliere un motore locale.
+  - Oppure togliere email, telefoni, indirizzi e nomi prima di mandarlo.
+  - Le ricerche sul web contengono solo i termini tecnici (errore, prodotto, versione), mai nomi di clienti o persone.
+  - Niente davanti al cliente (`davanti al cliente` nasconde la card).
+- **Costi:** un tetto di ticket al giorno e di turni per ticket. Si salta un ticket già proposto. Si può limitare ad alcune code o gruppi, o solo ai ticket assegnati all'utente.
+- **Ordine proposto:** 1) lettura del ticket intero e «Cerca una soluzione» a mano, con memoria e web; 2) ticket simili chiusi e knowledge base; 3) partenza da sola sui ticket nuovi; 4) «Aggiungi come nota interna» e salvataggio della soluzione nella memoria.
+
 ## Account Microsoft: mail nuove e calendario (annotata il 14 ottobre 2026; predisposizione fatta il 16 ottobre, `integrazioni.md` → Account Microsoft)
 - **Teams, secondo passo** (deciso con Edoardo il 16 ottobre 2026, dopo la parte locale in `integrazioni.md`): con lo stesso accesso, riunioni di oggi con «Partecipa» (`onlineMeeting.joinUrl`), chat non lette (`Chat.Read`), stato Disponibile/Occupato (`Presence.Read`, e `Presence.ReadWrite` per cambiarlo). Serve la registrazione dell'app su Azure; l'azienda può bloccare il consenso.
 - **Via principale, Microsoft Graph:** «Accedi con Microsoft» nelle Impostazioni (browser, permessi di sola lettura `Mail.Read`, `Calendars.Read`, accesso con PKCE e indirizzo locale di ritorno). Vale per account di lavoro (Microsoft 365) e personali (Outlook.com), senza Outlook aperto e anche con il nuovo Outlook. Controllo circa ogni minuto (le notifiche push di Graph vogliono un server pubblico). Card «mail nuova» con mittente e oggetto, Apri e Chiedi alla chat (riassunto o bozza, mai inviata); card prima di un evento con «Partecipa» per Teams (`onlineMeeting.joinUrl`). Poi «quando» per le automazioni (idea 2 sotto).
@@ -81,6 +106,7 @@ Pulsanti o menu che cambiano con il programma in primo piano, da poter mettere n
 - **Da fare prima:** una prova che legge i menu dei programmi che Edoardo usa di più, in un branch suo.
 
 ## Elementi da aggiungere alla barra fissa (ragionata con Edoardo il 30 ottobre 2026)
+**Fatti il 30 ottobre 2026 (branch `claude/widgetbar`), con il nome «Widget della barra»:** catalogo, opzioni comuni e `opts` (passo 1); orologio, volume, microfono, luminosità, batteria, velocità della rete e menu di spegnimento (passo 2). Lo stesso giorno le card nell'isola al posto dei pannelli di Windows (`src/views/barcard.ts`). Restano: cambiare il dispositivo d'uscita (Windows non ha un'API pubblica: per ora la card mostra il dispositivo e porta alle impostazioni audio), Wi-Fi e Bluetooth, il passo 3 e l'aspetto della barra (`docs/architettura.md` → Barra fissa).
 Spunto da una barra per Windows open source con decine di widget configurabili. Edoardo vuole soprattutto **poter aggiungere elementi alla barra** da un catalogo, ognuno con le sue opzioni. Oggi la barra mostra solo integrazioni, widget, azioni rapide e la striscia (`fixedBarItems`, `docs/architettura.md` → Barra fissa).
 - **Catalogo in Impostazioni → Aspetto → Barra fissa:** «+ Aggiungi» apre l'elenco per gruppi (Sistema, Lavoro, Agenti, Le mie azioni). Si sceglie l'area (sinistra, centro, destra), si cambia l'ordine, si apre «Opzioni» per l'elemento. Uno stesso elemento si può aggiungere più volte con opzioni diverse, per esempio due orologi con fusi diversi (`fixedBarItems` riceve `opts`). Tutto dalle Impostazioni, come deciso.
 - **Nome:** «Widget» in EasyIsland vuol dire i controlli ripetibili (`docs/decisioni.md`). Nella barra conviene «Elementi della barra», così non si confondono. Da decidere.
@@ -112,6 +138,25 @@ Spunto da una barra per Windows open source con decine di widget configurabili. 
   - nessuna animazione continua.
 - **Esclusi** (Edoardo, 30 ottobre 2026): barra su più schermi, CSS personale, systray, barra delle applicazioni sostitutiva, desktop virtuali, gestori di finestre a riquadri, visualizzatore audio (anima sempre), sfondi del desktop, Pomodoro e notifiche di sistema (già esclusi).
 - **Ordine proposto:** 1) catalogo, opzioni comuni e `opts`; 2) orologio, volume e microfono, luminosità, batteria, rete, menu di spegnimento; 3) gli altri elementi; 4) aspetto della barra.
+
+## Notizie dal web sugli argomenti della memoria (chiesta da Edoardo il 30 ottobre 2026)
+EasyIsland ricava dalla memoria interna gli argomenti che interessano all'utente e propone notizie dal web su quelli. È personalizzabile: si possono escludere o aggiungere argomenti.
+- **Argomenti dalla memoria:** le fonti sono le pagine collegate (`brain.rs`: titolo, `alias:`, `riassunto:`, quanto sono citate e aggiornate di recente), le note di `MEMORIA.md` e del diario, i progetti degli agenti. Ne esce un elenco proposto (es. «UniFi», «Tauri», «sicurezza Windows»), con le parole per la ricerca prese dagli alias.
+- **Personalizzazione** (Impostazioni → Notizie o nella card):
+  - argomenti proposti con «Aggiungi» / «Escludi», più quelli scritti a mano dall'utente;
+  - un argomento escluso non torna più tra le proposte, anche se la memoria continua a parlarne;
+  - per ogni argomento le parole da cercare e quelle da evitare;
+  - fonti e domini da preferire o da escludere, lingua, quante notizie al giorno, a che ora.
+  - Si cambia anche dalla chat («non mostrarmi più notizie su X»), con Consenti / Nega come per le altre impostazioni.
+- **Impara dall'uso:** su ogni notizia «Non mi interessa» (abbassa l'argomento, e dopo qualche volta propone di escluderlo) e «Di più». Gli argomenti proposti si aggiornano quando la memoria cambia (dopo il riordino serale), ma un argomento nuovo entra solo dopo un clic su «Aggiungi».
+- **Da dove arrivano**, nel rispetto della regola sulle chiamate di rete (solo servizi scelti dall'utente):
+  1. feed RSS/Atom scelti dall'utente e una ricerca di notizie per argomento via feed, attivata da lui. Il filtro sugli argomenti lo fa EasyIsland in locale: niente costo di modello;
+  2. facoltativo, un motore della chat con la ricerca web, come compito ricorrente, che sceglie e riassume. Costa un turno con strumenti ogni volta, quindi con un tetto al giorno.
+  - Proposta: 1 di serie, 2 solo se acceso.
+- **Riservatezza:** gli argomenti diventano ricerche inviate a un servizio esterno. Quelli che vengono da pagine di persone e clienti non si propongono mai da soli. Prima di cercare un argomento ricavato dalla memoria, l'utente lo vede e lo approva.
+- **Dove si vedono:** un riquadro «Notizie» nella Panoramica e una card con titolo, fonte, una riga di riassunto e «Apri»; nel riepilogo del mattino; su Telegram con `/notizie`; come elemento della barra fissa (sezione qui sopra). «Salva nella memoria» manda la pagina in `da-leggere`.
+- **Vincoli:** il controllo gira in Rust a orari, mai in un ciclo continuo; notizie già viste non si ripetono (stessa URL o titolo molto simile); niente telemetria; i feed sono letti e tenuti solo sul PC.
+- **Ordine proposto:** 1) argomenti dalla memoria con Aggiungi / Escludi; 2) feed e filtro locale, card e riquadro; 3) «Non mi interessa» / «Di più»; 4) riassunti del motore, Telegram e barra.
 
 ## Estensione per Chrome ed Edge (ragionata con Edoardo il 29 ottobre 2026)
 Un'estensione che parla solo con EasyIsland sul PC (native messaging di Chrome: un canale locale, niente rete). Rivede la decisione dell'11 ottobre «niente estensione del browser» (`decisioni.md`, menu sul testo selezionato).

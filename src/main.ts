@@ -6,7 +6,7 @@ import "./style-light.css";
 import "./character/roster";
 import { Bridge, IS_TAURI, onEvent, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
-import { State, barEdge, barThickness, type Custom, type Settings } from "./core/state";
+import { State, barEdge, barThickness, type BarSys, type Custom, type Settings } from "./core/state";
 import { forgetRecords, receiveSource } from "./views/custom";
 import { Island } from "./island/island";
 import { installTooltips } from "./core/tooltip";
@@ -17,7 +17,7 @@ import { registerMoments } from "./island/moments";
 import { syncLanguage } from "./core/i18n";
 import { registerIntegrationHandlers, refreshConfigured } from "./island/integrations";
 import { linkChannel, type CharacterToIsland, type IslandToCharacter } from "./core/link";
-import { barPieces } from "./island/bar";
+import { barClockDelay, barPieces, barSysKinds } from "./island/bar";
 
 /**
  * Uncaught errors of the page go to easyisland.log (the WebView's console is
@@ -260,7 +260,7 @@ function linkCharacterWindow(island: Island) {
       sentKey = "";
       push();
     } else if (m.kind === "bar") {
-      island.barClick(m.key);
+      island.barClick(m.key, m.button);
     } else if (m.kind === "open") {
       if (State.mode === "expanded") island.collapse();
       else island.openFromTaskbar();
@@ -268,13 +268,40 @@ function linkCharacterWindow(island: Island) {
       send({ kind: "pong", sent: m.sent });
     }
   });
+  // The system elements of the bar: barsys.rs reads only those shown, and the
+  // clock is redrawn at the turn of each minute (or second) while one is there.
+  let watched = "";
+  let tick: number | null = null;
+  const watch = () => {
+    const kinds = barSysKinds();
+    const k = kinds.join(",");
+    if (k !== watched) {
+      watched = k;
+      void Bridge.barSysWatch(kinds);
+    }
+    const delay = barClockDelay();
+    if (delay === null) {
+      if (tick !== null) window.clearTimeout(tick);
+      tick = null;
+    } else if (tick === null) {
+      tick = window.setTimeout(() => {
+        tick = null;
+        push();
+      }, delay);
+    }
+  };
   const push = () => {
+    watch();
     const m = look();
     const key = JSON.stringify(m);
     if (key === sentKey) return;
     sentKey = key;
     send(m);
   };
+  void onEvent<BarSys>("bar-sys", (v) => {
+    State.barSys = v ?? {};
+    push();
+  });
   State.subscribe(push);
   island.onRestChange = push;
   island.mirror = send;

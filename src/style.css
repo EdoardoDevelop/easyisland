@@ -4939,6 +4939,39 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 
 .daily-more { font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--dim-3, var(--dim-2)); }
 
+/* The cards of the fixed bar's system elements (src/views/barcard.ts). */
+.barcard-icon { display: grid; place-items: center; align-self: center; color: var(--ink); }
+.barcard-row { display: flex; align-items: center; gap: 10px; }
+.barcard-slider { display: flex; align-items: center; gap: 10px; flex: 1 1 auto; min-width: 0; }
+.barcard-range { flex: 1 1 auto; min-width: 0; accent-color: var(--ink); }
+.barcard-value { font: 600 calc(12.5px + var(--fs-up, 0px)) var(--font); color: var(--ink); min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+.barcard-mute {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  padding: 5px 10px; border-radius: 9px; border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07); color: var(--ink); cursor: pointer;
+  font: 500 calc(12px + var(--fs-up, 0px)) var(--font);
+}
+.barcard-mute:hover { background: rgba(255, 255, 255, 0.12); }
+.barcard-mute.on { color: #F4505E; }
+.barcard-device { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.barcard-big { font: 600 calc(26px + var(--fs-up, 0px)) var(--font); color: var(--ink); line-height: 1.1; }
+.barcard-meter { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.barcard-meter span { display: block; height: 100%; background: #34D399; border-radius: 3px; transition: width 0.3s ease; }
+.barcard-meter.low span { background: #F4505E; }
+.barcard-time { font-variant-numeric: tabular-nums; }
+.barcard-nav { display: flex; align-items: center; gap: 8px; }
+.barcard-nav button {
+  width: 24px; height: 22px; border: 0; border-radius: 6px; background: rgba(255, 255, 255, 0.07);
+  color: var(--ink); cursor: pointer; font: 600 13px var(--font);
+}
+.barcard-nav button:hover { background: rgba(255, 255, 255, 0.13); }
+.barcard-month { font: 600 calc(12.5px + var(--fs-up, 0px)) var(--font); color: var(--ink); text-transform: capitalize; min-width: 120px; text-align: center; }
+.barcard-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; max-width: 280px; }
+.barcard-cal span { text-align: center; padding: 2px 0; border-radius: 6px; font: 400 calc(11.5px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); font-variant-numeric: tabular-nums; }
+.barcard-cal .barcard-wd { font-weight: 600; color: var(--dim-3, var(--dim-2)); text-transform: uppercase; font-size: calc(10px + var(--fs-up, 0px)); }
+.barcard-cal .barcard-day { color: var(--ink); }
+.barcard-cal .today { background: var(--ink); color: #16181d; font-weight: 600; }
+
 /* A proposal at the right moment (src/views/moment.ts). */
 .moment-title { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 

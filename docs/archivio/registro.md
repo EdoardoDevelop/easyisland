@@ -2,6 +2,19 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 29 ottobre 2026 — Versione 1.0.11: barra fissa, due finestre, Aspetto a schede
+- Contiene la barra fissa con altezza a scelta, il personaggio in una finestra sua (a isola aperta resta solo quello nel menu), la pagina Aspetto a schede con le miniature e «Aggancia ai bordi» corretto: tutto in `CHANGELOG.md`.
+
+### 29 ottobre 2026 — Aspetto a schede con le immagini (unita in `claude/sviluppo`)
+- Impostazioni → Aspetto divisa in sei schede (Tema, Personaggio, Posizione, Barra fissa, Isola chiusa, Isola aperta); accanto a ogni voce uno schermo in miniatura in SVG (`src/settings/pictures.ts`) che si ridisegna al cambio del valore, alcune animate in CSS solo mentre sono in vista; in Personaggio il personaggio vero si muove. Angolo scelto anche con un clic sulla miniatura.
+- Smoke esteso a ogni scheda («nessun errore»); schermata `settings.png` e guida aggiornate.
+- «Aggancia ai bordi» spento ora vale anche in alto al centro, dove l'isola restava sempre attaccata al bordo (`glueFor` in `src/core/layout.ts`); con la barra fissa l'isola resta sempre contro la barra.
+
+### 29 ottobre 2026 — Barra fissa (unita in `claude/sviluppo`)
+- La finestra del personaggio diventa la fascia riservata da Windows in alto o in basso, con il personaggio in una delle tre aree, le integrazioni, i widget, le azioni e la striscia scelti in Impostazioni, «…» per ciò che non ci sta e sfondo come l'isola, trasparente o a colore. L'isola chiusa è nascosta, aperta sta contro la barra.
+- Provata dal vivo da Claude con foto dello schermo e clic simulati (Edoardo lontano dal PC); da provare barra in basso, secondo monitor e «…».
+- Corretto dopo l'unione: un elemento cliccato apriva l'isola che si richiudeva appena il mouse ci entrava (`openFromBar` in `island.ts`). Chiudendo l'isola non compare più per un attimo il personaggio piccolo: niente vista compatta, l'isola sfuma mentre si ritira (`bar-away`). Senza barra, a isola aperta il personaggio fuori sparisce (resta quello nel menu). Il personaggio a riposo compare con una dissolvenza e le animazioni CSS partono dalla posa dritta (`personaggio.html`). Nuova «Altezza della barra» (`fixedBarHeight`, 0 = automatica; testi e icone in scala con `--s` in `personaggio.html`).
+
 ### 29 ottobre 2026 — Personaggio e isola in due finestre (su `claude/due-webview`)
 - Il personaggio vive in una finestra sua (`personaggio.html`, canale `BroadcastChannel` in `src/core/link.ts`): a riposo e compatto la posa Rust sopra l'isola, che tiene clic e passaggio del mouse; aperta l'isola resta fermo e l'isola si apre accanto. L'isola aperta va dietro a qualunque finestra attivata, il personaggio resta davanti.
 - Misure: +22 MB per la seconda finestra; con la vista compatta sempre visibile e Jarvis 414 MB, CPU 0,64 %. Dettagli in `docs/due-webview.md`.

@@ -159,6 +159,12 @@ export const Bridge = {
   networkPing: (target: string) => callOrThrow<string>("network_ping", { target }),
   /** "Davanti al cliente" right now: why, or null. */
   presenceState: () => call<string | null>("presence_state"),
+  /** The fixed bar's system elements now shown: barsys.rs reads only those. */
+  barSysWatch: (kinds: string[]) => call<void>("bar_sys_watch", { kinds }),
+  /** Volume, brightness, mute, a Windows panel, the power menu (barsys.rs). */
+  barSysDo: (what: string, arg?: number) => call<void>("bar_sys_do", { what, arg }),
+  /** A Windows menu at the bar; a line comes back as the tray's `bar:<key>`. */
+  barMenu: (entries: [string, string][]) => call<void>("bar_overflow_menu", { entries }),
   /** "Prova" for messages from scripts. */
   notifyTest: () => callOrThrow<void>("notify_test"),
 

@@ -2,6 +2,15 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.13** — **Widget della barra** (Impostazioni → Aspetto → Barra fissa): «+ Aggiungi» apre un catalogo
+per gruppi con orologio e data, volume, microfono, luminosità, batteria, velocità della rete e menu di
+spegnimento, oltre a integrazioni, widget, striscia e azioni rapide; gli elementi di sistema si possono
+aggiungere più volte (due orologi con fusi diversi). In «Opzioni» scegli il formato con i segnaposto, un
+secondo testo che compare con un clic, il suggerimento e cosa fanno clic, clic centrale, clic destro e
+rotella. Un clic apre la **card nell'isola**, subito sotto la barra: il calendario del mese con gli altri
+fusi e i prossimi appuntamenti, i cursori di volume, microfono e luminosità, batteria e rete. Il menu di
+spegnimento chiede sempre conferma prima di sospendere, riavviare o spegnere. Coucou non è più citato.
+
 **1.0.12** — La **barra fissa** torna al suo posto da sola quando spegni e riaccendi il monitor, lo cambi
 o cambi risoluzione o scala: prima restava della misura vecchia o staccata dal bordo e bisognava
 spegnerla e riaccenderla. Vale anche quando Explorer si riavvia.
