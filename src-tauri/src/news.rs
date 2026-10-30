@@ -386,15 +386,42 @@ fn query(f: &Followed) -> String {
     q
 }
 
-/// Impostazioni → Notizie → Fonte: Bing News instead of Google News (with
-/// pictures and a summary line; chosen by Edoardo on 30 October 2026).
-fn bing(app: &AppHandle) -> bool {
-    app.try_state::<crate::Shared>()
-        .is_some_and(|s| s.settings.lock().unwrap().news.get("source").and_then(serde_json::Value::as_str) == Some("bing"))
+/// Impostazioni → Notizie → Fonte: Google News (default), Bing News (with
+/// pictures and a summary line) or both mixed; chosen by Edoardo on 30 October 2026.
+/// The feeds to read, as "is it Bing".
+fn sources(app: &AppHandle) -> Vec<bool> {
+    let chosen = app
+        .try_state::<crate::Shared>()
+        .and_then(|s| s.settings.lock().unwrap().news.get("source").and_then(serde_json::Value::as_str).map(str::to_string));
+    match chosen.as_deref() {
+        Some("bing") => vec![true],
+        Some("both") => vec![false, true],
+        _ => vec![false],
+    }
 }
 
-fn source_name(bing: bool) -> &'static str {
-    if bing { "Bing News" } else { "Google News" }
+fn source_name(sources: &[bool]) -> String {
+    match sources {
+        [true] => "Bing News".to_string(),
+        [false] => "Google News".to_string(),
+        _ => t("Google News e Bing News").to_string(),
+    }
+}
+
+/// Several feeds' items taken in turn, one from each, so a per-subject limit
+/// keeps some of every source; the same story twice is left out by `take_new`.
+fn mix(lists: Vec<Vec<Found>>) -> Vec<Found> {
+    let mut iters: Vec<_> = lists.into_iter().map(Vec::into_iter).collect();
+    let mut out = Vec::new();
+    loop {
+        let before = out.len();
+        for it in &mut iters {
+            out.extend(it.next());
+        }
+        if out.len() == before {
+            return out;
+        }
+    }
 }
 
 /// Bing's search: the same words; no `when:` (the age filter is ours).
@@ -618,7 +645,7 @@ fn trim(store: &mut Store, t: i64) {
 }
 
 /// One search on Google News or Bing News: the feed's items, or None when it does not answer.
-async fn search(client: &reqwest::Client, q: &str, bing: bool) -> Option<Vec<Found>> {
+async fn search_one(client: &reqwest::Client, q: &str, bing: bool) -> Option<Vec<Found>> {
     match client.get(if bing { bing_url(q) } else { feed_url(q) }).send().await {
         Ok(r) if r.status().is_success() => {
             let body = r.text().await.unwrap_or_default();
@@ -628,17 +655,26 @@ async fn search(client: &reqwest::Client, q: &str, bing: bool) -> Option<Vec<Fou
     }
 }
 
+/// The same search on every chosen source, mixed; None only when none answers.
+async fn search(client: &reqwest::Client, q: &str, sources: &[bool]) -> Option<Vec<Found>> {
+    let mut lists = Vec::new();
+    for &bing in sources {
+        lists.extend(search_one(client, q, bing).await);
+    }
+    if lists.is_empty() { None } else { Some(mix(lists)) }
+}
+
 /// One check of every followed subject; the new news count.
 async fn check(app: &AppHandle) -> Result<usize, String> {
     let topics = followed(app);
     let stamp = now();
-    let bing = bing(app);
+    let sources = sources(app);
     let Some(client) = crate::widgets::client() else { return Err(t("Connessione non disponibile").to_string()) };
     // The searches first, then the file: a click in the island meanwhile is not lost.
     let mut results = Vec::new();
     let mut failed = 0;
     for f in &topics {
-        match search(&client, &query(f), bing).await {
+        match search(&client, &query(f), &sources).await {
             Some(found) => results.push((f, found)),
             None => failed += 1,
         }
@@ -661,7 +697,7 @@ async fn check(app: &AppHandle) -> Result<usize, String> {
     forget_images(&store);
     let _ = app.emit_to(crate::island::WINDOW_LABEL, "news", &store.items);
     if failed > 0 && failed == topics.len() {
-        return Err(tf("{name} non risponde", &[("name", &source_name(bing))]));
+        return Err(tf("{name} non risponde", &[("name", &source_name(&sources))]));
     }
     crate::log::line(format!("notizie: {added} nuove da {} argomenti", topics.len()));
     Ok(added)
@@ -961,8 +997,8 @@ pub async fn news_feedback(app: AppHandle, id: String, more: bool) -> Result<Fee
     if more {
         let f = followed(&app).into_iter().find(|f| f.name == item.topic).unwrap_or(Followed { name: item.topic.clone(), ..Default::default() });
         let client = crate::widgets::client().ok_or_else(|| t("Connessione non disponibile").to_string())?;
-        let bing = bing(&app);
-        let found = search(&client, &story_query(&item.title, &f.avoid), bing).await.ok_or_else(|| tf("{name} non risponde", &[("name", &source_name(bing))]))?;
+        let sources = sources(&app);
+        let found = search(&client, &story_query(&item.title, &f.avoid), &sources).await.ok_or_else(|| tf("{name} non risponde", &[("name", &source_name(&sources))]))?;
         let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let mut store = load();
         added = take_new(&mut store, &f, found, now(), MORE_LIKE);
@@ -1078,6 +1114,15 @@ mod tests {
         assert_eq!(query(&f), "UniFi OR \"Dream Machine\" -offerta when:3d");
         let g = Followed { name: "Tauri".into(), words: vec![], avoid: vec![], ..Default::default() };
         assert_eq!(query(&g), "Tauri when:3d");
+    }
+
+    #[test]
+    fn two_sources_are_mixed_in_turn() {
+        let n = |title: &str| Found { title: title.into(), ..Default::default() };
+        let got = mix(vec![vec![n("g1"), n("g2"), n("g3")], vec![n("b1")]]);
+        let titles: Vec<&str> = got.iter().map(|f| f.title.as_str()).collect();
+        assert_eq!(titles, ["g1", "b1", "g2", "g3"]);
+        assert_eq!(source_name(&[false, true]), "Google News e Bing News");
     }
 
     #[test]

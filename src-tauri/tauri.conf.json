@@ -57,7 +57,7 @@
       "icons/icon.ico"
     ],
     "resources": { "../target/release/easyisland-hook.exe": "easyisland-hook.exe" },
-    "copyright": "© 2026 EdoardoDevelop (MIT)",
+    "copyright": "© 2026 Edoardo Monti (MIT)",
     "category": "DeveloperTool",
     "shortDescription": "Slime vive in cima al tuo schermo",
     "longDescription": "EasyIsland mette Slime in cima al tuo schermo: mostra le sessioni di Claude Code e alcune integrazioni, e ti permette di approvare, rispondere, chattare e rilasciare file senza interrompere quello che stai facendo.",
