@@ -2,6 +2,16 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.14** — **Notizie** (Impostazioni → Notizie): EasyIsland propone gli argomenti di cui parla la tua
+memoria (mai persone e clienti) e, per quelli che segui, cerca su Google News ogni 4 ore, nella lingua
+dell'app, filtrando sul PC le parole da evitare, le notizie già viste e la stessa storia ripresa da
+altri giornali. Le trovi nella voce **Notizie** dell'isola, in un riquadro in fondo alla Panoramica, nel
+Buongiorno del mattino, su Telegram con `/notizie` e come elemento della barra fissa. Su ogni notizia
+**Di più** (più notizie sull'argomento e subito altre sulla stessa storia), **Salva** nella memoria e
+**Non mi interessa**: dopo qualche «non mi interessa» l'isola chiede se smettere di seguire l'argomento.
+Corretto: «L'isola si apre» era nascosta e ignorata con la barra fissa; ora vale anche lì. Nella guida
+il pulsante della lingua porta sempre alla pagina giusta.
+
 **1.0.13** — **Widget della barra** (Impostazioni → Aspetto → Barra fissa): «+ Aggiungi» apre un catalogo
 per gruppi con orologio e data, volume, microfono, luminosità, batteria, velocità della rete e menu di
 spegnimento, oltre a integrazioni, widget, striscia e azioni rapide; gli elementi di sistema si possono

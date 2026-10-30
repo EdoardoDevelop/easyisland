@@ -18,6 +18,6 @@
 - **▶** tests a widget right away.
 - When a check goes from OK to a problem: dot in the menu, sound, island showing up (following the profile's notifications). A new error shows only if it repeats 15 seconds later, and after standby checks wait for the network to come back.
 - Rarer on battery, stopped when paused.
-- Widgets belong to the profile and can start an [automation](14-automations.md).
+- Widgets belong to the profile and can start an [automation](16-automations.md).
 
-> **Tip:** for a single service with more data (an API with lists, alerts and actions) a [custom integration](22-custom-integrations.md) with a data source is better.
+> **Tip:** for a single service with more data (an API with lists, alerts and actions) a [custom integration](24-custom-integrations.md) with a data source is better.

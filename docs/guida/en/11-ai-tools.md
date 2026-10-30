@@ -49,7 +49,7 @@ The ⚡ button in the chat header (terminal mode only) applies **to the current 
 The mode that accepts everything without any check **doesn't exist** in EasyIsland, on purpose.
 
 ## The working folder
-A folder on the PC chosen by you (in **Files and screen** or Settings → Chat) that the chat **reads without asking** and into which it can move files from the Tray. With terminal mode it's the folder it works in. From Telegram: `/cartella`. Details in [Files and screen](15-files-and-screen.md#working-folder).
+A folder on the PC chosen by you (in **Files and screen** or Settings → Chat) that the chat **reads without asking** and into which it can move files from the Tray. With terminal mode it's the folder it works in. From Telegram: `/cartella`. Details in [Files and screen](17-files-and-screen.md#working-folder).
 
 ## Settings changed from the chat
 "Put the character at the bottom right", "turn off the weather", "use opencode as the engine": the chat reads the settings and changes one at a time, with Allow / Deny, saving like the Settings window does.

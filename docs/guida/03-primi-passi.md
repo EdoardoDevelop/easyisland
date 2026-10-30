@@ -21,7 +21,7 @@ Il pallino diventa verde quando il motore è pronto. Dettagli in [Motori AI](09-
 **Impostazioni → Aspetto**: angolo dello schermo, personaggio, stile (Windows 11 o Classico), dimensioni, comportamento a isola chiusa. Oppure trascina semplicemente il personaggio dove vuoi. Vedi [Posizione e aspetto](05-aspetto.md).
 
 ## 5. Accendi le integrazioni che usi
-**Impostazioni → Integrazioni**: accendi quelle che ti servono (Outlook, Rete, Meteo, Appunti, 3CX, Zammad, Notion…). Compaiono nel menu dell'isola e nella Panoramica. Vedi [Integrazioni](16-integrazioni.md).
+**Impostazioni → Integrazioni**: accendi quelle che ti servono (Outlook, Rete, Meteo, Appunti, 3CX, Zammad, Notion…). Compaiono nel menu dell'isola e nella Panoramica. Vedi [Integrazioni](18-integrazioni.md).
 
 ## 6. Prova
 - Passa con il mouse sul personaggio: si apre l'isola.

@@ -29,6 +29,15 @@ export interface DailySummary {
   digest: DailyDigest;
   /** The morning only: today's Notion tasks, late ones included (notion.rs → `today`). */
   notion: { id: string; title: string; url: string; due: string | null }[];
+  /** The morning only: the news found in the last day (news.rs), newest first. */
+  news: { title: string; source: string; link: string }[];
+}
+
+/** The news found since yesterday morning, for the morning recap. */
+function newsSinceYesterday(): DailySummary["news"] {
+  if (!(State.settings.news?.topics ?? []).length) return [];
+  const from = Date.now() / 1000 - 86_400;
+  return State.news.filter((n) => n.found >= from).map((n) => ({ title: n.title, source: n.source, link: n.link }));
 }
 
 /** Today's Notion tasks, if the integration is on and the morning recap may show them. */
@@ -74,7 +83,7 @@ export function sumDay(history: RecapHistory, day: Date) {
 }
 
 export function hasNews(s: DailySummary): boolean {
-  return s.minutes > 0 || s.digest.repos.length > 0 || (s.digest.prs?.length ?? 0) > 0 || s.notion.length > 0;
+  return s.minutes > 0 || s.digest.repos.length > 0 || (s.digest.prs?.length ?? 0) > 0 || s.notion.length > 0 || s.news.length > 0;
 }
 
 /** A made-up day for the browser preview. */
@@ -113,7 +122,7 @@ class DailyController {
     const history = IS_TAURI ? await Bridge.recapHistory(since) : sampleHistory(day);
     const digest = (IS_TAURI ? await Bridge.dailyDigest() : sampleDigest()) ?? { repos: [], prs: null };
     const empty: RecapHistory = { turns: [], decisions: [], lastShownWeek: "" };
-    this.summary = { which, day, digest, notion: which === "morning" ? notionToday() : [], ...sumDay(history ?? empty, day) };
+    this.summary = { which, day, digest, notion: which === "morning" ? notionToday() : [], news: which === "morning" ? newsSinceYesterday() : [], ...sumDay(history ?? empty, day) };
     this.version++;
     return this.summary;
   }

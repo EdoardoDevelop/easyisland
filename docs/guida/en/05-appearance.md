@@ -35,7 +35,7 @@ With **Fixed bar** at the top or the bottom, Windows keeps a band free at the ed
 - **Bar height:** automatic (as tall as the compact view) or your own; the character, icons and text adapt.
 - **Bar background:** like the island, transparent (the desktop shows) or a colour of your choice; the text turns light or dark by itself.
 - **Bar widgets:** «+ Add» opens the catalog.
-  - **System:** clock and date, volume, microphone, brightness, battery, network speed, power menu. These can be added more than once, for example two clocks with different time zones.
+  - **System:** clock and date, volume, microphone, brightness, battery, network speed, news (how many are new), power menu. These can be added more than once, for example two clocks with different time zones.
   - **Work:** your integrations and widgets. **Agents:** the strip. **My actions:** the quick actions.
   - For each, pick the area (start, centre, end) and what it shows (icon and value, icon only, value only); ↑ ↓ change the order, ✕ removes it.
   - **Options:** the format with placeholders (for example `{icon} {time}` or `NY {time}`), a second text shown after a click (the time becoming the date), the tooltip, what click, middle click and right click do (nothing, the card or the Windows panel, the second text, the menu, mute, one of your quick actions) and the wheel. The clock also has its time zone and seconds.
@@ -59,7 +59,7 @@ With **Fixed bar** at the top or the bottom, Windows keeps a band free at the ed
 ## Open island
 | Option | What it does |
 |---|---|
-| **The island opens** | Where the character is, or always at the top centre, the centre of the screen or the bottom centre |
+| **The island opens** | Where the character is, or always at the top centre, the centre of the screen or the bottom centre. It applies with the fixed bar too: «top centre» opens it in the middle, right below the bar |
 | **Open after** | How long to hover before it opens, or **only with a click** (dragging a file always opens it) |
 | **Open panel** | After how many seconds from the mouse leaving it shrinks |
 | **Stay open** | When you open it yourself it does not close by itself |
@@ -87,7 +87,7 @@ The character reacts: it greets you at startup, celebrates when an agent finishe
 
 ## A logo or the weather instead of the character
 In **Character → In the island** choose what sits in the island: **the character**, **the EasyIsland logo**, **my logo** or **the weather**. Logo and weather are still pictures: no animations, states or start-up greeting, for a more professional look.
-- **My logo**: **Upload PNG…** and pick the image (best with a transparent background). It is shrunk to 512 px, stays on this PC and goes in the [backup](24-settings.md). **Remove** deletes it; with no image the EasyIsland logo shows.
+- **My logo**: **Upload PNG…** and pick the image (best with a transparent background). It is shrunk to 512 px, stays on this PC and goes in the [backup](26-settings.md). **Remove** deletes it; with no image the EasyIsland logo shows.
 - **The weather**: the sky and temperature right now, from the **Meteo** integration, which must be active.
 
 ## Sounds

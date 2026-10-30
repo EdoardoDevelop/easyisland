@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>News — EasyIsland Guide</title>
+<meta name="description" content="News from Google News on the subjects you follow, also suggested by your memory, with “More” and “Not interested”.">
+<link rel="icon" href="../../media/icon.png">
+<link rel="stylesheet" href="../../site.css">
+<link rel="stylesheet" href="../../guida/guida.css">
+<link rel="alternate" hreflang="it" href="../../guida/notizie.html">
+</head>
+<body class="guide">
+<header class="top">
+<button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('open')">☰</button>
+<a href="../../index.html" class="brand"><img src="../../media/icon.png" alt=""><span>EasyIsland</span></a>
+<span class="badge">Guide · 1.0.13</span>
+<div class="search"><input id="q" type="search" placeholder="Search the guide…" autocomplete="off"><div id="results"></div></div>
+<nav class="links"><a href="../../index.html">Home</a><a href="index.html" class="on">Guide</a><a href="https://github.com/EdoardoDevelop/easyisland/releases">Download</a><a href="https://github.com/EdoardoDevelop/easyisland">GitHub</a><a class="lang" href="../../guida/notizie.html" hreflang="it">Italiano</a></nav>
+</header>
+<div class="layout">
+<aside class="side"><ul><li><a href="index.html">EasyIsland Guide</a></li></ul><div class="group">Getting started</div><ul><li><a href="installation.html">Installation</a></li><li><a href="getting-started.html">First steps</a></li><li><a href="island.html">The island</a></li></ul><div class="group">Make it yours</div><ul><li><a href="appearance.html">Position and look</a></li><li><a href="profiles.html">Profiles and notifications</a></li></ul><div class="group">Coding agents</div><ul><li><a href="agents.html">Coding agents</a></li></ul><div class="group">Artificial intelligence</div><ul><li><a href="chat.html">The chat</a></li><li><a href="engines.html">AI engines</a></li><li><a href="preview.html">Preview</a></li><li><a href="ai-tools.html">Terminal mode and tools</a></li><li><a href="memory.html">Memory and second brain</a></li><li><a href="news.html" class="on" aria-current="page">News</a></li><li><a href="tasks.html">Tasks, Heartbeat and Skills</a></li></ul><div class="group">Getting things done</div><ul><li><a href="actions.html">Quick actions and shortcuts</a></li><li><a href="automations.html">Automations</a></li><li><a href="files-and-screen.html">Files and screen</a></li></ul><div class="group">Connecting services</div><ul><li><a href="integrations.html">Integrations</a></li><li><a href="3cx.html">3CX</a></li><li><a href="notion.html">Notion</a></li><li><a href="microsoft.html">Microsoft: Outlook, Teams, To Do</a></li><li><a href="telegram.html">Telegram</a></li><li><a href="remote-support.html">Remote support</a></li><li><a href="custom-integrations.html">Custom integrations</a></li><li><a href="widgets.html">Widgets</a></li></ul><div class="group">Reference</div><ul><li><a href="settings.html">Settings, page by page</a></li><li><a href="privacy.html">Privacy and security</a></li><li><a href="command-line.html">Command line and scripts</a></li><li><a href="troubleshooting.html">Troubleshooting</a></li><li><a href="development.html">For developers</a></li></ul></aside>
+<main>
+<div class="crumb">Artificial intelligence</div>
+<h1>News</h1>
+<p class="lead">News from Google News on the subjects you follow, also suggested by your memory, with “More” and “Not interested”.</p>
+<p>EasyIsland searches the news on the subjects you choose and shows them in the island. As long as you follow no subject it contacts nobody.</p>
+<h2 id="choosing-the-subjects"><a class="anchor" href="#choosing-the-subjects">#</a>Choosing the subjects</h2>
+<p><strong>Settings → News</strong>:</p>
+<ul><li><strong>Suggested by the memory:</strong> the subjects your pages and notes talk about, with the reason (“mentioned by 3 pages”). <strong>Add</strong> follows one, <strong>Exclude</strong> removes it from the suggestions for good. Pages about people and customers are never suggested: their name would end up in a web search.</li><li><strong>Followed:</strong> for each one, the words to search and those to avoid.</li><li><strong>Excluded:</strong> <strong>Allow again</strong> brings them back among the suggestions.</li><li>You can also type a subject yourself.</li></ul>
+<h2 id="where-they-come-from"><a class="anchor" href="#where-they-come-from">#</a>Where they come from</h2>
+<p>One <strong>Google News</strong> search per subject, in the app's language and over the last 3 days, every 4 hours and right after you add or remove a subject. No account, no key. The PC does the filtering: no news with the words to avoid, none already seen, no same story told again by another paper.</p>
+<h2 id="where-you-see-them"><a class="anchor" href="#where-you-see-them">#</a>Where you see them</h2>
+<ul><li><strong>News</strong> in the island's menu, with how many are new: filter by subject, a click opens the article, <strong>Update</strong> searches now, <strong>Subjects</strong> opens the Settings.</li><li>A <strong>News</strong> box at the bottom of the <strong>Overview</strong>, with the latest headlines.</li><li>In the morning <strong>Good morning</strong> card, the news found since the day before.</li><li>On <strong>Telegram</strong> with <code>/notizie</code>.</li><li>As an element of the <strong>fixed bar</strong> (Appearance → Fixed bar → Bar widgets → + Add → News): how many are new, the latest headline on hover, a click opens the News.</li></ul>
+<h2 id="teaching-it-what-you-care-about"><a class="anchor" href="#teaching-it-what-you-care-about">#</a>Teaching it what you care about</h2>
+<p>Hovering a news item:</p>
+<ul><li><strong>More:</strong> more news on that subject at each check, and more on the same story right away.</li><li><strong>Save:</strong> the news goes to the memory, among the things to read.</li><li><strong>✕ Not interested:</strong> the news disappears and the subject gets fewer. After a few “not interested” the island asks whether to stop following it: <strong>Stop following it</strong> moves it to the excluded ones, <strong>Keep it</strong> starts over.</li></ul>
+<p>News and preferences stay on the PC only, in <code>%LOCALAPPDATA%\EasyIsland\notizie.json</code>.</p>
+<div class="pager"><a class="prev" href="memory.html"><small>Previous</small>Memory and second brain</a><a class="next" href="tasks.html"><small>Next</small>Tasks, Heartbeat and Skills</a></div>
+<footer>EasyIsland 1.0.13 · open source (MIT) · <a href="https://github.com/EdoardoDevelop/easyisland/blob/main/docs/guida/en/13-news.md">Edit this page on GitHub</a></footer>
+</main>
+<nav class="toc" aria-label="On this page"><div class="group">On this page</div><ul><li class="l2"><a href="#choosing-the-subjects">Choosing the subjects</a></li><li class="l2"><a href="#where-they-come-from">Where they come from</a></li><li class="l2"><a href="#where-you-see-them">Where you see them</a></li><li class="l2"><a href="#teaching-it-what-you-care-about">Teaching it what you care about</a></li></ul></nav>
+</div>
+<script src="../../guida/guida.js"></script>
+</body>
+</html>

@@ -2103,9 +2103,9 @@ ${note}` : text };
     }
     // The greeting plays at its own place (Impostazioni → Posizione e aspetto).
     const greeting = State.view === "greeting";
-    // With the fixed bar it always opens against the band, at the character.
-    this.awayPlace = greeting ? (State.settings.greetingPlace ?? "center")
-      : barEdge(State.settings) ? "character" : (State.settings.islandPlace ?? "character");
+    // With the fixed bar too (Edoardo, 30 Oct 2026): «In alto al centro» is
+    // centred against the band, the work area ending there (island.rs place_origin).
+    this.awayPlace = greeting ? (State.settings.greetingPlace ?? "center") : (State.settings.islandPlace ?? "character");
     this.away = this.awayPlace !== "character";
     void Bridge.setExpanded(true, greeting ? this.awayPlace : null);
   }
@@ -2745,6 +2745,11 @@ ${note}` : text };
         // Its card in the island, against the bar; a second click closes it.
         const which = it.id.slice(4);
         if (which === "power") return;
+        if (which === "news") {
+          if (State.mode === "expanded" && State.view === "news") this.collapse();
+          else this.openFromBar("news");
+          return;
+        }
         if (State.mode === "expanded" && State.view === "barcard" && State.barCard === which) {
           this.collapse();
           return;

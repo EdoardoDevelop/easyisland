@@ -17,14 +17,14 @@
 ## Work and clients
 | Integration | What it does | Needs |
 |---|---|---|
-| **[3CX](17-3cx.md)** | Phone on the PC, calls, contacts, team, chat, voicemail | 3CX V20 phone system |
+| **[3CX](19-3cx.md)** | Phone on the PC, calls, contacts, team, chat, voicemail | 3CX V20 phone system |
 | **Zammad** | Tickets assigned to you, unassigned and escalated; alert on a new ticket to assign | Address and token (`ticket.agent` permission) |
-| **[Outlook](19-microsoft.md)** | Unread mail, today's and tomorrow's appointments, alert before a meeting | Classic Outlook open, or the Microsoft account |
-| **[Teams](19-microsoft.md#teams)** | Meeting controls, Join from the copied link, presence | Teams |
-| **[Notion](18-notion.md)** | Tasks with views, notes, pages, mini Notion in the island, alerts | An internal integration's token |
-| **[Telegram](20-telegram.md)** | The chat in your bot, tasks, permissions, files | A bot created with @BotFather |
-| **[Remote access](21-remote-support.md)** | Temporary WinRM or SSH connection to a client's PC | Address, user, password (in memory only) |
-| **[Remote Desktop Manager](21-remote-support.md#remote-desktop-manager)** | Finds and opens RDM connections | RDM installed |
+| **[Outlook](21-microsoft.md)** | Unread mail, today's and tomorrow's appointments, alert before a meeting | Classic Outlook open, or the Microsoft account |
+| **[Teams](21-microsoft.md#teams)** | Meeting controls, Join from the copied link, presence | Teams |
+| **[Notion](20-notion.md)** | Tasks with views, notes, pages, mini Notion in the island, alerts | An internal integration's token |
+| **[Telegram](22-telegram.md)** | The chat in your bot, tasks, permissions, files | A bot created with @BotFather |
+| **[Remote access](23-remote-support.md)** | Temporary WinRM or SSH connection to a client's PC | Address, user, password (in memory only) |
+| **[Remote Desktop Manager](23-remote-support.md#remote-desktop-manager)** | Finds and opens RDM connections | RDM installed |
 | **Cal.com** | Bookings | API key |
 
 ## Development and services
@@ -44,7 +44,7 @@
 | **Security** | Antivirus, signature age, last scan, firewall, threats found |
 | **Network** | Wi-Fi or cable, local and public IP, gateway, DNS, every adapter, VPNs, latency; alert if the internet doesn't answer. **Continuous ping** to the gateway or an address. **Change network…**: DHCP or manual IP and DNS per adapter (with Windows' administrator confirmation) |
 | **Weather** | The current sky animated, humidity, wind, sunrise and sunset, 12 hours and 7 days, rain alert. Open-Meteo, free and keyless |
-| **Clipboard** | History of texts and images, in memory only (see [Files and screen](15-files-and-screen.md#clipboard)) |
+| **Clipboard** | History of texts and images, in memory only (see [Files and screen](17-files-and-screen.md#clipboard)) |
 | **Media** | What's playing in any app (Spotify, browser…), with cover and controls |
 
 ![Network](../media/network.png)
@@ -52,4 +52,4 @@
 ![Media](../media/media.png)
 
 ## Your own integrations
-Besides these, you can create your own **in plain words in the chat**: forms, dashboards, links to your services' APIs. See [Custom integrations](22-custom-integrations.md). For repeated checks (a site per client, a server per office) there are [Widgets](23-widgets.md).
+Besides these, you can create your own **in plain words in the chat**: forms, dashboards, links to your services' APIs. See [Custom integrations](24-custom-integrations.md). For repeated checks (a site per client, a server per office) there are [Widgets](25-widgets.md).

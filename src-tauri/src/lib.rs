@@ -45,6 +45,7 @@ mod log;
 mod mcp_setup;
 mod media;
 mod msgraph;
+mod news;
 mod moments;
 mod netconfig;
 mod notion;
@@ -3628,6 +3629,13 @@ pub fn run() {
             bar_overflow_menu,
             barsys::bar_sys_watch,
             barsys::bar_sys_do,
+            news::news_proposals,
+            news::news_items,
+            news::news_refresh,
+            news::news_save,
+            news::news_taste,
+            news::news_feedback,
+            news::news_keep,
             monitor_list,
         ])
         .setup(move |app| {
@@ -3675,6 +3683,7 @@ pub fn run() {
             gate.set_active(true);
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             barsys::start(handle.clone());
+            news::start(handle.clone());
             island::spawn_fullscreen_watch(handle.clone(), gate.clone());
             island::spawn_drag_raise(handle.clone(), gate.clone());
             // The tray is temporary: every start begins with only the pinned files.

@@ -2,6 +2,16 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.14** — **News** (Settings → News): EasyIsland suggests the subjects your memory talks about
+(never people or customers) and, for those you follow, searches Google News every 4 hours in the app's
+language, filtering on the PC the words to avoid, the news already seen and the same story told again by
+other papers. You find them in the island's **News** entry, in a box at the bottom of the Overview, in
+the morning Good morning card, on Telegram with `/notizie` and as an element of the fixed bar. On each
+news item **More** (more news on the subject and more on the same story right away), **Save** to the
+memory and **Not interested**: after a few, the island asks whether to stop following the subject.
+Fixed: «The island opens» was hidden and ignored with the fixed bar; now it applies there too. In the
+guide the language button always leads to the right page.
+
 **1.0.13** — **Bar widgets** (Settings → Look → Fixed bar): «+ Add» opens a catalog by group with clock
 and date, volume, microphone, brightness, battery, network speed and power menu, besides integrations,
 widgets, the strip and quick actions; system elements can be added more than once (two clocks with

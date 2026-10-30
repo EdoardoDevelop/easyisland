@@ -72,7 +72,8 @@ export function buildDaily(actions: ViewActions): ViewHost {
       const time = x.due && x.due.includes("T") ? new Date(x.due).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) : "";
       return row(x.title, day && day < today ? t("scaduta") : time || t("oggi"), x.url, () => actions.openUrl(x.url));
     }));
-    const nothing = !chips.childElementCount && !repos.length && !prs.length && !notion.length;
+    const news = list(t("Notizie"), s.news.map((n) => row(n.title, n.source, n.link, () => actions.openUrl(n.link))));
+    const nothing = !chips.childElementCount && !repos.length && !prs.length && !notion.length && !news.length;
     return [
       h("div", { class: "recap-head" },
         h("span", { class: "recap-title", text: morning ? t("Buongiorno") : t("Fine giornata") }),
@@ -83,6 +84,7 @@ export function buildDaily(actions: ViewActions): ViewHost {
       ...repos,
       ...review,
       ...mine,
+      ...news,
       ...(nothing ? [h("div", { class: "sub", text: morning
         ? t("Ieri nessun agente al lavoro, niente da salvare e nessuna pull request in attesa.")
         : t("Oggi nessun agente al lavoro, niente da salvare e nessuna pull request in attesa.") })] : []),

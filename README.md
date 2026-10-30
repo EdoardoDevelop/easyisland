@@ -60,7 +60,8 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 - **A second brain**: the chat's memory in .md files you can see and fix, with
   linked pages about customers, people and projects, files to learn from, an
   engine that tidies it up and a window to explore it (**graph**, also in 3D, mind
-  map, concept map, timeline).
+  map, concept map, timeline); **news** from the web on the subjects it talks about,
+  only those you choose.
 - **Personal integrations**: ask the chat for the feature you are missing and it
   becomes a form, a dashboard or a link to one of your services' APIs.
 - **Profiles** (work, home, focus) that switch by themselves, a **"customer is
@@ -73,10 +74,10 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.14** — **News** on the subjects of your memory from Google News, with “More” and “Not interested”, in the island, the Overview, the morning recap, Telegram and the fixed bar.
 - **1.0.13** — **Bar widgets**: clock, volume, microphone, brightness, battery, network and power menu in the fixed bar, with options per element and their cards in the island.
 - **1.0.12** — The **fixed bar** goes back in place by itself after the monitor is turned off and on, changed or rescaled.
 - **1.0.11** — **Fixed bar** at the top or bottom of the screen with the character, integrations, widgets and actions, height of your choice; the character in a window of its own; **Look** settings in tabs with a small picture next to each setting.
-- **1.0.10** — **Rename** conversations in the chat history (✎ or a double click on the title).
 
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).
 

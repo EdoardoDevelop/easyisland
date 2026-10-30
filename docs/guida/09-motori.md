@@ -46,6 +46,6 @@ Modelli sul tuo PC o su un altro della rete: nessuna chiave, solo l'indirizzo (v
 
 ## Più motori insieme
 - **Seconda opinione** sotto ogni risposta: un altro motore fa da revisore.
-- Nei **compiti** scegli un motore per compito e dei **motori aiutanti** a cui delegare pezzi del lavoro (vedi [Compiti](12-compiti.md)).
+- Nei **compiti** scegli un motore per compito e dei **motori aiutanti** a cui delegare pezzi del lavoro (vedi [Compiti](14-compiti.md)).
 - Le **abilità** possono indicare il motore che preferiscono.
 - **Telegram** ha il suo motore e il suo modello, scelti con `/motore` e `/modello`.

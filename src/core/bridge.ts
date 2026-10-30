@@ -4,7 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill, Custom, CustomRecord } from "./state";
+import type { Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill, Custom, CustomRecord, NewsItem, NewsProposal } from "./state";
 import type { RecapHistory } from "../island/recap";
 
 export const IS_TAURI =
@@ -163,6 +163,19 @@ export const Bridge = {
   barSysWatch: (kinds: string[]) => call<void>("bar_sys_watch", { kinds }),
   /** Volume, brightness, mute, a Windows panel, the power menu (barsys.rs). */
   barSysDo: (what: string, arg?: number) => call<void>("bar_sys_do", { what, arg }),
+  /** «Notizie»: the subjects the memory proposes, without the excluded ones (news.rs). */
+  newsProposals: (excluded: string[]) => call<NewsProposal[]>("news_proposals", { excluded }),
+  /** The news kept, newest first; `newsRefresh` checks now and says how many are new. */
+  newsItems: () => call<NewsItem[]>("news_items"),
+  newsRefresh: () => callOrThrow<number>("news_refresh"),
+  /** «Salva»: the news goes to the memory's da-leggere. */
+  newsSave: (title: string, link: string, source: string) => callOrThrow<string>("news_save", { title, link, source }),
+  /** What the user said of each subject: «Di più» +1, «Non mi interessa» −1. */
+  newsTaste: () => call<Record<string, number>>("news_taste"),
+  /** «Non mi interessa» (`more` false) or «Di più» (which also searches the same story now). */
+  newsFeedback: (id: string, more: boolean) => callOrThrow<{ topic: string; taste: number; added: number }>("news_feedback", { id, more }),
+  /** «Tienilo»: the subject's taste starts again from zero. */
+  newsKeep: (topic: string) => call<void>("news_keep", { topic }),
   /** A Windows menu at the bar; a line comes back as the tray's `bar:<key>`. */
   barMenu: (entries: [string, string][]) => call<void>("bar_overflow_menu", { entries }),
   /** "Prova" for messages from scripts. */

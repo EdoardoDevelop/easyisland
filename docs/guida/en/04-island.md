@@ -18,7 +18,7 @@ At rest the character sits in the corner you picked (top centre by default) and 
 | Drag a file onto the island | It becomes a box, swallows it and asks what to do |
 | Drag the character onto a folder in File Explorer or a desktop icon | The path lands in the chat field |
 | <kbd>Esc</kbd> or ✕ | Closes the island at once |
-| The button with three nodes, at the top | Opens the [memory map](11-memory.md) |
+| The button with three nodes, at the top | Opens the [memory map](12-memory.md) |
 | 📌 | **Keep open**: the island won't close by itself until you remove it |
 | — and ▢ | With **Like an app** on (Settings → Island): minimize and full screen. Open, it has its icon on the taskbar and shows in Alt+Tab; closed, it does not. To open it from the taskbar, pin EasyIsland to the taskbar: a click on the icon opens the island. Right-click the icon: your quick actions, **Open the island**, **Ask the chat**, **Box and ask**, **Settings…** |
 | Stay open | With **Stay open** on (Settings → Island), when you open it yourself it does not close by itself, as with 📌 |
@@ -27,11 +27,11 @@ At rest the character sits in the corner you picked (top centre by default) and 
 ## The menu on the left
 In the open island, under the character:
 - **Overview**: every integration and agent as tiles, each with its state. A click opens the tab; drag to reorder.
-- **Agents**: coding agent sessions and tasks (see [Coding agents](07-agents.md) and [Tasks](12-tasks.md)), with how many are working.
+- **Agents**: coding agent sessions and tasks (see [Coding agents](07-agents.md) and [Tasks](14-tasks.md)), with how many are working.
 - **Chat**: the [chat](08-chat.md) with the AI engine.
-- **Actions**: your [quick actions](13-actions.md) and suggestions for the app in use.
-- **Files and screen**: file drop, Tray, working folder, Box and ask, Record (see [Files and screen](15-files-and-screen.md)).
-- **Your integrations**, each with its logo or an emoji and a dot when there's news; [custom integrations](22-custom-integrations.md) too.
+- **Actions**: your [quick actions](15-actions.md) and suggestions for the app in use.
+- **Files and screen**: file drop, Tray, working folder, Box and ask, Record (see [Files and screen](17-files-and-screen.md)).
+- **Your integrations**, each with its logo or an emoji and a dot when there's news; [custom integrations](24-custom-integrations.md) too.
 
 At the top the character tells you what's going on in a speech bubble. **Right-clicking** inside the island opens a menu with the tab's and EasyIsland's actions.
 
@@ -54,7 +54,7 @@ The island opens on its own when needed, following the profile's notification ru
 - agents' **permissions and questions** (they stay until you answer; "Later" or <kbd>Esc</kbd> fold them away);
 - **session finished** with the last message and **Continue**;
 - incoming **calls**, starting **meetings**, **alerts** from integrations and widgets;
-- **suggestions at the right moment**: download finished, error copied, dev server started, copied password to clear from the clipboard (see [Files and screen](15-files-and-screen.md));
+- **suggestions at the right moment**: download finished, error copied, dev server started, copied password to clear from the clipboard (see [Files and screen](17-files-and-screen.md));
 - **recaps**: morning, end of day and the agents' weekly recap;
 - available **updates**.
 
