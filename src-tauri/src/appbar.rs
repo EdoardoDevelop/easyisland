@@ -10,10 +10,14 @@
 // there), so it is never under the bar and can go behind other apps.
 // The shell's notifications reach the bar through a window subclass: at rest
 // nothing runs. ABM_REMOVE gives the space back when the setting goes off and
-// when the app exits.
+// when the app exits. After a display change (a monitor off and on, another
+// monitor, a new resolution) or an Explorer restart the shell's record of the
+// band goes stale, so the bar is taken off and registered again once the
+// screens have settled (`display_changed`).
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Mutex, OnceLock};
+use std::time::Duration;
 
 use tauri::{AppHandle, Manager};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
@@ -21,7 +25,10 @@ use windows::Win32::UI::Shell::{
     DefSubclassProc, RemoveWindowSubclass, SHAppBarMessage, SetWindowSubclass, ABE_BOTTOM, ABE_TOP, ABM_ACTIVATE,
     ABM_NEW, ABM_QUERYPOS, ABM_REMOVE, ABM_SETPOS, ABM_WINDOWPOSCHANGED, ABN_FULLSCREENAPP, ABN_POSCHANGED, APPBARDATA,
 };
-use windows::Win32::UI::WindowsAndMessaging::{WM_ACTIVATE, WM_APP, WM_DISPLAYCHANGE, WM_DPICHANGED, WM_WINDOWPOSCHANGED};
+use windows::core::w;
+use windows::Win32::UI::WindowsAndMessaging::{
+    RegisterWindowMessageW, WM_ACTIVATE, WM_APP, WM_DISPLAYCHANGE, WM_DPICHANGED, WM_WINDOWPOSCHANGED,
+};
 
 /// The shell's notifications (ABN_*) arrive as this message.
 const CALLBACK: u32 = WM_APP + 0x51;
@@ -42,6 +49,17 @@ static REGISTERED: Mutex<Option<Registered>> = Mutex::new(None);
 static PLACING: AtomicBool = AtomicBool::new(false);
 /// A full-screen app is on the bar's monitor (ABN_FULLSCREENAPP): the bar steps away.
 pub static FULLSCREEN: AtomicBool = AtomicBool::new(false);
+/// Bumped by every display change: only the last of a burst registers again.
+static DISPLAY_GEN: AtomicU32 = AtomicU32::new(0);
+/// A monitor waking up sends several changes in a row and reports its size late.
+const SETTLE: Duration = Duration::from_millis(1500);
+
+/// Sent to every top-level window when Explorer (and so the taskbar) restarts:
+/// the shell has forgotten every bar.
+fn taskbar_created() -> u32 {
+    static MSG: OnceLock<u32> = OnceLock::new();
+    *MSG.get_or_init(|| unsafe { RegisterWindowMessageW(w!("TaskbarCreated")) })
+}
 
 fn edge_of(setting: &str) -> Option<u32> {
     match setting {
@@ -100,6 +118,7 @@ fn register(raw: isize, edge: u32) {
         crate::log::line("barra fissa: registrazione rifiutata da Windows".to_string());
         return;
     }
+    let _ = taskbar_created();
     unsafe {
         let _ = SetWindowSubclass(hwnd(raw), Some(subclass), SUBCLASS_ID, 0);
     }
@@ -187,7 +206,8 @@ unsafe extern "system" fn subclass(h: HWND, msg: u32, wp: WPARAM, lp: LPARAM, _i
                 ABN_FULLSCREENAPP => full_screen(lp.0 != 0),
                 _ => {}
             },
-            WM_DISPLAYCHANGE | WM_DPICHANGED => place(raw, edge),
+            WM_DISPLAYCHANGE | WM_DPICHANGED => display_changed(),
+            m if m != 0 && m == taskbar_created() => display_changed(),
             WM_ACTIVATE => {
                 let mut abd = data(raw, edge);
                 SHAppBarMessage(ABM_ACTIVATE, &mut abd);
@@ -200,6 +220,38 @@ unsafe extern "system" fn subclass(h: HWND, msg: u32, wp: WPARAM, lp: LPARAM, _i
         }
     }
     DefSubclassProc(h, msg, wp, lp)
+}
+
+/// Off and on again once the screens have settled: moving the old band is not
+/// enough after a monitor went off or changed, the shell keeps the old size.
+fn display_changed() {
+    let gen = DISPLAY_GEN.fetch_add(1, Ordering::SeqCst).wrapping_add(1);
+    std::thread::spawn(move || {
+        std::thread::sleep(SETTLE);
+        if DISPLAY_GEN.load(Ordering::SeqCst) != gen {
+            return;
+        }
+        let Some(app) = APP.get() else { return };
+        let _ = app.run_on_main_thread(reregister);
+    });
+}
+
+/// On the main thread: the old registration goes, `apply` makes a new one on
+/// today's monitor (or none, if the setting went off meanwhile).
+fn reregister() {
+    // Taken out first: ABM_REMOVE may reach our window proc, which locks it.
+    let registered = REGISTERED.lock().unwrap().take();
+    let Some(r) = registered else { return };
+    let mut abd = data(r.hwnd, r.edge);
+    unsafe {
+        SHAppBarMessage(ABM_REMOVE, &mut abd);
+        let _ = RemoveWindowSubclass(hwnd(r.hwnd), Some(subclass), SUBCLASS_ID);
+    }
+    FULLSCREEN.store(false, Ordering::Relaxed);
+    crate::log::line("barra fissa: schermo cambiato, registrata di nuovo".to_string());
+    if let Some(app) = APP.get() {
+        apply(app);
+    }
 }
 
 /// The bar hides over a full-screen app (video, game, presentation) and comes back after.

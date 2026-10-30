@@ -82,7 +82,8 @@ Chiesta da Edoardo il 27 ottobre 2026, fatta il 29 nel branch `claude/barra-fiss
   - È larga quanto lo schermo dell'isola (`screen`), alta quanto la vista compatta (`Settings::bar_thickness`, almeno 44 px con la striscia), sempre davanti, e prende tutto il mouse.
   - Rust la posa sulla fascia (`sync_character`, ramo `appbar::band()`).
   - **Messaggi della shell** tramite sottoclasse della finestra, senza alcun ciclo:
-    - `ABN_POSCHANGED`, `WM_DISPLAYCHANGE`, `WM_DPICHANGED`: si ricalcola la posizione;
+    - `ABN_POSCHANGED`: si ricalcola la posizione;
+    - `WM_DISPLAYCHANGE`, `WM_DPICHANGED` e `TaskbarCreated` (Explorer riavviato): la barra si toglie e si registra di nuovo (`display_changed` → `reregister`), 1,5 s dopo l'ultimo messaggio della raffica. Ricalcolare la posizione non bastava: dopo un monitor spento e riacceso o cambiato la shell teneva la fascia della risoluzione vecchia (Edoardo, 30 ottobre 2026);
     - `ABN_FULLSCREENAPP`: a schermo intero la barra si nasconde e torna dopo.
   - **Blocco da evitare:** in `apply` lo stato si copia fuori prima di `run_on_main_thread`, che sul thread principale esegue subito. Prima l'app si bloccava cambiando lato.
 - **Impostazioni** (del PC, non del profilo):
