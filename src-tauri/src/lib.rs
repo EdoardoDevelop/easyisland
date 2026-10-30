@@ -1764,18 +1764,38 @@ async fn claude_cli_status() -> claude_cli::CliStatus {
 /// that is a file), else the picture on the clipboard as a PNG in the inbox.
 /// None when the clipboard has neither (then the text is pasted as usual).
 #[tauri::command]
-async fn chat_paste() -> Result<Option<DroppedFile>, String> {
+async fn chat_paste() -> Result<Vec<files::ChatAttachment>, String> {
     tauri::async_runtime::spawn_blocking(|| {
-        if let Some(path) = clipimage::files().into_iter().find(|p| std::path::Path::new(p).is_file()) {
-            return files::ingest(&path).map(Some);
+        // Files and folders copied in Explorer: all of them.
+        let copied = clipimage::files();
+        if !copied.is_empty() {
+            return files::attach(&copied);
         }
         if !clipimage::has_image() {
-            return Ok(None);
+            return Ok(Vec::new());
         }
-        let Some(img) = clipimage::read() else { return Ok(None) };
+        let Some(img) = clipimage::read() else { return Ok(Vec::new()) };
         let png = clipimage::encode_png(&img)?;
         let name = format!("{}.png", t("Immagine incollata"));
-        files::save_new(&name, &png).map(Some)
+        let f = files::save_new(&name, &png)?;
+        Ok(vec![files::ChatAttachment { name: f.name, path: f.path, folder: false }])
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Files and folders dropped on the chat: files into the Vassoio, folders as they are.
+#[tauri::command]
+async fn chat_attach(paths: Vec<String>) -> Result<Vec<files::ChatAttachment>, String> {
+    tauri::async_runtime::spawn_blocking(move || files::attach(&paths)).await.map_err(|e| e.to_string())?
+}
+
+/// 📎 in the chat: Windows' dialog for files or folders, several at once.
+#[tauri::command]
+async fn chat_pick(folders: bool) -> Result<Vec<files::ChatAttachment>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let picked = workdir::pick_paths(folders)?;
+        files::attach(&picked)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -3425,6 +3445,8 @@ pub fn run() {
             widget_results,
             ingest_file,
             chat_paste,
+            chat_attach,
+            chat_pick,
             webview_memory_low,
             chat_fork,
             chat_persona,
@@ -3636,6 +3658,8 @@ pub fn run() {
             news::news_taste,
             news::news_feedback,
             news::news_keep,
+            news::news_auto,
+            news::news_image,
             monitor_list,
         ])
         .setup(move |app| {

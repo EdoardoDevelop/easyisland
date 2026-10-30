@@ -4,18 +4,26 @@
 
 EasyIsland cerca le notizie sugli argomenti che scegli tu e te le mostra nell'isola. Finché non segui nessun argomento non contatta nessuno.
 
-## Scegliere gli argomenti
-**Impostazioni → Notizie**:
-- **Proposti dalla memoria:** gli argomenti di cui parlano le tue pagine e le tue note, con il motivo («citata da 3 pagine»). **Aggiungi** li segue, **Escludi** li toglie per sempre dalle proposte. Le pagine di persone e clienti non vengono mai proposte: il loro nome finirebbe in una ricerca su internet.
-- **Seguiti:** per ognuno le parole da cercare e quelle da evitare.
+## La scheda Notizie
+Nel menu dell'isola c'è la voce **Notizie**, con il numero di quelle nuove. Se non ti serve: **Impostazioni → Notizie → Scheda «Notizie» nell'isola**, spenta, toglie la voce e il riquadro nella Panoramica.
+
+## Gli argomenti
+EasyIsland li **sceglie da solo** dalla tua memoria: una volta al giorno il motore della memoria (o, se non l'hai scelto, quello della chat) guarda le pagine e le note e segue solo gli argomenti da notizie, cioè prodotti, programmi, aziende, settori, luoghi, con le parole di ricerca giuste. Mai persone, te stesso, clienti o progetti interni. **Scegli adesso** lo fa subito; **Aggiungi da soli**, spento, lo ferma.
+
+In **Impostazioni → Notizie**:
+- **I tuoi argomenti:** ognuno con il suo interruttore per spegnerlo (resta lì, non si cerca), le parole da cercare e quelle da evitare; ✕ lo toglie, e se veniva dalla memoria non torna più da solo. Quelli scelti da soli lo dicono sotto il nome.
+- **Proposti dalla memoria:** gli altri argomenti di cui parla la memoria, con il motivo («citata da 3 pagine»). **Aggiungi** li segue, **Escludi** li toglie per sempre dalle proposte.
 - **Esclusi:** con **Riammetti** tornano tra le proposte.
 - Un argomento si può anche scrivere a mano.
 
 ## Da dove arrivano
-Una ricerca su **Google News** per argomento, nella lingua dell'app e sugli ultimi 3 giorni, ogni 4 ore e subito dopo che aggiungi o togli un argomento. Nessun account, nessuna chiave. Il filtro lo fa il PC: niente notizie con le parole da evitare, niente già viste, niente stessa storia ripresa da un altro giornale.
+Una ricerca per argomento su **Google News** o, se lo scegli in **Impostazioni → Notizie → Fonte**, su **Bing News**, che dà anche la foto dell'articolo e una riga di riassunto. Si cerca nella lingua dell'app e sugli ultimi 3 giorni, ogni 4 ore e subito dopo che aggiungi o togli un argomento. Nessun account, nessuna chiave. Il filtro lo fa il PC: niente notizie con le parole da evitare, niente già viste, niente stessa storia ripresa da un altro giornale.
+
+## Come si vedono
+**Impostazioni → Notizie → Aspetto della scheda**: **Elenco** (solo i titoli), **Con le miniature** (un'immagine piccola accanto a ogni titolo) o **A schede** (una griglia con l'immagine in alto). Con Google News la miniatura è il logo del giornale, con Bing News la foto dell'articolo. La lista scorre quando le notizie sono tante. Le immagini le scarica EasyIsland dallo stesso servizio e le tiene sul PC.
 
 ## Dove si vedono
-- **Notizie** nel menu dell'isola, con il numero delle nuove: filtro per argomento, un clic apre l'articolo, **Aggiorna** cerca subito, **Scegli gli argomenti** apre le Impostazioni.
+- La scheda **Notizie**: filtro per argomento, un clic apre l'articolo, **Aggiorna** cerca subito, **Scegli gli argomenti** apre le Impostazioni.
 - Un riquadro **Notizie** in fondo alla **Panoramica**, con gli ultimi titoli.
 - Nel **Buongiorno** del mattino, le notizie trovate dal giorno prima.
 - Su **Telegram** con `/notizie`.

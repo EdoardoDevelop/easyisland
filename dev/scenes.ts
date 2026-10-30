@@ -41,6 +41,15 @@ function sampleNews() {
     { id: "3", title: "Microsoft Edge si avvia più velocemente su Windows 11", source: "Punto Informatico", link: "https://example.com/3", at: now - 9 * 3600, found: now - 86_400, topic: "Windows 11" },
     { id: "4", title: "Windows 11, Modern Standby ancora più smart: promette meno consumo di batteria", source: "HDblog.it", link: "https://example.com/4", at: now - 30 * 3600, found: now - 86_400, topic: "Windows 11" },
   ];
+  // ?look=thumbs|cards: the tab's look; ?many: enough news to scroll.
+  const q = new URLSearchParams(location.search);
+  const look = q.get("look");
+  if (look === "thumbs" || look === "cards") State.settings.news.look = look;
+  if (q.has("many")) {
+    for (let i = 5; i < 25; i++) {
+      State.news.push({ id: String(i), title: `Notizia di prova numero ${i} su Windows 11 e sugli aggiornamenti del mese`, source: i % 2 ? "Punto Informatico" : "HDblog.it", link: `https://example.com/${i}`, at: now - i * 3600, found: now - 86_400, topic: "Windows 11", summary: i % 3 ? "Una riga di riassunto come la dà Bing News, che può andare anche su due righe se è lunga." : undefined });
+    }
+  }
 }
 
 /** Transparent page, and the signal scripts/screenshots.mjs waits for. */

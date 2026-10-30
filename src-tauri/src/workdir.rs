@@ -307,6 +307,41 @@ pub fn pick_folder(start: Option<String>) -> Result<Option<String>, String> {
     }
 }
 
+/// Windows' open dialog for the chat's 📎: several files, or several folders; empty when cancelled.
+pub fn pick_paths(folders: bool) -> Result<Vec<String>, String> {
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED};
+    use windows::Win32::UI::Shell::{FileOpenDialog, IFileOpenDialog, FOS_ALLOWMULTISELECT, FOS_FORCEFILESYSTEM, FOS_PICKFOLDERS, SIGDN_FILESYSPATH};
+    unsafe {
+        let init = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        let result = (|| -> windows::core::Result<Vec<String>> {
+            let dialog: IFileOpenDialog = CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER)?;
+            let mut options = dialog.GetOptions()? | FOS_FORCEFILESYSTEM | FOS_ALLOWMULTISELECT;
+            if folders {
+                options |= FOS_PICKFOLDERS;
+            }
+            dialog.SetOptions(options)?;
+            let title: Vec<u16> = if folders { t("Allega cartelle alla chat") } else { t("Allega file alla chat") }.encode_utf16().chain([0]).collect();
+            dialog.SetTitle(windows::core::PCWSTR(title.as_ptr()))?;
+            if dialog.Show(None).is_err() {
+                return Ok(Vec::new()); // cancelled
+            }
+            let items = dialog.GetResults()?;
+            let mut out = Vec::new();
+            for i in 0..items.GetCount()? {
+                let item = items.GetItemAt(i)?;
+                let name = item.GetDisplayName(SIGDN_FILESYSPATH)?;
+                out.push(name.to_string().unwrap_or_default());
+                CoTaskMemFree(Some(name.0 as *const _));
+            }
+            Ok(out)
+        })();
+        if init.is_ok() {
+            CoUninitialize();
+        }
+        result.map_err(|e| e.message().to_string())
+    }
+}
+
 /// A short text listing for the tools and Telegram: "📁 nome/" and "nome (12 KB)".
 pub fn describe(l: &Listing) -> String {
     let mut out = String::new();

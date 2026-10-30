@@ -157,12 +157,24 @@ export interface NewsTopic {
   avoid: string[];
   /** Proposed by the memory (a page) rather than typed by the user. */
   fromMemory?: boolean;
+  /** Added by itself from the memory (news.rs → auto_topics). */
+  auto?: boolean;
+  /** Switched off: kept, not searched. */
+  off?: boolean;
 }
 
 /** «Notizie»: the subjects followed and the ones the memory must not propose again. */
 export interface NewsSettings {
   topics: NewsTopic[];
   excluded: string[];
+  /** The «Notizie» tab in the island's menu (and its box in the Panoramica); off when false. */
+  tab?: boolean;
+  /** The memory's subjects followed by themselves, chosen by an engine; off when false. */
+  auto?: boolean;
+  /** Where the news come from: Google News (default) or Bing News (pictures and a summary line). */
+  source?: "google" | "bing";
+  /** How the Notizie tab shows them: a list (default), with thumbnails, or as cards. */
+  look?: "list" | "thumbs" | "cards";
 }
 
 /** A news found on Google News for a followed subject (news.rs → NewsItem). */
@@ -176,6 +188,10 @@ export interface NewsItem {
   /** Found by EasyIsland, unix seconds. */
   found: number;
   topic: string;
+  /** One line about it (Bing News only). */
+  summary?: string;
+  /** Its thumbnail's address: fetched by news.rs (`newsImage`), never by the island. */
+  image?: string;
 }
 
 /** A subject the memory proposes (news.rs → Topic). */
@@ -1242,8 +1258,16 @@ class AppState {
   windowPick: { over: string } | null = null;
   /** Put in the chat field once, not sent (an action with no selection: the text goes after it). */
   chatDraft: string | null = null;
-  /** A file added to a conversation going on (dropped or pasted): sent with the next question. */
-  chatAttach: { name: string; path: string } | null = null;
+  /** Files and folders added to the question (📎, dropped, pasted): shown in the field, sent with the next question. */
+  chatAttach: { name: string; path: string; folder?: boolean }[] = [];
+
+  /** Adds attachments to the next question, each path once, at most 20 (files.rs → MAX_ATTACH). */
+  addAttachments(list: { name: string; path: string; folder?: boolean }[]) {
+    for (const a of list) {
+      if (this.chatAttach.length >= 20) break;
+      if (!this.chatAttach.some((x) => x.path.toLowerCase() === a.path.toLowerCase())) this.chatAttach.push(a);
+    }
+  }
   /** Added once to the chat field, after what is there (a folder the character was dropped on). */
   chatInsert: string | null = null;
   /**

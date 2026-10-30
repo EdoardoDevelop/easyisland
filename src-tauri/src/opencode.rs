@@ -633,22 +633,24 @@ fn prompt_body(first: bool, query: &str, context: Option<&ChatContext>) -> Value
     let mut text = String::new();
     let mut files = Vec::new();
     if first {
-        match context {
-            Some(ChatContext::Text { label, text: t }) => text.push_str(&format!("{label}:\n{t}\n\n")),
-            Some(ChatContext::Window { app_name, title, url, image }) => {
-                text.push_str(&crate::claude::window_line(app_name, title, url.as_deref()));
-                text.push_str("\n\n");
-                if let Some(path) = image {
+        for (part, _) in crate::claude::parts(context) {
+            match &part {
+                ChatContext::Text { label, text: t } => text.push_str(&format!("{label}:\n{t}\n\n")),
+                ChatContext::Window { app_name, title, url, image } => {
+                    text.push_str(&crate::claude::window_line(app_name, title, url.as_deref()));
+                    text.push_str("\n\n");
+                    if let Some(path) = image {
+                        let uri = format!("file:///{}", path.replace('\\', "/").trim_start_matches('/'));
+                        let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                        files.push(json!({ "uri": uri, "name": name }));
+                    }
+                }
+                ChatContext::File { name, path } => {
                     let uri = format!("file:///{}", path.replace('\\', "/").trim_start_matches('/'));
-                    let name = std::path::Path::new(path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
                     files.push(json!({ "uri": uri, "name": name }));
                 }
+                ChatContext::Files { .. } => {}
             }
-            Some(ChatContext::File { name, path }) => {
-                let uri = format!("file:///{}", path.replace('\\', "/").trim_start_matches('/'));
-                files.push(json!({ "uri": uri, "name": name }));
-            }
-            None => {}
         }
     }
     text.push_str(query);

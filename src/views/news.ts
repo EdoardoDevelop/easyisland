@@ -12,7 +12,7 @@
 import { h, clear } from "./dom";
 import { washRGBA } from "../core/layout";
 import { Bridge } from "../core/bridge";
-import { State } from "../core/state";
+import { State, type NewsItem } from "../core/state";
 import type { ViewActions, ViewHost } from "./views";
 import { locale, t } from "../core/i18n";
 
@@ -39,6 +39,35 @@ function markSeen() {
 export function unreadNews(): number {
   const seen = newsSeenAt();
   return State.news.filter((n) => n.found > seen).length;
+}
+
+/** Thumbnails asked of news.rs, by news id: the data URL, null for none, a promise while asked. */
+const thumbs = new Map<string, string | null | Promise<string | null>>();
+
+/**
+ * A news' thumbnail: the article's picture (Bing News) or the paper's logo
+ * (Google News), asked once; until then, or without one, the paper's initial.
+ */
+function thumb(n: NewsItem): HTMLElement {
+  const logo = (n.image ?? "").includes("favicons");
+  const box = h("div", { class: logo ? "news-thumb logo" : "news-thumb" },
+    h("span", { class: "news-initial", text: (n.source.trim()[0] ?? "•").toUpperCase() }));
+  const show = (url: string | null) => {
+    if (!url) return;
+    box.replaceChildren(h("img", { src: url, alt: "", draggable: "false" }));
+  };
+  if (!n.image) return box;
+  const known = thumbs.get(n.id);
+  if (typeof known === "string" || known === null) show(known);
+  else {
+    const asked = known ?? Bridge.newsImage(n.id).catch(() => null);
+    thumbs.set(n.id, asked);
+    void asked.then((url) => {
+      thumbs.set(n.id, url ?? null);
+      show(url ?? null);
+    });
+  }
+  return box;
 }
 
 /** Taste at which the view proposes to stop following a subject. */
@@ -130,7 +159,7 @@ export function buildNews(actions: ViewActions): ViewHost {
   }
 
   function draw() {
-    const followed = (State.settings.news?.topics ?? []).map((x) => x.name);
+    const followed = (State.settings.news?.topics ?? []).filter((x) => !x.off).map((x) => x.name);
     drawAsk(followed);
     // A subject just dropped: its news go now, not at the next check.
     const all = State.news.filter((n) => followed.includes(n.topic));
@@ -143,7 +172,10 @@ export function buildNews(actions: ViewActions): ViewHost {
       }
     }
     clear(list);
-    const shown = all.filter((n) => !topic || n.topic === topic).slice(0, 30);
+    // Impostazioni → Notizie → Aspetto: a list, with thumbnails, or cards.
+    const look = State.settings.news?.look ?? "list";
+    list.className = `news-items ${look}`;
+    const shown = all.filter((n) => !topic || n.topic === topic).slice(0, 40);
     if (!shown.length) {
       const none = followed.length
         ? t("Ancora nessuna notizia: arrivano al prossimo controllo, o con «Aggiorna».")
@@ -176,21 +208,25 @@ export function buildNews(actions: ViewActions): ViewHost {
         e.stopPropagation();
         void feedback(n.id, false);
       });
-      list.append(h("div", { class: n.found > seen ? "news-item new" : "news-item", role: "link", tabindex: "0", title: n.link, onclick: () => actions.openUrl(n.link) },
+      const text = h("div", { class: "news-text" },
         h("div", { class: "news-title", text: n.title }),
+        ...(n.summary && look !== "cards" ? [h("div", { class: "news-summary", text: n.summary })] : []),
         h("div", { class: "news-meta" },
-          h("span", { text: [n.source, ago(n.at), topics.length > 1 && !topic ? n.topic : ""].filter(Boolean).join(" · ") }),
+          h("span", { class: "news-from", text: [n.source, ago(n.at), topics.length > 1 && !topic ? n.topic : ""].filter(Boolean).join(" · ") }),
           h("span", { class: "grow" }),
           more,
           save,
-          less)));
+          less));
+      list.append(h("div", { class: n.found > seen ? "news-item new" : "news-item", role: "link", tabindex: "0", title: n.link, onclick: () => actions.openUrl(n.link) },
+        ...(look === "list" ? [] : [thumb(n)]),
+        text));
     }
   }
 
   return {
     el,
     sync() {
-      const k = `${topic}|${State.news.map((n) => n.id).join(",")}|${(State.settings.news?.topics ?? []).map((x) => x.name).join(",")}|${JSON.stringify(State.newsTaste)}`;
+      const k = `${topic}|${State.settings.news?.look}|${State.news.map((n) => n.id).join(",")}|${(State.settings.news?.topics ?? []).map((x) => x.name).join(",")}|${JSON.stringify(State.newsTaste)}`;
       if (k === key) return;
       key = k;
       draw();

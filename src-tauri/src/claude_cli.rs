@@ -928,24 +928,31 @@ async fn send_mode(
     let mut prompt = String::new();
     let mut extra_dir: Option<PathBuf> = None;
     {
-        match &context {
-            Some(ChatContext::File { name, path }) => {
-                prompt.push_str(&tf("File allegato: {name}\nPercorso: {path}\nLeggilo con Read prima di rispondere.\n\n", &[("name", &name), ("path", &path)]));
-                extra_dir = Path::new(path).parent().map(Path::to_path_buf);
-            }
-            Some(ChatContext::Text { label, text }) => {
-                prompt.push_str(&format!("{label}:\n{text}\n\n"));
-            }
-            Some(ChatContext::Window { app_name, title, url, image }) => {
-                prompt.push_str(&crate::claude::window_line(app_name, title, url.as_deref()));
-                prompt.push('\n');
-                if let Some(path) = image {
-                    prompt.push_str(&tf("Immagine della finestra: {path}\nGuardala con Read prima di rispondere.\n", &[("path", &path)]));
+        for (part, folder) in crate::claude::parts(context.as_ref()) {
+            match &part {
+                ChatContext::File { name, path } => {
+                    prompt.push_str(&tf("File allegato: {name}\nPercorso: {path}\nLeggilo con Read prima di rispondere.\n\n", &[("name", &name), ("path", &path)]));
                     extra_dir = Path::new(path).parent().map(Path::to_path_buf);
                 }
-                prompt.push('\n');
+                ChatContext::Text { label, text } => {
+                    prompt.push_str(&format!("{label}:\n{text}\n\n"));
+                    // An attached folder: Claude Code may read in it.
+                    if let Some(folder) = folder {
+                        prompt.push_str(&tf("Puoi leggere i file della cartella {path} con Read, Glob e Grep.\n\n", &[("path", &folder)]));
+                        extra_dir = Some(PathBuf::from(folder));
+                    }
+                }
+                ChatContext::Window { app_name, title, url, image } => {
+                    prompt.push_str(&crate::claude::window_line(app_name, title, url.as_deref()));
+                    prompt.push('\n');
+                    if let Some(path) = image {
+                        prompt.push_str(&tf("Immagine della finestra: {path}\nGuardala con Read prima di rispondere.\n", &[("path", &path)]));
+                        extra_dir = Path::new(path).parent().map(Path::to_path_buf);
+                    }
+                    prompt.push('\n');
+                }
+                ChatContext::Files { .. } => {}
             }
-            None => {}
         }
     }
     prompt.push_str(&query);

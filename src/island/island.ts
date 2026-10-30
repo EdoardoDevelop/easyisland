@@ -1947,15 +1947,24 @@ ${note}` : text };
           else this.setView(State.defaultView());
           return;
         }
+        const paths = e.paths ?? [];
         void Bridge.isFolder(path).then((folder) => {
-          // Into a conversation going on: the file joins it (sent with the
-          // next question) instead of starting a new one.
+          // Onto the chat open, or several files, or a folder: they join the
+          // next question as attachments, in the field, instead of starting a
+          // new conversation with one of them.
           const before = this.beforeDrop;
-          if (!folder && before?.view === "prompt" && before.mode === "expanded" && State.chatHistory.length > 0 && !State.chatSession) {
-            this.restoreAfterDrag();
-            void Bridge.ingestFile(path)
-              .then((f) => {
-                State.chatAttach = { name: f.name, path: f.path };
+          const inChat = before?.view === "prompt" && before.mode === "expanded" && !State.chatSession;
+          if (inChat || folder || paths.length > 1) {
+            if (inChat) this.restoreAfterDrag();
+            else {
+              this.beforeDrop = null;
+              this.engine.animateMorph(0);
+              this.alert("prompt");
+              void Bridge.focusWindow(true);
+            }
+            void Bridge.chatAttach(paths)
+              .then((list) => {
+                State.addAttachments(list);
                 Sound.play("approve");
                 State.notify();
               })
@@ -1965,16 +1974,8 @@ ${note}` : text };
               });
             return;
           }
-          if (!folder) {
-            this.beforeDrop = null;
-            this.swallow(path);
-            return;
-          }
-          // A folder (it cannot be dropped as a file): every dropped path goes
-          // to the chat field instead.
           this.beforeDrop = null;
-          this.engine.animateMorph(0);
-          this.pathToChat(e.paths!);
+          this.swallow(path);
         });
         break;
       }

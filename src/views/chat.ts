@@ -93,6 +93,14 @@ function contextChip(label: string, thumb?: string, remove?: () => void, removeT
   return chip;
 }
 
+/** An attachment in the field: its icon and name (the path on hover), ✕ takes it away. */
+function attachChip(icon: string, label: string, title: string, removeTitle: string, remove: () => void): HTMLElement {
+  return h("span", { class: "attach-chip", title },
+    h("span", { class: "attach-icon", text: icon }),
+    h("span", { class: "attach-name", text: label }),
+    h("button", { class: "attach-del", title: removeTitle, text: "✕", onclick: remove }));
+}
+
 /** "Google Chrome — Titolo della pagina", shortened: the chip has one line. */
 export function windowLabel(w: { appName: string; title: string }): string {
   const title = w.title.length > 60 ? `${w.title.slice(0, 59)}…` : w.title;
@@ -210,7 +218,12 @@ export function buildPrompt(
   const fresh = h("button", { class: "new-chat-btn", title: t("Nuova chat (Ctrl+N)") }, svg(ICONS.plus, 12), h("span", { text: t("Nuova chat") }));
   // 🎤: dictation — the service of Telegram's «Vocali» if one is chosen, else Windows' own (Win+H).
   const mic = h("button", { class: "mic-btn", title: t("Detta (clic per iniziare e per finire)"), text: "🎤" }) as HTMLButtonElement;
-  const bar = h("div", { class: "chat-bar" }, fresh, input, mic, send);
+  // What goes with the next question (📎, Ctrl+V, a drop, @): in the field, over the text.
+  const attachRow = h("div", { class: "chat-attach" });
+  const field = h("div", { class: "chat-field" }, attachRow, input);
+  // 📎: files or folders, from Windows' dialog.
+  const clip = h("button", { class: "mic-btn", title: t("Allega file o cartelle"), text: "📎" }) as HTMLButtonElement;
+  const bar = h("div", { class: "chat-bar" }, fresh, field, clip, mic, send);
   // "/" in the field: the commands, over the field.
   const slashMenu = h("div", { class: "slash-menu" });
   slashMenu.style.display = "none";
@@ -316,9 +329,9 @@ export function buildPrompt(
     const text = State.chatText;
     const win = State.chatWindow;
     const attach = State.chatAttach;
-    State.chatAttach = null;
+    State.chatAttach = [];
     const first = State.chatHistory.length === 0;
-    State.chatHistory.push({ id: nextId++, role: "user", content: query, file: attach?.name });
+    State.chatHistory.push({ id: nextId++, role: "user", content: query, file: attach.length ? attach.map((a) => a.folder ? `${a.name}/` : a.name).join(", ") : undefined });
     State.stateOverride = "thinking";
     State.notify();
     onHeightChange();
@@ -332,12 +345,20 @@ export function buildPrompt(
           : file
             ? { kind: "file", name: file.name, path: file.path }
             : null;
-    // A file added on the way goes as the context; with another one already
-    // there, its path goes in the question for the engines that read files.
-    let context = base;
+    // The attachments go as the context (each engine reads every file, and a
+    // folder's outline); with a text or a window already there, their paths
+    // go in the question for the engines that read files.
+    let context: ChatContext | null = base;
     let asked = query;
-    if (attach && !base) context = { kind: "file", name: attach.name, path: attach.path };
-    else if (attach) asked = `${t("File allegato: {name}\nPercorso: {path}", { name: attach.name, path: attach.path })}\n\n${query}`;
+    const files = attach.map((a) => ({ name: a.name, path: a.path, folder: !!a.folder }));
+    if (files.length && (!base || base.kind === "file")) {
+      context = { kind: "files", files: base?.kind === "file" ? [{ name: base.name, path: base.path, folder: false }, ...files] : files };
+    } else if (files.length) {
+      const list = files.map((f) => f.folder
+        ? t("Cartella allegata: {path}", { path: f.path })
+        : t("File allegato: {name}\nPercorso: {path}", { name: f.name, path: f.path }));
+      asked = `${list.join("\n")}\n\n${query}`;
+    }
     if (textAttach) {
       asked = `${textAttach.label}:\n${textAttach.text}\n\n${asked}`;
       textAttach = null;
@@ -497,6 +518,8 @@ export function buildPrompt(
       { name: "appunti", hint: t("Il testo o l'immagine copiati"), run: () => void mentionClipboard() },
       { name: "finestra", hint: t("La foto di una finestra aperta"), run: () => void mentionWindows() },
       { name: "vassoio", hint: t("Un file del Vassoio"), run: () => void mentionTray() },
+      { name: "file", hint: t("Uno o più file dal PC"), run: () => void pick(false) },
+      { name: "cartella", hint: t("Un'intera cartella"), run: () => void pick(true) },
     ];
     return top.filter((c) => c.name.startsWith(word.toLowerCase()));
   }
@@ -510,7 +533,7 @@ export function buildPrompt(
     dropMention();
     const pic = await Bridge.clipboardPicture().catch(() => null);
     if (pic) {
-      State.chatAttach = { name: pic.name, path: pic.path };
+      State.addAttachments([{ name: pic.name, path: pic.path }]);
       Sound.play("approve");
       State.notify();
       return;
@@ -540,7 +563,7 @@ export function buildPrompt(
         dropMention();
         void Bridge.windowShot(w.id)
           .then((f) => {
-            State.chatAttach = { name: f.name, path: f.path };
+            State.addAttachments([{ name: f.name, path: f.path }]);
             Sound.play("approve");
             State.notify();
           })
@@ -562,7 +585,7 @@ export function buildPrompt(
       hint: "",
       run: () => {
         dropMention();
-        State.chatAttach = { name: f.name, path: f.path };
+        State.addAttachments([{ name: f.name, path: f.path }]);
         Sound.play("approve");
         State.notify();
       },
@@ -709,7 +732,7 @@ export function buildPrompt(
     State.droppedFile = null;
     State.chatText = null;
     State.chatWindow = null;
-    State.chatAttach = null;
+    State.chatAttach = [];
     State.promptContext = null;
     State.chatSession = null;
     // An engine picked in the menu was for that conversation only; so was "Automatica".
@@ -788,15 +811,31 @@ export function buildPrompt(
     }
   }
 
-  /** Ctrl+V with files copied in Explorer or a picture: they join the question. */
+  /** Ctrl+V with files and folders copied in Explorer, or a picture: they all join the question. */
   async function pasteFile() {
     try {
-      const f = await Bridge.chatPaste();
-      if (!f) return;
-      State.chatAttach = { name: f.name, path: f.path };
+      const list = await Bridge.chatPaste();
+      if (!list.length) return;
+      State.addAttachments(list);
       Sound.play("approve");
       State.notify();
       onHeightChange();
+    } catch (err) {
+      flash(String(err).replace(/^Error:\s*/, ""));
+    }
+  }
+
+  /** 📎 or @file / @cartella: Windows' dialog, several at once. */
+  async function pick(folders: boolean) {
+    dropMention();
+    try {
+      const list = await Bridge.chatPick(folders);
+      if (!list.length) return;
+      State.addAttachments(list);
+      Sound.play("approve");
+      State.notify();
+      onHeightChange();
+      input.focus();
     } catch (err) {
       flash(String(err).replace(/^Error:\s*/, ""));
     }
@@ -1127,7 +1166,7 @@ export function buildPrompt(
       State.droppedFile = null;
       State.chatText = null;
       State.chatWindow = null;
-      State.chatAttach = null;
+      State.chatAttach = [];
       State.promptContext = null;
       State.chatSession = null;
       State.chatEngineOverride = c.engine === State.settings.chatEngine ? null : (c.engine as ChatEngine);
@@ -1198,6 +1237,17 @@ export function buildPrompt(
   }
 
   mic.addEventListener("click", () => void dictate());
+  // 📎: the same menu as «@», with File… and Cartella…
+  clip.addEventListener("click", () => {
+    subMenu = [
+      { name: "file", hint: t("Uno o più file dal PC"), run: () => void pick(false) },
+      { name: "cartella", hint: t("Un'intera cartella"), run: () => void pick(true) },
+    ];
+    slashSel = 0;
+    menuPrefix = "@";
+    renderMenu();
+    input.focus();
+  });
   externalSend = (q) => void submit(q);
   fresh.addEventListener("click", startOver);
   send.addEventListener("click", () => {
@@ -1295,7 +1345,7 @@ export function buildPrompt(
         : win
         ? windowLabel(win)
         : file?.name ?? "";
-      const chipKey = `${pick ? "pick" : ""}${wantChip}${win && !pick ? win.path : ""}|${attach?.path ?? ""}|${assistant?.id ?? ""}|${textAttach?.text.length ?? ""}`;
+      const chipKey = `${pick ? "pick" : ""}${wantChip}${win && !pick ? win.path : ""}|${assistant?.id ?? ""}`;
       if (chipRow.dataset.label !== chipKey) {
         chipRow.dataset.label = chipKey;
         clear(chipRow);
@@ -1317,22 +1367,28 @@ export function buildPrompt(
           const removable = State.chatHistory.length === 0;
           chipRow.append(contextChip(`${assistant.icon || "🤖"} ${assistant.name}`, undefined, removable ? () => { dropAssistant(); input.focus(); } : undefined, t("Togli l'assistente")));
         }
-        if (textAttach && !pick) {
-          chipRow.append(contextChip(`📋 ${textAttach.label} · ${t("{n} caratteri", { n: textAttach.text.length.toLocaleString(locale()) })}`, undefined, () => {
+      }
+      const attachKey = `${attach.map((a) => a.path).join("|")}|${textAttach?.text.length ?? ""}`;
+      if (attachRow.dataset.key !== attachKey) {
+        attachRow.dataset.key = attachKey;
+        clear(attachRow);
+        if (textAttach) {
+          attachRow.append(attachChip("📋", `${textAttach.label} · ${t("{n} caratteri", { n: textAttach.text.length.toLocaleString(locale()) })}`, textAttach.label, t("Togli il testo"), () => {
             textAttach = null;
-            chipRow.dataset.label = "";
+            attachRow.dataset.key = "";
             State.notify();
             input.focus();
-          }, t("Togli il testo")));
+          }));
         }
-        if (attach && !pick) {
-          chipRow.append(contextChip(`📎 ${attach.name}`, undefined, () => {
-            State.chatAttach = null;
+        for (const a of attach) {
+          attachRow.append(attachChip(a.folder ? "📁" : "📄", a.name, a.path, a.folder ? t("Togli la cartella") : t("Togli il file"), () => {
+            State.chatAttach = State.chatAttach.filter((x) => x !== a);
             Sound.play("blip");
             State.notify();
             input.focus();
-          }, t("Togli il file")));
+          }));
         }
+        onHeightChange();
       }
 
       engineBtn.textContent = `${engineLabel({ ...State.settings, chatEngine: State.chatEngine })} ▾`;
@@ -1424,8 +1480,9 @@ export function buildPrompt(
         send.classList.toggle("stop", stopMode);
       }
       // Only when there is something to forget.
-      fresh.style.display = State.chatHistory.length > 0 || file || text || win || asked || attach || assistant || textAttach ? "" : "none";
+      fresh.style.display = State.chatHistory.length > 0 || file || text || win || asked || attach.length || assistant || textAttach ? "" : "none";
       mic.disabled = sending;
+      clip.disabled = sending || !!asked;
       (fresh as HTMLButtonElement).disabled = sending;
     },
     // The open history list makes the island as tall as it needs (up to its maximum).

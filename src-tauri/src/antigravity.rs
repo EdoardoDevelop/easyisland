@@ -172,15 +172,17 @@ pub async fn send(
     let mut prompt = String::new();
     // A context comes with the first question or with a file added later.
     {
-        match &context {
-            Some(ChatContext::File { name, path }) => {
-                prompt.push_str(&tf("File allegato: {name}\nPercorso: {path}\nLeggilo prima di rispondere.\n\n", &[("name", name), ("path", path)]));
+        for (part, _) in crate::claude::parts(context.as_ref()) {
+            match &part {
+                ChatContext::File { name, path } => {
+                    prompt.push_str(&tf("File allegato: {name}\nPercorso: {path}\nLeggilo prima di rispondere.\n\n", &[("name", name), ("path", path)]));
+                }
+                ChatContext::Text { label, text } => {
+                    let text: String = text.chars().take(MAX_CONTEXT).collect();
+                    prompt.push_str(&format!("{label}:\n\n{text}\n\n"));
+                }
+                _ => {}
             }
-            Some(ChatContext::Text { label, text }) => {
-                let text: String = text.chars().take(MAX_CONTEXT).collect();
-                prompt.push_str(&format!("{label}:\n\n{text}\n\n"));
-            }
-            _ => {}
         }
     }
     prompt.push_str(&query);

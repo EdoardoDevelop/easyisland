@@ -22,14 +22,17 @@
 | How | What |
 |---|---|
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>K</kbd> | The copied text or image |
-| <kbd>Ctrl</kbd>+<kbd>V</kbd> in the field | Images and files copied in File Explorer (📎 chip) |
-| Dragging a file onto the island | Attached to the current conversation, without restarting it |
+| 📎 next to the microphone, or `@file` and `@cartella` | One or more files, or whole folders, chosen from the PC |
+| <kbd>Ctrl</kbd>+<kbd>V</kbd> in the field | Images, and every file and folder copied in File Explorer |
+| Dragging files or folders onto the island | Attached to the question, without restarting the conversation |
 | `@appunti` | The copied text or image |
 | `@finestra` | A picture of an open window |
 | `@vassoio` | A file from the Tray |
 | Dragging the **chat character** onto a window | That window as context (image, app name, title). <kbd>Esc</kbd> cancels |
 | **Box and ask** | An area of the screen (see [Files and screen](17-files-and-screen.md)) |
 | **Ask the chat** in Clipboard, Tray, Notion | The chosen item |
+
+Attachments appear **inside the field**, above the text: 📄 a file, 📁 a folder, 📋 copied text; ✕ removes one you don't need. You can add more than one (up to 20) and they all go with the question. For a folder the engine gets its path and the list of files inside; Claude Code and opencode can also open them.
 
 Images go to models that can read them, text files into the message, PDFs to Claude.
 

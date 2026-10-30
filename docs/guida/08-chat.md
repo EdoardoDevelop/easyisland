@@ -22,14 +22,17 @@
 | Come | Cosa |
 |---|---|
 | <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>K</kbd> | Il testo o l'immagine copiati |
-| <kbd>Ctrl</kbd>+<kbd>V</kbd> nel campo | Immagini e file copiati in Esplora file (chip 📎) |
-| Trascinare un file sull'isola | Allegato alla conversazione in corso, senza ricominciarla |
+| 📎 accanto al microfono, o `@file` e `@cartella` | Uno o più file, o cartelle intere, scelti dal PC |
+| <kbd>Ctrl</kbd>+<kbd>V</kbd> nel campo | Immagini, e tutti i file e le cartelle copiati in Esplora file |
+| Trascinare file o cartelle sull'isola | Allegati alla domanda, senza ricominciare la conversazione |
 | `@appunti` | Il testo o l'immagine copiati |
 | `@finestra` | La foto di una finestra aperta |
 | `@vassoio` | Un file del Vassoio |
 | Trascinare il **personaggio della chat** su una finestra | Quella finestra come contesto (immagine, nome dell'app, titolo). <kbd>Esc</kbd> annulla |
 | **Riquadra e chiedi** | Una zona dello schermo (vedi [File e schermo](17-file-e-schermo.md)) |
 | **Chiedi alla chat** negli Appunti, nel Vassoio, in Notion | L'elemento scelto |
+
+Gli allegati compaiono **dentro il campo**, sopra il testo: 📄 un file, 📁 una cartella, 📋 un testo copiato; ✕ toglie quello che non serve. Ne puoi mettere più di uno (fino a 20) e partono tutti con la domanda. Di una cartella il motore riceve il percorso e l'elenco dei file che contiene; Claude Code e opencode possono anche aprirli.
 
 Le immagini vanno ai modelli che le leggono, i file di testo nel messaggio, i PDF a Claude.
 
