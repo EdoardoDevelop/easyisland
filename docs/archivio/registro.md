@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 28 ottobre 2026 — Versione 1.0.10: rinominare le conversazioni
+- Contiene la rinomina delle conversazioni nella cronologia della chat e le idee annotate dopo la 1.0.9 (modello integrato, barra fissa). Barra fissa e modello integrato restano nei loro branch, non nella versione.
+
 ### 27 ottobre 2026 — Rinominare le conversazioni (su `claude/sviluppo`)
 - Nella cronologia della chat ✎ (o doppio clic sul titolo) rinomina una conversazione; vuoto torna alla prima domanda (`chat_log::rename`, `chat.ts`, `docs/chat.md`).
 - Modello integrato accantonato nel branch `claude/modello-integrato`; annotata l'idea dell'isola fissa su un bordo con lo spazio riservato (`docs/idee.md`).

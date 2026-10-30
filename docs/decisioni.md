@@ -6,14 +6,14 @@ Da controllare prima di proporre o fare una funzione. Una richiesta che va contr
 - **Cursor e Copilot CLI solo in osservazione:** sui loro hook di permesso una risposta illeggibile o un errore bloccano lo strumento. L'isola non deve mai poter bloccare un agente.
 - **Ricette della chat salvate da sole (20 ottobre 2026):** scelta di Edoardo. Sono poche righe mirate scelte da EasyIsland (`recipes.rs`, `docs/chat.md` → Velocità e ricette), non una memoria libera che il motore scrive come vuole: crescerebbe e costerebbe token a ogni messaggio. Si contano e si cancellano in Impostazioni → Chat.
 - **Riorganizzazioni del codice (27 ottobre 2026):** i file grandi (`lib.rs`, `island.ts`, `settings/main.ts`, `style.css`) si dividono un pezzo alla volta quando si tocca quell'area per un'altra ragione, mai tutti insieme né durante una funzione nuova. Esclusi: `parking_lot` o un `safe_lock` contro il poisoning (in release `panic = "abort"` chiude l'app al primo panic, il rischio è il panic stesso), Vitest (si usa `node --test`), spostare le variabili globali nello stato gestito di Tauri (molte righe toccate senza vantaggio per l'utente).
-- **Barra fissa (27–29 ottobre 2026, decisa con Edoardo):** solo in alto o in basso, mai ai lati. Il personaggio non si trascina e l'isola si apre contro la barra. Tutto si sceglie in Impostazioni, niente modalità di modifica nella barra: aree, elementi e ordine, sfondo (di serie quello dell'isola), schermo. Telegram non va nella barra. Come funziona: `architettura.md` → Barra fissa.
+- **Barra fissa (27–29 ottobre 2026, decisa con Edoardo):** solo in alto o in basso, mai ai lati. Il personaggio non si trascina e l'isola si apre contro la barra. Tutto si sceglie in Impostazioni, niente modalità di modifica nella barra: aree, elementi e ordine, sfondo (di serie quello dell'isola), schermo. Telegram non va nella barra. Come funziona: `architettura.md` → Barra fissa. Il 30 ottobre 2026 Edoardo ha scelto un catalogo di elementi da aggiungere (`idee.md` → Elementi da aggiungere alla barra fissa), con volume e luminosità come controlli nella barra. Esclusi la barra su più schermi e un CSS personale.
 - **Vassoio temporaneo:** si svuota a ogni avvio, di proposito. Restano solo i file che l'utente fissa con la puntina (deciso il 9 ottobre 2026).
 - **Esclusi per ora:**
   - widget "Oggi"
   - rubrica clienti
   - timer d'intervento
   - GitHub rinnovato
-  - funzioni nuove dai progetti simili (timer, avvisi di sistema, sostituzione dei riquadri di volume e luminosità, gioco del personaggio)
+  - funzioni nuove dai progetti simili (timer, avvisi di sistema, sostituzione dei riquadri di volume e luminosità di Windows (come controlli nella barra fissa invece sì, 30 ottobre 2026), gioco del personaggio)
   - più sub-agenti in parallelo
   - consumo a 30 giorni
 - **«Sempre» senza proposta di Claude Code** (deciso il 10 ottobre 2026): prima EasyIsland non inventava mai una regola. Ora, quando Claude Code non ne propone, «Sempre» salva una regola solo per la sessione e solo per ciò che si sta approvando (comando esatto, dominio, modifiche ai file, strumento). Mai scritta in un file di impostazioni.
