@@ -2,6 +2,15 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.13** — **Bar widgets** (Settings → Look → Fixed bar): «+ Add» opens a catalog by group with clock
+and date, volume, microphone, brightness, battery, network speed and power menu, besides integrations,
+widgets, the strip and quick actions; system elements can be added more than once (two clocks with
+different zones). In «Options» you choose the format with placeholders, a second text shown after a
+click, the tooltip and what click, middle click, right click and wheel do. A click opens the **card in
+the island**, right below the bar: the month's calendar with the other zones and upcoming appointments,
+the volume, microphone and brightness sliders, battery and network. The power menu always asks before
+sleeping, restarting or shutting down. Coucou is no longer mentioned.
+
 **1.0.12** — The **fixed bar** goes back in place by itself when you turn the monitor off and on, change
 it or change resolution or scale: before, it kept the old size or came away from the edge and had to be
 turned off and on again. The same when Explorer restarts.
