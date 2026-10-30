@@ -1,12 +1,12 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 30 ottobre 2026. Versione **1.0.14** in `main` con il tag `v1.0.14` (Notizie): due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa, che dal 1.0.12 si rimette a posto dopo un cambio di schermo) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo` (le Notizie, fatte su `claude/notizie`, sono unite). In attesa `claude/modello-integrato`; `claude/barra-fissa` è il primo tentativo, solo archivio. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 30 ottobre 2026. Versione **1.0.15** in `main` con il tag `v1.0.15` (allegati della chat e Notizie in una scheda): due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa, che dal 1.0.12 si rimette a posto dopo un cambio di schermo) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo` (le Notizie, fatte su `claude/notizie`, sono unite). In attesa `claude/modello-integrato`; `claude/barra-fissa` è il primo tentativo, solo archivio. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
-- [ ] **Notizie** (`docs/chat.md` → Notizie, piano in `docs/idee.md`): nella 1.0.14 argomenti, Google News, vista, «Di più» / «Non mi interessa», Panoramica, Buongiorno, Telegram e barra; su `claude/sviluppo` scheda fissa disattivabile, argomenti scelti da soli da un motore (mai persone né il nome dell'utente) con interruttore per argomento, fonte a scelta Google o Bing News, aspetto elenco / miniature / schede con lo scorrimento. Da provare dal vivo; restano i riassunti del motore e la chat che cambia gli argomenti.
-- [ ] **Allegati della chat** (su `claude/sviluppo`, `docs/chat.md` → Allegati): nel campo, più d'uno, cartelle intere, 📎. Da provare dal vivo con i vari motori.
+- [ ] **Notizie** (`docs/chat.md` → Notizie, piano in `docs/idee.md`): nella 1.0.14 argomenti, Google News, vista, «Di più» / «Non mi interessa», Panoramica, Buongiorno, Telegram e barra; nella 1.0.15 scheda fissa disattivabile, argomenti scelti da soli da un motore (mai persone né il nome dell'utente) con interruttore per argomento, fonte a scelta Google o Bing News, aspetto elenco / miniature / schede con lo scorrimento. Da provare dal vivo; restano i riassunti del motore e la chat che cambia gli argomenti.
+- [ ] **Allegati della chat** (nella 1.0.15, `docs/chat.md` → Allegati): nel campo, più d'uno, cartelle intere, 📎. Da provare dal vivo con i vari motori.
 - [ ] **Personaggio e isola in due finestre** (unite in `claude/sviluppo`; misure in `docs/due-webview.md`, come funziona in `docs/architettura.md`): da provare ai lati e su un secondo schermo (in basso e i file rilasciati sul personaggio funzionano, provati da Edoardo il 29 ottobre 2026).
 - [ ] **Barra fissa** (unita in `claude/sviluppo`, `docs/architettura.md` → Barra fissa): fatta e provata in alto. Da provare in basso, sul secondo monitor e con il menu «…».
 - [ ] **Widget della barra** (unita in `claude/sviluppo`, nella 1.0.13, `docs/architettura.md` → Barra fissa → Widget della barra): catalogo «+ Aggiungi», «Opzioni» per elemento, orologio, volume, microfono, luminosità, batteria, rete e menu di spegnimento (`barsys.rs`). Card nell'isola per orologio, volume, microfono, luminosità, batteria e rete (`src/views/barcard.ts`). Da provare dal vivo; poi gli altri elementi (`docs/idee.md`).
@@ -51,7 +51,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
-### 30 ottobre 2026 — Allegati nel campo, cartelle; Notizie in una scheda, argomenti da soli, miniature (su `claude/sviluppo`)
+### 30 ottobre 2026 — Versione 1.0.15: allegati nel campo, cartelle; Notizie in una scheda, argomenti da soli, miniature
 - Chat: gli allegati stanno nel campo sopra il testo, sono più d'uno (fino a 20) e possono essere cartelle (percorso ed elenco dei file al motore); 📎, `@file`, `@cartella`, Ctrl+V e rilascio li aggiungono tutti (`ChatContext::Files`).
 - Notizie: voce sempre nel menu (spegnibile), argomenti scelti una volta al giorno da un motore e seguiti da soli, interruttore per argomento; fonte Google o Bing News (Bing con foto e riassunto), aspetto elenco / miniature / schede, la lista scorre.
 

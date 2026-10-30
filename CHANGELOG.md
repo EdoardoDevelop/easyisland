@@ -2,6 +2,16 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.15** — **Allegati nella chat**: stanno dentro il campo, sopra il testo, e ce ne possono essere
+più d'uno (fino a 20), anche **cartelle intere**: 📎 accanto al microfono o `@file` e `@cartella`
+aprono la finestra di Windows a scelta multipla, Ctrl+V prende tutti i file e le cartelle copiati e un
+rilascio sull'isola li allega tutti. Di una cartella il motore riceve il percorso e l'elenco dei file.
+**Notizie**: la scheda c'è sempre nel menu dell'isola e si spegne in Impostazioni; gli argomenti si
+scelgono da soli dalla memoria una volta al giorno (un motore tiene solo quelli da notizie: mai persone,
+clienti o il tuo nome) e ognuno ha il suo interruttore; fonte **Google News o Bing News** (con la foto
+dell'articolo e una riga di riassunto); aspetto della scheda a scelta tra **elenco, miniature e schede**;
+la lista scorre quando le notizie sono tante.
+
 **1.0.14** — **Notizie** (Impostazioni → Notizie): EasyIsland propone gli argomenti di cui parla la tua
 memoria (mai persone e clienti) e, per quelli che segui, cerca su Google News ogni 4 ore, nella lingua
 dell'app, filtrando sul PC le parole da evitare, le notizie già viste e la stessa storia ripresa da

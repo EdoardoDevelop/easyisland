@@ -2,6 +2,16 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.15** — **Chat attachments**: they sit inside the field, above the text, and there can be more
+than one (up to 20), **whole folders** too: 📎 next to the microphone or `@file` and `@cartella` open
+Windows' multi-select dialog, Ctrl+V takes every copied file and folder and a drop on the island
+attaches them all. For a folder the engine gets its path and the list of its files. **News**: the tab
+is always in the island's menu and can be switched off in Settings; subjects are chosen by themselves
+from the memory once a day (an engine keeps only news-worthy ones: never people, customers or your own
+name) and each has its own switch; source **Google News or Bing News** (with the article's picture and a
+summary line); tab look of your choice among **list, thumbnails and cards**; the list scrolls when there
+are many.
+
 **1.0.14** — **News** (Settings → News): EasyIsland suggests the subjects your memory talks about
 (never people or customers) and, for those you follow, searches Google News every 4 hours in the app's
 language, filtering on the PC the words to avoid, the news already seen and the same story told again by
