@@ -257,6 +257,24 @@ pub struct NewsItem {
     /// When EasyIsland found it, unix seconds (the island counts the new ones).
     pub found: i64,
     pub topic: String,
+    /// One line about it (Bing gives it, Google does not).
+    #[serde(default)]
+    pub summary: String,
+    /// Its thumbnail: the article's picture (Bing) or the paper's logo (Google);
+    /// fetched by `news_image`, never by the island.
+    #[serde(default)]
+    pub image: String,
+}
+
+/// One news as a feed gives it.
+#[derive(Clone, Debug, Default)]
+struct Found {
+    title: String,
+    link: String,
+    source: String,
+    at: i64,
+    summary: String,
+    image: String,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -368,6 +386,71 @@ fn query(f: &Followed) -> String {
     q
 }
 
+/// Impostazioni → Notizie → Fonte: Bing News instead of Google News (with
+/// pictures and a summary line; chosen by Edoardo on 30 October 2026).
+fn bing(app: &AppHandle) -> bool {
+    app.try_state::<crate::Shared>()
+        .is_some_and(|s| s.settings.lock().unwrap().news.get("source").and_then(serde_json::Value::as_str) == Some("bing"))
+}
+
+fn source_name(bing: bool) -> &'static str {
+    if bing { "Bing News" } else { "Google News" }
+}
+
+/// Bing's search: the same words; no `when:` (the age filter is ours).
+fn bing_url(q: &str) -> String {
+    let q = q.trim_end().strip_suffix("when:3d").unwrap_or(q).trim_end();
+    let (lang, cc) = if crate::i18n::english() { ("en", "US") } else { ("it", "IT") };
+    format!("https://www.bing.com/news/search?q={}&format=rss&setlang={lang}&cc={cc}", url_encode(q))
+}
+
+fn url_decode(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while let Some(&c0) = b.get(i) {
+        match c0 {
+            b'%' => match s.get(i + 1..i + 3).and_then(|h| u8::from_str_radix(h, 16).ok()) {
+                Some(v) => {
+                    out.push(v);
+                    i += 3;
+                    continue;
+                }
+                None => out.push(b'%'),
+            },
+            b'+' => out.push(b' '),
+            c => out.push(c),
+        }
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// The value of `name="…"` inside a tag's opening (`<source url="…">`).
+fn attr(xml: &str, tag_name: &str, name: &str) -> Option<String> {
+    let open = xml.find(&format!("<{tag_name} "))?;
+    let head = xml.get(open..)?;
+    let head = head.get(..head.find('>')?)?;
+    let at = head.find(&format!("{name}=\""))? + name.len() + 2;
+    let rest = head.get(at..)?;
+    Some(unescape(rest.get(..rest.find('"')?)?))
+}
+
+/// Text without tags (Bing's descriptions are plain, but just in case).
+fn plain(s: &str) -> String {
+    let mut out = String::new();
+    let mut inside = false;
+    for c in s.chars() {
+        match c {
+            '<' => inside = true,
+            '>' => inside = false,
+            c if !inside => out.push(c),
+            _ => {}
+        }
+    }
+    out.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
 fn feed_url(q: &str) -> String {
     let (hl, gl, ceid) = if crate::i18n::english() { ("en-US", "US", "US:en") } else { ("it", "IT", "IT:it") };
     format!("https://news.google.com/rss/search?q={}&hl={hl}&gl={gl}&ceid={ceid}", url_encode(q))
@@ -420,8 +503,9 @@ fn rfc2822(s: &str) -> Option<i64> {
     Some(days * 86_400 + secs - offset)
 }
 
-/// The feed's items: title (without « - Fonte»), link, source, date.
-fn parse_feed(xml: &str) -> Vec<(String, String, String, i64)> {
+/// The feed's items, Google News' or Bing News': title (without « - Fonte»),
+/// link (Bing's own redirect unwrapped), source, date, summary, thumbnail.
+fn parse_feed(xml: &str) -> Vec<Found> {
     let mut out = Vec::new();
     let mut rest = xml;
     while let Some(i) = rest.find("<item>") {
@@ -429,17 +513,34 @@ fn parse_feed(xml: &str) -> Vec<(String, String, String, i64)> {
         let Some(end) = after.find("</item>") else { break };
         let item = after.get(..end).unwrap_or_default();
         rest = after.get(end + 7..).unwrap_or_default();
-        let source = tag(item, "source").map(unescape).unwrap_or_default();
+        let source = tag(item, "source").or_else(|| tag(item, "News:Source")).map(unescape).unwrap_or_default();
         let mut title = tag(item, "title").map(unescape).unwrap_or_default();
         if !source.is_empty() {
             if let Some(t) = title.strip_suffix(&format!(" - {source}")) {
                 title = t.trim().to_string();
             }
         }
-        let link = tag(item, "link").map(unescape).unwrap_or_default();
+        let mut link = tag(item, "link").map(unescape).unwrap_or_default();
+        // Bing: apiclick.aspx?…&url=<the article>&…
+        if link.contains("bing.com/news/apiclick.aspx") {
+            if let Some(u) = link.split(['?', '&']).find_map(|kv| kv.strip_prefix("url=")) {
+                link = url_decode(u);
+            }
+        }
         let at = tag(item, "pubDate").and_then(|d| rfc2822(&unescape(d))).unwrap_or(0);
+        let description = tag(item, "description").map(unescape).unwrap_or_default();
+        // Google's description is only the title again, as a link.
+        let summary = if description.contains("<a ") { String::new() } else { plain(&description) };
+        let image = match tag(item, "News:Image").map(unescape) {
+            Some(img) if img.starts_with("http") => format!("{}&w=320&h=180&c=14", img.replacen("http://", "https://", 1)),
+            _ => attr(item, "source", "url")
+                .and_then(|u| u.split("://").nth(1).map(|h| h.split('/').next().unwrap_or_default().to_string()))
+                .filter(|h| !h.is_empty())
+                .map(|host| format!("https://www.google.com/s2/favicons?domain={host}&sz=64"))
+                .unwrap_or_default(),
+        };
         if !title.is_empty() && link.starts_with("https://") {
-            out.push((title, link, source, at));
+            out.push(Found { title, link, source, at, summary, image });
         }
     }
     out
@@ -485,10 +586,10 @@ fn story_query(title: &str, avoid: &[String]) -> String {
 }
 
 /// Keeps what is new, `limit` at most: not seen, not too old, no word to avoid, not the same story again.
-fn take_new(store: &mut Store, f: &Followed, found: Vec<(String, String, String, i64)>, t: i64, limit: usize) -> usize {
+fn take_new(store: &mut Store, f: &Followed, found: Vec<Found>, t: i64, limit: usize) -> usize {
     let avoid: Vec<String> = f.avoid.iter().map(|a| a.trim().to_lowercase()).filter(|a| !a.is_empty()).collect();
     let mut added = 0;
-    for (title, link, source, at) in found {
+    for Found { title, link, source, at, summary, image } in found {
         if added >= limit {
             break;
         }
@@ -502,7 +603,7 @@ fn take_new(store: &mut Store, f: &Followed, found: Vec<(String, String, String,
             continue;
         }
         store.seen.push(Seen { key: key.clone(), words, at: t });
-        store.items.push(NewsItem { id: key, title, source, link, at: if at > 0 { at } else { t }, found: t, topic: f.name.clone() });
+        store.items.push(NewsItem { id: key, title, source, link, at: if at > 0 { at } else { t }, found: t, topic: f.name.clone(), summary, image });
         added += 1;
     }
     added
@@ -516,9 +617,9 @@ fn trim(store: &mut Store, t: i64) {
     store.items.truncate(MAX_ITEMS);
 }
 
-/// One search on Google News: the feed's items, or None when it does not answer.
-async fn search(client: &reqwest::Client, q: &str) -> Option<Vec<(String, String, String, i64)>> {
-    match client.get(feed_url(q)).send().await {
+/// One search on Google News or Bing News: the feed's items, or None when it does not answer.
+async fn search(client: &reqwest::Client, q: &str, bing: bool) -> Option<Vec<Found>> {
+    match client.get(if bing { bing_url(q) } else { feed_url(q) }).send().await {
         Ok(r) if r.status().is_success() => {
             let body = r.text().await.unwrap_or_default();
             Some(parse_feed(body.get(..body.len().min(MAX_FEED_BYTES)).unwrap_or_default()))
@@ -531,12 +632,13 @@ async fn search(client: &reqwest::Client, q: &str) -> Option<Vec<(String, String
 async fn check(app: &AppHandle) -> Result<usize, String> {
     let topics = followed(app);
     let stamp = now();
+    let bing = bing(app);
     let Some(client) = crate::widgets::client() else { return Err(t("Connessione non disponibile").to_string()) };
     // The searches first, then the file: a click in the island meanwhile is not lost.
     let mut results = Vec::new();
     let mut failed = 0;
     for f in &topics {
-        match search(&client, &query(f)).await {
+        match search(&client, &query(f), bing).await {
             Some(found) => results.push((f, found)),
             None => failed += 1,
         }
@@ -556,9 +658,10 @@ async fn check(app: &AppHandle) -> Result<usize, String> {
     }
     trim(&mut store, stamp);
     save(&store);
+    forget_images(&store);
     let _ = app.emit_to(crate::island::WINDOW_LABEL, "news", &store.items);
     if failed > 0 && failed == topics.len() {
-        return Err(t("Google News non risponde").to_string());
+        return Err(tf("{name} non risponde", &[("name", &source_name(bing))]));
     }
     crate::log::line(format!("notizie: {added} nuove da {} argomenti", topics.len()));
     Ok(added)
@@ -735,6 +838,74 @@ pub async fn news_auto(app: AppHandle) -> Result<usize, String> {
     auto_topics(&app).await
 }
 
+// ── Thumbnails ────────────────────────────────────────────────────────────────
+//
+// The island never loads a picture from the web (its CSP allows none): it asks
+// `news_image`, which fetches the item's thumbnail once from the same service
+// (bing.com, or google.com for a paper's logo), keeps it in
+// %LOCALAPPDATA%\EasyIsland\notizie-img\<id> and hands it back as a data URL.
+// Pictures of news no longer kept are deleted at each check.
+
+const MAX_IMAGE_BYTES: usize = 400 * 1024;
+
+fn images_dir() -> std::path::PathBuf {
+    crate::settings::local_dir().join("notizie-img")
+}
+
+fn mime_of(bytes: &[u8]) -> Option<&'static str> {
+    match bytes {
+        [0x89, b'P', b'N', b'G', ..] => Some("image/png"),
+        [0xFF, 0xD8, ..] => Some("image/jpeg"),
+        [b'G', b'I', b'F', ..] => Some("image/gif"),
+        [b'R', b'I', b'F', b'F', _, _, _, _, b'W', b'E', b'B', b'P', ..] => Some("image/webp"),
+        [0, 0, 1, 0, ..] => Some("image/x-icon"),
+        _ => None,
+    }
+}
+
+fn data_url(bytes: &[u8]) -> Option<String> {
+    Some(format!("data:{};base64,{}", mime_of(bytes)?, crate::claude::base64_for(bytes)))
+}
+
+/// Pictures of news gone from the list.
+fn forget_images(store: &Store) {
+    let Ok(rd) = std::fs::read_dir(images_dir()) else { return };
+    for e in rd.flatten() {
+        let name = e.file_name().to_string_lossy().to_string();
+        if !store.items.iter().any(|i| i.id == name) {
+            let _ = std::fs::remove_file(e.path());
+        }
+    }
+}
+
+/// A news' thumbnail as a data URL, or None (no picture, not reachable).
+#[tauri::command]
+pub async fn news_image(id: String) -> Option<String> {
+    if id.is_empty() || !id.chars().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+    let path = images_dir().join(&id);
+    if let Ok(bytes) = std::fs::read(&path) {
+        return data_url(&bytes);
+    }
+    let url = load().items.into_iter().find(|i| i.id == id)?.image;
+    if !(url.starts_with("https://www.bing.com/") || url.starts_with("https://www.google.com/s2/favicons")) {
+        return None;
+    }
+    let r = crate::widgets::client()?.get(&url).send().await.ok()?;
+    if !r.status().is_success() {
+        return None;
+    }
+    let bytes = r.bytes().await.ok()?;
+    if bytes.len() > MAX_IMAGE_BYTES {
+        return None;
+    }
+    let out = data_url(&bytes)?;
+    let _ = std::fs::create_dir_all(images_dir());
+    let _ = std::fs::write(&path, &bytes);
+    Some(out)
+}
+
 /// The latest `n` news kept (Telegram's /notizie).
 pub fn latest(n: usize) -> Vec<NewsItem> {
     load().items.into_iter().take(n).collect()
@@ -790,7 +961,8 @@ pub async fn news_feedback(app: AppHandle, id: String, more: bool) -> Result<Fee
     if more {
         let f = followed(&app).into_iter().find(|f| f.name == item.topic).unwrap_or(Followed { name: item.topic.clone(), ..Default::default() });
         let client = crate::widgets::client().ok_or_else(|| t("Connessione non disponibile").to_string())?;
-        let found = search(&client, &story_query(&item.title, &f.avoid)).await.ok_or_else(|| t("Google News non risponde").to_string())?;
+        let bing = bing(&app);
+        let found = search(&client, &story_query(&item.title, &f.avoid), bing).await.ok_or_else(|| tf("{name} non risponde", &[("name", &source_name(bing))]))?;
         let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let mut store = load();
         added = take_new(&mut store, &f, found, now(), MORE_LIKE);
@@ -875,12 +1047,29 @@ mod tests {
 </channel></rss>"#;
         let items = parse_feed(xml);
         assert_eq!(items.len(), 1);
-        let (title, link, source, at) = &items[0];
-        assert_eq!(title, "Windows 11 riceve un aggiornamento & altro");
-        assert_eq!(source, "Il Sito");
-        assert!(link.starts_with("https://news.google.com/"));
-        assert_eq!(*at, rfc2822("30 Oct 2026 07:05:00 +0000").unwrap());
+        let f = &items[0];
+        assert_eq!(f.title, "Windows 11 riceve un aggiornamento & altro");
+        assert_eq!(f.source, "Il Sito");
+        assert!(f.link.starts_with("https://news.google.com/"));
+        assert_eq!(f.at, rfc2822("30 Oct 2026 07:05:00 +0000").unwrap());
+        assert_eq!(f.summary, "", "Google's description is the title again");
+        assert_eq!(f.image, "https://www.google.com/s2/favicons?domain=ilsito.it&sz=64");
         assert_eq!(rfc2822("Thu, 30 Oct 2026 09:05:00 +0200"), rfc2822("Thu, 30 Oct 2026 07:05:00 GMT"));
+    }
+
+    #[test]
+    fn reads_bing_news_items() {
+        let xml = r#"<rss><channel><item><title>Windows 11 KB5127936 porta 41 novit&#224;</title><link>http://www.bing.com/news/apiclick.aspx?ref=FexRss&amp;aid=&amp;url=https%3a%2f%2fwww.sito.it%2f2026%2fwin11%2f&amp;c=84&amp;mkt=it-it</link><description>Corregge il blocco di Remote Desktop.</description><pubDate>Thu, 29 Oct 2026 09:40:00 GMT</pubDate><News:Source>Matrice Digitale</News:Source><News:Image>http://www.bing.com/th?id=ONUT.Zob&amp;pid=News</News:Image></item></channel></rss>"#;
+        let items = parse_feed(xml);
+        assert_eq!(items.len(), 1);
+        let f = &items[0];
+        assert_eq!(f.link, "https://www.sito.it/2026/win11/");
+        assert_eq!(f.source, "Matrice Digitale");
+        assert_eq!(f.summary, "Corregge il blocco di Remote Desktop.");
+        assert_eq!(f.image, "https://www.bing.com/th?id=ONUT.Zob&pid=News&w=320&h=180&c=14");
+        assert!(bing_url("UniFi -offerta when:3d").ends_with("q=UniFi%20-offerta&format=rss&setlang=it&cc=IT") || crate::i18n::english());
+        assert_eq!(mime_of(&[0xFF, 0xD8, 0xFF]), Some("image/jpeg"));
+        assert_eq!(mime_of(b"<html>"), None);
     }
 
     #[test]
@@ -896,11 +1085,12 @@ mod tests {
         let mut store = Store::default();
         let f = Followed { name: "Tauri".into(), words: vec![], avoid: vec!["sponsor".into()], ..Default::default() };
         let t0 = 2_000_000_000;
+        let n = |title: &str, link: &str, source: &str, at: i64| Found { title: title.into(), link: link.into(), source: source.into(), at, ..Default::default() };
         let found = vec![
-            ("Tauri 3 esce con il supporto mobile".to_string(), "https://a.it/1".to_string(), "A".to_string(), t0 - 100),
-            ("Esce Tauri 3 con il supporto mobile".to_string(), "https://b.it/2".to_string(), "B".to_string(), t0 - 50),
-            ("Tauri, contenuto sponsor".to_string(), "https://c.it/3".to_string(), "C".to_string(), t0),
-            ("Tauri vecchia notizia".to_string(), "https://d.it/4".to_string(), "D".to_string(), t0 - MAX_AGE - 10),
+            n("Tauri 3 esce con il supporto mobile", "https://a.it/1", "A", t0 - 100),
+            n("Esce Tauri 3 con il supporto mobile", "https://b.it/2", "B", t0 - 50),
+            n("Tauri, contenuto sponsor", "https://c.it/3", "C", t0),
+            n("Tauri vecchia notizia", "https://d.it/4", "D", t0 - MAX_AGE - 10),
         ];
         assert_eq!(take_new(&mut store, &f, found.clone(), t0, 5), 1);
         assert_eq!(store.items[0].source, "A");
@@ -955,8 +1145,8 @@ Fine").unwrap();
         let body = tauri::async_runtime::block_on(async {
             crate::widgets::client().unwrap().get(feed_url(&query(&f))).send().await.unwrap().text().await.unwrap()
         });
-        for (title, _, source, at) in parse_feed(&body).into_iter().take(8) {
-            println!("{at} {source} — {title}");
+        for f in parse_feed(&body).into_iter().take(8) {
+            println!("{} {} — {} [{}]", f.at, f.source, f.title, f.image);
         }
     }
 }

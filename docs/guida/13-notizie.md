@@ -17,7 +17,10 @@ In **Impostazioni → Notizie**:
 - Un argomento si può anche scrivere a mano.
 
 ## Da dove arrivano
-Una ricerca su **Google News** per argomento, nella lingua dell'app e sugli ultimi 3 giorni, ogni 4 ore e subito dopo che aggiungi o togli un argomento. Nessun account, nessuna chiave. Il filtro lo fa il PC: niente notizie con le parole da evitare, niente già viste, niente stessa storia ripresa da un altro giornale.
+Una ricerca per argomento su **Google News** o, se lo scegli in **Impostazioni → Notizie → Fonte**, su **Bing News**, che dà anche la foto dell'articolo e una riga di riassunto. Si cerca nella lingua dell'app e sugli ultimi 3 giorni, ogni 4 ore e subito dopo che aggiungi o togli un argomento. Nessun account, nessuna chiave. Il filtro lo fa il PC: niente notizie con le parole da evitare, niente già viste, niente stessa storia ripresa da un altro giornale.
+
+## Come si vedono
+**Impostazioni → Notizie → Aspetto della scheda**: **Elenco** (solo i titoli), **Con le miniature** (un'immagine piccola accanto a ogni titolo) o **A schede** (una griglia con l'immagine in alto). Con Google News la miniatura è il logo del giornale, con Bing News la foto dell'articolo. La lista scorre quando le notizie sono tante. Le immagini le scarica EasyIsland dallo stesso servizio e le tiene sul PC.
 
 ## Dove si vedono
 - La scheda **Notizie**: filtro per argomento, un clic apre l'articolo, **Aggiorna** cerca subito, **Scegli gli argomenti** apre le Impostazioni.

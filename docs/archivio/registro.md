@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 30 ottobre 2026 — Versione 1.0.13: Widget della barra
+- Contiene i Widget della barra con le card nell'isola e la pulizia dei riferimenti all'app originale; non ancora provati dal vivo da Edoardo.
+
 ### 30 ottobre 2026 — Widget della barra (unita in `claude/sviluppo`)
 - Passi 1 e 2 di `docs/idee.md` → «Elementi da aggiungere alla barra fissa»: catalogo per gruppi, opzioni comuni (formato con segnaposto, secondo testo, suggerimento, clic / clic centrale / clic destro, rotella) e sette elementi di sistema letti da `barsys.rs` solo mentre sono nella barra. Poi le card nell'isola al posto dei pannelli di Windows (calendario, cursori, batteria, rete). Smoke «nessun errore»; non ancora provati dal vivo.
 

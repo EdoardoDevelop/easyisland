@@ -3659,6 +3659,7 @@ pub fn run() {
             news::news_feedback,
             news::news_keep,
             news::news_auto,
+            news::news_image,
             monitor_list,
         ])
         .setup(move |app| {

@@ -167,6 +167,8 @@ export const Bridge = {
   newsProposals: (excluded: string[]) => call<NewsProposal[]>("news_proposals", { excluded }),
   /** «Scegli adesso»: the engine picks among the memory's subjects now; how many were added. */
   newsAuto: () => callOrThrow<number>("news_auto"),
+  /** A news' thumbnail as a data URL (news.rs fetches and keeps it), null without one. */
+  newsImage: (id: string) => call<string | null>("news_image", { id }),
   /** The news kept, newest first; `newsRefresh` checks now and says how many are new. */
   newsItems: () => call<NewsItem[]>("news_items"),
   newsRefresh: () => callOrThrow<number>("news_refresh"),

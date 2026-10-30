@@ -4930,6 +4930,14 @@ function backupSection(): HTMLElement {
 
 // ── Notizie ───────────────────────────────────────────────────────────────────
 
+/** A small select: [value, label] pairs, the current value, what to do on a change. */
+function choice(options: [string, string][], value: string, onChange: (v: string) => void): HTMLElement {
+  const el = h("select", {}, ...options.map(([v, label]) => h("option", { value: v, text: label }))) as HTMLSelectElement;
+  el.value = value;
+  el.addEventListener("change", () => onChange(el.value));
+  return el;
+}
+
 /** «Notizie», step 1 (docs/idee.md): the subjects followed, the memory's proposals and the excluded ones. */
 function newsSection(): HTMLElement {
   const news = (): NewsSettings => (settings.news ??= { topics: [], excluded: [] });
@@ -5066,6 +5074,13 @@ function newsSection(): HTMLElement {
       h("label", { text: t("Scheda «Notizie» nell'isola") }),
       toggle(news().tab !== false, (v) => { news().tab = v; commit(); }),
       h("span", { class: "hint note", text: t("la voce nel menu dell'isola e il riquadro nella Panoramica") })),
+    h("div", { class: "row" },
+      h("label", { text: t("Aspetto della scheda") }),
+      choice([["list", t("Elenco")], ["thumbs", t("Con le miniature")], ["cards", t("A schede")]], news().look ?? "list", (v) => { news().look = v as NewsSettings["look"]; commit(); })),
+    h("div", { class: "row" },
+      h("label", { text: t("Fonte") }),
+      choice([["google", "Google News"], ["bing", "Bing News"]], news().source ?? "google", (v) => { news().source = v as NewsSettings["source"]; commit(); }),
+      h("span", { class: "hint note", text: t("Google News: miniatura con il logo del giornale. Bing News: la foto dell'articolo e una riga di riassunto. Vale dal prossimo controllo.") })),
     h("div", { class: "row" },
       h("label", { text: t("Aggiungi da soli gli argomenti") }),
       toggle(news().auto !== false, (v) => { news().auto = v; commit(); }),

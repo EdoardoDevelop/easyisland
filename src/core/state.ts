@@ -171,6 +171,10 @@ export interface NewsSettings {
   tab?: boolean;
   /** The memory's subjects followed by themselves, chosen by an engine; off when false. */
   auto?: boolean;
+  /** Where the news come from: Google News (default) or Bing News (pictures and a summary line). */
+  source?: "google" | "bing";
+  /** How the Notizie tab shows them: a list (default), with thumbnails, or as cards. */
+  look?: "list" | "thumbs" | "cards";
 }
 
 /** A news found on Google News for a followed subject (news.rs → NewsItem). */
@@ -184,6 +188,10 @@ export interface NewsItem {
   /** Found by EasyIsland, unix seconds. */
   found: number;
   topic: string;
+  /** One line about it (Bing News only). */
+  summary?: string;
+  /** Its thumbnail's address: fetched by news.rs (`newsImage`), never by the island. */
+  image?: string;
 }
 
 /** A subject the memory proposes (news.rs → Topic). */
