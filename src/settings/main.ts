@@ -6,7 +6,7 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
-import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type BarAct, type BarItem } from "../core/state";
+import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type BarAct, type BarItem, type NewsProposal, type NewsSettings } from "../core/state";
 import { BAR_KINDS, barKind } from "../core/barkinds";
 
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
@@ -4928,6 +4928,133 @@ function backupSection(): HTMLElement {
   );
 }
 
+// ── Notizie ───────────────────────────────────────────────────────────────────
+
+/** «Notizie», step 1 (docs/idee.md): the subjects followed, the memory's proposals and the excluded ones. */
+function newsSection(): HTMLElement {
+  const news = (): NewsSettings => (settings.news ??= { topics: [], excluded: [] });
+  const commit = () => void save();
+  const proposed = h("div", { class: "news-list" });
+  const mine = h("div", { class: "news-list" });
+  const excluded = h("div", { class: "news-chips" });
+  let proposals: NewsProposal[] | null = null;
+  const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+  const followed = (name: string) => news().topics.some((x) => same(x.name, name));
+  const words = (list: string[]) => list.join(", ");
+  const split = (text: string) => text.split(",").map((x) => x.trim()).filter(Boolean);
+
+  const why = (w: string): string => {
+    const [k, n] = w.split(":");
+    if (k === "links") return t("citata da {n} pagine", { n });
+    if (k === "notes") return t("nelle note {n} volte", { n });
+    if (k === "diary") return t("nelle chat del mese {n} volte", { n });
+    if (k === "recent") return t("aggiornata di recente");
+    return w;
+  };
+
+  const load = async () => {
+    proposals = null;
+    draw();
+    proposals = (await Bridge.newsProposals(news().excluded)) ?? [];
+    draw();
+  };
+
+  const draw = () => {
+    // Proposals not followed yet.
+    clear(proposed);
+    if (proposals === null) {
+      proposed.append(h("div", { class: "hint", text: t("Leggo la memoria…") }));
+    } else {
+      const open = proposals.filter((p) => !followed(p.name));
+      if (!open.length) {
+        proposed.append(h("div", { class: "hint", text: proposals.length
+          ? t("Segui già tutti gli argomenti che la memoria propone.")
+          : t("La memoria non ha ancora pagine collegate su cui basarsi: aggiungi gli argomenti a mano qui sotto. Le proposte arrivano quando la chat scrive pagine (Memoria → pagine).") }));
+      }
+      for (const p of open) {
+        proposed.append(h("div", { class: "news-row" },
+          h("div", { class: "news-main" },
+            h("strong", { text: p.name }),
+            ...(p.summary ? [h("span", { class: "hint", text: p.summary })] : []),
+            h("span", { class: "news-why", text: [p.why.map(why).join(" · "), p.words.length > 1 ? `${t("cerca")}: ${words(p.words)}` : ""].filter(Boolean).join(" — ") })),
+          h("button", { text: t("Aggiungi"), onclick: () => {
+            news().topics.push({ name: p.name, words: p.words, avoid: [], fromMemory: true });
+            commit();
+            draw();
+          } }),
+          h("button", { text: t("Escludi"), title: t("Non proporlo più"), onclick: () => {
+            news().excluded.push(p.name);
+            commit();
+            draw();
+          } })));
+      }
+    }
+
+    // The subjects followed, with their words.
+    clear(mine);
+    const topics = news().topics;
+    if (!topics.length) mine.append(h("div", { class: "hint", text: t("Nessun argomento: aggiungine uno dalle proposte o scrivilo qui sotto.") }));
+    topics.forEach((x, i) => {
+      const field = (value: string, placeholder: string, set: (v: string[]) => void) => {
+        const el = h("input", { type: "text", value, placeholder, spellcheck: "false" }) as HTMLInputElement;
+        el.addEventListener("change", () => { set(split(el.value)); commit(); });
+        return el;
+      };
+      mine.append(h("div", { class: "news-row" },
+        h("div", { class: "news-main" },
+          h("strong", { text: x.name }),
+          h("div", { class: "news-fields" },
+            field(words(x.words), t("Parole da cercare (di serie il nome)"), (v) => { x.words = v; }),
+            field(words(x.avoid), t("Parole da evitare"), (v) => { x.avoid = v; }))),
+        h("button", { class: "danger", text: "✕", title: t("Smetti di seguirlo"), onclick: () => {
+          topics.splice(i, 1);
+          commit();
+          draw();
+        } })));
+    });
+
+    // Excluded: never proposed again until taken back.
+    clear(excluded);
+    const ex = news().excluded;
+    if (!ex.length) excluded.append(h("span", { class: "hint", text: t("Nessuno.") }));
+    ex.forEach((name, i) => {
+      excluded.append(h("span", { class: "news-chip" }, h("span", { text: name }),
+        h("button", { text: t("Riammetti"), onclick: () => {
+          ex.splice(i, 1);
+          commit();
+          void load();
+        } })));
+    });
+  };
+
+  const input = h("input", { type: "text", placeholder: t("Un argomento, per esempio «Windows 11» o «UniFi»"), spellcheck: "false" }) as HTMLInputElement;
+  const add = () => {
+    const name = input.value.trim();
+    if (!name || followed(name)) return;
+    news().topics.push({ name, words: [], avoid: [] });
+    news().excluded = news().excluded.filter((x) => !same(x, name));
+    input.value = "";
+    commit();
+    draw();
+  };
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") add(); });
+
+  void load();
+  return h("section", {},
+    h("h2", {}, h("span", { text: t("Argomenti") })),
+    h("div", { class: "hint", text: t("EasyIsland ti propone gli argomenti di cui parla la tua memoria: le pagine collegate più citate e quelle nominate nelle note e nelle chat. Le pagine su persone e clienti non vengono mai proposte. Niente viene cercato finché non aggiungi un argomento.") }),
+    h("h3", { text: t("Proposti dalla memoria") }),
+    proposed,
+    h("div", { class: "row" }, h("button", { text: t("Aggiorna le proposte"), onclick: () => void load() })),
+    h("h3", { text: t("I tuoi argomenti") }),
+    mine,
+    h("div", { class: "row" }, input, h("button", { text: t("Aggiungi"), onclick: add })),
+    h("h3", { text: t("Esclusi") }),
+    h("div", { class: "hint", text: t("La memoria non li propone più, anche se continua a parlarne.") }),
+    excluded,
+  );
+}
+
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -5098,6 +5225,11 @@ function pages(b: NonNullable<typeof boot>): Page[] {
       id: "widget", label: t("Widget"), icon: "chart", color: "#22C55E", title: t("Widget"),
       intro: t("Controlli ripetibili senza codice: calendari, domini, siti, certificati, server, porte, servizi Windows e API."),
       sections: () => [widgetsSection()],
+    },
+    {
+      id: "notizie", label: t("Notizie"), icon: "globe", color: "#38BDF8", title: t("Notizie"),
+      intro: t("Notizie dal web sugli argomenti che ti interessano, ricavati dalla memoria o scelti da te."),
+      sections: () => [newsSection()],
     },
     {
       id: "backup", label: t("Backup"), icon: "cloud", color: "#A78BFA", title: t("Backup e trasferimento"),

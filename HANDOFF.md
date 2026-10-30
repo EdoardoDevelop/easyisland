@@ -5,6 +5,7 @@ _Aggiornato al 30 ottobre 2026. Versione **1.0.13** in `main` con il tag `v1.0.1
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
 ## Da fare
+- [ ] **Notizie** (su `claude/notizie`, `docs/chat.md` → Notizie, piano in `docs/idee.md`): fatto il passo 1, gli argomenti proposti dalla memoria con Aggiungi / Escludi in Impostazioni → Notizie. Prossimo: feed RSS/Atom e ricerca per argomento, filtro locale, card e riquadro nella Panoramica.
 - [ ] **Personaggio e isola in due finestre** (unite in `claude/sviluppo`; misure in `docs/due-webview.md`, come funziona in `docs/architettura.md`): da provare ai lati e su un secondo schermo (in basso e i file rilasciati sul personaggio funzionano, provati da Edoardo il 29 ottobre 2026).
 - [ ] **Barra fissa** (unita in `claude/sviluppo`, `docs/architettura.md` → Barra fissa): fatta e provata in alto. Da provare in basso, sul secondo monitor e con il menu «…».
 - [ ] **Widget della barra** (unita in `claude/sviluppo`, nella 1.0.13, `docs/architettura.md` → Barra fissa → Widget della barra): catalogo «+ Aggiungi», «Opzioni» per elemento, orologio, volume, microfono, luminosità, batteria, rete e menu di spegnimento (`barsys.rs`). Card nell'isola per orologio, volume, microfono, luminosità, batteria e rete (`src/views/barcard.ts`). Da provare dal vivo; poi gli altri elementi (`docs/idee.md`).
@@ -49,6 +50,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
+
+### 30 ottobre 2026 — Notizie, passo 1 (su `claude/notizie`)
+- `news.rs` propone gli argomenti dalle pagine della memoria (citazioni, note, diario del mese, aggiornamenti recenti), mai persone e clienti; pagina Impostazioni → Notizie con Aggiungi / Escludi / Riammetti e le parole da cercare ed evitare. Niente rete ancora. Smoke «nessun errore».
 
 ### 30 ottobre 2026 — Versione 1.0.13: Widget della barra
 - Contiene i Widget della barra con le card nell'isola e la pulizia dei riferimenti all'app originale; non ancora provati dal vivo da Edoardo.

@@ -4,7 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill, Custom, CustomRecord } from "./state";
+import type { Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill, Custom, CustomRecord, NewsProposal } from "./state";
 import type { RecapHistory } from "../island/recap";
 
 export const IS_TAURI =
@@ -163,6 +163,8 @@ export const Bridge = {
   barSysWatch: (kinds: string[]) => call<void>("bar_sys_watch", { kinds }),
   /** Volume, brightness, mute, a Windows panel, the power menu (barsys.rs). */
   barSysDo: (what: string, arg?: number) => call<void>("bar_sys_do", { what, arg }),
+  /** «Notizie»: the subjects the memory proposes, without the excluded ones (news.rs). */
+  newsProposals: (excluded: string[]) => call<NewsProposal[]>("news_proposals", { excluded }),
   /** A Windows menu at the bar; a line comes back as the tray's `bar:<key>`. */
   barMenu: (entries: [string, string][]) => call<void>("bar_overflow_menu", { entries }),
   /** "Prova" for messages from scripts. */

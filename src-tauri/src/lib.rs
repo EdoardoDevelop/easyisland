@@ -45,6 +45,7 @@ mod log;
 mod mcp_setup;
 mod media;
 mod msgraph;
+mod news;
 mod moments;
 mod netconfig;
 mod notion;
@@ -3628,6 +3629,7 @@ pub fn run() {
             bar_overflow_menu,
             barsys::bar_sys_watch,
             barsys::bar_sys_do,
+            news::news_proposals,
             monitor_list,
         ])
         .setup(move |app| {

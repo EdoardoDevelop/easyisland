@@ -1227,3 +1227,13 @@ h3.int-sub {
 @media (prefers-reduced-motion: reduce) {
   .pic [class^="a-"] { animation-play-state: paused; }
 }
+
+/* «Notizie» (newsSection): the proposals, the subjects followed, the excluded ones. */
+.news-list { display: grid; gap: 6px; margin-bottom: 8px; }
+.news-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--hairline); border-radius: 10px; }
+.news-main { display: flex; flex-direction: column; gap: 3px; flex: 1 1 auto; min-width: 0; }
+.news-why { font: 400 11.5px var(--font); color: var(--dim); }
+.news-fields { display: flex; gap: 6px; flex-wrap: wrap; }
+.news-fields input { flex: 1 1 180px; min-width: 0; }
+.news-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.news-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border: 1px solid var(--hairline); border-radius: 999px; }

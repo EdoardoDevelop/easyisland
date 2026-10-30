@@ -614,6 +614,10 @@ pub struct Settings {
     /// (src/core/state.ts BarItem). Only the front end reads it.
     #[serde(default)]
     pub fixed_bar_items: Vec<Value>,
+    /// «Notizie» (news.rs): `{ topics: [{ name, words, avoid }], excluded: [name] }`
+    /// (src/core/state.ts NewsSettings). Of the PC, not of the profile.
+    #[serde(default)]
+    pub news: Value,
     /// The fixed bar's background: "" the island's, "transparent", or "#rrggbb".
     #[serde(default)]
     pub fixed_bar_background: String,
@@ -989,6 +993,7 @@ impl Default for Settings {
             fixed_bar: String::new(),
             fixed_bar_slot: default_fixed_bar_slot(),
             fixed_bar_items: Vec::new(),
+            news: Value::Null,
             fixed_bar_background: String::new(),
             fixed_bar_height: 0.0,
             island_width: default_island_width(),

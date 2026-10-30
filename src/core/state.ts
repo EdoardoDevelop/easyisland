@@ -148,6 +148,33 @@ export interface BarOpts {
   seconds?: boolean;
 }
 
+/** A subject of «Notizie» the user follows (Impostazioni → Notizie, src-tauri/src/news.rs). */
+export interface NewsTopic {
+  name: string;
+  /** What a search uses; empty = the name. */
+  words: string[];
+  /** News with these words are left out. */
+  avoid: string[];
+  /** Proposed by the memory (a page) rather than typed by the user. */
+  fromMemory?: boolean;
+}
+
+/** «Notizie»: the subjects followed and the ones the memory must not propose again. */
+export interface NewsSettings {
+  topics: NewsTopic[];
+  excluded: string[];
+}
+
+/** A subject the memory proposes (news.rs → Topic). */
+export interface NewsProposal {
+  name: string;
+  words: string[];
+  summary: string;
+  /** "links:3", "notes:2", "diary:5", "recent". */
+  why: string[];
+  score: number;
+}
+
 /** System values the bar shows, from src-tauri/src/barsys.rs (`bar-sys`). */
 export interface BarSys {
   volume?: { level: number; muted: boolean; device?: string } | null;
@@ -487,6 +514,8 @@ export interface Settings {
   fixedBarBackground?: string;
   /** The fixed bar's height, px; 0 = automatic (barThickness). */
   fixedBarHeight?: number;
+  /** «Notizie» (Impostazioni → Notizie). */
+  news?: NewsSettings | null;
   /** Width of the open island, px (dragged with its corner, or Impostazioni → Posizione). */
   islandWidth: number;
   /** Minimum height of the open island, px; 0 = each view's own height. */
