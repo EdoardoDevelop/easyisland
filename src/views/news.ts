@@ -130,7 +130,7 @@ export function buildNews(actions: ViewActions): ViewHost {
   }
 
   function draw() {
-    const followed = (State.settings.news?.topics ?? []).map((x) => x.name);
+    const followed = (State.settings.news?.topics ?? []).filter((x) => !x.off).map((x) => x.name);
     drawAsk(followed);
     // A subject just dropped: its news go now, not at the next check.
     const all = State.news.filter((n) => followed.includes(n.topic));

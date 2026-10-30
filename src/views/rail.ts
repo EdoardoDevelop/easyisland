@@ -138,8 +138,8 @@ export function buildRail(actions: ViewActions): ViewHost {
       }
       // No agent to show (Claude Code off, nothing followed): no row.
       sections.agenti.style.display = State.latestSessionTask ? "" : "none";
-      // Notizie: only with subjects followed; the count of news not seen yet.
-      sections.notizie.style.display = (State.settings.news?.topics ?? []).length || State.news.length ? "" : "none";
+      // Notizie: a tab of its own, off in Impostazioni → Notizie; the count of news not seen yet.
+      sections.notizie.style.display = State.settings.news?.tab === false ? "none" : "";
       const unread = current() === "notizie" ? 0 : unreadNews();
       const newsMeta = sections.notizie.querySelector<HTMLElement>(".rail-meta")!;
       newsMeta.textContent = unread ? String(unread) : "";

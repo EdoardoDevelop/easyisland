@@ -460,7 +460,7 @@ function buildOverview(actions: ViewActions): ViewHost {
         }
       } else if (showsSummary()) {
         const key = "summary~" + State.tasks.map((t) => `${t.id}:${t.state}:${t.pillBadge ?? ""}:${pillLabel(t).text}:${t.steps.join("|")}`).join("~")
-          + `~news:${State.news.slice(0, SUMMARY_NEWS).map((n) => n.id).join(",")}:${unreadNews()}:${(State.settings.news?.topics ?? []).length}`;
+          + `~news:${State.news.slice(0, SUMMARY_NEWS).map((n) => n.id).join(",")}:${unreadNews()}:${(State.settings.news?.topics ?? []).length}:${State.settings.news?.tab}`;
         const grid = leftBody.querySelector<HTMLElement>(".summary");
         const sorting = !!grid && isSorting(grid);
         if (key !== cardKey && !sorting) {
@@ -560,7 +560,7 @@ const SUMMARY_NEWS = 3;
 
 /** «Notizie» under the tiles: the latest headlines; the head opens the view, a row the article. */
 function summaryNews(actions: ViewActions): HTMLElement | null {
-  if (!(State.settings.news?.topics ?? []).length || !State.news.length) return null;
+  if (State.settings.news?.tab === false || !(State.settings.news?.topics ?? []).length || !State.news.length) return null;
   const unread = unreadNews();
   return h("div", { class: "summary-news" },
     h("button", { class: "summary-news-head", onclick: () => actions.setView("news") },

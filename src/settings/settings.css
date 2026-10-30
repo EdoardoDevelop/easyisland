@@ -1237,3 +1237,6 @@ h3.int-sub {
 .news-fields input { flex: 1 1 180px; min-width: 0; }
 .news-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .news-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border: 1px solid var(--hairline); border-radius: 999px; }
+
+/* Notizie: a subject switched off. */
+.news-row.off .news-main { opacity: 0.5; }

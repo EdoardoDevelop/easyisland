@@ -1801,6 +1801,50 @@ input[type="range"]::-webkit-slider-thumb {
   color: var(--dim-3);
 }
 
+/* The field: the attachments over the text (chat.ts → attachChip). */
+.chat-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.chat-attach {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding-top: 4px;
+  max-height: 64px;
+  overflow-y: auto;
+}
+.chat-attach:empty { display: none; }
+.attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 220px;
+  padding: 2px 4px 2px 7px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font: 500 calc(11.5px + var(--fs-up, 0px)) var(--font);
+  color: var(--ink);
+}
+.attach-icon { flex: 0 0 auto; font-size: calc(11px + var(--fs-up, 0px)); }
+.attach-name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.attach-del {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--dim-2);
+  font-size: 9px;
+  cursor: pointer;
+}
+.attach-del:hover { background: rgba(255, 255, 255, 0.14); color: var(--ink); }
+
 .send-btn {
   width: 28px;
   height: 28px;

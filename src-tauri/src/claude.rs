@@ -219,12 +219,45 @@ impl Chat {
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum ChatContext {
     File { name: String, path: String },
+    /// Several files and folders attached in the chat (📎, Ctrl+V, a drop):
+    /// each engine gets them through `parts`.
+    Files { files: Vec<Attached> },
     /// Text handed over by a quick action or the "ask about clipboard" shortcut.
     Text { label: String, text: String },
     /// Another app's window: the character of the chat tab dropped on it
     /// (window_drop.rs), with its picture in the inbox.
     #[serde(rename_all = "camelCase")]
     Window { app_name: String, title: String, url: Option<String>, image: Option<String> },
+}
+
+/// One of the attachments of `ChatContext::Files`.
+#[derive(Debug, Clone, Deserialize)]
+pub struct Attached {
+    pub name: String,
+    pub path: String,
+    #[serde(default)]
+    pub folder: bool,
+}
+
+/// The context as the engines know it: several attachments become one file
+/// each, and a folder its path with an outline of what is inside (folder: the
+/// path, for the engines that can open it).
+pub(crate) fn parts(context: Option<&ChatContext>) -> Vec<(ChatContext, Option<String>)> {
+    match context {
+        None => Vec::new(),
+        Some(ChatContext::Files { files }) => files
+            .iter()
+            .map(|f| {
+                if f.folder {
+                    let text = crate::files::folder_outline(std::path::Path::new(&f.path));
+                    (ChatContext::Text { label: tf("Cartella allegata: {path}", &[("path", &f.path)]), text }, Some(f.path.clone()))
+                } else {
+                    (ChatContext::File { name: f.name.clone(), path: f.path.clone() }, None)
+                }
+            })
+            .collect(),
+        Some(c) => vec![(c.clone(), None)],
+    }
 }
 
 /// The line every engine puts before a window given as context.
@@ -313,23 +346,25 @@ pub async fn send_with(
     // File / window context: with the first message, or a file added later
     // (pasted in the chat, sent on Telegram) — the front end decides.
     {
-        match &context {
-            Some(ChatContext::File { name, path }) => {
-                if let Some(block) = file_block(path) {
-                    content.push(block);
+        for (part, _) in parts(context.as_ref()) {
+            match &part {
+                ChatContext::File { name, path } => {
+                    if let Some(block) = file_block(path) {
+                        content.push(block);
+                    }
+                    content.push(json!({ "type": "text", "text": format!("File: {name}") }));
                 }
-                content.push(json!({ "type": "text", "text": format!("File: {name}") }));
-            }
-            Some(ChatContext::Text { label, text }) => {
-                content.push(json!({ "type": "text", "text": format!("{label}:\n{text}") }));
-            }
-            Some(ChatContext::Window { app_name, title, url, image }) => {
-                if let Some(block) = image.as_deref().and_then(file_block) {
-                    content.push(block);
+                ChatContext::Text { label, text } => {
+                    content.push(json!({ "type": "text", "text": format!("{label}:\n{text}") }));
                 }
-                content.push(json!({ "type": "text", "text": window_line(app_name, title, url.as_deref()) }));
+                ChatContext::Window { app_name, title, url, image } => {
+                    if let Some(block) = image.as_deref().and_then(file_block) {
+                        content.push(block);
+                    }
+                    content.push(json!({ "type": "text", "text": window_line(app_name, title, url.as_deref()) }));
+                }
+                ChatContext::Files { .. } => {}
             }
-            None => {}
         }
     }
     content.push(json!({ "type": "text", "text": query }));

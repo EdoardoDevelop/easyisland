@@ -26,6 +26,93 @@ pub struct DroppedFile {
     pub size: u64,
 }
 
+/// Something attached to the chat's question: a file (copied into the
+/// Vassoio, like a drop) or a folder (left where it is: the engine gets its
+/// path and an outline of what is inside).
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatAttachment {
+    pub name: String,
+    pub path: String,
+    pub folder: bool,
+}
+
+/// Attachments to one question, at most.
+pub const MAX_ATTACH: usize = 20;
+
+/// The paths dropped, pasted or picked, as attachments: files into the
+/// Vassoio, folders as they are. Paths that are gone are skipped.
+pub fn attach(paths: &[String]) -> Result<Vec<ChatAttachment>, String> {
+    let mut out = Vec::new();
+    let mut last_err = None;
+    for p in paths.iter().take(MAX_ATTACH) {
+        let path = Path::new(p);
+        if path.is_dir() {
+            let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| p.clone());
+            out.push(ChatAttachment { name, path: p.clone(), folder: true });
+        } else if path.is_file() {
+            match ingest(p) {
+                Ok(f) => out.push(ChatAttachment { name: f.name, path: f.path, folder: false }),
+                Err(e) => last_err = Some(e),
+            }
+        }
+    }
+    match (out.is_empty(), last_err) {
+        (true, Some(e)) => Err(e),
+        _ => Ok(out),
+    }
+}
+
+/// Lines of a folder's outline, at most.
+const OUTLINE_LINES: usize = 300;
+/// How deep the outline goes.
+const OUTLINE_DEPTH: usize = 4;
+/// Folders not worth listing: generated or version control.
+const OUTLINE_SKIP: &[&str] = &[".git", "node_modules", "target", ".venv", "__pycache__", "dist", "build", ".next", "bin", "obj"];
+
+/// What is inside a folder, for an engine that cannot open it: one line per
+/// entry, indented by depth, folders first, «…» when it stops early.
+pub fn folder_outline(root: &Path) -> String {
+    fn walk(dir: &Path, depth: usize, lines: &mut Vec<String>, more: &mut bool) {
+        let Ok(read) = std::fs::read_dir(dir) else { return };
+        let mut entries: Vec<(bool, String, u64, PathBuf)> = read
+            .flatten()
+            .map(|e| {
+                let meta = e.metadata().ok();
+                let is_dir = meta.as_ref().is_some_and(|m| m.is_dir());
+                (is_dir, e.file_name().to_string_lossy().to_string(), meta.map_or(0, |m| m.len()), e.path())
+            })
+            .collect();
+        entries.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.to_lowercase().cmp(&b.1.to_lowercase())));
+        let pad = "  ".repeat(depth);
+        for (is_dir, name, size, path) in entries {
+            if lines.len() >= OUTLINE_LINES {
+                *more = true;
+                return;
+            }
+            if is_dir {
+                let skip = OUTLINE_SKIP.contains(&name.as_str());
+                lines.push(format!("{pad}{name}/{}", if skip { " …" } else { "" }));
+                if !skip && depth + 1 < OUTLINE_DEPTH {
+                    walk(&path, depth + 1, lines, more);
+                }
+            } else {
+                lines.push(format!("{pad}{name} ({} KB)", size.div_ceil(1024)));
+            }
+        }
+    }
+    let mut lines = Vec::new();
+    let mut more = false;
+    walk(root, 0, &mut lines, &mut more);
+    if lines.is_empty() {
+        return t("(vuota)").to_string();
+    }
+    if more {
+        lines.push(tf("… e altri: mostrati i primi {n}.", &[("n", &OUTLINE_LINES)]));
+    }
+    lines.join("\n")
+}
+
 pub fn inbox_dir() -> PathBuf {
     settings::local_dir().join("inbox")
 }
@@ -248,6 +335,21 @@ pub fn clear_inbox() -> usize {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_folder_outline_lists_and_skips() {
+        let base = std::env::temp_dir().join(format!("easyisland-outline-{}", std::process::id()));
+        std::fs::create_dir_all(base.join("src")).unwrap();
+        std::fs::create_dir_all(base.join("node_modules").join("x")).unwrap();
+        std::fs::write(base.join("src").join("main.rs"), "fn main() {}").unwrap();
+        std::fs::write(base.join("leggimi.md"), "ciao").unwrap();
+        let o = super::folder_outline(&base);
+        assert!(o.contains("src/
+  main.rs (1 KB)"), "{o}");
+        assert!(o.contains("node_modules/ …") && !o.contains("  x/"), "{o}");
+        assert!(o.contains("leggimi.md"), "{o}");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
     use super::*;
 
     #[test]

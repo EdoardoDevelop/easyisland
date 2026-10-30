@@ -165,6 +165,8 @@ export const Bridge = {
   barSysDo: (what: string, arg?: number) => call<void>("bar_sys_do", { what, arg }),
   /** «Notizie»: the subjects the memory proposes, without the excluded ones (news.rs). */
   newsProposals: (excluded: string[]) => call<NewsProposal[]>("news_proposals", { excluded }),
+  /** «Scegli adesso»: the engine picks among the memory's subjects now; how many were added. */
+  newsAuto: () => callOrThrow<number>("news_auto"),
   /** The news kept, newest first; `newsRefresh` checks now and says how many are new. */
   newsItems: () => call<NewsItem[]>("news_items"),
   newsRefresh: () => callOrThrow<number>("news_refresh"),
@@ -478,7 +480,12 @@ export const Bridge = {
   previewServers: () => call<import("../preview/types").DevServer[]>("preview_servers"),
   previewExternal: (pathOrUrl: string, reveal: boolean) => callOrThrow<void>("preview_external", { pathOrUrl, reveal }),
   /** Ctrl+V in the chat: files copied in Explorer or a picture, into the inbox (null: plain text). */
-  chatPaste: () => callOrThrow<DroppedFile | null>("chat_paste"),
+  /** Ctrl+V in the chat: every file and folder copied in Explorer, or a picture. */
+  chatPaste: () => callOrThrow<ChatAttachment[]>("chat_paste"),
+  /** Paths dropped on the chat: files into the Vassoio, folders as they are. */
+  chatAttach: (paths: string[]) => callOrThrow<ChatAttachment[]>("chat_attach", { paths }),
+  /** 📎: Windows' dialog for several files, or several folders. */
+  chatPick: (folders: boolean) => callOrThrow<ChatAttachment[]>("chat_pick", { folders }),
   /** «Modifica» / «Rigenera»: the conversation goes back to these lines. */
   chatRewind: (keep: { role: "user" | "assistant"; content: string }[]) => call<void>("chat_rewind", { keep }),
   /** «Esporta»: the conversation as Markdown in the Vassoio. */
@@ -719,8 +726,16 @@ export interface ChatSummary {
   pinned?: boolean;
 }
 
+/** Something attached to the chat's question (files.rs → ChatAttachment). */
+export interface ChatAttachment {
+  name: string;
+  path: string;
+  folder: boolean;
+}
+
 export type ChatContext =
   | { kind: "file"; name: string; path: string }
+  | { kind: "files"; files: ChatAttachment[] }
   | { kind: "text"; label: string; text: string }
   | { kind: "window"; appName: string; title: string; url?: string; image?: string };
 

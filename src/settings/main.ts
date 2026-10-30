@@ -5000,14 +5000,18 @@ function newsSection(): HTMLElement {
         el.addEventListener("change", () => { set(split(el.value)); commit(); });
         return el;
       };
-      mine.append(h("div", { class: "news-row" },
+      mine.append(h("div", { class: x.off ? "news-row off" : "news-row" },
+        toggle(!x.off, (v) => { x.off = !v; commit(); draw(); }),
         h("div", { class: "news-main" },
           h("strong", { text: x.name }),
+          ...(x.auto ? [h("span", { class: "news-why", text: t("aggiunto da solo dalla memoria") })] : []),
           h("div", { class: "news-fields" },
             field(words(x.words), t("Parole da cercare (di serie il nome)"), (v) => { x.words = v; }),
             field(words(x.avoid), t("Parole da evitare"), (v) => { x.avoid = v; }))),
         h("button", { class: "danger", text: "✕", title: t("Smetti di seguirlo"), onclick: () => {
           topics.splice(i, 1);
+          // From the memory: not added again by itself.
+          if (x.fromMemory && !news().excluded.some((e) => same(e, x.name))) news().excluded.push(x.name);
           commit();
           draw();
         } })));
@@ -5039,10 +5043,37 @@ function newsSection(): HTMLElement {
   };
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") add(); });
 
+  const autoStatus = h("span", { class: "hint note" });
+  const autoNow = h("button", { text: t("Scegli adesso") }) as HTMLButtonElement;
+  autoNow.addEventListener("click", async () => {
+    autoNow.disabled = true;
+    autoStatus.textContent = t("Il motore sceglie gli argomenti…");
+    try {
+      const n = await Bridge.newsAuto();
+      autoStatus.textContent = n ? t("Aggiunti {n} argomenti.", { n }) : t("Nessun argomento nuovo adatto alle notizie.");
+      await load();
+    } catch (err) {
+      autoStatus.textContent = String(err).replace(/^Error:\s*/, "");
+    } finally {
+      autoNow.disabled = false;
+    }
+  });
+
   void load();
   return h("section", {},
+    h("h2", {}, h("span", { text: t("Notizie") })),
+    h("div", { class: "row" },
+      h("label", { text: t("Scheda «Notizie» nell'isola") }),
+      toggle(news().tab !== false, (v) => { news().tab = v; commit(); }),
+      h("span", { class: "hint note", text: t("la voce nel menu dell'isola e il riquadro nella Panoramica") })),
+    h("div", { class: "row" },
+      h("label", { text: t("Aggiungi da soli gli argomenti") }),
+      toggle(news().auto !== false, (v) => { news().auto = v; commit(); }),
+      autoNow,
+      autoStatus),
+    h("div", { class: "hint", text: t("Una volta al giorno il motore della memoria (o, se non c'è, quello della chat) guarda di cosa parla la tua memoria e segue da sé gli argomenti adatti alle notizie: prodotti, tecnologie, aziende, settori, luoghi. Mai persone, te stesso, clienti o progetti interni. Quelli che non ti interessano li spegni o li togli qui sotto: tolti, non tornano.") }),
     h("h2", {}, h("span", { text: t("Argomenti delle notizie") })),
-    h("div", { class: "hint", text: t("EasyIsland ti propone gli argomenti di cui parla la tua memoria: le pagine collegate più citate e quelle nominate nelle note e nelle chat. Le pagine su persone e clienti non vengono mai proposte. Niente viene cercato finché non aggiungi un argomento.") }),
+    h("div", { class: "hint", text: t("Le proposte vengono dalle pagine collegate più citate e da quelle nominate nelle note e nelle chat. Le pagine su persone e clienti non vengono mai proposte.") }),
     h("h3", { text: t("Proposti dalla memoria") }),
     proposed,
     h("div", { class: "row" }, h("button", { text: t("Aggiorna le proposte"), onclick: () => void load() })),

@@ -72,20 +72,22 @@ const STREAM_EVERY_MS: u128 = 80;
 fn user_message(first: bool, query: &str, context: Option<&ChatContext>) -> Value {
     let mut parts: Vec<Value> = Vec::new();
     if first {
-        match context {
-            Some(ChatContext::File { name, path }) => {
-                parts.extend(file_parts(name, path));
-            }
-            Some(ChatContext::Text { label, text }) => {
-                parts.push(json!({ "type": "text", "text": format!("{label}:\n{text}") }));
-            }
-            Some(ChatContext::Window { app_name, title, url, image }) => {
-                if let Some(path) = image {
-                    parts.extend(file_parts(t("Finestra"), path));
+        for (part, _) in crate::claude::parts(context) {
+            match &part {
+                ChatContext::File { name, path } => {
+                    parts.extend(file_parts(name, path));
                 }
-                parts.push(json!({ "type": "text", "text": crate::claude::window_line(app_name, title, url.as_deref()) }));
+                ChatContext::Text { label, text } => {
+                    parts.push(json!({ "type": "text", "text": format!("{label}:\n{text}") }));
+                }
+                ChatContext::Window { app_name, title, url, image } => {
+                    if let Some(path) = image {
+                        parts.extend(file_parts(t("Finestra"), path));
+                    }
+                    parts.push(json!({ "type": "text", "text": crate::claude::window_line(app_name, title, url.as_deref()) }));
+                }
+                ChatContext::Files { .. } => {}
             }
-            None => {}
         }
     }
     if parts.is_empty() {

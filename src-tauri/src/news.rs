@@ -18,7 +18,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::i18n::t;
+use crate::i18n::{t, tf};
 
 use crate::brain::{self, Page};
 
@@ -135,6 +135,8 @@ fn mentions(text_lower: &str, names: &[String]) -> u32 {
 /// and without `excluded` (names, any case).
 pub fn proposals(excluded: &[String]) -> Vec<Topic> {
     let all = brain::pages();
+    let own = own_names();
+    let rejected: Vec<String> = load().rejected.iter().map(|x| x.to_lowercase()).collect();
     let notes = crate::memory::notes().join("\n").to_lowercase();
     let diary = crate::memory::diary_month().to_lowercase();
     let today = crate::memory::stamp().get(..10).and_then(brain::day_number).unwrap_or(0);
@@ -149,7 +151,7 @@ pub fn proposals(excluded: &[String]) -> Vec<Topic> {
     let mut out = Vec::new();
     for p in &all {
         let names: Vec<String> = std::iter::once(p.title.clone()).chain(p.aliases.iter().cloned()).collect();
-        if names.iter().any(|n| excluded.contains(&n.to_lowercase())) || is_person(p, &all) {
+        if names.iter().any(|n| excluded.contains(&n.to_lowercase()) || rejected.contains(&n.to_lowercase()) || is_own_name(n, &own)) || is_person(p, &all) {
             continue;
         }
         let mut why = Vec::new();
@@ -178,6 +180,30 @@ pub fn proposals(excluded: &[String]) -> Vec<Topic> {
     out.sort_by(|a, b| b.score.cmp(&a.score).then_with(|| a.name.cmp(&b.name)));
     out.truncate(MAX_PROPOSALS);
     out
+}
+
+/// The user's own names (the Windows account, its parts): never a subject.
+fn own_names() -> Vec<String> {
+    let mut out = Vec::new();
+    for v in ["USERNAME", "USERPROFILE"] {
+        if let Ok(x) = std::env::var(v) {
+            let last = x.rsplit(['\\', '/']).next().unwrap_or_default().to_lowercase();
+            out.extend(last.split(|c: char| !c.is_alphanumeric()).filter(|w| w.chars().count() > 2).map(str::to_string));
+        }
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// «Edoardo», «edoardo rossi», «Edoardo86»: the user, not a subject.
+fn is_own_name(name: &str, own: &[String]) -> bool {
+    let words: Vec<String> = name
+        .split(|c: char| !c.is_alphabetic())
+        .filter(|w| w.chars().count() > 2)
+        .map(str::to_lowercase)
+        .collect();
+    !words.is_empty() && words.iter().all(|w| own.iter().any(|o| o.starts_with(w.as_str()) || w == o))
 }
 
 /// Impostazioni → Notizie: what the memory proposes now.
@@ -255,6 +281,15 @@ struct Store {
     /// What the user said of each subject's news: «Di più» +1, «Non mi interessa» −1.
     #[serde(default)]
     taste: HashMap<String, i32>,
+    /// Proposals the engine already looked at (not asked again) and those it
+    /// found unfit for news (never proposed again, as excluded).
+    #[serde(default)]
+    judged: Vec<String>,
+    #[serde(default)]
+    rejected: Vec<String>,
+    /// The last automatic choice of subjects (`auto_topics`).
+    #[serde(default)]
+    last_auto: i64,
 }
 
 /// One load-change-save of notizie.json at a time (the check, a click in the island).
@@ -291,6 +326,9 @@ struct Followed {
     words: Vec<String>,
     #[serde(default)]
     avoid: Vec<String>,
+    /// Switched off in Impostazioni → Notizie: kept, not searched.
+    #[serde(default)]
+    off: bool,
 }
 
 fn followed(app: &AppHandle) -> Vec<Followed> {
@@ -299,7 +337,7 @@ fn followed(app: &AppHandle) -> Vec<Followed> {
     serde_json::from_value::<Vec<Followed>>(news.get("topics").cloned().unwrap_or_default())
         .unwrap_or_default()
         .into_iter()
-        .filter(|f| !f.name.trim().is_empty())
+        .filter(|f| !f.name.trim().is_empty() && !f.off)
         .collect()
 }
 
@@ -532,6 +570,11 @@ pub fn start(app: AppHandle) {
         // Not in the way of the launch.
         tokio::time::sleep(Duration::from_secs(60)).await;
         loop {
+            if load().last_auto + AUTO_EVERY <= now() {
+                if let Err(e) = auto_topics(&app).await {
+                    crate::log::line(format!("notizie, argomenti automatici: {e}"));
+                }
+            }
             let store = load();
             let topics = followed(&app);
             let names: Vec<String> = topics.iter().map(|f| f.name.clone()).collect();
@@ -543,8 +586,9 @@ pub fn start(app: AppHandle) {
             if topics.is_empty() && !store.items.is_empty() {
                 // Nothing followed any more: its news go too.
                 let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
-                let store = load();
-                save(&Store { seen: store.seen, last_check: store.last_check, ..Default::default() });
+                let mut store = load();
+                store.items.clear();
+                save(&store);
                 let _ = app.emit_to(crate::island::WINDOW_LABEL, "news", Vec::<NewsItem>::new());
             }
             // Asleep until the next check; every 5 minutes at most a look at
@@ -552,6 +596,143 @@ pub fn start(app: AppHandle) {
             tokio::time::sleep(Duration::from_secs(due.clamp(60, 300) as u64)).await;
         }
     });
+}
+
+// ── Subjects chosen by themselves (asked by Edoardo on 30 October 2026) ──────
+//
+// Once a day the memory's new proposals go to an engine (the memory's, else
+// the chat's) which keeps only real news subjects (products, technologies,
+// companies, sectors, places) and leaves out people, the user, customers,
+// internal projects and generic words. Those it keeps are followed at once
+// (`auto: true`); the user switches them off or removes them (then they are
+// excluded). Each proposal is judged once (`judged`); the ones turned down
+// are never proposed again (`rejected`). Off with «Aggiungi da soli» in
+// Impostazioni → Notizie (`news.auto` false).
+
+/// Between two automatic choices.
+const AUTO_EVERY: i64 = 24 * 3600;
+/// Proposals sent to the engine at once, at most.
+const AUTO_BATCH: usize = 24;
+
+#[derive(Deserialize, Default)]
+struct Judged {
+    #[serde(default)]
+    topics: Vec<JudgedTopic>,
+}
+
+#[derive(Deserialize, Default)]
+struct JudgedTopic {
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    words: Vec<String>,
+}
+
+fn judge_prompt(cands: &[Topic]) -> String {
+    let mut list = String::new();
+    for c in cands {
+        let summary = if c.summary.is_empty() { String::new() } else { format!(" — {}", c.summary) };
+        list.push_str(&format!("- «{}»{summary} [alias: {}]\n", c.name, c.words.join(", ")));
+    }
+    tf(
+        "Scegli, tra questi argomenti presi dalla memoria dell'utente, quelli su cui ha senso cercare notizie sul web (Google News).
+
+ARGOMENTI:
+{list}
+Tieni solo: prodotti, programmi e tecnologie, aziende e marchi conosciuti, settori, normative, luoghi, temi pubblici. Lascia fuori: persone (anche l'utente stesso), clienti e fornitori privati, progetti o cartelle interne, nomi di file, parole generiche o vaghe, cose che non finirebbero mai in un articolo.
+Per ognuno che tieni, le parole di ricerca più adatte (1–3, come le scriverebbe un giornale; anche in inglese se è un prodotto internazionale).
+Rispondi SOLO con un oggetto JSON, senza altro testo, così:
+{\"topics\":[{\"name\":\"nome esatto come nell'elenco\",\"words\":[\"parola\",\"altra parola\"]}]}
+Se nessuno va bene rispondi {\"topics\":[]}.",
+        &[("list", &list)],
+    )
+}
+
+fn parse_judged(text: &str) -> Option<Judged> {
+    let start = text.find('{')?;
+    let end = text.rfind('}')?;
+    serde_json::from_str(text.get(start..=end)?).ok()
+}
+
+/// The memory's new proposals, judged by an engine; the good ones followed at once.
+async fn auto_topics(app: &AppHandle) -> Result<usize, String> {
+    let Some(shared) = app.try_state::<crate::Shared>() else { return Ok(0) };
+    let (news, engine) = {
+        let s = shared.settings.lock().unwrap();
+        let engine = if s.memory_engine.is_empty() { s.chat_engine.clone() } else { s.memory_engine.clone() };
+        (s.news.clone(), engine)
+    };
+    let stamp_done = || {
+        let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let mut store = load();
+        store.last_auto = now();
+        save(&store);
+    };
+    if news.get("auto").and_then(serde_json::Value::as_bool) == Some(false) {
+        stamp_done();
+        return Ok(0);
+    }
+    let excluded: Vec<String> = news.get("excluded").and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default();
+    let topics: Vec<Followed> = news.get("topics").and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default();
+    let judged: Vec<String> = load().judged.iter().map(|x| x.to_lowercase()).collect();
+    let cands: Vec<Topic> = tauri::async_runtime::spawn_blocking(move || proposals(&excluded))
+        .await
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .filter(|c| !judged.contains(&c.name.to_lowercase()) && !topics.iter().any(|f| f.name.eq_ignore_ascii_case(&c.name)))
+        .take(AUTO_BATCH)
+        .collect();
+    if cands.is_empty() {
+        stamp_done();
+        return Ok(0);
+    }
+    let chat = crate::claude::Chat::default();
+    let reply = crate::chat_turn(app, &chat, judge_prompt(&cands), None, Some(engine.clone()), None, false, crate::Channel::Helper, &|_| {}).await;
+    if engine == "opencode" {
+        crate::opencode::forget(chat.cli_session());
+    }
+    // A failed engine is retried at the next look, not in a day.
+    let judged = parse_judged(&reply?.text).ok_or_else(|| t("Il motore non ha risposto nel formato chiesto: riprova, o scegli un altro motore.").to_string())?;
+    let mut kept = Vec::new();
+    for j in judged.topics {
+        if let Some(c) = cands.iter().find(|c| c.name.eq_ignore_ascii_case(j.name.trim())) {
+            let words: Vec<String> = j.words.into_iter().map(|w| w.trim().to_string()).filter(|w| !w.is_empty()).take(3).collect();
+            kept.push(serde_json::json!({ "name": c.name, "words": if words.is_empty() { c.words.clone() } else { words }, "avoid": [], "fromMemory": true, "auto": true }));
+        }
+    }
+    let added = kept.len();
+    {
+        let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let mut store = load();
+        for c in &cands {
+            store.judged.push(c.name.clone());
+            if !kept.iter().any(|k| k["name"] == c.name.as_str()) {
+                store.rejected.push(c.name.clone());
+            }
+        }
+        store.last_auto = now();
+        save(&store);
+    }
+    if added > 0 {
+        crate::agent::update_settings(app, |s| {
+            if !s.news.is_object() {
+                s.news = serde_json::json!({ "topics": [], "excluded": [] });
+            }
+            if let Some(list) = s.news.get_mut("topics").and_then(serde_json::Value::as_array_mut) {
+                list.extend(kept);
+            } else {
+                s.news["topics"] = serde_json::Value::Array(kept);
+            }
+        })?;
+    }
+    crate::log::line(format!("notizie: {added} argomenti aggiunti da soli su {} proposte", cands.len()));
+    Ok(added)
+}
+
+/// «Scegli adesso» in Impostazioni → Notizie: the automatic choice now.
+#[tauri::command]
+pub async fn news_auto(app: AppHandle) -> Result<usize, String> {
+    auto_topics(&app).await
 }
 
 /// The latest `n` news kept (Telegram's /notizie).
@@ -704,16 +885,16 @@ mod tests {
 
     #[test]
     fn query_has_words_avoid_and_window() {
-        let f = Followed { name: "UniFi".into(), words: vec!["UniFi".into(), "Dream Machine".into()], avoid: vec!["offerta".into()] };
+        let f = Followed { name: "UniFi".into(), words: vec!["UniFi".into(), "Dream Machine".into()], avoid: vec!["offerta".into()], ..Default::default() };
         assert_eq!(query(&f), "UniFi OR \"Dream Machine\" -offerta when:3d");
-        let g = Followed { name: "Tauri".into(), words: vec![], avoid: vec![] };
+        let g = Followed { name: "Tauri".into(), words: vec![], avoid: vec![], ..Default::default() };
         assert_eq!(query(&g), "Tauri when:3d");
     }
 
     #[test]
     fn same_story_and_avoided_words_are_left_out() {
         let mut store = Store::default();
-        let f = Followed { name: "Tauri".into(), words: vec![], avoid: vec!["sponsor".into()] };
+        let f = Followed { name: "Tauri".into(), words: vec![], avoid: vec!["sponsor".into()], ..Default::default() };
         let t0 = 2_000_000_000;
         let found = vec![
             ("Tauri 3 esce con il supporto mobile".to_string(), "https://a.it/1".to_string(), "A".to_string(), t0 - 100),
@@ -725,6 +906,27 @@ mod tests {
         assert_eq!(store.items[0].source, "A");
         // Seen once: never again.
         assert_eq!(take_new(&mut store, &f, found, t0 + 60, 5), 0);
+    }
+
+    #[test]
+    fn the_user_is_never_a_subject() {
+        let own = vec!["edoardo".to_string(), "rossi".to_string()];
+        assert!(is_own_name("Edoardo", &own));
+        assert!(is_own_name("Edoardo Rossi", &own));
+        assert!(!is_own_name("Windows 11", &own));
+        assert!(!is_own_name("UniFi", &own));
+        assert!(!is_own_name("AI", &own), "short words are not a name");
+    }
+
+    #[test]
+    fn reads_the_engine_choice() {
+        let j = parse_judged("Ecco:
+{\"topics\":[{\"name\":\"UniFi\",\"words\":[\"UniFi\",\"Ubiquiti\"]}]}
+Fine").unwrap();
+        assert_eq!(j.topics.len(), 1);
+        assert_eq!(j.topics[0].words, vec!["UniFi", "Ubiquiti"]);
+        assert!(parse_judged("niente").is_none());
+        assert!(judge_prompt(&[]).contains("JSON"));
     }
 
     #[test]
@@ -749,7 +951,7 @@ mod tests {
     #[test]
     #[ignore]
     fn live_google_news() {
-        let f = Followed { name: "Windows 11".into(), words: vec![], avoid: vec![] };
+        let f = Followed { name: "Windows 11".into(), words: vec![], avoid: vec![], ..Default::default() };
         let body = tauri::async_runtime::block_on(async {
             crate::widgets::client().unwrap().get(feed_url(&query(&f))).send().await.unwrap().text().await.unwrap()
         });
