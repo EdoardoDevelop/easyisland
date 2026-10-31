@@ -46,6 +46,11 @@ fn counts(list: &Value) -> HashMap<String, i64> {
 
 /// Titles of the newest tickets in an overview's data (`?view=<link>`), newest first.
 fn newest_titles(data: &Value, max: usize) -> Vec<String> {
+    titled(data).into_iter().take(max).map(|(_, t)| t).collect()
+}
+
+/// The tickets of an overview's data as (id, "#number title — who"), newest first.
+fn titled(data: &Value) -> Vec<(i64, String)> {
     let Some(ids) = data.pointer("/index/tickets").and_then(Value::as_array) else { return Vec::new() };
     let tickets = data.pointer("/assets/Ticket");
     let mut list: Vec<(i64, String)> = ids
@@ -63,7 +68,62 @@ fn newest_titles(data: &Value, max: usize) -> Vec<String> {
         })
         .collect();
     list.sort_by(|a, b| b.0.cmp(&a.0));
-    list.into_iter().take(max).map(|(_, t)| t).collect()
+    list
+}
+
+/// The tickets assigned to me at the last check, per widget, for the closed
+/// ones (brain_watch.rs). The first check of a session only sets the baseline.
+static LAST_MINE: Mutex<Option<HashMap<String, Vec<(i64, String)>>>> = Mutex::new(None);
+
+/// Tickets that left «assigned to me» since the last check of this widget.
+fn gone_mine(id: &str, now: Vec<(i64, String)>) -> Vec<(i64, String)> {
+    let mut guard = LAST_MINE.lock().unwrap();
+    let map = guard.get_or_insert_with(HashMap::new);
+    let gone = match map.get(id) {
+        Some(before) => before.iter().filter(|(t, _)| !now.iter().any(|(n, _)| n == t)).cloned().collect(),
+        None => Vec::new(),
+    };
+    map.insert(id.to_string(), now);
+    gone
+}
+
+/// A ticket that left my list: if Zammad says it is closed, its last
+/// messages go to the second brain (what the problem was, how it was solved).
+async fn closed_ticket(c: &reqwest::Client, base: &str, token: &str, id: i64, title: &str) {
+    let Ok(ticket) = get_json(c, &format!("{base}/api/v1/tickets/{id}?expand=true"), token).await else { return };
+    let state = ticket.get("state").and_then(Value::as_str).unwrap_or_default().to_lowercase();
+    if !state.contains("closed") && !state.contains("chius") {
+        return;
+    }
+    let Ok(articles) = get_json(c, &format!("{base}/api/v1/ticket_articles/by_ticket/{id}"), token).await else { return };
+    crate::brain_watch::note(crate::brain_watch::Happened {
+        kind: "ticket",
+        title: tf("Ticket chiuso: {title}", &[("title", &title)]),
+        text: ticket_story(&articles),
+        link: format!("{base}/#ticket/zoom/{id}"),
+    });
+}
+
+/// The ticket's messages, oldest first, without HTML: the first (the problem)
+/// and the last ones (the solution), at most about 3000 characters.
+fn ticket_story(articles: &Value) -> String {
+    let list: Vec<String> = articles.as_array().into_iter().flatten()
+        .filter_map(|a| {
+            let body = a.get("body").and_then(Value::as_str)?;
+            let html = a.get("content_type").and_then(Value::as_str).unwrap_or_default().contains("html");
+            let text = if html { crate::brain::html_text(body) } else { body.trim().to_string() };
+            let from = a.get("from").and_then(Value::as_str).unwrap_or_default();
+            let note = if a.get("internal").and_then(Value::as_bool) == Some(true) { format!(" ({})", t("nota interna")) } else { String::new() };
+            let text: String = text.chars().take(900).collect();
+            (!text.trim().is_empty()).then(|| format!("{from}{note}: {text}"))
+        })
+        .collect();
+    let picked: Vec<&String> = match list.len() {
+        0..=4 => list.iter().collect(),
+        n => list.first().into_iter().chain(list.get(n - 3..).into_iter().flatten()).collect(),
+    };
+    let story = picked.iter().map(|s| s.as_str()).collect::<Vec<_>>().join("\n---\n");
+    story.chars().take(3000).collect()
 }
 
 fn plural(n: i64, one: &str, many: &str) -> String {
@@ -209,6 +269,15 @@ pub async fn probe(w: &Widget) -> WidgetResult {
         fields.push(FieldValue { label: crate::i18n::t("Da assegnare").into(), value: t.clone() });
     }
 
+    // My tickets, to notice the ones closed: one more call, only with the second brain on.
+    if crate::brain_watch::wants("ticket") {
+        if let Ok(data) = get_json(&c, &format!("{base}/api/v1/ticket_overviews?view={MY_ASSIGNED}"), token.trim()).await {
+            for (id, title) in gone_mine(&w.id, titled(&data)) {
+                closed_ticket(&c, &base, token.trim(), id, &title).await;
+            }
+        }
+    }
+
     let mut r = WidgetResult::new(&w.id, level, summary);
     r.fields = fields;
     if let Some(more) = new_ticket_event(&w.id, unassigned) {
@@ -226,6 +295,24 @@ pub async fn probe(w: &Widget) -> WidgetResult {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn closed_tickets_are_the_ones_gone() {
+        let w = "test-gone";
+        assert!(gone_mine(w, vec![(1, "a".into()), (2, "b".into())]).is_empty());
+        assert_eq!(gone_mine(w, vec![(2, "b".into()), (3, "c".into())]), vec![(1, "a".to_string())]);
+        assert!(gone_mine(w, vec![(2, "b".into()), (3, "c".into())]).is_empty());
+    }
+
+    #[test]
+    fn a_ticket_story_keeps_the_problem_and_the_solution() {
+        let a = |n: usize| json!({ "from": format!("U{n}"), "body": format!("<p>messaggio {n}</p>"), "content_type": "text/html", "internal": n == 6 });
+        let story = ticket_story(&json!([a(1), a(2), a(3), a(4), a(5), a(6)]));
+        assert!(story.starts_with("U1: messaggio 1"));
+        assert!(!story.contains("messaggio 2") && !story.contains("messaggio 3"));
+        assert!(story.contains("U6 (nota interna): messaggio 6"));
+        assert!(ticket_story(&json!([])).is_empty());
+    }
 
     #[test]
     fn search_answer_becomes_hits() {

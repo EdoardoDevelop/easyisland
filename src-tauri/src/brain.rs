@@ -464,7 +464,7 @@ fn inbox_file(name: &str) -> Result<InboxFile, String> {
 }
 
 /// HTML without its tags and scripts, for a source saved from the web.
-fn html_text(html: &str) -> String {
+pub(crate) fn html_text(html: &str) -> String {
     let mut out = String::new();
     let mut rest = html;
     let low = html.to_lowercase();
@@ -706,6 +706,50 @@ pub fn find_pages(query: &str, max: usize) -> Vec<PageHit> {
         .collect();
     found.sort_by_key(|(rank, _)| *rank);
     found.into_iter().take(max).map(|(_, h)| h).collect()
+}
+
+/// What changed in the memory since `since` ("AAAA-MM-GG"), for the weekly
+/// recap (tasks.rs, memory "week"): pages written, notes, sources read.
+pub fn week_report(since: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for p in pages().into_iter().filter(|p| p.updated.as_str() >= since) {
+        out.push(tf("Pagina «{title}» ({day}): {gist}", &[("title", &p.title), ("day", &p.updated), ("gist", &p.gist())]));
+    }
+    for n in crate::memory::notes() {
+        let day = n.trim_start_matches("- ").get(..10).unwrap_or_default().to_string();
+        if day.as_str() >= since && day.chars().all(|c| c.is_ascii_digit() || c == '-') {
+            out.push(tf("Nota: {n}", &[("n", &n.trim_start_matches("- "))]));
+        }
+    }
+    if let Ok(dir) = std::fs::read_dir(sources_dir()) {
+        for e in dir.flatten() {
+            let day = e.metadata().and_then(|m| m.modified()).map(file_day).unwrap_or_default();
+            if day.as_str() >= since {
+                out.push(tf("Fonte letta: {f}", &[("f", &e.file_name().to_string_lossy())]));
+            }
+        }
+    }
+    out.truncate(80);
+    out
+}
+
+/// "AAAA-MM-GG" `days` ago.
+pub fn days_ago(days: u64) -> String {
+    file_day(std::time::SystemTime::now() - std::time::Duration::from_secs(days * 86_400))
+}
+
+/// The title of the page whose title or aliases hold every word of `query`
+/// (no case, no accents): who a mail comes from (brain_watch.rs).
+pub fn page_named(query: &str) -> Option<String> {
+    let words: Vec<String> = query.split_whitespace().map(fold).filter(|w| w.chars().count() >= 2).collect();
+    if words.is_empty() {
+        return None;
+    }
+    pages().into_iter().find_map(|p| {
+        let names = fold(&std::iter::once(p.title.as_str()).chain(p.aliases.iter().map(String::as_str)).collect::<Vec<_>>().join(" "));
+        let names: Vec<&str> = names.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect();
+        words.iter().all(|w| names.contains(&w.as_str())).then(|| p.title.clone())
+    })
 }
 
 /// memory_search in the pages: their lines with every word, then a line of

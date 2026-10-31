@@ -52,6 +52,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
 ### 31 ottobre 2026 — «Ricorda questo»: il second brain cattura al volo (su `claude/cattura`)
+- Poi: «Ricorda questo» nel menu sul testo e in Riquadra e chiedi (OCR); «Annota» dopo una chiamata 3CX risposta (proposta `call`); `brain_watch.rs` mette in coda ticket Zammad chiusi e mail importanti di Microsoft 365 e dopo 10 minuti un compito propone righe per le pagine e impegni come promemoria (scrive solo gli approvati, max 8 al giorno); riepilogo della settimana il venerdì alle 17. Interruttori in Impostazioni → Flussi → Secondo cervello. Non provato con 3CX, Zammad e Graph veri.
 - <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd> su un testo selezionato (o la card vuota per scrivere), «ricordati che …» nel campo in alto, `/ricorda` su Telegram: il testo con la sua provenienza va in `da-leggere` (`brain::remember`) e un compito lo mette subito nelle pagine collegate (`rememberNow`, se no la sera). Card `src/views/remember.ts`, scene `remember` e `remember&empty` nello smoke. 363 test Rust; non provato nell'app vera.
 
 ### 31 ottobre 2026 — Versione 1.0.16

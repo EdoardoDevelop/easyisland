@@ -17,9 +17,12 @@ export interface RememberHandlers {
 
 /** "Outlook — Re: preventivo · https://…", or "" when nothing is known. */
 function origin(r: { app: string; title: string; url: string }): string {
-  // "OUTLOOK.EXE" → "Outlook".
-  let app = r.app.replace(/\.exe$/i, "");
-  if (app && app === app.toUpperCase()) app = app.charAt(0) + app.slice(1).toLowerCase();
+  // "OUTLOOK.EXE" → "Outlook"; a name that is not a program ("3CX") stays.
+  let app = r.app;
+  if (/\.exe$/i.test(app)) {
+    app = app.replace(/\.exe$/i, "");
+    if (app === app.toUpperCase()) app = app.charAt(0) + app.slice(1).toLowerCase();
+  }
   return [[app, r.title].filter(Boolean).join(" — "), r.url].filter(Boolean).join(" · ");
 }
 
@@ -83,6 +86,7 @@ export function buildRemember(handlers: RememberHandlers): ViewHost {
       status.classList.toggle("bad", !!r.message);
       status.textContent = r.message
         || (saving ? t("Lo metto nella memoria…")
+          : from && !r.text ? t("Da {from}. Scrivi cosa ricordare: l'IA lo mette nella pagina giusta della memoria.", { from })
           : from ? t("Da {from}. Controlla e, se va bene, ricordalo: l'IA lo mette nella pagina giusta della memoria.", { from })
           : t("Scrivi cosa ricordare: l'IA lo mette nella pagina giusta della memoria."));
 

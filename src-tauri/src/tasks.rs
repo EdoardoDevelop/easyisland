@@ -583,6 +583,31 @@ pub fn set_digest(app: &AppHandle, on: bool) -> Result<(), String> {
     }
 }
 
+/// Impostazioni → Flussi → Battito: the weekly recap of the memory (Friday
+/// 17:00, memory "week") on or off. A week with nothing new is skipped.
+pub fn set_week(app: &AppHandle, on: bool) -> Result<(), String> {
+    let existing = TASKS.lock().unwrap().iter().find(|t| t.memory == "week").map(|t| t.id.clone());
+    match (on, existing) {
+        (false, Some(id)) => control(app, &id, "delete"),
+        (false, None) | (true, Some(_)) => Ok(()),
+        (true, None) => {
+            create_with(app, t("Riepilogo della settimana"), t("Riassumi cosa ha imparato la memoria questa settimana e cosa è rimasto aperto."), "weekly:5:17:00", "", |t| t.memory = "week".to_string()).map(|_| ())
+        }
+    }
+}
+
+/// The weekly recap's part of the goal: what changed in seven days.
+fn week_section() -> Option<String> {
+    let report = crate::brain::week_report(&crate::brain::days_ago(7));
+    if report.is_empty() {
+        return None;
+    }
+    Some(tf(
+        "[Riepilogo della settimana della memoria. Cosa è cambiato negli ultimi sette giorni:\n{report}\n\nScrivi all'utente un riepilogo breve e amichevole: cosa ha imparato la memoria, raggruppato per cliente, persona o progetto; poi cosa è rimasto aperto: gli impegni non ancora fatti e quelli in scadenza la prossima settimana (la pagina «Impegni» con memory_page e, se c'è, todo_list). Non cambiare niente. Chiudi con task_done e il riepilogo.]",
+        &[("report", &report.join("\n"))],
+    ))
+}
+
 /// The memory window's «Leggi adesso» ("inbox") and «Controlla» ("check"):
 /// a task in the queue now, one of each at a time.
 pub fn memory_job(app: &AppHandle, kind: &str) -> Result<(), String> {
@@ -603,6 +628,16 @@ pub fn memory_job(app: &AppHandle, kind: &str) -> Result<(), String> {
     create_with(app, title, goal, "", "", |t| t.memory = kind.to_string()).map(|_| ())
 }
 
+/// The second brain's job (brain_watch.rs): what happened, in the goal.
+pub fn brain_job(app: &AppHandle, goal: &str) -> Result<(), String> {
+    create_with(app, t("Aggiornamento della memoria"), goal, "", "", |t| t.memory = "events".to_string()).map(|_| ())
+}
+
+/// A job of the second brain is queued, running or waiting for an answer.
+pub fn brain_job_running() -> bool {
+    TASKS.lock().unwrap().iter().any(|t| t.memory == "events" && matches!(t.state, TaskState::Queued | TaskState::Running | TaskState::Asking))
+}
+
 /// A reading of da-leggere is queued or running: it takes a new source too.
 pub fn memory_job_running() -> bool {
     TASKS.lock().unwrap().iter().any(|t| (t.memory == "inbox" || t.digest) && matches!(t.state, TaskState::Queued | TaskState::Running | TaskState::Asking))
@@ -619,7 +654,17 @@ fn inbox_section() -> Option<String> {
         "[Fonti da leggere (la cartella da-leggere della memoria): {list}.
 Per ognuna: leggila con memory_inbox (file); poi scrivi o aggiorna le pagine della memoria con memory_page_write, una per argomento (una persona, un cliente, un progetto, un concetto), con il nome del file in source. Testo breve in Markdown, con [[Titolo]] verso le altre pagine e righe «- relazione: [[Altra pagina]]» per dire come sono legate (lavora con, cliente di, parte di, usa…). Prima guarda con memory_page (senza titolo: l'elenco) se la pagina o una simile esiste già, e aggiorna quella partendo dal suo testo e con la sua versione. Niente password o dati sensibili. Poi sposta la fonte con memory_inbox_done. Alla fine riassumi in task_done cosa hai imparato e quali pagine hai scritto.]",
         &[("list", &list)],
-    ))
+    ) + &promises_section())
+}
+
+/// Commitments in a source (a «Ricorda», the notes of a call): proposed, never
+/// written on their own (brain_watch.rs, Impostazioni → Flussi).
+fn promises_section() -> String {
+    let on = crate::brain_watch::wants_promises();
+    if !on {
+        return String::new();
+    }
+    format!("\n{}", t("[Se una fonte contiene impegni presi, dall'utente o verso di lui («ti mando domani il preventivo», «richiamo giovedì»), proponili con task_ask come promemoria («Promemoria: … entro …»), con le opzioni «Crea» e «No»; con «Crea» usa todo_add con la scadenza se c'è, altrimenti scrivili in fondo alla pagina «Impegni» della memoria.]"))
 }
 
 /// The part of the goal about the check (Sunday's digest and «Controlla»).
@@ -733,7 +778,8 @@ async fn runner(app: AppHandle) {
         for id in &fired {
             // A heartbeat with nothing to watch costs nothing: skipped.
             let empty_digest = get(id).is_some_and(|t| t.digest) && crate::memory::diary_today(1).is_empty() && crate::brain::inbox_files().is_empty() && (day != 7 || crate::brain::check().is_empty());
-            if empty_digest || (get(id).is_some_and(|t| t.heartbeat) && heartbeat_items().is_empty()) {
+            let empty_week = get(id).is_some_and(|t| t.memory == "week") && week_section().is_none();
+            if empty_digest || empty_week || (get(id).is_some_and(|t| t.heartbeat) && heartbeat_items().is_empty()) {
                 update(&app, id, |t| t.last_fired = now.clone());
                 continue;
             }
@@ -797,6 +843,11 @@ fn prompt_with(task: &Task, first: bool, helpers: &[(String, String)]) -> String
             "[Riordino della memoria. Il diario di oggi:\n{diary}\n\nNote già in memoria: {n}.\nScegli al massimo 5 cose che valgono anche nei prossimi giorni (preferenze dell'utente, clienti, persone, come si fanno le cose) e che non sono già in memoria; niente password o dati sensibili. Se non ce n'è nessuna chiudi con task_done e quiet true. Altrimenti mostrale con task_ask, una per riga, con le opzioni «Salva tutte» e «Nessuna» (l'utente può anche scrivere quali); poi salva quelle approvate con memory_note, una per volta, e chiudi con task_done.]",
             &[("diary", &crate::memory::diary_today(80).join("\n")), ("n", &notes.len().to_string())],
         )));
+    }
+    if task.memory == "week" {
+        if let Some(week) = week_section() {
+            text.push_str(&format!("\n\n{week}"));
+        }
     }
     if task.digest || task.memory == "inbox" {
         if let Some(inbox) = inbox_section() {

@@ -338,6 +338,7 @@ fn publish(app: &AppHandle) {
         app,
         IntegrationUpdate { id: ID, data: serde_json::to_value(&snapshot).unwrap_or(Value::Null), error, event: None },
     );
+    offer_note(app, &snapshot.calls);
     for c in ring {
         crate::automations::on_event(
             "call",
@@ -346,6 +347,45 @@ fn publish(app: &AppHandle) {
             &[("chiamante", if c.name.is_empty() { c.number.clone() } else { c.name.clone() }), ("numero", c.number.clone())],
         );
         let _ = app.emit_to(WINDOW_LABEL, "threecx-call", &c);
+    }
+}
+
+/// Calls seen answered, by id: when one is gone it ended, and the island
+/// offers to note what was said («Annota», src/island/moments.ts).
+static ANSWERED: Mutex<Option<HashMap<String, Call>>> = Mutex::new(None);
+/// Shorter calls (a wrong number, "richiamo dopo") get no «Annota».
+const NOTE_AFTER_MS: u64 = 30_000;
+
+/// The answered calls of `seen` that are no longer in `calls`, with how long
+/// they lasted (ms, from the answer to `now`); `seen` learns the new ones.
+fn ended_calls(seen: &mut HashMap<String, Call>, calls: &[Call], now: u64) -> Vec<(Call, u64)> {
+    for c in calls.iter().filter(|c| c.state == "connected") {
+        seen.entry(c.id.clone()).or_insert_with(|| c.clone());
+    }
+    let gone: Vec<String> = seen.keys().filter(|id| !calls.iter().any(|c| &c.id == *id)).cloned().collect();
+    gone.into_iter()
+        .filter_map(|id| seen.remove(&id))
+        .map(|c| {
+            let len = now.saturating_sub(c.since);
+            (c, len)
+        })
+        .collect()
+}
+
+/// «Annota» after an answered call of at least NOTE_AFTER_MS (moments.rs).
+fn offer_note(app: &AppHandle, calls: &[Call]) {
+    let ended = {
+        let mut guard = ANSWERED.lock().unwrap();
+        ended_calls(guard.get_or_insert_with(HashMap::new), calls, now_ms())
+    };
+    let on = app.try_state::<crate::Shared>().is_some_and(|s| s.settings.lock().unwrap().moment_calls);
+    for (c, len) in ended {
+        if !on || len < NOTE_AFTER_MS {
+            continue;
+        }
+        crate::moments::emit(app, serde_json::json!({
+            "kind": "call", "name": c.name, "number": c.number, "incoming": c.incoming, "seconds": len / 1000,
+        }));
     }
 }
 
@@ -1099,6 +1139,22 @@ pub async fn voicemail_heard(id: i64) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_answered_call_that_ends_is_offered_once() {
+        let call = |id: &str, state: &str, since: u64| Call {
+            id: id.into(), state: state.into(), incoming: true, name: "Rossi".into(), number: "0212".into(),
+            since, can_answer: false, dialog: String::new(),
+        };
+        let mut seen = HashMap::new();
+        assert!(ended_calls(&mut seen, &[call("1", "ringing", 1_000)], 2_000).is_empty());
+        assert!(ended_calls(&mut seen, &[call("1", "connected", 5_000), call("2", "ringing", 6_000)], 7_000).is_empty());
+        // 2 rang and was not answered: nothing; 1 ended after 60 s.
+        let ended = ended_calls(&mut seen, &[], 65_000);
+        assert_eq!(ended.len(), 1);
+        assert_eq!((ended[0].0.id.as_str(), ended[0].1), ("1", 60_000));
+        assert!(ended_calls(&mut seen, &[], 70_000).is_empty());
+    }
 
     #[test]
     fn call_changes_are_logged_without_numbers() {

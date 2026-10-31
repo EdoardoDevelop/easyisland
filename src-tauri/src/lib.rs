@@ -98,6 +98,7 @@ mod renew;
 mod richtext;
 mod start_apps;
 mod threecx;
+mod brain_watch;
 mod transcribe;
 mod tray;
 mod updates;
@@ -3489,6 +3490,12 @@ fn heartbeat_set(app: AppHandle, minutes: u32) -> Result<(), String> {
     tasks::set_heartbeat(&app, minutes).map(|_| ())
 }
 
+/// Impostazioni → Flussi → Battito: the weekly recap of the memory (tasks.rs).
+#[tauri::command]
+fn week_set(app: AppHandle, on: bool) -> Result<(), String> {
+    tasks::set_week(&app, on)
+}
+
 /// Impostazioni → Chat → Memoria: the evening digest (tasks.rs).
 #[tauri::command]
 fn digest_set(app: AppHandle, on: bool) -> Result<(), String> {
@@ -3598,6 +3605,7 @@ pub fn run() {
             heartbeat_set,
             heartbeat_open,
             digest_set,
+            week_set,
             skills_list,
             customs_list,
             custom_save,
@@ -3978,6 +3986,7 @@ pub fn run() {
             media::spawn(handle.clone());
             threecx::spawn(handle.clone());
             teams::spawn(handle.clone());
+            brain_watch::init(&handle);
             telegram::spawn(handle.clone());
             tasks::init(&handle);
             custom::spawn(handle.clone());

@@ -346,6 +346,8 @@ export type Moment =
   | { kind: "error"; error: string; summary: string; text: string; port: number | null; holder: { name: string; pid: number } | null }
   /** A development server that started listening. */
   | { kind: "server"; port: number; url: string; process: string }
+  /** A 3CX call answered and ended: «Annota» what was said (into the memory). */
+  | { kind: "call"; name: string; number: string; incoming: boolean; seconds: number }
   /** A card from Claude Code (`show_card`): waits for a button. */
   | { kind: "card"; id: string; title: string; text: string; level: "ok" | "warn" | "error" | "info"; buttons: string[] };
 
@@ -566,6 +568,12 @@ export interface Settings {
   momentDownloads: boolean;
   momentErrors: boolean;
   momentServers: boolean;
+  /** «Annota» after an answered 3CX call (moments.rs). */
+  momentCalls?: boolean;
+  /** The second brain at work (brain_watch.rs): closed tickets, important mails, commitments. */
+  brainTickets?: boolean;
+  brainMail?: boolean;
+  brainPromises?: boolean;
   /** A copied password or key leaves the clipboard after 30 s. */
   clearSecrets: boolean;
   /** The chat history (chat_log.rs), on this PC. */
@@ -1188,6 +1196,10 @@ export const DEFAULT_SETTINGS: Settings = {
   momentDownloads: true,
   momentErrors: true,
   momentServers: true,
+  momentCalls: true,
+  brainTickets: true,
+  brainMail: true,
+  brainPromises: true,
   clearSecrets: true,
   chatHistory: true,
   tasksEngine: "",
@@ -1782,6 +1794,8 @@ export interface AgentTaskItem {
   heartbeat: boolean;
   /** The evening digest of the memory. */
   digest: boolean;
+  /** A job on the memory: "inbox", "check", "events" (the second brain), "week" (the weekly recap). */
+  memory?: string;
   created: string;
   updated: string;
 }

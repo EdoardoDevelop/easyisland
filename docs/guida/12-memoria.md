@@ -47,7 +47,17 @@ Succede la sera con il **Riordino della memoria** o subito con **Leggi adesso**.
 ## Ricorda questo
 Seleziona un testo in qualunque programma (una mail, una pagina, una chat) e premi <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd>: l'isola mostra la card **Ricorda** con il testo e da dove viene. Correggilo se serve, scrivi in **Riguarda…** di chi o di cosa parla (facoltativo) e premi **Ricorda**: l'IA lo mette subito nella pagina giusta della memoria, collegata alle altre.
 
-Senza niente selezionato la card è vuota: scrivi tu, per esempio «Rossi preferisce essere chiamato dopo le 15». Funziona anche dal campo in alto (*ricordati che …*) e da Telegram con `/ricorda …`. La scorciatoia si cambia in Impostazioni → Azioni rapide; se preferisci che impari la sera, spegni **«Ricorda questo» impara subito** in Impostazioni → Flussi.
+Senza niente selezionato la card è vuota: scrivi tu, per esempio «Rossi preferisce essere chiamato dopo le 15». C'è anche nel menu sul testo selezionato (<kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd>). Funziona anche dal campo in alto (*ricordati che …*) e da Telegram con `/ricorda …`. La scorciatoia si cambia in Impostazioni → Azioni rapide; se preferisci che impari la sera, spegni **«Ricorda questo» impara subito** in Impostazioni → Flussi → Secondo cervello.
+
+In **Riquadra e chiedi** c'è anche **Ricorda**: il testo della zona riquadrata (letto da Windows) va nella card.
+
+## Il secondo cervello al lavoro
+EasyIsland tiene aggiornate da solo le pagine di persone e clienti, ma **scrive solo quello che approvi**:
+- **dopo una chiamata** 3CX risposta, l'isola propone **Annota**: scrivi due righe su cosa vi siete detti e vanno nella pagina di chi ha chiamato;
+- **quando un tuo ticket di Zammad si chiude**, il problema e la soluzione;
+- **le mail importanti** (con l'account Microsoft collegato): quelle segnate come importanti e quelle di chi ha già una pagina.
+
+Dieci minuti dopo, un compito ti propone le righe da aggiungere e gli **impegni presi** («ti mando domani il preventivo») come promemoria in To Do: rispondi **Fai tutto**, **Niente** o i numeri che vuoi. Il **venerdì alle 17** arriva il **riepilogo della settimana**: cosa ha imparato la memoria e cosa è rimasto aperto. Tutto si accende e si spegne in Impostazioni → Flussi → Secondo cervello (l'Annota in Impostazioni → Notifiche → Proposte).
 
 ## Il controllo
 EasyIsland trova da sola: note simili o più vecchie di sei mesi, collegamenti a pagine che non esistono, pagine isolate, vecchie o sullo stesso argomento. L'agente aggiunge le **contraddizioni** che nota e ti propone le correzioni nell'isola, una per riga, con **Fai tutto** / **Niente** (o scrivi quali). Fa **solo quelle approvate** e **non cancella mai**: al massimo sposta una nota in `archivio.md` o una pagina in `archivio/pagine`.

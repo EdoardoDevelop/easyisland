@@ -384,6 +384,7 @@ export class Island {
       askChat: (q) => this.askChat(q),
       showNotice: (n) => this.showNotice(n),
       explainError: (text, note) => this.explainError(text, note),
+      noteCall: (m) => this.noteCall(m),
       confirmRun: () => void this.startScript(),
       killRun: () => {
         if (State.run?.status === "running") void Bridge.actionKill(State.run.runId);
@@ -1042,11 +1043,21 @@ ${note}` : text };
   }
 
   /** The «Ricorda» card, pinned: it waits for a click. */
-  openRemember(text: string, app = "", title = "", url = "") {
-    State.remember = { id: `r${Date.now().toString(36)}`, text, about: "", app, title, url, status: "edit", message: "" };
+  openRemember(text: string, app = "", title = "", url = "", about = "") {
+    State.remember = { id: `r${Date.now().toString(36)}`, text, about, app, title, url, status: "edit", message: "" };
     State.isPinned = true;
     this.fsm.pinned = true;
     this.setView("remember");
+  }
+
+  /** «Annota» after a 3CX call: the empty card, about the caller. */
+  noteCall(m: { name: string; number: string; incoming: boolean; seconds: number }) {
+    const who = m.name || m.number;
+    const mins = Math.max(1, Math.round(m.seconds / 60));
+    const title = m.incoming
+      ? t("chiamata ricevuta da {who} ({number}), {m} min", { who, number: m.number, m: mins })
+      : t("chiamata fatta a {who} ({number}), {m} min", { who, number: m.number, m: mins });
+    this.openRemember("", "3CX", title, "", m.name);
   }
 
   private async saveRemember(text: string, about: string) {
@@ -1115,6 +1126,11 @@ ${note}` : text };
     if (!sel || !pick) return;
     if (pick === "settings") {
       void Bridge.openSettingsWindow();
+      return;
+    }
+    if (pick === "remember") {
+      void Bridge.collectSource(sel.text).catch(() => null)
+        .then((src) => this.openRemember(sel.text, src?.exe ?? "", src?.title ?? "", src?.url ?? ""));
       return;
     }
     if (pick === "notion-note" || pick === "notion-task") {
@@ -1501,6 +1517,7 @@ ${note}` : text };
         void this.openFiles().then(() => { this.trayUntil = performance.now() + 5 * 60_000; });
       },
       failed: (message) => this.note(message, State.defaultView()),
+      remember: (text, app, title) => this.openRemember(text, app, title),
     });
   }
 
