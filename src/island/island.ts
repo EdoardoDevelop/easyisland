@@ -515,8 +515,6 @@ export class Island {
       || !!(document.activeElement as HTMLElement | null)?.closest?.(".np-card [contenteditable='true'], .np-card input");
     this.fsm.held = () => this.strip.item?.urgent === true;
     this.fsm.onTransition = (from, to) => {
-      // TEMP (31 Oct 2026): what closes a card come out of the bar at the first click.
-      if (barEdge(State.settings)) void Bridge.log(`isola: ${from} → ${to}${State.popover ? " (isoletta)" : ""}`);
       switch (to) {
         case "hidden":
           this.setMode("hidden");
@@ -2143,7 +2141,6 @@ ${note}` : text };
    * the whole island. Already open, the island moves there.
    */
   private openFromBarAt(view: IslandViewName, x?: number) {
-    void Bridge.log(`isola: scheda ${view} x=${x ?? "?"} da ${State.mode}`); // TEMP (31 Oct 2026)
     if (x == null || !Number.isFinite(x) || State.settings.fixedBarLook?.popover === false) {
       if (State.popover) this.leavePopover();
       this.openFromBar(view);
@@ -2151,7 +2148,13 @@ ${note}` : text };
     }
     State.popover = { x };
     if (State.mode !== "expanded") {
-      this.openFromBar(view);
+      // The window's place first, then the island: it showed for a frame at
+      // the old place before moving under the element.
+      void Bridge.setExpanded(true, `pop:${x}:${POP_W}`).then((shift) => {
+        if (State.popover?.x !== x || State.mode === "expanded") return;
+        this.popShift = typeof shift === "number" && Number.isFinite(shift) ? shift : 0;
+        this.openFromBar(view);
+      }, () => this.openFromBar(view));
       return;
     }
     if (this.awayClosing != null) window.clearTimeout(this.awayClosing);

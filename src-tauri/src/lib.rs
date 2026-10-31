@@ -742,6 +742,11 @@ fn set_expanded(app: AppHandle, shared: State<Shared>, expanded: bool, place: Op
             let settings = shared.settings.lock().unwrap().clone();
             island::apply_geometry(&app, &shared.gate, &settings, false);
         }
+        // Still closed (its place asked before it opens, island.ts openFromBarAt): the shift it will have.
+        if shared.gate.collapsed.load(Ordering::Relaxed) {
+            let settings = shared.settings.lock().unwrap().clone();
+            return island::pop_shift(&app, &shared.gate, &settings);
+        }
         return *island::POP_SHIFT.lock().unwrap();
     }
     // A drag of the open island lasts for that opening only. Opened beside the
