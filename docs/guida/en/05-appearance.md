@@ -39,6 +39,7 @@ With **Fixed bar** at the top or the bottom, Windows keeps a band free at the ed
   - **Background opacity** and **Blur behind the bar** (Windows blurs what is behind it; it shows with the opacity under 100% and not with islands).
   - **Margin from the sides:** the background leaves the left and right edges, for a floating bar.
   - **Text size** and **Room between elements**.
+  - **Shadow:** a light shadow under the bar, or above it when the bar is at the bottom.
   - **Cards come out of the bar:** a click on an element (clock, volume, an integration such as Clipboard, the news…) opens a small island that comes out of the bar right under it, with just its card, instead of the whole island.
   - **The character grows under the mouse:** with the mouse over it the character (or the logo) grows and the bar swells smoothly around it.
   - **Hide by itself:** only a thin line stays on the edge; bring the mouse there and the bar comes out, then goes away shortly after the mouse leaves. Windows no longer keeps room for it, but the island opened from the bar still opens below it.

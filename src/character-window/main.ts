@@ -181,6 +181,7 @@ function lookOf(b: BarLook) {
     autoHide: !!l.autoHide,
     blur: !!l.blur && l.style !== "islands",
     grow: l.grow !== false,
+    shadow: l.shadow !== false,
   };
 }
 
@@ -210,6 +211,8 @@ function layBar() {
   document.body.classList.toggle("see-through", see);
   document.body.classList.toggle("islands", look.islands);
   document.body.classList.toggle("bottom", bar.edge === "bottom");
+  // The band's shadow is a window of its own (barshadow.rs); each island has its own here.
+  document.body.classList.toggle("shadow", look.shadow);
   document.body.style.setProperty("--t", `${t}px`);
   const g = Math.round(t * GROW);
   document.body.style.setProperty("--g", `${g}px`);

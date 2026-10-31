@@ -1,6 +1,7 @@
 // EasyIsland for Windows — app wiring and the commands the island calls.
 
 mod actions;
+mod barshadow;
 mod fgwin;
 mod steps;
 mod collect;
@@ -175,7 +176,7 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
     let mut settings = settings.migrated();
     settings.commit_active();
     i18n::set(&settings.language);
-    let (screen_changed, autostart_changed, bar_changed) = {
+    let (screen_changed, autostart_changed, bar_changed, shadow_changed) = {
         let mut current = shared.settings.lock().unwrap();
         let screen_changed = current.screen != settings.screen
             || current.anchor_h != settings.anchor_h
@@ -189,12 +190,14 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
             || current.bar_thickness() != settings.bar_thickness()
             || current.bar_auto_hide() != settings.bar_auto_hide()
             || current.bar_blur() != settings.bar_blur();
+        // The shadow's look: only the shadow is laid again (sync_character).
+        let shadow_changed = (current.bar_shadow(), current.bar_margin()) != (settings.bar_shadow(), settings.bar_margin());
         let autostart_changed = current.autostart != settings.autostart;
         // Only boot and hooks_apply know whether the hooks are there; a window
         // opened before an install would send the old value.
         settings.hooks_installed = current.hooks_installed;
         *current = settings.clone();
-        (screen_changed, autostart_changed, bar_changed)
+        (screen_changed, autostart_changed, bar_changed, shadow_changed)
     };
     if let Err(err) = settings::save(&settings) {
         eprintln!("[easyisland] could not save settings: {err}");
@@ -221,6 +224,8 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
                 let _ = if settings.bar_edge().is_some() { win.hide() } else { win.show() };
             }
         }
+        sync_character(app);
+    } else if shadow_changed {
         sync_character(app);
     }
     island::apply_taskbar(&app);
@@ -2823,6 +2828,31 @@ fn character_clearance(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) 
     }
 }
 
+/// The bar's shadow (barshadow.rs) under the band in the window at `rect`, less
+/// the swelling around the character: not while the island is open against
+/// the band, the bar hides by itself, or with the islands style.
+fn bar_shadow(app: &AppHandle, ch: &tauri::WebviewWindow, rect: (i32, i32, u32, u32)) {
+    let Some(shared) = app.try_state::<Shared>() else { return };
+    let settings = shared.settings.lock().unwrap().clone();
+    let on = settings.bar_shadow() && !settings.bar_auto_hide() && shared.gate.collapsed.load(Ordering::Relaxed);
+    let (Some(edge), Ok(raw), true) = (settings.bar_edge(), ch.hwnd(), on) else {
+        barshadow::sync(app, None);
+        return;
+    };
+    let scale = ch.scale_factor().unwrap_or(1.0);
+    let (x, y, w, h) = (rect.0, rect.1, rect.2 as i32, rect.3 as i32);
+    let grow = appbar::GROW.load(Ordering::Relaxed).clamp(0, h);
+    let top = edge != "bottom";
+    let band = if top { (x, y, w, h - grow) } else { (x, y + grow, w, h - grow) };
+    barshadow::sync(app, Some(barshadow::Shadow {
+        band,
+        top,
+        margin: (settings.bar_margin() * scale).round() as i32,
+        depth: (10.0 * scale).round() as i32,
+        bar: raw.0 as isize,
+    }));
+}
+
 /// Lays the character's window exactly over the island's collapsed window (the
 /// rest icon's box) while the island rests, or over the compact badge's
 /// character; hides it otherwise. With the fixed bar it is the band (appbar.rs).
@@ -2832,12 +2862,14 @@ pub(crate) fn sync_character(app: &AppHandle) {
         // The bar: the whole band, always taking the mouse, away over a full-screen app.
         if appbar::FULLSCREEN.load(Ordering::Relaxed) {
             let _ = ch.hide();
+            barshadow::sync(app, None);
             return;
         }
         let blur = app.try_state::<Shared>().is_some_and(|s| s.settings.lock().unwrap().bar_blur());
         character_blur(&ch, blur);
         let _ = ch.set_size(tauri::PhysicalSize::new(w, h));
         let _ = ch.set_position(tauri::PhysicalPosition::new(x, y));
+        bar_shadow(app, &ch, (x, y, w, h));
         if CHARACTER_CLICKS_THROUGH.swap(false, Ordering::Relaxed) {
             let _ = ch.set_ignore_cursor_events(false);
         }
@@ -2848,6 +2880,7 @@ pub(crate) fn sync_character(app: &AppHandle) {
         return;
     }
     character_blur(&ch, false);
+    barshadow::sync(app, None);
     let shared = app.state::<Shared>();
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
     let island = island::window(app).filter(|w| w.is_visible().unwrap_or(false));

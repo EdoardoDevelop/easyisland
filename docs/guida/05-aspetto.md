@@ -39,6 +39,7 @@ Con **Barra fissa** in alto o in basso, Windows tiene libera una fascia sul bord
   - **Opacità dello sfondo** e **Sfocatura dietro la barra** (Windows sfoca ciò che c'è dietro; si vede con l'opacità sotto il 100% e non vale con le isolette).
   - **Margine dai lati:** lo sfondo si stacca dai bordi sinistro e destro, per una barra sospesa.
   - **Grandezza del testo** e **Spazio tra gli elementi**.
+  - **Ombra:** un'ombra leggera sotto la barra, o sopra se la barra è in basso.
   - **Le schede escono dalla barra:** un clic su un elemento (orologio, volume, un'integrazione come gli Appunti, le notizie…) apre una piccola isola che esce dalla barra proprio sotto di lui, con solo la sua scheda, invece dell'isola intera.
   - **Il personaggio cresce sotto il mouse:** portandoci sopra il mouse il personaggio (o il logo) si ingrandisce e la barra si allarga dolcemente attorno a lui.
   - **Nascondi da sola:** sul bordo resta solo un filo; portando lì il mouse la barra esce, e torna via poco dopo che il mouse se n'è andato. Windows non le tiene più lo spazio, ma l'isola aperta dalla barra si apre comunque sotto di lei.

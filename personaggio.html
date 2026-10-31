@@ -73,6 +73,9 @@
       body.grown #grow { transform: scale(var(--k, 1)); transition-duration: 0.46s; }
       body.islands .area:not(:empty), body.islands .area.own { background: var(--bar-bg, transparent); }
       body.islands .area:empty:not(.own) { display: none; }
+      /* «Ombra»: each island's own, under it (above it with the bar at the bottom). */
+      body.islands.shadow .area:not(:empty), body.islands.shadow .area.own { box-shadow: 0 2px 5px rgba(0, 0, 0, 0.28); }
+      body.islands.shadow.bottom .area:not(:empty), body.islands.shadow.bottom .area.own { box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.28); }
       .bar-btn {
         all: unset; display: flex; align-items: center; min-width: 0; max-width: calc(240px * var(--s, 1));
         padding: calc(3px * var(--s, 1)) calc(8px * var(--s, 1)); border-radius: calc(8px * var(--s, 1)); cursor: pointer; white-space: nowrap;

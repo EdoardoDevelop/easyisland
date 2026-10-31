@@ -176,6 +176,8 @@ export interface FixedBarLook {
   autoHide?: boolean;
   /** A card opens in a small island under its element, not the whole island (default on). */
   popover?: boolean;
+  /** A light shadow outside the band, under it at the top, above it at the bottom (default on). */
+  shadow?: boolean;
   /** The character grows under the mouse and the band swells around it (default on). */
   grow?: boolean;
 }
