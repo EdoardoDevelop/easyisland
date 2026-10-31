@@ -656,8 +656,9 @@ pub struct Settings {
     /// default since 31 Oct 2026) or "character" (the character chosen).
     #[serde(default = "default_greeting_figure")]
     pub greeting_figure: String,
-    /// What sits in the fixed bar: "" as in the island, "logo" the animated
-    /// logo, "logo-still" the logo standing still (src/main.ts → push).
+    /// What sits in the fixed bar, whatever the island has: "" as in the
+    /// island, "logo" the animated logo, "logo-still" the still one, "mylogo"
+    /// the user's PNG, "weather", "char:<id>" a character (src/main.ts → look).
     #[serde(default)]
     pub fixed_bar_figure: String,
     /// ✕ in the open island's header.

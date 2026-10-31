@@ -613,8 +613,12 @@ export interface Settings {
   greetingPlace: "center" | "character";
   /** Who greets at launch: the EasyIsland logo drawing itself (default) or the character. */
   greetingFigure?: "logo" | "character";
-  /** What sits in the fixed bar: "" as in the island, the animated logo, or the still one. */
-  fixedBarFigure?: "" | "logo" | "logo-still";
+  /**
+   * What sits in the fixed bar, whatever the island has: "" as in the island,
+   * "logo" the animated logo, "logo-still" the still one, "mylogo" the user's
+   * PNG, "weather", or "char:<id>" a character.
+   */
+  fixedBarFigure?: string;
   /** ✕ in the open island's header. */
   closeButton: boolean;
   /** The island as an app: taskbar button always, Alt+Tab, — and ▢ in the header. */
