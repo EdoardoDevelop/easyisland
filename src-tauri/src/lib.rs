@@ -3,6 +3,7 @@
 mod actions;
 mod barshadow;
 mod fgwin;
+mod appmenu;
 mod steps;
 mod collect;
 mod memory_ai;
@@ -595,6 +596,13 @@ fn bar_overflow_menu(app: AppHandle, entries: Vec<(String, String)>) {
 #[tauri::command]
 fn bar_context_menu(app: AppHandle) {
     tray::popup_bar_context(&app);
+}
+
+/// The window title's menu in the fixed bar: the program's own menu, then the
+/// island's lines (`extra`, as «…»'s). Read off the main thread (appmenu.rs).
+#[tauri::command]
+fn app_menu(app: AppHandle, title: String, extra: Vec<(String, String)>) {
+    std::thread::spawn(move || appmenu::popup(&app, title, extra));
 }
 
 /// "Copia info PC": everything a ticket asks for, put on the clipboard.
@@ -3835,6 +3843,7 @@ pub fn run() {
             character_clearance,
             bar_overflow_menu,
             bar_context_menu,
+            app_menu,
             bar_reveal,
             bar_grow,
             barsys::bar_sys_watch,

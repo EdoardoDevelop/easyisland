@@ -51,6 +51,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 31 ottobre 2026 — Menu del programma dal titolo della finestra (in `claude/sviluppo`)
+- Un clic sul titolo della finestra nella barra fissa apre il menu del programma in primo piano (`appmenu.rs`): barra dei menu classica letta per intero e voce inviata come `WM_COMMAND`, oppure le voci principali con UI Automation che si aprono nel programma; sotto, le azioni rapide «Nella barra con». Il secondo testo del titolo passa al clic destro.
+- Provato con la prova a mano su Blocco note (UI Automation) e Informazioni di sistema (menu classico, 13 voci); il menu nell'app vera non ancora.
+
 ### 31 ottobre 2026 — La giornata: riassunto dell'IA e Telegram, orari in Rust (su `claude/giornata-permessi`)
 - `giornata.rs` tiene gli orari del Buongiorno e della Fine giornata (un sonno fino alla prossima ora, al massimo 30 min; `giornata.json` per non ripetere dopo un riavvio) e manda `daily-due` all'isola, che non ha più il suo timer.
 - «Riassunto dell'IA» (`dailyAi`: nessuno, motore della memoria, della chat o uno a scelta) scrive la giornata di oggi o di domani con la domanda di `/oggi`, in cima alla card, o a mano con «Chiedi il riassunto all'IA»; «Anche su Telegram» (`dailyTelegram`) manda riassunto e tempo degli agenti. 359 test Rust, smoke «nessun errore», card guardata nell'anteprima; non provato nell'app vera.
@@ -67,8 +71,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Il personaggio cresce sotto il mouse e la barra si gonfia attorno a lui con fianchi curvi (`bar_grow`, `appbar::GROW`, tracciato SVG `bandPath`; con la sfocatura la finestra è ritagliata sul tracciato).
 - Le schede escono dalla barra: un clic su un elemento apre una piccola isola sotto di lui con solo la sua scheda e due raccordi curvi (`openFromBarAt`, luogo `pop:<x>`, `POP_SHIFT`). Entrambe disattivabili in «Aspetto della barra». Smoke «nessun errore»; provato nell'anteprima solo il rigonfiamento.
 - Poi: ombra della barra (`barshadow.rs`, anche con l'isola aperta, sotto di lei), isolette con la loro ombra e senza bordo, alte quanto il contenuto e senza angolo per ridimensionare, chiuse da un clic fuori (`click-away`); clic destro sulla barra fuori dagli elementi = menu di EasyIsland con «Personalizza la barra…» (`tray::popup_bar_context`). Unito in `claude/sviluppo`.
-
-### 30 ottobre 2026 — Barra fissa: aspetto ed elementi nuovi (in `main`)
-- Aspetto della barra, ogni voce a scelta: fascia o isolette, opacità, sfocatura acrilica, margine dai lati, grandezza del testo, spazio tra gli elementi, nascondi da sola (fascia di 0 px e barra fuori dal bordo tranne 3 px, `appbar::window_rect`, `bar_reveal`).
-- Elementi nuovi: processore, memoria, disco, scheda video con grafico dell'ultimo minuto, lingua della tastiera, cestino, aggiornamenti (winget), titolo della finestra, barra dell'app in uso, musica con i pulsanti, meteo, progetti recenti di VS Code; menu per elemento (`barMenuOf`). Smoke «nessun errore», 350 test Rust; provato nell'anteprima, non nell'app vera.
-- Titolo della finestra rifatto (`fgwin.rs`): nome vero del programma e sua icona, titolo senza il nome, aggiornato al cambio di scheda; EasyIsland quando è davanti; desktop e barra delle applicazioni ignorati. Installato su questo PC. Unito in `main` il 31 ottobre.

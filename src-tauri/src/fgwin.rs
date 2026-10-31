@@ -87,6 +87,12 @@ pub fn follow(hwnd: HWND) {
     send(hwnd);
 }
 
+/// The user's window the element shows (not EasyIsland's), for its menu (appmenu.rs).
+pub fn target() -> Option<HWND> {
+    let hwnd = HWND(USER.load(Ordering::SeqCst) as *mut _);
+    (!hwnd.0.is_null() && unsafe { IsWindow(Some(hwnd)) }.as_bool()).then_some(hwnd)
+}
+
 /// On the hook thread: the watch went off.
 pub fn stop() {
     unhook();

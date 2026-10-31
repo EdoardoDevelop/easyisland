@@ -210,6 +210,8 @@ export const Bridge = {
   newsKeep: (topic: string) => call<void>("news_keep", { topic }),
   /** A Windows menu at the bar; a line comes back as the tray's `bar:<key>`. */
   barMenu: (entries: [string, string][]) => call<void>("bar_overflow_menu", { entries }),
+  /** The window title's menu: the program in front's own menu, then `extra` (as `barMenu`'s). */
+  appMenu: (title: string, extra: [string, string][]) => call<void>("app_menu", { title, extra }),
   /** "Prova" for messages from scripts. */
   notifyTest: () => callOrThrow<void>("notify_test"),
 

@@ -87,6 +87,8 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
             id if id.starts_with(PROFILE_PREFIX) => {
                 crate::activate_profile(app, &id[PROFILE_PREFIX.len()..], "menu");
             }
+            // A line of the program's own menu (appmenu.rs): to the program, not the island.
+            id if id.starts_with("appmenu:") => crate::appmenu::run(id.strip_prefix("appmenu:").unwrap_or_default()),
             id => {
                 let _ = app.emit_to(WINDOW_LABEL, "tray", id.to_string());
             }

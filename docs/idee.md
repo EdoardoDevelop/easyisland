@@ -99,6 +99,7 @@ Con un Exchange in sede la registrazione su Entra ID non serve, e non funzionere
 - **Sconsigliati:** ActiveSync (il protocollo dei telefoni: complicato e soggetto a licenza) e IMAP (solo posta: niente calendario né attività).
 
 ## Menu dell'app in uso nella barra (chiesta da Edoardo il 29 ottobre 2026)
+**Fatto il 31 ottobre 2026** come menu del titolo della finestra (`appmenu.rs`, `docs/architettura.md` → Barra fissa). Resta: le schede della barra multifunzione di Office e le voci dei sottomenu delle app moderne (oggi la voce apre il menu nel programma).
 Pulsanti o menu che cambiano con il programma in primo piano, da poter mettere nella barra fissa.
 - **Primo passo, facile:** la «Barra dell'app in uso» (le azioni rapide dell'utente con «Nella barra con») come elemento a sé della barra fissa; oggi ci arriva solo dentro la striscia.
 - **Il menu vero del programma:** con UI Automation (accessibilità di Windows) si legge la barra dei menu della finestra in primo piano (File, Modifica, Visualizza…) e la si mostra nella barra; un clic apre le voci (menu nativo, come «…») e le esegue nel programma (`Invoke` / `ExpandCollapse`). Non sono voci predefinite di EasyIsland: sono quelle del programma.
