@@ -51,6 +51,11 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 31 ottobre 2026 — Continua in Claude Desktop (in `claude/sviluppo`)
+- ↗ nella testata della chat con Claude Code passa la sessione all'app Claude Desktop (`desktop.rs`, `claude --desktop --resume <id>`, dopo aver chiuso il processo tenuto acceso); tornando all'isola, i messaggi scritti in Desktop vengono letti dal file della sessione e aggiunti alla chat e alla cronologia, poi l'isola riprende la stessa sessione (`docs/chat.md`).
+- Test Rust della lettura del file, build e smoke; il passaggio vero a Desktop non provato (aprirebbe l'app in cui lavoro), in `docs/prove-dal-vivo.md`.
+- Notizie: l'aspetto (elenco, miniature, schede) si sceglie con tre pulsanti nella testata della scheda, non più in Impostazioni (`news.ts`).
+
 ### 31 ottobre 2026 — Versione 1.0.16
 - `claude/sviluppo` unito in `main` con il tag `v1.0.16`: barra fissa con isolette, aspetto ed elementi nuovi, titolo della finestra e menu del programma, logo animato, la giornata con il riassunto dell'IA, permessi per livelli con «Cosa ho fatto», ricerca ovunque. Novità in CHANGELOG, README e homepage.
 - Smoke «nessun errore», 362 + 38 test Rust. `claude/modello-integrato` resta in attesa.
@@ -64,7 +69,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 31 ottobre 2026 — Menu del programma dal titolo della finestra (nella 1.0.16)
 - Un clic sul titolo della finestra nella barra fissa apre un'isoletta con il menu del programma in primo piano (`appmenu.rs`, scheda `appmenu` di `barcard.ts`): menu classico per intero (`WM_COMMAND`), oppure le voci con UI Automation, più il menu della finestra (voci di Chrome ed Edge); un sottomenu prende il posto dell'elenco, niente barra di scorrimento; sotto, le azioni rapide per quel programma.
 - Il titolo non segue mai le finestre di EasyIsland (`fgwin::follow`) ed è rimandato quando l'isola riparte. Provato da Edoardo nell'app vera.
-
-### 31 ottobre 2026 — La giornata: riassunto dell'IA e Telegram, orari in Rust (nella 1.0.16)
-- `giornata.rs` tiene gli orari del Buongiorno e della Fine giornata (un sonno fino alla prossima ora, al massimo 30 min; `giornata.json` per non ripetere dopo un riavvio) e manda `daily-due` all'isola, che non ha più il suo timer.
-- «Riassunto dell'IA» (`dailyAi`: nessuno, motore della memoria, della chat o uno a scelta) scrive la giornata di oggi o di domani con la domanda di `/oggi`, in cima alla card, o a mano con «Chiedi il riassunto all'IA»; «Anche su Telegram» (`dailyTelegram`) manda riassunto e tempo degli agenti. 359 test Rust, smoke «nessun errore», card guardata nell'anteprima; non provato nell'app vera.

@@ -211,6 +211,24 @@ pub fn record(chat: &Chat, engine: &str, query: &str, reply: &str, prefix: &str)
     });
 }
 
+/// Lines said elsewhere (desktop.rs: in Claude Desktop), after the conversation's own.
+pub fn append(chat: &Chat, engine: &str, lines: &[Line]) {
+    let Some(id) = chat.log_id() else { return };
+    let now = now();
+    with_store(|s| {
+        let Some(pos) = s.list.iter().position(|c| c.id == id) else { return };
+        let mut c = s.list.remove(pos);
+        if c.engine.is_empty() {
+            c.engine = engine.into();
+        }
+        c.updated = now;
+        c.lines.push(Line { role: "assistant".into(), content: t("↗ Conversazione proseguita in Claude Desktop").to_string() });
+        c.lines.extend(lines.iter().cloned());
+        s.list.insert(0, c);
+        s.save();
+    });
+}
+
 fn summary(c: &Conversation) -> Summary {
     Summary { id: c.id.clone(), title: c.title.clone(), engine: c.engine.clone(), updated: c.updated, turns: c.lines.len() / 2, pinned: c.pinned }
 }

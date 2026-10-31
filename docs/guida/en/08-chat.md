@@ -71,6 +71,9 @@ The clock at the top of the chat shows previous conversations (up to 100, only o
 
 ![The conversation history](../media/chat-history.png)
 
+## Continuing in Claude Desktop
+With Claude Code as the engine, **↗** at the top of the chat opens the conversation in the Claude Desktop app, with everything said so far, and you continue it there. When you write in the island's chat again, the messages written in Desktop show up before your question, under the line «Conversation continued in Claude Desktop», and Claude resumes the same session. Better not to write in both at once. It needs Claude Code 2.1.285 or later and signing in with a Claude subscription (not an API key). In terminal mode the session opens in the project folder.
+
 ## Asking from elsewhere
 - From the **field at the top** of the island with <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.
 - From **Telegram**, with its own conversation (see [Telegram](22-telegram.md)); `/riprendi` continues there the island's last conversation.

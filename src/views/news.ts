@@ -9,10 +9,11 @@
 // taste, more or fewer news per check). At −3 the view asks whether to stop
 // following the subject: «Smetti di seguirlo» moves it to the excluded ones.
 
-import { h, clear } from "./dom";
+import { h, svg, clear } from "./dom";
+import { ICONS } from "./icons";
 import { washRGBA } from "../core/layout";
 import { Bridge } from "../core/bridge";
-import { State, type NewsItem } from "../core/state";
+import { State, type NewsItem, type NewsSettings } from "../core/state";
 import type { ViewActions, ViewHost } from "./views";
 import { locale, t } from "../core/i18n";
 
@@ -98,11 +99,30 @@ export function buildNews(actions: ViewActions): ViewHost {
   const ask = h("div", { class: "news-ask" });
   const status = h("span", { class: "recap-range" });
   const refresh = h("button", { class: "btn secondary", onclick: () => void run() }, h("span", { text: t("Aggiorna") })) as HTMLButtonElement;
+  // The look, chosen right here (Edoardo, 31 Oct 2026): a list, with thumbnails, or cards.
+  const looks: [NonNullable<NewsSettings["look"]>, string, string][] = [
+    ["list", ICONS.viewList, t("Elenco")],
+    ["thumbs", ICONS.viewThumbs, t("Con le miniature")],
+    ["cards", ICONS.apps, t("A schede")],
+  ];
+  const lookBtns = looks.map(([id, icon, label]) => {
+    const b = h("button", { class: "news-look", title: label, "aria-label": label }, svg(icon, 13)) as HTMLButtonElement;
+    b.addEventListener("click", () => {
+      const news = (State.settings.news ??= { topics: [], excluded: [] });
+      if ((news.look ?? "list") === id) return;
+      news.look = id;
+      void Bridge.saveSettings(State.settings);
+      key = "";
+      State.notify();
+    });
+    return b;
+  });
   const body = h("div", { class: "stack recap-stack news-stack" },
     h("div", { class: "recap-head" },
       h("span", { class: "recap-title", text: t("Notizie") }),
       h("span", { class: "grow" }),
-      status),
+      status,
+      h("span", { class: "news-looks" }, ...lookBtns)),
     ask,
     filters,
     list,
@@ -172,9 +192,10 @@ export function buildNews(actions: ViewActions): ViewHost {
       }
     }
     clear(list);
-    // Impostazioni → Notizie → Aspetto: a list, with thumbnails, or cards.
+    // The look picked in the head: a list, with thumbnails, or cards.
     const look = State.settings.news?.look ?? "list";
     list.className = `news-items ${look}`;
+    lookBtns.forEach((b, i) => b.classList.toggle("on", looks[i][0] === look));
     const shown = all.filter((n) => !topic || n.topic === topic).slice(0, 40);
     if (!shown.length) {
       const none = followed.length

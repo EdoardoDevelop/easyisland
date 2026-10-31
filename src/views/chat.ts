@@ -171,7 +171,9 @@ export function buildPrompt(
   const previewBtn = h("button", { class: "history-btn", title: t("Anteprima: file e pagine web accanto alla chat") }, svg(ICONS.preview, 13, { stroke: 1.8 })) as HTMLButtonElement;
   // Opens the Anteprima, and closes it when it is open in the island.
   previewBtn.addEventListener("click", () => void (State.previewOpen ? Bridge.previewHide() : Bridge.previewShow()));
-  const head = h("div", { class: "chat-head" }, chipRow, engineBtn, remoteBtn, autoBtn, previewBtn, historyBtn, exportBtn, engineMenu);
+  // «Continua in Claude Desktop» (desktop.rs): the Claude Code session goes on in the app.
+  const desktopBtn = h("button", { class: "history-btn desktop-btn", text: "↗" }) as HTMLButtonElement;
+  const head = h("div", { class: "chat-head" }, chipRow, engineBtn, remoteBtn, autoBtn, previewBtn, desktopBtn, historyBtn, exportBtn, engineMenu);
   const log = h("div", { class: "chat-log" });
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
   // conversation, under its last step, instead of a card taking the island away
@@ -297,6 +299,44 @@ export function buildPrompt(
     onHeightChange();
   }
 
+  let pulledAt = 0;
+  let pulling = false;
+  /**
+   * What was said in Claude Desktop since the handoff joins the conversation,
+   * under a line that says so; `done` when the island goes on with the session.
+   */
+  async function pullDesktop(done: boolean) {
+    if (!State.chatDesktop || pulling) return;
+    pulling = true;
+    pulledAt = Date.now();
+    try {
+      const turns = (await Bridge.chatDesktopPull(done)) ?? [];
+      if (turns.length) {
+        State.chatHistory.push({ id: nextId++, role: "assistant", content: t("↗ Conversazione proseguita in Claude Desktop") });
+        for (const l of turns) State.chatHistory.push({ id: nextId++, role: l.role, content: l.content });
+      }
+    } catch { /* the island goes on without what Desktop said */ }
+    pulling = false;
+    if (done) State.chatDesktop = false;
+    State.notify();
+  }
+
+  async function toDesktop() {
+    if (sending) return;
+    desktopBtn.disabled = true;
+    // Again: what was said there so far stays, the handoff starts from the end.
+    await pullDesktop(false);
+    try {
+      await Bridge.chatToDesktop();
+      State.chatDesktop = true;
+      flash(t("Aperta in Claude Desktop. Quando torni qui ritrovi anche ciò che hai scritto lì: meglio non usarle tutte e due insieme."));
+    } catch (err) {
+      flash(String(err).replace(/^Error:\s*/, ""));
+    }
+    desktopBtn.disabled = false;
+    State.notify();
+  }
+
   /** What the conversation was so far, as chat_log.rs keeps it. */
   function lines(list: ChatMessage[]) {
     return list.map((m) => ({ role: m.role, content: m.content }));
@@ -316,6 +356,8 @@ export function buildPrompt(
     if (!query || sending) return;
     if (override == null && runSlash(query)) return;
     if (override == null) setInput("");
+    // Back from Claude Desktop: what was said there first, then the island takes the session again.
+    if (State.chatDesktop) await pullDesktop(true);
     sending = true;
     stopping = false;
     stick = true;
@@ -744,6 +786,7 @@ export function buildPrompt(
     // An engine picked in the menu was for that conversation only; so was "Automatica".
     State.chatEngineOverride = null;
     State.chatAuto = false;
+    State.chatDesktop = false;
     editing = null;
     textAttach = null;
     assistant = null;
@@ -1177,6 +1220,7 @@ export function buildPrompt(
       State.chatSession = null;
       State.chatEngineOverride = c.engine === State.settings.chatEngine ? null : (c.engine as ChatEngine);
       State.chatAuto = false;
+    State.chatDesktop = false;
       editing = null;
       textAttach = null;
       if (assistant) dropAssistant();
@@ -1201,6 +1245,7 @@ export function buildPrompt(
   });
   historyBtn.addEventListener("click", () => void toggleHistory());
   exportBtn.addEventListener("click", () => void exportChat());
+  desktopBtn.addEventListener("click", () => void toDesktop());
   remoteBtn.addEventListener("click", async () => {
     const problem = await toggleRemoteLink();
     if (problem) {
@@ -1402,6 +1447,13 @@ export function buildPrompt(
       // Asking a session: Claude Code answers, whatever the chat's engine.
       engineBtn.style.display = asked ? "none" : "";
       exportBtn.style.display = State.chatHistory.length ? "" : "none";
+      // ↗: only for a Claude Code conversation that has started, never on a session copy.
+      desktopBtn.style.display = State.chatEngine === "subscription" && State.chatHistory.length && !asked ? "" : "none";
+      desktopBtn.classList.toggle("on", State.chatDesktop);
+      desktopBtn.title = State.chatDesktop
+        ? t("La conversazione è proseguita in Claude Desktop: ciò che scrivi lì torna qui. Clic per riaprirla lì")
+        : t("Continua in Claude Desktop, con tutta la conversazione");
+      if (State.chatDesktop && !sending && Date.now() - pulledAt > 4000) void pullDesktop(false);
       // 🔌: only while a remote connection is open, never on a session copy.
       const remote = remoteData();
       remoteBtn.style.display = remote.connected && !asked ? "" : "none";

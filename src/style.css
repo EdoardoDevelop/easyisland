@@ -6084,6 +6084,16 @@ html[data-ui="windows"] .col-meta input, html[data-ui="windows"] .col-item { bor
   font: 500 calc(11px + var(--fs-up, 0px)) var(--font);
 }
 .news-filter.on { background: rgba(255, 255, 255, 0.16); color: var(--ink); }
+/* The look of the list, in the head (news.ts). */
+.news-looks { display: inline-flex; gap: 2px; padding: 2px; border-radius: 8px; background: rgba(255, 255, 255, 0.05); }
+.news-look {
+  display: grid; place-items: center; width: 24px; height: 20px; padding: 0; border: 0; border-radius: 6px;
+  background: none; color: var(--dim-2); cursor: pointer;
+}
+.news-look:hover { color: var(--ink); }
+.news-look.on { background: rgba(255, 255, 255, 0.16); color: var(--ink); }
+html[data-scheme="light"] .news-looks { background: rgba(0, 0, 0, 0.05); }
+html[data-scheme="light"] .news-look.on { background: rgba(0, 0, 0, 0.1); }
 /* The list scrolls: a check can bring many (grows with the island, --extra-h). */
 .news-items {
   display: flex; flex-direction: column; gap: 2px;

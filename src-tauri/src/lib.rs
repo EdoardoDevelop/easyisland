@@ -21,6 +21,7 @@ mod carry;
 mod claude;
 mod chat_log;
 mod claude_cli;
+mod desktop;
 mod clipboard;
 mod clipimage;
 mod brain;
@@ -1726,6 +1727,18 @@ fn chat_rewind(chat: State<'_, Chat>, keep: Vec<chat_log::Line>) {
     let before = chat.cli_session();
     chat_log::rewind(&chat, keep);
     opencode::forget(before);
+}
+
+/// «Continua in Claude Desktop»: the chat's Claude Code session opens in the desktop app (desktop.rs).
+#[tauri::command]
+async fn chat_to_desktop(chat: State<'_, Chat>) -> Result<(), String> {
+    desktop::hand_off(&chat).await
+}
+
+/// What was said in Claude Desktop since then; `done` when the island goes on with the session.
+#[tauri::command]
+fn chat_desktop_pull(chat: State<'_, Chat>, done: bool) -> Vec<chat_log::Line> {
+    desktop::pull(&chat, "subscription", done)
 }
 
 /// «⑂ Dirama da qui»: a new conversation from the first lines of this one.
@@ -3690,6 +3703,8 @@ pub fn run() {
             chat_history_pin,
             chat_history_rename,
             chat_rewind,
+            chat_to_desktop,
+            chat_desktop_pull,
             chat_export,
             capture_begin,
             capture_frame,

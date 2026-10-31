@@ -77,6 +77,9 @@ export const ICONS = {
   search: "M10.5 3.5a7 7 0 0 1 5.6 11.2l4.6 4.6-1.4 1.4-4.6-4.6A7 7 0 1 1 10.5 3.5zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10z",
   // square.grid — a program of the Start menu
   apps: "M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z",
+  /** The Notizie's looks (news.ts): a list, with thumbnails; cards are `apps`. */
+  viewList: "M4 5.5h16v2H4zm0 5.5h16v2H4zm0 5.5h16v2H4z",
+  viewThumbs: "M3.5 5h6v6h-6zm8.5 1.2h8.5v1.8H12zm0 2.6h6v1.5h-6zM3.5 13h6v6h-6zm8.5 1.2h8.5V16H12zm0 2.6h6v1.5h-6z",
   // phone.arrow.down.left — 3CX missed calls (drawn with a stroke)
   missed: "M3.5 7.5 10 14l4.5-4.5L20.5 15.5M20.5 10v5.5H15",
   // mic / mic.slash — mute on a call of "Questo PC" (drawn with a stroke)

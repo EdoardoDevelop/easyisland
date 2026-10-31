@@ -71,6 +71,9 @@ L'orologio in alto nella chat mostra le conversazioni di prima (fino a 100, solo
 
 ![La cronologia delle conversazioni](../media/chat-history.png)
 
+## Continuare in Claude Desktop
+Con Claude Code come motore, **↗** in alto nella chat apre la conversazione nell'app Claude Desktop, con tutto quello che vi siete detti, e lì la continui. Quando torni a scrivere nella chat dell'isola, prima della tua domanda compaiono i messaggi scritti in Desktop, sotto la riga «Conversazione proseguita in Claude Desktop», e Claude riprende la stessa sessione. Meglio non scrivere nelle due insieme. Serve Claude Code 2.1.285 o successivo e l'accesso con l'abbonamento Claude (non con una chiave API). Nella Modalità terminale la sessione si apre nella cartella del progetto.
+
 ## Chiedere da altri posti
 - Dal **campo in alto** dell'isola con <kbd>Ctrl</kbd>+<kbd>Invio</kbd>.
 - Da **Telegram**, con una conversazione sua (vedi [Telegram](22-telegram.md)); `/riprendi` continua lì l'ultima conversazione dell'isola.

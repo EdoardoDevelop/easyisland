@@ -528,6 +528,8 @@ export const Bridge = {
   /** 📎: Windows' dialog for several files, or several folders. */
   chatPick: (folders: boolean) => callOrThrow<ChatAttachment[]>("chat_pick", { folders }),
   /** «Modifica» / «Rigenera»: the conversation goes back to these lines. */
+  chatToDesktop: () => call<void>("chat_to_desktop"),
+  chatDesktopPull: (done: boolean) => call<{ role: "user" | "assistant"; content: string }[]>("chat_desktop_pull", { done }),
   chatRewind: (keep: { role: "user" | "assistant"; content: string }[]) => call<void>("chat_rewind", { keep }),
   /** «Esporta»: the conversation as Markdown in the Vassoio. */
   chatExport: (title: string, lines: { role: "user" | "assistant"; content: string }[]) => callOrThrow<DroppedFile>("chat_export", { title, lines }),

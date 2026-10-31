@@ -199,7 +199,7 @@ pub fn configured_mcp_servers() -> Vec<String> {
 }
 
 /// `~/.claude`, or CLAUDE_CONFIG_DIR when that is set.
-fn claude_dir() -> Option<PathBuf> {
+pub(crate) fn claude_dir() -> Option<PathBuf> {
     if let Some(dir) = std::env::var_os("CLAUDE_CONFIG_DIR") {
         return Some(PathBuf::from(dir));
     }
@@ -711,6 +711,16 @@ fn take_live(chat: usize, print: &str, session: Option<&str>) -> Option<Live> {
 
 fn put_live(live: Live) {
     LIVE.lock().unwrap().push(live);
+}
+
+/// The conversation's kept process goes (desktop.rs: its session moves to Claude Desktop).
+pub(crate) fn drop_live(chat: &Chat) {
+    let id = chat as *const Chat as usize;
+    let mut all = LIVE.lock().unwrap();
+    for l in all.iter_mut().filter(|l| l.chat == id) {
+        let _ = l.child.start_kill();
+    }
+    all.retain(|l| l.chat != id);
 }
 
 /// At the app's exit (lib.rs): the kept processes go with it.
