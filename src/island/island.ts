@@ -535,10 +535,14 @@ export class Island {
           this.setMode("hidden");
           break;
         case "petit":
-          // With the fixed bar there is no compact view to go back to: closing
-          // goes straight to hidden, or a small character showed for a moment.
-          if (from === "home" && barEdge(State.settings) && !this.fsm.held()) {
+          // With the fixed bar there is no compact view to go back to: closing,
+          // the end of the greeting and a quiet launch go straight to hidden,
+          // or a small character showed for a moment.
+          if ((from !== "hidden" || this.quietLaunch) && barEdge(State.settings) && !this.fsm.held()) {
+            if (from === "greeting") this.greeting.interrupt();
+            this.quietLaunch = false;
             this.setMode("hidden");
+            if (from === "greeting") State.view = State.defaultView();
             queueMicrotask(() => this.fsm.forceHidden());
             break;
           }
