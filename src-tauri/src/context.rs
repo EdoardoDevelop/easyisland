@@ -47,9 +47,10 @@ unsafe extern "system" fn on_foreground(
     crate::island::on_foreground_change(hwnd);
     let Some(path) = exe_path(hwnd) else { return };
     let exe = path.rsplit('\\').next().unwrap_or(&path).to_lowercase();
+    // The fixed bar's title shows EasyIsland too, when it is in front.
+    crate::fgwin::follow(hwnd);
     if exe != "easyisland.exe" {
         LAST.store(hwnd.0 as isize, Ordering::Relaxed);
-        crate::fgwin::follow(hwnd);
         crate::habits::note_app(&exe, &path);
         crate::automations::on_foreground(&exe);
         let mut sent = SENT.lock().unwrap();

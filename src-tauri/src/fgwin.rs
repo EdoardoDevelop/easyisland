@@ -19,7 +19,7 @@ use windows::core::{BOOL, HSTRING};
 use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumChildWindows, GetWindowTextW, GetWindowThreadProcessId, PostThreadMessageW, EVENT_OBJECT_NAMECHANGE,
+    EnumChildWindows, GetWindowTextW, GetWindowThreadProcessId, IsWindow, PostThreadMessageW, EVENT_OBJECT_NAMECHANGE,
     WINEVENT_OUTOFCONTEXT, WM_APP,
 };
 
@@ -33,6 +33,10 @@ pub static THREAD: AtomicU32 = AtomicU32::new(0);
 /// The window followed, and the hook on its process's title changes.
 static FOLLOWED: AtomicIsize = AtomicIsize::new(0);
 static NAME_HOOK: AtomicIsize = AtomicIsize::new(0);
+/// The last window followed that is not EasyIsland's.
+static USER: AtomicIsize = AtomicIsize::new(0);
+/// The window followed is EasyIsland's.
+static OURS: AtomicBool = AtomicBool::new(false);
 /// The last thing sent: a title change of another object is not news.
 static SENT: Mutex<String> = Mutex::new(String::new());
 /// Program path → (name, icon data URL).
@@ -53,10 +57,24 @@ pub fn watch(on: bool) {
 
 /// On the hook thread: a new window in front (context.rs), or the watch turned on.
 pub fn follow(hwnd: HWND) {
-    // The desktop and the taskbar take the focus when the island closes: the
-    // window shown stays the last one the user worked in.
-    if !WATCH.load(Ordering::SeqCst) || hwnd.0.is_null() || crate::island::is_shell(hwnd) {
+    if !WATCH.load(Ordering::SeqCst) || hwnd.0.is_null() {
         return;
+    }
+    // The desktop and the taskbar take the focus when the island closes: the
+    // window shown goes back to the last one the user worked in.
+    let hwnd = if crate::island::is_shell(hwnd) {
+        let user = HWND(USER.load(Ordering::SeqCst) as *mut _);
+        if !OURS.load(Ordering::SeqCst) || user.0.is_null() || !unsafe { IsWindow(Some(user)) }.as_bool() {
+            return;
+        }
+        user
+    } else {
+        hwnd
+    };
+    let ours = crate::context::exe_path(hwnd).is_some_and(|p| p.to_lowercase().ends_with("\\easyisland.exe"));
+    OURS.store(ours, Ordering::SeqCst);
+    if !ours {
+        USER.store(hwnd.0 as isize, Ordering::SeqCst);
     }
     FOLLOWED.store(hwnd.0 as isize, Ordering::SeqCst);
     unhook();
