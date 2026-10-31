@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 30 ottobre 2026. Versione **1.0.15** in `main` con il tag `v1.0.15` (allegati della chat e Notizie in una scheda): due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa, che dal 1.0.12 si rimette a posto dopo un cambio di schermo) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo` (le Notizie, fatte su `claude/notizie`, sono unite). In attesa `claude/modello-integrato`; `claude/barra-fissa` è il primo tentativo, solo archivio. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 30 ottobre 2026. Versione **1.0.15** in `main` con il tag `v1.0.15` (allegati della chat e Notizie in una scheda): due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa, che dal 1.0.12 si rimette a posto dopo un cambio di schermo) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo` (le Notizie, fatte su `claude/notizie`, sono unite). In attesa `claude/modello-integrato`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 

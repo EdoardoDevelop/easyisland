@@ -76,7 +76,7 @@ Il personaggio fuori dall'isola vive in una finestra sua (`personaggio`, `person
 - **Senza Tauri** (anteprime con `npm run dev`, smoke) la finestra non c'è: l'isola disegna il suo personaggio come prima. Per questo il suo codice compatto resta.
 
 ## Barra fissa (ottobre 2026)
-Chiesta da Edoardo il 27 ottobre 2026, fatta il 29 nel branch `claude/barra-fissa-2` sopra la finestra del personaggio (il primo tentativo, con la finestra dell'isola come barra, resta nel branch `claude/barra-fissa`). Impostazioni → Posizione → «Barra fissa»: Windows riserva una fascia in alto o in basso, come per la barra delle applicazioni, e le finestre si fermano al suo bordo.
+Chiesta da Edoardo il 27 ottobre 2026, fatta il 29 nel branch `claude/barra-fissa-2` sopra la finestra del personaggio (il primo tentativo, con la finestra dell'isola come barra, è stato scartato e il suo branch eliminato il 31 ottobre 2026). Impostazioni → Posizione → «Barra fissa»: Windows riserva una fascia in alto o in basso, come per la barra delle applicazioni, e le finestre si fermano al suo bordo.
 - **La barra è la finestra del personaggio.**
   - Registrata con `SHAppBarMessage` (`appbar.rs`: `ABM_NEW`, `ABM_QUERYPOS` / `ABM_SETPOS`, `ABM_REMOVE` quando si spegne e all'uscita).
   - È larga quanto lo schermo dell'isola (`screen`), alta quanto la vista compatta (`Settings::bar_thickness`, almeno 44 px con la striscia), sempre davanti, e prende tutto il mouse.
