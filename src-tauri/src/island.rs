@@ -258,6 +258,7 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
     let place = gate.open_place.lock().unwrap().clone();
     let pop = place.as_deref().filter(|_| open).and_then(|p| pop_origin(work, (pw, ph), p, settings, scale));
     *POP_SHIFT.lock().unwrap() = pop.map_or(0.0, |p| p.1);
+    POP_OPEN.store(pop.is_some(), Ordering::Relaxed);
     let (x, y) = match pop {
         Some((o, _)) => o,
         None => open_origin(work, (pw, ph), settings, place.as_deref(), scale, open),
@@ -294,6 +295,8 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
 /// island sits off the window's centre, logical px, for the front end to move
 /// it inside the window by as much.
 pub static POP_SHIFT: Mutex<f64> = Mutex::new(0.0);
+/// An island come out of the bar is open: a click elsewhere closes it (the cursor poll).
+static POP_OPEN: AtomicBool = AtomicBool::new(false);
 /// Room left between an island come out of the bar and the screen's side, logical px.
 const POP_SIDE: f64 = 8.0;
 
@@ -1069,6 +1072,7 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
             // there and nothing can be clicked. Sample at 20 Hz until it comes close.
             let mut slow = false;
             let mut last_raise = Instant::now();
+            let mut was_down = left_button_down();
             while gate.is_active() {
                 std::thread::sleep(Duration::from_millis(if slow { 50 } else { 16 }));
                 // The island may have collapsed during the sleep: a tick on stale
@@ -1105,6 +1109,13 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                 }
 
                 let Some(win) = window(&app) else { continue };
+                // An island come out of the bar closes at a press anywhere but on
+                // it or on the bar (where the element's own click decides).
+                let down_now = left_button_down();
+                if down_now && !was_down && POP_OPEN.load(Ordering::Relaxed) && pressed_away(&win, &gate) {
+                    let _ = app.emit_to(WINDOW_LABEL, "click-away", ());
+                }
+                was_down = down_now;
                 // Pinned as an app and minimised: nothing to look at or click.
                 if app_mode() && win.is_minimized().unwrap_or(false) {
                     slow = true;
@@ -1189,6 +1200,21 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
             }
         }
     });
+}
+
+/// The cursor is neither on the island's shape nor on the fixed bar.
+fn pressed_away(win: &tauri::Window, gate: &PollGate) -> bool {
+    let Some((cx, cy)) = cursor_physical() else { return false };
+    if let Some((bx, by, bw, bh)) = crate::appbar::window_rect() {
+        if cx >= bx as f64 && cx < (bx + bw as i32) as f64 && cy >= by as f64 && cy < (by + bh as i32) as f64 {
+            return false;
+        }
+    }
+    let Ok(origin) = win.outer_position() else { return false };
+    let scale = win.scale_factor().unwrap_or(1.0);
+    let (x, y) = ((cx - origin.x as f64) / scale, (cy - origin.y as f64) / scale);
+    let r = *gate.rect.lock().unwrap();
+    !(r.w > 0.0 && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h)
 }
 
 pub fn set_ignore_cursor(app: &AppHandle, ignore: bool) {

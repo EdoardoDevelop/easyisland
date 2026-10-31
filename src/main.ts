@@ -134,6 +134,9 @@ async function main() {
     }
   });
 
+  // A press outside an island come out of the fixed bar (island.rs cursor poll).
+  await onEvent<null>("click-away", () => island.closePopover());
+
   await onEvent<null>("screen-changed", () => {
     void Bridge.reposition();
     void island.refreshLimits();

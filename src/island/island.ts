@@ -2165,6 +2165,11 @@ ${note}` : text };
     void Bridge.setExpanded(true, `pop:${x}:${POP_W}`).then((shift) => this.shiftPopover(shift));
   }
 
+  /** A press outside the card come out of the bar: it goes back in, unless 📌 holds it. */
+  closePopover() {
+    if (State.popover && State.mode === "expanded" && !State.isPinned && !State.pendingApproval) this.collapse(true);
+  }
+
   /** From the card come out of the bar to the whole island, at its usual place. */
   private leavePopover() {
     State.popover = null;
