@@ -809,6 +809,12 @@ pub struct Settings {
     /// Global shortcut: «Ricorda questo», the selected text into the memory (brain.rs `remember`).
     #[serde(default = "default_hotkey_remember")]
     pub hotkey_remember: String,
+    /// «Parla»: the microphone until a pause, the words to the chat (talk.rs).
+    #[serde(default = "default_hotkey_talk")]
+    pub hotkey_talk: String,
+    /// «Parla»: the reply read aloud too.
+    #[serde(default = "default_true")]
+    pub talk_reply: bool,
     /// ⚡ tab: actions suggested for the app in front (Outlook, Excel, the browser…).
     #[serde(default = "default_true")]
     pub context_actions: bool,
@@ -914,6 +920,9 @@ fn default_hotkey_collect() -> String {
     "Ctrl+Alt+Shift+R".into()
 }
 
+fn default_hotkey_talk() -> String {
+    "Win+Alt+V".into()
+}
 fn default_hotkey_remember() -> String {
     "Win+Alt+M".into()
 }
@@ -1108,6 +1117,8 @@ impl Default for Settings {
             hotkey_selection_menu: default_hotkey_selection_menu(),
             hotkey_collect: default_hotkey_collect(),
             hotkey_remember: default_hotkey_remember(),
+            hotkey_talk: default_hotkey_talk(),
+            talk_reply: true,
             context_actions: true,
             agent_tools: true,
             tools_allowed: Vec::new(),

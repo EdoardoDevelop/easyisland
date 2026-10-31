@@ -183,6 +183,7 @@ Si scrivono come nelle Impostazioni, per esempio `hotkeyOpen=Ctrl%2BSpace`, perc
 | `hotkeySelectionMenu` | `Win+Alt+A` |
 | `hotkeyCollect` | `Ctrl+Alt+Shift+R` |
 | `hotkeyRemember` | `Win+Alt+M` |
+| `hotkeyTalk` | `Win+Alt+V` |
 
 ### Non impostabili dall'URL
 
@@ -237,6 +238,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `search` | il campo in alto con risultati di memoria, conversazioni e Zammad inventati | `q=<testo>` (di serie `rossi`) |
 | `done` | «Cosa ho fatto» su un registro inventato | `alone`: la card di un'azione fatta senza chiedere, con Annulla |
 | `remember` | La card «Ricorda» con un testo selezionato in Outlook | `empty`: la card vuota, da scrivere; `call`: dopo «Annota» di una chiamata |
+| `talk` | «Parla»: il microfono acceso mentre parli | `hearing`: la trascrizione |
 | `news` | le notizie | `ask`, `look=thumbs\|cards`, `many` |
 | `barcard` | le card della barra fissa | `card=clock\|volume\|mic\|brightness\|battery\|net` |
 | `recap` | il riepilogo settimanale | — |

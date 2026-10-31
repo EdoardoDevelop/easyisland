@@ -51,6 +51,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 31 ottobre 2026 — «Parla»: la voce sul PC (su `claude/voce-pc`)
+- <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> accende il microfono (WASAPI di Registra) con la card «Ti ascolto»; a una pausa trascrive con il servizio dei Vocali e manda la domanda alla chat; con «Rispondi a voce» la risposta si sente dagli altoparlanti (`talk.rs`, `src/views/talk.ts`). Test Rust, scene `talk` e `talk&hearing`; non provato con il microfono vero.
+
 ### 31 ottobre 2026 — Continua in Claude Desktop (in `claude/sviluppo`)
 - ↗ nella testata della chat con Claude Code passa la sessione all'app Claude Desktop (`desktop.rs`, `claude --desktop --resume <id>`, dopo aver chiuso il processo tenuto acceso); tornando all'isola, i messaggi scritti in Desktop vengono letti dal file della sessione e aggiunti alla chat e alla cronologia, poi l'isola riprende la stessa sessione (`docs/chat.md`).
 - Test Rust della lettura del file, build e smoke; il passaggio vero a Desktop non provato (aprirebbe l'app in cui lavoro), in `docs/prove-dal-vivo.md`.
@@ -67,5 +70,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - `claude/sviluppo` unito in `main` con il tag `v1.0.16`: barra fissa con isolette, aspetto ed elementi nuovi, titolo della finestra e menu del programma, logo animato, la giornata con il riassunto dell'IA, permessi per livelli con «Cosa ho fatto», ricerca ovunque. Novità in CHANGELOG, README e homepage.
 - Smoke «nessun errore», 362 + 38 test Rust. `claude/modello-integrato` resta in attesa.
 
-### 31 ottobre 2026 — Logo animato di EasyIsland (nella 1.0.16)
-- Il logo è un personaggio («EasyIsland», `logo-anim.ts`, tipo `logo`): occhi che seguono il cursore e sbattono, stati, badge, rilascio file; colori che girano mentre lavora. Saluto all'avvio di serie con il logo che si disegna da solo (`greetingFigure`), e nella barra fissa un logo diverso da quello dell'isola (`fixedBarFigure`). Anteprima in `/dev/logo-preview.html`; smoke e test, non provato nell'app vera.

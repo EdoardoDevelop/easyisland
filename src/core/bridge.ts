@@ -563,6 +563,11 @@ export const Bridge = {
   memoryWindowSelect: (id: string) => call<void>("memory_window_select", { id }),
   /** The field at the top: Zammad's tickets (zammad.rs search). */
   zammadSearch: (query: string) => call<TicketHit[]>("zammad_search", { query }),
+  /** «Parla» (talk.rs): starts listening or ends the question; true = listening now. */
+  talkToggle: () => callOrThrow<boolean>("talk_toggle"),
+  talkCancel: () => call<void>("talk_cancel"),
+  /** A reply read aloud: base64 audio and its type. */
+  talkSpeak: (text: string) => callOrThrow<{ data: string; mime: string }>("talk_speak", { text }),
   chatHistoryPin: (id: string, pinned: boolean) => call<void>("chat_history_pin", { id, pinned }),
   /** ✎ in the history list; an empty title goes back to the first question. */
   chatHistoryRename: (id: string, title: string) => call<void>("chat_history_rename", { id, title }),

@@ -101,6 +101,7 @@ mod start_apps;
 mod threecx;
 mod speech;
 mod brain_watch;
+mod talk;
 mod transcribe;
 mod tray;
 mod updates;
@@ -1731,6 +1732,24 @@ fn memory_window_select(app: AppHandle, id: String) {
 #[tauri::command]
 async fn zammad_search(query: String) -> Result<Vec<zammad::TicketHit>, String> {
     zammad::search(&query, 5).await
+}
+
+/// «Parla»: starts listening, or ends the question (talk.rs). Ok(true) = listening.
+#[tauri::command]
+fn talk_toggle(app: AppHandle) -> Result<bool, String> {
+    talk::toggle(app)
+}
+
+/// «Annulla» while listening: the sound is thrown away.
+#[tauri::command]
+fn talk_cancel() {
+    talk::cancel();
+}
+
+/// A chat reply read aloud, for the island to play (talk.rs `speak`).
+#[tauri::command]
+async fn talk_speak(app: AppHandle, text: String) -> Result<talk::Spoken, String> {
+    talk::speak(&app, &text).await
 }
 
 /// The history list filtered by words (title and text).
@@ -3737,6 +3756,9 @@ pub fn run() {
             memory_find,
             memory_window_select,
             zammad_search,
+            talk_toggle,
+            talk_cancel,
+            talk_speak,
             chat_history_pin,
             chat_history_rename,
             chat_rewind,

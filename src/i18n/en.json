@@ -2578,7 +2578,7 @@
   "Nuova conversazione da qui: quella di prima resta nella cronologia": "New conversation from here: the previous one stays in the history",
   "Assistente {n}: scrivi la domanda": "Assistant {n}: write your question",
   "Trascrivo…": "Transcribing…",
-  "Non ho sentito parole.": "I heard no words.",
+  "Non ho sentito parole.": "I didn't hear any words.",
   "Parla… clic su ■ per finire": "Speak… click ■ to finish",
   "Microfono non disponibile: {e}": "Microphone not available: {e}",
   "Il testo o l'immagine copiati": "The copied text or picture",
@@ -4048,5 +4048,17 @@
   "Ticket chiuso: {title}": "Ticket closed: {title}",
   "nota interna": "internal note",
   "Nella zona non c'è testo da leggere.": "There is no text to read in the zone.",
-  "Da {from}. Scrivi cosa ricordare: l'IA lo mette nella pagina giusta della memoria.": "From {from}. Type what to remember: the AI puts it in the right page of the memory."
+  "Da {from}. Scrivi cosa ricordare: l'IA lo mette nella pagina giusta della memoria.": "From {from}. Type what to remember: the AI puts it in the right page of the memory.",
+  "Per parlare con l'isola scegli chi trascrive in Impostazioni → Telegram → Vocali (OpenAI, Google AI o OpenRouter).": "To talk to the island choose who transcribes in Settings → Telegram → Voice messages (OpenAI, Google AI or OpenRouter).",
+  "Non ho sentito niente: parla dopo il segnale, vicino al microfono.": "I didn't hear anything: speak after the signal, close to the microphone.",
+  "Ti ascolto": "Listening",
+  "Poi la domanda va alla chat.": "Then the question goes to the chat.",
+  "Quando smetti di parlare la domanda parte da sola.": "When you stop talking the question goes by itself.",
+  "Parla pure: finisci con una pausa, «Fine» o di nuovo {key}.": "Go ahead: finish with a pause, \"End\" or {key} again.",
+  "Parla pure: finisci con una pausa o con «Fine».": "Go ahead: finish with a pause or \"End\".",
+  "Dimmi pure.": "Go ahead.",
+  "il microfono è acceso solo adesso": "the microphone is on only now",
+  "Parla": "Talk",
+  "il microfono si accende solo adesso; finisci con una pausa e la domanda va alla chat. Trascrive il servizio dei Vocali di Telegram": "the microphone turns on only now; finish with a pause and the question goes to the chat. Transcribed by Telegram's voice message service",
+  "dopo una domanda a voce, la risposta si sente anche dagli altoparlanti (OpenAI o Google AI); Esc la ferma": "after a spoken question, the reply is also heard from the speakers (OpenAI or Google AI); Esc stops it"
 }

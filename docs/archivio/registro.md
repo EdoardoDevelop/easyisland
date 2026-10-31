@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 31 ottobre 2026 — Logo animato di EasyIsland (nella 1.0.16)
+- Il logo è un personaggio («EasyIsland», `logo-anim.ts`, tipo `logo`): occhi che seguono il cursore e sbattono, stati, badge, rilascio file; colori che girano mentre lavora. Saluto all'avvio di serie con il logo che si disegna da solo (`greetingFigure`), e nella barra fissa un logo diverso da quello dell'isola (`fixedBarFigure`). Anteprima in `/dev/logo-preview.html`; smoke e test, non provato nell'app vera.
+
 ### 31 ottobre 2026 — Ricerca ovunque nel campo in alto (nella 1.0.16)
 - Il campo in alto cerca anche le pagine della memoria (`brain::find_pages`, clic: la mappa con la pagina selezionata, `memory-select`), le conversazioni passate (clic: tornano nella chat) e i ticket Zammad (`zammad::search`, clic: il ticket nel browser), 400 ms dopo l'ultimo tasto. Da verificare: la ricerca di Zammad senza Elasticsearch. Test Rust, smoke e schermata nell'anteprima; non provato nell'app vera.
 

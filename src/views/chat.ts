@@ -28,6 +28,17 @@ export function sendToChat(query: string) {
   externalSend?.(query);
 }
 
+/** Called once with the next reply's text («Parla» reads it aloud), or with null if it fails. */
+let replyHook: ((text: string | null) => void) | null = null;
+export function onNextReply(fn: ((text: string | null) => void) | null) {
+  replyHook = fn;
+}
+function takeReplyHook() {
+  const fn = replyHook;
+  replyHook = null;
+  return fn;
+}
+
 /** Set by the chat view: brings back a past conversation (the field at the top). */
 let externalReopen: ((id: string) => void) | null = null;
 export function reopenChat(id: string) {
@@ -426,8 +437,10 @@ export function buildPrompt(
       State.chatHistory.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : State.chatEngine });
       State.stateOverride = null;
       Sound.play("finish");
+      takeReplyHook()?.(reply.text);
     } catch (err) {
       State.stateOverride = null;
+      takeReplyHook()?.(null);
       if (stopping) {
         const soFar = streamed.trim();
         State.chatHistory.push({ id: nextId++, role: "assistant", content: `${soFar ? soFar + "\n\n" : ""}⏹ ${t("Fermato.")}` });
