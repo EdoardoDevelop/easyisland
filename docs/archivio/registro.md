@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 31 ottobre 2026 — La giornata: riassunto dell'IA e Telegram, orari in Rust (nella 1.0.16)
+- `giornata.rs` tiene gli orari del Buongiorno e della Fine giornata (un sonno fino alla prossima ora, al massimo 30 min; `giornata.json` per non ripetere dopo un riavvio) e manda `daily-due` all'isola, che non ha più il suo timer.
+- «Riassunto dell'IA» (`dailyAi`: nessuno, motore della memoria, della chat o uno a scelta) scrive la giornata di oggi o di domani con la domanda di `/oggi`, in cima alla card, o a mano con «Chiedi il riassunto all'IA»; «Anche su Telegram» (`dailyTelegram`) manda riassunto e tempo degli agenti. 359 test Rust, smoke «nessun errore», card guardata nell'anteprima; non provato nell'app vera.
+
 ### 31 ottobre 2026 — Permessi per livelli e «Cosa ho fatto» (nella 1.0.16)
 - Strumenti di EasyIsland in tre livelli (`permits.rs`): lettura libera; reversibili (`REVERSIBLE` in `hook/src/tool_list.rs`: righe di Notion, attività di To Do, Vassoio, cartella di lavoro) con «Sempre» sulla card, per sempre finché lo togli in Impostazioni → Chat; il resto chiede ogni volta. Un compito può farle da solo se scelto («Motori e permessi», `may` di `task_create`).
 - «Cosa ho fatto» in Impostazioni → Chat: ogni strumento che cambia qualcosa, con Annulla per i reversibili. Card leggibili per Notion, To Do, Vassoio e `task_create`; lista di sola lettura unica (`claude_cli::agent_read_only`); una lista sola delle cose delicate per le due «Automatica».

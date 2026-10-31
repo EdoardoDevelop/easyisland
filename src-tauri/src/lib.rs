@@ -98,6 +98,7 @@ mod renew;
 mod richtext;
 mod start_apps;
 mod threecx;
+mod speech;
 mod transcribe;
 mod tray;
 mod updates;

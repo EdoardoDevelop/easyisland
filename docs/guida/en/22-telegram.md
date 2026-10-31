@@ -39,5 +39,7 @@ Each permission is a **🔐 Permission requested** message with **✅ Allow** an
 ## Voice messages
 With a transcription service chosen in **Settings → Telegram → Voice messages**, voice messages become text and the chat answers. The audio isn't kept.
 
+When you send a voice message, a **spoken reply** comes under the written one too (a written message gets a written reply only). It works with Google AI and OpenAI, not OpenRouter; turn it off with **Reply aloud**. Long replies are read for about a minute and a half: the rest is in the written message.
+
 ## Tasks and alerts
 With Telegram linked you get a message when a task finishes, fails, pauses or asks you something, and you can answer with the buttons. Telegram keeps listening even if the active profile has it off, as long as it's on in any profile.
