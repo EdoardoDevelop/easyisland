@@ -29,6 +29,8 @@ html[data-ui="windows"] {
 html[data-ui="windows"] #island:not(.bare) {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
+/* Out of the fixed bar the island is one piece with the band: no border (Edoardo, 31 Oct 2026). */
+html[data-ui="windows"] #island.pop:not(.bare) { box-shadow: none; }
 
 /* ── Cards and buttons ──────────────────────────────────────────────────── */
 
