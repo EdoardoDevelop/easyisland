@@ -20,6 +20,8 @@ export interface Placement {
    *  no gap there, and square corners against it. */
   glueX?: boolean;
   glueY?: boolean;
+  /** Centred, moved this far sideways in the window (an island come out of the fixed bar). */
+  dx?: number;
 }
 
 export type IslandViewName =
@@ -184,7 +186,7 @@ export function anchoredOrigin(
 ): { x: number; y: number } {
   const mx = p.glueX ? 0 : EDGE_MARGIN;
   const my = p.glueY ? 0 : EDGE_MARGIN;
-  const x = p.h === "left" ? mx : p.h === "right" ? winW - mx - w : (winW - w) / 2;
+  const x = p.h === "left" ? mx : p.h === "right" ? winW - mx - w : (winW - w) / 2 + (p.dx ?? 0);
   const y = p.v === "bottom" ? winH - my - hh : p.v === "middle" ? (winH - hh) / 2 : my;
   return { x, y };
 }

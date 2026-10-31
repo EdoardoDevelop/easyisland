@@ -1244,6 +1244,17 @@ impl Settings {
             && self.fixed_bar_look.get("style").and_then(Value::as_str) != Some("islands")
     }
 
+    /// The fixed bar's shadow outside the band (barshadow.rs): on unless turned off; not with the islands style.
+    pub fn bar_shadow(&self) -> bool {
+        self.fixed_bar_look.get("shadow").and_then(Value::as_bool).unwrap_or(true)
+            && self.fixed_bar_look.get("style").and_then(Value::as_str) != Some("islands")
+    }
+
+    /// The fixed bar's background leaves the screen's sides by this much, logical px.
+    pub fn bar_margin(&self) -> f64 {
+        self.fixed_bar_look.get("margin").and_then(Value::as_f64).filter(|m| m.is_finite()).unwrap_or(0.0).clamp(0.0, 400.0)
+    }
+
     /// The first converted widget of each kind gives the integration its options.
     fn adopt_widget_options(&mut self, moved: &[Value]) {
         let str_of = |w: &Value, k: &str| w.get(k).and_then(Value::as_str).unwrap_or("").trim().to_string();

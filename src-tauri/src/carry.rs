@@ -135,7 +135,8 @@ fn run(generation: u64) {
 }
 
 /// Moves the window to `at`, with a new picture when there is one (BGRA, premultiplied).
-unsafe fn update(hwnd: HWND, at: POINT, size: SIZE, picture: Option<&[u8]>) {
+/// Also the fixed bar's shadow (barshadow.rs).
+pub(crate) unsafe fn update(hwnd: HWND, at: POINT, size: SIZE, picture: Option<&[u8]>) {
     let blend = BLENDFUNCTION {
         BlendOp: AC_SRC_OVER as u8,
         BlendFlags: 0,

@@ -256,9 +256,15 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
     };
     let open = !collapsed && gate.expanded.load(Ordering::Relaxed);
     let place = gate.open_place.lock().unwrap().clone();
-    let (x, y) = open_origin(work, (pw, ph), settings, place.as_deref(), scale, open);
+    let pop = place.as_deref().filter(|_| open).and_then(|p| pop_origin(work, (pw, ph), p, settings, scale));
+    *POP_SHIFT.lock().unwrap() = pop.map_or(0.0, |p| p.1);
+    POP_OPEN.store(pop.is_some(), Ordering::Relaxed);
+    let (x, y) = match pop {
+        Some((o, _)) => o,
+        None => open_origin(work, (pw, ph), settings, place.as_deref(), scale, open),
+    };
     // Open at the character's place: beside the character's own window, not over it.
-    let at_home = place_origin(work, (pw, ph), place.as_deref().unwrap_or(&settings.island_place)).is_none();
+    let at_home = pop.is_none() && place_origin(work, (pw, ph), place.as_deref().unwrap_or(&settings.island_place)).is_none();
     let (x, y) = if open && at_home {
         let (cx, cy) = *OPEN_CLEARANCE.lock().unwrap();
         clamp_to_work(work, (pw, ph), x + (cx * scale).round() as i32, y + (cy * scale).round() as i32)
@@ -282,6 +288,49 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
         let _ = win.set_always_on_top(true);
         keep_out_of_alt_tab(&win);
     }
+}
+
+/// An island come out of the fixed bar under one of its elements ("pop:<x>:<w>",
+/// x in logical px from the bar's left end, w the island's width): how far the
+/// island sits off the window's centre, logical px, for the front end to move
+/// it inside the window by as much.
+pub static POP_SHIFT: Mutex<f64> = Mutex::new(0.0);
+/// An island come out of the bar is open: a click elsewhere closes it (the cursor poll).
+static POP_OPEN: AtomicBool = AtomicBool::new(false);
+/// Room left between an island come out of the bar and the screen's side, logical px.
+const POP_SIDE: f64 = 8.0;
+
+/// The window of an island come out of the bar: the island centred under the
+/// element but never past the screen's sides, the window as close to centred
+/// on it as the work area lets it, against the band; and the island's shift.
+fn pop_origin(work: (i32, i32, u32, u32), size: (u32, u32), place: &str, settings: &Settings, scale: f64) -> Option<((i32, i32), f64)> {
+    let mut parts = place.strip_prefix("pop:")?.split(':');
+    let x: f64 = parts.next()?.parse().ok().filter(|x: &f64| x.is_finite())?;
+    let w: f64 = parts.next().and_then(|w| w.parse().ok()).filter(|w: &f64| w.is_finite() && *w > 0.0).unwrap_or(0.0);
+    let (wx, wy, ww, wh) = work;
+    let (pw, ph) = (size.0 as i32, size.1 as i32);
+    let left = crate::appbar::window_rect().map(|r| r.0).unwrap_or(wx);
+    // The island's centre: under the element, its sides within the screen.
+    let half = (w * scale / 2.0).round() as i32;
+    let side = (POP_SIDE * scale).round() as i32;
+    let lo = wx + side + half;
+    let hi = (wx + ww as i32 - side - half).max(lo);
+    let centre = (left + (x * scale).round() as i32).clamp(lo, hi);
+    let at = (centre - pw / 2).clamp(wx, (wx + ww as i32 - pw).max(wx));
+    let y = if settings.home_anchor().1 == "bottom" { wy + wh as i32 - ph } else { wy };
+    Some(((at, y), (centre - (at + pw / 2)) as f64 / scale))
+}
+
+/// The shift `apply_geometry` will give an island come out of the bar, before
+/// the window is shown (set_expanded while the island is still closed).
+pub fn pop_shift(app: &AppHandle, gate: &PollGate, settings: &Settings) -> f64 {
+    let place = gate.open_place.lock().unwrap().clone();
+    let Some(place) = place else { return 0.0 };
+    let Some(m) = target_monitor(app, &settings.screen) else { return 0.0 };
+    let scale = m.scale_factor();
+    let work = island_area(&m, settings);
+    let size = panel_physical(gate, work, scale);
+    pop_origin(work, size, &place, settings, scale).map_or(0.0, |p| p.1)
 }
 
 /// How far the open island moves away from its edge so it opens beside the
@@ -1023,6 +1072,7 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
             // there and nothing can be clicked. Sample at 20 Hz until it comes close.
             let mut slow = false;
             let mut last_raise = Instant::now();
+            let mut was_down = left_button_down();
             while gate.is_active() {
                 std::thread::sleep(Duration::from_millis(if slow { 50 } else { 16 }));
                 // The island may have collapsed during the sleep: a tick on stale
@@ -1059,6 +1109,13 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                 }
 
                 let Some(win) = window(&app) else { continue };
+                // An island come out of the bar closes at a press anywhere but on
+                // it or on the bar (where the element's own click decides).
+                let down_now = left_button_down();
+                if down_now && !was_down && POP_OPEN.load(Ordering::Relaxed) && pressed_away(&win, &gate) {
+                    let _ = app.emit_to(WINDOW_LABEL, "click-away", ());
+                }
+                was_down = down_now;
                 // Pinned as an app and minimised: nothing to look at or click.
                 if app_mode() && win.is_minimized().unwrap_or(false) {
                     slow = true;
@@ -1143,6 +1200,21 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
             }
         }
     });
+}
+
+/// The cursor is neither on the island's shape nor on the fixed bar.
+fn pressed_away(win: &tauri::Window, gate: &PollGate) -> bool {
+    let Some((cx, cy)) = cursor_physical() else { return false };
+    if let Some((bx, by, bw, bh)) = crate::appbar::window_rect() {
+        if cx >= bx as f64 && cx < (bx + bw as i32) as f64 && cy >= by as f64 && cy < (by + bh as i32) as f64 {
+            return false;
+        }
+    }
+    let Ok(origin) = win.outer_position() else { return false };
+    let scale = win.scale_factor().unwrap_or(1.0);
+    let (x, y) = ((cx - origin.x as f64) / scale, (cy - origin.y as f64) / scale);
+    let r = *gate.rect.lock().unwrap();
+    !(r.w > 0.0 && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h)
 }
 
 pub fn set_ignore_cursor(app: &AppHandle, ignore: bool) {

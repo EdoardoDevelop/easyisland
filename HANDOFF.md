@@ -51,6 +51,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 31 ottobre 2026 — Barra fissa: effetti (su `claude/barra-effetti`)
+- Il personaggio cresce sotto il mouse e la barra si gonfia attorno a lui con fianchi curvi (`bar_grow`, `appbar::GROW`, tracciato SVG `bandPath`; con la sfocatura la finestra è ritagliata sul tracciato).
+- Le schede escono dalla barra: un clic su un elemento apre una piccola isola sotto di lui con solo la sua scheda e due raccordi curvi (`openFromBarAt`, luogo `pop:<x>`, `POP_SHIFT`). Entrambe disattivabili in «Aspetto della barra». Smoke «nessun errore»; provato nell'anteprima solo il rigonfiamento.
+
 ### 30 ottobre 2026 — Barra fissa: aspetto ed elementi nuovi (in `main`)
 - Aspetto della barra, ogni voce a scelta: fascia o isolette, opacità, sfocatura acrilica, margine dai lati, grandezza del testo, spazio tra gli elementi, nascondi da sola (fascia di 0 px e barra fuori dal bordo tranne 3 px, `appbar::window_rect`, `bar_reveal`).
 - Elementi nuovi: processore, memoria, disco, scheda video con grafico dell'ultimo minuto, lingua della tastiera, cestino, aggiornamenti (winget), titolo della finestra, barra dell'app in uso, musica con i pulsanti, meteo, progetti recenti di VS Code; menu per elemento (`barMenuOf`). Smoke «nessun errore», 350 test Rust; provato nell'anteprima, non nell'app vera.
@@ -66,7 +70,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 30 ottobre 2026 — «L'isola si apre» anche con la barra fissa
 - La scelta era nascosta e ignorata con la barra accesa; ora vale anche lì (`openAway` in `island.ts`; Rust la gestiva già in `place_origin`).
-
-### 30 ottobre 2026 — Notizie, passo 2 (su `claude/notizie`)
-- Google News (scelto da Edoardo) per ogni argomento seguito, ogni 4 ore o quando cambiano gli argomenti; filtro in locale (parole da evitare, 3 giorni, già viste, stessa storia); voce e vista «Notizie» nell'isola. Una ricerca vera provata con un test; l'app non ancora provata dal vivo.
-

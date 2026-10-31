@@ -134,6 +134,9 @@ async function main() {
     }
   });
 
+  // A press outside an island come out of the fixed bar (island.rs cursor poll).
+  await onEvent<null>("click-away", () => island.closePopover());
+
   await onEvent<null>("screen-changed", () => {
     void Bridge.reposition();
     void island.refreshLimits();
@@ -262,6 +265,7 @@ function linkCharacterWindow(island: Island) {
       bar: barEdge(State.settings)
         ? {
           slot: State.settings.fixedBarSlot ?? "center",
+          edge: barEdge(State.settings) === "bottom" ? "bottom" : "top",
           ...barPaint(State.settings.fixedBarBackground ?? "", island.islandBackground, island.islandInk),
           thickness: barThickness(State.settings),
           items: barPieces(island.barStrip(), island.barAppBar()),
@@ -275,7 +279,7 @@ function linkCharacterWindow(island: Island) {
       sentKey = "";
       push();
     } else if (m.kind === "bar") {
-      island.barClick(m.key, m.button);
+      island.barClick(m.key, m.button, m.x);
     } else if (m.kind === "open") {
       if (State.mode === "expanded") island.collapse();
       else island.openFromTaskbar();

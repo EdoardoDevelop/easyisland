@@ -174,6 +174,12 @@ export interface FixedBarLook {
   /** Room between elements, px. */
   gap?: number;
   autoHide?: boolean;
+  /** A card opens in a small island under its element, not the whole island (default on). */
+  popover?: boolean;
+  /** A light shadow outside the band, under it at the top, above it at the bottom (default on). */
+  shadow?: boolean;
+  /** The character grows under the mouse and the band swells around it (default on). */
+  grow?: boolean;
 }
 
 /** A subject of «Notizie» the user follows (Impostazioni → Notizie, src-tauri/src/news.rs). */
@@ -1334,6 +1340,12 @@ class AppState {
   newsTaste: Record<string, number> = {};
   /** The system element whose card the island shows (src/views/barcard.ts). */
   barCard: string | null = null;
+  /**
+   * The island come out of the fixed bar under the element clicked (island.ts →
+   * openFromBarAt): only that element's card, narrow, against the band. `x` is
+   * the element's centre from the bar's left end, logical px.
+   */
+  popover: { x: number } | null = null;
   noteMessage: string | null = null;
   searchResult: SearchResult | null = null;
   chatHistory: ChatMessage[] = [];

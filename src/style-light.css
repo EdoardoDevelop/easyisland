@@ -16,6 +16,9 @@ html[data-ui="windows"][data-scheme="light"] {
   --on-accent: #ffffff;
 }
 html[data-ui="windows"][data-scheme="light"] #island:not(.bare) { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1); }
+html[data-ui="windows"][data-scheme="light"] #island.pop:not(.bare) { box-shadow: var(--pop-shadow); }
+html[data-scheme="light"] #island.pop { --pop-shadow: 0 6px 16px rgba(0, 0, 0, 0.16); }
+html[data-scheme="light"] #island.pop.pop-bottom { --pop-shadow: 0 -6px 16px rgba(0, 0, 0, 0.16); }
 
 /* Classic, light: white cards on the near-white island. */
 html[data-scheme="light"]:not([data-ui="windows"]) { --card: #ffffff; --card-flat: #f6f7f9; --tab-on: rgba(0, 0, 0, 0.06); }
