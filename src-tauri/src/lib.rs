@@ -590,6 +590,13 @@ fn bar_overflow_menu(app: AppHandle, entries: Vec<(String, String)>) {
     tray::popup_bar_menu(&app, &entries);
 }
 
+/// Right click on the fixed bar outside its elements: the notification-area menu
+/// with the bar's settings first. Sync for the same reason as `show_island_menu`.
+#[tauri::command]
+fn bar_context_menu(app: AppHandle) {
+    tray::popup_bar_context(&app);
+}
+
 /// "Copia info PC": everything a ticket asks for, put on the clipboard.
 #[tauri::command]
 async fn copy_pc_info() -> Result<String, String> {
@@ -3827,6 +3834,7 @@ pub fn run() {
             character_spot,
             character_clearance,
             bar_overflow_menu,
+            bar_context_menu,
             bar_reveal,
             bar_grow,
             barsys::bar_sys_watch,

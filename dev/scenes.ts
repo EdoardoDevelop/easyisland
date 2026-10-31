@@ -1036,7 +1036,9 @@ export async function runScene(island: Island, scene: string) {
       };
       State.barCard = new URLSearchParams(location.search).get("card") ?? "clock";
       await wait(300);
-      island.setView("barcard");
+      // ?pop: as an island come out of the bar, under an element at x = 300.
+      if (new URLSearchParams(location.search).has("pop")) island.openFromBarAt("barcard", 300);
+      else island.setView("barcard");
       island.setPinned(true);
       await wait(1200);
       break;

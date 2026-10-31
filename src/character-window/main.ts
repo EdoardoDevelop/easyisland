@@ -496,10 +496,12 @@ function barKey(e: Event): string | null {
 
 // The right and middle buttons and the wheel on an element: what the user chose
 // for it in Impostazioni (src/island/bar.ts → barAct); the page's own menu never shows.
+// Elsewhere on the bar (the band, the character): EasyIsland's menu (tray.rs popup_bar_context).
 document.addEventListener("contextmenu", (e) => {
   e.preventDefault();
   const key = barKey(e);
   if (key) send({ kind: "bar", key, button: "right" });
+  else if (mode === "bar" && !(e.target as HTMLElement | null)?.closest?.(".bar-more")) void invoke("bar_context_menu").catch(() => {});
 });
 document.addEventListener("auxclick", (e) => {
   const key = e.button === 1 ? barKey(e) : null;

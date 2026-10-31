@@ -40,7 +40,7 @@ With **Fixed bar** at the top or the bottom, Windows keeps a band free at the ed
   - **Margin from the sides:** the background leaves the left and right edges, for a floating bar.
   - **Text size** and **Room between elements**.
   - **Shadow:** a light shadow under the bar, or above it when the bar is at the bottom.
-  - **Cards come out of the bar:** a click on an element (clock, volume, an integration such as Clipboard, the news…) opens a small island that comes out of the bar right under it, with just its card, instead of the whole island.
+  - **Cards come out of the bar:** a click on an element (clock, volume, an integration such as Clipboard, the news…) opens a small island that comes out of the bar right under it, with just its card, instead of the whole island. It is as tall as its content; a click outside closes it.
   - **The character grows under the mouse:** with the mouse over it the character (or the logo) grows and the bar swells smoothly around it.
   - **Hide by itself:** only a thin line stays on the edge; bring the mouse there and the bar comes out, then goes away shortly after the mouse leaves. Windows no longer keeps room for it, but the island opened from the bar still opens below it.
 - **Bar widgets:** «+ Add» opens the catalog.
@@ -53,6 +53,7 @@ With **Fixed bar** at the top or the bottom, Windows keeps a band free at the ed
   - **The cards** open in the island, right below the bar: the clock with the month's calendar, the other time zones and the upcoming appointments of your calendar widgets; volume and microphone with the device, mute and a slider; brightness with a slider; the battery with charge and time left; the network with speed, adapter and IP address. Each has a button to the matching Windows page. Another click on the element closes it.
 - **The strip** (permissions, calls, agent at work, app in use) sits in the bar next to the character, with its buttons; adding «Strip» to the items puts it where you want.
 - What does not fit goes into **«…»** at the end of the bar: a click opens the list.
+- **Right click on the bar** (outside the elements, the character too): EasyIsland's menu, with **Customize the bar…** at the top, which opens this tab.
 - **Screen** (Position tab) picks the bar's monitor. In full screen (videos, games) the bar hides and comes back after.
 - With the bar on, a note in the Position and Closed island tabs says which settings do not apply while it stays on.
 

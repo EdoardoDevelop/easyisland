@@ -5373,6 +5373,13 @@ async function main() {
       integrationQuery = "";
       onlyActive = false;
     }
+    // A tab of Aspetto ("aspetto" + "barra": the fixed bar's menu).
+    const tab = page === "aspetto" ? LOOK_TABS().find(([id]) => id === item)?.[0] : undefined;
+    if (tab) {
+      lookTabNow = tab;
+      render();
+      return;
+    }
     render();
     if (!item) return;
     requestAnimationFrame(() => {

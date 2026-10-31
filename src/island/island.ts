@@ -2156,7 +2156,7 @@ ${note}` : text };
    * element at `x` (Aspetto della barra → «Le schede escono dalla barra»), or
    * the whole island. Already open, the island moves there.
    */
-  private openFromBarAt(view: IslandViewName, x?: number) {
+  openFromBarAt(view: IslandViewName, x?: number) {
     if (x == null || !Number.isFinite(x) || State.settings.fixedBarLook?.popover === false) {
       if (State.popover) this.leavePopover();
       this.openFromBar(view);
@@ -2167,7 +2167,8 @@ ${note}` : text };
       // The window's place first, then the island: it showed for a frame at
       // the old place before moving under the element.
       void Bridge.setExpanded(true, `pop:${x}:${POP_W}`).then((shift) => {
-        if (State.popover?.x !== x || State.mode === "expanded") return;
+        // Opened meanwhile (the mouse over the character): its card all the same.
+        if (State.popover?.x !== x) return;
         this.popShift = typeof shift === "number" && Number.isFinite(shift) ? shift : 0;
         this.openFromBar(view);
       }, () => this.openFromBar(view));
@@ -2318,10 +2319,13 @@ ${note}` : text };
         h = Math.max(h, Math.min(max.h, PANE_MIN_H));
       }
       if (State.maximized) ({ w, h } = { w: Math.max(PANEL_W, this.limits.w), h: Math.max(PANEL_H, this.limits.h) });
-      // Out of the bar: narrow, as tall as the card (no top bar), whatever the user's size.
+      // Out of the bar: narrow, as tall as the card's content (no top bar), whatever
+      // the user's size and the view's usual height (Edoardo, 31 Oct 2026).
       if (State.popover) {
         w = POP_W;
-        h = Math.min(POP_MAX_H, Math.max(POP_MIN_H, islandSize(State.mode, State.view, State.chatHistory.length, compact, fit).h - TOPBAR_H));
+        const own = measured > 0 ? ISLAND_CHROME_H - TOPBAR_H + measured
+          : islandSize(State.mode, State.view, State.chatHistory.length, compact, fit).h - TOPBAR_H;
+        h = Math.min(POP_MAX_H, Math.max(POP_MIN_H, Math.ceil(own)));
       }
     }
     // Height the user added beyond the view's own: lists and text boxes grow by
@@ -2459,7 +2463,8 @@ ${note}` : text };
     this.miniGrid.style.top = `${hh / 2 - 14.5}px`;
     // The resize corner: opposite the anchored side, on the free edge.
     const grip = this.resizeGrip.style;
-    const showGrip = State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view) && !this.uploadActive;
+    // Not out of the bar: the card is as big as its content.
+    const showGrip = State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view) && !this.uploadActive && !State.popover;
     grip.display = showGrip ? "block" : "none";
     if (showGrip) {
       const left = p.h === "right";

@@ -63,9 +63,10 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Nel campo in alto «oggi», «domani», «giornata», «agenda» o «riepilogo» propongono «La mia giornata di oggi / di domani», che apre la chat con `day_prompt` come `/oggi` (`search.ts`, `askDay`).
 - Azioni rapide «Chiedi alla chat» con «Lavora su» → la giornata di oggi o di domani (`input` "today" / "tomorrow"), più il prompt dell'azione come aggiunta facoltativa: così la giornata va anche nella barra, nelle cartelle e su una scorciatoia. Smoke «nessun errore»; non provato nell'app vera.
 
-### 31 ottobre 2026 — Barra fissa: effetti (su `claude/barra-effetti`)
+### 31 ottobre 2026 — Barra fissa: effetti (in `claude/sviluppo`)
 - Il personaggio cresce sotto il mouse e la barra si gonfia attorno a lui con fianchi curvi (`bar_grow`, `appbar::GROW`, tracciato SVG `bandPath`; con la sfocatura la finestra è ritagliata sul tracciato).
 - Le schede escono dalla barra: un clic su un elemento apre una piccola isola sotto di lui con solo la sua scheda e due raccordi curvi (`openFromBarAt`, luogo `pop:<x>`, `POP_SHIFT`). Entrambe disattivabili in «Aspetto della barra». Smoke «nessun errore»; provato nell'anteprima solo il rigonfiamento.
+- Poi: ombra della barra (`barshadow.rs`, anche con l'isola aperta, sotto di lei), isolette con la loro ombra e senza bordo, alte quanto il contenuto e senza angolo per ridimensionare, chiuse da un clic fuori (`click-away`); clic destro sulla barra fuori dagli elementi = menu di EasyIsland con «Personalizza la barra…» (`tray::popup_bar_context`). Unito in `claude/sviluppo`.
 
 ### 30 ottobre 2026 — Barra fissa: aspetto ed elementi nuovi (in `main`)
 - Aspetto della barra, ogni voce a scelta: fascia o isolette, opacità, sfocatura acrilica, margine dai lati, grandezza del testo, spazio tra gli elementi, nascondi da sola (fascia di 0 px e barra fuori dal bordo tranne 3 px, `appbar::window_rect`, `bar_reveal`).

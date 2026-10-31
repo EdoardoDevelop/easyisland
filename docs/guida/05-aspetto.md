@@ -40,7 +40,7 @@ Con **Barra fissa** in alto o in basso, Windows tiene libera una fascia sul bord
   - **Margine dai lati:** lo sfondo si stacca dai bordi sinistro e destro, per una barra sospesa.
   - **Grandezza del testo** e **Spazio tra gli elementi**.
   - **Ombra:** un'ombra leggera sotto la barra, o sopra se la barra è in basso.
-  - **Le schede escono dalla barra:** un clic su un elemento (orologio, volume, un'integrazione come gli Appunti, le notizie…) apre una piccola isola che esce dalla barra proprio sotto di lui, con solo la sua scheda, invece dell'isola intera.
+  - **Le schede escono dalla barra:** un clic su un elemento (orologio, volume, un'integrazione come gli Appunti, le notizie…) apre una piccola isola che esce dalla barra proprio sotto di lui, con solo la sua scheda, invece dell'isola intera. È alta quanto il suo contenuto; un clic fuori la richiude.
   - **Il personaggio cresce sotto il mouse:** portandoci sopra il mouse il personaggio (o il logo) si ingrandisce e la barra si allarga dolcemente attorno a lui.
   - **Nascondi da sola:** sul bordo resta solo un filo; portando lì il mouse la barra esce, e torna via poco dopo che il mouse se n'è andato. Windows non le tiene più lo spazio, ma l'isola aperta dalla barra si apre comunque sotto di lei.
 - **Widget della barra:** «+ Aggiungi» apre il catalogo.
@@ -53,6 +53,7 @@ Con **Barra fissa** in alto o in basso, Windows tiene libera una fascia sul bord
   - **Le card** si aprono nell'isola, subito sotto la barra: l'orologio con il calendario del mese, gli altri fusi orari e i prossimi appuntamenti dei tuoi widget calendario; volume e microfono con il dispositivo, muto e un cursore; la luminosità con un cursore; la batteria con carica e autonomia; la rete con velocità, scheda e indirizzo IP. Ognuna ha un pulsante per la pagina di Windows corrispondente. Un altro clic sull'elemento la chiude.
 - **La striscia** (permessi, chiamate, agente al lavoro, app in uso) sta nella barra accanto al personaggio, con i suoi pulsanti; aggiungendo «Striscia» agli elementi la metti dove vuoi.
 - Quello che non ci sta finisce in **«…»**, alla fine della barra: un clic apre l'elenco.
+- **Clic destro sulla barra** (fuori dagli elementi, anche sul personaggio): il menu di EasyIsland, con in cima **Personalizza la barra…**, che apre questa scheda.
 - **Schermo** (scheda Posizione) sceglie il monitor della barra. A schermo intero (video, giochi) la barra si nasconde e torna dopo.
 - Con la barra accesa, nelle schede Posizione e Isola chiusa una nota dice quali voci non valgono finché la barra resta accesa.
 
