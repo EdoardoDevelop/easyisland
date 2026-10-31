@@ -603,6 +603,11 @@ pub fn memory_job(app: &AppHandle, kind: &str) -> Result<(), String> {
     create_with(app, title, goal, "", "", |t| t.memory = kind.to_string()).map(|_| ())
 }
 
+/// A reading of da-leggere is queued or running: it takes a new source too.
+pub fn memory_job_running() -> bool {
+    TASKS.lock().unwrap().iter().any(|t| (t.memory == "inbox" || t.digest) && matches!(t.state, TaskState::Queued | TaskState::Running | TaskState::Asking))
+}
+
 /// The part of the goal about da-leggere (the digest and «Leggi adesso»).
 fn inbox_section() -> Option<String> {
     let files = crate::brain::inbox_files();

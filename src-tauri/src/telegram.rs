@@ -277,6 +277,7 @@ async fn hello(token: &str) -> Result<String, String> {
         { "command": "oggi", "description": t("La tua giornata di oggi") },
         { "command": "domani", "description": t("La tua giornata di domani") },
         { "command": "notizie", "description": t("Le ultime notizie sui tuoi argomenti") },
+        { "command": "ricorda", "description": t("Metti qualcosa nella memoria") },
         { "command": "compito", "description": t("Un obiettivo che EasyIsland porta avanti da solo") },
         { "command": "rispondi", "description": t("Rispondi alla domanda di un compito") },
         { "command": "stato", "description": t("Motore, modello e modalità") },
@@ -500,6 +501,7 @@ fn help() -> String {
         t("/stop — ferma la risposta in corso (anche ⏹ Ferma sotto la risposta)"),
         t("/oggi e /domani — la giornata: appuntamenti, posta, ticket, attività di Notion, meteo"),
         t("/notizie — le ultime notizie sugli argomenti che segui"),
+        t("/ricorda … — mettilo nella memoria, nella pagina giusta"),
         t("/compito … — un obiettivo che EasyIsland porta avanti da solo; /compito da solo elenca i compiti"),
         t("/rispondi … — la risposta alla domanda di un compito che aspetta"),
         t("/nome-abilità … — usa una delle tue abilità"),
@@ -657,6 +659,19 @@ async fn command(app: &AppHandle, token: &str, chat: i64, cmd: &str) {
                 Err(e) => format!("⚠️ {e}"),
                 Ok(()) if on => t("Automatica accesa: in modalità terminale comandi e modifiche vanno senza chiedere; le cancellazioni chiedono ancora.").to_string(),
                 Ok(()) => t("Automatica spenta: ogni permesso chiede Consenti / Nega.").to_string(),
+            };
+            let _ = send(token, chat, &msg, None).await;
+        }
+        "ricorda" | "remember" => {
+            let msg = if arg.trim().is_empty() {
+                t("Scrivi /ricorda e cosa ricordare: lo metto nella memoria, nella pagina giusta.").to_string()
+            } else {
+                let capture = crate::brain::Remember { text: arg.to_string(), from: "telegram".into(), ..Default::default() };
+                match crate::remember(app, &capture) {
+                    Ok((_, true)) => format!("🧠 {}", t("Ricordato: lo imparo adesso.")),
+                    Ok((_, false)) => format!("🧠 {}", t("Ricordato: lo imparo stasera, con il riordino della memoria.")),
+                    Err(e) => format!("⚠️ {e}"),
+                }
             };
             let _ = send(token, chat, &msg, None).await;
         }

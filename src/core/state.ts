@@ -574,6 +574,8 @@ export interface Settings {
   tasksEngine: string;
   /** «Motore per la memoria» (memory_ai.rs): "" = none, the map guesses the links by itself. */
   memoryEngine: string;
+  /** «Ricorda questo»: what is captured is learnt at once by a task; off, in the evening (brain.rs `remember`). */
+  rememberNow?: boolean;
   tasksMaxTurns: number;
   tasksMaxMinutes: number;
   /** "primary", "cursor", or "monitor:<name>" (the display the character was dragged to). */
@@ -711,6 +713,8 @@ export interface Settings {
   hotkeySelectionMenu: string;
   /** The selected text into the Raccolta (src/views/collect.ts). */
   hotkeyCollect: string;
+  /** Global shortcut: «Ricorda questo», the selected text into the memory. */
+  hotkeyRemember?: string;
   /** ⚡ tab: actions suggested for the app in front. */
   contextActions: boolean;
   /** The chat (Claude Code engine) may use EasyIsland's tools: open programs, quick actions… */
@@ -1061,6 +1065,20 @@ export interface WidgetStatus {
  * "Sostituisci": a text selected in an app, rewritten, shown before and after
  * in the card (src/views/rewrite.ts), pasted in its place only on a click.
  */
+/** «Ricorda questo»: the selected (or typed) text and where it came from, before it goes in the memory. */
+export interface Remember {
+  id: string;
+  text: string;
+  /** Who or what it is about: the page to put it in (optional). */
+  about: string;
+  app: string;
+  title: string;
+  url: string;
+  status: "edit" | "saving";
+  /** Why it was not saved. */
+  message: string;
+}
+
 export interface Rewrite {
   id: string;
   /** "Correggi", "Riscrivi"…: the card's title. */
@@ -1174,6 +1192,7 @@ export const DEFAULT_SETTINGS: Settings = {
   chatHistory: true,
   tasksEngine: "",
   memoryEngine: "",
+  rememberNow: true,
   tasksMaxTurns: 12,
   tasksMaxMinutes: 30,
   language: "",
@@ -1241,6 +1260,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hotkeyMute: "",
   hotkeySelectionMenu: "Win+Alt+A",
   hotkeyCollect: "Ctrl+Alt+Shift+R",
+  hotkeyRemember: "Win+Alt+M",
   contextActions: true,
   agentTools: true,
   chatTerminal: false,
@@ -1365,6 +1385,8 @@ class AppState {
   /** The script being confirmed / run / shown in the Run view. */
   run: ScriptRun | null = null;
   rewrite: Rewrite | null = null;
+  /** «Ricorda questo» being confirmed (src/views/remember.ts). */
+  remember: Remember | null = null;
   /** Latest result per widget id. */
   widgetStatus: Record<string, WidgetStatus> = {};
   /** Volume, battery, network… for the fixed bar's system elements (barsys.rs). */

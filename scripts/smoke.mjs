@@ -39,7 +39,7 @@ const SCENES = [
   "rewrite", "diff", "finished", "stop", "capture", "strip&strip=approval", "strip&strip=call", "strip&strip=live",
   "strip&strip=work&compactStrip=left",
   "moment", "moment&moment=zip", "moment&moment=tray", "moment&moment=error", "moment&moment=port", "moment&moment=server",
-  "moment&moment=card", "daily", "daily&evening", "done", "done&alone", "search",
+  "moment&moment=card", "daily", "daily&evening", "done", "done&alone", "search", "remember", "remember&empty",
   // Random events, clicks and malformed data (dev/scenes.ts `fuzz`), a few seeds.
   "fuzz&seed=1", "fuzz&seed=2", "fuzz&seed=3", "fuzz&seed=4", "fuzz&seed=5",
 ];

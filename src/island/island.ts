@@ -397,6 +397,8 @@ export class Island {
       applyRewrite: (text, plain) => void this.applyRewrite(text, plain),
       retryRewrite: () => void this.fetchRewrite(),
       closeRewrite: () => this.closeRewrite(),
+      saveRemember: (text, about) => void this.saveRemember(text, about),
+      closeRemember: () => this.closeRemember(),
     };
 
     this.wakeStrip = h("div", { id: "wake-strip" });
@@ -433,6 +435,7 @@ export class Island {
         void Bridge.chatDayPrompt(tomorrow).then((p) => { if (p) this.startChat(p, null, false); });
       },
       showDone: () => this.setView("done"),
+      remember: (text) => this.openRemember(text),
       reopenChat: (id) => {
         this.setView("prompt");
         window.setTimeout(() => reopenChat(id), 60);
@@ -1021,6 +1024,61 @@ ${note}` : text };
     } catch (e) {
       this.flashNote(String(e).replace(/^Error:\s*/, ""));
     }
+  }
+
+  /**
+   * «Ricorda questo»: the selected text with where it came from, in the card
+   * to confirm; nothing selected, the card is empty to type in.
+   */
+  async rememberSelection() {
+    const r = await Bridge.captureSelection();
+    const text = "text" in r ? r.text : "";
+    if (!("text" in r) && r.error !== "empty" && r.error !== "not-text") {
+      this.flashNote(this.selectionProblem(r.error));
+      return;
+    }
+    const src = text ? (await Bridge.collectSource(text).catch(() => null)) ?? { exe: "", title: "", url: "" } : { exe: "", title: "", url: "" };
+    this.openRemember(text, src.exe, src.title, src.url);
+  }
+
+  /** The «Ricorda» card, pinned: it waits for a click. */
+  openRemember(text: string, app = "", title = "", url = "") {
+    State.remember = { id: `r${Date.now().toString(36)}`, text, about: "", app, title, url, status: "edit", message: "" };
+    State.isPinned = true;
+    this.fsm.pinned = true;
+    this.setView("remember");
+  }
+
+  private async saveRemember(text: string, about: string) {
+    const r = State.remember;
+    if (!r || r.status === "saving") return;
+    if (!text.trim()) {
+      r.message = t("Scrivi o seleziona cosa ricordare.");
+      State.notify();
+      return;
+    }
+    r.status = "saving";
+    r.message = "";
+    State.notify();
+    try {
+      const done = await Bridge.memoryRemember({ text, about, app: r.app, title: r.title, url: r.url, from: "pc" });
+      if (State.remember !== r) return;
+      this.closeRemember(false);
+      this.collectedNote(done.learning ? t("Ricordato: lo imparo adesso") : t("Ricordato: lo imparo stasera"));
+    } catch (e) {
+      if (State.remember !== r) return;
+      r.status = "edit";
+      r.message = String(e).replace(/^Error:\s*/, "");
+      Sound.play("error");
+      State.notify();
+    }
+  }
+
+  private closeRemember(collapse = true) {
+    State.remember = null;
+    State.isPinned = false;
+    this.fsm.pinned = false;
+    if (collapse && State.view === "remember") this.collapse();
   }
 
   /** "Nella raccolta: n" for a moment; an island opened only for it closes again. */
@@ -1654,6 +1712,9 @@ ${note}` : text };
       return;
     } else if (name === "collect") {
       await this.collectSelection();
+      return;
+    } else if (name === "remember") {
+      await this.rememberSelection();
       return;
     } else if (name === "mute") {
       State.settings.soundEnabled = !State.settings.soundEnabled;
@@ -3352,6 +3413,7 @@ ${note}` : text };
       // Esc on a permission or a question folds the island: the request keeps waiting.
       if (e.key === "Escape" && State.mode === "expanded" && State.pendingApproval && (State.view === "approval" || State.view === "ask")) this.foldCard();
       else if (e.key === "Escape" && State.mode === "expanded" && State.view === "rewrite") this.closeRewrite();
+      else if (e.key === "Escape" && State.mode === "expanded" && State.view === "remember") this.closeRemember();
       else if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned && !State.pendingApproval) this.collapse();
       else this.onIslandKey(e);
       State.lastActivity = performance.now();

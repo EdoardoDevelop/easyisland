@@ -44,6 +44,11 @@ Metti nella cartella `da-leggere` articoli, appunti, trascrizioni di riunioni, m
 
 Succede la sera con il **Riordino della memoria** o subito con **Leggi adesso**. I file che non sono testo (PDF, Word) vengono passati con il loro percorso: Claude Code li sa aprire.
 
+## Ricorda questo
+Seleziona un testo in qualunque programma (una mail, una pagina, una chat) e premi <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd>: l'isola mostra la card **Ricorda** con il testo e da dove viene. Correggilo se serve, scrivi in **Riguarda…** di chi o di cosa parla (facoltativo) e premi **Ricorda**: l'IA lo mette subito nella pagina giusta della memoria, collegata alle altre.
+
+Senza niente selezionato la card è vuota: scrivi tu, per esempio «Rossi preferisce essere chiamato dopo le 15». Funziona anche dal campo in alto (*ricordati che …*) e da Telegram con `/ricorda …`. La scorciatoia si cambia in Impostazioni → Azioni rapide; se preferisci che impari la sera, spegni **«Ricorda questo» impara subito** in Impostazioni → Flussi.
+
 ## Il controllo
 EasyIsland trova da sola: note simili o più vecchie di sei mesi, collegamenti a pagine che non esistono, pagine isolate, vecchie o sullo stesso argomento. L'agente aggiunge le **contraddizioni** che nota e ti propone le correzioni nell'isola, una per riga, con **Fai tutto** / **Niente** (o scrivi quali). Fa **solo quelle approvate** e **non cancella mai**: al massimo sposta una nota in `archivio.md` o una pagina in `archivio/pagine`.
 

@@ -1057,6 +1057,17 @@ export async function runScene(island: Island, scene: string) {
       await wait(1200);
       break;
     }
+    case "remember": {
+      // «Ricorda questo» on a selection from Outlook; ?empty: nothing selected, the card to type in.
+      Object.assign(Bridge, {
+        memoryRemember: async () => ({ file: "Ricorda.md", learning: true }),
+      });
+      await wait(300);
+      if (new URLSearchParams(location.search).has("empty")) island.openRemember("");
+      else island.openRemember("Rossi vuole il preventivo per 3 switch UniFi entro venerdì; chiamarlo dopo le 15, la mattina è in cantiere.", "OUTLOOK.EXE", "Re: preventivo switch — Rossi Impianti", "");
+      await wait(1200);
+      break;
+    }
     case "news": {
       // «Notizie» on made-up news (?ask: the user keeps turning UniFi down).
       sampleNews();

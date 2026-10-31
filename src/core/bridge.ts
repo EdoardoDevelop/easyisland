@@ -502,6 +502,9 @@ export const Bridge = {
   memoryNodeOpen: (id: string) => callOrThrow<void>("memory_node_open", { id }),
   memoryWindowOpen: () => call<void>("memory_window_open"),
   memoryInboxAdd: (name: string, data: number[]) => callOrThrow<string>("memory_inbox_add", { name, data }),
+  /** «Ricorda questo» (brain.rs `remember`): into da-leggere; `learning`: a task reads it now. */
+  memoryRemember: (capture: { text: string; about: string; app: string; title: string; url: string; from: string }) =>
+    callOrThrow<{ file: string; learning: boolean }>("memory_remember", { capture }),
   memoryNoteAdd: (text: string) => callOrThrow<string>("memory_note_add", { text }),
   /** «Anteprima» (preview.rs, src/preview/): files and web pages in their window. */
   previewOpen: (target: string, newTab = false) => callOrThrow<number>("preview_open", { target, newTab }),

@@ -3735,6 +3735,9 @@ function actionsSection(): HTMLElement {
     h("div", { class: "row" }, h("label", { text: t("Aggiungi alla Raccolta") }),
       hotkeyField(settings.hotkeyCollect ?? "", (v) => { settings.hotkeyCollect = v; }),
       h("span", { class: "hint note", text: t("il testo selezionato, con la sua fonte, nella Raccolta di «File e schermo», da passare poi alla chat") })),
+    h("div", { class: "row" }, h("label", { text: t("Ricorda questo") }),
+      hotkeyField(settings.hotkeyRemember ?? "", (v) => { settings.hotkeyRemember = v; }),
+      h("span", { class: "hint note", text: t("il testo selezionato nella memoria, con da dove viene; senza selezione scrivi tu cosa ricordare") })),
     h("div", { class: "row" }, h("label", { text: t("Vai alla richiesta in attesa") }),
       hotkeyField(settings.hotkeyPending, (v) => { settings.hotkeyPending = v; }),
       h("span", { class: "hint note", text: t("poi N nega, Y consente, S sempre; 1–9 sceglie una risposta") })),
@@ -4957,6 +4960,9 @@ function heartbeatSection(): HTMLElement {
       h("span", { class: "hint note", text: t("a ogni battito l'agente guarda le cose elencate in BATTITO.md (ticket, mail, scadenze…) e ti avvisa solo se c'è qualcosa; senza righe nell'elenco non parte e non costa niente") })),
     h("div", { class: "row" }, h("label", { text: t("Riordino della memoria") }), digest,
       h("span", { class: "hint note", text: t("ogni sera alle 22:30 l'agente rilegge il diario della chat e ti propone le cose da ricordare (salva solo quelle che approvi), legge i file messi in da-leggere della memoria e la domenica propone come sistemarla. Se non c'è niente da fare non parte") })),
+    h("div", { class: "row" }, h("label", { text: t("«Ricorda questo» impara subito") }),
+      toggle(settings.rememberNow !== false, (v) => { settings.rememberNow = v; void save(); }),
+      h("span", { class: "hint note", text: t("quello che fai ricordare (scorciatoia, campo in alto, /ricorda su Telegram) lo legge subito un compito e lo mette nelle pagine della memoria; spento, aspetta il riordino della sera") })),
     feedback);
 }
 

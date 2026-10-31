@@ -567,6 +567,10 @@ pub struct Settings {
     /// «Motore per la memoria» (memory_ai.rs): the engine that ties the memory together; "" = none.
     #[serde(default)]
     pub memory_engine: String,
+    /// «Ricorda questo» (brain.rs `remember`): what is captured is learnt at
+    /// once by a task; off, by the evening digest.
+    #[serde(default = "default_true")]
+    pub remember_now: bool,
     #[serde(default = "default_task_turns")]
     pub tasks_max_turns: u32,
     #[serde(default = "default_task_minutes")]
@@ -785,6 +789,9 @@ pub struct Settings {
     /// Global shortcut: the selected text into the Raccolta (collect.rs).
     #[serde(default = "default_hotkey_collect")]
     pub hotkey_collect: String,
+    /// Global shortcut: «Ricorda questo», the selected text into the memory (brain.rs `remember`).
+    #[serde(default = "default_hotkey_remember")]
+    pub hotkey_remember: String,
     /// ⚡ tab: actions suggested for the app in front (Outlook, Excel, the browser…).
     #[serde(default = "default_true")]
     pub context_actions: bool,
@@ -888,6 +895,10 @@ fn default_hotkey_selection_menu() -> String {
 
 fn default_hotkey_collect() -> String {
     "Ctrl+Alt+Shift+R".into()
+}
+
+fn default_hotkey_remember() -> String {
+    "Win+Alt+M".into()
 }
 
 fn default_presence_mode() -> String {
@@ -1003,6 +1014,7 @@ impl Default for Settings {
             chat_history: true,
             tasks_engine: String::new(),
             memory_engine: String::new(),
+            remember_now: true,
             tasks_max_turns: default_task_turns(),
             tasks_max_minutes: default_task_minutes(),
             language: String::new(),
@@ -1074,6 +1086,7 @@ impl Default for Settings {
             hotkey_mute: String::new(),
             hotkey_selection_menu: default_hotkey_selection_menu(),
             hotkey_collect: default_hotkey_collect(),
+            hotkey_remember: default_hotkey_remember(),
             context_actions: true,
             agent_tools: true,
             tools_allowed: Vec::new(),

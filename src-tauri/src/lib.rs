@@ -1664,6 +1664,33 @@ fn memory_node_open(id: String) -> Result<(), String> {
     Command::new("explorer").arg(&path).spawn().map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// What «Ricorda questo» did: the source's name and whether a task learns it now.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Remembered {
+    file: String,
+    learning: bool,
+}
+
+/// «Ricorda questo»: the capture into da-leggere, learnt at once by a task
+/// (a reading already running takes it at its next turn) or in the evening.
+pub(crate) fn remember(app: &AppHandle, r: &brain::Remember) -> Result<(String, bool), String> {
+    let file = brain::remember(r)?;
+    let now = app.try_state::<Shared>().is_some_and(|s| s.settings.lock().unwrap().remember_now);
+    let learning = now && match tasks::memory_job(app, "inbox") {
+        Ok(()) => true,
+        Err(_) => tasks::memory_job_running(),
+    };
+    let _ = app.emit_to(MEMORY_LABEL, "memory-refresh", ());
+    Ok((file, learning))
+}
+
+#[tauri::command]
+fn memory_remember(app: AppHandle, capture: brain::Remember) -> Result<Remembered, String> {
+    let (file, learning) = remember(&app, &capture)?;
+    Ok(Remembered { file, learning })
+}
+
 /// Files dropped on the memory window: into da-leggere.
 #[tauri::command]
 fn memory_inbox_add(name: String, data: Vec<u8>) -> Result<String, String> {
@@ -3682,6 +3709,7 @@ pub fn run() {
             memory_node_open,
             memory_window_open,
             memory_inbox_add,
+            memory_remember,
             memory_note_add,
             chat_history_search,
             memory_find,
