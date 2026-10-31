@@ -3512,6 +3512,8 @@ function actionsSection(): HTMLElement {
                   ["page", t("Tutto il testo della finestra in uso (pagina, mail, documento)")],
                   ["clipboard", t("Testo copiato negli appunti")],
                   ["file", t("File rilasciato sull'isola")],
+                  ["today", t("La mia giornata di oggi (integrazioni)")],
+                  ["tomorrow", t("La mia giornata di domani (integrazioni)")],
                   ["none", t("Niente (solo la domanda)")],
                 ],
                 use,
@@ -3526,7 +3528,9 @@ function actionsSection(): HTMLElement {
               a.input === "selection"
                 ? h("span", { class: "hint note", text: t("compare nel menu di {key}", { key: settings.hotkeySelectionMenu || "Win+Alt+A" }) })
                 : null),
-            area(a.prompt, replacing ? t("Come riscrivere il testo, es. «Rendilo più cortese»") : t("Cosa chiedere alla chat"),
+            area(a.prompt, replacing ? t("Come riscrivere il testo, es. «Rendilo più cortese»")
+              : a.input === "today" || a.input === "tomorrow" ? t("Facoltativo: cosa aggiungere, es. «Metti prima le chiamate»")
+              : t("Cosa chiedere alla chat"),
               (v) => { a.prompt = v; }),
           );
           break;

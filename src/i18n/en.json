@@ -3869,5 +3869,11 @@
   "Progetti nel menu": "Projects in the menu",
   "Pulsanti precedente, pausa, successivo": "Previous, pause, next buttons",
   "Widget della barra: orologio, volume, batteria, rete, processore, memoria, disco, cestino, aggiornamenti e gli altri elementi del sistema; la barra dell'app in uso, la musica, il meteo, i progetti di VS Code, le integrazioni, i widget e le azioni rapide, ognuno nella sua area. In «Opzioni» scegli cosa mostra e cosa fanno clic, clic destro e rotella; ✕ lo toglie.": "Bar widgets: clock, volume, battery, network, processor, memory, disk, recycle bin, updates and the other system elements; the bar of the app in use, music, weather, VS Code projects, integrations, widgets and quick actions, each in its area. In “Options” choose what it shows and what click, right click and wheel do; ✕ removes it.",
-  "Aggiornare adesso tutti i programmi con winget? Si apre una finestra che mostra cosa fa; alcuni programmi possono chiedere conferma o chiudersi.": "Update every program with winget now? A window opens that shows what it does; some programs may ask for confirmation or close."
+  "Aggiornare adesso tutti i programmi con winget? Si apre una finestra che mostra cosa fa; alcuni programmi possono chiedere conferma o chiudersi.": "Update every program with winget now? A window opens that shows what it does; some programs may ask for confirmation or close.",
+  "La mia giornata di oggi (integrazioni)": "My day today (integrations)",
+  "La mia giornata di domani (integrazioni)": "My day tomorrow (integrations)",
+  "Facoltativo: cosa aggiungere, es. «Metti prima le chiamate»": "Optional: what to add, e.g. “Put the calls first”",
+  "La mia giornata di oggi": "My day today",
+  "La mia giornata di domani": "My day tomorrow",
+  "agenda riepilogo": "agenda summary"
 }

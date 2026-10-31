@@ -836,8 +836,9 @@ export interface QuickAction {
   /** prompt: what Claude is asked. */
   prompt: string;
   /** prompt: what the prompt is applied to ("selection": the text selected in the
-   * app in front; "page": all the text of its window, Ctrl+A). */
-  input: "clipboard" | "selection" | "file" | "none" | "page";
+   * app in front; "page": all the text of its window, Ctrl+A; "today" / "tomorrow":
+   * the day's summary from the integrations, `day_prompt` in telegram.rs, then `prompt`). */
+  input: "clipboard" | "selection" | "file" | "none" | "page" | "today" | "tomorrow";
   /** prompt on "selection": the answer goes to the chat (default) or takes the selection's place, after a preview. */
   output?: "chat" | "replace";
   /** script: show the commands and wait for "Esegui". */

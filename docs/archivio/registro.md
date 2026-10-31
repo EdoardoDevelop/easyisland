@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 30 ottobre 2026 — Notizie, passo 2 (su `claude/notizie`)
+- Google News (scelto da Edoardo) per ogni argomento seguito, ogni 4 ore o quando cambiano gli argomenti; filtro in locale (parole da evitare, 3 giorni, già viste, stessa storia); voce e vista «Notizie» nell'isola. Una ricerca vera provata con un test; l'app non ancora provata dal vivo.
+
 ### 30 ottobre 2026 — Notizie, passo 1 (su `claude/notizie`)
 - `news.rs` propone gli argomenti dalle pagine della memoria (citazioni, note, diario del mese, aggiornamenti recenti), mai persone e clienti; pagina Impostazioni → Notizie con Aggiungi / Escludi / Riammetti e le parole da cercare ed evitare. Niente rete ancora. Smoke «nessun errore».
 

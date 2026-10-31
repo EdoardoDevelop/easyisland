@@ -9,7 +9,7 @@
 
 | Kind | What it does |
 |---|---|
-| **Ask the chat** | Sends a saved prompt, applied to copied text, selected text or the dropped file. With `{{fields}}` in the text it becomes a **template** to fill in |
+| **Ask the chat** | Sends a saved prompt, applied to copied text, selected text or the dropped file, or the summary of **your day today or tomorrow** from the integrations (with something to add, if you like). With `{{fields}}` in the text it becomes a **template** to fill in |
 | **Script** | PowerShell or Command Prompt commands, hidden, with the output in the island (with *Stop*, 5-minute timeout). Runs **only after a click**; with "Ask for confirmation" it shows the commands first |
 | **Program / folder** | Starts a program with its arguments (e.g. `mstsc /v:server01`) or opens a folder |
 | **Link** | Opens an address in the browser |

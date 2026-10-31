@@ -9,7 +9,7 @@
 
 | Tipo | Cosa fa |
 |---|---|
-| **Chiedi alla chat** | Manda un prompt salvato, applicato al testo copiato, al testo selezionato o al file rilasciato. Con `{{campi}}` nel testo diventa un **modello** da completare |
+| **Chiedi alla chat** | Manda un prompt salvato, applicato al testo copiato, al testo selezionato o al file rilasciato, oppure il punto della **giornata di oggi o di domani** dalle integrazioni (con qualcosa da aggiungere, se vuoi). Con `{{campi}}` nel testo diventa un **modello** da completare |
 | **Script** | Comandi PowerShell o del Prompt dei comandi, nascosti, con l'output nell'isola (con *Interrompi*, timeout 5 minuti). Parte **solo dopo un clic**; con «Chiedi conferma» mostra prima i comandi |
 | **Programma / cartella** | Avvia un programma con i suoi argomenti (es. `mstsc /v:server01`) o apre una cartella |
 | **Link** | Apre un indirizzo nel browser |
