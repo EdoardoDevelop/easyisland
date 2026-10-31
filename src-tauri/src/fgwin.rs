@@ -39,9 +39,13 @@ static SENT: Mutex<String> = Mutex::new(String::new());
 static KNOWN: Mutex<Option<HashMap<String, (String, String)>>> = Mutex::new(None);
 
 /// barsys.rs: the title element came into the bar (or left it).
+/// Asked again while on (the island may have just started): the title goes out again.
 pub fn watch(on: bool) {
-    if WATCH.swap(on, Ordering::SeqCst) == on {
+    if WATCH.swap(on, Ordering::SeqCst) == on && !on {
         return;
+    }
+    if on {
+        SENT.lock().unwrap().clear();
     }
     let thread = THREAD.load(Ordering::SeqCst);
     if thread != 0 {

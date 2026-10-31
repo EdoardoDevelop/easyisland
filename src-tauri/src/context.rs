@@ -81,6 +81,10 @@ pub fn spawn(app: tauri::AppHandle) {
         let _hook = SetWinEventHook(
             EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, None, Some(on_foreground), 0, 0, WINEVENT_OUTOFCONTEXT,
         );
+        // The bar's title may have asked before this thread could take the message.
+        if let Some(h) = target() {
+            crate::fgwin::follow(h);
+        }
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).as_bool() {
             // The fixed bar's window title came or went (fgwin.rs): its hooks live on this thread.
