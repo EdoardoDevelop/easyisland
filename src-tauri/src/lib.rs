@@ -1731,6 +1731,12 @@ async fn zammad_search(query: String) -> Result<Vec<zammad::TicketHit>, String> 
     zammad::search(&query, 5).await
 }
 
+/// «Prepara» on a ticket of mine: the context and the question for the chat.
+#[tauri::command]
+async fn zammad_prepare(id: i64) -> Result<zammad::TicketPrep, String> {
+    zammad::prepare(id).await
+}
+
 /// The history list filtered by words (title and text).
 #[tauri::command]
 fn chat_history_search(query: String) -> Vec<chat_log::Summary> {
@@ -3723,6 +3729,7 @@ pub fn run() {
             memory_find,
             memory_window_select,
             zammad_search,
+            zammad_prepare,
             chat_history_pin,
             chat_history_rename,
             chat_rewind,

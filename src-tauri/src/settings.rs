@@ -558,6 +558,9 @@ pub struct Settings {
     /// …a 3CX call answered and ended («Annota»: what was said, into the memory)…
     #[serde(default = "default_true")]
     pub moment_calls: bool,
+    /// …a Zammad ticket newly assigned to me («Prepara»: the customer, similar tickets, a draft)…
+    #[serde(default = "default_true")]
+    pub moment_tickets: bool,
     /// …and a copied password or key taken off the clipboard after 30 s.
     #[serde(default = "default_true")]
     pub clear_secrets: bool,
@@ -1023,6 +1026,7 @@ impl Default for Settings {
             moment_errors: true,
             moment_servers: true,
             moment_calls: true,
+            moment_tickets: true,
             clear_secrets: true,
             chat_history: true,
             tasks_engine: String::new(),

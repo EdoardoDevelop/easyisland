@@ -348,6 +348,8 @@ export type Moment =
   | { kind: "server"; port: number; url: string; process: string }
   /** A 3CX call answered and ended: «Annota» what was said (into the memory). */
   | { kind: "call"; name: string; number: string; incoming: boolean; seconds: number }
+  /** A Zammad ticket newly assigned to me: «Prepara» (customer, similar tickets, a draft). */
+  | { kind: "ticket"; id: number; title: string; url: string }
   /** A card from Claude Code (`show_card`): waits for a button. */
   | { kind: "card"; id: string; title: string; text: string; level: "ok" | "warn" | "error" | "info"; buttons: string[] };
 
@@ -570,6 +572,8 @@ export interface Settings {
   momentServers: boolean;
   /** «Annota» after an answered 3CX call (moments.rs). */
   momentCalls?: boolean;
+  /** «Prepara» on a Zammad ticket newly assigned to me (zammad.rs). */
+  momentTickets?: boolean;
   /** The second brain at work (brain_watch.rs): closed tickets, important mails, commitments. */
   brainTickets?: boolean;
   brainMail?: boolean;
@@ -1197,6 +1201,7 @@ export const DEFAULT_SETTINGS: Settings = {
   momentErrors: true,
   momentServers: true,
   momentCalls: true,
+  momentTickets: true,
   brainTickets: true,
   brainMail: true,
   brainPromises: true,

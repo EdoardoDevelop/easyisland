@@ -4252,7 +4252,7 @@ function reactionsSection(): HTMLElement {
 
 /** "Proposte al momento giusto" (moments.rs): each one on or off. */
 function momentsSection(): HTMLElement {
-  const row = (label: string, key: "momentDownloads" | "momentErrors" | "momentServers" | "momentCalls" | "clearSecrets", note: string) =>
+  const row = (label: string, key: "momentDownloads" | "momentErrors" | "momentServers" | "momentCalls" | "momentTickets" | "clearSecrets", note: string) =>
     h("div", { class: "row" },
       h("label", { text: label }),
       toggle(settings[key] !== false, (v) => { settings[key] = v; void save(); }),
@@ -4264,6 +4264,7 @@ function momentsSection(): HTMLElement {
     row(t("Errore copiato"), "momentErrors", t("«Spiega e correggi» per uno stack trace o un traceback negli appunti, e chi tiene una porta occupata (serve l'integrazione Appunti)")),
     row(t("Server di sviluppo"), "momentServers", t("«Apri nel browser» quando npm run dev, vite, uvicorn… iniziano ad ascoltare su localhost")),
     row(t("Fine di una chiamata"), "momentCalls", t("«Annota» dopo una chiamata 3CX risposta di almeno 30 secondi: due righe su cosa vi siete detti vanno nella memoria, nella pagina di chi ha chiamato")),
+    row(t("Ticket assegnato a te"), "momentTickets", t("«Prepara» quando Zammad ti assegna un ticket: la chat con cosa sa la memoria del cliente, i ticket simili e come si sono risolti, e una bozza di risposta (mai inviata)")),
     row(t("Password e chiavi copiate"), "clearSecrets", t("tolte dagli appunti dopo 30 secondi, se nel frattempo non hai copiato altro")));
 }
 

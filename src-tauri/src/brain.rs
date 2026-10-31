@@ -752,6 +752,15 @@ pub fn page_named(query: &str) -> Option<String> {
     })
 }
 
+/// A page's summary and text by its title, at most `max` characters (for the
+/// ticket preparation, zammad.rs).
+pub fn page_text(title: &str, max: usize) -> Option<String> {
+    let p = pages().into_iter().find(|p| p.title == title)?;
+    let mut text = if p.summary.is_empty() { String::new() } else { format!("{}: {}\n", t("riassunto"), p.summary) };
+    text.push_str(p.body.trim());
+    Some(text.chars().take(max).collect())
+}
+
 /// memory_search in the pages: their lines with every word, then a line of
 /// each page they link to (the links followed one step).
 pub fn search(words: &[String], max: usize) -> Vec<String> {

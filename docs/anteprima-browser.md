@@ -232,7 +232,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `agenti` | la scheda Agenti | `claude`: l'altro pulsante |
 | `custom` | un'integrazione personale | `dati` |
 | `compiti` | i Compiti | `ask` |
-| `moment` | una proposta al momento giusto | `moment=download\|recording\|call\|…` |
+| `moment` | una proposta al momento giusto | `moment=download\|recording\|call\|ticket\|…` |
 | `daily` | Buongiorno / Fine giornata | `evening`, `news`, `ai` (con il riassunto dell'IA), `ai=ask` (con «Chiedi il riassunto all'IA») |
 | `search` | il campo in alto con risultati di memoria, conversazioni e Zammad inventati | `q=<testo>` (di serie `rossi`) |
 | `done` | «Cosa ho fatto» su un registro inventato | `alone`: la card di un'azione fatta senza chiedere, con Annulla |
