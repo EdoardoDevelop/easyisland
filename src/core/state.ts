@@ -174,6 +174,8 @@ export interface FixedBarLook {
   /** Room between elements, px. */
   gap?: number;
   autoHide?: boolean;
+  /** The character grows under the mouse and the band swells around it (default on). */
+  grow?: boolean;
 }
 
 /** A subject of «Notizie» the user follows (Impostazioni → Notizie, src-tauri/src/news.rs). */

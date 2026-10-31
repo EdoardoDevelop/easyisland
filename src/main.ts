@@ -262,6 +262,7 @@ function linkCharacterWindow(island: Island) {
       bar: barEdge(State.settings)
         ? {
           slot: State.settings.fixedBarSlot ?? "center",
+          edge: barEdge(State.settings) === "bottom" ? "bottom" : "top",
           ...barPaint(State.settings.fixedBarBackground ?? "", island.islandBackground, island.islandInk),
           thickness: barThickness(State.settings),
           items: barPieces(island.barStrip(), island.barAppBar()),

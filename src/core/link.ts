@@ -25,6 +25,8 @@ export interface BarPiece {
 export interface BarLook {
   /** Where the character sits along the band. */
   slot: "start" | "center" | "end";
+  /** The screen edge the band is against: it swells away from it. */
+  edge: "top" | "bottom";
   /** The island's own background, the band's too. */
   background: string;
   /** The band's height, logical px. */

@@ -2742,6 +2742,10 @@ function barLookRows(commit: () => void): HTMLElement[] {
       h("label", { text: t("Nascondi da sola") }),
       toggle(!!look().autoHide, (v) => set("autoHide", v)),
       h("span", { class: "hint note", text: t("resta solo un filo sul bordo e la barra esce quando arriva il mouse; Windows non le tiene più lo spazio") })),
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Il personaggio cresce sotto il mouse") }),
+      toggle(look().grow !== false, (v) => set("grow", v)),
+      h("span", { class: "hint note", text: t("la barra si allarga attorno a lui") })),
   ];
 }
 

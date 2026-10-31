@@ -51,12 +51,26 @@
          --s grows and shrinks them with the bar's height, --ts is the text's own
          size, --gap the room between elements, --bar-bg the background with its
          opacity (main.ts → layBar, «Aspetto della barra»). */
-      #band { position: absolute; top: 0; bottom: 0; display: none; background: var(--bar-bg, transparent); }
+      /* The band is a path (main.ts → bandPath) so it can swell around the
+         character under the mouse: the window grows past the band meanwhile
+         (bar_grow), and everything stays --t tall against the screen edge. */
+      #band { position: absolute; left: 0; top: 0; width: 100%; display: none; overflow: visible; pointer-events: none; }
+      #band path { fill: var(--bar-bg, transparent); transition: d 0.36s cubic-bezier(0.22, 1, 0.36, 1); }
       body.bar #band { display: block; }
-      .area { position: absolute; top: 0; height: 100%; display: none; align-items: center; gap: var(--gap, 4px); box-sizing: border-box; }
+      body.bar.bottom #band { top: auto; bottom: 0; transform: scaleY(-1); }
+      .area { position: absolute; top: 0; height: var(--t, 100%); display: none; align-items: center; gap: var(--gap, 4px); box-sizing: border-box; }
+      body.bar.bottom .area { top: auto; bottom: 0; }
       body.bar .area { display: flex; }
       /* «Isolette»: each area its own island, the desktop in between. */
-      body.islands .area { top: 12%; height: 76%; border-radius: 999px; padding: 0 calc(4px * var(--s, 1)); }
+      body.islands .area { top: calc(var(--t) * 0.12); height: calc(var(--t) * 0.76); border-radius: 999px; padding: 0 calc(4px * var(--s, 1)); }
+      body.islands.bottom .area { top: auto; bottom: calc(var(--t) * 0.12); }
+      /* Under the mouse the character's own island grows with it. */
+      body.islands .area.own { transition: height 0.36s cubic-bezier(0.22, 1, 0.36, 1); }
+      body.islands.grown .area.own { height: calc(var(--t) * 0.76 + var(--g, 0px)); }
+      /* The character grows from the edge, a little past its size before settling. */
+      #grow { position: absolute; inset: 0; transform-origin: 50% 0; transition: transform 0.4s cubic-bezier(0.34, 1.36, 0.5, 1); }
+      body.bottom #grow { transform-origin: 50% 100%; }
+      body.grown #grow { transform: scale(var(--k, 1)); transition-duration: 0.46s; }
       body.islands .area:not(:empty), body.islands .area.own { background: var(--bar-bg, transparent); }
       body.islands .area:empty:not(.own) { display: none; }
       .bar-btn {
@@ -105,13 +119,15 @@
     </style>
   </head>
   <body>
-    <div id="band"></div>
+    <svg id="band"><path /></svg>
     <div id="a-start" class="area"></div>
     <div id="a-center" class="area"></div>
     <div id="a-end" class="area"></div>
     <div id="float">
-      <div id="halo"></div>
-      <div id="sway"><div id="breathe"><canvas id="bot"></canvas></div></div>
+      <div id="grow">
+        <div id="halo"></div>
+        <div id="sway"><div id="breathe"><canvas id="bot"></canvas></div></div>
+      </div>
     </div>
     <script type="module" src="/src/character-window/main.ts"></script>
   </body>

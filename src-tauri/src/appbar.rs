@@ -15,7 +15,7 @@
 // band goes stale, so the bar is taken off and registered again once the
 // screens have settled (`display_changed`).
 
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
@@ -53,6 +53,10 @@ struct Registered {
 pub static REVEALED: AtomicBool = AtomicBool::new(false);
 /// What of a hidden bar stays on screen for the mouse to find, physical px.
 const PEEK: i32 = 3;
+/// The mouse on the character: the window reaches this far past the band
+/// (physical px) for the band to swell around the bigger character (`bar_grow`).
+/// The space kept free stays the band's.
+pub static GROW: AtomicI32 = AtomicI32::new(0);
 
 static REGISTERED: Mutex<Option<Registered>> = Mutex::new(None);
 /// Inside `place`: the shell's answer to our own move is not a new move.
@@ -112,13 +116,17 @@ pub fn window_rect() -> Option<(i32, i32, u32, u32)> {
 fn rect_of(r: &Registered, revealed: bool) -> (i32, i32, u32, u32) {
     let (l, t, rr, b) = r.rect;
     let w = (rr - l).max(0) as u32;
-    if !r.auto_hide {
-        return (l, t, w, (b - t).max(0) as u32);
-    }
-    let h = r.thick.max(PEEK);
-    let hidden = if revealed { 0 } else { h - PEEK };
-    let y = if r.edge == ABE_TOP { t - hidden } else { b - h + hidden };
-    (l, y, w, h as u32)
+    let (y, h) = if !r.auto_hide {
+        (t, (b - t).max(0))
+    } else {
+        let h = r.thick.max(PEEK);
+        let hidden = if revealed { 0 } else { h - PEEK };
+        (if r.edge == ABE_TOP { t - hidden } else { b - h + hidden }, h)
+    };
+    // Swollen around the character: further into the screen, away from the edge.
+    let grow = GROW.load(Ordering::Relaxed).clamp(0, 400);
+    let y = if r.edge == ABE_TOP { y } else { y - grow };
+    (l, y, w, (h + grow) as u32)
 }
 
 /// Follows the setting: registers the character's window as the bar, moves

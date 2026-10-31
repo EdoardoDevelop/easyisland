@@ -2725,6 +2725,56 @@ fn bar_reveal(app: AppHandle, on: bool) {
     }
 }
 
+/// The mouse came on the character in the bar (or left it): the window reaches
+/// `px` (logical) past the band, where the band swells around the bigger
+/// character (src/character-window/main.ts). With the blur on, `shape` is the
+/// band's outline (logical px in the window): the window is cut to it, or the
+/// blur would fill the whole rectangle.
+#[tauri::command]
+fn bar_grow(app: AppHandle, px: f64, shape: Option<Vec<[f64; 2]>>) {
+    let Some(ch) = app.get_webview_window(CHARACTER_LABEL) else { return };
+    let scale = ch.scale_factor().unwrap_or(1.0);
+    let grow = if px.is_finite() { (px.clamp(0.0, 200.0) * scale).round() as i32 } else { 0 };
+    let Ok(raw) = ch.hwnd() else { return };
+    let hwnd = windows::Win32::Foundation::HWND(raw.0);
+    if appbar::GROW.swap(grow, Ordering::Relaxed) != grow {
+        // Size and place in one move: at the bottom edge the window grows upwards,
+        // and two moves would show the band a frame out of place.
+        if let Some((x, y, w, h)) = appbar::window_rect() {
+            use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER};
+            unsafe {
+                let _ = SetWindowPos(hwnd, None, x, y, w as i32, h as i32, SWP_NOACTIVATE | SWP_NOZORDER);
+            }
+        }
+    }
+    character_shape(hwnd, shape.filter(|_| CHARACTER_BLUR.load(Ordering::Relaxed)), scale);
+}
+
+/// Cuts the bar's window to `shape` (logical px), or gives it back its rectangle.
+fn character_shape(hwnd: windows::Win32::Foundation::HWND, shape: Option<Vec<[f64; 2]>>, scale: f64) {
+    use windows::Win32::Foundation::POINT;
+    use windows::Win32::Graphics::Gdi::{CreatePolygonRgn, SetWindowRgn, HRGN, WINDING};
+    let points: Vec<POINT> = shape
+        .unwrap_or_default()
+        .iter()
+        .filter(|p| p[0].is_finite() && p[1].is_finite())
+        .take(2000)
+        .map(|p| POINT { x: (p[0] * scale).round() as i32, y: (p[1] * scale).round() as i32 })
+        .collect();
+    unsafe {
+        if points.len() < 3 {
+            SetWindowRgn(hwnd, None, true);
+            return;
+        }
+        let rgn: HRGN = CreatePolygonRgn(&points, WINDING);
+        if rgn.is_invalid() {
+            return;
+        }
+        // The window owns the region from here on.
+        SetWindowRgn(hwnd, Some(rgn), true);
+    }
+}
+
 /// The resting character wanted (true) or not by the island's page: shown
 /// when the island is also collapsed and on screen.
 #[tauri::command]
@@ -3677,6 +3727,7 @@ pub fn run() {
             character_clearance,
             bar_overflow_menu,
             bar_reveal,
+            bar_grow,
             barsys::bar_sys_watch,
             barsys::bar_sys_do,
             news::news_proposals,
