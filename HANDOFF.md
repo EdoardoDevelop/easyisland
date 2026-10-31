@@ -51,6 +51,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 31 ottobre 2026 — Ricerca ovunque nel campo in alto (su `claude/giornata-permessi`)
+- Il campo in alto cerca anche le pagine della memoria (`brain::find_pages`, clic: la mappa con la pagina selezionata, `memory-select`), le conversazioni passate (clic: tornano nella chat) e i ticket Zammad (`zammad::search`, clic: il ticket nel browser), 400 ms dopo l'ultimo tasto. Da verificare: la ricerca di Zammad senza Elasticsearch. Test Rust, smoke e schermata nell'anteprima; non provato nell'app vera.
+
 ### 31 ottobre 2026 — La giornata: riassunto dell'IA e Telegram, orari in Rust (su `claude/giornata-permessi`)
 - `giornata.rs` tiene gli orari del Buongiorno e della Fine giornata (un sonno fino alla prossima ora, al massimo 30 min; `giornata.json` per non ripetere dopo un riavvio) e manda `daily-due` all'isola, che non ha più il suo timer.
 - «Riassunto dell'IA» (`dailyAi`: nessuno, motore della memoria, della chat o uno a scelta) scrive la giornata di oggi o di domani con la domanda di `/oggi`, in cima alla card, o a mano con «Chiedi il riassunto all'IA»; «Anche su Telegram» (`dailyTelegram`) manda riassunto e tempo degli agenti. 359 test Rust, smoke «nessun errore», card guardata nell'anteprima; non provato nell'app vera.
@@ -68,7 +71,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Aspetto della barra, ogni voce a scelta: fascia o isolette, opacità, sfocatura acrilica, margine dai lati, grandezza del testo, spazio tra gli elementi, nascondi da sola (fascia di 0 px e barra fuori dal bordo tranne 3 px, `appbar::window_rect`, `bar_reveal`).
 - Elementi nuovi: processore, memoria, disco, scheda video con grafico dell'ultimo minuto, lingua della tastiera, cestino, aggiornamenti (winget), titolo della finestra, barra dell'app in uso, musica con i pulsanti, meteo, progetti recenti di VS Code; menu per elemento (`barMenuOf`). Smoke «nessun errore», 350 test Rust; provato nell'anteprima, non nell'app vera.
 - Titolo della finestra rifatto (`fgwin.rs`): nome vero del programma e sua icona, titolo senza il nome, aggiornato al cambio di scheda; EasyIsland quando è davanti; desktop e barra delle applicazioni ignorati. Installato su questo PC. Unito in `main` il 31 ottobre.
-
-### 30 ottobre 2026 — Versione 1.0.15: allegati nel campo, cartelle; Notizie in una scheda, argomenti da soli, miniature
-- Chat: gli allegati stanno nel campo sopra il testo, sono più d'uno (fino a 20) e possono essere cartelle (percorso ed elenco dei file al motore); 📎, `@file`, `@cartella`, Ctrl+V e rilascio li aggiungono tutti (`ChatContext::Files`).
-- Notizie: voce sempre nel menu (spegnibile), argomenti scelti una volta al giorno da un motore e seguiti da soli, interruttore per argomento; fonte Google o Bing News (Bing con foto e riassunto), aspetto elenco / miniature / schede, la lista scorre.

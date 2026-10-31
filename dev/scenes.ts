@@ -1010,6 +1010,30 @@ export async function runScene(island: Island, scene: string) {
       }
       await wait(1500);
       break;
+    case "search": {
+      // The field at the top with ?q=… typed (rossi by default): memory, past chats and Zammad made up.
+      Object.assign(Bridge, {
+        memoryFind: async () => [{ id: "p:rossi-srl", title: "Rossi Srl", gist: "Cliente dal 2019: 12 PC, server Synology, UniFi in sede." }],
+        chatHistorySearch: async () => [{ id: "c1", title: "Backup del NAS di Rossi", engine: "subscription", updated: Date.now() - 86_400_000, turns: 6 }],
+        zammadSearch: async () => [
+          { title: "#10342 Stampante dell'ufficio ferma — Rossi Srl", url: "https://help.example.com/#ticket/zoom/342" },
+          { title: "#10298 VPN che cade la sera — Rossi Srl", url: "https://help.example.com/#ticket/zoom/298" },
+        ],
+      });
+      State.settings.activeIntegrations = [...State.settings.activeIntegrations, "integration_zammad"];
+      await wait(300);
+      island.setView("overview");
+      island.setPinned(true);
+      await wait(400);
+      const field = document.querySelector<HTMLInputElement>(".search-input");
+      if (field) {
+        field.value = new URLSearchParams(location.search).get("q") ?? "rossi";
+        field.dispatchEvent(new Event("input"));
+      }
+      // The memory, the chats and Zammad are asked 400 ms after the last key.
+      await wait(1200);
+      break;
+    }
     case "done": {
       // «Cosa ho fatto» on a made-up log; ?alone: the card of something done without a click.
       const now = Date.now();

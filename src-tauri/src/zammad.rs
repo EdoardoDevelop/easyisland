@@ -132,6 +132,50 @@ fn client_of(data: &Value, ticket: &Value) -> String {
         .unwrap_or_default()
 }
 
+/// A ticket found from the island's field at the top (src/views/search.ts).
+#[derive(serde::Serialize)]
+pub struct TicketHit {
+    /// "#12345 Titolo — Cliente", as in the card.
+    pub title: String,
+    pub url: String,
+}
+
+/// The tickets Zammad finds for `query` (number, title, customer…), newest
+/// first. /api/v1/tickets/search works without Elasticsearch too, on fewer
+/// fields (title and number).
+pub async fn search(query: &str, max: usize) -> Result<Vec<TicketHit>, String> {
+    let base = base_url(&crate::secrets::get("zammad-url").unwrap_or_default());
+    if !base.starts_with("https://") && !base.starts_with("http://") {
+        return Ok(Vec::new());
+    }
+    let Some(token) = crate::secrets::get("zammad-token") else { return Ok(Vec::new()) };
+    let Some(c) = client() else { return Ok(Vec::new()) };
+    let url = reqwest::Url::parse_with_params(&format!("{base}/api/v1/tickets/search"), &[("query", query), ("limit", &max.to_string())])
+        .map_err(|e| e.to_string())?;
+    let data = get_json(&c, url.as_str(), token.trim()).await?;
+    Ok(tickets_found(&data, &base, max))
+}
+
+/// The search's answer ({tickets: [ids], assets}) as hits, in Zammad's order.
+fn tickets_found(data: &Value, base: &str, max: usize) -> Vec<TicketHit> {
+    let Some(ids) = data.get("tickets").and_then(Value::as_array) else { return Vec::new() };
+    ids.iter()
+        .filter_map(|id| {
+            let id = id.as_i64()?;
+            let ticket = data.pointer(&format!("/assets/Ticket/{id}"))?;
+            let number = ticket.get("number").and_then(Value::as_str).unwrap_or("");
+            let title = ticket.get("title").and_then(Value::as_str).unwrap_or(t("(senza titolo)"));
+            let mut text = if number.is_empty() { title.to_string() } else { format!("#{number} {title}") };
+            let who = client_of(data, ticket);
+            if !who.is_empty() {
+                text = format!("{text} — {who}");
+            }
+            Some(TicketHit { title: text, url: format!("{base}/#ticket/zoom/{id}") })
+        })
+        .take(max)
+        .collect()
+}
+
 pub async fn probe(w: &Widget) -> WidgetResult {
     let base = base_url(&crate::secrets::get("zammad-url").unwrap_or_default());
     if !base.starts_with("https://") && !base.starts_with("http://") {
@@ -182,6 +226,27 @@ pub async fn probe(w: &Widget) -> WidgetResult {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn search_answer_becomes_hits() {
+        let data = json!({
+            "tickets": [7, 3, 99],
+            "assets": {
+                "Ticket": {
+                    "7": {"number": "10007", "title": "Stampante ferma", "organization_id": 1},
+                    "3": {"number": "10003", "title": "VPN", "customer_id": 5}
+                },
+                "Organization": {"1": {"name": "Rossi Srl"}},
+                "User": {"5": {"firstname": "Anna", "lastname": "Bianchi"}}
+            }
+        });
+        let hits = tickets_found(&data, "https://help.x.it", 5);
+        assert_eq!(hits.len(), 2);
+        assert_eq!(hits[0].title, "#10007 Stampante ferma — Rossi Srl");
+        assert_eq!(hits[0].url, "https://help.x.it/#ticket/zoom/7");
+        assert_eq!(hits[1].title, "#10003 VPN — Anna Bianchi");
+        assert!(tickets_found(&json!({}), "https://x", 5).is_empty());
+    }
 
     #[test]
     fn base_url_is_cleaned() {

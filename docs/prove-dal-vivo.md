@@ -8,6 +8,10 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
   3. PC sospeso alle 8 e riacceso alle 9: il riepilogo arriva entro mezz'ora;
   4. un motore senza strumenti (Ollama senza modalità terminale): cosa scrive, e «Riprova» se fallisce;
   5. «Mostra ora» senza riassunto: «Chiedi il riassunto all'IA».
+- [ ] **Ricerca ovunque nel campo in alto (31 ottobre 2026):**
+  1. il nome di un cliente: la sua pagina della memoria (clic: la mappa si apre con la pagina scelta, anche se era già aperta), una conversazione passata (clic: torna nella chat), i suoi ticket Zammad (clic: il ticket nel browser);
+  2. Zammad: dire se il vostro server ha Elasticsearch, e se senza trova solo per titolo e numero;
+  3. scrivere veloce non deve bloccare il campo; con Zammad spento non parte nessuna chiamata.
 - [ ] **Permessi per livelli (31 ottobre 2026):** con l'app vera e Notion / Outlook classico:
   1. in chat «aggiungi a To Do: chiamare Rossi»: card leggibile con «Sempre»; scelto «Sempre», la volta dopo nessuna card, e la voce in Impostazioni → Chat → Permessi degli strumenti (✕ la toglie);
   2. «Cosa ho fatto»: la voce con «senza chiedere», poi Annulla (l'attività sparisce da To Do, va in Posta eliminata);

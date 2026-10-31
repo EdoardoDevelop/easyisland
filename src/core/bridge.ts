@@ -545,6 +545,12 @@ export const Bridge = {
   /** 🎤 with no service: Windows' dictation (Win+H) in the focused field. */
   chatDictateWindows: () => callOrThrow<void>("chat_dictate_windows"),
   chatHistorySearch: (query: string) => call<ChatSummary[]>("chat_history_search", { query }),
+  /** The field at the top: memory pages (brain.rs find_pages). */
+  memoryFind: (query: string) => call<MemoryHit[]>("memory_find", { query }),
+  /** A page found there: the memory window with it selected. */
+  memoryWindowSelect: (id: string) => call<void>("memory_window_select", { id }),
+  /** The field at the top: Zammad's tickets (zammad.rs search). */
+  zammadSearch: (query: string) => call<TicketHit[]>("zammad_search", { query }),
   chatHistoryPin: (id: string, pinned: boolean) => call<void>("chat_history_pin", { id, pinned }),
   /** ✎ in the history list; an empty title goes back to the first question. */
   chatHistoryRename: (id: string, title: string) => call<void>("chat_history_rename", { id, title }),
@@ -756,6 +762,20 @@ export interface MemoryInfo {
 }
 
 /** One conversation in the chat history (chat_log.rs `Summary`); `updated` in ms. */
+/** A memory page found from the field at the top (brain.rs PageHit). */
+export interface MemoryHit {
+  /** The memory window's node, "p:<slug>". */
+  id: string;
+  title: string;
+  gist: string;
+}
+
+/** A Zammad ticket found from the field at the top (zammad.rs TicketHit). */
+export interface TicketHit {
+  title: string;
+  url: string;
+}
+
 export interface ChatSummary {
   id: string;
   title: string;

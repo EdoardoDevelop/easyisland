@@ -262,6 +262,8 @@ function fail(e: unknown) {
 
 let loading = false;
 let loadedAt = 0;
+/** A page asked by the island (memory-select), selected at the next load. */
+let wanted: string | null = null;
 
 async function load() {
   if (loading) return;
@@ -280,8 +282,10 @@ async function load() {
     if (!g && !IS_TAURI) g = (await import("./demo")).demoGraph();
     if (!g) return;
     model = new Model(g);
-    const asked = new URLSearchParams(location.search).get("select");
-    if (asked && !loadedAt && model.byId.has(asked)) selected = asked;
+    // ?select=… on the first load; a page chosen in the island's field (memory-select) any time.
+    const asked = wanted ?? new URLSearchParams(location.search).get("select");
+    if (asked && (wanted || !loadedAt) && model.byId.has(asked)) selected = asked;
+    wanted = null;
     for (const v of Object.values(views)) v.setModel(model);
     if (selected && !model.byId.has(selected)) selected = null;
     applySearch();
@@ -396,6 +400,11 @@ window.addEventListener("drop", async (e) => {
 
 // Fresh data when the window is opened again or comes back to the front.
 void onEvent("memory-refresh", () => void load());
+// A page found from the island's field at the top: selected once loaded.
+void onEvent<string>("memory-select", (id) => {
+  wanted = id;
+  void load();
+});
 window.addEventListener("focus", () => {
   if (Date.now() - loadedAt > 5000) void load();
 });

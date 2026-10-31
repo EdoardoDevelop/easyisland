@@ -1640,6 +1640,27 @@ fn memory_window_open(app: AppHandle) {
     show_memory_window(&app);
 }
 
+/// The field at the top of the island: memory pages with these words.
+#[tauri::command]
+fn memory_find(query: String) -> Vec<brain::PageHit> {
+    brain::find_pages(&query, 5)
+}
+
+/// A page found from the field at the top: the memory window, with it selected.
+#[tauri::command]
+fn memory_window_select(app: AppHandle, id: String) {
+    if let Some(win) = app.get_webview_window(MEMORY_LABEL) {
+        let _ = win.emit("memory-select", id);
+    }
+    show_memory_window(&app);
+}
+
+/// The field at the top of the island: Zammad's tickets with these words.
+#[tauri::command]
+async fn zammad_search(query: String) -> Result<Vec<zammad::TicketHit>, String> {
+    zammad::search(&query, 5).await
+}
+
 /// The history list filtered by words (title and text).
 #[tauri::command]
 fn chat_history_search(query: String) -> Vec<chat_log::Summary> {
@@ -3541,6 +3562,9 @@ pub fn run() {
             memory_inbox_add,
             memory_note_add,
             chat_history_search,
+            memory_find,
+            memory_window_select,
+            zammad_search,
             chat_history_pin,
             chat_history_rename,
             chat_rewind,

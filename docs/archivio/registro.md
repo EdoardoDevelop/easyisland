@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 30 ottobre 2026 — Versione 1.0.15: allegati nel campo, cartelle; Notizie in una scheda, argomenti da soli, miniature
+- Chat: gli allegati stanno nel campo sopra il testo, sono più d'uno (fino a 20) e possono essere cartelle (percorso ed elenco dei file al motore); 📎, `@file`, `@cartella`, Ctrl+V e rilascio li aggiungono tutti (`ChatContext::Files`).
+- Notizie: voce sempre nel menu (spegnibile), argomenti scelti una volta al giorno da un motore e seguiti da soli, interruttore per argomento; fonte Google o Bing News (Bing con foto e riassunto), aspetto elenco / miniature / schede, la lista scorre.
+
 ### 30 ottobre 2026 — Versione 1.0.14: Notizie
 - Notizie, passo 3 e parte del 4: «Di più» (più notizie per argomento e subito la stessa storia) e «Non mi interessa» (a −3 propone di smettere di seguirlo), riquadro nella Panoramica, notizie nel Buongiorno, `/notizie` su Telegram, elemento «Notizie» nei Widget della barra. `claude/notizie` e `claude/sviluppo` unite in `main` con il tag `v1.0.14`.
 - Guida: nuova pagina Notizie e capitoli rinumerati da 1 a 30 senza doppioni, così il pulsante della lingua porta alla pagina giusta (gli indirizzi non cambiano).
