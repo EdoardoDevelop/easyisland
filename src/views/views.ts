@@ -23,6 +23,7 @@ import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations
 import { buildActions, buildRun, type ActionHandlers } from "./actions";
 import { buildRewrite, type RewriteHandlers } from "./rewrite";
 import { buildRemember, type RememberHandlers } from "./remember";
+import { buildTalk, type TalkHandlers } from "./talk";
 import { planSummary, planText } from "../island/plan";
 import { permissionModeLabel } from "../island/hooks";
 import { renderMarkdown } from "../core/markdown";
@@ -32,7 +33,7 @@ import { softphoneVersion } from "../core/softphone";
 import { THREECX } from "./threecx";
 import { t } from "../core/i18n";
 
-export interface ViewActions extends ActionHandlers, RewriteHandlers, RememberHandlers, MomentActions {
+export interface ViewActions extends ActionHandlers, RewriteHandlers, RememberHandlers, TalkHandlers, MomentActions {
   setView(v: IslandViewName): void;
   /** The tray ("Vassoio"): the files dropped since EasyIsland started. */
   openFiles(): void;
@@ -194,6 +195,7 @@ function bubble(): [string, string] {
     case "files": case "unzip": return [t("File e schermo."), t("Rilascia un file sull'isola o riquadra una zona")];
     case "upload": case "choose": return [t("Rilascia qui un file."), t("Ti chiedo cosa farne")];
     case "remember": return [t("Me lo ricordo io."), t("lo metto nella pagina giusta della memoria")];
+    case "talk": return [t("Dimmi pure."), t("il microfono è acceso solo adesso")];
   }
   if (State.showsSummary) {
     const news = State.tasks.filter((x) => x.pillBadge);
@@ -1126,6 +1128,7 @@ export function buildViews(
   map.set("news", buildNews(actions));
   map.set("done", buildDone(actions));
   map.set("remember", buildRemember(actions));
+  map.set("talk", buildTalk(actions));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder(t("L'invio via email non è disponibile in questa versione."), ""));
   map.set("searching", buildPlaceholder(t("Claude sta cercando…"), ""));

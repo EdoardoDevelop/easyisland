@@ -565,6 +565,11 @@ export const Bridge = {
   zammadSearch: (query: string) => call<TicketHit[]>("zammad_search", { query }),
   /** «Prepara» on a ticket: the customer's page, similar tickets, the question (zammad.rs `prepare`). */
   zammadPrepare: (id: number) => callOrThrow<{ label: string; context: string; question: string }>("zammad_prepare", { id }),
+  /** «Parla» (talk.rs): starts listening or ends the question; true = listening now. */
+  talkToggle: () => callOrThrow<boolean>("talk_toggle"),
+  talkCancel: () => call<void>("talk_cancel"),
+  /** A reply read aloud: base64 audio and its type. */
+  talkSpeak: (text: string) => callOrThrow<{ data: string; mime: string }>("talk_speak", { text }),
   chatHistoryPin: (id: string, pinned: boolean) => call<void>("chat_history_pin", { id, pinned }),
   /** ✎ in the history list; an empty title goes back to the first question. */
   chatHistoryRename: (id: string, title: string) => call<void>("chat_history_rename", { id, title }),

@@ -588,6 +588,9 @@ export interface Settings {
   memoryEngine: string;
   /** «Ricorda questo»: what is captured is learnt at once by a task; off, in the evening (brain.rs `remember`). */
   rememberNow?: boolean;
+  /** «Parla» (talk.rs): its shortcut, and the reply read aloud too. */
+  hotkeyTalk?: string;
+  talkReply?: boolean;
   tasksMaxTurns: number;
   tasksMaxMinutes: number;
   /** "primary", "cursor", or "monitor:<name>" (the display the character was dragged to). */
@@ -1212,6 +1215,8 @@ export const DEFAULT_SETTINGS: Settings = {
   tasksEngine: "",
   memoryEngine: "",
   rememberNow: true,
+  hotkeyTalk: "Win+Alt+V",
+  talkReply: true,
   tasksMaxTurns: 12,
   tasksMaxMinutes: 30,
   language: "",
@@ -1406,6 +1411,8 @@ class AppState {
   rewrite: Rewrite | null = null;
   /** «Ricorda questo» being confirmed (src/views/remember.ts). */
   remember: Remember | null = null;
+  /** «Parla»: the microphone on, or the words being transcribed (src/views/talk.ts). */
+  talk: { state: "listening" | "hearing"; level: number; spoke: boolean } | null = null;
   /** Latest result per widget id. */
   widgetStatus: Record<string, WidgetStatus> = {};
   /** Volume, battery, network… for the fixed bar's system elements (barsys.rs). */

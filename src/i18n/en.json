@@ -2578,7 +2578,7 @@
   "Nuova conversazione da qui: quella di prima resta nella cronologia": "New conversation from here: the previous one stays in the history",
   "Assistente {n}: scrivi la domanda": "Assistant {n}: write your question",
   "Trascrivo…": "Transcribing…",
-  "Non ho sentito parole.": "I heard no words.",
+  "Non ho sentito parole.": "I didn't hear any words.",
   "Parla… clic su ■ per finire": "Speak… click ■ to finish",
   "Microfono non disponibile: {e}": "Microphone not available: {e}",
   "Il testo o l'immagine copiati": "The copied text or picture",
@@ -4060,5 +4060,17 @@
   "chiuso": "closed",
   "aperto": "open",
   "Ho questo ticket da gestire (i dati sono allegati). Dimmi in breve: cosa sappiamo del cliente, come si sono risolti i ticket simili e cosa proverei per primo. Poi scrivi una bozza di risposta al cliente, breve e cordiale, nella sua lingua. Non inviare niente.": "I have this ticket to handle (the data is attached). Tell me briefly: what we know of the customer, how the similar tickets were solved and what I should try first. Then write a short, friendly draft reply to the customer, in their language. Don't send anything.",
-  "Ho questo ticket da gestire (i dati sono allegati). Cerca il cliente nella memoria con memory_search. Dimmi in breve cosa sappiamo di lui, come si sono risolti i ticket simili e cosa proverei per primo. Poi scrivi una bozza di risposta al cliente, breve e cordiale, nella sua lingua. Non inviare niente.": "I have this ticket to handle (the data is attached). Look for the customer in the memory with memory_search. Tell me briefly what we know of them, how the similar tickets were solved and what I should try first. Then write a short, friendly draft reply to the customer, in their language. Don't send anything."
+  "Ho questo ticket da gestire (i dati sono allegati). Cerca il cliente nella memoria con memory_search. Dimmi in breve cosa sappiamo di lui, come si sono risolti i ticket simili e cosa proverei per primo. Poi scrivi una bozza di risposta al cliente, breve e cordiale, nella sua lingua. Non inviare niente.": "I have this ticket to handle (the data is attached). Look for the customer in the memory with memory_search. Tell me briefly what we know of them, how the similar tickets were solved and what I should try first. Then write a short, friendly draft reply to the customer, in their language. Don't send anything.",
+  "Per parlare con l'isola scegli chi trascrive in Impostazioni → Telegram → Vocali (OpenAI, Google AI o OpenRouter).": "To talk to the island choose who transcribes in Settings → Telegram → Voice messages (OpenAI, Google AI or OpenRouter).",
+  "Non ho sentito niente: parla dopo il segnale, vicino al microfono.": "I didn't hear anything: speak after the signal, close to the microphone.",
+  "Ti ascolto": "Listening",
+  "Poi la domanda va alla chat.": "Then the question goes to the chat.",
+  "Quando smetti di parlare la domanda parte da sola.": "When you stop talking the question goes by itself.",
+  "Parla pure: finisci con una pausa, «Fine» o di nuovo {key}.": "Go ahead: finish with a pause, \"End\" or {key} again.",
+  "Parla pure: finisci con una pausa o con «Fine».": "Go ahead: finish with a pause or \"End\".",
+  "Dimmi pure.": "Go ahead.",
+  "il microfono è acceso solo adesso": "the microphone is on only now",
+  "Parla": "Talk",
+  "il microfono si accende solo adesso; finisci con una pausa e la domanda va alla chat. Trascrive il servizio dei Vocali di Telegram": "the microphone turns on only now; finish with a pause and the question goes to the chat. Transcribed by Telegram's voice message service",
+  "dopo una domanda a voce, la risposta si sente anche dagli altoparlanti (OpenAI o Google AI); Esc la ferma": "after a spoken question, the reply is also heard from the speakers (OpenAI or Google AI); Esc stops it"
 }

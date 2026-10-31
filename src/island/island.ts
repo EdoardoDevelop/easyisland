@@ -30,7 +30,7 @@ import { rdmLookFor } from "../views/rdm";
 import { buildRail, railBotSize } from "../views/rail";
 import { appBarItem, buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
 import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
-import { reopenChat, sendToChat, windowLabel } from "../views/chat";
+import { onNextReply, reopenChat, sendToChat, windowLabel } from "../views/chat";
 import { capturing, startCapture } from "./capture";
 import { addToCollection } from "../views/collect";
 import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state";
@@ -400,6 +400,8 @@ export class Island {
       retryRewrite: () => void this.fetchRewrite(),
       closeRewrite: () => this.closeRewrite(),
       saveRemember: (text, about) => void this.saveRemember(text, about),
+      endTalk: () => void this.toggleTalk(),
+      cancelTalk: () => this.cancelTalk(),
       closeRemember: () => this.closeRemember(),
     };
 
@@ -1064,6 +1066,94 @@ ${note}` : text };
       State.chatText = null;
       this.note(String(e), "prompt");
     }
+  }
+
+  /** The reply being read aloud («Parla»): Esc or the shortcut stop it. */
+  private talkAudio: HTMLAudioElement | null = null;
+
+  /** «Parla»: the shortcut starts listening; again (or «Fine») ends the question. */
+  async toggleTalk() {
+    if (this.stopSpeaking()) return;
+    try {
+      const listening = await Bridge.talkToggle();
+      if (listening && !State.talk) {
+        State.talk = { state: "listening", level: 0, spoke: false };
+        State.isPinned = true;
+        this.fsm.pinned = true;
+        this.setView("talk");
+      }
+    } catch (e) {
+      this.note(String(e).replace(/^Error:\s*/, ""));
+    }
+  }
+
+  private cancelTalk() {
+    void Bridge.talkCancel();
+    this.closeTalk(true);
+  }
+
+  private closeTalk(collapse: boolean) {
+    State.talk = null;
+    State.isPinned = false;
+    this.fsm.pinned = false;
+    if (collapse && State.view === "talk") this.collapse();
+  }
+
+  /** What talk.rs says: the level while listening, then the words (or why not). */
+  private onTalk(e: { state: string; level?: number; spoke?: boolean; words?: string; message?: string }) {
+    if (e.state === "listening") {
+      if (!State.talk) return;
+      State.talk.level = Math.max(0, Math.min(1, Number(e.level) || 0));
+      State.talk.spoke = State.talk.spoke || e.spoke === true;
+      State.notify();
+    } else if (e.state === "hearing") {
+      if (!State.talk) return;
+      State.talk.state = "hearing";
+      State.talk.level = 0;
+      State.notify();
+    } else if (e.state === "heard" && e.words) {
+      if (!State.talk) return;
+      this.closeTalk(false);
+      if (State.settings.talkReply !== false) onNextReply((text) => { if (text) void this.speak(text); });
+      this.startChat(e.words, null, false);
+    } else if (e.state === "error") {
+      if (!State.talk) return;
+      this.closeTalk(false);
+      this.note(e.message ?? t("Non ho sentito parole."));
+    } else {
+      if (State.talk) this.closeTalk(true);
+    }
+  }
+
+  /** A reply read aloud with the voice of «Vocali» (speech.rs). */
+  private async speak(text: string) {
+    try {
+      const voice = await Bridge.talkSpeak(text);
+      const bytes = Uint8Array.from(atob(voice.data), (c) => c.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type: voice.mime }));
+      this.stopSpeaking();
+      const audio = new Audio(url);
+      this.talkAudio = audio;
+      const done = () => {
+        URL.revokeObjectURL(url);
+        if (this.talkAudio === audio) this.talkAudio = null;
+      };
+      audio.addEventListener("ended", done);
+      audio.addEventListener("error", done);
+      await audio.play();
+    } catch (e) {
+      console.warn("[talk] reply not spoken", e);
+    }
+  }
+
+  /** Stops a reply being read aloud; true if there was one. */
+  private stopSpeaking(): boolean {
+    const a = this.talkAudio;
+    if (!a) return false;
+    this.talkAudio = null;
+    a.pause();
+    a.dispatchEvent(new Event("ended"));
+    return true;
   }
 
   /** «Annota» after a 3CX call: the empty card, about the caller. */
@@ -1748,6 +1838,9 @@ ${note}` : text };
       return;
     } else if (name === "remember") {
       await this.rememberSelection();
+      return;
+    } else if (name === "talk") {
+      await this.toggleTalk();
       return;
     } else if (name === "mute") {
       State.settings.soundEnabled = !State.settings.soundEnabled;
@@ -2753,6 +2846,8 @@ ${note}` : text };
   /** The panel's left edge widens it (the island grows with it); double click: the usual width. */
   private wirePane() {
     void onEvent<boolean>("preview-docked", (on) => this.setPaneOpen(on));
+    // «Parla» (talk.rs): listening, transcribing, the words.
+    void onEvent<{ state: string; level?: number; spoke?: boolean; words?: string; message?: string }>("talk", (e) => this.onTalk(e));
     void Bridge.previewState().then((s) => {
       if (s?.docked) this.setPaneOpen(true);
     }).catch(() => undefined);
@@ -3447,6 +3542,8 @@ ${note}` : text };
       if (e.key === "Escape" && State.mode === "expanded" && State.pendingApproval && (State.view === "approval" || State.view === "ask")) this.foldCard();
       else if (e.key === "Escape" && State.mode === "expanded" && State.view === "rewrite") this.closeRewrite();
       else if (e.key === "Escape" && State.mode === "expanded" && State.view === "remember") this.closeRemember();
+      else if (e.key === "Escape" && State.mode === "expanded" && State.view === "talk") this.cancelTalk();
+      else if (e.key === "Escape" && this.stopSpeaking()) return;
       else if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned && !State.pendingApproval) this.collapse();
       else this.onIslandKey(e);
       State.lastActivity = performance.now();

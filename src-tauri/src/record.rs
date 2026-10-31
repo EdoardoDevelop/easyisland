@@ -37,8 +37,8 @@ use crate::i18n::{t, tf};
 use crate::integrations::{self, IntegrationUpdate};
 
 pub const ID: &str = "integration_recorder";
-const RATE: u32 = 48_000;
-const CHANNELS: u32 = 2;
+pub(crate) const RATE: u32 = 48_000;
+pub(crate) const CHANNELS: u32 = 2;
 const MAX_LEN: Duration = Duration::from_secs(4 * 3600);
 const MAX_WIDTH: i32 = 1920;
 
@@ -188,11 +188,12 @@ fn finish(app: &AppHandle, path: &std::path::Path, result: Result<Duration, Stri
 
 // ── Sound ────────────────────────────────────────────────────────────────────
 
-struct Source {
-    client: IAudioClient,
+/// A microphone or the speakers in loopback (also «Parla», talk.rs).
+pub(crate) struct Source {
+    pub(crate) client: IAudioClient,
     capture: IAudioCaptureClient,
     /// Samples (interleaved i16) waiting to be mixed.
-    queue: std::collections::VecDeque<i16>,
+    pub(crate) queue: std::collections::VecDeque<i16>,
 }
 
 fn pcm_format() -> WAVEFORMATEX {
@@ -207,7 +208,7 @@ fn pcm_format() -> WAVEFORMATEX {
     }
 }
 
-unsafe fn open_source(loopback: bool) -> Result<Source, String> {
+pub(crate) unsafe fn open_source(loopback: bool) -> Result<Source, String> {
     let enumerator: IMMDeviceEnumerator =
         CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).map_err(|e| e.to_string())?;
     let device = enumerator
@@ -228,7 +229,7 @@ unsafe fn open_source(loopback: bool) -> Result<Source, String> {
 }
 
 /// Everything the device has now, into the queue.
-unsafe fn drain(src: &mut Source) {
+pub(crate) unsafe fn drain(src: &mut Source) {
     loop {
         let Ok(n) = src.capture.GetNextPacketSize() else { return };
         if n == 0 {

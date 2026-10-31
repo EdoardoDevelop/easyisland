@@ -66,6 +66,11 @@ In **Settings → Chat and AI engines → Instructions and memory** you create a
 ## Dictation
 🎤 in the field: click to start and to finish. With a transcription service chosen in Settings → Telegram → Voice messages, it records and transcribes with it; without one, it opens Windows dictation (<kbd>Win</kbd>+<kbd>H</kbd>), local and free.
 
+## Talking to the island
+From any program press <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> and speak: the island shows it is listening and, when you pause, transcribes and sends the question to the chat. You can also finish with **End** or by pressing the shortcut again; **Cancel** (or <kbd>Esc</kbd>) throws it away. The reply shows in the chat and, with **Reply aloud** on, is also heard from the speakers; <kbd>Esc</kbd> or the shortcut stop it.
+
+The microphone turns on **only** when you press the shortcut, never by itself. It needs the voice message service (Settings → Telegram → Voice messages); the voice that replies is there with OpenAI and Google AI. The shortcut and the spoken reply are in Settings → Quick actions.
+
 ## History
 The clock at the top of the chat shows previous conversations (up to 100, only on this PC), with date, engine and search. **✎** (or a double click on the title) renames it: Enter saves, Esc cancels, an empty title goes back to the first question. 📌 keeps it on top. A click reopens one on its engine and you continue it. With API engines it resumes exactly where it was; with the subscription and opencode the conversation is passed along as text. Settings → Chat → **History** clears or turns it off (turning off the memory diary too).
 

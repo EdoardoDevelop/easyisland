@@ -1072,6 +1072,21 @@ export async function runScene(island: Island, scene: string) {
       await wait(1200);
       break;
     }
+    case "talk": {
+      // «Parla»: the microphone on while you speak; ?hearing: the words being transcribed.
+      Object.assign(Bridge, { talkToggle: async () => true, talkCancel: async () => undefined });
+      await wait(300);
+      await island.toggleTalk();
+      const q = new URLSearchParams(location.search);
+      if (State.talk) {
+        State.talk.level = 0.55;
+        State.talk.spoke = true;
+        if (q.has("hearing")) State.talk.state = "hearing";
+        State.notify();
+      }
+      await wait(1200);
+      break;
+    }
     case "news": {
       // «Notizie» on made-up news (?ask: the user keeps turning UniFi down).
       sampleNews();

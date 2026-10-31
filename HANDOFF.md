@@ -51,6 +51,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 31 ottobre 2026 — «Parla»: la voce sul PC (in `claude/sviluppo`)
+- <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> accende il microfono (WASAPI di Registra) con la card «Ti ascolto»; a una pausa trascrive con il servizio dei Vocali e manda la domanda alla chat; con «Rispondi a voce» la risposta si sente dagli altoparlanti (`talk.rs`, `src/views/talk.ts`). Test Rust, scene `talk` e `talk&hearing`; non provato con il microfono vero.
+
 ### 31 ottobre 2026 — «Prepara» un ticket Zammad (in `claude/sviluppo`)
 - Un ticket appena assegnato a me fa comparire la proposta «Ticket assegnato a te»; «Prepara» apre la chat con il ticket, la pagina del cliente in memoria e fino a 3 ticket simili (chiusi prima, con come sono finiti) e chiede riassunto e bozza di risposta (`zammad::prepare`, `moment_tickets`). Scena `moment&moment=ticket`; test Rust, non provato con Zammad vero.
 
@@ -64,14 +67,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 31 ottobre 2026 — Telegram risponde a voce ai vocali (in `claude/sviluppo`)
 - A un vocale il bot risponde per iscritto e, sotto, con un vocale (`speech.rs`, `telegram::say`); ai messaggi scritti solo testo. Interruttore «Rispondi a voce» (`telegramVoiceReply`, acceso di serie), con il servizio dei «Vocali»: OpenAI (Ogg/Opus diretto) o Google AI (PCM codificato in .m4a da Media Foundation); OpenRouter non parla. 366 test Rust (compresa la codifica .m4a vera); non provato con Telegram vero.
-
-### 31 ottobre 2026 — «Ricorda questo»: la memoria cattura al volo (in `claude/sviluppo`)
-- Poi: «Ricorda questo» nel menu sul testo e in Riquadra e chiedi (OCR); «Annota» dopo una chiamata 3CX risposta (proposta `call`); `brain_watch.rs` mette in coda ticket Zammad chiusi e mail importanti di Microsoft 365 e dopo 10 minuti un compito propone righe per le pagine e impegni come promemoria (scrive solo gli approvati, max 8 al giorno); riepilogo della settimana il venerdì alle 17. Interruttori in Impostazioni → Flussi → Secondo cervello. Non provato con 3CX, Zammad e Graph veri.
-- <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd> su un testo selezionato (o la card vuota per scrivere), «ricordati che …» nel campo in alto, `/ricorda` su Telegram: il testo con la sua provenienza va in `da-leggere` (`brain::remember`) e un compito lo mette subito nelle pagine collegate (`rememberNow`, se no la sera). Card `src/views/remember.ts`, scene `remember` e `remember&empty` nello smoke. 363 test Rust; non provato nell'app vera.
-
-### 31 ottobre 2026 — Versione 1.0.16
-- `claude/sviluppo` unito in `main` con il tag `v1.0.16`: barra fissa con isolette, aspetto ed elementi nuovi, titolo della finestra e menu del programma, logo animato, la giornata con il riassunto dell'IA, permessi per livelli con «Cosa ho fatto», ricerca ovunque. Novità in CHANGELOG, README e homepage.
-- Smoke «nessun errore», 362 + 38 test Rust. `claude/modello-integrato` resta in attesa.
-
-### 31 ottobre 2026 — Logo animato di EasyIsland (nella 1.0.16)
-- Il logo è un personaggio («EasyIsland», `logo-anim.ts`, tipo `logo`): occhi che seguono il cursore e sbattono, stati, badge, rilascio file; colori che girano mentre lavora. Saluto all'avvio di serie con il logo che si disegna da solo (`greetingFigure`), e nella barra fissa un logo diverso da quello dell'isola (`fixedBarFigure`). Anteprima in `/dev/logo-preview.html`; smoke e test, non provato nell'app vera.
