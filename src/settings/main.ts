@@ -5,7 +5,7 @@
 import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
-import { type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
+import { type DoneItem, type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
 import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type BarAct, type BarItem, type FixedBarLook, type NewsProposal, type NewsSettings } from "../core/state";
 import { BAR_KINDS, barKind } from "../core/barkinds";
 
@@ -16,6 +16,7 @@ import { language, locale, resolveLanguage, syncLanguage, t } from "../core/i18n
 import { applyUiStyle, uiStyle } from "../core/uistyle";
 import { type PicKind, liveCharacter, pictureBox, refreshPictures } from "./pictures";
 import { missing as flowMissing, triggerWords } from "../flows/catalog";
+import { REVERSIBLE_TOOLS, toolWords } from "../core/permits";
 import "./settings-windows.css";
 import "./settings-light.css";
 
@@ -4391,7 +4392,8 @@ function tasksSection(): HTMLElement {
     else if (kind.value !== "now") when = `${kind.value}:${time.value}`;
     const e = picker.value();
     try {
-      await Bridge.taskNew(title.value, goal.value, when, e.engine, e.model, e.helpers);
+      const task = await Bridge.taskNew(title.value, goal.value, when, e.engine, e.model, e.helpers);
+      if (e.may.length) await Bridge.taskSetMay(task.id, e.may);
       title.value = "";
       goal.value = "";
       await refreshTasks();
@@ -4484,7 +4486,7 @@ function taskRow(task: AgentTaskItem): HTMLElement {
   });
   buttons.append(log);
   if (task.state !== "running") {
-    const motors = h("button", { text: taskEnginesOpen === task.id ? t("Chiudi motori") : t("Motori") });
+    const motors = h("button", { text: taskEnginesOpen === task.id ? t("Chiudi") : t("Motori e permessi") });
     motors.addEventListener("click", () => {
       taskEnginesOpen = taskEnginesOpen === task.id ? "" : task.id;
       paintTasks();
@@ -4522,13 +4524,14 @@ function taskRow(task: AgentTaskItem): HTMLElement {
   }
   body.append(buttons);
   if (taskEnginesOpen === task.id && task.state !== "running") {
-    const picker = enginePicker(task.engine, task.model, task.helpers);
+    const picker = enginePicker(task.engine, task.model, task.helpers, task.may ?? []);
     const feedback = h("div", {});
-    const save = h("button", { class: "primary", text: t("Salva i motori") }) as HTMLButtonElement;
+    const save = h("button", { class: "primary", text: t("Salva") }) as HTMLButtonElement;
     save.addEventListener("click", async () => {
       const e = picker.value();
       try {
         await Bridge.taskSetEngines(task.id, e.engine, e.model, e.helpers);
+        await Bridge.taskSetMay(task.id, e.may);
         taskEnginesOpen = "";
         await refreshTasks();
       } catch (err) {
@@ -4596,7 +4599,7 @@ function engineName(id: string): string {
  * A task's engines: the one that leads it (and its model), and the helpers it
  * may hand a piece of work to (task_delegate in tasks.rs).
  */
-function enginePicker(engine: string, model: string, helpers: string[]): { el: HTMLElement; value(): { engine: string; model: string; helpers: string[] } } {
+function enginePicker(engine: string, model: string, helpers: string[], may: string[] = []): { el: HTMLElement; value(): { engine: string; model: string; helpers: string[]; may: string[] } } {
   const ready = (id: string) => !readyEngines || readyEngines.has(id);
   const main = h("select", {}) as HTMLSelectElement;
   main.append(h("option", { value: "", text: t("Quello dei compiti (qui sotto)") }));
@@ -4620,17 +4623,117 @@ function enginePicker(engine: string, model: string, helpers: string[]): { el: H
     });
     chips.append(b);
   }
+  // What it may do without asking: only the reversible tools (permits.rs).
+  const allowed = new Set(may);
+  const mayChips = h("div", { class: "chip-opts" });
+  for (const tool of REVERSIBLE_TOOLS) {
+    const b = h("button", { class: allowed.has(tool) ? "chip-opt on" : "chip-opt", text: toolWords(tool) }) as HTMLButtonElement;
+    b.addEventListener("click", () => {
+      if (allowed.has(tool)) allowed.delete(tool);
+      else allowed.add(tool);
+      b.classList.toggle("on", allowed.has(tool));
+    });
+    mayChips.append(b);
+  }
   const el = h("div", { class: "engine-picker" },
     h("div", { class: "row" }, h("label", { text: t("Motore") }), main, modelField),
     h("div", { class: "row" }, h("label", { text: t("Motori aiutanti") }), chips),
-    h("span", { class: "hint", text: t("Il motore guida il compito; agli aiutanti può affidare un pezzo del lavoro (una ricerca, una revisione, un testo), ognuno con i suoi punti di forza.") }));
-  return { el, value: () => ({ engine: main.value, model: main.value ? modelField.value.trim() : "", helpers: [...chosen] }) };
+    h("span", { class: "hint", text: t("Il motore guida il compito; agli aiutanti può affidare un pezzo del lavoro (una ricerca, una revisione, un testo), ognuno con i suoi punti di forza.") }),
+    h("div", { class: "row" }, h("label", { text: t("Senza chiedere") }), mayChips),
+    h("span", { class: "hint", text: t("Cosa può fare da solo, anche di notte: solo cose che si annullano, ognuna in «Cosa ho fatto» (Impostazioni → Chat). Inviare, eliminare, aprire ed eseguire chiedono sempre.") }));
+  return { el, value: () => ({ engine: main.value, model: main.value ? modelField.value.trim() : "", helpers: [...chosen], may: [...allowed] }) };
+}
+
+let repaintDone: (() => void) | null = null;
+let doneListening = false;
+
+/**
+ * Impostazioni → Chat → Permessi degli strumenti (permits.rs, docs/chat.md):
+ * the reversible tools allowed for good with «Sempre» on a card, taken away
+ * here, and «Cosa ho fatto» with Annulla.
+ */
+function permitsSection(): HTMLElement {
+  const allowedList = h("div", {});
+  const paintAllowed = () => {
+    const on = (settings.toolsAllowed ?? []).filter((x) => REVERSIBLE_TOOLS.includes(x));
+    clear(allowedList);
+    if (!on.length) {
+      allowedList.append(h("div", { class: "hint note", text: t("Nessuno: ogni azione che cambia qualcosa chiede Consenti / Nega. Sulla card di quelle che si possono annullare c'è «Sempre».") }));
+      return;
+    }
+    for (const tool of on) {
+      const off = h("button", { class: "icon", text: "✕", title: t("Torna a chiedere") }) as HTMLButtonElement;
+      off.addEventListener("click", async () => {
+        off.disabled = true;
+        await Bridge.toolsAllow(tool, false).catch(() => {});
+      });
+      allowedList.append(h("div", { class: "row" }, h("span", { style: "flex:1 1 auto", text: toolWords(tool) }), off));
+    }
+  };
+  paintAllowed();
+
+  const doneList = h("div", { class: "did-list" });
+  const SHOWN = 30;
+  const paintDone = async () => {
+    const items: DoneItem[] = (await Bridge.didList()) ?? [];
+    clear(doneList);
+    if (!items.length) {
+      doneList.append(h("div", { class: "hint note", text: t("Ancora niente.") }));
+      return;
+    }
+    for (const d of items.slice(0, SHOWN)) {
+      const when = new Date(d.at).toLocaleString(locale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+      const who = d.task ? t("compito «{title}»", { title: d.task }) : t("chat");
+      const head = [when, who, d.alone ? t("senza chiedere") : ""].filter(Boolean).join(" · ");
+      const right = d.undone
+        ? h("span", { class: "hint", text: t("Annullato") })
+        : d.undo
+          ? (() => {
+            const b = h("button", { text: t("Annulla") }) as HTMLButtonElement;
+            b.addEventListener("click", async () => {
+              b.disabled = true;
+              try {
+                await Bridge.didUndo(d.id);
+              } catch (e) {
+                b.disabled = false;
+                b.title = String(e).replace(/^Error:\s*/, "");
+                b.textContent = t("Non riuscito");
+              }
+            });
+            return b;
+          })()
+          : null;
+      doneList.append(h("div", { class: "row did" },
+        h("div", { style: "flex:1 1 auto;min-width:0" },
+          h("div", {}, h("b", { text: toolWords(d.tool) }), h("span", { class: "hint", text: ` · ${head}` })),
+          h("div", { class: "hint note", text: d.what })),
+        right));
+    }
+  };
+  void paintDone();
+  // One listener for the window; it repaints the section on screen now. A
+  // change to toolsAllowed redraws the page by itself (settings-changed).
+  repaintDone = () => void paintDone();
+  if (!doneListening) {
+    doneListening = true;
+    void onEvent<null>("did-changed", () => repaintDone?.());
+  }
+
+  return h("section", {},
+    h("h2", {}, h("span", { text: t("Permessi degli strumenti") })),
+    h("span", { class: "hint", text: t("Leggere è sempre libero. Le azioni che si possono annullare (righe di Notion, attività di To Do, file del Vassoio) chiedono finché non scegli «Sempre» sulla loro card. Inviare, eliminare, aprire, eseguire e cambiare le impostazioni chiedono ogni volta.") }),
+    h("div", { class: "row" }, h("label", { text: t("Senza chiedere") }), allowedList),
+    h("h2", {}, h("span", { text: t("Cosa ho fatto") })),
+    h("span", { class: "hint", text: t("Le azioni degli strumenti di EasyIsland che hanno cambiato qualcosa, dalla chat, da Telegram e dai compiti; le ultime {n}.", { n: SHOWN }) }),
+    doneList);
 }
 
 /** "Claude (abbonamento) · aiutanti: opencode, Gemini". */
 function enginesLine(task: AgentTaskItem): string {
   const main = task.engine ? `${engineName(task.engine)}${task.model ? ` (${task.model})` : ""}` : t("motore dei compiti");
-  return task.helpers.length ? `${main} · ${t("aiutanti: {list}", { list: task.helpers.map(engineName).join(", ") })}` : main;
+  const helpers = task.helpers.length ? ` · ${t("aiutanti: {list}", { list: task.helpers.map(engineName).join(", ") })}` : "";
+  const may = task.may?.length ? ` · ${t("senza chiedere: {list}", { list: task.may.map(toolWords).join(", ") })}` : "";
+  return `${main}${helpers}${may}`;
 }
 
 // ── Integrazioni personali (custom.rs) ────────────────────────────────────────
@@ -5320,7 +5423,7 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     {
       id: "chat", label: t("Chat e motori AI"), icon: "chat", color: "#A78BFA", title: t("Chat dell'isola e motori AI"),
       intro: t("Il motore che risponde quando scrivi nell'isola o al bot di Telegram, cosa può fare sul PC, la cartella di lavoro e le conversazioni salvate."),
-      sections: () => [claudeChatSection(b.hasKey)],
+      sections: () => [claudeChatSection(b.hasKey), permitsSection()],
     },
     {
       id: "claude", label: t("Agenti di codice"), icon: "terminal", color: "#E07A5F", title: t("Agenti di codice nel terminale"),

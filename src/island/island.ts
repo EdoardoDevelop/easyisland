@@ -313,6 +313,12 @@ export class Island {
         void Bridge.log(`decide ${d} req=${req?.requestId ?? "none"}`);
         if (!req) return;
         Sound.play(d === "deny" ? "blip" : "approve");
+        // "Sempre" on EasyIsland's reversible tool: allowed for good here, a plain
+        // allow for the engine (no rule of Claude Code's of its own, permits.rs).
+        if (d === "always" && req.permit) {
+          void Bridge.toolsAllow(req.permit, true).catch((e) => this.note(String(e).replace(/^Error:\s*/, "")));
+          d = "allow";
+        }
         void Bridge.approvalDecision(req.requestId, d);
         this.settleApproval(req);
       },

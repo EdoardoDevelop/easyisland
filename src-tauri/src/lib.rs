@@ -72,6 +72,7 @@ mod hook_testrun;
 #[path = "../../hook/src/agents.rs"]
 mod hook_agents;
 mod outlook;
+mod permits;
 mod pipe;
 mod presence;
 mod probes;
@@ -3270,6 +3271,35 @@ fn task_set_engines(app: AppHandle, id: String, engine: String, model: String, h
     tasks::set_engines(&app, &id, &engine, &model, &helpers)
 }
 
+/// What a task may do without asking (permits.rs).
+#[tauri::command]
+fn task_set_may(app: AppHandle, id: String, may: Vec<String>) -> Result<(), String> {
+    tasks::set_may(&app, &id, &may)
+}
+
+/// «Consenti sempre» on a card, or taken away in Impostazioni → Chat.
+#[tauri::command]
+fn tools_allow(app: AppHandle, tool: String, on: bool) -> Result<(), String> {
+    permits::allow(&app, &tool, on)
+}
+
+/// The reversible tools (hook/src/tool_list.rs), for the settings and the cards.
+#[tauri::command]
+fn tools_reversible() -> Vec<&'static str> {
+    claude::tool_list::REVERSIBLE.to_vec()
+}
+
+/// «Cosa ho fatto», the newest first.
+#[tauri::command]
+fn did_list() -> Vec<permits::Done> {
+    permits::list()
+}
+
+#[tauri::command]
+async fn did_undo(app: AppHandle, id: String) -> Result<(), String> {
+    permits::undo(&app, &id).await
+}
+
 /// Impostazioni → Flussi → Battito: every `minutes` (0 = off).
 #[tauri::command]
 fn heartbeat_set(app: AppHandle, minutes: u32) -> Result<(), String> {
@@ -3375,6 +3405,11 @@ pub fn run() {
             task_answer,
             task_log,
             task_set_engines,
+            task_set_may,
+            tools_allow,
+            tools_reversible,
+            did_list,
+            did_undo,
             heartbeat_set,
             heartbeat_open,
             digest_set,

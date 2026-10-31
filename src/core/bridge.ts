@@ -99,6 +99,22 @@ export interface ModelOption {
   cost?: string;
 }
 
+/** A tool of EasyIsland that changed something (permits.rs «Cosa ho fatto»). */
+export interface DoneItem {
+  id: string;
+  /** Milliseconds since 1970. */
+  at: number;
+  tool: string;
+  what: string;
+  /** "" = the chat; else the task's title. */
+  task: string;
+  /** Ran without a click. */
+  alone: boolean;
+  /** Present when it can be taken back. */
+  undo?: { kind: string };
+  undone: boolean;
+}
+
 export const Bridge = {
   boot: () => call<BootInfo>("boot"),
 
@@ -427,6 +443,13 @@ export const Bridge = {
   /** The evening digest of the memory (tasks.rs). */
   digestSet: (on: boolean) => callOrThrow<void>("digest_set", { on }),
   taskSetEngines: (id: string, engine: string, model: string, helpers: string[]) => callOrThrow<void>("task_set_engines", { id, engine, model, helpers }),
+  /** What a task may do without asking (permits.rs). */
+  taskSetMay: (id: string, may: string[]) => callOrThrow<void>("task_set_may", { id, may }),
+  /** «Consenti sempre» for a reversible tool, or taken away. */
+  toolsAllow: (tool: string, on: boolean) => callOrThrow<void>("tools_allow", { tool, on }),
+  /** «Cosa ho fatto», the newest first. */
+  didList: () => call<DoneItem[]>("did_list"),
+  didUndo: (id: string) => callOrThrow<void>("did_undo", { id }),
   /** The chat's engines: [id, name, ready now]. */
   enginesReady: () => call<[string, string, boolean][]>("engines_ready"),
   /** Integrazioni personali (custom.rs). */

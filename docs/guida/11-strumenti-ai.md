@@ -23,7 +23,11 @@ Con **Impostazioni → Chat → Può usare il PC** acceso (predefinito), i motor
 | Compiti e abilità | Creare compiti, elencarli; leggere e salvare abilità | Salvare un'abilità sì |
 | Integrazioni personali | Crearle, modificarle, leggere schede e fonti, aggiungere schede, chiamare le loro azioni | Creare, scrivere e chiamare sì |
 
-Tutto ciò che apre, esegue o cambia qualcosa chiede **Consenti / Nega** nell'isola, con una descrizione chiara. Le regole che non cambiano mai:
+Tutto ciò che apre, esegue o cambia qualcosa chiede **Consenti / Nega** nell'isola, con una descrizione chiara.
+
+**Permessi per livelli.** Leggere è sempre libero. Le azioni che si possono annullare (aggiungere o cambiare righe di Notion e attività di To Do, mettere file nel Vassoio, spostarli nella cartella di lavoro) hanno anche **Sempre** sulla card: da lì in poi la chat le fa senza chiedere, finché non le togli in **Impostazioni → Chat → Permessi degli strumenti**. Lì c'è anche **Cosa ho fatto**: ogni azione che ha cambiato qualcosa, dalla chat, da Telegram o da un compito, con **Annulla** per quelle che si possono annullare. Inviare, eliminare, aprire, eseguire e cambiare le impostazioni chiedono ogni volta.
+
+Le regole che non cambiano mai:
 - nessuno strumento esegue **comandi qualsiasi su questo PC** (per quello c'è la modalità terminale, con un permesso per ogni comando);
 - nessuno strumento **invia email**;
 - nessuno strumento **elimina**, tranne una riga di Notion nel cestino dopo il tuo sì in chat.

@@ -50,7 +50,7 @@ fn inside_task(name: &str) -> bool {
 }
 
 /// Names of the tools that change nothing (or nothing that matters). The app
-/// pre-allows the same list (claude_cli.rs `AGENT_READ_ONLY`); the rest wait
+/// pre-allows the same list (claude_cli.rs `agent_read_only`); the rest wait
 /// for Consenti / Nega in the island.
 #[cfg(test)]
 fn read_only_tools() -> Vec<&'static str> {

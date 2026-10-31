@@ -1036,6 +1036,10 @@ pub async fn tell(app: &AppHandle, text: &str) {
 }
 
 pub async fn request_decision(app: &AppHandle, payload: Value) -> Option<String> {
+    // A reversible tool allowed for good: no buttons (permits.rs).
+    if crate::permits::allowed_now(app, &payload) {
+        return Some("allow".into());
+    }
     decide(app, payload, true).await
 }
 
@@ -1124,9 +1128,9 @@ fn asks_anyway(payload: &Value) -> bool {
     if let Some(cmd) = payload.pointer("/tool_input/command").and_then(Value::as_str) {
         return deletes(cmd);
     }
-    // A connector's tool: "mcp__server__tool" (Claude Code) or "server_tool" (opencode).
-    const WORDS: &[&str] = &["delete", "remove", "trash", "destroy", "drop", "purge", "erase", "unlink", "rmdir", "rm", "del", "wipe"];
-    lower.split(|c: char| !c.is_ascii_alphanumeric()).any(|w| WORDS.contains(&w))
+    // A connector's tool, EasyIsland's own included: the same list as the
+    // chat's ⚡ with opencode (permits.rs).
+    crate::permits::delicate_tool(tool)
 }
 
 /// A command that deletes files, folders, data or history, or that runs code

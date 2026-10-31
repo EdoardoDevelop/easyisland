@@ -364,6 +364,8 @@ export interface ApprovalInfo {
    * permission_suggestions); absent when it proposed nothing usable.
    */
   always?: string;
+  /** EasyIsland's reversible tool on the card: "Sempre" allows it for good (permits.rs). */
+  permit?: string;
   /** What deserves a second look before allowing it (src/island/risk.ts). */
   risks?: string[];
   /** ExitPlanMode: the plan to approve, in markdown. */
@@ -679,6 +681,8 @@ export interface Settings {
   contextActions: boolean;
   /** The chat (Claude Code engine) may use EasyIsland's tools: open programs, quick actions… */
   agentTools: boolean;
+  /** Reversible tools allowed for good with «Consenti sempre» (permits.rs). */
+  toolsAllowed?: string[];
   /** "Modalità terminale" (docs/chat.md): the chat works as Claude Code / opencode in a terminal, in chatFolder. */
   chatTerminal?: boolean;
   /** Its working folder; "" = the user's home. */
@@ -1691,6 +1695,8 @@ export interface AgentTaskItem {
   model: string;
   /** Engines it may hand a piece of work to (task_delegate). */
   helpers: string[];
+  /** Reversible tools it may use without asking (permits.rs). */
+  may?: string[];
   state: TaskState;
   plan: { text: string; done: boolean }[];
   /** "" = now; "at:AAAA-MM-GG HH:MM"; "daily:HH:MM"; "weekdays:HH:MM". */

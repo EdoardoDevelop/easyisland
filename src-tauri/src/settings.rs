@@ -775,6 +775,11 @@ pub struct Settings {
     /// The chat (Claude Code engine) may use EasyIsland's own tools (agent.rs).
     #[serde(default = "default_true")]
     pub agent_tools: bool,
+    /// EasyIsland's tools the user allowed for good with «Consenti sempre»
+    /// (permits.rs): only the reversible ones of hook/src/tool_list.rs, never
+    /// through set_setting (agent_settings.rs lists what an agent may change).
+    #[serde(default)]
+    pub tools_allowed: Vec<String>,
     /// "Modalità terminale" (chat.md): the chat works as Claude Code or opencode
     /// in a terminal, every tool and the user's MCP servers, in `chat_folder`;
     /// commands and changes still wait for Consenti / Nega.
@@ -1048,6 +1053,7 @@ impl Default for Settings {
             hotkey_collect: default_hotkey_collect(),
             context_actions: true,
             agent_tools: true,
+            tools_allowed: Vec::new(),
             chat_terminal: false,
             chat_folder: String::new(),
             chat_preview: true,

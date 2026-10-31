@@ -2,6 +2,13 @@
 
 Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli una voce quando è provata, e annota in `HANDOFF.md` ciò che non va.
 
+- [ ] **Permessi per livelli (31 ottobre 2026):** con l'app vera e Notion / Outlook classico:
+  1. in chat «aggiungi a To Do: chiamare Rossi»: card leggibile con «Sempre»; scelto «Sempre», la volta dopo nessuna card, e la voce in Impostazioni → Chat → Permessi degli strumenti (✕ la toglie);
+  2. «Cosa ho fatto»: la voce con «senza chiedere», poi Annulla (l'attività sparisce da To Do, va in Posta eliminata);
+  3. Notion: una riga aggiunta e annullata (nel cestino), una riga cambiata e annullata (valori di prima, anche select e date);
+  4. Vassoio e cartella di lavoro: un file spostato e annullato torna nel Vassoio, una copia annullata va nel Cestino;
+  5. un compito con «Senza chiedere: Aggiungere attività a To Do» che lo fa di notte senza card, e un altro senza che chiede;
+  6. Telegram: un reversibile consentito passa senza pulsanti, `notion_delete_row` chiede anche con «Automatica».
 - Motore per la memoria: scegliere un motore gratuito (OpenRouter) e uno locale (Ollama), «Collega con l'IA» nella mappa, controllare le pagine-argomento create e che nessuna nota sia cambiata; che scriva `riassunto:` e `alias:` sensati e che la chat trovi una pagina dal suo alias.
 - [ ] **Integrazioni personali (23 ottobre 2026):** provati nell'anteprima modulo, righe, calcoli e modello compilato. Restano con l'app vera:
   1. in chat «crea un'integrazione per i preventivi…»: la card di Consenti con la descrizione, poi la voce nel menu;
