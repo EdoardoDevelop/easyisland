@@ -53,7 +53,9 @@ pub fn watch(on: bool) {
 
 /// On the hook thread: a new window in front (context.rs), or the watch turned on.
 pub fn follow(hwnd: HWND) {
-    if !WATCH.load(Ordering::SeqCst) || hwnd.0.is_null() {
+    // The desktop and the taskbar take the focus when the island closes: the
+    // window shown stays the last one the user worked in.
+    if !WATCH.load(Ordering::SeqCst) || hwnd.0.is_null() || crate::island::is_shell(hwnd) {
         return;
     }
     FOLLOWED.store(hwnd.0 as isize, Ordering::SeqCst);
@@ -145,7 +147,10 @@ fn describe(hwnd: HWND) -> Value {
         if let Some(v) = map.get(&path) {
             v.clone()
         } else {
-            let name = crate::window_drop::file_description(&path).unwrap_or_else(|| {
+            // explorer.exe describes itself as the old «Esplora risorse»: its windows are folders.
+            let folders = path.to_lowercase().ends_with("\\windows\\explorer.exe");
+            let name = if folders { Some(crate::i18n::t("Esplora file").to_string()) } else { crate::window_drop::file_description(&path) };
+            let name = name.unwrap_or_else(|| {
                 let file = path.rsplit('\\').next().unwrap_or(&path);
                 file.get(..file.len().saturating_sub(4)).filter(|_| file.to_lowercase().ends_with(".exe")).unwrap_or(file).to_string()
             });

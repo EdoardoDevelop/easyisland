@@ -714,8 +714,9 @@ fn step_aside_for(app: &AppHandle, gate: &PollGate, fg: HWND) {
     }
 }
 
-/// Taskbar, Start, search, notification area, desktop: never a reason to step back.
-fn is_shell(hwnd: HWND) -> bool {
+/// Taskbar, Start, search, notification area, desktop, task switcher: never a reason to
+/// step back, nor the window in front for the fixed bar's title (fgwin.rs).
+pub(crate) fn is_shell(hwnd: HWND) -> bool {
     use windows::Win32::UI::WindowsAndMessaging::GetClassNameW;
     let mut buf = [0u16; 128];
     let n = unsafe { GetClassNameW(hwnd, &mut buf) };
@@ -724,6 +725,7 @@ fn is_shell(hwnd: HWND) -> bool {
         class.as_str(),
         "Shell_TrayWnd" | "Shell_SecondaryTrayWnd" | "Windows.UI.Core.CoreWindow" | "Progman" | "WorkerW"
             | "NotifyIconOverflowWindow" | "TopLevelWindowForOverflowXamlIsland" | "XamlExplorerHostIslandWindow"
+            | "MultitaskingViewFrame" | "ForegroundStaging" | "TaskListThumbnailWnd"
     )
 }
 
