@@ -2,6 +2,21 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.16** — A livelier **fixed bar**: the character grows under the mouse and the bar swells around
+it; a click on an element opens its card in a **small island below it**, as tall as its content, closed
+by a click outside; a light shadow under the bar; right click on the bar for EasyIsland's menu with
+«Customize the bar…». **Bar appearance** of your choice (band or islets, opacity, blur, margins, text,
+auto-hide) and new elements: processor, memory, disk, graphics card with a graph, language, recycle bin,
+updates, music, weather, VS Code projects and the **window title** with the program's name and icon. A
+click on the title opens the **menu of the program** in front: its entries with their shortcuts (all of
+them, submenus included, for classic programs), the window menu with Chrome's and Edge's entries and your
+quick actions for that program. **Animated EasyIsland logo**: it draws itself in the greeting at start
+and can sit in the island and the bar instead of the character. **Today and tomorrow**: an AI summary in
+the morning and end-of-day recaps, on Telegram at the chosen time, in the top field and as a quick action.
+**Permission levels**: «Always» for actions that can be undone, from Telegram too, and **What I did**
+with Undo. The top field **searches everywhere**: memory, past conversations and Zammad tickets. News
+from Google and Bing together, without duplicates.
+
 **1.0.15** — **Chat attachments**: they sit inside the field, above the text, and there can be more
 than one (up to 20), **whole folders** too: 📎 next to the microphone or `@file` and `@cartella` open
 Windows' multi-select dialog, Ctrl+V takes every copied file and folder and a drop on the island

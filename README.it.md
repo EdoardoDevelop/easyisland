@@ -76,10 +76,10 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Ultime versioni
 
+- **1.0.16** — **Barra fissa** con piccole isole sotto gli elementi, aspetto a scelta, elementi nuovi e **menu del programma** dal titolo della finestra; **logo animato**; **la giornata** riassunta dall'IA; **permessi per livelli** con «Cosa ho fatto»; ricerca ovunque nel campo in alto.
 - **1.0.15** — **Allegati della chat** nel campo, più d'uno e cartelle intere; **Notizie** in una scheda tutta loro con gli argomenti scelti da soli, Google o Bing News, miniature e schede.
 - **1.0.14** — **Notizie** sugli argomenti della tua memoria da Google News, con «Di più» e «Non mi interessa», nell'isola, nella Panoramica, nel Buongiorno, su Telegram e nella barra fissa.
 - **1.0.13** — **Widget della barra**: orologio, volume, microfono, luminosità, batteria, rete e menu di spegnimento nella barra fissa, con le opzioni per ogni elemento e le loro card nell'isola.
-- **1.0.12** — La **barra fissa** torna al suo posto da sola dopo aver spento e riacceso il monitor, averlo cambiato o aver cambiato risoluzione.
 
 Tutte le versioni, con i dettagli: [CHANGELOG.md](CHANGELOG.md).
 
