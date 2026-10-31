@@ -83,6 +83,8 @@ Nel browser, `hooksInstalled` parte da `true`, così la card di Claude Code è v
 
 ### Barra fissa
 
+Nel browser la fascia non si disegna: la disegna la finestra del personaggio solo dentro Tauri (`characterMode` in `island.ts`). `fixedBar=top|bottom` sposta soltanto l'isola contro il bordo, nella posizione indicata da `fixedBarSlot`; le card degli elementi di sistema si vedono con `?scene=barcard`.
+
 | Chiave | Valori | Di serie |
 |---|---|---|
 | `fixedBar` | `""`, `top`, `bottom` | `""` |
@@ -226,6 +228,8 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `compiti` | i Compiti | `ask` |
 | `moment` | una proposta al momento giusto | `moment=download\|recording\|…` |
 | `daily` | Buongiorno / Fine giornata | `evening`, `news`, `ai` (con il riassunto dell'IA), `ai=ask` (con «Chiedi il riassunto all'IA») |
+| `search` | il campo in alto con risultati di memoria, conversazioni e Zammad inventati | `q=<testo>` (di serie `rossi`) |
+| `done` | «Cosa ho fatto» su un registro inventato | `alone`: la card di un'azione fatta senza chiedere, con Annulla |
 | `news` | le notizie | `ask`, `look=thumbs\|cards`, `many` |
 | `barcard` | le card della barra fissa | `card=clock\|volume\|mic\|brightness\|battery\|net` |
 | `recap` | il riepilogo settimanale | — |

@@ -25,7 +25,7 @@ With **Settings → Chat → Can use the PC** on (default), engines with tools (
 
 Anything that opens, runs or changes something asks **Allow / Deny** in the island, with a clear description.
 
-**Permission levels.** Reading is always free. Actions that can be undone (adding or changing Notion rows and To Do tasks, putting files in the Tray, moving them to the work folder) also have **Always** on the card: from then on the chat does them without asking, until you take them away in **Settings → Chat → Tool permissions**. There you also find **What I did**: every action that changed something, from the chat, Telegram or a task, with **Undo** for those that can be undone. Sending, deleting, opening, running and changing settings ask every time.
+**Permission levels.** Reading is always free. Actions that can be undone (adding or changing Notion rows and To Do tasks, putting files in the Tray, moving them to the work folder) also have **Always** on the card: from then on the chat does them without asking, until you take them away in **Settings → Chat → Tool permissions**. «Always» is in Telegram's buttons too. **What I did** lists every action that changed something, from the chat, Telegram or a task, with **Undo** for those that can be undone: it is in Settings → Chat and in the island (type «what I did» in the field at the top). When an action goes through without asking, the island tells you, with **Undo** one click away. Sending, deleting, opening, running and changing settings ask every time.
 
 Rules that never change:
 - no tool runs **arbitrary commands on this PC** (that's what terminal mode is for, with a permission for each command);

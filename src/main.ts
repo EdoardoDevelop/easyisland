@@ -4,7 +4,7 @@ import "./style.css";
 import "./style-windows.css";
 import "./style-light.css";
 import "./character/roster";
-import { Bridge, IS_TAURI, onEvent, type UpdateInfo } from "./core/bridge";
+import { Bridge, IS_TAURI, onEvent, type DoneItem, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
 import { State, barEdge, barThickness, type BarSys, type Custom, type NewsItem, type Settings } from "./core/state";
 import { forgetRecords, receiveSource } from "./views/custom";
@@ -14,7 +14,9 @@ import { registerHookHandlers } from "./island/hooks";
 import { Recap } from "./island/recap";
 import { Daily } from "./island/daily";
 import { registerMoments } from "./island/moments";
-import { syncLanguage } from "./core/i18n";
+import { syncLanguage, t } from "./core/i18n";
+import { toolWords } from "./core/permits";
+import { refreshDone } from "./views/done";
 import { registerIntegrationHandlers, refreshConfigured } from "./island/integrations";
 import { linkChannel, type CharacterToIsland, type IslandToCharacter } from "./core/link";
 import { barClockDelay, barPieces, barSysKinds, recordBarSys } from "./island/bar";
@@ -144,6 +146,19 @@ async function main() {
 
   await onEvent<boolean>("fullscreen", (on) => island.setFullscreen(on));
   // «Notizie» (news.rs): the news kept, then each check's.
+  // «Cosa ho fatto» (permits.rs): the island's list follows, and something
+  // done without a click says so, with Annulla.
+  await onEvent<null>("did-changed", () => void refreshDone());
+  await onEvent<DoneItem>("did-alone", (d) => {
+    if (!d) return;
+    island.showNotice({
+      title: d.task ? t("Fatto senza chiedere, dal compito «{title}»", { title: d.task }) : t("Fatto senza chiedere"),
+      text: d.what || toolWords(d.tool),
+      level: "ok",
+      url: "",
+      did: d.id,
+    });
+  });
   await onEvent<NewsItem[]>("news", (items) => {
     State.news = items ?? [];
     State.notify();

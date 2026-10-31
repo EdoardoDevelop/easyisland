@@ -1010,6 +1010,53 @@ export async function runScene(island: Island, scene: string) {
       }
       await wait(1500);
       break;
+    case "search": {
+      // The field at the top with ?q=… typed (rossi by default): memory, past chats and Zammad made up.
+      Object.assign(Bridge, {
+        memoryFind: async () => [{ id: "p:rossi-srl", title: "Rossi Srl", gist: "Cliente dal 2019: 12 PC, server Synology, UniFi in sede." }],
+        chatHistorySearch: async () => [{ id: "c1", title: "Backup del NAS di Rossi", engine: "subscription", updated: Date.now() - 86_400_000, turns: 6 }],
+        zammadSearch: async () => [
+          { title: "#10342 Stampante dell'ufficio ferma — Rossi Srl", url: "https://help.example.com/#ticket/zoom/342" },
+          { title: "#10298 VPN che cade la sera — Rossi Srl", url: "https://help.example.com/#ticket/zoom/298" },
+        ],
+      });
+      State.settings.activeIntegrations = [...State.settings.activeIntegrations, "integration_zammad"];
+      await wait(300);
+      island.setView("overview");
+      island.setPinned(true);
+      await wait(400);
+      const field = document.querySelector<HTMLInputElement>(".search-input");
+      if (field) {
+        field.value = new URLSearchParams(location.search).get("q") ?? "rossi";
+        field.dispatchEvent(new Event("input"));
+      }
+      // The memory, the chats and Zammad are asked 400 ms after the last key.
+      await wait(1200);
+      break;
+    }
+    case "done": {
+      // «Cosa ho fatto» on a made-up log; ?alone: the card of something done without a click.
+      const now = Date.now();
+      const log = [
+        { id: "a", at: now - 4 * 60_000, tool: "todo_add", what: "Aggiunta «Richiamare Rossi per il preventivo» a Attività, scadenza domani.", task: "", alone: true, undo: { kind: "todoRemove" }, undone: false },
+        { id: "b", at: now - 50 * 60_000, tool: "notion_update_row", what: "Riga «Server Bianchi» aggiornata: Stato → Fatto.", task: "Controllo dei server", alone: true, undo: { kind: "notionRestore" }, undone: false },
+        { id: "c", at: now - 3 * 3600_000, tool: "notion_add_row", what: "Riga «Ticket 4512 — stampante» aggiunta a Interventi.", task: "", alone: false, undo: { kind: "notionTrash" }, undone: true },
+        { id: "d", at: now - 26 * 3600_000, tool: "run_quick_action", what: "Azione «Apri gestionale» eseguita.", task: "", alone: false, undone: false },
+      ];
+      Object.assign(Bridge, {
+        didList: async () => log,
+        didUndo: async (id: string) => { const d = log.find((x) => x.id === id); if (d) d.undone = true; },
+      });
+      await wait(300);
+      if (new URLSearchParams(location.search).has("alone")) {
+        island.showNotice({ title: "Fatto senza chiedere", text: log[0].what, level: "ok", url: "", did: "a" });
+      } else {
+        island.setView("done");
+        island.setPinned(true);
+      }
+      await wait(1200);
+      break;
+    }
     case "news": {
       // «Notizie» on made-up news (?ask: the user keeps turning UniFi down).
       sampleNews();

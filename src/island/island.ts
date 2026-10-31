@@ -30,7 +30,7 @@ import { rdmLookFor } from "../views/rdm";
 import { buildRail, railBotSize } from "../views/rail";
 import { appBarItem, buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
 import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
-import { sendToChat, windowLabel } from "../views/chat";
+import { reopenChat, sendToChat, windowLabel } from "../views/chat";
 import { capturing, startCapture } from "./capture";
 import { addToCollection } from "../views/collect";
 import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state";
@@ -431,6 +431,11 @@ export class Island {
       askDay: (tomorrow) => {
         Sound.play("blip");
         void Bridge.chatDayPrompt(tomorrow).then((p) => { if (p) this.startChat(p, null, false); });
+      },
+      showDone: () => this.setView("done"),
+      reopenChat: (id) => {
+        this.setView("prompt");
+        window.setTimeout(() => reopenChat(id), 60);
       },
     });
     // The one field sits in the top bar; its results cover the views.

@@ -18,6 +18,7 @@ import { buildMoment, type MomentActions } from "./moment";
 import { buildDaily } from "./daily";
 import { buildBarCard } from "./barcard";
 import { buildNews, unreadNews } from "./news";
+import { buildDone, undoDone } from "./done";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, type ActionHandlers } from "./actions";
 import { buildRewrite, type RewriteHandlers } from "./rewrite";
@@ -1040,6 +1041,26 @@ function buildNotify(actions: ViewActions): ViewHost {
           btn(t("Non ora"), "secondary", () => actions.answerSuggestion(fp, "snooze")),
           btn(t("No, mai"), "secondary", () => actions.answerSuggestion(fp, "dismiss")),
         );
+      } else if (n.did) {
+        // Done without a click (permits.rs): Annulla here, the whole list a click away.
+        const id = n.did;
+        const undo = btn(t("Annulla"), "secondary", async () => {
+          undo.disabled = true;
+          const err = await undoDone(id);
+          if (err) {
+            undo.disabled = false;
+            text.textContent = err;
+          } else {
+            title.textContent = t("Annullato");
+            text.textContent = "";
+            undo.remove();
+          }
+        }) as HTMLButtonElement;
+        row.append(
+          btn("OK", "primary", () => actions.collapse()),
+          undo,
+          btn(t("Cosa ho fatto"), "secondary", () => actions.setView("done")),
+        );
       } else if (n.install) {
         // A new version: installed only with this click.
         row.append(
@@ -1101,6 +1122,7 @@ export function buildViews(
   map.set("daily", buildDaily(actions));
   map.set("barcard", buildBarCard(actions));
   map.set("news", buildNews(actions));
+  map.set("done", buildDone(actions));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder(t("L'invio via email non è disponibile in questa versione."), ""));
   map.set("searching", buildPlaceholder(t("Claude sta cercando…"), ""));

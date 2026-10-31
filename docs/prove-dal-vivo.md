@@ -8,13 +8,19 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
   3. PC sospeso alle 8 e riacceso alle 9: il riepilogo arriva entro mezz'ora;
   4. un motore senza strumenti (Ollama senza modalità terminale): cosa scrive, e «Riprova» se fallisce;
   5. «Mostra ora» senza riassunto: «Chiedi il riassunto all'IA».
+- [ ] **Ricerca ovunque nel campo in alto (31 ottobre 2026):**
+  1. il nome di un cliente: la sua pagina della memoria (clic: la mappa si apre con la pagina scelta, anche se era già aperta), una conversazione passata (clic: torna nella chat), i suoi ticket Zammad (clic: il ticket nel browser);
+  2. Zammad: dire se il vostro server ha Elasticsearch, e se senza trova solo per titolo e numero;
+  3. scrivere veloce non deve bloccare il campo; con Zammad spento non parte nessuna chiamata.
 - [ ] **Permessi per livelli (31 ottobre 2026):** con l'app vera e Notion / Outlook classico:
   1. in chat «aggiungi a To Do: chiamare Rossi»: card leggibile con «Sempre»; scelto «Sempre», la volta dopo nessuna card, e la voce in Impostazioni → Chat → Permessi degli strumenti (✕ la toglie);
   2. «Cosa ho fatto»: la voce con «senza chiedere», poi Annulla (l'attività sparisce da To Do, va in Posta eliminata);
   3. Notion: una riga aggiunta e annullata (nel cestino), una riga cambiata e annullata (valori di prima, anche select e date);
   4. Vassoio e cartella di lavoro: un file spostato e annullato torna nel Vassoio, una copia annullata va nel Cestino;
   5. un compito con «Senza chiedere: Aggiungere attività a To Do» che lo fa di notte senza card, e un altro senza che chiede;
-  6. Telegram: un reversibile consentito passa senza pulsanti, `notion_delete_row` chiede anche con «Automatica».
+  6. Telegram: un reversibile consentito passa senza pulsanti, `notion_delete_row` chiede anche con «Automatica»;
+  7. Telegram: un reversibile non ancora consentito ha ♾ Sempre; toccato, passa e la volta dopo non chiede più (voce in Impostazioni → Chat);
+  8. nell'isola: dopo un'azione senza chiedere compare «Fatto senza chiedere» con Annulla; «cosa ho fatto» nel campo in alto apre l'elenco, e Annulla lì aggiorna anche quello delle Impostazioni.
 - Motore per la memoria: scegliere un motore gratuito (OpenRouter) e uno locale (Ollama), «Collega con l'IA» nella mappa, controllare le pagine-argomento create e che nessuna nota sia cambiata; che scriva `riassunto:` e `alias:` sensati e che la chat trovi una pagina dal suo alias.
 - [ ] **Integrazioni personali (23 ottobre 2026):** provati nell'anteprima modulo, righe, calcoli e modello compilato. Restano con l'app vera:
   1. in chat «crea un'integrazione per i preventivi…»: la card di Consenti con la descrizione, poi la voce nel menu;

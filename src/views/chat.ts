@@ -28,6 +28,12 @@ export function sendToChat(query: string) {
   externalSend?.(query);
 }
 
+/** Set by the chat view: brings back a past conversation (the field at the top). */
+let externalReopen: ((id: string) => void) | null = null;
+export function reopenChat(id: string) {
+  externalReopen?.(id);
+}
+
 /** The text being written survives a restart of EasyIsland (only this one, on this PC). */
 const DRAFT_KEY = "easyisland.chatDraft";
 function loadDraft(): string {
@@ -1249,6 +1255,7 @@ export function buildPrompt(
     input.focus();
   });
   externalSend = (q) => void submit(q);
+  externalReopen = (id) => void reopen(id);
   fresh.addEventListener("click", startOver);
   send.addEventListener("click", () => {
     // While a reply is written the button is "Ferma" (not for "Chiedi a questa sessione").

@@ -332,6 +332,8 @@ export interface Notice {
   suggestion?: string;
   /** Its accept button: "Crea" or "Spegni". */
   suggestionAccept?: string;
+  /** An entry of «Cosa ho fatto» done without a click (permits.rs): Annulla on the card. */
+  did?: string;
 }
 
 /** A proposal at the right moment (src-tauri/src/moments.rs, src/island/moments.ts). */

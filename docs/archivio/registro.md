@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 31 ottobre 2026 — La giornata nel campo in alto e nelle azioni rapide (su `claude/giornata-permessi`)
+- Nel campo in alto «oggi», «domani», «giornata», «agenda» o «riepilogo» propongono «La mia giornata di oggi / di domani», che apre la chat con `day_prompt` come `/oggi` (`search.ts`, `askDay`).
+- Azioni rapide «Chiedi alla chat» con «Lavora su» → la giornata di oggi o di domani (`input` "today" / "tomorrow"), più il prompt dell'azione come aggiunta facoltativa: così la giornata va anche nella barra, nelle cartelle e su una scorciatoia. Smoke «nessun errore»; non provato nell'app vera.
+
 ### 30 ottobre 2026 — Barra fissa: aspetto ed elementi nuovi (in `main`)
 - Aspetto della barra, ogni voce a scelta: fascia o isolette, opacità, sfocatura acrilica, margine dai lati, grandezza del testo, spazio tra gli elementi, nascondi da sola (fascia di 0 px e barra fuori dal bordo tranne 3 px, `appbar::window_rect`, `bar_reveal`).
 - Elementi nuovi: processore, memoria, disco, scheda video con grafico dell'ultimo minuto, lingua della tastiera, cestino, aggiornamenti (winget), titolo della finestra, barra dell'app in uso, musica con i pulsanti, meteo, progetti recenti di VS Code; menu per elemento (`barMenuOf`). Smoke «nessun errore», 350 test Rust; provato nell'anteprima, non nell'app vera.
