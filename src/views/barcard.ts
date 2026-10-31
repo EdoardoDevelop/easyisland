@@ -250,13 +250,15 @@ export function buildBarCard(actions: ViewActions): ViewHost {
     ];
   }
 
-  /** Submenus of the program's menu opened in the card, by their path («0.3»). */
-  const opened = new Set<string>();
+  /** The submenu of the program's menu shown in the card: its indexes from the top. */
+  let opened: number[] = [];
 
   /**
    * The window title's card (appmenu.rs, asked by Edoardo on 31 Oct 2026): the
-   * program in front's own menu — its submenus open inside the card, a line
-   * goes to the program — then the user's quick actions for that program.
+   * program in front's own menu — a submenu takes the card's place, with a row
+   * back to its parent, so the card stays as tall as one menu and never scrolls
+   * (Edoardo, 31 Oct 2026); a line goes to the program — then the user's quick
+   * actions for that program.
    */
   function appMenu(): Node[] {
     const w = State.barWindow;
@@ -274,35 +276,49 @@ export function buildBarCard(actions: ViewActions): ViewHost {
       const [text, key = ""] = label.split("\t");
       return { text: text.replace(/&(&?)/g, "$1"), key: key.trim() };
     };
-    const lines = (items: AppMenuLine[], path: string, depth: number) => {
+    const go = (path: number[]) => {
+      opened = path;
+      draw(true);
+      State.notify(); // the island follows the card's new height
+    };
+    const lines = (menu: AppMenuLine[]) => {
+      // Down the opened path; a menu that changed since keeps what still exists.
+      let items = menu;
+      const trail: string[] = [];
+      for (let d = 0; d < opened.length; d++) {
+        const it = items[opened[d]];
+        if (!it?.items.length) { opened = opened.slice(0, d); break; }
+        trail.push(parts(it.label).text);
+        items = it.items;
+      }
+      if (opened.length) {
+        const back = h("button", { class: "appmenu-row appmenu-back" },
+          h("span", { class: "appmenu-check", text: "‹" }),
+          h("span", { class: "appmenu-text", text: trail.join(" › ") }));
+        back.addEventListener("click", () => go(opened.slice(0, -1)));
+        list.append(back, h("div", { class: "appmenu-sep" }));
+      }
       items.forEach((it, i) => {
         if (it.sep) {
-          list.append(h("div", { class: "appmenu-sep" }));
+          if (list.lastElementChild?.classList.contains("appmenu-row")) list.append(h("div", { class: "appmenu-sep" }));
           return;
         }
-        const here = `${path}${i}`;
         const { text, key } = parts(it.label);
         const sub = it.items.length > 0;
-        const open = sub && opened.has(here);
         const row = h("button", { class: `appmenu-row${it.enabled ? "" : " off"}`, disabled: !it.enabled },
           h("span", { class: "appmenu-check", text: it.checked ? "✓" : "" }),
           h("span", { class: "appmenu-text", text }),
-          h("span", { class: "appmenu-key", text: sub ? (open ? "▾" : "▸") : key }));
-        row.style.paddingLeft = `${8 + depth * 14}px`;
+          h("span", { class: "appmenu-key", text: sub ? "›" : key }));
         row.addEventListener("click", () => {
-          if (sub) {
-            if (open) opened.delete(here);
-            else opened.add(here);
-            draw(true);
-            State.notify(); // the island follows the card's new height
-          } else if (it.line != null) {
+          if (sub) go([...opened, i]);
+          else if (it.line != null) {
             void Bridge.appMenuRun(it.line);
             actions.collapse();
           }
         });
         list.append(row);
-        if (open) lines(it.items, `${here}.`, depth + 1);
       });
+      if (list.lastElementChild?.classList.contains("appmenu-sep")) list.lastElementChild.remove();
     };
     const draw = (force = false) => {
       if (!force && drawn === State.appMenu) return;
@@ -311,7 +327,7 @@ export function buildBarCard(actions: ViewActions): ViewHost {
       const menu = State.appMenu;
       if (!menu) list.append(h("div", { class: "sub", text: t("Lettura del menu…") }));
       else if (!menu.length) list.append(h("div", { class: "sub", text: t("Nessun menu da leggere per questo programma") }));
-      else lines(menu, "", 0);
+      else lines(menu);
       clear(mine);
       const exe = w?.exe ?? "";
       for (const a of exe ? (State.settings.actions ?? []).filter((x) => actionForApp(x, exe)) : []) {
@@ -320,7 +336,7 @@ export function buildBarCard(actions: ViewActions): ViewHost {
       }
       mine.style.display = mine.childElementCount ? "" : "none";
     };
-    opened.clear();
+    opened = [];
     update = () => draw();
     return [title, list, mine];
   }

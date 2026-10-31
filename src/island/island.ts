@@ -2325,7 +2325,9 @@ ${note}` : text };
         w = POP_W;
         const own = measured > 0 ? ISLAND_CHROME_H - TOPBAR_H + measured
           : islandSize(State.mode, State.view, State.chatHistory.length, compact, fit).h - TOPBAR_H;
-        h = Math.min(POP_MAX_H, Math.max(POP_MIN_H, Math.ceil(own)));
+        // The program's menu is never cut: as tall as its longest submenu, up to the screen.
+        const cap = State.view === "barcard" && State.barCard === "appmenu" ? max.h : POP_MAX_H;
+        h = Math.min(cap, Math.max(POP_MIN_H, Math.ceil(own)));
       }
     }
     // Height the user added beyond the view's own: lists and text boxes grow by
