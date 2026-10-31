@@ -2134,7 +2134,7 @@ function appearanceSections(): HTMLElement[] {
       th.figure ?? "character",
       (v) => { th.figure = v; commit(); showFigure(); },
     ),
-    h("span", { class: "hint note", text: t("logo e meteo sono immagini ferme: niente animazioni, stati e saluto all'avvio, per un aspetto più sobrio. Il meteo viene dall'integrazione Meteo, che dev'essere attiva") }),
+    h("span", { class: "hint note", text: t("logo e meteo sono immagini ferme: niente animazioni e stati, per un aspetto più sobrio. Il logo animato è il personaggio «EasyIsland». Il meteo viene dall'integrazione Meteo, che dev'essere attiva") }),
   );
   showFigure();
 
@@ -2185,10 +2185,18 @@ function appearanceSections(): HTMLElement[] {
     settings.greetingPlace ?? "center",
     (v) => { settings.greetingPlace = v; commit(); },
   );
+  // Who greets: the EasyIsland logo drawing itself (default) or the character.
+  const greetingFigure = select<NonNullable<Settings["greetingFigure"]>>(
+    [["logo", t("Il logo di EasyIsland")], ["character", t("Il personaggio")]],
+    settings.greetingFigure ?? "logo",
+    (v) => { settings.greetingFigure = v; commit(); },
+  );
   greetingPlace.style.display = settings.greeting === false ? "none" : "";
+  greetingFigure.style.display = greetingPlace.style.display;
   const greeting = toggle(settings.greeting !== false, (v) => {
     settings.greeting = v;
     greetingPlace.style.display = v ? "" : "none";
+    greetingFigure.style.display = greetingPlace.style.display;
     commit();
   });
 
@@ -2375,8 +2383,9 @@ function appearanceSections(): HTMLElement[] {
         pictured("greeting", h("div", { class: "row" },
           h("label", { text: t("Saluto all'avvio") }),
           greeting,
+          greetingFigure,
           greetingPlace,
-          h("span", { class: "hint note", text: t("l'animazione del personaggio quando parte l'app; spento, compare subito al suo posto") }),
+          h("span", { class: "hint note", text: t("l'animazione quando parte l'app: il logo di EasyIsland che si disegna da solo, oppure il personaggio. Spento, compare subito al suo posto") }),
         )),
         pictured("follow", h("div", { class: "row" },
           h("label", { text: t("Segue il mouse") }),
@@ -2444,6 +2453,11 @@ function appearanceSections(): HTMLElement[] {
           select([["start", t("All'inizio")], ["center", t("Al centro")], ["end", t("Alla fine")]], settings.fixedBarSlot ?? "center",
             (v) => { settings.fixedBarSlot = v as Settings["fixedBarSlot"]; commit(); }),
           h("span", { class: "hint note", text: t("con la barra fissa il personaggio sta lì e non si trascina; l'isola si apre sotto la barra (sopra, se è in basso) e da chiusa non c'è") }),
+        ), h("div", { class: "row bar-row" },
+          h("label", { text: t("Nella barra") }),
+          select([["", t("Come nell'isola")], ["logo", t("Il logo di EasyIsland, animato")], ["logo-still", t("Il logo di EasyIsland, fermo")]], settings.fixedBarFigure ?? "",
+            (v) => { settings.fixedBarFigure = v as Settings["fixedBarFigure"]; commit(); }),
+          h("span", { class: "hint note", text: t("chi sta nella barra può essere diverso da chi sta nell'isola: il logo animato segue il mouse e cambia con gli stati come un personaggio") }),
         ), h("div", { class: "row bar-row" },
           h("label", { text: t("Altezza della barra") }),
           slider(24, 96, 2, Math.round(barThickness(settings)), "px", (v) => { settings.fixedBarHeight = v; commit(); render(); }),

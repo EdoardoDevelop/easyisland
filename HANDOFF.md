@@ -51,6 +51,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 31 ottobre 2026 — Logo animato di EasyIsland (su `claude/logo-animato`)
+- Il logo è un personaggio («EasyIsland», `logo-anim.ts`, tipo `logo`): occhi che seguono il cursore e sbattono, stati, badge, rilascio file; colori che girano mentre lavora. Saluto all'avvio di serie con il logo che si disegna da solo (`greetingFigure`), e nella barra fissa un logo diverso da quello dell'isola (`fixedBarFigure`). Anteprima in `/dev/logo-preview.html`; smoke e test, non provato nell'app vera.
+
 ### 31 ottobre 2026 — Menu del programma dal titolo della finestra (in `claude/sviluppo`)
 - Un clic sul titolo della finestra nella barra fissa apre il menu del programma in primo piano (`appmenu.rs`): barra dei menu classica letta per intero e voce inviata come `WM_COMMAND`, oppure le voci principali con UI Automation che si aprono nel programma; sotto, le azioni rapide «Nella barra con». Il secondo testo del titolo passa al clic destro.
 - Provato con la prova a mano su Blocco note (UI Automation) e Informazioni di sistema (menu classico, 13 voci); il menu nell'app vera non ancora.
@@ -67,7 +70,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Nel campo in alto «oggi», «domani», «giornata», «agenda» o «riepilogo» propongono «La mia giornata di oggi / di domani», che apre la chat con `day_prompt` come `/oggi` (`search.ts`, `askDay`).
 - Azioni rapide «Chiedi alla chat» con «Lavora su» → la giornata di oggi o di domani (`input` "today" / "tomorrow"), più il prompt dell'azione come aggiunta facoltativa: così la giornata va anche nella barra, nelle cartelle e su una scorciatoia. Smoke «nessun errore»; non provato nell'app vera.
 
-### 31 ottobre 2026 — Barra fissa: effetti (in `claude/sviluppo`)
-- Il personaggio cresce sotto il mouse e la barra si gonfia attorno a lui con fianchi curvi (`bar_grow`, `appbar::GROW`, tracciato SVG `bandPath`; con la sfocatura la finestra è ritagliata sul tracciato).
-- Le schede escono dalla barra: un clic su un elemento apre una piccola isola sotto di lui con solo la sua scheda e due raccordi curvi (`openFromBarAt`, luogo `pop:<x>`, `POP_SHIFT`). Entrambe disattivabili in «Aspetto della barra». Smoke «nessun errore»; provato nell'anteprima solo il rigonfiamento.
-- Poi: ombra della barra (`barshadow.rs`, anche con l'isola aperta, sotto di lei), isolette con la loro ombra e senza bordo, alte quanto il contenuto e senza angolo per ridimensionare, chiuse da un clic fuori (`click-away`); clic destro sulla barra fuori dagli elementi = menu di EasyIsland con «Personalizza la barra…» (`tray::popup_bar_context`). Unito in `claude/sviluppo`.

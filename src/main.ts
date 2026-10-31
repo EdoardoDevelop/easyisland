@@ -251,12 +251,14 @@ function linkCharacterWindow(island: Island) {
   let sentKey = "";
   const look = (): IslandToCharacter => {
     const t = State.settings.theme;
+    const barFigure = island.characterMode === "bar" ? State.settings.fixedBarFigure ?? "" : "";
     const c = t?.slimeColor;
     return {
       kind: "look",
       state: State.effectiveState,
-      character: t?.character ?? "",
-      figure: t?.figure ?? "",
+      // In the fixed bar the logo can stand in for the island's choice (fixedBarFigure).
+      character: barFigure === "logo" ? "easyisland" : t?.character ?? "",
+      figure: barFigure === "logo" ? "character" : barFigure === "logo-still" ? "easyisland" : t?.figure ?? "",
       color: c && /^#[0-9a-f]{6}$/i.test(c) ? c : null,
       size: island.restIconSize,
       paused: State.paused,

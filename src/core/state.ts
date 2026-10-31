@@ -611,6 +611,10 @@ export interface Settings {
   greeting: boolean;
   /** Where the greeting plays: the centre of the screen, or where the character lives. */
   greetingPlace: "center" | "character";
+  /** Who greets at launch: the EasyIsland logo drawing itself (default) or the character. */
+  greetingFigure?: "logo" | "character";
+  /** What sits in the fixed bar: "" as in the island, the animated logo, or the still one. */
+  fixedBarFigure?: "" | "logo" | "logo-still";
   /** ✕ in the open island's header. */
   closeButton: boolean;
   /** The island as an app: taskbar button always, Alt+Tab, — and ▢ in the header. */
@@ -1175,6 +1179,8 @@ export const DEFAULT_SETTINGS: Settings = {
   islandPlace: "character",
   greeting: true,
   greetingPlace: "center",
+  greetingFigure: "logo",
+  fixedBarFigure: "",
   closeButton: true,
   islandApp: false,
   stayOpenByUser: false,

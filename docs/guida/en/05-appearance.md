@@ -17,7 +17,7 @@ The page has six tabs at the top: **Theme**, **Character**, **Position**, **Fixe
 ## Character
 - **In the island**: the character, the EasyIsland logo, your logo or the weather (see below).
 - **Character** and its **colour**.
-- **Start-up greeting**, in the middle of the screen or where the character is.
+- **Start-up greeting**: by default the **EasyIsland logo** drawing itself (the rainbow edge, the tail, then the eyes), or the character; in the middle of the screen or where the character is.
 - **Follows the mouse**: in the compact view too the character looks at the cursor (uses a little more).
 - **Speech bubble**: at the top the character says what is going on.
 - **Character in the menu**: large, medium or small at the top of the open island's menu.
@@ -31,6 +31,7 @@ The page has six tabs at the top: **Theme**, **Character**, **Position**, **Fixe
 
 ## Fixed bar
 With **Fixed bar** at the top or the bottom, Windows keeps a band free at the edge of the screen, as for the taskbar, and windows stop there.
+- **In the bar:** as in the island, or the EasyIsland logo, animated or still, even with another character in the island.
 - **Character in the bar:** at the start, in the centre or at the end. It cannot be dragged; a click opens the island right below the bar (above it, if the bar is at the bottom) and another closes it. When closed, the island is not there: the bar is.
 - **Bar height:** automatic (as tall as the compact view) or your own; the character, icons and text adapt.
 - **Bar background:** like the island, transparent (the desktop shows) or a colour of your choice; the text turns light or dark by itself.
@@ -97,7 +98,7 @@ Characters drawn in code, all with the same expressions:
 The character reacts: it greets you at startup, celebrates when an agent finishes, worries about an error, looks at you when you hover. With the weather on it can have the sky behind it.
 
 ## A logo or the weather instead of the character
-In **Character → In the island** choose what sits in the island: **the character**, **the EasyIsland logo**, **my logo** or **the weather**. Logo and weather are still pictures: no animations, states or start-up greeting, for a more professional look.
+In **Character → In the island** choose what sits in the island: **the character**, **the EasyIsland logo**, **my logo** or **the weather**. Logo and weather are still pictures: no animations or states, for a more professional look. The **animated logo** is a character instead: in **Character** choose **EasyIsland**. Its eyes follow the mouse and blink, it changes with the states (the colours run while an agent works) and it "eats" files like the others.
 - **My logo**: **Upload PNG…** and pick the image (best with a transparent background). It is shrunk to 512 px, stays on this PC and goes in the [backup](26-settings.md). **Remove** deletes it; with no image the EasyIsland logo shows.
 - **The weather**: the sky and temperature right now, from the **Meteo** integration, which must be active.
 

@@ -3935,5 +3935,12 @@
   "Oggi nessun agente al lavoro.": "No agent at work today.",
   "⏱ Agenti al lavoro ieri: {time} in {n} sessioni.": "⏱ Agents at work yesterday: {time} in {n} sessions.",
   "⏱ Agenti al lavoro oggi: {time} in {n} sessioni.": "⏱ Agents at work today: {time} in {n} sessions.",
-  "Scegli un motore per il riassunto in Impostazioni → Agenti di codice → Riepilogo giornaliero.": "Choose an engine for the summary in Settings → Coding agents → Daily recap."
+  "Scegli un motore per il riassunto in Impostazioni → Agenti di codice → Riepilogo giornaliero.": "Choose an engine for the summary in Settings → Coding agents → Daily recap.",
+  "l'animazione quando parte l'app: il logo di EasyIsland che si disegna da solo, oppure il personaggio. Spento, compare subito al suo posto": "the animation when the app starts: the EasyIsland logo drawing itself, or the character. Off, it just appears in its place",
+  "Nella barra": "In the bar",
+  "Come nell'isola": "As in the island",
+  "Il logo di EasyIsland, animato": "The EasyIsland logo, animated",
+  "Il logo di EasyIsland, fermo": "The EasyIsland logo, still",
+  "chi sta nella barra può essere diverso da chi sta nell'isola: il logo animato segue il mouse e cambia con gli stati come un personaggio": "what sits in the bar can differ from the island: the animated logo follows the mouse and changes with the states like a character",
+  "logo e meteo sono immagini ferme: niente animazioni e stati, per un aspetto più sobrio. Il logo animato è il personaggio «EasyIsland». Il meteo viene dall'integrazione Meteo, che dev'essere attiva": "logo and weather are still pictures: no animations or states, for a plainer look. The animated logo is the «EasyIsland» character. The weather comes from the Weather integration, which must be on"
 }

@@ -13,7 +13,19 @@
 //   open and blink.
 // Pure drawing on a 2D context: who calls it decides the frame rate.
 
+import type { LogoCharacter } from "./character";
+
 export type LogoState = "idle" | "working" | "attention" | "done";
+
+/** The logo as a character of the island (Impostazioni → Aspetto → «EasyIsland»). */
+export const LOGO_CHARACTER: LogoCharacter = {
+  kind: "logo",
+  id: "easyisland",
+  name: "EasyIsland",
+  color: [0.56, 0.04, 0.66],
+  aspect: 68 / 62,
+  wearsIntegrationColor: false,
+};
 
 export interface LogoLook {
   /** Seconds since the logo started living (drives blinks, glances, breath). */
@@ -51,6 +63,20 @@ function hue(deg: number): string {
     }
   }
   return "rgb(142,10,168)";
+}
+
+/**
+ * The hue round (BX, BY) as a conic gradient. The canvas measures its angle
+ * clockwise on screen, the hue counter-clockwise: offset f is hue −360·f.
+ */
+function rainbow(x: CanvasRenderingContext2D, shift: number): CanvasGradient | string {
+  if (typeof x.createConicGradient !== "function") return hue(90 - shift);
+  const g = x.createConicGradient(0, BX, BY);
+  for (let i = 0; i <= 36; i++) {
+    const f = i / 36;
+    g.addColorStop(f, hue(-360 * f - shift));
+  }
+  return g;
 }
 
 /** Points along the middle of the stroke, counter-clockwise from the gap's end round to its start. */
@@ -134,14 +160,9 @@ export function drawLogo(x: CanvasRenderingContext2D, cx: number, cy: number, si
   const t = look.t;
   const state = look.state ?? "idle";
   const build = look.build ?? 1;
-  const px = size * (x.getTransform().a || 1);
-  const small = px <= 32;
-  const band = small ? 12 : 9.5;
+  const small = size * (x.getTransform().a || 1) <= 32;
 
   // Greeting: stroke 0–0.45, inside 0.3–0.55, tail 0.5–0.68, eyes 0.62–0.85.
-  const strokeK = ease(build / 0.45);
-  const fillK = ease((build - 0.3) / 0.25);
-  const tailK = back((build - 0.5) / 0.18);
   const eyesK = ease((build - 0.62) / 0.23);
 
   let scale = size / SPAN;
@@ -153,48 +174,120 @@ export function drawLogo(x: CanvasRenderingContext2D, cx: number, cy: number, si
   }
 
   x.save();
-  x.translate(cx, cy);
+  x.translate(cx, cy + lift * scale);
+  const k = scale * SPAN;
+  drawLogoShell(x, k, { shift: look.flow === false ? 0 : t * (state === "working" ? 90 : 14), build });
+
+  // The eyes.
+  if (eyesK > 0) {
+    const shut = look.eyes === false ? 0 : blink(t);
+    // During the greeting: open from a line.
+    const greetShut = build < 1 ? 1 - eyesK : 0;
+    let open = 1 - Math.max(shut, greetShut) * 0.92;
+    let g = look.eyes === false ? { x: 0, y: 0 } : glance(t);
+    let wide = 1;
+    if (state === "working") g = { x: 2.2, y: 2.4 + Math.sin(t * 3) * 0.6 };
+    if (state === "attention") { wide = 1.18; g = { x: 0, y: -1 }; open = Math.max(open, 0.9); }
+    const u = k / SPAN;
+    x.fillStyle = "#fff";
+    x.strokeStyle = "#fff";
+    for (const e of logoEyes(k, small)) {
+      if (state === "done") {
+        // Happy eyes: two little arches.
+        x.lineWidth = e.rx * 0.34;
+        x.lineCap = "round";
+        x.beginPath();
+        x.arc(e.x, e.y + e.ry * 0.45, e.rx * 0.85, Math.PI * 1.15, Math.PI * 1.85);
+        x.stroke();
+      } else {
+        x.beginPath();
+        x.ellipse(e.x + g.x * u, e.y + g.y * u, e.rx * wide, Math.max(0.6 * u, e.ry * wide * open), 0, 0, Math.PI * 2);
+        x.fill();
+      }
+    }
+  }
+  x.restore();
+}
+
+/** The two eyes of a logo `size` wide centred on (0, 0): the left one nearer, so bigger. */
+export function logoEyes(size: number, small = size <= 32): { x: number; y: number; rx: number; ry: number }[] {
+  const u = size / SPAN;
+  const big = small ? 1.25 : 1;
+  return [
+    { x: (42 - MX) * u, y: (41 - MY) * u, rx: 8 * big * u, ry: 7.5 * big * u },
+    { x: (63 - MX) * u, y: (41 - MY) * u, rx: 5 * big * u, ry: 4.6 * big * u },
+  ];
+}
+
+/** The middle of the dark inside, relative to the logo's centre (for a mouth, a blush). */
+export function logoInside(size: number): { x: number; y: number; hw: number; hh: number } {
+  const u = size / SPAN;
+  return { x: (BX - MX) * u, y: (BY - MY) * u, hw: (HW - 9.5) * u, hh: (HH - 9.5) * u };
+}
+
+export interface ShellLook {
+  /** Degrees the colours have run round the stroke. */
+  shift?: number;
+  /** 0…1 of the greeting's draw-in. */
+  build?: number;
+  /** The inside's colour (the state's tint mixed in), default near black. */
+  inside?: string;
+}
+
+/**
+ * The bubble without its eyes, `size` wide, centred on (0, 0) of the current
+ * transform: the dark inside, the rainbow stroke and the tail.
+ */
+export function drawLogoShell(x: CanvasRenderingContext2D, size: number, look: ShellLook = {}) {
+  const build = look.build ?? 1;
+  const shift = look.shift ?? 0;
+  const px = size * (x.getTransform().a || 1);
+  const small = px <= 32;
+  const band = small ? 12 : 9.5;
+  const strokeK = ease(build / 0.45);
+  const fillK = ease((build - 0.3) / 0.25);
+  const tailK = back((build - 0.5) / 0.18);
+  const scale = size / SPAN;
+
+  x.save();
   x.scale(scale, scale);
-  x.translate(-MX, -MY + lift);
+  x.translate(-MX, -MY);
 
   // Inside: the dark bubble.
   if (fillK > 0) {
     x.save();
-    x.globalAlpha = fillK;
+    x.globalAlpha *= fillK;
     const k = 0.7 + 0.3 * fillK;
     x.translate(BX, BY);
     x.scale(k, k);
     x.translate(-BX, -BY);
-    roundRect(x, BX - HW + band * 0.5, BY - HH + band * 0.5, (HW - band * 0.5) * 2, (HH - band * 0.5) * 2, RAD - band * 0.5);
-    x.fillStyle = "#06060a";
+    // Just under the stroke's inner edge: where the stroke opens for the tail, no dark rim shows.
+    const inset = band * 0.88;
+    roundRect(x, BX - HW + inset, BY - HH + inset, (HW - inset) * 2, (HH - inset) * 2, RAD - inset);
+    x.fillStyle = look.inside ?? "#06060a";
     x.fill();
     x.restore();
   }
 
-  // The rainbow stroke, segment by segment so the colours can run round it.
-  const shift = look.flow === false ? 0 : t * (state === "working" ? 90 : 14);
+  // The rainbow stroke: one path (no seams) painted with a conic gradient
+  // round the bubble's centre, turned by `shift` so the colours can run.
   const pts = strokePoints(band);
   const last = Math.max(1, Math.round((pts.length - 1) * strokeK));
   x.lineWidth = band;
   x.lineCap = "butt";
   x.lineJoin = "round";
-  for (let i = 1; i <= last; i++) {
-    const a = pts[i - 1], b = pts[Math.min(i + 1, last)];
-    x.beginPath();
-    x.moveTo(a.x, a.y);
-    x.lineTo(b.x, b.y);
-    x.strokeStyle = hue(pts[i].a - shift);
-    x.stroke();
-  }
+  x.beginPath();
+  x.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i <= last; i++) x.lineTo(pts[i].x, pts[i].y);
+  x.strokeStyle = rainbow(x, shift);
+  x.stroke();
   // The pen's tip while the greeting draws it.
   if (strokeK > 0 && strokeK < 1) {
     const p = pts[last];
     x.beginPath();
     x.arc(p.x, p.y, band * 0.62, 0, Math.PI * 2);
-    x.fillStyle = "#fff";
-    x.globalAlpha = 0.85;
+    x.fillStyle = "rgba(255,255,255,0.85)";
     x.fill();
-    x.globalAlpha = 1;
   }
 
   // The tail, popping out from the bottom edge.
@@ -216,37 +309,6 @@ export function drawLogo(x: CanvasRenderingContext2D, cx: number, cy: number, si
     x.fillStyle = hue(240 - shift);
     x.fill();
     x.restore();
-  }
-
-  // The eyes.
-  if (eyesK > 0) {
-    const big = small ? 1.25 : 1;
-    const shut = look.eyes === false ? 0 : blink(t);
-    // During the greeting: open from a line, then one blink at the end.
-    const greetShut = build < 1 ? 1 - eyesK : 0;
-    let open = 1 - Math.max(shut, greetShut) * 0.92;
-    let g = look.eyes === false ? { x: 0, y: 0 } : glance(t);
-    let wide = 1;
-    if (state === "working") g = { x: 2.2, y: 2.4 + Math.sin(t * 3) * 0.6 };
-    if (state === "attention") { wide = 1.18; g = { x: 0, y: -1 }; open = Math.max(open, 0.9); }
-    x.fillStyle = "#fff";
-    x.strokeStyle = "#fff";
-    if (state === "done") {
-      // Happy eyes: two little arches.
-      x.lineWidth = 2.6 * big;
-      x.lineCap = "round";
-      for (const [ex, ey, rx] of [[42, 42, 7 * big], [63, 42, 4.6 * big]] as const) {
-        x.beginPath();
-        x.arc(ex, ey + rx * 0.35, rx * 0.85, Math.PI * 1.15, Math.PI * 1.85);
-        x.stroke();
-      }
-    } else {
-      for (const [ex, ey, rx, ry] of [[42, 41, 8 * big, 7.5 * big], [63, 41, 5 * big, 4.6 * big]] as const) {
-        x.beginPath();
-        x.ellipse(ex + g.x, ey + g.y, rx * wide, Math.max(0.6, ry * wide * open), 0, 0, Math.PI * 2);
-        x.fill();
-      }
-    }
   }
   x.restore();
 }

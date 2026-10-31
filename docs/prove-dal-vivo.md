@@ -2,6 +2,7 @@
 
 Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli una voce quando è provata, e annota in `HANDOFF.md` ciò che non va.
 
+- [ ] **Logo animato (31 ottobre 2026):** all'avvio il logo che si disegna da solo (e il personaggio con «Saluto all'avvio» → Il personaggio); il personaggio «EasyIsland» nell'isola e a riposo (occhi verso il cursore, stati, rilascio di un file); barra fissa con «Nella barra» → logo animato mentre nell'isola c'è un altro personaggio, e il consumo della CPU a riposo.
 - [ ] **La giornata con l'IA e su Telegram (31 ottobre 2026):** scegliere «Riassunto dell'IA» (il motore della chat) e «Anche su Telegram», poi:
   1. alle 8 (o mettendo «Fine giornata alle» all'ora dopo): la card con «La giornata di oggi» scritta dal motore e il messaggio su Telegram con il tempo degli agenti, anche a isola chiusa;
   2. riavviare l'app dopo l'ora: niente secondo messaggio;

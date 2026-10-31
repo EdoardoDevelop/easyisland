@@ -14,6 +14,8 @@
 //          exporting a `SoftCharacter`, added to CHARACTERS below.
 //   cube   the EasyTech cube (cube.ts), a real 3D object with its eyes painted
 //          on a face: drawn by its own routines.
+//   logo   the EasyIsland logo (logo-anim.ts): the rainbow bubble, its two
+//          white eyes moved by the engine like any other face. No hands.
 //
 // Body-local coordinates, for every soft character: (0, 0) is the centre, `hw`
 // the half-width at the base, `hh` the half-height, y down, the base on y = hh.
@@ -99,7 +101,15 @@ export interface HudCharacter extends CharacterBase {
   kind: "hud";
 }
 
-export type Character = SoftCharacter | CubeCharacter | HudCharacter;
+/** The EasyIsland logo come alive (logo-anim.ts): its own bubble, the engine's eyes, no hands. */
+export interface LogoCharacter extends CharacterBase {
+  kind: "logo";
+}
+
+export type Character = SoftCharacter | CubeCharacter | HudCharacter | LogoCharacter;
+
+/** Characters without hands (Jarvis, the logo). */
+export const handless = (c: Character) => c.kind === "hud" || c.kind === "logo";
 
 // ── Registry ──────────────────────────────────────────────────────────────────
 

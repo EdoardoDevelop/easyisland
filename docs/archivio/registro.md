@@ -2,6 +2,11 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 31 ottobre 2026 — Barra fissa: effetti (in `claude/sviluppo`)
+- Il personaggio cresce sotto il mouse e la barra si gonfia attorno a lui con fianchi curvi (`bar_grow`, `appbar::GROW`, tracciato SVG `bandPath`; con la sfocatura la finestra è ritagliata sul tracciato).
+- Le schede escono dalla barra: un clic su un elemento apre una piccola isola sotto di lui con solo la sua scheda e due raccordi curvi (`openFromBarAt`, luogo `pop:<x>`, `POP_SHIFT`). Entrambe disattivabili in «Aspetto della barra». Smoke «nessun errore»; provato nell'anteprima solo il rigonfiamento.
+- Poi: ombra della barra (`barshadow.rs`, anche con l'isola aperta, sotto di lei), isolette con la loro ombra e senza bordo, alte quanto il contenuto e senza angolo per ridimensionare, chiuse da un clic fuori (`click-away`); clic destro sulla barra fuori dagli elementi = menu di EasyIsland con «Personalizza la barra…» (`tray::popup_bar_context`). Unito in `claude/sviluppo`.
+
 ### 30 ottobre 2026 — Barra fissa: aspetto ed elementi nuovi (in `main`)
 - Aspetto della barra, ogni voce a scelta: fascia o isolette, opacità, sfocatura acrilica, margine dai lati, grandezza del testo, spazio tra gli elementi, nascondi da sola (fascia di 0 px e barra fuori dal bordo tranne 3 px, `appbar::window_rect`, `bar_reveal`).
 - Elementi nuovi: processore, memoria, disco, scheda video con grafico dell'ultimo minuto, lingua della tastiera, cestino, aggiornamenti (winget), titolo della finestra, barra dell'app in uso, musica con i pulsanti, meteo, progetti recenti di VS Code; menu per elemento (`barMenuOf`). Smoke «nessun errore», 350 test Rust; provato nell'anteprima, non nell'app vera.
