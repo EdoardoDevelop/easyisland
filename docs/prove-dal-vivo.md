@@ -14,7 +14,9 @@ Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli u
   3. Notion: una riga aggiunta e annullata (nel cestino), una riga cambiata e annullata (valori di prima, anche select e date);
   4. Vassoio e cartella di lavoro: un file spostato e annullato torna nel Vassoio, una copia annullata va nel Cestino;
   5. un compito con «Senza chiedere: Aggiungere attività a To Do» che lo fa di notte senza card, e un altro senza che chiede;
-  6. Telegram: un reversibile consentito passa senza pulsanti, `notion_delete_row` chiede anche con «Automatica».
+  6. Telegram: un reversibile consentito passa senza pulsanti, `notion_delete_row` chiede anche con «Automatica»;
+  7. Telegram: un reversibile non ancora consentito ha ♾ Sempre; toccato, passa e la volta dopo non chiede più (voce in Impostazioni → Chat);
+  8. nell'isola: dopo un'azione senza chiedere compare «Fatto senza chiedere» con Annulla; «cosa ho fatto» nel campo in alto apre l'elenco, e Annulla lì aggiorna anche quello delle Impostazioni.
 - Motore per la memoria: scegliere un motore gratuito (OpenRouter) e uno locale (Ollama), «Collega con l'IA» nella mappa, controllare le pagine-argomento create e che nessuna nota sia cambiata; che scriva `riassunto:` e `alias:` sensati e che la chat trovi una pagina dal suo alias.
 - [ ] **Integrazioni personali (23 ottobre 2026):** provati nell'anteprima modulo, righe, calcoli e modello compilato. Restano con l'app vera:
   1. in chat «crea un'integrazione per i preventivi…»: la card di Consenti con la descrizione, poi la voce nel menu;

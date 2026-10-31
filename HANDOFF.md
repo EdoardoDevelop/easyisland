@@ -57,7 +57,8 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 31 ottobre 2026 — Permessi per livelli e «Cosa ho fatto» (su `claude/giornata-permessi`)
 - Strumenti di EasyIsland in tre livelli (`permits.rs`): lettura libera; reversibili (`REVERSIBLE` in `hook/src/tool_list.rs`: righe di Notion, attività di To Do, Vassoio, cartella di lavoro) con «Sempre» sulla card, per sempre finché lo togli in Impostazioni → Chat; il resto chiede ogni volta. Un compito può farle da solo se scelto («Motori e permessi», `may` di `task_create`).
-- «Cosa ho fatto» in Impostazioni → Chat: ogni strumento che cambia qualcosa, con Annulla per i reversibili. Card leggibili per Notion, To Do, Vassoio e `task_create`; lista di sola lettura unica (`claude_cli::agent_read_only`); una lista sola delle cose delicate per le due «Automatica». 356 test Rust, smoke «nessun errore»; non provato nell'app vera.
+- «Cosa ho fatto» in Impostazioni → Chat: ogni strumento che cambia qualcosa, con Annulla per i reversibili. Card leggibili per Notion, To Do, Vassoio e `task_create`; lista di sola lettura unica (`claude_cli::agent_read_only`); una lista sola delle cose delicate per le due «Automatica».
+- Poi: ♾ «Sempre» anche nei pulsanti di Telegram (`permits::offers_always`); «Cosa ho fatto» anche nell'isola (vista `done`, dal campo in alto) e l'avviso «Fatto senza chiedere» con Annulla (`did-alone`). Test Rust, smoke e schermate nell'anteprima; non provato nell'app vera.
 
 ### 31 ottobre 2026 — La giornata nel campo in alto e nelle azioni rapide (su `claude/giornata-permessi`)
 - Nel campo in alto «oggi», «domani», «giornata», «agenda» o «riepilogo» propongono «La mia giornata di oggi / di domani», che apre la chat con `day_prompt` come `/oggi` (`search.ts`, `askDay`).

@@ -6102,6 +6102,12 @@ html[data-ui="windows"] .col-meta input, html[data-ui="windows"] .col-item { bor
 }
 .news-item:hover .news-save, .news-save:disabled { opacity: 1; }
 .news-save:hover { color: var(--ink); background: rgba(255, 255, 255, 0.13); }
+
+/* «Cosa ho fatto» (src/views/done.ts): rows that open nothing; the ones taken back fade. */
+.did-item { cursor: default; }
+.did-item .news-save { opacity: 1; }
+.did-item.undone { opacity: 0.55; }
+.did-undone { font: 500 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); }
 .news-ask {
   display: flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 9px;
   background: rgba(245, 165, 36, 0.10); border: 1px solid rgba(245, 165, 36, 0.28);

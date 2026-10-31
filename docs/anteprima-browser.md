@@ -228,6 +228,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `compiti` | i Compiti | `ask` |
 | `moment` | una proposta al momento giusto | `moment=download\|recording\|…` |
 | `daily` | Buongiorno / Fine giornata | `evening`, `news`, `ai` (con il riassunto dell'IA), `ai=ask` (con «Chiedi il riassunto all'IA») |
+| `done` | «Cosa ho fatto» su un registro inventato | `alone`: la card di un'azione fatta senza chiedere, con Annulla |
 | `news` | le notizie | `ask`, `look=thumbs\|cards`, `many` |
 | `barcard` | le card della barra fissa | `card=clock\|volume\|mic\|brightness\|battery\|net` |
 | `recap` | il riepilogo settimanale | — |

@@ -421,6 +421,7 @@ export class Island {
         Sound.play("blip");
         void Bridge.chatDayPrompt(tomorrow).then((p) => { if (p) this.startChat(p, null, false); });
       },
+      showDone: () => this.setView("done"),
     });
     // The one field sits in the top bar; its results cover the views.
     this.header.field.append(this.search.el);

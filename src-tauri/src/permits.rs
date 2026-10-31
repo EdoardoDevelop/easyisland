@@ -117,24 +117,27 @@ pub fn delicate_tool(tool: &str) -> bool {
     t.split(|c: char| !c.is_ascii_alphanumeric()).any(|w| WORDS.contains(&w))
 }
 
+/// The tool «Sempre» would allow for good: a reversible tool asked by the
+/// chat (island, Telegram, a task). Else none, and the card has no «Sempre».
+pub fn offers_always(payload: &Value) -> Option<String> {
+    if payload.get("easyisland_chat").and_then(Value::as_bool) != Some(true) {
+        return None;
+    }
+    tool_of(payload).filter(|t| reversible(t)).map(str::to_string)
+}
+
 /// A request of the chat (island, Telegram, a task) for a reversible tool the
 /// user allowed for good, or the running task may use: allowed with no click.
 pub fn allowed_now(app: &AppHandle, payload: &Value) -> bool {
-    if payload.get("easyisland_chat").and_then(Value::as_bool) != Some(true) {
-        return false;
-    }
-    let Some(tool) = tool_of(payload) else { return false };
-    if !reversible(tool) {
-        return false;
-    }
-    let always = app.try_state::<crate::Shared>().is_some_and(|s| s.settings.lock().unwrap().tools_allowed.iter().any(|a| a == tool));
-    if !always && !crate::tasks::may_now(tool) {
+    let Some(tool) = offers_always(payload) else { return false };
+    let always = app.try_state::<crate::Shared>().is_some_and(|s| s.settings.lock().unwrap().tools_allowed.iter().any(|a| *a == tool));
+    if !always && !crate::tasks::may_now(&tool) {
         return false;
     }
     crate::log::line(format!("permessi: {tool} consentito senza chiedere"));
     let mut alone = ALONE.lock().unwrap();
     alone.retain(|(_, at)| at.elapsed() < ALONE_FOR);
-    alone.push((tool.to_string(), Instant::now()));
+    alone.push((tool, Instant::now()));
     true
 }
 
@@ -194,6 +197,10 @@ pub fn record(app: &AppHandle, tool: &str, text: &str, undo: Option<Undo>) {
     }
     let at = chrono_ms();
     let entry = Done { id: format!("{at:x}-{}", crate::msgraph::random(3).iter().map(|b| format!("{b:02x}")).collect::<String>()), at, tool: tool.to_string(), what, task, alone, undo, undone: false };
+    // Done without a click: the island says so, with Annulla (src/main.ts).
+    if entry.alone {
+        let _ = app.emit("did-alone", &entry);
+    }
     with_log(|log| {
         log.push(entry);
         let extra = log.len().saturating_sub(KEEP);
@@ -265,6 +272,11 @@ mod tests {
         }
         let kept = only_reversible(&["todo_add".into(), " todo_add ".into(), "notion_delete_row".into(), "x".into()]);
         assert_eq!(kept, vec!["todo_add".to_string()]);
+        // «Sempre» (card and Telegram): only the chat's requests for a reversible tool.
+        assert_eq!(offers_always(&json!({ "tool_name": "mcp__easyisland__todo_add", "easyisland_chat": true })).as_deref(), Some("todo_add"));
+        assert_eq!(offers_always(&json!({ "tool_name": "mcp__easyisland__todo_add" })), None);
+        assert_eq!(offers_always(&json!({ "tool_name": "easyisland_notion_delete_row", "easyisland_chat": true })), None);
+        assert_eq!(offers_always(&json!({ "tool_name": "Bash", "easyisland_chat": true })), None);
     }
 
     #[test]

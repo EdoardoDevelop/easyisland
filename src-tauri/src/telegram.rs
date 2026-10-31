@@ -68,8 +68,17 @@ static BUSY: AtomicBool = AtomicBool::new(false);
 /// other once it is back (`run_late`).
 static LATE: Mutex<std::collections::VecDeque<(i64, String, Option<ChatContext>)>> = Mutex::new(std::collections::VecDeque::new());
 static LATE_RUNNING: AtomicBool = AtomicBool::new(false);
+/// A tap on a permission's buttons.
+#[derive(Clone, Copy, PartialEq)]
+enum Tap {
+    Allow,
+    Deny,
+    /// «Sempre»: allowed, and the reversible tool allowed for good (permits.rs).
+    Always,
+}
+
 /// Consenti / Nega waiting for a tap: short id → the answer's channel.
-static PENDING: LazyLock<Mutex<HashMap<String, tokio::sync::oneshot::Sender<bool>>>> =
+static PENDING: LazyLock<Mutex<HashMap<String, tokio::sync::oneshot::Sender<Tap>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 /// The files offered by /vassoio (paths; the buttons carry the index).
 static TRAY: Mutex<Vec<String>> = Mutex::new(Vec::new());
@@ -884,18 +893,24 @@ async fn on_button(app: &AppHandle, token: &str, q: &Value) {
             None => t("Richiesta scaduta").into(),
         };
     } else if let Some(rest) = data.strip_prefix("p:") {
-        // Consenti / Nega: "p:<id>:1" or "p:<id>:0".
-        let (rid, yes) = rest.rsplit_once(':').map_or((rest, false), |(r, y)| (r, y == "1"));
+        // Consenti / Nega / Sempre: "p:<id>:1", "p:<id>:0" or "p:<id>:a".
+        let (rid, tap) = rest.rsplit_once(':').map_or((rest, Tap::Deny), |(r, y)| {
+            (r, match y { "1" => Tap::Allow, "a" => Tap::Always, _ => Tap::Deny })
+        });
         let tx = PENDING.lock().unwrap().remove(rid);
         note = match tx {
             Some(tx) => {
-                let _ = tx.send(yes);
-                if yes { t("Consentito").into() } else { t("Negato").into() }
+                let _ = tx.send(tap);
+                match tap {
+                    Tap::Allow => t("Consentito").into(),
+                    Tap::Always => t("Consentito sempre").into(),
+                    Tap::Deny => t("Negato").into(),
+                }
             }
             None => t("Richiesta scaduta").into(),
         };
         if let Some(mid) = message {
-            let mark = if note == t("Consentito") { "✅" } else { "⛔" };
+            let mark = if note == t("Consentito") || note == t("Consentito sempre") { "✅" } else { "⛔" };
             let _ = edit(token, chat, mid, &format!("{original}\n\n{mark} {note}"), false).await;
         }
     } else if data == "o" {
@@ -1092,17 +1107,32 @@ async fn decide(app: &AppHandle, payload: Value, allow_auto: bool) -> Option<Str
     PENDING.lock().unwrap().insert(rid.clone(), tx);
 
     let text = permission_text(&payload);
-    let keyboard = json!({ "inline_keyboard": [[
-        { "text": format!("✅ {}", t("Consenti")), "callback_data": format!("p:{rid}:1") },
-        { "text": format!("⛔ {}", t("Nega")), "callback_data": format!("p:{rid}:0") },
-    ]]});
+    // «Sempre», as on the island's card, only for a reversible tool of the chat
+    // (permits.rs): allowed for good until removed in Impostazioni → Chat.
+    let always = crate::permits::offers_always(&payload);
+    let mut buttons = vec![
+        json!({ "text": format!("✅ {}", t("Consenti")), "callback_data": format!("p:{rid}:1") }),
+        json!({ "text": format!("⛔ {}", t("Nega")), "callback_data": format!("p:{rid}:0") }),
+    ];
+    if always.is_some() {
+        buttons.insert(1, json!({ "text": format!("♾ {}", t("Sempre")), "callback_data": format!("p:{rid}:a") }));
+    }
+    let keyboard = json!({ "inline_keyboard": [buttons] });
     let sent = send(&token, chat, &text, Some(keyboard)).await;
     log::line("telegram: permesso chiesto");
     let answer = tokio::time::timeout(DECISION_WAIT, rx).await;
     PENDING.lock().unwrap().remove(&rid);
     match answer {
-        Ok(Ok(true)) => Some("allow".into()),
-        Ok(Ok(false)) => Some("deny".into()),
+        Ok(Ok(Tap::Allow)) => Some("allow".into()),
+        Ok(Ok(Tap::Always)) => {
+            if let Some(tool) = always {
+                if let Err(e) = crate::permits::allow(app, &tool, true) {
+                    log::line(format!("telegram: «Sempre» non salvato: {e}"));
+                }
+            }
+            Some("allow".into())
+        }
+        Ok(Ok(Tap::Deny)) => Some("deny".into()),
         _ => {
             if let Ok(mid) = sent {
                 let _ = edit(&token, chat, mid, &format!("{text}\n\n⌛ {}", t("Nessuna risposta: negato")), false).await;

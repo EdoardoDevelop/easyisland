@@ -23,10 +23,12 @@ export interface SearchActions {
   ask(text: string): void;
   /** The summary of today's or tomorrow's day, asked to the chat. */
   askDay(tomorrow: boolean): void;
+  /** «Cosa ho fatto» (src/views/done.ts). */
+  showDone(): void;
 }
 
 interface Hit {
-  kind: "Integrazione" | "Agente" | "Azione" | "Programma" | "Giornata" | "Notion" | "RDM" | "Chat" | "Web";
+  kind: "Integrazione" | "Agente" | "Azione" | "Programma" | "Giornata" | "Isola" | "Notion" | "RDM" | "Chat" | "Web";
   name: string;
   icon: () => Node;
   run: () => void;
@@ -44,11 +46,11 @@ function score(name: string, q: string): number {
   return n.includes(q) ? 1 : 0;
 }
 
-const KIND_LABEL: Record<Hit["kind"], string> = { Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Giornata: t("Chat"), Notion: "Notion", RDM: "RDM", Chat: "Ctrl+Invio", Web: "Alt+Invio" };
+const KIND_LABEL: Record<Hit["kind"], string> = { Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Giornata: t("Chat"), Isola: t("Isola"), Notion: "Notion", RDM: "RDM", Chat: "Ctrl+Invio", Web: "Alt+Invio" };
 
 /** How many of each kind at most, so programs do not drown the rest. */
 
-const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Giornata: 2, Notion: 5, RDM: 5, Chat: 1, Web: 1 };
+const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Giornata: 2, Isola: 1, Notion: 5, RDM: 5, Chat: 1, Web: 1 };
 
 /** The Start menu, read again after this long (a program installed meanwhile). */
 const APPS_TTL_MS = 5 * 60_000;
@@ -142,6 +144,10 @@ export function buildSearch(actions: SearchActions): SearchHost {
       const name = tomorrow ? t("La mia giornata di domani") : t("La mia giornata di oggi");
       const s = score(`${name} ${t("agenda riepilogo")}`, q);
       if (s) out.push({ kind: "Giornata", name, score: s, icon: () => svg(ICONS.bubble, 13), run: () => actions.askDay(tomorrow) });
+    }
+    {
+      const s = score(`${t("Cosa ho fatto")} ${t("annulla azioni permessi")}`, q);
+      if (s) out.push({ kind: "Isola", name: t("Cosa ho fatto"), score: s, icon: () => svg(ICONS.history, 13), run: () => actions.showDone() });
     }
     if (notion.q === input.value.trim()) {
       for (const p of notion.pages) {
