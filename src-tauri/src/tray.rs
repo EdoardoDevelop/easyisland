@@ -1,5 +1,6 @@
 // Notification-area icon: Open, Profile ▸, Settings, Pause, Quit. The same
-// menu opens with a right click on the resting character (`popup`).
+// menu opens with a right click on the resting character (`popup`) and on the
+// fixed bar, there with «Personalizza la barra…» first (`popup_bar_context`).
 // The menu is rebuilt whenever profiles change (names, the active one).
 
 use tauri::image::Image;
@@ -12,6 +13,8 @@ use crate::i18n::{t, tf};
 
 const TRAY_ID: &str = "easyisland";
 const PROFILE_PREFIX: &str = "profile:";
+/// «Personalizza la barra…» of the fixed bar's menu: Impostazioni → Aspetto → Barra fissa.
+const BAR_SETTINGS: &str = "bar-settings";
 
 fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let (profiles, active) = app
@@ -71,6 +74,10 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
         .on_menu_event(|app: &AppHandle, event| match event.id.as_ref() {
             "quit" => app.exit(0),
             "settings" => crate::show_settings_window(app),
+            BAR_SETTINGS => {
+                crate::show_settings_window(app);
+                let _ = app.emit_to(crate::SETTINGS_LABEL, "settings-goto", serde_json::json!({ "page": "aspetto", "item": "barra" }));
+            }
             "presence" => {
                 let on = !crate::presence::MANUAL.load(std::sync::atomic::Ordering::Relaxed);
                 crate::presence::MANUAL.store(on, std::sync::atomic::Ordering::Relaxed);
@@ -132,6 +139,24 @@ pub fn popup_bar_menu(app: &AppHandle, entries: &[(String, String)]) {
         crate::log::line(format!("bar menu: {e}"));
     }
     // Never activated again, also with the island as an app (set_activating keeps that one activatable).
+    crate::island::make_non_activating(&win);
+}
+
+/// Right click on the fixed bar outside its elements (asked by Edoardo on 31 Oct
+/// 2026): the notification-area menu, with «Personalizza la barra…» first. Its
+/// clicks reach the tray's handler, as `popup`'s.
+pub fn popup_bar_context(app: &AppHandle) {
+    let Some(win) = app.get_window(crate::CHARACTER_LABEL) else { return };
+    let built = build_menu(app).and_then(|menu| {
+        menu.insert(&MenuItem::with_id(app, BAR_SETTINGS, t("Personalizza la barra…"), true, None::<&str>)?, 0)?;
+        menu.insert(&PredefinedMenuItem::separator(app)?, 1)?;
+        Ok(menu)
+    });
+    let Ok(menu) = built else { return };
+    crate::island::set_activating(&win, true);
+    if let Err(e) = win.popup_menu(&menu) {
+        crate::log::line(format!("bar context menu: {e}"));
+    }
     crate::island::make_non_activating(&win);
 }
 

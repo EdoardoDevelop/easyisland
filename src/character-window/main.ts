@@ -6,7 +6,7 @@
 import "../character/roster";
 import { character, setCharacter } from "../character/character";
 import { BotEngine, hexToRGB } from "../character/engine";
-import { setFigure, setFigureWeather } from "../character/figure";
+import { onFigureChange, setFigure, setFigureLogo, setFigureWeather } from "../character/figure";
 import { setJarvisAgents } from "../character/jarvis";
 import { invoke } from "@tauri-apps/api/core";
 import { linkChannel, MIRRORED_CALLS, type BarLook, type BarPiece, type CharacterMode, type CharacterToIsland, type IslandToCharacter } from "../core/link";
@@ -26,6 +26,13 @@ const MOVE_MS = 2500;
 const AMBIENT_FRAME_MS = 66;
 /** Room above the compact body for hearts and sparks, as the island's canvas (BOT_OVERHANG). */
 const OVERHANG = 40;
+/**
+ * The mouse on the character in the bar: the band swells this much past
+ * itself (a share of its height) and the character grows to fill it.
+ */
+const GROW = 0.42;
+/** As the band's swelling in personaggio.html, and a moment more. */
+const SHRINK_MS = 400;
 
 const canvas = document.getElementById("bot") as HTMLCanvasElement;
 const engine = new BotEngine();
@@ -54,7 +61,8 @@ function box(): { w: number; h: number } {
 function frame(t: number) {
   const dt = Math.min(0.05, (t - last) / 1000);
   last = t;
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  // In the bar the character may grow under the mouse (by CSS): drawn sharp for that size.
+  const dpr = Math.min(2, window.devicePixelRatio || 1) * (mode === "bar" ? 1 + GROW : 1);
   const { w, h } = box();
   if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
     canvas.width = Math.round(w * dpr);
@@ -91,11 +99,21 @@ function wake(ms = MOVE_MS) {
   requestAnimationFrame(frame);
 }
 
+/** The theme.logoStamp of the PNG last read (-1: none yet). */
+let logoLoaded = -1;
+// The PNG finished loading: draw it.
+onFigureChange(() => wake(300));
+
 function applyLook(m: Extract<IslandToCharacter, { kind: "look" }>) {
   const was = mode;
   mode = m.mode;
   setCharacter(m.character);
   setFigure(m.figure);
+  // The user's PNG (logo.rs), read here too: the bar may show it while the island has something else.
+  if (m.figure === "logo" && m.logoStamp !== logoLoaded) {
+    logoLoaded = m.logoStamp;
+    void invoke<string | null>("logo_load").then((url) => setFigureLogo(url ?? "")).catch(() => setFigureLogo(""));
+  }
   setFigureWeather(m.weather.sky, m.weather.temp);
   setJarvisAgents(m.agents);
   engine.bodyColor = m.color ? hexToRGB(m.color) : null;
@@ -171,6 +189,9 @@ function lookOf(b: BarLook) {
     text: num(l.text, 100, 80, 150) / 100,
     gap: num(l.gap, 4, 0, 24),
     autoHide: !!l.autoHide,
+    blur: !!l.blur && l.style !== "islands",
+    grow: l.grow !== false,
+    shadow: l.shadow !== false,
   };
 }
 
@@ -186,8 +207,8 @@ function layBar() {
   document.body.classList.toggle("bar", !!bar);
   if (!bar) {
     float.style.cssText = "";
-    band.style.cssText = "display: none;";
-    document.body.classList.remove("islands", "see-through");
+    setGrown(false);
+    document.body.classList.remove("islands", "see-through", "bottom");
     return;
   }
   const look = lookOf(bar);
@@ -199,17 +220,120 @@ function layBar() {
   document.body.style.setProperty("--bar-bg", bg);
   document.body.classList.toggle("see-through", see);
   document.body.classList.toggle("islands", look.islands);
-  band.style.cssText = look.islands ? "display: none;" : `left: ${m}px; right: ${m}px;`;
+  document.body.classList.toggle("bottom", bar.edge === "bottom");
+  // The band's shadow is a window of its own (barshadow.rs); each island has its own here.
+  document.body.classList.toggle("shadow", look.shadow);
+  document.body.style.setProperty("--t", `${t}px`);
+  const g = Math.round(t * GROW);
+  document.body.style.setProperty("--g", `${g}px`);
+  document.body.style.setProperty("--k", String(1 + g / t));
+  band.style.display = look.islands ? "none" : "";
+  band.style.height = `${t + g}px`;
+  if (!look.grow) setGrown(false);
+  paintBand();
+  // With the blur, the window cut to the band (margins, rounded ends) at rest too.
+  const shapeKey = JSON.stringify([window.innerWidth, t, m, bar.slot, bar.edge, look.blur]);
+  if (shapeKey !== laidShape && !grown) {
+    laidShape = shapeKey;
+    void invoke("bar_grow", { px: 0, shape: bandShape(0) }).catch(() => {});
+  }
   // Text and icons follow the bar's height (Impostazioni → Barra fissa → Altezza); the text also its own size.
   document.body.style.setProperty("--s", String(Math.min(1.6, Math.max(0.8, t / 40))));
   document.body.style.setProperty("--ts", String(look.text));
   document.body.style.setProperty("--gap", `${look.gap}px`);
   const left = bar.slot === "start" ? `${m + 8}px` : bar.slot === "end" ? `calc(100% - ${t + 8 + m}px)` : `calc(50% - ${t / 2}px)`;
-  float.style.cssText = `inset: auto; top: 0; left: ${left}; width: ${t}px; height: 100%;`;
+  float.style.cssText = `inset: auto; ${bar.edge === "bottom" ? "bottom" : "top"}: 0; left: ${left}; width: ${t}px; height: ${t}px;`;
   document.body.style.setProperty("--ink", bar.ink);
   autoHide(look.autoHide);
   layAreas(bar);
 }
+
+/**
+ * The band's outline, as if against the top edge (flipped by CSS at the
+ * bottom): the bar between the margins, rounded at the ends when it floats,
+ * and under the character a bump `p` (0–1) of the swelling deep, its sides
+ * curving in so the band and the bump are one smooth shape.
+ */
+function bandPath(p: number): string {
+  if (!bar) return "";
+  const look = lookOf(bar);
+  const t = bar.thickness;
+  const m = look.margin;
+  const W = window.innerWidth;
+  const r = m > 0 ? Math.min(t / 2, 12) : 0;
+  const cx = bar.slot === "start" ? m + 8 + t / 2 : bar.slot === "end" ? W - m - 8 - t / 2 : W / 2;
+  const bw = t * 0.78;
+  const s = t * 0.5;
+  const y = t + Math.round(t * GROW) * p;
+  const f = (n: number) => Math.round(n * 10) / 10;
+  return [
+    `M ${f(m)} 0 H ${f(W - m)} V ${f(t - r)} Q ${f(W - m)} ${f(t)} ${f(W - m - r)} ${f(t)}`,
+    `H ${f(cx + bw + s)} C ${f(cx + bw)} ${f(t)} ${f(cx + bw)} ${f(y)} ${f(cx + bw * 0.35)} ${f(y)}`,
+    `H ${f(cx - bw * 0.35)} C ${f(cx - bw)} ${f(y)} ${f(cx - bw)} ${f(t)} ${f(cx - bw - s)} ${f(t)}`,
+    `H ${f(m + r)} Q ${f(m)} ${f(t)} ${f(m)} ${f(t - r)} Z`,
+  ].join(" ");
+}
+
+/** The band drawn as it is now: swollen or not. */
+function paintBand() {
+  const path = document.querySelector<SVGPathElement>("#band path");
+  if (path) path.style.d = `path("${bandPath(grown ? 1 : 0)}")`;
+}
+
+/**
+ * With the blur on, the window's outline for Rust to cut it to (logical px in
+ * the window, `swell` deep): the blur fills the whole window otherwise.
+ */
+function bandShape(p: number): number[][] | null {
+  if (!bar) return null;
+  const look = lookOf(bar);
+  if (!look.blur) return null;
+  const el = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  el.setAttribute("d", bandPath(p));
+  const len = el.getTotalLength();
+  const g = Math.round(bar.thickness * GROW) * p;
+  const H = bar.thickness + g;
+  const out: number[][] = [];
+  const n = 160;
+  for (let i = 0; i < n; i++) {
+    const pt = el.getPointAtLength((len * i) / n);
+    out.push([pt.x, bar.edge === "bottom" ? H - pt.y : pt.y]);
+  }
+  return out;
+}
+
+/**
+ * The mouse on the character (Aspetto della barra → «Il personaggio cresce»):
+ * the window first reaches past the band, then the band swells and the
+ * character grows; leaving, both go back and the window shrinks after.
+ */
+let grown = false;
+let laidShape = "";
+let shrinkTimer: number | null = null;
+function setGrown(on: boolean) {
+  if (on && !(bar && mode === "bar" && lookOf(bar).grow && !lookOf(bar).autoHide)) on = false;
+  if (on === grown) return;
+  grown = on;
+  if (shrinkTimer !== null) window.clearTimeout(shrinkTimer);
+  shrinkTimer = null;
+  const g = bar ? Math.round(bar.thickness * GROW) : 0;
+  if (on) {
+    void invoke("bar_grow", { px: g, shape: bandShape(1) }).catch(() => {});
+    requestAnimationFrame(() => {
+      document.body.classList.add("grown");
+      paintBand();
+    });
+  } else {
+    document.body.classList.remove("grown");
+    paintBand();
+    shrinkTimer = window.setTimeout(() => {
+      shrinkTimer = null;
+      void invoke("bar_grow", { px: 0, shape: bandShape(0) }).catch(() => {});
+    }, SHRINK_MS);
+  }
+}
+document.getElementById("float")?.addEventListener("mouseenter", () => setGrown(true));
+document.getElementById("float")?.addEventListener("mouseleave", () => setGrown(false));
 
 /**
  * «Nascondi da sola»: Rust keeps only a thin edge of the bar on screen; the
@@ -344,15 +468,22 @@ function fitAreas() {
   more.dataset.keys = JSON.stringify(out);
 }
 
+// A new width (another screen, another resolution): laid out again. The window
+// growing past the band under the character is not one.
+let laidWidth = 0;
 window.addEventListener("resize", () => {
-  if (!bar) return;
+  if (!bar || window.innerWidth === laidWidth) return;
+  laidWidth = window.innerWidth;
   laidItems = "";
   layBar();
 });
 
 // An element of the bar: the island opens its card or runs the action; a
-// button of the strip answers (strip:btn:<i>).
-document.addEventListener("click", (e) => {
+// button of the strip answers (strip:btn:<i>). On the press, not the click:
+// with another app in front the first click reached the bar only as a press
+// (the log of 31 Oct 2026), and the card opened at the second.
+document.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0) return;
   const target = e.target as HTMLElement | null;
   const btn = target?.closest?.(".bar-btn") as HTMLElement | null;
   if (btn?.classList.contains("bar-more")) {
@@ -363,7 +494,8 @@ document.addEventListener("click", (e) => {
   }
   if (!btn?.dataset.key) return;
   const sub = target?.closest?.("[data-btn]") as HTMLElement | null;
-  send({ kind: "bar", key: sub ? `${btn.dataset.key}:btn:${sub.dataset.btn}` : btn.dataset.key });
+  const r = btn.getBoundingClientRect();
+  send({ kind: "bar", key: sub ? `${btn.dataset.key}:btn:${sub.dataset.btn}` : btn.dataset.key, x: Math.round(r.left + r.width / 2) });
 });
 
 /** The bar element under an event, without «…» and the strip's own buttons. */
@@ -374,10 +506,12 @@ function barKey(e: Event): string | null {
 
 // The right and middle buttons and the wheel on an element: what the user chose
 // for it in Impostazioni (src/island/bar.ts → barAct); the page's own menu never shows.
+// Elsewhere on the bar (the band, the character): EasyIsland's menu (tray.rs popup_bar_context).
 document.addEventListener("contextmenu", (e) => {
   e.preventDefault();
   const key = barKey(e);
   if (key) send({ kind: "bar", key, button: "right" });
+  else if (mode === "bar" && !(e.target as HTMLElement | null)?.closest?.(".bar-more")) void invoke("bar_context_menu").catch(() => {});
 });
 document.addEventListener("auxclick", (e) => {
   const key = e.button === 1 ? barKey(e) : null;
@@ -390,8 +524,8 @@ document.addEventListener("wheel", (e) => {
 
 // Beside the open island or in the fixed bar (the times the window takes the mouse):
 // a click closes the island, or opens it from the bar.
-canvas.addEventListener("click", () => {
-  if (mode !== "open" && mode !== "bar") return;
+canvas.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0 || (mode !== "open" && mode !== "bar")) return;
   engine.squash();
   wake(600);
   send({ kind: "open" });

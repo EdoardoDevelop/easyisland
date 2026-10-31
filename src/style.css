@@ -4958,6 +4958,9 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 /* The morning and end-of-day card (src/views/daily.ts). */
 .daily-list { display: flex; flex-direction: column; gap: 2px; }
 
+/* The engine's summary of the day: long ones scroll inside the card. */
+.daily-ai { max-height: 220px; overflow-y: auto; font-size: calc(12px + var(--fs-up, 0px)); line-height: 1.45; }
+
 .daily-h { font: 600 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); letter-spacing: 0.02em; margin-bottom: 1px; }
 
 .daily-row {
@@ -4985,6 +4988,23 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 
 /* The cards of the fixed bar's system elements (src/views/barcard.ts). */
 .barcard-icon { display: grid; place-items: center; align-self: center; color: var(--ink); }
+/* The window title's card: the program's own menu (barcard.ts appMenu). */
+.appmenu-app { width: 16px; height: 16px; }
+.appmenu-list { display: flex; flex-direction: column; margin: 0 -6px; }
+.appmenu-row {
+  display: flex; align-items: center; gap: 6px; width: 100%; min-height: 26px; padding: 3px 8px;
+  border: 0; border-radius: 6px; background: none; color: var(--ink); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer;
+}
+.appmenu-row:hover:not(.off) { background: rgba(255, 255, 255, 0.08); }
+.appmenu-row.off { color: var(--dim-2); cursor: default; }
+.appmenu-back { color: var(--dim); }
+.appmenu-check { flex: 0 0 12px; font-size: 11px; }
+.appmenu-text { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.appmenu-key { flex: none; color: var(--dim-2); font-size: 11.5px; }
+.appmenu-sep { height: 1px; margin: 4px 8px; background: rgba(255, 255, 255, 0.08); flex: none; }
+.appmenu-actions { flex-wrap: wrap; }
+html[data-scheme="light"] .appmenu-row:hover:not(.off) { background: rgba(0, 0, 0, 0.06); }
+html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
 .barcard-row { display: flex; align-items: center; gap: 10px; }
 .barcard-slider { display: flex; align-items: center; gap: 10px; flex: 1 1 auto; min-width: 0; }
 .barcard-range { flex: 1 1 auto; min-width: 0; accent-color: var(--ink); }
@@ -5130,6 +5150,14 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 
 /* With the menu the views keep no room for the character on their left. */
 #island.railed { --bot-room: 0; }
+/* An island come out of the fixed bar (island.ts → openFromBarAt): only the
+   element's card, no top bar, no menu, no character; the ears are its two
+   curved joints with the band (placeEars). */
+#island.pop { --bot-room: 0; --pop-shadow: 0 6px 16px rgba(0, 0, 0, 0.32); box-shadow: var(--pop-shadow); }
+#island.pop.pop-bottom { --pop-shadow: 0 -6px 16px rgba(0, 0, 0, 0.32); }
+#island.pop #header { display: none; }
+#island.pop #content { padding-top: 10px; }
+.pop-ear { position: absolute; display: none; pointer-events: none; }
 
 #body {
   position: relative;
@@ -6081,12 +6109,19 @@ html[data-ui="windows"] .col-meta input, html[data-ui="windows"] .col-item { bor
 /* «Schede»: a grid of cards, the picture on top. */
 .news-items.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 8px; margin: 0; }
 .news-items.cards .news-item {
+  /* As wide as the card: shrunk to its content (flex-start, as in the list), the title ran past its right edge. */
+  min-width: 0; align-items: stretch;
   flex-direction: column; gap: 6px; margin: 0; padding: 0 0 7px; border-radius: 10px;
   background: rgba(255, 255, 255, 0.04); overflow: hidden;
 }
 .news-items.cards .news-thumb { width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 0; }
-.news-items.cards .news-text { padding: 0 9px; }
+.news-items.cards .news-text { padding: 0 9px; min-width: 0; }
+.news-title { overflow-wrap: anywhere; }
 .news-items.cards .news-title { -webkit-line-clamp: 3; }
+/* A narrow card: the source on its line, the buttons on the next, at the right. */
+.news-items.cards .news-meta { flex-wrap: wrap; row-gap: 4px; }
+.news-items.cards .news-from { flex: 1 1 100%; }
+.news-from { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .news-item { display: flex; flex-direction: column; gap: 1px; padding: 5px 8px; margin: 0 -8px; border-radius: 8px; cursor: pointer; }
 .news-item:hover { background: rgba(255, 255, 255, 0.07); }
 .news-title { font: 500 calc(12.5px + var(--fs-up, 0px)) var(--font); color: var(--ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -6094,11 +6129,18 @@ html[data-ui="windows"] .col-meta input, html[data-ui="windows"] .col-item { bor
 .news-meta { display: flex; align-items: center; gap: 6px; font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); }
 .news-meta .grow { flex: 1 1 auto; }
 .news-save {
+  flex: none; white-space: nowrap;
   padding: 1px 8px; border-radius: 7px; border: 0; background: rgba(255, 255, 255, 0.07); color: var(--dim-2);
   font: 500 calc(10.5px + var(--fs-up, 0px)) var(--font); cursor: pointer; opacity: 0; transition: opacity 0.15s ease;
 }
 .news-item:hover .news-save, .news-save:disabled { opacity: 1; }
 .news-save:hover { color: var(--ink); background: rgba(255, 255, 255, 0.13); }
+
+/* «Cosa ho fatto» (src/views/done.ts): rows that open nothing; the ones taken back fade. */
+.did-item { cursor: default; }
+.did-item .news-save { opacity: 1; }
+.did-item.undone { opacity: 0.55; }
+.did-undone { font: 500 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); }
 .news-ask {
   display: flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 9px;
   background: rgba(245, 165, 36, 0.10); border: 1px solid rgba(245, 165, 36, 0.28);

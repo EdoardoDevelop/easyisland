@@ -526,6 +526,11 @@ pub async fn query(which: &str, text: &str, filter: Option<&Value>, sorts: Optio
 }
 
 pub async fn add_row(which: &str, given: &Value) -> Result<String, String> {
+    add_row_undoable(which, given).await.map(|(text, _)| text)
+}
+
+/// `add_row`, with the new row's id: «Annulla» moves it to Notion's trash (permits.rs).
+pub async fn add_row_undoable(which: &str, given: &Value) -> Result<(String, String), String> {
     need_key()?;
     let db = database(which).await?;
     let props = properties(&db, given).await?;
@@ -533,10 +538,17 @@ pub async fn add_row(which: &str, given: &Value) -> Result<String, String> {
     let row = call(client().post(format!("{API}/pages")).json(&body)).await?;
     forget_answers();
     crate::log::line(format!("notion: riga aggiunta in «{}»", db.title));
-    Ok(format!("Riga aggiunta in «{}»:\n{}", db.title, row_text(&row)))
+    let id = row.get("id").and_then(Value::as_str).unwrap_or_default().to_string();
+    Ok((format!("Riga aggiunta in «{}»:\n{}", db.title, row_text(&row)), id))
 }
 
 pub async fn update_row(page: &str, given: &Value) -> Result<String, String> {
+    update_row_undoable(page, given).await.map(|(text, _, _)| text)
+}
+
+/// `update_row`, with the row's id and the values it had before for the
+/// properties changed, as Notion takes them back (permits.rs «Annulla»).
+pub async fn update_row_undoable(page: &str, given: &Value) -> Result<(String, String, Value), String> {
     need_key()?;
     let id = id_of(page);
     if !is_id(&id) {
@@ -548,10 +560,54 @@ pub async fn update_row(page: &str, given: &Value) -> Result<String, String> {
     };
     let db = database(db_id).await?;
     let props = properties(&db, given).await?;
+    let before: serde_json::Map<String, Value> = props.as_object().into_iter().flatten()
+        .filter_map(|(k, _)| Some((k.clone(), restorable(row.get("properties")?.get(k)?)?)))
+        .collect();
     let row = call(client().patch(format!("{API}/pages/{id}")).json(&json!({ "properties": props }))).await?;
     forget_answers();
     crate::log::line(format!("notion: riga cambiata in «{}»", db.title));
-    Ok(format!("Riga aggiornata in «{}»:\n{}", db.title, row_text(&row)))
+    Ok((format!("Riga aggiornata in «{}»:\n{}", db.title, row_text(&row)), id, Value::Object(before)))
+}
+
+/// A property as Notion reads it, turned into what Notion takes to write it
+/// back; None for the kinds that are computed (formula, rollup, created…) or files.
+fn restorable(prop: &Value) -> Option<Value> {
+    let kind = prop.get("type")?.as_str()?;
+    let v = prop.get(kind)?;
+    let text = |list: &Value| -> Value {
+        json!(list.as_array().into_iter().flatten().map(|r| {
+            let content = r.get("plain_text").and_then(Value::as_str).unwrap_or_default();
+            let link = r.get("href").and_then(Value::as_str).map(|u| json!({ "url": u }));
+            json!({ "type": "text", "text": { "content": content, "link": link } })
+        }).collect::<Vec<_>>())
+    };
+    let named = |o: &Value| if o.is_null() { Value::Null } else { json!({ "name": o.get("name").cloned().unwrap_or(Value::Null) }) };
+    let ids = |list: &Value| json!(list.as_array().into_iter().flatten().filter_map(|x| x.get("id").cloned()).map(|id| json!({ "id": id })).collect::<Vec<_>>());
+    let value = match kind {
+        "title" | "rich_text" => text(v),
+        "number" | "checkbox" | "url" | "email" | "phone_number" | "date" => v.clone(),
+        "select" | "status" => named(v),
+        "multi_select" => json!(v.as_array().into_iter().flatten().map(named).collect::<Vec<_>>()),
+        "people" | "relation" => ids(v),
+        _ => return None,
+    };
+    Some(json!({ kind: value }))
+}
+
+/// «Annulla» of a change: the properties back as they were (permits.rs).
+pub async fn restore_row(page: &str, before: &Value) -> Result<(), String> {
+    need_key()?;
+    call(client().patch(format!("{API}/pages/{page}")).json(&json!({ "properties": before }))).await?;
+    forget_answers();
+    Ok(())
+}
+
+/// «Annulla» of a row added: to Notion's trash, where it can still be taken back.
+pub async fn trash_row(page: &str) -> Result<(), String> {
+    need_key()?;
+    call(client().patch(format!("{API}/pages/{page}")).json(&json!({ "archived": true }))).await?;
+    forget_answers();
+    Ok(())
 }
 
 /// Moves a row to Notion's trash (recoverable there). The engine must have

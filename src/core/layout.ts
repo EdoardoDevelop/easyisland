@@ -20,6 +20,8 @@ export interface Placement {
    *  no gap there, and square corners against it. */
   glueX?: boolean;
   glueY?: boolean;
+  /** Centred, moved this far sideways in the window (an island come out of the fixed bar). */
+  dx?: number;
 }
 
 export type IslandViewName =
@@ -51,7 +53,8 @@ export type IslandViewName =
   | "moment"
   | "daily"
   | "barcard"
-  | "news";
+  | "news"
+  | "done";
 
 export type BotStateName =
   | "idle"
@@ -184,7 +187,7 @@ export function anchoredOrigin(
 ): { x: number; y: number } {
   const mx = p.glueX ? 0 : EDGE_MARGIN;
   const my = p.glueY ? 0 : EDGE_MARGIN;
-  const x = p.h === "left" ? mx : p.h === "right" ? winW - mx - w : (winW - w) / 2;
+  const x = p.h === "left" ? mx : p.h === "right" ? winW - mx - w : (winW - w) / 2 + (p.dx ?? 0);
   const y = p.v === "bottom" ? winH - my - hh : p.v === "middle" ? (winH - hh) / 2 : my;
   return { x, y };
 }
@@ -235,6 +238,7 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   daily: { height: 200, botX: 62, botY: null, botDiameter: 56, agentMode: "none" },
   barcard: { height: 200, botX: 62, botY: null, botDiameter: 56, agentMode: "none" },
   news: { height: 260, botX: 62, botY: null, botDiameter: 56, agentMode: "none" },
+  done: { height: 260, botX: 62, botY: null, botDiameter: 56, agentMode: "none" },
 };
 
 // The upload views above are only the fallback geometry. Once a file is actually

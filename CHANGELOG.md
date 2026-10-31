@@ -2,6 +2,22 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.16** — **Barra fissa** più viva: il personaggio cresce sotto il mouse e la barra si gonfia
+attorno a lui; un clic su un elemento apre la sua scheda in una **piccola isola sotto di lui**, alta
+quanto il contenuto, che si chiude con un clic fuori; ombra leggera della barra; clic destro sulla barra
+per il menu di EasyIsland con «Personalizza la barra…». **Aspetto della barra** a scelta (fascia o
+isolette, opacità, sfocatura, margini, testo, nascondi da sola) ed elementi nuovi: processore, memoria,
+disco, scheda video con grafico, lingua, cestino, aggiornamenti, musica, meteo, progetti di VS Code e il
+**titolo della finestra** con nome e icona del programma. Un clic sul titolo apre il **menu del
+programma** in primo piano: le sue voci con le scorciatoie (per i programmi classici tutte, sottomenu
+compresi), il menu della finestra con le voci di Chrome ed Edge e le tue azioni rapide per quel
+programma. **Logo animato** di EasyIsland: si disegna da solo nel saluto all'avvio e può stare
+nell'isola e nella barra al posto del personaggio. **La giornata di oggi e di domani**: riassunto
+dell'IA nel Buongiorno e nella Fine giornata, su Telegram all'ora scelta, nel campo in alto e come azione
+rapida. **Permessi per livelli**: «Sempre» per le azioni che si possono annullare, anche da Telegram, e
+**Cosa ho fatto** con Annulla. Il campo in alto **cerca ovunque**: memoria, conversazioni passate e
+ticket Zammad. Notizie da Google e Bing insieme, senza doppioni.
+
 **1.0.15** — **Allegati nella chat**: stanno dentro il campo, sopra il testo, e ce ne possono essere
 più d'uno (fino a 20), anche **cartelle intere**: 📎 accanto al microfono o `@file` e `@cartella`
 aprono la finestra di Windows a scelta multipla, Ctrl+V prende tutti i file e le cartelle copiati e un

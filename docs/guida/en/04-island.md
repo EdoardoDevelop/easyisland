@@ -36,7 +36,7 @@ In the open island, under the character:
 At the top the character tells you what's going on in a speech bubble. **Right-clicking** inside the island opens a menu with the tab's and EasyIsland's actions.
 
 ## The field at the top
-One field searches **integrations, sessions, ⚡ actions and installed programs** (Store apps too). Arrows to choose, <kbd>Enter</kbd> to open, <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to ask the chat what you typed, "Search with Google" at the bottom, <kbd>Esc</kbd> to clear. It can be turned off in Settings → Look.
+One field searches **integrations, sessions, ⚡ actions and installed programs** (Store apps too); typing "today", "tomorrow" or "day" offers **My day today / tomorrow**, which asks the chat for the summary of the day. After three letters it also searches **everywhere**: Notion pages, RDM connections, **memory** pages (the map opens on the page), **past conversations** (they come back in the chat) and **Zammad tickets** (opened in the browser), when those integrations are on. "what I did" opens the list of actions with Undo. Arrows to choose, <kbd>Enter</kbd> to open, <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to ask the chat what you typed, "Search with Google" at the bottom, <kbd>Esc</kbd> to clear. It can be turned off in Settings → Look.
 
 ## Quick replies, with the island closed
 With **Quick replies** on, next to the closed character you get:

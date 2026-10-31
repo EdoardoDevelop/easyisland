@@ -4,12 +4,13 @@
 import { Sound } from "../core/sound";
 import { COMPACT_W, NOTCH_H, NOTCH_W } from "../core/layout";
 import {
-  character, handStops as softHandStops, mix, outlinePath, rgba, type Palette, type SoftCharacter,
+  character, handless, handStops as softHandStops, mix, outlinePath, rgba, type Character, type Palette, type SoftCharacter,
 } from "./character";
 import { CUBE_EYE_X, CUBE_EYE_Y, CUBE_TIP, CUBE_TURN, cubeHandStops, drawCube, onRightFace } from "./cube";
 import { hexToRGB } from "./engine";
 import { SLIME } from "./slime";
 import { drawJarvis } from "./jarvis";
+import { drawLogoShell, LOGO_CHARACTER, logoEyes, logoInside } from "./logo-anim";
 
 // ── Timing (mirrors greeting-v2.html `T`) ─────────────────────────────────────
 
@@ -80,6 +81,8 @@ interface Pose {
   badge: number; tint: number; halo: number; haloBlue: number; minis: number; fx: number;
   header: number; card: number;
   iw: number; ih: number;
+  /** The logo's draw-in, 0…1 (logo-anim.ts): the stroke, the inside, the tail, then the eyes. */
+  build: number;
 }
 
 function greetPose(t: number): Pose {
@@ -158,6 +161,7 @@ function greetPose(t: number): Pose {
     header: seg(t, 0.35, 0.6),
     card: seg(t, 0.18, 0.45),
     iw, ih,
+    build: seg(t, 0.1, 1.35),
   };
 }
 
@@ -174,6 +178,7 @@ function smallPose(): Pose {
     minis: 1, fx: 1,
     header: 0, card: 0,
     iw: SMALL_W, ih: SMALL_H,
+    build: 1,
   };
 }
 
@@ -207,6 +212,7 @@ function pose(t: number, tc: number): Pose {
   p.lookY = a.lookY * (1 - e);
   p.minis = E.back(seg(t, tc + 0.24, tc + 0.42));
   p.fx = 1 - seg(t, tc, tc + 0.2);
+  p.build = lerp(a.build, 1, e);
   return p;
 }
 
@@ -276,12 +282,12 @@ function whiteFill(
 
 /** The soft body's own colours, or the cube's. */
 function handStops(p: Pose): [string, string] {
-  const c = character();
+  const c = greeter();
   return c.kind === "soft" ? softHandStops(greetPalette(c, p.tint)) : cubeHandStops();
 }
 
 function handEdge(p: Pose): string {
-  const c = character();
+  const c = greeter();
   return c.kind === "soft" ? rgba(greetPalette(c, p.tint).edge) : "rgba(0,0,0,0.08)";
 }
 function drawHandL(x: CanvasRenderingContext2D, hw: number, hh: number, p: Pose) {
@@ -335,7 +341,7 @@ function drawHandR(x: CanvasRenderingContext2D, hw: number, hh: number, p: Pose)
 }
 
 function drawCharacter(x: CanvasRenderingContext2D, p: Pose) {
-  const c = character();
+  const c = greeter();
   const hh = p.hb / 2;
   const hw = hh * c.aspect;
   if (hh <= 0.4) return;
@@ -362,8 +368,8 @@ function drawCharacter(x: CanvasRenderingContext2D, p: Pose) {
   x.rotate(p.tilt);
   x.scale(p.sx, p.sy);
 
-  // Jarvis has no hands.
-  if (c.kind !== "hud") {
+  // Jarvis and the logo have no hands.
+  if (!handless(c)) {
     drawHandL(x, hw, hh, p);
     drawHandR(x, hw, hh, p);
   }
@@ -380,6 +386,34 @@ function drawCharacter(x: CanvasRenderingContext2D, p: Pose) {
     }, look);
   } else if (c.kind === "hud") {
     drawJarvis(x, 0, 0, hh * 1.1, { base: c.color, col: c.color, tint: 0, state: "idle", gazeX: p.lookX, gazeY: -p.lookY });
+  } else if (c.kind === "logo") {
+    // The logo: its bubble, and the greeting's eyes in place of its own.
+    const size = hh * 2.2;
+    drawLogoShell(x, size, { build: p.build });
+    const room = logoInside(size);
+    // The eyes open once the bubble is drawn.
+    const eyesK = Math.max(0, Math.min(1, (p.build - 0.62) / 0.3));
+    x.fillStyle = "#ffffff";
+    x.strokeStyle = "#ffffff";
+    x.globalAlpha = eyesK;
+    for (const e of logoEyes(size)) {
+      x.save();
+      x.translate(e.x + p.lookX * room.hw * 0.3, e.y + p.lookY * room.hh * 0.35);
+      if (p.eye === "happy" || p.eye === "content") {
+        x.lineWidth = e.rx * 0.4;
+        x.lineCap = "round";
+        x.beginPath();
+        if (p.eye === "happy") x.arc(0, e.ry * 0.5, e.rx * 0.9, Math.PI * 1.15, Math.PI * 1.85);
+        else x.arc(0, -e.ry * 0.4, e.rx * 0.9, Math.PI * 0.15, Math.PI * 0.85);
+        x.stroke();
+      } else {
+        x.beginPath();
+        x.ellipse(0, 0, e.rx, Math.max(e.ry * 0.12, e.ry * p.open * eyesK), 0, 0, Math.PI * 2);
+        x.fill();
+      }
+      x.restore();
+    }
+    x.globalAlpha = 1;
   } else {
     drawCharacterBody(x, p, c, hw, hh);
   }
@@ -514,7 +548,7 @@ function drawMinis(x: CanvasRenderingContext2D, alpha: number) {
   const sp = 6;
   const offsets: [number, number][] = [[-sp, -sp], [sp, -sp], [-sp, sp], [sp, sp]];
   // Little copies of the character; the cube has no small form, so it gets slimes.
-  const c = character();
+  const c = greeter();
   const mini = c.kind === "soft" ? c : SLIME;
   const hh = 3.8;
   const hw = hh * mini.aspect * 0.95;
@@ -527,6 +561,15 @@ function drawMinis(x: CanvasRenderingContext2D, alpha: number) {
     x.restore();
   });
 }
+
+// ── Who greets ────────────────────────────────────────────────────────────────
+
+/** Impostazioni → «Saluto all'avvio» → the logo (default) or the character chosen. */
+let logoGreets = false;
+export function setGreetingLogo(on: boolean) {
+  logoGreets = on;
+}
+const greeter = (): Character => (logoGreets ? LOGO_CHARACTER : character());
 
 // ── Controller ────────────────────────────────────────────────────────────────
 

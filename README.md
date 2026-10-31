@@ -74,10 +74,10 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.16** — **Fixed bar** with small islands below its elements, appearance of your choice, new elements and the **program's menu** from the window title; **animated logo**; **your day** summarized by AI; **permission levels** with “What I did”; search everywhere in the top field.
 - **1.0.15** — **Chat attachments** inside the field, several at once and whole folders; **News** in a tab of its own with subjects chosen by themselves, Google or Bing News, thumbnails and cards.
 - **1.0.14** — **News** on the subjects of your memory from Google News, with “More” and “Not interested”, in the island, the Overview, the morning recap, Telegram and the fixed bar.
 - **1.0.13** — **Bar widgets**: clock, volume, microphone, brightness, battery, network and power menu in the fixed bar, with options per element and their cards in the island.
-- **1.0.12** — The **fixed bar** goes back in place by itself after the monitor is turned off and on, changed or rescaled.
 
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).
 

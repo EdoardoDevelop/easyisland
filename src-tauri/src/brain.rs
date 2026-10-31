@@ -659,6 +659,55 @@ pub fn tool_check() -> String {
 
 // ── Search ───────────────────────────────────────────────────────────────────
 
+/// Lower case without accents, as the field at the top does: "citta" finds "Città".
+fn fold(s: &str) -> String {
+    s.to_lowercase()
+        .chars()
+        .map(|c| match c {
+            'à' | 'á' | 'â' | 'ä' => 'a',
+            'è' | 'é' | 'ê' | 'ë' => 'e',
+            'ì' | 'í' | 'î' | 'ï' => 'i',
+            'ò' | 'ó' | 'ô' | 'ö' => 'o',
+            'ù' | 'ú' | 'û' | 'ü' => 'u',
+            other => other,
+        })
+        .collect()
+}
+
+/// A page found from the island's field at the top (src/views/search.ts).
+#[derive(Serialize)]
+pub struct PageHit {
+    /// The node of the memory window ("p:<slug>"), to select it there.
+    pub id: String,
+    pub title: String,
+    pub gist: String,
+}
+
+/// The pages with every word of `query` (no case, no accents) in the title,
+/// the aliases, the summary or the text; those with them in their names first.
+pub fn find_pages(query: &str, max: usize) -> Vec<PageHit> {
+    let words: Vec<String> = query.split_whitespace().map(fold).filter(|w| !w.is_empty()).collect();
+    if words.is_empty() {
+        return Vec::new();
+    }
+    let mut found: Vec<(u8, PageHit)> = pages()
+        .into_iter()
+        .filter_map(|p| {
+            let names = fold(&std::iter::once(p.title.as_str()).chain(p.aliases.iter().map(String::as_str)).collect::<Vec<_>>().join(" "));
+            let rank = if words.iter().all(|w| names.contains(w.as_str())) {
+                0
+            } else if words.iter().all(|w| names.contains(w.as_str()) || fold(&p.summary).contains(w.as_str()) || fold(&p.body).contains(w.as_str())) {
+                1
+            } else {
+                return None;
+            };
+            Some((rank, PageHit { id: format!("p:{}", p.slug), title: p.title.clone(), gist: p.gist() }))
+        })
+        .collect();
+    found.sort_by_key(|(rank, _)| *rank);
+    found.into_iter().take(max).map(|(_, h)| h).collect()
+}
+
 /// memory_search in the pages: their lines with every word, then a line of
 /// each page they link to (the links followed one step).
 pub fn search(words: &[String], max: usize) -> Vec<String> {
@@ -1117,6 +1166,12 @@ pub fn ensure_inbox() -> Result<PathBuf, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fold_ignores_case_and_accents() {
+        assert_eq!(fold("Città Perché ÀNCORA"), "citta perche ancora");
+        assert!(find_pages("   ", 5).is_empty());
+    }
 
     /// The map of a memory copied from another PC: `APPDATA=<folder with EasyIsland\memoria>`
     /// `cargo test -p easyisland --lib brain::tests::live_graph -- --ignored --nocapture`

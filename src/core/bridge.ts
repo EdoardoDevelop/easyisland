@@ -4,7 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill, Custom, CustomRecord, NewsItem, NewsProposal } from "./state";
+import type { AppMenuLine, Settings, WidgetStatus, PickedWindow, AgentTaskItem, Skill, Custom, CustomRecord, NewsItem, NewsProposal } from "./state";
 import type { RecapHistory } from "../island/recap";
 
 export const IS_TAURI =
@@ -99,6 +99,31 @@ export interface ModelOption {
   cost?: string;
 }
 
+/** A tool of EasyIsland that changed something (permits.rs «Cosa ho fatto»). */
+export interface DoneItem {
+  id: string;
+  /** Milliseconds since 1970. */
+  at: number;
+  tool: string;
+  what: string;
+  /** "" = the chat; else the task's title. */
+  task: string;
+  /** Ran without a click. */
+  alone: boolean;
+  /** Present when it can be taken back. */
+  undo?: { kind: string };
+  undone: boolean;
+}
+
+/** The summary of the day written by an engine (giornata.rs). */
+export interface DayText {
+  which: string;
+  day: string;
+  text: string;
+  error: string;
+  busy: boolean;
+}
+
 export const Bridge = {
   boot: () => call<BootInfo>("boot"),
 
@@ -107,7 +132,8 @@ export const Bridge = {
   /** Shrink the window down to the invisible wake strip (hidden) or back to full. */
   /** Open or closed: closing takes a dragged open island back to the character's place. */
   /** `place`: this opening goes there instead of `islandPlace` (the launch greeting). */
-  setExpanded: (expanded: boolean, place: string | null = null) => call<void>("set_expanded", { expanded, place }),
+  /** Answers how far the window could not follow the bar's element of a "pop:<x>" place (logical px). */
+  setExpanded: (expanded: boolean, place: string | null = null) => call<number>("set_expanded", { expanded, place }),
   setCollapsed: (collapsed: boolean, width?: number, height?: number) =>
     call<void>("set_collapsed", { collapsed, width, height }),
 
@@ -184,6 +210,10 @@ export const Bridge = {
   newsKeep: (topic: string) => call<void>("news_keep", { topic }),
   /** A Windows menu at the bar; a line comes back as the tray's `bar:<key>`. */
   barMenu: (entries: [string, string][]) => call<void>("bar_overflow_menu", { entries }),
+  /** The program in front's own menu, for the window title's card (appmenu.rs). */
+  appMenuRead: () => call<{ items: AppMenuLine[] }>("app_menu_read"),
+  /** A line of that menu, to the program. */
+  appMenuRun: (line: number) => call<void>("app_menu_run", { line }),
   /** "Prova" for messages from scripts. */
   notifyTest: () => callOrThrow<void>("notify_test"),
 
@@ -427,6 +457,13 @@ export const Bridge = {
   /** The evening digest of the memory (tasks.rs). */
   digestSet: (on: boolean) => callOrThrow<void>("digest_set", { on }),
   taskSetEngines: (id: string, engine: string, model: string, helpers: string[]) => callOrThrow<void>("task_set_engines", { id, engine, model, helpers }),
+  /** What a task may do without asking (permits.rs). */
+  taskSetMay: (id: string, may: string[]) => callOrThrow<void>("task_set_may", { id, may }),
+  /** «Consenti sempre» for a reversible tool, or taken away. */
+  toolsAllow: (tool: string, on: boolean) => callOrThrow<void>("tools_allow", { tool, on }),
+  /** «Cosa ho fatto», the newest first. */
+  didList: () => call<DoneItem[]>("did_list"),
+  didUndo: (id: string) => callOrThrow<void>("did_undo", { id }),
   /** The chat's engines: [id, name, ready now]. */
   enginesReady: () => call<[string, string, boolean][]>("engines_ready"),
   /** Integrazioni personali (custom.rs). */
@@ -513,6 +550,12 @@ export const Bridge = {
   /** 🎤 with no service: Windows' dictation (Win+H) in the focused field. */
   chatDictateWindows: () => callOrThrow<void>("chat_dictate_windows"),
   chatHistorySearch: (query: string) => call<ChatSummary[]>("chat_history_search", { query }),
+  /** The field at the top: memory pages (brain.rs find_pages). */
+  memoryFind: (query: string) => call<MemoryHit[]>("memory_find", { query }),
+  /** A page found there: the memory window with it selected. */
+  memoryWindowSelect: (id: string) => call<void>("memory_window_select", { id }),
+  /** The field at the top: Zammad's tickets (zammad.rs search). */
+  zammadSearch: (query: string) => call<TicketHit[]>("zammad_search", { query }),
   chatHistoryPin: (id: string, pinned: boolean) => call<void>("chat_history_pin", { id, pinned }),
   /** ✎ in the history list; an empty title goes back to the first question. */
   chatHistoryRename: (id: string, title: string) => call<void>("chat_history_rename", { id, title }),
@@ -600,6 +643,10 @@ export const Bridge = {
   recapMarkShown: (week: string) => call<void>("recap_mark_shown", { week }),
   /** The morning ("morning") or end-of-day ("evening") recap was shown on `day` (YYYY-MM-DD). */
   recapMarkDay: (which: "morning" | "evening", day: string) => call<void>("recap_mark_day", { which, day }),
+  /** The engine's summary for the recap card, when there is one for today (giornata.rs). */
+  dailyAiText: (which: "morning" | "evening") => call<DayText | null>("daily_ai_text", { which }),
+  /** «Chiedi il riassunto» on the recap card. */
+  dailyAiWrite: (which: "morning" | "evening") => callOrThrow<void>("daily_ai_write", { which }),
   /** Repositories with changes not committed, pull requests waiting (daily.rs). */
   dailyDigest: () => call<DailyDigest>("daily_digest"),
   /** A card from Claude Code: the button clicked, or why there is none ("closed", "hidden", "replaced"). */
@@ -720,6 +767,20 @@ export interface MemoryInfo {
 }
 
 /** One conversation in the chat history (chat_log.rs `Summary`); `updated` in ms. */
+/** A memory page found from the field at the top (brain.rs PageHit). */
+export interface MemoryHit {
+  /** The memory window's node, "p:<slug>". */
+  id: string;
+  title: string;
+  gist: string;
+}
+
+/** A Zammad ticket found from the field at the top (zammad.rs TicketHit). */
+export interface TicketHit {
+  title: string;
+  url: string;
+}
+
 export interface ChatSummary {
   id: string;
   title: string;
@@ -890,7 +951,8 @@ export type BridgeEvent =
   | { name: "cursor"; payload: { x: number; y: number } }
   | { name: "tray"; payload: string }
   | { name: "hook"; payload: Record<string, unknown> }
-  | { name: "screen-changed"; payload: null };
+  | { name: "screen-changed"; payload: null }
+  | { name: "click-away"; payload: null };
 
 export interface DragDropPayload {
   type: "enter" | "over" | "drop" | "leave";

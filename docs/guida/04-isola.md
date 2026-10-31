@@ -36,7 +36,7 @@ Nell'isola aperta, sotto il personaggio:
 In alto il personaggio ti dice in un fumetto cosa succede. Il **clic destro** dentro l'isola apre un menu con le azioni della scheda e di EasyIsland.
 
 ## Il campo in alto
-Un solo campo cerca **integrazioni, sessioni, azioni ⚡ e programmi installati** (anche quelli dello Store). Frecce per scegliere, <kbd>Invio</kbd> per aprire, <kbd>Ctrl</kbd>+<kbd>Invio</kbd> per chiedere alla chat quello che hai scritto, «Cerca con Google» in fondo, <kbd>Esc</kbd> per svuotare. Si spegne in Impostazioni → Aspetto.
+Un solo campo cerca **integrazioni, sessioni, azioni ⚡ e programmi installati** (anche quelli dello Store); scrivendo «oggi», «domani» o «giornata» propone **La mia giornata di oggi / di domani**, che chiede alla chat il punto della giornata. Dopo tre lettere cerca anche **ovunque**: pagine di Notion, connessioni di RDM, pagine della **memoria** (si apre la mappa sulla pagina), **conversazioni passate** (tornano nella chat) e **ticket Zammad** (si aprono nel browser), se quelle integrazioni sono accese. «cosa ho fatto» apre l'elenco delle azioni con Annulla. Frecce per scegliere, <kbd>Invio</kbd> per aprire, <kbd>Ctrl</kbd>+<kbd>Invio</kbd> per chiedere alla chat quello che hai scritto, «Cerca con Google» in fondo, <kbd>Esc</kbd> per svuotare. Si spegne in Impostazioni → Aspetto.
 
 ## Risposte rapide, a isola chiusa
 Con le **risposte rapide** accese, accanto al personaggio chiuso compaiono:

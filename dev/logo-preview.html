@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <title>EasyIsland — anteprima del logo animato</title>
+    <style>
+      body { margin: 0; padding: 20px 24px 40px; background: #16161a; font: 13px "Segoe UI", system-ui, sans-serif; color: #ddd; }
+      body.light { background: #e9e9ee; color: #222; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      h2 { font-size: 14px; margin: 26px 0 8px; }
+      p.note { margin: 0 0 12px; color: #999; max-width: 820px; line-height: 1.45; }
+      .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+      figure { margin: 0; text-align: center; }
+      figcaption { margin-top: 6px; font-size: 12px; color: #aaa; }
+      .island { background: #000; border-radius: 22px; }
+      body.light .island { background: #1d1d22; }
+      .bar { display: flex; align-items: center; gap: 14px; height: 32px; padding: 0 12px; border-radius: 0 0 10px 10px; background: rgba(20,20,24,0.92); color: #eee; font-size: 12px; }
+      body.light .bar { background: rgba(250,250,252,0.95); color: #222; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+      .bar .grow { flex: 1; }
+      button { font: inherit; padding: 5px 12px; border-radius: 8px; border: 1px solid #444; background: #26262c; color: inherit; cursor: pointer; }
+      body.light button { background: #fff; border-color: #bbb; }
+      .tools { display: flex; gap: 8px; margin: 10px 0 4px; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <h1>Logo animato di EasyIsland</h1>
+    <p class="note">Proposte da scegliere. Il disegno è lo stesso delle icone (fumetto arcobaleno, occhi, coda), rifatto a vettori per poterlo muovere. Nella barra e a isola chiusa il logo è piccolo: lì contano soprattutto gli occhi.</p>
+    <div class="tools">
+      <button id="theme">Sfondo chiaro / scuro</button>
+      <button id="replay">Rivedi il saluto</button>
+    </div>
+
+    <h2>1. Nell'isola: tre livelli di animazione</h2>
+    <p class="note">A: com'è oggi, fermo. B: occhi che sbattono e ogni tanto guardano di lato, il fumetto respira. C: come B, e i colori girano piano lungo il bordo.</p>
+    <div id="variants" class="row"></div>
+
+    <h2>2. Gli stati (variante C)</h2>
+    <p class="note">A riposo; un agente lavora (colori più veloci, occhi che leggono); serve una risposta (saltella, occhi grandi); ha finito (occhi contenti).</p>
+    <div id="states" class="row"></div>
+
+    <h2>3. Nella barra fissa</h2>
+    <p class="note">Il logo a 20 px nella barra, con lo stesso confronto A / B / C: la barra può avere un logo diverso da quello dell'isola.</p>
+    <div id="bars"></div>
+
+    <h2>4. Saluto all'avvio</h2>
+    <p class="note">Il bordo si disegna da solo, entra il buio, spunta la coda, si aprono gli occhi, sbatte le palpebre e fa un saltello. Poi l'isola si richiude come oggi.</p>
+    <div class="row">
+      <figure><canvas id="greet" class="island" width="640" height="150"></canvas><figcaption>Grandezza del saluto (640 × 150)</figcaption></figure>
+      <figure><canvas id="greet-big" class="island" width="260" height="260"></canvas><figcaption>Più grande, per guardare i dettagli</figcaption></figure>
+    </div>
+
+    <h2>5. A confronto con l'icona di oggi</h2>
+    <div id="compare" class="row"></div>
+
+    <script type="module" src="./logo-preview.ts"></script>
+  </body>
+</html>

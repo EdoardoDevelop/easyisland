@@ -109,6 +109,20 @@ export const CHAT_ENGINES: { id: ChatEngine; name: string; key?: string; url?: s
 ];
 
 /**
+ * A line of the program in front's menu (appmenu.rs `read_json`): a separator,
+ * a line (`line`: the number for `appMenuRun`) or a submenu (`items`). Labels
+ * are the program's, with «&» before the access key and a shortcut after a tab.
+ */
+export interface AppMenuLine {
+  label: string;
+  enabled: boolean;
+  checked: boolean;
+  sep: boolean;
+  line: number | null;
+  items: AppMenuLine[];
+}
+
+/**
  * One element of the fixed bar (docs/architettura.md → «Barra fissa»): `task:<id>` an
  * integration or a widget, `action:<id>` a quick action; in which area, and
  * with its icon, its value (or name) or both.
@@ -174,6 +188,12 @@ export interface FixedBarLook {
   /** Room between elements, px. */
   gap?: number;
   autoHide?: boolean;
+  /** A card opens in a small island under its element, not the whole island (default on). */
+  popover?: boolean;
+  /** A light shadow outside the band, under it at the top, above it at the bottom (default on). */
+  shadow?: boolean;
+  /** The character grows under the mouse and the band swells around it (default on). */
+  grow?: boolean;
 }
 
 /** A subject of «Notizie» the user follows (Impostazioni → Notizie, src-tauri/src/news.rs). */
@@ -312,6 +332,8 @@ export interface Notice {
   suggestion?: string;
   /** Its accept button: "Crea" or "Spegni". */
   suggestionAccept?: string;
+  /** An entry of «Cosa ho fatto» done without a click (permits.rs): Annulla on the card. */
+  did?: string;
 }
 
 /** A proposal at the right moment (src-tauri/src/moments.rs, src/island/moments.ts). */
@@ -364,6 +386,8 @@ export interface ApprovalInfo {
    * permission_suggestions); absent when it proposed nothing usable.
    */
   always?: string;
+  /** EasyIsland's reversible tool on the card: "Sempre" allows it for good (permits.rs). */
+  permit?: string;
   /** What deserves a second look before allowing it (src/island/risk.ts). */
   risks?: string[];
   /** ExitPlanMode: the plan to approve, in markdown. */
@@ -532,6 +556,10 @@ export interface Settings {
   weeklyRecap: boolean;
   /** The morning and end-of-day recap (daily.rs, src/island/daily.ts). */
   dailyRecap: "both" | "morning" | "evening" | "off";
+  /** The engine that writes the summary of the day in the recap (giornata.rs): "" none, "memory", "chat" or an engine's id. */
+  dailyAi?: string;
+  /** The recap also goes to the linked Telegram chat at its hour. */
+  dailyTelegram?: boolean;
   /** From which hour (local) the end-of-day recap may open. */
   eveningHour: number;
   /** Proposals at the right moment (moments.rs, src/island/moments.ts). */
@@ -599,6 +627,14 @@ export interface Settings {
   greeting: boolean;
   /** Where the greeting plays: the centre of the screen, or where the character lives. */
   greetingPlace: "center" | "character";
+  /** Who greets at launch: the EasyIsland logo drawing itself (default) or the character. */
+  greetingFigure?: "logo" | "character";
+  /**
+   * What sits in the fixed bar, whatever the island has: "" as in the island,
+   * "logo" the animated logo, "logo-still" the still one, "mylogo" the user's
+   * PNG, "weather", or "char:<id>" a character.
+   */
+  fixedBarFigure?: string;
   /** ✕ in the open island's header. */
   closeButton: boolean;
   /** The island as an app: taskbar button always, Alt+Tab, — and ▢ in the header. */
@@ -679,6 +715,8 @@ export interface Settings {
   contextActions: boolean;
   /** The chat (Claude Code engine) may use EasyIsland's tools: open programs, quick actions… */
   agentTools: boolean;
+  /** Reversible tools allowed for good with «Consenti sempre» (permits.rs). */
+  toolsAllowed?: string[];
   /** "Modalità terminale" (docs/chat.md): the chat works as Claude Code / opencode in a terminal, in chatFolder. */
   chatTerminal?: boolean;
   /** Its working folder; "" = the user's home. */
@@ -836,8 +874,9 @@ export interface QuickAction {
   /** prompt: what Claude is asked. */
   prompt: string;
   /** prompt: what the prompt is applied to ("selection": the text selected in the
-   * app in front; "page": all the text of its window, Ctrl+A). */
-  input: "clipboard" | "selection" | "file" | "none" | "page";
+   * app in front; "page": all the text of its window, Ctrl+A; "today" / "tomorrow":
+   * the day's summary from the integrations, `day_prompt` in telegram.rs, then `prompt`). */
+  input: "clipboard" | "selection" | "file" | "none" | "page" | "today" | "tomorrow";
   /** prompt on "selection": the answer goes to the chat (default) or takes the selection's place, after a preview. */
   output?: "chat" | "replace";
   /** script: show the commands and wait for "Esegui". */
@@ -1125,6 +1164,8 @@ export const DEFAULT_SETTINGS: Settings = {
   characterBubble: true,
   weeklyRecap: true,
   dailyRecap: "both",
+  dailyAi: "",
+  dailyTelegram: false,
   eveningHour: 18,
   momentDownloads: true,
   momentErrors: true,
@@ -1158,6 +1199,8 @@ export const DEFAULT_SETTINGS: Settings = {
   islandPlace: "character",
   greeting: true,
   greetingPlace: "center",
+  greetingFigure: "logo",
+  fixedBarFigure: "",
   closeButton: true,
   islandApp: false,
   stayOpenByUser: false,
@@ -1334,6 +1377,14 @@ class AppState {
   newsTaste: Record<string, number> = {};
   /** The system element whose card the island shows (src/views/barcard.ts). */
   barCard: string | null = null;
+  /** The window title's card: the program in front's own menu (appmenu.rs), null while it is read. */
+  appMenu: AppMenuLine[] | null = null;
+  /**
+   * The island come out of the fixed bar under the element clicked (island.ts →
+   * openFromBarAt): only that element's card, narrow, against the band. `x` is
+   * the element's centre from the bar's left end, logical px.
+   */
+  popover: { x: number } | null = null;
   noteMessage: string | null = null;
   searchResult: SearchResult | null = null;
   chatHistory: ChatMessage[] = [];
@@ -1690,6 +1741,8 @@ export interface AgentTaskItem {
   model: string;
   /** Engines it may hand a piece of work to (task_delegate). */
   helpers: string[];
+  /** Reversible tools it may use without asking (permits.rs). */
+  may?: string[];
   state: TaskState;
   plan: { text: string; done: boolean }[];
   /** "" = now; "at:AAAA-MM-GG HH:MM"; "daily:HH:MM"; "weekdays:HH:MM". */

@@ -1,6 +1,6 @@
 # Personaggio e isola in due WebView — lavoro a passi
 
-Branch `claude/due-webview`, iniziato il 28 ottobre 2026 (deciso con Edoardo). A lavoro finito questo file si riassume in `docs/architettura.md` e si cancella. Dopo si riprende la barra fissa (branch `claude/barra-fissa`, `docs/barra-fissa.md`) sopra questo lavoro.
+Branch `claude/due-webview`, iniziato il 28 ottobre 2026 (deciso con Edoardo). A lavoro finito questo file si riassume in `docs/architettura.md` e si cancella. Dopo si riprende la barra fissa sopra questo lavoro (fatta poi in `claude/barra-fissa-2`).
 
 ## Perché
 Oggi personaggio, vista compatta e isola aperta stanno in una sola finestra. Una finestra però è tutta in primo piano o tutta dietro, e questo pone due problemi:

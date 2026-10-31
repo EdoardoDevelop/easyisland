@@ -1,7 +1,10 @@
 // The one field in the open island's top bar: the integrations (and agents'
 // sessions), the quick actions, the programs of the Start menu (start_apps.rs),
 // the Notion pages when Notion is set up (asked as the user stops typing, notion.rs),
-// and last the chat, asked what was typed. The results cover the views while
+// the day of today or tomorrow (asked to the chat, `day_prompt` in telegram.rs),
+// and, as the user stops typing, the memory's pages (brain.rs), the past
+// conversations (chat_log.rs) and Zammad's tickets (zammad.rs, when it is on);
+// last the chat, asked what was typed. The results cover the views while
 // there is something typed; Enter opens the selected one, Ctrl+Enter asks the
 // chat, Esc clears.
 
@@ -10,7 +13,7 @@ import { ICONS } from "./icons";
 import { renderActionIcon } from "./action-icons";
 import { tabActions } from "./actions";
 import { State, isSessionTask, type QuickAction } from "../core/state";
-import { Bridge, type NotionPage, type RdmEntry } from "../core/bridge";
+import { Bridge, type ChatSummary, type MemoryHit, type NotionPage, type RdmEntry, type TicketHit } from "../core/bridge";
 import { kindLabel } from "./rdm";
 import { t } from "../core/i18n";
 
@@ -20,10 +23,16 @@ export interface SearchActions {
   openProgram(path: string): void;
   /** What was typed, asked to the chat. */
   ask(text: string): void;
+  /** The summary of today's or tomorrow's day, asked to the chat. */
+  askDay(tomorrow: boolean): void;
+  /** «Cosa ho fatto» (src/views/done.ts). */
+  showDone(): void;
+  /** A past conversation, back in the chat. */
+  reopenChat(id: string): void;
 }
 
 interface Hit {
-  kind: "Integrazione" | "Agente" | "Azione" | "Programma" | "Notion" | "RDM" | "Chat" | "Web";
+  kind: "Integrazione" | "Agente" | "Azione" | "Programma" | "Giornata" | "Isola" | "Notion" | "RDM" | "Memoria" | "Conversazione" | "Ticket" | "Chat" | "Web";
   name: string;
   icon: () => Node;
   run: () => void;
@@ -41,11 +50,11 @@ function score(name: string, q: string): number {
   return n.includes(q) ? 1 : 0;
 }
 
-const KIND_LABEL: Record<Hit["kind"], string> = { Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Notion: "Notion", RDM: "RDM", Chat: "Ctrl+Invio", Web: "Alt+Invio" };
+const KIND_LABEL: Record<Hit["kind"], string> = { Integrazione: t("Integrazione"), Agente: t("Agente"), Azione: t("Azione"), Programma: t("Programma"), Giornata: t("Chat"), Isola: t("Isola"), Notion: "Notion", RDM: "RDM", Memoria: t("Memoria"), Conversazione: t("Conversazione"), Ticket: "Zammad", Chat: "Ctrl+Invio", Web: "Alt+Invio" };
 
 /** How many of each kind at most, so programs do not drown the rest. */
 
-const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Notion: 5, RDM: 5, Chat: 1, Web: 1 };
+const LIMIT: Record<Hit["kind"], number> = { Integrazione: 4, Agente: 3, Azione: 5, Programma: 8, Giornata: 2, Isola: 1, Notion: 5, RDM: 5, Memoria: 3, Conversazione: 3, Ticket: 5, Chat: 1, Web: 1 };
 
 /** The Start menu, read again after this long (a program installed meanwhile). */
 const APPS_TTL_MS = 5 * 60_000;
@@ -83,6 +92,26 @@ export function buildSearch(actions: SearchActions): SearchHost {
       rdmFound = { q, list };
       if (input.value.trim() === q && list.length) refresh(true);
     });
+  };
+
+  // The memory, the past conversations and Zammad: asked together as the user
+  // stops typing; each answers when it can.
+  let more: { q: string; pages: MemoryHit[]; chats: ChatSummary[]; tickets: TicketHit[] } = { q: "", pages: [], chats: [], tickets: [] };
+  let moreTimer = 0;
+  const askMore = (q: string) => {
+    window.clearTimeout(moreTimer);
+    if (q.length < 3 || more.q === q) return;
+    moreTimer = window.setTimeout(() => {
+      more = { q, pages: [], chats: [], tickets: [] };
+      const show = () => { if (more.q === q && input.value.trim() === q) refresh(true); };
+      void Bridge.memoryFind(q).then((pages) => { if (more.q === q && pages?.length) { more.pages = pages; show(); } });
+      if (State.settings.chatHistory !== false) {
+        void Bridge.chatHistorySearch(q).then((chats) => { if (more.q === q && chats?.length) { more.chats = chats; show(); } });
+      }
+      if (State.settings.activeIntegrations.includes("integration_zammad")) {
+        void Bridge.zammadSearch(q).then((tickets) => { if (more.q === q && tickets?.length) { more.tickets = tickets; show(); } });
+      }
+    }, 400);
   };
 
   const askNotion = (q: string) => {
@@ -134,6 +163,16 @@ export function buildSearch(actions: SearchActions): SearchHost {
       out.push({ kind: "Programma", name: p.name, score: s,
         icon: () => svg(ICONS.apps, 13), run: () => actions.openProgram(p.path) });
     }
+    // Found by its name or by the other words for it ("agenda", "riepilogo").
+    for (const tomorrow of [false, true]) {
+      const name = tomorrow ? t("La mia giornata di domani") : t("La mia giornata di oggi");
+      const s = score(`${name} ${t("agenda riepilogo")}`, q);
+      if (s) out.push({ kind: "Giornata", name, score: s, icon: () => svg(ICONS.bubble, 13), run: () => actions.askDay(tomorrow) });
+    }
+    {
+      const s = score(`${t("Cosa ho fatto")} ${t("annulla azioni permessi")}`, q);
+      if (s) out.push({ kind: "Isola", name: t("Cosa ho fatto"), score: s, icon: () => svg(ICONS.history, 13, { stroke: 2 }), run: () => actions.showDone() });
+    }
     if (notion.q === input.value.trim()) {
       for (const p of notion.pages) {
         out.push({ kind: "Notion", name: p.title || t("Senza titolo"), score: Math.max(1, score(p.title, q)),
@@ -146,6 +185,20 @@ export function buildSearch(actions: SearchActions): SearchHost {
         out.push({ kind: "RDM", name: e.group ? `${e.name} · ${e.group.split(/[\\/]/).pop()}` : e.name, score: Math.max(1, score(e.name, q)),
           icon: () => h("span", { class: "rdm-kind", text: kindLabel(e.kind) }),
           run: () => void Bridge.rdmOpen(e).catch(() => {}) });
+      }
+    }
+    if (more.q === input.value.trim()) {
+      for (const p of more.pages) {
+        out.push({ kind: "Memoria", name: p.gist ? `${p.title} · ${p.gist}` : p.title, score: Math.max(1, score(p.title, q)),
+          icon: () => svg(ICONS.memory, 13, { stroke: 1.8 }), run: () => void Bridge.memoryWindowSelect(p.id) });
+      }
+      for (const c of more.chats) {
+        out.push({ kind: "Conversazione", name: c.title || t("Senza titolo"), score: Math.max(1, score(c.title, q)),
+          icon: () => svg(ICONS.history, 13, { stroke: 2 }), run: () => actions.reopenChat(c.id) });
+      }
+      for (const tk of more.tickets) {
+        out.push({ kind: "Ticket", name: tk.title, score: Math.max(1, score(tk.title, q)),
+          icon: () => markIcon("integration_zammad", 14) ?? svg(ICONS.doc, 13), run: () => void Bridge.openUrl(tk.url) });
       }
     }
     // Best match first; at equal match, the order of the kinds above.
@@ -186,6 +239,7 @@ export function buildSearch(actions: SearchActions): SearchHost {
       sel = 0;
       askNotion(input.value.trim());
       askRdm(input.value.trim());
+      askMore(input.value.trim());
     } else if (sel >= hits.length) sel = 0;
     el.classList.toggle("open", !!q);
     if (q) draw();

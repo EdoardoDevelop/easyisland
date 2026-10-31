@@ -15,9 +15,9 @@ La pagina è divisa in sei schede, in alto: **Tema**, **Personaggio**, **Posizio
 - **Sfondo a isola chiusa**: spento, resta solo il personaggio.
 
 ## Personaggio
-- **Nell'isola**: il personaggio, il logo di EasyIsland, il tuo logo o il meteo (vedi sotto).
+- **Nell'isola**: il personaggio, il logo di EasyIsland animato o fermo, il tuo logo o il meteo (vedi sotto).
 - **Personaggio** e il suo **colore**.
-- **Saluto all'avvio**, al centro dello schermo o dove sta il personaggio.
+- **Saluto all'avvio**: di serie il **logo di EasyIsland** che si disegna da solo (il bordo arcobaleno, la coda, poi gli occhi), oppure il personaggio; al centro dello schermo o dove sta il personaggio.
 - **Segue il mouse**: anche nella vista compatta il personaggio guarda il cursore (consuma un po' di più).
 - **Fumetto**: in alto il personaggio dice cosa succede.
 - **Personaggio nel menu**: grande, medio o piccolo in cima al menu dell'isola aperta.
@@ -31,6 +31,7 @@ La pagina è divisa in sei schede, in alto: **Tema**, **Personaggio**, **Posizio
 
 ## Barra fissa
 Con **Barra fissa** in alto o in basso, Windows tiene libera una fascia sul bordo dello schermo, come per la barra delle applicazioni, e le finestre si fermano lì.
+- **Nella barra:** chi sta nella barra, anche diverso dall'isola: come nell'isola, il logo di EasyIsland animato o fermo, il tuo logo, il meteo o uno dei personaggi.
 - **Personaggio nella barra:** all'inizio, al centro o alla fine. Non si trascina; un clic apre l'isola subito sotto la barra (sopra, se la barra è in basso) e un altro la chiude. Da chiusa l'isola non c'è: c'è la barra.
 - **Altezza della barra:** automatica (alta quanto la vista compatta) o scelta da te; il personaggio, le icone e i testi si adattano.
 - **Sfondo della barra:** come l'isola, trasparente (si vede il desktop) o un colore a scelta; il testo diventa chiaro o scuro da solo.
@@ -39,17 +40,21 @@ Con **Barra fissa** in alto o in basso, Windows tiene libera una fascia sul bord
   - **Opacità dello sfondo** e **Sfocatura dietro la barra** (Windows sfoca ciò che c'è dietro; si vede con l'opacità sotto il 100% e non vale con le isolette).
   - **Margine dai lati:** lo sfondo si stacca dai bordi sinistro e destro, per una barra sospesa.
   - **Grandezza del testo** e **Spazio tra gli elementi**.
+  - **Ombra:** un'ombra leggera sotto la barra, o sopra se la barra è in basso.
+  - **Le schede escono dalla barra:** un clic su un elemento (orologio, volume, un'integrazione come gli Appunti, le notizie…) apre una piccola isola che esce dalla barra proprio sotto di lui, con solo la sua scheda, invece dell'isola intera. È alta quanto il suo contenuto; un clic fuori la richiude.
+  - **Il personaggio cresce sotto il mouse:** portandoci sopra il mouse il personaggio (o il logo) si ingrandisce e la barra si allarga dolcemente attorno a lui.
   - **Nascondi da sola:** sul bordo resta solo un filo; portando lì il mouse la barra esce, e torna via poco dopo che il mouse se n'è andato. Windows non le tiene più lo spazio, ma l'isola aperta dalla barra si apre comunque sotto di lei.
 - **Widget della barra:** «+ Aggiungi» apre il catalogo.
   - **Sistema:** orologio e data, volume, microfono, luminosità, batteria, velocità della rete, processore (CPU), memoria (RAM), disco, scheda video (GPU), lingua della tastiera, cestino, aggiornamenti dei programmi, titolo della finestra in primo piano, notizie (il numero delle nuove), menu di spegnimento. Questi si possono aggiungere più volte, per esempio due orologi con fusi orari diversi o due dischi.
   - **Lavoro:** la barra dell'app in uso (le tue azioni rapide per il programma in primo piano; con questo elemento non compare più nella striscia), la musica in riproduzione (con precedente, pausa e successivo; la rotella cambia il volume), il meteo, i progetti recenti di VS Code, le tue integrazioni e i widget. **Agenti:** la striscia. **Le mie azioni:** le azioni rapide.
-  - Processore, memoria, scheda video e rete possono mostrare un **piccolo grafico** dell'ultimo minuto (Opzioni). Il disco si sceglie per lettera. Un clic sul processore, sulla memoria o sulla scheda video apre un menu con Gestione attività; sul disco, il disco in Esplora file e l'Archiviazione di Windows; sulla lingua, il cambio di lingua di Windows; sul cestino, aprirlo o svuotarlo (Windows chiede conferma); sugli aggiornamenti, l'elenco dei programmi da aggiornare (da winget, controllato quattro volte al giorno), «Aggiorna tutto…» (chiede conferma e apre una finestra che mostra cosa fa), «Controlla adesso» e Windows Update; su VS Code, gli ultimi progetti aperti, che si aprono con un clic. Il titolo della finestra mostra l'icona del programma e il titolo senza il suo nome (che compare con un clic), si aggiorna quando cambi scheda o documento e ha un numero massimo di lettere.
+  - Processore, memoria, scheda video e rete possono mostrare un **piccolo grafico** dell'ultimo minuto (Opzioni). Il disco si sceglie per lettera. Un clic sul processore, sulla memoria o sulla scheda video apre un menu con Gestione attività; sul disco, il disco in Esplora file e l'Archiviazione di Windows; sulla lingua, il cambio di lingua di Windows; sul cestino, aprirlo o svuotarlo (Windows chiede conferma); sugli aggiornamenti, l'elenco dei programmi da aggiornare (da winget, controllato quattro volte al giorno), «Aggiorna tutto…» (chiede conferma e apre una finestra che mostra cosa fa), «Controlla adesso» e Windows Update; su VS Code, gli ultimi progetti aperti, che si aprono con un clic. Il titolo della finestra mostra l'icona del programma e il titolo senza il suo nome (che compare con il clic destro), si aggiorna quando cambi scheda o documento e ha un numero massimo di lettere. **Un clic apre un'isoletta con il menu del programma in primo piano:** i suoi menu (File, Modifica, Visualizza…) con le scorciatoie, i sottomenu che prendono il posto dell'elenco (la riga in alto con «‹» torna indietro), senza barra di scorrimento, e tutte le voci per i programmi classici; per le app moderne una voce apre quel menu nel programma. Sotto ci sono le tue azioni rapide per quel programma («Nella barra con»). C'è sempre anche il menu della finestra (quello di Alt+Spazio: Ripristina, Riduci a icona, Chiudi…), dove alcuni programmi aggiungono voci loro: Chrome ed Edge per esempio Nuova scheda, Riapri scheda chiusa e Task Manager. Per le app fatte di pagine web (come VS Code) la prima apertura può impiegare un secondo.
   - Per ognuno scegli l'area (all'inizio, al centro, alla fine) e cosa mostrare (icona e valore, solo icona, solo valore); ↑ ↓ cambiano l'ordine, ✕ lo toglie.
   - **Opzioni:** il formato con i segnaposto (per esempio `{icon} {time}` o `NY {time}`), un secondo testo che compare con un clic (l'ora che diventa la data), il suggerimento, cosa fanno clic, clic centrale e clic destro (niente, la card o il pannello di Windows, il secondo testo, il menu, muto, una tua azione rapida) e la rotella. L'orologio ha anche il fuso orario e i secondi.
   - Di serie: sull'orologio un clic mostra la data, il clic destro apre la sua card; sul volume la rotella alza e abbassa, il clic centrale toglie l'audio; sul microfono un clic lo spegne e lo riaccende; sulla luminosità la rotella la cambia (schermi esterni che lo permettono, o il portatile); il menu di spegnimento blocca, sospende, riavvia o spegne, e chiede sempre conferma prima di sospendere, riavviare o spegnere.
   - **Le card** si aprono nell'isola, subito sotto la barra: l'orologio con il calendario del mese, gli altri fusi orari e i prossimi appuntamenti dei tuoi widget calendario; volume e microfono con il dispositivo, muto e un cursore; la luminosità con un cursore; la batteria con carica e autonomia; la rete con velocità, scheda e indirizzo IP. Ognuna ha un pulsante per la pagina di Windows corrispondente. Un altro clic sull'elemento la chiude.
 - **La striscia** (permessi, chiamate, agente al lavoro, app in uso) sta nella barra accanto al personaggio, con i suoi pulsanti; aggiungendo «Striscia» agli elementi la metti dove vuoi.
 - Quello che non ci sta finisce in **«…»**, alla fine della barra: un clic apre l'elenco.
+- **Clic destro sulla barra** (fuori dagli elementi, anche sul personaggio): il menu di EasyIsland, con in cima **Personalizza la barra…**, che apre questa scheda.
 - **Schermo** (scheda Posizione) sceglie il monitor della barra. A schermo intero (video, giochi) la barra si nasconde e torna dopo.
 - Con la barra accesa, nelle schede Posizione e Isola chiusa una nota dice quali voci non valgono finché la barra resta accesa.
 
@@ -93,7 +98,7 @@ Personaggi disegnati nel codice, tutti con le stesse espressioni:
 Il personaggio reagisce: saluta all'avvio, festeggia quando un agente finisce, si preoccupa per un errore, ti guarda quando passi con il mouse. Durante il meteo può avere il cielo dietro.
 
 ## Logo o meteo al posto del personaggio
-In **Personaggio → Nell'isola** scegli cosa sta nell'isola: **il personaggio**, **il logo di EasyIsland**, **il mio logo** o **il meteo**. Logo e meteo sono immagini ferme: niente animazioni, stati e saluto all'avvio, per un aspetto più professionale.
+In **Personaggio → Nell'isola** scegli cosa sta nell'isola: **il personaggio**, **il logo di EasyIsland, animato** o **fermo**, **il mio logo** o **il meteo**. Logo e meteo sono immagini ferme: niente animazioni né stati, per un aspetto più professionale. Il **logo di EasyIsland, animato** invece si muove come un personaggio. Segue il mouse con gli occhi, sbatte le palpebre, cambia con gli stati (i colori girano mentre un agente lavora) e «mangia» i file come gli altri.
 - **Il mio logo**: **Carica PNG…** e scegli l'immagine (meglio con lo sfondo trasparente). Viene ridotta a 512 px, resta su questo PC ed entra nel [backup](26-impostazioni.md). **Togli** la cancella; senza immagine compare il logo di EasyIsland.
 - **Il meteo**: il cielo e la temperatura di adesso, dall'integrazione **Meteo**, che dev'essere attiva.
 

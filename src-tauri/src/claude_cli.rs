@@ -52,56 +52,13 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const TOOLS: &str = "WebSearch,WebFetch,Read";
 
 /// The `easyisland` MCP server (`easyisland-hook mcp`, see agent.rs): its
-/// tools that change nothing, pre-allowed. Same list as hook/src/mcp.rs.
-/// Every other tool of it waits for Consenti / Nega in the island.
-pub(crate) const AGENT_READ_ONLY: &[&str] = &[
-    "get_foreground_app",
-    "list_status",
-    "list_quick_actions",
-    "show_notice",
-    "media_status",
-    "media_control",
-    "list_uploaded_files",
-    "list_work_folder",
-    "list_profiles",
-    "list_automations",
-    "get_settings",
-    "notion_map",
-    "notion_search",
-    "notion_read",
-    "notion_query",
-    "todo_list",
-    "remote_status",
-    "memory_search",
-    "memory_note",
-    "memory_page",
-    "memory_page_write",
-    "memory_inbox",
-    "memory_inbox_done",
-    "memory_check",
-    "memory_forget",
-    "task_plan",
-    "task_step",
-    "task_note",
-    "task_done",
-    "task_ask",
-    "task_list",
-    "task_delegate",
-    "skill_read",
-    "skill_list",
-    "custom_list",
-    "custom_get",
-    "custom_records",
-    "custom_fetch",
-    "preview_open",
-    "preview_read",
-    "preview_screenshot",
-    "preview_console",
-    "preview_resize",
-    "preview_snapshot",
-    "preview_wait",
-    "preview_network",
-];
+/// tools that change nothing (or nothing outside EasyIsland), pre-allowed:
+/// the read-only flag of hook/src/tool_list.rs, the one list. `show_card`
+/// waits for a click by itself. Every other tool asks Consenti / Nega in the
+/// island, unless the user allowed it for good (permits.rs).
+pub(crate) fn agent_read_only() -> Vec<&'static str> {
+    crate::claude::tool_list::tools().into_iter().filter(|t| t.3 && t.0 != "show_card").map(|t| t.0).collect()
+}
 
 pub(crate) const AGENT_PROMPT: &str = " You also have the easyisland tools, which act on the user's own PC: \
 open programs, folders and links, run the user's quick actions (list_quick_actions, then run_quick_action), \
@@ -438,7 +395,7 @@ fn args(
             allowed.push_str(&tool_prefix(&c.name));
         }
         if connectors.agent {
-            for t in AGENT_READ_ONLY {
+            for t in agent_read_only() {
                 allowed.push_str(&format!(",mcp__easyisland__{t}"));
             }
             a.extend(["--mcp-config".into(), dir.join("chat-mcp.json").to_string_lossy().into_owned()]);
@@ -509,7 +466,7 @@ fn terminal_args(
     ];
     let mut allowed: Vec<String> = connectors.enabled.iter().filter(|c| !c.confirm).map(|c| tool_prefix(&c.name)).collect();
     if connectors.agent {
-        allowed.extend(AGENT_READ_ONLY.iter().map(|t| format!("mcp__easyisland__{t}")));
+        allowed.extend(agent_read_only().iter().map(|t| format!("mcp__easyisland__{t}")));
         a.extend(["--mcp-config".into(), dir.join("chat-mcp.json").to_string_lossy().into_owned()]);
     }
     if !allowed.is_empty() {

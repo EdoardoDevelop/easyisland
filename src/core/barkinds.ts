@@ -89,7 +89,8 @@ export const BAR_KINDS: Record<string, BarKind> = {
   title: {
     // fgwin.rs follows the window in front while this is in the bar.
     name: t("Titolo della finestra in primo piano"), icon: "i:window", tokens: [["title", t("titolo")], ["app", t("programma")]],
-    alt: "{icon} {app}", left: "alt", middle: "none", right: "none", native: true,
+    // A click: the program's own menu (appmenu.rs; Edoardo, 31 Oct 2026).
+    alt: "{icon} {app}", left: "menu", middle: "none", right: "alt", native: true, menu: true,
   },
   news: {
     // «Notizie» (src/views/news.ts): how many are new; the card is the island's Notizie view.

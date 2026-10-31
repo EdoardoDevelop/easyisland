@@ -5,7 +5,11 @@
 import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
-import { type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
+import { LOGO_CHARACTER } from "../character/logo-anim";
+
+/** The animated logo's character id (logo-anim.ts). */
+const LOGO_ID = LOGO_CHARACTER.id;
+import { type DoneItem, type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
 import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type BarAct, type BarItem, type FixedBarLook, type NewsProposal, type NewsSettings } from "../core/state";
 import { BAR_KINDS, barKind } from "../core/barkinds";
 
@@ -16,6 +20,7 @@ import { language, locale, resolveLanguage, syncLanguage, t } from "../core/i18n
 import { applyUiStyle, uiStyle } from "../core/uistyle";
 import { type PicKind, liveCharacter, pictureBox, refreshPictures } from "./pictures";
 import { missing as flowMissing, triggerWords } from "../flows/catalog";
+import { REVERSIBLE_TOOLS, toolWords } from "../core/permits";
 import "./settings-windows.css";
 import "./settings-light.css";
 
@@ -279,7 +284,20 @@ function dailySection(): HTMLElement {
         (v) => { settings.dailyRecap = v; void save(); },
       ),
       h("button", { text: t("Mostra ora"), onclick: () => void Bridge.dailyShow() })),
-    h("div", { class: "row" }, h("label", { text: t("Fine giornata alle") }), hour, h("span", { class: "hint note", text: t("ora, da 12 a 23") })));
+    h("div", { class: "row" }, h("label", { text: t("Fine giornata alle") }), hour, h("span", { class: "hint note", text: t("ora, da 12 a 23") })),
+    h("div", { class: "row" },
+      h("label", { text: t("Riassunto dell'IA") }),
+      select<string>(
+        [["", t("Nessuno")], ["memory", t("Il motore della memoria")], ["chat", t("Il motore della chat")],
+          ...CHAT_ENGINES.map((e): [string, string] => [e.id, e.name])],
+        settings.dailyAi ?? "",
+        (v) => { settings.dailyAi = v; void save(); },
+      ),
+      h("span", { class: "hint note", text: t("all'ora del riepilogo un motore scrive la giornata di oggi (al mattino) o di domani (alla sera) da Notion, To Do, Outlook, ticket e meteo, come /oggi e /domani. Serve un motore con gli strumenti di EasyIsland; ogni riassunto è un turno del motore, quindi costa come una domanda in chat") })),
+    h("div", { class: "row" },
+      h("label", { text: t("Anche su Telegram") }),
+      toggle(settings.dailyTelegram === true, (v) => { settings.dailyTelegram = v; void save(); }),
+      h("span", { class: "hint note", text: t("all'ora del riepilogo il bot collegato riceve il riassunto dell'IA (se scelto) e il tempo degli agenti, anche con l'isola chiusa") })));
 }
 
 /** EasyIsland's tools in Claude Code everywhere (mcp_setup.rs). */
@@ -2068,9 +2086,10 @@ function appearanceSections(): HTMLElement[] {
   // picture — the EasyIsland logo, the user's PNG (logo.rs) or the weather.
   const characterRow = h("div", { class: "row" },
     h("label", { text: t("Personaggio") }),
+    // The animated logo is chosen in «Nell'isola», next to the still one.
     select<string>(
-      characters().map((c) => [c.id, c.name] as [string, string]),
-      th.character ?? characters()[0].id,
+      characters().filter((c) => c.id !== LOGO_ID).map((c) => [c.id, c.name] as [string, string]),
+      th.character && th.character !== LOGO_ID ? th.character : DEFAULT_SETTINGS.theme.character,
       (v) => { th.character = v; commit(); drawColorRow(); },
     ),
   );
@@ -2106,8 +2125,13 @@ function appearanceSections(): HTMLElement[] {
       h("span", { class: "hint note", text: t("un PNG con lo sfondo trasparente rende meglio; viene ridotto a 512 px e resta su questo PC (va anche nel backup)") }),
     );
   };
+  // «Nell'isola»: the animated logo is the character «EasyIsland» (logo-anim.ts),
+  // offered here as its own choice next to the still logo.
+  type IslandFigure = Theme["figure"] | "logo-anim";
+  const figureNow = (): IslandFigure => ((th.figure ?? "character") === "character" && th.character === LOGO_ID ? "logo-anim" : th.figure ?? "character");
+  let lastCharacter = th.character && th.character !== LOGO_ID ? th.character : DEFAULT_SETTINGS.theme.character;
   const showFigure = () => {
-    const f = th.figure ?? "character";
+    const f = figureNow();
     characterRow.style.display = f === "character" ? "" : "none";
     colorRow.style.display = f === "character" ? "" : "none";
     logoRow.style.display = f === "logo" ? "" : "none";
@@ -2115,12 +2139,24 @@ function appearanceSections(): HTMLElement[] {
   };
   const figureRow = h("div", { class: "row" },
     h("label", { text: t("Nell'isola") }),
-    select<Theme["figure"]>(
-      [["character", t("Il personaggio")], ["easyisland", t("Il logo di EasyIsland")], ["logo", t("Il mio logo")], ["weather", t("Il meteo")]],
-      th.figure ?? "character",
-      (v) => { th.figure = v; commit(); showFigure(); },
+    select<IslandFigure>(
+      [["character", t("Il personaggio")], ["logo-anim", t("Il logo di EasyIsland, animato")], ["easyisland", t("Il logo di EasyIsland, fermo")], ["logo", t("Il mio logo")], ["weather", t("Il meteo")]],
+      figureNow(),
+      (v) => {
+        if (th.character && th.character !== LOGO_ID) lastCharacter = th.character;
+        if (v === "logo-anim") {
+          th.figure = "character";
+          th.character = LOGO_ID;
+        } else {
+          th.figure = v;
+          // Back to a character: the one chosen before the animated logo.
+          if (v === "character" && th.character === LOGO_ID) th.character = lastCharacter;
+        }
+        commit();
+        showFigure();
+      },
     ),
-    h("span", { class: "hint note", text: t("logo e meteo sono immagini ferme: niente animazioni, stati e saluto all'avvio, per un aspetto più sobrio. Il meteo viene dall'integrazione Meteo, che dev'essere attiva") }),
+    h("span", { class: "hint note", text: t("il logo animato si muove come un personaggio (segue il mouse, cambia con gli stati); il logo fermo, il tuo logo e il meteo sono immagini ferme, per un aspetto più sobrio. Il meteo viene dall'integrazione Meteo, che dev'essere attiva") }),
   );
   showFigure();
 
@@ -2171,10 +2207,18 @@ function appearanceSections(): HTMLElement[] {
     settings.greetingPlace ?? "center",
     (v) => { settings.greetingPlace = v; commit(); },
   );
+  // Who greets: the EasyIsland logo drawing itself (default) or the character.
+  const greetingFigure = select<NonNullable<Settings["greetingFigure"]>>(
+    [["logo", t("Il logo di EasyIsland")], ["character", t("Il personaggio")]],
+    settings.greetingFigure ?? "logo",
+    (v) => { settings.greetingFigure = v; commit(); },
+  );
   greetingPlace.style.display = settings.greeting === false ? "none" : "";
+  greetingFigure.style.display = greetingPlace.style.display;
   const greeting = toggle(settings.greeting !== false, (v) => {
     settings.greeting = v;
     greetingPlace.style.display = v ? "" : "none";
+    greetingFigure.style.display = greetingPlace.style.display;
     commit();
   });
 
@@ -2361,8 +2405,9 @@ function appearanceSections(): HTMLElement[] {
         pictured("greeting", h("div", { class: "row" },
           h("label", { text: t("Saluto all'avvio") }),
           greeting,
+          greetingFigure,
           greetingPlace,
-          h("span", { class: "hint note", text: t("l'animazione del personaggio quando parte l'app; spento, compare subito al suo posto") }),
+          h("span", { class: "hint note", text: t("l'animazione quando parte l'app: il logo di EasyIsland che si disegna da solo, oppure il personaggio. Spento, compare subito al suo posto") }),
         )),
         pictured("follow", h("div", { class: "row" },
           h("label", { text: t("Segue il mouse") }),
@@ -2430,6 +2475,18 @@ function appearanceSections(): HTMLElement[] {
           select([["start", t("All'inizio")], ["center", t("Al centro")], ["end", t("Alla fine")]], settings.fixedBarSlot ?? "center",
             (v) => { settings.fixedBarSlot = v as Settings["fixedBarSlot"]; commit(); }),
           h("span", { class: "hint note", text: t("con la barra fissa il personaggio sta lì e non si trascina; l'isola si apre sotto la barra (sopra, se è in basso) e da chiusa non c'è") }),
+        ), h("div", { class: "row bar-row" },
+          h("label", { text: t("Nella barra") }),
+          select<string>([
+            ["", t("Come nell'isola")],
+            ["logo", t("Il logo di EasyIsland, animato")],
+            ["logo-still", t("Il logo di EasyIsland, fermo")],
+            ["mylogo", t("Il mio logo")],
+            ["weather", t("Il meteo")],
+            ...characters().filter((c) => c.id !== LOGO_ID).map((c): [string, string] => [`char:${c.id}`, c.name]),
+          ], settings.fixedBarFigure ?? "",
+            (v) => { settings.fixedBarFigure = v; commit(); }),
+          h("span", { class: "hint note", text: t("chi sta nella barra può essere diverso da chi sta nell'isola: un personaggio o il logo animato seguono il mouse e cambiano con gli stati; il logo fermo, il tuo logo e il meteo sono immagini ferme") }),
         ), h("div", { class: "row bar-row" },
           h("label", { text: t("Altezza della barra") }),
           slider(24, 96, 2, Math.round(barThickness(settings)), "px", (v) => { settings.fixedBarHeight = v; commit(); render(); }),
@@ -2742,6 +2799,18 @@ function barLookRows(commit: () => void): HTMLElement[] {
       h("label", { text: t("Nascondi da sola") }),
       toggle(!!look().autoHide, (v) => set("autoHide", v)),
       h("span", { class: "hint note", text: t("resta solo un filo sul bordo e la barra esce quando arriva il mouse; Windows non le tiene più lo spazio") })),
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Ombra") }),
+      toggle(look().shadow !== false, (v) => set("shadow", v)),
+      h("span", { class: "hint note", text: t("leggera, sotto la barra, o sopra se la barra è in basso") })),
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Le schede escono dalla barra") }),
+      toggle(look().popover !== false, (v) => set("popover", v)),
+      h("span", { class: "hint note", text: t("un clic su un elemento apre una piccola isola sotto di lui invece dell'isola intera") })),
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Il personaggio cresce sotto il mouse") }),
+      toggle(look().grow !== false, (v) => set("grow", v)),
+      h("span", { class: "hint note", text: t("la barra si allarga attorno a lui") })),
   ];
 }
 
@@ -3512,6 +3581,8 @@ function actionsSection(): HTMLElement {
                   ["page", t("Tutto il testo della finestra in uso (pagina, mail, documento)")],
                   ["clipboard", t("Testo copiato negli appunti")],
                   ["file", t("File rilasciato sull'isola")],
+                  ["today", t("La mia giornata di oggi (integrazioni)")],
+                  ["tomorrow", t("La mia giornata di domani (integrazioni)")],
                   ["none", t("Niente (solo la domanda)")],
                 ],
                 use,
@@ -3526,7 +3597,9 @@ function actionsSection(): HTMLElement {
               a.input === "selection"
                 ? h("span", { class: "hint note", text: t("compare nel menu di {key}", { key: settings.hotkeySelectionMenu || "Win+Alt+A" }) })
                 : null),
-            area(a.prompt, replacing ? t("Come riscrivere il testo, es. «Rendilo più cortese»") : t("Cosa chiedere alla chat"),
+            area(a.prompt, replacing ? t("Come riscrivere il testo, es. «Rendilo più cortese»")
+              : a.input === "today" || a.input === "tomorrow" ? t("Facoltativo: cosa aggiungere, es. «Metti prima le chiamate»")
+              : t("Cosa chiedere alla chat"),
               (v) => { a.prompt = v; }),
           );
           break;
@@ -4387,7 +4460,8 @@ function tasksSection(): HTMLElement {
     else if (kind.value !== "now") when = `${kind.value}:${time.value}`;
     const e = picker.value();
     try {
-      await Bridge.taskNew(title.value, goal.value, when, e.engine, e.model, e.helpers);
+      const task = await Bridge.taskNew(title.value, goal.value, when, e.engine, e.model, e.helpers);
+      if (e.may.length) await Bridge.taskSetMay(task.id, e.may);
       title.value = "";
       goal.value = "";
       await refreshTasks();
@@ -4480,7 +4554,7 @@ function taskRow(task: AgentTaskItem): HTMLElement {
   });
   buttons.append(log);
   if (task.state !== "running") {
-    const motors = h("button", { text: taskEnginesOpen === task.id ? t("Chiudi motori") : t("Motori") });
+    const motors = h("button", { text: taskEnginesOpen === task.id ? t("Chiudi") : t("Motori e permessi") });
     motors.addEventListener("click", () => {
       taskEnginesOpen = taskEnginesOpen === task.id ? "" : task.id;
       paintTasks();
@@ -4518,13 +4592,14 @@ function taskRow(task: AgentTaskItem): HTMLElement {
   }
   body.append(buttons);
   if (taskEnginesOpen === task.id && task.state !== "running") {
-    const picker = enginePicker(task.engine, task.model, task.helpers);
+    const picker = enginePicker(task.engine, task.model, task.helpers, task.may ?? []);
     const feedback = h("div", {});
-    const save = h("button", { class: "primary", text: t("Salva i motori") }) as HTMLButtonElement;
+    const save = h("button", { class: "primary", text: t("Salva") }) as HTMLButtonElement;
     save.addEventListener("click", async () => {
       const e = picker.value();
       try {
         await Bridge.taskSetEngines(task.id, e.engine, e.model, e.helpers);
+        await Bridge.taskSetMay(task.id, e.may);
         taskEnginesOpen = "";
         await refreshTasks();
       } catch (err) {
@@ -4592,7 +4667,7 @@ function engineName(id: string): string {
  * A task's engines: the one that leads it (and its model), and the helpers it
  * may hand a piece of work to (task_delegate in tasks.rs).
  */
-function enginePicker(engine: string, model: string, helpers: string[]): { el: HTMLElement; value(): { engine: string; model: string; helpers: string[] } } {
+function enginePicker(engine: string, model: string, helpers: string[], may: string[] = []): { el: HTMLElement; value(): { engine: string; model: string; helpers: string[]; may: string[] } } {
   const ready = (id: string) => !readyEngines || readyEngines.has(id);
   const main = h("select", {}) as HTMLSelectElement;
   main.append(h("option", { value: "", text: t("Quello dei compiti (qui sotto)") }));
@@ -4616,17 +4691,117 @@ function enginePicker(engine: string, model: string, helpers: string[]): { el: H
     });
     chips.append(b);
   }
+  // What it may do without asking: only the reversible tools (permits.rs).
+  const allowed = new Set(may);
+  const mayChips = h("div", { class: "chip-opts" });
+  for (const tool of REVERSIBLE_TOOLS) {
+    const b = h("button", { class: allowed.has(tool) ? "chip-opt on" : "chip-opt", text: toolWords(tool) }) as HTMLButtonElement;
+    b.addEventListener("click", () => {
+      if (allowed.has(tool)) allowed.delete(tool);
+      else allowed.add(tool);
+      b.classList.toggle("on", allowed.has(tool));
+    });
+    mayChips.append(b);
+  }
   const el = h("div", { class: "engine-picker" },
     h("div", { class: "row" }, h("label", { text: t("Motore") }), main, modelField),
     h("div", { class: "row" }, h("label", { text: t("Motori aiutanti") }), chips),
-    h("span", { class: "hint", text: t("Il motore guida il compito; agli aiutanti può affidare un pezzo del lavoro (una ricerca, una revisione, un testo), ognuno con i suoi punti di forza.") }));
-  return { el, value: () => ({ engine: main.value, model: main.value ? modelField.value.trim() : "", helpers: [...chosen] }) };
+    h("span", { class: "hint", text: t("Il motore guida il compito; agli aiutanti può affidare un pezzo del lavoro (una ricerca, una revisione, un testo), ognuno con i suoi punti di forza.") }),
+    h("div", { class: "row" }, h("label", { text: t("Senza chiedere") }), mayChips),
+    h("span", { class: "hint", text: t("Cosa può fare da solo, anche di notte: solo cose che si annullano, ognuna in «Cosa ho fatto» (Impostazioni → Chat). Inviare, eliminare, aprire ed eseguire chiedono sempre.") }));
+  return { el, value: () => ({ engine: main.value, model: main.value ? modelField.value.trim() : "", helpers: [...chosen], may: [...allowed] }) };
+}
+
+let repaintDone: (() => void) | null = null;
+let doneListening = false;
+
+/**
+ * Impostazioni → Chat → Permessi degli strumenti (permits.rs, docs/chat.md):
+ * the reversible tools allowed for good with «Sempre» on a card, taken away
+ * here, and «Cosa ho fatto» with Annulla.
+ */
+function permitsSection(): HTMLElement {
+  const allowedList = h("div", {});
+  const paintAllowed = () => {
+    const on = (settings.toolsAllowed ?? []).filter((x) => REVERSIBLE_TOOLS.includes(x));
+    clear(allowedList);
+    if (!on.length) {
+      allowedList.append(h("div", { class: "hint note", text: t("Nessuno: ogni azione che cambia qualcosa chiede Consenti / Nega. Sulla card di quelle che si possono annullare c'è «Sempre».") }));
+      return;
+    }
+    for (const tool of on) {
+      const off = h("button", { class: "icon", text: "✕", title: t("Torna a chiedere") }) as HTMLButtonElement;
+      off.addEventListener("click", async () => {
+        off.disabled = true;
+        await Bridge.toolsAllow(tool, false).catch(() => {});
+      });
+      allowedList.append(h("div", { class: "row" }, h("span", { style: "flex:1 1 auto", text: toolWords(tool) }), off));
+    }
+  };
+  paintAllowed();
+
+  const doneList = h("div", { class: "did-list" });
+  const SHOWN = 30;
+  const paintDone = async () => {
+    const items: DoneItem[] = (await Bridge.didList()) ?? [];
+    clear(doneList);
+    if (!items.length) {
+      doneList.append(h("div", { class: "hint note", text: t("Ancora niente.") }));
+      return;
+    }
+    for (const d of items.slice(0, SHOWN)) {
+      const when = new Date(d.at).toLocaleString(locale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+      const who = d.task ? t("compito «{title}»", { title: d.task }) : t("chat");
+      const head = [when, who, d.alone ? t("senza chiedere") : ""].filter(Boolean).join(" · ");
+      const right = d.undone
+        ? h("span", { class: "hint", text: t("Annullato") })
+        : d.undo
+          ? (() => {
+            const b = h("button", { text: t("Annulla") }) as HTMLButtonElement;
+            b.addEventListener("click", async () => {
+              b.disabled = true;
+              try {
+                await Bridge.didUndo(d.id);
+              } catch (e) {
+                b.disabled = false;
+                b.title = String(e).replace(/^Error:\s*/, "");
+                b.textContent = t("Non riuscito");
+              }
+            });
+            return b;
+          })()
+          : null;
+      doneList.append(h("div", { class: "row did" },
+        h("div", { style: "flex:1 1 auto;min-width:0" },
+          h("div", {}, h("b", { text: toolWords(d.tool) }), h("span", { class: "hint", text: ` · ${head}` })),
+          h("div", { class: "hint note", text: d.what })),
+        right));
+    }
+  };
+  void paintDone();
+  // One listener for the window; it repaints the section on screen now. A
+  // change to toolsAllowed redraws the page by itself (settings-changed).
+  repaintDone = () => void paintDone();
+  if (!doneListening) {
+    doneListening = true;
+    void onEvent<null>("did-changed", () => repaintDone?.());
+  }
+
+  return h("section", {},
+    h("h2", {}, h("span", { text: t("Permessi degli strumenti") })),
+    h("span", { class: "hint", text: t("Leggere è sempre libero. Le azioni che si possono annullare (righe di Notion, attività di To Do, file del Vassoio) chiedono finché non scegli «Sempre» sulla loro card. Inviare, eliminare, aprire, eseguire e cambiare le impostazioni chiedono ogni volta.") }),
+    h("div", { class: "row" }, h("label", { text: t("Senza chiedere") }), allowedList),
+    h("h2", {}, h("span", { text: t("Cosa ho fatto") })),
+    h("span", { class: "hint", text: t("Le azioni degli strumenti di EasyIsland che hanno cambiato qualcosa, dalla chat, da Telegram e dai compiti; le ultime {n}.", { n: SHOWN }) }),
+    doneList);
 }
 
 /** "Claude (abbonamento) · aiutanti: opencode, Gemini". */
 function enginesLine(task: AgentTaskItem): string {
   const main = task.engine ? `${engineName(task.engine)}${task.model ? ` (${task.model})` : ""}` : t("motore dei compiti");
-  return task.helpers.length ? `${main} · ${t("aiutanti: {list}", { list: task.helpers.map(engineName).join(", ") })}` : main;
+  const helpers = task.helpers.length ? ` · ${t("aiutanti: {list}", { list: task.helpers.map(engineName).join(", ") })}` : "";
+  const may = task.may?.length ? ` · ${t("senza chiedere: {list}", { list: task.may.map(toolWords).join(", ") })}` : "";
+  return `${main}${helpers}${may}`;
 }
 
 // ── Integrazioni personali (custom.rs) ────────────────────────────────────────
@@ -5241,6 +5416,13 @@ async function main() {
       integrationQuery = "";
       onlyActive = false;
     }
+    // A tab of Aspetto ("aspetto" + "barra": the fixed bar's menu).
+    const tab = page === "aspetto" ? LOOK_TABS().find(([id]) => id === item)?.[0] : undefined;
+    if (tab) {
+      lookTabNow = tab;
+      render();
+      return;
+    }
     render();
     if (!item) return;
     requestAnimationFrame(() => {
@@ -5316,7 +5498,7 @@ function pages(b: NonNullable<typeof boot>): Page[] {
     {
       id: "chat", label: t("Chat e motori AI"), icon: "chat", color: "#A78BFA", title: t("Chat dell'isola e motori AI"),
       intro: t("Il motore che risponde quando scrivi nell'isola o al bot di Telegram, cosa può fare sul PC, la cartella di lavoro e le conversazioni salvate."),
-      sections: () => [claudeChatSection(b.hasKey)],
+      sections: () => [claudeChatSection(b.hasKey), permitsSection()],
     },
     {
       id: "claude", label: t("Agenti di codice"), icon: "terminal", color: "#E07A5F", title: t("Agenti di codice nel terminale"),

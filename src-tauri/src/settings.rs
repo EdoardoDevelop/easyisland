@@ -539,6 +539,13 @@ pub struct Settings {
     /// When the end-of-day recap may open, local hour (0–23).
     #[serde(default = "default_evening_hour")]
     pub evening_hour: f64,
+    /// The engine that writes the summary of the day in the recap (giornata.rs):
+    /// "" = none, "memory", "chat" or an engine's id.
+    #[serde(default)]
+    pub daily_ai: String,
+    /// The recap also goes to the linked Telegram chat at its hour.
+    #[serde(default)]
+    pub daily_telegram: bool,
     /// Proposals at the right moment (moments.rs): a finished download…
     #[serde(default = "default_true")]
     pub moment_downloads: bool,
@@ -645,6 +652,15 @@ pub struct Settings {
     /// "character", where the character lives (island.rs, `open_place`).
     #[serde(default = "default_greeting_place")]
     pub greeting_place: String,
+    /// Who greets at launch: "logo" (the EasyIsland logo drawing itself, the
+    /// default since 31 Oct 2026) or "character" (the character chosen).
+    #[serde(default = "default_greeting_figure")]
+    pub greeting_figure: String,
+    /// What sits in the fixed bar, whatever the island has: "" as in the
+    /// island, "logo" the animated logo, "logo-still" the still one, "mylogo"
+    /// the user's PNG, "weather", "char:<id>" a character (src/main.ts → look).
+    #[serde(default)]
+    pub fixed_bar_figure: String,
     /// ✕ in the open island's header.
     #[serde(default = "default_true")]
     pub close_button: bool,
@@ -775,6 +791,11 @@ pub struct Settings {
     /// The chat (Claude Code engine) may use EasyIsland's own tools (agent.rs).
     #[serde(default = "default_true")]
     pub agent_tools: bool,
+    /// EasyIsland's tools the user allowed for good with «Consenti sempre»
+    /// (permits.rs): only the reversible ones of hook/src/tool_list.rs, never
+    /// through set_setting (agent_settings.rs lists what an agent may change).
+    #[serde(default)]
+    pub tools_allowed: Vec<String>,
     /// "Modalità terminale" (chat.md): the chat works as Claude Code or opencode
     /// in a terminal, every tool and the user's MCP servers, in `chat_folder`;
     /// commands and changes still wait for Consenti / Nega.
@@ -887,6 +908,9 @@ fn default_island_place() -> String {
 fn default_greeting_place() -> String {
     "center".into()
 }
+fn default_greeting_figure() -> String {
+    "logo".into()
+}
 fn default_anchor_v() -> String {
     "top".into()
 }
@@ -970,6 +994,8 @@ impl Default for Settings {
             weekly_recap: true,
             daily_recap: default_daily_recap(),
             evening_hour: default_evening_hour(),
+            daily_ai: String::new(),
+            daily_telegram: false,
             moment_downloads: true,
             moment_errors: true,
             moment_servers: true,
@@ -1006,6 +1032,8 @@ impl Default for Settings {
             island_place: default_island_place(),
             greeting: true,
             greeting_place: default_greeting_place(),
+            greeting_figure: default_greeting_figure(),
+            fixed_bar_figure: String::new(),
             close_button: true,
             island_app: false,
             stay_open_by_user: false,
@@ -1048,6 +1076,7 @@ impl Default for Settings {
             hotkey_collect: default_hotkey_collect(),
             context_actions: true,
             agent_tools: true,
+            tools_allowed: Vec::new(),
             chat_terminal: false,
             chat_folder: String::new(),
             chat_preview: true,
@@ -1242,6 +1271,17 @@ impl Settings {
     pub fn bar_blur(&self) -> bool {
         self.fixed_bar_look.get("blur").and_then(Value::as_bool).unwrap_or(false)
             && self.fixed_bar_look.get("style").and_then(Value::as_str) != Some("islands")
+    }
+
+    /// The fixed bar's shadow outside the band (barshadow.rs): on unless turned off; not with the islands style.
+    pub fn bar_shadow(&self) -> bool {
+        self.fixed_bar_look.get("shadow").and_then(Value::as_bool).unwrap_or(true)
+            && self.fixed_bar_look.get("style").and_then(Value::as_str) != Some("islands")
+    }
+
+    /// The fixed bar's background leaves the screen's sides by this much, logical px.
+    pub fn bar_margin(&self) -> f64 {
+        self.fixed_bar_look.get("margin").and_then(Value::as_f64).filter(|m| m.is_finite()).unwrap_or(0.0).clamp(0.0, 400.0)
     }
 
     /// The first converted widget of each kind gives the integration its options.

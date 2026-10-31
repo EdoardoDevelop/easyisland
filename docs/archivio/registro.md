@@ -2,6 +2,38 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 31 ottobre 2026 — Permessi per livelli e «Cosa ho fatto» (nella 1.0.16)
+- Strumenti di EasyIsland in tre livelli (`permits.rs`): lettura libera; reversibili (`REVERSIBLE` in `hook/src/tool_list.rs`: righe di Notion, attività di To Do, Vassoio, cartella di lavoro) con «Sempre» sulla card, per sempre finché lo togli in Impostazioni → Chat; il resto chiede ogni volta. Un compito può farle da solo se scelto («Motori e permessi», `may` di `task_create`).
+- «Cosa ho fatto» in Impostazioni → Chat: ogni strumento che cambia qualcosa, con Annulla per i reversibili. Card leggibili per Notion, To Do, Vassoio e `task_create`; lista di sola lettura unica (`claude_cli::agent_read_only`); una lista sola delle cose delicate per le due «Automatica».
+- Poi: ♾ «Sempre» anche nei pulsanti di Telegram (`permits::offers_always`); «Cosa ho fatto» anche nell'isola (vista `done`, dal campo in alto) e l'avviso «Fatto senza chiedere» con Annulla (`did-alone`). Test Rust, smoke e schermate nell'anteprima; non provato nell'app vera.
+
+### 31 ottobre 2026 — Barra fissa: effetti (in `claude/sviluppo`)
+- Il personaggio cresce sotto il mouse e la barra si gonfia attorno a lui con fianchi curvi (`bar_grow`, `appbar::GROW`, tracciato SVG `bandPath`; con la sfocatura la finestra è ritagliata sul tracciato).
+- Le schede escono dalla barra: un clic su un elemento apre una piccola isola sotto di lui con solo la sua scheda e due raccordi curvi (`openFromBarAt`, luogo `pop:<x>`, `POP_SHIFT`). Entrambe disattivabili in «Aspetto della barra». Smoke «nessun errore»; provato nell'anteprima solo il rigonfiamento.
+- Poi: ombra della barra (`barshadow.rs`, anche con l'isola aperta, sotto di lei), isolette con la loro ombra e senza bordo, alte quanto il contenuto e senza angolo per ridimensionare, chiuse da un clic fuori (`click-away`); clic destro sulla barra fuori dagli elementi = menu di EasyIsland con «Personalizza la barra…» (`tray::popup_bar_context`). Unito in `claude/sviluppo`.
+### 31 ottobre 2026 — La giornata nel campo in alto e nelle azioni rapide (su `claude/giornata-permessi`)
+- Nel campo in alto «oggi», «domani», «giornata», «agenda» o «riepilogo» propongono «La mia giornata di oggi / di domani», che apre la chat con `day_prompt` come `/oggi` (`search.ts`, `askDay`).
+- Azioni rapide «Chiedi alla chat» con «Lavora su» → la giornata di oggi o di domani (`input` "today" / "tomorrow"), più il prompt dell'azione come aggiunta facoltativa: così la giornata va anche nella barra, nelle cartelle e su una scorciatoia. Smoke «nessun errore»; non provato nell'app vera.
+
+### 30 ottobre 2026 — Barra fissa: aspetto ed elementi nuovi (in `main`)
+- Aspetto della barra, ogni voce a scelta: fascia o isolette, opacità, sfocatura acrilica, margine dai lati, grandezza del testo, spazio tra gli elementi, nascondi da sola (fascia di 0 px e barra fuori dal bordo tranne 3 px, `appbar::window_rect`, `bar_reveal`).
+- Elementi nuovi: processore, memoria, disco, scheda video con grafico dell'ultimo minuto, lingua della tastiera, cestino, aggiornamenti (winget), titolo della finestra, barra dell'app in uso, musica con i pulsanti, meteo, progetti recenti di VS Code; menu per elemento (`barMenuOf`). Smoke «nessun errore», 350 test Rust; provato nell'anteprima, non nell'app vera.
+- Titolo della finestra rifatto (`fgwin.rs`): nome vero del programma e sua icona, titolo senza il nome, aggiornato al cambio di scheda; EasyIsland quando è davanti; desktop e barra delle applicazioni ignorati. Installato su questo PC. Unito in `main` il 31 ottobre.
+
+### 30 ottobre 2026 — Versione 1.0.15: allegati nel campo, cartelle; Notizie in una scheda, argomenti da soli, miniature
+- Chat: gli allegati stanno nel campo sopra il testo, sono più d'uno (fino a 20) e possono essere cartelle (percorso ed elenco dei file al motore); 📎, `@file`, `@cartella`, Ctrl+V e rilascio li aggiungono tutti (`ChatContext::Files`).
+- Notizie: voce sempre nel menu (spegnibile), argomenti scelti una volta al giorno da un motore e seguiti da soli, interruttore per argomento; fonte Google o Bing News (Bing con foto e riassunto), aspetto elenco / miniature / schede, la lista scorre.
+
+### 30 ottobre 2026 — Versione 1.0.14: Notizie
+- Notizie, passo 3 e parte del 4: «Di più» (più notizie per argomento e subito la stessa storia) e «Non mi interessa» (a −3 propone di smettere di seguirlo), riquadro nella Panoramica, notizie nel Buongiorno, `/notizie` su Telegram, elemento «Notizie» nei Widget della barra. `claude/notizie` e `claude/sviluppo` unite in `main` con il tag `v1.0.14`.
+- Guida: nuova pagina Notizie e capitoli rinumerati da 1 a 30 senza doppioni, così il pulsante della lingua porta alla pagina giusta (gli indirizzi non cambiano).
+
+### 30 ottobre 2026 — «L'isola si apre» anche con la barra fissa
+- La scelta era nascosta e ignorata con la barra accesa; ora vale anche lì (`openAway` in `island.ts`; Rust la gestiva già in `place_origin`).
+
+### 30 ottobre 2026 — Notizie, passo 2 (su `claude/notizie`)
+- Google News (scelto da Edoardo) per ogni argomento seguito, ogni 4 ore o quando cambiano gli argomenti; filtro in locale (parole da evitare, 3 giorni, già viste, stessa storia); voce e vista «Notizie» nell'isola. Una ricerca vera provata con un test; l'app non ancora provata dal vivo.
+
 ### 30 ottobre 2026 — Notizie, passo 1 (su `claude/notizie`)
 - `news.rs` propone gli argomenti dalle pagine della memoria (citazioni, note, diario del mese, aggiornamenti recenti), mai persone e clienti; pagina Impostazioni → Notizie con Aggiungi / Escludi / Riammetti e le parole da cercare ed evitare. Niente rete ancora. Smoke «nessun errore».
 
@@ -590,15 +622,6 @@ Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente 
 - **«Agenti e chat» diviso in due pagine.** **Chat** (`claudeChatSection`): «Predefinito» con i soli nomi dei motori e una riga che dice cos'è quello scelto (`ENGINE_HINTS`), poi solo le impostazioni di quel motore; la guida a Claude Code compare solo se manca; i **Connettori** (`connectorsBlock`) stanno dentro il blocco dell'abbonamento Claude, l'unico che li usa. **Agenti** (`agentsSection`, `agentRow`, id di pagina ancora `claude`): una riga per agente con stato («Collegato», «Da aggiornare»…), una frase e un pulsante; il relay una volta sola in cima; l'anteprima con il diff si apre sotto la riga; opencode ha sulla stessa riga «Segui opencode 2» e il plugin 1.x; «Scheda nell'isola» in una sezione a parte. Corretto il testo di opencode che mostrava `.configopencodeplugins` (barre perse). Rimandi a «Agenti e chat» aggiornati (messaggi di `claude_cli.rs`, README).
 - **Revisione:** il server privato di opencode ora si ferma con tutto l'albero dei processi (`actions::kill_tree`, anche le shell aperte), all'uscita anche senza il lock (`SERVER_PID`); il timer d'inattività di un server vecchio non tocca quello nuovo (`generation`); se opencode non conosce più la sessione della chat se ne apre una nuova e si riprova una volta (`SESSION_GONE`); passi `execute` e `skill` con un nome italiano; l'agente opencode accorcia le stringhe a 2.000 caratteri come il relay; «Programma» usa `ShellExecuteExW` con `SEE_MASK_FLAG_NO_UI` (un nome sbagliato è un errore nell'isola, non una finestra di Windows). Test dal vivo ripassati, nessun opencode orfano dopo `shutdown`.
 - Schermate `settings*.png` e `drop.png` rifatte (`scripts/screenshots.mjs`; l'errore EPERM finale è solo la pulizia della cartella temporanea di Edge).
-
-### 8 ottobre 2026 — opencode 2: motore della chat e agente dal servizio
-- **Scoperto sul PC:** opencode installato è la **2.0.24** (`@opencode/cli` da npm, `%APPDATA%
-pm
-ode_modules\@opencode\cliin\opencode.exe`), con un servizio in background già acceso (`opencode service status` → `http://127.0.0.1:49374`, password in `~/.config/opencode/service.json`). API e plugin diversi dalla 1.x: vedi sezione 4. Provato dal vivo con un server privato e il modello gratuito `opencode/big-pickle`.
-- **Motore della chat `opencode`** (`src-tauri/src/opencode.rs`): `find_exe` (prima l'exe vero dietro gli shim di npm, che passando da cmd non si potrebbero fermare), server privato su porta libera con password casuale, spento dopo 10 minuti senza messaggi e all'uscita (`RunEvent::Exit` → `opencode::shutdown`); sessione con `rules()`; un turno apre `/api/event`, manda `/prompt`, porta il testo con `chat-stream` e i passi come righe `> ⚙ Esegue · \`…\``; permessi con `pipe::request_decision` (estratta da `handle`), «Sempre» solo per `read_only()`, nessuna risposta = `reject`; un rifiuto diventa la risposta «Permesso negato» invece di un errore; nessun evento per 3 minuti = turno interrotto; chiamate brevi con timeout 60 s. Test dal vivo (`#[ignore]`): `cargo test --lib opencode::tests::live -- --ignored` (comando, seguito, rifiuto). Il trait `Ask` esiste perché i test non colleghino la webview: un test che raggiunge `AppHandle::emit_to` fa fallire l'avvio del binario dei test con `STATUS_ENTRYPOINT_NOT_FOUND`.
-- **Impostazioni → Chat:** «Motore predefinito»; blocco opencode senza chiave né indirizzo, modello `fornitore/modello`, avviso sulla privacy per i modelli `opencode/…` (Zen). **Nella chat** il menu dei motori sceglie solo per la conversazione (`State.chatEngineOverride`, `chat_send` riceve `engine`), mostra «(predefinito)» e solo i motori pronti (Claude Code solo con il login, chiesto una volta).
-- **Agente opencode 2** (`src-tauri/src/opencode_agent.rs`, interruttore «Segui opencode 2» = `opencodeWatch`, spento di serie): segue lo stream del servizio e lo traduce negli eventi di Claude Code con `easyisland_agent` opencode; diff, esito dei test e patch con il codice del relay incluso via `#[path]` (`hook_diff`, `hook_testrun`, `hook_agents`); permessi con `pipe::request_decision_as` (id scelto da noi) e risposta al servizio, `permission.replied` libera l'attesa con `pipe::decline`. Provato dal vivo che trova il servizio e legge lo stream; una sessione vera del TUI non ancora.
-- Card dei permessi della chat: per opencode mostra il comando così com'è e «Sempre» quando offerto.
 
 ### 8 ottobre 2026 — versione 0.6.0: opencode e correzioni dalla prova
 - **Layout:** la griglia della Panoramica e quella delle pillole usano `minmax(0, 1fr)` e il nome si tronca con i puntini (un titolo di canzone lungo allargava la colonna oltre l'isola); l'etichetta delle pillole ha un margine simmetrico di 32 px, quindi non passa più sotto il mini personaggio; la bolla dei messaggi in chat va a capo anche su un percorso o un link senza spazi (`overflow-wrap: anywhere`). Scene di prova: `?scene=clipboard&long`, `?scene=media&long&summary`, `?scene=chat&long`.

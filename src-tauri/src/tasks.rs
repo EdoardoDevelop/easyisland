@@ -83,6 +83,10 @@ pub struct Task {
     /// Engines it may hand a piece of work to (task_delegate); empty = none.
     #[serde(default)]
     pub helpers: Vec<String>,
+    /// Reversible tools it may use without asking (permits.rs), chosen when it
+    /// is created or in Impostazioni → Flussi; the others ask as in the chat.
+    #[serde(default)]
+    pub may: Vec<String>,
     pub state: TaskState,
     #[serde(default)]
     pub plan: Vec<Step>,
@@ -369,6 +373,7 @@ fn create_with(app: &AppHandle, title: &str, goal: &str, when: &str, engine: &st
         engine: engine.trim().to_string(),
         model: String::new(),
         helpers: Vec::new(),
+        may: Vec::new(),
         state: if when.is_empty() { TaskState::Queued } else { TaskState::Scheduled },
         plan: Vec::new(),
         when: when.to_string(),
@@ -488,6 +493,22 @@ pub fn set_engines(app: &AppHandle, id: &str, engine: &str, model: &str, helpers
         t.helpers = helpers.clone();
     });
     Ok(())
+}
+
+/// What a task may do without asking (permits.rs): only reversible tools.
+pub fn set_may(app: &AppHandle, id: &str, may: &[String]) -> Result<(), String> {
+    get(id).ok_or(t("Compito non trovato."))?;
+    let may = crate::permits::only_reversible(may);
+    update(app, id, |t| t.may = may.clone());
+    Ok(())
+}
+
+/// The task in its turn allows this tool without asking (permits.rs).
+pub fn may_now(tool: &str) -> bool {
+    if !in_turn() {
+        return false;
+    }
+    running().and_then(|id| get(&id)).is_some_and(|t| t.may.iter().any(|m| m == tool))
 }
 
 // ── Battito (heartbeat) ──────────────────────────────────────────────────────
@@ -1209,6 +1230,12 @@ pub fn tool_create(app: &AppHandle, args: &Value) -> Result<String, String> {
     if !str_arg(args, "engine").is_empty() || !helpers.is_empty() {
         set_engines(app, &task.id, str_arg(args, "engine"), str_arg(args, "model"), &helpers)?;
     }
+    // What it may do alone: on the card the user approved (hooks.ts shows it).
+    let may: Vec<String> = args.get("may").and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect()).unwrap_or_default();
+    if !may.is_empty() {
+        set_may(app, &task.id, &may)?;
+    }
     Ok(match task.state {
         TaskState::Scheduled => tf("Compito «{title}» creato: parte da solo ({when}). Lo vedi in Impostazioni → Flussi.", &[("title", &task.title), ("when", &task.when)]),
         _ => tf("Compito «{title}» creato e in coda: lo vedi nella scheda Agenti dell'isola.", &[("title", &task.title)]),
@@ -1301,7 +1328,7 @@ mod tests {
     #[test]
     fn the_prompt_carries_goal_plan_and_answer() {
         let mut task = Task {
-            id: "1".into(), title: "Resoconto".into(), goal: "Prepara il resoconto di Rossi".into(), engine: String::new(), model: String::new(), helpers: Vec::new(),
+            id: "1".into(), title: "Resoconto".into(), goal: "Prepara il resoconto di Rossi".into(), engine: String::new(), model: String::new(), helpers: Vec::new(), may: Vec::new(),
             state: TaskState::Running, plan: vec![Step { text: "Leggi i ticket".into(), done: true }, Step { text: "Scrivi la bozza".into(), done: false }],
             when: String::new(), last_fired: String::new(), question: "Che mese?".into(), answer: "Settembre".into(),
             result: String::new(), last: String::new(), turns: 0, runs: 0, quiet: false, heartbeat: false, digest: false, memory: String::new(), created: String::new(), updated: String::new(),

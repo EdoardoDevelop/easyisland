@@ -43,6 +43,7 @@ Waiting for its time, Queued, Working, Waiting for an answer, Paused, Done, Fail
 ### One engine per task, and helper engines
 - Each task can have **its own engine and model** (for example free opencode for checks, Claude for writing).
 - You can give it **helper engines**: the leading engine can hand one of them part of the work (a search, a review, a draft) and get the result back, like agents do with sub-agents.
+- **Without asking** (in **Engines and permissions**, or told to the chat when you create it: "… and it may add Notion rows without asking"): the actions it may do on its own, at night too, chosen among those that can be undone (Notion rows, To Do tasks, Tray files). Each one ends up in **Settings → Chat → What I did**, with Undo. Everything else asks as usual.
 
 ### On Telegram
 With Telegram linked you get a message when a task finishes, fails, pauses or waits for an answer. Answer with the buttons or with `/rispondi …`. Tasks' permissions arrive there too (never auto-approved, not even with "Automatic").

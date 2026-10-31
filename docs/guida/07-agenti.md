@@ -46,7 +46,7 @@ L'agente chiama un piccolo programma, `easyisland-hook.exe`, a ogni evento (iniz
 - usare tutti gli strumenti di EasyIsland descritti in [Modalità terminale e strumenti](11-strumenti-ai.md).
 
 ## Riepiloghi
-- **Riepilogo del giorno**: al mattino (il tempo degli agenti di ieri) e a fine giornata (dall'ora che scegli, 18 di serie), con i repository che hanno file modificati o commit da inviare e le **pull request** in attesa di revisione (con `gh` o un token GitHub).
+- **Riepilogo del giorno**: al mattino (il tempo degli agenti di ieri) e a fine giornata (dall'ora che scegli, 18 di serie), con i repository che hanno file modificati o commit da inviare e le **pull request** in attesa di revisione (con `gh` o un token GitHub). In **Riassunto dell'IA** scegli un motore (quello della memoria, della chat o un altro): all'ora del riepilogo scrive la giornata di oggi (al mattino) o di domani (alla sera) da Notion, To Do, Outlook, ticket e meteo, e la vedi in cima alla card; se non c'è ancora, **Chiedi il riassunto all'IA**. Con **Anche su Telegram** il bot collegato riceve il riassunto e il tempo degli agenti all'ora giusta, anche con l'isola chiusa. Ogni riassunto è un turno del motore.
 - **Riepilogo settimanale**: il lunedì dalle 8, ore al lavoro, sessioni, file e righe cambiati, comandi, permessi. Anche dal menu dell'area di notifica.
 
 Tengono solo numeri e il nome della cartella del progetto, mai comandi o contenuti.

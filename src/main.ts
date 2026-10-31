@@ -4,7 +4,7 @@ import "./style.css";
 import "./style-windows.css";
 import "./style-light.css";
 import "./character/roster";
-import { Bridge, IS_TAURI, onEvent, type UpdateInfo } from "./core/bridge";
+import { Bridge, IS_TAURI, onEvent, type DoneItem, type UpdateInfo } from "./core/bridge";
 import { Sound } from "./core/sound";
 import { State, barEdge, barThickness, type BarSys, type Custom, type NewsItem, type Settings } from "./core/state";
 import { forgetRecords, receiveSource } from "./views/custom";
@@ -14,7 +14,9 @@ import { registerHookHandlers } from "./island/hooks";
 import { Recap } from "./island/recap";
 import { Daily } from "./island/daily";
 import { registerMoments } from "./island/moments";
-import { syncLanguage } from "./core/i18n";
+import { syncLanguage, t } from "./core/i18n";
+import { toolWords } from "./core/permits";
+import { refreshDone } from "./views/done";
 import { registerIntegrationHandlers, refreshConfigured } from "./island/integrations";
 import { linkChannel, type CharacterToIsland, type IslandToCharacter } from "./core/link";
 import { barClockDelay, barPieces, barSysKinds, recordBarSys } from "./island/bar";
@@ -134,6 +136,9 @@ async function main() {
     }
   });
 
+  // A press outside an island come out of the fixed bar (island.rs cursor poll).
+  await onEvent<null>("click-away", () => island.closePopover());
+
   await onEvent<null>("screen-changed", () => {
     void Bridge.reposition();
     void island.refreshLimits();
@@ -141,6 +146,19 @@ async function main() {
 
   await onEvent<boolean>("fullscreen", (on) => island.setFullscreen(on));
   // «Notizie» (news.rs): the news kept, then each check's.
+  // «Cosa ho fatto» (permits.rs): the island's list follows, and something
+  // done without a click says so, with Annulla.
+  await onEvent<null>("did-changed", () => void refreshDone());
+  await onEvent<DoneItem>("did-alone", (d) => {
+    if (!d) return;
+    island.showNotice({
+      title: d.task ? t("Fatto senza chiedere, dal compito «{title}»", { title: d.task }) : t("Fatto senza chiedere"),
+      text: d.what || toolWords(d.tool),
+      level: "ok",
+      url: "",
+      did: d.id,
+    });
+  });
   await onEvent<NewsItem[]>("news", (items) => {
     State.news = items ?? [];
     State.notify();
@@ -224,7 +242,9 @@ async function main() {
   window.setTimeout(() => void Recap.check(island), 12_000);
   // The morning and end-of-day recap: after the weekly one, then at its hours.
   window.setTimeout(() => void Daily.check(island), 16_000);
-  Daily.schedule(island);
+  // Its hours come from Rust (giornata.rs), with the engine's summary after.
+  await onEvent<string>("daily-due", () => void Daily.check(island));
+  await onEvent<null>("daily-ai", () => void Daily.refreshAi());
 
   // In a plain browser there is no wake strip behind the cursor: make the whole
   // page wake the island so the visuals can be checked with `npm run dev`.
@@ -238,6 +258,16 @@ async function main() {
   }
 }
 
+/** Who sits in the fixed bar: its own choice (fixedBarFigure) or, with "", the island's. */
+function barLook(choice: string, character: string, figure: string): { character: string; figure: string } {
+  if (choice === "logo") return { character: "easyisland", figure: "character" };
+  if (choice === "logo-still") return { character, figure: "easyisland" };
+  if (choice === "mylogo") return { character, figure: "logo" };
+  if (choice === "weather") return { character, figure: "weather" };
+  if (choice.startsWith("char:")) return { character: choice.slice(5), figure: "character" };
+  return { character, figure };
+}
+
 /**
  * The character's own window (docs/due-webview.md, step 0): it gets the
  * character's look from here and asks back to open the island.
@@ -246,12 +276,14 @@ function linkCharacterWindow(island: Island) {
   let sentKey = "";
   const look = (): IslandToCharacter => {
     const t = State.settings.theme;
+    const barFigure = island.characterMode === "bar" ? State.settings.fixedBarFigure ?? "" : "";
     const c = t?.slimeColor;
     return {
       kind: "look",
       state: State.effectiveState,
-      character: t?.character ?? "",
-      figure: t?.figure ?? "",
+      // The fixed bar can have its own (fixedBarFigure), whatever the island has.
+      ...barLook(barFigure, t?.character ?? "", t?.figure ?? ""),
+      logoStamp: t?.logoStamp ?? 0,
       color: c && /^#[0-9a-f]{6}$/i.test(c) ? c : null,
       size: island.restIconSize,
       paused: State.paused,
@@ -262,6 +294,7 @@ function linkCharacterWindow(island: Island) {
       bar: barEdge(State.settings)
         ? {
           slot: State.settings.fixedBarSlot ?? "center",
+          edge: barEdge(State.settings) === "bottom" ? "bottom" : "top",
           ...barPaint(State.settings.fixedBarBackground ?? "", island.islandBackground, island.islandInk),
           thickness: barThickness(State.settings),
           items: barPieces(island.barStrip(), island.barAppBar()),
@@ -275,7 +308,7 @@ function linkCharacterWindow(island: Island) {
       sentKey = "";
       push();
     } else if (m.kind === "bar") {
-      island.barClick(m.key, m.button);
+      island.barClick(m.key, m.button, m.x);
     } else if (m.kind === "open") {
       if (State.mode === "expanded") island.collapse();
       else island.openFromTaskbar();

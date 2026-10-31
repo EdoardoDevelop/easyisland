@@ -18,7 +18,7 @@ use crate::secrets;
 use crate::i18n::{t, tf};
 
 #[path = "../../hook/src/tool_list.rs"]
-mod tool_list;
+pub(crate) mod tool_list;
 
 /// Rounds of tool calls in one turn at most.
 const MAX_TOOL_ROUNDS: usize = 15;
@@ -46,7 +46,7 @@ async fn run_tool(tools: &Tools<'_>, block: &Value) -> Value {
     let known = name != "show_card" && tool_list::tools().iter().any(|t| t.0 == name);
     let (text, ok) = if !known {
         (format!("Strumento sconosciuto: {name}"), false)
-    } else if crate::claude_cli::AGENT_READ_ONLY.contains(&name) || allowed(tools, name, &input).await {
+    } else if crate::claude_cli::agent_read_only().contains(&name) || allowed(tools, name, &input).await {
         let v = crate::agent::call(tools.app, name, &input).await;
         (v.get("text").and_then(Value::as_str).unwrap_or_default().to_string(), v.get("ok").and_then(Value::as_bool) == Some(true))
     } else {

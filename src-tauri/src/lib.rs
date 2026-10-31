@@ -1,7 +1,9 @@
 // EasyIsland for Windows — app wiring and the commands the island calls.
 
 mod actions;
+mod barshadow;
 mod fgwin;
+mod appmenu;
 mod steps;
 mod collect;
 mod memory_ai;
@@ -71,7 +73,9 @@ mod hook_testrun;
 #[allow(dead_code)]
 #[path = "../../hook/src/agents.rs"]
 mod hook_agents;
+mod giornata;
 mod outlook;
+mod permits;
 mod pipe;
 mod presence;
 mod probes;
@@ -175,7 +179,7 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
     let mut settings = settings.migrated();
     settings.commit_active();
     i18n::set(&settings.language);
-    let (screen_changed, autostart_changed, bar_changed) = {
+    let (screen_changed, autostart_changed, bar_changed, shadow_changed) = {
         let mut current = shared.settings.lock().unwrap();
         let screen_changed = current.screen != settings.screen
             || current.anchor_h != settings.anchor_h
@@ -189,12 +193,14 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
             || current.bar_thickness() != settings.bar_thickness()
             || current.bar_auto_hide() != settings.bar_auto_hide()
             || current.bar_blur() != settings.bar_blur();
+        // The shadow's look: only the shadow is laid again (sync_character).
+        let shadow_changed = (current.bar_shadow(), current.bar_margin()) != (settings.bar_shadow(), settings.bar_margin());
         let autostart_changed = current.autostart != settings.autostart;
         // Only boot and hooks_apply know whether the hooks are there; a window
         // opened before an install would send the old value.
         settings.hooks_installed = current.hooks_installed;
         *current = settings.clone();
-        (screen_changed, autostart_changed, bar_changed)
+        (screen_changed, autostart_changed, bar_changed, shadow_changed)
     };
     if let Err(err) = settings::save(&settings) {
         eprintln!("[easyisland] could not save settings: {err}");
@@ -221,6 +227,8 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
                 let _ = if settings.bar_edge().is_some() { win.hide() } else { win.show() };
             }
         }
+        sync_character(app);
+    } else if shadow_changed {
         sync_character(app);
     }
     island::apply_taskbar(&app);
@@ -344,6 +352,18 @@ fn recap_show(app: AppHandle) {
 #[tauri::command]
 fn daily_show(app: AppHandle) {
     let _ = app.emit_to(island::WINDOW_LABEL, "tray", "daily");
+}
+
+/// The engine's summary for the recap card, when there is one for today.
+#[tauri::command]
+fn daily_ai_text(which: String) -> Option<giornata::DayText> {
+    giornata::text_for(&which)
+}
+
+/// «Chiedi il riassunto» on the recap card.
+#[tauri::command]
+async fn daily_ai_write(app: AppHandle, which: String) -> Result<(), String> {
+    giornata::write_now(&app, &which).await
 }
 
 /// The island's search bar: the programs of the Start menu.
@@ -571,6 +591,26 @@ fn bar_overflow_menu(app: AppHandle, entries: Vec<(String, String)>) {
     tray::popup_bar_menu(&app, &entries);
 }
 
+/// Right click on the fixed bar outside its elements: the notification-area menu
+/// with the bar's settings first. Sync for the same reason as `show_island_menu`.
+#[tauri::command]
+fn bar_context_menu(app: AppHandle) {
+    tray::popup_bar_context(&app);
+}
+
+/// The window title's card in the fixed bar: the program in front's own menu
+/// (appmenu.rs), read off the main thread.
+#[tauri::command]
+async fn app_menu_read() -> serde_json::Value {
+    tauri::async_runtime::spawn_blocking(appmenu::read_json).await.unwrap_or(serde_json::Value::Null)
+}
+
+/// A line of that menu, picked in the card: to the program.
+#[tauri::command]
+fn app_menu_run(line: usize) {
+    appmenu::run(line);
+}
+
 /// "Copia info PC": everything a ticket asks for, put on the clipboard.
 #[tauri::command]
 async fn copy_pc_info() -> Result<String, String> {
@@ -729,19 +769,34 @@ fn end_drag(app: AppHandle, shared: State<Shared>) -> DragEnd {
 
 /// The island opened or closed. Closing takes the window back to the character's
 /// place (an open island dragged elsewhere comes home), and every opening starts there.
-/// `place` puts this opening somewhere else than `island_place` (the launch greeting).
+/// `place` puts this opening somewhere else than `island_place` (the launch greeting,
+/// "pop:<x>" for an island come out of the fixed bar under an element). Answers
+/// how far the window could not follow that element (island::POP_SHIFT).
 #[tauri::command]
-fn set_expanded(app: AppHandle, shared: State<Shared>, expanded: bool, place: Option<String>) {
-    *shared.gate.open_place.lock().unwrap() = if expanded { place } else { None };
+fn set_expanded(app: AppHandle, shared: State<Shared>, expanded: bool, place: Option<String>) -> f64 {
+    let place = if expanded { place } else { None };
+    let moved = std::mem::replace(&mut *shared.gate.open_place.lock().unwrap(), place.clone()) != place;
     if shared.gate.expanded.swap(expanded, Ordering::Relaxed) == expanded {
-        return;
+        // Already open, now somewhere else (another element of the bar, or back to the island).
+        if expanded && moved && !shared.gate.collapsed.load(Ordering::Relaxed) {
+            let settings = shared.settings.lock().unwrap().clone();
+            island::apply_geometry(&app, &shared.gate, &settings, false);
+        }
+        // Still closed (its place asked before it opens, island.ts openFromBarAt): the shift it will have.
+        if shared.gate.collapsed.load(Ordering::Relaxed) {
+            let settings = shared.settings.lock().unwrap().clone();
+            return island::pop_shift(&app, &shared.gate, &settings);
+        }
+        return *island::POP_SHIFT.lock().unwrap();
     }
     // A drag of the open island lasts for that opening only. Opened beside the
     // character it is away from the edge too: either way it glides back as it shrinks.
     let dragged = std::mem::take(&mut *shared.gate.panel_offset.lock().unwrap()) != (0.0, 0.0)
         || *island::OPEN_CLEARANCE.lock().unwrap() != (0.0, 0.0);
     if shared.gate.collapsed.load(Ordering::Relaxed) {
-        return;
+        // Placed when it comes out (set_collapsed): the shift it will have.
+        let settings = shared.settings.lock().unwrap().clone();
+        return island::pop_shift(&app, &shared.gate, &settings);
     }
     let settings = shared.settings.lock().unwrap().clone();
     island::come_forward(&app);
@@ -754,6 +809,7 @@ fn set_expanded(app: AppHandle, shared: State<Shared>, expanded: bool, place: Op
     } else {
         island::apply_geometry(&app, &shared.gate, &settings, false);
     }
+    *island::POP_SHIFT.lock().unwrap()
 }
 
 /// The open island grew past the usual window (or came back within it): the
@@ -1624,6 +1680,27 @@ fn memory_note_add(app: AppHandle, text: String) -> Result<String, String> {
 #[tauri::command]
 fn memory_window_open(app: AppHandle) {
     show_memory_window(&app);
+}
+
+/// The field at the top of the island: memory pages with these words.
+#[tauri::command]
+fn memory_find(query: String) -> Vec<brain::PageHit> {
+    brain::find_pages(&query, 5)
+}
+
+/// A page found from the field at the top: the memory window, with it selected.
+#[tauri::command]
+fn memory_window_select(app: AppHandle, id: String) {
+    if let Some(win) = app.get_webview_window(MEMORY_LABEL) {
+        let _ = win.emit("memory-select", id);
+    }
+    show_memory_window(&app);
+}
+
+/// The field at the top of the island: Zammad's tickets with these words.
+#[tauri::command]
+async fn zammad_search(query: String) -> Result<Vec<zammad::TicketHit>, String> {
+    zammad::search(&query, 5).await
 }
 
 /// The history list filtered by words (title and text).
@@ -2725,6 +2802,56 @@ fn bar_reveal(app: AppHandle, on: bool) {
     }
 }
 
+/// The mouse came on the character in the bar (or left it): the window reaches
+/// `px` (logical) past the band, where the band swells around the bigger
+/// character (src/character-window/main.ts). With the blur on, `shape` is the
+/// band's outline (logical px in the window): the window is cut to it, or the
+/// blur would fill the whole rectangle.
+#[tauri::command]
+fn bar_grow(app: AppHandle, px: f64, shape: Option<Vec<[f64; 2]>>) {
+    let Some(ch) = app.get_webview_window(CHARACTER_LABEL) else { return };
+    let scale = ch.scale_factor().unwrap_or(1.0);
+    let grow = if px.is_finite() { (px.clamp(0.0, 200.0) * scale).round() as i32 } else { 0 };
+    let Ok(raw) = ch.hwnd() else { return };
+    let hwnd = windows::Win32::Foundation::HWND(raw.0);
+    if appbar::GROW.swap(grow, Ordering::Relaxed) != grow {
+        // Size and place in one move: at the bottom edge the window grows upwards,
+        // and two moves would show the band a frame out of place.
+        if let Some((x, y, w, h)) = appbar::window_rect() {
+            use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER};
+            unsafe {
+                let _ = SetWindowPos(hwnd, None, x, y, w as i32, h as i32, SWP_NOACTIVATE | SWP_NOZORDER);
+            }
+        }
+    }
+    character_shape(hwnd, shape.filter(|_| CHARACTER_BLUR.load(Ordering::Relaxed)), scale);
+}
+
+/// Cuts the bar's window to `shape` (logical px), or gives it back its rectangle.
+fn character_shape(hwnd: windows::Win32::Foundation::HWND, shape: Option<Vec<[f64; 2]>>, scale: f64) {
+    use windows::Win32::Foundation::POINT;
+    use windows::Win32::Graphics::Gdi::{CreatePolygonRgn, SetWindowRgn, HRGN, WINDING};
+    let points: Vec<POINT> = shape
+        .unwrap_or_default()
+        .iter()
+        .filter(|p| p[0].is_finite() && p[1].is_finite())
+        .take(2000)
+        .map(|p| POINT { x: (p[0] * scale).round() as i32, y: (p[1] * scale).round() as i32 })
+        .collect();
+    unsafe {
+        if points.len() < 3 {
+            SetWindowRgn(hwnd, None, true);
+            return;
+        }
+        let rgn: HRGN = CreatePolygonRgn(&points, WINDING);
+        if rgn.is_invalid() {
+            return;
+        }
+        // The window owns the region from here on.
+        SetWindowRgn(hwnd, Some(rgn), true);
+    }
+}
+
 /// The resting character wanted (true) or not by the island's page: shown
 /// when the island is also collapsed and on screen.
 #[tauri::command]
@@ -2757,6 +2884,33 @@ fn character_clearance(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) 
     }
 }
 
+/// The bar's shadow (barshadow.rs) under the band in the window at `rect`, less
+/// the swelling around the character: below the island when it is open, not
+/// when the bar hides by itself or with the islands style.
+fn bar_shadow(app: &AppHandle, ch: &tauri::WebviewWindow, rect: (i32, i32, u32, u32)) {
+    let Some(shared) = app.try_state::<Shared>() else { return };
+    let settings = shared.settings.lock().unwrap().clone();
+    let on = settings.bar_shadow() && !settings.bar_auto_hide();
+    let open = !shared.gate.collapsed.load(Ordering::Relaxed);
+    let island = island::window(app).filter(|_| open).and_then(|w| w.hwnd().ok()).map(|h| h.0 as isize);
+    let (Some(edge), Ok(raw), true) = (settings.bar_edge(), ch.hwnd(), on) else {
+        barshadow::sync(app, None);
+        return;
+    };
+    let scale = ch.scale_factor().unwrap_or(1.0);
+    let (x, y, w, h) = (rect.0, rect.1, rect.2 as i32, rect.3 as i32);
+    let grow = appbar::GROW.load(Ordering::Relaxed).clamp(0, h);
+    let top = edge != "bottom";
+    let band = if top { (x, y, w, h - grow) } else { (x, y + grow, w, h - grow) };
+    barshadow::sync(app, Some(barshadow::Shadow {
+        band,
+        top,
+        margin: (settings.bar_margin() * scale).round() as i32,
+        depth: (10.0 * scale).round() as i32,
+        below: island.unwrap_or(raw.0 as isize),
+    }));
+}
+
 /// Lays the character's window exactly over the island's collapsed window (the
 /// rest icon's box) while the island rests, or over the compact badge's
 /// character; hides it otherwise. With the fixed bar it is the band (appbar.rs).
@@ -2766,12 +2920,14 @@ pub(crate) fn sync_character(app: &AppHandle) {
         // The bar: the whole band, always taking the mouse, away over a full-screen app.
         if appbar::FULLSCREEN.load(Ordering::Relaxed) {
             let _ = ch.hide();
+            barshadow::sync(app, None);
             return;
         }
         let blur = app.try_state::<Shared>().is_some_and(|s| s.settings.lock().unwrap().bar_blur());
         character_blur(&ch, blur);
         let _ = ch.set_size(tauri::PhysicalSize::new(w, h));
         let _ = ch.set_position(tauri::PhysicalPosition::new(x, y));
+        bar_shadow(app, &ch, (x, y, w, h));
         if CHARACTER_CLICKS_THROUGH.swap(false, Ordering::Relaxed) {
             let _ = ch.set_ignore_cursor_events(false);
         }
@@ -2782,6 +2938,7 @@ pub(crate) fn sync_character(app: &AppHandle) {
         return;
     }
     character_blur(&ch, false);
+    barshadow::sync(app, None);
     let shared = app.state::<Shared>();
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
     let island = island::window(app).filter(|w| w.is_visible().unwrap_or(false));
@@ -3270,6 +3427,35 @@ fn task_set_engines(app: AppHandle, id: String, engine: String, model: String, h
     tasks::set_engines(&app, &id, &engine, &model, &helpers)
 }
 
+/// What a task may do without asking (permits.rs).
+#[tauri::command]
+fn task_set_may(app: AppHandle, id: String, may: Vec<String>) -> Result<(), String> {
+    tasks::set_may(&app, &id, &may)
+}
+
+/// «Consenti sempre» on a card, or taken away in Impostazioni → Chat.
+#[tauri::command]
+fn tools_allow(app: AppHandle, tool: String, on: bool) -> Result<(), String> {
+    permits::allow(&app, &tool, on)
+}
+
+/// The reversible tools (hook/src/tool_list.rs), for the settings and the cards.
+#[tauri::command]
+fn tools_reversible() -> Vec<&'static str> {
+    claude::tool_list::REVERSIBLE.to_vec()
+}
+
+/// «Cosa ho fatto», the newest first.
+#[tauri::command]
+fn did_list() -> Vec<permits::Done> {
+    permits::list()
+}
+
+#[tauri::command]
+async fn did_undo(app: AppHandle, id: String) -> Result<(), String> {
+    permits::undo(&app, &id).await
+}
+
 /// Impostazioni → Flussi → Battito: every `minutes` (0 = off).
 #[tauri::command]
 fn heartbeat_set(app: AppHandle, minutes: u32) -> Result<(), String> {
@@ -3375,6 +3561,13 @@ pub fn run() {
             task_answer,
             task_log,
             task_set_engines,
+            task_set_may,
+            tools_allow,
+            tools_reversible,
+            did_list,
+            did_undo,
+            daily_ai_text,
+            daily_ai_write,
             heartbeat_set,
             heartbeat_open,
             digest_set,
@@ -3491,6 +3684,9 @@ pub fn run() {
             memory_inbox_add,
             memory_note_add,
             chat_history_search,
+            memory_find,
+            memory_window_select,
+            zammad_search,
             chat_history_pin,
             chat_history_rename,
             chat_rewind,
@@ -3676,7 +3872,11 @@ pub fn run() {
             character_spot,
             character_clearance,
             bar_overflow_menu,
+            bar_context_menu,
+            app_menu_read,
+            app_menu_run,
             bar_reveal,
+            bar_grow,
             barsys::bar_sys_watch,
             barsys::bar_sys_do,
             news::news_proposals,
@@ -3736,6 +3936,7 @@ pub fn run() {
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             barsys::start(handle.clone());
             news::start(handle.clone());
+            giornata::start(handle.clone());
             island::spawn_fullscreen_watch(handle.clone(), gate.clone());
             island::spawn_drag_raise(handle.clone(), gate.clone());
             // The tray is temporary: every start begins with only the pinned files.

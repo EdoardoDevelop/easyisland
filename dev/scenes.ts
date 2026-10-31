@@ -8,7 +8,7 @@ import { fillTemplate, receiveSource, toCsv } from "../src/views/custom";
 import { run, scopeOf } from "../src/core/expr";
 import { rdmLookFor } from "../src/views/rdm";
 import type { Island } from "../src/island/island";
-import { State, type CustomField } from "../src/core/state";
+import { State, type AppMenuLine, type CustomField } from "../src/core/state";
 import { Bridge } from "../src/core/bridge";
 import { handleHook } from "../src/island/hooks";
 import { handleIntegration, handleWidget } from "../src/island/integrations";
@@ -997,8 +997,66 @@ export async function runScene(island: Island, scene: string) {
       if (new URLSearchParams(location.search).has("news")) sampleNews();
       await wait(300);
       await Daily.open(island, new URLSearchParams(location.search).has("evening") ? "evening" : "morning");
+      // ?ai: with the engine's summary (giornata.rs); ?ai=ask: an engine chosen, nothing written yet.
+      if (new URLSearchParams(location.search).get("ai") === "ask" && Daily.summary) {
+        State.settings.dailyAi = "chat";
+        Daily.version++;
+        State.notify();
+      } else if (new URLSearchParams(location.search).has("ai") && Daily.summary) {
+        Daily.summary.ai = { which: Daily.summary.which, day: "", error: "", busy: false,
+          text: "**Oggi** hai 3 attività in Notion, la più urgente è *Preventivo Rossi* (scade alle 12).\n\n- 10:30 chiamata con Bianchi (Outlook)\n- 2 ticket Zammad aperti, uno nuovo da stamattina\n- Meteo: pioggia dal pomeriggio, 14°" };
+        Daily.version++;
+        State.notify();
+      }
       await wait(1500);
       break;
+    case "search": {
+      // The field at the top with ?q=… typed (rossi by default): memory, past chats and Zammad made up.
+      Object.assign(Bridge, {
+        memoryFind: async () => [{ id: "p:rossi-srl", title: "Rossi Srl", gist: "Cliente dal 2019: 12 PC, server Synology, UniFi in sede." }],
+        chatHistorySearch: async () => [{ id: "c1", title: "Backup del NAS di Rossi", engine: "subscription", updated: Date.now() - 86_400_000, turns: 6 }],
+        zammadSearch: async () => [
+          { title: "#10342 Stampante dell'ufficio ferma — Rossi Srl", url: "https://help.example.com/#ticket/zoom/342" },
+          { title: "#10298 VPN che cade la sera — Rossi Srl", url: "https://help.example.com/#ticket/zoom/298" },
+        ],
+      });
+      State.settings.activeIntegrations = [...State.settings.activeIntegrations, "integration_zammad"];
+      await wait(300);
+      island.setView("overview");
+      island.setPinned(true);
+      await wait(400);
+      const field = document.querySelector<HTMLInputElement>(".search-input");
+      if (field) {
+        field.value = new URLSearchParams(location.search).get("q") ?? "rossi";
+        field.dispatchEvent(new Event("input"));
+      }
+      // The memory, the chats and Zammad are asked 400 ms after the last key.
+      await wait(1200);
+      break;
+    }
+    case "done": {
+      // «Cosa ho fatto» on a made-up log; ?alone: the card of something done without a click.
+      const now = Date.now();
+      const log = [
+        { id: "a", at: now - 4 * 60_000, tool: "todo_add", what: "Aggiunta «Richiamare Rossi per il preventivo» a Attività, scadenza domani.", task: "", alone: true, undo: { kind: "todoRemove" }, undone: false },
+        { id: "b", at: now - 50 * 60_000, tool: "notion_update_row", what: "Riga «Server Bianchi» aggiornata: Stato → Fatto.", task: "Controllo dei server", alone: true, undo: { kind: "notionRestore" }, undone: false },
+        { id: "c", at: now - 3 * 3600_000, tool: "notion_add_row", what: "Riga «Ticket 4512 — stampante» aggiunta a Interventi.", task: "", alone: false, undo: { kind: "notionTrash" }, undone: true },
+        { id: "d", at: now - 26 * 3600_000, tool: "run_quick_action", what: "Azione «Apri gestionale» eseguita.", task: "", alone: false, undone: false },
+      ];
+      Object.assign(Bridge, {
+        didList: async () => log,
+        didUndo: async (id: string) => { const d = log.find((x) => x.id === id); if (d) d.undone = true; },
+      });
+      await wait(300);
+      if (new URLSearchParams(location.search).has("alone")) {
+        island.showNotice({ title: "Fatto senza chiedere", text: log[0].what, level: "ok", url: "", did: "a" });
+      } else {
+        island.setView("done");
+        island.setPinned(true);
+      }
+      await wait(1200);
+      break;
+    }
     case "news": {
       // «Notizie» on made-up news (?ask: the user keeps turning UniFi down).
       sampleNews();
@@ -1024,8 +1082,24 @@ export async function runScene(island: Island, scene: string) {
         net: { down: 1_234_567, up: 45_000, wifi: true, name: "Wi-Fi", link: 866_700_000, ip: "192.168.1.23" },
       };
       State.barCard = new URLSearchParams(location.search).get("card") ?? "clock";
+      // ?card=appmenu: the window title's card, on a made-up classic menu.
+      if (State.barCard === "appmenu") {
+        const line = (label: string, n: number | null, more: Partial<AppMenuLine> = {}): AppMenuLine =>
+          ({ label, enabled: true, checked: false, sep: false, line: n, items: [], ...more });
+        const sep = line("", null, { sep: true });
+        State.barWindow = { exe: "notepad.exe", name: "Blocco note", title: "Senza titolo" };
+        State.appMenu = [
+          line("&File", null, { items: [line("&Nuovo\tCtrl+N", 1), line("&Apri…\tCtrl+O", 2), line("&Salva\tCtrl+S", 3), sep, line("&Esci", 4)] }),
+          line("&Modifica", null, { items: [line("&Annulla\tCtrl+Z", 5, { enabled: false }), sep, line("Taglia\tCtrl+X", 6), line("&Copia\tCtrl+C", 7)] }),
+          line("&Visualizza", null, { items: [line("&Barra di stato", 8, { checked: true }), line("A capo automatico", 9)] }),
+          sep,
+          line("Finestra", null, { items: [line("&Ripristina", 10, { enabled: false }), line("R&iduci a icona", 11), line("&Chiudi\tALT+F4", 12)] }),
+        ];
+      }
       await wait(300);
-      island.setView("barcard");
+      // ?pop: as an island come out of the bar, under an element at x = 300.
+      if (new URLSearchParams(location.search).has("pop")) island.openFromBarAt("barcard", 300);
+      else island.setView("barcard");
       island.setPinned(true);
       await wait(1200);
       break;

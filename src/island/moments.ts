@@ -22,7 +22,7 @@ export interface MomentHost {
 }
 
 /** Views a proposal may replace; anything else is the user busy with something. */
-const QUIET_VIEWS: ReadonlySet<IslandViewName> = new Set(["overview", "empty", "notify", "moment", "recap", "daily", "barcard", "news", "finished", "note"]);
+const QUIET_VIEWS: ReadonlySet<IslandViewName> = new Set(["overview", "empty", "notify", "moment", "recap", "daily", "barcard", "news", "done", "finished", "note"]);
 
 const str = (v: unknown, max = 4000): string => (typeof v === "string" ? v.slice(0, max) : "");
 const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
