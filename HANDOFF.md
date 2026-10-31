@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 31 ottobre 2026. Versione **1.0.16** in `main` con il tag `v1.0.16` (barra fissa con isolette, aspetto ed elementi nuovi, menu del programma dal titolo, logo animato, la giornata, permessi per livelli, ricerca ovunque): due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa, che dal 1.0.12 si rimette a posto dopo un cambio di schermo) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo` (`giornata-permessi` e `logo-animato` sono uniti). In attesa `claude/modello-integrato`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 31 ottobre 2026. Versione **1.0.17** in `main` con il tag `v1.0.17` (Parla, Telegram che risponde a voce, Ricorda questo e Annota, Prepara un ticket, Continua in Claude Desktop): due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa, che dal 1.0.12 si rimette a posto dopo un cambio di schermo) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo` (`telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili` e `voce-pc` sono uniti). In attesa `claude/modello-integrato`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -51,20 +51,20 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
-### 31 ottobre 2026 — Versione 1.0.16
-- `claude/sviluppo` unito in `main` con il tag `v1.0.16`: barra fissa con isolette, aspetto ed elementi nuovi, titolo della finestra e menu del programma, logo animato, la giornata con il riassunto dell'IA, permessi per livelli con «Cosa ho fatto», ricerca ovunque. Novità in CHANGELOG, README e homepage.
-- Smoke «nessun errore», 362 + 38 test Rust. `claude/modello-integrato` resta in attesa.
+### 31 ottobre 2026 — Versione 1.0.17
+- `claude/sviluppo` unito in `main` con il tag `v1.0.17`: Parla, Telegram che risponde a voce e vocali «ricorda», Ricorda questo e Annota, Prepara un ticket Zammad, Continua in Claude Desktop, aspetto delle Notizie nella scheda. Novità in CHANGELOG, README e homepage.
+- Build, test Rust (381 + 38) e smoke prima del tag. `claude/modello-integrato` resta in attesa.
 
-### 31 ottobre 2026 — Logo animato di EasyIsland (nella 1.0.16)
-- Il logo è un personaggio («EasyIsland», `logo-anim.ts`, tipo `logo`): occhi che seguono il cursore e sbattono, stati, badge, rilascio file; colori che girano mentre lavora. Saluto all'avvio di serie con il logo che si disegna da solo (`greetingFigure`), e nella barra fissa un logo diverso da quello dell'isola (`fixedBarFigure`). Anteprima in `/dev/logo-preview.html`; smoke e test, non provato nell'app vera.
+### 31 ottobre 2026 — «Parla»: la voce sul PC (in `claude/sviluppo`)
+- <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> accende il microfono (WASAPI di Registra) con la card «Ti ascolto»; a una pausa trascrive con il servizio dei Vocali e manda la domanda alla chat; con «Rispondi a voce» la risposta si sente dagli altoparlanti (`talk.rs`, `src/views/talk.ts`). Test Rust, scene `talk` e `talk&hearing`; non provato con il microfono vero.
 
-### 31 ottobre 2026 — Ricerca ovunque nel campo in alto (nella 1.0.16)
-- Il campo in alto cerca anche le pagine della memoria (`brain::find_pages`, clic: la mappa con la pagina selezionata, `memory-select`), le conversazioni passate (clic: tornano nella chat) e i ticket Zammad (`zammad::search`, clic: il ticket nel browser), 400 ms dopo l'ultimo tasto. Da verificare: la ricerca di Zammad senza Elasticsearch. Test Rust, smoke e schermata nell'anteprima; non provato nell'app vera.
+### 31 ottobre 2026 — «Prepara» un ticket Zammad (in `claude/sviluppo`)
+- Un ticket appena assegnato a me fa comparire la proposta «Ticket assegnato a te»; «Prepara» apre la chat con il ticket, la pagina del cliente in memoria e fino a 3 ticket simili (chiusi prima, con come sono finiti) e chiede riassunto e bozza di risposta (`zammad::prepare`, `moment_tickets`). Scena `moment&moment=ticket`; test Rust, non provato con Zammad vero.
 
-### 31 ottobre 2026 — Menu del programma dal titolo della finestra (nella 1.0.16)
-- Un clic sul titolo della finestra nella barra fissa apre un'isoletta con il menu del programma in primo piano (`appmenu.rs`, scheda `appmenu` di `barcard.ts`): menu classico per intero (`WM_COMMAND`), oppure le voci con UI Automation, più il menu della finestra (voci di Chrome ed Edge); un sottomenu prende il posto dell'elenco, niente barra di scorrimento; sotto, le azioni rapide per quel programma.
-- Il titolo non segue mai le finestre di EasyIsland (`fgwin::follow`) ed è rimandato quando l'isola riparte. Provato da Edoardo nell'app vera.
+### 31 ottobre 2026 — Vocale su Telegram che diventa «Ricorda» (in `claude/sviluppo`)
+- Un vocale al bot che comincia con «ricorda», «ricordati che», «memorizza», «ricordami di…» va nella memoria come `/ricorda` invece di diventare una domanda (`telegram::remember_words`, `remember_reply`). Test Rust; non provato con Telegram vero.
 
-### 31 ottobre 2026 — La giornata: riassunto dell'IA e Telegram, orari in Rust (nella 1.0.16)
-- `giornata.rs` tiene gli orari del Buongiorno e della Fine giornata (un sonno fino alla prossima ora, al massimo 30 min; `giornata.json` per non ripetere dopo un riavvio) e manda `daily-due` all'isola, che non ha più il suo timer.
-- «Riassunto dell'IA» (`dailyAi`: nessuno, motore della memoria, della chat o uno a scelta) scrive la giornata di oggi o di domani con la domanda di `/oggi`, in cima alla card, o a mano con «Chiedi il riassunto all'IA»; «Anche su Telegram» (`dailyTelegram`) manda riassunto e tempo degli agenti. 359 test Rust, smoke «nessun errore», card guardata nell'anteprima; non provato nell'app vera.
+### 31 ottobre 2026 — Continua in Claude Desktop (in `claude/sviluppo`)
+- ↗ nella testata della chat con Claude Code passa la sessione all'app Claude Desktop (`desktop.rs`, `claude --desktop --resume <id>`, dopo aver chiuso il processo tenuto acceso); tornando all'isola, i messaggi scritti in Desktop vengono letti dal file della sessione e aggiunti alla chat e alla cronologia, poi l'isola riprende la stessa sessione (`docs/chat.md`).
+- Test Rust della lettura del file, build e smoke; il passaggio vero a Desktop non provato (aprirebbe l'app in cui lavoro), in `docs/prove-dal-vivo.md`.
+- Notizie: l'aspetto (elenco, miniature, schede) si sceglie con tre pulsanti nella testata della scheda, non più in Impostazioni (`news.ts`).

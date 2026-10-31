@@ -346,6 +346,10 @@ export type Moment =
   | { kind: "error"; error: string; summary: string; text: string; port: number | null; holder: { name: string; pid: number } | null }
   /** A development server that started listening. */
   | { kind: "server"; port: number; url: string; process: string }
+  /** A 3CX call answered and ended: «Annota» what was said (into the memory). */
+  | { kind: "call"; name: string; number: string; incoming: boolean; seconds: number }
+  /** A Zammad ticket newly assigned to me: «Prepara» (customer, similar tickets, a draft). */
+  | { kind: "ticket"; id: number; title: string; url: string }
   /** A card from Claude Code (`show_card`): waits for a button. */
   | { kind: "card"; id: string; title: string; text: string; level: "ok" | "warn" | "error" | "info"; buttons: string[] };
 
@@ -566,6 +570,14 @@ export interface Settings {
   momentDownloads: boolean;
   momentErrors: boolean;
   momentServers: boolean;
+  /** «Annota» after an answered 3CX call (moments.rs). */
+  momentCalls?: boolean;
+  /** «Prepara» on a Zammad ticket newly assigned to me (zammad.rs). */
+  momentTickets?: boolean;
+  /** The second brain at work (brain_watch.rs): closed tickets, important mails, commitments. */
+  brainTickets?: boolean;
+  brainMail?: boolean;
+  brainPromises?: boolean;
   /** A copied password or key leaves the clipboard after 30 s. */
   clearSecrets: boolean;
   /** The chat history (chat_log.rs), on this PC. */
@@ -574,6 +586,11 @@ export interface Settings {
   tasksEngine: string;
   /** «Motore per la memoria» (memory_ai.rs): "" = none, the map guesses the links by itself. */
   memoryEngine: string;
+  /** «Ricorda questo»: what is captured is learnt at once by a task; off, in the evening (brain.rs `remember`). */
+  rememberNow?: boolean;
+  /** «Parla» (talk.rs): its shortcut, and the reply read aloud too. */
+  hotkeyTalk?: string;
+  talkReply?: boolean;
   tasksMaxTurns: number;
   tasksMaxMinutes: number;
   /** "primary", "cursor", or "monitor:<name>" (the display the character was dragged to). */
@@ -711,6 +728,8 @@ export interface Settings {
   hotkeySelectionMenu: string;
   /** The selected text into the Raccolta (src/views/collect.ts). */
   hotkeyCollect: string;
+  /** Global shortcut: «Ricorda questo», the selected text into the memory. */
+  hotkeyRemember?: string;
   /** ⚡ tab: actions suggested for the app in front. */
   contextActions: boolean;
   /** The chat (Claude Code engine) may use EasyIsland's tools: open programs, quick actions… */
@@ -812,6 +831,8 @@ export interface IntegrationConfig {
   telegramVoice?: string;
   /** The model of «Vocali»; "" = the service's default (transcribe.rs). */
   telegramVoiceModel?: string;
+  /** Telegram «Rispondi a voce»: a voice message is answered aloud too (speech.rs); default on. */
+  telegramVoiceReply?: boolean;
 }
 
 /** A connection of Remote Desktop Manager (settings.rs RdmRef, rdm.rs Entry). */
@@ -1061,6 +1082,20 @@ export interface WidgetStatus {
  * "Sostituisci": a text selected in an app, rewritten, shown before and after
  * in the card (src/views/rewrite.ts), pasted in its place only on a click.
  */
+/** «Ricorda questo»: the selected (or typed) text and where it came from, before it goes in the memory. */
+export interface Remember {
+  id: string;
+  text: string;
+  /** Who or what it is about: the page to put it in (optional). */
+  about: string;
+  app: string;
+  title: string;
+  url: string;
+  status: "edit" | "saving";
+  /** Why it was not saved. */
+  message: string;
+}
+
 export interface Rewrite {
   id: string;
   /** "Correggi", "Riscrivi"…: the card's title. */
@@ -1170,10 +1205,18 @@ export const DEFAULT_SETTINGS: Settings = {
   momentDownloads: true,
   momentErrors: true,
   momentServers: true,
+  momentCalls: true,
+  momentTickets: true,
+  brainTickets: true,
+  brainMail: true,
+  brainPromises: true,
   clearSecrets: true,
   chatHistory: true,
   tasksEngine: "",
   memoryEngine: "",
+  rememberNow: true,
+  hotkeyTalk: "Win+Alt+V",
+  talkReply: true,
   tasksMaxTurns: 12,
   tasksMaxMinutes: 30,
   language: "",
@@ -1241,6 +1284,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hotkeyMute: "",
   hotkeySelectionMenu: "Win+Alt+A",
   hotkeyCollect: "Ctrl+Alt+Shift+R",
+  hotkeyRemember: "Win+Alt+M",
   contextActions: true,
   agentTools: true,
   chatTerminal: false,
@@ -1365,6 +1409,10 @@ class AppState {
   /** The script being confirmed / run / shown in the Run view. */
   run: ScriptRun | null = null;
   rewrite: Rewrite | null = null;
+  /** «Ricorda questo» being confirmed (src/views/remember.ts). */
+  remember: Remember | null = null;
+  /** «Parla»: the microphone on, or the words being transcribed (src/views/talk.ts). */
+  talk: { state: "listening" | "hearing"; level: number; spoke: boolean } | null = null;
   /** Latest result per widget id. */
   widgetStatus: Record<string, WidgetStatus> = {};
   /** Volume, battery, network… for the fixed bar's system elements (barsys.rs). */
@@ -1396,6 +1444,8 @@ class AppState {
   chatEngineOverride: ChatEngine | null = null;
   /** "Automatica" (chat head, Modalità terminale only): no Consenti / Nega for this conversation. Never saved. */
   chatAuto = false;
+  /** «Continua in Claude Desktop» (desktop.rs): the session went on there; what was said comes back. Never saved. */
+  chatDesktop = false;
   /** The Anteprima is open as the island's panel (island.ts setPaneOpen). */
   previewOpen = false;
   /** The engine the chat uses right now. */
@@ -1760,6 +1810,8 @@ export interface AgentTaskItem {
   heartbeat: boolean;
   /** The evening digest of the memory. */
   digest: boolean;
+  /** A job on the memory: "inbox", "check", "events" (the second brain), "week" (the weekly recap). */
+  memory?: string;
   created: string;
   updated: string;
 }

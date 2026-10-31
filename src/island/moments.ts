@@ -59,6 +59,19 @@ export function readMoment(raw: unknown): Moment | null {
       if (!(port > 0 && port < 65536)) return null;
       return { kind: "server", port, url: `http://localhost:${port}/`, process: str(m.process, 100) };
     }
+    case "call": {
+      const name = str(m.name, 120);
+      const number = str(m.number, 40);
+      if (!name && !number) return null;
+      return { kind: "call", name, number, incoming: m.incoming === true, seconds: Math.max(0, num(m.seconds)) };
+    }
+    case "ticket": {
+      const id = num(m.id);
+      const title = str(m.title, 200);
+      const url = str(m.url, 400);
+      if (!id || !title || !/^https?:\/\//.test(url)) return null;
+      return { kind: "ticket", id, title, url };
+    }
     case "card": {
       const id = str(m.id, 40);
       if (!id) return null;

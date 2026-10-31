@@ -30,7 +30,7 @@ import { rdmLookFor } from "../views/rdm";
 import { buildRail, railBotSize } from "../views/rail";
 import { appBarItem, buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
 import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
-import { reopenChat, sendToChat, windowLabel } from "../views/chat";
+import { onNextReply, reopenChat, sendToChat, windowLabel } from "../views/chat";
 import { capturing, startCapture } from "./capture";
 import { addToCollection } from "../views/collect";
 import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state";
@@ -384,6 +384,8 @@ export class Island {
       askChat: (q) => this.askChat(q),
       showNotice: (n) => this.showNotice(n),
       explainError: (text, note) => this.explainError(text, note),
+      noteCall: (m) => this.noteCall(m),
+      prepareTicket: (m) => void this.prepareTicket(m),
       confirmRun: () => void this.startScript(),
       killRun: () => {
         if (State.run?.status === "running") void Bridge.actionKill(State.run.runId);
@@ -397,6 +399,10 @@ export class Island {
       applyRewrite: (text, plain) => void this.applyRewrite(text, plain),
       retryRewrite: () => void this.fetchRewrite(),
       closeRewrite: () => this.closeRewrite(),
+      saveRemember: (text, about) => void this.saveRemember(text, about),
+      endTalk: () => void this.toggleTalk(),
+      cancelTalk: () => this.cancelTalk(),
+      closeRemember: () => this.closeRemember(),
     };
 
     this.wakeStrip = h("div", { id: "wake-strip" });
@@ -433,6 +439,7 @@ export class Island {
         void Bridge.chatDayPrompt(tomorrow).then((p) => { if (p) this.startChat(p, null, false); });
       },
       showDone: () => this.setView("done"),
+      remember: (text) => this.openRemember(text),
       reopenChat: (id) => {
         this.setView("prompt");
         window.setTimeout(() => reopenChat(id), 60);
@@ -1023,6 +1030,174 @@ ${note}` : text };
     }
   }
 
+  /**
+   * «Ricorda questo»: the selected text with where it came from, in the card
+   * to confirm; nothing selected, the card is empty to type in.
+   */
+  async rememberSelection() {
+    const r = await Bridge.captureSelection();
+    const text = "text" in r ? r.text : "";
+    if (!("text" in r) && r.error !== "empty" && r.error !== "not-text") {
+      this.flashNote(this.selectionProblem(r.error));
+      return;
+    }
+    const src = text ? (await Bridge.collectSource(text).catch(() => null)) ?? { exe: "", title: "", url: "" } : { exe: "", title: "", url: "" };
+    this.openRemember(text, src.exe, src.title, src.url);
+  }
+
+  /** The «Ricorda» card, pinned: it waits for a click. */
+  openRemember(text: string, app = "", title = "", url = "", about = "") {
+    State.remember = { id: `r${Date.now().toString(36)}`, text, about, app, title, url, status: "edit", message: "" };
+    State.isPinned = true;
+    this.fsm.pinned = true;
+    this.setView("remember");
+  }
+
+  /** «Prepara» on a ticket of mine: the chat opens at once, the question goes when Zammad answered. */
+  async prepareTicket(m: { id: number; title: string }) {
+    this.startChat("", { label: m.title, text: t("Raccolgo il ticket, la pagina del cliente e i ticket simili…") }, false);
+    try {
+      const prep = await Bridge.zammadPrepare(m.id);
+      if (State.view !== "prompt" || State.chatHistory.length) return;
+      State.chatText = { label: prep.label, text: prep.context };
+      State.notify();
+      sendToChat(prep.question);
+    } catch (e) {
+      State.chatText = null;
+      this.note(String(e), "prompt");
+    }
+  }
+
+  /** The reply being read aloud («Parla»): Esc or the shortcut stop it. */
+  private talkAudio: HTMLAudioElement | null = null;
+
+  /** «Parla»: the shortcut starts listening; again (or «Fine») ends the question. */
+  async toggleTalk() {
+    if (this.stopSpeaking()) return;
+    try {
+      const listening = await Bridge.talkToggle();
+      if (listening && !State.talk) {
+        State.talk = { state: "listening", level: 0, spoke: false };
+        State.isPinned = true;
+        this.fsm.pinned = true;
+        this.setView("talk");
+      }
+    } catch (e) {
+      this.note(String(e).replace(/^Error:\s*/, ""));
+    }
+  }
+
+  private cancelTalk() {
+    void Bridge.talkCancel();
+    this.closeTalk(true);
+  }
+
+  private closeTalk(collapse: boolean) {
+    State.talk = null;
+    State.isPinned = false;
+    this.fsm.pinned = false;
+    if (collapse && State.view === "talk") this.collapse();
+  }
+
+  /** What talk.rs says: the level while listening, then the words (or why not). */
+  private onTalk(e: { state: string; level?: number; spoke?: boolean; words?: string; message?: string }) {
+    if (e.state === "listening") {
+      if (!State.talk) return;
+      State.talk.level = Math.max(0, Math.min(1, Number(e.level) || 0));
+      State.talk.spoke = State.talk.spoke || e.spoke === true;
+      State.notify();
+    } else if (e.state === "hearing") {
+      if (!State.talk) return;
+      State.talk.state = "hearing";
+      State.talk.level = 0;
+      State.notify();
+    } else if (e.state === "heard" && e.words) {
+      if (!State.talk) return;
+      this.closeTalk(false);
+      if (State.settings.talkReply !== false) onNextReply((text) => { if (text) void this.speak(text); });
+      this.startChat(e.words, null, false);
+    } else if (e.state === "error") {
+      if (!State.talk) return;
+      this.closeTalk(false);
+      this.note(e.message ?? t("Non ho sentito parole."));
+    } else {
+      if (State.talk) this.closeTalk(true);
+    }
+  }
+
+  /** A reply read aloud with the voice of «Vocali» (speech.rs). */
+  private async speak(text: string) {
+    try {
+      const voice = await Bridge.talkSpeak(text);
+      const bytes = Uint8Array.from(atob(voice.data), (c) => c.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type: voice.mime }));
+      this.stopSpeaking();
+      const audio = new Audio(url);
+      this.talkAudio = audio;
+      const done = () => {
+        URL.revokeObjectURL(url);
+        if (this.talkAudio === audio) this.talkAudio = null;
+      };
+      audio.addEventListener("ended", done);
+      audio.addEventListener("error", done);
+      await audio.play();
+    } catch (e) {
+      console.warn("[talk] reply not spoken", e);
+    }
+  }
+
+  /** Stops a reply being read aloud; true if there was one. */
+  private stopSpeaking(): boolean {
+    const a = this.talkAudio;
+    if (!a) return false;
+    this.talkAudio = null;
+    a.pause();
+    a.dispatchEvent(new Event("ended"));
+    return true;
+  }
+
+  /** «Annota» after a 3CX call: the empty card, about the caller. */
+  noteCall(m: { name: string; number: string; incoming: boolean; seconds: number }) {
+    const who = m.name || m.number;
+    const mins = Math.max(1, Math.round(m.seconds / 60));
+    const title = m.incoming
+      ? t("chiamata ricevuta da {who} ({number}), {m} min", { who, number: m.number, m: mins })
+      : t("chiamata fatta a {who} ({number}), {m} min", { who, number: m.number, m: mins });
+    this.openRemember("", "3CX", title, "", m.name);
+  }
+
+  private async saveRemember(text: string, about: string) {
+    const r = State.remember;
+    if (!r || r.status === "saving") return;
+    if (!text.trim()) {
+      r.message = t("Scrivi o seleziona cosa ricordare.");
+      State.notify();
+      return;
+    }
+    r.status = "saving";
+    r.message = "";
+    State.notify();
+    try {
+      const done = await Bridge.memoryRemember({ text, about, app: r.app, title: r.title, url: r.url, from: "pc" });
+      if (State.remember !== r) return;
+      this.closeRemember(false);
+      this.collectedNote(done.learning ? t("Ricordato: lo imparo adesso") : t("Ricordato: lo imparo stasera"));
+    } catch (e) {
+      if (State.remember !== r) return;
+      r.status = "edit";
+      r.message = String(e).replace(/^Error:\s*/, "");
+      Sound.play("error");
+      State.notify();
+    }
+  }
+
+  private closeRemember(collapse = true) {
+    State.remember = null;
+    State.isPinned = false;
+    this.fsm.pinned = false;
+    if (collapse && State.view === "remember") this.collapse();
+  }
+
   /** "Nella raccolta: n" for a moment; an island opened only for it closes again. */
   collectedNote(message: string) {
     Sound.play("blip");
@@ -1057,6 +1232,11 @@ ${note}` : text };
     if (!sel || !pick) return;
     if (pick === "settings") {
       void Bridge.openSettingsWindow();
+      return;
+    }
+    if (pick === "remember") {
+      void Bridge.collectSource(sel.text).catch(() => null)
+        .then((src) => this.openRemember(sel.text, src?.exe ?? "", src?.title ?? "", src?.url ?? ""));
       return;
     }
     if (pick === "notion-note" || pick === "notion-task") {
@@ -1443,6 +1623,7 @@ ${note}` : text };
         void this.openFiles().then(() => { this.trayUntil = performance.now() + 5 * 60_000; });
       },
       failed: (message) => this.note(message, State.defaultView()),
+      remember: (text, app, title) => this.openRemember(text, app, title),
     });
   }
 
@@ -1654,6 +1835,12 @@ ${note}` : text };
       return;
     } else if (name === "collect") {
       await this.collectSelection();
+      return;
+    } else if (name === "remember") {
+      await this.rememberSelection();
+      return;
+    } else if (name === "talk") {
+      await this.toggleTalk();
       return;
     } else if (name === "mute") {
       State.settings.soundEnabled = !State.settings.soundEnabled;
@@ -2659,6 +2846,8 @@ ${note}` : text };
   /** The panel's left edge widens it (the island grows with it); double click: the usual width. */
   private wirePane() {
     void onEvent<boolean>("preview-docked", (on) => this.setPaneOpen(on));
+    // «Parla» (talk.rs): listening, transcribing, the words.
+    void onEvent<{ state: string; level?: number; spoke?: boolean; words?: string; message?: string }>("talk", (e) => this.onTalk(e));
     void Bridge.previewState().then((s) => {
       if (s?.docked) this.setPaneOpen(true);
     }).catch(() => undefined);
@@ -3352,6 +3541,9 @@ ${note}` : text };
       // Esc on a permission or a question folds the island: the request keeps waiting.
       if (e.key === "Escape" && State.mode === "expanded" && State.pendingApproval && (State.view === "approval" || State.view === "ask")) this.foldCard();
       else if (e.key === "Escape" && State.mode === "expanded" && State.view === "rewrite") this.closeRewrite();
+      else if (e.key === "Escape" && State.mode === "expanded" && State.view === "remember") this.closeRemember();
+      else if (e.key === "Escape" && State.mode === "expanded" && State.view === "talk") this.cancelTalk();
+      else if (e.key === "Escape" && this.stopSpeaking()) return;
       else if (e.key === "Escape" && State.mode === "expanded" && !State.isPinned && !State.pendingApproval) this.collapse();
       else this.onIslandKey(e);
       State.lastActivity = performance.now();

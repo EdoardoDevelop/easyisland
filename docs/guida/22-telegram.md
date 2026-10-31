@@ -20,6 +20,7 @@ Una conversazione **tutta sua**, distinta da quella dell'isola, con motore e mod
 | `/riprendi` | Continua qui l'ultima conversazione dell'isola |
 | `/oggi`, `/domani` | La giornata: attività, appuntamenti, ticket, meteo |
 | `/notizie` | Le ultime notizie sugli argomenti che segui |
+| `/ricorda …` | Mette quello che scrivi nella memoria, nella pagina giusta. Vale anche un **vocale** che comincia con «ricorda», «ricordati che» o «ricordami di…» |
 | `/vassoio` | I file del Vassoio |
 | `/cartella` | La cartella di lavoro a pulsanti, con i file |
 | `/automatica` | Accende o spegne l'Automatica di Telegram |
@@ -38,6 +39,8 @@ Ogni permesso è un messaggio **🔐 Permesso richiesto** con **✅ Consenti** e
 
 ## Vocali
 Con un servizio di trascrizione scelto in **Impostazioni → Telegram → Vocali**, i messaggi vocali diventano testo e la chat risponde. L'audio non resta.
+
+Se mandi un vocale, sotto la risposta scritta arriva anche la **risposta a voce** (a un messaggio scritto risponde solo per iscritto). Funziona con Google AI e OpenAI, non con OpenRouter; si spegne con **Rispondi a voce**. Le risposte lunghe vengono lette fino a circa un minuto e mezzo: il resto è nel messaggio scritto.
 
 ## Compiti e avvisi
 Con Telegram collegato ricevi un messaggio quando un compito finisce, non riesce, va in pausa o ti fa una domanda, e puoi rispondere con i pulsanti. Telegram resta in ascolto anche se il profilo attivo lo ha spento, se è acceso in un profilo qualsiasi.

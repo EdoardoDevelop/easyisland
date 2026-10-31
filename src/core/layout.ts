@@ -54,7 +54,9 @@ export type IslandViewName =
   | "daily"
   | "barcard"
   | "news"
-  | "done";
+  | "done"
+  | "remember"
+  | "talk";
 
 export type BotStateName =
   | "idle"
@@ -239,6 +241,8 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   barcard: { height: 200, botX: 62, botY: null, botDiameter: 56, agentMode: "none" },
   news: { height: 260, botX: 62, botY: null, botDiameter: 56, agentMode: "none" },
   done: { height: 260, botX: 62, botY: null, botDiameter: 56, agentMode: "none" },
+  remember: { height: 300, botX: 52, botY: 92, botDiameter: 44, agentMode: "none" },
+  talk: { height: 190, botX: 52, botY: 92, botDiameter: 44, agentMode: "none" },
 };
 
 // The upload views above are only the fallback geometry. Once a file is actually

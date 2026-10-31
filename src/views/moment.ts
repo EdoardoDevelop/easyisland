@@ -16,6 +16,10 @@ import { t } from "../core/i18n";
 export interface MomentActions {
   /** «Spiega e correggi»: the chat with the error attached. */
   explainError(text: string, note: string): void;
+  /** «Annota» after a call: «Ricorda» with the caller as what it is about. */
+  noteCall(m: Extract<Moment, { kind: "call" }>): void;
+  /** «Prepara» on a ticket: the chat with the customer, similar tickets and a draft. */
+  prepareTicket(m: Extract<Moment, { kind: "ticket" }>): void;
 }
 
 const WASH: Record<string, Wash> = { ok: "green", warn: "amber", error: "red", info: "indigo" };
@@ -98,6 +102,31 @@ export function buildMoment(actions: ViewActions & MomentActions): ViewHost {
           ],
         };
       }
+      case "call": {
+        const mins = Math.max(1, Math.round(m.seconds / 60));
+        return {
+          wash: "green",
+          who: m.incoming ? t("Chiamata ricevuta") : t("Chiamata fatta"),
+          title: m.name || m.number,
+          text: t("{m} min · vuoi annotare cosa vi siete detti? Va nella memoria, nella sua pagina", { m: mins }),
+          row: [
+            btn(t("Annota"), "primary", () => { State.moment = null; actions.noteCall(m); }),
+            btn(t("Non ora"), "secondary", done),
+          ],
+        };
+      }
+      case "ticket":
+        return {
+          wash: "indigo",
+          who: t("Ticket assegnato a te"),
+          title: m.title,
+          text: t("Ti preparo cosa sa la memoria del cliente, come si sono risolti i ticket simili e una bozza di risposta?"),
+          row: [
+            btn(t("Prepara"), "primary", () => { State.moment = null; actions.prepareTicket(m); }),
+            btn(t("Apri"), "secondary", () => { actions.openUrl(m.url); done(); }),
+            btn(t("Non ora"), "secondary", done),
+          ],
+        };
       case "server":
         return {
           wash: "green",

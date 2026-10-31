@@ -21,6 +21,7 @@ mod carry;
 mod claude;
 mod chat_log;
 mod claude_cli;
+mod desktop;
 mod clipboard;
 mod clipimage;
 mod brain;
@@ -98,6 +99,9 @@ mod renew;
 mod richtext;
 mod start_apps;
 mod threecx;
+mod speech;
+mod brain_watch;
+mod talk;
 mod transcribe;
 mod tray;
 mod updates;
@@ -1664,6 +1668,33 @@ fn memory_node_open(id: String) -> Result<(), String> {
     Command::new("explorer").arg(&path).spawn().map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// What «Ricorda questo» did: the source's name and whether a task learns it now.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Remembered {
+    file: String,
+    learning: bool,
+}
+
+/// «Ricorda questo»: the capture into da-leggere, learnt at once by a task
+/// (a reading already running takes it at its next turn) or in the evening.
+pub(crate) fn remember(app: &AppHandle, r: &brain::Remember) -> Result<(String, bool), String> {
+    let file = brain::remember(r)?;
+    let now = app.try_state::<Shared>().is_some_and(|s| s.settings.lock().unwrap().remember_now);
+    let learning = now && match tasks::memory_job(app, "inbox") {
+        Ok(()) => true,
+        Err(_) => tasks::memory_job_running(),
+    };
+    let _ = app.emit_to(MEMORY_LABEL, "memory-refresh", ());
+    Ok((file, learning))
+}
+
+#[tauri::command]
+fn memory_remember(app: AppHandle, capture: brain::Remember) -> Result<Remembered, String> {
+    let (file, learning) = remember(&app, &capture)?;
+    Ok(Remembered { file, learning })
+}
+
 /// Files dropped on the memory window: into da-leggere.
 #[tauri::command]
 fn memory_inbox_add(name: String, data: Vec<u8>) -> Result<String, String> {
@@ -1703,6 +1734,30 @@ async fn zammad_search(query: String) -> Result<Vec<zammad::TicketHit>, String> 
     zammad::search(&query, 5).await
 }
 
+/// «Prepara» on a ticket of mine: the context and the question for the chat.
+#[tauri::command]
+async fn zammad_prepare(id: i64) -> Result<zammad::TicketPrep, String> {
+    zammad::prepare(id).await
+}
+
+/// «Parla»: starts listening, or ends the question (talk.rs). Ok(true) = listening.
+#[tauri::command]
+fn talk_toggle(app: AppHandle) -> Result<bool, String> {
+    talk::toggle(app)
+}
+
+/// «Annulla» while listening: the sound is thrown away.
+#[tauri::command]
+fn talk_cancel() {
+    talk::cancel();
+}
+
+/// A chat reply read aloud, for the island to play (talk.rs `speak`).
+#[tauri::command]
+async fn talk_speak(app: AppHandle, text: String) -> Result<talk::Spoken, String> {
+    talk::speak(&app, &text).await
+}
+
 /// The history list filtered by words (title and text).
 #[tauri::command]
 fn chat_history_search(query: String) -> Vec<chat_log::Summary> {
@@ -1726,6 +1781,18 @@ fn chat_rewind(chat: State<'_, Chat>, keep: Vec<chat_log::Line>) {
     let before = chat.cli_session();
     chat_log::rewind(&chat, keep);
     opencode::forget(before);
+}
+
+/// «Continua in Claude Desktop»: the chat's Claude Code session opens in the desktop app (desktop.rs).
+#[tauri::command]
+async fn chat_to_desktop(chat: State<'_, Chat>) -> Result<(), String> {
+    desktop::hand_off(&chat).await
+}
+
+/// What was said in Claude Desktop since then; `done` when the island goes on with the session.
+#[tauri::command]
+fn chat_desktop_pull(chat: State<'_, Chat>, done: bool) -> Vec<chat_log::Line> {
+    desktop::pull(&chat, "subscription", done)
 }
 
 /// «⑂ Dirama da qui»: a new conversation from the first lines of this one.
@@ -3462,6 +3529,12 @@ fn heartbeat_set(app: AppHandle, minutes: u32) -> Result<(), String> {
     tasks::set_heartbeat(&app, minutes).map(|_| ())
 }
 
+/// Impostazioni → Flussi → Battito: the weekly recap of the memory (tasks.rs).
+#[tauri::command]
+fn week_set(app: AppHandle, on: bool) -> Result<(), String> {
+    tasks::set_week(&app, on)
+}
+
 /// Impostazioni → Chat → Memoria: the evening digest (tasks.rs).
 #[tauri::command]
 fn digest_set(app: AppHandle, on: bool) -> Result<(), String> {
@@ -3571,6 +3644,7 @@ pub fn run() {
             heartbeat_set,
             heartbeat_open,
             digest_set,
+            week_set,
             skills_list,
             customs_list,
             custom_save,
@@ -3682,14 +3756,21 @@ pub fn run() {
             memory_node_open,
             memory_window_open,
             memory_inbox_add,
+            memory_remember,
             memory_note_add,
             chat_history_search,
             memory_find,
             memory_window_select,
             zammad_search,
+            zammad_prepare,
+            talk_toggle,
+            talk_cancel,
+            talk_speak,
             chat_history_pin,
             chat_history_rename,
             chat_rewind,
+            chat_to_desktop,
+            chat_desktop_pull,
             chat_export,
             capture_begin,
             capture_frame,
@@ -3950,6 +4031,7 @@ pub fn run() {
             media::spawn(handle.clone());
             threecx::spawn(handle.clone());
             teams::spawn(handle.clone());
+            brain_watch::init(&handle);
             telegram::spawn(handle.clone());
             tasks::init(&handle);
             custom::spawn(handle.clone());

@@ -2651,6 +2651,27 @@ input[type="range"]::-webkit-slider-thumb {
   justify-content: flex-end;
 }
 
+/* «Ricorda questo» (views/remember.ts): the text, then who or what it is about. */
+.rem-about {
+  flex: 0 0 auto;
+  font: 400 calc(12.5px + var(--fs-up, 0px)) var(--font);
+  padding: 7px 10px;
+  border-radius: 10px;
+  color: #e8e9ec;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  outline: none;
+}
+
+.rem-about:focus {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.rem-about::placeholder,
+.rem-card .rw-after::placeholder {
+  color: var(--dim-2);
+}
+
 .rw-format {
   font: 400 calc(11px + var(--fs-up, 0px)) var(--font);
   color: var(--dim-2);
@@ -6084,6 +6105,16 @@ html[data-ui="windows"] .col-meta input, html[data-ui="windows"] .col-item { bor
   font: 500 calc(11px + var(--fs-up, 0px)) var(--font);
 }
 .news-filter.on { background: rgba(255, 255, 255, 0.16); color: var(--ink); }
+/* The look of the list, in the head (news.ts). */
+.news-looks { display: inline-flex; gap: 2px; padding: 2px; border-radius: 8px; background: rgba(255, 255, 255, 0.05); }
+.news-look {
+  display: grid; place-items: center; width: 24px; height: 20px; padding: 0; border: 0; border-radius: 6px;
+  background: none; color: var(--dim-2); cursor: pointer;
+}
+.news-look:hover { color: var(--ink); }
+.news-look.on { background: rgba(255, 255, 255, 0.16); color: var(--ink); }
+html[data-scheme="light"] .news-looks { background: rgba(0, 0, 0, 0.05); }
+html[data-scheme="light"] .news-look.on { background: rgba(0, 0, 0, 0.1); }
 /* The list scrolls: a check can bring many (grows with the island, --extra-h). */
 .news-items {
   display: flex; flex-direction: column; gap: 2px;
@@ -6168,3 +6199,48 @@ html[data-ui="windows"] .col-meta input, html[data-ui="windows"] .col-item { bor
   font-size: calc(12px + var(--fs-up, 0px));
 }
 .summary-news-src { flex: 0 0 auto; max-width: 35%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: calc(10.5px + var(--fs-up, 0px)); color: var(--dim-2); }
+
+/* «Parla» (views/talk.ts): bars that follow the voice while the microphone is on. */
+.talk-card {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+
+.talk-meter {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 44px;
+  padding: 0 4px;
+}
+
+.talk-meter i {
+  display: block;
+  width: 5px;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--cyan);
+  transform: scaleY(0.18);
+  transition: transform 90ms linear;
+}
+
+.talk-meter.busy i {
+  background: var(--dim-2);
+  animation: talk-wait 1s ease-in-out infinite;
+}
+
+.talk-meter.busy i:nth-child(2) { animation-delay: 0.1s; }
+.talk-meter.busy i:nth-child(3) { animation-delay: 0.2s; }
+.talk-meter.busy i:nth-child(4) { animation-delay: 0.3s; }
+.talk-meter.busy i:nth-child(5) { animation-delay: 0.4s; }
+
+@keyframes talk-wait {
+  0%, 100% { transform: scaleY(0.2); }
+  50% { transform: scaleY(0.6); }
+}
+
+.talk-card .actions {
+  justify-content: flex-end;
+}

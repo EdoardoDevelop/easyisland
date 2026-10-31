@@ -66,10 +66,18 @@ In **Impostazioni → Chat → Istruzioni e memoria** crei assistenti con **nome
 ## Dettatura
 🎤 nel campo: clic per iniziare e per finire. Con un servizio di trascrizione scelto in Impostazioni → Telegram → Vocali, registra e trascrive con quello; senza, apre la dettatura di Windows (<kbd>Win</kbd>+<kbd>H</kbd>), locale e gratuita.
 
+## Parlare con l'isola
+Da qualunque programma premi <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> e parla: l'isola mostra che ti ascolta e, quando fai una pausa, trascrive e manda la domanda alla chat. Puoi finire anche con **Fine** o premendo di nuovo la scorciatoia; **Annulla** (o <kbd>Esc</kbd>) butta via tutto. La risposta si legge in chat e, con **Rispondi a voce** acceso, si sente anche dagli altoparlanti; <kbd>Esc</kbd> o la scorciatoia la fermano.
+
+Il microfono si accende **solo** quando premi la scorciatoia, mai da solo. Serve il servizio dei Vocali (Impostazioni → Telegram → Vocali); la voce che risponde c'è con OpenAI e Google AI. Scorciatoia e risposta a voce si cambiano in Impostazioni → Azioni rapide.
+
 ## Cronologia
 L'orologio in alto nella chat mostra le conversazioni di prima (fino a 100, solo su questo PC), con data, motore e ricerca. **✎** (o un doppio clic sul titolo) la rinomina: Invio salva, Esc annulla, un titolo vuoto torna alla prima domanda. 📌 la tiene in cima. Un clic ne riapre una sul suo motore e la continui. Con i motori via API riprende esattamente da dove era; con l'abbonamento e con opencode la conversazione viene passata come testo. Impostazioni → Chat → **Cronologia** la svuota o la spegne (spegnendo anche il diario della memoria).
 
 ![La cronologia delle conversazioni](../media/chat-history.png)
+
+## Continuare in Claude Desktop
+Con Claude Code come motore, **↗** in alto nella chat apre la conversazione nell'app Claude Desktop, con tutto quello che vi siete detti, e lì la continui. Quando torni a scrivere nella chat dell'isola, prima della tua domanda compaiono i messaggi scritti in Desktop, sotto la riga «Conversazione proseguita in Claude Desktop», e Claude riprende la stessa sessione. Meglio non scrivere nelle due insieme. Serve Claude Code 2.1.285 o successivo e l'accesso con l'abbonamento Claude (non con una chiave API). Nella Modalità terminale la sessione si apre nella cartella del progetto.
 
 ## Chiedere da altri posti
 - Dal **campo in alto** dell'isola con <kbd>Ctrl</kbd>+<kbd>Invio</kbd>.

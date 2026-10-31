@@ -131,6 +131,8 @@ pub struct Chat {
     /// Assistenti): its instructions go in front of the first question. Not
     /// cleared by `reset` (an engine change resets too): `chat_reset` does it.
     persona: Mutex<Option<String>>,
+    /// The session went on in Claude Desktop (desktop.rs): where the island left it.
+    desktop: Mutex<Option<crate::desktop::Mark>>,
 }
 
 impl Chat {
@@ -139,6 +141,7 @@ impl Chat {
         *self.cli_session.lock().unwrap() = None;
         *self.log_id.lock().unwrap() = None;
         *self.preamble.lock().unwrap() = None;
+        *self.desktop.lock().unwrap() = None;
     }
 
     /// A conversation from the history takes the place of the current one.
@@ -196,6 +199,14 @@ impl Chat {
 
     pub(crate) fn set_cli_session(&self, id: Option<String>) {
         *self.cli_session.lock().unwrap() = id;
+    }
+
+    pub(crate) fn desktop(&self) -> Option<crate::desktop::Mark> {
+        self.desktop.lock().unwrap().clone()
+    }
+
+    pub(crate) fn set_desktop(&self, mark: Option<crate::desktop::Mark>) {
+        *self.desktop.lock().unwrap() = mark;
     }
 
     pub(crate) fn is_empty(&self) -> bool {

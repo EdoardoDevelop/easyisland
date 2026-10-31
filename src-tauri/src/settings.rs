@@ -139,6 +139,10 @@ pub struct IntegrationConfig {
     /// The model of «Vocali» (transcribe.rs `models`); "" = the service's default.
     #[serde(default)]
     pub telegram_voice_model: String,
+    /// Telegram «Rispondi a voce»: a voice message gets the reply read aloud
+    /// too, by the service of «Vocali» when it can speak (speech.rs).
+    #[serde(default = "default_true")]
+    pub telegram_voice_reply: bool,
 }
 
 /// A connection of Remote Desktop Manager kept in the settings (rdm.rs Entry).
@@ -257,6 +261,7 @@ impl Default for IntegrationConfig {
             telegram_auto: false,
             telegram_voice: String::new(),
             telegram_voice_model: String::new(),
+            telegram_voice_reply: true,
         }
     }
 }
@@ -555,6 +560,12 @@ pub struct Settings {
     /// …a development server that started («Apri nel browser»)…
     #[serde(default = "default_true")]
     pub moment_servers: bool,
+    /// …a 3CX call answered and ended («Annota»: what was said, into the memory)…
+    #[serde(default = "default_true")]
+    pub moment_calls: bool,
+    /// …a Zammad ticket newly assigned to me («Prepara»: the customer, similar tickets, a draft)…
+    #[serde(default = "default_true")]
+    pub moment_tickets: bool,
     /// …and a copied password or key taken off the clipboard after 30 s.
     #[serde(default = "default_true")]
     pub clear_secrets: bool,
@@ -567,6 +578,19 @@ pub struct Settings {
     /// «Motore per la memoria» (memory_ai.rs): the engine that ties the memory together; "" = none.
     #[serde(default)]
     pub memory_engine: String,
+    /// «Ricorda questo» (brain.rs `remember`): what is captured is learnt at
+    /// once by a task; off, by the evening digest.
+    #[serde(default = "default_true")]
+    pub remember_now: bool,
+    /// The second brain at work (brain_watch.rs): a closed Zammad ticket…
+    #[serde(default = "default_true")]
+    pub brain_tickets: bool,
+    /// …an important mail (Microsoft 365: high importance, or from someone with a page)…
+    #[serde(default = "default_true")]
+    pub brain_mail: bool,
+    /// …and, in what is read, the commitments made, proposed as reminders.
+    #[serde(default = "default_true")]
+    pub brain_promises: bool,
     #[serde(default = "default_task_turns")]
     pub tasks_max_turns: u32,
     #[serde(default = "default_task_minutes")]
@@ -785,6 +809,15 @@ pub struct Settings {
     /// Global shortcut: the selected text into the Raccolta (collect.rs).
     #[serde(default = "default_hotkey_collect")]
     pub hotkey_collect: String,
+    /// Global shortcut: «Ricorda questo», the selected text into the memory (brain.rs `remember`).
+    #[serde(default = "default_hotkey_remember")]
+    pub hotkey_remember: String,
+    /// «Parla»: the microphone until a pause, the words to the chat (talk.rs).
+    #[serde(default = "default_hotkey_talk")]
+    pub hotkey_talk: String,
+    /// «Parla»: the reply read aloud too.
+    #[serde(default = "default_true")]
+    pub talk_reply: bool,
     /// ⚡ tab: actions suggested for the app in front (Outlook, Excel, the browser…).
     #[serde(default = "default_true")]
     pub context_actions: bool,
@@ -888,6 +921,13 @@ fn default_hotkey_selection_menu() -> String {
 
 fn default_hotkey_collect() -> String {
     "Ctrl+Alt+Shift+R".into()
+}
+
+fn default_hotkey_talk() -> String {
+    "Win+Alt+V".into()
+}
+fn default_hotkey_remember() -> String {
+    "Win+Alt+M".into()
 }
 
 fn default_presence_mode() -> String {
@@ -999,10 +1039,16 @@ impl Default for Settings {
             moment_downloads: true,
             moment_errors: true,
             moment_servers: true,
+            moment_calls: true,
+            moment_tickets: true,
             clear_secrets: true,
             chat_history: true,
             tasks_engine: String::new(),
             memory_engine: String::new(),
+            remember_now: true,
+            brain_tickets: true,
+            brain_mail: true,
+            brain_promises: true,
             tasks_max_turns: default_task_turns(),
             tasks_max_minutes: default_task_minutes(),
             language: String::new(),
@@ -1074,6 +1120,9 @@ impl Default for Settings {
             hotkey_mute: String::new(),
             hotkey_selection_menu: default_hotkey_selection_menu(),
             hotkey_collect: default_hotkey_collect(),
+            hotkey_remember: default_hotkey_remember(),
+            hotkey_talk: default_hotkey_talk(),
+            talk_reply: true,
             context_actions: true,
             agent_tools: true,
             tools_allowed: Vec::new(),

@@ -1377,6 +1377,19 @@ function telegramRows(): HTMLElement {
       // No key yet, or the service is unreachable: the hint says what is missing.
     }
   };
+  // «Rispondi a voce» (speech.rs): a voice message gets a voice note back, read by the same service.
+  const replyNote = h("span", { class: "hint note" });
+  const replyRow = h("div", { class: "row" },
+    h("label", { text: t("Rispondi a voce") }),
+    toggle(settings.integrationConfig.telegramVoiceReply !== false, (v) => { settings.integrationConfig.telegramVoiceReply = v; void save(); }),
+    replyNote);
+  const showReply = () => {
+    const v = settings.integrationConfig.telegramVoice ?? "";
+    replyRow.style.display = v ? "" : "none";
+    replyNote.textContent = v === "openrouter"
+      ? t("OpenRouter non sa parlare: per le risposte a voce scegli Google AI o OpenAI")
+      : t("se mandi un vocale, sotto la risposta scritta arriva anche la risposta a voce; ai messaggi scritti risponde solo per iscritto");
+  };
   const voice = h("div", { class: "row" },
     h("label", { text: t("Vocali") }),
     select<string>([["", t("Spenti")], ["gemini", "Google AI (Gemini)"], ["openai", "OpenAI"], ["openrouter", "OpenRouter"]],
@@ -1387,11 +1400,13 @@ function telegramRows(): HTMLElement {
         void save();
         void voiceHint();
         void loadVoiceModels();
+        showReply();
       }),
     voiceNote);
   void voiceHint();
   void loadVoiceModels();
-  box.append(h("div", { class: "row" }, h("b", { text: t("Chat collegata") }), state), h("div", { class: "row" }, link, unlink), auto, voice, voiceModelRow, note);
+  showReply();
+  box.append(h("div", { class: "row" }, h("b", { text: t("Chat collegata") }), state), h("div", { class: "row" }, link, unlink), auto, voice, voiceModelRow, replyRow, note);
   void refresh();
   // The bot may take a few seconds to start after the token is saved or the switch turned on.
   const timer = window.setInterval(() => { if (!box.isConnected) window.clearInterval(timer); else void refresh(); }, 4000);
@@ -3735,6 +3750,15 @@ function actionsSection(): HTMLElement {
     h("div", { class: "row" }, h("label", { text: t("Aggiungi alla Raccolta") }),
       hotkeyField(settings.hotkeyCollect ?? "", (v) => { settings.hotkeyCollect = v; }),
       h("span", { class: "hint note", text: t("il testo selezionato, con la sua fonte, nella Raccolta di «File e schermo», da passare poi alla chat") })),
+    h("div", { class: "row" }, h("label", { text: t("Parla") }),
+      hotkeyField(settings.hotkeyTalk ?? "", (v) => { settings.hotkeyTalk = v; }),
+      h("span", { class: "hint note", text: t("il microfono si accende solo adesso; finisci con una pausa e la domanda va alla chat. Trascrive il servizio dei Vocali di Telegram") })),
+    h("div", { class: "row" }, h("label", { text: t("Rispondi a voce") }),
+      toggle(settings.talkReply !== false, (v) => { settings.talkReply = v; void save(); }),
+      h("span", { class: "hint note", text: t("dopo una domanda a voce, la risposta si sente anche dagli altoparlanti (OpenAI o Google AI); Esc la ferma") })),
+    h("div", { class: "row" }, h("label", { text: t("Ricorda questo") }),
+      hotkeyField(settings.hotkeyRemember ?? "", (v) => { settings.hotkeyRemember = v; }),
+      h("span", { class: "hint note", text: t("il testo selezionato nella memoria, con da dove viene; senza selezione scrivi tu cosa ricordare") })),
     h("div", { class: "row" }, h("label", { text: t("Vai alla richiesta in attesa") }),
       hotkeyField(settings.hotkeyPending, (v) => { settings.hotkeyPending = v; }),
       h("span", { class: "hint note", text: t("poi N nega, Y consente, S sempre; 1–9 sceglie una risposta") })),
@@ -4249,7 +4273,7 @@ function reactionsSection(): HTMLElement {
 
 /** "Proposte al momento giusto" (moments.rs): each one on or off. */
 function momentsSection(): HTMLElement {
-  const row = (label: string, key: "momentDownloads" | "momentErrors" | "momentServers" | "clearSecrets", note: string) =>
+  const row = (label: string, key: "momentDownloads" | "momentErrors" | "momentServers" | "momentCalls" | "momentTickets" | "clearSecrets", note: string) =>
     h("div", { class: "row" },
       h("label", { text: label }),
       toggle(settings[key] !== false, (v) => { settings[key] = v; void save(); }),
@@ -4260,6 +4284,8 @@ function momentsSection(): HTMLElement {
     row(t("Download finito"), "momentDownloads", t("Apri, Mostra nella cartella e le azioni sui file, per un file nuovo nella cartella Download")),
     row(t("Errore copiato"), "momentErrors", t("«Spiega e correggi» per uno stack trace o un traceback negli appunti, e chi tiene una porta occupata (serve l'integrazione Appunti)")),
     row(t("Server di sviluppo"), "momentServers", t("«Apri nel browser» quando npm run dev, vite, uvicorn… iniziano ad ascoltare su localhost")),
+    row(t("Fine di una chiamata"), "momentCalls", t("«Annota» dopo una chiamata 3CX risposta di almeno 30 secondi: due righe su cosa vi siete detti vanno nella memoria, nella pagina di chi ha chiamato")),
+    row(t("Ticket assegnato a te"), "momentTickets", t("«Prepara» quando Zammad ti assegna un ticket: la chat con cosa sa la memoria del cliente, i ticket simili e come si sono risolti, e una bozza di risposta (mai inviata)")),
     row(t("Password e chiavi copiate"), "clearSecrets", t("tolte dagli appunti dopo 30 secondi, se nel frattempo non hai copiato altro")));
 }
 
@@ -4960,6 +4986,38 @@ function heartbeatSection(): HTMLElement {
     feedback);
 }
 
+/** The second brain at work (brain_watch.rs), «Ricorda questo» and the weekly recap. */
+function secondBrainSection(): HTMLElement {
+  const feedback = h("div");
+  const week = toggle(taskItems.some((x) => x.memory === "week"), async (on) => {
+    clear(feedback);
+    try {
+      await Bridge.weekSet(on);
+      await refreshTasks();
+    } catch (e) {
+      feedback.append(h("div", { class: "notice err", text: String(e).replace(/^Error:\s*/, "") }));
+    }
+  });
+  return h("section", {},
+    h("h2", {}, h("span", { text: t("Secondo cervello") })),
+    h("div", { class: "hint", text: t("Quello che succede tiene aggiornate le pagine di persone e clienti nella memoria. Un compito propone le righe da aggiungere e i promemoria; scrive solo quelle che approvi. Al massimo 8 volte al giorno.") }),
+    h("div", { class: "row" }, h("label", { text: t("Ticket chiusi") }),
+      toggle(settings.brainTickets !== false, (v) => { settings.brainTickets = v; void save(); }),
+      h("span", { class: "hint note", text: t("quando un tuo ticket di Zammad si chiude: il problema e come è stato risolto, nella pagina del cliente") })),
+    h("div", { class: "row" }, h("label", { text: t("Mail importanti") }),
+      toggle(settings.brainMail !== false, (v) => { settings.brainMail = v; void save(); }),
+      h("span", { class: "hint note", text: t("con l'account Microsoft collegato: le mail segnate come importanti e quelle di chi ha una pagina nella memoria (Outlook classico da solo non dà il testo)") })),
+    h("div", { class: "row" }, h("label", { text: t("Impegni presi") }),
+      toggle(settings.brainPromises !== false, (v) => { settings.brainPromises = v; void save(); }),
+      h("span", { class: "hint note", text: t("in ticket, mail, «Ricorda» e note delle chiamate cerca le promesse («ti mando domani il preventivo») e le propone come promemoria in To Do, o nella pagina «Impegni»") })),
+    h("div", { class: "row" }, h("label", { text: t("Riepilogo della settimana") }), week,
+      h("span", { class: "hint note", text: t("il venerdì alle 17: cosa ha imparato la memoria in settimana e cosa è rimasto aperto. Se non è cambiato niente non parte") })),
+    h("div", { class: "row" }, h("label", { text: t("«Ricorda questo» impara subito") }),
+      toggle(settings.rememberNow !== false, (v) => { settings.rememberNow = v; void save(); }),
+      h("span", { class: "hint note", text: t("quello che fai ricordare (scorciatoia, campo in alto, /ricorda su Telegram) lo legge subito un compito e lo mette nelle pagine della memoria; spento, aspetta il riordino della sera") })),
+    feedback);
+}
+
 // ── Abilità (skills.rs) ────────────────────────────────────────────────────────
 
 let skillItems: Skill[] = [];
@@ -5323,9 +5381,6 @@ function newsSection(): HTMLElement {
       toggle(news().tab !== false, (v) => { news().tab = v; commit(); }),
       h("span", { class: "hint note", text: t("la voce nel menu dell'isola e il riquadro nella Panoramica") })),
     h("div", { class: "row" },
-      h("label", { text: t("Aspetto della scheda") }),
-      choice([["list", t("Elenco")], ["thumbs", t("Con le miniature")], ["cards", t("A schede")]], news().look ?? "list", (v) => { news().look = v as NewsSettings["look"]; commit(); })),
-    h("div", { class: "row" },
       h("label", { text: t("Fonte") }),
       choice([["google", "Google News"], ["bing", "Bing News"], ["both", t("Google e Bing insieme")]], news().source ?? "google", (v) => { news().source = v as NewsSettings["source"]; commit(); }),
       h("span", { class: "hint note", text: t("Google News: miniatura con il logo del giornale. Bing News: la foto dell'articolo e una riga di riassunto. Insieme: le notizie di tutti e due, mescolate, senza doppioni. Vale dal prossimo controllo.") })),
@@ -5515,7 +5570,7 @@ function pages(b: NonNullable<typeof boot>): Page[] {
       // "compiti" because the island opens it from a task ("Apri").
       id: "compiti", label: t("Flussi"), icon: "rocket", color: "#22D3EE", title: t("Flussi"),
       intro: t("Quando succede qualcosa EasyIsland fa qualcosa per te: passi fissi, rami, domande e agenti che lavorano da soli. I compiti sono obiettivi che un agente porta avanti con un piano."),
-      sections: () => [automationsSection(), tasksSection(), heartbeatSection(), skillsSection(), tasksSettingsSection()],
+      sections: () => [automationsSection(), tasksSection(), heartbeatSection(), secondBrainSection(), skillsSection(), tasksSettingsSection()],
     },
     {
       id: "integrazioni", label: t("Integrazioni"), icon: "network", color: "#38BDF8", title: t("Integrazioni"),

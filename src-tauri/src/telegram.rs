@@ -66,7 +66,7 @@ static NEXT_FILE: Mutex<Option<(String, String)>> = Mutex::new(None);
 static BUSY: AtomicBool = AtomicBool::new(false);
 /// Questions written while EasyIsland was not running, answered one after the
 /// other once it is back (`run_late`).
-static LATE: Mutex<std::collections::VecDeque<(i64, String, Option<ChatContext>)>> = Mutex::new(std::collections::VecDeque::new());
+static LATE: Mutex<std::collections::VecDeque<(i64, String, Option<ChatContext>, bool)>> = Mutex::new(std::collections::VecDeque::new());
 static LATE_RUNNING: AtomicBool = AtomicBool::new(false);
 /// A tap on a permission's buttons.
 #[derive(Clone, Copy, PartialEq)]
@@ -277,6 +277,7 @@ async fn hello(token: &str) -> Result<String, String> {
         { "command": "oggi", "description": t("La tua giornata di oggi") },
         { "command": "domani", "description": t("La tua giornata di domani") },
         { "command": "notizie", "description": t("Le ultime notizie sui tuoi argomenti") },
+        { "command": "ricorda", "description": t("Metti qualcosa nella memoria") },
         { "command": "compito", "description": t("Un obiettivo che EasyIsland porta avanti da solo") },
         { "command": "rispondi", "description": t("Rispondi alla domanda di un compito") },
         { "command": "stato", "description": t("Motore, modello e modalità") },
@@ -336,12 +337,19 @@ async fn handle_message(app: &AppHandle, token: &str, chat: i64, m: &Value, text
     // A file: in the Vassoio, then with the caption or the next question.
     let mut context = None;
     let mut query = text;
+    let mut aloud = false;
     // A voice message (and, with «Vocali» on, an audio file): its words are the question.
     let voice = m.get("voice").or_else(|| if voice_service(app).is_empty() { None } else { m.get("audio") });
     if let Some(v) = voice {
         match hear(app, token, v).await {
             Ok(words) => {
                 let _ = send(token, chat, &format!("🎙 «{words}»"), None).await;
+                // «Ricorda che…» said aloud: into the memory, not a question.
+                if let Some(what) = remember_words(&words) {
+                    let _ = send(token, chat, &remember_reply(app, &what, "telegram-voice"), None).await;
+                    return None;
+                }
+                aloud = true;
                 query = if query.is_empty() { words } else { format!("{query}
 
 {words}") };
@@ -394,7 +402,7 @@ async fn handle_message(app: &AppHandle, token: &str, chat: i64, m: &Value, text
             None => query,
         };
         let context = context.or_else(|| NEXT_FILE.lock().unwrap().take()).map(|(name, path)| ChatContext::File { name, path });
-        LATE.lock().unwrap().push_back((chat, query, context));
+        LATE.lock().unwrap().push_back((chat, query, context, aloud));
         run_late(app, token);
         return None;
     }
@@ -413,7 +421,7 @@ async fn handle_message(app: &AppHandle, token: &str, chat: i64, m: &Value, text
     BUSY.store(true, Ordering::SeqCst);
     let (app, token) = (app.clone(), token.to_string());
     tauri::async_runtime::spawn(async move {
-        turn(&app, &token, chat, query, context, None).await;
+        turn(&app, &token, chat, query, context, None, aloud).await;
         BUSY.store(false, Ordering::SeqCst);
     });
     None
@@ -427,11 +435,11 @@ fn run_late(app: &AppHandle, token: &str) {
     let (app, token) = (app.clone(), token.to_string());
     tauri::async_runtime::spawn(async move {
         loop {
-            let Some((chat, query, context)) = LATE.lock().unwrap().pop_front() else { break };
+            let Some((chat, query, context, aloud)) = LATE.lock().unwrap().pop_front() else { break };
             while BUSY.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
-            turn(&app, &token, chat, query, context, None).await;
+            turn(&app, &token, chat, query, context, None, aloud).await;
             BUSY.store(false, Ordering::SeqCst);
         }
         LATE_RUNNING.store(false, Ordering::SeqCst);
@@ -500,6 +508,7 @@ fn help() -> String {
         t("/stop — ferma la risposta in corso (anche ⏹ Ferma sotto la risposta)"),
         t("/oggi e /domani — la giornata: appuntamenti, posta, ticket, attività di Notion, meteo"),
         t("/notizie — le ultime notizie sugli argomenti che segui"),
+        t("/ricorda … — mettilo nella memoria, nella pagina giusta"),
         t("/compito … — un obiettivo che EasyIsland porta avanti da solo; /compito da solo elenca i compiti"),
         t("/rispondi … — la risposta alla domanda di un compito che aspetta"),
         t("/nome-abilità … — usa una delle tue abilità"),
@@ -576,7 +585,7 @@ async fn command(app: &AppHandle, token: &str, chat: i64, cmd: &str) {
             BUSY.store(true, Ordering::SeqCst);
             let (app, token) = (app.clone(), token.to_string());
             tauri::async_runtime::spawn(async move {
-                turn(&app, &token, chat, query, None, None).await;
+                turn(&app, &token, chat, query, None, None, false).await;
                 BUSY.store(false, Ordering::SeqCst);
             });
         }
@@ -660,6 +669,14 @@ async fn command(app: &AppHandle, token: &str, chat: i64, cmd: &str) {
             };
             let _ = send(token, chat, &msg, None).await;
         }
+        "ricorda" | "remember" => {
+            let msg = if arg.trim().is_empty() {
+                t("Scrivi /ricorda e cosa ricordare (o manda un vocale che comincia con «ricorda»): lo metto nella memoria, nella pagina giusta.").to_string()
+            } else {
+                remember_reply(app, arg, "telegram")
+            };
+            let _ = send(token, chat, &msg, None).await;
+        }
         "stato" | "status" => {
             let _ = send(token, chat, &status_text(app), None).await;
         }
@@ -719,7 +736,7 @@ async fn command(app: &AppHandle, token: &str, chat: i64, cmd: &str) {
             BUSY.store(true, Ordering::SeqCst);
             let (app, token) = (app.clone(), token.to_string());
             tauri::async_runtime::spawn(async move {
-                turn(&app, &token, chat, query, None, None).await;
+                turn(&app, &token, chat, query, None, None, false).await;
                 BUSY.store(false, Ordering::SeqCst);
             });
         }
@@ -946,7 +963,7 @@ async fn on_button(app: &AppHandle, token: &str, q: &Value) {
             BUSY.store(true, Ordering::SeqCst);
             let (app, token, e) = (app.clone(), token.to_string(), e.to_string());
             tauri::async_runtime::spawn(async move {
-                turn(&app, &token, chat, String::new(), None, Some(e)).await;
+                turn(&app, &token, chat, String::new(), None, Some(e), false).await;
                 BUSY.store(false, Ordering::SeqCst);
             });
             note = name;
@@ -1216,7 +1233,9 @@ fn permission_text(payload: &Value) -> String {
 
 /// A turn of the conversation, or with `second` (an engine's id) the second
 /// opinion of that engine on the last answer.
-async fn turn(app: &AppHandle, token: &str, chat: i64, query: String, context: Option<ChatContext>, second: Option<String>) {
+/// `aloud`: the question was a voice message, so the reply is read aloud too
+/// (with «Rispondi a voce» on, speech.rs).
+async fn turn(app: &AppHandle, token: &str, chat: i64, query: String, context: Option<ChatContext>, second: Option<String>, aloud: bool) {
     // «⇄ Seconda opinione» stays only under the newest answer.
     let previous = LAST.lock().unwrap().as_ref().map(|l| l.message);
     if let Some(mid) = previous {
@@ -1285,6 +1304,7 @@ async fn turn(app: &AppHandle, token: &str, chat: i64, query: String, context: O
     match reply {
         Ok(text) => {
             let mid = deliver(token, chat, placeholder, &format!("{header}{text}")).await;
+            let said = aloud.then(|| text.clone());
             // The button under it: the answer (or the one just reviewed) can be reviewed again.
             let next = match last.filter(|_| second.is_some()) {
                 Some(l) => Last { message: mid, ..l },
@@ -1293,6 +1313,9 @@ async fn turn(app: &AppHandle, token: &str, chat: i64, query: String, context: O
             *LAST.lock().unwrap() = Some(next);
             let kb = json!({ "inline_keyboard": [[{ "text": format!("⇄ {}", t("Seconda opinione")), "callback_data": "o" }]] });
             let _ = call(token, "editMessageReplyMarkup", json!({ "chat_id": chat, "message_id": mid, "reply_markup": kb }), 10).await;
+            if let Some(text) = said {
+                say(app, token, chat, mid, &text).await;
+            }
         }
         // Stopped: what was written so far stays, marked.
         Err(e) if e == crate::stopped_text() => {
@@ -1426,6 +1449,46 @@ fn file_of(m: &Value) -> Option<TgFile> {
     None
 }
 
+/// «Ricorda questo» from Telegram (/ricorda or a voice message): the answer.
+fn remember_reply(app: &AppHandle, text: &str, from: &str) -> String {
+    let capture = crate::brain::Remember { text: text.to_string(), from: from.into(), ..Default::default() };
+    match crate::remember(app, &capture) {
+        Ok((_, true)) => format!("🧠 {}", t("Ricordato: lo imparo adesso.")),
+        Ok((_, false)) => format!("🧠 {}", t("Ricordato: lo imparo stasera, con il riordino della memoria.")),
+        Err(e) => format!("⚠️ {e}"),
+    }
+}
+
+/// A voice message that starts with «ricorda…» («ricordati che», «memorizza»,
+/// «remember that»…) is for the memory: what to remember. «Ricordami di…»
+/// stays whole, so the inbox job sees the commitment and proposes a reminder.
+fn remember_words(words: &str) -> Option<String> {
+    let w = words.trim();
+    let lower = w.to_lowercase();
+    // Longest first: «ricordati che» before «ricordati».
+    const STRIP: &[&str] = &[
+        "ricordati che", "ricorda che", "memorizza che", "prendi nota che", "remember that", "note that",
+        "ricordati", "ricorda", "memorizza", "prendi nota", "remember", "take a note",
+    ];
+    const KEEP: &[&str] = &["ricordami", "remind me"];
+    let starts = |p: &str| {
+        lower.starts_with(p) && lower.get(p.len()..).is_some_and(|rest| rest.is_empty() || rest.starts_with(|c: char| !c.is_alphanumeric()))
+    };
+    if KEEP.iter().any(|p| starts(p)) {
+        return Some(w.to_string());
+    }
+    let p = STRIP.iter().find(|p| starts(p))?;
+    let rest = w.get(p.len()..)?.trim_start_matches(|c: char| !c.is_alphanumeric()).trim();
+    if rest.is_empty() {
+        return None;
+    }
+    let mut out: Vec<char> = rest.chars().collect();
+    if let Some(c) = out.first_mut() {
+        *c = c.to_uppercase().next().unwrap_or(*c);
+    }
+    Some(out.into_iter().collect())
+}
+
 /// «Vocali» in the settings: who transcribes ("" = nobody).
 fn voice_service(app: &AppHandle) -> String {
     app.try_state::<crate::Shared>().map(|s| s.settings.lock().unwrap().integration_config.telegram_voice.clone()).unwrap_or_default()
@@ -1434,6 +1497,59 @@ fn voice_service(app: &AppHandle) -> String {
 /// The model chosen for «Vocali» ("" = the service's default).
 fn voice_model(app: &AppHandle) -> String {
     app.try_state::<crate::Shared>().map(|s| s.settings.lock().unwrap().integration_config.telegram_voice_model.clone()).unwrap_or_default()
+}
+
+/// «Rispondi a voce» (default on).
+fn voice_reply(app: &AppHandle) -> bool {
+    app.try_state::<crate::Shared>().map(|s| s.settings.lock().unwrap().integration_config.telegram_voice_reply).unwrap_or(true)
+}
+
+/// The reply read aloud, as a voice note under the written one (speech.rs).
+async fn say(app: &AppHandle, token: &str, chat: i64, reply_to: i64, text: &str) {
+    let service = voice_service(app);
+    if !voice_reply(app) || !crate::speech::speaks(&service) {
+        return;
+    }
+    let _ = call(token, "sendChatAction", json!({ "chat_id": chat, "action": "record_voice" }), 10).await;
+    let sent = match crate::speech::speak(&service, text).await {
+        Ok(voice) => send_voice(token, chat, reply_to, voice).await,
+        Err(e) => Err(e),
+    };
+    if let Err(e) = sent {
+        log::line("telegram: risposta a voce non riuscita");
+        let _ = send(token, chat, &format!("⚠️ {}", tf("Risposta a voce non riuscita: {e}", &[("e", &e)])), None).await;
+    }
+}
+
+/// A voice note (Ogg/Opus or .m4a) as a reply to `reply_to`, as multipart by hand.
+async fn send_voice(token: &str, chat: i64, reply_to: i64, voice: crate::speech::Voice) -> Result<(), String> {
+    let boundary = format!("easyisland{}", crate::msgraph::random(8).iter().map(|b| format!("{b:02x}")).collect::<String>());
+    let mut body = Vec::with_capacity(voice.bytes.len() + 512);
+    body.extend_from_slice(format!("--{boundary}\r\nContent-Disposition: form-data; name=\"chat_id\"\r\n\r\n{chat}\r\n").as_bytes());
+    if reply_to != 0 {
+        body.extend_from_slice(format!("--{boundary}\r\nContent-Disposition: form-data; name=\"reply_to_message_id\"\r\n\r\n{reply_to}\r\n").as_bytes());
+    }
+    body.extend_from_slice(
+        format!("--{boundary}\r\nContent-Disposition: form-data; name=\"voice\"; filename=\"{}\"\r\nContent-Type: application/octet-stream\r\n\r\n", voice.file).as_bytes(),
+    );
+    body.extend_from_slice(&voice.bytes);
+    body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+    let client = reqwest::Client::builder().timeout(Duration::from_secs(120)).build().map_err(|e| e.to_string())?;
+    let resp = client
+        .post(format!("{API}/bot{token}/sendVoice"))
+        .header("Content-Type", format!("multipart/form-data; boundary={boundary}"))
+        .body(body)
+        .send()
+        .await
+        .map_err(|e| net_error(&e))?;
+    let status = resp.status();
+    let v: Value = resp.json().await.unwrap_or(Value::Null);
+    if v.get("ok").and_then(Value::as_bool) == Some(true) {
+        log::line("telegram: risposta a voce mandata");
+        return Ok(());
+    }
+    let why = v.get("description").and_then(Value::as_str).unwrap_or_default().to_string();
+    Err(tf("Telegram {status}: {why}", &[("status", &status.as_u16()), ("why", &why)]))
 }
 
 /// The words of a voice message or audio file (transcribe.rs); the audio is not kept.
@@ -1689,6 +1805,17 @@ fn inline(line: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn voice_messages_that_start_with_ricorda_go_to_the_memory() {
+        assert_eq!(remember_words("Ricordati che Rossi vuole il preventivo entro venerdì").as_deref(), Some("Rossi vuole il preventivo entro venerdì"));
+        assert_eq!(remember_words("ricorda, il codice del cancello è nella pagina").as_deref(), Some("Il codice del cancello è nella pagina"));
+        assert_eq!(remember_words("Ricordami di chiamare Anna domani").as_deref(), Some("Ricordami di chiamare Anna domani"));
+        assert_eq!(remember_words("Remember that the server reboots on Sunday").as_deref(), Some("The server reboots on Sunday"));
+        assert_eq!(remember_words("Ricordare di chiamare"), None);
+        assert_eq!(remember_words("Che tempo fa domani?"), None);
+        assert_eq!(remember_words("ricorda"), None);
+    }
 
     #[test]
     fn markdown_becomes_telegram_html() {

@@ -3,7 +3,8 @@
 // user drags a box from corner to corner (a box, not a circle: asked by Edoardo
 // on 25 Oct 2026). Next to the zone: a
 // question for the chat, the user's own quick actions (nothing built in), and
-// Copia immagine / Copia testo (Windows' OCR) / Nel Vassoio. Esc or the right
+// Copia immagine / Copia testo (Windows' OCR) / Nella raccolta / Ricorda (the
+// zone's text into «Ricorda questo», src/views/remember.ts) / Nel Vassoio. Esc or the right
 // button cancel at once. Coordinates sent to Rust are physical px of the frozen screen.
 
 import { Bridge, type CaptureZone, type DroppedFile } from "../core/bridge";
@@ -21,6 +22,8 @@ export interface CaptureHandlers {
   done(message: string): void;
   /** Saved in the inbox: the island opens on the tray, with it lit. */
   tray(file: DroppedFile): void;
+  /** The zone's text (Windows' OCR) in the «Ricorda» card, with the window it was in. */
+  remember(text: string, app: string, title: string): void;
   /** The capture could not start. */
   failed(message: string): void;
 }
@@ -236,6 +239,13 @@ export async function startCapture(handlers: CaptureHandlers): Promise<void> {
       const n = await addToCollection({ text, app: "", title: "", url: "", image: file.path });
       finish();
       handlers.done(t("Nella raccolta: {n}", { n }));
+    }),
+    tool(ICONS.memory, t("Ricorda"), async (z) => {
+      const text = (await Bridge.captureText(z)).trim();
+      if (!text) throw new Error(t("Nella zona non c'è testo da leggere."));
+      const src = await Bridge.collectSource(text).catch(() => null);
+      finish();
+      handlers.remember(text, src?.exe ?? "", src?.title ?? "");
     }),
     tool(ICONS.stack, t("Nel Vassoio"), async (z) => {
       const file = await Bridge.captureSave(z);
