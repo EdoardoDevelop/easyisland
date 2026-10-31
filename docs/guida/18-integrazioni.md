@@ -18,7 +18,7 @@
 | Integrazione | Cosa fa | Serve |
 |---|---|---|
 | **[3CX](19-3cx.md)** | Telefono nel PC, chiamate, rubrica, team, chat, segreteria | Centralino 3CX V20 |
-| **Zammad** | Ticket assegnati a te, non assegnati e in escalation; avviso per un ticket nuovo da assegnare | Indirizzo e token (permesso `ticket.agent`) |
+| **Zammad** | Ticket assegnati a te, non assegnati e in escalation; avviso per un ticket nuovo da assegnare; quando un ticket viene assegnato a te, **Prepara** apre la chat con cosa sa la memoria del cliente, i ticket simili e come si sono risolti, e una bozza di risposta (mai inviata) | Indirizzo e token (permesso `ticket.agent`) |
 | **[Outlook](21-microsoft.md)** | Mail non lette, appuntamenti di oggi e domani, avviso prima di una riunione | Outlook classico aperto, o l'account Microsoft |
 | **[Teams](21-microsoft.md#teams)** | Comandi della riunione, Partecipa dal link copiato, stato | Teams |
 | **[Notion](20-notion.md)** | Attività con viste, note, pagine, mini Notion nell'isola, avvisi | Token di un'integrazione interna |

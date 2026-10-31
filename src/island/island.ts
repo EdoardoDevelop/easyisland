@@ -385,6 +385,7 @@ export class Island {
       showNotice: (n) => this.showNotice(n),
       explainError: (text, note) => this.explainError(text, note),
       noteCall: (m) => this.noteCall(m),
+      prepareTicket: (m) => void this.prepareTicket(m),
       confirmRun: () => void this.startScript(),
       killRun: () => {
         if (State.run?.status === "running") void Bridge.actionKill(State.run.runId);
@@ -1048,6 +1049,21 @@ ${note}` : text };
     State.isPinned = true;
     this.fsm.pinned = true;
     this.setView("remember");
+  }
+
+  /** «Prepara» on a ticket of mine: the chat opens at once, the question goes when Zammad answered. */
+  async prepareTicket(m: { id: number; title: string }) {
+    this.startChat("", { label: m.title, text: t("Raccolgo il ticket, la pagina del cliente e i ticket simili…") }, false);
+    try {
+      const prep = await Bridge.zammadPrepare(m.id);
+      if (State.view !== "prompt" || State.chatHistory.length) return;
+      State.chatText = { label: prep.label, text: prep.context };
+      State.notify();
+      sendToChat(prep.question);
+    } catch (e) {
+      State.chatText = null;
+      this.note(String(e), "prompt");
+    }
   }
 
   /** «Annota» after a 3CX call: the empty card, about the caller. */

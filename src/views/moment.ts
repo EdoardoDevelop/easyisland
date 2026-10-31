@@ -18,6 +18,8 @@ export interface MomentActions {
   explainError(text: string, note: string): void;
   /** «Annota» after a call: «Ricorda» with the caller as what it is about. */
   noteCall(m: Extract<Moment, { kind: "call" }>): void;
+  /** «Prepara» on a ticket: the chat with the customer, similar tickets and a draft. */
+  prepareTicket(m: Extract<Moment, { kind: "ticket" }>): void;
 }
 
 const WASH: Record<string, Wash> = { ok: "green", warn: "amber", error: "red", info: "indigo" };
@@ -113,6 +115,18 @@ export function buildMoment(actions: ViewActions & MomentActions): ViewHost {
           ],
         };
       }
+      case "ticket":
+        return {
+          wash: "indigo",
+          who: t("Ticket assegnato a te"),
+          title: m.title,
+          text: t("Ti preparo cosa sa la memoria del cliente, come si sono risolti i ticket simili e una bozza di risposta?"),
+          row: [
+            btn(t("Prepara"), "primary", () => { State.moment = null; actions.prepareTicket(m); }),
+            btn(t("Apri"), "secondary", () => { actions.openUrl(m.url); done(); }),
+            btn(t("Non ora"), "secondary", done),
+          ],
+        };
       case "server":
         return {
           wash: "green",

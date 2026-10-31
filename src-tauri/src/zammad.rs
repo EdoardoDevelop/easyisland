@@ -71,20 +71,33 @@ fn titled(data: &Value) -> Vec<(i64, String)> {
     list
 }
 
-/// The tickets assigned to me at the last check, per widget, for the closed
-/// ones (brain_watch.rs). The first check of a session only sets the baseline.
+/// The tickets assigned to me at the last check, per widget: the closed ones
+/// go to the second brain (brain_watch.rs), the new ones get «Prepara»
+/// (moments.rs, `ticket`). The first check of a session only sets the baseline.
 static LAST_MINE: Mutex<Option<HashMap<String, Vec<(i64, String)>>>> = Mutex::new(None);
 
-/// Tickets that left «assigned to me» since the last check of this widget.
-fn gone_mine(id: &str, now: Vec<(i64, String)>) -> Vec<(i64, String)> {
+type Titled = Vec<(i64, String)>;
+
+/// Tickets that (left, came into) «assigned to me» since the last check of this widget.
+fn mine_changes(id: &str, now: Titled) -> (Titled, Titled) {
     let mut guard = LAST_MINE.lock().unwrap();
     let map = guard.get_or_insert_with(HashMap::new);
-    let gone = match map.get(id) {
-        Some(before) => before.iter().filter(|(t, _)| !now.iter().any(|(n, _)| n == t)).cloned().collect(),
-        None => Vec::new(),
+    let changes = match map.get(id) {
+        Some(before) => (
+            before.iter().filter(|(t, _)| !now.iter().any(|(n, _)| n == t)).cloned().collect(),
+            now.iter().filter(|(n, _)| !before.iter().any(|(t, _)| t == n)).cloned().collect(),
+        ),
+        None => (Vec::new(), Vec::new()),
     };
     map.insert(id.to_string(), now);
-    gone
+    changes
+}
+
+/// Is «Prepara» on for a ticket newly assigned to me (Impostazioni → Notifiche → Proposte).
+fn wants_prepare() -> bool {
+    crate::brain_watch::app()
+        .and_then(|app| tauri::Manager::try_state::<crate::Shared>(app).map(|s| s.settings.lock().unwrap().moment_tickets))
+        .unwrap_or(false)
 }
 
 /// A ticket that left my list: if Zammad says it is closed, its last
@@ -236,6 +249,135 @@ fn tickets_found(data: &Value, base: &str, max: usize) -> Vec<TicketHit> {
         .collect()
 }
 
+// ── «Prepara» ─────────────────────────────────────────────────────────────────
+// A ticket of mine, before answering (asked by Edoardo on 31 October 2026):
+// what the memory knows of the customer, how similar tickets were solved, and
+// the question for a draft reply. Everything is read here, so any engine of
+// the chat can answer; nothing is sent to Zammad.
+
+/// What the chat gets: the context (shown as attached) and the question.
+#[derive(serde::Serialize)]
+pub struct TicketPrep {
+    pub label: String,
+    pub context: String,
+    pub question: String,
+}
+
+/// Words that say nothing about what a ticket is about.
+const GENERIC: &[&str] = &[
+    "problema", "problemi", "richiesta", "assistenza", "supporto", "urgente", "ticket", "info", "informazioni", "aiuto",
+    "della", "delle", "dello", "degli", "nella", "nelle", "sulla", "dalla", "come", "dopo", "prima", "sono", "questo",
+    "questa", "quando", "anche", "ancora", "funziona", "riesco", "please", "issue", "request", "help", "with", "from",
+];
+
+/// The words of a title to look for similar tickets: the longest 3 that say something.
+fn keywords(title: &str) -> Vec<String> {
+    let mut words: Vec<String> = title
+        .split(|c: char| !c.is_alphanumeric())
+        .map(str::to_lowercase)
+        .filter(|w| w.chars().count() >= 4 && !w.chars().all(|c| c.is_ascii_digit()) && !GENERIC.contains(&w.as_str()))
+        .collect();
+    // Stable: equally long words keep the title's order.
+    words.sort_by_key(|w| std::cmp::Reverse(w.chars().count()));
+    let mut out: Vec<String> = Vec::new();
+    for w in words {
+        if !out.contains(&w) && out.len() < 3 {
+            out.push(w);
+        }
+    }
+    out
+}
+
+/// Ids found by more keywords first, then the newest; never `skip`.
+fn rank_similar(found: &[Vec<i64>], skip: i64, max: usize) -> Vec<i64> {
+    let mut score: HashMap<i64, usize> = HashMap::new();
+    for ids in found {
+        for id in ids {
+            if *id != skip {
+                *score.entry(*id).or_default() += 1;
+            }
+        }
+    }
+    let mut list: Vec<(i64, usize)> = score.into_iter().collect();
+    list.sort_by(|a, b| b.1.cmp(&a.1).then(b.0.cmp(&a.0)));
+    list.into_iter().take(max).map(|(id, _)| id).collect()
+}
+
+/// "#number title — who" of an expanded ticket (?expand=true).
+fn expanded_title(ticket: &Value) -> String {
+    let s = |k: &str| ticket.get(k).and_then(Value::as_str).unwrap_or_default().trim().to_string();
+    let title = if s("title").is_empty() { t("(senza titolo)").to_string() } else { s("title") };
+    let head = if s("number").is_empty() { title } else { format!("#{} {title}", s("number")) };
+    let who = if !s("organization").is_empty() { s("organization") } else { s("customer") };
+    if who.is_empty() || who.contains('@') { head } else { format!("{head} — {who}") }
+}
+
+fn closed_state(ticket: &Value) -> bool {
+    let state = ticket.get("state").and_then(Value::as_str).unwrap_or_default().to_lowercase();
+    state.contains("closed") || state.contains("chius")
+}
+
+/// «Prepara» on ticket `id`.
+pub async fn prepare(id: i64) -> Result<TicketPrep, String> {
+    let base = base_url(&crate::secrets::get("zammad-url").unwrap_or_default());
+    if !base.starts_with("https://") && !base.starts_with("http://") {
+        return Err(t("Scrivi l'indirizzo di Zammad (https://…) in Impostazioni → Integrazioni").into());
+    }
+    let token = crate::secrets::get("zammad-token").ok_or_else(|| t("Incolla il token di accesso in Impostazioni → Integrazioni → Zammad").to_string())?;
+    let token = token.trim();
+    let c = client().ok_or_else(|| t("HTTP non disponibile").to_string())?;
+
+    let ticket = get_json(&c, &format!("{base}/api/v1/tickets/{id}?expand=true"), token).await?;
+    let articles = get_json(&c, &format!("{base}/api/v1/ticket_articles/by_ticket/{id}"), token).await.unwrap_or(Value::Null);
+    let title = expanded_title(&ticket);
+    let mut parts = vec![format!("{title}\n{base}/#ticket/zoom/{id}\n\n{}", ticket_story(&articles))];
+
+    // The customer in the memory: the organization, else the customer's name.
+    let who = ["organization", "customer"].iter().filter_map(|k| ticket.get(*k).and_then(Value::as_str)).find_map(crate::brain::page_named);
+    if let Some(page) = who.as_deref() {
+        if let Some(text) = crate::brain::page_text(page, 2500) {
+            parts.push(format!("{}\n{text}", tf("Memoria, pagina «{page}»:", &[("page", &page)])));
+        }
+    }
+
+    // Similar tickets: Zammad's search on each keyword (title and number
+    // without Elasticsearch), the closed ones first, with how they ended.
+    let raw_title = ticket.get("title").and_then(Value::as_str).unwrap_or_default();
+    let mut found = Vec::new();
+    for w in keywords(raw_title) {
+        let Ok(url) = reqwest::Url::parse_with_params(&format!("{base}/api/v1/tickets/search"), &[("query", w.as_str()), ("limit", "10")]) else { continue };
+        if let Ok(data) = get_json(&c, url.as_str(), token).await {
+            found.push(data.get("tickets").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_i64).collect()).unwrap_or_default());
+        }
+    }
+    let mut similar: Vec<(bool, i64, Value)> = Vec::new();
+    for other in rank_similar(&found, id, 6) {
+        if let Ok(o) = get_json(&c, &format!("{base}/api/v1/tickets/{other}?expand=true"), token).await {
+            similar.push((closed_state(&o), other, o));
+        }
+    }
+    similar.sort_by_key(|(closed, _, _)| !*closed);
+    let mut lines = Vec::new();
+    for (n, (closed, other, o)) in similar.into_iter().take(3).enumerate() {
+        let story = match get_json(&c, &format!("{base}/api/v1/ticket_articles/by_ticket/{other}"), token).await {
+            Ok(a) => ticket_story(&a).chars().take(1500).collect::<String>(),
+            Err(_) => String::new(),
+        };
+        let state = if closed { t("chiuso") } else { t("aperto") };
+        lines.push(format!("{}. {} ({state}, {base}/#ticket/zoom/{other})\n{story}", n + 1, expanded_title(&o)));
+    }
+    if !lines.is_empty() {
+        parts.push(format!("{}\n{}", t("Ticket simili:"), lines.join("\n\n")));
+    }
+
+    let context: String = parts.join("\n\n").chars().take(12_000).collect();
+    let question = match who {
+        Some(_) => t("Ho questo ticket da gestire (i dati sono allegati). Dimmi in breve: cosa sappiamo del cliente, come si sono risolti i ticket simili e cosa proverei per primo. Poi scrivi una bozza di risposta al cliente, breve e cordiale, nella sua lingua. Non inviare niente."),
+        None => t("Ho questo ticket da gestire (i dati sono allegati). Cerca il cliente nella memoria con memory_search. Dimmi in breve cosa sappiamo di lui, come si sono risolti i ticket simili e cosa proverei per primo. Poi scrivi una bozza di risposta al cliente, breve e cordiale, nella sua lingua. Non inviare niente."),
+    };
+    Ok(TicketPrep { label: title, context, question: question.to_string() })
+}
+
 pub async fn probe(w: &Widget) -> WidgetResult {
     let base = base_url(&crate::secrets::get("zammad-url").unwrap_or_default());
     if !base.starts_with("https://") && !base.starts_with("http://") {
@@ -269,11 +411,23 @@ pub async fn probe(w: &Widget) -> WidgetResult {
         fields.push(FieldValue { label: crate::i18n::t("Da assegnare").into(), value: t.clone() });
     }
 
-    // My tickets, to notice the ones closed: one more call, only with the second brain on.
-    if crate::brain_watch::wants("ticket") {
+    // My tickets, to notice the ones closed and the new ones: one more call,
+    // only with the second brain or «Prepara» on.
+    let (closed_on, prepare_on) = (crate::brain_watch::wants("ticket"), wants_prepare());
+    if closed_on || prepare_on {
         if let Ok(data) = get_json(&c, &format!("{base}/api/v1/ticket_overviews?view={MY_ASSIGNED}"), token.trim()).await {
-            for (id, title) in gone_mine(&w.id, titled(&data)) {
-                closed_ticket(&c, &base, token.trim(), id, &title).await;
+            let (gone, arrived) = mine_changes(&w.id, titled(&data));
+            if closed_on {
+                for (id, title) in gone {
+                    closed_ticket(&c, &base, token.trim(), id, &title).await;
+                }
+            }
+            if prepare_on {
+                if let Some(app) = crate::brain_watch::app() {
+                    for (id, title) in arrived.into_iter().take(3) {
+                        crate::moments::emit(app, serde_json::json!({ "kind": "ticket", "id": id, "title": title, "url": format!("{base}/#ticket/zoom/{id}") }));
+                    }
+                }
             }
         }
     }
@@ -297,11 +451,22 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn closed_tickets_are_the_ones_gone() {
+    fn my_tickets_that_go_and_come() {
         let w = "test-gone";
-        assert!(gone_mine(w, vec![(1, "a".into()), (2, "b".into())]).is_empty());
-        assert_eq!(gone_mine(w, vec![(2, "b".into()), (3, "c".into())]), vec![(1, "a".to_string())]);
-        assert!(gone_mine(w, vec![(2, "b".into()), (3, "c".into())]).is_empty());
+        assert_eq!(mine_changes(w, vec![(1, "a".into()), (2, "b".into())]), (vec![], vec![]));
+        assert_eq!(mine_changes(w, vec![(2, "b".into()), (3, "c".into())]), (vec![(1, "a".to_string())], vec![(3, "c".to_string())]));
+        assert_eq!(mine_changes(w, vec![(2, "b".into()), (3, "c".into())]), (vec![], vec![]));
+    }
+
+    #[test]
+    fn similar_tickets_by_the_words_that_matter() {
+        assert_eq!(keywords("Problema stampante HP ufficio 2 — non stampa"), vec!["stampante", "ufficio", "stampa"]);
+        assert!(keywords("Richiesta assistenza urgente").is_empty());
+        assert_eq!(rank_similar(&[vec![5, 9, 1], vec![9, 4], vec![1, 7]], 7, 3), vec![9, 1, 5]);
+        let o = json!({"number": "10007", "title": "VPN", "organization": "Rossi Srl", "state": "closed"});
+        assert_eq!(expanded_title(&o), "#10007 VPN — Rossi Srl");
+        assert!(closed_state(&o));
+        assert_eq!(expanded_title(&json!({"title": "VPN", "customer": "a@b.it"})), "VPN");
     }
 
     #[test]

@@ -4049,5 +4049,16 @@
   "Nella zona non c'è testo da leggere.": "There is no text to read in the zone.",
   "Da {from}. Scrivi cosa ricordare: l'IA lo mette nella pagina giusta della memoria.": "From {from}. Type what to remember: the AI puts it in the right page of the memory.",
   "Scrivi /ricorda e cosa ricordare (o manda un vocale che comincia con «ricorda»): lo metto nella memoria, nella pagina giusta.": "Type /ricorda and what to remember (or send a voice message that starts with \"remember\"): I'll put it in the memory, in the right page.",
-  "un vocale su Telegram": "a voice message on Telegram"
+  "un vocale su Telegram": "a voice message on Telegram",
+  "Ticket assegnato a te": "Ticket assigned to you",
+  "Ti preparo cosa sa la memoria del cliente, come si sono risolti i ticket simili e una bozza di risposta?": "Shall I gather what the memory knows of the customer, how similar tickets were solved and a draft reply?",
+  "Prepara": "Prepare",
+  "Raccolgo il ticket, la pagina del cliente e i ticket simili…": "Gathering the ticket, the customer's page and similar tickets…",
+  "«Prepara» quando Zammad ti assegna un ticket: la chat con cosa sa la memoria del cliente, i ticket simili e come si sono risolti, e una bozza di risposta (mai inviata)": "\"Prepare\" when Zammad assigns you a ticket: the chat with what the memory knows of the customer, similar tickets and how they were solved, and a draft reply (never sent)",
+  "Memoria, pagina «{page}»:": "Memory, page \"{page}\":",
+  "Ticket simili:": "Similar tickets:",
+  "chiuso": "closed",
+  "aperto": "open",
+  "Ho questo ticket da gestire (i dati sono allegati). Dimmi in breve: cosa sappiamo del cliente, come si sono risolti i ticket simili e cosa proverei per primo. Poi scrivi una bozza di risposta al cliente, breve e cordiale, nella sua lingua. Non inviare niente.": "I have this ticket to handle (the data is attached). Tell me briefly: what we know of the customer, how the similar tickets were solved and what I should try first. Then write a short, friendly draft reply to the customer, in their language. Don't send anything.",
+  "Ho questo ticket da gestire (i dati sono allegati). Cerca il cliente nella memoria con memory_search. Dimmi in breve cosa sappiamo di lui, come si sono risolti i ticket simili e cosa proverei per primo. Poi scrivi una bozza di risposta al cliente, breve e cordiale, nella sua lingua. Non inviare niente.": "I have this ticket to handle (the data is attached). Look for the customer in the memory with memory_search. Tell me briefly what we know of them, how the similar tickets were solved and what I should try first. Then write a short, friendly draft reply to the customer, in their language. Don't send anything."
 }

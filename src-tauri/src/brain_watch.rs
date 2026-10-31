@@ -62,6 +62,11 @@ pub fn init(app: &AppHandle) {
     let _ = APP.set(app.clone());
 }
 
+/// The app, for the checks that have none (zammad.rs).
+pub fn app() -> Option<&'static AppHandle> {
+    APP.get()
+}
+
 /// Is this kind ("ticket", "mail") switched on.
 pub fn wants(kind: &str) -> bool {
     let Some(app) = APP.get() else { return false };

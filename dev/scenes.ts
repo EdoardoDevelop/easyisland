@@ -970,7 +970,7 @@ export async function runScene(island: Island, scene: string) {
     }
     case "moment": {
       // A proposal at the right moment (src/island/moments.ts), through the real
-      // handler: ?moment=download (default), error, port, server, card, tray, recording, call.
+      // handler: ?moment=download (default), error, port, server, card, tray, recording, call, ticket.
       await wait(300);
       const host = { alert: (v: never) => island.alert(v), collapse: () => island.collapse(), holdOpen: (on: boolean) => island.setPinned(on) };
       const which = new URLSearchParams(location.search).get("moment") ?? "download";
@@ -985,6 +985,7 @@ export async function runScene(island: Island, scene: string) {
         server: { kind: "server", port: 5173, url: "http://localhost:5173/", process: "node.exe" },
         recording: { kind: "recording", name: "Registrazione 2026-10-16 15.30.12.m4a", path: "C:/x/Registrazione.m4a", size: 1_240_000, seconds: 312 },
         call: { kind: "call", name: "Mario Rossi", number: "+39 02 1234567", incoming: true, seconds: 252 },
+        ticket: { kind: "ticket", id: 342, title: "#10342 Stampante dell'ufficio non stampa — Rossi Srl", url: "https://help.example.it/#ticket/zoom/342" },
         card: { kind: "card", id: "card1", title: "Build finita: 3 test falliti", text: "Vuoi che li corregga adesso o preferisci guardarli tu?", level: "warn", buttons: ["Correggi", "Li guardo io"] },
       };
       handleMoment(host, events[which] ?? events.download);
