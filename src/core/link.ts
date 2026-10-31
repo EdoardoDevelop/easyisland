@@ -32,6 +32,8 @@ export interface BarLook {
   /** The island's text colour, for the elements. */
   ink: string;
   items: BarPiece[];
+  /** «Aspetto della barra». */
+  look: import("./state").FixedBarLook;
 }
 
 export type IslandToCharacter =

@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 30 ottobre 2026 — Notizie, passo 1 (su `claude/notizie`)
+- `news.rs` propone gli argomenti dalle pagine della memoria (citazioni, note, diario del mese, aggiornamenti recenti), mai persone e clienti; pagina Impostazioni → Notizie con Aggiungi / Escludi / Riammetti e le parole da cercare ed evitare. Niente rete ancora. Smoke «nessun errore».
+
 ### 30 ottobre 2026 — Versione 1.0.13: Widget della barra
 - Contiene i Widget della barra con le card nell'isola e la pulizia dei riferimenti all'app originale; non ancora provati dal vivo da Edoardo.
 

@@ -48,18 +48,31 @@
         50% { opacity: 0.55; transform: translate(-50%, -50%) scale(1.25); }
       }
       /* The fixed bar's areas and elements (src/island/bar.ts prepares them).
-         --s grows and shrinks them with the bar's height (main.ts → layBar). */
-      .area { position: absolute; top: 0; height: 100%; display: none; align-items: center; gap: 4px; }
+         --s grows and shrinks them with the bar's height, --ts is the text's own
+         size, --gap the room between elements, --bar-bg the background with its
+         opacity (main.ts → layBar, «Aspetto della barra»). */
+      #band { position: absolute; top: 0; bottom: 0; display: none; background: var(--bar-bg, transparent); }
+      body.bar #band { display: block; }
+      .area { position: absolute; top: 0; height: 100%; display: none; align-items: center; gap: var(--gap, 4px); box-sizing: border-box; }
       body.bar .area { display: flex; }
+      /* «Isolette»: each area its own island, the desktop in between. */
+      body.islands .area { top: 12%; height: 76%; border-radius: 999px; padding: 0 calc(4px * var(--s, 1)); }
+      body.islands .area:not(:empty), body.islands .area.own { background: var(--bar-bg, transparent); }
+      body.islands .area:empty:not(.own) { display: none; }
       .bar-btn {
         all: unset; display: flex; align-items: center; min-width: 0; max-width: calc(240px * var(--s, 1));
         padding: calc(3px * var(--s, 1)) calc(8px * var(--s, 1)); border-radius: calc(8px * var(--s, 1)); cursor: pointer; white-space: nowrap;
-        font: calc(12px * var(--s, 1)) "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; color: var(--ink, #f5f6f8);
+        font: calc(12px * var(--s, 1) * var(--ts, 1)) "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; color: var(--ink, #f5f6f8);
       }
+      /* A small graph of the last minute (CPU, memory, GPU, network). */
+      .bar-graph { width: calc(34px * var(--s, 1)); height: calc(14px * var(--s, 1)); flex: none; margin-left: 2px; overflow: visible; }
+      .bar-graph polyline { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; opacity: 0.85; }
+      .bar-item .bar-strip-btn { padding: 1px 6px; margin-left: 2px; }
       .bar-btn:hover { background: color-mix(in srgb, var(--ink, #fff) 12%, transparent); }
       .bar-item { display: flex; align-items: center; gap: 6px; min-width: 0; }
       .bar-icon { display: grid; place-items: center; flex: none; }
       .bar-icon svg, .bar-icon img { width: calc(15px * var(--s, 1)); height: calc(15px * var(--s, 1)); }
+      .bar-icon img.bar-app-icon { width: calc(17px * var(--s, 1)); height: calc(17px * var(--s, 1)); }
       .bar-text { overflow: hidden; text-overflow: ellipsis; }
       /* System elements: muted volume or microphone, low battery. */
       .bar-item.dim { opacity: 0.55; }
@@ -92,6 +105,7 @@
     </style>
   </head>
   <body>
+    <div id="band"></div>
     <div id="a-start" class="area"></div>
     <div id="a-center" class="area"></div>
     <div id="a-end" class="area"></div>

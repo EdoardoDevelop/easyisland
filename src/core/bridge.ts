@@ -162,7 +162,9 @@ export const Bridge = {
   /** The fixed bar's system elements now shown: barsys.rs reads only those. */
   barSysWatch: (kinds: string[]) => call<void>("bar_sys_watch", { kinds }),
   /** Volume, brightness, mute, a Windows panel, the power menu (barsys.rs). */
-  barSysDo: (what: string, arg?: number) => call<void>("bar_sys_do", { what, arg }),
+  barSysDo: (what: string, arg?: number, path?: string) => call<void>("bar_sys_do", { what, arg, path }),
+  /** The fixed bar that hides by itself: the mouse came (true) or left. */
+  barReveal: (on: boolean) => call<void>("bar_reveal", { on }),
   /** «Notizie»: the subjects the memory proposes, without the excluded ones (news.rs). */
   newsProposals: (excluded: string[]) => call<NewsProposal[]>("news_proposals", { excluded }),
   /** «Scegli adesso»: the engine picks among the memory's subjects now; how many were added. */

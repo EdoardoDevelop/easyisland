@@ -1,6 +1,7 @@
 // EasyIsland for Windows — app wiring and the commands the island calls.
 
 mod actions;
+mod fgwin;
 mod steps;
 mod collect;
 mod memory_ai;
@@ -185,7 +186,9 @@ pub(crate) fn apply_settings(app: &AppHandle, settings: Settings) {
             || current.fixed_bar_slot != settings.fixed_bar_slot;
         let bar_changed = current.fixed_bar != settings.fixed_bar
             || current.screen != settings.screen
-            || current.bar_thickness() != settings.bar_thickness();
+            || current.bar_thickness() != settings.bar_thickness()
+            || current.bar_auto_hide() != settings.bar_auto_hide()
+            || current.bar_blur() != settings.bar_blur();
         let autostart_changed = current.autostart != settings.autostart;
         // Only boot and hooks_apply know whether the hooks are there; a window
         // opened before an install would send the old value.
@@ -2660,6 +2663,19 @@ static CHARACTER_REST: AtomicBool = AtomicBool::new(false);
 static CHARACTER_SPOT: Mutex<Option<([f64; 4], bool)>> = Mutex::new(None);
 /// The window lets the mouse through (over the island) or takes it (beside the open island).
 static CHARACTER_CLICKS_THROUGH: AtomicBool = AtomicBool::new(true);
+/// The fixed bar blurs what is behind it (Windows' acrylic, «Aspetto della barra»).
+static CHARACTER_BLUR: AtomicBool = AtomicBool::new(false);
+
+/// Windows' acrylic behind the bar, on or off; set only when it changes.
+fn character_blur(ch: &tauri::WebviewWindow, on: bool) {
+    if CHARACTER_BLUR.swap(on, Ordering::Relaxed) == on {
+        return;
+    }
+    let effects = on.then(|| tauri::window::EffectsBuilder::new().effect(tauri::window::Effect::Acrylic).build());
+    if let Err(e) = ch.set_effects(effects) {
+        log::line(format!("barra fissa, sfocatura: {e}"));
+    }
+}
 
 /// Created at launch with the other windows (see create_settings_window),
 /// hidden until the island rests.
@@ -2701,6 +2717,14 @@ fn create_character_window(app: &AppHandle, data_dir: Option<&std::path::Path>) 
     }
 }
 
+/// The fixed bar that hides by itself: the mouse came to it (true) or left it.
+#[tauri::command]
+fn bar_reveal(app: AppHandle, on: bool) {
+    if appbar::REVEALED.swap(on, Ordering::Relaxed) != on {
+        sync_character(&app);
+    }
+}
+
 /// The resting character wanted (true) or not by the island's page: shown
 /// when the island is also collapsed and on screen.
 #[tauri::command]
@@ -2738,12 +2762,14 @@ fn character_clearance(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) 
 /// character; hides it otherwise. With the fixed bar it is the band (appbar.rs).
 pub(crate) fn sync_character(app: &AppHandle) {
     let Some(ch) = app.get_webview_window(CHARACTER_LABEL) else { return };
-    if let Some((x, y, w, h)) = appbar::band() {
+    if let Some((x, y, w, h)) = appbar::window_rect() {
         // The bar: the whole band, always taking the mouse, away over a full-screen app.
         if appbar::FULLSCREEN.load(Ordering::Relaxed) {
             let _ = ch.hide();
             return;
         }
+        let blur = app.try_state::<Shared>().is_some_and(|s| s.settings.lock().unwrap().bar_blur());
+        character_blur(&ch, blur);
         let _ = ch.set_size(tauri::PhysicalSize::new(w, h));
         let _ = ch.set_position(tauri::PhysicalPosition::new(x, y));
         if CHARACTER_CLICKS_THROUGH.swap(false, Ordering::Relaxed) {
@@ -2755,6 +2781,7 @@ pub(crate) fn sync_character(app: &AppHandle) {
         island::raise_character(app);
         return;
     }
+    character_blur(&ch, false);
     let shared = app.state::<Shared>();
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
     let island = island::window(app).filter(|w| w.is_visible().unwrap_or(false));
@@ -3649,6 +3676,7 @@ pub fn run() {
             character_spot,
             character_clearance,
             bar_overflow_menu,
+            bar_reveal,
             barsys::bar_sys_watch,
             barsys::bar_sys_do,
             news::news_proposals,

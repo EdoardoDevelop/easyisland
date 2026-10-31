@@ -6,7 +6,7 @@ import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
 import { type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
-import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type BarAct, type BarItem, type NewsProposal, type NewsSettings } from "../core/state";
+import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type BarAct, type BarItem, type FixedBarLook, type NewsProposal, type NewsSettings } from "../core/state";
 import { BAR_KINDS, barKind } from "../core/barkinds";
 
 import { h, clear, hasMark, TAB_ICONS } from "../views/dom";
@@ -2448,6 +2448,10 @@ function appearanceSections(): HTMLElement[] {
         )),
       ),
       h("section", { class: "bar-row-block" },
+        h("h2", {}, h("span", { text: t("Aspetto della barra") }), profileChip()),
+        ...barLookRows(commit),
+      ),
+      h("section", { class: "bar-row-block" },
         h("h2", {}, h("span", { text: t("Widget della barra") }), profileChip()),
         barItemsEditor(commit),
       ),
@@ -2695,6 +2699,53 @@ function barBackground(commit: () => void): HTMLElement {
 }
 
 /**
+ * «Aspetto della barra» (FixedBarLook): every choice of how the bar looks, each
+ * one optional and back to its default with the value it starts from.
+ */
+function barLookRows(commit: () => void): HTMLElement[] {
+  const look = (): FixedBarLook => (settings.fixedBarLook ??= {});
+  const set = <K extends keyof FixedBarLook>(k: K, v: FixedBarLook[K]) => {
+    look()[k] = v;
+    commit();
+  };
+  const blurNote = h("span", { class: "hint note" });
+  const paintBlur = () => {
+    blurNote.textContent = look().style === "islands"
+      ? t("non vale con le isolette: Windows sfoca tutta la fascia")
+      : t("Windows sfoca ciò che sta dietro la barra; si vede con l'opacità sotto il 100%");
+  };
+  paintBlur();
+  return [
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Stile") }),
+      select([["band", t("Una fascia intera")], ["islands", t("Isolette: un'isola per area")]], look().style ?? "band",
+        (v) => { set("style", v); paintBlur(); }),
+      h("span", { class: "hint note", text: t("con le isolette ogni area (inizio, centro, fine) ha il suo sfondo e in mezzo si vede il desktop") })),
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Opacità dello sfondo") }),
+      slider(10, 100, 5, look().opacity ?? 100, "%", (v) => set("opacity", v))),
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Sfocatura dietro la barra") }),
+      toggle(!!look().blur, (v) => set("blur", v)),
+      blurNote),
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Margine dai lati") }),
+      slider(0, 400, 4, look().margin ?? 0, "px", (v) => set("margin", v)),
+      h("span", { class: "hint note", text: t("lo sfondo si stacca dai bordi sinistro e destro: una barra sospesa") })),
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Grandezza del testo") }),
+      slider(80, 150, 5, look().text ?? 100, "%", (v) => set("text", v))),
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Spazio tra gli elementi") }),
+      slider(0, 24, 1, look().gap ?? 4, "px", (v) => set("gap", v))),
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Nascondi da sola") }),
+      toggle(!!look().autoHide, (v) => set("autoHide", v)),
+      h("span", { class: "hint note", text: t("resta solo un filo sul bordo e la barra esce quando arriva il mouse; Windows non le tiene più lo spazio") })),
+  ];
+}
+
+/**
  * «Widget della barra»: what the fixed bar shows (src/island/bar.ts), each in
  * its area and with how it shows, in order. «+ Aggiungi» opens the catalog by
  * group; the system elements may be added more than once (two clocks with
@@ -2743,9 +2794,12 @@ function barItemsEditor(commit: () => void): HTMLElement {
               ...(kind ? [renderActionIcon(kind.icon, 15)] : []), h("span", { text: label }));
           })))
         : null;
+    const kinds = (work: boolean) => Object.keys(BAR_KINDS)
+      .filter((k) => (BAR_KINDS[k].group === "work") === work)
+      .map((k) => [`sys:${k}`, BAR_KINDS[k].name] as [string, string]);
     const groups = [
-      group(t("Sistema"), Object.keys(BAR_KINDS).map((k) => [`sys:${k}`, BAR_KINDS[k].name] as [string, string])),
-      group(t("Lavoro"), integrations().filter(([id]) => !used.has(id))),
+      group(t("Sistema"), kinds(false)),
+      group(t("Lavoro"), [...kinds(true), ...integrations().filter(([id]) => !used.has(id))]),
       group(t("Agenti"), used.has("strip") ? [] : [["strip", nameOf("strip")]]),
       group(t("Le mie azioni"), actions().filter(([id]) => !used.has(id))),
     ].filter((x): x is HTMLDivElement => !!x);
@@ -2770,9 +2824,9 @@ function barItemsEditor(commit: () => void): HTMLElement {
       };
       const label = (a: string) => labels[a] ?? a;
       const out: [string, string][] = [["", `${t("Predefinito")} (${label(own)})`], ["none", label("none")]];
-      if (!it.id.startsWith("action:") && it.id !== "sys:power") out.push(["card", label("card")]);
+      if (kind ? kind.card : !it.id.startsWith("action:")) out.push(["card", label("card")]);
       out.push(["alt", label("alt")]);
-      if (it.id === "sys:power" || it.id === "sys:volume" || it.id === "sys:mic") out.push(["menu", label("menu")]);
+      if (kind?.menu) out.push(["menu", label("menu")]);
       if (it.id === "sys:volume" || it.id === "sys:mic") out.push(["mute", label("mute")]);
       for (const [id, name] of actions()) out.push([id, `${t("Azione")} · ${name}`]);
       return out;
@@ -2791,8 +2845,27 @@ function barItemsEditor(commit: () => void): HTMLElement {
           select(what(b), (o[b] ?? "") as string, (v) => { o[b] = (v || undefined) as BarAct | undefined; save(); }))),
     ];
     if (kind?.wheel) {
-      rows.push(h("div", { class: "row" }, h("label", { text: it.id === "sys:volume" ? t("Rotella: volume") : t("Rotella: luminosità") }),
+      rows.push(h("div", { class: "row" }, h("label", { text: it.id === "sys:brightness" ? t("Rotella: luminosità") : t("Rotella: volume") }),
         toggle(o.wheel !== false, (v) => { o.wheel = v ? undefined : false; save(); })));
+    }
+    if (kind?.graph) {
+      rows.push(h("div", { class: "row" }, h("label", { text: t("Grafico dell'ultimo minuto") }),
+        toggle(!!o.graph, (v) => { o.graph = v || undefined; save(); })));
+    }
+    if (it.id === "sys:disk") {
+      const letters = "CDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((l) => [l, `${l}:`] as [string, string]);
+      rows.push(h("div", { class: "row" }, h("label", { text: t("Disco") }),
+        select(letters, (o.drive || "C").toUpperCase(), (v) => { o.drive = v === "C" ? undefined : v; save(); })));
+    }
+    if (it.id === "sys:title" || it.id === "sys:vscode") {
+      const title = it.id === "sys:title";
+      rows.push(h("div", { class: "row" },
+        h("label", { text: title ? t("Lettere al massimo") : t("Progetti nel menu") }),
+        slider(title ? 10 : 1, title ? 200 : 15, 1, o.max ?? (title ? 60 : 10), "", (v) => { o.max = v; save(); })));
+    }
+    if (it.id === "sys:music") {
+      rows.push(h("div", { class: "row" }, h("label", { text: t("Pulsanti precedente, pausa, successivo") }),
+        toggle(o.buttons !== false, (v) => { o.buttons = v ? undefined : false; save(); })));
     }
     if (it.id === "sys:clock") {
       const zones = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : ["Europe/Rome", "Europe/London", "America/New_York", "Asia/Tokyo", "UTC"];
@@ -2844,7 +2917,7 @@ function barItemsEditor(commit: () => void): HTMLElement {
   };
   render();
   return h("div", { class: "bar-row-block" },
-    h("div", { class: "hint", text: t("Widget della barra: orologio, volume, batteria, rete e gli altri elementi del sistema, le integrazioni, i widget e le azioni rapide, ognuno nella sua area. In «Opzioni» scegli cosa mostra e cosa fanno clic, clic destro e rotella.") }),
+    h("div", { class: "hint", text: t("Widget della barra: orologio, volume, batteria, rete, processore, memoria, disco, cestino, aggiornamenti e gli altri elementi del sistema; la barra dell'app in uso, la musica, il meteo, i progetti di VS Code, le integrazioni, i widget e le azioni rapide, ognuno nella sua area. In «Opzioni» scegli cosa mostra e cosa fanno clic, clic destro e rotella; ✕ lo toglie.") }),
     list,
   );
 }

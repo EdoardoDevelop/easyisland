@@ -523,7 +523,21 @@ fn island_area(m: &Monitor, settings: &Settings) -> (i32, i32, u32, u32) {
         (p.x, p.y, s.width, s.height)
     } else {
         let wa = m.work_area();
-        (wa.position.x, wa.position.y, wa.size.width, wa.size.height)
+        let (x, mut y, w, mut h) = (wa.position.x, wa.position.y, wa.size.width, wa.size.height);
+        // The bar that hides by itself keeps no band, but the island opened
+        // from it must not end up under it.
+        if settings.bar_auto_hide() {
+            let thick = (settings.bar_thickness() * m.scale_factor()).round() as u32;
+            match settings.bar_edge() {
+                Some("top") => {
+                    y += thick as i32;
+                    h = h.saturating_sub(thick);
+                }
+                Some(_) => h = h.saturating_sub(thick),
+                None => {}
+            }
+        }
+        (x, y, w, h)
     }
 }
 
@@ -700,8 +714,9 @@ fn step_aside_for(app: &AppHandle, gate: &PollGate, fg: HWND) {
     }
 }
 
-/// Taskbar, Start, search, notification area, desktop: never a reason to step back.
-fn is_shell(hwnd: HWND) -> bool {
+/// Taskbar, Start, search, notification area, desktop, task switcher: never a reason to
+/// step back, nor the window in front for the fixed bar's title (fgwin.rs).
+pub(crate) fn is_shell(hwnd: HWND) -> bool {
     use windows::Win32::UI::WindowsAndMessaging::GetClassNameW;
     let mut buf = [0u16; 128];
     let n = unsafe { GetClassNameW(hwnd, &mut buf) };
@@ -710,6 +725,7 @@ fn is_shell(hwnd: HWND) -> bool {
         class.as_str(),
         "Shell_TrayWnd" | "Shell_SecondaryTrayWnd" | "Windows.UI.Core.CoreWindow" | "Progman" | "WorkerW"
             | "NotifyIconOverflowWindow" | "TopLevelWindowForOverflowXamlIsland" | "XamlExplorerHostIslandWindow"
+            | "MultitaskingViewFrame" | "ForegroundStaging" | "TaskListThumbnailWnd"
     )
 }
 

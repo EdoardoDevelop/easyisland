@@ -431,7 +431,7 @@ fn bing_url(q: &str) -> String {
     format!("https://www.bing.com/news/search?q={}&format=rss&setlang={lang}&cc={cc}", url_encode(q))
 }
 
-fn url_decode(s: &str) -> String {
+pub(crate) fn url_decode(s: &str) -> String {
     let b = s.as_bytes();
     let mut out = Vec::with_capacity(b.len());
     let mut i = 0;

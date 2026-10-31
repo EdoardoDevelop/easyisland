@@ -624,6 +624,10 @@ pub struct Settings {
     /// The fixed bar's height, logical px; 0 = from the compact view (bar_thickness).
     #[serde(default)]
     pub fixed_bar_height: f64,
+    /// «Aspetto della barra» (src/core/state.ts FixedBarLook): style, opacity, blur,
+    /// margins, text, spacing, hide by itself. Rust reads `autoHide` and `blur`.
+    #[serde(default)]
+    pub fixed_bar_look: Value,
     /// Width of the open island, logical px (the front end clamps it to the window).
     #[serde(default = "default_island_width")]
     pub island_width: f64,
@@ -996,6 +1000,7 @@ impl Default for Settings {
             news: Value::Null,
             fixed_bar_background: String::new(),
             fixed_bar_height: 0.0,
+            fixed_bar_look: Value::Null,
             island_width: default_island_width(),
             island_height: 0.0,
             island_place: default_island_place(),
@@ -1226,6 +1231,17 @@ impl Settings {
         let compact = if self.hover_style == "bar" { 32.0 } else { self.hover_size };
         let with_strip = if self.compact_strip == "off" { compact } else { compact.max(44.0) };
         with_strip.clamp(24.0, 96.0)
+    }
+
+    /// The fixed bar hides by itself: no band kept free, a thin edge that the mouse wakes (appbar.rs).
+    pub fn bar_auto_hide(&self) -> bool {
+        self.fixed_bar_look.get("autoHide").and_then(Value::as_bool).unwrap_or(false)
+    }
+
+    /// The fixed bar blurs what is behind it (Windows' acrylic); not with the islands style.
+    pub fn bar_blur(&self) -> bool {
+        self.fixed_bar_look.get("blur").and_then(Value::as_bool).unwrap_or(false)
+            && self.fixed_bar_look.get("style").and_then(Value::as_str) != Some("islands")
     }
 
     /// The first converted widget of each kind gives the integration its options.
