@@ -2,6 +2,16 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.17** — **Parla**: <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> accende il microfono, a una pausa la
+domanda va alla chat e la risposta si sente dagli altoparlanti. **Telegram risponde a voce** ai vocali
+(OpenAI o Google AI), e un vocale che comincia con «ricorda» va nella memoria. **Ricorda questo**: il
+testo selezionato, «ricordati che…» nel campo in alto o `/ricorda` su Telegram finiscono nella memoria
+con la loro provenienza; «Ricorda» anche nel menu sul testo e in Riquadra e chiedi, **Annota** dopo una
+chiamata 3CX, pagine proposte da ticket chiusi e mail importanti, impegni e riepilogo della settimana.
+**Prepara** un ticket Zammad assegnato a te: la chat con la pagina del cliente, i ticket simili e una
+bozza di risposta. **Continua in Claude Desktop** dalla chat con Claude Code, con i messaggi scritti lì
+che tornano nell'isola. Notizie: l'aspetto (elenco, miniature, schede) si sceglie nella scheda.
+
 **1.0.16** — **Barra fissa** più viva: il personaggio cresce sotto il mouse e la barra si gonfia
 attorno a lui; un clic su un elemento apre la sua scheda in una **piccola isola sotto di lui**, alta
 quanto il contenuto, che si chiude con un clic fuori; ombra leggera della barra; clic destro sulla barra

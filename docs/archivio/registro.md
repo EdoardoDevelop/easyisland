@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 31 ottobre 2026 — Telegram risponde a voce ai vocali (in `claude/sviluppo`)
+- A un vocale il bot risponde per iscritto e, sotto, con un vocale (`speech.rs`, `telegram::say`); ai messaggi scritti solo testo. Interruttore «Rispondi a voce» (`telegramVoiceReply`, acceso di serie), con il servizio dei «Vocali»: OpenAI (Ogg/Opus diretto) o Google AI (PCM codificato in .m4a da Media Foundation); OpenRouter non parla. 366 test Rust (compresa la codifica .m4a vera); non provato con Telegram vero.
+
 ### 31 ottobre 2026 — «Ricorda questo»: la memoria cattura al volo (in `claude/sviluppo`)
 - Poi: «Ricorda questo» nel menu sul testo e in Riquadra e chiedi (OCR); «Annota» dopo una chiamata 3CX risposta (proposta `call`); `brain_watch.rs` mette in coda ticket Zammad chiusi e mail importanti di Microsoft 365 e dopo 10 minuti un compito propone righe per le pagine e impegni come promemoria (scrive solo gli approvati, max 8 al giorno); riepilogo della settimana il venerdì alle 17. Interruttori in Impostazioni → Flussi → Secondo cervello. Non provato con 3CX, Zammad e Graph veri.
 - <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd> su un testo selezionato (o la card vuota per scrivere), «ricordati che …» nel campo in alto, `/ricorda` su Telegram: il testo con la sua provenienza va in `da-leggere` (`brain::remember`) e un compito lo mette subito nelle pagine collegate (`rememberNow`, se no la sera). Card `src/views/remember.ts`, scene `remember` e `remember&empty` nello smoke. 363 test Rust; non provato nell'app vera.

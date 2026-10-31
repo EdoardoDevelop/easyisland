@@ -2,6 +2,17 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.17** — **Talk**: <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> turns on the microphone, at a pause
+the question goes to the chat and the reply is heard from the speakers. **Telegram answers voice
+messages aloud** (OpenAI or Google AI), and a voice message starting with “remember” goes into the
+memory. **Remember this**: the selected text, “remember that…” in the top field or `/ricorda` on
+Telegram go into the memory with where they came from; “Remember” also in the text menu and in Box and
+ask, **Take a note** after a 3CX call, pages proposed from closed tickets and important emails,
+commitments and a weekly recap. **Prepare** a Zammad ticket assigned to you: the chat with the
+customer's page, similar tickets and a draft reply. **Continue in Claude Desktop** from the chat with
+Claude Code, with what you write there coming back to the island. News: the look (list, thumbnails,
+cards) is chosen in the tab.
+
 **1.0.16** — A livelier **fixed bar**: the character grows under the mouse and the bar swells around
 it; a click on an element opens its card in a **small island below it**, as tall as its content, closed
 by a click outside; a light shadow under the bar; right click on the bar for EasyIsland's menu with

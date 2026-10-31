@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 31 ottobre 2026. Versione **1.0.16** in `main` con il tag `v1.0.16` (barra fissa con isolette, aspetto ed elementi nuovi, menu del programma dal titolo, logo animato, la giornata, permessi per livelli, ricerca ovunque): due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa, che dal 1.0.12 si rimette a posto dopo un cambio di schermo) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo` (`giornata-permessi` e `logo-animato` sono uniti). In attesa `claude/modello-integrato`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 31 ottobre 2026. Versione **1.0.17** in `main` con il tag `v1.0.17` (Parla, Telegram che risponde a voce, Ricorda questo e Annota, Prepara un ticket, Continua in Claude Desktop): due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa, che dal 1.0.12 si rimette a posto dopo un cambio di schermo) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo` (`telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili` e `voce-pc` sono uniti). In attesa `claude/modello-integrato`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -51,6 +51,10 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 31 ottobre 2026 — Versione 1.0.17
+- `claude/sviluppo` unito in `main` con il tag `v1.0.17`: Parla, Telegram che risponde a voce e vocali «ricorda», Ricorda questo e Annota, Prepara un ticket Zammad, Continua in Claude Desktop, aspetto delle Notizie nella scheda. Novità in CHANGELOG, README e homepage.
+- Build, test Rust (381 + 38) e smoke prima del tag. `claude/modello-integrato` resta in attesa.
+
 ### 31 ottobre 2026 — «Parla»: la voce sul PC (in `claude/sviluppo`)
 - <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> accende il microfono (WASAPI di Registra) con la card «Ti ascolto»; a una pausa trascrive con il servizio dei Vocali e manda la domanda alla chat; con «Rispondi a voce» la risposta si sente dagli altoparlanti (`talk.rs`, `src/views/talk.ts`). Test Rust, scene `talk` e `talk&hearing`; non provato con il microfono vero.
 
@@ -64,6 +68,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - ↗ nella testata della chat con Claude Code passa la sessione all'app Claude Desktop (`desktop.rs`, `claude --desktop --resume <id>`, dopo aver chiuso il processo tenuto acceso); tornando all'isola, i messaggi scritti in Desktop vengono letti dal file della sessione e aggiunti alla chat e alla cronologia, poi l'isola riprende la stessa sessione (`docs/chat.md`).
 - Test Rust della lettura del file, build e smoke; il passaggio vero a Desktop non provato (aprirebbe l'app in cui lavoro), in `docs/prove-dal-vivo.md`.
 - Notizie: l'aspetto (elenco, miniature, schede) si sceglie con tre pulsanti nella testata della scheda, non più in Impostazioni (`news.ts`).
-
-### 31 ottobre 2026 — Telegram risponde a voce ai vocali (in `claude/sviluppo`)
-- A un vocale il bot risponde per iscritto e, sotto, con un vocale (`speech.rs`, `telegram::say`); ai messaggi scritti solo testo. Interruttore «Rispondi a voce» (`telegramVoiceReply`, acceso di serie), con il servizio dei «Vocali»: OpenAI (Ogg/Opus diretto) o Google AI (PCM codificato in .m4a da Media Foundation); OpenRouter non parla. 366 test Rust (compresa la codifica .m4a vera); non provato con Telegram vero.
