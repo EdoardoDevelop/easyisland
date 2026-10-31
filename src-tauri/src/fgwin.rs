@@ -33,10 +33,6 @@ pub static THREAD: AtomicU32 = AtomicU32::new(0);
 /// The window followed, and the hook on its process's title changes.
 static FOLLOWED: AtomicIsize = AtomicIsize::new(0);
 static NAME_HOOK: AtomicIsize = AtomicIsize::new(0);
-/// The last window followed that is not EasyIsland's.
-static USER: AtomicIsize = AtomicIsize::new(0);
-/// The window followed is EasyIsland's.
-static OURS: AtomicBool = AtomicBool::new(false);
 /// The last thing sent: a title change of another object is not news.
 static SENT: Mutex<String> = Mutex::new(String::new());
 /// Program path → (name, icon data URL).
@@ -60,30 +56,13 @@ pub fn follow(hwnd: HWND) {
     if !WATCH.load(Ordering::SeqCst) || hwnd.0.is_null() {
         return;
     }
-    // The desktop and the taskbar take the focus when the island closes: the
-    // window shown goes back to the last one the user worked in.
-    // The bar itself comes in front only to hold its menus (the title's own menu
-    // among them): the element keeps showing what it showed.
-    let bar = crate::context::app()
-        .and_then(|a| tauri::Manager::get_window(a, crate::CHARACTER_LABEL))
-        .and_then(|w| w.hwnd().ok())
-        .is_some_and(|h| h.0 as isize == hwnd.0 as isize);
-    if bar {
-        return;
-    }
-    let hwnd = if crate::island::is_shell(hwnd) {
-        let user = HWND(USER.load(Ordering::SeqCst) as *mut _);
-        if !OURS.load(Ordering::SeqCst) || user.0.is_null() || !unsafe { IsWindow(Some(user)) }.as_bool() {
-            return;
-        }
-        user
-    } else {
-        hwnd
-    };
+    // EasyIsland's own windows (the bar, the island and its small islands, the
+    // settings) and the desktop or the taskbar, which take the focus when the
+    // island closes, are never shown: the element keeps the last program the
+    // user worked in (Edoardo, 31 Oct 2026), and the title's menu is its menu.
     let ours = crate::context::exe_path(hwnd).is_some_and(|p| p.to_lowercase().ends_with("\\easyisland.exe"));
-    OURS.store(ours, Ordering::SeqCst);
-    if !ours {
-        USER.store(hwnd.0 as isize, Ordering::SeqCst);
+    if ours || crate::island::is_shell(hwnd) {
+        return;
     }
     FOLLOWED.store(hwnd.0 as isize, Ordering::SeqCst);
     unhook();
@@ -96,10 +75,10 @@ pub fn follow(hwnd: HWND) {
     send(hwnd);
 }
 
-/// The window the element shows, for its menu (appmenu.rs); none when it is EasyIsland's.
+/// The window the element shows, for its menu (appmenu.rs); never EasyIsland's.
 pub fn target() -> Option<HWND> {
     let hwnd = HWND(FOLLOWED.load(Ordering::SeqCst) as *mut _);
-    (!OURS.load(Ordering::SeqCst) && !hwnd.0.is_null() && unsafe { IsWindow(Some(hwnd)) }.as_bool()).then_some(hwnd)
+    (!hwnd.0.is_null() && unsafe { IsWindow(Some(hwnd)) }.as_bool()).then_some(hwnd)
 }
 
 /// On the hook thread: the watch went off.
