@@ -51,6 +51,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 31 ottobre 2026 — Vocale su Telegram che diventa «Ricorda» (su `claude/vocale-ricorda`, da `claude/cattura`)
+- Un vocale al bot che comincia con «ricorda», «ricordati che», «memorizza», «ricordami di…» va nella memoria come `/ricorda` invece di diventare una domanda (`telegram::remember_words`, `remember_reply`). Test Rust; non provato con Telegram vero.
+
 ### 31 ottobre 2026 — «Ricorda questo»: il second brain cattura al volo (su `claude/cattura`)
 - Poi: «Ricorda questo» nel menu sul testo e in Riquadra e chiedi (OCR); «Annota» dopo una chiamata 3CX risposta (proposta `call`); `brain_watch.rs` mette in coda ticket Zammad chiusi e mail importanti di Microsoft 365 e dopo 10 minuti un compito propone righe per le pagine e impegni come promemoria (scrive solo gli approvati, max 8 al giorno); riepilogo della settimana il venerdì alle 17. Interruttori in Impostazioni → Flussi → Secondo cervello. Non provato con 3CX, Zammad e Graph veri.
 - <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd> su un testo selezionato (o la card vuota per scrivere), «ricordati che …» nel campo in alto, `/ricorda` su Telegram: il testo con la sua provenienza va in `da-leggere` (`brain::remember`) e un compito lo mette subito nelle pagine collegate (`rememberNow`, se no la sera). Card `src/views/remember.ts`, scene `remember` e `remember&empty` nello smoke. 363 test Rust; non provato nell'app vera.
@@ -64,8 +67,4 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 31 ottobre 2026 — Ricerca ovunque nel campo in alto (nella 1.0.16)
 - Il campo in alto cerca anche le pagine della memoria (`brain::find_pages`, clic: la mappa con la pagina selezionata, `memory-select`), le conversazioni passate (clic: tornano nella chat) e i ticket Zammad (`zammad::search`, clic: il ticket nel browser), 400 ms dopo l'ultimo tasto. Da verificare: la ricerca di Zammad senza Elasticsearch. Test Rust, smoke e schermata nell'anteprima; non provato nell'app vera.
-
-### 31 ottobre 2026 — Menu del programma dal titolo della finestra (nella 1.0.16)
-- Un clic sul titolo della finestra nella barra fissa apre un'isoletta con il menu del programma in primo piano (`appmenu.rs`, scheda `appmenu` di `barcard.ts`): menu classico per intero (`WM_COMMAND`), oppure le voci con UI Automation, più il menu della finestra (voci di Chrome ed Edge); un sottomenu prende il posto dell'elenco, niente barra di scorrimento; sotto, le azioni rapide per quel programma.
-- Il titolo non segue mai le finestre di EasyIsland (`fgwin::follow`) ed è rimandato quando l'isola riparte. Provato da Edoardo nell'app vera.
 

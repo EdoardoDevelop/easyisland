@@ -20,7 +20,7 @@ Una conversazione **tutta sua**, distinta da quella dell'isola, con motore e mod
 | `/riprendi` | Continua qui l'ultima conversazione dell'isola |
 | `/oggi`, `/domani` | La giornata: attività, appuntamenti, ticket, meteo |
 | `/notizie` | Le ultime notizie sugli argomenti che segui |
-| `/ricorda …` | Mette quello che scrivi nella memoria, nella pagina giusta |
+| `/ricorda …` | Mette quello che scrivi nella memoria, nella pagina giusta. Vale anche un **vocale** che comincia con «ricorda», «ricordati che» o «ricordami di…» |
 | `/vassoio` | I file del Vassoio |
 | `/cartella` | La cartella di lavoro a pulsanti, con i file |
 | `/automatica` | Accende o spegne l'Automatica di Telegram |

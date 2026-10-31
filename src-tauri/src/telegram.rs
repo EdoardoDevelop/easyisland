@@ -343,6 +343,11 @@ async fn handle_message(app: &AppHandle, token: &str, chat: i64, m: &Value, text
         match hear(app, token, v).await {
             Ok(words) => {
                 let _ = send(token, chat, &format!("🎙 «{words}»"), None).await;
+                // «Ricorda che…» said aloud: into the memory, not a question.
+                if let Some(what) = remember_words(&words) {
+                    let _ = send(token, chat, &remember_reply(app, &what, "telegram-voice"), None).await;
+                    return None;
+                }
                 query = if query.is_empty() { words } else { format!("{query}
 
 {words}") };
@@ -664,14 +669,9 @@ async fn command(app: &AppHandle, token: &str, chat: i64, cmd: &str) {
         }
         "ricorda" | "remember" => {
             let msg = if arg.trim().is_empty() {
-                t("Scrivi /ricorda e cosa ricordare: lo metto nella memoria, nella pagina giusta.").to_string()
+                t("Scrivi /ricorda e cosa ricordare (o manda un vocale che comincia con «ricorda»): lo metto nella memoria, nella pagina giusta.").to_string()
             } else {
-                let capture = crate::brain::Remember { text: arg.to_string(), from: "telegram".into(), ..Default::default() };
-                match crate::remember(app, &capture) {
-                    Ok((_, true)) => format!("🧠 {}", t("Ricordato: lo imparo adesso.")),
-                    Ok((_, false)) => format!("🧠 {}", t("Ricordato: lo imparo stasera, con il riordino della memoria.")),
-                    Err(e) => format!("⚠️ {e}"),
-                }
+                remember_reply(app, arg, "telegram")
             };
             let _ = send(token, chat, &msg, None).await;
         }
@@ -1441,6 +1441,46 @@ fn file_of(m: &Value) -> Option<TgFile> {
     None
 }
 
+/// «Ricorda questo» from Telegram (/ricorda or a voice message): the answer.
+fn remember_reply(app: &AppHandle, text: &str, from: &str) -> String {
+    let capture = crate::brain::Remember { text: text.to_string(), from: from.into(), ..Default::default() };
+    match crate::remember(app, &capture) {
+        Ok((_, true)) => format!("🧠 {}", t("Ricordato: lo imparo adesso.")),
+        Ok((_, false)) => format!("🧠 {}", t("Ricordato: lo imparo stasera, con il riordino della memoria.")),
+        Err(e) => format!("⚠️ {e}"),
+    }
+}
+
+/// A voice message that starts with «ricorda…» («ricordati che», «memorizza»,
+/// «remember that»…) is for the memory: what to remember. «Ricordami di…»
+/// stays whole, so the inbox job sees the commitment and proposes a reminder.
+fn remember_words(words: &str) -> Option<String> {
+    let w = words.trim();
+    let lower = w.to_lowercase();
+    // Longest first: «ricordati che» before «ricordati».
+    const STRIP: &[&str] = &[
+        "ricordati che", "ricorda che", "memorizza che", "prendi nota che", "remember that", "note that",
+        "ricordati", "ricorda", "memorizza", "prendi nota", "remember", "take a note",
+    ];
+    const KEEP: &[&str] = &["ricordami", "remind me"];
+    let starts = |p: &str| {
+        lower.starts_with(p) && lower.get(p.len()..).is_some_and(|rest| rest.is_empty() || rest.starts_with(|c: char| !c.is_alphanumeric()))
+    };
+    if KEEP.iter().any(|p| starts(p)) {
+        return Some(w.to_string());
+    }
+    let p = STRIP.iter().find(|p| starts(p))?;
+    let rest = w.get(p.len()..)?.trim_start_matches(|c: char| !c.is_alphanumeric()).trim();
+    if rest.is_empty() {
+        return None;
+    }
+    let mut out: Vec<char> = rest.chars().collect();
+    if let Some(c) = out.first_mut() {
+        *c = c.to_uppercase().next().unwrap_or(*c);
+    }
+    Some(out.into_iter().collect())
+}
+
 /// «Vocali» in the settings: who transcribes ("" = nobody).
 fn voice_service(app: &AppHandle) -> String {
     app.try_state::<crate::Shared>().map(|s| s.settings.lock().unwrap().integration_config.telegram_voice.clone()).unwrap_or_default()
@@ -1704,6 +1744,17 @@ fn inline(line: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn voice_messages_that_start_with_ricorda_go_to_the_memory() {
+        assert_eq!(remember_words("Ricordati che Rossi vuole il preventivo entro venerdì").as_deref(), Some("Rossi vuole il preventivo entro venerdì"));
+        assert_eq!(remember_words("ricorda, il codice del cancello è nella pagina").as_deref(), Some("Il codice del cancello è nella pagina"));
+        assert_eq!(remember_words("Ricordami di chiamare Anna domani").as_deref(), Some("Ricordami di chiamare Anna domani"));
+        assert_eq!(remember_words("Remember that the server reboots on Sunday").as_deref(), Some("The server reboots on Sunday"));
+        assert_eq!(remember_words("Ricordare di chiamare"), None);
+        assert_eq!(remember_words("Che tempo fa domani?"), None);
+        assert_eq!(remember_words("ricorda"), None);
+    }
 
     #[test]
     fn markdown_becomes_telegram_html() {
