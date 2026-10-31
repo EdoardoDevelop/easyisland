@@ -749,7 +749,9 @@ fn set_expanded(app: AppHandle, shared: State<Shared>, expanded: bool, place: Op
     let dragged = std::mem::take(&mut *shared.gate.panel_offset.lock().unwrap()) != (0.0, 0.0)
         || *island::OPEN_CLEARANCE.lock().unwrap() != (0.0, 0.0);
     if shared.gate.collapsed.load(Ordering::Relaxed) {
-        return 0.0;
+        // Placed when it comes out (set_collapsed): the shift it will have.
+        let settings = shared.settings.lock().unwrap().clone();
+        return island::pop_shift(&app, &shared.gate, &settings);
     }
     let settings = shared.settings.lock().unwrap().clone();
     island::come_forward(&app);

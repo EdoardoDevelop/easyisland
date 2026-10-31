@@ -88,6 +88,10 @@
       .bar-icon svg, .bar-icon img { width: calc(15px * var(--s, 1)); height: calc(15px * var(--s, 1)); }
       .bar-icon img.bar-app-icon { width: calc(17px * var(--s, 1)); height: calc(17px * var(--s, 1)); }
       .bar-text { overflow: hidden; text-overflow: ellipsis; }
+      /* A changing value with the room of its widest (bar.ts → widest): both in one cell. */
+      .bar-steady { display: inline-grid; }
+      .bar-steady > span { grid-area: 1 / 1; white-space: nowrap; }
+      .bar-ghost { visibility: hidden; }
       /* System elements: muted volume or microphone, low battery. */
       .bar-item.dim { opacity: 0.55; }
       .bar-sys .bar-text { font-variant-numeric: tabular-nums; }

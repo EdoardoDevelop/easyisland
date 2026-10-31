@@ -477,6 +477,8 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (!btn?.dataset.key) return;
+  // TEMP (31 Oct 2026): the first click with another app in front does nothing; which part fails.
+  void invoke("log_line", { message: `barra: clic su ${btn.dataset.key}` }).catch(() => {});
   const sub = target?.closest?.("[data-btn]") as HTMLElement | null;
   const r = btn.getBoundingClientRect();
   send({ kind: "bar", key: sub ? `${btn.dataset.key}:btn:${sub.dataset.btn}` : btn.dataset.key, x: Math.round(r.left + r.width / 2) });
@@ -490,6 +492,11 @@ function barKey(e: Event): string | null {
 
 // The right and middle buttons and the wheel on an element: what the user chose
 // for it in Impostazioni (src/island/bar.ts → barAct); the page's own menu never shows.
+// TEMP (31 Oct 2026): does the press arrive at all, when the click does not.
+document.addEventListener("pointerdown", (e) => {
+  const key = barKey(e);
+  if (key) void invoke("log_line", { message: `barra: premuto ${key}` }).catch(() => {});
+});
 document.addEventListener("contextmenu", (e) => {
   e.preventDefault();
   const key = barKey(e);

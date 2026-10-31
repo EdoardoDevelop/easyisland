@@ -289,23 +289,45 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
     }
 }
 
-/// An island come out of the fixed bar under one of its elements ("pop:<x>",
-/// x in logical px from the bar's left end): how far the window could not
-/// follow the element (kept within the screen), logical px, for the front
-/// end to move the island inside the window by as much.
+/// An island come out of the fixed bar under one of its elements ("pop:<x>:<w>",
+/// x in logical px from the bar's left end, w the island's width): how far the
+/// island sits off the window's centre, logical px, for the front end to move
+/// it inside the window by as much.
 pub static POP_SHIFT: Mutex<f64> = Mutex::new(0.0);
+/// Room left between an island come out of the bar and the screen's side, logical px.
+const POP_SIDE: f64 = 8.0;
 
-/// The window of an island come out of the bar: centred under the element,
-/// against the band, within the work area; and what it could not follow.
+/// The window of an island come out of the bar: the island centred under the
+/// element but never past the screen's sides, the window as close to centred
+/// on it as the work area lets it, against the band; and the island's shift.
 fn pop_origin(work: (i32, i32, u32, u32), size: (u32, u32), place: &str, settings: &Settings, scale: f64) -> Option<((i32, i32), f64)> {
-    let x: f64 = place.strip_prefix("pop:")?.parse().ok().filter(|x: &f64| x.is_finite())?;
+    let mut parts = place.strip_prefix("pop:")?.split(':');
+    let x: f64 = parts.next()?.parse().ok().filter(|x: &f64| x.is_finite())?;
+    let w: f64 = parts.next().and_then(|w| w.parse().ok()).filter(|w: &f64| w.is_finite() && *w > 0.0).unwrap_or(0.0);
     let (wx, wy, ww, wh) = work;
     let (pw, ph) = (size.0 as i32, size.1 as i32);
     let left = crate::appbar::window_rect().map(|r| r.0).unwrap_or(wx);
-    let want = left + (x * scale).round() as i32 - pw / 2;
-    let at = want.clamp(wx, (wx + ww as i32 - pw).max(wx));
+    // The island's centre: under the element, its sides within the screen.
+    let half = (w * scale / 2.0).round() as i32;
+    let side = (POP_SIDE * scale).round() as i32;
+    let lo = wx + side + half;
+    let hi = (wx + ww as i32 - side - half).max(lo);
+    let centre = (left + (x * scale).round() as i32).clamp(lo, hi);
+    let at = (centre - pw / 2).clamp(wx, (wx + ww as i32 - pw).max(wx));
     let y = if settings.home_anchor().1 == "bottom" { wy + wh as i32 - ph } else { wy };
-    Some(((at, y), (want - at) as f64 / scale))
+    Some(((at, y), (centre - (at + pw / 2)) as f64 / scale))
+}
+
+/// The shift `apply_geometry` will give an island come out of the bar, before
+/// the window is shown (set_expanded while the island is still closed).
+pub fn pop_shift(app: &AppHandle, gate: &PollGate, settings: &Settings) -> f64 {
+    let place = gate.open_place.lock().unwrap().clone();
+    let Some(place) = place else { return 0.0 };
+    let Some(m) = target_monitor(app, &settings.screen) else { return 0.0 };
+    let scale = m.scale_factor();
+    let work = island_area(&m, settings);
+    let size = panel_physical(gate, work, scale);
+    pop_origin(work, size, &place, settings, scale).map_or(0.0, |p| p.1)
 }
 
 /// How far the open island moves away from its edge so it opens beside the

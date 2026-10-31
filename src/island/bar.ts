@@ -317,12 +317,17 @@ function sysValues(kind: string, it: BarItem): { v: Record<string, string>; icon
  * placeholder its value, the rest stays as typed. Only text nodes: nothing the
  * user typed or a service sent becomes markup.
  */
-function compose(el: HTMLElement, format: string, icon: () => Node, v: Record<string, string>) {
+function compose(el: HTMLElement, format: string, icon: () => Node, v: Record<string, string>, steady = false) {
   const parts = format.split(/(\{[a-z]+\})/);
   let text = "";
   const flush = () => {
-    if (text.trim()) el.append(h("span", { class: "bar-text", text: text.trim() }));
+    const s = text.trim();
     text = "";
+    if (!s) return;
+    // A value that changes (9 % → 10 %) keeps the room of its widest: the
+    // elements beside it do not move (personaggio.html → .bar-steady).
+    if (steady && /\d/.test(s)) el.append(h("span", { class: "bar-text bar-steady" }, h("span", { text: s }), h("span", { class: "bar-ghost", text: widest(s), "aria-hidden": "true" })));
+    else el.append(h("span", { class: "bar-text", text: s }));
   };
   for (const p of parts) {
     const m = /^\{([a-z]+)\}$/.exec(p);
@@ -336,6 +341,20 @@ function compose(el: HTMLElement, format: string, icon: () => Node, v: Record<st
     }
   }
   flush();
+}
+
+/**
+ * The widest a changing value may get: each number at least three digits
+ * (100 %, 999 KB/s), times, dates and decimals as long as they are, every
+ * digit a 0 (the bar's numbers are tabular).
+ */
+export function widest(s: string): string {
+  return s.replace(/\d+/g, (run: string, i: number) => {
+    const before = s[i - 1] ?? "";
+    const after = s[i + run.length] ?? "";
+    const fixed = before === ":" || after === ":" || before === "/" || after === "/" || before === "." || before === ",";
+    return "0".repeat(fixed ? run.length : Math.max(3, run.length));
+  });
 }
 
 /** The format an element uses now: its second text after an «alt» click, its own, or one from `show`. */
@@ -370,9 +389,9 @@ function innerButtons(el: HTMLElement, buttons: { icon?: string; label: string; 
 export function musicButtons(): { icon: string; label: string; cmd: string }[] {
   const playing = !!media().playing;
   return [
-    { icon: "i:undo", label: t("Precedente"), cmd: "prev" },
-    { icon: playing ? "i:minus" : "i:play", label: playing ? t("Pausa") : t("Riproduci"), cmd: "toggle" },
-    { icon: "i:send", label: t("Successivo"), cmd: "next" },
+    { icon: "i:previous", label: t("Precedente"), cmd: "prev" },
+    { icon: playing ? "i:pause" : "i:play", label: playing ? t("Pausa") : t("Riproduci"), cmd: "toggle" },
+    { icon: "i:next", label: t("Successivo"), cmd: "next" },
   ];
 }
 
@@ -403,7 +422,7 @@ export function barPieces(strip: StripItem | null, appBar: StripItem | null = nu
       const icon = () => sv.icon.startsWith("data:image/png")
         ? h("img", { class: "bar-app-icon", src: sv.icon, alt: "" })
         : renderActionIcon(sv.icon, 15);
-      compose(el, formatOf(it, key), icon, sv.v);
+      compose(el, formatOf(it, key), icon, sv.v, true);
       if (it.opts?.graph && BAR_KINDS[kind].graph) {
         const g = graph(kind);
         if (g) el.append(g);

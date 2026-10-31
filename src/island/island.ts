@@ -515,6 +515,8 @@ export class Island {
       || !!(document.activeElement as HTMLElement | null)?.closest?.(".np-card [contenteditable='true'], .np-card input");
     this.fsm.held = () => this.strip.item?.urgent === true;
     this.fsm.onTransition = (from, to) => {
+      // TEMP (31 Oct 2026): what closes a card come out of the bar at the first click.
+      if (barEdge(State.settings)) void Bridge.log(`isola: ${from} → ${to}${State.popover ? " (isoletta)" : ""}`);
       switch (to) {
         case "hidden":
           this.setMode("hidden");
@@ -2123,7 +2125,7 @@ ${note}` : text };
     // centred against the band, the work area ending there (island.rs place_origin).
     this.awayPlace = State.popover ? "pop" : greeting ? (State.settings.greetingPlace ?? "center") : (State.settings.islandPlace ?? "character");
     this.away = this.awayPlace !== "character";
-    const place = State.popover ? `pop:${State.popover.x}` : greeting ? this.awayPlace : null;
+    const place = State.popover ? `pop:${State.popover.x}:${POP_W}` : greeting ? this.awayPlace : null;
     void Bridge.setExpanded(true, place).then((shift) => this.shiftPopover(shift));
   }
 
@@ -2141,6 +2143,7 @@ ${note}` : text };
    * the whole island. Already open, the island moves there.
    */
   private openFromBarAt(view: IslandViewName, x?: number) {
+    void Bridge.log(`isola: scheda ${view} x=${x ?? "?"} da ${State.mode}`); // TEMP (31 Oct 2026)
     if (x == null || !Number.isFinite(x) || State.settings.fixedBarLook?.popover === false) {
       if (State.popover) this.leavePopover();
       this.openFromBar(view);
@@ -2156,7 +2159,7 @@ ${note}` : text };
     this.away = true;
     this.awayPlace = "pop";
     this.setView(view);
-    void Bridge.setExpanded(true, `pop:${x}`).then((shift) => this.shiftPopover(shift));
+    void Bridge.setExpanded(true, `pop:${x}:${POP_W}`).then((shift) => this.shiftPopover(shift));
   }
 
   /** From the card come out of the bar to the whole island, at its usual place. */
