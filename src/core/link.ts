@@ -45,6 +45,8 @@ export type IslandToCharacter =
       state: BotStateName;
       character: string;
       figure: string;
+      /** The user's PNG changed when this does (theme.logoStamp): loaded again for figure "logo". */
+      logoStamp: number;
       color: string | null;
       /** The rest icon's size (px) and whether EasyIsland is paused (dimmed). */
       size: number;

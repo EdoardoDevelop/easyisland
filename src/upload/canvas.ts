@@ -9,6 +9,7 @@ import { State, type QuickAction } from "../core/state";
 import { fileActions } from "../views/actions";
 import { character, type SoftCharacter } from "../character/character";
 import { drawJarvis } from "../character/jarvis";
+import { drawLogoShell, logoEyes, logoInside } from "../character/logo-anim";
 import { CUBE_EYE_X, CUBE_EYE_Y, CUBE_TIP, CUBE_TURN, drawCube, onRightFace } from "../character/cube";
 import { hexToRGB } from "../character/engine";
 import { t } from "../core/i18n";
@@ -476,6 +477,37 @@ export class UploadCanvas {
           ctx.restore();
         }
       }, look);
+      ctx.restore();
+      return;
+    }
+
+    if (c.kind === "logo") {
+      // The logo opens a white mouth under its eyes and takes the file in.
+      const size = R * 2.3;
+      drawLogoShell(ctx, size);
+      const room = logoInside(size);
+      const mh = f.mouth * R * mc * 0.8;
+      if (mh > 0.3) {
+        const mw = room.hw * 0.8;
+        ctx.beginPath();
+        ctx.roundRect(room.x - mw / 2, room.y + room.hh * 0.5 - mh / 2, mw, mh, Math.min(mw, mh) / 2);
+        ctx.fillStyle = "rgba(255,255,255,0.88)";
+        ctx.fill();
+      }
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#ffffff";
+      for (const e of logoEyes(size)) {
+        ctx.save();
+        ctx.translate(e.x + f.lookX * room.hw * 0.3, e.y + f.lookY * room.hh * 0.3 - mh * 0.25);
+        if (f.eye === "pill") {
+          ctx.beginPath();
+          ctx.ellipse(0, 0, e.rx, e.ry * (1 - 0.3 * mc), 0, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          drawEye(ctx, f.eye, e.rx * 1.3, e.ry * 2);
+        }
+        ctx.restore();
+      }
       ctx.restore();
       return;
     }

@@ -258,6 +258,16 @@ async function main() {
   }
 }
 
+/** Who sits in the fixed bar: its own choice (fixedBarFigure) or, with "", the island's. */
+function barLook(choice: string, character: string, figure: string): { character: string; figure: string } {
+  if (choice === "logo") return { character: "easyisland", figure: "character" };
+  if (choice === "logo-still") return { character, figure: "easyisland" };
+  if (choice === "mylogo") return { character, figure: "logo" };
+  if (choice === "weather") return { character, figure: "weather" };
+  if (choice.startsWith("char:")) return { character: choice.slice(5), figure: "character" };
+  return { character, figure };
+}
+
 /**
  * The character's own window (docs/due-webview.md, step 0): it gets the
  * character's look from here and asks back to open the island.
@@ -266,12 +276,14 @@ function linkCharacterWindow(island: Island) {
   let sentKey = "";
   const look = (): IslandToCharacter => {
     const t = State.settings.theme;
+    const barFigure = island.characterMode === "bar" ? State.settings.fixedBarFigure ?? "" : "";
     const c = t?.slimeColor;
     return {
       kind: "look",
       state: State.effectiveState,
-      character: t?.character ?? "",
-      figure: t?.figure ?? "",
+      // The fixed bar can have its own (fixedBarFigure), whatever the island has.
+      ...barLook(barFigure, t?.character ?? "", t?.figure ?? ""),
+      logoStamp: t?.logoStamp ?? 0,
       color: c && /^#[0-9a-f]{6}$/i.test(c) ? c : null,
       size: island.restIconSize,
       paused: State.paused,

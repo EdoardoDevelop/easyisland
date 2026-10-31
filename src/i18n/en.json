@@ -3959,5 +3959,14 @@
   "Usare un'integrazione personale": "Use a personal integration",
   "Aggiungere una scheda a un'integrazione personale": "Add a record to a personal integration",
   "Creare un compito": "Create a task",
-  "Cambiare profilo": "Switch profile"
+  "Cambiare profilo": "Switch profile",
+  "l'animazione quando parte l'app: il logo di EasyIsland che si disegna da solo, oppure il personaggio. Spento, compare subito al suo posto": "the animation when the app starts: the EasyIsland logo drawing itself, or the character. Off, it just appears in its place",
+  "Nella barra": "In the bar",
+  "Come nell'isola": "As in the island",
+  "Il logo di EasyIsland, animato": "The EasyIsland logo, animated",
+  "Il logo di EasyIsland, fermo": "The EasyIsland logo, still",
+  "chi sta nella barra può essere diverso da chi sta nell'isola: il logo animato segue il mouse e cambia con gli stati come un personaggio": "what sits in the bar can differ from the island: the animated logo follows the mouse and changes with the states like a character",
+  "logo e meteo sono immagini ferme: niente animazioni e stati, per un aspetto più sobrio. Il logo animato è il personaggio «EasyIsland». Il meteo viene dall'integrazione Meteo, che dev'essere attiva": "logo and weather are still pictures: no animations or states, for a plainer look. The animated logo is the «EasyIsland» character. The weather comes from the Weather integration, which must be on",
+  "il logo animato si muove come un personaggio (segue il mouse, cambia con gli stati); il logo fermo, il tuo logo e il meteo sono immagini ferme, per un aspetto più sobrio. Il meteo viene dall'integrazione Meteo, che dev'essere attiva": "the animated logo moves like a character (follows the mouse, changes with the states); the still logo, your logo and the weather are still pictures, for a plainer look. The weather comes from the Weather integration, which must be on",
+  "chi sta nella barra può essere diverso da chi sta nell'isola: un personaggio o il logo animato seguono il mouse e cambiano con gli stati; il logo fermo, il tuo logo e il meteo sono immagini ferme": "what sits in the bar can differ from the island: a character or the animated logo follow the mouse and change with the states; the still logo, your logo and the weather are still pictures"
 }

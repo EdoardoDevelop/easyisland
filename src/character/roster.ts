@@ -12,5 +12,6 @@ import { GECKO } from "./gecko";
 import { JARVIS, JARVIS_PLASMA, JARVIS_SPHERE } from "./jarvis";
 import { FOGLIA } from "./leaf";
 import { SLIME } from "./slime";
+import { LOGO_CHARACTER } from "./logo-anim";
 
-registerCharacters(DROP, SLIME, CUBE, GECKO, FLAME, MAGMA, PIETRA, ROCCIA, FOGLIA, JARVIS, JARVIS_SPHERE, JARVIS_PLASMA);
+registerCharacters(DROP, SLIME, CUBE, GECKO, FLAME, MAGMA, PIETRA, ROCCIA, FOGLIA, JARVIS, JARVIS_SPHERE, JARVIS_PLASMA, LOGO_CHARACTER);

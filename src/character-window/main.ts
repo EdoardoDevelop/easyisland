@@ -6,7 +6,7 @@
 import "../character/roster";
 import { character, setCharacter } from "../character/character";
 import { BotEngine, hexToRGB } from "../character/engine";
-import { setFigure, setFigureWeather } from "../character/figure";
+import { onFigureChange, setFigure, setFigureLogo, setFigureWeather } from "../character/figure";
 import { setJarvisAgents } from "../character/jarvis";
 import { invoke } from "@tauri-apps/api/core";
 import { linkChannel, MIRRORED_CALLS, type BarLook, type BarPiece, type CharacterMode, type CharacterToIsland, type IslandToCharacter } from "../core/link";
@@ -99,11 +99,21 @@ function wake(ms = MOVE_MS) {
   requestAnimationFrame(frame);
 }
 
+/** The theme.logoStamp of the PNG last read (-1: none yet). */
+let logoLoaded = -1;
+// The PNG finished loading: draw it.
+onFigureChange(() => wake(300));
+
 function applyLook(m: Extract<IslandToCharacter, { kind: "look" }>) {
   const was = mode;
   mode = m.mode;
   setCharacter(m.character);
   setFigure(m.figure);
+  // The user's PNG (logo.rs), read here too: the bar may show it while the island has something else.
+  if (m.figure === "logo" && m.logoStamp !== logoLoaded) {
+    logoLoaded = m.logoStamp;
+    void invoke<string | null>("logo_load").then((url) => setFigureLogo(url ?? "")).catch(() => setFigureLogo(""));
+  }
   setFigureWeather(m.weather.sky, m.weather.temp);
   setJarvisAgents(m.agents);
   engine.bodyColor = m.color ? hexToRGB(m.color) : null;

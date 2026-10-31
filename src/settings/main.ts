@@ -5,6 +5,10 @@
 import "./settings.css";
 import "../character/roster";
 import { characters, type RGB } from "../character/character";
+import { LOGO_CHARACTER } from "../character/logo-anim";
+
+/** The animated logo's character id (logo-anim.ts). */
+const LOGO_ID = LOGO_CHARACTER.id;
 import { type DoneItem, type MemoryInfo, Bridge, onEvent, type HookStatus, type ModelOption, type NotionPage, type NotionMapStatus } from "../core/bridge";
 import { type AgentTaskItem, type Custom, type Skill, type TaskState, barThickness, folderLook, folderValue, CHAT_ENGINES, DEFAULT_SETTINGS, INTEGRATION_AGENTS, type Reaction, type Automation, type ChatAssistant, type QuickAction, type IntegrationConfig, type NotionRef, type NotionView, type Settings, type Theme, type WidgetDef, type BarAct, type BarItem, type FixedBarLook, type NewsProposal, type NewsSettings } from "../core/state";
 import { BAR_KINDS, barKind } from "../core/barkinds";
@@ -2082,9 +2086,10 @@ function appearanceSections(): HTMLElement[] {
   // picture — the EasyIsland logo, the user's PNG (logo.rs) or the weather.
   const characterRow = h("div", { class: "row" },
     h("label", { text: t("Personaggio") }),
+    // The animated logo is chosen in «Nell'isola», next to the still one.
     select<string>(
-      characters().map((c) => [c.id, c.name] as [string, string]),
-      th.character ?? characters()[0].id,
+      characters().filter((c) => c.id !== LOGO_ID).map((c) => [c.id, c.name] as [string, string]),
+      th.character && th.character !== LOGO_ID ? th.character : DEFAULT_SETTINGS.theme.character,
       (v) => { th.character = v; commit(); drawColorRow(); },
     ),
   );
@@ -2120,8 +2125,13 @@ function appearanceSections(): HTMLElement[] {
       h("span", { class: "hint note", text: t("un PNG con lo sfondo trasparente rende meglio; viene ridotto a 512 px e resta su questo PC (va anche nel backup)") }),
     );
   };
+  // «Nell'isola»: the animated logo is the character «EasyIsland» (logo-anim.ts),
+  // offered here as its own choice next to the still logo.
+  type IslandFigure = Theme["figure"] | "logo-anim";
+  const figureNow = (): IslandFigure => ((th.figure ?? "character") === "character" && th.character === LOGO_ID ? "logo-anim" : th.figure ?? "character");
+  let lastCharacter = th.character && th.character !== LOGO_ID ? th.character : DEFAULT_SETTINGS.theme.character;
   const showFigure = () => {
-    const f = th.figure ?? "character";
+    const f = figureNow();
     characterRow.style.display = f === "character" ? "" : "none";
     colorRow.style.display = f === "character" ? "" : "none";
     logoRow.style.display = f === "logo" ? "" : "none";
@@ -2129,12 +2139,24 @@ function appearanceSections(): HTMLElement[] {
   };
   const figureRow = h("div", { class: "row" },
     h("label", { text: t("Nell'isola") }),
-    select<Theme["figure"]>(
-      [["character", t("Il personaggio")], ["easyisland", t("Il logo di EasyIsland")], ["logo", t("Il mio logo")], ["weather", t("Il meteo")]],
-      th.figure ?? "character",
-      (v) => { th.figure = v; commit(); showFigure(); },
+    select<IslandFigure>(
+      [["character", t("Il personaggio")], ["logo-anim", t("Il logo di EasyIsland, animato")], ["easyisland", t("Il logo di EasyIsland, fermo")], ["logo", t("Il mio logo")], ["weather", t("Il meteo")]],
+      figureNow(),
+      (v) => {
+        if (th.character && th.character !== LOGO_ID) lastCharacter = th.character;
+        if (v === "logo-anim") {
+          th.figure = "character";
+          th.character = LOGO_ID;
+        } else {
+          th.figure = v;
+          // Back to a character: the one chosen before the animated logo.
+          if (v === "character" && th.character === LOGO_ID) th.character = lastCharacter;
+        }
+        commit();
+        showFigure();
+      },
     ),
-    h("span", { class: "hint note", text: t("logo e meteo sono immagini ferme: niente animazioni, stati e saluto all'avvio, per un aspetto più sobrio. Il meteo viene dall'integrazione Meteo, che dev'essere attiva") }),
+    h("span", { class: "hint note", text: t("il logo animato si muove come un personaggio (segue il mouse, cambia con gli stati); il logo fermo, il tuo logo e il meteo sono immagini ferme, per un aspetto più sobrio. Il meteo viene dall'integrazione Meteo, che dev'essere attiva") }),
   );
   showFigure();
 
@@ -2185,10 +2207,18 @@ function appearanceSections(): HTMLElement[] {
     settings.greetingPlace ?? "center",
     (v) => { settings.greetingPlace = v; commit(); },
   );
+  // Who greets: the EasyIsland logo drawing itself (default) or the character.
+  const greetingFigure = select<NonNullable<Settings["greetingFigure"]>>(
+    [["logo", t("Il logo di EasyIsland")], ["character", t("Il personaggio")]],
+    settings.greetingFigure ?? "logo",
+    (v) => { settings.greetingFigure = v; commit(); },
+  );
   greetingPlace.style.display = settings.greeting === false ? "none" : "";
+  greetingFigure.style.display = greetingPlace.style.display;
   const greeting = toggle(settings.greeting !== false, (v) => {
     settings.greeting = v;
     greetingPlace.style.display = v ? "" : "none";
+    greetingFigure.style.display = greetingPlace.style.display;
     commit();
   });
 
@@ -2375,8 +2405,9 @@ function appearanceSections(): HTMLElement[] {
         pictured("greeting", h("div", { class: "row" },
           h("label", { text: t("Saluto all'avvio") }),
           greeting,
+          greetingFigure,
           greetingPlace,
-          h("span", { class: "hint note", text: t("l'animazione del personaggio quando parte l'app; spento, compare subito al suo posto") }),
+          h("span", { class: "hint note", text: t("l'animazione quando parte l'app: il logo di EasyIsland che si disegna da solo, oppure il personaggio. Spento, compare subito al suo posto") }),
         )),
         pictured("follow", h("div", { class: "row" },
           h("label", { text: t("Segue il mouse") }),
@@ -2444,6 +2475,18 @@ function appearanceSections(): HTMLElement[] {
           select([["start", t("All'inizio")], ["center", t("Al centro")], ["end", t("Alla fine")]], settings.fixedBarSlot ?? "center",
             (v) => { settings.fixedBarSlot = v as Settings["fixedBarSlot"]; commit(); }),
           h("span", { class: "hint note", text: t("con la barra fissa il personaggio sta lì e non si trascina; l'isola si apre sotto la barra (sopra, se è in basso) e da chiusa non c'è") }),
+        ), h("div", { class: "row bar-row" },
+          h("label", { text: t("Nella barra") }),
+          select<string>([
+            ["", t("Come nell'isola")],
+            ["logo", t("Il logo di EasyIsland, animato")],
+            ["logo-still", t("Il logo di EasyIsland, fermo")],
+            ["mylogo", t("Il mio logo")],
+            ["weather", t("Il meteo")],
+            ...characters().filter((c) => c.id !== LOGO_ID).map((c): [string, string] => [`char:${c.id}`, c.name]),
+          ], settings.fixedBarFigure ?? "",
+            (v) => { settings.fixedBarFigure = v; commit(); }),
+          h("span", { class: "hint note", text: t("chi sta nella barra può essere diverso da chi sta nell'isola: un personaggio o il logo animato seguono il mouse e cambiano con gli stati; il logo fermo, il tuo logo e il meteo sono immagini ferme") }),
         ), h("div", { class: "row bar-row" },
           h("label", { text: t("Altezza della barra") }),
           slider(24, 96, 2, Math.round(barThickness(settings)), "px", (v) => { settings.fixedBarHeight = v; commit(); render(); }),

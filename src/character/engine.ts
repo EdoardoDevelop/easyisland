@@ -5,11 +5,12 @@
 
 import { drawFigure, staticFigure } from "./figure";
 import { drawJarvis } from "./jarvis";
+import { drawLogoShell, logoEyes, logoInside } from "./logo-anim";
 import { Ease, lerp, type EaseFn } from "../core/anim";
 import { Sound } from "../core/sound";
 import type { BotEmoteName, BotStateName } from "../core/layout";
 import {
-  Jelly, applyJelly, character, handStops, rgba as paletteRGBA, type Palette, type SoftCharacter,
+  Jelly, applyJelly, character, handless, handStops, rgba as paletteRGBA, type Palette, type SoftCharacter,
 } from "./character";
 import { drawSky, skyMoves, type Sky } from "./weather";
 import { CUBE_EYE_X, CUBE_EYE_Y, CUBE_TIP, CUBE_TURN, cubeEyeRoom, cubeHandStops, drawCube, onRightFace } from "./cube";
@@ -759,6 +760,10 @@ export class BotEngine {
       this.drawAsHud(x, W, H);
       return;
     }
+    if (c.kind === "logo") {
+      this.drawAsLogo(x, W, H);
+      return;
+    }
     const R = W * 0.3;
     const rx = R * c.size.hw;
     const ry = R * c.size.hh;
@@ -899,6 +904,94 @@ export class BotEngine {
       this.drawBadge(x, this.badge, R, cx, cy);
     }
     if (this.sky && !this.bigSky) drawSky(x, this.sky, R, cx, cy - s * this.sy, now(), false);
+    this.drawParticles(x, R, cx, cy);
+  }
+
+  /**
+   * The EasyIsland logo (logo-anim.ts): pose, tweens, badge and particles as
+   * the others; its two white eyes take the engine's shapes, blinks and gaze,
+   * sliding inside the bubble. The colours run round the stroke while it
+   * works, and the inside takes a little of the state's colour.
+   */
+  private drawAsLogo(x: CanvasRenderingContext2D, W: number, H: number) {
+    const R = W * 0.3;
+    const size = R * 2.35;
+    const cx = W / 2 + this.ox * R;
+    const cy = H / 2 + this.particleOverhang / 2 + this.oy * R + R * 0.06;
+    const t = now();
+
+    if (this.sky && this.bigSky) drawSky(x, this.sky, R, cx, cy - size * 0.42 * this.sy, t);
+
+    x.save();
+    x.translate(cx, cy);
+    if (this.tilt !== 0) x.rotate(this.tilt);
+    x.scale(this.sx, this.sy);
+    applyJelly(x, size * 0.45, this.jelly);
+
+    const busy = this.state === "working" || this.state === "thinking" || this.state === "searching";
+    const k = Math.min(1, this.tint) * 0.4 * (1 - this.morph);
+    const inside = mix3([0.024, 0.024, 0.04], this.col, k);
+    drawLogoShell(x, size, { shift: busy ? t * 80 : 0, inside: `rgb(${inside.map((v) => Math.round(v * 255)).join(",")})` });
+
+    const gazeX = Math.max(-1, Math.min(1, this.yaw / 0.62));
+    const gazeY = Math.max(-1, Math.min(1, -this.pitch / 0.5));
+    const room = logoInside(size);
+    const eyes = logoEyes(size, size * (x.getTransform().a || 1) <= 32);
+
+    // Cheeks only for an emote (love, proud…): the state's tint already colours the inside.
+    const blushVal = this.blush * (1 - this.morph);
+    if (blushVal > 0.01) {
+      x.fillStyle = `rgba(255,120,150,${0.5 * blushVal})`;
+      for (const e of eyes) {
+        x.beginPath();
+        x.ellipse(e.x, e.y + e.ry * 1.7, e.rx * 0.9, e.ry * 0.45, 0, 0, Math.PI * 2);
+        x.fill();
+      }
+    }
+
+    // The mouth that opens while a file is swallowed.
+    if (this.morph > 0.05) {
+      const mh = Math.max(1, this.slotH * this.morph * R);
+      const mw = room.hw * 0.7;
+      roundRectPath(x, room.x - mw / 2, room.y + room.hh * 0.45 - mh / 2, mw, mh, Math.min(mw, mh) / 2);
+      x.fillStyle = "rgba(255,255,255,0.85)";
+      x.fill();
+    }
+
+    let shape: EyeShape = this.eyeOverride ?? this.cfg.eye;
+    if (this.morph > 0.5) {
+      if (this.isChewing) shape = "happy";
+      else if (this.slotHTarget > 0.05 || this.slotH > 0.1) shape = "cup";
+    }
+    const ink = "#ffffff";
+    x.fillStyle = ink;
+    x.strokeStyle = ink;
+    // The eyes do the looking: they slide inside the bubble, as far as it allows.
+    const gx = gazeX * room.hw * 0.32;
+    const gy = gazeY * room.hh * 0.38;
+    eyes.forEach((e, i) => {
+      const sd = i === 0 ? -1 : 1;
+      x.save();
+      x.translate(e.x + gx, e.y + gy);
+      const es = this.es;
+      if (shape === "pill" || shape === "wide" || (shape === "wink" && sd < 0)) {
+        // The logo's own eyes: round, squashed by blinks.
+        const w = shape === "wide" ? 1.15 : 1;
+        x.beginPath();
+        x.ellipse(0, 0, e.rx * es * w, Math.max(e.ry * 0.12, e.ry * es * w * this.open), 0, 0, Math.PI * 2);
+        x.fill();
+      } else {
+        this.drawEyeShape(x, shape, e.rx * 1.25 * es, e.ry * 2 * es, sd, ink);
+      }
+      x.restore();
+    });
+
+    x.restore();
+
+    if (this.badge && this.badgeS > 0.01 && this.morph < 0.25) {
+      this.drawBadge(x, this.badge, R, cx, cy);
+    }
+    if (this.sky && !this.bigSky) drawSky(x, this.sky, R, cx, cy - size * 0.42 * this.sy, t, false);
     this.drawParticles(x, R, cx, cy);
   }
 
@@ -1153,7 +1246,7 @@ export class BotEngine {
     R: number, rx: number, ry: number, cx: number, cy: number, pal?: Palette,
   ) {
     // Jarvis has no hands.
-    if (this.hands <= 0.01 || this.isMini || character().kind === "hud") return;
+    if (this.hands <= 0.01 || this.isMini || handless(character())) return;
     // Too small to read at compact/peek sizes, except for the hover hello's
     // raised hand, which is the whole point of it there.
     if (R <= 14 && !(this.waveCalm && R > 4)) return;
@@ -1206,7 +1299,7 @@ export class BotEngine {
       if (handRot !== 0) x.rotate(handRot);
       const g = x.createLinearGradient(hew * 0.7, -heh * 0.85, -hew * 0.8, heh * 0.9);
       const c = character();
-      if (c.kind === "hud") return;
+      if (c.kind === "hud" || c.kind === "logo") return;
       if (c.kind === "cube") {
         // The cube's hands wear its faces' colour, state tint included.
         const [light, dark] = cubeHandStops({ col: this.col, tint: this.tint * (1 - this.morph), base: this.bodyColor });

@@ -15,9 +15,9 @@ La pagina è divisa in sei schede, in alto: **Tema**, **Personaggio**, **Posizio
 - **Sfondo a isola chiusa**: spento, resta solo il personaggio.
 
 ## Personaggio
-- **Nell'isola**: il personaggio, il logo di EasyIsland, il tuo logo o il meteo (vedi sotto).
+- **Nell'isola**: il personaggio, il logo di EasyIsland animato o fermo, il tuo logo o il meteo (vedi sotto).
 - **Personaggio** e il suo **colore**.
-- **Saluto all'avvio**, al centro dello schermo o dove sta il personaggio.
+- **Saluto all'avvio**: di serie il **logo di EasyIsland** che si disegna da solo (il bordo arcobaleno, la coda, poi gli occhi), oppure il personaggio; al centro dello schermo o dove sta il personaggio.
 - **Segue il mouse**: anche nella vista compatta il personaggio guarda il cursore (consuma un po' di più).
 - **Fumetto**: in alto il personaggio dice cosa succede.
 - **Personaggio nel menu**: grande, medio o piccolo in cima al menu dell'isola aperta.
@@ -31,6 +31,7 @@ La pagina è divisa in sei schede, in alto: **Tema**, **Personaggio**, **Posizio
 
 ## Barra fissa
 Con **Barra fissa** in alto o in basso, Windows tiene libera una fascia sul bordo dello schermo, come per la barra delle applicazioni, e le finestre si fermano lì.
+- **Nella barra:** chi sta nella barra, anche diverso dall'isola: come nell'isola, il logo di EasyIsland animato o fermo, il tuo logo, il meteo o uno dei personaggi.
 - **Personaggio nella barra:** all'inizio, al centro o alla fine. Non si trascina; un clic apre l'isola subito sotto la barra (sopra, se la barra è in basso) e un altro la chiude. Da chiusa l'isola non c'è: c'è la barra.
 - **Altezza della barra:** automatica (alta quanto la vista compatta) o scelta da te; il personaggio, le icone e i testi si adattano.
 - **Sfondo della barra:** come l'isola, trasparente (si vede il desktop) o un colore a scelta; il testo diventa chiaro o scuro da solo.
@@ -97,7 +98,7 @@ Personaggi disegnati nel codice, tutti con le stesse espressioni:
 Il personaggio reagisce: saluta all'avvio, festeggia quando un agente finisce, si preoccupa per un errore, ti guarda quando passi con il mouse. Durante il meteo può avere il cielo dietro.
 
 ## Logo o meteo al posto del personaggio
-In **Personaggio → Nell'isola** scegli cosa sta nell'isola: **il personaggio**, **il logo di EasyIsland**, **il mio logo** o **il meteo**. Logo e meteo sono immagini ferme: niente animazioni, stati e saluto all'avvio, per un aspetto più professionale.
+In **Personaggio → Nell'isola** scegli cosa sta nell'isola: **il personaggio**, **il logo di EasyIsland, animato** o **fermo**, **il mio logo** o **il meteo**. Logo e meteo sono immagini ferme: niente animazioni né stati, per un aspetto più professionale. Il **logo di EasyIsland, animato** invece si muove come un personaggio. Segue il mouse con gli occhi, sbatte le palpebre, cambia con gli stati (i colori girano mentre un agente lavora) e «mangia» i file come gli altri.
 - **Il mio logo**: **Carica PNG…** e scegli l'immagine (meglio con lo sfondo trasparente). Viene ridotta a 512 px, resta su questo PC ed entra nel [backup](26-impostazioni.md). **Togli** la cancella; senza immagine compare il logo di EasyIsland.
 - **Il meteo**: il cielo e la temperatura di adesso, dall'integrazione **Meteo**, che dev'essere attiva.
 

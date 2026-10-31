@@ -51,6 +51,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 31 ottobre 2026 — Logo animato di EasyIsland (in `claude/sviluppo`)
+- Il logo è un personaggio («EasyIsland», `logo-anim.ts`, tipo `logo`): occhi che seguono il cursore e sbattono, stati, badge, rilascio file; colori che girano mentre lavora. Saluto all'avvio di serie con il logo che si disegna da solo (`greetingFigure`), e nella barra fissa un logo diverso da quello dell'isola (`fixedBarFigure`). Anteprima in `/dev/logo-preview.html`; smoke e test, non provato nell'app vera.
+
 ### 31 ottobre 2026 — Ricerca ovunque nel campo in alto (in `claude/sviluppo`)
 - Il campo in alto cerca anche le pagine della memoria (`brain::find_pages`, clic: la mappa con la pagina selezionata, `memory-select`), le conversazioni passate (clic: tornano nella chat) e i ticket Zammad (`zammad::search`, clic: il ticket nel browser), 400 ms dopo l'ultimo tasto. Da verificare: la ricerca di Zammad senza Elasticsearch. Test Rust, smoke e schermata nell'anteprima; non provato nell'app vera.
 
@@ -66,8 +69,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Strumenti di EasyIsland in tre livelli (`permits.rs`): lettura libera; reversibili (`REVERSIBLE` in `hook/src/tool_list.rs`: righe di Notion, attività di To Do, Vassoio, cartella di lavoro) con «Sempre» sulla card, per sempre finché lo togli in Impostazioni → Chat; il resto chiede ogni volta. Un compito può farle da solo se scelto («Motori e permessi», `may` di `task_create`).
 - «Cosa ho fatto» in Impostazioni → Chat: ogni strumento che cambia qualcosa, con Annulla per i reversibili. Card leggibili per Notion, To Do, Vassoio e `task_create`; lista di sola lettura unica (`claude_cli::agent_read_only`); una lista sola delle cose delicate per le due «Automatica».
 - Poi: ♾ «Sempre» anche nei pulsanti di Telegram (`permits::offers_always`); «Cosa ho fatto» anche nell'isola (vista `done`, dal campo in alto) e l'avviso «Fatto senza chiedere» con Annulla (`did-alone`). Test Rust, smoke e schermate nell'anteprima; non provato nell'app vera.
-
-### 31 ottobre 2026 — Barra fissa: effetti (in `claude/sviluppo`)
-- Il personaggio cresce sotto il mouse e la barra si gonfia attorno a lui con fianchi curvi (`bar_grow`, `appbar::GROW`, tracciato SVG `bandPath`; con la sfocatura la finestra è ritagliata sul tracciato).
-- Le schede escono dalla barra: un clic su un elemento apre una piccola isola sotto di lui con solo la sua scheda e due raccordi curvi (`openFromBarAt`, luogo `pop:<x>`, `POP_SHIFT`). Entrambe disattivabili in «Aspetto della barra». Smoke «nessun errore»; provato nell'anteprima solo il rigonfiamento.
-- Poi: ombra della barra (`barshadow.rs`, anche con l'isola aperta, sotto di lei), isolette con la loro ombra e senza bordo, alte quanto il contenuto e senza angolo per ridimensionare, chiuse da un clic fuori (`click-away`); clic destro sulla barra fuori dagli elementi = menu di EasyIsland con «Personalizza la barra…» (`tray::popup_bar_context`). Unito in `claude/sviluppo`.

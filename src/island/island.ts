@@ -18,7 +18,7 @@ import { Sound } from "../core/sound";
 import { OPENED_BY_APP, OPEN_URLS, State, barEdge, canAskSession, isSessionTask } from "../core/state";
 import { BotEngine, hexToRGB } from "../character/engine";
 import { character, setCharacter } from "../character/character";
-import { Greeting } from "../character/greeting";
+import { Greeting, setGreetingLogo } from "../character/greeting";
 import { setJarvisAgents } from "../character/jarvis";
 import { figureKey, onFigureChange, setFigure, setFigureLogo, setFigureWeather, staticFigure } from "../character/figure";
 import { createMiniBot, pruneMiniBots, syncMiniBotStates, tickMiniBots } from "../character/minibots";
@@ -564,8 +564,12 @@ export class Island {
   }
 
   launch() {
-    // A logo or the weather has no greeting: it is simply there.
-    if (State.settings.greeting === false || staticFigure()) {
+    // Who greets: the EasyIsland logo drawing itself (the default) or the
+    // character. A still picture or the weather has no greeting of its own,
+    // but the logo's still plays.
+    const logo = State.settings.greetingFigure !== "character";
+    setGreetingLogo(logo);
+    if (State.settings.greeting === false || (staticFigure() && !logo)) {
       this.quietLaunch = true;
       this.fsm.launchQuiet();
     } else {

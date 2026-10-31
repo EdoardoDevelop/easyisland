@@ -652,6 +652,15 @@ pub struct Settings {
     /// "character", where the character lives (island.rs, `open_place`).
     #[serde(default = "default_greeting_place")]
     pub greeting_place: String,
+    /// Who greets at launch: "logo" (the EasyIsland logo drawing itself, the
+    /// default since 31 Oct 2026) or "character" (the character chosen).
+    #[serde(default = "default_greeting_figure")]
+    pub greeting_figure: String,
+    /// What sits in the fixed bar, whatever the island has: "" as in the
+    /// island, "logo" the animated logo, "logo-still" the still one, "mylogo"
+    /// the user's PNG, "weather", "char:<id>" a character (src/main.ts → look).
+    #[serde(default)]
+    pub fixed_bar_figure: String,
     /// ✕ in the open island's header.
     #[serde(default = "default_true")]
     pub close_button: bool,
@@ -899,6 +908,9 @@ fn default_island_place() -> String {
 fn default_greeting_place() -> String {
     "center".into()
 }
+fn default_greeting_figure() -> String {
+    "logo".into()
+}
 fn default_anchor_v() -> String {
     "top".into()
 }
@@ -1020,6 +1032,8 @@ impl Default for Settings {
             island_place: default_island_place(),
             greeting: true,
             greeting_place: default_greeting_place(),
+            greeting_figure: default_greeting_figure(),
+            fixed_bar_figure: String::new(),
             close_button: true,
             island_app: false,
             stay_open_by_user: false,
