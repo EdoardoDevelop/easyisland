@@ -404,6 +404,16 @@ pub struct Mail {
     pub subject: String,
     pub received: String,
     pub web_link: String,
+    /// For the second brain (brain_watch.rs), not for the island.
+    #[serde(skip)]
+    pub id: String,
+    #[serde(skip)]
+    pub address: String,
+    /// "low" | "normal" | "high".
+    #[serde(skip)]
+    pub importance: String,
+    #[serde(skip)]
+    pub preview: String,
 }
 
 fn events_from(v: &Value) -> Vec<Event> {
@@ -444,6 +454,10 @@ fn mails_from(v: &Value) -> Vec<Mail> {
                     subject: m.get("subject").and_then(Value::as_str).unwrap_or("").to_string(),
                     received: m.get("receivedDateTime").and_then(Value::as_str).unwrap_or("").to_string(),
                     web_link: m.get("webLink").and_then(Value::as_str).filter(|u| u.starts_with("https://")).unwrap_or("").to_string(),
+                    id: m.get("id").and_then(Value::as_str).unwrap_or("").to_string(),
+                    address: m.pointer("/from/emailAddress/address").and_then(Value::as_str).unwrap_or("").to_string(),
+                    importance: m.get("importance").and_then(Value::as_str).unwrap_or("").to_lowercase(),
+                    preview: m.get("bodyPreview").and_then(Value::as_str).unwrap_or("").chars().take(1500).collect(),
                 })
                 .collect()
         })
@@ -466,7 +480,7 @@ pub async fn unread_mail() -> Result<(u64, Vec<Mail>), String> {
     let folder = get("/me/mailFolders/inbox?$select=unreadItemCount").await?;
     let count = folder.get("unreadItemCount").and_then(Value::as_u64).unwrap_or(0);
     let list = if count > 0 {
-        mails_from(&get("/me/mailFolders/inbox/messages?$filter=isRead%20eq%20false&$top=5&$select=subject,from,receivedDateTime,webLink").await?)
+        mails_from(&get("/me/mailFolders/inbox/messages?$filter=isRead%20eq%20false&$top=5&$select=id,subject,from,receivedDateTime,webLink,importance,bodyPreview").await?)
     } else {
         Vec::new()
     };

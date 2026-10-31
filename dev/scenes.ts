@@ -970,7 +970,7 @@ export async function runScene(island: Island, scene: string) {
     }
     case "moment": {
       // A proposal at the right moment (src/island/moments.ts), through the real
-      // handler: ?moment=download (default), error, port, server, card, tray, recording.
+      // handler: ?moment=download (default), error, port, server, card, tray, recording, call.
       await wait(300);
       const host = { alert: (v: never) => island.alert(v), collapse: () => island.collapse(), holdOpen: (on: boolean) => island.setPinned(on) };
       const which = new URLSearchParams(location.search).get("moment") ?? "download";
@@ -984,6 +984,7 @@ export async function runScene(island: Island, scene: string) {
           holder: { name: "node.exe", pid: 18244 }, text: "Error: listen EADDRINUSE: address already in use :::3000\n    at Server.setupListenHandle (node:net:1872:16)" },
         server: { kind: "server", port: 5173, url: "http://localhost:5173/", process: "node.exe" },
         recording: { kind: "recording", name: "Registrazione 2026-10-16 15.30.12.m4a", path: "C:/x/Registrazione.m4a", size: 1_240_000, seconds: 312 },
+        call: { kind: "call", name: "Mario Rossi", number: "+39 02 1234567", incoming: true, seconds: 252 },
         card: { kind: "card", id: "card1", title: "Build finita: 3 test falliti", text: "Vuoi che li corregga adesso o preferisci guardarli tu?", level: "warn", buttons: ["Correggi", "Li guardo io"] },
       };
       handleMoment(host, events[which] ?? events.download);
@@ -1054,6 +1055,19 @@ export async function runScene(island: Island, scene: string) {
         island.setView("done");
         island.setPinned(true);
       }
+      await wait(1200);
+      break;
+    }
+    case "remember": {
+      // «Ricorda questo» on a selection from Outlook; ?empty: nothing selected, the card to type in.
+      Object.assign(Bridge, {
+        memoryRemember: async () => ({ file: "Ricorda.md", learning: true }),
+      });
+      await wait(300);
+      const q = new URLSearchParams(location.search);
+      if (q.has("empty")) island.openRemember("");
+      else if (q.has("call")) island.noteCall({ name: "Mario Rossi", number: "+39 02 1234567", incoming: true, seconds: 252 });
+      else island.openRemember("Rossi vuole il preventivo per 3 switch UniFi entro venerdì; chiamarlo dopo le 15, la mattina è in cantiere.", "OUTLOOK.EXE", "Re: preventivo switch — Rossi Impianti", "");
       await wait(1200);
       break;
     }

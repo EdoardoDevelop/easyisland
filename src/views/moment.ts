@@ -16,6 +16,8 @@ import { t } from "../core/i18n";
 export interface MomentActions {
   /** «Spiega e correggi»: the chat with the error attached. */
   explainError(text: string, note: string): void;
+  /** «Annota» after a call: «Ricorda» with the caller as what it is about. */
+  noteCall(m: Extract<Moment, { kind: "call" }>): void;
 }
 
 const WASH: Record<string, Wash> = { ok: "green", warn: "amber", error: "red", info: "indigo" };
@@ -94,6 +96,19 @@ export function buildMoment(actions: ViewActions & MomentActions): ViewHost {
           text: port,
           row: [
             btn(t("Spiega e correggi"), "primary", () => actions.explainError(m.text, port)),
+            btn(t("Non ora"), "secondary", done),
+          ],
+        };
+      }
+      case "call": {
+        const mins = Math.max(1, Math.round(m.seconds / 60));
+        return {
+          wash: "green",
+          who: m.incoming ? t("Chiamata ricevuta") : t("Chiamata fatta"),
+          title: m.name || m.number,
+          text: t("{m} min · vuoi annotare cosa vi siete detti? Va nella memoria, nella sua pagina", { m: mins }),
+          row: [
+            btn(t("Annota"), "primary", () => { State.moment = null; actions.noteCall(m); }),
             btn(t("Non ora"), "secondary", done),
           ],
         };

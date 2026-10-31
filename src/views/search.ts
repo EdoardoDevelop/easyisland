@@ -29,6 +29,8 @@ export interface SearchActions {
   showDone(): void;
   /** A past conversation, back in the chat. */
   reopenChat(id: string): void;
+  /** «Ricorda questo» with `text` (src/views/remember.ts). */
+  remember(text: string): void;
 }
 
 interface Hit {
@@ -168,6 +170,14 @@ export function buildSearch(actions: SearchActions): SearchHost {
       const name = tomorrow ? t("La mia giornata di domani") : t("La mia giornata di oggi");
       const s = score(`${name} ${t("agenda riepilogo")}`, q);
       if (s) out.push({ kind: "Giornata", name, score: s, icon: () => svg(ICONS.bubble, 13), run: () => actions.askDay(tomorrow) });
+    }
+    // «ricorda …» / «ricordati che …»: that, into the memory; the words alone open the empty card.
+    {
+      const typed = input.value.trim();
+      const said = typed.match(/^(?:ricorda(?:ti)?(?:\s+che)?|remember(?:\s+that)?)\s+(.+)$/is);
+      const s = said ? 4 : score(`${t("Ricorda questo")} ${t("memoria")}`, q);
+      if (s) out.push({ kind: "Memoria", name: said ? t("Ricorda «{text}»", { text: said[1] }) : t("Ricorda questo"), score: s,
+        icon: () => svg(ICONS.memory, 13, { stroke: 1.8 }), run: () => actions.remember(said ? said[1] : "") });
     }
     {
       const s = score(`${t("Cosa ho fatto")} ${t("annulla azioni permessi")}`, q);

@@ -464,7 +464,7 @@ fn inbox_file(name: &str) -> Result<InboxFile, String> {
 }
 
 /// HTML without its tags and scripts, for a source saved from the web.
-fn html_text(html: &str) -> String {
+pub(crate) fn html_text(html: &str) -> String {
     let mut out = String::new();
     let mut rest = html;
     let low = html.to_lowercase();
@@ -706,6 +706,50 @@ pub fn find_pages(query: &str, max: usize) -> Vec<PageHit> {
         .collect();
     found.sort_by_key(|(rank, _)| *rank);
     found.into_iter().take(max).map(|(_, h)| h).collect()
+}
+
+/// What changed in the memory since `since` ("AAAA-MM-GG"), for the weekly
+/// recap (tasks.rs, memory "week"): pages written, notes, sources read.
+pub fn week_report(since: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for p in pages().into_iter().filter(|p| p.updated.as_str() >= since) {
+        out.push(tf("Pagina «{title}» ({day}): {gist}", &[("title", &p.title), ("day", &p.updated), ("gist", &p.gist())]));
+    }
+    for n in crate::memory::notes() {
+        let day = n.trim_start_matches("- ").get(..10).unwrap_or_default().to_string();
+        if day.as_str() >= since && day.chars().all(|c| c.is_ascii_digit() || c == '-') {
+            out.push(tf("Nota: {n}", &[("n", &n.trim_start_matches("- "))]));
+        }
+    }
+    if let Ok(dir) = std::fs::read_dir(sources_dir()) {
+        for e in dir.flatten() {
+            let day = e.metadata().and_then(|m| m.modified()).map(file_day).unwrap_or_default();
+            if day.as_str() >= since {
+                out.push(tf("Fonte letta: {f}", &[("f", &e.file_name().to_string_lossy())]));
+            }
+        }
+    }
+    out.truncate(80);
+    out
+}
+
+/// "AAAA-MM-GG" `days` ago.
+pub fn days_ago(days: u64) -> String {
+    file_day(std::time::SystemTime::now() - std::time::Duration::from_secs(days * 86_400))
+}
+
+/// The title of the page whose title or aliases hold every word of `query`
+/// (no case, no accents): who a mail comes from (brain_watch.rs).
+pub fn page_named(query: &str) -> Option<String> {
+    let words: Vec<String> = query.split_whitespace().map(fold).filter(|w| w.chars().count() >= 2).collect();
+    if words.is_empty() {
+        return None;
+    }
+    pages().into_iter().find_map(|p| {
+        let names = fold(&std::iter::once(p.title.as_str()).chain(p.aliases.iter().map(String::as_str)).collect::<Vec<_>>().join(" "));
+        let names: Vec<&str> = names.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect();
+        words.iter().all(|w| names.contains(&w.as_str())).then(|| p.title.clone())
+    })
 }
 
 /// memory_search in the pages: their lines with every word, then a line of
@@ -1156,6 +1200,62 @@ pub fn inbox_add(name: &str, bytes: &[u8]) -> Result<String, String> {
     Ok(dest.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or(clean))
 }
 
+/// What «Ricorda questo» captured (asked by Edoardo on 31 October 2026): the
+/// selected text or what the user typed, with where it came from.
+#[derive(Default, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Remember {
+    pub text: String,
+    /// Who or what it is about, when the user says so: the page to put it in.
+    pub about: String,
+    pub app: String,
+    pub title: String,
+    pub url: String,
+    /// Where it was captured: "pc" (the shortcut, the menu) or "telegram".
+    pub from: String,
+}
+
+/// The source file of a capture: its name and its Markdown, at `stamp`
+/// ("2026-10-31 18:05"). The agent that reads da-leggere finds in it what to
+/// learn and where it came from.
+fn remember_file(r: &Remember, stamp: &str) -> Result<(String, String), String> {
+    let text = r.text.trim();
+    if text.is_empty() {
+        return Err(t("Scrivi o seleziona cosa ricordare.").into());
+    }
+    let text: String = text.chars().take(MAX_SOURCE).collect();
+    let first: String = text.split_whitespace().take(6).collect::<Vec<_>>().join(" ");
+    let first: String = first.chars().filter(|c| c.is_alphanumeric() || " -'".contains(*c)).take(50).collect();
+    let name = format!("{} {} {}.md", t("Ricorda"), stamp.replace(':', "."), first.trim()).replace("  ", " ");
+    let mut head = vec![format!("# {}", t("Da ricordare")), String::new(), format!("{}: {stamp}", t("quando"))];
+    let from = match (r.app.trim(), r.title.trim()) {
+        ("", "") => String::new(),
+        (a, "") | ("", a) => a.to_string(),
+        (a, b) => format!("{a} — {b}"),
+    };
+    if r.from == "telegram" {
+        head.push(format!("{}: Telegram", t("da")));
+    } else if !from.is_empty() {
+        head.push(format!("{}: {from}", t("da")));
+    }
+    if !r.url.trim().is_empty() {
+        head.push(format!("{}: {}", t("indirizzo"), r.url.trim()));
+    }
+    if !r.about.trim().is_empty() {
+        head.push(format!("{}: {}", t("riguarda"), r.about.trim()));
+    }
+    head.push(String::new());
+    head.push(t("L'utente ha scelto di ricordarlo (Ricorda questo): mettilo nella pagina giusta, quella di «riguarda» se c'è.").to_string());
+    head.push(String::new());
+    Ok((name, format!("{}{text}\n", head.join("\n") + "\n")))
+}
+
+/// «Ricorda questo»: the capture as a source in da-leggere; the file's name.
+pub fn remember(r: &Remember) -> Result<String, String> {
+    let (name, body) = remember_file(r, &crate::memory::stamp())?;
+    inbox_add(&name, body.as_bytes())
+}
+
 /// The inbox folder, made when missing (to drop files in).
 pub fn ensure_inbox() -> Result<PathBuf, String> {
     let dir = inbox_dir();
@@ -1166,6 +1266,26 @@ pub fn ensure_inbox() -> Result<PathBuf, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_capture_becomes_a_source() {
+        let r = Remember {
+            text: "  Rossi vuole il preventivo: 3 switch entro venerdì.  ".into(),
+            about: "Rossi Srl".into(),
+            app: "outlook.exe".into(),
+            title: "Re: preventivo".into(),
+            url: String::new(),
+            from: "pc".into(),
+        };
+        let (name, body) = remember_file(&r, "2026-10-31 18:05").unwrap();
+        assert_eq!(name, "Ricorda 2026-10-31 18.05 Rossi vuole il preventivo 3 switch.md");
+        assert!(body.contains("quando: 2026-10-31 18:05\nda: outlook.exe — Re: preventivo\nriguarda: Rossi Srl\n"));
+        assert!(body.ends_with("Rossi vuole il preventivo: 3 switch entro venerdì.\n"));
+        assert!(!body.contains("indirizzo:"));
+        assert!(remember_file(&Remember { text: "   ".into(), ..Default::default() }, "x").is_err());
+        let tg = Remember { text: "chiamare Bianchi".into(), from: "telegram".into(), ..Default::default() };
+        assert!(remember_file(&tg, "2026-10-31 18:05").unwrap().1.contains("da: Telegram\n"));
+    }
 
     #[test]
     fn fold_ignores_case_and_accents() {

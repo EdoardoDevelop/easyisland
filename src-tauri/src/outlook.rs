@@ -130,6 +130,7 @@ async fn graph_probe(w: &Widget) -> WidgetResult {
         Ok(m) => m,
         Err(e) => return WidgetResult::new(&w.id, "error", e),
     };
+    crate::brain_watch::mails(&mails);
     let items: Vec<Item> = events
         .unwrap_or_default()
         .into_iter()

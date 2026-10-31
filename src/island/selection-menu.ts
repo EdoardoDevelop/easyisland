@@ -73,8 +73,8 @@ export function menuIcon(value: string | undefined, color: string): MenuIcon | u
 export interface SelectionMenu {
   entries: MenuEntry[];
   /** The action behind each entry id; "settings" opens Impostazioni → Azioni rapide;
-   *  "notion-note" / "notion-task" send the text to Notion (notion.rs). */
-  picks: Map<string, QuickAction | "settings" | "notion-note" | "notion-task" | "rdm-find" | "rdm-rdp" | "rdm-ssh">;
+   *  "remember" opens «Ricorda»; "notion-note" / "notion-task" send the text to Notion (notion.rs). */
+  picks: Map<string, QuickAction | "settings" | "remember" | "notion-note" | "notion-task" | "rdm-find" | "rdm-rdp" | "rdm-ssh">;
 }
 
 /** The quick actions the menu offers: the prompts applied to the selected text. */
@@ -89,8 +89,11 @@ export function snippet(text: string, max = 48): string {
 }
 
 export function buildSelectionMenu(text: string): SelectionMenu {
-  const picks = new Map<string, QuickAction | "settings" | "notion-note" | "notion-task" | "rdm-find" | "rdm-rdp" | "rdm-ssh">();
+  const picks = new Map<string, QuickAction | "settings" | "remember" | "notion-note" | "notion-task" | "rdm-find" | "rdm-rdp" | "rdm-ssh">();
   const entries: MenuEntry[] = [{ id: "head", label: `«${snippet(text)}»`, enabled: false }, { id: "", label: "" }];
+  // «Ricorda questo» (src/views/remember.ts): the one entry of EasyIsland's own, chosen by Edoardo on 31 Oct 2026.
+  const remember: MenuEntry[] = [{ id: "", label: "" }, { id: "remember", label: t("Ricorda questo") }];
+  picks.set("remember", "remember");
   const actions = selectionActions();
   // Notion, when chosen in the settings: the text as a note, or as a task.
   const c = State.settings.integrationConfig;
@@ -113,7 +116,7 @@ export function buildSelectionMenu(text: string): SelectionMenu {
   if (!actions.length) {
     entries.push({ id: "settings", label: t("Crea le azioni sul testo selezionato…") });
     picks.set("settings", "settings");
-    entries.push(...withNotion());
+    entries.push(...withNotion(), ...remember);
     return { entries, picks };
   }
   const entry = (a: QuickAction): MenuEntry => {
@@ -130,6 +133,6 @@ export function buildSelectionMenu(text: string): SelectionMenu {
     entries.push({ id: `f:${f}`, label: f, icon: menuIcon(look.icon, "#94a3b8"), items: inside.map(entry) });
   }
   for (const a of actions.filter((x) => !folderLook(x.folder).name)) entries.push(entry(a));
-  entries.push(...withNotion());
+  entries.push(...withNotion(), ...remember);
   return { entries, picks };
 }

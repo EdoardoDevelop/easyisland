@@ -44,6 +44,21 @@ Put articles, notes, meeting transcripts, saved mails (`.md`, `.txt`, `.html`, `
 
 It happens in the evening with the **Memory digest** or right away with **Read now**. Files that aren't text (PDF, Word) are passed with their path: Claude Code can open them.
 
+## Remember this
+Select some text in any program (a mail, a page, a chat) and press <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd>: the island shows the **Remember** card with the text and where it came from. Fix it if needed, type in **About…** who or what it is about (optional) and press **Remember**: the AI puts it at once in the right page of the memory, linked to the others.
+
+With nothing selected the card is empty: type it yourself, for example "Rossi prefers to be called after 3 pm". It is also in the menu on the selected text (<kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd>). It also works from the top field (*remember that …*) and from Telegram with `/ricorda …`. The shortcut is changed in Settings → Quick actions; if you'd rather it learnt in the evening, turn off **"Remember this" learns at once** in Settings → Flows → Second brain.
+
+**Capture and ask** has **Remember** too: the text of the boxed zone (read by Windows) goes in the card.
+
+## The second brain at work
+EasyIsland keeps the pages of people and customers up to date by itself, but **writes only what you approve**:
+- **after a call** answered on 3CX, the island offers **Take a note**: type two lines on what was said and they go on the caller's page;
+- **when one of your Zammad tickets closes**, the problem and the solution;
+- **important mails** (with the Microsoft account connected): those marked important and those from someone who already has a page.
+
+Ten minutes later, a task proposes the lines to add and the **commitments made** ("I'll send you the quote tomorrow") as reminders in To Do: answer **Do all**, **None** or the numbers you want. On **Friday at 5 pm** comes the **weekly recap**: what the memory learnt and what is still open. Everything is switched on and off in Settings → Flows → Second brain (Take a note in Settings → Notifications → Proposals).
+
 ## The check
 EasyIsland finds by itself: similar notes or notes older than six months, links to pages that don't exist, pages that are isolated, old or about the same subject. The agent adds the **contradictions** it notices and proposes the fixes in the island, one per line, with **Do all** / **None** (or write which ones). It applies **only the approved ones** and **never deletes**: at most it moves a note to `archivio.md` or a page to `archivio/pagine`.
 

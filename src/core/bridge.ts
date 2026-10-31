@@ -456,6 +456,8 @@ export const Bridge = {
   heartbeatOpen: () => callOrThrow<void>("heartbeat_open"),
   /** The evening digest of the memory (tasks.rs). */
   digestSet: (on: boolean) => callOrThrow<void>("digest_set", { on }),
+  /** The weekly recap of the memory, Friday 17:00 (tasks.rs `set_week`). */
+  weekSet: (on: boolean) => callOrThrow<void>("week_set", { on }),
   taskSetEngines: (id: string, engine: string, model: string, helpers: string[]) => callOrThrow<void>("task_set_engines", { id, engine, model, helpers }),
   /** What a task may do without asking (permits.rs). */
   taskSetMay: (id: string, may: string[]) => callOrThrow<void>("task_set_may", { id, may }),
@@ -502,6 +504,9 @@ export const Bridge = {
   memoryNodeOpen: (id: string) => callOrThrow<void>("memory_node_open", { id }),
   memoryWindowOpen: () => call<void>("memory_window_open"),
   memoryInboxAdd: (name: string, data: number[]) => callOrThrow<string>("memory_inbox_add", { name, data }),
+  /** «Ricorda questo» (brain.rs `remember`): into da-leggere; `learning`: a task reads it now. */
+  memoryRemember: (capture: { text: string; about: string; app: string; title: string; url: string; from: string }) =>
+    callOrThrow<{ file: string; learning: boolean }>("memory_remember", { capture }),
   memoryNoteAdd: (text: string) => callOrThrow<string>("memory_note_add", { text }),
   /** «Anteprima» (preview.rs, src/preview/): files and web pages in their window. */
   previewOpen: (target: string, newTab = false) => callOrThrow<number>("preview_open", { target, newTab }),

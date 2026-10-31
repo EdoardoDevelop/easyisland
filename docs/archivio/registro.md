@@ -2,6 +2,13 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 31 ottobre 2026 — Ricerca ovunque nel campo in alto (nella 1.0.16)
+- Il campo in alto cerca anche le pagine della memoria (`brain::find_pages`, clic: la mappa con la pagina selezionata, `memory-select`), le conversazioni passate (clic: tornano nella chat) e i ticket Zammad (`zammad::search`, clic: il ticket nel browser), 400 ms dopo l'ultimo tasto. Da verificare: la ricerca di Zammad senza Elasticsearch. Test Rust, smoke e schermata nell'anteprima; non provato nell'app vera.
+
+### 31 ottobre 2026 — Menu del programma dal titolo della finestra (nella 1.0.16)
+- Un clic sul titolo della finestra nella barra fissa apre un'isoletta con il menu del programma in primo piano (`appmenu.rs`, scheda `appmenu` di `barcard.ts`): menu classico per intero (`WM_COMMAND`), oppure le voci con UI Automation, più il menu della finestra (voci di Chrome ed Edge); un sottomenu prende il posto dell'elenco, niente barra di scorrimento; sotto, le azioni rapide per quel programma.
+- Il titolo non segue mai le finestre di EasyIsland (`fgwin::follow`) ed è rimandato quando l'isola riparte. Provato da Edoardo nell'app vera.
+
 ### 31 ottobre 2026 — La giornata: riassunto dell'IA e Telegram, orari in Rust (nella 1.0.16)
 - `giornata.rs` tiene gli orari del Buongiorno e della Fine giornata (un sonno fino alla prossima ora, al massimo 30 min; `giornata.json` per non ripetere dopo un riavvio) e manda `daily-due` all'isola, che non ha più il suo timer.
 - «Riassunto dell'IA» (`dailyAi`: nessuno, motore della memoria, della chat o uno a scelta) scrive la giornata di oggi o di domani con la domanda di `/oggi`, in cima alla card, o a mano con «Chiedi il riassunto all'IA»; «Anche su Telegram» (`dailyTelegram`) manda riassunto e tempo degli agenti. 359 test Rust, smoke «nessun errore», card guardata nell'anteprima; non provato nell'app vera.

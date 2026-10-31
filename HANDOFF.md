@@ -56,8 +56,12 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Test Rust della lettura del file, build e smoke; il passaggio vero a Desktop non provato (aprirebbe l'app in cui lavoro), in `docs/prove-dal-vivo.md`.
 - Notizie: l'aspetto (elenco, miniature, schede) si sceglie con tre pulsanti nella testata della scheda, non più in Impostazioni (`news.ts`).
 
-### 31 ottobre 2026 — Telegram risponde a voce ai vocali (su `claude/telegram-voce`)
+### 31 ottobre 2026 — Telegram risponde a voce ai vocali (in `claude/sviluppo`)
 - A un vocale il bot risponde per iscritto e, sotto, con un vocale (`speech.rs`, `telegram::say`); ai messaggi scritti solo testo. Interruttore «Rispondi a voce» (`telegramVoiceReply`, acceso di serie), con il servizio dei «Vocali»: OpenAI (Ogg/Opus diretto) o Google AI (PCM codificato in .m4a da Media Foundation); OpenRouter non parla. 366 test Rust (compresa la codifica .m4a vera); non provato con Telegram vero.
+
+### 31 ottobre 2026 — «Ricorda questo»: la memoria cattura al volo (in `claude/sviluppo`)
+- Poi: «Ricorda questo» nel menu sul testo e in Riquadra e chiedi (OCR); «Annota» dopo una chiamata 3CX risposta (proposta `call`); `brain_watch.rs` mette in coda ticket Zammad chiusi e mail importanti di Microsoft 365 e dopo 10 minuti un compito propone righe per le pagine e impegni come promemoria (scrive solo gli approvati, max 8 al giorno); riepilogo della settimana il venerdì alle 17. Interruttori in Impostazioni → Flussi → Secondo cervello. Non provato con 3CX, Zammad e Graph veri.
+- <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>M</kbd> su un testo selezionato (o la card vuota per scrivere), «ricordati che …» nel campo in alto, `/ricorda` su Telegram: il testo con la sua provenienza va in `da-leggere` (`brain::remember`) e un compito lo mette subito nelle pagine collegate (`rememberNow`, se no la sera). Card `src/views/remember.ts`, scene `remember` e `remember&empty` nello smoke. 363 test Rust; non provato nell'app vera.
 
 ### 31 ottobre 2026 — Versione 1.0.16
 - `claude/sviluppo` unito in `main` con il tag `v1.0.16`: barra fissa con isolette, aspetto ed elementi nuovi, titolo della finestra e menu del programma, logo animato, la giornata con il riassunto dell'IA, permessi per livelli con «Cosa ho fatto», ricerca ovunque. Novità in CHANGELOG, README e homepage.
@@ -65,10 +69,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 31 ottobre 2026 — Logo animato di EasyIsland (nella 1.0.16)
 - Il logo è un personaggio («EasyIsland», `logo-anim.ts`, tipo `logo`): occhi che seguono il cursore e sbattono, stati, badge, rilascio file; colori che girano mentre lavora. Saluto all'avvio di serie con il logo che si disegna da solo (`greetingFigure`), e nella barra fissa un logo diverso da quello dell'isola (`fixedBarFigure`). Anteprima in `/dev/logo-preview.html`; smoke e test, non provato nell'app vera.
-
-### 31 ottobre 2026 — Ricerca ovunque nel campo in alto (nella 1.0.16)
-- Il campo in alto cerca anche le pagine della memoria (`brain::find_pages`, clic: la mappa con la pagina selezionata, `memory-select`), le conversazioni passate (clic: tornano nella chat) e i ticket Zammad (`zammad::search`, clic: il ticket nel browser), 400 ms dopo l'ultimo tasto. Da verificare: la ricerca di Zammad senza Elasticsearch. Test Rust, smoke e schermata nell'anteprima; non provato nell'app vera.
-
-### 31 ottobre 2026 — Menu del programma dal titolo della finestra (nella 1.0.16)
-- Un clic sul titolo della finestra nella barra fissa apre un'isoletta con il menu del programma in primo piano (`appmenu.rs`, scheda `appmenu` di `barcard.ts`): menu classico per intero (`WM_COMMAND`), oppure le voci con UI Automation, più il menu della finestra (voci di Chrome ed Edge); un sottomenu prende il posto dell'elenco, niente barra di scorrimento; sotto, le azioni rapide per quel programma.
-- Il titolo non segue mai le finestre di EasyIsland (`fgwin::follow`) ed è rimandato quando l'isola riparte. Provato da Edoardo nell'app vera.

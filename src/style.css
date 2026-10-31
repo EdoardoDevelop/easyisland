@@ -2651,6 +2651,27 @@ input[type="range"]::-webkit-slider-thumb {
   justify-content: flex-end;
 }
 
+/* «Ricorda questo» (views/remember.ts): the text, then who or what it is about. */
+.rem-about {
+  flex: 0 0 auto;
+  font: 400 calc(12.5px + var(--fs-up, 0px)) var(--font);
+  padding: 7px 10px;
+  border-radius: 10px;
+  color: #e8e9ec;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  outline: none;
+}
+
+.rem-about:focus {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.rem-about::placeholder,
+.rem-card .rw-after::placeholder {
+  color: var(--dim-2);
+}
+
 .rw-format {
   font: 400 calc(11px + var(--fs-up, 0px)) var(--font);
   color: var(--dim-2);
