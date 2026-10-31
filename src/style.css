@@ -5133,7 +5133,8 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 /* An island come out of the fixed bar (island.ts → openFromBarAt): only the
    element's card, no top bar, no menu, no character; the ears are its two
    curved joints with the band (placeEars). */
-#island.pop { --bot-room: 0; }
+#island.pop { --bot-room: 0; --pop-shadow: 0 6px 16px rgba(0, 0, 0, 0.32); box-shadow: var(--pop-shadow); }
+#island.pop.pop-bottom { --pop-shadow: 0 -6px 16px rgba(0, 0, 0, 0.32); }
 #island.pop #header { display: none; }
 #island.pop #content { padding-top: 10px; }
 .pop-ear { position: absolute; display: none; pointer-events: none; }
@@ -6088,11 +6089,14 @@ html[data-ui="windows"] .col-meta input, html[data-ui="windows"] .col-item { bor
 /* «Schede»: a grid of cards, the picture on top. */
 .news-items.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); grid-auto-rows: max-content; align-content: start; gap: 8px; margin: 0; }
 .news-items.cards .news-item {
+  /* As wide as the card: shrunk to its content (flex-start, as in the list), the title ran past its right edge. */
+  min-width: 0; align-items: stretch;
   flex-direction: column; gap: 6px; margin: 0; padding: 0 0 7px; border-radius: 10px;
   background: rgba(255, 255, 255, 0.04); overflow: hidden;
 }
 .news-items.cards .news-thumb { width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 0; }
-.news-items.cards .news-text { padding: 0 9px; }
+.news-items.cards .news-text { padding: 0 9px; min-width: 0; }
+.news-title { overflow-wrap: anywhere; }
 .news-items.cards .news-title { -webkit-line-clamp: 3; }
 /* A narrow card: the source on its line, the buttons on the next, at the right. */
 .news-items.cards .news-meta { flex-wrap: wrap; row-gap: 4px; }

@@ -3784,6 +3784,7 @@ ${note}` : text };
     const railed = this.railShown;
     this.islandEl.classList.toggle("railed", railed);
     this.islandEl.classList.toggle("pop", !!State.popover);
+    this.islandEl.classList.toggle("pop-bottom", !!State.popover && barEdge(State.settings) === "bottom");
     this.islandEl.classList.toggle("open", expanded);
     if (railed) {
       guard("menu", () => this.rail.sync());

@@ -2829,12 +2829,14 @@ fn character_clearance(app: AppHandle, shared: State<Shared>, dx: f64, dy: f64) 
 }
 
 /// The bar's shadow (barshadow.rs) under the band in the window at `rect`, less
-/// the swelling around the character: not while the island is open against
-/// the band, the bar hides by itself, or with the islands style.
+/// the swelling around the character: below the island when it is open, not
+/// when the bar hides by itself or with the islands style.
 fn bar_shadow(app: &AppHandle, ch: &tauri::WebviewWindow, rect: (i32, i32, u32, u32)) {
     let Some(shared) = app.try_state::<Shared>() else { return };
     let settings = shared.settings.lock().unwrap().clone();
-    let on = settings.bar_shadow() && !settings.bar_auto_hide() && shared.gate.collapsed.load(Ordering::Relaxed);
+    let on = settings.bar_shadow() && !settings.bar_auto_hide();
+    let open = !shared.gate.collapsed.load(Ordering::Relaxed);
+    let island = island::window(app).filter(|_| open).and_then(|w| w.hwnd().ok()).map(|h| h.0 as isize);
     let (Some(edge), Ok(raw), true) = (settings.bar_edge(), ch.hwnd(), on) else {
         barshadow::sync(app, None);
         return;
@@ -2849,7 +2851,7 @@ fn bar_shadow(app: &AppHandle, ch: &tauri::WebviewWindow, rect: (i32, i32, u32, 
         top,
         margin: (settings.bar_margin() * scale).round() as i32,
         depth: (10.0 * scale).round() as i32,
-        bar: raw.0 as isize,
+        below: island.unwrap_or(raw.0 as isize),
     }));
 }
 

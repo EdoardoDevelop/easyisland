@@ -5,9 +5,9 @@
 // A click-through layered window of its own, just below the bar's: the bar's
 // window is as tall as the band, and a taller one would take the clicks meant
 // for the windows under the shadow. Drawn once per change of the band
-// (UpdateLayeredWindow); nothing runs in between. Hidden while the island is
-// open against the band, so it never darkens it, and with the islands style
-// (each island has its own CSS shadow, personaggio.html). Every Win32 call runs
+// (UpdateLayeredWindow); nothing runs in between. With the island open it stays,
+// below the island so it never darkens it; not with the islands style (each
+// island has its own CSS shadow, personaggio.html). Every Win32 call runs
 // on the main thread, which owns the window and pumps its messages.
 
 use std::sync::atomic::{AtomicIsize, Ordering};
@@ -24,18 +24,19 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 /// How the shadow lies: the band (physical px), the edge it hangs from, the
-/// band's margins from the sides, the shadow's depth, the bar's window.
+/// band's margins from the sides, the shadow's depth, the window it goes just
+/// below (the bar's, or the open island's).
 #[derive(Clone, Copy, PartialEq)]
 pub struct Shadow {
     pub band: (i32, i32, i32, i32),
     pub top: bool,
     pub margin: i32,
     pub depth: i32,
-    pub bar: isize,
+    pub below: isize,
 }
 
 /// Darkest at the band's edge (of 255).
-const STRENGTH: f64 = 70.0;
+const STRENGTH: f64 = 50.0;
 
 static WINDOW: AtomicIsize = AtomicIsize::new(0);
 static SHOWN: Mutex<Option<Shadow>> = Mutex::new(None);
@@ -102,8 +103,8 @@ unsafe fn apply(want: Option<Shadow>) {
     let at = POINT { x, y: if s.top { y + h } else { y - s.depth } };
     let size = SIZE { cx: w, cy: s.depth };
     crate::carry::update(hwnd, at, size, Some(&picture(w, s.depth, s.top, s.margin)));
-    // Just below the bar: the band always covers the shadow's edge.
-    let _ = SetWindowPos(hwnd, Some(HWND(s.bar as *mut _)), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    // Just below the bar (the band covers the shadow's edge) or the open island.
+    let _ = SetWindowPos(hwnd, Some(HWND(s.below as *mut _)), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
 }
 
