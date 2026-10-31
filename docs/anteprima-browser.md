@@ -83,6 +83,8 @@ Nel browser, `hooksInstalled` parte da `true`, così la card di Claude Code è v
 
 ### Barra fissa
 
+Nel browser la fascia non si disegna: la disegna la finestra del personaggio solo dentro Tauri (`characterMode` in `island.ts`). `fixedBar=top|bottom` sposta soltanto l'isola contro il bordo, nella posizione indicata da `fixedBarSlot`; le card degli elementi di sistema si vedono con `?scene=barcard`.
+
 | Chiave | Valori | Di serie |
 |---|---|---|
 | `fixedBar` | `""`, `top`, `bottom` | `""` |
