@@ -43,6 +43,7 @@ In attesa del suo orario, In coda, Al lavoro, Aspetta una risposta, In pausa, Fa
 ### Un motore per compito, e motori aiutanti
 - Ogni compito può avere il **suo motore e modello** (per esempio opencode gratuito per i controlli, Claude per i testi).
 - Puoi dargli dei **motori aiutanti**: il motore che guida può affidare a uno di loro un pezzo del lavoro (una ricerca, una revisione, una bozza) e riceverne il risultato, come fanno gli agenti con i sotto-agenti.
+- **Senza chiedere** (in **Motori e permessi**, o detto alla chat quando lo crei: «… e può aggiungere righe a Notion senza chiedere»): le azioni che può fare da solo, anche di notte, scelte tra quelle che si annullano (righe di Notion, attività di To Do, file del Vassoio). Ognuna finisce in **Impostazioni → Chat → Cosa ho fatto**, con Annulla. Il resto chiede come sempre.
 
 ### Su Telegram
 Con Telegram collegato ricevi un messaggio quando un compito finisce, non riesce, va in pausa o aspetta una risposta. Rispondi con i pulsanti o con `/rispondi …`. Anche i permessi dei compiti arrivano lì (mai approvati da soli, nemmeno con «Automatica»).

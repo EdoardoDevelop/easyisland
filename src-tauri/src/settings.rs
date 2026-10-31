@@ -539,6 +539,13 @@ pub struct Settings {
     /// When the end-of-day recap may open, local hour (0–23).
     #[serde(default = "default_evening_hour")]
     pub evening_hour: f64,
+    /// The engine that writes the summary of the day in the recap (giornata.rs):
+    /// "" = none, "memory", "chat" or an engine's id.
+    #[serde(default)]
+    pub daily_ai: String,
+    /// The recap also goes to the linked Telegram chat at its hour.
+    #[serde(default)]
+    pub daily_telegram: bool,
     /// Proposals at the right moment (moments.rs): a finished download…
     #[serde(default = "default_true")]
     pub moment_downloads: bool,
@@ -775,6 +782,11 @@ pub struct Settings {
     /// The chat (Claude Code engine) may use EasyIsland's own tools (agent.rs).
     #[serde(default = "default_true")]
     pub agent_tools: bool,
+    /// EasyIsland's tools the user allowed for good with «Consenti sempre»
+    /// (permits.rs): only the reversible ones of hook/src/tool_list.rs, never
+    /// through set_setting (agent_settings.rs lists what an agent may change).
+    #[serde(default)]
+    pub tools_allowed: Vec<String>,
     /// "Modalità terminale" (chat.md): the chat works as Claude Code or opencode
     /// in a terminal, every tool and the user's MCP servers, in `chat_folder`;
     /// commands and changes still wait for Consenti / Nega.
@@ -970,6 +982,8 @@ impl Default for Settings {
             weekly_recap: true,
             daily_recap: default_daily_recap(),
             evening_hour: default_evening_hour(),
+            daily_ai: String::new(),
+            daily_telegram: false,
             moment_downloads: true,
             moment_errors: true,
             moment_servers: true,
@@ -1048,6 +1062,7 @@ impl Default for Settings {
             hotkey_collect: default_hotkey_collect(),
             context_actions: true,
             agent_tools: true,
+            tools_allowed: Vec::new(),
             chat_terminal: false,
             chat_folder: String::new(),
             chat_preview: true,

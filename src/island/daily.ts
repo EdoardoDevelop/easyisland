@@ -4,11 +4,12 @@
 //
 // The morning card opens once a day from 8:00 to 13:00, the end-of-day one
 // from Impostazioni → «Fine giornata alle» (18 by default), at the first of:
-// the app starting, an agent starting work (hooks.ts), a timer set for the
-// next of those two hours (one timeout, nothing polls). Only with something
-// to say and nobody busy; also from the tray and Impostazioni («Mostra ora»).
+// the app starting, an agent starting work (hooks.ts), the hour itself
+// ("daily-due" from giornata.rs, which keeps the hours in Rust since 31 Oct
+// 2026 and also writes the engine's summary and sends Telegram's). Only with
+// something to say and nobody busy; also from the tray and Impostazioni.
 
-import { Bridge, IS_TAURI, type DailyDigest } from "../core/bridge";
+import { Bridge, IS_TAURI, type DailyDigest, type DayText } from "../core/bridge";
 import type { IslandViewName } from "../core/layout";
 import { State } from "../core/state";
 import { addDays, dayKey, mergedSeconds, sampleHistory, type RecapHistory } from "./recap";
@@ -31,6 +32,8 @@ export interface DailySummary {
   notion: { id: string; title: string; url: string; due: string | null }[];
   /** The morning only: the news found in the last day (news.rs), newest first. */
   news: { title: string; source: string; link: string }[];
+  /** The engine's summary of today (morning) or tomorrow (evening), giornata.rs. */
+  ai: DayText | null;
 }
 
 /** The news found since yesterday morning, for the morning recap. */
@@ -114,7 +117,6 @@ class DailyController {
   /** Bumped on every load, so the view knows to rebuild. */
   version = 0;
   private checking = false;
-  private timer: number | null = null;
 
   async load(which: DailyWhich, now = new Date()): Promise<DailySummary> {
     const day = which === "morning" ? addDays(now, -1) : now;
@@ -122,9 +124,30 @@ class DailyController {
     const history = IS_TAURI ? await Bridge.recapHistory(since) : sampleHistory(day);
     const digest = (IS_TAURI ? await Bridge.dailyDigest() : sampleDigest()) ?? { repos: [], prs: null };
     const empty: RecapHistory = { turns: [], decisions: [], lastShownWeek: "" };
-    this.summary = { which, day, digest, notion: which === "morning" ? notionToday() : [], news: which === "morning" ? newsSinceYesterday() : [], ...sumDay(history ?? empty, day) };
+    const ai = IS_TAURI ? await Bridge.dailyAiText(which) : null;
+    this.summary = { which, day, digest, ai, notion: which === "morning" ? notionToday() : [], news: which === "morning" ? newsSinceYesterday() : [], ...sumDay(history ?? empty, day) };
     this.version++;
     return this.summary;
+  }
+
+  /** The engine's summary changed (written, failed, started): the card on screen follows. */
+  async refreshAi() {
+    const s = this.summary;
+    if (!s) return;
+    s.ai = await Bridge.dailyAiText(s.which);
+    this.version++;
+    State.notify();
+  }
+
+  /** «Chiedi il riassunto» on the card. */
+  async askAi(): Promise<string | null> {
+    if (!this.summary) return null;
+    try {
+      await Bridge.dailyAiWrite(this.summary.which);
+      return null;
+    } catch (e) {
+      return String(e).replace(/^Error:\s*/, "");
+    }
   }
 
   /** Tray or Impostazioni: the card now, even with nothing to say. */
@@ -153,21 +176,6 @@ class DailyController {
     } finally {
       this.checking = false;
     }
-  }
-
-  /** One timeout for the next 8:00 or end-of-day hour, set again after it fires. */
-  schedule(host: DailyHost, now = new Date()) {
-    if (this.timer !== null) window.clearTimeout(this.timer);
-    const at = (d: Date, hour: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, 0, 5);
-    const next = [at(now, MORNING_FROM), at(now, eveningHour()), at(addDays(now, 1), MORNING_FROM)]
-      .find((d) => d.getTime() > now.getTime())!;
-    // Timers are not reliable past a sleep of the PC: never more than 6 hours ahead.
-    const wait = Math.min(next.getTime() - now.getTime(), 6 * 3600_000);
-    this.timer = window.setTimeout(() => {
-      this.timer = null;
-      void this.check(host);
-      this.schedule(host);
-    }, wait);
   }
 
   private quiet(): boolean {

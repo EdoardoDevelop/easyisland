@@ -324,6 +324,12 @@ export class Island {
         void Bridge.log(`decide ${d} req=${req?.requestId ?? "none"}`);
         if (!req) return;
         Sound.play(d === "deny" ? "blip" : "approve");
+        // "Sempre" on EasyIsland's reversible tool: allowed for good here, a plain
+        // allow for the engine (no rule of Claude Code's of its own, permits.rs).
+        if (d === "always" && req.permit) {
+          void Bridge.toolsAllow(req.permit, true).catch((e) => this.note(String(e).replace(/^Error:\s*/, "")));
+          d = "allow";
+        }
         void Bridge.approvalDecision(req.requestId, d);
         this.settleApproval(req);
       },
@@ -421,6 +427,10 @@ export class Island {
       ask: (text) => {
         Sound.play("blip");
         this.startChat(text, null, false);
+      },
+      askDay: (tomorrow) => {
+        Sound.play("blip");
+        void Bridge.chatDayPrompt(tomorrow).then((p) => { if (p) this.startChat(p, null, false); });
       },
     });
     // The one field sits in the top bar; its results cover the views.
@@ -1528,6 +1538,12 @@ ${note}` : text };
           if (a.input === "selection") {
             if (a.output === "replace") await this.rewriteSelection(a.name, a.prompt);
             else await this.askAboutSelection(a.prompt);
+            return;
+          }
+          if (a.input === "today" || a.input === "tomorrow") {
+            const day = await Bridge.chatDayPrompt(a.input === "tomorrow");
+            if (!day) return;
+            this.startChat(a.prompt.trim() ? `${day}\n\n${a.prompt.trim()}` : day, null, false);
             return;
           }
           if (a.input === "page") {

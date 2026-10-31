@@ -370,6 +370,8 @@ export interface ApprovalInfo {
    * permission_suggestions); absent when it proposed nothing usable.
    */
   always?: string;
+  /** EasyIsland's reversible tool on the card: "Sempre" allows it for good (permits.rs). */
+  permit?: string;
   /** What deserves a second look before allowing it (src/island/risk.ts). */
   risks?: string[];
   /** ExitPlanMode: the plan to approve, in markdown. */
@@ -538,6 +540,10 @@ export interface Settings {
   weeklyRecap: boolean;
   /** The morning and end-of-day recap (daily.rs, src/island/daily.ts). */
   dailyRecap: "both" | "morning" | "evening" | "off";
+  /** The engine that writes the summary of the day in the recap (giornata.rs): "" none, "memory", "chat" or an engine's id. */
+  dailyAi?: string;
+  /** The recap also goes to the linked Telegram chat at its hour. */
+  dailyTelegram?: boolean;
   /** From which hour (local) the end-of-day recap may open. */
   eveningHour: number;
   /** Proposals at the right moment (moments.rs, src/island/moments.ts). */
@@ -685,6 +691,8 @@ export interface Settings {
   contextActions: boolean;
   /** The chat (Claude Code engine) may use EasyIsland's tools: open programs, quick actions… */
   agentTools: boolean;
+  /** Reversible tools allowed for good with «Consenti sempre» (permits.rs). */
+  toolsAllowed?: string[];
   /** "Modalità terminale" (docs/chat.md): the chat works as Claude Code / opencode in a terminal, in chatFolder. */
   chatTerminal?: boolean;
   /** Its working folder; "" = the user's home. */
@@ -842,8 +850,9 @@ export interface QuickAction {
   /** prompt: what Claude is asked. */
   prompt: string;
   /** prompt: what the prompt is applied to ("selection": the text selected in the
-   * app in front; "page": all the text of its window, Ctrl+A). */
-  input: "clipboard" | "selection" | "file" | "none" | "page";
+   * app in front; "page": all the text of its window, Ctrl+A; "today" / "tomorrow":
+   * the day's summary from the integrations, `day_prompt` in telegram.rs, then `prompt`). */
+  input: "clipboard" | "selection" | "file" | "none" | "page" | "today" | "tomorrow";
   /** prompt on "selection": the answer goes to the chat (default) or takes the selection's place, after a preview. */
   output?: "chat" | "replace";
   /** script: show the commands and wait for "Esegui". */
@@ -1131,6 +1140,8 @@ export const DEFAULT_SETTINGS: Settings = {
   characterBubble: true,
   weeklyRecap: true,
   dailyRecap: "both",
+  dailyAi: "",
+  dailyTelegram: false,
   eveningHour: 18,
   momentDownloads: true,
   momentErrors: true,
@@ -1702,6 +1713,8 @@ export interface AgentTaskItem {
   model: string;
   /** Engines it may hand a piece of work to (task_delegate). */
   helpers: string[];
+  /** Reversible tools it may use without asking (permits.rs). */
+  may?: string[];
   state: TaskState;
   plan: { text: string; done: boolean }[];
   /** "" = now; "at:AAAA-MM-GG HH:MM"; "daily:HH:MM"; "weekdays:HH:MM". */

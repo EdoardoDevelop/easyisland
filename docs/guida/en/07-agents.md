@@ -46,7 +46,7 @@ The agent calls a small program, `easyisland-hook.exe`, at every event (start, t
 - use all of EasyIsland's tools described in [Terminal mode and tools](11-ai-tools.md).
 
 ## Recaps
-- **Daily recap**: in the morning (yesterday's agent time) and at the end of the day (from the hour you choose, 18:00 by default), with repositories that have modified files or commits to push and **pull requests** waiting for review (with `gh` or a GitHub token).
+- **Daily recap**: in the morning (yesterday's agent time) and at the end of the day (from the hour you choose, 18:00 by default), with repositories that have modified files or commits to push and **pull requests** waiting for review (with `gh` or a GitHub token). In **AI summary** choose an engine (the memory's, the chat's or another): at the recap's hour it writes today's day (in the morning) or tomorrow's (in the evening) from Notion, To Do, Outlook, tickets and weather, shown at the top of the card; if it is not there yet, **Ask the AI for the summary**. With **Telegram too** the linked bot gets the summary and the agents' time on time, even with the island closed. Each summary is one turn of the engine.
 - **Weekly recap**: on Monday from 8:00, hours at work, sessions, files and lines changed, commands, permissions. Also from the notification area menu.
 
 They keep only numbers and the project folder's name, never commands or contents.

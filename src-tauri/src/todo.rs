@@ -76,10 +76,17 @@ switch($a.op){
   'update' {
     $t=$ns.GetItemFromID([string]$a.entry)
     if($t.Class -ne 48){ throw 'NOT_TASK' }
+    $prev=Row $t $t.Parent.Name; $prev.note=[string]$t.Body
     Fill $t
     if($a.PSObject.Properties.Name -contains 'done'){ if($a.done){ $t.MarkComplete() } else { $t.Complete=$false; $t.Status=0; $t.PercentComplete=0 } }
     $t.Save()
-    [pscustomobject]@{task=(Row $t $t.Parent.Name)} | ConvertTo-Json -Compress -Depth 4
+    [pscustomobject]@{task=(Row $t $t.Parent.Name);before=$prev} | ConvertTo-Json -Compress -Depth 4
+  }
+  'remove' {
+    $t=$ns.GetItemFromID([string]$a.entry)
+    if($t.Class -ne 48){ throw 'NOT_TASK' }
+    $t.Delete()
+    '{}'
   }
 }"#;
 
@@ -254,6 +261,31 @@ fn is_moment(s: &str) -> bool {
 
 /// todo_add: a new task, in the default list or the one named.
 pub async fn add(args: &Value) -> Result<String, String> {
+    add_undoable(args).await.map(|(text, _)| text)
+}
+
+/// todo_update: title, due date, note, importance, reminder, done or not.
+pub async fn update(args: &Value) -> Result<String, String> {
+    update_undoable(args).await.map(|(text, _, _)| text)
+}
+
+/// «Annulla» of todo_add (permits.rs): the task goes to Outlook's Deleted Items.
+pub async fn remove(entry: &str) -> Result<(), String> {
+    run(json!({ "op": "remove", "entry": entry })).await.map(|_| ())
+}
+
+/// «Annulla» of todo_update (permits.rs): the fields changed, back as they were.
+pub async fn restore(entry: &str, before: &Value) -> Result<(), String> {
+    let mut req = json!({ "op": "update", "entry": entry });
+    fields(before, &mut req)?;
+    if let Some(d) = before.get("done").and_then(Value::as_bool) {
+        req["done"] = json!(d);
+    }
+    run(req).await.map(|_| ())
+}
+
+/// `add`, with the Outlook EntryID of the new task.
+pub async fn add_undoable(args: &Value) -> Result<(String, String), String> {
     let title = args.get("title").and_then(Value::as_str).map(str::trim).unwrap_or_default();
     if title.is_empty() {
         return Err("Manca il titolo dell'attività.".into());
@@ -263,11 +295,13 @@ pub async fn add(args: &Value) -> Result<String, String> {
     let v = run(req).await?;
     let task = v.get("task").ok_or("Risposta di Outlook non leggibile.")?;
     crate::log::line("todo: attività aggiunta");
-    Ok(format!("Aggiunta in To Do (arriva in To Do con la sincronizzazione di Outlook):\n{}", task_line(task)))
+    let entry = task.get("id").and_then(Value::as_str).unwrap_or_default().to_string();
+    Ok((format!("Aggiunta in To Do (arriva in To Do con la sincronizzazione di Outlook):\n{}", task_line(task)), entry))
 }
 
-/// todo_update: title, due date, note, importance, reminder, done or not.
-pub async fn update(args: &Value) -> Result<String, String> {
+/// `update`, with the EntryID and the fields it changed as they were before,
+/// in todo_update's own words (title, due, note, importance, reminder, done).
+pub async fn update_undoable(args: &Value) -> Result<(String, String, Value), String> {
     let id = args.get("id").and_then(Value::as_str).unwrap_or_default();
     let entry = entry_of(id).ok_or("Id sconosciuto: rileggi le attività con todo_list e usa l'id che dà.")?;
     let mut req = json!({ "op": "update", "entry": entry });
@@ -278,10 +312,26 @@ pub async fn update(args: &Value) -> Result<String, String> {
     if req.as_object().is_some_and(|o| o.len() <= 2) {
         return Err("Niente da cambiare: title, due, note, importance, reminder o done.".into());
     }
+    let changed: Vec<String> = req.as_object().map(|o| o.keys().filter(|k| *k != "op" && *k != "entry").cloned().collect()).unwrap_or_default();
     let v = run(req).await?;
     let task = v.get("task").ok_or("Risposta di Outlook non leggibile.")?;
     crate::log::line("todo: attività cambiata");
-    Ok(format!("Attività aggiornata:\n{}", task_line(task)))
+    let was = v.get("before").cloned().unwrap_or(Value::Null);
+    let s = |k: &str| json!(was.get(k).and_then(Value::as_str).unwrap_or_default());
+    let mut before = serde_json::Map::new();
+    for k in changed {
+        let old = match k.as_str() {
+            "title" => s("s"),
+            "due" => s("due"),
+            "note" => s("note"),
+            "reminder" => s("rem"),
+            "importance" => json!(match was.get("imp").and_then(Value::as_i64) { Some(0) => "low", Some(2) => "high", _ => "normal" }),
+            "done" => json!(was.get("done").and_then(Value::as_bool).unwrap_or(false)),
+            _ => continue,
+        };
+        before.insert(k, old);
+    }
+    Ok((format!("Attività aggiornata:\n{}", task_line(task)), entry, Value::Object(before)))
 }
 
 #[cfg(test)]

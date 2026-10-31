@@ -4958,6 +4958,9 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 /* The morning and end-of-day card (src/views/daily.ts). */
 .daily-list { display: flex; flex-direction: column; gap: 2px; }
 
+/* The engine's summary of the day: long ones scroll inside the card. */
+.daily-ai { max-height: 220px; overflow-y: auto; font-size: calc(12px + var(--fs-up, 0px)); line-height: 1.45; }
+
 .daily-h { font: 600 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--dim-2); letter-spacing: 0.02em; margin-bottom: 1px; }
 
 .daily-row {

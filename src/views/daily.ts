@@ -1,5 +1,6 @@
-// The morning and end-of-day card (src/island/daily.ts): the agents' time,
-// the repositories with changes not committed, the pull requests waiting.
+// The morning and end-of-day card (src/island/daily.ts): the engine's summary
+// of today or tomorrow when one is chosen (giornata.rs), the agents' time, the
+// repositories with changes not committed, the pull requests waiting.
 // Laid out like the weekly recap; a row opens its folder or its page.
 
 import { h, clear } from "./dom";
@@ -9,6 +10,8 @@ import { Daily, type DailySummary } from "../island/daily";
 import { formatCount, formatDuration } from "../island/recap";
 import type { ViewActions, ViewHost } from "./views";
 import { locale, t } from "../core/i18n";
+import { renderMarkdown } from "../core/markdown";
+import { State } from "../core/state";
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
@@ -47,6 +50,29 @@ export function buildDaily(actions: ViewActions): ViewHost {
       h("span", { class: "daily-side", text: side }));
   }
 
+  /** The engine's summary: written, being written, failed, or «Chiedi» when an engine is chosen. */
+  function aiBlock(s: DailySummary): HTMLElement[] {
+    const ai = s.ai;
+    const title = h("div", { class: "daily-h", text: s.which === "morning" ? t("La giornata di oggi") : t("La giornata di domani") });
+    if (ai?.text) {
+      return [h("div", { class: "daily-list" }, title,
+        h("div", { class: "daily-ai md" }, ...renderMarkdown(ai.text, { openUrl: (url) => actions.openUrl(url) })))];
+    }
+    if (ai?.busy) return [h("div", { class: "daily-list" }, title, h("div", { class: "sub", text: t("Sto scrivendo il riassunto dalle integrazioni…") }))];
+    if (!State.settings.dailyAi) return [];
+    const note = h("div", { class: "daily-more", text: ai?.error ? t("Riassunto non riuscito: {e}", { e: ai.error }) : "" });
+    const ask = h("button", { class: "btn secondary", text: ai?.error ? t("Riprova") : t("Chiedi il riassunto all'IA") }) as HTMLButtonElement;
+    ask.addEventListener("click", async () => {
+      ask.disabled = true;
+      const err = await Daily.askAi();
+      if (err) {
+        note.textContent = err;
+        ask.disabled = false;
+      }
+    });
+    return [h("div", { class: "daily-list" }, title, ...(ai?.error ? [note] : []), h("div", { class: "row" }, ask))];
+  }
+
   function content(s: DailySummary): Node[] {
     const morning = s.which === "morning";
     const date = s.day.toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "short" }).replace(".", "");
@@ -73,12 +99,14 @@ export function buildDaily(actions: ViewActions): ViewHost {
       return row(x.title, day && day < today ? t("scaduta") : time || t("oggi"), x.url, () => actions.openUrl(x.url));
     }));
     const news = list(t("Notizie"), s.news.map((n) => row(n.title, n.source, n.link, () => actions.openUrl(n.link))));
-    const nothing = !chips.childElementCount && !repos.length && !prs.length && !notion.length && !news.length;
+    const ai = aiBlock(s);
+    const nothing = !chips.childElementCount && !repos.length && !prs.length && !notion.length && !news.length && !s.ai?.text;
     return [
       h("div", { class: "recap-head" },
         h("span", { class: "recap-title", text: morning ? t("Buongiorno") : t("Fine giornata") }),
         h("span", { class: "grow" }),
         h("span", { class: "recap-range", text: morning ? t("ieri, {date}", { date }) : date })),
+      ...ai,
       ...(chips.childElementCount ? [chips] : []),
       ...notion,
       ...repos,

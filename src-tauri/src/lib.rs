@@ -72,7 +72,9 @@ mod hook_testrun;
 #[allow(dead_code)]
 #[path = "../../hook/src/agents.rs"]
 mod hook_agents;
+mod giornata;
 mod outlook;
+mod permits;
 mod pipe;
 mod presence;
 mod probes;
@@ -349,6 +351,18 @@ fn recap_show(app: AppHandle) {
 #[tauri::command]
 fn daily_show(app: AppHandle) {
     let _ = app.emit_to(island::WINDOW_LABEL, "tray", "daily");
+}
+
+/// The engine's summary for the recap card, when there is one for today.
+#[tauri::command]
+fn daily_ai_text(which: String) -> Option<giornata::DayText> {
+    giornata::text_for(&which)
+}
+
+/// «Chiedi il riassunto» on the recap card.
+#[tauri::command]
+async fn daily_ai_write(app: AppHandle, which: String) -> Result<(), String> {
+    giornata::write_now(&app, &which).await
 }
 
 /// The island's search bar: the programs of the Start menu.
@@ -3371,6 +3385,35 @@ fn task_set_engines(app: AppHandle, id: String, engine: String, model: String, h
     tasks::set_engines(&app, &id, &engine, &model, &helpers)
 }
 
+/// What a task may do without asking (permits.rs).
+#[tauri::command]
+fn task_set_may(app: AppHandle, id: String, may: Vec<String>) -> Result<(), String> {
+    tasks::set_may(&app, &id, &may)
+}
+
+/// «Consenti sempre» on a card, or taken away in Impostazioni → Chat.
+#[tauri::command]
+fn tools_allow(app: AppHandle, tool: String, on: bool) -> Result<(), String> {
+    permits::allow(&app, &tool, on)
+}
+
+/// The reversible tools (hook/src/tool_list.rs), for the settings and the cards.
+#[tauri::command]
+fn tools_reversible() -> Vec<&'static str> {
+    claude::tool_list::REVERSIBLE.to_vec()
+}
+
+/// «Cosa ho fatto», the newest first.
+#[tauri::command]
+fn did_list() -> Vec<permits::Done> {
+    permits::list()
+}
+
+#[tauri::command]
+async fn did_undo(app: AppHandle, id: String) -> Result<(), String> {
+    permits::undo(&app, &id).await
+}
+
 /// Impostazioni → Flussi → Battito: every `minutes` (0 = off).
 #[tauri::command]
 fn heartbeat_set(app: AppHandle, minutes: u32) -> Result<(), String> {
@@ -3476,6 +3519,13 @@ pub fn run() {
             task_answer,
             task_log,
             task_set_engines,
+            task_set_may,
+            tools_allow,
+            tools_reversible,
+            did_list,
+            did_undo,
+            daily_ai_text,
+            daily_ai_write,
             heartbeat_set,
             heartbeat_open,
             digest_set,
@@ -3838,6 +3888,7 @@ pub fn run() {
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             barsys::start(handle.clone());
             news::start(handle.clone());
+            giornata::start(handle.clone());
             island::spawn_fullscreen_watch(handle.clone(), gate.clone());
             island::spawn_drag_raise(handle.clone(), gate.clone());
             // The tray is temporary: every start begins with only the pinned files.

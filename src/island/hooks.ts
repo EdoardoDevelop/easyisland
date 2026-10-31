@@ -16,6 +16,7 @@ import { risksOf } from "./risk";
 import { t, tn } from "../core/i18n";
 import { plainText } from "../core/markdown";
 import { quickApproval } from "../views/strip";
+import { isReversible, toolWords } from "../core/permits";
 
 const CLAUDE_ID = "integration_claude";
 
@@ -235,6 +236,14 @@ function describeAutomation(input: Record<string, unknown>): string {
   ].join("\n");
 }
 
+/** Fields given to a tool ({"Stato": "Fatto", "Scadenza": {…}}), as "Stato: Fatto, Scadenza: …". */
+function fieldsText(v: unknown): string {
+  if (!v || typeof v !== "object") return "";
+  return Object.entries(v as Record<string, unknown>)
+    .map(([k, x]) => `${k}: ${typeof x === "string" ? x : JSON.stringify(x)}`)
+    .join(", ");
+}
+
 /** EasyIsland's own tools (agent.rs) in words, for the Consenti / Nega card. */
 function easyislandTarget(name: string, input: Record<string, unknown>): string | null {
   const s = (k: string) => String(input[k] ?? "").trim();
@@ -261,6 +270,31 @@ function easyislandTarget(name: string, input: Record<string, unknown>): string 
     }
     case "create_automation":
       return describeAutomation(input);
+    case "notion_add_row":
+      return t("Aggiungere a Notion ({db}): {values}", { db: s("database"), values: short(fieldsText(input.properties), 300) });
+    case "notion_update_row":
+      return t("Cambiare una riga di Notion: {values}", { values: short(fieldsText(input.properties), 300) });
+    case "todo_add":
+      return t("Aggiungere a To Do «{title}»", { title: s("title") }) + (s("due") ? t(", scade il {due}", { due: s("due") }) : "");
+    case "todo_update": {
+      const { id: _id, ...changes } = input;
+      return t("Cambiare un'attività di To Do: {values}", { values: short(fieldsText(changes), 300) });
+    }
+    case "add_to_tray":
+      return t("Mettere nel Vassoio {path}", { path: s("path") });
+    case "move_to_work_folder": {
+      const what = input.copy ? t("Copiare «{name}» nella cartella di lavoro", { name: s("name") }) : t("Spostare «{name}» nella cartella di lavoro", { name: s("name") });
+      return s("folder") ? `${what} → ${s("folder")}` : what;
+    }
+    case "task_create": {
+      const may = Array.isArray(input.may) ? input.may.map(String).filter(isReversible) : [];
+      return [
+        t("Creare il compito «{title}»", { title: s("title") || short(s("goal"), 60) }),
+        short(s("goal"), 400),
+        ...(s("when") ? [t("Quando: {when}", { when: s("when") })] : []),
+        ...(may.length ? [t("Senza chiedere potrà: {list}", { list: may.map(toolWords).join(", ") })] : []),
+      ].join("\n");
+    }
     case "set_automation_enabled": {
       const a = (State.settings.automations ?? []).find((x) => x.id === s("id"));
       return input.enabled
@@ -310,15 +344,21 @@ function handleChatPermission(island: Island, payload: HookPayload) {
   const own = terminal && !raw.startsWith("mcp__");
   const str = (k: string) => (typeof input[k] === "string" ? (input[k] as string) : null);
   const plain = str("command") ?? str("path") ?? str("file_path") ?? str("url");
+  // EasyIsland's own reversible tool: "Sempre" means «don't ask again» (permits.rs).
+  const ownTool = /^(?:mcp__easyisland__|easyisland_)(.+)$/.exec(raw)?.[1] ?? "";
+  const permit = isReversible(ownTool) ? ownTool : undefined;
   State.pendingApproval = {
     requestId,
     sessionId: payload.session_id ?? "",
     tool,
     command: (opencode || own) && plain != null ? `${tool} · ${plain}` : connectorTarget(raw, input),
     source: "chat",
-    always: opencode
-      ? alwaysLabel(payload.permission_suggestions) ?? undefined
-      : terminal ? alwaysLabel(payload.permission_suggestions) ?? sessionAlways(raw, input) ?? undefined : undefined,
+    always: permit
+      ? t("«{what}» senza chiedere più (si toglie in Impostazioni → Chat)", { what: toolWords(permit) })
+      : opencode
+        ? alwaysLabel(payload.permission_suggestions) ?? undefined
+        : terminal ? alwaysLabel(payload.permission_suggestions) ?? sessionAlways(raw, input) ?? undefined : undefined,
+    permit,
     deadline: Date.now() + DECISION_MS,
   };
   if (requestId) void Bridge.approvalAck(requestId);

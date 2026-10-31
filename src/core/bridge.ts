@@ -99,6 +99,31 @@ export interface ModelOption {
   cost?: string;
 }
 
+/** A tool of EasyIsland that changed something (permits.rs «Cosa ho fatto»). */
+export interface DoneItem {
+  id: string;
+  /** Milliseconds since 1970. */
+  at: number;
+  tool: string;
+  what: string;
+  /** "" = the chat; else the task's title. */
+  task: string;
+  /** Ran without a click. */
+  alone: boolean;
+  /** Present when it can be taken back. */
+  undo?: { kind: string };
+  undone: boolean;
+}
+
+/** The summary of the day written by an engine (giornata.rs). */
+export interface DayText {
+  which: string;
+  day: string;
+  text: string;
+  error: string;
+  busy: boolean;
+}
+
 export const Bridge = {
   boot: () => call<BootInfo>("boot"),
 
@@ -428,6 +453,13 @@ export const Bridge = {
   /** The evening digest of the memory (tasks.rs). */
   digestSet: (on: boolean) => callOrThrow<void>("digest_set", { on }),
   taskSetEngines: (id: string, engine: string, model: string, helpers: string[]) => callOrThrow<void>("task_set_engines", { id, engine, model, helpers }),
+  /** What a task may do without asking (permits.rs). */
+  taskSetMay: (id: string, may: string[]) => callOrThrow<void>("task_set_may", { id, may }),
+  /** «Consenti sempre» for a reversible tool, or taken away. */
+  toolsAllow: (tool: string, on: boolean) => callOrThrow<void>("tools_allow", { tool, on }),
+  /** «Cosa ho fatto», the newest first. */
+  didList: () => call<DoneItem[]>("did_list"),
+  didUndo: (id: string) => callOrThrow<void>("did_undo", { id }),
   /** The chat's engines: [id, name, ready now]. */
   enginesReady: () => call<[string, string, boolean][]>("engines_ready"),
   /** Integrazioni personali (custom.rs). */
@@ -601,6 +633,10 @@ export const Bridge = {
   recapMarkShown: (week: string) => call<void>("recap_mark_shown", { week }),
   /** The morning ("morning") or end-of-day ("evening") recap was shown on `day` (YYYY-MM-DD). */
   recapMarkDay: (which: "morning" | "evening", day: string) => call<void>("recap_mark_day", { which, day }),
+  /** The engine's summary for the recap card, when there is one for today (giornata.rs). */
+  dailyAiText: (which: "morning" | "evening") => call<DayText | null>("daily_ai_text", { which }),
+  /** «Chiedi il riassunto» on the recap card. */
+  dailyAiWrite: (which: "morning" | "evening") => callOrThrow<void>("daily_ai_write", { which }),
   /** Repositories with changes not committed, pull requests waiting (daily.rs). */
   dailyDigest: () => call<DailyDigest>("daily_digest"),
   /** A card from Claude Code: the button clicked, or why there is none ("closed", "hidden", "replaced"). */

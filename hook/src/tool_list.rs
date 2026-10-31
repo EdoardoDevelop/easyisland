@@ -5,6 +5,13 @@
 
 use serde_json::{json, Value};
 
+/// Tools that change something the user can take back (`src-tauri/src/permits.rs`):
+/// after «Consenti sempre» on their card they run without asking, and each call
+/// goes in «Cosa ho fatto» with Annulla. Everything else that is not read-only
+/// asks every time (sending, deleting, opening, running, settings).
+#[allow(dead_code)]
+pub const REVERSIBLE: &[&str] = &["notion_add_row", "notion_update_row", "todo_add", "todo_update", "add_to_tray", "move_to_work_folder"];
+
 /// (name, description, input schema, read-only)
 pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
     let none = json!({ "type": "object", "properties": {} });
@@ -535,14 +542,15 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "task_create",
-            "Crea un compito di EasyIsland: un obiettivo che l'agente porta avanti da solo, a turni, con un piano, finché è fatto o gli serve l'utente. Usalo quando l'utente chiede di fare qualcosa più tardi, a un orario, ogni giorno, o un lavoro lungo. title: breve; goal: cosa fare, con tutti i dettagli che servono; when: vuoto = subito, \"at:AAAA-MM-GG HH:MM\", \"daily:HH:MM\", \"weekdays:HH:MM\", \"weekly:G:HH:MM\" (G 1 = lunedì) o \"every:N\" (ogni N minuti, da 15); engine e model: il motore che lo guida (vuoto = quello dei compiti: subscription, api, opencode, antigravity, openrouter, openai, gemini, ollama, lmstudio); helpers: i motori a cui può affidare pezzi del lavoro. L'utente conferma.",
+            "Crea un compito di EasyIsland: un obiettivo che l'agente porta avanti da solo, a turni, con un piano, finché è fatto o gli serve l'utente. Usalo quando l'utente chiede di fare qualcosa più tardi, a un orario, ogni giorno, o un lavoro lungo. title: breve; goal: cosa fare, con tutti i dettagli che servono; when: vuoto = subito, \"at:AAAA-MM-GG HH:MM\", \"daily:HH:MM\", \"weekdays:HH:MM\", \"weekly:G:HH:MM\" (G 1 = lunedì) o \"every:N\" (ogni N minuti, da 15); engine e model: il motore che lo guida (vuoto = quello dei compiti: subscription, api, opencode, antigravity, openrouter, openai, gemini, ollama, lmstudio); helpers: i motori a cui può affidare pezzi del lavoro; may: gli strumenti che può usare senza chiedere, solo tra notion_add_row, notion_update_row, todo_add, todo_update, add_to_tray, move_to_work_folder e solo se l'utente l'ha chiesto (gli altri chiedono sempre). L'utente conferma.",
             json!({ "type": "object", "properties": {
                 "title": { "type": "string" },
                 "goal": { "type": "string" },
                 "when": { "type": "string" },
                 "engine": { "type": "string" },
                 "model": { "type": "string" },
-                "helpers": { "type": "array", "items": { "type": "string" } }
+                "helpers": { "type": "array", "items": { "type": "string" } },
+                "may": { "type": "array", "items": { "type": "string" } }
             }, "required": ["goal"] }),
             false,
         ),

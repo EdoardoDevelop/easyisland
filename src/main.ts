@@ -227,7 +227,9 @@ async function main() {
   window.setTimeout(() => void Recap.check(island), 12_000);
   // The morning and end-of-day recap: after the weekly one, then at its hours.
   window.setTimeout(() => void Daily.check(island), 16_000);
-  Daily.schedule(island);
+  // Its hours come from Rust (giornata.rs), with the engine's summary after.
+  await onEvent<string>("daily-due", () => void Daily.check(island));
+  await onEvent<null>("daily-ai", () => void Daily.refreshAi());
 
   // In a plain browser there is no wake strip behind the cursor: make the whole
   // page wake the island so the visuals can be checked with `npm run dev`.

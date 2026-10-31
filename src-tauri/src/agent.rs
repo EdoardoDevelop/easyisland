@@ -2,7 +2,7 @@
 // server, `easyisland-hook mcp`, which hands every call to us over the pipe).
 //
 // Permissions are not decided here: Claude Code pre-allows only the read-only
-// tools (claude_cli.rs `AGENT_READ_ONLY`) and asks the island — Consenti /
+// tools (claude_cli.rs `agent_read_only`) and asks the island — Consenti /
 // Nega — before every other call. What is decided here is what a tool can do
 // at all: no arbitrary commands (only the user's own quick actions), links
 // only http(s), nothing that sends mail or deletes.
@@ -17,7 +17,19 @@ static RUNS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1)
 /// One-line JSON answer for the pipe: {"ok": bool, "text": "…"}.
 pub async fn call(app: &AppHandle, tool: &str, args: &Value) -> Value {
     let start = std::time::Instant::now();
-    let out = run(app, tool, args).await;
+    let out = match crate::permits::run_reversible(app, tool, args).await {
+        Some(out) => out,
+        None => {
+            let out = run(app, tool, args).await;
+            // What changed something goes in «Cosa ho fatto» (permits.rs), without Annulla.
+            if let Ok(text) = &out {
+                if !crate::claude_cli::agent_read_only().contains(&tool) && tool != "show_card" && tool != "read_clipboard" && !tool.starts_with("preview_") {
+                    crate::permits::record(app, tool, text, None);
+                }
+            }
+            out
+        }
+    };
     let size = out.as_ref().map_or_else(|e| e.chars().count(), |t| t.chars().count());
     crate::log::line(format!("agent {tool} {} ms, {size} caratteri{}", start.elapsed().as_millis(), if out.is_err() { ", errore" } else { "" }));
     crate::recipes::saw(tool, args, out.is_ok());
@@ -69,6 +81,41 @@ fn probe_name(id: &str) -> &'static str {
         "integration_claude_usage" => "Consumo Claude",
         _ => "Widget",
     }
+}
+
+/// add_to_tray, with the name the file got in the Vassoio (permits.rs «Annulla»).
+pub(crate) async fn add_to_tray(app: &AppHandle, args: &Value) -> Result<(String, String), String> {
+    let path = arg(args, "path").trim_matches('"').to_string();
+    if path.is_empty() {
+        return Err("Manca path.".into());
+    }
+    let meta = std::fs::metadata(&path).map_err(|e| format!("File non leggibile: {e}"))?;
+    if meta.is_dir() {
+        return Err("Solo file, non cartelle (comprimile prima in uno ZIP).".into());
+    }
+    if meta.len() > 2 * 1024 * 1024 * 1024 {
+        return Err("Il file supera 2 GB.".into());
+    }
+    let file = tauri::async_runtime::spawn_blocking(move || crate::files::ingest(&path)).await.map_err(|e| e.to_string())??;
+    crate::moments::emit(app, json!({ "kind": "tray", "name": file.name, "path": file.path, "size": file.size }));
+    Ok((format!("«{}» è nel Vassoio di EasyIsland ({}).", file.name, file.path), file.name))
+}
+
+/// move_to_work_folder, with where the file went (relative to the work
+/// folder) and whether it was a copy (permits.rs «Annulla»).
+pub(crate) async fn move_to_work_folder(app: &AppHandle, args: &Value) -> Result<(String, String, bool), String> {
+    let name = arg(args, "name").to_string();
+    if name.is_empty() {
+        return Err("Manca name.".into());
+    }
+    let folder = arg(args, "folder").to_string();
+    let copy = args.get("copy").and_then(Value::as_bool).unwrap_or(false);
+    let app2 = app.clone();
+    let rel = tauri::async_runtime::spawn_blocking(move || crate::workdir::from_inbox(&app2, &name, &folder, copy))
+        .await
+        .map_err(|e| e.to_string())??;
+    let path = crate::workdir::path_of(app, &rel)?;
+    Ok((format!("Fatto: {}", path.display()), rel, copy))
 }
 
 async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String> {
@@ -315,22 +362,9 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             })
         }
 
-        "add_to_tray" => {
-            let path = arg(args, "path").trim_matches('"').to_string();
-            if path.is_empty() {
-                return Err("Manca path.".into());
-            }
-            let meta = std::fs::metadata(&path).map_err(|e| format!("File non leggibile: {e}"))?;
-            if meta.is_dir() {
-                return Err("Solo file, non cartelle (comprimile prima in uno ZIP).".into());
-            }
-            if meta.len() > 2 * 1024 * 1024 * 1024 {
-                return Err("Il file supera 2 GB.".into());
-            }
-            let file = tauri::async_runtime::spawn_blocking(move || crate::files::ingest(&path)).await.map_err(|e| e.to_string())??;
-            crate::moments::emit(app, json!({ "kind": "tray", "name": file.name, "path": file.path, "size": file.size }));
-            Ok(format!("«{}» è nel Vassoio di EasyIsland ({}).", file.name, file.path))
-        }
+        "add_to_tray" => add_to_tray(app, args).await.map(|(text, _)| text),
+
+        "move_to_work_folder" => move_to_work_folder(app, args).await.map(|(text, _, _)| text),
 
         "media_status" => {
             let s = settings(app)?;
@@ -369,21 +403,6 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "list_work_folder" => {
             let l = crate::workdir::list(app, arg(args, "path"))?;
             Ok(crate::workdir::describe(&l))
-        }
-
-        "move_to_work_folder" => {
-            let name = arg(args, "name").to_string();
-            if name.is_empty() {
-                return Err("Manca name.".into());
-            }
-            let folder = arg(args, "folder").to_string();
-            let copy = args.get("copy").and_then(Value::as_bool).unwrap_or(false);
-            let app2 = app.clone();
-            let rel = tauri::async_runtime::spawn_blocking(move || crate::workdir::from_inbox(&app2, &name, &folder, copy))
-                .await
-                .map_err(|e| e.to_string())??;
-            let path = crate::workdir::path_of(app, &rel)?;
-            Ok(format!("Fatto: {}", path.display()))
         }
 
         "list_profiles" => {
