@@ -71,6 +71,7 @@ mod hook_testrun;
 #[allow(dead_code)]
 #[path = "../../hook/src/agents.rs"]
 mod hook_agents;
+mod giornata;
 mod outlook;
 mod permits;
 mod pipe;
@@ -345,6 +346,18 @@ fn recap_show(app: AppHandle) {
 #[tauri::command]
 fn daily_show(app: AppHandle) {
     let _ = app.emit_to(island::WINDOW_LABEL, "tray", "daily");
+}
+
+/// The engine's summary for the recap card, when there is one for today.
+#[tauri::command]
+fn daily_ai_text(which: String) -> Option<giornata::DayText> {
+    giornata::text_for(&which)
+}
+
+/// «Chiedi il riassunto» on the recap card.
+#[tauri::command]
+async fn daily_ai_write(app: AppHandle, which: String) -> Result<(), String> {
+    giornata::write_now(&app, &which).await
 }
 
 /// The island's search bar: the programs of the Start menu.
@@ -3410,6 +3423,8 @@ pub fn run() {
             tools_reversible,
             did_list,
             did_undo,
+            daily_ai_text,
+            daily_ai_write,
             heartbeat_set,
             heartbeat_open,
             digest_set,
@@ -3771,6 +3786,7 @@ pub fn run() {
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             barsys::start(handle.clone());
             news::start(handle.clone());
+            giornata::start(handle.clone());
             island::spawn_fullscreen_watch(handle.clone(), gate.clone());
             island::spawn_drag_raise(handle.clone(), gate.clone());
             // The tray is temporary: every start begins with only the pinned files.

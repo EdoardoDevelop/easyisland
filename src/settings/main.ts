@@ -280,7 +280,20 @@ function dailySection(): HTMLElement {
         (v) => { settings.dailyRecap = v; void save(); },
       ),
       h("button", { text: t("Mostra ora"), onclick: () => void Bridge.dailyShow() })),
-    h("div", { class: "row" }, h("label", { text: t("Fine giornata alle") }), hour, h("span", { class: "hint note", text: t("ora, da 12 a 23") })));
+    h("div", { class: "row" }, h("label", { text: t("Fine giornata alle") }), hour, h("span", { class: "hint note", text: t("ora, da 12 a 23") })),
+    h("div", { class: "row" },
+      h("label", { text: t("Riassunto dell'IA") }),
+      select<string>(
+        [["", t("Nessuno")], ["memory", t("Il motore della memoria")], ["chat", t("Il motore della chat")],
+          ...CHAT_ENGINES.map((e): [string, string] => [e.id, e.name])],
+        settings.dailyAi ?? "",
+        (v) => { settings.dailyAi = v; void save(); },
+      ),
+      h("span", { class: "hint note", text: t("all'ora del riepilogo un motore scrive la giornata di oggi (al mattino) o di domani (alla sera) da Notion, To Do, Outlook, ticket e meteo, come /oggi e /domani. Serve un motore con gli strumenti di EasyIsland; ogni riassunto è un turno del motore, quindi costa come una domanda in chat") })),
+    h("div", { class: "row" },
+      h("label", { text: t("Anche su Telegram") }),
+      toggle(settings.dailyTelegram === true, (v) => { settings.dailyTelegram = v; void save(); }),
+      h("span", { class: "hint note", text: t("all'ora del riepilogo il bot collegato riceve il riassunto dell'IA (se scelto) e il tempo degli agenti, anche con l'isola chiusa") })));
 }
 
 /** EasyIsland's tools in Claude Code everywhere (mcp_setup.rs). */

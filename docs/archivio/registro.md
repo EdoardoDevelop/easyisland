@@ -2,6 +2,10 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 30 ottobre 2026 — Versione 1.0.14: Notizie
+- Notizie, passo 3 e parte del 4: «Di più» (più notizie per argomento e subito la stessa storia) e «Non mi interessa» (a −3 propone di smettere di seguirlo), riquadro nella Panoramica, notizie nel Buongiorno, `/notizie` su Telegram, elemento «Notizie» nei Widget della barra. `claude/notizie` e `claude/sviluppo` unite in `main` con il tag `v1.0.14`.
+- Guida: nuova pagina Notizie e capitoli rinumerati da 1 a 30 senza doppioni, così il pulsante della lingua porta alla pagina giusta (gli indirizzi non cambiano).
+
 ### 30 ottobre 2026 — «L'isola si apre» anche con la barra fissa
 - La scelta era nascosta e ignorata con la barra accesa; ora vale anche lì (`openAway` in `island.ts`; Rust la gestiva già in `place_origin`).
 

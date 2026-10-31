@@ -539,6 +539,13 @@ pub struct Settings {
     /// When the end-of-day recap may open, local hour (0–23).
     #[serde(default = "default_evening_hour")]
     pub evening_hour: f64,
+    /// The engine that writes the summary of the day in the recap (giornata.rs):
+    /// "" = none, "memory", "chat" or an engine's id.
+    #[serde(default)]
+    pub daily_ai: String,
+    /// The recap also goes to the linked Telegram chat at its hour.
+    #[serde(default)]
+    pub daily_telegram: bool,
     /// Proposals at the right moment (moments.rs): a finished download…
     #[serde(default = "default_true")]
     pub moment_downloads: bool,
@@ -975,6 +982,8 @@ impl Default for Settings {
             weekly_recap: true,
             daily_recap: default_daily_recap(),
             evening_hour: default_evening_hour(),
+            daily_ai: String::new(),
+            daily_telegram: false,
             moment_downloads: true,
             moment_errors: true,
             moment_servers: true,

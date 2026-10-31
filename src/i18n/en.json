@@ -3910,5 +3910,22 @@
   "Questo strumento chiede sempre conferma.": "This tool always asks for confirmation.",
   "Voce non trovata.": "Entry not found.",
   "Già annullato.": "Already undone.",
-  "Questa azione non si può annullare da qui.": "This action can't be undone from here."
+  "Questa azione non si può annullare da qui.": "This action can't be undone from here.",
+  "Riassunto dell'IA": "AI summary",
+  "Il motore della memoria": "The memory's engine",
+  "Il motore della chat": "The chat's engine",
+  "all'ora del riepilogo un motore scrive la giornata di oggi (al mattino) o di domani (alla sera) da Notion, To Do, Outlook, ticket e meteo, come /oggi e /domani. Serve un motore con gli strumenti di EasyIsland; ogni riassunto è un turno del motore, quindi costa come una domanda in chat": "at the recap's hour an engine writes today's day (in the morning) or tomorrow's (in the evening) from Notion, To Do, Outlook, tickets and weather, like /oggi and /domani. It needs an engine with EasyIsland's tools; each summary is one turn of the engine, so it costs like a question in the chat",
+  "Anche su Telegram": "Telegram too",
+  "all'ora del riepilogo il bot collegato riceve il riassunto dell'IA (se scelto) e il tempo degli agenti, anche con l'isola chiusa": "at the recap's hour the linked bot gets the AI summary (if chosen) and the agents' time, even with the island closed",
+  "La giornata di oggi": "Today",
+  "La giornata di domani": "Tomorrow",
+  "Sto scrivendo il riassunto dalle integrazioni…": "Writing the summary from the integrations…",
+  "Riassunto non riuscito: {e}": "Summary failed: {e}",
+  "Chiedi il riassunto all'IA": "Ask the AI for the summary",
+  "Il motore non ha risposto.": "The engine did not answer.",
+  "Ieri nessun agente al lavoro.": "No agent at work yesterday.",
+  "Oggi nessun agente al lavoro.": "No agent at work today.",
+  "⏱ Agenti al lavoro ieri: {time} in {n} sessioni.": "⏱ Agents at work yesterday: {time} in {n} sessions.",
+  "⏱ Agenti al lavoro oggi: {time} in {n} sessioni.": "⏱ Agents at work today: {time} in {n} sessions.",
+  "Scegli un motore per il riassunto in Impostazioni → Agenti di codice → Riepilogo giornaliero.": "Choose an engine for the summary in Settings → Coding agents → Daily recap."
 }

@@ -997,6 +997,17 @@ export async function runScene(island: Island, scene: string) {
       if (new URLSearchParams(location.search).has("news")) sampleNews();
       await wait(300);
       await Daily.open(island, new URLSearchParams(location.search).has("evening") ? "evening" : "morning");
+      // ?ai: with the engine's summary (giornata.rs); ?ai=ask: an engine chosen, nothing written yet.
+      if (new URLSearchParams(location.search).get("ai") === "ask" && Daily.summary) {
+        State.settings.dailyAi = "chat";
+        Daily.version++;
+        State.notify();
+      } else if (new URLSearchParams(location.search).has("ai") && Daily.summary) {
+        Daily.summary.ai = { which: Daily.summary.which, day: "", error: "", busy: false,
+          text: "**Oggi** hai 3 attività in Notion, la più urgente è *Preventivo Rossi* (scade alle 12).\n\n- 10:30 chiamata con Bianchi (Outlook)\n- 2 ticket Zammad aperti, uno nuovo da stamattina\n- Meteo: pioggia dal pomeriggio, 14°" };
+        Daily.version++;
+        State.notify();
+      }
       await wait(1500);
       break;
     case "news": {

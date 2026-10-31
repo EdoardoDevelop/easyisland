@@ -534,6 +534,10 @@ export interface Settings {
   weeklyRecap: boolean;
   /** The morning and end-of-day recap (daily.rs, src/island/daily.ts). */
   dailyRecap: "both" | "morning" | "evening" | "off";
+  /** The engine that writes the summary of the day in the recap (giornata.rs): "" none, "memory", "chat" or an engine's id. */
+  dailyAi?: string;
+  /** The recap also goes to the linked Telegram chat at its hour. */
+  dailyTelegram?: boolean;
   /** From which hour (local) the end-of-day recap may open. */
   eveningHour: number;
   /** Proposals at the right moment (moments.rs, src/island/moments.ts). */

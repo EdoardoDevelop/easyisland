@@ -115,6 +115,15 @@ export interface DoneItem {
   undone: boolean;
 }
 
+/** The summary of the day written by an engine (giornata.rs). */
+export interface DayText {
+  which: string;
+  day: string;
+  text: string;
+  error: string;
+  busy: boolean;
+}
+
 export const Bridge = {
   boot: () => call<BootInfo>("boot"),
 
@@ -623,6 +632,10 @@ export const Bridge = {
   recapMarkShown: (week: string) => call<void>("recap_mark_shown", { week }),
   /** The morning ("morning") or end-of-day ("evening") recap was shown on `day` (YYYY-MM-DD). */
   recapMarkDay: (which: "morning" | "evening", day: string) => call<void>("recap_mark_day", { which, day }),
+  /** The engine's summary for the recap card, when there is one for today (giornata.rs). */
+  dailyAiText: (which: "morning" | "evening") => call<DayText | null>("daily_ai_text", { which }),
+  /** «Chiedi il riassunto» on the recap card. */
+  dailyAiWrite: (which: "morning" | "evening") => callOrThrow<void>("daily_ai_write", { which }),
   /** Repositories with changes not committed, pull requests waiting (daily.rs). */
   dailyDigest: () => call<DailyDigest>("daily_digest"),
   /** A card from Claude Code: the button clicked, or why there is none ("closed", "hidden", "replaced"). */

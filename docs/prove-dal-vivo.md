@@ -2,6 +2,12 @@
 
 Funzioni verificate finora solo con i test o nell'anteprima del browser. Togli una voce quando è provata, e annota in `HANDOFF.md` ciò che non va.
 
+- [ ] **La giornata con l'IA e su Telegram (31 ottobre 2026):** scegliere «Riassunto dell'IA» (il motore della chat) e «Anche su Telegram», poi:
+  1. alle 8 (o mettendo «Fine giornata alle» all'ora dopo): la card con «La giornata di oggi» scritta dal motore e il messaggio su Telegram con il tempo degli agenti, anche a isola chiusa;
+  2. riavviare l'app dopo l'ora: niente secondo messaggio;
+  3. PC sospeso alle 8 e riacceso alle 9: il riepilogo arriva entro mezz'ora;
+  4. un motore senza strumenti (Ollama senza modalità terminale): cosa scrive, e «Riprova» se fallisce;
+  5. «Mostra ora» senza riassunto: «Chiedi il riassunto all'IA».
 - [ ] **Permessi per livelli (31 ottobre 2026):** con l'app vera e Notion / Outlook classico:
   1. in chat «aggiungi a To Do: chiamare Rossi»: card leggibile con «Sempre»; scelto «Sempre», la volta dopo nessuna card, e la voce in Impostazioni → Chat → Permessi degli strumenti (✕ la toglie);
   2. «Cosa ho fatto»: la voce con «senza chiedere», poi Annulla (l'attività sparisce da To Do, va in Posta eliminata);
