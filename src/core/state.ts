@@ -1134,6 +1134,8 @@ export const DEFAULT_SETTINGS: Settings = {
   characterBubble: true,
   weeklyRecap: true,
   dailyRecap: "both",
+  dailyAi: "",
+  dailyTelegram: false,
   eveningHour: 18,
   momentDownloads: true,
   momentErrors: true,

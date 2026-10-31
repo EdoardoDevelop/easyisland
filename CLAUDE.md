@@ -14,6 +14,7 @@ App desktop per Windows 10/11: un personaggio animato (Goccia, Slime, Geco, Fiam
 - `docs/integrazioni.md`: integrazioni, widget, 3CX, consumo, profili, azioni rapide, automazioni e abitudini, integrazioni personali create dalla chat.
 - `docs/strumenti.md`: file rilasciati, Vassoio, appunti, musica, contesto ⚡, ZIP, cattura, calcolatrice.
 - `docs/sviluppo.md`: build, anteprime, test, installazione su questo PC, pubblicazione di una release.
+- `docs/anteprima-browser.md`: tutte le query string di `npm run dev` (scene, parametri, impostazioni dall'URL).
 - `docs/decisioni.md`: decisioni prese ed esclusioni. Controllalo prima di proporre una funzione.
 - `docs/idee.md`: idee e progetti non ancora fatti, con i dettagli.
 - `docs/prove-dal-vivo.md`: elenco di ciò che va ancora provato con i servizi veri.
