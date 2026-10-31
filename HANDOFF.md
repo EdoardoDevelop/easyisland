@@ -56,6 +56,9 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - Test Rust della lettura del file, build e smoke; il passaggio vero a Desktop non provato (aprirebbe l'app in cui lavoro), in `docs/prove-dal-vivo.md`.
 - Notizie: l'aspetto (elenco, miniature, schede) si sceglie con tre pulsanti nella testata della scheda, non più in Impostazioni (`news.ts`).
 
+### 31 ottobre 2026 — Telegram risponde a voce ai vocali (su `claude/telegram-voce`)
+- A un vocale il bot risponde per iscritto e, sotto, con un vocale (`speech.rs`, `telegram::say`); ai messaggi scritti solo testo. Interruttore «Rispondi a voce» (`telegramVoiceReply`, acceso di serie), con il servizio dei «Vocali»: OpenAI (Ogg/Opus diretto) o Google AI (PCM codificato in .m4a da Media Foundation); OpenRouter non parla. 366 test Rust (compresa la codifica .m4a vera); non provato con Telegram vero.
+
 ### 31 ottobre 2026 — Versione 1.0.16
 - `claude/sviluppo` unito in `main` con il tag `v1.0.16`: barra fissa con isolette, aspetto ed elementi nuovi, titolo della finestra e menu del programma, logo animato, la giornata con il riassunto dell'IA, permessi per livelli con «Cosa ho fatto», ricerca ovunque. Novità in CHANGELOG, README e homepage.
 - Smoke «nessun errore», 362 + 38 test Rust. `claude/modello-integrato` resta in attesa.

@@ -812,6 +812,8 @@ export interface IntegrationConfig {
   telegramVoice?: string;
   /** The model of «Vocali»; "" = the service's default (transcribe.rs). */
   telegramVoiceModel?: string;
+  /** Telegram «Rispondi a voce»: a voice message is answered aloud too (speech.rs); default on. */
+  telegramVoiceReply?: boolean;
 }
 
 /** A connection of Remote Desktop Manager (settings.rs RdmRef, rdm.rs Entry). */

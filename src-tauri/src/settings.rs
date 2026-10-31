@@ -139,6 +139,10 @@ pub struct IntegrationConfig {
     /// The model of «Vocali» (transcribe.rs `models`); "" = the service's default.
     #[serde(default)]
     pub telegram_voice_model: String,
+    /// Telegram «Rispondi a voce»: a voice message gets the reply read aloud
+    /// too, by the service of «Vocali» when it can speak (speech.rs).
+    #[serde(default = "default_true")]
+    pub telegram_voice_reply: bool,
 }
 
 /// A connection of Remote Desktop Manager kept in the settings (rdm.rs Entry).
@@ -257,6 +261,7 @@ impl Default for IntegrationConfig {
             telegram_auto: false,
             telegram_voice: String::new(),
             telegram_voice_model: String::new(),
+            telegram_voice_reply: true,
         }
     }
 }

@@ -3977,5 +3977,14 @@
   "Claude Code da riga di comando non si trova su questo PC.": "Claude Code (command line) was not found on this PC.",
   "Il file della sessione di Claude Code non si trova.": "The Claude Code session file was not found.",
   "Claude Desktop non si è aperto in tempo.": "Claude Desktop did not open in time.",
-  "Claude Code non ha aperto Claude Desktop.": "Claude Code did not open Claude Desktop."
+  "Claude Code non ha aperto Claude Desktop.": "Claude Code did not open Claude Desktop.",
+  "Rispondi a voce": "Reply aloud",
+  "OpenRouter non sa parlare: per le risposte a voce scegli Google AI o OpenAI": "OpenRouter cannot speak: for spoken replies choose Google AI or OpenAI",
+  "se mandi un vocale, sotto la risposta scritta arriva anche la risposta a voce; ai messaggi scritti risponde solo per iscritto": "when you send a voice message, a spoken reply comes under the written one; written messages get written replies only",
+  "Nella risposta non c'è niente da leggere.": "There is nothing to read aloud in the reply.",
+  "{name}: voce non riuscita (HTTP {s}) {m}": "{name}: speech failed (HTTP {s}) {m}",
+  "Google AI non ha mandato l'audio.": "Google AI sent no audio.",
+  "OpenRouter non sa parlare: per le risposte a voce scegli Google AI o OpenAI in Impostazioni → Telegram → Vocali.": "OpenRouter cannot speak: for spoken replies choose Google AI or OpenAI in Settings → Telegram → Voice messages.",
+  "Il resto è nel messaggio scritto.": "The rest is in the written message.",
+  "Risposta a voce non riuscita: {e}": "Spoken reply failed: {e}"
 }

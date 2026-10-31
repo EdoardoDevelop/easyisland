@@ -1377,6 +1377,19 @@ function telegramRows(): HTMLElement {
       // No key yet, or the service is unreachable: the hint says what is missing.
     }
   };
+  // «Rispondi a voce» (speech.rs): a voice message gets a voice note back, read by the same service.
+  const replyNote = h("span", { class: "hint note" });
+  const replyRow = h("div", { class: "row" },
+    h("label", { text: t("Rispondi a voce") }),
+    toggle(settings.integrationConfig.telegramVoiceReply !== false, (v) => { settings.integrationConfig.telegramVoiceReply = v; void save(); }),
+    replyNote);
+  const showReply = () => {
+    const v = settings.integrationConfig.telegramVoice ?? "";
+    replyRow.style.display = v ? "" : "none";
+    replyNote.textContent = v === "openrouter"
+      ? t("OpenRouter non sa parlare: per le risposte a voce scegli Google AI o OpenAI")
+      : t("se mandi un vocale, sotto la risposta scritta arriva anche la risposta a voce; ai messaggi scritti risponde solo per iscritto");
+  };
   const voice = h("div", { class: "row" },
     h("label", { text: t("Vocali") }),
     select<string>([["", t("Spenti")], ["gemini", "Google AI (Gemini)"], ["openai", "OpenAI"], ["openrouter", "OpenRouter"]],
@@ -1387,11 +1400,13 @@ function telegramRows(): HTMLElement {
         void save();
         void voiceHint();
         void loadVoiceModels();
+        showReply();
       }),
     voiceNote);
   void voiceHint();
   void loadVoiceModels();
-  box.append(h("div", { class: "row" }, h("b", { text: t("Chat collegata") }), state), h("div", { class: "row" }, link, unlink), auto, voice, voiceModelRow, note);
+  showReply();
+  box.append(h("div", { class: "row" }, h("b", { text: t("Chat collegata") }), state), h("div", { class: "row" }, link, unlink), auto, voice, voiceModelRow, replyRow, note);
   void refresh();
   // The bot may take a few seconds to start after the token is saved or the switch turned on.
   const timer = window.setInterval(() => { if (!box.isConnected) window.clearInterval(timer); else void refresh(); }, 4000);
