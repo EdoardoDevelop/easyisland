@@ -107,7 +107,8 @@ export const Bridge = {
   /** Shrink the window down to the invisible wake strip (hidden) or back to full. */
   /** Open or closed: closing takes a dragged open island back to the character's place. */
   /** `place`: this opening goes there instead of `islandPlace` (the launch greeting). */
-  setExpanded: (expanded: boolean, place: string | null = null) => call<void>("set_expanded", { expanded, place }),
+  /** Answers how far the window could not follow the bar's element of a "pop:<x>" place (logical px). */
+  setExpanded: (expanded: boolean, place: string | null = null) => call<number>("set_expanded", { expanded, place }),
   setCollapsed: (collapsed: boolean, width?: number, height?: number) =>
     call<void>("set_collapsed", { collapsed, width, height }),
 

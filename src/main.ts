@@ -276,7 +276,7 @@ function linkCharacterWindow(island: Island) {
       sentKey = "";
       push();
     } else if (m.kind === "bar") {
-      island.barClick(m.key, m.button);
+      island.barClick(m.key, m.button, m.x);
     } else if (m.kind === "open") {
       if (State.mode === "expanded") island.collapse();
       else island.openFromTaskbar();

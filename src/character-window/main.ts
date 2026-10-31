@@ -478,7 +478,8 @@ document.addEventListener("click", (e) => {
   }
   if (!btn?.dataset.key) return;
   const sub = target?.closest?.("[data-btn]") as HTMLElement | null;
-  send({ kind: "bar", key: sub ? `${btn.dataset.key}:btn:${sub.dataset.btn}` : btn.dataset.key });
+  const r = btn.getBoundingClientRect();
+  send({ kind: "bar", key: sub ? `${btn.dataset.key}:btn:${sub.dataset.btn}` : btn.dataset.key, x: Math.round(r.left + r.width / 2) });
 });
 
 /** The bar element under an event, without «…» and the strip's own buttons. */

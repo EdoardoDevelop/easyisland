@@ -5130,6 +5130,13 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 
 /* With the menu the views keep no room for the character on their left. */
 #island.railed { --bot-room: 0; }
+/* An island come out of the fixed bar (island.ts → openFromBarAt): only the
+   element's card, no top bar, no menu, no character; the ears are its two
+   curved joints with the band (placeEars). */
+#island.pop { --bot-room: 0; }
+#island.pop #header { display: none; }
+#island.pop #content { padding-top: 10px; }
+.pop-ear { position: absolute; display: none; pointer-events: none; }
 
 #body {
   position: relative;

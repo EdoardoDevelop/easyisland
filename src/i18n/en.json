@@ -1,6 +1,8 @@
 {
   "Le tue attività da un database (oggi e scadute, spuntate con un clic), le note veloci in una pagina o in un database, le pagine che tieni a portata e la ricerca. Le pagine si aprono nell'app Notion se è installata. Crea un'integrazione interna su notion.so/profile/integrations (leggere, aggiornare e inserire contenuti), copia il token e condividi con lei le pagine e i database che vuoi usare (… → Connessioni).": "Your tasks from a database (today's and overdue ones, ticked off with a click), quick notes into a page or a database, the pages you keep at hand, and search. Pages open in the Notion app when it is installed. Create an internal integration at notion.so/profile/integrations (read, update and insert content), copy its token and share with it the pages and databases you want to use (… → Connections).",
   "Scegli": "Choose",
+  "Le schede escono dalla barra": "Cards come out of the bar",
+  "un clic su un elemento apre una piccola isola sotto di lui invece dell'isola intera": "a click on an element opens a small island under it instead of the whole island",
   "Il personaggio cresce sotto il mouse": "The character grows under the mouse",
   "la barra si allarga attorno a lui": "the bar swells around it",
   "Esplora file": "File Explorer",

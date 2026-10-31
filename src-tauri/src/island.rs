@@ -256,9 +256,14 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
     };
     let open = !collapsed && gate.expanded.load(Ordering::Relaxed);
     let place = gate.open_place.lock().unwrap().clone();
-    let (x, y) = open_origin(work, (pw, ph), settings, place.as_deref(), scale, open);
+    let pop = place.as_deref().filter(|_| open).and_then(|p| pop_origin(work, (pw, ph), p, settings, scale));
+    *POP_SHIFT.lock().unwrap() = pop.map_or(0.0, |p| p.1);
+    let (x, y) = match pop {
+        Some((o, _)) => o,
+        None => open_origin(work, (pw, ph), settings, place.as_deref(), scale, open),
+    };
     // Open at the character's place: beside the character's own window, not over it.
-    let at_home = place_origin(work, (pw, ph), place.as_deref().unwrap_or(&settings.island_place)).is_none();
+    let at_home = pop.is_none() && place_origin(work, (pw, ph), place.as_deref().unwrap_or(&settings.island_place)).is_none();
     let (x, y) = if open && at_home {
         let (cx, cy) = *OPEN_CLEARANCE.lock().unwrap();
         clamp_to_work(work, (pw, ph), x + (cx * scale).round() as i32, y + (cy * scale).round() as i32)
@@ -282,6 +287,25 @@ pub fn apply_geometry(app: &AppHandle, gate: &PollGate, settings: &Settings, col
         let _ = win.set_always_on_top(true);
         keep_out_of_alt_tab(&win);
     }
+}
+
+/// An island come out of the fixed bar under one of its elements ("pop:<x>",
+/// x in logical px from the bar's left end): how far the window could not
+/// follow the element (kept within the screen), logical px, for the front
+/// end to move the island inside the window by as much.
+pub static POP_SHIFT: Mutex<f64> = Mutex::new(0.0);
+
+/// The window of an island come out of the bar: centred under the element,
+/// against the band, within the work area; and what it could not follow.
+fn pop_origin(work: (i32, i32, u32, u32), size: (u32, u32), place: &str, settings: &Settings, scale: f64) -> Option<((i32, i32), f64)> {
+    let x: f64 = place.strip_prefix("pop:")?.parse().ok().filter(|x: &f64| x.is_finite())?;
+    let (wx, wy, ww, wh) = work;
+    let (pw, ph) = (size.0 as i32, size.1 as i32);
+    let left = crate::appbar::window_rect().map(|r| r.0).unwrap_or(wx);
+    let want = left + (x * scale).round() as i32 - pw / 2;
+    let at = want.clamp(wx, (wx + ww as i32 - pw).max(wx));
+    let y = if settings.home_anchor().1 == "bottom" { wy + wh as i32 - ph } else { wy };
+    Some(((at, y), (want - at) as f64 / scale))
 }
 
 /// How far the open island moves away from its edge so it opens beside the

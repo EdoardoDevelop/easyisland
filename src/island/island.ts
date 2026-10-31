@@ -7,7 +7,7 @@ import { MIRRORED_CALLS, type BarButton, type CharacterMode, type IslandToCharac
 import { barAct, barItemOf, barMenuOf, barWheels, musicButtons, toggleAlt } from "./bar";
 import { barKind } from "../core/barkinds";
 import {
-  BODY_GAP, EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_CHROME_H, ISLAND_MIN_W, NOTCH_W, PANEL_H, PANEL_W,
+  BODY_GAP, EDGE_MARGIN, EXPANDED_CORNER, EXPANDED_W, ISLAND_CHROME_H, ISLAND_MIN_W, NOTCH_W, TOPBAR_H, PANEL_H, PANEL_W,
   RAIL_GAP, RAIL_W, ROUNDED_CORNER, STRIP_H, VIEW_LAYOUTS, anchoredOrigin, botGlowColor, botGlowOpacity, botPosition,
   chatPromptHeight, collapsedBox, compactSize, cornerRadii, glueFor, isGlued, islandMax, islandSize, panelFor,
   type IslandMode, type IslandViewName, type Placement,
@@ -83,6 +83,13 @@ const HEADER_MIN = 420;
 /** The three views the drop sequence owns; leaving them stops the engine. */
 /** Views drawn at a fixed size: the user's width and height do not apply. */
 const FIXED_SIZE_VIEWS: ReadonlySet<IslandViewName> = new Set(["greeting", "upload", "uploading", "choose"]);
+/** The views an island come out of the fixed bar shows: an element's card. */
+const POP_VIEWS: ReadonlySet<IslandViewName> = new Set(["barcard", "overview", "news"]);
+/** An island come out of the fixed bar: its width, its least and greatest height, its joints with the band. */
+const POP_W = 400;
+const POP_MIN_H = 96;
+const POP_MAX_H = 460;
+const POP_EAR = 14;
 /** The Anteprima's panel on the right of the open island (preview.rs `pane`): usual and least width. */
 const PANE_W = 560;
 const PANE_MIN_W = 360;
@@ -111,6 +118,10 @@ export class Island {
 
   private root: HTMLElement;
   private islandEl!: HTMLElement;
+  /** The two curved joints of an island come out of the fixed bar with the band (placeEars). */
+  private ears = [h("div", { class: "pop-ear" }), h("div", { class: "pop-ear" })];
+  /** How far an island come out of the bar sits off the window's centre (island.rs POP_SHIFT). */
+  private popShift = 0;
   private clipEl!: HTMLElement;
   private contentEl!: HTMLElement;
   private viewsEl!: HTMLElement;
@@ -204,7 +215,7 @@ export class Island {
   /** Open somewhere else than the character (`islandPlace`): the window is there. */
   private away = false;
   /** Where this opening is, while `away` (the greeting has its own place). */
-  private awayPlace: Settings["islandPlace"] = "character";
+  private awayPlace: Settings["islandPlace"] | "pop" = "character";
   /** Launched without the greeting: the character shows up without a sound. */
   private quietLaunch = false;
   /** Closing from there: the island retracts in place, then the window goes home. */
@@ -468,7 +479,7 @@ export class Island {
     this.waveEl.addEventListener("animationend", () => this.waveEl.classList.remove("on"));
     this.clipEl.append(this.waveEl);
 
-    this.root.append(this.wakeStrip, this.restIcon, this.islandEl);
+    this.root.append(this.wakeStrip, this.restIcon, this.islandEl, ...this.ears);
     this.applyGeometry();
     this.watchScale();
   }
@@ -680,7 +691,7 @@ export class Island {
    * for the greeting and the drop sequence, drawn at their fixed size.
    */
   private get railShown(): boolean {
-    return State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view) && !this.uploadActive;
+    return State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view) && !this.uploadActive && !State.popover;
   }
 
   /** The Anteprima's panel is in the open island (not on the greeting and the drop views). */
@@ -735,6 +746,8 @@ export class Island {
   }
 
   setView(view: IslandViewName) {
+    // Out of the card's own views (a request, the chat…): the whole island again, at its place.
+    if (State.popover && !POP_VIEWS.has(view)) this.leavePopover();
     if (view === "actions") void this.refreshForeground();
     if (view !== "files") this.trayUntil = 0;
     this.stopSequenceIfLeaving(view);
@@ -2090,6 +2103,8 @@ ${note}` : text };
     const home = this.homePlacement;
     if (!this.away) return home;
     const place = this.awayPlace;
+    // Out of the fixed bar: against the band, under the element, square where it meets it.
+    if (place === "pop") return { ...home, h: "center", v: home.v === "bottom" ? "bottom" : "top", glueX: false, glueY: true, dx: this.popShift };
     const v = place === "bottom" ? "bottom" : place === "center" ? "middle" : "top";
     const glue = State.settings.glueEdges !== false && v !== "middle";
     return { ...home, h: "center", v, glueX: false, glueY: glue };
@@ -2106,9 +2121,52 @@ ${note}` : text };
     const greeting = State.view === "greeting";
     // With the fixed bar too (Edoardo, 30 Oct 2026): «In alto al centro» is
     // centred against the band, the work area ending there (island.rs place_origin).
-    this.awayPlace = greeting ? (State.settings.greetingPlace ?? "center") : (State.settings.islandPlace ?? "character");
+    this.awayPlace = State.popover ? "pop" : greeting ? (State.settings.greetingPlace ?? "center") : (State.settings.islandPlace ?? "character");
     this.away = this.awayPlace !== "character";
-    void Bridge.setExpanded(true, greeting ? this.awayPlace : null);
+    const place = State.popover ? `pop:${State.popover.x}` : greeting ? this.awayPlace : null;
+    void Bridge.setExpanded(true, place).then((shift) => this.shiftPopover(shift));
+  }
+
+  /** The window could not go all the way under the element: the island moves inside it. */
+  private shiftPopover(shift: unknown) {
+    const s = State.popover && typeof shift === "number" && Number.isFinite(shift) ? shift : 0;
+    if (Math.abs(s - this.popShift) < 0.5) return;
+    this.popShift = s;
+    this.animateGeometry(false);
+  }
+
+  /**
+   * A card of the fixed bar (island.ts → barClick): out of the bar, under its
+   * element at `x` (Aspetto della barra → «Le schede escono dalla barra»), or
+   * the whole island. Already open, the island moves there.
+   */
+  private openFromBarAt(view: IslandViewName, x?: number) {
+    if (x == null || !Number.isFinite(x) || State.settings.fixedBarLook?.popover === false) {
+      if (State.popover) this.leavePopover();
+      this.openFromBar(view);
+      return;
+    }
+    State.popover = { x };
+    if (State.mode !== "expanded") {
+      this.openFromBar(view);
+      return;
+    }
+    if (this.awayClosing != null) window.clearTimeout(this.awayClosing);
+    this.awayClosing = null;
+    this.away = true;
+    this.awayPlace = "pop";
+    this.setView(view);
+    void Bridge.setExpanded(true, `pop:${x}`).then((shift) => this.shiftPopover(shift));
+  }
+
+  /** From the card come out of the bar to the whole island, at its usual place. */
+  private leavePopover() {
+    State.popover = null;
+    this.popShift = 0;
+    if (State.mode !== "expanded") return;
+    this.awayPlace = State.settings.islandPlace ?? "character";
+    this.away = this.awayPlace !== "character";
+    void Bridge.setExpanded(true, null);
   }
 
   /** Opened elsewhere: it retracts there, then the window goes back to the character. */
@@ -2122,6 +2180,8 @@ ${note}` : text };
       this.awayClosing = null;
       if (State.mode === "expanded") return;
       this.away = false;
+      State.popover = null;
+      this.popShift = 0;
       void Bridge.setExpanded(false);
       this.animateGeometry(false);
     }, 320);
@@ -2231,6 +2291,11 @@ ${note}` : text };
         h = Math.max(h, Math.min(max.h, PANE_MIN_H));
       }
       if (State.maximized) ({ w, h } = { w: Math.max(PANEL_W, this.limits.w), h: Math.max(PANEL_H, this.limits.h) });
+      // Out of the bar: narrow, as tall as the card (no top bar), whatever the user's size.
+      if (State.popover) {
+        w = POP_W;
+        h = Math.min(POP_MAX_H, Math.max(POP_MIN_H, islandSize(State.mode, State.view, State.chatHistory.length, compact, fit).h - TOPBAR_H));
+      }
     }
     // Height the user added beyond the view's own: lists and text boxes grow by
     // it (CSS max-height: calc(… + var(--extra-h))) instead of keeping their
@@ -2383,6 +2448,7 @@ ${note}` : text };
     this.uploadCanvas.el.style.left = `${(w - EXPANDED_W) / 2}px`;
 
     this.placePane();
+    this.placeEars(o.x, o.y, w, hh, p);
     const rect = { x: o.x, y: o.y, w, h: hh };
     const pr = this.pushedRect;
     if (
@@ -2392,6 +2458,28 @@ ${note}` : text };
       this.pushedRect = rect;
       void Bridge.setIslandRect(rect.x, rect.y, rect.w, rect.h);
     }
+  }
+
+  /**
+   * An island come out of the bar meets the band with two curved joints, as if
+   * it ran out of it: outside its two corners against the band, filled in its
+   * colour but for a quarter circle, they grow with it.
+   */
+  private placeEars(x: number, y: number, w: number, hh: number, p: Placement) {
+    const on = this.away && this.awayPlace === "pop" && hh > 2;
+    const r = Math.min(POP_EAR, hh / 2);
+    const bottom = p.v === "bottom";
+    this.ears.forEach((ear, i) => {
+      const s = ear.style;
+      s.display = on ? "block" : "none";
+      if (!on) return;
+      const left = i === 0;
+      s.left = `${left ? x - r : x + w}px`;
+      s.top = `${bottom ? y + hh - r : y}px`;
+      s.width = s.height = `${r}px`;
+      const at = `${left ? "0" : "100%"} ${bottom ? "0" : "100%"}`;
+      s.background = `radial-gradient(circle at ${at}, transparent ${r - 0.5}px, ${this.islandBackground} ${r}px)`;
+    });
   }
 
   /** Island rect in window coordinates (origin top-left of the 720×320 window). */
@@ -2706,7 +2794,7 @@ ${note}` : text };
    * or a widget opens its card (closes it, if it is already the one open), an
    * action runs.
    */
-  barClick(key: string, button: BarButton = "left") {
+  barClick(key: string, button: BarButton = "left", x?: number) {
     // A small button inside an element: music's, or one of the app in use.
     const inner = /^(sys:(music|appbar)[^:]*):btn:(\d+)$/.exec(key);
     if (inner) {
@@ -2770,12 +2858,12 @@ ${note}` : text };
           }
           State.summary = false;
           State.setFocus(id);
-          this.openFromBar("overview");
+          this.openFromBarAt("overview", x);
           return;
         }
         if (which === "news") {
           if (State.mode === "expanded" && State.view === "news") this.collapse();
-          else this.openFromBar("news");
+          else this.openFromBarAt("news", x);
           return;
         }
         if (State.mode === "expanded" && State.view === "barcard" && State.barCard === which) {
@@ -2783,7 +2871,7 @@ ${note}` : text };
           return;
         }
         State.barCard = which;
-        this.openFromBar("barcard");
+        this.openFromBarAt("barcard", x);
       } else if (it.id.startsWith("task:")) {
         const id = it.id.slice(5);
         if (State.mode === "expanded" && State.focusTask?.id === id && !State.summary) {
@@ -2792,7 +2880,7 @@ ${note}` : text };
         }
         State.summary = false;
         State.setFocus(id);
-        this.openFromBar("overview");
+        this.openFromBarAt("overview", x);
       } else if (it.id.startsWith("action:")) {
         const a = (State.settings.actions ?? []).find((x) => x.id === it.id.slice(7));
         if (a) void this.runAction(a);
@@ -3463,7 +3551,7 @@ ${note}` : text };
 
     const greetingActive = State.mode === "expanded" && State.view === "greeting";
     // The drop canvas draws its own the character; two of them would overlap.
-    const visible = p.opacity > 0 && !greetingActive && !this.uploadActive;
+    const visible = p.opacity > 0 && !greetingActive && !this.uploadActive && !State.popover;
     this.botCanvas.style.opacity = visible ? "1" : "0";
 
     if (State.mode === "expanded" && State.view !== "uploading" && !greetingActive && !this.uploadActive) {
@@ -3684,6 +3772,7 @@ ${note}` : text };
     // kept for the character any more (--bot-room in style.css).
     const railed = this.railShown;
     this.islandEl.classList.toggle("railed", railed);
+    this.islandEl.classList.toggle("pop", !!State.popover);
     this.islandEl.classList.toggle("open", expanded);
     if (railed) {
       guard("menu", () => this.rail.sync());

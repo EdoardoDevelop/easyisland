@@ -729,19 +729,27 @@ fn end_drag(app: AppHandle, shared: State<Shared>) -> DragEnd {
 
 /// The island opened or closed. Closing takes the window back to the character's
 /// place (an open island dragged elsewhere comes home), and every opening starts there.
-/// `place` puts this opening somewhere else than `island_place` (the launch greeting).
+/// `place` puts this opening somewhere else than `island_place` (the launch greeting,
+/// "pop:<x>" for an island come out of the fixed bar under an element). Answers
+/// how far the window could not follow that element (island::POP_SHIFT).
 #[tauri::command]
-fn set_expanded(app: AppHandle, shared: State<Shared>, expanded: bool, place: Option<String>) {
-    *shared.gate.open_place.lock().unwrap() = if expanded { place } else { None };
+fn set_expanded(app: AppHandle, shared: State<Shared>, expanded: bool, place: Option<String>) -> f64 {
+    let place = if expanded { place } else { None };
+    let moved = std::mem::replace(&mut *shared.gate.open_place.lock().unwrap(), place.clone()) != place;
     if shared.gate.expanded.swap(expanded, Ordering::Relaxed) == expanded {
-        return;
+        // Already open, now somewhere else (another element of the bar, or back to the island).
+        if expanded && moved && !shared.gate.collapsed.load(Ordering::Relaxed) {
+            let settings = shared.settings.lock().unwrap().clone();
+            island::apply_geometry(&app, &shared.gate, &settings, false);
+        }
+        return *island::POP_SHIFT.lock().unwrap();
     }
     // A drag of the open island lasts for that opening only. Opened beside the
     // character it is away from the edge too: either way it glides back as it shrinks.
     let dragged = std::mem::take(&mut *shared.gate.panel_offset.lock().unwrap()) != (0.0, 0.0)
         || *island::OPEN_CLEARANCE.lock().unwrap() != (0.0, 0.0);
     if shared.gate.collapsed.load(Ordering::Relaxed) {
-        return;
+        return 0.0;
     }
     let settings = shared.settings.lock().unwrap().clone();
     island::come_forward(&app);
@@ -754,6 +762,7 @@ fn set_expanded(app: AppHandle, shared: State<Shared>, expanded: bool, place: Op
     } else {
         island::apply_geometry(&app, &shared.gate, &settings, false);
     }
+    *island::POP_SHIFT.lock().unwrap()
 }
 
 /// The open island grew past the usual window (or came back within it): the

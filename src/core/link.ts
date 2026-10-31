@@ -70,7 +70,8 @@ export type CharacterToIsland =
   /** A click on the character beside the open island: closes it (or opens it). */
   | { kind: "open" }
   /** A click on an element of the fixed bar (BarPiece.key): which button, or the wheel. */
-  | { kind: "bar"; key: string; button?: BarButton }
+  /** `x`: the element's centre from the bar's left end, for its card to come out under it. */
+  | { kind: "bar"; key: string; button?: BarButton; x?: number }
   | { kind: "ping"; sent: number };
 
 /** BotEngine methods the island forwards while the compact character is in its own window. */
