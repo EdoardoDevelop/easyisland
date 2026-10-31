@@ -62,6 +62,15 @@ pub fn follow(hwnd: HWND) {
     }
     // The desktop and the taskbar take the focus when the island closes: the
     // window shown goes back to the last one the user worked in.
+    // The bar itself comes in front only to hold its menus (the title's own menu
+    // among them): the element keeps showing what it showed.
+    let bar = crate::context::app()
+        .and_then(|a| tauri::Manager::get_window(a, crate::CHARACTER_LABEL))
+        .and_then(|w| w.hwnd().ok())
+        .is_some_and(|h| h.0 as isize == hwnd.0 as isize);
+    if bar {
+        return;
+    }
     let hwnd = if crate::island::is_shell(hwnd) {
         let user = HWND(USER.load(Ordering::SeqCst) as *mut _);
         if !OURS.load(Ordering::SeqCst) || user.0.is_null() || !unsafe { IsWindow(Some(user)) }.as_bool() {
@@ -87,10 +96,10 @@ pub fn follow(hwnd: HWND) {
     send(hwnd);
 }
 
-/// The user's window the element shows (not EasyIsland's), for its menu (appmenu.rs).
+/// The window the element shows, for its menu (appmenu.rs); none when it is EasyIsland's.
 pub fn target() -> Option<HWND> {
-    let hwnd = HWND(USER.load(Ordering::SeqCst) as *mut _);
-    (!hwnd.0.is_null() && unsafe { IsWindow(Some(hwnd)) }.as_bool()).then_some(hwnd)
+    let hwnd = HWND(FOLLOWED.load(Ordering::SeqCst) as *mut _);
+    (!OURS.load(Ordering::SeqCst) && !hwnd.0.is_null() && unsafe { IsWindow(Some(hwnd)) }.as_bool()).then_some(hwnd)
 }
 
 /// On the hook thread: the watch went off.
