@@ -1235,6 +1235,8 @@ fn remember_file(r: &Remember, stamp: &str) -> Result<(String, String), String> 
     };
     if r.from == "telegram" {
         head.push(format!("{}: Telegram", t("da")));
+    } else if r.from == "telegram-voice" {
+        head.push(format!("{}: {}", t("da"), t("un vocale su Telegram")));
     } else if !from.is_empty() {
         head.push(format!("{}: {from}", t("da")));
     }

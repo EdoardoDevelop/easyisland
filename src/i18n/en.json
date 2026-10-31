@@ -4012,7 +4012,6 @@
   "L'utente ha scelto di ricordarlo (Ricorda questo): mettilo nella pagina giusta, quella di «riguarda» se c'è.": "The user chose to remember this (Remember this): put it in the right page, the one in \"about\" if there is one.",
   "Metti qualcosa nella memoria": "Put something in the memory",
   "/ricorda … — mettilo nella memoria, nella pagina giusta": "/ricorda … — put it in the memory, in the right page",
-  "Scrivi /ricorda e cosa ricordare: lo metto nella memoria, nella pagina giusta.": "Type /ricorda and what to remember: I'll put it in the memory, in the right page.",
   "Ricordato: lo imparo adesso.": "Remembered: learning it now.",
   "Ricordato: lo imparo stasera, con il riordino della memoria.": "Remembered: I'll learn it tonight, with the memory tidy-up.",
   "chiamata ricevuta da {who} ({number}), {m} min": "call from {who} ({number}), {m} min",
@@ -4048,5 +4047,7 @@
   "Ticket chiuso: {title}": "Ticket closed: {title}",
   "nota interna": "internal note",
   "Nella zona non c'è testo da leggere.": "There is no text to read in the zone.",
-  "Da {from}. Scrivi cosa ricordare: l'IA lo mette nella pagina giusta della memoria.": "From {from}. Type what to remember: the AI puts it in the right page of the memory."
+  "Da {from}. Scrivi cosa ricordare: l'IA lo mette nella pagina giusta della memoria.": "From {from}. Type what to remember: the AI puts it in the right page of the memory.",
+  "Scrivi /ricorda e cosa ricordare (o manda un vocale che comincia con «ricorda»): lo metto nella memoria, nella pagina giusta.": "Type /ricorda and what to remember (or send a voice message that starts with \"remember\"): I'll put it in the memory, in the right page.",
+  "un vocale su Telegram": "a voice message on Telegram"
 }

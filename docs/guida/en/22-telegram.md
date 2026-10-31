@@ -20,7 +20,7 @@ A conversation **of its own**, separate from the island's, with engine and model
 | `/riprendi` | Continues here the island's last conversation |
 | `/oggi`, `/domani` | The day: tasks, appointments, tickets, weather |
 | `/notizie` | The latest news on the subjects you follow |
-| `/ricorda …` | Puts what you write in the memory, in the right page |
+| `/ricorda …` | Puts what you write in the memory, in the right page. A **voice message** that starts with "remember", "remember that" or "remind me to…" works too |
 | `/vassoio` | The Tray's files |
 | `/cartella` | The working folder as buttons, with the files |
 | `/automatica` | Turns Telegram's Automatic on or off |
