@@ -2870,10 +2870,21 @@ ${note}` : text };
     } else if (act === "mute") {
       if (kind) void Bridge.barSysDo(it.id === "sys:mic" ? "mic-mute" : "mute");
     } else if (act === "menu") {
-      // The window title: the program's own menu (appmenu.rs), then the user's actions for it.
+      // The window title: a card with the program's own menu (appmenu.rs) and the user's actions for it.
       if (it.id === "sys:title") {
-        const lines = (this.barAppBar()?.buttons ?? []).map((b, i) => [`sys:title:act:${i}`, b.label] as [string, string]);
-        void Bridge.appMenu(State.barWindow?.name ?? "", lines);
+        if (State.mode === "expanded" && State.view === "barcard" && State.barCard === "appmenu") {
+          this.collapse();
+          return;
+        }
+        // Read now, while the program is still the window in front.
+        State.appMenu = null;
+        const asked = Bridge.appMenuRead();
+        State.barCard = "appmenu";
+        this.openFromBarAt("barcard", x);
+        void asked.then((r) => {
+          State.appMenu = r?.items ?? [];
+          State.notify();
+        });
         return;
       }
       const lines = barMenuOf(it);
@@ -2942,10 +2953,6 @@ ${note}` : text };
         return;
       case "cpu": case "ram": case "gpu":
         if (what === "taskmgr") panel("taskmgr");
-        return;
-      case "title":
-        // One of the user's quick actions for the program in front (appMenuLines).
-        if (what === "act") this.barAppBar()?.buttons[Number(arg)]?.run();
         return;
       case "disk":
         if (what === "open" && /^[A-Z]$/.test(arg)) void Bridge.barSysDo(`disk-open:${arg}`);

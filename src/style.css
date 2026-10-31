@@ -4988,6 +4988,22 @@ span.brand.mark { flex: 0 0 auto; line-height: 1; }
 
 /* The cards of the fixed bar's system elements (src/views/barcard.ts). */
 .barcard-icon { display: grid; place-items: center; align-self: center; color: var(--ink); }
+/* The window title's card: the program's own menu (barcard.ts appMenu). */
+.appmenu-app { width: 16px; height: 16px; }
+.appmenu-list { display: flex; flex-direction: column; max-height: 330px; overflow-y: auto; margin: 0 -6px; }
+.appmenu-row {
+  display: flex; align-items: center; gap: 6px; width: 100%; min-height: 26px; padding: 3px 8px;
+  border: 0; border-radius: 6px; background: none; color: var(--ink); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer;
+}
+.appmenu-row:hover:not(.off) { background: rgba(255, 255, 255, 0.08); }
+.appmenu-row.off { color: var(--dim-2); cursor: default; }
+.appmenu-check { flex: 0 0 12px; font-size: 11px; }
+.appmenu-text { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.appmenu-key { flex: none; color: var(--dim-2); font-size: 11.5px; }
+.appmenu-sep { height: 1px; margin: 4px 8px; background: rgba(255, 255, 255, 0.08); flex: none; }
+.appmenu-actions { flex-wrap: wrap; }
+html[data-scheme="light"] .appmenu-row:hover:not(.off) { background: rgba(0, 0, 0, 0.06); }
+html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
 .barcard-row { display: flex; align-items: center; gap: 10px; }
 .barcard-slider { display: flex; align-items: center; gap: 10px; flex: 1 1 auto; min-width: 0; }
 .barcard-range { flex: 1 1 auto; min-width: 0; accent-color: var(--ink); }

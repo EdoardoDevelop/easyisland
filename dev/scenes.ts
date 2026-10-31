@@ -8,7 +8,7 @@ import { fillTemplate, receiveSource, toCsv } from "../src/views/custom";
 import { run, scopeOf } from "../src/core/expr";
 import { rdmLookFor } from "../src/views/rdm";
 import type { Island } from "../src/island/island";
-import { State, type CustomField } from "../src/core/state";
+import { State, type AppMenuLine, type CustomField } from "../src/core/state";
 import { Bridge } from "../src/core/bridge";
 import { handleHook } from "../src/island/hooks";
 import { handleIntegration, handleWidget } from "../src/island/integrations";
@@ -1035,6 +1035,20 @@ export async function runScene(island: Island, scene: string) {
         net: { down: 1_234_567, up: 45_000, wifi: true, name: "Wi-Fi", link: 866_700_000, ip: "192.168.1.23" },
       };
       State.barCard = new URLSearchParams(location.search).get("card") ?? "clock";
+      // ?card=appmenu: the window title's card, on a made-up classic menu.
+      if (State.barCard === "appmenu") {
+        const line = (label: string, n: number | null, more: Partial<AppMenuLine> = {}): AppMenuLine =>
+          ({ label, enabled: true, checked: false, sep: false, line: n, items: [], ...more });
+        const sep = line("", null, { sep: true });
+        State.barWindow = { exe: "notepad.exe", name: "Blocco note", title: "Senza titolo" };
+        State.appMenu = [
+          line("&File", null, { items: [line("&Nuovo\tCtrl+N", 1), line("&Apri…\tCtrl+O", 2), line("&Salva\tCtrl+S", 3), sep, line("&Esci", 4)] }),
+          line("&Modifica", null, { items: [line("&Annulla\tCtrl+Z", 5, { enabled: false }), sep, line("Taglia\tCtrl+X", 6), line("&Copia\tCtrl+C", 7)] }),
+          line("&Visualizza", null, { items: [line("&Barra di stato", 8, { checked: true }), line("A capo automatico", 9)] }),
+          sep,
+          line("Finestra", null, { items: [line("&Ripristina", 10, { enabled: false }), line("R&iduci a icona", 11), line("&Chiudi\tALT+F4", 12)] }),
+        ];
+      }
       await wait(300);
       // ?pop: as an island come out of the bar, under an element at x = 300.
       if (new URLSearchParams(location.search).has("pop")) island.openFromBarAt("barcard", 300);

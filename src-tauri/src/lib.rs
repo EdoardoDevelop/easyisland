@@ -598,11 +598,17 @@ fn bar_context_menu(app: AppHandle) {
     tray::popup_bar_context(&app);
 }
 
-/// The window title's menu in the fixed bar: the program's own menu, then the
-/// island's lines (`extra`, as «…»'s). Read off the main thread (appmenu.rs).
+/// The window title's card in the fixed bar: the program in front's own menu
+/// (appmenu.rs), read off the main thread.
 #[tauri::command]
-fn app_menu(app: AppHandle, title: String, extra: Vec<(String, String)>) {
-    std::thread::spawn(move || appmenu::popup(&app, title, extra));
+async fn app_menu_read() -> serde_json::Value {
+    tauri::async_runtime::spawn_blocking(appmenu::read_json).await.unwrap_or(serde_json::Value::Null)
+}
+
+/// A line of that menu, picked in the card: to the program.
+#[tauri::command]
+fn app_menu_run(line: usize) {
+    appmenu::run(line);
 }
 
 /// "Copia info PC": everything a ticket asks for, put on the clipboard.
@@ -3843,7 +3849,8 @@ pub fn run() {
             character_clearance,
             bar_overflow_menu,
             bar_context_menu,
-            app_menu,
+            app_menu_read,
+            app_menu_run,
             bar_reveal,
             bar_grow,
             barsys::bar_sys_watch,

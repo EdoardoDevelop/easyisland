@@ -9,13 +9,14 @@
 import { h, clear } from "./dom";
 import { washRGBA, type Wash } from "../core/layout";
 import { Bridge } from "../core/bridge";
-import { State } from "../core/state";
+import { State, type AppMenuLine } from "../core/state";
 import { renderActionIcon } from "./action-icons";
+import { actionForApp } from "./strip";
 import { BAR_KINDS } from "../core/barkinds";
 import type { ViewActions, ViewHost } from "./views";
 import { locale, t } from "../core/i18n";
 
-const WASH: Record<string, Wash> = { clock: "indigo", volume: "cyan", mic: "pink", brightness: "amber", battery: "green", net: "cyan" };
+const WASH: Record<string, Wash> = { clock: "indigo", volume: "cyan", mic: "pink", brightness: "amber", battery: "green", net: "cyan", appmenu: "indigo" };
 
 /** Bytes per second, short: «850 kB/s», «1,2 MB/s». */
 function speed(n: number): string {
@@ -249,8 +250,84 @@ export function buildBarCard(actions: ViewActions): ViewHost {
     ];
   }
 
+  /** Submenus of the program's menu opened in the card, by their path («0.3»). */
+  const opened = new Set<string>();
+
+  /**
+   * The window title's card (appmenu.rs, asked by Edoardo on 31 Oct 2026): the
+   * program in front's own menu — its submenus open inside the card, a line
+   * goes to the program — then the user's quick actions for that program.
+   */
+  function appMenu(): Node[] {
+    const w = State.barWindow;
+    const icon = w?.icon?.startsWith("data:image/png;base64,")
+      ? h("img", { class: "appmenu-app", src: w.icon, alt: "" })
+      : renderActionIcon("i:window", 16);
+    const title = h("div", { class: "recap-head" },
+      h("span", { class: "barcard-icon" }, icon),
+      h("span", { class: "recap-title", text: w?.name || t("Programma in primo piano") }));
+    const list = h("div", { class: "appmenu-list" });
+    const mine = h("div", { class: "actions appmenu-actions" });
+    let drawn: unknown = undefined;
+    // «&File» → «File» («&&» is a real «&»); the shortcut after a tab, apart.
+    const parts = (label: string) => {
+      const [text, key = ""] = label.split("\t");
+      return { text: text.replace(/&(&?)/g, "$1"), key: key.trim() };
+    };
+    const lines = (items: AppMenuLine[], path: string, depth: number) => {
+      items.forEach((it, i) => {
+        if (it.sep) {
+          list.append(h("div", { class: "appmenu-sep" }));
+          return;
+        }
+        const here = `${path}${i}`;
+        const { text, key } = parts(it.label);
+        const sub = it.items.length > 0;
+        const open = sub && opened.has(here);
+        const row = h("button", { class: `appmenu-row${it.enabled ? "" : " off"}`, disabled: !it.enabled },
+          h("span", { class: "appmenu-check", text: it.checked ? "✓" : "" }),
+          h("span", { class: "appmenu-text", text }),
+          h("span", { class: "appmenu-key", text: sub ? (open ? "▾" : "▸") : key }));
+        row.style.paddingLeft = `${8 + depth * 14}px`;
+        row.addEventListener("click", () => {
+          if (sub) {
+            if (open) opened.delete(here);
+            else opened.add(here);
+            draw(true);
+            State.notify(); // the island follows the card's new height
+          } else if (it.line != null) {
+            void Bridge.appMenuRun(it.line);
+            actions.collapse();
+          }
+        });
+        list.append(row);
+        if (open) lines(it.items, `${here}.`, depth + 1);
+      });
+    };
+    const draw = (force = false) => {
+      if (!force && drawn === State.appMenu) return;
+      drawn = State.appMenu;
+      clear(list);
+      const menu = State.appMenu;
+      if (!menu) list.append(h("div", { class: "sub", text: t("Lettura del menu…") }));
+      else if (!menu.length) list.append(h("div", { class: "sub", text: t("Nessun menu da leggere per questo programma") }));
+      else lines(menu, "", 0);
+      clear(mine);
+      const exe = w?.exe ?? "";
+      for (const a of exe ? (State.settings.actions ?? []).filter((x) => actionForApp(x, exe)) : []) {
+        mine.append(h("button", { class: "btn secondary", title: a.name, onclick: () => { actions.collapse(); actions.runAction(a); } },
+          h("span", { class: "bar-icon" }, renderActionIcon(a.icon, 14)), h("span", { text: a.name || t("Senza nome") })));
+      }
+      mine.style.display = mine.childElementCount ? "" : "none";
+    };
+    opened.clear();
+    update = () => draw();
+    return [title, list, mine];
+  }
+
   const build = (kind: string): Node[] => {
     switch (kind) {
+      case "appmenu": return appMenu();
       case "volume": case "mic": return sound(kind);
       case "brightness": return brightness();
       case "battery": return battery();
@@ -264,8 +341,10 @@ export function buildBarCard(actions: ViewActions): ViewHost {
     el,
     sync() {
       const kind = State.barCard ?? "clock";
-      if (kind !== shown) {
-        shown = kind;
+      // The program's menu: drawn again for another program.
+      const key = kind === "appmenu" ? `appmenu:${State.barWindow?.exe ?? ""}:${State.barWindow?.name ?? ""}` : kind;
+      if (key !== shown) {
+        shown = key;
         card.style.setProperty("--wash", washRGBA(WASH[kind] ?? "indigo"));
         clear(body);
         body.append(...build(kind));

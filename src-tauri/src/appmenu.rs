@@ -1,7 +1,8 @@
 // The menu of the program in front, from a click on the fixed bar's «Titolo
 // della finestra» (asked by Edoardo on 31 Oct 2026; docs/architettura.md →
-// «Barra fissa»). Not EasyIsland's entries: the program's own menus, then the
-// user's quick actions for that program (built by the island, `extra`).
+// «Barra fissa»), shown as an island come out of the bar (src/views/barcard.ts).
+// Not EasyIsland's entries: the program's own menus; the island adds the user's
+// quick actions for that program.
 //
 // Two ways to read them:
 // - a classic menu bar (GetMenu): the whole tree, submenus included, read
@@ -11,16 +12,15 @@
 //   holds the bar).
 // - otherwise UI Automation: the top-level items of the window's menu bar
 //   (File, Modifica…); a line opens that menu in the program (ExpandCollapse,
-//   or Invoke). Programs without a readable menu (browsers) only get the actions.
-// Reading runs on its own thread with a time limit; the menu itself on the
-// main thread, which owns the bar's window.
+//   or Invoke).
+// Then the window's own menu (Alt+Space), which every window has.
+// Reading runs on its own thread with a time limit.
 
 use std::sync::mpsc;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::{AppHandle, Manager, Wry};
+use serde_json::{json, Value};
 use windows::core::{BSTR, PWSTR};
 use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
@@ -67,15 +67,15 @@ struct Node {
 /// Windows already given time to build their accessibility tree (Chromium).
 static WAITED: Mutex<Vec<isize>> = Mutex::new(Vec::new());
 
-/// The lines of the menu last shown, by their index in its ids («appmenu:<n>»).
+/// The lines of the menu last read, by their number (`line`).
 static LINES: Mutex<Vec<Line>> = Mutex::new(Vec::new());
 
-/// The menu at the mouse over the bar: the program's lines, then `extra`
-/// ([key, label]: the island's lines, sent back as «bar:<key>» like «…»'s).
-pub fn popup(app: &AppHandle, title: String, extra: Vec<(String, String)>) {
-    let target = crate::fgwin::target();
+/// The program's menu for the island's card (src/views/barcard.ts, «appmenu»):
+/// `{ items: [{ label, enabled, checked, sep, line, items }] }`, `line` being
+/// the number `run` takes. Read on its own thread, at most READ_TIMEOUT.
+pub fn read_json() -> Value {
+    let hwnd = crate::fgwin::target().map(|h| h.0 as isize);
     let (tx, rx) = mpsc::channel();
-    let hwnd = target.map(|h| h.0 as isize);
     std::thread::spawn(move || {
         let start = std::time::Instant::now();
         let read = hwnd.map(|h| unsafe { read(HWND(h as *mut _)) }).unwrap_or_default();
@@ -83,79 +83,25 @@ pub fn popup(app: &AppHandle, title: String, extra: Vec<(String, String)>) {
         crate::log::line(format!("app menu read: {} lines in {} ms ({class})", read.1.len(), start.elapsed().as_millis()));
         let _ = tx.send(read);
     });
-    let got = rx.recv_timeout(READ_TIMEOUT);
-    if got.is_err() {
-        crate::log::line(format!("app menu: no answer in {} ms, window {}", READ_TIMEOUT.as_millis(), if hwnd.is_some() { "found" } else { "none" }));
-    }
-    let (nodes, lines) = got.unwrap_or_default();
+    let (nodes, lines) = rx.recv_timeout(READ_TIMEOUT).unwrap_or_default();
     *LINES.lock().unwrap() = lines;
-    let app2 = app.clone();
-    let _ = app.run_on_main_thread(move || show(&app2, &title, &nodes, &extra));
+    json!({ "items": nodes.iter().map(to_json).collect::<Vec<_>>() })
 }
 
-fn show(app: &AppHandle, title: &str, nodes: &[Node], extra: &[(String, String)]) {
-    let Some(win) = app.get_window(crate::CHARACTER_LABEL) else { return };
-    let built = Menu::new(app).and_then(|menu| {
-        if !title.is_empty() {
-            menu.append(&MenuItem::with_id(app, "appmenu:-", title.replace('&', "&&"), false, None::<&str>)?)?;
-            menu.append(&PredefinedMenuItem::separator(app)?)?;
-        }
-        if nodes.is_empty() {
-            let none = crate::i18n::t("Nessun menu da leggere per questo programma");
-            menu.append(&MenuItem::with_id(app, "appmenu:-", none, false, None::<&str>)?)?;
-        } else {
-            append(app, nodes, &|item| menu.append(item))?;
-        }
-        if !extra.is_empty() {
-            menu.append(&PredefinedMenuItem::separator(app)?)?;
-            for (key, label) in extra {
-                if key.is_empty() {
-                    menu.append(&PredefinedMenuItem::separator(app)?)?;
-                    continue;
-                }
-                menu.append(&MenuItem::with_id(app, format!("bar:{key}"), label.replace('&', "&&"), !key.starts_with('-'), None::<&str>)?)?;
-            }
-        }
-        Ok(menu)
-    });
-    let menu = match built {
-        Ok(m) => m,
-        Err(e) => {
-            crate::log::line(format!("app menu not built: {e}"));
-            return;
-        }
-    };
-    // As the bar's other menus: TrackPopupMenu needs a foreground owner to close on an outside click.
-    crate::island::set_activating(&win, true);
-    if let Err(e) = win.popup_menu(&menu) {
-        crate::log::line(format!("app menu: {e}"));
-    }
-    crate::island::make_non_activating(&win);
+fn to_json(n: &Node) -> Value {
+    json!({
+        "label": n.label,
+        "enabled": n.enabled,
+        "checked": n.checked,
+        "sep": n.sep,
+        "line": n.line,
+        "items": n.items.iter().map(to_json).collect::<Vec<_>>(),
+    })
 }
 
-fn append(app: &AppHandle, nodes: &[Node], add: &dyn Fn(&dyn IsMenuItem<Wry>) -> tauri::Result<()>) -> tauri::Result<()> {
-    for n in nodes {
-        if n.sep {
-            add(&PredefinedMenuItem::separator(app)?)?;
-        } else if !n.items.is_empty() {
-            let sub = Submenu::new(app, &n.label, n.enabled)?;
-            append(app, &n.items, &|item| sub.append(item))?;
-            add(&sub)?;
-        } else {
-            let id = n.line.map(|i| format!("appmenu:{i}")).unwrap_or_else(|| "appmenu:-".into());
-            if n.checked {
-                add(&CheckMenuItem::with_id(app, id, &n.label, n.enabled, true, None::<&str>)?)?;
-            } else {
-                add(&MenuItem::with_id(app, id, &n.label, n.enabled, None::<&str>)?)?;
-            }
-        }
-    }
-    Ok(())
-}
-
-/// A line of the program's menu was picked (tray.rs, «appmenu:<n>»).
-pub fn run(which: &str) {
-    let Some(line) = which.parse::<usize>().ok().and_then(|i| LINES.lock().unwrap().get(i).copied()) else { return };
+/// A line of the program's menu was picked in the card.
+pub fn run(which: usize) {
+    let Some(line) = LINES.lock().unwrap().get(which).copied() else { return };
     match line {
         Line::Command { hwnd, id, sys } => unsafe {
             let hwnd = HWND(hwnd as *mut _);

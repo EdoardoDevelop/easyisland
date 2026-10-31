@@ -109,6 +109,20 @@ export const CHAT_ENGINES: { id: ChatEngine; name: string; key?: string; url?: s
 ];
 
 /**
+ * A line of the program in front's menu (appmenu.rs `read_json`): a separator,
+ * a line (`line`: the number for `appMenuRun`) or a submenu (`items`). Labels
+ * are the program's, with «&» before the access key and a shortcut after a tab.
+ */
+export interface AppMenuLine {
+  label: string;
+  enabled: boolean;
+  checked: boolean;
+  sep: boolean;
+  line: number | null;
+  items: AppMenuLine[];
+}
+
+/**
  * One element of the fixed bar (docs/architettura.md → «Barra fissa»): `task:<id>` an
  * integration or a widget, `action:<id>` a quick action; in which area, and
  * with its icon, its value (or name) or both.
@@ -1351,6 +1365,8 @@ class AppState {
   newsTaste: Record<string, number> = {};
   /** The system element whose card the island shows (src/views/barcard.ts). */
   barCard: string | null = null;
+  /** The window title's card: the program in front's own menu (appmenu.rs), null while it is read. */
+  appMenu: AppMenuLine[] | null = null;
   /**
    * The island come out of the fixed bar under the element clicked (island.ts →
    * openFromBarAt): only that element's card, narrow, against the band. `x` is
