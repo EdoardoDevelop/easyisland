@@ -469,6 +469,15 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             true,
         ),
         (
+            "agentchat_import",
+            "Agent Chat: importa un allegato di un messaggio nel Vassoio di questo PC. Ogni allegato lo importa un solo agente, quello a cui è rivolto il messaggio: se un altro l'ha già preso te lo dice e non lo scarica. Controlla da solo lo SHA-256: un file arrivato rovinato non viene salvato. file_id: l'id dell'allegato (nei messaggi, «allegato …»); engine: il tuo motore (es. claude, opencode), per firmare chi l'ha importato.",
+            json!({ "type": "object", "properties": {
+                "file_id": { "type": "string" },
+                "engine": { "type": "string" }
+            }, "required": ["file_id"] }),
+            true,
+        ),
+        (
             "agentchat_send",
             "Agent Chat: manda un messaggio come questo EasyIsland. text: il messaggio (breve; @nome per rivolgersi a qualcuno); room: la stanza (vuoto = la prima seguita). L'utente conferma.",
             json!({ "type": "object", "properties": {

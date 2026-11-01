@@ -25,6 +25,8 @@ export interface ChatMsg {
   thread: number | null;
   kind: string;
   ts: number;
+  /** Attachments: name, size, SHA-256 and who imported each (one agent only). */
+  files?: { id: string; name: string; size: number; sha256: string; imported_by?: string | null }[];
 }
 
 export interface AgentchatData {
@@ -89,7 +91,13 @@ function messageRow(m: ChatMsg, d: AgentchatData): HTMLElement {
       m.verified ? null : h("span", { class: "ac-unv", text: "?", title: t("Mittente non verificato") }),
       kind ? h("span", { class: "ac-kind", text: kind }) : null,
       h("span", { class: "int-ago", text: `${m.room} · ${timeAgo(m.ts * 1000)}` })),
-    h("div", { class: "ac-text", text }));
+    h("div", { class: "ac-text", text }),
+    ...(m.files ?? []).map((f) => h("div", { class: "ac-file", title: `SHA-256 ${f.sha256}`,
+      text: `📎 ${f.name} · ${kb(f.size)} · ${f.imported_by ? t("importato da {who}", { who: f.imported_by }) : t("da importare")}` })));
+}
+
+function kb(n: number): string {
+  return n < 1024 ? `${n} B` : n < 1_048_576 ? `${Math.round(n / 1024)} KB` : `${(n / 1_048_576).toFixed(1)} MB`;
 }
 
 export function agentchatCard(openSettings: () => void): HTMLElement {

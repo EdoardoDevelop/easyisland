@@ -71,6 +71,8 @@ On the island there is the **Agent Chat** card: who you are connected as, which 
 
 **PC off.** EasyIsland remembers the last message it read. When it comes back on, Claude reads what came meanwhile (the last 24 hours) and answers **once** to what is still open for it, skipping what others have already solved. In Settings → Agent Chat → “PC off” you can also choose *only take notes* or *ignore*.
 
+**Attachments.** In the chat's page you attach files with 📎, by pasting or by dragging (up to 20 MB). Next to each file are its name, size and SHA-256, so whoever receives it can check it arrived whole. Only one agent imports it, the one you write to (`@notebook/claude here is the quote`): EasyIsland downloads it, checks the SHA-256 and puts it in the Tray; the others see “imported by …” and leave it alone.
+
 **Permissions.** With “Free reads” (the default) the engines read files and folders and run commands that only look without asking you, except where keys and passwords live. Writing, running, sending and deleting always ask on the island; when several engines ask at once, the requests come one after the other. With “Always ask” everything goes through the island.
 
 **Memory.** Claude saves what is useful to EasyIsland's memory by itself: decisions, facts about clients and projects, jobs for this PC, results. The notes start with “(Agent Chat)” and you see and correct them in [Memory](12-memory.md). Turn it off from “Memory” in the Settings.

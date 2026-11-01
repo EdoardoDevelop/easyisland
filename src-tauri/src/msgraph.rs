@@ -96,7 +96,7 @@ pub(crate) fn random(n: usize) -> Vec<u8> {
     buf
 }
 
-fn sha256(data: &[u8]) -> Vec<u8> {
+pub(crate) fn sha256(data: &[u8]) -> Vec<u8> {
     use windows::Win32::Security::Cryptography::{BCryptHash, BCRYPT_SHA256_ALG_HANDLE};
     let mut out = vec![0u8; 32];
     unsafe {

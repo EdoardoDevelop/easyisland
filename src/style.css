@@ -5606,6 +5606,7 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
 .ac-meta .int-ago { margin-left: auto; white-space: nowrap; }
 .ac-unv { color: #f59e0b; font-weight: 700; }
 .ac-kind { font: 500 calc(10px + var(--fs-up, 0px)) var(--font); color: #a78bfa; }
+.ac-file { margin-top: 3px; font: 500 calc(11px + var(--fs-up, 0px)) var(--font); color: #a78bfa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ac-text { font: 400 calc(11.5px + var(--fs-up, 0px))/1.4 var(--font); color: var(--dim); white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* Registra in File e schermo (buildRecorderPanel). */
