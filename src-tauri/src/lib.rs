@@ -90,6 +90,7 @@ mod custom;
 mod skills;
 mod tasks;
 mod telegram;
+mod agentchat;
 mod i18n;
 mod webview_profile;
 mod recap;
@@ -1497,6 +1498,24 @@ fn telegram_unlink(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 fn telegram_restart() {
     telegram::restart();
+}
+
+/// Impostazioni → Integrazioni → Agent Chat: who EasyIsland is there, errors, limits.
+#[tauri::command]
+fn agentchat_info(app: AppHandle) -> agentchat::Info {
+    agentchat::info(&app)
+}
+
+/// Address, token or rooms saved: the listening starts over with them.
+#[tauri::command]
+fn agentchat_restart() {
+    agentchat::restart();
+}
+
+/// «Riprendi» after a «stop» written in the chat.
+#[tauri::command]
+fn agentchat_resume() {
+    agentchat::resume();
 }
 
 /// "Sostituisci": the text selected in an app, rewritten as `prompt` asks, in
@@ -3939,6 +3958,9 @@ pub fn run() {
             telegram_link_code,
             telegram_unlink,
             telegram_restart,
+            agentchat_info,
+            agentchat_restart,
+            agentchat_resume,
             work_list,
             work_open,
             work_rename,
@@ -4033,6 +4055,7 @@ pub fn run() {
             teams::spawn(handle.clone());
             brain_watch::init(&handle);
             telegram::spawn(handle.clone());
+            agentchat::spawn(handle.clone());
             tasks::init(&handle);
             custom::spawn(handle.clone());
             msgraph::spawn(handle.clone());

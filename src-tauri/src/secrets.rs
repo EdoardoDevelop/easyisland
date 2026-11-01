@@ -29,6 +29,9 @@ pub const KNOWN_KEYS: &[&str] = &[
     "3cx-client-secret",
     // The Telegram bot's token, from BotFather (telegram.rs).
     "telegram-bot-token",
+    // Agent Chat (agentchat.rs): the server's address and this EasyIsland's own token.
+    "agentchat-url",
+    "agentchat-token",
 ];
 
 /// Widget header secrets: `widget:<widget id>:<header name>`, plain characters

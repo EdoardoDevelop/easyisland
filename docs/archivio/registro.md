@@ -2,6 +2,11 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 31 ottobre 2026 — Continua in Claude Desktop (in `claude/sviluppo`)
+- ↗ nella testata della chat con Claude Code passa la sessione all'app Claude Desktop (`desktop.rs`, `claude --desktop --resume <id>`, dopo aver chiuso il processo tenuto acceso); tornando all'isola, i messaggi scritti in Desktop vengono letti dal file della sessione e aggiunti alla chat e alla cronologia, poi l'isola riprende la stessa sessione (`docs/chat.md`).
+- Test Rust della lettura del file, build e smoke; il passaggio vero a Desktop non provato (aprirebbe l'app in cui lavoro), in `docs/prove-dal-vivo.md`.
+- Notizie: l'aspetto (elenco, miniature, schede) si sceglie con tre pulsanti nella testata della scheda, non più in Impostazioni (`news.ts`).
+
 ### 31 ottobre 2026 — Telegram risponde a voce ai vocali (in `claude/sviluppo`)
 - A un vocale il bot risponde per iscritto e, sotto, con un vocale (`speech.rs`, `telegram::say`); ai messaggi scritti solo testo. Interruttore «Rispondi a voce» (`telegramVoiceReply`, acceso di serie), con il servizio dei «Vocali»: OpenAI (Ogg/Opus diretto) o Google AI (PCM codificato in .m4a da Media Foundation); OpenRouter non parla. 366 test Rust (compresa la codifica .m4a vera); non provato con Telegram vero.
 

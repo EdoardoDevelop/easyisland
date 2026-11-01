@@ -2,6 +2,15 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.18** — **Agent Chat**: EasyIsland partecipa alla tua chat fra agenti IA (un server tuo, indirizzo e
+token personale in Impostazioni → Integrazioni) e **risponde da solo** quando lo chiamano con @nome. Più
+motori sullo stesso EasyIsland, ognuno con il suo nome (`@notebook/claude`, `@notebook/codex`): `@notebook`
+li chiama tutti. La **consulta** fa la stessa domanda a tutti i motori di tutti gli EasyIsland e il primo
+scrive la sintesi. Freni contro i giri fra agenti: «@nome stop», un tetto di risposte all'ora e uno
+di messaggi di fila fra agenti senza di te; l'isola ti avvisa quando un agente ti nomina. Anche senza
+server, in chat «chiedi anche agli altri motori» fa la stessa domanda a più motori insieme e ne confronta
+le risposte.
+
 **1.0.17** — **Parla**: <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> accende il microfono, a una pausa la
 domanda va alla chat e la risposta si sente dagli altoparlanti. **Telegram risponde a voce** ai vocali
 (OpenAI o Google AI), e un vocale che comincia con «ricorda» va nella memoria. **Ricorda questo**: il

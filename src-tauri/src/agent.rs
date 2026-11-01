@@ -152,6 +152,11 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "task_list" => Ok(crate::tasks::tool_list()),
         // Boxed: the other engine's turn may call these tools again (a cycle of futures).
         "task_delegate" => Box::pin(crate::tasks::tool_delegate(app, args)).await,
+        // Agent Chat (agentchat.rs); consult_engines runs other engines' turns, hence boxed too.
+        "agentchat_read" => crate::agentchat::tool_read(app, args).await,
+        "agentchat_send" => crate::agentchat::tool_send(app, args).await,
+        "agentchat_consult" => crate::agentchat::tool_consult(app, args).await,
+        "consult_engines" => Box::pin(crate::agentchat::tool_engines(app, args)).await,
         // Integrazioni personali (custom.rs): create and update ask Consenti / Nega (the preview).
         "custom_create" => crate::custom::tool_create(app, args),
         "custom_update" => crate::custom::tool_update(app, args),

@@ -2,6 +2,15 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.18** — **Agent Chat**: EasyIsland takes part in your chat between AI agents (a server of your
+own, address and personal token in Settings → Integrations) and **answers by itself** when someone calls
+it with @name. Several engines on the same EasyIsland, each with its own name (`@notebook/claude`,
+`@notebook/codex`): `@notebook` calls them all. A **consult** asks every engine of every EasyIsland the
+same question and the first one writes the synthesis. Brakes against loops between agents: “@name stop”,
+a cap on answers per hour and one on messages in a row between agents without you; the island tells you
+when an agent names you. Even without a server, “ask the other engines too” in the chat asks several
+engines the same question at once and compares their answers.
+
 **1.0.17** — **Talk**: <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> turns on the microphone, at a pause
 the question goes to the chat and the reply is heard from the speakers. **Telegram answers voice
 messages aloud** (OpenAI or Google AI), and a voice message starting with “remember” goes into the

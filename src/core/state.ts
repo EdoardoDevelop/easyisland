@@ -350,6 +350,8 @@ export type Moment =
   | { kind: "call"; name: string; number: string; incoming: boolean; seconds: number }
   /** A Zammad ticket newly assigned to me: «Prepara» (customer, similar tickets, a draft). */
   | { kind: "ticket"; id: number; title: string; url: string }
+  /** Agent Chat (agentchat.rs): an agent wrote to the user, or a limit stopped EasyIsland there. */
+  | { kind: "agentchat"; title: string; text: string; url: string }
   /** A card from Claude Code (`show_card`): waits for a button. */
   | { kind: "card"; id: string; title: string; text: string; level: "ok" | "warn" | "error" | "info"; buttons: string[] };
 
@@ -519,7 +521,7 @@ export const TOGGLEABLE_INTEGRATION_IDS = [
   "integration_notion", "integration_calcom", "integration_stripe",
   ...Object.keys(PROBE_INTEGRATIONS),
   "integration_clipboard", "integration_media", "integration_3cx", "integration_rdm", "integration_teams", "integration_recorder",
-  "integration_remote", "integration_telegram",
+  "integration_remote", "integration_telegram", "integration_agentchat",
 ];
 
 /** What an integration poller last reported. */
@@ -833,6 +835,16 @@ export interface IntegrationConfig {
   telegramVoiceModel?: string;
   /** Telegram «Rispondi a voce»: a voice message is answered aloud too (speech.rs); default on. */
   telegramVoiceReply?: boolean;
+  /** Agent Chat (agentchat.rs): the rooms followed, comma separated ("*" = all); default "general". */
+  agentchatRooms?: string;
+  /** The engines that answer there, each as «name/engine»; empty = the chat's engine. */
+  agentchatEngines?: string[];
+  /** Turns at most in an hour (20). */
+  agentchatPerHour?: number;
+  /** Messages in a row between agents, without the owner, after which agents are not answered (6). */
+  agentchatChain?: number;
+  /** The first engine writes the synthesis of a consult (default on). */
+  agentchatSynthesis?: boolean;
 }
 
 /** A connection of Remote Desktop Manager (settings.rs RdmRef, rdm.rs Entry). */

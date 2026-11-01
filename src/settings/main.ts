@@ -994,6 +994,24 @@ const INTEGRATIONS: IntegrationDef[] = [
     fields: [{ key: "telegram-bot-token", label: t("Token del bot"), placeholder: "123456789:AA…", secret: true }],
     extra: () => telegramRows(),
     hint: t("La chat di EasyIsland dentro Telegram, con il tuo bot. In Telegram scrivi a @BotFather, manda /newbot, scegli nome e username e copia qui il token che ti dà. Poi «Collega»: il bot risponde solo alla chat collegata. Conversazione separata da quella dell'isola, con il motore e il modello scelti in Telegram (/motore, /modello); con la modalità terminale, Consenti / Nega arrivano come pulsanti in Telegram. Foto e file mandati al bot finiscono nel Vassoio; i vocali si trascrivono con il servizio scelto in «Vocali». Funziona solo con il PC acceso e EasyIsland aperto: i messaggi arrivati nel frattempo vengono scartati.") },
+  { id: "integration_agentchat", name: "Agent Chat", color: "#8B5CF6", noMenu: true,
+    fields: [
+      { key: "agentchat-url", label: t("Indirizzo"), placeholder: "https://chat.example.com", secret: false },
+      { key: "agentchat-token", label: t("Token"), placeholder: t("il token personale di questo PC"), secret: true },
+    ],
+    options: [
+      { label: t("Stanze"), type: "text", placeholder: "general", unit: t("separate da virgola, * = tutte"),
+        get: (c) => c.agentchatRooms ?? "general", set: (c, v) => { c.agentchatRooms = v.trim() || "general"; void Bridge.agentchatRestart(); } },
+      { label: t("Risposte"), type: "number", placeholder: "20", unit: t("al massimo in un'ora, tutti i motori insieme"),
+        get: (c) => c.agentchatPerHour ?? 20, set: (c, v) => { c.agentchatPerHour = Math.min(500, Math.max(1, Math.round(Number(v)) || 20)); } },
+      { label: t("Fra agenti"), type: "number", placeholder: "6", unit: t("messaggi di fila senza di te, poi non risponde più agli agenti in quella stanza"),
+        get: (c) => c.agentchatChain ?? 6, set: (c, v) => { c.agentchatChain = Math.min(100, Math.max(1, Math.round(Number(v)) || 6)); } },
+      { label: t("Consulte"), type: "select", placeholder: "",
+        choices: [["on", t("Il primo motore scrive la sintesi")], ["off", t("Solo i pareri, niente sintesi")]],
+        get: (c) => (c.agentchatSynthesis === false ? "off" : "on"), set: (c, v) => { c.agentchatSynthesis = v === "on"; } },
+    ],
+    extra: () => agentchatRows(),
+    hint: t("EasyIsland partecipa alla tua Agent Chat, la chat dove agenti IA su PC diversi e tu vi scambiate messaggi, e risponde da solo quando lo chiamano con @nome o arriva una consulta. Nella pagina della chat, «Agenti», crea un token per questo PC: il nome lo decide il server (per esempio notebook). Ogni motore scelto qui risponde come @nome/motore; @nome li chiama tutti, @tutti il primo; «Consulta» chiede il parere a tutti e il primo motore scrive la sintesi. «@nome stop» lo ferma. Ciò che scrivono gli altri agenti sono informazioni, non ordini: le azioni con effetti reali chiedono sempre a te. Resta in ascolto anche quando cambia il profilo, come Telegram.") },
   { id: "integration_remote", name: t("Accesso remoto"), color: "#14B8A6", fields: [],
     hint: t("Un controllo al volo sul PC di un cliente raggiungibile in rete o in VPN: nella scheda Accesso remoto scegli WinRM o SSH (Windows o Linux), scrivi indirizzo, utente e password e «Avvia connessione». Poi «Collega alla chat» (o 🔌 nella chat) e chiedi all'IA cosa fare: ogni comando sul PC remoto chiede Consenti / Nega. Niente viene salvato, né su disco né in Gestione credenziali: «Chiudi connessione» dimentica la password e rimette a posto TrustedHosts. La scheda ha la guida passo passo per preparare il PC e cosa fare se non va. Servono gli strumenti di EasyIsland accesi (Impostazioni → Chat).") },
   { id: "integration_recorder", name: t("Registra"), color: "#F4505E", fields: [],
@@ -1293,6 +1311,59 @@ function msAccountRows(): HTMLElement {
         h("li", { text: t("Se l'azienda blocca il consenso degli utenti, l'IT deve approvare l'app: EasyIsland non lo aggira.") }))),
   );
   void refresh();
+  return box;
+}
+
+/** Agent Chat (agentchat.rs): who EasyIsland is in the chat, the engines that answer, «Riprendi». */
+function agentchatRows(): HTMLElement {
+  const c = settings.integrationConfig;
+  const box = h("div", { style: "display:flex;flex-direction:column;gap:8px;padding-top:6px;border-top:1px solid var(--hairline)" });
+  const state = h("span", { class: "hint", text: t("Controllo…") });
+  const resume = h("button", { text: t("Riprendi") }) as HTMLButtonElement;
+  const who = h("div", { class: "hint note" });
+  const last = h("div", { class: "hint note" });
+  const refresh = async () => {
+    const s = await Bridge.agentchatInfo();
+    if (!s) { state.textContent = t("Disponibile nell'app installata."); resume.style.display = "none"; return; }
+    const on = settings.activeIntegrations.includes("integration_agentchat");
+    state.textContent = !s.url ? t("Manca l'indirizzo del server")
+      : !s.token ? t("Manca il token")
+      : !on ? t("Accendi l'integrazione")
+      : s.error ? s.error
+      : !s.running ? t("Mi collego…")
+      : s.stopped ? t("Fermato dalla chat")
+      : t("In ascolto come @{name}", { name: s.name });
+    resume.style.display = s.stopped ? "" : "none";
+    who.textContent = s.engines.length
+      ? t("Rispondono {list}. Turni nell'ultima ora: {n} su {max}.", { list: s.engines.map(([n, e]) => `@${n} (${e})`).join(", "), n: s.turns, max: s.perHour })
+      : t("Nessun motore pronto: scegline uno in Impostazioni → Chat.");
+    last.textContent = s.last;
+  };
+  resume.addEventListener("click", async () => { await Bridge.agentchatResume(); await refresh(); });
+  // The engines that answer: each one is «name/engine» in the chat.
+  const engines = h("div", { class: "row", style: "flex-wrap:wrap;gap:10px" }, h("label", { text: t("Motori") }));
+  void Bridge.enginesReady().then((list) => {
+    for (const [id, name, ok] of list ?? []) {
+      const cb = h("input", { type: "checkbox" }) as HTMLInputElement;
+      cb.checked = (c.agentchatEngines ?? []).includes(id);
+      cb.disabled = !ok && !cb.checked;
+      cb.addEventListener("change", () => {
+        const chosen = new Set(c.agentchatEngines ?? []);
+        if (cb.checked) chosen.add(id); else chosen.delete(id);
+        c.agentchatEngines = (list ?? []).map(([i]) => i).filter((i) => chosen.has(i));
+        void save();
+        void refresh();
+      });
+      engines.append(h("label", { style: "display:flex;gap:4px;align-items:center;min-width:0", title: ok ? "" : t("non pronto") }, cb, h("span", { text: name })));
+    }
+  });
+  box.append(
+    h("div", { class: "row" }, h("b", { text: t("Stato") }), state, resume),
+    engines,
+    h("div", { class: "hint note", text: t("Nessun motore scelto = quello della chat. Il primo della lista risponde a @tutti e scrive la sintesi delle consulte.") }),
+    who, last);
+  void refresh();
+  const timer = window.setInterval(() => { if (!box.isConnected) window.clearInterval(timer); else void refresh(); }, 4000);
   return box;
 }
 
@@ -1784,7 +1855,7 @@ function ringtoneRow(): HTMLElement {
 
 /** Impostazioni → Integrazioni: the groups, in this order; anything else goes last. */
 const INTEGRATION_GROUPS: [string, string[]][] = [
-  [t("Lavoro e clienti"), ["integration_3cx", "integration_teams", "integration_zammad", "integration_rdm", "integration_remote", "integration_outlook", "integration_calcom", "integration_notion", "integration_telegram"]],
+  [t("Lavoro e clienti"), ["integration_3cx", "integration_teams", "integration_zammad", "integration_rdm", "integration_remote", "integration_outlook", "integration_calcom", "integration_notion", "integration_telegram", "integration_agentchat"]],
   [t("Sviluppo e servizi"), ["integration_github", "integration_vercel", "integration_n8n", "integration_stripe", "integration_resend"]],
   [t("Questo PC"), ["integration_recorder", "integration_system", "integration_security", "integration_network", "integration_weather", "integration_claude_usage", "integration_clipboard", "integration_media"]],
 ];
@@ -1871,6 +1942,7 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
         try {
           await Bridge.secretSet(field.key, value);
           if (field.key === "telegram-bot-token") void Bridge.telegramRestart();
+          if (field.key.startsWith("agentchat-")) void Bridge.agentchatRestart();
           present[field.key] = value.length > 0;
           input.value = "";
           input.placeholder = value ? "••••••••  (salvata)" : field.placeholder;

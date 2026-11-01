@@ -127,6 +127,17 @@ export function buildMoment(actions: ViewActions & MomentActions): ViewHost {
             btn(t("Non ora"), "secondary", done),
           ],
         };
+      case "agentchat":
+        return {
+          wash: "indigo",
+          who: "Agent Chat",
+          title: m.title,
+          text: m.text,
+          row: [
+            btn(t("Apri la chat"), "primary", () => { actions.openUrl(m.url); done(); }),
+            btn(t("Non ora"), "secondary", done),
+          ],
+        };
       case "server":
         return {
           wash: "green",
