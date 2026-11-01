@@ -158,6 +158,20 @@ pub struct IntegrationConfig {
     /// The lead engine writes the synthesis of a consult.
     #[serde(default = "default_true")]
     pub agentchat_synthesis: bool,
+    /// Listening on (the island's card turns it off).
+    #[serde(default = "default_true")]
+    pub agentchat_listen: bool,
+    /// At the connection, what came while EasyIsland was off: "answer" (the
+    /// lead answers once to what is open), "memory" (only notes) or "off".
+    #[serde(default = "catchup_answer")]
+    pub agentchat_catchup: String,
+    /// The lead keeps what is useful in the chat's memory («MEMORIA:» lines).
+    #[serde(default = "default_true")]
+    pub agentchat_memory: bool,
+}
+
+fn catchup_answer() -> String {
+    "answer".into()
 }
 
 fn general_room() -> String {
@@ -294,6 +308,9 @@ impl Default for IntegrationConfig {
             agentchat_per_hour: twenty(),
             agentchat_chain: six(),
             agentchat_synthesis: true,
+            agentchat_listen: true,
+            agentchat_catchup: catchup_answer(),
+            agentchat_memory: true,
         }
     }
 }

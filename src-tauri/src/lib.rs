@@ -1518,6 +1518,12 @@ fn agentchat_resume() {
     agentchat::resume();
 }
 
+/// The island's Agent Chat card: listening on or off.
+#[tauri::command]
+fn agentchat_listen(app: AppHandle, on: bool) -> Result<(), String> {
+    agentchat::listen(&app, on)
+}
+
 /// "Sostituisci": the text selected in an app, rewritten as `prompt` asks, in
 /// one answer of its own. It goes through the chat's engine but never into the
 /// chat: a conversation of its own, no connectors, nothing in the history.
@@ -2164,6 +2170,7 @@ async fn refresh_integration(app: AppHandle, id: String) {
         teams::ID => teams::refresh(&app),
         record::ID => record::publish(&app),
         remote::ID => remote::publish(&app),
+        agentchat::ID => agentchat::publish(&app),
         _ => integrations::poll_once(app, &id).await,
     }
 }
@@ -3961,6 +3968,7 @@ pub fn run() {
             agentchat_info,
             agentchat_restart,
             agentchat_resume,
+            agentchat_listen,
             work_list,
             work_open,
             work_rename,

@@ -45,6 +45,8 @@ export interface AgentchatInfo {
   error: string | null;
   /** «@nome stop» was written in the chat. */
   stopped: boolean;
+  /** Listening on (the island's card turns it off). */
+  listen: boolean;
   turns: number;
   perHour: number;
   last: string;
@@ -602,6 +604,7 @@ export const Bridge = {
   agentchatInfo: () => call<AgentchatInfo>("agentchat_info"),
   agentchatRestart: () => call<void>("agentchat_restart"),
   agentchatResume: () => call<void>("agentchat_resume"),
+  agentchatListen: (on: boolean) => callOrThrow<void>("agentchat_listen", { on }),
   rdmDataSources: () => callOrThrow<{ id: string; name: string; kind: string }[]>("rdm_data_sources"),
   /** "+ Attività" in the Notion card (due: "YYYY-MM-DD" or null). */
   notionAddTask: (title: string, due: string | null) => callOrThrow<void>("notion_add_task", { title, due }),

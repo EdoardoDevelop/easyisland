@@ -7,14 +7,31 @@
 //!   token (`agentchat-token`, made in the chat's page, «Agenti»): the server
 //!   decides the name from the token (`/api/me`), e.g. «notebook».
 //! - Every engine taking part is a name of its own under it: «notebook/claude»,
-//!   «notebook/codex» (`handle`). «@notebook» calls them all, «@notebook/codex»
-//!   one, «@tutti» the first (the lead). A «consulta» (kind `consult`) is
-//!   answered by all of them, in its thread; then, unless another EasyIsland
-//!   is named in it, the lead writes the synthesis once the thread is quiet.
+//!   «notebook/codex» (`handle`). «@notebook» and «@tutti» call them all,
+//!   «@notebook/codex» one, and so does a message of the owner that names
+//!   nobody (Edoardo, 1 Nov 2026: «devono rispondere tutti… come se fossero
+//!   separati»). A «consulta» (kind `consult`) is answered by all of them, in
+//!   its thread; then, unless another EasyIsland is named in it, the lead writes
+//!   the synthesis once the thread is quiet.
+//! - The lead (`lead`: Claude when it takes part) is the boss for doing things:
+//!   the others give their view and do a job only when it is handed to them by
+//!   name, by the lead or the owner. A message of one engine of this EasyIsland
+//!   naming another one («@notebook/codex fai…») reaches it (`plan`).
+//! - Listening can be turned off from the island's card (`agentchatListen`),
+//!   which shows the status and the last messages (`publish`).
+//! - The PC was off (Edoardo, 1 Nov 2026): the last message read is kept on
+//!   disk per server and name (`agentchat.json`); at the next connection what
+//!   came meanwhile (the last 24 hours, 100 messages at most) goes to the lead
+//!   in one turn (`catch_up`): it answers once to what is still open for this
+//!   EasyIsland, or only takes notes (`agentchatCatchup`).
+//! - Memory: the lead, and only it, ends a reply with «MEMORIA: …» lines for
+//!   what is worth keeping (decisions, facts about clients and projects, jobs
+//!   for this PC, results); they go to the chat's memory (memory.rs), never to
+//!   the chat (`split_memory`, `agentchatMemory`).
 //! - Autonomous, with brakes against loops between agents: «@nome stop» /
 //!   «@tutti stop» stop and pause everything («@nome riprendi» from the owner
 //!   resumes), at most `agentchatPerHour` turns an hour, and after
-//!   `agentchatChain` messages in a row between agents, without the owner,
+//!   `agentchatChain` messages in a row between agents that name someone, without the owner,
 //!   EasyIsland stops answering agents in that room and tells the owner.
 //! - Long polling (50 s) on all the rooms at once: CPU ~0 while waiting, tokens
 //!   only for a turn. Each turn is a fresh conversation (Channel::Helper: the
@@ -61,7 +78,7 @@ const SYNTH_MAX: Duration = Duration::from_secs(240);
 static TURNS: LazyLock<tokio::sync::Semaphore> = LazyLock::new(|| tokio::sync::Semaphore::new(3));
 
 /// A message of the chat (the server's JSON).
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub(crate) struct Msg {
     pub id: i64,
     #[serde(default)]
@@ -76,6 +93,9 @@ pub(crate) struct Msg {
     pub thread: Option<i64>,
     #[serde(default = "kind_msg")]
     pub kind: String,
+    /// When it was written (seconds).
+    #[serde(default)]
+    pub ts: f64,
 }
 
 fn kind_msg() -> String {
@@ -106,6 +126,11 @@ static POLL: Mutex<Option<tokio::task::AbortHandle>> = Mutex::new(None);
 static CHAIN: LazyLock<Mutex<Chain>> = LazyLock::new(|| Mutex::new(Chain::default()));
 /// The last time the owner was told the hourly limit was reached.
 static LIMIT_TOLD: Mutex<Option<Instant>> = Mutex::new(None);
+/// The last messages of the followed rooms, for the island's card.
+static RECENT: Mutex<VecDeque<Msg>> = Mutex::new(VecDeque::new());
+const RECENT_MAX: usize = 40;
+/// For `publish`, from wherever the status changes.
+static APP: std::sync::OnceLock<AppHandle> = std::sync::OnceLock::new();
 
 /// What the settings show.
 #[derive(Serialize)]
@@ -118,6 +143,7 @@ pub struct Info {
     owner: String,
     error: Option<String>,
     stopped: bool,
+    listen: bool,
     /// Turns in the last hour, and the limit.
     turns: usize,
     per_hour: u32,
@@ -128,6 +154,51 @@ pub struct Info {
 
 fn set_status(change: impl FnOnce(&mut Status)) {
     change(&mut STATUS.lock().unwrap());
+    if let Some(app) = APP.get() {
+        publish(app);
+    }
+}
+
+fn remember(list: &[Msg]) {
+    let mut r = RECENT.lock().unwrap();
+    for m in list {
+        if r.iter().all(|x| x.id != m.id) {
+            r.push_back(m.clone());
+        }
+    }
+    while r.len() > RECENT_MAX {
+        r.pop_front();
+    }
+}
+
+/// The island's card (src/views/agentchat.ts): status and the last messages.
+pub fn publish(app: &AppHandle) {
+    let st = STATUS.lock().unwrap().clone();
+    let cfg = config(app);
+    let url = crate::secrets::get(URL_KEY).and_then(|u| clean_url(&u));
+    let lead = lead(&cfg.engines).cloned().unwrap_or_default();
+    let engines: Vec<Value> = cfg
+        .engines
+        .iter()
+        .map(|e| json!({ "name": if st.name.is_empty() { handle(e) } else { format!("{}/{}", st.name, handle(e)) }, "engine": engine_name(app, e), "lead": *e == lead }))
+        .collect();
+    let data = json!({
+        "configured": url.is_some() && crate::secrets::get(TOKEN_KEY).is_some(),
+        "listening": cfg.listen,
+        "connected": st.running,
+        "name": st.name,
+        "owner": st.owner,
+        "error": st.error,
+        "stopped": STOPPED.load(Ordering::SeqCst),
+        "busy": WORKING.load(Ordering::SeqCst),
+        "turns": turns_in_hour(),
+        "perHour": cfg.per_hour,
+        "last": st.last,
+        "url": url.map(|u| format!("{u}/")),
+        "engines": engines,
+        "messages": RECENT.lock().unwrap().iter().cloned().collect::<Vec<_>>(),
+    });
+    crate::integrations::emit(app, crate::integrations::IntegrationUpdate { id: ID, data, error: None, event: None });
 }
 
 fn note_last(text: String) {
@@ -139,12 +210,18 @@ fn note_last(text: String) {
 
 #[derive(Clone, Debug)]
 struct Config {
+    /// Off from the island's card: nothing is read nor answered.
+    listen: bool,
     rooms: Vec<String>,
     /// Engine ids that answer, ready now; the first is the lead.
     engines: Vec<String>,
     per_hour: u32,
     chain: u32,
     synthesis: bool,
+    /// At the connection, what came while off: "answer", "memory" or "off".
+    catchup: String,
+    /// The lead keeps what is useful in the chat's memory.
+    memory: bool,
 }
 
 /// Its name in the chat for an engine: «claude» for the subscription, the id otherwise.
@@ -173,7 +250,7 @@ pub(crate) fn rooms_of(text: &str) -> Vec<String> {
 fn config(app: &AppHandle) -> Config {
     let ready: Vec<String> = crate::telegram::engines(app).into_iter().filter(|(_, _, ok)| *ok).map(|(id, _, _)| id.to_string()).collect();
     let Some(shared) = app.try_state::<crate::Shared>() else {
-        return Config { rooms: vec!["general".into()], engines: Vec::new(), per_hour: 20, chain: 6, synthesis: true };
+        return Config { listen: true, rooms: vec!["general".into()], engines: Vec::new(), per_hour: 20, chain: 6, synthesis: true, catchup: "answer".into(), memory: true };
     };
     let s = shared.settings.lock().unwrap();
     let c = &s.integration_config;
@@ -181,7 +258,7 @@ fn config(app: &AppHandle) -> Config {
     if engines.is_empty() && !s.chat_engine.is_empty() {
         engines.push(s.chat_engine.clone());
     }
-    Config { rooms: rooms_of(&c.agentchat_rooms), engines, per_hour: c.agentchat_per_hour.max(1), chain: c.agentchat_chain.max(1), synthesis: c.agentchat_synthesis }
+    Config { listen: c.agentchat_listen, rooms: rooms_of(&c.agentchat_rooms), engines, per_hour: c.agentchat_per_hour.max(1), chain: c.agentchat_chain.max(1), synthesis: c.agentchat_synthesis, catchup: c.agentchat_catchup.clone(), memory: c.agentchat_memory }
 }
 
 /// On in the current profile or in any other, like Telegram: a profile that
@@ -194,6 +271,12 @@ fn active(app: &AppHandle) -> bool {
                 p.values.get("activeIntegrations").and_then(Value::as_array).is_some_and(|a| a.iter().any(|v| v.as_str() == Some(ID)))
             })
     })
+}
+
+/// The boss of this EasyIsland's engines: Claude (subscription, else API)
+/// when it takes part, else the first.
+pub(crate) fn lead(engines: &[String]) -> Option<&String> {
+    engines.iter().find(|e| *e == "subscription").or_else(|| engines.iter().find(|e| *e == "api")).or(engines.first())
 }
 
 /// The address as typed, without the final "/"; None when missing or not http(s).
@@ -225,6 +308,7 @@ pub fn info(app: &AppHandle) -> Info {
         owner: st.owner,
         error: st.error,
         stopped: STOPPED.load(Ordering::SeqCst),
+        listen: cfg.listen,
         turns: turns_in_hour(),
         per_hour: cfg.per_hour,
         last: st.last,
@@ -244,6 +328,36 @@ pub fn restart() {
 pub fn resume() {
     STOPPED.store(false, Ordering::SeqCst);
     note_last(t("Ripreso dalle impostazioni.").into());
+}
+
+/// The island's card: listening on or off (kept in the settings).
+pub fn listen(app: &AppHandle, on: bool) -> Result<(), String> {
+    crate::agent::update_settings(app, |s| s.integration_config.agentchat_listen = on)?;
+    restart();
+    note_last(if on { t("Ascolto acceso.") } else { t("Ascolto spento.") }.into());
+    Ok(())
+}
+
+// ── Where it was left ─────────────────────────────────────────────────────────
+
+/// The last message read, per server and name: «https://chat.example.com|notebook» → id.
+fn cursor_file() -> std::path::PathBuf {
+    crate::settings::local_dir().join("agentchat.json")
+}
+
+fn load_cursor(key: &str) -> Option<i64> {
+    let v: Value = serde_json::from_str(&std::fs::read_to_string(cursor_file()).ok()?).ok()?;
+    v.get(key)?.as_i64()
+}
+
+fn save_cursor(key: &str, id: i64) {
+    let mut v: Value = std::fs::read_to_string(cursor_file()).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_else(|| json!({}));
+    if !v.is_object() {
+        v = json!({});
+    }
+    v[key] = json!(id);
+    let _ = std::fs::create_dir_all(crate::settings::local_dir());
+    let _ = std::fs::write(cursor_file(), v.to_string());
 }
 
 // ── Server ────────────────────────────────────────────────────────────────────
@@ -318,6 +432,12 @@ async fn hello(srv: &Server) -> Result<(String, String, i64), String> {
     }
     let name = me.get("name").and_then(Value::as_str).unwrap_or_default().to_lowercase();
     let owner = me.get("owner").and_then(Value::as_str).unwrap_or_default().to_lowercase();
+    // The card shows the last messages of the followed rooms; "*" for the last id of all.
+    let rooms = APP.get().map(|a| config(a).rooms.join(",")).unwrap_or_else(|| "general".into());
+    if let Ok(list) = messages(srv, &rooms, -(RECENT_MAX as i64), 0, None).await {
+        RECENT.lock().unwrap().clear();
+        remember(&list);
+    }
     let last = messages(srv, "*", -1, 0, None).await?.last().map_or(0, |m| m.id);
     Ok((name, owner, last))
 }
@@ -325,13 +445,18 @@ async fn hello(srv: &Server) -> Result<(String, String, i64), String> {
 // ── Listening ─────────────────────────────────────────────────────────────────
 
 pub fn spawn(app: AppHandle) {
+    let _ = APP.set(app.clone());
     tauri::async_runtime::spawn(async move {
         let mut offset: i64 = 0;
         let mut ready_for = String::new();
+        let mut cursor_key = String::new();
         loop {
-            let srv = if active(&app) && !crate::integrations::PAUSED.load(Ordering::Relaxed) { server() } else { None };
+            let on = active(&app) && config(&app).listen && !crate::integrations::PAUSED.load(Ordering::Relaxed);
+            let srv = if on { server() } else { None };
             let Some(srv) = srv else {
-                set_status(|s| s.running = false);
+                if STATUS.lock().unwrap().running || !ready_for.is_empty() {
+                    set_status(|s| s.running = false);
+                }
                 ready_for.clear();
                 tokio::time::sleep(Duration::from_secs(5)).await;
                 continue;
@@ -341,14 +466,22 @@ pub fn spawn(app: AppHandle) {
                 match hello(&srv).await {
                     Ok((name, owner, last)) => {
                         log::line(format!("agentchat: collegato come {name}"));
+                        cursor_key = format!("{}|{name}", srv.url);
+                        let saved = load_cursor(&cursor_key);
                         set_status(|s| {
-                            s.name = name;
-                            s.owner = owner;
+                            s.name = name.clone();
+                            s.owner = owner.clone();
                             s.error = None;
                             s.running = true;
                         });
-                        // What was written before is not answered: only what comes from now on.
+                        // What came while EasyIsland was off goes to the lead in one turn;
+                        // the listening goes on from the last message.
+                        if let Some(from) = saved.filter(|f| *f < last) {
+                            let job = tokio::spawn(catch_up(app.clone(), srv.clone(), config(&app), name, owner, from));
+                            track(job.abort_handle());
+                        }
                         offset = last;
+                        save_cursor(&cursor_key, offset);
                         ready_for = key;
                     }
                     Err(e) => {
@@ -378,10 +511,15 @@ pub fn spawn(app: AppHandle) {
             };
             match list {
                 Ok(list) => {
+                    remember(&list);
                     set_status(|s| s.error = None);
+                    let before = offset;
                     for m in list {
                         offset = offset.max(m.id);
                         on_message(&app, &srv, m).await;
+                    }
+                    if offset != before {
+                        save_cursor(&cursor_key, offset);
                     }
                 }
                 Err(e) => {
@@ -442,10 +580,28 @@ fn bare(text: &str) -> String {
 pub(crate) fn plan(m: &Msg, me: &str, owner: &str, engines: &[String], synthesis: bool) -> Plan {
     let sender = m.sender.to_lowercase();
     let mine = |x: &str| x == me || x.strip_prefix(me).is_some_and(|r| r.starts_with('/'));
-    if me.is_empty() || mine(&sender) {
+    if me.is_empty() {
         return Plan::default();
     }
     let names = mentions(&m.text);
+    let sub = |x: &str| x.strip_prefix(me).and_then(|r| r.strip_prefix('/')).map(str::to_string);
+    if mine(&sender) {
+        // One of its own engines hands a job to another by name (the lead does):
+        // that one answers; never itself, never «@notebook» or «@tutti».
+        let mut p = Plan::default();
+        if m.kind != "msg" {
+            return p;
+        }
+        let own = sub(&sender).unwrap_or_default();
+        for h in names.iter().filter_map(|x| sub(x)).filter(|h| *h != own) {
+            for e in engines.iter().filter(|e| handle(e) == h) {
+                if !p.engines.contains(e) {
+                    p.engines.push(e.clone());
+                }
+            }
+        }
+        return p;
+    }
     let everyone = |x: &str| matches!(x, "tutti" | "all" | "everyone");
     let addressed: Vec<&String> = names.iter().filter(|x| mine(x) || everyone(x)).collect();
     let mut p = Plan { to_owner: !owner.is_empty() && names.iter().any(|x| x == owner), ..Plan::default() };
@@ -469,11 +625,14 @@ pub(crate) fn plan(m: &Msg, me: &str, owner: &str, engines: &[String], synthesis
     if m.kind == "synthesis" {
         return p;
     }
+    // The owner writing to nobody in particular: every engine, each on its own.
+    if !owner.is_empty() && sender == owner && names.iter().all(|x| x == owner) {
+        p.engines = engines.to_vec();
+        return p;
+    }
     for x in addressed {
-        let pick: Vec<String> = if x == me {
+        let pick: Vec<String> = if x == me || everyone(x) {
             engines.to_vec()
-        } else if everyone(x) {
-            engines.first().cloned().into_iter().collect()
         } else {
             let h = x.get(me.len() + 1..).unwrap_or_default();
             engines.iter().filter(|e| handle(e) == h).cloned().collect()
@@ -560,7 +719,10 @@ async fn on_message(app: &AppHandle, srv: &Server, m: Msg) {
     };
     let cfg = config(app);
     let from_owner = m.sender.to_lowercase() == owner && m.verified;
-    let free = CHAIN.lock().unwrap().see(&m.room, from_owner, cfg.chain);
+    // Only messages that can make someone answer count: an agent naming another,
+    // or the owner (who starts over). A plain answer to the owner calls no one.
+    let calls = mentions(&m.text).iter().any(|x| *x != owner);
+    let free = if from_owner || calls { CHAIN.lock().unwrap().see(&m.room, from_owner, cfg.chain) } else { true };
     let p = plan(&m, &me, &owner, &cfg.engines, cfg.synthesis);
     if p.to_owner && !from_owner && !p.stop {
         show(app, srv, &tf("{who} ti scrive in Agent Chat", &[("who", &m.sender)]), &m.text);
@@ -592,6 +754,7 @@ async fn on_message(app: &AppHandle, srv: &Server, m: Msg) {
     }
     let job = tokio::spawn(respond(app.clone(), srv.clone(), cfg, me, owner, m, p));
     track(job.abort_handle());
+    publish(app);
 }
 
 /// The answers of the engines to one message, then the synthesis of a consult.
@@ -608,6 +771,7 @@ async fn respond(app: AppHandle, srv: Server, cfg: Config, me: String, owner: St
     if p.synthesis && !STOPPED.load(Ordering::SeqCst) {
         synthesize(&app, &srv, &cfg, &me, &owner, &m).await;
     }
+    publish(&app);
 }
 
 /// The room's last messages (or a consult's thread) as lines for the prompt.
@@ -625,6 +789,21 @@ fn transcript(list: &[Msg]) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// Who decides what gets done among this EasyIsland's engines.
+pub(crate) fn role(me: &str, owner: &str, engines: &[String], engine: &str) -> String {
+    if engines.len() < 2 {
+        return String::new();
+    }
+    let name = |e: &String| format!("@{me}/{}", handle(e));
+    let others = engines.iter().filter(|e| *e != engine).map(name).collect::<Vec<_>>().join(", ");
+    let Some(lead) = lead(engines) else { return String::new() };
+    if lead == engine {
+        tf("\nSei il capo dei motori di questo EasyIsland: rispondono anche {others}, ognuno per conto suo. Se il messaggio chiede di eseguire qualcosa (comandi, modifiche, operazioni con effetti reali) decidi tu chi lo fa: tu stesso, o un altro motore chiamandolo con @nome e dicendogli esattamente cosa fare; un lavoro complesso potete dividerlo. Chiama un altro motore solo per affidargli un compito, mai per salutare o ringraziare.", &[("others", &others)])
+    } else {
+        tf("\nIl capo dei motori di questo EasyIsland è {lead}: rispondono anche {others}, ognuno per conto suo. Se il messaggio chiede di eseguire qualcosa (comandi, modifiche, operazioni con effetti reali) non farlo di tua iniziativa: dai il tuo parere su come farlo o proponiti, decide {lead}. Lo esegui quando è affidato proprio a te per nome da {lead} o da @{owner}: gli incarichi di {lead} valgono come richieste di @{owner}. Chiama un altro motore solo per affidargli un compito, mai per salutare o ringraziare.", &[("lead", &name(lead)), ("others", &others), ("owner", &owner)])
+    }
 }
 
 pub(crate) fn rules(sender: &str, owner: &str, engine: &str) -> String {
@@ -679,20 +858,30 @@ async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: Strin
     }
     .unwrap_or_else(|_| vec![m.clone()]);
     let mut prompt = rules(&sender, &owner, &engine_name(&app, &engine));
+    prompt.push_str(&role(&me, &owner, &cfg.engines, &engine));
     if consult {
         prompt.push('\n');
         prompt.push_str(&t("È una consulta: la stessa domanda va a più motori e agenti. Dai il tuo parere indipendente e motivato, senza ripetere quello degli altri."));
+    }
+    let keeps = cfg.memory && lead(&cfg.engines) == Some(&engine);
+    if keeps {
+        prompt.push_str(&memory_rule());
     }
     prompt.push_str(&tf("\n\nMessaggi (dal più vecchio, stanza «{room}»):\n", &[("room", &m.room)]));
     prompt.push_str(&transcript(&history));
     prompt.push_str(&tf("\n\nRispondi al messaggio #{id} di {who}.", &[("id", &m.id), ("who", &m.sender)]));
     set_status(|s| s.last = tf("{who} risponde al #{id}…", &[("who", &sender), ("id", &m.id)]));
+    let _working = Working::start(&app);
     let reply = engine_turn(&app, &engine, prompt).await;
     if gen != GEN.load(Ordering::SeqCst) {
         return;
     }
     match reply {
         Ok(text) => {
+            let (text, notes) = split_memory(&text);
+            if keeps {
+                keep(&app, &notes);
+            }
             let Some(text) = clean_reply(&text) else {
                 note_last(tf("{who}: niente da aggiungere al #{id}.", &[("who", &sender), ("id", &m.id)]));
                 return;
@@ -710,7 +899,7 @@ async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: Strin
 /// Once a consult's thread is quiet (or after a few minutes), the lead writes
 /// the synthesis; nothing if someone already wrote one.
 async fn synthesize(app: &AppHandle, srv: &Server, cfg: &Config, me: &str, owner: &str, m: &Msg) {
-    let Some(lead) = cfg.engines.first() else { return };
+    let Some(lead) = lead(&cfg.engines) else { return };
     let start = Instant::now();
     let mut last = m.id;
     loop {
@@ -744,10 +933,149 @@ async fn synthesize(app: &AppHandle, srv: &Server, cfg: &Config, me: &str, owner
     if gen != GEN.load(Ordering::SeqCst) {
         return;
     }
-    if let Some(text) = clean_reply(&text) {
+    if let Some(text) = clean_reply(&split_memory(&text).0) {
         if post(srv, &m.room, &text, &sender, Some(m.id), "synthesis").await.is_ok() {
             note_last(tf("Sintesi della consulta #{id} scritta.", &[("id", &m.id)]));
         }
+    }
+}
+
+/// What the lead is told about the memory.
+fn memory_rule() -> String {
+    t("\nMemoria: se in questi messaggi c'è qualcosa che vale la pena ricordare (una decisione presa, un fatto su un cliente o un progetto, un compito affidato a questo PC, un risultato «FATTO:»), aggiungi in fondo una riga per cosa, al massimo 5, che comincia con «MEMORIA:» e dice il fatto in una frase completa e autonoma. Niente saluti, chiacchiere o cose già note. Quelle righe vanno nella memoria di EasyIsland, non in chat.").into()
+}
+
+/// The reply without its «MEMORIA:» lines, and those lines' text (5 at most).
+pub(crate) fn split_memory(text: &str) -> (String, Vec<String>) {
+    let mut notes = Vec::new();
+    let mut rest = Vec::new();
+    for line in text.lines() {
+        let l = line.trim_start().trim_start_matches(['-', '*', ' ']);
+        let upper: String = l.chars().take(8).collect::<String>().to_uppercase();
+        let body = if upper.starts_with("MEMORIA:") {
+            l.get("MEMORIA:".len()..)
+        } else if upper.starts_with("MEMORY:") {
+            l.get("MEMORY:".len()..)
+        } else {
+            None
+        };
+        match body {
+            Some(b) => {
+                let b = b.trim();
+                if !b.is_empty() && notes.len() < 5 {
+                    notes.push(b.to_string());
+                }
+            }
+            None => rest.push(line),
+        }
+    }
+    (rest.join("\n"), notes)
+}
+
+/// Into the chat's memory (memory.rs), marked as coming from Agent Chat; how many went in.
+fn keep(app: &AppHandle, notes: &[String]) -> usize {
+    let mut n = 0;
+    for x in notes {
+        let r = crate::memory::note(&format!("(Agent Chat) {x}"));
+        if r.as_deref().is_ok_and(|m| m != &*t("Era già in memoria.")) {
+            n += 1;
+        }
+        let _ = crate::brain::changed(app, r);
+    }
+    n
+}
+
+/// Messages missed while off: the last 24 hours, 100 at most, not its own.
+pub(crate) fn missed(list: Vec<Msg>, me: &str, now: f64) -> Vec<Msg> {
+    let mine = |x: &str| x == me || x.strip_prefix(me).is_some_and(|r| r.starts_with('/'));
+    let mut l: Vec<Msg> = list.into_iter().filter(|m| !mine(&m.sender.to_lowercase()) && (m.ts == 0.0 || now - m.ts <= 86_400.0)).collect();
+    let skip = l.len().saturating_sub(100);
+    l.drain(..skip);
+    l
+}
+
+/// EasyIsland was off: what came meanwhile goes to the lead in one turn,
+/// which answers once to what is still open (or only takes notes).
+async fn catch_up(app: AppHandle, srv: Server, cfg: Config, me: String, owner: String, from: i64) {
+    if cfg.catchup == "off" || STOPPED.load(Ordering::SeqCst) {
+        return;
+    }
+    let Some(lead) = lead(&cfg.engines).cloned() else { return };
+    let rooms = cfg.rooms.join(",");
+    let path = format!("/api/messages?rooms={}&after={from}&limit=1000", query(&rooms));
+    let Ok(list) = get(&srv, &path, 30).await.and_then(|v| serde_json::from_value::<Vec<Msg>>(v).map_err(|e| e.to_string())) else { return };
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs_f64()).unwrap_or(0.0);
+    let list = missed(list, &me, now);
+    if list.is_empty() {
+        return;
+    }
+    let answer = cfg.catchup != "memory";
+    if !answer && !cfg.memory {
+        return;
+    }
+    let Ok(_permit) = TURNS.acquire().await else { return };
+    if !take_turn(cfg.per_hour) {
+        return;
+    }
+    let gen = GEN.load(Ordering::SeqCst);
+    let sender = format!("{me}/{}", handle(&lead));
+    let mut prompt = rules(&sender, &owner, &engine_name(&app, &lead));
+    prompt.push_str(&role(&me, &owner, &cfg.engines, &lead));
+    if cfg.memory {
+        prompt.push_str(&memory_rule());
+    }
+    prompt.push_str(&tf("\n\nEasyIsland era spento: ecco i {n} messaggi arrivati nel frattempo (dal più vecchio):\n", &[("n", &list.len())]));
+    prompt.push_str(&transcript(&list));
+    prompt.push_str(&if answer {
+        tf("\n\nRispondi con UN solo messaggio, che comincia con «Recuperato:», solo a ciò che è ancora aperto e rivolto a questo EasyIsland: messaggi di @{owner} senza destinatario, @{me}, @{me}/…, @tutti, consulte senza sintesi. Salta ciò che altri agenti hanno già risolto e ciò che non serve più. Se c'è un lavoro da eseguire, decidi chi lo fa come capo. Se non c'è niente di aperto rispondi solo NIENTE (le righe MEMORIA valgono comunque).", &[("owner", &owner), ("me", &me)])
+    } else {
+        t("\n\nNon rispondere in chat: scrivi solo le righe MEMORIA, oppure NIENTE.").into()
+    });
+    set_status(|s| s.last = tf("Recupero {n} messaggi arrivati a EasyIsland spento…", &[("n", &list.len())]));
+    let _working = Working::start(&app);
+    let Ok(reply) = engine_turn(&app, &lead, prompt).await else {
+        note_last(tf("Recuperati {n} messaggi: il motore non ha risposto.", &[("n", &list.len())]));
+        return;
+    };
+    if gen != GEN.load(Ordering::SeqCst) {
+        return;
+    }
+    let (text, notes) = split_memory(&reply);
+    let kept = if cfg.memory { keep(&app, &notes) } else { 0 };
+    let mut sent = false;
+    if answer {
+        if let Some(text) = clean_reply(&text) {
+            // In the room of the last message of the owner, else of the last one.
+            let room = list.iter().rev().find(|m| m.sender.to_lowercase() == owner).or(list.last()).map(|m| m.room.clone()).unwrap_or_else(|| "general".into());
+            sent = post(&srv, &room, &text, &sender, None, "msg").await.is_ok();
+        }
+    }
+    let line = match (sent, kept) {
+        (true, 0) => tf("Recuperati {n} messaggi arrivati a EasyIsland spento: risposta mandata.", &[("n", &list.len())]),
+        (true, k) => tf("Recuperati {n} messaggi arrivati a EasyIsland spento: risposta mandata, {k} note in memoria.", &[("n", &list.len()), ("k", &k)]),
+        (false, 0) => tf("Recuperati {n} messaggi arrivati a EasyIsland spento: niente di aperto.", &[("n", &list.len())]),
+        (false, k) => tf("Recuperati {n} messaggi arrivati a EasyIsland spento: {k} note in memoria.", &[("n", &list.len()), ("k", &k)]),
+    };
+    note_last(line);
+}
+
+/// Counts a turn as answering for the card while it lives.
+struct Working(AppHandle);
+
+static WORKING: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+impl Working {
+    fn start(app: &AppHandle) -> Self {
+        WORKING.fetch_add(1, Ordering::SeqCst);
+        publish(app);
+        Working(app.clone())
+    }
+}
+
+impl Drop for Working {
+    fn drop(&mut self) {
+        WORKING.fetch_sub(1, Ordering::SeqCst);
+        publish(&self.0);
     }
 }
 
@@ -903,7 +1231,7 @@ mod tests {
     use super::*;
 
     fn msg(sender: &str, text: &str) -> Msg {
-        Msg { id: 7, room: "general".into(), sender: sender.into(), text: text.into(), verified: true, thread: None, kind: "msg".into() }
+        Msg { id: 7, room: "general".into(), sender: sender.into(), text: text.into(), verified: true, thread: None, kind: "msg".into(), ts: 0.0 }
     }
 
     fn engines() -> Vec<String> {
@@ -922,13 +1250,21 @@ mod tests {
         let e = engines();
         // Its own messages: nothing.
         assert_eq!(plan(&msg("notebook/claude", "@notebook ciao"), "notebook", "edoardo", &e, true), Plan::default());
-        // @notebook: every engine; @notebook/codex: one; @tutti: the lead.
+        // @notebook and @tutti: every engine; @notebook/codex: one.
         assert_eq!(plan(&msg("edoardo", "@notebook che ne dici?"), "notebook", "edoardo", &e, true).engines, e);
         assert_eq!(plan(&msg("vps", "@notebook/codex guarda qui"), "notebook", "edoardo", &e, true).engines, vec!["codex"]);
-        assert_eq!(plan(&msg("edoardo", "@tutti novità?"), "notebook", "edoardo", &e, true).engines, vec!["subscription"]);
+        assert_eq!(plan(&msg("edoardo", "@tutti novità?"), "notebook", "edoardo", &e, true).engines, e);
         assert_eq!(plan(&msg("edoardo", "@notebook/claude e @notebook/gemini"), "notebook", "edoardo", &e, true).engines, vec!["subscription", "gemini"]);
-        // Not named: nothing; an unknown engine: nothing.
-        assert!(plan(&msg("edoardo", "ciao a chi c'è"), "notebook", "edoardo", &e, true).engines.is_empty());
+        // The owner naming nobody: every engine; another agent naming nobody: nothing.
+        assert_eq!(plan(&msg("edoardo", "ciao"), "notebook", "edoardo", &e, true).engines, e);
+        assert_eq!(plan(&msg("edoardo", "@edoardo promemoria"), "notebook", "edoardo", &e, true).engines, e);
+        assert!(plan(&msg("vps", "ciao a chi c'è"), "notebook", "edoardo", &e, true).engines.is_empty());
+        // The owner naming someone else: not this one.
+        assert!(plan(&msg("edoardo", "@vps ciao"), "notebook", "edoardo", &e, true).engines.is_empty());
+        // The lead hands a job to another engine of the same EasyIsland; never to itself or to all.
+        assert_eq!(plan(&msg("notebook/claude", "@notebook/codex esegui tu i test"), "notebook", "edoardo", &e, true).engines, vec!["codex"]);
+        assert!(plan(&msg("notebook/claude", "@notebook/claude e @tutti"), "notebook", "edoardo", &e, true).engines.is_empty());
+        // An unknown engine: nothing.
         assert!(plan(&msg("edoardo", "@notebook/opencode"), "notebook", "edoardo", &e, true).engines.is_empty());
         assert!(plan(&msg("edoardo", "@notebookpro ciao"), "notebook", "edoardo", &e, true).engines.is_empty());
         // Naming the owner.
@@ -1005,6 +1341,31 @@ mod tests {
     }
 
     #[test]
+    fn memory_lines_are_taken_out() {
+        let (rest, notes) = split_memory("FATTO: aggiornato.\nMEMORIA: il sito di Rossi usa PHP 8.2\n- memoria: backup NAS alle 3\nMEMORIA:   ");
+        assert_eq!(rest, "FATTO: aggiornato.");
+        assert_eq!(notes, vec!["il sito di Rossi usa PHP 8.2", "backup NAS alle 3"]);
+        let (rest, notes) = split_memory("NIENTE\nMEMORIA: decisione: si passa a Postgres");
+        assert_eq!(clean_reply(&rest), None);
+        assert_eq!(notes.len(), 1);
+    }
+
+    #[test]
+    fn what_was_missed() {
+        let now = 1_000_000.0;
+        let mut a = msg("edoardo", "ciao");
+        a.ts = now - 60.0;
+        let mut own = msg("notebook/claude", "ciao");
+        own.ts = now - 50.0;
+        let mut old = msg("vps", "ieri l'altro");
+        old.ts = now - 200_000.0;
+        assert_eq!(missed(vec![old, a.clone(), own], "notebook", now), vec![a.clone()]);
+        let many: Vec<Msg> = (0..150).map(|i| Msg { id: i, ts: now, ..a.clone() }).collect();
+        let kept = missed(many, "notebook", now);
+        assert_eq!((kept.len(), kept[0].id), (100, 50));
+    }
+
+    #[test]
     fn replies_and_settings_are_cleaned() {
         assert_eq!(clean_reply("> ⚙ memory_search\nFATTO: ok"), Some("FATTO: ok".into()));
         assert_eq!(clean_reply(" NIENTE. "), None);
@@ -1014,6 +1375,12 @@ mod tests {
         assert_eq!(clean_url(" https://chat.example.com:8443/ "), Some("https://chat.example.com:8443".into()));
         assert_eq!(clean_url("chat.example.com"), None);
         assert_eq!(handle("subscription"), "claude");
+        let e = engines();
+        assert_eq!(lead(&e).map(String::as_str), Some("subscription"));
+        assert_eq!(lead(&["codex".to_string(), "api".to_string()]).map(String::as_str), Some("api"));
+        assert!(role("notebook", "edoardo", &e, "subscription").contains("capo"));
+        assert!(role("notebook", "edoardo", &e, "codex").contains("@notebook/claude"));
+        assert!(role("notebook", "edoardo", &e[..1], "subscription").is_empty());
         assert_eq!(query("general,dev"), "general%2Cdev");
     }
 }

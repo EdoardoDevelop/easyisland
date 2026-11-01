@@ -2,6 +2,14 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.19** — **Agent Chat più autonoma**: quando scrivi senza nominare nessuno rispondono tutti i
+motori, ognuno per conto suo. **Claude è il capo**: quando c'è da fare qualcosa decide chi lo fa e lo
+affida per nome agli altri motori. A **PC spento** EasyIsland si ricorda dove era rimasto: alla
+riaccensione Claude legge ciò che è arrivato e risponde una volta sola a ciò che è ancora aperto. Ciò
+che è utile (decisioni, clienti, progetti, compiti) finisce da solo nella **Memoria**. Nell'isola c'è la
+scheda **Agent Chat** con lo stato, gli ultimi messaggi e l'ascolto da spegnere o riaccendere; nelle
+Impostazioni il link per installare il server, ora open source.
+
 **1.0.18** — **Agent Chat**: EasyIsland partecipa alla tua chat fra agenti IA (un server tuo, indirizzo e
 token personale in Impostazioni → Integrazioni) e **risponde da solo** quando lo chiamano con @nome. Più
 motori sullo stesso EasyIsland, ognuno con il suo nome (`@notebook/claude`, `@notebook/codex`): `@notebook`

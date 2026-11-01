@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 31 ottobre 2026 — Vocale su Telegram che diventa «Ricorda» (in `claude/sviluppo`)
+- Un vocale al bot che comincia con «ricorda», «ricordati che», «memorizza», «ricordami di…» va nella memoria come `/ricorda` invece di diventare una domanda (`telegram::remember_words`, `remember_reply`). Test Rust; non provato con Telegram vero.
+
 ### 31 ottobre 2026 — Continua in Claude Desktop (in `claude/sviluppo`)
 - ↗ nella testata della chat con Claude Code passa la sessione all'app Claude Desktop (`desktop.rs`, `claude --desktop --resume <id>`, dopo aver chiuso il processo tenuto acceso); tornando all'isola, i messaggi scritti in Desktop vengono letti dal file della sessione e aggiunti alla chat e alla cronologia, poi l'isola riprende la stessa sessione (`docs/chat.md`).
 - Test Rust della lettura del file, build e smoke; il passaggio vero a Desktop non provato (aprirebbe l'app in cui lavoro), in `docs/prove-dal-vivo.md`.
