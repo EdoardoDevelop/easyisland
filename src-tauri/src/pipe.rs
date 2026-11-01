@@ -285,18 +285,23 @@ async fn wait_for_decision(id: &str, rx: &mut mpsc::Receiver<Reply>) -> Option<S
         }
     }
 
-    match tokio::time::timeout(DECISION_TIMEOUT, rx.recv()).await {
-        Ok(Some(Reply::Decision(d))) => {
-            log::line(format!("hook id={id} answered {}", d.split(' ').next().unwrap_or("")));
-            Some(d)
-        }
-        Ok(Some(Reply::Decline)) => {
-            log::line(format!("hook id={id} released without a decision"));
-            None
-        }
-        _ => {
-            log::line(format!("hook id={id} timed out — terminal takes over"));
-            None
+    // A second «card is up» (a request of the chat that waited in line, hooks.ts) changes nothing.
+    let deadline = tokio::time::Instant::now() + DECISION_TIMEOUT;
+    loop {
+        match tokio::time::timeout_at(deadline, rx.recv()).await {
+            Ok(Some(Reply::Ack)) => continue,
+            Ok(Some(Reply::Decision(d))) => {
+                log::line(format!("hook id={id} answered {}", d.split(' ').next().unwrap_or("")));
+                return Some(d);
+            }
+            Ok(Some(Reply::Decline)) => {
+                log::line(format!("hook id={id} released without a decision"));
+                return None;
+            }
+            _ => {
+                log::line(format!("hook id={id} timed out — terminal takes over"));
+                return None;
+            }
         }
     }
 }

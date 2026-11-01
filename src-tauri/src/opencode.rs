@@ -98,6 +98,9 @@ pub struct Options {
     pub agent: bool,
     /// The work folder (workdir.rs): readable without asking, like the chat's own.
     pub work: Option<PathBuf>,
+    /// Agent Chat with «Letture libere» (`reads_ok`): reading anywhere but the
+    /// secret places, and read-only commands, answered "once" without the island.
+    pub reads: bool,
 }
 
 /// `o.config` with the easyisland MCP server added (opencode 2's shape:
@@ -550,6 +553,35 @@ pub fn auto_ok(data: &Value) -> bool {
     }
 }
 
+/// «Letture libere» (Agent Chat): what only looks. Reading a folder outside
+/// opencode's own (writing there is a separate request that still asks) unless
+/// it is a place of keys and passwords, and commands that only look
+/// (`read_only`). Nothing that writes, runs, sends or deletes.
+pub fn reads_ok(data: &Value) -> bool {
+    let action = data.get("action").and_then(Value::as_str).unwrap_or_default();
+    let resources: Vec<&str> = data.get("resources").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str).collect();
+    if resources.is_empty() {
+        return false;
+    }
+    match action {
+        "read" | "glob" | "grep" | "list" | "external_directory" => resources.iter().all(|r| !secret_place(r)),
+        "shell" | "bash" => resources.iter().all(|c| read_only(c) && !secret_place(c)),
+        _ => false,
+    }
+}
+
+/// Where keys and passwords live: never read without asking.
+fn secret_place(path: &str) -> bool {
+    let p = path.to_ascii_lowercase().replace('/', "\\");
+    const PLACES: &[&str] = &[
+        "\\.ssh", "\\.aws", "\\.azure", "\\.gnupg", "\\.kube", "\\.docker", "\\.config\\gh", "\\.git-credentials", "\\.npmrc",
+        "\\microsoft\\credentials", "\\microsoft\\protect", "\\microsoft\\crypto", "\\microsoft\\vault",
+        "\\login data", "\\cookies", "\\key4.db", "\\logins.json", "\\keepass", "\\bitwarden", "\\1password",
+        "handoff.local.md", ".env", ".pem", ".pfx", ".p12", ".key", "id_rsa", "id_ed25519", "\\secrets",
+    ];
+    PLACES.iter().any(|s| p.contains(s))
+}
+
 /// A connector's tool that deletes, or sends something in the user's name
 /// (never without a click, CLAUDE.md): with "Automatica" it still asks.
 fn mcp_delicate(tool: &str) -> bool {
@@ -746,6 +778,7 @@ async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&Chat
     let (url, password) = server(o).await?;
     let terminal = o.folder.is_some();
     let auto = o.auto && terminal;
+    let reads = o.reads;
     let client = http_short()?;
     let stream = http()?;
     let auth = |r: reqwest::RequestBuilder| r.basic_auth("opencode", Some(password.clone()));
@@ -850,7 +883,10 @@ async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&Chat
 
                     out = shown(&out, &format!("> ✗ {}", msg.lines().next().unwrap_or_default()));
                 }
-                "permission.asked" if auto && auto_ok(&data) => {
+                "permission.asked" if (auto && auto_ok(&data)) || (reads && reads_ok(&data)) => {
+                    if reads && !auto {
+                        crate::log::line(format!("agentchat: lettura consentita senza chiedere ({})", data.get("action").and_then(Value::as_str).unwrap_or_default()));
+                    }
                     let id = data.get("id").and_then(Value::as_str).unwrap_or_default().to_string();
                     let (url, password, session) = (url.clone(), password.clone(), session.clone());
                     tauri::async_runtime::spawn(async move {
@@ -1058,6 +1094,14 @@ mod tests {
         }
         assert!(auto_ok(&json!({ "action": "edit", "resources": ["C:\\p\\a.txt"] })));
         assert!(!auto_ok(&json!({ "action": "external_directory", "resources": ["C:\\Windows\\*"] })));
+        // «Letture libere» (Agent Chat): reading anywhere but the secret places, looking commands.
+        assert!(reads_ok(&json!({ "action": "external_directory", "resources": ["C:\\Users\\x\\AppData\\Roaming\\EasyIsland\\*"] })));
+        assert!(!reads_ok(&json!({ "action": "external_directory", "resources": ["C:\\Users\\x\\.ssh\\*"] })));
+        assert!(!reads_ok(&json!({ "action": "read", "resources": ["C:/work/app/.env"] })));
+        assert!(reads_ok(&json!({ "action": "bash", "resources": ["Get-ChildItem $env:APPDATA"] })));
+        assert!(!reads_ok(&json!({ "action": "bash", "resources": ["Remove-Item x"] })));
+        assert!(!reads_ok(&json!({ "action": "edit", "resources": ["C:\\x\\a.txt"] })));
+        assert!(!reads_ok(&json!({ "action": "external_directory", "resources": [] })));
         // Connectors: creating and changing go on, deleting and sending still ask.
         for ok in ["notion_notion-create-pages", "notion_notion-update-page", "notion_notion-search", "github_create_issue"] {
             assert!(auto_ok(&json!({ "action": ok, "resources": [] })), "{ok}");

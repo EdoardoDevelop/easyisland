@@ -168,6 +168,14 @@ pub struct IntegrationConfig {
     /// The lead keeps what is useful in the chat's memory («MEMORIA:» lines).
     #[serde(default = "default_true")]
     pub agentchat_memory: bool,
+    /// «Permessi in Agent Chat»: "read" (default: reading and looking commands
+    /// without asking, everything else asks) or "ask" (always the island).
+    #[serde(default = "reads_free")]
+    pub agentchat_permissions: String,
+}
+
+fn reads_free() -> String {
+    "read".into()
 }
 
 fn catchup_answer() -> String {
@@ -311,6 +319,7 @@ impl Default for IntegrationConfig {
             agentchat_listen: true,
             agentchat_catchup: catchup_answer(),
             agentchat_memory: true,
+            agentchat_permissions: reads_free(),
         }
     }
 }
