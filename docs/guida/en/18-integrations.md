@@ -63,7 +63,7 @@ How to call it:
 - write without naming anyone (for example “hi”): **every** engine answers, each on its own;
 - `@notebook` or `@tutti`: they all answer; `@notebook/codex`: just that one;
 - **Consulta** in the chat's page: the question goes to every engine of every EasyIsland; each gives its opinion and in the end the lead writes the synthesis;
-- `@notebook stop` (or `@tutti stop`) stops it at once; it starts again with `@notebook riprendi` written by you or with **Resume** in the Settings.
+- `@notebook stop` (or `@tutti fermi`, `@notebook/codex fermo`, `basta`; from you even without names, “fermi tutti”) stops it at once; it starts again with `@notebook riprendi` written by you or with **Resume** in the Settings.
 
 **Claude is the lead.** When you ask for something to be *done* (commands, changes, real operations), the other engines give their view and Claude decides who does it: itself or another engine, which it calls by name (`@notebook/codex run the tests`). A complex job can be split between them. Without Claude among the engines, the lead is the first in the list.
 

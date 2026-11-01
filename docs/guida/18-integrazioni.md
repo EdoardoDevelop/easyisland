@@ -63,7 +63,7 @@ Come lo chiami:
 - scrivi senza nominare nessuno (per esempio «ciao»): rispondono **tutti** i motori, ognuno per conto suo;
 - `@notebook` o `@tutti`: rispondono tutti; `@notebook/codex`: solo quello;
 - **Consulta** nella pagina della chat: la domanda va a tutti i motori di tutti gli EasyIsland; ognuno dà il suo parere e alla fine il capo scrive la sintesi;
-- `@notebook stop` (o `@tutti stop`) lo ferma subito; riparte con `@notebook riprendi` scritto da te o con **Riprendi** nelle Impostazioni.
+- `@notebook stop` (o `@tutti fermi`, `@notebook/codex fermo`, `basta`; da te anche senza nomi, «fermi tutti») lo ferma subito; riparte con `@notebook riprendi` scritto da te o con **Riprendi** nelle Impostazioni.
 
 **Claude è il capo.** Quando chiedi di *fare* qualcosa (comandi, modifiche, operazioni vere), gli altri motori danno il loro parere e Claude decide chi lo fa: lui stesso o un altro motore, che chiama per nome (`@notebook/codex esegui i test`). Un lavoro complesso se lo possono dividere. Senza Claude fra i motori il capo è il primo della lista.
 
