@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 31 ottobre 2026. Versione **1.0.17** in `main` con il tag `v1.0.17` (Parla, Telegram che risponde a voce, Ricorda questo e Annota, Prepara un ticket, Continua in Claude Desktop): due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa, che dal 1.0.12 si rimette a posto dopo un cambio di schermo) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo` (`telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili` e `voce-pc` sono uniti). In attesa `claude/modello-integrato`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 1° novembre 2026. Versione **1.0.18** in `main` con il tag `v1.0.18` (Agent Chat: risposte da sole, più motori, consulte; `consult_engines`): due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa, che dal 1.0.12 si rimette a posto dopo un cambio di schermo) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo` (`telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc` e `agentchat` sono uniti). In attesa `claude/modello-integrato`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -27,7 +27,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Remote Desktop Manager:** predisposto; prova la settimana prossima sul PC con RDM (`docs/prove-dal-vivo.md`), poi i passi in `docs/idee.md`.
 - [ ] **Clic destro in Esplora file:** voci di EasyIsland sui file («Manda a EasyIsland», azioni sui file), deciso con Edoardo l'11 ottobre come passo successivo al menu sulla selezione (`docs/idee.md`).
 - [ ] **opencode:** card per lo strumento `question` anche nella chat (per l'agente c'è), controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
-- [ ] **Agent Chat** (su `claude/agentchat`, 1° novembre 2026): da pubblicare il server nuovo (branch `easyisland` del repository `agentchat`) e da provare dal vivo (`docs/prove-dal-vivo.md`).
+- [ ] **Agent Chat** (nella 1.0.18, 1° novembre 2026): server pubblicato sulla VPS; da creare i token degli agenti e da provare dal vivo (`docs/prove-dal-vivo.md`).
 - [ ] **Spunti dall'app originale:** Amp/Hermes, limiti di Codex, riepilogo condivisibile come immagine, GitHub (`docs/idee.md`).
 - [ ] **Prova dal vivo dei nuovi personaggi** (`docs/prove-dal-vivo.md`).
 - [ ] **Modalità chiara:** guardare tutte le schede dell'isola e le pagine delle Impostazioni in chiaro con l'app vera e correggere in `src/style-light.css` / `settings-light.css` ciò che il plugin sbaglia (colori in linea nel codice TypeScript non cambiano).
@@ -52,9 +52,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
-### 1° novembre 2026 — Agent Chat: EasyIsland risponde da solo, più motori e consulte (su `claude/agentchat`)
+### 1° novembre 2026 — Agent Chat: EasyIsland risponde da solo, più motori e consulte (in `claude/sviluppo`, versione 1.0.18)
 - EasyIsland partecipa alla Agent Chat di Edoardo (`agentchat.rs`): ascolto sempre acceso, risposte autonome alle menzioni, ogni motore con il suo nome (`notebook/claude`), consulta con sintesi, freni (stop dalla chat, turni l'ora, catena fra agenti), card nell'isola, strumenti `agentchat_*` e l'aggregatore `consult_engines` (`docs/integrazioni.md`, `docs/chat.md`).
-- Server cambiato nel suo repository (branch `easyisland`: token per agente, owner verificato, più stanze, thread e consulte), non ancora pubblicato. Test Rust e del server, smoke; non provato con il server vero.
+- Server cambiato nel suo repository (token per agente, owner verificato, più stanze, thread e consulte), nel suo `main` e pubblicato sulla VPS il 1° novembre con le chat ripartite da zero. Versione 1.0.18 con tag `v1.0.18`. Test Rust e del server, smoke; nessun turno vero di un motore in Agent Chat ancora.
 
 ### 31 ottobre 2026 — Versione 1.0.17
 - `claude/sviluppo` unito in `main` con il tag `v1.0.17`: Parla, Telegram che risponde a voce e vocali «ricorda», Ricorda questo e Annota, Prepara un ticket Zammad, Continua in Claude Desktop, aspetto delle Notizie nella scheda. Novità in CHANGELOG, README e homepage.

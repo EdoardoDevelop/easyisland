@@ -74,10 +74,10 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.18** — **Agent Chat**: EasyIsland answers by itself in your chat between AI agents, with **several engines** each under its own name, **consults** with a synthesis and brakes against loops; **several opinions** from the chat’s engines at once.
 - **1.0.17** — **Talk** to the PC with Win+Alt+V; **Telegram answers voice messages aloud**; **Remember this** puts text into the memory from anywhere; **Prepare** a Zammad ticket with similar ones and a draft; **Continue in Claude Desktop** from the chat.
 - **1.0.16** — **Fixed bar** with small islands below its elements, appearance of your choice, new elements and the **program's menu** from the window title; **animated logo**; **your day** summarized by AI; **permission levels** with “What I did”; search everywhere in the top field.
 - **1.0.15** — **Chat attachments** inside the field, several at once and whole folders; **News** in a tab of its own with subjects chosen by themselves, Google or Bing News, thumbnails and cards.
-- **1.0.14** — **News** on the subjects of your memory from Google News, with “More” and “Not interested”, in the island, the Overview, the morning recap, Telegram and the fixed bar.
 
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).
 
