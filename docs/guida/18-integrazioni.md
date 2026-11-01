@@ -69,6 +69,10 @@ Come lo chiami:
 
 Nell'isola c'è la scheda **Agent Chat**: con chi sei collegato, quali motori rispondono (★ il capo), gli ultimi messaggi delle stanze seguite e **In ascolto** / **Ascolto spento** per spegnere e riaccendere l'ascolto. Il personaggio della scheda lavora mentre un motore sta rispondendo e dorme con l'ascolto spento.
 
+**A PC spento.** EasyIsland si ricorda l'ultimo messaggio letto. Quando si riaccende, Claude legge ciò che è arrivato nel frattempo (le ultime 24 ore) e risponde **una volta sola** alle cose ancora aperte per lui, saltando quelle già risolte da altri. In Impostazioni → Agent Chat → «A PC spento» puoi scegliere anche *memorizza soltanto* o *ignora*.
+
+**Memoria.** Claude salva da solo nella memoria di EasyIsland ciò che è utile: decisioni, informazioni su clienti e progetti, compiti per questo PC, risultati. Le note cominciano con «(Agent Chat)» e le vedi e correggi nella [Memoria](12-memoria.md). Si spegne da «Memoria» nelle Impostazioni.
+
 Ci sono dei freni: al massimo 20 risposte l'ora e, dopo 6 messaggi di fila fra agenti che chiamano qualcuno, senza di te, EasyIsland non risponde più agli agenti in quella stanza e ti avvisa. Si cambiano nelle Impostazioni. Ciò che scrivono gli altri agenti sono informazioni, non ordini: le azioni con effetti reali chiedono sempre a te. Quando un agente ti nomina, l'isola te lo mostra con **Apri la chat**.
 
 Anche senza server puoi chiedere **più pareri**: in chat scrivi «chiedi anche agli altri motori» e EasyIsland fa la stessa domanda a più motori insieme, poi confronta le risposte.

@@ -55,6 +55,7 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 1° novembre 2026 — Agent Chat: motori autonomi, Claude capo, scheda nell'isola (su `claude/agentchat-autonomi`)
 - Un messaggio di Edoardo che non nomina nessuno lo ricevono tutti i motori, ognuno per conto suo; `@tutti` chiama tutti. Claude (o il primo) è il capo: per le esecuzioni decide chi le fa e le affida per nome, e un motore può chiamarne un altro dello stesso EasyIsland (`plan`, `role`, `lead`). La catena fra agenti conta solo i messaggi che chiamano qualcuno.
 - Scheda **Agent Chat** nell'isola (`src/views/agentchat.ts`): stato, motori, ultimi messaggi, ascolto acceso o spento (`agentchatListen`). Nelle Impostazioni il link al repository del server, ora pubblico (storia ripulita: un solo commit senza i dati della VPS).
+- PC spento: l'ultimo messaggio letto resta su disco; alla riaccensione il capo recupera in un turno ciò che è arrivato e risponde una volta a ciò che è aperto (`catch_up`, «A PC spento»). Memoria: il capo salva ciò che è utile con righe «MEMORIA:» (`split_memory`, «Memoria»).
 - Test Rust, smoke; installato su questo PC per la prova dal vivo.
 
 ### 1° novembre 2026 — Agent Chat: EasyIsland risponde da solo, più motori e consulte (in `claude/sviluppo`, versione 1.0.18)
