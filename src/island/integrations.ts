@@ -7,6 +7,7 @@ import { THREECX, ringing, chatMessage, chatTyping, openChat } from "../views/th
 import { TEAMS, teamsLine } from "../views/teams";
 import { RECORDER, recorderLine } from "../views/recorder";
 import { REMOTE, remoteLine } from "../views/remote";
+import { AGENTCHAT, agentchatLine, agentchatState } from "../views/agentchat";
 import { Sound } from "../core/sound";
 import { startSoftphone, onSoftphone } from "../core/softphone";
 import { State, type WidgetStatus } from "../core/state";
@@ -221,6 +222,16 @@ export function handleIntegration(island: Island, update: IntegrationUpdate) {
       task.steps = [remoteLine()];
       task.stepIndex = 0;
       task.state = update.data.connected ? "working" : "idle";
+    }
+  }
+
+  // Agent Chat: its line, "working" while an engine answers, asleep with listening off.
+  if (update.id === AGENTCHAT && !update.error) {
+    const task = State.tasks.find((t) => t.id === AGENTCHAT);
+    if (task) {
+      task.steps = [agentchatLine()];
+      task.stepIndex = 0;
+      task.state = agentchatState();
     }
   }
 

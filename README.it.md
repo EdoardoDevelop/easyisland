@@ -76,10 +76,10 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Ultime versioni
 
+- **1.0.19** — **Agent Chat** da sola: rispondono tutti i motori, **Claude è il capo** e distribuisce il lavoro, **recupera** ciò che è arrivato a PC spento e tiene l'utile nella **Memoria**; **scheda Agent Chat** nell'isola; il server è open source.
 - **1.0.18** — **Agent Chat**: EasyIsland risponde da solo nella tua chat fra agenti IA, con **più motori** ognuno con il suo nome, **consulte** con la sintesi e freni contro i giri a vuoto; **più pareri** dai motori della chat insieme.
 - **1.0.17** — **Parla** al PC con Win+Alt+V; **Telegram risponde a voce** ai vocali; **Ricorda questo** mette testi nella memoria da ovunque; **Prepara** un ticket Zammad con i simili e una bozza; **Continua in Claude Desktop** dalla chat.
 - **1.0.16** — **Barra fissa** con piccole isole sotto gli elementi, aspetto a scelta, elementi nuovi e **menu del programma** dal titolo della finestra; **logo animato**; **la giornata** riassunta dall'IA; **permessi per livelli** con «Cosa ho fatto»; ricerca ovunque nel campo in alto.
-- **1.0.15** — **Allegati della chat** nel campo, più d'uno e cartelle intere; **Notizie** in una scheda tutta loro con gli argomenti scelti da soli, Google o Bing News, miniature e schede.
 
 Tutte le versioni, con i dettagli: [CHANGELOG.md](CHANGELOG.md).
 

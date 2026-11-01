@@ -15,6 +15,7 @@ import { RDM, rdmActive, rdmLookFor, rdmCard } from "./rdm";
 import { TEAMS, teamsCard } from "./teams";
 import { RECORDER, recorderCard } from "./recorder";
 import { REMOTE, remoteCard } from "./remote";
+import { AGENTCHAT, agentchatCard } from "./agentchat";
 import { weatherCard } from "./weather";
 import { notionPageActive, notionPageCard, openNotionPage, type NotionRefLite } from "./notionpage";
 import { netConfigCard, pingRow, resetNetConfig } from "./netconfig";
@@ -1077,6 +1078,10 @@ export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHoo
   if (task.id === REMOTE) {
     ensureLoaded(REMOTE);
     return remoteCard(hooks.openSettings, hooks.openChat);
+  }
+  if (task.id === AGENTCHAT) {
+    ensureLoaded(AGENTCHAT);
+    return agentchatCard(hooks.openSettings);
   }
   if (task.id === "integration_weather") {
     const card = weatherCard(task, hooks.openSettings);

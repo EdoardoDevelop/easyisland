@@ -215,6 +215,7 @@ Queste chiavi contengono oggetti, o elenchi di oggetti, oppure non hanno un valo
 | `media` | la musica | `long`, `nocover`, `summary` |
 | `recorder` | il registratore | `live`: registra da 83 s |
 | `remote` | Accesso remoto | `guide`, `live`, `linked`, `error` |
+| `agentchat` | Agent Chat (con `activeIntegrations=integration_agentchat`) | `busy` (due motori rispondono), `off` (ascolto spento), `empty` (non configurata) |
 | `teams` | Teams | `call` |
 | `threecx` | 3CX | — |
 | `capture` | il velo di «Riquadra e chiedi» (`window.capture` dice cosa ha chiesto a Rust) | — |

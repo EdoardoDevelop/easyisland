@@ -2,6 +2,14 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.19** — **A more autonomous Agent Chat**: when you write without naming anyone every engine
+answers, each on its own. **Claude is the lead**: when something has to be done it decides who does it
+and hands it to the other engines by name. With the **PC off** EasyIsland remembers where it was: when
+back on, Claude reads what came meanwhile and answers once to what is still open. What is useful
+(decisions, clients, projects, jobs) goes into the **Memory** by itself. On the island there is the
+**Agent Chat** card with the status, the last messages and listening to turn off or on; in the Settings
+the link to install the server, now open source.
+
 **1.0.18** — **Agent Chat**: EasyIsland takes part in your chat between AI agents (a server of your
 own, address and personal token in Settings → Integrations) and **answers by itself** when someone calls
 it with @name. Several engines on the same EasyIsland, each with its own name (`@notebook/claude`,
