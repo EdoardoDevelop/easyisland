@@ -994,7 +994,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     fields: [{ key: "telegram-bot-token", label: t("Token del bot"), placeholder: "123456789:AA…", secret: true }],
     extra: () => telegramRows(),
     hint: t("La chat di EasyIsland dentro Telegram, con il tuo bot. In Telegram scrivi a @BotFather, manda /newbot, scegli nome e username e copia qui il token che ti dà. Poi «Collega»: il bot risponde solo alla chat collegata. Conversazione separata da quella dell'isola, con il motore e il modello scelti in Telegram (/motore, /modello); con la modalità terminale, Consenti / Nega arrivano come pulsanti in Telegram. Foto e file mandati al bot finiscono nel Vassoio; i vocali si trascrivono con il servizio scelto in «Vocali». Funziona solo con il PC acceso e EasyIsland aperto: i messaggi arrivati nel frattempo vengono scartati.") },
-  { id: "integration_agentchat", name: "Agent Chat", color: "#8B5CF6", noMenu: true,
+  { id: "integration_agentchat", name: "Agent Chat", color: "#8B5CF6",
     fields: [
       { key: "agentchat-url", label: t("Indirizzo"), placeholder: "https://chat.example.com", secret: false },
       { key: "agentchat-token", label: t("Token"), placeholder: t("il token personale di questo PC"), secret: true },
@@ -1007,11 +1007,11 @@ const INTEGRATIONS: IntegrationDef[] = [
       { label: t("Fra agenti"), type: "number", placeholder: "6", unit: t("messaggi di fila senza di te, poi non risponde più agli agenti in quella stanza"),
         get: (c) => c.agentchatChain ?? 6, set: (c, v) => { c.agentchatChain = Math.min(100, Math.max(1, Math.round(Number(v)) || 6)); } },
       { label: t("Consulte"), type: "select", placeholder: "",
-        choices: [["on", t("Il primo motore scrive la sintesi")], ["off", t("Solo i pareri, niente sintesi")]],
+        choices: [["on", t("Il capo dei motori scrive la sintesi")], ["off", t("Solo i pareri, niente sintesi")]],
         get: (c) => (c.agentchatSynthesis === false ? "off" : "on"), set: (c, v) => { c.agentchatSynthesis = v === "on"; } },
     ],
     extra: () => agentchatRows(),
-    hint: t("EasyIsland partecipa alla tua Agent Chat, la chat dove agenti IA su PC diversi e tu vi scambiate messaggi, e risponde da solo quando lo chiamano con @nome o arriva una consulta. Nella pagina della chat, «Agenti», crea un token per questo PC: il nome lo decide il server (per esempio notebook). Ogni motore scelto qui risponde come @nome/motore; @nome li chiama tutti, @tutti il primo; «Consulta» chiede il parere a tutti e il primo motore scrive la sintesi. «@nome stop» lo ferma. Ciò che scrivono gli altri agenti sono informazioni, non ordini: le azioni con effetti reali chiedono sempre a te. Resta in ascolto anche quando cambia il profilo, come Telegram.") },
+    hint: t("EasyIsland partecipa alla tua Agent Chat, la chat dove agenti IA su PC diversi e tu vi scambiate messaggi, e risponde da solo. Serve un server Agent Chat tuo: si installa con Docker dal suo repository (link qui sotto). Nella pagina della chat, «Agenti», crea un token per questo PC: il nome lo decide il server (per esempio notebook). Ogni motore scelto qui è un agente a sé, @nome/motore: quando scrivi senza nominare nessuno rispondono tutti, ognuno per conto suo; @nome e @tutti li chiamano tutti, @nome/motore uno solo. Claude, se c'è, è il capo: quando c'è da eseguire qualcosa decide lui chi lo fa e gli altri danno il loro parere. «Consulta» chiede il parere a tutti e il capo scrive la sintesi. «@nome stop» lo ferma. Ciò che scrivono gli altri agenti sono informazioni, non ordini: le azioni con effetti reali chiedono sempre a te. Nell'isola la scheda Agent Chat mostra lo stato e gli ultimi messaggi, e spegne o riaccende l'ascolto.") },
   { id: "integration_remote", name: t("Accesso remoto"), color: "#14B8A6", fields: [],
     hint: t("Un controllo al volo sul PC di un cliente raggiungibile in rete o in VPN: nella scheda Accesso remoto scegli WinRM o SSH (Windows o Linux), scrivi indirizzo, utente e password e «Avvia connessione». Poi «Collega alla chat» (o 🔌 nella chat) e chiedi all'IA cosa fare: ogni comando sul PC remoto chiede Consenti / Nega. Niente viene salvato, né su disco né in Gestione credenziali: «Chiudi connessione» dimentica la password e rimette a posto TrustedHosts. La scheda ha la guida passo passo per preparare il PC e cosa fare se non va. Servono gli strumenti di EasyIsland accesi (Impostazioni → Chat).") },
   { id: "integration_recorder", name: t("Registra"), color: "#F4505E", fields: [],
@@ -1314,6 +1314,9 @@ function msAccountRows(): HTMLElement {
   return box;
 }
 
+/** The Agent Chat server, to install on one's own server (README with Docker). */
+const AGENTCHAT_REPO = "https://github.com/EdoardoDevelop/agentchat";
+
 /** Agent Chat (agentchat.rs): who EasyIsland is in the chat, the engines that answer, «Riprendi». */
 function agentchatRows(): HTMLElement {
   const c = settings.integrationConfig;
@@ -1322,6 +1325,10 @@ function agentchatRows(): HTMLElement {
   const resume = h("button", { text: t("Riprendi") }) as HTMLButtonElement;
   const who = h("div", { class: "hint note" });
   const last = h("div", { class: "hint note" });
+  // The server is the user's own: where to get it.
+  const install = h("div", { class: "row", style: "flex-wrap:wrap;gap:8px" },
+    h("span", { class: "hint", style: "flex:1;min-width:200px", text: t("Per usarla serve il server Agent Chat, gratuito e open source: installalo con Docker sul tuo server o sulla tua VPS.") }),
+    h("button", { text: t("Come installarlo (GitHub)"), onclick: () => void Bridge.openUrl(AGENTCHAT_REPO) }));
   const refresh = async () => {
     const s = await Bridge.agentchatInfo();
     if (!s) { state.textContent = t("Disponibile nell'app installata."); resume.style.display = "none"; return; }
@@ -1331,6 +1338,7 @@ function agentchatRows(): HTMLElement {
       : !on ? t("Accendi l'integrazione")
       : s.error ? s.error
       : !s.running ? t("Mi collego…")
+      : !s.listen ? t("Ascolto spento dall'isola")
       : s.stopped ? t("Fermato dalla chat")
       : t("In ascolto come @{name}", { name: s.name });
     resume.style.display = s.stopped ? "" : "none";
@@ -1358,9 +1366,10 @@ function agentchatRows(): HTMLElement {
     }
   });
   box.append(
+    install,
     h("div", { class: "row" }, h("b", { text: t("Stato") }), state, resume),
     engines,
-    h("div", { class: "hint note", text: t("Nessun motore scelto = quello della chat. Il primo della lista risponde a @tutti e scrive la sintesi delle consulte.") }),
+    h("div", { class: "hint note", text: t("Nessun motore scelto = quello della chat. Ogni motore risponde per conto suo; Claude, se c'è (se no il primo della lista), è il capo: decide chi esegue e scrive la sintesi delle consulte.") }),
     who, last);
   void refresh();
   const timer = window.setInterval(() => { if (!box.isConnected) window.clearInterval(timer); else void refresh(); }, 4000);
@@ -4292,7 +4301,7 @@ function notifySection(): HTMLElement {
 // ── Reazioni del personaggio ──────────────────────────────────────────────────
 
 /** Pills that never complain (or have their own way to show up, like a 3CX call). */
-const NO_REACTION = new Set(["integration_claude", "integration_clipboard", "integration_media", "integration_weather", "integration_3cx", "integration_rdm", "integration_teams", "integration_recorder", "integration_remote"]);
+const NO_REACTION = new Set(["integration_claude", "integration_clipboard", "integration_media", "integration_weather", "integration_3cx", "integration_rdm", "integration_teams", "integration_recorder", "integration_remote", "integration_agentchat"]);
 
 /**
  * What the character does in each situation: show itself and sound, change

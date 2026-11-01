@@ -27,7 +27,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Remote Desktop Manager:** predisposto; prova la settimana prossima sul PC con RDM (`docs/prove-dal-vivo.md`), poi i passi in `docs/idee.md`.
 - [ ] **Clic destro in Esplora file:** voci di EasyIsland sui file («Manda a EasyIsland», azioni sui file), deciso con Edoardo l'11 ottobre come passo successivo al menu sulla selezione (`docs/idee.md`).
 - [ ] **opencode:** card per lo strumento `question` anche nella chat (per l'agente c'è), controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
-- [ ] **Agent Chat** (nella 1.0.18, 1° novembre 2026): server pubblicato sulla VPS; da creare i token degli agenti e da provare dal vivo (`docs/prove-dal-vivo.md`).
+- [ ] **Agent Chat** (nella 1.0.18, 1° novembre 2026; motori autonomi, capo e scheda su `claude/agentchat-autonomi`): server pubblicato sulla VPS, token `casa` creato e collegato; da provare dal vivo le risposte dei motori, il capo che affida un lavoro e l'ascolto spento dall'isola (`docs/prove-dal-vivo.md`).
 - [ ] **Spunti dall'app originale:** Amp/Hermes, limiti di Codex, riepilogo condivisibile come immagine, GitHub (`docs/idee.md`).
 - [ ] **Prova dal vivo dei nuovi personaggi** (`docs/prove-dal-vivo.md`).
 - [ ] **Modalità chiara:** guardare tutte le schede dell'isola e le pagine delle Impostazioni in chiaro con l'app vera e correggere in `src/style-light.css` / `settings-light.css` ciò che il plugin sbaglia (colori in linea nel codice TypeScript non cambiano).
@@ -52,6 +52,11 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 1° novembre 2026 — Agent Chat: motori autonomi, Claude capo, scheda nell'isola (su `claude/agentchat-autonomi`)
+- Un messaggio di Edoardo che non nomina nessuno lo ricevono tutti i motori, ognuno per conto suo; `@tutti` chiama tutti. Claude (o il primo) è il capo: per le esecuzioni decide chi le fa e le affida per nome, e un motore può chiamarne un altro dello stesso EasyIsland (`plan`, `role`, `lead`). La catena fra agenti conta solo i messaggi che chiamano qualcuno.
+- Scheda **Agent Chat** nell'isola (`src/views/agentchat.ts`): stato, motori, ultimi messaggi, ascolto acceso o spento (`agentchatListen`). Nelle Impostazioni il link al repository del server, ora pubblico (storia ripulita: un solo commit senza i dati della VPS).
+- Test Rust, smoke; installato su questo PC per la prova dal vivo.
+
 ### 1° novembre 2026 — Agent Chat: EasyIsland risponde da solo, più motori e consulte (in `claude/sviluppo`, versione 1.0.18)
 - EasyIsland partecipa alla Agent Chat di Edoardo (`agentchat.rs`): ascolto sempre acceso, risposte autonome alle menzioni, ogni motore con il suo nome (`notebook/claude`), consulta con sintesi, freni (stop dalla chat, turni l'ora, catena fra agenti), card nell'isola, strumenti `agentchat_*` e l'aggregatore `consult_engines` (`docs/integrazioni.md`, `docs/chat.md`).
 - Server cambiato nel suo repository (token per agente, owner verificato, più stanze, thread e consulte), nel suo `main` e pubblicato sulla VPS il 1° novembre con le chat ripartite da zero. Versione 1.0.18 con tag `v1.0.18`. Test Rust e del server, smoke; nessun turno vero di un motore in Agent Chat ancora.
@@ -66,6 +71,4 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 31 ottobre 2026 — «Prepara» un ticket Zammad (in `claude/sviluppo`)
 - Un ticket appena assegnato a me fa comparire la proposta «Ticket assegnato a te»; «Prepara» apre la chat con il ticket, la pagina del cliente in memoria e fino a 3 ticket simili (chiusi prima, con come sono finiti) e chiede riassunto e bozza di risposta (`zammad::prepare`, `moment_tickets`). Scena `moment&moment=ticket`; test Rust, non provato con Zammad vero.
 
-### 31 ottobre 2026 — Vocale su Telegram che diventa «Ricorda» (in `claude/sviluppo`)
-- Un vocale al bot che comincia con «ricorda», «ricordati che», «memorizza», «ricordami di…» va nella memoria come `/ricorda` invece di diventare una domanda (`telegram::remember_words`, `remember_reply`). Test Rust; non provato con Telegram vero.
 

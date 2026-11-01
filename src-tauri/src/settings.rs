@@ -158,6 +158,9 @@ pub struct IntegrationConfig {
     /// The lead engine writes the synthesis of a consult.
     #[serde(default = "default_true")]
     pub agentchat_synthesis: bool,
+    /// Listening on (the island's card turns it off).
+    #[serde(default = "default_true")]
+    pub agentchat_listen: bool,
 }
 
 fn general_room() -> String {
@@ -294,6 +297,7 @@ impl Default for IntegrationConfig {
             agentchat_per_hour: twenty(),
             agentchat_chain: six(),
             agentchat_synthesis: true,
+            agentchat_listen: true,
         }
     }
 }

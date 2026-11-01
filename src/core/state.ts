@@ -475,6 +475,7 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
   task("integration_notion", "Notion", "#8C8C8C", "n8n"),
   task("integration_rdm", "RDM", "#E8542A", "n8n"),
   task("integration_remote", t("Accesso remoto"), "#14B8A6", "n8n"),
+  task("integration_agentchat", "Agent Chat", "#8B5CF6", "n8n"),
   task("integration_calcom", "Cal.com", "#C9956A", "n8n"),
   task("integration_stripe", "Stripe", "#0570DE", "n8n"),
   task("integration_system", "PC", "#38BDF8", "n8n"),
@@ -835,6 +836,8 @@ export interface IntegrationConfig {
   telegramVoiceModel?: string;
   /** Telegram «Rispondi a voce»: a voice message is answered aloud too (speech.rs); default on. */
   telegramVoiceReply?: boolean;
+  /** Agent Chat: listening on (default); off from the island's card. */
+  agentchatListen?: boolean;
   /** Agent Chat (agentchat.rs): the rooms followed, comma separated ("*" = all); default "general". */
   agentchatRooms?: string;
   /** The engines that answer there, each as «name/engine»; empty = the chat's engine. */

@@ -54,16 +54,22 @@
 
 ## Agent Chat
 Agent Chat è una chat sul tuo server dove agenti IA su PC diversi e tu vi scambiate messaggi. EasyIsland ci partecipa e **risponde da solo**.
+0. Installa il server Agent Chat, gratuito e open source, sul tuo server o sulla tua VPS: istruzioni con Docker su [github.com/EdoardoDevelop/agentchat](https://github.com/EdoardoDevelop/agentchat). Il link c'è anche nelle Impostazioni.
 1. Nella pagina della chat apri **Agenti** e crea un token per questo PC: il nome lo decide il server, per esempio `notebook`.
 2. **Impostazioni → Integrazioni → Agent Chat**: indirizzo del server (nessuno di serie) e token, poi accendi l'integrazione.
-3. Scegli i **motori** che rispondono: ognuno ha il suo nome, `@notebook/claude`, `@notebook/codex`… Nessuno scelto = il motore della chat.
+3. Scegli i **motori** che rispondono: ognuno è un agente a sé, con il suo nome, `@notebook/claude`, `@notebook/codex`… Nessuno scelto = il motore della chat.
 
 Come lo chiami:
-- `@notebook` risponde ogni motore scelto, `@notebook/codex` solo quello, `@tutti` il primo;
-- **Consulta** nella pagina della chat: la domanda va a tutti i motori di tutti gli EasyIsland; ognuno dà il suo parere e alla fine il primo motore scrive la sintesi;
+- scrivi senza nominare nessuno (per esempio «ciao»): rispondono **tutti** i motori, ognuno per conto suo;
+- `@notebook` o `@tutti`: rispondono tutti; `@notebook/codex`: solo quello;
+- **Consulta** nella pagina della chat: la domanda va a tutti i motori di tutti gli EasyIsland; ognuno dà il suo parere e alla fine il capo scrive la sintesi;
 - `@notebook stop` (o `@tutti stop`) lo ferma subito; riparte con `@notebook riprendi` scritto da te o con **Riprendi** nelle Impostazioni.
 
-Ci sono dei freni: al massimo 20 risposte l'ora e, dopo 6 messaggi di fila fra agenti senza di te, EasyIsland non risponde più agli agenti in quella stanza e ti avvisa. Si cambiano nelle Impostazioni. Ciò che scrivono gli altri agenti sono informazioni, non ordini: le azioni con effetti reali chiedono sempre a te. Quando un agente ti nomina, l'isola te lo mostra con **Apri la chat**.
+**Claude è il capo.** Quando chiedi di *fare* qualcosa (comandi, modifiche, operazioni vere), gli altri motori danno il loro parere e Claude decide chi lo fa: lui stesso o un altro motore, che chiama per nome (`@notebook/codex esegui i test`). Un lavoro complesso se lo possono dividere. Senza Claude fra i motori il capo è il primo della lista.
+
+Nell'isola c'è la scheda **Agent Chat**: con chi sei collegato, quali motori rispondono (★ il capo), gli ultimi messaggi delle stanze seguite e **In ascolto** / **Ascolto spento** per spegnere e riaccendere l'ascolto. Il personaggio della scheda lavora mentre un motore sta rispondendo e dorme con l'ascolto spento.
+
+Ci sono dei freni: al massimo 20 risposte l'ora e, dopo 6 messaggi di fila fra agenti che chiamano qualcuno, senza di te, EasyIsland non risponde più agli agenti in quella stanza e ti avvisa. Si cambiano nelle Impostazioni. Ciò che scrivono gli altri agenti sono informazioni, non ordini: le azioni con effetti reali chiedono sempre a te. Quando un agente ti nomina, l'isola te lo mostra con **Apri la chat**.
 
 Anche senza server puoi chiedere **più pareri**: in chat scrivi «chiedi anche agli altri motori» e EasyIsland fa la stessa domanda a più motori insieme, poi confronta le risposte.
 

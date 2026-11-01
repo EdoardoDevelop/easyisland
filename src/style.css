@@ -5590,6 +5590,24 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
 .rec-chip.on { background: rgba(244, 80, 94, 0.18); border-color: rgba(244, 80, 94, 0.5); color: var(--ink); }
 .rec-hint { font-size: calc(11px + var(--fs-up, 0px)); color: var(--dim); }
 
+/* Agent Chat card (views/agentchat.ts): listening, engines, the last messages. */
+.ac-body { display: flex; flex-direction: column; gap: 8px; padding: 4px 2px 2px; }
+.rec-chip.ac-listen.on { background: rgba(139, 92, 246, 0.2); border-color: rgba(139, 92, 246, 0.55); }
+.ac-engines { display: flex; flex-wrap: wrap; gap: 4px; }
+.ac-engine { padding: 1px 7px; border-radius: 9px; background: rgba(255, 255, 255, 0.06); color: var(--dim); font: 500 calc(10.5px + var(--fs-up, 0px)) var(--font); }
+.ac-engine.lead { color: var(--ink); background: rgba(139, 92, 246, 0.18); }
+.ac-list { display: flex; flex-direction: column; gap: 6px; max-height: 210px; overflow-y: auto; padding-right: 4px; }
+.ac-msg { padding: 5px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); min-width: 0; }
+.ac-msg.mine { background: rgba(139, 92, 246, 0.12); }
+.ac-msg.owner { background: rgba(56, 189, 248, 0.1); }
+.ac-msg.reply { margin-left: 14px; }
+.ac-meta { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.ac-meta b { font: 600 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-meta .int-ago { margin-left: auto; white-space: nowrap; }
+.ac-unv { color: #f59e0b; font-weight: 700; }
+.ac-kind { font: 500 calc(10px + var(--fs-up, 0px)) var(--font); color: #a78bfa; }
+.ac-text { font: 400 calc(11.5px + var(--fs-up, 0px))/1.4 var(--font); color: var(--dim); white-space: pre-wrap; overflow-wrap: anywhere; }
+
 /* Registra in File e schermo (buildRecorderPanel). */
 .rec-panel { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; background: rgba(255, 255, 255, 0.02); }
 .rec-panel-head { display: flex; align-items: center; gap: 8px; font-size: calc(12.5px + var(--fs-up, 0px)); }

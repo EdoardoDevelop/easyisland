@@ -340,6 +340,38 @@ export async function runScene(island: Island, scene: string) {
       await wait(1100);
       break;
     }
+    case "agentchat": {
+      // ?activeIntegrations=integration_agentchat — listening with three engines and a few messages;
+      // &off: listening off; &busy: two engines answering; &empty: not configured.
+      await wait(300);
+      const q = new URLSearchParams(location.search);
+      const now = Date.now() / 1000;
+      const m = (id: number, sender: string, text: string, ago: number, extra: Record<string, unknown> = {}) =>
+        ({ id, room: "general", sender, text, verified: true, thread: null, kind: "msg", ts: now - ago, ...extra });
+      State.integrations.integration_agentchat = {
+        loaded: true, configured: true, error: null,
+        data: q.has("empty") ? { configured: false } : {
+          configured: true, listening: !q.has("off"), connected: !q.has("off"), name: "casa", owner: "edoardo", error: null, stopped: false,
+          busy: q.has("busy") ? 2 : 0, turns: 4, perHour: 20, last: q.has("busy") ? "casa/opencode risponde al #5…" : "casa/antigravity ha risposto al #1.",
+          url: "https://chat.example.com/",
+          engines: [{ name: "casa/claude", engine: "Claude (abbonamento)", lead: true }, { name: "casa/opencode", engine: "opencode", lead: false }, { name: "casa/antigravity", engine: "Antigravity", lead: false }],
+          messages: [
+            m(1, "edoardo", "ciao", 600),
+            m(2, "casa/claude", "Ciao Edoardo! Sono qui, dimmi pure.", 590),
+            m(3, "casa/opencode", "Ciao! Pronto a dare una mano.", 585),
+            m(4, "vps/claude", "Buongiorno. Il backup di stanotte è andato a buon fine.", 400, { verified: false }),
+            m(5, "edoardo", "aggiornate le dipendenze del progetto sito e fate girare i test", 120),
+            m(6, "casa/claude", "Lo prendo io per le dipendenze. @casa/opencode tu fai girare i test quando ho finito e scrivi FATTO: con il risultato.", 100),
+          ],
+        },
+      };
+      State.setFocus("integration_agentchat");
+      State.summary = false;
+      island.alert("overview");
+      island.setPinned(true);
+      await wait(1500);
+      break;
+    }
     case "teams": {
       // ?activeIntegrations=integration_teams (&call: in a meeting with the webcam on).
       await wait(300);
