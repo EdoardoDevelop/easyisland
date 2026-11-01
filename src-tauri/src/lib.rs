@@ -1312,7 +1312,7 @@ pub(crate) async fn chat_turn(
     let shared = app.state::<Shared>();
     // Agent Chat with «Letture libere»: opencode reads outside its folder and runs
     // read-only commands without the island; writing, running, sending still ask.
-    let reads = channel == Channel::AgentChat && shared.settings.lock().unwrap().integration_config.agentchat_permissions == "read";
+    let reads = channel == Channel::AgentChat && shared.settings.lock().unwrap().integration_config.agentchat_trust != "ask";
     let picked = model.filter(|m| !m.trim().is_empty());
     let (engine, model, cli_model, mcp, agent, other_model, url, terminal) = {
         let s = shared.settings.lock().unwrap();

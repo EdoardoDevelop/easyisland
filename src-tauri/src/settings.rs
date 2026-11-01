@@ -168,14 +168,16 @@ pub struct IntegrationConfig {
     /// The lead keeps what is useful in the chat's memory («MEMORIA:» lines).
     #[serde(default = "default_true")]
     pub agentchat_memory: bool,
-    /// «Permessi in Agent Chat»: "read" (default: reading and looking commands
-    /// without asking, everything else asks) or "ask" (always the island).
-    #[serde(default = "reads_free")]
-    pub agentchat_permissions: String,
+    /// «Permessi in Agent Chat» (agentchat::decide): "auto" (default, Edoardo
+    /// 1 Nov 2026: «l'intento è che siano autonomi su tutto»: everything on its
+    /// own, what deletes, sends or runs on another PC asked in the chat), "read"
+    /// (reads without asking, the rest on the island) or "ask" (the island).
+    #[serde(default = "autonomous")]
+    pub agentchat_trust: String,
 }
 
-fn reads_free() -> String {
-    "read".into()
+fn autonomous() -> String {
+    "auto".into()
 }
 
 fn catchup_answer() -> String {
@@ -319,7 +321,7 @@ impl Default for IntegrationConfig {
             agentchat_listen: true,
             agentchat_catchup: catchup_answer(),
             agentchat_memory: true,
-            agentchat_permissions: reads_free(),
+            agentchat_trust: autonomous(),
         }
     }
 }

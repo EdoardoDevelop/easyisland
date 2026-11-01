@@ -58,6 +58,7 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 - PC spento: l'ultimo messaggio letto resta su disco; alla riaccensione il capo recupera in un turno ciò che è arrivato e risponde una volta a ciò che è aperto (`catch_up`, «A PC spento»). Memoria: il capo salva ciò che è utile con righe «MEMORIA:» (`split_memory`, «Memoria»).
 - Permessi in Agent Chat: «Letture libere» di serie (opencode legge e guarda senza chiedere, tranne chiavi e password), e le richieste della chat fatte insieme aspettano in fila invece di essere rifiutate. Istruzioni più strette: niente risposte a conferme e ringraziamenti, memoria solo per decisioni e fatti stabili.
 - Allegati: nome, dimensione e SHA-256 accanto a ogni file; ogni file lo importa un solo agente (`agentchat_import`, controllo dello SHA-256, nel Vassoio). Il server degli allegati è nel repository `agentchat` (`ac238d9`).
+- Permessi «Autonomi» (di serie): nessuna richiesta nell'isola nei turni di Agent Chat, su tutti i motori; ciò che elimina, invia, cambia il sistema o va sul PC remoto lo chiedono in chat («sì/no codice»). Eccezione aggiunta in CLAUDE.md. Gli allegati partono anche dalla risposta con «ALLEGA: percorso» (Vassoio o cartella di lavoro), senza strumenti.
 - Test Rust, smoke; installato su questo PC per la prova dal vivo.
 
 ### 1° novembre 2026 — Agent Chat: EasyIsland risponde da solo, più motori e consulte (in `claude/sviluppo`, versione 1.0.18)

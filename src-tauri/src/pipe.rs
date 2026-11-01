@@ -210,8 +210,11 @@ async fn handle(app: AppHandle, mut pipe: NamedPipeServer) {
     }
 
     // A chat turn from Telegram: Consenti / Nega there, never on the island.
-    let decision = if payload.get("easyisland_channel").and_then(Value::as_str) == Some("telegram") {
+    let channel = payload.get("easyisland_channel").and_then(Value::as_str).unwrap_or_default().to_string();
+    let decision = if channel == "telegram" {
         crate::telegram::request_decision(&app, payload).await
+    } else if channel == "agentchat" {
+        crate::agentchat::decide(&app, payload).await
     } else {
         request_decision(&app, payload).await
     };

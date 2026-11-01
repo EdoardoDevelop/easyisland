@@ -571,7 +571,7 @@ pub fn reads_ok(data: &Value) -> bool {
 }
 
 /// Where keys and passwords live: never read without asking.
-fn secret_place(path: &str) -> bool {
+pub(crate) fn secret_place(path: &str) -> bool {
     let p = path.to_ascii_lowercase().replace('/', "\\");
     const PLACES: &[&str] = &[
         "\\.ssh", "\\.aws", "\\.azure", "\\.gnupg", "\\.kube", "\\.docker", "\\.config\\gh", "\\.git-credentials", "\\.npmrc",
@@ -736,6 +736,8 @@ pub async fn send(app: &AppHandle, chat: &Chat, model: &str, query: String, cont
     let o = &with_agent(o);
     if o.telegram {
         run_turn(chat, model, query, context, on_text, Telegram(app.clone()), o).await
+    } else if chat.channel() == "agentchat" {
+        run_turn(chat, model, query, context, on_text, AgentChat(app.clone()), o).await
     } else {
         let asked = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
         let reply = run_turn(chat, model, query, context, on_text, Island(app.clone(), asked.clone()), o).await;
@@ -744,6 +746,17 @@ pub async fn send(app: &AppHandle, chat: &Chat, model: &str, query: String, cont
             crate::pipe::release(app, &id);
         }
         reply
+    }
+}
+
+/// A turn of Agent Chat: «Permessi in Agent Chat» (agentchat::decide).
+#[derive(Clone)]
+struct AgentChat(AppHandle);
+
+impl Ask for AgentChat {
+    fn decide(&self, payload: Value) -> Decision {
+        let app = self.0.clone();
+        Box::pin(async move { crate::agentchat::decide(&app, payload).await })
     }
 }
 

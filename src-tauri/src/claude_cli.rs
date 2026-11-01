@@ -939,6 +939,10 @@ async fn send_mode(
         if telegram {
             cmd.env("EASYISLAND_CHANNEL", "telegram");
         }
+        // A turn of Agent Chat: its permissions follow «Permessi in Agent Chat».
+        if chat.channel() == "agentchat" {
+            cmd.env("EASYISLAND_CHANNEL", "agentchat");
+        }
         cmd
     };
     let (limit, late) = if terminal.is_some() {
