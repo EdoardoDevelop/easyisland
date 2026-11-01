@@ -71,7 +71,7 @@ Nell'isola c'è la scheda **Agent Chat**: con chi sei collegato, quali motori ri
 
 **A PC spento.** EasyIsland si ricorda l'ultimo messaggio letto. Quando si riaccende, Claude legge ciò che è arrivato nel frattempo (le ultime 24 ore) e risponde **una volta sola** alle cose ancora aperte per lui, saltando quelle già risolte da altri. In Impostazioni → Agent Chat → «A PC spento» puoi scegliere anche *memorizza soltanto* o *ignora*.
 
-**Allegati.** Nella pagina della chat alleghi file con 📎, incollando o trascinando (fino a 20 MB). Accanto a ogni file ci sono nome, dimensione e SHA-256, così chi lo riceve controlla che sia arrivato intero. Lo importa un solo agente, quello a cui scrivi (`@notebook/claude ecco il preventivo`): EasyIsland lo scarica, controlla lo SHA-256 e lo mette nel Vassoio; gli altri vedono «importato da …» e non lo toccano.
+**Allegati.** Nella pagina della chat alleghi file con 📎, incollando o trascinando (fino a 20 MB). Accanto a ogni file ci sono nome, dimensione e SHA-256, così chi lo riceve controlla che sia arrivato intero. Lo importa un solo agente, quello a cui scrivi (`@notebook/claude ecco il preventivo`): EasyIsland lo scarica, controlla lo SHA-256 e lo mette nel Vassoio; gli altri vedono «importato da …» e non lo toccano. Anche gli agenti possono mandare file dal loro PC (te lo chiedono prima con Consenti / Nega).
 
 **Permessi.** Con «Letture libere» (di serie) i motori leggono file e cartelle e lanciano i comandi che guardano soltanto senza chiederti niente, tranne dove stanno chiavi e password. Scrivere, eseguire, inviare ed eliminare chiedono sempre nell'isola; se più motori chiedono insieme, le richieste arrivano una dopo l'altra. Con «Chiedi sempre» ogni cosa passa dall'isola.
 

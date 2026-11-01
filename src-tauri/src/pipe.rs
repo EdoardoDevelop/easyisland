@@ -230,6 +230,12 @@ async fn handle(app: AppHandle, mut pipe: NamedPipeServer) {
 /// nobody could answer (paused island, another card up, timeout). Also used by
 /// opencode.rs, whose permissions come from opencode's server, not the relay.
 pub async fn request_decision(app: &AppHandle, payload: Value) -> Option<String> {
+    request_decision_id(app, &new_request_id(), payload).await
+}
+
+/// `request_decision` under a chosen id, so the caller can let it go when its
+/// turn is over (opencode.rs: a card must not outlive the turn that asked).
+pub async fn request_decision_id(app: &AppHandle, id: &str, payload: Value) -> Option<String> {
     // A reversible tool allowed for good, or by the running task: no card (permits.rs).
     if crate::permits::allowed_now(app, &payload) {
         return Some("allow".into());
@@ -238,7 +244,16 @@ pub async fn request_decision(app: &AppHandle, payload: Value) -> Option<String>
     if crate::tasks::in_turn() && payload.get("easyisland_chat").and_then(Value::as_bool) == Some(true) {
         return crate::tasks::decide(app, payload).await;
     }
-    request_decision_as(app, &new_request_id(), payload).await
+    request_decision_as(app, id, payload).await
+}
+
+/// Lets a request go if it is still waiting (its card leaves the island); nothing otherwise.
+pub fn release(app: &AppHandle, request_id: &str) {
+    let waiting = app.state::<Pending>().0.lock().unwrap().contains_key(request_id);
+    if waiting {
+        decline(app, request_id);
+        let _ = app.emit_to(WINDOW_LABEL, "hook-released", request_id);
+    }
 }
 
 /// A fresh request id, for a caller that may need to release the wait itself

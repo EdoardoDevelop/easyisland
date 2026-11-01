@@ -717,13 +717,16 @@ trait Ask: Clone + Send + Sync + 'static {
     fn decide(&self, payload: Value) -> Decision;
 }
 
+/// The island, and the ids asked in this turn: let go when the turn ends.
 #[derive(Clone)]
-struct Island(AppHandle);
+struct Island(AppHandle, std::sync::Arc<std::sync::Mutex<Vec<String>>>);
 
 impl Ask for Island {
     fn decide(&self, payload: Value) -> Decision {
         let app = self.0.clone();
-        Box::pin(async move { crate::pipe::request_decision(&app, payload).await })
+        let id = crate::pipe::new_request_id();
+        self.1.lock().unwrap().push(id.clone());
+        Box::pin(async move { crate::pipe::request_decision_id(&app, &id, payload).await })
     }
 }
 
@@ -734,7 +737,13 @@ pub async fn send(app: &AppHandle, chat: &Chat, model: &str, query: String, cont
     if o.telegram {
         run_turn(chat, model, query, context, on_text, Telegram(app.clone()), o).await
     } else {
-        run_turn(chat, model, query, context, on_text, Island(app.clone()), o).await
+        let asked = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let reply = run_turn(chat, model, query, context, on_text, Island(app.clone(), asked.clone()), o).await;
+        // The turn is over: a request it left on the island has no one to answer it any more.
+        for id in asked.lock().unwrap().drain(..) {
+            crate::pipe::release(app, &id);
+        }
+        reply
     }
 }
 
@@ -899,6 +908,9 @@ async fn turn_once(chat: &Chat, model: Value, query: &str, context: Option<&Chat
                     });
                 }
                 "permission.asked" => {
+                    // What is asked, in the log: for a request that surprised the user.
+                    let what: String = data.get("resources").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str).collect::<Vec<_>>().join(" | ").chars().take(160).collect();
+                    crate::log::line(format!("opencode chiede: {} {what}", data.get("action").and_then(Value::as_str).unwrap_or_default()));
                     let ask = ask.clone();
                     let refused = refused.clone();
                     let (url, password, session, data) = (url.clone(), password.clone(), session.clone(), data.clone());

@@ -479,11 +479,13 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "agentchat_send",
-            "Agent Chat: manda un messaggio come questo EasyIsland. text: il messaggio (breve; @nome per rivolgersi a qualcuno); room: la stanza (vuoto = la prima seguita). L'utente conferma.",
+            "Agent Chat: manda un messaggio come questo EasyIsland, anche con allegati. text: il messaggio (breve; @nome per rivolgersi a qualcuno: chi è nominato importa gli allegati); room: la stanza (vuoto = la prima seguita); files: percorsi di file di questo PC da allegare (al massimo 5, 20 MB l'uno; nome, dimensione e SHA-256 li mette il server); engine: il tuo motore (es. claude), per firmare come nome/motore. Mai file con password o chiavi. L'utente conferma.",
             json!({ "type": "object", "properties": {
                 "text": { "type": "string" },
-                "room": { "type": "string" }
-            }, "required": ["text"] }),
+                "room": { "type": "string" },
+                "files": { "type": "array", "items": { "type": "string" } },
+                "engine": { "type": "string" }
+            } }),
             false,
         ),
         (

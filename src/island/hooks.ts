@@ -669,6 +669,16 @@ function goIdle(tid: string) {
 
 export function registerHookHandlers(island: Island) {
   void onEvent<HookPayload>("hook", (payload) => handleHook(island, payload));
+  // The turn that asked is over (opencode.rs): its card, or its place in line, goes.
+  void onEvent<string>("hook-released", (id) => {
+    const i = chatQueue.findIndex((q) => q.payload.request_id === id);
+    if (i >= 0) chatQueue.splice(i, 1);
+    const req = State.pendingApproval;
+    if (req?.requestId === id) {
+      island.settleApproval(req);
+      State.notify();
+    }
+  });
 }
 
 /** A session that is over: steps, plan and diffs go; another agent's pill goes too. */
