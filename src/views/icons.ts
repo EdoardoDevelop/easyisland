@@ -106,6 +106,7 @@ export const LINE_ICONS: Record<string, string> = {
   integration_system: "M7 7h10v10H7zM10 10h4v4h-4zM9.5 3.5V7M14.5 3.5V7M9.5 17v3.5M14.5 17v3.5M3.5 9.5H7M3.5 14.5H7M17 9.5h3.5M17 14.5h3.5",
   integration_security: "M12 3l7.5 3v5.5c0 4.5-3.2 8-7.5 9.5-4.3-1.5-7.5-5-7.5-9.5V6L12 3zM9 12l2.2 2.2L15.5 10",
   integration_telegram: "M21 4 3 11l6.5 2.5L18 7l-6.5 7.5 6 5.5L21 4z",
+  integration_agentchat: "M4 5h11v8H8l-4 3zM10 15v2h7l3 3V9h-3",
   integration_remote: "M3.5 4.5h17v11h-17zM9 20h6M12 15.5V20M9.5 10h5M12.5 8l2 2-2 2",
 };
 

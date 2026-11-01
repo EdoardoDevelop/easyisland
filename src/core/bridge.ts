@@ -34,6 +34,24 @@ export interface TelegramInfo {
   error: string | null;
 }
 
+/** Impostazioni → Integrazioni → Agent Chat (agentchat.rs `Info`). */
+export interface AgentchatInfo {
+  url: boolean;
+  token: boolean;
+  running: boolean;
+  /** The name the server gave this EasyIsland, and the owner's. */
+  name: string;
+  owner: string;
+  error: string | null;
+  /** «@nome stop» was written in the chat. */
+  stopped: boolean;
+  turns: number;
+  perHour: number;
+  last: string;
+  /** Who answers: [name in the chat, engine]. */
+  engines: [string, string][];
+}
+
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
   if (!IS_TAURI) return null;
   try {
@@ -581,6 +599,9 @@ export const Bridge = {
   telegramLinkCode: () => callOrThrow<string>("telegram_link_code"),
   telegramUnlink: () => callOrThrow<void>("telegram_unlink"),
   telegramRestart: () => call<void>("telegram_restart"),
+  agentchatInfo: () => call<AgentchatInfo>("agentchat_info"),
+  agentchatRestart: () => call<void>("agentchat_restart"),
+  agentchatResume: () => call<void>("agentchat_resume"),
   rdmDataSources: () => callOrThrow<{ id: string; name: string; kind: string }[]>("rdm_data_sources"),
   /** "+ Attività" in the Notion card (due: "YYYY-MM-DD" or null). */
   notionAddTask: (title: string, due: string | null) => callOrThrow<void>("notion_add_task", { title, due }),

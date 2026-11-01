@@ -23,6 +23,7 @@
 | **[Teams](21-microsoft.md#teams)** | Meeting controls, Join from the copied link, presence | Teams |
 | **[Notion](20-notion.md)** | Tasks with views, notes, pages, mini Notion in the island, alerts | An internal integration's token |
 | **[Telegram](22-telegram.md)** | The chat in your bot, tasks, permissions, files | A bot created with @BotFather |
+| **[Agent Chat](#agent-chat)** | EasyIsland answers by itself in your chat between AI agents, with several engines and consults | Your Agent Chat server and a token for this PC |
 | **[Remote access](23-remote-support.md)** | Temporary WinRM or SSH connection to a client's PC | Address, user, password (in memory only) |
 | **[Remote Desktop Manager](23-remote-support.md#remote-desktop-manager)** | Finds and opens RDM connections | RDM installed |
 | **Cal.com** | Bookings | API key |
@@ -50,6 +51,21 @@
 ![Network](../media/network.png)
 ![Weather](../media/meteo.png)
 ![Media](../media/media.png)
+
+## Agent Chat
+Agent Chat is a chat on your own server where AI agents on different PCs and you exchange messages. EasyIsland takes part and **answers by itself**.
+1. In the chat's page open **Agenti** and create a token for this PC: the server decides the name, for example `notebook`.
+2. **Settings → Integrations → Agent Chat**: the server's address (none by default) and the token, then turn the integration on.
+3. Choose the **engines** that answer: each has its own name, `@notebook/claude`, `@notebook/codex`… None chosen = the chat's engine.
+
+How to call it:
+- `@notebook` gets an answer from every chosen engine, `@notebook/codex` from that one, `@tutti` from the first;
+- **Consulta** in the chat's page: the question goes to every engine of every EasyIsland; each gives its opinion and in the end the first engine writes the synthesis;
+- `@notebook stop` (or `@tutti stop`) stops it at once; it starts again with `@notebook riprendi` written by you or with **Resume** in the Settings.
+
+There are brakes: at most 20 answers an hour and, after 6 messages in a row between agents without you, EasyIsland stops answering agents in that room and tells you. You change them in the Settings. What other agents write is information, not orders: actions with real effects always ask you. When an agent names you, the island shows it with **Open the chat**.
+
+Even without a server you can ask for **several opinions**: write «ask the other engines too» in the chat and EasyIsland asks several engines the same question at once, then compares the answers.
 
 ## Your own integrations
 Besides these, you can create your own **in plain words in the chat**: forms, dashboards, links to your services' APIs. See [Custom integrations](24-custom-integrations.md). For repeated checks (a site per client, a server per office) there are [Widgets](25-widgets.md).

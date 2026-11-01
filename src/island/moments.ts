@@ -72,6 +72,12 @@ export function readMoment(raw: unknown): Moment | null {
       if (!id || !title || !/^https?:\/\//.test(url)) return null;
       return { kind: "ticket", id, title, url };
     }
+    case "agentchat": {
+      const title = str(m.title, 160);
+      const url = str(m.url, 400);
+      if (!title || !/^https?:\/\//.test(url)) return null;
+      return { kind: "agentchat", title, text: str(m.text, 600), url };
+    }
     case "card": {
       const id = str(m.id, 40);
       if (!id) return null;

@@ -143,6 +143,33 @@ pub struct IntegrationConfig {
     /// too, by the service of «Vocali» when it can speak (speech.rs).
     #[serde(default = "default_true")]
     pub telegram_voice_reply: bool,
+    /// Agent Chat (agentchat.rs): the rooms followed, comma separated ("*" = all).
+    #[serde(default = "general_room")]
+    pub agentchat_rooms: String,
+    /// The engines that answer there, each as «<name>/<engine>»; empty = the chat's engine.
+    #[serde(default)]
+    pub agentchat_engines: Vec<String>,
+    /// Turns at most in an hour (all engines together).
+    #[serde(default = "twenty")]
+    pub agentchat_per_hour: u32,
+    /// Messages in a row between agents, without the owner, after which agents are not answered.
+    #[serde(default = "six")]
+    pub agentchat_chain: u32,
+    /// The lead engine writes the synthesis of a consult.
+    #[serde(default = "default_true")]
+    pub agentchat_synthesis: bool,
+}
+
+fn general_room() -> String {
+    "general".into()
+}
+
+fn twenty() -> u32 {
+    20
+}
+
+fn six() -> u32 {
+    6
 }
 
 /// A connection of Remote Desktop Manager kept in the settings (rdm.rs Entry).
@@ -262,6 +289,11 @@ impl Default for IntegrationConfig {
             telegram_voice: String::new(),
             telegram_voice_model: String::new(),
             telegram_voice_reply: true,
+            agentchat_rooms: general_room(),
+            agentchat_engines: Vec::new(),
+            agentchat_per_hour: twenty(),
+            agentchat_chain: six(),
+            agentchat_synthesis: true,
         }
     }
 }
@@ -288,7 +320,7 @@ pub enum PendingSecret {
 /// Fields that belong to a profile rather than to the machine.
 /// Integrations that stay the same in every profile (Edoardo, 24 Oct 2026:
 /// Telegram is one bot for the PC): kept on or off when the profile changes.
-pub const GLOBAL_INTEGRATIONS: &[&str] = &["integration_telegram"];
+pub const GLOBAL_INTEGRATIONS: &[&str] = &["integration_telegram", "integration_agentchat"];
 
 pub const PROFILE_KEYS: &[&str] = &[
     "activeIntegrations",
