@@ -149,6 +149,10 @@ pub struct IntegrationConfig {
     /// The engines that answer there, each as «<name>/<engine>»; empty = the chat's engine.
     #[serde(default)]
     pub agentchat_engines: Vec<String>,
+    /// Their names in the chat, chosen by the user: engine id → «lia». The
+    /// server keeps them unique (`/api/aliases`); «@lia» calls that engine.
+    #[serde(default)]
+    pub agentchat_names: std::collections::HashMap<String, String>,
     /// Turns at most in an hour (all engines together).
     #[serde(default = "twenty")]
     pub agentchat_per_hour: u32,
@@ -168,6 +172,24 @@ pub struct IntegrationConfig {
     /// The lead keeps what is useful in the chat's memory («MEMORIA:» lines).
     #[serde(default = "default_true")]
     pub agentchat_memory: bool,
+    /// «Permessi in Agent Chat» (agentchat::decide): "auto" (default, Edoardo
+    /// 1 Nov 2026: «l'intento è che siano autonomi su tutto»: everything on its
+    /// own, what deletes, sends or runs on another PC asked in the chat), "read"
+    /// (reads without asking, the rest on the island) or "ask" (the island).
+    #[serde(default = "autonomous")]
+    pub agentchat_trust: String,
+    /// This PC's memory goes to the chat's server, for the other PCs
+    /// (memshare.rs): they read a copy, ask it live and leave notes.
+    #[serde(default)]
+    pub agentchat_share_memory: bool,
+    /// The agent whose shared memory this PC reads («lavoro»), kept apart
+    /// from its own; empty = none.
+    #[serde(default)]
+    pub agentchat_memory_from: String,
+}
+
+fn autonomous() -> String {
+    "auto".into()
 }
 
 fn catchup_answer() -> String {
@@ -305,12 +327,16 @@ impl Default for IntegrationConfig {
             telegram_voice_reply: true,
             agentchat_rooms: general_room(),
             agentchat_engines: Vec::new(),
+            agentchat_names: Default::default(),
             agentchat_per_hour: twenty(),
             agentchat_chain: six(),
             agentchat_synthesis: true,
             agentchat_listen: true,
             agentchat_catchup: catchup_answer(),
             agentchat_memory: true,
+            agentchat_trust: autonomous(),
+            agentchat_share_memory: false,
+            agentchat_memory_from: String::new(),
         }
     }
 }

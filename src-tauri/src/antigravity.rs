@@ -206,6 +206,9 @@ pub async fn send(
     if telegram {
         cmd.env("EASYISLAND_CHANNEL", "telegram");
     }
+    if chat.channel() == "agentchat" {
+        cmd.env("EASYISLAND_CHANNEL", "agentchat");
+    }
     let mut child = cmd.spawn().map_err(|e| tf("Antigravity non si avvia: {e}", &[("e", &e)]))?;
     let stdout = child.stdout.take().ok_or(t("Antigravity si è interrotto."))?;
     let stderr = child.stderr.take();

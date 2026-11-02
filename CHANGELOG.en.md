@@ -2,6 +2,16 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.20** — **Agent Chat does the work once**: a message naming nobody gets **one** engine's answer
+in the whole chat, the one of the first PC that **takes it on**, at once even when the other PC is off;
+so no double work and the free engines don't use up messages for nothing. Give each engine a **name** in
+the Settings (`@lia` instead of `@casa/claude`) and see today's **turns and tokens** per engine. In the
+chat page, the **row of names** above the field and a dot for **who is on**. **Memory shared between two
+PCs**: for example the work memory at home, kept apart from yours; when it finds nothing it asks the work
+PC if it is on, and work notes said at home reach it even with that PC off. The engines are
+**autonomous**: what deletes, sends or changes the system they ask in the chat with “sì/no code”.
+**Attachments** with name, size and SHA-256, sent by the engines too; “fermo” and “fermi” really stop them.
+
 **1.0.19** — **A more autonomous Agent Chat**: when you write without naming anyone every engine
 answers, each on its own. **Claude is the lead**: when something has to be done it decides who does it
 and hands it to the other engines by name. With the **PC off** EasyIsland remembers where it was: when

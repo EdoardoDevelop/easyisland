@@ -26,6 +26,7 @@ mod clipboard;
 mod clipimage;
 mod brain;
 mod memory;
+mod memshare;
 mod webview_memory;
 mod context;
 mod daily;
@@ -1228,6 +1229,9 @@ pub(crate) enum Channel {
     /// Another engine a task hands one piece of work to (tasks.rs task_delegate):
     /// like a task, but not in the history.
     Helper,
+    /// A turn of Agent Chat (agentchat.rs): like a helper, plus «Permessi in
+    /// Agent Chat» (reads without asking, `agentchatPermissions`).
+    AgentChat,
 }
 
 impl Channel {
@@ -1235,7 +1239,7 @@ impl Channel {
         match self {
             Channel::Island => 0,
             Channel::Telegram => 1,
-            Channel::Task | Channel::Helper => 2,
+            Channel::Task | Channel::Helper | Channel::AgentChat => 2,
         }
     }
 }
@@ -1307,6 +1311,9 @@ pub(crate) async fn chat_turn(
     // Permissions go to Telegram only for its turns; a task asks on the island.
     let telegram = channel == Channel::Telegram;
     let shared = app.state::<Shared>();
+    // Agent Chat with «Letture libere»: opencode reads outside its folder and runs
+    // read-only commands without the island; writing, running, sending still ask.
+    let reads = channel == Channel::AgentChat && shared.settings.lock().unwrap().integration_config.agentchat_trust != "ask";
     let picked = model.filter(|m| !m.trim().is_empty());
     let (engine, model, cli_model, mcp, agent, other_model, url, terminal) = {
         let s = shared.settings.lock().unwrap();
@@ -1356,6 +1363,11 @@ pub(crate) async fn chat_turn(
     };
     let memory_tools = agent && (has_tools || engine == "api");
     let memory = if remember && fresh { memory::preface(memory_tools) } else { None };
+    // The other PC's memory (memshare.rs): said once, searched by memory_search.
+    let memory = match (memory, if remember && fresh && memory_tools { memshare::preface(&app) } else { None }) {
+        (Some(m), Some(o)) => Some(format!("{m}{o}")),
+        (m, o) => m.or(o),
+    };
     // The user's skills (skills.rs): their names in front, read with skill_read when they fit.
     let skills = if fresh && memory_tools { skills::index() } else { None };
     // A reopened conversation the engine cannot resume: it rides in front of the question.
@@ -1416,7 +1428,7 @@ pub(crate) async fn chat_turn(
     let recipe_mark = recipes::begin();
     let work_turn = async { match (&terminal, engine.as_str()) {
         (Some(folder), "opencode") => {
-            let o = opencode::Options { folder: Some(folder.clone()), auto, telegram, agent, work: work.clone(), ..Default::default() };
+            let o = opencode::Options { folder: Some(folder.clone()), auto, telegram, agent, work: work.clone(), reads, ..Default::default() };
             opencode::send(app, chat, &other_model, query, context, &o, on_text).await
         }
         // "Modalità terminale" for an engine without tools: through opencode.
@@ -1429,6 +1441,7 @@ pub(crate) async fn chat_turn(
                     o.telegram = telegram;
                     o.agent = agent;
                     o.work = work.clone();
+                    o.reads = reads;
                     opencode::send(app, chat, &m, query, context, &o, on_text).await
                 }
                 Ok(_) => Err(t("La modalità terminale con questo motore passa da opencode, che non è installato su questo PC (npm i -g @opencode/cli, oppure opencode.ai). Oppure spegnila in Impostazioni → Chat.").into()),
@@ -1446,7 +1459,7 @@ pub(crate) async fn chat_turn(
             claude::send_with(chat, &model, query, context, tools).await
         }
         (None, "opencode") => {
-            let o = opencode::Options { telegram, agent, work: work.clone(), ..Default::default() };
+            let o = opencode::Options { telegram, agent, work: work.clone(), reads, ..Default::default() };
             opencode::send(app, chat, &other_model, query, context, &o, on_text).await
         }
         (None, e) if openai::ENGINES.contains(&e) => openai::send(chat, &engine, &other_model, url.as_deref(), query, context, on_text).await,
@@ -1456,14 +1469,14 @@ pub(crate) async fn chat_turn(
     let first = first_text.lock().unwrap().map_or_else(|| "-".to_string(), |ms| format!("{:.1} s", ms as f64 / 1000.0));
     log::line(format!(
         "chat: turno {engine}{} in {:.1} s (primo testo {first}){}{}",
-        match channel { Channel::Telegram => " da Telegram", Channel::Task => " di un compito", Channel::Helper => " di un aiutante", Channel::Island => "" },
+        match channel { Channel::Telegram => " da Telegram", Channel::Task => " di un compito", Channel::Helper => " di un aiutante", Channel::AgentChat => " di Agent Chat", Channel::Island => "" },
         started.elapsed().as_secs_f64(),
         if reply.is_err() { ", non riuscito" } else { "" },
         recipe_hint.as_ref().map_or("", |_| ", con ricetta"),
     ));
     recipes::end(recipe_mark, &asked, reply.is_ok());
     match &reply {
-        Ok(r) if channel != Channel::Helper && shared.settings.lock().unwrap().chat_history => {
+        Ok(r) if channel != Channel::Helper && channel != Channel::AgentChat && shared.settings.lock().unwrap().chat_history => {
             chat_log::record(chat, &engine, &asked, &r.text, match channel { Channel::Telegram => "Telegram · ", Channel::Task => "Compito · ", _ => "" });
             memory::diary(&engine, &asked, &r.text, telegram);
         }

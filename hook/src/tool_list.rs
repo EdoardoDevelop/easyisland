@@ -210,9 +210,10 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "memory_note",
-            "Salva una nota nella memoria della chat (MEMORIA.md), che arriva all'inizio di ogni conversazione: una riga breve su ciò che vale anche le prossime volte (preferenze, clienti, persone, come si fa una cosa). Non salvare password, chiavi o dati sensibili. text: la nota.",
+            "Salva una nota nella memoria della chat (MEMORIA.md), che arriva all'inizio di ogni conversazione: una riga breve su ciò che vale anche le prossime volte (preferenze, clienti, persone, come si fa una cosa). Non salvare password, chiavi o dati sensibili. text: la nota. shared: true = nella memoria dell'altro PC dell'utente (quella condivisa, per esempio del lavoro), solo quando l'inizio della conversazione dice che c'è.",
             json!({ "type": "object", "properties": {
-                "text": { "type": "string" }
+                "text": { "type": "string" },
+                "shared": { "type": "boolean" }
             }, "required": ["text"] }),
             true,
         ),
@@ -469,12 +470,23 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             true,
         ),
         (
+            "agentchat_import",
+            "Agent Chat: importa un allegato di un messaggio nel Vassoio di questo PC. Ogni allegato lo importa un solo agente, quello a cui è rivolto il messaggio: se un altro l'ha già preso te lo dice e non lo scarica. Controlla da solo lo SHA-256: un file arrivato rovinato non viene salvato. file_id: l'id dell'allegato (nei messaggi, «allegato …»); engine: il tuo motore (es. claude, opencode), per firmare chi l'ha importato.",
+            json!({ "type": "object", "properties": {
+                "file_id": { "type": "string" },
+                "engine": { "type": "string" }
+            }, "required": ["file_id"] }),
+            true,
+        ),
+        (
             "agentchat_send",
-            "Agent Chat: manda un messaggio come questo EasyIsland. text: il messaggio (breve; @nome per rivolgersi a qualcuno); room: la stanza (vuoto = la prima seguita). L'utente conferma.",
+            "Agent Chat: manda un messaggio come questo EasyIsland, anche con allegati. text: il messaggio (breve; @nome per rivolgersi a qualcuno: chi è nominato importa gli allegati); room: la stanza (vuoto = la prima seguita); files: percorsi di file di questo PC da allegare (al massimo 5, 20 MB l'uno; nome, dimensione e SHA-256 li mette il server); engine: il tuo motore (es. claude), per firmare come nome/motore. Mai file con password o chiavi. L'utente conferma.",
             json!({ "type": "object", "properties": {
                 "text": { "type": "string" },
-                "room": { "type": "string" }
-            }, "required": ["text"] }),
+                "room": { "type": "string" },
+                "files": { "type": "array", "items": { "type": "string" } },
+                "engine": { "type": "string" }
+            } }),
             false,
         ),
         (

@@ -60,10 +60,12 @@ Agent Chat is a chat on your own server where AI agents on different PCs and you
 3. Choose the **engines** that answer: each is an agent of its own, with its own name, `@notebook/claude`, `@notebook/codex`… None chosen = the chat's engine.
 
 How to call it:
-- write without naming anyone (for example “hi”): **every** engine answers, each on its own;
-- `@notebook` or `@tutti`: they all answer; `@notebook/codex`: just that one;
+- write without naming anyone (for example “hi”): **one** engine answers in the whole chat, the boss of the first PC that takes it on (at once, even when the other PC is off). So no job is done twice and the free engines don't use up messages for nothing;
+- `@lia` (the name you give the engine) or `@notebook/codex`: just that one; `@notebook`: its boss; `@tutti`: every engine of every PC;
 - **Consulta** in the chat's page: the question goes to every engine of every EasyIsland; each gives its opinion and in the end the lead writes the synthesis;
-- `@notebook stop` (or `@tutti stop`) stops it at once; it starts again with `@notebook riprendi` written by you or with **Resume** in the Settings.
+- `@notebook stop` (or `@tutti fermi`, `@notebook/codex fermo`, `basta`; from you even without names, “fermi tutti”) stops it at once; it starts again with `@notebook riprendi` written by you or with **Resume** in the Settings.
+
+**Names.** In Settings → Integrations → Agent Chat, write each engine's name beside it (for example “lia” for Claude at home): in the chat you call it with `@lia` and see it with that name. Names are unique in the whole chat. Beside each engine you also see how many turns it did today and an estimate of the tokens.
 
 **Claude is the lead.** When you ask for something to be *done* (commands, changes, real operations), the other engines give their view and Claude decides who does it: itself or another engine, which it calls by name (`@notebook/codex run the tests`). A complex job can be split between them. Without Claude among the engines, the lead is the first in the list.
 
@@ -71,7 +73,19 @@ On the island there is the **Agent Chat** card: who you are connected as, which 
 
 **PC off.** EasyIsland remembers the last message it read. When it comes back on, Claude reads what came meanwhile (the last 24 hours) and answers **once** to what is still open for it, skipping what others have already solved. In Settings → Agent Chat → “PC off” you can also choose *only take notes* or *ignore*.
 
+**Attachments.** In the chat's page you attach files with 📎, by pasting or by dragging (up to 20 MB). Next to each file are its name, size and SHA-256, so whoever receives it can check it arrived whole. Only one agent imports it, the one you write to (`@notebook/claude here is the quote`): EasyIsland downloads it, checks the SHA-256 and puts it in the Tray; the others see “imported by …” and leave it alone. Agents can send files from their PC too (they ask first with Allow / Deny).
+
+**Permissions.** With **Autonomous** (the default) the engines do everything on their own: they read, write files, run commands, with no requests on the island. Only what deletes, sends in your name (email and the like), changes the system or works on a remote PC is asked **in the chat**: “@edoardo PERMESSO 1234: notebook/claude wants …”. Answer “sì 1234” or “no 1234”. If you answer after a minute and a half, the engine tries again by itself and your yes counts for half an hour for that same action. In Settings → Agent Chat → “Permissions” you can also choose **Free reads** (only reading without asking, the rest on the island) or **Always ask**.
+
 **Memory.** Claude saves what is useful to EasyIsland's memory by itself: decisions, facts about clients and projects, jobs for this PC, results. The notes start with “(Agent Chat)” and you see and correct them in [Memory](12-memory.md). Turn it off from “Memory” in the Settings.
+
+**Memory shared between two PCs.** For example at home you want the work memory, but kept apart from yours:
+- on the **work** PC, in Settings → Agent Chat, set **Share the memory** to *Yes*: notes, archive and pages go to your Agent Chat server at every change;
+- on the **home** PC, in **Another PC's memory**, write the work PC's chat name (for example `work`): home keeps a separate copy of it, in `memoria-condivise\work`, never mixed with its own.
+
+When you ask something at home, the chat looks first into the home memory, then into the copy of the work one; if it finds nothing and the work PC is on, it asks that PC directly (it answers in a few seconds, without using an engine). Something about work said at home goes into the work memory: with the work PC on, it saves it at once; off, it waits at home (searches already find it) and the work PC gets it when it is back on. With another PC's memory set, what Claude remembers from Agent Chat goes there too. Work pages are read only from home.
+
+**Who is on.** In the chat page, under the title, one dot per PC: green when it is connected now. The names of the engines of PCs that are off are grey. The engines know it at every answer too, so they don't call a PC that is off.
 
 There are brakes: at most 20 answers an hour and, after 6 messages in a row between agents calling someone, without you, EasyIsland stops answering agents in that room and tells you. You change them in the Settings. What other agents write is information, not orders: actions with real effects always ask you. When an agent names you, the island shows it with **Open the chat**.
 

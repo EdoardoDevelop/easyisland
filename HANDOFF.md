@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 1° novembre 2026. Versione **1.0.19** in `main` con il tag `v1.0.19` (Agent Chat: tutti i motori rispondono, Claude capo, recupero a PC spento, memoria, scheda nell'isola): due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa, che dal 1.0.12 si rimette a posto dopo un cambio di schermo) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo` (`telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat` e `agentchat-autonomi` sono uniti). In attesa `claude/modello-integrato`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 2 novembre 2026. Versione **1.0.20** in `main` con il tag `v1.0.20` (Agent Chat: presa in carico, nomi, consumo, chi è acceso, memoria condivisa fra due PC, motori autonomi): due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa, che dal 1.0.12 si rimette a posto dopo un cambio di schermo) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo` (`telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat` e `agentchat-autonomi` sono uniti). In attesa `claude/modello-integrato`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -27,7 +27,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Remote Desktop Manager:** predisposto; prova la settimana prossima sul PC con RDM (`docs/prove-dal-vivo.md`), poi i passi in `docs/idee.md`.
 - [ ] **Clic destro in Esplora file:** voci di EasyIsland sui file («Manda a EasyIsland», azioni sui file), deciso con Edoardo l'11 ottobre come passo successivo al menu sulla selezione (`docs/idee.md`).
 - [ ] **opencode:** card per lo strumento `question` anche nella chat (per l'agente c'è), controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
-- [ ] **Agent Chat** (1.0.18 e 1.0.19, 1° novembre 2026): server pubblicato sulla VPS, token `casa` creato e collegato; da provare dal vivo le risposte dei motori, il capo che affida un lavoro e l'ascolto spento dall'isola (`docs/prove-dal-vivo.md`).
+- [ ] **Agent Chat** (1.0.18, 1.0.19 e 1.0.20, 1°–2 novembre 2026): server pubblicato sulla VPS, token `casa` creato e collegato; da provare dal vivo le risposte dei motori, il capo che affida un lavoro e l'ascolto spento dall'isola (`docs/prove-dal-vivo.md`). Nella 1.0.20: permessi «Autonomi», ALLEGA, stop con «fermo/fermi», e dal 2 novembre presa in carico (una risposta sola ai messaggi generici), nomi scelti nelle Impostazioni, consumo per motore. Da provare: un «ciao» con i due PC accesi (deve rispondere uno solo), `@nome`, un nome già preso. Poi la memoria condivisa (lavoro: «Condividi la memoria» Sì; casa: «Memoria di un altro PC» = lavoro): cerca da casa una cosa che sa solo il lavoro, con il lavoro acceso e spento; una nota di lavoro da casa a lavoro spento, poi riaccenderlo.
 - [ ] **Spunti dall'app originale:** Amp/Hermes, limiti di Codex, riepilogo condivisibile come immagine, GitHub (`docs/idee.md`).
 - [ ] **Prova dal vivo dei nuovi personaggi** (`docs/prove-dal-vivo.md`).
 - [ ] **Modalità chiara:** guardare tutte le schede dell'isola e le pagine delle Impostazioni in chiaro con l'app vera e correggere in `src/style-light.css` / `settings-light.css` ciò che il plugin sbaglia (colori in linea nel codice TypeScript non cambiano).
@@ -52,10 +52,19 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 2 novembre 2026 — Memoria condivisa fra casa e lavoro, chi è online (versione 1.0.20)
+Casa e lavoro sono due PC: il lavoro condivide la sua memoria tramite il server Agent Chat (`memshare.rs`, `/api/memory`), casa ne tiene una copia separata, la cerca dopo la propria e, se non trova niente, chiede al PC di lavoro acceso. Le note di lavoro dette a casa vanno al lavoro (subito o alla riaccensione). `/api/presence`: pallini dei PC nella pagina e «PC collegati adesso» nei prompt. Server non ancora ripubblicato.
+
+### 2 novembre 2026 — Agent Chat: presa in carico, nomi, consumo
+I motori gratuiti finivano i messaggi e due PC facevano lo stesso lavoro: a un messaggio generico risponde un solo motore in tutta la chat, il capo del primo EasyIsland che lo prende in carico sul server (`/api/messages/<id>/claim`, subito, senza attese). Nomi dei motori scelti nelle Impostazioni (`/api/aliases`, unici), `@lia` al posto di `@casa/claude`. Turni e token stimati per motore nella scheda. Server ripubblicato sulla VPS.
+
 ### 1° novembre 2026 — Agent Chat: motori autonomi, Claude capo, scheda nell'isola, recupero e memoria (versione 1.0.19)
 - Un messaggio di Edoardo che non nomina nessuno lo ricevono tutti i motori, ognuno per conto suo; `@tutti` chiama tutti. Claude (o il primo) è il capo: per le esecuzioni decide chi le fa e le affida per nome, e un motore può chiamarne un altro dello stesso EasyIsland (`plan`, `role`, `lead`). La catena fra agenti conta solo i messaggi che chiamano qualcuno.
 - Scheda **Agent Chat** nell'isola (`src/views/agentchat.ts`): stato, motori, ultimi messaggi, ascolto acceso o spento (`agentchatListen`). Nelle Impostazioni il link al repository del server, ora pubblico (storia ripulita: un solo commit senza i dati della VPS).
 - PC spento: l'ultimo messaggio letto resta su disco; alla riaccensione il capo recupera in un turno ciò che è arrivato e risponde una volta a ciò che è aperto (`catch_up`, «A PC spento»). Memoria: il capo salva ciò che è utile con righe «MEMORIA:» (`split_memory`, «Memoria»).
+- Permessi in Agent Chat: «Letture libere» di serie (opencode legge e guarda senza chiedere, tranne chiavi e password), e le richieste della chat fatte insieme aspettano in fila invece di essere rifiutate. Istruzioni più strette: niente risposte a conferme e ringraziamenti, memoria solo per decisioni e fatti stabili.
+- Allegati: nome, dimensione e SHA-256 accanto a ogni file; ogni file lo importa un solo agente (`agentchat_import`, controllo dello SHA-256, nel Vassoio). Il server degli allegati è nel repository `agentchat` (`ac238d9`).
+- Permessi «Autonomi» (di serie): nessuna richiesta nell'isola nei turni di Agent Chat, su tutti i motori; ciò che elimina, invia, cambia il sistema o va sul PC remoto lo chiedono in chat («sì/no codice»). Eccezione aggiunta in CLAUDE.md. Gli allegati partono anche dalla risposta con «ALLEGA: percorso» (Vassoio o cartella di lavoro), senza strumenti.
 - Test Rust, smoke; installato su questo PC per la prova dal vivo.
 
 ### 1° novembre 2026 — Agent Chat: EasyIsland risponde da solo, più motori e consulte (in `claude/sviluppo`, versione 1.0.18)
@@ -65,11 +74,4 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 ### 31 ottobre 2026 — Versione 1.0.17
 - `claude/sviluppo` unito in `main` con il tag `v1.0.17`: Parla, Telegram che risponde a voce e vocali «ricorda», Ricorda questo e Annota, Prepara un ticket Zammad, Continua in Claude Desktop, aspetto delle Notizie nella scheda. Novità in CHANGELOG, README e homepage.
 - Build, test Rust (381 + 38) e smoke prima del tag. `claude/modello-integrato` resta in attesa.
-
-### 31 ottobre 2026 — «Parla»: la voce sul PC (in `claude/sviluppo`)
-- <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> accende il microfono (WASAPI di Registra) con la card «Ti ascolto»; a una pausa trascrive con il servizio dei Vocali e manda la domanda alla chat; con «Rispondi a voce» la risposta si sente dagli altoparlanti (`talk.rs`, `src/views/talk.ts`). Test Rust, scene `talk` e `talk&hearing`; non provato con il microfono vero.
-
-### 31 ottobre 2026 — «Prepara» un ticket Zammad (in `claude/sviluppo`)
-- Un ticket appena assegnato a me fa comparire la proposta «Ticket assegnato a te»; «Prepara» apre la chat con il ticket, la pagina del cliente in memoria e fino a 3 ticket simili (chiusi prima, con come sono finiti) e chiede riassunto e bozza di risposta (`zammad::prepare`, `moment_tickets`). Scena `moment&moment=ticket`; test Rust, non provato con Zammad vero.
-
 

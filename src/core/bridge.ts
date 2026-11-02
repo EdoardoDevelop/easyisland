@@ -51,7 +51,8 @@ export interface AgentchatInfo {
   perHour: number;
   last: string;
   /** Who answers: [name in the chat, engine]. */
-  engines: [string, string][];
+  /** Name in the chat, engine, turns today, ≈ tokens today. */
+  engines: [string, string, number?, number?][];
 }
 
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
