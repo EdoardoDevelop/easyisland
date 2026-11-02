@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_Aggiornato al 2 novembre 2026. Versione **1.0.20** in `main` con il tag `v1.0.20` (Agent Chat: presa in carico, nomi, consumo, chi è acceso, memoria condivisa fra due PC, motori autonomi): due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa, che dal 1.0.12 si rimette a posto dopo un cambio di schermo) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo` (`telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat` e `agentchat-autonomi` sono uniti). In attesa `claude/modello-integrato`. Repository pubblico `EdoardoDevelop/easyisland`._
+_Aggiornato al 2 novembre 2026. Versione **1.0.21** in `main` con il tag `v1.0.21` (Agent Chat: motori del tutto autonomi, risultato dei comandi in background in chat): due finestre (personaggio e isola), **barra fissa** (`docs/architettura.md` → Barra fissa, che dal 1.0.12 si rimette a posto dopo un cambio di schermo) e pagina Aspetto a schede con le immagini. Si lavora su `claude/sviluppo` (`telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat` e `agentchat-autonomi` sono uniti). In attesa `claude/modello-integrato`. Repository pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`). Regola di aggiornamento: `CLAUDE.md` → Regole.
 
@@ -52,6 +52,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 2 novembre 2026 — Agent Chat autonoma, comandi in background (versione 1.0.21)
+«Autonomi» non chiede più niente, nemmeno per cancellare (`agentchat::decide`); il vecchio comportamento resta come scelta `chat`. Un comando lanciato in background da Claude Code: a fine comando Claude Code fa da solo un altro turno, ora letto da `claude_cli::follow` e pubblicato in chat (`Chat::later`, al massimo 3 ore). La pagina della chat non si collegava (variabile `online` dichiarata due volte): corretta e pubblicata sulla VPS. Test Rust; installata su questo PC.
+
 ### 2 novembre 2026 — Memoria condivisa fra casa e lavoro, chi è online (versione 1.0.20)
 Casa e lavoro sono due PC: il lavoro condivide la sua memoria tramite il server Agent Chat (`memshare.rs`, `/api/memory`), casa ne tiene una copia separata, la cerca dopo la propria e, se non trova niente, chiede al PC di lavoro acceso. Le note di lavoro dette a casa vanno al lavoro (subito o alla riaccensione). `/api/presence`: pallini dei PC nella pagina e «PC collegati adesso» nei prompt. Server non ancora ripubblicato.
 
@@ -70,8 +73,3 @@ I motori gratuiti finivano i messaggi e due PC facevano lo stesso lavoro: a un m
 ### 1° novembre 2026 — Agent Chat: EasyIsland risponde da solo, più motori e consulte (in `claude/sviluppo`, versione 1.0.18)
 - EasyIsland partecipa alla Agent Chat di Edoardo (`agentchat.rs`): ascolto sempre acceso, risposte autonome alle menzioni, ogni motore con il suo nome (`notebook/claude`), consulta con sintesi, freni (stop dalla chat, turni l'ora, catena fra agenti), card nell'isola, strumenti `agentchat_*` e l'aggregatore `consult_engines` (`docs/integrazioni.md`, `docs/chat.md`).
 - Server cambiato nel suo repository (token per agente, owner verificato, più stanze, thread e consulte), nel suo `main` e pubblicato sulla VPS il 1° novembre con le chat ripartite da zero. Versione 1.0.18 con tag `v1.0.18`. Test Rust e del server, smoke; nessun turno vero di un motore in Agent Chat ancora.
-
-### 31 ottobre 2026 — Versione 1.0.17
-- `claude/sviluppo` unito in `main` con il tag `v1.0.17`: Parla, Telegram che risponde a voce e vocali «ricorda», Ricorda questo e Annota, Prepara un ticket Zammad, Continua in Claude Desktop, aspetto delle Notizie nella scheda. Novità in CHANGELOG, README e homepage.
-- Build, test Rust (381 + 38) e smoke prima del tag. `claude/modello-integrato` resta in attesa.
-

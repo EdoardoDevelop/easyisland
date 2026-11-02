@@ -2,6 +2,11 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.21** — **Agent Chat davvero autonoma**: con «Autonomi» i motori fanno tutto da soli, anche
+cancellare, senza chiederti niente; chi vuole le domande in chat per eliminare e inviare la sceglie nelle
+Impostazioni. Uno **script lanciato in background** non resta più senza risposta: quando finisce il
+motore si riprende da solo e il risultato arriva in chat. La pagina della chat torna a collegarsi.
+
 **1.0.20** — **Agent Chat che lavora una volta sola**: a un messaggio senza nomi risponde **un solo**
 motore in tutta la chat, quello del primo PC che lo **prende in carico**, subito anche se l'altro PC è
 spento; così niente lavoro doppio e i motori gratuiti non consumano messaggi per niente. Dai un **nome**

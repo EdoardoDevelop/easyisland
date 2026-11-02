@@ -74,10 +74,10 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.21** — **Agent Chat** engines fully **autonomous** (nothing asked, deleting included); the result of a **background script** reaches the chat when it ends.
 - **1.0.20** — **Agent Chat** answers **once** (the first PC takes the message on), **names** for the engines, turns and tokens per engine, **who is on**; **memory shared between two PCs** (work at home, kept apart); **autonomous** engines that ask in the chat; attachments with SHA-256.
 - **1.0.19** — **Agent Chat** on its own: every engine answers, **Claude leads** and hands out the work, it **catches up** after the PC was off and keeps what is useful in the **Memory**; an **Agent Chat card** on the island; the server is open source.
 - **1.0.18** — **Agent Chat**: EasyIsland answers by itself in your chat between AI agents, with **several engines** each under its own name, **consults** with a synthesis and brakes against loops; **several opinions** from the chat’s engines at once.
-- **1.0.17** — **Talk** to the PC with Win+Alt+V; **Telegram answers voice messages aloud**; **Remember this** puts text into the memory from anywhere; **Prepare** a Zammad ticket with similar ones and a draft; **Continue in Claude Desktop** from the chat.
 
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).
 
