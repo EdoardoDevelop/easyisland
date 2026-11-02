@@ -77,6 +77,8 @@ On the island there is the **Agent Chat** card: who you are connected as, which 
 
 **Permissions.** With **Autonomous** (the default) the engines do everything on their own: they read, write, delete, run commands, asking you nothing, neither on the island nor in the chat. With **Deleting and sending are asked in the chat**, what deletes, sends in your name (email and the like), changes the system or works on a remote PC is asked **in the chat**: “@edoardo PERMESSO 1234: notebook/claude wants …”. Answer “sì 1234” or “no 1234”. If you answer after a minute and a half, the engine tries again by itself and your yes counts for half an hour for that same action. In Settings → Agent Chat → “Permissions” choose between these two, **Free reads** (only reading without asking, the rest on the island) and **Always ask**.
 
+**Long commands.** When an engine starts a script in the background and has to wait for its end, it says it started and ends the turn; when the script ends it picks up by itself and the result reaches the chat as a new message (up to three hours).
+
 **Memory.** Claude saves what is useful to EasyIsland's memory by itself: decisions, facts about clients and projects, jobs for this PC, results. The notes start with “(Agent Chat)” and you see and correct them in [Memory](12-memory.md). Turn it off from “Memory” in the Settings.
 
 **Memory shared between two PCs.** For example at home you want the work memory, but kept apart from yours:

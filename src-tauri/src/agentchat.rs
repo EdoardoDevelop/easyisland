@@ -1155,9 +1155,12 @@ pub(crate) fn clean_reply(text: &str) -> Option<String> {
     Some(clean.chars().take(MAX_REPLY).collect())
 }
 
-async fn engine_turn(app: &AppHandle, engine: &str, prompt: String) -> Result<String, String> {
+async fn engine_turn(app: &AppHandle, engine: &str, prompt: String, later: Option<crate::claude::Later>) -> Result<String, String> {
     let chat = Chat::default();
     chat.set_channel("agentchat");
+    if let Some(l) = later {
+        chat.set_later(l);
+    }
     let sent = prompt.chars().count();
     let reply = crate::chat_turn(app, &chat, prompt, None, Some(engine.to_string()), None, false, crate::Channel::AgentChat, &|_| {}).await;
     if engine == "opencode" {
@@ -1219,39 +1222,60 @@ async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: Strin
     prompt.push_str(&tf("\n\nMessaggi (dal più vecchio, stanza «{room}»):\n", &[("room", &m.room)]));
     prompt.push_str(&transcript(&history));
     prompt.push_str(&tf("\n\nRispondi al messaggio #{id} di {who}.", &[("id", &m.id), ("who", &m.sender)]));
+    prompt.push_str(&t("\nSe lanci un comando in background e devi aspettare che finisca, non controllarlo a ripetizione: scrivi che è partito e chiudi il turno. Quando finisce vieni richiamato da solo, e ciò che scrivi allora va in chat come nuovo messaggio."));
     set_status(|s| s.last = tf("{who} risponde al #{id}…", &[("who", &sender), ("id", &m.id)]));
     let _working = Working::start(&app);
-    let reply = engine_turn(&app, &engine, prompt).await;
+    let thread = if consult { Some(m.id) } else { None };
+    // What the engine writes when a command it left in the background ends.
+    let later: crate::claude::Later = {
+        let (app, srv, room, sender, id) = (app.clone(), srv.clone(), m.room.clone(), sender.clone(), m.id);
+        std::sync::Arc::new(move |text: String| {
+            if gen != GEN.load(Ordering::SeqCst) || STOPPED.load(Ordering::SeqCst) {
+                return;
+            }
+            let (app, srv, room, sender) = (app.clone(), srv.clone(), room.clone(), sender.clone());
+            tauri::async_runtime::spawn(async move {
+                deliver(&app, &srv, &room, &sender, thread, id, &text, keeps).await;
+            });
+        })
+    };
+    let reply = engine_turn(&app, &engine, prompt, Some(later)).await;
     if gen != GEN.load(Ordering::SeqCst) {
         return true;
     }
     match reply {
         Ok(text) => {
-            let (text, notes) = split_memory(&text);
-            if keeps {
-                keep(&app, &notes);
-            }
-            let (text, paths) = split_attach(&text);
-            let (ids, refused) = attach(&app, &srv, &paths).await;
-            let mut text = clean_reply(&text).unwrap_or_default();
-            for r in refused {
-                text.push_str(&format!("\n({r})"));
-            }
-            if text.trim().is_empty() && ids.is_empty() {
-                note_last(tf("{who}: niente da aggiungere al #{id}.", &[("who", &name_of(&sender)), ("id", &m.id)]));
-                return true;
-            }
-            let thread = if consult { Some(m.id) } else { None };
-            match post_with(&srv, &m.room, text.trim(), &sender, thread, "msg", &ids).await {
-                Ok(_) => note_last(tf("{who} ha risposto al #{id}.", &[("who", &name_of(&sender)), ("id", &m.id)])),
-                Err(e) => note_last(e),
-            }
+            deliver(&app, &srv, &m.room, &sender, thread, m.id, &text, keeps).await;
             true
         }
         Err(e) => {
             note_last(tf("{who} non ha risposto: {err}", &[("who", &name_of(&sender)), ("err", &e)]));
             false
         }
+    }
+}
+
+/// An engine's answer to #`id` into the chat: memory lines kept, attachments
+/// uploaded, NIENTE left out.
+#[allow(clippy::too_many_arguments)]
+async fn deliver(app: &AppHandle, srv: &Server, room: &str, sender: &str, thread: Option<i64>, id: i64, text: &str, keeps: bool) {
+    let (text, notes) = split_memory(text);
+    if keeps {
+        keep(app, &notes);
+    }
+    let (text, paths) = split_attach(&text);
+    let (ids, refused) = attach(app, srv, &paths).await;
+    let mut text = clean_reply(&text).unwrap_or_default();
+    for r in refused {
+        text.push_str(&format!("\n({r})"));
+    }
+    if text.trim().is_empty() && ids.is_empty() {
+        note_last(tf("{who}: niente da aggiungere al #{id}.", &[("who", &name_of(sender)), ("id", &id)]));
+        return;
+    }
+    match post_with(srv, room, text.trim(), sender, thread, "msg", &ids).await {
+        Ok(_) => note_last(tf("{who} ha risposto al #{id}.", &[("who", &name_of(sender)), ("id", &id)])),
+        Err(e) => note_last(e),
     }
 }
 
@@ -1288,7 +1312,7 @@ async fn synthesize(app: &AppHandle, srv: &Server, cfg: &Config, me: &str, owner
     prompt.push_str(&t("\n\nScrivi la sintesi di questa consulta: dove i pareri concordano, dove no e cosa consigli. Breve e concreta, cita chi ha detto cosa con @nome.\n\n"));
     prompt.push_str(&transcript(&thread));
     let gen = GEN.load(Ordering::SeqCst);
-    let Ok(text) = engine_turn(app, lead, prompt).await else { return };
+    let Ok(text) = engine_turn(app, lead, prompt, None).await else { return };
     if gen != GEN.load(Ordering::SeqCst) {
         return;
     }
@@ -1465,7 +1489,7 @@ async fn catch_up(app: AppHandle, srv: Server, cfg: Config, me: String, owner: S
     });
     set_status(|s| s.last = tf("Recupero {n} messaggi arrivati a EasyIsland spento…", &[("n", &list.len())]));
     let _working = Working::start(&app);
-    let Ok(reply) = engine_turn(&app, &lead, prompt).await else {
+    let Ok(reply) = engine_turn(&app, &lead, prompt, None).await else {
         note_last(tf("Recuperati {n} messaggi: il motore non ha risposto.", &[("n", &list.len())]));
         return;
     };
@@ -1862,7 +1886,7 @@ pub async fn tool_engines(app: &AppHandle, args: &Value) -> Result<String, Strin
     }
     let prompt = tf("{q}\n\n(Altri motori ricevono la stessa domanda: dai il tuo parere indipendente, motivato e breve.)", &[("q", &question)]);
     // Together, inside this turn (not spawned: these turns may call tools again).
-    let replies = join_all(pick.iter().map(|(id, _)| engine_turn(app, id, prompt.clone())).collect()).await;
+    let replies = join_all(pick.iter().map(|(id, _)| engine_turn(app, id, prompt.clone(), None)).collect()).await;
     let mut out = Vec::new();
     for ((_, name), reply) in pick.iter().zip(replies) {
         let text = match reply {

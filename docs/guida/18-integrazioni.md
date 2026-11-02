@@ -77,6 +77,8 @@ Nell'isola c'è la scheda **Agent Chat**: con chi sei collegato, quali motori ri
 
 **Permessi.** Con **Autonomi** (di serie) i motori fanno tutto da soli: leggono, scrivono, cancellano, lanciano comandi, senza chiederti niente, né nell'isola né in chat. Con **Eliminare e inviare lo chiedono in chat**, ciò che elimina, invia a nome tuo (email e simili), cambia il sistema o lavora su un PC remoto te lo chiedono **in chat**: «@edoardo PERMESSO 1234: notebook/claude vuole …». Rispondi «sì 1234» o «no 1234». Se rispondi dopo un minuto e mezzo, il motore riprova da solo e il tuo sì vale mezz'ora per quella stessa azione. In Impostazioni → Agent Chat → «Permessi» scegli fra queste due, **Letture libere** (solo leggere senza chiedere, il resto nell'isola) e **Chiedi sempre**.
 
+**Comandi lunghi.** Se un motore lancia uno script in background e deve aspettarne la fine, scrive che è partito e chiude il turno; quando lo script finisce si riprende da solo e il risultato arriva in chat come nuovo messaggio (fino a tre ore).
+
 **Memoria.** Claude salva da solo nella memoria di EasyIsland ciò che è utile: decisioni, informazioni su clienti e progetti, compiti per questo PC, risultati. Le note cominciano con «(Agent Chat)» e le vedi e correggi nella [Memoria](12-memoria.md). Si spegne da «Memoria» nelle Impostazioni.
 
 **Memoria condivisa fra due PC.** Per esempio a casa vuoi la memoria di lavoro, ma separata dalla tua:
