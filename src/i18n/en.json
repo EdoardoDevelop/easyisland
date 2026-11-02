@@ -4174,7 +4174,8 @@
   "Non è un file: {path}": "Not a file: {path}",
   "{path} è troppo grande (massimo 20 MB).": "{path} is too large (20 MB at most).",
   "Al massimo 5 allegati per messaggio.": "At most 5 attachments per message.",
-  "Autonomi: fanno da soli, eliminare e inviare lo chiedono in chat": "Autonomous: they act on their own, deleting and sending are asked in the chat",
+  "Autonomi: fanno tutto da soli, senza chiedere niente": "Autonomous: they do everything on their own, asking nothing",
+  "Eliminare e inviare lo chiedono in chat, il resto da soli": "Deleting and sending are asked in the chat, the rest on their own",
   "Letture libere: leggere e cercare senza chiedere, il resto chiede nell'isola": "Free reads: reading and searching without asking, the rest asks on the island",
   "allegato non mandato: {path} non è nel Vassoio né nella cartella di lavoro": "attachment not sent: {path} is neither in the Tray nor in the work folder",
   "allegato non mandato: {err}": "attachment not sent: {err}",
@@ -4214,5 +4215,6 @@
   "Mandata a {pc}, che la salva nella sua memoria.": "Sent to {pc}, which saves it in its memory.",
   "{pc} è spento: nota salvata nella copia, la riceve quando si riaccende.": "{pc} is off: note saved in the copy, it gets it when it is back on.",
   "(Pagina della memoria di {pc}, copia: si legge soltanto.)": "(Page of {pc}'s memory, copy: read only.)",
-  "[C'è anche la memoria di {pc}, l'altro PC dell'utente, tenuta separata: memory_search la guarda da sola dopo questa. Una cosa di {pc} (lavoro, clienti, progetti di lì) si salva lì con memory_note e shared: true, non qui.]\n\n": "[There is also the memory of {pc}, the user's other PC, kept apart: memory_search looks into it by itself after this one. Something of {pc} (work, customers, projects there) is saved there with memory_note and shared: true, not here.]\n\n"
+  "[C'è anche la memoria di {pc}, l'altro PC dell'utente, tenuta separata: memory_search la guarda da sola dopo questa. Una cosa di {pc} (lavoro, clienti, progetti di lì) si salva lì con memory_note e shared: true, non qui.]\n\n": "[There is also the memory of {pc}, the user's other PC, kept apart: memory_search looks into it by itself after this one. Something of {pc} (work, customers, projects there) is saved there with memory_note and shared: true, not here.]\n\n",
+  "\nSe lanci un comando in background e devi aspettare che finisca, non controllarlo a ripetizione: scrivi che è partito e chiudi il turno. Quando finisce vieni richiamato da solo, e ciò che scrivi allora va in chat come nuovo messaggio.": "\nIf you start a command in the background and need to wait for it to end, don't check it over and over: say it started and end the turn. When it ends you are called back by yourself, and what you write then goes to the chat as a new message."
 }

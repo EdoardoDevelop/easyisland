@@ -114,6 +114,9 @@ You have web search access and can help with absolutely anything — research, c
 Respond in Italian unless the user writes in another language. Be thorough and complete — use as much detail as the task requires. \
 Markdown is rendered: use short paragraphs, lists, tables and code blocks when they help.";
 
+/// Where an answer that comes after the turn goes (claude_cli::follow).
+pub type Later = std::sync::Arc<dyn Fn(String) + Send + Sync>;
+
 #[derive(Default)]
 pub struct Chat {
     /// Full multi-turn history, including tool_use / tool_result blocks.
@@ -136,6 +139,9 @@ pub struct Chat {
     /// "agentchat" for a turn of Agent Chat: its permissions follow «Permessi
     /// in Agent Chat» (agentchat::decide), whatever the engine.
     channel: Mutex<&'static str>,
+    /// Answers Claude Code writes after the turn, when a command it left in
+    /// the background ends (Agent Chat: posted in the chat).
+    later: Mutex<Option<Later>>,
 }
 
 impl Chat {
@@ -145,6 +151,14 @@ impl Chat {
 
     pub fn channel(&self) -> &'static str {
         *self.channel.lock().unwrap()
+    }
+
+    pub(crate) fn set_later(&self, later: Later) {
+        *self.later.lock().unwrap() = Some(later);
+    }
+
+    pub(crate) fn later(&self) -> Option<Later> {
+        self.later.lock().unwrap().clone()
     }
 
     pub fn reset(&self) {

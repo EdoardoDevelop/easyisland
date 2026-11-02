@@ -173,9 +173,10 @@ pub struct IntegrationConfig {
     #[serde(default = "default_true")]
     pub agentchat_memory: bool,
     /// «Permessi in Agent Chat» (agentchat::decide): "auto" (default, Edoardo
-    /// 1 Nov 2026: «l'intento è che siano autonomi su tutto»: everything on its
-    /// own, what deletes, sends or runs on another PC asked in the chat), "read"
-    /// (reads without asking, the rest on the island) or "ask" (the island).
+    /// 2 Nov 2026: «non voglio… voglio che sia autonomo»: everything on its
+    /// own, nothing asked), "chat" (what deletes, sends or runs on another PC
+    /// asked in the chat), "read" (reads without asking, the rest on the
+    /// island) or "ask" (the island).
     #[serde(default = "autonomous")]
     pub agentchat_trust: String,
     /// This PC's memory goes to the chat's server, for the other PCs
