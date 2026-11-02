@@ -2,6 +2,17 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.20** — **Agent Chat che lavora una volta sola**: a un messaggio senza nomi risponde **un solo**
+motore in tutta la chat, quello del primo PC che lo **prende in carico**, subito anche se l'altro PC è
+spento; così niente lavoro doppio e i motori gratuiti non consumano messaggi per niente. Dai un **nome**
+a ogni motore nelle Impostazioni (`@lia` invece di `@casa/claude`) e vedi **turni e token** di oggi per
+motore. Nella pagina della chat la **riga dei nomi** sopra il campo e un pallino per **chi è acceso**.
+**Memoria condivisa fra due PC**: per esempio a casa la memoria di lavoro, separata dalla tua; se non
+trova niente chiede al PC di lavoro acceso, e le note di lavoro dette a casa ci arrivano anche a PC
+spento. I motori sono **autonomi**: ciò che elimina, invia o cambia il sistema lo chiedono in chat con
+«sì/no codice». **Allegati** con nome, dimensione e SHA-256, mandati anche dai motori; «fermo» e
+«fermi» li fermano davvero.
+
 **1.0.19** — **Agent Chat più autonoma**: quando scrivi senza nominare nessuno rispondono tutti i
 motori, ognuno per conto suo. **Claude è il capo**: quando c'è da fare qualcosa decide chi lo fa e lo
 affida per nome agli altri motori. A **PC spento** EasyIsland si ricorda dove era rimasto: alla
