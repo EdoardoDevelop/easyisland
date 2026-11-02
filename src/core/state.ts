@@ -843,7 +843,7 @@ export interface IntegrationConfig {
   /** Agent Chat: the lead keeps what is useful in the chat's memory (default on). */
   agentchatMemory?: boolean;
   /** Agent Chat: "auto" (default: on their own, delicate things asked in the chat), "read" or "ask". */
-  agentchatTrust?: "auto" | "read" | "ask";
+  agentchatTrust?: "auto" | "chat" | "read" | "ask";
   /** Agent Chat (memshare.rs): this PC's memory goes to the server for the other PCs. */
   agentchatShareMemory?: boolean;
   /** Agent Chat (memshare.rs): the agent whose shared memory this PC reads, kept apart ("" = none). */

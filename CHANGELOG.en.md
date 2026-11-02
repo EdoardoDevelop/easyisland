@@ -2,6 +2,12 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.21** — **A truly autonomous Agent Chat**: with “Autonomous” the engines do everything on
+their own, deleting included, asking you nothing; whoever wants the questions in the chat for deleting
+and sending picks that in the Settings. A **script started in the background** no longer goes
+unanswered: when it ends the engine picks up by itself and the result reaches the chat. The chat page
+connects again.
+
 **1.0.20** — **Agent Chat does the work once**: a message naming nobody gets **one** engine's answer
 in the whole chat, the one of the first PC that **takes it on**, at once even when the other PC is off;
 so no double work and the free engines don't use up messages for nothing. Give each engine a **name** in

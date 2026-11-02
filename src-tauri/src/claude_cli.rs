@@ -32,7 +32,7 @@ use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 
-use crate::claude::{Chat, ChatContext, ChatReply};
+use crate::claude::{Chat, ChatContext, ChatReply, Later};
 use crate::settings::McpChoice;
 use crate::i18n::{t, tf};
 
@@ -492,12 +492,19 @@ struct Progress {
     shown: String,
     /// The reasoning being written, shown under the rest only while it lasts.
     thinking: String,
+    /// Commands still running in the background (`background_tasks_changed`):
+    /// when one ends Claude Code starts another turn by itself (`follow`).
+    pending: usize,
 }
 
 impl Progress {
     /// One line of the stream; true when what is shown changed.
     fn feed(&mut self, line: &str) -> bool {
         let Ok(v) = serde_json::from_str::<Value>(line.trim()) else { return false };
+        if v.get("subtype").and_then(Value::as_str) == Some("background_tasks_changed") {
+            self.pending = v.get("tasks").and_then(Value::as_array).map_or(0, Vec::len);
+            return false;
+        }
         if v.get("type").and_then(Value::as_str) != Some("assistant") {
             return false;
         }
@@ -585,7 +592,7 @@ async fn read_lines(
     limit: Duration,
     late: &str,
     until_result: bool,
-) -> Result<(String, String, bool), String> {
+) -> Result<(String, String, bool, usize), String> {
     let mut progress = Progress::default();
     let mut last = String::new();
     let mut emitted = std::time::Instant::now();
@@ -594,7 +601,7 @@ async fn read_lines(
         match tokio::time::timeout_at(deadline, lines.next_line()).await {
             Err(_) => return Err(late.to_string()),
             Ok(Err(e)) => return Err(tf("Claude Code si è interrotto: {e}", &[("e", &e)])),
-            Ok(Ok(None)) => return Ok((last, progress.shown, false)),
+            Ok(Ok(None)) => return Ok((last, progress.shown, false, progress.pending)),
             Ok(Ok(Some(line))) => {
                 if !line.trim_start().starts_with('{') {
                     continue;
@@ -606,7 +613,7 @@ async fn read_lines(
                 let result = line.contains("\"type\":\"result\"") && serde_json::from_str::<Value>(&line).ok().and_then(|v| v.get("type").and_then(Value::as_str).map(|t| t == "result")) == Some(true);
                 last = line;
                 if result && until_result {
-                    return Ok((last, progress.shown, true));
+                    return Ok((last, progress.shown, true, progress.pending));
                 }
             }
         }
@@ -632,7 +639,7 @@ async fn read_stream(
         s
     });
     let mut lines = tokio::io::BufReader::new(stdout).lines();
-    let (last, shown, _) = match read_lines(&mut lines, on_text, limit, late, false).await {
+    let (last, shown, _, _) = match read_lines(&mut lines, on_text, limit, late, false).await {
         Ok(r) => r,
         Err(e) => {
             let _ = child.start_kill();
@@ -764,16 +771,55 @@ async fn live_turn(
     on_text: &(dyn Fn(&str) + Sync),
     limit: Duration,
     late: &str,
-) -> Result<(String, String), Option<String>> {
+) -> Result<(String, String, usize), Option<String>> {
     let line = serde_json::json!({ "type": "user", "message": { "role": "user", "content": prompt } }).to_string();
     if live.stdin.write_all(format!("{line}\n").as_bytes()).await.is_err() || live.stdin.flush().await.is_err() {
         return Err(None);
     }
     match read_lines(&mut live.lines, on_text, limit, late, true).await {
-        Ok((last, shown, true)) => Ok((last, shown)),
-        Ok((_, _, false)) => Err(None),
+        Ok((last, shown, true, pending)) => Ok((last, shown, pending)),
+        Ok((_, _, false, _)) => Err(None),
         Err(e) => Err(Some(e)),
     }
+}
+
+/// How long a turn's background commands are waited for, in all.
+const FOLLOW_MAX: Duration = Duration::from_secs(3 * 3600);
+
+/// A turn ended with commands still running in the background: when one ends
+/// Claude Code starts another turn by itself, and its answer goes to `later`
+/// (Agent Chat posts it in the chat). Without `later` it is only read, so it
+/// does not end up in front of the next message. Back among the kept
+/// processes once nothing runs any more.
+fn follow(mut live: Live, later: Option<Later>, mut pending: usize) {
+    tauri::async_runtime::spawn(async move {
+        let start = std::time::Instant::now();
+        crate::log::line(format!("claude: {pending} comandi in background, aspetto che finiscano"));
+        while pending > 0 {
+            let Some(left) = FOLLOW_MAX.checked_sub(start.elapsed()) else {
+                crate::log::line("claude: comandi in background oltre il limite, lascio perdere".to_string());
+                return;
+            };
+            match read_lines(&mut live.lines, &|_| {}, left, "", true).await {
+                Ok((last, _, true, still)) => {
+                    pending = still;
+                    log_usage(&last);
+                    let text = parse_output(&last).filter(|o| !o.is_error).map(|o| o.text).unwrap_or_default();
+                    if let Some(later) = &later {
+                        if !text.trim().is_empty() {
+                            later(text);
+                        }
+                    }
+                }
+                _ => {
+                    crate::log::line("claude: il processo con i comandi in background si è chiuso".to_string());
+                    return;
+                }
+            }
+        }
+        live.used = std::time::Instant::now();
+        put_live(live);
+    });
 }
 
 /// What `claude -p --output-format json` printed. Claude Code reports a failed
@@ -965,8 +1011,8 @@ async fn send_mode(
                 None => spawn_live(make(session.as_deref()), id, print.clone())?,
             };
             match live_turn(&mut live, &prompt, on_text, limit, late).await {
-                Ok((last, shown)) => {
-                    answer = Some((last, shown, live));
+                Ok((last, shown, pending)) => {
+                    answer = Some((last, shown, live, pending));
                     break;
                 }
                 Err(Some(e)) => return Err(e),
@@ -979,7 +1025,7 @@ async fn send_mode(
                 }
             }
         }
-        let Some((last, shown, mut live)) = answer else {
+        let Some((last, shown, mut live, pending)) = answer else {
             return Err(t("Claude Code si è interrotto.").into());
         };
         let stderr = live.stderr.lock().unwrap().clone();
@@ -987,7 +1033,11 @@ async fn send_mode(
         if let (true, Some(sid)) = (outcome_ok, parse_output(&last).and_then(|o| o.session_id)) {
             live.session = sid;
             live.used = std::time::Instant::now();
-            put_live(live);
+            if pending > 0 {
+                follow(live, chat.later(), pending);
+            } else {
+                put_live(live);
+            }
         }
         // Outside the terminal the answer is the text alone, as before.
         (last, if terminal.is_some() { shown } else { String::new() }, stderr, true)
@@ -1239,6 +1289,17 @@ mod tests {
         let next = super::ask_args(dir, "abc", Some("def"));
         assert_eq!(next.last().unwrap(), "def");
         assert!(!next.iter().any(|a| a == "--fork-session"));
+    }
+
+    #[test]
+    fn counts_the_commands_left_in_the_background() {
+        // As Claude Code 2 Nov 2026 streams a `sleep 20` with run_in_background.
+        let mut p = super::Progress::default();
+        p.feed(r#"{"type":"system","subtype":"background_tasks_changed","tasks":[{"task_id":"b1","task_type":"local_bash"}]}"#);
+        assert_eq!(p.pending, 1);
+        p.feed(r#"{"type":"system","subtype":"task_notification","task_id":"b1","status":"completed"}"#);
+        p.feed(r#"{"type":"system","subtype":"background_tasks_changed","tasks":[]}"#);
+        assert_eq!(p.pending, 0);
     }
 
     /// `claude -p` on this PC, as the island's chat runs it:
