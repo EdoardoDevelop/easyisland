@@ -1,47 +1,51 @@
 # EasyIsland (Windows) — guida per gli agenti AI
 
-App desktop per Windows 10/11: un personaggio animato (Goccia, Slime, Geco, Fiamma, una delle gelatine o Jarvis) in un'isola in alto sullo schermo mostra le sessioni di Claude Code e degli altri agenti, la chat con vari motori e le integrazioni, e permette di approvare, rispondere e rilasciare file. TypeScript senza framework (Canvas 2D) in `src/`, Rust con Tauri 2 in `src-tauri/`, relay degli hook in `hook/`.
+App Windows 10/11: un personaggio animato in un'isola in alto mostra le sessioni di Claude Code e altri agenti, la chat con vari motori e le integrazioni; permette di approvare, rispondere, rilasciare file. TypeScript senza framework (Canvas 2D) in `src/`, Rust/Tauri 2 in `src-tauri/`, relay degli hook in `hook/`.
 
-**Lingua del progetto: italiano.** Testi dell'interfaccia, messaggi d'errore per l'utente, documentazione e commit sono in italiano. Identificatori e commenti nel codice restano in inglese.
+**Lingua: italiano** per interfaccia, errori per l'utente, documentazione, commit. Identificatori e commenti nel codice in inglese.
 
-**Interfaccia in italiano o inglese.** Ogni testo che l'utente vede passa da `t("testo italiano")` (TypeScript: `src/core/i18n.ts`; Rust: `crate::i18n::t` / `tf("… {nome} …", &[("nome", &x)])`) e ha l'inglese in `src/i18n/en.json`, chiave = testo italiano. `npm run build` si ferma se ne manca uno (`npm run check:i18n -- --todo` li elenca).
+**i18n:** ogni testo visibile passa da `t("testo italiano")` (TS `src/core/i18n.ts`; Rust `crate::i18n::t` / `tf("… {nome} …", &[("nome", &x)])`), inglese in `src/i18n/en.json` con chiave = italiano. `npm run build` si ferma se ne manca uno (`npm run check:i18n -- --todo`).
 
-## Dove leggere (solo ciò che serve al compito)
-- `HANDOFF.md`: stato, cose da fare, problemi aperti. Leggilo a inizio lavoro.
-- `docs/architettura.md`: mappa delle cartelle, interfaccia, personaggi, layout, suoni, impostazioni.
-- `docs/chat.md`: motori della chat, opencode come motore, connettori MCP, agente che usa il PC, Compiti (obiettivi che l'agente porta avanti da solo, con motori aiutanti), Abilità (procedure .md dell'utente).
-- `docs/agenti.md`: hook e relay, Claude Code, Codex/Gemini/Cursor/Copilot, opencode come agente, scheda Agenti.
-- `docs/integrazioni.md`: integrazioni, widget, 3CX, consumo, profili, azioni rapide, automazioni e abitudini, integrazioni personali create dalla chat.
+## Dove leggere (solo ciò che serve)
+- `HANDOFF.md`: stato, da fare, problemi. Leggilo a inizio lavoro.
+- `docs/architettura.md`: cartelle, interfaccia, personaggi, layout, suoni, impostazioni, robustezza.
+- `docs/chat.md`: motori, opencode, MCP, agente sul PC, Compiti, Abilità, memoria.
+- `docs/agenti.md`: hook e relay, Claude Code, Codex/Gemini/Cursor/Copilot, opencode agente, scheda Agenti.
+- `docs/integrazioni.md`: integrazioni, widget, 3CX, consumo, profili, azioni rapide, automazioni, integrazioni personali.
 - `docs/strumenti.md`: file rilasciati, Vassoio, appunti, musica, contesto ⚡, ZIP, cattura, calcolatrice.
-- `docs/sviluppo.md`: build, anteprime, test, installazione su questo PC, pubblicazione di una release.
-- `docs/anteprima-browser.md`: tutte le query string di `npm run dev` (scene, parametri, impostazioni dall'URL).
-- `docs/decisioni.md`: decisioni prese ed esclusioni. Controllalo prima di proporre una funzione.
-- `docs/idee.md`: idee e progetti non ancora fatti, con i dettagli.
-- `docs/prove-dal-vivo.md`: elenco di ciò che va ancora provato con i servizi veri.
-- `docs/guida/` (e `docs/guida/en/` in inglese): la **guida per l'utente** (una pagina .md per argomento), pubblicata sul sito come `site/guida/` con `node scripts/guida.mjs`. Quando cambia una funzione visibile, aggiorna la sua pagina e rigenera.
-- `README.md` (inglese, la pagina principale del repo) e `README.it.md`; homepage inglese in `site/index.html`, italiana in `site/it/index.html`. `docs/en/` e `CONTRIBUTING.en.md`: versioni inglesi per chi arriva da fuori. Da aggiornare insieme quando cambia ciò che descrivono.
-- `docs/archivio/`: storia vecchia (roadmap 6.1–6.6 citata nei commenti come "HANDOFF 6.6, point …", registro passato). **Non leggerla** se il compito non lo richiede.
+- `docs/sviluppo.md`: build, test, anteprime, installazione qui, rilascio.
+- `docs/anteprima-browser.md`: query string di `npm run dev`.
+- `docs/decisioni.md`: decisioni ed esclusioni; controllalo prima di proporre una funzione.
+- `docs/idee.md`: progetti non fatti. `docs/prove-dal-vivo.md`: cosa provare con i servizi veri.
+- `docs/guida/` (+ `en/`): guida utente, una pagina per argomento → `site/guida/` con `node scripts/guida.mjs`. Se cambia una funzione visibile, aggiorna la pagina e rigenera.
+- `README.md` (EN, principale), `README.it.md`, `site/index.html` (EN), `site/it/index.html`, `docs/en/`, `CONTRIBUTING.en.md`: aggiornali insieme a ciò che descrivono.
+- `docs/archivio/`: storia vecchia ("HANDOFF 6.6, point …" nei commenti). **Non leggerla** se non serve.
 
 ## Build
 ```
 npm install
-npm run tauri dev   # sviluppo con ricaricamento automatico
-npm run build       # typecheck + front end (anche su Linux/macOS)
+npm run tauri dev   # sviluppo
+npm run build       # typecheck + front end (anche Linux/macOS)
 npm run pack        # installer NSIS in release/
 ```
-La parte Rust si compila solo su Windows (MSVC). Test Rust: `cargo test --workspace` in `src-tauri/`.
+Rust solo su Windows (MSVC). Test: `cargo test --workspace` in `src-tauri/`.
 
 ## Regole
-- **Documentazione:** a fine lavoro (o quando cambia lo stato) aggiorna `HANDOFF.md`: stato, Da fare, Problemi noti e una voce di 2–4 righe in cima al Registro. Il Registro tiene al massimo 5 voci: le più vecchie vanno in `docs/archivio/registro.md`. Se cambi come funziona un'area, aggiorna il suo file in `docs/`. Scrivi dove stanno le cose, perché e quali vincoli ci sono, non la descrizione del codice.
-- Nessuna nuova dipendenza se non davvero inevitabile. Personaggi, icone e suoni sono disegnati o sintetizzati nel codice: niente Rive, Lottie, immagini o file audio.
-- I segreti stanno in Gestione credenziali di Windows, mai su disco, nell'interfaccia o in git. Il front end può solo chiedere se una chiave esiste.
-- Nessuna telemetria. Chiamate di rete solo verso i servizi configurati dall'utente, più il controllo degli aggiornamenti su GitHub (`updates.rs`), disattivabile. Gli aggiornamenti si installano solo dopo un clic, con la firma verificata. La chiave privata non entra mai nel repo.
-- Non bloccare mai Claude Code né un altro agente: se l'app non risponde entro il timeout, l'hook esce subito con 0.
-- Non sovrascrivere mai `%USERPROFILE%\.claude\settings.json` né i file di configurazione degli altri agenti: backup datato, unione, diff, scrittura solo dopo la conferma dell'utente.
-- Mai inviare un'email o approvare un permesso senza un clic esplicito (eccezioni scelte da Edoardo: l'«Automatica» di Telegram accesa dall'utente, che chiede comunque per le cancellazioni; e «Autonomi» di Agent Chat, 2 novembre 2026, dove i motori fanno tutto da soli senza chiedere niente, oppure, con la scelta «chat», chiedono all'owner in chat con «sì/no codice» ciò che elimina, invia a nome dell'utente, cambia il sistema o gira su un PC remoto; `docs/integrazioni.md`). Gli strumenti di EasyIsland (`agent.rs`) non eseguono comandi arbitrari, non inviano email e non eliminano, tranne `notion_delete_row` (la riga va nel cestino di Notion solo dopo che l'utente ha detto sì in chat) e `remote_run` (comandi solo sul PC remoto di «Accesso remoto» collegato alla chat, ognuno con Consenti / Nega; password solo in memoria, `docs/integrazioni.md`). Le integrazioni personali (`custom.rs`) sono descrizioni, mai codice: le loro azioni sono un elenco fisso. `memory_note` scrive senza chiedere solo nella memoria della chat (`memory.rs`, file .md che l'utente vede e corregge, `docs/chat.md`). Comandi e modifiche ai file li fa solo la «Modalità terminale» della chat, con gli strumenti di Claude Code o opencode e Consenti / Nega nell'isola (`docs/chat.md`). Senza un clic passano solo le azioni reversibili che l'utente ha consentito per sempre o per un compito (`permits.rs`, `REVERSIBLE` in `hook/src/tool_list.rs`), e finiscono in «Cosa ho fatto» con Annulla: mai aggiungere a quell'elenco uno strumento che invia, elimina, apre o esegue.
-- Prestazioni: nessun frame di animazione e CPU ~0 % quando l'isola è ritirata.
-- La versione sta in `package.json`, `Cargo.toml` e `src-tauri/tauri.conf.json` e deve coincidere (la CI lo controlla sui tag).
-- Non cambiare `identifier` in `tauri.conf.json`: sposterebbe i dati dell'app e le voci in Gestione credenziali.
-- Un servizio a istanza singola è un'**integrazione**, mai un widget.
-- **Stabilità:** prima di un rilascio e dopo modifiche a hook, viste o integrazioni, `npm run smoke` con `npm run dev` acceso deve dire «nessun errore». In Rust niente tagli `[a..b]` o indici su dati esterni (usa `get`): in release un panic chiude l'app. Regole in `docs/architettura.md` → Robustezza.
-- Le modifiche visive restano coerenti con l'aspetto attuale (`screenshots/`, scene in `dev/scenes.ts`). Vedi `docs/architettura.md`.
+- **Documentazione:** a fine lavoro aggiorna `HANDOFF.md` (stato, Da fare, Problemi noti, voce di 2–4 righe in cima al Registro, max 5 voci; le vecchie in `docs/archivio/registro.md`) e il file di `docs/` dell'area cambiata. Scrivi dove stanno le cose, perché e i vincoli, non il codice. Stile asciutto.
+- Nessuna nuova dipendenza se non inevitabile. Personaggi, icone, suoni disegnati/sintetizzati nel codice: niente Rive, Lottie, immagini, audio.
+- Segreti solo in Gestione credenziali di Windows, mai su disco, UI o git; il front end chiede solo se una chiave esiste.
+- Nessuna telemetria. Rete solo verso servizi configurati dall'utente e controllo aggiornamenti GitHub (`updates.rs`, disattivabile). Aggiornamenti solo dopo un clic, firma verificata; chiave privata mai nel repo.
+- Mai bloccare un agente: se l'app non risponde entro il timeout, l'hook esce con 0.
+- Mai sovrascrivere `%USERPROFILE%\.claude\settings.json` né le configurazioni degli altri agenti: backup datato, unione, diff, scrittura dopo conferma.
+- Mai inviare email o approvare permessi senza clic esplicito. Eccezioni di Edoardo: «Automatica» di Telegram (chiede comunque per le cancellazioni); «Autonomi» di Agent Chat (2/11/2026: nessuna domanda; con la scelta «chat» chiede all'owner «sì/no codice» per eliminare, inviare a nome dell'utente, cambiare il sistema, PC remoto; `docs/integrazioni.md`).
+  - Gli strumenti di `agent.rs` non eseguono comandi arbitrari, non inviano email, non eliminano; eccezioni: `notion_delete_row` (cestino di Notion dopo il sì in chat) e `remote_run` (solo sul PC di «Accesso remoto», Consenti/Nega per comando, password solo in memoria).
+  - Integrazioni personali (`custom.rs`): descrizioni, mai codice; azioni da elenco fisso.
+  - `memory_note` scrive senza chiedere solo nella memoria della chat (`memory.rs`, .md visibili all'utente).
+  - Comandi e modifiche ai file solo dalla «Modalità terminale» (strumenti di Claude Code/opencode, Consenti/Nega nell'isola).
+  - Senza clic passano solo le azioni reversibili consentite per sempre o per compito (`permits.rs`, `REVERSIBLE` in `hook/src/tool_list.rs`), registrate in «Cosa ho fatto» con Annulla: mai aggiungere lì strumenti che inviano, eliminano, aprono o eseguono.
+- Isola ritirata: nessun frame di animazione, CPU ~0 %.
+- Versione uguale in `package.json`, `Cargo.toml`, `src-tauri/tauri.conf.json` (la CI controlla sui tag).
+- Mai cambiare `identifier` in `tauri.conf.json` (sposta dati e credenziali).
+- Servizio a istanza singola = **integrazione**, mai widget.
+- **Stabilità:** prima di un rilascio e dopo modifiche a hook, viste, integrazioni: `npm run smoke` con `npm run dev` acceso deve dire «nessun errore». In Rust niente `[a..b]` o indici su dati esterni (usa `get`): un panic in release chiude l'app (`docs/architettura.md` → Robustezza).
+- Modifiche visive coerenti con l'aspetto attuale (`screenshots/`, `dev/scenes.ts`).

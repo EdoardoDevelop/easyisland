@@ -1,310 +1,137 @@
 # Idee e progetti non ancora fatti
 
-I dettagli che `HANDOFF.md` riassume in una riga. Le idee più vecchie e l'analisi di 3CX sono in `archivio/HANDOFF-fino-al-6-ottobre.md`, sezione 7.
+Dettagli di ciò che `HANDOFF.md` riassume in una riga; per ogni voce solo ciò che resta. Idee più vecchie e analisi di 3CX: `archivio/HANDOFF-fino-al-6-ottobre.md`, sezione 7.
 
-## EasyIsland agente personale — versione 1.0.0 (chiesto da Edoardo il 23 ottobre 2026)
-Obiettivo di Edoardo: EasyIsland diventa il suo agente personale, programmabile come qualsiasi agente IA, e non meno degli altri ma di più. Oggi ha già i pezzi (chat con gli strumenti, memoria, ricette, automazioni, Telegram, Modalità terminale, connettori MCP); manca un agente che riceve un obiettivo, lavora da solo nel tempo e si muove per primo.
+## Agente personale (dal 23/10/2026)
+Obiettivo: EasyIsland agente personale programmabile, che riceve obiettivi, lavora nel tempo e si muove per primo. Vincoli: niente email, approvazioni o eliminazioni senza clic (salvo «Automatica»), comandi solo in Modalità terminale, lavoro in Rust svegliato da orari ed eventi (CPU ~0 %), nessun server in mezzo.
+- Fatti: Compiti, Battito, ripetizioni, abilità salvate a fine compito, motori aiutanti, domande e permessi su Telegram, riordino serale, abilità come comandi Telegram, permessi per livelli, secondo cervello, «Parla», giornata (`docs/chat.md`).
+- **Restano:**
+  - costo stimato nella card del compito; più compiti insieme e sotto-agenti (da valutare: `decisioni.md` frena la squadra autonoma);
+  - esecuzione a PC spento (vedi «EasyIsland collegati»);
+  - un'abilità che limita davvero gli strumenti (oggi `strumenti` è un'indicazione);
+  - **si muove per primo:** su ticket nuovo, fine chiamata, mail importante, scadenza Notion prepara bozze e note da confermare;
+  - Annulla anche per abilità salvate e schede delle integrazioni personali;
+  - memoria: cartella a scelta (per editor di note a grafo), testo dai PDF senza dipendenze;
+  - secondo cervello: mail di Outlook classico (testo via COM), trascrizione della chiamata quando 3CX la registra.
 
-**Vincoli che restano** (`CLAUDE.md`): mai inviare email, approvare permessi o eliminare senza un clic (salvo «Automatica» accesa dall'utente); comandi solo con la Modalità terminale; CPU ~0 % a isola ritirata, quindi il lavoro dell'agente sta in Rust, svegliato da orari ed eventi, mai da un ciclo continuo. Nessun server in mezzo: gira sul PC, si raggiunge dall'isola e da Telegram.
+## 3CX + Zammad: ticket sulla chiamata in arrivo
+- Quando squilla, sotto il chiamante i suoi ticket aperti (titolo, stato, da quanto), clic apre. Numero normalizzato (`+39`, spazi, zeri) → cliente in Zammad → ticket non chiusi suoi o dell'organizzazione.
+- Da verificare: `/api/v1/users/search` e `/api/v1/tickets/search` senza Elasticsearch?
+- Solo con entrambe accese, tutto in memoria, niente davanti al cliente, niente azioni senza clic. Seguito: «Nuovo ticket» dalla chiamata.
 
-### Passo 1 — Compiti (`tasks.rs`)
-- **Fatto il 23 ottobre 2026** (come funziona: `docs/chat.md` → Compiti). Rispetto al piano qui sotto: niente vista nuova (il compito è una sessione della scheda Agenti); i permessi di un compito vanno solo nell'isola, Telegram riceve gli avvisi; niente riquadro nella Panoramica (c'è la sessione di Agenti). **Resta:** permessi e domande dei compiti anche come pulsanti in Telegram, costo stimato nella card, più compiti insieme.
-Un compito è un obiettivo («prepara il resoconto mensile per Rossi entro venerdì», «segui il ticket 482 e avvisami se il cliente risponde») che l'agente scompone in passi e porta avanti da solo, anche a isola chiusa, finché è fatto, ha bisogno di te o finisce il tempo concesso.
-- **Dati:** un file per compito in `%APPDATA%\EasyIsland\compiti\<id>.json` (scrittura con `settings::write_atomic`) e il suo registro leggibile `<id>.md`. Campi: titolo, obiettivo, motore e modello, stato, piano (passi con stato), quando (subito, a un'ora, ricorrente, a un evento), scadenza, limiti (turni, minuti, token), cartella di lavoro, sessione del motore per riprendere, risultato, registro delle azioni.
-- **Stati:** da pianificare → in corso → attende te → in pausa → fatto / non riuscito / fermato. Un riavvio di EasyIsland mette in pausa quelli in corso, con «Riprendi».
-- **Esecuzione:** un turno del compito è un `chat_turn` (`lib.rs`) con una `Chat` sua e il testo che va al registro, come fa Telegram. Il canale dei permessi oggi è isola o Telegram (`telegram: bool`): diventa un canale con tre valori (isola, Telegram, compito), e i permessi di un compito vanno nella card dell'isola (striscia a isola chiusa) e, se collegato, anche in Telegram. Dopo ogni turno, se il compito non ha detto «fatto» o «chiedo», ne parte un altro con «continua dal piano», fino ai limiti. Un compito alla volta all'inizio (coda), poi al massimo due.
-- **Strumenti nuovi** (relay `hook/src/mcp.rs` e `tool_list.rs`, esecuzione in `agent.rs`): `task_plan` (scrive o corregge il piano), `task_step` (segna un passo), `task_ask` (domanda all'utente: card nell'isola e Telegram, il compito passa ad «attende te»), `task_done` (risultato e riassunto), `task_note` (nel registro). Per creare e vedere compiti dalla chat: `task_create` (con anteprima e conferma nella card, come `create_automation`) e `task_list`.
-- **Come si avvia:** dalla chat (`/compito …`), dal campo in alto, da Telegram (`/compito`), da un'automazione (passo nuovo «Avvia un compito», con i dati dell'evento come `{file}` o `{chiamante}`), a un'ora o ricorrente (timer in Rust che dorme fino all'ora giusta).
-- **Isola:** i compiti sono sessioni della scheda Agenti, con il personaggio che reagisce come per Claude Code (lavora, attende, ha finito, errore). La card mostra obiettivo, piano con le spunte, ultimo passo, tempo e costo usati, e Ferma / Riprendi / Rispondi / Registro. Nella Panoramica un riquadro «Compiti».
-- **Impostazioni → Compiti:** motore e modello predefiniti (consigliato l'abbonamento via Claude Code), limiti per compito e al giorno, avvisi su Telegram, elenco dei compiti con il loro registro.
-- **Costi:** nessun turno senza un compito o un evento; tetto di turni e minuti per compito e di compiti al giorno; il costo stimato nella card.
-- **Prove:** test Rust su stati, limiti, orari e `validate`; scena `compiti` in `dev/scenes.ts` e `npm run smoke`; dal vivo un compito vero con Notion e Outlook.
+## Soluzioni proposte per i ticket Zammad (30/10)
+Su un ticket nuovo EasyIsland cerca una soluzione; sceglie e agisce sempre l'utente. Oggi `zammad.rs` legge solo conteggi e titoli (`ticket_overviews`).
+- **Quando:** ticket nuovo assegnato o «Da assegnare» (`new_ticket_event`) o «Cerca una soluzione» a mano. È un compito con motore e limiti delle Impostazioni.
+- **Legge:** ticket intero (`/api/v1/tickets/{id}`, `/api/v1/ticket_articles/by_ticket/{id}`); ticket chiusi simili o dello stesso cliente (senza Elasticsearch: ultimi chiusi filtrati in locale); knowledge base; memoria (`brain.rs`) e abilità; web (documentazione, forum, note di rilascio); strumenti di sola lettura (server, RDM).
+- **Propone** nella card e con un avviso: causa probabile, passi in ordine con sicurezza, fonti, bozza di risposta e nota interna; «Utile»/«Non utile».
+- **Mai senza clic:** «Aggiungi come nota interna», «Usa come risposta» (bozza mai inviata); stato, assegnatario, priorità non si toccano. Comandi sul PC del cliente solo da «Accesso remoto».
+- **Impara:** a ticket chiuso propone di salvare problema e soluzione nella memoria (`memory_page_write`, con conferma).
+- **Riservatezza:** motore locale, oppure togliere email, telefoni, indirizzi, nomi; ricerche web con soli termini tecnici; niente davanti al cliente.
+- **Costi:** tetto di ticket al giorno e turni per ticket, salta i già proposti, filtro per code/gruppi o assegnati.
+- **Ordine:** 1) ticket intero e ricerca a mano con memoria e web; 2) simili e knowledge base; 3) partenza da sola; 4) nota interna e salvataggio in memoria.
 
-### Confronto con gli altri agenti personali (23 ottobre 2026)
-Studiati gli agenti personali più usati: quelli locali e open source con controllo periodico, abilità in Markdown e memoria a file; quelli che imparano dall'uso salvando procedure; i compiti programmati delle app di chat (ogni giorno, settimana, mese, a richiesta), dove ogni esecuzione è una sessione con connettori e abilità.
-- **Già alla pari:** memoria a file (`MEMORIA.md` e diario mensile), abilità .md con intestazione e lettura a richiesta, compiti programmati con registro, connettori MCP, un canale di messaggi (Telegram), permessi con un clic.
-- **Fatto il 23 ottobre:** Battito con `BATTITO.md` e «niente da segnalare»; ripetizioni ogni N minuti e ogni settimana; salvataggio delle procedure come abilità a fine compito.
-- **In più rispetto a loro:** l'isola con il personaggio e i permessi a colpo d'occhio, più motori nello stesso compito (`task_delegate`), integrazioni locali (3CX, Zammad, Outlook, RDM, accesso remoto), nessun server in mezzo.
-- **Fatto dopo, lo stesso giorno:** domande e permessi dei compiti anche su Telegram, riordino serale della memoria con conferma, abilità come comandi su Telegram (`docs/chat.md`).
-- **Ancora da fare:** esecuzione con il PC spento (un secondo EasyIsland sempre acceso con la memoria condivisa: «EasyIsland collegati» qui sotto); un'abilità che limita davvero gli strumenti.
+## Account Microsoft (predisposto il 16/10, `integrazioni.md` → Account Microsoft)
+- **Graph:** «Accedi con Microsoft» (PKCE, indirizzo locale di ritorno, `Mail.Read`, `Calendars.Read`), account di lavoro e personali, senza Outlook aperto. Controllo ~ogni minuto (il push vuole un server pubblico). Card «mail nuova» (Apri, Chiedi alla chat, bozza mai inviata), card prima di un evento con «Partecipa» (`onlineMeeting.joinUrl`), poi «quando» per le automazioni.
+- **Teams, secondo passo:** riunioni di oggi, chat non lette (`Chat.Read`), stato (`Presence.Read`/`Presence.ReadWrite`).
+- **Vincoli:** refresh token in Gestione credenziali; rete solo verso Microsoft a integrazione accesa; registrazione una tantum in Entra (ID pubblico).
+- **Consenso bloccato dall'IT:** serve l'ok dell'amministratore, mai aggirarlo. Ripieghi: avviso di mail nuova da Outlook classico (`outlook.rs`, solo aperto); notifiche di Windows (`UserNotificationListener`; forse serve identità di pacchetto, provare prima); link ICS nel widget Calendario (non copre la posta).
+- Domande aperte: Outlook classico o nuovo; chi amministra il Microsoft 365.
 
-### Dopo i Compiti, verso la 1.0.0
-- **Abilità programmabili:** fatte il 23 ottobre 2026 (`docs/chat.md` → Abilità), insieme al motore per compito e ai motori aiutanti (`task_delegate`). **Resta:** abilità come comandi anche su Telegram; un'abilità che limita davvero gli strumenti (oggi `strumenti` è un'indicazione).
-- **Si muove per primo:** su ticket nuovo, fine chiamata 3CX, mail importante, scadenza di Notion prepara bozze e note da confermare con un clic (`docs/idee.md` → Proposte al momento giusto, Automazioni più intelligenti).
-- **Permessi per livelli:** fatti il 31 ottobre 2026 (`docs/chat.md` → Permessi per livelli): «Sempre» sulla card per le azioni reversibili, permessi per compito, «Cosa ho fatto» con Annulla in Impostazioni → Chat. Fatti lo stesso giorno «Sempre» nei pulsanti di Telegram e «Cosa ho fatto» nell'isola, con l'avviso «Fatto senza chiedere». **Resta:** Annulla per altri strumenti (abilità salvate, schede delle integrazioni personali). Il piano di partenza: letture libere; scritture reversibili (bozze, note, attività) consentite una volta per strumento; invio, approvazioni, cancellazioni e comandi sempre con un clic. Registro «Cosa ho fatto» con Annulla dove si può.
-- **Memoria per cliente e per progetto**, oltre a quella della chat (`memory.rs`): in parte fatta con le pagine collegate (`brain.rs`, 24 ottobre 2026). Resta: cartella della memoria a scelta (per aprirla anche in un editor di note a grafo), testo dai PDF senza dipendenze.
-- **Più compiti insieme e sotto-agenti:** da valutare, perché `docs/decisioni.md` esclude per ora la squadra di agenti autonoma per tempi e costi.
-- **Second brain che cattura al volo** (scelto da Edoardo il 31 ottobre 2026, verso un assistente personale «alla Jarvis»): **fatti** il 31 ottobre 2026 «Ricorda questo» (anche nel menu sul testo e su una zona dello schermo), «Annota» dopo le chiamate 3CX, pagine aggiornate da ticket chiusi e mail importanti, impegni come promemoria, riepilogo della settimana (`docs/chat.md` → Secondo cervello). **Resta:** le mail di Outlook classico (serve leggere il testo via COM), una trascrizione della chiamata quando 3CX la registra. La voce sul PC è fatta il 31 ottobre 2026 («Parla», `docs/chat.md`). Dopo: le proposte al momento giusto.
-- **Riepilogo della giornata** fatto dall'agente (la voce «La giornata di oggi e domani» qui sotto diventa un compito ricorrente).
+## Exchange in sede (29/10)
+Graph non vale in sede; si fa come i client di posta.
+- **Accesso:** Autodiscover dall'indirizzo → URL EWS (`https://mail.cliente.it/EWS/Exchange.asmx`); NTLM o Negotiate/Kerberos; credenziali in Gestione credenziali (`keyring`); con PC nel dominio l'utente Windows senza login.
+- **EWS** (in sede ancora supportato): posta `FindItem`/`GetItem`, calendario `FindItem` con `CalendarView`, attività dalla cartella Tasks.
+- **Rust:** SOAP fisso; XML con `quick-xml` (dipendenza da valutare) o a mano. Autenticazione con **WinHTTP** dal crate `windows` (`Win32_Networking_WinHttp`, già presente, gestisce l'utente Windows) — preferito a `sspi`. Comandi `get_mail`, `get_calendar`, `get_tasks`.
+- Sconsigliati ActiveSync (complicato, licenza) e IMAP (solo posta).
 
-## 3CX + Zammad: ticket del cliente sulla chiamata in arrivo
-- Quando squilla, sotto il chiamante compaiono i suoi ticket Zammad aperti (titolo, stato, da quanto). Un clic apre il ticket.
-- Dal numero normalizzato (`+39`, spazi, zeri) si cerca il cliente in Zammad, poi i ticket non chiusi suoi o della sua organizzazione.
-- Da verificare sul server: `/api/v1/users/search` e `/api/v1/tickets/search` funzionano senza Elasticsearch?
-- Regole: solo con entrambe le integrazioni accese, tutto in memoria, niente nomi né titoli davanti al cliente, nessuna azione senza un clic.
-- Seguito possibile: «Nuovo ticket» dalla chiamata.
+## Menu dell'app in uso nella barra
+Fatto il 31/10 come menu del titolo della finestra (`appmenu.rs`). Restano le schede della barra multifunzione di Office e le voci dei sottomenu delle app moderne (oggi la voce apre il menu nel programma).
 
-## Soluzioni proposte per i ticket Zammad (chiesta da Edoardo il 30 ottobre 2026)
-Su un ticket nuovo EasyIsland cerca da solo una soluzione e la propone. Sceglie e agisce sempre l'utente. Oggi `zammad.rs` legge solo i conteggi e i titoli delle viste (`ticket_overviews`).
-- **Quando parte:** su un ticket nuovo assegnato all'utente o «Da assegnare» (l'evento c'è già, `new_ticket_event`), oppure a mano con «Cerca una soluzione» nella card del ticket. È un compito (`docs/chat.md` → Compiti) con il motore e i limiti scelti in Impostazioni.
-- **Cosa legge:**
-  - il ticket intero: titolo, articoli, allegati di testo, cliente e organizzazione (`/api/v1/tickets/{id}`, `/api/v1/ticket_articles/by_ticket/{id}`);
-  - i ticket chiusi dello stesso cliente o con parole simili, con la soluzione data allora. La ricerca di Zammad potrebbe volere Elasticsearch: è la stessa domanda aperta della sezione 3CX qui sopra. In ripiego, l'elenco degli ultimi ticket chiusi filtrato in locale;
-  - la knowledge base di Zammad, se c'è;
-  - la memoria: le pagine del cliente, del prodotto e del problema (`brain.rs`) e le abilità dell'utente;
-  - il web con la ricerca del motore: documentazione dei produttori, forum, note di rilascio, avvisi noti;
-  - dove serve, gli strumenti di sola lettura che ci sono già: stato dei server, controlli, RDM per sapere quale macchina è.
-- **Cosa propone**, nella card del ticket e con un avviso nell'isola:
-  - la causa probabile e i passi per risolvere, in ordine, con quanto è sicuro;
-  - le fonti (ticket passati, pagine della memoria, link) per controllare;
-  - una bozza di risposta al cliente e una nota interna.
-  - Con «Utile» o «Non utile» l'utente dice com'è andata, e il compito ne tiene conto.
-- **Mai senza un clic:** nessuna scrittura in Zammad da sola. «Aggiungi come nota interna» e «Usa come risposta» (che apre la bozza nel ticket, mai inviata) solo dopo il clic; stato, assegnatario e priorità non si toccano. I comandi su un PC del cliente restano quelli di «Accesso remoto» con Consenti / Nega.
-- **Impara:** quando un ticket si chiude, EasyIsland propone di salvare problema e soluzione nella pagina del cliente o del prodotto (`memory_page_write`, con conferma). Così i ticket seguenti trovano la risposta in casa, prima di andare sul web.
-- **Riservatezza:** il testo del ticket contiene dati del cliente e va al motore scelto.
-  - Si può scegliere un motore locale.
-  - Oppure togliere email, telefoni, indirizzi e nomi prima di mandarlo.
-  - Le ricerche sul web contengono solo i termini tecnici (errore, prodotto, versione), mai nomi di clienti o persone.
-  - Niente davanti al cliente (`davanti al cliente` nasconde la card).
-- **Costi:** un tetto di ticket al giorno e di turni per ticket. Si salta un ticket già proposto. Si può limitare ad alcune code o gruppi, o solo ai ticket assegnati all'utente.
-- **Ordine proposto:** 1) lettura del ticket intero e «Cerca una soluzione» a mano, con memoria e web; 2) ticket simili chiusi e knowledge base; 3) partenza da sola sui ticket nuovi; 4) «Aggiungi come nota interna» e salvataggio della soluzione nella memoria.
+## Elementi della barra fissa
+Fatti il 30/10 (catalogo, opzioni, `opts`, elementi di sistema, aspetto; `architettura.md` → Barra fissa). **Restano:** cambio del dispositivo d'uscita (nessuna API pubblica: la card porta alle impostazioni audio), Wi-Fi, Bluetooth, temperature, «Non disturbare» (nessuna API pubblica), consumo di Codex e Copilot. Vincoli: aggiornamento su evento (Core Audio, notifiche di Windows), CPU e rete ogni 2–5 s, orologio ai secondi solo se scelto, solo crate `windows`, nessuna animazione continua. Esclusi: più schermi, CSS personale, systray, barra sostitutiva, desktop virtuali, gestori a riquadri, visualizzatore audio, sfondi, Pomodoro, notifiche di sistema.
 
-## Account Microsoft: mail nuove e calendario (annotata il 14 ottobre 2026; predisposizione fatta il 16 ottobre, `integrazioni.md` → Account Microsoft)
-- **Teams, secondo passo** (deciso con Edoardo il 16 ottobre 2026, dopo la parte locale in `integrazioni.md`): con lo stesso accesso, riunioni di oggi con «Partecipa» (`onlineMeeting.joinUrl`), chat non lette (`Chat.Read`), stato Disponibile/Occupato (`Presence.Read`, e `Presence.ReadWrite` per cambiarlo). Serve la registrazione dell'app su Azure; l'azienda può bloccare il consenso.
-- **Via principale, Microsoft Graph:** «Accedi con Microsoft» nelle Impostazioni (browser, permessi di sola lettura `Mail.Read`, `Calendars.Read`, accesso con PKCE e indirizzo locale di ritorno). Vale per account di lavoro (Microsoft 365) e personali (Outlook.com), senza Outlook aperto e anche con il nuovo Outlook. Controllo circa ogni minuto (le notifiche push di Graph vogliono un server pubblico). Card «mail nuova» con mittente e oggetto, Apri e Chiedi alla chat (riassunto o bozza, mai inviata); card prima di un evento con «Partecipa» per Teams (`onlineMeeting.joinUrl`). Poi «quando» per le automazioni (idea 2 sotto).
-- **Vincoli:** token di aggiornamento in Gestione credenziali; rete solo verso Microsoft e solo con l'integrazione accesa. Serve registrare una volta l'app in Microsoft Entra (gratis): ne esce un ID applicazione pubblico, non segreto.
-- **Problema:** molte aziende bloccano il consenso degli utenti alle app esterne → serve l'ok dell'amministratore IT («Richiede l'approvazione dell'amministratore»). Mai aggirarlo (per esempio con l'ID di un'app di Microsoft già approvata).
-- **Ripieghi senza consenso dell'IT:**
-  1. Outlook classico (`outlook.rs`, c'è già): aggiungere l'avviso di mail nuova con mittente e oggetto. Solo con Outlook classico aperto.
-  2. Notifiche di Windows (`UserNotificationListener`, permesso «Accesso alle notifiche» dato dall'utente): l'isola mostrerebbe quelle di nuovo Outlook, Outlook web e Teams. **Da provare prima:** potrebbe servire l'identità di pacchetto (pacchetto sparse).
-  3. Link ICS pubblicato da Outlook web nel widget Calendario (c'è già); alcune aziende bloccano anche questo, e non copre le mail.
-- Domande aperte per Edoardo: Outlook classico o nuovo; chi amministra il Microsoft 365 aziendale.
+## Notizie
+Fatti passi 1–3 e argomenti scelti da un motore (`docs/chat.md` → Notizie). **Restano:** riassunti del motore (turno con strumenti, con tetto giornaliero); la chat che cambia gli argomenti («non mostrarmi più notizie su X», con Consenti/Nega); i progetti degli agenti come fonte; parole da evitare, fonti e domini preferiti/esclusi per argomento. Vincoli: controllo in Rust a orari, notizie già viste non si ripetono (URL o titolo simile), feed solo sul PC.
 
-## Exchange in sede: posta, calendario e attività senza Entra ID (annotata il 29 ottobre 2026, ragionata con Edoardo in un'altra sessione)
-Con un Exchange in sede la registrazione su Entra ID non serve, e non funzionerebbe nemmeno: Graph lavora solo sul cloud. Si fa come i programmi di posta: email e password una volta, poi l'app si configura da sola.
-- **Primo accesso:**
-  1. **Autodiscover:** dall'indirizzo (es. nome@cliente.it) l'app trova l'URL del server, del tipo `https://mail.cliente.it/EWS/Exchange.asmx`.
-  2. **Login:** utente e password con NTLM o Negotiate/Kerberos, i metodi standard di Exchange in sede.
-  3. **Salvataggio:** le credenziali vanno in Gestione credenziali di Windows (`keyring`, già usato da EasyIsland). Dalla volta dopo l'accesso parte da solo.
-  4. **PC nel dominio:** con Kerberos si può usare l'utente Windows già collegato, senza alcun login.
-- **Protocollo: EWS.** In sede è ancora pienamente supportato (la dismissione riguarda solo Exchange Online) e un solo indirizzo copre tutto:
-  - posta: `FindItem` / `GetItem` sulla Posta in arrivo;
-  - calendario: `FindItem` con `CalendarView` (intervallo di date);
-  - attività: la cartella Tasks, le stesse di Outlook classico.
-- **In Rust:**
-  - HTTP con richieste SOAP fisse. Un crate EWS maturo non esiste, ma bastano poche richieste; la lettura dell'XML con `quick-xml`, che sarebbe una dipendenza nuova, da valutare contro una lettura a mano dei pochi campi che servono.
-  - NTLM / Kerberos: `reqwest` non li gestisce da solo. Due strade:
-    - il crate `sspi` (NTLM, Kerberos e Negotiate in puro Rust);
-    - oppure **WinHTTP** tramite il crate `windows`, che gestisce anche il login con l'utente Windows. È già tra le dipendenze (`Win32_Networking_WinHttp`): da preferire.
-  - Lato Tauri: tre comandi (`get_mail`, `get_calendar`, `get_tasks`) che restituiscono JSON al front end, come le integrazioni Microsoft di oggi (`integrazioni.md` → Account Microsoft).
-- **Sconsigliati:** ActiveSync (il protocollo dei telefoni: complicato e soggetto a licenza) e IMAP (solo posta: niente calendario né attività).
+## Estensione per Chrome ed Edge (29/10)
+Parla solo con EasyIsland via native messaging (niente rete); rivede la decisione dell'11/10.
+- Prima: azioni per sito nella barra (come «Nella barra con»); la chat vede la pagina (indirizzo, titolo, selezione, testo) al posto di Ctrl+A/C di `context::window_text`.
+- Poi: schede aperte nella ricerca dell'isola; card dell'integrazione che corrisponde alla pagina, «Manda a Notion»/«Salva nella memoria»; nuovi «quando» per i Flussi.
+- Ultimo, delicato: la chat che usa il browser con Consenti/Nega a ogni passo.
+- Costi: Chrome Web Store (o criteri aziendali), registro del canale nell'installer, Firefox a parte, un pezzo in più da tenere allineato; JS semplice.
 
-## Menu dell'app in uso nella barra (chiesta da Edoardo il 29 ottobre 2026)
-**Fatto il 31 ottobre 2026** come menu del titolo della finestra (`appmenu.rs`, `docs/architettura.md` → Barra fissa). Resta: le schede della barra multifunzione di Office e le voci dei sottomenu delle app moderne (oggi la voce apre il menu nel programma).
-Pulsanti o menu che cambiano con il programma in primo piano, da poter mettere nella barra fissa.
-- **Primo passo, facile:** la «Barra dell'app in uso» (le azioni rapide dell'utente con «Nella barra con») come elemento a sé della barra fissa; oggi ci arriva solo dentro la striscia.
-- **Il menu vero del programma:** con UI Automation (accessibilità di Windows) si legge la barra dei menu della finestra in primo piano (File, Modifica, Visualizza…) e la si mostra nella barra; un clic apre le voci (menu nativo, come «…») e le esegue nel programma (`Invoke` / `ExpandCollapse`). Non sono voci predefinite di EasyIsland: sono quelle del programma.
-- **Copertura:** bene con le app classiche con barra dei menu; in parte con Office (schede della barra multifunzione) e con le app fatte di pagine web, dove dipende da cosa espongono; quasi nulla con le app senza menu (browser). Dove non c'è un menu leggibile restano le azioni rapide per quel programma.
-- **Da fare prima:** una prova che legge i menu dei programmi che Edoardo usa di più, in un branch suo.
+## Notion, seconda parte
+- «Manda a Notion» da Appunti e dalla risposta della chat (dal testo selezionato c'è).
+- **Clienti:** database clienti con proprietà telefono; su chiamata 3CX o ticket Zammad la scheda del cliente con «Apri in Notion».
+- Viste legate ai profili (profilo «Ufficio» → vista «Ufficio»).
+- Attività assegnate a me: serve scegliere la persona (l'API vede il bot).
 
-## Elementi da aggiungere alla barra fissa (ragionata con Edoardo il 30 ottobre 2026)
-**Fatti il 30 ottobre 2026 (branch `claude/widgetbar`), con il nome «Widget della barra»:** catalogo, opzioni comuni e `opts` (passo 1); orologio, volume, microfono, luminosità, batteria, velocità della rete e menu di spegnimento (passo 2). Lo stesso giorno le card nell'isola al posto dei pannelli di Windows (`src/views/barcard.ts`). **Poi, sempre il 30 ottobre:** il passo 3 (processore, memoria, disco, scheda video con grafici, lingua della tastiera, cestino, aggiornamenti con winget, titolo della finestra, barra dell'app in uso, musica, meteo, progetti recenti di VS Code) e il passo 4 (aspetto: isolette, opacità, sfocatura, margini, testo, spazi, nascondi da sola; angoli e bordo esclusi da Edoardo). Restano: cambiare il dispositivo d'uscita (Windows non ha un'API pubblica: per ora la card mostra il dispositivo e porta alle impostazioni audio), Wi-Fi e Bluetooth, temperature, «Non disturbare» di Windows (nessuna API pubblica), consumo di Codex e Copilot (`docs/architettura.md` → Barra fissa).
-Spunto da una barra per Windows open source con decine di widget configurabili. Edoardo vuole soprattutto **poter aggiungere elementi alla barra** da un catalogo, ognuno con le sue opzioni. Oggi la barra mostra solo integrazioni, widget, azioni rapide e la striscia (`fixedBarItems`, `docs/architettura.md` → Barra fissa).
-- **Catalogo in Impostazioni → Aspetto → Barra fissa:** «+ Aggiungi» apre l'elenco per gruppi (Sistema, Lavoro, Agenti, Le mie azioni). Si sceglie l'area (sinistra, centro, destra), si cambia l'ordine, si apre «Opzioni» per l'elemento. Uno stesso elemento si può aggiungere più volte con opzioni diverse, per esempio due orologi con fusi diversi (`fixedBarItems` riceve `opts`). Tutto dalle Impostazioni, come deciso.
-- **Nome:** «Widget» in EasyIsland vuol dire i controlli ripetibili (`docs/decisioni.md`). Nella barra conviene «Elementi della barra», così non si confondono. Da decidere.
-- **Opzioni comuni a ogni elemento:**
-  - cosa mostra: solo icona, icona e valore, oppure un formato con segnaposto (`{icona} {cpu}%`);
-  - un secondo testo che compare con un clic (l'ora che diventa la data);
-  - azioni per clic sinistro, centrale e destro e per la rotella: apri la card, esegui un'azione rapida, menu, cambia testo;
-  - suggerimento al passaggio del mouse.
-- **Pannelli:** un pannello (calendario, cursore del volume, dispositivi) è una card dell'isola, che si apre già contro la barra. Nessuna finestra in più.
-- **Elementi nuovi di sistema** (a istanza singola, quindi né widget né integrazioni con una scheda):
-  - orologio e data, con la card del calendario (Outlook, ICS);
-  - volume (rotella, muto, dispositivo d'uscita) e microfono muto;
-  - luminosità (rotella; schermi esterni con DDC/CI, dove rispondono);
-  - batteria e piano energetico;
-  - velocità della rete su e giù, Wi-Fi, Bluetooth;
-  - CPU, RAM, disco, GPU e temperature, anche con un piccolo grafico;
-  - lingua della tastiera, Non disturbare, cestino (svuotarlo solo con conferma);
-  - menu di spegnimento (blocca, sospendi, riavvia, spegni, sempre con conferma);
-  - aggiornamenti disponibili (winget, Windows);
-  - consumo di Codex e Copilot accanto a quello di Claude;
-  - progetti recenti di VS Code;
-  - titolo della finestra in primo piano;
-  - la «Barra dell'app in uso» come elemento a sé (sezione qui sopra).
-- **Ci sono già, vanno portati bene nella barra:** meteo, musica, Stato del PC, rete, consumo Claude, GitHub, To Do, i controlli dei server.
-- **Aspetto della barra** (dopo gli elementi): stile a isolette, dove ogni area è un'isoletta con lo sfondo del desktop in mezzo (un quarto valore di `fixedBarBackground`); sfocatura acrilica di Windows 11; angoli e bordo; margini dai lati per una barra sospesa; grandezza del testo e spazio tra gli elementi; nascondi da sola finché non arriva il mouse.
-- **Vincoli:**
-  - la barra è sempre visibile: ogni elemento si aggiorna su evento (volume con Core Audio, batteria e rete con le notifiche di Windows), CPU e rete con un giro lento di 2–5 s, l'orologio ai secondi solo se scelto;
-  - niente dipendenze nuove: le API di Windows con il crate `windows`;
-  - nessuna animazione continua.
-- **Esclusi** (Edoardo, 30 ottobre 2026): barra su più schermi, CSS personale, systray, barra delle applicazioni sostitutiva, desktop virtuali, gestori di finestre a riquadri, visualizzatore audio (anima sempre), sfondi del desktop, Pomodoro e notifiche di sistema (già esclusi).
-- **Ordine proposto:** 1) catalogo, opzioni comuni e `opts`; 2) orologio, volume e microfono, luminosità, batteria, rete, menu di spegnimento; 3) gli altri elementi; 4) aspetto della barra.
+## Remote Desktop Manager, dopo le prove
+- API REST di DVLS (`Search-DSEntry`/`Get-DSEntry`) o Hub (`Get-HubEntry`) se il modulo non va bene in azienda.
+- Creare una voce (`New-RDMSession`, `Set-RDMSession`) con i campi base.
+- Strumento per la chat «apri il server di Rossi» con le regole di `run_quick_action`.
+- Associazione esplicita cliente 3CX/organizzazione Zammad ↔ cartella RDM.
+- Da non fare: legarlo a «davanti al cliente»; leggere password.
 
-## Notizie dal web sugli argomenti della memoria (chiesta da Edoardo il 30 ottobre 2026)
-EasyIsland ricava dalla memoria interna gli argomenti che interessano all'utente e propone notizie dal web su quelli. È personalizzabile: si possono escludere o aggiungere argomenti.
-- **Argomenti dalla memoria:** le fonti sono le pagine collegate (`brain.rs`: titolo, `alias:`, `riassunto:`, quanto sono citate e aggiornate di recente), le note di `MEMORIA.md` e del diario, i progetti degli agenti. Ne esce un elenco proposto (es. «UniFi», «Tauri», «sicurezza Windows»), con le parole per la ricerca prese dagli alias.
-- **Personalizzazione** (Impostazioni → Notizie o nella card):
-  - argomenti proposti con «Aggiungi» / «Escludi», più quelli scritti a mano dall'utente;
-  - un argomento escluso non torna più tra le proposte, anche se la memoria continua a parlarne;
-  - per ogni argomento le parole da cercare e quelle da evitare;
-  - fonti e domini da preferire o da escludere, lingua, quante notizie al giorno, a che ora.
-  - Si cambia anche dalla chat («non mostrarmi più notizie su X»), con Consenti / Nega come per le altre impostazioni.
-- **Impara dall'uso:** su ogni notizia «Non mi interessa» (abbassa l'argomento, e dopo qualche volta propone di escluderlo) e «Di più». Gli argomenti proposti si aggiornano quando la memoria cambia (dopo il riordino serale), ma un argomento nuovo entra solo dopo un clic su «Aggiungi».
-- **Da dove arrivano**, nel rispetto della regola sulle chiamate di rete (solo servizi scelti dall'utente):
-  1. feed RSS/Atom scelti dall'utente e una ricerca di notizie per argomento via feed, attivata da lui. Il filtro sugli argomenti lo fa EasyIsland in locale: niente costo di modello;
-  2. facoltativo, un motore della chat con la ricerca web, come compito ricorrente, che sceglie e riassume. Costa un turno con strumenti ogni volta, quindi con un tetto al giorno.
-  - Proposta: 1 di serie, 2 solo se acceso.
-- **Riservatezza:** gli argomenti diventano ricerche inviate a un servizio esterno. Quelli che vengono da pagine di persone e clienti non si propongono mai da soli. Prima di cercare un argomento ricavato dalla memoria, l'utente lo vede e lo approva (cambiato il 30 ottobre 2026: Edoardo vuole che gli argomenti si aggiungano da soli, scelti da un motore, e poi li spegne lui; `docs/decisioni.md`).
-- **Dove si vedono:** un riquadro «Notizie» nella Panoramica e una card con titolo, fonte, una riga di riassunto e «Apri»; nel riepilogo del mattino; su Telegram con `/notizie`; come elemento della barra fissa (sezione qui sopra). «Salva nella memoria» manda la pagina in `da-leggere`.
-- **Vincoli:** il controllo gira in Rust a orari, mai in un ciclo continuo; notizie già viste non si ripetono (stessa URL o titolo molto simile); niente telemetria; i feed sono letti e tenuti solo sul PC.
-- **Ordine proposto:** 1) argomenti dalla memoria con Aggiungi / Escludi; 2) feed e filtro locale, card e riquadro; 3) «Non mi interessa» / «Di più»; 4) riassunti del motore, Telegram e barra.
-- **Passi 1, 2 e 3 fatti** il 30 ottobre 2026 (`docs/chat.md` → Notizie): la fonte è la ricerca di Google News (scelta da Edoardo), le notizie stanno in una vista dell'isola con la sua voce nel menu, nel riquadro della Panoramica, nel Buongiorno, su Telegram (`/notizie`) e nella barra. Del passo 4 restano i riassunti del motore. La chat che cambia gli argomenti («non mostrarmi più notizie su X») e i progetti degli agenti come fonte restano da fare.
+## Spunti dall'app originale
+- Plugin come quello di opencode per **Amp** e **Hermes**.
+- **Limiti di Codex** con `account/rateLimits/read` di `codex app-server`.
+- **Riepilogo settimanale come immagine** condivisibile, con «Nascondi i nomi dei progetti».
+- **GitHub:** PR con CI e revisioni, avvisi CI, griglia dei contributi («GitHub rinnovato» escluso per ora).
+- Da scegliere con Edoardo: Impostazioni con intestazione per pagina (titolo, sottotitolo, personaggi su nero con particelle) e righe «titolo + descrizione / comando»; **note delle chiamate** (trascrizione per persona, riassunto, punti, cose da fare; audio poi cancellato; serve riconoscimento vocale e avviso ai partecipanti; la registrazione c'è); **dettatura ovunque** (riconoscimento locale ~700 MB, o `Win+H`); durata della cronologia, «ripristina predefiniti» per pagina, Impostazioni all'avvio manuale.
+- Fuori per ora: comandi a voce sempre in ascolto, app Android con server, suoni da file.
 
-## Estensione per Chrome ed Edge (ragionata con Edoardo il 29 ottobre 2026)
-Un'estensione che parla solo con EasyIsland sul PC (native messaging di Chrome: un canale locale, niente rete). Rivede la decisione dell'11 ottobre «niente estensione del browser» (`decisioni.md`, menu sul testo selezionato).
-- **Prima di tutto (consigliati come inizio):**
-  1. **Azioni per sito nella barra:** le azioni rapide legate a un sito, come «Nella barra con» per i programmi; si unisce al menu dell'app in uso qui sopra (la barra diventa per app e per sito).
-  2. **La chat vede la pagina:** indirizzo, titolo, selezione e testo leggibile presi dall'estensione, al posto del Ctrl+A / Ctrl+C di `context::window_text`.
-- **Poi:** le schede aperte nel campo di ricerca dell'isola; la card dell'integrazione che corrisponde alla pagina (ticket, PR, pagina di Notion) e «Manda a Notion» / «Salva nella memoria»; nuovi «quando» per i Flussi (apro un sito, notifica di una web app, che potrebbe arrivare nell'isola).
-- **Per ultimo, delicato:** la chat che usa il browser dell'utente (moduli, clic) con Consenti / Nega a ogni passo.
-- **Costi:** account e revisione sul Chrome Web Store (o caricamento a mano / criteri aziendali); l'installer registra il canale locale nel registro dell'utente; Firefox sarebbe un'estensione a parte; un secondo pezzo da tenere allineato. Nessuna dipendenza nuova (JavaScript semplice).
+## Proposte al momento giusto, seguiti
+«Chiudi il programma» sulla porta occupata; cartella del progetto nella card del server di sviluppo (serve la riga di comando del processo). Dettatura ripulita (serve riconoscimento vocale): per ora no.
 
-## Notion, seconda parte (annotata il 14 ottobre 2026)
-Edoardo usa Notion per attività, note, documentazione e clienti. Fatti: attività, nota veloce, pagine fissate, ricerca, chat sulla pagina. Restano:
-- **«Manda a Notion»** da una voce degli Appunti e dalla risposta della chat. Dal testo selezionato c'è dal 15 ottobre 2026.
-- **Clienti:** un database clienti scelto nelle Impostazioni con la proprietà del telefono; su una chiamata 3CX in arrivo, e su un ticket Zammad, la scheda del cliente (nome, note, link) con «Apri in Notion». Numero normalizzato come per Zammad.
-- Fatti il 15 ottobre 2026: gli avvisi delle scadenze con orario e dei commenti nuovi, la configurazione rapida, «+ Attività» e «Rimanda».
-- **Viste legate ai profili:** con il profilo «Ufficio» la card apre da sola la vista «Ufficio» (le viste ci sono dal 15 ottobre 2026).
-- Attività assegnate a me: serve scegliere la persona (l'API vede il bot, non l'utente).
+## Automazioni, ancora fuori
+«N minuti prima di un evento del calendario», «fine giornata» come evento, «nessun agente al lavoro» come condizione (Rust non tiene lo stato delle sessioni), chiamata 3CX finita. Segnaposto sempre sicuri: nei link codificati, negli script solo come argomento.
 
-## Remote Desktop Manager, dopo la prima versione
-Preparata il 15 ottobre 2026 (`docs/integrazioni.md`). Da valutare dopo le prove sul PC con RDM:
-- **Devolutions Server o Hub senza PowerShell:** l'API REST di DVLS (chiave applicativa, `Search-DSEntry`/`Get-DSEntry`) e quella di Hub (`Get-HubEntry`). Serve solo se il modulo non va bene in azienda, per esempio per le licenze o le policy.
-- **Creare una voce** dall'isola (`New-RDMSession` e `Set-RDMSession`) con i campi base. Le modifiche complesse restano nella finestra di RDM («Modifica in RDM»).
-- **Strumento per la chat:** «apri il server di Rossi» con le stesse regole di `run_quick_action` (Consenti / Nega).
-- **Associazione esplicita** fra un cliente di 3CX o un'organizzazione di Zammad e una cartella di RDM, se la ricerca per nome non basta.
-- Da non fare: legare RDM a «davanti al cliente»; leggere le password o i campi sensibili.
+## Strumenti di EasyIsland per gli altri motori via API
+Fatto per Anthropic con chiave; opencode li ha. Senza: OpenRouter, OpenAI, Gemini, Ollama, LM Studio (`openai.rs`), salvo Modalità terminale via opencode. Servirebbe `tools` da `hook/src/tool_list.rs`, `tool_calls` dallo stream, ciclo come `claude.rs`, ripiego al 400 e interruttore. Edoardo ha scelto il 19/10 di non farlo per ora.
 
-## Spunti dall'app originale (letta l'8 ottobre 2026, versione Windows/Linux 0.2.0)
-1. Lo stesso schema del plugin di opencode vale per **Amp** e **Hermes**.
-2. **Limiti di Codex** (fatti quelli di Claude il 9 ottobre): Coucou chiede `account/rateLimits/read` a `codex app-server` (`codex_plan.rs`).
-3. **Riepilogo settimanale come immagine** da condividere (fatto il riepilogo il 9 ottobre): in Coucou `recap/share.ts`, con «Nascondi i nomi dei progetti».
-4. **GitHub:** PR con CI e revisioni, avvisi CI rossa/verde, griglia dei contributi. Da noi «GitHub rinnovato» era escluso.
+## Resoconti e preventivi con carta intestata (21/10)
+- Modelli `.docx`/`.dotx` dell'utente copiati in AppData, mai modificati; segnaposto `{cliente}`, `{data}`, `{numero}`, `{corpo}`.
+- `create_document`: modello, titolo, cliente, sezioni → copia con intestazione e piè intatti, nella cartella di lavoro e nel Vassoio, con Consenti/Nega. Docx = ZIP di XML, niente dipendenze.
+- Preventivi: l'IA passa solo righe (descrizione, quantità, prezzo, IVA); totali, IVA e numero progressivo li calcola l'app.
+- PDF con Word installato, altrimenti `.docx`. Esclusi editor di documenti e generatore PDF.
 
-### Riletto il 15 ottobre 2026 (Windows/Linux 0.5.0, Mac 0.4.0): da scegliere con Edoardo
-- **Nuovo aspetto delle Impostazioni:** è il consigliato. Coucou ha una finestra unica (`windows/src/hub/`):
-  - in ogni pagina un'intestazione con titolo, sottotitolo e personaggi animati su nero con particelle (`hero.ts`), un colore per pagina;
-  - sezioni a riquadri con righe «titolo + descrizione a sinistra, comando a destra».
-  Le opzioni sono quasi le nostre: cambia la presentazione.
-- **Note delle chiamate (Notetaker):** la registrazione c'è dal 16 ottobre 2026 (`integrazioni.md` → Registra); manca il resto. Registra il microfono e l'audio del PC, senza bot. Ne esce la trascrizione per persona, con riassunto, punti chiave e cose da fare; l'audio poi si cancella. Per noi: chiamate 3CX e riunioni, da allegare a un ticket Zammad o a Notion. Servono il riconoscimento vocale e l'avviso a chi è in chiamata.
-- **Dettatura ovunque (Flow):** tieni premuto un tasto, parli, il testo si incolla. Con dizionario, testi rapidi, stili per programma e statistiche. Il riconoscimento è locale: Parakeet con sherpa-onnx, circa 700 MB, italiano compreso. Condivide il riconoscimento con le note. In alternativa c'è la dettatura di Windows (`Win+H`).
-- **Opzioni piccole:**
-  - quanto tenere la cronologia (7 giorni, 30, un anno, per sempre);
-  - «ripristina i valori predefiniti» per pagina;
-  - aprire le Impostazioni quando EasyIsland si avvia a mano.
-- **Lasciati fuori per ora:**
-  - «OK Coucou», i comandi a voce: c'è già la chat, e un microfono sempre in ascolto in ufficio è delicato;
-  - l'app Android con un server in rete;
-  - i suoni da file: i nostri sono sintetizzati per scelta.
+## Recapiti tra due EasyIsland (25/10, da valutare)
+Casa (sempre acceso) e notebook, due account Claude: uno lavora per l'altro senza mischiare le memorie.
+- Compito con «consegna a: l'altro PC»: il risultato è un **pacco** (.md, PDF, riassunto) che l'altro ritira in `da-leggere` e impara col suo motore. Mai memoria, chat o chiavi condivise.
+- Bidirezionale; il collegamento sa solo consegnare documenti e chiedere un compito (approvato se non consentito). Mai comandi o lettura dei dati altrui.
+- **Niente VPN né cloud.** Opzioni: porta inoltrata a casa (UPnP, TLS, chiave, limiti; DNS dinamico), Telegram come postino (50 MB per file; conta come cloud?), consegna diretta in LAN. Hole punching escluso.
+- Sicurezza: abbinamento con codice, chiave in Gestione credenziali, pacchi firmati e cifrati, niente eseguibili, solo in `da-leggere`. Costi a carico di chi esegue; compiti lunghi a passi, di notte, motore gratuito o locale.
 
-## Proposte al momento giusto (annotate il 13 ottobre 2026)
-Fatte il 14 ottobre 2026: download finito, errore copiato, server di sviluppo partito, password e chiavi tolte dagli appunti dopo 30 s (`strumenti.md`), riepilogo del mattino e di fine giornata, EasyIsland come server MCP per Claude Code (`agenti.md`). Possibili seguiti: «Chiudi il programma» sulla porta occupata (oggi solo chi la tiene), la cartella del progetto nella card del server di sviluppo (servirebbe leggere la riga di comando del processo).
-- **Dettatura ripulita:** tieni premuta una scorciatoia, parli anche male, nel campo arriva la frase pulita. Vuole riconoscimento vocale: un modello locale da ~200 MB o un servizio esterno; per ora no.
-- **Personaggio che cresce con l'uso:** gioco e timer sono esclusi (`decisioni.md`); resta solo la domanda già aperta del personaggio che esce dall'isola e vive sul desktop.
+## Memoria, seguiti
+- **Pulizia proposta:** `brain::check` segnala pagine doppie (alias, titoli, parole in comune) e relazioni ripetute con nomi diversi; il compito propone «unisci» con `task_ask` (la pagina unita va in archivio).
+- **Ricerca per significato:** embedding solo se la memoria diventa grande, con modello locale o servizio scelto in Impostazioni.
 
-## Automazioni più intelligenti (ragionate il 14 ottobre 2026)
-Fatti il 15 ottobre 2026 i punti 1, 2 e 3 (`integrazioni.md` → Automazioni); il 24 ottobre il 4 (aspetta, chiedi prima, ferma dopo un errore), il 5 c'era già (`create_automation`), il 6 sostituito dal passo «Avvia un compito», il 7 con le proposte solo a routine, «Prova ora», registro e «spegni». Restano fuori: «N minuti prima di un evento del calendario», «fine giornata» come evento a sé (oggi è un orario), «nessun agente al lavoro» come condizione (Rust non tiene lo stato delle sessioni), chiamata 3CX finita. Restano da fare 4–7. Il testo originale:
-1. **Dati del «quando» nei passi:** `{file}`, `{cartella}`, `{rete}`, `{programma}`, `{ticket}`, `{chiamante}` dentro link, azioni rapide e domande alla chat (es. nuovo file in una cartella → «Chiedi alla chat di riassumere {file}»). Serve un segnaposto sicuro: nei link codificato, negli script solo come argomento, mai incollato nel comando.
-2. **«Quando» nuovi**, dagli eventi che l'isola già vede: download finito, server di sviluppo partito, agente che ha finito o aspetta un permesso da N minuti, chiamata 3CX in arrivo o finita, N minuti prima di un evento del calendario, fine giornata (`eveningHour`), rientro dopo una pausa (inattività).
-3. **«Se» più ricchi**, anche più d'uno insieme: fascia oraria e giorni, rete Wi-Fi, alimentazione o batteria, programma aperto, in riunione (microfono/webcam), davanti al cliente, nessun agente al lavoro. Più «al massimo una volta al giorno / ogni N minuti» contro le ripetizioni.
-4. **Passi più flessibili:** «aspetta N minuti», «chiedi prima» (card con Esegui/Annulla e conto alla rovescia di pochi secondi per i passi che disturbano), «ferma se il passo prima non è riuscito».
-5. **Crea a parole:** «ogni lunedì alle 9 apri Teams e la bacheca dei ticket» → la chat produce la regola, `automations::validate` la controlla, l'utente vede l'anteprima e la crea con un clic. Nessun passo nuovo per il modello: usa solo quelli esistenti.
-6. **Decide la chat (passo «valuta»):** il modello legge l'evento (ticket, email, errore) e sceglie fra rami preparati dall'utente («se è urgente → avviso rosso e apri il ticket, altrimenti niente»). Solo scelte fra passi già approvati; mai inviare email, eseguire comandi o eliminare.
-7. **Impara dall'uso:** le abitudini (`habits.rs`) propongono anche dai nuovi eventi (es. ogni PDF scaricato viene aperto subito); un'automazione annullata o ignorata spesso propone di spegnersi o cambiare orario; nel registro, quante volte è partita e quante annullata. «Prova ora» per vedere cosa farebbe senza aspettare il «quando».
-Proposta di partenza: 1 + 2 + 3 (più utili, nessun modello coinvolto), poi 5, poi 6.
+## Modello integrato (27/10, accantonato)
+Fatto nel branch `claude/modello-integrato` (non unito; passi in `docs/modello-integrato.md` del branch), manca la prova dal vivo. Per riprendere: aggiornare il branch con `claude/sviluppo`, verificare build di llama.cpp e hash dei modelli, provare.
+- `llama-server.exe` (CPU + Vulkan) scaricato con il primo modello, avviato nascosto solo quando serve e spento dopo minuti senza richieste; API compatibile OpenAI → riusa `openai.rs`. Processo separato (un crash del C++ non chiude l'isola); job object lo chiude con l'app.
+- Modelli GGUF 3–8B consigliati in Impostazioni → Chat, «Scarica» dopo clic in `%LOCALAPPDATA%\EasyIsland\models` con SHA-256, eliminabili; anche un GGUF già sul disco.
+- Presentarlo per chat e privacy, non per l'agente (i modelli piccoli sbagliano gli strumenti). Utile anche per memoria ed embedding.
 
-## La giornata di oggi e domani (chiesta da Edoardo il 18 ottobre 2026, priorità alta)
-Un riassunto amichevole, fatto dall'IA, di tutte le integrazioni (Notion, Outlook, ticket, meteo…) per oggi o per domani: da solo al mattino e alla sera agli orari scelti nelle Impostazioni, e a richiesta dalla chat, dalla barra di ricerca, da Telegram e dalle azioni rapide.
-- **Fatto (19 ottobre 2026):** `/oggi` e `/domani` su Telegram (`docs/integrazioni.md`). Dalla chat e dalle azioni rapide va già una domanda a parole («com'è la mia giornata?») con un motore che ha gli strumenti.
-- **Fatto (31 ottobre 2026):** la stessa domanda dal campo in alto e come azione rapida («Lavora su» → la giornata di oggi / di domani).
-- **Fatto (31 ottobre 2026):** il riassunto dell'IA nel Buongiorno / Fine giornata con il motore a scelta e l'invio su Telegram all'ora scelta con il tempo degli agenti (`giornata.rs`, `docs/agenti.md` → Riepilogo del giorno); gli orari sono passati in Rust.
-- **Il piano di partenza:** il riepilogo del giorno che c'è (`daily.rs`: repository, PR, tempo degli agenti, alle ore di `dailyRecap`) con in più il testo dell'IA sulle integrazioni, quando un motore con strumenti è pronto; la stessa cosa mandata su Telegram all'ora scelta. Attenzione al costo: un turno con strumenti a ogni riepilogo.
-
-## Strumenti di EasyIsland per gli altri motori via API (valutato il 19 ottobre 2026)
-Fatto per Anthropic con chiave (`docs/chat.md`); opencode li aveva già. Restano senza strumenti OpenRouter, OpenAI, Gemini, Ollama e LM Studio (`openai.rs`), salvo la Modalità terminale che li fa passare da opencode. Per farlo: stesso elenco (`hook/src/tool_list.rs`) come `tools`, le chiamate ricomposte dallo stream (`tool_calls`), il ciclo come in `claude.rs`; molti modelli locali o gratuiti non usano bene gli strumenti, quindi ripiego senza quando il modello li rifiuta (400) e un'opzione per spegnerli. Edoardo ha scelto il 19 ottobre 2026 di non farlo per ora.
-
-## Resoconti e preventivi con carta intestata (annotata il 21 ottobre 2026)
-- **Carta intestata = un Word dell'utente:** in Impostazioni uno o più `.docx`/`.dotx` (es. «Preventivo», «Resoconto intervento»), copiati in AppData e mai modificati. Si possono mettere segnaposto: `{cliente}`, `{data}`, `{numero}`, `{corpo}`.
-- **Strumento `create_document`:** l'IA passa il modello, il titolo, il cliente e le sezioni. L'app copia il modello senza toccare intestazione e piè di pagina e riempie il corpo o i segnaposto. Il risultato va nella cartella di lavoro e nel Vassoio, con Consenti / Nega.
-- **Il docx si fa senza nuove dipendenze:** è uno ZIP di XML, come per lo strumento ZIP.
-- **Preventivi:** l'IA passa solo le righe (descrizione, quantità, prezzo, IVA). Totali e IVA li calcola l'app, così l'IA non sbaglia i conti. Il numero progressivo lo tiene l'app.
-- **PDF:** con Word installato, conversione automatica senza aprirlo. Senza Word resta il `.docx`.
-- **Esclusi:** un editor di documenti nell'app e un generatore PDF fatto in casa.
-
-## Recapiti tra due EasyIsland (ragionata con Edoardo il 25 ottobre 2026, da valutare)
-Edoardo usa due PC: casa (sempre acceso) e notebook di lavoro (acceso in ufficio e dai clienti), con **due account Claude diversi**. Vuole che uno lavori per l'altro senza mischiare le memorie. Esempio: di notte il PC di casa raccoglie schede tecniche e guide dei prodotti UniFi, e il risultato finisce nel notebook, non nella memoria di casa.
-- **Idea:** un compito con «consegna a: l'altro PC». Chi lo esegue non scrive nella propria memoria ma in una cartella a parte, che diventa un **pacco** (pagine .md, PDF, riassunto). L'altro PC, appena raggiungibile, lo ritira nella sua `da-leggere`: lo impara il suo motore con il suo account («Leggi adesso» o di notte). Mai memoria, chat o chiavi condivise: solo documenti, come se li avesse trascinati l'utente. Avviso nell'isola: «Pacco da casa: UniFi, 143 documenti».
-- **Bidirezionale** (scelta di Edoardo): ognuno dei due può chiedere un compito all'altro e riceverne il pacco. Il collegamento sa fare solo due cose: consegnare documenti in `da-leggere` e chiedere di avviare un compito (che l'altro PC mostra e, se non è tra quelli consentiti, chiede di approvare). Mai comandi, mai lettura dei dati dell'altro.
-- **Vincoli di Edoardo:** **niente VPN e niente cloud.** Da ragionare come si raggiungono i due PC:
-  - *Inoltro di una porta sul router di casa* (anche automatico con UPnP, se il router lo permette): casa fa da piccolo server con TLS e chiave dell'abbinamento; il notebook ritira da ovunque. Il notebook non è raggiungibile da fuori, quindi «casa → notebook» funziona come ritiro (il notebook chiede), «notebook → casa» come invio diretto. Serve un nome o l'IP pubblico di casa (DNS dinamico se cambia). Rischio: una porta aperta su internet, da tenere al minimo (solo i due endpoint, chiave obbligatoria, limiti di frequenza).
-  - *Telegram come postino* (già configurato da Edoardo): segnali e pacchi piccoli attraverso il suo bot; passa da un servizio di terzi, e i file grandi vanno spezzati (limite 50 MB per file del bot). Da capire se per Edoardo conta come «cloud».
-  - *Stessa rete*: quando il notebook è a casa, consegna diretta in LAN (scoperta automatica, nessuna configurazione). Copre i casi in cui il notebook torna a casa la sera.
-  - Il «buco» nel NAT (hole punching) senza server non è affidabile: serve sempre un punto d'incontro, quindi escluso.
-- **Sicurezza:** abbinamento una volta sola con un codice mostrato su un PC e scritto sull'altro; chiave in Gestione credenziali; pacchi firmati e cifrati; un pacco non può contenere eseguibili né finire fuori da `da-leggere`.
-- **Costi e account:** il lavoro pesante lo paga l'account che lo esegue. Compiti lunghi (un catalogo intero) a passi e con un limite di pagine, meglio di notte e con un motore gratuito o locale.
-
-## Flussi: automazioni e compiti in un solo sistema a nodi (decisa con Edoardo il 25 ottobre 2026, da fare)
-Spunto dagli strumenti a nodi e dai costruttori di agenti a grafo: passi fissi dove bastano, il modello solo nei nodi dove serve giudizio. Edoardo ha scelto di **unire** automazioni e compiti e di avere un **editor visivo modificabile**.
-- **Nodi:** Innesco (i «Quando» di oggi, Telegram, orario, a mano), Azione (l'elenco fisso di oggi: programmi, azioni rapide, tasti, integrazioni, Notion, To Do, card), Agente (un compito: obiettivo, motore, strumenti, limiti; il risultato va nello stato), Decisione (condizione, oppure il modello sceglie fra rami con un nome: riapre l'esclusione del passo «valuta» del 24 ottobre), Chiedi a me (card o Telegram, si riprende anche dopo un riavvio), Aspetta, Per ogni elemento.
-- **Stato condiviso** fra i nodi con segnaposto (`{{agente1.risultato}}`), salvato a ogni nodo per riprendere; registro di ogni esecuzione con entrate e uscite di ogni nodo e «Riprendi da qui», in `%APPDATA%\EasyIslandlussi\`.
-- **Creazione:** a parole in chat (`flow_create`, anteprima = conferma) e nell'editor visivo in Impostazioni, disegnato in Canvas senza librerie.
-- **Sicurezza invariata:** niente nodi con codice; i nodi Agente hanno gli strumenti e i permessi della chat.
-- **Migrazione:** automazioni e compiti esistenti diventano flussi automaticamente; niente si perde.
-- **Ordine:** 1) motore in Rust (grafo, stato, ripresa) con la conversione; 2) creazione dalla chat e vista con le esecuzioni; 3) editor modificabile; 4) Decisione col modello e Per ogni elemento.
-- **Rischi da tenere d'occhio:** le proposte dalle abitudini e i compiti «semplici» devono restare semplici (un flusso di un nodo non deve sembrare un diagramma); l'editor su schermi piccoli; non rompere le automazioni di chi aggiorna.
-
-## Memoria: dopo riassunti, alias e secondo passo (26 ottobre 2026)
-Fatti riassunto e alias delle pagine e il secondo passo sui legami forti (`docs/chat.md` → Ricerca che segue i collegamenti). Restano:
-- **Pulizia proposta:** il controllo (`brain::check`) segnala anche le pagine doppie (stessi alias, titoli simili, molte parole in comune) e le relazioni ripetute con nomi diversi («usa UniFi» e «usa Ubiquiti»); il compito di controllo propone «unisci» con `task_ask` e fa solo ciò che l'utente approva (la pagina unita resta in archivio). Utile quando la memoria cresce.
-- **Ricerca per significato:** embedding delle pagine e delle note, per trovare ciò che non ha parole in comune con la domanda. Vuole un modello locale (una dipendenza) o un servizio (costo, note fuori dal PC): solo se la memoria diventa grande (molti PDF), e con la scelta in Impostazioni come il motore per la memoria.
-
-## Modello integrato: un modello locale senza Ollama né LM Studio (scelto da Edoardo il 27 ottobre 2026; accantonato lo stesso giorno)
-**Stato:** fatto nel codice nel branch `claude/modello-integrato` (non unito; i passi e cosa manca sono in `docs/modello-integrato.md` di quel branch): manca la prova dal vivo. Differenza da quanto scritto qui sotto: il motore non sta nell'installer, si scarica con il primo modello. Per riprendere il lavoro: aggiornare il branch con `claude/sviluppo`, controllare che la build di llama.cpp e gli hash dei modelli siano ancora quelli giusti, fare la prova dal vivo. Valutato anche: gli strumenti di EasyIsland in `openai.rs`, per renderlo agentico.
-Un motore della chat «Modello integrato» che fa girare un modello sul PC senza che l'utente installi altro.
-- **Come:** `llama-server.exe` di llama.cpp nell'installer (versione CPU + Vulkan, ~10–30 MB), avviato nascosto dall'app su una porta locale solo quando la chat lo usa e spento dopo qualche minuto senza richieste. Parla l'API compatibile con OpenAI, quindi si riusa `openai.rs` (streaming, «Carica modelli», ragionamento nascosto) com'è. Ollama e LM Studio restano per chi li ha.
-- **Perché non dentro il processo:** una libreria che compila llama.cpp in EasyIsland porterebbe la memoria del modello nell'isola e un crash del C++ la chiuderebbe; build MSVC più lenta. candle / mistral.rs (Rust puro) su Windows sono più lenti e reggono meno schede video. L'IA di Windows (Phi Silica) c'è solo sui PC Copilot+.
-- **Modelli:** non nell'installer (1–5 GB, GGUF). In Impostazioni → Chat un elenco breve di modelli consigliati (3–8 miliardi di parametri, italiano compreso) con dimensione e «Scarica»: il download parte solo dopo il clic (regola sulle chiamate di rete), in `%LOCALAPPDATA%\EasyIsland\models`, con verifica dello SHA-256 e possibilità di eliminarlo. Anche un GGUF già sul disco scelto dall'utente.
-- **Vincoli:** CPU ~0 % a isola ritirata (processo spento quando non serve); su CPU 5–15 parole al secondo, molto meglio con una scheda video; i modelli piccoli sbagliano spesso con gli strumenti e la Modalità terminale, quindi va presentato per chat e privacy («nulla esce dal PC»), non per l'agente. Il processo figlio si chiude con l'app (job object di Windows) anche se l'app cade.
-- **Utile anche per:** il motore per la memoria e, in futuro, gli embedding della ricerca per significato (sezione Memoria qui sopra).
-
-## EasyIsland collegati: memoria condivisa fra più EasyIsland (ragionata con Edoardo il 31 ottobre 2026, da decidere)
-Il notebook di lavoro è spesso spento (a casa, in giro per le assistenze). Edoardo ha una VPS con Windows 11 in Docker, sempre accesa, dove vuole un secondo EasyIsland con Claude, usato solo da Telegram. Tra i due si condivide **solo la memoria**, sincronizzata. Più in generale: da un'impostazione, un EasyIsland si collega a un altro e si sceglie cosa condividere. Vale anche per due EasyIsland che lavorano **in contemporanea**, quindi nessuno dei due fa da «custode».
-
-- **Collegamento:** EasyIsland non integra una VPN né un modo suo di attraversare i router: usa un indirizzo raggiungibile. Scelta di Edoardo: **Tailscale** (rete privata fra i dispositivi, WireGuard, traffico diretto e cifrato, nessuna porta aperta sulla VPS; dentro il Windows del container, non sull'host). Funziona allo stesso modo con una VPN aziendale, in rete locale o con una porta aperta. Scartata il 31 ottobre una rete cifrata dentro EasyIsland con la VPS come punto d'incontro: la sicurezza del collegamento resterebbe a carico di EasyIsland.
-- **Tailscale e le altre VPN** (Edoardo usa spesso le VPN dei clienti): sul notebook DNS di Tailscale spento («Use Tailscale DNS settings»), in EasyIsland l'indirizzo numerico `100.x.y.z` della VPS, niente exit node né rotte verso altre reti; sulla VPS scadenza della chiave disattivata. Una VPN che prende tutto il traffico può staccare Tailscale finché è accesa: la sincronizzazione aspetta e recupera. **Prima di costruirci sopra:** qualche giorno di prova con le VPN di sempre (ping alla VPS con e senza, nessuna VPN dei clienti rotta).
-- **Abbinamento** (Impostazioni → «EasyIsland collegati»): su uno «Accetta un collegamento» mostra un codice che vale pochi minuti; sull'altro «Collega un EasyIsland» con indirizzo e codice. Si scambiano una chiave (in Gestione credenziali) e da lì si riconoscono da soli; chi si presenta senza chiave viene chiuso subito. Ognuno ha un nome («Notebook», «VPS»). EasyIsland ascolta solo sull'indirizzo scelto (quello di Tailscale), mai su tutte le schede. Collegamento alla pari e per più di due EasyIsland, anche se si parte con due. Stato («sincronizzata 2 minuti fa, 3 pagine arrivate») e «Scollega» nella stessa pagina.
-- **Cosa condividere,** per ogni EasyIsland collegato e con il verso (invia, ricevi, entrambi): all'inizio solo la **memoria** (`MEMORIA.md`, `pagine/`, `diario/`, `da-leggere/`, `fonti/`, l'archivio). La lista è fatta per crescere: promemoria e impegni, abilità, automazioni. Impostazioni, chiavi e chat restano di ogni EasyIsland.
-- **Sincronizzazione:** per ogni file si tiene la versione dell'ultima sincronizzazione (la base). Al collegamento si confrontano gli elenchi e passa solo ciò che è cambiato; dopo, ogni modifica parte subito (`brain_watch.rs` vede già i cambiamenti della cartella). Un EasyIsland spento per giorni recupera tutto alla riaccensione. La memoria non cancella mai (sposta nell'archivio): passa lo spostamento.
-- **Unione dei file** (con due EasyIsland al lavoro insieme non è un'eccezione): riga per riga sulla base comune, come git. Note e diario: le righe di entrambi, sempre. Pagine: parti diverse cambiate si uniscono da sole; le stesse righe cambiate da tutti e due lasciano anche la copia dell'altro e la pulizia della memoria (`check`) propone di unirle, con conferma. L'agente scrive una pagina solo se è ancora quella che ha letto (`memory_page_write` con la versione): una modifica arrivata nel frattempo lo fa rileggere, quindi due Claude non si sovrascrivono.
-- **Turni invece del custode:** riordino serale, lettura di `da-leggere/` e pulizia li prende chi arriva prima, chiedendo il turno agli altri collegati («lo faccio io fino alle 23:40»); il turno scade da solo se quell'EasyIsland si spegne. Per `da-leggere/` il turno è per file, così due EasyIsland leggono file diversi insieme. Senza nessuno raggiungibile si lavora lo stesso: un lavoro doppio raro finisce nell'unione, senza perdere niente.
-- **Telegram:** un bot per EasyIsland (lo stesso bot si legge da un posto solo). Quello della VPS è il bot di tutti i giorni; sul notebook spento o un altro bot. Oggi i messaggi scritti a EasyIsland spento si elaborano alla riaccensione (Telegram li tiene 24 ore).
-- **Da decidere:** il protocollo fra i due (richieste HTTPS o un canale WebSocket, con TLS e la chiave dell'abbinamento); quanto spesso, al massimo, un file che cambia di continuo parte; cosa mostrare nella finestra della memoria per le pagine arrivate dall'altro.
-- **Ordine proposto:** 1) prova di Tailscale con le VPN dei clienti; 2) abbinamento e stato; 3) sincronizzazione della memoria con unione; 4) turni; 5) altre cose da condividere.
+## EasyIsland collegati: memoria condivisa (31/10, da decidere)
+Notebook spesso spento; VPS con Windows 11 in Docker sempre accesa con un secondo EasyIsland usato da Telegram. Si condivide solo la memoria, anche con due EasyIsland al lavoro insieme (nessun custode). (Agent Chat ha poi aggiunto una memoria condivisa via server: `memshare.rs`.)
+- **Collegamento:** un indirizzo raggiungibile, scelta **Tailscale** (nel Windows del container); vale anche VPN aziendale, LAN, porta aperta. Sul notebook DNS di Tailscale spento, indirizzo `100.x.y.z`, niente exit node; sulla VPS chiave senza scadenza. Prima qualche giorno di prova con le VPN dei clienti.
+- **Abbinamento** (Impostazioni → «EasyIsland collegati»): codice temporaneo, scambio di chiave (Gestione credenziali), nome per EasyIsland, ascolto solo sull'indirizzo scelto, alla pari e per più di due; stato e «Scollega».
+- **Cosa condividere** per collegato e verso: all'inizio la memoria (`MEMORIA.md`, `pagine/`, `diario/`, `da-leggere/`, `fonti/`, archivio); poi promemoria, abilità, automazioni. Impostazioni, chiavi, chat restano locali.
+- **Sincronizzazione:** base per file, al collegamento solo il cambiato, poi subito (`brain_watch.rs`); recupero dopo giorni; gli spostamenti in archivio passano.
+- **Unione** riga per riga sulla base comune: note e diario uniscono sempre; pagine con stesse righe cambiate tengono anche la copia dell'altro e `check` propone l'unione. `memory_page_write` con versione: scrittura solo se è ancora quella letta.
+- **Turni:** riordino, lettura di `da-leggere/` (per file) e pulizia li prende chi arriva prima, con scadenza se si spegne.
+- **Telegram:** un bot per EasyIsland.
+- Da decidere: protocollo (HTTPS o WebSocket con TLS e chiave), frequenza massima per file, come mostrare le pagine arrivate. Ordine: prova Tailscale, abbinamento, sincronizzazione, turni, altro.
 
 ## Altro
-- **Scheda esatta di Windows Terminal** per «Apri»: il relay legge il titolo della console e l'app seleziona la scheda con UI Automation. Da sperimentare con una sessione vera. Tolta dal Da fare il 9 ottobre: per ora non serve.
-- **Clic destro sui file in Esplora file** (prossimo passo, deciso l'11 ottobre 2026): una voce nel registro di Windows (`HKCU\Software\Classes\*\shell`) che passa il percorso all'app, scritta solo dopo la conferma di Edoardo. In Windows 11 finisce sotto «Mostra altre opzioni» (il menu nuovo vuole un pacchetto MSIX con `IExplorerCommand`). Per il testo selezionato c'è già il menu di `Win+Alt+A`.
-- **Da decidere prima di farle**, perché vanno contro `decisioni.md`: nuovi personaggi (polpo, rana, granchio, geco). Le prove dell'8 ottobre sono venute male: rimandati. Rimandate anche le pose di Goccia della tavola del 3 ottobre (saluto con la mano, salto, caduta, onda): oggi usa quelle comuni.
-- **opencode, ancora aperti:**
-  - nella **chat** lo strumento `question` è negato (`opencode.rs`): la card c'è già per l'agente (`opencode_agent.rs`, form), si può riusare;
-  - il menu dei motori non controlla se Ollama/LM Studio rispondono.
-- **Decisioni aperte:**
-  - firma del codice (Authenticode o Azure Trusted Signing)
-  - tag `windows-latest` sul repo, creato per sbaglio
-  - funzioni del Mac mai portate (invio di un file per email, personaggio trascinato su una finestra per allegarla)
-- **Idee da valutare:** TeamViewer come integrazione (annotata il 16 ottobre 2026, senza dettagli: da chiarire con Edoardo cosa serve); libreria di comandi PowerShell/cmd con conferma; casa (promemoria, Home Assistant); integrazioni proposte il 2 ottobre (Windows Update, stampanti bloccate, Teams, Docker, Git locali, WSL, IMAP, DNS/blacklist, pagine di stato, CISA KEV, RSS, ntfy (Telegram fatto: `docs/integrazioni.md`), Uptime Kuma, Proxmox, Synology/TrueNAS, UniFi, Pi-hole, GLPI).
+- **Scheda esatta di Windows Terminal** per «Apri» (titolo della console + UI Automation): per ora non serve.
+- **Clic destro in Esplora file** (deciso l'11/10): voce in `HKCU\Software\Classes\*\shell` scritta dopo conferma; in Windows 11 sotto «Mostra altre opzioni» (il menu nuovo vuole MSIX con `IExplorerCommand`).
+- **Personaggi rimandati:** polpo, rana, granchio (prove dell'8/10 venute male); pose di Goccia (saluto con la mano, salto, caduta, onda).
+- **opencode:** nella chat `question` è negato (`opencode.rs`): riusare la card dell'agente (`opencode_agent.rs`); il menu dei motori non controlla se Ollama/LM Studio rispondono.
+- **Decisioni aperte:** firma del codice (Authenticode o Azure Trusted Signing); tag `windows-latest` creato per sbaglio; funzioni del Mac mai portate (invio di un file per email).
+- **Da valutare:** TeamViewer (cosa serve, da chiarire); libreria di comandi PowerShell/cmd con conferma; casa (promemoria, Home Assistant); integrazioni proposte il 2/10: Windows Update, stampanti bloccate, Docker, Git locali, WSL, IMAP, DNS/blacklist, pagine di stato, CISA KEV, RSS, ntfy, Uptime Kuma, Proxmox, Synology/TrueNAS, UniFi, Pi-hole, GLPI.
 
 ## Pulizia del codice (solo quando si tocca quel file)
-- `mmss` è duplicato in `src/views/integrations.ts` (secondi) e `src/views/threecx.ts` (millisecondi); anche il «Copiato ✓» temporaneo è ripetuto in più viste.
-- File molto lunghi da spezzare solo se si lavora lì: `src/settings/main.ts` (~2.770 righe), `src/island/island.ts` (~2.060), `src/character/engine.ts`, `src-tauri/src/lib.rs`.
+- `mmss` duplicato in `src/views/integrations.ts` (secondi) e `src/views/threecx.ts` (ms); «Copiato ✓» ripetuto in più viste.
+- File lunghi: `src/settings/main.ts`, `src/island/island.ts`, `src/character/engine.ts`, `src-tauri/src/lib.rs`.
