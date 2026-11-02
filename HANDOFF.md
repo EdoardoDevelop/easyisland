@@ -50,6 +50,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 2/11 — Finestra Memoria: Questo PC / altro PC / Tutte (`claude/sviluppo`)
+Con la copia di un altro PC (`memoria-condivise`) la barra della finestra Memoria sceglie quale memoria disegnare (`memory_graph` con `source`, `brain::graph_of`). Nome dell'altro PC dalla cartella o dall'impostazione. `docs/chat.md` → Finestra Memoria. Provato nell'anteprima con «ufficio» finto e `cargo check`; non ancora nell'app con la copia vera.
+
 ### 2/11 — Chat: barra delle conversazioni, più conversazioni aperte (`claude/sviluppo`)
 Barra a sinistra (Ctrl+B; allarga l'isola con `chatSideRoom`, galleggia se stretta), colonna centrale di 780 px. Ogni conversazione ha il suo `Chat` in Rust (`Chats`, comandi con `sid`), processo e «Ferma»; max 8 (`MAX_OPEN_CHATS`). `docs/chat.md` → Cronologia. Provato con test, smoke e `?scene=chat&history`, non con due motori veri insieme.
 
@@ -62,8 +65,3 @@ Il lavoro condivide la memoria via server Agent Chat (`memshare.rs`, `/api/memor
 ### 2/11 — Agent Chat: presa in carico, nomi, consumo
 A un messaggio generico risponde un solo motore: il capo del primo EasyIsland che lo prende (`/api/messages/<id>/claim`). Nomi dei motori unici dalle Impostazioni (`/api/aliases`, `@lia`). Turni e token stimati per motore.
 
-### 1/11 — Agent Chat: motori autonomi, capo, scheda, recupero, memoria (1.0.19)
-- Messaggio senza nomi → tutti i motori; `@tutti`. Il capo (Claude o il primo) affida le esecuzioni per nome (`plan`, `role`, `lead`); la catena conta solo i messaggi che chiamano qualcuno.
-- Scheda nell'isola `src/views/agentchat.ts` (ascolto: `agentchatListen`). Repo del server pubblico.
-- Recupero a PC spento (`catch_up`); memoria con righe «MEMORIA:» (`split_memory`).
-- «Letture libere» di serie; richieste insieme in fila. Allegati con SHA-256, importati da un solo agente (`agentchat_import`), «ALLEGA: percorso» nella risposta; server allegati in repo `agentchat` (`ac238d9`).

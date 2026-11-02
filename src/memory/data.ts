@@ -11,6 +11,8 @@ export interface MemNode {
   date: string;
   text: string;
   weight: number;
+  /** The other PC whose memory it comes from (empty: this PC). */
+  origin?: string;
 }
 
 export interface MemEdge {
@@ -33,6 +35,8 @@ export interface MemGraph {
   check: string[];
   inbox: string[];
   folder: string;
+  /** The other PCs whose memory is copied here (Agent Chat → «Memoria di un altro PC»). */
+  sources?: string[];
 }
 
 export const KIND_COLOR: Record<NodeKind, string> = {

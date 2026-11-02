@@ -63,7 +63,7 @@ fn short(text: &str, max: usize) -> String {
 }
 
 /// The notes of MEMORIA.md (its "- " lines).
-fn notes_of(text: &str) -> Vec<String> {
+pub(crate) fn notes_of(text: &str) -> Vec<String> {
     text.lines().filter(|l| l.trim_start().starts_with("- ")).map(|l| l.trim().to_string()).collect()
 }
 

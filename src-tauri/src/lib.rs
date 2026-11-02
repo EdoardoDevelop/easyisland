@@ -1747,9 +1747,12 @@ fn memory_open(folder: bool) -> Result<(), String> {
 
 /// The memory window (brain.rs): pages, notes, sources, days and their links, the timeline.
 #[tauri::command]
-async fn memory_graph() -> Result<brain::Graph, String> {
+async fn memory_graph(app: AppHandle, source: Option<String>) -> Result<brain::Graph, String> {
+    // "": this PC, a name: the copy of that PC's memory, "*": both (memshare.rs).
+    let other = memshare::source(&app);
+    let source = source.unwrap_or_default();
     // A failure says so: the window must not show "la memoria è vuota" instead.
-    tauri::async_runtime::spawn_blocking(brain::graph).await.map_err(|e| tf("Errore nel leggere la memoria: {e}", &[("e", &e)]))
+    tauri::async_runtime::spawn_blocking(move || brain::graph_of(&source, other)).await.map_err(|e| tf("Errore nel leggere la memoria: {e}", &[("e", &e)]))
 }
 
 /// «Collega con l'IA» (memory_ai.rs): the chosen engine ties the memory together; what was done.

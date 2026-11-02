@@ -4226,5 +4226,10 @@
   "Risposta nuova": "New answer",
   "Aperte": "Open",
   "«{name}» chiede un permesso: apri": "“{name}” is asking for permission: open it",
-  "Conversazione sconosciuta.": "Unknown conversation."
+  "Conversazione sconosciuta.": "Unknown conversation.",
+  "La memoria di questo PC": "This PC's memory",
+  "La copia della memoria di {name}, che arriva da Agent Chat": "The copy of {name}'s memory, from Agent Chat",
+  "Questo PC e le memorie degli altri PC insieme": "This PC and the other PCs' memories together",
+  "memoria di {name}": "{name}'s memory",
+  "Copia della memoria di {name}: si aggiorna da sola quando quel PC la cambia. Le note nuove vanno nella memoria di questo PC.": "Copy of {name}'s memory: it updates by itself when that PC changes it. New notes go into this PC's memory."
 }

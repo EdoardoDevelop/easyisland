@@ -39,7 +39,11 @@ export class MindMapView implements View {
 
   setModel(model: Model) {
     this.model = model;
-    if (!this.centre || !model.byId.has(this.centre)) this.centre = model.centre();
+    if (!this.centre || !model.byId.has(this.centre)) {
+      // Another memory (a PC chosen in the bar): framed again around the new centre.
+      this.centre = model.centre();
+      this.framed = false;
+    }
     this.layout();
   }
 

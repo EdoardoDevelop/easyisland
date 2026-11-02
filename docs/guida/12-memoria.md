@@ -78,6 +78,8 @@ In **Impostazioni → Chat → Memoria → Motore per la memoria** puoi sceglier
 ## La finestra Memoria
 Il pulsante con i tre nodi in alto nell'isola (o **Impostazioni → Chat → Memoria → Mappa**) apre una finestra tutta sua con la memoria disegnata in quattro modi. Una nota si collega alle pagine di cui parla (anche senza citarne il titolo intero, dalle parole in comune) e alle note simili; le note archiviate che non c'entrano con niente non affollano il grafo.
 
+Se ricevi la memoria di un altro PC (**Memoria condivisa fra due PC**, in Integrazioni), in alto compaiono **Questo PC**, il nome dell'altro PC e **Tutte**: scegli quale memoria vedere, o tutte e due insieme; in **Tutte** le cose dell'altro PC hanno il suo nome accanto. La copia dell'altro PC si guarda soltanto: le note nuove vanno nella memoria di questo PC.
+
 ### Grafo
 ![Il grafo della memoria](../media/memoria-grafo.png)
 

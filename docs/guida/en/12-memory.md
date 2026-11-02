@@ -78,6 +78,8 @@ In **Settings → Chat and AI engines → Memory → Memory engine** you can pic
 ## The Memory window
 The button with three nodes at the top of the island (or **Settings → Chat and AI engines → Memory → Map**) opens a window of its own with the memory drawn four ways. A note links to the pages it talks about (even without their full title, from the words in common) and to similar notes; archived notes tied to nothing do not crowd the graph.
 
+If you receive another PC's memory (**Memory shared between two PCs**, in Integrations), the top bar shows **This PC**, the other PC's name and **All**: pick which memory to see, or both together; in **All** the other PC's things carry its name. The other PC's copy is read only: new notes go into this PC's memory.
+
 ### Graph
 ![The memory graph](../media/memoria-grafo.png)
 

@@ -2,6 +2,12 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 1/11 — Agent Chat: motori autonomi, capo, scheda, recupero, memoria (1.0.19)
+- Messaggio senza nomi → tutti i motori; `@tutti`. Il capo (Claude o il primo) affida le esecuzioni per nome (`plan`, `role`, `lead`); la catena conta solo i messaggi che chiamano qualcuno.
+- Scheda nell'isola `src/views/agentchat.ts` (ascolto: `agentchatListen`). Repo del server pubblico.
+- Recupero a PC spento (`catch_up`); memoria con righe «MEMORIA:» (`split_memory`).
+- «Letture libere» di serie; richieste insieme in fila. Allegati con SHA-256, importati da un solo agente (`agentchat_import`), «ALLEGA: percorso» nella risposta; server allegati in repo `agentchat` (`ac238d9`).
+
 ### 1° novembre 2026 — Agent Chat: EasyIsland risponde da solo, più motori e consulte (in `claude/sviluppo`, versione 1.0.18)
 - EasyIsland partecipa alla Agent Chat di Edoardo (`agentchat.rs`): ascolto sempre acceso, risposte autonome alle menzioni, ogni motore con il suo nome (`notebook/claude`), consulta con sintesi, freni (stop dalla chat, turni l'ora, catena fra agenti), card nell'isola, strumenti `agentchat_*` e l'aggregatore `consult_engines` (`docs/integrazioni.md`, `docs/chat.md`).
 - Server cambiato nel suo repository (token per agente, owner verificato, più stanze, thread e consulte), nel suo `main` e pubblicato sulla VPS il 1° novembre con le chat ripartite da zero. Versione 1.0.18 con tag `v1.0.18`. Test Rust e del server, smoke; nessun turno vero di un motore in Agent Chat ancora.
