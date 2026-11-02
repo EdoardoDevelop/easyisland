@@ -43,8 +43,9 @@
 //! - Permissions (Edoardo, 1 Nov 2026: «non mi deve chiedere permessi… al
 //!   massimo me lo deve chiedere in chat… l'intento è che siano autonomi su
 //!   tutto»): every engine's turn carries the channel "agentchat" (Chat,
-//!   EASYISLAND_CHANNEL) and its requests come to `decide`. «Autonomi» (default)
-//!   allows everything except what deletes, sends in the user's name, changes
+//!   EASYISLAND_CHANNEL) and its requests come to `decide`. «Autonomi» (default;
+//!   2 Nov 2026: «non voglio. Voglio che sia autonomo») allows everything and
+//!   asks nothing. «Chiedi in chat» (`chat`) allows everything except what deletes, sends in the user's name, changes
 //!   the system or runs on another PC (`delicate`): that is asked in the chat,
 //!   «@owner PERMESSO 1234 …», and the owner answers «sì 1234» / «no 1234». An
 //!   answer after the wait counts for the same action for 30 minutes and wakes
@@ -1553,7 +1554,13 @@ pub async fn decide(app: &AppHandle, payload: Value) -> Option<String> {
         "ask" => return crate::pipe::request_decision(app, payload).await,
         "read" if reads && !crate::opencode::secret_place(&target) => return Some("allow".into()),
         "read" => return crate::pipe::request_decision(app, payload).await,
-        _ => {}
+        // «Autonomi» (Edoardo, 2 Nov 2026: «mi chiede i permessi… non voglio.
+        // Voglio che sia autonomo»): nothing is asked, deleting included.
+        "chat" => {}
+        _ => {
+            log::line(format!("agentchat: consentito da solo ({tool})"));
+            return Some("allow".into());
+        }
     }
     if !delicate(&tool, &target) {
         log::line(format!("agentchat: consentito da solo ({tool})"));
