@@ -844,6 +844,10 @@ export interface IntegrationConfig {
   agentchatMemory?: boolean;
   /** Agent Chat: "auto" (default: on their own, delicate things asked in the chat), "read" or "ask". */
   agentchatTrust?: "auto" | "read" | "ask";
+  /** Agent Chat (memshare.rs): this PC's memory goes to the server for the other PCs. */
+  agentchatShareMemory?: boolean;
+  /** Agent Chat (memshare.rs): the agent whose shared memory this PC reads, kept apart ("" = none). */
+  agentchatMemoryFrom?: string;
   /** Agent Chat (agentchat.rs): the rooms followed, comma separated ("*" = all); default "general". */
   agentchatRooms?: string;
   /** The engines that answer there, each as «name/engine»; empty = the chat's engine. */

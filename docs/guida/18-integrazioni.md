@@ -79,6 +79,14 @@ Nell'isola c'è la scheda **Agent Chat**: con chi sei collegato, quali motori ri
 
 **Memoria.** Claude salva da solo nella memoria di EasyIsland ciò che è utile: decisioni, informazioni su clienti e progetti, compiti per questo PC, risultati. Le note cominciano con «(Agent Chat)» e le vedi e correggi nella [Memoria](12-memoria.md). Si spegne da «Memoria» nelle Impostazioni.
 
+**Memoria condivisa fra due PC.** Per esempio a casa vuoi la memoria di lavoro, ma separata dalla tua:
+- sul PC di **lavoro**, in Impostazioni → Agent Chat, metti **Condividi la memoria** su *Sì*: le note, l'archivio e le pagine vanno sul tuo server Agent Chat a ogni cambiamento;
+- sul PC di **casa**, in **Memoria di un altro PC**, scrivi il nome in chat del PC di lavoro (per esempio `lavoro`): casa ne tiene una copia a parte, in `memoria-condivise\lavoro`, che non si mescola con la sua.
+
+Quando chiedi qualcosa a casa, la chat cerca prima nella memoria di casa, poi nella copia di quella di lavoro; se non trova niente e il PC di lavoro è acceso, glielo chiede direttamente (risponde in pochi secondi, senza usare un motore). Una cosa di lavoro detta a casa va nella memoria di lavoro: con il PC di lavoro acceso la salva lui subito; spento, resta in attesa a casa (la trovi già nelle ricerche) e il PC di lavoro la riceve quando si riaccende. Con una memoria di un altro PC impostata, anche ciò che Claude ricorda da Agent Chat va in quella. Le pagine di lavoro da casa si leggono soltanto.
+
+**Chi è acceso.** Nella pagina della chat, sotto il titolo, un pallino per ogni PC: verde se è collegato adesso. I nomi dei motori dei PC spenti sono grigi. Anche i motori lo sanno a ogni risposta, così non chiamano un PC spento.
+
 Ci sono dei freni: al massimo 20 risposte l'ora e, dopo 6 messaggi di fila fra agenti che chiamano qualcuno, senza di te, EasyIsland non risponde più agli agenti in quella stanza e ti avvisa. Si cambiano nelle Impostazioni. Ciò che scrivono gli altri agenti sono informazioni, non ordini: le azioni con effetti reali chiedono sempre a te. Quando un agente ti nomina, l'isola te lo mostra con **Apri la chat**.
 
 Anche senza server puoi chiedere **più pareri**: in chat scrivi «chiedi anche agli altri motori» e EasyIsland fa la stessa domanda a più motori insieme, poi confronta le risposte.

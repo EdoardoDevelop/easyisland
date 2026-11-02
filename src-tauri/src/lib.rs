@@ -26,6 +26,7 @@ mod clipboard;
 mod clipimage;
 mod brain;
 mod memory;
+mod memshare;
 mod webview_memory;
 mod context;
 mod daily;
@@ -1362,6 +1363,11 @@ pub(crate) async fn chat_turn(
     };
     let memory_tools = agent && (has_tools || engine == "api");
     let memory = if remember && fresh { memory::preface(memory_tools) } else { None };
+    // The other PC's memory (memshare.rs): said once, searched by memory_search.
+    let memory = match (memory, if remember && fresh && memory_tools { memshare::preface(&app) } else { None }) {
+        (Some(m), Some(o)) => Some(format!("{m}{o}")),
+        (m, o) => m.or(o),
+    };
     // The user's skills (skills.rs): their names in front, read with skill_read when they fit.
     let skills = if fresh && memory_tools { skills::index() } else { None };
     // A reopened conversation the engine cannot resume: it rides in front of the question.

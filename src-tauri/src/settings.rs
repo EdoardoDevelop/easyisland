@@ -178,6 +178,14 @@ pub struct IntegrationConfig {
     /// (reads without asking, the rest on the island) or "ask" (the island).
     #[serde(default = "autonomous")]
     pub agentchat_trust: String,
+    /// This PC's memory goes to the chat's server, for the other PCs
+    /// (memshare.rs): they read a copy, ask it live and leave notes.
+    #[serde(default)]
+    pub agentchat_share_memory: bool,
+    /// The agent whose shared memory this PC reads («lavoro»), kept apart
+    /// from its own; empty = none.
+    #[serde(default)]
+    pub agentchat_memory_from: String,
 }
 
 fn autonomous() -> String {
@@ -327,6 +335,8 @@ impl Default for IntegrationConfig {
             agentchat_catchup: catchup_answer(),
             agentchat_memory: true,
             agentchat_trust: autonomous(),
+            agentchat_share_memory: false,
+            agentchat_memory_from: String::new(),
         }
     }
 }

@@ -257,6 +257,25 @@ fn names_line() -> String {
     tf("\nNomi in chat: {list}. Chiama gli altri per nome (@nome).", &[("list", &list.join(", "))])
 }
 
+/// Who is connected now, for the prompt: «PC collegati adesso: casa (tu), lavoro. Spenti: ufficio.»
+/// Asked at each turn (cheap), so an agent never calls a PC that is off.
+async fn presence_line(srv: &Server, me: &str) -> String {
+    let Ok(Value::Object(map)) = get(srv, "/api/presence", 8).await else { return String::new() };
+    let (mut on, mut off) = (Vec::new(), Vec::new());
+    for (name, p) in &map {
+        if p.get("online").and_then(Value::as_bool) == Some(true) {
+            on.push(if name == me { tf("{pc} (tu)", &[("pc", name)]) } else { name.clone() });
+        } else {
+            off.push(name.clone());
+        }
+    }
+    let mut line = tf("\nPC collegati adesso: {on}.", &[("on", &on.join(", "))]);
+    if !off.is_empty() {
+        line.push_str(&tf(" Spenti: {off} (non rispondono finché non si riaccendono).", &[("off", &off.join(", "))]));
+    }
+    line
+}
+
 /// The text with every @name written as the handle it stands for («@lia» →
 /// «@casa/claude»), so that `plan` sees who is called.
 pub(crate) fn with_handles(text: &str, names: &HashMap<String, String>) -> String {
@@ -443,15 +462,26 @@ pub(crate) fn clean_url(raw: &str) -> Option<String> {
 }
 
 #[derive(Clone)]
-struct Server {
-    url: String,
-    token: String,
+pub(crate) struct Server {
+    pub(crate) url: String,
+    pub(crate) token: String,
 }
 
 fn server() -> Option<Server> {
     let url = clean_url(&crate::secrets::get(URL_KEY)?)?;
     let token = crate::secrets::get(TOKEN_KEY).filter(|t| !t.trim().is_empty())?;
     Some(Server { url, token: token.trim().to_string() })
+}
+
+/// This EasyIsland's name in the chat, once connected.
+pub(crate) fn me() -> Option<String> {
+    let st = STATUS.lock().unwrap();
+    (st.running && !st.name.is_empty()).then(|| st.name.clone())
+}
+
+/// The server, while connected (memshare.rs).
+pub(crate) fn connected() -> Option<Server> {
+    me().and_then(|_| server())
 }
 
 pub fn info(app: &AppHandle) -> Info {
@@ -526,11 +556,11 @@ fn save_cursor(key: &str, id: i64) {
 
 // ── Server ────────────────────────────────────────────────────────────────────
 
-fn client(secs: u64) -> Result<reqwest::Client, String> {
+pub(crate) fn client(secs: u64) -> Result<reqwest::Client, String> {
     reqwest::Client::builder().timeout(Duration::from_secs(secs)).build().map_err(|e| e.to_string())
 }
 
-fn net_error(e: &reqwest::Error) -> String {
+pub(crate) fn net_error(e: &reqwest::Error) -> String {
     if e.is_timeout() {
         t("Agent Chat non ha risposto in tempo.").into()
     } else if e.is_connect() {
@@ -540,7 +570,7 @@ fn net_error(e: &reqwest::Error) -> String {
     }
 }
 
-async fn answer(resp: reqwest::Response) -> Result<Value, String> {
+pub(crate) async fn answer(resp: reqwest::Response) -> Result<Value, String> {
     let status = resp.status().as_u16();
     let v: Value = resp.json().await.unwrap_or(Value::Null);
     match status {
@@ -553,12 +583,12 @@ async fn answer(resp: reqwest::Response) -> Result<Value, String> {
     }
 }
 
-async fn get(srv: &Server, path: &str, secs: u64) -> Result<Value, String> {
+pub(crate) async fn get(srv: &Server, path: &str, secs: u64) -> Result<Value, String> {
     let resp = client(secs)?.get(format!("{}{path}", srv.url)).bearer_auth(&srv.token).send().await.map_err(|e| net_error(&e))?;
     answer(resp).await
 }
 
-fn query(text: &str) -> String {
+pub(crate) fn query(text: &str) -> String {
     text.bytes()
         .map(|b| match b {
             b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b'*' => (b as char).to_string(),
@@ -663,6 +693,7 @@ async fn hello(srv: &Server) -> Result<(String, String, i64), String> {
 
 pub fn spawn(app: AppHandle) {
     let _ = APP.set(app.clone());
+    crate::memshare::spawn(app.clone());
     tauri::async_runtime::spawn(async move {
         let mut offset: i64 = 0;
         let mut ready_for = String::new();
@@ -1167,6 +1198,7 @@ async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: Strin
     let mut prompt = rules(&shown(&sender), &owner, &engine_name(&app, &engine));
     prompt.push_str(&role(&me, &owner, &cfg.engines, &engine));
     prompt.push_str(&names_line());
+    prompt.push_str(&presence_line(&srv, &me).await);
     if let Some(b) = &boss {
         let here = b.split('/').next() == Some(me.as_str());
         if !here {
@@ -1360,6 +1392,18 @@ pub(crate) fn split_memory(text: &str) -> (String, Vec<String>) {
 
 /// Into the chat's memory (memory.rs), marked as coming from Agent Chat; how many went in.
 fn keep(app: &AppHandle, notes: &[String]) -> usize {
+    // A PC that reads another's memory (home reading work): what comes from the chat is the other PC's.
+    if crate::memshare::source(app).is_some() {
+        for x in notes {
+            let (app, x) = (app.clone(), format!("(Agent Chat) {x}"));
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = crate::memshare::note(&app, &x).await {
+                    crate::log::line(format!("memshare: {e}"));
+                }
+            });
+        }
+        return notes.len();
+    }
     let mut n = 0;
     for x in notes {
         let r = crate::memory::note(&format!("(Agent Chat) {x}"));

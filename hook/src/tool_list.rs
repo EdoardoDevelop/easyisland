@@ -210,9 +210,10 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
         ),
         (
             "memory_note",
-            "Salva una nota nella memoria della chat (MEMORIA.md), che arriva all'inizio di ogni conversazione: una riga breve su ciò che vale anche le prossime volte (preferenze, clienti, persone, come si fa una cosa). Non salvare password, chiavi o dati sensibili. text: la nota.",
+            "Salva una nota nella memoria della chat (MEMORIA.md), che arriva all'inizio di ogni conversazione: una riga breve su ciò che vale anche le prossime volte (preferenze, clienti, persone, come si fa una cosa). Non salvare password, chiavi o dati sensibili. text: la nota. shared: true = nella memoria dell'altro PC dell'utente (quella condivisa, per esempio del lavoro), solo quando l'inizio della conversazione dice che c'è.",
             json!({ "type": "object", "properties": {
-                "text": { "type": "string" }
+                "text": { "type": "string" },
+                "shared": { "type": "boolean" }
             }, "required": ["text"] }),
             true,
         ),

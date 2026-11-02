@@ -27,7 +27,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Remote Desktop Manager:** predisposto; prova la settimana prossima sul PC con RDM (`docs/prove-dal-vivo.md`), poi i passi in `docs/idee.md`.
 - [ ] **Clic destro in Esplora file:** voci di EasyIsland sui file («Manda a EasyIsland», azioni sui file), deciso con Edoardo l'11 ottobre come passo successivo al menu sulla selezione (`docs/idee.md`).
 - [ ] **opencode:** card per lo strumento `question` anche nella chat (per l'agente c'è), controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
-- [ ] **Agent Chat** (1.0.18 e 1.0.19, 1° novembre 2026): server pubblicato sulla VPS, token `casa` creato e collegato; da provare dal vivo le risposte dei motori, il capo che affida un lavoro e l'ascolto spento dall'isola (`docs/prove-dal-vivo.md`). Nel branch `claude/agentchat-autonomi` (non unito): permessi «Autonomi», ALLEGA, stop con «fermo/fermi», e dal 2 novembre presa in carico (una risposta sola ai messaggi generici), nomi scelti nelle Impostazioni, consumo per motore. Da provare: un «ciao» con i due PC accesi (deve rispondere uno solo), `@nome`, un nome già preso.
+- [ ] **Agent Chat** (1.0.18 e 1.0.19, 1° novembre 2026): server pubblicato sulla VPS, token `casa` creato e collegato; da provare dal vivo le risposte dei motori, il capo che affida un lavoro e l'ascolto spento dall'isola (`docs/prove-dal-vivo.md`). Nel branch `claude/agentchat-autonomi` (non unito): permessi «Autonomi», ALLEGA, stop con «fermo/fermi», e dal 2 novembre presa in carico (una risposta sola ai messaggi generici), nomi scelti nelle Impostazioni, consumo per motore. Da provare: un «ciao» con i due PC accesi (deve rispondere uno solo), `@nome`, un nome già preso. Poi la memoria condivisa (lavoro: «Condividi la memoria» Sì; casa: «Memoria di un altro PC» = lavoro): cerca da casa una cosa che sa solo il lavoro, con il lavoro acceso e spento; una nota di lavoro da casa a lavoro spento, poi riaccenderlo.
 - [ ] **Spunti dall'app originale:** Amp/Hermes, limiti di Codex, riepilogo condivisibile come immagine, GitHub (`docs/idee.md`).
 - [ ] **Prova dal vivo dei nuovi personaggi** (`docs/prove-dal-vivo.md`).
 - [ ] **Modalità chiara:** guardare tutte le schede dell'isola e le pagine delle Impostazioni in chiaro con l'app vera e correggere in `src/style-light.css` / `settings-light.css` ciò che il plugin sbaglia (colori in linea nel codice TypeScript non cambiano).
@@ -52,6 +52,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 2 novembre 2026 — Memoria condivisa fra casa e lavoro, chi è online
+Casa e lavoro sono due PC: il lavoro condivide la sua memoria tramite il server Agent Chat (`memshare.rs`, `/api/memory`), casa ne tiene una copia separata, la cerca dopo la propria e, se non trova niente, chiede al PC di lavoro acceso. Le note di lavoro dette a casa vanno al lavoro (subito o alla riaccensione). `/api/presence`: pallini dei PC nella pagina e «PC collegati adesso» nei prompt. Server non ancora ripubblicato.
+
 ### 2 novembre 2026 — Agent Chat: presa in carico, nomi, consumo
 I motori gratuiti finivano i messaggi e due PC facevano lo stesso lavoro: a un messaggio generico risponde un solo motore in tutta la chat, il capo del primo EasyIsland che lo prende in carico sul server (`/api/messages/<id>/claim`, subito, senza attese). Nomi dei motori scelti nelle Impostazioni (`/api/aliases`, unici), `@lia` al posto di `@casa/claude`. Turni e token stimati per motore nella scheda. Server ripubblicato sulla VPS.
 
@@ -72,5 +75,3 @@ I motori gratuiti finivano i messaggi e due PC facevano lo stesso lavoro: a un m
 - `claude/sviluppo` unito in `main` con il tag `v1.0.17`: Parla, Telegram che risponde a voce e vocali «ricorda», Ricorda questo e Annota, Prepara un ticket Zammad, Continua in Claude Desktop, aspetto delle Notizie nella scheda. Novità in CHANGELOG, README e homepage.
 - Build, test Rust (381 + 38) e smoke prima del tag. `claude/modello-integrato` resta in attesa.
 
-### 31 ottobre 2026 — «Parla»: la voce sul PC (in `claude/sviluppo`)
-- <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> accende il microfono (WASAPI di Registra) con la card «Ti ascolto»; a una pausa trascrive con il servizio dei Vocali e manda la domanda alla chat; con «Rispondi a voce» la risposta si sente dagli altoparlanti (`talk.rs`, `src/views/talk.ts`). Test Rust, scene `talk` e `talk&hearing`; non provato con il microfono vero.

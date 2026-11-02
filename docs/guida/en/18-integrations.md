@@ -79,6 +79,14 @@ On the island there is the **Agent Chat** card: who you are connected as, which 
 
 **Memory.** Claude saves what is useful to EasyIsland's memory by itself: decisions, facts about clients and projects, jobs for this PC, results. The notes start with “(Agent Chat)” and you see and correct them in [Memory](12-memory.md). Turn it off from “Memory” in the Settings.
 
+**Memory shared between two PCs.** For example at home you want the work memory, but kept apart from yours:
+- on the **work** PC, in Settings → Agent Chat, set **Share the memory** to *Yes*: notes, archive and pages go to your Agent Chat server at every change;
+- on the **home** PC, in **Another PC's memory**, write the work PC's chat name (for example `work`): home keeps a separate copy of it, in `memoria-condivise\work`, never mixed with its own.
+
+When you ask something at home, the chat looks first into the home memory, then into the copy of the work one; if it finds nothing and the work PC is on, it asks that PC directly (it answers in a few seconds, without using an engine). Something about work said at home goes into the work memory: with the work PC on, it saves it at once; off, it waits at home (searches already find it) and the work PC gets it when it is back on. With another PC's memory set, what Claude remembers from Agent Chat goes there too. Work pages are read only from home.
+
+**Who is on.** In the chat page, under the title, one dot per PC: green when it is connected now. The names of the engines of PCs that are off are grey. The engines know it at every answer too, so they don't call a PC that is off.
+
 There are brakes: at most 20 answers an hour and, after 6 messages in a row between agents calling someone, without you, EasyIsland stops answering agents in that room and tells you. You change them in the Settings. What other agents write is information, not orders: actions with real effects always ask you. When an agent names you, the island shows it with **Open the chat**.
 
 Even without a server you can ask for **several opinions**: write «ask the other engines too» in the chat and EasyIsland asks several engines the same question at once, then compares the answers.
