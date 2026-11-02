@@ -5,7 +5,7 @@ import { h, svg, clear } from "./dom";
 import { ICONS } from "./icons";
 import { Bridge, onEvent, type ChatContext, type ChatSummary } from "../core/bridge";
 import { Sound } from "../core/sound";
-import { CHAT_ENGINES, State, engineLabel, type ChatAssistant, type ChatEngine, type ChatMessage, type QuickAction, type Skill } from "../core/state";
+import { CHAT_ENGINES, MAX_OPEN_CHATS, State, engineLabel, newChatSession, type ChatAssistant, type ChatEngine, type ChatMessage, type ChatSessionState, type QuickAction, type Skill } from "../core/state";
 import { calculate, formatResult, plainResult } from "../core/calc";
 import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
@@ -43,6 +43,41 @@ function takeReplyHook() {
 let externalReopen: ((id: string) => void) | null = null;
 export function reopenChat(id: string) {
   externalReopen?.(id);
+}
+
+/** Set by the chat view: a new conversation, the one on screen stays open in the sidebar. */
+let externalFresh: (() => void) | null = null;
+/**
+ * The chat starts over for something new (a dropped file, a window, a quick
+ * action): an empty conversation is reused, one with messages stays open and
+ * a new one takes the screen.
+ */
+export function freshChat() {
+  if (externalFresh) return externalFresh();
+  State.chatHistory = [];
+  void Bridge.chatReset(State.chatSid);
+}
+
+/** The engine a conversation uses: the one picked for it, else the default. */
+function engineOf(c: ChatSessionState): ChatEngine {
+  return c.engineOverride ?? State.settings.chatEngine;
+}
+
+/** Where the sidebar is (open or closed), on this PC. */
+const SIDE_KEY = "easyisland.chatSidebar";
+function loadSide(): boolean {
+  try {
+    return localStorage.getItem(SIDE_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+function saveSide(open: boolean) {
+  try {
+    localStorage.setItem(SIDE_KEY, open ? "1" : "0");
+  } catch {
+    /* storage off: the sidebar opens again next time */
+  }
 }
 
 /** The text being written survives a restart of EasyIsland (only this one, on this PC). */
@@ -167,10 +202,10 @@ export function buildPrompt(
   const engineBtn = h("button", { class: "engine-pick", title: t("Cambia motore della chat") }) as HTMLButtonElement;
   const engineMenu = h("div", { class: "engine-menu" });
   engineMenu.style.display = "none";
-  // The conversations of before (chat_log.rs): a click reopens one.
-  const historyBtn = h("button", { class: "history-btn", title: t("Cronologia delle chat") }, svg(ICONS.history, 13, { stroke: 2 })) as HTMLButtonElement;
-  const historyMenu = h("div", { class: "history-menu" });
-  historyMenu.style.display = "none";
+  // The sidebar's button (as in the desktop chat apps): the conversations on the left, shown or hidden.
+  const sideBtn = h("button", { class: "history-btn side-btn", title: t("Mostra o nascondi le conversazioni (Ctrl+B)") }, svg(ICONS.sidebar, 14, { stroke: 1.8 })) as HTMLButtonElement;
+  // The conversation's title, as the history knows it (its first question until then).
+  const titleEl = h("span", { class: "chat-title" });
   // «Esporta»: the conversation as a Markdown file in the Vassoio.
   const exportBtn = h("button", { class: "history-btn", title: t("Esporta la conversazione in Markdown (nel Vassoio)"), text: "⤓" }) as HTMLButtonElement;
   // "Automatica" (Modalità terminale): this conversation goes on without
@@ -184,7 +219,7 @@ export function buildPrompt(
   previewBtn.addEventListener("click", () => void (State.previewOpen ? Bridge.previewHide() : Bridge.previewShow()));
   // «Continua in Claude Desktop» (desktop.rs): the Claude Code session goes on in the app.
   const desktopBtn = h("button", { class: "history-btn desktop-btn", text: "↗" }) as HTMLButtonElement;
-  const head = h("div", { class: "chat-head" }, chipRow, engineBtn, remoteBtn, autoBtn, previewBtn, desktopBtn, historyBtn, exportBtn, engineMenu);
+  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, engineBtn, remoteBtn, autoBtn, previewBtn, desktopBtn, exportBtn, engineMenu);
   const log = h("div", { class: "chat-log" });
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
   // conversation, under its last step, instead of a card taking the island away
@@ -219,7 +254,6 @@ export function buildPrompt(
   jumpBtn.style.display = "none";
   // A reply arriving (OpenAI-compatible engines stream it, openai.rs).
   let streamEl: HTMLElement | null = null;
-  let streamed = "";
   // Grows with the text up to a few lines, then scrolls (fit()).
   // Enter sends, Shift+Enter starts a new line.
   const input = h("textarea", {
@@ -280,24 +314,37 @@ export function buildPrompt(
     }
   }
 
+  // The sidebar: «Nuova chat», the search, and the conversations (the open
+  // ones and the history), grouped by day. A click switches; the others go on.
+  const sideNew = h("button", { class: "side-new", title: t("Nuova chat (Ctrl+N)") }, svg(ICONS.plus, 12), h("span", { text: t("Nuova chat") }));
+  const historySearch = h("input", { class: "history-search", type: "text", placeholder: t("Cerca nelle conversazioni…"), spellcheck: "false" }) as HTMLInputElement;
+  const historyRows = h("div", { class: "history-rows" });
+  const side = h("div", { class: "chat-side" }, sideNew, historySearch, historyRows);
+  // Another open conversation asks a permission: a line over the field takes there.
+  const otherAsk = h("button", { class: "chat-other-ask" }) as HTMLButtonElement;
+  otherAsk.style.display = "none";
+  otherAsk.addEventListener("click", () => {
+    const sid = State.pendingApproval?.chatSid;
+    if (sid) switchTo(sid);
+  });
+  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, head, log, jumpBtn, calcRow, hintRow, otherAsk, slashMenu, bar));
   const el = h(
     "div",
     { class: "view" },
-    h("div", { class: "card wash chat-card" }, h("div", { class: "chat-body" }, head, historyMenu, log, jumpBtn, calcRow, hintRow, slashMenu, bar)),
+    h("div", { class: "card wash chat-card" }, layout),
   );
   (el.querySelector(".card") as HTMLElement).style.setProperty("--wash", "rgba(99,102,241,0.5)");
+  // Open or closed as left; in a narrow island it floats over the conversation, closed until asked.
+  let sideOpen = loadSide();
+  let narrow = false;
+  let overlay = false;
 
-  let sending = false;
-  // "Ferma" pressed: the reply so far stays, without the error note.
-  let stopping = false;
   let renderedCount = -1;
   let drafted = input.value !== "";
   // «Modifica» on a question: its place in the conversation, until it is sent again.
   let editing: number | null = null;
   // «@appunti»: copied text added to the next question (any turn, any engine).
   let textAttach: { label: string; text: string } | null = null;
-  // The assistant of this conversation ("/" → an assistant), shown as a chip.
-  let assistant: ChatAssistant | null = null;
   // A second level of the menu ("@finestra" → the windows), until the field changes.
   let subMenu: Slash[] | null = null;
 
@@ -316,30 +363,31 @@ export function buildPrompt(
    * What was said in Claude Desktop since the handoff joins the conversation,
    * under a line that says so; `done` when the island goes on with the session.
    */
-  async function pullDesktop(done: boolean) {
-    if (!State.chatDesktop || pulling) return;
+  async function pullDesktop(c: ChatSessionState, done: boolean) {
+    if (!c.desktop || pulling) return;
     pulling = true;
     pulledAt = Date.now();
     try {
-      const turns = (await Bridge.chatDesktopPull(done)) ?? [];
+      const turns = (await Bridge.chatDesktopPull(c.sid, done)) ?? [];
       if (turns.length) {
-        State.chatHistory.push({ id: nextId++, role: "assistant", content: t("↗ Conversazione proseguita in Claude Desktop") });
-        for (const l of turns) State.chatHistory.push({ id: nextId++, role: l.role, content: l.content });
+        c.history.push({ id: nextId++, role: "assistant", content: t("↗ Conversazione proseguita in Claude Desktop") });
+        for (const l of turns) c.history.push({ id: nextId++, role: l.role, content: l.content });
       }
     } catch { /* the island goes on without what Desktop said */ }
     pulling = false;
-    if (done) State.chatDesktop = false;
+    if (done) c.desktop = false;
     State.notify();
   }
 
   async function toDesktop() {
-    if (sending) return;
+    const c = State.chat;
+    if (c.sending) return;
     desktopBtn.disabled = true;
     // Again: what was said there so far stays, the handoff starts from the end.
-    await pullDesktop(false);
+    await pullDesktop(c, false);
     try {
-      await Bridge.chatToDesktop();
-      State.chatDesktop = true;
+      await Bridge.chatToDesktop(c.sid);
+      c.desktop = true;
       flash(t("Aperta in Claude Desktop. Quando torni qui ritrovi anche ciò che hai scritto lì: meglio non usarle tutte e due insieme."));
     } catch (err) {
       flash(String(err).replace(/^Error:\s*/, ""));
@@ -364,36 +412,40 @@ export function buildPrompt(
   async function submit(override?: string) {
     const raw = override ?? input.value;
     const query = raw.trim();
-    if (!query || sending) return;
+    // The conversation on screen now: the answer goes to it even if another one is shown by then.
+    const c = State.chat;
+    if (!query || c.sending) return;
     if (override == null && runSlash(query)) return;
     if (override == null) setInput("");
     // Back from Claude Desktop: what was said there first, then the island takes the session again.
-    if (State.chatDesktop) await pullDesktop(true);
-    sending = true;
-    stopping = false;
+    if (c.desktop) await pullDesktop(c, true);
+    c.sending = true;
+    c.stopping = false;
+    c.at = Date.now();
     stick = true;
-    if (historyMenu.style.display !== "none") showHistory(false);
+    if (overlay) showSide(false);
     // «Modifica»: the conversation goes back to just before that question.
     if (editing != null) {
-      const keep = State.chatHistory.slice(0, editing);
+      const keep = c.history.slice(0, editing);
       editing = null;
       flash("");
-      State.chatHistory = keep;
+      c.history = keep;
       renderedCount = -1;
-      await Bridge.chatRewind(lines(keep));
+      await Bridge.chatRewind(c.sid, lines(keep));
     }
     Sound.play("send");
 
     const file = State.droppedFile;
-    const text = State.chatText;
-    const win = State.chatWindow;
-    const attach = State.chatAttach;
-    State.chatAttach = [];
-    const first = State.chatHistory.length === 0;
-    State.chatHistory.push({ id: nextId++, role: "user", content: query, file: attach.length ? attach.map((a) => a.folder ? `${a.name}/` : a.name).join(", ") : undefined });
+    const text = c.text;
+    const win = c.window;
+    const attach = c.attach;
+    c.attach = [];
+    const first = c.history.length === 0;
+    c.history.push({ id: nextId++, role: "user", content: query, file: attach.length ? attach.map((a) => a.folder ? `${a.name}/` : a.name).join(", ") : undefined });
     State.stateOverride = "thinking";
     State.notify();
     onHeightChange();
+    renderSide();
 
     const base: ChatContext | null = !first
       ? null
@@ -423,66 +475,79 @@ export function buildPrompt(
       textAttach = null;
     }
 
-    streamed = "";
+    c.streamed = "";
+    const engine = engineOf(c);
     try {
       // "Chiedi a questa sessione": a read-only copy of the session answers;
       // the next questions go on in that copy.
-      const session = State.chatSession;
+      const session = c.session;
       const reply = session
         ? await Bridge.sessionAsk(session.sessionId, session.fork, session.cwd, query).then((r) => {
-          if (State.chatSession === session) session.fork = r.fork;
-          return r;
+          if (c.session === session) session.fork = r.fork;
+          return { text: r.text, log: null };
         })
-        : await Bridge.chatSend(asked, context, State.chatEngine, State.chatAuto && State.settings.chatTerminal === true);
-      State.chatHistory.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : State.chatEngine });
-      State.stateOverride = null;
+        : await Bridge.chatSend(c.sid, asked, context, engine, c.auto && State.settings.chatTerminal === true);
+      if (reply.log) c.logId = reply.log;
+      c.history.push({ id: nextId++, role: "assistant", content: reply.text, engine: session ? undefined : engine });
       Sound.play("finish");
       takeReplyHook()?.(reply.text);
     } catch (err) {
-      State.stateOverride = null;
       takeReplyHook()?.(null);
-      if (stopping) {
-        const soFar = streamed.trim();
-        State.chatHistory.push({ id: nextId++, role: "assistant", content: `${soFar ? soFar + "\n\n" : ""}⏹ ${t("Fermato.")}` });
+      if (c.stopping) {
+        const soFar = c.streamed.trim();
+        c.history.push({ id: nextId++, role: "assistant", content: `${soFar ? soFar + "\n\n" : ""}⏹ ${t("Fermato.")}` });
         Sound.play("blip");
         return;
       }
-      State.noteMessage = String(err).replace(/^Error:\s*/, "");
-      State.view = "note";
+      const message = String(err).replace(/^Error:\s*/, "");
+      // The one on screen says it as before; one in the background keeps it in its conversation.
+      if (c === State.chat) {
+        State.noteMessage = message;
+        State.view = "note";
+      } else {
+        c.history.push({ id: nextId++, role: "assistant", content: `⚠ ${message}` });
+      }
       Sound.play("error");
     } finally {
-      sending = false;
-      stopping = false;
-      streamed = "";
+      c.sending = false;
+      c.stopping = false;
+      c.streamed = "";
+      c.at = Date.now();
+      if (c !== State.chat) c.unread = true;
+      if (!State.chats.some((x) => x.sending)) State.stateOverride = null;
       streamEl = null;
       renderedCount = -1;
       State.notify();
       onHeightChange();
-      input.focus();
+      if (c === State.chat) input.focus();
+      void refreshHistory();
     }
   }
 
   /** «Rigenera»: the last question asked again, its answer forgotten. */
   async function regenerate() {
-    if (sending) return;
-    const list = State.chatHistory;
+    const c = State.chat;
+    if (c.sending) return;
+    const list = c.history;
     const u = list.map((m) => m.role === "user").lastIndexOf(true);
     if (u < 0) return;
     const question = list[u].content;
     const keep = list.slice(0, u);
-    State.chatHistory = keep;
+    c.history = keep;
     renderedCount = -1;
-    await Bridge.chatRewind(lines(keep));
+    await Bridge.chatRewind(c.sid, lines(keep));
     await submit(question);
   }
 
   /** «⑂ Dirama da qui» (as LibreChat and TypingMind fork a chat): a new conversation up to this answer. */
   async function fork(index: number) {
-    if (sending) return;
-    const keep = State.chatHistory.slice(0, index + 1);
-    State.chatHistory = keep;
+    const c = State.chat;
+    if (c.sending) return;
+    const keep = c.history.slice(0, index + 1);
+    c.history = keep;
+    c.logId = null;
     renderedCount = -1;
-    await Bridge.chatFork(lines(keep));
+    await Bridge.chatFork(c.sid, lines(keep));
     flash(`⑂ ${t("Nuova conversazione da qui: quella di prima resta nella cronologia")}`);
     Sound.play("blip");
     State.notify();
@@ -491,14 +556,14 @@ export function buildPrompt(
 
   /** "/" → an assistant: a new conversation with its engine and instructions. */
   async function useAssistant(a: ChatAssistant) {
-    if (sending) return;
     startOver();
-    await Bridge.chatReset();
-    assistant = a;
+    const c = State.chat;
+    await Bridge.chatReset(c.sid);
+    c.assistant = a;
     if (a.engine && CHAT_ENGINES.some((e) => e.id === a.engine)) {
-      State.chatEngineOverride = a.engine === State.settings.chatEngine ? null : (a.engine as ChatEngine);
+      c.engineOverride = a.engine === State.settings.chatEngine ? null : (a.engine as ChatEngine);
     }
-    await Bridge.chatPersona(a.instructions);
+    await Bridge.chatPersona(c.sid, a.instructions);
     chipRow.dataset.label = "";
     flash(`${a.icon || "🤖"} ${t("Assistente {n}: scrivi la domanda", { n: a.name })}`);
     State.notify();
@@ -506,8 +571,8 @@ export function buildPrompt(
   }
 
   function dropAssistant() {
-    assistant = null;
-    void Bridge.chatPersona(null);
+    State.chat.assistant = null;
+    void Bridge.chatPersona(State.chatSid, null);
     chipRow.dataset.label = "";
     State.notify();
   }
@@ -656,7 +721,7 @@ export function buildPrompt(
 
   /** «Modifica»: the question back in the field; sending it starts over from there. */
   function edit(index: number) {
-    if (sending) return;
+    if (State.chat.sending) return;
     editing = index;
     setInput(State.chatHistory[index]?.content ?? "");
     flash(`✎ ${t("Stai modificando la domanda: invia per ripartire da lì · Esc annulla")}`, true);
@@ -686,7 +751,7 @@ export function buildPrompt(
     const copy = h("button", { class: "msg-act", text: t("Copia") }) as HTMLButtonElement;
     copy.addEventListener("click", () => void copyText(m.content, copy));
     bar.append(copy);
-    const own = !State.chatSession && !sending;
+    const own = !State.chatSession && !State.chat.sending;
     if (own && m.role === "user") {
       bar.append(h("button", { class: "msg-act", text: t("Modifica"), onclick: () => edit(index) }));
     }
@@ -718,41 +783,47 @@ export function buildPrompt(
   /** «⇄ Seconda opinione»: another engine reviews the last answer (second.rs). */
   async function secondOpinion(engine: ChatEngine) {
     const target = reviewable();
-    if (!target || sending) return;
+    const c = State.chat;
+    if (!target || c.sending) return;
     const name = CHAT_ENGINES.find((e) => e.id === engine)?.name ?? engine;
-    sending = true;
-    stopping = false;
+    c.sending = true;
+    c.stopping = false;
     stick = true;
     Sound.play("send");
     State.stateOverride = "thinking";
     State.notify();
     onHeightChange();
-    streamed = "";
+    c.streamed = "";
     try {
-      const text = await Bridge.chatSecond(engine, target.engine, target.question, target.answer);
-      State.chatHistory.push({ id: nextId++, role: "assistant", content: text, reviewer: name });
-      State.stateOverride = null;
+      const text = await Bridge.chatSecond(c.sid, engine, target.engine, target.question, target.answer);
+      c.history.push({ id: nextId++, role: "assistant", content: text, reviewer: name });
       Sound.play("finish");
     } catch (err) {
-      State.stateOverride = null;
-      if (stopping) {
-        const soFar = streamed.trim();
-        State.chatHistory.push({ id: nextId++, role: "assistant", content: `${soFar ? soFar + "\n\n" : ""}⏹ ${t("Fermato.")}`, reviewer: name });
+      if (c.stopping) {
+        const soFar = c.streamed.trim();
+        c.history.push({ id: nextId++, role: "assistant", content: `${soFar ? soFar + "\n\n" : ""}⏹ ${t("Fermato.")}`, reviewer: name });
         Sound.play("blip");
         return;
       }
-      State.noteMessage = String(err).replace(/^Error:\s*/, "");
-      State.view = "note";
+      const message = String(err).replace(/^Error:\s*/, "");
+      if (c === State.chat) {
+        State.noteMessage = message;
+        State.view = "note";
+      } else {
+        c.history.push({ id: nextId++, role: "assistant", content: `⚠ ${message}`, reviewer: name });
+      }
       Sound.play("error");
     } finally {
-      sending = false;
-      stopping = false;
-      streamed = "";
+      c.sending = false;
+      c.stopping = false;
+      c.streamed = "";
+      if (c !== State.chat) c.unread = true;
+      if (!State.chats.some((x) => x.sending)) State.stateOverride = null;
       streamEl = null;
       renderedCount = -1;
       State.notify();
       onHeightChange();
-      input.focus();
+      if (c === State.chat) input.focus();
     }
   }
 
@@ -785,31 +856,95 @@ export function buildPrompt(
     return h("div", { class: "chat-row second-row" }, btn, menu);
   }
 
-  /** Forgets the conversation and whatever it was about (file, copied text). */
+  /**
+   * «Nuova chat»: a conversation with messages stays open in the sidebar (its
+   * engine goes on) and a new one takes the screen; an empty one starts over.
+   */
   function startOver() {
-    if (sending) return;
-    if (historyMenu.style.display !== "none") showHistory(false);
-    State.chatHistory = [];
+    if (overlay) showSide(false);
+    if (State.chat.history.length || State.chat.sending) {
+      openNew();
+    } else {
+      const c = State.chat;
+      c.text = null;
+      c.window = null;
+      c.attach = [];
+      c.session = null;
+      // An engine picked in the menu was for that conversation only; so was "Automatica".
+      c.engineOverride = null;
+      c.auto = false;
+      c.desktop = false;
+      c.assistant = null;
+      c.logId = null;
+      void Bridge.chatReset(c.sid);
+    }
     State.droppedFile = null;
-    State.chatText = null;
-    State.chatWindow = null;
-    State.chatAttach = [];
     State.promptContext = null;
-    State.chatSession = null;
-    // An engine picked in the menu was for that conversation only; so was "Automatica".
-    State.chatEngineOverride = null;
-    State.chatAuto = false;
-    State.chatDesktop = false;
     editing = null;
     textAttach = null;
-    assistant = null;
     flash("");
-    void Bridge.chatReset();
     Sound.play("blip");
     State.notify();
     onHeightChange();
     setInput("");
     input.focus();
+  }
+
+  /** What stays of the conversation leaving the screen: the field's text. An empty one goes. */
+  function leave() {
+    const c = State.chat;
+    c.draft = input.value;
+    if (!c.history.length && !c.sending && !c.text && !c.window && !c.attach.length && !c.session && !c.assistant && State.chats.length > 1) {
+      State.chats = State.chats.filter((x) => x !== c);
+      void Bridge.chatClose(c.sid);
+    }
+  }
+
+  /** The conversation `c` on screen: its messages, its field, its buttons. */
+  function show(c: ChatSessionState) {
+    State.chatSid = c.sid;
+    c.unread = false;
+    c.at = Date.now();
+    editing = null;
+    textAttach = null;
+    subMenu = null;
+    setInput(c.draft);
+    flash("");
+    renderedCount = -1;
+    stick = true;
+    chipRow.dataset.label = "";
+    attachRow.dataset.key = "";
+    State.notify();
+    onHeightChange();
+    renderSide();
+  }
+
+  function switchTo(sid: string) {
+    if (overlay) showSide(false);
+    if (sid === State.chatSid) return;
+    const c = State.chats.find((x) => x.sid === sid);
+    if (!c) return;
+    leave();
+    show(c);
+    Sound.play("blip");
+    input.focus();
+  }
+
+  /** A new empty conversation on screen; past MAX_OPEN_CHATS the least used idle one closes. */
+  function openNew(): ChatSessionState {
+    leave();
+    const c = newChatSession();
+    State.chats.push(c);
+    show(c);
+    const idle = State.chats
+      .filter((x) => x !== c && !x.sending && State.pendingApproval?.chatSid !== x.sid)
+      .sort((a, b) => a.at - b.at);
+    while (State.chats.length > MAX_OPEN_CHATS && idle.length) {
+      const old = idle.shift()!;
+      State.chats = State.chats.filter((x) => x !== old);
+      void Bridge.chatClose(old.sid);
+    }
+    return c;
   }
 
   /** «/oggi», «/domani»: the day gathered by the engine with EasyIsland's tools. */
@@ -1065,7 +1200,7 @@ export function buildPrompt(
   /** Only for the conversation in progress: the default stays in Impostazioni → Chat. */
   function pickEngine(id: ChatEngine) {
     engineMenu.style.display = "none";
-    if (id === State.chatEngine || sending) return;
+    if (id === State.chatEngine || State.chat.sending) return;
     // Another engine is another conversation (the backend starts over too).
     if (State.chatHistory.length) startOver();
     State.chatEngineOverride = id === State.settings.chatEngine ? null : id;
@@ -1080,21 +1215,55 @@ export function buildPrompt(
     return d.toLocaleDateString(locale(), { day: "numeric", month: "short", ...(d.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }) });
   }
 
-  /** The list takes the conversation's place in the card while it is open. */
-  function showHistory(open: boolean) {
-    historyMenu.style.display = open ? "" : "none";
-    log.style.display = open ? "none" : "";
-    jumpBtn.style.display = "none";
-    historyBtn.classList.toggle("on", open);
+  /** The sidebar shown or hidden (in a narrow island: over the conversation, not remembered). */
+  function showSide(open: boolean) {
+    if (narrow) overlay = open;
+    else {
+      sideOpen = open;
+      saveSide(open);
+    }
+    applySide();
+    if (open) void refreshHistory();
+  }
+
+  function applySide(quiet = false) {
+    const open = narrow ? overlay : sideOpen;
+    layout.classList.toggle("side-open", open);
+    layout.classList.toggle("narrow", narrow);
+    sideBtn.classList.toggle("on", open);
+    // Asked even while it floats: the island grows as soon as the screen leaves room.
+    State.chatSideOpen = sideOpen;
+    if (quiet) return;
     State.notify();
     onHeightChange();
   }
 
-  // The search field on top of the history list, and the rows under it.
-  const historySearch = h("input", { class: "history-search", type: "text", placeholder: t("Cerca nelle conversazioni…"), spellcheck: "false" }) as HTMLInputElement;
-  const historyRows = h("div", { class: "history-rows" });
+  // The island grows by the sidebar (island.ts chatSideRoom); where it cannot
+  // (the screen's edge, the bar's narrow island) the conversation would keep
+  // less than 340 px beside it: then it floats over the conversation instead.
+  // Judged once the island has finished growing (its animation), not on the way.
+  let narrowTimer = 0;
+  new ResizeObserver(() => {
+    window.clearTimeout(narrowTimer);
+    narrowTimer = window.setTimeout(() => {
+      const w = layout.clientWidth;
+      if (!w) return;
+      const now = sideOpen && w < 236 + 340;
+      if (now === narrow) return;
+      narrow = now;
+      overlay = false;
+      applySide();
+    }, 500);
+  }).observe(layout);
+  // Not yet in the island: only the classes.
+  applySide(true);
+
   let searchTimer = 0;
   let searchSeq = 0;
+  /** The history as last read: the sidebar is drawn again from it when a conversation changes state. */
+  let lastList: ChatSummary[] = [];
+  let lastQuery = "";
+  let historyRead = false;
 
   async function loadHistory(query: string): Promise<ChatSummary[]> {
     const q = query.trim();
@@ -1107,22 +1276,85 @@ export function buildPrompt(
       .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned));
   }
 
+  /** Fissate, Oggi, Ieri, Ultimi 7 giorni, Ultimi 30 giorni, then by month. */
+  function groupOf(c: ChatSummary): string {
+    if (c.pinned) return t("Fissate");
+    const day = (ms: number) => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
+    const days = Math.round((day(Date.now()) - day(c.updated)) / 86_400_000);
+    if (days <= 0) return t("Oggi");
+    if (days === 1) return t("Ieri");
+    if (days < 7) return t("Ultimi 7 giorni");
+    if (days < 30) return t("Ultimi 30 giorni");
+    return new Date(c.updated).toLocaleDateString(locale(), { month: "long", year: "numeric" });
+  }
+
+  /** A conversation's state in the sidebar: working, answered while away, asking a permission. */
+  function badge(c: ChatSessionState | undefined): HTMLElement | null {
+    if (!c) return null;
+    if (State.pendingApproval?.source === "chat" && State.pendingApproval.chatSid === c.sid) {
+      return h("span", { class: "side-badge ask", title: t("Chiede un permesso"), text: "!" });
+    }
+    if (c.sending) return h("span", { class: "side-badge busy", title: t("Sta rispondendo") });
+    if (c.unread) return h("span", { class: "side-badge unread", title: t("Risposta nuova") });
+    return null;
+  }
+
+  /** The sidebar drawn again from the last list (a conversation started, answered, switched). */
+  function renderSide() {
+    renderHistory(lastList, lastQuery);
+  }
+
   function renderHistory(list: ChatSummary[], query: string) {
+    lastList = list;
+    lastQuery = query;
     clear(historyRows);
-    if (!list.length) {
+    // Open conversations the history does not have yet (no answer saved): on top.
+    const fresh = query.trim() ? [] : State.chats.filter((c) => (!c.logId || !list.some((x) => x.id === c.logId))
+      && (c.history.length || c.sending || c.sid === State.chatSid));
+    if (fresh.length) historyRows.append(h("div", { class: "side-group", text: t("Aperte") }));
+    for (const c of fresh) {
+      const first = c.history.find((m) => m.role === "user")?.content ?? "";
+      const name = CHAT_ENGINES.find((e) => e.id === engineOf(c))?.name ?? engineOf(c);
+      historyRows.append(h("div", { class: `history-item${c.sid === State.chatSid ? " on" : ""}`, title: first || t("Nuova chat"), onclick: () => switchTo(c.sid) },
+        h("div", { class: "history-text" },
+          h("span", { class: "history-title", text: first || t("Nuova chat") }),
+          h("span", { class: "history-meta", text: name })),
+        ...[badge(c)].filter((b): b is HTMLElement => !!b)));
+    }
+    if (!list.length && !fresh.length) {
       historyRows.append(h("div", { class: "engine-note", text: query.trim()
         ? t("Nessuna conversazione con queste parole.")
         : State.settings.chatHistory === false
           ? t("La cronologia è spenta: Impostazioni → Chat.")
           : t("Ancora nessuna conversazione. Restano qui, su questo PC.") }));
     }
+    let group = "";
     for (const c of list) {
       const engine = CHAT_ENGINES.find((e) => e.id === c.engine)?.name ?? c.engine;
+      const g = groupOf(c);
+      if (g !== group) {
+        group = g;
+        historyRows.append(h("div", { class: "side-group", text: g }));
+      }
+      const open = State.chats.find((x) => x.logId === c.id);
       const del = h("button", { class: "history-del", title: t("Elimina"), text: "✕" });
       del.addEventListener("click", (e) => {
         e.stopPropagation();
         void Bridge.chatHistoryDelete(c.id);
         historyDemo = historyDemo.filter((x) => x.id !== c.id);
+        // Open: it closes too (another one, or a new one, takes the screen).
+        if (open && !open.sending) {
+          if (open.sid === State.chatSid) {
+            const next = State.chats.find((x) => x !== open);
+            State.chats = State.chats.filter((x) => x !== open);
+            void Bridge.chatClose(open.sid);
+            if (next) show(next);
+            else show((() => { const n = newChatSession(); State.chats.push(n); return n; })());
+          } else {
+            State.chats = State.chats.filter((x) => x !== open);
+            void Bridge.chatClose(open.sid);
+          }
+        }
         row.remove();
         onHeightChange();
       });
@@ -1135,7 +1367,7 @@ export function buildPrompt(
         if (demo) demo.pinned = c.pinned;
         void refreshHistory();
       });
-      const titleEl = h("span", { class: "history-title", text: `${c.pinned ? "📌 " : ""}${c.title}` });
+      const titleEl = h("span", { class: "history-title", text: c.title });
       // ✎ or a double click on the title: a field in its place. Enter or
       // leaving it saves, Esc keeps the old one, empty = the first question.
       const rename = () => {
@@ -1177,10 +1409,11 @@ export function buildPrompt(
         e.stopPropagation();
         rename();
       });
-      const row = h("div", { class: "history-item", title: c.title, onclick: () => void reopen(c.id) },
+      const row = h("div", { class: `history-item${open && open.sid === State.chatSid ? " on" : ""}`, title: c.title, onclick: () => void reopen(c.id) },
         h("div", { class: "history-text" },
           titleEl,
           h("span", { class: "history-meta", text: `${when(c.updated)} · ${engine} · ${tn("{n} domanda", "{n} domande", c.turns)}` })),
+        ...[badge(open)].filter((b): b is HTMLElement => !!b),
         edit, pin, del);
       historyRows.append(row);
     }
@@ -1201,62 +1434,75 @@ export function buildPrompt(
   historySearch.addEventListener("keydown", (e) => {
     e.stopPropagation();
     if ((e as KeyboardEvent).key === "Escape") {
-      showHistory(false);
+      historySearch.value = "";
+      void refreshHistory();
+      if (overlay) showSide(false);
       input.focus();
     }
   });
-  historyMenu.append(historySearch, historyRows);
+  sideNew.addEventListener("click", startOver);
 
+  /** «/cronologia», «/cerca …»: the sidebar open, with the search when there is one. */
   async function toggleHistory(query?: string) {
     engineMenu.style.display = "none";
-    if (historyMenu.style.display !== "none" && query == null) {
-      showHistory(false);
-      return;
-    }
     historySearch.value = query ?? "";
+    showSide(true);
     await refreshHistory();
-    showHistory(true);
-    if (query != null) historySearch.focus();
+    historySearch.focus();
   }
 
-  /** The conversation comes back in place of the current one, on its engine. */
+  /**
+   * A conversation of the history: on screen if it is open, else opened (in
+   * the one on screen when that is empty, else in a new one); the others go on.
+   */
   async function reopen(id: string) {
-    if (sending) return;
+    const open = State.chats.find((x) => x.logId === id);
+    if (open) {
+      switchTo(open.sid);
+      return;
+    }
+    if (overlay) showSide(false);
+    const reuse = !State.chat.history.length && !State.chat.sending;
+    const c = reuse ? State.chat : openNew();
     try {
-      const c = await Bridge.chatHistoryOpen(id);
-      State.chatHistory = c.lines.map((l) => ({ id: nextId++, role: l.role, content: l.content }));
-      State.droppedFile = null;
-      State.chatText = null;
-      State.chatWindow = null;
-      State.chatAttach = [];
-      State.promptContext = null;
-      State.chatSession = null;
-      State.chatEngineOverride = c.engine === State.settings.chatEngine ? null : (c.engine as ChatEngine);
-      State.chatAuto = false;
-    State.chatDesktop = false;
-      editing = null;
-      textAttach = null;
-      if (assistant) dropAssistant();
-      flash("");
-      renderedCount = -1;
-      stick = true;
+      const got = await Bridge.chatHistoryOpen(c.sid, id);
+      c.history = got.lines.map((l) => ({ id: nextId++, role: l.role, content: l.content }));
+      c.logId = id;
+      c.text = null;
+      c.window = null;
+      c.attach = [];
+      c.session = null;
+      c.engineOverride = got.engine === State.settings.chatEngine ? null : (got.engine as ChatEngine);
+      c.auto = false;
+      c.desktop = false;
+      c.at = Date.now();
+      if (c.assistant) {
+        c.assistant = null;
+        void Bridge.chatPersona(c.sid, null);
+      }
+      if (c === State.chat) {
+        State.droppedFile = null;
+        State.promptContext = null;
+        editing = null;
+        textAttach = null;
+        flash("");
+        renderedCount = -1;
+        stick = true;
+        chipRow.dataset.label = "";
+      }
       Sound.play("blip");
-      showHistory(false);
       State.notify();
+      renderSide();
       input.focus();
     } catch (err) {
-      showHistory(false);
       State.noteMessage = String(err).replace(/^Error:\s*/, "");
       State.view = "note";
       State.notify();
     }
   }
 
-  engineBtn.addEventListener("click", () => {
-    if (historyMenu.style.display !== "none") showHistory(false);
-    void toggleEngineMenu();
-  });
-  historyBtn.addEventListener("click", () => void toggleHistory());
+  engineBtn.addEventListener("click", () => void toggleEngineMenu());
+  sideBtn.addEventListener("click", () => showSide(!(narrow ? overlay : sideOpen)));
   exportBtn.addEventListener("click", () => void exportChat());
   desktopBtn.addEventListener("click", () => void toDesktop());
   remoteBtn.addEventListener("click", async () => {
@@ -1279,10 +1525,11 @@ export function buildPrompt(
   document.addEventListener("pointerdown", (e) => {
     if (engineMenu.style.display !== "none" && !head.contains(e.target as Node)) engineMenu.style.display = "none";
   });
-  void onEvent<{ text: string }>("chat-stream", (p) => {
-    if (!sending) return;
-    streamed = p.text;
-    State.notify();
+  void onEvent<{ sid?: string; text: string }>("chat-stream", (p) => {
+    const c = State.chats.find((x) => x.sid === p.sid);
+    if (!c?.sending) return;
+    c.streamed = p.text;
+    if (c === State.chat) State.notify();
   });
 
   log.addEventListener("scroll", () => {
@@ -1314,13 +1561,18 @@ export function buildPrompt(
   });
   externalSend = (q) => void submit(q);
   externalReopen = (id) => void reopen(id);
+  externalFresh = () => {
+    if (State.chat.history.length || State.chat.sending) openNew();
+    else void Bridge.chatReset(State.chatSid);
+  };
   fresh.addEventListener("click", startOver);
   send.addEventListener("click", () => {
     // While a reply is written the button is "Ferma" (not for "Chiedi a questa sessione").
-    if (sending) {
-      if (!State.chatSession && !stopping) {
-        stopping = true;
-        void Bridge.chatStop();
+    const c = State.chat;
+    if (c.sending) {
+      if (!c.session && !c.stopping) {
+        c.stopping = true;
+        void Bridge.chatStop(c.sid);
       }
       return;
     }
@@ -1344,6 +1596,16 @@ export function buildPrompt(
   input.addEventListener("keydown", (e) => {
     const k = e as KeyboardEvent;
     e.stopPropagation(); // Escape closes the island, not the chat
+    if (k.ctrlKey && !k.altKey && k.key.toLowerCase() === "b") {
+      e.preventDefault();
+      showSide(!(narrow ? overlay : sideOpen));
+      return;
+    }
+    if (k.ctrlKey && !k.altKey && k.key.toLowerCase() === "n") {
+      e.preventDefault();
+      startOver();
+      return;
+    }
     if (slashItems.length) {
       if (k.key === "ArrowDown" || k.key === "ArrowUp") {
         e.preventDefault();
@@ -1376,7 +1638,7 @@ export function buildPrompt(
       return;
     }
     // ↑ in the empty field: the last question back, to change and send again.
-    if (k.key === "ArrowUp" && input.value === "" && !sending) {
+    if (k.key === "ArrowUp" && input.value === "" && !State.chat.sending) {
       const last = [...State.chatHistory].reverse().find((m) => m.role === "user");
       if (last) {
         e.preventDefault();
@@ -1410,6 +1672,9 @@ export function buildPrompt(
         : win
         ? windowLabel(win)
         : file?.name ?? "";
+      const assistant = State.chat.assistant;
+      const sending = State.chat.sending;
+      const streamed = State.chat.streamed;
       const chipKey = `${pick ? "pick" : ""}${wantChip}${win && !pick ? win.path : ""}|${assistant?.id ?? ""}`;
       if (chipRow.dataset.label !== chipKey) {
         chipRow.dataset.label = chipKey;
@@ -1466,7 +1731,7 @@ export function buildPrompt(
       desktopBtn.title = State.chatDesktop
         ? t("La conversazione è proseguita in Claude Desktop: ciò che scrivi lì torna qui. Clic per riaprirla lì")
         : t("Continua in Claude Desktop, con tutta la conversazione");
-      if (State.chatDesktop && !sending && Date.now() - pulledAt > 4000) void pullDesktop(false);
+      if (State.chatDesktop && !sending && Date.now() - pulledAt > 4000) void pullDesktop(State.chat, false);
       // 🔌: only while a remote connection is open, never on a session copy.
       const remote = remoteData();
       remoteBtn.style.display = remote.connected && !asked ? "" : "none";
@@ -1490,8 +1755,23 @@ export function buildPrompt(
           : t("Automatica: in questa conversazione Claude Code non chiede conferma per le azioni normali e blocca quelle rischiose"))
         : (auto ? t("Automatica: comandi e modifiche normali vanno da soli; cancellare, pubblicare, installare o cambiare il sistema chiede ancora. Clic per tornare a Consenti / Nega")
           : t("Automatica: in questa conversazione comandi e modifiche normali vanno senza chiedere; cancellare, pubblicare, installare o cambiare il sistema chiede ancora"));
-      const thinking = State.stateOverride === "thinking";
-      const count = State.chatHistory.length + (thinking ? 0.5 : 0) + (streamed ? 0.25 : 0) + (sending ? 0.125 : 0);
+      // The conversation's title: as the history has it, else its first question.
+      const known = lastList.find((x) => x.id === State.chat.logId)?.title;
+      titleEl.textContent = known ?? State.chatHistory.find((m) => m.role === "user")?.content ?? "";
+      titleEl.title = titleEl.textContent;
+      // The history, read the first time the chat shows with its sidebar open.
+      if (!historyRead && layout.classList.contains("side-open") && State.view === "prompt") {
+        historyRead = true;
+        void refreshHistory();
+      }
+      // The sidebar follows the conversations' states (working, answered, asking).
+      const sideKey = `${State.chatSid}|${State.pendingApproval?.chatSid ?? ""}|${State.chats.map((c) => `${c.sid}${c.sending ? "s" : ""}${c.unread ? "u" : ""}${c.logId ?? ""}${c.history.length ? "h" : ""}`).join(",")}`;
+      if (sideKey !== side.dataset.key) {
+        side.dataset.key = sideKey;
+        renderSide();
+      }
+      const thinking = sending;
+      const count = State.chatHistory.length + (thinking ? 0.5 : 0) + (streamed ? 0.25 : 0) + (sending ? 0.125 : 0) + State.chats.indexOf(State.chat) * 1000;
       if (count !== renderedCount) {
         renderedCount = count;
         clear(log);
@@ -1512,7 +1792,8 @@ export function buildPrompt(
         toBottom();
       }
       // The waiting permission, always the last thing in the conversation.
-      const req = State.pendingApproval?.source === "chat" ? State.pendingApproval : null;
+      const req = State.pendingApproval?.source === "chat" && (!State.pendingApproval.chatSid || State.pendingApproval.chatSid === State.chatSid)
+        ? State.pendingApproval : null;
       if (req) {
         const key = `${req.requestId}|${req.command}|${req.always ?? ""}`;
         if (askKey !== key) {
@@ -1526,6 +1807,16 @@ export function buildPrompt(
       } else if (askKey) {
         askKey = "";
         askEl.remove();
+      }
+      const elsewhere = State.pendingApproval?.source === "chat" && State.pendingApproval.chatSid && State.pendingApproval.chatSid !== State.chatSid
+        ? State.chats.find((c) => c.sid === State.pendingApproval?.chatSid) : undefined;
+      const otherText = elsewhere
+        ? t("«{name}» chiede un permesso: apri", { name: elsewhere.history.find((m) => m.role === "user")?.content.slice(0, 50) || t("Nuova chat") })
+        : "";
+      if (otherAsk.textContent !== otherText) {
+        otherAsk.textContent = otherText;
+        otherAsk.style.display = otherText ? "" : "none";
+        onHeightChange();
       }
 
       if (State.chatDraft != null) {
@@ -1552,15 +1843,15 @@ export function buildPrompt(
         send.classList.toggle("stop", stopMode);
       }
       // Only when there is something to forget.
-      fresh.style.display = State.chatHistory.length > 0 || file || text || win || asked || attach.length || assistant || textAttach ? "" : "none";
+      // In the sidebar when it is open; here only when there is something to leave.
+      fresh.style.display = !layout.classList.contains("side-open") && (State.chatHistory.length > 0 || file || text || win || asked || attach.length || assistant || textAttach) ? "" : "none";
       mic.disabled = sending;
       clip.disabled = sending || !!asked;
-      (fresh as HTMLButtonElement).disabled = sending;
     },
-    // The open history list makes the island as tall as it needs (up to its maximum).
+    // The sidebar open in an empty chat: the island tall enough for a few conversations.
     fitHeight() {
-      if (historyMenu.style.display === "none") return 0;
-      return 26 + head.offsetHeight + 12 + Math.min(historyMenu.scrollHeight, 380) + bar.offsetHeight + 8;
+      if (!layout.classList.contains("side-open") || State.chatHistory.length) return 0;
+      return Math.min(26 + historyRows.scrollHeight + 90, 460);
     },
     focus() {
       input.focus();

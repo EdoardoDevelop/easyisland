@@ -72,7 +72,11 @@ Da qualunque programma premi <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> e parla:
 Il microfono si accende **solo** quando premi la scorciatoia, mai da solo. Serve il servizio dei Vocali (Impostazioni → Telegram → Vocali); la voce che risponde c'è con OpenAI e Google AI. Scorciatoia e risposta a voce si cambiano in Impostazioni → Azioni rapide.
 
 ## Cronologia
-L'orologio in alto nella chat mostra le conversazioni di prima (fino a 100, solo su questo PC), con data, motore e ricerca. **✎** (o un doppio clic sul titolo) la rinomina: Invio salva, Esc annulla, un titolo vuoto torna alla prima domanda. 📌 la tiene in cima. Un clic ne riapre una sul suo motore e la continui. Con i motori via API riprende esattamente da dove era; con l'abbonamento e con opencode la conversazione viene passata come testo. Impostazioni → Chat → **Cronologia** la svuota o la spegne (spegnendo anche il diario della memoria).
+A sinistra della chat c'è la **barra delle conversazioni**: **Nuova chat**, la ricerca e le conversazioni di prima (fino a 100, solo su questo PC) divise per giorno. Il pulsante in alto a sinistra della chat (o <kbd>Ctrl</kbd>+<kbd>B</kbd>) la apre e la chiude; aperta, l'isola si allarga per farle posto.
+
+Puoi tenere **più conversazioni aperte insieme**: passando a un'altra, quella di prima non si chiude e se stava rispondendo continua. Nella barra un anello che gira indica chi sta rispondendo, un pallino una risposta arrivata mentre eri altrove, **!** una conversazione che chiede un permesso (e sopra il campo compare una riga per andarci). **Nuova chat** lascia aperta quella in corso. Oltre 8 conversazioni aperte, la meno usata e ferma si chiude da sola: resta nella cronologia.
+
+Al passaggio del mouse, **✎** (o un doppio clic sul titolo) rinomina una conversazione: Invio salva, Esc annulla, un titolo vuoto torna alla prima domanda. 📌 la tiene tra le Fissate, ✕ la elimina. Un clic ne riapre una sul suo motore e la continui. Con i motori via API riprende esattamente da dove era; con l'abbonamento e con opencode la conversazione viene passata come testo. Impostazioni → Chat → **Cronologia** la svuota o la spegne (spegnendo anche il diario della memoria).
 
 ![La cronologia delle conversazioni](../media/chat-history.png)
 

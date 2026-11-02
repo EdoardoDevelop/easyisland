@@ -300,20 +300,27 @@ export const Bridge = {
   approvalDecline: (requestId: string) => call<void>("approval_decline", { requestId }),
 
   // ── Chat, files, secrets ──────────────────────────────────────────────────
-  /** One chat turn. The API key and any file bytes never leave Rust. */
-  chatSend: (query: string, context: ChatContext | null, engine: string | null = null, auto = false) =>
-    callOrThrow<{ text: string }>("chat_send", { query, context, engine, auto }),
+  /**
+   * One chat turn in the open conversation `sid` (lib.rs Chats). The API key and
+   * any file bytes never leave Rust. `log`: its id in the history, once saved.
+   */
+  chatSend: (sid: string, query: string, context: ChatContext | null, engine: string | null = null, auto = false) =>
+    callOrThrow<{ text: string; log: string | null }>("chat_send", { sid, query, context, engine, auto }),
   /** Model ids an OpenAI-compatible engine offers (Impostazioni → Chat). */
   chatModels: (engine: string, url: string | null) => callOrThrow<ModelOption[]>("chat_models", { engine, url }),
   /** Impostazioni → Chat → Antigravity: is its CLI (agy) on this PC (antigravity.rs). */
   antigravityStatus: () => call<{ found: boolean; path: string }>("antigravity_status"),
   /** Impostazioni → Telegram → «Vocali»: the models of a service that take audio, cheapest first (transcribe.rs). */
   voiceModels: (service: string) => callOrThrow<ModelOption[]>("voice_models", { service }),
-  /** "Ferma": ends the island's turn in progress (lib.rs chat_stop); chatSend then fails with "Interrotta.". */
-  chatStop: () => call<void>("chat_stop"),
-  chatSecond: (engine: string, first: string, question: string, answer: string) =>
-    callOrThrow<string>("chat_second", { engine, first, question, answer }),
-  chatReset: () => call<void>("chat_reset"),
+  /** "Ferma": ends the turn of that conversation (lib.rs chat_stop); chatSend then fails with "Interrotta.". */
+  chatStop: (sid: string) => call<void>("chat_stop", { sid }),
+  /** A conversation leaves the sidebar's open ones: its engine's process ends (the history keeps it). */
+  chatClose: (sid: string) => call<void>("chat_close", { sid }),
+  /** The open conversation a permission comes from, by its engine session. */
+  chatSessionOf: (session: string) => call<string | null>("chat_session_of", { session }),
+  chatSecond: (sid: string, engine: string, first: string, question: string, answer: string) =>
+    callOrThrow<string>("chat_second", { sid, engine, first, question, answer }),
+  chatReset: (sid: string) => call<void>("chat_reset", { sid }),
   /** "Continua": the next message for a session (session_reply.rs). "sent" or "prefilled". */
   sessionReply: (mode: string, text: string, pid: number | null, session: string | null, scheme: string | null) =>
     callOrThrow<string>("session_reply", { mode, text, pid, session, scheme }),
@@ -322,7 +329,7 @@ export const Bridge = {
     callOrThrow<{ text: string; fork: string | null }>("session_ask", { session, fork, cwd, question }),
   /** The chat history (chat_log.rs): list, reopen in place of the current conversation, delete. */
   chatHistoryList: () => call<ChatSummary[]>("chat_history_list"),
-  chatHistoryOpen: (id: string) => callOrThrow<{ engine: string; lines: { role: "user" | "assistant"; content: string }[] }>("chat_history_open", { id }),
+  chatHistoryOpen: (sid: string, id: string) => callOrThrow<{ engine: string; lines: { role: "user" | "assistant"; content: string }[] }>("chat_history_open", { sid, id }),
   chatHistoryDelete: (id: string) => call<void>("chat_history_delete", { id }),
   chatHistoryClear: () => call<void>("chat_history_clear"),
   /** Quick actions. */
@@ -554,17 +561,17 @@ export const Bridge = {
   /** 📎: Windows' dialog for several files, or several folders. */
   chatPick: (folders: boolean) => callOrThrow<ChatAttachment[]>("chat_pick", { folders }),
   /** «Modifica» / «Rigenera»: the conversation goes back to these lines. */
-  chatToDesktop: () => call<void>("chat_to_desktop"),
-  chatDesktopPull: (done: boolean) => call<{ role: "user" | "assistant"; content: string }[]>("chat_desktop_pull", { done }),
-  chatRewind: (keep: { role: "user" | "assistant"; content: string }[]) => call<void>("chat_rewind", { keep }),
+  chatToDesktop: (sid: string) => callOrThrow<void>("chat_to_desktop", { sid }),
+  chatDesktopPull: (sid: string, done: boolean) => call<{ role: "user" | "assistant"; content: string }[]>("chat_desktop_pull", { sid, done }),
+  chatRewind: (sid: string, keep: { role: "user" | "assistant"; content: string }[]) => call<void>("chat_rewind", { sid, keep }),
   /** «Esporta»: the conversation as Markdown in the Vassoio. */
   chatExport: (title: string, lines: { role: "user" | "assistant"; content: string }[]) => callOrThrow<DroppedFile>("chat_export", { title, lines }),
   /** «/oggi», «/domani»: the question that gathers the day with the tools (telegram.rs day_prompt). */
   chatDayPrompt: (tomorrow: boolean) => call<string>("chat_day_prompt", { tomorrow }),
   /** «⑂ Dirama da qui»: a new conversation from these lines; the old one stays in the history. */
-  chatFork: (keep: { role: "user" | "assistant"; content: string }[]) => call<void>("chat_fork", { keep }),
+  chatFork: (sid: string, keep: { role: "user" | "assistant"; content: string }[]) => call<void>("chat_fork", { sid, keep }),
   /** The assistant of the conversation that starts (its instructions); null = none. */
-  chatPersona: (instructions: string | null) => call<void>("chat_persona", { instructions }),
+  chatPersona: (sid: string, instructions: string | null) => call<void>("chat_persona", { sid, instructions }),
   /** 🎤: the recorded audio to text (Telegram's «Vocali» service). */
   chatTranscribe: (audio: number[], mime: string) => callOrThrow<string>("chat_transcribe", { audio, mime }),
   /** The island compact (true) or open: WebView2 keeps less memory (webview_memory.rs). */

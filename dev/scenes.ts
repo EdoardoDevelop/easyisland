@@ -8,7 +8,7 @@ import { fillTemplate, receiveSource, toCsv } from "../src/views/custom";
 import { run, scopeOf } from "../src/core/expr";
 import { rdmLookFor } from "../src/views/rdm";
 import type { Island } from "../src/island/island";
-import { State, type AppMenuLine, type CustomField } from "../src/core/state";
+import { State, newChatSession, type AppMenuLine, type CustomField } from "../src/core/state";
 import { Bridge } from "../src/core/bridge";
 import { handleHook } from "../src/island/hooks";
 import { handleIntegration, handleWidget } from "../src/island/integrations";
@@ -206,18 +206,36 @@ export async function runScene(island: Island, scene: string) {
           { id: 2, role: "assistant", content: "È il file delle impostazioni di **Windows Terminal**." },
         ];
       }
-      // ?history: the list of earlier conversations, open.
+      // ?history: the sidebar with earlier conversations; three of them open:
+      // the one on screen, one answering in the background, one answered while away.
       if (new URLSearchParams(location.search).has("history")) {
         const now = Date.now();
         setHistoryDemo([
           { id: "a", title: "Come si rinnova un certificato Let's Encrypt su IIS?", engine: "subscription", updated: now - 600_000, turns: 3 },
+          { id: "d", title: "Backup del NAS di Rossi fallito stanotte", engine: "subscription", updated: now - 1_800_000, turns: 2, pinned: true },
           { id: "b", title: "Riassumi questo PDF del preventivo per il cliente Rossi in tre punti", engine: "api", updated: now - 86_400_000, turns: 1 },
           { id: "c", title: "Script PowerShell per elencare le stampanti di rete", engine: "opencode", updated: now - 9 * 86_400_000, turns: 5 },
         ]);
+        const busy = newChatSession();
+        busy.logId = "d";
+        busy.sending = true;
+        busy.history = [{ id: 11, role: "user", content: "Perché il backup del NAS di Rossi è fallito stanotte?" }];
+        const away = newChatSession();
+        away.logId = "b";
+        away.unread = true;
+        away.history = [
+          { id: 12, role: "user", content: "Riassumi questo PDF del preventivo per il cliente Rossi in tre punti" },
+          { id: 13, role: "assistant", content: "1. **Totale** 4.820 € + IVA\n2. Consegna in 3 settimane\n3. Pagamento a 60 giorni", engine: "api" },
+        ];
+        State.chatHistory = [
+          { id: 14, role: "user", content: "Come si rinnova un certificato Let's Encrypt su IIS?" },
+          { id: 15, role: "assistant", content: "Con **win-acme**: `wacs.exe --renew` rinnova quelli in scadenza; l'operazione pianificata che crea lo fa da sola ogni giorno.", engine: "subscription" },
+        ];
+        State.chat.logId = "a";
+        State.chats.push(busy, away);
+        State.isPinned = true;
         island.alert("prompt");
-        await wait(500);
-        document.querySelector<HTMLButtonElement>(".history-btn")?.click();
-        await wait(800);
+        await wait(1200);
         break;
       }
       // ?window: a window the character was dropped on (window_drop.rs), with a

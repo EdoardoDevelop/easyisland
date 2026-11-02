@@ -53,6 +53,11 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 2 novembre 2026 — Chat con la barra delle conversazioni e più conversazioni aperte (in `claude/sviluppo`)
+- A sinistra della chat «Nuova chat», ricerca e conversazioni per giorno; si apre e chiude con il pulsante o Ctrl+B, aperta allarga l'isola (`chatSideRoom`), in un'isola stretta galleggia sopra la chat. Messaggi e campo in una colonna centrale di 780 px.
+- Più conversazioni aperte insieme: ognuna con il suo `Chat` in Rust (`Chats`, comandi della chat con `sid`), il suo processo e il suo «Ferma»; cambiare non chiude niente. Anello per chi risponde, pallino per la risposta nuova, «!» e una riga sopra il campo per un permesso di un'altra. Al massimo 8 aperte (`MAX_OPEN_CHATS`). `docs/chat.md` → Cronologia.
+- Test Rust, build, smoke e anteprima (`?scene=chat&history`); non provato nell'app vera con due motori che rispondono insieme (`docs/prove-dal-vivo.md`).
+
 ### 2 novembre 2026 — Agent Chat autonoma, comandi in background (versione 1.0.21)
 «Autonomi» non chiede più niente, nemmeno per cancellare (`agentchat::decide`); il vecchio comportamento resta come scelta `chat`. Un comando lanciato in background da Claude Code: a fine comando Claude Code fa da solo un altro turno, ora letto da `claude_cli::follow` e pubblicato in chat (`Chat::later`, al massimo 3 ore). La pagina della chat non si collegava (variabile `online` dichiarata due volte): corretta e pubblicata sulla VPS. Test Rust; installata su questo PC.
 
@@ -70,7 +75,3 @@ I motori gratuiti finivano i messaggi e due PC facevano lo stesso lavoro: a un m
 - Allegati: nome, dimensione e SHA-256 accanto a ogni file; ogni file lo importa un solo agente (`agentchat_import`, controllo dello SHA-256, nel Vassoio). Il server degli allegati è nel repository `agentchat` (`ac238d9`).
 - Permessi «Autonomi» (di serie): nessuna richiesta nell'isola nei turni di Agent Chat, su tutti i motori; ciò che elimina, invia, cambia il sistema o va sul PC remoto lo chiedono in chat («sì/no codice»). Eccezione aggiunta in CLAUDE.md. Gli allegati partono anche dalla risposta con «ALLEGA: percorso» (Vassoio o cartella di lavoro), senza strumenti.
 - Test Rust, smoke; installato su questo PC per la prova dal vivo.
-
-### 1° novembre 2026 — Agent Chat: EasyIsland risponde da solo, più motori e consulte (in `claude/sviluppo`, versione 1.0.18)
-- EasyIsland partecipa alla Agent Chat di Edoardo (`agentchat.rs`): ascolto sempre acceso, risposte autonome alle menzioni, ogni motore con il suo nome (`notebook/claude`), consulta con sintesi, freni (stop dalla chat, turni l'ora, catena fra agenti), card nell'isola, strumenti `agentchat_*` e l'aggregatore `consult_engines` (`docs/integrazioni.md`, `docs/chat.md`).
-- Server cambiato nel suo repository (token per agente, owner verificato, più stanze, thread e consulte), nel suo `main` e pubblicato sulla VPS il 1° novembre con le chat ripartite da zero. Versione 1.0.18 con tag `v1.0.18`. Test Rust e del server, smoke; nessun turno vero di un motore in Agent Chat ancora.

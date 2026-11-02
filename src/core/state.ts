@@ -385,6 +385,8 @@ export interface ApprovalInfo {
   command: string;
   /** "chat": a connector call from the character's own chat, not a Claude Code session. */
   source?: "chat";
+  /** Which open conversation of the chat asks (ChatSessionState.sid), when known. */
+  chatSid?: string;
   /** AskUserQuestion: the questions to answer from the island. */
   questions?: AskQuestion[];
   /**
@@ -410,6 +412,50 @@ export interface AskQuestion {
   header: string;
   options: { label: string; description: string }[];
   multiSelect: boolean;
+}
+
+/**
+ * One conversation of the island's chat, open in its sidebar (Rust: lib.rs
+ * `Chats`, by `sid`). Several can be open and answering at once; switching
+ * closes nothing. The State fields of the chat (chatHistory, chatAuto…) are
+ * those of the one on screen.
+ */
+export interface ChatSessionState {
+  sid: string;
+  history: ChatMessage[];
+  engineOverride: ChatEngine | null;
+  auto: boolean;
+  desktop: boolean;
+  text: { label: string; text: string } | null;
+  window: WindowShot | null;
+  attach: { name: string; path: string; folder?: boolean }[];
+  session: { sessionId: string; cwd: string; name: string; fork: string | null } | null;
+  assistant: ChatAssistant | null;
+  /** Its id in the history (chat_log.rs), once an answer saved it. */
+  logId: string | null;
+  /** A turn is running; `streamed` is its text so far, `stopping` after «Ferma». */
+  sending: boolean;
+  stopping: boolean;
+  streamed: string;
+  /** An answer came while another conversation was on screen. */
+  unread: boolean;
+  /** The field's text while another conversation is on screen. */
+  draft: string;
+  /** Last activity (ms): the least used idle one is closed past MAX_OPEN_CHATS. */
+  at: number;
+}
+
+/** Open conversations kept with their engine: beyond, the least used idle one closes (it stays in the history). */
+export const MAX_OPEN_CHATS = 8;
+
+let chatSeq = 0;
+export function newChatSession(): ChatSessionState {
+  return {
+    sid: `c${Date.now().toString(36)}${(chatSeq++).toString(36)}`,
+    history: [], engineOverride: null, auto: false, desktop: false, text: null, window: null, attach: [],
+    session: null, assistant: null, logId: null, sending: false, stopping: false, streamed: "", unread: false,
+    draft: "", at: Date.now(),
+  };
 }
 
 export interface ChatMessage {
@@ -1408,16 +1454,27 @@ class AppState {
     status: "loading" | "ready" | "working" | "done" | "error";
     message: string;
   } | null = null;
+  /** The chat's sidebar is open beside the conversation (chat.ts): the island is wider by it. */
+  chatSideOpen = false;
+  /** The chat's open conversations (sidebar), and the one on screen. */
+  chats: ChatSessionState[] = [newChatSession()];
+  chatSid = this.chats[0].sid;
+  get chat(): ChatSessionState {
+    return this.chats.find((c) => c.sid === this.chatSid) ?? this.chats[0];
+  }
   /** Text the chat is about (clipboard, a quick action) — sent with the first message. */
-  chatText: { label: string; text: string } | null = null;
+  get chatText() { return this.chat.text; }
+  set chatText(v: { label: string; text: string } | null) { this.chat.text = v; }
   /** Another app's window the character of the chat tab was dropped on — sent with the first message. */
-  chatWindow: WindowShot | null = null;
+  get chatWindow() { return this.chat.window; }
+  set chatWindow(v: WindowShot | null) { this.chat.window = v; }
   /** The character of the chat tab is being carried: the window it is over ("" = none yet). */
   windowPick: { over: string } | null = null;
   /** Put in the chat field once, not sent (an action with no selection: the text goes after it). */
   chatDraft: string | null = null;
   /** Files and folders added to the question (📎, dropped, pasted): shown in the field, sent with the next question. */
-  chatAttach: { name: string; path: string; folder?: boolean }[] = [];
+  get chatAttach() { return this.chat.attach; }
+  set chatAttach(v: { name: string; path: string; folder?: boolean }[]) { this.chat.attach = v; }
 
   /** Adds attachments to the next question, each path once, at most 20 (files.rs → MAX_ATTACH). */
   addAttachments(list: { name: string; path: string; folder?: boolean }[]) {
@@ -1432,7 +1489,8 @@ class AppState {
    * "Chiedi a questa sessione": the chat asks a read-only copy of a Claude Code
    * session instead of its engine. `fork` is that copy, once the first answer made it.
    */
-  chatSession: { sessionId: string; cwd: string; name: string; fork: string | null } | null = null;
+  get chatSession() { return this.chat.session; }
+  set chatSession(v: { sessionId: string; cwd: string; name: string; fork: string | null } | null) { this.chat.session = v; }
   /** The script being confirmed / run / shown in the Run view. */
   run: ScriptRun | null = null;
   rewrite: Rewrite | null = null;
@@ -1462,17 +1520,21 @@ class AppState {
   popover: { x: number } | null = null;
   noteMessage: string | null = null;
   searchResult: SearchResult | null = null;
-  chatHistory: ChatMessage[] = [];
+  get chatHistory() { return this.chat.history; }
+  set chatHistory(v: ChatMessage[]) { this.chat.history = v; }
   /** The user's own integrations (custom.rs). */
   customs: Custom[] = [];
   /** Bumped when one of them or its records changed elsewhere: its card is redrawn. */
   customVersion = 0;
   /** The engine picked in the chat's menu for the conversation in progress; null = the default (settings.chatEngine). Never saved. */
-  chatEngineOverride: ChatEngine | null = null;
+  get chatEngineOverride() { return this.chat.engineOverride; }
+  set chatEngineOverride(v: ChatEngine | null) { this.chat.engineOverride = v; }
   /** "Automatica" (chat head, Modalità terminale only): no Consenti / Nega for this conversation. Never saved. */
-  chatAuto = false;
+  get chatAuto() { return this.chat.auto; }
+  set chatAuto(v: boolean) { this.chat.auto = v; }
   /** «Continua in Claude Desktop» (desktop.rs): the session went on there; what was said comes back. Never saved. */
-  chatDesktop = false;
+  get chatDesktop() { return this.chat.desktop; }
+  set chatDesktop(v: boolean) { this.chat.desktop = v; }
   /** The Anteprima is open as the island's panel (island.ts setPaneOpen). */
   previewOpen = false;
   /** The engine the chat uses right now. */

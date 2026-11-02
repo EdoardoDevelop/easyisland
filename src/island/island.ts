@@ -30,7 +30,7 @@ import { rdmLookFor } from "../views/rdm";
 import { buildRail, railBotSize } from "../views/rail";
 import { appBarItem, buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
 import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
-import { onNextReply, reopenChat, sendToChat, windowLabel } from "../views/chat";
+import { freshChat, onNextReply, reopenChat, sendToChat, windowLabel } from "../views/chat";
 import { capturing, startCapture } from "./capture";
 import { addToCollection } from "../views/collect";
 import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state";
@@ -93,6 +93,8 @@ const POP_EAR = 14;
 /** The Anteprima's panel on the right of the open island (preview.rs `pane`): usual and least width. */
 const PANE_W = 560;
 const PANE_MIN_W = 360;
+/** The chat's sidebar, added to the open island's width while it shows (style.css .chat-side). */
+const CHAT_SIDE_W = 236;
 /** The open island is at least this tall with the panel, for a page to be usable. */
 const PANE_MIN_H = 520;
 /** The chat's views: the panel is beside them only (another tab hides it). */
@@ -742,8 +744,16 @@ export class Island {
     const pane = Math.round(clamp(this.paneWidth, PANE_MIN_W, Math.max(PANE_MIN_W, room - PANE_VIEWS_MIN_W)));
     // The header runs over both: together they are at least as wide as it needs.
     const least = Math.max(PANE_VIEWS_MIN_W, this.headerNeed - pane - 10);
-    const views = Math.round(clamp(State.settings.islandWidth || EXPANDED_W, least, Math.max(least, room - pane)));
+    const views = Math.round(clamp((State.settings.islandWidth || EXPANDED_W) + this.chatSideRoom, least, Math.max(least, room - pane)));
     return { views, pane };
+  }
+
+  /**
+   * The chat's sidebar (chat.ts) adds its width to the island instead of
+   * taking it from the conversation, as the Anteprima's panel does.
+   */
+  private get chatSideRoom(): number {
+    return State.mode === "expanded" && State.view === "prompt" && State.chatSideOpen && !State.popover ? CHAT_SIDE_W : 0;
   }
 
   private get paneWidth(): number {
@@ -883,8 +893,7 @@ export class Island {
   askSession() {
     const task = State.focusTask;
     if (!canAskSession(task)) return;
-    State.chatHistory = [];
-    void Bridge.chatReset();
+    freshChat();
     State.chatText = null;
     State.chatWindow = null;
     State.droppedFile = null;
@@ -955,9 +964,8 @@ ${note}` : text };
   }
 
   private startChat(question: string, context: { label: string; text: string } | null, keepFile: boolean) {
-    State.chatHistory = [];
+    freshChat();
     State.chatSession = null;
-    void Bridge.chatReset();
     State.chatText = context;
     State.chatWindow = null;
     if (!keepFile) {
@@ -1529,8 +1537,7 @@ ${note}` : text };
   private attachWindow(w: WindowShot) {
     Sound.play("approve");
     if (State.chatHistory.length) {
-      State.chatHistory = [];
-      void Bridge.chatReset();
+      freshChat();
     }
     State.chatText = null;
     State.droppedFile = null;
@@ -1581,10 +1588,9 @@ ${note}` : text };
   askAboutFile(f: { name: string; path: string }) {
     State.droppedFile = { name: f.name, path: f.path };
     State.promptContext = { kind: "file", name: f.name, path: f.path };
+    freshChat();
     State.chatText = null;
     State.chatWindow = null;
-    State.chatHistory = [];
-    void Bridge.chatReset();
     this.setView("choose");
   }
 
@@ -1638,10 +1644,9 @@ ${note}` : text };
   askAboutPicture(f: { name: string; path: string }) {
     State.droppedFile = { name: f.name, path: f.path };
     State.promptContext = { kind: "file", name: f.name, path: f.path };
+    freshChat();
     State.chatText = null;
     State.chatWindow = null;
-    State.chatHistory = [];
-    void Bridge.chatReset();
     this.setView("prompt");
   }
 
@@ -2221,10 +2226,9 @@ ${note}` : text };
     const name = path.split(/[\\/]/).pop() || "file";
     State.droppedFile = { name, path, source: path };
     State.promptContext = { kind: "file", name, path };
+    freshChat();
     State.chatText = null;
     State.chatWindow = null;
-    State.chatHistory = [];
-    void Bridge.chatReset();
 
     UploadSeq.performDrop(State.uploadDuration);
     this.uploadTens = 0;
@@ -2594,7 +2598,7 @@ ${note}` : text };
    */
   private openWidth(maxW: number): number {
     const s = State.settings;
-    return Math.round(Math.min(maxW, Math.max(ISLAND_MIN_W, s.islandWidth || EXPANDED_W, this.headerNeed)));
+    return Math.round(Math.min(maxW, Math.max(ISLAND_MIN_W, s.islandWidth || EXPANDED_W, this.headerNeed) + this.chatSideRoom));
   }
 
   /**
@@ -2907,7 +2911,7 @@ ${note}` : text };
       // animated one: caught mid-animation the corner jumped.
       start = {
         x: e.screenX, y: e.screenY,
-        w: this.paneSplit(islandMax(this.limits).w).views, h: this.height.value,
+        w: this.paneSplit(islandMax(this.limits).w).views - this.chatSideRoom, h: this.height.value,
       };
       g.setPointerCapture(e.pointerId);
     });
@@ -2922,7 +2926,7 @@ ${note}` : text };
       // still for that stretch (the corner "not under the mouse").
       const pane = this.paneShown ? this.paneSplit(max.w).pane + 10 : 0;
       const least = this.paneShown ? Math.max(PANE_VIEWS_MIN_W, this.headerNeed - pane) : Math.max(ISLAND_MIN_W, this.headerNeed);
-      const most = Math.max(least, max.w - this.railRoom - pane);
+      const most = Math.max(least, max.w - this.railRoom - pane - this.chatSideRoom);
       s.islandWidth = Math.round(clamp(start.w + (e.screenX - start.x) * fx, least, most));
       // Not below what the view needs: a height under it was saved as it was
       // (the island stopped, the number went on with the pointer), so the

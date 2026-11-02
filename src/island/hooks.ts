@@ -396,7 +396,18 @@ function showChatPermission(island: Island, payload: HookPayload, at: number) {
         : terminal ? alwaysLabel(payload.permission_suggestions) ?? sessionAlways(raw, input) ?? undefined : undefined,
     permit,
     deadline: at + DECISION_MS,
+    // Which open conversation asks: the one working when only one is, then by its engine session.
+    chatSid: State.chats.filter((c) => c.sending).length === 1 ? State.chats.find((c) => c.sending)?.sid : undefined,
   };
+  const session = payload.session_id ?? "";
+  if (session) {
+    void Bridge.chatSessionOf(session).then((sid) => {
+      const req = State.pendingApproval;
+      if (req?.requestId !== requestId) return;
+      req.chatSid = sid ?? undefined;
+      State.notify();
+    });
+  }
   if (requestId) void Bridge.approvalAck(requestId);
   State.isPinned = true;
   Sound.play("approval");

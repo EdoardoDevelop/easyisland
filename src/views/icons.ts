@@ -44,6 +44,8 @@ export const ICONS = {
   xmark: "M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4 6.4 5z",
   // clock.arrow.circlepath — the chat history (draw with a stroke)
   history: "M4.2 12a7.8 7.8 0 1 0 2.3-5.5M4.2 3.8v3.6h3.6M12 7.8v4.6l3 1.8",
+  // The chat's sidebar: a window with its left column (stroked).
+  sidebar: "M4 5h16v14H4zM9.5 5v14",
   // ellipsis
   ellipsis: "M6 10.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2zm6 0a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2zm6 0a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z",
   // star.fill

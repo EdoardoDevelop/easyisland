@@ -1198,16 +1198,55 @@ fn chat_folder(chosen: &str) -> std::path::PathBuf {
 #[tauri::command]
 async fn chat_send(
     app: AppHandle,
-    chat: State<'_, Chat>,
+    chats: State<'_, Chats>,
+    sid: String,
     query: String,
     context: Option<ChatContext>,
     engine: Option<String>,
     auto: Option<bool>,
-) -> Result<ChatReply, String> {
+) -> Result<IslandReply, String> {
+    let chat = chats.get(&sid)?;
     let on_text = |text: &str| {
-        let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "text": text }));
+        let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "sid": sid, "text": text }));
     };
-    chat_turn(&app, &chat, query, context, engine, None, auto.unwrap_or(false), Channel::Island, &on_text).await
+    let reply = chat_turn(&app, &chat, query, context, engine, None, auto.unwrap_or(false), Channel::Island, &on_text).await?;
+    Ok(IslandReply { text: reply.text, log: chat.log_id() })
+}
+
+/// A turn of the island's chat, with the conversation's id in the history
+/// (chat_log.rs): the sidebar knows which entry is this open conversation.
+#[derive(serde::Serialize)]
+struct IslandReply {
+    text: String,
+    log: Option<String>,
+}
+
+/// The island's conversations, open side by side (the chat's sidebar): each
+/// its own `Chat` (engine process, «Ferma», history entry), by the id the
+/// island gave it. Switching to another one closes nothing; `chat_close` does.
+#[derive(Default)]
+pub(crate) struct Chats(Mutex<std::collections::HashMap<String, std::sync::Arc<Chat>>>);
+
+impl Chats {
+    /// The conversation `sid`, made empty the first time.
+    fn get(&self, sid: &str) -> Result<std::sync::Arc<Chat>, String> {
+        if sid.is_empty() || sid.len() > 64 || !sid.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+            return Err(t("Conversazione sconosciuta.").into());
+        }
+        Ok(self.0.lock().unwrap().entry(sid.to_string()).or_default().clone())
+    }
+
+    fn find(&self, sid: &str) -> Option<std::sync::Arc<Chat>> {
+        self.0.lock().unwrap().get(sid).cloned()
+    }
+
+    /// The open conversation whose engine session is `session` (a permission it asks for).
+    fn of_session(&self, session: &str) -> Option<String> {
+        if session.is_empty() {
+            return None;
+        }
+        self.0.lock().unwrap().iter().find(|(_, c)| c.cli_session().as_deref() == Some(session)).map(|(k, _)| k.clone())
+    }
 }
 
 /// "Ferma": the turn in progress in the island's chat ([0]) or on Telegram
@@ -1265,8 +1304,17 @@ pub(crate) async fn until_stopped<T>(telegram: bool, turn: impl std::future::Fut
 }
 
 async fn until_stopped_at<T>(channel: Channel, turn: impl std::future::Future<Output = Result<T, String>>) -> Result<T, String> {
+    until_notified(&STOP[channel.slot()], turn).await
+}
+
+/// A turn of one of the island's conversations: its own «Ferma» (`Chat::stop`), the others go on.
+pub(crate) async fn until_stopped_in<T>(chat: &Chat, channel: Channel, turn: impl std::future::Future<Output = Result<T, String>>) -> Result<T, String> {
+    if channel == Channel::Island { until_notified(&chat.stop, turn).await } else { until_stopped_at(channel, turn).await }
+}
+
+async fn until_notified<T>(notify: &tokio::sync::Notify, turn: impl std::future::Future<Output = Result<T, String>>) -> Result<T, String> {
     let mut turn = std::pin::pin!(turn);
-    let mut stop = std::pin::pin!(STOP[channel.slot()].notified());
+    let mut stop = std::pin::pin!(notify.notified());
     std::future::poll_fn(|cx| {
         if let std::task::Poll::Ready(r) = std::future::Future::poll(turn.as_mut(), cx) {
             return std::task::Poll::Ready(r);
@@ -1279,17 +1327,36 @@ async fn until_stopped_at<T>(channel: Channel, turn: impl std::future::Future<Ou
 /// «⇄ Seconda opinione» in the island's chat: another engine reviews the last
 /// answer (second.rs); what it says rides in front of the next question.
 #[tauri::command]
-async fn chat_second(app: AppHandle, chat: State<'_, Chat>, engine: String, first: String, question: String, answer: String) -> Result<String, String> {
+async fn chat_second(app: AppHandle, chats: State<'_, Chats>, sid: String, engine: String, first: String, question: String, answer: String) -> Result<String, String> {
+    let chat = chats.get(&sid)?;
     let on_text = |text: &str| {
-        let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "text": text }));
+        let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "sid": sid, "text": text }));
     };
     second::run(&app, &chat, &engine, &first, &question, &answer, false, &on_text).await
 }
 
-/// The island's "Ferma".
+/// The island's "Ferma", on one conversation.
 #[tauri::command]
-fn chat_stop() {
-    stop_turn(false);
+fn chat_stop(chats: State<'_, Chats>, sid: String) {
+    log::line("chat: turno fermato");
+    if let Some(c) = chats.find(&sid) {
+        c.stop.notify_waiters();
+    }
+}
+
+/// A conversation closed in the sidebar: its engine's process ends, the history keeps it.
+#[tauri::command]
+fn chat_close(chats: State<'_, Chats>, sid: String) {
+    let Some(chat) = chats.0.lock().unwrap().remove(&sid) else { return };
+    chat.stop.notify_waiters();
+    claude_cli::drop_live(&chat);
+    opencode::forget(chat.cli_session());
+}
+
+/// Which open conversation a permission comes from (its engine session), if any.
+#[tauri::command]
+fn chat_session_of(chats: State<'_, Chats>, session: String) -> Option<String> {
+    chats.of_session(&session)
 }
 
 /// A chat turn on `chat`: the island's conversation (`chat_send`) or
@@ -1465,7 +1532,7 @@ pub(crate) async fn chat_turn(
         (None, e) if openai::ENGINES.contains(&e) => openai::send(chat, &engine, &other_model, url.as_deref(), query, context, on_text).await,
         (None, _) => claude_cli::send_kept(chat, &cli_model, &mcp, agent, query, context, None, false, on_text, telegram, work.as_deref()).await,
     } };
-    let reply = until_stopped_at(channel, work_turn).await;
+    let reply = until_stopped_in(chat, channel, work_turn).await;
     let first = first_text.lock().unwrap().map_or_else(|| "-".to_string(), |ms| format!("{:.1} s", ms as f64 / 1000.0));
     log::line(format!(
         "chat: turno {engine}{} in {:.1} s (primo testo {first}){}{}",
@@ -1629,7 +1696,8 @@ fn selection_menu(app: AppHandle, entries: Vec<tray::MenuEntry>) {
 }
 
 #[tauri::command]
-fn chat_reset(chat: State<Chat>) {
+fn chat_reset(chats: State<'_, Chats>, sid: String) {
+    let Ok(chat) = chats.get(&sid) else { return };
     let before = chat.cli_session();
     chat.reset();
     chat.set_persona(None);
@@ -1644,7 +1712,8 @@ fn chat_history_list() -> Vec<chat_log::Summary> {
 
 /// Reopens a conversation from the history in place of the current one.
 #[tauri::command]
-fn chat_history_open(shared: State<'_, Shared>, chat: State<'_, Chat>, id: String) -> Result<chat_log::Opened, String> {
+fn chat_history_open(shared: State<'_, Shared>, chats: State<'_, Chats>, sid: String, id: String) -> Result<chat_log::Opened, String> {
+    let chat = chats.get(&sid)?;
     let before = chat.cli_session();
     let engine = chat_log::engine_of(&id).ok_or_else(|| t("Questa conversazione non c'è più.").to_string())?;
     // The key chat_send will compute for this engine, so it does not start over.
@@ -1815,7 +1884,8 @@ fn chat_history_rename(id: String, title: String) {
 
 /// «Modifica» / «Rigenera»: the conversation goes back to its first lines.
 #[tauri::command]
-fn chat_rewind(chat: State<'_, Chat>, keep: Vec<chat_log::Line>) {
+fn chat_rewind(chats: State<'_, Chats>, sid: String, keep: Vec<chat_log::Line>) {
+    let Ok(chat) = chats.get(&sid) else { return };
     let before = chat.cli_session();
     chat_log::rewind(&chat, keep);
     opencode::forget(before);
@@ -1823,19 +1893,21 @@ fn chat_rewind(chat: State<'_, Chat>, keep: Vec<chat_log::Line>) {
 
 /// «Continua in Claude Desktop»: the chat's Claude Code session opens in the desktop app (desktop.rs).
 #[tauri::command]
-async fn chat_to_desktop(chat: State<'_, Chat>) -> Result<(), String> {
+async fn chat_to_desktop(chats: State<'_, Chats>, sid: String) -> Result<(), String> {
+    let chat = chats.get(&sid)?;
     desktop::hand_off(&chat).await
 }
 
 /// What was said in Claude Desktop since then; `done` when the island goes on with the session.
 #[tauri::command]
-fn chat_desktop_pull(chat: State<'_, Chat>, done: bool) -> Vec<chat_log::Line> {
-    desktop::pull(&chat, "subscription", done)
+fn chat_desktop_pull(chats: State<'_, Chats>, sid: String, done: bool) -> Vec<chat_log::Line> {
+    chats.find(&sid).map(|c| desktop::pull(&c, "subscription", done)).unwrap_or_default()
 }
 
 /// «⑂ Dirama da qui»: a new conversation from the first lines of this one.
 #[tauri::command]
-fn chat_fork(chat: State<'_, Chat>, keep: Vec<chat_log::Line>) {
+fn chat_fork(chats: State<'_, Chats>, sid: String, keep: Vec<chat_log::Line>) {
+    let Ok(chat) = chats.get(&sid) else { return };
     let before = chat.cli_session();
     chat_log::fork(&chat, keep);
     opencode::forget(before);
@@ -1844,8 +1916,10 @@ fn chat_fork(chat: State<'_, Chat>, keep: Vec<chat_log::Line>) {
 /// An assistant (Impostazioni → Chat → Assistenti) for the conversation that
 /// starts: its instructions go in front of the first question. None = none.
 #[tauri::command]
-fn chat_persona(chat: State<'_, Chat>, instructions: Option<String>) {
-    chat.set_persona(instructions);
+fn chat_persona(chats: State<'_, Chats>, sid: String, instructions: Option<String>) {
+    if let Ok(chat) = chats.get(&sid) {
+        chat.set_persona(instructions);
+    }
 }
 
 /// 🎤 in the chat: what was said, through the service of Telegram's «Vocali»
@@ -3660,7 +3734,7 @@ pub fn run() {
             gate: gate.clone(),
         })
         .manage(Pending::default())
-        .manage(Chat::default())
+        .manage(Chats::default())
         .invoke_handler(tauri::generate_handler![
             boot,
             save_settings,
@@ -3752,6 +3826,8 @@ pub fn run() {
             log_line,
             chat_send,
             chat_stop,
+            chat_close,
+            chat_session_of,
             notion_map_status,
             recipes_count,
             recipes_forget,

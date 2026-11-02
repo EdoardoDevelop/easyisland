@@ -82,7 +82,7 @@ pub(crate) async fn run(
             _ => Err(crate::i18n::t("Motore della chat sconosciuto.").into()),
         }
     };
-    let reply = crate::until_stopped(telegram, turn).await;
+    let reply = if telegram { crate::until_stopped(true, turn).await } else { crate::until_stopped_in(main, crate::Channel::Island, turn).await };
     crate::opencode::forget(chat.cli_session());
     let text = reply?.text;
     let before = main.take_preamble().unwrap_or_default();
