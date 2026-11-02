@@ -1326,6 +1326,11 @@ function msAccountRows(): HTMLElement {
 /** The Agent Chat server, to install on one's own server (README with Docker). */
 const AGENTCHAT_REPO = "https://github.com/EdoardoDevelop/agentchat";
 
+/** 12400 → "12k", 950 → "950". */
+function tokensText(n: number): string {
+  return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n);
+}
+
 /** Agent Chat (agentchat.rs): who EasyIsland is in the chat, the engines that answer, «Riprendi». */
 function agentchatRows(): HTMLElement {
   const c = settings.integrationConfig;
@@ -1352,12 +1357,12 @@ function agentchatRows(): HTMLElement {
       : t("In ascolto come @{name}", { name: s.name });
     resume.style.display = s.stopped ? "" : "none";
     who.textContent = s.engines.length
-      ? t("Rispondono {list}. Turni nell'ultima ora: {n} su {max}.", { list: s.engines.map(([n, e]) => `@${n} (${e})`).join(", "), n: s.turns, max: s.perHour })
+      ? t("Rispondono {list}. Turni nell'ultima ora: {n} su {max}.", { list: s.engines.map(([n, e, today, tokens]) => `@${n} (${e}, ${t("oggi {n} turni, ≈{k} token", { n: today ?? 0, k: tokensText(tokens ?? 0) })})`).join(", "), n: s.turns, max: s.perHour })
       : t("Nessun motore pronto: scegline uno in Impostazioni → Chat.");
     last.textContent = s.last;
   };
   resume.addEventListener("click", async () => { await Bridge.agentchatResume(); await refresh(); });
-  // The engines that answer: each one is «name/engine» in the chat.
+  // The engines that answer: each one is «pc/engine» in the chat, and the name the user gives it («lia»).
   const engines = h("div", { class: "row", style: "flex-wrap:wrap;gap:10px" }, h("label", { text: t("Motori") }));
   void Bridge.enginesReady().then((list) => {
     for (const [id, name, ok] of list ?? []) {
@@ -1371,14 +1376,24 @@ function agentchatRows(): HTMLElement {
         void save();
         void refresh();
       });
-      engines.append(h("label", { style: "display:flex;gap:4px;align-items:center;min-width:0", title: ok ? "" : t("non pronto") }, cb, h("span", { text: name })));
+      const nick = h("input", { type: "text", placeholder: t("nome"), title: t("Il suo nome in chat: lo chiami con @nome"), style: "width:84px" }) as HTMLInputElement;
+      nick.value = (c.agentchatNames ?? {})[id] ?? "";
+      nick.addEventListener("change", () => {
+        const v = nick.value.trim().replace(/^@+/, "").toLowerCase();
+        nick.value = v;
+        const names = { ...(c.agentchatNames ?? {}) };
+        if (v) names[id] = v; else delete names[id];
+        c.agentchatNames = names;
+        void save().then(() => Bridge.agentchatRestart()).then(() => window.setTimeout(() => void refresh(), 1500));
+      });
+      engines.append(h("label", { style: "display:flex;gap:4px;align-items:center;min-width:0", title: ok ? "" : t("non pronto") }, cb, h("span", { text: name }), nick));
     }
   });
   box.append(
     install,
     h("div", { class: "row" }, h("b", { text: t("Stato") }), state, resume),
     engines,
-    h("div", { class: "hint note", text: t("Nessun motore scelto = quello della chat. Ogni motore risponde per conto suo; Claude, se c'è (se no il primo della lista), è il capo: decide chi esegue e scrive la sintesi delle consulte.") }),
+    h("div", { class: "hint note", text: t("Nessun motore scelto = quello della chat. Dai a ogni motore un nome (per esempio «lia»): in chat lo chiami con @lia. A un messaggio senza destinatario risponde un solo motore in tutta la chat: il capo (Claude, se c'è) del primo PC che lo prende in carico. Con @tutti o «Consulta» rispondono tutti; gli altri motori lavorano quando li chiami per nome o glielo affida il capo.") }),
     who, last);
   void refresh();
   const timer = window.setInterval(() => { if (!box.isConnected) window.clearInterval(timer); else void refresh(); }, 4000);

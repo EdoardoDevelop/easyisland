@@ -27,7 +27,7 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 - [ ] **Remote Desktop Manager:** predisposto; prova la settimana prossima sul PC con RDM (`docs/prove-dal-vivo.md`), poi i passi in `docs/idee.md`.
 - [ ] **Clic destro in Esplora file:** voci di EasyIsland sui file («Manda a EasyIsland», azioni sui file), deciso con Edoardo l'11 ottobre come passo successivo al menu sulla selezione (`docs/idee.md`).
 - [ ] **opencode:** card per lo strumento `question` anche nella chat (per l'agente c'è), controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
-- [ ] **Agent Chat** (1.0.18 e 1.0.19, 1° novembre 2026): server pubblicato sulla VPS, token `casa` creato e collegato; da provare dal vivo le risposte dei motori, il capo che affida un lavoro e l'ascolto spento dall'isola (`docs/prove-dal-vivo.md`).
+- [ ] **Agent Chat** (1.0.18 e 1.0.19, 1° novembre 2026): server pubblicato sulla VPS, token `casa` creato e collegato; da provare dal vivo le risposte dei motori, il capo che affida un lavoro e l'ascolto spento dall'isola (`docs/prove-dal-vivo.md`). Nel branch `claude/agentchat-autonomi` (non unito): permessi «Autonomi», ALLEGA, stop con «fermo/fermi», e dal 2 novembre presa in carico (una risposta sola ai messaggi generici), nomi scelti nelle Impostazioni, consumo per motore. Da provare: un «ciao» con i due PC accesi (deve rispondere uno solo), `@nome`, un nome già preso.
 - [ ] **Spunti dall'app originale:** Amp/Hermes, limiti di Codex, riepilogo condivisibile come immagine, GitHub (`docs/idee.md`).
 - [ ] **Prova dal vivo dei nuovi personaggi** (`docs/prove-dal-vivo.md`).
 - [ ] **Modalità chiara:** guardare tutte le schede dell'isola e le pagine delle Impostazioni in chiaro con l'app vera e correggere in `src/style-light.css` / `settings-light.css` ciò che il plugin sbaglia (colori in linea nel codice TypeScript non cambiano).
@@ -52,6 +52,9 @@ Solo lo stato attuale. Come funziona il codice: `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archivio/registro.md`.
 
+### 2 novembre 2026 — Agent Chat: presa in carico, nomi, consumo
+I motori gratuiti finivano i messaggi e due PC facevano lo stesso lavoro: a un messaggio generico risponde un solo motore in tutta la chat, il capo del primo EasyIsland che lo prende in carico sul server (`/api/messages/<id>/claim`, subito, senza attese). Nomi dei motori scelti nelle Impostazioni (`/api/aliases`, unici), `@lia` al posto di `@casa/claude`. Turni e token stimati per motore nella scheda. Server ripubblicato sulla VPS.
+
 ### 1° novembre 2026 — Agent Chat: motori autonomi, Claude capo, scheda nell'isola, recupero e memoria (versione 1.0.19)
 - Un messaggio di Edoardo che non nomina nessuno lo ricevono tutti i motori, ognuno per conto suo; `@tutti` chiama tutti. Claude (o il primo) è il capo: per le esecuzioni decide chi le fa e le affida per nome, e un motore può chiamarne un altro dello stesso EasyIsland (`plan`, `role`, `lead`). La catena fra agenti conta solo i messaggi che chiamano qualcuno.
 - Scheda **Agent Chat** nell'isola (`src/views/agentchat.ts`): stato, motori, ultimi messaggi, ascolto acceso o spento (`agentchatListen`). Nelle Impostazioni il link al repository del server, ora pubblico (storia ripulita: un solo commit senza i dati della VPS).
@@ -71,8 +74,3 @@ Al massimo 5 voci, la più recente in alto. Le più vecchie vanno in `docs/archi
 
 ### 31 ottobre 2026 — «Parla»: la voce sul PC (in `claude/sviluppo`)
 - <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> accende il microfono (WASAPI di Registra) con la card «Ti ascolto»; a una pausa trascrive con il servizio dei Vocali e manda la domanda alla chat; con «Rispondi a voce» la risposta si sente dagli altoparlanti (`talk.rs`, `src/views/talk.ts`). Test Rust, scene `talk` e `talk&hearing`; non provato con il microfono vero.
-
-### 31 ottobre 2026 — «Prepara» un ticket Zammad (in `claude/sviluppo`)
-- Un ticket appena assegnato a me fa comparire la proposta «Ticket assegnato a te»; «Prepara» apre la chat con il ticket, la pagina del cliente in memoria e fino a 3 ticket simili (chiusi prima, con come sono finiti) e chiede riassunto e bozza di risposta (`zammad::prepare`, `moment_tickets`). Scena `moment&moment=ticket`; test Rust, non provato con Zammad vero.
-
-

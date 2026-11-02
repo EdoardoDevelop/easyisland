@@ -7,12 +7,23 @@
 //!   token (`agentchat-token`, made in the chat's page, «Agenti»): the server
 //!   decides the name from the token (`/api/me`), e.g. «notebook».
 //! - Every engine taking part is a name of its own under it: «notebook/claude»,
-//!   «notebook/codex» (`handle`). «@notebook» and «@tutti» call them all,
-//!   «@notebook/codex» one, and so does a message of the owner that names
-//!   nobody (Edoardo, 1 Nov 2026: «devono rispondere tutti… come se fossero
-//!   separati»). A «consulta» (kind `consult`) is answered by all of them, in
-//!   its thread; then, unless another EasyIsland is named in it, the lead writes
-//!   the synthesis once the thread is quiet.
+//!   «notebook/codex» (`handle`), and may have a name the user chooses in the
+//!   settings (`agentchatNames`, «lia»), kept unique by the server
+//!   (`/api/aliases`, `sync_names`): «@lia» calls it (`with_handles`), the
+//!   prompts and the page show «lia».
+//! - Who answers (Edoardo, 2 Nov 2026: the free engines ran out of messages,
+//!   two PCs did the same job, «deve essere il più veloce possibile»): a
+//!   message of the owner that names nobody is answered by ONE engine in the
+//!   whole chat, the lead of the first EasyIsland that takes it on
+//!   (`/api/messages/<id>/claim`, `claim`: at once, no waiting for the other PC
+//!   to be off); if the lead fails, the next engine of the same PC.
+//!   «@notebook» calls its lead, «@lia» / «@notebook/codex» that engine.
+//!   «@tutti» and a «consulta» (kind `consult`) are answered by all of them;
+//!   with «@tutti» the first to take it on is the boss for doing things. After
+//!   a consult, unless another EasyIsland is named in it, the lead writes the
+//!   synthesis once the thread is quiet.
+//! - Turns and an estimate of the tokens (characters / 4) per engine, today,
+//!   on the island's card and in the settings (`count`).
 //! - The lead (`lead`: Claude when it takes part) is the boss for doing things:
 //!   the others give their view and do a job only when it is handed to them by
 //!   name, by the lead or the owner. A message of one engine of this EasyIsland
@@ -79,8 +90,8 @@ const URL_KEY: &str = "agentchat-url";
 const TOKEN_KEY: &str = "agentchat-token";
 /// How long a read of new messages waits.
 const POLL_SECS: u64 = 50;
-/// Messages of the room given to a turn.
-const HISTORY: i64 = 25;
+/// Messages of the room given to a turn (fewer = fewer tokens at every turn).
+const HISTORY: i64 = 12;
 /// A message in the prompt, at most (characters).
 const MAX_LINE: usize = 1500;
 /// What EasyIsland posts, at most (characters).
@@ -114,6 +125,9 @@ pub(crate) struct Msg {
     /// Its attachments.
     #[serde(default)]
     pub files: Vec<FileRef>,
+    /// Who took it on (`claim`): one agent works on it.
+    #[serde(default)]
+    pub claimed_by: Option<String>,
 }
 
 /// An attachment as the server describes it.
@@ -185,6 +199,89 @@ static RECENT: Mutex<VecDeque<Msg>> = Mutex::new(VecDeque::new());
 const RECENT_MAX: usize = 40;
 /// For `publish`, from wherever the status changes.
 static APP: std::sync::OnceLock<AppHandle> = std::sync::OnceLock::new();
+/// The names in the chat (`/api/aliases`): «lia» → «casa/claude».
+static NAMES: LazyLock<Mutex<HashMap<String, String>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+/// When they were last read.
+static NAMES_AT: Mutex<Option<Instant>> = Mutex::new(None);
+/// Per engine, today (yyyymmdd): turns and an estimate of the tokens.
+static TODAY: LazyLock<Mutex<(u32, HashMap<String, (u32, u64)>)>> = LazyLock::new(|| Mutex::new((0, HashMap::new())));
+
+fn today() -> u32 {
+    let t = unsafe { windows::Win32::System::SystemInformation::GetLocalTime() };
+    t.wYear as u32 * 10_000 + t.wMonth as u32 * 100 + t.wDay as u32
+}
+
+/// One turn of an engine, with what went in and out (characters / 4 ≈ tokens).
+fn count(engine: &str, chars: usize) {
+    let mut d = TODAY.lock().unwrap();
+    let day = today();
+    if d.0 != day {
+        *d = (day, HashMap::new());
+    }
+    let e = d.1.entry(engine.to_string()).or_default();
+    e.0 += 1;
+    e.1 += (chars / 4) as u64;
+}
+
+/// An engine's turns and estimated tokens today.
+fn counted(engine: &str) -> (u32, u64) {
+    let d = TODAY.lock().unwrap();
+    if d.0 != today() {
+        return (0, 0);
+    }
+    d.1.get(engine).copied().unwrap_or_default()
+}
+
+/// Its name in the chat for a handle: «lia» for «casa/claude», else the handle.
+fn name_of(handle: &str) -> String {
+    NAMES.lock().unwrap().iter().find(|(_, h)| h.as_str() == handle).map_or_else(|| handle.to_string(), |(a, _)| a.clone())
+}
+
+/// For the prompts: «lia (casa/claude)», or the handle when it has no name.
+fn shown(handle: &str) -> String {
+    let n = name_of(handle);
+    if n == handle {
+        n
+    } else {
+        format!("{n} ({handle})")
+    }
+}
+
+/// The names for the prompt: «@lia = casa/claude, …».
+fn names_line() -> String {
+    let mut list: Vec<String> = NAMES.lock().unwrap().iter().map(|(a, h)| format!("@{a} = {h}")).collect();
+    if list.is_empty() {
+        return String::new();
+    }
+    list.sort();
+    tf("\nNomi in chat: {list}. Chiama gli altri per nome (@nome).", &[("list", &list.join(", "))])
+}
+
+/// The text with every @name written as the handle it stands for («@lia» →
+/// «@casa/claude»), so that `plan` sees who is called.
+pub(crate) fn with_handles(text: &str, names: &HashMap<String, String>) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::new();
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        let at = c == '@' && (i == 0 || !(chars[i - 1].is_alphanumeric() || chars[i - 1] == '_'));
+        if at {
+            let word: String = chars.iter().skip(i + 1).take_while(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '/')).collect();
+            let core = word.trim_end_matches(['.', '-', '/', '_']);
+            if let Some(h) = names.get(&core.to_lowercase()) {
+                out.push('@');
+                out.push_str(h);
+                out.push_str(word.get(core.len()..).unwrap_or_default());
+                i += 1 + word.chars().count();
+                continue;
+            }
+        }
+        out.push(c);
+        i += 1;
+    }
+    out
+}
 
 /// What the settings show.
 #[derive(Serialize)]
@@ -202,8 +299,8 @@ pub struct Info {
     turns: usize,
     per_hour: u32,
     last: String,
-    /// Who answers: (name in the chat, engine).
-    engines: Vec<(String, String)>,
+    /// Who answers: (name in the chat, engine, turns today, tokens today ≈).
+    engines: Vec<(String, String, u32, u64)>,
 }
 
 fn set_status(change: impl FnOnce(&mut Status)) {
@@ -234,8 +331,13 @@ pub fn publish(app: &AppHandle) {
     let engines: Vec<Value> = cfg
         .engines
         .iter()
-        .map(|e| json!({ "name": if st.name.is_empty() { handle(e) } else { format!("{}/{}", st.name, handle(e)) }, "engine": engine_name(app, e), "lead": *e == lead }))
+        .map(|e| {
+            let (turns, tokens) = counted(e);
+            let h = if st.name.is_empty() { handle(e) } else { format!("{}/{}", st.name, handle(e)) };
+            json!({ "name": name_of(&h), "handle": h, "engine": engine_name(app, e), "lead": *e == lead, "today": turns, "tokens": tokens })
+        })
         .collect();
+    let names: HashMap<String, String> = NAMES.lock().unwrap().iter().map(|(a, h)| (h.clone(), a.clone())).collect();
     let data = json!({
         "configured": url.is_some() && crate::secrets::get(TOKEN_KEY).is_some(),
         "listening": cfg.listen,
@@ -250,6 +352,7 @@ pub fn publish(app: &AppHandle) {
         "last": st.last,
         "url": url.map(|u| format!("{u}/")),
         "engines": engines,
+        "names": names,
         "messages": RECENT.lock().unwrap().iter().cloned().collect::<Vec<_>>(),
     });
     crate::integrations::emit(app, crate::integrations::IntegrationUpdate { id: ID, data, error: None, event: None });
@@ -366,7 +469,14 @@ pub fn info(app: &AppHandle) -> Info {
         turns: turns_in_hour(),
         per_hour: cfg.per_hour,
         last: st.last,
-        engines: cfg.engines.iter().map(|e| (if name.is_empty() { handle(e) } else { format!("{name}/{}", handle(e)) }, engine_name(app, e))).collect(),
+        engines: cfg
+            .engines
+            .iter()
+            .map(|e| {
+                let (turns, tokens) = counted(e);
+                (if name.is_empty() { handle(e) } else { name_of(&format!("{name}/{}", handle(e))) }, engine_name(app, e), turns, tokens)
+            })
+            .collect(),
         name,
     }
 }
@@ -485,6 +595,52 @@ async fn post_with(srv: &Server, room: &str, text: &str, sender: &str, thread: O
     serde_json::from_value(answer(resp).await?).map_err(|e| e.to_string())
 }
 
+/// Takes the message on: who has it now (`by` when this EasyIsland got it first).
+async fn claim(srv: &Server, id: i64, by: &str) -> Result<String, String> {
+    let resp = client(10)?.post(format!("{}/api/messages/{id}/claim", srv.url)).bearer_auth(&srv.token).json(&json!({ "sender": by })).send().await.map_err(|e| net_error(&e))?;
+    if resp.status().as_u16() == 409 {
+        let v: Value = resp.json().await.unwrap_or(Value::Null);
+        return v.get("claimed_by").and_then(Value::as_str).map(str::to_string).ok_or_else(|| "409".to_string());
+    }
+    let v = answer(resp).await?;
+    Ok(v.get("claimed_by").and_then(Value::as_str).unwrap_or(by).to_string())
+}
+
+/// The names of the chat, read again.
+async fn load_names(srv: &Server) {
+    *NAMES_AT.lock().unwrap() = Some(Instant::now());
+    if let Ok(map) = get(srv, "/api/aliases", 20).await.and_then(|v| serde_json::from_value::<HashMap<String, String>>(v).map_err(|e| e.to_string())) {
+        *NAMES.lock().unwrap() = map;
+    }
+}
+
+/// The names chosen in the settings onto the server, for this EasyIsland's
+/// engines (an empty one takes the name away); what the server refused.
+async fn sync_names(app: &AppHandle, srv: &Server, me: &str) -> Vec<String> {
+    let chosen = app.try_state::<crate::Shared>().map(|s| s.settings.lock().unwrap().integration_config.agentchat_names.clone()).unwrap_or_default();
+    let mut body = serde_json::Map::new();
+    for (id, _, _) in crate::telegram::engines(app) {
+        let name = chosen.get(id).map(|n| n.trim().trim_start_matches('@').to_lowercase()).unwrap_or_default();
+        body.insert(format!("{me}/{}", handle(id)), json!(name));
+    }
+    let sent = match client(20) {
+        Ok(c) => c.post(format!("{}/api/aliases", srv.url)).bearer_auth(&srv.token).json(&json!({ "aliases": body })).send().await.map_err(|e| net_error(&e)),
+        Err(e) => Err(e),
+    };
+    // A server without names (older): nothing to say.
+    let Ok(v) = (match sent {
+        Ok(resp) => answer(resp).await,
+        Err(e) => Err(e),
+    }) else {
+        return Vec::new();
+    };
+    if let Some(map) = v.get("aliases").and_then(|a| serde_json::from_value::<HashMap<String, String>>(a.clone()).ok()) {
+        *NAMES.lock().unwrap() = map;
+        *NAMES_AT.lock().unwrap() = Some(Instant::now());
+    }
+    v.get("refused").and_then(Value::as_object).map(|o| o.iter().map(|(h, why)| format!("{h}: {}", why.as_str().unwrap_or_default())).collect()).unwrap_or_default()
+}
+
 /// Who the token is, the owner's name and the last message's id.
 async fn hello(srv: &Server) -> Result<(String, String, i64), String> {
     let me = get(srv, "/api/me", 20).await?;
@@ -535,6 +691,10 @@ pub fn spawn(app: AppHandle) {
                             s.error = None;
                             s.running = true;
                         });
+                        let refused = sync_names(&app, &srv, &name).await;
+                        if !refused.is_empty() {
+                            note_last(tf("Nomi non accettati dalla chat: {list}", &[("list", &refused.join("; "))]));
+                        }
                         // What came while EasyIsland was off goes to the lead in one turn;
                         // the listening goes on from the last message.
                         if let Some(from) = saved.filter(|f| *f < last) {
@@ -555,6 +715,9 @@ pub fn spawn(app: AppHandle) {
                         continue;
                     }
                 }
+            }
+            if NAMES_AT.lock().unwrap().is_none_or(|t| t.elapsed() > Duration::from_secs(300)) {
+                load_names(&srv).await;
             }
             let rooms = config(&app).rooms.join(",");
             let poll = tokio::spawn({
@@ -609,6 +772,13 @@ pub(crate) struct Plan {
     pub to_owner: bool,
     /// This EasyIsland writes the consult's synthesis.
     pub synthesis: bool,
+    /// The owner wrote to nobody: one engine in the whole chat answers, of the
+    /// EasyIsland that takes it on first (nothing here when another has it).
+    pub exclusive: bool,
+    /// «@tutti»: everyone answers, whoever takes it on first is the boss.
+    pub claim: bool,
+    /// Who took it on (`on_message`).
+    pub boss: Option<String>,
 }
 
 /// The @names in a text, lower case, without the final punctuation.
@@ -691,14 +861,19 @@ pub(crate) fn plan(m: &Msg, me: &str, owner: &str, engines: &[String], synthesis
     if m.kind == "synthesis" {
         return p;
     }
-    // The owner writing to nobody in particular: every engine, each on its own.
+    // The owner writing to nobody in particular: the lead, if this EasyIsland
+    // takes it on first (Edoardo, 2 Nov 2026: one answer, not one per engine and PC).
     if !owner.is_empty() && sender == owner && names.iter().all(|x| x == owner) {
-        p.engines = engines.to_vec();
+        p.engines = lead(engines).cloned().into_iter().collect();
+        p.exclusive = !p.engines.is_empty();
         return p;
     }
     for x in addressed {
-        let pick: Vec<String> = if x == me || everyone(x) {
+        let pick: Vec<String> = if everyone(x) {
+            p.claim = true;
             engines.to_vec()
+        } else if x == me {
+            lead(engines).cloned().into_iter().collect()
         } else {
             let h = x.get(me.len() + 1..).unwrap_or_default();
             engines.iter().filter(|e| handle(e) == h).cloned().collect()
@@ -800,7 +975,14 @@ async fn on_message(app: &AppHandle, srv: &Server, m: Msg) {
     // or the owner (who starts over). A plain answer to the owner calls no one.
     let calls = mentions(&m.text).iter().any(|x| *x != owner);
     let free = if from_owner || calls { CHAIN.lock().unwrap().see(&m.room, from_owner, cfg.chain) } else { true };
-    let p = plan(&m, &me, &owner, &cfg.engines, cfg.synthesis);
+    // A name not known yet («@lia» chosen a minute ago on the other PC): read them again.
+    let unknown = mentions(&m.text).iter().any(|x| !x.contains('/') && *x != me && *x != owner && !matches!(x.as_str(), "tutti" | "all" | "everyone") && !NAMES.lock().unwrap().contains_key(x));
+    if unknown && NAMES_AT.lock().unwrap().is_none_or(|t| t.elapsed() > Duration::from_secs(20)) {
+        load_names(srv).await;
+    }
+    let names = NAMES.lock().unwrap().clone();
+    let resolved = Msg { text: with_handles(&m.text, &names), ..m.clone() };
+    let mut p = plan(&resolved, &me, &owner, &cfg.engines, cfg.synthesis);
     if p.to_owner && !from_owner && !p.stop {
         show(app, srv, &tf("{who} ti scrive in Agent Chat", &[("who", &m.sender)]), &m.text);
     }
@@ -829,6 +1011,25 @@ async fn on_message(app: &AppHandle, srv: &Server, m: Msg) {
         }
         return;
     }
+    if p.exclusive || p.claim {
+        // Nothing to take on when this EasyIsland could not answer anyway.
+        if p.exclusive && turns_in_hour() >= cfg.per_hour as usize {
+            return;
+        }
+        let by = lead(&cfg.engines).map(|l| format!("{me}/{}", handle(l))).unwrap_or_default();
+        match claim(srv, m.id, &by).await {
+            Ok(holder) if holder == by => p.boss = Some(holder),
+            Ok(holder) => {
+                if p.exclusive {
+                    note_last(tf("Il #{id} l'ha preso in carico {who}.", &[("id", &m.id), ("who", &name_of(&holder))]));
+                    return;
+                }
+                p.boss = Some(holder);
+            }
+            // An older server, or a network error: answer as before.
+            Err(e) => log::line(format!("agentchat: presa in carico del #{}: {e}", m.id)),
+        }
+    }
     let job = tokio::spawn(respond(app.clone(), srv.clone(), cfg, me, owner, m, p));
     track(job.abort_handle());
     publish(app);
@@ -836,9 +1037,22 @@ async fn on_message(app: &AppHandle, srv: &Server, m: Msg) {
 
 /// The answers of the engines to one message, then the synthesis of a consult.
 async fn respond(app: AppHandle, srv: Server, cfg: Config, me: String, owner: String, m: Msg, p: Plan) {
+    if p.exclusive {
+        // One answer: the lead, else the next engine when it fails (a free
+        // engine out of messages, an error), so that what was taken on is answered.
+        let mut order = p.engines.clone();
+        order.extend(cfg.engines.iter().filter(|e| !p.engines.contains(e)).cloned());
+        for engine in order {
+            if STOPPED.load(Ordering::SeqCst) || turn(app.clone(), srv.clone(), cfg.clone(), me.clone(), owner.clone(), m.clone(), engine, false, p.boss.clone()).await {
+                break;
+            }
+        }
+        publish(&app);
+        return;
+    }
     let mut jobs = Vec::new();
     for engine in p.engines.clone() {
-        let job = tokio::spawn(turn(app.clone(), srv.clone(), cfg.clone(), me.clone(), owner.clone(), m.clone(), engine, p.consult));
+        let job = tokio::spawn(turn(app.clone(), srv.clone(), cfg.clone(), me.clone(), owner.clone(), m.clone(), engine, p.consult, p.boss.clone()));
         track(job.abort_handle());
         jobs.push(job);
     }
@@ -862,10 +1076,12 @@ fn transcript(list: &[Msg]) -> String {
                 "synthesis" => " (sintesi)",
                 _ => "",
             };
+            let who = shown(&x.sender);
+            let taken = x.claimed_by.as_deref().map(|c| tf(" (preso in carico da {who})", &[("who", &name_of(c))])).unwrap_or_default();
             if x.files.is_empty() {
-                format!("#{} [{}{mark}]{kind}: {text}", x.id, x.sender)
+                format!("#{} [{who}{mark}]{kind}{taken}: {text}", x.id)
             } else {
-                format!("#{} [{}{mark}]{kind}: {text} {}", x.id, x.sender, files_line(&x.files))
+                format!("#{} [{who}{mark}]{kind}{taken}: {text} {}", x.id, files_line(&x.files))
             }
         })
         .collect::<Vec<_>>()
@@ -877,13 +1093,13 @@ pub(crate) fn role(me: &str, owner: &str, engines: &[String], engine: &str) -> S
     if engines.len() < 2 {
         return String::new();
     }
-    let name = |e: &String| format!("@{me}/{}", handle(e));
+    let name = |e: &String| format!("@{}", name_of(&format!("{me}/{}", handle(e))));
     let others = engines.iter().filter(|e| *e != engine).map(name).collect::<Vec<_>>().join(", ");
     let Some(lead) = lead(engines) else { return String::new() };
     if lead == engine {
-        tf("\nSei il capo dei motori di questo EasyIsland: rispondono anche {others}, ognuno per conto suo. Se il messaggio chiede di eseguire qualcosa (comandi, modifiche, operazioni con effetti reali) decidi tu chi lo fa: tu stesso, o un altro motore chiamandolo con @nome e dicendogli esattamente cosa fare; un lavoro complesso potete dividerlo. Chiama un altro motore solo per affidargli un compito, mai per salutare o ringraziare.", &[("others", &others)])
+        tf("\nSei il capo dei motori di questo EasyIsland; gli altri sono {others}. Ai messaggi senza destinatario rispondi solo tu. Se serve eseguire qualcosa decidi tu chi lo fa: di solito tu stesso; un altro motore solo per un lavoro lungo o che sa fare meglio, chiamandolo con @nome e dicendogli esattamente cosa fare. Ogni turno di un motore consuma messaggi e token: non coinvolgerlo per ciò che fai da solo, mai per salutare o ringraziare.", &[("others", &others)])
     } else {
-        tf("\nIl capo dei motori di questo EasyIsland è {lead}: rispondono anche {others}, ognuno per conto suo. Se il messaggio chiede di eseguire qualcosa (comandi, modifiche, operazioni con effetti reali) non farlo di tua iniziativa: dai il tuo parere su come farlo o proponiti, decide {lead}. Lo esegui quando è affidato proprio a te per nome da {lead} o da @{owner}: gli incarichi di {lead} valgono come richieste di @{owner}. Chiama un altro motore solo per affidargli un compito, mai per salutare o ringraziare.", &[("lead", &name(lead)), ("others", &others), ("owner", &owner)])
+        tf("\nIl capo dei motori di questo EasyIsland è {lead}; gli altri sono {others}. Rispondi a ciò che ti viene chiesto. Se il messaggio chiede di eseguire qualcosa (comandi, modifiche, operazioni con effetti reali) non farlo di tua iniziativa, decide {lead}: lo esegui quando è affidato proprio a te per nome da {lead} o da @{owner}; gli incarichi di {lead} valgono come richieste di @{owner}. Chiama un altro motore solo per affidargli un compito, mai per salutare o ringraziare.", &[("lead", &name(lead)), ("others", &others), ("owner", &owner)])
     }
 }
 
@@ -910,19 +1126,26 @@ pub(crate) fn clean_reply(text: &str) -> Option<String> {
 async fn engine_turn(app: &AppHandle, engine: &str, prompt: String) -> Result<String, String> {
     let chat = Chat::default();
     chat.set_channel("agentchat");
+    let sent = prompt.chars().count();
     let reply = crate::chat_turn(app, &chat, prompt, None, Some(engine.to_string()), None, false, crate::Channel::AgentChat, &|_| {}).await;
     if engine == "opencode" {
         crate::opencode::forget(chat.cli_session());
     }
+    count(engine, sent + reply.as_ref().map_or(0, |r| r.text.chars().count()));
+    if let Some(app) = APP.get() {
+        publish(app);
+    }
     reply.map(|r| r.text)
 }
 
+/// One engine's answer to a message; false when the engine could not answer
+/// (an error, the hourly limit), so that another one may.
 #[allow(clippy::too_many_arguments)]
-async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: String, m: Msg, engine: String, consult: bool) {
+async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: String, m: Msg, engine: String, consult: bool, boss: Option<String>) -> bool {
     let gen = GEN.load(Ordering::SeqCst);
-    let Ok(_permit) = TURNS.acquire().await else { return };
+    let Ok(_permit) = TURNS.acquire().await else { return false };
     if gen != GEN.load(Ordering::SeqCst) {
-        return;
+        return true;
     }
     if !take_turn(cfg.per_hour) {
         let mut told = LIMIT_TOLD.lock().unwrap();
@@ -932,7 +1155,7 @@ async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: Strin
             note_last(text.clone());
             show(&app, &srv, &t("Agent Chat: limite dell'ora raggiunto"), &text);
         }
-        return;
+        return false;
     }
     let sender = format!("{me}/{}", handle(&engine));
     let history = if consult {
@@ -941,8 +1164,17 @@ async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: Strin
         messages(&srv, &m.room, -HISTORY, 0, None).await.map(|l| l.into_iter().filter(|x| x.id <= m.id).collect())
     }
     .unwrap_or_else(|_| vec![m.clone()]);
-    let mut prompt = rules(&sender, &owner, &engine_name(&app, &engine));
+    let mut prompt = rules(&shown(&sender), &owner, &engine_name(&app, &engine));
     prompt.push_str(&role(&me, &owner, &cfg.engines, &engine));
+    prompt.push_str(&names_line());
+    if let Some(b) = &boss {
+        let here = b.split('/').next() == Some(me.as_str());
+        if !here {
+            prompt.push_str(&tf("\nQuesto messaggio l'ha preso in carico @{boss} di un altro PC: è il capo per eseguire. Dai il tuo parere se serve; esegui solo ciò che ti affida per nome.", &[("boss", &name_of(b))]));
+        } else if lead(&cfg.engines) == Some(&engine) {
+            prompt.push_str(&t("\nHai preso in carico tu questo messaggio: per eseguire decidi tu, anche per gli agenti degli altri PC."));
+        }
+    }
     if consult {
         prompt.push('\n');
         prompt.push_str(&t("È una consulta: la stessa domanda va a più motori e agenti. Dai il tuo parere indipendente e motivato, senza ripetere quello degli altri."));
@@ -958,7 +1190,7 @@ async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: Strin
     let _working = Working::start(&app);
     let reply = engine_turn(&app, &engine, prompt).await;
     if gen != GEN.load(Ordering::SeqCst) {
-        return;
+        return true;
     }
     match reply {
         Ok(text) => {
@@ -973,16 +1205,20 @@ async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: Strin
                 text.push_str(&format!("\n({r})"));
             }
             if text.trim().is_empty() && ids.is_empty() {
-                note_last(tf("{who}: niente da aggiungere al #{id}.", &[("who", &sender), ("id", &m.id)]));
-                return;
+                note_last(tf("{who}: niente da aggiungere al #{id}.", &[("who", &name_of(&sender)), ("id", &m.id)]));
+                return true;
             }
             let thread = if consult { Some(m.id) } else { None };
             match post_with(&srv, &m.room, text.trim(), &sender, thread, "msg", &ids).await {
-                Ok(_) => note_last(tf("{who} ha risposto al #{id}.", &[("who", &sender), ("id", &m.id)])),
+                Ok(_) => note_last(tf("{who} ha risposto al #{id}.", &[("who", &name_of(&sender)), ("id", &m.id)])),
                 Err(e) => note_last(e),
             }
+            true
         }
-        Err(e) => note_last(tf("{who} non ha risposto: {err}", &[("who", &sender), ("err", &e)])),
+        Err(e) => {
+            note_last(tf("{who} non ha risposto: {err}", &[("who", &name_of(&sender)), ("err", &e)]));
+            false
+        }
     }
 }
 
@@ -1015,7 +1251,7 @@ async fn synthesize(app: &AppHandle, srv: &Server, cfg: &Config, me: &str, owner
         return;
     }
     let sender = format!("{me}/{}", handle(lead));
-    let mut prompt = rules(&sender, owner, &engine_name(app, lead));
+    let mut prompt = rules(&shown(&sender), owner, &engine_name(app, lead));
     prompt.push_str(&t("\n\nScrivi la sintesi di questa consulta: dove i pareri concordano, dove no e cosa consigli. Breve e concreta, cita chi ha detto cosa con @nome.\n\n"));
     prompt.push_str(&transcript(&thread));
     let gen = GEN.load(Ordering::SeqCst);
@@ -1169,15 +1405,16 @@ async fn catch_up(app: AppHandle, srv: Server, cfg: Config, me: String, owner: S
     }
     let gen = GEN.load(Ordering::SeqCst);
     let sender = format!("{me}/{}", handle(&lead));
-    let mut prompt = rules(&sender, &owner, &engine_name(&app, &lead));
+    let mut prompt = rules(&shown(&sender), &owner, &engine_name(&app, &lead));
     prompt.push_str(&role(&me, &owner, &cfg.engines, &lead));
+    prompt.push_str(&names_line());
     if cfg.memory {
         prompt.push_str(&memory_rule());
     }
     prompt.push_str(&tf("\n\nEasyIsland era spento: ecco i {n} messaggi arrivati nel frattempo (dal più vecchio):\n", &[("n", &list.len())]));
     prompt.push_str(&transcript(&list));
     prompt.push_str(&if answer {
-        tf("\n\nRispondi con UN solo messaggio, che comincia con «Recuperato:», solo a ciò che è ancora aperto e rivolto a questo EasyIsland: messaggi di @{owner} senza destinatario, @{me}, @{me}/…, @tutti, consulte senza sintesi. Salta ciò che altri agenti hanno già risolto e ciò che non serve più. Se c'è un lavoro da eseguire, decidi chi lo fa come capo. Se non c'è niente di aperto rispondi solo NIENTE (le righe MEMORIA valgono comunque).", &[("owner", &owner), ("me", &me)])
+        tf("\n\nRispondi con UN solo messaggio, che comincia con «Recuperato:», solo a ciò che è ancora aperto e rivolto a questo EasyIsland: messaggi di @{owner} senza destinatario, @{me}, @{me}/…, @tutti, consulte senza sintesi. Salta ciò che altri agenti hanno già risolto o preso in carico e ciò che non serve più. Se c'è un lavoro da eseguire, decidi chi lo fa come capo. Se non c'è niente di aperto rispondi solo NIENTE (le righe MEMORIA valgono comunque).", &[("owner", &owner), ("me", &me)])
     } else {
         t("\n\nNon rispondere in chat: scrivi solo le righe MEMORIA, oppure NIENTE.").into()
     });
@@ -1297,7 +1534,7 @@ pub async fn decide(app: &AppHandle, payload: Value) -> Option<String> {
     ASKED.lock().unwrap().insert(code.clone(), Asked { key: key.clone(), engine: engine.clone(), at: Instant::now(), answer: None });
     let room = config(app).rooms.into_iter().find(|r| r != "*" && !r.contains(',')).unwrap_or_else(|| "general".into());
     let who = format!("{me}/{}", handle(&engine));
-    let text = tf("@{owner} PERMESSO {code}: {who} vuole {tool} · {target}\nRispondi «sì {code}» per dare l'ok o «no {code}» per negarlo.", &[("owner", &owner), ("code", &code), ("who", &who), ("tool", &tool), ("target", &target)]);
+    let text = tf("@{owner} PERMESSO {code}: {who} vuole {tool} · {target}\nRispondi «sì {code}» per dare l'ok o «no {code}» per negarlo.", &[("owner", &owner), ("code", &code), ("who", &name_of(&who)), ("tool", &tool), ("target", &target)]);
     if post(&srv, &room, &text, &who, None, "msg").await.is_err() {
         return Some("deny".into());
     }
@@ -1618,11 +1855,22 @@ mod tests {
     use super::*;
 
     fn msg(sender: &str, text: &str) -> Msg {
-        Msg { id: 7, room: "general".into(), sender: sender.into(), text: text.into(), verified: true, thread: None, kind: "msg".into(), ts: 0.0, files: Vec::new() }
+        Msg { id: 7, room: "general".into(), sender: sender.into(), text: text.into(), verified: true, thread: None, kind: "msg".into(), ts: 0.0, files: Vec::new(), claimed_by: None }
     }
 
     fn engines() -> Vec<String> {
         vec!["subscription".into(), "codex".into(), "gemini".into()]
+    }
+
+    #[test]
+    fn names_stand_for_handles() {
+        let names: HashMap<String, String> = [("lia".to_string(), "notebook/claude".to_string()), ("teo".to_string(), "casa/opencode".to_string())].into();
+        assert_eq!(with_handles("@Lia guarda, poi @teo. Mail a x@lia.it", &names), "@notebook/claude guarda, poi @casa/opencode. Mail a x@lia.it");
+        assert_eq!(with_handles("@liana e @tutti", &names), "@liana e @tutti");
+        let e = engines();
+        let m = msg("edoardo", &with_handles("@lia fai tu", &names));
+        assert_eq!(plan(&m, "notebook", "edoardo", &e, true).engines, vec!["subscription"]);
+        assert!(plan(&msg("edoardo", &with_handles("@teo fai tu", &names)), "notebook", "edoardo", &e, true).engines.is_empty());
     }
 
     #[test]
@@ -1637,14 +1885,18 @@ mod tests {
         let e = engines();
         // Its own messages: nothing.
         assert_eq!(plan(&msg("notebook/claude", "@notebook ciao"), "notebook", "edoardo", &e, true), Plan::default());
-        // @notebook and @tutti: every engine; @notebook/codex: one.
-        assert_eq!(plan(&msg("edoardo", "@notebook che ne dici?"), "notebook", "edoardo", &e, true).engines, e);
+        // @notebook: its lead; @tutti: every engine (and a claim for the boss); @notebook/codex: one.
+        assert_eq!(plan(&msg("edoardo", "@notebook che ne dici?"), "notebook", "edoardo", &e, true).engines, vec!["subscription"]);
         assert_eq!(plan(&msg("vps", "@notebook/codex guarda qui"), "notebook", "edoardo", &e, true).engines, vec!["codex"]);
-        assert_eq!(plan(&msg("edoardo", "@tutti novità?"), "notebook", "edoardo", &e, true).engines, e);
+        let all = plan(&msg("edoardo", "@tutti novità?"), "notebook", "edoardo", &e, true);
+        assert!(all.engines == e && all.claim && !all.exclusive);
         assert_eq!(plan(&msg("edoardo", "@notebook/claude e @notebook/gemini"), "notebook", "edoardo", &e, true).engines, vec!["subscription", "gemini"]);
         // The owner naming nobody: every engine; another agent naming nobody: nothing.
-        assert_eq!(plan(&msg("edoardo", "ciao"), "notebook", "edoardo", &e, true).engines, e);
-        assert_eq!(plan(&msg("edoardo", "@edoardo promemoria"), "notebook", "edoardo", &e, true).engines, e);
+        // The owner to nobody: one engine, the lead, of whoever takes it on first.
+        let one = plan(&msg("edoardo", "ciao"), "notebook", "edoardo", &e, true);
+        assert!(one.engines == vec!["subscription"] && one.exclusive);
+        assert_eq!(plan(&msg("edoardo", "@edoardo promemoria"), "notebook", "edoardo", &e, true).engines, vec!["subscription"]);
+        assert_eq!(plan(&msg("edoardo", "ciao"), "notebook", "edoardo", &e[1..], true).engines, vec!["codex"]);
         assert!(plan(&msg("vps", "ciao a chi c'è"), "notebook", "edoardo", &e, true).engines.is_empty());
         // The owner naming someone else: not this one.
         assert!(plan(&msg("edoardo", "@vps ciao"), "notebook", "edoardo", &e, true).engines.is_empty());

@@ -149,6 +149,10 @@ pub struct IntegrationConfig {
     /// The engines that answer there, each as «<name>/<engine>»; empty = the chat's engine.
     #[serde(default)]
     pub agentchat_engines: Vec<String>,
+    /// Their names in the chat, chosen by the user: engine id → «lia». The
+    /// server keeps them unique (`/api/aliases`); «@lia» calls that engine.
+    #[serde(default)]
+    pub agentchat_names: std::collections::HashMap<String, String>,
     /// Turns at most in an hour (all engines together).
     #[serde(default = "twenty")]
     pub agentchat_per_hour: u32,
@@ -315,6 +319,7 @@ impl Default for IntegrationConfig {
             telegram_voice_reply: true,
             agentchat_rooms: general_room(),
             agentchat_engines: Vec::new(),
+            agentchat_names: Default::default(),
             agentchat_per_hour: twenty(),
             agentchat_chain: six(),
             agentchat_synthesis: true,

@@ -60,10 +60,12 @@ Agent Chat è una chat sul tuo server dove agenti IA su PC diversi e tu vi scamb
 3. Scegli i **motori** che rispondono: ognuno è un agente a sé, con il suo nome, `@notebook/claude`, `@notebook/codex`… Nessuno scelto = il motore della chat.
 
 Come lo chiami:
-- scrivi senza nominare nessuno (per esempio «ciao»): rispondono **tutti** i motori, ognuno per conto suo;
-- `@notebook` o `@tutti`: rispondono tutti; `@notebook/codex`: solo quello;
+- scrivi senza nominare nessuno (per esempio «ciao»): risponde **un solo** motore in tutta la chat, il capo del primo PC che lo prende in carico (succede subito, anche se l'altro PC è spento). Così non si fa il lavoro due volte e i motori gratuiti non consumano messaggi per niente;
+- `@lia` (il nome che dai al motore) o `@notebook/codex`: solo quello; `@notebook`: il suo capo; `@tutti`: tutti i motori di tutti i PC;
 - **Consulta** nella pagina della chat: la domanda va a tutti i motori di tutti gli EasyIsland; ognuno dà il suo parere e alla fine il capo scrive la sintesi;
 - `@notebook stop` (o `@tutti fermi`, `@notebook/codex fermo`, `basta`; da te anche senza nomi, «fermi tutti») lo ferma subito; riparte con `@notebook riprendi` scritto da te o con **Riprendi** nelle Impostazioni.
+
+**Nomi.** In Impostazioni → Integrazioni → Agent Chat, accanto a ogni motore scrivi il suo nome (per esempio «lia» per Claude di casa): in chat lo chiami con `@lia` e lo vedi con quel nome. I nomi sono unici in tutta la chat. Accanto a ogni motore vedi anche quanti turni ha fatto oggi e una stima dei token.
 
 **Claude è il capo.** Quando chiedi di *fare* qualcosa (comandi, modifiche, operazioni vere), gli altri motori danno il loro parere e Claude decide chi lo fa: lui stesso o un altro motore, che chiama per nome (`@notebook/codex esegui i test`). Un lavoro complesso se lo possono dividere. Senza Claude fra i motori il capo è il primo della lista.
 

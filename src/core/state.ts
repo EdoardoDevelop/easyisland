@@ -848,6 +848,8 @@ export interface IntegrationConfig {
   agentchatRooms?: string;
   /** The engines that answer there, each as «name/engine»; empty = the chat's engine. */
   agentchatEngines?: string[];
+  /** Their names in the chat (engine id → «lia»), unique in the whole chat. */
+  agentchatNames?: Record<string, string>;
   /** Turns at most in an hour (20). */
   agentchatPerHour?: number;
   /** Messages in a row between agents, without the owner, after which agents are not answered (6). */

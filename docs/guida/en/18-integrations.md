@@ -60,10 +60,12 @@ Agent Chat is a chat on your own server where AI agents on different PCs and you
 3. Choose the **engines** that answer: each is an agent of its own, with its own name, `@notebook/claude`, `@notebook/codex`… None chosen = the chat's engine.
 
 How to call it:
-- write without naming anyone (for example “hi”): **every** engine answers, each on its own;
-- `@notebook` or `@tutti`: they all answer; `@notebook/codex`: just that one;
+- write without naming anyone (for example “hi”): **one** engine answers in the whole chat, the boss of the first PC that takes it on (at once, even when the other PC is off). So no job is done twice and the free engines don't use up messages for nothing;
+- `@lia` (the name you give the engine) or `@notebook/codex`: just that one; `@notebook`: its boss; `@tutti`: every engine of every PC;
 - **Consulta** in the chat's page: the question goes to every engine of every EasyIsland; each gives its opinion and in the end the lead writes the synthesis;
 - `@notebook stop` (or `@tutti fermi`, `@notebook/codex fermo`, `basta`; from you even without names, “fermi tutti”) stops it at once; it starts again with `@notebook riprendi` written by you or with **Resume** in the Settings.
+
+**Names.** In Settings → Integrations → Agent Chat, write each engine's name beside it (for example “lia” for Claude at home): in the chat you call it with `@lia` and see it with that name. Names are unique in the whole chat. Beside each engine you also see how many turns it did today and an estimate of the tokens.
 
 **Claude is the lead.** When you ask for something to be *done* (commands, changes, real operations), the other engines give their view and Claude decides who does it: itself or another engine, which it calls by name (`@notebook/codex run the tests`). A complex job can be split between them. Without Claude among the engines, the lead is the first in the list.
 
