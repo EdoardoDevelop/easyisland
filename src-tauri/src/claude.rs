@@ -133,9 +133,20 @@ pub struct Chat {
     persona: Mutex<Option<String>>,
     /// The session went on in Claude Desktop (desktop.rs): where the island left it.
     desktop: Mutex<Option<crate::desktop::Mark>>,
+    /// "agentchat" for a turn of Agent Chat: its permissions follow «Permessi
+    /// in Agent Chat» (agentchat::decide), whatever the engine.
+    channel: Mutex<&'static str>,
 }
 
 impl Chat {
+    pub fn set_channel(&self, channel: &'static str) {
+        *self.channel.lock().unwrap() = channel;
+    }
+
+    pub fn channel(&self) -> &'static str {
+        *self.channel.lock().unwrap()
+    }
+
     pub fn reset(&self) {
         self.messages.lock().unwrap().clear();
         *self.cli_session.lock().unwrap() = None;

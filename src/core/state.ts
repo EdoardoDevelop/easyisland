@@ -842,10 +842,18 @@ export interface IntegrationConfig {
   agentchatCatchup?: "answer" | "memory" | "off";
   /** Agent Chat: the lead keeps what is useful in the chat's memory (default on). */
   agentchatMemory?: boolean;
+  /** Agent Chat: "auto" (default: on their own, delicate things asked in the chat), "read" or "ask". */
+  agentchatTrust?: "auto" | "read" | "ask";
+  /** Agent Chat (memshare.rs): this PC's memory goes to the server for the other PCs. */
+  agentchatShareMemory?: boolean;
+  /** Agent Chat (memshare.rs): the agent whose shared memory this PC reads, kept apart ("" = none). */
+  agentchatMemoryFrom?: string;
   /** Agent Chat (agentchat.rs): the rooms followed, comma separated ("*" = all); default "general". */
   agentchatRooms?: string;
   /** The engines that answer there, each as «name/engine»; empty = the chat's engine. */
   agentchatEngines?: string[];
+  /** Their names in the chat (engine id → «lia»), unique in the whole chat. */
+  agentchatNames?: Record<string, string>;
   /** Turns at most in an hour (20). */
   agentchatPerHour?: number;
   /** Messages in a row between agents, without the owner, after which agents are not answered (6). */

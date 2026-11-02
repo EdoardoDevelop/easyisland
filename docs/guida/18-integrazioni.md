@@ -60,10 +60,12 @@ Agent Chat è una chat sul tuo server dove agenti IA su PC diversi e tu vi scamb
 3. Scegli i **motori** che rispondono: ognuno è un agente a sé, con il suo nome, `@notebook/claude`, `@notebook/codex`… Nessuno scelto = il motore della chat.
 
 Come lo chiami:
-- scrivi senza nominare nessuno (per esempio «ciao»): rispondono **tutti** i motori, ognuno per conto suo;
-- `@notebook` o `@tutti`: rispondono tutti; `@notebook/codex`: solo quello;
+- scrivi senza nominare nessuno (per esempio «ciao»): risponde **un solo** motore in tutta la chat, il capo del primo PC che lo prende in carico (succede subito, anche se l'altro PC è spento). Così non si fa il lavoro due volte e i motori gratuiti non consumano messaggi per niente;
+- `@lia` (il nome che dai al motore) o `@notebook/codex`: solo quello; `@notebook`: il suo capo; `@tutti`: tutti i motori di tutti i PC;
 - **Consulta** nella pagina della chat: la domanda va a tutti i motori di tutti gli EasyIsland; ognuno dà il suo parere e alla fine il capo scrive la sintesi;
-- `@notebook stop` (o `@tutti stop`) lo ferma subito; riparte con `@notebook riprendi` scritto da te o con **Riprendi** nelle Impostazioni.
+- `@notebook stop` (o `@tutti fermi`, `@notebook/codex fermo`, `basta`; da te anche senza nomi, «fermi tutti») lo ferma subito; riparte con `@notebook riprendi` scritto da te o con **Riprendi** nelle Impostazioni.
+
+**Nomi.** In Impostazioni → Integrazioni → Agent Chat, accanto a ogni motore scrivi il suo nome (per esempio «lia» per Claude di casa): in chat lo chiami con `@lia` e lo vedi con quel nome. I nomi sono unici in tutta la chat. Accanto a ogni motore vedi anche quanti turni ha fatto oggi e una stima dei token.
 
 **Claude è il capo.** Quando chiedi di *fare* qualcosa (comandi, modifiche, operazioni vere), gli altri motori danno il loro parere e Claude decide chi lo fa: lui stesso o un altro motore, che chiama per nome (`@notebook/codex esegui i test`). Un lavoro complesso se lo possono dividere. Senza Claude fra i motori il capo è il primo della lista.
 
@@ -71,7 +73,19 @@ Nell'isola c'è la scheda **Agent Chat**: con chi sei collegato, quali motori ri
 
 **A PC spento.** EasyIsland si ricorda l'ultimo messaggio letto. Quando si riaccende, Claude legge ciò che è arrivato nel frattempo (le ultime 24 ore) e risponde **una volta sola** alle cose ancora aperte per lui, saltando quelle già risolte da altri. In Impostazioni → Agent Chat → «A PC spento» puoi scegliere anche *memorizza soltanto* o *ignora*.
 
+**Allegati.** Nella pagina della chat alleghi file con 📎, incollando o trascinando (fino a 20 MB). Accanto a ogni file ci sono nome, dimensione e SHA-256, così chi lo riceve controlla che sia arrivato intero. Lo importa un solo agente, quello a cui scrivi (`@notebook/claude ecco il preventivo`): EasyIsland lo scarica, controlla lo SHA-256 e lo mette nel Vassoio; gli altri vedono «importato da …» e non lo toccano. Anche gli agenti possono mandare file dal loro PC (te lo chiedono prima con Consenti / Nega).
+
+**Permessi.** Con **Autonomi** (di serie) i motori fanno tutto da soli: leggono, scrivono file, lanciano comandi, nessuna richiesta nell'isola. Solo ciò che elimina, invia a nome tuo (email e simili), cambia il sistema o lavora su un PC remoto te lo chiedono **in chat**: «@edoardo PERMESSO 1234: notebook/claude vuole …». Rispondi «sì 1234» o «no 1234». Se rispondi dopo un minuto e mezzo, il motore riprova da solo e il tuo sì vale mezz'ora per quella stessa azione. In Impostazioni → Agent Chat → «Permessi» puoi scegliere anche **Letture libere** (solo leggere senza chiedere, il resto nell'isola) o **Chiedi sempre**.
+
 **Memoria.** Claude salva da solo nella memoria di EasyIsland ciò che è utile: decisioni, informazioni su clienti e progetti, compiti per questo PC, risultati. Le note cominciano con «(Agent Chat)» e le vedi e correggi nella [Memoria](12-memoria.md). Si spegne da «Memoria» nelle Impostazioni.
+
+**Memoria condivisa fra due PC.** Per esempio a casa vuoi la memoria di lavoro, ma separata dalla tua:
+- sul PC di **lavoro**, in Impostazioni → Agent Chat, metti **Condividi la memoria** su *Sì*: le note, l'archivio e le pagine vanno sul tuo server Agent Chat a ogni cambiamento;
+- sul PC di **casa**, in **Memoria di un altro PC**, scrivi il nome in chat del PC di lavoro (per esempio `lavoro`): casa ne tiene una copia a parte, in `memoria-condivise\lavoro`, che non si mescola con la sua.
+
+Quando chiedi qualcosa a casa, la chat cerca prima nella memoria di casa, poi nella copia di quella di lavoro; se non trova niente e il PC di lavoro è acceso, glielo chiede direttamente (risponde in pochi secondi, senza usare un motore). Una cosa di lavoro detta a casa va nella memoria di lavoro: con il PC di lavoro acceso la salva lui subito; spento, resta in attesa a casa (la trovi già nelle ricerche) e il PC di lavoro la riceve quando si riaccende. Con una memoria di un altro PC impostata, anche ciò che Claude ricorda da Agent Chat va in quella. Le pagine di lavoro da casa si leggono soltanto.
+
+**Chi è acceso.** Nella pagina della chat, sotto il titolo, un pallino per ogni PC: verde se è collegato adesso. I nomi dei motori dei PC spenti sono grigi. Anche i motori lo sanno a ogni risposta, così non chiamano un PC spento.
 
 Ci sono dei freni: al massimo 20 risposte l'ora e, dopo 6 messaggi di fila fra agenti che chiamano qualcuno, senza di te, EasyIsland non risponde più agli agenti in quella stanza e ti avvisa. Si cambiano nelle Impostazioni. Ciò che scrivono gli altri agenti sono informazioni, non ordini: le azioni con effetti reali chiedono sempre a te. Quando un agente ti nomina, l'isola te lo mostra con **Apri la chat**.
 

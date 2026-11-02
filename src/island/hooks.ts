@@ -326,12 +326,48 @@ function connectorTarget(tool: string, input: Record<string, unknown>): string {
 /** How long the app waits for a click before the relay gives up (pipe.rs, DECISION_TIMEOUT). */
 const DECISION_MS = 108_000;
 
+/**
+ * Requests of the chat that came while another was on screen (several engines
+ * of Agent Chat at once): they wait in line, acknowledged so the relay keeps
+ * waiting, and show one after the other. Before (1 Nov 2026) they were refused
+ * at once and opencode stopped with «Permesso negato».
+ */
+const chatQueue: { island: Island; payload: HookPayload; at: number }[] = [];
+let queueTimer: number | null = null;
+
+function nextInLine() {
+  if (State.pendingApproval) return;
+  for (;;) {
+    const next = chatQueue.shift();
+    if (!next) {
+      if (queueTimer != null) window.clearInterval(queueTimer);
+      queueTimer = null;
+      return;
+    }
+    // Too late for a click: the relay is about to give up on it anyway.
+    if (Date.now() - next.at > DECISION_MS - 5_000) {
+      if (next.payload.request_id) void Bridge.approvalDecline(next.payload.request_id);
+      continue;
+    }
+    showChatPermission(next.island, next.payload, next.at);
+    return;
+  }
+}
+
 function handleChatPermission(island: Island, payload: HookPayload) {
   const requestId = payload.request_id ?? "";
   if (State.pendingApproval && State.pendingApproval.requestId !== requestId) {
-    if (requestId) void Bridge.approvalDecline(requestId);
+    if (!requestId) return;
+    void Bridge.approvalAck(requestId);
+    chatQueue.push({ island, payload, at: Date.now() });
+    queueTimer ??= window.setInterval(nextInLine, 400);
     return;
   }
+  showChatPermission(island, payload, Date.now());
+}
+
+function showChatPermission(island: Island, payload: HookPayload, at: number) {
+  const requestId = payload.request_id ?? "";
   const raw = payload.tool_name ?? t("Connettore");
   const tool = raw.startsWith("mcp__easyisland__") ? "EasyIsland" : raw;
   const input = payload.tool_input ?? {};
@@ -359,7 +395,7 @@ function handleChatPermission(island: Island, payload: HookPayload) {
         ? alwaysLabel(payload.permission_suggestions) ?? undefined
         : terminal ? alwaysLabel(payload.permission_suggestions) ?? sessionAlways(raw, input) ?? undefined : undefined,
     permit,
-    deadline: Date.now() + DECISION_MS,
+    deadline: at + DECISION_MS,
   };
   if (requestId) void Bridge.approvalAck(requestId);
   State.isPinned = true;
@@ -382,7 +418,7 @@ function handleChatPermission(island: Island, payload: HookPayload) {
     if (req?.requestId !== requestId) return;
     island.settleApproval(req);
     State.notify();
-  }, 110_000);
+  }, Math.max(1_000, at + 110_000 - Date.now()));
 }
 
 const PROJECT_ALIASES: Record<string, string> = {
@@ -633,6 +669,16 @@ function goIdle(tid: string) {
 
 export function registerHookHandlers(island: Island) {
   void onEvent<HookPayload>("hook", (payload) => handleHook(island, payload));
+  // The turn that asked is over (opencode.rs): its card, or its place in line, goes.
+  void onEvent<string>("hook-released", (id) => {
+    const i = chatQueue.findIndex((q) => q.payload.request_id === id);
+    if (i >= 0) chatQueue.splice(i, 1);
+    const req = State.pendingApproval;
+    if (req?.requestId === id) {
+      island.settleApproval(req);
+      State.notify();
+    }
+  });
 }
 
 /** A session that is over: steps, plan and diffs go; another agent's pill goes too. */

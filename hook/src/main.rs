@@ -419,9 +419,12 @@ fn read_event() -> Option<Event> {
     map.insert("hook_event_name".into(), serde_json::Value::String(event.clone()));
     if std::env::args().any(|a| a == "--chat") || std::env::var_os("EASYISLAND_AGY_CHAT").is_some() {
         map.insert("easyisland_chat".into(), serde_json::Value::Bool(true));
-        // A chat turn from Telegram: the app asks there (telegram.rs).
-        if std::env::var("EASYISLAND_CHANNEL").is_ok_and(|c| c == "telegram") {
-            map.insert("easyisland_channel".into(), serde_json::Value::String("telegram".into()));
+        // A chat turn from Telegram: the app asks there (telegram.rs); from
+        // Agent Chat: as «Permessi in Agent Chat» says (agentchat.rs).
+        if let Ok(c) = std::env::var("EASYISLAND_CHANNEL") {
+            if c == "telegram" || c == "agentchat" {
+                map.insert("easyisland_channel".into(), serde_json::Value::String(c));
+            }
         }
     }
     // Codex, Gemini CLI or a tool of its own: Claude Code's shape and its own pill.

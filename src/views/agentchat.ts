@@ -25,6 +25,8 @@ export interface ChatMsg {
   thread: number | null;
   kind: string;
   ts: number;
+  /** Attachments: name, size, SHA-256 and who imported each (one agent only). */
+  files?: { id: string; name: string; size: number; sha256: string; imported_by?: string | null }[];
 }
 
 export interface AgentchatData {
@@ -40,7 +42,10 @@ export interface AgentchatData {
   perHour?: number;
   last?: string;
   url?: string | null;
-  engines?: { name: string; engine: string; lead: boolean }[];
+  /** name: its name in the chat («lia», else «pc/engine»); today and tokens: turns and ≈ tokens today. */
+  engines?: { name: string; handle?: string; engine: string; lead: boolean; today?: number; tokens?: number }[];
+  /** «casa/claude» → «lia». */
+  names?: Record<string, string>;
   messages?: ChatMsg[];
 }
 
@@ -85,11 +90,21 @@ function messageRow(m: ChatMsg, d: AgentchatData): HTMLElement {
   const text = m.text.length > 400 ? `${m.text.slice(0, 400)}…` : m.text;
   return h("div", { class: `ac-msg${mine ? " mine" : ""}${owner ? " owner" : ""}${m.thread ? " reply" : ""}` },
     h("div", { class: "ac-meta" },
-      h("b", { text: m.sender }),
+      h("b", { text: d.names?.[m.sender] ?? m.sender, title: m.sender }),
       m.verified ? null : h("span", { class: "ac-unv", text: "?", title: t("Mittente non verificato") }),
       kind ? h("span", { class: "ac-kind", text: kind }) : null,
       h("span", { class: "int-ago", text: `${m.room} · ${timeAgo(m.ts * 1000)}` })),
-    h("div", { class: "ac-text", text }));
+    h("div", { class: "ac-text", text }),
+    ...(m.files ?? []).map((f) => h("div", { class: "ac-file", title: `SHA-256 ${f.sha256}`,
+      text: `📎 ${f.name} · ${kb(f.size)} · ${f.imported_by ? t("importato da {who}", { who: f.imported_by }) : t("da importare")}` })));
+}
+
+function compact(n: number): string {
+  return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : String(n);
+}
+
+function kb(n: number): string {
+  return n < 1024 ? `${n} B` : n < 1_048_576 ? `${Math.round(n / 1024)} KB` : `${(n / 1_048_576).toFixed(1)} MB`;
 }
 
 export function agentchatCard(openSettings: () => void): HTMLElement {
@@ -120,7 +135,9 @@ export function agentchatCard(openSettings: () => void): HTMLElement {
   const engines = d.engines ?? [];
   if (engines.length) {
     body.append(h("div", { class: "ac-engines" }, ...engines.map((e) =>
-      h("span", { class: e.lead ? "ac-engine lead" : "ac-engine", title: e.engine, text: e.lead ? `@${e.name} ★` : `@${e.name}` }))));
+      h("span", { class: e.lead ? "ac-engine lead" : "ac-engine",
+        title: `${e.handle ?? e.name} · ${e.engine} · ${t("oggi {n} turni, ≈{k} token", { n: e.today ?? 0, k: compact(e.tokens ?? 0) })}`,
+        text: `@${e.name}${e.lead ? " ★" : ""}${e.today ? ` · ${e.today}` : ""}` }))));
   }
   const list = (d.messages ?? []).slice(-SHOWN);
   const box = h("div", { class: "ac-list" });
