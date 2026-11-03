@@ -119,6 +119,13 @@ pub(crate) async fn move_to_work_folder(app: &AppHandle, args: &Value) -> Result
 }
 
 async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String> {
+    // The memory window's living network sees what is read and written.
+    match tool {
+        "memory_search" => crate::brain::activity(app, "read", arg(args, "query")),
+        "memory_page" => crate::brain::activity(app, "read", arg(args, "title")),
+        "memory_note" | "memory_page_write" => crate::brain::activity(app, "write", &format!("{} {}", arg(args, "title"), arg(args, "text"))),
+        _ => {}
+    }
     match tool {
         "get_foreground_app" => {
             let fg = crate::context::foreground().ok_or("Nessuna app in primo piano.")?;

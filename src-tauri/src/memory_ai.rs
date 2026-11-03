@@ -104,6 +104,8 @@ pub fn after_digest(app: &AppHandle) {
     tauri::async_runtime::spawn(async move {
         let r = run(&app).await;
         crate::log::line(format!("memoria collegata: {}", r.unwrap_or_else(|e| e)));
+        let l = crate::memory_links::judge(&app, "").await;
+        crate::log::line(format!("collegamenti controllati: {}", l.unwrap_or_else(|e| e)));
     });
 }
 

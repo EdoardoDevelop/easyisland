@@ -231,7 +231,7 @@ pub fn pages() -> Vec<Page> {
 }
 
 /// The pages of a folder (this PC's or the copy of another PC's memory).
-fn pages_in(dir: &Path) -> Vec<Page> {
+pub(crate) fn pages_in(dir: &Path) -> Vec<Page> {
     let mut out: Vec<Page> = std::fs::read_dir(dir)
         .map(|r| {
             r.flatten()
@@ -867,6 +867,9 @@ pub struct Edge {
     pub from: String,
     pub to: String,
     pub label: String,
+    /// 3: written in the files, or judged by the AI (memory_links.rs); 2: the
+    /// note names the page; 1: a guess from words in common.
+    pub strength: u8,
 }
 
 #[derive(Serialize)]
@@ -931,7 +934,7 @@ pub fn graph_of(source: &str, other: Option<String>) -> Graph {
                 let mine: HashMap<String, String> = g.nodes.iter().filter(|n| n.kind == "page").map(|n| (n.label.to_lowercase(), n.id.clone())).collect();
                 for n in o.nodes.iter().filter(|n| n.kind == "page") {
                     if let Some(id) = mine.get(&n.label.to_lowercase()) {
-                        g.edges.push(Edge { from: id.clone(), to: n.id.clone(), label: name.clone() });
+                        g.edges.push(Edge { from: id.clone(), to: n.id.clone(), label: name.clone(), strength: 3 });
                     }
                 }
                 g.nodes.append(&mut o.nodes);
@@ -1049,100 +1052,135 @@ fn graph_in(dir: &Path, local: bool) -> Graph {
     let current = crate::memory::notes_of(&std::fs::read_to_string(dir.join("MEMORIA.md")).unwrap_or_default());
     let page_words: Vec<(String, BTreeSet<String>)> = all
         .iter()
-        .map(|p| (p.slug.clone(), key_words(&format!("{} {} {}", p.title, p.title, cut(&p.body, 600)))))
+        .map(|p| (p.slug.clone(), key_words(&format!("{} {} {} {}", p.title, p.aliases.join(" "), p.summary, cut(&p.body, 600)))))
         .collect();
+    let title_words: Vec<BTreeSet<String>> = all.iter().map(|p| key_words(&format!("{} {}", p.title, p.aliases.join(" ")))).collect();
     let page_bodies: Vec<(String, String)> = all.iter().map(|p| (p.slug.clone(), p.body.to_lowercase().split_whitespace().collect::<Vec<_>>().join(" "))).collect();
-    struct NoteRow { id: String, kind: &'static str, date: String, text: String, words: BTreeSet<String>, linked: bool }
+    // What the AI said about each note (memory_links.rs), by its text.
+    let judged = crate::memory_links::load(dir);
+    struct NoteRow { id: String, kind: &'static str, date: String, text: String, words: BTreeSet<String>, linked: bool, hash: String, judged: bool }
     let mut notes: Vec<NoteRow> = Vec::new();
     for (i, (line, kind)) in current.iter().map(|l| (l, "note")).chain(archived.iter().rev().take(300).map(|l| (l, "old"))).enumerate() {
         let (date, text) = note_parts(line);
         let id = format!("n:{i}");
-        let low = text.to_lowercase();
         let words = key_words(&text);
-        let mut linked = false;
+        let hash = note_hash(&text);
+        let judged_now = judged.contains_key(&hash);
+        notes.push(NoteRow { id, kind, date, text, words, linked: false, hash, judged: judged_now });
+    }
+    let rarity = Rarity::new(notes.iter().map(|n| &n.words).chain(page_words.iter().map(|(_, w)| w)));
+    let by_hash: HashMap<String, String> = notes.iter().map(|n| (n.hash.clone(), n.id.clone())).collect();
+    for n in notes.iter_mut() {
+        let low = n.text.to_lowercase();
+        // Written: the whole title, a [[link]], a topic page quoting it ("- nota: …", memory_ai.rs).
         for (slug, title) in &titles {
             if low.contains(title.as_str()) {
-                add_edge(&mut edges, &mut seen, &mut degree, id.clone(), format!("p:{slug}"), String::new());
-                linked = true;
+                add_edge_at(&mut edges, &mut seen, &mut degree, n.id.clone(), format!("p:{slug}"), String::new(), 2);
+                n.linked = true;
             }
         }
-        // A topic page of the memory engine quotes the note ("- nota: …", memory_ai.rs).
         let head: String = low.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(60).collect();
         if head.chars().count() >= 12 {
             for (slug, body) in &page_bodies {
                 if body.contains(&head) {
-                    add_edge(&mut edges, &mut seen, &mut degree, id.clone(), format!("p:{slug}"), String::new());
-                    linked = true;
+                    add_edge_at(&mut edges, &mut seen, &mut degree, n.id.clone(), format!("p:{slug}"), String::new(), 2);
+                    n.linked = true;
                 }
             }
         }
-        for target in wiki_links(&text) {
+        for target in wiki_links(&n.text) {
             let to = format!("p:{}", slug(&target));
             if page_ids.contains(&to) {
-                add_edge(&mut edges, &mut seen, &mut degree, id.clone(), to, String::new());
-                linked = true;
+                add_edge(&mut edges, &mut seen, &mut degree, n.id.clone(), to, String::new());
+                n.linked = true;
             }
         }
-        // Key words in common with a page: the best three, at least two words.
-        let mut near: Vec<(usize, &String)> = page_words
-            .iter()
-            .map(|(slug, pw)| (words.intersection(pw).count(), slug))
-            .filter(|(n, _)| *n >= 2)
-            .collect();
-        near.sort_by(|a, b| b.0.cmp(&a.0));
-        for (_, slug) in near.into_iter().take(3) {
-            add_edge(&mut edges, &mut seen, &mut degree, id.clone(), format!("p:{slug}"), String::new());
-            linked = true;
+        if let Some(v) = judged.get(&n.hash) {
+            // The AI's judgement replaces the guesses.
+            for slug in &v.pages {
+                let to = format!("p:{slug}");
+                if page_ids.contains(&to) {
+                    add_edge(&mut edges, &mut seen, &mut degree, n.id.clone(), to, String::new());
+                    n.linked = true;
+                }
+            }
+            for h in &v.notes {
+                if let Some(other) = by_hash.get(h) {
+                    add_edge(&mut edges, &mut seen, &mut degree, n.id.clone(), other.clone(), String::new());
+                    n.linked = true;
+                }
+            }
+            continue;
         }
-        notes.push(NoteRow { id, kind, date, text, words, linked });
+        // A guess: the pages sharing a word of their title and a rare one, or two rare ones; the best three.
+        let mut near: Vec<(f32, &String)> = page_words
+            .iter()
+            .zip(title_words.iter())
+            .map(|((slug, pw), tw)| (rarity.page_score(&n.words, pw, tw, false), slug))
+            .filter(|(s, _)| *s > 0.0)
+            .collect();
+        near.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        for (_, slug) in near.into_iter().take(3) {
+            add_edge_at(&mut edges, &mut seen, &mut degree, n.id.clone(), format!("p:{slug}"), String::new(), 1);
+            n.linked = true;
+        }
     }
-    // Notes that say much the same: each to its two closest.
+    // Notes that say much the same (weighed by rare words): each to its two closest.
+    // Judged notes keep only what the AI said.
     for i in 0..notes.len() {
+        if notes[i].judged {
+            continue;
+        }
         let mut best: Vec<(f32, usize)> = (0..notes.len())
-            .filter(|&j| j != i)
-            .map(|j| (similarity(&notes[i].words, &notes[j].words), j))
-            .filter(|(s, _)| *s >= 0.3)
+            .filter(|&j| j != i && !notes[j].judged)
+            .map(|j| (rarity.cosine(&notes[i].words, &notes[j].words), j))
+            .filter(|(c, j)| *c >= 0.4 && notes[i].words.intersection(&notes[*j].words).count() >= 2)
             .collect();
         best.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
         for (_, j) in best.into_iter().take(2) {
             let (from, to) = (notes[i].id.clone(), notes[j].id.clone());
-            add_edge(&mut edges, &mut seen, &mut degree, from, to, String::new());
+            add_edge_at(&mut edges, &mut seen, &mut degree, from, to, String::new(), 1);
             notes[i].linked = true;
             notes[j].linked = true;
         }
     }
-    // Rare words in common: a name that shows up in only a few notes and pages
-    // (a customer, a server, a product) ties them even when nothing else does —
-    // a customer's name in two short notes was below every threshold.
+    // A name written with a capital in two or three notes or pages (a customer,
+    // a server) ties them even when nothing else does. Before 3 Nov 2026 any
+    // rare word chained its holders one to the next, and unrelated notes ended
+    // up tied (Edoardo, on the work PC).
     {
-        let docs: Vec<(String, &BTreeSet<String>)> = notes
+        let capital = |text: &str, w: &str| {
+            text.split(|c: char| !c.is_alphanumeric())
+                .any(|t| t.to_lowercase() == w && t.chars().next().is_some_and(char::is_uppercase))
+        };
+        let docs: Vec<(String, &BTreeSet<String>, String)> = notes
             .iter()
-            .map(|n| (n.id.clone(), &n.words))
-            .chain(page_words.iter().map(|(slug, w)| (format!("p:{slug}"), w)))
+            .filter(|n| !n.judged)
+            .map(|n| (n.id.clone(), &n.words, n.text.clone()))
+            .chain(all.iter().zip(page_words.iter()).map(|(p, (slug, w))| (format!("p:{slug}"), w, format!("{} {}", p.title, cut(&p.body, 600)))))
             .collect();
-        let mut df: HashMap<&str, Vec<usize>> = HashMap::new();
-        for (i, (_, w)) in docs.iter().enumerate() {
-            for word in w.iter().filter(|w| w.chars().count() >= 4) {
-                df.entry(word.as_str()).or_default().push(i);
+        let mut holders: HashMap<&str, Vec<usize>> = HashMap::new();
+        for (i, (_, w, _)) in docs.iter().enumerate() {
+            for word in w.iter().filter(|w| w.chars().count() >= 4 && !STOP.contains(&w.as_str())) {
+                holders.entry(word.as_str()).or_default().push(i);
             }
         }
-        let rare_max = (docs.len() / 6).max(4);
-        let mut tied: Vec<bool> = vec![false; docs.len()];
-        for holders in df.values().filter(|h| h.len() >= 2 && h.len() <= rare_max) {
-            // Chain them (each to the next) rather than all to all: few lines, all connected.
-            for pair in holders.windows(2) {
-                let (Some(a), Some(b)) = (pair.first(), pair.get(1)) else { continue };
-                let (Some((from, _)), Some((to, _))) = (docs.get(*a), docs.get(*b)) else { continue };
-                add_edge(&mut edges, &mut seen, &mut degree, from.clone(), to.clone(), String::new());
-                for k in [*a, *b] {
-                    if let Some(t) = tied.get_mut(k) {
-                        *t = true;
-                    }
+        let mut tied: HashSet<String> = HashSet::new();
+        for (word, h) in holders.iter().filter(|(_, h)| (2..=3).contains(&h.len())) {
+            if h.iter().filter(|i| docs.get(**i).is_some_and(|d| capital(&d.2, word))).count() < 2 {
+                continue;
+            }
+            for (k, a) in h.iter().enumerate() {
+                for b in h.iter().skip(k + 1) {
+                    let (Some(x), Some(y)) = (docs.get(*a), docs.get(*b)) else { continue };
+                    add_edge_at(&mut edges, &mut seen, &mut degree, x.0.clone(), y.0.clone(), String::new(), 1);
+                    tied.insert(x.0.clone());
+                    tied.insert(y.0.clone());
                 }
             }
         }
-        for (n, t) in notes.iter_mut().zip(tied) {
-            n.linked |= t;
+        for n in notes.iter_mut() {
+            n.linked |= tied.contains(&n.id);
         }
     }
     for n in notes {
@@ -1218,12 +1256,143 @@ fn graph_in(dir: &Path, local: bool) -> Graph {
 }
 
 fn add_edge(edges: &mut Vec<Edge>, seen: &mut HashSet<(String, String)>, degree: &mut HashMap<String, u32>, from: String, to: String, label: String) {
-    if from == to || !seen.insert((from.clone(), to.clone())) {
+    add_edge_at(edges, seen, degree, from, to, label, 3);
+}
+
+#[allow(clippy::too_many_arguments)]
+fn add_edge_at(edges: &mut Vec<Edge>, seen: &mut HashSet<(String, String)>, degree: &mut HashMap<String, u32>, from: String, to: String, label: String, strength: u8) {
+    if from == to || seen.contains(&(to.clone(), from.clone())) || !seen.insert((from.clone(), to.clone())) {
         return;
     }
     *degree.entry(from.clone()).or_default() += 1;
     *degree.entry(to.clone()).or_default() += 1;
-    edges.push(Edge { from, to, label });
+    edges.push(Edge { from, to, label, strength });
+}
+
+/// A note's id for the AI's judgement (memory_links.rs): stable while its text stays the same.
+pub(crate) fn note_hash(text: &str) -> String {
+    let mut h: u64 = 0xcbf29ce484222325;
+    for b in text.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase().bytes() {
+        h ^= b as u64;
+        h = h.wrapping_mul(0x100000001b3);
+    }
+    format!("{h:016x}")
+}
+
+/// Words weighed by how rare they are among the notes and pages: a word in
+/// every second note ties nothing, a customer's name in three ties them.
+pub(crate) struct Rarity {
+    docs: usize,
+    df: HashMap<String, usize>,
+}
+
+impl Rarity {
+    pub(crate) fn new<'a>(all: impl Iterator<Item = &'a BTreeSet<String>>) -> Rarity {
+        let mut df: HashMap<String, usize> = HashMap::new();
+        let mut docs = 0;
+        for w in all {
+            docs += 1;
+            for word in w {
+                *df.entry(word.clone()).or_default() += 1;
+            }
+        }
+        Rarity { docs, df }
+    }
+
+    fn df(&self, w: &str) -> usize {
+        self.df.get(w).copied().unwrap_or(0)
+    }
+
+    fn idf(&self, w: &str) -> f32 {
+        ((self.docs as f32 + 1.0) / (self.df(w) as f32 + 0.5)).ln().max(0.0)
+    }
+
+    /// Few enough notes and pages have it to mean something.
+    fn rare(&self, w: &str) -> bool {
+        self.df(w) <= (self.docs / 12).max(3) && w.chars().count() >= 4
+    }
+
+    /// Two texts by their rare words: 0 nothing in common, 1 the same.
+    fn cosine(&self, a: &BTreeSet<String>, b: &BTreeSet<String>) -> f32 {
+        let w2 = |s: &BTreeSet<String>| s.iter().map(|w| self.idf(w).powi(2)).sum::<f32>();
+        let (na, nb) = (w2(a), w2(b));
+        if na <= 0.0 || nb <= 0.0 {
+            return 0.0;
+        }
+        a.intersection(b).map(|w| self.idf(w).powi(2)).sum::<f32>() / (na.sqrt() * nb.sqrt())
+    }
+
+    /// A note and a page: the weight of what they share, 0 when it is too little
+    /// to be a guess (a word of the title and a rare one, or two rare ones).
+    /// `loose`: any rare word counts (the candidates the AI judges).
+    fn page_score(&self, note: &BTreeSet<String>, page: &BTreeSet<String>, title: &BTreeSet<String>, loose: bool) -> f32 {
+        let shared: Vec<&String> = note.intersection(page).collect();
+        let rare = shared.iter().filter(|w| self.rare(w)).count();
+        let in_title = shared.iter().any(|w| title.contains(*w));
+        let ok = if loose { rare >= 1 || in_title } else { (in_title && rare >= 1) || rare >= 2 };
+        if !ok {
+            return 0.0;
+        }
+        shared.iter().map(|w| self.idf(w)).sum()
+    }
+}
+
+/// A note with the pages and notes it may belong to, for the AI (memory_links.rs).
+pub(crate) struct Candidates {
+    pub hash: String,
+    pub text: String,
+    /// (slug, title, riassunto) of the pages it may be about.
+    pub pages: Vec<(String, String, String)>,
+    /// (hash, text) of the notes that may say something close.
+    pub notes: Vec<(String, String)>,
+}
+
+/// The notes of `dir` (MEMORIA.md) with their candidates, those of `skip` left out.
+pub(crate) fn candidates(dir: &Path, skip: &HashSet<String>) -> Vec<Candidates> {
+    let all = pages_in(&dir.join("pagine"));
+    let notes: Vec<String> = crate::memory::notes_of(&std::fs::read_to_string(dir.join("MEMORIA.md")).unwrap_or_default())
+        .iter()
+        .map(|l| note_parts(l).1)
+        .collect();
+    let note_words: Vec<BTreeSet<String>> = notes.iter().map(|t| key_words(t)).collect();
+    let page_words: Vec<BTreeSet<String>> = all.iter().map(|p| key_words(&format!("{} {} {} {}", p.title, p.aliases.join(" "), p.summary, cut(&p.body, 600)))).collect();
+    let title_words: Vec<BTreeSet<String>> = all.iter().map(|p| key_words(&format!("{} {}", p.title, p.aliases.join(" ")))).collect();
+    let rarity = Rarity::new(note_words.iter().chain(page_words.iter()));
+    let mut out = Vec::new();
+    for (i, text) in notes.iter().enumerate() {
+        let hash = note_hash(text);
+        if skip.contains(&hash) {
+            continue;
+        }
+        let low = text.to_lowercase();
+        let Some(words) = note_words.get(i) else { continue };
+        let mut scored: Vec<(f32, usize)> = all
+            .iter()
+            .enumerate()
+            .map(|(j, p)| {
+                let named = p.title.chars().count() >= 3 && low.contains(&p.title.to_lowercase());
+                let s = match (page_words.get(j), title_words.get(j)) {
+                    (Some(pw), Some(tw)) => rarity.page_score(words, pw, tw, true),
+                    _ => 0.0,
+                };
+                (if named { s + 100.0 } else { s }, j)
+            })
+            .filter(|(s, _)| *s > 0.0)
+            .collect();
+        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        let pages = scored.into_iter().take(6).filter_map(|(_, j)| all.get(j)).map(|p| (p.slug.clone(), p.title.clone(), p.summary.clone())).collect();
+        let mut close: Vec<(f32, usize)> = note_words
+            .iter()
+            .enumerate()
+            .filter(|(j, _)| *j != i)
+            .map(|(j, w)| (rarity.cosine(words, w), j))
+            .filter(|(c, _)| *c >= 0.15)
+            .collect();
+        close.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        let near = close.into_iter().take(4).filter_map(|(_, j)| notes.get(j)).map(|t| (note_hash(t), t.clone())).collect();
+        out.push(Candidates { hash, text: text.clone(), pages, notes: near });
+    }
+    out
 }
 
 fn file_day(time: std::time::SystemTime) -> String {
@@ -1274,6 +1443,17 @@ pub fn node_file(id: &str) -> Option<PathBuf> {
         return path.exists().then_some(path);
     }
     None
+}
+
+/// The memory read or written (a search, a note, a page; from the chat, Agent
+/// Chat or another PC): the memory window's living network lights what it
+/// touched (src/memory/neural.ts). Only words go, never a file.
+pub fn activity(app: &tauri::AppHandle, kind: &str, text: &str) {
+    use tauri::Emitter;
+    let text: String = text.chars().take(300).collect();
+    if !text.trim().is_empty() {
+        let _ = app.emit_to(crate::MEMORY_LABEL, "memory-activity", serde_json::json!({ "kind": kind, "text": text }));
+    }
 }
 
 /// After a write to the memory: the memory window, if open, draws it again.
@@ -1479,6 +1659,48 @@ mod tests {
         assert!(found.contains("«Bianchi», che non esiste"), "{found}");
         assert!(found.contains("isolata, senza collegamenti: «Verdi»"), "{found}");
         assert!(found.contains("da oltre 6 mesi: «Verdi»"), "{found}");
+    }
+
+    /// The map's links: a common word ties nothing, a name with a capital in
+    /// two notes ties them, and the AI's verdict replaces the guesses.
+    #[test]
+    fn links_guessed_carefully_and_judged_by_the_ai() {
+        let dir = std::env::temp_dir().join(format!("easyisland-links-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("pagine")).unwrap();
+        std::fs::write(dir.join("pagine").join("server-proxmox.md"), "# Server Proxmox
+Due dischi in RAID1.
+").unwrap();
+        std::fs::write(dir.join("pagine").join("studio-rossi.md"), "# Studio Rossi
+Commercialisti.
+").unwrap();
+        let notes = [
+            "Il server della stampante è lento",
+            "Riavviato il server di casa",
+            "Il server della posta va aggiornato",
+            "Aggiornato il server delle foto",
+            "Spento il server vecchio",
+            "Chiamato Bianchini per il preventivo",
+            "Bianchini paga a fine mese",
+        ];
+        let memoria: String = notes.iter().map(|n| format!("- 2026-11-01: {n}
+")).collect();
+        std::fs::write(dir.join("MEMORIA.md"), memoria).unwrap();
+        let g = graph_in(&dir, false);
+        let id_of = |text: &str| g.nodes.iter().find(|n| n.text == text).map(|n| n.id.clone()).unwrap();
+        let linked = |a: &str, b: &str| g.edges.iter().any(|e| (e.from == a && e.to == b) || (e.from == b && e.to == a));
+        let printer = id_of(notes[0]);
+        assert!(!linked(&printer, "p:server-proxmox"), "a common word ties nothing: {:?}", g.edges.iter().map(|e| (&e.from, &e.to)).collect::<Vec<_>>());
+        let (b1, b2) = (id_of(notes[5]), id_of(notes[6]));
+        assert!(linked(&b1, &b2), "a name with a capital ties two notes");
+        // The AI says the printer's server is the Proxmox one: a sure link, the guesses gone.
+        let verdicts = format!("{{\"version\":1,\"notes\":{{\"{}\":{{\"pages\":[\"server-proxmox\"],\"notes\":[]}}}}}}", note_hash(notes[0]));
+        std::fs::write(dir.join(crate::memory_links::FILE), verdicts).unwrap();
+        let g = graph_in(&dir, false);
+        let printer = g.nodes.iter().find(|n| n.text == notes[0]).unwrap().id.clone();
+        let e = g.edges.iter().find(|e| e.from == printer && e.to == "p:server-proxmox").expect("the AI's link");
+        assert_eq!(e.strength, 3);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// Pages, safe writes, the inbox and the search on a temporary %APPDATA%.

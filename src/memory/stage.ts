@@ -10,6 +10,9 @@ export interface Host {
   tip(text: string | null, sub?: string, x?: number, y?: number): void;
 }
 
+/** How the graphs colour their nodes: by kind, or by group (data.ts findGroups). */
+export type Colouring = "kind" | "group";
+
 export interface View {
   /** New data (keeps what it can of the old layout). */
   setModel(model: Model): void;
@@ -26,6 +29,13 @@ export interface View {
   zoom(factor: number, x: number, y: number): void;
   /** Shows everything. */
   reset(): void;
+  /** «Come sono collegati?»: the path to light (null: none). */
+  setPath?(ids: string[] | null): void;
+  /** Double click on a node: only it and what is around it; false when the view has no such thing. */
+  focus?(id: string): boolean;
+  setColouring?(c: Colouring): void;
+  /** The memory was read or written (memory-activity): the nodes it touched. */
+  activity?(ids: string[], kind: "read" | "write"): void;
 }
 
 export class Stage {
@@ -79,8 +89,11 @@ export class Stage {
       this.host.tip(null);
       this.wake();
     }, { passive: false });
-    this.canvas.addEventListener("dblclick", () => {
-      this.view?.reset();
+    // On a node: the focus on it, where the view has one; elsewhere everything again.
+    this.canvas.addEventListener("dblclick", (e) => {
+      const p = this.point(e);
+      const id = this.view?.hit(p.x, p.y) ?? null;
+      if (!(id && this.view?.focus?.(id))) this.view?.reset();
       this.wake();
     });
     document.addEventListener("visibilitychange", () => this.wake());
@@ -101,6 +114,8 @@ export class Stage {
     const ev = this.view?.hover?.(x, y);
     if (ev) this.host.tip(ev.text, ev.sub, x, y);
     else this.host.tip(null);
+    // A view that lights what is under the mouse (Da dove arriva) draws it.
+    if (this.view?.hover) this.wake();
   }
 
   private resize() {

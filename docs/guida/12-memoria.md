@@ -75,18 +75,41 @@ Se non c'è niente da fare non parte e non costa niente.
 ## Motore per la memoria
 In **Impostazioni → Chat → Memoria → Motore per la memoria** puoi scegliere un motore, anche gratuito, che collega la memoria scrivendolo nei file: crea una pagina per ogni argomento che torna in più note (un cliente, un progetto, una persona), con i rimandi alle note, aggiunge le relazioni tra pagine («cliente di», «lavora con»…) e tiene aggiornato il riassunto di ogni pagina con gli altri nomi. Lavora da solo dopo il riordino della sera e quando premi **Collega con l'IA** nella mappa. Aggiunge soltanto: non cancella e non riscrive le tue note. Con un motore in cloud le note vengono mandate a quel servizio; con Ollama o LM Studio restano sul PC. Con **Nessuno** la mappa collega le voci da sola, dalle parole in comune.
 
+**Collega con l'IA** controlla anche i collegamenti della mappa: per ogni nota nuova o cambiata il motore guarda le pagine e le note a cui potrebbe appartenere e tiene solo quelle vere (una parola in comune come «server» o «cliente» non basta più). Il giudizio resta in `collegamenti.json` accanto alla memoria, viaggia con la memoria condivisa e la mappa lo usa al posto delle supposizioni. Non cambia le note né le pagine. Sulla copia di un altro PC il pulsante controlla quella copia da qui, se quel PC non l'ha già fatto. Con molte note lo fa a pezzi: premilo di nuovo finché non dice che è finito.
+
 ## La finestra Memoria
-Il pulsante con i tre nodi in alto nell'isola (o **Impostazioni → Chat → Memoria → Mappa**) apre una finestra tutta sua con la memoria disegnata in quattro modi. Una nota si collega alle pagine di cui parla (anche senza citarne il titolo intero, dalle parole in comune) e alle note simili; le note archiviate che non c'entrano con niente non affollano il grafo.
+Il pulsante con i tre nodi in alto nell'isola (o **Impostazioni → Chat → Memoria → Mappa**) apre una finestra tutta sua con la memoria disegnata in tanti modi. Una nota si collega alle pagine che nomina, a quelle che l'IA ha confermato e, finché l'IA non l'ha guardata, a quelle con cui ha in comune parole rare (un nome, un apparecchio); i collegamenti solo stimati sono tratteggiati. Le note archiviate che non c'entrano con niente non affollano il grafo.
+
+Sopra le viste:
+- **Colori per gruppo / per tipo**: i gruppi sono gli argomenti che vanno insieme (un cliente con le sue persone e note), trovati da soli, ognuno col suo colore e il suo nome.
+- **Periodo**: solo ciò che è dell'ultimo mese, dei 3 mesi o dell'anno.
+- **Solo collegamenti sicuri**: toglie quelli solo stimati.
+- La **legenda** in basso filtra: un clic nasconde quel tipo (note, fonti, giorni…).
 
 Se ricevi la memoria di un altro PC (**Memoria condivisa fra due PC**, in Integrazioni), in alto compaiono **Questo PC**, il nome dell'altro PC e **Tutte**: scegli quale memoria vedere, o tutte e due insieme; in **Tutte** le cose dell'altro PC hanno il suo nome accanto. La copia dell'altro PC si guarda soltanto: le note nuove vanno nella memoria di questo PC.
 
 ### Grafo
 ![Il grafo della memoria](../media/memoria-grafo.png)
 
-Ogni pagina, nota, fonte e giorno di chat è una stella, unita alle altre dai collegamenti. Le stelle più collegate sono più grandi. Clic su una stella: si illuminano i suoi collegamenti, con scintille che li percorrono, e a destra vedi il testo e l'elenco dei collegamenti.
+Ogni pagina, nota, fonte e giorno di chat è una stella, unita alle altre dai collegamenti. Le stelle più collegate sono più grandi, le più recenti più luminose; ogni gruppo ha una nuvola del suo colore con il nome, che si legge da lontano. Avvicinandoti compaiono i nomi delle pagine, poi delle note. Clic su una stella: si illuminano i suoi collegamenti, con scintille che li percorrono, e a destra vedi il testo e l'elenco dei collegamenti.
+- **Doppio clic su una stella**: restano solo lei e ciò che le sta vicino (due passi); doppio clic sullo sfondo per tornare a tutto.
+- **Come è collegato a…** (nel pannello): poi clicca un'altra stella e si illumina la strada più corta fra le due, passo per passo anche a destra.
+- Le **note senza collegamenti** hanno un anello rosso e sono elencate nella panoramica: **Collega con l'IA** le sistema.
 
 ### Grafo 3D
 Lo stesso grafo nello spazio, come un globo di stelle. Trascina per girarlo (continua a ruotare un poco quando lasci), rotellina per avvicinarti, doppio clic per vedere tutto. Le stelle lontane sono più tenui; cliccandone una il globo si gira per portarla davanti a te.
+
+### Galassia
+Ogni gruppo è una galassia del suo colore, con le pagine nel nucleo e le note lungo i bracci a spirale; ciò che non sta in un gruppo sono le stelle sparse. Le note nuove brillano un istante; cercando, si accende la scia fra le stelle trovate.
+
+### Rete neurale
+La memoria come neuroni raccolti per argomento. Quando la chat, Agent Chat o l'altro PC leggono o scrivono la memoria, gli impulsi di luce partono dal centro verso ciò che toccano e corrono ai vicini: vedi la memoria «pensare» mentre lavorano. Clic su un neurone per mandarne uno tu. A riposo non si muove niente.
+
+### Bolle
+Una bolla per gruppo, grande quanto ciò che contiene, con dentro le sue pagine (più grandi) e le note.
+
+### Raggiera
+Cerchi concentrici: al centro la memoria, intorno le pagine, larghe quanto le note che raccolgono, fuori le note di ogni pagina. Mostra a colpo d'occhio quali argomenti pesano di più.
 
 ### Mappa mentale
 ![La mappa mentale](../media/memoria-mappa.png)
@@ -97,6 +120,12 @@ Un argomento al centro e ciò che ne nasce, fino a tre anelli: ogni ramo ha il s
 ![La mappa concettuale](../media/memoria-concetti.png)
 
 Le pagine a livelli, dall'alto in basso, con frecce che dicono la relazione («usa», «referente», «contratto»…). Le pagine citate ma non ancora scritte sono tratteggiate.
+
+### Fiume
+Gli argomenti nel tempo: ogni gruppo è una striscia colorata larga quanto se ne è scritto ogni settimana (ultimi sei mesi). Si vede quando un cliente o un progetto è diventato caldo. Rotellina per lo zoom sul tempo.
+
+### Da dove arriva
+A sinistra da dove arriva la memoria (chat, Agent Chat, altro PC, ticket, mail, chiamate, Telegram, file letti), a destra le pagine in cui finisce, unite da flussi larghi quanto i collegamenti. Passa il mouse su un flusso per i numeri.
 
 ### Timeline
 ![La timeline della memoria](../media/memoria-timeline.png)

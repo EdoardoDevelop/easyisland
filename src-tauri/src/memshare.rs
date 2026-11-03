@@ -87,7 +87,7 @@ pub(crate) fn safe_path(rel: &str) -> Option<PathBuf> {
     let parts: Vec<&str> = rel.split('/').collect();
     let ok_part = |p: &str| !p.is_empty() && p != "." && p != ".." && !p.contains(['\\', ':', '\0']) && !p.starts_with('.');
     match parts.as_slice() {
-        [f] if *f == "MEMORIA.md" || *f == "archivio.md" => Some(PathBuf::from(f)),
+        [f] if *f == "MEMORIA.md" || *f == "archivio.md" || *f == crate::memory_links::FILE => Some(PathBuf::from(f)),
         ["pagine", f] if ok_part(f) && f.ends_with(".md") => Some(PathBuf::from("pagine").join(f)),
         _ => None,
     }
@@ -97,7 +97,8 @@ pub(crate) fn safe_path(rel: &str) -> Option<PathBuf> {
 fn snapshot() -> BTreeMap<String, String> {
     let dir = crate::memory::dir();
     let mut out = BTreeMap::new();
-    for f in ["MEMORIA.md", "archivio.md"] {
+    // The AI's verdicts on the map's links go too: the other PC draws the same links.
+    for f in ["MEMORIA.md", "archivio.md", crate::memory_links::FILE] {
         if let Ok(text) = std::fs::read_to_string(dir.join(f)) {
             out.insert(f.to_string(), text);
         }
@@ -236,11 +237,13 @@ async fn handle(app: &AppHandle, srv: &Server, r: &Value) -> bool {
     let (answer, noted) = match r.get("kind").and_then(Value::as_str) {
         Some("ask") => {
             let q = body.clone();
+            crate::brain::activity(app, "read", &body);
             let found = tauri::async_runtime::spawn_blocking(move || crate::memory::search(&q, "")).await.ok().and_then(Result::ok).unwrap_or_default();
             crate::log::line(format!("memshare: {from} ha cercato nella memoria"));
             (found, false)
         }
         Some("note") => {
+            crate::brain::activity(app, "write", &body);
             let res = crate::memory::note(&tf("(da {pc}) {text}", &[("pc", &from), ("text", &body)]));
             let ok = res.is_ok();
             let _ = crate::brain::changed(app, res);

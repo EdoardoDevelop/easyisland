@@ -75,18 +75,41 @@ If there's nothing to do it doesn't run and costs nothing.
 ## Memory engine
 In **Settings → Chat and AI engines → Memory → Memory engine** you can pick an engine, a free one too, that links the memory by writing it into the files: it creates a page for every subject that comes back in several notes (a customer, a project, a person), with references to the notes, adds relations between pages ("customer of", "works with"…) and keeps every page's summary up to date, with its other names. It works by itself after the evening digest and when you press **Link with AI** in the map. It only adds: it never deletes or rewrites your notes. With a cloud engine the notes are sent to that service; with Ollama or LM Studio they stay on the PC. With **None** the map links the items by itself, from the words in common.
 
+**Link with AI** also checks the map's links: for every new or changed note the engine looks at the pages and notes it may belong to and keeps only the real ones (a shared word such as "server" or "customer" is no longer enough). The verdict stays in `collegamenti.json` beside the memory, travels with the shared memory, and the map uses it instead of guesses. It changes neither notes nor pages. On another PC's copy the button checks that copy from here, unless that PC already did. With many notes it works in parts: press it again until it says it is done.
+
 ## The Memory window
-The button with three nodes at the top of the island (or **Settings → Chat and AI engines → Memory → Map**) opens a window of its own with the memory drawn four ways. A note links to the pages it talks about (even without their full title, from the words in common) and to similar notes; archived notes tied to nothing do not crowd the graph.
+The button with three nodes at the top of the island (or **Settings → Chat and AI engines → Memory → Map**) opens a window of its own with the memory drawn many ways. A note links to the pages it names, to those the AI confirmed and, until the AI has looked at it, to those it shares rare words with (a name, a device); links only guessed are dashed. Archived notes tied to nothing do not crowd the graph.
+
+Above the views:
+- **Colours by group / by kind**: groups are the subjects that go together (a customer with its people and notes), found by themselves, each with its colour and name.
+- **Period**: only what is from the last month, 3 months or year.
+- **Only sure links**: hides those only guessed.
+- The **legend** at the bottom filters: a click hides that kind (notes, sources, days…).
 
 If you receive another PC's memory (**Memory shared between two PCs**, in Integrations), the top bar shows **This PC**, the other PC's name and **All**: pick which memory to see, or both together; in **All** the other PC's things carry its name. The other PC's copy is read only: new notes go into this PC's memory.
 
 ### Graph
 ![The memory graph](../media/memoria-grafo.png)
 
-Every page, note, source and chat day is a star, joined to the others by its links. The most linked stars are bigger. Click a star: its links light up, with sparks running along them, and on the right you see its text and the list of links.
+Every page, note, source and chat day is a star, joined to the others by its links. The most linked stars are bigger, the most recent brighter; each group has a cloud of its colour with its name, readable from afar. Coming closer, the pages' names appear, then the notes'. Click a star: its links light up, with sparks running along them, and on the right you see its text and the list of links.
+- **Double click a star**: only it and what is near it (two steps) stay; double click the background to see everything again.
+- **How is it linked to…** (in the panel): then click another star and the shortest path between the two lights up, step by step on the right too.
+- **Notes without links** wear a red ring and are listed in the overview: **Link with AI** sorts them out.
 
 ### 3D graph
 The same graph in space, like a globe of stars. Drag to turn it (it keeps spinning a little when you let go), wheel to come closer, double click to see everything. Far stars are fainter; click one and the globe turns to bring it in front of you.
+
+### Galaxy
+Each group is a galaxy of its colour, with its pages in the core and its notes along spiral arms; what is in no group are the scattered stars. New notes twinkle for a moment; a search lights the trail between the stars found.
+
+### Neural network
+The memory as neurons gathered by subject. When the chat, Agent Chat or the other PC read or write the memory, pulses of light leave the centre for what they touch and run on to the neighbours: you see the memory "think" while they work. Click a neuron to send one yourself. At rest nothing moves.
+
+### Bubbles
+One bubble per group, as big as what it holds, with its pages (bigger) and notes inside.
+
+### Rings
+Concentric rings: the memory in the middle, around it the pages, as wide as the notes they gather, outside the notes of each page. It shows at a glance which subjects weigh most.
 
 ### Mind map
 ![The mind map](../media/memoria-mappa.png)
@@ -97,6 +120,12 @@ One subject in the middle and what grows from it, up to three rings: each branch
 ![The concept map](../media/memoria-concetti.png)
 
 Pages in layers, top to bottom, with arrows that name the relation ("uses", "contact", "contract"…). Pages mentioned but not yet written are dashed.
+
+### River
+Subjects over time: each group is a coloured stream as wide as how much was written about it each week (last six months). You see when a customer or a project became hot. Wheel to zoom on time.
+
+### Where it comes from
+On the left where the memory comes from (chat, Agent Chat, other PC, tickets, mail, calls, Telegram, files read), on the right the pages it ends up in, joined by flows as wide as the links. Hover a flow for the numbers.
 
 ### Timeline
 ![The memory timeline](../media/memoria-timeline.png)

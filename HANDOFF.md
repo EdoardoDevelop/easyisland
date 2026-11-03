@@ -50,6 +50,10 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 3/11 — Mappa della memoria: viste nuove, gruppi, collegamenti giudicati dall'IA (`claude/mappa-memoria`)
+- Viste Galassia, Rete neurale (impulsi su `memory-activity`), Bolle, Raggiera, Fiume, Da dove arriva; gruppi a colori, freschezza, filtri (legenda, periodo, solo sicuri), «Come è collegato a…», doppio clic = messa a fuoco, note sole (`src/memory/`).
+- Collegamenti: forza 1–3, stime più severe (`Rarity`), niente catene di parole rare; «Collega con l'IA» giudica le note e salva `collegamenti.json` (`memory_links.rs`), anche per la copia di lavoro da casa. Provato nell'anteprima con i dati finti e con test Rust; non sulla memoria vera né con un motore vero. `docs/chat.md` → Finestra Memoria.
+
 ### 3/11 — Coda della chat, font, Agent Chat: chi lavora e scrivere dall'isola (`claude/sviluppo`)
 - Chat: si scrive mentre risponde, messaggi in coda con Invia subito / Modifica / ✕ (`chat.ts`); Ctrl+Invio = Ferma e manda.
 - Aspetto → Font: titoli e testo separati (`src/core/fonts.ts`, `theme.fonts`), Doto/DotGothic16/VT323/Space Mono in `public/fonts/` (OFL), più i font di Windows (`system_fonts`). Anche nella barra fissa, con «Font di Aspetto → Font» (acceso di serie). Scheda Agent Chat a tutta isola. Smoke: Edge chiusi con `Browser.close` (restavano appesi).
@@ -63,6 +67,3 @@ Con la copia di un altro PC (`memoria-condivise`) la barra della finestra Memori
 
 ### 2/11 — Chat: barra delle conversazioni, più conversazioni aperte (1.0.22)
 Barra a sinistra (Ctrl+B; allarga l'isola con `chatSideRoom`, galleggia se stretta), colonna centrale di 780 px. Ogni conversazione ha il suo `Chat` in Rust (`Chats`, comandi con `sid`), processo e «Ferma»; max 8 (`MAX_OPEN_CHATS`). `docs/chat.md` → Cronologia. Provato con test, smoke e `?scene=chat&history`, non con due motori veri insieme.
-
-### 2/11 — Agent Chat autonoma, comandi in background (1.0.21)
-«Autonomi» non chiede più niente (`agentchat::decide`); il vecchio comportamento è la scelta `chat`. Il turno che Claude Code fa a fine comando in background è letto da `claude_cli::follow` e pubblicato in chat (`Chat::later`, max 3 ore). Corretta la pagina della chat (`online` dichiarata due volte), ripubblicata.

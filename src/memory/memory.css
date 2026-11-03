@@ -391,3 +391,58 @@ body {
 .mem-drop.on {
   display: grid;
 }
+
+/* The views and the filters over them (main.ts viewBar). */
+.mem-viewbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--hairline);
+  background: #0b0c10;
+  min-width: 0;
+}
+.mem-viewbar .mem-tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.mem-viewbar .mem-tabs::-webkit-scrollbar { display: none; }
+.mem-viewbar .mem-tabs button { white-space: nowrap; }
+.mem-select {
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+.mem-select option { background: #14161c; }
+.mem-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--dim);
+  white-space: nowrap;
+  cursor: pointer;
+}
+/* The legend filters: a click hides a kind. */
+.mem-legend { pointer-events: auto; }
+.mem-legend button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  color: var(--dim);
+  background: rgba(6, 7, 10, 0.55);
+  cursor: pointer;
+}
+.mem-legend button:hover { color: var(--ink); }
+.mem-legend button.off { opacity: 0.4; text-decoration: line-through; }
+.mem-legend i { width: 9px; height: 9px; border-radius: 50%; }

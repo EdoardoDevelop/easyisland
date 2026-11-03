@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 2/11 — Agent Chat autonoma, comandi in background (1.0.21)
+«Autonomi» non chiede più niente (`agentchat::decide`); il vecchio comportamento è la scelta `chat`. Il turno che Claude Code fa a fine comando in background è letto da `claude_cli::follow` e pubblicato in chat (`Chat::later`, max 3 ore). Corretta la pagina della chat (`online` dichiarata due volte), ripubblicata.
+
 ### 2/11 — Memoria condivisa casa/lavoro, chi è online (1.0.20)
 Il lavoro condivide la memoria via server Agent Chat (`memshare.rs`, `/api/memory`); casa ne tiene una copia, la cerca dopo la propria e poi chiede al lavoro acceso. Note di lavoro dette a casa arrivano al lavoro (subito o alla riaccensione). `/api/presence`: PC online nella pagina e nei prompt.
 

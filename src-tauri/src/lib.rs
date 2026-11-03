@@ -7,6 +7,7 @@ mod appmenu;
 mod steps;
 mod collect;
 mod memory_ai;
+mod memory_links;
 mod preview;
 mod antigravity;
 mod agent;
@@ -1922,10 +1923,23 @@ async fn memory_graph(app: AppHandle, source: Option<String>) -> Result<brain::G
     tauri::async_runtime::spawn_blocking(move || brain::graph_of(&source, other)).await.map_err(|e| tf("Errore nel leggere la memoria: {e}", &[("e", &e)]))
 }
 
-/// «Collega con l'IA» (memory_ai.rs): the chosen engine ties the memory together; what was done.
+/// «Collega con l'IA»: on this PC the engine ties the memory together
+/// (memory_ai.rs), then judges the map's links (memory_links.rs); on the copy
+/// of another PC's memory only the links. What was done.
 #[tauri::command]
-async fn memory_link(app: AppHandle) -> Result<String, String> {
-    memory_ai::run(&app).await
+async fn memory_link(app: AppHandle, source: Option<String>) -> Result<String, String> {
+    let source = source.unwrap_or_default();
+    if !source.is_empty() {
+        return memory_links::judge(&app, &source).await;
+    }
+    let first = memory_ai::run(&app).await;
+    let links = memory_links::judge(&app, "").await;
+    match (first, links) {
+        (Ok(a), Ok(b)) => Ok(format!("{a} {b}")),
+        (Ok(a), Err(e)) => Ok(format!("{a} {e}")),
+        (Err(e), Ok(b)) => Ok(format!("{e} {b}")),
+        (Err(e), Err(_)) => Err(e),
+    }
 }
 
 /// The memory window's «Leggi adesso» and «Controlla»: a task (tasks.rs).

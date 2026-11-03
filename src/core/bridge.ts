@@ -533,7 +533,7 @@ export const Bridge = {
   popoutWiden: (window: string, width: number) => call<void>("popout_widen", { window, width }),
   memoryGraph: (source: string) => call<import("../memory/data").MemGraph>("memory_graph", { source }),
   /** «Collega con l'IA» (memory_ai.rs): what the engine added. */
-  memoryLink: () => callOrThrow<string>("memory_link"),
+  memoryLink: (source = "") => callOrThrow<string>("memory_link", { source }),
   memoryJob: (kind: "inbox" | "check") => callOrThrow<void>("memory_job", { kind }),
   memoryNodeOpen: (id: string) => callOrThrow<void>("memory_node_open", { id }),
   memoryWindowOpen: () => call<void>("memory_window_open"),
