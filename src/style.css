@@ -6505,4 +6505,11 @@ html[data-font-title-size] :is(.title, .chat-title, .int-head b, .int-name, .his
 html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-input, .chat-queued-text, .hint, .int-empty, .bubble) {
   font-weight: var(--font-text-weight) !important;
 }
-#island.popwin .ac-list { max-height: calc(100vh - 280px); }
+/* Agent Chat as big as the island (Edoardo, 3 Nov 2026): the card fills the
+   view, the conversation takes the room left (also popped out, popout.ts). */
+.view:has(.ac-card), .view:has(.ac-card) .left, .view:has(.ac-card) .card, .view:has(.ac-card) .left-body { height: 100%; min-height: 0; box-sizing: border-box; }
+.view:has(.ac-card) .card, .view:has(.ac-card) .left-body { display: flex; flex-direction: column; }
+.ac-card { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.ac-card .ac-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.ac-card .ac-list { flex: 1 1 auto; min-height: 260px; max-height: none; }
+#island.popwin .ac-card .ac-list { min-height: 120px; }

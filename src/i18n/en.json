@@ -4296,5 +4296,8 @@
   "Manca l'indirizzo di Agent Chat (Impostazioni → Integrazioni → Agent Chat).": "Agent Chat's address is missing (Settings → Integrations → Agent Chat).",
   "Per scrivere come te serve il «Token per scrivere come te»: crealo nella pagina della chat (menu → Scrivere da un'app) e incollalo in Impostazioni → Integrazioni → Agent Chat.": "To write as you, you need the «Token to write as you»: create it in the chat's page (menu → Write from an app) and paste it in Settings → Integrations → Agent Chat.",
   "Scrivi un messaggio.": "Write a message.",
-  "Al massimo 10 allegati per messaggio.": "At most 10 attachments per message."
+  "Al massimo 10 allegati per messaggio.": "At most 10 attachments per message.",
+  "titoli e intestazioni, nomi nelle schede e in chat; nella barra fissa se lì è acceso «Font di Aspetto → Font»": "titles and headings, names in cards and in the chat; in the fixed bar when «Font from Appearance → Font» is on there",
+  "Font di Aspetto → Font": "Font from Appearance → Font",
+  "gli elementi della barra (orologio, widget, azioni) usano il font dei titoli scelto in Aspetto → Font; spento, quello di sistema": "the bar's elements (clock, widgets, actions) use the titles' font chosen in Appearance → Font; off, the system one"
 }

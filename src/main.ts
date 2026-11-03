@@ -1,5 +1,6 @@
 // Entry point: boot the bridge, wire the island, start the greeting.
 
+import { barFont } from "./core/fonts";
 import "./style.css";
 import "./style-windows.css";
 import "./style-light.css";
@@ -299,6 +300,7 @@ function linkCharacterWindow(island: Island) {
           thickness: barThickness(State.settings),
           items: barPieces(island.barStrip(), island.barAppBar()),
           look: State.settings.fixedBarLook ?? {},
+          font: State.settings.fixedBarLook?.font === false ? null : barFont(State.settings.theme?.fonts),
         }
         : null,
     };

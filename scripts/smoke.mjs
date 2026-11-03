@@ -126,6 +126,15 @@ class Runner {
   }
 
   async stop() {
+    // Edge closed from inside: the process started here is only a launcher on
+    // Windows, so kill() left Edge running, and the Edges left behind kept the
+    // ports (the next runs then found no page ready).
+    try {
+      this.ws?.send(JSON.stringify({ id: ++this.nextId, method: "Browser.close" }));
+      await sleep(300);
+    } catch {
+      // Already gone.
+    }
     this.ws?.close();
     this.edge.kill();
     await sleep(500);

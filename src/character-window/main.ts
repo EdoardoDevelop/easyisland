@@ -9,6 +9,7 @@ import { BotEngine, hexToRGB } from "../character/engine";
 import { onFigureChange, setFigure, setFigureLogo, setFigureWeather } from "../character/figure";
 import { setJarvisAgents } from "../character/jarvis";
 import { invoke } from "@tauri-apps/api/core";
+import { addFaces } from "../core/fonts";
 import { linkChannel, MIRRORED_CALLS, type BarLook, type BarPiece, type CharacterMode, type CharacterToIsland, type IslandToCharacter } from "../core/link";
 
 /** Only following a gaze: 30 fps, as in the island. */
@@ -213,6 +214,13 @@ function layBar() {
   }
   const look = lookOf(bar);
   const t = bar.thickness;
+  // Aspetto → Font, when the bar takes it (personaggio.html: body.own-font).
+  const font = bar.font ?? null;
+  if (font) addFaces();
+  document.body.classList.toggle("own-font", !!font);
+  document.body.classList.toggle("own-weight", !!font?.weight);
+  if (font) document.body.style.setProperty("--bar-font", font.stack);
+  if (font?.weight) document.body.style.setProperty("--bar-weight", String(font.weight));
   const m = look.margin;
   // The background: the band between the margins, or behind each area (islands).
   const see = bar.background === "transparent" || look.opacity < 50;

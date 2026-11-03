@@ -56,6 +56,22 @@ export function themeFonts(f: Partial<ThemeFonts> | undefined): ThemeFonts {
   return { title: pick(f?.title), text: pick(f?.text) };
 }
 
+/** The fixed bar's font (the character's window): the titles' one, else the text's; null = its own. */
+export function barFont(raw: Partial<ThemeFonts> | undefined): { stack: string; weight: number } | null {
+  const f = themeFonts(raw);
+  const p = f.title.family ? f.title : f.text.family ? f.text : null;
+  return p ? { stack: fontStack(p.family), weight: p.weight } : null;
+}
+
+/** The bundled fonts in another page (the character's window draws the fixed bar). */
+export function addFaces(doc: Document = document): void {
+  if (doc.getElementById("ei-fonts")) return;
+  const style = doc.createElement("style");
+  style.id = "ei-fonts";
+  style.textContent = faces();
+  doc.head.append(style);
+}
+
 /** The @font-face of the bundled fonts, with full addresses (a popped about:blank window has no base of its own). */
 function faces(): string {
   return BUNDLED_FONTS.map((f) => {

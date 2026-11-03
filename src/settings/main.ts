@@ -2874,18 +2874,8 @@ function fontSections(commit: () => void): HTMLElement[] {
     h("section", {},
       h("h2", {}, h("span", { text: t("Anteprima") })),
       preview,
-      h("div", { class: "row" },
-        h("button", { text: t("Prova il look a puntini"),
-          title: t("Titoli in Doto (a puntini), testo in Space Mono, più leggibile nei messaggi lunghi"),
-          onclick: () => {
-            th.fonts = { title: { family: "Doto", size: 110, weight: 700 }, text: { family: "Space Mono", size: 100, weight: 0 } };
-            changed();
-            render();
-          } }),
-        h("span", { class: "hint note", text: t("il font a puntini va bene per titoli, orologio e isola; per i testi lunghi meglio un font leggibile") }),
-      ),
     ),
-    block(t("Font dei titoli"), t("titoli e intestazioni, orologio della barra, nomi nelle schede e in chat"), fonts.title),
+    block(t("Font dei titoli"), t("titoli e intestazioni, nomi nelle schede e in chat; nella barra fissa se lì è acceso «Font di Aspetto → Font»"), fonts.title),
     block(t("Font del testo"), t("testo dei messaggi, delle schede, dei campi e delle Impostazioni"), fonts.text),
     h("section", {},
       h("div", { class: "hint", text: t("Doto, DotGothic16, VT323 e Space Mono sono inclusi nell'app con licenza SIL Open Font License.") }),
@@ -3039,6 +3029,10 @@ function barLookRows(commit: () => void): HTMLElement[] {
       h("label", { text: t("Le schede escono dalla barra") }),
       toggle(look().popover !== false, (v) => set("popover", v)),
       h("span", { class: "hint note", text: t("un clic su un elemento apre una piccola isola sotto di lui invece dell'isola intera") })),
+    h("div", { class: "row bar-row" },
+      h("label", { text: t("Font di Aspetto → Font") }),
+      toggle(look().font !== false, (v) => set("font", v)),
+      h("span", { class: "hint note", text: t("gli elementi della barra (orologio, widget, azioni) usano il font dei titoli scelto in Aspetto → Font; spento, quello di sistema") })),
     h("div", { class: "row bar-row" },
       h("label", { text: t("Il personaggio cresce sotto il mouse") }),
       toggle(look().grow !== false, (v) => set("grow", v)),

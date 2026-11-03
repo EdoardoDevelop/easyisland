@@ -16,12 +16,12 @@ La pagina è divisa in sei schede, in alto: **Tema**, **Personaggio**, **Posizio
 
 ## Font
 In **Aspetto → Font** scegli due font separati, con l'anteprima dal vivo:
-- **Font dei titoli**: titoli e intestazioni, orologio della barra, nomi nelle schede e in chat.
+- **Font dei titoli**: titoli e intestazioni, nomi nelle schede e in chat; anche gli elementi della barra fissa (orologio, widget), se lì è acceso **Font di Aspetto → Font**.
 - **Font del testo**: il testo dei messaggi, delle schede, dei campi e delle Impostazioni.
 
 Per ognuno: famiglia, **dimensione** e **spessore**; **Ripristina** torna al font di sistema. Valgono in tutte le finestre: isola, chat, schede, finestre staccate e Impostazioni.
 
-Nell'app ci sono quattro font a puntini e retrò (licenza SIL Open Font License): **Doto** (a matrice di punti), **DotGothic16**, **VT323** e **Space Mono**. Puoi scegliere anche qualsiasi font installato in Windows. **Prova il look a puntini** mette Doto nei titoli e Space Mono nel testo: il font a puntini va bene per titoli e orologio, per i testi lunghi è meglio un font leggibile.
+Nell'app ci sono quattro font a puntini e retrò (licenza SIL Open Font License): **Doto** (a matrice di punti), **DotGothic16**, **VT323** e **Space Mono**. Puoi scegliere anche qualsiasi font installato in Windows. Il font a puntini va bene per titoli e orologio; per i testi lunghi è meglio un font leggibile, per esempio Space Mono.
 
 ## Personaggio
 - **Nell'isola**: il personaggio, il logo di EasyIsland animato o fermo, il tuo logo o il meteo (vedi sotto).
@@ -51,6 +51,7 @@ Con **Barra fissa** in alto o in basso, Windows tiene libera una fascia sul bord
   - **Grandezza del testo** e **Spazio tra gli elementi**.
   - **Ombra:** un'ombra leggera sotto la barra, o sopra se la barra è in basso.
   - **Le schede escono dalla barra:** un clic su un elemento (orologio, volume, un'integrazione come gli Appunti, le notizie…) apre una piccola isola che esce dalla barra proprio sotto di lui, con solo la sua scheda, invece dell'isola intera. È alta quanto il suo contenuto; un clic fuori la richiude.
+  - **Font di Aspetto → Font** (acceso di serie): orologio, widget e azioni della barra usano il font dei titoli scelto in Aspetto → Font; spento, il font di sistema.
   - **Il personaggio cresce sotto il mouse:** portandoci sopra il mouse il personaggio (o il logo) si ingrandisce e la barra si allarga dolcemente attorno a lui.
   - **Nascondi da sola:** sul bordo resta solo un filo; portando lì il mouse la barra esce, e torna via poco dopo che il mouse se n'è andato. Windows non le tiene più lo spazio, ma l'isola aperta dalla barra si apre comunque sotto di lei.
 - **Widget della barra:** «+ Aggiungi» apre il catalogo.
