@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 2/11 — Agent Chat: presa in carico, nomi, consumo
+A un messaggio generico risponde un solo motore: il capo del primo EasyIsland che lo prende (`/api/messages/<id>/claim`). Nomi dei motori unici dalle Impostazioni (`/api/aliases`, `@lia`). Turni e token stimati per motore.
+
 ### 1/11 — Agent Chat: motori autonomi, capo, scheda, recupero, memoria (1.0.19)
 - Messaggio senza nomi → tutti i motori; `@tutti`. Il capo (Claude o il primo) affida le esecuzioni per nome (`plan`, `role`, `lead`); la catena conta solo i messaggi che chiamano qualcuno.
 - Scheda nell'isola `src/views/agentchat.ts` (ascolto: `agentchatListen`). Repo del server pubblico.

@@ -1745,6 +1745,167 @@ fn memory_open(folder: bool) -> Result<(), String> {
     Command::new("explorer").arg(&path).spawn().map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// A window the island opens with `window.open("", …)` for a view it pops out
+/// (popout.ts): blank, a normal window of its own, drawn and driven by the
+/// island's page. Anything else (a link with target=_blank) is refused, as
+/// before there was a handler.
+fn popout_window(app: &AppHandle, url: &str, features: tauri::webview::NewWindowFeatures) -> tauri::webview::NewWindowResponse<tauri::Wry> {
+    use std::sync::atomic::AtomicU32;
+    static NEXT: AtomicU32 = AtomicU32::new(1);
+    if url != "about:blank" {
+        return tauri::webview::NewWindowResponse::Deny;
+    }
+    let label = format!("staccata-{}", NEXT.fetch_add(1, Ordering::Relaxed));
+    let built = WebviewWindowBuilder::new(app, &label, WebviewUrl::External("about:blank".parse().expect("about:blank")))
+        .window_features(features)
+        .title("EasyIsland")
+        .decorations(true)
+        .resizable(true)
+        .skip_taskbar(false)
+        .always_on_top(false)
+        .min_inner_size(360.0, 300.0)
+        // The blank page's own title ("about:blank") never shows: the island sets the real one.
+        .on_document_title_changed(|w, title| {
+            let title = title.trim();
+            if !title.is_empty() && title != "about:blank" {
+                let _ = w.set_title(title);
+            }
+        })
+        .build();
+    match built {
+        Ok(window) => {
+            *LAST_POPOUT.lock().unwrap_or_else(|e| e.into_inner()) = Some(label.clone());
+            // Closed with its ✕ while the Anteprima is docked in it: the preview goes back to the island first.
+            // Gone: the island is told (popout-closed, with the window's name), so its
+            // view comes home even when the page cannot see that its window closed.
+            let closing = app.clone();
+            let name = label.clone();
+            let seen = window.clone();
+            let title = Arc::new(Mutex::new(String::new()));
+            window.on_window_event(move |event| match event {
+                // Its ✕: not closed here. The island takes its view home first
+                // (popout-closing), while the page is still there, and asks to
+                // close it (popout_close); a page that goes takes the click
+                // handlers of what is in it. Closed anyway 2 s later.
+                tauri::WindowEvent::CloseRequested { api, .. } => {
+                    api.prevent_close();
+                    *title.lock().unwrap_or_else(|e| e.into_inner()) = seen.title().unwrap_or_default();
+                    preview::window_closing(&closing, &name);
+                    let _ = closing.emit_to(island::WINDOW_LABEL, "popout-closing", name.clone());
+                    let late = seen.clone();
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_secs(2));
+                        let _ = late.destroy();
+                    });
+                }
+                tauri::WindowEvent::Destroyed => {
+                    preview::window_closing(&closing, &name);
+                    let mut t = title.lock().unwrap_or_else(|e| e.into_inner()).clone();
+                    if t.is_empty() {
+                        t = seen.title().unwrap_or_default();
+                    }
+                    log::line(format!("finestra staccata chiusa: {name} ({t})"));
+                    let _ = closing.emit_to(island::WINDOW_LABEL, "popout-closed", name.clone());
+                }
+                _ => {}
+            });
+            tauri::webview::NewWindowResponse::Create { window }
+        }
+        Err(e) => {
+            log::line(format!("finestra staccata: {e}"));
+            tauri::webview::NewWindowResponse::Deny
+        }
+    }
+}
+
+/// The last window popout_window made: the island asks for its name right
+/// after window.open (popout_take) and uses that name from then on.
+static LAST_POPOUT: Mutex<Option<String>> = Mutex::new(None);
+
+/// A popped-out window by its name (`staccata-N`). As a plain window: with
+/// the Anteprima docked in it, it holds two webviews and is no "webview
+/// window" any more (get_webview_window / webview_windows leave it out: the
+/// chat seemed gone and the Anteprima went back and forth every second).
+fn popout_find(app: &AppHandle, name: &str) -> Option<tauri::Window> {
+    if !name.starts_with("staccata-") {
+        return None;
+    }
+    app.get_window(name)
+}
+
+/// The name of the window window.open has just made (popout.ts).
+#[tauri::command]
+fn popout_take() -> Option<String> {
+    LAST_POPOUT.lock().unwrap_or_else(|e| e.into_inner()).take()
+}
+
+/// The title the island gives a popped-out window.
+#[tauri::command]
+fn popout_title(app: AppHandle, window: String, title: String) {
+    if let Some(w) = popout_find(&app, &window) {
+        if !w.title().is_ok_and(|t| t == title) {
+            let _ = w.set_title(&title);
+        }
+    }
+}
+
+/// The chat went into the window `window` (popout.ts) or came back to the
+/// island (None): the docked Anteprima follows it. A window not found changes
+/// nothing (only None brings the Anteprima back).
+#[tauri::command]
+fn popout_chat(app: AppHandle, window: Option<String>) {
+    match window {
+        None => preview::chat_dock(&app, None),
+        Some(name) => {
+            if popout_find(&app, &name).is_some() {
+                preview::chat_dock(&app, Some(name));
+            }
+        }
+    }
+}
+
+/// The chat's window grows to `width` (logical px) for the Anteprima beside
+/// it, as the island does; never past the screen it is on.
+#[tauri::command]
+fn popout_widen(app: AppHandle, window: String, width: f64) {
+    let Some(w) = popout_find(&app, &window) else { return };
+    let scale = w.scale_factor().unwrap_or(1.0);
+    let Ok(size) = w.inner_size() else { return };
+    let size = size.to_logical::<f64>(scale);
+    let room = w
+        .current_monitor()
+        .ok()
+        .flatten()
+        .zip(w.outer_position().ok())
+        .map(|(m, pos)| (m.position().x as f64 + m.size().width as f64 - pos.x as f64) / scale - 16.0)
+        .unwrap_or(width);
+    let wide = width.min(room).max(size.width);
+    if wide > size.width + 1.0 {
+        let _ = w.set_size(tauri::LogicalSize::new(wide, size.height));
+    }
+}
+
+/// A popped-out window closed by EasyIsland («Rimetti nell'isola», or its ✕
+/// once its view is home): a page cannot close a window it did not open.
+#[tauri::command]
+fn popout_close(app: AppHandle, window: String) {
+    let Some(w) = popout_find(&app, &window) else { return };
+    preview::window_closing(&app, &window);
+    if let Err(e) = w.destroy() {
+        log::line(format!("finestra staccata non chiusa: {e}"));
+    }
+}
+
+/// A popped-out window to the front.
+#[tauri::command]
+fn popout_focus(app: AppHandle, window: String) {
+    if let Some(w) = popout_find(&app, &window) {
+        let _ = w.unminimize();
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
+}
+
 /// The memory window (brain.rs): pages, notes, sources, days and their links, the timeline.
 #[tauri::command]
 async fn memory_graph(app: AppHandle, source: Option<String>) -> Result<brain::Graph, String> {
@@ -3870,6 +4031,12 @@ pub fn run() {
             memory_note,
             memory_open,
             memory_graph,
+            popout_focus,
+            popout_take,
+            popout_title,
+            popout_chat,
+            popout_close,
+            popout_widen,
             memory_job,
             memory_node_open,
             memory_window_open,
@@ -4103,6 +4270,10 @@ pub fn run() {
                 if let Some(dir) = &webview_dir {
                     builder = builder.data_directory(dir.clone());
                 }
+                // «Apri in una finestra» (src/island/popout.ts): the chat or an
+                // integration's card drawn by the island in a window of its own.
+                let opener = handle.clone();
+                builder = builder.on_new_window(move |url, features| popout_window(&opener, url.as_str(), features));
                 builder.build()?;
             }
             // Before the island's webview is ready: see create_settings_window.

@@ -88,6 +88,15 @@ export interface ViewActions extends ActionHandlers, RewriteHandlers, RememberHa
   installUpdate(): void;
   /** Pills dragged into a new order (ids of the ones dragged among). */
   reorder(ids: string[]): void;
+  /**
+   * «Apri in una finestra»: the chat ("chat") or an integration's card (its id)
+   * in a window of its own; `at`: where it was dragged out to (screen px).
+   */
+  popOut(key: string, at?: { x: number; y: number }): void;
+  /** «Rimetti nell'isola»: its window closes and the island shows it. */
+  dockBack(key: string): void;
+  /** Already in a window: brought to the front (true), so the island does not show it too. */
+  popped(key: string): boolean;
 }
 
 export interface ViewHost {
@@ -334,7 +343,13 @@ function buildOverview(actions: ViewActions): ViewHost {
     { class: "icon-btn jump ask-jump", title: t("Chiedi a questa sessione"), onclick: () => actions.askSession() },
     svg(ICONS.bubble, 12),
   );
-  const left = card("indigo", agentBar, leftBody, jump, askJump);
+  // «Apri in una finestra» (popout.ts): this integration's card as a window of its own.
+  const popJump = h(
+    "button",
+    { class: "icon-btn jump pop-jump", title: t("Apri in una finestra"), onclick: () => { if (State.focusTask) actions.popOut(State.focusTask.id); } },
+    svg(ICONS.popOut, 12),
+  );
+  const left = card("indigo", agentBar, leftBody, jump, askJump, popJump);
   // One card: the menu on the left (rail.ts) lists the integrations.
   const el = h("div", { class: "view overview solo" }, h("div", { class: "left" }, left));
 
@@ -498,12 +513,88 @@ function buildOverview(actions: ViewActions): ViewHost {
 
       jump.style.display = detailOpen || showsSummary() || !canOpen(task) ? "none" : "";
       askJump.style.display = mode === "ticker" && !showsSummary() && canAskSession(task) ? "" : "none";
+      // Integrations only (agents stay in the island), beside ↗ when that shows.
+      popJump.style.display = mode === "card" && task && !showsSummary() && !isSessionTask(task) ? "" : "none";
+      popJump.style.right = jump.style.display === "none" ? "" : "32px";
 
     },
     fitHeight() {
       // The left card's content (it flows from the top), plus a bottom margin…
       const content = leftBody.firstElementChild as HTMLElement | null;
       return (content ? content.offsetHeight + 12 : 0) + (agentBar.style.display === "none" ? 0 : agentBar.offsetHeight);
+    },
+  };
+}
+
+/**
+ * One integration's card on its own, for its window (popout.ts): the same card
+ * the island shows, redrawn when its data changes, whatever the island shows.
+ */
+export function buildDetachedCard(id: string, actions: ViewActions): ViewHost {
+  const body = h("div", { class: "left-body" });
+  // «Rimetti nell'isola»: the window closes, the island opens on this card.
+  const dock = h(
+    "button",
+    { class: "icon-btn jump", title: t("Rimetti nell'isola"), onclick: () => actions.dockBack(id) },
+    svg(ICONS.popIn, 12),
+  );
+  const left = card("indigo", body, dock);
+  const el = h("div", { class: "view overview solo on detached" }, h("div", { class: "left" }, left));
+  let detailOpen = false;
+  let cardKey = "";
+  const hooks: IntegrationCardHooks = {
+    get detailOpen() {
+      return detailOpen;
+    },
+    openDetail() {
+      detailOpen = true;
+      cardKey = "";
+      State.notify();
+    },
+    closeDetail() {
+      detailOpen = false;
+      cardKey = "";
+      State.notify();
+    },
+    openSettings: () => actions.openSettingsWindow(),
+    askAboutPicture: (f) => actions.askAboutPicture(f),
+    askAboutText: (label, text) => actions.askAboutText(label, text),
+    openChat: () => actions.openChat(),
+    askChat: (q) => actions.askChat(q),
+    runQuick: (qid) => {
+      const a = (State.settings.actions ?? []).find((x) => x.id === qid);
+      if (a) actions.runAction(a);
+    },
+    holdOpen: () => {},
+    showNotice: (n) => actions.showNotice(n),
+  };
+  return {
+    el,
+    sync() {
+      const task = State.tasks.find((x) => x.id === id);
+      if (!task) {
+        if (cardKey !== "gone") {
+          cardKey = "gone";
+          body.replaceChildren(h("div", { class: "hint", text: t("Questa integrazione non è più attiva.") }));
+        }
+        return;
+      }
+      left.style.setProperty("--wash", `color-mix(in srgb, ${task.color} 45%, transparent)`);
+      const info = State.integrations[task.id];
+      // As the island's card (buildOverview): rebuilt only when what it shows changes.
+      const key = [
+        task.id, detailOpen, task.state, task.steps.join("|"),
+        info?.loaded, info?.error, info?.configured,
+        task.id === "integration_notion" && detailOpen ? "page" : JSON.stringify(info?.data ?? {}),
+        JSON.stringify(State.widgetStatus[task.id.replace(/^widget:/, "")] ?? null),
+        task.id === THREECX ? softphoneVersion() : 0,
+        task.id.startsWith("custom:") ? State.customVersion : 0,
+        task.id === THREECX ? `${State.settings.integrationConfig?.threecxAlert}${State.settings.integrationConfig?.threecxRing}` : "",
+      ].join("~");
+      if (key !== cardKey) {
+        cardKey = key;
+        body.replaceChildren(safeCard(task, hooks));
+      }
     },
   };
 }

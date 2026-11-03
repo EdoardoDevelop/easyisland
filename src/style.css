@@ -1058,7 +1058,7 @@ input[type="range"]::-webkit-slider-thumb {
 .chat-side {
   position: relative;
   z-index: 2;
-  flex: 0 0 236px;
+  flex: 0 0 var(--side-w, 236px);
   display: none;
   flex-direction: column;
   gap: 6px;
@@ -1080,10 +1080,24 @@ input[type="range"]::-webkit-slider-thumb {
   top: 0;
   bottom: 0;
   left: 0;
-  width: min(260px, 82%);
+  width: min(var(--side-w, 260px), 82%);
   background: var(--card);
   box-shadow: 6px 0 18px rgba(0, 0, 0, 0.35);
 }
+/* Its right edge: dragged to make it wider or narrower (chat.ts sideGrip), double click for the usual width. */
+.chat-side-grip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -4px;
+  width: 8px;
+  z-index: 3;
+  cursor: col-resize;
+  border-radius: 4px;
+  transition: background-color 0.15s;
+}
+.chat-side-grip:hover,
+.chat-side-grip.dragging { background: rgba(124, 156, 255, 0.35); }
 .chat-side .history-search { margin: 0 2px 2px; }
 .chat-side .history-rows {
   flex: 1 1 auto;
@@ -5429,6 +5443,9 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
   border-radius: 50%;
 }
 .rail-list .rail-item.dragging { opacity: 0.7; }
+/* Dragged out of the island (rail.ts tearable, sortable out): let go there, it becomes a window. */
+.rail-fixed .rail-item.dragging { opacity: 0.7; }
+.rail-item.tearing { opacity: 0.45; outline: 1px dashed rgba(255, 255, 255, 0.4); outline-offset: -2px; }
 
 /* The top bar: the character's bubble, the one field, the buttons. */
 #header .say {

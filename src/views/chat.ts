@@ -10,6 +10,7 @@ import { calculate, formatResult, plainResult } from "../core/calc";
 import { renderMarkdown } from "../core/markdown";
 import type { ViewHost } from "./views";
 import { remoteData, toggleRemoteLink } from "./remote";
+import { isPopped } from "../island/popout";
 import { locale, t, tn } from "../core/i18n";
 
 let nextId = 1;
@@ -65,6 +66,26 @@ function engineOf(c: ChatSessionState): ChatEngine {
 
 /** Where the sidebar is (open or closed), on this PC. */
 const SIDE_KEY = "easyisland.chatSidebar";
+const SIDE_W_KEY = "easyisland.chatSideWidth";
+/** The sidebar's width, dragged by its edge (between these). */
+const SIDE_MIN_W = 180;
+const SIDE_MAX_W = 480;
+export const SIDE_DEFAULT_W = 236;
+let sideWidth = loadSideWidth();
+
+/** How wide the chat's sidebar is: the island grows by this (island.ts chatSideRoom). */
+export function chatSideWidth(): number {
+  return sideWidth;
+}
+
+function loadSideWidth(): number {
+  try {
+    const v = Number(localStorage.getItem(SIDE_W_KEY));
+    return v >= SIDE_MIN_W && v <= SIDE_MAX_W ? v : SIDE_DEFAULT_W;
+  } catch {
+    return SIDE_DEFAULT_W;
+  }
+}
 function loadSide(): boolean {
   try {
     return localStorage.getItem(SIDE_KEY) !== "0";
@@ -195,7 +216,12 @@ function slug(name: string): string {
 
 export function buildPrompt(
   onHeightChange: () => void,
-  actions: { runAction(a: QuickAction): void; decide(d: "allow" | "deny" | "always"): void },
+  actions: {
+    runAction(a: QuickAction): void;
+    decide(d: "allow" | "deny" | "always"): void;
+    popOut(key: string): void;
+    dockBack(key: string): void;
+  },
 ): ViewHost {
   const chipRow = h("div", { class: "chip-row" });
   // The engine and model, above the chat: a click picks another one.
@@ -219,7 +245,11 @@ export function buildPrompt(
   previewBtn.addEventListener("click", () => void (State.previewOpen ? Bridge.previewHide() : Bridge.previewShow()));
   // «Continua in Claude Desktop» (desktop.rs): the Claude Code session goes on in the app.
   const desktopBtn = h("button", { class: "history-btn desktop-btn", text: "↗" }) as HTMLButtonElement;
-  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, engineBtn, remoteBtn, autoBtn, previewBtn, desktopBtn, exportBtn, engineMenu);
+  // «Apri in una finestra» / «Rimetti nell'isola» (popout.ts): the chat as a window of its own and back.
+  const popBtn = h("button", { class: "history-btn pop-btn" }) as HTMLButtonElement;
+  let popShown: boolean | null = null;
+  popBtn.addEventListener("click", () => (isPopped("chat") ? actions.dockBack("chat") : actions.popOut("chat")));
+  const head = h("div", { class: "chat-head" }, sideBtn, titleEl, chipRow, engineBtn, remoteBtn, autoBtn, previewBtn, desktopBtn, exportBtn, popBtn, engineMenu);
   const log = h("div", { class: "chat-log" });
   // A permission this chat asks for (hooks.ts handleChatPermission): right in the
   // conversation, under its last step, instead of a card taking the island away
@@ -319,7 +349,9 @@ export function buildPrompt(
   const sideNew = h("button", { class: "side-new", title: t("Nuova chat (Ctrl+N)") }, svg(ICONS.plus, 12), h("span", { text: t("Nuova chat") }));
   const historySearch = h("input", { class: "history-search", type: "text", placeholder: t("Cerca nelle conversazioni…"), spellcheck: "false" }) as HTMLInputElement;
   const historyRows = h("div", { class: "history-rows" });
-  const side = h("div", { class: "chat-side" }, sideNew, historySearch, historyRows);
+  // Its right edge, dragged: wider or narrower, remembered on this PC.
+  const sideGrip = h("div", { class: "chat-side-grip", title: t("Trascina per allargare o stringere le conversazioni") });
+  const side = h("div", { class: "chat-side" }, sideNew, historySearch, historyRows, sideGrip);
   // Another open conversation asks a permission: a line over the field takes there.
   const otherAsk = h("button", { class: "chat-other-ask" }) as HTMLButtonElement;
   otherAsk.style.display = "none";
@@ -334,6 +366,58 @@ export function buildPrompt(
     h("div", { class: "card wash chat-card" }, layout),
   );
   (el.querySelector(".card") as HTMLElement).style.setProperty("--wash", "rgba(99,102,241,0.5)");
+  layout.style.setProperty("--side-w", `${sideWidth}px`);
+  let gripFrom: { x: number; w: number } | null = null;
+  let gripFrame = 0;
+  sideGrip.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    gripFrom = { x: e.clientX, w: sideWidth };
+    sideGrip.setPointerCapture(e.pointerId);
+    sideGrip.classList.add("dragging");
+  });
+  sideGrip.addEventListener("pointermove", (e) => {
+    if (!gripFrom) return;
+    const w = Math.round(Math.min(SIDE_MAX_W, Math.max(SIDE_MIN_W, gripFrom.w + e.clientX - gripFrom.x)));
+    if (w === sideWidth) return;
+    sideWidth = w;
+    layout.style.setProperty("--side-w", `${w}px`);
+    // The island grows with it, once a frame.
+    if (!gripFrame) {
+      gripFrame = requestAnimationFrame(() => {
+        gripFrame = 0;
+        State.notify();
+        onHeightChange();
+      });
+    }
+  });
+  const gripEnd = (e: PointerEvent) => {
+    if (!gripFrom) return;
+    gripFrom = null;
+    if (sideGrip.hasPointerCapture(e.pointerId)) sideGrip.releasePointerCapture(e.pointerId);
+    sideGrip.classList.remove("dragging");
+    try {
+      localStorage.setItem(SIDE_W_KEY, String(sideWidth));
+    } catch {
+      /* storage off: back to the usual width next time */
+    }
+  };
+  sideGrip.addEventListener("pointerup", gripEnd);
+  sideGrip.addEventListener("pointercancel", gripEnd);
+  // Double click: the usual width again.
+  sideGrip.addEventListener("dblclick", () => {
+    sideWidth = SIDE_DEFAULT_W;
+    layout.style.setProperty("--side-w", `${sideWidth}px`);
+    try {
+      localStorage.removeItem(SIDE_W_KEY);
+    } catch {
+      /* storage off */
+    }
+    State.notify();
+    onHeightChange();
+  });
+
   // Open or closed as left; in a narrow island it floats over the conversation, closed until asked.
   let sideOpen = loadSide();
   let narrow = false;
@@ -1248,7 +1332,7 @@ export function buildPrompt(
     narrowTimer = window.setTimeout(() => {
       const w = layout.clientWidth;
       if (!w) return;
-      const now = sideOpen && w < 236 + 340;
+      const now = sideOpen && w < sideWidth + 340;
       if (now === narrow) return;
       narrow = now;
       overlay = false;
@@ -1746,6 +1830,12 @@ export function buildPrompt(
       const auto = terminal && State.chatAuto;
       autoBtn.style.display = terminal ? "" : "none";
       previewBtn.style.display = terminal && State.settings.chatPreview !== false ? "" : "none";
+      const away = isPopped("chat");
+      if (away !== popShown) {
+        popShown = away;
+        popBtn.replaceChildren(svg(away ? ICONS.popIn : ICONS.popOut, 12));
+        popBtn.title = away ? t("Rimetti la chat nell'isola") : t("Apri la chat in una finestra");
+      }
       previewBtn.classList.toggle("on", State.previewOpen);
       previewBtn.title = State.previewOpen ? t("Chiudi l'Anteprima") : t("Anteprima: file e pagine web accanto alla chat");
       autoBtn.classList.toggle("on", auto);

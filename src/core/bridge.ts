@@ -525,6 +525,12 @@ export const Bridge = {
   memoryNote: (text: string) => callOrThrow<string>("memory_note", { text }),
   memoryOpen: (folder: boolean) => callOrThrow<void>("memory_open", { folder }),
   /** The memory window (brain.rs): the graph, its jobs, a node's file, opening it. */
+  popoutFocus: (window: string) => call<void>("popout_focus", { window }),
+  popoutTake: () => call<string | null>("popout_take"),
+  popoutTitle: (window: string, title: string) => call<void>("popout_title", { window, title }),
+  popoutChat: (window: string | null) => call<void>("popout_chat", { window }),
+  popoutClose: (window: string) => call<void>("popout_close", { window }),
+  popoutWiden: (window: string, width: number) => call<void>("popout_widen", { window, width }),
   memoryGraph: (source: string) => call<import("../memory/data").MemGraph>("memory_graph", { source }),
   /** «Collega con l'IA» (memory_ai.rs): what the engine added. */
   memoryLink: () => callOrThrow<string>("memory_link"),

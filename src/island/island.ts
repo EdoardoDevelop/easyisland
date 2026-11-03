@@ -24,13 +24,14 @@ import { figureKey, onFigureChange, setFigure, setFigureLogo, setFigureWeather, 
 import { createMiniBot, pruneMiniBots, syncMiniBotStates, tickMiniBots } from "../character/minibots";
 import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq } from "../upload/sequence";
-import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
+import { buildDetachedCard, buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
+import { closePopped, closingPopped, focusPopped, isPopped, popOut, poppedGone, poppedName } from "./popout";
 import { buildSearch, type SearchHost } from "../views/search";
 import { rdmLookFor } from "../views/rdm";
 import { buildRail, railBotSize } from "../views/rail";
 import { appBarItem, buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
 import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
-import { freshChat, onNextReply, reopenChat, sendToChat, windowLabel } from "../views/chat";
+import { chatSideWidth, freshChat, onNextReply, reopenChat, sendToChat, windowLabel } from "../views/chat";
 import { capturing, startCapture } from "./capture";
 import { addToCollection } from "../views/collect";
 import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state";
@@ -93,8 +94,6 @@ const POP_EAR = 14;
 /** The Anteprima's panel on the right of the open island (preview.rs `pane`): usual and least width. */
 const PANE_W = 560;
 const PANE_MIN_W = 360;
-/** The chat's sidebar, added to the open island's width while it shows (style.css .chat-side). */
-const CHAT_SIDE_W = 236;
 /** The open island is at least this tall with the panel, for a page to be usable. */
 const PANE_MIN_H = 520;
 /** The chat's views: the panel is beside them only (another tab hides it). */
@@ -148,6 +147,8 @@ export class Island {
   // The Anteprima docked in the island: the panel holds no DOM of its own, the
   // preview's page (a webview of this window) is laid over it by preview.rs.
   private paneOpen = false;
+  /** Grows at every open, close or move of the docked Anteprima: its place is sent again. */
+  private paneGen = 0;
   private paneGrip = h("div", { class: "preview-pane-grip", title: t("Trascina per allargare l'Anteprima · doppio clic: larghezza predefinita") });
   private paneEl = h("div", { id: "preview-pane" }, this.paneGrip);
   private paneSent = { x: 0, y: 0, w: 0, h: 0 };
@@ -161,6 +162,7 @@ export class Island {
   /** Set while the user's own hover or click opens the island (openByUser). */
   private openedByUser = false;
   private views!: Map<IslandViewName, ViewHost>;
+  private actions!: ViewActions;
   private uploadCanvas!: UploadCanvas;
 
   private width = new Tracked(NOTCH_W);
@@ -405,7 +407,11 @@ export class Island {
       endTalk: () => void this.toggleTalk(),
       cancelTalk: () => this.cancelTalk(),
       closeRemember: () => this.closeRemember(),
+      popOut: (key, at) => this.popOut(key, at),
+      dockBack: (key) => this.dockBack(key),
+      popped: (key) => focusPopped(key),
     };
+    this.actions = actions;
 
     this.wakeStrip = h("div", { id: "wake-strip" });
     this.restCanvas = h("canvas", {}) as HTMLCanvasElement;
@@ -726,9 +732,9 @@ export class Island {
     return State.mode === "expanded" && !FIXED_SIZE_VIEWS.has(State.view) && !this.uploadActive && !State.popover;
   }
 
-  /** The Anteprima's panel is in the open island (not on the greeting and the drop views). */
+  /** The Anteprima's panel is in the open island (not on the greeting and the drop views; not with the chat in its window). */
   private get paneShown(): boolean {
-    return this.paneOpen && State.mode === "expanded" && PANE_VIEWS.has(State.view) && !this.uploadActive;
+    return this.paneOpen && State.mode === "expanded" && PANE_VIEWS.has(State.view) && !this.uploadActive && !isPopped("chat");
   }
 
   /**
@@ -753,7 +759,7 @@ export class Island {
    * taking it from the conversation, as the Anteprima's panel does.
    */
   private get chatSideRoom(): number {
-    return State.mode === "expanded" && State.view === "prompt" && State.chatSideOpen && !State.popover ? CHAT_SIDE_W : 0;
+    return State.mode === "expanded" && State.view === "prompt" && State.chatSideOpen && !State.popover && !isPopped("chat") ? chatSideWidth() : 0;
   }
 
   private get paneWidth(): number {
@@ -776,6 +782,11 @@ export class Island {
   }
 
   expand(view: IslandViewName) {
+    // The chat in a window of its own: that window comes forward instead.
+    if (view === "prompt" && focusPopped("chat")) {
+      State.notify();
+      return;
+    }
     this.stopSequenceIfLeaving(view);
     State.view = view;
     if (State.mode !== "expanded") this.setMode("expanded");
@@ -785,7 +796,60 @@ export class Island {
     State.notify();
   }
 
+  /**
+   * «Apri in una finestra» (popout.ts): the chat, or an integration's card, in
+   * a window of its own. The chat's view moves there and comes back when the
+   * window closes; a card is drawn anew there. The island goes on with the rest.
+   */
+  popOut(key: string, at?: { x: number; y: number }) {
+    if (focusPopped(key)) return;
+    if (key === "chat") {
+      const host = this.views.get("prompt");
+      if (!host) return;
+      const title = `${t("Chat")} — EasyIsland`;
+      const ok = popOut("chat", title, host, this.islandBackground, () => {
+        // Home again, among the island's views; the Anteprima docks beside it again.
+        host.el.classList.remove("on");
+        this.viewsEl.append(host.el);
+        void Bridge.popoutChat(null);
+        this.paneSent = { x: -1, y: -1, w: -1, h: -1 };
+        this.placePane();
+      }, {
+        at,
+        // The Anteprima beside the chat in its window, as in the island.
+        decorate: (doc, body) => this.paneInWindow(doc, body),
+        named: (name) => void Bridge.popoutChat(name),
+      });
+      if (!ok) return;
+      if (State.view === "prompt") {
+        State.summary = true;
+        this.collapse();
+      }
+      return;
+    }
+    const task = State.tasks.find((x) => x.id === key);
+    if (!task) return;
+    const ok = popOut(key, `${task.name} — EasyIsland`, buildDetachedCard(key, this.actions), this.islandBackground, () => {}, { at });
+    if (ok && State.view === "overview" && State.focusId === key && !State.showsSummary) this.collapse();
+  }
+
+  /** «Rimetti nell'isola»: the window closes and the island opens on what it showed. */
+  dockBack(key: string) {
+    closePopped(key);
+    if (key === "chat") {
+      this.alert("prompt");
+      return;
+    }
+    State.setFocus(key);
+    this.alert("overview");
+  }
+
   setView(view: IslandViewName) {
+    // The chat in a window of its own: that window comes forward, the island stays as it is.
+    if (view === "prompt" && focusPopped("chat")) {
+      State.notify();
+      return;
+    }
     // Out of the card's own views (a request, the chat…): the whole island again, at its place.
     if (State.popover && !POP_VIEWS.has(view)) this.leavePopover();
     if (view === "actions") void this.refreshForeground();
@@ -2042,6 +2106,7 @@ ${note}` : text };
         items.push({ label: t("Aggiorna ora"), run: () => void Bridge.refreshIntegration(task.id) });
         items.push({ label: t("Impostazioni «{name}»", { name: task.name }), sep: true, run: settingsAt("integrazioni", task.id) });
       }
+      if (!session) items.splice(1, 0, { label: t("Apri in una finestra"), run: () => this.popOut(task.id) });
     }
 
     // A quick action.
@@ -2070,9 +2135,13 @@ ${note}` : text };
         azioni: ["azioni", t("Impostazioni delle azioni rapide")],
       };
       const p = pages[rail];
+      if (rail === "chat") items.push({ label: t("Apri in una finestra"), run: () => this.popOut("chat") });
       if (p) items.push({ label: p[1], run: settingsAt(p[0]) });
     }
-    if (!items.length && State.view === "prompt") items.push({ label: t("Impostazioni della chat"), run: settingsAt("chat") });
+    if (!items.length && State.view === "prompt") {
+      items.push({ label: t("Apri in una finestra"), run: () => this.popOut("chat") });
+      items.push({ label: t("Impostazioni della chat"), run: settingsAt("chat") });
+    }
     if (!items.length && State.view === "actions") items.push({ label: t("Impostazioni delle azioni rapide"), run: settingsAt("azioni") });
 
     // Always: the island itself.
@@ -2823,12 +2892,22 @@ ${note}` : text };
   setPaneOpen(on: boolean) {
     this.paneOpen = on;
     State.previewOpen = on;
+    // Opened, closed or moved to another window (preview.rs chat_dock hides it
+    // there): its place is told again even if it is the same as before, or the
+    // panel stayed empty until closed and opened again.
+    this.paneGen++;
+    this.paneSent = { x: -1, y: -1, w: -1, h: -1 };
     State.notify();
     this.animateGeometry(false);
   }
 
   /** Tells preview.rs where the panel is (window = page coordinates), or 0 to hide it. */
   private placePane() {
+    // The chat in its own window: the panel is there (paneInWindow), never told from here.
+    if (isPopped("chat")) {
+      this.islandEl.classList.remove("paned");
+      return;
+    }
     const shown = this.paneShown;
     this.islandEl.classList.toggle("paned", shown);
     this.paneEl.style.width = `${Math.max(0, this.paneRoom - 10)}px`;
@@ -2847,9 +2926,80 @@ ${note}` : text };
     void Bridge.previewPane(next.x, next.y, next.w, next.h);
   }
 
+  /**
+   * The Anteprima's panel in the chat's own window (popout.ts): the same box
+   * and divider as in the island, told to preview.rs in that window's
+   * coordinates (the page and its browsers moved there, preview_chat). The
+   * window grows to make room when it opens, as the island does.
+   */
+  private paneInWindow(doc: Document, body: HTMLElement): () => void {
+    const win = doc.defaultView!;
+    const grip = doc.createElement("div");
+    grip.className = "preview-pane-grip";
+    grip.title = t("Trascina per allargare l'Anteprima · doppio clic: larghezza predefinita");
+    const pane = doc.createElement("div");
+    pane.id = "preview-pane";
+    pane.append(grip);
+    body.append(pane);
+    const island = body.closest<HTMLElement>("#island")!;
+    let sent = { x: -1, y: -1, w: -1, h: -1 };
+    let gen = this.paneGen;
+    let wasOpen = false;
+    const widthNow = () => Math.round(clamp(State.settings.previewWidth || PANE_W, PANE_MIN_W, Math.max(PANE_MIN_W, win.innerWidth - PANE_VIEWS_MIN_W - 40)));
+    let start: { x: number; w: number } | null = null;
+    grip.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      start = { x: e.screenX, w: widthNow() };
+      grip.setPointerCapture(e.pointerId);
+    });
+    grip.addEventListener("pointermove", (e) => {
+      if (!start) return;
+      State.settings.previewWidth = Math.round(clamp(start.w + (start.x - e.screenX), PANE_MIN_W, Math.max(PANE_MIN_W, win.innerWidth - PANE_VIEWS_MIN_W - 40)));
+      State.notify();
+    });
+    const end = () => {
+      if (!start) return;
+      start = null;
+      void Bridge.saveSettings(State.settings);
+    };
+    grip.addEventListener("pointerup", end);
+    grip.addEventListener("pointercancel", end);
+    grip.addEventListener("dblclick", () => {
+      State.settings.previewWidth = PANE_W;
+      void Bridge.saveSettings(State.settings);
+      State.notify();
+    });
+    return () => {
+      const open = State.previewOpen;
+      island.classList.toggle("paned", open);
+      // Just opened in a narrow window: the window grows by the panel, as the island would.
+      if (open && !wasOpen) {
+        const need = (State.settings.previewWidth || PANE_W) + PANE_VIEWS_MIN_W + 60;
+        const name = poppedName("chat");
+        if (win.innerWidth < need && name) void Bridge.popoutWiden(name, need);
+      }
+      wasOpen = open;
+      pane.style.width = `${widthNow()}px`;
+      let next = { x: 0, y: 0, w: 0, h: 0 };
+      if (open) {
+        const r = pane.getBoundingClientRect();
+        if (r.width > 40 && r.height > 40) next = { x: Math.round(r.left + 1), y: Math.round(r.top + 1), w: Math.round(r.width - 2), h: Math.round(r.height - 2) };
+      }
+      if (gen === this.paneGen && sent.x === next.x && sent.y === next.y && sent.w === next.w && sent.h === next.h) return;
+      gen = this.paneGen;
+      sent = next;
+      void Bridge.previewPane(next.x, next.y, next.w, next.h);
+    };
+  }
+
   /** The panel's left edge widens it (the island grows with it); double click: the usual width. */
   private wirePane() {
     void onEvent<boolean>("preview-docked", (on) => this.setPaneOpen(on));
+    // A popped-out window closed by its ✕ (lib.rs popout_window, its name): its view comes home.
+    void onEvent<string>("popout-closed", (name) => poppedGone(name));
+    // …and before that, while its page is still there: the view comes home with its handlers.
+    void onEvent<string>("popout-closing", (name) => closingPopped(name));
     // «Parla» (talk.rs): listening, transcribing, the words.
     void onEvent<{ state: string; level?: number; spoke?: boolean; words?: string; message?: string }>("talk", (e) => this.onTalk(e));
     void Bridge.previewState().then((s) => {
@@ -4047,6 +4197,8 @@ ${note}` : text };
     this.search.el.style.display = this.searchShown ? "" : "none";
     guard("search", () => this.search.sync());
     for (const [name, view] of this.views) {
+      // The chat in its own window is drawn there (popout.ts).
+      if (name === "prompt" && isPopped("chat")) continue;
       const on = name === State.view;
       view.el.classList.toggle("on", on);
       if (on) guard(`view ${name}`, () => view.sync());

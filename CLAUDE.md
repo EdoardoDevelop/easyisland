@@ -47,5 +47,5 @@ Rust solo su Windows (MSVC). Test: `cargo test --workspace` in `src-tauri/`.
 - Versione uguale in `package.json`, `Cargo.toml`, `src-tauri/tauri.conf.json` (la CI controlla sui tag).
 - Mai cambiare `identifier` in `tauri.conf.json` (sposta dati e credenziali).
 - Servizio a istanza singola = **integrazione**, mai widget.
-- **Stabilità:** prima di un rilascio e dopo modifiche a hook, viste, integrazioni: `npm run smoke` con `npm run dev` acceso deve dire «nessun errore». In Rust niente `[a..b]` o indici su dati esterni (usa `get`): un panic in release chiude l'app (`docs/architettura.md` → Robustezza).
+- **Stabilità:** prima di un rilascio e dopo modifiche a hook, viste, integrazioni: `npm run smoke` con `npm run dev` acceso deve dire «nessun errore» (~2,5 min; durante il lavoro `npm run smoke:rapido` o `node scripts/smoke.mjs <scene>`). In Rust niente `[a..b]` o indici su dati esterni (usa `get`): un panic in release chiude l'app (`docs/architettura.md` → Robustezza).
 - Modifiche visive coerenti con l'aspetto attuale (`screenshots/`, `dev/scenes.ts`).

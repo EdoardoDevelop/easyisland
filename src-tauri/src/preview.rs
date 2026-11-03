@@ -386,11 +386,72 @@ fn host(app: &AppHandle) -> Option<tauri::Window> {
     if let Some(w) = app.get_window(LABEL) {
         return Some(w);
     }
-    is_open(app).then(|| crate::island::window(app)).flatten()
+    is_open(app).then(|| dock_window(app)).flatten()
 }
 
 fn docked_setting(app: &AppHandle) -> bool {
     app.try_state::<crate::Shared>().map(|sh| sh.settings.lock().unwrap().preview_docked).unwrap_or(false)
+}
+
+/// The chat's own window when the chat is popped out (popout.ts, lib.rs
+/// popout_window): the docked preview goes there, beside it, as in the island.
+static DOCK_IN: Mutex<Option<String>> = Mutex::new(None);
+
+/// Where the docked preview lives: beside the chat, wherever the chat is.
+fn dock_window(app: &AppHandle) -> Option<tauri::Window> {
+    let away = DOCK_IN.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    if let Some(w) = away.and_then(|label| app.get_window(&label)) {
+        return Some(w);
+    }
+    crate::island::window(app)
+}
+
+/// The chat went into the window `label`, or came back to the island (None):
+/// a docked preview goes with it, hidden until the new place tells where its
+/// panel is (preview_pane).
+pub fn chat_dock(app: &AppHandle, label: Option<String>) {
+    {
+        let mut d = DOCK_IN.lock().unwrap_or_else(|e| e.into_inner());
+        if *d == label {
+            return;
+        }
+        *d = label;
+    }
+    if !docked_now(app) {
+        return;
+    }
+    // Made again there rather than moved (Webview::reparent): a moved page
+    // went under the window's own page, there but not seen. The tabs stay.
+    let to = dock_window(app).map(|w| w.label().to_string()).unwrap_or_default();
+    crate::log::line(format!("anteprima: rifatta in {to}"));
+    reopen(app.clone());
+}
+
+/// The window that is about to close holds the docked preview: back to the island first.
+pub fn window_closing(app: &AppHandle, label: &str) {
+    let here = DOCK_IN.lock().unwrap_or_else(|e| e.into_inner()).as_deref() == Some(label);
+    if here {
+        chat_dock(app, None);
+    }
+}
+
+/// Closed and made again (the other kind chosen): the new page only once the
+/// old one is gone, or its label would still be taken and nothing opened.
+fn reopen(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        close_window(&app);
+        for _ in 0..60 {
+            if !is_open(&app) {
+                break;
+            }
+            let _ = tauri::async_runtime::spawn_blocking(|| std::thread::sleep(Duration::from_millis(50))).await;
+        }
+        if let Err(e) = show(&app, false) {
+            crate::log::line(format!("anteprima: {e}"));
+        }
+        sync(&app);
+        emit_tabs(&app);
+    });
 }
 
 /// Opens the preview: its window, or (docked) the panel inside the island,
@@ -399,7 +460,8 @@ pub fn show(app: &AppHandle, focus: bool) -> Result<(), String> {
     let docked = docked_setting(app);
     // The other kind was chosen meanwhile: made again (the tabs stay in STATE).
     if is_open(app) && docked_now(app) != docked {
-        close_window(app);
+        reopen(app.clone());
+        return Ok(());
     }
     if is_open(app) {
         if docked {
@@ -423,8 +485,8 @@ pub fn show(app: &AppHandle, focus: bool) -> Result<(), String> {
     let page = if docked {
         // A panel of the island (island.ts places it): its window holds the page
         // and the browsers, shown where the island says, hidden while it is closed.
-        let island = crate::island::window(app).ok_or_else(|| t("L'isola non c'è.").to_string())?;
-        let win = island;
+        // Beside the chat: in the island, or in the chat's own window.
+        let win = dock_window(app).ok_or_else(|| t("L'isola non c'è.").to_string())?;
         {
             let mut s = state();
             s.origin = (0.0, 0.0);
@@ -471,17 +533,11 @@ pub fn settings_changed(app: &AppHandle, settings: &crate::settings::Settings) {
     if on && docked_now(app) == docked {
         return;
     }
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move {
-        close_window(&app);
-        if on {
-            if let Err(e) = show(&app, false) {
-                crate::log::line(format!("anteprima: {e}"));
-            }
-            sync(&app);
-            emit_tabs(&app);
-        }
-    });
+    if on {
+        reopen(app.clone());
+    } else {
+        close_window(app);
+    }
 }
 
 /// Docked: where the island draws the panel (logical px of its window); a

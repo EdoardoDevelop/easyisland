@@ -72,13 +72,16 @@ From any program press <kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>V</kbd> and speak: the
 The microphone turns on **only** when you press the shortcut, never by itself. It needs the voice message service (Settings → Telegram → Voice messages); the voice that replies is there with OpenAI and Google AI. The shortcut and the spoken reply are in Settings → Quick actions.
 
 ## History
-On the left of the chat is the **conversations bar**: **New chat**, the search and your previous conversations (up to 100, only on this PC) grouped by day. The button at the top left of the chat (or <kbd>Ctrl</kbd>+<kbd>B</kbd>) opens and closes it; while it is open the island grows to make room.
+On the left of the chat is the **conversations bar**: **New chat**, the search and your previous conversations (up to 100, only on this PC) grouped by day. The button at the top left of the chat (or <kbd>Ctrl</kbd>+<kbd>B</kbd>) opens and closes it; while it is open the island grows to make room. Drag its right edge to make it wider or narrower (it stays so); a double click on the edge brings it back as it was.
 
 You can keep **several conversations open at once**: switching to another one does not close the one before, and if it was answering it goes on. In the bar a spinning ring shows who is answering, a dot an answer that came while you were elsewhere, **!** a conversation asking for permission (and a line above the field takes you there). **New chat** leaves the current one open. Beyond 8 open conversations, the least used idle one closes by itself: it stays in the history.
 
 On hover, **✎** (or a double click on the title) renames a conversation: Enter saves, Esc cancels, an empty title goes back to the first question. 📌 keeps it among the Pinned, ✕ deletes it. A click reopens one on its engine and you continue it. With API engines it resumes exactly where it was; with the subscription and opencode the conversation is passed along as text. Settings → Chat → **History** clears or turns it off (turning off the memory diary too).
 
 ![The conversation history](../media/chat-history.png)
+
+## In a window
+Drag the **Chat** entry of the menu out of the island and let go where you like, or press the arrow button at the top of the chat, or right-click **Chat** → **Open in a window**: the chat becomes a normal Windows window, with taskbar and Alt+Tab, to resize and place where you like. It is the same chat: conversations, engines, permissions and Stop stay the island's, and the **Chat** entry in the menu brings the window forward. Closing the window, or the same button (now «Put the chat back in the island»), puts the chat back in the island; the window remembers its size and place. The **Preview** stays beside the chat in the window too, with the same divider to widen it (the window grows if needed), and goes back to the island with the chat.
 
 ## Continuing in Claude Desktop
 With Claude Code as the engine, **↗** at the top of the chat opens the conversation in the Claude Desktop app, with everything said so far, and you continue it there. When you write in the island's chat again, the messages written in Desktop show up before your question, under the line «Conversation continued in Claude Desktop», and Claude resumes the same session. Better not to write in both at once. It needs Claude Code 2.1.285 or later and signing in with a Claude subscription (not an API key). In terminal mode the session opens in the project folder.

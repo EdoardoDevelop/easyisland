@@ -4,6 +4,10 @@
 export const ICONS = {
   // preview — a window with a page in it (the chat's «Anteprima»)
   preview: "M3.5 5.5A1.5 1.5 0 0 1 5 4h14a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 19 20H5a1.5 1.5 0 0 1-1.5-1.5v-13zM3.5 8.5h17M6.5 6.2h.01M8.6 6.2h.01M8 12h8M8 15.5h5",
+  // a window with an arrow leaving it — «Apri in una finestra»
+  popOut: "M13 4h7v7M20 4l-8.5 8.5M17.5 14.5v4A1.5 1.5 0 0 1 16 20H5.5A1.5 1.5 0 0 1 4 18.5V8a1.5 1.5 0 0 1 1.5-1.5h4",
+  // an arrow coming back into a window — «Rimetti nell'isola»
+  popIn: "M20 4l-8.5 8.5M11.5 6.5v6h6M17.5 14.5v4A1.5 1.5 0 0 1 16 20H5.5A1.5 1.5 0 0 1 4 18.5V8a1.5 1.5 0 0 1 1.5-1.5h3",
   // minus — minimize the island as an app
   minimize: "M5 11h14v2H5z",
   // square / two squares — full screen on and off
