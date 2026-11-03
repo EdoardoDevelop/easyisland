@@ -2,6 +2,15 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.22** — **Chat e integrazioni in una finestra**: trascina la voce del menu fuori dall'isola, o premi
+la freccia in alto, e la chat o la scheda di un'integrazione diventa una finestra di Windows da spostare
+e allargare, con la barra delle applicazioni e Alt+Tab; lo stesso pulsante la rimette nell'isola.
+L'**Anteprima** resta accanto alla chat anche nella finestra. La chat ha la **barra delle
+conversazioni** a sinistra (<kbd>Ctrl</kbd>+<kbd>B</kbd>), con il bordo da trascinare per allargarla,
+e tiene **più conversazioni aperte insieme**, ognuna con il suo motore e il suo Ferma. La finestra
+**Memoria** mostra la memoria di questo PC, quella di un altro PC condivisa con Agent Chat, o tutte e
+due insieme.
+
 **1.0.21** — **Agent Chat davvero autonoma**: con «Autonomi» i motori fanno tutto da soli, anche
 cancellare, senza chiederti niente; chi vuole le domande in chat per eliminare e inviare la sceglie nelle
 Impostazioni. Uno **script lanciato in background** non resta più senza risposta: quando finisce il

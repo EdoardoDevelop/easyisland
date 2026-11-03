@@ -47,4 +47,4 @@ English, [docs/en/](docs/en/).
 - One pull request per topic, with a screenshot for visual changes.
 - `npm run build` and `cargo test --workspace` (in `src-tauri/`) must pass; after
   changes to hooks, views or integrations, `npm run smoke` with `npm run dev`
-  running must report no errors.
+  running must report no errors (`npm run smoke:rapido` for a quick check while working).

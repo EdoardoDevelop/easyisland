@@ -1037,11 +1037,151 @@ input[type="range"]::-webkit-slider-thumb {
 .chat-body {
   position: relative;
   z-index: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
   gap: 6px;
   padding: 12px 16px 14px max(16px, calc(84px * var(--bot-room, 1)));
+}
+
+/* The chat with its conversations on the left (as in the desktop chat apps):
+   the sidebar opens and closes with ☰ or Ctrl+B; in a narrow island it floats
+   over the conversation. */
+.chat-layout {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+.chat-side {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 var(--side-w, 236px);
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  /* Long titles are cut, never widen it. */
+  min-width: 0;
+  min-height: 0;
+  padding: 12px 6px 12px 10px;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.14);
+}
+.chat-layout.side-open .chat-side { display: flex; }
+/* A wide island: the conversation and the field in a readable column in the middle. */
+.chat-layout .chat-log { padding-inline: max(0px, calc((100% - 780px) / 2)); }
+.chat-layout .chat-bar,
+.chat-layout .chat-hint,
+.chat-layout .calc-row { width: 100%; max-width: 780px; margin-inline: auto; box-sizing: border-box; }
+.chat-layout.narrow.side-open .chat-side {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(var(--side-w, 260px), 82%);
+  background: var(--card);
+  box-shadow: 6px 0 18px rgba(0, 0, 0, 0.35);
+}
+/* Its right edge: dragged to make it wider or narrower (chat.ts sideGrip), double click for the usual width. */
+.chat-side-grip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -4px;
+  width: 8px;
+  z-index: 3;
+  cursor: col-resize;
+  border-radius: 4px;
+  transition: background-color 0.15s;
+}
+.chat-side-grip:hover,
+.chat-side-grip.dragging { background: rgba(124, 156, 255, 0.35); }
+.chat-side .history-search { margin: 0 2px 2px; }
+.chat-side .history-rows {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin-right: -4px;
+  padding-right: 4px;
+}
+.side-new {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 2px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  font: 600 calc(12.5px + var(--fs-up, 0px)) var(--font);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+}
+.side-new:hover { background: rgba(255, 255, 255, 0.12); }
+.side-group {
+  padding: 10px 10px 3px;
+  font: 600 calc(10.5px + var(--fs-up, 0px)) var(--font);
+  color: var(--dim-3);
+}
+.side-group:first-child { padding-top: 2px; }
+.chat-side .history-item { padding: 5px 6px 5px 10px; gap: 4px; cursor: pointer; }
+/* Rinomina, fissa, elimina: only under the pointer, so the titles keep the room. */
+.chat-side .history-edit,
+.chat-side .history-pin,
+.chat-side .history-del { display: none; }
+.chat-side .history-item:hover .history-edit,
+.chat-side .history-item:hover .history-pin,
+.chat-side .history-item:hover .history-del { display: grid; place-items: center; opacity: 1; }
+.chat-side .history-item:hover .side-badge.unread { display: none; }
+.chat-side .history-item.on { background: rgba(255, 255, 255, 0.1); }
+.chat-side .history-title { font-weight: 500; }
+/* Working: a turning ring; answered while away: a dot; asking a permission: «!». */
+.side-badge {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+.side-badge.busy {
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: var(--indigo);
+  animation: side-spin 0.9s linear infinite;
+}
+.side-badge.unread { width: 8px; height: 8px; margin: 0 3px; background: var(--indigo); }
+.side-badge.ask {
+  font: 800 calc(10px + var(--fs-up, 0px)) var(--font);
+  color: #1a1206;
+  background: var(--amber);
+}
+@keyframes side-spin { to { transform: rotate(360deg); } }
+.side-btn.on { color: var(--ink); }
+/* The conversation's title, next to ☰. */
+.chat-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: 600 calc(12.5px + var(--fs-up, 0px)) var(--font);
+  color: var(--ink-2);
+}
+.chat-title:empty { display: none; }
+/* Another open conversation asks a permission: a line over the field. */
+.chat-other-ask {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 8px;
+  font: 500 calc(11.5px + var(--fs-up, 0px)) var(--font);
+  color: #1a1206;
+  background: var(--amber);
+  cursor: pointer;
 }
 
 .chip-row:empty {
@@ -5303,6 +5443,9 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
   border-radius: 50%;
 }
 .rail-list .rail-item.dragging { opacity: 0.7; }
+/* Dragged out of the island (rail.ts tearable, sortable out): let go there, it becomes a window. */
+.rail-fixed .rail-item.dragging { opacity: 0.7; }
+.rail-item.tearing { opacity: 0.45; outline: 1px dashed rgba(255, 255, 255, 0.4); outline-offset: -2px; }
 
 /* The top bar: the character's bubble, the one field, the buttons. */
 #header .say {

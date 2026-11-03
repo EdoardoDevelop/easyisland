@@ -3,7 +3,44 @@
 
 import type { MemEdge, MemEvent, MemGraph, MemNode } from "./data";
 
-export function demoGraph(): MemGraph {
+/** Another PC whose memory is copied here (Agent Chat), made up too. */
+const OTHER = "ufficio";
+
+/** `source`: "" this PC, OTHER its copy, "*" both (brain::graph_of). */
+export function demoGraph(source = ""): MemGraph {
+  const mine = thisPc();
+  const other = otherPc();
+  const g = source === OTHER ? { ...other, folder: `C:\\Users\\…\\EasyIsland\\memoria-condivise\\${OTHER}` } : mine;
+  if (source === "*") {
+    mine.nodes.push(...other.nodes);
+    mine.edges.push(...other.edges, { from: "p:studio-rossi", to: `${OTHER}|p:studio-rossi`, label: OTHER });
+    mine.events.push(...other.events);
+    mine.events.sort((a, b) => a.date.localeCompare(b.date));
+  }
+  return { ...g, sources: [OTHER] };
+}
+
+/** The other PC's memory, with its ids as brain.rs tags them. */
+function otherPc(): MemGraph {
+  const day = (back: number) => new Date(Date.now() - back * 86_400_000).toISOString().slice(0, 10);
+  const id = (s: string) => `${OTHER}|p:${s}`;
+  const pages: [string, string, number, string][] = [
+    ["studio-rossi", "Studio Rossi", 1, "Server nuovo da montare a dicembre."],
+    ["server-proxmox", "Server Proxmox", 3, "Due SSD in RAID1, scrub il primo sabato del mese."],
+    ["listino-2026", "Listino 2026", 5, "Prezzi delle ore e dei contratti."],
+    ["fornitori", "Fornitori", 12, "Grossisti per PC e dischi."],
+  ];
+  const nodes: MemNode[] = pages.map(([s, label, back, text]) => ({ id: id(s), kind: "page", label, date: day(back), text, weight: 2, origin: OTHER }));
+  const edges: MemEdge[] = [
+    { from: id("studio-rossi"), to: id("server-proxmox"), label: "usa" },
+    { from: id("server-proxmox"), to: id("fornitori"), label: "comprato da" },
+    { from: id("listino-2026"), to: id("fornitori"), label: "" },
+  ];
+  const events: MemEvent[] = pages.map(([s, label, back]) => ({ date: day(back), lane: "page", text: label, node: id(s) }));
+  return { nodes, edges, events, check: [], inbox: [], folder: "" };
+}
+
+function thisPc(): MemGraph {
   const nodes: MemNode[] = [];
   const edges: MemEdge[] = [];
   const events: MemEvent[] = [];

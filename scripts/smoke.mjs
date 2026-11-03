@@ -6,12 +6,15 @@
 //
 //   npm run dev                (in another terminal)
 //   node scripts/smoke.mjs     (all)  ·  node scripts/smoke.mjs chat meteo
+//   npm run smoke:rapido       (the island's views and the chat only)
 //
+// Several Edges at once (SMOKE_JOBS, up to 6 of serie), each with its own
+// profile and port: one at a time took over ten minutes.
 // PREVIEW_URL when the dev server answers only on localhost.
 
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { cpus, tmpdir } from "node:os";
 import { join } from "node:path";
 
 /**
@@ -30,7 +33,6 @@ for (const name of (() => { try { return readdirSync(tmpdir()); } catch { return
 
 
 const BASE = process.env.PREVIEW_URL ?? "http://127.0.0.1:1420";
-const PORT = 9334;
 const ALL = "integration_network,integration_weather,integration_zammad,integration_media,integration_clipboard,integration_3cx,integration_system,integration_security,integration_claude_usage,integration_github,integration_n8n";
 
 const SCENES = [
@@ -58,37 +60,78 @@ if (!EDGE) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const profile = mkdtempSync(join(tmpdir(), "easyisland-smoke-"));
-const edge = spawn(EDGE, [
-  "--headless=new", `--remote-debugging-port=${PORT}`, `--user-data-dir=${profile}`, "--window-size=1100,800", "about:blank",
-], { stdio: "ignore" });
 
-async function target() {
-  for (let i = 0; i < 50; i++) {
-    try {
-      const list = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
-      const page = list.find((t) => t.type === "page");
-      if (page) return page.webSocketDebuggerUrl;
-    } catch { /* not up yet */ }
-    await sleep(200);
+/** One headless Edge with one page, driven over the DevTools protocol. */
+class Runner {
+  constructor(n) {
+    this.port = 9334 + n;
+    this.profile = mkdtempSync(join(tmpdir(), "easyisland-smoke-"));
+    this.edge = spawn(EDGE, [
+      "--headless=new", `--remote-debugging-port=${this.port}`, `--user-data-dir=${this.profile}`, "--window-size=1100,800", "about:blank",
+    ], { stdio: "ignore" });
+    this.nextId = 0;
+    this.pending = new Map();
+    this.problems = [];
   }
-  throw new Error("Edge non risponde sul DevTools protocol.");
-}
 
-let ws;
-let nextId = 0;
-const pending = new Map();
-let problems = [];
-function send(method, params = {}) {
-  const id = ++nextId;
-  ws.send(JSON.stringify({ id, method, params }));
-  return new Promise((resolve, reject) => pending.set(id, { resolve, reject }));
+  async target() {
+    for (let i = 0; i < 50; i++) {
+      try {
+        const list = await (await fetch(`http://127.0.0.1:${this.port}/json/list`)).json();
+        const page = list.find((t) => t.type === "page");
+        if (page) return page.webSocketDebuggerUrl;
+      } catch { /* not up yet */ }
+      await sleep(200);
+    }
+    throw new Error("Edge non risponde sul DevTools protocol.");
+  }
+
+  async start() {
+    this.ws = new WebSocket(await this.target());
+    await new Promise((r, j) => { this.ws.onopen = r; this.ws.onerror = j; });
+    this.ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.method === "Runtime.exceptionThrown") {
+        const d = msg.params.exceptionDetails;
+        this.problems.push(`eccezione: ${d.exception?.description ?? d.text}`);
+      } else if (msg.method === "Runtime.consoleAPICalled" && msg.params.type === "error") {
+        this.problems.push(`console.error: ${msg.params.args.map((a) => a.value ?? a.description ?? "").join(" ")}`);
+      } else if (msg.method === "Log.entryAdded" && msg.params.entry.level === "error") {
+        this.problems.push(`log: ${msg.params.entry.text} ${msg.params.entry.url ?? ""}`);
+      }
+      // A confirm() or alert() of a button: dismissed, or the page would hang.
+      if (msg.method === "Page.javascriptDialogOpening") void this.send("Page.handleJavaScriptDialog", { accept: false });
+      const p = this.pending.get(msg.id);
+      if (!p) return;
+      this.pending.delete(msg.id);
+      if (msg.error) p.reject(new Error(msg.error.message));
+      else p.resolve(msg.result);
+    };
+    await this.send("Page.enable");
+    await this.send("Runtime.enable");
+    await this.send("Log.enable");
+    await this.send("Emulation.setDeviceMetricsOverride", { width: 900, height: 700, deviceScaleFactor: 1, mobile: false });
+  }
+
+  send(method, params = {}) {
+    const id = ++this.nextId;
+    this.ws.send(JSON.stringify({ id, method, params }));
+    return new Promise((resolve, reject) => this.pending.set(id, { resolve, reject }));
+  }
+
+  async evaluate(expression) {
+    const r = await this.send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
+    if (r.exceptionDetails) this.problems.push(`eval: ${r.exceptionDetails.exception?.description ?? r.exceptionDetails.text}`);
+    return r.result?.value;
+  }
+
+  async stop() {
+    this.ws?.close();
+    this.edge.kill();
+    await sleep(500);
+    removeProfile(this.profile);
+  }
 }
-const evaluate = async (expression) => {
-  const r = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
-  if (r.exceptionDetails) problems.push(`eval: ${r.exceptionDetails.exception?.description ?? r.exceptionDetails.text}`);
-  return r.result?.value;
-};
 
 // What a user does: every menu row, the corner, close and open again.
 const EXERCISE = `(async () => {
@@ -139,79 +182,81 @@ const SETTINGS_EXERCISE = `(async () => {
   return n + " controlli";
 })()`;
 
-async function runSettings(page) {
-  problems = [];
-  await send("Page.navigate", { url: `${BASE}/settings.html?page=${page}` });
-  await sleep(1500);
-  const did = await evaluate(SETTINGS_EXERCISE);
+/** A settings page: its lines for the report, and whether it had errors. */
+async function runSettings(r, page) {
+  r.problems = [];
+  await r.send("Page.navigate", { url: `${BASE}/settings.html?page=${page}` });
+  // Until its controls are there and stop growing: with several Edges at once
+  // a fixed wait found an empty page, and "0 controlli" passed as fine.
+  let seen = -1;
+  let ready = false;
+  for (let i = 0; i < 80 && !ready; i++) {
+    await sleep(250);
+    const n = await r.evaluate(`document.querySelectorAll("select, input, main button, .page button").length`);
+    ready = n > 0 && n === seen;
+    seen = n;
+  }
+  if (!ready) r.problems.push("la pagina non è pronta");
+  const did = await r.evaluate(SETTINGS_EXERCISE);
   await sleep(300);
-  problems = problems.filter((p) => !p.includes("chrome-extension://") && !p.includes("favicon.ico"));
-  console.log(`${problems.length ? "ERRORI" : "ok".padEnd(6)} impostazioni/${page}  [${did}]`);
-  for (const p of [...new Set(problems)]) console.log(`       · ${p.split("\n").slice(0, 4).join("\n         ")}`);
-  return problems.length > 0;
+  const problems = r.problems.filter((p) => !p.includes("chrome-extension://") && !p.includes("favicon.ico"));
+  const lines = [`${problems.length ? "ERRORI" : "ok".padEnd(6)} impostazioni/${page}  [${did}]`];
+  for (const p of [...new Set(problems)]) lines.push(`       · ${p.split("\n").slice(0, 4).join("\n         ")}`);
+  return { lines, bad: problems.length > 0 };
 }
 
-async function run(scene) {
-  problems = [];
-  await send("Page.navigate", { url: `${BASE}/?scene=${scene}&activeIntegrations=${ALL}` });
+/** A scene of dev/scenes.ts: its lines for the report, and whether it had errors. */
+async function run(r, scene) {
+  r.problems = [];
+  await r.send("Page.navigate", { url: `${BASE}/?scene=${scene}&activeIntegrations=${ALL}` });
   // "permission" leaves the page as it is on purpose (no "scene ready").
   const loose = scene === "permission";
   let ready = false;
   for (let i = 0; i < (loose ? 12 : 100) && !ready; i++) {
     await sleep(250);
-    ready = await evaluate(`document.title.startsWith("scene ready")`);
+    ready = await r.evaluate(`document.title.startsWith("scene ready")`);
   }
-  if (!ready && !loose) problems.push("la scena non è pronta");
-  const rows = await evaluate(EXERCISE);
+  if (!ready && !loose) r.problems.push("la scena non è pronta");
+  const rows = await r.evaluate(EXERCISE);
   await sleep(300);
   // Edge's own built-in extensions and the missing favicon are not ours.
-  problems = problems.filter((p) => !p.includes("chrome-extension://") && !p.includes("favicon.ico"));
-  const status = problems.length ? "ERRORI" : "ok";
-  console.log(`${status.padEnd(6)} ${scene}${rows ? `  [${rows}]` : ""}`);
-  for (const p of [...new Set(problems)]) console.log(`       · ${p.split("\n").slice(0, 4).join("\n         ")}`);
-  return problems.length > 0;
+  const problems = r.problems.filter((p) => !p.includes("chrome-extension://") && !p.includes("favicon.ico"));
+  const lines = [`${(problems.length ? "ERRORI" : "ok").padEnd(6)} ${scene}${rows ? `  [${rows}]` : ""}`];
+  for (const p of [...new Set(problems)]) lines.push(`       · ${p.split("\n").slice(0, 4).join("\n         ")}`);
+  return { lines, bad: problems.length > 0 };
 }
 
+const only = process.argv.slice(2);
+const jobs = [
+  ...SCENES.filter((scene) => !only.length || only.some((o) => scene.startsWith(o))).map((scene) => ({ scene })),
+  ...SETTINGS.filter((page) => !only.length || only.some((o) => `impostazioni/${page}`.startsWith(o) || o === "impostazioni")).map((page) => ({ page })),
+];
+const width = Math.max(1, Math.min(jobs.length, Number(process.env.SMOKE_JOBS) || Math.min(6, Math.max(1, Math.floor(cpus().length / 2)))));
+const results = new Array(jobs.length);
+const runners = Array.from({ length: width }, (_, n) => new Runner(n));
+const started = Date.now();
+let next = 0;
 let failed = 0;
 try {
-  ws = new WebSocket(await target());
-  await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; });
-  ws.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-    if (msg.method === "Runtime.exceptionThrown") {
-      const d = msg.params.exceptionDetails;
-      problems.push(`eccezione: ${d.exception?.description ?? d.text}`);
-    } else if (msg.method === "Runtime.consoleAPICalled" && msg.params.type === "error") {
-      problems.push(`console.error: ${msg.params.args.map((a) => a.value ?? a.description ?? "").join(" ")}`);
-    } else if (msg.method === "Log.entryAdded" && msg.params.entry.level === "error") {
-      problems.push(`log: ${msg.params.entry.text} ${msg.params.entry.url ?? ""}`);
+  await Promise.all(runners.map(async (r) => {
+    await r.start();
+    while (next < jobs.length) {
+      const i = next++;
+      const job = jobs[i];
+      results[i] = job.scene !== undefined ? await run(r, job.scene) : await runSettings(r, job.page);
+      // Progress as it goes; the report in order at the end.
+      process.stdout.write(`\r${results.filter(Boolean).length}/${jobs.length} `);
     }
-    // A confirm() or alert() of a button: dismissed, or the page would hang.
-    if (msg.method === "Page.javascriptDialogOpening") void send("Page.handleJavaScriptDialog", { accept: false });
-    const p = pending.get(msg.id);
-    if (!p) return;
-    pending.delete(msg.id);
-    if (msg.error) p.reject(new Error(msg.error.message));
-    else p.resolve(msg.result);
-  };
-  await send("Page.enable");
-  await send("Runtime.enable");
-  await send("Log.enable");
-  await send("Emulation.setDeviceMetricsOverride", { width: 900, height: 700, deviceScaleFactor: 1, mobile: false });
-  const only = process.argv.slice(2);
-  for (const scene of SCENES) {
-    if (only.length && !only.some((o) => scene.startsWith(o))) continue;
-    if (await run(scene)) failed++;
-  }
-  for (const page of SETTINGS) {
-    if (only.length && !only.some((o) => `impostazioni/${page}`.startsWith(o) || o === "impostazioni")) continue;
-    if (await runSettings(page)) failed++;
-  }
+  }));
 } finally {
-  ws?.close();
-  edge.kill();
-  await sleep(500);
-  removeProfile(profile);
+  await Promise.all(runners.map((r) => r.stop()));
 }
-console.log(failed ? `\n${failed} scene con errori` : "\nnessun errore");
+process.stdout.write("\r");
+for (const res of results) {
+  if (!res) continue;
+  for (const l of res.lines) console.log(l);
+  if (res.bad) failed++;
+}
+console.log(`\n${jobs.length} prove in ${Math.round((Date.now() - started) / 1000)} s con ${width} Edge`);
+console.log(failed ? `${failed} scene con errori` : "nessun errore");
 process.exit(failed);

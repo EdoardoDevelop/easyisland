@@ -4,6 +4,10 @@
 export const ICONS = {
   // preview — a window with a page in it (the chat's «Anteprima»)
   preview: "M3.5 5.5A1.5 1.5 0 0 1 5 4h14a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 19 20H5a1.5 1.5 0 0 1-1.5-1.5v-13zM3.5 8.5h17M6.5 6.2h.01M8.6 6.2h.01M8 12h8M8 15.5h5",
+  // a window with an arrow leaving it — «Apri in una finestra»
+  popOut: "M13 4h7v7M20 4l-8.5 8.5M17.5 14.5v4A1.5 1.5 0 0 1 16 20H5.5A1.5 1.5 0 0 1 4 18.5V8a1.5 1.5 0 0 1 1.5-1.5h4",
+  // an arrow coming back into a window — «Rimetti nell'isola»
+  popIn: "M20 4l-8.5 8.5M11.5 6.5v6h6M17.5 14.5v4A1.5 1.5 0 0 1 16 20H5.5A1.5 1.5 0 0 1 4 18.5V8a1.5 1.5 0 0 1 1.5-1.5h3",
   // minus — minimize the island as an app
   minimize: "M5 11h14v2H5z",
   // square / two squares — full screen on and off
@@ -44,6 +48,8 @@ export const ICONS = {
   xmark: "M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4 6.4 5z",
   // clock.arrow.circlepath — the chat history (draw with a stroke)
   history: "M4.2 12a7.8 7.8 0 1 0 2.3-5.5M4.2 3.8v3.6h3.6M12 7.8v4.6l3 1.8",
+  // The chat's sidebar: a window with its left column (stroked).
+  sidebar: "M4 5h16v14H4zM9.5 5v14",
   // ellipsis
   ellipsis: "M6 10.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2zm6 0a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2zm6 0a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z",
   // star.fill

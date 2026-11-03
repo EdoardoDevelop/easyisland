@@ -1,7 +1,7 @@
 {
   "name": "easyisland",
   "private": true,
-  "version": "1.0.21",
+  "version": "1.0.22",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,7 +14,8 @@
     "predev": "cargo build --release -p easyisland-hook",
     "prebuild": "cargo build --release -p easyisland-hook",
     "pack": "tauri build && node scripts/pack.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "smoke:rapido": "node scripts/smoke.mjs chat overview agenti agentchat impostazioni/chat"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

@@ -76,10 +76,10 @@ Guida i tuoi agenti di programmazione (Claude Code, Codex, opencode, Gemini CLI)
 
 ## Ultime versioni
 
+- **1.0.22** — **chat e integrazioni in una finestra** (trascinate fuori dall'isola o con un pulsante), con l'**Anteprima** dentro; **barra delle conversazioni** allargabile e più conversazioni aperte; **Memoria** di questo PC, di un altro PC o tutte e due.
 - **1.0.21** — motori di **Agent Chat** del tutto **autonomi** (non chiedono niente, nemmeno per cancellare); il risultato di uno **script in background** arriva in chat quando finisce.
 - **1.0.20** — **Agent Chat** risponde **una volta sola** (il primo PC prende in carico il messaggio), **nomi** per i motori, turni e token per motore, **chi è acceso**; **memoria condivisa fra due PC** (quella di lavoro a casa, separata); motori **autonomi** che chiedono in chat; allegati con SHA-256.
 - **1.0.19** — **Agent Chat** da sola: rispondono tutti i motori, **Claude è il capo** e distribuisce il lavoro, **recupera** ciò che è arrivato a PC spento e tiene l'utile nella **Memoria**; **scheda Agent Chat** nell'isola; il server è open source.
-- **1.0.18** — **Agent Chat**: EasyIsland risponde da solo nella tua chat fra agenti IA, con **più motori** ognuno con il suo nome, **consulte** con la sintesi e freni contro i giri a vuoto; **più pareri** dai motori della chat insieme.
 
 Tutte le versioni, con i dettagli: [CHANGELOG.md](CHANGELOG.md).
 
@@ -246,7 +246,7 @@ _Schermate generate dall'anteprima con `node scripts/screenshots.mjs` (serve `np
 | Lasci il puntatore sul personaggio per due secondi | Cuori |
 | Nella chat, trascini il personaggio su una finestra di un'altra app | La finestra diventa il contesto della chat: ne prende un'immagine, con il nome dell'app e il titolo, e la tua domanda parte insieme a lei. La ✕ sul chip la toglie, Esc annulla mentre lo trascini |
 | Trascini un file sull'isola, anche sull'icona a riposo o sul bordo | Si apre anche se è impostata "solo con un clic": il personaggio diventa una scatola, lo inghiotte e poi si offre di rispondere a domande sul file |
-| Clicchi l'orologio in alto nella chat | La **cronologia**: le conversazioni di prima, con data e motore; un clic ne riapre una e la continui da lì |
+| La barra a sinistra della chat (<kbd>Ctrl</kbd>+<kbd>B</kbd>) | Le **conversazioni** per giorno, con la ricerca: più d'una resta aperta e continua a rispondere mentre passi all'altra; un clic ne riapre una vecchia |
 | `Esc`, la ✕ in alto a destra o **Chiudi finestra** dall'anteprima nella barra delle applicazioni | Chiude subito l'isola, senza aspettare i secondi della chiusura automatica |
 | 📌 in alto a destra | **Tieni aperta**: l'isola non si chiude più da sola finché non la togli (Esc e ✕ la chiudono comunque) |
 | Scrivi un calcolo nella chat, es. `840 + 22%` o `15% di 840` | Compare subito il risultato; **Invio** lo copia negli appunti, **Ctrl+Invio** chiede comunque alla chat. Il calcolo è fatto in locale, senza Claude |
@@ -719,7 +719,7 @@ La chat risponde nella lingua dell'interfaccia, a meno che tu non gli scriva in 
 **Nuova chat**, a sinistra del campo di testo, dimentica la conversazione (e il
 file o il testo a cui si riferiva) e ne comincia una da zero.
 
-**Cronologia**: l'orologio in alto nella chat mostra le conversazioni di prima
+**Cronologia**: la barra a sinistra della chat mostra le conversazioni di prima
 (fino a 100, salvate solo su questo PC in `%LOCALAPPDATA%\EasyIsland\chats.json`).
 Un clic ne riapre una sul suo motore e la continui: con chiave API, OpenRouter,
 OpenAI, Gemini, Ollama e LM Studio riprende esattamente da dove era; con

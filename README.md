@@ -74,10 +74,10 @@ It drives your coding agents (Claude Code, Codex, opencode, Gemini CLI), carries
 
 ## Latest versions
 
+- **1.0.22** — **chat and integrations in a window** (dragged out of the island or with a button), with the **Preview** inside; a resizable **conversations bar** and several conversations open; **Memory** of this PC, of another PC or both.
 - **1.0.21** — **Agent Chat** engines fully **autonomous** (nothing asked, deleting included); the result of a **background script** reaches the chat when it ends.
 - **1.0.20** — **Agent Chat** answers **once** (the first PC takes the message on), **names** for the engines, turns and tokens per engine, **who is on**; **memory shared between two PCs** (work at home, kept apart); **autonomous** engines that ask in the chat; attachments with SHA-256.
 - **1.0.19** — **Agent Chat** on its own: every engine answers, **Claude leads** and hands out the work, it **catches up** after the PC was off and keeps what is useful in the **Memory**; an **Agent Chat card** on the island; the server is open source.
-- **1.0.18** — **Agent Chat**: EasyIsland answers by itself in your chat between AI agents, with **several engines** each under its own name, **consults** with a synthesis and brakes against loops; **several opinions** from the chat’s engines at once.
 
 Every version, in detail: [CHANGELOG.en.md](CHANGELOG.en.md).
 
@@ -231,7 +231,7 @@ _Screenshots are generated from the preview with `node scripts/screenshots.mjs` 
 | **Agents** | The coding agent's session (Claude Code, Codex…): progress, changes, permissions |
 | In the chat, drag the character onto another app's window | That window becomes the chat's context: an image of it, with the app's name and title, goes with your question |
 | Drag a file onto the island, even onto the resting icon or the edge | The character becomes a box, swallows it and offers to answer questions about the file |
-| The clock at the top of the chat | The **history**: earlier conversations, with date and engine; a click reopens one |
+| The bar on the left of the chat (<kbd>Ctrl</kbd>+<kbd>B</kbd>) | Your **conversations** by day, with search: several stay open and keep answering while you switch; a click reopens an older one |
 | `Esc`, the ✕ at the top right or **Close window** from the taskbar preview | Closes the island at once |
 | 📌 at the top right | **Keep open**: the island no longer closes by itself, and becomes a normal window with a taskbar icon |
 | Type a calculation in the chat, e.g. `840 + 22%` | The result appears at once; **Enter** copies it, **Ctrl+Enter** asks the chat anyway. Calculated locally |

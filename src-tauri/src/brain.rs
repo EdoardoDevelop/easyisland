@@ -24,7 +24,7 @@
 // `graph` gives the memory window (src/memory/) its nodes, links and timeline.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
@@ -227,7 +227,12 @@ fn page_file(slug: &str) -> PathBuf {
 
 /// Every page, by title.
 pub fn pages() -> Vec<Page> {
-    let mut out: Vec<Page> = std::fs::read_dir(pages_dir())
+    pages_in(&pages_dir())
+}
+
+/// The pages of a folder (this PC's or the copy of another PC's memory).
+fn pages_in(dir: &Path) -> Vec<Page> {
+    let mut out: Vec<Page> = std::fs::read_dir(dir)
         .map(|r| {
             r.flatten()
                 .filter(|e| e.path().extension().is_some_and(|x| x == "md"))
@@ -852,6 +857,8 @@ pub struct Node {
     pub date: String,
     pub text: String,
     pub weight: u32,
+    /// The other PC whose memory it comes from (empty: this PC).
+    pub origin: String,
 }
 
 #[derive(Serialize)]
@@ -882,6 +889,8 @@ pub struct Graph {
     pub check: Vec<String>,
     pub inbox: Vec<String>,
     pub folder: String,
+    /// The other PCs whose memory is copied here (memshare.rs), for the window's choice.
+    pub sources: Vec<String>,
 }
 
 fn cut(text: &str, max: usize) -> String {
@@ -901,9 +910,87 @@ fn note_parts(line: &str) -> (String, String) {
     }
 }
 
-/// Everything the memory window draws.
+/// Everything the memory window draws: this PC's memory ("" ), the copy of
+/// another PC's (its name in Agent Chat) or both ("*"). `other`: the PC whose
+/// memory this one reads (memshare::source), the default of "*".
+pub fn graph_of(source: &str, other: Option<String>) -> Graph {
+    let mut sources = shared_sources();
+    if let Some(o) = &other {
+        if !sources.contains(o) {
+            sources.push(o.clone());
+        }
+    }
+    let mut g = match source {
+        "" => graph(),
+        "*" => {
+            let mut g = graph();
+            for name in sources.iter().filter(|n| crate::memshare::copy_dir(n).exists()) {
+                let mut o = graph_in(&crate::memshare::copy_dir(name), false);
+                tag(&mut o, name);
+                // The same page on both PCs: one line between the two.
+                let mine: HashMap<String, String> = g.nodes.iter().filter(|n| n.kind == "page").map(|n| (n.label.to_lowercase(), n.id.clone())).collect();
+                for n in o.nodes.iter().filter(|n| n.kind == "page") {
+                    if let Some(id) = mine.get(&n.label.to_lowercase()) {
+                        g.edges.push(Edge { from: id.clone(), to: n.id.clone(), label: name.clone() });
+                    }
+                }
+                g.nodes.append(&mut o.nodes);
+                g.edges.append(&mut o.edges);
+                g.events.append(&mut o.events);
+            }
+            g.events.sort_by(|a, b| a.date.cmp(&b.date));
+            g
+        }
+        name if valid_source(name) => {
+            let mut g = graph_in(&crate::memshare::copy_dir(name), false);
+            tag(&mut g, name);
+            g.folder = crate::memshare::copy_dir(name).to_string_lossy().into_owned();
+            g
+        }
+        _ => graph(),
+    };
+    g.sources = sources;
+    g
+}
+
+/// A name of another PC usable as a folder name.
+fn valid_source(name: &str) -> bool {
+    !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == '.') && !name.starts_with('.')
+}
+
+/// The copies of other PCs' memories on disk (memoria-condivise/<name>).
+fn shared_sources() -> Vec<String> {
+    let mut out: Vec<String> = std::fs::read_dir(crate::settings::config_dir().join("memoria-condivise"))
+        .map(|r| r.flatten().filter(|e| e.path().is_dir()).map(|e| e.file_name().to_string_lossy().into_owned()).filter(|n| valid_source(n) && !n.contains(".tmp-")).collect())
+        .unwrap_or_default();
+    out.sort();
+    out
+}
+
+/// The ids of another PC's memory: «<name>|p:slug», with where they come from.
+fn tag(g: &mut Graph, name: &str) {
+    let id = |s: &str| if s.is_empty() { String::new() } else { format!("{name}|{s}") };
+    for n in &mut g.nodes {
+        n.id = id(&n.id);
+        n.origin = name.to_string();
+    }
+    for e in &mut g.edges {
+        e.from = id(&e.from);
+        e.to = id(&e.to);
+    }
+    for e in &mut g.events {
+        e.node = id(&e.node);
+    }
+}
+
+/// This PC's memory.
 pub fn graph() -> Graph {
-    let all = pages();
+    graph_in(&crate::memory::dir(), true)
+}
+
+/// The memory in `dir`; `local`: this PC's (sources, diary, check and da-leggere).
+fn graph_in(dir: &Path, local: bool) -> Graph {
+    let all = pages_in(&dir.join("pagine"));
     let mut nodes: Vec<Node> = Vec::new();
     let mut edges: Vec<Edge> = Vec::new();
     let mut events: Vec<Event> = Vec::new();
@@ -917,27 +1004,27 @@ pub fn graph() -> Graph {
     for p in &all {
         let id = format!("p:{}", p.slug);
         ids.insert(id.clone());
-        nodes.push(Node { id: id.clone(), kind: "page", label: p.title.clone(), date: p.updated.clone(), text: cut(&p.body, 1_200), weight: 0 });
+        nodes.push(Node { id: id.clone(), kind: "page", label: p.title.clone(), date: p.updated.clone(), text: cut(&p.body, 1_200), weight: 0, origin: String::new() });
         if !p.updated.is_empty() {
             events.push(Event { date: p.updated.clone(), lane: "page", text: p.title.clone(), node: id.clone() });
         }
         for l in &p.links {
             let to = format!("p:{}", target_of(&all, &l.target));
             if !page_ids.contains(&to) && ids.insert(to.clone()) {
-                nodes.push(Node { id: to.clone(), kind: "missing", label: l.target.clone(), date: String::new(), text: String::new(), weight: 0 });
+                nodes.push(Node { id: to.clone(), kind: "missing", label: l.target.clone(), date: String::new(), text: String::new(), weight: 0, origin: String::new() });
             }
             add_edge(&mut edges, &mut seen, &mut degree, id.clone(), to, l.rel.clone());
         }
         for s in p.source.split(", ").map(str::trim).filter(|s| !s.is_empty()) {
             let sid = format!("s:{}", s.to_lowercase());
             if ids.insert(sid.clone()) {
-                nodes.push(Node { id: sid.clone(), kind: "source", label: s.to_string(), date: String::new(), text: String::new(), weight: 0 });
+                nodes.push(Node { id: sid.clone(), kind: "source", label: s.to_string(), date: String::new(), text: String::new(), weight: 0, origin: String::new() });
             }
             add_edge(&mut edges, &mut seen, &mut degree, id.clone(), sid, t("fonte").into());
         }
     }
     // The sources read, with when they were moved.
-    if let Ok(r) = std::fs::read_dir(sources_dir()) {
+    if let Ok(r) = std::fs::read_dir(dir.join("fonti")) {
         for e in r.flatten() {
             let name = e.file_name().to_string_lossy().into_owned();
             let sid = format!("s:{}", name.to_lowercase());
@@ -946,7 +1033,7 @@ pub fn graph() -> Graph {
                 events.push(Event { date: date.clone(), lane: "source", text: name.clone(), node: sid.clone() });
             }
             if ids.insert(sid.clone()) {
-                nodes.push(Node { id: sid, kind: "source", label: name, date, text: String::new(), weight: 0 });
+                nodes.push(Node { id: sid, kind: "source", label: name, date, text: String::new(), weight: 0, origin: String::new() });
             } else if let Some(n) = nodes.iter_mut().find(|n| n.id == sid) {
                 n.date = date;
             }
@@ -956,10 +1043,10 @@ pub fn graph() -> Graph {
     // name — by the whole title, by [[link]] or by shared key words — and to the
     // notes that say much the same. Before 25 Oct 2026 only the whole title
     // counted, and most notes floated alone (Edoardo, on the notebook).
-    let archived: Vec<String> = std::fs::read_to_string(crate::memory::dir().join("archivio.md"))
+    let archived: Vec<String> = std::fs::read_to_string(dir.join("archivio.md"))
         .map(|t| t.lines().filter(|l| l.starts_with("- ")).map(str::to_string).collect())
         .unwrap_or_default();
-    let current = crate::memory::notes();
+    let current = crate::memory::notes_of(&std::fs::read_to_string(dir.join("MEMORIA.md")).unwrap_or_default());
     let page_words: Vec<(String, BTreeSet<String>)> = all
         .iter()
         .map(|p| (p.slug.clone(), key_words(&format!("{} {} {}", p.title, p.title, cut(&p.body, 600)))))
@@ -1066,11 +1153,11 @@ pub fn graph() -> Graph {
         if n.kind == "old" && !n.linked {
             continue;
         }
-        nodes.push(Node { id: n.id, kind: n.kind, label: cut(&n.text, 60), date: n.date, text: n.text, weight: 0 });
+        nodes.push(Node { id: n.id, kind: n.kind, label: cut(&n.text, 60), date: n.date, text: n.text, weight: 0, origin: String::new() });
     }
     // The diary: one event per line; one node per day of the last 60 that
     // names a page.
-    let mut months: Vec<PathBuf> = std::fs::read_dir(crate::memory::dir().join("diario"))
+    let mut months: Vec<PathBuf> = std::fs::read_dir(dir.join("diario"))
         .map(|r| r.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "md")).collect())
         .unwrap_or_default();
     months.sort();
@@ -1113,7 +1200,7 @@ pub fn graph() -> Graph {
         for s in named {
             add_edge(&mut edges, &mut seen, &mut degree, id.clone(), format!("p:{s}"), String::new());
         }
-        nodes.push(Node { id, kind: "day", label: day.clone(), date: day, text: tf("{n} domande alla chat", &[("n", &count.to_string())]), weight: 0 });
+        nodes.push(Node { id, kind: "day", label: day.clone(), date: day, text: tf("{n} domande alla chat", &[("n", &count.to_string())]), weight: 0, origin: String::new() });
     }
     for n in &mut nodes {
         n.weight = degree.get(&n.id).copied().unwrap_or(0);
@@ -1123,9 +1210,10 @@ pub fn graph() -> Graph {
         nodes,
         edges,
         events,
-        check: check(),
-        inbox: inbox_files().into_iter().map(|f| f.name).collect(),
-        folder: crate::memory::dir().to_string_lossy().into_owned(),
+        check: if local { check() } else { Vec::new() },
+        inbox: if local { inbox_files().into_iter().map(|f| f.name).collect() } else { Vec::new() },
+        folder: dir.to_string_lossy().into_owned(),
+        sources: Vec::new(),
     }
 }
 
@@ -1155,6 +1243,21 @@ fn file_day(time: std::time::SystemTime) -> String {
 
 /// The file behind a node of the window, to open it in its editor.
 pub fn node_file(id: &str) -> Option<PathBuf> {
+    // Another PC's memory: its copy (memshare.rs), pages and notes only.
+    if let Some((name, inner)) = id.split_once('|') {
+        if !valid_source(name) {
+            return None;
+        }
+        let copy = crate::memshare::copy_dir(name);
+        let path = if let Some(s) = inner.strip_prefix("p:") {
+            copy.join("pagine").join(format!("{}.md", slug(s)))
+        } else if inner.starts_with("n:") {
+            copy.join("MEMORIA.md")
+        } else {
+            return None;
+        };
+        return path.exists().then_some(path);
+    }
     if let Some(s) = id.strip_prefix("p:") {
         let path = page_file(&slug(s));
         return path.exists().then_some(path);

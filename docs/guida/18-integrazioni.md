@@ -11,6 +11,7 @@
 - Ogni riga: interruttore, colore, nome e stato (Spenta, Attiva, o **Manca: chiave** quando serve una credenziale). Un clic apre spiegazione, campi, opzioni, icona e colore.
 - Nel menu ogni integrazione mostra il suo **logo** o un'**emoji**, e un **colore** che il personaggio indossa quando la sua scheda è aperta.
 - Si **riordinano trascinandole** nel menu o nella Panoramica; **Blocca lo spostamento** e **Ripristina l'ordine** in fondo.
+- **In una finestra:** trascina l'integrazione fuori dall'isola, o premi la freccia in alto a destra della sua scheda, o clic destro → **Apri in una finestra**. La scheda va in una finestra di Windows a parte, aggiornata come nell'isola; la voce del menu porta avanti la finestra, e il pulsante nella finestra la rimette nell'isola.
 - Quali sono accese dipende dal **profilo**.
 - Quando un controllo passa da OK a problema, la voce prende un pallino, il personaggio suona e l'isola si fa vedere (secondo le notifiche del profilo). I controlli diventano tre volte più radi a batteria e si fermano in pausa.
 

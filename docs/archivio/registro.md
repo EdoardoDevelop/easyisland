@@ -2,6 +2,19 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 2/11 — Agent Chat: presa in carico, nomi, consumo
+A un messaggio generico risponde un solo motore: il capo del primo EasyIsland che lo prende (`/api/messages/<id>/claim`). Nomi dei motori unici dalle Impostazioni (`/api/aliases`, `@lia`). Turni e token stimati per motore.
+
+### 1/11 — Agent Chat: motori autonomi, capo, scheda, recupero, memoria (1.0.19)
+- Messaggio senza nomi → tutti i motori; `@tutti`. Il capo (Claude o il primo) affida le esecuzioni per nome (`plan`, `role`, `lead`); la catena conta solo i messaggi che chiamano qualcuno.
+- Scheda nell'isola `src/views/agentchat.ts` (ascolto: `agentchatListen`). Repo del server pubblico.
+- Recupero a PC spento (`catch_up`); memoria con righe «MEMORIA:» (`split_memory`).
+- «Letture libere» di serie; richieste insieme in fila. Allegati con SHA-256, importati da un solo agente (`agentchat_import`), «ALLEGA: percorso» nella risposta; server allegati in repo `agentchat` (`ac238d9`).
+
+### 1° novembre 2026 — Agent Chat: EasyIsland risponde da solo, più motori e consulte (in `claude/sviluppo`, versione 1.0.18)
+- EasyIsland partecipa alla Agent Chat di Edoardo (`agentchat.rs`): ascolto sempre acceso, risposte autonome alle menzioni, ogni motore con il suo nome (`notebook/claude`), consulta con sintesi, freni (stop dalla chat, turni l'ora, catena fra agenti), card nell'isola, strumenti `agentchat_*` e l'aggregatore `consult_engines` (`docs/integrazioni.md`, `docs/chat.md`).
+- Server cambiato nel suo repository (token per agente, owner verificato, più stanze, thread e consulte), nel suo `main` e pubblicato sulla VPS il 1° novembre con le chat ripartite da zero. Versione 1.0.18 con tag `v1.0.18`. Test Rust e del server, smoke; nessun turno vero di un motore in Agent Chat ancora.
+
 ### 31 ottobre 2026 — Versione 1.0.17
 - `claude/sviluppo` unito in `main` con il tag `v1.0.17`: Parla, Telegram che risponde a voce e vocali «ricorda», Ricorda questo e Annota, Prepara un ticket Zammad, Continua in Claude Desktop, aspetto delle Notizie nella scheda. Novità in CHANGELOG, README e homepage.
 - Build, test Rust (381 + 38) e smoke prima del tag. `claude/modello-integrato` resta in attesa.

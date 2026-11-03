@@ -2,6 +2,14 @@
 
 What changed in each version, newest first. The latest ones are summed up in the [README](README.md#latest-versions).
 
+**1.0.22** — **Chat and integrations in a window**: drag the menu entry out of the island, or press
+the arrow at the top, and the chat or an integration's card becomes a Windows window to move and
+resize, with taskbar and Alt+Tab; the same button puts it back in the island. The **Preview** stays
+beside the chat in the window too. The chat has the **conversations bar** on the left
+(<kbd>Ctrl</kbd>+<kbd>B</kbd>), with an edge to drag to widen it, and keeps **several conversations
+open at once**, each with its own engine and Stop. The **Memory** window shows this PC's memory, the
+one of another PC shared through Agent Chat, or both together.
+
 **1.0.21** — **A truly autonomous Agent Chat**: with “Autonomous” the engines do everything on
 their own, deleting included, asking you nothing; whoever wants the questions in the chat for deleting
 and sending picks that in the Settings. A **script started in the background** no longer goes

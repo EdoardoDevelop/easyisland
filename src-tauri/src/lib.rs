@@ -1198,16 +1198,55 @@ fn chat_folder(chosen: &str) -> std::path::PathBuf {
 #[tauri::command]
 async fn chat_send(
     app: AppHandle,
-    chat: State<'_, Chat>,
+    chats: State<'_, Chats>,
+    sid: String,
     query: String,
     context: Option<ChatContext>,
     engine: Option<String>,
     auto: Option<bool>,
-) -> Result<ChatReply, String> {
+) -> Result<IslandReply, String> {
+    let chat = chats.get(&sid)?;
     let on_text = |text: &str| {
-        let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "text": text }));
+        let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "sid": sid, "text": text }));
     };
-    chat_turn(&app, &chat, query, context, engine, None, auto.unwrap_or(false), Channel::Island, &on_text).await
+    let reply = chat_turn(&app, &chat, query, context, engine, None, auto.unwrap_or(false), Channel::Island, &on_text).await?;
+    Ok(IslandReply { text: reply.text, log: chat.log_id() })
+}
+
+/// A turn of the island's chat, with the conversation's id in the history
+/// (chat_log.rs): the sidebar knows which entry is this open conversation.
+#[derive(serde::Serialize)]
+struct IslandReply {
+    text: String,
+    log: Option<String>,
+}
+
+/// The island's conversations, open side by side (the chat's sidebar): each
+/// its own `Chat` (engine process, «Ferma», history entry), by the id the
+/// island gave it. Switching to another one closes nothing; `chat_close` does.
+#[derive(Default)]
+pub(crate) struct Chats(Mutex<std::collections::HashMap<String, std::sync::Arc<Chat>>>);
+
+impl Chats {
+    /// The conversation `sid`, made empty the first time.
+    fn get(&self, sid: &str) -> Result<std::sync::Arc<Chat>, String> {
+        if sid.is_empty() || sid.len() > 64 || !sid.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+            return Err(t("Conversazione sconosciuta.").into());
+        }
+        Ok(self.0.lock().unwrap().entry(sid.to_string()).or_default().clone())
+    }
+
+    fn find(&self, sid: &str) -> Option<std::sync::Arc<Chat>> {
+        self.0.lock().unwrap().get(sid).cloned()
+    }
+
+    /// The open conversation whose engine session is `session` (a permission it asks for).
+    fn of_session(&self, session: &str) -> Option<String> {
+        if session.is_empty() {
+            return None;
+        }
+        self.0.lock().unwrap().iter().find(|(_, c)| c.cli_session().as_deref() == Some(session)).map(|(k, _)| k.clone())
+    }
 }
 
 /// "Ferma": the turn in progress in the island's chat ([0]) or on Telegram
@@ -1265,8 +1304,17 @@ pub(crate) async fn until_stopped<T>(telegram: bool, turn: impl std::future::Fut
 }
 
 async fn until_stopped_at<T>(channel: Channel, turn: impl std::future::Future<Output = Result<T, String>>) -> Result<T, String> {
+    until_notified(&STOP[channel.slot()], turn).await
+}
+
+/// A turn of one of the island's conversations: its own «Ferma» (`Chat::stop`), the others go on.
+pub(crate) async fn until_stopped_in<T>(chat: &Chat, channel: Channel, turn: impl std::future::Future<Output = Result<T, String>>) -> Result<T, String> {
+    if channel == Channel::Island { until_notified(&chat.stop, turn).await } else { until_stopped_at(channel, turn).await }
+}
+
+async fn until_notified<T>(notify: &tokio::sync::Notify, turn: impl std::future::Future<Output = Result<T, String>>) -> Result<T, String> {
     let mut turn = std::pin::pin!(turn);
-    let mut stop = std::pin::pin!(STOP[channel.slot()].notified());
+    let mut stop = std::pin::pin!(notify.notified());
     std::future::poll_fn(|cx| {
         if let std::task::Poll::Ready(r) = std::future::Future::poll(turn.as_mut(), cx) {
             return std::task::Poll::Ready(r);
@@ -1279,17 +1327,36 @@ async fn until_stopped_at<T>(channel: Channel, turn: impl std::future::Future<Ou
 /// «⇄ Seconda opinione» in the island's chat: another engine reviews the last
 /// answer (second.rs); what it says rides in front of the next question.
 #[tauri::command]
-async fn chat_second(app: AppHandle, chat: State<'_, Chat>, engine: String, first: String, question: String, answer: String) -> Result<String, String> {
+async fn chat_second(app: AppHandle, chats: State<'_, Chats>, sid: String, engine: String, first: String, question: String, answer: String) -> Result<String, String> {
+    let chat = chats.get(&sid)?;
     let on_text = |text: &str| {
-        let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "text": text }));
+        let _ = app.emit_to(island::WINDOW_LABEL, "chat-stream", serde_json::json!({ "sid": sid, "text": text }));
     };
     second::run(&app, &chat, &engine, &first, &question, &answer, false, &on_text).await
 }
 
-/// The island's "Ferma".
+/// The island's "Ferma", on one conversation.
 #[tauri::command]
-fn chat_stop() {
-    stop_turn(false);
+fn chat_stop(chats: State<'_, Chats>, sid: String) {
+    log::line("chat: turno fermato");
+    if let Some(c) = chats.find(&sid) {
+        c.stop.notify_waiters();
+    }
+}
+
+/// A conversation closed in the sidebar: its engine's process ends, the history keeps it.
+#[tauri::command]
+fn chat_close(chats: State<'_, Chats>, sid: String) {
+    let Some(chat) = chats.0.lock().unwrap().remove(&sid) else { return };
+    chat.stop.notify_waiters();
+    claude_cli::drop_live(&chat);
+    opencode::forget(chat.cli_session());
+}
+
+/// Which open conversation a permission comes from (its engine session), if any.
+#[tauri::command]
+fn chat_session_of(chats: State<'_, Chats>, session: String) -> Option<String> {
+    chats.of_session(&session)
 }
 
 /// A chat turn on `chat`: the island's conversation (`chat_send`) or
@@ -1465,7 +1532,7 @@ pub(crate) async fn chat_turn(
         (None, e) if openai::ENGINES.contains(&e) => openai::send(chat, &engine, &other_model, url.as_deref(), query, context, on_text).await,
         (None, _) => claude_cli::send_kept(chat, &cli_model, &mcp, agent, query, context, None, false, on_text, telegram, work.as_deref()).await,
     } };
-    let reply = until_stopped_at(channel, work_turn).await;
+    let reply = until_stopped_in(chat, channel, work_turn).await;
     let first = first_text.lock().unwrap().map_or_else(|| "-".to_string(), |ms| format!("{:.1} s", ms as f64 / 1000.0));
     log::line(format!(
         "chat: turno {engine}{} in {:.1} s (primo testo {first}){}{}",
@@ -1629,7 +1696,8 @@ fn selection_menu(app: AppHandle, entries: Vec<tray::MenuEntry>) {
 }
 
 #[tauri::command]
-fn chat_reset(chat: State<Chat>) {
+fn chat_reset(chats: State<'_, Chats>, sid: String) {
+    let Ok(chat) = chats.get(&sid) else { return };
     let before = chat.cli_session();
     chat.reset();
     chat.set_persona(None);
@@ -1644,7 +1712,8 @@ fn chat_history_list() -> Vec<chat_log::Summary> {
 
 /// Reopens a conversation from the history in place of the current one.
 #[tauri::command]
-fn chat_history_open(shared: State<'_, Shared>, chat: State<'_, Chat>, id: String) -> Result<chat_log::Opened, String> {
+fn chat_history_open(shared: State<'_, Shared>, chats: State<'_, Chats>, sid: String, id: String) -> Result<chat_log::Opened, String> {
+    let chat = chats.get(&sid)?;
     let before = chat.cli_session();
     let engine = chat_log::engine_of(&id).ok_or_else(|| t("Questa conversazione non c'è più.").to_string())?;
     // The key chat_send will compute for this engine, so it does not start over.
@@ -1676,11 +1745,175 @@ fn memory_open(folder: bool) -> Result<(), String> {
     Command::new("explorer").arg(&path).spawn().map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// A window the island opens with `window.open("", …)` for a view it pops out
+/// (popout.ts): blank, a normal window of its own, drawn and driven by the
+/// island's page. Anything else (a link with target=_blank) is refused, as
+/// before there was a handler.
+fn popout_window(app: &AppHandle, url: &str, features: tauri::webview::NewWindowFeatures) -> tauri::webview::NewWindowResponse<tauri::Wry> {
+    use std::sync::atomic::AtomicU32;
+    static NEXT: AtomicU32 = AtomicU32::new(1);
+    if url != "about:blank" {
+        return tauri::webview::NewWindowResponse::Deny;
+    }
+    let label = format!("staccata-{}", NEXT.fetch_add(1, Ordering::Relaxed));
+    let built = WebviewWindowBuilder::new(app, &label, WebviewUrl::External("about:blank".parse().expect("about:blank")))
+        .window_features(features)
+        .title("EasyIsland")
+        .decorations(true)
+        .resizable(true)
+        .skip_taskbar(false)
+        .always_on_top(false)
+        .min_inner_size(360.0, 300.0)
+        // The blank page's own title ("about:blank") never shows: the island sets the real one.
+        .on_document_title_changed(|w, title| {
+            let title = title.trim();
+            if !title.is_empty() && title != "about:blank" {
+                let _ = w.set_title(title);
+            }
+        })
+        .build();
+    match built {
+        Ok(window) => {
+            *LAST_POPOUT.lock().unwrap_or_else(|e| e.into_inner()) = Some(label.clone());
+            // Closed with its ✕ while the Anteprima is docked in it: the preview goes back to the island first.
+            // Gone: the island is told (popout-closed, with the window's name), so its
+            // view comes home even when the page cannot see that its window closed.
+            let closing = app.clone();
+            let name = label.clone();
+            let seen = window.clone();
+            let title = Arc::new(Mutex::new(String::new()));
+            window.on_window_event(move |event| match event {
+                // Its ✕: not closed here. The island takes its view home first
+                // (popout-closing), while the page is still there, and asks to
+                // close it (popout_close); a page that goes takes the click
+                // handlers of what is in it. Closed anyway 2 s later.
+                tauri::WindowEvent::CloseRequested { api, .. } => {
+                    api.prevent_close();
+                    *title.lock().unwrap_or_else(|e| e.into_inner()) = seen.title().unwrap_or_default();
+                    preview::window_closing(&closing, &name);
+                    let _ = closing.emit_to(island::WINDOW_LABEL, "popout-closing", name.clone());
+                    let late = seen.clone();
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_secs(2));
+                        let _ = late.destroy();
+                    });
+                }
+                tauri::WindowEvent::Destroyed => {
+                    preview::window_closing(&closing, &name);
+                    let mut t = title.lock().unwrap_or_else(|e| e.into_inner()).clone();
+                    if t.is_empty() {
+                        t = seen.title().unwrap_or_default();
+                    }
+                    log::line(format!("finestra staccata chiusa: {name} ({t})"));
+                    let _ = closing.emit_to(island::WINDOW_LABEL, "popout-closed", name.clone());
+                }
+                _ => {}
+            });
+            tauri::webview::NewWindowResponse::Create { window }
+        }
+        Err(e) => {
+            log::line(format!("finestra staccata: {e}"));
+            tauri::webview::NewWindowResponse::Deny
+        }
+    }
+}
+
+/// The last window popout_window made: the island asks for its name right
+/// after window.open (popout_take) and uses that name from then on.
+static LAST_POPOUT: Mutex<Option<String>> = Mutex::new(None);
+
+/// A popped-out window by its name (`staccata-N`). As a plain window: with
+/// the Anteprima docked in it, it holds two webviews and is no "webview
+/// window" any more (get_webview_window / webview_windows leave it out: the
+/// chat seemed gone and the Anteprima went back and forth every second).
+fn popout_find(app: &AppHandle, name: &str) -> Option<tauri::Window> {
+    if !name.starts_with("staccata-") {
+        return None;
+    }
+    app.get_window(name)
+}
+
+/// The name of the window window.open has just made (popout.ts).
+#[tauri::command]
+fn popout_take() -> Option<String> {
+    LAST_POPOUT.lock().unwrap_or_else(|e| e.into_inner()).take()
+}
+
+/// The title the island gives a popped-out window.
+#[tauri::command]
+fn popout_title(app: AppHandle, window: String, title: String) {
+    if let Some(w) = popout_find(&app, &window) {
+        if !w.title().is_ok_and(|t| t == title) {
+            let _ = w.set_title(&title);
+        }
+    }
+}
+
+/// The chat went into the window `window` (popout.ts) or came back to the
+/// island (None): the docked Anteprima follows it. A window not found changes
+/// nothing (only None brings the Anteprima back).
+#[tauri::command]
+fn popout_chat(app: AppHandle, window: Option<String>) {
+    match window {
+        None => preview::chat_dock(&app, None),
+        Some(name) => {
+            if popout_find(&app, &name).is_some() {
+                preview::chat_dock(&app, Some(name));
+            }
+        }
+    }
+}
+
+/// The chat's window grows to `width` (logical px) for the Anteprima beside
+/// it, as the island does; never past the screen it is on.
+#[tauri::command]
+fn popout_widen(app: AppHandle, window: String, width: f64) {
+    let Some(w) = popout_find(&app, &window) else { return };
+    let scale = w.scale_factor().unwrap_or(1.0);
+    let Ok(size) = w.inner_size() else { return };
+    let size = size.to_logical::<f64>(scale);
+    let room = w
+        .current_monitor()
+        .ok()
+        .flatten()
+        .zip(w.outer_position().ok())
+        .map(|(m, pos)| (m.position().x as f64 + m.size().width as f64 - pos.x as f64) / scale - 16.0)
+        .unwrap_or(width);
+    let wide = width.min(room).max(size.width);
+    if wide > size.width + 1.0 {
+        let _ = w.set_size(tauri::LogicalSize::new(wide, size.height));
+    }
+}
+
+/// A popped-out window closed by EasyIsland («Rimetti nell'isola», or its ✕
+/// once its view is home): a page cannot close a window it did not open.
+#[tauri::command]
+fn popout_close(app: AppHandle, window: String) {
+    let Some(w) = popout_find(&app, &window) else { return };
+    preview::window_closing(&app, &window);
+    if let Err(e) = w.destroy() {
+        log::line(format!("finestra staccata non chiusa: {e}"));
+    }
+}
+
+/// A popped-out window to the front.
+#[tauri::command]
+fn popout_focus(app: AppHandle, window: String) {
+    if let Some(w) = popout_find(&app, &window) {
+        let _ = w.unminimize();
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
+}
+
 /// The memory window (brain.rs): pages, notes, sources, days and their links, the timeline.
 #[tauri::command]
-async fn memory_graph() -> Result<brain::Graph, String> {
+async fn memory_graph(app: AppHandle, source: Option<String>) -> Result<brain::Graph, String> {
+    // "": this PC, a name: the copy of that PC's memory, "*": both (memshare.rs).
+    let other = memshare::source(&app);
+    let source = source.unwrap_or_default();
     // A failure says so: the window must not show "la memoria è vuota" instead.
-    tauri::async_runtime::spawn_blocking(brain::graph).await.map_err(|e| tf("Errore nel leggere la memoria: {e}", &[("e", &e)]))
+    tauri::async_runtime::spawn_blocking(move || brain::graph_of(&source, other)).await.map_err(|e| tf("Errore nel leggere la memoria: {e}", &[("e", &e)]))
 }
 
 /// «Collega con l'IA» (memory_ai.rs): the chosen engine ties the memory together; what was done.
@@ -1815,7 +2048,8 @@ fn chat_history_rename(id: String, title: String) {
 
 /// «Modifica» / «Rigenera»: the conversation goes back to its first lines.
 #[tauri::command]
-fn chat_rewind(chat: State<'_, Chat>, keep: Vec<chat_log::Line>) {
+fn chat_rewind(chats: State<'_, Chats>, sid: String, keep: Vec<chat_log::Line>) {
+    let Ok(chat) = chats.get(&sid) else { return };
     let before = chat.cli_session();
     chat_log::rewind(&chat, keep);
     opencode::forget(before);
@@ -1823,19 +2057,21 @@ fn chat_rewind(chat: State<'_, Chat>, keep: Vec<chat_log::Line>) {
 
 /// «Continua in Claude Desktop»: the chat's Claude Code session opens in the desktop app (desktop.rs).
 #[tauri::command]
-async fn chat_to_desktop(chat: State<'_, Chat>) -> Result<(), String> {
+async fn chat_to_desktop(chats: State<'_, Chats>, sid: String) -> Result<(), String> {
+    let chat = chats.get(&sid)?;
     desktop::hand_off(&chat).await
 }
 
 /// What was said in Claude Desktop since then; `done` when the island goes on with the session.
 #[tauri::command]
-fn chat_desktop_pull(chat: State<'_, Chat>, done: bool) -> Vec<chat_log::Line> {
-    desktop::pull(&chat, "subscription", done)
+fn chat_desktop_pull(chats: State<'_, Chats>, sid: String, done: bool) -> Vec<chat_log::Line> {
+    chats.find(&sid).map(|c| desktop::pull(&c, "subscription", done)).unwrap_or_default()
 }
 
 /// «⑂ Dirama da qui»: a new conversation from the first lines of this one.
 #[tauri::command]
-fn chat_fork(chat: State<'_, Chat>, keep: Vec<chat_log::Line>) {
+fn chat_fork(chats: State<'_, Chats>, sid: String, keep: Vec<chat_log::Line>) {
+    let Ok(chat) = chats.get(&sid) else { return };
     let before = chat.cli_session();
     chat_log::fork(&chat, keep);
     opencode::forget(before);
@@ -1844,8 +2080,10 @@ fn chat_fork(chat: State<'_, Chat>, keep: Vec<chat_log::Line>) {
 /// An assistant (Impostazioni → Chat → Assistenti) for the conversation that
 /// starts: its instructions go in front of the first question. None = none.
 #[tauri::command]
-fn chat_persona(chat: State<'_, Chat>, instructions: Option<String>) {
-    chat.set_persona(instructions);
+fn chat_persona(chats: State<'_, Chats>, sid: String, instructions: Option<String>) {
+    if let Ok(chat) = chats.get(&sid) {
+        chat.set_persona(instructions);
+    }
 }
 
 /// 🎤 in the chat: what was said, through the service of Telegram's «Vocali»
@@ -3660,7 +3898,7 @@ pub fn run() {
             gate: gate.clone(),
         })
         .manage(Pending::default())
-        .manage(Chat::default())
+        .manage(Chats::default())
         .invoke_handler(tauri::generate_handler![
             boot,
             save_settings,
@@ -3752,6 +3990,8 @@ pub fn run() {
             log_line,
             chat_send,
             chat_stop,
+            chat_close,
+            chat_session_of,
             notion_map_status,
             recipes_count,
             recipes_forget,
@@ -3791,6 +4031,12 @@ pub fn run() {
             memory_note,
             memory_open,
             memory_graph,
+            popout_focus,
+            popout_take,
+            popout_title,
+            popout_chat,
+            popout_close,
+            popout_widen,
             memory_job,
             memory_node_open,
             memory_window_open,
@@ -4024,6 +4270,10 @@ pub fn run() {
                 if let Some(dir) = &webview_dir {
                     builder = builder.data_directory(dir.clone());
                 }
+                // «Apri in una finestra» (src/island/popout.ts): the chat or an
+                // integration's card drawn by the island in a window of its own.
+                let opener = handle.clone();
+                builder = builder.on_new_window(move |url, features| popout_window(&opener, url.as_str(), features));
                 builder.build()?;
             }
             // Before the island's webview is ready: see create_settings_window.

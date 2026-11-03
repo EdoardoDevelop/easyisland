@@ -37,6 +37,8 @@ let model: Model | null = null;
 let tab: Tab = remembered();
 let selected: string | null = null;
 let query = "";
+/** Which memory: "" this PC, a name the copy of that PC's (memshare.rs), "*" both. */
+let source = rememberedSource();
 
 const root = document.getElementById("memory-root")!;
 const tabButtons = new Map<Tab, HTMLButtonElement>();
@@ -47,6 +49,8 @@ for (const tb of TABS) {
   tabButtons.set(tb.id, b);
   tabsBox.append(b);
 }
+// Which memory, shown only when another PC's is copied here.
+const sourcesBox = h("div", { class: "mem-tabs mem-sources", style: "display:none" });
 const search = h("input", { class: "mem-search", type: "search", placeholder: t("Cerca nella memoria…") }) as HTMLInputElement;
 const inboxBtn = h("button", { text: t("Da leggere"), title: t("Apri la cartella dei file da far imparare") }) as HTMLButtonElement;
 const readBtn = h("button", { text: t("Leggi adesso"), title: t("Un compito legge i file di da-leggere e scrive le pagine") }) as HTMLButtonElement;
@@ -55,7 +59,7 @@ const checkBtn = h("button", { text: t("Controlla"), title: t("Un compito contro
 const reloadBtn = h("button", { text: "↻", title: t("Aggiorna") }) as HTMLButtonElement;
 const bar = h("div", { class: "mem-bar" },
   h("div", { class: "mem-title" }, h("i"), h("span", { text: t("Memoria") })),
-  tabsBox, search, h("span", { class: "mem-spacer" }), inboxBtn, readBtn, linkBtn, checkBtn, reloadBtn);
+  tabsBox, sourcesBox, search, h("span", { class: "mem-spacer" }), inboxBtn, readBtn, linkBtn, checkBtn, reloadBtn);
 
 const stageBox = h("div", { class: "mem-stage" });
 const tip = h("div", { class: "mem-tip" });
@@ -99,6 +103,49 @@ function remembered(): Tab {
     /* no storage */
   }
   return "graph";
+}
+
+function rememberedSource(): string {
+  const asked = new URLSearchParams(location.search).get("source");
+  if (asked !== null) return asked;
+  try {
+    return localStorage.getItem("easyisland.memory.source") ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/** «Questo PC», one button per other PC and «Tutte», when there is another PC. */
+function renderSources(names: string[]) {
+  clear(sourcesBox);
+  sourcesBox.style.display = names.length ? "flex" : "none";
+  if (!names.length) return;
+  const choices: [string, string, string][] = [
+    ["", t("Questo PC"), t("La memoria di questo PC")],
+    ...names.map((n): [string, string, string] => [n, n, t("La copia della memoria di {name}, che arriva da Agent Chat", { name: n })]),
+    ["*", t("Tutte"), t("Questo PC e le memorie degli altri PC insieme")],
+  ];
+  for (const [id, name, title] of choices) {
+    const b = h("button", { text: name, title }) as HTMLButtonElement;
+    b.classList.toggle("on", id === source);
+    b.addEventListener("click", () => {
+      if (id === source) return;
+      source = id;
+      try {
+        localStorage.setItem("easyisland.memory.source", id);
+      } catch {
+        /* no storage */
+      }
+      selected = null;
+      void load();
+    });
+    sourcesBox.append(b);
+  }
+}
+
+/** The PC a node comes from, for the chip. */
+function originOf(id: string): string {
+  return model?.byId.get(id)?.origin ?? "";
 }
 
 function show(next: Tab) {
@@ -168,7 +215,7 @@ function renderPanel() {
     return;
   }
   panel.append(
-    h("span", { class: "mem-chip" }, h("i", { style: `background:${KIND_COLOR[n.kind]}` }), h("span", { text: [kindName(n.kind), n.date].filter(Boolean).join(" · ") })),
+    h("span", { class: "mem-chip" }, h("i", { style: `background:${KIND_COLOR[n.kind]}` }), h("span", { text: [kindName(n.kind), n.date, originOf(n.id) && t("memoria di {name}", { name: originOf(n.id) })].filter(Boolean).join(" · ") })),
     h("h2", { text: n.label }),
   );
   if (n.text) panel.append(h("div", { class: "mem-text", text: n.text }));
@@ -213,6 +260,11 @@ function renderOverview() {
       stat(count(["source"]), t("fonti lette")),
       stat(days, t("giorni di chat"))),
   );
+  // Another PC's copy: read only, kept fresh by Agent Chat.
+  if (source && source !== "*") {
+    panel.append(h("div", { class: "mem-note", text: t("Copia della memoria di {name}: si aggiorna da sola quando quel PC la cambia. Le note nuove vanno nella memoria di questo PC.", { name: source }) }), feedback);
+    return;
+  }
   panel.append(h("h3", { text: t("Da leggere") }));
   if (g?.inbox.length) {
     const ul = h("ul", { class: "mem-list" });
@@ -271,7 +323,7 @@ async function load() {
   try {
     let g: MemGraph | null = null;
     try {
-      g = await Bridge.memoryGraph();
+      g = await Bridge.memoryGraph(source);
       loadError = "";
     } catch (e) {
       loadError = String(e).replace(/^Error:\s*/, "") || t("errore sconosciuto");
@@ -279,8 +331,20 @@ async function load() {
       showEmpty();
       return;
     }
-    if (!g && !IS_TAURI) g = (await import("./demo")).demoGraph();
+    if (!g && !IS_TAURI) g = (await import("./demo")).demoGraph(source);
     if (!g) return;
+    // A PC no longer there: back to this one.
+    if (source && source !== "*" && !g.sources?.includes(source)) {
+      source = "";
+      g = (await Bridge.memoryGraph(source)) ?? (IS_TAURI ? null : (await import("./demo")).demoGraph(source));
+      if (!g) return;
+    }
+    // Both: the other PCs' things say whose they are.
+    if (source === "*") for (const n of g.nodes) if (n.origin) n.label = `${n.label} · ${n.origin}`;
+    renderSources(g.sources ?? []);
+    // Reading, linking and checking work on this PC's memory only.
+    const copy = !!source && source !== "*";
+    for (const b of [inboxBtn, readBtn, linkBtn, checkBtn]) b.style.display = copy ? "none" : "";
     model = new Model(g);
     // ?select=… on the first load; a page chosen in the island's field (memory-select) any time.
     const asked = wanted ?? new URLSearchParams(location.search).get("select");

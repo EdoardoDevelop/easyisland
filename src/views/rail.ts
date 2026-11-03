@@ -81,6 +81,60 @@ function agentsIcon(): Element {
   return glyph("terminal");
 }
 
+/** A pointer out of the open island (the window may be larger than it). */
+function outsideIsland(e: PointerEvent): boolean {
+  const island = document.getElementById("island");
+  if (!island) return false;
+  const r = island.getBoundingClientRect();
+  return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+}
+
+/**
+ * A row that, dragged out of the island and let go there, becomes a window
+ * (`drop` with the screen point); a press that does not leave stays a click.
+ */
+function tearable(row: HTMLElement, drop: (at: { x: number; y: number }) => void): HTMLElement {
+  row.addEventListener("pointerdown", (down) => {
+    if (down.button !== 0) return;
+    const from = { x: down.clientX, y: down.clientY };
+    let on = false;
+    // The whole page listens from the press on: a quick drag leaves the row at once.
+    const move = (e: PointerEvent) => {
+      if (e.pointerId !== down.pointerId) return;
+      if (!on) {
+        if (Math.hypot(e.clientX - from.x, e.clientY - from.y) < 6) return;
+        on = true;
+        // Outside the window too, until the release.
+        try {
+          row.setPointerCapture(e.pointerId);
+        } catch {
+          /* the pointer is already gone */
+        }
+        row.classList.add("dragging");
+      }
+      row.classList.toggle("tearing", outsideIsland(e));
+    };
+    const end = (e: PointerEvent) => {
+      if (e.pointerId !== down.pointerId) return;
+      window.removeEventListener("pointermove", move, true);
+      window.removeEventListener("pointerup", end, true);
+      window.removeEventListener("pointercancel", end, true);
+      if (!on) return;
+      if (row.hasPointerCapture(e.pointerId)) row.releasePointerCapture(e.pointerId);
+      row.classList.remove("dragging", "tearing");
+      // Not a click on the row as well.
+      const swallow = (c: Event) => { c.stopPropagation(); c.preventDefault(); };
+      row.addEventListener("click", swallow, { capture: true, once: true });
+      window.setTimeout(() => row.removeEventListener("click", swallow, { capture: true }), 0);
+      if (e.type === "pointerup" && outsideIsland(e)) drop({ x: e.screenX, y: e.screenY });
+    };
+    window.addEventListener("pointermove", move, true);
+    window.addEventListener("pointerup", end, true);
+    window.addEventListener("pointercancel", end, true);
+  });
+  return row;
+}
+
 export function buildRail(actions: ViewActions): ViewHost {
   const head = h("div", { class: "rail-head" });
   const go = (fn: () => void) => () => {
@@ -102,7 +156,9 @@ export function buildRail(actions: ViewActions): ViewHost {
       if (agent) actions.setFocus(agent.id);
       actions.setView("overview");
     }),
-    chat: row("chat", glyph("bubble"), t("Chat"), () => actions.setView("prompt")),
+    chat: tearable(row("chat", glyph("bubble"), t("Chat"), () => {
+      if (!actions.popped("chat")) actions.setView("prompt");
+    }), (at) => actions.popOut("chat", at)),
     azioni: row("azioni", glyph("bolt"), t("Azioni"), () => actions.setView("actions")),
     file: row("file", glyph("stack"), t("File e schermo"), () => actions.openFiles()),
     notizie: row("notizie", actionIconSvg(actionIcon("i:globe")!, 15), t("Notizie"), () => actions.setView("news")),
@@ -111,7 +167,12 @@ export function buildRail(actions: ViewActions): ViewHost {
   const label = h("div", { class: "rail-label-head", text: t("Integrazioni") });
   const list = h("div", { class: "rail-list" });
   // Dragged into order as the pills were (Impostazioni → Integrazioni → Blocca lo spostamento).
-  sortable(list, { enabled: () => !State.settings.lockOrder, onReorder: (ids) => actions.reorder(ids) });
+  // …or dragged out of the island: a window of its own (popout.ts).
+  sortable(list, {
+    enabled: () => !State.settings.lockOrder,
+    onReorder: (ids) => actions.reorder(ids),
+    out: { outside: outsideIsland, drop: (id, e) => actions.popOut(id, { x: e.screenX, y: e.screenY }) },
+  });
   const el = h("nav", { id: "rail", "aria-label": t("Sezioni") }, head, fixed, label, list);
 
   let listKey = "";
@@ -161,6 +222,8 @@ export function buildRail(actions: ViewActions): ViewHost {
         listKey = key;
         list.replaceChildren(...tasks.map((x) => {
           const b = row(x.id, taskIcon(x), x.name, () => {
+            // In a window of its own: that window comes forward instead.
+            if (actions.popped(x.id)) return;
             actions.setFocus(x.id);
             actions.setView("overview");
           });

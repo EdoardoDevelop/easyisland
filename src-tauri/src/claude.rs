@@ -142,6 +142,8 @@ pub struct Chat {
     /// Answers Claude Code writes after the turn, when a command it left in
     /// the background ends (Agent Chat: posted in the chat).
     later: Mutex<Option<Later>>,
+    /// «Ferma» on this conversation of the island (each one has its own, lib.rs `chat_stop`).
+    pub(crate) stop: tokio::sync::Notify,
 }
 
 impl Chat {
