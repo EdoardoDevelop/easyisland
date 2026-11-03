@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_2 novembre 2026. **1.0.21** in `main` (tag `v1.0.21`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
+_3 novembre 2026. **1.0.22** in `main` (tag `v1.0.22`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
@@ -50,13 +50,13 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
-### 3/11 — Chat e integrazioni in una finestra, Anteprima nella finestra della chat (`claude/sviluppo`)
+### 3/11 — Chat e integrazioni in una finestra, Anteprima nella finestra della chat (1.0.22)
 Clic destro, pulsante o voce trascinata fuori dall'isola → finestra (`popout.ts`, `popout_window` in `lib.rs`); tutto resta nella pagina dell'isola. Pagina `about:blank` (una dell'app restava vuota); la vista va al sicuro nell'isola a ogni `pagehide` e torna nella pagina nuova, la ✕ è trattenuta da Rust finché la vista non è rientrata: prima la chat tornava con i pulsanti morti. Finestre per nome (`popout_take`, `get_window`): cercate come webview window sparivano con l'Anteprima dentro, che andava e tornava. Smoke in parallelo (~2,5 min) e `smoke:rapido` (~30 s). «Rimetti» chiude da Rust (`popout_close`). L'Anteprima agganciata segue la chat (`preview::chat_dock` la rifà, `reopen` aspetta che la vecchia sparisca). Bordo della barra delle conversazioni trascinabile. Provato nell'anteprima con un iframe; da provare nell'app l'Anteprima nella finestra della chat. `docs/architettura.md` → Viste, `docs/chat.md` → Anteprima.
 
-### 2/11 — Finestra Memoria: Questo PC / altro PC / Tutte (`claude/sviluppo`)
+### 2/11 — Finestra Memoria: Questo PC / altro PC / Tutte (1.0.22)
 Con la copia di un altro PC (`memoria-condivise`) la barra della finestra Memoria sceglie quale memoria disegnare (`memory_graph` con `source`, `brain::graph_of`). Nome dell'altro PC dalla cartella o dall'impostazione. `docs/chat.md` → Finestra Memoria. Provato nell'anteprima con «ufficio» finto e `cargo check`; non ancora nell'app con la copia vera.
 
-### 2/11 — Chat: barra delle conversazioni, più conversazioni aperte (`claude/sviluppo`)
+### 2/11 — Chat: barra delle conversazioni, più conversazioni aperte (1.0.22)
 Barra a sinistra (Ctrl+B; allarga l'isola con `chatSideRoom`, galleggia se stretta), colonna centrale di 780 px. Ogni conversazione ha il suo `Chat` in Rust (`Chats`, comandi con `sid`), processo e «Ferma»; max 8 (`MAX_OPEN_CHATS`). `docs/chat.md` → Cronologia. Provato con test, smoke e `?scene=chat&history`, non con due motori veri insieme.
 
 ### 2/11 — Agent Chat autonoma, comandi in background (1.0.21)

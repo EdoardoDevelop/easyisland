@@ -18,7 +18,9 @@ file is the reference.
 - **After `cargo clean`:** run `cargo build --release -p easyisland-hook` before
   tests and `cargo build`: the app bundles the relay as a resource.
 - **Interface smoke test:** `npm run smoke` with `npm run dev` running
-  (`PREVIEW_URL=http://localhost:1420` if needed). Headless Edge opens every scene of
+  (`PREVIEW_URL=http://localhost:1420` if needed). Several headless Edges at once
+  (`SMOKE_JOBS`, up to 6 by default): about 2.5 minutes; `npm run smoke:rapido` (chat,
+  Overview, Agents, Agent Chat, Settings → Chat) about 30 s while working, `node scripts/smoke.mjs <scene>` for others. Headless Edge opens every scene of
   `dev/scenes.ts`, clicks every menu entry, drags the corner, closes and reopens; then
   every Settings page, using every control. Any exception or `console.error` is a
   failure. It includes a fuzz run with random agent events and malformed integration
