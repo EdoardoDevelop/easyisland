@@ -73,6 +73,15 @@ Parla solo con EasyIsland via native messaging (niente rete); rivede la decision
 - Associazione esplicita cliente 3CX/organizzazione Zammad ↔ cartella RDM.
 - Da non fare: legarlo a «davanti al cliente»; leggere password.
 
+### Devolutions Cloud (03/11, dal PC lavoro, da sviluppare)
+Prove di @claudio sul PC lavoro, dettagli in `RDM-Devolutions-Cloud-connessione.md` e nella skill `devolutions-cloud` (SKILL.md, `scripts/setup.ps1`, `scripts/DevolutionsCloud.psm1`), arrivati in Agent Chat il 03/11.
+- **Cosa funziona:** l'MCP di RDM e i cmdlet RDM non vedono il vault; vanno i **cmdlet Hub** (`Devolutions.PowerShell` in pwsh 7) con una **Application identity** (Is enabled, Can access user vaults, senza admin). Un'identità per PC (es. `Claude-RDM-Casa`): il Secret si vede una volta sola e rigenerarlo scollega l'altro PC.
+- **Credenziali:** URL, Key e Secret in una finestra di EasyIsland, salvati con DPAPI o in Gestione credenziali; mai in chat, mai copiati tra PC (il file DPAPI vale solo dove è stato creato).
+- **Lettura:** elenco vault e voci per cartella cliente (farmacie) senza password; strumento per la chat «apri/cerca il server di X».
+- **Password:** solo negli appunti, che si svuotano da soli; mai a schermo né al motore.
+- **Scrittura** (`New-DVCCredential`, `New-DVCPasswordList`): conferma nell'isola con anteprima `-DryRun`; dopo la scrittura rilettura con `-ResolvePasswords` e controllo che dice solo giusto/sbagliato. Trappola: al salvataggio la password passa in chiaro. Niente eliminazioni.
+- **Ordine:** 1) collegamento e lettura; 2) password negli appunti; 3) scrittura con anteprima e verifica; 4) associazione cliente 3CX/Zammad ↔ cartella del vault.
+
 ## Spunti dall'app originale
 - Plugin come quello di opencode per **Amp** e **Hermes**.
 - **Limiti di Codex** con `account/rateLimits/read` di `codex app-server`.
@@ -123,6 +132,37 @@ Notebook spesso spento; VPS con Windows 11 in Docker sempre accesa con un second
 - **Turni:** riordino, lettura di `da-leggere/` (per file) e pulizia li prende chi arriva prima, con scadenza se si spegne.
 - **Telegram:** un bot per EasyIsland.
 - Da decidere: protocollo (HTTPS o WebSocket con TLS e chiave), frequenza massima per file, come mostrare le pagine arrivate. Ordine: prova Tailscale, abbinamento, sincronizzazione, turni, altro.
+
+## Chat: scrivere mentre l'IA risponde (03/11, chiesto da Edoardo)
+- Oggi, mentre il motore elabora, non si può inviare. Serve che il campo resti attivo e che «Invia» funzioni anche durante la risposta.
+- Il messaggio resta **in coda**: si vede sotto la conversazione come «in attesa», si può modificare o togliere e parte appena finisce il turno. In alternativa si inietta nel turno in corso, dove il motore lo permette (Claude Code con input in streaming).
+- «Ferma» resta separato: interrompe la risposta e poi parte il messaggio in coda.
+- Va bene per tutti i motori, anche nelle conversazioni parallele.
+
+## Agent Chat: chi sta leggendo, ragionando, scrivendo (03/11, chiesto da Edoardo)
+- Oggi, dopo un invio, non si capisce se e chi ha preso il messaggio: sembra che la chat sia bloccata.
+- **Ricevuto/preso in carico:** sotto il messaggio, subito, chi l'ha preso (es. «preso da @oscar»), anche per i PC collegati.
+- **Indicatore di stato per agente** nella stanza: «sta ragionando…», «usa strumenti…», «sta scrivendo…», con il tempo trascorso; sparisce quando pubblica o risponde NIENTE (che va mostrato come «nessuna risposta», non come silenzio).
+- **Attesa / coda:** se un agente è occupato, il messaggio mostra «in coda per @nome». Se nessuno lo prende entro qualche secondo, avviso «nessun agente attivo».
+- Lo stato passa anche tra PC (casa ↔ lavoro) con un segnale leggero, senza salvare nulla nello storico.
+- **Zero token:** gli stati li genera EasyIsland dagli eventi del motore (turno avviato, chiamata a uno strumento, testo in uscita, fine turno), non li scrive l'IA; nessun messaggio in chat né turno in più per dire «ci sto lavorando».
+
+## Agent Chat: scrivere da EasyIsland come Edoardo (03/11, chiesto da Edoardo)
+- Oggi per scrivere in Agent Chat bisogna aprire il sito. Serve poterlo fare **direttamente da EasyIsland**, con il nome di Edoardo, come dal sito.
+- **Dove:** nella scheda Agent Chat dell'isola e in una finestra della chat (stanze, thread, conversazione completa), con campo di testo, @menzioni con completamento, risposta a un messaggio e allegati.
+- **Mittente:** il messaggio parte come owner (@edoardo, verificato), non come un agente. Serve un **token owner** a parte in Gestione credenziali (es. `agentchat-owner-token`), distinto da quello degli agenti; senza, il campo resta spento e lo dice.
+- **Stesso effetto del sito:** gli agenti lo trattano come un messaggio di @edoardo (priorità, conferme, «fermo/stop»). EasyIsland non deve rispondere da solo a un suo messaggio come se fosse arrivato da fuori: lo prende in carico solo se nomina un suo motore o non ha destinatario.
+- Si collega a «chi sta leggendo, ragionando, scrivendo» (sopra): dopo l'invio, nella stessa finestra, si vede chi l'ha preso e cosa sta facendo.
+
+## Impostazioni: scelta del font (03/11, chiesto da Edoardo)
+- In Impostazioni → Aspetto, sezione **Font** con anteprima dal vivo e **due scelte separate** (deciso da Edoardo il 03/11):
+  - **Font dei titoli:** titoli, intestazioni, orologio, isola, nomi nelle card e in chat.
+  - **Font del testo:** testo dei messaggi, card, campi, impostazioni.
+  - Per ognuno: famiglia, dimensione e spessore; pulsante «Ripristina» che torna al font di sistema.
+  - Va applicato con due variabili CSS (`--font-titoli`, `--font-testo`) in tutte le finestre (isola, chat, card, anteprima), così si cambia in un punto solo.
+- **Stile richiesto:** a puntini / retrò, come quello dei telefoni Nothing (matrice di punti, display di una volta).
+- **Licenze:** i font di Nothing (Ndot) non sono liberi, non si includono. Al loro posto font OFL da mettere dentro l'app: **Doto** (matrice di punti, il più simile), DotGothic16, VT323, Space Mono. In più la possibilità di scegliere un font già installato in Windows.
+- Il font a puntini va bene per titoli, orologio e isola; per i testi lunghi della chat proporre un font leggibile abbinato (es. Space Mono) e una dimensione regolabile.
 
 ## Altro
 - **Scheda esatta di Windows Terminal** per «Apri» (titolo della console + UI Automation): per ora non serve.
