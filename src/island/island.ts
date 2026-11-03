@@ -39,6 +39,7 @@ import { h } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
 import { locale, t } from "../core/i18n";
 import { applyUiStyle, islandHex, windowsLook } from "../core/uistyle";
+import { applyFonts } from "../core/fonts";
 
 const BOT_OVERHANG = 40;
 /** Same margin as the Rust hit test (src-tauri/src/island.rs). */
@@ -3153,6 +3154,7 @@ ${note}` : text };
     setFigure(t.figure);
     this.loadLogo(t.figure === "logo" ? t.logoStamp ?? 0 : -1);
     applyUiStyle(t.style, t.scheme, () => this.paintIsland());
+    applyFonts(t.fonts);
     this.paintIsland();
     this.applyBare();
     Sound.setFamilyGains({ alerts: t.volumeAlerts, ui: t.volumeUi, emotes: t.volumeEmotes });

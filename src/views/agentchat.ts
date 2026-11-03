@@ -1,8 +1,15 @@
 // The "Agent Chat" card (src-tauri/src/agentchat.rs `publish`): whether
 // EasyIsland is listening in the user's Agent Chat and as whom, which engines
-// answer (the lead marked), «Ascolto» on or off, and the last messages of the
-// followed rooms. The pill wears the state: working while an engine answers,
-// asleep with listening off (integrations.ts).
+// answer (the lead marked), «Ascolto» on or off, the conversation of the
+// followed rooms with who is on each message («preso da», «nessuna risposta»,
+// «in coda»), who is working now (/api/status, read for a few minutes after a
+// message), and a field to write as the owner (owner token, `owner_send`).
+// The pill wears the state: working while an engine answers, asleep with
+// listening off (integrations.ts).
+//
+// The card is rebuilt at every update (views.ts keys it on the data): the
+// field lives outside it (`composer`) and is moved into each new card, its
+// text, cursor and focus kept.
 
 import { h, brandOrDot } from "./dom";
 import { State } from "../core/state";
@@ -13,8 +20,6 @@ import { timeAgo } from "./integrations";
 
 export const AGENTCHAT = "integration_agentchat";
 const COLOR = "#8B5CF6";
-/** Messages shown in the card, the newest last. */
-const SHOWN = 12;
 
 export interface ChatMsg {
   id: number;
@@ -25,8 +30,20 @@ export interface ChatMsg {
   thread: number | null;
   kind: string;
   ts: number;
+  /** Written by the owner (the page, or an app with the owner token). */
+  human?: boolean;
+  claimed_by?: string | null;
   /** Attachments: name, size, SHA-256 and who imported each (one agent only). */
   files?: { id: string; name: string; size: number; sha256: string; imported_by?: string | null }[];
+}
+
+/** The server's /api/status: who works on what, claims, who did not answer. */
+export interface ChatActivity {
+  active?: { by: string; message: number; state: "queued" | "thinking" | "tools" | "writing"; detail?: string; since: number }[];
+  claims?: Record<string, string>;
+  outcomes?: Record<string, Record<string, "silent" | "failed">>;
+  online?: Record<string, boolean>;
+  now?: number;
 }
 
 export interface AgentchatData {
@@ -47,6 +64,11 @@ export interface AgentchatData {
   /** «casa/claude» → «lia». */
   names?: Record<string, string>;
   messages?: ChatMsg[];
+  activity?: ChatActivity | null;
+  /** The owner token is there: the field writes as the owner. */
+  canWrite?: boolean;
+  ownerName?: string;
+  rooms?: string[];
 }
 
 export function agentchatData(): AgentchatData {
@@ -82,21 +104,98 @@ async function setListening(on: boolean, say: (m: string) => void) {
   }
 }
 
+const nick = (d: AgentchatData, handle: string) => `@${d.names?.[handle] ?? handle}`;
+
+const WORDS = (): Record<string, string> => ({
+  queued: t("in coda"),
+  thinking: t("sta ragionando…"),
+  tools: t("usa strumenti"),
+  writing: t("sta scrivendo…"),
+});
+
+/** Seconds counted on screen (the card is not rebuilt only to count): element → start, in the server's clock. */
+const ticking = new Map<HTMLElement, number>();
+let clockOffset = 0;
+let tickTimer = 0;
+function elapsed(since: number): string {
+  const s = Math.max(0, Math.round(Date.now() / 1000 + clockOffset - since));
+  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min`;
+}
+function tick() {
+  for (const [el, since] of ticking) {
+    if (!el.isConnected) ticking.delete(el);
+    else el.textContent = elapsed(since);
+  }
+  if (!ticking.size) {
+    window.clearInterval(tickTimer);
+    tickTimer = 0;
+  }
+}
+function since(at: number): HTMLElement {
+  const el = h("small", { class: "ac-since", text: elapsed(at) });
+  ticking.set(el, at);
+  if (!tickTimer) tickTimer = window.setInterval(tick, 1000);
+  return el;
+}
+
+/** Under a message: who took it, who is waiting to answer it, who had nothing to say. */
+function statusLine(m: ChatMsg, d: AgentchatData): HTMLElement | null {
+  const a = d.activity ?? {};
+  const id = String(m.id);
+  const parts: HTMLElement[] = [];
+  const took = a.claims?.[id] ?? m.claimed_by;
+  if (took) parts.push(h("span", { class: "took", text: t("preso da {who}", { who: nick(d, took) }) }));
+  for (const x of (a.active ?? []).filter((x) => x.message === m.id && x.state === "queued")) {
+    parts.push(h("span", { text: t("in coda per {who}", { who: nick(d, x.by) }) }));
+  }
+  for (const [who, state] of Object.entries(a.outcomes?.[id] ?? {})) {
+    parts.push(h("span", { class: state === "failed" ? "fail" : "none",
+      text: state === "failed" ? t("{who}: non è riuscito a rispondere", { who: nick(d, who) }) : t("{who}: nessuna risposta", { who: nick(d, who) }) }));
+  }
+  return parts.length ? h("div", { class: "ac-status" }, ...parts) : null;
+}
+
 function messageRow(m: ChatMsg, d: AgentchatData): HTMLElement {
   const me = d.name ?? "";
   const mine = !!me && (m.sender === me || m.sender.startsWith(`${me}/`));
-  const owner = !!d.owner && m.sender === d.owner;
+  const owner = !!m.human || (!!d.owner && m.sender === d.owner);
   const kind = m.kind === "consult" ? t("consulta") : m.kind === "synthesis" ? t("sintesi") : "";
-  const text = m.text.length > 400 ? `${m.text.slice(0, 400)}…` : m.text;
+  const text = m.text.length > 1200 ? `${m.text.slice(0, 1200)}…` : m.text;
+  const reply = d.canWrite ? h("button", { class: "ac-reply", title: t("Rispondi a questo messaggio"), text: "↩",
+    onclick: (e: Event) => { e.stopPropagation(); replyTo = m; drawComposer(d); focusField(); } }) : null;
   return h("div", { class: `ac-msg${mine ? " mine" : ""}${owner ? " owner" : ""}${m.thread ? " reply" : ""}` },
     h("div", { class: "ac-meta" },
       h("b", { text: d.names?.[m.sender] ?? m.sender, title: m.sender }),
       m.verified ? null : h("span", { class: "ac-unv", text: "?", title: t("Mittente non verificato") }),
       kind ? h("span", { class: "ac-kind", text: kind }) : null,
-      h("span", { class: "int-ago", text: `${m.room} · ${timeAgo(m.ts * 1000)}` })),
+      m.thread ? h("span", { class: "ac-kind", text: `↳ #${m.thread}` }) : null,
+      h("span", { class: "int-ago", text: `${m.room} · ${timeAgo(m.ts * 1000)}` }),
+      reply),
     h("div", { class: "ac-text", text }),
     ...(m.files ?? []).map((f) => h("div", { class: "ac-file", title: `SHA-256 ${f.sha256}`,
-      text: `📎 ${f.name} · ${kb(f.size)} · ${f.imported_by ? t("importato da {who}", { who: f.imported_by }) : t("da importare")}` })));
+      text: `📎 ${f.name} · ${kb(f.size)} · ${f.imported_by ? t("importato da {who}", { who: f.imported_by }) : t("da importare")}` })),
+    statusLine(m, d));
+}
+
+/** Over the field: who is working now, and «nessun agente attivo» when a message of the owner went unanswered. */
+function activityBar(d: AgentchatData, list: ChatMsg[]): HTMLElement | null {
+  const a = d.activity ?? {};
+  if (a.now) clockOffset = a.now - Date.now() / 1000;
+  const items: HTMLElement[] = (a.active ?? []).map((x) => h("span", { class: `ac-busy ${x.state}`, title: `#${x.message}` },
+    h("i"), h("b", { text: nick(d, x.by) }), h("span", { text: WORDS()[x.state] ?? x.state }),
+    x.detail ? h("small", { text: x.detail }) : null, since(x.since)));
+  const last = [...list].reverse().find((m) => m.human || (!!d.owner && m.sender === d.owner));
+  if (last && d.activity) {
+    const age = Date.now() / 1000 + clockOffset - last.ts;
+    const answered = list.some((m) => m.id > last.id && !m.human && m.sender !== d.owner);
+    const id = String(last.id);
+    const someone = !!a.claims?.[id] || (a.active ?? []).some((x) => x.message === last.id) || !!a.outcomes?.[id];
+    const anyOn = Object.values(a.online ?? {}).some(Boolean);
+    if (age > 8 && age < 600 && !answered && !someone && !anyOn) {
+      items.push(h("span", { class: "ac-alone", text: t("nessun agente attivo: nessuno ha preso il messaggio") }));
+    }
+  }
+  return items.length ? h("div", { class: "ac-activity" }, ...items) : null;
 }
 
 function compact(n: number): string {
@@ -105,6 +204,187 @@ function compact(n: number): string {
 
 function kb(n: number): string {
   return n < 1024 ? `${n} B` : n < 1_048_576 ? `${Math.round(n / 1024)} KB` : `${(n / 1_048_576).toFixed(1)} MB`;
+}
+
+// ── The field: writing as the owner ──────────────────────────────────────────
+
+let replyTo: ChatMsg | null = null;
+let files: { name: string; path: string }[] = [];
+let room = "";
+let sending = false;
+let composer: HTMLElement | null = null;
+let field: HTMLTextAreaElement | null = null;
+let extras: HTMLElement | null = null;
+let roomPick: HTMLSelectElement | null = null;
+let sendBtn: HTMLButtonElement | null = null;
+let errorLine: HTMLElement | null = null;
+
+function focusField() {
+  requestAnimationFrame(() => field?.focus());
+}
+
+/** «@li» typed just before the cursor: what to complete, or null. */
+function typedAt(): string | null {
+  if (!field) return null;
+  const before = field.value.slice(0, field.selectionStart ?? field.value.length);
+  const m = before.match(/(^|\s)@([\w.\-/]*)$/);
+  return m ? m[2].toLowerCase() : null;
+}
+
+/** Who can be called: the names chosen in the chat, the engines, everyone. */
+function callable(d: AgentchatData): { name: string; handle: string }[] {
+  const out = new Map<string, string>();
+  for (const [handle, alias] of Object.entries(d.names ?? {})) out.set(alias, handle);
+  for (const e of d.engines ?? []) if (!out.has(e.name)) out.set(e.name, e.handle ?? e.name);
+  out.set("tutti", t("tutti gli agenti"));
+  return [...out].map(([name, handle]) => ({ name, handle }));
+}
+
+function insertName(name: string) {
+  if (!field) return;
+  const pos = field.selectionStart ?? field.value.length;
+  const q = typedAt();
+  const v = field.value;
+  if (q !== null) {
+    const start = pos - q.length - 1;
+    field.value = `${v.slice(0, start)}@${name} ${v.slice(pos)}`;
+    field.selectionStart = field.selectionEnd = start + name.length + 2;
+  } else {
+    const pre = v.slice(0, pos);
+    const sp = pre && !/\s$/.test(pre) ? " " : "";
+    field.value = `${pre}${sp}@${name} ${v.slice(pos)}`;
+    field.selectionStart = field.selectionEnd = pos + sp.length + name.length + 2;
+  }
+  field.focus();
+  drawComposer(agentchatData());
+}
+
+async function send() {
+  const d = agentchatData();
+  if (!field || sending) return;
+  const text = field.value.trim();
+  if (!text && !files.length) return;
+  sending = true;
+  drawComposer(d);
+  try {
+    await Bridge.agentchatOwnerSend(room, text, replyTo?.id ?? null, files.map((f) => f.path));
+    Sound.play("send");
+    field.value = "";
+    files = [];
+    replyTo = null;
+    if (errorLine) errorLine.textContent = "";
+  } catch (e) {
+    Sound.play("error");
+    if (errorLine) errorLine.textContent = String(e).replace(/^Error:\s*/, "");
+  } finally {
+    sending = false;
+    drawComposer(agentchatData());
+    focusField();
+  }
+}
+
+function buildComposer(): HTMLElement {
+  field = h("textarea", { class: "ac-field", rows: "1", spellcheck: "false" }) as HTMLTextAreaElement;
+  extras = h("div", { class: "ac-extras" });
+  roomPick = h("select", { class: "ac-room", title: t("Stanza") }) as HTMLSelectElement;
+  roomPick.addEventListener("change", () => { room = roomPick!.value; });
+  sendBtn = h("button", { class: "send-btn", title: t("Invia come te (Invio)"), text: "↑" }) as HTMLButtonElement;
+  const clip = h("button", { class: "mic-btn", title: t("Allega file"), text: "📎" }) as HTMLButtonElement;
+  errorLine = h("div", { class: "ac-error" });
+  const grow = () => {
+    if (!field) return;
+    field.style.height = "auto";
+    field.style.height = `${Math.min(field.scrollHeight, 120)}px`;
+  };
+  field.addEventListener("input", () => { grow(); drawComposer(agentchatData()); });
+  field.addEventListener("click", () => drawComposer(agentchatData()));
+  field.addEventListener("keydown", (e) => {
+    e.stopPropagation(); // Escape and the island's keys stay here
+    const q = typedAt();
+    if (e.key === "Tab" && q !== null) {
+      const first = callable(agentchatData()).find((x) => x.name.startsWith(q) || x.handle.startsWith(q));
+      if (first) {
+        e.preventDefault();
+        insertName(first.name);
+      }
+      return;
+    }
+    if (e.key === "Escape" && replyTo) {
+      replyTo = null;
+      drawComposer(agentchatData());
+      return;
+    }
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      void send();
+    }
+  });
+  field.addEventListener("paste", (e) => e.stopPropagation());
+  sendBtn.addEventListener("click", () => void send());
+  clip.addEventListener("click", async () => {
+    try {
+      const picked = await Bridge.chatPick(false);
+      files = [...files, ...picked.filter((p) => !p.folder).map((p) => ({ name: p.name, path: p.path }))].slice(0, 10);
+      drawComposer(agentchatData());
+      focusField();
+    } catch (e) {
+      if (errorLine) errorLine.textContent = String(e).replace(/^Error:\s*/, "");
+    }
+  });
+  return h("div", { class: "ac-compose" }, extras, h("div", { class: "ac-bar" }, roomPick, field, clip, sendBtn), errorLine);
+}
+
+/** The field's surroundings: the reply, the files, the names to call, the rooms. */
+function drawComposer(d: AgentchatData) {
+  if (!composer || !field || !extras || !roomPick || !sendBtn) return;
+  const me = d.ownerName || d.owner || "";
+  field.placeholder = me ? t("Scrivi come @{name}… (@ per chiamare un agente)", { name: me }) : t("Scrivi… (@ per chiamare un agente)");
+  const rooms = (d.rooms ?? ["general"]).filter((r) => r && r !== "*");
+  const list = rooms.length ? rooms : ["general"];
+  if (!list.includes(room)) room = list[0];
+  if (roomPick.options.length !== list.length || Array.from(roomPick.options).some((o, i) => o.value !== list[i])) {
+    roomPick.replaceChildren(...list.map((r) => h("option", { value: r, text: `#${r}` })));
+  }
+  roomPick.value = room;
+  roomPick.style.display = list.length > 1 ? "" : "none";
+  sendBtn.disabled = sending || (!field.value.trim() && !files.length);
+  const rows: HTMLElement[] = [];
+  if (replyTo) {
+    const r = replyTo;
+    rows.push(h("div", { class: "ac-chip" },
+      h("span", { text: t("Rispondi a {who}: {text}", { who: d.names?.[r.sender] ?? r.sender, text: r.text.slice(0, 80) }) }),
+      h("button", { text: "✕", title: t("Non rispondere a questo"), onclick: () => { replyTo = null; drawComposer(agentchatData()); focusField(); } })));
+  }
+  for (const f of files) {
+    rows.push(h("div", { class: "ac-chip" }, h("span", { text: `📎 ${f.name}`, title: f.path }),
+      h("button", { text: "✕", title: t("Togli"), onclick: () => { files = files.filter((x) => x !== f); drawComposer(agentchatData()); focusField(); } })));
+  }
+  const q = typedAt();
+  if (q !== null) {
+    const names = callable(d).filter((x) => x.name.startsWith(q) || x.handle.startsWith(q)).slice(0, 8);
+    if (names.length) {
+      rows.push(h("div", { class: "ac-names" }, ...names.map((x) => h("button", { class: "ac-name", title: x.handle,
+        onmousedown: (e: Event) => e.preventDefault(), onclick: () => insertName(x.name) }, h("b", { text: `@${x.name}` }), h("small", { text: x.handle })))));
+    }
+  }
+  extras.replaceChildren(...rows);
+}
+
+/** The field, moved into the new card with its text, cursor and focus. */
+function placeComposer(host: HTMLElement, d: AgentchatData) {
+  if (!composer) composer = buildComposer();
+  const focused = !!field && field.ownerDocument.activeElement === field;
+  const sel = field ? [field.selectionStart, field.selectionEnd] as const : null;
+  host.append(composer);
+  drawComposer(d);
+  // The new card goes on the page right after it is built (views.ts): focus then.
+  if (focused) {
+    queueMicrotask(() => {
+      if (!field?.isConnected) return;
+      field.focus();
+      if (sel) field.setSelectionRange(sel[0] ?? 0, sel[1] ?? 0);
+    });
+  }
 }
 
 export function agentchatCard(openSettings: () => void): HTMLElement {
@@ -139,14 +419,22 @@ export function agentchatCard(openSettings: () => void): HTMLElement {
         title: `${e.handle ?? e.name} · ${e.engine} · ${t("oggi {n} turni, ≈{k} token", { n: e.today ?? 0, k: compact(e.tokens ?? 0) })}`,
         text: `@${e.name}${e.lead ? " ★" : ""}${e.today ? ` · ${e.today}` : ""}` }))));
   }
-  const list = (d.messages ?? []).slice(-SHOWN);
+  const list = d.messages ?? [];
   const box = h("div", { class: "ac-list" });
   if (!list.length) box.append(h("div", { class: "int-empty", text: t("Nessun messaggio nelle stanze seguite.") }));
   for (const m of list) box.append(messageRow(m, d));
   body.append(box);
+  const bar = activityBar(d, list);
+  if (bar) body.append(bar);
+  if (d.canWrite) {
+    placeComposer(body, d);
+  } else {
+    body.append(h("div", { class: "hint rec-hint ac-nowrite" },
+      h("span", { text: t("Per scrivere da qui come te serve il «Token per scrivere come te»: crealo nella pagina della chat (menu → Scrivere da un'app) e incollalo in Impostazioni → Integrazioni → Agent Chat.") })));
+  }
   if (d.last) body.append(h("div", { class: "hint rec-hint", text: d.last }));
   body.append(note);
   // The newest message in view.
   requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
-  return h("div", { class: "int-card notion-card" }, head, body);
+  return h("div", { class: "int-card notion-card ac-card" }, head, body);
 }

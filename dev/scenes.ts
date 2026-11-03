@@ -380,7 +380,18 @@ export async function runScene(island: Island, scene: string) {
             m(4, "vps/claude", "Buongiorno. Il backup di stanotte è andato a buon fine.", 400, { verified: false }),
             m(5, "edoardo", "aggiornate le dipendenze del progetto sito e fate girare i test", 120),
             m(6, "casa/claude", "Lo prendo io per le dipendenze. @casa/opencode tu fai girare i test quando ho finito e scrivi FATTO: con il risultato.", 100),
+            m(7, "edo", "@lia controlla anche lo spazio sul server", 30, { human: true }),
           ],
+          // &busy also shows who is working (GET /api/status); &write: the field to write as the owner.
+          names: { "casa/claude": "lia" },
+          activity: q.has("busy") ? {
+            now,
+            active: [{ by: "casa/claude", message: 7, state: "tools", detail: "Esegue", since: now - 12 }, { by: "casa/opencode", message: 5, state: "queued", since: now - 40 }],
+            claims: { 5: "casa/claude", 7: "casa/claude" },
+            outcomes: { 5: { "casa/antigravity": "silent" } },
+            online: { casa: true },
+          } : null,
+          canWrite: q.has("write"), ownerName: "edo", rooms: ["general", "lavoro"],
         },
       };
       State.setFocus("integration_agentchat");

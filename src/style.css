@@ -1184,6 +1184,53 @@ input[type="range"]::-webkit-slider-thumb {
   cursor: pointer;
 }
 
+/* Written while it answers: waiting for the end of the turn (chat.ts renderQueue). */
+.chat-queue {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  max-width: 780px;
+  margin-inline: auto;
+  padding: 2px 6px 4px;
+  box-sizing: border-box;
+}
+.chat-queued {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 8px;
+  border: 1px dashed rgba(199, 210, 254, 0.35);
+  border-radius: 8px;
+  font: 400 calc(11.5px + var(--fs-up, 0px)) var(--font);
+  color: #e5e7eb;
+}
+.chat-queued-tag {
+  flex: 0 0 auto;
+  font-size: calc(10px + var(--fs-up, 0px));
+  color: #c7d2fe;
+  opacity: 0.8;
+}
+.chat-queued-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.chat-queued-btn {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border: 0;
+  border-radius: 6px;
+  font: 500 calc(10.5px + var(--fs-up, 0px)) var(--font);
+  color: #c7d2fe;
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+}
+.chat-queued-btn:hover { background: rgba(255, 255, 255, 0.12); }
+.chat-queued-btn.now { color: #1a1206; background: var(--amber); }
+
 .chip-row:empty {
   display: none;
 }
@@ -5751,6 +5798,37 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
 .ac-kind { font: 500 calc(10px + var(--fs-up, 0px)) var(--font); color: #a78bfa; }
 .ac-file { margin-top: 3px; font: 500 calc(11px + var(--fs-up, 0px)) var(--font); color: #a78bfa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ac-text { font: 400 calc(11.5px + var(--fs-up, 0px))/1.4 var(--font); color: var(--dim); white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Who is on each message, who works now (agentchat.ts statusLine, activityBar). */
+.ac-status { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 3px; font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font); color: #8e939c; }
+.ac-status .took { color: #6ee7b7; }
+.ac-status .none { font-style: italic; }
+.ac-status .fail { color: #fca5a5; }
+.ac-reply { margin-left: 4px; padding: 0 5px; border: 0; border-radius: 5px; background: transparent; color: #8e939c; cursor: pointer; opacity: 0; font-size: calc(11px + var(--fs-up, 0px)); }
+.ac-msg:hover .ac-reply, .ac-reply:focus-visible { opacity: 1; }
+.ac-reply:hover { background: rgba(255, 255, 255, 0.08); color: var(--ink); }
+.ac-activity { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.ac-busy { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 10px; background: rgba(255, 255, 255, 0.06); font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--ink); }
+.ac-busy i { width: 6px; height: 6px; border-radius: 50%; background: #22d3ee; animation: ac-pulse 1.2s ease-in-out infinite; }
+.ac-busy.queued i { background: #f59e0b; animation: none; }
+.ac-busy small { color: #8e939c; }
+.ac-alone { padding: 2px 9px; border-radius: 10px; background: rgba(245, 158, 11, 0.16); color: #fde68a; font: 400 calc(11px + var(--fs-up, 0px)) var(--font); }
+@keyframes ac-pulse { 50% { opacity: 0.25; } }
+/* Writing as the owner (agentchat.ts composer). */
+.ac-compose { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+.ac-extras { display: flex; flex-direction: column; gap: 4px; }
+.ac-extras:empty { display: none; }
+.ac-bar { display: flex; align-items: flex-end; gap: 6px; }
+.ac-field { flex: 1 1 auto; min-width: 0; resize: none; min-height: 30px; max-height: 120px; padding: 6px 10px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(0, 0, 0, 0.25); color: var(--ink); font: 400 calc(12px + var(--fs-up, 0px))/1.4 var(--font); outline: none; }
+.ac-field:focus { border-color: rgba(139, 92, 246, 0.7); }
+.ac-room { flex: 0 0 auto; max-width: 110px; height: 30px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(0, 0, 0, 0.25); color: var(--ink); font: 400 calc(11px + var(--fs-up, 0px)) var(--font); }
+.ac-chip { display: flex; align-items: center; gap: 6px; padding: 3px 4px 3px 9px; border-radius: 8px; background: rgba(139, 92, 246, 0.14); font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--ink); min-width: 0; }
+.ac-chip span { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ac-chip button { border: 0; border-radius: 6px; background: transparent; color: #8e939c; cursor: pointer; padding: 1px 6px; }
+.ac-names { display: flex; flex-wrap: wrap; gap: 4px; }
+.ac-name { display: inline-flex; align-items: baseline; gap: 5px; padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(139, 92, 246, 0.45); background: rgba(255, 255, 255, 0.05); color: var(--ink); cursor: pointer; font: 400 calc(11px + var(--fs-up, 0px)) var(--font); }
+.ac-name small { color: #8e939c; }
+.ac-error { font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: #fca5a5; }
+.ac-error:empty { display: none; }
 
 /* Registra in File e schermo (buildRecorderPanel). */
 .rec-panel { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; background: rgba(255, 255, 255, 0.02); }
@@ -6406,3 +6484,25 @@ html[data-scheme="light"] .news-look.on { background: rgba(0, 0, 0, 0.1); }
 .talk-card .actions {
   justify-content: flex-end;
 }
+
+/* Impostazioni → Aspetto → Font (src/core/fonts.ts): the titles' font, size and
+   weight, and the text's weight. Only while something is chosen. */
+html[data-font-title] :is(.title, .chat-title, .int-head b, .int-name, .history-title, .moment-title, .news-title,
+  .today-title, .recap-title, .strip-title, .files-title, .media-title, .rail-head, .rail-label-head, .ac-meta b,
+  .chat-ask-title, .np-title, .drop-title, .bar-text, .summary-name, .tcx-chat-name, .qa-name) {
+  font-family: var(--font-title) !important;
+}
+html[data-font-title-weight] :is(.title, .chat-title, .int-head b, .int-name, .history-title, .moment-title, .news-title,
+  .today-title, .recap-title, .strip-title, .files-title, .media-title, .rail-head, .rail-label-head, .ac-meta b,
+  .chat-ask-title, .np-title, .drop-title, .bar-text, .summary-name, .tcx-chat-name, .qa-name) {
+  font-weight: var(--font-title-weight) !important;
+}
+html[data-font-title-size] :is(.title, .chat-title, .int-head b, .int-name, .history-title, .moment-title, .news-title,
+  .today-title, .recap-title, .strip-title, .files-title, .media-title, .rail-head, .rail-label-head, .ac-meta b,
+  .chat-ask-title, .np-title, .drop-title, .bar-text, .summary-name, .tcx-chat-name, .qa-name) {
+  zoom: var(--font-title-zoom);
+}
+html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-input, .chat-queued-text, .hint, .int-empty, .bubble) {
+  font-weight: var(--font-text-weight) !important;
+}
+#island.popwin .ac-list { max-height: calc(100vh - 280px); }

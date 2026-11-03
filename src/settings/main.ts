@@ -18,6 +18,7 @@ import { ISLAND_MIN_W, PANEL_H, PANEL_W, islandMax } from "../core/layout";
 import { ACTION_ICONS, actionIcon, actionIconSvg, renderActionIcon } from "../views/action-icons";
 import { language, locale, resolveLanguage, syncLanguage, t } from "../core/i18n";
 import { applyUiStyle, uiStyle } from "../core/uistyle";
+import { BUNDLED_FONTS, DEFAULT_FONT, applyFonts, fontStack, themeFonts, type FontPick } from "../core/fonts";
 import { type PicKind, liveCharacter, pictureBox, refreshPictures } from "./pictures";
 import { missing as flowMissing, triggerWords } from "../flows/catalog";
 import { REVERSIBLE_TOOLS, toolWords } from "../core/permits";
@@ -998,6 +999,7 @@ const INTEGRATIONS: IntegrationDef[] = [
     fields: [
       { key: "agentchat-url", label: t("Indirizzo"), placeholder: "https://chat.example.com", secret: false },
       { key: "agentchat-token", label: t("Token"), placeholder: t("il token personale di questo PC"), secret: true },
+      { key: "agentchat-owner-token", label: t("Token per scrivere come te"), placeholder: t("dalla pagina della chat: menu → Scrivere da un'app"), secret: true },
     ],
     options: [
       { label: t("Stanze"), type: "text", placeholder: "general", unit: t("separate da virgola, * = tutte"),
@@ -1021,6 +1023,8 @@ const INTEGRATIONS: IntegrationDef[] = [
       { label: t("Condividi la memoria"), type: "select", placeholder: "",
         choices: [["off", t("No, la memoria di questo PC resta qui")], ["on", t("Sì: gli altri PC della chat la leggono, la interrogano e ci lasciano note")]],
         get: (c) => (c.agentchatShareMemory ? "on" : "off"), set: (c, v) => { c.agentchatShareMemory = v === "on"; } },
+      { label: t("Il tuo nome"), type: "text", placeholder: t("vuoto = quello della chat"), unit: t("il nome con cui scrivi dalla scheda Agent Chat dell'isola; per gli agenti resti tu, l'owner"),
+        get: (c) => c.agentchatOwnerName ?? "", set: (c, v) => { c.agentchatOwnerName = v.trim().replace(/^@+/, "").toLowerCase(); } },
       { label: t("Memoria di un altro PC"), type: "text", placeholder: t("es. lavoro"), unit: t("il nome in chat del PC di cui leggere la memoria, tenuta separata (vuoto = nessuno)"),
         get: (c) => c.agentchatMemoryFrom ?? "", set: (c, v) => { c.agentchatMemoryFrom = v.trim().toLowerCase(); } },
     ],
@@ -2519,6 +2523,7 @@ function appearanceSections(): HTMLElement[] {
         )),
       ),
     ],
+    font: () => fontSections(commit),
     personaggio: () => [
       intro(t("Chi sta nell'isola e come si comporta.")),
       h("section", {},
@@ -2760,9 +2765,10 @@ function appearanceSections(): HTMLElement[] {
 }
 
 /** The tabs of Aspetto, in order. */
-type LookTab = "tema" | "personaggio" | "posizione" | "barra" | "chiusa" | "aperta";
+type LookTab = "tema" | "font" | "personaggio" | "posizione" | "barra" | "chiusa" | "aperta";
 const LOOK_TABS = (): [LookTab, string][] => [
   ["tema", t("Tema")],
+  ["font", t("Font")],
   ["personaggio", t("Personaggio")],
   ["posizione", t("Posizione")],
   ["barra", t("Barra fissa")],
@@ -2784,6 +2790,107 @@ function lookTab(): LookTab {
   }
   lookTabNow = want(new URLSearchParams(location.search).get("tab")) ?? want(saved) ?? "tema";
   return lookTabNow;
+}
+
+/** Installed families, read once (lib.rs system_fonts). */
+let installedFonts: string[] | null = null;
+
+/**
+ * Aspetto → Font: the titles' font and the text's font, each with family,
+ * size and weight, a live preview and «Ripristina» (src/core/fonts.ts).
+ */
+function fontSections(commit: () => void): HTMLElement[] {
+  const th = settings.theme;
+  const fonts = themeFonts(th.fonts);
+  th.fonts = fonts;
+  const preview = h("div", { class: "font-preview" });
+  const drawPreview = () => {
+    const f = themeFonts(th.fonts);
+    const title = `font-family:${fontStack(f.title.family)};${f.title.weight ? `font-weight:${f.title.weight};` : ""}zoom:${f.title.size / 100}`;
+    const text = `font-family:${fontStack(f.text.family)};${f.text.weight ? `font-weight:${f.text.weight};` : ""}font-size:${(12.5 * f.text.size) / 100}px`;
+    const now = new Date();
+    preview.replaceChildren(
+      h("div", { class: "fp-clock", style: title, text: now.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }) }),
+      h("div", { class: "fp-title", style: title, text: t("Chat · Agent Chat · Integrazioni") }),
+      h("div", { class: "fp-text", style: text, text: t("Il testo dei messaggi, delle schede e dei campi. 0123456789 — àèéìòù") }),
+    );
+  };
+  const changed = () => {
+    applyFonts(th.fonts);
+    drawPreview();
+    commit();
+  };
+  const familySelect = (p: FontPick) => {
+    const el = h("select", {}) as HTMLSelectElement;
+    const fill = () => {
+      el.replaceChildren(h("option", { value: "", text: t("Di sistema (Segoe UI)") }));
+      const bundled = [...new Set(BUNDLED_FONTS.map((f) => f.family))];
+      el.append(h("optgroup", { label: t("Nell'app: a puntini e retrò") },
+        ...bundled.map((f) => h("option", { value: f, text: f, style: `font-family:${fontStack(f)}` }))));
+      const mine = (installedFonts ?? []).filter((f) => !bundled.includes(f));
+      if (mine.length) el.append(h("optgroup", { label: t("Installati in Windows") }, ...mine.map((f) => h("option", { value: f, text: f }))));
+      else if (installedFonts == null) el.append(h("option", { value: "__loading", text: t("Leggo i font di Windows…"), disabled: "true" }));
+      // A family no longer installed stays chosen and visible.
+      if (p.family && !Array.from(el.options).some((o) => o.value === p.family)) el.append(h("option", { value: p.family, text: p.family }));
+      el.value = p.family;
+    };
+    fill();
+    if (installedFonts == null) {
+      void Bridge.systemFonts().then((list) => {
+        installedFonts = list ?? [];
+        fill();
+      });
+    }
+    el.addEventListener("change", () => { p.family = el.value; changed(); });
+    return el;
+  };
+  const weightSelect = (p: FontPick) => select<string>(
+    [["0", t("Come disegnato")], ["300", t("Leggero")], ["400", t("Normale")], ["500", t("Medio")],
+      ["600", t("Semigrassetto")], ["700", t("Grassetto")], ["900", t("Nero")]],
+    String(p.weight),
+    (v) => { p.weight = Number(v); changed(); },
+  );
+  const block = (title: string, what: string, p: FontPick) => h("section", {},
+    h("h2", {}, h("span", { text: title }), profileChip()),
+    h("div", { class: "row" },
+      h("label", { text: t("Font") }),
+      familySelect(p),
+      h("span", { class: "hint note", text: what }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Dimensione") }),
+      slider(80, 150, 5, p.size, "%", (v) => { p.size = v; changed(); }),
+    ),
+    h("div", { class: "row" },
+      h("label", { text: t("Spessore") }),
+      weightSelect(p),
+      h("button", { text: t("Ripristina"), title: t("Torna al font di sistema"),
+        onclick: () => { Object.assign(p, DEFAULT_FONT); changed(); render(); } }),
+    ),
+  );
+  drawPreview();
+  return [
+    h("div", { class: "hint tab-intro", text: t("Il font dei titoli e quello del testo, in tutte le finestre: isola, chat, schede, finestre staccate e Impostazioni.") }),
+    h("section", {},
+      h("h2", {}, h("span", { text: t("Anteprima") })),
+      preview,
+      h("div", { class: "row" },
+        h("button", { text: t("Prova il look a puntini"),
+          title: t("Titoli in Doto (a puntini), testo in Space Mono, più leggibile nei messaggi lunghi"),
+          onclick: () => {
+            th.fonts = { title: { family: "Doto", size: 110, weight: 700 }, text: { family: "Space Mono", size: 100, weight: 0 } };
+            changed();
+            render();
+          } }),
+        h("span", { class: "hint note", text: t("il font a puntini va bene per titoli, orologio e isola; per i testi lunghi meglio un font leggibile") }),
+      ),
+    ),
+    block(t("Font dei titoli"), t("titoli e intestazioni, orologio della barra, nomi nelle schede e in chat"), fonts.title),
+    block(t("Font del testo"), t("testo dei messaggi, delle schede, dei campi e delle Impostazioni"), fonts.text),
+    h("section", {},
+      h("div", { class: "hint", text: t("Doto, DotGothic16, VT323 e Space Mono sono inclusi nell'app con licenza SIL Open Font License.") }),
+    ),
+  ];
 }
 
 /** Rows of one setting with its picture (pictures.ts) on the left. */
@@ -5539,6 +5646,7 @@ async function main() {
   const askedScheme = new URLSearchParams(location.search).get("scheme");
   if (!info && (askedScheme === "light" || askedScheme === "auto")) settings.theme = { ...settings.theme, scheme: askedScheme };
   applyUiStyle(settings.theme.style, settings.theme.scheme);
+  applyFonts(settings.theme.fonts);
   // settings.html paints the body dark inline (no white flash while loading): the styles take over now.
   document.body.removeAttribute("style");
   const status = (await Bridge.hooksStatus()) ?? {
@@ -5617,6 +5725,7 @@ async function main() {
       redraw = true; // changed elsewhere: a profile switch, a drag, the island
     }
     applyUiStyle(settings.theme.style, settings.theme.scheme);
+    applyFonts(settings.theme.fonts);
     // The echo of a save made here (Rust may tidy a value) is taken without
     // redrawing: a redraw closed the open integration and the page jumped up.
     if (redraw && Date.now() - savedAt > 2000) render();

@@ -359,7 +359,11 @@ export function buildPrompt(
     const sid = State.pendingApproval?.chatSid;
     if (sid) switchTo(sid);
   });
-  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, head, log, jumpBtn, calcRow, hintRow, otherAsk, slashMenu, bar));
+  // Written while it answers: waiting under the conversation, each to send now, change or drop.
+  const queueRow = h("div", { class: "chat-queue" });
+  queueRow.style.display = "none";
+  let queueKey = "";
+  const layout = h("div", { class: "chat-layout" }, side, h("div", { class: "chat-body" }, head, log, jumpBtn, calcRow, hintRow, otherAsk, queueRow, slashMenu, bar));
   const el = h(
     "div",
     { class: "view" },
@@ -493,11 +497,11 @@ export function buildPrompt(
     updateSlash();
   }
 
-  async function submit(override?: string) {
+  async function submit(override?: string, target?: ChatSessionState) {
     const raw = override ?? input.value;
     const query = raw.trim();
-    // The conversation on screen now: the answer goes to it even if another one is shown by then.
-    const c = State.chat;
+    // The conversation on screen now (or the one whose queue goes on): the answer goes to it even if another one is shown by then.
+    const c = target ?? State.chat;
     if (!query || c.sending) return;
     if (override == null && runSlash(query)) return;
     if (override == null) setInput("");
@@ -506,10 +510,10 @@ export function buildPrompt(
     c.sending = true;
     c.stopping = false;
     c.at = Date.now();
-    stick = true;
-    if (overlay) showSide(false);
+    if (c === State.chat) stick = true;
+    if (overlay && c === State.chat) showSide(false);
     // «Modifica»: the conversation goes back to just before that question.
-    if (editing != null) {
+    if (editing != null && c === State.chat) {
       const keep = c.history.slice(0, editing);
       editing = null;
       flash("");
@@ -605,7 +609,82 @@ export function buildPrompt(
       onHeightChange();
       if (c === State.chat) input.focus();
       void refreshHistory();
+      // What was written meanwhile goes now, the first in line.
+      const next = c.queue.shift();
+      if (next != null && State.chats.includes(c)) {
+        State.notify();
+        window.setTimeout(() => void submit(next, c), 0);
+      }
     }
+  }
+
+  /** Written while it answers: the message waits for the end of the turn. */
+  function enqueue() {
+    const c = State.chat;
+    const text = input.value.trim();
+    if (!text) return;
+    c.queue.push(text);
+    setInput("");
+    Sound.play("blip");
+    State.notify();
+    onHeightChange();
+    input.focus();
+  }
+
+  /** «Invia subito»: the reply stops and this one goes first. */
+  function sendNow(i: number) {
+    const c = State.chat;
+    const [text] = c.queue.splice(i, 1);
+    if (text == null) return;
+    if (!c.sending) {
+      void submit(text, c);
+      return;
+    }
+    c.queue.unshift(text);
+    if (!c.session && !c.stopping) {
+      c.stopping = true;
+      void Bridge.chatStop(c.sid);
+    }
+    State.notify();
+  }
+
+  function renderQueue() {
+    const c = State.chat;
+    const key = `${c.sid}|${c.sending ? 1 : 0}|${c.queue.join("\u0000")}`;
+    if (key === queueKey) return;
+    queueKey = key;
+    queueRow.replaceChildren(...c.queue.map((text, i) => h("div", { class: "chat-queued" },
+      h("span", { class: "chat-queued-tag", text: t("in attesa") }),
+      h("span", { class: "chat-queued-text", text, title: text }),
+      h("button", { class: "chat-queued-btn now", text: t("Invia subito"),
+        title: c.sending ? t("Ferma la risposta e manda subito questo messaggio") : t("Manda subito questo messaggio"),
+        onclick: () => sendNow(i) }),
+      h("button", { class: "chat-queued-btn", text: t("Modifica"), title: t("Rimetti il messaggio nel campo"),
+        onclick: () => {
+          const [back] = c.queue.splice(i, 1);
+          if (back == null) return;
+          const now = input.value.trim();
+          setInput(now ? `${back}\n${now}` : back);
+          State.notify();
+          input.focus();
+        } }),
+      h("button", { class: "chat-queued-btn", text: "✕", title: t("Togli dalla coda"),
+        onclick: () => { c.queue.splice(i, 1); State.notify(); onHeightChange(); } }))));
+    queueRow.style.display = c.queue.length ? "" : "none";
+    onHeightChange();
+  }
+
+  /** The button: «Ferma» while it answers with an empty field, else «Invia» (in the queue while it answers). */
+  function updateSendBtn() {
+    const c = State.chat;
+    const stopMode = c.sending && !c.session && !input.value.trim();
+    const mode = stopMode ? "stop" : "send";
+    if (send.dataset.mode !== mode) {
+      send.dataset.mode = mode;
+      send.replaceChildren(svg(stopMode ? ICONS.stop : ICONS.arrowUp, stopMode ? 12 : 14));
+      send.classList.toggle("stop", stopMode);
+    }
+    send.title = stopMode ? t("Ferma") : c.sending ? t("Metti in coda: parte a fine risposta (Ctrl+Invio: subito)") : t("Invia");
   }
 
   /** «Rigenera»: the last question asked again, its answer forgotten. */
@@ -1654,6 +1733,10 @@ export function buildPrompt(
     // While a reply is written the button is "Ferma" (not for "Chiedi a questa sessione").
     const c = State.chat;
     if (c.sending) {
+      if (input.value.trim()) {
+        enqueue();
+        return;
+      }
       if (!c.session && !c.stopping) {
         c.stopping = true;
         void Bridge.chatStop(c.sid);
@@ -1663,6 +1746,7 @@ export function buildPrompt(
     void submit();
   });
   input.addEventListener("input", () => {
+    updateSendBtn();
     updateCalc();
     fit();
     saveDraft(input.value);
@@ -1732,6 +1816,13 @@ export function buildPrompt(
     }
     if (k.key === "Enter" && !k.shiftKey && !k.isComposing) {
       e.preventDefault();
+      // While it answers: in the queue (a command still runs); Ctrl+Enter stops the reply and sends this at once.
+      const typed = input.value.trim();
+      if (State.chat.sending && typed && !(typed.startsWith("/") && runSlash(typed))) {
+        enqueue();
+        if (k.ctrlKey) sendNow(State.chat.queue.length - 1);
+        return;
+      }
       // A calculation: Enter copies the result, Ctrl+Enter still asks Claude.
       if (calcResult != null && !k.ctrlKey) void copyCalc();
       else void submit();
@@ -1924,14 +2015,10 @@ export function buildPrompt(
         ? t("Chiedi alla sessione {name}…", { name: asked.name })
         : State.chatHistory.length === 0 ? t("Chiedimi qualsiasi cosa… / comandi · @ allegati") : t("Continua…");
 
-      input.disabled = sending;
-      const stopMode = sending && !asked;
-      if (send.dataset.mode !== (stopMode ? "stop" : "send")) {
-        send.dataset.mode = stopMode ? "stop" : "send";
-        send.replaceChildren(svg(stopMode ? ICONS.stop : ICONS.arrowUp, stopMode ? 12 : 14));
-        send.title = stopMode ? t("Ferma") : t("Invia");
-        send.classList.toggle("stop", stopMode);
-      }
+      // The field stays on while it answers: what is written waits in the queue.
+      input.disabled = false;
+      updateSendBtn();
+      renderQueue();
       // Only when there is something to forget.
       // In the sidebar when it is open; here only when there is something to leave.
       fresh.style.display = !layout.classList.contains("side-open") && (State.chatHistory.length > 0 || file || text || win || asked || attach.length || assistant || textAttach) ? "" : "none";

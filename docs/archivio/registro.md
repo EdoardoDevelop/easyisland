@@ -2,6 +2,9 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 2/11 — Memoria condivisa casa/lavoro, chi è online (1.0.20)
+Il lavoro condivide la memoria via server Agent Chat (`memshare.rs`, `/api/memory`); casa ne tiene una copia, la cerca dopo la propria e poi chiede al lavoro acceso. Note di lavoro dette a casa arrivano al lavoro (subito o alla riaccensione). `/api/presence`: PC online nella pagina e nei prompt.
+
 ### 2/11 — Agent Chat: presa in carico, nomi, consumo
 A un messaggio generico risponde un solo motore: il capo del primo EasyIsland che lo prende (`/api/messages/<id>/claim`). Nomi dei motori unici dalle Impostazioni (`/api/aliases`, `@lia`). Turni e token stimati per motore.
 

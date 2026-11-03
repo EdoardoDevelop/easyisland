@@ -8,6 +8,7 @@
 - Il campo va **su più righe**: <kbd>Invio</kbd> invia, <kbd>Shift</kbd>+<kbd>Invio</kbd> va a capo. Quello che stai scrivendo resta anche se riavvii. <kbd>↑</kbd> nel campo vuoto riprende l'ultima domanda.
 - Le risposte sono in **markdown**: titoli, elenchi, tabelle, codice con **Copia**. Mentre il motore lavora vedi il ragionamento e gli strumenti usati.
 - **■ Ferma** interrompe la risposta in corso (e il permesso in attesa).
+- **Mentre risponde puoi continuare a scrivere**: <kbd>Invio</kbd> mette il messaggio **in coda**, sotto la conversazione con «in attesa», e parte da solo appena la risposta finisce, uno dopo l'altro. Su ogni messaggio in coda: **Invia subito** (ferma la risposta e lo manda adesso), **Modifica** (lo rimette nel campo) e ✕. <kbd>Ctrl</kbd>+<kbd>Invio</kbd> lo manda subito senza passare dalla coda. Con il campo vuoto il pulsante resta **■ Ferma**.
 - Se sali a leggere, il testo che arriva non ti riporta giù: ↓ torna in fondo.
 - **Calcolatrice**: scrivi `840 + 22%` o `15% di 840` e il risultato compare subito, calcolato in locale. <kbd>Invio</kbd> lo copia, <kbd>Ctrl</kbd>+<kbd>Invio</kbd> chiede comunque alla chat.
 

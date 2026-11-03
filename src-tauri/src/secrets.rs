@@ -32,6 +32,7 @@ pub const KNOWN_KEYS: &[&str] = &[
     // Agent Chat (agentchat.rs): the server's address and this EasyIsland's own token.
     "agentchat-url",
     "agentchat-token",
+    "agentchat-owner-token",
 ];
 
 /// Widget header secrets: `widget:<widget id>:<header name>`, plain characters

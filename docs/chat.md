@@ -8,6 +8,7 @@
 - Turno in `chat_turn` (`lib.rs`), usato da `chat_send` e da `telegram.rs`; il testo va a `on_text`, così Telegram non compare nell'isola; con `telegram` i permessi vanno lì.
 - **Mappa di Notion** davanti alla prima domanda, solo per motori con strumenti (`notion_map::index`).
 - **Ferma:** Invia diventa ■ → `chat_stop`; `chat_turn` corre contro `STOP` (un `Notify` per isola e Telegram): il turno cade con il processo (`kill_on_drop`) e l'eventuale permesso, errore `stopped_text()`; resta il testo arrivato con «⏹ Fermato.». Non per «Chiedi a questa sessione».
+- **Coda** (`ChatSessionState.queue`, `enqueue`, `sendNow`, `renderQueue` in `chat.ts`): il campo resta acceso mentre risponde; Invio (o il pulsante, che con testo è «Invia») mette in coda, righe «in attesa» sopra il campo con Invia subito / Modifica / ✕. A fine turno (`submit` → `finally`) parte il primo, sulla sua conversazione (`submit(text, c)`), anche se a schermo ce n'è un'altra. «Invia subito» e Ctrl+Invio = Ferma + il messaggio in testa. I comandi `/` partono subito. Coda solo in memoria. Iniettare nel turno in corso (input in streaming di Claude Code) non fatto: vale lo stesso per tutti i motori.
 
 ## Cronologia (`chat_log.rs`, `src/views/chat.ts`)
 - Ogni turno riuscito in `chats.json` (`%LOCALAPPDATA%\EasyIsland`, max 100, scrittura con rinomina): ciò che la chat mostra e, per i motori che rimandano la conversazione (API, OpenRouter, OpenAI, Gemini, Ollama, LM Studio), i messaggi senza byte dei file (`without_files`).

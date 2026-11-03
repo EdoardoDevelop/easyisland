@@ -1592,6 +1592,12 @@ fn agentchat_restart() {
     agentchat::restart();
 }
 
+/// The island's Agent Chat card: a message as the owner (owner token, name from the settings).
+#[tauri::command]
+async fn agentchat_owner_send(app: AppHandle, room: String, text: String, thread: Option<i64>, files: Vec<String>) -> Result<agentchat::Msg, String> {
+    agentchat::owner_send(&app, &room, &text, thread, &files).await
+}
+
 /// «Riprendi» after a «stop» written in the chat.
 #[tauri::command]
 fn agentchat_resume() {
@@ -3627,6 +3633,32 @@ fn system_light() -> bool {
         .is_some_and(|v| v != 0)
 }
 
+/// Impostazioni → Aspetto → Font: the font families installed in Windows (GDI's
+/// list, vertical «@» faces left out), sorted.
+#[tauri::command]
+fn system_fonts() -> Vec<String> {
+    use windows::Win32::Foundation::LPARAM;
+    use windows::Win32::Graphics::Gdi::{EnumFontFamiliesExW, GetDC, ReleaseDC, DEFAULT_CHARSET, LOGFONTW, TEXTMETRICW};
+    unsafe extern "system" fn each(lf: *const LOGFONTW, _tm: *const TEXTMETRICW, _kind: u32, data: LPARAM) -> i32 {
+        // SAFETY: GDI hands a valid LOGFONTW; `data` is the set below, alive for the call.
+        let (lf, set) = unsafe { (&*lf, &mut *(data.0 as *mut std::collections::BTreeSet<String>)) };
+        let end = lf.lfFaceName.iter().position(|c| *c == 0).unwrap_or(lf.lfFaceName.len());
+        let name = String::from_utf16_lossy(lf.lfFaceName.get(..end).unwrap_or(&[]));
+        if !name.is_empty() && !name.starts_with('@') {
+            set.insert(name);
+        }
+        1
+    }
+    let mut set = std::collections::BTreeSet::<String>::new();
+    let lf = LOGFONTW { lfCharSet: DEFAULT_CHARSET, ..Default::default() };
+    unsafe {
+        let dc = GetDC(None);
+        EnumFontFamiliesExW(dc, &lf, Some(each), LPARAM(&mut set as *mut _ as isize), 0);
+        ReleaseDC(None, dc);
+    }
+    set.into_iter().collect()
+}
+
 /// The calling window's title bar, light or dark, with the page's scheme.
 #[tauri::command]
 fn set_window_light(window: tauri::WebviewWindow, light: bool) {
@@ -3904,6 +3936,7 @@ pub fn run() {
             save_settings,
             system_accent,
             system_light,
+            system_fonts,
             set_window_light,
             tasks_list,
             task_new,
@@ -4227,6 +4260,7 @@ pub fn run() {
             agentchat_info,
             agentchat_restart,
             agentchat_resume,
+            agentchat_owner_send,
             agentchat_listen,
             work_list,
             work_open,

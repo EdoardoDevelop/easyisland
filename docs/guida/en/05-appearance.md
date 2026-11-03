@@ -14,6 +14,15 @@ The page has six tabs at the top: **Theme**, **Character**, **Position**, **Fixe
 - **Island colour** and **opacity**: "The theme's" is Windows' grey or the Classic black, their light counterpart in light mode; a colour you pick stays yours.
 - **Background when closed**: off, only the character stays.
 
+## Font
+In **Appearance → Font** you pick two separate fonts, with a live preview:
+- **Titles' font**: titles and headings, the bar's clock, names in cards and in the chat.
+- **Text font**: the text of messages, cards, fields and Settings.
+
+For each: family, **size** and **weight**; **Reset** goes back to the system font. They apply in every window: island, chat, cards, popped-out windows and Settings.
+
+Four dot-matrix and retro fonts ship with the app (SIL Open Font License): **Doto** (dot matrix), **DotGothic16**, **VT323** and **Space Mono**. You can also pick any font installed in Windows. **Try the dot-matrix look** puts Doto in the titles and Space Mono in the text: the dot font suits titles and clock, long texts read better in a plain font.
+
 ## Character
 - **In the island**: the character, the EasyIsland logo animated or still, your logo or the weather (see below).
 - **Character** and its **colour**.

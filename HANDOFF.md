@@ -25,7 +25,7 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 - [ ] **Remote Desktop Manager:** predisposto; prova sul PC con RDM, poi passi in `docs/idee.md`.
 - [ ] **Clic destro in Esplora file** («Manda a EasyIsland», azioni sui file; deciso l'11/10, `docs/idee.md`).
 - [ ] **opencode:** card per `question` anche nella chat, controllo di Ollama/LM Studio nel menu (`docs/idee.md`).
-- [ ] **Agent Chat** (1.0.18–1.0.21): server sulla VPS, token `casa` collegato. Da provare: risposte dei motori, capo che affida un lavoro, ascolto spento dall'isola, un «ciao» con due PC accesi (risponde uno solo), `@nome`, nome già preso. Memoria condivisa (lavoro «Condividi la memoria» Sì; casa «Memoria di un altro PC» = lavoro): ricerca da casa con lavoro acceso e spento; nota di lavoro da casa a lavoro spento, poi riaccenderlo.
+- [ ] **Agent Chat** (1.0.18–1.0.21): server sulla VPS, token `casa` collegato. Server nuovo (token owner, `/api/status`) da pubblicare, poi provare stati e scrittura dall'isola con i due PC. Da provare: risposte dei motori, capo che affida un lavoro, ascolto spento dall'isola, un «ciao» con due PC accesi (risponde uno solo), `@nome`, nome già preso. Memoria condivisa (lavoro «Condividi la memoria» Sì; casa «Memoria di un altro PC» = lavoro): ricerca da casa con lavoro acceso e spento; nota di lavoro da casa a lavoro spento, poi riaccenderlo.
 - [ ] **Spunti dall'app originale:** Amp/Hermes, limiti di Codex, riepilogo come immagine, GitHub (`docs/idee.md`).
 - [ ] **Modalità chiara:** guardare schede dell'isola e Impostazioni con l'app vera, correggere in `src/style-light.css` / `settings-light.css` (i colori in linea nel TS non cambiano).
 - [ ] **Flussi** (`docs/flussi.md`): da provare con flussi veri, soprattutto agente con campi, scelta del modello, ripresa dopo riavvio.
@@ -50,6 +50,11 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 3/11 — Coda della chat, font, Agent Chat: chi lavora e scrivere dall'isola (`claude/sviluppo`)
+- Chat: si scrive mentre risponde, messaggi in coda con Invia subito / Modifica / ✕ (`chat.ts`); Ctrl+Invio = Ferma e manda.
+- Aspetto → Font: titoli e testo separati (`src/core/fonts.ts`, `theme.fonts`), Doto/DotGothic16/VT323/Space Mono in `public/fonts/` (OFL), più i font di Windows (`system_fonts`).
+- Agent Chat: stato per motore dagli eventi del turno (`Reporter` → `/api/status`), «preso da», «nessuna risposta», «nessun agente attivo» nella scheda e nella pagina; campo nella scheda per scrivere come l'owner con un token a parte e un nome scelto (`owner_send`, `as_owner`). Server cambiato in `C:\Users\Edoardo\agentchat` (token owner, `human`, `/api/status`): da pubblicare. Provato con server locale, anteprima, smoke e test Rust; non con i motori veri. `docs/integrazioni.md` → Agent Chat.
+
 ### 3/11 — Chat e integrazioni in una finestra, Anteprima nella finestra della chat (1.0.22)
 Clic destro, pulsante o voce trascinata fuori dall'isola → finestra (`popout.ts`, `popout_window` in `lib.rs`); tutto resta nella pagina dell'isola. Pagina `about:blank` (una dell'app restava vuota); la vista va al sicuro nell'isola a ogni `pagehide` e torna nella pagina nuova, la ✕ è trattenuta da Rust finché la vista non è rientrata: prima la chat tornava con i pulsanti morti. Finestre per nome (`popout_take`, `get_window`): cercate come webview window sparivano con l'Anteprima dentro, che andava e tornava. Smoke in parallelo (~2,5 min) e `smoke:rapido` (~30 s). «Rimetti» chiude da Rust (`popout_close`). L'Anteprima agganciata segue la chat (`preview::chat_dock` la rifà, `reopen` aspetta che la vecchia sparisca). Bordo della barra delle conversazioni trascinabile. Provato nell'anteprima con un iframe; da provare nell'app l'Anteprima nella finestra della chat. `docs/architettura.md` → Viste, `docs/chat.md` → Anteprima.
 
@@ -61,7 +66,3 @@ Barra a sinistra (Ctrl+B; allarga l'isola con `chatSideRoom`, galleggia se stret
 
 ### 2/11 — Agent Chat autonoma, comandi in background (1.0.21)
 «Autonomi» non chiede più niente (`agentchat::decide`); il vecchio comportamento è la scelta `chat`. Il turno che Claude Code fa a fine comando in background è letto da `claude_cli::follow` e pubblicato in chat (`Chat::later`, max 3 ore). Corretta la pagina della chat (`online` dichiarata due volte), ripubblicata.
-
-### 2/11 — Memoria condivisa casa/lavoro, chi è online (1.0.20)
-Il lavoro condivide la memoria via server Agent Chat (`memshare.rs`, `/api/memory`); casa ne tiene una copia, la cerca dopo la propria e poi chiede al lavoro acceso. Note di lavoro dette a casa arrivano al lavoro (subito o alla riaccensione). `/api/presence`: PC online nella pagina e nei prompt.
-

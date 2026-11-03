@@ -187,6 +187,10 @@ pub struct IntegrationConfig {
     /// from its own; empty = none.
     #[serde(default)]
     pub agentchat_memory_from: String,
+    /// The name the owner writes with from the island's card (owner token);
+    /// empty = the owner's name on the server.
+    #[serde(default)]
+    pub agentchat_owner_name: String,
 }
 
 fn autonomous() -> String {
@@ -338,6 +342,7 @@ impl Default for IntegrationConfig {
             agentchat_trust: autonomous(),
             agentchat_share_memory: false,
             agentchat_memory_from: String::new(),
+            agentchat_owner_name: String::new(),
         }
     }
 }
@@ -446,6 +451,43 @@ pub struct Theme {
     /// Bumped when the user's PNG changes, so the island reads it again.
     #[serde(default)]
     pub logo_stamp: u64,
+    /// Impostazioni → Aspetto → Font: the titles' and the text's font (src/core/fonts.ts).
+    #[serde(default)]
+    pub fonts: Fonts,
+}
+
+/// The two fonts of the interface; an empty family is the system's.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Fonts {
+    #[serde(default)]
+    pub title: FontPick,
+    #[serde(default)]
+    pub text: FontPick,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FontPick {
+    /// A bundled font («Doto», «DotGothic16», «VT323», «Space Mono») or one installed in Windows; "" = the system's.
+    #[serde(default)]
+    pub family: String,
+    /// Size in percent of the usual one (80–150).
+    #[serde(default = "hundred")]
+    pub size: u32,
+    /// 100–900; 0 = as each place draws it.
+    #[serde(default)]
+    pub weight: u32,
+}
+
+impl Default for FontPick {
+    fn default() -> Self {
+        Self { family: String::new(), size: 100, weight: 0 }
+    }
+}
+
+fn hundred() -> u32 {
+    100
 }
 
 impl Default for Theme {
@@ -463,6 +505,7 @@ impl Default for Theme {
             scheme: default_scheme(),
             figure: default_figure(),
             logo_stamp: 0,
+            fonts: Fonts::default(),
         }
     }
 }

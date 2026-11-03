@@ -14,6 +14,15 @@ La pagina è divisa in sei schede, in alto: **Tema**, **Personaggio**, **Posizio
 - **Colore** e **opacità dell'isola**: «Quello del tema» è il grigio di Windows o il nero del Classico, in chiaro il loro equivalente chiaro; un colore scelto da te resta quello.
 - **Sfondo a isola chiusa**: spento, resta solo il personaggio.
 
+## Font
+In **Aspetto → Font** scegli due font separati, con l'anteprima dal vivo:
+- **Font dei titoli**: titoli e intestazioni, orologio della barra, nomi nelle schede e in chat.
+- **Font del testo**: il testo dei messaggi, delle schede, dei campi e delle Impostazioni.
+
+Per ognuno: famiglia, **dimensione** e **spessore**; **Ripristina** torna al font di sistema. Valgono in tutte le finestre: isola, chat, schede, finestre staccate e Impostazioni.
+
+Nell'app ci sono quattro font a puntini e retrò (licenza SIL Open Font License): **Doto** (a matrice di punti), **DotGothic16**, **VT323** e **Space Mono**. Puoi scegliere anche qualsiasi font installato in Windows. **Prova il look a puntini** mette Doto nei titoli e Space Mono nel testo: il font a puntini va bene per titoli e orologio, per i testi lunghi è meglio un font leggibile.
+
 ## Personaggio
 - **Nell'isola**: il personaggio, il logo di EasyIsland animato o fermo, il tuo logo o il meteo (vedi sotto).
 - **Personaggio** e il suo **colore**.

@@ -15,6 +15,7 @@ import { CHAT_ENGINES, DEFAULT_SETTINGS, PROBE_INTEGRATIONS, type Automation, ty
 import { h, clear } from "../views/dom";
 import { locale, syncLanguage, t } from "../core/i18n";
 import { applyUiStyle } from "../core/uistyle";
+import { applyFonts } from "../core/fonts";
 import { CONDITIONS, GROUPS, PLACEHOLDERS, TRIGGERS, blankCondition, blankFlow, blankStep, block, missing, stepWords, triggerWords } from "./catalog";
 
 let settings: Settings = { ...DEFAULT_SETTINGS };
@@ -814,6 +815,7 @@ async function main() {
     syncLanguage(settings.language);
   }
   applyUiStyle(settings.theme.style, settings.theme.scheme);
+  applyFonts(settings.theme.fonts);
   document.body.removeAttribute("style");
   open((await Bridge.flowPending()) ?? "");
   void onEvent<string>("flows-open", (id) => open(id));
@@ -824,6 +826,7 @@ async function main() {
     if (Date.now() - savedAt < 2500) return;
     settings = { ...settings, ...s };
     applyUiStyle(settings.theme.style, settings.theme.scheme);
+    applyFonts(settings.theme.fonts);
     void render();
   });
   void onEvent<null>("automations-log", () => { if (tab === "runs") void render(); });

@@ -585,6 +585,8 @@ export const Bridge = {
   /** Windows' accent colour ("#rrggbb", the shade for dark backgrounds), or null. */
   systemAccent: () => call<string | null>("system_accent"),
   systemLight: () => call<boolean>("system_light"),
+  /** Aspetto → Font: the families installed in Windows (lib.rs system_fonts). */
+  systemFonts: () => call<string[]>("system_fonts"),
   setWindowLight: (light: boolean) => call<void>("set_window_light", { light }),
   /** 🎤 records or stopped: the microphone in use is not a meeting (presence.rs). */
   chatDictation: (on: boolean) => call<void>("chat_dictation", { on }),
@@ -618,6 +620,9 @@ export const Bridge = {
   agentchatInfo: () => call<AgentchatInfo>("agentchat_info"),
   agentchatRestart: () => call<void>("agentchat_restart"),
   agentchatResume: () => call<void>("agentchat_resume"),
+  /** The card's field: a message as the owner (owner token, the name from the settings; agentchat.rs owner_send). */
+  agentchatOwnerSend: (room: string, text: string, thread: number | null, files: string[]) =>
+    callOrThrow<{ id: number }>("agentchat_owner_send", { room, text, thread, files }),
   agentchatListen: (on: boolean) => callOrThrow<void>("agentchat_listen", { on }),
   rdmDataSources: () => callOrThrow<{ id: string; name: string; kind: string }[]>("rdm_data_sources"),
   /** "+ Attività" in the Notion card (due: "YYYY-MM-DD" or null). */

@@ -1240,3 +1240,19 @@ h3.int-sub {
 
 /* Notizie: a subject switched off. */
 .news-row.off .news-main { opacity: 0.5; }
+
+/* Aspetto → Font (src/core/fonts.ts): the titles' font in this window too. */
+html[data-font-title] :is(h1, h2, h3, .page-head) { font-family: var(--font-title) !important; }
+html[data-font-title-weight] :is(h1, h2, h3) { font-weight: var(--font-title-weight) !important; }
+html[data-font-title-size] :is(h1, h2, h3) { zoom: var(--font-title-zoom); }
+html[data-font-text-weight] :is(label, .hint, p, input, textarea, select) { font-weight: var(--font-text-weight) !important; }
+.font-preview {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.font-preview .fp-title { font-size: 16px; font-weight: 600; }
+.font-preview .fp-clock { font-size: 26px; letter-spacing: 0.04em; }
+.font-preview .fp-text { font-size: 12.5px; margin-top: 4px; opacity: 0.9; }

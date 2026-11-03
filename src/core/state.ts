@@ -1,5 +1,6 @@
 // App state — mirror of AppState.swift (the parts the island needs).
 
+import { DEFAULT_FONTS, type ThemeFonts } from "./fonts";
 import type { AnchorH, AnchorV, BotEmoteName, BotStateName, IslandMode, IslandViewName } from "./layout";
 import type { EyeShape } from "../character/engine";
 import type { PlanItem } from "../island/plan";
@@ -441,6 +442,8 @@ export interface ChatSessionState {
   unread: boolean;
   /** The field's text while another conversation is on screen. */
   draft: string;
+  /** Messages written while it answered: each goes at the end of the turn, in order. */
+  queue: string[];
   /** Last activity (ms): the least used idle one is closed past MAX_OPEN_CHATS. */
   at: number;
 }
@@ -454,7 +457,7 @@ export function newChatSession(): ChatSessionState {
     sid: `c${Date.now().toString(36)}${(chatSeq++).toString(36)}`,
     history: [], engineOverride: null, auto: false, desktop: false, text: null, window: null, attach: [],
     session: null, assistant: null, logId: null, sending: false, stopping: false, streamed: "", unread: false,
-    draft: "", at: Date.now(),
+    draft: "", queue: [], at: Date.now(),
   };
 }
 
@@ -894,6 +897,8 @@ export interface IntegrationConfig {
   agentchatShareMemory?: boolean;
   /** Agent Chat (memshare.rs): the agent whose shared memory this PC reads, kept apart ("" = none). */
   agentchatMemoryFrom?: string;
+  /** The name the owner writes with from the island's card; empty = the owner's on the server. */
+  agentchatOwnerName?: string;
   /** Agent Chat (agentchat.rs): the rooms followed, comma separated ("*" = all); default "general". */
   agentchatRooms?: string;
   /** The engines that answer there, each as «name/engine»; empty = the chat's engine. */
@@ -1221,6 +1226,8 @@ export interface Theme {
   figure: "character" | "easyisland" | "logo" | "weather";
   /** Bumped when the user's PNG changes, so the island loads it again (logo.rs). */
   logoStamp: number;
+  /** Aspetto → Font: the titles' and the text's font (src/core/fonts.ts). */
+  fonts?: ThemeFonts;
 }
 
 export interface ProfileRules {
@@ -1251,6 +1258,7 @@ export const DEFAULT_THEME: Theme = {
   scheme: "dark",
   figure: "character",
   logoStamp: 0,
+  fonts: DEFAULT_FONTS,
 };
 
 export const DEFAULT_SETTINGS: Settings = {
