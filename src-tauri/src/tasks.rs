@@ -99,6 +99,10 @@ pub struct Task {
     /// The question waiting for the user (task_ask).
     #[serde(default)]
     pub question: String,
+    /// Its proposals, ticked and commented one by one (task_ask `items`,
+    /// src/views/proposals.ts): the memory check's corrections.
+    #[serde(default)]
+    pub items: Vec<String>,
     /// The user's answer, given to the agent on the next turn.
     #[serde(default)]
     pub answer: String,
@@ -379,6 +383,7 @@ fn create_with(app: &AppHandle, title: &str, goal: &str, when: &str, engine: &st
         when: when.to_string(),
         last_fired: String::new(),
         question: String::new(),
+        items: Vec::new(),
         answer: String::new(),
         result: String::new(),
         last: if when.is_empty() { t("In coda").into() } else { t("In attesa del suo orario").into() },
@@ -674,7 +679,7 @@ fn check_section(found: &[String]) -> String {
     tf(
         "[Controllo della memoria. Ecco cosa ha trovato EasyIsland:
 {report}
-Guarda anche se note e pagine si contraddicono o sono superate (memory_page, memory_search). Proponi le correzioni all'utente con task_ask, una per riga (unire due pagine, correggere o completare una pagina, archiviare una nota vecchia, creare una pagina che manca), con le opzioni «Fai tutto» e «Niente» (può anche scrivere quali). Poi fai solo quelle approvate: memory_page_write per scrivere (con la versione letta), memory_forget per archiviare (non si cancella niente), memory_note per una nota nuova. Se non c'è niente da proporre chiudi con task_done e quiet true; altrimenti con task_done e cosa hai sistemato.]",
+Guarda anche se note e pagine si contraddicono o sono superate (memory_page, memory_search). Proponi le correzioni all'utente con task_ask: question una frase breve, items una correzione per voce, completa e chiara da sola (cosa cambia, in quale pagina o nota, perché: unire due pagine, correggere o completare una pagina, archiviare una nota vecchia, creare una pagina che manca). L'utente spunta quelle da fare e può commentarle: segui i commenti (se dice cosa è sbagliato, correggi la proposta prima di farla; se non è chiaro chiedi di nuovo con task_ask). Poi fai solo quelle approvate: memory_page_write per scrivere (con la versione letta), memory_forget per archiviare (non si cancella niente), memory_note per una nota nuova. Se non c'è niente da proporre chiudi con task_done e quiet true; altrimenti con task_done e cosa hai sistemato.]",
         &[("report", &report)],
     )
 }
@@ -1111,9 +1116,18 @@ pub async fn tool_ask(app: &AppHandle, args: &Value) -> Result<String, String> {
     let options: Vec<Value> = args.get("options").and_then(Value::as_array).map(|a| {
         a.iter().filter_map(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).take(6).map(|s| json!({ "label": s, "description": "" })).collect()
     }).unwrap_or_default();
-    note(&id, &tf("Domanda: {q}", &[("q", &question.to_string())]));
-    let task = update(&app, &id, |t| t.question = question.to_string());
-    let input = json!({ "questions": [{ "question": question, "header": t("Compito"), "options": options, "multiSelect": false }] });
+    // Proposals to tick one by one, each with a comment (the memory check's corrections).
+    let items: Vec<String> = args.get("items").and_then(Value::as_array).map(|a| {
+        a.iter().filter_map(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).take(40).map(|s| s.chars().take(1200).collect()).collect()
+    }).unwrap_or_default();
+    let listed = items.iter().enumerate().map(|(i, s)| format!("{}. {s}", i + 1)).collect::<Vec<_>>().join("\n");
+    let full = if items.is_empty() { question.to_string() } else { format!("{question}\n{listed}") };
+    note(&id, &tf("Domanda: {q}", &[("q", &full)]));
+    let task = update(&app, &id, |t| {
+        t.question = question.to_string();
+        t.items = items.clone();
+    });
+    let input = json!({ "questions": [{ "question": question, "header": t("Compito"), "options": options, "multiSelect": false, "items": items }] });
     let mut p = payload("PermissionRequest", &id);
     p.insert("tool_name".into(), json!("AskUserQuestion"));
     p.insert("tool_input".into(), input.clone());
@@ -1121,9 +1135,12 @@ pub async fn tool_ask(app: &AppHandle, args: &Value) -> Result<String, String> {
     let (tx, rx) = tokio::sync::oneshot::channel::<String>();
     *ASK_WAIT.lock().unwrap() = Some((id.clone(), tx));
     if crate::telegram::linked(&app) {
-        let labels: Vec<String> = options.iter().filter_map(|o| o.get("label").and_then(Value::as_str).map(str::to_string)).collect();
+        let mut labels: Vec<String> = options.iter().filter_map(|o| o.get("label").and_then(Value::as_str).map(str::to_string)).collect();
+        if labels.is_empty() && !items.is_empty() {
+            labels = vec![t("Fai tutto").to_string(), t("Niente").to_string()];
+        }
         let title = task.map(|t| t.title).unwrap_or_default();
-        crate::telegram::ask_task(&app, &id, &title, question, &labels).await;
+        crate::telegram::ask_task(&app, &id, &title, &full, &labels).await;
     }
     let request = crate::pipe::new_request_id();
     let island = async {
@@ -1386,7 +1403,7 @@ mod tests {
         let mut task = Task {
             id: "1".into(), title: "Resoconto".into(), goal: "Prepara il resoconto di Rossi".into(), engine: String::new(), model: String::new(), helpers: Vec::new(), may: Vec::new(),
             state: TaskState::Running, plan: vec![Step { text: "Leggi i ticket".into(), done: true }, Step { text: "Scrivi la bozza".into(), done: false }],
-            when: String::new(), last_fired: String::new(), question: "Che mese?".into(), answer: "Settembre".into(),
+            when: String::new(), last_fired: String::new(), question: "Che mese?".into(), items: Vec::new(), answer: "Settembre".into(),
             result: String::new(), last: String::new(), turns: 0, runs: 0, quiet: false, heartbeat: false, digest: false, memory: String::new(), created: String::new(), updated: String::new(),
         };
         let first = prompt(&task, true);

@@ -162,6 +162,7 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
         "task_delegate" => Box::pin(crate::tasks::tool_delegate(app, args)).await,
         // Agent Chat (agentchat.rs); consult_engines runs other engines' turns, hence boxed too.
         "agentchat_read" => crate::agentchat::tool_read(app, args).await,
+        "agentchat_topic" => crate::agentchat::tool_topic(app, args).await,
         "agentchat_send" => crate::agentchat::tool_send(app, args).await,
         "agentchat_import" => crate::agentchat::tool_import(app, args).await,
         "agentchat_consult" => crate::agentchat::tool_consult(app, args).await,

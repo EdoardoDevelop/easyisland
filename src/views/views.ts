@@ -22,6 +22,7 @@ import { buildDone, undoDone } from "./done";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { buildActions, buildRun, type ActionHandlers } from "./actions";
 import { buildRewrite, type RewriteHandlers } from "./rewrite";
+import { freshPicks, proposalsAnswer, proposalsBox, setAll } from "./proposals";
 import { buildRemember, type RememberHandlers } from "./remember";
 import { buildTalk, type TalkHandlers } from "./talk";
 import { planSummary, planText } from "../island/plan";
@@ -32,6 +33,7 @@ import { Sound } from "../core/sound";
 import { softphoneVersion } from "../core/softphone";
 import { THREECX } from "./threecx";
 import { ZAMMAD, zammadKey } from "./zammad";
+import { AGENTCHAT, agentchatKey } from "./agentchat";
 import { t } from "../core/i18n";
 
 export interface ViewActions extends ActionHandlers, RewriteHandlers, RememberHandlers, TalkHandlers, MomentActions {
@@ -501,6 +503,8 @@ function buildOverview(actions: ViewActions): ViewHost {
           task.id === "integration_notion" && detailOpen ? "page" : JSON.stringify(info?.data ?? {}),
           JSON.stringify(State.widgetStatus[task.id.replace(/^widget:/, "")] ?? null),
           task.id === THREECX ? softphoneVersion() : 0,
+          // Agent Chat: «Chat» / «Argomenti» and the topic open (agentchat.ts).
+          task.id === AGENTCHAT ? agentchatKey() : "",
           // An integration of the user's: redrawn when it or its records change elsewhere.
           task.id.startsWith("custom:") ? State.customVersion : 0,
           // The header's bell and speaker change only a setting.
@@ -872,6 +876,34 @@ function buildAsk(actions: ViewActions): ViewHost {
       who.append(agentWho(State.focusTask,
         all.length > 1 ? t("ha {n} domande · {i} di {n}", { n: all.length, i: index + 1 }) : t("ha una domanda")));
       title.textContent = q.question;
+      el.classList.toggle("ask-has-items", !!q.items?.length);
+      if (q.items?.length) {
+        // Proposals (a task's task_ask): a checkbox and a comment each, then Invia.
+        const items = q.items;
+        const picks = freshPicks(items);
+        const note = h("input", { class: "ask-other", type: "text", placeholder: t("Nota per tutte (facoltativa)") }) as HTMLInputElement;
+        const send = () => {
+          void Bridge.focusWindow(false);
+          next(q, proposalsAnswer(items, picks, note.value));
+        };
+        const draw = () => {
+          options.querySelector(".prop-list")?.remove();
+          options.prepend(proposalsBox(items, picks, true, send));
+        };
+        draw();
+        note.addEventListener("pointerdown", () => void Bridge.focusWindow(true));
+        note.addEventListener("focus", () => void Bridge.focusWindow(true));
+        note.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") { e.preventDefault(); send(); } });
+        options.append(note);
+        const inTask = State.focusTask?.sessionHost === "compiti";
+        foot.append(
+          h("button", { class: "link-btn", text: t("Tutte"), onclick: () => { setAll(picks, true); draw(); } }),
+          h("button", { class: "link-btn", text: t("Nessuna"), onclick: () => { setAll(picks, false); draw(); } }),
+          inTask ? h("button", { class: "link-btn", text: t("Rispondi più tardi"), onclick: () => actions.handToTerminal() }) : "",
+          h("button", { class: "btn primary ask-go", "data-key": "Enter", text: t("Invia"), onclick: send }),
+          left);
+        return;
+      }
       q.options.forEach((o, i) => {
         // 1–9 pick the option from the keyboard (onIslandKey in island.ts).
         const b = h("button", { class: "ask-opt", title: o.description, text: o.label,

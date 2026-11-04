@@ -1,6 +1,6 @@
 # Handoff — EasyIsland
 
-_4 novembre 2026. **1.0.23** in `main` (tag `v1.0.23`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
+_4 novembre 2026. **1.0.24** in `main` (tag `v1.0.24`). Si lavora su `claude/sviluppo` (uniti `telegram-voce`, `cattura`, `vocale-ricorda`, `ticket-simili`, `voce-pc`, `agentchat`, `agentchat-autonomi`); in attesa `claude/modello-integrato`. Repo pubblico `EdoardoDevelop/easyisland`._
 
 Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 
@@ -50,6 +50,11 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 4/11 — Versione 1.0.24
+- Agent Chat: mappa ad argomenti senza IA (`agentchat_map.rs`) nel prompt e `agentchat_topic`; scheda «Argomenti». Ogni PC la costruisce per sé; riassunti IA e mappa sul server non fatti.
+- Zammad «Consiglio IA» (`ticket_advice.rs`), RDM solo dal cloud con pannello e occhio (`dvc.rs` `CREDS`, `dvc_reveal`), ricerca in RDM/3CX dal campo in alto, file cliccabili nella chat (`chatpaths.rs`), controllo della memoria con caselle (`proposals.ts`).
+- WebView2 senza `CalculateNativeWinOcclusion` (`BROWSER_ARGS` e `tauri.conf.json`): la finestra Memoria non presentava i fotogrammi senza muovere il mouse. Da confermare nell'app; nomi dei campi delle connessioni di Devolutions Cloud dedotti, non visti.
+
 ### 4/11 — Versione 1.0.23
 Uniti in `claude/sviluppo` e `main`: scheda Zammad, Devolutions Cloud, mappa della memoria (più Galassia meno abbagliante, testo delle pagine non più schiacciato nel pannello), coda della chat, font, stato di Agent Chat. Clic sul personaggio (anche nella barra fissa) con l'isola aperta dietro un'altra finestra: torna davanti (`island::to_front`, comando `island_to_front`), si chiude solo se è già in primo piano; con «Come un'app» guarda la finestra in primo piano, altrimenti `BEHIND`.
 
@@ -62,8 +67,3 @@ Scheda a tutta isola (`src/views/zammad.ts`): viste dell'agente come schede con 
 ### 3/11 — Mappa della memoria: viste nuove, gruppi, collegamenti giudicati dall'IA (`claude/mappa-memoria`)
 - Viste Galassia, Rete neurale (impulsi su `memory-activity`), Bolle, Raggiera, Fiume, Da dove arriva; gruppi a colori, freschezza, filtri (legenda, periodo, solo sicuri), «Come è collegato a…», doppio clic = messa a fuoco, note sole (`src/memory/`).
 - Collegamenti: forza 1–3, stime più severe (`Rarity`), niente catene di parole rare; «Collega con l'IA» giudica le note e salva `collegamenti.json` (`memory_links.rs`), anche per la copia di lavoro da casa. Provato nell'anteprima con i dati finti e con test Rust; non sulla memoria vera né con un motore vero. `docs/chat.md` → Finestra Memoria.
-
-### 3/11 — Coda della chat, font, Agent Chat: chi lavora e scrivere dall'isola (`claude/sviluppo`)
-- Chat: si scrive mentre risponde, messaggi in coda con Invia subito / Modifica / ✕ (`chat.ts`); Ctrl+Invio = Ferma e manda.
-- Aspetto → Font: titoli e testo separati (`src/core/fonts.ts`, `theme.fonts`), Doto/DotGothic16/VT323/Space Mono in `public/fonts/` (OFL), più i font di Windows (`system_fonts`). Anche nella barra fissa, con «Font di Aspetto → Font» (acceso di serie). Scheda Agent Chat a tutta isola. Smoke: Edge chiusi con `Browser.close` (restavano appesi).
-- Agent Chat: stato per motore dagli eventi del turno (`Reporter` → `/api/status`), «preso da», «nessuna risposta», «nessun agente attivo» nella scheda e nella pagina; campo nella scheda per scrivere come l'owner con un token a parte e un nome scelto (`owner_send`, `as_owner`). Server cambiato in `C:\Users\Edoardo\agentchat` (token owner, `human`, `/api/status`): da pubblicare. Provato con server locale, anteprima, smoke e test Rust; non con i motori veri. `docs/integrazioni.md` → Agent Chat.

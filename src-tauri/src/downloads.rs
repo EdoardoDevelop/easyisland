@@ -64,7 +64,7 @@ pub fn is_partial(name: &str) -> bool {
 }
 
 /// The user's Downloads folder (it may have been moved to another drive).
-fn downloads_dir() -> Option<PathBuf> {
+pub(crate) fn downloads_dir() -> Option<PathBuf> {
     use windows::Win32::System::Com::CoTaskMemFree;
     use windows::Win32::UI::Shell::{FOLDERID_Downloads, SHGetKnownFolderPath, KF_FLAG_DEFAULT};
     unsafe {

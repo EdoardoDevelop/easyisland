@@ -37,6 +37,11 @@ Gli allegati compaiono **dentro il campo**, sopra il testo: 📄 un file, 📁 u
 
 Le immagini vanno ai modelli che le leggono, i file di testo nel messaggio, i PDF a Claude.
 
+### File e cartelle nelle risposte
+I file e le cartelle che la chat nomina nelle risposte diventano **link**: percorsi completi (`C:\…`, `\\server\…`), tra apici inversi, anche relativi alla cartella della chat, o come link; un `:riga` alla fine va bene. Diventano link solo quelli che **esistono**; uno che non c'è più resta grigio e barrato.
+- **Clic**: un file che l'Anteprima sa mostrare (testo, codice, Markdown, PDF, immagini, HTML…) si apre **nell'Anteprima** accanto alla chat; gli altri, e con <kbd>Ctrl</kbd>+clic, nel loro programma. Una **cartella** 📁 si apre in Esplora file.
+- **Clic destro**: **Apri** (nel suo programma), **Anteprima**, **Scarica** (una copia nella cartella Download, che si apre con il file selezionato), **Apri percorso** (Esplora file con il file selezionato), **Copia percorso**.
+
 ## Comandi con /
 Scrivi `/` e scegli dal menu (frecce, <kbd>Tab</kbd> o <kbd>Invio</kbd>):
 

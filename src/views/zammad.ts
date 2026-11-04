@@ -11,7 +11,7 @@
 
 import { h, brandOrDot, clear } from "./dom";
 import { State } from "../core/state";
-import { Bridge, type ZammadList, type ZammadTicket, type ZammadArticle, type ZammadOpt } from "../core/bridge";
+import { Bridge, onEvent, type TicketAdvice, type ZammadList, type ZammadTicket, type ZammadArticle, type ZammadOpt } from "../core/bridge";
 import { t } from "../core/i18n";
 import { Sound } from "../core/sound";
 import { timeAgo } from "./integrations";
@@ -52,7 +52,14 @@ const zm = {
   confirmTimer: 0,
   sending: false,
   openSettings: (() => {}) as () => void,
-  prepare: ((_m: { id: number; title: string; url: string }) => {}) as (m: { id: number; title: string; url: string }) => void,
+  prepare: ((_m: TicketAsk) => {}) as (m: TicketAsk) => void,
+  /** «Consiglio IA» of the ticket open (ticket_advice.rs), its history unfolded or not. */
+  advice: null as TicketAdvice | null,
+  adviceFor: 0,
+  adviceOpen: true,
+  adviceHistory: false,
+  adviceFull: false,
+  adviceAsked: 0,
 };
 
 const errText = (e: unknown) => String(e).replace(/^Error:\s*/, "");
@@ -62,7 +69,10 @@ export function zammadKey(): string {
   return zm.openId ? `t${zm.openId}` : `l${State.widgetStatus[ZAMMAD]?.at ?? 0}`;
 }
 
-export function zammadCard(openSettings: () => void, prepare: (m: { id: number; title: string; url: string }) => void): HTMLElement {
+/** What the card asks the chat for (island.ts prepareTicket). */
+export type TicketAsk = { id: number; title: string; url: string; mode?: "advice" | "talk"; advice?: string };
+
+export function zammadCard(openSettings: () => void, prepare: (m: TicketAsk) => void): HTMLElement {
   zm.openSettings = openSettings;
   zm.prepare = prepare;
   if (!zm.el) {
@@ -97,7 +107,27 @@ async function loadList(view?: string) {
   State.notify();
 }
 
+/** The ticket's advice: checked for news by Rust, which rewrites it if there are. */
+async function loadAdvice(id: number) {
+  const a = await Bridge.ticketAdviceGet(id).catch(() => null);
+  if (zm.openId !== id) return;
+  zm.advice = a;
+  zm.adviceFor = id;
+  if (a?.current && zm.adviceAsked === id) zm.adviceAsked = 0;
+  draw();
+}
+
+// Rewritten or saved from the chat (ticket_advice.rs emits the ticket's id).
+void onEvent<number>("ticket-advice", (id) => {
+  if (id === zm.openId) void loadAdvice(id);
+});
+
 async function openTicket(id: number, title: string) {
+  if (zm.adviceFor !== id) {
+    zm.advice = null;
+    zm.adviceHistory = false;
+    zm.adviceFull = false;
+  }
   zm.openId = id;
   zm.openTitle = title;
   zm.open = null;
@@ -112,6 +142,7 @@ async function openTicket(id: number, title: string) {
     const d = await Bridge.zammadTicket(id);
     if (zm.openId !== id) return;
     zm.open = d;
+    void loadAdvice(id);
   } catch (e) {
     if (zm.openId !== id) return;
     zm.detailError = errText(e);
@@ -340,8 +371,7 @@ function detail(): HTMLElement {
       onclick: (e: Event) => { e.stopPropagation(); back(); } }),
     d ? h("span", { class: "zm-num", text: `#${d.number}` }) : null,
     h("span", { class: "zm-grow" }),
-    d ? linkBtn(t("Prepara"), () => zm.prepare({ id: d.id, title: `#${d.number} ${d.title}`, url: d.url }),
-      t("Nella chat: il cliente nella memoria, i ticket simili e una bozza di risposta (non inviata)")) : null));
+    d ? adviceButton(d) : null));
   if (!d) {
     part.append(zm.detailError
       ? h("div", { class: "notion-note bad", text: zm.detailError })
@@ -388,6 +418,8 @@ function detail(): HTMLElement {
   statusEl = h("div", { class: "zm-saved" });
   drawStatus();
   part.append(statusEl);
+  const advice = adviceBox(d);
+  if (advice) part.append(advice);
 
   const thread = h("div", { class: "zm-thread" });
   if (!d.articles.length) thread.append(h("div", { class: "int-empty", text: t("Nessun messaggio.") }));
@@ -395,6 +427,75 @@ function detail(): HTMLElement {
   part.append(thread);
   placeComposer(part, d);
   return part;
+}
+
+// ── «Consiglio IA» (ticket_advice.rs) ────────────────────────────────────────
+
+/** In the ticket's bar: the first advice from the chat, then a talk about it. */
+function adviceButton(d: ZammadTicket): HTMLElement {
+  const title = `#${d.number} ${d.title}`;
+  const current = zm.advice?.id === d.id ? zm.advice.current : null;
+  if (current) {
+    return linkBtn(t("Parlane in chat"), () => zm.prepare({ id: d.id, title, url: d.url, mode: "talk", advice: current.text }),
+      t("La chat con il ticket e il consiglio attuale, per chiedere di più"));
+  }
+  return linkBtn(t("💡 Consiglio IA"), () => {
+    zm.adviceAsked = d.id;
+    zm.prepare({ id: d.id, title, url: d.url, mode: "advice" });
+  }, t("Si apre la chat con il ticket, la pagina del cliente e i ticket simili: la risposta resta qui come consiglio del ticket e si aggiorna quando arrivano messaggi nuovi"));
+}
+
+const WHY: Record<string, string> = { chat: t("dalla chat"), news: t("con le novità"), manual: t("aggiornato a mano") };
+
+function adviceText(text: string, full: boolean): HTMLElement {
+  const el = h("div", { class: full ? "zm-advice-text" : "zm-advice-text folded", text });
+  return el;
+}
+
+/** The advice above the messages: the current one, «Aggiorna», the history. */
+function adviceBox(d: ZammadTicket): HTMLElement | null {
+  const a = zm.advice?.id === d.id ? zm.advice : null;
+  if (!a?.current && !a?.updating) {
+    return zm.adviceAsked === d.id
+      ? h("div", { class: "zm-advice wait" }, h("span", { text: t("💡 La chat sta scrivendo il consiglio: resta qui quando ha risposto.") }))
+      : null;
+  }
+  const box = h("div", { class: "zm-advice" });
+  const cur = a.current;
+  const sub = a.updating
+    ? t("aggiorno con le novità…")
+    : cur ? [cur.at, WHY[cur.why] ?? ""].filter(Boolean).join(" · ") : "";
+  box.append(h("div", { class: "zm-advice-head" },
+    h("button", { class: "link-btn zm-advice-title", text: `${zm.adviceOpen ? "▾" : "▸"} ${t("💡 Consiglio IA")}`,
+      onclick: (e: Event) => { e.stopPropagation(); zm.adviceOpen = !zm.adviceOpen; draw(); } }),
+    h("span", { class: "zm-advice-sub", text: sub }),
+    h("span", { class: "zm-grow" }),
+    a.updating ? null : linkBtn(t("Aggiorna"), () => {
+      void Bridge.ticketAdviceRefresh(d.id).then(() => loadAdvice(d.id));
+    }, t("Riscrive il consiglio adesso, con i messaggi di oggi (si aggiorna da solo quando arrivano messaggi nuovi)")),
+    a.history.length ? linkBtn(zm.adviceHistory ? t("Nascondi lo storico") : t("Storico ({n})", { n: a.history.length }), () => {
+      zm.adviceHistory = !zm.adviceHistory;
+      draw();
+    }) : null));
+  if (a.error) box.append(h("div", { class: "notion-note bad", text: t("Aggiornamento non riuscito: {e}", { e: a.error }) }));
+  if (zm.adviceOpen && cur) {
+    box.append(adviceText(cur.text, zm.adviceFull));
+    if (!zm.adviceFull && (cur.text.split("\n").length > 8 || cur.text.length > 700)) {
+      box.append(h("button", { class: "link-btn zm-advice-more", text: t("Mostra tutto"),
+        onclick: (e: Event) => { e.stopPropagation(); zm.adviceFull = true; draw(); } }));
+    }
+  }
+  if (zm.adviceHistory) {
+    const list = h("div", { class: "zm-advice-history" });
+    for (const v of a.history) {
+      const item = h("details", { class: "zm-advice-old" },
+        h("summary", { text: [v.at, WHY[v.why] ?? "", t("{n} messaggi", { n: v.articles })].filter(Boolean).join(" · ") }),
+        adviceText(v.text, true));
+      list.append(item);
+    }
+    box.append(list);
+  }
+  return box;
 }
 
 function message(a: ZammadArticle, d: ZammadTicket): HTMLElement {

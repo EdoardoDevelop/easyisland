@@ -29,6 +29,8 @@ interface Pulse {
 }
 
 const GLOW_MS = 1600;
+/** How long the picked neuron's neighbours take to light up after its pulses. */
+const STAY_FADE_MS = 500;
 
 export class NeuralView implements View {
   private cam = new Camera();
@@ -43,6 +45,8 @@ export class NeuralView implements View {
   private size = { w: 0, h: 0 };
   /** When the memory was last read or written: the centre glows. */
   private saidAt = 0;
+  /** When the picked neuron's pulses ended: from then its neighbours stay lit. */
+  private stayAt = 0;
 
   setModel(model: Model) {
     this.model = model;
@@ -87,6 +91,8 @@ export class NeuralView implements View {
 
   setSelected(id: string | null) {
     this.selected = id;
+    // Lit for good only once this click's pulses are over (draw).
+    this.stayAt = 0;
     const x = id ? this.index.get(id) : null;
     if (x) this.fire(null, [x], 2);
   }
@@ -124,12 +130,24 @@ export class NeuralView implements View {
     this.cam.apply(ctx);
     const k = this.cam.k;
     const sel = this.selected;
+    // The picked neuron's neighbours: once its pulses are over (not before),
+    // they and their axons light up and stay lit (asked by Edoardo on 4 Nov
+    // 2026), fading in over STAY_FADE_MS; the rest dims.
+    const near = new Set<string>();
+    if (sel && this.model) for (const nb of this.model.neighbours(sel)) near.add(nb.id);
+    const selColour = sel ? this.index.get(sel)?.colour ?? "#7dd3fc" : "";
+    if (sel && !this.stayAt && !this.pulses.length) this.stayAt = now;
+    const stay = sel && this.stayAt ? Math.min(1, (now - this.stayAt) / STAY_FADE_MS) : 0;
+    if (sel && stay < 1) moving = true;
     // Axons: thin, curved, the ones of lit neurons brighter.
     for (const [a, b] of this.axons) {
       const glow = Math.max(0, 1 - (now - Math.max(a.lit, b.lit)) / GLOW_MS);
+      const mine = stay > 0 && (a.n.id === sel || b.n.id === sel);
       const on = sel ? a.n.id === sel || b.n.id === sel : !this.filter || (this.filter.has(a.n.id) && this.filter.has(b.n.id));
-      ctx.strokeStyle = glow > 0 ? alpha(a.colour, 0.15 + glow * 0.6) : `rgba(140,160,220,${on ? 0.13 : 0.04})`;
-      ctx.lineWidth = (0.7 + glow * 1.4) / Math.sqrt(k);
+      ctx.strokeStyle = mine
+        ? alpha(selColour, Math.max(0.13, (0.55 + glow * 0.35) * stay))
+        : glow > 0 ? alpha(a.colour, 0.15 + glow * 0.6) : `rgba(140,160,220,${on ? 0.13 : sel ? 0.025 : 0.04})`;
+      ctx.lineWidth = ((mine ? 0.7 + 0.8 * stay : 0.7) + glow * 1.4) / Math.sqrt(k);
       const [mx, my] = bend(a, b);
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
@@ -188,16 +206,21 @@ export class NeuralView implements View {
     // Neurons.
     for (const x of this.neurons) {
       const glow = Math.max(0, 1 - (now - x.lit) / GLOW_MS);
-      const dim = (sel && x.n.id !== sel) || (this.filter && !this.filter.has(x.n.id));
-      const r = x.r * (1 + glow * 0.8);
-      const halo = ctx.createRadialGradient(x.x, x.y, 0, x.x, x.y, r * (3 + glow * 4));
-      halo.addColorStop(0, alpha(x.colour, (dim ? 0.15 : 0.55) + glow * 0.4));
+      const picked = x.n.id === sel;
+      const neighbour = stay > 0 && near.has(x.n.id);
+      const dim = (sel && !picked && !neighbour) || (this.filter && !this.filter.has(x.n.id));
+      // The picked one and its neighbours keep a glow of their own once the pulses are gone.
+      const keep = (picked ? 0.5 : neighbour ? 0.25 : 0) * stay;
+      const shine = Math.max(glow, keep);
+      const r = x.r * (1 + shine * 0.8);
+      const halo = ctx.createRadialGradient(x.x, x.y, 0, x.x, x.y, r * (3 + shine * 4));
+      halo.addColorStop(0, alpha(x.colour, (dim ? 0.12 : 0.55) + shine * 0.4));
       halo.addColorStop(1, alpha(x.colour, 0));
       ctx.fillStyle = halo;
       ctx.beginPath();
-      ctx.arc(x.x, x.y, r * (3 + glow * 4), 0, Math.PI * 2);
+      ctx.arc(x.x, x.y, r * (3 + shine * 4), 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = glow > 0.2 ? "#ffffff" : alpha(x.colour, dim ? 0.35 : 0.95);
+      ctx.fillStyle = glow > 0.2 || (picked && stay > 0.5) ? "#ffffff" : alpha(x.colour, dim ? 0.3 : 0.95);
       ctx.beginPath();
       ctx.arc(x.x, x.y, r * 0.55, 0, Math.PI * 2);
       ctx.fill();
@@ -209,8 +232,9 @@ export class NeuralView implements View {
     ctx.font = `500 ${11 / k}px system-ui, "Segoe UI", sans-serif`;
     for (const x of this.neurons) {
       const glow = now - x.lit < GLOW_MS;
-      if (!(glow || x.n.id === sel || this.filter?.has(x.n.id) || (k > 1.3 && x.n.kind === "page") || k > 2.4)) continue;
-      ctx.fillStyle = glow ? "#ffffff" : "rgba(210,220,240,0.8)";
+      const nearLit = stay > 0 && near.has(x.n.id);
+      if (!(glow || x.n.id === sel || nearLit || this.filter?.has(x.n.id) || (k > 1.3 && x.n.kind === "page") || k > 2.4)) continue;
+      ctx.fillStyle = glow || x.n.id === sel ? "#ffffff" : nearLit ? `rgba(225,232,248,${0.9 * stay})` : "rgba(210,220,240,0.8)";
       ctx.fillText(fit(ctx, x.n.label, 150 / k), x.x, x.y + x.r + 6 / k);
     }
     ctx.restore();

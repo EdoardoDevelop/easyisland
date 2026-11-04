@@ -16,7 +16,7 @@ import { TEAMS, teamsCard } from "./teams";
 import { RECORDER, recorderCard } from "./recorder";
 import { REMOTE, remoteCard } from "./remote";
 import { AGENTCHAT, agentchatCard } from "./agentchat";
-import { ZAMMAD, zammadCard } from "./zammad";
+import { ZAMMAD, zammadCard, type TicketAsk } from "./zammad";
 import { weatherCard } from "./weather";
 import { notionPageActive, notionPageCard, openNotionPage, type NotionRefLite } from "./notionpage";
 import { netConfigCard, pingRow, resetNetConfig } from "./netconfig";
@@ -74,22 +74,32 @@ const OPEN_URLS: Record<string, string> = {
   integration_calcom: "https://app.cal.com/bookings",
 };
 
+/** Is VS Code on this PC? Asked once: the Claude Code card offers it only then. */
+let hasVSCode: boolean | null = null;
+let askedVSCode = false;
+
 function idleCard(task: AgentTask, openSettings: () => void): HTMLElement {
   const info = State.integrations[task.id];
   const configured = info?.configured ?? false;
   const error = info?.error ?? null;
   // The Claude Code pill is about hooks, not a key — the macOS wording would be
   // misleading here.
-  const missing = task.id === "integration_claude" ? t("Hook non installati") : t("Chiave non configurata");
-  const label = error ?? (configured ? "Connesso · caricamento…" : missing);
+  const claude = task.id === "integration_claude";
+  const missing = claude ? t("Hook non installati") : t("Chiave non configurata");
+  // Claude Code with its hooks and no session yet is not loading anything: it waits for one.
+  const label = error ?? (configured ? (claude && !task.sessionHost ? t("Hook attivi · nessuna sessione di Claude Code") : t("Connesso · caricamento…")) : missing);
   const statusColor = error || !configured ? "#F4505E" : "#22C55E";
 
   const actions = h("div", { class: "int-actions" });
   if (task.id === "integration_claude") {
     // A session the hooks have seen goes back to its own app (Claude, VS Code,
-    // a terminal); before any session, VS Code.
+    // a terminal); before any session, VS Code — only if it is installed.
     const host = task.sessionHost;
-    actions.append(
+    if (!askedVSCode) {
+      askedVSCode = true;
+      void Bridge.vscodeInstalled().then((yes) => { hasVSCode = !!yes; if (yes) State.notify(); });
+    }
+    if (host || hasVSCode) actions.append(
       h("button", {
         class: "link-btn",
         style: `color:${task.color}b3`,
@@ -956,7 +966,7 @@ export interface IntegrationCardHooks {
   holdOpen(on: boolean): void;
   showNotice(n: Notice): void;
   /** Zammad: «Prepara» on a ticket in the chat (island.ts prepareTicket). */
-  prepareTicket(m: { id: number; title: string; url: string }): void;
+  prepareTicket(m: TicketAsk): void;
 }
 
 /** True when this integration has data worth showing instead of the idle card. */

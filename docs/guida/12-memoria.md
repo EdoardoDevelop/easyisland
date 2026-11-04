@@ -57,10 +57,10 @@ EasyIsland tiene aggiornate da solo le pagine di persone e clienti, ma **scrive 
 - **quando un tuo ticket di Zammad si chiude**, il problema e la soluzione;
 - **le mail importanti** (con l'account Microsoft collegato): quelle segnate come importanti e quelle di chi ha già una pagina.
 
-Dieci minuti dopo, un compito ti propone le righe da aggiungere e gli **impegni presi** («ti mando domani il preventivo») come promemoria in To Do: rispondi **Fai tutto**, **Niente** o i numeri che vuoi. Il **venerdì alle 17** arriva il **riepilogo della settimana**: cosa ha imparato la memoria e cosa è rimasto aperto. Tutto si accende e si spegne in Impostazioni → Flussi → Secondo cervello (l'Annota in Impostazioni → Notifiche → Proposte).
+Dieci minuti dopo, un compito ti propone le righe da aggiungere e gli **impegni presi** («ti mando domani il preventivo») come promemoria in To Do: spunta quelle da fare e, se una è quasi giusta, premi **Commenta** e scrivi cosa sbaglia. Il **venerdì alle 17** arriva il **riepilogo della settimana**: cosa ha imparato la memoria e cosa è rimasto aperto. Tutto si accende e si spegne in Impostazioni → Flussi → Secondo cervello (l'Annota in Impostazioni → Notifiche → Proposte).
 
 ## Il controllo
-EasyIsland trova da sola: note simili o più vecchie di sei mesi, collegamenti a pagine che non esistono, pagine isolate, vecchie o sullo stesso argomento. L'agente aggiunge le **contraddizioni** che nota e ti propone le correzioni nell'isola, una per riga, con **Fai tutto** / **Niente** (o scrivi quali). Fa **solo quelle approvate** e **non cancella mai**: al massimo sposta una nota in `archivio.md` o una pagina in `archivio/pagine`.
+EasyIsland trova da sola: note simili o più vecchie di sei mesi, collegamenti a pagine che non esistono, pagine isolate, vecchie o sullo stesso argomento. L'agente aggiunge le **contraddizioni** che nota e ti propone le correzioni nell'isola, **una casella per correzione**, con il testo intero: togli la spunta a quelle che non vuoi e, se una è quasi giusta, premi **Commenta** e scrivi cosa sbaglia (l'agente la corregge prima di farla); **Tutte** / **Nessuna** cambiano tutte le caselle, in fondo una nota per tutte. Se non rispondi subito la domanda resta in Impostazioni → Flussi, con le stesse caselle. Fa **solo quelle approvate** e **non cancella mai**: al massimo sposta una nota in `archivio.md` o una pagina in `archivio/pagine`.
 
 Parte la domenica sera con il Riordino, se c'è qualcosa da sistemare, o subito con **Controlla**.
 

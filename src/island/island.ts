@@ -31,7 +31,7 @@ import { rdmLookFor } from "../views/rdm";
 import { buildRail, railBotSize } from "../views/rail";
 import { appBarItem, buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
 import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
-import { chatSideWidth, freshChat, onNextReply, reopenChat, sendToChat, windowLabel } from "../views/chat";
+import { canPreview, chatPathAction, chatSideWidth, freshChat, onNextReply, reopenChat, sendToChat, windowLabel } from "../views/chat";
 import { capturing, startCapture } from "./capture";
 import { addToCollection } from "../views/collect";
 import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state";
@@ -1126,14 +1126,31 @@ ${note}` : text };
     this.setView("remember");
   }
 
-  /** «Prepara» on a ticket of mine: the chat opens at once, the question goes when Zammad answered. */
-  async prepareTicket(m: { id: number; title: string }) {
+  /**
+   * «Prepara» on a ticket of mine: the chat opens at once, the question goes when Zammad answered.
+   * From the Zammad card: «Consiglio IA» (its first reply is kept as the ticket's
+   * advice, ticket_advice.rs) or «Parlane in chat» (the advice attached, the user asks).
+   */
+  async prepareTicket(m: { id: number; title: string; mode?: "advice" | "talk"; advice?: string }) {
     this.startChat("", { label: m.title, text: t("Raccolgo il ticket, la pagina del cliente e i ticket simili…") }, false);
     try {
       const prep = await Bridge.zammadPrepare(m.id);
       if (State.view !== "prompt" || State.chatHistory.length) return;
+      if (m.mode === "talk") {
+        State.chatText = { label: prep.label, text: `${prep.context}\n\n${t("Consiglio dell'IA su questo ticket:")}\n${m.advice ?? ""}` };
+        State.notify();
+        return;
+      }
       State.chatText = { label: prep.label, text: prep.context };
       State.notify();
+      if (m.mode === "advice") {
+        const question = await Bridge.ticketAdviceQuestion();
+        onNextReply((text) => {
+          if (text?.trim()) void Bridge.ticketAdviceSave(m.id, text).catch((e) => this.note(String(e).replace(/^Error:\s*/, ""), "prompt"));
+        });
+        sendToChat(question);
+        return;
+      }
       sendToChat(prep.question);
     } catch (e) {
       State.chatText = null;
@@ -2072,6 +2089,24 @@ ${note}` : text };
     const items: MenuItem[] = [];
     let title = "";
     const settingsAt = (page: string, item = "") => () => void Bridge.openSettingsAt(page, item);
+
+    // A file or folder named in a chat reply (core/markdown.ts, chatpaths.rs).
+    const pathEl = el?.closest<HTMLElement>(".md-path[data-path]");
+    if (pathEl && !pathEl.classList.contains("md-missing")) {
+      const path = pathEl.dataset.path ?? "";
+      const target = pathEl.dataset.resolved || path;
+      const dir = pathEl.dataset.kind === "dir";
+      return {
+        title: target.split(/[\\/]/).filter(Boolean).pop() ?? target,
+        items: [
+          { label: t("Apri"), run: () => chatPathAction(path, "open") },
+          ...(!dir && canPreview(target) ? [{ label: t("Anteprima"), run: () => chatPathAction(target, "preview") }] : []),
+          ...(!dir ? [{ label: t("Scarica"), run: () => chatPathAction(path, "download") }] : []),
+          { label: t("Apri percorso"), run: () => chatPathAction(path, "reveal") },
+          { label: t("Copia percorso"), sep: true, run: () => void navigator.clipboard.writeText(target).catch(() => undefined) },
+        ],
+      };
+    }
 
     // Selected text in the island: copy it, or ask about it.
     const sel = window.getSelection()?.toString().trim() ?? "";

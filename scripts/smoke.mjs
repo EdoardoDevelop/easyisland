@@ -36,12 +36,12 @@ const BASE = process.env.PREVIEW_URL ?? "http://127.0.0.1:1420";
 const ALL = "integration_network,integration_weather,integration_zammad,integration_media,integration_clipboard,integration_3cx,integration_system,integration_security,integration_claude_usage,integration_github,integration_n8n";
 
 const SCENES = [
-  "greeting", "compact", "overview", "approval", "permission", "chat", "chat&history", "agenti", "compiti", "compiti&ask", "custom", "custom&dati", "agents", "recap", "drop",
+  "greeting", "compact", "overview", "approval", "permission", "chat", "chat&history", "agenti", "compiti", "compiti&ask", "compiti&proposte", "custom", "custom&dati", "agents", "recap", "drop",
   "files", "actions", "threecx", "clipboard", "media", "network", "usage", "meteo", "meteo&sky=storm&night", "suggestion",
   "rewrite", "diff", "finished", "stop", "capture", "strip&strip=approval", "strip&strip=call", "strip&strip=live",
   "strip&strip=work&compactStrip=left",
   "moment", "moment&moment=zip", "moment&moment=tray", "moment&moment=error", "moment&moment=port", "moment&moment=server",
-  "moment&moment=card", "daily", "daily&evening", "done", "done&alone", "search", "remember", "remember&empty", "talk", "talk&hearing", "remember&call", "moment&moment=call", "moment&moment=ticket", "moment&moment=agentchat", "agentchat", "agentchat&busy&write", "agentchat&off", "agentchat&empty", "zammad", "zammad&open", "zammad&email", "rdm&cloud", "rdm&tied",
+  "moment&moment=card", "daily", "daily&evening", "done", "done&alone", "search", "remember", "remember&empty", "talk", "talk&hearing", "remember&call", "moment&moment=call", "moment&moment=ticket", "moment&moment=agentchat", "agentchat", "agentchat&busy&write", "agentchat&off", "agentchat&empty", "agentchat&argomenti", "zammad", "zammad&open", "zammad&email", "zammad&open&consiglio", "rdm&cloud", "rdm&tied",
   // Random events, clicks and malformed data (dev/scenes.ts `fuzz`), a few seeds.
   "fuzz&seed=1", "fuzz&seed=2", "fuzz&seed=3", "fuzz&seed=4", "fuzz&seed=5",
 ];

@@ -249,6 +249,7 @@ export const Bridge = {
 
   /** "Open terminal" → opens the folder in VS Code when `code` is on PATH. */
   openInVSCode: (path: string | null) => call<boolean>("open_in_vscode", { path }),
+  vscodeInstalled: () => call<boolean>("vscode_installed"),
   /** `code -g file:line`, for the diff view's ↗. */
   openFileInVSCode: (file: string, line: number) => call<boolean>("open_file_in_vscode", { file, line }),
   /** The newer version on GitHub, or null (throws when the check fails). */
@@ -472,9 +473,13 @@ export const Bridge = {
   dvcTest: () => callOrThrow<DvcVault[]>("dvc_test"),
   /** A folder of a vault, from the list saved at the last sync. */
   dvcBrowse: (vault: string, path: string) => call<DvcBrowse>("dvc_browse", { vault, path }),
+  /** The search field: credentials and password lists of Devolutions Cloud (no secret). */
+  dvcSearch: (query: string, limit = 5) => call<DvcItem[]>("dvc_search", { query, limit }),
   dvcDetails: (vault: string, id: string) => callOrThrow<DvcDetails>("dvc_details", { vault, id }),
   /** The password goes to the clipboard in Rust (private, emptied later): only the seconds come back. */
   dvcCopyPassword: (vault: string, id: string, row: number | null) => callOrThrow<number>("dvc_copy_password", { vault, id, row }),
+  /** The eye on a password in the RDM card: the password, shown there only (dvc.rs reveal). */
+  dvcReveal: (vault: string, id: string, row: number | null) => callOrThrow<string>("dvc_reveal", { vault, id, row }),
   dvcNewCredential: (a: { vault: string; folder: string; name: string; user: string; domain: string; password: string; description: string; confirm: boolean }) =>
     callOrThrow<DvcOutcome>("dvc_new_credential", a),
   dvcNewPasswordList: (a: { vault: string; folder: string; name: string; source: string; recurse: boolean; confirm: boolean }) =>
@@ -615,6 +620,11 @@ export const Bridge = {
   zammadSearch: (query: string) => call<TicketHit[]>("zammad_search", { query }),
   /** «Prepara» on a ticket: the customer's page, similar tickets, the question (zammad.rs `prepare`). */
   zammadPrepare: (id: number) => callOrThrow<{ label: string; context: string; question: string }>("zammad_prepare", { id }),
+  /** «Consiglio IA» of a ticket (ticket_advice.rs): checked for news, rewritten in the background if any. */
+  ticketAdviceGet: (id: number) => call<TicketAdvice | null>("ticket_advice_get", { id }),
+  ticketAdviceQuestion: () => callOrThrow<string>("ticket_advice_question"),
+  ticketAdviceSave: (id: number, text: string) => callOrThrow<TicketAdvice>("ticket_advice_save", { id, text }),
+  ticketAdviceRefresh: (id: number) => call<boolean>("ticket_advice_refresh", { id }),
   /** The Zammad card: the overviews and the tickets of `view` (zammad.rs `tickets`). */
   zammadTickets: (view: string | null) => callOrThrow<ZammadList>("zammad_tickets", { view }),
   zammadTicket: (id: number) => callOrThrow<ZammadTicket>("zammad_ticket", { id }),
@@ -645,6 +655,8 @@ export const Bridge = {
   /** The card's field: a message as the owner (owner token, the name from the settings; agentchat.rs owner_send). */
   agentchatOwnerSend: (room: string, text: string, thread: number | null, files: string[]) =>
     callOrThrow<{ id: number }>("agentchat_owner_send", { room, text, thread, files }),
+  /** The Agent Chat card's «Argomenti»: one topic's messages, older ones too (agentchat_map.rs). */
+  agentchatTopicMessages: <T>(id: number) => call<T[]>("agentchat_topic_messages", { id }),
   agentchatListen: (on: boolean) => callOrThrow<void>("agentchat_listen", { on }),
   rdmDataSources: () => callOrThrow<{ id: string; name: string; kind: string }[]>("rdm_data_sources"),
   /** "+ Attività" in the Notion card (due: "YYYY-MM-DD" or null). */
@@ -683,6 +695,10 @@ export const Bridge = {
   inboxCopy: (name: string) => callOrThrow<void>("inbox_copy", { name }),
   /** A file anywhere (a finished download): open it as Explorer would, or select it there. */
   fileOpen: (path: string, reveal: boolean) => callOrThrow<void>("file_open", { path, reveal }),
+  /** Paths named in a chat reply: which exist, resolved (chatpaths.rs). */
+  pathsInfo: (paths: string[]) => callOrThrow<PathInfo[]>("paths_info", { paths }),
+  /** A path of a reply: open it, show it in Explorer, or copy it into Downloads. */
+  pathAction: (path: string, action: "open" | "reveal" | "download") => callOrThrow<string>("path_action", { path, action }),
   /** Drags a file of the tray out of the island into another app (Windows' own drag); resolves when it is over. */
   inboxDrag: (name: string) => callOrThrow<void>("inbox_drag", { name }),
   /** «Sposta nella cartella di lavoro»: into `dest` (relative), moved or copied. */
@@ -862,6 +878,8 @@ export interface DvcItem { id: string; name: string; kind: string; folder: strin
 export interface DvcBrowse { vault: string; path: string; vaults: DvcVault[]; folders: { name: string; path: string; count: number }[]; entries: DvcItem[] }
 export interface DvcDetails {
   name: string; kind: string; cred: string; folder: string; host: string; user: string; domain: string;
+  /** A web entry's address; the credential entry a connection uses. */
+  url?: string; linked?: string;
   /** The password's length: never the password. */
   length: number; description: string;
   rows: { name: string; host: string; user: string; domain: string; length: number; description: string }[];
@@ -907,6 +925,33 @@ export interface ZammadArticle {
 }
 
 /** A Zammad ticket opened in the card (zammad.rs TicketDetail). */
+/** A path named in a chat reply (chatpaths.rs). */
+export interface PathInfo {
+  path: string;
+  resolved: string;
+  kind: "file" | "dir" | "missing";
+  line: number | null;
+}
+
+/** One version of a ticket's advice (ticket_advice.rs). */
+export interface TicketAdviceVersion {
+  at: string;
+  text: string;
+  articles: number;
+  /** "chat", "news", "manual". */
+  why: string;
+}
+
+export interface TicketAdvice {
+  id: number;
+  title: string;
+  current: TicketAdviceVersion | null;
+  history: TicketAdviceVersion[];
+  closed: boolean;
+  error: string;
+  updating: boolean;
+}
+
 export interface ZammadTicket {
   id: number; number: string; title: string; url: string;
   customer: string; org: string; group: string;

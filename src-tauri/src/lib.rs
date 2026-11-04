@@ -94,6 +94,7 @@ mod skills;
 mod tasks;
 mod telegram;
 mod agentchat;
+mod agentchat_map;
 mod i18n;
 mod webview_profile;
 mod recap;
@@ -117,6 +118,8 @@ mod win_user;
 mod window_drop;
 mod wss;
 mod zammad;
+mod ticket_advice;
+mod chatpaths;
 
 use std::os::windows::process::CommandExt;
 use std::process::Command;
@@ -1028,6 +1031,12 @@ async fn dvc_test() -> Result<Vec<dvc::Vault>, String> {
     dvc::test().await
 }
 
+/// The search field: credentials and password lists of Devolutions Cloud.
+#[tauri::command]
+fn dvc_search(query: String, limit: Option<usize>) -> Vec<dvc::Item> {
+    dvc::search(&query, limit.unwrap_or(5))
+}
+
 /// The RDM card's cloud: a folder of a vault (from the saved list).
 #[tauri::command]
 fn dvc_browse(vault: String, path: String) -> dvc::Browse {
@@ -1044,6 +1053,12 @@ async fn dvc_details(vault: String, id: String) -> Result<serde_json::Value, Str
 #[tauri::command]
 async fn dvc_copy_password(vault: String, id: String, row: Option<usize>) -> Result<u64, String> {
     dvc::copy_password(&vault, &id, row).await.map(|_| dvc::CLIP_SECONDS)
+}
+
+/// The eye on a password in the RDM card: the password, shown there only.
+#[tauri::command]
+async fn dvc_reveal(vault: String, id: String, row: Option<usize>) -> Result<String, String> {
+    dvc::reveal(&vault, &id, row).await
 }
 
 /// A new credential: `confirm` false = the preview; true = written, read back and checked.
@@ -1100,6 +1115,12 @@ fn open_in_vscode(path: Option<String>) -> bool {
         let _ = Command::new("explorer").arg(p).spawn();
     }
     false
+}
+
+/// Is VS Code on this PC? The Claude Code card offers it only then.
+#[tauri::command]
+fn vscode_installed() -> bool {
+    apps::find_vscode().is_some()
 }
 
 /// The diff view's ↗: the edited file in VS Code, at the changed line.
@@ -1653,6 +1674,12 @@ fn agentchat_restart() {
 }
 
 /// The island's Agent Chat card: a message as the owner (owner token, name from the settings).
+/// The Agent Chat card's «Argomenti»: the messages of one topic (agentchat_map.rs).
+#[tauri::command]
+fn agentchat_topic_messages(id: i64) -> Vec<agentchat::Msg> {
+    agentchat::topic_messages(id)
+}
+
 #[tauri::command]
 async fn agentchat_owner_send(app: AppHandle, room: String, text: String, thread: Option<i64>, files: Vec<String>) -> Result<agentchat::Msg, String> {
     agentchat::owner_send(&app, &room, &text, thread, &files).await
@@ -2088,6 +2115,29 @@ async fn zammad_search(query: String) -> Result<Vec<zammad::TicketHit>, String> 
 #[tauri::command]
 async fn zammad_prepare(id: i64) -> Result<zammad::TicketPrep, String> {
     zammad::prepare(id).await
+}
+
+/// «Consiglio IA»: the ticket's advice (checked for news, rewritten in the background if any).
+#[tauri::command]
+async fn ticket_advice_get(app: AppHandle, id: i64) -> Option<ticket_advice::Entry> {
+    ticket_advice::check(&app, id).await
+}
+
+/// «Consiglio IA» in the chat: the question for it, then its first reply kept.
+#[tauri::command]
+fn ticket_advice_question() -> String {
+    ticket_advice::question()
+}
+
+#[tauri::command]
+async fn ticket_advice_save(app: AppHandle, id: i64, text: String) -> Result<ticket_advice::Entry, String> {
+    ticket_advice::save_from_chat(&app, id, &text).await
+}
+
+/// «Aggiorna» on the advice: rewritten now, in the background.
+#[tauri::command]
+fn ticket_advice_refresh(app: AppHandle, id: i64) -> bool {
+    ticket_advice::start(&app, id, "manual")
 }
 
 /// The Zammad card: the overviews and the tickets of one.
@@ -2938,6 +2988,18 @@ fn file_open(path: String, reveal: bool) -> Result<(), String> {
     spawned.map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// The chat's reply names these paths: which exist, and where (chatpaths.rs).
+#[tauri::command]
+fn paths_info(app: AppHandle, paths: Vec<String>) -> Vec<chatpaths::PathInfo> {
+    chatpaths::infos(&app, &paths)
+}
+
+/// A path of a reply: "open", "reveal" or "download" (a copy in Downloads).
+#[tauri::command]
+fn path_action(app: AppHandle, path: String, action: String) -> Result<String, String> {
+    chatpaths::act(&app, &path, &action)
+}
+
 /// "Estrai…" on a dropped ZIP: what is inside.
 #[tauri::command]
 async fn zip_list(path: String) -> Result<zip::ZipInfo, String> {
@@ -3106,7 +3168,12 @@ fn log_line(message: String) {
 /// for the *same* arguments as the island (see `additionalBrowserArgs` in
 /// tauri.conf.json) — a mismatch makes the second window come up blank, with no
 /// error anywhere.
-pub(crate) const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required";
+///
+/// `CalculateNativeWinOcclusion` off and `--disable-backgrounding-occluded-windows`:
+/// WebView2 took the Memoria window for covered (the island's transparent
+/// window over it) and stopped presenting frames, so the map's animations moved
+/// only with the mouse (Edoardo, 4 Nov 2026). The island draws nothing at rest anyway.
+pub(crate) const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,CalculateNativeWinOcclusion --disable-backgrounding-occluded-windows --autoplay-policy=no-user-gesture-required";
 
 /// In a dev build the pages are served by Vite, so the second window needs the
 /// absolute dev URL; a bundled build resolves it inside the app bundle.
@@ -4091,6 +4158,7 @@ pub fn run() {
             open_in_vscode,
             session_reply::session_reply,
             set_app_mode,
+            vscode_installed,
             island_to_front,
             minimize_island,
             file_thumb,
@@ -4179,6 +4247,12 @@ pub fn run() {
             memory_window_select,
             zammad_search,
             zammad_prepare,
+            ticket_advice_get,
+            paths_info,
+            path_action,
+            ticket_advice_question,
+            ticket_advice_save,
+            ticket_advice_refresh,
             zammad_tickets,
             zammad_ticket,
             zammad_set,
@@ -4325,6 +4399,8 @@ pub fn run() {
             dvc_browse,
             dvc_details,
             dvc_copy_password,
+            dvc_reveal,
+            dvc_search,
             dvc_new_credential,
             dvc_new_password_list,
             notion_add_note,
@@ -4370,6 +4446,7 @@ pub fn run() {
             agentchat_restart,
             agentchat_resume,
             agentchat_owner_send,
+            agentchat_topic_messages,
             agentchat_listen,
             work_list,
             work_open,
@@ -4453,6 +4530,7 @@ pub fn run() {
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             barsys::start(handle.clone());
             news::start(handle.clone());
+            ticket_advice::start_watch(handle.clone());
             giornata::start(handle.clone());
             island::spawn_fullscreen_watch(handle.clone(), gate.clone());
             island::spawn_drag_raise(handle.clone(), gate.clone());

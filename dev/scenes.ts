@@ -392,12 +392,24 @@ export async function runScene(island: Island, scene: string) {
             online: { casa: true },
           } : null,
           canWrite: q.has("write"), ownerName: "edo", rooms: ["general", "lavoro"],
+          // The map of the chat (agentchat_map.rs); &argomenti opens «Argomenti».
+          topics: [
+            { id: 7, room: "general", title: "@lia controlla anche lo spazio sul server", state: "da fare", who: [], first: now - 30, last: now - 30, ids: [7], consult: false, last_line: "@lia controlla anche lo spazio sul server" },
+            { id: 5, room: "general", title: "aggiornate le dipendenze del progetto sito e fate girare i test", state: "aperto", who: ["lia", "casa/opencode"], first: now - 120, last: now - 100, ids: [5, 6], consult: false, last_line: "Lo prendo io per le dipendenze." },
+            { id: 1, room: "general", title: "ciao", state: "aperto", who: ["lia", "casa/opencode", "vps/claude"], first: now - 600, last: now - 400, ids: [1, 2, 3, 4], consult: false, last_line: "Il backup di stanotte è andato a buon fine." },
+            { id: -3, room: "lavoro", title: "Prepara il preventivo per Verdi", state: "bloccato", who: ["lavoro/codex"], first: now - 86_400 * 2, last: now - 86_400, ids: [1, 2], consult: false, last_line: "BLOCCATO: manca il listino 2026." },
+            { id: -9, room: "general", title: "Controlla il backup del NAS di Rossi", state: "fatto", who: ["lia"], first: now - 86_400 * 3, last: now - 86_400 * 3, ids: [1, 2, 3], consult: false, last_line: "FATTO: backup ok." },
+          ],
         },
       };
       State.setFocus("integration_agentchat");
       State.summary = false;
       island.alert("overview");
       island.setPinned(true);
+      if (q.has("argomenti")) {
+        for (let i = 0; i < 20 && !document.querySelector(".ac-tab"); i++) await wait(100);
+        [...document.querySelectorAll<HTMLElement>(".ac-tab")].find((b) => b.textContent?.startsWith("Argomenti"))?.click();
+      }
       await wait(1500);
       break;
     }
@@ -776,6 +788,7 @@ export async function runScene(island: Island, scene: string) {
               : { name: e?.name ?? "", kind: e?.kind ?? "", cred: e?.cred ?? "", folder: e?.folder ?? "", host: e?.host ?? "", user: e?.user ?? "", domain: "", length: 16, description: "Accesso amministrativo", rows: [] };
           },
           dvcCopyPassword: async () => { await wait(200); return 30; },
+          dvcReveal: async () => { await wait(200); return "Fa1ch1!2026"; },
           dvcNewCredential: async (a: { name: string; folder: string; user: string; password: string; confirm: boolean }) => {
             await wait(300);
             if (!a.confirm) return { preview: [`Nuova credenziale «${a.name}» in «${a.folder}»`, `Utente: ${a.user}`, `Password: ${a.password.length} caratteri`], id: "", rows: [] };
@@ -873,6 +886,21 @@ export async function runScene(island: Island, scene: string) {
           return { ...detail, articles: [...detail.articles] };
         },
         widgetRefresh: async () => {},
+        // &consiglio: the ticket's «Consiglio IA» with one older version (ticket_advice.rs).
+        ticketAdviceGet: async (id: number) => q.has("consiglio") ? {
+          id, title: detail.title, closed: false, error: "", updating: false,
+          current: { at: "2026-11-04 09:40", why: "news", articles: 4, text: [
+            "Novità: il cliente conferma che la stampante è in rete ma non stampa dal gestionale.", "",
+            "Situazione", "La stampante della farmacia non riceve i lavori da WinFarm dopo il cambio del router; dal PC stampa la pagina di prova.", "",
+            "Cosa fare", "1. Controllare che l'IP della stampante non sia cambiato (il nuovo router assegna gli indirizzi da 192.168.1.100).",
+            "2. Fissare l'IP nel router o sulla stampante e aggiornare la porta in Windows.",
+            "3. Come nel ticket #30871 (Comunale 2): in WinFarm reimpostare la stampante predefinita.", "",
+            "Bozza di risposta", "Buongiorno, grazie della conferma. Ci colleghiamo tra poco per fissare l'indirizzo della stampante: non serve che facciate nulla.",
+          ].join("\n") },
+          history: [{ at: "2026-11-03 16:12", why: "chat", articles: 2,
+            text: ["Situazione", "La stampante non stampa da WinFarm.", "", "Cosa fare", "1. Chiedere se stampa la pagina di prova.", "2. Controllare la coda di stampa."].join("\n") }],
+        } : null,
+        ticketAdviceRefresh: async () => true,
       });
       State.widgetStatus.integration_zammad = {
         id: "integration_zammad", level: "ok", at: Math.floor(Date.now() / 1000) - 40,
@@ -1163,7 +1191,16 @@ export async function runScene(island: Island, scene: string) {
         handleHook(island, { hook_event_name: "PreToolUse", tool_name: "Compito", tool_input: { step }, ...task });
         handleHook(island, { hook_event_name: "PostToolUse", tool_name: "Compito", tool_input: { step }, ...task });
       }
-      if (new URLSearchParams(location.search).has("ask")) {
+      if (new URLSearchParams(location.search).has("proposte")) {
+        // &proposte: the memory check's corrections, a checkbox and a comment each (proposals.ts).
+        handleHook(island, { hook_event_name: "PermissionRequest", request_id: "ask-2", tool_name: "AskUserQuestion", ...task,
+          tool_input: { questions: [{ question: "Ho trovato tre cose da sistemare nella memoria. Quali faccio?", header: "Compito", options: [], multiSelect: false,
+            items: [
+              "Unire «Farmacia Falchi» e «Farmacie Falchi»: sono lo stesso cliente, tengo il testo più recente e i collegamenti di tutte e due.",
+              "Correggere «Proxmox»: la nota del 12/10 dice che il server è a Pisa, quella del 28/10 a Livorno; tengo Livorno.",
+              "Archiviare la nota «chiamare Rossi per il preventivo» del 3/9: il preventivo è stato inviato il 10/9.",
+            ] }] } });
+      } else if (new URLSearchParams(location.search).has("ask")) {
         handleHook(island, { hook_event_name: "PermissionRequest", request_id: "ask-1", tool_name: "AskUserQuestion", ...task,
           tool_input: { questions: [{ question: "Includo anche le ore di ottobre fatturate a parte?", header: "Compito",
             options: [{ label: "Sì", description: "" }, { label: "No", description: "" }], multiSelect: false }] } });
@@ -1229,8 +1266,16 @@ export async function runScene(island: Island, scene: string) {
           { title: "#10342 Stampante dell'ufficio ferma — Rossi Srl", url: "https://help.example.com/#ticket/zoom/342" },
           { title: "#10298 VPN che cade la sera — Rossi Srl", url: "https://help.example.com/#ticket/zoom/298" },
         ],
+        // RDM with Devolutions Cloud and the 3CX phonebook (search.ts).
+        dvcSearch: async () => [
+          { id: "g1", name: "ROSSI SRL", kind: "Group", folder: "Easytech", path: "Easytech\\ROSSI SRL", host: "", user: "", cred: "", vault: "v" },
+          { id: "r1", name: "Server Rossi", kind: "RDPConfigured", folder: "Easytech\\ROSSI SRL", path: "", host: "192.168.10.5", user: "", cred: "", vault: "v" },
+          { id: "d1", name: "Admin NAS Rossi", kind: "Credential", folder: "Easytech\\ROSSI SRL", path: "", host: "192.168.10.20", user: "admin", cred: "Default", vault: "v" },
+        ],
+        threecxContacts: async () => [{ name: "Mario Rossi", company: "Rossi Srl", numbers: ["+39 0583 123456"], colleague: false }],
       });
-      State.settings.activeIntegrations = [...State.settings.activeIntegrations, "integration_zammad"];
+      State.integrations.integration_rdm = { data: { count: 0, exe: true, protocol: true, cloud: { on: true, count: 3 } }, error: null, loaded: true, configured: true };
+      State.settings.activeIntegrations = [...State.settings.activeIntegrations, "integration_zammad", "integration_rdm", "integration_3cx"];
       await wait(300);
       island.setView("overview");
       island.setPinned(true);

@@ -2,6 +2,16 @@
 
 Cosa è cambiato in ogni versione, dalla più recente. Il riassunto delle ultime sta nel [README](README.it.md#ultime-versioni).
 
+**1.0.24** — **Agent Chat con la mappa**: la chat è divisa in argomenti (le tue richieste, chi ci lavora,
+fatto, aperto o bloccato) e ogni agente la riceve oltre agli ultimi messaggi, così sa cosa si è già deciso; nella
+scheda, **Argomenti** li elenca e un clic mostra i messaggi di quell'argomento. **Consiglio IA** sui ticket di
+Zammad: si apre la chat con ticket, cliente e ticket simili, la risposta resta come consiglio del ticket e si
+aggiorna quando arrivano messaggi nuovi, con lo storico. **RDM con Devolutions Cloud** solo dal cloud, con un
+pannello per ogni voce: utente, password nascosta con l'occhio e Copia. Il **campo in alto** trova anche le
+voci e le cartelle di RDM (aperte nella scheda) e i contatti 3CX. Nelle risposte della chat **file e cartelle
+sono cliccabili**: Anteprima, Apri, Scarica, Apri percorso. Il **controllo della memoria** propone le correzioni
+con una casella e un commento ciascuna. La rete neurale della mappa si anima anche col mouse fermo.
+
 **1.0.23** — **Zammad nell'isola**: la scheda mostra le tue viste con i conteggi, apre il ticket con
 tutti i messaggi e ti fa cambiare stato (con il promemoria se è in attesa), proprietario e priorità,
 scrivere una nota interna o rispondere al cliente via email. **Devolutions Cloud** nella scheda RDM:

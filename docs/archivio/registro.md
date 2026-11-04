@@ -2,6 +2,11 @@
 
 Voci tolte da `HANDOFF.md` quando il Registro supera le 5 voci, la più recente in alto. Le voci fino al 6 ottobre 2026 sono anche in `HANDOFF-fino-al-6-ottobre.md`. Da leggere solo per ricostruire la storia di una modifica.
 
+### 3/11 — Coda della chat, font, Agent Chat: chi lavora e scrivere dall'isola (`claude/sviluppo`)
+- Chat: si scrive mentre risponde, messaggi in coda con Invia subito / Modifica / ✕ (`chat.ts`); Ctrl+Invio = Ferma e manda.
+- Aspetto → Font: titoli e testo separati (`src/core/fonts.ts`, `theme.fonts`), Doto/DotGothic16/VT323/Space Mono in `public/fonts/` (OFL), più i font di Windows (`system_fonts`). Anche nella barra fissa, con «Font di Aspetto → Font» (acceso di serie). Scheda Agent Chat a tutta isola. Smoke: Edge chiusi con `Browser.close` (restavano appesi).
+- Agent Chat: stato per motore dagli eventi del turno (`Reporter` → `/api/status`), «preso da», «nessuna risposta», «nessun agente attivo» nella scheda e nella pagina; campo nella scheda per scrivere come l'owner con un token a parte e un nome scelto (`owner_send`, `as_owner`). Server cambiato in `C:\Users\Edoardo\agentchat` (token owner, `human`, `/api/status`): da pubblicare. Provato con server locale, anteprima, smoke e test Rust; non con i motori veri. `docs/integrazioni.md` → Agent Chat.
+
 ### 3/11 — Chat e integrazioni in una finestra, Anteprima nella finestra della chat (1.0.22)
 Clic destro, pulsante o voce trascinata fuori dall'isola → finestra (`popout.ts`, `popout_window` in `lib.rs`); tutto resta nella pagina dell'isola. Pagina `about:blank` (una dell'app restava vuota); la vista va al sicuro nell'isola a ogni `pagehide` e torna nella pagina nuova, la ✕ è trattenuta da Rust finché la vista non è rientrata: prima la chat tornava con i pulsanti morti. Finestre per nome (`popout_take`, `get_window`): cercate come webview window sparivano con l'Anteprima dentro, che andava e tornava. Smoke in parallelo (~2,5 min) e `smoke:rapido` (~30 s). «Rimetti» chiude da Rust (`popout_close`). L'Anteprima agganciata segue la chat (`preview::chat_dock` la rifà, `reopen` aspetta che la vecchia sparisca). Bordo della barra delle conversazioni trascinabile. Provato nell'anteprima con un iframe; da provare nell'app l'Anteprima nella finestra della chat. `docs/architettura.md` → Viste, `docs/chat.md` → Anteprima.
 

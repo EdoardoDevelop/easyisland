@@ -3,7 +3,7 @@
 
 import { h, svg, clear } from "./dom";
 import { ICONS } from "./icons";
-import { Bridge, onEvent, type ChatContext, type ChatSummary } from "../core/bridge";
+import { Bridge, onEvent, type ChatContext, type ChatSummary, type PathInfo } from "../core/bridge";
 import { Sound } from "../core/sound";
 import { CHAT_ENGINES, MAX_OPEN_CHATS, State, engineLabel, newChatSession, type ChatAssistant, type ChatEngine, type ChatMessage, type ChatSessionState, type QuickAction, type Skill } from "../core/state";
 import { calculate, formatResult, plainResult } from "../core/calc";
@@ -132,8 +132,9 @@ function bubble(message: ChatMessage): HTMLElement {
         h("div", { class: "second-head", text: `⇄ ${t("Seconda opinione · {e}", { e: message.reviewer })}` }),
         ...renderMarkdown(message.content, MD_HOOKS)));
   }
-  return h("div", { class: "chat-row" },
-    h("div", { class: "reply md" }, ...renderMarkdown(message.content, MD_HOOKS)));
+  const reply = h("div", { class: "reply md" }, ...renderMarkdown(message.content, MD_HOOKS));
+  void checkPaths(reply);
+  return h("div", { class: "chat-row" }, reply);
 }
 
 // Links and file paths of a reply open in the preview (src/preview/), or in
@@ -143,8 +144,74 @@ const MD_HOOKS = {
     if (State.settings.chatPreview === false || e?.ctrlKey) void Bridge.openUrl(url);
     else void Bridge.previewOpen(url).catch(() => void Bridge.openUrl(url));
   },
-  openPath: (path: string) => void Bridge.previewOpen(path).catch(() => undefined),
+  openPath: (path: string, e?: MouseEvent) => openChatPath(path, e?.currentTarget instanceof HTMLElement ? e.currentTarget : null, e?.ctrlKey),
 };
+
+// ── Files and folders in a reply (src-tauri/src/chatpaths.rs) ────────────────
+// Only those that exist stay links: Rust resolves them (absolute, "~\…", or
+// relative to the chat's folder, with ":line"); a missing one is greyed.
+
+/** What Rust said about a path, and when (a missing one is asked again later). */
+const pathSeen = new Map<string, { info: PathInfo; at: number }>();
+
+async function checkPaths(root: HTMLElement) {
+  // Rendered first, checked right after (the bubble is in the page by then).
+  await Promise.resolve();
+  const els = Array.from(root.querySelectorAll<HTMLElement>(".md-path[data-path]"));
+  if (!els.length) return;
+  const now = Date.now();
+  const want = [...new Set(els.map((e) => e.dataset.path ?? ""))].filter((p) => {
+    const seen = pathSeen.get(p);
+    return p && (!seen || (seen.info.kind === "missing" && now - seen.at > 10_000));
+  });
+  if (want.length) {
+    const infos = await Bridge.pathsInfo(want).catch(() => null);
+    for (const i of infos ?? []) pathSeen.set(i.path, { info: i, at: now });
+  }
+  for (const e of els) {
+    const info = pathSeen.get(e.dataset.path ?? "")?.info;
+    if (!info) continue;
+    e.dataset.kind = info.kind;
+    e.dataset.resolved = info.resolved;
+    e.classList.toggle("md-missing", info.kind === "missing");
+    e.classList.toggle("md-dir", info.kind === "dir");
+    e.title = info.kind === "missing" ? t("Non c'è più: {p}", { p: info.resolved })
+      : info.kind === "dir" ? t("Cartella: {p} · clic per aprirla, tasto destro per altro", { p: info.resolved })
+      : t("{p} · clic per vederlo, tasto destro per altro", { p: info.resolved });
+  }
+}
+
+/** Files the Anteprima beside the chat draws (preview.rs). */
+const PREVIEWABLE = /\.(md|txt|ts|tsx|js|jsx|mjs|json|html?|css|csv|pdf|png|jpe?g|gif|webp|svg|toml|ya?ml|xml|log|ps1|bat|cmd|sh|cs|java|go|c|h|cpp|hpp|sql|ini|cfg|vue|svelte|php|rb|rs|py|lock|env)$/i;
+
+export function canPreview(path: string): boolean {
+  return PREVIEWABLE.test(path.replace(/(:\d+){1,2}$/, ""));
+}
+
+const pathFail = (e: unknown) => console.warn(String(e));
+
+/** A path's action from the right-click menu (island.ts contextItems). */
+export function chatPathAction(path: string, action: "open" | "reveal" | "download" | "preview") {
+  if (action === "preview") {
+    void Bridge.previewOpen(path.replace(/(:\d+){1,2}$/, "")).catch(() => void Bridge.pathAction(path, "open").catch(pathFail));
+    return;
+  }
+  void Bridge.pathAction(path, action).catch(pathFail);
+}
+
+/**
+ * Clic on a path: a folder opens in Explorer; a file in the Anteprima when it
+ * can draw it (and the Anteprima is on), else in its program. Ctrl+clic: its program.
+ */
+export function openChatPath(path: string, el: HTMLElement | null, direct = false) {
+  if (el?.classList.contains("md-missing")) return;
+  const target = el?.dataset.resolved || path;
+  if (el?.dataset.kind === "dir" || direct || State.settings.chatPreview === false || !canPreview(target)) {
+    chatPathAction(path, "open");
+    return;
+  }
+  chatPathAction(target, "preview");
+}
 
 function typingDots(): HTMLElement {
   return h(

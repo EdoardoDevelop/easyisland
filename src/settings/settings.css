@@ -1256,3 +1256,19 @@ html[data-font-text-weight] :is(label, .hint, p, input, textarea, select) { font
 .font-preview .fp-title { font-size: 16px; font-weight: 600; }
 .font-preview .fp-clock { font-size: 26px; letter-spacing: 0.04em; }
 .font-preview .fp-text { font-size: 12.5px; margin-top: 4px; opacity: 0.9; }
+
+/* Proposals of a task's question (src/views/proposals.ts): a checkbox and a
+   comment each; the whole text, never cut. */
+.prop-list { display: flex; flex-direction: column; gap: 4px; }
+.prop-item { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 10px; padding: 6px 9px; border-radius: 9px; background: rgba(255, 255, 255, 0.05); }
+.prop-main { display: flex; align-items: flex-start; gap: 7px; flex: 1 1 220px; min-width: 0; line-height: 1.38; cursor: default; }
+.prop-main input { flex: 0 0 auto; margin: 2px 0 0; accent-color: #22d3ee; }
+.prop-n { flex: 0 0 auto; opacity: 0.6; }
+.prop-text { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
+.prop-item.off .prop-text { opacity: 0.45; text-decoration: line-through; }
+.prop-btn { flex: 0 0 auto; padding: 0; font-size: 11px; opacity: 0.7; }
+.prop-btn.on { color: #22d3ee; opacity: 1; }
+.prop-comment { flex: 1 1 100%; min-width: 0; border-radius: 8px; padding: 5px 9px; outline: none; }
+.prop-main { font-size: 13px; }
+.prop-comment { font: inherit; font-size: 12.5px; }
+.task-ask { display: flex; flex-direction: column; gap: 8px; }

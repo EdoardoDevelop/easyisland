@@ -1854,6 +1854,22 @@ input[type="range"]::-webkit-slider-thumb {
   color: #7dd3fc;
 }
 
+/* A folder: a small folder before it. One that is no longer there: grey, not a link. */
+.md-path.md-dir::before {
+  content: "📁 ";
+  font-size: 0.9em;
+}
+
+.md-path.md-missing {
+  cursor: default;
+  text-decoration: line-through rgba(255, 255, 255, 0.25);
+  opacity: 0.55;
+}
+
+.md-path.md-missing:hover {
+  color: inherit;
+}
+
 .md-link {
   color: #7dd3fc;
   text-decoration: none;
@@ -2866,13 +2882,14 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* ── AskUserQuestion ────────────────────────────────────────────────────── */
 
+/* The whole question, scrolling when long (it was cut at three lines). */
 .ask-q {
   font-size: calc(14px + var(--fs-up, 0px));
   line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  max-height: calc(5.2em + var(--extra-h, 0px) / 4);
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .ask-options {
@@ -5787,6 +5804,22 @@ html[data-scheme="light"] .appmenu-sep { background: rgba(0, 0, 0, 0.08); }
 .ac-engine { padding: 1px 7px; border-radius: 9px; background: rgba(255, 255, 255, 0.06); color: var(--dim); font: 500 calc(10.5px + var(--fs-up, 0px)) var(--font); }
 .ac-engine.lead { color: var(--ink); background: rgba(139, 92, 246, 0.18); }
 .ac-list { display: flex; flex-direction: column; gap: 6px; max-height: 210px; overflow-y: auto; padding-right: 4px; }
+/* «Chat» / «Argomenti» (agentchat.ts, the map in agentchat_map.rs). */
+.ac-tabs { display: flex; gap: 6px; margin: 2px 0 4px; }
+.rec-chip.ac-tab.on { background: rgba(139, 92, 246, 0.2); border-color: rgba(139, 92, 246, 0.55); color: var(--ink); }
+.ac-topic { display: flex; align-items: flex-start; gap: 9px; padding: 6px 8px; border-radius: 9px; background: rgba(255, 255, 255, 0.04); cursor: default; flex-shrink: 0; }
+.ac-topic:hover { background: rgba(255, 255, 255, 0.08); }
+.ac-tmain { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.ac-ttitle { font: 500 calc(12px + var(--fs-up, 0px)) var(--font); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-tmeta { font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font); color: #8e939c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-tstate { flex: 0 0 auto; padding: 1px 7px; border-radius: 999px; font: 600 calc(10px + var(--fs-up, 0px)) var(--font); background: rgba(255, 255, 255, 0.08); color: #c9ced8; margin-top: 1px; }
+.ac-tstate.da-fare { background: rgba(245, 165, 36, 0.18); color: #fbbf24; }
+.ac-tstate.aperto { background: rgba(125, 211, 252, 0.16); color: #7dd3fc; }
+.ac-tstate.fatto { background: rgba(34, 197, 94, 0.16); color: #4ade80; }
+.ac-tstate.bloccato { background: rgba(244, 80, 94, 0.18); color: #fb7185; }
+.ac-topic-bar { display: flex; align-items: center; gap: 8px; min-width: 0; margin-bottom: 4px; font: 400 calc(11.5px + var(--fs-up, 0px)) var(--font); color: var(--ink); }
+.ac-topic-bar b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.ac-topic-bar .link-btn { padding: 0; white-space: nowrap; }
 .ac-msg { padding: 5px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); min-width: 0; }
 .ac-msg.mine { background: rgba(139, 92, 246, 0.12); }
 .ac-msg.owner { background: rgba(56, 189, 248, 0.1); }
@@ -6573,6 +6606,18 @@ html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-inpu
 .teams-btn.light.zm-mini, .teams-btn.light.zm-send { background: #F59E0B; color: #2a1a02; }
 .zm-saved { min-height: 0; font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font); color: #6ee7b7; }
 .zm-saved:empty { display: none; }
+/* «Consiglio IA» (zammad.ts adviceBox, ticket_advice.rs): above the messages. */
+.zm-advice { flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; margin: 6px 0 4px; padding: 8px 10px; border-radius: 10px; background: rgba(250, 204, 21, 0.07); border: 1px solid rgba(250, 204, 21, 0.25); }
+.zm-advice.wait { font: 400 calc(11.5px + var(--fs-up, 0px)) var(--font); color: var(--dim); }
+.zm-advice-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.zm-advice-title { padding: 0; font: 600 calc(12px + var(--fs-up, 0px)) var(--font); color: #fde68a; }
+.zm-advice-sub { font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font); color: #8e939c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.zm-advice-text { white-space: pre-wrap; overflow-wrap: anywhere; font: 400 calc(12px + var(--fs-up, 0px))/1.45 var(--font); color: var(--ink); user-select: text; }
+.zm-advice-text.folded { max-height: 9.2em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
+.zm-advice-more { align-self: flex-start; padding: 0; }
+.zm-advice-history { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 6px; }
+.zm-advice-old summary { cursor: default; font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: #8e939c; }
+.zm-advice-old .zm-advice-text { margin: 4px 0 6px 12px; color: var(--dim); }
 .zm-saved.bad { color: #fca5a5; }
 .zm-thread { flex: 1 1 auto; min-height: 90px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; }
 #island.popwin .zm-thread { min-height: 70px; }
@@ -6602,9 +6647,47 @@ html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-inpu
 .teams-btn.zm-send.red { background: #f4505e; color: #2a0508; }
 
 /* Devolutions Cloud in the RDM card (views/dvc.ts). */
-.dvc-tabs { display: flex; gap: 6px; margin: 2px 0 6px; }
-.rec-chip.dvc-tab.on { background: rgba(232, 84, 42, 0.18); border-color: rgba(232, 84, 42, 0.55); color: var(--ink); }
-.dvc-view { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+/* The cloud's folders scroll inside the card; their rows keep their height. */
+.dvc-view { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; min-height: 0; overflow: hidden; container-type: inline-size; }
+/* The list, and the pane of the entry picked: below it, beside it when the card is wide. */
+.dvc-split { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; gap: 8px; }
+.dvc-list { display: flex; flex-direction: column; gap: 3px; flex: 1 1 auto; min-height: 90px; overflow-y: auto; padding-bottom: 10px; }
+.dvc-list > * { flex-shrink: 0; }
+.dvc-pane { flex: 0 1 auto; max-height: 55%; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 9px 11px 11px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(232, 84, 42, 0.3); }
+.dvc-pane > * { flex-shrink: 0; }
+@container (min-width: 620px) {
+  .dvc-split.with-pane { flex-direction: row; }
+  .dvc-split.with-pane .dvc-list { flex: 1 1 52%; min-width: 0; }
+  .dvc-split.with-pane .dvc-pane { flex: 1 1 48%; max-height: none; min-width: 0; }
+}
+.dvc-pane-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font: 600 calc(12.5px + var(--fs-up, 0px)) var(--font); color: var(--ink); min-width: 0; }
+.dvc-pane-head b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dvc-pane-head .link-btn { padding: 0 2px; white-space: nowrap; }
+.dvc-close { border: 0; background: none; color: #8e939c; font-size: 12px; padding: 0 2px; cursor: default; }
+.dvc-close:hover { color: var(--ink); }
+.dvc-entry.on > .rdm-row { background: rgba(232, 84, 42, 0.14); }
+.dvc-desc b { white-space: pre-wrap; font-weight: 400; }
+.dvc-secret { display: inline-flex; align-items: center; gap: 8px; min-width: 0; margin-left: auto; }
+.dvc-kv .dvc-secret { margin-left: 0; flex: 1 1 auto; }
+.dvc-pw { color: var(--ink); font-weight: 500; letter-spacing: 1px; min-width: 0; overflow-wrap: anywhere; }
+.dvc-pw.shown { letter-spacing: 0; font-family: Consolas, "Cascadia Mono", monospace; user-select: text; }
+.dvc-secret .link-btn { margin-left: auto; padding: 0; }
+.dvc-eye { border: 0; background: none; padding: 0 2px; font-size: 13px; line-height: 1; opacity: 0.6; cursor: default; filter: grayscale(1); }
+.dvc-eye:hover, .dvc-eye.on { opacity: 1; filter: none; }
+.dvc-row-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.dvc-row-head .link-btn { margin-left: auto; padding: 0; }
+.dvc-pane .dvc-row { flex-direction: column; align-items: stretch; gap: 2px; padding: 4px 0; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.dvc-note { margin-top: 4px; }
+.rdm-cloud > .notion-search { margin-bottom: 6px; }
+/* RDM with Devolutions Cloud: as tall as the island, like Zammad, so the
+   folders (or the search's results) scroll inside instead of being cut off. */
+.view:has(.rdm-cloud), .view:has(.rdm-cloud) .left, .view:has(.rdm-cloud) .card, .view:has(.rdm-cloud) .left-body { height: 100%; min-height: 0; box-sizing: border-box; }
+.view:has(.rdm-cloud) .card, .view:has(.rdm-cloud) .left-body { display: flex; flex-direction: column; }
+.view:has(.rdm-cloud) .left-body { justify-content: flex-start; }
+.rdm-cloud { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.rdm-cloud > .notion-body { flex: 1 1 auto; }
+.rdm-cloud > * { flex-shrink: 0; }
+.rdm-cloud > .dvc-view, .rdm-cloud > .notion-body { flex-shrink: 1; }
 .dvc-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 4px; font: 500 calc(11.5px + var(--fs-up, 0px)) var(--font); color: var(--ink); }
 .dvc-crumbs .link-btn { padding: 0; }
 .dvc-sep { color: #8e939c; }
@@ -6644,3 +6727,24 @@ html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-inpu
 .dvc-tie .dvc-input { max-width: 260px; }
 .dvc-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 4px 1px 9px; border-radius: 10px; background: rgba(232, 84, 42, 0.16); font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: var(--ink); }
 .dvc-chip button { border: 0; background: transparent; color: #8e939c; cursor: pointer; }
+
+/* Proposals of a task's question (src/views/proposals.ts): a checkbox and a
+   comment each; the whole text, never cut. */
+.prop-list { display: flex; flex-direction: column; gap: 4px; }
+.prop-item { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 10px; padding: 6px 9px; border-radius: 9px; background: rgba(255, 255, 255, 0.05); }
+.prop-main { display: flex; align-items: flex-start; gap: 7px; flex: 1 1 220px; min-width: 0; line-height: 1.38; cursor: default; }
+.prop-main input { flex: 0 0 auto; margin: 2px 0 0; accent-color: #22d3ee; }
+.prop-n { flex: 0 0 auto; opacity: 0.6; }
+.prop-text { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
+.prop-item.off .prop-text { opacity: 0.45; text-decoration: line-through; }
+.prop-btn { flex: 0 0 auto; padding: 0; font-size: 11px; opacity: 0.7; }
+.prop-btn.on { color: #22d3ee; opacity: 1; }
+.prop-comment { flex: 1 1 100%; min-width: 0; border-radius: 8px; padding: 5px 9px; outline: none; }
+.prop-main { font: 400 calc(12px + var(--fs-up, 0px)) var(--font); color: var(--ink); }
+.prop-btn { color: var(--dim); }
+.prop-comment { font: 400 calc(12px + var(--fs-up, 0px)) var(--font); color: var(--ink); background: rgba(0, 0, 0, 0.25); border: 1px solid var(--hairline); }
+.prop-comment:focus { border-color: rgba(34, 211, 238, 0.5); }
+.ask-has-items .ask-q { max-height: calc(2.7em + var(--extra-h, 0px) / 6); }
+.ask-has-items .ask-options { flex-direction: column; flex-wrap: nowrap; max-height: calc(150px + var(--extra-h, 0px)); }
+.ask-has-items .ask-foot { display: flex; align-items: center; gap: 12px; }
+.ask-has-items .ask-go { margin-left: auto; }

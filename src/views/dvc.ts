@@ -25,8 +25,13 @@ const dv = {
   vault: "",
   path: "",
   browse: null as DvcBrowse | null,
-  open: new Set<string>(),
+  /** The entry whose details are in the pane (below, or beside when wide). */
+  sel: "",
   details: new Map<string, DvcDetails | string>(),
+  /** Passwords shown with the eye: "id|row" → password, hidden again after SHOW_MS. */
+  shown: new Map<string, string>(),
+  shownTimers: new Map<string, number>(),
+  revealing: "",
   form: null as Form | null,
   preview: null as string[] | null,
   result: null as DvcOutcome | null,
@@ -43,6 +48,15 @@ const errText = (e: unknown) => String(e).replace(/^Error:\s*/, "");
 export function dvcGoTo(vault: string, path: string) {
   dv.vault = vault;
   void go(path);
+}
+
+/** The cloud view on an entry's folder, with its pane open (the search field, rdm.ts rdmShowEntry). */
+export async function dvcShowEntry(e: DvcItem) {
+  dv.vault = e.vault;
+  await go(e.folder);
+  const here = dv.browse?.entries.find((x) => x.id === e.id) ?? e;
+  if (dv.sel !== here.id) await toggleDetails(here);
+  dv.el?.querySelector(".dvc-entry.on")?.scrollIntoView({ block: "nearest" });
 }
 
 /** The customers tied to folders, lower case → folder. */
@@ -71,7 +85,8 @@ async function go(path: string) {
   dv.preview = null;
   dv.result = null;
   dv.error = "";
-  dv.open.clear();
+  dv.sel = "";
+  hideAll();
   dv.browse = await Bridge.dvcBrowse(dv.vault, path);
   if (dv.browse) dv.vault = dv.browse.vault;
   draw();
@@ -96,13 +111,45 @@ async function copyPassword(e: DvcItem, row: number | null) {
   }
 }
 
-async function toggleDetails(e: DvcItem) {
-  if (dv.open.has(e.id)) {
-    dv.open.delete(e.id);
+/** How long a password shown with the eye stays visible. */
+const SHOW_MS = 30_000;
+
+function hideAll() {
+  for (const timer of dv.shownTimers.values()) window.clearTimeout(timer);
+  dv.shownTimers.clear();
+  dv.shown.clear();
+}
+
+/** The eye: the password asked now (dvc_reveal), shown until clicked again or SHOW_MS. */
+async function toggleShown(e: DvcItem, row: number | null) {
+  const key = `${e.id}|${row ?? ""}`;
+  if (dv.shown.has(key)) {
+    dv.shown.delete(key);
+    window.clearTimeout(dv.shownTimers.get(key));
     draw();
     return;
   }
-  dv.open.add(e.id);
+  dv.revealing = key;
+  draw();
+  try {
+    dv.shown.set(key, await Bridge.dvcReveal(e.vault, e.id, row));
+    dv.shownTimers.set(key, window.setTimeout(() => { dv.shown.delete(key); dv.shownTimers.delete(key); draw(); }, SHOW_MS));
+  } catch (err) {
+    say(errText(err));
+  }
+  dv.revealing = "";
+  draw();
+}
+
+/** A click on an entry: its details in the pane; again on it, the pane closes. */
+async function toggleDetails(e: DvcItem) {
+  hideAll();
+  if (dv.sel === e.id) {
+    dv.sel = "";
+    draw();
+    return;
+  }
+  dv.sel = e.id;
   if (!dv.details.has(e.id) || typeof dv.details.get(e.id) === "string") {
     dv.details.set(e.id, t("Leggo…"));
     draw();
@@ -219,34 +266,66 @@ function resultPart(): HTMLElement | null {
     btn(t("Chiudi"), () => { dv.result = null; draw(); State.notify(); }));
 }
 
-function detailsPart(e: DvcItem): HTMLElement | null {
-  if (!dv.open.has(e.id)) return null;
+/** A password: hidden (dots), 👁 shows it for SHOW_MS, «Copia» puts it on the private clipboard. */
+function secret(e: DvcItem, row: number | null, length: number): HTMLElement {
+  const key = `${e.id}|${row ?? ""}`;
+  const shown = dv.shown.get(key);
+  return h("span", { class: "dvc-secret" },
+    h("b", { class: shown ? "dvc-pw shown" : "dvc-pw", text: shown ?? "•".repeat(Math.min(Math.max(length, 6), 14)) }),
+    h("button", { class: shown ? "dvc-eye on" : "dvc-eye", title: shown ? t("Nascondi la password") : t("Mostra la password (per 30 secondi)"),
+      text: dv.revealing === key ? "…" : "👁", onclick: (ev: Event) => { ev.stopPropagation(); void toggleShown(e, row); } }),
+    btn(t("Copia"), () => void copyPassword(e, row), t("Negli appunti per 30 secondi, fuori dalla cronologia di Windows e dagli Appunti di EasyIsland")));
+}
+
+/** The pane of the entry picked: everything about it, the password hidden. */
+function panePart(): HTMLElement | null {
+  const e = dv.sel ? dv.browse?.entries.find((x) => x.id === dv.sel) : null;
+  if (!e) return null;
   const d = dv.details.get(e.id);
-  if (!d) return null;
-  if (typeof d === "string") return h("div", { class: "dvc-details" }, h("span", { class: "notion-note", text: d }));
-  const line = (label: string, value: string, copy = false) => value
-    ? h("div", { class: "dvc-kv" }, h("span", { text: label }), h("b", { text: value }),
-      copy ? btn(t("Copia"), () => void navigator.clipboard.writeText(value).then(() => say(t("Copiato: {h}", { h: value })))) : null)
-    : null;
-  const box = h("div", { class: "dvc-details" },
-    line(t("Utente"), d.domain ? `${d.domain}\\${d.user}` : d.user, true),
-    line(t("Host"), d.host, true),
-    line(t("Descrizione"), d.description),
-    d.length ? h("div", { class: "dvc-kv" }, h("span", { text: t("Password") }), h("b", { text: t("{n} caratteri", { n: d.length }) }),
-      btn(t("Copia password"), () => void copyPassword(e, null))) : null);
-  if (d.rows.length) {
-    box.append(h("div", { class: "dvc-rows" }, ...d.rows.map((r, i) => h("div", { class: "dvc-row" },
-      h("b", { text: r.name || "—" }),
-      h("span", { text: [r.domain ? `${r.domain}\\${r.user}` : r.user, r.host].filter(Boolean).join(" · ") }),
-      r.length ? btn(t("Copia password"), () => void copyPassword(e, i)) : h("small", { text: t("senza password") })))));
+  const pane = h("div", { class: "dvc-pane" });
+  const mark = icon(e);
+  pane.append(h("div", { class: "dvc-pane-head" },
+    mark ? h("span", { class: "dvc-icon", text: mark }) : h("span", { class: "rdm-kind", text: kindLabel(e.kind) }),
+    h("b", { text: e.name }),
+    h("span", { class: "zm-grow" }),
+    isConnection(e) ? btn(t("Apri in RDM"), () => void Bridge.rdmOpen({ id: e.id, name: e.name, group: e.folder, host: e.host, kind: e.kind })
+      .then(() => Sound.play("blip")).catch((err) => say(errText(err)))) : null,
+    h("button", { class: "dvc-close", title: t("Chiudi"), text: "✕", onclick: (ev: Event) => { ev.stopPropagation(); dv.sel = ""; hideAll(); draw(); } })));
+  if (!d || typeof d === "string") {
+    pane.append(h("div", { class: "notion-note", text: d ?? t("Leggo…") }));
+    return pane;
   }
-  return box;
+  const copyBtn = (value: string) => btn(t("Copia"), () => void navigator.clipboard.writeText(value).then(() => say(t("Copiato: {h}", { h: value }))));
+  const line = (label: string, value: string, copy = false) => value
+    ? h("div", { class: "dvc-kv" }, h("span", { text: label }), h("b", { text: value }), copy ? copyBtn(value) : null)
+    : null;
+  const kind = d.cred === "PasswordList" ? t("Lista password") : d.kind.startsWith("Credential") ? t("Credenziale") : d.kind;
+  const parts: (HTMLElement | null)[] = [
+    line(t("Tipo"), kind),
+    line(t("Cartella"), d.folder),
+    line(t("Host"), d.host, true),
+    line(t("Indirizzo"), d.url ?? "", true),
+    line(t("Utente"), d.user, true),
+    line(t("Dominio"), d.domain),
+    d.length ? h("div", { class: "dvc-kv" }, h("span", { text: t("Password") }), secret(e, null, d.length)) : null,
+    d.linked ? line(t("Credenziale"), d.linked) : null,
+    !d.user && !d.length && !d.rows.length && d.cred !== "PasswordList" ? h("div", { class: "notion-note", text: t("Nessun utente né password in questa voce.") }) : null,
+    d.description ? h("div", { class: "dvc-kv dvc-desc" }, h("span", { text: t("Descrizione") }), h("b", { text: d.description })) : null];
+  for (const p of parts) if (p) pane.append(p);
+  if (d.rows.length) {
+    pane.append(h("div", { class: "dvc-rows" }, ...d.rows.map((r, i) => h("div", { class: "dvc-row" },
+      h("div", { class: "dvc-row-head" }, h("b", { text: r.name || "—" }),
+        h("span", { text: [r.domain ? `${r.domain}\\${r.user}` : r.user, r.host].filter(Boolean).join(" · ") }),
+        r.user ? copyBtn(r.user) : null),
+      r.length ? secret(e, i, r.length) : h("small", { text: t("senza password") })))));
+  }
+  return pane;
 }
 
 function entryRow(e: DvcItem): HTMLElement {
-  const open = dv.open.has(e.id);
+  const open = dv.sel === e.id;
   const mark = icon(e);
-  return h("div", { class: "dvc-entry" },
+  return h("div", { class: open ? "dvc-entry on" : "dvc-entry" },
     h("div", { class: "int-page rdm-row", role: "button", title: [e.folder, e.host].filter(Boolean).join(" · ") || e.name,
       onclick: () => void toggleDetails(e) },
     mark ? h("span", { class: "dvc-icon", text: mark }) : h("span", { class: "rdm-kind", text: kindLabel(e.kind) }),
@@ -256,8 +335,7 @@ function entryRow(e: DvcItem): HTMLElement {
       isConnection(e) ? btn(t("Apri"), () => void Bridge.rdmOpen({ id: e.id, name: e.name, group: e.folder, host: e.host, kind: e.kind })
         .then(() => Sound.play("blip")).catch((err) => say(errText(err))), t("Apri in Remote Desktop Manager")) : null,
       e.kind.startsWith("Credential") && e.cred !== "PasswordList" ? btn("🔑", () => void copyPassword(e, null), t("Copia password")) : null,
-      h("span", { class: "dvc-chev", text: open ? "▾" : "▸" }))),
-    detailsPart(e));
+      h("span", { class: "dvc-chev", text: open ? "◂" : "▸" }))));
 }
 
 function crumbs(b: DvcBrowse): HTMLElement {
@@ -305,12 +383,33 @@ function draw() {
   if (!el) return;
   const focused = el.ownerDocument.activeElement;
   const keep = focused instanceof HTMLInputElement && el.contains(focused) ? focused.dataset.k ?? "" : "";
+  // The list keeps where it was scrolled to (a redraw for the eye, a note…).
+  const scrolled = el.querySelector(".dvc-list")?.scrollTop ?? 0;
+  const paneScrolled = el.querySelector(".dvc-pane")?.scrollTop ?? 0;
   clear(el);
   const b = dv.browse;
   if (!b || !b.vaults.length) {
     el.append(h("div", { class: "notion-note", text: t("Nessun vault letto: premi Sincronizza (in alto) dopo aver messo indirizzo, Key e Secret in Impostazioni → Remote Desktop Manager.") }));
     return;
   }
+  // The list, and the pane of the entry picked below it (beside it when the card is wide).
+  const list = h("div", { class: "dvc-list" });
+  const pane = panePart();
+  el.append(h("div", { class: pane ? "dvc-split with-pane" : "dvc-split" }, list, pane));
+  appendList(list, b);
+  // «Copiato», «Password negli appunti…»: where the eye is, the pane if open.
+  if (dv.note) (pane ?? list).append(h("div", { class: "notion-note dvc-note", text: dv.note }));
+  list.scrollTop = scrolled;
+  if (pane) pane.scrollTop = paneScrolled;
+  // The field being typed in keeps the caret across a redraw.
+  if (keep) {
+    const again = Array.from(el.querySelectorAll("input")).find((i) => i.dataset.k === keep);
+    again?.focus();
+  }
+}
+
+/** Folders, entries, the forms, the customer: the list's part of the view. */
+function appendList(el: HTMLElement, b: DvcBrowse) {
   el.append(crumbs(b));
   for (const f of b.folders) {
     el.append(h("div", { class: "int-page rdm-row dvc-folder", role: "button", onclick: () => void go(f.path) },
@@ -330,12 +429,6 @@ function draw() {
   }
   const tie = tiePart();
   if (tie) el.append(tie);
-  if (dv.note) el.append(h("div", { class: "notion-note", text: dv.note }));
-  // The field being typed in keeps the caret across a redraw.
-  if (keep) {
-    const again = Array.from(el.querySelectorAll("input")).find((i) => i.dataset.k === keep);
-    again?.focus();
-  }
 }
 
 /** The view, the same element at every rebuild of the card. */
