@@ -94,6 +94,7 @@ mod skills;
 mod tasks;
 mod telegram;
 mod agentchat;
+mod agentchat_map;
 mod i18n;
 mod webview_profile;
 mod recap;
@@ -1673,6 +1674,12 @@ fn agentchat_restart() {
 }
 
 /// The island's Agent Chat card: a message as the owner (owner token, name from the settings).
+/// The Agent Chat card's «Argomenti»: the messages of one topic (agentchat_map.rs).
+#[tauri::command]
+fn agentchat_topic_messages(id: i64) -> Vec<agentchat::Msg> {
+    agentchat::topic_messages(id)
+}
+
 #[tauri::command]
 async fn agentchat_owner_send(app: AppHandle, room: String, text: String, thread: Option<i64>, files: Vec<String>) -> Result<agentchat::Msg, String> {
     agentchat::owner_send(&app, &room, &text, thread, &files).await
@@ -4439,6 +4446,7 @@ pub fn run() {
             agentchat_restart,
             agentchat_resume,
             agentchat_owner_send,
+            agentchat_topic_messages,
             agentchat_listen,
             work_list,
             work_open,

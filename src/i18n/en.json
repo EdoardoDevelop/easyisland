@@ -4516,5 +4516,20 @@
   "Hook attivi · nessuna sessione di Claude Code": "Hooks on · no Claude Code session",
   "Connesso · caricamento…": "Connected · loading…",
   "Chiama {who} · {n}": "Call {who} · {n}",
-  "Niente nel cloud con queste parole.": "Nothing in the cloud with these words."
+  "Niente nel cloud con queste parole.": "Nothing in the cloud with these words.",
+  "da fare": "to do",
+  "bloccato": "blocked",
+  "Argomenti · {n} aperti": "Topics · {n} open",
+  "Ancora nessun argomento: si formano dalle richieste in chat.": "No topic yet: they form from the requests in the chat.",
+  "‹ Tutta la chat": "‹ The whole chat",
+  "{n} g fa": "{n} d ago",
+  "\n\nMappa della chat ({n} argomenti, dal più recente; l'id è quello del primo messaggio). Usala per sapere cosa si è già deciso o fatto e chi ci lavora; per leggere un argomento intero o cercare nei messaggi vecchi usa agentchat_topic (id, oppure query).": "\n\nMap of the chat ({n} topics, most recent first; the id is that of the first message). Use it to know what was already decided or done and who works on it; to read a whole topic or search the old messages use agentchat_topic (id, or query).",
+  "\n(e altri {n} più vecchi: cercali con agentchat_topic)": "\n(and {n} older ones: look for them with agentchat_topic)",
+  "Nessun argomento con il messaggio #{id} (forse è troppo vecchio).": "No topic with message #{id} (maybe it is too old).",
+  "Argomento #{id} «{title}» — {state}, {n} messaggi:": "Topic #{id} «{title}» — {state}, {n} messages:",
+  "\n(i primi {n} non sono mostrati)": "\n(the first {n} are not shown)",
+  "id: l'argomento (un suo messaggio), oppure query: le parole da cercare.": "id: the topic (one of its messages), or query: the words to look for.",
+  "Nessun messaggio con queste parole.": "No message with these words.",
+  "{n} messaggi trovati (dal più recente):": "{n} messages found (most recent first):",
+  "1 messaggio": "1 message"
 }

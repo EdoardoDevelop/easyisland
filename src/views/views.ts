@@ -33,6 +33,7 @@ import { Sound } from "../core/sound";
 import { softphoneVersion } from "../core/softphone";
 import { THREECX } from "./threecx";
 import { ZAMMAD, zammadKey } from "./zammad";
+import { AGENTCHAT, agentchatKey } from "./agentchat";
 import { t } from "../core/i18n";
 
 export interface ViewActions extends ActionHandlers, RewriteHandlers, RememberHandlers, TalkHandlers, MomentActions {
@@ -502,6 +503,8 @@ function buildOverview(actions: ViewActions): ViewHost {
           task.id === "integration_notion" && detailOpen ? "page" : JSON.stringify(info?.data ?? {}),
           JSON.stringify(State.widgetStatus[task.id.replace(/^widget:/, "")] ?? null),
           task.id === THREECX ? softphoneVersion() : 0,
+          // Agent Chat: «Chat» / «Argomenti» and the topic open (agentchat.ts).
+          task.id === AGENTCHAT ? agentchatKey() : "",
           // An integration of the user's: redrawn when it or its records change elsewhere.
           task.id.startsWith("custom:") ? State.customVersion : 0,
           // The header's bell and speaker change only a setting.

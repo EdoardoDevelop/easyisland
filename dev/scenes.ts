@@ -392,12 +392,24 @@ export async function runScene(island: Island, scene: string) {
             online: { casa: true },
           } : null,
           canWrite: q.has("write"), ownerName: "edo", rooms: ["general", "lavoro"],
+          // The map of the chat (agentchat_map.rs); &argomenti opens «Argomenti».
+          topics: [
+            { id: 7, room: "general", title: "@lia controlla anche lo spazio sul server", state: "da fare", who: [], first: now - 30, last: now - 30, ids: [7], consult: false, last_line: "@lia controlla anche lo spazio sul server" },
+            { id: 5, room: "general", title: "aggiornate le dipendenze del progetto sito e fate girare i test", state: "aperto", who: ["lia", "casa/opencode"], first: now - 120, last: now - 100, ids: [5, 6], consult: false, last_line: "Lo prendo io per le dipendenze." },
+            { id: 1, room: "general", title: "ciao", state: "aperto", who: ["lia", "casa/opencode", "vps/claude"], first: now - 600, last: now - 400, ids: [1, 2, 3, 4], consult: false, last_line: "Il backup di stanotte è andato a buon fine." },
+            { id: -3, room: "lavoro", title: "Prepara il preventivo per Verdi", state: "bloccato", who: ["lavoro/codex"], first: now - 86_400 * 2, last: now - 86_400, ids: [1, 2], consult: false, last_line: "BLOCCATO: manca il listino 2026." },
+            { id: -9, room: "general", title: "Controlla il backup del NAS di Rossi", state: "fatto", who: ["lia"], first: now - 86_400 * 3, last: now - 86_400 * 3, ids: [1, 2, 3], consult: false, last_line: "FATTO: backup ok." },
+          ],
         },
       };
       State.setFocus("integration_agentchat");
       State.summary = false;
       island.alert("overview");
       island.setPinned(true);
+      if (q.has("argomenti")) {
+        for (let i = 0; i < 20 && !document.querySelector(".ac-tab"); i++) await wait(100);
+        [...document.querySelectorAll<HTMLElement>(".ac-tab")].find((b) => b.textContent?.startsWith("Argomenti"))?.click();
+      }
       await wait(1500);
       break;
     }

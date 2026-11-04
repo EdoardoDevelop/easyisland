@@ -655,6 +655,8 @@ export const Bridge = {
   /** The card's field: a message as the owner (owner token, the name from the settings; agentchat.rs owner_send). */
   agentchatOwnerSend: (room: string, text: string, thread: number | null, files: string[]) =>
     callOrThrow<{ id: number }>("agentchat_owner_send", { room, text, thread, files }),
+  /** The Agent Chat card's «Argomenti»: one topic's messages, older ones too (agentchat_map.rs). */
+  agentchatTopicMessages: <T>(id: number) => call<T[]>("agentchat_topic_messages", { id }),
   agentchatListen: (on: boolean) => callOrThrow<void>("agentchat_listen", { on }),
   rdmDataSources: () => callOrThrow<{ id: string; name: string; kind: string }[]>("rdm_data_sources"),
   /** "+ Attività" in the Notion card (due: "YYYY-MM-DD" or null). */

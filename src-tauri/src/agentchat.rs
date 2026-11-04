@@ -358,6 +358,8 @@ fn remember(list: &[Msg]) {
     if !list.is_empty() {
         stir();
     }
+    // The map of the whole chat (agentchat_map.rs) follows every message.
+    crate::agentchat_map::add(list);
     let mut r = RECENT.lock().unwrap();
     for m in list {
         if r.iter().all(|x| x.id != m.id) {
@@ -401,6 +403,8 @@ pub fn publish(app: &AppHandle) {
         "engines": engines,
         "names": names,
         "messages": RECENT.lock().unwrap().iter().cloned().collect::<Vec<_>>(),
+        // «Argomenti» in the card: the map, most recent first (agentchat_map.rs).
+        "topics": crate::agentchat_map::topics(&st.owner, &|h| name_of(h)).into_iter().take(40).collect::<Vec<_>>(),
         "activity": ACTIVITY.lock().unwrap().clone(),
         "canWrite": crate::secrets::get(OWNER_TOKEN_KEY).is_some_and(|t| !t.trim().is_empty()),
         "ownerName": owner_name(app),
@@ -716,6 +720,12 @@ async fn hello(srv: &Server) -> Result<(String, String, i64), String> {
     if let Ok(list) = messages(srv, &rooms, -(RECENT_MAX as i64), 0, None).await {
         RECENT.lock().unwrap().clear();
         remember(&list);
+    }
+    // The map: the last thousand messages of the followed rooms (the server's most per call).
+    if let Ok(v) = get(srv, &format!("/api/messages?rooms={}&after=-1000&wait=0&limit=1000", query(&rooms)), 30).await {
+        if let Ok(list) = serde_json::from_value::<Vec<Msg>>(v) {
+            crate::agentchat_map::reset(&list);
+        }
     }
     let last = messages(srv, "*", -1, 0, None).await?.last().map_or(0, |m| m.id);
     Ok((name, owner, last))
@@ -1425,6 +1435,8 @@ async fn turn(app: AppHandle, srv: Server, cfg: Config, me: String, owner: Strin
     if keeps {
         prompt.push_str(&memory_rule());
     }
+    // The whole chat as topics, so the last messages are not all it knows (agentchat_map.rs).
+    prompt.push_str(&crate::agentchat_map::prompt(&owner, &|h| name_of(h)));
     prompt.push_str(&tf("\n\nMessaggi (dal più vecchio, stanza «{room}»):\n", &[("room", &m.room)]));
     prompt.push_str(&transcript(&history));
     prompt.push_str(&tf("\n\nRispondi al messaggio #{id} di {who}.", &[("id", &m.id), ("who", &m.sender)]));
@@ -1942,6 +1954,20 @@ pub async fn tool_read(app: &AppHandle, args: &Value) -> Result<String, String> 
         })
         .collect::<Vec<_>>()
         .join("\n"))
+}
+
+/// The card's «Argomenti»: the messages of a topic, older ones too.
+pub fn topic_messages(id: i64) -> Vec<Msg> {
+    let owner = STATUS.lock().unwrap().owner.clone();
+    crate::agentchat_map::messages_of(id, &owner, &|h| name_of(h))
+}
+
+/// agentchat_topic: a whole topic of the map, or the old messages with some
+/// words (agentchat_map.rs). Read-only, also inside Agent Chat's own turns.
+pub async fn tool_topic(_app: &AppHandle, args: &Value) -> Result<String, String> {
+    let id = args.get("id").and_then(|v| v.as_i64().or_else(|| v.as_str().and_then(|s| s.trim_start_matches('#').parse().ok())));
+    let owner = STATUS.lock().unwrap().owner.clone();
+    crate::agentchat_map::read(id, arg(args, "query"), &owner, &|h| name_of(h), &|m| transcript(std::slice::from_ref(m)))
 }
 
 /// agentchat_import: an attachment into the Vassoio. Claimed first on the

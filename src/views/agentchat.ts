@@ -69,6 +69,50 @@ export interface AgentchatData {
   canWrite?: boolean;
   ownerName?: string;
   rooms?: string[];
+  /** The map of the chat (agentchat_map.rs), most recent first. */
+  topics?: ChatTopic[];
+}
+
+/** A topic of the chat: a request of the owner and what followed it. */
+export interface ChatTopic {
+  id: number;
+  room: string;
+  title: string;
+  state: "da fare" | "aperto" | "fatto" | "bloccato";
+  who: string[];
+  first: number;
+  last: number;
+  ids: number[];
+  consult: boolean;
+  last_line: string;
+}
+
+/** «Chat» or «Argomenti»; a topic opened in «Chat» shows only its messages. */
+let acView: "chat" | "topics" = "chat";
+let acTopic: { topic: ChatTopic; msgs: ChatMsg[] } | null = null;
+
+/** What views.ts adds to the card's key: the tab and the topic open redraw it. */
+export function agentchatKey(): string {
+  return `${acView}|${acTopic?.topic.id ?? ""}|${acTopic?.msgs.length ?? 0}`;
+}
+
+const STATE_LABEL: Record<ChatTopic["state"], string> = { "da fare": t("da fare"), aperto: t("aperto"), fatto: t("fatto"), bloccato: t("bloccato") };
+
+/** A topic opened: its messages (older ones too, from the map), shown in «Chat». */
+async function openTopic(tp: ChatTopic) {
+  const msgs = (await Bridge.agentchatTopicMessages<ChatMsg>(tp.id)) ?? [];
+  acTopic = { topic: tp, msgs };
+  acView = "chat";
+  State.notify();
+}
+
+function topicRow(tp: ChatTopic): HTMLElement {
+  const state = tp.state.replace(" ", "-");
+  return h("div", { class: "ac-topic", role: "button", title: tp.last_line, onclick: (e: Event) => { e.stopPropagation(); void openTopic(tp); } },
+    h("span", { class: `ac-tstate ${state}`, text: STATE_LABEL[tp.state] ?? tp.state }),
+    h("div", { class: "ac-tmain" },
+      h("div", { class: "ac-ttitle", text: `${tp.consult ? `${t("consulta")} · ` : ""}${tp.title}` }),
+      h("div", { class: "ac-tmeta", text: [tp.who.join(", "), tp.room, tp.ids.length === 1 ? t("1 messaggio") : t("{n} messaggi", { n: tp.ids.length }), timeAgo(tp.last * 1000)].filter(Boolean).join(" · ") })));
 }
 
 export function agentchatData(): AgentchatData {
@@ -419,11 +463,37 @@ export function agentchatCard(openSettings: () => void): HTMLElement {
         title: `${e.handle ?? e.name} · ${e.engine} · ${t("oggi {n} turni, ≈{k} token", { n: e.today ?? 0, k: compact(e.tokens ?? 0) })}`,
         text: `@${e.name}${e.lead ? " ★" : ""}${e.today ? ` · ${e.today}` : ""}` }))));
   }
-  const list = d.messages ?? [];
+  // «Chat» and «Argomenti» (the map of the whole chat, agentchat_map.rs).
+  const topics = d.topics ?? [];
+  const open = topics.filter((x) => x.state === "da fare" || x.state === "aperto" || x.state === "bloccato").length;
+  const tab = (id: "chat" | "topics", label: string) => h("button", { class: acView === id ? "rec-chip on ac-tab" : "rec-chip ac-tab", text: label,
+    onclick: (e: Event) => { e.stopPropagation(); acView = id; if (id === "topics") acTopic = null; State.notify(); } });
+  body.append(h("div", { class: "ac-tabs" }, tab("chat", t("Chat")),
+    tab("topics", topics.length ? t("Argomenti · {n} aperti", { n: open }) : t("Argomenti"))));
   const box = h("div", { class: "ac-list" });
-  if (!list.length) box.append(h("div", { class: "int-empty", text: t("Nessun messaggio nelle stanze seguite.") }));
-  for (const m of list) box.append(messageRow(m, d));
-  body.append(box);
+  if (acView === "topics") {
+    if (!topics.length) box.append(h("div", { class: "int-empty", text: t("Ancora nessun argomento: si formano dalle richieste in chat.") }));
+    for (const tp of topics) box.append(topicRow(tp));
+    body.append(box);
+  } else {
+    const list = acTopic ? acTopic.msgs : d.messages ?? [];
+    if (acTopic) {
+      body.append(h("div", { class: "ac-topic-bar" },
+        h("button", { class: "link-btn", text: t("‹ Tutta la chat"), onclick: (e: Event) => { e.stopPropagation(); acTopic = null; State.notify(); } }),
+        h("span", { class: `ac-tstate ${acTopic.topic.state.replace(" ", "-")}`, text: STATE_LABEL[acTopic.topic.state] }),
+        h("b", { text: acTopic.topic.title })));
+      // New messages of the topic: read again (only when it grew, or the card would redraw for ever).
+      const tp = acTopic.topic;
+      const known = acTopic.msgs.length;
+      void Bridge.agentchatTopicMessages<ChatMsg>(tp.id).then((msgs) => {
+        if (acTopic?.topic.id === tp.id && msgs && msgs.length !== known) { acTopic = { topic: tp, msgs }; State.notify(); }
+      });
+    }
+    if (!list.length) box.append(h("div", { class: "int-empty", text: t("Nessun messaggio nelle stanze seguite.") }));
+    for (const m of list) box.append(messageRow(m, d));
+    body.append(box);
+  }
+  const list = d.messages ?? [];
   const bar = activityBar(d, list);
   if (bar) body.append(bar);
   if (d.canWrite) {
@@ -435,6 +505,6 @@ export function agentchatCard(openSettings: () => void): HTMLElement {
   if (d.last) body.append(h("div", { class: "hint rec-hint", text: d.last }));
   body.append(note);
   // The newest message in view.
-  requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
+  if (acView === "chat") requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
   return h("div", { class: "int-card notion-card ac-card" }, head, body);
 }

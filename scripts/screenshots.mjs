@@ -75,6 +75,8 @@ const SHOTS = {
   // RDM with Devolutions Cloud: a customer tied to its folder (dev/scenes.ts `rdm&tied`).
   // The search field finding the cloud (folders and entries) and a 3CX contact (dev/scenes.ts `search`).
   "search-ovunque": { url: `/?scene=search&q=rossi&islandHeight=560&activeIntegrations=integration_rdm,integration_3cx,${PILLS}` },
+  // Agent Chat: «Argomenti», the map of the chat (dev/scenes.ts `agentchat&argomenti`).
+  "agentchat-argomenti": { url: `/?scene=agentchat&argomenti&islandHeight=560&activeIntegrations=integration_agentchat,${PILLS}` },
   "rdm-cloud": { url: `/?scene=rdm&tied&islandHeight=560&activeIntegrations=integration_rdm,${PILLS}` },
   // An entry picked: its pane with user and the password shown with the eye.
   "rdm-cloud-voce": { url: `/?scene=rdm&tied&islandHeight=560&activeIntegrations=integration_rdm,${PILLS}`,
