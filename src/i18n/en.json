@@ -4455,5 +4455,16 @@
   "Descrizione: {d}": "Description: {d}",
   "Nuova «{name}» in «{folder}» con {n} righe:": "New “{name}” in “{folder}” with {n} rows:",
   "Le credenziali di partenza restano dove sono.": "The source credentials stay where they are.",
-  "Apre una connessione in RDM": "Opens a connection in RDM"
+  "Apre una connessione in RDM": "Opens a connection in RDM",
+  "Creare una credenziale in Devolutions Cloud": "Create a credential in Devolutions Cloud",
+  "Creare una lista password in Devolutions Cloud": "Create a password list in Devolutions Cloud",
+  "La finestra della password non si è aperta (errore {e}).": "The password window did not open (error {e}).",
+  "EasyIsland · password per Devolutions Cloud": "EasyIsland · password for Devolutions Cloud",
+  "Password della nuova credenziale «{name}» in «{folder}». Non passa dalla chat: va solo nel vault.": "Password of the new credential “{name}” in “{folder}”. It does not go through the chat: only into the vault.",
+  "Scrivi di nuovo la password di «{name}», per conferma.": "Type the password of “{name}” again, to confirm.",
+  "Le due password non coincidono: non ho scritto niente.": "The two passwords differ: nothing was written.",
+  "Legge Devolutions Cloud": "Reads Devolutions Cloud",
+  "Prepara una lista password": "Prepares a password list",
+  "Crea una lista password in Devolutions Cloud": "Creates a password list in Devolutions Cloud",
+  "Crea una credenziale in Devolutions Cloud": "Creates a credential in Devolutions Cloud"
 }

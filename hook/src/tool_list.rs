@@ -68,6 +68,63 @@ pub fn tools() -> Vec<(&'static str, &'static str, Value, bool)> {
             false,
         ),
         (
+            "dvc_vaults",
+            "Devolutions Cloud (vault di RDM collegati a EasyIsland con un'Application identity): elenca i vault; * indica quello usato quando non ne indichi uno. Mai password.",
+            none.clone(),
+            true,
+        ),
+        (
+            "dvc_entries",
+            "Devolutions Cloud: elenca le voci (nome, tipo, cartella, host, utente, id), mai password. path: cartella come in RDM (es. Easytech\\\\CLIENTE); recurse: anche sottocartelle; name: filtro con * e ?; type: Credential, PasswordList, Group, RDPConfigured, SSHShell…; vault: nome o id se ce n'è più d'uno; refresh: rilegge i vault prima (più lento). Se non sei sicuro del percorso cerca la cartella con type=Group e name.",
+            json!({ "type": "object", "properties": {
+                "path": { "type": "string" }, "recurse": { "type": "boolean" }, "name": { "type": "string" },
+                "type": { "type": "string" }, "vault": { "type": "string" }, "refresh": { "type": "boolean" }
+            } }),
+            true,
+        ),
+        (
+            "dvc_folder_id",
+            "Devolutions Cloud: l'id di una cartella dal percorso completo (es. Easytech\\\\FARMACIATERNI\\\\COMUNALE1).",
+            json!({ "type": "object", "properties": { "path": { "type": "string" }, "vault": { "type": "string" } }, "required": ["path"] }),
+            true,
+        ),
+        (
+            "dvc_show",
+            "Devolutions Cloud: i dettagli di una voce per id (utente, dominio, host, descrizione, tipo); della password solo la lunghezza. Per una Password List anche le righe.",
+            json!({ "type": "object", "properties": { "id": { "type": "string" }, "vault": { "type": "string" } }, "required": ["id"] }),
+            true,
+        ),
+        (
+            "dvc_password_list_preview",
+            "Devolutions Cloud, anteprima senza scrivere: cosa creerebbe dvc_new_password_list (righe con nome e utente, nome già usato). Stessi parametri di dvc_new_password_list. Usala prima di creare e mostra l'anteprima all'utente.",
+            json!({ "type": "object", "properties": {
+                "folder_path": { "type": "string" }, "name": { "type": "string" },
+                "source_ids": { "type": "array", "items": { "type": "string" } }, "source_folder": { "type": "string" },
+                "recurse": { "type": "boolean" }, "vault": { "type": "string" }
+            }, "required": ["folder_path"] }),
+            true,
+        ),
+        (
+            "dvc_new_password_list",
+            "Devolutions Cloud: crea in folder_path una voce Password List (name, predefinito «Lista Password») copiando utente, password, dominio, host e descrizione dalle credenziali sorgenti: source_ids (id) oppure source_folder (tutte le credenziali di una cartella, recurse per le sottocartelle). Le password le copia EasyIsland senza mostrarle; poi rilegge e verifica riga per riga. Le sorgenti restano dove sono. Prima fai vedere l'anteprima (dvc_password_list_preview).",
+            json!({ "type": "object", "properties": {
+                "folder_path": { "type": "string" }, "name": { "type": "string" },
+                "source_ids": { "type": "array", "items": { "type": "string" } }, "source_folder": { "type": "string" },
+                "recurse": { "type": "boolean" }, "vault": { "type": "string" }
+            }, "required": ["folder_path"] }),
+            false,
+        ),
+        (
+            "dvc_new_credential",
+            "Devolutions Cloud: crea una credenziale semplice in folder_path (name, user_name, domain, description). La password NON va mai scritta in chat né passata qui: con ask_password=true (predefinito) EasyIsland apre una finestra di Windows dove l'utente la scrive due volte, poi la salva e verifica. ask_password=false: credenziale senza password.",
+            json!({ "type": "object", "properties": {
+                "folder_path": { "type": "string" }, "name": { "type": "string" }, "user_name": { "type": "string" },
+                "domain": { "type": "string" }, "description": { "type": "string" }, "ask_password": { "type": "boolean" },
+                "vault": { "type": "string" }
+            }, "required": ["folder_path", "name"] }),
+            false,
+        ),
+        (
             "read_clipboard",
             "Legge il testo attualmente negli appunti dell'utente.",
             none.clone(),

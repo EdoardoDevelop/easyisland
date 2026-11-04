@@ -1053,7 +1053,7 @@ async fn dvc_new_credential(app: AppHandle, vault: String, folder: String, name:
 /// A «Lista Password» from a folder's credentials: preview, or written and checked row by row.
 #[tauri::command]
 async fn dvc_new_password_list(app: AppHandle, vault: String, folder: String, name: String, source: String, recurse: bool, confirm: bool) -> Result<dvc::Outcome, String> {
-    let out = dvc::new_password_list(&vault, &folder, &name, &source, recurse, confirm).await?;
+    let out = dvc::new_password_list(&vault, &folder, &name, dvc::Sources::Folder { path: source, recurse }, confirm).await?;
     if confirm {
         rdm::changed(&app);
     }

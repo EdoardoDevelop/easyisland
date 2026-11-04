@@ -39,4 +39,6 @@ Nella scheda RDM compare **Devolutions Cloud**: le cartelle dei vault con connes
 - **+ Credenziale** e **+ Lista password da questa cartella** (unisce le credenziali della cartella in una voce «Lista Password»): prima un'**anteprima**, poi **Conferma e crea**; EasyIsland rilegge la voce e ti dice se utenti e password tornano. Non elimina mai nulla.
 - **Cliente**: collega un cliente di Zammad o 3CX alla sua cartella. Dal pulsante RDM di un ticket o di una chiamata di quel cliente la scheda si apre direttamente lì.
 
+**Dalla chat** puoi fare le stesse cose: «che credenziali ci sono nella cartella di Rossi?», «dettagli della Lista Password», «unisci le password della cartella Server in una Lista Password» (prima l'anteprima, poi **Consenti**), «crea in CLIENTE la credenziale Firewall, utente admin». Per una credenziale con password si apre la **finestra di Windows** per le credenziali: la scrivi due volte e va direttamente nel vault, senza passare dalla chat. Le password non arrivano mai al motore della chat.
+
 Le chiavi stanno in Gestione credenziali di Windows; l'elenco delle voci (senza password) è cifrato per il tuo utente su questo PC. Usa un'identità diversa per ogni PC: rigenerare il Secret scollega l'altro.

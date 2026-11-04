@@ -107,8 +107,8 @@ pub fn only_reversible(list: &[String]) -> Vec<String> {
 /// chat's ⚡ with opencode, Telegram's) still asks for it. One list for both
 /// since 31 Oct 2026: before, Telegram's let "send" and "archive" through.
 pub fn delicate_tool(tool: &str) -> bool {
-    // A remote PC: a command there, or a connection opened to it (RDM).
-    if tool.ends_with("remote_run") || tool.ends_with("rdm_open") {
+    // A remote PC (a command there, a connection opened to it) or the password vault written.
+    if tool.ends_with("remote_run") || tool.ends_with("rdm_open") || tool.contains("dvc_new_") {
         return true;
     }
     const WORDS: &[&str] = &["delete", "remove", "trash", "archive", "destroy", "drop", "purge", "erase", "clear", "wipe",
@@ -268,7 +268,7 @@ mod tests {
         assert_eq!(tool_of(&json!({ "tool_name": "easyisland_notion_add_row" })), Some("notion_add_row"));
         assert_eq!(tool_of(&json!({ "tool_name": "Bash" })), None);
         assert!(reversible("todo_add") && reversible("move_to_work_folder"));
-        for never in ["notion_delete_row", "remote_run", "open_url", "rdm_open", "run_quick_action", "set_setting", "read_clipboard", "custom_call"] {
+        for never in ["notion_delete_row", "remote_run", "open_url", "rdm_open", "dvc_new_credential", "dvc_new_password_list", "run_quick_action", "set_setting", "read_clipboard", "custom_call"] {
             assert!(!reversible(never), "{never} must always ask");
         }
         let kept = only_reversible(&["todo_add".into(), " todo_add ".into(), "notion_delete_row".into(), "x".into()]);

@@ -39,4 +39,6 @@ The RDM tab gets **Devolutions Cloud**: the vaults' folders with connections, cr
 - **+ Credential** and **+ Password list from this folder** (joins the folder's credentials into a “Password List” entry): first a **preview**, then **Confirm and create**; EasyIsland reads the entry back and tells you whether users and passwords match. It never deletes anything.
 - **Customer**: tie a Zammad or 3CX customer to their folder. From the RDM button of a ticket or a call of that customer, the tab opens right there.
 
+**From the chat** you can do the same: “which credentials are in Rossi's folder?”, “details of the Password List”, “join the passwords of the Server folder into a Password List” (first the preview, then **Allow**), “create the Firewall credential in CLIENTE, user admin”. For a credential with a password the **Windows credentials window** opens: you type it twice and it goes straight into the vault, never through the chat. Passwords never reach the chat engine.
+
 The keys are in the Windows Credential Manager; the list of entries (no passwords) is encrypted for your user on this PC. Use a different identity per PC: regenerating the Secret disconnects the other.

@@ -309,6 +309,14 @@ async fn run(app: &AppHandle, tool: &str, args: &Value) -> Result<String, String
             Ok(if lines.is_empty() { format!("Nessuna connessione trovata per «{query}» (se l'elenco è vecchio, l'utente preme Sincronizza nella scheda RDM).") } else { lines.join("\n") })
         }
 
+        "dvc_vaults" => crate::dvc::tool_vaults(),
+        "dvc_entries" => crate::dvc::tool_entries(args).await,
+        "dvc_folder_id" => crate::dvc::tool_folder_id(args),
+        "dvc_show" => crate::dvc::tool_show(args).await,
+        "dvc_password_list_preview" => crate::dvc::tool_password_list(args, false).await,
+        "dvc_new_password_list" => crate::dvc::tool_password_list(args, true).await,
+        "dvc_new_credential" => crate::dvc::tool_new_credential(args).await,
+
         "rdm_open" => {
             let id = arg(args, "id").trim().trim_matches(['{', '}']).to_string();
             crate::rdm::open(&id)?;

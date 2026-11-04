@@ -695,8 +695,26 @@ pub async fn new_credential(c: NewCredential, confirm: bool) -> Result<Outcome, 
     Ok(outcome)
 }
 
-/// A «Lista Password» in `folder` from the credentials of `source`: `confirm` false = the preview only.
-pub async fn new_password_list(vault: &str, folder: &str, name: &str, source: &str, recurse: bool, confirm: bool) -> Result<Outcome, String> {
+/// Where a list's rows come from: a folder's credentials (and below), or given ones.
+pub enum Sources {
+    Folder { path: String, recurse: bool },
+    Ids(Vec<String>),
+}
+
+/// The credentials with these ids (never a list), in the vault.
+fn sources_by_id(index: &Index, vault: &str, ids: &[String]) -> Vec<Item> {
+    let mut list: Vec<Item> = index
+        .entries
+        .iter()
+        .filter(|e| e.vault == vault && e.kind.starts_with("Credential") && e.cred != "PasswordList" && ids.iter().any(|i| i.trim_matches(['{', '}']).eq_ignore_ascii_case(&e.id)))
+        .cloned()
+        .collect();
+    list.sort_by_key(|e| e.name.to_lowercase());
+    list
+}
+
+/// A «Lista Password» in `folder` from `from`: `confirm` false = the preview only.
+pub async fn new_password_list(vault: &str, folder: &str, name: &str, from: Sources, confirm: bool) -> Result<Outcome, String> {
     let name = clean_name(name)?;
     let (parent, folder, sources) = {
         load_cache();
@@ -706,7 +724,10 @@ pub async fn new_password_list(vault: &str, folder: &str, name: &str, source: &s
         if taken(index, vault, &f.path, &name) {
             return Err(t("Esiste già una voce con questo nome nella cartella: scegli un altro nome.").into());
         }
-        let sources = list_sources(index, vault, source, recurse, &name);
+        let sources = match &from {
+            Sources::Folder { path, recurse } => list_sources(index, vault, path, *recurse, &name),
+            Sources::Ids(ids) => sources_by_id(index, vault, ids),
+        };
         if sources.is_empty() {
             return Err(t("Nella cartella non ci sono credenziali da unire.").into());
         }
@@ -730,9 +751,314 @@ pub async fn new_password_list(vault: &str, folder: &str, name: &str, source: &s
     Ok(outcome)
 }
 
+// ── The password window ───────────────────────────────────────────────────────
+// A credential written from the chat: the password is never in the chat. The
+// Windows credentials window asks it (twice, to catch a typo), it goes from
+// there to the Hub and nowhere else.
+
+/// What the window gave: the password, or nothing (cancelled).
+fn prompt_once(caption: &str, message: &str, user: &str) -> Result<Option<String>, String> {
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::{ERROR_CANCELLED, NO_ERROR};
+    use windows::Win32::Security::Credentials::{
+        CredUIPromptForCredentialsW, CREDUI_FLAGS_ALWAYS_SHOW_UI, CREDUI_FLAGS_DO_NOT_PERSIST, CREDUI_FLAGS_EXCLUDE_CERTIFICATES,
+        CREDUI_FLAGS_GENERIC_CREDENTIALS, CREDUI_FLAGS_KEEP_USERNAME, CREDUI_INFOW,
+    };
+    let wide = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
+    let (caption_w, message_w, target_w) = (wide(caption), wide(message), wide("EasyIsland · Devolutions Cloud"));
+    let info = CREDUI_INFOW {
+        cbSize: std::mem::size_of::<CREDUI_INFOW>() as u32,
+        pszCaptionText: PCWSTR(caption_w.as_ptr()),
+        pszMessageText: PCWSTR(message_w.as_ptr()),
+        ..Default::default()
+    };
+    let mut name = [0u16; 514];
+    for (i, u) in user.encode_utf16().take(512).enumerate() {
+        name[i] = u;
+    }
+    let mut pass = [0u16; 512];
+    let flags = CREDUI_FLAGS_GENERIC_CREDENTIALS | CREDUI_FLAGS_ALWAYS_SHOW_UI | CREDUI_FLAGS_DO_NOT_PERSIST | CREDUI_FLAGS_EXCLUDE_CERTIFICATES | CREDUI_FLAGS_KEEP_USERNAME;
+    let err = unsafe { CredUIPromptForCredentialsW(Some(&info), PCWSTR(target_w.as_ptr()), None, 0, &mut name, &mut pass, None, flags) };
+    let len = pass.iter().position(|&c| c == 0).unwrap_or(pass.len());
+    let out = String::from_utf16_lossy(pass.get(..len).unwrap_or_default());
+    pass.fill(0);
+    if err == ERROR_CANCELLED {
+        return Ok(None);
+    }
+    if err != NO_ERROR {
+        return Err(tf("La finestra della password non si è aperta (errore {e}).", &[("e", &err.0)]));
+    }
+    Ok(Some(out))
+}
+
+/// The password for a new credential, typed twice in the Windows window. None = cancelled.
+async fn ask_password(name: &str, folder: &str, user: &str) -> Result<Option<String>, String> {
+    let caption = t("EasyIsland · password per Devolutions Cloud").to_string();
+    let first = tf("Password della nuova credenziale «{name}» in «{folder}». Non passa dalla chat: va solo nel vault.", &[("name", &name), ("folder", &folder)]);
+    let again = tf("Scrivi di nuovo la password di «{name}», per conferma.", &[("name", &name)]);
+    let shown = if user.trim().is_empty() { name.to_string() } else { user.trim().to_string() };
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(mut one) = prompt_once(&caption, &first, &shown)? else { return Ok(None) };
+        let Some(mut two) = prompt_once(&caption, &again, &shown)? else {
+            one.clear();
+            return Ok(None);
+        };
+        let same = one == two;
+        two.clear();
+        if !same {
+            one.clear();
+            return Err(t("Le due password non coincidono: non ho scritto niente.").into());
+        }
+        Ok(Some(one))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+// ── The chat's tools (agent.rs): the skill's functions through EasyIsland ─────
+// dvc_vaults, dvc_entries, dvc_folder_id, dvc_show, dvc_password_list_preview
+// read; dvc_new_credential and dvc_new_password_list ask Consenti / Nega
+// (hook/src/tool_list.rs). Never a password in what goes back to the engine.
+
+fn arg<'a>(args: &'a Value, key: &str) -> &'a str {
+    args.get(key).and_then(Value::as_str).unwrap_or("").trim()
+}
+
+/// The vault by id or name; with one vault, that one (as Resolve-DVCVault).
+fn vault_of(index: &Index, given: &str) -> Result<String, String> {
+    let g = given.trim().trim_matches(['{', '}']);
+    if !g.is_empty() {
+        return index
+            .vaults
+            .iter()
+            .find(|v| v.id.eq_ignore_ascii_case(g) || v.name.eq_ignore_ascii_case(g))
+            .map(|v| v.id.clone())
+            .ok_or_else(|| format!("Vault «{given}» non trovato: vedi dvc_vaults."));
+    }
+    match index.vaults.as_slice() {
+        [one] => Ok(one.id.clone()),
+        [] => Err("Nessun vault letto: l'utente preme Sincronizza nella scheda RDM.".into()),
+        _ => Err("Più vault: indica vault (nome o id, vedi dvc_vaults).".into()),
+    }
+}
+
+/// `*` and `?` as in PowerShell's -like, ignoring case.
+fn like(text: &str, pattern: &str) -> bool {
+    fn go(t: &[char], p: &[char]) -> bool {
+        match p.split_first() {
+            None => t.is_empty(),
+            Some(('*', rest)) => (0..=t.len()).any(|i| go(t.get(i..).unwrap_or_default(), rest)),
+            Some(('?', rest)) => !t.is_empty() && go(t.get(1..).unwrap_or_default(), rest),
+            Some((c, rest)) => t.first().is_some_and(|x| x == c) && go(t.get(1..).unwrap_or_default(), rest),
+        }
+    }
+    let t: Vec<char> = text.to_lowercase().chars().collect();
+    let p: Vec<char> = pattern.to_lowercase().chars().collect();
+    go(&t, &p)
+}
+
+fn ready() -> Result<(), String> {
+    if !on() {
+        return Err("Devolutions Cloud non è collegato: Impostazioni → Remote Desktop Manager → Devolutions Cloud (indirizzo, Application Key, Secret).".into());
+    }
+    load_cache();
+    Ok(())
+}
+
+fn with_index<T>(f: impl FnOnce(&Index) -> Result<T, String>) -> Result<T, String> {
+    let g = INDEX.lock().map_err(|e| e.to_string())?;
+    let empty = Index::default();
+    f(g.as_ref().unwrap_or(&empty))
+}
+
+fn synced_at(index: &Index) -> String {
+    if index.at == 0 {
+        return "mai sincronizzato".into();
+    }
+    let ago = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0) - index.at).max(0) / 60;
+    format!("elenco di {ago} minuti fa")
+}
+
+/// dvc_vaults (Get-DVCVault): the vaults read, the one used when none is given.
+pub fn tool_vaults() -> Result<String, String> {
+    ready()?;
+    with_index(|i| {
+        let default = vault_of(i, "").ok();
+        let lines: Vec<String> = i.vaults.iter().map(|v| format!("{}{} — id {}", if default.as_deref() == Some(v.id.as_str()) { "* " } else { "" }, v.name, v.id)).collect();
+        Ok(if lines.is_empty() { "Nessun vault: l'utente preme Sincronizza nella scheda RDM.".into() } else { format!("{} ({})", lines.join("\n"), synced_at(i)) })
+    })
+}
+
+/// dvc_entries (Get-DVCEntries): path, recurse, name (with * and ?), type; refresh reads the vaults first.
+pub async fn tool_entries(args: &Value) -> Result<String, String> {
+    ready()?;
+    if args.get("refresh").and_then(Value::as_bool) == Some(true) {
+        refresh().await;
+    }
+    let (path, name, kind) = (norm(arg(args, "path")), arg(args, "name").to_string(), arg(args, "type").to_string());
+    let recurse = args.get("recurse").and_then(Value::as_bool).unwrap_or(false);
+    with_index(|i| {
+        let vault = vault_of(i, arg(args, "vault"))?;
+        let mut lines = Vec::new();
+        for e in i.entries.iter().filter(|e| e.vault == vault) {
+            if !path.is_empty() && !(same(&e.folder, &path) || (recurse && child_of(&path, &e.folder).is_some())) {
+                continue;
+            }
+            if !name.is_empty() && !like(&e.name, &name) {
+                continue;
+            }
+            let ty = if e.cred == "PasswordList" { "PasswordList" } else { e.kind.as_str() };
+            if !kind.is_empty() && !ty.eq_ignore_ascii_case(&kind) && !e.kind.eq_ignore_ascii_case(&kind) {
+                continue;
+            }
+            lines.push(format!("{} | {} | {} | {} | {} | {}", e.name, ty, e.folder, e.host, e.user, e.id));
+            if lines.len() >= 200 {
+                lines.push("… (altre voci: restringi con path, name o type)".into());
+                break;
+            }
+        }
+        Ok(if lines.is_empty() {
+            format!("Nessuna voce ({}).", synced_at(i))
+        } else {
+            format!("Nome | Tipo | Cartella | Host | Utente | Id ({})\n{}", synced_at(i), lines.join("\n"))
+        })
+    })
+}
+
+/// dvc_folder_id (Get-DVCFolderId): the folder's id from its full path.
+pub fn tool_folder_id(args: &Value) -> Result<String, String> {
+    ready()?;
+    with_index(|i| {
+        let vault = vault_of(i, arg(args, "vault"))?;
+        let path = arg(args, "path");
+        let found: Vec<&Item> = i.entries.iter().filter(|e| e.vault == vault && e.kind == "Group" && same(&e.path, path)).collect();
+        match found.as_slice() {
+            [one] => Ok(one.id.clone()),
+            [] => Err(format!("Cartella non trovata: {path} (cerca con dvc_entries type=Group).")),
+            _ => Err(format!("Più cartelle con percorso {path}.")),
+        }
+    })
+}
+
+/// dvc_show (Show-DVCEntry): details, the password only as its length; a list's rows too.
+pub async fn tool_show(args: &Value) -> Result<String, String> {
+    ready()?;
+    let id = arg(args, "id").trim_matches(['{', '}']).to_string();
+    let vault = with_index(|i| {
+        let given = arg(args, "vault");
+        if given.is_empty() {
+            if let Some(e) = i.entries.iter().find(|e| e.id.eq_ignore_ascii_case(&id)) {
+                return Ok(e.vault.clone());
+            }
+        }
+        vault_of(i, given)
+    })?;
+    let d = details(&vault, &id).await?;
+    let s = |k: &str| d.get(k).and_then(Value::as_str).unwrap_or("").to_string();
+    let mut out = format!(
+        "Nome: {}\nTipo: {}\nTipo credenziale: {}\nCartella: {}\nHost: {}\nUtente: {}\nDominio: {}\nLunghezza password: {}\nDescrizione: {}\nId: {id}",
+        s("name"), s("kind"), s("cred"), s("folder"), s("host"), s("user"), s("domain"), d.get("length").and_then(Value::as_u64).unwrap_or(0), s("description")
+    );
+    if let Some(rows) = d.get("rows").and_then(Value::as_array).filter(|r| !r.is_empty()) {
+        out.push_str("\nRighe (nome | host | utente | dominio | lunghezza password | descrizione):");
+        for r in rows {
+            let g = |k: &str| r.get(k).and_then(Value::as_str).unwrap_or("").to_string();
+            out.push_str(&format!("\n{} | {} | {} | {} | {} | {}", g("name"), g("host"), g("user"), g("domain"), r.get("length").and_then(Value::as_u64).unwrap_or(0), g("description")));
+        }
+    }
+    Ok(out)
+}
+
+/// dvc_password_list_preview / dvc_new_password_list (New-DVCPasswordList, with and without -DryRun).
+pub async fn tool_password_list(args: &Value, write: bool) -> Result<String, String> {
+    ready()?;
+    let vault = with_index(|i| vault_of(i, arg(args, "vault")))?;
+    let folder = arg(args, "folder_path");
+    let name = if arg(args, "name").is_empty() { "Lista Password" } else { arg(args, "name") };
+    let ids: Vec<String> = args.get("source_ids").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect()).unwrap_or_default();
+    let from = if !ids.is_empty() {
+        Sources::Ids(ids)
+    } else if !arg(args, "source_folder").is_empty() {
+        Sources::Folder { path: arg(args, "source_folder").to_string(), recurse: args.get("recurse").and_then(Value::as_bool).unwrap_or(false) }
+    } else {
+        return Err("Indica source_ids oppure source_folder.".into());
+    };
+    let out = new_password_list(&vault, folder, name, from, write).await?;
+    if !write {
+        return Ok(format!("ANTEPRIMA, niente scritto:\n{}", out.preview.join("\n")));
+    }
+    if let Some(app) = crate::brain_watch::app() {
+        crate::rdm::changed(app);
+    }
+    Ok(checked(&out, name, folder))
+}
+
+fn checked(out: &Outcome, name: &str, folder: &str) -> String {
+    let all = out.rows.iter().all(|r| r.user_ok && r.password_ok);
+    let rows: Vec<String> = out.rows.iter().map(|r| format!("{} — utente {} · password {}", r.row, if r.user_ok { "ok" } else { "DIVERSO" }, if r.password_ok { "ok" } else { "DIVERSA" })).collect();
+    format!("Creata «{name}» in «{folder}» (id {}). Verifica: {}.\n{}", out.id, if all { "tutto ok" } else { "qualcosa non torna, controllare in RDM" }, rows.join("\n"))
+}
+
+/// dvc_new_credential (New-DVCCredential): the password, if any, in the Windows window, never in the chat.
+pub async fn tool_new_credential(args: &Value) -> Result<String, String> {
+    ready()?;
+    let vault = with_index(|i| vault_of(i, arg(args, "vault")))?;
+    let (folder, name, user) = (arg(args, "folder_path").to_string(), arg(args, "name").to_string(), arg(args, "user_name").to_string());
+    let mut c = NewCredential { vault, folder: folder.clone(), name: name.clone(), user: user.clone(), domain: arg(args, "domain").to_string(), password: String::new(), description: arg(args, "description").to_string() };
+    // Name and folder checked before the window opens.
+    new_credential(NewCredential { password: String::new(), vault: c.vault.clone(), folder: folder.clone(), name: name.clone(), user: user.clone(), domain: c.domain.clone(), description: c.description.clone() }, false).await?;
+    if args.get("password").and_then(Value::as_str).is_some_and(|p| !p.is_empty()) {
+        return Err("La password non si passa dalla chat: togli «password»; EasyIsland la chiede in una finestra di Windows (ask_password=true).".into());
+    }
+    if args.get("ask_password").and_then(Value::as_bool).unwrap_or(true) {
+        let asked = std::time::Instant::now();
+        match ask_password(&name, &folder, &user).await? {
+            Some(p) => c.password = p,
+            None => return Ok("L'utente ha chiuso la finestra della password: niente scritto.".into()),
+        }
+        // The chat stops waiting at 330 s (hook/src/mcp.rs): too late, nothing is written.
+        if asked.elapsed() > std::time::Duration::from_secs(280) {
+            c.password.clear();
+            return Ok("La password è arrivata troppo tardi (oltre 4 minuti e mezzo): niente scritto, riprova.".into());
+        }
+    }
+    let had = !c.password.is_empty();
+    let out = new_credential(c, true).await;
+    let out = out?;
+    if let Some(app) = crate::brain_watch::app() {
+        crate::rdm::changed(app);
+    }
+    Ok(format!("{}{}", checked(&out, &name, &folder), if had { "" } else { "\n(senza password)" }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The real window, on this PC: cargo test --lib dvc::tests::password_window -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn password_window() {
+        let got = prompt_once("EasyIsland · prova", "Scrivi una password di prova (non va da nessuna parte)", "utente").unwrap();
+        println!("{}", match got { Some(p) => format!("{} caratteri", p.chars().count()), None => "annullata".into() });
+    }
+
+    #[test]
+    fn like_as_powershell() {
+        assert!(like("Lista Password", "lista*"));
+        assert!(like("NAS", "n?s"));
+        assert!(!like("NAS2", "nas"));
+        assert!(like("", "*"));
+    }
+
+    #[test]
+    fn the_vault_by_id_name_or_alone() {
+        let i = index();
+        assert_eq!(vault_of(&i, "").unwrap(), V);
+        assert_eq!(vault_of(&i, "edoardo").unwrap(), V);
+        assert!(vault_of(&i, "altro").is_err());
+        assert_eq!(sources_by_id(&i, V, &[format!("{{{C}}}"), E.to_string()]).len(), 1);
+    }
 
     const V: &str = "11111111-1111-4111-8111-111111111111";
     const A: &str = "178c2fda-dab4-4f41-98df-6e3205c0a011";
