@@ -551,6 +551,13 @@ fn set_app_mode(app: AppHandle, on: bool) {
     island::set_app_mode(&app, on);
 }
 
+/// A click on the character: the open island behind another window comes
+/// forward (true); already in front, false and the island closes it.
+#[tauri::command]
+fn island_to_front(app: AppHandle) -> bool {
+    island::to_front(&app)
+}
+
 /// A permission or a question while the pinned island is behind other windows.
 #[tauri::command]
 fn flash_if_behind(app: AppHandle) {
@@ -4084,6 +4091,7 @@ pub fn run() {
             open_in_vscode,
             session_reply::session_reply,
             set_app_mode,
+            island_to_front,
             minimize_island,
             file_thumb,
             collect_load,

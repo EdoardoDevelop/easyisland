@@ -312,8 +312,14 @@ function linkCharacterWindow(island: Island) {
     } else if (m.kind === "bar") {
       island.barClick(m.key, m.button, m.x);
     } else if (m.kind === "open") {
-      if (State.mode === "expanded") island.collapse();
-      else island.openFromTaskbar();
+      // Open but behind another window: to the front; closed only from the front.
+      if (State.mode === "expanded") {
+        void Bridge.islandToFront()
+          .catch(() => false)
+          .then((raised) => {
+            if (!raised && State.mode === "expanded") island.collapse();
+          });
+      } else island.openFromTaskbar();
     } else if (m.kind === "ping") {
       send({ kind: "pong", sent: m.sent });
     }

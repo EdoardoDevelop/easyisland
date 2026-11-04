@@ -9,7 +9,7 @@ At rest the character sits in the corner you picked (top centre by default) and 
 |---|---|
 | Hover over the character | It grows, hops, looks at you and waves |
 | Click, or stay over it for a moment | The character hops and stays where it is; the island opens beside it (below, if it sits at the top) with a wave of light, and a copy of it appears in the menu |
-| Click the character with the island open | The island closes |
+| Click the character (in the fixed bar too) with the island open | If the island is behind another window it comes to the front; if it is already in front it closes |
 | Drag the character | It moves where you drop it, even to another screen; the position is saved in the profile |
 | Drag the bottom corner of the open island | Width and height change up to the screen edges. Double-click: default sizes |
 | Drag the open island by its top bar | It stays there while open, then goes back to the character |

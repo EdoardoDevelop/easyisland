@@ -169,6 +169,8 @@ export const Bridge = {
   focusWindow: (focused: boolean) => call<void>("focus_window", { focused }),
   /** 📌 on: the open island as an ordinary app window (taskbar, not always on top). island.rs → set_app_mode. */
   setAppMode: (on: boolean) => call<void>("set_app_mode", { on }),
+  /** Click on the character: the open island behind another window comes forward (true); in front, false. island.rs → to_front. */
+  islandToFront: () => call<boolean>("island_to_front"),
   minimizeIsland: () => call<void>("minimize_island"),
   /** Windows' preview of a picture (thumbs.rs); null for other files. */
   /** La Raccolta (collect.rs): the collection as JSON, "" for none. */
