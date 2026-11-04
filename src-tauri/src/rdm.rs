@@ -248,6 +248,13 @@ fn empty_read(ds: Option<&str>, raw: usize) -> String {
 /// Reads the list again ("Sincronizza" in the card or the settings, a
 /// workspace chosen) and keeps it encrypted on this PC.
 pub async fn refresh(app: &AppHandle) {
+    // Devolutions Cloud on (Application identity, dvc.rs): only its vaults,
+    // never the module's list of the old way (asked by Edoardo on 4 Nov 2026).
+    if crate::dvc::on() {
+        crate::dvc::refresh().await;
+        emit(app);
+        return;
+    }
     let chosen = app
         .try_state::<crate::Shared>()
         .and_then(|s| s.settings.lock().ok().map(|g| g.integration_config.rdm_data_source.clone()))
@@ -284,10 +291,6 @@ pub async fn refresh(app: &AppHandle) {
                 index.error = Some(e);
             }
         }
-    }
-    // Devolutions Cloud (dvc.rs): its vaults with the same «Sincronizza».
-    if crate::dvc::on() {
-        crate::dvc::refresh().await;
     }
     emit(app);
 }
@@ -344,11 +347,13 @@ fn summary() -> Value {
     load_cache();
     let g = INDEX.lock().ok();
     let index = g.as_ref().and_then(|g| g.as_ref());
+    let cloud = crate::dvc::on();
     json!({
-        "count": index.map(|i| i.entries.len()).unwrap_or(0),
+        // With Devolutions Cloud the module's list is not used: no count, no error of it.
+        "count": if cloud { 0 } else { index.map(|i| i.entries.len()).unwrap_or(0) },
         "dataSource": index.and_then(|i| i.data_source.as_ref().map(|d| d.1.clone())),
         "at": index.map(|i| i.at).unwrap_or(0),
-        "listError": index.and_then(|i| i.error.clone()),
+        "listError": if cloud { None } else { index.and_then(|i| i.error.clone()) },
         "exe": exe().is_some(),
         "protocol": protocol(),
         "running": running(),
@@ -420,13 +425,22 @@ pub fn search(query: &str, limit: usize) -> Vec<Entry> {
     let Ok(g) = INDEX.lock() else { return Vec::new() };
     let empty = Index::default();
     let index = g.as_ref().unwrap_or(&empty);
-    let all = with_cloud(&index.entries);
+    let all = with_cloud(local(&index.entries));
     let mut found: Vec<(u32, &Entry)> = all.iter().map(|e| (score(e, &words), e)).filter(|(s, _)| *s > 0).collect();
     if found.is_empty() && words.len() > 1 {
         found = all.iter().map(|e| (loose_score(e, &words), e)).filter(|(s, _)| *s > 0).collect();
     }
     found.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.name.to_lowercase().cmp(&b.1.name.to_lowercase())));
     found.into_iter().take(limit.clamp(1, 50)).map(|(_, e)| e.clone()).collect()
+}
+
+/// The module's list, or nothing when Devolutions Cloud is on (only the cloud then).
+fn local(entries: &[Entry]) -> &[Entry] {
+    if crate::dvc::on() {
+        &[]
+    } else {
+        entries
+    }
 }
 
 /// RDM's list and the connections of Devolutions Cloud (dvc.rs), each id once.
@@ -443,8 +457,8 @@ fn with_cloud(local: &[Entry]) -> Vec<Entry> {
 /// The connections whose host is exactly this (an IP or a name selected).
 pub fn by_host(host: &str) -> Vec<Entry> {
     let h = host.trim().to_lowercase();
-    let local = INDEX.lock().ok().and_then(|g| g.as_ref().map(|i| i.entries.clone())).unwrap_or_default();
-    with_cloud(&local)
+    let local_list = INDEX.lock().ok().and_then(|g| g.as_ref().map(|i| i.entries.clone())).unwrap_or_default();
+    with_cloud(local(&local_list))
         .into_iter()
         .filter(|e| {
             let eh = e.host.to_lowercase();

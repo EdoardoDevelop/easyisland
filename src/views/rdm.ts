@@ -23,10 +23,6 @@ const rdm = {
   search: null as HTMLInputElement | null,
   note: "",
   redraw: null as (() => void) | null,
-  /** The card's tab: RDM's connections, or the folders of Devolutions Cloud (dvc.ts). */
-  tab: "list" as "list" | "cloud",
-  /** Shows the tab chosen in the card on screen (set by rdmCard). */
-  swap: null as (() => void) | null,
 };
 
 /** Looks like a host: an IPv4/IPv6 address or a name with a dot, no spaces. */
@@ -70,15 +66,14 @@ export function rdmLookFor(query: string) {
   // A customer tied to a cloud folder (dvc.ts): that folder, opened.
   const tied = cloudOn() ? dvcFolderFor(query) : null;
   if (tied) {
-    rdm.tab = "cloud";
+    rdm.query = "";
+    if (rdm.search) rdm.search.value = "";
     dvcGoTo(tied.vault, tied.path);
-    rdm.swap?.();
+    rdm.redraw?.();
     State.setFocus(RDM);
     State.notify();
     return;
   }
-  rdm.tab = "list";
-  rdm.swap?.();
   rdm.query = query.trim();
   if (rdm.search) rdm.search.value = rdm.query;
   searchSoon(true);
@@ -109,10 +104,13 @@ function folder(group: string): string {
 export function rdmCard(openSettings: () => void): HTMLElement {
   const cfg = State.settings.integrationConfig;
   const data = (State.integrations[RDM]?.data ?? {}) as Record<string, unknown>;
-  const count = Number(data.count ?? 0);
+  // Devolutions Cloud on (Application identity): only the cloud, never the
+  // module's list of the old way (rdm.rs refresh, asked by Edoardo on 4 Nov 2026).
+  const cloud = (data.cloud ?? {}) as { on?: boolean; count?: number; error?: string | null };
+  const count = cloud.on ? Number(cloud.count ?? 0) : Number(data.count ?? 0);
   const listError = typeof data.listError === "string" ? data.listError : "";
   // The cloud's connections are searched too (rdm.rs with_cloud).
-  const canList = count > 0 || Number((data.cloud as { count?: number } | undefined)?.count ?? 0) > 0;
+  const canList = count > 0;
 
   const body = h("div", { class: "notion-body" });
   const msg = h("div", { class: "notion-note" });
@@ -199,10 +197,10 @@ export function rdmCard(openSettings: () => void): HTMLElement {
     }
     if (listError) body.append(h("div", { class: "notion-note bad", text: listError }));
   };
-  rdm.redraw = draw;
-  draw();
 
-  const sub = canList
+  const sub = cloud.on
+    ? t("{n} voci", { n: count }) + " · Devolutions Cloud"
+    : canList
     ? t("{n} connessioni", { n: count }) + (typeof data.dataSource === "string" && data.dataSource ? ` · ${data.dataSource}` : "")
     : data.exe || data.protocol ? t("Ricerca in RDM") : t("RDM non trovato");
   // The list is the one saved at the last sync: it changes only on request.
@@ -219,27 +217,24 @@ export function rdmCard(openSettings: () => void): HTMLElement {
     h("span", { class: "rdm-state", style: `color:${running ? "#22c55e" : "#8e939c"}`, title: running ? t("RDM è avviato") : t("RDM non è avviato"), text: "●" }),
     sync,
     h("button", { class: "link-btn", style: "color:#8e939c", text: t("Impostazioni…"), onclick: openSettings }));
-  // Devolutions Cloud on: two tabs, RDM's connections and the cloud's folders.
-  const cloud = (data.cloud ?? {}) as { on?: boolean; count?: number; error?: string | null };
-  if (!cloud.on) rdm.tab = "list";
-  const tabs = cloud.on
-    ? h("div", { class: "dvc-tabs" },
-      ...([["list", t("Connessioni")], ["cloud", t("Devolutions Cloud") + (cloud.count ? ` · ${cloud.count}` : "")]] as const).map(([id, label]) =>
-        h("button", { class: rdm.tab === id ? "rec-chip on dvc-tab" : "rec-chip dvc-tab", text: label,
-          onclick: (e: Event) => { e.stopPropagation(); rdm.tab = id; swap(); State.notify(); } })))
-    : null;
   const cloudError = cloud.on && cloud.error ? h("div", { class: "notion-note bad", text: cloud.error }) : null;
-  const card = h("div", { class: "int-card notion-card" }, head, tabs, cloudError);
-  // The tab shown, swapped in place (the card is not rebuilt for it).
-  const swap = () => {
-    for (const el of [search, body, msg]) el.remove();
-    card.querySelector(".dvc-view")?.remove();
-    card.querySelectorAll(".dvc-tab").forEach((b, i) => b.classList.toggle("on", (i === 0) === (rdm.tab === "list")));
-    if (rdm.tab === "cloud") card.append(dvcView());
-    else card.append(search, body, msg);
+  const card = h("div", { class: cloud.on ? "int-card notion-card rdm-cloud" : "int-card notion-card" }, head, cloudError, search);
+  // With the cloud, the search's results while something is typed, its
+  // folders otherwise; swapped in place (the card is not rebuilt for it).
+  const place = () => {
+    const showCloud = cloud.on && !rdm.query.trim();
+    const view = cloud.on ? dvcView() : null;
+    if (showCloud && view) {
+      body.remove();
+      if (view.parentElement !== card) card.insertBefore(view, msg.parentElement === card ? msg : null);
+    } else {
+      view?.remove();
+      if (body.parentElement !== card) card.insertBefore(body, msg.parentElement === card ? msg : null);
+    }
+    if (msg.parentElement !== card) card.append(msg);
   };
-  rdm.swap = swap;
-  swap();
-  if (rdm.query && rdm.tab === "list") window.setTimeout(() => { if (search.isConnected) search.focus(); }, 0);
+  rdm.redraw = () => { place(); draw(); };
+  rdm.redraw();
+  if (rdm.query) window.setTimeout(() => { if (search.isConnected) search.focus(); }, 0);
   return card;
 }

@@ -33,7 +33,7 @@ If your entries live in a **Devolutions Cloud** (or Hub) vault that RDM's module
 2. Copy **Application Key** and **Application Secret** (the Secret is shown only once).
 3. In **Settings → Remote Desktop Manager** choose “Devolutions Cloud: Used”, paste the workspace address (the one in the browser's address bar), Key and Secret, press **Test**, then **Sync**.
 
-The RDM tab gets **Devolutions Cloud**: the vaults' folders with connections, credentials and password lists.
+From then on the RDM tab shows **only Devolutions Cloud** (no longer the list read with the module): the search on top, below it the vaults' folders with connections, credentials and password lists, scrolling inside the tab.
 - **Details** of an entry: user, domain, host, description; of the password only its length.
 - **Copy password** puts it on the **clipboard**, out of the Windows history and EasyIsland's Clipboard, and **empties it after 30 seconds** (unless you copied something else meanwhile). The password never shows on screen or in the chat.
 - **+ Credential** and **+ Password list from this folder** (joins the folder's credentials into a “Password List” entry): first a **preview**, then **Confirm and create**; EasyIsland reads the entry back and tells you whether users and passwords match. It never deletes anything.

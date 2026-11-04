@@ -6602,9 +6602,19 @@ html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-inpu
 .teams-btn.zm-send.red { background: #f4505e; color: #2a0508; }
 
 /* Devolutions Cloud in the RDM card (views/dvc.ts). */
-.dvc-tabs { display: flex; gap: 6px; margin: 2px 0 6px; }
-.rec-chip.dvc-tab.on { background: rgba(232, 84, 42, 0.18); border-color: rgba(232, 84, 42, 0.55); color: var(--ink); }
-.dvc-view { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+/* The cloud's folders scroll inside the card; their rows keep their height. */
+.dvc-view { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 10px; }
+.dvc-view > * { flex-shrink: 0; }
+.rdm-cloud > .notion-search { margin-bottom: 6px; }
+/* RDM with Devolutions Cloud: as tall as the island, like Zammad, so the
+   folders (or the search's results) scroll inside instead of being cut off. */
+.view:has(.rdm-cloud), .view:has(.rdm-cloud) .left, .view:has(.rdm-cloud) .card, .view:has(.rdm-cloud) .left-body { height: 100%; min-height: 0; box-sizing: border-box; }
+.view:has(.rdm-cloud) .card, .view:has(.rdm-cloud) .left-body { display: flex; flex-direction: column; }
+.view:has(.rdm-cloud) .left-body { justify-content: flex-start; }
+.rdm-cloud { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.rdm-cloud > .notion-body { flex: 1 1 auto; }
+.rdm-cloud > * { flex-shrink: 0; }
+.rdm-cloud > .dvc-view, .rdm-cloud > .notion-body { flex-shrink: 1; }
 .dvc-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 4px; font: 500 calc(11.5px + var(--fs-up, 0px)) var(--font); color: var(--ink); }
 .dvc-crumbs .link-btn { padding: 0; }
 .dvc-sep { color: #8e939c; }

@@ -1564,7 +1564,8 @@ function rdmRows(): HTMLElement {
       line(!!s.pwsh, t("PowerShell 7"), s.pwsh ?? t("manca: serve per leggere l'elenco"), s.pwsh ? undefined : "winget install Microsoft.PowerShell"),
       line(!!s.module, t("Modulo di Devolutions"), s.module ? `Devolutions.PowerShell ${s.module}` : t("manca: da installare in PowerShell 7, della stessa versione di RDM"),
         s.module || !s.pwsh ? undefined : "Install-Module Devolutions.PowerShell -Scope CurrentUser"),
-      line(s.count > 0 ? true : s.listError ? false : null, t("Elenco"),
+      // With Devolutions Cloud the module's list is not read (rdm.rs refresh): only the cloud's line.
+      c.dvcOn ? "" : line(s.count > 0 ? true : s.listError ? false : null, t("Elenco"),
         s.count > 0
           ? t("{n} connessioni da «{ds}»", { n: s.count, ds: s.dataSource ?? "RDM" }) + (s.at ? " · " + t("sincronizzato il {d}", { d: new Date(s.at * 1000).toLocaleString() }) : "") + (s.listError ? " · " + s.listError : "")
           : s.listError ?? t("non ancora sincronizzato")),
@@ -1646,14 +1647,14 @@ function rdmRows(): HTMLElement {
     cloud,
     h("div", { class: "row" }, reread, h("span", { class: "hint note", text: t("l'elenco resta su questo PC, cifrato per il tuo utente Windows: si aggiorna solo quando premi Sincronizza") })),
     h("div", { class: "row" }, h("label", { style: "min-width:104px", text: t("Origine dati") }), source, load, sourceNote),
-    h("div", { class: "hint", text: t("Con più origini (il tuo file, il server dei colleghi…) scegli quale leggere. Ognuno legge con i propri permessi di RDM: un collega vede solo ciò che vede in RDM. Se l'origine chiede un accesso o un secondo fattore, aprila prima in RDM e salva le credenziali.") }),
+    h("div", { class: "hint rdm-module-only", text: t("Con più origini (il tuo file, il server dei colleghi…) scegli quale leggere. Ognuno legge con i propri permessi di RDM: un collega vede solo ciò che vede in RDM. Se l'origine chiede un accesso o un secondo fattore, aprila prima in RDM e salva le credenziali.") }),
   );
   void checkAll();
   // «Devolutions Cloud» chosen or not just above: its rows follow.
   let wasOn = !!c.dvcOn;
   const watch = window.setInterval(() => {
     if (!box.isConnected) { window.clearInterval(watch); return; }
-    if (!!c.dvcOn !== wasOn) { wasOn = !!c.dvcOn; void checkCloud(); }
+    if (!!c.dvcOn !== wasOn) { wasOn = !!c.dvcOn; void checkAll(); }
   }, 800);
   return box;
 }

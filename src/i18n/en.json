@@ -4433,6 +4433,7 @@
   "+ Lista password da questa cartella": "+ Password list from this folder",
   "Lista Password": "Password List",
   "Connessioni": "Connections",
+  "{n} voci": "{n} entries",
   "Devolutions Cloud": "Devolutions Cloud",
   "Scrivi l'indirizzo di Devolutions Cloud (https://…) in Impostazioni → Remote Desktop Manager": "Enter the Devolutions Cloud address (https://…) in Settings → Remote Desktop Manager",
   "Incolla Application Key e Application Secret in Impostazioni → Remote Desktop Manager": "Paste Application Key and Application Secret in Settings → Remote Desktop Manager",
