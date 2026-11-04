@@ -1120,10 +1120,8 @@ pub async fn tool_ask(app: &AppHandle, args: &Value) -> Result<String, String> {
     let items: Vec<String> = args.get("items").and_then(Value::as_array).map(|a| {
         a.iter().filter_map(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).take(40).map(|s| s.chars().take(1200).collect()).collect()
     }).unwrap_or_default();
-    let listed = items.iter().enumerate().map(|(i, s)| format!("{}. {s}", i + 1)).collect::<Vec<_>>().join("
-");
-    let full = if items.is_empty() { question.to_string() } else { format!("{question}
-{listed}") };
+    let listed = items.iter().enumerate().map(|(i, s)| format!("{}. {s}", i + 1)).collect::<Vec<_>>().join("\n");
+    let full = if items.is_empty() { question.to_string() } else { format!("{question}\n{listed}") };
     note(&id, &tf("Domanda: {q}", &[("q", &full)]));
     let task = update(&app, &id, |t| {
         t.question = question.to_string();

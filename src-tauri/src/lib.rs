@@ -117,6 +117,7 @@ mod win_user;
 mod window_drop;
 mod wss;
 mod zammad;
+mod ticket_advice;
 
 use std::os::windows::process::CommandExt;
 use std::process::Command;
@@ -2088,6 +2089,29 @@ async fn zammad_search(query: String) -> Result<Vec<zammad::TicketHit>, String> 
 #[tauri::command]
 async fn zammad_prepare(id: i64) -> Result<zammad::TicketPrep, String> {
     zammad::prepare(id).await
+}
+
+/// «Consiglio IA»: the ticket's advice (checked for news, rewritten in the background if any).
+#[tauri::command]
+async fn ticket_advice_get(app: AppHandle, id: i64) -> Option<ticket_advice::Entry> {
+    ticket_advice::check(&app, id).await
+}
+
+/// «Consiglio IA» in the chat: the question for it, then its first reply kept.
+#[tauri::command]
+fn ticket_advice_question() -> String {
+    ticket_advice::question()
+}
+
+#[tauri::command]
+async fn ticket_advice_save(app: AppHandle, id: i64, text: String) -> Result<ticket_advice::Entry, String> {
+    ticket_advice::save_from_chat(&app, id, &text).await
+}
+
+/// «Aggiorna» on the advice: rewritten now, in the background.
+#[tauri::command]
+fn ticket_advice_refresh(app: AppHandle, id: i64) -> bool {
+    ticket_advice::start(&app, id, "manual")
 }
 
 /// The Zammad card: the overviews and the tickets of one.
@@ -4179,6 +4203,10 @@ pub fn run() {
             memory_window_select,
             zammad_search,
             zammad_prepare,
+            ticket_advice_get,
+            ticket_advice_question,
+            ticket_advice_save,
+            ticket_advice_refresh,
             zammad_tickets,
             zammad_ticket,
             zammad_set,
@@ -4453,6 +4481,7 @@ pub fn run() {
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             barsys::start(handle.clone());
             news::start(handle.clone());
+            ticket_advice::start_watch(handle.clone());
             giornata::start(handle.clone());
             island::spawn_fullscreen_watch(handle.clone(), gate.clone());
             island::spawn_drag_raise(handle.clone(), gate.clone());

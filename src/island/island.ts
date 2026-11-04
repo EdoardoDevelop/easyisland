@@ -1126,14 +1126,31 @@ ${note}` : text };
     this.setView("remember");
   }
 
-  /** «Prepara» on a ticket of mine: the chat opens at once, the question goes when Zammad answered. */
-  async prepareTicket(m: { id: number; title: string }) {
+  /**
+   * «Prepara» on a ticket of mine: the chat opens at once, the question goes when Zammad answered.
+   * From the Zammad card: «Consiglio IA» (its first reply is kept as the ticket's
+   * advice, ticket_advice.rs) or «Parlane in chat» (the advice attached, the user asks).
+   */
+  async prepareTicket(m: { id: number; title: string; mode?: "advice" | "talk"; advice?: string }) {
     this.startChat("", { label: m.title, text: t("Raccolgo il ticket, la pagina del cliente e i ticket simili…") }, false);
     try {
       const prep = await Bridge.zammadPrepare(m.id);
       if (State.view !== "prompt" || State.chatHistory.length) return;
+      if (m.mode === "talk") {
+        State.chatText = { label: prep.label, text: `${prep.context}\n\n${t("Consiglio dell'IA su questo ticket:")}\n${m.advice ?? ""}` };
+        State.notify();
+        return;
+      }
       State.chatText = { label: prep.label, text: prep.context };
       State.notify();
+      if (m.mode === "advice") {
+        const question = await Bridge.ticketAdviceQuestion();
+        onNextReply((text) => {
+          if (text?.trim()) void Bridge.ticketAdviceSave(m.id, text).catch((e) => this.note(String(e).replace(/^Error:\s*/, ""), "prompt"));
+        });
+        sendToChat(question);
+        return;
+      }
       sendToChat(prep.question);
     } catch (e) {
       State.chatText = null;

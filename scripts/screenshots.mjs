@@ -89,6 +89,7 @@ const SHOTS = {
   // The Zammad card: the tickets, and one open with its messages (dev/scenes.ts `zammad`).
   zammad: { url: `/?scene=zammad&islandHeight=560&activeIntegrations=${PILLS}` },
   "zammad-ticket": { url: `/?scene=zammad&email&islandHeight=640&activeIntegrations=${PILLS}` },
+  "zammad-consiglio": { url: `/?scene=zammad&open&consiglio&islandHeight=640&activeIntegrations=${PILLS}` },
   // Every character but the cube, without the island (dev/characters.html).
   characters: { url: "/dev/characters.html" },
   // Whole windows, not an island.

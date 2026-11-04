@@ -317,6 +317,15 @@ fn closed_state(ticket: &Value) -> bool {
     state.contains("closed") || state.contains("chius")
 }
 
+/// How many messages ticket `id` has, whether it is closed, and "#number
+/// title — who": the advice follows it with this (ticket_advice.rs).
+pub async fn stamp(id: i64) -> Result<(u64, bool, String), String> {
+    let z = Conn::open()?;
+    let ticket = get_json(&z.c, &format!("{}/api/v1/tickets/{id}?expand=true", z.base), &z.token).await?;
+    let articles = ticket.get("article_count").and_then(Value::as_u64).unwrap_or(0);
+    Ok((articles, closed_state(&ticket), expanded_title(&ticket)))
+}
+
 /// «Prepara» on ticket `id`.
 pub async fn prepare(id: i64) -> Result<TicketPrep, String> {
     let z = Conn::open()?;

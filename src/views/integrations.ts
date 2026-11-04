@@ -16,7 +16,7 @@ import { TEAMS, teamsCard } from "./teams";
 import { RECORDER, recorderCard } from "./recorder";
 import { REMOTE, remoteCard } from "./remote";
 import { AGENTCHAT, agentchatCard } from "./agentchat";
-import { ZAMMAD, zammadCard } from "./zammad";
+import { ZAMMAD, zammadCard, type TicketAsk } from "./zammad";
 import { weatherCard } from "./weather";
 import { notionPageActive, notionPageCard, openNotionPage, type NotionRefLite } from "./notionpage";
 import { netConfigCard, pingRow, resetNetConfig } from "./netconfig";
@@ -956,7 +956,7 @@ export interface IntegrationCardHooks {
   holdOpen(on: boolean): void;
   showNotice(n: Notice): void;
   /** Zammad: «Prepara» on a ticket in the chat (island.ts prepareTicket). */
-  prepareTicket(m: { id: number; title: string; url: string }): void;
+  prepareTicket(m: TicketAsk): void;
 }
 
 /** True when this integration has data worth showing instead of the idle card. */

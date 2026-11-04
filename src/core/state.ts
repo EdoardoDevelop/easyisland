@@ -352,7 +352,9 @@ export type Moment =
   /** A 3CX call answered and ended: «Annota» what was said (into the memory). */
   | { kind: "call"; name: string; number: string; incoming: boolean; seconds: number }
   /** A Zammad ticket newly assigned to me: «Prepara» (customer, similar tickets, a draft). */
-  | { kind: "ticket"; id: number; title: string; url: string }
+  | { kind: "ticket"; id: number; title: string; url: string;
+      /** From the Zammad card: «Consiglio IA» (its first reply kept as the advice) or a talk about the advice. */
+      mode?: "advice" | "talk"; advice?: string }
   /** Agent Chat (agentchat.rs): an agent wrote to the user, or a limit stopped EasyIsland there. */
   | { kind: "agentchat"; title: string; text: string; url: string }
   /** A card from Claude Code (`show_card`): waits for a button. */

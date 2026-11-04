@@ -615,6 +615,11 @@ export const Bridge = {
   zammadSearch: (query: string) => call<TicketHit[]>("zammad_search", { query }),
   /** «Prepara» on a ticket: the customer's page, similar tickets, the question (zammad.rs `prepare`). */
   zammadPrepare: (id: number) => callOrThrow<{ label: string; context: string; question: string }>("zammad_prepare", { id }),
+  /** «Consiglio IA» of a ticket (ticket_advice.rs): checked for news, rewritten in the background if any. */
+  ticketAdviceGet: (id: number) => call<TicketAdvice | null>("ticket_advice_get", { id }),
+  ticketAdviceQuestion: () => callOrThrow<string>("ticket_advice_question"),
+  ticketAdviceSave: (id: number, text: string) => callOrThrow<TicketAdvice>("ticket_advice_save", { id, text }),
+  ticketAdviceRefresh: (id: number) => call<boolean>("ticket_advice_refresh", { id }),
   /** The Zammad card: the overviews and the tickets of `view` (zammad.rs `tickets`). */
   zammadTickets: (view: string | null) => callOrThrow<ZammadList>("zammad_tickets", { view }),
   zammadTicket: (id: number) => callOrThrow<ZammadTicket>("zammad_ticket", { id }),
@@ -907,6 +912,25 @@ export interface ZammadArticle {
 }
 
 /** A Zammad ticket opened in the card (zammad.rs TicketDetail). */
+/** One version of a ticket's advice (ticket_advice.rs). */
+export interface TicketAdviceVersion {
+  at: string;
+  text: string;
+  articles: number;
+  /** "chat", "news", "manual". */
+  why: string;
+}
+
+export interface TicketAdvice {
+  id: number;
+  title: string;
+  current: TicketAdviceVersion | null;
+  history: TicketAdviceVersion[];
+  closed: boolean;
+  error: string;
+  updating: boolean;
+}
+
 export interface ZammadTicket {
   id: number; number: string; title: string; url: string;
   customer: string; org: string; group: string;

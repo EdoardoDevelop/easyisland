@@ -873,6 +873,21 @@ export async function runScene(island: Island, scene: string) {
           return { ...detail, articles: [...detail.articles] };
         },
         widgetRefresh: async () => {},
+        // &consiglio: the ticket's «Consiglio IA» with one older version (ticket_advice.rs).
+        ticketAdviceGet: async (id: number) => q.has("consiglio") ? {
+          id, title: detail.title, closed: false, error: "", updating: false,
+          current: { at: "2026-11-04 09:40", why: "news", articles: 4, text: [
+            "Novità: il cliente conferma che la stampante è in rete ma non stampa dal gestionale.", "",
+            "Situazione", "La stampante della farmacia non riceve i lavori da WinFarm dopo il cambio del router; dal PC stampa la pagina di prova.", "",
+            "Cosa fare", "1. Controllare che l'IP della stampante non sia cambiato (il nuovo router assegna gli indirizzi da 192.168.1.100).",
+            "2. Fissare l'IP nel router o sulla stampante e aggiornare la porta in Windows.",
+            "3. Come nel ticket #30871 (Comunale 2): in WinFarm reimpostare la stampante predefinita.", "",
+            "Bozza di risposta", "Buongiorno, grazie della conferma. Ci colleghiamo tra poco per fissare l'indirizzo della stampante: non serve che facciate nulla.",
+          ].join("\n") },
+          history: [{ at: "2026-11-03 16:12", why: "chat", articles: 2,
+            text: ["Situazione", "La stampante non stampa da WinFarm.", "", "Cosa fare", "1. Chiedere se stampa la pagina di prova.", "2. Controllare la coda di stampa."].join("\n") }],
+        } : null,
+        ticketAdviceRefresh: async () => true,
       });
       State.widgetStatus.integration_zammad = {
         id: "integration_zammad", level: "ok", at: Math.floor(Date.now() / 1000) - 40,

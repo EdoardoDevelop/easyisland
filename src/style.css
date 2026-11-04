@@ -6574,6 +6574,18 @@ html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-inpu
 .teams-btn.light.zm-mini, .teams-btn.light.zm-send { background: #F59E0B; color: #2a1a02; }
 .zm-saved { min-height: 0; font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font); color: #6ee7b7; }
 .zm-saved:empty { display: none; }
+/* «Consiglio IA» (zammad.ts adviceBox, ticket_advice.rs): above the messages. */
+.zm-advice { flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; margin: 6px 0 4px; padding: 8px 10px; border-radius: 10px; background: rgba(250, 204, 21, 0.07); border: 1px solid rgba(250, 204, 21, 0.25); }
+.zm-advice.wait { font: 400 calc(11.5px + var(--fs-up, 0px)) var(--font); color: var(--dim); }
+.zm-advice-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.zm-advice-title { padding: 0; font: 600 calc(12px + var(--fs-up, 0px)) var(--font); color: #fde68a; }
+.zm-advice-sub { font: 400 calc(10.5px + var(--fs-up, 0px)) var(--font); color: #8e939c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.zm-advice-text { white-space: pre-wrap; overflow-wrap: anywhere; font: 400 calc(12px + var(--fs-up, 0px))/1.45 var(--font); color: var(--ink); user-select: text; }
+.zm-advice-text.folded { max-height: 9.2em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
+.zm-advice-more { align-self: flex-start; padding: 0; }
+.zm-advice-history { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 6px; }
+.zm-advice-old summary { cursor: default; font: 400 calc(11px + var(--fs-up, 0px)) var(--font); color: #8e939c; }
+.zm-advice-old .zm-advice-text { margin: 4px 0 6px 12px; color: var(--dim); }
 .zm-saved.bad { color: #fca5a5; }
 .zm-thread { flex: 1 1 auto; min-height: 90px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; }
 #island.popwin .zm-thread { min-height: 70px; }
