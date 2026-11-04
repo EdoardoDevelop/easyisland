@@ -118,6 +118,7 @@ mod window_drop;
 mod wss;
 mod zammad;
 mod ticket_advice;
+mod chatpaths;
 
 use std::os::windows::process::CommandExt;
 use std::process::Command;
@@ -2962,6 +2963,18 @@ fn file_open(path: String, reveal: bool) -> Result<(), String> {
     spawned.map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// The chat's reply names these paths: which exist, and where (chatpaths.rs).
+#[tauri::command]
+fn paths_info(app: AppHandle, paths: Vec<String>) -> Vec<chatpaths::PathInfo> {
+    chatpaths::infos(&app, &paths)
+}
+
+/// A path of a reply: "open", "reveal" or "download" (a copy in Downloads).
+#[tauri::command]
+fn path_action(app: AppHandle, path: String, action: String) -> Result<String, String> {
+    chatpaths::act(&app, &path, &action)
+}
+
 /// "Estrai…" on a dropped ZIP: what is inside.
 #[tauri::command]
 async fn zip_list(path: String) -> Result<zip::ZipInfo, String> {
@@ -4204,6 +4217,8 @@ pub fn run() {
             zammad_search,
             zammad_prepare,
             ticket_advice_get,
+            paths_info,
+            path_action,
             ticket_advice_question,
             ticket_advice_save,
             ticket_advice_refresh,

@@ -4497,5 +4497,13 @@
   "Consiglio non salvato.": "Advice not saved.",
   "[Ticket, pagina del cliente nella memoria e ticket simili]": "[Ticket, the customer's page in the memory and similar tickets]",
   "Il tuo consiglio precedente (del {at}, quando il ticket aveva {n} messaggi):\n{text}\n\n": "Your previous advice (of {at}, when the ticket had {n} messages):\n{text}\n\n",
-  "Aggiorna il consiglio con le novità del ticket (i messaggi arrivati dopo): in testa una riga «Novità: …» con cosa è cambiato, poi il consiglio intero aggiornato, con gli stessi titoli. Se le novità non cambiano niente, dillo nella riga Novità e ripeti il consiglio.": "Update the advice with the ticket's news (the messages that came after): at the top a line \"News: …\" with what changed, then the whole advice updated, with the same headings. If the news changes nothing, say so in the News line and repeat the advice."
+  "Aggiorna il consiglio con le novità del ticket (i messaggi arrivati dopo): in testa una riga «Novità: …» con cosa è cambiato, poi il consiglio intero aggiornato, con gli stessi titoli. Se le novità non cambiano niente, dillo nella riga Novità e ripeti il consiglio.": "Update the advice with the ticket's news (the messages that came after): at the top a line \"News: …\" with what changed, then the whole advice updated, with the same headings. If the news changes nothing, say so in the News line and repeat the advice.",
+  "Apri percorso": "Open location",
+  "Non c'è più: {p}": "No longer there: {p}",
+  "Cartella: {p} · clic per aprirla, tasto destro per altro": "Folder: {p} · click to open it, right-click for more",
+  "{p} · clic per vederlo, tasto destro per altro": "{p} · click to see it, right-click for more",
+  "«{p}» non c'è più.": "«{p}» is no longer there.",
+  "Si scaricano solo i file, non le cartelle.": "Only files can be downloaded, not folders.",
+  "Cartella Download non trovata.": "Downloads folder not found.",
+  "Copia non riuscita: {e}": "Copy failed: {e}"
 }

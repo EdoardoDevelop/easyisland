@@ -37,6 +37,11 @@ Attachments appear **inside the field**, above the text: 📄 a file, 📁 a fol
 
 Images go to models that can read them, text files into the message, PDFs to Claude.
 
+### Files and folders in the replies
+The files and folders the chat names in its replies become **links**: full paths (`C:\…`, `\\server\…`), in backticks, also relative to the chat's folder, or as links; a `:line` at the end is fine. Only those that **exist** become links; one that is no longer there stays grey and struck through.
+- **Click**: a file the Preview can show (text, code, Markdown, PDF, images, HTML…) opens **in the Preview** beside the chat; the others, and with <kbd>Ctrl</kbd>+click, in their program. A **folder** 📁 opens in File Explorer.
+- **Right-click**: **Open** (in its program), **Preview**, **Download** (a copy in the Downloads folder, which opens with the file selected), **Open location** (File Explorer with the file selected), **Copy path**.
+
 ## / commands
 Type `/` and pick from the menu (arrows, <kbd>Tab</kbd> or <kbd>Enter</kbd>):
 

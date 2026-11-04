@@ -134,12 +134,6 @@ Notebook spesso spento; VPS con Windows 11 in Docker sempre accesa con un second
 - **Telegram:** un bot per EasyIsland.
 - Da decidere: protocollo (HTTPS o WebSocket con TLS e chiave), frequenza massima per file, come mostrare le pagine arrivate. Ordine: prova Tailscale, abbinamento, sincronizzazione, turni, altro.
 
-## File e cartelle cliccabili nelle risposte della chat (03/11)
-Nelle risposte della chat di EasyIsland i riferimenti a file e cartelle diventano link.
-- **Clic:** se il tipo è compatibile, anteprima nella finestra Anteprima accanto alla chat; se non lo è, si comporta come «Apri».
-- **Clic destro:** menu con «Apri», «Scarica» e «Apri percorso» (la cartella in Esplora file, col file selezionato).
-- Da decidere: quali percorsi riconoscere (assoluti, relativi alla cartella di lavoro o al progetto, `file:riga`), cosa fare se il file non esiste più, cosa fa «Scarica» per un file già sul PC, se vale anche in Agent Chat.
-
 ## Altro
 - **Scheda esatta di Windows Terminal** per «Apri» (titolo della console + UI Automation): per ora non serve.
 - **Clic destro in Esplora file** (deciso l'11/10): voce in `HKCU\Software\Classes\*\shell` scritta dopo conferma; in Windows 11 sotto «Mostra altre opzioni» (il menu nuovo vuole MSIX con `IExplorerCommand`).

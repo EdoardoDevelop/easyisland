@@ -1854,6 +1854,22 @@ input[type="range"]::-webkit-slider-thumb {
   color: #7dd3fc;
 }
 
+/* A folder: a small folder before it. One that is no longer there: grey, not a link. */
+.md-path.md-dir::before {
+  content: "📁 ";
+  font-size: 0.9em;
+}
+
+.md-path.md-missing {
+  cursor: default;
+  text-decoration: line-through rgba(255, 255, 255, 0.25);
+  opacity: 0.55;
+}
+
+.md-path.md-missing:hover {
+  color: inherit;
+}
+
 .md-link {
   color: #7dd3fc;
   text-decoration: none;

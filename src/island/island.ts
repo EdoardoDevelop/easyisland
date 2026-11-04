@@ -31,7 +31,7 @@ import { rdmLookFor } from "../views/rdm";
 import { buildRail, railBotSize } from "../views/rail";
 import { appBarItem, buildStrip, stripItem, type Strip, type StripActions, type StripItem } from "../views/strip";
 import { closeMenu, showMenu, type MenuItem } from "../views/ctxmenu";
-import { chatSideWidth, freshChat, onNextReply, reopenChat, sendToChat, windowLabel } from "../views/chat";
+import { canPreview, chatPathAction, chatSideWidth, freshChat, onNextReply, reopenChat, sendToChat, windowLabel } from "../views/chat";
 import { capturing, startCapture } from "./capture";
 import { addToCollection } from "../views/collect";
 import type { ApprovalInfo, Notice, QuickAction, Settings } from "../core/state";
@@ -2089,6 +2089,24 @@ ${note}` : text };
     const items: MenuItem[] = [];
     let title = "";
     const settingsAt = (page: string, item = "") => () => void Bridge.openSettingsAt(page, item);
+
+    // A file or folder named in a chat reply (core/markdown.ts, chatpaths.rs).
+    const pathEl = el?.closest<HTMLElement>(".md-path[data-path]");
+    if (pathEl && !pathEl.classList.contains("md-missing")) {
+      const path = pathEl.dataset.path ?? "";
+      const target = pathEl.dataset.resolved || path;
+      const dir = pathEl.dataset.kind === "dir";
+      return {
+        title: target.split(/[\\/]/).filter(Boolean).pop() ?? target,
+        items: [
+          { label: t("Apri"), run: () => chatPathAction(path, "open") },
+          ...(!dir && canPreview(target) ? [{ label: t("Anteprima"), run: () => chatPathAction(target, "preview") }] : []),
+          ...(!dir ? [{ label: t("Scarica"), run: () => chatPathAction(path, "download") }] : []),
+          { label: t("Apri percorso"), run: () => chatPathAction(path, "reveal") },
+          { label: t("Copia percorso"), sep: true, run: () => void navigator.clipboard.writeText(target).catch(() => undefined) },
+        ],
+      };
+    }
 
     // Selected text in the island: copy it, or ask about it.
     const sel = window.getSelection()?.toString().trim() ?? "";

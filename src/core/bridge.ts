@@ -688,6 +688,10 @@ export const Bridge = {
   inboxCopy: (name: string) => callOrThrow<void>("inbox_copy", { name }),
   /** A file anywhere (a finished download): open it as Explorer would, or select it there. */
   fileOpen: (path: string, reveal: boolean) => callOrThrow<void>("file_open", { path, reveal }),
+  /** Paths named in a chat reply: which exist, resolved (chatpaths.rs). */
+  pathsInfo: (paths: string[]) => callOrThrow<PathInfo[]>("paths_info", { paths }),
+  /** A path of a reply: open it, show it in Explorer, or copy it into Downloads. */
+  pathAction: (path: string, action: "open" | "reveal" | "download") => callOrThrow<string>("path_action", { path, action }),
   /** Drags a file of the tray out of the island into another app (Windows' own drag); resolves when it is over. */
   inboxDrag: (name: string) => callOrThrow<void>("inbox_drag", { name }),
   /** «Sposta nella cartella di lavoro»: into `dest` (relative), moved or copied. */
@@ -912,6 +916,14 @@ export interface ZammadArticle {
 }
 
 /** A Zammad ticket opened in the card (zammad.rs TicketDetail). */
+/** A path named in a chat reply (chatpaths.rs). */
+export interface PathInfo {
+  path: string;
+  resolved: string;
+  kind: "file" | "dir" | "missing";
+  line: number | null;
+}
+
 /** One version of a ticket's advice (ticket_advice.rs). */
 export interface TicketAdviceVersion {
   at: string;
