@@ -4505,5 +4505,12 @@
   "«{p}» non c'è più.": "«{p}» is no longer there.",
   "Si scaricano solo i file, non le cartelle.": "Only files can be downloaded, not folders.",
   "Cartella Download non trovata.": "Downloads folder not found.",
-  "Copia non riuscita: {e}": "Copy failed: {e}"
+  "Copia non riuscita: {e}": "Copy failed: {e}",
+  "Nascondi la password": "Hide the password",
+  "Mostra la password (per 30 secondi)": "Show the password (for 30 seconds)",
+  "Negli appunti per 30 secondi, fuori dalla cronologia di Windows e dagli Appunti di EasyIsland": "On the clipboard for 30 seconds, out of the Windows history and of EasyIsland's Clipboard",
+  "Apri in RDM": "Open in RDM",
+  "Lista password": "Password list",
+  "Credenziale": "Credential",
+  "Nessun utente né password in questa voce.": "No user or password in this entry."
 }

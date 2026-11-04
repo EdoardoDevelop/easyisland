@@ -475,6 +475,8 @@ export const Bridge = {
   dvcDetails: (vault: string, id: string) => callOrThrow<DvcDetails>("dvc_details", { vault, id }),
   /** The password goes to the clipboard in Rust (private, emptied later): only the seconds come back. */
   dvcCopyPassword: (vault: string, id: string, row: number | null) => callOrThrow<number>("dvc_copy_password", { vault, id, row }),
+  /** The eye on a password in the RDM card: the password, shown there only (dvc.rs reveal). */
+  dvcReveal: (vault: string, id: string, row: number | null) => callOrThrow<string>("dvc_reveal", { vault, id, row }),
   dvcNewCredential: (a: { vault: string; folder: string; name: string; user: string; domain: string; password: string; description: string; confirm: boolean }) =>
     callOrThrow<DvcOutcome>("dvc_new_credential", a),
   dvcNewPasswordList: (a: { vault: string; folder: string; name: string; source: string; recurse: boolean; confirm: boolean }) =>
@@ -871,6 +873,8 @@ export interface DvcItem { id: string; name: string; kind: string; folder: strin
 export interface DvcBrowse { vault: string; path: string; vaults: DvcVault[]; folders: { name: string; path: string; count: number }[]; entries: DvcItem[] }
 export interface DvcDetails {
   name: string; kind: string; cred: string; folder: string; host: string; user: string; domain: string;
+  /** A web entry's address; the credential entry a connection uses. */
+  url?: string; linked?: string;
   /** The password's length: never the password. */
   length: number; description: string;
   rows: { name: string; host: string; user: string; domain: string; length: number; description: string }[];

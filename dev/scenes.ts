@@ -776,6 +776,7 @@ export async function runScene(island: Island, scene: string) {
               : { name: e?.name ?? "", kind: e?.kind ?? "", cred: e?.cred ?? "", folder: e?.folder ?? "", host: e?.host ?? "", user: e?.user ?? "", domain: "", length: 16, description: "Accesso amministrativo", rows: [] };
           },
           dvcCopyPassword: async () => { await wait(200); return 30; },
+          dvcReveal: async () => { await wait(200); return "Fa1ch1!2026"; },
           dvcNewCredential: async (a: { name: string; folder: string; user: string; password: string; confirm: boolean }) => {
             await wait(300);
             if (!a.confirm) return { preview: [`Nuova credenziale «${a.name}» in «${a.folder}»`, `Utente: ${a.user}`, `Password: ${a.password.length} caratteri`], id: "", rows: [] };

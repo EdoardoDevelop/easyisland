@@ -74,6 +74,16 @@ const SHOTS = {
   daily: { url: `/?scene=daily&activeIntegrations=${PILLS}` },
   // RDM with Devolutions Cloud: a customer tied to its folder (dev/scenes.ts `rdm&tied`).
   "rdm-cloud": { url: `/?scene=rdm&tied&islandHeight=560&activeIntegrations=integration_rdm,${PILLS}` },
+  // An entry picked: its pane with user and the password shown with the eye.
+  "rdm-cloud-voce": { url: `/?scene=rdm&tied&islandHeight=560&activeIntegrations=integration_rdm,${PILLS}`,
+    then: `const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      await wait(900);
+      [...document.querySelectorAll(".dvc-folder")].find((x) => x.textContent.includes("COMUNALE"))?.click();
+      await wait(300);
+      [...document.querySelectorAll(".dvc-entry .rdm-row")].find((x) => x.textContent.includes("NAS"))?.click();
+      await wait(400);
+      document.querySelector(".dvc-pane .dvc-eye")?.click();
+      await wait(400);` },
   // A password list's rows, then «+ Lista password» with its preview.
   "rdm-cloud-lista": { url: `/?scene=rdm&tied&islandHeight=640&activeIntegrations=integration_rdm,${PILLS}`,
     then: `const wait = (ms) => new Promise((r) => setTimeout(r, ms));

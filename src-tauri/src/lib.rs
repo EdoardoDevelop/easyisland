@@ -1048,6 +1048,12 @@ async fn dvc_copy_password(vault: String, id: String, row: Option<usize>) -> Res
     dvc::copy_password(&vault, &id, row).await.map(|_| dvc::CLIP_SECONDS)
 }
 
+/// The eye on a password in the RDM card: the password, shown there only.
+#[tauri::command]
+async fn dvc_reveal(vault: String, id: String, row: Option<usize>) -> Result<String, String> {
+    dvc::reveal(&vault, &id, row).await
+}
+
 /// A new credential: `confirm` false = the preview; true = written, read back and checked.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
@@ -4368,6 +4374,7 @@ pub fn run() {
             dvc_browse,
             dvc_details,
             dvc_copy_password,
+            dvc_reveal,
             dvc_new_credential,
             dvc_new_password_list,
             notion_add_note,

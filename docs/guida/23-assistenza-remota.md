@@ -34,7 +34,7 @@ Se le tue voci stanno in un vault di **Devolutions Cloud** (o Hub) che il modulo
 3. In **Impostazioni → Remote Desktop Manager** scegli «Devolutions Cloud: Usato», incolla l'indirizzo del workspace (quello nella barra del browser), Key e Secret, premi **Prova** e poi **Sincronizza**.
 
 Da quel momento la scheda RDM mostra **solo Devolutions Cloud** (non più l'elenco letto con il modulo): in alto la ricerca, sotto le cartelle dei vault con connessioni, credenziali e liste password, che scorrono dentro la scheda.
-- **Dettagli** di una voce: utente, dominio, host, descrizione; della password solo la lunghezza.
+- **Clic su una voce**: sotto l'elenco (o di lato, se la scheda è larga) compare tutto ciò che la riguarda: tipo, cartella, host o indirizzo, **utente**, dominio, **password**, descrizione, le righe di una lista password. La password è nascosta: **👁** la mostra per 30 secondi, **Copia** la mette negli appunti.
 - **Copia password** la mette negli **appunti**, fuori dalla cronologia di Windows e dagli Appunti di EasyIsland, e li **svuota dopo 30 secondi** (se nel frattempo non hai copiato altro). La password non compare mai a schermo né nella chat.
 - **+ Credenziale** e **+ Lista password da questa cartella** (unisce le credenziali della cartella in una voce «Lista Password»): prima un'**anteprima**, poi **Conferma e crea**; EasyIsland rilegge la voce e ti dice se utenti e password tornano. Non elimina mai nulla.
 - **Cliente**: collega un cliente di Zammad o 3CX alla sua cartella. Dal pulsante RDM di un ticket o di una chiamata di quel cliente la scheda si apre direttamente lì.

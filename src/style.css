@@ -6632,8 +6632,36 @@ html[data-font-text-weight] :is(.md, .md p, .md li, .md td, .ac-text, .chat-inpu
 
 /* Devolutions Cloud in the RDM card (views/dvc.ts). */
 /* The cloud's folders scroll inside the card; their rows keep their height. */
-.dvc-view { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 10px; }
-.dvc-view > * { flex-shrink: 0; }
+.dvc-view { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; min-height: 0; overflow: hidden; container-type: inline-size; }
+/* The list, and the pane of the entry picked: below it, beside it when the card is wide. */
+.dvc-split { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; gap: 8px; }
+.dvc-list { display: flex; flex-direction: column; gap: 3px; flex: 1 1 auto; min-height: 90px; overflow-y: auto; padding-bottom: 10px; }
+.dvc-list > * { flex-shrink: 0; }
+.dvc-pane { flex: 0 1 auto; max-height: 55%; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 9px 11px 11px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(232, 84, 42, 0.3); }
+.dvc-pane > * { flex-shrink: 0; }
+@container (min-width: 620px) {
+  .dvc-split.with-pane { flex-direction: row; }
+  .dvc-split.with-pane .dvc-list { flex: 1 1 52%; min-width: 0; }
+  .dvc-split.with-pane .dvc-pane { flex: 1 1 48%; max-height: none; min-width: 0; }
+}
+.dvc-pane-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font: 600 calc(12.5px + var(--fs-up, 0px)) var(--font); color: var(--ink); min-width: 0; }
+.dvc-pane-head b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dvc-pane-head .link-btn { padding: 0 2px; white-space: nowrap; }
+.dvc-close { border: 0; background: none; color: #8e939c; font-size: 12px; padding: 0 2px; cursor: default; }
+.dvc-close:hover { color: var(--ink); }
+.dvc-entry.on > .rdm-row { background: rgba(232, 84, 42, 0.14); }
+.dvc-desc b { white-space: pre-wrap; font-weight: 400; }
+.dvc-secret { display: inline-flex; align-items: center; gap: 8px; min-width: 0; margin-left: auto; }
+.dvc-kv .dvc-secret { margin-left: 0; flex: 1 1 auto; }
+.dvc-pw { color: var(--ink); font-weight: 500; letter-spacing: 1px; min-width: 0; overflow-wrap: anywhere; }
+.dvc-pw.shown { letter-spacing: 0; font-family: Consolas, "Cascadia Mono", monospace; user-select: text; }
+.dvc-secret .link-btn { margin-left: auto; padding: 0; }
+.dvc-eye { border: 0; background: none; padding: 0 2px; font-size: 13px; line-height: 1; opacity: 0.6; cursor: default; filter: grayscale(1); }
+.dvc-eye:hover, .dvc-eye.on { opacity: 1; filter: none; }
+.dvc-row-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.dvc-row-head .link-btn { margin-left: auto; padding: 0; }
+.dvc-pane .dvc-row { flex-direction: column; align-items: stretch; gap: 2px; padding: 4px 0; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.dvc-note { margin-top: 4px; }
 .rdm-cloud > .notion-search { margin-bottom: 6px; }
 /* RDM with Devolutions Cloud: as tall as the island, like Zammad, so the
    folders (or the search's results) scroll inside instead of being cut off. */

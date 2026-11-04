@@ -50,19 +50,49 @@ $list = @(foreach ($v in $vaults) {
 })
 ConvertTo-Json -InputObject ([pscustomobject]@{ vaults = @($vaults | ForEach-Object { [pscustomobject]@{ id = [string]$_.Id; name = [string]$_.Name } }); entries = $list }) -Compress -Depth 4"#;
 
-/// One entry's details: password and rows only as their length.
-const DETAILS: &str = r#"$e = Get-HubEntryResolved -VaultId $env:EASYISLAND_DVC_VAULT -EntryId $env:EASYISLAND_DVC_ENTRY -ResolvePasswords
+/// An entry's user, domain, password and address wherever its type keeps
+/// them: a credential in `Credentials`, an RDP/SSH/web/VNC connection in its
+/// own settings; a connection that uses another credential entry
+/// (`CredentialConnectionID`) reads that one (asked by Edoardo on 4 Nov 2026:
+/// the details showed only the description). Sets `$e`, `$c`, `$cr`, `$k`, `$linked`.
+const CREDS: &str = r#"function Pick($objs, [string[]]$names) {
+  foreach ($o in $objs) {
+    if ($null -eq $o) { continue }
+    foreach ($n in $names) { $p = $o.PSObject.Properties[$n]; if ($p -and $p.Value -is [string] -and $p.Value) { return [string]$p.Value } }
+  }
+  return ''
+}
+function Creds($c) {
+  $parts = @($c.Credentials, $c.RDP, $c.Terminal, $c.Web, $c.WebBrowser, $c.VNC, $c.SSHShell, $c.FTP, $c)
+  [pscustomobject]@{
+    user = Pick $parts @('UserName', 'Username', 'User', 'Login')
+    domain = Pick $parts @('Domain')
+    password = Pick $parts @('Password', 'ClearPassword')
+    url = Pick @($c.Web, $c.WebBrowser, $c) @('URL', 'Url')
+  }
+}
+$e = Get-HubEntryResolved -VaultId $env:EASYISLAND_DVC_VAULT -EntryId $env:EASYISLAND_DVC_ENTRY -ResolvePasswords
 $c = $e.Connection; $cr = $c.Credentials
-$rows = @()
+$k = Creds $c
+$linked = ''
+$lid = [string]$c.CredentialConnectionID
+if (-not $k.user -and -not $k.password -and $lid -and $lid -ne '00000000-0000-0000-0000-000000000000' -and $lid -ne [string]$c.ID) {
+  try {
+    $l = Get-HubEntryResolved -VaultId $env:EASYISLAND_DVC_VAULT -EntryId $lid -ResolvePasswords -ErrorAction Stop
+    $k = Creds $l.Connection; $linked = [string]$l.Connection.Name
+  } catch {}
+}
+"#;
+
+/// One entry's details: password and rows only as their length.
+const DETAILS: &str = r#"$rows = @()
 if ([string]$cr.CredentialType -eq 'PasswordList') {
   $rows = @($cr.PasswordList | ForEach-Object { [pscustomobject]@{ name = [string]$_.Name; host = [string]$_.Host; user = [string]$_.User; domain = [string]$_.Domain; length = ([string]$_.Password).Length; description = [string]$_.Description } })
 }
-ConvertTo-Json -InputObject ([pscustomobject]@{ name = [string]$c.Name; kind = [string]$c.ConnectionType; cred = [string]$cr.CredentialType; folder = [string]$c.Group; host = [string]$c.Host; user = [string]$cr.UserName; domain = [string]$cr.Domain; length = ([string]$cr.Password).Length; description = [string]$c.Description; rows = $rows }) -Compress -Depth 4"#;
+ConvertTo-Json -InputObject ([pscustomobject]@{ name = [string]$c.Name; kind = [string]$c.ConnectionType; cred = [string]$cr.CredentialType; folder = [string]$c.Group; host = [string]$c.Host; url = $k.url; user = $k.user; domain = $k.domain; length = ([string]$k.password).Length; linked = $linked; description = [string]$c.Description; rows = $rows }) -Compress -Depth 4"#;
 
-/// One password (of the entry, or of row EASYISLAND_DVC_ROW of a list), for the clipboard only.
-const PASSWORD: &str = r#"$e = Get-HubEntryResolved -VaultId $env:EASYISLAND_DVC_VAULT -EntryId $env:EASYISLAND_DVC_ENTRY -ResolvePasswords
-$cr = $e.Connection.Credentials
-$p = if ($env:EASYISLAND_DVC_ROW) { $r = @($cr.PasswordList)[[int]$env:EASYISLAND_DVC_ROW]; if ($r) { [string]$r.Password } else { '' } } else { [string]$cr.Password }
+/// One password (of the entry, or of row EASYISLAND_DVC_ROW of a list), for the clipboard or the eye.
+const PASSWORD: &str = r#"$p = if ($env:EASYISLAND_DVC_ROW) { $r = @($cr.PasswordList)[[int]$env:EASYISLAND_DVC_ROW]; if ($r) { [string]$r.Password } else { '' } } else { [string]$k.password }
 ConvertTo-Json -InputObject ([pscustomobject]@{ p = $p }) -Compress"#;
 
 /// A new entry object in folder EASYISLAND_DVC_PARENT (as DevolutionsCloud.psm1 New-DVCEntryObject).
@@ -478,16 +508,16 @@ fn known(vault: &str, id: &str) -> Result<Item, String> {
 /// Name, user, domain, host, description, the password's length; a list's rows likewise.
 pub async fn details(vault: &str, id: &str) -> Result<Value, String> {
     known(vault, id)?;
-    let out = hub(DETAILS, &[("EASYISLAND_DVC_VAULT", vault), ("EASYISLAND_DVC_ENTRY", id)]).await?;
+    let out = hub(&format!("{CREDS}{DETAILS}"), &[("EASYISLAND_DVC_VAULT", vault), ("EASYISLAND_DVC_ENTRY", id)]).await?;
     serde_json::from_str(out.trim()).map_err(|_| t("Risposta di Devolutions Cloud non leggibile.").to_string())
 }
 
-/// The password of an entry (or of row `row` of a list) on the clipboard, private, emptied after CLIP_SECONDS.
-pub async fn copy_password(vault: &str, id: &str, row: Option<usize>) -> Result<(), String> {
+/// The password of an entry (or of row `row` of a list), read right now.
+async fn password_of(vault: &str, id: &str, row: Option<usize>) -> Result<(Item, String), String> {
     let item = known(vault, id)?;
     let row_s = row.map(|r| r.to_string()).unwrap_or_default();
-    let out = hub(PASSWORD, &[("EASYISLAND_DVC_VAULT", vault), ("EASYISLAND_DVC_ENTRY", id), ("EASYISLAND_DVC_ROW", &row_s)]).await?;
-    let mut secret = serde_json::from_str::<Value>(out.trim())
+    let out = hub(&format!("{CREDS}{PASSWORD}"), &[("EASYISLAND_DVC_VAULT", vault), ("EASYISLAND_DVC_ENTRY", id), ("EASYISLAND_DVC_ROW", &row_s)]).await?;
+    let secret = serde_json::from_str::<Value>(out.trim())
         .ok()
         .and_then(|v| v.get("p")?.as_str().map(str::to_string))
         .ok_or_else(|| t("Risposta di Devolutions Cloud non leggibile.").to_string())?;
@@ -495,6 +525,20 @@ pub async fn copy_password(vault: &str, id: &str, row: Option<usize>) -> Result<
     if secret.is_empty() {
         return Err(tf("«{name}» non ha una password salvata.", &[("name", &item.name)]));
     }
+    Ok((item, secret))
+}
+
+/// The eye on a password (asked by Edoardo on 4 Nov 2026): shown in the card
+/// until it hides it again (or 30 s), never logged, never on the clipboard.
+pub async fn reveal(vault: &str, id: &str, row: Option<usize>) -> Result<String, String> {
+    let (item, secret) = password_of(vault, id, row).await?;
+    crate::log::line(format!("dvc: password di «{}» mostrata nella scheda", item.name));
+    Ok(secret)
+}
+
+/// The password of an entry (or of row `row` of a list) on the clipboard, private, emptied after CLIP_SECONDS.
+pub async fn copy_password(vault: &str, id: &str, row: Option<usize>) -> Result<(), String> {
+    let (item, mut secret) = password_of(vault, id, row).await?;
     let result = tauri::async_runtime::spawn_blocking({
         let s = std::mem::take(&mut secret);
         move || {
