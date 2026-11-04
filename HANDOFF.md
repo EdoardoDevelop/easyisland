@@ -50,6 +50,9 @@ Solo lo stato attuale; il funzionamento sta in `docs/` (indice in `CLAUDE.md`).
 ## Registro
 Max 5 voci, la più recente in alto; le vecchie in `docs/archivio/registro.md`.
 
+### 4/11 — Chat: Ferma o «Invia subito» non perdono più la conversazione (`claude/chat-ferma-sessione`)
+La sessione di Claude Code si registrava solo a fine turno: fermato il primo messaggio (anche con «Invia subito»), il successivo ripartiva da zero. Ora `claude_cli::read_lines` la prende dalla riga `init` appena arriva (`init_session`) e il messaggio dopo fa `--resume`; uguale in `antigravity.rs` con `conversation_id`. Provato con `live_kept` sul Claude Code vero (primo messaggio fermato, poi ricorda la parola).
+
 ### 4/11 — Versione 1.0.24
 - Agent Chat: mappa ad argomenti senza IA (`agentchat_map.rs`) nel prompt e `agentchat_topic`; scheda «Argomenti». Ogni PC la costruisce per sé; riassunti IA e mappa sul server non fatti.
 - Zammad «Consiglio IA» (`ticket_advice.rs`), RDM solo dal cloud con pannello e occhio (`dvc.rs` `CREDS`, `dvc_reveal`), ricerca in RDM/3CX dal campo in alto, file cliccabili nella chat (`chatpaths.rs`), controllo della memoria con caselle (`proposals.ts`).
@@ -63,7 +66,3 @@ Tutti i passi di `docs/idee.md` → Devolutions Cloud senza skill né modulo ins
 
 ### 4/11 — Scheda Zammad: ticket, conversazione, risposta, proprietario e stato (`claude/zammad-ticket`)
 Scheda a tutta isola (`src/views/zammad.ts`): viste dell'agente come schede con i conteggi, filtro, righe con stato/cliente/proprietario/priorità; ticket aperto con tutti i messaggi, select Stato (data del promemoria se «in attesa»), Proprietario (tecnici del gruppo, «Assegna a me»), Priorità salvate subito; nota interna o risposta al cliente via email con secondo clic. Rust: `zammad::tickets`, `ticket`, `set`, `reply` (`docs/integrazioni.md` → Scheda Zammad). Provato con test Rust, anteprima `?scene=zammad` (`open`, `email`) e smoke; **non ancora su Zammad vero** (`docs/prove-dal-vivo.md`).
-
-### 3/11 — Mappa della memoria: viste nuove, gruppi, collegamenti giudicati dall'IA (`claude/mappa-memoria`)
-- Viste Galassia, Rete neurale (impulsi su `memory-activity`), Bolle, Raggiera, Fiume, Da dove arriva; gruppi a colori, freschezza, filtri (legenda, periodo, solo sicuri), «Come è collegato a…», doppio clic = messa a fuoco, note sole (`src/memory/`).
-- Collegamenti: forza 1–3, stime più severe (`Rarity`), niente catene di parole rare; «Collega con l'IA» giudica le note e salva `collegamenti.json` (`memory_links.rs`), anche per la copia di lavoro da casa. Provato nell'anteprima con i dati finti e con test Rust; non sulla memoria vera né con un motore vero. `docs/chat.md` → Finestra Memoria.
